@@ -30,7 +30,7 @@
 #include "ckcxla.h"                     /* Character sets */
 
 #ifdef HAVE_LOCALE
-#include <locale.h> 
+#include <locale.h>
 #endif /* HAVE_LOCALE */
 
 #ifdef CK_AUTHENTICATION
@@ -1380,7 +1380,7 @@ findinpath(arg) char * arg;
 
     len = strlen(scriptenv) + strlen(keymapenv) + 3*strlen(startupdir)
         + 3*strlen(inidir) + 3*strlen(zhome()) + 3*strlen(exedir)
-        + (appdata0 ? 3*strlen(appdata0) : 0) 
+        + (appdata0 ? 3*strlen(appdata0) : 0)
         + (appdata1 ? 3*strlen(appdata1) : 0)
         + 6*strlen("SCRIPTS/") + 6*strlen("KEYMAPS/") + 16;
 
@@ -1398,7 +1398,7 @@ findinpath(arg) char * arg;
               startupdir,
               startupdir, "SCRIPTS/",
               startupdir, "KEYMAPS/",
-              appdata1 ? appdata1 : "", 
+              appdata1 ? appdata1 : "",
               appdata1 ? "Kermit 95;" : "",
               appdata1 ? appdata1 : "",
               appdata1 ? "Kermit 95/SCRIPTS/;" : "",
@@ -3734,7 +3734,7 @@ homepath() {
     extern char hompthbuf[];
     extern char * myhome;
     char * h;
-  
+
     /* myhome = SET CD HOME; zhome() uses API to get home directory */
     h = myhome ? myhome : zhome();
     hompthbuf[0] = NUL;
@@ -6816,7 +6816,7 @@ doinput(timo,ms,mp,flags,count)
     if (local) {                        /* In local mode... */
         if ((waiting = ttchk()) < 0) {  /* check that connection is open */
 	    if (!quiet) {
-		if ((!network 
+		if ((!network
 #ifdef TN_COMPORT
 		      || istncomport()
 #endif /* TN_COMPORT */
@@ -7083,7 +7083,7 @@ doinput(timo,ms,mp,flags,count)
 #ifdef IKS_OPTION
                     tx = scriptwrtbuf((USHORT)y);
                     if (tx == 4) {
-                        if (TELOPT_U(TELOPT_KERMIT) && 
+                        if (TELOPT_U(TELOPT_KERMIT) &&
 			    TELOPT_SB(TELOPT_KERMIT).kermit.u_start &&
                             !tcp_incoming
                             ) {
@@ -7287,7 +7287,7 @@ doinput(timo,ms,mp,flags,count)
                     ckstrncpy(matchbuf,ms[y],MATCHBUFSIZ);
                     matchindex = 0;
 		    instatus = INP_OK;  /* Yes, */
-                    x = 1;            
+                    x = 1;
                     break;              /* done. */
                 }
                 mi[y] = i;              /* No, remember match-position */
@@ -7326,7 +7326,7 @@ doinput(timo,ms,mp,flags,count)
 #endif /* OS2 */
 #endif /* NOLOCAL */
 
-		    if ((!network 
+		    if ((!network
 #ifdef TN_COMPORT
 		         || istncomport()
 #endif /* TN_COMPORT */
@@ -8120,7 +8120,7 @@ dokwval(s,sep) char * s, * sep;
     debug(F110,"kwval value",vp,0);
     x = addmac(kw,vp);
     debug(F111,"kwval addmac",kw,x);
-  xdokwval: 
+  xdokwval:
     if (p) free(p);
     return((x < 0) ? "-1" : rc);
 }
@@ -8152,7 +8152,7 @@ isaarray(s) char * s;
 /* J P G D A T E  --  Get "date taken" from JPG file Exif data */
 
 /*
-  This routine doesn't follow the Exif spec, it just hunts for 
+  This routine doesn't follow the Exif spec, it just hunts for
   date-time strings in the first 8K of the JPG and keeps the earliest one.
   Call with file pointer, returns Exif date-time string "yyyy:mm:dd hh:mm:ss"
   or an empty string if none found.
@@ -8199,7 +8199,7 @@ jpgdate(fp) FILE * fp;
 	return("");
     }
     p = (CHAR *) buf;
-    z = p + JPGDATEBUF; 
+    z = p + JPGDATEBUF;
 
     while (p < z) {
 	c = *p++;
@@ -8484,7 +8484,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 #endif /* COMMENT */
     if (cx == FN_CON) {                 /* Contents of variable, unexpanded. */
         char c;
-        int subscript = 0;        
+        int subscript = 0;
         if (!(p = argp[0]) || !*p) {
             failed = 1;
             p = fnval;
@@ -8559,7 +8559,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             } else {			/* Array not declared or element */
                 fnval[0] = NUL;		/* out of range - return null string */
                 p = fnval;		/* fdc 2010-12-30 */
-                goto fnend;	
+                goto fnend;
             }
         } else {
             failed = 1;
@@ -8656,7 +8656,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 	if (argn != old)
 	  debug(F101,"fneval adjusted argn","",argn);
 #endif	/* DEBUG */
-    }	
+    }
 
 /*
   From this point on, bp[0..argn-1] are not NULL and all must be freed
@@ -9079,7 +9079,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 		    i = 0;
 		    while (start >= 0 && j <= desired) {
 			for (i = start;
-			     (i >= 0) && 
+			     (i >= 0) &&
 				 !(k = ckmatch(pat,s+i,inpcas[cmdlvl],1+4));
 			     i--) ;
 			if (k < 1) {	/* No match */
@@ -9102,7 +9102,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 			i = ckmatch(pat,&s[start],inpcas[cmdlvl],1+4);
 			if (i == 0 || j == desired) break;
 			start += i + 1;
-		    }			
+		    }
 		    if (j == desired && i != 0)
 		      i += start;
 		    else
@@ -9131,7 +9131,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             bp[1] = match string (len2)
             bp[2] = replacement string (len3)
             bp[3] = which occurrence (default = all);
-            bp[4] = context sensitive ("word mode")  20171005 
+            bp[4] = context sensitive ("word mode")  20171005
             fnval = p = destination (result) string
       */
         if (argn < 1)                   /* Nothing */
@@ -9182,7 +9182,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             } else {
               ragain:
                 s = bp[0];           /* Point to beginning of source string */
-                                         
+
                 xx = 0;       		/* Match counter */
                 while (*s) {            /* For each character in it...*/
                     /* Compare current segment with target string */
@@ -9201,7 +9201,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                                     if (c != 32 && c != '.')
                                       left = 1;
                                 }
-                                c = *(s+len2); /* Check following char */ 
+                                c = *(s+len2); /* Check following char */
                                 if (c != '.' && (c == SP || c == '\0'))
                                   right = 1;
                             } else if (isalphanum(bp[1])) {
@@ -9240,7 +9240,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                                 ok = 1;          /* OK to replace */
                                 xx++;   /* Count this match */
                             }
-                        } else 
+                        } else
 #endif  /* RPLWORDMODE */
                           xx++;     /* Straight replace - count every match */
 
@@ -10301,7 +10301,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             x = atoi(bp[0]);
         }
 #ifdef COMMENT
-        sprintf(fnval,"%d", (x > 0 && k > 0) || (x < 0 && k < 0) ? k % x : 
+        sprintf(fnval,"%d", (x > 0 && k > 0) || (x < 0 && k < 0) ? k % x :
                 (x == 0 ? 0 : (0 - (k % (-x)))));
 #else
         debug(F111,"rand",ckitoa(x),k);
@@ -10775,7 +10775,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 
 	  /* Element 4 - Permissions string */
 
-#ifdef UNIX	  
+#ifdef UNIX
 	  if (zgfs_link)
 	    s = "lrwxrwxrwx";
 	  else
@@ -10800,7 +10800,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 	  makestr(&(a_ptr[x][5]),s);
 
 	  /* Element 6 - Size in bytes */
-      
+
 #ifdef UNIX /* [fdc] 2021-09-14 only Unix has file links */
 	  s = zgfs_link ? ckitoa((int)strlen((char *)linkname)) : ckfstoa(z);
 #else
@@ -10808,7 +10808,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 #endif /* UNIX */
 	  a_ptr[x][6] = NULL;
 	  makestr(&(a_ptr[x][6]),s);
-	  
+
 	  /* Element 7 - File type */
 
 	  j = 0;
@@ -11905,7 +11905,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 		n = 0;			/* reset space counter */
 		*p++ = *s++;		/* copy char to destination */
 		continue;
-	    }		    
+	    }
 	    if (n++ > 0) {		/* Have blank or tab */
 		s++;			/* don't copy more than one */
 		continue;
@@ -12839,7 +12839,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 			goto fnend;
 		    }
 		}
-	    } 
+	    }
 	}
       picend:
 
@@ -12926,7 +12926,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 	    /* NOTE: This is vulnerable to SIGINT and whatnot... */
 	    int tmp = vareval;		/* Save VARIABLE-EVALUATION setting */
 	    vareval = 1;		/* Force it to RECURSIVE */
-	    zzstring(bp[0],&s,&n);	/* Expand arg into result space */ 
+	    zzstring(bp[0],&s,&n);	/* Expand arg into result space */
 	    vareval = tmp;		/* Restore VARIABLE-EVALUATION */
 	}
 	goto fnend;
@@ -12934,16 +12934,16 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 
     if (cx == FN_XLATE) {		/* f_cvtcset() */
 #ifdef NOFRILLS
-	ckstrncpy(fnval,bp[0],FNVALL);	
+	ckstrncpy(fnval,bp[0],FNVALL);
 #else
 #ifndef NOUNICODE
 	_PROTOTYP( char * cvtstring, (char *, int, int) );
         char * string, * cset1, * cset2;
 	int id1, id2;
 #endif	/* NOUNICODE */
-        fnval[0] = NUL;	
+        fnval[0] = NUL;
 #ifdef NOUNICODE
-	ckstrncpy(fnval,bp[0],FNVALL);	
+	ckstrncpy(fnval,bp[0],FNVALL);
 #else
         string = bp[0] ? bp[0] : "";	/* String to convert */
 	if (!*string) goto fnend;	/* It's empty */
@@ -13069,8 +13069,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 		if (argn > 4) {
 		    s = *(bp[4]) ? evalx(bp[4]) : "-1";	/* -1 = whole thing */
 		    if (chknum(s)) len = atoi(s);
-		}		
-	    }        
+		}
+	    }
 	}
 	if (start > 0) start--; 	/* start is 0-based internally */
 	s1 = bp[0];			/* Get length of first arg */
@@ -14245,7 +14245,7 @@ char *                                  /* Evaluate builtin variable */
               }
 #endif /* Not VMS */
         }
-        makestr(&tempdir,p); /* Save result where we can find it next time */ 
+        makestr(&tempdir,p); /* Save result where we can find it next time */
         return(vvbuf);
     }
     /* Break up long switch statements... */
@@ -15305,7 +15305,7 @@ char *                                  /* Evaluate builtin variable */
       case VN_LOG_CON:			/* \v(...) for log files */
 #ifdef CKLOGDIAL
         return(diafil);
-#else 
+#else
         return("");
 #endif
       case VN_LOG_PKT:
@@ -15869,7 +15869,7 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
 #endif /* DEBUG */
 	    {
 	     /* In case the function name itself is constructed */
-		char buf[64]; char * p = buf; int n = 64; 
+		char buf[64]; char * p = buf; int n = 64;
 		if (zzstring(vnambuf,&p,&n) > -1)
 		  ckstrncpy(vnambuf,buf,64);
 	    }
@@ -15968,7 +15968,7 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
                 vp = getenv(vnambuf);   /* This way for environment variable */
             } else if (x == 'm' || x == 's' || x == ':') { /* Macro / substr */
                 int k, x1 = -1, x2 = -1;
-		char c = NUL; 
+		char c = NUL;
                 k = strlen(vnambuf);
                 /* \s(name[n:m]) -- Compact substring notation */
                 if ((x == 's' || x == ':') && (k > 1)) { /* Substring wanted */
