@@ -8299,7 +8299,7 @@ shossh() {
 static int set_ssh_iparam_on(int param) {
     int value;
     int success = seton(&value);
-    if (!success) return success;
+    if (success < 0) return success;
     return ssh_set_iparam(param, value);
 }
 #endif
