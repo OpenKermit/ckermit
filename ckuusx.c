@@ -1909,6 +1909,8 @@ scanfile(name,flag,nscanfile) char * name; int * flag, nscanfile;
 
 #ifdef UNICODE
     x = eightbit ? bytes / 20 : bytes / 4; /* For UCS-2... */
+    if (x < 2) x = 2;
+
 
     if (runmax > 2) {			/* File has run of more than 2 NULs */
 	debug(F100,"scanfile BIN runmax","",0);
