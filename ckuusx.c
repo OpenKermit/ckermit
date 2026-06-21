@@ -1157,50 +1157,75 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.html","*.htm","*.mss","*.tex","*.nr","[Mm]akefile", "*.hex", "*.hqx",
     "*.for","*.f77","*.f","*.F","*.s","*.pas","*.java","*.el","*.lisp","*.sh",
     "*.m4","*.perl","*.pl","*.pod","*.pm","*.awk","*.sno","*.spt","*.sed",
-    "*.ksc","*.TXT", "*read.me", "*READ.ME", ".*", "*/.*", "*.mem","*.mac",
+    "*.TXT", "*read.me", "*READ.ME", ".*", "*/.*", "*.mem","*.mac",
+    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
     {					/* WIN32 */
     "*.txt","*.ksc","*.htm","*.html","*.bat","*.cmd","*.jav","*.asm", "*.hex",
-    "*.hqx", "*.c", "*.h", "*.cpp", "*.hpp", "*.cxx", "*.cxx", "*.w",
+    "*.hqx", "*.c", "*.h", "*.cpp", "*.hpp", "*.cxx", "*.w",
     "*.java", "*.bwr", "*.upd", "*.mak", "read.me", "*.map", "makefile",
-    "*.mem","*.mac","*.cc","*.pl","*.pod","*.pm","*.m4",NULL
+    "*.mem","*.mac","*.cc","*.pl","*.pod","*.pm","*.m4",
+    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
+    NULL
     },
     {					/* VMS */
     "*.com","*.txt","*.c",  "*.for","*.pas","*.rno","*.rnh","*.mar","*.bli",
     "*.hlp","*.mss","*.doc","*.bwr","*.cld","*.hex","*.bas","*.ini","*.log",
     "*.mms","*.opt","*.ksc","*.perl","*.pl","*.pod","*.pm","*.sno","*.spt",
-    "*.mem",NULL
+    "*.mem",
+    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
+    NULL
     },
     {					/* OS2 */
     "*.txt","*.ksc","*.htm","*.html","*.bat","*.cmd","*.jav","*.asm", "*.hex",
-    "*.hqx", "*.c", "*.h", "*.cpp", "*.hpp", "*.cxx", "*.cxx", "*.w",
+    "*.hqx", "*.c", "*.h", "*.cpp", "*.hpp", "*.cxx", "*.w",
     "*.java", "*.bwr", "*.upd", "*.mak", "read.me", "*.map", "makefile",
+    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
     {					/* DOS */
     "*.txt","*.ksc","*.htm","*.bat","*.cmd","*.jav","*.asm", "*.hex",
-    "*.hqx", "*.c", "*.h", "*.cpp", "*.hpp", "*.cxx", "*.cxx", "*.w",
-    "*.bwr", "*.upd", "*.mak", "read.me", "*.map", "makefile", NULL
+    "*.hqx", "*.c", "*.h", "*.cpp", "*.hpp", "*.cxx", "*.w",
+    "*.bwr", "*.upd", "*.mak", "read.me", "*.map", "makefile",
+    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
+    NULL
     },
     {					/* TOPS-10 */
     "*.cmd","*.hlp","*.doc","*.ini","*.txt","*.mac","*.for","*.sai","*.bli",
     "*.pas","*.sno","*.spt","*.pcl","*.mss","*.rno","*.b36","*.tex","*.pub",
-    "*.req","*.r36","*.mem","*.bwr","*.ccl","*.ctl","*.rnh","*.ksc",NULL
+    "*.req","*.r36","*.mem","*.bwr","*.ccl","*.ctl","*.rnh","*.ksc",
+    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
+    NULL
     },
     {					/* TOPS-20 */
     "*.cmd","*.hlp","*.doc","*.ini","*.txt","*.mac","*.for","*.sai","*.bli",
     "*.pas","*.sno","*.spt","*.pcl","*.mss","*.rno","*.b36","*.tex","*.pub",
-    "*.req","*.r36","*.mem","*.bwr","*.ccl","*.ctl","*.rnh","*.ksc",NULL
+    "*.req","*.r36","*.mem","*.bwr","*.ccl","*.ctl","*.rnh","*.ksc",
+    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
+    NULL
     },
     {					/* STRATUS VOS */
     "*.txt","*.ksc","*.htm","*.html","*.bat", "*.cmd","*.jav","*.asm","*.hex",
     "*.hqx","*.c",  "*.h",  "*.w",   "*.java","*.bwr","*.upd","*.ttp","*.cm",
-    "*.pl1","*.emacs", "read.me", "*.pl", "makefile", NULL
+    "*.pl1","*.emacs", "read.me", "*.pl", "makefile",
+    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
+    NULL
     },
     {					/* DG AOS/VS */
     "*.txt", "*.c", "*.h", "*.w", "*.er", "*.bwr", "*.upd", "read.me",
-    "*.cli", "*.ksc", NULL
+    "*.cli", "*.ksc",
+    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
+    NULL
     },
     {					/* OSK */
     "*.c","*.cpp","*.h","*.a","*akefile", /* program sources */
@@ -1210,6 +1235,8 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.ksc","*.bwr","*.upd",
     "*.html","*.htm","*.mss","*.tex","*.nr","*.hex", "*.hqx",
     "*.TXT", "*read.me", "*READ.ME", ".*", "*/.*",
+    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     }
 };
@@ -1225,47 +1252,83 @@ static char *binp[SYS_MAX][FTPATTERNS] = {
     "*.exe", "*.jpg", "*.jpeg", "*.tif","*.tiff", "*.pdf", "*.so.*", "*.class",
     "*.rpm", "*.bmp", "*.bz2", "*.BMP", "*.dll", "*.doc", "*.vxd", "*.dcx",
     "*.xl*", "*.lzh", "*.lhz", "*.au", "*.voc", "*.mpg", "*.mpeg","[wk]ermit",
-    "*.ps", NULL
+    "*.ps",
+    "*.mp4","*.mkv","*.avi","*.mov","*.webm","*.mp3","*.wav","*.flac","*.ogg",
+    "*.png","*.webp","*.ico","*.docx","*.xlsx","*.pptx","*.epub","*.7z","*.rar",
+    "*.xz","*.deb","*.dmg","*.iso","*.pkg","*.wasm","*.zst","*.zstd",
+    NULL
     },
     {					/* WIN32 */
     "*.exe", "*.zip", "*.obj", "*.com", "*.gif", "*.jpg", "*.wav", "*.ram",
     "*.class","*.cla","*.dll", "*.drv", "*.ocx", "*.vbx", "*.lib", "*.ico",
     "*.bmp", "*.tif", "*.tar", "*.gz",  "*.tgz", "*.xl*", "*.doc", "*.vxd",
-    "*.pdf", "*.lzh", "*.vxd", "*.snd", "*.au", "* .voc", "*.mpg", "*.mpeg",
-    "*.ps", NULL
+    "*.pdf", "*.lzh", "*.snd", "*.au", "*.voc", "*.mpg", "*.mpeg",
+    "*.ps",
+    "*.mp4","*.mkv","*.avi","*.mov","*.webm","*.mp3","*.flac","*.ogg","*.png",
+    "*.webp","*.docx","*.xlsx","*.pptx","*.epub","*.7z","*.rar","*.xz","*.deb",
+    "*.dmg","*.iso","*.pkg","*.wasm","*.zst","*.zstd",
+    NULL
     },
     {					/* VMS */
     "*.exe","*.obj","*.bak","*.bin","*.adf","*.stb","*.mai","*.sys","*.dmp",
-    "*.ps", "*.dat","*.par", NULL
+    "*.ps", "*.dat","*.par",
+    "*.mp4","*.mkv","*.avi","*.mov","*.webm","*.mp3","*.wav","*.flac","*.ogg",
+    "*.png","*.webp","*.ico","*.docx","*.xlsx","*.pptx","*.epub","*.7z","*.rar",
+    "*.xz","*.deb","*.dmg","*.iso","*.pkg","*.wasm","*.zst","*.zstd",
+    NULL
     },
     {					/* OS2 */
     "*.exe", "*.zip", "*.obj", "*.com", "*.gif", "*.jpg", "*.wav", "*.ram",
     "*.class", "*.cla", "*.dll", "*.drv", "*.ocx", "*.vbx", "*.lib", "*.ico",
     "*.bmp", "*.tif", "*.tar", "*.gz", "*.tgz", "*.xl*", "*.doc", "*.vxd",
-    "*.pdf", "*.ps", "*.lzh", NULL
+    "*.pdf", "*.ps", "*.lzh",
+    "*.mp4","*.mkv","*.avi","*.mov","*.webm","*.mp3","*.flac","*.ogg","*.png",
+    "*.webp","*.docx","*.xlsx","*.pptx","*.epub","*.7z","*.rar","*.xz","*.deb",
+    "*.dmg","*.iso","*.pkg","*.wasm","*.zst","*.zstd",
+    NULL
     },
     {					/* DOS */
     "*.exe", "*.zip", "*.obj", "*.com", "*.gif", "*.jpg", "*.wav", "*.ram",
     "*.cla", "*.dll", "*.drv", "*.ocx", "*.vbx", "*.lib", "*.ico",
     "*.bmp", "*.tif", "*.tar", "*.gz", "*.tgz", "*.xl*", "*.doc", "*.vxd",
-    "*.pdf", "*.ps", "*.lzh", NULL
+    "*.pdf", "*.ps", "*.lzh",
+    "*.mp4","*.mkv","*.avi","*.mov","*.webm","*.mp3","*.flac","*.ogg","*.png",
+    "*.webp","*.docx","*.xlsx","*.pptx","*.epub","*.7z","*.rar","*.xz","*.deb",
+    "*.dmg","*.iso","*.pkg","*.wasm","*.zst","*.zstd",
+    NULL
     },
     {					/* TOPS10 */
     "*.exe","*.sav","*.bin","*.rim","*.rel","*.unv","*.lib","*.tap","*.dvi",
-    "*.ps", NULL
+    "*.ps",
+    "*.mp4","*.mkv","*.avi","*.mov","*.webm","*.mp3","*.wav","*.flac","*.ogg",
+    "*.png","*.webp","*.ico","*.docx","*.xlsx","*.pptx","*.epub","*.7z","*.rar",
+    "*.xz","*.deb","*.dmg","*.iso","*.pkg","*.wasm","*.zst","*.zstd",
+    NULL
     },
     {					/* TOPS20 */
     "*.exe","*.sav","*.bin","*.rim","*.rel","*.unv","*.lib","*.tap","*.dvi",
-    "*.ps", NULL
+    "*.ps",
+    "*.mp4","*.mkv","*.avi","*.mov","*.webm","*.mp3","*.wav","*.flac","*.ogg",
+    "*.png","*.webp","*.ico","*.docx","*.xlsx","*.pptx","*.epub","*.7z","*.rar",
+    "*.xz","*.deb","*.dmg","*.iso","*.pkg","*.wasm","*.zst","*.zstd",
+    NULL
     },
     {					/* STRATUS VOS */
     "*.exe", "*.zip", "*.obj", "*.com", "*.gif", "*.jpg", "*.wav", "*.ram",
     "*.class", "*.cla", "*.dll", "*.drv", "*.ocx", "*.vbx", "*.lib", "*.ico",
     "*.bmp", "*.tif", "*.tar", "*.gz", "*.tgz", "*.xl*", "*.doc", "*.vxd",
-    "*.pdf", "*.ps", "*.lzh", "*.pm", NULL
+    "*.pdf", "*.ps", "*.lzh", "*.pm",
+    "*.mp4","*.mkv","*.avi","*.mov","*.webm","*.mp3","*.flac","*.ogg","*.png",
+    "*.webp","*.docx","*.xlsx","*.pptx","*.epub","*.7z","*.rar","*.xz","*.deb",
+    "*.dmg","*.iso","*.pkg","*.wasm","*.zst","*.zstd",
+    NULL
     },
     {					/* DG */
-    "*.ob", "*.pr", "*.dmp", "*.ps", NULL
+    "*.ob", "*.pr", "*.dmp", "*.ps",
+    "*.mp4","*.mkv","*.avi","*.mov","*.webm","*.mp3","*.wav","*.flac","*.ogg",
+    "*.png","*.webp","*.ico","*.docx","*.xlsx","*.pptx","*.epub","*.7z","*.rar",
+    "*.xz","*.deb","*.dmg","*.iso","*.pkg","*.wasm","*.zst","*.zstd",
+    NULL
     },
     { /* OSK */
     "*.gz","*.Z","*.z","*.tgz","*.lhz","*.tar",	/* archivers */
@@ -1275,6 +1338,9 @@ static char *binp[SYS_MAX][FTPATTERNS] = {
     /* images */
     "*.gif", "*.jpg", "*.jpeg", "*.tif","*.tiff", "*.pdf", "*.ps",
     "*.bmp", "*.bz2", "*.BMP","*.pcx",
+    "*.mp4","*.mkv","*.avi","*.mov","*.webm","*.mp3","*.wav","*.flac","*.ogg",
+    "*.png","*.webp","*.ico","*.docx","*.xlsx","*.pptx","*.epub","*.7z","*.rar",
+    "*.xz","*.deb","*.dmg","*.iso","*.pkg","*.wasm","*.zst","*.zstd",
     NULL
     }
 };
