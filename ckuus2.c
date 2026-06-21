@@ -4298,7 +4298,20 @@ static char *hmxyf[] = {
 " ",
 #endif /* UNICODE */
 
+/* The list of codes below comes from ckcmai.c:sysidlist and should be kept
+ * in sync with it.  When updating one, update the other also. */
+"SET FILE SYSTEM-ID code",
+"  Kermit system ID code to pretend to be. Valid options are:",
+"    0:  anonymous       A1: Apple II      A3: Macintosh",
+"    D7: VMS             DA: RSTS/E        DB: RT11",
+"    F3: AOS/VS          I1: VM/CMS        I2: TSO",
+"    I4: MUSIC           I7: CICS          I9: ROSCOE",
+"    K2: Atari ST        L3: Amiga         MV: Stratus VOS",
+"    N3: Aegis           U1: UNIX          U8: MS-DOS",
+"    UD: OS-9            UN: MS-Windows    UO: OS/2",
+" ",
 "SET FILE WARNING { ON, OFF }",
+
 "  SET FILE WARNING is superseded by the newer command, SET FILE",
 "  COLLISION.  SET FILE WARNING ON is equivalent to SET FILE COLLISION RENAME",
 "  and SET FILE WARNING OFF is equivalent to SET FILE COLLISION OVERWRITE.",

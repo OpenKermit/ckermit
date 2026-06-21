@@ -16,6 +16,7 @@
     Last big update: 14 April 2023 (ANSI function declarations and prototypes)
     Other updates: 5 May 2023 (change semicolon to comma in extern statement)
     Other updates: 25 Jan 2024 (add semantics of REMOTE CDUP)
+    Other updates: 6 June 2026 (adding system ID set)
 */
 
 /*
@@ -691,6 +692,8 @@ static struct keytab filtab[] = {
     { "stringspace",      XYF_SSPA, 0 },
 #endif /* DYNAMIC */
 #endif /* UNIX */
+    { "system-id",        XYF_SYSID, 0 },
+
 
 #ifdef PATTERNS
     { "t",                XYFILT, CM_INV|CM_ABR },
@@ -926,6 +929,34 @@ struct keytab eoltab[] = {              /* File eof delimiters */
     { "lf",        XYFA_L, 0 }
 };
 static int neoltab = (sizeof(eoltab) / sizeof(struct keytab));
+
+/* system id table for UI */
+struct keytab * sysidtab = NULL;
+int nsysidtab = 0;
+
+/* Set to nonzero if cksysid should be freed before changing again. */
+static int cksysid_allocated = 0;
+
+/* Populates the system ID table exactly once based on sysidlist from 
+ * ckcmai.c. */
+void
+initsysidtab() {
+    if (sysidtab == NULL) {
+        extern struct sysdata sysidlist[];
+        extern int nxxsysids;
+        int i;
+        sysidtab = (struct keytab *)malloc(nxxsysids * sizeof(struct keytab));
+        if (sysidtab) {
+            nsysidtab = nxxsysids;
+            for (i = 0; i < nxxsysids; i++) {
+                sysidtab[i].kwd = sysidlist[i].sid_code;
+                sysidtab[i].kwval = i;
+                sysidtab[i].flgs = 0;
+            }
+        }
+    }
+}
+
 
 struct keytab fntab[] = {               /* File naming */
     { "converted", XYFN_C, 0      },
@@ -3884,6 +3915,39 @@ setfil(rmsflg) int rmsflg;
 
 #endif /* DYNAMIC */
 #endif /* UNIX */
+
+      case XYF_SYSID: {
+          extern char * cksysid;
+          extern struct sysdata sysidlist[];
+          initsysidtab();
+          if ((x = cmkey(sysidtab, nsysidtab, "Kermit system ID", "U1", xxstring)) < 0)
+              return(x);
+          if ((y = cmcfm()) < 0) return(y);
+          if (x >= 0) {
+              char *code = sysidlist[x].sid_code;
+              char *new_sysid = (char *)malloc(strlen(code) + 1);
+              if (new_sysid) {
+                  char *d = new_sysid;
+                  char *s = code;
+                  while (*s) {
+                      if (islower(*s)) {
+                          *d = toupper(*s);
+                      } else {
+                          *d = *s;
+                      }
+                      d++;
+                      s++;
+                  }
+                  *d = '\0';
+                  if (cksysid_allocated && cksysid) {
+                      free(cksysid);
+                  }
+                  cksysid = new_sysid;
+                  cksysid_allocated = 1;
+              }
+          }
+          return(success = 1);
+      }
 
       default:
         printf("?unexpected file parameter\n");

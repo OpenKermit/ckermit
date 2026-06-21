@@ -1679,6 +1679,7 @@ cc_clean();                             /* This can't be right? */
 #ifndef NOXFER
 /* Info associated with a system ID */
 
+/* When updating this, also update the help text in ckuus2.c. */
 struct sysdata sysidlist[] = {          /* Add others as needed... */
   { "0",  "anonymous",    0, NUL,  0, 0, 0 },
   { "A1", "Apple II",     0, NUL,  0, 0, 3 }, /* fix this */
@@ -1702,7 +1703,7 @@ struct sysdata sysidlist[] = {          /* Add others as needed... */
   { "UN", "MS-Windows",   1, '\\', 1, 2, 3 },
   { "UO", "OS/2",         1, '\\', 1, 2, 3 }
 };
-static int nxxsysids = (sizeof(sysidlist) / sizeof(struct sysdata));
+int nxxsysids = (sizeof(sysidlist) / sizeof(struct sysdata));
 
 /* Given a Kermit system ID code, return the associated name string */
 /* and some properties of the filenames... */

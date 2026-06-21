@@ -4909,8 +4909,12 @@ zsattr(xx) struct zattr *xx;
     }
     debug(F111,"zsattr lperms",xx->lprotect.val,xx->lprotect.len);
     debug(F111,"zsattr gperms",xx->gprotect.val,xx->gprotect.len);
-    xx->systemid.val = "U1";            /* U1 = UNIX */
-    xx->systemid.len = 2;               /* System ID */
+    {
+        extern char * cksysid;
+        xx->systemid.val = cksysid ? cksysid : "U1";
+    }
+    xx->systemid.len = (int)strlen(xx->systemid.val);            /* System ID */
+
     xx->recfm.len = 0;                  /* Record format */
     xx->recfm.val = "";
     xx->sysparam.len = 0;               /* System-dependent parameters */

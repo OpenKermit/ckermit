@@ -1027,6 +1027,7 @@ struct pktinfo {			/* Packet information structure */
 #define   XYF_DFLT 27   /*  DEFAULT (character sets) */
 #define   XYF_SSPA 28   /*  STRINGSPACE */
 #define   XYF_LSIZ 29   /*  LISTSIZE */
+#define   XYF_SYSID 30  /*  SYSTEM-ID */
 
 /* File Type (return code) definitions and corresponding name strings */
 
