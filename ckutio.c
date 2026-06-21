@@ -15090,13 +15090,22 @@ ttptycmd(s) char *s;
 #else /* USE_CKUPTY_C */
 
     debug(F100,"ttptycmd OPENPTY","",0);
+    debug(F100,"ttptycmd OPENPTY","",0);
     if (tcgetattr(0, &term) == -1) {	/* Get controlling terminal's modes */
-	perror("tcgetattr");
-	return(0);
+        if (tcgetattr(1, &term) == -1 && tcgetattr(2, &term) == -1) {
+            memset((char *)&term, 0, sizeof(struct termios));
+            term.c_iflag = ICRNL | IXON;
+            term.c_oflag = OPOST | ONLCR;
+            term.c_cflag = CREAD | CS8;
+            term.c_lflag = ISIG | ICANON | ECHO | ECHOE | ECHOK;
+        }
     }
     if (ioctl(0, TIOCGWINSZ, (char *) &twin) == -1) { /* and window size */
-	perror("ioctl TIOCGWINSZ");
-	return(0);
+        if (ioctl(1, TIOCGWINSZ, (char *) &twin) == -1 && ioctl(2, TIOCGWINSZ, (char *) &twin) == -1) {
+            memset((char *)&twin, 0, sizeof(struct winsize));
+            twin.ws_row = 24;
+            twin.ws_col = 80;
+        }
     }
     if (openpty(&masterfd, &slavefd, NULL, NULL, NULL) == -1) {
 	debug(F101,"ttptycmd openpty failed errno","",errno);
