@@ -4308,6 +4308,26 @@ sfile(x) int x;
     debug(F101,"sfile x","",x);
     debug(F101,"sfile notafile","",notafile);
 
+#ifdef UNICODE
+    /*
+      Initialize fileorder to -1 (unknown) for each file transfer.
+      Previously, this reset only happened when automatic transfer mode
+      (XMODE_A) was active. In manual transfer mode (XMODE_M), the reset
+      was bypassed, causing fileorder to persist between transfers. If a
+      previous transfer set fileorder to 1 (Little-Endian), a subsequent
+      transfer of a Big-Endian no-BOM UCS-2 file would decode incorrectly
+      because fileorder remained 1 instead of falling back to ucsorder (set
+      via 'set file ucs byte-order').
+
+      This change forces the byte order of the file being read to be
+      re-detected/re-initialized for every transfer. It does not alter
+      the default configuration or behavior under the default automatic
+      transfer mode, where fileorder was already reset inside the
+      scanfile block.
+    */
+    fileorder = -1;
+#endif /* UNICODE */
+
 #ifndef NOCSETS
     if (tcs_save > -1) {                /* Character sets */
         tcharset = tcs_save;
