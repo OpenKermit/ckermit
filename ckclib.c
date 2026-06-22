@@ -2844,7 +2844,12 @@ rset(p,s,n,c) char *p; char *s; int n; int c;
 /*
   Converts unsigned long arg to hex and returns string pointer to
   rightmost n hex digits left padded with 0's.  Allows for longs
-  up to 64 bits.  Returns pointer to result.
+  up to 64 bits.  Returns pointer to result, which you should NOT free.
+
+  WARNING: This function is NOT reentrant or thread-safe as it uses a
+  shared static buffer (hexbuf). Calling it twice in the same statement
+  (e.g., printf("%s : %s\n", ulongtohex(a, 4), ulongtohex(b, 4))) will
+  result in both format specifiers printing the same value.
 */
 char *
 #ifdef CK_ANSIC
