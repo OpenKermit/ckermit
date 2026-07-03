@@ -4833,7 +4833,7 @@ ttchkpid(f) char *f;
 	      printf("Removing stale lock %s (pid %d terminated)\n", f, pid);
 	    priv_on();
 	    x = unlink(f);		/* Remove the lockfile. */
-	    priv_off();
+	    priv_chk();
 	    debug(F111,"ttchkpid unlink",f,x);
 	    if (x > -1)
 	      return(0);		/* Device is not locked after all */
@@ -4873,7 +4873,7 @@ ttrpid(name) char *name;
     if (!*name) return(-1);
     priv_on();
     len = zchki(name);			/* Get file length */
-    priv_off();
+    priv_chk();
     debug(F101,"ttrpid zchki","",len);
     if (len < 0)
       return(-1);
@@ -4881,7 +4881,7 @@ ttrpid(name) char *name;
       return(-1);
     priv_on();
     fd = open(name,O_RDONLY);		/* Try to open lockfile. */
-    priv_off();
+    priv_chk();
     debug(F101,"ttrpid fd","",fd);
     if (fd <= 0)
       return(-1);
@@ -5148,7 +5148,7 @@ ttlock(ttdev) char *ttdev;
 #ifdef USE_UU_LOCK
     priv_on();				/* Turn on privs */
     x = uu_lock(lockname);		/* Try to set the lock */
-    priv_off();				/* Turn privs off */
+    priv_chk();				/* Turn privs off */
     debug(F111,"ttlock uu_lock",lockname,x);
     switch (x) {
       case UU_LOCK_INUSE:
@@ -5166,12 +5166,12 @@ ttlock(ttdev) char *ttdev;
     priv_on();				/* Turn on privs */
     if (ttylocked(lockname)) {		/* This should remove any stale lock */
 	if (ttylocked(lockname)) {	/* so check again. */
-	    priv_off();
+	    priv_chk();
 	    return(-5);			/* Still locked, fail. */
 	}
     }
     x = ttylock(lockname);		/* Lock it. */
-    priv_off();				/* Turn off privs */
+    priv_chk();				/* Turn off privs */
 
     debug(F111,"ttlock lockname",lockname,x);
     if (x > -1) {
@@ -5399,7 +5399,7 @@ ttlock(ttdev) char *ttdev;
 	      perror(lockdir);
 	    unlink(tmpnam);		/* Get rid of the temporary file. */
 	}
-	priv_off();			/* Turn off privileges!!! */
+	priv_chk();			/* Turn off privileges!!! */
 	return(-1);			/* Return failure code. */
     }
 /* Now write the pid into the temp lockfile in the appropriate format */
@@ -5486,19 +5486,19 @@ ttlock(ttdev) char *ttdev;
 	      break;			/* We're done. */
 
 	} else {			/* We didn't create a new lockfile. */
-	    priv_off();
+	    priv_chk();
 	    if (ttchkpid(flfnam)) {	/* Check existing lockfile */
 		priv_on();		/* cause ttchkpid turns priv_off... */
 		unlink(tmpnam);		/* Delete the tempfile */
 		debug(F100,"ttlock found tty locked","",0);
-		priv_off();		/* Turn off privs */
+		priv_chk();		/* Turn off privs */
 		return(-2);		/* Code for device is in use. */
 	    }
 	    priv_on();
 	}
     }
     unlink(tmpnam);			/* Unlink (remove) the temp file. */
-    priv_off();				/* Turn off privs */
+    priv_chk();				/* Turn off privs */
     return(haslock ? 0 : -1);		/* Return link's return code. */
 
 #else /* HPUX */
@@ -5603,7 +5603,7 @@ ttlock(ttdev) char *ttdev;
 	    ckmakmsg(lock2,FLFNAML,"/dev/",devprefix[i],unit,NULL);
 	    priv_on();			/* Privs on */
 	    k = zchki(lock2) != -1;	/* See if device exists */
-	    priv_off();			/* Privs off */
+	    priv_chk();			/* Privs off */
 	    debug(F111,"TTLOCK exist",lock2,k);
             if (k) {
 		if (!strcmp(devprefix[i],"ttyd")) /* ttyd device exists */
@@ -5613,7 +5613,7 @@ ttlock(ttdev) char *ttdev;
 		debug(F110,"TTLOCK checking",lock2,0);
 		priv_on();		/* Privs on */
 		k = zchki(lock2) != -1;	/* See if lockfile exists */
-		priv_off();		/* Privs off */
+		priv_chk();		/* Privs off */
 		debug(F111,"TTLOCK check for lock A",lock2,k);
 		if (k) if (ttchkpid(lock2)) { /* If pid still active, fail. */
 		    ckstrncpy(flfnam,lock2,FLFNAML);
@@ -5627,7 +5627,7 @@ ttlock(ttdev) char *ttdev;
 	ckmakmsg(lock2,FLFNAML,lockdir,"/LCK..",device,NULL);
 	priv_on();
 	k = zchki(lock2) != -1;		/* Check for existing lockfile */
-	priv_off();
+	priv_chk();
 	debug(F111,"TTLOCK check for lock B",lock2,k);
 	if (k) if (ttchkpid(lock2)) {	/* Check pid from lockfile */
 	    ckstrncpy(flfnam,lock2,FLFNAML);
@@ -5675,7 +5675,7 @@ ttlock(ttdev) char *ttdev;
 	      perror(lockdir);
 	    unlink(tmpnam);		/* Get rid of the temporary file. */
 	}
-	priv_off();			/* Turn off privileges!!! */
+	priv_chk();			/* Turn off privileges!!! */
 	debug(F101,"TTLOCK returns","",-1);
 	return(-1);			/* Return failure code. */
     }
@@ -5748,7 +5748,7 @@ ttlock(ttdev) char *ttdev;
 	}
     }
     unlink(tmpnam);			/* Unlink (remove) the temp file. */
-    priv_off();				/* Turn off privs */
+    priv_chk();				/* Turn off privs */
     i = haslock ? 0 : -1;		/* Our return value */
     debug(F101,"TTLOCK returns","",i);
     return(i);
@@ -5776,7 +5776,7 @@ ttunlck() {                             /* Remove UUCP lockfile(s). */
 #else  /* USE_UU_LOCK */
 	x = ttyunlock(lockname);	/* Try to unlock */
 #endif /* USE_UU_LOCK */
-	priv_off();			/* Turn off privs */
+	priv_chk();			/* Turn off privs */
 	if (x < 0 && !quiet)
 	  printf("Warning - Can't remove lockfile: %s\n", flfnam);
 
@@ -5841,7 +5841,7 @@ ttunlck() {                             /* Remove UUCP lockfile(s). */
 #endif /* LOCKF */
 #endif /* COMMENT */
 
-	priv_off();			/* Turn privileges off. */
+	priv_chk();			/* Turn privileges off. */
     }
 #endif /* USETTYLOCK */
 #endif /* !NOUUCP */
@@ -14446,7 +14446,7 @@ priv_opn(name, modes) char *name; int modes;
     x = open(name, modes);		/* Try to open the device */
     debug(F101,"priv_opn result","",x);
     debug(F101,"priv_opn errno","",errno);
-    priv_off();				/* Turn privileges off */
+    priv_chk();				/* Turn privileges off */
     return(x);				/* Return open's return code */
 }
 

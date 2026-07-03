@@ -2608,7 +2608,7 @@ zchki(name) char *name;
 	if ((x = access(s,R_OK)) < 0)
 	  x = access(s,X_OK);		/* For RUN-class commands */
 #ifdef SW_ACC_ID
-	priv_off();
+	priv_chk();
 	debug(F100,"zchki swapped ids restored","",0);
 #endif /* SW_ACC_ID */
     }
@@ -2820,7 +2820,7 @@ zchko(name) char *name;
     debug(F110,"zchko access",s,x);
 
 #ifdef SW_ACC_ID
-    priv_off();
+    priv_chk();
     debug(F100,"zchko swapped ids restored","",0);
 #endif /* SW_ACC_ID */
 
