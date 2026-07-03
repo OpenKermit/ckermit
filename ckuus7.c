@@ -9540,7 +9540,7 @@ cx_net(net, protocol, xhost, svc,
 
 	      case NP_TLS:
 	      case NP_TLS_RAW:
-		tls_raw_flag = (protocol == NP_SSL_RAW) ? 1 : 0;
+		tls_raw_flag = (protocol == NP_TLS_RAW) ? 1 : 0;
                 ttnproto = protocol;
 		debug(F101,protocol==NP_TLS ?
 		      "NP_TLS ttnproto" :
@@ -15016,6 +15016,10 @@ sho_auth(cx) int cx;
             printf(" SSL only? %s\n", ssl_only_flag ? "yes" : "no");
             if (++n > cmd_rows - 3) { if (!askmore()) return(0); else n = 0; }
             printf(" TLS only? %s\n", tls_only_flag ? "yes" : "no");
+            if (++n > cmd_rows - 3) { if (!askmore()) return(0); else n = 0; }
+            printf(" SSL raw? %s\n", ssl_raw_flag ? "yes" : "no");
+            if (++n > cmd_rows - 3) { if (!askmore()) return(0); else n = 0; }
+            printf(" TLS raw? %s\n", tls_raw_flag ? "yes" : "no");
             if (++n > cmd_rows - 3) { if (!askmore()) return(0); else n = 0; }
 #endif /* CK_SSL */
             break;
