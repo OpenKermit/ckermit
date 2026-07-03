@@ -3881,7 +3881,7 @@ k4_auth_send()
     realm = (char *)krb_realmofhost(szHostName);
 
     if (!realm) {
-        strcpy(strTmp, "Can't find realm for host \"");
+        ckstrncpy(strTmp, "Can't find realm for host \"", AUTHTMPBL);
         ckstrncat(strTmp, szHostName,AUTHTMPBL);
         ckstrncat(strTmp, "\"",AUTHTMPBL);
         printf("?Kerberos 4 error: %s\r\n",strTmp);
@@ -6726,7 +6726,7 @@ srp_is(how,data,cnt) int how; unsigned char *data; int cnt;
             int len = strlen(ptr);
             int i;
 	    if (ptr != strTmp)
-		strcpy(strTmp,ptr);
+		ckstrncpy(strTmp,ptr,AUTHTMPBL);
             for ( i=0;i<len;i++ ) {
                 if ( strTmp[i] == '\\' )
                     strTmp[i] = '/';
