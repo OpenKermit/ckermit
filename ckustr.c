@@ -82,22 +82,6 @@ strprerror(fmt, va_alist)
         va_end(ap);
 }
 
-/* extracted string front end for sprintf() */
-/*VARARGS1*/
-strsrerror(fmt, obuf, va_alist)
-        int fmt;
-        char *obuf;
-        va_dcl
-{
-        char buf[BUFLEN];
-        va_list ap;
-
-        errprep(fmt, buf);
-        va_start(ap);
-        vsprintf(obuf, buf, ap);
-        va_end(ap);
-}
-
 /* extracted string front end for fprintf() */
 /*VARARGS1*/
 strfrerror(fmt, fd, va_alist)
