@@ -10387,6 +10387,26 @@ http_get_chunk_len()
     return(len);
 }
 
+/*
+  Parse an HTTP Content-Length header value.  Unlike atoi(), this
+  rejects non-numeric input and clamps out-of-range or negative
+  values to 0 rather than letting an overflowed/negative length
+  reach the read loops below.
+*/
+static int
+http_content_length(s) char *s; {
+    long val;
+    char *ep;
+
+    while (*s == ' ' || *s == '\t')
+      s++;
+    errno = 0;
+    val = strtol(s, &ep, 10);
+    if (ep == s || errno == ERANGE || val < 0 || val > INT_MAX)
+      return(0);
+    return((int)val);
+}
+
 int
 http_isconnected()
 {
@@ -11946,7 +11966,7 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
                 if ( ckindex("close",buf,11,0,0) != 0 )
                     closecon = 1;
             } else if (!ckstrcmp(buf,"Content-Length:",15,0)) {
-                len = atoi(&buf[16]);
+                len = http_content_length(&buf[16]);
             } else if (!ckstrcmp(buf,"Transfer-Encoding:",18,0)) {
                 if ( ckindex("chunked",buf,18,0,0) != 0 )
                     chunked = 1;
@@ -12406,7 +12426,7 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
                     if ( ckindex("close",buf,11,0,0) != 0 )
                         closecon = 1;
                 } else if (!ckstrcmp(buf,"Content-Length:",15,0)) {
-                    len = atoi(&buf[16]);
+                    len = http_content_length(&buf[16]);
                 } else if (!ckstrcmp(buf,"Transfer-Encoding:",18,0)) {
                     if ( ckindex("chunked",buf,18,0,0) != 0 )
                         chunked = 1;
@@ -12709,7 +12729,7 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
                         if ( ckindex("close",buf,11,0,0) != 0 )
                             closecon = 1;
                     } else if (!ckstrcmp(buf,"Content-Length:",15,0)) {
-                        len = atoi(&buf[16]);
+                        len = http_content_length(&buf[16]);
                     } else if (!ckstrcmp(buf,"Transfer-Encoding:",18,0)) {
                         if ( ckindex("chunked",buf,18,0,0) != 0 )
                             chunked = 1;
@@ -12964,7 +12984,7 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
                     if ( ckindex("close",buf,11,0,0) != 0 )
                         closecon = 1;
                 } else if (!ckstrcmp(buf,"Content-Length:",15,0)) {
-                    len = atoi(&buf[16]);
+                    len = http_content_length(&buf[16]);
                 } else if (!ckstrcmp(buf,"Transfer-Encoding:",18,0)) {
                     if ( ckindex("chunked",buf,18,0,0) != 0 )
                         chunked = 1;
@@ -13234,7 +13254,7 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
                         if ( ckindex("close",buf,11,0,0) != 0 )
                             closecon = 1;
                     } else if (!ckstrcmp(buf,"Content-Length:",15,0)) {
-                        len = atoi(&buf[16]);
+                        len = http_content_length(&buf[16]);
                     } else if (!ckstrcmp(buf,"Transfer-Encoding:",18,0)) {
                         if ( ckindex("chunked",buf,18,0,0) != 0 )
                             chunked = 1;
