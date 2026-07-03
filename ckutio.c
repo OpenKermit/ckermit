@@ -10247,9 +10247,22 @@ in_chk(channel, fd) int channel, fd;
         if (n < 0) {
             ttclos(0);
             return(-1);
-        } else if (n > 0) {
-            return(n);
         }
+
+        /* SSL_pending() is the only reliable way to know whether
+         * decrypted application data is available without blocking.
+         * Don't fall through to the raw FIONREAD/select byte count
+         * below.  TLS 1.3 servers send post-handshake
+         * NewSessionTicket messages unprompted, so encrypted bytes
+         * can be sitting in the kernel socket buffer that do not
+         * correspond to any decrypted application data yet. Treating
+         * those bytes as "available" causes callers such as
+         * ttflui()'s supposedly non-blocking input flush to call
+         * SSL_read(), which then blocks in the underlying read() 
+	 * waiting for the next TLS record that may not arrive 
+	 * anytime soon.
+         */
+        return(n);
     }
 #endif /* CK_SSL */
 #ifdef RLOGCODE
