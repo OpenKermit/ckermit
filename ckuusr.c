@@ -7103,22 +7103,7 @@ doedit() {
 	    return(-9);
 	}
     }
-    x = 0;
-    if (editopts[0]) {
-#ifdef OS2
-	x = ckindex("%1",(char *)editopts,0,0,1);
-	if (x > 0)
-	  editopts[x] = 's';
-	else
-#endif /* OS2 */
-	  x = ckindex("%s",(char *)editopts,0,0,1);
-    }
-    if (((int)strlen(editopts) + (int)strlen(editfile) + 1) < TMPBUFSIZ) {
-	if (x)
-	  sprintf(tmpbuf,editopts,editfile);
-	else
-	  sprintf(tmpbuf,"%s %s",editopts,editfile);
-    }
+    ckoptsubst(editopts,editfile,tmpbuf,TMPBUFSIZ);
     s = line;
     ckmakmsg(s,LINBUFSIZ,editor," ",tmpbuf,NULL);
 #ifdef OS2
@@ -7162,22 +7147,7 @@ dobrowse() {
     if ((x = cmtxt("URL",(char *)browsurl,&s,xxstring)) < 0)
       return(x);
     ckstrncpy(browsurl,s,4096);
-    x = 0;
-    if (browsopts[0]) {
-#ifdef OS2
-	x = ckindex("%1",(char *)browsopts,0,0,1);
-	if (x > 0)
-	  browsopts[x] = 's';
-	else
-#endif /* OS2 */
-	  x = ckindex("%s",(char *)browsopts,0,0,1);
-    }
-    if (((int)strlen(browsopts) + (int)strlen(browsurl) + 1) < TMPBUFSIZ) {
-	if (x)
-	  sprintf(tmpbuf,browsopts,browsurl);
-	else
-	  sprintf(tmpbuf,"%s %s",browsopts,browsurl);
-    }
+    ckoptsubst(browsopts,browsurl,tmpbuf,TMPBUFSIZ);
 #ifdef NT
     if (!browser[0])
       return(success = Win32ShellExecute(browsurl));

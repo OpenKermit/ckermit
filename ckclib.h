@@ -35,6 +35,7 @@ _PROTOTYP( char * chartostr, (int) );
 _PROTOTYP( int cklower, (char *) );
 _PROTOTYP( int ckupper, (char *) );
 _PROTOTYP( int ckindex, (char *, char *, int, int, int) );
+_PROTOTYP( int ckoptsubst, (char *, char *, char *, int) );
 _PROTOTYP( char * ckctoa, (char) );
 _PROTOTYP( char * ckctox, (CHAR, int) );
 _PROTOTYP( char * ckitoa, (int) );

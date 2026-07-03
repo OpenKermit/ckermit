@@ -796,6 +796,64 @@ ckindex(s1,s2,t,r,icase) char *s1, *s2; int t, r, icase;
     return(0);
 }
 
+/*  C K O P T S U B S T  */
+
+/*
+   Substitutes a value into a user-supplied "options" string (e.g. as
+   set by SET EDITOR/BROWSER OPTIONS) at the first "%s" (or "%1" on
+   OS/2, normalized to "%s" in place), or appends it after a space if
+   no placeholder is present.
+
+   This never uses the user-supplied "opts" string as an sprintf()
+   format string -- doing so would let a stray %n (or other %-escape)
+   in the options string corrupt memory or crash the program.
+   Instead the placeholder is located with ckindex() and the pieces
+   are joined with ckmakmsg(), which does plain, length-checked
+   string copies.
+
+   Call with:
+     opts   - options string (may be modified in place on OS/2 to
+              turn "%1" into "%s")
+     val    - value to substitute (e.g. filename or URL)
+     buf    - destination buffer
+     buflen - size of destination buffer
+   Returns:
+     1 if the result fit in buf (buf is filled in).
+     0 if the combined string would not fit (buf is left untouched).
+*/
+int
+#ifdef CK_ANSIC
+ckoptsubst(char * opts, char * val, char * buf, int buflen)
+#else
+ckoptsubst(opts,val,buf,buflen) char *opts, *val, *buf; int buflen;
+#endif /* CK_ANSIC */
+{
+    int x = 0;
+
+    if (opts[0]) {
+#ifdef OS2
+	x = ckindex("%1",opts,0,0,1);
+	if (x > 0)
+	  opts[x] = 's';
+	else
+#endif /* OS2 */
+	  x = ckindex("%s",opts,0,0,1);
+    }
+    if (((int)strlen(opts) + (int)strlen(val) + 1) >= buflen)
+      return(0);
+    if (x) {
+	char * pct = opts + (x - 1);	/* Points at the '%' of "%s" */
+	char * suffix = pct + 2;	/* Text after "%s" */
+	char save = *pct;
+	*pct = '\0';
+	ckmakmsg(buf,buflen,opts,val,suffix,NULL);
+	*pct = save;
+    } else {
+	ckmakmsg(buf,buflen,opts," ",val,NULL);
+    }
+    return(1);
+}
+
 /*  C K S T R S T R  --  Portable replacement for strstr()  */
 
 /*  Returns pointer to first occurrence of s1 in s2, or NULL */
