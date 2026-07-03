@@ -16257,7 +16257,9 @@ conprint(char *fmt, ...) {
     int i;
 
     va_start(ap, fmt);
-    i = vsprintf(buf, fmt, ap);
+    i = vsnprintf(buf, sizeof(buf), fmt, ap);
+    if (i < 0 || i >= (int)sizeof(buf))
+        i = strlen(buf);
     conwrite(buf, i);
 }
 #endif /* Plan9 */
