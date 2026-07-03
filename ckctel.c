@@ -3416,7 +3416,18 @@ tn_ini() {
         ttnproto = NP_TELNET;           /* pretend it's telnet anyway, */
         oldplex = duplex;               /* save old duplex value */
         duplex = 1;                     /* and set to half duplex for telnet */
-        if (inserver)
+
+        /* For a real raw SSL/TLS connection (as opposed to SSL-
+         * wrapped Telnet), there is no peer that will ever send Telnet
+         * negotiation responses, so waiting for them causes trouble.
+         * tn_wait() reads and consumes bytes off the connection 
+	 * looking for an IAC, stashing anything else
+         * into its own side buffer.  If the peer's first real
+         * application data (such as a Kermit packet) arrives before
+         * tn_wait() gives up, it gets silently discarded here instead
+         * of reaching the protocol engine.
+         */
+        if (inserver || ssl_only_flag || tls_only_flag)
           debug(F100,"tn_ini skipping telnet negotiations","",0);
 	else
 	  tn_wait("tn_ini - waiting to see if telnet negotiations were sent");
