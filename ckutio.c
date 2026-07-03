@@ -16307,12 +16307,12 @@ ckxfprintf(va_alist) va_dcl
 	rc = vfprintf(file,format,args);
     } else {
 	unsigned int c;
-        rc = vsprintf(str1, format, args);
-        len = strlen(str1);
-        if (len >= sizeof(str1)) {
-            debug(F101,"ckxfprintf() buffer overflow","",len);
+        rc = vsnprintf(str1, sizeof(str1), format, args);
+        if (rc < 0 || rc >= (int)sizeof(str1)) {
+            debug(F101,"ckxfprintf() buffer overflow","",rc);
             doexit(BAD_EXIT,1);
         }
+        len = rc;
         for (i = 0, j = 0, got_cr = 0;
 	     i < len && j < sizeof(str1)-2;
 	     i++, j++ ) {
