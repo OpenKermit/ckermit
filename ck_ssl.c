@@ -2144,6 +2144,7 @@ ssl_tn_init(mode) int mode;
         char cert_filepath[1024];
         const char * defdir = NULL;
         DH * dh = NULL;
+        int n = 0;
 
         defdir = getenv("SSL_CERT_DIR");
         if ( !defdir ) {
@@ -2162,7 +2163,13 @@ ssl_tn_init(mode) int mode;
             * certificate that we will be running with as we cannot
             * be sure of the cwd when we are launched
             */
-            sprintf(cert_filepath,"%s/%s",defdir,"telnetd-rsa.pem");
+            n = snprintf(cert_filepath, sizeof(cert_filepath), "%s/%s",
+                defdir, "telnetd-rsa.pem");
+            if (n < 0 || n >= sizeof(cert_filepath)) {
+                debug(F110, "ssl_tn_init", "cert_filepath truncation", 0);
+                last_ssl_mode = -1;
+                return(0);
+            }
             if (zchki(cert_filepath) > 0)
                 makestr(&ssl_rsa_cert_file,cert_filepath);
         }
@@ -2171,7 +2178,13 @@ ssl_tn_init(mode) int mode;
             * certificate that we will be running with as we cannot
             * be sure of the cwd when we are launched
             */
-            sprintf(cert_filepath,"%s/%s",defdir,"telnetd-rsa-key.pem");
+            n = snprintf(cert_filepath, sizeof(cert_filepath), "%s/%s",
+                defdir, "telnetd-rsa-key.pem");
+            if (n < 0 || n >= sizeof(cert_filepath)) {
+                debug(F110, "ssl_tn_init", "cert_filepath truncation", 0);
+                last_ssl_mode = -1;
+                return(0);
+            }
             if (zchki(cert_filepath) > 0)
                 makestr(&ssl_rsa_key_file,cert_filepath);
         }
@@ -2180,7 +2193,13 @@ ssl_tn_init(mode) int mode;
             * certificate that we will be running with as we cannot
             * be sure of the cwd when we are launched
             */
-            sprintf(cert_filepath,"%s/%s",defdir,"telnetd-dsa.pem");
+            n = snprintf(cert_filepath, sizeof(cert_filepath), "%s/%s",
+                defdir, "telnetd-dsa.pem");
+            if (n < 0 || n >= sizeof(cert_filepath)) {
+                debug(F110, "ssl_tn_init", "cert_filepath truncation", 0);
+                last_ssl_mode = -1;
+                return(0);
+            }
             if (zchki(cert_filepath) > 0)
                 makestr(&ssl_dsa_cert_file,cert_filepath);
         }
@@ -2189,7 +2208,13 @@ ssl_tn_init(mode) int mode;
             * certificate that we will be running with as we cannot
             * be sure of the cwd when we are launched
             */
-            sprintf(cert_filepath,"%s/%s",defdir,"telnetd-dsa-key.pem");
+            n = snprintf(cert_filepath, sizeof(cert_filepath), "%s/%s",
+                defdir, "telnetd-dsa-key.pem");
+            if (n < 0 || n >= sizeof(cert_filepath)) {
+                debug(F110, "ssl_tn_init", "cert_filepath truncation", 0);
+                last_ssl_mode = -1;
+                return(0);
+            }
             if (zchki(cert_filepath) > 0)
                 makestr(&ssl_dh_key_file,cert_filepath);
         }
@@ -2198,7 +2223,13 @@ ssl_tn_init(mode) int mode;
             * certificate that we will be running with as we cannot
             * be sure of the cwd when we are launched
             */
-            sprintf(cert_filepath,"%s/crl",defdir);
+            n = snprintf(cert_filepath, sizeof(cert_filepath), "%s/crl",
+                defdir);
+            if (n < 0 || n >= sizeof(cert_filepath)) {
+                debug(F110, "ssl_tn_init", "cert_filepath truncation", 0);
+                last_ssl_mode = -1;
+                return(0);
+            }
             if (zchki(cert_filepath) > 0)
                 makestr(&ssl_crl_dir,cert_filepath);
         }
@@ -3956,9 +3987,14 @@ ssl_is(data,cnt) unsigned char *data; int cnt;
 
             if (SSL_accept(ssl_con) <= 0) {
                 char errbuf[1024];
+                int n;
 
-                sprintf(errbuf,"[SSL - SSL_accept error: %s",
-                         ERR_error_string(ERR_get_error(),NULL));
+                n = snprintf(errbuf, sizeof(errbuf),
+                    "[SSL - SSL_accept error: %s",
+                    ERR_error_string(ERR_get_error(), NULL));
+                if (n < 0 || n >= sizeof(errbuf)) {
+                    debug(F110, "ssl_is", "errbuf truncation", 0);
+                }
 
                 if (tn_deb || debses)
                     tn_debug(errbuf);
@@ -4070,9 +4106,14 @@ ck_tn_tls_negotiate(VOID)
 
             if (SSL_accept(tls_con) <= 0) {
                 char errbuf[1024];
+                int n;
 
-                sprintf(errbuf,"[TLS - SSL_accept error: %s",
-                         ERR_error_string(ERR_get_error(),NULL));
+                n = snprintf(errbuf, sizeof(errbuf),
+                    "[TLS - SSL_accept error: %s",
+                    ERR_error_string(ERR_get_error(), NULL));
+                if (n < 0 || n >= sizeof(errbuf)) {
+                    debug(F110, "ck_tn_tls_negotiate", "errbuf truncation", 0);
+                }
 
                 if (tn_deb || debses)
                     tn_debug(errbuf);
@@ -4366,9 +4407,14 @@ ck_ssl_incoming(fd) int fd;
         */
         if (SSL_accept(tls_con) <= 0) {
             char errbuf[1024];
+            int n;
 
-            sprintf(errbuf,"[TLS - SSL_accept error: %s",
-                     ERR_error_string(ERR_get_error(),NULL));
+            n = snprintf(errbuf, sizeof(errbuf),
+                "[TLS - SSL_accept error: %s",
+                ERR_error_string(ERR_get_error(), NULL));
+            if (n < 0 || n >= sizeof(errbuf)) {
+                debug(F110, "ck_ssl_incoming", "errbuf truncation", 0);
+            }
 
             if (tn_deb || debses)
                 tn_debug(errbuf);
@@ -4400,9 +4446,14 @@ ck_ssl_incoming(fd) int fd;
          */
         if (SSL_accept(ssl_con) <= 0) {
             char errbuf[1024];
+            int n;
 
-            sprintf(errbuf,"[SSL - SSL_accept error: %s",
-                     ERR_error_string(ERR_get_error(),NULL));
+            n = snprintf(errbuf, sizeof(errbuf),
+                "[SSL - SSL_accept error: %s",
+                ERR_error_string(ERR_get_error(), NULL));
+            if (n < 0 || n >= sizeof(errbuf)) {
+                debug(F110, "ck_ssl_incoming", "errbuf truncation", 0);
+            }
 
             if (tn_deb || debses)
                 tn_debug(errbuf);
@@ -4537,9 +4588,14 @@ ck_ssl_outgoing(fd) int fd;
         debug(F110,"ck_ssl_outgoing","[TLS - handshake starting]",0);
         if (SSL_connect(tls_con) <= 0) {
             char errbuf[1024];
+            int n;
 
-            sprintf(errbuf,"[TLS - SSL_connect error: %s",
-                     ERR_error_string(ERR_get_error(),NULL));
+            n = snprintf(errbuf, sizeof(errbuf),
+                "[TLS - SSL_connect error: %s",
+                ERR_error_string(ERR_get_error(), NULL));
+            if (n < 0 || n >= sizeof(errbuf)) {
+                debug(F110, "ck_ssl_outgoing", "errbuf truncation", 0);
+            }
 
             if (tn_deb || debses)
                 tn_debug(errbuf);
@@ -4619,9 +4675,14 @@ ck_ssl_outgoing(fd) int fd;
         if (SSL_connect(ssl_con) <= 0) {
             if ( ssl_debug_flag ) {
                 char errbuf[1024];
+                int n;
 
-                sprintf(errbuf,"[SSL - SSL_connect error: %s",
-                         ERR_error_string(ERR_get_error(),NULL));
+                n = snprintf(errbuf, sizeof(errbuf),
+                    "[SSL - SSL_connect error: %s",
+                    ERR_error_string(ERR_get_error(), NULL));
+                if (n < 0 || n >= sizeof(errbuf)) {
+                    debug(F110, "ck_ssl_outgoing", "errbuf truncation", 0);
+                }
                 printf("%s\r\n",errbuf);
             }
             if (tn_deb || debses)
@@ -4718,9 +4779,14 @@ ck_ssl_http_client(fd, hostname) int fd; char * hostname;
         debug(F110,"ck_ssl_outgoing","[TLS - handshake starting]",0);
         if (SSL_connect(tls_http_con) <= 0) {
             char errbuf[1024];
+            int n;
 
-            sprintf(errbuf,"[TLS - SSL_connect error: %s",
-                     ERR_error_string(ERR_get_error(),NULL));
+            n = snprintf(errbuf, sizeof(errbuf),
+                "[TLS - SSL_connect error: %s",
+                ERR_error_string(ERR_get_error(), NULL));
+            if (n < 0 || n >= sizeof(errbuf)) {
+                debug(F110, "ck_ssl_http_client", "errbuf truncation", 0);
+            }
 
             if (tn_deb || debses)
                 tn_debug(errbuf);
