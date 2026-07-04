@@ -7481,20 +7481,6 @@ iswild(filespec) char *filespec;
   recursive traversal from visiting the same directory twice.
 */
 
-#ifdef ISDIRCACHE
-/* This turns out to be unsafe and gives little benefit anyway. */
-/* See notes 28 Sep 2003.  Thus ISDIRCACHE is not defined. */
-
-static char prevpath[CKMAXPATH+4] = { '\0', '\0' };
-static int prevstat = -1;
-int
-clrdircache() {
-    debug(F100,"CLEAR ISDIR CACHE","",0);
-    prevstat = -1;
-    prevpath[0] = NUL;
-}
-#endif /* ISDIRCACHE */
-
 int
 #ifdef CK_ANSIC
 isalink( char *s )
@@ -7535,17 +7521,6 @@ isdir(s) char *s;
     }
 #endif /* DTILDE */
     if (!*s) return(0);
-
-#ifdef ISDIRCACHE
-    if (prevstat > -1) {
-	if (s[0] == prevpath[0]) {
-	    if (!strcmp(s,prevpath)) {
-		debug(F111,"isdir cache hit",s,prevstat);
-		return(prevstat);
-	    }
-	}
-    }
-#endif /* ISDIRCACHE */
 
 #ifdef CKSYMLINK
 #ifdef COMMENT
@@ -7605,10 +7580,6 @@ isdir(s) char *s;
     debug(F101,"isdir islink","",islink);
     debug(F101,"isdir statbuf.st_mode","",statbuf.st_mode);
     x = islink ? 0 : (S_ISDIR (statbuf.st_mode) ? 1 : 0);
-#ifdef ISDIRCACHE
-    prevstat = x;
-    ckstrncpy(prevpath,s,CKMAXPATH+1);
-#endif /* ISDIRCACHE */
     return(x);
 }
 
