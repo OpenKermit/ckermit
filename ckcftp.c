@@ -1115,12 +1115,6 @@ static jmp_buf sendcancel;
 static jmp_buf jcancel;
 #endif /* NOT_USED */
 
-#ifdef FTP_PROXY
-static jmp_buf ptcancel;
-
-static int ptabflg = 0;
-#endif /* FTP_PROXY */
-
 /* Protection level symbols */
 
 #define FPL_CLR 1                       /* Clear */
@@ -1170,9 +1164,6 @@ static int                              /* SET FTP values... */
 #endif /* FTP_SECURITY */
   ftp_cpl = FPL_CLR,                    /* Command protection level */
   ftp_dpl = FPL_CLR,                    /* Data protection level */
-#ifdef FTP_PROXY
-  ftp_prx = 0,                          /* Use proxy */
-#endif /* FTP_PROXY */
   sav_psv = -1,                         /* For saving passive mode */
   ftp_psv = 1,                          /* Passive mode */
   ftp_spc = 1,                          /* Send port commands */
@@ -1225,10 +1216,6 @@ static char bytename[8];
 
 /* For parsing replies to FTP server command */
 static char *reply_parse, reply_buf[FTP_BUFSIZ], *reply_ptr;
-
-#ifdef FTP_PROXY
-static int proxy, unix_proxy
-#endif /* FTP_PROXY */
 
 static char pasv[64];                   /* Passive-mode port */
 static int passivemode = 0;
@@ -6223,15 +6210,6 @@ like \\v(filename)" :
     cdsimlvl = 0;
     while (!done && !cancelgroup) {     /* Loop for all files */
                                         /* or until canceled. */
-#ifdef FTP_PROXY
-        /*
-           If we are using a proxy, we don't use the local file list;
-           instead we use the list on the remote machine which we want
-           sent to someone else, and we use remglob() to get the names.
-           But in that case we shouldn't even be executing this routine;
-           see ftp_mput().
-        */
-#endif /* FTP_PROXY */
 
         cancelfile = 0;
         x = gnfile();                   /* Get next file from list(s) */
@@ -7541,9 +7519,6 @@ doftpget(cx,who) int cx, who;
     }
     while (!done && !cancelgroup) {     /* Loop for all files */
                                         /* or until canceled. */
-#ifdef FTP_PROXY
-        /* do something here if proxy */
-#endif /* FTP_PROXY */
 
         rs_len = (CK_OFF_T)0;		/* REGET position */
         cancelfile = 0;                 /* This file not canceled yet */
@@ -9972,9 +9947,6 @@ static struct   sockaddr_in hisctladdr;
 static struct   sockaddr_in hisdataaddr;
 static struct   sockaddr_in data_addr;
 static int      data = -1;
-#ifdef FTP_PROXY
-static int      ptflag = 0;
-#endif /* FTP_PROXY */
 static struct   sockaddr_in myctladdr;
 
 #ifdef COMMENT
@@ -10039,9 +10011,6 @@ ftpcmd(cmd,arg,lcs,rcs,vbm) char * cmd, * arg; int lcs, rcs, vbm;
     len = cmdlen + (int)strlen(arg) + 1;
 
     if (ftp_deb /* && !dpyactive */ ) {
-#ifdef FTP_PROXY
-        if (ftp_prx) printf("%s ", ftp_host);
-#endif /* FTP_PROXY */
         printf("---> ");
         if (!anonymous && strcmp("PASS",cmd) == 0)
           printf("PASS XXXX");
@@ -10221,29 +10190,6 @@ lostpeer() {
         DialerSend(OPT_KERMIT_HANGUP, 0);
 #endif /* OS2 */
     }
-#ifdef FTP_PROXY
-    pswitch(1);
-    if (connected) {
-        if (csocket != -1) {
-#ifdef TCPIPLIB
-            socket_close(csocket);
-#else /* TCPIPLIB */
-#ifdef USE_SHUTDOWN
-            shutdown(csocket, 1+1);
-#endif /* USE_SHUTDOWN */
-            close(csocket);
-#endif /* TCPIPLIB */
-            csocket = -1;
-        }
-        connected = 0;
-        anonymous = 0;
-        loggedin = 0;
-        auth_type = NULL;
-        ftp_cpl = ftp_dpl = FPL_CLR;
-    }
-    proxflag = 0;
-    pswitch(0);
-#endif /* FTP_PROXY */
 }
 
 int
@@ -10290,10 +10236,6 @@ ftpclose() {
     typesent = 0;
     data = -1;
     globaldin = -1;
-#ifdef FTP_PROXY
-    if (!proxy)
-      macnum = 0;
-#endif /* FTP_PROXY */
     auth_type = NULL;
     ftp_dpl = FPL_CLR;
 #ifdef CKLOGDIAL
@@ -10782,10 +10724,6 @@ cmdcancel(sig) int sig;
     cancelgroup++;
     mlsreset();
 #ifndef OS2
-#ifdef FTP_PROXY
-    if (ptflag)                         /* proxy... */
-      longjmp(ptcancel,1);
-#endif /* FTP_PROXY */
     debug(F100,"ftp cmdcancel chain to trap()...","",0);
     trap(SIGINT);
     /* NOTREACHED */
@@ -11388,10 +11326,6 @@ getreply(expecteof,lcs,rcs,vbm,fc) int expecteof, lcs, rcs, vbm, fc;
                         (dig > 4 || ( dig <= 4 && !isdigit(c) && ftpcode == 0
                         )))))
                     {
-#ifdef FTP_PROXY
-                        if (ftp_prx && (dig == 1 || (dig == 5 && vbm == 0)))
-                          printf("%s:",ftp_host);
-#endif /* FTP_PROXY */
 
                         if (!xquiet) {
 #ifdef NOCSETS
@@ -12400,13 +12334,6 @@ sendrequest( cmd, local, remote, xlate, incs, outcs, restart )
     ftpsnd.bytes = 0;                   /* File input byte count */
     dout = -1;
 
-#ifdef FTP_PROXY
-    if (proxy) {
-        proxtrans(cmd, local, remote, !strcmp(cmd,"STOU"));
-        return(0);
-    }
-#endif /* FTP_PROXY */
-
     changetype(ftp_typ,0);              /* Change type for this file */
 
     ftpsnd.oldintr = NULL;		/* Set up interrupt handler */
@@ -13350,11 +13277,6 @@ recvrequest(cmd,local,remote,lmode,printnames,recover,pipename,xlate,fcs,rcs)
         debug(F111,"ftp recvrequest recover",remote,recover);
     }
 
-#ifdef FTP_PROXY
-    if (proxy && ftprecv.is_retr)
-      return(proxtrans(cmd, local ? local : remote, remote));
-#endif /* FTP_PROXY */
-
     ftprecv.tcrflag = (feol != CK_CR) && ftprecv.is_retr;
 
     ftprecv.reply = 0;
@@ -13884,286 +13806,6 @@ dataconn(lmode) char *lmode;
     return(data);
 }
 
-#ifdef FTP_PROXY
-static SIGTYP
-pscancel(sig) int sig; {
-    cancelfile++;
-}
-
-static VOID
-pswitch(flag) int flag; {
-    extern int proxy;
-    static struct comvars {
-        int connect;
-        char name[MAXHOSTNAMELEN];
-        struct sockaddr_in mctl;
-        struct sockaddr_in hctl;
-        FILE *in;
-        FILE *out;
-        int tpe;
-        int curtpe;
-        int cpnd;
-        int sunqe;
-        int runqe;
-        int mcse;
-        int ntflg;
-        char nti[17];
-        char nto[17];
-        int mapflg;
-        char mi[CKMAXPATH];
-        char mo[CKMAXPATH];
-        char *authtype;
-        int clvl;
-        int dlvl;
-#ifdef FTP_KRB4
-        des_cblock session;
-        des_key_schedule ftp_sched;
-#endif /* FTP_KRB4 */
-#ifdef FTP_GSSAPI
-        gss_ctx_id_t gcontext;
-#endif /* GSSAPI */
-    } proxstruct, tmpstruct;
-    struct comvars *ip, *op;
-
-    cancelfile = 0;
-    oldintr = signal(SIGINT, pscancel);
-    if (flag) {
-        if (proxy)
-          return;
-        ip = &tmpstruct;
-        op = &proxstruct;
-        proxy++;
-    } else {
-        if (!proxy)
-          return;
-        ip = &proxstruct;
-        op = &tmpstruct;
-        proxy = 0;
-    }
-    ip->connect = connected;
-    connected = op->connect;
-    if (ftp_host) {
-        strncpy(ip->name, ftp_host, MAXHOSTNAMELEN - 1);
-        ip->name[MAXHOSTNAMELEN - 1] = '\0';
-        ip->name[strlen(ip->name)] = '\0';
-    } else
-      ip->name[0] = 0;
-    ftp_host = op->name;
-    ip->hctl = hisctladdr;
-    hisctladdr = op->hctl;
-    ip->mctl = myctladdr;
-    myctladdr = op->mctl;
-    ip->in = csocket;
-    csocket = op->in;
-    ip->out = csocket;
-    csocket = op->out;
-    ip->tpe = ftp_typ;
-    ftp_typ = op->tpe;
-    ip->curtpe = curtype;
-    curtype = op->curtpe;
-    ip->cpnd = cpend;
-    cpend = op->cpnd;
-    ip->sunqe = ftp_usn;
-    ftp_usn = op->sunqe;
-    ip->mcse = mcase;
-    mcase = op->mcse;
-    ip->ntflg = ntflag;
-    ntflag = op->ntflg;
-    strncpy(ip->nti, ntin, 16);
-    (ip->nti)[strlen(ip->nti)] = '\0';
-    strcpy(ntin, op->nti);
-    strncpy(ip->nto, ntout, 16);
-    (ip->nto)[strlen(ip->nto)] = '\0';
-    strcpy(ntout, op->nto);
-    ip->mapflg = mapflag;
-    mapflag = op->mapflg;
-    strncpy(ip->mi, mapin, CKMAXPATH - 1);
-    (ip->mi)[strlen(ip->mi)] = '\0';
-    strcpy(mapin, op->mi);
-    strncpy(ip->mo, mapout, CKMAXPATH - 1);
-    (ip->mo)[strlen(ip->mo)] = '\0';
-    strcpy(mapout, op->mo);
-    ip->authtype = auth_type;
-    auth_type = op->authtype;
-    ip->clvl = ftp_cpl;
-    ftp_cpl = op->clvl;
-    ip->dlvl = ftp_dpl;
-    ftp_dpl = op->dlvl;
-    if (!ftp_cpl)
-      ftp_cpl = FPL_CLR;
-    if (!ftp_dpl)
-      ftp_dpl = FPL_CLR;
-#ifdef FTP_KRB4
-    memcpy(ip->session, ftp_cred.session, sizeof(ftp_cred.session));
-    memcpy(ftp_cred.session, op->session, sizeof(ftp_cred.session));
-    memcpy(ip->schedule, ftp_sched, sizeof(ftp_sched));
-    memcpy(ftp_sched, op->schedule, sizeof(ftp_sched));
-#endif /* FTP_KRB4 */
-#ifdef FTP_GSSAPI
-    ip->gcontext = gcontext;
-    gcontext = op->gcontext;
-#endif /* GSSAPI */
-    signal(SIGINT, oldintr);
-    if (cancelfile) {
-        cancelfile = 0;
-        debug(F101,"pswitch cancelfile B","",cancelfile);
-        (*oldintr)(SIGINT);
-    }
-}
-
-static SIGTYP
-#ifdef CK_ANSIC
-cancelpt( int sig )
-#else
-cancelpt(sig) int sig;
-#endif /* CK_ANSIC */
-{
-    printf("\n");
-    fflush(stdout);
-    ptabflg++;
-    cancelfile = 0;
-#ifndef OS2
-    longjmp(ptcancel, 1);
-#else
-    PostCtrlCSem();
-#endif /* OS2 */
-}
-
-void
-proxtrans(cmd, local, remote, unique) char *cmd, *local, *remote; int unique; {
-    int secndflag = 0, prox_type, nfnd;
-    char *cmd2;
-#ifdef BSDSELECT
-    fd_set mask;
-#endif /* BSDSELECT */
-    SIGTYP cancelpt();
-
-    if (strcmp(cmd, "RETR"))
-      cmd2 = "RETR";
-    else
-      cmd2 = unique ? "STOU" : "STOR";
-    if ((prox_type = type) == 0) {
-        if (servertype == SYS_UNIX && unix_proxy)
-          prox_type = FTT_BIN;
-        else
-          prox_type = FTT_ASC;
-    }
-    if (curtype != prox_type)
-      changetype(prox_type, 1);
-    if (ftpcmd("PASV",NULL,0,0,ftp_vbm) != REPLY_COMPLETE) {
-        printf("Proxy server does not support third party transfers.\n");
-        return;
-    }
-    pswitch(0);
-    if (!connected) {
-        printf("No primary connection\n");
-        pswitch(1);
-        ftpcode = -1;
-        return;
-    }
-    if (curtype != prox_type)
-      changetype(prox_type, 1);
-
-    if (ftpcmd("PORT",pasv,-1,-1,ftp_vbm) != REPLY_COMPLETE) {
-        pswitch(1);
-        return;
-    }
-
-    /* Replace with calls to cc_execute() */
-    if (setjmp(ptcancel))
-      goto cancel;
-    oldintr = signal(SIGINT, cancelpt);
-    if (ftpcmd(cmd,remote,-1,-1,ftp_vbm) != PRELIM) {
-        signal(SIGINT, oldintr);
-        pswitch(1);
-        return;
-    }
-    sleep(2000);
-    pswitch(1);
-    secndflag++;
-    if (ftpcmd(cmd2,local,-1,-1,ftp_vbm) != PRELIM)
-      goto cancel;
-    ptflag++;
-    getreply(0,-1,-1,ftp_vbm,0);
-    pswitch(0);
-    getreply(0,-1,-1,ftp_vbm,0);
-    signal(SIGINT, oldintr);
-    pswitch(1);
-    ptflag = 0;
-    return;
-
-  cancel:
-    signal(SIGINT, SIG_IGN);
-    ptflag = 0;
-    if (strcmp(cmd, "RETR") && !proxy)
-      pswitch(1);
-    else if (!strcmp(cmd, "RETR") && proxy)
-      pswitch(0);
-    if (!cpend && !secndflag) {  /* only here if cmd = "STOR" (proxy=1) */
-        if (ftpcmd(cmd2,local,-1,-1,ftp_vbm) != PRELIM) {
-            pswitch(0);
-            if (cpend)
-              cancel_remote(0);
-        }
-        pswitch(1);
-        if (ptabflg)
-          ftpcode = -1;
-        signal(SIGINT, oldintr);
-        return;
-    }
-    if (cpend)
-      cancel_remote(0);
-    pswitch(!proxy);
-    if (!cpend && !secndflag) {  /* only if cmd = "RETR" (proxy=1) */
-        if (ftpcmd(cmd2,local,-1,-1,ftp_vbm) != PRELIM) {
-            pswitch(0);
-            if (cpend)
-              cancel_remote(0);
-            pswitch(1);
-            if (ptabflg)
-              ftpcode = -1;
-            signal(SIGINT, oldintr);
-            return;
-        }
-    }
-    if (cpend)
-      cancel_remote(0);
-    pswitch(!proxy);
-    if (cpend) {
-#ifdef BSDSELECT
-        FD_ZERO(&mask);
-        FD_SET(csocket, &mask);
-        if ((nfnd = empty(&mask, 10)) <= 0) {
-            if (nfnd < 0) {
-                perror("cancel");
-            }
-            if (ptabflg)
-              ftpcode = -1;
-            lostpeer();
-        }
-#else /* BSDSELECT */
-#ifdef IBMSELECT
-        if ((nfnd = empty(&csocket, 1, 10)) <= 0) {
-            if (nfnd < 0) {
-                perror("cancel");
-            }
-            if (ptabflg)
-              ftpcode = -1;
-            lostpeer();
-        }
-#endif /* IBMSELECT */
-#endif /* BSDSELECT */
-        getreply(0,-1,-1,ftp_vbm,0);
-        getreply(0,-1,-1,ftp_vbm,0);
-    }
-    if (proxy)
-      pswitch(0);
-    pswitch(1);
-    if (ptabflg)
-      ftpcode = -1;
-    signal(SIGINT, oldintr);
-}
-#endif /* FTP_PROXY */
 
 #ifdef FTP_SECURITY
 #ifdef FTP_GSSAPI
@@ -14800,10 +14442,6 @@ cancel_remote(din) int din;
         if (nfnd < 0) {
             perror("cancel");
         }
-#ifdef FTP_PROXY
-        if (ptabflg)
-          ftpcode = -1;
-#endif /* FTP_PROXY */
         lostpeer();
     }
     debug(F110,"ftp cancel_remote","D",0);
@@ -14837,10 +14475,6 @@ cancel_remote(din) int din;
         if (nfnd < 0) {
             perror("cancel");
         }
-#ifdef FTP_PROXY
-        if (ptabflg)
-          ftpcode = -1;
-#endif /* FTP_PROXY */
         lostpeer();
     }
     debug(F110,"ftp cancel_remote","D",0);
@@ -15390,11 +15024,6 @@ ftp_init() {
     else if (!ckstrcmp(ftp_srvtyp,"TOPS20",-1,0)) servertype = SYS_TOPS20;
     else if (!ckstrcmp(ftp_srvtyp,"TOPS10",-1,0)) servertype = SYS_TOPS10;
 
-#ifdef FTP_PROXY
-    unix_proxy = 0;
-    if (servertype == SYS_UNIX && proxy) unix_proxy = 1;
-#endif /* FTP_PROXY */
-
     if (ftp_cmdlin && ftp_xfermode == XMODE_M)
       ftp_typ = binary;                 /* Type given on command line */
     else                                /* Otherwise set it automatically */
@@ -15600,10 +15229,6 @@ ftp_login(host) char * host;
           doexit(BAD_EXIT,-1);
     }
 
-#ifdef FTP_PROXY
-    if (proxy)
-      return(1);
-#endif /* FTP_PROXY */
     return(1);
 }
 
@@ -15955,12 +15580,6 @@ remote_files(new_query, arg, pattern, proxy_switch)
 	debug(F111,"ftp remote_files tmpfilnam[mlsdepth]",
 	      tmpfilnam[mlsdepth],mlsdepth);
 
-#ifdef FTP_PROXY
-        if (proxy_switch) {
-            pswitch(!proxy);
-        }
-#endif /* FTP_PROXY */
-
         debug(F101,"ftp remote_files ftp_xla","",ftp_xla);
         debug(F101,"ftp remote_files ftp_csl","",ftp_csl);
         debug(F101,"ftp remote_files ftp_csr","",ftp_csr);
@@ -16044,11 +15663,6 @@ remote_files(new_query, arg, pattern, proxy_switch)
 		return(NULL);
 	    }
 	}
-#ifdef FTP_PROXY
-        if (proxy_switch) {
-            pswitch(!proxy);
-        }
-#endif /* FTP_PROXY */
         tmpfilptr[mlsdepth] = fopen((char *)tmpfilnam[mlsdepth], "r");
 #ifndef OS2
 	if (tmpfilptr[mlsdepth]) {
@@ -17797,56 +17411,6 @@ ftp_mput(argc, argv) int argc; char **argv; {
 
     /* Replace with calls to cc_execute() */
     setjmp(jcancel);
-#ifdef FTP_PROXY
-    if (proxy) {
-        char *cp, *tp2, tmpbuf[CKMAXPATH];
-
-        while ((cp = remglob(argv,0)) != NULL) {
-            if (*cp == 0) {
-                mflag = 0;
-                continue;
-            }
-            if (mflag && confirm(argv[0], cp)) {
-                tp = cp;
-                if (mcase) {
-                    while (*tp && !islower(*tp)) {
-                        tp++;
-                    }
-                    if (!*tp) {
-                        tp = cp;
-                        tp2 = tmpbuf;
-                        while ((*tp2 = *tp) != 0) {
-                            if (isupper(*tp2)) {
-                                *tp2 = 'a' + *tp2 - 'A';
-                            }
-                            tp++;
-                            tp2++;
-                        }
-                    }
-                    tp = tmpbuf;
-                }
-                if (ntflag) {
-                    tp = dotrans(tp);
-                }
-                if (mapflag) {
-                    tp = domap(tp);
-                }
-                sendrequest((sunique) ? "STOU" : "STOR", cp, tp, 0, -1, -1, 0);
-                if (!mflag && fromatty) {
-                    ointer = interactive;
-                    interactive = 1;
-                    if (confirm("Continue with","mput")) {
-                        mflag++;
-                    }
-                    interactive = ointer;
-                }
-            }
-        }
-        signal(SIGINT, oldintr);
-        mflag = 0;
-        return;
-    }
-#endif /* FTP_PROXY */
     for (i = 1; i < argc; i++) {
         register char **cpp, **gargs;
 
@@ -18080,18 +17644,8 @@ remglob(argv,doswitch) char *argv[]; int doswitch; {
 #endif /* MKTEMP */
         verbose = 0;
         oldhash = hash, hash = 0;
-#ifdef FTP_PROXY
-        if (doswitch) {
-            pswitch(!proxy);
-        }
-#endif /* FTP_PROXY */
         for (mode = "wb"; *++argv != NULL; mode = "ab")
           recvrequest ("NLST", temp, *argv, mode, 0);
-#ifdef FTP_PROXY
-        if (doswitch) {
-            pswitch(!proxy);
-        }
-#endif /* FTP_PROXY */
         hash = oldhash;
         ftemp = fopen(temp, "r");
         unlink(temp);
