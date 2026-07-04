@@ -1013,16 +1013,6 @@ pushqcmd(s) char * s;
 }
 #endif /* NOSPL */
 
-#ifdef COMMENT
-/* no longer used... */
-VOID
-popcmd() {
-    ckstrncpy(cmdbuf,savbuf,CMDBL);	/* Put back the saved material */
-    *savbuf = '\0';			/* and clear the save buffer */
-    cmres();
-}
-#endif /* COMMENT */
-
 /*  C M R E S  --  Reset pointers to beginning of command buffer.  */
 
 VOID
@@ -1308,19 +1298,6 @@ cmpop() {				/* Restore the command environment */
     return(cmddep);
 }
 #endif /* NOSPL */
-
-#ifdef COMMENT
-VOID					/* Not used */
-stripq(s) char *s; {                    /* Function to strip '\' quotes */
-    char *t;
-    while (*s) {
-        if (*s == CMDQ) {
-            for (t = s; *t != '\0'; t++) *t = *(t+1);
-        }
-        s++;
-    }
-}
-#endif /* COMMENT */
 
 /* Convert tabs to spaces, one for one */
 VOID

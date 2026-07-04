@@ -2744,14 +2744,6 @@ rdebu(d,len) CHAR *d; int len;
     debug(F101," rpsiz(extended)","",rpsiz);
 }
 
-#ifdef COMMENT
-/*  C H K E R R  --  Decide whether to exit upon a protocol error  */
-
-VOID
-chkerr() {
-    if (backgrd && !server) fatal("Protocol error");
-}
-#endif /* COMMENT */
 #endif /* NOXFER */
 
 /*  F A T A L  --  Fatal error message */

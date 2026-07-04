@@ -1259,24 +1259,6 @@ struct keytab disptb[] = {              /* Log file disposition */
 
 /* I N I T F L O A T  --  Deduce floating-point precision by inspection */
 
-#ifdef COMMENT
-/* For looking at internal floating-point representations */
-static char fp_xbuf[128];
-static char *
-tohex(s, n) CHAR * s; int n; {
-    int x;
-    char * p = fp_xbuf;
-    while (n-- > 0) {
-        x = (*s >> 4) & 0x0f;
-        *p++ = hexdigits[x];
-        x = *s++ & 0x0f;
-        *p++ = hexdigits[x];
-    }
-    *p = NUL;
-    return((char *)fp_xbuf);
-}
-#endif /* COMMENT */
-
 char math_pi[] = "3.1415926535897932384626433832795";
 char math_e[] =  "2.7182818284590452353602874713527";
 
