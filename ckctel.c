@@ -1429,11 +1429,7 @@ fwdx_tn_sb( sb, n ) unsigned char * sb; int n;
         break;
     case FWDX_OPTIONS:
         if ( sstelnet ) {
-#ifndef FWDX_SERVER
             rc = 0;
-#else
-            rc = fwdx_server_accept_options((char*)&sb[2],n-3);
-#endif
         } else {
             rc = fwdx_client_reply_options((char *)&sb[2],n-3);
             if ( rc >= 0 ) {
@@ -2197,122 +2193,6 @@ fwdx_send_xauth(void)
     return(0);
 }
 #endif /* COMMENT */
-#ifdef FWDX_SERVER
-/* Only if we ever become a server - not yet ported to Kermit   */
-/* And even so most of this code does not belong in this module */
-
-int
-fwdx_write_xauthfile(void)
-{
-    int dpynum, scrnum, family;
-    char myhost[300], *host, *rest = NULL;
-    FILE *file;
-    struct sockaddr_in saddr;
-    struct hostent *hi;
-
-    if (!fwdx_display && !fwdx_xauthfile)
-        return 1;
-    if (!parse_displayname(fwdx_display,
-                           &family, &host, &dpynum, &scrnum, &rest))
-        return 2;
-    if (rest) free(rest);
-    if (host) free(host);
-    if (family != FamilyInternet)
-        return 3; /* every thing but FamilyInternet is unexpected */
-
-    /* X connections to localhost:1 is actually treated as local unix sockets,
-     * see the 'xauth' man page.
-     */
-    xauth.family = FamilyLocal;
-    if (gethostname(myhost, sizeof(myhost) - 1))
-        return 5;
-    xauth.address_length = strlen(myhost);
-    if (!(xauth.address = malloc(xauth.address_length)))
-        return 5;
-    memcpy(xauth.address, myhost, xauth.address_length);
-
-    /* the display number is written as a string, not numeric */
-    if (!(xauth.number = malloc(6)))
-        return 6;
-    snprintf(xauth.number, 5, "%u", dpynum);
-    xauth.number_length = strlen(xauth.number);
-    if (!(file = fopen(fwdx_xauthfile, "wb")))
-        return 7;
-    if (!XauWriteAuth(file, &xauth))
-        return 8;
-    fclose(file);
-    setenv("XAUTHORITY", fwdx_xauthfile, 1);
-    return 0;
-}
-
-int
-fwdx_setup_xauth(unsigned char *sp, int len)
-/* called with 'len' xauth bytes, starting at 'sp'
- * the data format is: <uint16 name_length> <uint16 data_length> <name> <data>
- */
-{
-    int xauthfd;
-
-    if (!fwdx_options[FWDX_OPT_XAUTH])
-        return 1;
-    if (len < 4)
-        return 2;
-
-    /* setup the xauth struct */
-    xauth.name_length = (sp[0] << 8) + sp[1];
-    xauth.data_length = (sp[2] << 8) + sp[3];
-    if (len != 4 + xauth.name_length + xauth.data_length)
-        return 3;
-    xauth.name = malloc(xauth.name_length);
-    xauth.data = malloc(xauth.data_length);
-    if (!xauth.name || !xauth.data)
-        return 4;
-    memcpy(xauth.name, sp + 4, xauth.name_length);
-    memcpy(xauth.data, sp + 4 + xauth.name_length, xauth.data_length);
-
-    /* Setup to always have a local .Xauthority. */
-    fwdx_xauthfile = malloc(CKMAXPATH+1);
-    snprintf(fwdx_xauthfile, CKMAXPATH, "/tmp/XauthXXXXXX");
-    if ((xauthfd = mkstemp(fwdx_xauthfile)) != -1)
-        /* we change file ownership later, when we know who is to be owner! */
-        close(xauthfd);
-    else {
-        free(fwdx_xauthfile);
-        fwdx_xauthfile = NULL;
-        return 5;
-    }
-/* Must have the subshell's new DISPLAY env var to write xauth to xauthfile */
-    if (fwdx_display)
-        if (fwdx_write_xauthfile())
-            return 6;
-
-    return 0;
-}
-
-void fwdx_set_xauthfile_owner(int uid)
-{
-    struct passwd *pwd;
-
-    if (!fwdx_xauthfile || !(pwd = getpwuid(uid)))
-        return;
-    chown(fwdx_xauthfile, pwd->pw_uid, pwd->pw_gid);
-}
-
-int
-fwdx_server_accept_options(unsigned char *sp, int len)
-/* called with 'len' option bytes, starting at 'sp' */
-{
-    int c;
-
-    for (c = 0; c < len-2; c++) {
-        if (c == 0) {
-            if (sp[c] & FWDX_OPT_XAUTH)
-                flag = 1;
-        }
-    }
-    return(0);
-}
-#endif /* FWDX_SERVER */
 #endif /* CK_FORWARD_X */
 
 #ifdef IKS_OPTION
