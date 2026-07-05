@@ -92,8 +92,12 @@ static char sccsid[] = "@(#)C-Kermit 10.0";
 
 int offtsize = 0;                       /* Size of OFF_T */
 /*
-  As of C-Kermit 10.0, we no longer use major.minor.edit version number,
-  just major.minor.
+  As of C-Kermit 10.0, the \v(version) variable and the "--version" command-
+  line parameter no longer show major.minor.edit, just major.minor (ck_s_ver;
+  see the XA_VERS case in ckuusy.c). The edit number is still part of the
+  startup herald and the "VERSION" command's banner (via ck_s_xver, e.g.
+  "10.0.416") and of \v(fullversion) (VN_FULLVER in ckuus4.c), so it is
+  still available.
 
   The C-Kermit Version number is major.minor.edit (integers).
   Major version always goes up.
@@ -102,10 +106,9 @@ int offtsize = 0;                       /* Size of OFF_T */
   system and hasn't been used since C-Kermit 7.1.
 
   The Edit number is sequential, always goes up, but there can be gaps.
-  For example there might be many edits between releases.  The edit number
-  is no longer shown as of C-Kermit 10.0, but we still need to keep it,
-  and it should always be incremented, for the benefit of packagers like
-  Debian who depend on it.
+  For example, there might be many edits between releases.  It should always
+  be incremented, for the benefit of packagers like Debian who depend on
+  it.
 
   Also the custom-format version numbers for the original 1980s Macintosh is
   gone as there is no more Mac Kermit (for the original Macintosh), just
