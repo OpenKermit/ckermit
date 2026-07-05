@@ -9212,25 +9212,6 @@ int k4debug = 0;                /* Kerberos 4 runtime debugging */
 #ifdef KINIT
 #define KRB_DEFAULT_LIFE 120 /* 10 hours in 5 minute intervals */
 
-#ifdef SNK4
-/* SNK4 is a hardware authentication system used to pre-authenticate    */
-/* a ticket getting ticket.  We do not support this code at the present */
-/* time in Kermit.                                                      */
-void
-get_input(s, size, stream)
-char *s;
-int size;
-FILE *stream;
-{
-    char *p;
-
-    if (fgets(s, size, stream) == NULL)
-        exit(1);
-    if ( (p = strchr(s, '\n')) != NULL)
-        *p = '\0';
-}
-#endif /* SNK4 */
-
 #ifdef COMMENT
 static char
 #ifdef CK_ANSIC
