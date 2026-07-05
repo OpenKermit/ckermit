@@ -389,22 +389,10 @@ ck_des_is_weak_key(Block key)
 #ifdef LIBDES
 #ifndef MACOSX
 /* These functions are not part of Eric Young's DES library */
-/* _unix_time_gmt_unixsec                                  */
 /* _des_set_random_generator_seed                          */
 /* _des_fixup_key_parity   (added in 0.9.5)                */
 /* _des_new_random_key                                     */
 #include <sys/time.h>
-
-unsigned long
-unix_time_gmt_unixsec(unsigned long *usecptr)
-{
-    struct timeval  now;
-
-    (void) gettimeofday (&now, (struct timezone *)0);
-    if (usecptr)
-        *usecptr = now.tv_usec;
-    return now.tv_sec;
-}
 
 void
 des_set_random_generator_seed(Block B)
