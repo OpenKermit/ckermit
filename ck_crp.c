@@ -1833,15 +1833,6 @@ encrypt_is_decrypting()
     return 0;
 }
 
-#ifdef DEBUG
-void
-encrypt_debug(mode)
-     int mode;
-{
-    encrypt_debug_mode = mode;
-}
-#endif
-
 #ifdef CK_DES
 /*-
  * Copyright (c) 1991, 1993
