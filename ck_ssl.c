@@ -4855,22 +4855,6 @@ ck_ssl_http_client(fd, hostname) int fd; char * hostname;
     return(0);  /* success */
 }
 #endif /* NOHTTP */
-int
-ck_ssl_renegotiate_ciphers()
-{
-
-    if ( !ck_ssleay_is_installed() )
-        return(0);
-
-    if ( !sstelnet )
-        return(0);
-
-    if ( ssl_active_flag )
-        return SSL_renegotiate(ssl_con);
-    else if ( tls_active_flag )
-        return SSL_renegotiate(tls_con);
-    return(0);
-}
 
 #ifdef NT
 int
