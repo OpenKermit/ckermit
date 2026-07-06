@@ -1,21 +1,21 @@
-.\" @(#) kermit.1 10.0 2022/11/28 The Open Source Kermit Project
-.TH KERMIT 1 "NOVEMBER 2022" "User Manuals"
+.\" @(#) kermit.1 10.0 2026/07/05 The OpenKermit Project
+.TH KERMIT 1 "JULY 2026" "User Manuals"
 .na
 .SH NAME
 kermit \-
-.B C\(hyKermit 10.0:
+.B C\(hyKermit 11.0:
 transport\(hy and platform\(hyindependent
 interactive and scriptable communications software.
 .IP
 
 This document is intended to give the beginner sufficient information to
-make basic use of C\(hyKermit 10.0.  Although it might be
+make basic use of C\(hyKermit 11.0.  Although it might be
 rather long for a Unix manual page, it's still far shorter than the
 C\(hyKermit manual, which should be consulted for advanced topics such as
 customization, character\(hysets, scripting, etc. We also attempt to provide
 a clear structural overview of C\(hyKermit's many capabilities, functional
 areas, states, and modes and their interrelation, that should be helpful to
-beginners and veterans alike, as well as to those upgrading to version 10.0
+beginners and veterans alike, as well as to those upgrading to version 11.0
 from earlier releases.
 .PP
 This document is also available as a Web page at:
@@ -24,7 +24,7 @@ https://kermitproject.org/ckututor.html
 .SH DESCRIPTION
 C\(hyKermit is an all\(hypurpose communications software package
 originally from the Kermit Project at Columbia University and now from
-the independent Open Source Kermit Project that:
+the independent OpenKermit Project that:
 .PP
 .nf
 \(bu	Is portable to many platforms, Unix and non\(hyUnix alike.
@@ -57,7 +57,7 @@ with C\(hyKermit, can be "scripted" (automated) using its built\(hyin
 cross\(hyplatform transport\(hyindependent script programming language, which
 happens to be identical to its interactive command language.
 .PP
-This manual page offers an overview of C\(hyKermit 10.0 for Unix ("Unix" is an
+This manual page offers an overview of C\(hyKermit 11.0 for Unix ("Unix" is an
 operating system family that includes AIX, DG/UX, FreeBSD, HP\(hyUX, IRIX,
 Linux, Mac OS X, NetBSD, OpenBSD, Open Server, Open Unix, QNX, Solaris,
 SunOS, System V R3, System V R4, Tru64 Unix, Unixware, Xenix, and many
@@ -1311,7 +1311,7 @@ about them. Also, it takes two to tango: most non\(hyKermit\(hyProject Kermit
 protocol implementations really ARE slow. The best file\(hytransfer partners
 for C\(hyKermit are: another copy of C\(hyKermit (7.0 or later) on Unix,
 (Open)VMS, or Microsoft Windows (formerly known as Kermit 95 or K95,
-now in Open Source release as C-Kermit 10.0 for Windows or CKW).  These
+now in Open Source release as C-Kermit 11.0 for Windows or CKW).  These
 combinations work well and they work fast by default. MS\(hyDOS Kermit is
 good too, but you have to tell it to go fast (by giving it the FAST command).
 .PP
@@ -1742,25 +1742,16 @@ Certificate Authority certifcates used for SSL connections.
 .TP
 Software
 Frank da Cruz and Jeffrey E Altman,
-.br
-1985\(hypresent, with contributions from hundreds of others all over the
+1985\(hy2025, with contributions from hundreds of others all over the
 world, notably David Goodwin for converting the 2001 edition of Kermit 95
 to Open Source C-Kermit 10.0 for Windows.
+
+John Goerzen and the OpenKermit contributors, 2025-present.
 .TP
 Documentation
 Frank da Cruz
 .TP
-Address
-.nf
-The Open Source Kermit Project
-Bronx NY
-USA
-.fi
-.TP
-E\(hyMail
-kermit@kermitproject.org
-.TP
 Web
-https://kermitproject.org/
+https://openkermit.org/
 .fi
 .br
