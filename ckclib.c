@@ -884,25 +884,6 @@ ckstrstr(s1, s2) char * s1, * s2;
     string is returned.  If the arg pointer is NULL, a pointer to an
     empty string is returned.
 */
-#ifdef COMMENT
-
-/* This is the original version, handling only braces */
-
-char *
-brstrip(p) char *p; {
-    if (!p) return("");
-    if (*p == '{') {
-	int x;
-	x = (int)strlen(p) - 1;
-	if (p[x] == '}') {
-	    p[x] = NUL;
-	    p++;
-	}
-    }
-    return(p);
-}
-
-#else
 /* New version handles braces and doublequotes */
 /* WARNING: this function writes into its argument, it always has. */
 
@@ -929,122 +910,7 @@ brstrip(p) char *p;
     }
     return(p);
 }
-#endif /* COMMENT */
 
-#ifdef COMMENT
-
-/* Even newer experimental version -- breaks many things */
-
-char *
-#ifdef CK_ANSIC
-fnstrip( char * )
-#else
-fnstrip(p) char *p;
-#endif /* CK_ANSIC */
-{
-    int i, j, k, n, len;
-    extern int cmd_quoting;		/* Bad - no externs allowed! */
-
-    if (!p)
-      return("");
-
-    if (*p == '{') {
-        len = strlen(p);
-        n = 0;
-
-        for (j = 0; j < len; j++ ) {
-            if (p[j] == '{' &&
-		(!cmd_quoting || j == 0 || p[j-1] != CMDQ)) {
-                for (n = 1, i = j+1; i < len; i++ ) {
-                    if (p[i] == '{' && (!cmd_quoting || p[i-1] != CMDQ))
-		      n++;
-                    else if (p[i] == '}' && (!cmd_quoting || p[i-1] != CMDQ)) {
-                        if (--n == 0) {
-                            for (k = j; k < i - 1; k++)
-			      p[k] = p[k+1];
-                            for (; i < len; i++ )
-			      p[i-1] = p[i+1];
-                            len -= 2;
-                            j = i - 1;
-                        }
-                    }
-                }
-            }
-        }
-        if (n == 1) { /* Implied right brace at end of field */
-            for (k = j; k < len; k++)
-	      p[k] = p[k+1];
-            len -= 1;
-        }
-    } else if (*p == '"') {
-        len = strlen(p);
-        n = 0;
-
-        for (j = 0; j < len; j++) {
-            if (p[j] == '"' &&
-		(!cmd_quoting || j == 0 || p[j-1] != CMDQ)) {
-                n++;
-
-                for (i = j + 1; i < len; i++) {
-                    if (p[i] == '"' && (!cmd_quoting || p[i-1] != CMDQ)) {
-                        n--;
-
-                        for (k = j; k < i - 1; k++)
-			  p[k] = p[k+1];
-                        for (; i < len; i++)
-			  p[i-1] = p[i+1];
-                        len -= 2;
-                        j = i - 1;
-                    }
-                }
-            }
-        }
-        if (n == 1) { /* Implied double quote at end of field */
-            for (k = j; k < len; k++ )
-	      p[k] = p[k+1];
-            len -= 1;
-        }
-    }
-    return(p);
-}
-#endif /* COMMENT */
-
-#ifdef COMMENT
-/*
-  Not used -- Note: these not only write into their arg, but write past
-  past the end.
-*/
-char *
-brace(fn) char *fn; {
-    int spaces = 0;
-    char * p, ch, ch2;
-    for (p = fn; *p; p++) {
-	if (*p == SP) {
-	    spaces = 1;
-	    break;
-	}
-    }
-    if (spaces) {
-        p = fn;
-        ch = *p;
-        *p = '{';
-        p++;
-
-        while (*p) {
-            ch2 = *p;
-            *p = ch;
-            ch = ch2;
-            p++;
-        }
-        *p = ch;
-        p++;
-        *p = '}';
-        p++;
-        *p = '\0';
-    }
-    return(fn);
-}
-#endif /* COMMENT */
 
 /* d q u o t e  --  Puts doublequotes around arg in place. */
 /*
@@ -1283,25 +1149,6 @@ makestr(p,s) char **p, *s;
 	return;
     }
     s2 = s;				/* Maybe new string will fit */
-
-#ifdef COMMENT
-/*
-  This is a fairly big win, allowing us to skip the malloc() and free if the
-  destination string already exists and is not shorter than the source string.
-  But it doesn't allow for possible overlap of source and destination.
-*/
-    if (*p) {				/* into old storage... */
-	char * p2 = *p;
-	char c;
-	while (c = *p2) {
-	    if (!(*p2++ = *s2++))
-	      break;
-	    x++;
-	}
-	makestrlen = x;
-	if (c) return;
-    }
-#endif /* COMMENT */
 
 /* Didn't fit */
 
@@ -1683,11 +1530,6 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
 	k++;
 	cp = *pattern;			/* Character from pattern */
 	cs = *string;			/* Character from string */
-
-#ifdef COMMENT
-	debug(F000,"CKMATCH pat cp",pattern,cp);
-	debug(F000,"CKMATCH str cs",string,cs);
-#endif /* COMMENT */
 
 	if (!cs) {			/* End of string - done. */
 	    x = (!cp || (cp == '*' && !*(pattern+1))) ? 1 : 0;
@@ -2102,13 +1944,6 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
 	    } else {			/* A meta char follows asterisk */
 		if (!*string)
 		  MATCHRETURN(17, matchpos = 0);
-#ifdef COMMENT
-		/* This is more elegant but it doesn't work. */
-		p--;
-		string++;
-		stringpos++;
-		k = ckmatch(p,string,icase,opts);
-#else
 		while (*string && ((k = ckmatch(p,string,icase,opts)) < 1)) {
 		    if (xxflag) MATCHRETURN(0,0);
 		    string++;
@@ -2124,7 +1959,6 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
 		    debug(F111,"CKMATCH DEFINITELY NO MATCH",p,k);
 		    MATCHRETURN(91,0);
 		}
-#endif	/* COMMENT */
 		debug(F111,"CKMATCH *<meta> k",string, k);
 		if (!matchpos && k > 0) {
 		    matchpos = stringpos;
@@ -2513,10 +2347,6 @@ ckradix(s,in,out) char * s; int in, out;
 
     char c, *r = rxresult;
     int d, minus = 0;
-#ifdef COMMENT
-    unsigned long zz = 0L;
-    long z = 0L;
-#else
     /*
       To get 64 bits on 32-bit hardware we use off_t, but there
       is no unsigned version of off_t, so we lose the ability to
@@ -2524,7 +2354,6 @@ ckradix(s,in,out) char * s; int in, out;
     */
     CK_OFF_T zz = (CK_OFF_T)0;
     CK_OFF_T z = (CK_OFF_T)0;
-#endif	/* COMMENT */
 
     if (in < 2 || in > 36)		/* Verify legal input radix */
       return(NULL);
@@ -3119,12 +2948,6 @@ setword(n,s,len) int n; char * s; int len;
 	k = wordsize[n];		/* (In case len arg is a lie) */
 	p = wordarray[n];
 	while ((*p++ = *s++) && k-- > 0) {
-#ifdef COMMENT
-	    if ((*(s-1) == CMDQ) && *s != CMDQ) {
-		k++;
-		p--;
-	    }
-#endif /* COMMENT */
 	}
     } else if (wordarray[n]) {
 	wordarray[n][0] = NUL;
