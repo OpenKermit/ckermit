@@ -206,17 +206,6 @@ int tn_env_flg = 1;
 int tn_env_flg = 0;
 #endif /* CK_ENVIRONMENT */
 
-#ifdef COMMENT
-/* SIGWINCH handler moved to ckuusx.c */
-#ifndef NOSIGWINCH
-#ifdef CK_NAWS                          /* Window size business */
-#ifdef UNIX
-#include <signal.h>
-#endif /* UNIX */
-#endif /* CK_NAWS */
-#endif /* NOSIGWINCH */
-#endif /* COMMENT */
-
 #include "ckuusr.h"
 #include "ckucmd.h"
 #include "ckcfnp.h"                     /* Prototypes (must be last) */
@@ -1615,77 +1604,6 @@ fwdx_send_xauth_to_xserver(channel, data, len)
 }
 
 
-#ifdef COMMENT
-int
-#ifdef CK_ANSIC
-fwdx_authorize_channel(int channel, unsigned char * data, int len)
-#else
-fwdx_authorize_channel(channel, data, len)
-    int channel; unsigned char * data; int len;
-#endif /* CK_ANSIC */
-{
-    /* XXX maybe we should have some retry handling if not the whole first
-    * authorization packet arrives complete
-    */
-    if ( !TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[channel].authorized ) {
-        int name_len, data_len;
-
-        if (len < 12)
-            goto auth_err;
-
-        /* Parse the lengths of variable-length fields. */
-        if (data[0] == 0x42) {          /* byte order MSB first. */
-            /* Xauth packets appear to always have this format */
-            if ( data[1] != 0x00 ||
-                 data[2] != 0x00 ||
-                 data[3] != 0x0B ||
-                 data[4] != 0x00 ||
-                 data[5] != 0x00 )
-                goto auth_err;
-
-            name_len = (data[6] << 8) + data[7];
-            data_len = (data[8] << 8) + data[9];
-        } else if (data[0] == 0x6c) {   /* Byte order LSB first. */
-            /* Xauth packets appear to always have this format */
-            if ( data[1] != 0x00 ||
-                 data[2] != 0x0B ||
-                 data[3] != 0x00 ||
-                 data[4] != 0x00 ||
-                 data[5] != 0x00 )
-                goto auth_err;
-
-            name_len = data[6] + (data[7] << 8);
-            data_len = data[8] + (data[9] << 8);
-        } else {
-            /* bad byte order byte */
-            goto auth_err;
-        }
-        /* Check if authentication protocol matches. */
-        if (name_len != fake_xauth.name_length ||
-             memcmp(data + 12, fake_xauth.name, name_len) != 0) {
-            /* connection uses different authentication protocol */
-            goto auth_err;
-        }
-        /* Check if authentication data matches our fake data. */
-        if (data_len != fake_xauth.data_length ||
-             memcmp(data + 12 + ((name_len + 3) & ~3),
-                     fake_xauth.data, fake_xauth.data_length) != 0) {
-            /* auth data does not match fake data */
-            goto auth_err;
-        }
-        /* substitute the fake data with real data if we have any */
-        if (real_xauth && real_xauth->data)
-            memcpy(data + 12 + ((name_len + 3) & ~3),
-                   real_xauth->data, data_len);
-
-        TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[channel].authorized = 1;
-    }
-    return(0);
-  auth_err:
-    return(-1);
-}
-#endif /* COMMENT */
-
 int
 #ifdef CK_ANSIC
 fwdx_send_close(int channel)
@@ -1826,16 +1744,6 @@ fwdx_client_reply_options(opts, n) char *opts; int n;
     /* and reply with their bytes set                                      */
     for (j=0; j<n; j++,i++) {
         sb_out[i] = FWDX_OPT_NONE;          /* Add zero byte - no options */
-#ifdef COMMENT
-        /* If we had any options to support, this is how we would do it */
-        if ( j == 0 ) {
-            if (opts[j] & FWDX_OPT_XXXX) {
-                /* set flag to remember option is in use */
-                flag = 1;
-                sb_out[i] |= FWDX_OPT_XXXX;
-            }
-        }
-#endif /* COMMENT */
     }
     sb_out[i++] = (CHAR) IAC;                 /* End of Subnegotiation */
     sb_out[i++] = (CHAR) SE;                  /* marked by IAC SE */
@@ -2032,28 +1940,6 @@ fwdx_send_data_from_channel(channel, data, len)
     return(0);
 }
 
-#ifdef COMMENT
-static unsigned char *
-#ifdef CK_ANSIC
-fwdx_add_quoted_twobyte(unsigned char *p, unsigned short twobyte)
-#else
-fwdx_add_quoted_twobyte(p, twobyte)
-    unsigned char *p; unsigned short twobyte;
-#endif /* CK_ANSIC */
-/* adds the IAC quoted (MSB) representation of 'channel' at buffer pointer 'p',
- * returning pointer to new buffer position. NO OVERFLOW CHECK!
- */
-{
-    *p++ = (unsigned char)((twobyte >> 8) & 0xFF);
-    if (*(p - 1) == 0xFF)
-        *p++ = 0xFF;
-    *p++ = (unsigned char)(twobyte & 0xFF);
-    if (*(p - 1) == 0xFF)
-        *p++ = 0xFF;
-    return p;
-}
-#endif /* COMMENT */
-
 int
 #ifdef CK_ANSIC
 fwdx_create_fake_xauth(char *name, int name_len, int data_len)
@@ -2086,113 +1972,6 @@ fwdx_create_fake_xauth(name, name_len, data_len)
     return 0;
 }
 
-#ifdef COMMENT
-/* No longer used */
-int
-fwdx_send_xauth(void)
-{
-    int c, err, dpynum, family, sb_len, rc;
-    char *display, *host = NULL;
-    unsigned char *sb_priv, *p;
-
-    /* parse the local DISPLAY env var */
-    if (!(display = tn_get_display()))
-        return (-1);
-    if (fwdx_parse_displayname(display, &family, &host, &dpynum, NULL, NULL)) {
-        char * disp_no = ckitoa(dpynum);
-        if (family == FamilyLocal) {
-            /* call with address = "<local host name>" */
-            char address[300] = "localhost";
-            gethostname(address, sizeof(address) - 1);
-            real_xauth = XauGetAuthByAddr(family,
-                                          strlen(address),
-                                          address,
-                                          strlen(disp_no),
-                                          disp_no, 0, NULL
-                                          );
-        }
-        else if (family == FamilyInternet) {
-            /* call with address = 4 bytes numeric ip addr (MSB) */
-            struct hostent *hi;
-            if ((hi = gethostbyname(host)))
-                real_xauth = XauGetAuthByAddr(family, 4,
-                                              hi->h_addr,
-                                              strlen(disp_no),
-                                              disp_no, 0, NULL
-                                              );
-        }
-    }
-    if (host) {
-        free(host);
-        host = NULL;
-    }
-    if (real_xauth)
-        err = fwdx_create_fake_xauth(real_xauth->name,
-                                     real_xauth->name_length,
-                                     real_xauth->data_length
-                                     );
-    else
-      err = fwdx_create_fake_xauth("MIT-MAGIC-COOKIE-1",
-                                   strlen("MIT-MAGIC-COOKIE-1"), 16);
-    if (err)
-        return(-1);
-
-    /* allocate memory for the SB block, alloc for worst case              */
-    /* the following sprintf() calls are safe due to length checking       */
-    /* buffer is twice as big as the input just in case every byte was IAC */
-    sb_len = 5 + 2 + 2 + fake_xauth.name_length + fake_xauth.data_length + 2;
-    if (!(sb_priv = malloc(2 * sb_len)))
-        return(-1);
-    p = sb_priv;
-    sprintf(p, "%c%c%c%c%c", IAC, SB, TELOPT_FORWARD_X,
-            FWDX_OPT_DATA, FWDX_OPT_XAUTH);
-    p += 5;
-    p = fwdx_add_quoted_twobyte(p, fake_xauth.name_length);
-    p = fwdx_add_quoted_twobyte(p, fake_xauth.data_length);
-    for (c = 0; c < fake_xauth.name_length; c++) {
-        *p++ = fake_xauth.name[c];
-        if ((unsigned char)fake_xauth.name[c] == 0xFF)
-            *p++ = 0xFF;
-    }
-    for (c = 0; c < fake_xauth.data_length; c++) {
-        *p++ = fake_xauth.data[c];
-        if ((unsigned char)fake_xauth.data[c] == 0xFF)
-            *p++ = 0xFF;
-    }
-    sprintf(p, "%c%c", IAC, SE);
-    p += 2;
-
-#ifdef DEBUG
-    if (deblog || tn_deb || debses) {
-        sprintf((char *)fwdx_msg_out,"TELNET SENT SB %s OPTION_DATA XAUTH ",
-                 TELOPT(TELOPT_FORWARD_X));
-        tn_hex((char *)fwdx_msg_out,TN_MSG_LEN,&sb_priv[5],(p-sb_priv)-7);
-        ckstrncat((char *)fwdx_msg_out," IAC SE",TN_MSG_LEN);
-    }
-#endif /* DEBUG */
-
-    /* Add Telnet Debug info here */
-#ifdef OS2
-    RequestTelnetMutex( SEM_INDEFINITE_WAIT );
-#endif
-#ifdef DEBUG
-    debug(F100,(char *)fwdx_msg_out,"",0);
-    if (tn_deb || debses) tn_debug((char *)fwdx_msg_out);
-#endif /* DEBUG */
-    rc = ( ttol(sb_priv,p-sb_priv) < 0 );                /* Send it. */
-#ifdef OS2
-    ReleaseTelnetMutex();
-#endif
-    if (rc) {
-        debug(F110,"fwdx_send_xauth()","ttol() failed",0);
-        return(-1);
-    }
-
-
-    free(sb_priv);
-    return(0);
-}
-#endif /* COMMENT */
 #endif /* CK_FORWARD_X */
 
 #ifdef IKS_OPTION
@@ -3267,26 +3046,6 @@ tn_ini() {
         tn_init = 1;
         debug(F100,"tn_ini telnet negotiations ignored","tn_init",tn_init);
         return(0);
-#ifdef COMMENT
-      /* Jeff's code from 30 Dec 2005 - doesn't work with SSL POP server */
-      case NP_NONE:
-      case NP_SSL:
-      case NP_TLS:
-        ttnproto = NP_TELNET;           /* pretend it's telnet anyway, */
-        oldplex = duplex;               /* save old duplex value */
-        duplex = 1;                     /* and set to half duplex for telnet */
-        if (inserver)
-          debug(F100,"tn_ini skipping telnet negotiations","",0);
-	else
-	  tn_wait("tn_ini - waiting to see if telnet negotiations were sent");
-	tn_push();
-        return(0);
-      case NP_SSL_RAW:
-      case NP_TLS_RAW:
-      case NP_TCPRAW:                   /* Raw socket requested. */
-        debug(F100,"tn_ini telnet negotiations ignored","tn_init",tn_init);
-        return(0);
-#else
       /* My code from 4 Dec 2005 - works with SSL POP server */
       case NP_NONE:
       case NP_SSL:
@@ -3316,7 +3075,6 @@ tn_ini() {
       case NP_TCPRAW:                   /* Raw socket requested. */
         debug(F100,"tn_ini telnet negotiations ignored","tn_init",tn_init);
         return(0);
-#endif	/* COMMENT */
       case NP_KERMIT:                   /* switching to Telnet protocol */
       case NP_SSL_TELNET:
       case NP_TLS_TELNET:
@@ -3350,22 +3108,6 @@ tn_hex(buf, buflen, data, datalen)
 {
     int i = 0, j = 0, k = 0;
     CHAR tmp[16];		/* in case value is treated as negative */
-#ifdef COMMENT
-    int was_hex = 1;
-
-    for (k=0; k < datalen; k++) {
-        if (data[k] < 32 || data[k] >= 127) {
-            sprintf(tmp,"%s%02X ",was_hex?"":"\" ",data[k]);
-            was_hex = 1;
-        } else {
-            sprintf(tmp,"%s%c",was_hex?"\"":"",data[k]);
-            was_hex = 0;
-        }
-        ckstrncat((char *)buf,tmp,buflen);
-    }
-    if (!was_hex)
-        ckstrncat((char *)buf,"\" ",buflen);
-#else /* COMMENT */
     if (datalen <= 0 || data == NULL || buf == NULL || buflen <= 0)
         return(0);
 
@@ -3397,7 +3139,6 @@ tn_hex(buf, buflen, data, datalen)
         i += j - 1;
     } /* end for */
     ckstrncat((char *)buf,"\r\n  ",buflen);
-#endif /* COMMENT */
     return(strlen((char *)buf));
 }
 
@@ -4832,10 +4573,6 @@ tn_xdoop(z, echo, fn) CHAR z; int echo; int (*fn)();
             whyclosed = WC_TELOPT;
             return(-3);
         }
-#ifdef COMMENT
-        if (x == TELOPT_ECHO && !echo) /* Special handling for echo */
-          return(1);                   /* because we allow 'duplex' */
-#endif /* COMMENT */
         break;
 
       case DO:
@@ -6864,11 +6601,6 @@ tnc_tn_sb(sb, len) CHAR * sb; int len;
             TELOPT_SB(TELOPT_COMPORT).comport.wait_for_sb = 0;
             return(-1);
         }
-
-#ifdef COMMENT
-        /* This line should be removed when testing is complete. */
-        TELOPT_SB(TELOPT_COMPORT).comport.wait_for_sb = 0;
-#endif /* COMMENT */
 
         switch ( sb[1] ) {
           case TNC_CTL_OFLOW_REQUEST:
