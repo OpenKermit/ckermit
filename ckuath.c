@@ -211,9 +211,6 @@ _PROTOTYP(const char * krb_get_err_text_entry, (int));
 #else /* KRB4 */
 #ifdef CK_SSL
 #define  des_cblock Block
-#ifdef COMMENT
-#define  const_des_cblock const Block
-#endif /* COMMENT */
 #define  des_key_schedule Schedule
 #endif /* CK_SSL */
 #endif /* KRB4 */
@@ -721,20 +718,6 @@ ck_srp_is_installed_as_server()
     if ( hSRP == NULL )
         return(0);
 #endif /* SRPDLL */
-#ifdef COMMENT
-    /* This is the new API as of 1.7.4.  However, all it does
-       is allocate a data structure.  It can never fail.
-     */
-    {
-        SRP * s_srp = SRP_new(SRP_RFC2945_server_method());
-        if ( s_srp ) {
-            SRP_free(s_srp);
-            s_srp = NULL;
-            return(1);
-        }
-        return(0);
-    }
-#else /* COMMENT */
     {
         struct t_pw * tpw = NULL;
         struct t_conf * tconf = NULL;
@@ -748,7 +731,6 @@ ck_srp_is_installed_as_server()
         t_closepw(tpw);
         return(1);
     }
-#endif /* COMMENT */
 #else /* SRP */
     return(0);
 #endif /* SRP */
@@ -3859,23 +3841,12 @@ k4_auth_send()
 
     memset(instance, 0, sizeof(instance));
 
-#ifdef COMMENT
-    /* we only need to call krb_get_phost if the hostname */
-    /* is not fully qualified.  But we have already done  */
-    /* this in netopen() call.  This will save a round of */
-    /* DNS queries.                                       */
-    debug(F110,"k4_auth_send","krb_get_phost",0);
-    if (realm = (char *)krb_get_phost(szHostName)) {
-        ckstrncpy(instance, realm, INST_SZ);
-    }
-#else /* COMMENT */
     {
         char *p;
         ckstrncpy(instance, szHostName, INST_SZ);
         for ( p=instance; *p && *p != '.' ; p++ );
         *p = '\0';
     }
-#endif /* COMMENT */
 
     debug(F110,"k4_auth_send","krb_get_realmofhost",0);
     realm = (char *)krb_realmofhost(szHostName);
@@ -6691,71 +6662,7 @@ srp_is(how,data,cnt) int how; unsigned char *data; int cnt;
         t_closeconf(tconf);
         tconf = NULL;
 #else /* PRE_SRP_1_4_4 */
-#ifdef COMMENT
-        /* the code in this block should no longer be necessary on OS/2
-           or Windows because I have added functionality to libsrp.lib
-           to find the srp files.   4/22/2000
-        */
-
-        /* On Windows and OS/2 there is no well defined place for the */
-        /* ETC directory.  So we look for either an SRP_ETC or ETC    */
-        /* environment variable in that order.  If we find one we     */
-        /* attempt to open the files manually.                        */
-        /* We will reuse the strTmp[] for the file names. */
-        ptr = getenv("SRP_ETC");
-        if ( !ptr )
-            ptr = getenv("ETC");
-#ifdef NT
-        if ( !ptr ) {
-            DWORD len;
-            len = AUTHTMPBL;
-
-            len = GetWindowsDirectory(strTmp,len);
-            if ( len > 0 && len < AUTHTMPBL) {
-                if ( !isWin95() ) {
-                    if ( len == 1 )
-		      ckstrncat(strTmp,"SYSTEM32/DRIVERS/ETC",sizeof(strTmp));
-                    else
-		      ckstrncat(strTmp,"/SYSTEM32/DRIVERS/ETC",sizeof(strTmp));
-                }
-            }
-            ptr = strTmp;
-        }
-#endif /* NT */
-        if ( ptr ) {
-            int len = strlen(ptr);
-            int i;
-	    if (ptr != strTmp)
-		ckstrncpy(strTmp,ptr,AUTHTMPBL);
-            for ( i=0;i<len;i++ ) {
-                if ( strTmp[i] == '\\' )
-                    strTmp[i] = '/';
-            }
-            if ( strTmp[len-1] != '/' )
-                ckstrncat(strTmp,"/tpasswd",sizeof(strTmp));
-            else
-                ckstrncat(strTmp,"tpasswd",sizeof(strTmp));
-            tpw = t_openpwbyname(strTmp);
-
-            ckstrncat(strTmp,".conf",sizeof(strTmp));
-            tconf = t_openconfbyname(strTmp);
-        }
-
-        if ( tpw && tconf )
-            ts = t_serveropenfromfiles(szUserNameRequested, tpw, tconf);
-        else
-            ts = t_serveropen(szUserNameRequested);
-        if ( tpw ) {
-            t_closepw(tpw);
-            tpw = NULL;
-        }
-        if ( tconf ) {
-            t_closeconf(tconf);
-            tconf = NULL;
-        }
-#else /* COMMENT */
         ts = t_serveropen(szUserNameRequested);
-#endif /* COMMENT */
 #endif /* PRE_SRP_1_4_4 */
 
         if( ts == NULL ) {
@@ -7666,10 +7573,6 @@ ck_krb5_initTGT(op,init,k4_init)
 
     if ( !ck_krb5_is_installed() )
         return(-1);
-
-#ifdef COMMENT
-    printf("Kerberos V initialization\r\n");
-#endif /* COMMENT */
 
     code = krb5_init_context(&kcontext);
     if (code) {
@@ -9212,60 +9115,6 @@ int k4debug = 0;                /* Kerberos 4 runtime debugging */
 #ifdef KINIT
 #define KRB_DEFAULT_LIFE 120 /* 10 hours in 5 minute intervals */
 
-#ifdef COMMENT
-static char
-#ifdef CK_ANSIC
-hex_scan_nybble(char c)
-#else
-hex_scan_nybble(c) char c;
-#endif
-{
-    if (c >= '0' && c <= '9')
-        return c - '0';
-    if (c >= 'A' && c <= 'F')
-        return c - 'A' + 10;
-    if (c >= 'a' && c <= 'f')
-        return c - 'a' + 10;
-    return -1;
-}
-
-/* returns: NULL for ok, pointer to error string for bad input */
-static char*
-#ifdef CK_ANSIC
-hex_scan_four_bytes(char *out, char *in)
-#else
-hex_scan_four_bytes(out, in) char *out; char *in;
-#endif
-{
-    int i;
-    int c;
-    char c1;
-    for (i=0; i<8; i++) {
-        if(!in[i])
-            return "not enough input";
-        c = hex_scan_nybble(in[i]);
-        if(c<0)
-            return "invalid digit";
-        c1 = c;
-        i++;
-        if(!in[i])
-            return "not enough input";
-        c = hex_scan_nybble(in[i]);
-        if(c<0)
-            return "invalid digit";
-        *out++ = (c1 << 4) + c;
-    }
-    switch(in[i]) {
-    case 0:
-    case '\r':
-    case '\n':
-        return NULL;
-    default:
-        return "extra characters at end of input";
-    }
-}
-#endif /* COMMENT */
-
 /* ck_krb4_initTGT() returns 0 on success */
 int
 #ifdef CK_ANSIC
@@ -9327,11 +9176,6 @@ ck_krb4_initTGT(op,init)
     if ( init->instance ) {
         ckstrncpy(inst,init->instance, INST_SZ);
     }
-
-#ifdef COMMENT
-    if ( vflag )
-        printf("Kerberos IV initialization\r\n");
-#endif /* COMMENT */
 
     if (!username || !username[0]) {
         debug(F100,"ck_krb4_initTGT no username specified","",0);
