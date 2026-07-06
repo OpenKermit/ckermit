@@ -556,15 +556,6 @@ kwdhelp( s, n, pat, pre, post, off, xhlp )
 	      continue;
 
 	    if (s[i].flgs & CM_INV) {
-#ifdef COMMENT
-/* This code does not show invisible keywords at all except for "help ?" */
-/* and then only help topics (CM_HLP) in the top-level keyword list. */
-
-		if ((xhlp & 2) == 0)
-		  continue;
-		else if ((s[i].flgs & CM_HLP) == 0)
-		  continue;
-#else
 /* This code shows invisible keywords that are not also abbreviations when */
 /* ? was typed AFTER the beginning of the field so the user can find out */
 /* what they are and (for example) why completion doesn't work at this point */
@@ -575,7 +566,6 @@ kwdhelp( s, n, pat, pre, post, off, xhlp )
 		  continue;
 		else if ((xhlp & 2) && ((s[i].flgs & CM_HLP) == 0))
 		  continue;
-#endif /* COMMENT */
 	    }
 	    j = strlen(s[i].kwd);
 	    if (!(xhlp & 4) || !tmpbuf) { /* Regular keyword table */
@@ -721,11 +711,6 @@ xfilhelp(n,pre,post,off,cmdirflg,
 	    znext(filbuf);		/* Get next filename */
 	    if (!filbuf[0])		/* Shouldn't happen */
 	      break;
-#ifdef COMMENT
-	    itsadir = isdir(filbuf);	/* Is it a directory? */
-	    if (cmdirflg && !itsadir)	/* No, listing directories only? */
-	      continue;			/* So skip this one. */
-#endif /* COMMENT */
 	    if (fs) if (fileselect(filbuf,
 			   sa,sb,sna,snb,
 			   minsiz,maxsiz,nbu,nxlist,xlist) < 1) {
@@ -931,10 +916,6 @@ prompt(f) xx_strp f;
     sx = cmprxx;			/* Unevaluated copy */
     if (f) {				/* If conversion function given */
 	sy = cmprom;			/* Evaluate it */
-#ifdef COMMENT
-	debug(F101,"prompt sx","",sx);
-	debug(F101,"prompt sy","",sy);
-#endif	/* COMMENT */
 	n = PROMPTL;
 	if ((*f)(sx,&sy,&n) < 0)	/* If evaluation failed */
 	  sx = cmprxx;			/* revert to unevaluated copy */
@@ -1367,22 +1348,9 @@ cmnumw(xhlp,xdef,radix,n,f)
 {
 /* cmnumw */
     int x; char *s, *zp, *zq;
-#ifdef COMMENT
-    char lbrace, rbrace;
-#endif /* COMMENT */
 
     if (!xhlp) xhlp = "";
     if (!xdef) xdef = "";
-
-#ifdef COMMENT
-    if (cmfldflgs & 1) {
-	lbrace = '(';
-	rbrace = ')';
-    } else {
-	lbrace = '{';
-	rbrace = '}';
-    }
-#endif /* COMMENT */
 
     if (radix != 10 && radix != 8) {	/* Just do bases 8 and 10 */
         printf("cmnum: illegal radix - %d\n",radix);
@@ -1553,63 +1521,6 @@ cmofi(xhlp,xdef,xp,f) char *xhlp, *xdef, **xp; xx_strp f;
       etc, so this code does not really belong here, but rather it should
       be at the same level as zzstring().
     */
-/*
-  Hmmm, this looks a lot like chkvar() except it that includes \nnn number
-  escapes.  But why?  This makes commands like "mkdir c:\123" impossible.
-  And in fact, "mkdir c:\123" creates a directory called "c:{".  What's worse,
-  rmdir(), which *does* call chkvar(), won't let us remove it.  So let's at
-  least try making cmofi() symmetrical with cmifi()...
-*/
-#ifdef COMMENT
-	char * q;
-	while ( (tries == 0) && (p = strchr(p,CMDQ)) ) {
-	    q = *(p+1);			/* Char after backslash */
-	    if (!q)			/* None, quit */
-	      break;
-	    if (isupper(q))		/* If letter, convert to lowercase */
-	      q = tolower(q);
-	    if (isdigit(q)) {		/* If it's a digit, */
-		tries = 1;		/* assume it's a backslash code  */
-		break;
-	    }
-	    switch (q) {
-	      case CMDQ:		/* Double backslash */
-		tries = 1;		/* so call the conversion function */
-		break;
-	      case '%':			/* Variable or array reference */
-	      case '&':			/* must be followed by letter */
-		if (isalpha(*(p+2)) || (*(p+2) >= '0' && *(p+2) <= '9'))
-		  tries = 1;
-		break;
-	      case 'm': case 'v': case '$': /* \m(), \v(), \$() */
-		if (*(p+2) == '(')
-		  if (strchr(p+2,')'))
-		    tries = 1;
-		break;
-	      case 'f':			/* \Fname() */
-		if (strchr(p+2,'('))
-		  if (strchr(p+2,')'))
-		      tries = 1;
-		break;
-	      case '{':			/* \{...} */
-		if (strchr(p+2,'}'))
-		  tries = 1;
-		break;
-	      case 'd': case 'o':	/* Decimal or Octal number */
-	        if (isdigit(*(p+2)))
-		  tries = 1;
-		break;
-	      case 'x':			/* Hex number */
-		if (isdigit(*(p+2)) ||
-		    ((*(p+2) >= 'a' && *(p+2) <= 'f') ||
-		     ((*(p+2) >= 'A' && *(p+2) <= 'F'))))
-		  tries = 1;
-	      default:
-		break;
-	    }
-	    p++;
-	}
-#else
 #ifndef NOSPL
 	if (f) {			/* If a conversion function is given */
 	    char *s = p;		/* See if there are any variables in */
@@ -1622,12 +1533,8 @@ cmofi(xhlp,xdef,xp,f) char *xhlp, *xdef, **xp; xx_strp f;
 	    }
 	}
 #endif /* NOSPL */
-#endif /* COMMENT */
     }
 #ifdef OS2
-#ifdef COMMENT
-o_again:
-#endif /* COMMENT */
 #endif /* OS2 */
     if (tries == 1)
 #endif /* DOCHKVAR */
@@ -1671,16 +1578,6 @@ o_again:
     /* Fixed 19 September 2023 by Piotr Kolasinski */
     /* Previously: if (strcmp(s,CTTNAM) && (zchko(s) < 0)) */
     if ((strcmp(s,CTTNAM) == 0) && (zchko(s) < 0)) { /* write to console OK */
-#ifdef COMMENT
-#ifdef OS2
-/*
-  We don't try again because we already prescanned the string to see if
-  if it contained anything that could be used by zzstring().
-*/
-	if (tries++ < 1)
-	  goto o_again;
-#endif /* OS2 */
-#endif /* COMMENT */
 /*
   Note: there are certain circumstances where zchko() can give a false
   positive, so don't rely on it to catch every conceivable situation in
@@ -1726,28 +1623,6 @@ o_again:
         xp pointing to name,
         wild = 1 if name contains '*' or '?', 0 otherwise.
 */
-
-#ifdef COMMENT /* This horrible hack has been replaced - see further down */
-/*
-   C M I O F I  --  Parse an input file OR the name of a nonexistent file.
-
-   Use this when an existing file is wanted (so we get help, completion, etc),
-   but if a file of the given name does not exist, the name of a new file is
-   accepted.  For example, with the EDIT command (edit an existing file, or
-   create a new file).  Returns -9 if file does not exist.  It is up to the
-   caller to check creatability.
-*/
-static int nomsg = 0;
-int
-cmiofi(xhlp,xdef,xp,wild,f) char *xhlp, *xdef, **xp; int *wild; xx_strp f; {
-    int msgsave, x;
-    msgsave = nomsg;
-    nomsg = 1;
-    x = cmifi2(xhlp,xdef,xp,wild,0,NULL,f,0);
-    nomsg = msgsave;
-    return(x);
-}
-#endif	/* COMMENT */
 
 int
 #ifdef CK_ANSIC
@@ -2124,13 +1999,8 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
 			s = *xp;
 			n = strlen(s);
 			if (n > 0 &&
-#ifdef COMMENT
-			    *s != '[' && s[n-1] != ']' &&
-			    *s != '<' && s[n-1] != '>' &&
-#else
 			    ckindex("[",s,0,0,1) == 0 &&
 			    ckindex("<",s,0,0,1) == 0 &&
-#endif /* COMMENT */
 			    s[n-1] != ':') {
 			    char * dirbuf = NULL;
 			    dirbuf = (char *)malloc(n+4);
@@ -2576,12 +2446,7 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
 	      strcat(*xp, ".*");	/* abc -> abc*.* */
 #endif /* GEMDOS */
 	    /* Add wildcard and expand list. */
-#ifdef COMMENT
-	    /* This kills partial completion when ESC given in path segment */
-	    nzxopts |= dirflg ? ZX_DIRONLY : (d ? 0 : ZX_FILONLY);
-#else
 	    /* nzxopts = 0; */
-#endif /* COMMENT */
 	    if (matchdot)  nzxopts |= ZX_MATCHDOT;
 	    if (recursive) nzxopts |= ZX_RECURSE;
 	    y = nzxpand(*xp,nzxopts);
@@ -3250,12 +3115,7 @@ cmtxt(xhlp,xdef,xp,f) char *xhlp; char *xdef; char **xp; xx_strp f;
 #endif /* COMMENT */
 	    }
 	    xx = *xp;
-#ifdef COMMENT
-	    /* strlen() no longer needed */
-	    for (i = (int)strlen(xx) - 1; i > 0; i--)
-#else
 	    for (i = cc - 1; i > 0; i--)
-#endif /* COMMENT */
 	      if (xx[i] != SP)		/* Trim trailing blanks */
 		break;
 	      else
@@ -3513,16 +3373,6 @@ cmkey2(table,n,xhlp,xdef,tok,f,pmsg)
 		}
 #endif /* M_UNGW */
 	    }
-#ifdef COMMENT				/* ^^^ */
-	    if (cmswitch && *atmbuf != '/') {
-		if (pmsg & 1) {
-		    bleep(BP_FAIL);
-                    printf("?Not a switch - %s\n",atmbuf);
-		}
-		cmflgs = -2;
-		return(-6);
-	    }
-#endif	/* COMMENT */
 	    if (cmswitch) {
 		int i;
 		for (i = 0; i < wordlen; i++) {
@@ -4532,21 +4382,6 @@ cmcvtdate(s,t) char * s; int t;
 	p = s;
 	goto delta;
     }
-#ifdef COMMENT
-/*
-  What is the purpose of this?  It breaks parsing of email dates like
-  "Wed, 13 Feb 2002 17:43:02 -0800 (PST)".  Removing this code fixes the
-  problem and Kermit still passes the 'dates' script.
-  - fdc, Sat Nov 26 10:52:45 2005.
-*/
-    if (dow > -1) {
-	/* Day of week given followed by something that is not a time */
-	/* or a delta so it can't be valid */
-	makestr(&cmdatemsg,"Invalid tokens after day of week");
-	debug(F111,"cmcvtdate fail",cmdatemsg,-1);
-	return(NULL);
-    }
-#endif	/* COMMENT */
 
     /* Handle "today", "yesterday", "tomorrow", and +/- n units */
 
@@ -4669,13 +4504,6 @@ cmcvtdate(s,t) char * s; int t;
 
     /* Free-format date -- figure it out */
 
-#ifdef COMMENT
-    if (*s && !isdigit(*s)) {
-	makestr(&cmdatemsg,"Unrecognized word in date");
-	debug(F111,"cmcvtdate",cmdatemsg,-1);
-	return(NULL);
-    }
-#endif /* COMMENT */
     for (i = 0; i < 8; i++)		/* Field types */
       ft[i] = -1;
     fld[i = 0] = (p = s);		/* First field */
@@ -6100,19 +5928,6 @@ addcmd(s) char * s;
 	if (current >= cm_recall) {	/* Shouldn't happen */
 	    printf("?Command history error\n");	/* but if it does */
 	    on_recall = 0;		        /* turn off command saving */
-#ifdef COMMENT
-	} else if (nq > 0) {		/* Have at least one question mark */
-	    recall[current] = malloc(len+nq+1);
-	    if (recall[current]) {
-		p = recall[current];
-		while (*s) {
-		    if (*s == '?')
-		      *p++ = '\\';
-		    *p++ = *s++;
-		}
-		*p = NUL;
-	    }
-#endif /* COMMENT */
 	} else {			/* Normal case, just copy */
 	    recall[current] = malloc(len+1);
 	    if (recall[current])
@@ -6162,19 +5977,6 @@ savhistory(s,disp) char *s; int disp;
     return(1);
 }
 #endif /* CK_RECALL */
-
-#ifdef COMMENT
-/* apparently not used */
-int
-cmgetlc(s) char * s; {			/* Get leading char */
-    char c;
-    while ((c = *s++) <= SP) {
-	if (!c)
-	  break;
-    }
-    return(c);
-}
-#endif /* COMMENT */
 
 
 /*  C M C F M  --  Parse command confirmation (end of line)  */
@@ -6603,29 +6405,6 @@ gtword(brk) int brk;
     extern int con_reads_mt;            /* Console read asynch is active */
     if (con_reads_mt) connoi_mt();      /* Task would interfere w/cons read */
 #endif /* datageneral */
-
-#ifdef COMMENT
-#ifdef DEBUG
-    if (deblog) {
-	debug(F101,"gtword brk","",brk);
-	debug(F101,"gtword cmfldflgs","",cmfldflgs);
-	debug(F101,"gtword swarg","",swarg);
-	debug(F101,"gtword dpx","",dpx);
-	debug(F101,"gtword echof","",echof);
-#ifndef NOSPL
-	debug(F101,"gtword askflag","",askflag);
-	debug(F101,"gtword timelimit","",timelimit);
-#ifndef NOLOCAL
-#ifndef NOXFER
-#ifdef CK_AUTODL
-	debug(F101,"gtword cmdadl","",cmdadl);
-#endif /* CK_AUTODL */
-#endif /* NOXFER */
-#endif /* NOLOCAL */
-#endif /* NOSPL */
-    }
-#endif /* DEBUG */
-#endif /* COMMENT */
 
     realtty = is_a_tty(0);		/* Stdin is really a tty? */
 
@@ -7417,16 +7196,10 @@ CMDIRPARSE:
 #endif /* BEBOX */
 	    /* debug(F111,"gtword quote",cmdbuf,c); */
 	}
-#ifdef COMMENT
-        if (echof) cmdecho((char) c,quote); /* Echo what was typed. */
-#endif /* COMMENT */
         if (!comment) inword = 1;	/* Flag we're in a word. */
 	if (quote) continue;		/* Don't deposit quote character. */
         if (c != NL) {			/* Deposit command character. */
 	    *bp++ = (char) c;		/* and make sure there is a NUL */
-#ifdef COMMENT
-	    *bp = NUL;			/* after it */
-#endif /* COMMENT */
 	}
     }                                   /* End of big while */
     bleep(BP_WARN);
@@ -7525,14 +7298,9 @@ setatm(cp,fcode) char *cp; int fcode;
     /* debug(F111,"setatm",cp,n); */
     if (cp == ap) {			/* In case source is atom buffer */
 	xp = atybuf;			/* make a copy */
-#ifdef COMMENT
-	strncpy(xp,ap,ATMBL);		/* so we can copy it back, edited. */
-	cp = xp;
-#else
 	s = ap;
 	while ((*xp++ = *s++)) ;	/* We already know it's big enough */
 	cp = xp = atybuf;
-#endif /* COMMENT */
     }
     *ap = NUL;				/* Zero the atom buffer */
     if (fcode == 1) {			/* Trim trailing blanks */
@@ -7676,12 +7444,8 @@ cmdgetc(timelimit) int timelimit;
           GETNEXTCH:
             is_tn = !pushc && !local && sstelnet;
 #endif /* TNCODE */
-#ifdef COMMENT
-	    c = coninc(timelimit > 0 ? 1 : 0);
-#else /* COMMENT */
 	    /* This is likely to break the asktimeout... */
 	    c = coninc(timelimit);
-#endif /* COMMENT */
 	    /* debug(F101,"cmdgetc coninc","",c); */
 #ifdef TNCODE
             if (c >= 0 && is_tn) {	/* Server-side Telnet */
@@ -7716,51 +7480,6 @@ cmdgetc(timelimit) int timelimit;
 			goto GETNEXTCH;	/* Unknown, get next char */
 		    }
                     break;
-#ifdef COMMENT
-                  case CR:
-                    if (!TELOPT_U(TELOPT_BINARY)) {
-			if (got_cr) {
-			    /* This means the sender is violating Telnet   */
-			    /* protocol because we received two CRs in a   */
-			    /* row without getting either LF or NUL.       */
-			    /* This will not solve the problem but it      */
-			    /* will at least allow two CRs to do something */
-			    /* whereas before the user would have to guess */
-			    /* to send LF or NUL after the CR.             */
-			    debug(F100,"gtword CR telnet error","",0);
-			    c = LF;
-			} else {
-			    debug(F100,"gtword skipping CR","",0);
-			    got_cr = 1;	/* Remember a CR was received */
-			    goto GETNEXTCH;
-			}
-                    } else {
-			debug(F100,"gtword CR to LF","",0);
-			c = LF;
-                    }
-                    break;
-                  case LF:
-                    if (!TELOPT_U(TELOPT_BINARY)) {
-			got_cr = 0;
-			debug(F100,"gtword LF","",0);
-                    } else {
-			if (got_cr) {
-			    got_cr = 0;
-			    debug(F100,"gtword skipping LF","",0);
-			    goto GETNEXTCH;
-			}
-                    }
-                    break;
-                  case NUL:
-                    if (!TELOPT_U(TELOPT_BINARY) && got_cr) {
-			c = LF;
-			debug(F100,"gtword NUL to LF","",0);
-                    } else {
-			debug(F100,"gtword NUL","",0);
-                    }
-                    got_cr = 0;
-                    break;
-#else /* COMMENT */
                   case CK_CR:
                     if ( !TELOPT_U(TELOPT_BINARY) && got_cr ) {
                         /* This means the sender is violating Telnet   */
@@ -7789,13 +7508,8 @@ cmdgetc(timelimit) int timelimit;
                         got_cr = 0;
                         /* debug(F100,"gtword skipping NUL","",0); */
                         goto GETNEXTCH;
-#ifdef COMMENT
-                    } else {
-                      debug(F100,"gtword NUL","",0);
-#endif /* COMMENT */
                     }
                     break;
-#endif /* COMMENT */
 #ifdef IKSD
 		  case ETX:		/* Ctrl-C... */
                   case EOT:		/* EOT = EOF */
@@ -7997,13 +7711,6 @@ cmdnewl(c) char c;
     if (c == CK_CR) putchar(NL);
 #endif /* BSD44 */
 
-#ifdef COMMENT
-    /* OS2 no longer needs this as all CR are converted to NL in coninc() */
-    /* This eliminates the ugly extra blank lines discussed above.        */
-#ifdef OS2
-    if (c == CK_CR) putchar(NL);
-#endif /* OS2 */
-#endif /* COMMENT */
 #ifdef aegis
     if (c == CK_CR) putchar(NL);
 #endif /* aegis */
@@ -8145,12 +7852,7 @@ xxesc(s) char **s;
 	p++;				/* point past radix indicator */
 	break;
       default:				/* All others */
-#ifdef COMMENT
-	*s = p+1;			/* Treat as quote of next char */
-	return(*p);
-#else
 	return(-1);
-#endif /* COMMENT */
     }
     /* For OS/2, there are "wide" characters required for the keyboard
      * binding, i.e \644 and similar codes larger than 255 (byte).
@@ -8438,12 +8140,7 @@ nlookup(table,word,n,x) char *word; struct keytab table[]; int n, *x;
         kwdlen = (int)strlen(this); /* Keyword table entry length */
         maxlen = kwdlen;
         if (wordlen > maxlen) maxlen = wordlen;
-#ifdef COMMENT
-        /* This can crash if locale not set */
-        tmp = ckstrcmp(this,word,maxlen,0);
-#else
         tmp = strncmp(this,word,wordlen);
-#endif /* COMMENT */
         if (tmp) {
             debug(F111,"nlookup no match",table[lastmatch].kwd,tmp);
         } else {
