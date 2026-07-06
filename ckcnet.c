@@ -4293,21 +4293,6 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
                             &send_socket, SO_REUSEADDR)) < 0)
 #else  /* EXCELAN */
 #ifdef NT
-#ifdef COMMENT_X
-       /*
-         Must make sure that all sockets are opened in
-         Non-overlapped mode since we use the standard
-         C RTL functions to read and write data.
-         But it doesn't seem to work as planned.
-       */
-          {
-              int optionValue = SO_SYNCHRONOUS_NONALERT;
-              if (setsockopt(INVALID_SOCKET, SOL_SOCKET, SO_OPENTYPE,
-                             (char *) &optionValue, sizeof(optionValue))
-                  != NO_ERROR)
-                return(-1);
-          }
-#endif /* COMMENT */
 #endif /* NT */
 
         if ((ttyfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
