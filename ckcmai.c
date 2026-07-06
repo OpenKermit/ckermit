@@ -193,13 +193,15 @@ COPYRIGHT NOTICE:
 char *copyright[] = {
 
 #ifdef pdp11
-"Copyright (C) 1985, %s, Trustees of Columbia University, NYC.",
+"Copyright (C) 1985, 2025, Trustees of Columbia University, NYC.",
+"Copyright (C) 2025-%s, John Goerzen.",
 "All rights reserved.",
 " ",
 #else
-"Copyright (C) 1985, %s,",
+"Copyright (C) 1985, 2025,",
 "  The Trustees of Columbia University in the City of New York.",
-"  All rights reserved.",
+"Copyright (C) 2025-%s, John Goerzen.",
+"All rights reserved.",
 " ",
 "Redistribution and use in source and binary forms, with or without",
 "modification, are permitted provided that the following conditions",

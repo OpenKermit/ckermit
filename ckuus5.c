@@ -4119,9 +4119,11 @@ herald() {
 
     if (!noherald) {
         printf("%s\n",myherald);
-        printf(" Copyright (C) 1985, %s,\n", ck_cryear);
+        printf(" Copyright (C) 1985, 2025,\n");
         printf("  Trustees of Columbia University in the City of New York.\n");
-        printf("  Open Source 3-clause BSD license since 2011.\n");
+        printf(" Copyright (C) 2025-%s,\n", ck_cryear);
+        printf("  John Goerzen.\n");
+        printf(" Open Source 3-clause BSD license since 2011.\n");
         if (!quiet && !backgrd ) {
             debug(F111,"herald","srvcdmsg",srvcdmsg);
             if (srvcdmsg) {
