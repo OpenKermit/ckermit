@@ -734,12 +734,7 @@ pipeint(arg) int arg; {			/* Dummy argument */
 	debug(F100,"CONNECT pipeint PAD change","",0);
 	read(xpipe[0],padparms,MAXPADPARMS);
 	sjval = CEV_PAD;		/* Set global variable. */
-#ifdef COMMENT				/* We might not need to do this... */
-	cklongjmp(con_env,sjval);
-	/* NOTREACHED */
-#else  /* COMMENT */
 	break;
-#endif /* COMMENT */
 #endif /* SUNX25 */
     }
     signal(CK_FORK_SIG, pipeint);	/* Set up signal handler */
@@ -802,25 +797,10 @@ ckcgetc(dummy) int dummy; {
     if (ssl_active_flag || tls_active_flag)
         return(ttinc(0));
 #endif /* CK_SSL */
-#ifdef COMMENT
-/* too much */
-    debug(F101,"CONNECT CKCGETC 1 ibc","",ibc); /* Log */
-#endif /* COMMENT */
     if (ibc < 1) {			/* Need to refill buffer? */
 	ibc = 0;			/* Yes, reset count */
 	ibp = ibuf;			/* and buffer pointer */
 	/* debug(F100,"CONNECT CKCGETC 1 calling ttinc(0)","",0); */
-#ifdef COMMENT
-/*
-  This check is not worth the overhead.  Scenario: ttchk() returns 0, so we
-  fall through to the blocking ttinc().  While in ttinc(), the connection is
-  lost.  But the read() that ttinc() calls does not notice, and never returns.
-  This happens at least in HP-UX, and can be seen when we turn off the modem.
-*/
-	if (!network && (carrier != CAR_OFF))
-	  if ((n = ttchk()) < 0)	/* Make sure connection is not lost */
-	    return(n);
-#endif /* COMMENT */
 	c = ttinc(0);			/* Read one character, blocking */
 	/* debug(F101,"CONNECT CKCGETC 1 ttinc(0)","",c); */
 	if (c < 0) {			/* If error, return error code */
@@ -948,10 +928,6 @@ concld (
     int apcrc;
 #endif /* NOESCSEQ */
 
-#ifdef COMMENT
-    int conret = 0;			/* Return value from conect() */
-    jbchksum = -1L;
-#endif /* COMMENT */
     jbset = 0;				/* jmp_buf not set yet, don't use it */
     debug(F101,"CONNECT concld entry","",CK_FORK_SIG);
  	/* *** */		/* Inferior reads, prints port input */
@@ -1095,19 +1071,6 @@ concld (
 		ckcputf();		/* Flush CONNECT output buffer */
 		if (!quiet) {
 		    printf("\r\nCommunications disconnect ");
-#ifdef COMMENT
-		    if ( c == -3
-#ifdef ultrix
-/* This happens on Ultrix if there's no carrier */
-			&& errno != EIO
-#endif /* ultrix */
-#ifdef UTEK
-/* This happens on UTEK if there's no carrier */
-			&& errno != EWOULDBLOCK
-#endif /* UTEK */
-			)
-		      perror("\r\nCan't read character");
-#endif /* COMMENT */
 		}
 #ifdef NOSETBUF
 		fflush(stdout);
@@ -1117,10 +1080,6 @@ concld (
 		pipemsg(CEV_HUP);
 		ck_sndmsg();		/* Wait to be killed */
 	    }
-#ifdef COMMENT
-/* too much... */
-	    debug(F101,"CONNECT ** PORT","",c); /* Got character c OK. */
-#endif /* COMMENT */
 #ifdef TNCODE
 	    /* Handle TELNET negotiations... */
 
@@ -1644,10 +1603,6 @@ conect() {
 	}
     }
 #else
-#ifdef COMMENT
-    ibp = ibuf;
-    ibc = 0;
-#endif /* COMMENT */
     obp = obuf;
     obc = 0;
 #endif /* DYNAMIC */
@@ -1848,19 +1803,6 @@ conect() {
 #endif /* NOCYRIL */
       language = L_USASCII;
 
-#ifdef COMMENT
-#ifdef DEBUG
-    if (deblog) {
-	debug(F101,"CONNECT tcs","",tcs);
-	debug(F101,"CONNECT tcsl","",tcsl);
-	debug(F101,"CONNECT tcsr","",tcsr);
-	debug(F101,"CONNECT fcsinfo[tcsl].size","",fcsinfo[tcsl].size);
-	debug(F101,"CONNECT fcsinfo[tcsr].size","",fcsinfo[tcsr].size);
-	debug(F101,"CONNECT unicode","",unicode);
-    }
-#endif /* DEBUG */
-#endif /* COMMENT */
-
 #ifdef CK_XYZ
 #ifndef XYZ_INTERNAL
     {
@@ -2048,19 +1990,8 @@ conect() {
 #endif /* NOSETKEY */
 		  c = CONGKS();		/* Read from keyboard */
 
-#ifdef COMMENT
-/* too much... */
-		debug(F101,"CONNECT ** KEYB","",c);
-#endif /* COMMENT */
                 if (c == -1) {		/* If read() got an error... */
 		    debug(F101,"CONNECT keyboard read errno","",errno);
-#ifdef COMMENT
-/*
- This seems to cause problems.  If read() returns -1, the signal has already
- been delivered, and nothing will wake up the pause().
-*/
-		    pause();		/* Wait for transmitter to finish. */
-#else
 #ifdef A986
 /*
   On Altos machines with Xenix 3.0, pressing DEL in connect mode brings us
@@ -2084,7 +2015,6 @@ conect() {
 		    active = 0;		/* and terminate the read loop */
 		    continue;
 #endif /* A986 */
-#endif /* COMMENT */
 		}
 		c &= cmdmsk;		/* Do any requested masking */
 #ifndef NOSETKEY
@@ -2364,15 +2294,6 @@ conect() {
 		tthang();		/* And make sure we don't hang up */
 	    dohangup = 0;		/* again unless requested again. */
 	}
-
-#ifdef COMMENT
-#ifdef NETCONN
-#ifdef SIGPIPE
-	if (network && sigpiph)		/* Restore previous SIGPIPE handler */
-	  (VOID) signal(SIGPIPE, sigpiph);
-#endif /* SIGPIPE */
-#endif /* NETCONN */
-#endif /* COMMENT */
 
 #ifdef ANYX25
 	if (dox25clr) {			/* If X.25 Clear requested */

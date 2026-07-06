@@ -1462,19 +1462,6 @@ conect() {
 #endif /* NOCYRIL */
       language = L_USASCII;
 
-#ifdef COMMENT
-#ifdef DEBUG
-    if (deblog) {
-	debug(F101,"CONNECT tcs","",tcs);
-	debug(F101,"CONNECT tcsl","",tcsl);
-	debug(F101,"CONNECT tcsr","",tcsr);
-	debug(F101,"CONNECT fcsinfo[tcsl].size","",fcsinfo[tcsl].size);
-	debug(F101,"CONNECT fcsinfo[tcsr].size","",fcsinfo[tcsr].size);
-	debug(F101,"CONNECT unicode","",unicode);
-    }
-#endif /* DEBUG */
-#endif /* COMMENT */
-
 #ifdef CK_XYZ
 #ifndef XYZ_INTERNAL
     {
@@ -1714,11 +1701,6 @@ conect() {
 	if (deblog) {
 	    debug(F101,"CONNECT gotkbd","",gotkbd);
 	    debug(F101,"CONNECT kbc","",kbc);
-#ifdef COMMENT
-#ifndef NOSETKEY
-	    debug(F101,"CONNECT kmptr","",kmptr);
-#endif /* NOSETKEY */
-#endif	/* COMMENT */
 	}
 #endif /* DEBUG */
 
@@ -1944,19 +1926,6 @@ conect() {
 		ckcputf();		/* Flush CONNECT output buffer */
 		if (msgflg) {
 		    printf("\r\nCommunications disconnect ");
-#ifdef COMMENT
-		    if (c == -3
-#ifdef ultrix
-/* This happens on Ultrix if there's no carrier */
-			&& errno != EIO
-#endif /* ultrix */
-#ifdef UTEK
-/* This happens on UTEK if there's no carrier */
-			&& errno != EWOULDBLOCK
-#endif /* UTEK */
-			)
-		      perror("\r\nCan't read character");
-#endif /* COMMENT */
 		}
 #ifdef NOSETBUF
 		fflush(stdout);
@@ -2130,9 +2099,6 @@ conect() {
 		    int k = 0;
 
 		    if (kstartactive || c == stchr /* Kermit S or I packet? */
-#ifdef COMMENT
-			|| adl_kmode == ADLSTR /* Not used in C-Kermit */
-#endif /* COMMENT */
 			)
 		      k = kstart((CHAR)c);
 #ifdef CK_XYZ
