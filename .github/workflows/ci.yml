@@ -13,18 +13,23 @@ on:
       matrix:
         description: >-
           JSON array of {os, platform, arch, make-target, label} entries
-          to build/test. Defaults to the fast PR/push set. release.yml
-          overrides this with the full release platform set.
+          to build/test. release.yml overrides this with the full release
+          platform set. Empty here
+          because workflow_call input defaults only
+          apply when this workflow is actually invoked via workflow_call.
+          For direct push/pull_request triggers, there's no caller
+          supplying inputs, so inputs.matrix would just be '' either way.
+          The real default lives in the `||` fallback below.
         type: string
-        default: >-
-          [{"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"ubuntu26.04-amd64"},{"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"macos-arm64"}]
+        default: ''
 
 jobs:
   build-and-test:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJson(inputs.matrix) }}
+        include: >-
+          ${{ fromJson(inputs.matrix || '[{"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"ubuntu26.04-amd64"},{"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"macos-arm64"}]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -60,6 +65,10 @@ jobs:
 
 #      - name: Python test suite
 #        run: pytest -n auto
+
+      - name: Rename binary for upload
+        if: inputs.upload-artifact
+        run: cp wermit kermit
 
       - name: Upload binaries
         if: inputs.upload-artifact
