@@ -596,6 +596,7 @@ ACKNOWLEDGMENTS:
    Frank Wortner
    Ken Yap, formerly of U of Rochester
    John Zeeff, Ann Arbor, MI
+   John Goerzen
 */
 
 #include "ckcker.h"                     /* Kermit symbols */
