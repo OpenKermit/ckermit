@@ -1258,11 +1258,6 @@ extern int errno;                       /* fdc 1 November 2022 */
 #ifndef UNIX
 #define UNIX
 #endif /* UNIX */
-#ifdef COMMENT
-#ifndef NOCURSES
-#define NOCURSES
-#endif /* NOCURSES */
-#endif /* COMMENT */
 #endif /* COHERENT */
 
 #ifdef MINIX
@@ -3192,27 +3187,6 @@ extern long ztmsec, ztusec;		/* Fraction of sec of current time */
 */
 #ifdef COMMENT
 #undef COMMENT /* The OS/2 headers define this for some insane reason */
-#endif /* COMMENT */
-
-#ifdef COMMENT
-/*
-  Built-in SSH no longer depends on SSL support. Built-in SSH is now provided
-  by a library (libssh, ssh.dll) which is itself linked against OpenSSL.
-*/
-#ifndef NOSSH
-#ifndef NO_SSL
-#ifdef OS2ONLY
-#define NOSSH
-#endif /* OS2ONLY */
-#ifdef NT
-#ifndef CK_SSL
-#define NOSSH
-#endif /* CK_SSL */
-#endif /* NT */
-#else /* NO_SSL */
-#define NOSSH
-#endif /* NO_SSL */
-#endif /* NOSSH */
 #endif /* COMMENT */
 
 #ifdef NOSSH				/* NOSSH */
@@ -5289,17 +5263,6 @@ struct zfnfp {
   differentiates between DECC <types.h> and TGV <types.h>.  Unfortunately I
   don't remember the details.  (fdc, 25 Oct 96)
 */
-#ifdef COMMENT
-/*
-  Previously the test here was for DEC version prior to 4.0, but since the
-  test involved an "#if" statement, it was not portable and broke some non-VMS
-  builds.  In any case, condition was never satisfied, so the result of
-  commenting this section out is the same as the previous "#if" condition.
-*/
-#ifndef __TYPES_LOADED
-#define __TYPES_LOADED			/* Work around bug in .h files */
-#endif /* __TYPES_LOADED */
-#endif /* COMMENT */
 #include <sys/types.h>
 #ifdef IF_DOT_H
 #ifndef MULTINET
@@ -5504,10 +5467,6 @@ _PROTOTYP(int dodebug,(int,char *,char *,CK_OFF_T));
 _PROTOTYP(int dohexdump,(CHAR *,CHAR *,int));
 #ifdef IFDEBUG
 /* Use this form to avoid function calls: */
-#ifdef COMMENT
-#define debug(a,b,c,d) if (deblog) dodebug(a,b,(char *)(c),(CK_OFF_T)(d))
-#define ckhexdump(a,b,c) if (deblog) dohexdump((CHAR *)(a),(CHAR *)(b),c)
-#else
 #ifdef CK_ANSIC
 #define debug(a,b,c,d) \
 ((void)(deblog?dodebug(a,b,(char *)(c),(CK_OFF_T)(d)):0))
@@ -5517,7 +5476,6 @@ _PROTOTYP(int dohexdump,(CHAR *,CHAR *,int));
 #define debug(a,b,c,d) (deblog?dodebug(a,b,(char *)(c),(CK_OFF_T)(d)):0)
 #define ckhexdump(a,b,c) (deblog?dohexdump((CHAR *)(a),(CHAR *)(b),c):0)
 #endif /* CK_ANSIC */
-#endif /* COMMENT */
 #else /* IFDEBUG */
 /* Use this form to save space: */
 #define debug(a,b,c,d) dodebug(a,b,(char *)(c),(CK_OFF_T)(d))
@@ -5917,11 +5875,7 @@ _PROTOTYP( int ttinl, (CHAR *, int, int, CHAR) );
 /* Console functions */
 
 _PROTOTYP( int congm, (void) );
-#ifdef COMMENT
-_PROTOTYP( VOID conint, (SIGTYP (*)(int, int), SIGTYP (*)(int, int)) );
-#else
 _PROTOTYP( VOID conint, (SIGTYP (*)(int), SIGTYP (*)(int)) );
-#endif /* COMMENT */
 _PROTOTYP( VOID connoi, (void) );
 _PROTOTYP( int concb, (char) );
 #ifdef CONGSPD
@@ -6295,18 +6249,10 @@ _PROTOTYP( char *GetLoadPath, (void) );
 /* #include <commonC.h>  */
 #include <sys/wait.h>
 #define CK_WAIT_H
-#ifdef COMMENT
-extern void exit(int status);
-extern void _exit(int status);
-extern int uname(struct utsname *name);
-#endif /* COMMENT */
 extern int chmod(char *path, int mode);
 extern int ioctl(int fildes, int request, ...);
 extern int rdchk(int ttyfd);
 extern int nap(int m);
-#ifdef COMMENT
-extern int getppid(void);
-#endif /* COMMENT */
 extern int _filbuf(FILE *stream);
 extern int _flsbuf(char c,FILE *stream);
 #endif /* DIAB */
