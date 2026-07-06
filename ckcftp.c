@@ -1866,9 +1866,6 @@ _PROTOTYP(static int ftp_reset, (void));
 _PROTOTYP(static int ftp_rename, (char *, char *));
 _PROTOTYP(static int ftp_umask, (char *));
 _PROTOTYP(static int secure_flush, (int));
-#ifdef COMMENT
-_PROTOTYP(static int secure_putc, (char, int));
-#endif /* COMMENT */
 _PROTOTYP(static int secure_write, (int, CHAR *, unsigned int));
 _PROTOTYP(static int scommand, (char *));
 _PROTOTYP(static int secure_putbuf, (int, CHAR *, unsigned int));
@@ -15614,33 +15611,6 @@ looping_read(fd, buf, len) int fd; register char *buf; register int len;
 
 #define ERR -2
 
-#ifdef COMMENT
-static
-#ifdef CK_ANSIC
-secure_putbyte( int fd, CHAR c )
-#else
-secure_putbyte(fd, c) int fd; CHAR c;
-#endif /* CK_ANSIC */
-{
-    int ret;
-
-    ucbuf[nout++] = c;
-    if (nout == (maxbuf ? maxbuf : actualbuf) - FUDGE_FACTOR) {
-        nout = 0;
-        if (!ftpissecure())
-          ret = send(fd, (SENDARG2TYPE)ucbuf,
-                     (maxbuf ? maxbuf : actualbuf) - FUDGE_FACTOR, 0);
-        else
-          ret = secure_putbuf(fd,
-                              ucbuf,
-                              (maxbuf ? maxbuf : actualbuf) - FUDGE_FACTOR
-                              );
-        return(ret?ret:c);
-    }
-    return(c);
-}
-#endif /* COMMENT */
-
 /* returns:
  *       0  on success
  *      -1  on error (errno set)
@@ -15678,23 +15648,6 @@ secure_flush(fd) int fd;
     }
     return(rc);
 }
-
-#ifdef COMMENT                          /* (not used) */
-/* returns:
- *      c>=0  on success
- *      -1    on error
- *      -2    on security error
- */
-static int
-#ifdef CK_ANSIC
-secure_putc(char c, int fd)
-#else
-secure_putc(c, fd) char c; int fd;
-#endif /* CK_ANSIC */
-/* secure_putc */ {
-    return(secure_putbyte(fd, (CHAR) c));
-}
-#endif /* COMMENT */
 
 /* returns:
  *      nbyte on success
