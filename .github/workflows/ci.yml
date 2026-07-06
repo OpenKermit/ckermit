@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+    inputs:
+      upload-artifact:
+        description: Upload built kermit binaries as artifacts
+        type: boolean
+        default: false
+      matrix:
+        description: >-
+          JSON array of {os, platform, arch, make-target, label} entries
+          to build/test. Defaults to the fast PR/push set. release.yml
+          overrides this with the full release platform set.
+        type: string
+        default: >-
+          [{"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"ubuntu26.04-amd64"},{"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"macos-arm64"}]
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(inputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev libpam0g-dev \
+            zlib1g-dev libcheck-dev python3-pytest python3-pytest-xdist \
+            python3-pytftpdlib lrzsz
+
+      - name: Install macOS dependencies
+        if: matrix.platform == 'macos'
+        run: |
+          brew install openssl@3 check lrzsz
+          pip3 install --break-system-packages \
+            pytest pytest-xdist pytftpdlib
+
+      - name: Build (Linux)
+        if: matrix.platform == 'linux'
+        run: make ${{ matrix.make-target }}
+
+      - name: Build (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          make ${{ matrix.make-target }} \
+            KSSLINC="-I$(brew --prefix openssl@3)/include" \
+            KSSLLIB="-L$(brew --prefix openssl@3)/lib"
+
+#      - name: C unit tests
+#        run: make check
+
+#      - name: Python test suite
+#        run: pytest -n auto
+
+      - name: Upload binaries
+        if: inputs.upload-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ckermit-${{ matrix.label }}
+          path: |
+            kermit

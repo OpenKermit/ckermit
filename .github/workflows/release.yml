@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-test:
+    uses: ./.github/workflows/ci.yml
+    with:
+      upload-artifact: true
+      # Release builds cover more platforms than the fast PR/push matrix
+      # in ci.yml: more Linux variants, plus MacOS.
+      matrix: >-
+        [{"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"ubuntu26.04-amd64"},{"os":"ubuntu-22.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"ubuntu22.04-amd64"},{"os":"ubuntu-24.04-arm","platform":"linux","arch":"arm64","make-target":"linux+ssl","label":"ubuntu24.04-arm64"},{"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"macos-arm64"}]
+
+  release:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Must match the labels in the build-and-test matrix above.
+        include:
+          - label: ubuntu26.04-amd64
+          - label: ubuntu22.04-amd64
+          - label: ubuntu24.04-arm64
+          - label: macos-arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: ckermit-${{ matrix.label }}
+
+      - name: Package
+        run: |
+          cp wermit kermit
+          chmod +x kermit
+          tar czf \
+            ckermit-${{ github.ref_name }}-${{ matrix.label }}.tar.gz \
+            kermit README.TXT COPYING.TXT ckermit.ini
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: >-
+            ckermit-${{ github.ref_name }}-${{ matrix.label }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
