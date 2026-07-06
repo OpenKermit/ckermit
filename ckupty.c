@@ -1117,18 +1117,10 @@ if (deblog) {
 #endif /* MUST_SETPGRP */
 
 #ifdef TIOCSCTTY
-    if (
-#ifdef COMMENT
-	fc == 0
-#else
-	1
-#endif	/* COMMENT */
-	) {
-	/* TIOCSCTTY = Make this the job's controlling terminal */
-	errno = 0;
-	retval = ioctl(*fd, TIOCSCTTY, 0); /* Don't check return.*/
-	debug(F111,"pty_open_ctty() ioctl TIOCSCTTY",ckitoa(retval),errno);
-    }
+    /* TIOCSCTTY = Make this the job's controlling terminal */
+    errno = 0;
+    retval = ioctl(*fd, TIOCSCTTY, 0); /* Don't check return.*/
+    debug(F111,"pty_open_ctty() ioctl TIOCSCTTY",ckitoa(retval),errno);
 #endif /* TIOCSCTTY */
     return(0L);
 }
@@ -1467,23 +1459,9 @@ pty_update_utmp(process_type, pid, username, line, host, flags)
 #define	WTMP_FILE "/usr/adm/wtmp"
 #endif /* WTMP_FILE */
 
-#ifdef COMMENT
-/* The following test can not be made portably */
-
-/* #if defined(__GLIBC__) && (__GLIBC__ >= 2) && (__GLIBC_MINOR__ >= 1) */
-/*
-  This is ugly, but the lack of standardization in the utmp/utmpx space, and
-  what glibc implements and doesn't make available, is even worse.
-*/
-/* #undef HAVE_UPDWTMPX */	/* Don't use updwtmpx for glibc 2.1 */
-/* #endif */ /* __GLIBC__ etc */
-
-#else  /* COMMENT */
-
 #ifdef __GLIBC__
 #undef HAVE_UPDWTMPX		/* Don't use updwtmpx for glibc period */
 #endif /* __GLIBC__ */
-#endif /* COMMENT */
 
 long
 ptyint_update_wtmp(ent,host,user) struct utmp *ent; char *host; char *user; {
@@ -1632,13 +1610,7 @@ getptyslave(fd, fc) int * fd, fc;
 #endif /* STREAMSPTY */
 
     /* Set up the tty modes as we like them to be. */
-#ifdef COMMENT
-    /* Originally like this... But this is the master - we want the slave */
-    /* Anyway, this fails on Solaris and probably other System V OS's */
-    init_termbuf(ttyfd);
-#else
     init_termbuf(t);
-#endif	/* COMMENT */
 #ifdef TIOCGWINSZ
     if (cmd_rows || cmd_cols) {
         memset((char *)&ws, 0, sizeof(ws));
@@ -1765,12 +1737,7 @@ getptyslave(fd, fc) int * fd, fc;
     }
 
     /* Set the tty modes, and make this our controlling tty. */
-#ifdef COMMENT
-    /* But this is the master - we want the slave */
-    set_termbuf(ttyfd);
-#else
     set_termbuf(t);
-#endif	/* COMMENT */
 
     if (t != 0)
       dup2(t, 0);
@@ -1781,20 +1748,6 @@ getptyslave(fd, fc) int * fd, fc;
 	    dup2(t, 2);
 	} else if (fc == 1) {
 	    /* For external protocols, send stderr to /dev/null */
-#ifdef COMMENT
-	    int xx;
-#ifndef COMMENT
-	    char * s = "/dev/null";
-	    errno = 0;
-	    xx = open(s, O_WRONLY);
-#else
-	    char * s = "pty.log";
-	    errno = 0;
-	    xx = open(s, O_CREAT, 0644);
-#endif /* COMMENT */
-	    debug(F111,"getptyslave redirect stderr",s,errno);
-	    dup2(xx,2);
-#endif	/* COMMENT */
 	}
     }
     if (t > 2)
