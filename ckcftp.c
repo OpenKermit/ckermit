@@ -970,9 +970,6 @@ static sig_t oldintr;
 /* Prototypes for static functions defined in ckcftp.c */
 #ifdef CK_ANSIC
 
-#ifdef COMMENT
-static VOID bytswap( int *, int * );
-#endif /* COMMENT */
 static VOID cancel_remote( int );
 static VOID changetype( int, int );
 static VOID dbtime( char *, struct tm * );
@@ -2126,21 +2123,6 @@ xprintc(c) char c;
 }
 #endif /* COMMENT */
 
-#ifdef COMMENT
-/* K95: Check whether we need this */
-static VOID
-#ifdef CK_ANSIC
-bytswap( int * c0, int * c1 )
-#else
-bytswap(c0,c1) int * c0, * c1;
-#endif /* CK_ANSIC */
-{
-    int t;
-    t = *c0;
-    *c0 = *c1;
-    *c1 = t;
-}
-#endif /* COMMENT */
 #endif /* NOCSETS */
 
 #ifdef CKLOGDIAL
@@ -12993,11 +12975,6 @@ Please confirm output file specification or supply an alternative:";
                 }
                 if (c1 < 0)
                   break;
-#ifdef COMMENT
-		/* K95: Check whether we need this */
-		if (fileorder > 0)	/* Little Endian */
-		  bytswap(&c0,&c1);	/* swap bytes*/
-#endif /* COMMENT */
 
 #ifdef OS2
                 if ( out2screen &&            /* we're translating to UCS-2 */
