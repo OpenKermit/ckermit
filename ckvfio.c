@@ -846,45 +846,6 @@ isabsolute(path) char * path; {
     return rc;
 }
 
-/* For the record, old VMS isabsolute() code from ckcmai.c. */
-#ifdef COMMENT
-
-/* Tell if a pathname is absolute (versus relative) */
-/* This should be parceled out to each of the ck*fio.c modules... */
-int
-isabsolute(path) char * path; {
-    int rc = 0;
-    int x;
-    if (!path)
-      return(0);
-    if (!*path)
-      return(0);
-    x = (int) strlen(path);
-    debug(F111,"isabsolute",path,x);
-#ifdef VMS
-    rc = 0;
-    x = ckindex("[",path,0,0,0);        /* 1-based */
-    if (!x)
-       x = ckindex("<",path,0,0,0);
-    debug(F111,"isabsolute left bracket",path,x);
-    if (!x) {
-        x = ckindex(":",path,-1,1,1);
-        if (x)
-          debug(F111,"isabsolute logical",path,x);
-    }
-    if (x > 0)
-      if (path[x] != '.')               /* 0-based */
-        rc = 1;
-#else
-[...]
-#endif /* VMS */
-    debug(F101,"isabsolute rc","",rc);
-    return(rc);
-}
-
-#endif /* def COMMENT */
-
-
 #ifdef CK_TMPDIR
 
 /*  I S D I R  --  Tells if string pointer s is the name of a directory. */
