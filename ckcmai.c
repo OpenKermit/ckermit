@@ -2860,17 +2860,6 @@ dourl()
     extern int ttnproto;
     extern struct urldata g_url;
 
-#ifdef COMMENT
-    /* NOTE: debug() doesn't work here - must use printf's */
-    printf("URL:  %s\n",g_url.sav ? g_url.sav : "(none)");
-    printf("Type: %s\n",g_url.svc ? g_url.svc : "(none)");
-    printf("User: %s\n",g_url.usr ? g_url.usr : "(none)");
-    printf("Pass: %s\n",g_url.psw ? g_url.psw : "(none)");
-    printf("Host: %s\n",g_url.hos ? g_url.hos : "(none)");
-/*  printf("Port: %s\n",g_url.por ? g_url.por : "(none)"); */
-    printf("Path: %s\n",g_url.pth ? g_url.pth : "(none)");
-#endif /* COMMENT */
-
     if (!ckstrcmp(g_url.svc,"iksd",-1,0) ||
         !ckstrcmp(g_url.svc,"kermit",-1,0)) {
         extern char pwbuf[];
