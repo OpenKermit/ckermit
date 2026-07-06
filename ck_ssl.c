@@ -861,24 +861,7 @@ ssl_client_cert_callback(s, x509, pkey)
         printf("ssl_client_cert_callback called (%s)\r\n",
                 cipher_list?cipher_list:"UNKNOWN");
     }
-#ifdef COMMENT
-    if ( s == tls_con ) {
-        if (tls_load_certs(tls_cts,tls_con,0)) {
-            *x509 = SSL_get_certificate(s);
-            *pkey = SSL_get_privatekey(s);
-            return(1);
-        }
-    } else if ( s == ssl_con ) {
-        if (tls_load_certs(ssl_ctx,ssl_con,0)) {
-            *x509 = SSL_get_certificate(s);
-            *pkey = SSL_get_privatekey(s);
-            return(1);
-        }
-    }
     return(0);
-#else /* COMMENT */
-    return(0);
-#endif /* COMMENT */
 }
 #endif /* USE_CERT_CB */
 
@@ -3100,9 +3083,6 @@ ssl_get_issuer_name(ssl) SSL * ssl;
         return name;
     }
     else {
-#ifdef COMMENT
-      fprintf(stderr, "Warning: No certificate from server!\r\n");
-#endif /* COMMENT */
         return NULL;
     }
 }
@@ -3126,31 +3106,6 @@ ssl_get_subject_name(ssl) SSL * ssl;
     else
         return NULL;
 }
-
-#ifdef COMMENT
-#ifdef CK_SSL
-            && !(ck_ssleay_is_installed() &&
-               (tls_active_flag || ssl_active_flag) &&
-               ssl_anonymous_cipher(tls_active_flag?tls_con:ssl_con))
-#endif /* CK_SSL */
-
-int
-ssl_anonymous_cipher(ssl) SSL * ssl;
-{
-    X509 * cert;
-
-    if (sstelnet)
-        cert = SSL_get_certificate(ssl);
-    else
-        cert = SSL_get_peer_certificate(ssl);
-
-    if ( cert ) {
-        X509_free(cert);
-        return 0;
-    }
-    return 1;
-}
-#endif /* COMMENT */
 
 /*
   This one is (very much!) based on work by

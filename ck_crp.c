@@ -52,9 +52,6 @@ char *ckcrpv = "Encryption Engine, 10.0.121, 23 Mar 2023";
 #ifdef  CK_CAST
 #define CAST_ENCRYPTION
 #endif /* CK_CAST */
-#ifdef COMMENT
-#define CAST_EXPORT_ENCRYPTION
-#endif /* COMMENT */
 #endif /* CK_ENCRYPTION */
 #endif /* CK_AUTHENTICATION */
 
@@ -230,22 +227,6 @@ tn_hex(buf, buflen, data, datalen)
 {
     int i = 0, j = 0, k = 0;
     CHAR tmp[8];
-#ifdef COMMENT
-    int was_hex = 1;
-
-    for (k=0; k < datalen; k++) {
-        if (data[k] < 32 || data[k] >= 127) {
-            sprintf(tmp,"%s%02X ",was_hex?"":"\" ",data[k]);
-            was_hex = 1;
-        } else {
-            sprintf(tmp,"%s%c",was_hex?"\"":"",data[k]);
-            was_hex = 0;
-        }
-        ckstrncat(buf,tmp,buflen);
-    }
-    if (!was_hex)
-        ckstrncat(buf,"\" ",buflen);
-#else /* COMMENT */
     if (datalen <= 0 || data == NULL)
         return(0);
 
@@ -277,17 +258,8 @@ tn_hex(buf, buflen, data, datalen)
         i += j - 1;
     } /* end for */
     ckstrncat(buf,"\r\n  ",buflen);
-#endif /* COMMENT */
     return(strlen(buf));
 }
-
-#ifdef COMMENT
-#define ttol        dll_ttol
-#define dodebug     dll_dodebug
-#define dohexdump   dll_dohexdump
-#define tn_debug    dll_tn_debug
-#define Vscrnprintf dll_vscrnprintf
-#endif /* COMMENT */
 
 char tn_msg[TN_MSG_LEN], hexbuf[TN_MSG_LEN];   /* from ckcnet.c */
 int deblog=1, debses=1, tn_deb=1;
@@ -401,15 +373,6 @@ des_set_random_generator_seed(Block B)
     return;
 }
 
-#ifdef COMMENT
-/* added to openssl in 0.9.5 */
-void
-des_fixup_key_parity(Block B)
-{
-    des_set_odd_parity(B);
-    return;
-}
-#endif /* COMMENT */
 int
 des_new_random_key(Block B)
 {
@@ -4301,13 +4264,7 @@ cast_fb64_session(Session_Key *key, int server, struct cast_fb *fbp, int fs)
     if(key->length >= 2 * klen + sizeof(Block))
         memcpy(fbp->temp_feed, key->data + 2 * klen, sizeof(Block));
     else {
-#ifdef COMMENT
-        /* This is a better way of erasing the password */
-        /* but we do not want to link in libsrp         */
-        t_random(fbp->temp_feed, sizeof(Block));
-#else
         memset(fbp->temp_feed, 0, sizeof(Block));
-#endif
     }
 
     fbp->key_isset = 1;
