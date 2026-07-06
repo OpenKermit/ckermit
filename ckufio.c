@@ -4840,7 +4840,7 @@ zgperm(f) char *f; {
     return("----------");
 }
 char *
-ziperms(f) char *f; {
+ziperm(f) char *f; {
     return("----------");
 }
 #endif /* CK_PERMS */
