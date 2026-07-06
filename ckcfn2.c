@@ -406,56 +406,6 @@ getrtt(nakstate, n) int nakstate, n;
 	  zz *= RTT_SCALE;
 
 	rttdelay = zz;			/* Round trip time of this packet */
-#ifdef COMMENT
-/*
-  This was used in C-Kermit 7.0 (and 6.0?) but not only is it overkill,
-  it also can produce ridiculously long timeouts under certain conditions.
-  Replaced in 8.0 by a far simpler and more aggressive strategy.
-*/
-	if (rttsamples++ == 0L) {	/* First sample */
-	    pktintvl = z;
-	} else {			/* Subsequent samples */
-	    long oldavg = pktintvl;
-	    long rttdiffsq;
-
-	    if (rttsamples > 30)	/* Use real average for first 30 */
-	      rttsamples = 30;		/*  then decaying average. */
-
-	    /* Average delay, difference squared, variance, std deviation */
-
-	    pktintvl += (z - pktintvl) / rttsamples;
-	    rttdiffsq = (z - oldavg) * (z - oldavg);
-	    rttvariance += (rttdiffsq - rttvariance) / rttsamples;
-	    debug(F101,"RTT stddev1","",rttstddev);
-	    if (rttstddev < 1L)		/* It can be zero, in which case */
-	      rttstddev = RTT_SCALE / 3; /* set it to something small... */
-	    rttstddev = (rttstddev + rttvariance / rttstddev) / 2;
-	}
-	debug(F101,"RTT stddev2","",rttstddev);
-	debug(F101,"RTT delay  ","",pktintvl);
-	rcvtimo = (pktintvl + (3L * rttstddev)) / RTT_SCALE + 1;
-	if (rpackets < 32)		/* Allow for slow start */
-	  rcvtimo += rcvtimo + 2;
-	else if (rpackets < 64)
-	  rcvtimo += rcvtimo / 2 + 1;
-        /* On a reliable link, don't try too hard to time out. */
-	/* Especially on fast local network connections. */
-        if (server && what == W_NOTHING) /* Server command wait */
-	  rcvtimo = rcvtimo;		/* == srvtim */
-        else if (reliable == SET_ON && rcvtimo > 0) /* Reliable */
-	  rcvtimo = rcvtimo +15;	/* and not server command wait */
-        else                            /* Not reliable or server cmd wait */
-	  rcvtimo = rcvtimo;
-	if (rcvtimo < mintime)		/* Lower bound */
-	  rcvtimo = mintime;
-	if (maxtime > 0) {		/* User specified an upper bound */
-	    if (rcvtimo > maxtime)
-	      rcvtimo = maxtime;
-	} else if (maxtime == 0) {	/* User didn't specify */
-	    if (rcvtimo > timint * 6)
-	      rcvtimo = timint * 6;
-	}
-#else  /* COMMENT */
 #ifdef CKFLOAT
 	{
 	    CKFLOAT x;
@@ -467,7 +417,6 @@ getrtt(nakstate, n) int nakstate, n;
 	rcvtimo = (prevz + z + z) / RTT_SCALE;
 	debug(F101,"RTT rcvtimo (int)","",rcvtimo);
 #endif /* CKFLOAT */
-#endif /* COMMENT */
 
 	zz = (rttdelay + 500) / 1000;
 	if (rcvtimo > (zz * 3))
