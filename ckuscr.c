@@ -134,15 +134,7 @@ static int got_it, no_cr;
 
 /*  Connect state parent/child communication signal handlers */
 
-#ifdef COMMENT
-#ifdef CK_POSIX_SIG
-static sigjmp_buf alrmrng;
-#else
-static jmp_buf alrmrng;
-#endif /* CK_POSIX_SIG */
-#else
 static ckjmpbuf alrmrng;
-#endif /* COMMENT */
 
 static SIGTYP
 #ifdef CK_ANSIC
@@ -583,10 +575,6 @@ dologin(cmdstr) char *cmdstr;
 
     *seq_buf = 0;
     for (e = s; *e; e++) ckstrncat(seq_buf,dbchr(*e),SBUFL);
-#ifdef COMMENT
-/* Skip this because it tends to contain a password... */
-    if (scr_echo) printf("SCRIPT string: %s\n",seq_buf);
-#endif /* COMMENT */
     tlog(F110,"SCRIPT string: ",seq_buf, 0L);
 
 /* Condition console terminal and communication line... */
