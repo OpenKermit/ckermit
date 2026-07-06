@@ -992,7 +992,7 @@ struct pktinfo {			/* Packet information structure */
 #define     XYFP_X 4    /*    None */
 #define   XYFILX 9      /*  Collision Action */
 #define     XYFX_A 3    /*    Append */
-#define     XYFX_Q 5    /*    Ask */
+#define     XYFX_Q 5    /*    Ask (unimplemented and unreferenced in ckermit) */
 #define     XYFX_B 2    /*    Backup */
 #define     XYFX_D 4    /*    Discard */
 #define     XYFX_R 0    /*    Rename */

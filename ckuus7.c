@@ -892,9 +892,6 @@ struct keytab colxtab[] = { /* SET FILE COLLISION options */
 #ifndef MAC
     { "append",    XYFX_A, 0 },         /* append to old file */
 #endif /* MAC */
-#ifdef COMMENT
-    { "ask",       XYFX_Q, 0 },         /* ask what to do (not implemented) */
-#endif
     { "backup",    XYFX_B, 0 },         /* rename old file */
 #ifndef MAC
     /* This crashes Mac Kermit. */

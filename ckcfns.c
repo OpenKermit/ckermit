@@ -3873,10 +3873,6 @@ Please confirm output file specification or supply an alternative:";
 	    }
 	    tlog(F110," appending to",ofn1,0);
 	    break;
-#ifdef COMMENT
-	  case XYFX_Q:			/* Query (Ask) */
-	    break;			/* not implemented */
-#endif /* COMMENT */
 	  case XYFX_B:			/* Backup (rename old file) */
 	    if (dirflg) {
 		rf_err = "Can't rename existing directory";
