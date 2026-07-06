@@ -263,13 +263,6 @@ char * dialmsg[] = {			/* DIAL status strings */
     NULL				    /* 34 */
 };
 
-#ifdef COMMENT
-#ifdef NOSPL
-static
-#endif /* NOSPL */
-char modemmsg[128] = { NUL, NUL };	/* DIAL response from modem */
-#endif /* COMMENT */
-
 #ifdef NTSIG
 extern int TlsIndex;
 #endif /* NTSIG */
@@ -318,11 +311,6 @@ long dialmax = 0L,			/* Modem's max interface speed */
   dialcapas  = 0L;			/* Modem's capabilities */
 
 int dialsta = DIA_UNK;			/* Detailed return code (ckuusr.h) */
-
-#ifdef COMMENT
-int ans_cid = 0;			/* SET ANSWER parameters */
-int ans_rings = 0;			/* (not used yet...) */
-#endif /* COMMENT */
 
 int is_rockwell = 0;
 int is_motorola = 0;
@@ -522,9 +510,6 @@ _PROTOTYP (int dialhup, (void) );
 _PROTOTYP (int getok, (int,int) );
 _PROTOTYP (char * ck_time, (void) );
 _PROTOTYP (static VOID ttslow, (char *, int) );
-#ifdef COMMENT
-_PROTOTYP (static VOID xcpy, (char *, char *, unsigned int) );
-#endif /* COMMENT */
 _PROTOTYP (static VOID waitfor, (char *) );
 _PROTOTYP (static VOID dialoc, (char) );
 _PROTOTYP (static int didweget, (char *, char *) );
@@ -1084,14 +1069,6 @@ MDMINF PPI =				/* Practical Peripherals  */
     35,					/* dial_time */
     ",",				/* pause_chars */
     2,					/* pause_time */
-#ifdef COMMENT
-/* In newer models S82 (BREAK handling) was eliminated, causing an error. */
-#ifdef OS2
-    "ATQ0X4N1&S0&C1&D2S37=0S82=128\015", /* wake_str */
-#else
-    "ATQ0X4N1S37=0S82=128\015",		/* wake_str */
-#endif /* OS2 */
-#else /* So now we use Y0 instead */
 #ifdef OS2
     "ATE1Q0V1X4N1&S0&C1&D2Y0S37=0\015",	/* wake_str */
 #else
@@ -1101,7 +1078,6 @@ MDMINF PPI =				/* Practical Peripherals  */
     "ATQ0X4N1Y0S37=0\015",		/* wake_str */
 #endif /* VMS */
 #endif /* OS2 */
-#endif /* COMMENT */
     0,					/* wake_rate */
     "OK\015",				/* wake_prompt */
     "",					/* dmode_str */
@@ -2852,11 +2828,7 @@ MDMINF DF200 =		/* information for "DEC DF200-series" modem */
     "",			/* wake_prompt */
     "",			/* dmode_str */
     NULL,		/* dmode_prompt */
-#ifdef COMMENT
-    "%s!",		/* dial_str */
-#else
     "   d %s\015",
-#endif /* COMMENT */
     0,					/* dial_rate */
     0,					/* esc_time */
     0,					/* esc_char */
@@ -4518,14 +4490,6 @@ dologdial(s) char *s;
 
 #ifndef MINIDIAL
 
-#ifdef COMMENT
-static VOID
-xcpy(to,from,len)		/* Copy the given number of bytes */
-    register char *to, *from;
-    register unsigned int len; {
-	while (len--) *to++ = *from++;
-}
-#endif /* COMMENT */
 #endif /* MINIDIAL */
 
 static SIGTYP
@@ -5361,9 +5325,6 @@ _dodial(threadinfo) VOID * threadinfo;
 	    ws = dialini;
 	  else
 	    ws = mp->wake_str;
-#ifdef COMMENT
-	  if (!ws) ws = "\015";		/* If none, use CR */
-#endif /* COMMENT */
 
 	  /* First get the modem's attention and enable result codes */
 
@@ -5420,12 +5381,6 @@ _dodial(threadinfo) VOID * threadinfo;
 	  if (xredial && inited) {	/* Redialing... */
 	      ttoc('\015');		/* Cancel previous */
 	      msleep(250);		/* Wait a bit */
-#ifdef COMMENT
-/* This wasn't the problem... */
-	      ttflui();			/* Clear out stuff from modem setup */
-	      ttslow("ATS7=60\015",wr);	/* Redo carrier wait */
-	      getok(4,1);		/* Get response */
-#endif /* COMMENT */
 	      alarm(0);			/* Just in case... */
 	      ttflui();			/* Clear out stuff from modem setup */
 	      goto REDIAL;		/* Skip setup - we already did it */
@@ -5566,11 +5521,6 @@ _dodial(threadinfo) VOID * threadinfo;
 		x = 1;
 		ttslow(mp->ec_on_str, wr);
 	    }
-#ifdef COMMENT
-	    else printf(
-		  "WARNING - I don't know how to turn on EC for this modem\n"
-		     );
-#endif /* COMMENT */
 	} else {
 	    if (dialecoff) {		/* DIAL ERROR-CORRECTION OFF */
 		if (*dialecoff) {
@@ -5581,11 +5531,6 @@ _dodial(threadinfo) VOID * threadinfo;
 		x = 1;
 		ttslow(mp->ec_off_str, wr);
 	    }
-#ifdef COMMENT
-	    else printf(
-		  "WARNING - I don't know how to turn off EC for this modem\n"
-		     );
-#endif /* COMMENT */
 	}
 	/* debug(F101,"ckudia xx_ok","",xx_ok); */
 	if (x && xx_ok) {			/* Look for OK response */
@@ -5616,11 +5561,6 @@ _dodial(threadinfo) VOID * threadinfo;
 		x = 1;
 		ttslow(mp->dc_on_str, wr);
 	    }
-#ifdef COMMENT
-	    else printf(
-		  "WARNING - I don't know how to turn on DC for this modem\n"
-			  );
-#endif /* COMMENT */
 	} else {
 	    if (dialdcoff) {
 		if (*dialdcoff) {
@@ -5631,11 +5571,6 @@ _dodial(threadinfo) VOID * threadinfo;
 		x = 1;
 		ttslow(mp->dc_off_str, wr);
 	    }
-#ifdef COMMENT
-	    else printf(
-"WARNING - I don't know how to turn off compression for this modem\n"
-			  );
-#endif /* COMMENT */
 	}
 	if (x && xx_ok) {			/* Look for OK response */
 	    x = (*xx_ok)(5,1);
@@ -5812,9 +5747,6 @@ _dodial(threadinfo) VOID * threadinfo;
 	if (dialsta != DIA_PART) {	/* Last dial was not partial */
 
 	    char *s = "";
-#ifdef COMMENT
-	    s = dialaaoff ? dialaaoff : mp->aa_off_str;
-#endif /* COMMENT */
 	    if (s) if (*s) {
 		ttslow(s, (dialpace > -1) ? wr : mp->dial_rate);
 		if (xx_ok)		/* Get modem's response */
@@ -6613,9 +6545,6 @@ ckdial(nbr, x1, x2, fc, redial) char *nbr; int x1, x2, fc, redial;
 	return 0;
     }
     debug(F110,"dial number",telnbr,0);
-#ifdef COMMENT
-    debug(F110,"dial prefix",(dialnpr ? dialnpr : ""), 0);
-#endif /* COMMENT */
 
 #ifdef DYNAMIC
     *lbuf = NUL;
@@ -6643,16 +6572,8 @@ ckdial(nbr, x1, x2, fc, redial) char *nbr; int x1, x2, fc, redial;
     if (ttopen(ttname,&local,mdmtyp,0) < 0) { /* Open, no carrier wait */
 	erp = errmsg;
 
-#ifdef COMMENT
-        /* This gets compiler warnings */
-	if ((int)strlen(ttname) < (ERMSGL - 18)) /* safe, checked */
-	  sprintf(erp,"Sorry, can't open %s",ttname);
-	else
-	  sprintf(erp,"Sorry, can't open device");
-#else  /* fdc 13 November 2022 */
         /* Safe and portable replacement for snprinf() AND sprintf() */
         ckmakmsg(erp,ERMSGL,"Sorry, can't open ",ttname,NULL,NULL);
-#endif  /* COMMENT */
 
 	perror(errmsg);
 	dialsta = DIA_OPEN;
@@ -6808,13 +6729,8 @@ ckdial(nbr, x1, x2, fc, redial) char *nbr; int x1, x2, fc, redial;
   chance that we get a response from the modem before timing out.
 */
     if (waitct <= 0) {			/* 0 or negative means wait forever  */
-#ifdef COMMENT
-	waitct = 254;			/* These were backwards in 7.0.196 */
-	mdmwait = 0;
-#else
 	waitct = 0;			/* Fixed in 7.0.198. */
 	mdmwait = 254;
-#endif /* COMMENT */
     } else {
 	if (dialtmo < 1) {		/* Automatic computation. */
 #ifdef XWAITCT
@@ -6833,21 +6749,8 @@ ckdial(nbr, x1, x2, fc, redial) char *nbr; int x1, x2, fc, redial;
     }
     debug(F101,"ckdial waitct B","",waitct);
     if (fc == 1) {			/* ANSWER */
-#ifdef COMMENT
-/*
-  This is wrong.  mdmwait is the value given to S7 in Hayeslike modems.
-  When in autoanswer mode, this is the amount of time the modem waits for
-  carrier once ringing starts.  Whereas waitct is the timeout given to the
-  ANSWER command, which is an entirely different thing.  Since the default
-  ANSWER timeout is 0 (meaning "wait forever"), the following statement sets
-  S7 to 0, which, on some modems (like the USR Sportster) makes it hang up
-  and report NO CARRIER the instant the phone rings.
-*/
-	mdmwait = waitct;
-#else
 	if (mdmwait <= 0)
 	  mdmwait = 60;			/* Always wait 60 seconds. */
-#endif /* COMMENT */
 
     }
     if (!quiet && !backgrd) {		/* Print information messages. */
@@ -7058,10 +6961,6 @@ dook(threadinfo) VOID * threadinfo ;
 #endif /* NTSIG */
 		SIGRETURN;
 	    }
-#ifdef COMMENT
-	    /* too much */
-	    debug(F101,"getok ddinc","",x); /* Got a character. */
-#endif /* COMMENT */
 	    c = (char) (x & 0x7f);	/* Get low order 7 bits */
 	    if (!c)			/* Don't deposit NULs */
 	      continue;			/* or else didweget() won't work */
@@ -7069,10 +6968,6 @@ dook(threadinfo) VOID * threadinfo ;
 	    for (i = 0; i < RBUFL-1; i++) /* Rotate buffer */
 	      rbuf[i] = rbuf[i+1];
 	    rbuf[RBUFL-1] = c;		/* Deposit character at end */
-#ifdef COMMENT
-	    /* too much */
-	    debug(F000,"getok:",rbuf,(int) c); /* Log it */
-#endif /* COMMENT */
 	    switch (c) {		/* Interpret it. */
 	      case CK_CR:               /* Got a carriage return. */
 		switch(rbuf[RBUFL-2]) {	/* Look at character before it. */
@@ -8045,15 +7940,7 @@ gethrw() {
 	mdmstat = D_FAILED;
 	dialsta = DIA_ERR;
     } else if (didweget(lbuf,"CARRIER")) { /* Boca / Rockwell family */
-#ifdef COMMENT
-	if (is_rockwell)
-#endif /* COMMENT */
 	  mdmstat = 0;
-#ifdef COMMENT
-	/* Does CARRIER ever mean the same as CONNECT? */
-	else
-	  mdmstat = CONNECTED;
-#endif /* COMMENT */
     } else if (didweget(lbuf,"DATA")) {	/* Boca / Rockwell family */
 	/* This message is sent when the modem is in FAX mode  */
 	/* So setting this to CONNECTED may not be appropriate */
@@ -8166,12 +8053,6 @@ mdmhup() {
       return(0);
 #endif /* CK_TAPI */
 
-#ifdef COMMENT
-    /* No, we still need this for modems that ignore DTR */
-    if (mymdmtyp == n_GENERIC && !network)
-      return(0);
-#endif /* COMMENT */
-
     debug(F101,"mdmhup dialesc","",dialesc);
     if (dialesc < 0)
       return(0);			/* No modem escape-character, fail. */
@@ -8275,10 +8156,6 @@ mdmhup() {
 	else
 	  msleep(500);			/* Wait half a sec for echoes. */
 	debug(F100,"mdmhup pause 1 OK","",0);
-#ifdef COMMENT
-	ttflui();			/* Flush response or echo, if any */
-	debug(F100,"mdmhup ttflui OK","",0);
-#endif /* COMMENT */
     }
     ttslow(s,wr);			/* Now Send hangup string */
     debug(F110,"mdmhup ttslow ok",s,0);
