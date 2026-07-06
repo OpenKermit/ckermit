@@ -73,13 +73,6 @@ extern int remfile;
 
 /* (move these prototypes to the appropriate .h files...) */
 
-#ifdef COMMENT
-/* Not used */
-#ifdef VMS
-_PROTOTYP( int getvnum, (char *) );
-#endif /* VMS */
-#endif /* COMMENT */
-
 _PROTOTYP( static int bgetpkt, (int) );
 #ifndef NOCSETS
 _PROTOTYP( int lookup, (struct keytab[], char *, int, int *) );
@@ -389,9 +382,6 @@ static int drain;			/* For draining stacked-up ACKs. */
 
 static int first;			/* Flag for first char from input */
 static CHAR t;				/* Current character */
-#ifdef COMMENT
-static CHAR next;			/* Next character */
-#endif /* COMMENT */
 
 static int ebqsent = 0;			/* 8th-bit prefix bid that I sent */
 static int lsstate = 0;			/* Locking shift state */
@@ -405,17 +395,6 @@ extern int quiet;
   Call this instead of getpkt() if source is a string, rather than a file.
   Note: Character set translation is never done in this case.
 */
-
-#ifdef COMMENT
-#define ENCBUFL 200
-#ifndef pdp11
-CHAR encbuf[ENCBUFL];
-#else
-/* This is gross, but the pdp11 root segment is out of space */
-/* Will allocate it in ckuusr.c. */
-extern CHAR encbuf[];
-#endif /* pdp11 */
-#endif /* COMMENT */
 
 /*
   Encode packet data from a string in memory rather than from a file; thus
@@ -831,11 +810,6 @@ xpnbyte(a,tcs,fcs,fn) int a, tcs, fcs; int (*fn)();
     if ((byteorder && !ucsorder) || (!byteorder && fileorder))
       swapping = 1;			/* Swapping bytes to output */
 
-#ifdef COMMENT
-    debug(F101,"xpnbyte ucsorder","",ucsorder);
-    debug(F101,"xpnbyte swapping","",swapping);
-#endif /* COMMENT */
-
     if (tcs == TC_UTF8) {		/* 'a' is from a UTF-8 stream */
 	ch = a;
 	if (fcs == TC_UTF8)		/* Output is UTF-8 too */
@@ -961,19 +935,6 @@ xpnbyte(a,tcs,fcs,fn) int a, tcs, fcs; int (*fn)();
 #ifdef OS2
                 if (fn == NULL && !k95stdout && !inserver) {
 		    offc++;
-#ifdef COMMENT
-		    /* Don't print the BOM to the display */
-                    output.bytes[0] = (!ucsorder ? 0xff : 0xfe);
-                    output.bytes[1] = (!ucsorder ? 0xfe : 0xff);
-
-                    VscrnWrtUCS2StrAtt(VCMD,
-                                       &output.ucs2,
-                                       1,
-                                       wherey[VCMD],
-                                       wherex[VCMD],
-                                       &colorcmd
-                                       );
-#endif /* COMMENT */
                 } else
 #endif /* OS2 */
 #endif /* IKSDONLY */
@@ -1391,12 +1352,6 @@ decode(buf,fn,xlate) register CHAR *buf; register int (*fn)(); int xlate;
     if ((cxseen || czseen || discard) && (fn == putfil))
       return(0);
 
-#ifdef COMMENT
-#ifdef CKTUNING
-    if (binary && !parity)
-      return(bdecode(buf,fn));
-#endif /* CKTUNING */
-#endif /* COMMENT */
     debug(F100,"DECODE","",0);
 
     xdbuf = buf;			/* Make global copy of pointer. */
@@ -1698,10 +1653,6 @@ bgetpkt(bufmax) int bufmax;
     }
     dp = data;				/* Point to packet data buffer */
     size = 0;				/* And initialize its size */
-#ifdef COMMENT
-    /* No - bufmax is a parameter */
-    bufmax = maxdata();			/* Get maximum data length */
-#endif
 
 #ifdef DEBUG
     if (deblog)
@@ -1710,10 +1661,6 @@ bgetpkt(bufmax) int bufmax;
 
     if (first == 1) {			/* If first character of this file.. */
 	ffc = (CK_OFF_T)0;		/* reset file character counter */
-#ifdef COMMENT
-/* Moved to below */
-	first = 0;			/* Next character won't be first */
-#endif /* COMMENT */
 	*leftover = '\0';		/* Discard any interrupted leftovers */
 	nleft = 0;
 
@@ -2318,10 +2265,6 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
   don't need to do anything else except put the bytes in the right place to be
   returned, which is done further along.
 */
-#ifdef COMMENT
-	  /* Previous code */
-	  xx = (what & W_SEND) ? xut : xuf;
-#else
 	  /* New code 2011-06-03 */
 	  if (what & W_SEND) {
 	      xx = xut;
@@ -2331,7 +2274,6 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
 	      else
 		xx = xuf;
 	  }
-#endif	/* COMMENT */
 
 	  eolflag = 0;
 	  if (haveuc) {			/* File is Unicode */
@@ -2438,11 +2380,6 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
 		      xlabuf[k++] = LF;
 		      xlacount = k;
 		      return((unsigned int)CK_CR);
-#ifdef COMMENT
-		  } else {		/* Or to local line-end */
-		      xlacount = k;
-		      return((unsigned int)feol);
-#endif /* COMMENT */
 		  }
 	      }
 	      c = xc;
@@ -2477,21 +2414,10 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
 		      debug(F101,"xgnbyte send CRLF","",k);
 		      return(0);	/* Return NUL */
 		  } else {		/* Or to local line-end */
-#ifdef COMMENT
-		      /* This bypasses byte swapping that we might need */
-		      xlabuf[k++] = (CHAR)feol;
-		      xlacount = k;
-		      debug(F101,"xgnbyte send feol","",k);
-		      return(0);	/* Return NUL */
-#else
 		      xc = (CHAR)feol;
-#endif /* COMMENT */
 		  }
 	      }
 	      /* In which order should we return the bytes? */
-#ifdef COMMENT
-	      if ( (what & W_SEND) || (what & W_FTP) || (fileorder == 0)) {
-#endif /* COMMENT */
 		  /* ALWAYS RETURN IN BIG ENDIAN ORDER... 7 Sep 2002   */
 		  /* xgnbyte() is almost always used to feed xpnbyte() */
 		  /* which requires bytes in BE order. In cases where  */
@@ -2501,14 +2427,6 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
 		  xlabuf[k++] = xc & 0xff;
 		  debug(F001,"xgnbyte->UCS2BE",
 			ckitox((int)xlabuf[0]),xlabuf[1]);
-#ifdef COMMENT
-	      } else {			/* Little Endian */
-		  xlabuf[k++] = xc & 0xff;
-		  xlabuf[k++] = (xc >> 8) & 0xff;
-		  debug(F001,"xgnbyte->UCS2LE",
-			ckitox((int)xlabuf[0]),xlabuf[1]);
-	      }
-#endif /* COMMENT */
 	      c = xlabuf[0];
 	      xlaptr = 1;
 	      xlacount = k-1;
@@ -2560,16 +2478,12 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
 	debug(F101,"xgnbyte bad xlatype","",xlatype);
 	return(-2);
     }
-#ifdef COMMENT
 /*
   If there is a return() statement here, some compilers complain
   about "statement not reached".  If there is no return() statement,
   other compilers complain that "Non-void function should return a value".
   There is no path through this function that falls through to here.
 */
-    debug(F100,"xgnbyte switch failure","",0);
-    return(-2);
-#endif /* COMMENT */
 }
 #endif /* NOCSETS */
 
@@ -2605,10 +2519,6 @@ getpkt(bufmax,xlate) int bufmax, xlate;
 
     CHAR xxls, xxdl, xxrc, xxss, xxcq;	/* Pieces of prefixed sequence */
 
-#ifdef COMMENT
-    debug(F000,"getpkt sstate","",sstate); /* It's always NUL - why??? */
-#endif  /* COMMENT */
-
     if (binary) xlate = 0;		/* We don't translate if binary */
 
     if (!data) {
@@ -2623,10 +2533,6 @@ getpkt(bufmax,xlate) int bufmax, xlate;
   We also decide optimally whether it is better to use a short-format or
   long-format packet when we're near the borderline.
 */
-#ifdef COMMENT
-    /* bufmax is a parameter - don't override it! */
-    bufmax = maxdata();			/* Get maximum data length */
-#endif /* COMMENT */
 
     if (first == 1) {			/* If first character of this file.. */
 #ifdef UNICODE
@@ -2638,10 +2544,6 @@ getpkt(bufmax,xlate) int bufmax, xlate;
 	debug(F101,"getpkt first rt","",rt);
 	if (!memstr && !funcstr)	/* and real file... */
 	  ffc = (CK_OFF_T)0;		/* reset file character counter */
-#ifdef COMMENT
-	/* Moved to below... */
-	first = 0;			/* Next character won't be first */
-#endif /* COMMENT */
 	*leftover = '\0';		/* Discard any interrupted leftovers */
 	nleft = 0;
 #ifndef NOCSETS
@@ -3234,13 +3136,9 @@ resetc() {
 #endif /* GFTIMER */
     tfc = tlci = tlco = (CK_OFF_T)0;	/* Total file, line chars in & out */
     ccu = ccp = 0L;			/* Control-char statistics */
-#ifdef COMMENT
-    fsize = (CK_OFF_T)-1;		/* File size */
-#else
     if (!(what & W_SEND))
       fsize = (CK_OFF_T)-1;
     debug(F101,"resetc fsize","",fsize);
-#endif /* COMMENT */
     timeouts = retrans = 0;		/* Timeouts, retransmissions */
     spackets = rpackets = 0;		/* Packet counts out & in */
     crunched = 0;			/* Crunched packets */
@@ -3333,15 +3231,9 @@ sinit() {
       case -4: m = "Cancelled"; break;
       case -3: m = "Read access denied"; break;
       case -2: m = "File is not readable"; break;
-#ifdef COMMENT
-      case -1: m = iswild(filnam) ? "No files match" : "File not found";
-	break;
-      case  0: m = "No filespec given!"; break;
-#else
       case  0:
       case -1: m = iswild(filnam) ? "No files match" : "File not found";
 	break;
-#endif /* COMMENT */
       default:
 	break;
     }
@@ -3556,19 +3448,6 @@ Please confirm output file specification or supply an alternative:";
 	    return(0);
 	}
     }
-#ifdef COMMENT
-    /* Wrong place for this -- handle cmarg2 first -- see below...  */
-
-    if (zchko((char *)srvcmd) < 0) {	/* Precheck for write access */
-	debug(F110,"rcvfil access denied",srvcmd,0);
-	rf_err = "Write access denied";
-	discard = opnerr = 1;
-	return(0);
-    }
-    xxscreen(SCR_FN,0,0l,(char *)srvcmd); /* Put it on screen if local */
-    debug(F110,"rcvfil srvcmd 1",srvcmd,0);
-    tlog(F110,"Receiving",(char *)srvcmd,0L); /* Transaction log entry */
-#endif /* COMMENT */
 
     skipthis = 0;			/* This file in our exception list? */
     for (i = 0; i < NSNDEXCEPT; i++) {
@@ -3770,10 +3649,6 @@ Please confirm output file specification or supply an alternative:";
 #ifndef NOSPL
 	if ((p = (char *) malloc(nn + 1))) {
 	    q = p;
-#ifdef COMMENT
-            /* We have already processed srvcmd and placed it into ofn1 */
-            ckstrncpy(ofn1,(char *)srvcmd,CKMAXPATH+1); /* For \v(filename) */
-#endif /* COMMENT */
 	    debug(F110,"rcvfile pipesend filter",rcvfilter,0);
 	    zzstring(rcvfilter,&p,&nn);
 	    debug(F111,"rcvfil pipename",q,nn);
@@ -3911,15 +3786,6 @@ Please confirm output file specification or supply an alternative:";
 #endif /* OS2ONLY */
 #endif /* CK_LABELED */
 
-#ifdef COMMENT
-	    /* Do this later, in opena()... */
-	    if (zrename(ofn1,ofn2) < 0) {
-		rf_err = "Can't transform filename";
-		debug(F110,"rcvfil rename fails",ofn1,0);
-		discard = opnerr = 1;
-		return(0);
-	    }
-#endif /* COMMENT */
 	    break;
 
 	  case XYFX_D:			/* Discard (refuse new file) */
@@ -3960,11 +3826,7 @@ Please confirm output file specification or supply an alternative:";
 		rf_err = "Can't overwrite existing directory";
 		tlog(F100," error - can't overwrite directory","",0);
 		discard = opnerr = 1;
-#ifdef COMMENT
-		return(0);
-#else
 		break;
-#endif /* COMMENT */
 	    }
 	    tlog(F110,"overwriting",ofn1,0);
 	    break;
@@ -3974,10 +3836,6 @@ Please confirm output file specification or supply an alternative:";
 		rf_err = "File has same name as existing directory";
 		tlog(F110," error - directory exists:",ofn1,0);
 		discard = opnerr = 1;
-#ifdef COMMENT
-		/* Don't send an error packet, just refuse the file */
-		return(0);
-#endif /* COMMENT */
 	    }
 	    break;			/* Not here, we don't have */
 					/* the attribute packet yet. */
@@ -4025,22 +3883,6 @@ Please confirm output file specification or supply an alternative:";
       zfnqfp(ofn1,fspeclen,fspec);
     debug(F110,"rcvfil fspec",fspec,0);
 
-#ifdef COMMENT
-    /* See comments with VMS zfnqfp()... */
-#ifdef VMS
-    /* zfnqfp() does not return the version number */
-    if (!calibrate) {
-	int x, v;
-	x = strlen(ofn1);
-	if (x > 0) {
-	    if (ofn1[x-1] == ';') {
-		v = getvnum(ofn1);
-		ckstrncpy(&ofn1[x],ckitoa(v),CKMAXPATH-x);
-	    }
-	}
-    }
-#endif /* VMS */
-#endif /* COMMENT */
     fspec[fspeclen] = NUL;
     makestr(&prfspec,fspec);		/* New preliminary filename */
 
@@ -4199,19 +4041,6 @@ reof(f,yy) char *f; struct zattr *yy;
 	    !calibrate && c != 'M' && c != 'P') {
 	    if (rcv_move) {		/* If /MOVE-TO was given... */
 		char * p = rcv_move;
-#ifdef COMMENT
-/* No need for this - it's a directory name */
-		char tmpbuf[CKMAXPATH+1];
-		extern int cmd_quoting;	/* for \v(filename) */
-		if (cmd_quoting) {	/* But only if cmd_quoting is on */
-		    int n;
-		    n = CKMAXPATH;
-		    p = tmpbuf;
-		    debug(F111,"reof /move-to",rcv_move,0);
-		    zzstring(rcv_move,&p,&n);
-		    p = tmpbuf;
-		}
-#endif /* COMMENT */
 /*
   Here we could create the directory if it didn't exist (and it was relative)
   but there would have to be a user-settable option to say whether to do this.
@@ -4341,10 +4170,6 @@ sfile(x) int x;
     /* cmarg2 or filnam (with that precedence) have the file's name */
 
     lsstate = 0;			/* Cancel locking-shift state */
-#ifdef COMMENT
-    /* Do this after making sure we can open the file */
-    if (nxtpkt() < 0) return(0);	/* Bump packet number, get buffer */
-#endif /* COMMENT */
     pktnam[0] = NUL;			/* Buffer for name we will send */
     if (x == 0) {			/* F-Packet setup */
 	if (!cmarg2) cmarg2 = "";
@@ -4496,20 +4321,11 @@ sfile(x) int x;
 		y = PKTNL;		/* pass as-name thru the evaluator */
 		s = pktnam;
 		zzstring(cmarg2,&s,&y);
-#ifdef COMMENT
-/* This ruins macros like BSEND */
-		if (!pktnam[0])		/* and make sure result is not empty */
-		  sprintf(pktnam,"FILE%02ld",filcnt);
-#endif /* COMMENT */
 	    } else
 #endif /* NOSPL */
 	      ckstrncpy(pktnam,cmarg2,PKTNL); /* copy it literally, */
 
 	    debug(F110,"sfile pktnam",pktnam,0);
-#ifdef COMMENT
-/* We don't do this any more because now we have filename templates */
-	    cmarg2 = "";		/* and blank it out for next time. */
-#endif /* COMMENT */
     	}
 	if (!*pktnam) {			/* No as-name... */
 #ifdef NZLTOR
@@ -4935,20 +4751,12 @@ szeof(s) CHAR *s;
     if (*s) {
 	x = spack('Z',pktnum,1,s);
 	xitsta |= W_SEND;
-#ifdef COMMENT
-	tlog(F100," *** interrupted, sending discard request","",0L);
-#endif /* COMMENT */
 	filrej++;
     } else {
 	x = spack('Z',pktnum,0,(CHAR *)"");
     }
     if (x < 0)
       return(x);
-
-#ifdef COMMENT
-    /* No, too soon */
-    discard = 0;			/* Turn off per-file discard flag */
-#endif /* COMMENT */
 
 /* If we were sending from a pipe, we're not any more... */
     pipesend = 0;
@@ -5825,11 +5633,7 @@ nextinpath:
 			*/
 			goto gotnam;
 		    }
-#ifdef COMMENT
-		    nzxopts = ZX_FILONLY; /* (was 0: 25 Jul 2001 fdc) */
-#else
 		    nzxopts = recursive ? 0 : ZX_FILONLY; /* 30 Jul 2001 */
-#endif /* COMMENT */
 		    if (nolinks) nzxopts |= ZX_NOLINKS;	/* (26 Jul 2001 fdc) */
 #ifdef UNIXOROSK
 		    if (matchdot) nzxopts |= ZX_MATCHDOT;
@@ -5975,23 +5779,6 @@ gotnam:
 		ckstrncpy(filnam,fullname,CKMAXPATH+1);
 		return(1);
 	    }
-#ifdef COMMENT
-	/* This can't be right! */
-	} else {			/* sndsrc is 0... */
-	    if (!fileselect(fullname,
-			    sndafter, sndbefore,
-			    sndnafter,sndnbefore,
-			    sndsmaller,sndlarger,
-			    skipbup,
-			    NSNDEXCEPT,sndexcept)) {
-		gnferror = -6;
-		debug(F111,"gnfile fileselect",fullname,gnferror);
-		filesize = (CK_OFF_T)-1;
-		continue;
-	    }
-	    ckstrncpy(filnam,fullname,CKMAXPATH+1);
-	    return(1);
-#endif /* COMMENT */
 	}
     }
     debug(F101,"gnfile result","",retcode);
@@ -6806,13 +6593,8 @@ snddir(spec) char * spec;
     if (!spec) spec = "";
     debug(F111,"snddir sd_dot",spec,sd_dot);
     if (*spec) {
-#ifdef COMMENT
-	zfnqfp(spec,CKMAXPATH,name);
-	debug(F110,"snddir zfnqfp",name,0);
-#else
 	ckstrncpy(name,spec,CKMAXPATH+1);
 	debug(F110,"snddir name",name,0);
-#endif /* COMMENT */
     } else {
 #ifdef OS2
 	strcpy(name, "*");
