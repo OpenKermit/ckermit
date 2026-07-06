@@ -14211,63 +14211,6 @@ pty_make_raw(fd) int fd;
     debug(F101,"pty_make_raw cfmakeraw errno","",errno);
 #else  /* USE_CFMAKERAW */
 
-#ifdef COMMENT
-
-/* This very simple version recommended by Serg Iakolev doesn't work */
-
-    tp.c_lflag &= ~(ECHO|ICANON|IEXTEN|ISIG);
-    tp.c_iflag &= ~(BRKINT|ICRNL|INPCK|ISTRIP|IXON);
-    tp.c_cflag &= ~(CSIZE|PARENB);
-    tp.c_cflag |= CS8;
-    tp.c_oflag &= ~(OPOST);
-    tp.c_cc[VMIN] = 1;
-    tp.c_cc[VTIME] = 0;
-
-    debug(F101,"pty_make_raw 1 c_cc[] NCCS","",NCCS);
-    debug(F101,"pty_make_raw 1 iflags","",tp.c_iflag);
-    debug(F101,"pty_make_raw 1 oflags","",tp.c_oflag);
-    debug(F101,"pty_make_raw 1 lflags","",tp.c_lflag);
-    debug(F101,"pty_make_raw 1 cflags","",tp.c_cflag);
-
-#else
-#ifdef COMMENT
-/*
-  In this version we unset everything and then set only the
-  bits we know we need.
-*/
-    /* iflags */
-    tp.c_iflag = 0L;
-    tp.c_iflag |= IGNBRK;
-#ifdef IMAXBEL
-    tp.c_iflag |= IMAXBEL;
-#endif /* IMAXBEL */
-
-    /* oflags */
-    tp.c_oflag = 0L;
-
-    /* lflags */
-    tp.c_lflag = 0L;
-#ifdef NOKERNINFO
-    tp.c_lflag |= NOKERNINFO;
-#endif	/* NOKERNINFO */
-
-    /* cflags */
-    tp.c_cflag = 0L;
-    tp.c_cflag |= CS8|CREAD;
-
-    for (i = 0; i < NCCS; i++) {	/* No special characters */
-	tp.c_cc[i] = 0;
-    }
-#ifdef VMIN
-    tp.c_cc[VMIN] = 1;			/* But always wait for input */
-#endif	/* VMIN */
-    debug(F101,"pty_make_raw 2 c_cc[] NCCS","",NCCS);
-    debug(F101,"pty_make_raw 2 iflags","",tp.c_iflag);
-    debug(F101,"pty_make_raw 2 oflags","",tp.c_oflag);
-    debug(F101,"pty_make_raw 2 lflags","",tp.c_lflag);
-    debug(F101,"pty_make_raw 2 cflags","",tp.c_cflag);
-
-#else  /* COMMENT */
 /*
   In this version we set or unset every single flag explicitly.  It works a
   bit better than the simple version just above, but it's still far from
@@ -14363,11 +14306,7 @@ pty_make_raw(fd) int fd;
 #ifdef NOKERNINFO
     tp.c_lflag |= NOKERNINFO;
 #endif	/* NOKERNINFO */
-#ifndef COMMENT
     tp.c_lflag &= ~NOFLSH;		/* TRY IT THE OTHER WAY? */
-#else
-    tp.c_lflag |= NOFLSH;		/* No, this way is worse */
-#endif /* COMMENT */
 
     /* cflags */
     tp.c_cflag &= ~(CSIZE|PARENB|PARODD);
@@ -14420,8 +14359,6 @@ pty_make_raw(fd) int fd;
     debug(F101,"pty_make_raw 3 oflags","",tp.c_oflag);
     debug(F101,"pty_make_raw 3 lflags","",tp.c_lflag);
     debug(F101,"pty_make_raw 3 cflags","",tp.c_cflag);
-#endif /* COMMENT */
-#endif /* COMMENT */
 
     errno = 0;
 #ifdef BSD44ORPOSIX			/* POSIX */
