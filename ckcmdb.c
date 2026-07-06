@@ -258,20 +258,6 @@ m_insert(cp) register char *cp; {
     disabled ++;
 }
 
-static VOID
-m_insert2(cp) register char *cp; {
-    register int i;
-
-    if (disabled)
-        return;
-    for(i = 0; i < BUCKETS; i++)
-        if (m_used2[i] == 0) {
-            m_used2[i] = cp;
-            return;
-        }
-    disabled ++;
-}
-
 int
 m_delete(cp) register char *cp; {
     register int i;
@@ -305,47 +291,6 @@ m_init() {
 
     for(i = 0; i < BUCKETS; i++)
       m_used[i] = 0;
-}
-
-VOID
-m_done() {
-    register int i,j=0;
-
-    if (disabled)
-        return;
-    for(i = 0; i < BUCKETS; i++)
-        if (m_used[i] != 0) {
-            if (memdebug) {
-                if (j == 0)
-                    fprintf(stderr,"unfree'ed buffers, indices: ");
-                fprintf(stderr,"%d, ", i);
-                j++;
-            }
-        }
-    if (j)
-        fprintf(stderr,"\n");
-    for(i = 0; i < BUCKETS; i++)
-        if (m_used2[i] != 0) {
-            if (memdebug) {
-                if (j == 0)
-                    fprintf(stderr,"unfree'ed registered buffers, indices: ");
-                fprintf(stderr,"%d, ", i);
-                j++;
-            }
-        }
-    if (j)
-        fprintf(stderr,"\n");
-    if (j)
-        maybe_quit("Unfree'ed malloc buffers");
-}
-
-VOID
-m_checkranges() {
-    int i;
-
-    for ( i = 0; i < BUCKETS; i++)
-        if (m_used[i])
-            check_range(m_used[i]);
 }
 
 static VOID
