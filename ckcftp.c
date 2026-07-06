@@ -1111,10 +1111,6 @@ static unsigned int nout = 0;           /* Number of chars in ucbuf */
 static jmp_buf recvcancel;
 static jmp_buf sendcancel;
 
-#ifdef NOT_USED
-static jmp_buf jcancel;
-#endif /* NOT_USED */
-
 /* Protection level symbols */
 
 #define FPL_CLR 1                       /* Clear */
