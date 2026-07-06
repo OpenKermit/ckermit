@@ -890,9 +890,6 @@ doauth(cx) int cx; {                    /* AUTHENTICATE action routine */
       return(rc);
 #endif /* OS2 */
     if (krb_op.version == 4) {          /* Version = 4 */
-#ifdef COMMENT
-        sho_auth(AUTHTYPE_KERBEROS_V4);
-#endif /* COMMENT */
         if (!ck_krb4_is_installed()) {
             printf("?Kerberos 4 is not installed\n");
             return(0);
@@ -910,9 +907,6 @@ doauth(cx) int cx; {                    /* AUTHENTICATE action routine */
         }
     }
     if (krb_op.version == 5) {          /* V5 functions */
-#ifdef COMMENT
-        sho_auth(AUTHTYPE_KERBEROS_V5);
-#endif /* COMMENT */
         if (!ck_krb5_is_installed()) {
             printf("?Kerberos 5 is not installed\n");
             return(0);
@@ -1208,9 +1202,6 @@ ttbufr() {                              /* TT Buffer Read */
                   fprintf(stderr,"ttbufr SSL_ERROR_SSL\n");
                   ERR_print_errors_fp(stderr);
               }
-#ifdef COMMENT
-	      netclos();
-#endif /* COMMENT */
 #ifdef OS2
               ReleaseTCPIPMutex();
 #endif /* OS2 */
@@ -1232,35 +1223,6 @@ ttbufr() {                              /* TT Buffer Read */
           }
     }
 #endif /* CK_SSL */
-
-#ifdef COMMENT
-/*
- This is for nonblocking reads, which we don't do any more.  This code didn't
- work anyway, in the sense that a broken connection was never sensed.
-*/
-    if ((count = socket_read(ttyfd,&ttibuf[ttibp+ttibn],count)) < 1) {
-        if (count == -1 && socket_errno == EWOULDBLOCK) {
-            debug(F100,"ttbufr finds nothing","",0);
-#ifdef OS2
-            ReleaseTCPIPMutex();
-#endif /* OS2 */
-            return(0);
-        } else {
-            debug(F101,"ttbufr socket_read error","",socket_errno);
-#ifdef OS2
-            ReleaseTCPIPMutex();
-#endif /* OS2 */
-            return(-1);
-        }
-
-    } else if (count == 0) {
-        debug(F100,"ttbufr socket eof","",0);
-#ifdef OS2
-        ReleaseTCPIPMutex();
-#endif /* OS2 */
-        return(-1);
-    }
-#else /* COMMENT */
 
 /* This is for blocking reads */
 
@@ -1370,18 +1332,6 @@ ttbufr() {                              /* TT Buffer Read */
                   return ttbufr();
               } else
 #endif /* RLOGCODE */ /* blah */
-#ifdef COMMENT
-            /*
-               I haven't written this yet, nor do I know what it should do
-             */
-                if (ttnproto == NP_TELNET) {
-                    tn_oob();
-#ifdef OS2
-                    ReleaseTCPIPMutex();
-#endif /* OS2 */
-                    return 0;
-              } else
-#endif /* COMMENT */
               {
                   /* For any protocols we don't have a special out-of-band  */
                   /* handler for, just put the bytes in the normal buffer   */
@@ -1425,7 +1375,6 @@ ttbufr() {                              /* TT Buffer Read */
         return(-2);
 #endif /* OS2 */
     }
-#endif /* COMMENT */ /* (blocking vs nonblock reads...) */
     else {
         ttibp = 0;                      /* Reset buffer pointer. */
         ttibn += count;
@@ -2517,17 +2466,9 @@ tcpsocket_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo {
 
     netclos();                          /* Close any previous connection. */
     ckstrncpy(namecopy, name, NAMECPYL); /* Copy the hostname. */
-#ifdef COMMENT
-    /* Jeff's version from 30 Dec 2005 doesn't inhibit Telnet */
-    if (ttnproto != NP_TCPRAW &&
-	ttnproto != NP_SSL_RAW &&
-	ttnproto != NP_TLS_RAW)
-      ttnproto = NP_NONE;               /* No protocol selected yet. */
-#else
     /* fdc's version from 4 Dec 2005 works ok */
     if (ttnproto != NP_TCPRAW)
       ttnproto = NP_NONE;               /* No protocol selected yet. */
-#endif	/* COMMENT */
     debug(F110,"tcpsocket_open namecopy",namecopy,0);
 
     /* Assign the socket number to ttyfd and then fill in tcp structures */
@@ -2633,15 +2574,8 @@ tcpsocket_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo {
     else
 #endif /* RLOGCODE */
     /* Assume the service is TELNET. */
-#ifdef COMMENT
-      /* Jeff's code from 2005/12/30 */
-      if (ttnproto != NP_TCP_RAW &&
-	  ttnproto != NP_SSL_RAW &&
-	  ttnproto != NP_TLS_RAW)
-#else
       /* fdc's code from 2005/12/04 */
       if (ttnproto != NP_TCPRAW)
-#endif	/* COMMENT */
 	ttnproto = NP_TELNET;		/* Yes, set global flag. */
 #ifdef CK_SECURITY
     /* Before Initialization Telnet/Rlogin Negotiations Init Kerberos */
@@ -2716,18 +2650,6 @@ tcpsrv_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo;
     netclos();                          /* Close any previous connection. */
     ckstrncpy(namecopy, name, NAMECPYL); /* Copy the hostname. */
     /* Don't do this. */
-#ifdef COMMENT
-    /* fdc */
-    if (ttnproto != NP_TCPRAW)
-      ttnproto = NP_NONE;               /* No protocol selected yet. */
-#endif	/* COMMENT */
-#ifdef COMMENT
-    /* Jeff */
-    if (ttnproto != NP_TCP_RAW &&
-	ttnproto != NP_SSL_RAW &&
-	ttnproto != NP_TLS_RAW)
-      ttnproto = NP_NONE;               /* No protocol selected yet. */
-#endif /* COMMENT */
     debug(F110,"tcpsrv_open namecopy",namecopy,0);
 
     p = namecopy;                       /* Was a service requested? */
@@ -3020,15 +2942,8 @@ tcpsrv_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo;
         x = (unsigned short)service->s_port;
         service2 = getservbyname("telnet", "tcp");
         if (service2 && x == service2->s_port) {
-#ifdef COMMENT
-	    /* Jeff 2005/12/30 */
-	    if (ttnproto != NP_TCPRAW && /* Yes... */
-		 ttnproto != NP_SSL_RAW &&
-		 ttnproto != NP_TLS_RAW) /* and if raw port not requested */
-#else
 	    /* fdc 2005/12/04 */
             if (ttnproto != NP_TCPRAW)  /* Yes and if raw port not requested */
-#endif	/*  */
               ttnproto = NP_TELNET;	/* set protocol to TELNET. */
         }
         ckstrncpy(ipaddr,(char *)inet_ntoa(saddr.sin_addr),20);
@@ -3355,13 +3270,6 @@ ckgetfqhostname(name) char * name;
 #else  /* HADDRLIST */
         bcopy(host->h_addr, (caddr_t)&r_addr.sin_addr, host->h_length);
 #endif /* HADDRLIST */
-#ifdef COMMENT
-#ifndef EXCELAN
-        debug(F111,"BCOPY","host->h_addr",host->h_addr);
-#endif /* EXCELAN */
-        debug(F111,"BCOPY"," (caddr_t)&r_addr.sin_addr",
-              (caddr_t)&r_addr.sin_addr);
-#endif	/* COMMENT */
         debug(F111,"BCOPY","host->h_length",host->h_length);
 
 #ifdef NT
@@ -3457,13 +3365,8 @@ setnproto(p) char * p;
             break;
 #ifdef CK_SSL
           case 443:
-#ifdef COMMENT
-	    /* Jeff 2005/12/30 */
-            ttnproto = NP_SSL_RAW;
-#else
 	    /* fdc 2005/12/04 */
             ttnproto = NP_SSL;
-#endif	/* COMMENT */
             ssl_only_flag = 1;
             break;
           case 151:
@@ -3623,11 +3526,6 @@ ckgetservice(hostname, servicename, ip, iplen)
     nett - network type (value defined in ckcnet.h)
 */
 
-#ifdef COMMENT
-#define XXNAMELEN 256
-static char xxname[XXNAMELEN];
-#endif /* COMMENT */
-
 int
 #ifdef CK_ANSIC
 netopen( char *name, int *lcl, int nett )
@@ -3673,13 +3571,6 @@ netopen(name, lcl, nett) char *name; int *lcl, nett;
 #endif /* INADDR_NONE */
 #endif /* INADDRX */
 #endif /* TCPSOCKET */
-
-#ifdef COMMENT
-/* This causes big trouble */
-#ifndef INADDR_NONE
-#define INADDR_NONE 0xffffffff
-#endif /* INADDR_NONE */
-#endif /* COMMENT */
 
 #ifdef SUNX25                           /* Code for SunLink X.25 support */
 #define X29PID 1                        /* X.29 Protocol ID */
@@ -4305,22 +4196,11 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
                  && (tcp_http_proxy == NULL)
 #endif /* NOHTTP */
 		) {
-#ifdef COMMENT
-                ckstrncpy(xxname,host->h_name,XXNAMELEN);
-		debug(F110,"netopen xxname[1]",xxname,0);
-                if ((XXNAMELEN - (int)strlen(name)) > ((int)strlen(svcbuf)+1)){
-                    ckstrncat(xxname,":",XXNAMELEN - (int)strlen(xxname));
-                    ckstrncat(xxname,svcbuf,XXNAMELEN - (int)strlen(xxname));
-		    debug(F110,"netopen xxname[2]",xxname,0);
-                }
-		name = (char *)xxname;
-#else
                 ckstrncpy(name,host->h_name,80);  /* Bad Bad Bad */
                 if ( (80-strlen(name)) > (strlen(svcbuf)+1) ) {
                     ckstrncat(name,":",80-strlen(name));
                     ckstrncat(name,svcbuf,80-strlen(name));
                 }
-#endif	/* COMMENT */
             }
 	    debug(F110,"netopen name after lookup",name,0);
 
@@ -4502,34 +4382,6 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
 #endif /* TGVORWIN */
 #endif /* OS2 */
                    {
-#ifdef COMMENT
-                       printf("\nBind failed with errno %d  for port %d.\n",
-#ifdef OS2
-                              s_errno
-#else
-#ifdef TGVORWIN
-                              socket_errno
-#else
-                              errno
-#endif /* TGVORWIN */
-#endif /* OS2 */
-                              , lport
-                              );
-#ifdef OS2
-                       debug(F101,"rlogin bind failed","",s_errno);
-#else
-#ifdef TGVORWIN
-                       debug(F101,"rlogin bind failed","",socket_errno);
-#ifdef OLD_TWG
-                       errno = socket_errno;
-#endif /* OLD_TWG */
-                       socket_perror("rlogin bind");
-#else
-                       debug(F101,"rlogin bind failed","",errno);
-                       perror("rlogin bind");
-#endif /* TGVORWIN */
-#endif /* OS2 */
-#else  /* COMMENT */
 #ifdef OS2
                        debug(F101,"rlogin bind s_errno","",s_errno);
                        perror("rlogin bind");
@@ -4549,7 +4401,6 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
 #endif /* TGVORWIN */
 #endif /* OS2 */
                        debug(F101,"rlogin local port","",lport);
-#endif /* COMMENT */
                        netclos();
                        return -1;
                    }
@@ -4769,14 +4620,8 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
     /* See if the service is TELNET. */
     if (x == TELNET_PORT) {
         /* Yes, so if raw port not requested */
-#ifdef COMMENT
-	/* Jeff 2005/12/30 */
-        if (ttnproto != NP_TCPRAW && ttnproto != NP_SSL_RAW &&
-	    ttnproto != NP_TLS_RAW && ttnproto != NP_NONE)
-#else
 	/* fdc 2005/12/04 */
         if (ttnproto != NP_TCPRAW && ttnproto != NP_NONE)
-#endif	/* COMMENT */
           ttnproto = NP_TELNET;         /* Select TELNET protocol. */
     }
 #ifdef RLOGCODE
@@ -5231,12 +5076,6 @@ netclos() {
 #ifdef TNCODE
           if (ttnproto == NP_TELNET) {
             if (!TELOPT_ME(TELOPT_LOGOUT)
-#ifdef COMMENT
-/* Jeff 2005/12/30 */
-#ifdef CK_SSL
-		 && !ssl_raw_flag && !tls_raw_flag
-#endif	/* CK_SSL */
-#endif	/* COMMENT */
 		) {
 		/* Send LOGOUT option before close */
 		if (tn_sopt(DO,TELOPT_LOGOUT) >= 0) {
@@ -5543,15 +5382,6 @@ nettchk() {                             /* for reading from network */
 #endif /* CK_SSL */
 
     if (socket_ioctl(ttyfd,FIONREAD,
-#ifdef COMMENT
-    /* Now we've changed the ioctl(..,..,x) prototype for DECC to (void *) */
-#ifdef __DECC
-    /* NOTE: "&count" might need to be "(char *)&count" in some settings. */
-                     /* Cast needed for DECC 4.1 & later? */
-                     /* Maybe, but __DECC_VER only exists in 5.0 and later */
-                     (char *)
-#endif /* __DECC */
-#endif /* COMMENT */
 #ifdef NT
                      &ucount
 #else
@@ -5780,14 +5610,8 @@ nettchk() {                             /* for reading from network */
                     fprintf(stderr,"nettchk() SSL_ERROR_SSL\n");
                     ERR_print_errors_fp(stderr);
                 }
-#ifdef COMMENT
-                netclos();
-                rc = -1;
-		goto nettchk_return;
-#else
                 x = -1;
 		break;
-#endif
           case SSL_ERROR_ZERO_RETURN:
                 debug(F100,"nettchk SSL_ERROR_ZERO_RETURN","",0);
                 netclos();
@@ -6085,19 +5909,6 @@ netxin(n,buf) int n; CHAR * buf;
     len = i;
 #endif /* TCPIPLIB */
 
-#ifdef COMMENT
-#ifdef CK_ENCRYPTION
-    /* This would be great if it worked.  But what if the buffer we read  */
-    /* contains a telnet negotiation that changes the state of the        */
-    /* encryption.  If so, we would be either decrypting unencrypted text */
-    /* or not decrypting encrypted text.  So we must move this call to    */
-    /* all functions that call ttxin().  In OS2 that means os2_netxin()   */
-    /* where the Telnet Negotiations are handled.                         */
-    if (u_encrypt)
-      ck_tn_decrypt(buf,len);
-#endif /* CK_ENCRYPTION */
-#endif /* COMMENT */
-
     return(len);
 }
 
@@ -6186,9 +5997,6 @@ netinc(timo) int timo;
     RequestTCPIPMutex(SEM_INDEFINITE_WAIT);
 #endif /* OS2 */
     if (ttibn > 0) {                    /* Something in internal buffer? */
-#ifdef COMMENT
-        debug(F100,"netinc char in buf","",0); /* Yes. */
-#endif /* COMMENT */
         x = 0;                          /* Success. */
     } else {                            /* Else must read from network. */
         x = -1;                         /* Assume failure. */
@@ -6524,9 +6332,6 @@ nettol(s,n) CHAR *s; int n;
         return -1;
     }
     debug(F101,"nettol TCPIPLIB ttnet","",ttnet);
-#ifdef COMMENT
-    ckhexdump("nettol",s,n);
-#endif /* COMMENT */
 
 #ifdef CK_KERBEROS
 #ifdef KRB4
@@ -6618,12 +6423,7 @@ nettol(s,n) CHAR *s; int n;
                   fprintf(stderr,"nettol() SSL_ERROR_SSL\n");
                   ERR_print_errors_fp(stderr);
               }
-#ifdef COMMENT
-              netclos();
-              return(-2);
-#else
               return(-1);
-#endif
           case SSL_ERROR_ZERO_RETURN:
             debug(F100,"nettol SSL_ERROR_ZERO_RETURN","",0);
             netclos();
@@ -7230,11 +7030,6 @@ getlocalipaddrs(buf,bufsz,index) char * buf; int bufsz; int index;
     struct sockaddr_in r_sa;
     GSOCKNAME_T slen = sizeof(struct sockaddr_in);
     int rc;
-#ifdef COMMENT
-    int sock;
-    char messageBuf[60];
-    struct in_addr laddr;
-#endif /* COMMENT */
 
     debug(F100,"getlocalipaddrs","",0);
     memset(&l_sa,0,slen);
@@ -7274,21 +7069,6 @@ getlocalipaddrs(buf,bufsz,index) char * buf; int bufsz; int index;
             ckstrncpy(buf,(char *)inet_ntoa(l_sa.sin_addr),20);
             debug(F110,"getlocalipaddrs setting buf to",buf,0);
 
-#ifdef COMMENT
-            /* This is for reporting multiple IP Address */
-            while (host->h_addr_list && host->h_addr_list[0]) {
-                l_sa.sin_addr.s_addr =
-                  *((unsigned long *) (host->h_addr_list[0]));
-                ckstrncpy(messageBuf,
-                        (char *)inet_ntoa(l_sa.sin_addr),60);
-                if (tcp_address) {
-                    if (!strcmp(messageBuf,tcp_address))
-                      ckstrncpy(myipaddr,tcp_address,20);
-                }
-                debug(F110,"getlocalipaddrs ip address list", messageBuf, 0);
-                host->h_addr_list++;
-            }
-#endif /* COMMENT */
 #else   /* HADDRLIST */
             if (index != 0) {
                 buf[0] = '\0';
@@ -8162,105 +7942,12 @@ x25xin(n,buf) int n; CHAR *buf; {
         } else qpkt = 0;
     } while (qpkt);
 
-#ifdef COMMENT                  /* Disabled by Stephen Riehm 19.12.97 */
-    /* BUG!
-     * if buf[] is full, then this null lands in nirvana!
-     * I was unable to find any code which needs a trailing null in buf[]
-     */
-    if (x > 0) buf[x] = '\0';
-#endif /* COMMENT */
     if (x < 1) x = -1;
     debug(F101,"x25xin x","",x);
 
     return(x);
 }
 
-#ifdef COMMENT /* NO LONGER NEEDED! */
-/* X.25 read a line */
-
-int
-#ifdef PARSENSE
-#ifdef CK_ANSIC
-x25inl(CHAR *dest, int max,int timo, CHAR eol, CHAR start)
-#else
-x25inl(dest,max,timo,eol,start) int max,timo; CHAR *dest, eol, start;
-#endif /* CK_ANSIC */
-#else /* not PARSENSE */
-#ifdef CK_ANSIC
-x25inl(CHAR *dest, int max,int timo, CHAR eol)
-#else
-x25inl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
-#endif /* __SDTC__ */
-#endif /*PARSENSE */
- /* x25inl */ {
-    CHAR *pdest;
-    int pktype, goteol, rest, n;
-    int i, flag = 0;
-    extern int ttprty, ttpflg;
-    int ttpmsk;
-
-    ttpmsk = (ttprty) ? 0177 : 0377;    /* Set parity stripping mask */
-
-    debug(F101,"x25inl max","",max);
-    debug(F101,"x25inl eol","",eol);
-    pdest  = dest;
-    rest   = max;
-    goteol = 0;
-    do {
-        n = read(ttyfd,pdest,rest);
-        n--;
-        pktype = *pdest & 0x7f;
-        switch (pktype) {
-          case 1 << Q_BIT:
-            if (qbitpkt(pdest+1,--n) < 0) return(-2);
-            break;
-          default:
-            if (flag == 0) { /* if not in packet, search start */
-                for (i = 1; (i < n) &&
-                     !(flag = ((dest[i] & 0x7f) == start));
-                     i++);
-                if (flag == 0) { /* not found, discard junk */
-                    debug(F101,"x25inl skipping","",n);
-                    continue;
-                } else {                /* found, discard junk before start */
-                    int k;
-                    n = n - i + 1;
-                    for (k = 1; k <= n; k++, i++) dest[k] = dest[i];
-                }
-            }
-            for (i = 0; (i < n) && /* search for eol */
-                 !(goteol=(((*pdest = *(pdest+1)&ttpmsk)&0x7f)== eol));
-                 i++,pdest++);
-            *pdest = '\0';
-            rest -= n;
-        }
-    } while ((rest > 0) && (!goteol));
-
-    if (goteol) {
-        n = max - rest;
-        debug (F111,"x25inl X.25 got",(char *) dest,n);
-        if (timo) ttimoff();
-        if (ttpflg++ == 0 && ttprty == 0) {
-            if ((ttprty = parchk(dest,start,n)) > 0) {
-                int j;
-                debug(F101,"x25inl senses parity","",ttprty);
-                debug(F110,"x25inl packet before",(char *)dest,0);
-                ttpmsk = 0x7f;
-                for (j = 0; j < n; j++)
-                  dest[j] &= 0x7f; /* Strip parity from packet */
-                debug(F110,"x25inl packet after ",dest,0);
-            } else {
-                debug(F101,"parchk","",ttprty);
-                if (ttprty < 0) { ttprty = 0; n = -1; }
-            }
-        }
-        ttimoff();
-        return(n);
-    }
-    ttimoff();
-    return(-1);
-}
-#endif /* COMMENT */
 #endif /* SUNX25 */
 
 #ifdef IBMX25
@@ -8523,13 +8210,6 @@ x25getmsg( fd, control, ctl_size, data, data_size, get_flags, expected )
                 rc = -1;
             }
         }
-#ifdef COMMENT
-        else {
-            /* Panic - no control data */
-            printf( "kermit: x25getmsg(): no control data with packet\n" );
-            rc = -1;
-        }
-#endif /* COMMENT */
 
         if (get_data && (get_data->len >= 0)) {
             get_data->buf += get_data->len;
@@ -8570,11 +8250,6 @@ x25getmsg( fd, control, ctl_size, data, data_size, get_flags, expected )
     if (get_ctl)  { free(get_ctl); get_ctl = NULL; }
     if (get_data) { free(get_data); get_data = NULL; }
 
-#ifdef COMMENT
-#ifdef DEBUG
-    printf( "kermit x25getmsg(): returning %d\n", rc );
-#endif /* DEBUG */
-#endif /* COMMENT */
     debug(F110, "x25getmsg returning packet ", x25prim( packet_type ), 0);
 
 #ifdef TRACE
@@ -8658,11 +8333,6 @@ x25putmsg(fd, control, data, data_len, put_flags)
     /* riehm: this should perhaps be discounted! */
     x25lastmsg = control->PRIM_type;
 
-#ifdef COMMENT
-#ifdef DEBUG
-    printf( "kermit debug: x25putmsg() returning %d\n", data_len );
-#endif /* DEBUG */
-#endif /* COMMENT */
     debug( F101, "x25putmsg block size put ", "", data_len);
 
 #ifdef TRACE
@@ -9376,12 +9046,6 @@ x25xin(data_buf_len,data_buf) int data_buf_len; CHAR *data_buf; {
         perror( "kermit: x25xin(): ctl_buf malloc" );
         return(-1);
     }
-#ifdef COMMENT
-    /* riehm: need zeroed buffer for getmsg? */
-    bzero( ctl_buf, NPI_MAX_CTL );
-    /* clear data buffer */
-    bzero( data_buf, data_buf_len );
-#endif /* COMMENT */
 
     getmsg_flags = 0;                   /* get the first packet available */
 
@@ -9393,16 +9057,6 @@ x25xin(data_buf_len,data_buf) int data_buf_len; CHAR *data_buf; {
                    &getmsg_flags,
                    N_DATA_IND
                    );
-#ifdef COMMENT
-#ifdef DEBUG
-    if (rc >= 0) {
-        printf( "kermit: x25xin(): got " );
-        x25dump_data( data_buf, 0, rc );
-    } else {
-        printf( "x25xin(): attempt to get data resulted in an error\n" );
-    }
-#endif /* DEBUG */
-#endif /* COMMENT */
 
     /* free buffers */
     if (ctl_buf) { free(ctl_buf); ctl_buf = NULL; }
@@ -9454,13 +9108,6 @@ x25write(fd, databuf, databufsize)
      * into multiple parts if databufsize > NPI_MAX_DATA
      */
 
-#ifdef COMMENT
-#ifdef DEBUG
-    printf( "kermit: x25write(): writing data to x25 stream\n" );
-    printf( "\tdata:\t" );
-    x25dump_data(databuf, 0, databufsize);
-#endif /* DEBUG */
-#endif /* COMMENT */
     rc = x25putmsg(fd,
                    (N_npi_ctl_t*)data_req_ctl,
                    (N_npi_data_t*)databuf,
@@ -10674,15 +10321,6 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
 #else  /* HADDRLIST */
             bcopy(host->h_addr, (caddr_t)&r_addr.sin_addr, host->h_length);
 #endif /* HADDRLIST */
-#ifdef COMMENT
-#ifndef EXCELAN
-            debug(F111,"BCOPY","host->h_addr",host->h_addr);
-#endif /* EXCELAN */
-            debug(F111,"BCOPY"," (caddr_t)&r_addr.sin_addr",
-                  (caddr_t)&r_addr.sin_addr);
-            debug(F111,"BCOPY"," r_addr.sin_addr.s_addr",
-                  r_addr.sin_addr.s_addr);
-#endif	/* COMMENT */
             debug(F111,"BCOPY","host->h_length",host->h_length);
         }
     }
@@ -11183,9 +10821,6 @@ http_tol(s,n) CHAR *s; int n;
         return -1;
     }
     debug(F101,"http_tol TCPIPLIB ttnet","",ttnet);
-#ifdef COMMENT
-    ckhexdump("http_tol",s,n);
-#endif /* COMMENT */
 
 #ifdef CK_SSL
     if (tls_http_active_flag) {
@@ -11309,12 +10944,6 @@ http_tol(s,n) CHAR *s; int n;
                     debug(F101,"http_tol select failed","",socket_errno);
                     return(-1);
                 }
-#ifdef COMMENT
-                if ((count = http_tchk()) < 0) {
-                    debug(F111,"http_tol","http_tchk()",count);
-                    return(count);
-                }
-#endif /* COMMENT */
             }
         }
 #endif /* IBMSELECT */
@@ -11461,9 +11090,6 @@ http_inc(timo) int timo;
                 return(-2);
             case SSL_ERROR_SSL:
                 debug(F100,"http_inc SSL_ERROR_SSL","",0);
-#ifdef COMMENT
-                http_close();
-#endif /* COMMENT */
 #ifdef OS2
                 ReleaseTCPIPMutex();
 #endif /* OS2 */
@@ -13177,13 +12803,6 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
     sprintf(buf,"Content-length: %d\r\n",filelen); /* safe */
     ckstrncat(request,buf,len);
     ckstrncat(request,"\r\n",len);
-#ifdef COMMENT
-    /* This is apparently a mistake - the previous ckstrncat() already  */
-    /* appended a blank line to the request.  There should only be one. */
-    /* Servers are not required by RFC 2616 to ignore extraneous empty  */
-    /* lines.  -fdc, 28 Aug 2005. */
-    ckstrncat(request,"\r\n",len);
-#endif	/* COMMENT */
 
     /* Now we have the contents of the file */
   postopen:
@@ -14597,9 +14216,6 @@ fwdx_write_data_to_channel(channel, data, len)
     if ((count = socket_write(sock,data,len)) < 0) {
         int s_errno = socket_errno; /* maybe a function */
         debug(F101,"fwdx_write_data_to_channel socket_write error","",s_errno);
-#ifdef COMMENT
-        printf("fwdx_write_data_to_channel error\r\n");
-#endif /* COMMENT */
 #ifdef OS2
         if (os2socketerror(s_errno) < 0)
             return(-2);
