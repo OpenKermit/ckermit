@@ -538,20 +538,11 @@ input() {
 		/* the highest packet and NAK winlo.  But that */
 		/* shouldn't be necessary since the other Kermit */
 		/* should not have sent a packet outside the window. */
-#ifdef COMMENT
-                char foo[256];
-                ckmakxmsg(foo,256,"Receive window full (rpack): wslots=",
-                          ckitoa(wslots)," winlo=",ckitoa(winlo)," pktnum=",
-                          ckitoa(pktnum), NULL,NULL,NULL,NULL,NULL,NULL);
-		errpkt((CHAR *)foo);
-                debug(F100,foo,"",0);
-#else
 		errpkt((CHAR *)"Receive window full");
 		debug(F101,"rpack receive window full","",0);
                 debug(F101," wslots","",wslots);
                 debug(F101," winlo","",winlo);
 		debug(F101," pktnum","",pktnum);
-#endif
 		dumprbuf();
 		type = 'E';
 		break;
@@ -784,21 +775,10 @@ input() {
 		    return('q');	/* Ctrl-C or connection lost */
 		}
 		if (type == -1) {
-#ifdef COMMENT
-                    char foo[256];
-                    ckmakxmsg(foo,256,
-			      "Receive window full (error 18): wslots=",
-                              ckitoa(wslots),
-			      " winlo=",ckitoa(winlo)," pktnum=",
-                              ckitoa(pktnum), NULL,NULL,NULL,NULL,NULL,NULL);
-		    errpkt((CHAR *)foo);
-                    debug(F100,foo,"",0);
-#else
 		    errpkt((CHAR *)"Receive window full"); /* was "internal */
                     debug(F101," wslots","",wslots); /* error 18" */
                     debug(F101," winlo","",winlo);
 		    debug(F101," pktnum","",pktnum);
-#endif /* COMMENT */
 		    dumprbuf();
 		    type = 'E';
 		    break;
@@ -1261,12 +1241,6 @@ spack(pkttyp,n,len,d) char pkttyp; int n, len; CHAR *d;
 #ifdef DEBUG
     if (deblog) {			/* Save lots of function calls! */
 	debug(F101,"SPACK n","",n);
-#ifdef COMMENT
-	if (pkttyp != 'D') {		/* Data packets would be too long */
-	    debug(F111,"SPACK data",data,data);
-	    debug(F111,"SPACK d",d,d);
-	}
-#endif	/* COMMENT */
 	debug(F101,"SPACK data len","",len);
 	debug(F101,"SPACK copy","",copy);
     }
@@ -1311,20 +1285,6 @@ spack(pkttyp,n,len,d) char pkttyp; int n, len; CHAR *d;
 
     mydata = data - 7 + (longpkt ? 0 : 3); /* Starting position of header */
     k = sseqtbl[n];			/* Packet structure info for pkt n */
-#ifdef COMMENT
-#ifdef DEBUG
-    if (deblog) {			/* Save 2 more function calls... */
-	debug(F101,"SPACK mydata","",mydata);
-	debug(F101,"SPACK sseqtbl[n]","",k);
-	if (k < 0) {
-#ifdef STREAMING
-	    if (!streaming)
-#endif /* STREAMING */
-	      debug(F101,"spack sending packet out of window","",n);
-	}
-    }
-#endif /* DEBUG */
-#endif	/* COMMENT */
     if (k > -1) {
 	s_pkt[k].pk_adr = mydata;	/* Remember address of packet. */
 	s_pkt[k].pk_seq = n;		/* Record sequence number */
@@ -1581,15 +1541,8 @@ chk1(pkt,len) register CHAR *pkt; register int len;
 {
     register unsigned int chk;
 #ifdef CKTUNING
-#ifdef COMMENT
-    register unsigned int m;		/* Avoid function call */
-    m = (parity) ? 0177 : 0377;
-    for (chk = 0; len-- > 0; pkt++)
-      chk += *pkt & m;
-#else
     chk = 0;
     while (len-- > 0) chk += (unsigned) *pkt++;
-#endif /* COMMENT */
 #else
     chk = chk2(pkt,len);
 #endif /* CKTUNING */
@@ -1608,16 +1561,9 @@ chk2(pkt,len) register CHAR *pkt; register int len;
 #endif /* CK_ANSIC */
 {
     register long chk;
-#ifdef COMMENT
-    register unsigned int m;
-    m = (parity) ? 0177 : 0377;
-    for (chk = 0; len-- > 0; pkt++)
-      chk += *pkt & m;
-#else
     /* Parity has already been stripped */
     chk = 0L;
     while (len-- > 0) chk += (unsigned) *pkt++;
-#endif /* COMMENT */
     debug(F101,"chk2","",(unsigned int) (chk & 07777));
     return((unsigned int) (chk & 07777));
 }
@@ -1627,24 +1573,6 @@ chk2(pkt,len) register CHAR *pkt; register int len;
  Calculate the 16-bit CRC-CCITT of a null-terminated string using a lookup
  table.  Assumes the argument string contains no embedded nulls.
 */
-#ifdef COMMENT
-unsigned int
-#ifdef CK_ANSIC
-chk3( register CHAR *pkt, int parity, register int len )
-#else
-chk3(pkt,parity,len) register CHAR *pkt; int parity; register int len;
-#endif /* CK_ANSIC */
-{
-    register long c, crc;
-    register unsigned int m;
-    m = (parity) ? 0177 : 0377;
-    for (crc = 0; len-- > 0; pkt++) {
-	c = crc ^ (long)(*pkt & m);
-	crc = (crc >> 8) ^ (crcta[(c & 0xF0) >> 4] ^ crctb[c & 0x0F]);
-    }
-    return((unsigned int) (crc & 0xFFFF));
-}
-#else
 unsigned int
 #ifdef CK_ANSIC
 chk3( register CHAR *pkt, register int len )
@@ -1660,7 +1588,6 @@ chk3(pkt,len) register CHAR *pkt; register int len;
     debug(F101,"chk3","",(unsigned int) (crc & 0xFFFF));
     return((unsigned int) (crc & 0xFFFF));
 }
-#endif /* COMMENT */
 
 /*  N X T P K T  --  Next Packet  */
 /*
@@ -1868,36 +1795,6 @@ rcalcpsz( void ) {
 rcalcpsz()
 #endif /* CK_ANSIC */
 {
-#ifdef COMMENT
-/* Old way */
-    register long x, q;
-    if (numerrs == 0) return;		/* bounds check just in case */
-
-    /* overhead on a data packet is npad+5+bctr, plus 3 if extended packet */
-    /* an ACK is 5+bctr */
-
-    /* first set x = per packet overhead */
-    if (wslots > 1)			/* Sliding windows */
-      x = (long) (npad+5+bctr);		/* packet only, don't count ack */
-    else				/* Stop-n-wait */
-      x = (long) (npad+5+3+bctr+5+bctr); /* count packet and ack. */
-
-    /* then set x = packet length ** 2 */
-    x = x * ( ffc / (CK_OFF_T) numerrs); /* careful of overflow */
-
-    /* calculate the long integer sqrt(x) quickly */
-    q = 500;
-    q = (q + x/q) >> 1;
-    q = (q + x/q) >> 1;
-    q = (q + x/q) >> 1;
-    q = (q + x/q) >> 1;		/* should converge in about 4 steps */
-    if ((q > 94) && (q < 130))	/* break-even point for long packets */
-      q = 94;
-    if (q > spmax) q = spmax;	/* maximum bounds */
-    if (q < 10) q = 10;		/* minimum bounds */
-    spsiz = q;			/* set new send packet size */
-    debug(F101,"rcalcpsiz","",q);
-#else
 /* New way */
     debug(F101,"rcalcpsiz numerrs","",numerrs);
     debug(F101,"rcalcpsiz spsiz","",spsiz);
@@ -1913,7 +1810,6 @@ rcalcpsz()
     if (spsiz > spmax) spsiz = spmax;
     debug(F101,"rcalcpsiz new spsiz","",spsiz);
     numerrs = 0;
-#endif /* COMMENT */
 }
 #endif /* NEWDPL */
 
@@ -2018,19 +1914,14 @@ int
 	    xxscreen(SCR_PT,'%',(long)pktnum,"(resend)");
 	    return(s_pkt[j].pk_rtr);
 	} else {			/* No packet to resend! */
-#ifdef COMMENT
+
 /*
   This happened (once) while sending a file with 2 window slots and typing
   X to the sender to cancel the file.  But since we're cancelling anyway,
   there's no need to give a scary message.
 */
-	    sprintf((char *)epktmsg,
-		    "resend logic error: NPS, n=%d, j=%d.",n,j);
-	    return(-2);
-#else
 /* Just ignore it. */
 	    return(0);
-#endif /* COMMENT */
 	}
     }
 #ifdef DEBUG
@@ -2987,25 +2878,12 @@ rpack() {
 
 #ifdef CKTUNING
 	/* Save some function-call and loop overhead... */
-#ifdef COMMENT
-	/* ttinl() already removed parity */
-	if (parity)
-#endif /* COMMENT */
 	  chk = (unsigned) ((unsigned) recpkt[i-1] +
 			    (unsigned) recpkt[i]   +
 			    (unsigned) recpkt[i+1] +
 			    (unsigned) recpkt[i+2] +
 			    (unsigned) recpkt[i+3]
 			    );
-#ifdef COMMENT
-	else
-	  chk = (unsigned) ((unsigned) (recpkt[i-1] & 077) +
-			    (unsigned) (recpkt[i]   & 077) +
-			    (unsigned) (recpkt[i+1] & 077) +
-			    (unsigned) (recpkt[i+2] & 077) +
-			    (unsigned) (recpkt[i+3] & 077)
-			    );
-#endif /* COMMENT */
 	if (xunchar(recpkt[j]) != ((((chk & 0300) >> 6) + chk) & 077))
 #else
 	x = recpkt[j];			/* Header checksum. */

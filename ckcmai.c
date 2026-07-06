@@ -2421,15 +2421,6 @@ dotakeini(threadinfo) VOID * threadinfo; /* Execute init file. */
     debug(F111,"dotakeini","inserver",inserver);
     debug(F111,"dotakeini","sstelnet",sstelnet);
 
-#ifdef COMMENT
-/* Wrong place for this... */
-#ifndef NOXFER
-#ifdef CK_FAST
-    dofast();                           /* By now FAST defaults should be OK */
-#endif /* CK_FAST */
-#endif /* NOXFER */
-#endif /* COMMENT */
-
     doinit();                           /* Now do the initialization file */
     debug(F101,"main executing init file","",tlevel);
     while (tlevel > -1) {
@@ -2657,10 +2648,6 @@ setprefix(z) int z;
     debug(F101,"setprefix","",prefixing);
     switch (z) {
       case PX_ALL:                      /* All */
-#ifdef COMMENT
-        /* Don't let Clear-Channel be dependent on prefixing */
-        clearrq = 0;                    /* Turn off clearchannel, fall thru */
-#endif /* COMMENT */
       case PX_NON:                      /* None */
         val = (z == PX_ALL) ? 1 : 0;
         for (i =
@@ -2688,10 +2675,6 @@ setprefix(z) int z;
         break;
 
       case PX_CAU:                      /* Cautious or Minimal */
-#ifdef COMMENT
-        /* Don't let CLEAR-CHANNEL be dependent on Prefixing */
-        clearrq = 0;                    /* Turn off clearchannel */
-#endif /* COMMENT */
       case PX_WIL:                      /* Minimal ("wild") */
         ctlp[0] = 1;                    /* Does not include 0 */
         for (i = 1; i < 32; i++)
@@ -3652,9 +3635,6 @@ MAINNAME( argc, argv ) int argc; char **argv;
     iniopthlp();                        /* Initialize cmdline arg help */
 #endif /* NOHELP */
     if (
-#ifdef COMMENT
-        !cfilef &&
-#endif /* COMMENT */
         argc > 1) {                     /* Command line arguments? */
         sstate = (CHAR) cmdlin();       /* Yes, parse. */
 
