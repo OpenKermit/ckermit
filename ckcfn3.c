@@ -682,14 +682,6 @@ getsbuf(n) int n;
 int
 getrbuf() {				/* Allocate a receive buffer */
     int i;
-#ifdef COMMENT
-    /* This code is pretty stable by now... */
-    /* Looks like we might need this after all */
-    debug(F101,"getrbuf rbufnum","",rbufnum);
-    debug(F101,"getrbuf wslots","",wslots);
-    debug(F101,"getrbuf dum002","",dum002);
-    debug(F101,"getrbuf dum003","",dum003);
-#endif /* COMMENT */
     if (rbufnum == 0) return(-1);	/* No free buffers. */
     if (rbufnum < 0) return(-2);	/* Shouldn't happen. */
     for (i = 0; i < wslots; i++)	/* Find the first one not in use. */
@@ -1260,11 +1252,7 @@ sattr(xp, flag) int xp, flag;
     }
     /* File length in K */
     if (atleno && !done[xunchar(c = '!')] && x.lengthk > (CK_OFF_T)-1) {
-#ifdef COMMENT
-	sprintf((char *) &data[i+2],"%ld",x.lengthk); /* safe */
-#else
 	ckstrncpy((char *)&data[i+2],ckfstoa(x.lengthk),32);
-#endif	/* COMMENT */
 	aln = (int)strlen((char *)(data+i+2));
 	if (max - i >= aln + 2) {
 	    data[i] = c;
@@ -1279,11 +1267,7 @@ sattr(xp, flag) int xp, flag;
     }
     /* File length in bytes */
     if (atleno && !done[xunchar(c = '1')] && x.length > (CK_OFF_T)-1) {
-#ifdef COMMENT
-	sprintf((char *) &data[i+2],"%ld",x.length); /* safe */
-#else
 	ckstrncpy((char *)&data[i+2],ckfstoa(x.length),32);
-#endif	/* COMMENT */
 	aln = (int)strlen((char *)(data+i+2));
 	if (max - i >= aln + 2) {
 	    data[i] = c;
@@ -1565,15 +1549,6 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
     while ((c = *s++)) {                /* Get attribute tag */
 	aln = xunchar(*s++);		/* Length of attribute string */
 	switch (c) {
-#ifdef COMMENT				/* This case combined with '1' below */
-	  case '!':			/* File length in K */
-	    for (i = 0; (i < aln) && (i < ABUFL); i++) /* Copy it */
-	      abuf[i] = *s++;
-	    abuf[i] = '\0';		/* Terminate with null */
-	    if (i < aln) s += (aln - i); /* If field was too long for buffer */
-	    yy->lengthk = ckatofs(abuf); /* Convert to number */
-	    break;
-#endif	/* COMMENT */
 
 	  case '/':			/* Record format */
 	    rfbuf[1] = NUL;
@@ -1820,10 +1795,6 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
 		    rs_len -= 512;	  /* In case last block not complete */
 		    debug(F111,"gattr rs_len",ff,rs_len);
 #endif /* VMS */
-#ifdef COMMENT
-		    if (rs_len < 0L)	/* Local file doesn't exist */
-		      rs_len = 0L;
-#endif /* COMMENT */
 /*
   Another possibility here (or later, really) would be to check if the two
   file lengths are the same, and if so, keep the prevailing collision action
@@ -1975,11 +1946,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
 
 #ifdef DEBUG
     if (deblog) {
-#ifdef COMMENT
-	sprintf(abuf,"%ld",fsize);	/* safe */
-#else
 	ckstrncpy(abuf,ckfstoa(fsize),ABUFL);
-#endif	/* COMMENT */
 debug(F110,"gattr fsize",abuf,0);
     }
 #endif /* DEBUG */
@@ -1998,11 +1965,7 @@ debug(F110,"gattr fsize",abuf,0);
 	} else {			/* Binary mode */
 	    retcode = 0;		/* Accept the file */
 	    discard = 0;		/* If SET FILE COLLISION DISCARD */
-#ifdef COMMENT
-	    sprintf(rpbuf+2,"%ld",rs_len); /* Reply with length of file */
-#else
 	    ckstrncpy(rpbuf+2,ckfstoa(rs_len),RPBUFL-2);
-#endif	/* COMMENT */
 	    rpbuf[0] = '1';		/* '1' means Length in Bytes */
 	    rpbuf[1] = tochar((int)strlen(rpbuf+2)); /* Length of length */
 	    debug(F111,"gattr RESEND OK",rpbuf,retcode);
@@ -2204,10 +2167,6 @@ opena(f,zz) char *f; struct zattr *zz;
     } else if (dispos == 'R') {		/* Receiving a RESEND */
 	debug(F101,"opena remote len","",zz->length);
 	debug(F101,"opena local len","",rs_len);
-#ifdef COMMENT
-        if (fncact == XYFX_R)		/* and file collision = RENAME */
-	  if (ofn1x)
-#endif /* COMMENT */
 	if (ofn1[0])
 	  f = ofn1;			/* use original name. */
         if (fncact == XYFX_R)		/* if file collision is RENAME */
@@ -2256,9 +2215,6 @@ opena(f,zz) char *f; struct zattr *zz;
 	}
 	debug(F101,"opena binary","",binary);
 
-#ifdef COMMENT
-	if (fsize >= 0)
-#endif /* COMMENT */
 	  xxscreen(SCR_FS,0,fsize,"");
 
 #ifdef datageneral
