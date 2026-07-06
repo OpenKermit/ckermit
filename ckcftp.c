@@ -252,13 +252,6 @@ struct timeval {
     long tv_sec;
     long tv_usec;
 };
-#ifdef COMMENT
-/* Currently we don't use this... */
-struct timezone {
-    int tz_minuteswest;
-    int tz_dsttime;
-};
-#endif /* COMMENT */
 #else  /* !DCLTIMEVAL */
 #ifndef NOSYSTIMEH
 #ifdef SYSTIMEH
@@ -285,20 +278,6 @@ struct timezone {
 #endif /* HAVE_STDLIB_H */
 
 #ifndef NOSETTIME
-#ifdef COMMENT
-/* This section moved to ckcdeb.h */
-#ifdef POSIX
-#define UTIMEH
-#else
-#ifdef HPUX9
-#define UTIMEH
-#else
-#ifdef OS2
-#define SYSUTIMEH
-#endif /* OS2 */
-#endif /* HPUX9 */
-#endif /* POSIX */
-#endif /* COMMENT */
 
 #ifdef VMS				/* SMS 2007/02/15 */
 #include "ckvrtl.h"			/* for utime() */
@@ -790,11 +769,7 @@ static int foo[4] = {99,99,99,99};
 /* Fascist compiler toadying */
 
 #ifndef SENDARG2TYPE
-#ifdef COMMENT                          /* Might be needed here and there */
-#define SENDARG2TYPE const char *
-#else
 #define SENDARG2TYPE char *
-#endif /* COMMENT */
 #endif /* SENDARG2TYPE */
 
 /* Common text messages */
