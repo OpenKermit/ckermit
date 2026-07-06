@@ -15799,41 +15799,6 @@ int
     NULL                                /* 10 UTF-8 */
 };
 
-#ifdef COMMENT
-/*
-  The UTF8 conversions are based on the ConvertUTF functions written
-  by Mark E. Davis, copyright 1994 Taligent, Inc.
-
-  Tables for use in calculating UTF8 conversions.  These contain
-  support for ISO-10646 which supports a 31-bit char size.
-
-  NOTE: 0xnnnUL is NOT portable!
-*/
-ULONG
-offsetsFromUTF8[7] = {
-#ifdef CK_ANSIC
-    0x00000000UL, /* Ignored */
-    0x00000000UL, 0x00003080UL, 0x000E2080UL,
-    0x03C82080UL, 0xFA082080UL, 0x82082080UL
-#else
-    0x00000000L, /* Ignored */
-    0x00000000L, 0x00003080L, 0x000E2080L,
-    0x03C82080L, (unsigned) 0xFA082080L, (unsigned) 0x82082080L
-#endif /* CK_ANSIC */
-};
-
-CHAR bytesInUTF8[256] = {
-    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-    2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2, 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-    3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3, 4,4,4,4,4,4,4,4,5,5,5,5,6,6,6,6
-};
-#endif /* COMMENT */
-
 CHAR firstByteMark[7] = {0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC};
 
 /*
@@ -15861,46 +15826,6 @@ utf8_to_ucs2(ch, ucs2) CHAR ch; USHORT ** ucs2;
 {
     static USHORT ucs2return = 0;
 
-#ifdef COMMENT
-    /* Unicode Consortium sample code works only with well-formed UTF8 */
-
-    int i = 0;
-    static int len = 0;
-    static CHAR utf8[UTFBUFSIZ] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
-    ULONG ucs4 = 0;
-
-    utf8[len++] = ch;                   /* Add char to string to process */
-
-    if (len < bytesInUTF8[utf8[0]])     /* Need more bytes */
-      return(bytesInUTF8[utf8[0]] - len);
-
-    switch (len) {                      /* Have complete sequence... */
-      case 6: ucs4 += utf8[i++]; ucs4 <<= 6; /* (fall-thru is intentional) */
-      case 5: ucs4 += utf8[i++]; ucs4 <<= 6;
-      case 4: ucs4 += utf8[i++]; ucs4 <<= 6;
-      case 3: ucs4 += utf8[i++]; ucs4 <<= 6;
-      case 2: ucs4 += utf8[i++]; ucs4 <<= 6;
-      case 1: ucs4 += utf8[i++];
-    }
-    ucs4 -= offsetsFromUTF8[len];
-    ucs2return = (USHORT)(ucs4 & 0xFFFF);
-#ifdef DEBUG
-    /* This shows that our return value is in the prevailing byte order: */
-    /* e.g. LE on PC, BE on Sparc. */
-    if (deblog) {
-        char buf[16];
-        union ck_short xx;
-        xx.x_short = ucs2return;
-        sprintf(buf,"%04X",ucs2return);
-        debug(F111,"utf8_to_ucs2 short",buf,ucs2return);
-        debug(F101,"utf8_to_ucs2 char[0]","",xx.x_char[0]);
-        debug(F101,"utf8_to_ucs2 char[1]","",xx.x_char[1]);
-    }
-#endif /* DEBUG */
-    *ucs2 = &ucs2return;
-    len = 0;
-    return(0);
-#else
     /*
        Robuster code adapted from Thomas Dickey, Xfree86,
        recommended by Markus Kuhn.
@@ -15972,7 +15897,6 @@ utf8_to_ucs2(ch, ucs2) CHAR ch; USHORT ** ucs2;
           utfcount++;
         return(utfcount);
     }
-#endif /* COMMENT */
 }
 
 /*
