@@ -85,27 +85,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # pkg and pip inside the VM don't persist between runs on their
-      # own (only the base VM image is cached by vmactions), so we
-      # give them a cache directory that lives under $GITHUB_WORKSPACE.
-      # That directory is rsynced into and back out of the VM by
-      # vmactions, and actions/cache persists it across runs.
-      - name: Cache FreeBSD packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            .ci-cache/freebsd-pkg
-            .ci-cache/freebsd-pip
-          key: freebsd-pkg-${{ hashFiles('.github/workflows/ci.yml') }}
-
       - name: Build and test on FreeBSD
         uses: vmactions/freebsd-vm@v1
         with:
           usesh: true
           prepare: |
-            mkdir -p .ci-cache/freebsd-pkg .ci-cache/freebsd-pip
-            export PIP_CACHE_DIR="$(pwd)/.ci-cache/freebsd-pip"
-            export PKG_CACHEDIR="$(pwd)/.ci-cache/freebsd-pkg"
             pkg install -y openssl check lrzsz python3 py312-pip
             pip install pytest pytest-xdist pyftpdlib
           run: |
@@ -124,23 +108,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # pkgin's own download cache (/var/db/pkgin/cache) has no
-      # documented way to relocate it, so it isn't cached here (unlike
-      # the FreeBSD leg above). pip's cache is relocatable, so we still
-      # persist that across runs the same way.
-      - name: Cache NetBSD pip packages
-        uses: actions/cache@v4
-        with:
-          path: .ci-cache/netbsd-pip
-          key: netbsd-pip-${{ hashFiles('.github/workflows/ci.yml') }}
-
       - name: Build and test on NetBSD
         uses: vmactions/netbsd-vm@v1
         with:
           usesh: true
           prepare: |
-            mkdir -p .ci-cache/netbsd-pip
-            export PIP_CACHE_DIR="$(pwd)/.ci-cache/netbsd-pip"
             /usr/sbin/pkg_add pkgin
             pkgin -y update
             pkgin -y install openssl check lrzsz py313-pip
