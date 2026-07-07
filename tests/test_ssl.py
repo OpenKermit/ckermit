@@ -17,12 +17,16 @@ def _openssl(*args):
     # misconfigured invocation (e.g. one that ends up needing a
     # passphrase or otherwise prompts interactively) fails fast with a
     # clear "openssl timed out" error tied to this fixture, instead of
-    # hanging forever reading from a stdin nothing will ever write to -
-    # which, under pytest-xdist, stalls the whole run with no
+    # hanging forever reading from a stdin nothing will ever write to.
+    # That, under pytest-xdist, stalls the whole run with no
     # indication of which test (or worker) is stuck.
-    subprocess.run(["openssl", *args], check=True,
-                    capture_output=True, text=True,
-                    stdin=subprocess.DEVNULL, timeout=30)
+    #
+    # check=False plus assert_ok (rather than check=True) so a failure
+    # shows openssl's actual stdout and stderr.
+    result = subprocess.run(["openssl", *args], check=False,
+                             capture_output=True, text=True,
+                             stdin=subprocess.DEVNULL, timeout=30)
+    assert_ok(result, label=f"openssl {' '.join(args)}")
 
 
 def _make_ca(d, name, subj):
