@@ -13,8 +13,16 @@ pytestmark = pytest.mark.skipif(
 
 
 def _openssl(*args):
+    # stdin is explicitly closed off and a timeout is set so that a
+    # misconfigured invocation (e.g. one that ends up needing a
+    # passphrase or otherwise prompts interactively) fails fast with a
+    # clear "openssl timed out" error tied to this fixture, instead of
+    # hanging forever reading from a stdin nothing will ever write to -
+    # which, under pytest-xdist, stalls the whole run with no
+    # indication of which test (or worker) is stuck.
     subprocess.run(["openssl", *args], check=True,
-                    capture_output=True, text=True)
+                    capture_output=True, text=True,
+                    stdin=subprocess.DEVNULL, timeout=30)
 
 
 def _make_ca(d, name, subj):

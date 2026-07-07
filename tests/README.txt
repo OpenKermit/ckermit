@@ -1,21 +1,21 @@
 Debian systems need:
 
-apt-get install python3-pyftpdlib python3-pytest python3-pytest-xdist lrzsz check
+apt-get install python3-pyftpdlib python3-pytest python3-pytest-xdist python3-pytest-timeout lrzsz check
 
 Mac systems need:
 
 brew install openssl@3 check lrzsz
-pip3 install --break-system-packages pytest pytest-xdist pyftpdlib
+pip3 install --break-system-packages pytest pytest-xdist pytest-timeout pyftpdlib
 
 On FreeBSD:
 
 pkg install -y openssl check lrzsz python3 py312-pip
-pip install pytest pytest-xdist pyftpdlib
+pip install pytest pytest-xdist pytest-timeout pyftpdlib
 
 On NetBSD:
 
 pkgin -y install openssl check lrzsz py313-pip
-pip3.13 install pytest pytest-xdist pyftpdlib
+pip3.13 install pytest pytest-xdist pytest-timeout pyftpdlib
 
 Debugging Server-Side Operations:
 
