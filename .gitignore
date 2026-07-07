@@ -19,3 +19,5 @@ UNINSTALL
 *.pyc
 tests/unit/bin/
 .ci-cache/
+.buildcc.cache
+.buildflags.cache

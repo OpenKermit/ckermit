@@ -1028,18 +1028,33 @@ all: $(ALL)
 
 .c.o:
 	$(CC) $(CFLAGS) -DKTARGET=\"$(KTARGET)\" -c $<
+	@printf '%s' '$(CC)' > .buildcc.cache
+	@printf '%s' '$(CFLAGS)' > .buildflags.cache
 
 # Run the test suite
 test:
 	python3 -m pytest
 
 # Run C unit tests
+#
+# CFLAGS is not available here: it only exists as a command-line override
+# inside the recursive "make" invocation of the platform target (e.g.
+# "linux+ssl", "macos+ssl") that built the real binary, and that value is
+# gone once that invocation exits.  The .c.o rule above stashes the CC and
+# CFLAGS it was last given in .buildcc.cache / .buildflags.cache, and we
+# read them back here so the unit tests are compiled with the same macros
+# as ckclib.$(EXT), which they link against.
 unit-test:
 	@if [ ! -f ckclib.$(EXT) ]; then \
 		echo "Error: ckclib.$(EXT) not found. Please build a target first (e.g., 'make linux')."; \
 		exit 1; \
 	fi
-	@$(MAKE) tests/unit/bin/test_lib tests/unit/bin/test_strings
+	@if [ ! -f .buildflags.cache ]; then \
+		echo "Error: .buildflags.cache not found. Please build a target first (e.g., 'make linux')."; \
+		exit 1; \
+	fi
+	@$(MAKE) "CC=`cat .buildcc.cache`" "CFLAGS=`cat .buildflags.cache`" \
+		tests/unit/bin/test_lib tests/unit/bin/test_strings
 	./tests/unit/bin/test_lib
 	./tests/unit/bin/test_strings
 
@@ -1064,6 +1079,7 @@ ckucns.$(EXT) ckcmdb.$(EXT) ckuath.$(EXT) ckctel.$(EXT) ckclib.$(EXT) \
 ckcuni.$(EXT) ck_crp.$(EXT) ck_ssl.$(EXT) ckupty.$(EXT) ckcftp.$(EXT) \
 ckcpro.c wart wermit
 	-rm -rf tests/unit/bin tests/__pycache__ .pytest_cache
+	-rm -f .buildcc.cache .buildflags.cache
 
 show:
 	@echo prefix=$(prefix)
