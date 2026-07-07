@@ -19,7 +19,7 @@ on:
           apply when this workflow is actually invoked via workflow_call.
           For direct push/pull_request triggers, there's no caller
           supplying inputs, so inputs.matrix would just be '' either way.
-          The real default lives in the `||` fallback below.
+          The real default lives in the || fallback below.
         type: string
         default: ''
 
@@ -66,14 +66,64 @@ jobs:
 #      - name: Python test suite
 #        run: pytest -n auto
 
-      - name: Rename binary for upload
+      - name: Upload binary
         if: inputs.upload-artifact
-        run: cp wermit kermit
-
-      - name: Upload binaries
-        if: inputs.upload-artifact
-        uses: actions/upload-artifact@v4
+        uses: ./.github/actions/upload-binary
         with:
-          name: ckermit-${{ matrix.label }}
-          path: |
-            kermit
+          label: ${{ matrix.label }}
+
+  # FreeBSD/NetBSD have no native GitHub-hosted runner, so these boot a
+  # QEMU VM (KVM-accelerated, since guest and host arch both are x86_64)
+  # inside the ubuntu-latest runner via the vmactions actions. These are
+  # required jobs like any other - a failure here fails this workflow,
+  # which also blocks release.yml since it calls this workflow as its
+  # release gate. Package names below are best-effort and unverified:
+  # there's no FreeBSD/NetBSD environment available to test-install them
+  # ahead of time, unlike the Linux/macOS legs above.
+  freebsd-x86_64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and test on FreeBSD
+        uses: vmactions/freebsd-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            pkg install -y openssl check lrzsz python3 py312-pip
+            pip install pytest pytest-xdist pyftpdlib
+          run: |
+            make freebsd+ssl
+#            make check
+#            pytest -n auto
+
+      - name: Upload binary
+        if: inputs.upload-artifact
+        uses: ./.github/actions/upload-binary
+        with:
+          label: freebsd-amd64
+
+  netbsd-x86_64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and test on NetBSD
+        uses: vmactions/netbsd-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            /usr/sbin/pkg_add pkgin
+            pkgin -y update
+            pkgin -y install openssl check lrzsz python3 py313-pip
+            pip install pytest pytest-xdist pyftpdlib
+          run: |
+            make netbsd+ssl
+#            make check
+#            pytest -n auto
+
+      - name: Upload binary
+        if: inputs.upload-artifact
+        uses: ./.github/actions/upload-binary
+        with:
+          label: netbsd-amd64

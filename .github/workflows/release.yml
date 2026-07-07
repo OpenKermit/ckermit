@@ -23,12 +23,17 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Must match the labels in the build-and-test matrix above.
+        # Must match the labels in the build-and-test matrix above, plus
+        # the freebsd-x86_64/netbsd-x86_64 jobs in ci.yml (which aren't
+        # part of that JSON matrix, but upload artifacts under these
+        # labels too when upload-artifact is true).
         include:
           - label: ubuntu26.04-amd64
           - label: ubuntu22.04-amd64
           - label: ubuntu24.04-arm64
           - label: macos-arm64
+          - label: freebsd-amd64
+          - label: netbsd-amd64
     steps:
       - uses: actions/checkout@v4
 
@@ -39,7 +44,6 @@ jobs:
 
       - name: Package
         run: |
-          cp wermit kermit
           chmod +x kermit
           tar czf \
             ckermit-${{ github.ref_name }}-${{ matrix.label }}.tar.gz \

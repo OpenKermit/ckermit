@@ -1,0 +1,21 @@
+name: Upload Kermit binary
+description: >-
+  Rename the built wermit binary to kermit and upload it as a build
+  artifact, for release.yml to download and package later.
+inputs:
+  label:
+    description: Artifact label, e.g. ubuntu26.04-amd64 or freebsd-amd64
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Rename binary for upload
+      shell: bash
+      run: cp wermit kermit
+
+    - name: Upload binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: ckermit-${{ inputs.label }}
+        path: |
+          kermit
