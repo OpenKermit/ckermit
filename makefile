@@ -1058,14 +1058,29 @@ unit-test:
 	./tests/unit/bin/test_lib
 	./tests/unit/bin/test_strings
 
-# Pattern rule for unit tests
-tests/unit/bin/%: tests/unit/%.c
-	@mkdir -p tests/unit/bin
-	$(CC) $(CFLAGS) -I. $< $(filter %.o, $^) -o $@ $(shell pkg-config --cflags --libs check 2>/dev/null || echo "-pthread -lcheck_pic -lrt -lm -lsubunit")
+# Rules for the unit test binaries.
+#
+# These are written out explicitly, one per binary, rather than as a
+# GNU-style "%" pattern rule: FreeBSD and NetBSD build with their native
+# make (bmake), not GNU make, and bmake does not understand "%" pattern
+# rules or the $(shell ...) function. Under bmake, the old pattern rule
+# was silently ignored and "tests/unit/bin/test_lib: ckclib.$(EXT)"
+# became a no-op prerequisite-only rule, so "make check" tried to run a
+# test binary that had never been built. The pkg-config lookup is done
+# by the shell at recipe time instead of via $(shell ...), which keeps
+# this portable to both GNU make and bmake.
+CHECK_LIBS_CMD = pkg-config --cflags --libs check 2>/dev/null || \
+	echo "-pthread -lcheck_pic -lrt -lm -lsubunit"
 
-# Specific test dependencies
-tests/unit/bin/test_lib: ckclib.$(EXT)
-tests/unit/bin/test_strings: ckclib.$(EXT)
+tests/unit/bin/test_lib: tests/unit/test_lib.c ckclib.$(EXT)
+	@mkdir -p tests/unit/bin
+	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	$(CC) $(CFLAGS) -I. tests/unit/test_lib.c ckclib.$(EXT) -o $@ $$CHECKLIBS
+
+tests/unit/bin/test_strings: tests/unit/test_strings.c ckclib.$(EXT)
+	@mkdir -p tests/unit/bin
+	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	$(CC) $(CFLAGS) -I. tests/unit/test_strings.c ckclib.$(EXT) -o $@ $$CHECKLIBS
 
 #Clean up intermediate and object files
 clean:
