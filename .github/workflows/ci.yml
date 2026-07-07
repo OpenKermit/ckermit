@@ -130,6 +130,14 @@ jobs:
             pkgin -y install openssl check lrzsz py313-pip pkgconf
             pip3.13 install pytest pytest-xdist pytest-timeout pyftpdlib
           run: |
+            # pkgin's openssl installs to /usr/pkg/bin, but NetBSD's
+            # PATH puts /usr/bin ahead of it, so plain
+            # "openssl" resolves to the older base-system binary
+            # instead. That one doesn't support the "x509 -req
+            # -not_before/-not_after" options that test_ssl
+            # relies on to create an expired
+            # certificate, so put /usr/pkg/bin first.
+            export PATH="/usr/pkg/bin:/usr/pkg/sbin:$PATH"
             make netbsd+ssl-des
             make check
             pytest
