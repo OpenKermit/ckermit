@@ -1,9 +1,16 @@
+import os
 import socket
 import subprocess
 import pytest
 from pathlib import Path
 import logging
 import time
+
+# Set to capture kermit's internal "log debug" trace (zchki()/stat()
+# calls, protocol state, etc.) for every wermit_loopback session and
+# dump it into the pytest failure report. Off by default because it
+# roughly doubles the I/O of every loopback test.
+DEBUG_LOOPBACK = bool(os.environ.get("KERMIT_TEST_DEBUG_LOOPBACK"))
 
 # Exit code used by TcpLoopbackSession.run_client's "if failure exit"
 # guard to signal that SET HOST itself never connected. Distinct from
@@ -104,10 +111,12 @@ def wermit_loopback(request, wermit_path, run_wermit):
             f"server_{Path(server_dir).name}.ksc"
         server_log = Path(server_dir).parent / \
             f"server_{Path(server_dir).name}.log"
+        client_log = Path(server_dir).parent / \
+            f"client_{Path(server_dir).name}.log"
 
         # Build server script content
         setup_lines = []
-        if logger.isEnabledFor(logging.DEBUG):
+        if DEBUG_LOOPBACK:
             setup_lines.append(f"log debug {server_log}")
         setup_lines.append("set command more-prompting off")
         setup_lines.append("set delay 0")
@@ -125,8 +134,11 @@ def wermit_loopback(request, wermit_path, run_wermit):
         server_ksc.write_text("\n".join(setup_lines) + "\n")
         if server_ksc not in created_files:
             created_files.append(server_ksc)
-        if logger.isEnabledFor(logging.DEBUG) and server_log not in created_files:
-            created_files.append(server_log)
+        if DEBUG_LOOPBACK:
+            if server_log not in created_files:
+                created_files.append(server_log)
+            if client_log not in created_files:
+                created_files.append(client_log)
 
         if isinstance(client_commands, list):
             cmd_str = ", ".join(client_commands)
@@ -140,23 +152,27 @@ def wermit_loopback(request, wermit_path, run_wermit):
         else:
             client_prefix = ""
 
+        client_debug_prefix = f"log debug {client_log}, " if DEBUG_LOOPBACK else ""
         full_client_cmd = [
             "-H", "-Y", "-Q", "-C",
-            f"set command more-prompting off, set delay 0, set host /network-type:pseudoterminal {wermit_path} {server_ksc.absolute()}, set delay 0, {client_prefix}{cmd_str}, close, exit"
+            f"{client_debug_prefix}set command more-prompting off, set delay 0, set host /network-type:pseudoterminal {wermit_path} {server_ksc.absolute()}, set delay 0, {client_prefix}{cmd_str}, close, exit"
         ]
         logger.info(
             "wermit_loopback: Client running command sequence: %s", cmd_str)
         result = run_wermit(full_client_cmd)
 
-        if logger.isEnabledFor(logging.DEBUG) and server_log.exists():
-            try:
-                log_content = server_log.read_text(errors='replace')
-                logger.debug("wermit_loopback: Server process debug log:\n%s",
-                             log_content)
-            except Exception as e:
-                logger.warning(
-                    "wermit_loopback: Failed to read server log %s: %s",
-                    server_log, e)
+        if DEBUG_LOOPBACK:
+            for label, log_path in (("Server", server_log), ("Client", client_log)):
+                if log_path.exists():
+                    try:
+                        log_content = log_path.read_text(errors='replace')
+                        logger.info(
+                            "wermit_loopback: %s process debug log:\n%s",
+                            label, log_content)
+                    except Exception as e:
+                        logger.warning(
+                            "wermit_loopback: Failed to read %s log %s: %s",
+                            label, log_path, e)
 
         return result
 

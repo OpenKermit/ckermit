@@ -97,7 +97,7 @@ jobs:
         with:
           usesh: true
           prepare: |
-            pkg install -y openssl check lrzsz python3 py312-pip
+            pkg install -y openssl check pkgconf lrzsz python3 py312-pip
             pip install pytest pytest-xdist pytest-timeout pyftpdlib
           run: |
             make freebsd+ssl
@@ -122,7 +122,7 @@ jobs:
           prepare: |
             /usr/sbin/pkg_add pkgin
             pkgin -y update
-            pkgin -y install openssl check lrzsz py313-pip
+            pkgin -y install openssl check lrzsz py313-pip pkgconf
             pip3.13 install pytest pytest-xdist pytest-timeout pyftpdlib
           run: |
             make netbsd+ssl-des
