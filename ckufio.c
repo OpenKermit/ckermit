@@ -2542,10 +2542,20 @@ zchko(name) char *name;
 	    }
 	} else {
 	    debug(F111,"zchko open errno",name,errno);
-	    x = -1;
-            goto xzchko;                /* fdc 2015/01/12 */
-            /* previously control fell through causing core dumps */
-            /* on builds with -DNOUUCP */
+            if (errno != ENOENT) {
+                x = -1;
+                goto xzchko;            /* fdc 2015/01/12 */
+                /* previously control fell through causing core dumps */
+                /* on builds with -DNOUUCP */
+            }
+            /*
+              ENOENT means some component of the path (typically the
+              parent directory) does not exist yet, e.g. this is the
+              first file in a not-yet-created subdirectory of a
+              recursive transfer.  That's not a permission failure, so
+              fall through to the access() based ancestor-directory
+              check below instead of reporting write access denied.
+            */
 	}
     }
 #endif	/* NOUUCP */
