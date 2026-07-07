@@ -2491,8 +2491,18 @@ zchko(name) char *name;
 #ifdef NOUUCP
     {					/* 2009/10/20 */
     /* Allow tty devices to opened as output files */
-	int fd, istty = 0, flags = 0;
+	int fd, istty = 0, flags = 0, preexisted;
 	debug(F110,"zchko attempting to open",name,0);
+/*
+  O_CREAT without O_EXCL means this open() succeeds whether or not
+  "name" already exists, so remember which case we're in: the delete
+  below is only meant to clean up a file *this* probe created solely
+  to test isatty()/access(), and must not touch a file that was
+  already there (e.g. the destination of a file-collision check),
+  or it would silently destroy it before the collision-action logic
+  in rcvfil() ever gets to look at it.
+*/
+        preexisted = (access(name,F_OK) == 0);
         if (!ckstrcmp(name,"/dev/",5,1)) { /* If tty (2016/02/16) */
 	/* Don't block on lack of Carrier or other modem signals */
 #ifdef O_NONBLOCK
@@ -2520,7 +2530,9 @@ zchko(name) char *name;
               spurious backup file when downloading
             */
 	    fd = close(fd);             /* 2022-05-09 */
-            if (zdelet(name) == 0) {    /* 2022-05-09 */
+            if (preexisted) {
+                debug(F110,"zchko leaving preexisting file alone",name,0);
+            } else if (zdelet(name) == 0) {    /* 2022-05-09 */
                 debug(F110,"zchko delete ok",name,0);
             } else {
                 debug(F111,"zchko delete failed",name,errno);
