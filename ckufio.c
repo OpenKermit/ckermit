@@ -2363,37 +2363,14 @@ zchki(name) char *name;
 	return(-1);
     }
 #endif /* CKROOT */
-/*
-  In (at least) Mac OS X 10.6, stat(filename) returns 1 even if the file
-  does not exist.  This was causing empty backup files to be created.
-  Now we also double-check by looking at ERRNO.  - fdc 2021-05-07
-*/
-    errno = 0;                          /* Reset errno just to be safe */
     x = stat(s,&buf);
     debug(F101,"STAT","",5);
     debug(F111,"zchki stat return code",s,x);
-    debug(F101,"zchki stat errno","",errno);
     debug(F110,"zchki stat errmsg",ck_errstr(),0);
     if (x < 0) {                        /* File doesn't exist */
         debug(F111,"zchki stat fails",s,errno);
         return(-1);
-/*
-   The following is provisional...  On some Mac OS X / OS X / macOS versions,
-   stat() returns 0 ("success") when the filename given does not correspond to
-   an existing file, where every other OS returns -1 ("failure").  In this
-   case, however, errno to a nonzero value, which I would have expected to be
-   ENOENT, but in the case that was reported, it was ENOTTY, which I wouldn't
-   have expected.  There's nothing in Google about this.  - fdc, 8 May 2022.
-*/
-    } else if ( errno ) {
-        debug(F111,"zchki stat returns 0 but with a nonzero errno",s,errno);
-        return(-1);
     }
-    /*
-      Another possibility might be to look in the stat buf, but for what?
-      Or to use access() rather that stat().  But all of these approaches
-      have their portability risks.
-    */
     if (S_ISDIR (buf.st_mode))
       itsadir = 1;
 
