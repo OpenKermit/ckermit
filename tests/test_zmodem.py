@@ -1,3 +1,4 @@
+import logging
 import os
 import pty
 import select
@@ -12,6 +13,46 @@ pytestmark = pytest.mark.skipif(
     shutil.which("sz") is None or shutil.which("rz") is None,
     reason="lrzsz (sz/rz) commands not available",
 )
+
+logger = logging.getLogger(__name__)
+
+# Use the same variable as tests/conftest.py's wermit_loopback.
+# When set, wermit's internal "log debug" trace is captured to a file and
+# dumped into the pytest failure report, and a timeout also dumps whatever
+# pty output was captured before it fired plus a snapshot of any wermit,
+# sz, or rz processes still running.
+DEBUG_ZMODEM = bool(os.environ.get("KERMIT_TEST_DEBUG_LOOPBACK"))
+
+
+def _log_debug_file(label, path):
+    path = Path(path)
+    if not path.exists():
+        return
+    try:
+        logger.info(
+            "%s: wermit debug log:\n%s",
+            label, path.read_text(errors="replace"))
+    except OSError as e:
+        logger.warning(
+            "%s: failed to read debug log %s: %s", label, path, e)
+
+
+def _log_process_snapshot(label):
+    """Logs any wermit/sz/rz processes still alive, so a timeout tells us
+    whether the hang is in wermit itself or in the child it exec'd."""
+    try:
+        ps = subprocess.run(
+            ["ps", "-ef"], capture_output=True, text=True, timeout=5)
+        relevant = "\n".join(
+            line for line in ps.stdout.splitlines()
+            if line.startswith("UID")
+            or any(name in line for name in ("wermit", " sz", " rz"))
+        )
+        logger.info("%s: relevant process snapshot:\n%s", label, relevant)
+    except Exception as e:
+        logger.warning(
+            "%s: failed to capture process snapshot: %s", label, e)
+
 
 # Here we test the Zmodem transfers.
 
@@ -29,12 +70,13 @@ pytestmark = pytest.mark.skipif(
 # environment matching normal shell usage.
 
 
-def run_wermit_pty(wermit_path, cmd_str, cwd, timeout=45):
+def run_wermit_pty(wermit_path, cmd_str, cwd, timeout=45, debug_log=None):
     master, slave = pty.openpty()
 
+    debug_prefix = f"log debug {debug_log}, " if debug_log else ""
     cmd = [
         wermit_path, "-H", "-Y", "-C",
-        f"set command more-prompting off, {cmd_str}"
+        f"{debug_prefix}set command more-prompting off, {cmd_str}"
     ]
 
     proc = subprocess.Popen(
@@ -54,9 +96,23 @@ def run_wermit_pty(wermit_path, cmd_str, cwd, timeout=45):
     # Read output using select for timeout handling
     while proc.poll() is None:
         if time.time() - start_time > timeout:
+            captured = b"".join(output).decode('utf-8', errors='replace')
+            logger.error(
+                "run_wermit_pty: wermit (pid %d) timed out after %ds. "
+                "pty output captured before timeout:\n%s",
+                proc.pid, timeout, captured)
+            _log_process_snapshot("run_wermit_pty")
             proc.terminate()
+            try:
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=2)
             os.close(master)
-            raise subprocess.TimeoutExpired(cmd, timeout)
+            if debug_log:
+                _log_debug_file("run_wermit_pty", debug_log)
+            raise subprocess.TimeoutExpired(
+                cmd, timeout, output=captured.encode())
 
         r, _, _ = select.select([master], [], [], 0.1)
         if master in r:
@@ -85,6 +141,9 @@ def run_wermit_pty(wermit_path, cmd_str, cwd, timeout=45):
     os.close(master)
     proc.wait()
 
+    if debug_log:
+        _log_debug_file("run_wermit_pty", debug_log)
+
     return proc.returncode, b"".join(output).decode('utf-8', errors='replace')
 
 
@@ -107,7 +166,9 @@ def test_zmodem_receive(wermit_path, tmp_path):
     # Receive command: wermit connects to pseudoterminal running sz
     cmd_str = f"set terminal autodownload on, set host /network-type:pseudoterminal sz {src_file}, connect, close, exit"
 
-    returncode, stdout = run_wermit_pty(wermit_path, cmd_str, dest_dir)
+    debug_log = tmp_path / "wermit_debug.log" if DEBUG_ZMODEM else None
+    returncode, stdout = run_wermit_pty(
+        wermit_path, cmd_str, dest_dir, debug_log=debug_log)
 
     assert returncode == 0, f"Zmodem receive failed: returncode={returncode}, stdout={stdout}"
 
@@ -139,7 +200,9 @@ def test_zmodem_send(wermit_path, tmp_path):
     # pseudoterminal, and sends file
     cmd_str = f"set protocol zmodem, set host /network-type:pseudoterminal rz, send {src_file}, close, exit"
 
-    returncode, stdout = run_wermit_pty(wermit_path, cmd_str, dest_dir)
+    debug_log = tmp_path / "wermit_debug.log" if DEBUG_ZMODEM else None
+    returncode, stdout = run_wermit_pty(
+        wermit_path, cmd_str, dest_dir, debug_log=debug_log)
 
     assert returncode == 0, f"Zmodem send failed: returncode={returncode}, stdout={stdout}"
 
