@@ -60,11 +60,11 @@ jobs:
             KSSLINC="-I$(brew --prefix openssl@3)/include" \
             KSSLLIB="-L$(brew --prefix openssl@3)/lib"
 
-#      - name: C unit tests
-#        run: make check
+      - name: C unit tests
+        run: make check
 
-#      - name: Python test suite
-#        run: pytest -n auto
+      - name: Python test suite
+        run: pytest -n auto
 
       - name: Upload binary
         if: inputs.upload-artifact
@@ -94,8 +94,8 @@ jobs:
             pip install pytest pytest-xdist pyftpdlib
           run: |
             make freebsd+ssl
-#            make check
-#            pytest -n auto
+            make check
+            pytest -n auto
 
       - name: Upload binary
         if: inputs.upload-artifact
@@ -119,8 +119,8 @@ jobs:
             pip3.13 install pytest pytest-xdist pyftpdlib
           run: |
             make netbsd+ssl-des
-#            make check
-#            pytest -n auto
+            make check
+            pytest -n auto
 
       - name: Upload binary
         if: inputs.upload-artifact
