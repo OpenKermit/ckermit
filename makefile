@@ -1029,6 +1029,29 @@ all: $(ALL)
 .c.o:
 	$(CC) $(CFLAGS) -DKTARGET=\"$(KTARGET)\" -c $<
 
+# Run the test suite
+test:
+	python3 -m pytest
+
+# Run C unit tests
+unit-test:
+	@if [ ! -f ckclib.$(EXT) ]; then \
+		echo "Error: ckclib.$(EXT) not found. Please build a target first (e.g., 'make linux')."; \
+		exit 1; \
+	fi
+	@$(MAKE) tests/unit/bin/test_lib tests/unit/bin/test_strings
+	./tests/unit/bin/test_lib
+	./tests/unit/bin/test_strings
+
+# Pattern rule for unit tests
+tests/unit/bin/%: tests/unit/%.c
+	@mkdir -p tests/unit/bin
+	$(CC) $(CFLAGS) -I. $< $(filter %.o, $^) -o $@ $(shell pkg-config --cflags --libs check 2>/dev/null || echo "-pthread -lcheck_pic -lrt -lm -lsubunit")
+
+# Specific test dependencies
+tests/unit/bin/test_lib: ckclib.$(EXT)
+tests/unit/bin/test_strings: ckclib.$(EXT)
+
 #Clean up intermediate and object files
 clean:
 	@echo 'Removing object files...'
@@ -1039,7 +1062,8 @@ ckufio.$(EXT) ckudia.$(EXT) ckuscr.$(EXT) ckwart.$(EXT) ckuusx.$(EXT) \
 ckuusy.$(EXT) ckcnet.$(EXT) ckuus6.$(EXT) ckuus7.$(EXT) ckusig.$(EXT) \
 ckucns.$(EXT) ckcmdb.$(EXT) ckuath.$(EXT) ckctel.$(EXT) ckclib.$(EXT) \
 ckcuni.$(EXT) ck_crp.$(EXT) ck_ssl.$(EXT) ckupty.$(EXT) ckcftp.$(EXT) \
-ckcpro.c wart
+ckcpro.c wart wermit
+	-rm -rf tests/unit/bin tests/__pycache__ .pytest_cache
 
 show:
 	@echo prefix=$(prefix)
@@ -9519,7 +9543,7 @@ love:
 	@echo 'Not war?'
 
 #Check the most recent build (assuming any previous wermit had been deleted)
-check:
+check: unit-test
 	@if test -s wermit -a -x wermit ; then \
 	echo SUCCESS:; ls -log wermit ; else \
 	echo FAILED; \

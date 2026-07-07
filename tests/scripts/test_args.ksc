@@ -1,0 +1,17 @@
+comment -- Verify positional argument mapping --
+set command more-prompting off
+
+echo "TEST_ARGS: Arg 1 is \%1"
+echo "TEST_ARGS: Arg 2 is \%2"
+
+if not def \%1 {
+    echo "TEST_ARGS_FAIL: Argument 1 is not defined."
+    exit 1
+}
+
+if not def \%2 {
+    echo "TEST_ARGS_FAIL: Argument 2 is not defined."
+    exit 2
+}
+
+exit 0

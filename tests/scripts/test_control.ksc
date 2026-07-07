@@ -1,0 +1,43 @@
+comment -- Verify scripting control flow and loops --
+set command more-prompting off
+
+echo "TEST_CONTROL: Start"
+
+# 1. Conditionals: SUCCESS
+echo "Running successful command"
+if success echo "TEST_CONTROL: SUCCESS verified"
+
+# 2. Conditionals: FAILURE
+# We run a directory listing on a non-existent path to trigger a failure
+directory /nonexistent_directory_xyz
+if failure echo "TEST_CONTROL: FAILURE verified"
+
+# 3. Conditionals: EXIST
+# Check that /etc/hosts exists (absolute path, not sensitive to working directory)
+if exist /etc/hosts echo "TEST_CONTROL: EXIST verified"
+
+# 4. Conditionals: Comparisons
+.\%x = 10
+if = \%x 10 echo "TEST_CONTROL: COMPARISON verified"
+
+# 5. Loops: FOR
+FOR \%i 1 3 1 {
+    echo "TEST_CONTROL: FOR loop \%i"
+}
+
+# 6. Loops: WHILE
+.\%w = 1
+WHILE < \%w 4 {
+    echo "TEST_CONTROL: WHILE loop \%w"
+    incr \%w
+}
+
+# 7. Jumps: Labels & GOTO
+.\%j = 0
+:JUMP_LABEL
+incr \%j
+echo "TEST_CONTROL: GOTO loop \%j"
+if < \%j 3 goto JUMP_LABEL
+
+echo "TEST_CONTROL: GOTO verified"
+exit 0

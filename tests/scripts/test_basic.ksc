@@ -1,0 +1,16 @@
+comment -- Basic C-Kermit Scripting Test --
+set command more-prompting off
+
+echo "TEST_BASIC: Defining macro"
+define my_macro_var 42
+echo "TEST_BASIC: Macro value is \m(my_macro_var)"
+
+echo "TEST_BASIC: Assigning single-character variable"
+assign \%a 100
+echo "TEST_BASIC: Variable value is \%a"
+
+echo "TEST_BASIC: Assigning via dot command"
+.\%b = 200
+echo "TEST_BASIC: Dot value is \%b"
+
+exit 0

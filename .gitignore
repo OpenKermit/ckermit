@@ -16,4 +16,6 @@ ckcpro.c
 wart
 wermit
 UNINSTALL
+*.pyc
+tests/unit/bin/
 .ci-cache/
