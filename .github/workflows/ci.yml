@@ -71,6 +71,12 @@ jobs:
         run: make check
 
       - name: Python test suite
+        env:
+          # Capture kermit's internal "log debug" trace for
+          # every wermit_loopback session, dumped into the pytest
+          # failure report. Scoped to macOS for the moment to track down
+          # platform-specific file-collision failures.
+          KERMIT_TEST_DEBUG_LOOPBACK: ${{ matrix.platform == 'macos' && '1' || '' }}
         run: pytest
 
       - name: Upload binary
