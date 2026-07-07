@@ -16,3 +16,4 @@ ckcpro.c
 wart
 wermit
 UNINSTALL
+.ci-cache/
