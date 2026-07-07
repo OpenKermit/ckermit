@@ -76,7 +76,7 @@ jobs:
           # every wermit_loopback session, dumped into the pytest
           # failure report.
           KERMIT_TEST_DEBUG_LOOPBACK: 1
-        run: pytest --log-level=INFO
+        run: pytest -rs --log-level=INFO
 
       - name: Upload binary
         if: inputs.upload-artifact
@@ -107,7 +107,7 @@ jobs:
           run: |
             make -j4 freebsd+ssl
             make check
-            pytest --log-level=INFO
+            pytest -rs --log-level=INFO
 
       - name: Upload binary
         if: inputs.upload-artifact
@@ -140,7 +140,7 @@ jobs:
             export PATH="/usr/pkg/bin:/usr/pkg/sbin:$PATH"
             make -j4 netbsd+ssl-des
             make check
-            pytest --log-level=INFO
+            pytest -rs --log-level=INFO
 
       - name: Upload binary
         if: inputs.upload-artifact
