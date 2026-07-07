@@ -118,7 +118,7 @@ jobs:
             pkgin -y install openssl check lrzsz py313-pip
             pip3.13 install pytest pytest-xdist pyftpdlib
           run: |
-            make netbsd+ssl
+            make netbsd+ssl-des
 #            make check
 #            pytest -n auto
 
