@@ -5461,7 +5461,9 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x;
 
 #ifdef BSD44
     tp[0].tv_sec = sb.st_atime;         /* Access time first */
+    tp[0].tv_usec = 0;                  /* Initialize to prevent wraparound */
     tp[1].tv_sec = tm;                  /* Update time second */
+    tp[1].tv_usec = 0;                  /* Initialize to prevent wraparound */
     debug(F100,"zstime: BSD44 modtime","",0);
 #else
 #ifdef V7

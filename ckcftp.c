@@ -3886,7 +3886,9 @@ setmodtime(f,t) char * f; time_t t;
     }
 #ifdef BSD44
     tp[0].tv_sec = sb.st_atime;         /* Access time first */
+    tp[0].tv_usec = 0;                  /* Initialize to prevent wraparound */
     tp[1].tv_sec = t;                   /* Update time second */
+    tp[1].tv_usec = 0;                  /* Initialize to prevent wraparound */
     debug(F111,"setmodtime BSD44",f,t);
 #else
 #ifdef V7
