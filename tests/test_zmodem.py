@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pytest
 
+from conftest import truncated
+
 pytestmark = pytest.mark.skipif(
     shutil.which("sz") is None or shutil.which("rz") is None,
     reason="lrzsz (sz/rz) commands not available",
@@ -29,9 +31,10 @@ def _log_debug_file(label, path):
     if not path.exists():
         return
     try:
+        text = path.read_text(errors="replace")
         logger.info(
             "%s: wermit debug log:\n%s",
-            label, path.read_text(errors="replace"))
+            label, truncated("wermit debug log", text))
     except OSError as e:
         logger.warning(
             "%s: failed to read debug log %s: %s", label, path, e)
@@ -100,7 +103,7 @@ def run_wermit_pty(wermit_path, cmd_str, cwd, timeout=45, debug_log=None):
             logger.error(
                 "run_wermit_pty: wermit (pid %d) timed out after %ds. "
                 "pty output captured before timeout:\n%s",
-                proc.pid, timeout, captured)
+                proc.pid, timeout, truncated("pty output", captured))
             _log_process_snapshot("run_wermit_pty")
             proc.terminate()
             try:

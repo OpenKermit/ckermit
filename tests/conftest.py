@@ -18,6 +18,26 @@ DEBUG_LOOPBACK = bool(os.environ.get("KERMIT_TEST_DEBUG_LOOPBACK"))
 # would otherwise have run.
 SSL_CONNECT_FAILURE_CODE = 90
 
+# Cap how much debug output gets captured in a log
+# message. A hung session can retry in a tight loop and produce an
+# large  amount of trace data before its timeout fires. Without a
+# cap, one failure report can balloon to hundreds of megabytes.
+# Keep the tail, since that is the data closest to the hang or failure.
+MAX_LOGGED_CHARS = 50000
+
+
+def truncated(label, text):
+    """Returns text, or its last MAX_LOGGED_CHARS chars with a note of
+    how much was omitted, so callers can safely dump traces into a
+    logger.info() call regardless of how large they get."""
+    if len(text) <= MAX_LOGGED_CHARS:
+        return text
+    omitted = len(text) - MAX_LOGGED_CHARS
+    return (
+        f"[{label}: {omitted} chars omitted, showing last "
+        f"{MAX_LOGGED_CHARS} chars]\n{text[-MAX_LOGGED_CHARS:]}"
+    )
+
 
 def assert_ok(result, label="Command failed"):
     assert result.returncode == 0, (
@@ -168,7 +188,8 @@ def wermit_loopback(request, wermit_path, run_wermit):
                         log_content = log_path.read_text(errors='replace')
                         logger.info(
                             "wermit_loopback: %s process debug log:\n%s",
-                            label, log_content)
+                            label,
+                            truncated(f"{label} debug log", log_content))
                     except Exception as e:
                         logger.warning(
                             "wermit_loopback: Failed to read %s log %s: %s",
