@@ -64,7 +64,7 @@ jobs:
         run: make check
 
       - name: Python test suite
-        run: pytest -n auto
+        run: pytest
 
       - name: Upload binary
         if: inputs.upload-artifact
@@ -95,7 +95,7 @@ jobs:
           run: |
             make freebsd+ssl
             make check
-            pytest -n auto
+            pytest
 
       - name: Upload binary
         if: inputs.upload-artifact
@@ -120,7 +120,7 @@ jobs:
           run: |
             make netbsd+ssl-des
             make check
-            pytest -n auto
+            pytest
 
       - name: Upload binary
         if: inputs.upload-artifact
