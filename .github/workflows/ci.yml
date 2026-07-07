@@ -58,12 +58,12 @@ jobs:
 
       - name: Build (Linux)
         if: matrix.platform == 'linux'
-        run: make ${{ matrix.make-target }}
+        run: make -j4 ${{ matrix.make-target }}
 
       - name: Build (macOS)
         if: matrix.platform == 'macos'
         run: |
-          make ${{ matrix.make-target }} \
+          make -j4 ${{ matrix.make-target }} \
             KSSLINC="-I$(brew --prefix openssl@3)/include" \
             KSSLLIB="-L$(brew --prefix openssl@3)/lib"
 
@@ -105,7 +105,7 @@ jobs:
             pkg install -y openssl check pkgconf lrzsz python3 py312-pip
             pip install pytest pytest-xdist pytest-timeout pyftpdlib
           run: |
-            make freebsd+ssl
+            make -j4 freebsd+ssl
             make check
             pytest --log-level=DEBUG
 
@@ -138,7 +138,7 @@ jobs:
             # relies on to create an expired
             # certificate, so put /usr/pkg/bin first.
             export PATH="/usr/pkg/bin:/usr/pkg/sbin:$PATH"
-            make netbsd+ssl-des
+            make -j4 netbsd+ssl-des
             make check
             pytest --log-level=DEBUG
 
