@@ -1,4 +1,3 @@
-import os
 import shutil
 import subprocess
 import time
@@ -12,20 +11,8 @@ pytestmark = pytest.mark.skipif(
     reason="openssl CLI not found on PATH"
 )
 
-# Provide a minimal openssl.cnf file, so that:
-#
-# 1. We don't have an error if the system doesn't provide one
-# (as on NetBSD);
-#
-# 2. We don't behave differently depending on local configuration
-_MINIMAL_OPENSSL_CNF = (
-    "[req]\n"
-    "distinguished_name = req_distinguished_name\n"
-    "[req_distinguished_name]\n"
-)
 
-
-def _openssl(*args, env=None):
+def _openssl(*args):
     # stdin is explicitly closed off and a timeout is set so that a
     # misconfigured invocation (e.g. one that ends up needing a
     # passphrase or otherwise prompts interactively) fails fast with a
@@ -38,31 +25,21 @@ def _openssl(*args, env=None):
     # shows openssl's actual stdout and stderr.
     result = subprocess.run(["openssl", *args], check=False,
                              capture_output=True, text=True,
-                             stdin=subprocess.DEVNULL, timeout=30,
-                             env=env)
+                             stdin=subprocess.DEVNULL, timeout=30)
     assert_ok(result, label=f"openssl {' '.join(args)}")
 
 
-def _make_ca(d, name, subj, env=None):
+def _make_ca(d, name, subj):
     """Self-signed CA: returns (key_path, crt_path)."""
     key = d / f"{name}.key"
     crt = d / f"{name}.crt"
-    # basicConstraints and keyUsage are normally supplied by a real
-    # openssl.cnf.  _MINIMAL_OPENSSL_CNF has no such
-    # section, so they're added explicitly here instead. Without
-    # CA:TRUE, kermit correctly flags the resulting cert as an
-    # invalid for a CA.
     _openssl("req", "-x509", "-newkey", "rsa:2048", "-nodes",
               "-keyout", str(key), "-out", str(crt), "-days", "2",
-              "-subj", subj,
-              "-addext", "basicConstraints=critical,CA:true",
-              "-addext", "keyUsage=critical,keyCertSign,cRLSign",
-              env=env)
+              "-subj", subj)
     return key, crt
 
 
-def _make_leaf(d, name, subj, ca_key, ca_crt, san=None, dates=None,
-               env=None):
+def _make_leaf(d, name, subj, ca_key, ca_crt, san=None, dates=None):
     """
     Leaf cert signed by the given CA: returns (key_path, crt_path).
     san adds a subjectAltName extension. dates is an optional
@@ -73,8 +50,7 @@ def _make_leaf(d, name, subj, ca_key, ca_crt, san=None, dates=None,
     csr = d / f"{name}.csr"
     crt = d / f"{name}.crt"
     _openssl("req", "-newkey", "rsa:2048", "-nodes",
-              "-keyout", str(key), "-out", str(csr), "-subj", subj,
-              env=env)
+              "-keyout", str(key), "-out", str(csr), "-subj", subj)
     args = ["x509", "-req", "-in", str(csr), "-CA", str(ca_crt),
             "-CAkey", str(ca_key), "-CAcreateserial", "-out", str(crt)]
     if dates:
@@ -86,7 +62,7 @@ def _make_leaf(d, name, subj, ca_key, ca_crt, san=None, dates=None,
         ext_cnf = d / f"{name}_ext.cnf"
         ext_cnf.write_text(f"subjectAltName={san}\n")
         args += ["-extfile", str(ext_cnf)]
-    _openssl(*args, env=env)
+    _openssl(*args)
     return key, crt
 
 
@@ -108,31 +84,27 @@ def ssl_pki(tmp_path_factory):
     """
     d = tmp_path_factory.mktemp("ssl_pki")
 
-    cnf_path = d / "openssl.cnf"
-    cnf_path.write_text(_MINIMAL_OPENSSL_CNF)
-    env = {**os.environ, "OPENSSL_CONF": str(cnf_path)}
-
-    ca_key, ca_crt = _make_ca(d, "ca", "/CN=Test CA", env=env)
+    ca_key, ca_crt = _make_ca(d, "ca", "/CN=Test CA")
     server_key, server_crt = _make_leaf(
         d, "server", "/CN=localhost", ca_key, ca_crt,
-        san="DNS:localhost", env=env
+        san="DNS:localhost"
     )
     client_key, client_crt = _make_leaf(
-        d, "client", "/CN=test-client", ca_key, ca_crt, env=env
+        d, "client", "/CN=test-client", ca_key, ca_crt
     )
 
     untrusted_ca_key, untrusted_ca_crt = _make_ca(
-        d, "untrusted_ca", "/CN=Untrusted CA", env=env
+        d, "untrusted_ca", "/CN=Untrusted CA"
     )
     untrusted_server_key, untrusted_server_crt = _make_leaf(
         d, "untrusted_server", "/CN=localhost",
-        untrusted_ca_key, untrusted_ca_crt, san="DNS:localhost", env=env
+        untrusted_ca_key, untrusted_ca_crt, san="DNS:localhost"
     )
 
     expired_key, expired_crt = _make_leaf(
         d, "expired", "/CN=localhost", ca_key, ca_crt,
         san="DNS:localhost",
-        dates=("20190101000000Z", "20200101000000Z"), env=env
+        dates=("20190101000000Z", "20200101000000Z")
     )
 
     return {
