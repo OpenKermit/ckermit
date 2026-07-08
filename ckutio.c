@@ -15050,6 +15050,20 @@ ttptycmd(s) char *s;
 		    CHAR * p;
 		    p = tbuf + tbuf_avail;
 		    for (x = 0; x < n; x++) {
+			/*
+			  ttinc(0) blocks in read().
+			  n came from in_chk()'s FIONREAD count, which on MacOS
+			  ptys is not a reliable bound on how many bytes can
+			  actually be drained without blocking, since the
+			  count can include bytes that never show up.
+			  Re-check availability before every byte instead
+			  of trusting the original FIONREAD for the whole
+			  loop, so a stale/optimistic count makes us stop
+			  early rather than hang here.  The in_chk() call is
+			  fairly cheap.
+			*/
+			if (in_chk(1,ttyfd) <= 0)
+			  break;
 			if ((c = ttinc(0)) < 0)
 			  break;
 			if (!is_tn) {	/* Not Telnet - keep all bytes */
