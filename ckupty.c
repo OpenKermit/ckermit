@@ -749,7 +749,7 @@ pty_getpty(fd, slave, slavelength) int slavelength; int *fd; char *slave;
 	pty_master_fd = *fd;
 	return(1);
     }
-    close(slavefd);
+    pty_slave_fd = slavefd;
     return(0);
 
 #else /* HAVE_OPENPTY */
@@ -1948,6 +1948,10 @@ do_pty(fd, cmd, fc) int * fd; char * cmd; int fc;
 	    msg++;
             debug(F110,"do_pty()","Slave fails to initialize",0);
             close(syncpipe[0]);
+            if (pty_slave_fd >= 0) {
+                close(pty_slave_fd);
+                pty_slave_fd = -1;
+            }
             return(-1);
         }
         pty_fork_pid = i;		/* So we can clean it up later */
@@ -1963,8 +1967,16 @@ do_pty(fd, cmd, fc) int * fd; char * cmd; int fc;
 #endif /* HAVE_PTYTRAP */
         debug(F111,"do_pty()","synchronized - pty_fork_pid",pty_fork_pid);
         close(syncpipe[0]);
+        if (pty_slave_fd >= 0) {
+            close(pty_slave_fd);
+            pty_slave_fd = -1;
+        }
     } else {
 	int x;
+        if (pty_slave_fd >= 0) {
+            close(pty_slave_fd);
+            pty_slave_fd = -1;
+        }
 	debug(F101,"do_pty getptyslave ttyfd A","",ttyfd);
         debug(F110,"do_pty()","Slave starts",0);
 	x = getptyslave(&ttyfd,fc);
