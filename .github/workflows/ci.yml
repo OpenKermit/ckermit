@@ -104,6 +104,15 @@ jobs:
           prepare: |
             pkg install -y openssl check pkgconf lrzsz python3 py312-pip
             pip install pytest pytest-xdist pytest-timeout pyftpdlib
+            # FreeBSD's lrzsz port installs binaries named lrz and lsz, unlike
+            # Debian's lrzsz package, which also provides traditionally-named
+            # sz and rz. test_zmodem.py invokes
+            # "sz" and "rz" by name, so add those as symlinks.  In production,
+            # a local administrator can configure this apporpriately.
+            #
+            # Similar issue with NetBSD below.
+            ln -sf /usr/local/bin/lrz /usr/local/bin/rz
+            ln -sf /usr/local/bin/lsz /usr/local/bin/sz
           run: |
             make -j4 freebsd+ssl
             make check
@@ -129,6 +138,10 @@ jobs:
             pkgin -y update
             pkgin -y install openssl check lrzsz py313-pip pkgconf
             pip3.13 install pytest pytest-xdist pytest-timeout pyftpdlib
+            # NetBSD's pkgsrc lrzsz has the same issue as FreeBSD's; see
+            # FreeBSD comment above.
+            ln -sf /usr/pkg/bin/lrz /usr/pkg/bin/rz
+            ln -sf /usr/pkg/bin/lsz /usr/pkg/bin/sz
           run: |
             # pkgin's openssl installs to /usr/pkg/bin, but NetBSD's
             # PATH puts /usr/bin ahead of it, so plain
