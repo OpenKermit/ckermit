@@ -15012,6 +15012,10 @@ ttptycmd(s) char *s;
 		if (netstat > -1) {
 		    debug(F100,"ttptycmd NET_PTY child exited","",0);
 		    net_err++;
+		} else {
+		    /* Child still alive, just nothing to read yet. */
+		    debug(F101,"ttptycmd NET_PTY msleep","",100);
+		    msleep(100);
 		}
 	    } else if (n > 0) {
 		if (n > PTY_TBUF_SIZE - tbuf_avail)
