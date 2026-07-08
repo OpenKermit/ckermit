@@ -1338,6 +1338,15 @@ int ttpty  = 0;                         /* NETPTY: Use pty instead of ttfyd */
 #ifdef NETPTY				/* These are in ckupty.c */
 extern PID_T pty_fork_pid;
 extern int pty_master_fd, pty_slave_fd;
+
+/*
+  pty_fork_pid gets overwritten if ttptycmd() later calls do_pty()
+  to fork a process for an external protocol such as zmodem.  If
+  the connection itself is a pseudoterminal, we need to remember its
+  child's pid separately so ttptycmd() can still notice if it exits.
+*/
+static PID_T net_pty_fork_pid = -1;
+static int net_pty_exitstat = -1;
 #endif	/* NETPTY */
 
 #ifdef NETCMD
@@ -2571,6 +2580,13 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
 		if (x > -1) {
 		    ckstrncpy(ttnmsv,ttname,DEVNAMLEN);
 		    xlocal = *lcl = 1;	/* It's local */
+		    /* Remember this child separately -- do_pty() would otherwise
+		     * overwrite pty_fork_pid if an external
+		     * protocol is later forked via ttptycmd(). */
+		    net_pty_fork_pid = pty_fork_pid;
+		    net_pty_exitstat = -1;
+		    debug(F101,"ttopen net_pty_fork_pid","",
+			  net_pty_fork_pid);
 		} else {
 		    ttpty = 0;
 		    netconn = 0;
@@ -3633,6 +3649,8 @@ ttclos(foo) int foo;
 	wasclosed = 1;
         ttpty = 0;
         ttyfd = -1;
+	net_pty_fork_pid = -1;
+	net_pty_exitstat = -1;
         return(0);
     }
 #endif /* NETPTY */
@@ -14449,6 +14467,52 @@ pty_get_status(fd,pid) int fd; PID_T pid;
     return(status);
 }
 
+/*
+  net_pty_get_status() is similar to pty_get_status() but for the child
+  process behind a NET_PTY connection (net_pty_fork_pid), used by
+  ttptycmd() to notice when that child has exited even though
+  select() keeps claiming ttyfd is readable with nothing to
+  read (observed on Mac pty masters after the slave side closes).
+*/
+static int
+#ifdef CK_ANSIC
+net_pty_get_status( PID_T pid )
+#else
+net_pty_get_status(pid) PID_T pid;
+#endif /* CK_ANSIC */
+{
+    int x, status = -1;
+
+    debug(F101,"net_pty_get_status pid","",pid);
+
+    if (net_pty_exitstat > -1)
+      return(net_pty_exitstat);
+
+    if (pid < 0)
+      return(-1);
+
+    errno = 0;
+    x = waitpid(pid,&status,WNOHANG);
+    debug(F111,"net_pty_get_status waitpid",ckitoa(errno),x);
+    if (x <= 0 && errno == 0) {
+	debug(F101,"net_pty_get_status waitpid return","",-1);
+	return(-1);
+    }
+    if (x > 0) {
+	debug(F101,"net_pty_get_status waitpid status","",status);
+	if (WIFEXITED(status)) {
+	    debug(F100,"net_pty_get_status WIFEXITED","",0);
+	    status = WEXITSTATUS(status);
+	    debug(F101,"net_pty_get_status fork exit status","",status);
+	    net_pty_exitstat = status;
+	} else {
+	    debug(F100,"net_pty_get_status waitpid unexpected status","",0);
+	}
+    }
+    debug(F101,"net_pty_get_status return status","",status);
+    return(status);
+}
+
 /* t t p t y c m d  --  Run command on pty and forward to net */
 
 /*
@@ -14934,6 +14998,21 @@ ttptycmd(s) char *s;
 	    if (n < 0 || ttyfd == -1) {
 		debug(F101,"ttptycmd +++ ttyfd errno","",errno);
 		net_err++;
+	    } else if (n == 0 && ttnet == NET_PTY) {
+		/*
+		  select() said ttyfd was readable but there is nothing
+		  to read.  On at least ARM MacOS, this
+		  keeps happening forever after the child behind a
+		  pseudoterminal connection has exited, because FIONREAD never
+		  reports the resulting EOF.  So, we ask the OS directly
+		  whether that child is still alive so we don't spin forever.
+		*/
+		int netstat = net_pty_get_status(net_pty_fork_pid);
+		debug(F101,"ttptycmd net_pty_get_status","",netstat);
+		if (netstat > -1) {
+		    debug(F100,"ttptycmd NET_PTY child exited","",0);
+		    net_err++;
+		}
 	    } else if (n > 0) {
 		if (n > PTY_TBUF_SIZE - tbuf_avail)
 		  n = PTY_TBUF_SIZE - tbuf_avail;
