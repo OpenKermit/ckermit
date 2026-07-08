@@ -1,3 +1,4 @@
+import errno
 import os
 import threading
 import pytest
@@ -32,7 +33,18 @@ def ftp_server(tmp_path):
 
     ip, port = server.socket.getsockname()
 
-    thread = threading.Thread(target=server.serve_forever)
+    def run_server():
+        try:
+            server.serve_forever()
+        except OSError as e:
+            # On at least NetBSD, close_all() below
+            # closes the kqueue fd from the main thread while this
+            # thread may be blocked inside it, causing EBADF.
+            # This is an expected shutdown race, not a real failure.
+            if e.errno != errno.EBADF:
+                raise
+
+    thread = threading.Thread(target=run_server)
     thread.daemon = True
     thread.start()
 
