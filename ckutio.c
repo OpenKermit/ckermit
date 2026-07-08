@@ -15285,7 +15285,14 @@ ttptycmd(s) char *s;
 	save_sigchld = NULL;
     }
     msleep(500);
-    x = kill(pty_fork_pid,SIGHUP);	/* In case it's still there */
+    /*
+      pty_fork_pid can already be -1 here if end_pty() ran above.  It
+      resets the global once it tears down the child.  kill(-1,...)
+      means to send the signal to every process kermit has permission to
+      signal, which can kill far more than just the kermit-related
+      processes.  This guard ensures we never do that.
+    */
+    x = (pty_fork_pid > 0) ? kill(pty_fork_pid,SIGHUP) : 0;
     pty_fork_pid = -1;
     debug(F101,"ttptycmd fork kill SIGHUP","",x);
     if (pexitstat > -1)
