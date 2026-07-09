@@ -4,7 +4,7 @@ apt-get install python3-pyftpdlib python3-pytest python3-pytest-xdist python3-py
 
 Mac systems need:
 
-brew install openssl@3 check lrzsz
+brew install openssl@3 check lrzsz pkg-config
 pip3 install --break-system-packages pytest pytest-xdist pytest-timeout pyftpdlib
 
 On FreeBSD:
