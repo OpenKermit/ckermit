@@ -1736,16 +1736,6 @@ getptyslave(fd, fc) int * fd, fc;
 #endif /* CRAY */
     }
 
-    /*
-      Software flow should be disabled on a pty.  There is no serial
-      line here for XON/XOFF to manage, and a data stream such as a Zmodem
-      transfer relayed through this pty can legitimately contain
-      XON/XOFF bytes that must pass through untouched.
-      Therefore, always disable XON and XOFF, for both the fc 0 and fc 1
-      cases.
-    */
-    termbuf.c_iflag &= ~(IXON|IXOFF|IXANY);
-
     /* Set the tty modes, and make this our controlling tty. */
     set_termbuf(t);
 
