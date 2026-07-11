@@ -2398,6 +2398,21 @@ doconect(q,async) int q, async;
             }
 #endif /* CK_AUTODL */
 #endif /* IKS_OPTION */
+#ifdef NETCONN
+/*
+  If the autodownload found the connection closed via ttclos(), ttyfd is -1.
+  This might happen when a peer disconnects immediately after
+
+  Calling conect() again in that circumstance conect() performs implicit REOPEN
+  of the connection whenever ttyfd < 0.  For a TCP server, that means silently
+  going back into tcpsrv_open()'s accept() wait for a brand new client that may
+  never arrive, hanging CONNECT.  Only an explicit REDIAL should cause a
+  reopen.  Bail out of the APC loop here like the post-conect() check below
+  does when the connection drops.
+*/
+            if (network && ttchk() < 0)
+              break;
+#endif /* NETCONN */
 #ifndef OS2
             x = conect();               /* Re-CONNECT. */
 #else /* OS2 */
