@@ -9579,3 +9579,12 @@ check: unit-test
 	echo SUCCESS:; ls -log wermit ; else \
 	echo FAILED; \
 	fi
+
+#Regenerate the HELP/INTRO reference doc from a built wermit binary.
+help-reference:
+	@if [ ! -x wermit ]; then \
+		echo "Error: wermit not found. Please build a target first" \
+		     "(e.g., 'make linux+ssl')."; \
+		exit 1; \
+	fi
+	python3 tools/gen_help_reference.py > doc/help-reference.md
