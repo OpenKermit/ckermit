@@ -14583,6 +14583,8 @@ ttptycmd(s) char *s;
     int read_pty_bytes = 0;		/* Stats */
     int write_pty_bytes = 0;		/* Stats */
     int is_tn = 0;			/* TELNET protocol is active */
+    int ttyfd_oflags = -1;		/* Saved ttyfd fcntl flags, if in */
+					/* O_NDELAY mode */
 
     int masterfd = -1;
     int slavefd = -1;
@@ -14607,6 +14609,37 @@ ttptycmd(s) char *s;
     }
     if (!s) s = "";			/* Defense de bogus arguments */
     if (!*s) return(0);
+
+    if (ttnet == NET_PTY) {
+#ifdef O_NDELAY
+/*
+  When running zmodem over a pseudoterminal, the far end
+  blocked for seconds at a time producing nothing,
+  while ttyfd's read side used FIONREAD to determine whether there was
+  data to read.
+
+  When using NET_PTY, ttyfd reads can be non-blocking instead.  We put
+  O_NDELAY on the far end's master fd and restore it after
+  the loop for consistency with the rest of the code.
+  Now, read()'s own return value or EGAIN differentiates data from none
+  in a more conventional and efficient way.
+*/
+	errno = 0;
+	ttyfd_oflags = fcntl(ttyfd,F_GETFL,0);
+	if (ttyfd_oflags > -1) {
+	    x = fcntl(ttyfd,F_SETFL,ttyfd_oflags|O_NDELAY);
+	    ckmakmsg(msgbuf,500,
+		     "ttptycmd set ttyfd O_NDELAY errno=",
+		     ckitoa(errno),
+		     " fcntl=",
+		     ckitoa(x));
+	    debug(F100,msgbuf,"",0);
+	    if (x < 0)
+	      ttyfd_oflags = -1;	/* Didn't take; nothing to restore */
+	}
+#endif /* O_NDELAY */
+    }
+
     pexitstat = -1;			/* Fork process exit status */
 
 #ifdef TNCODE
@@ -14685,12 +14718,7 @@ ttptycmd(s) char *s;
 	close(masterfd);		/* Slave quarters no masters allowed */
 /*
   If a connection to a different pty-based host was already open
-  when we were forked (e.g. "SET HOST /NETWORK-TYPE:PSEUDOTERMINAL"
-  established the peer that this external protocol, such as sz/rz,
-  is supposed to talk to via ttptycmd()'s relay loop in the parent),
-  we inherited that fd too, since nothing upstream marks it
-  close-on-exec.  The external protocol program has no business
-  holding it open, so close it here.
+  when we were forked, we inherited that fd, so close it here.
 */
 	if (ttyfd > 2 && ttyfd != masterfd && ttyfd != slavefd)
 	  close(ttyfd);
@@ -14863,7 +14891,23 @@ ttptycmd(s) char *s;
 	    tv.tv_usec = 0L;
 	    tv2 = &tv;
         } else {
-            tv2 = NULL;
+/*
+  Always enforce a timeout on select().
+
+  Previously in this code, the obvious path was used: an infinite wait was
+  passed to select().  This SHOULD mean select() returns when either fd has
+  something.  But on a pseudoterminal on MacOS, experience had shown that
+  select() will sometimes be falsely quiet when data is available.  This appears
+  to be yet another example of weird bugginess around ptys on MacOS.
+
+  So, we give select() a moderate timeout,  treating its timeout as "poll
+  again", not "give up" (only a caller-requested seconds_to_wait does that,
+  right below).  This can only help if select()'s readiness signal is being
+  missed or delayed, and costs little else.
+*/
+	    tv.tv_sec = 1L;
+	    tv.tv_usec = 0L;
+	    tv2 = &tv;
 	}
 	x = select(nfds, &in, &out, NULL, tv2);
 	debug(F101,"ttptycmd select","",x);
@@ -14875,6 +14919,31 @@ ttptycmd(s) char *s;
 	}
 	if (x == 0) {
 	    debug(F101,"ttptycmd +++ select timeout","",seconds_to_wait);
+	    if (seconds_to_wait <= 0L) {
+/*
+  This case represents our select() timeout, not a caller-requested timeout.
+  (See justification above)
+
+  In this case, we don't give up, but also don't just pointlessly call select()
+  again.  select() clears the fd_sets on a timeout return, so recalculate the
+  same fd_set the top of the loop would have (the conditions haven't changed
+  since then) and fall through to the read/write handling below as though
+  select() had reported them ready.  This is safe even if nothing is really
+  available because every read or write reached from here already has its own
+  timeout or O_NDELAY/EAGAIN handling from other fixes in this function.
+*/
+		FD_ZERO(&in);
+		FD_ZERO(&out);
+		if (have_pty && pbuf_avail < PTY_PBUF_SIZE)
+		  FD_SET(ptyfd, &in);
+		if (have_net && have_pty && tbuf_avail < PTY_TBUF_SIZE)
+		  FD_SET(ttyfd, &in);
+		if (have_pty && tbuf_avail - tbuf_written > 0)
+		  FD_SET(ptyfd, &out);
+		if (have_net && pbuf_avail - pbuf_written > 0)
+		  FD_SET(ttyfd, &out);
+		goto ttptycmd_do_io;
+	    }
 	    if (have_pty) {
 		status = pty_get_status(ptyfd,pty_fork_pid);
 		debug(F101,"ttptycmd pty_get_status A","",status);
@@ -14886,6 +14955,7 @@ ttptycmd(s) char *s;
 	/* We want to handle any pending writes first to make room */
 	/* for new incoming. */
 
+      ttptycmd_do_io:
 	if (FD_ISSET(ttyfd, &out)) {	/* Can write to net? */
 	    CHAR * s;
 	    s = pbuf + pbuf_written;	/* Current spot for sending */
@@ -15002,27 +15072,38 @@ ttptycmd(s) char *s;
 	if (FD_ISSET(ttyfd, &in)) {	/* Can read from net? */
 	    tset++;
 	    debug(F100,"ttptycmd FD_ISSET ttyfd in","",0);
-	    n = in_chk(1,ttyfd);
-	    debug(F101,"ttptycmd in_chk(ttyfd)","",n);
+	    if (ttyfd_oflags > -1) {
+/*
+  ttyfd is non-blocking here per the O_NDELY setup above in the NET_PTY case.
+
+  A read now returns real data, EOF, or EAGAIN immediately, so there is nothing
+  for a FIONREAD-derived count to predict in advance.  Just offer the whole
+  remaining buffer and let the loop below stop on whatever ttinc() itself
+  reports, the same way the ptyfd side already does under PTY_USE_NDELAY.
+*/
+		n = PTY_TBUF_SIZE - tbuf_avail;
+	    } else {
+		n = in_chk(1,ttyfd);
+		debug(F101,"ttptycmd in_chk(ttyfd)","",n);
+	    }
 	    if (n < 0 || ttyfd == -1) {
 		debug(F101,"ttptycmd +++ ttyfd errno","",errno);
 		net_err++;
 	    } else {
-		/*
-		  select() has already established that ttyfd will
-		  yield a byte, or EOF, without blocking.  in_chk()'s
-		  FIONREAD count is only a sizing hint.  On at least ARM
-		  MacOS, it can come back 0 even though select() is
-		  right and there is real data (or EOF) waiting.
-		  ttinc() via myfillbuf() already falls back to
-		  reading exactly one byte whenever FIONREAD reports
-		  nothing, which is exactly what select() guarantees is
-		  safe here, so 0 is not treated as "nothing to read."
-		*/
-		if (n == 0)
-		  n = 1;
-		if (n > PTY_TBUF_SIZE - tbuf_avail)
-		  n = PTY_TBUF_SIZE - tbuf_avail;
+		if (ttyfd_oflags == -1) {
+/*
+  select() indicated that ttyfd will yield a byte or EOF without blocking.
+  in_chk()'s FIONREAD count is only a sizing hint.  On at macOS, it can come
+  back 0 even though select() is right and there is real data or EOF waiting.
+  If we did nothing here, that byte would never get drained and select() would
+  keep reporting the same "ready" state, leading to a spin.  Treat 0 as 1, since
+  select() already guarantees that much is safe.
+*/
+		    if (n == 0)
+		      n = 1;
+		    if (n > PTY_TBUF_SIZE - tbuf_avail)
+		      n = PTY_TBUF_SIZE - tbuf_avail;
+		}
 		debug(F101,"ttptycmd net read size adjusted","",n);
 		if (ttyfd_oflags > -1) {
 /*
@@ -15061,7 +15142,42 @@ ttptycmd(s) char *s;
 		    CHAR * p;
 		    p = tbuf + tbuf_avail;
 		    for (x = 0; x < n; x++) {
-			if ((c = ttinc(0)) < 0)
+			if (ttnet == NET_PTY) {
+/*
+  n came from in_chk()'s FIONREAD count, which on MacOS ptys is not reliable.
+  Re-check availability before every byte instead of trusting the original
+  FIONREAD for the whole loop, so an optimistic count makes us stop early rather
+  than hang.  The in_chk() call is fairly cheap in isolation.
+
+  Skip this check for the very first byte when x is 0 (see next comment).
+  Rechecking would reintroduce the busy spin.
+
+  Gated to NET_PTY specifically; this whole branch of code only runs when
+  ttyfd_oflags == -1, which doesn't itself distinguish a pty without O_NDELAY
+  from a plain TCP socket.  FIONREAD on a real TCP socket is not subject to the
+  same macOS pty lying bug, so the original n is trustworthy for the whole loop
+  there.  Testing  during a 20MB TCP Zmodem transfer confirmed the cost of
+  getting this wrong: 65% of all sampled time was inside this ioctl(), called
+  once per byte instead of once per read.
+
+*/
+			    if (x > 0 && in_chk(1,ttyfd) <= 0)
+			      break;
+			}
+/*
+  Even byte x==0, "guaranteed safe" by select() above, is not actually safe to
+  read with an unbounded ttinc(0): the same FIONREAD unreliability responsible
+  for everything else in this file also lets a read() block forever right after
+  a readiness check said data was available.
+
+  ttinc(), unlike the read() myfillbuf() would otherwise do, already supports a
+  bounded, alarm-based timeout, but passing 0 asks for an untimed (i.e.
+  unbounded) read.  Give it a short one instead.  On timeout ttinc() returns <
+  0, which the existing "break" here already treats as "stop and go back to
+  select()", which is the fallback we need.  When ttyfd is non-blocking, this
+  timeout is harmless with no change in behavior.
+*/
+			if ((c = ttinc(2)) < 0)
 			  break;
 			if (!is_tn) {	/* Not Telnet - keep all bytes */
 			    *p++ = (CHAR)c;
@@ -15161,12 +15277,59 @@ ttptycmd(s) char *s;
 
 	    if (n < 0)
 	      n = 0;
-	    if (n > 0) {
+	    {
+		int x_was_eagain = 0;
+/*
+  Same reasoning as the ttyfd side above: select() already established that
+  ptyfd will yield data or EOF without blocking.  pty_chk()'s FIONREAD count is
+  only a hint and can falsely be 0 on MacOS.  Treat 0 as 1 rather than skip the
+  read entirely, or a persistently-optimistic FIONREAD leaves this byte
+  undrained forever: a busy spin, not a hang.
+*/
+		if (n == 0)
+		  n = 1;
 		if (n > PTY_PBUF_SIZE - pbuf_avail)
 		  n = PTY_PBUF_SIZE - pbuf_avail;
 		debug(F101,"ttptycmd pty read size adjusted","",n);
 		errno = 0;
+#ifdef PTY_USE_NDELAY
+/*
+  ptyfd has been O_NDELAY since the top of this function.  The alarm and
+  sigsetjmp wrap right below exists for the one case that guarantee doesn't
+  cover: platforms where PTY_USE_NDELAY isn't defined at all, making ptyfd
+  blocking.
+
+  So, skip the expensive signal/alarm setup and teardown when we won't need it.
+*/
 		x = read(ptyfd,pbuf+pbuf_avail,n);
+#else
+/*
+  As before, read() may still block forever despite pty_chk() saying ptyfd has
+  data available.  Unlike ttyfd's reads, this one does not go through ttinc(),
+  so there is no existing timeout plumbing.  So, we use the same alarm
+  ttinc()/ttinl() uses elsewhere in this file.  On timeout, treat it exactly
+  like a 0-byte, non-error read, falling through to the "nothing to
+  add here currently" handling below rather than being fatal.
+*/
+		{
+		    int oldalarm;
+		    saval = signal(SIGALRM,timerh);
+		    oldalarm = alarm(2);
+		    if (
+#ifdef CK_POSIX_SIG
+			sigsetjmp(sjbuf,1)
+#else
+			setjmp(sjbuf)
+#endif /* CK_POSIX_SIG */
+			) {
+			x = 0;
+		    } else {
+			x = read(ptyfd,pbuf+pbuf_avail,n);
+		    }
+		    ttimoff();
+		    if (oldalarm > 0) alarm(oldalarm);
+		}
+#endif /* PTY_USE_NDELAY */
 #ifdef DEBUG
 		if (deblog) {
 		    ckmakmsg(msgbuf,500,
@@ -15195,7 +15358,7 @@ ttptycmd(s) char *s;
 		}
 		if (x == 0 && !pty_err && !x_was_eagain) {
 /*
-  This whole check a read returning 0 (EOF).
+  This check is for a read returning 0 (EOF).
 
   With PTY_USE_NDELAY, that is the one case left where "nothing happened"
   might still mean "the child exited," so it is still worth confirming
@@ -15240,10 +15403,6 @@ ttptycmd(s) char *s;
 		}
 		pbuf_avail += x;
 		read_pty_bytes += x;
-	    } else {			/* n == 0 with blocking reads */
-		debug(F100,
-		      "PTY READ RETURNED ZERO BYTES - SHOULD NOT HAPPEN",
-		      "",0);
 	    }
 	} else
 	  pnotset++;
@@ -15296,6 +15455,12 @@ ttptycmd(s) char *s;
 	    }
 	}
     }
+#ifdef O_NDELAY
+    if (ttyfd_oflags > -1) {		/* Restore ttyfd's original mode: */
+	fcntl(ttyfd,F_SETFL,ttyfd_oflags); /* it's shared with the rest of */
+	ttyfd_oflags = -1;		/* this program once we return.   */
+    }
+#endif /* O_NDELAY */
     debug(F101,"ttptycmd +++ have_pty","",have_pty);
     if (have_pty) {			/* In case select() failed */
 #ifdef USE_CKUPTY_C
