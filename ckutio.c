@@ -14906,12 +14906,47 @@ ttptycmd(s) char *s;
 	      x = pbuf_avail - pbuf_written; /* How much to send */
 
 	    debug(F101,"ttptycmd bytes to send","",x);
-	    x = ttol(s, x);
-	    debug(F101,">>> ttol","",x);
-	    if (x < 0) {
-		net_err++;
-		debug(F111,"ttptycmd ttol error",ckitoa(x),errno);
-		x = 0;
+	    if (ttyfd_oflags > -1) {
+/*
+  ttyfd is non-blocking with NET_PTY. ttol() is written for a blocking fd.
+  When write() returns short, its partial success path (marked "This never
+  happens") sleeps 10ms and retries in place, up to TTOLMAXT
+  times, before either fully succeeding or giving up and returning
+  -1, discarding whatever partial progress it made.
+
+  On a non-blocking pty whose kernel buffer is far smaller than the chunk
+  offered, a short write is the ordinary case, not a rare one.
+
+  Bypass ttol() and write() directly instead, exactly like the
+  ptyfd side already does a few lines below.  Take write()'s return value
+  and let the pbuf_written bookkeeping and this loop's own select() retry
+  handle the remainder, with no sleep.
+
+  This significantly reduces CPU usage.
+*/
+		errno = 0;
+		x = write(ttyfd, s, x);
+		debug(F111,"ttptycmd ttyfd write",ckitoa(errno),x);
+		if (x < 0) {
+		    if (errno != EAGAIN
+#ifdef EWOULDBLOCK
+			&& errno != EWOULDBLOCK
+#endif /* EWOULDBLOCK */
+			) {
+			net_err++;
+			debug(F111,"ttptycmd ttyfd write error",
+			      ckitoa(x),errno);
+		    }
+		    x = 0;
+		}
+	    } else {
+		x = ttol(s, x);
+		debug(F101,">>> ttol","",x);
+		if (x < 0) {
+		    net_err++;
+		    debug(F111,"ttptycmd ttol error",ckitoa(x),errno);
+		    x = 0;
+		}
 	    }
 	    write_net_bytes += x;
 /*
@@ -14967,7 +15002,35 @@ ttptycmd(s) char *s;
 		if (n > PTY_TBUF_SIZE - tbuf_avail)
 		  n = PTY_TBUF_SIZE - tbuf_avail;
 		debug(F101,"ttptycmd net read size adjusted","",n);
-		if (xlocal && netconn) {
+		if (ttyfd_oflags > -1) {
+/*
+  We're in NET_PTY, so is_tn is unconditionally false here (IS_TELNET()
+  requires nettype to be NET_TCPB) and CK_ENCRYPTION's
+  TELOPT_ME(TELOPT_ENCRYPTION) is a Telnet option, lso
+  inapplicable.  Neither of the byte loop's two reasons for existing
+  (telnet IAC handling and on-the-fly decryption) can ever matter for this
+  connection type.
+
+  So, skip the loop and its per-byte ttinc() call.  For both of them,
+  even when data is already sitting there, they do a costly alarm
+  setup and teardown.  The ptyfd side already skips them, so this can too.
+
+ EAGAIN just means nothing more is available yet.
+*/
+		    errno = 0;
+		    x = read(ttyfd, tbuf+tbuf_avail, n);
+		    debug(F111,"ttptycmd ttyfd bulk read",ckitoa(errno),x);
+		    if (x < 0) {
+			if (errno == EAGAIN
+#ifdef EWOULDBLOCK
+			    || errno == EWOULDBLOCK
+#endif /* EWOULDBLOCK */
+			    )
+			  x = 0;
+			else
+			  debug(F101,"ttptycmd read net error","",x);
+		    }
+		} else if (xlocal && netconn) {
 		    /*
 		      We have to use a byte loop here because ttxin()
 		      does not decrypt or, for that matter, handle Telnet.
@@ -15093,7 +15156,8 @@ ttptycmd(s) char *s;
 		}
 #endif	/* DEBUG */
 
-		if (x < 0 && errno == EAGAIN)
+		x_was_eagain = (x < 0 && errno == EAGAIN);
+		if (x_was_eagain)
 		  x = 0;
 
 		if (x < 0) {		/* This works on Solaris and Linux */
@@ -15107,7 +15171,21 @@ ttptycmd(s) char *s;
 		    have_pty = 0;
 		    x = 0;
 		}
-		if (x == 0 && !pty_err) { /* This works on NetBSD but */
+		if (x == 0 && !pty_err && !x_was_eagain) {
+/*
+  This whole check a read returning 0 (EOF).
+
+  With PTY_USE_NDELAY, that is the one case left where "nothing happened"
+  might still mean "the child exited," so it is still worth confirming
+  via pty_get_status().
+
+  When read() returns 0 and we see EAGAIN, we need
+  none of this.  That's just what happens for a nonblocking read when there's
+  nothing to read yet, not a sign of an error.
+
+  Treating it otherwise meant an unconditional 100ms sleep ("Select() lied"),
+  a performance drain.
+*/
 		    debug(F100,"TERMINATION TEST B","",0);
 		    status = pexitstat > -1 ? pexitstat :
 			pty_get_status(ptyfd,pty_fork_pid);
