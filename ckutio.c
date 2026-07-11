@@ -8501,7 +8501,23 @@ mygetbuf() {
 	my_item = -1;
 	debug(F101,"mygetbuf errno","",errno);
 #ifdef TCPSOCKET
-	if (netconn && ttnet == NET_TCPB && errno != 0) {
+	if (netconn && ttnet == NET_TCPB) {
+/*
+  A myfillbuf() failure here means its read() returned 0 (EOF)
+  or <0 (error).
+
+  Both mean this TCP connection is dead, so both should close it.
+
+  Before this fix, the surrounding condition also required errno to
+  be nonzero, which holds for a real error but not for EOF
+  (a successful read() returning 0 does not set errno).  So, a
+  half-close was never detected here, ttyfd was left open, and
+  ttptycmd()'s relay loop kept re-entering this same dead end:
+  select() correctly (if uselessly) keeps reporting an EOF'd socket
+  as "ready," so the loop busy-spun rechecking it, sometimes
+  for dozens of seconds, until something else noticed the
+  connection was gone.
+*/
 	    if (errno != EINTR) {
 		debug(F101,"mygetbuf TCP error","",errno);
 		ttclos(0);		/* Close the connection. */
