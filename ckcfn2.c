@@ -261,6 +261,23 @@ CHAR ksbuf[96] = { NUL, NUL };		/* Autodownload "Kermit Start" buf */
 
 int numerrs = 0;			/* Number of packet errors so far */
 int rcvtimo = 0;			/* Timeout for receiving a packet */
+#ifdef STREAMING
+/*
+  Set by input() around its speculative "is an ACK already here?"
+  rpack() call during streaming (see the ttchk() check below), and
+  checked by rpack()'s own "JUST IN CASE" logic so that one call can
+  use a short, bounded rcvtimo instead of having it forced to 0
+  (meaning no alarm at all, wait forever as in ttinl()) just because
+  we're streaming.  That speculative call shouldn't block.
+
+  ttchk()'s byte count is only a hint.  It uses FIONREAD,
+  which has shown itself unreliable on at least MacOS pty masters.
+  If the hint was wrong, the correct fallback is the
+  same "assume success" default that streaming already uses when
+  ttchk() reports little or nothing.  Otherwise, we get a hang.
+*/
+int rpack_quick_check = 0;
+#endif /* STREAMING */
 int idletmo = 0;			/* Flag for idle timeout */
 
 long filcps = 0L;			/* CPS most recent file transferred */
@@ -746,8 +763,24 @@ input() {
 		    type = 'Y';		/* Assume all is normal */
 		    if (chkint() < 0)	/* Check for console interrupts. */
 		      type = 'z';
-		    else if (ttchk() > 4 + bctu) /* Check for return traffic */
-		      type = rpack();
+		    else if (ttchk() > 4 + bctu) { /* Check for return traffic */
+/*
+  ttchk() said bytes are waiting, but that count comes from FIONREAD,
+  which is not reliable enough to use when blocking may occur.
+  If ttchk() was wrong and nothing is really there yet, that
+  blocks this speculative check forever instead of just falling through to
+  the "assume all is normal" default above.  So, give it a short, bounded
+  wait, and treat the timeout the same as if ttchk() had reported nothing.
+*/
+			int saved_rcvtimo = rcvtimo;
+			rcvtimo = 2;
+			rpack_quick_check = 1;
+			type = rpack();
+			rpack_quick_check = 0;
+			rcvtimo = saved_rcvtimo;
+			if (type == 'T')
+			  type = 'Y';
+		    }
 		    debug(F000,"input streaming type","",type);
 		}
 #endif /* STREAMING */
@@ -2765,7 +2798,11 @@ rpack() {
 #ifdef STREAMING
 	     || streaming
 #endif /* STREAMING */
-	     ) && (rcvtimo != 0)) {
+	     ) && (rcvtimo != 0)
+#ifdef STREAMING
+	     && !rpack_quick_check
+#endif /* STREAMING */
+	     ) {
 	    debug(F101,"rpack timint 0 || streaming but rcvtimo","",rcvtimo);
 	    rcvtimo = 0;
 	}
