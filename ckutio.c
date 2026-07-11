@@ -14607,26 +14607,6 @@ ttptycmd(s) char *s;
     }
     if (!s) s = "";			/* Defense de bogus arguments */
     if (!*s) return(0);
-
-    if (ttnet == NET_PTY) {
-	/*
-	  The far end of a NET_PTY connection is left in cooked, echoing
-	  mode by do_pty() and getptyslave() (fc==0) so a simulated interactive
-	  host behaves like a real terminal.  But this function's entire
-	  purpose is to run a protocol over the connection, and a binary
-	  protocol stream may not contain the newline that
-	  canonical mode requires before it will hand buffered input to the
-	  reading process, so the far end child could block in read() forever.
-	  Put the far end in the same raw mode already used for the pty
-	  this function forks locally (fc==1).
-	*/
-	debug(F100,"ttptycmd NET_PTY far end raw mode","",0);
-#ifndef SOLARIS
-	/* "ioctl inappropriate on device" for pty master on Solaris */
-	pty_make_raw(ttyfd);
-#endif /* SOLARIS */
-    }
-
     pexitstat = -1;			/* Fork process exit status */
 
 #ifdef TNCODE
