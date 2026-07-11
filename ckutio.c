@@ -14683,6 +14683,17 @@ ttptycmd(s) char *s;
 	int x;
 	debug(F101,"ttptycmd new fork pid","",getpid());
 	close(masterfd);		/* Slave quarters no masters allowed */
+/*
+  If a connection to a different pty-based host was already open
+  when we were forked (e.g. "SET HOST /NETWORK-TYPE:PSEUDOTERMINAL"
+  established the peer that this external protocol, such as sz/rz,
+  is supposed to talk to via ttptycmd()'s relay loop in the parent),
+  we inherited that fd too, since nothing upstream marks it
+  close-on-exec.  The external protocol program has no business
+  holding it open, so close it here.
+*/
+	if (ttyfd > 2 && ttyfd != masterfd && ttyfd != slavefd)
+	  close(ttyfd);
 	x = setsid();
 	debug(F101,"ttptycmd new fork setsid","",x);
 	if (x == -1) {
@@ -14949,13 +14960,24 @@ ttptycmd(s) char *s;
 		}
 	    }
 	    write_net_bytes += x;
+	    if (is_tn) {
 /*
   13 October 2021: Bug fix by Ao Huang (Oscar).  pbuf_written is the position
   in the source string.  But x is the number of bytes written to the
   destination string, which is not the same if there was any byte stuffing,
   e.g. doubling of IACs.  The error caused the next source byte to be skipped.
 */
-	    pbuf_written += pbuf_avail - pbuf_written;
+		pbuf_written += pbuf_avail - pbuf_written;
+	    } else {
+/*
+  No byte stuffing here, so x (ttol()'s return, already forced to 0 on
+  error above) is directly the number of source bytes it confirmed
+  sending.  Advance by that instead of by the whole pending chunk, so
+  a short or failed ttol() retries the undelivered remainder on a
+  later pass instead of silently dropping it.
+*/
+		pbuf_written += x;
+	    }
 	}
 	if (FD_ISSET(ptyfd, &out)) {	/* Can write to pty? */
 	    debug(F100,"ttptycmd FD_ISSET ptyfd out","",0);
