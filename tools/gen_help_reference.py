@@ -294,7 +294,7 @@ def render_markdown(records_by_table, texts):
 def main():
     if not WERMIT.exists():
         sys.exit(
-            "wermit binary not found at %s; run 'make linux+ssl' first"
+            "wermit binary not found at %s; run make first"
             % WERMIT
         )
 
