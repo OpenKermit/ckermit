@@ -2938,6 +2938,7 @@ setword(n,s,len) int n; char * s; int len;
     }
     if (wordsize[n] < len /* || !wordarray[n] */ ) {
 	k = (len < 16) ? 16 : len + (len / 4);
+	if (wordarray[n]) free(wordarray[n]); /* Growing; drop old buffer */
 	wordarray[n] = (char *) malloc(k+1);
 	wordsize[n] = (wordarray[n]) ? k : 0;
 	if (wordarray[n]) {

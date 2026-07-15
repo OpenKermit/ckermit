@@ -1561,6 +1561,14 @@ cmdini() {
             topxarg = NULL;
         }
         a_dim[0] = topargc - 1;
+/*
+  dclarray() above allocated and stored its own array buffer in
+  a_ptr[0], but \&@[] elements are actually served out of the macro
+  table (via the addmac() calls above), never out of that buffer.
+  Free it here instead of leaking it, before replacing it with
+  topxarg.
+*/
+        free((char *)a_ptr[0]);
         a_ptr[0] = topxarg;
 	debug(F111,"a_dim[0]","A",a_dim[0]);
     }

@@ -6127,6 +6127,8 @@ xdohttp(action, lfile, rf, dfile, agent, hdr, user, pass, mime, array, type)
       default:
         rc = -1;
     }
+    for (i = 0; i < HTTP_MAXHDR; i++)   /* makelist() malloc'd these */
+      if (hdrlist[i]) free(hdrlist[i]);
     return(rc == 0 ? 1 : 0);	        /* Success is set by caller */
 }
 #endif /* TCPSOCKET */

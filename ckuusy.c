@@ -459,6 +459,7 @@ urlparse(s,url) char *s; struct urldata * url;
         free(urlbuf);
 	return(url->svc ? 1 : 0);
     }
+    free(urlbuf);
     return(0);
 }
 #endif /* CK_URL */
