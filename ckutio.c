@@ -14787,15 +14787,6 @@ ttptycmd(s) char *s;
 	      ttyfd_oflags = -1;	/* Didn't take; nothing to restore */
 	}
 #endif /* O_NDELAY */
-/*
-  ttyfd's far end starts out in cooked, echoing mode (see proto()'s
-  switch for the full rationale).  Switch to raw for the external
-  protocol.
-*/
-#ifndef SOLARIS
-	pty_save_mode(ttyfd);
-	pty_make_raw(ttyfd);
-#endif /* SOLARIS */
     }
 
     pexitstat = -1;			/* Fork process exit status */
@@ -15641,11 +15632,6 @@ ttptycmd(s) char *s;
 	ttyfd_oflags = -1;		/* this program once we return.   */
     }
 #endif /* O_NDELAY */
-    if (ttnet == NET_PTY) {		/* Undo the raw-mode switch above: */
-#ifndef SOLARIS			/* control is about to go back to,  */
-	pty_restore_mode(ttyfd);	/* e.g., the interactive shell that */
-#endif /* SOLARIS */			/* this protocol was launched from. */
-    }
     debug(F101,"ttptycmd +++ have_pty","",have_pty);
     if (have_pty) {			/* In case select() failed */
 #ifdef USE_CKUPTY_C
