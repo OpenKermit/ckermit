@@ -2917,28 +2917,6 @@ proto() {
 
     myjob = sstate;
 
-    /*
-      A NET_PTY connection's far end starts out in cooked, echoing mode so
-      something interactivebehaves like a real terminal.  proto() is about to
-      run the Kermit packet protocol over it now.  It'll be a binary stream with
-      no relation to line- oriented terminal I/O.  Left in cooked mode, echo
-      would loop everything this side writes back into its own read stream, and
-      canonical mode's line buffering (with a packet's terminating CR mapped to
-      NL) caps how much of one packet the far end's kernel will deliver before
-      the next read(), silently truncating any packet longer than that cap.
-      Switch to raw mode now, once it is known the connection is actually being
-      used for the protocol, rather than at connection-open time when it might
-      still be used interactively.
-    */
-    if (ttnet == NET_PTY) {
-	extern int ttyfd;
-	debug(F100,"proto() NET_PTY raw mode","",0);
-#ifndef SOLARIS
-	pty_save_mode(ttyfd);		/* So proto()'s cleanup below */
-	pty_make_raw(ttyfd);		/* can put it back. */
-#endif /* SOLARIS */
-    }
-
 #ifdef CK_LOGIN
     if (isguest) {			/* If user is anonymous */
 	en_pri = 0;			/* disable printing */
@@ -3061,16 +3039,6 @@ proto() {
 #endif /* IKS_OPTION */
     xferstat = success;			/* Remember transfer status */
     kactive = 0;
-
-    /*
-      Undo the raw mode switch made above.
-    */
-    if (ttnet == NET_PTY) {
-	extern int ttyfd;
-#ifndef SOLARIS
-	pty_restore_mode(ttyfd);
-#endif /* SOLARIS */
-    }
 
 #ifdef TNCODE
 #ifdef CK_ENCRYPTION
