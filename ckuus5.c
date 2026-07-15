@@ -1277,8 +1277,6 @@ cmdini() {
     if ( 1 ) {
         int i = 0;
         int k = 0;
-        int x = 0;
-        int n = sizeof spdtab + 2;
         int maxspeedlen = 20;
 
 #ifdef COMMENT
@@ -1298,7 +1296,7 @@ cmdini() {
 #endif /* COMMENT */
 
         for (i = 0; i < nspd; i++) {    /* Allocate string storage */
-            speeds[i] = malloc(n+2);
+            speeds[i] = malloc(maxspeedlen+2);
             tmp[i].kwd = malloc(maxspeedlen+2);
         }
         for (i = 0; i < nspd; i++) {    /* Copy speeds into a sortable array */
@@ -1312,7 +1310,7 @@ cmdini() {
         for (i = 0; i < nspd; i++) {     /* i = index to sorted speeds */
             for (k = 0; k < nspd; k++) { /* k = index to original list */
                 if (!strcmp(spdtab[k].kwd, speeds[i])) {
-                    ckstrncpy(tmp[i].kwd,spdtab[k].kwd,n);
+                    ckstrncpy(tmp[i].kwd,spdtab[k].kwd,maxspeedlen);
                     tmp[i].flgs = spdtab[k].flgs;
                     tmp[i].kwval = spdtab[k].kwval;
                     break;
@@ -1320,11 +1318,21 @@ cmdini() {
             }
         }
         for (i = 0; i < nspd; i++) {
-            ckstrncpy(spdtab[i].kwd, tmp[i].kwd,n);
+/*
+  spdtab[i].kwd, at this point, is still whatever the ttspdlist loop
+  above allocated: a buffer sized to fit only that one entry's own
+  string, not maxspeedlen.  Copying tmp[i].kwd into it with
+  ckstrncpy(...,maxspeedlen) overran that smaller allocation.  Take
+  over tmp[i].kwd's own, correctly-sized buffer instead.
+*/
+            free(spdtab[i].kwd);
+            spdtab[i].kwd = tmp[i].kwd;
             spdtab[i].flgs = tmp[i].flgs;
             spdtab[i].kwval = tmp[i].kwval;
         }
         free(tmp);
+        for (i = 0; i < nspd; i++)
+          free(speeds[i]);
         free(speeds);
     }
 #endif /* NOSORTSPEEDS */
