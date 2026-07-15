@@ -10970,7 +10970,12 @@ http_get_chunk_len()
   reach the read loops below.
 */
 static int
-http_content_length(s) char *s; {
+#ifdef CK_ANSIC
+http_content_length(char *s)
+#else
+http_content_length(s) char *s;
+#endif /* CK_ANSIC */
+{
     long val;
     char *ep;
 
@@ -14677,7 +14682,19 @@ fwdx_create_listen_socket(screen) int screen;
         bzero((char *)&saddr, sizeof(saddr));
         saddr.sin_family = AF_INET;
         saddr.sin_addr.s_addr = inet_addr(myipaddr);
-        if (saddr.sin_addr.s_addr == (unsigned long) -1
+
+        /* 2022-12-05  SMS.  64-bit "long" miscompares with 32-bit
+         * "in_addr_t".  Any system new enough to have a 64-bit
+         * "long" should define __LP64__, so ADDR_TYPE tracks that
+         * to keep the comparison the same width as s_addr.
+         */
+#ifdef __LP64__
+#define ADDR_TYPE unsigned int
+#else /* def __LP64__ */
+#define ADDR_TYPE unsigned long
+#endif /* def __LP64__ [else] */
+
+        if (saddr.sin_addr.s_addr == (ADDR_TYPE) -1
 #ifdef INADDR_NONE
             || saddr.sin_addr.s_addr == INADDR_NONE
 #endif /* INADDR_NONE */
@@ -14838,19 +14855,6 @@ fwdx_open_client_channel(channel) int channel;
 
         debug(F110,"fwdx_create_client_channel() ip-address",buf,0);
         saddr.sin_addr.s_addr = inet_addr(buf);
-
-        /* 2022-12-05  SMS.  64-bit "long" miscompares with 32-bit
-         * "in_addr_t".  (Why use "(unsigned long) -1" if INADDR_NONE
-         * _is_ available?  Note, too, use of "(unsigned int) -1L",
-         * above.)  In any case, any system new enough to have a 64-bit
-         * "long" should define __LP64__, so we can avoid the problem
-         * with minimal disturbance to existing (gooofy?) code.
-         */
-#ifdef __LP64__
-#define ADDR_TYPE unsigned int
-#else /* def __LP64__ */
-#define ADDR_TYPE unsigned long
-#endif /* def __LP64__ [else] */
 
         if ( saddr.sin_addr.s_addr == (ADDR_TYPE) -1
 #ifdef INADDR_NONE
