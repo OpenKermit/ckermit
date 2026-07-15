@@ -8719,7 +8719,55 @@ myfillbuf() {
 #endif /* HAVE_PTYTRAP */
 #endif /* NETPTY */
     debug(F101,"myfillbuf calling read() fd","",ttyfd);
+/*
+  ttinl()'s SIGALRM timeout handler (timerh()) calls siglongjmp() whenever the
+  alarm fires.  If it fires while waiting for input, that's fine.  But it could
+  fire after read() has already put data into mybuf, but before mygetbuf()
+  stores the count.  If this happens, that data is lost and ttinl() reports a
+  timeout even though data was read.  Observed under a heavily loaded NetBSD
+  system.
+
+  Letting the alarm interrupt select() is safe and preserves the existing
+  timeout behavior for a connection that truly has nothing to send.  Only once
+  select() confirms data is waiting is SIGALRM blocked, for just the bounded
+  interval it takes to read that data and store the count, so the alarm can no
+  longer land in the middle of it.  If it fired while blocked, it is simply
+  delivered right after unblocking, and ttinl() still times out on its next
+  pass, but the data already read stays in mybuf for that pass to use instead
+  of being silently lost.
+*/
+#ifdef SELECT
+    {
+        fd_set rfd;
+        FD_ZERO(&rfd);
+        FD_SET(fd, &rfd);
+        if (select(fd + 1, &rfd, NULL, NULL, NULL) < 0)
+          return(-3);
+    }
+#endif /* SELECT */
+#ifdef CK_POSIX_SIG
+    {
+/*
+  The mask also has to cover storing the result in my_count, not just the
+  read() call itself.  The only caller, mygetbuf(), "my_count = myfillbuf();".
+  If the alarm is still deferred at the point read() returns below, unmasking
+  it right after storing my_count here, rather than leaving it blocked across
+  that return-and-assign gap, closes the race.  It makes the pending signal
+  fire before mygetbuf() ever gets a chance to run unmasked.  mygetbuf()'s
+  assignment from the return value then just repeats the same value
+  redundantly.
+*/
+        sigset_t nset, oset;
+        sigemptyset(&nset);
+        sigaddset(&nset, SIGALRM);
+        sigprocmask(SIG_BLOCK, &nset, &oset);
+        n = read(fd, mybuf, sizeof(mybuf));
+        my_count = n;
+        sigprocmask(SIG_SETMASK, &oset, NULL);
+    }
+#else /* CK_POSIX_SIG */
     n = read(fd, mybuf, sizeof(mybuf));
+#endif /* CK_POSIX_SIG */
     debug(F101,"SVORPOSIX myfillbuf read","",n);
     debug(F101,"SVORPOSIX myfillbuf errno","",errno);
     debug(F101,"SVORPOSIX myfillbuf ttcarr","",ttcarr);
