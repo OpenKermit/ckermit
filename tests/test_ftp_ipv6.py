@@ -4,6 +4,7 @@ These mirror test_ftp.py's upload/download coverage
 but connect over ::1, exercising both active (EPRT) and passive
 (EPSV) data connections.
 """
+import errno
 import socket
 import threading
 import pytest
@@ -53,7 +54,15 @@ def ftp_server_v6(run_wermit, tmp_path):
     ip, port, flowinfo, scopeid = server.socket.getsockname()
 
     def run_server():
-        server.serve_forever()
+        try:
+            server.serve_forever()
+        except OSError as e:
+            # close_all() below can close the kqueue/select fd from
+            # the main thread while this thread is blocked inside
+            # it, causing EBADF. This is an expected shutdown race,
+            # not a real failure.
+            if e.errno != errno.EBADF:
+                raise
 
     thread = threading.Thread(target=run_server)
     thread.daemon = True
