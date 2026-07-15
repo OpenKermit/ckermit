@@ -14427,6 +14427,74 @@ pty_make_raw(fd) int fd;
 #endif /* __NetBSD__ */
 }
 
+/*
+  P T Y _ S A V E _ M O D E,  P T Y _ R E S T O R E _ M O D E
+
+  A NET_PTY connection's far end can be used interactively before and after a Kermit
+  file transfer runs over that same connection. proto() calls
+  pty_make_raw() to switch the connection to raw mode only for the
+  duration of the transfer.  These two functions let it save whatever
+  mode was in effect first and restore it afterward.
+
+  Only one save slot exists, matching proto()'s one save/restore pair
+  around a single connection's transfer.
+*/
+#ifdef BSD44ORPOSIX
+static struct termios pty_saved_tp;
+#else
+#ifdef ATTSV
+static struct termio pty_saved_tp;
+#else
+static struct sgttyb pty_saved_tp;
+#endif /* ATTSV */
+#endif /* BSD44ORPOSIX */
+static int pty_saved_valid = 0;
+
+VOID
+#ifdef CK_ANSIC
+pty_save_mode( int fd )
+#else
+pty_save_mode(fd) int fd;
+#endif /* CK_ANSIC */
+{
+    int x = -1;
+
+    errno = 0;
+#ifdef BSD44ORPOSIX
+    x = tcgetattr(fd,&pty_saved_tp);
+#else
+#ifdef ATTSV
+    x = ioctl(fd,TCGETA,&pty_saved_tp);
+#else
+    x = gtty(fd,&pty_saved_tp);
+#endif /* ATTSV */
+#endif /* BSD44ORPOSIX */
+    pty_saved_valid = (x > -1);
+    debug(F111,"pty_save_mode","",pty_saved_valid);
+}
+
+VOID
+#ifdef CK_ANSIC
+pty_restore_mode( int fd )
+#else
+pty_restore_mode(fd) int fd;
+#endif /* CK_ANSIC */
+{
+    if (!pty_saved_valid)
+      return;
+    errno = 0;
+#ifdef BSD44ORPOSIX
+    (VOID) tcsetattr(fd,TCSANOW,&pty_saved_tp);
+#else
+#ifdef ATTSV
+    (VOID) ioctl(fd,TCSETA,&pty_saved_tp);
+#else
+    (VOID) stty(fd,&pty_saved_tp);
+#endif /* ATTSV */
+#endif /* BSD44ORPOSIX */
+    debug(F101,"pty_restore_mode errno","",errno);
+}
+
 static int
 #ifdef CK_ANSIC
 pty_chk( int fd )

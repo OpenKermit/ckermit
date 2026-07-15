@@ -517,6 +517,8 @@ void prescan( int );
 void prolog( FILE * );
 void prompt( xx_strp );
 void pty_make_raw( int );
+void pty_restore_mode( int );
+void pty_save_mode( int );
 void rdcmnt( FILE * );
 void rdebu( CHAR *, int );
 void rdstates( FILE *, FILE * );
