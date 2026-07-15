@@ -142,6 +142,15 @@ jobs:
             # FreeBSD comment above.
             ln -sf /usr/pkg/bin/lrz /usr/pkg/bin/rz
             ln -sf /usr/pkg/bin/lsz /usr/pkg/bin/sz
+            # NetBSD's default pty queue (kern.tty.qsize, 1024 bytes) is
+            # too small for the large writes the test suite's jumbo-packet
+            # transfers do over a pty loopback. When the reader falls
+            # behind under load, the kernel can silently drop a handful of
+            # bytes from a write larger than the queue instead of properly
+            # blocking or returning a short count, corrupting or hanging
+            # transfers with no error on either side. Raising the queue
+            # size avoids ever hitting that path.
+            sysctl -w kern.tty.qsize=65536
           run: |
             # pkgin's openssl installs to /usr/pkg/bin, but NetBSD's
             # PATH puts /usr/bin ahead of it, so plain
