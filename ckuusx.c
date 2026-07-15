@@ -496,10 +496,7 @@ unsigned long myatype = 0L;             /* My authorization type */
 unsigned long myamode = 0L;             /* My authorization mode */
 unsigned long mystate = 0L;             /* My state (SEND, RECEIVE, etc) */
 unsigned long mypid = 0L;               /* My PID */
-unsigned long myip = 0L;                /* My IP address */
-unsigned long peerip = 0L;              /* My peer's IP address */
 
-unsigned long dbip = 0L;                /* IP address in db record */
 unsigned long dbpid = 0L;               /* PID in db record */
 unsigned long dbflags = 0L;             /* Flags field in db record */
 unsigned long dblastused = 0L;          /* Last in-use record in db */
@@ -507,8 +504,7 @@ char dbrec[DB_RECL];                    /* Database record buffer */
 
 char * dbdir   = NULL;                  /* Database directory */
 char * dbfile  = NULL;                  /* Database file full pathname */
-char myhexip[33] = { NUL, NUL };        /* My IP address in hex */
-char peerhexip[33] = { NUL, NUL };      /* Client's IP address in hex */
+char mylockaddr[CK_IPADDRLEN] = { NUL }; /* My address, for lock names */
 #endif /* IKSDB */
 
 #ifdef GFTIMER
@@ -524,6 +520,7 @@ extern char * ftp_host, ftp_srvtyp[];
 extern int ftp_csx, ftp_csl, ftp_deb;
 #endif /* NEWFTP */
 extern char myipaddr[];
+extern char peeripaddr[];
 #endif /* TCPSOCKET */
 
 #ifndef NOICP
@@ -9425,8 +9422,8 @@ struct iksdbfld dbfld[] = {
     { DB_AMODE, dB_AMODE, DBT_HEX },    /*  3 db_AMODE Auth mode */
     { DB_STATE, dB_STATE, DBT_HEX },    /*  2 db_STATE State */
     { DB_MYPID, dB_MYPID, DBT_HEX },    /*  5 db_MYPID PID */
-    { DB_SADDR, dB_SADDR, DBT_HEX },    /*  4 db_SADDR Server address */
-    { DB_CADDR, dB_CADDR, DBT_HEX },    /*  6 db_CADDR Client address */
+    { DB_SADDR, dB_SADDR, DBT_STR },    /*  4 db_SADDR Server address */
+    { DB_CADDR, dB_CADDR, DBT_STR },    /*  6 db_CADDR Client address */
     { DB_START, dB_START, DBT_DAT },    /*  7 db_START Session start */
     { DB_LASTU, dB_LASTU, DBT_DAT },    /*  8 db_LASTU Last update */
     { DB_ULEN,  dB_ULEN,  DBT_HEX },    /*  9 db_ULEN  Username length */
@@ -9452,6 +9449,10 @@ static char * updmode =                 /* Update mode for fopen() */
 #endif /* VMS */
 #endif /* OS2 */
   ;
+
+#ifdef CK_ANSIC
+static void db_myconnaddr( char *, int );
+#endif /* CK_ANSIC */
 
 /*  D B I N I T  --  Initialize the IKSD database...  */
 
@@ -9511,33 +9512,20 @@ dbinit() {
     mypid = getpid();                   /* Get my pid */
     debug(F101,"dbinit mypid","",mypid);
 
-    if (!myhexip[0]) {                  /* Set my hex IP address */
-#ifdef TCPSOCKET
-        extern unsigned long myxipaddr;
-        if (getlocalipaddr() > -1) {
-            myip = myxipaddr;
-            sprintf(myhexip,"%08lx",myip); /* (Needs fixing for IPv6) */
-        } else
-#endif /* TCPSOCKET */
-          ckstrncpy(myhexip,"00000000",9);
+    /*
+      mylockaddr identifies this host in the temporary lockfile name
+      and its contents (see getslot()), so that a database directory
+      shared by IKSD processes on more than one host doesn't mistake
+      one host's lock for another's. It's this connection's own local
+      address from db_myconnaddr(), the same thing db_SADDR is set from
+      in initslot().
+    */
+    if (!mylockaddr[0]) {
+        db_myconnaddr(mylockaddr,sizeof(mylockaddr));
+        if (!mylockaddr[0])             /* Couldn't be determined */
+          ckstrncpy(mylockaddr,"127.0.0.1",sizeof(mylockaddr));
     }
-    debug(F111,"dbinit myip",myhexip,myip);
-    if (!peerhexip[0]) {                /* Get peer's  hex IP address */
-#ifdef TCPSOCKET
-        extern unsigned long peerxipaddr;
-        if (ckgetpeer()) {
-            peerip = peerxipaddr;
-            sprintf(peerhexip,"%08lx",peerip); /* (Needs fixing for IPv6) */
-            debug(F111,"dbinit peerip",peerhexip,peerip);
-        } else {
-            debug(F101,"dbinit ckgetpeer failure","",errno);
-            ckstrncpy(peerhexip,"00000000",9);
-        }
-#else
-        ckstrncpy(peerhexip,"00000000",9);
-#endif /* TCPSOCKET */
-    }
-    debug(F111,"dbinit peerip",peerhexip,peerip);
+    debug(F110,"dbinit mylockaddr",mylockaddr,0);
     debug(F101,"dbinit dbenabled","",dbenabled);
     if (dbenabled && inserver) {
         mydbslot = getslot();
@@ -9576,7 +9564,7 @@ updslot(n) int n;
         }
     }
     /* debug(F111,"updslot dbfile",dbfile,dbfp); */
-    position = n * DB_RECL;
+    position = DB_HDRL + (CK_OFF_T)n * DB_RECL; /* Records follow header */
     if (CKFSEEK(dbfp,position,0) < 0) {	/* Seek to desired slot */
         debug(F111,"updslot fseek failed",dbfile,mydbseek);
         ikdbopen = 0;
@@ -9598,6 +9586,42 @@ updslot(n) int n;
     return(rc);
 }
 
+/*
+  Fetches the local address of this connection (ttyfd) as text into
+  buf, IPv6-capable when CK_IPV6 is available.  If we can't determine our
+  local address, sets buf to an empty string.
+
+  This is used both for db_SADDR and to identify this
+  host in the lockfile.
+*/
+static void
+#ifdef CK_ANSIC
+db_myconnaddr( char * buf, int buflen )
+#else
+db_myconnaddr(buf,buflen) char * buf; int buflen;
+#endif /* CK_ANSIC */
+{
+    if (buflen > 0)
+      buf[0] = '\0';
+#ifdef TCPSOCKET
+    {
+        extern int ttyfd;
+        GSOCKNAME_T lsslen;
+#ifdef CK_IPV6
+        struct sockaddr_storage lss;
+        lsslen = sizeof(lss);
+        if (!getsockname(ttyfd,(struct sockaddr *)&lss,&lsslen))
+          ck_straddr((struct sockaddr *)&lss,lsslen,buf,buflen);
+#else
+        struct sockaddr_in lsin;
+        lsslen = sizeof(lsin);
+        if (!getsockname(ttyfd,(struct sockaddr *)&lsin,&lsslen))
+          ckstrncpy(buf,(char *)inet_ntoa(lsin.sin_addr),buflen);
+#endif /* CK_IPV6 */
+    }
+#endif /* TCPSOCKET */
+}
+
 /*  I N I T S L O T --  Initialize slot n with my info  */
 
 int
@@ -9608,9 +9632,6 @@ initslot(n) int n;
 #endif /* CK_ANSIC */
 {
     int k;
-#ifdef TCPSOCKET
-    extern unsigned long peerxipaddr;
-#endif /* TCPSOCKET */
 
     debug(F101,"initslot","",n);
 
@@ -9638,16 +9659,22 @@ initslot(n) int n;
     k = dbfld[db_STATE].len;
     strncpy(&dbrec[dbfld[db_STATE].off],ulongtohex(mystate,k),k);
 
-    k = dbfld[db_SADDR].len;
-    strncpy(&dbrec[dbfld[db_SADDR].off],ulongtohex(myip,k),k);
-
 #ifdef TCPSOCKET
-    ckgetpeer();
+    {
+        char saddrbuf[DB_ADDRW+1];
+        db_myconnaddr(saddrbuf,sizeof(saddrbuf));
+        k = dbfld[db_SADDR].len;
+        lset(&dbrec[dbfld[db_SADDR].off],saddrbuf,k,32);
+    }
+
+    ckgetpeer();                        /* Sets peeripaddr; see dbinit() */
     k = dbfld[db_CADDR].len;
-    strncpy(&dbrec[dbfld[db_CADDR].off],ulongtohex(peerxipaddr,k),k);
+    lset(&dbrec[dbfld[db_CADDR].off],peeripaddr,k,32);
 #else
+    k = dbfld[db_SADDR].len;
+    lset(&dbrec[dbfld[db_SADDR].off],"",k,32);
     k = dbfld[db_CADDR].len;
-    strncpy(&dbrec[dbfld[db_CADDR].off],ulongtohex(0L,k),k);
+    lset(&dbrec[dbfld[db_CADDR].off],"",k,32);
 #endif /* TCPSOCKET */
 
     k = dbfld[db_MYPID].len;
@@ -9770,6 +9797,49 @@ freeslot(n) int n;
     return(updslot(n));
 }
 
+/* Given a filename fn that already exists (possibly empty, if it was just
+   created), check for the IKSD session header.
+
+   If the file is empty, this function writes the header.
+   
+   If we find something other than the header or an empty file, return -1.
+   Otherwise, return 0 to indicate it is usable as a current
+   database. */
+static int
+#ifdef CK_ANSIC
+db_checkformat( char * fn )
+#else
+db_checkformat(fn) char * fn;
+#endif /* CK_ANSIC */
+{
+    FILE * fp;
+    char hdr[DB_HDRL];
+    char pad[DB_HDRL];
+    int maglen = (int)strlen(IK_DBMAGIC);
+    size_t n;
+
+    fp = fopen(fn,updmode);
+    if (!fp)
+      return(-1);
+    n = fread(hdr,1,DB_HDRL,fp);
+    if (n == (size_t)DB_HDRL && !memcmp(hdr,IK_DBMAGIC,maglen)) {
+        fclose(fp);                     /* Already current format */
+        return(0);
+    }
+    if (n == 0) {                       /* Empty: just needs a header */
+        memset(pad,0,DB_HDRL);
+        memcpy(pad,IK_DBMAGIC,maglen);
+        rewind(fp);
+        n = fwrite(pad,1,DB_HDRL,fp);
+        fclose(fp);
+        return(n == (size_t)DB_HDRL ? 0 : -1);
+    }
+    fclose(fp);
+    debug(F110,"db_checkformat old-format database, disabling db",fn,0);
+    dbwarnoldfmt(fn);
+    return(-1);
+}
+
 /*  G E T S L O T  --  Find a free database slot; returns slot number  */
 
 #ifdef CK_ANSIC
@@ -9780,8 +9850,8 @@ static void ck_termset( int );
 int
 getslot() {                             /* Find a free slot for us */
     FILE * rfp = NULL;                  /* Returns slot number (0, 1, ...) */
-    char idstring[64];                  /* PID string buffer (decimal) */
-    char pidbuf[64];
+    char idstring[CK_IPADDRLEN+32];     /* Address:PID string buffer */
+    char pidbuf[CK_IPADDRLEN+32];
     int j, k, n, x, rc = -1;
     int lockfd, tries, haveslot = 0;
     int dummy;
@@ -9789,16 +9859,15 @@ getslot() {                             /* Find a free slot for us */
     CK_OFF_T i;
     /* char ipbuf[17]; */
 
-    if (!myhexip[0])                    /* Set my hex IP address if not set */
-      ckstrncpy((char *)myhexip,"7F000001",33);
-    sprintf(idstring,"%08lx:%010ld\n",myip,mypid);
+    /* dbinit() always sets mylockaddr (falling back to "127.0.0.1"
+       if it can't be determined) before calling us, so it's never
+       empty here. */
+    snprintf(idstring,sizeof(idstring),"%s:%010ld\n",mylockaddr,mypid);
     debug(F110,"getslot idstring", idstring, 0);
 
-    /* Make temporary lockfile name IP.PID (hex.hex) */
-    /* This should fit in 14 chars -- huge PIDs are usually not possible */
-    /* on 14-char filename systems. */
+    /* Make temporary lockfile name ADDRESS.PID */
 
-    sprintf(tmplck,"%s%08lx.%lx",dbdir,myip,mypid);
+    snprintf(tmplck,sizeof(tmplck),"%s%s.%lx",dbdir,mylockaddr,mypid);
     debug(F110,"getslot tempfile",tmplck,0);
 
     /* Make a temporary file */
@@ -9815,24 +9884,24 @@ getslot() {                             /* Find a free slot for us */
         debug(F101,"getslot error closing temp lockfile", "", errno);
         return(-1);
     }
-    sprintf(lcknam,"%s%s",dbdir,IK_LOCKFILE); /* Build lockfile name */
+    /* Build lockfile name */
+    snprintf(lcknam,sizeof(lcknam),"%s%s",dbdir,IK_LOCKFILE);
     debug(F110,"getslot lockfile",lcknam,0);
 
     rfp = fopen(lcknam,"r");            /* See if lockfile exists */
     if (rfp) {                          /* If so... */
-        rset(pidbuf,"",64,0);
-        x = fread(pidbuf,1,63,rfp);     /* Read ID string from it */
+        rset(pidbuf,"",sizeof(pidbuf),0);
+        x = fread(pidbuf,1,sizeof(pidbuf)-1,rfp); /* Read ID string */
         fclose(rfp);                    /* and close it quickly */
         debug(F110,"getslot lock exists",pidbuf,0);
         if (x > 0) {                    /* If we have a PID, check it */
             char * s = pidbuf;
             while (*s) {
-                if (islower(*s)) *s = toupper(*s);
                 if (*s == ':') {
                     *s = NUL;
-                    debug(F110,"getslot lock IP",pidbuf,0);
-                    debug(F110,"gteslot my   IP",myhexip,0);
-                    if (!strcmp(pidbuf,myhexip)) { /* Same IP address? */
+                    debug(F110,"getslot lock addr",pidbuf,0);
+                    debug(F110,"getslot my   addr",mylockaddr,0);
+                    if (!strcmp(pidbuf,mylockaddr)) { /* Same host? */
                         lockpid = atol(s+1); /* Yes, now get PID */
                         debug(F101,"getslot lockpid","",lockpid);
 
@@ -9870,7 +9939,10 @@ getslot() {                             /* Find a free slot for us */
     if (!dbfile)
       return(-1);
 
-    /* If database doesn't exist, create it. */
+    /* If the database doesn't exist, create it.
+      
+       Pre-Kermit 11 databases use a format that's not compatible with
+       IPv6, and those files will be left unmodified. */
 
     debug(F110,"getslot dbfile",dbfile,0);
     if (zchki(dbfile) < 0) {
@@ -9882,17 +9954,24 @@ getslot() {                             /* Find a free slot for us */
         }
         close(x);
     }
+    if (db_checkformat(dbfile) < 0) {
+        debug(F110,"getslot db_checkformat failed",dbfile,0);
+        goto xslot;
+    }
     dbfp = fopen(dbfile,updmode);       /* Open it in update mode */
     if (!dbfp) {
         debug(F111,"getslot fopen failed",dbfile,errno);
         goto xslot;
     }
+    CKFSEEK(dbfp,DB_HDRL,0);            /* Records follow the file header */
+
     /* Now find a free (or new) slot... */
 
     dblastused = 0L;                    /* Seek pointer to last record inuse */
     mydbseek = 0L;                      /* Seek pointer for my record */
 
-    /* Quickly read the whole database; n = record counter, i = seek pointer */
+    /* Quickly read the whole database; n = record counter, i = seek pointer
+       relative to the first record (not counting the header) */
 
     for (n = 0, i = 0; !feof(dbfp); i += DB_RECL, n++) {
         x = fread(dbrec,1,DB_RECL,dbfp); /* Read a record */
@@ -9902,12 +9981,12 @@ getslot() {                             /* Find a free slot for us */
         if (x != DB_RECL) {             /* Watch out for trailing junk */
             debug(F101,"getslot bad size","",x);  /* (Shouldn't happen...) */
 #ifdef COHERENT
-            chsize(fileno(dbfp),i);
+            chsize(fileno(dbfp),DB_HDRL+i);
 #else
-            dummy = ftruncate(fileno(dbfp),(CK_OFF_T)i);
+            dummy = ftruncate(fileno(dbfp),(CK_OFF_T)(DB_HDRL+i));
 #endif /* COHERENT */
             x = 0;
-            CKFSEEK(dbfp,i,0);
+            CKFSEEK(dbfp,DB_HDRL+i,0);
             break;
         }
 #endif /* NOFTRUNCATE */
@@ -9920,27 +9999,39 @@ getslot() {                             /* Find a free slot for us */
         j = dbfld[db_MYPID].len;
         dbpid  = hextoulong(&dbrec[k],j);
         debug(F001,"getslot dbpid","",dbpid);
-        k = dbfld[db_SADDR].off;
-        j = dbfld[db_SADDR].len;
-        dbip = hextoulong(&dbrec[k],j);
-        debug(F001,"getslot dbip","",dbip);
+        {
+            /* db_SADDR is text, space-padded.  Trim and compare to
+               mylockaddr (this connection's own local address, set by
+               dbinit()/db_myconnaddr()) to see if this record is one
+               of ours. */
+            char dbaddrbuf[DB_ADDRW+1];
+            int alen;
+            k = dbfld[db_SADDR].off;
+            j = dbfld[db_SADDR].len;
+            if (j > DB_ADDRW) j = DB_ADDRW;
+            memcpy(dbaddrbuf,&dbrec[k],j);
+            for (alen = j; alen > 0 && dbaddrbuf[alen-1] == ' '; alen--)
+              ;
+            dbaddrbuf[alen] = '\0';
+            debug(F110,"getslot dbaddr",dbaddrbuf,0);
 
-        if (dbflags & DBF_INUSE) {      /* Remember last slot in use */
-            x = 0;                      /* Make sure it's REALLY in use */
-            if (dbpid == mypid && dbip == myip) { /* Check for PID == my PID */
-                x = 1;
-                debug(F101,"getslot record pid","",dbpid);
-            } else {                    /* Or for stale PID */
-                x = zchkpid(dbpid);
-                debug(F101,"getslot zchkpid()","",x);
-            }
-            if (!x) {                   /* Bogus record */
-                x = freeslot(n);
-                debug(F101,"getslot stale record pid: freeslot()","",x);
-                if (x > -1 && !haveslot)
-                  dbflags = 0;
-            } else {                    /* It's really in use */
-                dblastused = i;
+            if (dbflags & DBF_INUSE) {  /* Remember last slot in use */
+                x = 0;                  /* Make sure it's REALLY in use */
+                if (dbpid == mypid && !strcmp(dbaddrbuf,mylockaddr)) {
+                    x = 1;
+                    debug(F101,"getslot record pid","",dbpid);
+                } else {                /* Or for stale PID */
+                    x = zchkpid(dbpid);
+                    debug(F101,"getslot zchkpid()","",x);
+                }
+                if (!x) {               /* Bogus record */
+                    x = freeslot(n);
+                    debug(F101,"getslot stale record pid: freeslot()","",x);
+                    if (x > -1 && !haveslot)
+                      dbflags = 0;
+                } else {                /* It's really in use */
+                    dblastused = i;
+                }
             }
         }
         if (!haveslot) {                /* If I don't have a slot yet */
@@ -9969,11 +10060,11 @@ getslot() {                             /* Find a free slot for us */
 
 #ifndef NOFTRUNCATE
     if (i > dblastused+DB_RECL) {
-        debug(F101,"getslot truncating at","",dblastused+DB_RECL);
+        debug(F101,"getslot truncating at","",DB_HDRL+dblastused+DB_RECL);
 #ifdef COHERENT
-        x = chsize(fileno(dbfp),dblastused+DB_RECL);
+        x = chsize(fileno(dbfp),DB_HDRL+dblastused+DB_RECL);
 #else
-        x = ftruncate(fileno(dbfp),(CK_OFF_T)(dblastused+DB_RECL));
+        x = ftruncate(fileno(dbfp),(CK_OFF_T)(DB_HDRL+dblastused+DB_RECL));
 #endif /* COHERENT */
         if (x < 0)                      /* (Not fatal) */
           debug(F101,"getslot ftruncate failed", "", errno);

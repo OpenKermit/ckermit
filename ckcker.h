@@ -1095,6 +1095,16 @@ struct tt_info_rec {			/* Terminal emulation info */
 
 /* Data Definitions... */
 
+/*
+  Record format version 2.  Version 1  stored db_SADDR/db_CADDR as a
+  16-hex-digit number, which only ever held a 32-bit IPv4 address. Version 2
+  stores them as text (dotted-quad or IPv6 literal) instead, which is wide
+  enough for either.  It also adds IK_DBMAGIC as a file header so a version 1
+  database can be told apart from a version 2 database.
+
+  Every other field keeps its version 1 offset, length, and meaning.
+*/
+
 /* Numeric fields, hex, right justified, 0-filled on left */
 
 #define db_FLAGS     0			/* Field 0: Flags */
@@ -1117,39 +1127,43 @@ struct tt_info_rec {			/* Terminal emulation info */
 #define DB_MYPID    16			/* 16 hex digits left padded with 0 */
 #define dB_MYPID    16
 
+/* Keep DB_ADDRW in sync with CK_IPADDRLEN in ckcnet.h.  It's a separate symbol
+   only because this header is included before ckcnet.h in some modules. */
+#define DB_ADDRW    64
+
 #define db_SADDR     5			/* Field 5: Server (my) IP address */
-#define DB_SADDR    32			/* 16 hex digits left padded with 0 */
-#define dB_SADDR    16
+#define DB_SADDR    32
+#define dB_SADDR    DB_ADDRW
 
 #define db_CADDR     6			/* Field 6: Client IP address */
-#define DB_CADDR    48			/* 16 hex digits left padded with 0 */
-#define dB_CADDR    16
+#define DB_CADDR    96
+#define dB_CADDR    DB_ADDRW
 
 /* Date-time fields (17 right-adjusted in 18 for Y10K readiness) */
 
 #define db_START     7			/* Field 7: Session start date-time */
-#define DB_START    65			/* 64 is leading space for Y10K */
+#define DB_START   161			/* 160 is leading space for Y10K */
 #define dB_START    17
 
 #define db_LASTU     8			/* Field 8: Last lastu date-time */
-#define DB_LASTU    83			/* 82 is leading space for Y10K */
+#define DB_LASTU   179			/* 178 is leading space for Y10K */
 #define dB_LASTU    17
 
 #define db_ULEN      9			/* Field 9: Length of Username */
-#define DB_ULEN    100			/* 4 hex digits */
+#define DB_ULEN    196			/* 4 hex digits */
 #define dB_ULEN      4
 
 #define db_DLEN     10			/* Field 10: Length of Directory */
-#define DB_DLEN    104			/* 4 hex digits */
+#define DB_DLEN    200			/* 4 hex digits */
 #define dB_DLEN      4
 
 #define db_ILEN     11			/* Field 11: Length of Info */
-#define DB_ILEN    108			/* 4 hex digits */
+#define DB_ILEN    204			/* 4 hex digits */
 #define dB_ILEN      4
 
 #define db_PAD1     12			/* Field 12: (Reserved) */
-#define DB_PAD1    112			/* filled with spaces */
-#define dB_PAD1    912
+#define DB_PAD1    208			/* filled with spaces */
+#define dB_PAD1    816
 
 /* String fields, all right-padded with blanks */
 
@@ -1166,6 +1180,11 @@ struct tt_info_rec {			/* Terminal emulation info */
 #define dB_INFO   1024
 
 #define DB_RECL   4096			/* Database record length */
+
+/* File header.  Identifies the record format version.  Written once at
+   the start of the database file, ahead of record 0. */
+#define IK_DBMAGIC "KIKSDB02"		/* 8-byte magic + version */
+#define DB_HDRL    16			/* File header length (bytes) */
 
 /* Offset, length, and type of each field thru its db_XXX symbol */
 
@@ -1186,6 +1205,7 @@ _PROTOTYP(int freeslot, (int));
 _PROTOTYP(int updslot, (int));
 _PROTOTYP(int slotstate, (int, char *, char *, char *));
 _PROTOTYP(int slotdir, (char *, char *));
+_PROTOTYP(VOID dbwarnoldfmt, (char *));
 #endif /* IKSDB */
 #endif /* NOIKSD */
 

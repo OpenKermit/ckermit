@@ -4151,6 +4151,8 @@ k4_auth_is(parsedat,end_sub) unsigned char *parsedat; int end_sub;
         ckhexdump("k4_auth.dat",k4_auth.dat, k4_auth.length);
 
         /* Get Instance */
+        /* Kerberos 4's wire format has no IPv6 address representation,
+           so this stays IPv4-only regardless of CK_IPV6. */
         inaddr.s_addr = inet_addr(myipaddr);
         host = gethostbyaddr((unsigned char *)&inaddr,4,PF_INET);
         if ( host ) {
@@ -6128,6 +6130,9 @@ k5_auth_is(how,data,cnt) int how; unsigned char *data; int cnt;
     }
     switch (*data++) {
     case GSS_AUTH:
+        /* GSSAPI channel binding stays IPv4-only, matching the FTP
+           client's GSSAPI channel binding (ckcftp.c); GSS_C_AF_INET6
+           would need its own address-family handling. */
         gss_chan.initiator_addrtype = GSS_C_AF_INET;
         gss_chan.initiator_address.length = 4;
         gss_chan.initiator_address.value = &his_addr.sin_addr.s_addr;
@@ -7963,6 +7968,16 @@ ck_krb5_initTGT(op,init,k4_init)
         /* construct an array of krb5_address structs to pass to get_in_tkt */
         /* include both the local ip addresses as well as any other that    */
         /* are specified.                                                   */
+        /*
+          init->addrs[] (SET AUTHENTICATION KERBEROS5 ADDRESSES) is
+          validated as IPv4 dotted-quad only, in ckuus3.c/ckuus7.c.
+          Kerberos 5 tickets can carry IPv6 restriction addresses also,
+          but this user-specified ticket address restriction feature
+          is outside the scope of the initial IPv6 effort, which focused on
+          TCP/IP networking.  local_addrs[] below, from
+          krb5_os_localaddr(), is unaffected and supports
+          whatever address families the OS reports.
+        */
         unsigned long ipaddr;
 
         for ( addr_count=0;addr_count<KRB5_NUM_OF_ADDRS;addr_count++ )
@@ -9880,7 +9895,7 @@ ck_krb4_tkt_isvalid(tktname) char * tktname;
 #ifdef OS2
 #ifdef CHECKADDRS
                 if ( krb4_checkaddrs ) {
-                    extern char myipaddr[20];       /* From ckcnet.c */
+                    extern char myipaddr[];          /* From ckcnet.c */
                     if ( !myipaddr[0] ) {
                         int i;
                         char buf[60];
@@ -11182,6 +11197,13 @@ rcmd_stream_init_krb5(in_keyblock, encrypt_flag, lencheck, am_client,
 }
 #endif /* KRB5 */
 
+/*
+  The Kerberos ticket/authenticator address format used here is
+  IPv4-only: krb5_address entries are built with addrtype AF_INET
+  elsewhere in this file. RLOGIN itself is not inherently IPv4-only,
+  but this Kerberized path is constrained by that address format, so
+  l_addr and r_addr stay struct sockaddr_in regardless of CK_IPV6.
+*/
 int
 #ifdef CK_ANSIC
 ck_krb_rlogin(CHAR * hostname, int port,

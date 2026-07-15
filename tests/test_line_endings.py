@@ -67,13 +67,9 @@ _SETUP_AUTO = "set transfer mode automatic"
 
 
 def _resolve_sysid(sysid, eol):
-    match (sysid, eol):
-        case (None, "lf"):
-            return "U1"
-        case (None, _):
-            return "UN"
-        case (sysid, _):
-            return sysid
+    if sysid is None:
+        return "U1" if eol == "lf" else "UN"
+    return sysid
 
 
 def run_ending_test(tmp_path, wermit_loopback, direction,

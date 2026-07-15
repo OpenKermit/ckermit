@@ -393,7 +393,7 @@ int srinit( int, int, int );
 int sxeof( int );
 int syscmd( char *, char * );
 int szeof( CHAR * );
-int tcpsrv_open( char *, int *, int, int );
+int tcpsrv_open( char *, int *, int );
 int tinit( int );
 int tn_siks( int );
 int tn_sopt( int, int );

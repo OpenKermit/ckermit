@@ -241,7 +241,6 @@ maybe_check_range(cp) char *cp; {
 
 #define BUCKETS 10000
 char *m_used[BUCKETS];
-char *m_used2[BUCKETS];
 
 VOID
 m_insert(cp) register char *cp; {
@@ -266,11 +265,6 @@ m_delete(cp) register char *cp; {
         if (m_used[i] == cp) {
             m_used[i] = 0;
             return(1);
-        }
-    for(i = 0; i < BUCKETS; i++)
-        if (m_used2[i] == cp) {
-            m_used2[i] = 0;
-            return(2);
         }
     if (disabled)
         return(0);

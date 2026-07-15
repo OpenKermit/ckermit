@@ -1539,6 +1539,14 @@ fwdx_send_xauth_to_xserver(channel, data, len)
             }
             else if (family == FamilyInternet) {
                 /* call with address = 4 bytes numeric ip addr (MSB) */
+                /* FamilyInternet is Xauthority's own address family
+                   constant, similar to AF_INET/AF_INET6.
+                   Xauthority also defines FamilyInternet6 for IPv6,
+                   which would need its own XauGetAuthByAddr() call
+                   here.  X11 forwarding is outside the scope of the initial
+                   IPv6 effort, which focused on TCP/IP networking
+                   rather than X11, so this stays IPv4-only for now and
+                   is documented in doc/ipv6.md. */
                 struct hostent *hi;
                 if ((hi = gethostbyname(host)))
                     real_xauth = XauGetAuthByAddr(family, 4,

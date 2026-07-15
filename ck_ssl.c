@@ -3553,6 +3553,18 @@ inet_aton(char * ipaddress, struct in_addr * ia) {
 #endif /* HPUX10 */
 #endif /* OSF50 */
 
+/*
+  For an IP address as the SAN of a certificate, inet_aton() below only
+  recognizes an IPv4 literal, and the GEN_IPADD SAN entries it compares against
+  are read as raw 4-byte addresses.  Connecting to an IPv6 literal host always
+  falls through to the dNSName/commonName comparison instead, which is safe
+  (fails to a hostname-mismatch warning, not a silent match).  It means a
+  certificate whose only matching SAN is an IPv6 address always produces a
+  spurious warning.
+
+  An edge case; addressing it here increases code complexity.  Documented in
+  doc/ipv6.md instead.
+*/
 int
 ssl_check_server_name(SSL * ssl, char * hostname)
 /* returns 0 if hostname and server's cert matches, else -1 */
@@ -3621,7 +3633,7 @@ ssl_check_server_name(SSL * ssl, char * hostname)
                 if (*(unsigned long *)ipAddress[i] == ia.s_addr)
                     return 0;
 
-            if (ipAddress[i - 1]) {
+            if (i > 0 && ipAddress[i - 1]) {
                 ia.s_addr = *(unsigned long *)ipAddress[i - 1];
                 server_ip = inet_ntoa(ia);
             }
@@ -3643,7 +3655,7 @@ ssl_check_server_name(SSL * ssl, char * hostname)
                 return 0;
         }
         rv = show_hostname_warning(hostname,
-				   (char *)((dNSName[i - 1] == NULL) ?
+				   (char *)((i == 0 || dNSName[i - 1] == NULL) ?
 			           (char *)"UNKNOWN" : (char *)dNSName[i - 1]))
 	     ? 0 : -1;
         for (i = 0; dNSName[i]; i++)

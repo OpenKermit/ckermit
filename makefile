@@ -1054,9 +1054,11 @@ unit-test:
 		exit 1; \
 	fi
 	@$(MAKE) "CC=`cat .buildcc.cache`" "CFLAGS=`cat .buildflags.cache`" \
-		tests/unit/bin/test_lib tests/unit/bin/test_strings
+		tests/unit/bin/test_lib tests/unit/bin/test_strings \
+		tests/unit/bin/test_net
 	./tests/unit/bin/test_lib
 	./tests/unit/bin/test_strings
+	./tests/unit/bin/test_net
 
 # Rules for the unit test binaries.
 #
@@ -1081,6 +1083,36 @@ tests/unit/bin/test_strings: tests/unit/test_strings.c ckclib.$(EXT)
 	@mkdir -p tests/unit/bin
 	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
 	$(CC) $(CFLAGS) -I. tests/unit/test_strings.c ckclib.$(EXT) -o $@ $$CHECKLIBS
+
+# test_net exercises a handful of address-family-independent helper
+# functions (ck_straddr, ck_getport, ck_setport) that live in
+# ckcnet.c.  Unlike ckclib.c, ckcnet.c as a whole is not self-contained.
+# Linking a test binary against the ordinary
+# ckcnet.$(EXT) the way test_lib/test_strings link against ckclib.$(EXT)
+# fails with undefined references from code this test never calls.
+# Instead, ckcnet.c is recompiled here with -ffunction-sections/
+# -fdata-sections and linked with --gc-sections, so the linker drops
+# every function this test doesn't actually reach (and their
+# now-irrelevant external references) before checking for undefined
+# symbols. The functions under test have no dependencies of their own
+# beyond libc and ckstrncpy(), so this
+# resolves cleanly. ck_splithostport() additionally calls ckstrncpy(),
+# from ckclib.c.  Unlike ckcnet.o, the ordinary production ckclib.$(EXT)
+# is not itself built with -ffunction-sections, so its sections cannot
+# be pruned by --gc-sections and it drags in its own undefined
+# references.  Recompiling ckclib.c
+# here the same way as ckcnet.c avoids needing those stubs.
+tests/unit/bin/test_net: tests/unit/test_net.c ckcnet.c ckcnet.h ckclib.c
+	@mkdir -p tests/unit/bin
+	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		-c ckcnet.c -o tests/unit/bin/ckcnet_test.$(EXT); \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		-c ckclib.c -o tests/unit/bin/ckclib_test.$(EXT); \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		tests/unit/test_net.c tests/unit/bin/ckcnet_test.$(EXT) \
+		tests/unit/bin/ckclib_test.$(EXT) \
+		-o $@ -Wl,--gc-sections $$CHECKLIBS
 
 #Clean up intermediate and object files
 clean:

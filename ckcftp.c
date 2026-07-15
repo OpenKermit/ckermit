@@ -2914,6 +2914,22 @@ openftp(s,opn_tls) char * s; int opn_tls;
 
     makestr(&hostname,s);
     hostsave = hostname;
+
+    /*
+      Strip bracket syntax around an IPv6 literal like SET HOST
+      does, so "ftp open [::1]" works the same as "ftp open ::1".
+      FTP's command syntax already splits host and port into separate
+      words, so there is never a ":port" suffix after the ']' to
+      handle here.
+    */
+    if (*hostname == '[') {
+        char * rbrack = strchr(hostname,']');
+        if (rbrack && rbrack[1] == '\0') {
+            *rbrack = '\0';
+            hostname++;
+        }
+    }
+
     makestr(&ftp_logname,NULL);
     anonymous = 0;
     noinit = 0;
@@ -9741,11 +9757,38 @@ char *srp_acct;
 
 static int kerror;                      /* Needed for all auth types */
 
+#ifdef CK_IPV6
+/*
+  These four are sized to hold any address family.  FTP_SIN() is the IPv4-only
+  view, used by the PORT/PASV code and by protocols with no IPv6 representation
+  such as Kerberos 4 and GSSAPI.  FTP_FAMILY() reads the address family
+  regardless of which view is in use, so the EPRT/EPSV code can decide which
+  protocol applies.
+*/
+static struct   sockaddr_storage hisctladdr;
+static struct   sockaddr_storage hisdataaddr;
+static struct   sockaddr_storage data_addr;
+static struct   sockaddr_storage myctladdr;
+
+#define FTP_SIN(x) ((struct sockaddr_in *)&(x))
+#define FTP_FAMILY(x) ((x).ss_family)
+/*
+  The exact address length for connect() or bind() rather than sizeof(struct
+  sockaddr_storage).  Some kernels reject an oversized length for the address
+  family actually in use.
+*/
+#define FTP_SALEN(x) (FTP_FAMILY(x) == AF_INET6 ? \
+                      sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in))
+#else /* CK_IPV6 */
 static struct   sockaddr_in hisctladdr;
 static struct   sockaddr_in hisdataaddr;
 static struct   sockaddr_in data_addr;
-static int      data = -1;
 static struct   sockaddr_in myctladdr;
+#define FTP_SIN(x) (&(x))
+#define FTP_FAMILY(x) ((x).sin_family)
+#define FTP_SALEN(x) sizeof(struct sockaddr_in)
+#endif /* CK_IPV6 */
+static int      data = -1;
 
 
 static int cpend = 0;                   /* No pending replies */
@@ -10948,6 +10991,7 @@ getreply(expecteof,lcs,rcs,vbm,fc) int expecteof, lcs, rcs, vbm, fc;
     int xquiet = 0;
 
     auth = (fc == GRF_AUTH);
+    pasv[0] = '\0';                    /* Discard any stale scan result */
 
 #ifndef NOCSETS
     debug(F101,"ftp getreply lcs","",lcs);
@@ -11137,14 +11181,17 @@ getreply(expecteof,lcs,rcs,vbm,fc) int expecteof, lcs, rcs, vbm, fc;
               continue;
             if (dig < 4 && isdigit(c))
               ftpcode = ftpcode * 10 + (c - '0');
-            if (!pflag && ftpcode == 227)
-              pflag = 1;
+            if (!pflag && (ftpcode == 227 || ftpcode == 229))
+              pflag = 1;                  /* 227 PASV, 229 EPSV (RFC 2428) */
             if (dig > 4 && pflag == 1 && isdigit(c))
               pflag = 2;
             if (pflag == 2) {
-                if (c != '\r' && c != ')')
-                  *pt++ = c;
-                else {
+                if (c != '\r' && c != ')') {
+                    /* Bounds check to never write past pasv[], no matter how
+                       long the server's 227 or 229 reply text runs. */
+                    if (pt < pasv + sizeof(pasv) - 1)
+                      *pt++ = c;
+                } else {
                     *pt = '\0';
                     pflag = 3;
                 }
@@ -13063,17 +13110,82 @@ initconn() {
     int result, tmpno = 0;
     int on = 1;
     GSOCKNAME_T len;
+#ifdef CK_IPV6
+    /*
+      Set once, from the already-connected control connection, so both the
+      passive (EPSV and PASV) and active (EPRT and PORT) branches below agree on
+      which protocol to speak.  RFC 2428's EPRT and EPSV are only needed for
+      AF_INET6.  An AF_INET control connection keeps using PORT and PASV even on
+      an IPv6-capable Kermit.
+    */
+    int use_ext = (FTP_FAMILY(hisctladdr) == AF_INET6);
+    int eport;
+#endif /* CK_IPV6 */
 
 #ifndef NO_PASSIVE_MODE
     int a1,a2,a3,a4,p1,p2;
 
     if (passivemode) {
+#ifdef CK_IPV6
+        data = socket(use_ext ? AF_INET6 : AF_INET, SOCK_STREAM, 0);
+#else /* CK_IPV6 */
         data = socket(AF_INET, SOCK_STREAM, 0);
+#endif /* CK_IPV6 */
         globaldin = data;
         if (data < 0) {
             perror("ftp: socket");
             return(-1);
         }
+#ifdef CK_IPV6
+        if (use_ext) {
+            if (ftpcmd("EPSV",NULL,0,0,ftp_vbm) != REPLY_COMPLETE) {
+                printf("Extended passive mode refused\n");
+                passivemode = 0;
+                return(initconn());
+            }
+            /*
+              getreply() captured everything from the first digit it saw through
+              the EPSV reply's closing delimiter into pasv[] using the same
+              scanner PASV uses.  For the minimal reply form (|||port|), that's
+              just the port text.  But RFC 2428 also allows a server to echo the
+              optional net-prt and address fields, such as "|2|2001:db8::1|6275|".
+              The scanner's first digit there is the net-prt digit, not the
+              port, so pasv[] can hold "2|2001:db8::1|6275|" instead of just
+              "6275|".  The port is always the last "|"-delimited field, so
+              strip the trailing delimiter and take whatever follows the last
+              remaining "|", if anything.
+            */
+            {
+                int plen = strlen(pasv);
+                char *lastbar;
+                if (plen > 0 && pasv[plen-1] == '|')
+                  pasv[--plen] = '\0';
+                lastbar = strrchr(pasv, '|');
+                eport = atoi(lastbar ? lastbar+1 : pasv);
+            }
+            if (eport <= 0) {
+                printf("Extended passive mode address scan failure\n");
+                return(-1);
+            }
+            memcpy(&data_addr, &hisctladdr, sizeof(data_addr));
+            ck_setport((struct sockaddr *)&data_addr, (unsigned short)eport);
+            if (connect(data, (struct sockaddr *)&data_addr,
+                        FTP_SALEN(data_addr)) < 0) {
+                perror("ftp: connect");
+                return(-1);
+            }
+            debug(F100,"initconn connect ok","",0);
+#ifdef IP_TOS
+#ifdef IPTOS_THROUGHPUT
+            on = IPTOS_THROUGHPUT;
+            if (setsockopt(data,IPPROTO_IP,IP_TOS,(char *)&on,sizeof(int))<0)
+              perror("ftp: setsockopt TOS (ignored)");
+#endif /* IPTOS_THROUGHPUT */
+#endif /* IP_TOS */
+            memcpy(&hisdataaddr, &data_addr, sizeof(hisdataaddr));
+            return(0);
+        }
+#endif /* CK_IPV6 */
         if (ftpcmd("PASV",NULL,0,0,ftp_vbm) != REPLY_COMPLETE) {
             printf("Passive mode refused\n");
             passivemode = 0;
@@ -13119,11 +13231,12 @@ initconn() {
               *q = *p;
             *q = '\0';
 
-            hisctladdr.sin_addr.s_addr = inet_addr(host);
-            if (hisctladdr.sin_addr.s_addr != INADDR_NONE) /* 2010-03-29 */
+            FTP_SIN(hisctladdr)->sin_addr.s_addr = inet_addr(host);
+            if (FTP_SIN(hisctladdr)->sin_addr.s_addr !=
+                INADDR_NONE) /* 2010-03-29 */
 	    {
                 debug(F110,"initconn A",host,0);
-                hisctladdr.sin_family = AF_INET;
+                FTP_SIN(hisctladdr)->sin_family = AF_INET;
             } else {
                 debug(F110,"initconn B",host,0);
                 hp = gethostbyname(host);
@@ -13138,16 +13251,17 @@ initconn() {
 #endif /* DEBUG */
                     return(0);
                 }
-                hisctladdr.sin_family = hp->h_addrtype;
+                FTP_SIN(hisctladdr)->sin_family = hp->h_addrtype;
 #ifdef HADDRLIST
-                memcpy((char *)&hisctladdr.sin_addr, hp->h_addr_list[0],
-                       sizeof(hisctladdr.sin_addr));
+                memcpy((char *)&FTP_SIN(hisctladdr)->sin_addr,
+                       hp->h_addr_list[0],
+                       sizeof(FTP_SIN(hisctladdr)->sin_addr));
 #else /* HADDRLIST */
-                memcpy((char *)&hisctladdr.sin_addr, hp->h_addr,
-                       sizeof(hisctladdr.sin_addr));
+                memcpy((char *)&FTP_SIN(hisctladdr)->sin_addr, hp->h_addr,
+                       sizeof(FTP_SIN(hisctladdr)->sin_addr));
 #endif /* HADDRLIST */
             }
-            data = socket(hisctladdr.sin_family, SOCK_STREAM, 0);
+            data = socket(FTP_SIN(hisctladdr)->sin_family, SOCK_STREAM, 0);
             debug(F101,"initconn socket","",data);
             if (data < 0) {
                 perror("ftp: socket");
@@ -13164,11 +13278,11 @@ initconn() {
 
             destsp = getservbyname(p,"tcp");
             if (destsp)
-              hisctladdr.sin_port = destsp->s_port;
+              FTP_SIN(hisctladdr)->sin_port = destsp->s_port;
             else if (p)
-              hisctladdr.sin_port = htons(atoi(p));
+              FTP_SIN(hisctladdr)->sin_port = htons(atoi(p));
             else
-              hisctladdr.sin_port = htons(80);
+              FTP_SIN(hisctladdr)->sin_port = htons(80);
             errno = 0;
 #ifdef HADDRLIST
             debug(F100,"initconn HADDRLIST","",0);
@@ -13178,7 +13292,7 @@ initconn() {
             if
 #endif /* HADDRLIST */
               (connect(data, (struct sockaddr *)&hisctladdr,
-                       sizeof (hisctladdr)) < 0) {
+                       FTP_SALEN(hisctladdr)) < 0) {
                   debug(F101,"initconn connect failed","",errno);
 #ifdef HADDRLIST
                   if (hp && hp->h_addr_list[1]) {
@@ -13186,22 +13300,23 @@ initconn() {
 
                       fprintf(stderr,
                               "ftp: connect to address %s: ",
-                              inet_ntoa(hisctladdr.sin_addr)
+                              inet_ntoa(FTP_SIN(hisctladdr)->sin_addr)
                               );
                       errno = oerrno;
                       perror("ftphookup");
                       hp->h_addr_list++;
-                      memcpy((char *)&hisctladdr.sin_addr,
+                      memcpy((char *)&FTP_SIN(hisctladdr)->sin_addr,
                              hp->h_addr_list[0],
-                             sizeof(hisctladdr.sin_addr));
+                             sizeof(FTP_SIN(hisctladdr)->sin_addr));
                       fprintf(stdout, "Trying %s...\n",
-                              inet_ntoa(hisctladdr.sin_addr));
+                              inet_ntoa(FTP_SIN(hisctladdr)->sin_addr));
 #ifdef TCPIPLIB
                       socket_close(data);
 #else /* TCPIPLIB */
                       close(data);
 #endif /* TCPIPLIB */
-                      data = socket(hisctladdr.sin_family, SOCK_STREAM, 0);
+                      data = socket(FTP_SIN(hisctladdr)->sin_family,
+                                    SOCK_STREAM, 0);
                       if (data < 0) {
                           perror("ftp: socket");
                           ftpcode = -1;
@@ -13239,13 +13354,14 @@ initconn() {
         } else
 #endif /* NOHTTP */
         {
-            data_addr.sin_family = AF_INET;
-            data_addr.sin_addr.s_addr = htonl((a1<<24)|(a2<<16)|(a3<<8)|a4);
-            data_addr.sin_port = htons((p1<<8)|p2);
+            FTP_SIN(data_addr)->sin_family = AF_INET;
+            FTP_SIN(data_addr)->sin_addr.s_addr =
+              htonl((a1<<24)|(a2<<16)|(a3<<8)|a4);
+            FTP_SIN(data_addr)->sin_port = htons((p1<<8)|p2);
 
             if (connect(data,
                         (struct sockaddr *)&data_addr,
-                        sizeof(data_addr)) < 0
+                        FTP_SALEN(data_addr)) < 0
                 ) {
                 perror("ftp: connect");
                 return(-1);
@@ -13259,15 +13375,15 @@ initconn() {
           perror("ftp: setsockopt TOS (ignored)");
 #endif /* IPTOS_THROUGHPUT */
 #endif /* IP_TOS */
-        memcpy(&hisdataaddr,&data_addr,sizeof(struct sockaddr_in));
+        memcpy(&hisdataaddr,&data_addr,sizeof(hisdataaddr));
         return(0);
     }
 #endif /* NO_PASSIVE_MODE */
 
   noport:
-    memcpy(&data_addr,&myctladdr,sizeof(struct sockaddr_in));
+    memcpy(&data_addr,&myctladdr,sizeof(myctladdr));
     if (sendport)
-      data_addr.sin_port = 0;   /* let system pick one */
+      ck_setport((struct sockaddr *)&data_addr, 0); /* let system pick one */
     if (data != -1) {
 #ifdef TCPIPLIB
         socket_close(data);
@@ -13278,7 +13394,11 @@ initconn() {
         close(data);
 #endif /* TCPIPLIB */
     }
+#ifdef CK_IPV6
+    data = socket(use_ext ? AF_INET6 : AF_INET, SOCK_STREAM, 0);
+#else /* CK_IPV6 */
     data = socket(AF_INET, SOCK_STREAM, 0);
+#endif /* CK_IPV6 */
     globaldin = data;
     if (data < 0) {
         perror("ftp: socket");
@@ -13298,7 +13418,7 @@ initconn() {
             goto bad;
         }
     }
-    if (bind(data, (struct sockaddr *)&data_addr, sizeof (data_addr)) < 0) {
+    if (bind(data, (struct sockaddr *)&data_addr, FTP_SALEN(data_addr)) < 0) {
         perror("ftp: bind");
         goto bad;
     }
@@ -13312,11 +13432,32 @@ initconn() {
         goto bad;
     }
     if (sendport) {
-        a = (char *)&data_addr.sin_addr;
-        p = (char *)&data_addr.sin_port;
-        ckmakxmsg(ftpcmdbuf,FTP_BUFSIZ,"PORT ",
-                  UC(a[0]),",",UC(a[1]),",", UC(a[2]),",", UC(a[3]),",",
-                  UC(p[0]),",", UC(p[1]));
+#ifdef CK_IPV6
+        if (use_ext) {
+            char ftpaddrbuf[CK_IPADDRLEN];
+            if (ck_straddr((struct sockaddr *)&data_addr, len,
+                            ftpaddrbuf, sizeof(ftpaddrbuf)) < 0) {
+                printf("?Unable to format local address for EPRT\n");
+                return(-1);
+            }
+            if (ckmakxmsg(ftpcmdbuf,FTP_BUFSIZ,"EPRT |2|",ftpaddrbuf,"|",
+                      ckuitoa(ck_getport((struct sockaddr *)&data_addr)),
+                      "|",NULL,NULL,NULL,NULL,NULL,NULL,NULL) < 0) {
+                printf("?EPRT command string truncated\n");
+                return(-1);
+            }
+        } else
+#endif /* CK_IPV6 */
+        {
+            a = (char *)&FTP_SIN(data_addr)->sin_addr;
+            p = (char *)&FTP_SIN(data_addr)->sin_port;
+            if (ckmakxmsg(ftpcmdbuf,FTP_BUFSIZ,"PORT ",
+                      UC(a[0]),",",UC(a[1]),",", UC(a[2]),",", UC(a[3]),",",
+                      UC(p[0]),",", UC(p[1])) < 0) {
+                printf("?PORT command string truncated\n");
+                return(-1);
+            }
+        }
         result = ftpcmd(ftpcmdbuf,NULL,0,0,ftp_vbm);
         if (result == REPLY_ERROR && sendport) {
             sendport = 0;
@@ -13597,15 +13738,25 @@ ftp_auth() {
                 struct gss_channel_bindings_struct chan;
                 char * realm = NULL;
                 char tgt[256];
+                /* GSS_C_AF_INET channel bindings only have a representation for
+                   an IPv4 control connection.  Fall back to no channel bindings
+                   for an IPv6 control connection instead of computing bogus
+                   ones. */
+                int chan_v4_ok = (FTP_FAMILY(hisctladdr) == AF_INET &&
+                                   FTP_FAMILY(myctladdr) == AF_INET);
 
-                chan.initiator_addrtype = GSS_C_AF_INET; /* OM_uint32  */
-                chan.initiator_address.length = 4;
-                chan.initiator_address.value = &myctladdr.sin_addr.s_addr;
-                chan.acceptor_addrtype = GSS_C_AF_INET; /* OM_uint32 */
-                chan.acceptor_address.length = 4;
-                chan.acceptor_address.value = &hisctladdr.sin_addr.s_addr;
-                chan.application_data.length = 0;
-                chan.application_data.value = 0;
+                if (chan_v4_ok) {
+                    chan.initiator_addrtype = GSS_C_AF_INET; /* OM_uint32 */
+                    chan.initiator_address.length = 4;
+                    chan.initiator_address.value =
+                      &FTP_SIN(myctladdr)->sin_addr.s_addr;
+                    chan.acceptor_addrtype = GSS_C_AF_INET; /* OM_uint32 */
+                    chan.acceptor_address.length = 4;
+                    chan.acceptor_address.value =
+                      &FTP_SIN(hisctladdr)->sin_addr.s_addr;
+                    chan.application_data.length = 0;
+                    chan.application_data.value = 0;
+                }
 
                 if (!quiet)
                   printf("GSSAPI accepted as authentication type\n");
@@ -13663,7 +13814,8 @@ ftp_auth() {
                                                 GSS_C_DELEG_FLAG : 0),
                                                0,
                                                 /* channel bindings */
-                                                (krb5_d_no_addresses ?
+                                                ((krb5_d_no_addresses ||
+                                                  !chan_v4_ok) ?
                                                   GSS_C_NO_CHANNEL_BINDINGS :
                                                   &chan),
                                                 token_ptr,
@@ -14391,7 +14543,9 @@ ftp_hookup( char * host, int port, int tls )
 ftp_hookup(host, port, tls) char * host; int port; int tls;
 #endif /* CK_ANSIC */
 {
+#ifndef CK_IPV6
     register struct hostent *hp = 0;
+#endif /* CK_IPV6 */
 #ifdef IP_TOS
 #ifdef IPTOS_THROUGHPUT
     int tos;
@@ -14443,11 +14597,39 @@ ftp_hookup(host, port, tls) char * host; int port; int tls;
         cport = port;
     }
     memset((char *)&hisctladdr, 0, sizeof (hisctladdr));
-    hisctladdr.sin_addr.s_addr = inet_addr(host);
-    if (hisctladdr.sin_addr.s_addr != INADDR_NONE) /* 2010-03-29 */
+#ifdef CK_IPV6
+    /*
+      Resolve and connect via ck_tcp_connect().  hostname (not host) is
+      resolved, so an active HTTP proxy is honored the same way the legacy
+      branch below intends (see ftp hookup B below).
+    */
+    {
+        struct sockaddr_storage cn_addr;
+        GSOCKNAME_T cn_len = sizeof(cn_addr);
+        char svcbuf[16];
+        int got_addr = 0;
+
+        ckstrncpy(svcbuf,ckuitoa((unsigned)cport),sizeof(svcbuf));
+        s = ck_tcp_connect(hostname, svcbuf, quiet, &got_addr,
+                           &cn_addr, &cn_len, 0);
+        if (s < 0) {
+            if (!got_addr)
+              fprintf(stderr, "ftp: %s: Unknown host\n", host);
+            ftpcode = -1;
+#ifdef DEBUG
+            debtim = xdebtim;
+#endif /* DEBUG */
+            return((char *) 0);
+        }
+        memcpy(&hisctladdr, &cn_addr, cn_len);
+        ckstrncpy(hostnamebuf, hostname, MAXHOSTNAMELEN);
+    }
+#else /* CK_IPV6 */
+    FTP_SIN(hisctladdr)->sin_addr.s_addr = inet_addr(host);
+    if (FTP_SIN(hisctladdr)->sin_addr.s_addr != INADDR_NONE) /* 2010-03-29 */
     {
         debug(F110,"ftp hookup A",hostname,0);
-        hisctladdr.sin_family = AF_INET;
+        FTP_SIN(hisctladdr)->sin_family = AF_INET;
         ckstrncpy(hostnamebuf, hostname, MAXHOSTNAMELEN);
     } else {
         debug(F110,"ftp hookup B",hostname,0);
@@ -14463,19 +14645,17 @@ ftp_hookup(host, port, tls) char * host; int port; int tls;
 #endif /* DEBUG */
             return((char *) 0);
         }
-        hisctladdr.sin_family = hp->h_addrtype;
+        FTP_SIN(hisctladdr)->sin_family = hp->h_addrtype;
 #ifdef HADDRLIST
-        memcpy((char *)&hisctladdr.sin_addr, hp->h_addr_list[0],
-               sizeof(hisctladdr.sin_addr));
+        memcpy((char *)&FTP_SIN(hisctladdr)->sin_addr, hp->h_addr_list[0],
+               sizeof(FTP_SIN(hisctladdr)->sin_addr));
 #else /* HADDRLIST */
-        memcpy((char *)&hisctladdr.sin_addr, hp->h_addr,
-               sizeof(hisctladdr.sin_addr));
+        memcpy((char *)&FTP_SIN(hisctladdr)->sin_addr, hp->h_addr,
+               sizeof(FTP_SIN(hisctladdr)->sin_addr));
 #endif /* HADDRLIST */
         ckstrncpy(hostnamebuf, hp->h_name, MAXHOSTNAMELEN);
     }
-    debug(F110,"ftp hookup C",hostnamebuf,0);
-    ftp_host = hostnamebuf;
-    s = socket(hisctladdr.sin_family, SOCK_STREAM, 0);
+    s = socket(FTP_SIN(hisctladdr)->sin_family, SOCK_STREAM, 0);
     debug(F101,"ftp hookup socket","",s);
     if (s < 0) {
         perror("ftp: socket");
@@ -14485,7 +14665,7 @@ ftp_hookup(host, port, tls) char * host; int port; int tls;
 #endif /* DEBUG */
         return(0);
     }
-    hisctladdr.sin_port = htons(cport);
+    FTP_SIN(hisctladdr)->sin_port = htons(cport);
     errno = 0;
 
 #ifdef HADDRLIST
@@ -14495,28 +14675,28 @@ ftp_hookup(host, port, tls) char * host; int port; int tls;
     debug(F100,"ftp hookup no HADDRLIST","",0);
     if
 #endif /* HADDRLIST */
-      (connect(s, (struct sockaddr *)&hisctladdr, sizeof (hisctladdr)) < 0) {
+      (connect(s, (struct sockaddr *)&hisctladdr, FTP_SALEN(hisctladdr)) < 0) {
           debug(F101,"ftp hookup connect failed","",errno);
 #ifdef HADDRLIST
           if (hp && hp->h_addr_list[1]) {
               int oerrno = errno;
 
               fprintf(stderr, "ftp: connect to address %s: ",
-                      inet_ntoa(hisctladdr.sin_addr));
+                      inet_ntoa(FTP_SIN(hisctladdr)->sin_addr));
               errno = oerrno;
               perror((char *) 0);
               hp->h_addr_list++;
-              memcpy((char *)&hisctladdr.sin_addr,
+              memcpy((char *)&FTP_SIN(hisctladdr)->sin_addr,
                      hp->h_addr_list[0],
-                     sizeof(hisctladdr.sin_addr));
+                     sizeof(FTP_SIN(hisctladdr)->sin_addr));
               fprintf(stdout, "Trying %s...\n",
-                      inet_ntoa(hisctladdr.sin_addr));
+                      inet_ntoa(FTP_SIN(hisctladdr)->sin_addr));
 #ifdef TCPIPLIB
               socket_close(s);
 #else /* TCPIPLIB */
               close(s);
 #endif /* TCPIPLIB */
-              s = socket(hisctladdr.sin_family, SOCK_STREAM, 0);
+              s = socket(FTP_SIN(hisctladdr)->sin_family, SOCK_STREAM, 0);
               if (s < 0) {
                   perror("ftp: socket");
                   ftpcode = -1;
@@ -14532,6 +14712,9 @@ ftp_hookup(host, port, tls) char * host; int port; int tls;
           ftpcode = -1;
           goto bad;
       }
+#endif /* CK_IPV6 */
+    debug(F110,"ftp hookup C",hostnamebuf,0);
+    ftp_host = hostnamebuf;
     debug(F100,"ftp hookup connect ok","",0);
 
     len = sizeof (myctladdr);
@@ -15808,6 +15991,8 @@ secure_putbuf(fd, buf, nbyte) int fd; CHAR * buf; unsigned int nbyte;
 #endif /* FTP_SRP */
 #ifdef FTP_KRB4
     if (ck_krb4_is_installed() && (strcmp(auth_type, "KERBEROS_V4") == 0)) {
+        /* Kerberos 4's wire format has no IPv6 address representation,
+           so this stays IPv4-only regardless of CK_IPV6. */
         struct sockaddr_in myaddr, hisaddr;
         GSOCKNAME_T len;
         len = sizeof(myaddr);
@@ -15818,6 +16003,11 @@ secure_putbuf(fd, buf, nbyte) int fd; CHAR * buf; unsigned int nbyte;
         len = sizeof(hisaddr);
         if (getpeername(fd, (struct sockaddr*)&hisaddr, &len) < 0) {
             secure_error("secure_putbuf: getpeername failed");
+            return(ERR);
+        }
+        if (myaddr.sin_family != AF_INET || hisaddr.sin_family != AF_INET) {
+            secure_error(
+                "KERBEROS_V4 has no IPv6 representation; refusing");
             return(ERR);
         }
         if (bufsize < nbyte + FUDGE_FACTOR) {
@@ -16036,6 +16226,9 @@ secure_getbyte(fd,fc) int fd,fc;
 #endif /* FTP_SRP */
 #ifdef FTP_KRB4
               if (strcmp(auth_type, "KERBEROS_V4") == 0) {
+                  /* Kerberos 4's wire format has no IPv6 address
+                     representation, so this stays IPv4-only
+                     regardless of CK_IPV6. */
                   struct sockaddr_in myaddr, hisaddr;
                   GSOCKNAME_T len;
                   len = sizeof(myaddr);
@@ -16046,6 +16239,12 @@ secure_getbyte(fd,fc) int fd,fc;
                   len = sizeof(hisaddr);
                   if (getpeername(fd, (struct sockaddr*)&hisaddr, &len) < 0) {
                       secure_error("secure_putbuf: getpeername failed");
+                      return(ERR);
+                  }
+                  if (myaddr.sin_family != AF_INET ||
+                      hisaddr.sin_family != AF_INET) {
+                      secure_error(
+                          "KERBEROS_V4 has no IPv6 representation; refusing");
                       return(ERR);
                   }
                   if (ftp_dpl) {

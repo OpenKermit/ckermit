@@ -1,4 +1,6 @@
 import os
+import pty
+import select
 import socket
 import subprocess
 import pytest
@@ -61,6 +63,30 @@ def resolve_transfer_paths(client_dir, server_dir, direction, file_name):
     if direction == "get":
         return server_dir / file_name, client_dir / file_name
     raise ValueError(f"Unknown direction: {direction}")
+
+
+def take_file_lines(cmds):
+    """Split a caller-supplied command string into individual TAKE-file
+    lines.  Callers join multiple commands with newlines, with commas
+    (as used for -C), or both.
+
+    A TAKE file requires exactly one command per line."""
+    lines = []
+    for line in cmds.split("\n"):
+        for part in line.split(","):
+            part = part.strip()
+            if part:
+                lines.append(part)
+    return lines
+
+
+def pattern_bytes(size):
+    """Generate test data, just 0x00 through 0xFF, for transfers of different
+    sizes.  Since this data doesn't contain repeating sequences, Kermit's
+    RLE won't reduce the packet sizes.  However, escaping may adjust transfer
+    sizes."""
+    reps = size // 256 + 1
+    return (bytes(range(256)) * reps)[:size]
 
 
 logger = logging.getLogger(__name__)
@@ -126,7 +152,8 @@ def wermit_loopback(request, wermit_path, run_wermit):
     created_files = []
     use_clear_unprefix = request.param
 
-    def _run(server_dir, server_setup_cmds="", client_commands=""):
+    def _run(server_dir, server_setup_cmds="", client_commands="",
+             timeout=10):
         server_ksc = Path(server_dir).parent / \
             f"server_{Path(server_dir).name}.ksc"
         server_log = Path(server_dir).parent / \
@@ -145,7 +172,7 @@ def wermit_loopback(request, wermit_path, run_wermit):
             setup_lines.append("set control unprefix all")
         setup_lines.append(f"cd {server_dir}")
         if server_setup_cmds:
-            setup_lines.append(server_setup_cmds)
+            setup_lines.extend(take_file_lines(server_setup_cmds))
         setup_lines.append("server")
 
         logger.info("wermit_loopback: Creating server script %s", server_ksc)
@@ -179,7 +206,7 @@ def wermit_loopback(request, wermit_path, run_wermit):
         ]
         logger.info(
             "wermit_loopback: Client running command sequence: %s", cmd_str)
-        result = run_wermit(full_client_cmd)
+        result = run_wermit(full_client_cmd, timeout=timeout)
 
         if DEBUG_LOOPBACK:
             for label, log_path in (("Server", server_log), ("Client", client_log)):
@@ -373,7 +400,15 @@ def wermit_tcp_loopback(spawn_wermit, run_wermit, get_free_port):
                 break
             server_log_fh.flush()
             content = server_log_path.read_text(errors="replace")
-            if "Listening" in content or "Waiting to Accept" in content:
+            # "Waiting to Accept" is the only reliable readiness signal:
+            # under CK_IPV6, SET HOST * in AUTO mode (the default) binds
+            # an IPv4 and an IPv6 socket one after another, each printing
+            # its own "Listening" line as it completes, so "Listening"
+            # alone can appear well before the *second* socket is
+            # actually up. "Waiting to Accept" is printed exactly once,
+            # only after every socket SET HOST * is going to open has
+            # finished binding and listening.
+            if "Waiting to Accept" in content:
                 ready = True
                 break
             time.sleep(0.05)
@@ -402,6 +437,325 @@ def wermit_tcp_loopback(spawn_wermit, run_wermit, get_free_port):
                 logger.debug(
                     "wermit_tcp_loopback: Server process log:\n%s",
                     path.read_text(errors="replace"))
+            if path.exists():
+                path.unlink()
+        except OSError:
+            pass
+
+
+# The following scaffolding runs a wermit process ("the local side")
+# with its own console (stdin/stdout/stderr) attached to a real
+# pseudoterminal, since kermit's console handling requires a real tty
+# in some code paths (e.g. ttptycmd() in ckutio.c). It's used directly
+# by tests that just need to run a wermit command and capture its
+# output (e.g. test_zmodem.py's PTY-mode transfers), and it's also the
+# building block zmodem_remote uses for its TCP mode, where the
+# wermit-under-test must be started (as a TCP listener) before its
+# remote peer is spawned, and only collected afterwards.
+
+def _log_debug_file(label, path):
+    path = Path(path)
+    if not path.exists():
+        return
+    try:
+        text = path.read_text(errors="replace")
+        logger.info(
+            "%s: wermit debug log:\n%s",
+            label, truncated("wermit debug log", text))
+    except OSError as e:
+        logger.warning(
+            "%s: failed to read debug log %s: %s", label, path, e)
+
+
+def _log_process_snapshot(label):
+    """Logs any wermit/sz/rz processes still alive, so a timeout tells
+    us whether the hang is in wermit itself or in a child it exec'd.
+    This is a system-wide ps -ef filtered by name only, so under
+    parallel test runs (or just an unrelated wermit/sz/rz elsewhere on
+    the machine) it can easily catch processes that have nothing to do
+    with the test that timed out."""
+    try:
+        ps = subprocess.run(
+            ["ps", "-ef"], capture_output=True, text=True, timeout=5)
+        relevant = "\n".join(
+            line for line in ps.stdout.splitlines()
+            if line.startswith("UID")
+            or any(name in line for name in ("wermit", " sz", " rz"))
+        )
+        logger.info(
+            "%s: possibly relevant process snapshot:\n%s", label, relevant)
+    except Exception as e:
+        logger.warning(
+            "%s: failed to capture process snapshot: %s", label, e)
+
+
+def start_wermit_pty(wermit_path, cmd_str, cwd, debug_log=None):
+    """
+    Starts a wermit process with its stdin/stdout/stderr connected to a
+    real pseudoterminal slave, without waiting for it to finish.
+    Returns (proc, master).  Pass both to finish_wermit_pty() to
+    collect its output and exit code.
+    """
+    master, slave = pty.openpty()
+
+    debug_prefix = f"log debug {debug_log}, " if debug_log else ""
+    cmd = [
+        wermit_path, "-H", "-Y", "-C",
+        f"{debug_prefix}set command more-prompting off, {cmd_str}"
+    ]
+
+    proc = subprocess.Popen(
+        cmd,
+        stdin=slave,
+        stdout=slave,
+        stderr=slave,
+        cwd=str(cwd),
+        close_fds=True
+    )
+
+    os.close(slave)
+    return proc, master
+
+
+def finish_wermit_pty(proc, master, timeout=45, debug_log=None):
+    """
+    Reads a wermit process's pty output (started via start_wermit_pty)
+    until it exits or the timeout fires, then returns
+    (returncode, stdout).
+    """
+    output = []
+    start_time = time.time()
+
+    while proc.poll() is None:
+        if time.time() - start_time > timeout:
+            captured = b"".join(output).decode('utf-8', errors='replace')
+            logger.error(
+                "finish_wermit_pty: wermit (pid %d) timed out after %ds. "
+                "pty output captured before timeout:\n%s",
+                proc.pid, timeout, truncated("pty output", captured))
+            _log_process_snapshot("finish_wermit_pty")
+            proc.terminate()
+            try:
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=2)
+            os.close(master)
+            if debug_log:
+                _log_debug_file("finish_wermit_pty", debug_log)
+            raise subprocess.TimeoutExpired(
+                proc.args, timeout, output=captured.encode())
+
+        r, _, _ = select.select([master], [], [], 0.1)
+        if master in r:
+            try:
+                data = os.read(master, 4096)
+                if not data:
+                    break
+                output.append(data)
+            except OSError:
+                break
+
+    # Read any remaining output after process exits
+    while True:
+        r, _, _ = select.select([master], [], [], 0.05)
+        if master in r:
+            try:
+                data = os.read(master, 4096)
+                if not data:
+                    break
+                output.append(data)
+            except OSError:
+                break
+        else:
+            break
+
+    os.close(master)
+    proc.wait()
+
+    if debug_log:
+        _log_debug_file("finish_wermit_pty", debug_log)
+
+    return proc.returncode, b"".join(output).decode('utf-8', errors='replace')
+
+
+def run_wermit_pty(wermit_path, cmd_str, cwd, timeout=45, debug_log=None):
+    """
+    Runs kermit with its stdin, stdout, and stderr connected to a real
+    pseudoterminal slave, waiting for it to finish and returning
+    (returncode, stdout).
+
+    This is because, by default, when kermit sets up a host connection
+    over a pseudoterminal, it runs ckutio.c:ttptycmd(). If kermit's own
+    stdin is not a TTY (e.g., standard input is redirected from
+    /dev/null or pipes), the original implementation of
+    tcgetattr(0, &term) and ioctl(0, TIOCGWINSZ, &twin) would fail,
+    printing "tcgetattr: Inappropriate ioctl for device" and aborting.
+
+    Using pty.openpty() ensures that tests execute in a clean, simulated
+    terminal environment matching normal shell usage.
+    """
+    proc, master = start_wermit_pty(wermit_path, cmd_str, cwd, debug_log)
+    return finish_wermit_pty(proc, master, timeout=timeout, debug_log=debug_log)
+
+
+def _wait_for_pty_marker(master, marker, timeout):
+    """
+    Reads from a pty master until marker (bytes) appears in the
+    accumulated output or timeout runs out, returning whatever was
+    read (so callers can prepend it to later-captured output).
+    """
+    buf = b""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        r, _, _ = select.select([master], [], [], 0.1)
+        if master in r:
+            try:
+                data = os.read(master, 4096)
+            except OSError:
+                break
+            if not data:
+                break
+            buf += data
+            if marker in buf:
+                break
+    return buf
+
+
+@pytest.fixture(params=["pty", "tcp"], ids=["pty", "tcp"])
+def zmodem_remote(request, wermit_path, get_free_port, spawn_wermit):
+    """
+    Provides a way to run the wermit-under-test (Zmodem tests' "local"
+    side) against a real rz/sz "remote", parameterized over two ways
+    of reaching it:
+
+    - "pty": the far end of SET HOST /NETWORK-TYPE:PSEUDOTERMINAL is a
+      second wermit process, not rz/sz directly. rz/sz's own termios
+      handling (see doc/mac.md: rz unconditionally re-enables IXOFF on
+      itself via io_mode(), among other things, moments after any
+      raw-mode setup the connection itself does) turned out to apply
+      directly to whatever pty is hosting it.  When rz/sz is the
+      connection target itself, that pty is the exact one the
+      wermit-under-test treats as its own connection, not some private
+      pty of rz/sz's own. Routing through a second wermit instead (the
+      same wermit_loopback fixture's approach, adapted for Zmodem
+      instead of Kermit protocol) means rz/sz only ever touches a
+      private pty that far-end wermit creates for it via its own
+      ttptycmd(), exactly like the "tcp" mode below already ensures.
+      This makes the two modes structurally identical in that respect,
+      differing only in the outer connection's transport.
+
+      The far-end wermit is exec'd with a script and no explicit SET
+      LINE or SET HOST of its own: a wermit invoked this way (as the
+      target of another process's SET HOST /NETWORK-TYPE:PSEUDOTERMINAL)
+      treats its own controlling tty (the pty slave it was exec'd
+      onto) as its connection by default, so SET PROTOCOL ZMODEM
+      plus SEND or RECEIVE runs directly over it with nothing else
+      needed.
+
+    - "tcp": a second, plain wermit process ("the remote") reaches the
+      wermit-under-test over a raw TCP/IP connection.  It doesn't use
+      Kermit's SERVER mode.
+
+      To actually run rz/sz, the remote uses SET PROTOCOL ZMODEM plus SEND or
+      RECEIVE, which is Kermit's mechanism for redirecting an external protocol
+      over the current connection.  It forks rz/sz onto a pty of its own
+      choosing and relays that to the connection. This is exactly the same
+      mechanism the wermit under test already uses for SEND with a
+      non-Kermit protocol, so it needs no special handling on the test's part.
+      It's the same as a real remote BBS/modem host execing rz/sz onto the line
+      it's already connected to, just automated by Kermit instead of by hand.
+
+      The remote is spawned via spawn_wermit with its console discarded.  Unlike
+      the wermit under test, it doesn't need a real tty, and giving it an unread
+      pty instead of discarding its output would risk deadlock on large
+      transfers once its progress messages fill the pty's kernel buffer with
+      nothing draining it.
+
+    Returns a callable:
+        zmodem_remote(remote_argv, cmd_str, cwd, timeout=45,
+                      debug_log=None)
+    where remote_argv is the rz/sz command as a list (e.g.
+    ["sz", str(src_file)] or ["rz"]), and cmd_str is the
+    wermit-under-test's own command string with a literal "{HOST}"
+    placeholder standing in for the "set host" target.
+
+    Returns (returncode, stdout) like run_wermit_pty. The
+    callable also exposes zmodem_remote.mode ("pty" or "tcp") so
+    callers can pad timeouts for the extra TCP connection setup.
+    """
+    mode = request.param
+    created_files = []
+
+    def _remote_clause(remote_argv):
+        """
+        Translates remote_argv (["sz", path] to send that file, or
+        ["rz"] to receive) into the SET PROTOCOL ZMODEM SEND/RECEIVE
+        clause a remote wermit runs to do the same thing via its own
+        external-protocol machinery.
+        """
+        if remote_argv[0] == "sz":
+            return f"send {remote_argv[1]}"
+        return "receive"
+
+    def _pty_run(remote_argv, cmd_str, cwd, timeout=45, debug_log=None):
+        server_ksc = Path(cwd).parent / "zmodem_remote_server.ksc"
+        server_ksc.write_text(
+            "set command more-prompting off\n"
+            "set delay 0\n"
+            "set protocol zmodem\n"
+            f"{_remote_clause(remote_argv)}\n"
+            "exit\n"
+        )
+        created_files.append(server_ksc)
+
+        full_cmd_str = cmd_str.format(
+            HOST="/network-type:pseudoterminal "
+                 f"{wermit_path} {server_ksc.absolute()}")
+        return run_wermit_pty(
+            wermit_path, full_cmd_str, cwd, timeout=timeout,
+            debug_log=debug_log)
+
+    def _tcp_run(remote_argv, cmd_str, cwd, timeout=45, debug_log=None):
+        port = get_free_port()
+        full_cmd_str = cmd_str.format(HOST=f"* {port} /raw-socket")
+
+        # Start the wermit-under-test first: it's the TCP listener, so
+        # it must be listening before the remote side tries to
+        # connect.
+        proc, master = start_wermit_pty(
+            wermit_path, full_cmd_str, cwd, debug_log)
+        # "Waiting to Accept" (not "Listening") is the only reliable
+        # readiness signal here -- see the identical comment in
+        # wermit_tcp_loopback's _setup() above for why: under CK_IPV6,
+        # SET HOST * in AUTO mode (the default) binds an IPv4 and an
+        # IPv6 socket one after another, each printing its own
+        # "Listening" line, so waiting for "Listening" can let the
+        # client below race ahead and try to connect (to whichever
+        # family the resolver prefers, often IPv6) before that
+        # socket is actually up yet.
+        prefix = _wait_for_pty_marker(master, b"Waiting to Accept",
+                                       timeout=10)
+
+        spawn_wermit(
+            ["-H", "-Y", "-C",
+             "set command more-prompting off, "
+             "set tcp reverse-dns-lookup off, "
+             "set protocol zmodem, "
+             f"set host localhost {port} /raw-socket, "
+             f"{_remote_clause(remote_argv)}, close, exit"],
+            cwd=str(cwd), stdout=subprocess.DEVNULL)
+
+        returncode, stdout = finish_wermit_pty(
+            proc, master, timeout=timeout, debug_log=debug_log)
+        return returncode, prefix.decode('utf-8', errors='replace') + stdout
+
+    run = _tcp_run if mode == "tcp" else _pty_run
+    run.mode = mode
+    yield run
+
+    for path in created_files:
+        try:
             if path.exists():
                 path.unlink()
         except OSError:

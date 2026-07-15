@@ -293,7 +293,13 @@ extern int tcp_rdns;
 #ifdef CK_DNS_SRV
 extern int tcp_dns_srv;
 #endif /* CK_DNS_SRV */
+#ifdef CK_IPV6
+extern int tcp_af;
+#endif /* CK_IPV6 */
 extern char * tcp_address;
+#ifdef CK_IPV6
+extern char * tcp_address6;
+#endif /* CK_IPV6 */
 #ifndef NOHTTP
 extern char * tcp_http_proxy;
 #endif /* NOHTTP */
@@ -2400,15 +2406,16 @@ doconect(q,async) int q, async;
 #endif /* IKS_OPTION */
 #ifdef NETCONN
 /*
-  If the autodownload found the connection closed via ttclos(), ttyfd is -1.
-  This might happen when a peer disconnects immediately after
+  If the autodownload found the connection closed via ttclos(), ttyfd
+  is -1.  This can happen when a peer disconnects immediately after
+  the autodownload completes.
 
-  Calling conect() again in that circumstance conect() performs implicit REOPEN
-  of the connection whenever ttyfd < 0.  For a TCP server, that means silently
-  going back into tcpsrv_open()'s accept() wait for a brand new client that may
-  never arrive, hanging CONNECT.  Only an explicit REDIAL should cause a
-  reopen.  Bail out of the APC loop here like the post-conect() check below
-  does when the connection drops.
+  conect() performs an implicit REOPEN of the connection whenever
+  ttyfd < 0.  For a TCP server, that means silently going back into
+  tcpsrv_open()'s accept() wait for a brand new client that may never
+  arrive, hanging CONNECT.  Only an explicit REDIAL should cause a
+  reopen.  Bail out of the APC loop here, like the post-conect() check
+  below does when the connection drops.
 */
             if (network && ttchk() < 0)
               break;
@@ -4918,8 +4925,18 @@ shotcp(n) int n;
 #endif /* SO_RCVBUF */
 #endif /* SOL_SOCKET */
 #endif /* NOTCPOPTS */
+#ifdef CK_IPV6
+        printf(" address-family: %s\n",
+               tcp_af == TCP_AF_V4 ? "ipv4" :
+               tcp_af == TCP_AF_V6 ? "ipv6" : "auto");
+        if (++n > cmd_rows - 3) { if (!askmore()) { return(-1);} else {n = 0;}}
+#endif /* CK_IPV6 */
         printf(" address: %s\n",tcp_address ? tcp_address : "(none)");
         if (++n > cmd_rows - 3) { if (!askmore()) { return(-1);} else {n = 0;}}
+#ifdef CK_IPV6
+        printf(" address6: %s\n",tcp_address6 ? tcp_address6 : "(none)");
+        if (++n > cmd_rows - 3) { if (!askmore()) { return(-1);} else {n = 0;}}
+#endif /* CK_IPV6 */
 #ifndef NOHTTP
         printf(" http-proxy: %s\n",tcp_http_proxy ? tcp_http_proxy : "(none)");
         if (++n > cmd_rows - 3) { if (!askmore()) { return(-1);} else {n = 0;}}

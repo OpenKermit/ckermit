@@ -913,6 +913,10 @@ kbget() {
  * Side effects:
  *	None
  */
+/*
+  BEBOX has no IPv6 support, so this function will never be converted
+  to IPv6.
+*/
 int
 socketpair(int *pair) {
     int servsock;

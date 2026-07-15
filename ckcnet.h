@@ -12,6 +12,13 @@
 #ifndef CKCNET_H
 #define CKCNET_H
 
+/*
+  The maximum size of an IPv4 or IPv6 address as a string, including
+  brackets around IPv6 addresses, colon to separate the IP address from the
+  port number, and a port number.
+*/
+#define CK_IPADDRLEN 64
+
 /* Network types */
 
 #define NET_NONE 0                      /* None */
@@ -1196,6 +1203,23 @@ typedef char * caddr_t; /* core address type */
 #endif /* UNIX */
 #endif /* TCPSOCKET */
 
+/*
+  Detect IPv6 capability and, when present, define CK_IPV6.  This will
+  be used throughout the codebase to gate on platform support for IPv6.
+*/
+#ifdef TCPSOCKET
+#ifdef AF_INET6
+#define CK_IPV6
+#endif /* AF_INET6 */
+#endif /* TCPSOCKET */
+
+#ifdef CK_IPV6
+/* Values for tcp_af, set by SET TCP ADDRESS-FAMILY in ckcnet.c. */
+#define TCP_AF_AUTO 0                    /* Try both in resolver order */
+#define TCP_AF_V4   1                    /* IPv4 only */
+#define TCP_AF_V6   2                    /* IPv6 only */
+#endif /* CK_IPV6 */
+
 #ifndef NOINADDRX		      /* 301 - Needed for Solaris 10 and 11 */
 #ifdef SOLARIS
 #define NOINADDRX
@@ -1370,6 +1394,7 @@ SORRY_CK_NAWS_REQUIRES_TTGWSIZ_see_ckcplm.doc
 
 #ifdef CK_KERBEROS
 #ifdef RLOGCODE
+/* IPv4-only.  See ck_krb_rlogin() in ckuath.c. */
 _PROTOTYP(int ck_krb_rlogin,(CHAR *, int, CHAR *, CHAR *, CHAR *,
                               struct sockaddr_in *,
                               struct sockaddr_in *, int, int));
@@ -1509,6 +1534,16 @@ extern char * tcp_http_proxy_pwd;       /* Password of user */
 #endif /* PTX */
 #endif /* MACOSX10 */
 #endif /* GSOCKNAME_T */
+
+_PROTOTYP( int ck_straddr, (struct sockaddr *, GSOCKNAME_T, char *, int) );
+_PROTOTYP( unsigned short ck_getport, (struct sockaddr *) );
+_PROTOTYP( VOID ck_setport, (struct sockaddr *, unsigned short) );
+#ifdef CK_IPV6
+_PROTOTYP( int ck_tcp_connect, (char *, char *, int, int *,
+                                struct sockaddr_storage *, GSOCKNAME_T *,
+                                int) );
+#endif /* CK_IPV6 */
+_PROTOTYP( int ck_splithostport, (char *, char *, int, char *, int) );
 
 #endif /* TCPSOCKET */
 

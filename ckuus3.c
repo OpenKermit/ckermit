@@ -1048,6 +1048,14 @@ extern int nnets, nnetkey;
 #ifdef TCPSOCKET
 extern struct keytab tcpopt[];
 extern int ntcpopt;
+#ifdef CK_IPV6
+static struct keytab tcpaftab[] = {     /* SET TCP ADDRESS-FAMILY */
+    { "auto", TCP_AF_AUTO, 0 },
+    { "ipv4", TCP_AF_V4,   0 },
+    { "ipv6", TCP_AF_V6,   0 }
+};
+static int ntcpaftab = (sizeof(tcpaftab) / sizeof(struct keytab));
+#endif /* CK_IPV6 */
 #endif /* TCPSOCKET */
 #ifdef NPIPE
 char pipename[PIPENAML+1] = { NUL, NUL };
@@ -1599,6 +1607,9 @@ int cx_type = CX_AUTO;
 extern int sl_cx_type;
 #endif /* CK_ENCRYPTION */
 extern char *tcp_address;
+#ifdef CK_IPV6
+extern char *tcp_address6;
+#endif /* CK_IPV6 */
 #ifndef NOHTTP
 extern char * tcp_http_proxy;
 extern char * tcp_http_proxy_user;
@@ -10150,12 +10161,22 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n");
 #endif /* CK_SOCKS */
 #endif /* NT */
           case XYTCP_ADDRESS:
-            if ((y = cmtxt("preferred IP Address for TCP connections","",
+            if ((y = cmtxt("preferred IPv4 address for TCP connections","",
                            &s,xxstring)) < 0)
               return(y);
 #ifdef IKSDCONF
             if (iksdcf) return(success = 0);
 #endif /* IKSDCONF */
+#ifdef CK_IPV6
+            if (s && *s) {
+                struct in_addr chk4;
+                if (inet_pton(AF_INET,s,&chk4) != 1) {
+                    printf("?SET TCP ADDRESS requires an IPv4 address - %s\n",
+                           s);
+                    return(success = 0);
+                }
+            }
+#endif /* CK_IPV6 */
             if (tcp_address) {
                 free(tcp_address);      /* Free any previous storage */
                 tcp_address = NULL;
@@ -10168,6 +10189,36 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n");
                 return(success = 1);
             } else
               return(success = 0);
+
+#ifdef CK_IPV6
+          case XYTCP_ADDRESS6:
+            if ((y = cmtxt("preferred IPv6 address for TCP connections","",
+                           &s,xxstring)) < 0)
+              return(y);
+#ifdef IKSDCONF
+            if (iksdcf) return(success = 0);
+#endif /* IKSDCONF */
+            if (s && *s) {
+                struct in6_addr chk6;
+                if (inet_pton(AF_INET6,s,&chk6) != 1) {
+                    printf("?SET TCP ADDRESS6 requires an IPv6 address - %s\n",
+                           s);
+                    return(success = 0);
+                }
+            }
+            if (tcp_address6) {
+                free(tcp_address6);    /* Free any previous storage */
+                tcp_address6 = NULL;
+            }
+            if (s == NULL || *s == NUL) { /* If none given */
+                tcp_address6 = NULL;    /* remove the override string */
+                return(success = 1);
+            } else if ((tcp_address6 = malloc(strlen(s)+1))) {
+                memcpy(tcp_address6,s,strlen(s)+1);
+                return(success = 1);
+            } else
+              return(success = 0);
+#endif /* CK_IPV6 */
 #ifdef SO_KEEPALIVE
           case XYTCP_KEEPALIVE:
             if ((z = cmkey(onoff,2,"","on",xxstring)) < 0) return(z);
@@ -10313,6 +10364,18 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n");
               return(success = seton(&tcp_dns_srv));
           }
 #endif /* CK_DNS_SRV */
+
+#ifdef CK_IPV6
+          case XYTCP_AF: {
+              extern int tcp_af;
+              if ((z = cmkey(tcpaftab,ntcpaftab,"address family","auto",
+                              xxstring)) < 0)
+                return(z);
+              if ((y = cmcfm()) < 0) return(y);
+              tcp_af = z;
+              return(success = 1);
+          }
+#endif /* CK_IPV6 */
 
           default:
             return(0);
@@ -13232,6 +13295,11 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
                             }
                             return(y);
                         }
+                        /* Validated as IPv4 dotted-quad only.  See the
+                           comment on init->addrs in ckuath.c (k5_init)
+                           for why this ticket address restriction
+                           feature wasn't implemented for initial
+                           IPv6 support. */
                         for (i = 0;
                              i < KRB5_NUM_OF_ADDRS && tmpaddrs[i];
                              i++) {

@@ -35,7 +35,7 @@ START_TEST(test_ulongtohex_hextoulong)
     unsigned long val;
 
     hex = ulongtohex(0x12345678UL, 8);
-    strcpy(buf, hex);
+    ckstrncpy(buf, hex, sizeof(buf));
     val = hextoulong(buf, 8);
     ck_assert_uint_eq(val, 0x12345678UL);
 }

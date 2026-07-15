@@ -204,7 +204,7 @@ Vscrnprintf(const char * format, ...)
 #ifdef NT
     rc = _vsnprintf(myprtfstr, sizeof(myprtfstr)-1, format, ap);
 #else /* NT */
-    rc = vsnprintf(myprtfstr, sizeof(myprtfstr)-1, format, ap);
+    rc = vsnprintf(myprtfstr, sizeof(myprtfstr), format, ap);
 #endif /* NT */
     va_end(ap);
 

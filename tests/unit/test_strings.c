@@ -56,7 +56,7 @@ START_TEST(test_ckstrncat)
 
     // Truncated concatenation: dest is 5 chars, total size 8,
     // leaving space for 2 chars + NUL
-    strcpy(dest, "hello");
+    ckstrncpy(dest, "hello", sizeof(dest));
     r = ckstrncat(dest, " world", 8);
     ck_assert_int_eq(r, 2);
     ck_assert_str_eq(dest, "hello w");
@@ -155,13 +155,13 @@ START_TEST(test_dquote)
     int r;
 
     // Spaces present, enough buffer: should quote with double quotes
-    strcpy(buf, "hello world");
+    ckstrncpy(buf, "hello world", sizeof(buf));
     r = dquote(buf, sizeof(buf), 0);
     ck_assert_int_eq(r, 13);
     ck_assert_str_eq(buf, "\"hello world\"");
 
     // Spaces present, enough buffer, flag=1: should quote with braces
-    strcpy(buf, "hello world");
+    ckstrncpy(buf, "hello world", sizeof(buf));
     r = dquote(buf, sizeof(buf), 1);
     ck_assert_int_eq(r, 13);
     ck_assert_str_eq(buf, "{hello world}");
@@ -169,13 +169,13 @@ START_TEST(test_dquote)
     // Spaces present, NOT enough buffer (len <= k + 2)
     // "hello world" has length 11, k+2 = 13.
     // If len = 12: should not quote and return k = 11.
-    strcpy(buf, "hello world");
+    ckstrncpy(buf, "hello world", sizeof(buf));
     r = dquote(buf, 12, 0);
     ck_assert_int_eq(r, 11);
     ck_assert_str_eq(buf, "hello world");
 
     // No spaces: should not quote, but returns k+2 = 7
-    strcpy(buf, "hello");
+    ckstrncpy(buf, "hello", sizeof(buf));
     r = dquote(buf, sizeof(buf), 0);
     ck_assert_int_eq(r, 7);
     ck_assert_str_eq(buf, "hello");
@@ -220,25 +220,25 @@ START_TEST(test_ckoptsubst)
     int r;
 
     // %s placeholder: value substituted in place
-    strcpy(opts, "-e %s");
+    ckstrncpy(opts, "-e %s", sizeof(opts));
     r = ckoptsubst(opts, "file.txt", buf, sizeof(buf));
     ck_assert_int_eq(r, 1);
     ck_assert_str_eq(buf, "-e file.txt");
 
     // %s in the middle, with a trailing suffix preserved
-    strcpy(opts, "-e %s --readonly");
+    ckstrncpy(opts, "-e %s --readonly", sizeof(opts));
     r = ckoptsubst(opts, "f", buf, sizeof(buf));
     ck_assert_int_eq(r, 1);
     ck_assert_str_eq(buf, "-e f --readonly");
 
     // No %s placeholder: value appended after a space
-    strcpy(opts, "-e");
+    ckstrncpy(opts, "-e", sizeof(opts));
     r = ckoptsubst(opts, "file.txt", buf, sizeof(buf));
     ck_assert_int_eq(r, 1);
     ck_assert_str_eq(buf, "-e file.txt");
 
     // Empty opts: value appended after a leading space
-    strcpy(opts, "");
+    ckstrncpy(opts, "", sizeof(opts));
     r = ckoptsubst(opts, "file.txt", buf, sizeof(buf));
     ck_assert_int_eq(r, 1);
     ck_assert_str_eq(buf, " file.txt");
@@ -246,22 +246,22 @@ START_TEST(test_ckoptsubst)
     // Value itself contains %n / %s: must NOT be interpreted as a
     // format string -- this is the vulnerability being regression
     // tested.  It should be copied verbatim.
-    strcpy(opts, "-e %s");
+    ckstrncpy(opts, "-e %s", sizeof(opts));
     r = ckoptsubst(opts, "%n%s%x", buf, sizeof(buf));
     ck_assert_int_eq(r, 1);
     ck_assert_str_eq(buf, "-e %n%s%x");
 
     // opts containing stray %n must not be interpreted either --
     // it should pass through literally in the non-%s portions.
-    strcpy(opts, "%n-%s");
+    ckstrncpy(opts, "%n-%s", sizeof(opts));
     r = ckoptsubst(opts, "f", buf, sizeof(buf));
     ck_assert_int_eq(r, 1);
     ck_assert_str_eq(buf, "%n-f");
 
     // Combined length too long for buf: buf must be left untouched,
     // and opts must not be corrupted by the failed attempt.
-    strcpy(buf, "UNTOUCHED");
-    strcpy(opts, "this-is-a-long-option %s");
+    ckstrncpy(buf, "UNTOUCHED", sizeof(buf));
+    ckstrncpy(opts, "this-is-a-long-option %s", sizeof(opts));
     r = ckoptsubst(opts, "also-a-fairly-long-value", buf, sizeof(buf));
     ck_assert_int_eq(r, 0);
     ck_assert_str_eq(buf, "UNTOUCHED");

@@ -156,7 +156,7 @@ extern CK_TTYFD_T ttyfd;
 extern int inserver;
 #endif /* IKSD */
 
-char myipaddr[20] = { '\0' };           /* Global copy of my IP address */
+char myipaddr[CK_IPADDRLEN] = { '\0' }; /* Global copy of my IP address */
 char hostipaddr[64] = { '\0' };		/* Global copy of remote IP address */
 
 #ifdef NETCONN
@@ -342,6 +342,10 @@ int tcp_rdns =                          /* Reverse DNS lookup */
 int tcp_dns_srv = SET_OFF;
 #endif /* CK_DNS_SRV */
 
+#ifdef CK_IPV6
+int tcp_af = TCP_AF_AUTO;               /* TCP address family (v4, v6, auto) */
+#endif /* CK_IPV6 */
+
 _PROTOTYP( char * cmcvtdate, (char *, int) );
 
 #ifdef RLOGCODE
@@ -436,7 +440,7 @@ char namecopy[NAMECPYL];                /* Referenced by ckctel.c */
 char namecopy2[NAMECPYL];		/* Referenced by ckctel.c */
 #ifndef NOHTTP
 char http_host_port[NAMECPYL];          /* orig host/port necessary for http */
-char http_ip[20] = { '\0' };            /* ip address of host */
+char http_ip[CK_IPADDRLEN] = { '\0' };            /* ip address of host */
 char http_port = 0;
 int  http_ssl = 0;
 char * http_agent = 0;
@@ -446,11 +450,14 @@ int  http_code = 0;
 char http_reply_str[HTTPBUFLEN] = "";
 #endif /* NOHTTP */
 
-char ipaddr[20] = { '\0' };             /* Global copy of IP address */
+char ipaddr[CK_IPADDRLEN] = { '\0' };   /* Global copy of IP address */
 unsigned long myxipaddr = 0L;           /* Ditto as a number */
 #endif /* NETCONN */
 
-char *tcp_address = NULL;               /* Preferred IP Address */
+char *tcp_address = NULL;               /* Preferred IPv4 Address */
+#ifdef CK_IPV6
+char *tcp_address6 = NULL;              /* Preferred IPv6 Address */
+#endif /* CK_IPV6 */
 extern char uidbuf[];                   /* User ID buffer */
 extern char pwbuf[];                    /* Password buffer */
 
@@ -713,6 +720,9 @@ le_getchar(pch) CHAR * pch;
 #endif /* VMS */
 
 int tcpsrfd = -1;
+#ifdef CK_IPV6
+int tcpsrfd6 = -1;                      /* IPv6 listener; see tcpsrv_open() */
+#endif /* CK_IPV6 */
 
 #ifdef CK_KERBEROS
 
@@ -946,7 +956,7 @@ doauth(cx) int cx; {                    /* AUTHENTICATE action routine */
 #endif /* INADDR_ANY */
 
 _PROTOTYP( int ttbufr, ( VOID ) );
-_PROTOTYP( int tcpsrv_open, (char *, int *, int, int ) );
+_PROTOTYP( int tcpsrv_open, (char *, int *, int ) );
 
 static unsigned short tcpsrv_port = 0;
 
@@ -1508,6 +1518,350 @@ ck_copyhostent(h) struct hostent * h;
 #endif /* HADDRLIST */
 
     return(&hosts[next++]);
+}
+
+/*
+  Renders a socket address as text, supporting IPv6 if available.
+*/
+int
+#ifdef CK_ANSIC
+ck_straddr(struct sockaddr * sa, GSOCKNAME_T salen, char * buf, int buflen)
+#else /* CK_ANSIC */
+ck_straddr(sa,salen,buf,buflen)
+    struct sockaddr * sa; GSOCKNAME_T salen; char * buf; int buflen;
+#endif /* CK_ANSIC */
+{
+    if (!buf || buflen < 1)
+      return(-1);
+    *buf = '\0';
+    if (!sa)
+      return(-1);
+#ifdef CK_IPV6
+    if (getnameinfo(sa,(socklen_t)salen,buf,buflen,NULL,0,NI_NUMERICHOST)
+        != 0) {
+        *buf = '\0';
+        return(-1);
+    }
+    return(0);
+#else /* CK_IPV6 */
+    if (sa->sa_family != AF_INET)
+      return(-1);
+    ckstrncpy(buf,(char *)inet_ntoa(((struct sockaddr_in *)sa)->sin_addr),
+              buflen);
+    return(0);
+#endif /* CK_IPV6 */
+}
+
+/*
+  ck_getport() and ck_setport() read and write the port number of a
+  socket address regardless of its address family.  Port numbers are
+  always passed in host byte order.  The network-byte-order conversion
+  happens inside these functions.  An unrecognized family is treated
+  as "no port" (ck_getport() returns 0 and ck_setport() is a no-op).
+*/
+unsigned short
+#ifdef CK_ANSIC
+ck_getport(struct sockaddr * sa)
+#else /* CK_ANSIC */
+ck_getport(sa) struct sockaddr * sa;
+#endif /* CK_ANSIC */
+{
+    if (!sa)
+      return(0);
+#ifdef CK_IPV6
+    if (sa->sa_family == AF_INET6)
+      return(ntohs(((struct sockaddr_in6 *)sa)->sin6_port));
+#endif /* CK_IPV6 */
+    if (sa->sa_family == AF_INET)
+      return(ntohs(((struct sockaddr_in *)sa)->sin_port));
+    return(0);
+}
+
+VOID
+#ifdef CK_ANSIC
+ck_setport(struct sockaddr * sa, unsigned short port)
+#else /* CK_ANSIC */
+ck_setport(sa,port) struct sockaddr * sa; unsigned short port;
+#endif /* CK_ANSIC */
+{
+    if (!sa)
+      return;
+#ifdef CK_IPV6
+    if (sa->sa_family == AF_INET6) {
+        ((struct sockaddr_in6 *)sa)->sin6_port = htons(port);
+        return;
+    }
+#endif /* CK_IPV6 */
+    if (sa->sa_family == AF_INET)
+      ((struct sockaddr_in *)sa)->sin_port = htons(port);
+}
+
+#ifdef CK_IPV6
+/*
+  ck_tcp_connect() implements the telnet-style IPv6 DNS resolution and
+  connection policy: try to connect to every candidate in resolver order,
+  returning at the first successful connection.
+
+  Used by the general SET HOST code (netopen), the FTP control connection
+  (ftp_hookup), and the HTTP client (http_open).
+
+  host and svc are passed straight to getaddrinfo(); the family tried is
+  whatever SET TCP ADDRESS-FAMILY selects.  SET TCP ADDRESS
+  (setting tcp_address) is IPv4-only and is applied as the local bind address
+  for IPv4.  SET TCP ADDRESS6 (setting tcp_address6) is IPv6-only
+  and is applied the same way for IPv6.
+
+  Unless quiet_f is set, prints " Trying <addr>... " for each
+  candidate attempted and "Failed" (via perror()) for one that fails,
+  matching existing SET HOST progress-message behavior.
+
+  On success, returns the connected socket, with raddr and raddrlen set to the
+  peer address actually connected to.  On failure, returns -1 and raddr is
+  untouched.  got_addr distinguishes the two ways that can happen and it's set
+  to 0 if getaddrinfo() failed, or 1 if it returned candidates but none of them
+  connected.
+
+  rsvd_port, if nonzero, requests RLOGIN's privileged source port
+  convention: bind the local end of an AF_INET candidate to a
+  decreasing port in 1023..512 before connecting, mirroring the
+  legacy reserved-port scan netopen() has always done for RLOGIN. This
+  is a BSD IPv4 trust convention with no IPv6 equivalent in actual
+  rlogind implementations, so it is only applied to AF_INET
+  candidates.  An AF_INET6 candidate is tried normally. Callers other
+  than netopen()'s RLOGIN case always pass 0.
+*/
+int
+#ifdef CK_ANSIC
+ck_tcp_connect(char * host, char * svc, int quiet_f, int * got_addr,
+               struct sockaddr_storage * raddr, GSOCKNAME_T * raddrlen,
+               int rsvd_port)
+#else /* CK_ANSIC */
+ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
+    char * host; char * svc; int quiet_f; int * got_addr;
+    struct sockaddr_storage * raddr; GSOCKNAME_T * raddrlen; int rsvd_port;
+#endif /* CK_ANSIC */
+{
+    /* Persists across calls so successive RLOGIN connections in the same
+       process don't immediately reuse the same source port.  Mirrors the
+       legacy netopen() reserved port scan's static lport. */
+    static unsigned short rsvd_lport = 1024;
+    struct addrinfo hints, *results = NULL, *rp;
+    int gai, fd = -1;
+
+    *got_addr = 0;
+    bzero((char *)&hints, sizeof(hints));
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_family =
+      (tcp_af == TCP_AF_V4) ? AF_INET :
+      (tcp_af == TCP_AF_V6) ? AF_INET6 : AF_UNSPEC;
+
+    gai = getaddrinfo(host, svc, &hints, &results);
+    if (gai != 0 || !results) {
+        debug(F110,"ck_tcp_connect getaddrinfo error",
+              (char *)gai_strerror(gai),0);
+        errno = 0;
+        return(-1);
+    }
+    *got_addr = 1;
+
+    for (rp = results; rp; rp = rp->ai_next) {
+        char tbuf[CK_IPADDRLEN];
+        if (ck_straddr(rp->ai_addr,(GSOCKNAME_T)rp->ai_addrlen,
+                        tbuf,sizeof(tbuf)) < 0)
+          tbuf[0] = '\0';
+        debug(F110,"ck_tcp_connect trying",tbuf,0);
+        if (!quiet_f && *tbuf) {
+            printf(" Trying %s... ", tbuf);
+            fflush(stdout);
+        }
+
+        fd = socket(rp->ai_family,SOCK_STREAM,0);
+        if (fd < 0) {
+            debug(F101,"ck_tcp_connect socket error","",errno);
+            continue;
+        }
+        errno = 0;
+
+        /* RLOGIN's privileged source port convention (see
+           comment above) is only meaningful for an AF_INET candidate. */
+        if (rsvd_port && rp->ai_family == AF_INET) {
+            struct sockaddr_in lsin;
+            int bound = 0;
+
+            bzero((char *)&lsin,sizeof(lsin));
+            lsin.sin_family = AF_INET;
+            if (tcp_address)
+              inet_pton(AF_INET,tcp_address,&lsin.sin_addr);
+            else
+              lsin.sin_addr.s_addr = INADDR_ANY;
+
+            rsvd_lport--;               /* don't reuse the last port tried */
+            if (rsvd_lport == 512)
+              rsvd_lport = 1023;
+            while (1) {
+                lsin.sin_port = htons(rsvd_lport);
+                if (bind(fd,(struct sockaddr *)&lsin,sizeof(lsin)) >= 0) {
+                    bound = 1;
+                    break;
+                }
+                if (errno != EADDRINUSE)
+                  break;
+                rsvd_lport--;
+                if (rsvd_lport == 512)  /* lowest reserved port to use */
+                  break;
+            }
+            if (!bound) {
+                debug(F101,"ck_tcp_connect rsvd bind errno","",errno);
+                close(fd);
+                fd = -1;
+                continue;
+            }
+        } else
+        /* SET TCP ADDRESS (IPv4-only) and SET TCP ADDRESS6 (IPv6-only)
+           are each validated at SET time, so only the setting matching
+           this candidate's own family is ever relevant here. */
+        if (tcp_address && rp->ai_family == AF_INET) {
+            struct sockaddr_in lsin;
+            bzero((char *)&lsin,sizeof(lsin));
+            lsin.sin_family = AF_INET;
+            inet_pton(AF_INET,tcp_address,&lsin.sin_addr);
+            lsin.sin_port = 0;
+            if (bind(fd,(struct sockaddr *)&lsin,sizeof(lsin)) < 0) {
+                debug(F101,"ck_tcp_connect bind errno","",errno);
+                close(fd);
+                fd = -1;
+                continue;
+            }
+        } else if (tcp_address6 && rp->ai_family == AF_INET6) {
+            struct sockaddr_in6 lsin6;
+            bzero((char *)&lsin6,sizeof(lsin6));
+            lsin6.sin6_family = AF_INET6;
+            inet_pton(AF_INET6,tcp_address6,&lsin6.sin6_addr);
+            lsin6.sin6_port = 0;
+            if (bind(fd,(struct sockaddr *)&lsin6,sizeof(lsin6)) < 0) {
+                debug(F101,"ck_tcp_connect bind errno","",errno);
+                close(fd);
+                fd = -1;
+                continue;
+            }
+        }
+
+        if (connect(fd,rp->ai_addr,rp->ai_addrlen) == 0) {
+            /* getaddrinfo() never returns an address larger than
+               sockaddr_storage for any family the local resolver
+               supports, so this is just a self-documenting guard
+               against a future change in how results is populated. */
+            if (rp->ai_addrlen > sizeof(*raddr)) {
+                debug(F101,"ck_tcp_connect ai_addrlen too large","",
+                      (int)rp->ai_addrlen);
+                close(fd);
+                fd = -1;
+                continue;
+            }
+            bzero((char *)raddr,sizeof(*raddr));
+            bcopy(rp->ai_addr,(char *)raddr,rp->ai_addrlen);
+            *raddrlen = (GSOCKNAME_T)rp->ai_addrlen;
+            break;
+        }
+        debug(F101,"ck_tcp_connect connect errno","",errno);
+        if (!quiet_f)
+          perror("Failed");
+        close(fd);
+        fd = -1;
+    }
+
+    freeaddrinfo(results);
+    return(fd);
+}
+#endif /* CK_IPV6 */
+
+/*
+  ck_splithostport() splits a "host[:port]" specifier into separate
+  host and port strings.  If in[0] is '[', the host is everything up
+  to the matching ']', which is needed for IPv6.  If the character
+  right after ']' is ':', everything after that is the port.
+
+  Otherwise (no brackets), the number of colons in the whole string
+  decides how it's read:
+    0 colons: the whole string is the host, no port.
+    1 colon:  split there.  This is "host:port", the original syntax this
+              function has always supported.
+    2+ colons: the whole string is the host, no port. A real IPv6
+              literal always has at least two colons, and the plain
+              host:port syntax never allowed more than one, so this can't
+              be anything else.
+
+  hostbuf is always NULL-terminated on return, and is the empty string on
+  failure.
+
+  portbuf, if non-NULL, is always NULL-terminated too, and likewise is
+  the empty string if no port was found.
+
+  Returns:
+    1  if a port was found (hostbuf and portbuf both set)
+    0  if no port was found (hostbuf set, portbuf empty)
+   -1  on malformed input (in[0] == '[' with no matching ']', or bad
+       arguments); hostbuf and portbuf are cleared but not otherwise set
+*/
+int
+#ifdef CK_ANSIC
+ck_splithostport(char * in, char * hostbuf, int hostbuflen,
+                  char * portbuf, int portbuflen)
+#else /* CK_ANSIC */
+ck_splithostport(in,hostbuf,hostbuflen,portbuf,portbuflen)
+    char * in; char * hostbuf; int hostbuflen;
+    char * portbuf; int portbuflen;
+#endif /* CK_ANSIC */
+{
+    char * p;
+    int n;
+
+    if (hostbuf && hostbuflen > 0)
+      hostbuf[0] = '\0';
+    if (portbuf && portbuflen > 0)
+      portbuf[0] = '\0';
+    if (!in || !hostbuf || hostbuflen < 1)
+      return(-1);
+
+    if (in[0] == '[') {
+        p = in + 1;
+        while (*p != '\0' && *p != ']') p++;
+        if (*p != ']')
+          return(-1);                  /* Unterminated bracket */
+        n = (int)(p - (in + 1));
+        if (n >= hostbuflen)
+          n = hostbuflen - 1;
+        bcopy(in + 1,hostbuf,n);
+        hostbuf[n] = '\0';
+        p++;                           /* Past the ']' */
+        if (*p == ':') {
+            if (portbuf && portbuflen > 0)
+              ckstrncpy(portbuf,p + 1,portbuflen);
+            return(1);
+        }
+        return(0);
+    }
+
+    {
+        int ncolons = 0;
+        for (p = in; *p != '\0'; p++)
+          if (*p == ':') ncolons++;
+        if (ncolons != 1) {           /* 0, or 2+ (a bare IPv6 literal) */
+            ckstrncpy(hostbuf,in,hostbuflen);
+            return(0);
+        }
+    }
+
+    p = in;
+    while (*p != ':') p++;
+    n = (int)(p - in);
+    if (n >= hostbuflen)
+      n = hostbuflen - 1;
+    bcopy(in,hostbuf,n);
+    hostbuf[n] = '\0';
+    if (portbuf && portbuflen > 0)
+      ckstrncpy(portbuf,p + 1,portbuflen);
+    return(1);
 }
 
 #ifdef EXCELAN
@@ -2510,7 +2864,7 @@ tcpsocket_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo {
     saddrlen = sizeof(saddr);
     getpeername(ttyfd,(struct sockaddr *)&saddr,&saddrlen);
 
-    ckstrncpy(ipaddr,(char *)inet_ntoa(saddr.sin_addr),20);
+    ckstrncpy(ipaddr,(char *)inet_ntoa(saddr.sin_addr),CK_IPADDRLEN);
 
     if (tcp_rdns == SET_ON
 #ifdef CK_KERBEROS
@@ -2599,19 +2953,22 @@ tcpsocket_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo {
 /*  T C P S R V _ O P E N  --  Open a TCP/IP Server connection  */
 /*
   Calling conventions same as ttopen(), except third argument is network
-  type rather than modem type.
+  type rather than modem type.  ttopen() also takes a fourth argument,
+  a timeout, for backends where polling with a timeout instead of
+  blocking makes sense.  tcpsrv_open() has no such argument, since its
+  own accept() wait is always a plain, indefinite block and its one
+  caller, netopen(), never wanted anything else.
 */
 int
 #ifdef CK_ANSIC
-tcpsrv_open( char * name, int * lcl, int nett, int timo )
+tcpsrv_open( char * name, int * lcl, int nett )
 #else
-tcpsrv_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo;
+tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
 #endif /* CK_ANSIC */
 {
     char *p;
     int i, x;
     SOCKOPT_T on = 1;
-    int ready_to_accept = 0;
     static struct servent *service, *service2, servrec;
     static struct hostent *host;
     static struct sockaddr_in saddr;
@@ -2623,23 +2980,22 @@ tcpsrv_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo;
     static SOCKOPT_T saddrlen;
 #endif /* UCX50 */
 
-#ifdef BSDSELECT
-    fd_set rfds;
-    struct timeval tv;
-#else
-#ifdef BELLSELCT
-    fd_set rfds;
-#else
-    fd_set rfds;
-    struct timeval {
-        long tv_sec;
-        long tv_usec;
-    } tv;
-#endif /* BELLSELECT */
-#endif /* BSDSELECT */
+#ifdef CK_IPV6
+    fd_set rfds;                     /* For picking between two listeners */
+#endif /* CK_IPV6 */
 #ifdef CK_SSL
     int ssl_failed = 0;
 #endif /* CK_SSL */
+#ifdef CK_IPV6
+    static struct sockaddr_in6 saddr6;
+    struct sockaddr_storage acc_addr;
+    GSOCKNAME_T acc_addrlen;
+    int tcpsrv_isv6 = 0;             /* Set if the accepted peer is IPv6 */
+    int want_v4 = (tcp_af != TCP_AF_V6);
+    int want_v6 = (tcp_af != TCP_AF_V4);
+    int connport = 0;                /* Peer port, either family */
+    int v6_rdns_ok = 0;              /* Set if v6 reverse lookup succeeded */
+#endif /* CK_IPV6 */
 
     debug(F101,"tcpsrv_open nett","",nett);
     *ipaddr = '\0';
@@ -2701,8 +3057,39 @@ tcpsrv_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo;
 #endif /* TCPIPLIB */
         tcpsrfd = -1;
     }
+#ifdef CK_IPV6
+    if (tcpsrfd6 != -1 &&
+        tcpsrv_port != ntohs((unsigned short)service->s_port)) {
+        debug(F100,"tcpsrv_open closing previous v6 connection","",0);
+        close(tcpsrfd6);
+        tcpsrfd6 = -1;
+    }
+
+    /* SET TCP ADDRESS-FAMILY may have changed since the last listener
+       was opened on this same port. Retract any already-open socket
+       of a family that's no longer wanted, so a stale v4 or v6
+       listener doesn't keep accepting after the setting changes. */
+    if (tcpsrfd != -1 && !want_v4) {
+        debug(F100,"tcpsrv_open closing v4 socket, family changed","",0);
+#ifdef TCPIPLIB
+        socket_close(tcpsrfd);
+#else /* TCPIPLIB */
+        close(tcpsrfd);
+#endif /* TCPIPLIB */
+        tcpsrfd = -1;
+    }
+    if (tcpsrfd6 != -1 && !want_v6) {
+        debug(F100,"tcpsrv_open closing v6 socket, family changed","",0);
+        close(tcpsrfd6);
+        tcpsrfd6 = -1;
+    }
+#endif /* CK_IPV6 */
     debug(F100,"tcpsrv_open tcpsrfd","",tcpsrfd);
+#ifdef CK_IPV6
+    if (want_v4 && tcpsrfd == -1) {
+#else /* CK_IPV6 */
     if (tcpsrfd == -1) {
+#endif /* CK_IPV6 */
 
         /* Set up socket structure and get host address */
 
@@ -2779,6 +3166,117 @@ tcpsrv_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo;
         tcpsrv_port = ntohs((unsigned short)service->s_port);
     }
 
+#ifdef CK_IPV6
+    /*
+      IPv6 listener, as a separate socket rather than one dual-stack one, since
+      IPV6_V6ONLY isn't sufficiently portable.
+
+      Its failure is fatal only when IPv6 is the only wanted family.
+      Under AUTO, a v6 setup problem falls back to IPv4-only,
+      leaving alone the v4 socket that was already set up above.
+
+      A v4 setup failure is fatal.
+    */
+    if (want_v6 && tcpsrfd6 == -1) {
+        int v6_fatal = !want_v4;
+
+        bzero((char *)&saddr6, sizeof(saddr6));
+        saddr6.sin6_family = AF_INET6;
+        if (tcp_address6)
+          inet_pton(AF_INET6,tcp_address6,&saddr6.sin6_addr);
+        else
+          saddr6.sin6_addr = in6addr_any;
+        saddr6.sin6_port = service->s_port;
+
+        debug(F100,"tcpsrv_open calling socket (v6)","",0);
+        if ((tcpsrfd6 = socket(AF_INET6, SOCK_STREAM, 0)) < 0) {
+            debug(F101,"tcpsrv_open v6 socket error","",errno);
+            if (v6_fatal) {
+                perror("TCP socket error");
+                return(-1);
+            }
+            fprintf(stderr,
+                    "?Unable to create IPv6 listening socket (errno = %d); "
+                    "continuing with IPv4 only\n",errno);
+        } else {
+            x = setsockopt(tcpsrfd6,
+                           SOL_SOCKET,SO_REUSEADDR,(char *)&on,sizeof on);
+            debug(F101,"tcpsrv_open v6 setsockopt SO_REUSEADDR","",x);
+#ifdef IPV6_V6ONLY
+            {
+                int v6only = 1;
+                x = setsockopt(tcpsrfd6,IPPROTO_IPV6,IPV6_V6ONLY,
+                               (char *)&v6only,sizeof v6only);
+                debug(F101,"tcpsrv_open v6 setsockopt IPV6_V6ONLY","",x);
+                if (x < 0) {
+                    if (v6_fatal) {
+                        /* An explicit IPv6-only request must not fall
+                           through to a dual-stack socket that also
+                           accepts IPv4-mapped clients on kernels whose
+                           default is to allow that (Linux does). */
+                        i = errno;
+                        close(tcpsrfd6);
+                        tcpsrfd6 = -1;
+                        errno = i;
+                        debug(F101,"tcpsrv_open v6 V6ONLY errno","",errno);
+                        printf(
+                          "?Unable to restrict IPv6 socket to IPv6-only "
+                          "(errno = %d)\n",errno);
+                        ttyfd = -1;
+                        wasclosed = 1;
+                        return(-1);
+                    }
+                    fprintf(stderr,
+                            "?Warning: unable to restrict IPv6 socket to "
+                            "IPv6-only (errno = %d); it may also accept "
+                            "IPv4-mapped connections\n",errno);
+                }
+            }
+#endif /* IPV6_V6ONLY */
+            printf("\nBinding IPv6 socket to port %d ...\n",
+                   ntohs((unsigned short)service->s_port));
+            if (bind(tcpsrfd6,(struct sockaddr *)&saddr6,
+                     sizeof(saddr6)) < 0) {
+                i = errno;
+                close(tcpsrfd6);
+                tcpsrfd6 = -1;
+                errno = i;
+                debug(F101,"tcpsrv_open v6 bind errno","",errno);
+                if (v6_fatal) {
+                    printf("?Unable to bind to IPv6 socket (errno = %d)\n",
+                           errno);
+                    ttyfd = -1;
+                    wasclosed = 1;
+                    return(-1);
+                }
+                fprintf(stderr,
+                        "?Unable to bind IPv6 socket (errno = %d); "
+                        "continuing with IPv4 only\n",errno);
+            } else {
+                printf("Listening (IPv6) ...\n");
+                if (listen(tcpsrfd6, 15) < 0) {
+                    i = errno;
+                    close(tcpsrfd6);
+                    tcpsrfd6 = -1;
+                    errno = i;
+                    debug(F101,"tcpsrv_open v6 listen errno","",errno);
+                    if (v6_fatal) {
+                        ttyfd = -1;
+                        wasclosed = 1;
+                        return(-1);
+                    }
+                    fprintf(stderr,
+                            "?Unable to listen on IPv6 socket (errno = %d); "
+                            "continuing with IPv4 only\n",errno);
+                } else {
+                    debug(F100,"tcpsrv_open v6 listen OK","",0);
+                    tcpsrv_port = ntohs((unsigned short)service->s_port);
+                }
+            }
+        }
+    }
+#endif /* CK_IPV6 */
+
 #ifdef CK_SSL
     if (ck_ssleay_is_installed()) {
         if (!ssl_tn_init(SSL_SERVER)) {
@@ -2822,75 +3320,82 @@ tcpsrv_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo;
     printf("\nWaiting to Accept a TCP/IP connection on port %d ...\n",
            ntohs((unsigned short)service->s_port));
     saddrlen = sizeof(saddr);
+#ifdef CK_IPV6
+    acc_addrlen = sizeof(acc_addr);
+#endif /* CK_IPV6 */
 
-#ifdef BSDSELECT
-    tv.tv_sec  = tv.tv_usec = 0L;
-    if (timo < 0)
-      tv.tv_usec = (long) -timo * 10000L;
-    else
-      tv.tv_sec = timo;
-    debug(F101,"tcpsrv_open BSDSELECT","",timo);
-#else
-    debug(F101,"tcpsrv_open not BSDSELECT","",timo);
-#endif /* BSDSELECT */
+    /* Block until a connection arrives, then accept it. */
+    {
+#ifdef CK_IPV6
+        {
+            int srvfd;
+            if (tcpsrfd != -1 && tcpsrfd6 != -1) {
+                /* Both active: a plain accept() can only ever watch one fd, so
+                   select() figures out which one to use. A NULL timeval blocks
+                   indefinitely, same as accept() would have. Retry on EINTR
+                   instead of trusting rfds, whose state POSIX leaves
+                   unspecified when select() returns -1.
 
-    if (timo) {
-        while (!ready_to_accept) {
-#ifdef BSDSELECT
-            FD_ZERO(&rfds);
-            FD_SET(tcpsrfd, &rfds);
-            ready_to_accept =
-              ((select(FD_SETSIZE,
-#ifdef HPUX
-#ifdef HPUX1010
-                       (fd_set *)
-#else
-
-                       (int *)
-#endif /* HPUX1010 */
-#else
-#ifdef __DECC
-#ifdef INTSELECT
-                       (int *)
-#else /* def INTSELECT */
-                       (fd_set *)
-#endif /* def INTSELECT [else] */
-#endif /* __DECC */
-#endif /* HPUX */
-                       &rfds, NULL, NULL, &tv) > 0) &&
-               FD_ISSET(tcpsrfd, &rfds));
-#else /* BSDSELECT */
-#ifdef IBMSELECT
-#define ck_sleepint 250
-            ready_to_accept =
-              (select(&tcpsrfd, 1, 0, 0,
-                      timo < 0 ? -timo :
-                      (timo > 0 ? timo * 1000L : ck_sleepint)) == 1
-               );
-#else
-#ifdef BELLSELECT
-            FD_ZERO(rfds);
-            FD_SET(tcpsrfd, rfds);
-            ready_to_accept =
-              ((select(128, rfds, NULL, NULL, timo < 0 ? -timo :
-                      (timo > 0 ? timo * 1000L)) > 0) &&
-               FD_ISSET(tcpsrfd, rfds));
-#else
-/* Try this - what's the worst that can happen... */
-
-            FD_ZERO(&rfds);
-            FD_SET(tcpsrfd, &rfds);
-            ready_to_accept =
-              ((select(FD_SETSIZE,
-                       (fd_set *) &rfds, NULL, NULL, &tv) > 0) &&
-               FD_ISSET(tcpsrfd, &rfds));
-
-#endif /* BELLSELECT */
-#endif /* IBMSELECT */
-#endif /* BSDSELECT */
+                   maxfd and FD_ISSET() must skip the same
+                   out-of-range descriptor FD_SET() skips.  Passing an fd
+                   >= FD_SETSIZE to either is the same out-of-bounds
+                   access on the fd_set bitmask that the FD_SET() guard
+                   exists to prevent. */
+                int maxfd = -1;
+                int rc;
+                if (tcpsrfd < FD_SETSIZE && tcpsrfd > maxfd)
+                  maxfd = tcpsrfd;
+                if (tcpsrfd6 < FD_SETSIZE && tcpsrfd6 > maxfd)
+                  maxfd = tcpsrfd6;
+                if (maxfd < 0) {
+                    fprintf(stderr,
+                          "?Listener socket descriptor exceeds FD_SETSIZE\n");
+                    return(-1);
+                }
+                do {
+                    FD_ZERO(&rfds);
+                    if (tcpsrfd < FD_SETSIZE)
+                      FD_SET(tcpsrfd,  &rfds);
+                    if (tcpsrfd6 < FD_SETSIZE)
+                      FD_SET(tcpsrfd6, &rfds);
+                    rc = select(maxfd + 1, &rfds, NULL, NULL, NULL);
+                } while (rc < 0 && errno == EINTR);
+                if (rc < 0) {
+                    perror("select");
+                    return(-1);
+                }
+                srvfd = (tcpsrfd < FD_SETSIZE && FD_ISSET(tcpsrfd, &rfds)) ?
+                  tcpsrfd : tcpsrfd6;
+            } else {
+                srvfd = (tcpsrfd != -1) ? tcpsrfd : tcpsrfd6;
+            }
+            tcpsrv_isv6 = (srvfd == tcpsrfd6);
+            if (tcpsrv_isv6)
+              ttyfd = accept(srvfd,(struct sockaddr *)&acc_addr,
+                              &acc_addrlen);
+            else
+              ttyfd = accept(srvfd,(struct sockaddr *)&saddr,&saddrlen);
         }
-    }
-    if (ready_to_accept || timo == 0) {
+        if (ttyfd < 0) {
+            i = errno;                  /* save error code */
+            if (tcpsrv_isv6) {
+                close(tcpsrfd6);
+                tcpsrfd6 = -1;
+            } else {
+#ifdef TCPIPLIB
+                socket_close(tcpsrfd);
+#else /* TCPIPLIB */
+                close(tcpsrfd);
+#endif /* TCPIPLIB */
+                tcpsrfd = -1;
+            }
+            ttyfd = -1;
+            wasclosed = 1;
+            errno = i;                  /* and report this error */
+            debug(F101,"tcpsrv_open accept errno","",errno);
+            return(-1);
+        }
+#else /* CK_IPV6 */
         if ((ttyfd = accept(tcpsrfd,
                             (struct sockaddr *)&saddr,&saddrlen)) < 0) {
             i = errno;                  /* save error code */
@@ -2907,6 +3412,7 @@ tcpsrv_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo;
             debug(F101,"tcpsrv_open accept errno","",errno);
             return(-1);
         }
+#endif /* CK_IPV6 */
         setsockopt(ttyfd, SOL_SOCKET, SO_OOBINLINE,(char *) &on, sizeof on);
 
 #ifndef NOTCPOPTS
@@ -2946,12 +3452,56 @@ tcpsrv_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo;
             if (ttnproto != NP_TCPRAW)  /* Yes and if raw port not requested */
               ttnproto = NP_TELNET;	/* set protocol to TELNET. */
         }
-        ckstrncpy(ipaddr,(char *)inet_ntoa(saddr.sin_addr),20);
+#ifdef CK_IPV6
+        if (tcpsrv_isv6) {
+            if (ck_straddr((struct sockaddr *)&acc_addr,acc_addrlen,
+                            ipaddr,CK_IPADDRLEN) < 0)
+              ipaddr[0] = '\0';
+            connport = ck_getport((struct sockaddr *)&acc_addr);
+        } else {
+            ckstrncpy(ipaddr,(char *)inet_ntoa(saddr.sin_addr),CK_IPADDRLEN);
+            connport = ntohs(saddr.sin_port);
+        }
+#else /* CK_IPV6 */
+        ckstrncpy(ipaddr,(char *)inet_ntoa(saddr.sin_addr),CK_IPADDRLEN);
+#endif /* CK_IPV6 */
         if (tcp_rdns) {
             if (!quiet) {
                 printf(" Reverse DNS Lookup... ");
                 fflush(stdout);
             }
+#ifdef CK_IPV6
+            if (tcpsrv_isv6) {
+                char v6nibuf[256];
+                /* Clear any stale hostent left by a previous IPv4
+                   client accepted on this same listener.  Otherwise, a
+                   failed v6 lookup would leave this connection
+                   misattributed to the earlier client's name. */
+                host = NULL;
+                if (getnameinfo((struct sockaddr *)&acc_addr,acc_addrlen,
+                                 v6nibuf,sizeof(v6nibuf),NULL,0,
+                                 NI_NAMEREQD) == 0) {
+                    v6_rdns_ok = 1;
+                    debug(F110,"tcpsrv_open getnameinfo",v6nibuf,0);
+                    if (!quiet) {
+                        printf("(OK)\n");
+                        fflush(stdout);
+                    }
+                    name[0] = '*';
+                    ckstrncpy(&name[1],v6nibuf,78);
+                    ckstrncat(name,":",80);
+                    ckstrncat(name,p,80);
+                    if (!quiet
+#ifndef NOICP
+                        && !doconx
+#endif /* NOICP */
+                        )
+                      printf("%s connected on port %s\n",v6nibuf,p);
+                } else {
+                    if (!quiet) printf("Failed.\n");
+                }
+            } else
+#endif /* CK_IPV6 */
             if ((host = gethostbyaddr((char *)&saddr.sin_addr,4,PF_INET))) {
                 host = ck_copyhostent(host);
                 debug(F100,"tcpsrv_open gethostbyaddr != NULL","",0);
@@ -2961,8 +3511,8 @@ tcpsrv_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo;
                 }
                 name[0] = '*';
                 ckstrncpy(&name[1],host->h_name,78);
-                ckstrncat(name,":",80-strlen(name));
-                ckstrncat(name,p,80-strlen(name));
+                ckstrncat(name,":",80);
+                ckstrncat(name,p,80);
                 if (!quiet
 #ifndef NOICP
                     && !doconx
@@ -2974,16 +3524,32 @@ tcpsrv_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo;
             }
         } else if (!quiet) printf("(OK)\n");
 
-        if (!tcp_rdns || !host) {
+        if (!tcp_rdns ||
+#ifdef CK_IPV6
+            (!host && !v6_rdns_ok)
+#else /* CK_IPV6 */
+            !host
+#endif /* CK_IPV6 */
+            ) {
             ckstrncpy(name,ipaddr,80);
             ckstrncat(name,":",80);
+#ifdef CK_IPV6
+            ckstrncat(name,ckuitoa(tcpsrv_isv6 ?
+                                    connport : ntohs(saddr.sin_port)),80);
+#else /* CK_IPV6 */
             ckstrncat(name,ckuitoa(ntohs(saddr.sin_port)),80);
+#endif /* CK_IPV6 */
             if (!quiet
 #ifndef NOICP
                 && !doconx
 #endif /* NOICP */
                 )
-              printf("%s connected on port %d\n",ipaddr,ntohs(saddr.sin_port));
+              printf("%s connected on port %d\n",ipaddr,
+#ifdef CK_IPV6
+                     tcpsrv_isv6 ? connport : ntohs(saddr.sin_port));
+#else /* CK_IPV6 */
+                     ntohs(saddr.sin_port));
+#endif /* CK_IPV6 */
         }
         if (!quiet) fflush(stdout);
 
@@ -3011,6 +3577,12 @@ tcpsrv_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo;
                     wasclosed = 1;
                     tcpsrfd = -1;
                     tcpsrv_port = 0;
+#ifdef CK_IPV6
+                    if (tcpsrfd6 != -1) {
+                        close(tcpsrfd6);
+                        tcpsrfd6 = -1;
+                    }
+#endif /* CK_IPV6 */
                     return(-1);
             }
         }
@@ -3018,15 +3590,31 @@ tcpsrv_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo;
 
 #ifndef datageneral
         /* Find out our own IP address. */
+#ifdef CK_IPV6
+        if (tcpsrv_isv6) {
+            struct sockaddr_storage lss;
+            GSOCKNAME_T lsslen = sizeof(lss);
+            bzero((char *)&lss, sizeof(lss));
+            if (!getsockname(ttyfd, (struct sockaddr *)&lss, &lsslen)) {
+                char lsbuf[CK_IPADDRLEN];
+                if (ck_straddr((struct sockaddr *)&lss,lsslen,
+                                lsbuf,sizeof(lsbuf)) == 0)
+                  ckstrncpy(myipaddr, lsbuf, CK_IPADDRLEN);
+                debug(F110,"getsockname",myipaddr,0);
+            }
+        } else
+#endif /* CK_IPV6 */
+        {
         l_slen = sizeof(l_addr);
         bzero((char *)&l_addr, l_slen);
 #ifndef EXCELAN
         if (!getsockname(ttyfd, (struct sockaddr *)&l_addr, &l_slen)) {
             char * s = (char *)inet_ntoa(l_addr.sin_addr);
-            ckstrncpy(myipaddr, s,20);
+            ckstrncpy(myipaddr, s,CK_IPADDRLEN);
             debug(F110,"getsockname",myipaddr,0);
         }
 #endif /* EXCELAN */
+        }
 #endif /* datageneral */
 
         if (tn_ini() < 0)               /* Start TELNET negotiations. */
@@ -3041,6 +3629,12 @@ tcpsrv_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo;
               wasclosed = 1;
               tcpsrfd = -1;
               tcpsrv_port = 0;
+#ifdef CK_IPV6
+              if (tcpsrfd6 != -1) {
+                  close(tcpsrfd6);
+                  tcpsrfd6 = -1;
+              }
+#endif /* CK_IPV6 */
               errno = i;                /* and report this error */
               debug(F101,"tcpsrv_open accept errno","",errno);
               return(-1);
@@ -3063,6 +3657,12 @@ tcpsrv_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo;
                 wasclosed = 1;
                 tcpsrfd = -1;
                 tcpsrv_port = 0;
+#ifdef CK_IPV6
+                if (tcpsrfd6 != -1) {
+                    close(tcpsrfd6);
+                    tcpsrfd6 = -1;
+                }
+#endif /* CK_IPV6 */
                 errno = i;                /* and report this error */
                 debug(F101,"tcpsrv_open accept errno","",errno);
                 return(-1);
@@ -3071,20 +3671,6 @@ tcpsrv_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo;
 #endif /* KRB5_U2U */
 #endif /* CK_KERBEROS */
         return(0);                      /* Done. */
-    } else {
-        i = errno;                      /* save error code */
-#ifdef TCPIPLIB
-        socket_close(tcpsrfd);
-#else /* TCPIPLIB */
-        close(tcpsrfd);
-#endif /* TCPIPLIB */
-        ttyfd = -1;
-        wasclosed = 1;
-        tcpsrfd = -1;
-        tcpsrv_port = 0;
-        errno = i;                      /* and report this error */
-        debug(F101,"tcpsrv_open accept errno","",errno);
-        return(-1);
     }
 }
 #endif /* NOLISTEN */
@@ -3093,6 +3679,10 @@ tcpsrv_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo;
 #endif /* NONET */
 
 #ifdef TCPSOCKET
+/*
+  ckname2addr() and ckaddr2name() are general-purpose DNS lookups and
+  support the \fname2addr() and \faddr2name() script functions.
+*/
 char *
 #ifdef CK_ANSIC
 ckname2addr( char * name )
@@ -3103,6 +3693,29 @@ ckname2addr(name) char * name;
 #ifdef HPUX5
     return("");
 #else
+#ifdef CK_IPV6
+    static char buf[CK_IPADDRLEN];
+    struct addrinfo hints, *results = NULL;
+
+    if (name == NULL || *name == '\0')
+        return("");
+
+    bzero((char *)&hints, sizeof(hints));
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_family =
+      (tcp_af == TCP_AF_V4) ? AF_INET :
+      (tcp_af == TCP_AF_V6) ? AF_INET6 : AF_UNSPEC;
+
+    if (getaddrinfo(name,NULL,&hints,&results) != 0 || !results)
+      return("");
+    if (ck_straddr(results->ai_addr,(GSOCKNAME_T)results->ai_addrlen,
+                    buf,sizeof(buf)) < 0) {
+        freeaddrinfo(results);
+        return("");
+    }
+    freeaddrinfo(results);
+    return(buf);
+#else /* CK_IPV6 */
     struct hostent *host;
 
     if (name == NULL || *name == '\0')
@@ -3114,6 +3727,7 @@ ckname2addr(name) char * name;
         return(inet_ntoa(*((struct in_addr *) host->h_addr)));
     }
     return("");
+#endif /* CK_IPV6 */
 #endif /* HPUX5 */
 }
 
@@ -3127,6 +3741,28 @@ ckaddr2name(addr) char * addr;
 #ifdef HPUX5
     return("");
 #else
+#ifdef CK_IPV6
+    static char buf[256];
+    struct addrinfo hints, *results = NULL;
+
+    if (addr == NULL || *addr == '\0')
+        return("");
+
+    bzero((char *)&hints, sizeof(hints));
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_flags = AI_NUMERICHOST;   /* addr is a literal, not a name */
+
+    if (getaddrinfo(addr,NULL,&hints,&results) != 0 || !results)
+      return("");
+    if (getnameinfo(results->ai_addr,(socklen_t)results->ai_addrlen,
+                     buf,sizeof(buf),NULL,0,NI_NAMEREQD) != 0) {
+        freeaddrinfo(results);
+        return("");
+    }
+    freeaddrinfo(results);
+    return(buf);
+#else /* CK_IPV6 */
     struct hostent *host;
     struct in_addr sin_addr;
 
@@ -3140,16 +3776,59 @@ ckaddr2name(addr) char * addr;
         return((char *)host->h_name);
     }
     return("");
+#endif /* CK_IPV6 */
 #endif /* HPUX5 */
 }
 #endif /* TCPSOCKET */
 
-unsigned long peerxipaddr = 0L;
+/*
+  peeripaddr is the peer's IP address as text, set by every successful call to
+  ckgetpeer() alongside its usual resolved name return value.  Unlike namebuf
+  (the return value), it's never a resolved hostname, so it's usable by callers
+  such as the IKSD session database that want a numeric addresses.
+*/
+char peeripaddr[CK_IPADDRLEN] = { '\0' };
 
 char *
 ckgetpeer() {
 #ifdef TCPSOCKET
     static char namebuf[256];
+#ifdef CK_IPV6
+    {
+        struct sockaddr_storage pss;
+        GSOCKNAME_T pslen = sizeof(pss);
+
+        if (getpeername(ttyfd,(struct sockaddr *)&pss,&pslen) < 0) {
+            debug(F111,"ckgetpeer failure",ckitoa(ttyfd),errno);
+            peeripaddr[0] = '\0';
+            return(NULL);
+        }
+        if (ck_straddr((struct sockaddr *)&pss,pslen,
+                        peeripaddr,CK_IPADDRLEN) < 0)
+          peeripaddr[0] = '\0';
+        if (pss.ss_family == AF_INET6) {
+            char nibuf[256];
+            if (getnameinfo((struct sockaddr *)&pss,(socklen_t)pslen,
+                             nibuf,sizeof(nibuf),NULL,0,NI_NAMEREQD) == 0) {
+                ckstrncpy(namebuf,nibuf,256);
+            } else {
+                ckstrncpy(namebuf,peeripaddr,256);
+            }
+        } else {
+            struct sockaddr_in * sinp = (struct sockaddr_in *)&pss;
+            struct hostent * host;
+            host = gethostbyaddr((char *)&sinp->sin_addr,4,AF_INET);
+            if (host) {
+                host = ck_copyhostent(host);
+                ckstrncpy(namebuf,(char *)host->h_name,256);
+            } else {
+                ckstrncpy(namebuf,(char *)inet_ntoa(sinp->sin_addr),256);
+            }
+        }
+        debug(F110,"ckgetpeer",namebuf,0);
+        return(namebuf);
+    }
+#else /* CK_IPV6 */
     static struct hostent *host;
     static struct sockaddr_in saddr;
 #ifdef GPEERNAME_T
@@ -3202,6 +3881,7 @@ ckgetpeer() {
     saddrlen = sizeof(saddr);
     if (getpeername(ttyfd,(struct sockaddr *)&saddr,&saddrlen) < 0) {
         debug(F111,"ckgetpeer failure",ckitoa(ttyfd),errno);
+        peeripaddr[0] = '\0';
         return(NULL);
     }
     host = gethostbyaddr((char *)&saddr.sin_addr,4,AF_INET);
@@ -3211,9 +3891,10 @@ ckgetpeer() {
     } else {
         ckstrncpy(namebuf,(char *)inet_ntoa(saddr.sin_addr),80);
     }
-    peerxipaddr = ntohl(saddr.sin_addr.s_addr);
-    debug(F111,"ckgetpeer",namebuf,peerxipaddr);
+    ckstrncpy(peeripaddr,(char *)inet_ntoa(saddr.sin_addr),CK_IPADDRLEN);
+    debug(F110,"ckgetpeer",namebuf,0);
     return(namebuf);
+#endif /* CK_IPV6 */
 #else
     return(NULL);
 #endif /* TCPSOCKET */
@@ -3236,65 +3917,114 @@ ckgetfqhostname(name) char * name;
 #else /* If the following code dumps core, define NOCKGETFQHOST and rebuild. */
 
     static char namebuf[256];
-    struct hostent *host=NULL;
-    struct sockaddr_in r_addr;
-    int i;
 
     debug(F110,"ckgetfqhn()",name,0);
 
     ckstrncpy(namebuf,name,256);
     namebuf[255] = '\0';
-    i = ckindex(":",namebuf,0,0,0);
-    if (i)
-      namebuf[i-1] = '\0';
 
-    bzero((char *)&r_addr, sizeof(r_addr));
+#ifdef CK_IPV6
+    /*
+      Split off an optional ":service" suffix with ck_splithostport()
+      rather than the legacy branch's plain "find the first
+      colon" rule.
 
-    host = gethostbyname(namebuf);
-    if (host) {
-        host = ck_copyhostent(host);
-        debug(F100,"ckgetfqhn() gethostbyname != NULL","",0);
-        r_addr.sin_family = host->h_addrtype;
-#ifdef HADDRLIST
-#ifdef h_addr
-        /* This is for trying multiple IP addresses - see <netdb.h> */
-        if (!(host->h_addr_list))
-          goto exit_func;
-        bcopy(host->h_addr_list[0],
-              (caddr_t)&r_addr.sin_addr,
-              host->h_length
-              );
-#else
-        bcopy(host->h_addr, (caddr_t)&r_addr.sin_addr, host->h_length);
-#endif /* h_addr */
-#else  /* HADDRLIST */
-        bcopy(host->h_addr, (caddr_t)&r_addr.sin_addr, host->h_length);
-#endif /* HADDRLIST */
-        debug(F111,"BCOPY","host->h_length",host->h_length);
+      Once the host part is isolated, resolve it, then reverse-resolve
+      (PTR lookup) that result like the legacy branch does.
+      getaddrinfo() alone isn't enough, since its AI_CANONNAME only follows
+      CNAMEs on the forward side and is not a real reverse lookup. Malformed
+      bracket syntax is ignored.
+    */
+    {
+        char sphost[256], spport[256];
+        int hasport = ck_splithostport(namebuf,sphost,sizeof(sphost),
+                                        spport,sizeof(spport));
+        if (hasport >= 0) {
+            struct addrinfo hints, *results = NULL;
+            int gai, gni;
 
-#ifdef NT
-        /* Windows 95/98 requires a 1 second wait between calls to Microsoft */
-        /* provided DNS functions.  Otherwise, the TTL of the DNS response */
-        /* is ignored. */
-        if (isWin95())
-          sleep(1);
-#endif /* NT */
-        host = gethostbyaddr((char *)&r_addr.sin_addr,4,PF_INET);
-        if (host) {
-            host = ck_copyhostent(host);
-            debug(F100,"ckgetfqhn() gethostbyaddr != NULL","",0);
-            ckstrncpy(namebuf, host->h_name, 256);
+            bzero((char *)&hints, sizeof(hints));
+            hints.ai_socktype = SOCK_STREAM;
+            hints.ai_family = AF_UNSPEC;
+            gai = getaddrinfo(sphost,NULL,&hints,&results);
+            if (gai == 0 && results) {
+                char nibuf[256];
+                debug(F100,"ckgetfqhn() getaddrinfo != NULL","",0);
+                gni = getnameinfo(results->ai_addr,
+                                   (socklen_t)results->ai_addrlen,
+                                   nibuf,sizeof(nibuf),NULL,0,NI_NAMEREQD);
+                if (gni == 0) {
+                    debug(F100,"ckgetfqhn() getnameinfo != NULL","",0);
+                    ckstrncpy(sphost,nibuf,256);
+                }
+                freeaddrinfo(results);
+            }
+            ckstrncpy(namebuf,sphost,256);
+            if (hasport) {
+                ckstrncat(namebuf,":",256);
+                ckstrncat(namebuf,spport,256);
+            }
         }
     }
+#else /* CK_IPV6 */
+    {
+        struct hostent *host=NULL;
+        struct sockaddr_in r_addr;
+        int i;
+
+        i = ckindex(":",namebuf,0,0,0);
+        if (i)
+          namebuf[i-1] = '\0';
+
+        bzero((char *)&r_addr, sizeof(r_addr));
+
+        host = gethostbyname(namebuf);
+        if (host) {
+            host = ck_copyhostent(host);
+            debug(F100,"ckgetfqhn() gethostbyname != NULL","",0);
+            r_addr.sin_family = host->h_addrtype;
+#ifdef HADDRLIST
+#ifdef h_addr
+            /* This is for trying multiple IP addresses - see <netdb.h> */
+            if (!(host->h_addr_list))
+              goto exit_func;
+            bcopy(host->h_addr_list[0],
+                  (caddr_t)&r_addr.sin_addr,
+                  host->h_length
+                  );
+#else
+            bcopy(host->h_addr, (caddr_t)&r_addr.sin_addr, host->h_length);
+#endif /* h_addr */
+#else  /* HADDRLIST */
+            bcopy(host->h_addr, (caddr_t)&r_addr.sin_addr, host->h_length);
+#endif /* HADDRLIST */
+            debug(F111,"BCOPY","host->h_length",host->h_length);
+
+#ifdef NT
+            /* Windows 95/98 requires a 1 second wait between calls to */
+            /* Microsoft provided DNS functions.  Otherwise, the TTL   */
+            /* of the DNS response is ignored.                        */
+            if (isWin95())
+              sleep(1);
+#endif /* NT */
+            host = gethostbyaddr((char *)&r_addr.sin_addr,4,PF_INET);
+            if (host) {
+                host = ck_copyhostent(host);
+                debug(F100,"ckgetfqhn() gethostbyaddr != NULL","",0);
+                ckstrncpy(namebuf, host->h_name, 256);
+            }
+        }
 
 #ifdef HADDRLIST
 #ifdef h_addr
-  exit_func:
+      exit_func:
 #endif /* h_addr */
 #endif /* HADDRLIST */
+        if (i > 0)
+          ckstrncat(namebuf,&name[i-1],256);
+    }
+#endif /* CK_IPV6 */
 
-    if (i > 0)
-      ckstrncat(namebuf,&name[i-1],256-strlen(namebuf)-strlen(&name[i-1]));
     debug(F110,"ckgetfqhn()",namebuf,0);
     return(namebuf);
 #endif /* NOCKGETFQHOST */
@@ -3423,6 +4153,13 @@ ckgetservice(hostname, servicename, ip, iplen)
 {
     struct servent * service = NULL;
 #ifdef CK_DNS_SRV
+    /*
+      dns_addrs is IPv4-only (see locate_srv_dns() below): a DNS SRV
+      target with only an AAAA record is silently skipped rather than
+      used.  Not supported for IPv6 for now.  It is believed this is
+      not used in the wild anywhere, making the added code complexity
+      not worth it.
+    */
     struct sockaddr * dns_addrs = NULL;
     int dns_naddrs = 0;
 #endif /* CK_DNS_SRV */
@@ -3540,6 +4277,17 @@ netopen(name, lcl, nett) char *name; int *lcl, nett;
 #endif /* SOLARIS */
 #ifdef TCPSOCKET
     int isconnect = 0;
+    /*
+      Set when the connection that was actually made is IPv6, so the IPv4-only
+      code (local address lookup and picking gethostbyaddr() instead of
+      getnameinfo() for reverse DNS) knows which path to take instead of being
+      fed a zeroed r_addr. Always declared as 0 on builds without CK_IPV6, so
+      those guards need no #ifdef of their own.
+    */
+    int ckv6_connected = 0;
+#ifdef CK_IPV6
+    struct sockaddr_storage ckv6_addr;   /* Valid only if ckv6_connected */
+#endif /* CK_IPV6 */
 #ifdef SO_OOBINLINE
     int on = 1;
 #endif /* SO_OOBINLINE */
@@ -3602,6 +4350,12 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
 
     debug(F101,"netopen nett","",nett);
     *ipaddr = '\0';                     /* Initialize IP address string */
+    /* Not every path below fills these in.  For instance, an IPv6 connection
+       fills ckv6_addr and myipaddr instead.  Since rlog_ini() is called
+       unconditionally for any RLOGIN variant, both must never be
+       left uninitialized. */
+    bzero((char *)&r_addr,sizeof(r_addr));
+    bzero((char *)&l_addr,sizeof(l_addr));
 
 #ifdef SUNX25
     if (nett == NET_SX25) {             /* If network type is X.25 */
@@ -3847,136 +4601,144 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
 
 #ifndef NOLISTEN
     if (name[0] == '*')
-      return(tcpsrv_open(name, lcl, nett, 0));
+      return(tcpsrv_open(name, lcl, nett));
 #endif /* NOLISTEN */
 
-    p = namecopy;                       /* Was a service requested? */
-    while (*p != '\0' && *p != ':') p++; /* Look for colon */
-    if (*p == ':') {                    /* Have a colon */
-        debug(F110,"netopen name has colon",namecopy,0);
-        *p++ = '\0';                    /* Get service name or number */
+    if (namecopy[0] == '[') {           /* Bracketed literal, no URL */
+        char hbuf[NAMECPYL], pbuf[NAMECPYL];
+        int hasport = ck_splithostport(namecopy,hbuf,sizeof(hbuf),
+                                        pbuf,sizeof(pbuf));
+        if (hasport < 0) {
+            fprintf(stderr,"Malformed address literal: %s\n",namecopy);
+            errno = 0;
+            return(-1);
+        }
+        ckstrncpy(namecopy,hbuf,NAMECPYL);
+        if (hasport) {
+            x = strlen(namecopy);
+            p = namecopy + x + 1;
+            ckstrncpy(p,pbuf,NAMECPYL - x - 1);
+        } else {
+            p = "telnet";
+        }
+    } else {
+        p = namecopy;                       /* Was a service requested? */
+        while (*p != '\0' && *p != ':') p++; /* Look for colon */
+        if (*p == ':') {                    /* Have a colon */
+            debug(F110,"netopen name has colon",namecopy,0);
+            *p++ = '\0';                    /* Get service name or number */
 #ifdef CK_URL
-        /*
-           Here we have to check for various popular syntaxes:
-           host:port (our original syntax)
-           URL such as telnet:host or telnet://host/
-           Or even telnet://user:password@host:port/path/
-           Or a malformed URL such as generated by Netscape 4.0 like:
-           telnet:telnet or telnet::host.
-        */
+            /*
+            Here we have to check for various popular syntaxes:
+            host:port (our original syntax)
+            URL such as telnet:host or telnet://host/
+            Or even telnet://user:password@host:port/path/
+            Or a malformed URL such as generated by Netscape 4.0 like:
+            telnet:telnet or telnet::host.
+            */
 
-        /*
-         * REPLACE THIS CODE WITH urlparse() but not on the day of the
-         * C-Kermit 8.0 RELEASE.
-         */
+            /*
+            * REPLACE THIS CODE WITH urlparse() but not on the day of the
+            * C-Kermit 8.0 RELEASE.
+            */
 
-        if (*p == ':')                  /* a second colon */
-          *p++ = '\0';                  /* get rid of that one too */
-        while (*p == '/') *p++ = '\0';  /* and slashes */
-        x = strlen(p);                  /* Length of remainder */
-        if (p[x-1] == '/')              /* If there is a trailing slash */
-          p[x-1] = '\0';                /* remove it. */
-        debug(F110,"netopen namecopy after stripping",namecopy,0);
-        debug(F110,"netopen p after stripping",p,0);
-        service = getservbyname(namecopy,"tcp");
-        if (service ||
+            if (*p == ':')                  /* a second colon */
+                *p++ = '\0';              /* get rid of that one too */
+            while (*p == '/') *p++ = '\0';  /* and slashes */
+            x = strlen(p);                  /* Length of remainder */
+            if (p[x-1] == '/')              /* If there is a trailing slash */
+                p[x-1] = '\0';            /* remove it. */
+            debug(F110,"netopen namecopy after stripping",namecopy,0);
+            debug(F110,"netopen p after stripping",p,0);
+            service = getservbyname(namecopy,"tcp");
+            if (service ||
 #ifdef RLOGCODE
-            !ckstrcmp("rlogin",namecopy,NAMECPYL,0) ||
+                !ckstrcmp("rlogin",namecopy,NAMECPYL,0) ||
 #endif /* RLOGCODE */
 #ifdef CK_SSL
-            !ckstrcmp("telnets",namecopy,NAMECPYL,0) ||
+                !ckstrcmp("telnets",namecopy,NAMECPYL,0) ||
 #endif /* CK_SSL */
-            !ckstrcmp("iksd",namecopy,NAMECPYL,0)
-            ) {
-            char temphost[256], tempservice[80], temppath[256];
-            char * q = p, *r = p, *w = p;
-            int uidfound=0;
-            extern char pwbuf[];
-            extern int pwflg, pwcrypt;
+                !ckstrcmp("iksd",namecopy,NAMECPYL,0)
+                ) {
+                char temphost[256], tempservice[80], temppath[256];
+                char * q = p, *r = p, *w = p;
+                int uidfound=0;
+                extern char pwbuf[];
+                extern int pwflg, pwcrypt;
 
-            if (ttnproto == NP_DEFAULT)
-              setnproto(namecopy);
+                if (ttnproto == NP_DEFAULT)
+                    setnproto(namecopy);
 
-            /* Check for userid and possibly password */
-            while (*p != '\0' && *p != '@')
-                p++; /* look for @ */
-            if (*p == '@') {
-                /* found username and perhaps password */
-                debug(F110,"netopen namecopy found @","",0);
-                *p = '\0';
-                p++;
-                while (*w != '\0' && *w != ':')
-                  w++;
-                if (*w == ':')
-                  *w++ = '\0';
-                /* r now points to username, save it and the password */
-                debug(F110,"netopen namecopy username",r,0);
-                debug(F110,"netopen namecopy password",w,0);
-                uidfound=1;
-                if ( strcmp(uidbuf,r) || *w )
-                    ckstrncpy(pwbuf,w,PWBUFL+1);
-                ckstrncpy(uidbuf,r,UIDBUFLEN);
-                pwflg = 1;
-                pwcrypt = 0;
-                q = p;                  /* Host after user and pwd */
-            } else {
-                p = q;                  /* No username or password */
-            }
-            /* Now we must look for the optional port. */
-            debug(F110,"netopen x p",p,0);
-            debug(F110,"netopen x q",q,0);
-
-            /* Look for the port/service or a file/directory path */
-            while (*p != '\0' && *p != ':' && *p != '/')
-              p++;
-            if (*p == ':') {
-                debug(F110,"netopen found port",q,0);
-                *p++ = '\0';            /* Found a port name or number */
-                r = p;
-
-                /* Look for the end of port/service or a file/directory path */
-                while (*p != '\0' && *p != '/')
+                /* Check for userid and possibly password */
+                while (*p != '\0' && *p != '@')
+                    p++; /* look for @ */
+                if (*p == '@') {
+                    /* found username and perhaps password */
+                    debug(F110,"netopen namecopy found @","",0);
+                    *p = '\0';
                     p++;
-                if (*p == '/')
-                    *p++ = '\0';
-
-                debug(F110,"netopen port",r,0);
-                ckstrncpy(tempservice,r,80);
-                ckstrncpy(temphost,q,256);
-                ckstrncpy(temppath,p,256);
-                ckstrncpy(namecopy,temphost,NAMECPYL);
-                debug(F110,"netopen tempservice",tempservice,0);
-                debug(F110,"netopen temphost",temphost,0);
-                debug(F110,"netopen temppath",temppath,0);
-
-                /* move port/service to a buffer that won't go away */
-                x = strlen(namecopy);
-                p = namecopy + x + 1;
-                ckstrncpy(p, tempservice, NAMECPYL - x);
-            } else {
-                /* Handle a path if we found one */
-                if (*p == '/')
-                    *p++ = '\0';
-                ckstrncpy(temppath,p,256);
-
-                /* We didn't find another port, but if q is a service */
-                /* then assume that namecopy is actually a host.      */
-                if (getservbyname(q,"tcp")) {
-                    p = q;
+                    while (*w != '\0' && *w != ':')
+                        w++;
+                    if (*w == ':')
+                        *w++ = '\0';
+                    /* r now points to username, save it and the password */
+                    debug(F110,"netopen namecopy username",r,0);
+                    debug(F110,"netopen namecopy password",w,0);
+                    uidfound=1;
+                    if ( strcmp(uidbuf,r) || *w )
+                        ckstrncpy(pwbuf,w,PWBUFL+1);
+                    ckstrncpy(uidbuf,r,UIDBUFLEN);
+                    pwflg = 1;
+                    pwcrypt = 0;
+                    q = p;                  /* Host after user and pwd */
                 } else {
-#ifdef RLOGCODE
-                    /* rlogin is not a valid service */
-                    if (!ckstrcmp("rlogin",namecopy,6,0)) {
-                        ckstrncpy(namecopy,"login",NAMECPYL);
+                    p = q;                  /* No username or password */
+                }
+                /* Now we must look for the optional port. */
+                debug(F110,"netopen x p",p,0);
+                debug(F110,"netopen x q",q,0);
+
+                /* If the host is a bracketed literal, skip over it
+                   before scanning for a port or a path, so a colon
+                   inside the brackets isn't mistaken for the port
+                   separator. q (unlike p) is left pointing at the
+                   '[' for later temphost extraction. */
+                if (*p == '[') {
+                    while (*p != '\0' && *p != ']') p++;
+                    if (*p != ']') {
+                        fprintf(stderr,"Malformed address literal: %s\n",q);
+                        errno = 0;
+                        return(-1);
                     }
-#endif /* RLOGCODE */
-                    /* iksd is not a valid service */
-                    if (!ckstrcmp("iksd",namecopy,6,0)) {
-                        ckstrncpy(namecopy,"kermit",NAMECPYL);
+                    p++;                     /* Past the ']' */
+                }
+
+                /* Look for the port/service or a file/directory path */
+                while (*p != '\0' && *p != ':' && *p != '/')
+                    p++;
+                if (*p == ':') {
+                    debug(F110,"netopen found port",q,0);
+                    *p++ = '\0';            /* Found a port name or number */
+                    r = p;
+
+                    /* Look for the end of port/service or a file/directory path */
+                    while (*p != '\0' && *p != '/')
+                        p++;
+                    if (*p == '/')
+                        *p++ = '\0';
+
+                    debug(F110,"netopen port",r,0);
+                    ckstrncpy(tempservice,r,80);
+                    {                        /* q may be a bracketed literal */
+                        char tpport[16];
+                        if (ck_splithostport(q,temphost,256,
+                                            tpport,sizeof(tpport)) < 0) {
+                            fprintf(stderr,"Malformed address literal: %s\n",q);
+                            errno = 0;
+                            return(-1);
+                        }
                     }
-                    /* Reconstruct namecopy */
-                    ckstrncpy(tempservice,namecopy,80);
-                    ckstrncpy(temphost,q,256);
+                    ckstrncpy(temppath,p,256);
                     ckstrncpy(namecopy,temphost,NAMECPYL);
                     debug(F110,"netopen tempservice",tempservice,0);
                     debug(F110,"netopen temphost",temphost,0);
@@ -3986,52 +4748,95 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
                     x = strlen(namecopy);
                     p = namecopy + x + 1;
                     ckstrncpy(p, tempservice, NAMECPYL - x - 1);
+                } else {
+                    /* Handle a path if we found one */
+                    if (*p == '/')
+                        *p++ = '\0';
+                    ckstrncpy(temppath,p,256);
+
+                    /* We didn't find another port, but if q is a service */
+                    /* then assume that namecopy is actually a host.      */
+                    if (getservbyname(q,"tcp")) {
+                        p = q;
+                    } else {
+#ifdef RLOGCODE
+                        /* rlogin is not a valid service */
+                        if (!ckstrcmp("rlogin",namecopy,6,0)) {
+                            ckstrncpy(namecopy,"login",NAMECPYL);
+                        }
+#endif /* RLOGCODE */
+                        /* iksd is not a valid service */
+                        if (!ckstrcmp("iksd",namecopy,6,0)) {
+                            ckstrncpy(namecopy,"kermit",NAMECPYL);
+                        }
+                        /* Reconstruct namecopy */
+                        ckstrncpy(tempservice,namecopy,80);
+                        {                    /* q may be a [bracketed] literal */
+                            char tpport[16];
+                            if (ck_splithostport(q,temphost,256,
+                                                tpport,sizeof(tpport)) < 0) {
+                                fprintf(stderr,
+                                        "Malformed address literal: %s\n",q);
+                                errno = 0;
+                                return(-1);
+                            }
+                        }
+                        ckstrncpy(namecopy,temphost,NAMECPYL);
+                        debug(F110,"netopen tempservice",tempservice,0);
+                        debug(F110,"netopen temphost",temphost,0);
+                        debug(F110,"netopen temppath",temppath,0);
+
+                        /* move port/service to a buffer that won't go away */
+                        x = strlen(namecopy);
+                        p = namecopy + x + 1;
+                        ckstrncpy(p, tempservice, NAMECPYL - x - 1);
+                    }
                 }
-            }
-            debug(F110,"netopen URL result: host",namecopy,0);
-            debug(F110,"netopen URL result: service",p,0);
-            debug(F110,"netopen URL result: path",temppath,0);
+                debug(F110,"netopen URL result: host",namecopy,0);
+                debug(F110,"netopen URL result: service",p,0);
+                debug(F110,"netopen URL result: path",temppath,0);
 
 #ifdef IKS_GET
-            /* If we have set a path specified, we need to try to GET it */
-            /* But we have another problem, we have to login first.  How */
-            /* do we specify that a login must be done before the GET?   */
-            /* The user's name if specified is in 'userid' and the       */
-            /* password if any is in 'pwbuf'.                            */
-            if ( temppath[0] ) {
-                extern int action;
-                extern char * cmarg;
+                /* If we have set a path specified, we need to try to GET it */
+                /* But we have another problem, we have to login first.  How */
+                /* do we specify that a login must be done before the GET?   */
+                /* The user's name if specified is in 'userid' and the       */
+                /* password if any is in 'pwbuf'.                            */
+                if ( temppath[0] ) {
+                    extern int action;
+                    extern char * cmarg;
 
-                if ( !uidfound ) {
-                    /* If no userid was specified as part of the URL but
-                     * a path was specified, then we
-                     * set the user name to anonymous and the password
-                     * to the current userid.
-                     */
-                    ckstrncpy(pwbuf,uidbuf,PWBUFL);
-                    ckstrncat(pwbuf,"@",PWBUFL);
-                    pwflg = 1;
-                    pwcrypt = 0;
-                    ckstrncpy(uidbuf,"anonymous",UIDBUFLEN);
+                    if ( !uidfound ) {
+                        /* If no userid was specified as part of the URL but
+                        * a path was specified, then we
+                        * set the user name to anonymous and the password
+                        * to the current userid.
+                        */
+                        ckstrncpy(pwbuf,uidbuf,PWBUFL);
+                        ckstrncat(pwbuf,"@",PWBUFL);
+                        pwflg = 1;
+                        pwcrypt = 0;
+                        ckstrncpy(uidbuf,"anonymous",UIDBUFLEN);
+                    }
+
+                    /*
+                    * If a file path was specified we perform the GET
+                    * operation and then terminate the connection.
+                    *
+                    * If a directory was given instead of a file, then
+                    * we should REMOTE CD to the directory and list its
+                    * contents.  But how do we tell the difference?
+                    */
+                    makestr(&cmarg,temppath);
+                    action = 'r';
                 }
-
-                /*
-                 * If a file path was specified we perform the GET
-                 * operation and then terminate the connection.
-                 *
-                 * If a directory was given instead of a file, then
-                 * we should REMOTE CD to the directory and list its
-                 * contents.  But how do we tell the difference?
-                 */
-                makestr(&cmarg,temppath);
-                action = 'r';
-            }
 #endif /* IKS_GET */
-        }
+            }
 #endif /* CK_URL */
-    } else {                            /* Otherwise use telnet */
-        p = "telnet";
-    }
+        } else {                            /* Otherwise use telnet */
+            p = "telnet";
+        }
+    }                                    /* End of bracketed-literal check */
 /*
   By the time we get here, namecopy[] should hold the null-terminated
   hostname or address, and p should point to the service name or number.
@@ -4120,6 +4925,70 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
 
     /* Set up socket structure and get host address */
 
+#ifdef CK_IPV6
+    /*
+      Resolve and connect using ck_tcp_connect().
+
+      If the connected address is IPv4, r_addr is filled in from it exactly as
+      the legacy code would have, so all downstream code that still assumes IPv4
+      keeps working unchanged. If it's IPv6, ckv6_connected is set instead, and
+      that downstream code is skipped rather than fed a zeroed r_addr.
+    */
+    {
+        struct sockaddr_storage cn_addr;
+        GSOCKNAME_T cn_len = sizeof(cn_addr);
+        int got_addr = 0;
+        int isv4lit, isv6lit;
+        struct in_addr t4chk;
+        struct in6_addr t6chk;
+
+        /* Don't print the "DNS Lookup" status when we have a literal IP
+           address already, since we expect that step to complete
+           immediately.  Matches the legacy behavior. */
+        isv4lit = (inet_pton(AF_INET,namecopy,&t4chk) == 1);
+        isv6lit = (!isv4lit && inet_pton(AF_INET6,namecopy,&t6chk) == 1);
+        if (!quiet && !isv4lit && !isv6lit) {
+            printf(" DNS Lookup... ");
+            fflush(stdout);
+        }
+        /* Remember whether a real DNS lookup happened, same meaning as
+           the legacy branch's "dns" -- used below to help decide
+           whether SET TCP REVERSE-DNS-LOOKUP AUTO should apply. */
+        dns = !isv4lit && !isv6lit;
+
+#ifdef RLOGCODE
+        ttyfd = ck_tcp_connect(namecopy, svcbuf, quiet, &got_addr,
+                               &cn_addr, &cn_len,
+                               (service->s_port ==
+                                htons((unsigned short)RLOGIN_PORT)));
+#else /* RLOGCODE */
+        ttyfd = ck_tcp_connect(namecopy, svcbuf, quiet, &got_addr,
+                               &cn_addr, &cn_len, 0);
+#endif /* RLOGCODE */
+        if (ttyfd < 0) {
+            if (!got_addr)
+              fprintf(stderr, "Can't get address for %s\n", namecopy);
+            netclos();
+            ttyfd = -1;
+            wasclosed = 1;
+            ttnproto = NP_NONE;
+            errno = 0;
+            return(-1);
+        }
+        isconnect = 1;
+        if (cn_addr.ss_family == AF_INET) {
+            bzero((char *)&r_addr,sizeof(r_addr));
+            bcopy(&cn_addr,(char *)&r_addr,sizeof(r_addr));
+        } else {
+            ckv6_connected = 1;
+            bzero((char *)&ckv6_addr,sizeof(ckv6_addr));
+            bcopy(&cn_addr,(char *)&ckv6_addr,cn_len);
+        }
+        if (ck_straddr((struct sockaddr *)&cn_addr,cn_len,
+                        ipaddr,CK_IPADDRLEN) < 0)
+          ipaddr[0] = '\0';
+    }
+#else /* CK_IPV6 */
     bzero((char *)&r_addr, sizeof(r_addr));
     debug(F100,"netopen bzero ok","",0);
 /*
@@ -4197,10 +5066,8 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
 #endif /* NOHTTP */
 		) {
                 ckstrncpy(name,host->h_name,80);  /* Bad Bad Bad */
-                if ( (80-strlen(name)) > (strlen(svcbuf)+1) ) {
-                    ckstrncat(name,":",80-strlen(name));
-                    ckstrncat(name,svcbuf,80-strlen(name));
-                }
+                ckstrncat(name,":",80);
+                ckstrncat(name,svcbuf,80);
             }
 	    debug(F110,"netopen name after lookup",name,0);
 
@@ -4275,7 +5142,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
     /* Get a file descriptor for the connection. */
 
     r_addr.sin_port = service->s_port;
-    ckstrncpy(ipaddr,(char *)inet_ntoa(r_addr.sin_addr),20);
+    ckstrncpy(ipaddr,(char *)inet_ntoa(r_addr.sin_addr),CK_IPADDRLEN);
     debug(F110,"netopen trying",ipaddr,0);
     if (!quiet && *ipaddr) {
         printf(" Trying %s... ", ipaddr);
@@ -4491,7 +5358,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
                         (caddr_t)&r_addr.sin_addr,
                         host->h_length);
 
-                  ckstrncpy(ipaddr,(char *)inet_ntoa(r_addr.sin_addr),20);
+                  ckstrncpy(ipaddr,(char *)inet_ntoa(r_addr.sin_addr),CK_IPADDRLEN);
                   debug(F110,"netopen h_addr_list",ipaddr,0);
                   if (!quiet && *ipaddr) {
                       printf(" Trying %s... ", ipaddr);
@@ -4548,6 +5415,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
 #endif /* NT */
         isconnect = 1;
     } while (!isconnect);
+#endif /* CK_IPV6 */
 
 #ifdef NON_BLOCK_IO
     on = 1;
@@ -4783,15 +5651,31 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
 #ifndef datageneral
     /* Find out our own IP address. */
     /* We need the l_addr structure for [E]KLOGIN. */
+#ifdef CK_IPV6
+    if (ckv6_connected) {
+        struct sockaddr_storage lss;
+        GSOCKNAME_T lsslen = sizeof(lss);
+        bzero((char *)&lss, sizeof(lss));
+        if (!getsockname(ttyfd, (struct sockaddr *)&lss, &lsslen)) {
+            char lsbuf[CK_IPADDRLEN];
+            if (ck_straddr((struct sockaddr *)&lss,lsslen,
+                            lsbuf,sizeof(lsbuf)) == 0)
+              ckstrncpy(myipaddr, lsbuf, CK_IPADDRLEN);
+            debug(F110,"getsockname",myipaddr,0);
+        }
+    } else
+#endif /* CK_IPV6 */
+    {
     l_slen = sizeof(l_addr);
     bzero((char *)&l_addr, l_slen);
 #ifndef EXCELAN
     if (!getsockname(ttyfd, (struct sockaddr *)&l_addr, &l_slen)) {
         char * s = (char *)inet_ntoa(l_addr.sin_addr);
-        ckstrncpy(myipaddr, s, 20);
+        ckstrncpy(myipaddr, s, CK_IPADDRLEN);
         debug(F110,"getsockname",myipaddr,0);
     }
 #endif /* EXCELAN */
+    }
 #endif /* datageneral */
 
 /*
@@ -4838,6 +5722,37 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
             printf(" Reverse DNS Lookup... ");
             fflush(stdout);
         }
+#ifdef CK_IPV6
+        if (ckv6_connected) {
+            char v6nibuf[256];
+            int v6gni;
+
+            v6gni = getnameinfo((struct sockaddr *)&ckv6_addr,
+                                 sizeof(ckv6_addr),
+                                 v6nibuf,sizeof(v6nibuf),NULL,0,
+                                 NI_NAMEREQD);
+            if (v6gni == 0) {
+                char * s = v6nibuf;
+                debug(F110,"netopen getnameinfo",s,0);
+                if (!quiet) {
+                    printf("(OK)\n");
+                    fflush(stdout);
+                }
+                ckstrncpy(name,s,80);      /* Bad Bad Bad, but matches */
+                ckstrncat(name,":",80);
+                ckstrncat(name,svcbuf,80);
+                if (!quiet
+#ifndef NOICP
+                    && !doconx
+#endif /* NOICP */
+                    )
+                  printf(" %s connected on port %s\n",s,p);
+            } else {
+                debug(F111,"netopen getnameinfo failed","",v6gni);
+                if (!quiet) printf("Failed.\n");
+            }
+        } else
+#endif /* CK_IPV6 */
         if ((host = gethostbyaddr((char *)&r_addr.sin_addr,4,PF_INET))) {
             char * s;
             host = ck_copyhostent(host);
@@ -4862,7 +5777,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
                 if (!s)                 /* Trust No 1 */
                   s = "";
                 if (*s) {               /* If it worked, use this string */
-                    ckstrncpy(ipaddr,s,20);
+                    ckstrncpy(ipaddr,s,CK_IPADDRLEN);
                 }
                 s = ipaddr;             /* Otherwise stick with the IP */
                 if (!*s)                /* or failing that */
@@ -4870,10 +5785,8 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
             }
             if (*s) {                   /* Copying into our argument? */
                 ckstrncpy(name,s,80);   /* Bad Bad Bad */
-                if ( (80-strlen(name)) > (strlen(svcbuf)+1) ) {
-                    ckstrncat(name,":",80-strlen(name));
-                    ckstrncat(name,svcbuf,80-strlen(name));
-                }
+                ckstrncat(name,":",80);
+                ckstrncat(name,svcbuf,80);
             }
             if (!quiet && *s
 #ifndef NOICP
@@ -4898,8 +5811,12 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
     } else if (!quiet) printf("(OK)\n");
     if (!quiet) fflush(stdout);
 
-    /* This should already have been done but just in case */
-    ckstrncpy(ipaddr,(char *)inet_ntoa(r_addr.sin_addr),20);
+    /* This should already have been done but just in case.  Skipped
+       for an IPv6 connection: r_addr is IPv4-only and was never
+       populated in that case, so ipaddr (already set correctly by
+       the getaddrinfo() path above) must not be overwritten here. */
+    if (!ckv6_connected)
+      ckstrncpy(ipaddr,(char *)inet_ntoa(r_addr.sin_addr),CK_IPADDRLEN);
 
 #ifdef CK_SECURITY
 
@@ -4966,6 +5883,22 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
         || ttnproto == NP_K5LOGIN || ttnproto == NP_EK5LOGIN
 #endif /* CK_KERBEROS */
         ) {                             /* Similar deal for rlogin */
+#ifdef CK_KERBEROS
+        /* Kerberized rlogin's ticket address restriction
+           data has no IPv6 representation.
+           l_addr/r_addr are never populated for an IPv6 connection, so
+           reject cleanly here instead of handing rlog_ini() uninitialized
+           stack contents. Plain (non-Kerberized) NP_RLOGIN doesn't use
+           l_addr/r_addr and is unaffected. */
+        if (ckv6_connected &&
+            (ttnproto == NP_K4LOGIN || ttnproto == NP_EK4LOGIN ||
+             ttnproto == NP_K5LOGIN || ttnproto == NP_EK5LOGIN)) {
+            fprintf(stderr,
+                    "?Kerberized rlogin requires an IPv4 connection\n");
+            netclos();
+            return(-1);
+        }
+#endif /* CK_KERBEROS */
         if (rlog_ini(((tcp_rdns && host && host->h_name && host->h_name[0]) ?
                       (CHAR *)host->h_name : (CHAR *)ipaddr),
                      service->s_port,
@@ -6942,6 +7875,17 @@ net_read(fd, buf, len)
  * only call gethostbyname(NULL).
  */
 
+/*
+  getlocalipaddr() and getlocalipaddrs() (below) are IPv4-only and
+  unconverted: the UDP-connect trick here and gethostbyname() both
+  have no IPv6 equivalent path.  On an IPv6-only host they simply
+  fail (leave buf empty) rather than return a wrong result, and every
+  caller already handles that as an expected "no address" case.
+
+  Left as a self-contained follow-up: every caller uses its own
+  small, IPv4-sized buffer for the result, so widening those buffers
+  has to happen alongside converting these.
+*/
 int
 #ifdef CK_ANSIC
 getlocalipaddr( void )
@@ -6989,7 +7933,7 @@ getlocalipaddr()
 #endif /* TCPIPLIB */
             if (l_sa.sin_addr.s_addr != INADDR_ANY) {
                 myxipaddr = ntohl(l_sa.sin_addr.s_addr);
-                ckstrncpy(myipaddr,(char *)inet_ntoa(l_sa.sin_addr),20);
+                ckstrncpy(myipaddr,(char *)inet_ntoa(l_sa.sin_addr),CK_IPADDRLEN);
                 debug(F110,"getlocalipaddr setting buf to",myipaddr,0);
                 return(0);
             }
@@ -7051,7 +7995,7 @@ getlocalipaddrs(buf,bufsz,index) char * buf; int bufsz; int index;
             }
             l_sa.sin_addr.s_addr =
               *((unsigned long *) (host->h_addr_list[index]));
-            ckstrncpy(buf,(char *)inet_ntoa(l_sa.sin_addr),20);
+            ckstrncpy(buf,(char *)inet_ntoa(l_sa.sin_addr),bufsz);
             debug(F110,"getlocalipaddrs setting buf to",buf,0);
 
 #else   /* HADDRLIST */
@@ -10113,25 +11057,32 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
 {
     char namecopy[NAMECPYL];
     char *p;
+#ifndef CK_IPV6
     int i, dns = 0;
+#endif /* CK_IPV6 */
 #ifdef NON_BLOCK_IO
     int x;
 #endif /* NON_BLOCK_IO */
 #ifdef TCPSOCKET
+#ifndef CK_IPV6
     int isconnect = 0;
+#endif /* CK_IPV6 */
 #ifdef SO_OOBINLINE
     int on = 1;
 #endif /* SO_OOBINLINE */
     struct servent *service=NULL;
+#ifndef CK_IPV6
     struct hostent *host=NULL;
     struct sockaddr_in r_addr;
     struct sockaddr_in sin;
     struct sockaddr_in l_addr;
     GSOCKNAME_T l_slen;
+#endif /* CK_IPV6 */
 #ifdef EXCELAN
     struct sockaddr_in send_socket;
 #endif /* EXCELAN */
 
+#ifndef CK_IPV6
 #ifdef INADDRX
 /* inet_addr() is of type struct in_addr */
 #ifdef datageneral
@@ -10149,6 +11100,7 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
     long iax;
 #endif /* INADDR_NONE */
 #endif /* INADDRX */
+#endif /* CK_IPV6 */
 
     if ( rdns_name == NULL || rdns_len < 0 )
         rdns_len = 0;
@@ -10167,7 +11119,7 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
     if (!*hostname || !*svcname) return(-1);
 
 
-    service = ckgetservice(hostname,svcname,http_ip,20);
+    service = ckgetservice(hostname,svcname,http_ip,CK_IPADDRLEN);
 
     if (service == NULL) {
         if ( !quiet )
@@ -10208,7 +11160,7 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
             strcpy(++p,"http");
         }
 
-        service = ckgetservice(namecopy,p,http_ip,20);
+        service = ckgetservice(namecopy,p,http_ip,CK_IPADDRLEN);
         if (!service) {
             fprintf(stderr, "Can't find port for service %s\n", p);
 #ifdef TGVORWIN
@@ -10233,6 +11185,34 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
     }
 
     /* Set up socket structure and get host address */
+#ifdef CK_IPV6
+    /*
+      Resolve and connect using ck_tcp_connect().  This replaces the legacy
+      inet_addr() maze below (kept under #else for
+      non-CK_IPV6 builds) with getaddrinfo(), whose candidates are tried in
+      resolver order.
+    */
+    {
+        struct sockaddr_storage cn_addr;
+        GSOCKNAME_T cn_len = sizeof(cn_addr);
+        char svcbuf[16];
+        int got_addr = 0;
+
+        ckstrncpy(svcbuf,ckuitoa(ntohs(service->s_port)),sizeof(svcbuf));
+        httpfd = ck_tcp_connect(http_ip[0] ? http_ip : hostname, svcbuf,
+                                quiet, &got_addr, &cn_addr, &cn_len, 0);
+        if (httpfd < 0) {
+            if (!got_addr)
+              fprintf(stderr, "Can't get address for %s\n",
+                      http_ip[0]?http_ip:hostname);
+            errno = 0;
+            return(-1);
+        }
+        if (ck_straddr((struct sockaddr *)&cn_addr,cn_len,
+                        http_ip,CK_IPADDRLEN) < 0)
+          http_ip[0] = '\0';
+    }
+#else /* CK_IPV6 */
     bzero((char *)&r_addr, sizeof(r_addr));
     debug(F100,"http_open bzero ok","",0);
 
@@ -10354,7 +11334,7 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
     /* Get a file descriptor for the connection. */
 
     r_addr.sin_port = service->s_port;
-    ckstrncpy(http_ip,(char *)inet_ntoa(r_addr.sin_addr),20);
+    ckstrncpy(http_ip,(char *)inet_ntoa(r_addr.sin_addr),CK_IPADDRLEN);
     debug(F110,"http_open trying",http_ip,0);
     if (!quiet && *http_ip) {
         printf(" Trying %s... ", http_ip);
@@ -10455,7 +11435,7 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
                         (caddr_t)&r_addr.sin_addr,
                         host->h_length);
 
-                  ckstrncpy(http_ip,(char *)inet_ntoa(r_addr.sin_addr),20);
+                  ckstrncpy(http_ip,(char *)inet_ntoa(r_addr.sin_addr),CK_IPADDRLEN);
                   debug(F110,"http_open h_addr_list",http_ip,0);
                   if (!quiet && *http_ip) {
                       printf(" Trying %s... ", http_ip);
@@ -10510,6 +11490,7 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
 #endif /* NT */
         isconnect = 1;
     } while (!isconnect);
+#endif /* CK_IPV6 */
 
 #ifdef NON_BLOCK_IO
     on = 1;
@@ -10627,15 +11608,30 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
 #ifndef datageneral
     /* Find out our own IP address. */
     /* We need the l_addr structure for [E]KLOGIN. */
+#ifdef CK_IPV6
+    {
+        struct sockaddr_storage lss;
+        GSOCKNAME_T lsslen = sizeof(lss);
+        bzero((char *)&lss, sizeof(lss));
+        if (!getsockname(httpfd, (struct sockaddr *)&lss, &lsslen)) {
+            char lsbuf[CK_IPADDRLEN];
+            if (ck_straddr((struct sockaddr *)&lss,lsslen,
+                            lsbuf,sizeof(lsbuf)) == 0)
+              ckstrncpy(myipaddr, lsbuf, CK_IPADDRLEN);
+            debug(F110,"getsockname",myipaddr,0);
+        }
+    }
+#else /* CK_IPV6 */
     l_slen = sizeof(l_addr);
     bzero((char *)&l_addr, l_slen);
 #ifndef EXCELAN
     if (!getsockname(httpfd, (struct sockaddr *)&l_addr, &l_slen)) {
         char * s = (char *)inet_ntoa(l_addr.sin_addr);
-        ckstrncpy(myipaddr, s, 20);
+        ckstrncpy(myipaddr, s, CK_IPADDRLEN);
         debug(F110,"getsockname",myipaddr,0);
     }
 #endif /* EXCELAN */
+#endif /* CK_IPV6 */
 #endif /* datageneral */
 
 /* See note in netopen() on Reverse DNS lookups */
@@ -10648,6 +11644,43 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
             printf(" Reverse DNS Lookup... ");
             fflush(stdout);
         }
+#ifdef CK_IPV6
+        /*
+          Reverse-resolve via getpeername()/getnameinfo() instead of
+          gethostbyaddr(r_addr), since r_addr doesn't exist in CK_IPV6.
+          This also works for an IPv6 peer.
+
+          FIXME: should reverse-resolve code be consolidated?
+        */
+        {
+            struct sockaddr_storage pss;
+            GSOCKNAME_T pslen = sizeof(pss);
+            char nibuf[256];
+            int gni = -1;
+
+            bzero((char *)&pss, sizeof(pss));
+            if (!getpeername(httpfd,(struct sockaddr *)&pss,&pslen))
+              gni = getnameinfo((struct sockaddr *)&pss,(socklen_t)pslen,
+                                 nibuf,sizeof(nibuf),NULL,0,NI_NAMEREQD);
+            if (gni == 0) {
+                char * s = nibuf;
+                if (!quiet) {
+                    printf("(OK)\n");
+                    fflush(stdout);
+                }
+                ckmakmsg(rdns_name,rdns_len,s,":",svcname,NULL);
+                if (!quiet && *s
+#ifndef NOICP
+                    && !doconx
+#endif /* NOICP */
+                    )
+                  printf(" %s connected on port %s\n",s,
+                         ckuitoa(ntohs(service->s_port)));
+            } else {
+                if (!quiet) printf("Failed.\n");
+            }
+        }
+#else /* CK_IPV6 */
         if ((host = gethostbyaddr((char *)&r_addr.sin_addr,4,PF_INET))) {
             char * s;
             host = ck_copyhostent(host);
@@ -10672,7 +11705,7 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
                 if (!s)                 /* Trust No 1 */
                   s = "";
                 if (*s) {               /* If it worked, use this string */
-                    ckstrncpy(http_ip,s,20);
+                    ckstrncpy(http_ip,s,CK_IPADDRLEN);
                 }
                 s = http_ip;             /* Otherwise stick with the IP */
                 if (!*s)                 /* or failing that */
@@ -10702,6 +11735,7 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
         } else {
             if (!quiet) printf("Failed.\n");
         }
+#endif /* CK_IPV6 */
     } else if (!quiet) printf("(OK)\n");
     if (!quiet) fflush(stdout);
 
@@ -10709,10 +11743,13 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
     if ( tcp_http_proxy ) {
         /* Erase the IP address since we cannot reuse it */
         http_ip[0] = '\0';
-    } else {
-        /* This should already have been done but just in case */
-        ckstrncpy(http_ip,(char *)inet_ntoa(r_addr.sin_addr),20);
     }
+#ifndef CK_IPV6
+    else {
+        /* This should already have been done but just in case */
+        ckstrncpy(http_ip,(char *)inet_ntoa(r_addr.sin_addr),CK_IPADDRLEN);
+    }
+#endif /* CK_IPV6 */
     makestr(&http_agent,agent);
 
 #ifdef CK_SSL
@@ -13146,6 +14183,12 @@ http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
 #endif /* NOHTTP */
 
 #ifdef CK_DNS_SRV
+/*
+  This whole DNS SRV client is IPv4-only.
+
+  See the dns_addrs comment in ckgetservice() above for why this was deferred
+  rather than converted.
+*/
 
 #define INCR_CHECK(x,y) x += y; if (x > size + answer.bytes) goto dnsout
 #define CHECK(x,y) if (x + y > size + answer.bytes) goto dnsout
@@ -13599,6 +14642,17 @@ fwdx_create_listen_socket(screen) int screen;
 #ifdef NOPUTENV
     return(-1);
 #else /* NOPUTENV */
+    /*
+      IPv4-only.  myipaddr is empty on an IPv6-only host (see the
+      getlocalipaddr() comment above), so this listener falls back to
+      a DISPLAY with no host part rather than binding an IPv6
+      address.  IPv6-only host with X11 seems rare and can probably be skipped
+      for now.
+
+      myipaddr can also legitimately hold a real IPv6 literal.  inet_addr()
+      below fails on that too, so the same INADDR_NONE/-1 check applies
+      regardless of which case left myipaddr non-IPv4.
+    */
     struct sockaddr_in saddr;
     int display, port, sock=-1, i;
     static char env[512];
@@ -13623,6 +14677,18 @@ fwdx_create_listen_socket(screen) int screen;
         bzero((char *)&saddr, sizeof(saddr));
         saddr.sin_family = AF_INET;
         saddr.sin_addr.s_addr = inet_addr(myipaddr);
+        if (saddr.sin_addr.s_addr == (unsigned long) -1
+#ifdef INADDR_NONE
+            || saddr.sin_addr.s_addr == INADDR_NONE
+#endif /* INADDR_NONE */
+            ) {
+            /* myipaddr isn't a valid IPv4 literal here.  Don't fail the
+               listener over an address we can't parse as IPv4.  Bind the
+               wildcard address instead of restricting to one we don't have. */
+            debug(F110,"fwdx_create_listen_socket() myipaddr not IPv4",
+                  myipaddr,0);
+            saddr.sin_addr.s_addr = INADDR_ANY;
+        }
         saddr.sin_port = htons(port);
 
         if (bind(sock, (struct sockaddr *)&saddr, sizeof(saddr)) < 0) {
@@ -13681,6 +14747,7 @@ fwdx_open_client_channel(int channel)
 fwdx_open_client_channel(channel) int channel;
 #endif  /* CK_ANSIC */
 {
+    /* IPv4-only, same reasoning as fwdx_create_listen_socket() above. */
     char * env;
     struct sockaddr_in saddr;
 #ifdef FWDX_UNIX_SOCK
@@ -13845,6 +14912,7 @@ fwdx_open_client_channel(channel) int channel;
     return(-1);
 }
 
+/* IPv4-only, same reasoning as fwdx_create_listen_socket() above. */
 int
 fwdx_server_avail() {
     char * env;
@@ -13973,6 +15041,7 @@ fwdx_server_avail() {
     return(1);
 }
 
+/* IPv4-only, same reasoning as fwdx_create_listen_socket() above. */
 int
 fwdx_open_server_channel() {
     int sock, ready_to_accept, sock2,channel;

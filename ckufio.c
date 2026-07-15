@@ -1324,6 +1324,33 @@ doiklog() {
     }
 }
 
+/*
+  D B W A R N O L D F M T  --  Warn the operator about an old-format
+  IKSD database.
+
+  Called from ckuusx.c's db_checkformat() when the IKSD database file
+  predates IPv6 support and can't be read.  Unlike cksyslog(), this
+  always reaches the system log if syslog is available at all: it
+  isn't conditional on SET SYSLOG, since an operator who hasn't
+  turned on IKSD's optional logging should still find out that their
+  database was left unused.
+*/
+VOID
+#ifdef CK_ANSIC
+dbwarnoldfmt(char * fn)
+#else
+dbwarnoldfmt(fn) char * fn;
+#endif /* CK_ANSIC */
+{
+#ifdef CKSYSLOG
+    syslog(LOG_ERR,
+           "IKSD database %s predates IPv6 support and can't be read;"
+           " delete it and it will be recreated; database disabled"
+           " for now",
+           fn);
+#endif /* CKSYSLOG */
+}
+
 /*  Z O P E N I  --  Open an existing file for input. */
 
 /* Returns 1 on success, 0 on failure */
@@ -8090,6 +8117,8 @@ kpass(name, p) char *name, *p; {
     char tkt_file[20];
     KTEXT_ST ticket;
     AUTH_DAT authdata;
+    /* Kerberos 4's wire format has no IPv6 address representation,
+       so this stays IPv4-only regardless of CK_IPV6. */
     unsigned long faddr;
     struct hostent *hp;
 

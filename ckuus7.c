@@ -936,7 +936,7 @@ static int cksysid_allocated = 0;
 
 /* Populates the system ID table exactly once based on sysidlist from 
  * ckcmai.c. */
-void
+VOID
 initsysidtab() {
     if (sysidtab == NULL) {
         extern struct sysdata sysidlist[];
@@ -3920,7 +3920,7 @@ setfil(rmsflg) int rmsflg;
           if ((x = cmkey(sysidtab, nsysidtab, "Kermit system ID", "U1", xxstring)) < 0)
               return(x);
           if ((y = cmcfm()) < 0) return(y);
-          if (x >= 0) {
+          {
               char *code = sysidlist[x].sid_code;
               char *new_sysid = (char *)malloc(strlen(code) + 1);
               if (new_sysid) {
@@ -3941,6 +3941,9 @@ setfil(rmsflg) int rmsflg;
                   }
                   cksysid = new_sysid;
                   cksysid_allocated = 1;
+              } else {
+                  printf("?Memory allocation failure\n");
+                  return(-9);
               }
           }
           return(success = 1);
@@ -15434,6 +15437,10 @@ cp_auth() {                             /* Command_Parse AUTHENTICATE */
                 if ((rc = cmfld("List of IP addresses","",&s,xxstring)) < 0)
                   goto kerbx;
                 makelist(s,tmpaddrs,KRB5_NUM_OF_ADDRS);
+                /* Validated as IPv4 dotted-quad only; see the comment
+                   on init->addrs in ckuath.c (k5_init) for why this
+                   ticket-address-restriction feature is out of scope
+                   for IPv6 support. */
                 for (i = 0; i < KRB5_NUM_OF_ADDRS && tmpaddrs[i]; i++) {
                     if (inet_addr(tmpaddrs[i]) == 0xffffffff) {
                         printf("invalid ip address: %s\n",tmpaddrs[i]);

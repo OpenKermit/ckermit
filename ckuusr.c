@@ -2702,6 +2702,10 @@ int nnets = (sizeof(netcmd) / sizeof(struct keytab));
 
 struct keytab tcpopt[] = {
     { "address",   XYTCP_ADDRESS, 0 },
+#ifdef CK_IPV6
+    { "address-family", XYTCP_AF, 0 },
+    { "address6", XYTCP_ADDRESS6, 0 },
+#endif /* CK_IPV6 */
 #ifdef CK_DNS_SRV
     { "dns-service-records", XYTCP_DNS_SRV, 0 },
 #endif /* CK_DNS_SRV */

@@ -8549,7 +8549,21 @@ static char *hxyhost[] = {
 "  Establishes a connection to the specified network host on the currently",
 "  selected network type.  For TCP/IP connections, the default service is",
 "  TELNET; specify a different TCP port number or service name to choose a",
-"  different service.  The first set of switches can be:",
+"  different service.",
+" ",
+"  A hostname or address containing colons of its own (an IPv6 address",
+"  literal, such as ::1) must be enclosed in square brackets to attach a",
+"  port, e.g. [::1]:23, or given bare in brackets with no port, e.g. [::1],",
+"  since otherwise Kermit cannot tell which colon separates the port.",
+" ",
+#ifdef CK_IPV6
+"  Which IP address family actually gets used for a hostname that has",
+"  both IPv4 and IPv6 addresses is controlled by SET TCP ADDRESS-FAMILY. For",
+"  SET HOST * (listen for an incoming connection), the same setting",
+"  controls which family (or families) are listened on.",
+" ",
+#endif /* CK_IPV6 */
+"  The first set of switches can be:",
 " ",
 " /NETWORK-TYPE:name",
 "   Makes the connection on the given type of network.  Equivalent to SET",
@@ -9074,11 +9088,29 @@ static char *hxynet[] = {
 static char *hxytcp[] = {
 #ifdef SOL_SOCKET
 "SET TCP ADDRESS <ip-address>",
-"  This allows a specific IP Address on a multihomed host to be used",
+"  This allows a specific local IPv4 address on a multihomed host to be used",
 "  instead of allowing the TCP/IP stack to choose.  This may be necessary",
 "  when using authentication or listening for an incoming connection.",
-"  Specify no <ip-address> to remove the preference.",
+"  Specify no <ip-address> to remove the preference.  <ip-address> must",
+"  be an IPv4 literal.",
+#ifdef CK_IPV6
 " ",
+"  This setting only affects IPv4 connections and listeners.  It is",
+"  applied to an IPv4 candidate when SET TCP ADDRESS-FAMILY is AUTO or",
+"  IPV4, and has no effect on IPv6 candidates.  See SET TCP ADDRESS6 for",
+"  the IPv6 equivalent.  The two are independent.",
+#endif /* CK_IPV6 */
+" ",
+#ifdef CK_IPV6
+"SET TCP ADDRESS6 <ipv6-address>",
+"  Like SET TCP ADDRESS, but for IPv6.  It gives a specific IPv6 address",
+"  on a multihomed host to use as the local address for outgoing IPv6",
+"  connections and the IPv6 listening socket, instead of letting the",
+"  TCP/IP stack choose.  <ipv6-address> must be an IPv6 literal.  Specify",
+"  no <ipv6-address> to remove the preference.  Only affects IPv6",
+"  connections and listeners.",
+" ",
+#endif /* CK_IPV6 */
 "SET TCP KEEPALIVE { ON, OFF }",
 "  Setting this ON might help to detect broken connections more quickly.",
 "  (default is ON.)",
@@ -9109,6 +9141,17 @@ static char *hxytcp[] = {
 "The following TCP and/or IP parameter(s) may also be changed:",
 " ",
 #endif /* SOL_SOCKET */
+#ifdef CK_IPV6
+"SET TCP ADDRESS-FAMILY { IPV4, IPV6, AUTO }",
+"  Selects which IP address family to use for incoming and outgoing TCP/IP",
+"  connections (SET HOST, TELNET, FTP, and the like).  IPV4 or IPV6",
+"  restrict connections to that family only.  AUTO, the default, lets",
+"  Kermit try both, in the order the system resolver returns them for",
+"  the given hostname -- typically IPv6 first if this host has working",
+"  IPv6 connectivity, falling back to IPv4 if that fails, the same way",
+"  ordinary Telnet clients behave.",
+" ",
+#endif /* CK_IPV6 */
 "SET TCP REVERSE-DNS-LOOKUP { AUTO, ON, OFF }",
 "  Tells Kermit whether to perform reverse DNS lookup on TCP/IP connections",
 "  so Kermit can determine the actual hostname of the host it is connected",

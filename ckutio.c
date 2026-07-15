@@ -5238,7 +5238,15 @@ ttlock(ttdev) char *ttdev;
     debug(F110,"ttlock flfnam",flfnam,0);
     debug(F110,"ttlock tmpnam",tmpnam,0);
 
-    priv_on();				/* Turn on privileges if possible. */
+    if (priv_on()) {			/* Turn on privileges if possible. */
+	/* priv_on() only fails when this binary is genuinely set-uid/
+	   set-gid and the switch itself failed (e.g. an earlier
+	   priv_chk() in this process permanently dropped privileges
+	   via priv_can()); don't proceed to creat() as if we were
+	   still able to elevate. */
+	debug(F100,"ttlock priv_on failed","",0);
+	return(-1);			/* Can't lock without privileges. */
+    }
     lockfd = creat(tmpnam, 0444);	/* Try to create temp lock file. */
     if (lockfd < 0) {			/* Create failed. */
 	debug(F111,"ttlock creat failed",tmpnam,errno);
@@ -5250,7 +5258,8 @@ ttlock(ttdev) char *ttdev;
 	      perror(lockdir);
 	    unlink(tmpnam);		/* Get rid of the temporary file. */
 	}
-	priv_chk();			/* Turn off privileges!!! */
+	if (priv_chk())			/* Turn off privileges!!! */
+	  debug(F100,"ttlock priv_chk failed to drop privileges","",0);
 	return(-1);			/* Return failure code. */
     }
 /* Now write the pid into the temp lockfile in the appropriate format */
@@ -5307,7 +5316,8 @@ ttlock(ttdev) char *ttdev;
 	      break;			/* We're done. */
 
 	} else {			/* We didn't create a new lockfile. */
-	    priv_chk();
+	    if (priv_chk())
+	      debug(F100,"ttlock priv_chk failed to drop privileges","",0);
 	    if (ttchkpid(flfnam)) {	/* Check existing lockfile */
 		priv_on();		/* cause ttchkpid turns priv_off... */
 		unlink(tmpnam);		/* Delete the tempfile */
@@ -5315,11 +5325,20 @@ ttlock(ttdev) char *ttdev;
 		priv_chk();		/* Turn off privs */
 		return(-2);		/* Code for device is in use. */
 	    }
-	    priv_on();
+	    if (priv_on()) {		/* Re-elevate for the next attempt; */
+		/* if privileges can't be reacquired (e.g. a permanent
+		   drop already happened), don't loop again as if we
+		   still had them -- bail with the same failure code
+		   the loop would return if it simply ran out of
+		   tries. */
+		debug(F100,"ttlock priv_on failed, giving up","",0);
+		break;
+	    }
 	}
     }
     unlink(tmpnam);			/* Unlink (remove) the temp file. */
-    priv_chk();				/* Turn off privs */
+    if (priv_chk())
+      debug(F100,"ttlock priv_chk failed to drop privileges","",0);
     return(haslock ? 0 : -1);		/* Return link's return code. */
 
 #else /* HPUX */
@@ -15973,7 +15992,9 @@ conprint(char *fmt, ...) {
 
     va_start(ap, fmt);
     i = vsnprintf(buf, sizeof(buf), fmt, ap);
-    if (i < 0 || i >= (int)sizeof(buf))
+    if (i < 0)
+        i = 0;		/* Encoding error; buf may not be terminated. */
+    else if (i >= (int)sizeof(buf))
         i = strlen(buf);
     conwrite(buf, i);
 }

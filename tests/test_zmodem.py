@@ -1,161 +1,37 @@
-import logging
 import os
-import pty
-import select
 import shutil
-import subprocess
-import time
-from pathlib import Path
 
 import pytest
 
-from conftest import truncated
+from conftest import pattern_bytes, DEBUG_LOOPBACK as DEBUG_ZMODEM
+
+ZMODEM_BLOCK_SIZE = 1024
+
+MB = 1024 * 1024
 
 pytestmark = pytest.mark.skipif(
     shutil.which("sz") is None or shutil.which("rz") is None,
     reason="lrzsz (sz/rz) commands not available",
 )
 
-logger = logging.getLogger(__name__)
-
-# Use the same variable as tests/conftest.py's wermit_loopback.
-# When set, wermit's internal "log debug" trace is captured to a file and
-# dumped into the pytest failure report, and a timeout also dumps whatever
-# pty output was captured before it fired plus a snapshot of any wermit,
-# sz, or rz processes still running.
-DEBUG_ZMODEM = bool(os.environ.get("KERMIT_TEST_DEBUG_LOOPBACK"))
+# Extra seconds added to every timeout in TCP mode, on top of what PTY
+# mode needs for the same transfer, to leave headroom for TCP
+# connection setup/teardown beyond the pty case's process fork/exec.
+TCP_TIMEOUT_MARGIN = 15
 
 
-def _log_debug_file(label, path):
-    path = Path(path)
-    if not path.exists():
-        return
-    try:
-        text = path.read_text(errors="replace")
-        logger.info(
-            "%s: wermit debug log:\n%s",
-            label, truncated("wermit debug log", text))
-    except OSError as e:
-        logger.warning(
-            "%s: failed to read debug log %s: %s", label, path, e)
-
-
-def _log_process_snapshot(label):
-    """Logs any wermit/sz/rz processes still alive, so a timeout tells us
-    whether the hang is in wermit itself or in the child it exec'd."""
-    try:
-        ps = subprocess.run(
-            ["ps", "-ef"], capture_output=True, text=True, timeout=5)
-        relevant = "\n".join(
-            line for line in ps.stdout.splitlines()
-            if line.startswith("UID")
-            or any(name in line for name in ("wermit", " sz", " rz"))
-        )
-        logger.info("%s: relevant process snapshot:\n%s", label, relevant)
-    except Exception as e:
-        logger.warning(
-            "%s: failed to capture process snapshot: %s", label, e)
-
-
-# Here we test the Zmodem transfers.
-
-# run_wermit_pty is used to run kermit with its stdin, stdout, and stderr connected
-# to a real pseudoterminal slave.
-#
-# This is because, by default, when kermit sets up a host connection over a
-# pseudoterminal, it runs ckutio.c:ttptycmd().
-# If kermit's own stdin is not a TTY (e.g., standard input is redirected from
-# /dev/null or pipes), the original implementation of tcgetattr(0, &term) and
-# ioctl(0, TIOCGWINSZ, &twin) would fail, printing "tcgetattr: Inappropriate ioctl
-# for device" and aborting.
-#
-# Using pty.openpty() ensures that tests execute in a clean, simulated terminal
-# environment matching normal shell usage.
-
-
-def run_wermit_pty(wermit_path, cmd_str, cwd, timeout=45, debug_log=None):
-    master, slave = pty.openpty()
-
-    debug_prefix = f"log debug {debug_log}, " if debug_log else ""
-    cmd = [
-        wermit_path, "-H", "-Y", "-C",
-        f"{debug_prefix}set command more-prompting off, {cmd_str}"
-    ]
-
-    proc = subprocess.Popen(
-        cmd,
-        stdin=slave,
-        stdout=slave,
-        stderr=slave,
-        cwd=str(cwd),
-        close_fds=True
-    )
-
-    os.close(slave)
-
-    output = []
-    start_time = time.time()
-
-    # Read output using select for timeout handling
-    while proc.poll() is None:
-        if time.time() - start_time > timeout:
-            captured = b"".join(output).decode('utf-8', errors='replace')
-            logger.error(
-                "run_wermit_pty: wermit (pid %d) timed out after %ds. "
-                "pty output captured before timeout:\n%s",
-                proc.pid, timeout, truncated("pty output", captured))
-            _log_process_snapshot("run_wermit_pty")
-            proc.terminate()
-            try:
-                proc.wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                proc.wait(timeout=2)
-            os.close(master)
-            if debug_log:
-                _log_debug_file("run_wermit_pty", debug_log)
-            raise subprocess.TimeoutExpired(
-                cmd, timeout, output=captured.encode())
-
-        r, _, _ = select.select([master], [], [], 0.1)
-        if master in r:
-            try:
-                data = os.read(master, 4096)
-                if not data:
-                    break
-                output.append(data)
-            except OSError:
-                break
-
-    # Read any remaining output after process exits
-    while True:
-        r, _, _ = select.select([master], [], [], 0.05)
-        if master in r:
-            try:
-                data = os.read(master, 4096)
-                if not data:
-                    break
-                output.append(data)
-            except OSError:
-                break
-        else:
-            break
-
-    os.close(master)
-    proc.wait()
-
-    if debug_log:
-        _log_debug_file("run_wermit_pty", debug_log)
-
-    return proc.returncode, b"".join(output).decode('utf-8', errors='replace')
-
-
-def test_zmodem_receive(wermit_path, tmp_path):
+def run_zmodem_receive(zmodem_remote, tmp_path, content, timeout=45):
+    """
+    Runs kermit as a Zmodem receiver (kermit's stdin connected to a
+    pty hosting sz), which reads content from a source file and
+    writes it to dest_dir/test_z_receive.txt. Asserts the transfer
+    succeeded, the received file is byte-identical, and its mtime was
+    preserved to the second.
+    """
     # Setup source directory and file
     src_dir = tmp_path / "src"
     src_dir.mkdir()
     src_file = src_dir / "test_z_receive.txt"
-    content = b"Zmodem receive payload content test." * 50
     src_file.write_bytes(content)
 
     # Set modification time with sub-second precision
@@ -166,12 +42,17 @@ def test_zmodem_receive(wermit_path, tmp_path):
     dest_dir = tmp_path / "dest"
     dest_dir.mkdir()
 
-    # Receive command: wermit connects to pseudoterminal running sz
-    cmd_str = f"set terminal autodownload on, set host /network-type:pseudoterminal sz {src_file}, connect, close, exit"
+    # Receive command: wermit connects to a remote hosting sz -- either
+    # directly via a pseudoterminal, or over raw TCP, depending on
+    # zmodem_remote's mode.
+    cmd_str = "set terminal autodownload on, set host {HOST}, connect, close, exit"
 
+    if zmodem_remote.mode == "tcp":
+        timeout += TCP_TIMEOUT_MARGIN
     debug_log = tmp_path / "wermit_debug.log" if DEBUG_ZMODEM else None
-    returncode, stdout = run_wermit_pty(
-        wermit_path, cmd_str, dest_dir, debug_log=debug_log)
+    returncode, stdout = zmodem_remote(
+        ["sz", str(src_file)], cmd_str, dest_dir, timeout=timeout,
+        debug_log=debug_log)
 
     assert returncode == 0, f"Zmodem receive failed: returncode={returncode}, stdout={stdout}"
 
@@ -185,10 +66,16 @@ def test_zmodem_receive(wermit_path, tmp_path):
     assert abs(dest_mtime - target_mtime) <= 1.0
 
 
-def test_zmodem_send(wermit_path, tmp_path):
+def run_zmodem_send(zmodem_remote, tmp_path, content, timeout=45):
+    """
+    Runs wermit as a Zmodem sender (wermit's stdin connected to a pty
+    hosting rz), which sends a source file's content and rz writes it
+    to dest_dir/test_z_send.txt. Asserts the transfer succeeded, the
+    received file is byte-identical, and its mtime was preserved to
+    the second.
+    """
     # Setup source file to send
     src_file = tmp_path / "test_z_send.txt"
-    content = b"Zmodem send payload content test." * 50
     src_file.write_bytes(content)
 
     # Set modification time with sub-second precision
@@ -199,13 +86,16 @@ def test_zmodem_send(wermit_path, tmp_path):
     dest_dir = tmp_path / "dest"
     dest_dir.mkdir()
 
-    # Send command: wermit sets protocol to zmodem, hosts rz over
-    # pseudoterminal, and sends file
-    cmd_str = f"set protocol zmodem, set host /network-type:pseudoterminal rz, send {src_file}, close, exit"
+    # Send command: wermit sets protocol to zmodem, hosts rz -- either
+    # directly via a pseudoterminal, or over raw TCP, depending on
+    # zmodem_remote's mode -- and sends the file.
+    cmd_str = f"set protocol zmodem, set host {{HOST}}, send {src_file}, close, exit"
 
+    if zmodem_remote.mode == "tcp":
+        timeout += TCP_TIMEOUT_MARGIN
     debug_log = tmp_path / "wermit_debug.log" if DEBUG_ZMODEM else None
-    returncode, stdout = run_wermit_pty(
-        wermit_path, cmd_str, dest_dir, debug_log=debug_log)
+    returncode, stdout = zmodem_remote(
+        ["rz"], cmd_str, dest_dir, timeout=timeout, debug_log=debug_log)
 
     assert returncode == 0, f"Zmodem send failed: returncode={returncode}, stdout={stdout}"
 
@@ -217,3 +107,54 @@ def test_zmodem_send(wermit_path, tmp_path):
     # Verify modification time is preserved to the second
     dest_mtime = received_file.stat().st_mtime
     assert abs(dest_mtime - target_mtime) <= 1.0
+
+
+def test_zmodem_receive(zmodem_remote, tmp_path):
+    content = b"Zmodem receive payload content test." * 50
+    run_zmodem_receive(zmodem_remote, tmp_path, content)
+
+
+def test_zmodem_send(zmodem_remote, tmp_path):
+    content = b"Zmodem send payload content test." * 50
+    run_zmodem_send(zmodem_remote, tmp_path, content)
+
+
+ZMODEM_SIZES = [
+    pytest.param(ZMODEM_BLOCK_SIZE - 1, id="blksize-1"),
+    pytest.param(ZMODEM_BLOCK_SIZE, id="blksize"),
+    pytest.param(ZMODEM_BLOCK_SIZE + 1, id="blksize+1"),
+    pytest.param(2 * ZMODEM_BLOCK_SIZE - 1, id="2xblksize-1"),
+    pytest.param(2 * ZMODEM_BLOCK_SIZE, id="2xblksize"),
+    pytest.param(2 * ZMODEM_BLOCK_SIZE + 1, id="2xblksize+1"),
+]
+
+
+@pytest.mark.parametrize("size", ZMODEM_SIZES)
+def test_zmodem_receive_sizes(zmodem_remote, tmp_path, size):
+    """
+    Zmodem receive at and around exact multiples of
+    ZMODEM_BLOCK_SIZE, to exercise sub-packet count/boundary
+    arithmetic.
+    """
+    run_zmodem_receive(zmodem_remote, tmp_path, pattern_bytes(size))
+
+
+@pytest.mark.parametrize("size", ZMODEM_SIZES)
+def test_zmodem_send_sizes(zmodem_remote, tmp_path, size):
+    """
+    Zmodem send at and around exact multiples of ZMODEM_BLOCK_SIZE,
+    to exercise sub-packet count/boundary arithmetic.
+    """
+    run_zmodem_send(zmodem_remote, tmp_path, pattern_bytes(size))
+
+
+def test_zmodem_receive_large(zmodem_remote, tmp_path):
+    """Zmodem receive of a file well beyond a single sub-packet."""
+    run_zmodem_receive(
+        zmodem_remote, tmp_path, pattern_bytes(20 * MB), timeout=90)
+
+
+def test_zmodem_send_large(zmodem_remote, tmp_path):
+    """Zmodem send of a file well beyond a single sub-packet."""
+    run_zmodem_send(
+        zmodem_remote, tmp_path, pattern_bytes(20 * MB), timeout=90)

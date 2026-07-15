@@ -1636,6 +1636,10 @@ struct stringint {			/* String and (wide) integer */
 #define  XYTCP_SOCKS_SVR 12 /* Name of Socks Server */
 #define  XYTCP_HTTP_PROXY 13 /* Name/Port of HTTP Proxy Server */
 #define  XYTCP_SOCKS_NS  14 /* Name of Socks Name Server */
+#ifdef CK_IPV6
+#define  XYTCP_AF        15 /* Address family: IPv4, IPv6, or auto */
+#define  XYTCP_ADDRESS6  16 /* Set preferred IPv6 Address */
+#endif /* CK_IPV6 */
 #endif /* TCPSOCKET */
 
 #ifdef OS2
