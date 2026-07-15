@@ -10582,6 +10582,20 @@ ttol(s,n) int n; CHAR *s;
 	    return(len);		/* Done */
 	} else if (x < 0) {		/* No, got error? */
 	    debug(F101,"ttol write error","",errno);
+#ifdef EINTR
+	    if (errno == EINTR) {
+		/*
+		  A signal interrupted write() before it transferred any
+		  data. No progress was lost, so this should not count
+		  against the limited retry budget below.  On platforms
+		  such as NetBSD where signal() doesn't restart system calls,
+		  a large write to a pty can fail if a harmless timer
+		  signal happens to land during it.
+		*/
+		/* tries++;  Don't consume our limited retry count */
+		continue;
+	    }
+#endif /* EINTR */
 #ifdef EWOULDBLOCK
 	    if (errno == EWOULDBLOCK) {
 		msleep(10);
