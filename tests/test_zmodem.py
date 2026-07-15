@@ -3,7 +3,8 @@ import shutil
 
 import pytest
 
-from conftest import pattern_bytes, DEBUG_LOOPBACK as DEBUG_ZMODEM
+from conftest import (pattern_bytes, DEBUG_LOOPBACK as DEBUG_ZMODEM,
+                      ZMODEM_QUIET_PROTOCOL_CLAUSE)
 
 ZMODEM_BLOCK_SIZE = 1024
 
@@ -45,7 +46,9 @@ def run_zmodem_receive(zmodem_remote, tmp_path, content, timeout=45):
     # Receive command: wermit connects to a remote hosting sz -- either
     # directly via a pseudoterminal, or over raw TCP, depending on
     # zmodem_remote's mode.
-    cmd_str = "set terminal autodownload on, set host {HOST}, connect, close, exit"
+    cmd_str = (f"{ZMODEM_QUIET_PROTOCOL_CLAUSE}, "
+              "set terminal autodownload on, set host {HOST}, connect, "
+              "close, exit")
 
     if zmodem_remote.mode == "tcp":
         timeout += TCP_TIMEOUT_MARGIN
@@ -89,7 +92,8 @@ def run_zmodem_send(zmodem_remote, tmp_path, content, timeout=45):
     # Send command: wermit sets protocol to zmodem, hosts rz -- either
     # directly via a pseudoterminal, or over raw TCP, depending on
     # zmodem_remote's mode -- and sends the file.
-    cmd_str = f"set protocol zmodem, set host {{HOST}}, send {src_file}, close, exit"
+    cmd_str = (f"{ZMODEM_QUIET_PROTOCOL_CLAUSE}, "
+              f"set host {{HOST}}, send {src_file}, close, exit")
 
     if zmodem_remote.mode == "tcp":
         timeout += TCP_TIMEOUT_MARGIN

@@ -14,6 +14,24 @@ import time
 # roughly doubles the I/O of every loopback test.
 DEBUG_LOOPBACK = bool(os.environ.get("KERMIT_TEST_DEBUG_LOOPBACK"))
 
+# sz/rz (lrzsz) print a  status
+# line to their own controlling terminal for roughly every 1K
+# subpacket.  ttptycmd()
+# relays every one of those bytes just like real file data, so this
+# purely cosmetic chatter turns into ~20,000 extra small read/write
+# round trips, each a scheduling opportunity for another process to
+# steal the CPU.  Under high CPU load, this causes failure.
+# This is sz/rz's own behavior, not a ckermit inefficiency, and
+# real interactive users generally want that progress display, so
+# this quiets it for tests only rather than changing ckermit's
+# shipped SET PROTOCOL ZMODEM default. Params are upload-binary,
+# upload-text, send-binary, send-text, receive-binary, receive-text
+# (see SET PROTOCOL's help text); upload-* are left blank since
+# nothing here relies on kermit's remote-command-on-connect feature.
+ZMODEM_QUIET_PROTOCOL_CLAUSE = (
+    'set protocol zmodem "" "" "sz -q %s" "sz -q -a %s" "rz -q" "rz -q"'
+)
+
 # Exit code used by TcpLoopbackSession.run_client's "if failure exit"
 # guard to signal that SET HOST itself never connected. Distinct from
 # 0 (success) and from wermit's own exit codes for the commands that
@@ -703,7 +721,7 @@ def zmodem_remote(request, wermit_path, get_free_port, spawn_wermit):
         server_ksc.write_text(
             "set command more-prompting off\n"
             "set delay 0\n"
-            "set protocol zmodem\n"
+            f"{ZMODEM_QUIET_PROTOCOL_CLAUSE}\n"
             f"{_remote_clause(remote_argv)}\n"
             "exit\n"
         )
@@ -741,7 +759,7 @@ def zmodem_remote(request, wermit_path, get_free_port, spawn_wermit):
             ["-H", "-Y", "-C",
              "set command more-prompting off, "
              "set tcp reverse-dns-lookup off, "
-             "set protocol zmodem, "
+             f"{ZMODEM_QUIET_PROTOCOL_CLAUSE}, "
              f"set host localhost {port} /raw-socket, "
              f"{_remote_clause(remote_argv)}, close, exit"],
             cwd=str(cwd), stdout=subprocess.DEVNULL)
