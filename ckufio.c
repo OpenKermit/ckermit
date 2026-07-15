@@ -1552,8 +1552,24 @@ zopeno(n,name,zz,fcb) int n; char *name; struct zattr *zz; struct filinfo *fcb;
     } else {                            /* Succeeded */
         extern int zofbuffer, zofblock, zobufsize;
         debug(F101, "zopeno zobufsize", "", zobufsize);
-        if (n == ZDFILE || n == ZTFILE) { /* If debug or transaction log */
+        if (n == ZTFILE) {              /* Transaction log */
             setbuf(fp[n],NULL);           /* make it unbuffered. */
+        } else if (n == ZDFILE) {       /* Debug log */
+/*
+  The debug log can be extremely high volume. LOG DEBUG hex-dumps every
+  byte of every packet, so a single large file transfer can produce
+  millions of lines. Unbuffered stdio costs a write() syscall per line,
+  significantly decreasing performance.
+
+  Default to normal stdio buffering here instead, and only go
+  unbuffered if CK_DEBUG_UNBUFFERED is set in the environment. Most
+  debugging sessions end in a diagnosable error or a normal exit, both
+  of which flush and close the log.  Unbuffered output only matters for
+  a hard crash, and CK_DEBUG_UNBUFFERED is there for that case.
+*/
+            char * unbuf = getenv("CK_DEBUG_UNBUFFERED");
+            if (unbuf && *unbuf && strcmp(unbuf,"0"))
+              setbuf(fp[n],NULL);
 #ifdef DONDELAY
         } else if (n == ZOFILE && !zofblock) { /* blocking or nonblocking */
             int flags;
