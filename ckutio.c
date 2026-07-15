@@ -14860,6 +14860,20 @@ ttptycmd(s) char *s;
 	debug(F101,"ttptycmd loop top have_pty","",have_pty);
 	debug(F101,"ttptycmd loop top have_net","",have_net);
 
+/*
+  ttyfd is a global, and ttclos() (called elsewhere, such as from mygetbuf()'s
+  TCP EOF handling) can set it to -1 out from under this loop.  have_net, set
+  once above, has no way to know that happened.  Without this check,
+  FD_SET(ttyfd,...) below runs with a negative fd.  That's undefined behavior
+  because it leads to a negative shift count, a potential problem since FD_SET's
+  bitwise arithmetic might act on the bogus value.  Treat it exactly like any
+  other net error.
+*/
+	if (have_net && ttyfd == -1) {
+	    net_err++;
+	    have_net = 0;
+	}
+
 	/* Pty is open and we have room to read from it? */
 	if (have_pty && pbuf_avail < PTY_PBUF_SIZE) {
 	    debug(F100,"ttptycmd FD_SET ptyfd in","",0);
@@ -14950,7 +14964,15 @@ ttptycmd(s) char *s;
   select() had reported them ready.  This is safe even if nothing is really
   available because every read or write reached from here already has its own
   timeout or O_NDELAY/EAGAIN handling from other fixes in this function.
+
+  ttyfd/have_net are the one exception to "conditions haven't changed":
+  ttyfd is a global that ttclos() can invalidate asynchronously, so
+  it has to be rechecked here too to prevent running on a negative fd.
 */
+		if (have_net && ttyfd == -1) {
+		    net_err++;
+		    have_net = 0;
+		}
 		FD_ZERO(&in);
 		FD_ZERO(&out);
 		if (have_pty && pbuf_avail < PTY_PBUF_SIZE)
@@ -14975,7 +14997,7 @@ ttptycmd(s) char *s;
 	/* for new incoming. */
 
       ttptycmd_do_io:
-	if (FD_ISSET(ttyfd, &out)) {	/* Can write to net? */
+	if (ttyfd >= 0 && FD_ISSET(ttyfd, &out)) { /* Can write to net? */
 	    CHAR * s;
 	    s = pbuf + pbuf_written;	/* Current spot for sending */
 #ifdef TNCODE
@@ -15088,7 +15110,7 @@ ttptycmd(s) char *s;
 		debug(F100,"ttptycmd +++ ptyfd write error","",0);
 	    }
 	}
-	if (FD_ISSET(ttyfd, &in)) {	/* Can read from net? */
+	if (ttyfd >= 0 && FD_ISSET(ttyfd, &in)) { /* Can read from net? */
 	    tset++;
 	    debug(F100,"ttptycmd FD_ISSET ttyfd in","",0);
 	    if (ttyfd_oflags > -1) {
