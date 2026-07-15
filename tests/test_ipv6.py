@@ -158,6 +158,19 @@ def _ipv6_loopback_available():
         return False
 
 
+def _v4_alias_available(addr):
+    """Linux treats all of 127.0.0.0/8 as loopback out of the box, so
+    127.0.0.2 is bindable with no setup.  macOS only brings up
+    127.0.0.1 by default."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind((addr, 0))
+        s.close()
+        return True
+    except OSError:
+        return False
+
+
 class _OneShotListener:
     """A listening socket that accepts exactly one connection in a
     background thread and records the peer address, so a test can
@@ -299,6 +312,9 @@ def test_tcp_address_v4_binds_matching_candidate(run_wermit):
     confirming the server sees the connection arrive from there."""
     if not _build_has_address_family(run_wermit):
         pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+    if not _v4_alias_available("127.0.0.2"):
+        pytest.skip("127.0.0.2 loopback alias not available "
+                     "in this environment")
 
     listener = _OneShotListener(socket.AF_INET, "127.0.0.1")
     try:
