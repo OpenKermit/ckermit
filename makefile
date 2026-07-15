@@ -1105,6 +1105,10 @@ tests/unit/bin/test_strings: tests/unit/test_strings.c ckclib.$(EXT)
 tests/unit/bin/test_net: tests/unit/test_net.c ckcnet.c ckcnet.h ckclib.c
 	@mkdir -p tests/unit/bin
 	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	case `uname -s` in \
+	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
+	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
+	esac; \
 	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
 		-c ckcnet.c -o tests/unit/bin/ckcnet_test.$(EXT); \
 	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
@@ -1112,7 +1116,7 @@ tests/unit/bin/test_net: tests/unit/test_net.c ckcnet.c ckcnet.h ckclib.c
 	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
 		tests/unit/test_net.c tests/unit/bin/ckcnet_test.$(EXT) \
 		tests/unit/bin/ckclib_test.$(EXT) \
-		-o $@ -Wl,--gc-sections $$CHECKLIBS
+		-o $@ $$GCSECTIONS $$CHECKLIBS
 
 #Clean up intermediate and object files
 clean:
