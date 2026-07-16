@@ -6,7 +6,12 @@ directly, so the output matches exactly what this build's users see.
 
 The keytab tables in the C source are still used, but only to get the
 list of topic names to ask about, and to work out which names are
-synonyms of which. Usage:
+synonyms of which.
+
+Each SET parameter whose name also names a SHOW subcommand gets that
+subcommand's output embedded as its compile-time default.
+
+Usage:
 
     make [platform-appropriate arguments]
     python3 tools/gen_help_reference.py > doc/help-reference.md
@@ -197,6 +202,60 @@ def is_failure(text):
     return any(marker in text for marker in FAILURE_MARKERS)
 
 
+SHOW_TIMEOUT = 6
+
+
+def show_dump(name):
+    """Run 'show <name>' in isolation and return its output, or None.
+
+    This runs as its own wermit process, separate from the main
+    help-text script, with stdin closed and a timeout.
+    Some SHOW subcommands (SHOW KEY, at least) read a raw keypress
+    from the terminal and block forever if invoked from a batch
+    script.  Isolating each call lets one of those time out and be
+    skipped without losing the rest.
+    """
+    cmd = "set command more-prompting off, show %s, quit" % name
+    try:
+        proc = subprocess.run(
+            # Using -Y prevents any local configuration from
+            # overriding the compile-time defaults.
+            [str(WERMIT), "-H", "-Y", "-Q", "-C", cmd],
+            stdin=subprocess.DEVNULL,
+            capture_output=True, text=True, timeout=SHOW_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        return None
+    return proc.stdout
+
+
+def gather_default_dumps(set_groups, sho_groups):
+    """Map each SET parameter to its SHOW counterpart's live output.
+
+    A SET parameter and a SHOW subcommand that share the same
+    canonical name (e.g. SET FILE / SHOW FILE, SET TERMINAL /
+    SHOW TERMINAL) describe the same settings, so that name match is
+    the only rule used here.
+
+    Returns {set_canonical_lower: (sho_name, output_text)}.
+    """
+    sho_lookup = {}
+    for canonical, synonyms in sho_groups:
+        for name in [canonical] + synonyms:
+            sho_lookup[name.lower()] = canonical
+
+    dumps = {}
+    for canonical, _ in set_groups:
+        sho_name = sho_lookup.get(canonical.lower())
+        if sho_name is None:
+            continue
+        text = show_dump(sho_name)
+        if text is None or is_failure(text):
+            continue
+        dumps[canonical.lower()] = (sho_name, text.strip("\n"))
+    return dumps
+
+
 def heading(prefix, name):
     return "%s%s" % (prefix.upper(), name.upper())
 
@@ -231,7 +290,7 @@ def assemble_records(groups_by_table, texts):
     return records_by_table
 
 
-def render_markdown(records_by_table, texts):
+def render_markdown(records_by_table, texts, default_dumps):
     out = []
     out.append("# C-Kermit Help Reference")
     out.append("")
@@ -288,6 +347,20 @@ def render_markdown(records_by_table, texts):
             out.append("```")
             out.append("")
 
+            if title == "SET/SHOW Parameters":
+                dump = default_dumps.get(r["name"].lower())
+                if dump:
+                    sho_name, sho_text = dump
+                    out.append(
+                        "Compile-time default, from `SHOW %s`:"
+                        % sho_name.upper()
+                    )
+                    out.append("")
+                    out.append("```")
+                    out.append(sho_text)
+                    out.append("```")
+                    out.append("")
+
     return "\n".join(out)
 
 
@@ -309,7 +382,14 @@ def main():
     texts = split_output(output)
 
     records_by_table = assemble_records(groups_by_table, texts)
-    print(render_markdown(records_by_table, texts))
+
+    set_groups = next(
+        g for (_, _, prefix, _, g) in groups_by_table if prefix == "set "
+    )
+    sho_groups = group_entries(extract_table("ckuusr.c", "shotab"))
+    default_dumps = gather_default_dumps(set_groups, sho_groups)
+
+    print(render_markdown(records_by_table, texts, default_dumps))
 
 
 if __name__ == "__main__":
