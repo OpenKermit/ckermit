@@ -801,6 +801,8 @@ static char * hmxxssh[] = {
 "  external ssh program may be included.  If the hostname is followed by a",
 "  command, the command is executed on the host instead of an interactive",
 "  shell.",
+" ",
+"  Equivalent to SET HOST /PTY /CONNECT ssh -e none hostname",
 #endif /* SSHBUILTIN */
 ""
 };
@@ -8654,7 +8656,9 @@ Enter CONNECT (terminal) mode automatically if the connection is successful.",
 "SET HOST name [ port ] /TELNET, IF SUCCESS CONNECT",
 #endif /* SUPERLAT */
 " ",
-"Also see SET NETWORK, TELNET, SET TELNET.",
+"The SSH command is equivalent to SET HOST /PTY /CONNECT ssh -e none hostname",
+" ",
+"Also see SET NETWORK, SSH, TELNET, SET TELNET.",
 "" };
 
 static char *hmxyauth[] = {
