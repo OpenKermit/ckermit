@@ -119,7 +119,9 @@ extern struct keytab remcmd[];
 /* Top-level HELP text.  IMPORTANT: Also see tophlpi[] for IKSD. */
 
 static char *tophlp[] = {
-"Trustees of Columbia University in the City of New York.\n",
+"  John Goerzen.",
+"Copyright (C) 1985, 2025,",
+"  Trustees of Columbia University in the City of New York.\n",
 
 #ifndef NOHELP
 "  Type EXIT    to exit.",
@@ -182,7 +184,9 @@ static char *tophlp[] = {
 #ifdef NOHELP
 static char *tophlpi[] = {              /* Top-level help for IKSD */
 
-"Trustees of Columbia University in the City of New York.\n",
+"  John Goerzen.",
+"Copyright (C) 1985, 2025,",
+"  Trustees of Columbia University in the City of New York.\n",
 
 #ifndef NOHELP
 "  Type INTRO   for a brief introduction to Kermit commands.",
@@ -6569,14 +6573,15 @@ Hang up the phone or network connection."));
       return(x);
 
     if (helpfile) {
-        printf("\n%s, Copyright (C) 1985, %s,\n\
-Trustees of Columbia University in the City of New York.\n\n",
+        printf("\n%s, Copyright (C) 1985, 2025,\n\
+Trustees of Columbia University in the City of New York.\n\
+Copyright (C) 2025-%s, John Goerzen\n\n",
 	       versio,
 	       ck_cryear
 	       );
         return(dotype(helpfile,xaskmore,3,0,NULL,0,NULL,0,0,NULL,0));
     } else {
-        printf("\n%s, Copyright (C) 1985, %s,",versio,ck_cryear);
+        printf("\n%s, Copyright (C) 2025-%s,",versio,ck_cryear);
         return(hmsga(tophlp));
     }
 
