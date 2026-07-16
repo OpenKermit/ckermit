@@ -198,7 +198,7 @@ static char *tophlpi[] = {              /* Top-level help for IKSD */
 " ",
 "DOCUMENTATION: \"Using C-Kermit\" by Frank da Cruz and Christine M. Gianone,",
 "2nd Edition, Digital Press (1997), ISBN 1-55558-164-1.  More info at the",
-"Kermit Project website, http://www.kermitproject.org/.",
+"Open Kermit website, https://www.openkermit.org/.",
 ""
 };
 #endif /* NOHELP */
@@ -220,8 +220,9 @@ char *newstxt[] = {
 "Major new features since the final commercial Kermit 95 release include:",
 " . Open Source Simplified 3-Clause BSD License",
 #else
-"Welcome to C-Kermit 10.0.",
-"New features since version 9.0 of 2011 include:",
+"Welcome to C-Kermit 11.",
+"For changes to C-Kermit since version 9.0 of 2011, please visit",
+"https://github.com/OpenKermit/ckermit/blob/main/doc/changelog.md"
 #endif /* OS2 */
 #ifdef OS2
 " . Source code! Kermit 95 is now available under the Revised 3-Clause",
@@ -241,39 +242,7 @@ char *newstxt[] = {
 " . Large file support (64-bit file size) on most platforms",
 " . Long integer variables and constants in commands and scripts",
 #endif  /* COMMENT */
-/* For 10.0 */
-" . Updated for longevity... Adapted to 2020s compilers and OS's without",
-"    sacrificing compatability with older platforms going back to the 1970s",
-"    and 1980s; at least that's the intention.",
-" . The first new C-Kermit release for Windows in 20 years.",
-" . A simpler version number: 10.0.",
-" . Updated OpenSSL support for built-in HTTP, FTP, and Telnet clients.",
-" . New serial port speeds up to 4000000 bps.",
-" . 'set speed ?' now lists serial speeds in numerical order.",
-" . New functions and built-in variables for the scripting language.",
-" . New ability of Kermit scripts to run in a Unix pipelines.",
-" . New CHANGE command for changing strings in external text files.",
-" . DIRECTORY command fixed to once again allow multiple filespecs.",
-" . TOUCH command fixed after being broken in C-Kermit 9.0.",
-" . Lots more; see https://kermitproject.org/updates.html",
 #endif /* OS2 */
-#ifdef COMMENT
-/* These were for 9.0 */
-" . Bigger maximum command and macro lengths",
-" . Bigger filename expansion space",
-" . New super-flexible RENAME command (HELP RENAME)",
-" . New CHANGE command for changing text files (HELP CHANGE)",
-" . New COPY and DIRECTORY command options (HELP COPY, HELP DIRECTORY)",
-" . New TOUCH command (HELP TOUCH)",
-#ifdef UNIX
-" . Limited Unix Locale support (HELP SET LOCALE)",
-#endif /* UNIX */
-#ifdef CK_SSL
-" . Raw SSL/TLS connections for connecting to POP3 and similar services",
-#endif /* CK_SSL */
-" . At the prompt, Ctrl-K recalls most recent filename",
-" . Scripting and performance improvements",
-#endif /* COMMENT */
 " ",
 "Documentation:",
 " . https://www.kermitproject.org/ckbindex.html",
@@ -288,17 +257,12 @@ char *newstxt[] = {
 "If the release date shown by the VERSION command is long past, be sure to",
 "check the Kermit website to see if there have been updates:",
 " ",
-"  https://www.kermitproject.org/ (Kermit Project home page)",
-"  https://www.kermitproject.org/ckermit.html (C-Kermit home page)",
-#ifdef BETATEST
-"  https://www.kermitproject.org/ckupdates.html (C-Kermit change log)",
-"  https://www.kermitproject.org/ck10devbuilds.html (Beta test builds table)",
-#endif /* BETATEST */
+"  https://www.openkermit.org/    (Open Kermit home page)",
+"  https://github.com/openkermit/ckermit/ (C-Kermit project page)",
 " ",
+#ifdef OS2
 "If the Kermit Project website is gone, look on Github:",
 " ",
-"  https://github.com/KermitProject",
-#ifdef OS2
 "  https://github.com/search?q=c-kermit+windows",
 #endif /* OS2 */
 ""

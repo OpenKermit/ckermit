@@ -1,8 +1,8 @@
 /* ckcmai.c - Main program for C-Kermit plus some miscellaneous functions */
 
-#define EDITDATE  "2025/03/22"       /* Last edit date ISO format */
+#define EDITDATE  "2026/07/16"       /* Last edit date ISO format */
 
-#define EDITNDATE "20250322"          /* Keep them in sync */
+#define EDITNDATE "20260716"          /* Keep them in sync */
 /*
   As of 27 September 2022 BETATEST is defined in ckcdeb.h, not here,
   because it's also used in other modules.
@@ -10,7 +10,7 @@
 
 /*
 FOR NEW VERSION (development, alpha, beta, release candidate, formal release):
-  . Change the 3 dates just above;
+  . Change the 2 dates just above;
   . Change ck_cryear = "xxxx"; (copyright year) just below, if necessary;
   . For test versions change ck_s_test and ck_s_tver (below) appropriately:
      Dev, Alpha, Pre-Beta, Beta, or RC (Release Candidate);
@@ -40,7 +40,7 @@ If the version number has changed, also:
 */
 #include "ckcdeb.h"                     /* Debug & other symbols */
 
-char * ck_cryear = "2025"; 		/* C-Kermit copyright year */
+char * ck_cryear = "2026"; 		/* C-Kermit copyright year */
 /*
   Note: initialize ck_s_test to "" if this is not a test version.
   Use (*ck_s_test != '\0') to decide whether to print test-related messages.
@@ -82,7 +82,7 @@ char *ck_s_date = EDITDATE;		/* See top */
 char *buildid = EDITNDATE;		/* See top */
 
 #ifdef UNIX
-static char sccsid[] = "@(#)C-Kermit 10.0";
+static char sccsid[] = "@(#)C-Kermit 11.0";
 #endif /* UNIX */
 
 int offtsize = 0;                       /* Size of OFF_T */
@@ -109,10 +109,10 @@ int offtsize = 0;                       /* Size of OFF_T */
   gone as there is no more Mac Kermit (for the original Macintosh), just
   C-Kermit for each platform (except the original Mac) and Kermit 95.
 */
-char *ck_s_ver = "10.0";                /* C-Kermit version string */
-char *ck_s_edit = "416";                /* Edit number (for Debian package) */
-char *ck_s_xver = "10.0.416";           /* eXtended version string */
-long  ck_l_ver = 1000415L;              /* C-Kermit version number */
+char *ck_s_ver = "11.0";                /* C-Kermit version string */
+char *ck_s_edit = "499";                /* Edit number (for Debian package) */
+char *ck_s_xver = "11.0.499";           /* eXtended version string */
+long  ck_l_ver = 1100499L;              /* C-Kermit version number */
 char *ck_s_name = "C-Kermit";           /* Name of this program */
 char *ck_s_who = "";                    /* Where customized, "" = not. */
 char *ck_patch = "";                    /* Patch info, if any. */
@@ -249,8 +249,8 @@ char *copyright[] = {
 
 #ifndef pdp11
 " ",
-"For further information, visit the Kermit Project website:",
-"http://www.kermitproject.org/ .",
+"For further information, visit the Open Kermit website:",
+"https://www.openkermit.org/ .",
 #endif /* pdp11 */
 ""};
 
