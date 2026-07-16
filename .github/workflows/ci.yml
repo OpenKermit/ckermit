@@ -2,8 +2,14 @@ name: CI
 
 on:
   pull_request:
+    paths-ignore:
+      - 'doc/**'
+      - '**.md'
   push:
     branches: [main]
+    paths-ignore:
+      - 'doc/**'
+      - '**.md'
   workflow_call:
     inputs:
       upload-artifact:
@@ -22,6 +28,16 @@ on:
           The real default lives in the || fallback below.
         type: string
         default: ''
+
+# Cancel a run in favor of a newer one for the same PR or branch, so
+# an outdated push doesn't keep burning runner time once superseded.
+# Release runs (triggered by a tag push via workflow_call) get their
+# own group per tag, since github.ref differs from any branch/PR ref.
+concurrency:
+  group: >-
+    ${{ github.workflow }}-${{ github.event.pull_request.number ||
+    github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-test:
