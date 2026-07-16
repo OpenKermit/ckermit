@@ -1603,8 +1603,8 @@ int en_bye = 2;                         /* PCs in local mode... */
 int en_asg = 2;                         /* ASSIGN */
 int en_que = 2;                         /* QUERY */
 int en_ret = 2;                         /* RETRIEVE */
-int en_mai = 2;                         /* MAIL */
-int en_pri = 2;                         /* PRINT */
+int en_mai = 0;                         /* MAIL */
+int en_pri = 0;                         /* PRINT */
 int en_ena = 2;                         /* ENABLE */
 #else
 int en_xit = 0, en_cwd = 0, en_cpy = 0, en_del = 0, en_mkd = 0, en_rmd = 0,
