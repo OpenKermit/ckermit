@@ -10593,9 +10593,6 @@ setlin(xx, zz, fc) int xx, zz, fc;
     if (xx == XXSSH) {                  /* SSH becomes PTY SSH ... */
         dossh = 1;
         xx = XYHOST;
-    } else if (!ckstrcmp("ssh ",line,4,0)) { /* 2010/03/01 */
-        dossh = 1;
-        xx = XYHOST;
     }
     debug(F101,"setlin dossh","",dossh);
 #endif /* SSHCMD */
