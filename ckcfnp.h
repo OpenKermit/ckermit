@@ -330,6 +330,7 @@ int makebuf( int, int, CHAR [], struct pktinfo * );
 int matchname( char *, int, int );
 int mkrbuf( int );
 int mksbuf( int );
+int mpsafe( char *, int );
 int msleep( int );
 int nack( int );
 int netinc( int );

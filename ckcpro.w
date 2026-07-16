@@ -2193,6 +2193,70 @@ q { success = 0; QUIT; }		/* Ctrl-C or connection loss. */
     5. Add "return(-1);" after every RESUME, SERVE, or BEGIN macro and
        at the end if the code is open-ended.
 */
+
+#ifdef UNIX
+/*
+  M P S A F E  --  Determines if it's safe to place the argumet "s" on
+  a shell-parsed command line, unquoted.  Intended for use in MAIL and PRINT.
+
+  s is either the remote side's MAIL address / PRINT options text from the
+  Disposition attribute, or the as-name it chose for the received file (used as
+  the MAIL subject).   All of these are untrusted, and end up in a command
+  string handed to sh -c.
+
+  Returns 1 if every character in s is on the allowed list (letters, digits, and
+  a small set of punctuation that real addresses and print options actually
+  use), 0 if s contains anything else, notably any shell metacharacter.
+
+  The parameter first, if nonzero, causes mpsafe() to reject a '-' at the start
+  of s or following any space in s.  Both the MAIL address and the MAIL subject
+  are treated as unsafe if they start with '-'; callers pass first=1 for both.
+  PRINT options are the exception: starting with '-' is what the feature is for
+  (they're command-line flags to the print command), so callers pass first=0
+  there.
+
+  Checking every word, not just s[0], matters because a space is on the allowed
+  character list.  A space can't introduce a new command, so allowing it is safe
+  with respect to shell injection.  It only lets the shell split s  which is
+  necessary behavior for multiple space-separated MAIL recipients.
+*/
+int
+#ifdef CK_ANSIC
+mpsafe( char * s, int first )
+#else
+mpsafe(s,first) char * s; int first;
+#endif /* CK_ANSIC */
+{
+    int i;
+    int atword = 1;			/* At start of s or after a space */
+    for (i = 0; s[i]; i++) {
+	char c = s[i];
+	if (c == ' ') {
+	    atword = 1;
+	    continue;
+	}
+	if (isalnum((unsigned char)c)) {
+	    atword = 0;
+	    continue;
+	}
+	switch (c) {
+	  case '.': case '_': case '+': case '@':
+	  case '/': case ':': case ',': case '%': case '=':
+	    atword = 0;
+	    break;
+	  case '-':
+	    if (first && atword)
+	      return(0);
+	    atword = 0;
+	    break;
+	  default:
+	    return(0);
+	}
+    }
+    return(1);
+}
+#endif /* UNIX */
+
 static int
 rcv_firstdata() {
     extern int dispos;
@@ -2235,37 +2299,56 @@ rcv_firstdata() {
   This depends rather heavily on all UNIXes having a mail command that
   accepts '-s "subject"' on the command line.  MAILCMD (e.g. mail, Mail, mailx)
   is defined in ckufio.c.
+
+  The address (for MAIL) or options (for PRINT) text comes from the remote
+  side's Disposition attribute, and the subject (ofilnam) can be influenced by
+  the remote side's as-name.  Either way, they're both untrusted and both end up
+  in a command string bassed to sh -c, so mpsafe() screens them first.
 */
 	    if (dispos == 'M') {	/* Mail... */
 		char *s;
+		char * subj;
 		char * tmp = NULL;
 		int n = 0;
 		extern char *MAILCMD;
 		s = iattr.disp.val + 1;
-		n = (int)strlen(MAILCMD) +    /* Mail command */
-		  (int)strlen(s) +	      /* address */
-		  (int)strlen(ofilnam) + 32;  /* subject */
-		if ((tmp = (char *)malloc(n))) {
-		    ckmakxmsg(tmp,n,
-			      MAILCMD," -s \"",ofilnam,"\" ",s,
-			      NULL,NULL,NULL,NULL,NULL,NULL,NULL);
-		    debug(F111,"rcv_firsdata mail",tmp,(int)strlen(tmp));
-		    x = openc(ZOFILE,(char *)tmp);
-		    free(tmp);
-		} else
-		  x = 0;
+		subj = mpsafe(ofilnam,1) ? ofilnam : "Kermit";
+		if (!mpsafe(s,1)) {
+		    debug(F110,"rcv_firstdata mail refused address",s,0);
+		    x = 0;
+		} else {
+		    n = (int)strlen(MAILCMD) +    /* Mail command */
+		      (int)strlen(s) +	      /* address */
+		      (int)strlen(subj) + 32;  /* subject */
+		    if ((tmp = (char *)malloc(n))) {
+			ckmakxmsg(tmp,n,
+				  MAILCMD," -s \"",subj,"\" ",s,
+				  NULL,NULL,NULL,NULL,NULL,NULL,NULL);
+			debug(F111,"rcv_firsdata mail",tmp,(int)strlen(tmp));
+			x = openc(ZOFILE,(char *)tmp);
+			free(tmp);
+		    } else
+		      x = 0;
+		}
 	    } else if (dispos == 'P') { /* Ditto for print */
 		char * tmp = NULL;
 		int n;
 		extern char *PRINTCMD;
-		n = (int)strlen(PRINTCMD) + (int)strlen(iattr.disp.val+1) + 4;
-		if ((tmp = (char *)malloc(n))) {
-		    sprintf(tmp,	/* safe (prechecked) */
-			    "%s %s", PRINTCMD, iattr.disp.val + 1);
-		    x = openc(ZOFILE,(char *)tmp);
-		    free(tmp);
-		} else
-		  x = 0;
+		if (!mpsafe(iattr.disp.val+1,0)) {
+		    debug(F110,"rcv_firstdata print refused options",
+			  iattr.disp.val+1,0);
+		    x = 0;
+		} else {
+		    n = (int)strlen(PRINTCMD) +
+		      (int)strlen(iattr.disp.val+1) + 4;
+		    if ((tmp = (char *)malloc(n))) {
+			sprintf(tmp,	/* safe (prechecked) */
+				"%s %s", PRINTCMD, iattr.disp.val + 1);
+			x = openc(ZOFILE,(char *)tmp);
+			free(tmp);
+		    } else
+		      x = 0;
+		}
 	    } else
 #endif /* UNIX */
 	      x = opena(filnam,&iattr);	/* open the file, with attributes */
