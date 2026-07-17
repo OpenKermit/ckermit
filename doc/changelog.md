@@ -44,10 +44,12 @@ was made with "9", "10", and "11" tags accordingly.
 
 - [11] Introduced C-based unit tests and a Python-based regression test suite.
   Together, these test suites have been responsible for identifying nearly all
-  of the bugs fixed in this release as noted below.
+  of the bug fixes in the v11 release as noted below.  Timing analysis of the
+  test suite also led to most of the performance increases.
 
-- [11] Added CI.  All changes now are validated on Linux, MacOS, FreeBSD, and NetBSD
-  using the above test suites.  Approximately 400 test cases are being run.
+- [11] Added CI.  All changes now are validated on Linux, MacOS, FreeBSD, and
+  NetBSD using the above test suites.  Approximately 1000 test cases are being
+  run.
 
 - [10] Codebase-wide modernization to support ANSI C and function prototyping,
   satisfying strict requirements in newer compilers while retaining backward
@@ -55,14 +57,15 @@ was made with "9", "10", and "11" tags accordingly.
 
 ## New Features
 
-- [11] C-Kermit's TCP stack now fully supports IPv6 throughout almost all of
-  codebase, while degrading gracefully to IPv4 on hosts that don't have IPv6
-  connectivity, or whose system libraries don't support IPv6.  For more, see the
-  new (IPv6 in C-Kermit document)[ipv6.md].
+- [11] C-Kermit's TCP stack now supports IPv6, while degrading gracefully to
+  IPv4 on hosts that don't have IPv6 connectivity, or whose system libraries
+  don't support IPv6.  For more, see the new 
+  [IPv6 in C-Kermit document](ipv6.md).
     
-- [11] There's now a tool that will extract all the help text from C-Kermit and write
-  a nice Markdown file that acts as an up-to-date command reference for your
-  specific platform.
+- [11] There's now a tool that will extract all the help text from C-Kermit and
+  write a nice Markdown file that acts as an up-to-date command reference for
+  your specific platform.  A generated version of this can be found at 
+  [HELP reference](help-reference.md).
 
 - [9] Android platform support, including NDK builds and a vanity herald.
 
@@ -101,10 +104,18 @@ was made with "9", "10", and "11" tags accordingly.
 - [11] Certain packet sizes on the boundary between small and extended packet sizes
   could lead to a transfer being hung on all platforms.  Fixed the bug  and
   added extensive tests around this scenario.
+  
+- [11] Fixed a data corruption bug that occurred during packet size
+  renegotiation due to improperly using strlen() to determine the size of binary
+  data that may contain NULL bytes. (b58e0336)  This issue was only observed by
+  running the test suite on NetBSD, but the code pattern indicates it could
+  occur on any platform given the correct circumstances.
 
 - [11] Numerous pty issues were remedied on MacOS; some had been going back decades.
   In particular, MacOS FIONREAD appears to be unreliable, and assuming it to be
   reliable led to some hard-to-track-down hangs.
+  
+- [11] Several pty issues were also remedied on NetBSD. 
 
 - [11] Recursive transfer fixed on MacOS.
 
@@ -127,6 +138,8 @@ was made with "9", "10", and "11" tags accordingly.
   configured command.
   
 - [11] Found and fixed numerous buffer overruns and memory leaks.
+
+- [11] Tracked down a pseudoterminal failure on NetBSD.  It turns out to be a kernel bug in which the kernel can sometimes return a value indicating more data was successfully written down the pty than actually was, causing loss of bytes of data.  When in default mode, C-Kermit detects this and automatically shrinks its packet size to compensate!  (This is what exposed the strlen() bug mentioned elsewhere.)  When in streaming mode, this is fatal to the transfer, and was detected when I added streaming mode tests.  The workaround is to run `sysctl -w kern.tty.qsize=65536` or to set it in `/etc/sysctl.conf`; a comment in that file implies this issue is known already.
 
 - [10] Fixed the `TOUCH` command, which had been nonfunctional.
 
@@ -219,6 +232,18 @@ changed defaults.  This impact is expected to be rare.
 
 - [11] Fixed Gentoo builds after the ncurses tinfo library split.
 
+- [11] Fixed SET HOST to work properly after an ssh command had been issued earlier in the same session. (10eb1924)
+
+- [11] Fixed several issues where EINTR from read() could cause C-Kermit to
+  improperly close a connection.  In one case, signals such as SIGWINCH at
+  particular times triggered this issue on Linux; in another, the test suite
+  caused it on NetBSD.
+  
+- [11] Coincidentally, fixed a bug in winchh(), which is the handler for
+  SIGWINCH, in which is fails to restore errno before returning, so an error
+  from a call it makes can lead the interrupted code to believe an error other
+  than EINTR occurred.
+
 - [10] Kermit scripts can now run as Unix pipelines
 
 - [10] Added the `VDIRECTORY` command (with V as a one-letter synonym) as a
@@ -255,9 +280,9 @@ changed defaults.  This impact is expected to be rare.
 
 ## Summary of new and changed commands and scripting functions
 
-- [11] `SET TCP ADDRESS-FAMILY` (see [ipv6.md])
+- [11] `SET TCP ADDRESS-FAMILY` (see [IPv6 documentation](ipv6.md))
 
-- [11] `SET TCP ADDRESS6` (see [ipv6.md])
+- [11] `SET TCP ADDRESS6` (see [IPv6 documentation](ipv6.md))
 
 - [11] `SET FILE SYSTEM-ID`
 
