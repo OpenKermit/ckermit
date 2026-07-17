@@ -140,23 +140,9 @@ For information about technical support please visit this page:
 ### NEWS
 
 ```
-Welcome to C-Kermit 10.0.
-New features since version 9.0 of 2011 include:
- . Updated for longevity... Adapted to 2020s compilers and OS's without
-    sacrificing compatability with older platforms going back to the 1970s
-    and 1980s; at least that's the intention.
- . The first new C-Kermit release for Windows in 20 years.
- . A simpler version number: 10.0.
- . Updated OpenSSL support for built-in HTTP, FTP, and Telnet clients.
- . New serial port speeds up to 4000000 bps.
- . 'set speed ?' now lists serial speeds in numerical order.
- . New functions and built-in variables for the scripting language.
- . New ability of Kermit scripts to run in a Unix pipelines.
- . New CHANGE command for changing strings in external text files.
- . DIRECTORY command fixed to once again allow multiple filespecs.
- . TOUCH command fixed after being broken in C-Kermit 9.0.
- . Lots more; see https://kermitproject.org/updates.html
- 
+Welcome to C-Kermit 11.
+For changes to C-Kermit since version 9.0 of 2011, please visit
+https://github.com/OpenKermit/ckermit/blob/main/doc/changelog.md 
 Documentation:
  . https://www.kermitproject.org/ckbindex.html
     Online index to C-Kermit documentation.
@@ -166,12 +152,9 @@ Documentation:
 If the release date shown by the VERSION command is long past, be sure to
 check the Kermit website to see if there have been updates:
  
-  https://www.kermitproject.org/ (Kermit Project home page)
-  https://www.kermitproject.org/ckermit.html (C-Kermit home page)
+  https://www.openkermit.org/    (Open Kermit home page)
+  https://github.com/openkermit/ckermit/ (C-Kermit project page)
  
-If the Kermit Project website is gone, look on Github:
- 
-  https://github.com/KermitProject
 ```
 
 ### LICENSE
@@ -179,7 +162,7 @@ If the Kermit Project website is gone, look on Github:
 ```
 Copyright (C) 1985, 2025,
   The Trustees of Columbia University in the City of New York.
-Copyright (C) 2025-2025, John Goerzen.
+Copyright (C) 2025-2026, John Goerzen.
 All rights reserved.
  
 Redistribution and use in source and binary forms, with or without
@@ -215,8 +198,8 @@ Portions Copyright (C) 1991, 1993 Regents of the University of California.
 Portions Copyright (C) 1991, 1992, 1993, 1994, 1995 by AT&T.
 Portions Copyright (C) 1995, 1997, Eric Young <eay@cryptosoft.com>.
  
-For further information, visit the Kermit Project website:
-http://www.kermitproject.org/ .
+For further information, visit the Open Kermit website:
+https://www.openkermit.org/ .
 ```
 
 ### SUPPORT
@@ -2278,8 +2261,10 @@ Syntax: HEAD [ switches ] filename
 Synonyms: H, HE
 
 ```
-C-Kermit 10.0.416, 2025/03/22, Copyright (C) 1985, 2025,
-Trustees of Columbia University in the City of New York.
+C-Kermit 11.0.499, 2026/07/16, Copyright (C) 2025-2026,
+  John Goerzen.
+Copyright (C) 1985, 2025,
+  Trustees of Columbia University in the City of New York.
 
   Type EXIT    to exit.
   Type INTRO   for a brief introduction to C-Kermit.
@@ -2364,9 +2349,9 @@ where <switches> are:
   Used for specifying any optional headers.  A list of headers is provided
   using braces for grouping:
  
-    /HEADER:{{<tag>:<value>}{<tag>:<value>}...}
+    /HEADER:{{tag:value}{tag:value}...}
  
-  For a listing of valid <tag> value and <value> formats see RFC 1945:
+  For a listing of valid "tag" value and "value" formats see RFC 1945:
   "Hypertext Transfer Protocol -- HTTP/1.0".  A maximum of eight headers
   may be specified.
  
@@ -4546,10 +4531,8 @@ Syntax: SSH [ options ] <hostname> [ command ]
   external ssh program may be included.  If the hostname is followed by a
   command, the command is executed on the host instead of an interactive
   shell.
-  
-  This is equivolent to:
-  
-  SET HOST /CONNECT /PTY ssh -e none hostname
+ 
+  Equivalent to SET HOST /PTY /CONNECT ssh -e none hostname
 ```
 
 ### STA
@@ -6200,9 +6183,7 @@ Syntax: SET EDITOR pathname [ options ]
 Compile-time default, from `SHOW EDITOR`:
 
 ```
- editor:  /home/jgoerzen/bin/em
- options: (none)
- file:    (none)
+ editor:  (none)
 ```
 
 ### SET EOF
@@ -6774,7 +6755,9 @@ Examples:
 The TELNET command is equivalent to SET NETWORK TYPE TCP/IP,
 SET HOST name [ port ] /TELNET, IF SUCCESS CONNECT
  
-Also see SET NETWORK, TELNET, SET TELNET.
+The SSH command is equivalent to SET HOST /PTY /CONNECT ssh -e none hostname
+ 
+Also see SET NETWORK, SSH, TELNET, SET TELNET.
 ```
 
 ### SET INPUT
@@ -7034,13 +7017,13 @@ Compile-time default, from `SHOW LOCALE`:
 
 ```
 Locale enabled:
-  LC_COLLATE="en_US.UTF-8"
-  LC_CTYPE="en_US.UTF-8"
-  LC_MONETARY="en_US.UTF-8"
-  LC_MESSAGES="en_US.UTF-8"
-  LC_NUMERIC="en_US.UTF-8"
-  LC_TIME="en_US.UTF-8"
-  LANG="en_US.UTF-8"
+  LC_COLLATE="C"
+  LC_CTYPE="C.UTF-8"
+  LC_MONETARY="C"
+  LC_MESSAGES="C"
+  LC_NUMERIC="C"
+  LC_TIME="C"
+  LANG="(null)"
 ```
 
 ### SET LOCUS
@@ -7346,16 +7329,16 @@ SET TELNET parameters:
  bug binary-u-means-me-too: off
  bug sb-implies-will-do: on
  bug auth-krb5-des: on
- terminal-type: none (xterm-256color will be used)
+ terminal-type: none (xterm will be used)
  environment: on
    ACCOUNT: 
-   DISPLAY: :1
+   DISPLAY: 
    JOB    : 
    PRINTER: 
    USER   : jgoerzen
    SYSTEM : UNIX
   LOCATION: 
- .Xauthority-file: /run/user/1000/xauth_CjGPsS
+ .Xauthority-file: /home/jgoerzen/.Xauthority
 
 Active network connection:
  Host: none, via: tcp/ip
@@ -7855,8 +7838,8 @@ Compile-time default, from `SHOW SERVER`:
 Function:          Status:
  GET                Remote only
  SEND               Remote only
- MAIL               Remote only
- PRINT              Remote only
+ MAIL               Disabled
+ PRINT              Disabled
  REMOTE ASSIGN      Remote only
  REMOTE CD/CWD      Remote only
  REMOTE COPY        Remote only
@@ -8297,16 +8280,16 @@ SET TELNET parameters:
  bug binary-u-means-me-too: off
  bug sb-implies-will-do: on
  bug auth-krb5-des: on
- terminal-type: none (xterm-256color will be used)
+ terminal-type: none (xterm will be used)
  environment: on
    ACCOUNT: 
-   DISPLAY: :1
+   DISPLAY: 
    JOB    : 
    PRINTER: 
    USER   : jgoerzen
    SYSTEM : UNIX
   LOCATION: 
- .Xauthority-file: /run/user/1000/xauth_CjGPsS
+ .Xauthority-file: /home/jgoerzen/.Xauthority
 ```
 
 ### SET TEL
@@ -8516,7 +8499,7 @@ Compile-time default, from `SHOW TERMINAL`:
 ```
 Terminal parameters:
    Bytesize: Command: 8 bits              Terminal: 8 bits         
-                Type: xterm-256color          Print: off            
+                Type: xterm                  Print: off            
                 Echo: remote         Locking-shift: off            
         Newline-mode: off               Cr-display: normal         
                  APC: off             Autodownload: on, error stop 
