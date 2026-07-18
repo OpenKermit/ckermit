@@ -8763,14 +8763,10 @@ myfillbuf() {
 #ifdef CK_POSIX_SIG
     {
 /*
-  The mask also has to cover storing the result in my_count, not just the
-  read() call itself.  The only caller, mygetbuf(), "my_count = myfillbuf();".
-  If the alarm is still deferred at the point read() returns below, unmasking
-  it right after storing my_count here, rather than leaving it blocked across
-  that return-and-assign gap, closes the race.  It makes the pending signal
-  fire before mygetbuf() ever gets a chance to run unmasked.  mygetbuf()'s
-  assignment from the return value then just repeats the same value
-  redundantly.
+  The mask has to cover storing the result in my_count, not just the read()
+  call, to avoid a race.  Similarly, my_item needs to be reset to -1 here, since
+  a deferred alarm firing immediately after SIGALRM is unmasked causes a jump
+  past where the callers set it to -1.
 */
         sigset_t nset, oset;
         sigemptyset(&nset);
@@ -8778,6 +8774,7 @@ myfillbuf() {
         sigprocmask(SIG_BLOCK, &nset, &oset);
         n = read(fd, mybuf, sizeof(mybuf));
         my_count = n;
+        my_item = -1;
         sigprocmask(SIG_SETMASK, &oset, NULL);
     }
 #else /* CK_POSIX_SIG */
@@ -15678,7 +15675,15 @@ ttptycmd(s) char *s;
 		have_net = 0;
 	    }
 	    debug(F101,"ttptycmd net_err LOOP EXIT TEST x1","",x1);
-	    if (x1 == 0)
+/*
+  x2 (tbuf) holds bytes already read from the network but not yet written to the
+  external protocol child's pty.  Exiting here as soon as x1 (pbuf, the opposite
+  direction) drains, without also waiting for x2, would discard that
+  already-received data.  It never reaches the child, silently truncating
+  whatever the child was receiving.  Wait for x2 too, unless have_pty is already
+  false, in which case nothing can ever drain it and waiting would hang forever.
+*/
+	    if (x1 == 0 && (x2 == 0 || !have_pty))
 	      break;
 	}
 	if (pty_err) {			/* Pty error? */
