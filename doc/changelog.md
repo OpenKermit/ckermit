@@ -45,7 +45,7 @@ was made with "9", "10", and "11" tags accordingly.
 - [11] Introduced C-based unit tests and a Python-based regression test suite.
   Together, these test suites have been responsible for identifying nearly all
   of the bug fixes in the v11 release as noted below.  Timing analysis of the
-  test suite also led to most of the performance increases.
+  test suite also led to most of the performance fixes.
 
 - [11] Added CI.  All changes now are validated on Linux, MacOS, FreeBSD, and
   NetBSD using the above test suites.  Approximately 1000 test cases are being
@@ -139,7 +139,15 @@ was made with "9", "10", and "11" tags accordingly.
   
 - [11] Found and fixed numerous buffer overruns and memory leaks.
 
-- [11] Tracked down a pseudoterminal failure on NetBSD.  It turns out to be a kernel bug in which the kernel can sometimes return a value indicating more data was successfully written down the pty than actually was, causing loss of bytes of data.  When in default mode, C-Kermit detects this and automatically shrinks its packet size to compensate!  (This is what exposed the strlen() bug mentioned elsewhere.)  When in streaming mode, this is fatal to the transfer, and was detected when I added streaming mode tests.  The workaround is to run `sysctl -w kern.tty.qsize=65536` or to set it in `/etc/sysctl.conf`; a comment in that file implies this issue is known already.
+- [11] Tracked down a pseudoterminal failure on NetBSD.  It turns out to be a
+  kernel bug in which the kernel can sometimes return a value indicating more
+  data was successfully written down the pty than actually was, causing loss of
+  bytes of data.  When in default mode, C-Kermit detects this and automatically
+  shrinks its packet size to compensate!  (This is what exposed the strlen() bug
+  mentioned elsewhere.)  When in streaming mode, this is fatal to the transfer,
+  and was detected when I added streaming mode tests.  The workaround is to run
+  `sysctl -w kern.tty.qsize=65536` or to set it in `/etc/sysctl.conf`; a comment
+  in that file implies this issue is known already.
 
 - [10] Fixed the `TOUCH` command, which had been nonfunctional.
 
@@ -199,7 +207,7 @@ was made with "9", "10", and "11" tags accordingly.
 See the section below on changed behavior for highlights on the impact of
 changed defaults.  This impact is expected to be rare.
 
-## Minor improvements and bugfixes
+## Additional improvements and bugfixes
 
 - [11] Fixed an unhandled exception warning on NetBSD
 
@@ -232,7 +240,8 @@ changed defaults.  This impact is expected to be rare.
 
 - [11] Fixed Gentoo builds after the ncurses tinfo library split.
 
-- [11] Fixed SET HOST to work properly after an ssh command had been issued earlier in the same session. (10eb1924)
+- [11] Fixed SET HOST to work properly after an ssh command had been issued
+  earlier in the same session. (10eb1924)
 
 - [11] Fixed several issues where EINTR from read() could cause C-Kermit to
   improperly close a connection.  In one case, signals such as SIGWINCH at
@@ -243,6 +252,12 @@ changed defaults.  This impact is expected to be rare.
   SIGWINCH, in which is fails to restore errno before returning, so an error
   from a call it makes can lead the interrupted code to believe an error other
   than EINTR occurred.
+  
+- [11] Fixed a bug in SSL network read that was triggered by ZModem over SSL,
+  which resulted in exceptionally slow performance in certain circumstances
+  
+- [11] Fixed an issue with the telnet protocol handling of a NULL after a bare
+  CR
 
 - [10] Kermit scripts can now run as Unix pipelines
 
