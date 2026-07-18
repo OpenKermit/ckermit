@@ -2,6 +2,13 @@ import pytest
 from conftest import assert_ok
 
 
+@pytest.fixture(params=["pseudoterminal", "raw-socket", "telnet"])
+def loopback_transport(request):
+    """Overrides conftest's single-value default so every test in
+    this module also runs over a pty, TCP raw, and TCP telnet."""
+    return request.param
+
+
 def test_remote_pwd(tmp_path, wermit_loopback):
     """
     Test the 'remote pwd' command to print the working directory on the server.

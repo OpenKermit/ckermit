@@ -1937,6 +1937,17 @@ winchh(foo) int foo;
 #endif /* CK_ANSIC */
 {
     int x = 0;
+/*
+  This might be called by a blocking syscall that just failed and is about to
+  have its errno examined by its caller.
+
+  Within this function, ttgwsiz() and the debug() calls, make their own syscalls
+  that can overwrite errno.  Without saving and restoring errno, this handler
+  running between the interrupted syscall's failure and its caller's errno check
+  replaces the real error with whatever errno this handler's  internal calls
+  happened to leave behind.  So, save and restore errno.
+*/
+    int saved_errno = errno;
 #ifdef CK_TTYFD
 #ifndef VMS
     extern int ttyfd;
@@ -1968,7 +1979,10 @@ winchh(foo) int foo;
 #else
       (!local)
 #endif /* CK_TTYFD */
+    {
+        errno = saved_errno;
         return;
+    }
 
 #ifdef NETPTY
     if (pty_fork_pid > -1) {		/* "set host" to a PTY? */
@@ -2011,6 +2025,7 @@ winchh(foo) int foo;
     }
 #endif /* NOTTGWSIZ */
 #endif /* TCPSOCKET */
+    errno = saved_errno;
     SIGRETURN;
 }
 #endif /* SIGWINCH */
@@ -10630,6 +10645,22 @@ ttol(s,n) int n; CHAR *s;
 	    return(len);		/* Done */
 	} else if (x < 0) {		/* No, got error? */
 	    debug(F101,"ttol write error","",errno);
+#ifdef EINTR
+	    if (errno == EINTR) {
+                /*
+                A signal interrupted write() before it transferred any data.
+                Like ttinl()'s read side, EINTR says nothing about the
+                connection's health, so retry rather close the connection.
+
+                No progress was lost. tries++ cancels out the loop's
+                tries-- in the while condition, so an EINTR retry doesn't spend
+                any of the limited (TTOLMAXT) retry budget real write failures
+                get.
+                */
+		tries++;
+		continue;
+	    }
+#endif /* EINTR */
 #ifdef EWOULDBLOCK
 	    if (errno == EWOULDBLOCK) {
 		msleep(10);
@@ -10971,9 +11002,17 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
 		    debug(F101,"ttinl myread errno","",errno);
 		}
 #endif /* DEBUG */
-		/* Don't let EINTR break packets. */
+		/*
+		  EINTR means a signal interrupted the blocking read.  It says
+		  nothing about the connection's health, so we must retry the
+		  read.
+
+		  The outer alarm set above this loop still bounds how long
+		  these retries can go on for, so a dead connection times out
+		  instead of retrying forever.
+		*/
 		if (n == -3) {
-		    if (errno == EINTR && i > 0) {
+		    if (errno == EINTR) {
 			debug(F111,"ttinl EINTR myread i","continuing",i);
 			continue;
 		    } else {
@@ -14908,18 +14947,30 @@ ttptycmd(s) char *s;
 	debug(F101,"ttptycmd loop top have_pty","",have_pty);
 	debug(F101,"ttptycmd loop top have_net","",have_net);
 
-/*
-  ttyfd is a global, and ttclos() (called elsewhere, such as from mygetbuf()'s
-  TCP EOF handling) can set it to -1 out from under this loop.  have_net, set
-  once above, has no way to know that happened.  Without this check,
-  FD_SET(ttyfd,...) below runs with a negative fd.  That's undefined behavior
-  because it leads to a negative shift count, a potential problem since FD_SET's
-  bitwise arithmetic might act on the bogus value.  Treat it exactly like any
-  other net error.
-*/
+        /*
+          ttyfd is a global, and ttclos() (called elsewhere, such as from
+          mygetbuf()'s TCP EOF handling) can set it to -1 out from under this
+          loop.  have_net, set once above, has no way to know that happened.
+          Without this check, FD_SET(ttyfd,...) runs with a negative fd.
+          That's undefined behavior because it leads to a negative shift count,
+          a potential problem since FD_SET's bitwise arithmetic might act on the
+          bogus value.  Treat it exactly like any other net error.
+        */
 	if (have_net && ttyfd == -1) {
 	    net_err++;
 	    have_net = 0;
+            /*
+              The network side just died (maybe the peer closed the connection),
+              but the external protocol's child doesn't know that.  With nothing
+              left to relay in either direction, the child can't make any more
+              progress.  If left alone, it might have to use an internal timeout
+              before giving up.  Nudge it now instead of waiting for the loop's
+              end-of-function SIGHUP, which only runs once have_pty also clears
+              (after the child has exited). A child that was about to exit just
+              gets a redundant, and harmless, signal.
+            */
+	    if (have_pty && pty_fork_pid > 0)
+	      kill(pty_fork_pid, SIGHUP);
 	}
 
 	/* Pty is open and we have room to read from it? */
@@ -14972,22 +15023,32 @@ ttptycmd(s) char *s;
 	    tv.tv_usec = 0L;
 	    tv2 = &tv;
         } else {
-/*
-  Always enforce a timeout on select().
+            /*
+            Always enforce a timeout on select().
 
-  Previously in this code, the obvious path was used: an infinite wait was
-  passed to select().  This SHOULD mean select() returns when either fd has
-  something.  But on a pseudoterminal on MacOS, experience had shown that
-  select() will sometimes be falsely quiet when data is available.  This appears
-  to be yet another example of weird bugginess around ptys on MacOS.
+            Previously in this code, the obvious path was used: an infinite wait
+            was passed to select().  This SHOULD mean select() returns when
+            either fd has something.  But on a pseudoterminal on MacOS,
+            experience had shown that select() will sometimes not return when
+            data is available.  This appears to be yet another example of weird
+            bugginess around ptys on MacOS.
 
-  So, we give select() a moderate timeout,  treating its timeout as "poll
-  again", not "give up" (only a caller-requested seconds_to_wait does that,
-  right below).  This can only help if select()'s readiness signal is being
-  missed or delayed, and costs little else.
-*/
-	    tv.tv_sec = 1L;
-	    tv.tv_usec = 0L;
+            So, we give select() a moderate timeout, treating its timeout as
+            "poll again", not "give up" (only a caller-requested seconds_to_wait
+            does that).  This can only help if select()'s readiness signal is
+            being missed or delayed, and costs little unless the timeout is too
+            low.
+
+            A raw TCP/IP connection's ttyfd radiness is also missed by this same
+            select() on Linux when running an external protocol such as Zmodem
+            over a CONNECT-mode autodownload.  Every inbound protocol frame goes
+            undetected by select() and is only found once this timeout fires and
+            the "poll again" fallback below calls in_chk() directly. The timeout
+            value is a direct floor on how long each undetected frame waits, so
+            don't set it too high.
+            */
+	    tv.tv_sec = 0L;
+	    tv.tv_usec = 100000L;
 	    tv2 = &tv;
 	}
 	x = select(nfds, &in, &out, NULL, tv2);
@@ -15001,25 +15062,36 @@ ttptycmd(s) char *s;
 	if (x == 0) {
 	    debug(F101,"ttptycmd +++ select timeout","",seconds_to_wait);
 	    if (seconds_to_wait <= 0L) {
-/*
-  This case represents our select() timeout, not a caller-requested timeout.
-  (See justification above)
+                /*
 
-  In this case, we don't give up, but also don't just pointlessly call select()
-  again.  select() clears the fd_sets on a timeout return, so recalculate the
-  same fd_set the top of the loop would have (the conditions haven't changed
-  since then) and fall through to the read/write handling below as though
-  select() had reported them ready.  This is safe even if nothing is really
-  available because every read or write reached from here already has its own
-  timeout or O_NDELAY/EAGAIN handling from other fixes in this function.
+                  This case represents our select() timeout, not a
+                  caller-requested timeout.  (See justification above)
 
-  ttyfd/have_net are the one exception to "conditions haven't changed":
-  ttyfd is a global that ttclos() can invalidate asynchronously, so
-  it has to be rechecked here too to prevent running on a negative fd.
-*/
+                  In this case, we don't give up, but also don't just
+                  pointlessly call select() again.  select() clears the fd_sets
+                  on a timeout return, so recalculate the same fd_set the top of
+                  the loop would have (the conditions haven't changed since
+                  then) and fall through to the read/write handling below as
+                  though select() had reported them ready.  This is safe even if
+                  nothing is really available because every read or write
+                  reached from here already has its own timeout or
+                  O_NDELAY/EAGAIN handling from other fixes in this function.
+
+                  ttyfd/have_net are the one exception to "conditions haven't
+                  changed": ttyfd is a global that ttclos() can invalidate
+                  asynchronously, so it has to be rechecked here too to prevent
+                  running on a negative fd.
+                */
 		if (have_net && ttyfd == -1) {
 		    net_err++;
 		    have_net = 0;
+		    /* See the identical have_net && ttyfd check and comment
+		       at the top of this loop: nudge a still-running
+		       external-protocol child now that the network is
+		       confirmed gone, rather than waiting on the child's
+		       own protocol timeout. */
+		    if (have_pty && pty_fork_pid > 0)
+		      kill(pty_fork_pid, SIGHUP);
 		}
 		FD_ZERO(&in);
 		FD_ZERO(&out);
@@ -15061,9 +15133,15 @@ ttptycmd(s) char *s;
 			debug(F000,">>> QUOTED IAC","",c);
 		    } else if (c != 0x0a && out_prev == 0x0d) {	/* Bare CR */
 			if (!TELOPT_ME(TELOPT_BINARY)) { /* NVT rule */
-			    c = 0x00;
-			    dbuf[x++] = c;
-			    debug(F000,">>> CR-NUL","",c);
+                            /*
+                              Insert the NUL directly into dbuf rather than
+                              through "c".  c holds the real byte that follows
+                              the bare CR, and the unconditional "dbuf[x++] = c"
+                              a few lines down is what's supposed to copy it
+                              out.
+                            */
+			    dbuf[x++] = 0x00;
+			    debug(F000,">>> CR-NUL","",0);
 			}
 		    }
 		    dbuf[x++] = c;	/* Copy and count it */
@@ -15180,16 +15258,45 @@ ttptycmd(s) char *s;
 		net_err++;
 	    } else {
 		if (ttyfd_oflags == -1) {
-/*
-  select() indicated that ttyfd will yield a byte or EOF without blocking.
-  in_chk()'s FIONREAD count is only a sizing hint.  On at macOS, it can come
-  back 0 even though select() is right and there is real data or EOF waiting.
-  If we did nothing here, that byte would never get drained and select() would
-  keep reporting the same "ready" state, leading to a spin.  Treat 0 as 1, since
-  select() already guarantees that much is safe.
-*/
-		    if (n == 0)
-		      n = 1;
+                    /*
+                      select() indicated that ttyfd will yield at least a byte
+                      or EOF without blocking.  in_chk()'s FIONREAD count is
+                      only a sizing hint.  On at macOS, it can come back 0 even
+                      though select() is right and there is data or EOF waiting.
+                      If we did nothing here, that byte would never get drained
+                      and select() would keep reporting the same "ready" state,
+                      leading to a spin.  Treat 0 as 1, since select() already
+                      guarantees that much is safe.
+
+                      For an SSL/TLS connection, in_chk() instead returns
+                      SSL_pending(), which counts already-decrypted bytes, not
+                      ciphertext still sitting in the kernel socket buffer.  It
+                      reads 0 for every new incoming TLS record until something
+                      from that record has actually been decrypted.  Bumping
+                      that 0 to 1 the same way as the plain-socket case forces
+                      the byte loop below to fetch exactly one byte per select()
+                      wakeup for the life of the connection: slow enough to blow
+                      past protocols with their own inter-character timeouts,
+                      such as a Zmodem external-protocol transfer, which then
+                      retries forever without completing.
+
+                      Offer the whole remaining buffer instead.  This is safe
+                      and fast; ttinc()'s skips the alarm-guarded timed read
+                      once the first byte of a burst has primed myread()'s
+                      buffer, so the extra loop iterations below cost a cheap
+                      buffer copy each, not a repeated alarm setup and teardown.
+                      Once that buffer runs dry, ttinc() falls back to its
+                      normal bounded wait and the loop's per-byte break on a
+                      negative return stops it there.
+                    */
+		    if (n == 0) {
+#ifdef CK_SSL
+			if (ssl_active_flag || tls_active_flag)
+			  n = PTY_TBUF_SIZE - tbuf_avail;
+			else
+#endif /* CK_SSL */
+			  n = 1;
+		    }
 		    if (n > PTY_TBUF_SIZE - tbuf_avail)
 		      n = PTY_TBUF_SIZE - tbuf_avail;
 		}
@@ -15229,7 +15336,9 @@ ttptycmd(s) char *s;
 		    */
 		    int c;
 		    CHAR * p;
+		    CHAR * p0;
 		    p = tbuf + tbuf_avail;
+		    p0 = p;
 		    for (x = 0; x < n; x++) {
 			if (ttnet == NET_PTY) {
 /*
@@ -15328,6 +15437,16 @@ ttptycmd(s) char *s;
 #endif	/* TNCODE */
 			}
 		    }
+/*
+  x is this loop's iteration count, which is how many bytes it consumed from
+  ttinc(), not how many it kept: Telnet CR-NUL and IAC-escape handling can
+  consume a byte without appending it to p (a dropped NUL after CR, the first
+  half of an IAC escape, or a command tn_doop() absorbed).  tbuf_avail below
+  must advance by what p actually wrote, not by the iteration count, or it runs
+  ahead of the real data and every later read lands past the end of what's
+  valid, corrupting the stream.
+*/
+		    x = (int)(p - p0);
 		    ckmakmsg(msgbuf,500,
 			     "ttptycmd read net [ttinc loop] errno=",
 			     ckitoa(errno),

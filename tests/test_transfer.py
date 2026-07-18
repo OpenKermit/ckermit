@@ -1,4 +1,6 @@
 import os
+import signal
+import threading
 import pytest
 from pathlib import Path
 import logging
@@ -6,6 +8,14 @@ from conftest import (assert_ok, make_loopback_dirs, pattern_bytes,
                       resolve_transfer_paths)
 
 logger = logging.getLogger(__name__)
+
+
+@pytest.fixture(params=["pseudoterminal", "raw-socket", "telnet", "ssl"])
+def loopback_transport(request):
+    """Overrides conftest's single-value default so every test in
+    this module runs over pty, TCP raw, TCP telnet, and SSL."""
+    return request.param
+
 
 # Default long packet length C-Kermit negotiates with itself over this
 # suite's pty loopback (wermit_loopback), with no explicit SET
@@ -40,9 +50,8 @@ def run_transfer_helper(tmp_path, wermit_loopback, direction,
     tmp_path (pathlib.Path):
         Pytest fixture providing a temporary directory for the test.
     wermit_loopback (callable):
-        A fixture that initializes a wermit loopback
-        session, returning an object with run_client and wait_for_server_exit
-        methods.
+        A fixture that runs a client against a fresh loopback server
+        for one command sequence and returns a CompletedProcess.
     direction (str):
         The transfer direction. Valid settings:
             - "send": The client sends the file to the server.
@@ -443,3 +452,127 @@ def test_kermit_transfer_preserves_mtime(tmp_path, wermit_loopback, direction):
                 "mtime is %f. Difference: %f",
                 dest_mtime, abs(dest_mtime - set_mtime))
     assert abs(dest_mtime - set_mtime) <= 1.0
+
+
+def _sigwinch_bombardment(target_proc):
+    """
+    Starts a daemon thread that repeatedly sends SIGWINCH to target_proc, and
+    returns (thread, stop_event). Waits 0.3s before the first signal, so callers
+    testing mid-transfer interruption aren't likely to be running
+    accept() or connect().
+
+    The 50us interval is deliberate.  write() to a loopback socket rarely blocks
+    long enough for a signal to land mid-syscall, unlike read() waiting on data
+    from the peer, so reliably catching the write side needs a much tighter
+    interval than the read side alone would. Going tighter still (such as a bare
+    busy loop with no wait() at all) stops helping and instead starves the
+    target process of enough CPU time to make progress at all, timing the whole
+    test out on pure signal-handling overhead rather than exercising anything
+    EINTR-related.
+
+    Caller must, once done, set() the returned event and join() the thread (a
+    finally block is a natural place for both).
+    """
+    stop = threading.Event()
+
+    def bombard():
+        stop.wait(0.3)
+        while not stop.is_set():
+            try:
+                target_proc.send_signal(signal.SIGWINCH)
+            except (ProcessLookupError, OSError):
+                break
+            stop.wait(0.00005)
+
+    thread = threading.Thread(target=bombard, daemon=True)
+    thread.start()
+    return thread, stop
+
+
+def test_transfer_survives_server_sigwinch(server_dir, wermit_tcp_loopback,
+                                           tmp_path):
+    """
+    Regression test for a bug in ttinl().  A signal interrupting the blocking
+    read for a new packet (eg, arriving at a packet boundary) was treated as a
+    connection failure and caused the connection to be closed, instead of
+    retrying the read the way EINTR should be handled. In practice, this showed
+    up as SIGWINCH from a resized controlling terminal killing an in-progress
+    transfer.  It doesn't depend on window resizing specifically, just some
+    signal arriving at the wrong moment, so any repeated signal reproduces it.
+
+    Sends SIGWINCH to the server throughout a transfer over a TCP connection and
+    confirms the transfer still completes correctly.  direction is "send"
+    (client sends, server receives) so the server is the one doing the heavy
+    reading this exercises; see test_transfer_survives_server_write_ sigwinch
+    for the equivalent write-side bug.
+    """
+    client_dir = tmp_path / "client"
+    client_dir.mkdir()
+    content = pattern_bytes(2 * MB)
+    src_file = client_dir / "sigwinch.dat"
+    src_file.write_bytes(content)
+
+    session = wermit_tcp_loopback(
+        server_dir, protocol="raw-socket",
+        setup_cmds="set file type binary, set delay 0")
+
+    bombarder, stop = _sigwinch_bombardment(session.server_proc)
+    try:
+        result = session.run_client(
+            f"set file type binary, set delay 0, send {src_file}",
+            protocol="raw-socket", timeout=30)
+    finally:
+        stop.set()
+        bombarder.join(timeout=2)
+    session.wait_for_server_exit()
+
+    assert_ok(result)
+    dest_file = server_dir / "sigwinch.dat"
+    assert dest_file.exists()
+    assert dest_file.read_bytes() == content
+
+
+def test_transfer_survives_server_write_sigwinch(
+        server_dir, wermit_tcp_loopback, tmp_path):
+    """
+    Regression test for the write-side counterpart of the bug
+    test_transfer_survives_server_sigwinch documents.
+
+    Unlike that test, plain signal bombardment against a fast loopback transfer
+    essentially never catches this one.  write() to a loopback socket rarely
+    blocks long enough for a signal to land mid-syscall, so this needs LOG DEBUG
+    to slow the server down the same way
+    test_kermit_transfer_unprefixed_nul_replay does (see its docstring). Even so
+    this isn't expected to catch it on every run.
+    """
+    content = pattern_bytes(2 * MB)
+    src_file = server_dir / "sigwinch_write.dat"
+    src_file.write_bytes(content)
+    client_dir = tmp_path / "client"
+    client_dir.mkdir()
+    debug_log = tmp_path / "server_debug.log"
+
+    session = wermit_tcp_loopback(
+        server_dir, protocol="raw-socket",
+        setup_cmds=f"log debug {debug_log}, "
+                   "set file type binary, set delay 0")
+
+    bombarder, stop = _sigwinch_bombardment(session.server_proc)
+    try:
+        result = session.run_client(
+            f"set file type binary, set delay 0, cd {client_dir}, "
+            "get sigwinch_write.dat",
+            protocol="raw-socket", timeout=30)
+    finally:
+        stop.set()
+        bombarder.join(timeout=2)
+        # Only exists to slow the server down (see docstring); can be
+        # tens of MB, and isn't surfaced on failure like
+        # KERMIT_TEST_DEBUG_LOOPBACK's own logs are.
+        debug_log.unlink(missing_ok=True)
+    session.wait_for_server_exit()
+
+    assert_ok(result)
+    dest_file = client_dir / "sigwinch_write.dat"
+    assert dest_file.exists()
+    assert dest_file.read_bytes() == content
