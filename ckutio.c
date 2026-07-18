@@ -15077,10 +15077,24 @@ ttptycmd(s) char *s;
                   reached from here already has its own timeout or
                   O_NDELAY/EAGAIN handling from other fixes in this function.
 
-                  ttyfd/have_net are the one exception to "conditions haven't
+                  ttyfd and have_net are exceptions to "conditions haven't
                   changed": ttyfd is a global that ttclos() can invalidate
                   asynchronously, so it has to be rechecked here too to prevent
                   running on a negative fd.
+
+                  ttyfd is also excluded from this synthetic readiness when it's
+                  an SSL/TLS connection.  Unlike the TCP socket case, an SSL
+                  ttyfd is never put in O_NDELAY, so the read/write handling
+                  below reaches ttinc(2) for it: an alarm-bounded blocking read,
+                  not a cheap EAGAIN check.  Calling that speculatively, once
+                  per select() timeout with nothing available, turns every 100ms
+                  poll into a potential 2-second stall.  Skipping the synthesis
+                  here for SSL/TLS costs nothing; a real select() readiness on
+                  the next iteration still reaches the same code, and
+                  SSL_pending() reading 0 despite select() saying ready is
+                  exactly the case the "offer full buffer" logic
+                  handles safely.
+
                 */
 		if (have_net && ttyfd == -1) {
 		    net_err++;
@@ -15097,7 +15111,12 @@ ttptycmd(s) char *s;
 		FD_ZERO(&out);
 		if (have_pty && pbuf_avail < PTY_PBUF_SIZE)
 		  FD_SET(ptyfd, &in);
-		if (have_net && have_pty && tbuf_avail < PTY_TBUF_SIZE)
+		if (have_net && have_pty && tbuf_avail < PTY_TBUF_SIZE
+#ifdef CK_SSL
+		    && !((ssl_active_flag || tls_active_flag) &&
+			 ttyfd_oflags == -1)
+#endif /* CK_SSL */
+		    )
 		  FD_SET(ttyfd, &in);
 		if (have_pty && tbuf_avail - tbuf_written > 0)
 		  FD_SET(ptyfd, &out);
