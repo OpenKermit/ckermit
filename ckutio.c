@@ -10069,10 +10069,25 @@ in_chk(channel, fd) int channel, fd;
          * correspond to any decrypted application data yet. Treating
          * those bytes as "available" causes callers such as
          * ttflui()'s supposedly non-blocking input flush to call
-         * SSL_read(), which then blocks in the underlying read() 
-	 * waiting for the next TLS record that may not arrive 
+         * SSL_read(), which then blocks in the underlying read()
+	 * waiting for the next TLS record that may not arrive
 	 * anytime soon.
+         *_
+         * SSL_pending() only counts bytes still inside OpenSSL's buffer, not
+         * yet pulled out by an SSL_read() call.  It says nothing about mybuf.
+         * A previous myfillbuf() may have already SSL_read() a whole record
+         * into mybuf, and a caller (e.g. CONNECT-mode autodownload detection)
+         * may have consumed only part of it before giving mybuf's remainder
+         * back to this connection's next reader.  Without adding my_count here,
+         * that remainder is invisible to in_chk(), so a caller that only reads
+         * when in_chk() says something is available (such as ttptycmd()) never
+         * drains it, and the connection appears to hang waiting for network
+         * activity that already arrived.
          */
+#ifdef MYREAD
+        if (channel != 0 && my_count > 0)
+          n += my_count;
+#endif /* MYREAD */
         return(n);
     }
 #endif /* CK_SSL */
