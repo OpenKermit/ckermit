@@ -8,6 +8,7 @@ from conftest import (pattern_bytes, DEBUG_LOOPBACK as DEBUG_ZMODEM,
                       ZMODEM_QUIET_PROTOCOL_CLAUSE, TCP_TIMEOUT_MARGIN,
                       ssl_server_setup_cmds, ssl_client_setup_cmds,
                       start_wermit_pty, finish_wermit_pty,
+                      finish_wermit_pty_pair,
                       _wait_for_pty_marker, PORT_COLLISION_RETRIES,
                       PORT_BIND_FAILURE_MARKER)
 
@@ -229,15 +230,11 @@ def _run_ssl_zmodem(wermit_path, get_free_port, ssl_pki,
     rproc, rmaster = start_wermit_pty(wermit_path, remote_cmd,
                                        str(remote_dir))
 
-    # Drain the remote to completion first, then the server -- in that
-    # order. Both now have real ptys (unlike zmodem_remote's remote,
-    # which uses spawn_wermit's /dev/null stdout instead), but the
-    # remote's side of a Zmodem transfer normally finishes at essentially
-    # the same time as the server's, so waiting it out first and only
-    # then reading the server's own pty doesn't risk either side's pty
-    # filling up its kernel buffer with nothing draining it.
-    finish_wermit_pty(rproc, rmaster, timeout=timeout)
-    returncode, stdout = finish_wermit_pty(proc, master, timeout=timeout)
+    # Drain both sides concurrently. Both now have real ptys (unlike
+    # zmodem_remote's remote, which uses spawn_wermit's /dev/null
+    # stdout instead), and both need a reader for the duration.
+    (_, _), (returncode, stdout) = finish_wermit_pty_pair(
+        rproc, rmaster, proc, master, timeout=timeout)
     return returncode, prefix.decode("utf-8", errors="replace") + stdout
 
 

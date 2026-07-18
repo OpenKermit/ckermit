@@ -855,6 +855,63 @@ def finish_wermit_pty(proc, master, timeout=45, debug_log=None):
     return proc.returncode, b"".join(output).decode('utf-8', errors='replace')
 
 
+def finish_wermit_pty_pair(proc_a, master_a, proc_b, master_b, timeout=45):
+    """
+    Like finish_wermit_pty(), but drains two wermit ptys concurrently
+    instead of one after the other, returning
+    ((returncode_a, stdout_a), (returncode_b, stdout_b)).
+
+    Draining one side to completion before starting the other assumes
+    both finish at about the same time.
+    """
+    entries = {master_a: (proc_a, []), master_b: (proc_b, [])}
+    open_masters = set(entries)
+    start_time = time.time()
+
+    while open_masters:
+        if time.time() - start_time > timeout:
+            for master, (proc, output) in entries.items():
+                captured = b"".join(output).decode('utf-8', errors='replace')
+                logger.error(
+                    "finish_wermit_pty_pair: wermit (pid %d) timed out "
+                    "after %ds. pty output captured before timeout:\n%s",
+                    proc.pid, timeout, truncated("pty output", captured))
+            _log_process_snapshot("finish_wermit_pty_pair")
+            for proc, _ in entries.values():
+                if proc.poll() is None:
+                    proc.terminate()
+            for proc, _ in entries.values():
+                try:
+                    proc.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait(timeout=2)
+            for master in open_masters:
+                os.close(master)
+            raise RuntimeError(
+                "finish_wermit_pty_pair: timed out after %ds" % timeout)
+
+        r, _, _ = select.select(list(open_masters), [], [], 0.1)
+        for master in r:
+            proc, output = entries[master]
+            try:
+                data = os.read(master, 4096)
+            except OSError:
+                data = b""
+            if not data:
+                open_masters.discard(master)
+                os.close(master)
+                continue
+            output.append(data)
+
+    for proc, _ in entries.values():
+        proc.wait()
+
+    return tuple(
+        (proc.returncode, b"".join(output).decode('utf-8', errors='replace'))
+        for proc, output in entries.values())
+
+
 def run_wermit_pty(wermit_path, cmd_str, cwd, timeout=45, debug_log=None):
     """
     Runs kermit with its stdin, stdout, and stderr connected to a real
