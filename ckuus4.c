@@ -1331,6 +1331,7 @@ findinpath(arg) char * arg;
 #endif /* DCMDBUF */
     char takepath[4096];
     char * s;
+    char * result;
     int x;
 #ifndef OS2
 #ifndef NOSPL
@@ -1436,10 +1437,10 @@ findinpath(arg) char * arg;
     ckmakmsg(cmdbuf,CMDBL,"{",arg,"}",NULL);
     debug(F110,"findinpath cmdbuf",cmdbuf,0);
     ckstrncat(cmdbuf,"\r\r",CMDBL);     /* And some carriage returns */
-    if (cmifip("","",&s,&x,0,takepath,xxstring) < 0)
+    if (cmifip("","",&result,&x,0,takepath,xxstring) < 0)
       return(NULL);
     cmres();
-    return(s);
+    return(result);
 }
 
 static int tr_int;                      /* Flag if TRANSMIT interrupted */
