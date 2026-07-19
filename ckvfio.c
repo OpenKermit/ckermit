@@ -3934,7 +3934,7 @@ zxcmd(filnum, comand) int filnum; char *comand; {
     if (sts != SS$_NORMAL)
       return(0);
 
-    sprintf(mbxnam,"KERMIT$MBX_%08X", pid);
+    sprintf(mbxnam,"KERMIT$MBX_%08X", (unsigned int)pid);
     debug(F110,"zxcmd mailbox logical", mbxnam, 0);
     mbx_desc.dsc$w_length = strlen(mbxnam);
     mbx_desc.dsc$a_pointer = mbxnam;
@@ -4680,7 +4680,8 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x; {
 	return(-1);
     }
     debug(F110,"zstime built",cdate,0);
-    sprintf(cdate, "%08X%08X", attr_date[1], attr_date[0]);
+    sprintf(cdate, "%08X%08X",
+	    (unsigned int)attr_date[1], (unsigned int)attr_date[0]);
     debug(F110,"zstime $bintim attr_date", cdate, 0);
     setdate = 1;
 
@@ -4739,7 +4740,7 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x; {
 	    if (!(rms_sts & 1)) vms_lasterr = rms_sts;
 #ifdef DEBUG
 	    if (deblog) {
-		sprintf(xbuf,"%X",dfpro);
+		sprintf(xbuf,"%X",(unsigned int)dfpro);
 		debug(F111,"zstime sys$setdfprot",xbuf,rms_sts);
 	    }
 #endif /* DEBUG */
@@ -4811,7 +4812,8 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x; {
 	    return(-1);
 	}
 	memcpy(file_date, &xabdat_ifile.xab$q_cdt, 8);
-	sprintf(cdate, "%08x%08x", file_date[1], file_date[0]);
+	sprintf(cdate, "%08x%08x",
+		(unsigned int)file_date[1], (unsigned int)file_date[0]);
 	debug(F110,"zstime $bintim file_date", cdate, 0);
 	rms_sts = sys$close(&fab_ifile);
 	if (!(rms_sts & 1)) vms_lasterr = rms_sts;
@@ -6127,7 +6129,7 @@ do_label_send(name) char *name; {
     if (fnspath == PATH_REL) {
         rel_dspec = fnd_rel(name);
         debug(F101," do_label_send: rel dir at char","", rel_dspec);
-        zp += sprintf(zp,"07REL_DIR00000008%08ld", rel_dspec);
+        zp += sprintf(zp,"07REL_DIR00000008%08ld", (long)rel_dspec);
     }
     zp += sprintf(zp,"07VMSNAME%08d", strlen(name));
     zp += sprintf(zp,"%s", name);
