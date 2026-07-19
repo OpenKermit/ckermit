@@ -7363,6 +7363,9 @@ zfnqfp(fname, buflen, buf)  char * fname; int buflen; char * buf;
 {
     char * s;
     int len;
+#ifdef CKREALPATH
+    char * rp;
+#endif /* CKREALPATH */
 #ifdef MAXPATHLEN
     char zfntmp[MAXPATHLEN+4];
 #else
@@ -7402,22 +7405,22 @@ zfnqfp(fname, buflen, buf)  char * fname; int buflen; char * buf;
 
 #ifdef CKREALPATH
 
-/* N.B.: The realpath() result buffer MUST be MAXPATHLEN bytes long */
-/* otherwise we write over memory. */
-
-    if (!realpath(s,zfntmp)) {
+    rp = realpath(s,NULL);
+    if (!rp) {
         debug(F111,"zfnqfp realpath fails",s,errno);
 	/* If realpath() fails use the do-it-yourself method */
 	/* 16 Jan 2002 */
 	goto norealpath;
     }
-    len = strlen(zfntmp);
+    len = strlen(rp);
     if (len > buflen) {
 	debug(F111,"zfnqfp result too long",ckitoa(buflen),len);
+	free(rp);
 	return(NULL);
     } else {
-	ckstrncpy(buf,zfntmp,buflen);
+	ckstrncpy(buf,rp,buflen);
     }
+    free(rp);
     if (buf[len-1] != '/') {
 	if ((itsadir = isdir(buf)) && len < (buflen - 1)) {
 	    buf[len++] = '/';
