@@ -7657,8 +7657,12 @@ cmdconchk() {
     if (x < 0) x = 0;
 #else  /* USE_FILE_CNT */
 #ifdef USE_FILE_R			/* FreeBSD, OpenBSD, etc */
+#ifdef NOARROWKEYS
+    debug(F101,"cmdconchk NOARROWKEYS x","",0);
+#else
     debug(F101,"cmdconchk stdin->_r","",stdin->_r);
-    x = stdin->_r;
+    x = stdin->_r;			/* FILE is opaque on current */
+#endif /* NOARROWKEYS */		/* OpenBSD; _r is inaccessible */
     if (x == 0) x = conchk();
     if (x < 0) x = 0;
 

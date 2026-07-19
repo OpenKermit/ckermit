@@ -5727,8 +5727,17 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
             char v6nibuf[256];
             int v6gni;
 
+            /*
+	      The salen argument must be the actual sockaddr_in6 size, not that
+	      of sockaddr_storage, which is larger.  OpenBSD's getnameinfo()
+	      rejects a salen that does not match the address family's real
+	      structure size.
+
+	      So here we give the smaller size, even though the memory region
+	      is larger, and that's safe.
+            */
             v6gni = getnameinfo((struct sockaddr *)&ckv6_addr,
-                                 sizeof(ckv6_addr),
+                                 sizeof(struct sockaddr_in6),
                                  v6nibuf,sizeof(v6nibuf),NULL,0,
                                  NI_NAMEREQD);
             if (v6gni == 0) {
