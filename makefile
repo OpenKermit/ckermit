@@ -2012,7 +2012,7 @@ netbsd netbsd2 netbsd15 netbsd16 old-netbsd:
 	echo '-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64'` \
 	-DTIMEH	-DBSD44 -DCK_CURSES -DTCPSOCKET -DUSE_STRERROR \
 	-funsigned-char -DHERALD=\"\\\" `uname -s -r`\\\"\" \
-	-DCK_DTRCD -DCK_DTRCTS -DTPUTSARGTYPE=int -DFNFLOAT $(KFLAGS) -O" \
+	-DCK_DTRCD -DCK_DTRCTS -DTPUTSARGTYPE=int -DFNFLOAT $(KFLAGS) -O2" \
 	"LIBS= -lcurses -lcrypt -lm -lutil $(LIBS)" ; $(shell ./ckubuildlog)
 
 buildlog:
@@ -2376,7 +2376,7 @@ openbsd:
 	$$NOSYSTIMEBH -DHERALD=\"\\\" OpenBSD `uname -r`\\\"\" \
 	-DUSE_UU_LOCK -DFNFLOAT -DUSE_STRERROR $$HAVETERMH $$HAVE_WAITH \
 	$$HAVE_UTIMES \
-	$(KFLAGS) -O" \
+	$(KFLAGS) -O2" \
 	"LIBS= -lcurses -lutil -lm"
 
 #Better to chain to the openbsd target but...
@@ -2518,7 +2518,7 @@ macosx macosx10 macosx10.3.9 macosx10.4 macosx10.5 macosx10.6:
 	-DUSE_STRERROR -DUSE_NAMESER_COMPAT -DNOCHECKOVERFLOW -DFNFLOAT \
 	-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 $$HAVE_UTMPX \
 	-funsigned-char -DNODCLINITGROUPS -DMACOSHISPEED \
-	-DNOUUCP -O -DHERALD=\"\\\" $${MACOSNAME} $${MACOSV}\\\"\" \
+	-DNOUUCP -O2 -DHERALD=\"\\\" $${MACOSNAME} $${MACOSV}\\\"\" \
 	-DCKCPU=\"\\\"$${MACCPU}\\\"\" \
 	$(KFLAGS)" "LIBS= -lncurses -lresolv $(LIBS)"
 
@@ -6615,7 +6615,7 @@ linuxa:
 	@echo 'IMPORTANT: Read the comments in the linux section of the'
 	@echo 'makefile if you have trouble.'
 	$(MAKE) xermit KTARGET=$${KTARGET:-$(@)} "CC=$(CC)" "CC2=$(CC)" \
-	"CFLAGS = -O -DLINUX -pipe -funsigned-char -DFNFLOAT -DCK_POSIX_SIG \
+	"CFLAGS = -O2 -DLINUX -pipe -funsigned-char -DFNFLOAT -DCK_POSIX_SIG \
 	-DCK_NEWTERM -DTCPSOCKET -DLINUXFSSTND -DNOCOTFMC -DPOSIX \
 	-DUSE_STRERROR $(KFLAGS)" "LNKFLAGS = $(LNKFLAGS)" \
 	"LIBS = $(LIBS) -lm"
