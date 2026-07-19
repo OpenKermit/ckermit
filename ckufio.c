@@ -7366,12 +7366,6 @@ zfnqfp(fname, buflen, buf)  char * fname; int buflen; char * buf;
 #ifdef CKREALPATH
     char * rp;
 #endif /* CKREALPATH */
-#ifdef MAXPATHLEN
-    char zfntmp[MAXPATHLEN+4];
-#else
-    char zfntmp[CKMAXPATH+4];
-#endif /* MAXPATHLEN */
-
     char sb[32], * tmp;
     int i = 0, j = 0, k = 0, x = 0, y = 0;
     int itsadir = 0;
@@ -7447,7 +7441,17 @@ zfnqfp(fname, buflen, buf)  char * fname; int buflen; char * buf;
 
   norealpath:
 
-    tmp = zfntmp;
+/*
+  The loop below compacts buf[] in place.  It removes "." and ".."
+  components while copying buf[x] to buf[i], where i is the
+  destination (compacted) index and x is the source (scanning)
+  index.  i never exceeds x (every regular-character copy advances
+  both by one, every "." or ".." removal advances x without i, and
+  backing up for ".." only moves i to an earlier position), so
+  writing buf[i] never clobbers a byte at or ahead of x before it
+  has been read.
+*/
+    tmp = buf;
     while (*s) {                        /* Remove leading "./" (0 or more) */
         debug(F110,"zfnqfp while *s",s,0);
         if (*s == '.' && *(s+1) == '/') {
@@ -7494,7 +7498,6 @@ zfnqfp(fname, buflen, buf)  char * fname; int buflen; char * buf;
     }
     j = -1;                             /* j = position of rightmost "/" */
     i = 0;                              /* i = destination index */
-    tmp[i] = NUL;                       /* destination is temporary buffer  */
 
     for (x = 0; x < len; x++) {         /* x = source index */
         if (buf[x] == '/') {
@@ -7521,17 +7524,16 @@ zfnqfp(fname, buflen, buf)  char * fname; int buflen; char * buf;
             }
         }
         if (i >= (buflen - 1)) {
+            tmp[i] = NUL;                /* Terminate for the debug() call */
             debug(F111,"zfnqfp overflow",tmp,i);
             return(NULL);
         }
         tmp[i++] = buf[x];              /* Regular character, copy */
-        tmp[i] = NUL;
         if (buf[x] == '/')              /* Remember rightmost "/" */
           j = i;
     }
-    ckstrncpy(buf,tmp,buflen-1);        /* Copy the result back */
+    buf[i] = NUL;                       /* Terminate the compacted result */
 
-    buf[buflen-1] = NUL;
     if (!buf[0]) {                      /* If empty, say root */
         buf[0] = '/';
         buf[2] = NUL;
