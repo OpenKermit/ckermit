@@ -1055,11 +1055,13 @@ unit-test:
 	fi
 	@$(MAKE) "CC=`cat .buildcc.cache`" "CFLAGS=`cat .buildflags.cache`" \
 		tests/unit/bin/test_lib tests/unit/bin/test_strings \
-		tests/unit/bin/test_net tests/unit/bin/test_mpsafe
+		tests/unit/bin/test_net tests/unit/bin/test_mpsafe \
+		tests/unit/bin/test_zfnqfp
 	./tests/unit/bin/test_lib
 	./tests/unit/bin/test_strings
 	./tests/unit/bin/test_net
 	./tests/unit/bin/test_mpsafe
+	./tests/unit/bin/test_zfnqfp
 
 # Rules for the unit test binaries.
 #
@@ -1133,6 +1135,23 @@ tests/unit/bin/test_mpsafe: tests/unit/test_mpsafe.c ckcpro.c ckcfnp.h
 		-c ckcpro.c -o tests/unit/bin/ckcpro_test.$(EXT); \
 	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
 		tests/unit/test_mpsafe.c tests/unit/bin/ckcpro_test.$(EXT) \
+		-o $@ $$GCSECTIONS $$CHECKLIBS
+
+# test_zfnqfp exercises zfnqfp(), which lives in ckufio.c.
+tests/unit/bin/test_zfnqfp: tests/unit/test_zfnqfp.c ckufio.c ckclib.c ckcfnp.h
+	@mkdir -p tests/unit/bin
+	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	case `uname -s` in \
+	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
+	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
+	esac; \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		-c ckufio.c -o tests/unit/bin/ckufio_test.$(EXT); \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		-c ckclib.c -o tests/unit/bin/ckclib_test_zfnqfp.$(EXT); \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		tests/unit/test_zfnqfp.c tests/unit/bin/ckufio_test.$(EXT) \
+		tests/unit/bin/ckclib_test_zfnqfp.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
 
 #Clean up intermediate and object files
