@@ -6367,12 +6367,14 @@ extern int _flsbuf(char c,FILE *stream);
 #ifdef VMS				/* VMS may have bad (small, ODS2) */
 #define CKMAXPATH NAMX_C_MAXRSS		/* PATH_MAX, so use NAMX_C_MAXRSS. */
 #else /* def VMS */
-#ifdef MAXPATHLEN			/* (it probably isn't) */
-#define CKMAXPATH MAXPATHLEN
-#else
 #ifdef PATH_MAX				/* POSIX */
 #define CKMAXPATH PATH_MAX
-#else /* def PATH_MAX */
+#else
+#ifdef MAXPATHLEN			/* BSD sys/param.h fallback; */
+					/* usually the same as PATH_MAX */
+					/* where both exist. */
+#define CKMAXPATH MAXPATHLEN
+#else /* def MAXPATHLEN */
 #ifdef MAC
 #define CKMAXPATH 63
 #else /* def MAC */
@@ -6394,8 +6396,8 @@ extern int _flsbuf(char c,FILE *stream);
 #endif /* def UNIX [else] */
 #endif /* def pdp11 [else] */
 #endif /* def MAC [else] */
-#endif /* def PATH_MAX [else] */
 #endif /* def MAXPATHLEN [else] */
+#endif /* def PATH_MAX [else] */
 #endif /* def VMS [else] */
 #endif /* ndef CKMAXPATH */
 
