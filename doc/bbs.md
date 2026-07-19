@@ -1,7 +1,5 @@
 # Using C-Kermit to connect to a DOS BBS
 
-# Background
-
 DOS BBSs typically use the DOS CP437 character set, while modern terminals use
 UTF-8.  The line-drawing characters often used on a DOS BBS won't show up
 properly on a terminal expecting UTF-8.
@@ -38,9 +36,35 @@ SET TERMINAL CHARACTER-SET CP437 UTF8
 
 ```
 SET TERMINAL CHARACTER-SET CP437 UTF8
-TELNET bbs.hostname.com
+TELNET bbs.example.com
 ```
 
+or
+
+`SSH username@bbs.example.com`
+
+## Local terminal configuration
+
+You'll want a local terminal that has good support for ANSI.  Then size it to
+precisely 80x24 (or sometimes 80x25).
+
+I have found [Konsole](https://apps.kde.org/konsole/) to work well, but there
+are certainly others also.
+
+I configured a Konsole BBS profile like this:
+
+- Appearance category
+  - Color scheme & font tab
+    - Linux Colors
+    - Draw intense colors in bold font unchecked
+  - Miscellaneous tab
+    - Show hint for terminal size after resizing checked
+  - Advanced tab
+    - Allow blinking text checked
+    
+Here's an example screenshot:
+
+![BBS screenshot](bbs-example.png)
 
 ## Notes and caveats
 
