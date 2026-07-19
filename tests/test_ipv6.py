@@ -71,6 +71,16 @@ def test_set_host_bracket_with_port_parses(run_wermit, tmp_path):
     assert "netopen service requested[23]" in content
 
 
+def test_set_host_bracket_space_port_parses(run_wermit, tmp_path):
+    """A bracketed IPv6 literal with the port given as a separate,
+    space-delimited argument (the documented SET HOST syntax) must
+    split the same way as the ":port" form."""
+    content = _netopen_debug_lines(
+        run_wermit, tmp_path, "set host [::1] 23, exit")
+    assert "netopen host[::1]" in content
+    assert "netopen service requested[23]" in content
+
+
 def test_set_host_bracket_without_port_parses(run_wermit, tmp_path):
     content = _netopen_debug_lines(
         run_wermit, tmp_path, "set host [::1], exit")
@@ -88,6 +98,45 @@ def test_set_host_bracket_v6_literal_with_port_parses(run_wermit, tmp_path):
 def test_set_host_malformed_bracket_fails_safely(run_wermit):
     result = run_wermit("set host [::1")
     assert "Malformed address literal" in result.stdout + result.stderr
+
+
+def test_set_host_bare_v6_with_space_port_fails_safely(run_wermit):
+    """A bare (unbracketed) address with colons of its own is not a
+    valid SET HOST argument, even with a space-delimited port: HELP
+    SET HOST requires square brackets around such addresses so
+    Kermit can tell which colon separates the port. This must fail
+    with a clear syntax error, not silently connect to the wrong
+    host/port."""
+    result = run_wermit("set host ::1 23")
+    assert result.returncode != 0
+
+
+def _rlogin_supported(run_wermit):
+    result = run_wermit("help set host")
+    assert_ok(result, "HELP SET HOST failed")
+    return "/RLOGIN" in result.stdout
+
+
+def test_rlogin_bracket_with_port_parses(run_wermit, tmp_path):
+    """RLOGIN's second positional argument is a userid, not a port,
+    so the only way to attach a non-default service to a bracketed
+    IPv6 literal is the ":service" form. This must split the same
+    way plain SET HOST does."""
+    if not _rlogin_supported(run_wermit):
+        pytest.skip("build has no RLOGIN support (not RLOGCODE)")
+    content = _netopen_debug_lines(
+        run_wermit, tmp_path, "rlogin [::1]:2105, exit")
+    assert "netopen host[::1]" in content
+    assert "netopen service requested[2105]" in content
+
+
+def test_rlogin_plain_hostport_unaffected(run_wermit, tmp_path):
+    if not _rlogin_supported(run_wermit):
+        pytest.skip("build has no RLOGIN support (not RLOGCODE)")
+    content = _netopen_debug_lines(
+        run_wermit, tmp_path, "rlogin 127.0.0.1:2105, exit")
+    assert "netopen host[127.0.0.1]" in content
+    assert "netopen service requested[2105]" in content
 
 
 def test_set_host_plain_hostport_unaffected(run_wermit, tmp_path):

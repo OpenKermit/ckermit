@@ -8522,12 +8522,12 @@ static char *hxyhost[] = {
 "  TELNET; specify a different TCP port number or service name to choose a",
 "  different service.",
 " ",
-"  A hostname or address containing colons of its own (an IPv6 address",
-"  literal, such as ::1) must be enclosed in square brackets to attach a",
-"  port, e.g. [::1]:23, or given bare in brackets with no port, e.g. [::1],",
-"  since otherwise Kermit cannot tell which colon separates the port.",
-" ",
 #ifdef CK_IPV6
+"  A hostname or address containing colons of its own (an IPv6 address",
+"  such as ::1) must be enclosed in square brackets.  A port can follow",
+"  separated by either a colon or a space.  For instance, \"[::1]:23\"",
+"  or \"[::1] 23\".",
+" ",
 "  Which IP address family actually gets used for a hostname that has",
 "  both IPv4 and IPv6 addresses is controlled by SET TCP ADDRESS-FAMILY. For",
 "  SET HOST * (listen for an incoming connection), the same setting",
@@ -8636,6 +8636,12 @@ Enter CONNECT (terminal) mode automatically if the connection is successful.",
 "  SET HOST 128.59.39.2",
 "  SET HOST madlab.sprl.umich.edu 3000",
 "  SET HOST xyzcorp.com 2000 /RAW-SOCKET",
+"  SET HOST 127.0.0.1:12345",
+"  SET HOST 127.0.0.1 12345      (same function as the prior line)",
+#ifdef CK_IPV6
+"  SET HOST [::1]:12345",
+"  SET HOST [::1] 12345          (same function as the prior line)",
+#endif
 #ifdef SSHBUILTIN
 "  SET HOST /NET:SSH kermit.columbia.edu /x11-forwarding:on",
 #endif /* SSHBUILTIN */

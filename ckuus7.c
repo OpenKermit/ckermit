@@ -11395,8 +11395,15 @@ setlin(xx, zz, fc) int xx, zz, fc;
                     )) {
                     int y;
                     uidflag = 0;
-                    /* Check for "host:service" */
-                    for ( ; (*s != '\0') && (*s != ':'); s++) ;
+                    /* Check for "host:service".  Skip over a bracketed
+                       IPv6 literal such as "[::1]" before scanning for
+                       the colon that introduces a service. */
+                    if (*s == '[') {
+                        for ( ; (*s != '\0') && (*s != ']'); s++) ;
+                        if (*s == ']') s++;
+                    } else {
+                        for ( ; (*s != '\0') && (*s != ':'); s++) ;
+                    }
                     if (*s) {   /* Service, save it */
                         *s = NUL;
                         ckstrncpy(srvbuf,++s,SRVBUFSIZ);
@@ -11445,8 +11452,15 @@ setlin(xx, zz, fc) int xx, zz, fc;
                     }
                 } else {        /* TELNET or SET HOST */
 #endif /* RLOGCODE */
-                    /* Check for "host:service" */
-                    for ( ; (*s != '\0') && (*s != ':'); s++) ;
+                    /* Check for "host:service".  Skip over a bracketed
+                       IPv6 literal such as "[::1]" before scanning for
+                       the colon that introduces a service. */
+                    if (*s == '[') {
+                        for ( ; (*s != '\0') && (*s != ']'); s++) ;
+                        if (*s == ']') s++;
+                    } else {
+                        for ( ; (*s != '\0') && (*s != ':'); s++) ;
+                    }
                     if (*s) {   /* Service, save it */
                         *s = NUL;
                         ckstrncpy(srvbuf,++s,SRVBUFSIZ);
