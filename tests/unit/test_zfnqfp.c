@@ -50,8 +50,18 @@ static void
 setup(void)
 {
     char cmd[CKMAXPATH + 32];
+    char *rp;
     strcpy(tdir, "/tmp/zfnqfpXXXXXX");
     ck_assert_ptr_nonnull(mkdtemp(tdir));
+    /* Canonicalize tdir itself so that expect strings built from
+       it match zfnqfp()'s realpath()-resolved output even when
+       the platform's temp directory is a symlink (e.g. macOS
+       /tmp -> /private/tmp). */
+    rp = realpath(tdir, NULL);
+    ck_assert_ptr_nonnull(rp);
+    ck_assert_int_lt((int)strlen(rp), (int)sizeof(tdir));
+    strcpy(tdir, rp);
+    free(rp);
     snprintf(cmd, sizeof(cmd), "mkdir -p '%s/a/b/c'", tdir);
     ck_assert_int_eq(system(cmd), 0);
 }
