@@ -204,6 +204,47 @@ def is_failure(text):
 
 SHOW_TIMEOUT = 6
 
+# SHOW subcommands (lowercase) whose entire output varies by
+# environment and is excluded from the reference rather than shown as
+# a compile-time default.
+EXCLUDED_SHOW_DUMPS = ("editor", "locale")
+
+# SHOW NETWORK lines that vary by environment, identified by their
+# label up to the colon, and so are dropped from the reference.
+NETWORK_EXCLUDED_KEYS = ("DISPLAY", "USER", "terminal-type",
+                          ".Xauthority-file")
+
+NETWORK_EXCLUDE_RE = re.compile(
+    r'^\s*(?:%s)\s*:' % "|".join(re.escape(k) for k in
+                                  NETWORK_EXCLUDED_KEYS)
+)
+
+# SHOW TERMINAL prints "Type" and "Print" as two columns on one
+# line; only the Type value varies by environment, and it is blanked
+# out in place (rather than removing the line) so the Print column
+# stays aligned.
+TERMINAL_TYPE_RE = re.compile(r'(Type:\s)(\S+)')
+
+
+def filter_default_dump(sho_name, text):
+    """Strip environment-dependent content from a SHOW ... dump.
+
+    Returns None if the whole dump should be excluded, else the
+    (possibly modified) text.
+    """
+    name = sho_name.lower()
+    if name in EXCLUDED_SHOW_DUMPS:
+        return None
+    if name == "network":
+        lines = [line for line in text.splitlines()
+                 if not NETWORK_EXCLUDE_RE.match(line)]
+        text = "\n".join(lines)
+    elif name == "terminal":
+        text = TERMINAL_TYPE_RE.sub(
+            lambda m: m.group(1) + " " * len(m.group(2)), text
+        )
+    return text
+
 
 def show_dump(name):
     """Run 'show <name>' in isolation and return its output, or None.
@@ -251,6 +292,9 @@ def gather_default_dumps(set_groups, sho_groups):
             continue
         text = show_dump(sho_name)
         if text is None or is_failure(text):
+            continue
+        text = filter_default_dump(sho_name, text)
+        if text is None:
             continue
         dumps[canonical.lower()] = (sho_name, text.strip("\n"))
     return dumps

@@ -6180,12 +6180,6 @@ Syntax: SET EDITOR pathname [ options ]
   options.  SHOW EDITOR displays it.
 ```
 
-Compile-time default, from `SHOW EDITOR`:
-
-```
- editor:  (none)
-```
-
 ### SET EOF
 
 ```
@@ -6678,7 +6672,13 @@ SET HOST [ switches ] hostname-or-address [ service ] [ protocol-switch ]
   A hostname or address containing colons of its own (an IPv6 address
   literal, such as ::1) must be enclosed in square brackets to attach a
   port, e.g. [::1]:23, or given bare in brackets with no port, e.g. [::1],
-  since otherwise Kermit cannot tell which colon separates the port.
+  since otherwise Kermit cannot tell which colon separates the port. The
+  port can also be given as a separate word after the brackets, e.g.
+  [::1] 23, exactly like the [ service ] form for a plain hostname.
+ 
+  A hostname or address with no colons of its own can likewise take its
+  port attached with a colon instead of as a separate word, e.g.
+  128.59.39.2:23.
  
   Which IP address family actually gets used for a hostname that has
   both IPv4 and IPv6 addresses is controlled by SET TCP ADDRESS-FAMILY. For
@@ -7013,19 +7013,6 @@ Syntax: SET LOCALE [ locale-string ]
   from which C-Kermit was invoked.
 ```
 
-Compile-time default, from `SHOW LOCALE`:
-
-```
-Locale enabled:
-  LC_COLLATE="C"
-  LC_CTYPE="C.UTF-8"
-  LC_MONETARY="C"
-  LC_MESSAGES="C"
-  LC_NUMERIC="C"
-  LC_TIME="C"
-  LANG="(null)"
-```
-
 ### SET LOCUS
 
 ```
@@ -7329,16 +7316,12 @@ SET TELNET parameters:
  bug binary-u-means-me-too: off
  bug sb-implies-will-do: on
  bug auth-krb5-des: on
- terminal-type: none (xterm will be used)
  environment: on
    ACCOUNT: 
-   DISPLAY: 
    JOB    : 
    PRINTER: 
-   USER   : jgoerzen
    SYSTEM : UNIX
   LOCATION: 
- .Xauthority-file: /home/jgoerzen/.Xauthority
 
 Active network connection:
  Host: none, via: tcp/ip
@@ -8499,7 +8482,7 @@ Compile-time default, from `SHOW TERMINAL`:
 ```
 Terminal parameters:
    Bytesize: Command: 8 bits              Terminal: 8 bits         
-                Type: xterm                  Print: off            
+                Type:                        Print: off            
                 Echo: remote         Locking-shift: off            
         Newline-mode: off               Cr-display: normal         
                  APC: off             Autodownload: on, error stop 
