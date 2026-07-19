@@ -184,26 +184,13 @@ def test_kermit_transfer_large(tmp_path, wermit_loopback, direction):
         direction, size)
 
 
-@pytest.mark.parametrize("attempt", range(5))
-def test_kermit_transfer_unprefixed_nul_replay(tmp_path, wermit_loopback,
-                                               attempt):
-    """
-    Regression test for the data-corruption bug fixed in b58e0336.
-
-    Hitting that replay path requires a packet to actually arrive out
-    of order, which is normally timing-dependent. Enabling LOG DEBUG on
-    the server only (not the client) slows the receiving side enough,
-    relative to the sender, to make that happen some of the time,
-    without any external system load.
-
-    LOG DEBUG' output is the limiting factor on the file size.
-    It inflates roughly 30x over the bytes transferred, so a larger
-    file catches the race more often but also risks filling a
-    tmpfs-backed /tmp.  2 MB keeps that peak well under 1 GB.
-    the pre-fix code on NetBSD (where this bug was originally found),
-    this catches the corruption in roughly a third of runs of the
-    full parametrized set; it is not expected to catch it every time.
-    """
+def _run_nul_replay_transfer(tmp_path, wermit_loopback):
+    """Runs the unprefixed-NUL-replay transfer once and asserts the
+    destination file is byte-identical to the source. Shared by
+    test_kermit_transfer_unprefixed_nul_replay (which sweeps several
+    attempts on one transport to catch the race) and
+    test_kermit_transfer_unprefixed_nul_replay_transport_smoke (which
+    runs once per other transport)."""
     content = pattern_bytes(2 * MB)
     client_dir, server_dir = make_loopback_dirs(tmp_path)
     src_file = client_dir / "nul_replay.dat"
@@ -234,6 +221,51 @@ def test_kermit_transfer_unprefixed_nul_replay(tmp_path, wermit_loopback,
         # KERMIT_TEST_DEBUG_LOOPBACK's logs are, so there is no reason
         # to keep it around. It can be tens of MB per attempt.
         debug_log.unlink(missing_ok=True)
+
+
+@pytest.mark.parametrize("loopback_transport", ["pseudoterminal"],
+                         indirect=True)
+@pytest.mark.parametrize("attempt", range(5))
+def test_kermit_transfer_unprefixed_nul_replay(tmp_path, wermit_loopback,
+                                               attempt, loopback_transport):
+    """
+    Regression test for the data-corruption bug fixed in b58e0336.
+
+    Hitting that replay path requires a packet to actually arrive out
+    of order, which is normally timing-dependent. Enabling LOG DEBUG on
+    the server only (not the client) slows the receiving side enough,
+    relative to the sender, to make that happen some of the time,
+    without any external system load.
+
+    LOG DEBUG output is the limiting factor on the file size.
+    It inflates roughly 30x over the bytes transferred, so a larger
+    file catches the race more often but also risks filling a
+    tmpfs-backed /tmp.  2 MB keeps that peak well under 1 GB.
+    the pre-fix code on NetBSD (where this bug was originally found),
+    this catches the corruption in roughly a third of runs of the
+    full parametrized set; it is not expected to catch it every time.
+
+    Restricted to the pseudoterminal transport. The race comes from
+    LOG DEBUG slowing the server relative to the client, not from
+    transport choice, so sweeping all five attempts over
+    raw-socket/telnet/SSL too would multiply cost without improving
+    the odds of catching it. See
+    test_kermit_transfer_unprefixed_nul_replay_transport_smoke for a
+    single-attempt check that this same path also runs cleanly over
+    the other transports.
+    """
+    _run_nul_replay_transfer(tmp_path, wermit_loopback)
+
+
+@pytest.mark.parametrize("loopback_transport",
+                         ["raw-socket", "telnet", "ssl"], indirect=True)
+def test_kermit_transfer_unprefixed_nul_replay_transport_smoke(
+        tmp_path, wermit_loopback, loopback_transport):
+    """
+    To save time, just one attempt per transport rather than 5.
+    The race itself does not depend on transport choice.
+    """
+    _run_nul_replay_transfer(tmp_path, wermit_loopback)
 
 
 def protocol_option_cmds(reliable, streaming, slow_start, jumbo):

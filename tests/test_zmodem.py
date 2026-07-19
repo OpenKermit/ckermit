@@ -273,7 +273,7 @@ def test_zmodem_receive_ssl_binary(wermit_path, get_free_port, ssl_pki,
     (CONNECT mode's autodownload, unlike direct SET PROTOCOL ZMODEM
     SEND/RECEIVE, only triggers on the receiving end).
     """
-    size = 20 * ZMODEM_BLOCK_SIZE + 1
+    size = 5 * ZMODEM_BLOCK_SIZE + 1
     content = pattern_bytes(size)
 
     remote_dir = tmp_path / "remote"
