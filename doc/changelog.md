@@ -261,6 +261,9 @@ changed defaults.  This impact is expected to be rare.
   
 - [11] Fixed build issues on OpenBSD
 
+- [11] Fixed a bug on OpenBSD that could cause ZModem transfers to be truncated
+  under heavy load
+
 - [11] Fixed a race, most prominently manifested on OpenBSD, where C-Kermit may
   attempt to kill a child, but the signal arrives after that PID has been
   assigned a new process, causing unintended side-effects.  Other platforms
