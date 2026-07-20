@@ -1151,7 +1151,7 @@ copystring (src, len)
     if (!src && len != 0) return NULL;
     cp = malloc (len + 1);
     if (cp) {
-        if (src) strncpy (cp, src, len);
+        if (src) memcpy (cp, src, len);
         cp[len] = '\0';
     }
     return cp;
