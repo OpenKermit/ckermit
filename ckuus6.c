@@ -2167,12 +2167,12 @@ dncvt(k,cx, prefix, suffix) int k, cx, prefix, suffix;
     while (1) {                         /* Get the country code */
         while (*s == HT || *s == SP)
           s++;
-        if (!s)                         /* Not in standard format */
+        if (!*s)                        /* Not in standard format */
           break;
         if (*s == '(') {                /* Beginning of area code  */
             s++;                        /* Skip past parenthesis   */
             ccbuf[i] = NUL;             /* End of country code */
-            if (!s) {                   /* Check for end of string */
+            if (!*s) {                  /* Check for end of string */
                 printf("Error - phone number ends prematurely: \"%s\"\n",ss);
                 return(-1);
             }
@@ -2193,7 +2193,7 @@ dncvt(k,cx, prefix, suffix) int k, cx, prefix, suffix;
     while (1) {
         while (*s == HT || *s == SP)    /* Ignore whitespace */
           s++;
-        if (!s)                         /* String finished */
+        if (!*s)                        /* String finished */
           break;
         if (*s == ')') {                /* End of area code  */
             s++;                        /* Skip past parenthesis   */

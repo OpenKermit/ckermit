@@ -8117,6 +8117,7 @@ isinternalmacro(x) int x;
     int internal = 0;
 
     m = mactab[x].kwd;
+    if (!m) m = "";
 
 #ifdef COMMENT
     /* Good idea but this flag is not set for _whi2, etc */
@@ -8130,7 +8131,6 @@ isinternalmacro(x) int x;
         debug(F110," not internal",m,0);
         return(0);
     }
-    if (!m) m = "";
     if (*m) {
         debug(F110," macro name",m,0);
         internal = ckindex(m,"|_while|_forx|_forz|_xif|_switx|",0,0,0);
