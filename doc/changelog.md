@@ -218,6 +218,13 @@ changed defaults.  This impact is expected to be rare.
 
 - [11] Updated the list of text and binary extensions to have more modern filetypes,
   and fixed typos in the old list.
+  
+- [11] Improve error reporting.  Previously, errors might be reported on the
+  transfer screen, then immediately wiped when switching back to the regular
+  screen.  Now report them on the regular screen also.  A comment from 2001
+  suggested that after this work was done, a failed autodownload could drop the
+  user back into CONNECT mode just like a successful one did.  So, changed the
+  default for `SET TERMINAL AUTODOWNLOAD ERROR` from `STOP` to `CONTINUE`.
 
 - [11] Added new `SET FILE SYSTEM-ID` setting, which facilitates using C-Kermit to
   translate files between different platform conventions even when used on a
@@ -379,6 +386,10 @@ wild.
   been used exceptionally rarely for legitimate purposes.  You can type `enable
   ?` to see the list of commands you can re-enable.  See the discussion above
   under security.  (9ee170a8 and dc67bddb)
+  
+- [11] Since C-Kermit now properly reports errors during autodownload, the
+  default for `SET TERMINAL AUTODOWNLOAD ERROR` has changed from `STOP` to
+  `CONTINUE` as suggested by a comment in 2001.
 
 - [10] The default `SET VARIABLE-EVALUATION` setting has changed from
   `RECURSIVE` to `SIMPLE` to prevent pathnames containing backslashes from
