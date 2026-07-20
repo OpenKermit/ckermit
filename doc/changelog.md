@@ -18,15 +18,15 @@ FIXME: move IPv6 notes to separate file
 > systems were difficult or impossible.  Frank helped build a bridge.  Kermit
 > glued systems together, from the International Space Station to pocket
 > calculators, and set a new standard for interoperability.  It continues to do
-> so today.
+> so.
 > 
 > Kermit is still one of the quietly-working pillars of computing today,
 > enabling everything from firmware upgrades to radios.  And, yes, it still
 > reliably transfers files over serial lines.
 >
-> As others start to spend a lot of time in the Kermit codebase, we do so
-> standing on the shoulders of a giant.  Thanks, Frank, for your decades of work
-> on Kermit.
+> As we start to spend a lot of time in the Kermit codebase, we do so standing
+> on the shoulders of a giant.  Thanks, Frank, for your decades of work on
+> Kermit.
 > 
 > John Goerzen, July 2026
 
@@ -38,7 +38,10 @@ represents a major effort to modernize and improve the C-Kermit codebase.
 Since all C-Kermit 10.x releases were betas, some people may be upgrading from
 9.x and others from 10.x.  Since some changes were labeled as "9.x DEV" or
 various alphas, but also never released, I indicate in which version a change
-was made with "9", "10", and "11" tags accordingly.
+was made with "9", "10", and "11" tags accordingly.  Please see the
+[history](https://www.openkermit.org/history) and
+[FAQ](https://www.openkermit.org/faq) pages for more information on the
+relationship between the different Kermit versions.
 
 ## Major Architectural Improvements
 

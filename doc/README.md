@@ -37,4 +37,7 @@ Here you can find specific C-Kermit information:
   - [Calling BBSs](bbs.md)
   - [On very high-latency links](high-latency.md)
 
-For more information, see the wider [Open Kermit project](https://www.openkermit.org/).
+For more information, see the wider [Open Kermit project](https://www.openkermit.org/).  Take particular note of these pages there:
+
+- [Kermit documentation](https://www.openkermit.org/doc/)
+- [FAQ](https://www.openkermit.org/faq/)
