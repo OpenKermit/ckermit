@@ -10481,6 +10481,42 @@ int nxpacket = 0;
 #endif /* CK_ENCRYPTION */
 
 #define TTOLMAXT 5
+#define TTOLWAITMS 10			/* Per-try wait, same budget as */
+					/* the msleep(10) it replaces.  */
+
+#ifdef SELECT
+/*
+  ttolwait() says to wait up to ms milliseconds for fd to become ready for
+  writing (wantread == 0) or reading (wantread != 0, needed when SSL_write()
+  asks for a read during renegotiation).
+
+  ttol()'s write() and SSL_write() calls are unaffected; this only replaces the
+  fixed sleep, or busy-spin, ttol() previously used while waiting for the fd to
+  become ready again.  Return value is not checked by callers.  Whether this
+  returns because fd is ready, because it timed out, or because select() failed,
+  the caller's next write() or SSL_write() attempt discovers the real state.
+*/
+static void
+#ifdef CK_ANSIC
+ttolwait(int fd, int wantread, int ms)
+#else
+ttolwait(fd,wantread,ms) int fd, wantread, ms;
+#endif /* CK_ANSIC */
+{
+    fd_set fds;
+    struct timeval tv;
+
+    FD_ZERO(&fds);
+    FD_SET(fd, &fds);
+    tv.tv_sec = ms / 1000;
+    tv.tv_usec = (ms % 1000) * 1000;
+    if (wantread)
+      select(fd + 1, &fds, NULL, NULL, &tv);
+    else
+      select(fd + 1, NULL, &fds, NULL, &tv);
+}
+#endif /* SELECT */
+
 int
 #ifdef CK_ANSIC
 ttol( CHAR *s, int n )
@@ -10611,7 +10647,15 @@ ttol(s,n) int n; CHAR *s;
                     n -= x;
                     goto ssl_retry;
 		  case SSL_ERROR_WANT_WRITE:
+#ifdef SELECT
+		    ttolwait(fd,0,TTOLWAITMS);
+#endif /* SELECT */
+		    x = 0;
+		    break;
 		  case SSL_ERROR_WANT_READ:
+#ifdef SELECT
+		    ttolwait(fd,1,TTOLWAITMS);
+#endif /* SELECT */
 		    x = 0;
 		    break;
 		  case SSL_ERROR_SYSCALL:
@@ -10675,7 +10719,11 @@ ttol(s,n) int n; CHAR *s;
 #endif /* EINTR */
 #ifdef EWOULDBLOCK
 	    if (errno == EWOULDBLOCK) {
+#ifdef SELECT
+		ttolwait(fd,0,TTOLWAITMS);
+#else /* SELECT */
 		msleep(10);
+#endif /* SELECT */
 		continue;
 	    } else
 #endif /* EWOULDBLOCK */
@@ -10694,7 +10742,13 @@ ttol(s,n) int n; CHAR *s;
 	    debug(F101,"ttol partial","",x); /* This never happens */
 	    s += x;			/* Point to part not written yet */
 	    n -= x;			/* Adjust length */
-	    if (x > 0) msleep(10);	/* Wait 10 msec */
+	    if (x > 0) {
+#ifdef SELECT
+		ttolwait(fd,0,TTOLWAITMS);
+#else /* SELECT */
+		msleep(10);
+#endif /* SELECT */
+	    }
 	}				/* Go back and try again */
     }
 #ifdef CKXXCHAR
