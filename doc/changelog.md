@@ -125,9 +125,8 @@ was made with "9", "10", and "11" tags accordingly.
   undefined behavior that could corrupt the modification date by many seconds or
   minutes.
 
-- [11] A pseudoterminal started with SET HOST is assumed to be something other than a
-  shell, so shell commands (eg, `rz\n`, or `kermit -I\n`) are no longer sent
-  down it, since these can cause corruption.
+- [11] Added new `SET PROTOCOL STARTUP-STRING` to allow easy inhibiting of all
+  startup strings where necessary.
 
 - [11] When transferring multiple files in text mode, the system would detect Unicode
   encoding on only the first, and blindly apply that assumption to all the rest.
@@ -310,6 +309,8 @@ changed defaults.  This impact is expected to be rare.
 - [11] `SET TCP ADDRESS6` (see [IPv6 documentation](ipv6.md))
 
 - [11] `SET FILE SYSTEM-ID`
+
+- [11] `SET PROTOCOL STARTUP-STRING`
 
 - [10] `VDIRECTORY` (synonym `V`)
 

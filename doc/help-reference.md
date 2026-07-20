@@ -6670,15 +6670,9 @@ SET HOST [ switches ] hostname-or-address [ service ] [ protocol-switch ]
   different service.
  
   A hostname or address containing colons of its own (an IPv6 address
-  literal, such as ::1) must be enclosed in square brackets to attach a
-  port, e.g. [::1]:23, or given bare in brackets with no port, e.g. [::1],
-  since otherwise Kermit cannot tell which colon separates the port. The
-  port can also be given as a separate word after the brackets, e.g.
-  [::1] 23, exactly like the [ service ] form for a plain hostname.
- 
-  A hostname or address with no colons of its own can likewise take its
-  port attached with a colon instead of as a separate word, e.g.
-  128.59.39.2:23.
+  such as ::1) must be enclosed in square brackets.  A port can follow
+  separated by either a colon or a space.  For instance, "[::1]:23"
+  or "[::1] 23".
  
   Which IP address family actually gets used for a hostname that has
   both IPv4 and IPv6 addresses is controlled by SET TCP ADDRESS-FAMILY. For
@@ -6750,6 +6744,10 @@ Examples:
   SET HOST 128.59.39.2
   SET HOST madlab.sprl.umich.edu 3000
   SET HOST xyzcorp.com 2000 /RAW-SOCKET
+  SET HOST 127.0.0.1:12345
+  SET HOST 127.0.0.1 12345      (same function as the prior line)
+  SET HOST [::1]:12345
+  SET HOST [::1] 12345          (same function as the prior line)
   SET HOST /CONNECT /COMMAND rlogin xyzcorp.com
  
 The TELNET command is equivalent to SET NETWORK TYPE TCP/IP,
@@ -7486,6 +7484,14 @@ Syntax: SET PROTOCOL { KERMIT, XMODEM, YMODEM, ZMODEM } [ s1 s2 s3 s4 s5 s6 ]
 External protocols require REDIRECT and external file transfer programs that
 use redirectable standard input/output.
  
+SET PROTOCOL STARTUP-STRING { ON, OFF }
+  Whether to send s1/s2/s3 (or the current protocol's, if already set)
+  to the far end to launch a protocol program as appropriate.  ON
+  (the default) assumes the far end is a shell that the string needs
+  to be typed at, which is normally the case.  Most external protocols
+  ignore the extra string if it is unnecessary.  Turn this OFF if the
+  startup string would cause undesirable behavior on the remote.
+ 
   SHOW PROTOCOL displays the current settings.
 ```
 
@@ -7508,6 +7514,7 @@ Protocol Parameters:   Send    Receive
  Auto-upload command (binary): kermit -ir
  Auto-upload command (text):   kermit -r
  Auto-server command:          kermit -x
+ Startup-string sending:       on
  Packet timeouts: dynamic 1:0  Send backup: on
  Transfer mode:   manual       Transfer slow-start: on, crc: off
  Transfer pipes:  off          Transfer character-set: transparent
