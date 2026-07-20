@@ -4176,7 +4176,7 @@ dosexp(s) char *s;
                 s2 = dosexp(bool_result ? p[3] : p[4]);
                 if (sexprc) goto xdosexp;
                 j = s2 ? ckatofs(s2) : 0;
-                if (xxfloat(s2,0) == 2) {
+                if (s2 && xxfloat(s2,0) == 2) {
                     fpflag++;
                     fpresult = (CKFLOAT)result;
                     fpj = floatval;
