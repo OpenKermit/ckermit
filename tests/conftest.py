@@ -127,6 +127,38 @@ def truncated(label, text):
     )
 
 
+def tail_text(path, label, max_chars=MAX_LOGGED_CHARS):
+    """Returns at most the last max_chars characters of a text file,
+    formatted the same way truncated() would, without first reading
+    the whole file into memory.
+
+    A session that retries in a tight loop, or a large-file transfer
+    with debug logging on, can leave behind a log hundreds of
+    megabytes in size. Reading and decoding all of that just to keep
+    the last max_chars via truncated() a moment later was slow enough
+    on its own to trip pytest's timeout. Seeking near the end keeps
+    the amount of data read and decoded bounded regardless of the
+    file's actual size.
+    """
+    path = Path(path)
+    size = path.stat().st_size
+    # Read a generous byte margin per character: a UTF-8 character can
+    # take up to 4 bytes, and the file may also contain raw invalid
+    # bytes that each need a single-character replacement.
+    read_size = max_chars * 4
+    with path.open("rb") as f:
+        if size > read_size:
+            f.seek(size - read_size)
+        text = f.read().decode("utf-8", errors="replace")
+    if size <= read_size:
+        return text
+    text = text[-max_chars:]
+    return (
+        f"[{label}: {size} byte file, showing last "
+        f"{len(text)} chars]\n{text}"
+    )
+
+
 def assert_ok(result, label="Command failed"):
     assert result.returncode == 0, (
         f"{label}: stdout={result.stdout}\nstderr={result.stderr}"
@@ -494,11 +526,10 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
                                     ("Client", client_log)):
                 if log_path.exists():
                     try:
-                        log_content = log_path.read_text(errors='replace')
                         logger.info(
                             "wermit_loopback: %s process debug log:\n%s",
                             label,
-                            truncated(f"{label} debug log", log_content))
+                            tail_text(log_path, f"{label} debug log"))
                     except Exception as e:
                         logger.warning(
                             "wermit_loopback: Failed to read %s log %s: %s",
@@ -734,10 +765,9 @@ def _log_debug_file(label, path):
     if not path.exists():
         return
     try:
-        text = path.read_text(errors="replace")
         logger.info(
             "%s: wermit debug log:\n%s",
-            label, truncated("wermit debug log", text))
+            label, tail_text(path, "wermit debug log"))
     except OSError as e:
         logger.warning(
             "%s: failed to read debug log %s: %s", label, path, e)
