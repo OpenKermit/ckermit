@@ -5792,10 +5792,8 @@ _dodial(threadinfo) VOID * threadinfo;
 	inited = 1;			/* Remember modem is initialized */
 
       REDIAL:
-	if ((int)strlen(dcmd) + (int)strlen(xnum) > LBUFL)
+	if (!ckoptsubst(dcmd,xnum,lbuf,LBUFL))
 	  ckstrncpy(lbuf,"NUMBER TOO LONG!",LBUFL);
-	else
-	  sprintf(lbuf, dcmd, xnum);	/* safe (prechecked) */
 	debug(F110,"dialing",lbuf,0);
 	/* Send the dialing string */
 	ttslow(lbuf,dialpace > -1 ? wr : mp->dial_rate);
