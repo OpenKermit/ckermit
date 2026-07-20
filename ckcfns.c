@@ -112,6 +112,7 @@ extern int fblksiz, frecl, frecfm, forg, fcctrl, fdispla, skipbup;
 extern int spackets, rpackets, timeouts, retrans, crunched, wmax, wcur;
 extern int hcflg, binary, fncnv, b_save, f_save, server;
 extern int nakstate, discard, rejection, local, xfermode, interrupted;
+extern int fnc_lastdiscard;
 extern int rq, rqf, sq, wslots, wslotn, wslotr, winlo, urpsiz, rln;
 extern int fnspath, fnrpath, eofmethod, diractive, whatru2, wearealike;
 extern int atcapr, atcapb, atcapu;
@@ -3116,6 +3117,7 @@ rinit(d) CHAR *d;
     tlog(F100,"","",0);
     debug(F101,"rinit fncact","",fncact);
     filcnt = filrej = 0;		/* Init file counters */
+    fnc_lastdiscard = 0;
     spar(d);
     ack1(rpar());
 #ifdef datageneral
@@ -3194,6 +3196,7 @@ sinit() {
     char *tp, *xp, *m;			/* Worker string pointers */
 
     filcnt = filrej = 0;		/* Initialize file counters */
+    fnc_lastdiscard = 0;
 
     fnlist();
 
@@ -3792,6 +3795,7 @@ Please confirm output file specification or supply an alternative:";
 	    ofperms = "";
 	    discard = 1;
 	    rejection = 1;		/* Horrible hack: reason = name */
+	    fnc_lastdiscard = 1;	/* Remember why, past the resets */
 	    debug(F101,"rcvfil discard","",discard);
 	    tlog(F100," refused: name","",0);
 	    break;

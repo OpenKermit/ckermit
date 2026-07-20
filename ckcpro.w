@@ -2967,6 +2967,8 @@ int f_ctlp = 0;				/* Control-character prefix table */
 VOID
 proto() {
     extern int b_save, f_save, c_save, ss_save, slostart, reliable, urclear;
+    extern int local, quiet, inserver, fnc_lastdiscard;
+    extern long filcnt, filrej;
 #ifndef NOCSETS
     extern int fcharset, fcs_save, tcharset, tcs_save;
 #endif /* NOCSETS */
@@ -3172,6 +3174,23 @@ proto() {
     if (!success) {
 	xitsta |= (what & W_KERMIT);
 	tlog(F110," failed:",(char *)epktmsg,0);
+    }
+/*
+  Report when a RECEIVE/GET/SEND-class operation delivered no files, so
+  this isn't silent regardless of who called proto().  This
+  also covers the case where the protocol itself calls it a success
+  (eg, a file was discarded because its name collided with an existing
+  file), which the more detailed "RECEIVE- or GET-class command failed"
+  hints elsewhere don't.
+*/
+    if (local && !quiet && !inserver && (!xferstat || filcnt <= filrej)) {
+	printf("\r\n No files were transferred");
+	if (!xferstat && *epktmsg)
+	  printf(": %s", epktmsg);
+	else if (xferstat && fnc_lastdiscard)
+	  printf(" (refused: destination file already exists)");
+	printf(".\r\n");
+	fflush(stdout);
     }
     debug(F111,"proto xferstat",epktmsg,xferstat);
     slostart = ss_save;

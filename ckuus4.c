@@ -2181,6 +2181,7 @@ doconect(q,async) int q, async;
     extern int keymac, keymacx;
 #endif /* NOKVERBS */
     extern int justone, adl_err;
+    extern long filrej;
     int qsave;                          /* For remembering "quiet" value */
 #ifdef OS2
     extern int term_io;
@@ -2359,20 +2360,19 @@ doconect(q,async) int q, async;
                 debug(F101,"doconect quit APC loop: apcactive","",apcactive);
                 break;
             }
-            /* Also don't reconnect if autodownload failed - very confusing! */
-            /* Let them view the local screen to see what happened. - fdc */
-
-            /* This should be conditional.  If someone is relying on the */
-            /* connect mode autodownload for the kermit server to use with */
-            /* a remotely executed script we should be able to return to */
-            /* connect mode on the failure.  What we really need to do is */
-            /* report the status of the transfer and then return to CONNECT. */
-            /* In unix this would simply be a printf(), but in K95 it could */
-            /* use a popup dialog to report the status. - Jeff */
+            /* If the autodownloaded transfer delivered no files, whether */
+            /* from outright protocol failure or from a receiver-side */
+            /* collision that the protocol still counts as a */
+            /* success, proto() has printed a status line on the */
+            /* primary screen.  SET TERMINAL AUTODOWNLOAD ERROR controls */
+            /* what happens next. */
 
 #ifndef NOXFER
             debug(F101,"doconect xferstat","",xferstat);
-            if (apcactive == APC_LOCAL && !xferstat && adl_err != 0) {
+            debug(F101,"doconect filcnt","",filcnt);
+            debug(F101,"doconect filrej","",filrej);
+            if (apcactive == APC_LOCAL && (!xferstat || filcnt <= filrej) &&
+                adl_err != 0) {
                 debug(F101,"doconect quit APC loop: xferstat","",xferstat);
                 apcactive = APC_INACTIVE;
                 break;

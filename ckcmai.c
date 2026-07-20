@@ -1327,6 +1327,10 @@ int fncact = XYFX_B;                    /* BACKUP for everybody else */
 #endif /* VMS */
 
 int fncsav = -1;                        /* For saving & restoring the above */
+int fnc_lastdiscard = 0;                /* Set when rcvfil() discards a */
+                                         /* file due to a name collision. */
+                                         /* Stays set for the rest of the */
+                                         /* transaction, unlike rejection. */
 int bgset = -1;                         /* BACKGROUND mode set explicitly */
 
 int cmdint = 1;                         /* Interrupts are allowed */
@@ -1550,7 +1554,7 @@ int autodl = 1;                         /* Enabled by default */
 #else
 int autodl = 0;                         /* (or if not implemented). */
 #endif /* CK_AUTODL */
-int adl_err = 1;                        /* 1 = stop on error */
+int adl_err = 0;                        /* 1 = stop on error, 0 = continue */
 #ifdef KUI
 int adl_ask = 1;			/* 1 = file dialog on autodownload */
 #else

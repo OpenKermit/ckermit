@@ -7951,10 +7951,10 @@ static char *hxyterm[] = {
 " ",
 "  When TERMINAL AUTODOWNLOAD is ON, the TERMINAL AUTODOWNLOAD ERROR setting",
 "  tells what to do if an error occurs during a file transfer or other",
-"  protocol operation initiated by the terminal emulator: STOP (the default)",
-"  means to remain in command mode so you can see what happened; CONTINUE",
-"  means to resume the CONNECT session (e.g. so a far-end script can continue",
-"  its work).",
+"  protocol operation initiated by the terminal emulator: STOP means to",
+"  remain in command mode so you can see what happened; CONTINUE (the",
+"  default) means to resume the CONNECT session (e.g. so a far-end script",
+"  can continue its work).  Either way, a one-line status is printed first.",
 " ",
 
 #ifdef CK_XYZ
@@ -8014,10 +8014,10 @@ static char *hxyterm[] = {
 " ",
 "  When TERMINAL AUTODOWNLOAD is ON, the TERMINAL AUTODOWNLOAD ERROR setting",
 "  tells what to do if an error occurs during a file transfer or other",
-"  protocol operation initiated by the terminal emulator: STOP (the default)",
-"  means to remain in command mode so you can see what happened; CONTINUE",
-"  means to resume the CONNECT session (e.g. so a far-end script can continue",
-"  its work).",
+"  protocol operation initiated by the terminal emulator: STOP means to",
+"  remain in command mode so you can see what happened; CONTINUE (the",
+"  default) means to resume the CONNECT session (e.g. so a far-end script",
+"  can continue its work).  Either way, a one-line status is printed first.",
 " ",
 
 #endif /* OS2 */
