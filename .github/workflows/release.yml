@@ -24,9 +24,9 @@ jobs:
     strategy:
       matrix:
         # Must match the labels in the build-and-test matrix above, plus
-        # the freebsd-x86_64/netbsd-x86_64 jobs in ci.yml (which aren't
-        # part of that JSON matrix, but upload artifacts under these
-        # labels too when upload-artifact is true).
+        # the freebsd-x86_64/netbsd-x86_64/openbsd-x86_64 jobs in ci.yml
+        # (which aren't part of that JSON matrix, but upload artifacts
+        # under these labels too when upload-artifact is true).
         include:
           - label: ubuntu26.04-amd64
           - label: ubuntu22.04-amd64
@@ -34,6 +34,7 @@ jobs:
           - label: macos-arm64
           - label: freebsd-amd64
           - label: netbsd-amd64
+          - label: openbsd-amd64
     steps:
       - uses: actions/checkout@v4
 

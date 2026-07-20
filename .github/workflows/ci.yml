@@ -100,14 +100,8 @@ jobs:
         with:
           label: ${{ matrix.label }}
 
-  # FreeBSD/NetBSD have no native GitHub-hosted runner, so these boot a
-  # QEMU VM (KVM-accelerated, since guest and host arch both are x86_64)
-  # inside the ubuntu-latest runner via the vmactions actions. These are
-  # required jobs like any other - a failure here fails this workflow,
-  # which also blocks release.yml since it calls this workflow as its
-  # release gate. Package names below are best-effort and unverified:
-  # there's no FreeBSD/NetBSD environment available to test-install them
-  # ahead of time, unlike the Linux/macOS legs above.
+  # FreeBSD/NetBSD/OpenBSD have no native GitHub-hosted runner, so these
+  # boot a QEMU VM inside the ubuntu-latest runner via vmactions.
   freebsd-x86_64:
     runs-on: ubuntu-latest
     steps:
@@ -185,3 +179,65 @@ jobs:
         uses: ./.github/actions/upload-binary
         with:
           label: netbsd-amd64
+
+  openbsd-x86_64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and test on OpenBSD
+        uses: vmactions/openbsd-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            # OpenBSD's package repo keeps more than one openssl major
+            # version installable side by side, so a plain
+            # "pkg_add openssl" is ambiguous
+            # and fails non-interactively. Pick the newest available
+            # version explicitly instead of hardcoding one, since pinning
+            # an exact version string here would break once that specific
+            # package build ages out of the mirrors.
+            OPENSSL_PKG=$(pkg_info -Q openssl | \
+              grep -E '^openssl-[0-9]' | sort -V | tail -1)
+            pkg_add -I "$OPENSSL_PKG" check lrzsz py3-pip
+            # The openssl package does not install a binary literally
+            # named "openssl": that name is reserved for the base
+            # system's own LibreSSL install at /usr/bin/openssl, which
+            # is too old for test_ssl.py's expired-certificate fixture.
+            # It installs
+            # /usr/local/bin/eopensslNN instead. Only the package the
+            # ports tree treats as the "default" major version also
+            # installs a version-independent /usr/local/bin/eopenssl
+            # alias to that; picking the newest version above can land
+            # on a non-default major that has no such alias, so derive
+            # the actual eopensslNN path from the specific package's own
+            # file list instead of assuming the alias exists. Put
+            # /usr/local/bin ahead of /usr/bin on PATH (below) so this
+            # symlink is actually found.
+            OPENSSL_BIN=$(pkg_info -L "$OPENSSL_PKG" | \
+              grep -E '/bin/eopenssl[0-9]*$')
+            ln -sf "$OPENSSL_BIN" /usr/local/bin/openssl
+            # OpenBSD's lrzsz port has the same lrz/lsz-not-sz/rz naming
+            # issue as FreeBSD's and NetBSD's; see FreeBSD comment above.
+            ln -sf /usr/local/bin/lrz /usr/local/bin/rz
+            ln -sf /usr/local/bin/lsz /usr/local/bin/sz
+            # OpenBSD's packaged Python is externally managed (PEP 668)
+            # and refuses a bare pip install; there's no packaged pytest
+            # either. This VM is a disposable CI guest, not a shared
+            # system, so install with --break-system-packages instead of
+            # setting up a venv.
+            pip3 install --break-system-packages \
+              pytest pytest-xdist pytest-timeout pyftpdlib
+          run: |
+            # /usr/local/bin must come before /usr/bin for the "openssl"
+            # symlink above to be found ahead of base's own.
+            export PATH="/usr/local/bin:$PATH"
+            make -j4 openbsd+ssl
+            make check
+            pytest -rs --log-level=INFO
+
+      - name: Upload binary
+        if: inputs.upload-artifact
+        uses: ./.github/actions/upload-binary
+        with:
+          label: openbsd-amd64
