@@ -7008,6 +7008,10 @@ protofield(current, help, px) char * current, * help, * px;
     return(x);
 }
 
+#define PROTO_STARTUP 999               /* Sentinel for SET PROTOCOL */
+                                         /* STARTUP-STRING, not a real */
+                                         /* protocol number */
+
 static int
 setproto() {                            /* Select a file transfer protocol */
     /* char * s = NULL; */
@@ -7041,8 +7045,29 @@ setproto() {                            /* Select a file transfer protocol */
     s5[0] = NUL;
     s6[0] = NUL;
 
-    if ((y = cmkey(protos,nprotos,"","kermit",xxstring)) < 0)
-      return(y);
+    {
+        /*
+          SET PROTOCOL STARTUP-STRING is a boolean, unrelated to any
+          particular protocol, chained onto the protocol-name keyword
+          table so that it can't leak into
+          the other places that use the shared protos[] table (e.g.
+          GET /PROTOCOL:).
+        */
+        struct FDB k1, k2;
+        static struct keytab protossw[] = {
+            { "startup-string", PROTO_STARTUP, 0 }
+        };
+        int fx;
+        cmfdbi(&k1,_CMKEY,"","","",1,4,xxstring,protossw,&k2);
+        cmfdbi(&k2,_CMKEY,"","kermit","",nprotos,0,xxstring,protos,NULL);
+        if ((fx = cmfdb(&k1)) < 0)
+          return(fx);
+        if (cmresult.fdbaddr == &k1) {
+            extern int protostartup;
+            return(seton(&protostartup));
+        }
+        y = cmresult.nresult;
+    }
 
     if (x && y != PROTO_K) {
         printf(

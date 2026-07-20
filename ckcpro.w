@@ -305,6 +305,7 @@ extern int
 extern int en_asg, en_que;
 #endif /* NOSPL */
 extern int what, lastxfer;
+extern int protostartup;		/* SET PROTOCOL STARTUP-STRING */
 
 /* Global variables declared here */
 
@@ -3280,8 +3281,10 @@ _PROTOTYP( int pxyz, (int) );
 	    }
 	}
     }
-    /* Send remote side's "receive" or "server" startup string, if any */
-    if (local && ckindex((char *)xss,"srgcjhk",0,0,1)) {
+    /*
+      Send remote side's "receive" or "server" startup string, if any,
+      subject to SET PROTOCOL STARTUP-STRING. */
+    if (local && protostartup && ckindex((char *)xss,"srgcjhk",0,0,1)) {
 	char *s = NULL;
         if (
 #ifdef IKS_OPTION

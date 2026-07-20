@@ -1510,6 +1510,14 @@ SET PROTOCOL KERMIT [ s1 [ s2 [ s3 ] ] ]",
 "    set proto kermit {kermit -Yir} {kermit -YTr} {kermit -Yx}",
 #endif /* CK_XYZ */
 " ",
+"SET PROTOCOL STARTUP-STRING { ON, OFF }",
+"  Whether to send s1/s2/s3 (or the current protocol's, if already set)",
+"  to the far end to launch a protocol program as appropriate.  ON",
+"  (the default) assumes the far end is a shell that the string needs",
+"  to be typed at, which is normally the case.  Most external protocols",
+"  ignore the extra string if it is unnecessary.  Turn this OFF if the",
+"  startup string would cause undesirable behavior on the remote.",
+" ",
 "  SHOW PROTOCOL displays the current settings.",
 ""};
 

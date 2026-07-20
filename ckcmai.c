@@ -1240,6 +1240,7 @@ char udata[MAXCUDATA];                  /* X.25 call user data */
 int isinterrupted = 0;                  /* Used in exception handling */
 int what = W_INIT;                      /* What I am doing */
 int lastxfer = 0;                       /* Last transfer (send or receive) */
+int protostartup = 1;                   /* SET PROTOCOL-STARTUP-STRING */
 
 extern int mdmtyp;                      /* Modem (/network) type */
 

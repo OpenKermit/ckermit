@@ -6158,6 +6158,11 @@ shoparp() {                             /* Protocol */
         } else {
             printf("(none)\n");
         }
+        {
+            extern int protostartup;
+            printf(" Startup-string sending:       %s\n",
+                   showoff(protostartup));
+        }
         tmpbuf[0] = NUL;
 #ifdef CK_TIMERS
         if (rttflg) {
