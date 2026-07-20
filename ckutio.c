@@ -14285,6 +14285,12 @@ extern int exp_handler, exp_stderr, exp_timo;
 #define PTY_TBUF_SIZE 24576		/* and write to pty. */
 #endif	/* PTY_TBUF_SIZE */
 
+#ifndef PTY_NET_ERR_GRACE_SECS
+#define PTY_NET_ERR_GRACE_SECS 5	/* How long to wait after the net */
+#endif	/* PTY_NET_ERR_GRACE_SECS */	/* side dies for a still-running */
+					/* external protocol child to finish */
+					/* on its own before killing it. */
+
 #ifdef O_NDELAY				/* Whether to use nonblocking */
 #ifndef PTY_NO_NDELAY			/* reads on the pseudoterminal */
 #ifndef PTY_USE_NDELAY
@@ -14680,6 +14686,8 @@ ttptycmd(s) char *s;
     int have_net = 0;			/* We have a network connection */
     int pty_err = 0;			/* Got error on pty */
     int net_err = 0;			/* Got error on net */
+    time_t net_err_deadline = (time_t)0; /* Grace deadline, set once net */
+					/* dies but the pty child hasn't */
     int status = -1;			/* Pty process exit status */
     int rc = 0;				/* Our return code */
 
@@ -15255,6 +15263,21 @@ ttptycmd(s) char *s;
 	    if (x > 0) {
 		tbuf_written += x;
 		write_pty_bytes += x;
+	    } else if (x < 0 && (errno == EAGAIN
+#ifdef EWOULDBLOCK
+		 || errno == EWOULDBLOCK
+#endif /* EWOULDBLOCK */
+		 )) {
+/*
+  ptyfd is non-blocking, so a write can return -1/EAGAIN whenever the external
+  protocol child hasn't yet consumed data.  That is expected, ordinary
+  backpressure, not a sign the child is gone; tbuf_written is left unchanged, so
+  the same bytes are retried once select() reports ptyfd writable again.
+
+  This approach matches the identical EAGAIN exemption already given to the
+  analogous ttyfd write a few lines above.
+*/
+		x = 0;
 	    } else {
 		x = 0;
 		pty_err++;
@@ -15682,9 +15705,31 @@ ttptycmd(s) char *s;
   already-received data.  It never reaches the child, silently truncating
   whatever the child was receiving.  Wait for x2 too, unless have_pty is already
   false, in which case nothing can ever drain it and waiting would hang forever.
+
+  x2 draining only means write() handed the bytes to the pty's kernel queue, not
+  that the child has read and processed them yet.  If have_pty is still true,
+  breaking here falls through to end_pty(), which revokes the pty and kills the
+  child immediately, with no chance for it to finish reading what was just
+  queued for it.  Under CPU contention from many parallel transfers, it can lose
+  the tail of the child's own output, truncating the file it was receiving even
+  though every byte kermit itself handled was accounted for.
+
+  So, once x1 and x2 are both drained and have_pty is still true, give the child
+  a bounded grace period to exit on its own (through the pty_err path below,
+  once its own read of ptyfd returns EOF) instead of tearing it down on the
+  spot.  If have_pty is already false, there is no child left to wait for, so
+  break immediately.
 */
-	    if (x1 == 0 && (x2 == 0 || !have_pty))
-	      break;
+	    if (x1 == 0 && (x2 == 0 || !have_pty)) {
+		if (!have_pty) {
+		    break;
+		} else if (!net_err_deadline) {
+		    net_err_deadline =
+		      time((time_t *)0) + PTY_NET_ERR_GRACE_SECS;
+		} else if (time((time_t *)0) >= net_err_deadline) {
+		    break;
+		}
+	    }
 	}
 	if (pty_err) {			/* Pty error? */
 	    if (have_pty) {
@@ -15753,8 +15798,13 @@ ttptycmd(s) char *s;
       means to send the signal to every process kermit has permission to
       signal, which can kill far more than just the kermit-related
       processes.  This guard ensures we never do that.
+
+      pexitstat > -1 means the child was already reaped earlier in this
+      function, through a path that doesn't clear pty_fork_pid.  Skip the kill
+      whenever the child is already known to be gone.
     */
-    x = (pty_fork_pid > 0) ? kill(pty_fork_pid,SIGHUP) : 0;
+    x = (pty_fork_pid > 0 && pexitstat < 0) ?
+      kill(pty_fork_pid,SIGHUP) : 0;
     pty_fork_pid = -1;
     debug(F101,"ttptycmd fork kill SIGHUP","",x);
     if (pexitstat > -1)

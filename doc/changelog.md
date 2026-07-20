@@ -258,6 +258,13 @@ changed defaults.  This impact is expected to be rare.
   
 - [11] Fixed an issue with the telnet protocol handling of a NULL after a bare
   CR
+  
+- [11] Fixed build issues on OpenBSD
+
+- [11] Fixed a race, most prominently manifested on OpenBSD, where C-Kermit may
+  attempt to kill a child, but the signal arrives after that PID has been
+  assigned a new process, causing unintended side-effects.  Other platforms
+  don't seem to recycle PIDs as fast.
 
 - [10] Kermit scripts can now run as Unix pipelines
 
