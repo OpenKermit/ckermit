@@ -305,7 +305,6 @@ extern int
 extern int en_asg, en_que;
 #endif /* NOSPL */
 extern int what, lastxfer;
-extern int ttnet;			/* Network type, defined in ckcnet.c */
 
 /* Global variables declared here */
 
@@ -3281,15 +3280,8 @@ _PROTOTYP( int pxyz, (int) );
 	    }
 	}
     }
-    /*
-      Send remote side's "receive" or "server" startup string, if any.
-      This assumes the far end is a shell prompt that the string needs
-      to be typed at.  That assumption is likely wrong for a pseudoterminal
-      connection, where the other end is likely a program like rz instead
-      of a shell, and writing something like "rz" into it could cause
-      corruption.
-    */
-    if (local && ttnet != NET_PTY && ckindex((char *)xss,"srgcjhk",0,0,1)) {
+    /* Send remote side's "receive" or "server" startup string, if any */
+    if (local && ckindex((char *)xss,"srgcjhk",0,0,1)) {
 	char *s = NULL;
         if (
 #ifdef IKS_OPTION
