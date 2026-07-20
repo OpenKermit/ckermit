@@ -147,7 +147,8 @@ jobs:
             /usr/sbin/pkg_add pkgin
             pkgin -y update
             pkgin -y install openssl check lrzsz py313-pip pkgconf
-            pip3.13 install pytest pytest-xdist pytest-timeout pyftpdlib
+            python3.13 -m pip install \
+              pytest pytest-xdist pytest-timeout pyftpdlib
             # NetBSD's pkgsrc lrzsz has the same issue as FreeBSD's; see
             # FreeBSD comment above.
             ln -sf /usr/pkg/bin/lrz /usr/pkg/bin/rz
