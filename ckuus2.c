@@ -7945,7 +7945,7 @@ static char *hxyterm[] = {
 "SET TERMINAL AUTODOWNLOAD { ON, OFF, ERROR { STOP, CONTINUE } }",
 "  enables/disables automatic switching into file-transfer mode when a Kermit",
 "  file transfer has been detected during CONNECT mode or while an INPUT",
-"  command is active.  Default is OFF.",
+"  command is active.  Default is ON.",
 #endif /* CK_XYZ */
 
 " ",
@@ -8005,10 +8005,10 @@ static char *hxyterm[] = {
 "  Enables/disables automatic switching into file-transfer mode when a valid",
 #ifdef CK_XYZ
 "  Kermit or ZMODEM packet of the appropriate type is received during CONNECT",
-"  mode.  Default is OFF.",
+"  mode.  Default is ON.",
 #else
 "  Kermit packet of the appropriate type is received during CONNECT mode.",
-"  Default is OFF.",
+"  Default is ON.",
 #endif /* CK_XYZ */
 
 " ",
