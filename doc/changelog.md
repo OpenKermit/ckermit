@@ -277,6 +277,9 @@ changed defaults.  This impact is expected to be rare.
   attempt to kill a child, but the signal arrives after that PID has been
   assigned a new process, causing unintended side-effects.  Other platforms
   don't seem to recycle PIDs as fast.
+  
+- [11] Now give an accurate error message instead of "write access to UUCP
+  lockfile" about errors that had nothing to do with the lockfile
 
 - [10] Kermit scripts can now run as Unix pipelines
 
@@ -420,6 +423,8 @@ wild.
 
 # Older changes
 
-You can find them in [changelog-old.txt], the git history of this project, or
-https://kermitproject.org/ckupdates.html .
+You can find them in [changelog-old.txt](changelog-old.txt), the git history of
+this project, or https://kermitproject.org/ckupdates.html .
 
+For even older information, you can consult the [C-Kermit 9.0 Update
+Notes](https://www.kermitproject.org/ckermit90.html).

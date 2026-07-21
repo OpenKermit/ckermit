@@ -3210,8 +3210,8 @@ static char * hmxxsen[] = {
 #ifdef CALIBRATE
 "/CALIBRATE:n",
 "  Sends n Kbytes of generated data instead of an actual file.  Used to",
-"  measure transfer performance without file-system overhead.  If :n is",
-"  omitted, 1024 Kbytes are sent.",
+"  measure transfer performance without file-system overhead.  The colon",
+"  is required; if n itself is omitted, 1024 Kbytes are sent.",
 " ",
 #endif /* CALIBRATE */
 "/NOBACKUPFILES",
