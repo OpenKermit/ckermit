@@ -3207,6 +3207,13 @@ static char * hmxxsen[] = {
 "  Inhibits character-set translation for text files for the duration of",
 "  the SEND command without affecting subsequent commands.",
 " ",
+#ifdef CALIBRATE
+"/CALIBRATE:n",
+"  Sends n Kbytes of generated data instead of an actual file.  Used to",
+"  measure transfer performance without file-system overhead.  If :n is",
+"  omitted, 1024 Kbytes are sent.",
+" ",
+#endif /* CALIBRATE */
 "/NOBACKUPFILES",
 "  Skip (don't send) Kermit or EMACS backup files (files with names that",
 "  end with .~n~, where n is a number).",
@@ -3388,6 +3395,12 @@ static char *hmxxrc[] = {
 "  Skips text-mode conversions unless the incoming file arrives with binary",
 "  attribute",
 " ",
+#ifdef CALIBRATE
+"/CALIBRATE",
+"  Discards the incoming data instead of writing it to disk.  Used to",
+"  measure transfer performance without filesystem overhead.",
+" ",
+#endif /* CALIBRATE */
 "/COMMAND",
 "  Receives the file into the standard input of a command, rather than saving",
 "  it on disk.  The /AS-NAME or the \"filename\" on the RECEIVE command line",
