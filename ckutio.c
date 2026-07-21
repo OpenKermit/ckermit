@@ -2972,7 +2972,10 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
 		}
 #endif /* NOUUCP */
 		return(-5);		/* Code for device in use */
-	    } else return(-3);		/* Access denied */
+		/* Otherwise forward ttlock()'s code as-is: -3 means the
+		   lock directory itself refused us, anything else is a
+		   generic failure reported from errno. */
+	    } else return(xx);
         } else lkf = 1;
     }
 #else  /* OPENFIRST */
@@ -3041,7 +3044,10 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
 		}
 #endif /* NOUUCP */
 		return(-5);		/* Code for device in use */
-	    } else return(-3);		/* Access denied */
+		/* Otherwise forward ttlock()'s code as-is: -3 means the
+		   lock directory itself refused us, anything else is a
+		   generic failure reported from errno. */
+	    } else return(xx);
         } else lkf = 1;
     }
     /* Have lock -- now it's safe to open the device */
@@ -5264,8 +5270,9 @@ ttlock(ttdev) char *ttdev;
     }
     lockfd = creat(tmpnam, 0444);	/* Try to create temp lock file. */
     if (lockfd < 0) {			/* Create failed. */
-	debug(F111,"ttlock creat failed",tmpnam,errno);
-	if (errno == ENOENT) {
+	int savederrno = errno;
+	debug(F111,"ttlock creat failed",tmpnam,savederrno);
+	if (savederrno == ENOENT) {
 	    perror(lockdir);
 	    printf("UUCP not installed or Kermit misconfigured\n");
 	} else {
@@ -5275,7 +5282,12 @@ ttlock(ttdev) char *ttdev;
 	}
 	if (priv_chk())			/* Turn off privileges!!! */
 	  debug(F100,"ttlock priv_chk failed to drop privileges","",0);
-	return(-1);			/* Return failure code. */
+	errno = savederrno;
+	/* -3 means the lock directory itself refused us; anything else
+	   (e.g. ENOENT, a missing lock directory) is a generic failure
+	   so the caller reports it from errno instead of blaming
+	   lockfile permissions. */
+	return((savederrno == EACCES || savederrno == EPERM) ? -3 : -1);
     }
 /* Now write the pid into the temp lockfile in the appropriate format */
 
