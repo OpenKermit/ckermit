@@ -27,11 +27,10 @@ to view it instead is <https://www.openkermit.org/ckermit/>.  That integrates
 with the rest of the Kermit Project website.
 
 Begin with [downloads](https://www.openkermit.org/downloads/) and then
-[Getting Started](getting-started.md).
+[documentation](https://www.openkermit.org/doc/) on how to get started.
 
 Here you can find specific C-Kermit information:
 
-- [Getting Started with C-Kermit](getting-started.md)
 - [C-Kermit as an ssh wrapper](ssh.md) shows how C-Kermit makes ssh a lot more useful.  And it is another good way of learning about Kermit, even if you aren't going to use it as a ssh wrapper.
 - The [current changelog](changelog.md), 2022-present
 - The [old changelog](changelog-old.txt), which itself is a copy of http://kermitproject.org/ckupdates.html
@@ -40,6 +39,7 @@ Here you can find specific C-Kermit information:
   - [IPv6](ipv6.md)
   - [Calling BBSs](bbs.md)
   - [On very high-latency links](high-latency.md)
+  - [C-Kermit Scripting](scripting.md)
 
 For more information, see the wider [Open Kermit project](https://www.openkermit.org/).  Take particular note of these pages there:
 
