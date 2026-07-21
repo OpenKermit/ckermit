@@ -3074,7 +3074,11 @@ tn_ini() {
          * tn_wait() gives up, it gets silently discarded here instead
          * of reaching the protocol engine.
          */
+#ifdef CK_SSL
         if (inserver || ssl_only_flag || tls_only_flag)
+#else
+        if (inserver)
+#endif /* CK_SSL */
           debug(F100,"tn_ini skipping telnet negotiations","",0);
 	else
 	  tn_wait("tn_ini - waiting to see if telnet negotiations were sent");
