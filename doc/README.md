@@ -31,6 +31,7 @@ Begin with [downloads](https://www.openkermit.org/downloads/) and then
 
 Here you can find specific C-Kermit information:
 
+- [Introduction to C-Kermit](intro.md), including a tour
 - [C-Kermit as an ssh wrapper](ssh.md) shows how C-Kermit makes ssh a lot more useful.  And it is another good way of learning about Kermit, even if you aren't going to use it as a ssh wrapper.
 - The [current changelog](changelog.md), 2022-present
 - The [old changelog](changelog-old.txt), which itself is a copy of http://kermitproject.org/ckupdates.html
