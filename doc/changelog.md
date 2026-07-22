@@ -91,9 +91,10 @@ relationship between the different Kermit versions.
   performance increases in many cases, due to elimination of inefficiencies in
   the pty code that supports it.
 
-- [11] Codebase-wide dead code elimination and general simplification.  This removes
-  code that was never used in any build on any platform, and makes code auditing
-  and analysis easier.
+- [11] Codebase-wide dead code elimination and general simplification.  This
+  removes code that was never used in any build on any platform, and makes code
+  auditing and analysis easier.  Despite many new features, the code C-Kermit 11
+  codebase is about 2600 lines smaller than the last 10.x beta!
 
 - [11] Now compatible with OpenSSL 3.x. The OpenSSL runtime version check was
   relaxed to allow minor version updates, and support was added for compiling
@@ -111,7 +112,7 @@ relationship between the different Kermit versions.
 ## Major Bugfixes
 
 - [11] Certain packet sizes on the boundary between small and extended packet sizes
-  could lead to a transfer being hung on all platforms.  Fixed the bug  and
+  could lead to a transfer being hung on all platforms.  Fixed the bug and
   added extensive tests around this scenario.
   
 - [11] Fixed a data corruption bug that occurred during packet size
@@ -140,7 +141,8 @@ relationship between the different Kermit versions.
 - [11] When transferring multiple files in text mode, the system would detect Unicode
   encoding on only the first, and blindly apply that assumption to all the rest.
 
-- [11] Fixed a bug where raw TLS connections could hang waiting for Telnet negotiation
+- [11] Fixed a bug where raw TLS connections could hang waiting for Telnet
+  negotiation.
 
 - [11] Fixed a bug in ttopen where pipe connections did not execute the
   configured command.
@@ -182,12 +184,12 @@ relationship between the different Kermit versions.
 
 - [11] Elimination of a number of unbounded writes to buffers
 
-- [11] Disable auto transfer mode by default, which switched between text and binary
-  transfer modes based on a heuristic.  For full details, see commit cdd2e257e
-  and the discussion at https://bugs.debian.org/1121901 .  The heuristic for
-  attempting to guess the type of files is now disabled to avoid data corruption,
-  letting Kermit always follow the user's expressed transfer type wishes by
-  default.
+- [11] Disable auto transfer mode by default, which switched between text and
+  binary transfer modes based on a heuristic.  For full details, see commit
+  cdd2e257e and the discussion at https://bugs.debian.org/1121901 .  The
+  heuristic for attempting to guess the type of files is now disabled to avoid
+  data corruption, letting Kermit always follow the user's expressed transfer
+  type wishes by default.
 
 - [11] Fix insecure defaults that previously would let a malicious remote kermit
   server perform actions on your local workstation.  Further discussion in
@@ -195,12 +197,12 @@ relationship between the different Kermit versions.
   more details under changed behavior below for how to adjust this in the rare
   event you might need to.
 
-- [11] Switch the default `SET FILE COLLISION` from BACKUP to REJECT.  The previous
-  default would let a malicious remote overwrite sensitive local files (eg,
-  `.bashrc`) which could lead to a security issue.
+- [11] Switch the default `SET FILE COLLISION` from BACKUP to REJECT.  The
+  previous default would let a malicious remote overwrite sensitive local files
+  (eg, `.bashrc`) which could lead to a security issue.
 
-- [11] Fixed a bug where the CLEAR APC command could bypass APC safety checks
-  or cause the parser to hang.
+- [11] Fixed a bug where the CLEAR APC command could bypass APC safety checks or
+  cause the parser to hang.
   
 - [11] Disabled MAIL and PRINT handling by default (dc67bddb), and hardened the
   handling of them to prevent shell injection attacks (23ec7368).
@@ -219,28 +221,28 @@ changed defaults.  This impact is expected to be rare.
 
 - [11] Fixed an unhandled exception warning on NetBSD
 
-- [11] Prevent Kermit from killing all of the user's processes in certain edge cases
-  where it may try to kill PID -1.
+- [11] Prevent Kermit from killing all of the user's processes in certain edge
+  cases where it may try to kill PID -1.
 
-- [11] Correct use of ziperm vs. ziperms for non-CK_PERMS platforms.  Appears to have
-  been latent since C-Kermit 7.0 in 2000.
+- [11] Correct use of ziperm vs. ziperms for non-CK_PERMS platforms.  Appears to
+  have been latent since C-Kermit 7.0 in 2000.
 
 - [11] Updated the list of text and binary extensions to have more modern filetypes,
   and fixed typos in the old list.
   
-- [11] Improve error reporting.  Previously, errors might be reported on the
-  transfer screen, then immediately wiped when switching back to the regular
-  screen.  Now report them on the regular screen also.  A comment from 2001
-  suggested that after this work was done, a failed autodownload could drop the
-  user back into CONNECT mode just like a successful one did.  So, changed the
-  default for `SET TERMINAL AUTODOWNLOAD ERROR` from `STOP` to `CONTINUE`.
+- [11] Improve transfer error reporting.  Previously, errors might be reported
+  on the transfer screen, then immediately wiped when switching back to the
+  regular screen.  Now report them on the regular screen also.  A comment from
+  2001 suggested that after this work was done, a failed autodownload could drop
+  the user back into CONNECT mode just like a successful one did.  So, changed
+  the default for `SET TERMINAL AUTODOWNLOAD ERROR` from `STOP` to `CONTINUE`.
 
-- [11] Added new `SET FILE SYSTEM-ID` setting, which facilitates using C-Kermit to
-  translate files between different platform conventions even when used on a
+- [11] Added new `SET FILE SYSTEM-ID` setting, which facilitates using C-Kermit
+  to translate files between different platform conventions even when used on a
   single platform.  It also facilitates testing these functions.
 
-- [11] Allow pseudoterminals to work even with Kermit itself is not called from a
-  controlling terminal
+- [11] Allow pseudoterminals to work even when Kermit itself is not called from
+  a controlling terminal.
 
 - [11] Fixed Unicode text detection for very small files
 
@@ -367,30 +369,30 @@ changed defaults.  This impact is expected to be rare.
 All items highlighted here are expected to rarely if ever cause an issue in the
 wild.
 
-- [11] The default `SET FILE COLLISION` has changed from `BACKUP` to `REJECT` for
-  security reasons.  See the options for `COLLISION` under `HELP SET FILE` for
-  more details.  This is the one most likely to be user-visible.
+- [11] The default `SET FILE COLLISION` has changed from `BACKUP` to `REJECT`
+  for security reasons.  See the options for `COLLISION` under `HELP SET FILE`
+  for more details.  This is the one most likely to be user-visible.
 
-- [11] On systems supporting IPv6, the same approach as telnet(1) on Linux will be
-  used: if name resolution returns IPv6 and IPv4 addresses, the IPv6 address
+- [11] On systems supporting IPv6, the same approach as telnet(1) on Linux will
+  be used: if name resolution returns IPv6 and IPv4 addresses, the IPv6 address
   will be tried first if the system is configured with IPv6 addresses.  If the
   IPv6 address fails to connect, the IPv4 address will be tried next.  The
   previous behavior, which was always IPv4, can be restored with `SET TCP
   ADDRESS-FAMILY IPV4`.
 
-- [11] A pseudoterminal started with SET HOST is assumed to be something other than a
-  shell, so shell commands (eg, `rz\n`, or `kermit -I\n`) are no longer sent
-  down it, since these can cause corruption.
+- [11] A pseudoterminal started with SET HOST is assumed to be something other
+  than a shell, so shell commands (eg, `rz\n`, or `kermit -I\n`) are no longer
+  sent down it, since these can cause corruption.
 
-- [11] Previous C-Kermit already used `SET FILE TYPE BINARY`, but unfortunately they
-  had transfer-mode set to automatic, which would override the binary file type
-  in surprising circumstances, leading to data loss.  The default is now
-  `SET TRANSFER-MODE MANUAL`.  Previous behavior can be restored by using
-  `SET TRANSFER-MODE AUTOMATIC`.  See discussion above under security and
-  at https://bugs.debian.org/1121901 .
+- [11] Previous C-Kermit already used `SET FILE TYPE BINARY`, but unfortunately
+  they had transfer-mode set to automatic, which would override the binary file
+  type in surprising circumstances, leading to data loss.  The default is now
+  `SET TRANSFER-MODE MANUAL`.  Previous behavior can be restored by using `SET
+  TRANSFER-MODE AUTOMATIC`.  See discussion above under security and at
+  https://bugs.debian.org/1121901 .
 
-- [11] The set of extensions used when transfer-mode is automatic has been revised
-  with modern filetypes, and had typos corrected.  (976a9742)
+- [11] The set of extensions used when transfer-mode is automatic has been
+  revised with modern filetypes, and had typos corrected.  (976a9742)
 
 - [11] When C-Kermit is used as a client, it may connect to an untrusted remote
   system (for instance, a BBS).  By default, the remote Kermit was able to make

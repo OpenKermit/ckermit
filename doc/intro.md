@@ -201,3 +201,7 @@ The guide on [ssh over Kermit](ssh.md) is effectively part 2 of this tour.  It g
 See the [documentation pages](https://www.openkermit.org/doc/).
 
 The older [Kermit Project's C-Kermit Tutorial](https://www.kermitproject.org/ckututor.html) is also still highly relevant and will take you down some additional paths.
+
+# Author
+
+John Goerzen, July 2026.
