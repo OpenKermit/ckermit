@@ -53,6 +53,9 @@ relationship between the different Kermit versions.
 - [11] Added CI.  All changes now are validated on Linux, MacOS, FreeBSD, and
   NetBSD using the above test suites.  Approximately 1000 test cases are being
   run.
+  
+- [11] Binaries for multiple platforms are automatically built from CI at
+  release time.
 
 - [10] Codebase-wide modernization to support ANSI C and function prototyping,
   satisfying strict requirements in newer compilers while retaining backward
@@ -95,6 +98,9 @@ relationship between the different Kermit versions.
 - [11] Now compatible with OpenSSL 3.x. The OpenSSL runtime version check was
   relaxed to allow minor version updates, and support was added for compiling
   with `NO_OPENSSL_VERSION_CHECK` to disable the compatibility check.
+  
+- [11] Static binaries are now supported on Linux, with both glibc and musl
+  libc.
 
 - [10] Support for serial-port speeds up to 4,000,000 bps.
 
