@@ -1,0 +1,45 @@
+name: Update musl library pins
+
+# Dependabot has no ecosystem for this.  The musl static-build
+# libraries (zlib, OpenSSL, ncurses) are pinned by hand in
+# tools/build-musl-libs.sh as shell variables plus a sha256, each
+# fetched from a different upstream (GitHub Releases, openssl.org,
+# GNU FTP), not any package manager Dependabot understands. This
+# runs the same check on a schedule instead, and opens a PR when an
+# upstream version moved.
+#
+# Time is in UTC
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check zlib/OpenSSL/ncurses versions against upstream
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tools/update-musl-libs-check.sh \
+            "$RUNNER_TEMP/musl-libs-summary.md"
+
+      - name: Add to job summary
+        run: cat "$RUNNER_TEMP/musl-libs-summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open pull request if any pin changed
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: Update musl static library pins
+          title: Update musl static library pins
+          body-path: ${{ runner.temp }}/musl-libs-summary.md
+          branch: bot/update-musl-libs
+          delete-branch: true
