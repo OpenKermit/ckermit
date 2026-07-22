@@ -475,6 +475,17 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         result = run_wermit(
             full_client_cmd, timeout=timeout + TCP_TIMEOUT_MARGIN)
         _wait_or_kill(proc)
+
+        if server_stdout_log.exists():
+            try:
+                logger.info(
+                    "wermit_loopback: Server stdout log:\n%s",
+                    tail_text(server_stdout_log, "Server stdout log"))
+            except OSError as e:
+                logger.warning(
+                    "wermit_loopback: Failed to read server stdout "
+                    "log %s: %s", server_stdout_log, e)
+
         return result
 
     def _run(server_dir, server_setup_cmds="", client_commands="",
