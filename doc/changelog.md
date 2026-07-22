@@ -2,7 +2,7 @@
 
 FIXME: move IPv6 notes to separate file
 
-# C-Kermit 11.0.0
+# C-Kermit 11.0
 
 ## Dedication
 

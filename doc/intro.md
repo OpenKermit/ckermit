@@ -76,10 +76,11 @@ Kermit also has a feature where it will automatically start server mode on the r
 
 ```text
 jgoerzen@hephaestus:/tmp/t$ kermit
-C-Kermit 10.0 Beta.08, 15 Dec 2022, for Linux+SSL (64-bit)
- Copyright (C) 1985, 2022,
+C-Kermit 11.0.499, 2026/07/16, for Linux+SSL (64-bit)
+ Copyright (C) 1985, 2025,
   Trustees of Columbia University in the City of New York.
-  Open Source 3-clause BSD license since 2011.
+ Copyright (C) 2025-2026, John Goerzen
+ Open Source 3-clause BSD license since 2011.
 Type ? or HELP for help.
 (/tmp/t/) C-Kermit>
 ```
