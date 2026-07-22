@@ -6918,7 +6918,7 @@ case XXXLA:
 #endif /* NOCSETS */
 
 case XXVER:
-    return(hmsg("Syntax: VERSION\nDisplays the program version number."));
+    return(hmsg("Syntax: VERSION\nDisplays the program version number.\nSee also SHOW VERSIONS."));
 
 #ifndef NOSPL
 case XXWAI:

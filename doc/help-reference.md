@@ -4898,6 +4898,7 @@ Synonym: ABOUT
 ```
 Syntax: VERSION
 Displays the program version number.
+See also SHOW VERSIONS.
 ```
 
 ### VOID
