@@ -68,7 +68,7 @@ Kermit has these modes:
 
 You can flip between modes:
 
--   When in command mode, if you have an active connection, just type `c` and hit return to go back to connect mode.  Or, use a command like `ssh`, `telnet`, `set host`, etc. to establish a connection.
+-   When in command mode, if you have an active connection, just type `c` and hit return to go back to connect mode.  Or, use a command like `SSH`, `TELNET`, `SET HOST`, etc. to establish a connection.
 -   When in connect mode, press Ctrl-Backslash and then hit `c` to return to command mode.  Ctrl-Backslash in kermit is very similar to the `RET ~` in OpenSSH; you can press `Ctrl-\ ?` to see other connect-mode actions.
 -   You can explicitly enter server mode by running `kermit -x`, typing the `server` command while in command mode.
 
@@ -111,7 +111,11 @@ KERMIT READY TO SEND...
 auxuser@hephaestus:~$
 ```
 
-I didn't actually have to give the receive command, because my local kermit saw the special sequence to initiate a transfer, and automatically jumped into transfer mode.
+I didn't actually have to give the RECEIVE command, because my local kermit saw the special sequence to initiate a transfer, and automatically jumped into transfer mode.
+
+Incidentally, C-Kermit commands are case-insensitive.  By convention going back decades, they are usually written in uppercase in documentation, but you can type them however you want at the prompt.  In this page, I normally type them in lowercase in the terminal but reference them in uppercase in the documentation.
+
+(If you are using an underlying filesystem that is case-sensitive, filenames will still be case-sensitive; I'm just talking about command and parameter names here.)
 
 Now let's go into command mode and do some stuff.  I'll hit Ctrl-\\ and then press c.
 
@@ -120,7 +124,7 @@ Now let's go into command mode and do some stuff.  I'll hit Ctrl-\\ and then pre
 /home/auxuser
 ```
 
-So we see the current working directory on the remote.  But wait a minute, `rpwd` (aka `remote pwd`) uses the kermit protocol, but at the remote I was just at the shell.  What happened?
+So we see the current working directory on the remote.  But wait a minute, `RPWD` (aka `REMOTE PWD`) uses the kermit protocol, but at the remote I was just at the shell.  What happened?
 
 Kermit was smart enough to know there wasn't a kermit connection running, so it just sent `kermit -x` to the remote, placing it in server mode.  Clever!
 
@@ -132,10 +136,10 @@ I can even do something like this:
 
 Since all these transfers are on my local machine, they're so fast I don't even see the transfer-in-progress status screen.  Rest assured it does exist and you'll see it on slower connections.
 
-Now, I could type `connect` (or just `c`) to return to the remote.  But the remote is in server mode, so I'd be greeted by silence if I did that.  I have two ways to get the remote out of server mode:
+Now, I could type `CONNECT` (or just `C`) to return to the remote.  But the remote is in server mode, so I'd be greeted by silence if I did that.  I have two ways to get the remote out of server mode:
 
 1.  I could just connect and send a few Ctrl-Cs
-2.  I can send the `finish` (or just `f`) command before returning.
+2.  I can send the `FINISH` (or just `F`) command before returning.
 
 Let's do the second:
 
@@ -191,6 +195,8 @@ The Kermit protocol can work in either direction.  Prior to C-Kermit 11.0, this 
 For Kermit versions prior to 11.0, if you connect to untrusted remote systems, I recommend running `disable all` to prevent the remote from doing much to your local system other than sending files.  For instance, `rcd` is enabled by default and allows the remote to change the directory for you to receive files.
 
 ## Further reading
+
+The guide on [ssh over Kermit](ssh.md) is effectively part 2 of this tour.  It gives useful context even if you don't intend to run Kermit over ssh.
 
 See the [documentation pages](https://www.openkermit.org/doc/).
 
