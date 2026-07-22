@@ -84,7 +84,7 @@ jobs:
           chmod +x kermit
           tar czf \
             ${{ matrix.label }}.tar.gz \
-            kermit README.TXT COPYING.TXT ckermit.ini
+            kermit README.md COPYING.TXT ckermit.ini
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
