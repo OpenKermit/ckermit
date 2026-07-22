@@ -4160,6 +4160,11 @@ static char a2buf[80];                  /* Second As-name buffer */
 static CK_OFF_T oldffc = 0L;
 static CK_OFF_T dots = 0L;
 static int hpos = 0;
+#ifdef GFTIMER
+static CKFLOAT lastshown = -2.0;	/* Time of last CRT status update */
+#else
+static long lastshown = -2L;		/* Time of last CRT status update */
+#endif /* GFTIMER */
 
 static VOID                             /* Initialize Serial or CRT display */
 dpyinit() {
@@ -4170,6 +4175,7 @@ dpyinit() {
     oldffc = (CK_OFF_T)0;		/*  Reset this */
     dots = (CK_OFF_T)0;			/*  and this.. */
     oldcps = cps = 0L;
+    lastshown = -2;			/* Show the new file immediately */
 
     conoll("");				/* New line */
     if (what & W_SEND) s = "Sending: ";	/* Action */
@@ -4246,11 +4252,11 @@ dpyinit() {
 #define CK_CPS
 
 #ifdef CK_CPS
-        conoll("    File   Percent       Packet");
-        conoll("    Bytes  Done     CPS  Length");
+        conoll("         File   Percent            Packet");
+        conoll("        Bytes  Done       CPS   Length");
 #else
-        conoll("    File   Percent  Secs Packet");
-        conoll("    Bytes  Done     Left Length");
+        conoll("         File   Percent       Secs Packet");
+        conoll("        Bytes  Done       Left   Length");
 #endif /* CK_CPS */
         newdpy = 0;
     }
@@ -4369,17 +4375,31 @@ showpkt(c) char c;
 #endif /* GFTIMER */
 
     if (fdispla == XYFD_S) {            /* CRT display */
-        char buffer[128];
-	/* These sprintfs should be safe until we have 32-digit numbers */
+        char buffer[160];
+
+	/*
+	  Redraw at most once a second while a transfer is in progress
+	  (c == NUL), to avoid flooding the terminal on fast transfers.
+	  The final update for a file (c != NUL) always goes through.
+	*/
+#ifdef GFTIMER
+        if (c == NUL && (tnow - lastshown) < (CKFLOAT)1.0)
+          return;
+        lastshown = tnow;
+#else
+        if (c == NUL && (et - lastshown) < 1L)
+          return;
+        lastshown = et;
+#endif /* GFTIMER */
 
         if (pd > -1L)
-          sprintf(buffer, "%c%9s%5ld%%%8ld%8ld ",
+          sprintf(buffer, "%c%13s%5ld%% %9ld %8ld ",
                   CK_CR,ckfstoa(howfar),pd,tp,ps);
         else
-          sprintf(buffer, "%c%9s      %8ld%8ld ",
+          sprintf(buffer, "%c%13s       %9ld %8ld ",
                   CK_CR,ckfstoa(howfar),tp,ps);
         conol(buffer);
-        hpos = 31;
+        hpos = 39;
     } else if (fdispla == XYFD_R) {     /* SERIAL */
         long i, k;
         if (howfar - oldffc < 1024)     /* Update display every 1K */
