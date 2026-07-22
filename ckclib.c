@@ -1,4 +1,4 @@
-char * cklibv = "C-Kermit library, 10.0.063, 02 May 2023";
+char * cklibv = "C-Kermit library, 11.0.500, 22 Jul 2026";
 
 #define CKCLIB_C
 

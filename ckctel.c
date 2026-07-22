@@ -1,4 +1,4 @@
-char *cktelv = "Telnet support, 10.0.283, 16 Apr 2023";
+char *cktelv = "Telnet support, 11.0.500, 22 Jul 2026";
 #define CKCTEL_C
 
 int sstelnet = 0;                       /* Do server-side Telnet negotiation */
@@ -16,6 +16,7 @@ int sstelnet = 0;                       /* Do server-side Telnet negotiation */
     Telnet NAWS support by Frank da Cruz and Jeffrey Altman
     Telnet TERMTYPE support by Jeffrey Altman
     Telnet KERMIT support by Jeffrey Altman
+    IPv6 support and numerous bugfixes by John Goerzen
     Other contributions as indicated in the code.
 
   Copyright (C) 1985, 2023,

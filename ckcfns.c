@@ -1,4 +1,4 @@
-char *fnsv = "C-Kermit functions, 10.0.247, 6 Feb 2024";
+char *fnsv = "C-Kermit functions, 11.0.500, 22 Jul 2026";
 
 char *nm[] =  { "Disabled", "Local only", "Remote only", "Enabled" };
 
@@ -17,8 +17,12 @@ char *nm[] =  { "Disabled", "Local only", "Remote only", "Enabled" };
     copyright text in the ckcmai.c module for disclaimer and permissions.
     Updated: Fri Sep 23 15:27:55 2022
     (CR -> CK_CR and space unsigned long -> CK_OFF_T)
-    Last update: Fri Feb  2 15:55:27 2024
+    Update: Fri Feb  2 15:55:27 2024
     Implementation of REMOTE STATUS.
+
+    Updated: July 2026
+    Fixed unicode encoding detection bug, better autodownload error handling,
+    and simplification.  - jgoerzen
 */
 /*
  System-dependent primitives defined in:

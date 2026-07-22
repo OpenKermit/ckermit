@@ -1,6 +1,6 @@
 #include "ckcsym.h"
 
-char *cmdv = "Command package 10.0.184, 19 Sept 2023";
+char *cmdv = "Command package 11.0.500, 22 July 2026";
 
 /*  C K U C M D  --  Interactive command package for Unix  */
 

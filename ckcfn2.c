@@ -3,15 +3,23 @@
 /*  ...Part 2 (continued from ckcfns.c)  */
 
 /*
-  Author: Frank da Cruz <fdc@columbia.edu>,
-  Columbia University Academic Information Systems, New York City.
+  Authors:
+
+  Frank da Cruz <fdc@columbia.edu>,
+    Columbia University Academic Information Systems, New York City.
+  John Goerzen <jgoerzen@complete.org>
+    The Open Kermit Project, Kansas.
 
   Copyright (C) 1985, 2023,
     Trustees of Columbia University in the City of New York.
+  Copyright (C) 2026 John Goerzen.
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
     Update: Fri Sep 23 15:23:24 2022 CR -> CK_CR
     Update: Sat Apr 15 13:16:31 2023 ANSI function declarations and prototypes
+    Update: Wed Jul 22 18:24:00 2026 Fixed packet size bug, hang in streaming
+                                     send, silent data corruption bug.
+                                     - jgoerzen
 */
 /*
  Note -- if you change this file, please amend the version number and date at

@@ -1,10 +1,11 @@
-char *cknetv = "Network support, 10.0.304, 18 Sep 2023";
+char *cknetv = "Network support, 11.0.500, 22 Jul 2026";
 
 /*  C K C N E T  --  Network support  */
 
 /*
   Copyright (C) 1985, 2023,
     Trustees of Columbia University in the City of New York.
+  Copyright (c) 2026 John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
 */
@@ -49,6 +50,7 @@ char *cknetv = "Network support, 10.0.304, 18 Sep 2023";
     Stefaan Eeckels, Eurokom, Luxembourg.
     David Lane added support for Stratus VOS X.25 1996 (in cklnet.c).
     Stephen Riehm added support for IBM AIX X.25 in April 1998.
+  IPv6 support by John Goerzen, Open Kermit project.
   Other contributions as indicated in the code.
 */
 #ifdef NORLOGIN

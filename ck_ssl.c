@@ -1,15 +1,18 @@
-char *cksslv = "SSL/TLS support, 10.0.239 18 Sep 2023";
+char *cksslv = "SSL/TLS support, 11.0.500 22 Jul 2026";
 /*
   C K _ S S L . C --  OpenSSL Interface for C-Kermit
 
   Copyright (C) 1985, 2023,
     Trustees of Columbia University in the City of New York.
+  Copyright (C) 2026, John Goerzen.
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
 
     Authors:  Jeffrey E Altman (jaltman@secure-endpoints.com)
                Secure Endpoints Inc., New York City
               David Goodwin, New Zealand
+              John Goerzen (jgoerzen@complete.org
+                Open Kermit Project, Kansas.
 
   Provides:
 
@@ -32,6 +35,11 @@ $NetBSD: patch-ab,v 1.8 2020/04/08 15:22:07 rhialto Exp $
   there is lots of duplicate code left over that could be simplified more.
 
   Adapted for LibreSSL by Bernard Spil, December 2015 (search "Spil")
+
+July 2026 notes: This code was previously updated for OpenSSL 3.x.  Ancient
+OpenSSL code paths, to the extent they remain, are untested by the new CI.
+The comments above may be dated. I also added IPv6 support and made security
+hardening changes. - jgoerzen
 */
 
 #ifndef NOSSL

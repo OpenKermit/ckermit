@@ -6,7 +6,7 @@ char *ckxv = "Aegis Communications support, 10.0.340, 16 May 2023";
 #ifdef Plan9
 char *ckxv = "Plan 9 Communications support, 10.0.340, 16 May 2023";
 #else
-char *ckxv = "UNIX Communications support, 10.0.340, 16 May 2023";
+char *ckxv = "UNIX Communications support, 11.0.500, 22 Jul 2026";
 #endif /* Plan9 */
 #endif /* aegis */
 
@@ -15,11 +15,17 @@ char *ckxv = "UNIX Communications support, 10.0.340, 16 May 2023";
 /* C-Kermit interrupt, communications control and I/O functions for UNIX */
 
 /*
-  Author: Frank da Cruz (fdc@columbia.edu),
-  The Kermit Project, Bronx, NY.
+  Authors:
+
+  Frank da Cruz (fdc@columbia.edu),
+    The Kermit Project, Bronx, NY.
+
+  John Goerzen (jgoerzen@complete.org),
+    The Open Kermit Project, Kansas.
 
   Copyright (C) 1985, 2023,
     Trustees of Columbia University in the City of New York.
+  Copyright (C) 2026, John Goerzen.
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
 */

@@ -7,9 +7,12 @@
     Jeffrey E Altman <jaltman@secure-endpoints.com>
       Secure Endpoints Inc., New York City
     David Goodwin, New Zealand.
+    John Goerzen <jgoerzen@complete.org>
+      Open Kermit Project, Kansas.
 
   Copyright (C) 1985, 2024,
     Trustees of Columbia University in the City of New York.
+  Copyright (C) 2026 John Goerzen.
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
     Last updates: 22 Aug 2022 (HELP TYPE adds /INTERPRET switch).
@@ -21,6 +24,9 @@
                   12 Apr 2023 (ANSI-ize function definitions)
                   25 Jan 2024 (Added HELP REMOTE STATUS)
                   03 Feb 2024 (Added HELP REMOTE CWD)
+                  22 Jul 2026 (Added IPv6 suport, SET FILE SYSTEM-ID,
+                               SET PROTOCOL STARTUP-STRING, improved
+                               autodownload error handling. -jgoerzen)
 
   This module contains HELP command and other long text strings.
 

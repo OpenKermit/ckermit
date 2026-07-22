@@ -2,7 +2,7 @@
 
 /*  C K C F T P  --  FTP Client for C-Kermit  */
 
-char *ckftpv = "FTP Client, 10.0.281, 18 Sep 2023";
+char *ckftpv = "FTP Client, 11.0.500, 22 Jul 2026";
 
 /*
   Authors:
@@ -11,15 +11,19 @@ char *ckftpv = "FTP Client, 10.0.281, 18 Sep 2023";
     Frank da Cruz <fdc@columbia.edu>,
       The Kermit Project, Columbia University.
     David Goodwin, New Zealand
+    John Goerzen, The Open Kermit Project, Kansas.
+      IPv6 support added Jul 2026.
 
   Copyright (C) 2000, 2023
     Trustees of Columbia University in the City of New York.
+  Copyright (c) 2026 John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
 
   Portions of conditionally included code Copyright Regents of the
     University of California and The Stanford SRP Authentication Project;
     see notices below.
+
 */
 
 /*

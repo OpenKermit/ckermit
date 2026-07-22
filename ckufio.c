@@ -8,16 +8,23 @@ char *ckzv = "Aegis File support, 10.0.234, 05 May 2023";
 #ifdef Plan9
 char *ckzv = "Plan 9 File support, 10.0.234, 05 May 2023";
 #else
-char *ckzv = "UNIX File support, 9.0.234, 05 May 2023";
+char *ckzv = "UNIX File support, 11.0.500, 22 Jul 2026";
 #endif /* Plan9 */
 #endif /* aegis */
 /*
-  Author: Frank da Cruz <fdc@columbia.edu>,
+  Authors:
+
+  Frank da Cruz <fdc@columbia.edu>,
     Columbia University 1974-2011;
-    the Open Source Kermit Project 2011-????
+    the Open Source Kermit Project 2011-2025
+
+  John Goerzen
+    Open Kermit project, 2026-
 
   Copyright (C) 1985, 2023,
     Trustees of Columbia University in the City of New York.
+  Copyright (C) 2026 John Goerzen.
+
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
 */
