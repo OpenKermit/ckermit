@@ -46,9 +46,9 @@ jobs:
 
       matrix: >-
         [
-        {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"kermit-linux-amd64-${{ needs.version.outputs.version }}"},
+        {"os":"ubuntu-24.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"kermit-linux-amd64-${{ needs.version.outputs.version }}"},
         {"os":"ubuntu-24.04-arm","platform":"linux","arch":"arm64","make-target":"linux+ssl","label":"kermit-linux-arm64-${{ needs.version.outputs.version }}"},
-        {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl+musl","label":"kermit-linux-amd64-static-${{ needs.version.outputs.version }}","skip-c-tests":true},
+        {"os":"ubuntu-24.04","platform":"linux","arch":"amd64","make-target":"linux+ssl+musl","label":"kermit-linux-amd64-static-${{ needs.version.outputs.version }}","skip-c-tests":true},
         {"os":"ubuntu-24.04-arm","platform":"linux","arch":"arm64","make-target":"linux+ssl+musl","label":"kermit-linux-arm64-static-${{ needs.version.outputs.version }}","skip-c-tests":true},
         {"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"kermit-macos-arm64-${{ needs.version.outputs.version }}"}
         ]
