@@ -82,18 +82,18 @@ jobs:
       - name: Package
         run: |
           chmod +x kermit
-          mkdir ${{ matrix.label }}
+          mkdir c${{ matrix.label }}
           mv kermit README.md COPYING.TXT ckermit.ini \
-            ${{ matrix.label }}/
+            c${{ matrix.label }}/
           tar czf \
-            ${{ matrix.label }}.tar.gz \
-            ${{ matrix.label }}
+            c${{ matrix.label }}.tar.gz \
+            c${{ matrix.label }}
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
           files: >-
-            ${{ matrix.label }}.tar.gz
+            c${{ matrix.label }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -114,16 +114,16 @@ jobs:
         run: |
           gh release download ${{ github.ref_name }} \
             --repo ${{ github.repository }} \
-            --pattern 'kermit-*.tar.gz' --dir dl
+            --pattern 'ckermit-*.tar.gz' --dir dl
 
       - name: Download source archives
         run: |
           base="https://github.com/${{ github.repository }}"
           base="$base/archive/refs/tags/${{ github.ref_name }}"
           version="${{ needs.version.outputs.version }}"
-          curl -sSfL -o "dl/kermit-$version-source.tar.gz" \
+          curl -sSfL -o "dl/ckermit-$version.tar.gz" \
             "$base.tar.gz"
-          curl -sSfL -o "dl/kermit-$version-source.zip" \
+          curl -sSfL -o "dl/ckermit-$version.zip" \
             "$base.zip"
 
       - name: Generate SHA256SUMS
