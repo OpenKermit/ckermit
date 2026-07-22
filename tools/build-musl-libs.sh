@@ -67,6 +67,19 @@ fetch() {
 MUSLCC="musl-gcc -idirafter /usr/include -idirafter \
 /usr/include/$(uname -m)-linux-gnu"
 
+# On arm64, GCC defaults to -moutline-atomics, which means any atomic op is
+# compiled as a call into a libgcc.a helper that picks LSE or LL/SC atomics at
+# runtime. That helper's init routine calls the glibc-internal __getauxval
+# symbol, which musl does not provide, so any link that pulls in an atomic op
+# fails with "undefined reference to `__getauxval'". This is unrelated to
+# no-shared/no-module above: it hits the final apps/openssl link too, not just
+# provider modules. Disabling outline atomics avoids the libgcc helper
+# entirely.
+
+if [ "$(uname -m)" = "aarch64" ]; then
+    MUSLCC="$MUSLCC -mno-outline-atomics"
+fi
+
 cd "$WORK"
 fetch "$ZLIB_URL" "$ZLIB_SHA256" zlib.tar.gz
 tar xzf zlib.tar.gz
