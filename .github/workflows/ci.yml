@@ -198,9 +198,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Determine host CPU count
+        id: cpus
+        run: echo "count=$(nproc)" >> "$GITHUB_OUTPUT"
+
       - name: Build and test on FreeBSD
         uses: vmactions/freebsd-vm@v1
         with:
+          cpu: ${{ steps.cpus.outputs.count }}
           usesh: true
           prepare: |
             pkg install -y openssl check pkgconf lrzsz python3 py312-pip
@@ -230,9 +235,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Determine host CPU count
+        id: cpus
+        run: echo "count=$(nproc)" >> "$GITHUB_OUTPUT"
+
       - name: Build and test on NetBSD
         uses: vmactions/netbsd-vm@v1
         with:
+          cpu: ${{ steps.cpus.outputs.count }}
           usesh: true
           prepare: |
             /usr/sbin/pkg_add pkgin
@@ -277,9 +287,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Determine host CPU count
+        id: cpus
+        run: echo "count=$(nproc)" >> "$GITHUB_OUTPUT"
+
       - name: Build and test on OpenBSD
         uses: vmactions/openbsd-vm@v1
         with:
+          cpu: ${{ steps.cpus.outputs.count }}
           usesh: true
           prepare: |
             # OpenBSD's package repo keeps more than one openssl major
