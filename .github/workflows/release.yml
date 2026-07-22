@@ -82,9 +82,12 @@ jobs:
       - name: Package
         run: |
           chmod +x kermit
+          mkdir ${{ matrix.label }}
+          mv kermit README.md COPYING.TXT ckermit.ini \
+            ${{ matrix.label }}/
           tar czf \
             ${{ matrix.label }}.tar.gz \
-            kermit README.md COPYING.TXT ckermit.ini
+            ${{ matrix.label }}
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
