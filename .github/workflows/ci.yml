@@ -96,10 +96,10 @@ jobs:
             pytest pytest-xdist pytest-timeout pyftpdlib
           # openssl@3 is keg-only, so brew install never links it onto
           # PATH. Plain "openssl" would otherwise resolve to macOS's own
-          # /usr/bin/openssl (LibreSSL), which test_ssl.py's PKI fixture
-          # can't use since it doesn't support the "x509 -req -not_before
-          # /-not_after" options that fixture relies on to create an
-          # already-expired certificate.
+          # /usr/bin/openssl (LibreSSL), whose CLI diverges too far from
+          # real OpenSSL's for test_ssl.py's PKI fixture, which drives
+          # both "openssl req"/"x509 -req" and "openssl ca" to build a
+          # small CA and mint an already-expired certificate.
           echo "$(brew --prefix openssl@3)/bin" >> "$GITHUB_PATH"
 
       # linux+ssl+musl and linux+musl both link against a from-source,

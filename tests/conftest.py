@@ -1035,19 +1035,68 @@ def _make_leaf(d, name, subj, ca_key, ca_crt, san=None, dates=None):
     crt = d / f"{name}.crt"
     _openssl("req", "-newkey", "rsa:2048", "-nodes",
               "-keyout", str(key), "-out", str(csr), "-subj", subj)
-    args = ["x509", "-req", "-in", str(csr), "-CA", str(ca_crt),
-            "-CAkey", str(ca_key), "-CAcreateserial", "-out", str(crt)]
-    if dates:
-        not_before, not_after = dates
-        args += ["-not_before", not_before, "-not_after", not_after]
-    else:
-        args += ["-days", "2"]
+
+    ext_cnf = None
     if san:
         ext_cnf = d / f"{name}_ext.cnf"
         ext_cnf.write_text(f"subjectAltName={san}\n")
+
+    if dates:
+        crt = _sign_with_dates(d, name, csr, ca_key, ca_crt, dates,
+                                ext_cnf)
+    else:
+        args = ["x509", "-req", "-in", str(csr), "-CA", str(ca_crt),
+                "-CAkey", str(ca_key), "-CAcreateserial",
+                "-out", str(crt), "-days", "2"]
+        if ext_cnf:
+            args += ["-extfile", str(ext_cnf)]
+        _openssl(*args)
+    return key, crt
+
+
+def _sign_with_dates(d, name, csr, ca_key, ca_crt, dates, ext_cnf):
+    """
+    Signs csr with an explicit (not_before, not_after) validity
+    period, returning the crt path. "openssl x509 -req"'s
+    -not_before/-not_after options are too new to rely on in CI
+    (added in OpenSSL 3.1; some runners still ship 3.0.x). "openssl
+    ca" has taken explicit -startdate/-enddate values since long
+    before OpenSSL 3.0, so use that instead. It needs a CA database
+    (index.txt/serial), scoped to this call and started empty so
+    unique_subject never rejects reusing a subject across leaves.
+    """
+    crt = d / f"{name}.crt"
+    not_before, not_after = dates
+    capki = d / f"{name}_capki"
+    capki.mkdir()
+    index = capki / "index.txt"
+    serial = capki / "serial"
+    index.write_text("")
+    serial.write_text("1000\n")
+    ca_cnf = capki / "ca.cnf"
+    ca_cnf.write_text(
+        "[ca]\n"
+        "default_ca = CA_default\n"
+        "[CA_default]\n"
+        f"database = {index}\n"
+        f"serial = {serial}\n"
+        f"new_certs_dir = {capki}\n"
+        f"certificate = {ca_crt}\n"
+        f"private_key = {ca_key}\n"
+        "default_md = sha256\n"
+        "policy = policy_anything\n"
+        "email_in_dn = no\n"
+        "unique_subject = no\n"
+        "[policy_anything]\n"
+        "commonName = supplied\n"
+    )
+    args = ["ca", "-batch", "-config", str(ca_cnf), "-in", str(csr),
+            "-out", str(crt), "-startdate", not_before,
+            "-enddate", not_after]
+    if ext_cnf:
         args += ["-extfile", str(ext_cnf)]
     _openssl(*args)
-    return key, crt
+    return crt
 
 
 @pytest.fixture(scope="session")
