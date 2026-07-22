@@ -18,9 +18,9 @@ areas, states, and modes and their interrelation, that should be helpful to
 beginners and veterans alike, as well as to those upgrading to version 11.0
 from earlier releases.
 .PP
-This document is also available as a Web page at:
+Additional introductory and tutorial materials may be found at:
 .IP
-https://kermitproject.org/ckututor.html
+https://www.openkermit.org/ckermit/intro/
 .SH DESCRIPTION
 C\(hyKermit is an all\(hypurpose communications software package
 originally from the Kermit Project at Columbia University and now from
@@ -64,9 +64,9 @@ SunOS, System V R3, System V R4, Tru64 Unix, Unixware, Xenix, and many
 others). For thorough coverage, please consult the published C\(hyKermit
 manual and supplements (see DOCUMENTATION below). For further information
 about C\(hyKermit, Kermit software for other platforms, and Kermit manuals,
-visit the Kermit Project website:
+visit the Open Kermit website:
 .PP
-  https://kermitproject.org/
+  https://www.openkermit.org/
 .PP
 This is a longer\(hythan\(hyaverage manual page, and yet it barely scratches the
 surface. Don't be daunted. C\(hyKermit is a large and complex package,
@@ -1442,7 +1442,7 @@ partners are recommended because they contain the best Kermit protocol
 implementations and because we can support them in case of trouble.
 .sp
 If you still have trouble, consult Chapter 10 of Using C\(hyKermit, or
-send email to upport@kermitproject.org.
+visit https://www.openkermit.org/support/ .
 .SH
 Advanced Kermit File\(hyTransfer Features
 Obviously there is a lot more to Kermit file transfer, including all
@@ -1533,7 +1533,7 @@ session open at the same time.
 FTP sessions can be fully automated.
 .PP
 The Kermit FTP
-client is thoroughly documented at the Kermit Project website:
+client is thoroughly documented at the legacy Kermit Project website:
 .sp
   https://kermitproject.org/ftpclient.html
 .sp
@@ -1636,28 +1636,33 @@ Ditto for user olga
 kermit ftp://olga@xyzcorp.com/public/somefile.zip
 Downloads a file
 .TP
-kermit https://kermitproject.org/index.html
+kermit https://www.openkermit.org/
 Grabs a web page
 .fi
 .SH LICENSE
 As of version 9.0 C\(hyKermit carries the Revised 3-Clause BSD License,
 which is 100% Open Source.  C-Kermit's LICENSE command displays the license,
-and it is also available on the Kermit Project website:
+and it is also available in the source tree:
 .TP
-kermit https://kermitproject.org/ck10license.html
+kermit https://github.com/OpenKermit/ckermit/blob/main/COPYING.TXT
 .SH OTHER TOPICS
 There's way more to C\(hyKermit than we've touched on here \(hy\(hy troubleshooting,
 customization, character sets, dialing directories, sending pages, script
 writing, and on and on, all of which are covered in the manual and updates
 and supplements. For the most up\(hyto\(hydate information on documentation (or
-updated documentation itself) visit the Kermit Project website:
+updated documentation itself) visit the Open Kermit website:
 .sp
-  https://kermitproject.org/
+  https://www.openkermit.org/
 .PP
 There you will also find Kermit software packages for other platforms:
 different Unix varieties, Windows, DOS, VMS, IBM mainframes, and many
 others: over 40 years' worth at this writing (2022).
 .SH DOCUMENTATION AND UPDATES
+For the most current and comprehensive links to Kermit documentation, visit:
+.TP
+The Open Kermit documentation page
+https://www.openkermit.org/doc/
+
 The manual for C\(hyKermit is:
 .TP
 .I
@@ -1688,17 +1693,21 @@ https://kermitproject.org/ck10commandref.html
 .PP
 Visit the C\(hyKermit home page:
 .sp
-  https://kermitproject.org/ckermit.html
+  https://www.openkermit.org/ckermit/
 .sp
 to learn about new versions, Beta tests, and other news; to
 read case studies and tutorials; to download source code, install packages,
 and prebuilt binaries for many platforms. Also visit:
 .TP
-https://kermitproject.org/ckscripts.html
-The Kermit script library and tutorial
 .TP
-https://kermitproject.org/ckfaq.html
-The C\(hyKermit FAQ (Frequently Asked Questions about C\(hyKermit)
+https://www.openkermit.org/ckermit/into/
+Introduction and Tutorial for Kermit
+.TP
+https://www.openkermit.org/ckermit/scripting/
+Scripting with C-Kermit
+.TP
+https://www.openkermit.org/faq/
+The Kermit FAQ (Frequently Asked Questions about Kermit)
 .TP
 https://kermitproject.org/telnet.html
 C\(hyKermit Telnet client documentation
@@ -1715,7 +1724,7 @@ Internet Kermit Service administrator documentation
 https://kermitproject.org/studies.html
 Case studies.
 .TP
-https://kermitproject.org/support.html
+https://www.openkermit.org/support/
 Technical support.
 .TP
 https://kermitproject.org/ckuins.html.
