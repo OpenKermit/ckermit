@@ -1,12 +1,7 @@
-C-KERMIT 10.0 DEVELOPMENT
+C-KERMIT 11 from the Open Kermit project
 
-C-Kermit 10.0 pre-Beta.11 16 September 2023...
+Please see these resources:
 
-From David Goodwin: several hundred compiler warnings when
-building for Windows with OpenWatcom 1.9 fixed; for details see:
-
-  https://www.kermitproject.org/ckupdates.html
-
-which contains an account of all the previous development
-versions, Alphas, and Betas since C-Kermit 9.0 was released
-in 2011.
+  - [Open Kermit homepage](https://www.openkermit.org/)
+  - [C-Kermit documentation](doc/index.md)
+  - [C-Kermit changelog](doc/changelog.md)
