@@ -7730,6 +7730,7 @@ cmdnewl(c) char c;
 #ifdef STRATUS
     if (c == CK_CR) putchar(NL);
 #endif /* STRATUS */
+    fflush(stdout);
 }
 
 static VOID
@@ -7746,13 +7747,7 @@ cmdchardel() {				/* Erase a character from the screen */
     else
 #endif /* datageneral */
       printf("\b \b");
-#ifdef GEMDOS
     fflush(stdout);
-#else
-#ifdef BEBOX
-    fflush(stdout);
-#endif /* BEBOX */
-#endif /* GEMDOS */
 }
 
 static VOID
@@ -7787,8 +7782,7 @@ cmdecho(c,quote) char c; int quote;
 #ifdef OS2
     if (quote==1 && c==CK_CR) putchar((CHAR) NL);
 #endif /* OS2 */
-    if (timelimit)
-      fflush(stdout);
+    fflush(stdout);
 }
 
 /* Return pointer to current position in command buffer. */
