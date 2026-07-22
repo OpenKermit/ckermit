@@ -7260,16 +7260,13 @@ linux+ssl+musl:
 #
 # OpenSSL is the only reason a musl build must reach
 # outside musl's headers into the host's Linux
-# kernel UAPI headers.  Without it, only zlib and ncurses need a
-# musl-gcc build, so point KZLIBINC/KZLIBLIB and KNCURSESINC at the
-# same prefix build-musl-libs.sh produces (the OpenSSL half of that
-# prefix just goes unused here; see the KNCURSESINC comment on
-# linux+ssl+musl above for why no separate KNCURSESLIB is needed):
+# kernel UAPI headers.  Without it, only ncurses needs a musl-gcc
+# build, so point KNCURSESINC at the same prefix build-musl-libs.sh
+# produces (see the KNCURSESINC comment on linux+ssl+musl above for
+# why no separate KNCURSESLIB is needed):
 #
 #   tools/build-musl-libs.sh .ci-cache/musl-libs
 #   make linux+musl \
-#     KZLIBINC="-I$$PWD/.ci-cache/musl-libs/include" \
-#     KZLIBLIB="-L$$PWD/.ci-cache/musl-libs/lib" \
 #     KNCURSESINC="-I$$PWD/.ci-cache/musl-libs/include/ncurses"
 #
 # Curses support is opt-in here too; see the KNCURSESINC comment on
@@ -7284,10 +7281,10 @@ linux+musl:
 	$(MAKE) xermit KTARGET=$${KTARGET:-$(@)} "CC = musl-gcc" \
 	"CC2 = musl-gcc" \
 	"CFLAGS = $(LINUXCFLAGS) -DHAVE_PTMX -DHAVE_OPENPTY \
-	-DCK_AUTHENTICATION -DCK_ENCRYPTION -DCK_CAST -DZLIB -DCK_SHADOW \
-	$${KZLIBINC:-$(SSLINC)} $$NCFLAG $(KFLAGS)" \
+	-DCK_AUTHENTICATION -DCK_ENCRYPTION -DCK_CAST -DCK_SHADOW \
+	$$NCFLAG $(KFLAGS)" \
 	"LNKFLAGS = -static $(LNKFLAGS)" \
-	"LIBS = $${KZLIBLIB:-$(SSLLIB)} -lz $$NCLIBS -lm $(LIBS)"
+	"LIBS = $$NCLIBS -lm $(LIBS)"
 
 # Linux with Kerberos 5 and OpenSSL
 # OK 2011/05/16
