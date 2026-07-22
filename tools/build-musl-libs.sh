@@ -79,8 +79,14 @@ cd "$WORK"
 fetch "$OPENSSL_URL" "$OPENSSL_SHA256" openssl.tar.gz
 tar xzf openssl.tar.gz
 cd "openssl-$OPENSSL_VERSION"
+# no-shared alone still builds the provider modules (legacy, etc.)
+# as loadable .so files. Linking those pulls in libgcc.a's LSE
+# atomics runtime check, which calls the glibc-internal
+# __getauxval symbol that musl does not provide, so the link
+# fails on arm64. no-module builds the providers directly into
+# libcrypto.a instead, which also fits a static build better.
 CC="$MUSLCC" ./Configure linux-"$(uname -m)" \
-    no-shared no-tests no-zstd no-docs \
+    no-shared no-module no-tests no-zstd no-docs \
     --prefix="$PREFIX" --libdir=lib --openssldir="$PREFIX/ssl"
 make -j"$(nproc)" build_sw
 make install_sw install_ssldirs
