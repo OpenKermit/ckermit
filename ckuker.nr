@@ -1662,43 +1662,15 @@ For the most current and comprehensive links to Kermit documentation, visit:
 .TP
 The Open Kermit documentation page
 https://www.openkermit.org/doc/
-
-The manual for C\(hyKermit is:
 .TP
-.I
-Using C\(hyKermit
-Frank da Cruz and Christine M. Gianone,
-Second Edition, Digital Press / Butterworth\(hyHeinemann, Woburn, MA, 1997, 622
-pages, ISBN 1\-55558\-164\-1. This is a printed book. It covers C\(hyKermit 6.0.
-As of 2016 it is also available online in PDF form:
-.sp
-https://www.kermitproject.org/onlinebooks/usingckermit3e.pdf
-
-.TP
-The C\(hyKermit 7.0 Supplement
-https://kermitproject.org/ckermit70.html
-.TP
-The C\(hyKermit 8.0 Supplement
-https://kermitproject.org/ckermit80.html
-.TP
-The C\(hyKermit 9.0 Supplement
-https://kermitproject.org/ckermit90.html
-.TP
-The C\(hyKermit 10.0 Specifications
-https://kermitproject.org/ck10specs.html
-.TP
-The C\(hyKermit 10.0 Complete Command List
-https://kermitproject.org/ck10commandref.html
+From there, you can find links to manuals, tutorials, intro materials, reference, and more.
 
 .PP
 Visit the C\(hyKermit home page:
 .sp
   https://www.openkermit.org/ckermit/
 .sp
-to learn about new versions, Beta tests, and other news; to
-read case studies and tutorials; to download source code, install packages,
-and prebuilt binaries for many platforms. Also visit:
-.TP
+to find links, information, downloads, and such.  Also visit:
 .TP
 https://www.openkermit.org/ckermit/into/
 Introduction and Tutorial for Kermit
@@ -1709,38 +1681,8 @@ Scripting with C-Kermit
 https://www.openkermit.org/faq/
 The Kermit FAQ (Frequently Asked Questions about Kermit)
 .TP
-https://kermitproject.org/telnet.html
-C\(hyKermit Telnet client documentation
-.TP
-https://kermitproject.org/security.html
-C\(hyKermit security documentation (Kerberos, SSL/TLS, etc)
-.TP
-https://kermitproject.org/cuiksd.html
-Internet Kermit Service user documentation
-.TP
-https://kermitproject.org/iksd.html
-Internet Kermit Service administrator documentation
-.TP
-https://kermitproject.org/studies.html
-Case studies.
-.TP
 https://www.openkermit.org/support/
 Technical support.
-.TP
-https://kermitproject.org/ckuins.html.
-Installation instructions for Unix.
-.TP
-https://kermitproject.org/ckcbwr.html.
-General C\(hyKermit bugs, hints, tips.
-.TP
-https://kermitproject.org/ckubwr.html.
-Unix\(hyspecific C\(hyKermit bugs, hints, tips.
-.TP
-https://kermitproject.org/ckcplm.html.
-C\(hyKermit program logic manual.
-.TP
-https://kermitproject.org/ckccfg.html.
-C\(hyKermit compile\(hytime configuration options.
 .TP
 /var/spool/locks (or whatever)
 UUCP lockfile for dialing out (see installation instructions).
@@ -1759,6 +1701,8 @@ John Goerzen and the OpenKermit contributors, 2025-present.
 .TP
 Documentation
 Frank da Cruz
+
+John Goerzen
 .TP
 Web
 https://openkermit.org/

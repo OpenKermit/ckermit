@@ -219,4 +219,6 @@ bin/apt-get
 (/tmp/t/) C-Kermit>
 ```
 
-Here, we generated a tar file 
+Here, we generated a tar file, piped it down the Kermit stream, and piped it to `tar -ztf` on the local machine.  I took the last 5 lines of output and wrote them to tarlog.txt.  Note that the stdout of the `RECEIVE /COMMAND` is discarded (Kermit shows you the transfer progress screen instead), so I save it off to a text file.  `!` is shorthand for calling the local shell to do something.  I could also have typed `CAT tarlog.txt`.
+
+
