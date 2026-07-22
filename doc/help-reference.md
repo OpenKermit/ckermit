@@ -115,26 +115,26 @@ To display your escape character:
 To display other settings:
   SHOW COMMUNICATIONS, SHOW TERMINAL, SHOW FILE, SHOW PROTOCOL, etc.
  
-The manual for C-Kermit is the book "Using C-Kermit".  For information
-about the manual, visit:
-  http://www.kermitproject.org/usingckermit.html
+For links to manuals, books, tutorials, and more, visit the Kermit
+documentation page at:
+  https://www.openkermit.org/doc/
  
-For an online C-Kermit tutorial, visit:
-  http://www.kermitproject.org/ckututor.html
+For an online C-Kermit intro and tutorial, visit:
+  https://www.openkermit.org/ckermit/intro/
  
 To learn about script programming and automation:
-  http://www.kermitproject.org/ckscripts.html
+  http://www.openkermit.org/ckermit/scripting/
  
 For further information about a particular command, type HELP xxx,
 where xxx is the name of the command.  For documentation, news of new
 releases, and information about other Kermit software, visit the
-Kermit Project website:
+Open Kermit website:
  
-  http://www.kermitproject.org/
+  https://www.openkermit.org/
  
 For information about technical support please visit this page:
  
-  http://www.kermitproject.org/support.html
+  https://www.openkermit.org/support/
 ```
 
 ### NEWS
@@ -144,9 +144,9 @@ Welcome to C-Kermit 11.
 For changes to C-Kermit since version 9.0 of 2011, please visit
 https://github.com/OpenKermit/ckermit/blob/main/doc/changelog.md 
 Documentation:
- . https://www.kermitproject.org/ckbindex.html
+ . https://www.openkermit.org/doc/
     Online index to C-Kermit documentation.
- . https://www.kermitproject.org/ckututor.html
+ . https://www.kermitproject.org/ckermit/intro/
     C-Kermit tutorial.
  
 If the release date shown by the VERSION command is long past, be sure to
@@ -3612,6 +3612,10 @@ Optional switches include:
   Skips text-mode conversions unless the incoming file arrives with binary
   attribute
  
+/CALIBRATE
+  Discards the incoming data instead of writing it to disk.  Used to
+  measure transfer performance without filesystem overhead.
+ 
 /COMMAND
   Receives the file into the standard input of a command, rather than saving
   it on disk.  The /AS-NAME or the "filename" on the RECEIVE command line
@@ -4157,6 +4161,11 @@ Syntax: SEND (or S) [ switches...] [ filespec [ as-name ] ]
   Inhibits character-set translation for text files for the duration of
   the SEND command without affecting subsequent commands.
  
+/CALIBRATE:n
+  Sends n Kbytes of generated data instead of an actual file.  Used to
+  measure transfer performance without file-system overhead.  The colon
+  is required; if n itself is omitted, 1024 Kbytes are sent.
+ 
 /NOBACKUPFILES
   Skip (don't send) Kermit or EMACS backup files (files with names that
   end with .~n~, where n is a number).
@@ -4176,7 +4185,10 @@ Syntax: SEND (or S) [ switches...] [ filespec [ as-name ] ]
 /COMMAND
   Sends the output from a command, rather than the contents of a file.
   The first "filename" on the SEND command line is interpreted as the name
-  of a command; the second (if any) is the as-name.
+  of a command; the second (if any) is the as-name.  The output is considered
+  to consist of both stdout and stderr.  The given command should be
+  surrounded by double quotes if it contains spaces, and will be interpreted
+  by a shell.
  
 /FILENAMES:{CONVERTED,LITERAL}
   Overrides the global SET FILE NAMES setting for this transfer only.
@@ -8400,14 +8412,14 @@ SET TERMINAL APC { ON, OFF, NO-INPUT, UNCHECKED, UNCHECKED-NO-INPUT }
 SET TERMINAL AUTODOWNLOAD { ON, OFF, ERROR { STOP, CONTINUE } }
   Enables/disables automatic switching into file-transfer mode when a valid
   Kermit or ZMODEM packet of the appropriate type is received during CONNECT
-  mode.  Default is OFF.
+  mode.  Default is ON.
  
   When TERMINAL AUTODOWNLOAD is ON, the TERMINAL AUTODOWNLOAD ERROR setting
   tells what to do if an error occurs during a file transfer or other
-  protocol operation initiated by the terminal emulator: STOP (the default)
-  means to remain in command mode so you can see what happened; CONTINUE
-  means to resume the CONNECT session (e.g. so a far-end script can continue
-  its work).
+  protocol operation initiated by the terminal emulator: STOP means to
+  remain in command mode so you can see what happened; CONTINUE (the
+  default) means to resume the CONNECT session (e.g. so a far-end script
+  can continue its work).  Either way, a one-line status is printed first.
  
 SET TERMINAL BYTESIZE { 7, 8 }
   Use 7- or 8-bit characters between Kermit and the remote computer during
@@ -8492,7 +8504,7 @@ Terminal parameters:
                 Type:                        Print: off            
                 Echo: remote         Locking-shift: off            
         Newline-mode: off               Cr-display: normal         
-                 APC: off             Autodownload: on, error stop 
+                 APC: off             Autodownload: on, error continue
               Height: -1                     Width: -1             
                Debug: off              Session log: (none)         
         Idle-timeout: 0                Idle-action: return
