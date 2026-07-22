@@ -18,14 +18,28 @@ on:
         default: false
       matrix:
         description: >-
-          JSON array of {os, platform, arch, make-target, label} entries
-          to build/test. release.yml overrides this with the full release
-          platform set. Empty here
+          JSON array of {os, platform, arch, make-target, label,
+          skip-tests, skip-c-tests} entries to build/test (skip-tests
+          and skip-c-tests are optional, default false; skip-tests
+          skips both the C and Python suites, skip-c-tests only the
+          C one.  That's for the musl target, which has no musl build
+          of libcheck to link its unit tests against).
+          release.yml overrides this with the full
+          release platform set. Empty here
           because workflow_call input defaults only
           apply when this workflow is actually invoked via workflow_call.
           For direct push/pull_request triggers, there's no caller
           supplying inputs, so inputs.matrix would just be '' either way.
           The real default lives in the || fallback below.
+        type: string
+        default: ''
+      version:
+        description: >-
+          Release version string (tag with the leading "v" stripped,
+          such as "11.0"), used only to label the BSD
+          release binaries below. release.yml supplies this.  Direct
+          push or pull request triggers never upload artifacts, so it is
+          unused in that case.
         type: string
         default: ''
 
@@ -43,9 +57,24 @@ jobs:
   build-and-test:
     strategy:
       fail-fast: false
+      # On push to main (but not on pull requests, to keep those fast),
+      # also build and test linux+ssl+musl on arm64. skip-c-tests is
+      # set because there is no musl build of libcheck to link its
+      # unit tests against.
+      #
+      # The first half of this list is the ones we run on push.  The second
+      # half runs on PR.  The BSD builds aren't part of the matrix, so run
+      # separately elsewhere.
       matrix:
         include: >-
-          ${{ fromJson(inputs.matrix || '[{"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"ubuntu26.04-amd64"},{"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"macos-arm64"}]') }}
+          ${{ fromJson(inputs.matrix || (github.event_name == 'push' && '[
+          {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"ubuntu26.04-amd64"},
+          {"os":"ubuntu-24.04-arm","platform":"linux","arch":"arm64","make-target":"linux+ssl+musl","label":"ubuntu24.04-arm64-musl","skip-c-tests":true},
+          {"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"macos-arm64"}
+          ]' || '[
+          {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"ubuntu26.04-amd64"},
+          {"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"macos-arm64"}
+          ]')) }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -55,8 +84,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential libssl-dev libpam0g-dev \
-            zlib1g-dev check python3-pytest python3-pytest-xdist \
-            python3-pytest-timeout python3-pyftpdlib lrzsz
+            zlib1g-dev libzstd-dev check python3-pytest \
+            python3-pytest-xdist python3-pytest-timeout \
+            python3-pyftpdlib lrzsz
 
       - name: Install macOS dependencies
         if: matrix.platform == 'macos'
@@ -72,9 +102,63 @@ jobs:
           # already-expired certificate.
           echo "$(brew --prefix openssl@3)/bin" >> "$GITHUB_PATH"
 
+      # linux+ssl+musl and linux+musl both link against a from-source,
+      # musl-gcc-built OpenSSL (linux+ssl+musl only), zlib, and
+      # ncurses. This runs for every matrix entry using either
+      # target, including the release-time "static" amd64/arm64
+      # binaries (release.yml) as well as the arm64 push-to-main test
+      # below. Cache the built install prefix keyed on the build
+      # script plus arch, since amd64 and arm64 need separate builds;
+      # the key changes if the script (and so the pinned library
+      # versions) changes, so a version bump always rebuilds rather
+      # than risking a stale cache hit.
+      - name: Cache musl OpenSSL/zlib/ncurses
+        if: >-
+          matrix.make-target == 'linux+ssl+musl' ||
+          matrix.make-target == 'linux+musl'
+        uses: actions/cache@v4
+        with:
+          path: .ci-cache/musl-libs
+          key: >-
+            musl-libs-${{ matrix.arch }}-${{
+            hashFiles('tools/build-musl-libs.sh') }}
+
+      - name: Install musl toolchain
+        if: >-
+          matrix.make-target == 'linux+ssl+musl' ||
+          matrix.make-target == 'linux+musl'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          tools/build-musl-libs.sh .ci-cache/musl-libs
+
       - name: Build (Linux)
-        if: matrix.platform == 'linux'
+        if: >-
+          matrix.platform == 'linux' &&
+          matrix.make-target != 'linux+ssl+musl' &&
+          matrix.make-target != 'linux+musl'
         run: make -j4 ${{ matrix.make-target }}
+
+      # linux+ssl+musl and linux+musl take different override variable
+      # names for the zlib/OpenSSL half (KSSLINC/KSSLLIB vs.
+      # KZLIBINC/KZLIBLIB; see the comments on those two makefile
+      # targets for why), but share KNCURSESINC for the ncurses half.
+      - name: Build (Linux, musl)
+        if: >-
+          matrix.make-target == 'linux+ssl+musl' ||
+          matrix.make-target == 'linux+musl'
+        run: |
+          if [ "${{ matrix.make-target }}" = "linux+ssl+musl" ]; then
+            make -j4 ${{ matrix.make-target }} \
+              KSSLINC="-I$PWD/.ci-cache/musl-libs/include" \
+              KSSLLIB="-L$PWD/.ci-cache/musl-libs/lib" \
+              KNCURSESINC="-I$PWD/.ci-cache/musl-libs/include/ncurses"
+          else
+            make -j4 ${{ matrix.make-target }} \
+              KZLIBINC="-I$PWD/.ci-cache/musl-libs/include" \
+              KZLIBLIB="-L$PWD/.ci-cache/musl-libs/lib" \
+              KNCURSESINC="-I$PWD/.ci-cache/musl-libs/include/ncurses"
+          fi
 
       - name: Build (macOS)
         if: matrix.platform == 'macos'
@@ -83,10 +167,17 @@ jobs:
             KSSLINC="-I$(brew --prefix openssl@3)/include" \
             KSSLLIB="-L$(brew --prefix openssl@3)/lib"
 
+      - name: Verify binary runs
+        run: |
+          ./wermit -H -Y -Q -C \
+            "set command more-prompting off, show version, quit"
+
       - name: C unit tests
+        if: matrix.skip-tests != true && matrix.skip-c-tests != true
         run: make check
 
       - name: Python test suite
+        if: matrix.skip-tests != true
         env:
           # Capture kermit's internal "log debug" trace for
           # every wermit_loopback session, dumped into the pytest
@@ -132,7 +223,7 @@ jobs:
         if: inputs.upload-artifact
         uses: ./.github/actions/upload-binary
         with:
-          label: freebsd-amd64
+          label: kermit-freebsd-amd64-${{ inputs.version }}
 
   netbsd-x86_64:
     runs-on: ubuntu-latest
@@ -179,7 +270,7 @@ jobs:
         if: inputs.upload-artifact
         uses: ./.github/actions/upload-binary
         with:
-          label: netbsd-amd64
+          label: kermit-netbsd-amd64-${{ inputs.version }}
 
   openbsd-x86_64:
     runs-on: ubuntu-latest
@@ -241,4 +332,4 @@ jobs:
         if: inputs.upload-artifact
         uses: ./.github/actions/upload-binary
         with:
-          label: openbsd-amd64
+          label: kermit-openbsd-amd64-${{ inputs.version }}

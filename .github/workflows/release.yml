@@ -9,17 +9,52 @@ permissions:
   contents: write
 
 jobs:
+  # Release asset/label names embed the version (such as
+  # kermit-linux-amd64-11.0), derived from the pushed tag by stripping
+  # its leading "v" (tags are always "v*", see the push trigger above).
+  # Computed once here since it is a run step's output, not something
+  # that can be inlined directly into the matrix definitions below.
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Derive version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
   build-and-test:
+    needs: version
     uses: ./.github/workflows/ci.yml
     with:
       upload-artifact: true
+      version: ${{ needs.version.outputs.version }}
+
       # Release builds cover more platforms than the fast PR/push matrix
-      # in ci.yml: more Linux variants, plus MacOS.
+      # in ci.yml.  We build a full set of Linux binaries (dynamic and
+      # static on amd64 and arm64), plus MacOS.  (BSDs are handled
+      # elsewhere).  Every binary we release gets tested: the release
+      # process is infrequent enough that the extra CI time is worth
+      # it, so none of these set skip-tests (the fast PR/push matrix
+      # in ci.yml is what stays single-platform for speed, not this
+      # one).
+
+      # The "static" binaries are built with linux+ssl+musl, not
+      # linux+ssl+static, since  a musl-gcc static binary has no runtime
+      # dependency on the exact glibc build used to link it. They set
+      # skip-c-tests since we're not making a libcheck musl build.
+
       matrix: >-
-        [{"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"ubuntu26.04-amd64"},{"os":"ubuntu-22.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"ubuntu22.04-amd64"},{"os":"ubuntu-24.04-arm","platform":"linux","arch":"arm64","make-target":"linux+ssl","label":"ubuntu24.04-arm64"},{"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"macos-arm64"}]
+        [
+        {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"kermit-linux-amd64-${{ needs.version.outputs.version }}"},
+        {"os":"ubuntu-24.04-arm","platform":"linux","arch":"arm64","make-target":"linux+ssl","label":"kermit-linux-arm64-${{ needs.version.outputs.version }}"},
+        {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl+musl","label":"kermit-linux-amd64-static-${{ needs.version.outputs.version }}","skip-c-tests":true},
+        {"os":"ubuntu-24.04-arm","platform":"linux","arch":"arm64","make-target":"linux+ssl+musl","label":"kermit-linux-arm64-static-${{ needs.version.outputs.version }}","skip-c-tests":true},
+        {"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"kermit-macos-arm64-${{ needs.version.outputs.version }}"}
+        ]
 
   release:
-    needs: build-and-test
+    needs: [version, build-and-test]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -28,32 +63,72 @@ jobs:
         # (which aren't part of that JSON matrix, but upload artifacts
         # under these labels too when upload-artifact is true).
         include:
-          - label: ubuntu26.04-amd64
-          - label: ubuntu22.04-amd64
-          - label: ubuntu24.04-arm64
-          - label: macos-arm64
-          - label: freebsd-amd64
-          - label: netbsd-amd64
-          - label: openbsd-amd64
+          - label: kermit-linux-amd64-${{ needs.version.outputs.version }}
+          - label: kermit-linux-arm64-${{ needs.version.outputs.version }}
+          - label: kermit-linux-amd64-static-${{ needs.version.outputs.version }}
+          - label: kermit-linux-arm64-static-${{ needs.version.outputs.version }}
+          - label: kermit-macos-arm64-${{ needs.version.outputs.version }}
+          - label: kermit-freebsd-amd64-${{ needs.version.outputs.version }}
+          - label: kermit-netbsd-amd64-${{ needs.version.outputs.version }}
+          - label: kermit-openbsd-amd64-${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:
-          name: ckermit-${{ matrix.label }}
+          name: ${{ matrix.label }}
 
       - name: Package
         run: |
           chmod +x kermit
           tar czf \
-            ckermit-${{ github.ref_name }}-${{ matrix.label }}.tar.gz \
+            ${{ matrix.label }}.tar.gz \
             kermit README.TXT COPYING.TXT ckermit.ini
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
           files: >-
-            ckermit-${{ github.ref_name }}-${{ matrix.label }}.tar.gz
+            ${{ matrix.label }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Runs once all binary release assets are uploaded ("needs: release"
+  # waits for every release leg), so it can pull them straight
+  # back down from the release instead of re-packaging anything
+  # itself. Also covers GitHub's own auto-generated source archives,
+  # fetched from their tag-keyed archive URL rather than regenerated
+  # locally with git archive, since the two are not guaranteed to be
+  # byte-identical.
+  checksums:
+    needs: [version, release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download binary release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download ${{ github.ref_name }} \
+            --repo ${{ github.repository }} \
+            --pattern 'kermit-*.tar.gz' --dir dl
+
+      - name: Download source archives
+        run: |
+          base="https://github.com/${{ github.repository }}"
+          base="$base/archive/refs/tags/${{ github.ref_name }}"
+          version="${{ needs.version.outputs.version }}"
+          curl -sSfL -o "dl/kermit-$version-source.tar.gz" \
+            "$base.tar.gz"
+          curl -sSfL -o "dl/kermit-$version-source.zip" \
+            "$base.zip"
+
+      - name: Generate SHA256SUMS
+        run: (cd dl && sha256sum *) > SHA256SUMS
+
+      - name: Upload SHA256SUMS
+        uses: softprops/action-gh-release@v2
+        with:
+          files: SHA256SUMS
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

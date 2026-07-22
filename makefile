@@ -6610,14 +6610,21 @@ android:
 # By the way, the trick for testing if a lib exists ("if ld -lncurses ...")
 # might seem crazy but it works everywhere, whereas the more appropriate test
 # ("if locate libncurses") is not necessarily available on all Linuxes.
+#
+# Base CFLAGS shared by every plain Linux build. Also used by
+# linux+ssl+musl, which cannot go through linux/linuxa's
+# autodetection (see the comment on that target), but still
+# starts from the same baseline flags.
+LINUXCFLAGS = -O2 -DLINUX -pipe -funsigned-char -DFNFLOAT \
+-DCK_POSIX_SIG -DCK_NEWTERM -DTCPSOCKET -DLINUXFSSTND -DNOCOTFMC \
+-DPOSIX -DUSE_STRERROR
+
 linuxa:
 	@echo 'Making C-Kermit $(CKVER) for Linux 1.2 or later...'
 	@echo 'IMPORTANT: Read the comments in the linux section of the'
 	@echo 'makefile if you have trouble.'
 	$(MAKE) xermit KTARGET=$${KTARGET:-$(@)} "CC=$(CC)" "CC2=$(CC)" \
-	"CFLAGS = -O2 -DLINUX -pipe -funsigned-char -DFNFLOAT -DCK_POSIX_SIG \
-	-DCK_NEWTERM -DTCPSOCKET -DLINUXFSSTND -DNOCOTFMC -DPOSIX \
-	-DUSE_STRERROR $(KFLAGS)" "LNKFLAGS = $(LNKFLAGS)" \
+	"CFLAGS = $(LINUXCFLAGS) $(KFLAGS)" "LNKFLAGS = $(LNKFLAGS)" \
 	"LIBS = $(LIBS) -lm"
 
 # As above but with profiling
@@ -6701,10 +6708,8 @@ linux gnu-linux:
 	  fi; \
 	fi; \
 	HAVE_LIBTINFO=''; \
-	if test -z '$$HAVE_LIBTINFO'; then \
-	  if ld -ltinfo > /dev/null 2> /dev/null; then \
-	    HAVE_LIBTINFO='-ltinfo'; \
-	  fi; \
+	if ld -ltinfo > /dev/null 2> /dev/null; then \
+	  HAVE_LIBTINFO='-ltinfo'; \
 	fi; \
 	HAVE_RESOLV=''; \
 	if ld -lresolv > /dev/null 2> /dev/null; then \
@@ -6740,8 +6745,9 @@ linux gnu-linux:
 	$(MAKE) KTARGET=$${KTARGET:-$(@)} \
 	"KFLAGS=$$HAVE_CURSES $$HAVE_PTMX $$HAVE_LOCKDEV $$HAVE_CRYPT_H \
 	$$HAVE_BAUDBOY $$HAVE_OPENPTY $$HAVE_LARGEFILES $(KFLAGS)" \
-	"LIBS=$(LIBS) $$LIB_UTIL $$HAVE_LIBTINFO \
-	  $$HAVE_LIBCURSES $$HAVE_RESOLV $$HAVE_CRYPT $$HAVE_LOCKDEV" \
+	"LIBS=$(LIBS) $$LIB_UTIL \
+	  $$HAVE_LIBCURSES $$HAVE_LIBTINFO $$HAVE_RESOLV $$HAVE_CRYPT \
+	  $$HAVE_LOCKDEV" \
 	linuxa
 
 # Force compilation with gcc
@@ -7134,6 +7140,13 @@ linux+krb5+krb4:
 # is needed for /usr/include/security/pam_appl.h, which ckufio.c #includes.
 # - fdc 14 May 2023
 #
+# KPAMFLAG/KPAMLIBS carry PAM support, broken out as overridable variables so
+# linux+ssl+static can drop PAM without duplicating the rest of this recipe.  A
+# plain "make linux+ssl+static" needs the same OpenSSL/DES version detection
+# below, just with a different KPAMFLAG/KPAMLIBS pair and LNKFLAGS.
+KPAMFLAG = -DCK_PAM
+KPAMLIBS = -lpam -ldl
+
 linux+ssl linux+openssl linux+openssl+zlib+shadow+pam linux+openssl+shadow:
 	@echo 'Making C-Kermit $(CKVER) for Linux+OpenSSL SSLLIB=$(SSLLIB)'
 	@case `openssl version` in \
@@ -7154,9 +7167,127 @@ linux+ssl linux+openssl linux+openssl+zlib+shadow+pam linux+openssl+shadow:
 	fi; \
 	$(MAKE) linux KTARGET=$${KTARGET:-$(@)} "CC = $(CC)" "CC2 = $(CC2)" \
 	"KFLAGS= -DCK_AUTHENTICATION -DCK_ENCRYPTION -DCK_CAST $$HAVE_DES \
-	-DCK_SSL -DCK_PAM -DZLIB -DCK_SHADOW $$OPENSSLOPTION $(SSLINC) \
+	-DCK_SSL $(KPAMFLAG) -DZLIB -DCK_SHADOW $$OPENSSLOPTION $(SSLINC) \
 	$(KFLAGS)" "LNKFLAGS = $(LNKFLAGS)" \
-	"LIBS = $(SSLLIB) -lssl $$DES_LIB -lcrypto -lpam -ldl -lz $(LIBS)"
+	"LIBS = $(SSLLIB) -lssl $$DES_LIB -lcrypto $(KPAMLIBS) -lz $(LIBS)"
+
+# Statically linked binary; a thin wrapper around linux+ssl.
+#
+# PAM is left out. PAM authentication modules are dlopen()ed from
+# /lib/security at runtime regardless of how the C-Kermit binary
+# itself is linked, so statically linking libpam gains little.
+#
+# OpenSSL's static libcrypto.a additionally requires libzstd (for its
+# optional Zstandard compression BIO), so link with -lzstd; the
+# libzstd-dev package provides the static archive.
+linux+ssl+static:
+	@echo 'Making C-Kermit $(CKVER) for Linux+OpenSSL (static)'
+	$(MAKE) linux+ssl KTARGET=$${KTARGET:-$(@)} \
+	"KPAMFLAG=" "KPAMLIBS=-lzstd" "LNKFLAGS = -static $(LNKFLAGS)"
+
+# Statically linked Linux+OpenSSL against musl libc rather than
+# glibc, for a release binary with no runtime library dependencies
+# at all. A glibc -static binary still prints link-time warnings
+# about NSS functions (getaddrinfo(), getpwnam(), and similar)
+# needing the exact glibc shared libraries used to link at runtime;
+# a musl-gcc -static binary has none of that, since musl resolves
+# those the same way whether static or dynamic.
+#
+# Unlike linux+ssl+static, this is not a thin wrapper around linux+ssl.  It
+# can't go through linux's autodetection.  musl-gcc's specs file excludes the
+# regular system include and library paths, so every autodetection probe in
+# "linux" (curses, crypt.h, largefile macros, and so on) would inspect the
+# host's glibc paths and default ld, which says nothing about what musl-gcc can
+# actually see or link.  Reusing linux+ssl here would silently reintroduce
+# exactly the bugs this target exists to avoid (e.g. "linux" finding
+# /usr/include/ crypt.h, and adding -DHAVE_CRYPT_H, only for musl-gcc to fail
+# with "crypt.h: No such file or directory"). This calls xermit directly
+# instead, using the same LINUXCFLAGS as linuxa above as its base, plus musl's
+# own answers to what "linux" would otherwise autodetect, checked
+# against musl-dev's headers and libc.a:
+#
+#   - crypt(), openpty(), and grantpt()/ptsname() all live directly
+#     in musl's libc.a (no separate crypt.h, libutil, or libcrypt).
+#   - HAVE_PTMX and HAVE_OPENPTY are unconditionally true: musl is
+#     Linux-only, and /dev/ptmx plus openpty() are always present.
+#   - Largefile support needs no extra macros; off_t is 64-bit in
+#     musl by default.
+#
+# Debian/Ubuntu's OpenSSL, zlib, and ncurses -dev packages are
+# compiled with glibc, so their static archives are not safe to link
+# into a musl-gcc -static binary. tools/build-musl-libs.sh builds all
+# three from source against musl-gcc into a private directory.  Point
+# KSSLINC/KSSLLIB and KNCURSESINC at it, e.g.:
+#
+#   tools/build-musl-libs.sh .ci-cache/musl-libs
+#   make linux+ssl+musl \
+#     KSSLINC="-I$$PWD/.ci-cache/musl-libs/include" \
+#     KSSLLIB="-L$$PWD/.ci-cache/musl-libs/lib" \
+#     KNCURSESINC="-I$$PWD/.ci-cache/musl-libs/include/ncurses"
+#
+# KNCURSESINC only needs the extra ncurses/ include directory:
+# ncurses.h itself is found via KSSLINC's plain -I (both point into
+# the same build-musl-libs.sh prefix), but ncurses.h in turn does
+# "#include <ncurses/ncurses_dll.h>", which needs the prefix's
+# top-level include dir on the path too, not just the ncurses/
+# subdirectory. No separate KNCURSESLIB is needed since libncurses.a
+# lands in that same prefix's lib dir, already covered by KSSLLIB.
+#
+# Curses support is opt-in, unlike "linux"/linuxa's -lncurses
+# autodetection.  This target has no host to probe, so
+# there is nothing to detect against. KNCURSESINC being unset just
+# means "no ncurses build available"; -DCK_NCURSES/-lncurses are then
+# left out and the binary builds the same as it would on a system
+# with no libncurses installed at all, rather than failing outright.
+linux+ssl+musl:
+	@echo 'Making C-Kermit $(CKVER) for Linux+OpenSSL (musl static)'
+	@NCFLAG=''; NCLIBS=''; \
+	if test -n '$(KNCURSESINC)'; then \
+	  NCFLAG='-DCK_NCURSES $(KNCURSESINC)'; \
+	  NCLIBS='-lncurses'; \
+	fi; \
+	$(MAKE) xermit KTARGET=$${KTARGET:-$(@)} "CC = musl-gcc" \
+	"CC2 = musl-gcc" \
+	"CFLAGS = $(LINUXCFLAGS) -DHAVE_PTMX -DHAVE_OPENPTY \
+	-DCK_AUTHENTICATION -DCK_ENCRYPTION -DCK_CAST -DCK_SSL -DZLIB \
+	-DCK_SHADOW -DOPENSSL_300 $${KSSLINC:-$(SSLINC)} $$NCFLAG \
+	$(KFLAGS)" \
+	"LNKFLAGS = -static $(LNKFLAGS)" \
+	"LIBS = $${KSSLLIB:-$(SSLLIB)} -lssl -lcrypto -lz $$NCLIBS -lm \
+	$(LIBS)"
+
+# Same as linux+ssl+musl, minus OpenSSL/TLS.
+#
+# OpenSSL is the only reason a musl build must reach
+# outside musl's headers into the host's Linux
+# kernel UAPI headers.  Without it, only zlib and ncurses need a
+# musl-gcc build, so point KZLIBINC/KZLIBLIB and KNCURSESINC at the
+# same prefix build-musl-libs.sh produces (the OpenSSL half of that
+# prefix just goes unused here; see the KNCURSESINC comment on
+# linux+ssl+musl above for why no separate KNCURSESLIB is needed):
+#
+#   tools/build-musl-libs.sh .ci-cache/musl-libs
+#   make linux+musl \
+#     KZLIBINC="-I$$PWD/.ci-cache/musl-libs/include" \
+#     KZLIBLIB="-L$$PWD/.ci-cache/musl-libs/lib" \
+#     KNCURSESINC="-I$$PWD/.ci-cache/musl-libs/include/ncurses"
+#
+# Curses support is opt-in here too; see the KNCURSESINC comment on
+# linux+ssl+musl above.
+linux+musl:
+	@echo 'Making C-Kermit $(CKVER) for Linux (musl static, no SSL)'
+	@NCFLAG=''; NCLIBS=''; \
+	if test -n '$(KNCURSESINC)'; then \
+	  NCFLAG='-DCK_NCURSES $(KNCURSESINC)'; \
+	  NCLIBS='-lncurses'; \
+	fi; \
+	$(MAKE) xermit KTARGET=$${KTARGET:-$(@)} "CC = musl-gcc" \
+	"CC2 = musl-gcc" \
+	"CFLAGS = $(LINUXCFLAGS) -DHAVE_PTMX -DHAVE_OPENPTY \
+	-DCK_AUTHENTICATION -DCK_ENCRYPTION -DCK_CAST -DZLIB -DCK_SHADOW \
+	$${KZLIBINC:-$(SSLINC)} $$NCFLAG $(KFLAGS)" \
+	"LNKFLAGS = -static $(LNKFLAGS)" \
+	"LIBS = $${KZLIBLIB:-$(SSLLIB)} -lz $$NCLIBS -lm $(LIBS)"
 
 # Linux with Kerberos 5 and OpenSSL
 # OK 2011/05/16

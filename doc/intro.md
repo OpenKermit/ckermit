@@ -166,7 +166,7 @@ You can of course do something like this:
 2.  Run `ssh hostname`
 3.  While you're in ssh over there, fire up `kermit` on the remote.  Now, when you're in connect mode, you're sending commands to the remote kermit, and when you're in command mode, you're sending commands to the local kermit.  Potentially confusing -- and also potentially useful.
 
-This is what you will encounter if you use the [quux.org Kermit Server]({{< relref "20230804095824-quux_org_kermit_server" >}}) - try it out!
+This is what you will encounter if you use the [quux.org Kermit Server](https://www.complete.org/quux-org-kermit-server/) - try it out!
 
 
 ## Performance {#performance}
@@ -185,55 +185,10 @@ set transfer slow-start off
 
 ## Security {#security}
 
-The kermit protocol, by default, can work in either direction.
+The Kermit protocol can work in either direction.  Prior to C-Kermit 11.0, this was enabled by default.  As of C-Kermit 11.0, the default is now such that the local can control the remote, not vice-versa.
 
-If you connect to untrusted remote systems, I recommend running `disable all` to prevent the remote from doing much to your local system other than sending files.  For instance, `rcd` is enabled by default and allows the remote to change the directory for you to receive files.
+For Kermit versions prior to 11.0, if you connect to untrusted remote systems, I recommend running `disable all` to prevent the remote from doing much to your local system other than sending files.  For instance, `rcd` is enabled by default and allows the remote to change the directory for you to receive files.
 
+## Further reading
 
-## Further reading {#further-reading}
-
--   [C-Kermit Full Command Reference](https://www.kermitproject.org/ck10commandref.html)
--   The [Scripting tutorial and library](https://www.kermitproject.org/ckscripts.html) show some pretty impressive scripts.
--   [C-Kermit homepage](https://www.kermitproject.org/ck90.html)
--   [Kermit 95](https://www.kermitproject.org/k95.html) - for Windows, including the most recent [version 10](https://www.kermitproject.org/ckw10beta.html).
--   There's an Internet Kermit Service.  For more on it, and information about the service I run, see [quux.org Kermit Server]({{< relref "20230804095824-quux_org_kermit_server" >}}) and the story behind it at [Try the Last Internet Kermit Server]({{< relref "20230804163752-try_the_last_internet_kermit_server" >}}).
-    -   I also have instructions: [How to Run an Internet Kermit Server]({{< relref "20230811195023-how_to_run_an_internet_kermit_server" >}})
--   Use with the HP 48GX calculators: [detailed older page](http://www.columbia.edu/kermit/hp48.html) and [newer page](https://www.kermitproject.org/hp48filetransfer.html).
--   My mirror of current and historical Kermit files at <https://kermit.mirrors.quux.org>.  Also accessible via the [quux.org Kermit Server]({{< relref "20230804095824-quux_org_kermit_server" >}})
-
-----
-
-
-## Links to this note {#links-to-this-note}
-
--   [Archives and Mirrors]({{< relref "20240828103533-archives_and_mirrors" >}})
-
-> I ([John Goerzen]({{< relref "20220128073304-john_goerzen" >}})) maintain a number of archives and mirrors, with a particular emphasis on material important to computing history.
-
--   [How Gapped Is Your Air?]({{< relref "20230914175656-how_gapped_is_your_air" >}})
-
-> Sometimes we want better-than-firewall security for things.  For instance:
-
--   [How to Run an Internet Kermit Server]({{< relref "20230811195023-how_to_run_an_internet_kermit_server" >}})
-
-> This page will describe how to run an Internet [Kermit]({{< relref "20230804080951-kermit" >}}) server, like the [quux.org Kermit Server]({{< relref "20230804095824-quux_org_kermit_server" >}}) that was featured in my article [Try the Last Internet Kermit Server]({{< relref "20230804163752-try_the_last_internet_kermit_server" >}}).
-
--   [Try the Last Internet Kermit Server]({{< relref "20230804163752-try_the_last_internet_kermit_server" >}})
-
-> What is this mysterious protocol?  Who uses it and what is its story?
-
--   [Quux.Org Kermit Server]({{< relref "20230804095824-quux_org_kermit_server" >}})
-
-> This is a Kermit server maintained by me, [John Goerzen]({{< relref "20220128073304-john_goerzen" >}}).
-
--   [Modem]({{< relref "20230804080753-modem" >}})
-
-> The old sense of the word "modem" in computing referred to a device that would let two computers communicate over telephone lines.  It was quite slow and unreliable by modern standards.  Nowadays, the term is more broad.
-
--   [Old and Small Technology]({{< relref "20220129090039-old_and_small_technology" >}})
-
-> Old technology is any tech that's, well... old.
-
--   [Running an Accurate 80x25 DOS-Style Console on Modern Linux]({{< relref "20250917160729-running_an_accurate_80x25_dos_style_console_on_modern_linux" >}})
-
-> Here, in classic Goerzen deep dive fashion, is more information than you knew you wanted about a topic you've probably never thought of.  I found it pretty interesting, because it took me down a rabbit hole of subsystems I've never worked with much and a mishmash of 1980s and 2020s tech.
+See the [documentation pages](https://www.openkermit.org/doc/).
