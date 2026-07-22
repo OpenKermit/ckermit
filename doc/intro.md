@@ -192,3 +192,5 @@ For Kermit versions prior to 11.0, if you connect to untrusted remote systems, I
 ## Further reading
 
 See the [documentation pages](https://www.openkermit.org/doc/).
+
+The older [Kermit Project's C-Kermit Tutorial](https://www.kermitproject.org/ckututor.html) is also still highly relevant and will take you down some additional paths.
