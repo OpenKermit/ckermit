@@ -1,5 +1,18 @@
 # OpenKermit C-Kermit Changelog
 
+# C-Kermit 11.0.501
+
+## Bugfixes
+
+- Fixed a telnet negotiation race related to EINTR and select (!d9ead5b3)
+
+- Now skip ZModem mod time checking by default, since it's broken in certain
+  distro corner cases within lrzsz and libfaketime, both of which are outside
+  C-Kermit's control.
+
+- Fix Unicode BOM detection issue that may manifest on big-endian
+  architectures.
+
 # C-Kermit 11.0
 
 ## Dedication
