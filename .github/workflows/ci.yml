@@ -208,7 +208,7 @@ jobs:
           cpu: ${{ steps.cpus.outputs.count }}
           usesh: true
           prepare: |
-            pkg install -y openssl check pkgconf lrzsz python3 py312-pip
+            pkg install -y check pkgconf lrzsz python3 py312-pip
             pip install pytest pytest-xdist pytest-timeout pyftpdlib
             # FreeBSD's lrzsz port installs binaries named lrz and lsz, unlike
             # Debian's lrzsz package, which also provides traditionally-named
@@ -247,13 +247,21 @@ jobs:
           prepare: |
             /usr/sbin/pkg_add pkgin
             pkgin -y update
-            pkgin -y install openssl check lrzsz py313-pip pkgconf
+            pkgin -y install check lrzsz py313-pip pkgconf
             python3.13 -m pip install \
               pytest pytest-xdist pytest-timeout pyftpdlib
             # NetBSD's pkgsrc lrzsz has the same issue as FreeBSD's; see
             # FreeBSD comment above.
             ln -sf /usr/pkg/bin/lrz /usr/pkg/bin/rz
             ln -sf /usr/pkg/bin/lsz /usr/pkg/bin/sz
+            # NetBSD's base OpenSSL has
+            # no default config file installed at its compiled-in
+            # OPENSSLDIR (/etc/openssl); without one, "openssl req"
+            # fails looking for it. NetBSD
+            # ships a stock config under /usr/share/examples for exactly
+            # this purpose, so we copy it in place for test purposes.
+            cp /usr/share/examples/openssl/openssl.cnf \
+              /etc/openssl/openssl.cnf
             # NetBSD's default pty queue (kern.tty.qsize, 1024 bytes) is
             # too small for the large writes the test suite's jumbo-packet
             # transfers do over a pty loopback. When the reader falls
@@ -264,14 +272,6 @@ jobs:
             # size avoids ever hitting that path.
             sysctl -w kern.tty.qsize=65536
           run: |
-            # pkgin's openssl installs to /usr/pkg/bin, but NetBSD's
-            # PATH puts /usr/bin ahead of it, so plain
-            # "openssl" resolves to the older base-system binary
-            # instead. That one doesn't support the "x509 -req
-            # -not_before/-not_after" options that test_ssl
-            # relies on to create an expired
-            # certificate, so put /usr/pkg/bin first.
-            export PATH="/usr/pkg/bin:/usr/pkg/sbin:$PATH"
             make -j4 netbsd+ssl-des
             make check
             pytest -rs --log-level=INFO
@@ -297,33 +297,7 @@ jobs:
           cpu: ${{ steps.cpus.outputs.count }}
           usesh: true
           prepare: |
-            # OpenBSD's package repo keeps more than one openssl major
-            # version installable side by side, so a plain
-            # "pkg_add openssl" is ambiguous
-            # and fails non-interactively. Pick the newest available
-            # version explicitly instead of hardcoding one, since pinning
-            # an exact version string here would break once that specific
-            # package build ages out of the mirrors.
-            OPENSSL_PKG=$(pkg_info -Q openssl | \
-              grep -E '^openssl-[0-9]' | sort -V | tail -1)
-            pkg_add -I "$OPENSSL_PKG" check lrzsz py3-pip
-            # The openssl package does not install a binary literally
-            # named "openssl": that name is reserved for the base
-            # system's own LibreSSL install at /usr/bin/openssl, which
-            # is too old for test_ssl.py's expired-certificate fixture.
-            # It installs
-            # /usr/local/bin/eopensslNN instead. Only the package the
-            # ports tree treats as the "default" major version also
-            # installs a version-independent /usr/local/bin/eopenssl
-            # alias to that; picking the newest version above can land
-            # on a non-default major that has no such alias, so derive
-            # the actual eopensslNN path from the specific package's own
-            # file list instead of assuming the alias exists. Put
-            # /usr/local/bin ahead of /usr/bin on PATH (below) so this
-            # symlink is actually found.
-            OPENSSL_BIN=$(pkg_info -L "$OPENSSL_PKG" | \
-              grep -E '/bin/eopenssl[0-9]*$')
-            ln -sf "$OPENSSL_BIN" /usr/local/bin/openssl
+            pkg_add -I check lrzsz py3-pip
             # OpenBSD's lrzsz port has the same lrz/lsz-not-sz/rz naming
             # issue as FreeBSD's and NetBSD's; see FreeBSD comment above.
             ln -sf /usr/local/bin/lrz /usr/local/bin/rz
@@ -336,9 +310,6 @@ jobs:
             pip3 install --break-system-packages \
               pytest pytest-xdist pytest-timeout pyftpdlib
           run: |
-            # /usr/local/bin must come before /usr/bin for the "openssl"
-            # symlink above to be found ahead of base's own.
-            export PATH="/usr/local/bin:$PATH"
             make -j4 openbsd+ssl
             make check
             pytest -rs --log-level=INFO
