@@ -77,7 +77,7 @@ jobs:
           ]')) }}
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Linux dependencies
         if: matrix.platform == 'linux'
@@ -91,6 +91,11 @@ jobs:
       - name: Install macOS dependencies
         if: matrix.platform == 'macos'
         run: |
+          # The macOS runner image ships with aws/tap pre-added for its
+          # preinstalled awscli. We don't use it, and its presence makes
+          # every brew command below print an untrusted-tap warning, so
+          # drop it.
+          brew untap aws/tap
           brew install openssl@3 check lrzsz
           pip3 install --break-system-packages \
             pytest pytest-xdist pytest-timeout pyftpdlib
@@ -116,7 +121,7 @@ jobs:
         if: >-
           matrix.make-target == 'linux+ssl+musl' ||
           matrix.make-target == 'linux+musl'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .ci-cache/musl-libs
           key: >-
@@ -196,7 +201,7 @@ jobs:
   freebsd-x86_64:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Determine host CPU count
         id: cpus
@@ -233,7 +238,7 @@ jobs:
   netbsd-x86_64:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Determine host CPU count
         id: cpus
@@ -285,7 +290,7 @@ jobs:
   openbsd-x86_64:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Determine host CPU count
         id: cpus
