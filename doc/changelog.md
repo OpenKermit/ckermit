@@ -9,6 +9,8 @@ the 11.0 release.  These mostly correct longstanding bugs in the codebase that
 were detected by running the test suites on a wider variety of platforms, as
 well as issues with the test suites themselves.
 
+Since this release follows so soon on 11.0, I repeat the dedication:
+
 ## Dedication
 
 > I dedicate this release of C-Kermit to Frank da Cruz.
@@ -34,7 +36,6 @@ well as issues with the test suites themselves.
 > Kermit.
 > 
 > John Goerzen, July 2026
-
 
 ## Bugfixes
 
