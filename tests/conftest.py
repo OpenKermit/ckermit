@@ -301,6 +301,21 @@ def wermit_path():
     return str(path.absolute())
 
 
+@pytest.fixture(scope="session")
+def wermit_ssl_available(wermit_path):
+    """
+    True if the wermit binary under test was compiled with SSL/TLS
+    support.
+    """
+    result = subprocess.run(
+        [wermit_path, "-H", "-Y", "-C",
+         "set command more-prompting off, "
+         "if not available ssl exit 89, exit 0"],
+        capture_output=True, text=True, timeout=10
+    )
+    return result.returncode != 89
+
+
 @pytest.fixture
 def run_wermit(wermit_path):
     """
@@ -1100,7 +1115,7 @@ def _sign_with_dates(d, name, csr, ca_key, ca_crt, dates, ext_cnf):
 
 
 @pytest.fixture(scope="session")
-def ssl_pki(tmp_path_factory):
+def ssl_pki(tmp_path_factory, wermit_ssl_available):
     """
     Generates a small PKI (via the openssl CLI) for exercising direct
     kermit-to-kermit /SSL and /TLS connections:
@@ -1115,6 +1130,8 @@ def ssl_pki(tmp_path_factory):
     that hostname, not an IP address, to avoid C-Kermit's interactive
     hostname-mismatch confirmation prompt.
     """
+    if not wermit_ssl_available:
+        pytest.skip("wermit was not built with SSL/TLS support")
     if shutil.which("openssl") is None:
         pytest.skip("openssl CLI not found on PATH")
     d = tmp_path_factory.mktemp("ssl_pki")

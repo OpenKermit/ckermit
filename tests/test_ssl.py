@@ -365,7 +365,7 @@ def test_ssl_expired_certificate_warns_but_is_accepted(
     ("tls-raw", "TLS raw?"),
 ])
 def test_raw_protocol_switch_sets_matching_raw_flag(
-        run_wermit, protocol, raw_flag_label):
+        run_wermit, wermit_ssl_available, protocol, raw_flag_label):
     """
     Regression test for a bug: in ckuus7.c's SET HOST protocol-switch
     handling, the NP_TLS/NP_TLS_RAW case set
@@ -385,7 +385,13 @@ def test_raw_protocol_switch_sets_matching_raw_flag(
     test.)
 
     Verifies the fix in 45954c319bf773ed48fb7ed2a40cda52d38846ea
+
+    The /ssl-raw and /tls-raw SET HOST switches only exist in a kermit built
+    with SSL/TLS support, so this needs the same skip as anything depending on
+    ssl_pki.
     """
+    if not wermit_ssl_available:
+        pytest.skip("wermit was not built with SSL/TLS support")
     result = run_wermit(
         "set tcp reverse-dns-lookup off, "
         f"set host localhost 1 /{protocol}, "
