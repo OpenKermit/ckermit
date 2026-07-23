@@ -2,6 +2,40 @@
 
 # C-Kermit 11.0.501
 
+July 23, 2026
+
+This is a maintenance release correcting bugs that were discovered after making
+the 11.0 release.  These mostly correct longstanding bugs in the codebase that
+were detected by running the test suites on a wider variety of platforms, as
+well as issues with the test suites themselves.
+
+## Dedication
+
+> I dedicate this release of C-Kermit to Frank da Cruz.
+>
+> Frank was directly involved with Kermit for 44 years, from its initial design
+> in 1981 all the way through 2025.  He maintained Kermit as an Open Source
+> project after Columbia University ended its sponsorship.  I know of no other
+> Open Source project where the founder remains so personally involved for so
+> long.
+>
+> When Kermit was begun, transfers between different hardware and operating
+> systems were difficult or impossible.  Frank helped build a bridge.  Kermit
+> glued systems together, from the International Space Station to pocket
+> calculators, and set a new standard for interoperability.  It continues to do
+> so.
+> 
+> Kermit is still one of the quietly-working pillars of computing today,
+> enabling everything from firmware upgrades to radios.  And, yes, it still
+> reliably transfers files over serial lines.
+>
+> As we start to spend a lot of time in the Kermit codebase, we do so standing
+> on the shoulders of a giant.  Thanks, Frank, for your decades of work on
+> Kermit.
+> 
+> John Goerzen, July 2026
+
+
 ## Bugfixes
 
 - Fixed a telnet negotiation race related to EINTR and select (!d9ead5b3)
@@ -15,9 +49,20 @@
 
 - Fixed unit test compilation on PowerPC64
 
-- Fixed unit test ulong tests on 32-bit archs
+- Fixed ulong unit tests on 32-bit archs
+
+- Switched all BSDs to use base system OpenSSL instead of separately-installed
+  OpenSSL
+  
+- No longer build the macOS binary with SSL support, to increase compatibility
+  with Macs that don't use Homebrew.  See [platform notes](platforms.md) for
+  more.
+  
+- Binary tarballs now ship with the doc/ directory.
 
 # C-Kermit 11.0
+
+July 22, 2026
 
 ## Dedication
 
