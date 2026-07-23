@@ -1,7 +1,5 @@
 # OpenKermit C-Kermit Changelog
 
-FIXME: move IPv6 notes to separate file
-
 # C-Kermit 11.0
 
 ## Dedication
@@ -32,8 +30,9 @@ FIXME: move IPv6 notes to separate file
 
 ## Summary
 
-This is a major new release, the first non-beta since the 9.x since 2022.  It
-represents a major effort to modernize and improve the C-Kermit codebase.
+This is a major new release, the first non-beta since the last 9.x release
+in 2022.  It represents a major effort to modernize and improve the C-Kermit
+codebase.
 
 Since all C-Kermit 10.x releases were betas, some people may be upgrading from
 9.x and others from 10.x.  Since some changes were labeled as "9.x DEV" or
@@ -94,7 +93,8 @@ relationship between the different Kermit versions.
 - [11] Codebase-wide dead code elimination and general simplification.  This
   removes code that was never used in any build on any platform, and makes code
   auditing and analysis easier.  Despite many new features, the code C-Kermit 11
-  codebase is about 2600 lines smaller than the last 10.x beta!
+  codebase (excluding comments) is about 2600 lines smaller than the last 10.x
+  beta!
 
 - [11] Now compatible with OpenSSL 3.x. The OpenSSL runtime version check was
   relaxed to allow minor version updates, and support was added for compiling
