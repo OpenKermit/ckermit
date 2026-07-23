@@ -110,9 +110,9 @@ int offtsize = 0;                       /* Size of OFF_T */
   C-Kermit for each platform (except the original Mac) and Kermit 95.
 */
 char *ck_s_ver = "11.0";                /* C-Kermit version string */
-char *ck_s_edit = "501";                /* Edit number (for Debian package) */
-char *ck_s_xver = "11.0.501";           /* eXtended version string */
-long  ck_l_ver = 1100501L;              /* C-Kermit version number */
+char *ck_s_edit = "502";                /* Edit number (for Debian package) */
+char *ck_s_xver = "11.0.502";           /* eXtended version string */
+long  ck_l_ver = 1100502L;              /* C-Kermit version number */
 char *ck_s_name = "C-Kermit";           /* Name of this program */
 char *ck_s_who = "";                    /* Where customized, "" = not. */
 char *ck_patch = "";                    /* Patch info, if any. */

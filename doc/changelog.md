@@ -1,6 +1,6 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.0.501
+# C-Kermit 11.0.502
 
 July 23, 2026
 
@@ -55,9 +55,12 @@ Since this release follows so soon on 11.0, I repeat the dedication:
 - Switched all BSDs to use base system OpenSSL instead of separately-installed
   OpenSSL
   
-- No longer build the macOS binary with SSL support, to increase compatibility
-  with Macs that don't use Homebrew.  See [platform notes](platforms.md) for
-  more.
+- No longer build the macOS or *BSD binary with SSL support, to increase
+  compatibility.  On Mac, kermit wouldn't start unless openssl was installed
+  from Homebrew.  On NetBSD, I observed a soname problem.  It's not worth the
+  compatibility problems.  Linux seems to be more standardized in this respect,
+  and also I'm building static binaries there.  See [platform
+  notes](platforms.md) for more.
   
 - Binary tarballs now ship with the doc/ directory.
 
