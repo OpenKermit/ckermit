@@ -806,13 +806,16 @@ xpnbyte(a,tcs,fcs,fn) int a, tcs, fcs; int (*fn)();
 
 /*
   byteorder = hardware byte order of this machine.
-  ucsorder  = override by SET FILE UCS BYTE-ORDER command.
-  fileorder = byte order of UCS-2 input file detected from BOM.
-  swapping applies only when output charset is UCS-2.
+  ucsorder  = requested output byte order (SET FILE UCS BYTE-ORDER,
+              defaulting to byteorder).
+  fileorder = byte order of a UCS-2 input file detected from its BOM;
+              not relevant to output, so it must not drive swapping.
+  swapping applies only when output charset is UCS-2, and is needed
+  whenever the requested output order differs from the hardware order.
 */
     if (ucsorder != 1 && ucsorder != 0)	/* Also just in case... */
       ucsorder = byteorder;
-    if ((byteorder && !ucsorder) || (!byteorder && fileorder))
+    if (byteorder != ucsorder)
       swapping = 1;			/* Swapping bytes to output */
 
     if (tcs == TC_UTF8) {		/* 'a' is from a UTF-8 stream */
