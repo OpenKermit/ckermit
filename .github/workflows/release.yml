@@ -30,19 +30,18 @@ jobs:
       upload-artifact: true
       version: ${{ needs.version.outputs.version }}
 
-      # Release builds cover more platforms than the fast PR/push matrix
-      # in ci.yml.  We build a full set of Linux binaries (dynamic and
-      # static on amd64 and arm64), plus MacOS.  (BSDs are handled
-      # elsewhere).  Every binary we release gets tested: the release
-      # process is infrequent enough that the extra CI time is worth
-      # it, so none of these set skip-tests (the fast PR/push matrix
-      # in ci.yml is what stays single-platform for speed, not this
-      # one).
+      # Release builds cover more platforms than the fast PR/push matrix in
+      # ci.yml.  We build a full set of Linux binaries (dynamic and static on
+      # amd64 and arm64), plus MacOS.  (BSDs are handled elsewhere).  Every
+      # binary we release gets tested: the release process is infrequent enough
+      # that the extra CI time is worth it, so none of these set skip-tests (the
+      # fast PR/push matrix in ci.yml is what stays single-platform for speed,
+      # not this one).
 
-      # The "static" binaries are built with linux+ssl+musl, not
-      # linux+ssl+static, since  a musl-gcc static binary has no runtime
-      # dependency on the exact glibc build used to link it. They set
-      # skip-c-tests since we're not making a libcheck musl build.
+      # The "static" binaries are built with linux+ssl+musl since a musl-gcc
+      # static binary has no runtime dependency on the exact glibc build used to
+      # link it. They set skip-c-tests since we're not making a libcheck musl
+      # build.
 
       matrix: >-
         [
@@ -50,7 +49,7 @@ jobs:
         {"os":"ubuntu-24.04-arm","platform":"linux","arch":"arm64","make-target":"linux+ssl","label":"kermit-linux-arm64-${{ needs.version.outputs.version }}"},
         {"os":"ubuntu-24.04","platform":"linux","arch":"amd64","make-target":"linux+ssl+musl","label":"kermit-linux-amd64-static-${{ needs.version.outputs.version }}","skip-c-tests":true},
         {"os":"ubuntu-24.04-arm","platform":"linux","arch":"arm64","make-target":"linux+ssl+musl","label":"kermit-linux-arm64-static-${{ needs.version.outputs.version }}","skip-c-tests":true},
-        {"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"kermit-macos-arm64-${{ needs.version.outputs.version }}"}
+        {"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos","label":"kermit-macos-arm64-${{ needs.version.outputs.version }}"}
         ]
 
   # Every platform's asset is packaged here and handed to a single
