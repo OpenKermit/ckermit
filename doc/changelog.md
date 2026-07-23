@@ -10,8 +10,12 @@
   distro corner cases within lrzsz and libfaketime, both of which are outside
   C-Kermit's control.
 
-- Fix Unicode BOM detection issue that may manifest on big-endian
+- Fixed Unicode BOM detection issue that may manifest on big-endian
   architectures.
+
+- Fixed unit test compilation on PowerPC64
+
+- Fixed unit test ulong tests on 32-bit archs
 
 # C-Kermit 11.0
 
