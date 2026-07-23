@@ -8771,10 +8771,22 @@ myfillbuf() {
 */
 #ifdef SELECT
     {
+        /*
+	  select() is never automatically restarted after a caught signal on
+	  Linux, regardless of SA_RESTART, unlike most other blocking calls.  A
+	  harmless signal such as SIGWINCH from a terminal resize makes
+	  select() return EINTR, which fell through to the same -3 (I/O error)
+	  return as a real failure, closing the connection. So retry on EINTR
+	  instead of failing.
+        */
         fd_set rfd;
-        FD_ZERO(&rfd);
-        FD_SET(fd, &rfd);
-        if (select(fd + 1, &rfd, NULL, NULL, NULL) < 0)
+        int rc;
+        do {
+            FD_ZERO(&rfd);
+            FD_SET(fd, &rfd);
+            rc = select(fd + 1, &rfd, NULL, NULL, NULL);
+        } while (rc < 0 && errno == EINTR);
+        if (rc < 0)
           return(-3);
     }
 #endif /* SELECT */
