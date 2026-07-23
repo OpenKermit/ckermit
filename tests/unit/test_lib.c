@@ -152,13 +152,14 @@ START_TEST(test_hextoulong_overflow)
 {
     unsigned long val;
 
-    /* 64-bit value with MSB set (returns -1L) */
+    /* All hex digits set (returns -1L, sign-extended to the width
+       of long on this platform) */
     val = hextoulong("FFFFFFFFFFFFFFFF", 16);
-    ck_assert_uint_eq(val, 0xFFFFFFFFFFFFFFFFUL);
+    ck_assert_uint_eq(val, (unsigned long)-1L);
 
     /* Error return is also -1L */
     val = hextoulong("invalidhex", 10);
-    ck_assert_uint_eq(val, 0xFFFFFFFFFFFFFFFFUL);
+    ck_assert_uint_eq(val, (unsigned long)-1L);
 
     /* Verify using the helper function how they are distinguished */
     long res1 = hextoulong("FFFFFFFFFFFFFFFF", 16);
