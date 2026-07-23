@@ -56,6 +56,16 @@ jobs:
   release:
     needs: [version, build-and-test]
     runs-on: ubuntu-latest
+    # softprops/action-gh-release races itself when multiple matrix
+    # legs create a release for the same tag at once: each leg sees no
+    # release yet, so more than one tries to create it, and the
+    # losers fail with "already_exists" on tag_name. This concurrency
+    # group forces the legs to run one at a time
+    # so only the first leg creates the release and the
+    # rest just append their asset to it.
+    concurrency:
+      group: gh-release-${{ needs.version.outputs.version }}
+      cancel-in-progress: false
     strategy:
       matrix:
         # Must match the labels in the build-and-test matrix above, plus
