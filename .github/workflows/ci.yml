@@ -43,6 +43,11 @@ on:
         type: string
         default: ''
 
+# None of these jobs push commits, comment on PRs, or otherwise write
+# to the repo; they only check it out, build, and test it.
+permissions:
+  contents: read
+
 # Cancel a run in favor of a newer one for the same PR or branch, so
 # an outdated push doesn't keep burning runner time once superseded.
 # Release runs (triggered by a tag push via workflow_call) get their
