@@ -1,8 +1,8 @@
 /* ckcmai.c - Main program for C-Kermit plus some miscellaneous functions */
 
-#define EDITDATE  "2026/07/16"       /* Last edit date ISO format */
+#define EDITDATE  "2026/07/22"       /* Last edit date ISO format */
 
-#define EDITNDATE "20260716"          /* Keep them in sync */
+#define EDITNDATE "20260722"          /* Keep them in sync */
 /*
   As of 27 September 2022 BETATEST is defined in ckcdeb.h, not here,
   because it's also used in other modules.
