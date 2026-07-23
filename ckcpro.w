@@ -1,5 +1,5 @@
 char *protv =                                                     /* -*-C-*- */
-"C-Kermit Protocol Module 10.0.170, 21 Mar 2024";
+"C-Kermit Protocol Module 11.0.500, 22 Jul 2026";
 
 int kactive = 0;			/* Kermit protocol is active */
 /*
