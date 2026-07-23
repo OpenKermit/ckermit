@@ -212,6 +212,12 @@ jobs:
         id: cpus
         run: echo "count=$(nproc)" >> "$GITHUB_OUTPUT"
 
+      # We're building release binaries when upload-artifact is true, which we
+      # set in release.yml.  For the BSDs, we build release binaries without
+      # SSL for compatibility reasons.  We test with SSL here, and the built
+      # non-SSL binaries will be tested in release CI.  So we wind up testing
+      # both paths.  I found some bugs with the SSL tests, so I want to keep
+      # them.
       - name: Build and test on FreeBSD
         uses: vmactions/freebsd-vm@v1
         with:
@@ -230,7 +236,8 @@ jobs:
             ln -sf /usr/local/bin/lrz /usr/local/bin/rz
             ln -sf /usr/local/bin/lsz /usr/local/bin/sz
           run: |
-            make -j4 freebsd+ssl
+            make -j4 ${{ inputs.upload-artifact && 'freebsd' ||
+              'freebsd+ssl' }}
             make check
             pytest -rs --log-level=INFO
 
@@ -249,6 +256,7 @@ jobs:
         id: cpus
         run: echo "count=$(nproc)" >> "$GITHUB_OUTPUT"
 
+      # SSL logic as with FreeBSD
       - name: Build and test on NetBSD
         uses: vmactions/netbsd-vm@v1
         with:
@@ -282,7 +290,8 @@ jobs:
             # size avoids ever hitting that path.
             sysctl -w kern.tty.qsize=65536
           run: |
-            make -j4 netbsd+ssl-des
+            make -j4 ${{ inputs.upload-artifact && 'netbsd' ||
+              'netbsd+ssl-des' }}
             make check
             pytest -rs --log-level=INFO
 
@@ -301,6 +310,7 @@ jobs:
         id: cpus
         run: echo "count=$(nproc)" >> "$GITHUB_OUTPUT"
 
+      # SSL logic as with FreeBSD
       - name: Build and test on OpenBSD
         uses: vmactions/openbsd-vm@v1
         with:
@@ -320,7 +330,8 @@ jobs:
             pip3 install --break-system-packages \
               pytest pytest-xdist pytest-timeout pyftpdlib
           run: |
-            make -j4 openbsd+ssl
+            make -j4 ${{ inputs.upload-artifact && 'openbsd' ||
+              'openbsd+ssl' }}
             make check
             pytest -rs --log-level=INFO
 

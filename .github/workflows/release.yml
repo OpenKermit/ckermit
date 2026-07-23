@@ -32,11 +32,9 @@ jobs:
 
       # Release builds cover more platforms than the fast PR/push matrix in
       # ci.yml.  We build a full set of Linux binaries (dynamic and static on
-      # amd64 and arm64), plus MacOS.  (BSDs are handled elsewhere).  Every
-      # binary we release gets tested: the release process is infrequent enough
-      # that the extra CI time is worth it, so none of these set skip-tests (the
-      # fast PR/push matrix in ci.yml is what stays single-platform for speed,
-      # not this one).
+      # amd64 and arm64), plus MacOS.  BSDs are handled elsewhere.  Every binary
+      # we release gets tested.  The release process is infrequent enough that
+      # the extra CI time is worth it, so none of these set skip-tests.
 
       # The "static" binaries are built with linux+ssl+musl since a musl-gcc
       # static binary has no runtime dependency on the exact glibc build used to
