@@ -78,7 +78,7 @@ jobs:
             label="$(basename "$dir")"
             chmod +x "$dir/kermit"
             mkdir "c$label"
-            cp README.md COPYING.TXT ckermit.ini "c$label/"
+            cp -r README.md COPYING.TXT ckermit.ini doc "c$label/"
             mv "$dir/kermit" "c$label/"
             tar czf "c$label.tar.gz" "c$label"
           done
