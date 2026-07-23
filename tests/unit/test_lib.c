@@ -161,10 +161,13 @@ START_TEST(test_hextoulong_overflow)
     val = hextoulong("invalidhex", 10);
     ck_assert_uint_eq(val, (unsigned long)-1L);
 
-    /* Verify using the helper function how they are distinguished */
+    /* Verify using the helper function how they are distinguished.
+       16 hex digits fit exactly in a 64-bit long (valid MSB-set
+       value, code 2) but overflow a 32-bit long (code -3). */
     long res1 = hextoulong("FFFFFFFFFFFFFFFF", 16);
     ck_assert_int_eq(
-        distinguish_hex_result("FFFFFFFFFFFFFFFF", 16, res1), 2
+        distinguish_hex_result("FFFFFFFFFFFFFFFF", 16, res1),
+        (sizeof(long) >= 8) ? 2 : -3
     );
 
     long res2 = hextoulong("invalidhex", 10);
