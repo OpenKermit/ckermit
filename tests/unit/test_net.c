@@ -7,6 +7,7 @@
 #include "ckcsym.h"
 #include "ckcdeb.h"
 #include "ckcnet.h"
+#include "ck_ssl.h"
 
 /*
   ckgetfqhostname() calls debug(), which needs these two.  See the identical
@@ -18,6 +19,50 @@ int matchdot = 0;
 int dodebug(int a, char *b, char *c, CK_OFF_T d) {
     return 0;
 }
+
+/*
+  test_net links a --gc-sections build of ckcnet.c so that only the functions
+  under test are in the binary.  The rest of ckcnet.c calls out to globals and
+  functions that live in modules this test doesn't need or link against.
+
+  On most architectures --gc-sections drops that unreached code along with the
+  external references it carries.  PowerPC64 (ELFv2 ABI) keeps every TOC entry
+  for a translation unit in one section that is not itself subject to garbage
+  collection, so the linker still demands these symbols even though nothing in
+  the final binary calls them.  Defining them here satisfies the linker on
+  every architecture without pulling in the rest of C-Kermit or OpenSSL.
+*/
+CK_TTYFD_T ttyfd = -1;
+int streaming = 0;
+int ttchk(void) {
+    return -1;
+}
+
+#ifdef CK_SSL
+int tls_http_active_flag = 0;
+int ssl_debug_flag = 0;
+SSL *tls_http_con = NULL;
+BIO *bio_err = NULL;
+
+int SSL_shutdown(SSL *s) {
+    return 0;
+}
+int SSL_write(SSL *ssl, const void *buf, int num) {
+    return -1;
+}
+int SSL_get_error(const SSL *s, int ret_code) {
+    return 0;
+}
+int SSL_pending(const SSL *s) {
+    return 0;
+}
+int SSL_read(SSL *ssl, void *buf, int num) {
+    return -1;
+}
+int BIO_printf(BIO *bio, const char *format, ...) {
+    return 0;
+}
+#endif /* CK_SSL */
 
 START_TEST(test_straddr_v4)
 {
