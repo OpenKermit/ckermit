@@ -164,6 +164,11 @@ def test_kermit_transfer_large(tmp_path, wermit_loopback, direction):
     """
     Test binary file transfer of a file well beyond a single packet
     or window, in both SEND and GET directions.
+
+    The timeout is generous because slow porter hardware (e.g. the
+    Debian riscv64 buildd) needs more than a minute to push 20MB
+    through the Kermit protocol. The test still returns as soon as
+    the transfer finishes, so this doesn't slow down normal runs.
     """
     size = 20 * MB
     logger.info(
@@ -177,7 +182,7 @@ def test_kermit_transfer_large(tmp_path, wermit_loopback, direction):
         file_name="large_file.dat",
         file_content=pattern_bytes(size),
         is_text=False,
-        timeout=60
+        timeout=180
     )
     logger.info(
         "test_kermit_transfer_large: Test passed (direction=%s, size=%d)",
