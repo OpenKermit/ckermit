@@ -6595,10 +6595,7 @@ ckdial(nbr, x1, x2, fc, redial) char *nbr; int x1, x2, fc, redial;
 	ttclos(0);			/* If ttpkt fails do all this... */
 	if (ttopen(ttname,&local,mymdmtyp,0) < 0) {
 	    erp = errmsg;
-	    if ((int)strlen(ttname) < (ERMSGL - 18)) /* safe, checked */
-	      sprintf(erp,"Sorry, can't reopen %s",ttname);
-	    else
-	      sprintf(erp,"Sorry, can't reopen device");
+	    ckmakmsg(erp,ERMSGL,"Sorry, can't reopen ",ttname,NULL,NULL);
 	    perror(errmsg);
 	    dialsta = DIA_OPEN;
 #ifdef DYNAMIC

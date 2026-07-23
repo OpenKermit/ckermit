@@ -8179,7 +8179,7 @@ newerrmsg( char * s )
 newerrmsg(s) char *s;
 #endif /* CK_ANSIC */
 {
-    char * tmperrbuf[ERRMSGBUFSIZ];
+    char tmperrbuf[ERRMSGBUFSIZ];
 
     extern char lasttakeline[];
     extern char *tfnam[];
@@ -8211,14 +8211,15 @@ newerrmsg(s) char *s;
     x = 80 - len5;         /* Free space for beginning of offending command */
     if (x > len4) {        /* Free space is greater than command length */
 #ifdef HAVE_SNPRINTF
-        snprintf((char *)tmperrbuf,ERRMSGBUFSIZ,"?%s[%s]: \"%s\": %s\n",
+        snprintf(tmperrbuf,ERRMSGBUFSIZ,
+                 "?%.60s[%.19s]: \"%.100s\": %.100s\n",
                takefile,
                lineno,
                (char *)lasttakeline,
                s
                );
 #else
-        sprintf((char *)tmperrbuf,"?%s[%s]: \"%s\": %s\n",
+        sprintf(tmperrbuf,"?%.60s[%.19s]: \"%.100s\": %.100s\n",
                takefile,
                lineno,
                (char *)lasttakeline,
@@ -8231,10 +8232,11 @@ newerrmsg(s) char *s;
         c = lasttakeline[x];
         lasttakeline[x] = NUL;
 #ifdef HAVE_SNPRINTF
-        snprintf((char *)tmperrbuf,ERRMSGBUFSIZ,"?%s[%s]: \"%s...\": %s\n",
+        snprintf(tmperrbuf,ERRMSGBUFSIZ,
+                 "?%.60s[%.19s]: \"%.100s...\": %.100s\n",
                takefile, lineno, (char *)lasttakeline, s);
 #else
-        sprintf((char *)tmperrbuf,"?%s[%s]: \"%s...\": %s\n",
+        sprintf(tmperrbuf,"?%.60s[%.19s]: \"%.100s...\": %.100s\n",
                takefile, lineno, (char *)lasttakeline, s);
 #endif  /* HAVE_SNPRINTF */
         lasttakeline[x] = c;
@@ -8245,22 +8247,23 @@ newerrmsg(s) char *s;
             c = lasttakeline[x];
             lasttakeline[x] = NUL;
 #ifdef HAVE_SNPRINTF
-            snprintf((char *)tmperrbuf,ERRMSGBUFSIZ,
-                "?%s[%s]: \"%s...\":\n Error: %s\n",
+            snprintf(tmperrbuf,ERRMSGBUFSIZ,
+                "?%.60s[%.19s]: \"%.100s...\":\n Error: %.100s\n",
                 takefile, lineno, (char *)lasttakeline, s);
 #else
-            sprintf((char *)tmperrbuf,"?%s[%s]: \"%s...\":\n Error: %s\n",
+            sprintf(tmperrbuf,
+                   "?%.60s[%.19s]: \"%.100s...\":\n Error: %.100s\n",
                    takefile, lineno, (char *)lasttakeline, s);
 
 #endif  /* HAVE_SNPRINTF */
             lasttakeline[x] = c;
         } else {
 #ifdef HAVE_SNPRINTF
-            snprintf((char *)tmperrbuf,ERRMSGBUFSIZ,
-                     "?%s[%s]: \"%s\":\n %s\n",
+            snprintf(tmperrbuf,ERRMSGBUFSIZ,
+                     "?%.60s[%.19s]: \"%.100s\":\n %.100s\n",
                      takefile, lineno, (char *)lasttakeline, s);
 #else
-            sprintf((char *)tmperrbuf,"?%s[%s]: \"%s\":\n %s\n",
+            sprintf(tmperrbuf,"?%.60s[%.19s]: \"%.100s\":\n %.100s\n",
                    takefile, lineno, (char *)lasttakeline, s);
 #endif  /* HAVE_SNPRINTF */
         }

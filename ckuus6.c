@@ -5020,9 +5020,9 @@ dogrep() {
                     debug(F101,"GREP tmplen","",tmplen);
                     if (!rp1) rp1 = "";
                     if (!rp2) rp2 = "";
-                    debug(F110,"GREP rp1",rp1,""); /* filename */
-                    debug(F110,"GREP rp2",rp2,""); /* line number in file */
-                    debug(F110,"GREP rp3",rp3,""); /* the matching line */
+                    debug(F110,"GREP rp1",rp1,0); /* filename */
+                    debug(F110,"GREP rp2",rp2,0); /* line number in file */
+                    debug(F110,"GREP rp3",rp3,0); /* the matching line */
                     if (!(int)strlen(rp3))         /* (shouldn't happen) */
                       printf("*** EMPTY MATCH STRING ***\n");
                     /* name:lineno:line */
@@ -5039,7 +5039,7 @@ dogrep() {
                     } else {
                         ckmakmsg(tmpstr,tmplen,rp3,NULL,NULL,NULL);
                     }
-                    debug(F110,"GREP tmpstr",tmpstr,"");
+                    debug(F110,"GREP tmpstr",tmpstr,0);
                     makestr(&(ap[arrayslot++]),tmpstr);
                 } else {
 #endif  /* NOSPL */

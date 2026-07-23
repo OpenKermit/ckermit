@@ -70,15 +70,17 @@ static void
 teardown(void)
 {
     char cmd[CKMAXPATH + 16];
+    int rc;
     snprintf(cmd, sizeof(cmd), "rm -rf '%s'", tdir);
-    system(cmd);
+    rc = system(cmd);
+    (void)rc;
 }
 
 /* realpath()-success path: existing directory, "." and ".."
    components, redundant slashes, all collapsed by the OS. */
 START_TEST(test_existing_path_dot_dotdot)
 {
-    char in[CKMAXPATH], buf[CKMAXPATH], expect[CKMAXPATH];
+    char in[CKMAXPATH + 40], buf[CKMAXPATH], expect[CKMAXPATH + 40];
     snprintf(in, sizeof(in), "%s/a/./b/../b//c", tdir);
     snprintf(expect, sizeof(expect), "%s/a/b/c/", tdir);
 
@@ -94,7 +96,7 @@ END_TEST
 START_TEST(test_existing_file_fname_pointer)
 {
     static const char base[] = "leaf.txt";
-    char path[CKMAXPATH], buf[CKMAXPATH];
+    char path[CKMAXPATH + 40], buf[CKMAXPATH];
     snprintf(path, sizeof(path), "%s/a/b/c/%s", tdir, base);
     FILE *f = fopen(path, "w");
     ck_assert_ptr_nonnull(f);
@@ -112,7 +114,7 @@ END_TEST
    Checks the collapse is still correct there too. */
 START_TEST(test_nonexistent_path_dot_dotdot)
 {
-    char in[CKMAXPATH], buf[CKMAXPATH], expect[CKMAXPATH];
+    char in[CKMAXPATH + 40], buf[CKMAXPATH], expect[CKMAXPATH + 40];
     snprintf(in, sizeof(in), "%s/a/b/c/../../nonexistent_zz/../x", tdir);
     snprintf(expect, sizeof(expect), "%s/a/x", tdir);
 
@@ -127,7 +129,7 @@ END_TEST
    on the "too long" branch after realpath(s, NULL). */
 START_TEST(test_buffer_too_small_existing)
 {
-    char in[CKMAXPATH], buf[4];
+    char in[CKMAXPATH + 40], buf[4];
     snprintf(in, sizeof(in), "%s/a/b/c", tdir);
     struct zfnfp *r = zfnqfp(in, sizeof(buf), buf);
     ck_assert_ptr_null(r);
