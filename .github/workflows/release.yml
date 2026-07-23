@@ -83,7 +83,7 @@ jobs:
           done
 
       - name: Upload release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: c*.tar.gz
         env:
@@ -122,7 +122,7 @@ jobs:
         run: (cd dl && sha256sum *) > SHA256SUMS
 
       - name: Upload SHA256SUMS
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: SHA256SUMS
         env:
