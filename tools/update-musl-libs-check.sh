@@ -9,8 +9,8 @@
 # OpenSSL only takes a patch-level bump within the currently pinned
 # branch (e.g. 3.5.x).  OpenSSL's release strategy gives its branches
 # different support lengths, so moving to a new branch is a
-# deliberate choice, not a mechanical version bump. A newer branch
-# is reported below but not applied.
+# deliberate choice. A newer branch
+# is reported but not applied.
 #
 # zlib and ncurses each have a single active release line, so their
 # absolute latest version is used.
