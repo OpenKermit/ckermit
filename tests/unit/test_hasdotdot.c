@@ -1,5 +1,5 @@
 /*
-  Unit tests for hasdotdot() in ckcfns.c */
+  Unit tests for hasdotdot() in ckcfns.c
 */
 #include <check.h>
 #include <string.h>
