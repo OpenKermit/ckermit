@@ -1237,8 +1237,11 @@ ck_tn_auth_request_srp(int i)
 static int
 ck_tn_auth_request_ssl(int i)
 {
+    /* Without a certificate we cannot complete the SSL handshake this
+     * authentication type requires, so do not offer it. */
     if (ck_ssleay_is_installed()
          && !tls_active_flag && !ssl_active_flag && ssl_initialized
+         && (ssl_rsa_cert_file || ssl_dsa_cert_file)
          ) {
         if (TELOPT_ME_MODE(TELOPT_ENCRYPTION) != TN_NG_MU &&
              TELOPT_U_MODE(TELOPT_ENCRYPTION) != TN_NG_MU &&
@@ -2441,6 +2444,7 @@ auth_send(parsedat,end_sub) unsigned char *parsedat; int end_sub;
 #endif /* NTLM */
 #ifdef CK_SSL
         if ( parsedat[i] == AUTHTYPE_SSL && ssl_initialized &&
+             !ssl_auth_failed_flag &&
 #ifdef SSLDLL
              ck_ssleay_is_installed() &&
 #endif /* SSLDLL */
@@ -2676,6 +2680,7 @@ auth_send(parsedat,end_sub) unsigned char *parsedat; int end_sub;
         for (i = 2; i+1 <= end_sub; i += 2) {
 #ifdef CK_SSL
             if ( atok(AUTHTYPE_SSL) && parsedat[i] == AUTHTYPE_SSL &&
+                 !ssl_auth_failed_flag &&
 #ifdef SSLDLL
                  ck_ssleay_is_installed() &&
 #endif /* SSLDLL */

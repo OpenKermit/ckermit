@@ -97,6 +97,7 @@ extern SSL_CTX *ssl_ctx;
 extern int ssl_debug_flag;
 extern int ssl_only_flag;
 extern int ssl_active_flag;
+extern int ssl_auth_failed_flag;
 extern int ssl_verify_flag;
 extern int ssl_verbose_flag;
 extern int ssl_certsok_flag;

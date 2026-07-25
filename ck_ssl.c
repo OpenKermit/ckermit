@@ -266,6 +266,15 @@ int tls_active_flag = 0;
 int ssl_initialized = 0;
 int ssl_verify_depth = -1; /* used to track depth in verify routines */
 
+/* Set when a raw SSL handshake begun inside the AUTHENTICATION option's SSL
+   type fails and the connection has already been closed because of it.  There
+   is no fallback within the connection.  Once set, we won't offer or accept the
+   SSL authentication type again for the rest of this connection attempt.
+   cx_net() clears it at the start of each new SET HOST, so a later connection
+   attempt, even to the same server, gets to try the SSL authentication type
+   again. */
+int ssl_auth_failed_flag = 0;
+
 /* compile this set to 1 to negotiate SSL/TLS but not actually start it */
 int ssl_dummy_flag=0;
 
@@ -3885,6 +3894,7 @@ ssl_reply(how,data,cnt) int how; unsigned char *data; int cnt;
                 }
                 debug(F110,"ssl_reply","[SSL - FAILED]",0);
                 auth_finished(AUTH_REJECT);
+                ssl_auth_failed_flag = 1;
                 ttclos(0);
                 return AUTH_FAILURE;
             } else {

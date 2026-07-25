@@ -4158,6 +4158,9 @@ tn_xdoop(z, echo, fn) CHAR z; int echo; int (*fn)();
 #endif /* CK_ANSIC */
 /* tn_xdoop */ {
     int c, x, y, n;
+#ifdef CK_SSL
+    extern int ttyfd;
+#endif /* CK_SSL */
 #ifdef IKS_OPTION
     extern int server;
 #ifdef NOICP
@@ -5066,6 +5069,40 @@ tn_xdoop(z, echo, fn) CHAR z; int echo; int (*fn)();
                     ttclos(0);
                     whyclosed = WC_TELOPT;
                     return(-3);
+#ifdef CK_SSL
+                } else if (!sstelnet && ssl_auth_failed_flag &&
+                            ttyfd < 0) {
+                    /* A failed SSL handshake inside AUTHENTICATION,
+                     * unlike a plain refusal, already closed the
+                     * connection; real handshake bytes went out on
+                     * the wire, so plaintext cannot resume here.
+                     * (ttyfd < 0 is what tells us THIS failure is
+                     * the one that closed it, since the "don't offer
+                     * SSL again" flag stays set for the rest of this
+                     * connection attempt and must not by itself
+                     * trigger another reconnect on a later, unrelated
+                     * auth failure.)
+                     * Reconnect and pick the login back up without
+                     * offering SSL authentication again. cx_net()
+                     * clears the flag on the next SET HOST,
+                     * so this only suppresses SSL authentication for
+                     * the remainder of this connection attempt. */
+                    extern char ttname[];
+                    extern int mdmtyp;
+                    int rx = -1;
+
+                    ttclos(0);
+                    whyclosed = WC_TELOPT;
+                    ttnproto = NP_TELNET;
+                    printf("Reconnecting without SSL authentication.\n");
+                    sleep(2);
+                    if (ttopen(ttname,&rx,mdmtyp,0) < 0)
+                        return(-3);
+                    if (tn_ini() < 0)
+                      if (ttchk() < 0)
+                        return(-1);
+                    return(0);
+#endif /* CK_SSL */
                 } else {
                     if (TELOPT_ME_MODE(x) == TN_NG_RQ)
                       TELOPT_ME_MODE(x) = TN_NG_AC;

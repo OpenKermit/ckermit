@@ -3315,6 +3315,16 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
                 TELOPT_DEF_C_ME_MODE(TELOPT_START_TLS) = TN_NG_RF;
             if ( TELOPT_DEF_C_U_MODE(TELOPT_START_TLS) != TN_NG_MU )
                 TELOPT_DEF_C_U_MODE(TELOPT_START_TLS) = TN_NG_RF;
+        } else {
+            /* Without a certificate we cannot complete a START-TLS
+             * handshake.  Do not request or offer it in that case,
+             * so we never begin a handshake we cannot finish. */
+            if (!ssl_rsa_cert_file && !ssl_dsa_cert_file) {
+                if ( TELOPT_DEF_S_ME_MODE(TELOPT_START_TLS) != TN_NG_MU )
+                    TELOPT_DEF_S_ME_MODE(TELOPT_START_TLS) = TN_NG_RF;
+                if ( TELOPT_DEF_S_U_MODE(TELOPT_START_TLS) != TN_NG_MU )
+                    TELOPT_DEF_S_U_MODE(TELOPT_START_TLS) = TN_NG_RF;
+            }
         }
     }
 #endif /* CK_SSL */
