@@ -30,7 +30,13 @@ import os
 import socket
 import subprocess
 import pytest
-from conftest import assert_ok
+from conftest import (
+    PORT_COLLISION_RETRIES,
+    PortCollisionError,
+    _wait_for_tcp_listener,
+    _wait_or_kill,
+    assert_ok,
+)
 
 
 @pytest.fixture(params=["pseudoterminal", "raw-socket", "telnet"])
@@ -384,7 +390,7 @@ def test_show_server_reports_plain_process_as_remote(wermit_path):
 
 
 def test_show_server_reports_set_host_star_as_remote(
-        wermit_path, tmp_path, get_free_port):
+        wermit_path, tmp_path, get_free_port, spawn_wermit):
     """Row 2 (a server that itself does SET HOST *, the way this
     project's raw-socket/telnet transports do): local=1 *and*
     tcp_incoming=1, so despite Connection mode reading Local, the
@@ -392,19 +398,34 @@ def test_show_server_reports_set_host_star_as_remote(
     logically remote" case ckcker.h's ENABLED() comment describes."""
     server_dir = tmp_path / "server"
     server_dir.mkdir()
-    port = get_free_port()
-    inifile = tmp_path / "row2_server.ini"
-    inifile.write_text(
-        "set command more-prompting off\n"
-        f"cd {server_dir}\n"
-        f"set host * {port} /raw-socket\n"
-        "show server\n"
-        "close\n"
-    )
-    server_proc = subprocess.Popen(
-        [wermit_path, "-H", "-y", str(inifile)],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-    )
+
+    for attempt in range(PORT_COLLISION_RETRIES):
+        port = get_free_port()
+        inifile = tmp_path / f"row2_server_{attempt}.ini"
+        inifile.write_text(
+            "set command more-prompting off\n"
+            f"cd {server_dir}\n"
+            f"set host * {port} /raw-socket\n"
+            "show server\n"
+            "close\n"
+        )
+        server_log = tmp_path / f"row2_server_{attempt}.log"
+        server_log_fh = open(server_log, "w")
+        server_proc = spawn_wermit(
+            ["--unbuffered", "-H", "-y", str(inifile)],
+            stdout=server_log_fh
+        )
+        try:
+            _wait_for_tcp_listener(
+                server_proc, server_log, server_log_fh, "show_server_row2"
+            )
+            break
+        except PortCollisionError:
+            server_log_fh.close()
+            _wait_or_kill(server_proc, timeout=1)
+            if attempt == PORT_COLLISION_RETRIES - 1:
+                raise
+
     client_result = subprocess.run(
         [wermit_path, "-H", "-Y", "-Q", "-C",
          "set tcp reverse-dns-lookup off, "
@@ -412,11 +433,9 @@ def test_show_server_reports_set_host_star_as_remote(
         capture_output=True, text=True, timeout=10,
     )
     assert_ok(client_result)
-    try:
-        server_out, _ = server_proc.communicate(timeout=10)
-    except subprocess.TimeoutExpired:
-        server_proc.kill()
-        server_out, _ = server_proc.communicate()
+    _wait_or_kill(server_proc, timeout=10)
+    server_log_fh.close()
+    server_out = server_log.read_text(errors="replace")
 
     assert "Connection mode:      Local" in server_out
     assert "Incoming TCP accept:  Yes" in server_out
