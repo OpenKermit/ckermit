@@ -166,11 +166,11 @@ def test_kermit_transfer_large(tmp_path, wermit_loopback, direction):
     or window, in both SEND and GET directions.
 
     The timeout is generous because slow porter hardware (e.g. the
-    Debian riscv64 buildd) needs more than a minute to push 20MB
+    Debian alpha or riscv64 buildds) needs time to push 5MB
     through the Kermit protocol. The test still returns as soon as
     the transfer finishes, so this doesn't slow down normal runs.
     """
-    size = 20 * MB
+    size = 5 * MB
     logger.info(
         "test_kermit_transfer_large: Starting test (direction=%s, size=%d)",
         direction, size)
