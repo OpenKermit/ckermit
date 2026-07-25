@@ -8,6 +8,9 @@ name: Update musl library pins
 # runs the same check on a schedule instead, and opens a PR when an
 # upstream version moved.
 #
+# Requires "Allow GitHub Actions to create and approve pull requests"
+# to be enabled in repository Settings > Actions > General.
+#
 # Time is in UTC
 
 on:
@@ -36,7 +39,7 @@ jobs:
         run: cat "$RUNNER_TEMP/musl-libs-summary.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Open pull request if any pin changed
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: Update musl static library pins
           title: Update musl static library pins
