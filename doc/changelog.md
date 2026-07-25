@@ -1,8 +1,6 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.0.502
-
-July 23, 2026
+# C-Kermit 11.0.503
 
 This is a maintenance release correcting bugs that were discovered after making
 the 11.0 release.  These mostly correct longstanding bugs in the codebase that
@@ -36,6 +34,33 @@ Since this release follows so soon on 11.0, I repeat the dedication:
 > Kermit.
 > 
 > John Goerzen, July 2026
+
+## Bugfixes
+
+- Correctly build the BSD binaries without SSL
+
+- Fixing recursive receive, which led to a deeep dive into C-Kermit permissions.
+  See the new [C-Kermit permissions documentation](permissions.md).
+
+- Fix IKSD server refusing all connections when built with SSL support but not
+  configured with an SSL cert.  This had been a long-standing C-Kermit bug.
+  
+- Added a workaround to the client to deal with old broken IKSD servers.
+
+## Summary of Changed Behavior
+
+- A minor change to the handling of paths in received files, allowing
+  `/RECURSIVE` to work for received files by default again (with more path
+  safeguards).  For more details, see the [permissions
+  documentation](permissions.md).  This mostly restores the pre-11.0 behavior
+  for recursive receives, but with added safeguards.
+
+# C-Kermit 11.0.502
+
+This is a maintenance release correcting bugs that were discovered after making
+the 11.0 release.  These mostly correct longstanding bugs in the codebase that
+were detected by running the test suites on a wider variety of platforms, as
+well as issues with the test suites themselves.
 
 ## Bugfixes
 
