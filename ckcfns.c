@@ -1,4 +1,4 @@
-char *fnsv = "C-Kermit functions, 11.0.500, 22 Jul 2026";
+char *fnsv = "C-Kermit functions, 11.0.503, 24 Jul 2026";
 
 char *nm[] =  { "Disabled", "Local only", "Remote only", "Enabled" };
 
@@ -3332,10 +3332,9 @@ xsinit() {
 /*  H A S D O T D O T  --  Does path contain a ".." component?  */
 
 /*
-  Scans a (possibly multi-segment) pathname for a segment that is
-  exactly "..".  Used to keep an incoming RECEIVE PATHNAMES RELATIVE
-  filename from climbing out of the current directory.
-  Returns 1 if such a segment is found, 0 otherwise.
+  Scans a pathname for a segment that is exactly "..".  Used to keep an incoming
+  SET RECEIVE PATHNAMES RELATIVE filename from climbing out of the current
+  directory.  Returns 1 if such a segment is found, 0 otherwise.
 */
 int
 #ifdef CK_ANSIC
@@ -3481,8 +3480,8 @@ Please confirm output file specification or supply an alternative:";
      * This check is a server-side restriction: it stops a remote
      * client from writing outside the server's current directory
      * when CD/CWD service is disabled. It must not apply when we
-     * are an ordinary client receiving a file (for example a
-     * recursive download), since srvcmd there legitimately carries
+     * are an ordinary client receiving a file, such as for a recursive
+     * recursive, since srvcmd there carries
      * a relative subdirectory path that RECEIVE PATHNAMES handling
      * further down deals with safely.
      */
