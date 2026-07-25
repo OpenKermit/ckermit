@@ -182,7 +182,7 @@ def test_kermit_transfer_large(tmp_path, wermit_loopback, direction):
         file_name="large_file.dat",
         file_content=pattern_bytes(size),
         is_text=False,
-        timeout=180
+        timeout=60
     )
     logger.info(
         "test_kermit_transfer_large: Test passed (direction=%s, size=%d)",

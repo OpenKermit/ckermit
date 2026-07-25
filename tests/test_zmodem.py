@@ -312,10 +312,10 @@ def test_zmodem_receive_ssl_binary(wermit_path, get_free_port, ssl_pki,
 def test_zmodem_receive_large(zmodem_remote, tmp_path):
     """Zmodem receive of a file well beyond a single sub-packet."""
     run_zmodem_receive(
-        zmodem_remote, tmp_path, pattern_bytes(20 * MB), timeout=180)
+        zmodem_remote, tmp_path, pattern_bytes(20 * MB), timeout=90)
 
 
 def test_zmodem_send_large(zmodem_remote, tmp_path):
     """Zmodem send of a file well beyond a single sub-packet."""
     run_zmodem_send(
-        zmodem_remote, tmp_path, pattern_bytes(20 * MB), timeout=180)
+        zmodem_remote, tmp_path, pattern_bytes(20 * MB), timeout=90)
