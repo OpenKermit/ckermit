@@ -21,18 +21,18 @@ set -e
 
 PREFIX=${1:?"usage: $0 <prefix-dir>"}
 
-ZLIB_VERSION=1.3.1
+ZLIB_VERSION=1.3.2
 ZLIB_URL="https://github.com/madler/zlib/releases/download/\
 v$ZLIB_VERSION/zlib-$ZLIB_VERSION.tar.gz"
-ZLIB_SHA256=9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23
+ZLIB_SHA256=bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16
 
-OPENSSL_VERSION=3.5.6
+OPENSSL_VERSION=3.5.7
 OPENSSL_URL="https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz"
-OPENSSL_SHA256=deae7c80cba99c4b4f940ecadb3c3338b13cb77418409238e57d7f31f2a3b736
+OPENSSL_SHA256=a8c0d28a529ca480f9f36cf5792e2cd21984552a3c8e4aa11a24aa31aeac98e8
 
-NCURSES_VERSION=6.5
+NCURSES_VERSION=6.6
 NCURSES_URL="https://ftp.gnu.org/gnu/ncurses/ncurses-$NCURSES_VERSION.tar.gz"
-NCURSES_SHA256=136d91bc269a9a5785e5f9e980bc76ab57428f604ce3e5a5a90cebc767971cc6
+NCURSES_SHA256=355b4cbbed880b0381a04c46617b7656e362585d52e9cf84a67e2009b749ff11
 
 if [ -f "$PREFIX/lib/libssl.a" ] && [ -f "$PREFIX/lib/libz.a" ] \
     && [ -f "$PREFIX/lib/libncurses.a" ]; then
