@@ -1479,7 +1479,8 @@ Syntax: DISABLE command [ { LOCAL, REMOTE, BOTH } ]
 
   If the parameter is omitted, BOTH is used.  By default, most commands
   are enabled for REMOTE but disabled for LOCAL to prevent security issues.
-  Use SHOW SERVER to view the current enable/disable states.
+  Use SHOW SERVER to view the current enable/disable states, along
+  with which of LOCAL or REMOTE actually governs this connection.
 ```
 
 ### DO
@@ -1546,7 +1547,8 @@ Syntax: ENABLE capability [ { LOCAL, REMOTE, BOTH } ]
 
   If the parameter is omitted, BOTH is used.  By default, most commands
   are enabled for REMOTE but disabled for LOCAL to prevent security issues.
-  Use SHOW SERVER to view the current enable/disable states.
+  Use SHOW SERVER to view the current enable/disable states, along
+  with which of LOCAL or REMOTE actually governs this connection.
 ```
 
 ### END
@@ -2155,7 +2157,8 @@ Syntax: GET [ switches... ] remote-filespec [ as-name ]
  
 /RECURSIVE
   Tells the server to descend through the directory tree when locating
-  the files to be sent.
+  the files to be sent.  The resulting pathnames are subject to your
+  SET RECEIVE PATHNAMES setting; see HELP SET RECEIVE.
  
 /RENAME-TO:string
   Specifies that each file that arrives should be renamed as specified
@@ -2254,7 +2257,7 @@ Syntax: HEAD [ switches ] filename
 Synonyms: H, HE
 
 ```
-C-Kermit 11.0.500, 2026/07/22, Copyright (C) 2025-2026,
+C-Kermit 11.0.503, 2026/07/24, Copyright (C) 2025-2026,
   John Goerzen.
 Copyright (C) 1985, 2025,
   Trustees of Columbia University in the City of New York.
@@ -4205,7 +4208,9 @@ Syntax: SEND (or S) [ switches...] [ filespec [ as-name ] ]
 /RECURSIVE
   Tells C-Kermit to look not only in the given or current directory for
   files that match the filespec, but also in all its subdirectories, and
-  all their subdirectories, etc.
+  all their subdirectories, etc.  Where the resulting files land is
+  governed by the receiving Kermit's SET RECEIVE PATHNAMES setting, not
+  by anything set here; see HELP SET RECEIVE.
  
 /RENAME-TO:name
   Tells C-Kermit to rename each source file that is sent successfully to
@@ -7601,10 +7606,22 @@ SET RECEIVE PATHNAMES {OFF, ABSOLUTE, RELATIVE, AUTO}
   incoming filename, strip it OFF before trying to create the output file.
   Otherwise, then if any of the directories in the path don't exist, Kermit
   tries to create them, relative to your current or download directory, or
-  absolutely, as specified.  RELATIVE means force all incoming names, even
-  if they are absolute, to be relative to your current or download directory.
+  absolutely, as specified.  RELATIVE means require all incoming names to be
+  relative to your current or download directory, and also confined to be
+  a descendant of it.
+ 
   AUTO, which is the default, means RELATIVE if the file sender indicates in
   advance that this is a recursive transfer, otherwise OFF.
+ 
+  ABSOLUTE honors all incoming pathnames exactly as given.
+ 
+  RECEIVE PATHNAMES governs how an accepted pathname is placed, and
+  applies equally to files arriving from a GET /RECURSIVE or from
+  someone else's SEND /RECURSIVE; see HELP GET and HELP SEND.
+ 
+  This is separate from ENABLE/DISABLE CD (HELP ENABLE), but this also
+  interact when running as a SERVER.  See doc/permissions.md for an
+  extensive discussion of this topic.
  
 SET RECEIVE PAUSE number
   Milliseconds to pause between packets, normally 0.
@@ -7829,6 +7846,10 @@ SET SERVER TIMEOUT n
 Compile-time default, from `SHOW SERVER`:
 
 ```
+Connection mode:      Remote
+Incoming TCP accept:  No
+Governing ENABLE bit: REMOTE
+Internet server:      No
 Function:          Status:
  GET                Remote only
  SEND               Remote only
