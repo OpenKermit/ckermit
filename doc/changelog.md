@@ -307,6 +307,8 @@ changed defaults.  This impact is expected to be rare.
 - [11] Switched all BSDs to use base system OpenSSL instead of
   separately-installed OpenSSL
   
+- [11] Fixed backspace after typing the space in "ssh "
+  
 - [10] Kermit scripts can now run as Unix pipelines
 
 - [10] Added the `VDIRECTORY` command (with V as a one-letter synonym) as a
