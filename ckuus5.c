@@ -7184,6 +7184,23 @@ doshow(x) int x;
 #ifndef NOSERVER
       case SHSER:                       /* Show Server */
         i = 0;
+        printf("Connection mode:      %s\n", local ? "Local" : "Remote");
+        i++;
+#ifdef TCPSOCKET
+        printf("Incoming TCP accept:  %s\n", tcp_incoming ? "Yes" : "No");
+        i++;
+#endif /* TCPSOCKET */
+        printf("Governing ENABLE bit: %s\n",
+#ifdef TCPSOCKET
+               (local && !tcp_incoming) ? "LOCAL" : "REMOTE"
+#else /* TCPSOCKET */
+               local ? "LOCAL" : "REMOTE"
+#endif /* TCPSOCKET */
+               );
+        i++;
+        printf("Internet server:      %s\n", inserver ? "Yes" : "No");
+        i++;
+        if (i > cmd_rows - 3) { if (!askmore()) return(1); else i = 0; }
 #ifndef NOFRILLS
         printf("Function:          Status:\n");
         i++;
