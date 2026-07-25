@@ -1032,7 +1032,7 @@ all: $(ALL)
 
 # Run the test suite
 test:
-	python3 -m pytest
+	python3 -m pytest $(PYTEST_ARGS)
 
 # Run C unit tests
 #
