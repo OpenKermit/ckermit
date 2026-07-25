@@ -43,6 +43,7 @@ Here you can find specific C-Kermit information:
   - [Calling BBSs](bbs.md)
   - [On very high-latency links](high-latency.md)
   - [C-Kermit Scripting](scripting.md)
+  - [Local/Remote mode, ENABLE/DISABLE, and RECEIVE PATHNAMES](permissions.md)
 
 For more information, see the wider [Open Kermit project](https://www.openkermit.org/).  Take particular note of these pages there:
 
