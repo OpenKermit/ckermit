@@ -3,7 +3,9 @@ import time
 
 import pytest
 
-from conftest import assert_ok
+from conftest import (
+    assert_ok, ssl_client_setup_cmds, ssl_server_setup_cmds,
+)
 
 pytestmark = pytest.mark.skipif(
     shutil.which("openssl") is None,
@@ -402,3 +404,90 @@ def test_raw_protocol_switch_sets_matching_raw_flag(
         f"expected '{raw_flag_label} yes' for /{protocol}, got:\n"
         f"{result.stdout}"
     )
+
+
+def test_telnet_no_cert_completes_without_ssl_negotiation(
+        wermit_ssl_available, server_dir, wermit_tcp_loopback):
+    """
+    Regression test for IKSD and SET HOST /SERVER offering Telnet
+    START-TLS and the AUTHENTICATION option's SSL type by default
+    whenever OpenSSL is loadable, even when neither side has a
+    certificate configured. Both mechanisms perform a real SSL
+    handshake directly on the connection outside Telnet framing, so a
+    failed attempt cannot fall back to plaintext on the same
+    connection. Before the fix, this either stalled the connection
+    ("TLS failed: Disconnecting" followed by a failed reconnect
+    attempt against this single-connection test server) or aborted it
+    outright ("?Telnet Option negotiation error"), instead of simply
+    proceeding as plain Telnet the way a certificate-less server
+    should.
+    """
+    if not wermit_ssl_available:
+        pytest.skip("wermit was not built with SSL/TLS support")
+
+    session = wermit_tcp_loopback(server_dir, protocol="telnet")
+    result = session.run_client("remote pwd", protocol="telnet")
+
+    assert_ok(result)
+    assert "TLS failed" not in result.stdout
+    assert "Reconnecting" not in result.stdout
+    assert str(server_dir) in result.stdout
+
+
+def test_telnet_no_cert_does_not_offer_ssl_authentication_type(
+        wermit_ssl_available, server_dir, wermit_tcp_loopback):
+    """
+    Isolates the AUTHENTICATION-option half of the fix described in
+    test_telnet_no_cert_completes_without_ssl_negotiation: with
+    START-TLS itself refused on both ends, the AUTHENTICATION
+    option's SSL type is the only remaining way to trigger the same
+    failure (a raw SSL handshake attempted with no certificate to
+    present).
+
+    ck_tn_auth_request_ssl() (ckuath.c) is the server-side function
+    that decides whether to advertise that type in its AUTHENTICATION
+    SEND list. Before the fix in 11.0.503, it did so whenever OpenSSL was
+    loadable, with no certificate check, so the client would select
+    it, attempt the handshake, and fail the same way.
+    """
+    if not wermit_ssl_available:
+        pytest.skip("wermit was not built with SSL/TLS support")
+
+    session = wermit_tcp_loopback(
+        server_dir, protocol="telnet",
+        setup_cmds="set telopt /server start-tls refused",
+    )
+    result = session.run_client(
+        "remote pwd", protocol="telnet",
+        setup_cmds="set telopt start-tls refused",
+    )
+
+    assert_ok(result)
+    assert "Reconnecting" not in result.stdout
+    assert str(server_dir) in result.stdout
+
+
+def test_telnet_with_cert_negotiates_starttls_automatically(
+        server_dir, wermit_tcp_loopback, ssl_pki):
+    """
+    Regression guard for the two fixes above: a server with a real
+    certificate must still offer START-TLS by default over plain
+    Telnet (no /SSL or /TLS protocol-switch needed), and the client
+    must still complete the handshake automatically, so the
+    certificate check that suppresses START-TLS/SSL-authentication
+    when no certificate is present must not also suppress them when
+    one is.
+    """
+    session = wermit_tcp_loopback(
+        server_dir, protocol="telnet",
+        setup_cmds=ssl_server_setup_cmds(ssl_pki),
+    )
+    result = session.run_client(
+        "remote pwd", protocol="telnet",
+        setup_cmds=ssl_client_setup_cmds(ssl_pki),
+    )
+
+    assert_ok(result)
+    assert "[TLS -" in result.stdout
+    assert "TLS failed" not in result.stdout
+    assert str(server_dir) in result.stdout

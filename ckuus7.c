@@ -9155,6 +9155,14 @@ cx_net(net, protocol, xhost, svc,
 
     /* New connection wanted.  Make a copy of the host name/address... */
 
+#ifdef CK_SSL
+    /* This is a new connection attempt, as opposed to the automatic
+     * reconnect after a failed SSL authentication handshake (see
+     * ckctel.c), so give the SSL authentication type another chance
+     * here even if it failed on a previous connection. */
+    ssl_auth_failed_flag = 0;
+#endif /* CK_SSL */
+
     debug(F100,"cx_net A","",0);
     if (clskconnx(1) < 0)		/* Close current Kermit connection */
       return(cx_fail(msg,"Error closing previous connection"));
