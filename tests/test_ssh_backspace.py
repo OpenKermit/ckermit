@@ -1,7 +1,24 @@
+import fcntl
 import os
 import pty
 import subprocess
+import termios
 import time
+
+
+def _make_controlling_tty():
+    """
+    Makes the pty slave this process's controlling terminal, so
+    wermit's foreground-process-group detection function conbgt()
+    sees it as a real interactive session instead of a
+    backgrounded one. Without this, kermit stays a member of the
+    parent Python's process group with no controlling terminal.
+    conbgt() may interpret that as "running in the background" and
+    respond by suppressing the prompt entirely, leaving the test
+    blocked on OpenBSD at least.
+    """
+    os.setsid()
+    fcntl.ioctl(0, termios.TIOCSCTTY, 0)
 
 
 def test_ssh_space_backspace(wermit_path):
@@ -16,6 +33,7 @@ def test_ssh_space_backspace(wermit_path):
         stdout=slave,
         stderr=slave,
         close_fds=True,
+        preexec_fn=_make_controlling_tty,
     )
     os.close(slave)
 
