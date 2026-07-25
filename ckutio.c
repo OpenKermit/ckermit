@@ -8770,6 +8770,13 @@ myfillbuf() {
   of being silently lost.
 */
 #ifdef SELECT
+
+    /* fd can be -1 here. FD_SET() on a negative fd is undefined behavior.
+       Treat it exactly like any other I/O error instead.
+    */
+
+    if (fd < 0)
+      return(-3);
     {
         /*
 	  select() is never automatically restarted after a caught signal on
