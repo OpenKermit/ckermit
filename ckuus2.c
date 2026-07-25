@@ -2917,7 +2917,8 @@ static char *hmxxget[] = {
 " ",
 "/RECURSIVE",
 "  Tells the server to descend through the directory tree when locating",
-"  the files to be sent.",
+"  the files to be sent.  The resulting pathnames are subject to your",
+"  SET RECEIVE PATHNAMES setting; see HELP SET RECEIVE.",
 " ",
 "/RENAME-TO:string",
 "  Specifies that each file that arrives should be renamed as specified",
@@ -3282,7 +3283,9 @@ static char * hmxxsen[] = {
 "/RECURSIVE",
 "  Tells C-Kermit to look not only in the given or current directory for",
 "  files that match the filespec, but also in all its subdirectories, and",
-"  all their subdirectories, etc.",
+"  all their subdirectories, etc.  Where the resulting files land is",
+"  governed by the receiving Kermit's SET RECEIVE PATHNAMES setting, not",
+"  by anything set here; see HELP SET RECEIVE.",
 " ",
 "/RENAME-TO:name",
 "  Tells C-Kermit to rename each source file that is sent successfully to",
@@ -6486,7 +6489,8 @@ case XXDIS:
   BOTH:   Disabled in both modes.\n\n\
   If the parameter is omitted, BOTH is used.  By default, most commands\n\
   are enabled for REMOTE but disabled for LOCAL to prevent security issues.\n\
-  Use SHOW SERVER to view the current enable/disable states."));
+  Use SHOW SERVER to view the current enable/disable states, along\n\
+  with which of LOCAL or REMOTE actually governs this connection."));
 #endif /* NOFRILLS */
 #endif /* NOSERVER */
 
@@ -6531,7 +6535,8 @@ case XXENA:
   BOTH:   Enabled in both modes.\n\n\
   If the parameter is omitted, BOTH is used.  By default, most commands\n\
   are enabled for REMOTE but disabled for LOCAL to prevent security issues.\n\
-  Use SHOW SERVER to view the current enable/disable states."));
+  Use SHOW SERVER to view the current enable/disable states, along\n\
+  with which of LOCAL or REMOTE actually governs this connection."));
 #endif /* NOFRILLS */
 #endif /* NOSERVER */
 
@@ -9609,11 +9614,22 @@ static char *hxyrcv[] = {
 #ifdef CK_MKDIR
 "  Otherwise, then if any of the directories in the path don't exist, Kermit",
 "  tries to create them, relative to your current or download directory, or",
-"  absolutely, as specified.  RELATIVE means force all incoming names, even",
-"  if they are absolute, to be relative to your current or download directory."
-,
+"  absolutely, as specified.  RELATIVE means require all incoming names to be",
+"  relative to your current or download directory, and also confined to be",
+"  a descendant of it.",
+" ",
 "  AUTO, which is the default, means RELATIVE if the file sender indicates in",
 "  advance that this is a recursive transfer, otherwise OFF.",
+" ",
+"  ABSOLUTE honors all incoming pathnames exactly as given.",
+" ",
+"  RECEIVE PATHNAMES governs how an accepted pathname is placed, and",
+"  applies equally to files arriving from a GET /RECURSIVE or from",
+"  someone else's SEND /RECURSIVE; see HELP GET and HELP SEND.",
+" ",
+"  This is separate from ENABLE/DISABLE CD (HELP ENABLE), but this also",
+"  interact when running as a SERVER.  See doc/permissions.md for an",
+"  extensive discussion of this topic.",
 #endif /* CK_MKDIR */
 " ",
 "SET RECEIVE PAUSE number",
