@@ -371,8 +371,8 @@ def test_kermit_transfer_recursive(tmp_path, wermit_loopback):
     Test recursive file transfer (SEND /RECURSIVE).
     Verifies that nested files and subdirectories are correctly recreated
     on the server, but completely empty directories are skipped.
-    GET /RECURSIVE is not tested as recursive GET is not supported by the
-    Kermit protocol.
+    GET /RECURSIVE is covered separately in
+    test_permissions.py:test_get_recursive_descends_into_subdirectories.
     """
     logger.info("test_kermit_transfer_recursive: Starting test")
     client_dir = tmp_path / "client"
