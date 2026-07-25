@@ -30,9 +30,9 @@
 
 ## Summary
 
-This is a major new release, the first non-beta since the last 9.x release
-in 2022.  It represents a major effort to modernize and improve the C-Kermit
-codebase.
+C-Kermit 11 is a major new release, the first non-beta since the last 9.x
+release in 2022.  It represents a significant effort to modernize and improve the
+C-Kermit codebase.
 
 Since all C-Kermit 10.x releases were betas, some people may be upgrading from
 9.x and others from 10.x.  Since some changes were labeled as "9.x DEV" or
@@ -47,7 +47,8 @@ relationship between the different Kermit versions.
 - [11] Introduced C-based unit tests and a Python-based regression test suite.
   Together, these test suites have been responsible for identifying nearly all
   of the bug fixes in the v11 release as noted below.  Timing analysis of the
-  test suite also led to most of the performance fixes.
+  test suite also led to most of the performance fixes.  Running the tests under
+  load led to the discovery and fix of numerous race conditions.
 
 - [11] Added CI.  All changes now are validated on Linux, MacOS, FreeBSD, and
   NetBSD using the above test suites.  Approximately 1000 test cases are being
@@ -92,7 +93,7 @@ relationship between the different Kermit versions.
 
 - [11] Codebase-wide dead code elimination and general simplification.  This
   removes code that was never used in any build on any platform, and makes code
-  auditing and analysis easier.  Despite many new features, the code C-Kermit 11
+  auditing and analysis easier.  Despite many new features, the C-Kermit 11
   codebase (excluding comments) is about 2600 lines smaller than the last 10.x
   beta!
 
@@ -101,7 +102,8 @@ relationship between the different Kermit versions.
   with `NO_OPENSSL_VERSION_CHECK` to disable the compatibility check.
   
 - [11] Static binaries are now supported on Linux, with both glibc and musl
-  libc.
+  libc.  Official musl static binaries for Linux on amd64 and arm64 are built
+  for each release.
 
 - [10] Support for serial-port speeds up to 4,000,000 bps.
 
@@ -125,8 +127,6 @@ relationship between the different Kermit versions.
   In particular, MacOS FIONREAD appears to be unreliable, and assuming it to be
   reliable led to some hard-to-track-down hangs.
   
-- [11] Several pty issues were also remedied on NetBSD. 
-
 - [11] Recursive transfer fixed on MacOS.
 
 - [11] Fixed filename collision (overwrite) detection on MacOS.
@@ -158,6 +158,8 @@ relationship between the different Kermit versions.
   and was detected when I added streaming mode tests.  The workaround is to run
   `sysctl -w kern.tty.qsize=65536` or to set it in `/etc/sysctl.conf`; a comment
   in that file implies this issue is known already.
+
+- [11] Several other pty issues were also remedied on NetBSD. 
 
 - [11] Fix IKSD server refusing all connections when built with SSL support but not
   configured with an SSL cert.  This had been a long-standing C-Kermit bug.
