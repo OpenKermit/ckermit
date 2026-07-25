@@ -3329,6 +3329,32 @@ xsinit() {
     resend(0);
 }
 
+/*  H A S D O T D O T  --  Does path contain a ".." component?  */
+
+/*
+  Scans a (possibly multi-segment) pathname for a segment that is
+  exactly "..".  Used to keep an incoming RECEIVE PATHNAMES RELATIVE
+  filename from climbing out of the current directory.
+  Returns 1 if such a segment is found, 0 otherwise.
+*/
+int
+#ifdef CK_ANSIC
+hasdotdot( char *s )
+#else
+hasdotdot(s) char *s;
+#endif /* CK_ANSIC */
+{
+    char *p = s;
+    while (p) {
+	char *slash = strchr(p,'/');
+	size_t len = slash ? (size_t)(slash - p) : strlen(p);
+	if (len == 2 && p[0] == '.' && p[1] == '.')
+	  return(1);
+	p = slash ? slash + 1 : NULL;
+    }
+    return(0);
+}
+
 /*  R C V F I L -- Receive a file  */
 
 /*
@@ -3451,12 +3477,34 @@ Please confirm output file specification or supply an alternative:";
 #endif /* NOSPL */
 #endif /* NOICP */
 
-    if (!ENABLED(en_cwd)) {		/* CD is disabled */
-	zstrip((char *)(srvcmd+2),&n2); /* and they included a pathname, */
-	if (strcmp((char *)(srvcmd+2),n2)) { /* so refuse. */
+    /*
+     * This check is a server-side restriction: it stops a remote
+     * client from writing outside the server's current directory
+     * when CD/CWD service is disabled. It must not apply when we
+     * are an ordinary client receiving a file (for example a
+     * recursive download), since srvcmd there legitimately carries
+     * a relative subdirectory path that RECEIVE PATHNAMES handling
+     * further down deals with safely.
+     */
+    if (server && !ENABLED(en_cwd)) {	/* Server-mode CD is disabled */
+	zstrip((char *)srvcmd,&n2);	/* and they included a pathname, */
+	if (strcmp((char *)srvcmd,n2)) { /* so refuse. */
 	    rf_err = "Access denied";
 	    return(0);
 	}
+    }
+
+    /*
+     * Keep an incoming pathname from climbing out of the current
+     * directory via embedded ".." components. This applies whenever
+     * pathnames are being honored at all (RELATIVE or AUTO); it does
+     * not apply under RECEIVE PATHNAMES ABSOLUTE, since there the
+     * user has explicitly opted to trust the sender's absolute
+     * paths.
+     */
+    if (fnrpath != PATH_ABS && hasdotdot((char *)srvcmd)) {
+	rf_err = "Access denied";
+	return(0);
     }
 
     skipthis = 0;			/* This file in our exception list? */

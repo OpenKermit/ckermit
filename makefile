@@ -1056,12 +1056,13 @@ unit-test:
 	@$(MAKE) "CC=`cat .buildcc.cache`" "CFLAGS=`cat .buildflags.cache`" \
 		tests/unit/bin/test_lib tests/unit/bin/test_strings \
 		tests/unit/bin/test_net tests/unit/bin/test_mpsafe \
-		tests/unit/bin/test_zfnqfp
+		tests/unit/bin/test_zfnqfp tests/unit/bin/test_hasdotdot
 	./tests/unit/bin/test_lib
 	./tests/unit/bin/test_strings
 	./tests/unit/bin/test_net
 	./tests/unit/bin/test_mpsafe
 	./tests/unit/bin/test_zfnqfp
+	./tests/unit/bin/test_hasdotdot
 
 # Rules for the unit test binaries.
 #
@@ -1152,6 +1153,20 @@ tests/unit/bin/test_zfnqfp: tests/unit/test_zfnqfp.c ckufio.c ckclib.c ckcfnp.h
 	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
 		tests/unit/test_zfnqfp.c tests/unit/bin/ckufio_test.$(EXT) \
 		tests/unit/bin/ckclib_test_zfnqfp.$(EXT) \
+		-o $@ $$GCSECTIONS $$CHECKLIBS
+
+# test_hasdotdot exercises hasdotdot(), which lives in ckcfns.c.
+tests/unit/bin/test_hasdotdot: tests/unit/test_hasdotdot.c ckcfns.c ckcfnp.h
+	@mkdir -p tests/unit/bin
+	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	case `uname -s` in \
+	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
+	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
+	esac; \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		-c ckcfns.c -o tests/unit/bin/ckcfns_test.$(EXT); \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		tests/unit/test_hasdotdot.c tests/unit/bin/ckcfns_test.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
 
 #Clean up intermediate and object files
