@@ -1,97 +1,6 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.0.503
-
-This is a maintenance release correcting bugs that were discovered after making
-the 11.0 release.  These mostly correct longstanding bugs in the codebase that
-were detected by running the test suites on a wider variety of platforms, as
-well as issues with the test suites themselves.
-
-Since this release follows so soon on 11.0, I repeat the dedication:
-
-## Dedication
-
-> I dedicate this release of C-Kermit to Frank da Cruz.
->
-> Frank was directly involved with Kermit for 44 years, from its initial design
-> in 1981 all the way through 2025.  He maintained Kermit as an Open Source
-> project after Columbia University ended its sponsorship.  I know of no other
-> Open Source project where the founder remains so personally involved for so
-> long.
->
-> When Kermit was begun, transfers between different hardware and operating
-> systems were difficult or impossible.  Frank helped build a bridge.  Kermit
-> glued systems together, from the International Space Station to pocket
-> calculators, and set a new standard for interoperability.  It continues to do
-> so.
-> 
-> Kermit is still one of the quietly-working pillars of computing today,
-> enabling everything from firmware upgrades to radios.  And, yes, it still
-> reliably transfers files over serial lines.
->
-> As we start to spend a lot of time in the Kermit codebase, we do so standing
-> on the shoulders of a giant.  Thanks, Frank, for your decades of work on
-> Kermit.
-> 
-> John Goerzen, July 2026
-
-## Bugfixes
-
-- Correctly build the BSD binaries without SSL
-
-- Fixing recursive receive, which led to a deeep dive into C-Kermit permissions.
-  See the new [C-Kermit permissions documentation](permissions.md).
-
-- Fix IKSD server refusing all connections when built with SSL support but not
-  configured with an SSL cert.  This had been a long-standing C-Kermit bug.
-  
-- Added a workaround to the client to deal with old broken IKSD servers.
-
-## Summary of Changed Behavior
-
-- A minor change to the handling of paths in received files, allowing
-  `/RECURSIVE` to work for received files by default again (with more path
-  safeguards).  For more details, see the [permissions
-  documentation](permissions.md).  This mostly restores the pre-11.0 behavior
-  for recursive receives, but with added safeguards.
-
-# C-Kermit 11.0.502
-
-This is a maintenance release correcting bugs that were discovered after making
-the 11.0 release.  These mostly correct longstanding bugs in the codebase that
-were detected by running the test suites on a wider variety of platforms, as
-well as issues with the test suites themselves.
-
-## Bugfixes
-
-- Fixed a telnet negotiation race related to EINTR and select (!d9ead5b3)
-
-- Now skip ZModem mod time checking by default, since it's broken in certain
-  distro corner cases within lrzsz and libfaketime, both of which are outside
-  C-Kermit's control.
-
-- Fixed Unicode BOM detection issue that may manifest on big-endian
-  architectures.
-
-- Fixed unit test compilation on PowerPC64
-
-- Fixed ulong unit tests on 32-bit archs
-
-- Switched all BSDs to use base system OpenSSL instead of separately-installed
-  OpenSSL
-  
-- No longer build the macOS or *BSD binary with SSL support, to increase
-  compatibility.  On Mac, kermit wouldn't start unless openssl was installed
-  from Homebrew.  On NetBSD, I observed a soname problem.  It's not worth the
-  compatibility problems.  Linux seems to be more standardized in this respect,
-  and also I'm building static binaries there.  See [platform
-  notes](platforms.md) for more.
-  
-- Binary tarballs now ship with the doc/ directory.
-
-# C-Kermit 11.0
-
-July 22, 2026
+# C-Kermit 11.0 announcement (11.0.503)
 
 ## Dedication
 
@@ -250,6 +159,9 @@ relationship between the different Kermit versions.
   `sysctl -w kern.tty.qsize=65536` or to set it in `/etc/sysctl.conf`; a comment
   in that file implies this issue is known already.
 
+- [11] Fix IKSD server refusing all connections when built with SSL support but not
+  configured with an SSL cert.  This had been a long-standing C-Kermit bug.
+  
 - [10] Fixed the `TOUCH` command, which had been nonfunctional.
 
 - [9] Fixed a crash on 64-bit platforms (such as OpenBSD sparc64) during file
@@ -379,7 +291,22 @@ changed defaults.  This impact is expected to be rare.
   
 - [11] Now give an accurate error message instead of "write access to UUCP
   lockfile" about errors that had nothing to do with the lockfile
+  
+- [11] Correctly build the BSD binaries without SSL
 
+- [11] Fixing recursive receive, which led to a deep dive into C-Kermit permissions.
+  See the new [C-Kermit permissions documentation](permissions.md).
+
+- [11] Added a workaround to the client to deal with old broken IKSD servers.
+
+- [11] Fixed a telnet negotiation race related to EINTR and select
+
+- [11] Fixed Unicode BOM detection issue that may manifest on big-endian
+  architectures.
+
+- [11] Switched all BSDs to use base system OpenSSL instead of
+  separately-installed OpenSSL
+  
 - [10] Kermit scripts can now run as Unix pipelines
 
 - [10] Added the `VDIRECTORY` command (with V as a one-letter synonym) as a
@@ -495,6 +422,12 @@ wild.
 - [11] Since C-Kermit now properly reports errors during autodownload, the
   default for `SET TERMINAL AUTODOWNLOAD ERROR` has changed from `STOP` to
   `CONTINUE` as suggested by a comment in 2001.
+
+- A minor change to the handling of paths in received files, allowing
+  `/RECURSIVE` to work for received files by default again (with more path
+  safeguards).  For more details, see the [permissions
+  documentation](permissions.md).  This mostly restores the pre-11.0 behavior
+  for recursive receives, but with added safeguards.
 
 - [10] The default `SET VARIABLE-EVALUATION` setting has changed from
   `RECURSIVE` to `SIMPLE` to prevent pathnames containing backslashes from
