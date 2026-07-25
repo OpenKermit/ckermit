@@ -8027,10 +8027,8 @@ redossh() {
     x = nettype;
     debug(F111,"redossh nettype",ttname,nettype);
     if ((y = setlin(XXSSH,0,1)) < 0) {
-	if (errno)
+	if (y != -1 && errno)
 	  printf("?%s\n",ck_errstr());
-	else
-	  return(y);
 	nettype = x;			/* Failed, restore net type. */
 	success = 0;
 	return(y);
@@ -11895,20 +11893,12 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n");
         debug(F101,"SSH external nettype","",nettype);
         debug(F101,"SSH external calling setlin","",0);
 	if ((y = setlin(XXSSH,0,1)) < 0) {
-	    if (errno)
+	    if (y != -1 && errno)
 	      printf("?%s\n",ck_errstr());
-            else
-#ifdef COMMENT
-	    /* This isn't right either because it catches command editing */
-	      printf("?Sorry, pseudoterminal open failed\n");
-            if (hints)
-	      printf("Hint: Try \"ssh -t %s\"\n",line);
-#else
-            return(y);
-#endif /* COMMENT */
 	    nettype = x;		/* Failed, restore net type. */
 	    ttnproto = z;		/* and protocol */
 	    success = 0;
+	    return(y);
 	}
 	didsetlin++;
 	netsave = x;
