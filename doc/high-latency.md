@@ -4,9 +4,10 @@ Here I discuss using C-Kermit for links with very high latencies (measured in
 minutes, hours, or even days).  This can include radio networks such as
 [Meshtastic](https://meshtastic.org), satellite links, email as a carrier, etc.
 
-Default C-Kermit is inappropriate for these settings because timeouts will cause
-excessive retransmits within a few seconds.  However, C-Kermit is quite flexible
-and can easily be configured for success in these situations.
+C-Kermit's default settings are inappropriate for these settings because
+timeouts will cause excessive retransmits within a few seconds.  However,
+C-Kermit is quite flexible and can easily be configured for success in these
+situations.
 
 The default timeout and retry values are far too aggressive for RTTs (round trip
 times) of this scale.  They'll abort a transfer before an ACK (packet
@@ -18,7 +19,6 @@ active by default.
 
 Very few network protocols are able to handle latency of this kind, but C-Kermit
 is!
-
 
 ## Root causes of the issue
 
@@ -45,8 +45,8 @@ is!
 
 ## Tunable parameters
 
-These parameters already exist and cover the problem; no new
-tunables are needed.
+Here are the parameters that, when adjusted, allow C-Kermit to work well for
+very high-latency links:
 
 ### `SET SEND TIMEOUT`
 
@@ -87,7 +87,10 @@ matters once RTT starts increasing.
 
 [Current defaults](help-reference.md#set-protocol) are reasonable in many cases,
 with the window set to 30, and packet lengths defaulting to 90 (send) and 4000
-(receive).  However, when the underlying transport supports higher packet sizes, it may be helpful to set them at the outset rather than letting Kermit auto-tune to the higher sizes, since the auto-tuning process could take quite awhile to kick in with high RTTs.  Do that with:
+(receive).  However, when the underlying transport supports higher packet sizes,
+it may be helpful to set them at the outset rather than letting Kermit auto-tune
+to the higher sizes, since the auto-tuning process could take quite awhile to
+kick in with high RTTs.  Do that with:
 
 ```
 SET RECEIVE PACKET-LENGTH 9024
@@ -97,21 +100,20 @@ SET SEND PACKET-LENGTH 9024
 ### SET RELIABLE and SET STREAMING
 
 If the underlying path is a reliable transport (for example, TCP/IP), streaming
-mode removes ACK-waiting and per-packet timeouts entirely, assuming the
-underlying transport provides reliability.
+mode removes ACK-waiting and per-packet timeouts, assuming the underlying
+transport provides reliability.
 
 Both RELIABLE and STREAMING [default to AUTO](help-reference.md#set-streaming).
 This means streaming may already be active by default for a TCP-based path with
 no configuration required.
 
-If the long-latency path is serial or radio rather than TCP,
-streaming does not activate automatically. Enabling it there requires
-an explicit `SET RELIABLE ON`, and should only be done if the link is
-trusted not to silently corrupt data. Deep space and HF radio type
-links generally do not meet that bar, and should rely on tuned
-`SEND TIMEOUT` / `RETRY` / `WINDOW` values instead.
+If the long-latency path is serial  rather than TCP, streaming does not activate
+automatically. Enabling it there requires an explicit `SET RELIABLE ON`, and
+should only be done if the link is trusted not to silently corrupt data.  HF
+radio type links generally do not meet that bar, and should rely on tuned `SEND
+TIMEOUT` / `RETRY` / `WINDOW` values instead.
 
-## Wire protocol limit (not a bug, does not matter in practice)
+## Wire protocol limit
 
 `SET RECEIVE TIMEOUT`, the value one Kermit asks its peer to wait for packets
 before resending, is capped at 0-94 seconds. This is because the value is
