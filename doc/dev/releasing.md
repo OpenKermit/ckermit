@@ -5,7 +5,7 @@ C-Kermit.
 
 ## 1. Update the Changelog
 
-Make sure `doc/changelod.md` is up-to-date with details for the release.
+Make sure `doc/changelog.md` is up-to-date with details for the release.
 
 ## 2. Update Source Code Version and Build Information
 
