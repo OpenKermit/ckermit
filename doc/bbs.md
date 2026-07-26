@@ -75,11 +75,8 @@ Here's an example screenshot:
 
 - `SET TERMINAL CHARACTER-SET ?` lists all supported character sets.
 
-- On POSIX, the combined `SET TERMINAL CHARACTER-SET <remote> <local>` form is
-  the normal way to configure this. The more granular `SET TERMINAL
-  REMOTE-CHARACTER-SET` / `SET TERMINAL LOCAL-CHARACTER-SET` pair also exists
-  (documented alongside it in ckuus2.c) if asymmetric behavior is ever needed,
-  e.g. translating received data but leaving typed keystrokes untouched.
-
-- You will want a terminal with good support for ANSI emulation to run this all
-  in.
+- The combined `SET TERMINAL CHARACTER-SET <remote> <local>` form is the normal
+  way to configure this. The more granular `SET TERMINAL REMOTE-CHARACTER-SET` /
+  `SET TERMINAL LOCAL-CHARACTER-SET` pair also exists if asymmetric behavior is
+  ever needed, such as translating received data but leaving typed keystrokes
+  untouched.
