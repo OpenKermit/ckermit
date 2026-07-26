@@ -86,6 +86,12 @@ def telnet_minimal_options_prefix(transport):
             if transport == "telnet" else "")
 
 
+TELNET_REFUSE_KERMIT_CLAUSE = (
+    "set telopt /client kermit refused, "
+    "set telopt /server kermit refused"
+)
+
+
 def ssl_server_setup_cmds(ssl_pki):
     """SET AUTHENTICATION SSL commands presenting the "happy path"
     trusted-CA-signed server certificate from the ssl_pki fixture.

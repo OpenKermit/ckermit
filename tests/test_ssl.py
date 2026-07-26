@@ -5,6 +5,7 @@ import pytest
 
 from conftest import (
     assert_ok, ssl_client_setup_cmds, ssl_server_setup_cmds,
+    TELNET_REFUSE_KERMIT_CLAUSE,
 )
 
 pytestmark = pytest.mark.skipif(
@@ -480,11 +481,17 @@ def test_telnet_with_cert_negotiates_starttls_automatically(
     """
     session = wermit_tcp_loopback(
         server_dir, protocol="telnet",
-        setup_cmds=ssl_server_setup_cmds(ssl_pki),
+        setup_cmds=(
+            f"{ssl_server_setup_cmds(ssl_pki)}, "
+            f"{TELNET_REFUSE_KERMIT_CLAUSE}"
+        ),
     )
     result = session.run_client(
         "remote pwd", protocol="telnet",
-        setup_cmds=ssl_client_setup_cmds(ssl_pki),
+        setup_cmds=(
+            f"{ssl_client_setup_cmds(ssl_pki)}, "
+            f"{TELNET_REFUSE_KERMIT_CLAUSE}"
+        ),
     )
 
     assert_ok(result)
