@@ -9790,7 +9790,7 @@ love:
 #Check the most recent build (assuming any previous wermit had been deleted)
 check: unit-test
 	@if test -s wermit -a -x wermit ; then \
-	echo SUCCESS:; ls -log wermit ; else \
+	echo SUCCESS:; ls -l wermit ; else \
 	echo FAILED; \
 	fi
 
