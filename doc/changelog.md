@@ -1,6 +1,6 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.0 announcement (11.0.503)
+# C-Kermit 11.0 announcement (11.0.504)
 
 ## Dedication
 
