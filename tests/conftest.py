@@ -683,7 +683,9 @@ def wermit_tcp_loopback(spawn_wermit, run_wermit, get_free_port):
                 cmd_str = client_commands
 
             proto_switch = f" /{protocol}" if protocol else ""
-            setup_prefix = f"{setup_cmds}, " if setup_cmds else ""
+            telnet_prefix = ("set telopt /client kermit refused, "
+                             "set telopt /server kermit refused, ") if protocol == "telnet" else ""
+            setup_prefix = f"{telnet_prefix}{setup_cmds}, " if setup_cmds else telnet_prefix
 
             full_client_cmd = [
                 "-H", "-Y", "-C",
@@ -724,7 +726,9 @@ def wermit_tcp_loopback(spawn_wermit, run_wermit, get_free_port):
             f"tcp_server_{Path(server_dir).name}.log"
 
         proto_switch = f" /{protocol}" if protocol else ""
-        setup_prefix = f"{setup_cmds}, " if setup_cmds else ""
+        telnet_prefix = ("set telopt /client kermit refused, "
+                         "set telopt /server kermit refused, ") if protocol == "telnet" else ""
+        setup_prefix = f"{telnet_prefix}{setup_cmds}, " if setup_cmds else telnet_prefix
 
         for attempt in range(PORT_COLLISION_RETRIES):
             port = get_free_port()
