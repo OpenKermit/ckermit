@@ -704,7 +704,8 @@ def wermit_tcp_loopback(spawn_wermit, run_wermit, get_free_port):
             logger.info(
                 "wermit_tcp_loopback: Client running command sequence: %s",
                 cmd_str)
-            return run_wermit(full_client_cmd, timeout=timeout)
+            return run_wermit(
+                full_client_cmd, timeout=timeout + TCP_TIMEOUT_MARGIN)
 
         def server_output(self):
             """Returns the server's captured stdout/stderr so far."""
