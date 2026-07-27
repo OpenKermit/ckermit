@@ -1350,6 +1350,19 @@ static struct timeval ck_deadline_tv;
 static time_t ck_deadline_sec = (time_t)0;
 #endif /* GFTIMER */
 
+/*
+  Saved deadline state for ck_deadline_save() and ck_deadline_restore().
+  Used when an untimed read is nested inside an active timed read.
+*/
+typedef struct {
+    int active;
+#ifdef GFTIMER
+    struct timeval tv;
+#else /* GFTIMER */
+    time_t sec;
+#endif /* GFTIMER */
+} ck_deadline_state_t;
+
 /* static */				/* (Not static any more) */
 int ttyfd = -1;				/* TTY file descriptor */
 
@@ -1607,6 +1620,8 @@ _PROTOTYP( SIGTYP deadline_timerh, (int) );
 _PROTOTYP( SIGTYP deadline_xtimerh, (int) );
 #endif /* apollo */
 _PROTOTYP( VOID ck_deadline_set, (int) );
+_PROTOTYP( static VOID ck_deadline_save, (ck_deadline_state_t *) );
+_PROTOTYP( static VOID ck_deadline_restore, (ck_deadline_state_t *) );
 _PROTOTYP( long ck_deadline_remaining_ms, (void) );
 _PROTOTYP( int ck_deadline_expired, (void) );
 #ifdef SELECT
@@ -1807,6 +1822,35 @@ ck_deadline_set(seconds) int seconds;
     ck_deadline_tv.tv_sec += seconds;
 #else /* GFTIMER */
     ck_deadline_sec = time((time_t *)0) + (time_t)seconds;
+#endif /* GFTIMER */
+}
+
+/*
+  C K _ D E A D L I N E _ S A V E ,  C K _ D E A D L I N E _ R E S T O R E
+
+  Save and restore shared deadline state.
+
+  Nested untimed reads (such as Telnet option processing called from
+  ttinl()) clear the shared deadline state. Callers save state before
+  clearing it and restore state afterward so outer deadlines remain active.
+*/
+static VOID
+ck_deadline_save(ck_deadline_state_t *save) {
+    save->active = ck_deadline_active;
+#ifdef GFTIMER
+    save->tv = ck_deadline_tv;
+#else /* GFTIMER */
+    save->sec = ck_deadline_sec;
+#endif /* GFTIMER */
+}
+
+static VOID
+ck_deadline_restore(ck_deadline_state_t *save) {
+    ck_deadline_active = save->active;
+#ifdef GFTIMER
+    ck_deadline_tv = save->tv;
+#else /* GFTIMER */
+    ck_deadline_sec = save->sec;
 #endif /* GFTIMER */
 }
 
@@ -10679,13 +10723,6 @@ ttxin(n,buf) int n; CHAR *buf;
 
     if (n < 1)				/* Nothing to do */
       return(0);
-#ifdef MYREAD
-/*
-  Untimed read by contract. Clear any deadline set by a prior timed
-  call, as deadline state is shared and file-static.
-*/
-    ck_deadline_set(0);
-#endif /* MYREAD */
 
 #ifdef TTLEBUF
     if (ttpush >= 0) {
@@ -10733,31 +10770,42 @@ ttxin(n,buf) int n; CHAR *buf;
 
 #ifdef MYREAD
     debug(F101,"ttxin MYREAD","",n);
-    while (x < n) {
-	c = myread();
-	if (c < 0) {
-	    debug(F101,"ttxin myread returns","",c);
-	    if (c == -3) x = -1;
-	    break;
-        }
-	buf[x++] = c & ttpmsk;
+/*
+  Untimed read by contract. Save and restore any active deadline around
+  the read loop, as this function may be called from a nested context such
+  as Telnet option negotiation inside ttinl().
+*/
+    {
+	ck_deadline_state_t saved_deadline;
+	ck_deadline_save(&saved_deadline);
+	ck_deadline_set(0);
+	while (x < n) {
+	    c = myread();
+	    if (c < 0) {
+		debug(F101,"ttxin myread returns","",c);
+		if (c == -3) x = -1;
+		break;
+	    }
+	    buf[x++] = c & ttpmsk;
 #ifdef RLOGCODE
 #ifdef CK_KERBEROS
-        /* It is impossible to know how many characters are waiting */
-        /* to be read when you are using Encrypted Rlogin or SSL    */
-        /* as the transport since the number of real data bytes     */
-        /* can be greater or less than the number of bytes on the   */
-        /* wire which is what ttchk() returns.                      */
-        if (netconn && (ttnproto == NP_EK4LOGIN || ttnproto == NP_EK5LOGIN))
-	  if (ttchk() <= 0)
-	    break;
+	    /* It is impossible to know how many characters are waiting */
+	    /* to be read when you are using Encrypted Rlogin or SSL    */
+	    /* as the transport since the number of real data bytes     */
+	    /* can be greater or less than the number of bytes on the   */
+	    /* wire which is what ttchk() returns.                      */
+	    if (netconn && (ttnproto == NP_EK4LOGIN || ttnproto == NP_EK5LOGIN))
+	      if (ttchk() <= 0)
+		break;
 #endif /* CK_KERBEROS */
 #endif /* RLOGCODE */
 #ifdef CK_SSL
-        if (ssl_active_flag || tls_active_flag)
-	  if (ttchk() <= 0)
-	    break;
+	    if (ssl_active_flag || tls_active_flag)
+	      if (ttchk() <= 0)
+		break;
 #endif /* CK_SSL */
+	}
+	ck_deadline_restore(&saved_deadline);
     }
 #else
     debug(F101,"ttxin READ","",n);
@@ -11740,12 +11788,18 @@ ttinc(timo) int timo;
 	) {
 #ifdef MYREAD
 /*
-  Clear any active deadline before an untimed read, as deadline state is
-  shared and file-static.
+  Untimed read by contract. Save and restore any active deadline around
+  the read, as this branch may be reached during nested Telnet option
+  negotiation inside ttinl().
 */
-	ck_deadline_set(0);
-        /* Comm line failure returns -1 thru myread, so no &= 0377 */
-	n = myread();			/* Wait for a character... */
+	{
+	    ck_deadline_state_t saved_deadline;
+	    ck_deadline_save(&saved_deadline);
+	    ck_deadline_set(0);
+	    /* Comm line failure returns -1 thru myread, so no &= 0377 */
+	    n = myread();		/* Wait for a character... */
+	    ck_deadline_restore(&saved_deadline);
+	}
 	/* debug(F000,"ttinc MYREAD n","",n); */
 #ifdef CK_ENCRYPTION
 	/* debug(F101,"ttinc u_encrypt","",TELOPT_U(TELOPT_ENCRYPTION)); */
