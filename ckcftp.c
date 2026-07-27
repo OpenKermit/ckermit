@@ -10256,11 +10256,11 @@ ssl_auth() {
     if (ftp_bug_use_ssl_v2) {
         /* allow SSL 2.0 or later */
         client_method = SSLv23_client_method();
-#ifndef OPENSSL_NO_SSL3
+#if !defined(OPENSSL_NO_SSL3) && OPENSSL_VERSION_NUMBER < 0x40000000L
     } else if (ftp_bug_use_ssl_v3) {
         /* allow SSL 3.0 ONLY - previous default */
         client_method = SSLv3_client_method();
-#endif /* OPENSSL_NO_SSL3 */
+#endif /* !OPENSSL_NO_SSL3 && OPENSSL_VERSION_NUMBER < 0x40000000L */
     } else {
         /* default - use the best version of TLS we can */
 
