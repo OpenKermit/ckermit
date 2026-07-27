@@ -1220,6 +1220,12 @@ typedef char * caddr_t; /* core address type */
 #define TCP_AF_V6   2                    /* IPv6 only */
 #endif /* CK_IPV6 */
 
+/* Include interface address headers when CK_GETIFADDRS is defined. */
+#ifdef CK_GETIFADDRS
+#include <ifaddrs.h>
+#include <net/if.h>
+#endif /* CK_GETIFADDRS */
+
 #ifndef NOINADDRX		      /* 301 - Needed for Solaris 10 and 11 */
 #ifdef SOLARIS
 #define NOINADDRX

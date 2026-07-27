@@ -7172,6 +7172,30 @@ typedef unsigned long DWORD_PTR;
 #endif /* OS2 */
 
 
+/*
+  Define CK_GETIFADDRS on platforms with getifaddrs() support for SHOW
+  INTERFACES.
+
+  This macro is defined here so ckuusr.h sees it for shoif().
+*/
+#ifdef TCPSOCKET
+#ifdef __linux__
+#define CK_GETIFADDRS
+#endif /* __linux__ */
+#ifdef __FreeBSD__
+#define CK_GETIFADDRS
+#endif /* __FreeBSD__ */
+#ifdef __NetBSD__
+#define CK_GETIFADDRS
+#endif /* __NetBSD__ */
+#ifdef __OpenBSD__
+#define CK_GETIFADDRS
+#endif /* __OpenBSD__ */
+#ifdef __APPLE__
+#define CK_GETIFADDRS
+#endif /* __APPLE__ */
+#endif /* TCPSOCKET */
+
 #include "ckclib.h"
 
 #ifdef COMMENT

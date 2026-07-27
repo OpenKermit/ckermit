@@ -5629,6 +5629,88 @@ shonet() {
 #endif /* NETCONN */
     return(0);
 }
+
+#ifdef CK_GETIFADDRS
+/*
+  Display local network interfaces and assigned IPv4 and IPv6 addresses.
+  Skip inactive interfaces.  Print a message when an interface has no
+  addresses.
+*/
+int
+shoif() {
+    struct ifaddrs * ifap, * ifa1, * ifa2;
+    char buf[CK_IPADDRLEN];
+    int n = 0;
+    int more = 1;
+
+    if (getifaddrs(&ifap) < 0) {
+        printf(" Unable to get interface list: %s\n", ck_errstr());
+        return(0);
+    }
+    for (ifa1 = ifap; ifa1 && more; ifa1 = ifa1->ifa_next) {
+        int dup = 0;
+        int shown = 0;
+
+        for (ifa2 = ifap; ifa2 != ifa1; ifa2 = ifa2->ifa_next) {
+            if (!strcmp(ifa2->ifa_name,ifa1->ifa_name)) {
+                dup = 1;
+                break;
+            }
+        }
+        if (dup)
+          continue;
+        if (!(ifa1->ifa_flags & IFF_UP))
+          continue;
+
+        printf("%s:\n",ifa1->ifa_name);
+        if (++n > cmd_rows - 3) {
+            if (!askmore()) {
+                more = 0;
+                break;
+            } else n = 0;
+        }
+
+        for (ifa2 = ifap; ifa2 && more; ifa2 = ifa2->ifa_next) {
+            if (strcmp(ifa2->ifa_name,ifa1->ifa_name))
+              continue;
+            if (!ifa2->ifa_addr)
+              continue;
+            if (ifa2->ifa_addr->sa_family == AF_INET) {
+                if (ck_straddr(ifa2->ifa_addr,
+                                (GSOCKNAME_T)sizeof(struct sockaddr_in),
+                                buf,sizeof(buf)) == 0) {
+                    printf("  IPv4  %s\n",buf);
+                    shown = 1;
+                    if (++n > cmd_rows - 3) {
+                        if (!askmore()) { more = 0; break;} else n = 0;
+                    }
+                }
+            }
+#ifdef CK_IPV6
+            else if (ifa2->ifa_addr->sa_family == AF_INET6) {
+                if (ck_straddr(ifa2->ifa_addr,
+                                (GSOCKNAME_T)sizeof(struct sockaddr_in6),
+                                buf,sizeof(buf)) == 0) {
+                    printf("  IPv6  %s\n",buf);
+                    shown = 1;
+                    if (++n > cmd_rows - 3) {
+                        if (!askmore()) { more = 0; break;} else n = 0;
+                    }
+                }
+            }
+#endif /* CK_IPV6 */
+        }
+        if (!more)
+          break;
+        if (!shown) {
+            printf("  (no addresses)\n");
+            if (++n > cmd_rows - 3) { if (!askmore()) { more = 0;} else n = 0;}
+        }
+    }
+    freeifaddrs(ifap);
+    return(1);
+}
+#endif /* CK_GETIFADDRS */
 #endif /* NONET */
 
 #ifndef NODIAL

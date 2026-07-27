@@ -7165,6 +7165,12 @@ doshow(x) int x;
 #endif /* NOLOCAL */
         break;
 
+#ifdef CK_GETIFADDRS
+      case SHIF:
+        shoif();
+        break;
+#endif /* CK_GETIFADDRS */
+
       case SHPAR:
         shopar();
         break;

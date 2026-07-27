@@ -3076,6 +3076,9 @@ struct keytab shotab[] = {
 #ifndef NOSPL
     { "input",        SHINP, 0 },
 #endif /* NOSPL */
+#ifdef CK_GETIFADDRS
+    { "interfaces",   SHIF, 0 },
+#endif /* CK_GETIFADDRS */
 #ifndef NOSETKEY
     { "k",            SHKEY, CM_INV|CM_ABR },
     { "key",          SHKEY, 0 },

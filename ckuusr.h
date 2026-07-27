@@ -2033,6 +2033,7 @@ struct stringint {			/* String and (wide) integer */
 #define SHOLOC    73			/* SHOW LOCALE */
 #define SHOTMPDIR 74			/* SHOW TEMP-DIRECTORY */
 #define SHOVMSTXT 75			/* SHOW VMS_TEXT */
+#define SHIF      76			/* SHOW INTERFACES */
 
 /* REMOTE command symbols */
 
@@ -3038,6 +3039,9 @@ _PROTOTYP( int doshodial, (void) );
 #endif /* NODIAL */
 #ifndef NONET
 _PROTOTYP( int shonet, (void) );
+#ifdef CK_GETIFADDRS
+_PROTOTYP( int shoif, (void) );
+#endif /* CK_GETIFADDRS */
 _PROTOTYP( int shotopt, (int) );
 _PROTOTYP( int shotel, (int) );
 #ifdef CK_AUTHENTICATION
