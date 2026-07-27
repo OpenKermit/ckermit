@@ -2039,9 +2039,10 @@ ssl_tn_init(mode) int mode;
                     debug(F110,"ssl_tn_init","SSLv23_client_method OK",0);
                 } else {
                     debug(F110,"ssl_tn_init","SSLv23_client_method failed",0);
-#ifndef OPENSSL_NO_SSL3           /* ifdef Bernard Spil 12/2015 */
+#if !defined(OPENSSL_NO_SSL3) && OPENSSL_VERSION_NUMBER < 0x40000000L
+                    /* ifdef Bernard Spil 12/2015 */
                     tls_ctx=(SSL_CTX *)SSL_CTX_new(SSLv3_client_method());
-#endif /* OPENSSL_NO_SSL3 */
+#endif /* !OPENSSL_NO_SSL3 && OPENSSL_VERSION_NUMBER < 0x40000000L */
                     if ( !tls_ctx ) {
                         debug(F110,
                               "ssl_tn_init","TLS_client_method failed",0);
@@ -3011,7 +3012,7 @@ ssl_get_dNSName(ssl) SSL * ssl;
     if ((server_cert = SSL_get_peer_certificate(ssl))) {
         if ((i = X509_get_ext_by_NID(server_cert, NID_subject_alt_name, -1))<0)
             return NULL;
-        if (!(ext = X509_get_ext(server_cert, i)))
+        if (!(ext = (X509_EXTENSION *)X509_get_ext(server_cert, i)))
             return NULL;
         X509V3_add_standard_extensions();
         if (!(ialt = X509V3_EXT_d2i(ext)))
@@ -3019,16 +3020,18 @@ ssl_get_dNSName(ssl) SSL * ssl;
         for (i = 0; i < sk_GENERAL_NAME_num(ialt); i++) {
             gen = sk_GENERAL_NAME_value(ialt, i);
             if (gen->type == GEN_DNS) {
-                if (!gen->d.ia5 || !gen->d.ia5->length)
+                if (!gen->d.ia5 || !CK_ASN1_STRING_LEN(gen->d.ia5))
 		  break;
-                if (strlen((char *)gen->d.ia5->data) != gen->d.ia5->length) {
+                if (strlen((char *)CK_ASN1_STRING_DATA(gen->d.ia5)) !=
+                    CK_ASN1_STRING_LEN(gen->d.ia5)) {
                     /* Ignoring IA5String containing null character */
                     continue;
                 }
-                dns = malloc(gen->d.ia5->length + 1);
+                dns = malloc(CK_ASN1_STRING_LEN(gen->d.ia5) + 1);
                 if (dns) {
-                    memcpy(dns, gen->d.ia5->data, gen->d.ia5->length);
-                    dns[gen->d.ia5->length] = 0;
+                    memcpy(dns, CK_ASN1_STRING_DATA(gen->d.ia5),
+                           CK_ASN1_STRING_LEN(gen->d.ia5));
+                    dns[CK_ASN1_STRING_LEN(gen->d.ia5)] = 0;
                 }
                 break;
             }
@@ -3172,8 +3175,8 @@ ssl_verify_crl(int ok, X509_STORE_CTX *ctx)
      * Determine certificate ingredients in advance
      */
     xs      = X509_STORE_CTX_get_current_cert(ctx);
-    subject = X509_get_subject_name(xs);
-    issuer  = X509_get_issuer_name(xs);
+    subject = (X509_NAME *)X509_get_subject_name(xs);
+    issuer  = (X509_NAME *)X509_get_issuer_name(xs);
 
     /*
      * OpenSSL provides the general mechanism to deal with CRLs but does not
@@ -3388,7 +3391,7 @@ tls_get_SAN_objs(SSL * ssl, int type)
     if ((server_cert = SSL_get_peer_certificate(ssl))) {
         if ((i = X509_get_ext_by_NID(server_cert, NID_subject_alt_name, -1)) < 0)
             goto eject;
-        if (!(ext = X509_get_ext(server_cert, i)))
+        if (!(ext = (X509_EXTENSION *)X509_get_ext(server_cert, i)))
             goto eject;
         X509V3_add_standard_extensions();
         if (!(ialt = X509V3_EXT_d2i(ext)))
@@ -3401,16 +3404,18 @@ tls_get_SAN_objs(SSL * ssl, int type)
              * with one and linked to the other we use this hack.
              */
             if ((gen->type | V_ASN1_CONTEXT_SPECIFIC) == (type | V_ASN1_CONTEXT_SPECIFIC)) {
-                if (!gen->d.ia5 || !gen->d.ia5->length)
+                if (!gen->d.ia5 || !CK_ASN1_STRING_LEN(gen->d.ia5))
 		  break;
-                if (strlen((char *)gen->d.ia5->data) != gen->d.ia5->length) {
+                if (strlen((char *)CK_ASN1_STRING_DATA(gen->d.ia5)) !=
+                    CK_ASN1_STRING_LEN(gen->d.ia5)) {
                     /* Ignoring IA5String containing null character */
                     continue;
                 }
-                objs[j] = malloc(gen->d.ia5->length + 1);
+                objs[j] = malloc(CK_ASN1_STRING_LEN(gen->d.ia5) + 1);
                 if (objs[j]) {
-                    memcpy(objs[j], gen->d.ia5->data, gen->d.ia5->length);
-                    objs[j][gen->d.ia5->length] = 0;
+                    memcpy(objs[j], CK_ASN1_STRING_DATA(gen->d.ia5),
+                           CK_ASN1_STRING_LEN(gen->d.ia5));
+                    objs[j][CK_ASN1_STRING_LEN(gen->d.ia5)] = 0;
                     j++;
                 }
             }
@@ -4945,7 +4950,7 @@ X509_to_user(X509 *peer_cert, char *userid, int len)
 
     if ((i = X509_get_ext_by_NID(peer_cert, NID_subject_alt_name, -1))<0)
         return -1;
-    if (!(ext = X509_get_ext(peer_cert, i)))
+    if (!(ext = (X509_EXTENSION *)X509_get_ext(peer_cert, i)))
         return -1;
     X509V3_add_standard_extensions();
     if (!(ialt = X509V3_EXT_d2i(ext)))
@@ -4953,17 +4958,19 @@ X509_to_user(X509 *peer_cert, char *userid, int len)
     for (i = 0; i < sk_GENERAL_NAME_num(ialt); i++) {
         gen = sk_GENERAL_NAME_value(ialt, i);
         if (gen->type == GEN_DNS) {
-            if (!gen->d.ia5 || !gen->d.ia5->length)
+            if (!gen->d.ia5 || !CK_ASN1_STRING_LEN(gen->d.ia5))
 	      break;
-            if (strlen(gen->d.ia5->data) != gen->d.ia5->length) {
+            if (strlen((char *)CK_ASN1_STRING_DATA(gen->d.ia5)) !=
+                CK_ASN1_STRING_LEN(gen->d.ia5)) {
                 /* Ignoring IA5String containing null character */
                 continue;
             }
-            if ( gen->d.ia5->length + 1 > sizeof(email) ) {
+            if ( CK_ASN1_STRING_LEN(gen->d.ia5) + 1 > sizeof(email) ) {
                 goto cleanup;
             }
-            memcpy(email, gen->d.ia5->data, gen->d.ia5->length);
-            email[gen->d.ia5->length] = 0;
+            memcpy(email, CK_ASN1_STRING_DATA(gen->d.ia5),
+                   CK_ASN1_STRING_LEN(gen->d.ia5));
+            email[CK_ASN1_STRING_LEN(gen->d.ia5)] = 0;
             break;
         }
     }

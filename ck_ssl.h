@@ -91,6 +91,15 @@
 #include <openssl/kssl.h>
 #endif /* SSL_KRB5 */
 
+/* ASN1_STRING is opaque as of OpenSSL 4.0, so direct ->data/->length
+ * member access no longer compiles. Use accessor functions instead. */
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#define CK_ASN1_STRING_DATA(s) ASN1_STRING_get0_data(s)
+#else
+#define CK_ASN1_STRING_DATA(s) ASN1_STRING_data(s)
+#endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
+#define CK_ASN1_STRING_LEN(s) ASN1_STRING_length(s)
+
 extern BIO *bio_err;
 extern SSL *ssl_con;
 extern SSL_CTX *ssl_ctx;
