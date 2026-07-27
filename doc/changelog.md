@@ -5,6 +5,7 @@
 - Added new `SHOW INTERFACES` command, which shows the interfaces and IP
   addresses available on the local machine.  Useful when establishing
   a connection across a local LAN.
+- Now support OpenSSL v4.0.
 
 # C-Kermit 11.0 announcement (11.0.504)
 
