@@ -230,6 +230,7 @@ _PROTOTYP(int ck_srp_is_installed,(void));
 _PROTOTYP(int ck_ntlm_is_installed,(void));
 _PROTOTYP(int ck_crypt_is_installed,(void));
 _PROTOTYP(int ck_ssleay_is_installed,(void));
+_PROTOTYP(int tls_is_anon,(int));
 _PROTOTYP(int ck_gssapi_is_installed,(void));
 _PROTOTYP(int ck_krypto_is_installed,(void));
 
