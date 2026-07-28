@@ -314,6 +314,16 @@ urlparse(s,url) char *s; struct urldata * url;
     if (!*s)
         return(0);
 
+#ifdef CK_IPV6
+    /* Bare IPv6 literals are not valid URLs. */
+    {
+        struct in6_addr ck_bare_v6_addr;
+        unsigned int ck_bare_v6_scope;
+        if (ck_scopeaddr6(s,&ck_bare_v6_addr,&ck_bare_v6_scope))
+          return(0);
+    }
+#endif /* CK_IPV6 */
+
     makestr(&urlbuf,s);
 
     if (url->sav) {			/* In case we were called before... */
@@ -399,6 +409,12 @@ urlparse(s,url) char *s; struct urldata * url;
 	    debug(F111,"urlparse url->hos",url->usr,url->hos);
 #endif	/* COMMENT */
 
+            /* Strip brackets from IPv6 host and locate port or path. */
+            if (*p == '[') {
+                url->hos = p + 1;
+                while (*p != NUL && *p != ']') p++;
+                if (*p == ']') *p++ = NUL;
+            }
             while (*p != NUL && *p != ':' && *p != '/')	/* Port? */
               p++;
             if (*p == ':') {		/* TCP port */

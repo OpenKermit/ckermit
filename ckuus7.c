@@ -9266,14 +9266,15 @@ cx_net(net, protocol, xhost, svc,
 
 	      case NET_TCPB: {		/* TCP/IP TELNET,RLOGIN,... */
 #ifdef TCPSOCKET
-		  char *q;
-		  int flag = 0;
+		  char qbuf[LINBUFSIZ], hbuf[LINBUFSIZ];
+		  int flag;
 
-		  /* Extract ":service", if any, from host string */
+		  /* Extract service from host string. */
 		  debug(F110,"cx_net service 1",line,0);
-		  for (q = line; (*q != '\0') && (*q != ':'); q++)
-		    ;
-		  if (*q == ':') { *q++ = NUL; flag = 1; }
+		  flag = ck_splithostport(line,hbuf,sizeof(hbuf),
+					   qbuf,sizeof(qbuf));
+		  if (flag < 0) flag = 0;
+		  ckstrncpy(line,hbuf,LINBUFSIZ);
 		  debug(F111,"cx_net service 2",line,flag);
 
 		  /* Get service, if any, from directory entry */
@@ -9284,7 +9285,7 @@ cx_net(net, protocol, xhost, svc,
 			  debug(F110,"cx_net service 3",srvbuf,0);
 		      }
 		      if (flag) {
-			  ckstrncpy(srvbuf,q,SRVBUFSIZ);
+			  ckstrncpy(srvbuf,qbuf,SRVBUFSIZ);
 			  debug(F110,"cx_net service 4",srvbuf,0);
 		      }
 		  }
@@ -9292,6 +9293,7 @@ cx_net(net, protocol, xhost, svc,
 
 		  /* If we have a service, append to host name/address */
 		  if (*srvbuf) {
+		      ck_bracketaddr(line,LINBUFSIZ);
 		      ckstrncat(line, ":", LINBUFSIZ);
 		      ckstrncat(line, srvbuf, LINBUFSIZ);
 		      debug(F110,"cx_net service 5",line,0);
@@ -9299,6 +9301,7 @@ cx_net(net, protocol, xhost, svc,
 #ifdef RLOGCODE
 		  /* If no service given but command was RLOGIN */
 		  else if (ttnproto == NP_RLOGIN) { /* add this... */
+		      ck_bracketaddr(line,LINBUFSIZ);
 		      ckstrncat(line, ":login",LINBUFSIZ);
 		      debug(F110,"cx_net service 6",line,0);
 		  }
@@ -9424,6 +9427,7 @@ cx_net(net, protocol, xhost, svc,
 	    /* If the user gave a TCP service */
 	    if (net == NET_TCPB || net == NET_SSH)
 	      if (*srvbuf) {		/* Append it to host name/address */
+		  ck_bracketaddr(line,LINBUFSIZ);
 		  ckstrncat(line, ":", LINBUFSIZ);
 		  ckstrncat(line, srvbuf,LINBUFSIZ);
 	      }
@@ -11403,18 +11407,20 @@ setlin(xx, zz, fc) int xx, zz, fc;
                     )) {
                     int y;
                     uidflag = 0;
-                    /* Check for "host:service".  Skip over a bracketed
-                       IPv6 literal such as "[::1]" before scanning for
-                       the colon that introduces a service. */
-                    if (*s == '[') {
-                        for ( ; (*s != '\0') && (*s != ']'); s++) ;
-                        if (*s == ']') s++;
-                    } else {
-                        for ( ; (*s != '\0') && (*s != ':'); s++) ;
+                    /* Split host and optional service. */
+                    {
+                        char hostbuf[LINBUFSIZ];
+                        int hp = ck_splithostport(s,hostbuf,sizeof(hostbuf),
+                                                   srvbuf,SRVBUFSIZ);
+                        if (hp < 0) {
+                            fprintf(stderr,
+                                    "Malformed address literal: %s\n",s);
+                            return(-9);
+                        }
+                        ckstrncpy(line,hostbuf,LINBUFSIZ);
+                        s = line;
                     }
-                    if (*s) {   /* Service, save it */
-                        *s = NUL;
-                        ckstrncpy(srvbuf,++s,SRVBUFSIZ);
+                    if (*srvbuf) {      /* Service, already saved above */
                     } else {            /* No :service, then use default. */
 #ifdef VMS
                         switch (ttnproto) {
@@ -11460,18 +11466,20 @@ setlin(xx, zz, fc) int xx, zz, fc;
                     }
                 } else {        /* TELNET or SET HOST */
 #endif /* RLOGCODE */
-                    /* Check for "host:service".  Skip over a bracketed
-                       IPv6 literal such as "[::1]" before scanning for
-                       the colon that introduces a service. */
-                    if (*s == '[') {
-                        for ( ; (*s != '\0') && (*s != ']'); s++) ;
-                        if (*s == ']') s++;
-                    } else {
-                        for ( ; (*s != '\0') && (*s != ':'); s++) ;
+                    /* Split host and optional service. */
+                    {
+                        char hostbuf[LINBUFSIZ];
+                        int hp = ck_splithostport(s,hostbuf,sizeof(hostbuf),
+                                                   srvbuf,SRVBUFSIZ);
+                        if (hp < 0) {
+                            fprintf(stderr,
+                                    "Malformed address literal: %s\n",s);
+                            return(-9);
+                        }
+                        ckstrncpy(line,hostbuf,LINBUFSIZ);
+                        s = line;
                     }
-                    if (*s) {   /* Service, save it */
-                        *s = NUL;
-                        ckstrncpy(srvbuf,++s,SRVBUFSIZ);
+                    if (*srvbuf) {      /* Service, already saved above */
                     } else if (!confirmed) {
                         /* No :service, let them type one. */
                         if (*line != '*') { /* Not incoming */

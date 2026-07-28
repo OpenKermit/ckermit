@@ -10225,9 +10225,11 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n");
 #endif /* IKSDCONF */
             if (s && *s) {
                 struct in6_addr chk6;
-                if (inet_pton(AF_INET6,s,&chk6) != 1) {
-                    printf("?SET TCP ADDRESS6 requires an IPv6 address - %s\n",
-                           s);
+                unsigned int chkscope;
+                if (!ck_scopeaddr6(s,&chk6,&chkscope)) {
+                    printf("?SET TCP ADDRESS6 requires an IPv6 address, ");
+                    printf("optionally with a %%interface or %%index zone "
+                           "suffix: %s\n",s);
                     return(success = 0);
                 }
             }

@@ -159,7 +159,7 @@ extern int inserver;
 #endif /* IKSD */
 
 char myipaddr[CK_IPADDRLEN] = { '\0' }; /* Global copy of my IP address */
-char hostipaddr[64] = { '\0' };		/* Global copy of remote IP address */
+char hostipaddr[CK_IPADDRLEN] = { '\0' }; /* Global remote IP address */
 
 #ifdef NETCONN
 /* Don't need any of this if there is no network support. */
@@ -1524,6 +1524,16 @@ ck_copyhostent(h) struct hostent * h;
 
 /*
   Renders a socket address as text, supporting IPv6 if available.
+
+  Some BSDs hand back link-local and link-local IPv6 addresses from getifaddrs()
+  with the interface index in bytes 2-3 of the address itself, in addition to
+  (or instead of) sin6_scope_id. This is the KAME "embedded scope ID"
+  convention.  See
+  https://lists.freebsd.org/pipermail/freebsd-net/2013-September/036756.html .
+
+  If unmodified, it looks bogus, such as as fe80:2::1 instead of fe80::1%lo0. So
+  this function moves any embedded index into sin6_scope_id and clears it from
+  the address bytes before formatting.
 */
 int
 #ifdef CK_ANSIC
@@ -1539,6 +1549,27 @@ ck_straddr(sa,salen,buf,buflen)
     if (!sa)
       return(-1);
 #ifdef CK_IPV6
+    if (sa->sa_family == AF_INET6 &&
+        salen >= (GSOCKNAME_T)sizeof(struct sockaddr_in6)) {
+        struct sockaddr_in6 sin6;
+        struct in6_addr * a6 = &((struct sockaddr_in6 *)sa)->sin6_addr;
+
+        bcopy((char *)sa,(char *)&sin6,sizeof(sin6));
+        if ((IN6_IS_ADDR_LINKLOCAL(a6) || IN6_IS_ADDR_MC_LINKLOCAL(a6)) &&
+            (a6->s6_addr[2] || a6->s6_addr[3])) {
+            sin6.sin6_scope_id =
+              ((unsigned int)a6->s6_addr[2] << 8) | a6->s6_addr[3];
+            sin6.sin6_addr.s6_addr[2] = 0;
+            sin6.sin6_addr.s6_addr[3] = 0;
+        }
+        if (getnameinfo((struct sockaddr *)&sin6,
+                         (socklen_t)sizeof(sin6),buf,buflen,NULL,0,
+                         NI_NUMERICHOST) != 0) {
+            *buf = '\0';
+            return(-1);
+        }
+        return(0);
+    }
     if (getnameinfo(sa,(socklen_t)salen,buf,buflen,NULL,0,NI_NUMERICHOST)
         != 0) {
         *buf = '\0';
@@ -1597,6 +1628,91 @@ ck_setport(sa,port) struct sockaddr * sa; unsigned short port;
     if (sa->sa_family == AF_INET)
       ((struct sockaddr_in *)sa)->sin_port = htons(port);
 }
+
+#ifdef CK_IPV6
+/*
+  Parse an IPv6 literal with optional %zone suffix (RFC 4007) into a
+  binary address and numeric scope ID.
+
+  The zone may be an interface name or decimal index. The scope ID is
+  validated against active system interfaces using if_indextoname().
+
+  Returns 1 on success and populates *addr and *scopeid. Sets *scopeid
+  to 0 if no zone suffix is present. Returns 0 on parse or lookup
+  failure and leaves output parameters unchanged.
+*/
+int
+#ifdef CK_ANSIC
+ck_scopeaddr6(char * in, struct in6_addr * addr, unsigned int * scopeid)
+#else /* CK_ANSIC */
+ck_scopeaddr6(in,addr,scopeid)
+    char * in; struct in6_addr * addr; unsigned int * scopeid;
+#endif /* CK_ANSIC */
+{
+    char * pct;
+    char * zp;
+    size_t alen, zlen;
+    char abuf[INET6_ADDRSTRLEN];
+    char zbuf[IFNAMSIZ];
+    char ifnamebuf[IFNAMSIZ];
+    struct in6_addr taddr;
+    unsigned int tscope = 0;
+
+    if (!in || !addr || !scopeid)
+      return(0);
+
+    pct = strrchr(in,'%');
+    alen = pct ? (size_t)(pct - in) : strlen(in);
+    if (alen < 1 || alen >= sizeof(abuf))
+      return(0);
+    bcopy(in,abuf,alen);
+    abuf[alen] = '\0';
+    if (inet_pton(AF_INET6,abuf,&taddr) != 1)
+      return(0);
+
+    if (pct) {
+        int alldigits;
+        char * p;
+
+        zp = pct + 1;
+        zlen = strlen(zp);
+        if (zlen < 1 || zlen >= sizeof(zbuf))
+          return(0);                    /* bare trailing '%', or too long */
+        bcopy(zp,zbuf,zlen);
+        zbuf[zlen] = '\0';
+
+        alldigits = 1;
+        for (p = zbuf; *p; p++) {
+            if (!isdigit((unsigned char)*p)) {
+                alldigits = 0;
+                break;
+            }
+        }
+        if (alldigits) {
+            char * ep = NULL;
+            unsigned long v;
+
+            errno = 0;
+            v = strtoul(zbuf,&ep,10);
+            tscope = (unsigned int)v;
+            if (!ep || *ep != '\0' || errno == ERANGE ||
+                (unsigned long)tscope != v)
+              return(0);                /* trailing junk, or overflow */
+        } else {
+            tscope = if_nametoindex(zbuf);
+            if (tscope == 0)
+              return(0);                /* no such interface */
+        }
+        /* Verify scope ID corresponds to an active interface. */
+        if (!if_indextoname(tscope,ifnamebuf))
+          return(0);
+    }
+
+    *addr = taddr;
+    *scopeid = tscope;
+    return(1);
+}
+#endif /* CK_IPV6 */
 
 #ifdef CK_IPV6
 /*
@@ -1738,7 +1854,15 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
             struct sockaddr_in6 lsin6;
             bzero((char *)&lsin6,sizeof(lsin6));
             lsin6.sin6_family = AF_INET6;
-            inet_pton(AF_INET6,tcp_address6,&lsin6.sin6_addr);
+            /* Parse tcp_address6 and retrieve scope ID for binding. */
+            if (!ck_scopeaddr6(tcp_address6,&lsin6.sin6_addr,
+                                &lsin6.sin6_scope_id)) {
+                debug(F110,"ck_tcp_connect tcp_address6 no longer valid",
+                      tcp_address6,0);
+                close(fd);
+                fd = -1;
+                continue;
+            }
             lsin6.sin6_port = 0;
             if (bind(fd,(struct sockaddr *)&lsin6,sizeof(lsin6)) < 0) {
                 debug(F101,"ck_tcp_connect bind errno","",errno);
@@ -1766,8 +1890,17 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
             break;
         }
         debug(F101,"ck_tcp_connect connect errno","",errno);
-        if (!quiet_f)
-          perror("Failed");
+        if (!quiet_f) {
+            perror("Failed");
+            /* Print diagnostic when link-local connect lacks a zone. */
+            if (rp->ai_family == AF_INET6) {
+                struct sockaddr_in6 * rp6 =
+                  (struct sockaddr_in6 *)rp->ai_addr;
+                if (IN6_IS_ADDR_LINKLOCAL(&rp6->sin6_addr) &&
+                    rp6->sin6_scope_id == 0)
+                  printf("Link-local addresses require a zone, e.g. fe80::1%%eth0\n");
+            }
+        }
         close(fd);
         fd = -1;
     }
@@ -1864,6 +1997,39 @@ ck_splithostport(in,hostbuf,hostbuflen,portbuf,portbuflen)
     if (portbuf && portbuflen > 0)
       ckstrncpy(portbuf,p + 1,portbuflen);
     return(1);
+}
+
+/*
+  Enclose unbracketed multi-colon IPv6 address literals in brackets.
+
+  Modifies buf in place before a service colon is appended. Leaves buf
+  unmodified if it contains fewer than two colons, already begins with
+  '[', or if buflen is insufficient for brackets.
+*/
+VOID
+#ifdef CK_ANSIC
+ck_bracketaddr(char * buf, int buflen)
+#else /* CK_ANSIC */
+ck_bracketaddr(buf,buflen) char * buf; int buflen;
+#endif /* CK_ANSIC */
+{
+    int ncolons = 0;
+    char * p;
+    char tmp[1024];
+
+    if (!buf || buflen < 1 || !*buf || *buf == '[')
+      return;
+    for (p = buf; *p; p++)
+      if (*p == ':') ncolons++;
+    if (ncolons < 2)
+      return;
+    if ((int)strlen(buf) >= (int)sizeof(tmp) || (int)strlen(buf) > buflen - 3)
+      return;                   /* Too long to safely re-bracket */
+    ckstrncpy(tmp,buf,sizeof(tmp));
+    buf[0] = '\0';
+    ckstrncat(buf,"[",buflen);
+    ckstrncat(buf,tmp,buflen);
+    ckstrncat(buf,"]",buflen);
 }
 
 #ifdef EXCELAN
@@ -3184,9 +3350,24 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
 
         bzero((char *)&saddr6, sizeof(saddr6));
         saddr6.sin6_family = AF_INET6;
-        if (tcp_address6)
-          inet_pton(AF_INET6,tcp_address6,&saddr6.sin6_addr);
-        else
+        if (tcp_address6) {
+            /* Parse tcp_address6 and retrieve scope ID for binding. */
+            if (!ck_scopeaddr6(tcp_address6,&saddr6.sin6_addr,
+                                &saddr6.sin6_scope_id)) {
+                debug(F110,"tcpsrv_open tcp_address6 invalid",
+                      tcp_address6,0);
+                if (v6_fatal) {
+                    fprintf(stderr,
+                            "?SET TCP ADDRESS6 value \"%s\" is no longer "
+                            "valid\n",tcp_address6);
+                    return(-1);
+                }
+                fprintf(stderr,
+                        "?SET TCP ADDRESS6 value \"%s\" is no longer "
+                        "valid; continuing with IPv4 only\n",tcp_address6);
+                goto skip_v6_listener;
+            }
+        } else
           saddr6.sin6_addr = in6addr_any;
         saddr6.sin6_port = service->s_port;
 
@@ -3276,6 +3457,8 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
                 }
             }
         }
+      skip_v6_listener:
+        ;
     }
 #endif /* CK_IPV6 */
 
@@ -4634,6 +4817,16 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
             p = "telnet";
         }
     } else {
+#ifdef CK_IPV6
+        struct in6_addr ck_bare_v6_addr;
+        unsigned int ck_bare_v6_scope;
+
+        /* Check for a bare IPv6 literal before legacy colon parsing. */
+        if (ck_scopeaddr6(namecopy,&ck_bare_v6_addr,&ck_bare_v6_scope)) {
+            p = "telnet";
+        } else
+#endif /* CK_IPV6 */
+        {
         p = namecopy;                       /* Was a service requested? */
         while (*p != '\0' && *p != ':') p++; /* Look for colon */
         if (*p == ':') {                    /* Have a colon */
@@ -4848,6 +5041,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
         } else {                            /* Otherwise use telnet */
             p = "telnet";
         }
+        }
     }                                    /* End of bracketed-literal check */
 /*
   By the time we get here, namecopy[] should hold the null-terminated
@@ -4962,6 +5156,19 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
         if (!quiet && !isv4lit && !isv6lit) {
             printf(" DNS Lookup... ");
             fflush(stdout);
+        }
+
+        /* getaddrinfo() is supposed to reject a bogus zone, and glibc does, but
+           macOS just returns scope 0 instead of failing.  Validate the zone
+           here rather than relying on getaddrinfo() to catch it. */
+        if (!isv4lit && strchr(namecopy,'%')) {
+            struct in6_addr tzchk;
+            unsigned int tzscope;
+            if (!ck_scopeaddr6(namecopy,&tzchk,&tzscope)) {
+                fprintf(stderr,"Can't get address for %s\n",namecopy);
+                errno = 0;
+                return(-1);
+            }
         }
         /* Remember whether a real DNS lookup happened, same meaning as
            the legacy branch's "dns" -- used below to help decide
@@ -5953,7 +6160,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
     debug(F101,"netopen service","",svcnum);
     debug(F110,"netopen name",name,0);
     debug(F110,"netopen ipaddr",ipaddr,0);
-    ckstrncpy(hostipaddr,ipaddr,63);
+    ckstrncpy(hostipaddr,ipaddr,CK_IPADDRLEN-1);
 
     if (lcl) if (*lcl < 0)              /* Local mode. */
       *lcl = 1;
