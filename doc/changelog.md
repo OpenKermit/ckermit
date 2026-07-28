@@ -1,5 +1,9 @@
 # OpenKermit C-Kermit Changelog
 
+# C-Kermit 11.0.506 (not yet released)
+
+- Skip FTP tests when Kermit is built with -DNOFTP, as the Gentoo package does.
+
 # C-Kermit 11.0.505
 
 - Now support OpenSSL v4.0.
