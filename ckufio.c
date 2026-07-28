@@ -7258,20 +7258,19 @@ zmkdir(path) char *path;
         c = *xp;                        /* Got one. */
         *xp = NUL;                      /* Make this the end of the string. */
         if (!isdir(tp)) {               /* This directory exists already? */
-#ifdef CK_LOGIN
+#ifdef IKSD
             if (isguest)                    /* Not allowed for guests */
 	      return(-1);
+#endif /* IKSD */
 #ifndef NOXFER
             /* Nor if MKDIR and/or CD are disabled */
-            else
-#endif /* CK_LOGIN */
-	      if ((server
+	    if ((server
 #ifdef IKSD
-		   || inserver
+		 || inserver
 #endif /* IKSD */
-		   ) && (!ENABLED(en_mkd) || !ENABLED(en_cwd)))
-		return(-1);
-#endif /* IKSD */
+		 ) && (!ENABLED(en_mkd) || !ENABLED(en_cwd)))
+	      return(-1);
+#endif /* NOXFER */
 
             debug(F110,"zmkdir making",tp,0);
             x =                         /* No, try to create it */
