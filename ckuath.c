@@ -340,18 +340,26 @@ static krb5_keyblock     *k5_session_key = NULL;
 static krb5_ticket       *k5_ticket = NULL;
 #ifndef KRB5_SERVICE_NAME
 #define KRB5_SERVICE_NAME    "host"
-#ifdef MACOSX
+#ifndef HEIMDAL
 #define MIT_CURRENT 1
 #define decode_krb5_ticket  krb5_decode_ticket
 #define krb5_read_message   ck_krb5_read_message
 #define krb5_write_message  ck_krb5_write_message
-#endif /* MACOSX */
+_PROTOTYP(krb5_error_code ck_krb5_write_message,
+          (krb5_context, krb5_pointer, krb5_data *));
+_PROTOTYP(krb5_error_code ck_krb5_read_message,
+          (krb5_context, krb5_pointer, krb5_data *));
+#endif /* HEIMDAL */
 #endif
 
 _PROTOTYP(static int k5_auth_send,(int,int,int));
 _PROTOTYP(static int k5_auth_reply,(int, unsigned char *, int));
 _PROTOTYP(static int k5_auth_is,(int,unsigned char *, int));
 _PROTOTYP(static int SendK5AuthSB,(int, void *, int));
+#ifdef KRB5_U2U
+_PROTOTYP(int k5_u2u_read_msg,(krb5_context, int, krb5_data *));
+_PROTOTYP(int k5_u2u_write_msg,(krb5_context, int, krb5_data *));
+#endif /* KRB5_U2U */
 #ifdef TLS_VERIFY
 static int krb5_tls_verified = 0;
 #endif /* TLS_VERIFY */
@@ -8970,7 +8978,7 @@ one_addr(a) krb5_address *a;
 #endif
 {
     struct hostent *h;
-    extern tcp_rdns;
+    extern int tcp_rdns;
 
     if ((a->addrtype == ADDRTYPE_INET) &&
         (a->length == 4)) {
@@ -12378,7 +12386,7 @@ k5_user_to_user_client_auth()
         return(-1);
     }
 
-    if (k5_u2u_read_msg(k5_context,&msg) < 0)
+    if (k5_u2u_read_msg(k5_context,ttyfd,&msg) < 0)
         return(-1);
 
     if ( strcmp("Kermit implements Kerberos 5 User to User",msg.data) )
@@ -12388,7 +12396,7 @@ k5_user_to_user_client_auth()
     msgtext.data = "As do I! :-)";
     msgtext.length = strlen(msgtext.data)+1;
 
-    if (k5_u2u_write_msg(k5_context,&msgtext) < 0)
+    if (k5_u2u_write_msg(k5_context,ttyfd,&msgtext) < 0)
         return(-1);
 
     if (retval = krb5_unparse_name(k5_context,
@@ -12513,10 +12521,10 @@ k5_user_to_user_server_auth()
     msgtext.data = "Kermit implements Kerberos 5 User to User";
     msgtext.length = strlen(msgtext.data)+1;
 
-    if (k5_u2u_write_msg(k5_context,&msgtext) < 0)
+    if (k5_u2u_write_msg(k5_context,ttyfd,&msgtext) < 0)
         return(-1);
 
-    if (k5_u2u_read_msg(k5_context,&msg) < 0)
+    if (k5_u2u_read_msg(k5_context,ttyfd,&msg) < 0)
         return(-1);
 
     if ( strcmp("As do I! :-)",msg.data) )
@@ -13339,7 +13347,7 @@ auth_finished(result) int result;
     }
 }
 
-#ifdef MACOSX
+#ifndef HEIMDAL
 #ifdef KRB5
 
 krb5_error_code
@@ -13371,7 +13379,7 @@ ck_krb5_read_message( krb5_context context,
     char *p;
     int i, rc;
 
-    if (net_read(fd,&msglen,4) < 0)
+    if (net_read(fd,(CHAR *)&msglen,4) < 0)
         return(-1);
 
     data->length = ntohl(msglen);
@@ -13388,5 +13396,5 @@ ck_krb5_read_message( krb5_context context,
     return(0);
 }
 #endif /* KRB5 */
-#endif /* MACOSX */
+#endif /* HEIMDAL */
 #endif /* CK_SECURITY */

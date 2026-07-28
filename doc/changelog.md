@@ -14,6 +14,8 @@
   options.
   1. `--unbuffered`, `--version`, etc. were improperly not recognized
   2. The permissions for `MKDIR` and `CD` were sometimes not enforced
+- Fixed compilation errors with Kerberos 5 on Linux and NetBSD.
+  Note: Kerberos is not currently exercised by the test suite.
 
 # C-Kermit 11.0 announcement (11.0.504)
 

@@ -2176,10 +2176,11 @@ netbsd+krb5:
 	fi; \
 	$(MAKE) netbsd KTARGET=$${KTARGET:-$(@)} "CC = $(CC)" "CC2 = $(CC2)" \
 	"KFLAGS= -DCK_AUTHENTICATION -DCK_ENCRYPTION -DCK_KERBEROS -DKRB5 \
+	-DKRB5_DEPRECATED=1 \
 	-DCK_CAST $$HAVE_DES -DNOFTP_GSSAPI $(K5INC) $(K5INC)/krb5 \
 	$(KFLAGS)" \
 	"LIBS= $(K5LIB) -L/usr/pkg/lib -R/usr/pkg/lib -lcurses $$DES_LIB \
-	-lcrypto -lgssapi -lkrb5 -lm -lutil $(LIBS)"
+	-lcrypto -lgssapi_krb5 -lkrb5 -lm -lutil $(LIBS)"
 
 # This target added 24 Nov 2022, based on linux+krb5-new.
 # This is for Heimdal Kerberos, not MIT.
@@ -2308,11 +2309,12 @@ netbsd+krb5+ssl netbsd+krb5+openssl+zlib:
 	fi; \
 	$(MAKE) netbsd KTARGET=$${KTARGET:-$(@)} "CC = $(CC)" "CC2 = $(CC2)" \
 	"KFLAGS= -DCK_AUTHENTICATION -DCK_ENCRYPTION -DCK_CAST $$HAVE_DES \
-	-DCK_KERBEROS -DKRB5 -DNOFTP_GSSAPI $(K5INC) $(K5INC)/krb5 \
+	-DCK_KERBEROS -DKRB5 -DKRB5_DEPRECATED=1 -DNOFTP_GSSAPI \
+	$(K5INC) $(K5INC)/krb5 \
 	-DCK_SSL -DCK_PAM -DZLIB -DNO_DCL_INET_ATON $$OPENSSLOPTION \
 	$(KFLAGS)" "LNKFLAGS = $(LNKFLAGS)" \
 	"LIBS= $(K5LIB) -L/usr/pkg/lib -R/usr/pkg/lib -lssl $$DES_LIB \
-	-lcrypto -lcrypt -lgssapi -lkrb5 -lz -lm -lpam -lutil -lcurses $(LIBS)"
+	-lcrypto -lcrypt -lgssapi_krb5 -lkrb5 -lz -lm -lpam -lutil -lcurses $(LIBS)"
 
 #Special Security Enhanced NetBSD target with SRP, SSL, and zlib support.
 #To build this, you need to BUILD the pkgsrc srp_client package.  After
@@ -7324,6 +7326,10 @@ linux+krb5+ssl linux+krb5+openssl:
 	      echo "HAVE DES"; \
 	   else echo "NO DES"; \
 	fi; \
+	MTARCH='$(MULTIARCH)'; \
+	if test -z "$$MTARCH"; then \
+		MTARCH=`gcc -print-multiarch 2> /dev/null`; \
+	fi; \
 	K5CRYPTO=''; \
 	if ls /lib/libk5crypto* > /dev/null 2> /dev/null; then \
 		K5CRYPTO='-lk5crypto'; \
@@ -7331,21 +7337,23 @@ linux+krb5+ssl linux+krb5+openssl:
 		K5CRYPTO='-lk5crypto'; \
 	else if ls /usr/lib64/libk5crypto* > /dev/null 2> /dev/null; then \
 		K5CRYPTO='-lk5crypto'; \
-	else if ls /usr/lib/$(MULTIARCH)/libk5crypto* \
+	else if ls /usr/lib/$$MTARCH/libk5crypto* \
 	        > /dev/null 2> /dev/null; then K5CRYPTO='-lk5crypto'; \
 	fi; fi; fi; fi; \
 	COM_ERR=''; \
 	if ls /lib/libcom_err* > /dev/null 2> /dev/null; then \
 		COM_ERR='-lcom_err'; \
-	else if ls /lib/$(MULTIARCH)/libcom_err* \
+	else if ls /lib/$$MTARCH/libcom_err* \
+	        > /dev/null 2> /dev/null; then COM_ERR='-lcom_err'; \
+	else if ls /usr/lib/$$MTARCH/libcom_err* \
 	        > /dev/null 2> /dev/null; then COM_ERR='-lcom_err'; \
 	else if ls /lib64/libcom_err* > /dev/null 2> /dev/null; then \
 		COM_ERR='-lcom_err'; \
-	fi; fi; fi; \
+	fi; fi; fi; fi; \
 	GSSAPILIB='-lgssapi'; \
 	if ls /lib/libgssapi_krb5* > /dev/null 2> /dev/null; then \
 		GSSAPILIB='-lgssapi_krb5'; \
-	else if ls /usr/lib/$(MULTIARCH)/libgssapi_krb5* \
+	else if ls /usr/lib/$$MTARCH/libgssapi_krb5* \
 	        > /dev/null 2> /dev/null; then \
 		GSSAPILIB='-lgssapi_krb5'; \
 	else K5DIR=`echo $(K5LIB) | sed 's|-L||'`; \
@@ -7353,7 +7361,7 @@ linux+krb5+ssl linux+krb5+openssl:
 			GSSAPILIB='-lgssapi_krb5'; \
 	fi; fi; fi; \
 	$(MAKE) linux KTARGET=$${KTARGET:-$(@)} "CC = gcc" "CC2 = gcc" \
-	"KFLAGS= -DCK_AUTHENTICATION -DCK_KERBEROS -DKRB5 \
+	"KFLAGS= -DCK_AUTHENTICATION -DCK_KERBEROS -DKRB5 -DKRB5_DEPRECATED=1 \
 	-DCK_SSL -DCK_PAM -DZLIB -DCK_SHADOW $$OPENSSLOPTION $(SSLINC) \
 	-DCK_ENCRYPTION $$HAVE_DES $(K5INC) $(K5INC)/krb5 \
 	-I/usr/include/et $(KFLAGS)" "LNKFLAGS = $(LNKFLAGS)" \
