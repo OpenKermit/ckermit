@@ -1,6 +1,6 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.0.505 (not yet released)
+# C-Kermit 11.0.505
 
 - Now support OpenSSL v4.0.
 - Added new `SHOW INTERFACES` command, which shows the interfaces and IP
@@ -15,7 +15,8 @@
   1. `--unbuffered`, `--version`, etc. were improperly not recognized
   2. The permissions for `MKDIR` and `CD` were sometimes not enforced
 - Fixed compilation errors with Kerberos 5 on Linux and NetBSD.
-  Note: Kerberos is not currently exercised by the test suite.
+  Note: Kerberos is not currently exercised by the test suite, so you should
+  consider this support less proven than the rest of the system.
 
 # C-Kermit 11.0 announcement (11.0.504)
 
