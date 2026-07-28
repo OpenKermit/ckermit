@@ -1867,15 +1867,23 @@ struct keytab xargtab[] = {
 #ifdef OS2
     { "title",       XA_TITL, CM_ARG },
 #endif /* OS2 */
+#endif /* NOLOCAL */
+#endif /* CK_LOGIN */
+#ifndef NOLOCAL
 #ifdef UNIX
     { "unbuffered",  XA_UNBUF, 0 },
 #endif	/* UNIX */
+#endif /* NOLOCAL */
+#ifdef CK_LOGIN
+#ifndef NOLOCAL
 #ifndef NOSPL
     { "user",        XA_USER, CM_ARG },
 #endif /* NOSPL */
 #endif /* NOLOCAL */
     { "userfile",    XA_USFI, CM_ARG|CM_PRE },
+#endif /* CK_LOGIN */
     { "version",     XA_VERS, 0 },
+#ifdef CK_LOGIN
 #ifndef NOLOCAL
 #ifdef OS2
     { "width",       XA_COLS, CM_ARG|CM_PRE },
