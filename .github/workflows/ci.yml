@@ -226,11 +226,14 @@ jobs:
           prepare: |
             pkg install -y check pkgconf lrzsz python3 py312-pip
             pip install pytest pytest-xdist pytest-timeout pyftpdlib
-            # FreeBSD's lrzsz port installs binaries named lrz and lsz, unlike
-            # Debian's lrzsz package, which also provides traditionally-named
-            # sz and rz. test_zmodem.py invokes
-            # "sz" and "rz" by name, so add those as symlinks.  In production,
-            # a local administrator can configure this apporpriately.
+            # FreeBSD's lrzsz port installs binaries named lrz and lsz, 
+            # while Kermit expects the sz and rz names.
+            # test_zmodem.py invokes  "sz" and "rz" by name, so add those as 
+            # symlinks.  In production, a local administrator can 
+            # configure this apporpriately.
+            #
+            # If not set, the ZModem tests will simply be skipped.  But we
+            # want a real exercise of it in CI.
             #
             # Similar issue with NetBSD below.
             ln -sf /usr/local/bin/lrz /usr/local/bin/rz
