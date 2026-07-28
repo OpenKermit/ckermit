@@ -2,10 +2,13 @@
 
 # C-Kermit 11.0.505 (not yet released)
 
+- Now support OpenSSL v4.0.
 - Added new `SHOW INTERFACES` command, which shows the interfaces and IP
   addresses available on the local machine.  Useful when establishing
   a connection across a local LAN.
-- Now support OpenSSL v4.0.
+- Enhance support for IPv6 link-local addresses.  Together with
+  `SHOW INTERFACES`, this helps establish connections over even ad-hoc wifi
+  where there is no DHCP.
 
 # C-Kermit 11.0 announcement (11.0.504)
 
