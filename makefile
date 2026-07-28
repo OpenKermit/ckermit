@@ -1027,8 +1027,8 @@ all: $(ALL)
 
 .c.o:
 	$(CC) $(CFLAGS) -DKTARGET=\"$(KTARGET)\" -c $<
-	@printf '%s' "$(CC)" > .buildcc.cache
-	@printf '%s' "$(CFLAGS)" > .buildflags.cache
+	@printf '%s' '$(CC)' > .buildcc.cache
+	@printf '%s' '$(CFLAGS)' > .buildflags.cache
 
 # Run the test suite
 test:
