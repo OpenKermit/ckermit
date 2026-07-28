@@ -13439,11 +13439,16 @@ initconn() {
 #ifdef CK_IPV6
         if (use_ext) {
             char ftpaddrbuf[CK_IPADDRLEN];
+            char * zp;
             if (ck_straddr((struct sockaddr *)&data_addr, len,
                             ftpaddrbuf, sizeof(ftpaddrbuf)) < 0) {
                 printf("?Unable to format local address for EPRT\n");
                 return(-1);
             }
+            /* Strip zone suffix before formatting EPRT command. */
+            zp = strchr(ftpaddrbuf,'%');
+            if (zp)
+              *zp = '\0';
             if (ckmakxmsg(ftpcmdbuf,FTP_BUFSIZ,"EPRT |2|",ftpaddrbuf,"|",
                       ckuitoa(ck_getport((struct sockaddr *)&data_addr)),
                       "|",NULL,NULL,NULL,NULL,NULL,NULL,NULL) < 0) {

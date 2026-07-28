@@ -20,6 +20,21 @@ expected, neither are brackets.
 A new option `SET TCP ADDRESS6` exists as an analog to `SET TCP ADDRESS`,
 letting you specify a local binding address for IPv6.
 
+A link-local address (`fe80::/10`) is only meaningful together with a
+zone identifying which interface it's on, since the same link-local
+address can exist on every interface of a multihomed host at once.
+Give the zone as a suffix on the address, separated by `%`: either an
+interface name (`fe80::1%eth0`) or its numeric index (`fe80::1%2`).
+Combined with the bracket-and-port syntax above, a full example looks
+like:
+
+    SET HOST [fe80::1%eth0]:23
+
+`SET TCP ADDRESS6` accepts the same `%interface`/`%index` suffix, and
+applies it to both outgoing connections and the IPv6 listening socket
+(`SET HOST *`). Connecting to a link-local address with no zone at
+all fails, since the kernel has no way to tell which interface to use.
+
 ## Areas where IPv6 is unsupported
 
 Where additional libraries must be called differently for IPv6, these occur in

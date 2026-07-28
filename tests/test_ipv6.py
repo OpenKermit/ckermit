@@ -2,6 +2,7 @@
 IPv6 tests
 """
 import socket
+import subprocess
 import threading
 import time
 import pytest
@@ -100,15 +101,29 @@ def test_set_host_malformed_bracket_fails_safely(run_wermit):
     assert "Malformed address literal" in result.stdout + result.stderr
 
 
-def test_set_host_bare_v6_with_space_port_fails_safely(run_wermit):
-    """A bare (unbracketed) address with colons of its own is not a
-    valid SET HOST argument, even with a space-delimited port: HELP
-    SET HOST requires square brackets around such addresses so
-    Kermit can tell which colon separates the port. This must fail
-    with a clear syntax error, not silently connect to the wrong
-    host/port."""
-    result = run_wermit("set host ::1 23")
-    assert result.returncode != 0
+def test_set_host_bare_v6_with_space_port_now_works(run_wermit, tmp_path):
+    """Verify SET HOST with bare IPv6 literal and space-delimited port."""
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+    if not _ipv6_loopback_available():
+        pytest.skip("no IPv6 loopback available in this environment")
+
+    content = _netopen_debug_lines(
+        run_wermit, tmp_path, "set host ::1 23, exit")
+    assert "netopen host[::1]" in content
+    assert "netopen service requested[23]" in content
+
+
+def test_set_host_bare_v6_colon_attached_port_still_needs_brackets(
+        run_wermit, tmp_path):
+    """Verify SET HOST with colon-attached port requires brackets."""
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+
+    content = _netopen_debug_lines(
+        run_wermit, tmp_path, "set host ::1:23, exit")
+    assert "netopen host[::1:23]" in content
+    assert "netopen service requested[telnet]" in content
 
 
 def _rlogin_supported(run_wermit):
@@ -226,12 +241,19 @@ class _OneShotListener:
     start it, run a wermit client against it, and then check whether
     (and from where) a connection actually arrived."""
 
-    def __init__(self, family, host, port=0):
+    def __init__(self, family, host, port=0, scope_id=0):
         self.sock = socket.socket(family, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         if family == socket.AF_INET6:
             self.sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
-        self.sock.bind((host, port))
+        if scope_id:
+            # A link-local bind needs the 4-tuple form; a 2-tuple
+            # with "%zone" embedded in the address string is not
+            # accepted by bind() (only getaddrinfo()-based resolution
+            # parses that syntax).
+            self.sock.bind((host, port, 0, scope_id))
+        else:
+            self.sock.bind((host, port))
         self.sock.listen(1)
         self.port = self.sock.getsockname()[1]
         self.peer = None
@@ -499,6 +521,442 @@ def test_tcp_address6_v6_binds_matching_candidate(run_wermit):
         listener.close()
 
 
+# Link-local addresses (fe80::/10).
+
+
+def _ipv6_addrs_by_iface():
+    """Maps each network interface name to the list of IPv6 addresses
+    (zone/prefix suffixes stripped) currently assigned to it. Reads
+    Linux's /proc/net/if_inet6 where available; falls back to parsing
+    `ifconfig -a`, which covers the BSDs (and macOS), none of which
+    have that /proc file. Returns {} if neither source is usable."""
+    try:
+        with open("/proc/net/if_inet6") as f:
+            lines = f.read().splitlines()
+        by_iface = {}
+        for line in lines:
+            parts = line.split()
+            if len(parts) != 6:
+                continue
+            addr_hex, _prefix, _scope, _flags, _status, iface = parts
+            addr = socket.inet_ntop(socket.AF_INET6,
+                                     bytes.fromhex(addr_hex))
+            by_iface.setdefault(iface, []).append(addr)
+        return by_iface
+    except OSError:
+        pass
+
+    try:
+        out = subprocess.run(["ifconfig", "-a"], capture_output=True,
+                              text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    by_iface = {}
+    iface = None
+    for line in out.splitlines():
+        if line and not line[0].isspace():
+            iface = line.split(":", 1)[0]
+            continue
+        parts = line.split()
+        if iface and len(parts) >= 2 and parts[0] == "inet6":
+            addr = parts[1].split("%")[0].split("/")[0]
+            by_iface.setdefault(iface, []).append(addr)
+    return by_iface
+
+
+def _link_local_interface_and_address():
+    """Find a non-loopback interface with a link-local (fe80::/10)
+    IPv6 address. Returns (interface, address) or None if none is
+    found."""
+    for iface, addrs in _ipv6_addrs_by_iface().items():
+        if iface in ("lo", "lo0"):
+            continue
+        for addr in addrs:
+            if addr.startswith("fe80"):
+                return iface, addr
+    return None
+
+
+def _link_local_and_other_address_same_iface():
+    """Return (interface, link_local_addr, other_addr) on a single interface."""
+    for iface, addrs in _ipv6_addrs_by_iface().items():
+        if iface in ("lo", "lo0"):
+            continue
+        ll = [a for a in addrs if a.startswith("fe80")]
+        other = [a for a in addrs if not a.startswith("fe80")]
+        if ll and other:
+            return iface, ll[0], other[0]
+    return None
+
+
+def test_link_local_literal_with_zone_connects(run_wermit):
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+    found = _link_local_interface_and_address()
+    if not found:
+        pytest.skip("no non-loopback link-local address available "
+                     "in this environment")
+    iface, addr = found
+    idx = socket.if_nametoindex(iface)
+
+    listener = _OneShotListener(socket.AF_INET6, addr, scope_id=idx)
+    try:
+        result = run_wermit(
+            "set tcp reverse-dns-lookup off, "
+            f"set host [{addr}%{iface}]:{listener.port} /raw-socket")
+        assert_ok(result, "link-local connect failed")
+        peer = listener.wait()
+        assert peer is not None and peer[0] == addr and peer[3] == idx
+    finally:
+        listener.close()
+
+
+def test_link_local_progress_message_shows_zone(run_wermit):
+    """Verify progress message includes zone suffix for link-local address."""
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+    found = _link_local_interface_and_address()
+    if not found:
+        pytest.skip("no non-loopback link-local address available "
+                     "in this environment")
+    iface, addr = found
+    idx = socket.if_nametoindex(iface)
+
+    listener = _OneShotListener(socket.AF_INET6, addr, scope_id=idx)
+    try:
+        result = run_wermit(
+            "set tcp reverse-dns-lookup off, "
+            f"set host [{addr}%{iface}]:{listener.port} /raw-socket")
+        assert_ok(result, "link-local connect failed")
+        assert f"Trying {addr}%{iface}..." in result.stdout
+        listener.wait()
+    finally:
+        listener.close()
+
+
+def test_link_local_literal_survives_macro_argument(run_wermit):
+    """Verify link-local address with zone passed via macro argument."""
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+    found = _link_local_interface_and_address()
+    if not found:
+        pytest.skip("no non-loopback link-local address available "
+                     "in this environment")
+    iface, addr = found
+    idx = socket.if_nametoindex(iface)
+
+    listener = _OneShotListener(socket.AF_INET6, addr, scope_id=idx)
+    try:
+        result = run_wermit(
+            "define llmactest set host \\%1, "
+            "set tcp reverse-dns-lookup off, "
+            f"llmactest [{addr}%{iface}]:{listener.port} /raw-socket")
+        assert_ok(result, "link-local connect via macro argument failed")
+        peer = listener.wait()
+        assert peer is not None and peer[0] == addr and peer[3] == idx
+    finally:
+        listener.close()
+
+
+# Bare link-local address tests.
+
+
+def test_bare_link_local_literal_with_zone_connects(run_wermit):
+    """Verify connecting to bare link-local address with zone."""
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+    found = _link_local_interface_and_address()
+    if not found:
+        pytest.skip("no non-loopback link-local address available "
+                     "in this environment")
+    iface, addr = found
+    idx = socket.if_nametoindex(iface)
+
+    listener = _OneShotListener(socket.AF_INET6, addr, scope_id=idx)
+    try:
+        result = run_wermit(
+            "set tcp reverse-dns-lookup off, "
+            f"set host {addr}%{iface} {listener.port} /raw-socket")
+        assert_ok(result, "bare link-local connect failed")
+        peer = listener.wait()
+        assert peer is not None and peer[0] == addr and peer[3] == idx
+    finally:
+        listener.close()
+
+
+def test_bare_link_local_literal_without_zone_gives_clear_diagnostic(
+        run_wermit):
+    """Verify diagnostic message when bare link-local address lacks zone."""
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+
+    result = run_wermit("set tcp address-family ipv6, set host fe80::1")
+    assert_ok(result, "command itself should not abort")
+    assert "Link-local addresses require a zone" in result.stdout
+
+
+# SET TCP ADDRESS6 zone tests.
+
+
+def test_tcp_address6_accepts_named_zone(run_wermit):
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+    found = _link_local_interface_and_address()
+    if not found:
+        pytest.skip("no non-loopback link-local address available "
+                     "in this environment")
+    iface, addr = found
+
+    result = run_wermit(f"set tcp address6 {addr}%{iface}, show tcp")
+    assert_ok(result, "SET TCP ADDRESS6 with zone failed")
+    # Byte-for-byte, not just "contains it": a silently mangled zone
+    # must not slip past a looser substring check.
+    assert f"address6: {addr}%{iface}\n" in result.stdout
+
+
+def test_tcp_address6_link_local_without_zone_still_accepted(run_wermit):
+    """Verify SET TCP ADDRESS6 accepts link-local address without zone."""
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+
+    result = run_wermit("set tcp address6 fe80::1, show tcp")
+    assert_ok(result, "SET TCP ADDRESS6 with no zone failed")
+    assert "address6: fe80::1\n" in result.stdout
+
+
+def test_tcp_address6_rejects_nonexistent_zone(run_wermit):
+    """Verify SET TCP ADDRESS6 rejects nonexistent interface zone."""
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+
+    result = run_wermit(
+        "set tcp address6 ::1, "
+        "set tcp address6 fe80::1%zzz_bogus_iface_9999, "
+        "show tcp")
+    assert_ok(result, "command script should keep running after the "
+              "rejected SET TCP ADDRESS6")
+    assert "requires an IPv6 address" in (result.stdout + result.stderr)
+    assert "address6: ::1\n" in result.stdout
+
+
+def test_help_set_tcp_mentions_address6_zone_suffix(run_wermit):
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+
+    result = run_wermit("help set tcp")
+    assert_ok(result, "HELP SET TCP failed")
+    assert "%interface" in result.stdout
+    assert "%index" in result.stdout
+
+
+def test_help_set_host_mentions_link_local_zone_suffix(run_wermit):
+    """Verify HELP SET HOST documents link-local zone suffix."""
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+
+    result = run_wermit("help set host")
+    assert_ok(result, "HELP SET HOST failed")
+    assert "link-local" in result.stdout
+    assert "%interface" in result.stdout
+
+
+# SET TCP ADDRESS6 local bind tests.
+
+
+def test_tcp_address6_link_local_binds_matching_candidate(run_wermit):
+    """Verify SET TCP ADDRESS6 with link-local zone binds correct address."""
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+    found = _link_local_and_other_address_same_iface()
+    if not found:
+        pytest.skip("no interface with both a link-local and another "
+                     "IPv6 address available in this environment")
+    iface, ll_addr, other_addr = found
+
+    listener = _OneShotListener(socket.AF_INET6, other_addr)
+    try:
+        result = run_wermit(
+            f"set tcp address6 {ll_addr}%{iface}, "
+            "set tcp address-family ipv6, "
+            "set tcp reverse-dns-lookup off, "
+            f"set host [{other_addr}]:{listener.port} /raw-socket")
+        assert_ok(result, "IPv6 connect with link-local "
+                  "SET TCP ADDRESS6 failed")
+        peer = listener.wait()
+        assert (peer is not None and peer[0] == ll_addr and
+                peer[3] == socket.if_nametoindex(iface))
+    finally:
+        listener.close()
+
+
+# Link-local diagnostic tests.
+
+
+def test_link_local_no_zone_gives_clear_diagnostic(run_wermit):
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+
+    result = run_wermit(
+        "set tcp address-family ipv6, set host [fe80::1]:23")
+    assert_ok(result, "SET HOST to a zoneless link-local literal "
+              "should fail cleanly, not abort the script")
+    assert "Link-local addresses require a zone" in result.stdout
+
+
+def test_link_local_bad_zone_name_fails_cleanly(run_wermit):
+    """Verify connecting to nonexistent zone fails cleanly."""
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+
+    result = run_wermit("set host [fe80::1%bogusiface99]:23")
+    assert_ok(result, "SET HOST with a bad zone name should fail "
+              "cleanly, not abort the script")
+    assert "Can't get address" in (result.stdout + result.stderr)
+
+
+# SSH link-local zone tests.
+
+
+def _ssh_supported(run_wermit):
+    result = run_wermit("help ssh")
+    assert_ok(result, "HELP SSH failed")
+    return "Syntax: SSH" in result.stdout
+
+
+def test_ssh_bracket_zone_survives_command_line(run_wermit, tmp_path):
+    if not _ssh_supported(run_wermit):
+        pytest.skip("build has no SSH command (not SSHCMD)")
+
+    content = _netopen_debug_lines(
+        run_wermit, tmp_path, "ssh [fe80::1%eth0]:22")
+    assert "setlin sshcmd calling cx_net[ssh -e none " \
+        "[fe80::1%eth0]:22]" in content
+
+
+# HTTP link-local URL tests.
+
+
+@pytest.fixture
+def http_server_v6(tmp_path):
+    """Fixture providing an HTTP server bound to an IPv6 address."""
+    from http.server import BaseHTTPRequestHandler
+    import socketserver
+    import threading
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            if self.path == "/hello.txt":
+                content = b"Hello from mock IPv6 HTTP server!"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain")
+                self.send_header("Content-Length", str(len(content)))
+                self.end_headers()
+                self.wfile.write(content)
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+    class Server6(socketserver.TCPServer):
+        address_family = socket.AF_INET6
+
+    servers = []
+
+    def _start(addr, scope_id=0):
+        # A link-local bind needs the 4-tuple form (see
+        # _OneShotListener for the same requirement); TCPServer just
+        # passes server_address straight through to socket.bind(),
+        # so giving it the 4-tuple up front is enough.
+        server_address = (addr, 0, 0, scope_id) if scope_id else (addr, 0)
+        srv = Server6(server_address, Handler)
+        thread = threading.Thread(target=srv.serve_forever, daemon=True)
+        thread.daemon = True
+        thread.start()
+        servers.append(srv)
+        return srv.server_address[1]
+
+    yield _start, tmp_path
+
+    for srv in servers:
+        srv.shutdown()
+        srv.server_close()
+
+
+def test_http_open_bracketed_v6_url_connects(
+        run_wermit, http_server_v6):
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+    if not _ipv6_loopback_available():
+        pytest.skip("no IPv6 loopback available in this environment")
+    start, tmp_path = http_server_v6
+    port = start("::1")
+    dest_file = tmp_path / "hello_received.txt"
+
+    result = run_wermit(
+        f"http open http://[::1]:{port}, "
+        f"http get /hello.txt {dest_file}, http close")
+    assert_ok(result, "HTTP GET over a bracketed IPv6 URL failed")
+    assert dest_file.exists()
+    assert dest_file.read_bytes() == b"Hello from mock IPv6 HTTP server!"
+
+
+def test_http_open_bracketed_link_local_url_connects(
+        run_wermit, http_server_v6):
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+    found = _link_local_interface_and_address()
+    if not found:
+        pytest.skip("no non-loopback link-local address available "
+                     "in this environment")
+    iface, addr = found
+    idx = socket.if_nametoindex(iface)
+    start, tmp_path = http_server_v6
+    port = start(addr, scope_id=idx)
+    dest_file = tmp_path / "hello_received.txt"
+
+    result = run_wermit(
+        f"http open http://[{addr}%{iface}]:{port}, "
+        f"http get /hello.txt {dest_file}, http close")
+    assert_ok(result, "HTTP GET over a bracketed link-local URL failed")
+    assert dest_file.exists()
+    assert dest_file.read_bytes() == b"Hello from mock IPv6 HTTP server!"
+
+
+def test_http_open_bare_link_local_literal_connects(
+        run_wermit, http_server_v6):
+    """Verify HTTP connection using bare link-local literal."""
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+    found = _link_local_interface_and_address()
+    if not found:
+        pytest.skip("no non-loopback link-local address available "
+                     "in this environment")
+    iface, addr = found
+    idx = socket.if_nametoindex(iface)
+    start, tmp_path = http_server_v6
+    port = start(addr, scope_id=idx)
+    dest_file = tmp_path / "hello_received.txt"
+
+    result = run_wermit(
+        f"http open {addr}%{iface} {port}, "
+        f"http get /hello.txt {dest_file}, http close")
+    assert_ok(result, "HTTP GET to a bare link-local literal failed")
+    assert dest_file.exists()
+    assert dest_file.read_bytes() == b"Hello from mock IPv6 HTTP server!"
+
+
+def test_http_open_wrong_scheme_still_rejected(run_wermit):
+    """Verify non-HTTP URL schemes are rejected."""
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+
+    result = run_wermit("http open telnet://example.com:23, http close")
+    assert result.returncode != 0
+    assert "Non-HTTP URL" in (result.stdout + result.stderr)
+
+
 # ckgetfqhostname() / reverse-DNS lookup
 
 
@@ -606,6 +1064,46 @@ def test_iksd_listener_accepts_ipv6(run_wermit, spawn_wermit, get_free_port,
         assert_ok(result, "IPv6 client failed to connect to IKSD listener")
         proc.wait(timeout=5)
         assert "::1 connected" in log_path.read_text(errors="replace")
+    finally:
+        log_fh.close()
+
+
+def test_tcp_address6_zone_honored_by_listener(
+        run_wermit, spawn_wermit, get_free_port, tmp_path):
+    """Verify tcpsrv_open honors zone suffix in SET TCP ADDRESS6."""
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+    if not _ipv6_loopback_available():
+        pytest.skip("no IPv6 loopback available in this environment")
+    found = _link_local_interface_and_address()
+    if not found:
+        pytest.skip("no non-loopback link-local address available "
+                     "in this environment")
+    iface, addr = found
+
+    port = get_free_port()
+    log_path = tmp_path / "srv-ll.log"
+    proc, log_fh = _start_iksd_listener(
+        spawn_wermit, port, log_path,
+        extra_cmds=f"set tcp address6 {addr}%{iface}, "
+        "set tcp address-family ipv6, ")
+    try:
+        result = run_wermit(
+            "set tcp reverse-dns-lookup off, "
+            f"set host [::1]:{port} /raw-socket, close")
+        assert_ok(result, "command itself should not abort")
+        assert "Failed" in result.stdout, (
+            "::1 should be refused by a listener scoped to a "
+            "link-local address")
+
+        result = run_wermit(
+            "set tcp reverse-dns-lookup off, "
+            f"set host [{addr}%{iface}]:{port} /raw-socket, close")
+        assert_ok(result, "link-local client failed to connect to the "
+                  "listener bound to that address")
+        proc.wait(timeout=5)
+        assert f"{addr}%{iface} connected" in log_path.read_text(
+            errors="replace")
     finally:
         log_fh.close()
 

@@ -16,8 +16,12 @@
   The maximum size of an IPv4 or IPv6 address as a string, including
   brackets around IPv6 addresses, colon to separate the IP address from the
   port number, and a port number.
+
+  Sized for link-local IPv6 addresses with %zone suffix (e.g.
+  "fe80::1%eth0"): INET6_ADDRSTRLEN-1 (45), '%', IFNAMSIZ-1 (15),
+  brackets, port, and NUL terminator.
 */
-#define CK_IPADDRLEN 64
+#define CK_IPADDRLEN 128
 
 /* Network types */
 
@@ -1218,6 +1222,9 @@ typedef char * caddr_t; /* core address type */
 #define TCP_AF_AUTO 0                    /* Try both in resolver order */
 #define TCP_AF_V4   1                    /* IPv4 only */
 #define TCP_AF_V6   2                    /* IPv6 only */
+
+/* Interface definitions for resolving IPv6 zone identifiers. */
+#include <net/if.h>
 #endif /* CK_IPV6 */
 
 /* Include interface address headers when CK_GETIFADDRS is defined. */
@@ -1548,8 +1555,10 @@ _PROTOTYP( VOID ck_setport, (struct sockaddr *, unsigned short) );
 _PROTOTYP( int ck_tcp_connect, (char *, char *, int, int *,
                                 struct sockaddr_storage *, GSOCKNAME_T *,
                                 int) );
+_PROTOTYP( int ck_scopeaddr6, (char *, struct in6_addr *, unsigned int *) );
 #endif /* CK_IPV6 */
 _PROTOTYP( int ck_splithostport, (char *, char *, int, char *, int) );
+_PROTOTYP( VOID ck_bracketaddr, (char *, int) );
 
 #endif /* TCPSOCKET */
 

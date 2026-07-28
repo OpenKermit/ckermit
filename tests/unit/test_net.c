@@ -152,6 +152,205 @@ START_TEST(test_port_v6)
     ck_assert_uint_eq(ntohs(sin6.sin6_port), 2000);
 }
 END_TEST
+
+/*
+  ck_scopeaddr6() tests need one interface name guaranteed to exist
+  and resolve on the test target. The loopback interface is always
+  present, but its name isn't portable: Linux calls it "lo", BSD and
+  macOS call it "lo0". test_loopback_ifname() finds whichever one
+  actually resolves via if_nametoindex(), so the tests below build
+  their zone-qualified literals from that name instead of a literal
+  "lo".
+*/
+static const char *
+test_loopback_ifname(void)
+{
+    static char name[IFNAMSIZ];
+    static int done = 0;
+
+    if (!done) {
+        if (if_nametoindex("lo0") != 0)
+          strncpy(name, "lo0", sizeof(name) - 1);
+        else if (if_nametoindex("lo") != 0)
+          strncpy(name, "lo", sizeof(name) - 1);
+        done = 1;
+    }
+    return name;
+}
+
+START_TEST(test_scopeaddr6_no_zone)
+{
+    struct in6_addr addr, expect;
+    unsigned int scope = 999;           /* poison, must come back 0 */
+
+    ck_assert_int_eq(inet_pton(AF_INET6, "2001:db8::1", &expect), 1);
+    ck_assert_int_eq(ck_scopeaddr6("2001:db8::1", &addr, &scope), 1);
+    ck_assert_int_eq(memcmp(&addr, &expect, sizeof(addr)), 0);
+    ck_assert_uint_eq(scope, 0);
+}
+END_TEST
+
+START_TEST(test_scopeaddr6_named_zone)
+{
+    struct in6_addr addr;
+    unsigned int scope = 0;
+    const char *ifname = test_loopback_ifname();
+    unsigned int idx = if_nametoindex(ifname);
+    char in[64];
+
+    ck_assert_uint_ne(idx, 0);   /* loopback must exist to test this */
+    snprintf(in, sizeof(in), "fe80::1%%%s", ifname);
+    ck_assert_int_eq(ck_scopeaddr6(in, &addr, &scope), 1);
+    ck_assert_uint_eq(scope, idx);
+}
+END_TEST
+
+START_TEST(test_scopeaddr6_numeric_zone)
+{
+    struct in6_addr addr;
+    unsigned int scope = 0;
+    unsigned int idx = if_nametoindex(test_loopback_ifname());
+    char in[64];
+
+    ck_assert_uint_ne(idx, 0);
+    snprintf(in, sizeof(in), "fe80::1%%%u", idx);
+    ck_assert_int_eq(ck_scopeaddr6(in, &addr, &scope), 1);
+    ck_assert_uint_eq(scope, idx);
+}
+END_TEST
+
+START_TEST(test_scopeaddr6_bad_address)
+{
+    struct in6_addr addr;
+    unsigned int scope = 0;
+
+    ck_assert_int_eq(ck_scopeaddr6("not-an-address", &addr, &scope), 0);
+    ck_assert_int_eq(ck_scopeaddr6("not-an-address%lo", &addr, &scope), 0);
+}
+END_TEST
+
+START_TEST(test_scopeaddr6_nonexistent_named_zone)
+{
+    struct in6_addr addr;
+    unsigned int scope = 0;
+
+    ck_assert_int_eq(
+        ck_scopeaddr6("fe80::1%zzz_bogus_iface_9999", &addr, &scope), 0);
+}
+END_TEST
+
+START_TEST(test_scopeaddr6_nonexistent_numeric_zone)
+{
+    struct in6_addr addr;
+    unsigned int scope = 0;
+
+    /* Numeric index does not match any active interface. */
+    ck_assert_int_eq(ck_scopeaddr6("fe80::1%4000000000", &addr, &scope), 0);
+}
+END_TEST
+
+START_TEST(test_scopeaddr6_bare_trailing_percent)
+{
+    struct in6_addr addr;
+    unsigned int scope = 0;
+
+    /* Trailing percent symbol without zone name is invalid. */
+    ck_assert_int_eq(ck_scopeaddr6("fe80::1%", &addr, &scope), 0);
+}
+END_TEST
+
+START_TEST(test_scopeaddr6_numeric_zone_overflow)
+{
+    struct in6_addr addr;
+    unsigned int scope = 0;
+
+    /* Exceeding UINT_MAX numeric scope ID must fail. */
+    ck_assert_int_eq(
+        ck_scopeaddr6("fe80::1%999999999999999", &addr, &scope), 0);
+}
+END_TEST
+
+/*
+  Test parsing of max-length (45 character) IPv6 literal. Verify exact
+  parsed byte match to detect truncation.
+*/
+START_TEST(test_scopeaddr6_max_length_address)
+{
+    static const char * a45 =
+        "0000:0000:0000:0000:0000:ffff:255.255.255.255";
+    struct in6_addr addr, expect;
+    unsigned int scope = 0;
+    const char *ifname = test_loopback_ifname();
+    unsigned int idx = if_nametoindex(ifname);
+    char in[80];
+
+    ck_assert_uint_eq(strlen(a45), (size_t)(INET6_ADDRSTRLEN - 1));
+    ck_assert_uint_ne(idx, 0);
+    ck_assert_int_eq(inet_pton(AF_INET6, a45, &expect), 1);
+
+    snprintf(in, sizeof(in), "%s%%%s", a45, ifname);
+    ck_assert_int_eq(ck_scopeaddr6(in, &addr, &scope), 1);
+    ck_assert_int_eq(memcmp(&addr, &expect, sizeof(addr)), 0);
+    ck_assert_uint_eq(scope, idx);
+}
+END_TEST
+
+/*
+  Test zone name of max length (15 characters) that is not an active
+  interface.
+*/
+START_TEST(test_scopeaddr6_max_length_zone_not_truncated)
+{
+    struct in6_addr addr;
+    unsigned int scope = 0;
+    static const char * zone15 = "loXXXXXXXXXXXXX"; /* "lo" + 13 chars */
+
+    ck_assert_uint_eq(strlen(zone15), (size_t)(IFNAMSIZ - 1));
+    ck_assert_int_eq(ck_scopeaddr6("fe80::1%loXXXXXXXXXXXXX", &addr, &scope),
+                      0);
+}
+END_TEST
+
+START_TEST(test_scopeaddr6_address_too_long)
+{
+    struct in6_addr addr;
+    unsigned int scope = 0;
+    /* Address exceeding INET6_ADDRSTRLEN-1 must be rejected. */
+    static char a46[] =
+        "0000:0000:0000:0000:0000:ffff:255.255.255.2550";
+    /* Oversized buffer must be rejected. */
+    char huge[500];
+
+    ck_assert_uint_eq(strlen(a46), (size_t)INET6_ADDRSTRLEN);
+    ck_assert_int_eq(ck_scopeaddr6(a46, &addr, &scope), 0);
+
+    memset(huge, 'f', sizeof(huge) - 1);
+    huge[sizeof(huge) - 1] = '\0';
+    ck_assert_int_eq(ck_scopeaddr6(huge, &addr, &scope), 0);
+}
+END_TEST
+
+START_TEST(test_scopeaddr6_zone_too_long)
+{
+    struct in6_addr addr;
+    unsigned int scope = 0;
+    /* Zone name exceeding IFNAMSIZ-1 must be rejected. */
+    static char in16[] = "fe80::1%loXXXXXXXXXXXXXX"; /* 16-char zone */
+
+    ck_assert_int_eq(ck_scopeaddr6(in16, &addr, &scope), 0);
+}
+END_TEST
+
+START_TEST(test_scopeaddr6_bad_args)
+{
+    struct in6_addr addr;
+    unsigned int scope = 0;
+
+    ck_assert_int_eq(ck_scopeaddr6(NULL, &addr, &scope), 0);
+    ck_assert_int_eq(ck_scopeaddr6("fe80::1", NULL, &scope), 0);
+    ck_assert_int_eq(ck_scopeaddr6("fe80::1", &addr, NULL), 0);
+}
+END_TEST
 #endif /* CK_IPV6 */
 
 START_TEST(test_splithostport_plain_host)
@@ -270,6 +469,76 @@ START_TEST(test_splithostport_bad_args)
 END_TEST
 
 /*
+  Test bracketaddr formatting for IPv6 addresses.
+*/
+START_TEST(test_bracketaddr_plain_host)
+{
+    char buf[64] = "example.com";
+    ck_bracketaddr(buf,sizeof(buf));
+    ck_assert_str_eq(buf,"example.com");
+}
+END_TEST
+
+START_TEST(test_bracketaddr_ipv4)
+{
+    char buf[64] = "192.0.2.1";
+    ck_bracketaddr(buf,sizeof(buf));
+    ck_assert_str_eq(buf,"192.0.2.1");
+}
+END_TEST
+
+START_TEST(test_bracketaddr_one_colon_untouched)
+{
+    /* Single colon is not an IPv6 literal; leave untouched. */
+    char buf[64] = "example.com:23";
+    ck_bracketaddr(buf,sizeof(buf));
+    ck_assert_str_eq(buf,"example.com:23");
+}
+END_TEST
+
+START_TEST(test_bracketaddr_bare_v6)
+{
+    char buf[64] = "::1";
+    ck_bracketaddr(buf,sizeof(buf));
+    ck_assert_str_eq(buf,"[::1]");
+}
+END_TEST
+
+START_TEST(test_bracketaddr_bare_v6_with_zone)
+{
+    char buf[64] = "fe80::1%eth0";
+    ck_bracketaddr(buf,sizeof(buf));
+    ck_assert_str_eq(buf,"[fe80::1%eth0]");
+}
+END_TEST
+
+START_TEST(test_bracketaddr_already_bracketed_untouched)
+{
+    char buf[64] = "[::1]";
+    ck_bracketaddr(buf,sizeof(buf));
+    ck_assert_str_eq(buf,"[::1]");
+}
+END_TEST
+
+START_TEST(test_bracketaddr_too_long_untouched)
+{
+    /* Insufficient space for bracket characters; leave untouched. */
+    char buf[5] = "::1";
+    ck_bracketaddr(buf,sizeof(buf));
+    ck_assert_str_eq(buf,"::1");
+}
+END_TEST
+
+START_TEST(test_bracketaddr_bad_args)
+{
+    char buf[64] = "::1";
+    ck_bracketaddr(NULL,sizeof(buf));
+    ck_bracketaddr(buf,0);
+    ck_assert_str_eq(buf,"::1");
+}
+END_TEST
+
+/*
   ckgetfqhostname() does forward-then-reverse DNS resolution, so this
   relies on loopback names being set up the ordinary way (::1 and
   127.0.0.1 both reverse-resolving to "localhost", via /etc/hosts on
@@ -333,6 +602,19 @@ main(int argc, char ** argv)
 #ifdef CK_IPV6
     tcase_add_test(tc, test_straddr_v6);
     tcase_add_test(tc, test_port_v6);
+    tcase_add_test(tc, test_scopeaddr6_no_zone);
+    tcase_add_test(tc, test_scopeaddr6_named_zone);
+    tcase_add_test(tc, test_scopeaddr6_numeric_zone);
+    tcase_add_test(tc, test_scopeaddr6_bad_address);
+    tcase_add_test(tc, test_scopeaddr6_nonexistent_named_zone);
+    tcase_add_test(tc, test_scopeaddr6_nonexistent_numeric_zone);
+    tcase_add_test(tc, test_scopeaddr6_bare_trailing_percent);
+    tcase_add_test(tc, test_scopeaddr6_numeric_zone_overflow);
+    tcase_add_test(tc, test_scopeaddr6_max_length_address);
+    tcase_add_test(tc, test_scopeaddr6_max_length_zone_not_truncated);
+    tcase_add_test(tc, test_scopeaddr6_address_too_long);
+    tcase_add_test(tc, test_scopeaddr6_zone_too_long);
+    tcase_add_test(tc, test_scopeaddr6_bad_args);
 #endif /* CK_IPV6 */
     tcase_add_test(tc, test_splithostport_plain_host);
     tcase_add_test(tc, test_splithostport_host_port);
@@ -343,6 +625,14 @@ main(int argc, char ** argv)
     tcase_add_test(tc, test_splithostport_bracket_v6_literal_with_port);
     tcase_add_test(tc, test_splithostport_unterminated_bracket);
     tcase_add_test(tc, test_splithostport_bad_args);
+    tcase_add_test(tc, test_bracketaddr_plain_host);
+    tcase_add_test(tc, test_bracketaddr_ipv4);
+    tcase_add_test(tc, test_bracketaddr_one_colon_untouched);
+    tcase_add_test(tc, test_bracketaddr_bare_v6);
+    tcase_add_test(tc, test_bracketaddr_bare_v6_with_zone);
+    tcase_add_test(tc, test_bracketaddr_already_bracketed_untouched);
+    tcase_add_test(tc, test_bracketaddr_too_long_untouched);
+    tcase_add_test(tc, test_bracketaddr_bad_args);
     tcase_add_test(tc, test_getfqhostname_v4_literal);
 #ifdef CK_IPV6
     tcase_add_test(tc, test_getfqhostname_v6_literal);
