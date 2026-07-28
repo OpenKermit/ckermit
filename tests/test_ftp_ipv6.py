@@ -79,7 +79,9 @@ def _link_local_interface_and_address():
 
 
 @pytest.fixture
-def ftp_server_v6(run_wermit, tmp_path):
+def ftp_server_v6(wermit_ftp_available, run_wermit, tmp_path):
+    if not wermit_ftp_available:
+        pytest.skip("wermit was built with -DNOFTP (no FTP client)")
     if not _build_has_address_family(run_wermit):
         pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
     if not _ipv6_loopback_available():
@@ -133,8 +135,10 @@ def ftp_session_v6(port, *commands, active=False):
 
 
 @pytest.fixture
-def ftp_server_link_local(run_wermit, tmp_path):
+def ftp_server_link_local(wermit_ftp_available, run_wermit, tmp_path):
     """Fixture providing an FTP server bound to a link-local address."""
+    if not wermit_ftp_available:
+        pytest.skip("wermit was built with -DNOFTP (no FTP client)")
     if not _build_has_address_family(run_wermit):
         pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
     found = _link_local_interface_and_address()

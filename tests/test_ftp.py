@@ -9,7 +9,10 @@ from pyftpdlib.servers import FTPServer
 
 
 @pytest.fixture
-def ftp_server(tmp_path):
+def ftp_server(wermit_ftp_available, tmp_path):
+    if not wermit_ftp_available:
+        pytest.skip("wermit was built with -DNOFTP (no FTP client)")
+
     # Setup dummy authorizer
     authorizer = DummyAuthorizer()
     # Add a user with full permissions

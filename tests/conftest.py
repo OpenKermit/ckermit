@@ -1,5 +1,6 @@
 import os
 import pty
+import re
 import select
 import shutil
 import socket
@@ -320,6 +321,25 @@ def wermit_ssl_available(wermit_path):
         capture_output=True, text=True, timeout=10
     )
     return result.returncode != 89
+
+
+@pytest.fixture(scope="session")
+def wermit_ftp_available(wermit_path):
+    """
+    True if the wermit binary under test was compiled with FTP client
+    support, i.e. not built with -DNOFTP.
+
+    There is no "IF AVAILABLE FTP" command (AVAILABLE only covers
+    authentication types), so this instead greps SHOW FEATURES'
+    compiled-options list for the "NOFTP" token that shofea() in
+    ckuus5.c prints only when NOFTP was defined at compile time.
+    """
+    result = subprocess.run(
+        [wermit_path, "-H", "-Y", "-C",
+         "set command more-prompting off, show features, exit"],
+        capture_output=True, text=True, timeout=10
+    )
+    return not re.search(r"\bNOFTP\b", result.stdout)
 
 
 @pytest.fixture
