@@ -9,7 +9,9 @@
 - Enhance support for IPv6 link-local addresses.  Together with
   `SHOW INTERFACES`, this helps establish connections over even ad-hoc wifi
   where there is no DHCP.
-- Fixed two issues dating back to the year 2000 when -DNOLOGIN is given:
+- Fixed two issues dating back to the year 2000 when -DNOLOGIN is given.
+  These were discovered by running the test suite using the Fedora build's
+  options.
   1. `--unbuffered`, `--version`, etc. were improperly not recognized
   2. The permissions for `MKDIR` and `CD` were sometimes not enforced
 
