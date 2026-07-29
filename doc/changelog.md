@@ -6,18 +6,21 @@
 
 # C-Kermit 11.0.505
 
-- Now support OpenSSL v4.0.
+- Now support OpenSSL v4.0.  Support for older OpenSSL remains also.  CI is
+  currently building with 3.5.
 - Added new `SHOW INTERFACES` command, which shows the interfaces and IP
   addresses available on the local machine.  Useful when establishing
   a connection across a local LAN.
 - Enhance support for IPv6 link-local addresses.  Together with
   `SHOW INTERFACES`, this helps establish connections over even ad-hoc wifi
   where there is no DHCP.
-- Fixed two issues dating back to the year 2000 when -DNOLOGIN is given.
-  These were discovered by running the test suite using the Fedora build's
+- Fixed two issues compiling with -DNOLOGIN, dating back to the year 2000.
+  These were discovered by running the test suite using the Gentoo build's
   options.
-  1. `--unbuffered`, `--version`, etc. were improperly not recognized
-  2. The permissions for `MKDIR` and `CD` were sometimes not enforced
+  1. `--unbuffered`, `--version`, etc. were improperly not recognized due to
+     a mismatch with ifdef/else/endif
+  2. The permissions for `MKDIR` and `CD` were sometimes not enforced for
+     similar reasons.
 - Fixed compilation errors with Kerberos 5 on Linux and NetBSD.
   Note: Kerberos is not currently exercised by the test suite, so you should
   consider this support less proven than the rest of the system.
