@@ -6211,6 +6211,341 @@ dohfile(cx) int cx;
 }
 #endif /* CKCHANNELIO */
 
+#ifndef NOSHOW
+static char *hmxxsho[] = {
+"Display current values of various items (SET parameters, variables, etc).",
+"The categories are listed below.",
+" ",
+#ifndef NOSPL
+"SHOW ALARM",
+"  Shows the time an ALARM is set to go off, if any.",
+" ",
+"SHOW ARGUMENTS",
+"  Shows the arguments of the active macro, or the command-line",
+"  arguments Kermit was started with, if not executing a macro.",
+" ",
+"SHOW ARRAYS",
+"  Lists the names, dimensions, and sizes of all defined arrays.",
+" ",
+#endif /* NOSPL */
+#ifndef NOCSETS
+"SHOW ASSOCIATIONS",
+"  Lists the FILE-CHARACTER-SET and XFER-CHARACTER-SET associations",
+"  established by the ASSOCIATE command.  See also SHOW CHARACTER-SETS.",
+" ",
+#endif /* NOCSETS */
+#ifndef NOXFER
+"SHOW ATTRIBUTES",
+"  Shows which file attributes are sent and accepted during file transfer.",
+" ",
+#endif /* NOXFER */
+#ifndef NOPUSH
+#ifdef BROWSER
+"SHOW BROWSER",
+"  Shows the name and options of the Web browser invoked by BROWSE.",
+" ",
+#endif /* BROWSER */
+#endif /* NOPUSH */
+"SHOW CD",
+"  Shows the current working directory.",
+" ",
+"SHOW CHARACTER-SETS",
+"  Shows file, terminal, and transfer character sets.  See also",
+"  SHOW ASSOCIATIONS.",
+" ",
+#ifndef NOLOCAL
+"SHOW COMMUNICATIONS",
+"  Shows the parameters of the communication device, such as",
+"  speed, parity, and flow control.",
+" ",
+#endif /* NOLOCAL */
+"SHOW COMMAND",
+"  Shows command mode parameters such as the prompt, command width,",
+"  and command echo.",
+" ",
+"SHOW CONNECTION",
+"  Shows the parameters of the active or most recent host connection.",
+" ",
+#ifdef CK_SPEED
+"SHOW CONTROL-PREFIXING",
+"  Shows the control character and 8-bit prefixing table used",
+"  for file transfer.",
+" ",
+#endif /* CK_SPEED */
+#ifndef NOSPL
+"SHOW COUNT",
+"  Shows the value of the count register used for counted loops.",
+" ",
+#endif /* NOSPL */
+#ifdef VMS
+"SHOW DEFAULT",
+"  Shows the default device and directory.",
+" ",
+#endif /* VMS */
+#ifndef NODIAL
+"SHOW DIAL",
+"  Shows modem dialing parameters, such as dial method,",
+"  prefixes, and timeouts.",
+" ",
+#endif /* NODIAL */
+"SHOW DOUBLE or SHOW IGNORE",
+"  Lists any characters set to be doubled when sent and ignored when",
+"  received, for the current transfer character set.  See SET SEND DOUBLE",
+"  and SET RECEIVE IGNORE.",
+" ",
+#ifndef NOPUSH
+#ifndef NOFRILLS
+"SHOW EDITOR",
+"  Shows the external text editor and options invoked by the EDIT command.",
+" ",
+#endif /* NOFRILLS */
+#endif /* NOPUSH */
+#ifndef NOLOCAL
+"SHOW ESCAPE",
+"  Shows the CONNECT mode escape character.",
+" ",
+#endif /* NOLOCAL */
+"SHOW EXIT",
+"  Shows the exit warning, exit message, and other settings that govern when",
+"  Kermit exits and what happens when it does so.",
+" ",
+"SHOW FEATURES",
+"  Lists the optional features that are compiled into this version of Kermit.",
+" ",
+"SHOW FILE",
+"  Shows file-related parameters such as type, names, and collision handling.",
+" ",
+#ifndef NOLOCAL
+"SHOW FLOW-CONTROL",
+"  Shows the current and default flow control settings for each",
+"  connection type.",
+" ",
+#endif /* NOLOCAL */
+#ifdef BROWSER
+"SHOW FTP",
+"  Shows settings for the built-in FTP client.",
+" ",
+#else
+#ifndef NOFTP
+#ifndef SYSFTP
+#ifdef TCPSOCKET
+"SHOW FTP",
+"  Shows settings for the built-in FTP client.",
+" ",
+#endif /* TCPSOCKET */
+#endif /* SYSFTP */
+#endif /* NOFTP */
+#endif /* BROWSER */
+#ifndef NOSPL
+"SHOW FUNCTIONS",
+"  Lists the built-in functions, or those whose names match a given",
+"  pattern.",
+" ",
+"SHOW GLOBALS",
+"  Lists all global variables.",
+" ",
+#endif /* NOSPL */
+#ifdef KUI
+"SHOW GUI",
+"  Shows graphical user interface settings.",
+" ",
+#endif /* KUI */
+#ifdef CK_RECALL
+"SHOW HISTORY",
+"  Shows the command history.",
+" ",
+#endif /* CK_RECALL */
+#ifndef NOSPL
+"SHOW INPUT",
+"  Shows the parameters used by the INPUT command, such as timeout",
+"  and case sensitivity.",
+" ",
+#endif /* NOSPL */
+#ifdef CK_GETIFADDRS
+"SHOW INTERFACES",
+"  Lists the network interfaces on the local system and their IP addresses.",
+" ",
+#endif /* CK_GETIFADDRS */
+#ifndef NOSETKEY
+"SHOW KEY",
+"  Shows what a given key is mapped to.  Press the key when prompted.",
+" ",
+#ifndef NOKVERBS
+"SHOW KVERBS",
+"  Lists the available keyboard verbs, which can be assigned to keys.",
+" ",
+#endif /* NOKVERBS */
+#endif /* NOSETKEY */
+#ifdef CK_LABELED
+"SHOW LABELED-FILE-INFO",
+"  Shows labeled file information settings.",
+" ",
+#endif /* CK_LABELED */
+#ifndef NOCSETS
+"SHOW LANGUAGES",
+"  Shows language and character set settings",
+" ",
+#ifndef NO_LOCALE
+"SHOW LOCALE",
+"  Shows locale settings.",
+" ",
+#endif /* NO_LOCALE */
+#endif /* NOCSETS */
+"SHOW LOGS",
+"  Lists the log files that are open, if any.",
+" ",
+#ifndef NOSPL
+"SHOW MACROS",
+"  Lists macros or shows the definition of a given macro.",
+" ",
+#endif /* NOSPL */
+#ifndef NODIAL
+"SHOW MODEM",
+"  Shows modem type and related dialing signals.",
+" ",
+#endif /* NODIAL */
+#ifndef NOLOCAL
+#ifdef OS2MOUSE
+"SHOW MOUSE",
+"  Shows mouse settings.",
+" ",
+#endif /* OS2MOUSE */
+#endif /* NOLOCAL */
+#ifdef NETCONN
+"SHOW NETWORK",
+"  Shows network type and related settings, including TCP and TELNET.",
+" ",
+#endif /* NETCONN */
+"SHOW OPTIONS",
+"  Shows settings for the DELETE, DIRECTORY, PURGE, and TYPE commands.",
+" ",
+#ifdef ANYX25
+#ifndef IBMX25
+"SHOW PAD",
+"  Shows X.25 PAD parameters.",
+" ",
+#endif /* IBMX25 */
+#endif /* ANYX25 */
+#ifdef PATTERNS
+"SHOW PATTERNS",
+"  Shows pattern-matching related settings.",
+" ",
+#endif /* PATTERNS */
+"SHOW PRINTER",
+"  Shows printer settings.",
+" ",
+#ifndef NOXFER
+"SHOW PROTOCOL",
+"  Shows Kermit file transfer protocol parameters.",
+" ",
+#endif /* NOXFER */
+"SHOW RENAME",
+"  Shows the settings for the RENAME command.",
+" ",
+#ifndef NOSPL
+"SHOW SCRIPTS",
+"  Shows settings related to command and script execution, such as",
+"  quoting, echoing, and error handling.",
+" ",
+#endif /* NOSPL */
+"SHOW SEND-LIST",
+"  Lists the files queued to be sent by the MSEND command.",
+" ",
+#ifndef NOSERVER
+"SHOW SERVER",
+"  Shows server protocol permissions (see ENABLE and DISABLE).",
+" ",
+#endif /* NOSERVER */
+#ifndef NOSEXP
+"SHOW SEXPRESSION",
+"  Shows S-expression evaluation settings.",
+" ",
+#endif /* NOSEXP */
+#ifdef ANYSSH
+"SHOW SSH",
+"  Shows Secure Shell (SSH) settings.",
+" ",
+#endif /* ANYSSH */
+"SHOW STACK",
+"  Shows the macro invocation stack.",
+" ",
+"SHOW STATUS",
+"  Shows whether the most recent command succeeded or failed.",
+" ",
+#ifdef STREAMING
+"SHOW STREAMING",
+"  Shows streaming and reliable connection settings.",
+" ",
+#endif /* STREAMING */
+#ifndef NOLOCAL
+#ifdef CK_TAPI
+"SHOW TAPI",
+"  Shows TAPI (Telephony API) settings.",
+" ",
+#endif /* CK_TAPI */
+"SHOW TCP",
+"  Shows TCP/IP settings.",
+" ",
+#ifdef TNCODE
+"SHOW TELNET",
+"  Shows TELNET protocol settings.",
+" ",
+"SHOW TELOPT",
+"  Shows the negotiated state of each TELNET option.",
+" ",
+"SHOW TEMP-DIRECTORY",
+"  Shows the directory used for Kermit's temporary files.",
+" ",
+#endif /* TNCODE */
+"SHOW TERMINAL",
+"  Shows terminal settings and properties.",
+" ",
+#endif /* NOLOCAL */
+#ifndef NOXFER
+"SHOW TRANSFER",
+"  Shows file transfer settings such as transfer display,",
+"  mode, and character set translation.",
+" ",
+#endif /* NOXFER */
+#ifndef NOXMIT
+"SHOW TRANSMIT",
+"  Shows the settings for the TRANSMIT command.",
+" ",
+#endif /* NOXMIT */
+#ifdef CK_TRIGGER
+"SHOW TRIGGER",
+"  Lists defined triggers and the most recent one seen.",
+" ",
+#endif /* CK_TRIGGER */
+#ifndef NOSETKEY
+#ifndef NOKVERBS
+#ifdef OS2
+"SHOW UDK",
+"  Lists user-defined keys.",
+" ",
+#endif /* OS2 */
+#endif /* NOKVERBS */
+#endif /* NOSETKEY */
+#ifndef NOSPL
+"SHOW VARIABLES",
+"  Lists the built-in variables, or those whose names match a given",
+"  pattern.",
+" ",
+#endif /* NOSPL */
+#ifndef NOFRILLS
+"SHOW VERSIONS",
+"  Shows the version numbers of Kermit and its major components.",
+" ",
+#endif /* NOFRILLS */
+#ifdef VMS
+"SHOW VMS_TEXT",
+"  Shows VMS text file conversion settings.",
+" ",
+#endif /* VMS */
+""
+};
+#endif /* NOSHOW */
+
 int
 #ifdef CK_ANSIC
 dohlp( int xx )
@@ -6842,9 +7177,7 @@ case XXREXX:
 
 #ifndef NOSHOW
 case XXSHO:
-    return(hmsg("\
-  Display current values of various items (SET parameters, variables, etc).\n\
-  Type SHOW ? for a list of categories."));
+    return(hmsga(hmxxsho));
 #endif /* NOSHOW */
 
 case XXSPA:
