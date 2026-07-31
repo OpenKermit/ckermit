@@ -6110,6 +6110,12 @@ _PROTOTYP( char *GetLoadPath, (void) );
 #ifdef BSD44				/* 4.4 BSD has it */
 #define CK_WREFRESH
 #else
+#ifdef LINUX				/* Linux (ncurses) has it too */
+#define CK_WREFRESH
+#else
+#ifdef MACOSX10				/* macOS (ncurses) has it too */
+#define CK_WREFRESH
+#else
 #ifdef NEXT				/* Define it for NeXTSTEP */
 #define CK_WREFRESH
 #else
@@ -6136,6 +6142,8 @@ _PROTOTYP( char *GetLoadPath, (void) );
 #endif /* SOLARIS25 */
 #endif /* SUNOS4 */
 #endif /* NEXT */
+#endif /* MACOSX10 */
+#endif /* LINUX */
 #endif /* BSD44 */
 #endif /* SVR3 */
 #endif /* ultrix */
