@@ -223,11 +223,11 @@ relationship between the different Kermit versions.
   data corruption, letting Kermit always follow the user's expressed transfer
   type wishes by default.
 
-- [11] Fix insecure defaults that previously would let a malicious remote kermit
-  server perform actions on your local workstation.  Further discussion in
-  commit 9ee170a85 and full details at http://bugs.debian.org/1123025 .  See
-  more details under changed behavior below for how to adjust this in the rare
-  event you might need to.
+- [11] Fix CVE-2025-68920, insecure defaults that previously would let a
+  malicious remote kermit server perform actions on your local workstation.
+  Further discussion in commit 9ee170a85 and full details at
+  http://bugs.debian.org/1123025 .  See more details under changed behavior
+  below for how to adjust this in the rare event you might need to.
 
 - [11] Switch the default `SET FILE COLLISION` from BACKUP to REJECT.  The
   previous default would let a malicious remote overwrite sensitive local files
@@ -440,15 +440,16 @@ wild.
   TRANSFER-MODE AUTOMATIC`.  See discussion above under security and at
   https://bugs.debian.org/1121901 .
 
-- [11] The set of extensions used when transfer-mode is automatic has been
-  revised with modern filetypes, and had typos corrected.  (976a9742)
+- [11] You may still set transfer-mode to be automatic.  If you do, the sets of
+  extensions used to help determine text or binary files have been revised with
+  modern filetypes, and had typos corrected.  (976a9742)
 
 - [11] When C-Kermit is used as a client, it may connect to an untrusted remote
   system (for instance, a BBS).  By default, the remote Kermit was able to make
   changes to, and retrieve data from, the local system.  This scenario would be
   been used exceptionally rarely for legitimate purposes.  You can type `enable
   ?` to see the list of commands you can re-enable.  See the discussion above
-  under security.  (9ee170a8 and dc67bddb)
+  under CVE-2025-68920.  (9ee170a8 and dc67bddb)
   
 - [11] Since C-Kermit now properly reports errors during autodownload, the
   default for `SET TERMINAL AUTODOWNLOAD ERROR` has changed from `STOP` to

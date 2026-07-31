@@ -32,6 +32,24 @@ recursive transfers to proceed while still blocking other directory-escaping
 attempts.  C-Kermit 11.0 also adds output to `SHOW SERVER` to make it more clear
 to you exactly what controls are operating at any given moment.
 
+## Is the server malicious?
+
+Like many other programs, Kermit was built around the assumption that the remote
+server is at least somewhat trustworthy.  Often times, you know it is.  Maybe
+it's even more trustworthy than your client.
+
+However, norms evolve.  CVE-2019-6111 reflects this evolution in ssh, where the
+scp command had, until then, received files with whatever name the server
+provided, even if it wasn't requested by the client.  Since scp's default
+behavior was to overwrite files, this led to a vulnerability if the server was
+malicious.
+
+This parallels Kermit CVE-2025-68920, which applies to malicious servers
+attempting to perform actions on a local machine.  The scope of the initial fix
+to that was less than the ssh fix, however.  Further improvements to Kermit 11
+have closed the loop more; changing the file name collision policy, for
+instance.
+
 # Local/Remote Mode, ENABLE/DISABLE, and RECEIVE PATHNAMES
 
 This discussion is primarily about commands sent using the Kermit protocol.
@@ -44,7 +62,7 @@ on the local machine.  Think of it as the controller.  You want it to be able to
 control the remote, but not for the remote to be able to send Kermit commands to
 it (with some limited exceptions as I hinted above).
 
-Kermit is in local mode when it is the "far" end of the connection.  In that
+Kermit is in remote mode when it is the "far" end of the connection.  In that
 mode, it is being controlled by the local machine.
 
 So it follows that a Kermit in remote mode should allow a lot more kinds of
