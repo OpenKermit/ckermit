@@ -4,6 +4,7 @@
 
 - Skip FTP tests when Kermit is built with -DNOFTP, as the Gentoo package does.
 - Address macOS linker warning.  Patch from jj1bdx.
+- Added help text for `HELP SHOW`, describing each sub-option.
 
 # C-Kermit 11.0.505
 
