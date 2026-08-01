@@ -5,6 +5,23 @@
 - Skip FTP tests when Kermit is built with -DNOFTP, as the Gentoo package does.
 - Address macOS linker warning.  Patch from jj1bdx.
 - Added help text for `HELP SHOW`, describing each sub-option.
+- Properly define CK_WREFRESH on Linux and macOS.  The original definition dates
+  to 1994 and appears to have just never been udpated for these platforms.
+- C-Kermit now is fully able to process filenames with embedded spaces due to numerous bugfixes.  Among them:
+  - You can now use `GET` to retrieve a file whose name has embedded spaces
+    (previously you could only `SEND` such a file).
+  - `MGET` had bugs around quoting that inadvertantly would strip necessary quote characters.
+  - The Kermit Protocol treats a space as a delimeter between filenames, unless
+    it is enclosed in braces.  The C-Kermit client accepts both double quotes
+    and braces as quoting characters.  The client now will properly quote all
+    filenames containing spaces with braces when sent to the server, regardless
+    of which scheme the user selected.
+  - Several `REMOTE` commands were broken with filenames with embedded spaces or
+    escaped delimiters.
+  - Numerous bugs relating to escaping of embedded quote/brace characters as
+    part of filenames were fixed.
+  - `GET` and `SEND` used inconsistent quoting rules.
+  
 
 # C-Kermit 11.0.505
 
