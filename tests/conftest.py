@@ -1,3 +1,4 @@
+import fcntl
 import os
 import pty
 import re
@@ -5,6 +6,7 @@ import select
 import shutil
 import socket
 import subprocess
+import termios
 import pytest
 from pathlib import Path
 import logging
@@ -848,12 +850,27 @@ def _log_process_snapshot(label):
             "%s: failed to capture process snapshot: %s", label, e)
 
 
+def _make_controlling_tty():
+    """
+    Makes the pty slave this process's controlling terminal. Without
+    this, the child stays a member of the parent Python process's
+    session with no controlling terminal, which on OpenBSD in
+    particular silently disables tty-dependent behavior instead of
+    erroring: conbgt() (ckutio.c) misreads it as running in the
+    background and suppresses prompts entirely, and curses fullscreen
+    mode (SET FILE DISPLAY FULLSCREEN) never paints anything.
+    """
+    os.setsid()
+    fcntl.ioctl(0, termios.TIOCSCTTY, 0)
+
+
 def start_wermit_pty(wermit_path, cmd_str, cwd, debug_log=None):
     """
     Starts a wermit process with its stdin/stdout/stderr connected to a
-    real pseudoterminal slave, without waiting for it to finish.
-    Returns (proc, master).  Pass both to finish_wermit_pty() to
-    collect its output and exit code.
+    real pseudoterminal slave, which is also made its controlling
+    terminal (see _make_controlling_tty()), without waiting for it to
+    finish. Returns (proc, master).  Pass both to finish_wermit_pty()
+    to collect its output and exit code.
     """
     master, slave = pty.openpty()
 
@@ -869,7 +886,8 @@ def start_wermit_pty(wermit_path, cmd_str, cwd, debug_log=None):
         stdout=slave,
         stderr=slave,
         cwd=str(cwd),
-        close_fds=True
+        close_fds=True,
+        preexec_fn=_make_controlling_tty
     )
 
     os.close(slave)
