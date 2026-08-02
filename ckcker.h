@@ -172,6 +172,12 @@ struct ssh_pf {				/* SSH port forwarding */
 #define PATH_ABS 2      /* Pathnames absolute always */
 #define PATH_AUTO 4	/* Pathnames handled automatically */
 
+/* SET RECEIVE CONFIRM values */
+
+#define CONFIRM_OFF 0	/* No confirmation prompting (default) */
+#define CONFIRM_ON  1	/* Prompt unless the name was precisely requested */
+#define CONFIRM_ALL 2	/* Like ON, but also prompt for each recursed file */
+
 /* GET Options */
 
 #define GOPT_DEL 1			/* Delete source file */
@@ -730,6 +736,8 @@ ckscreen((int)a,(char)b,(CK_OFF_T)c,(char *)d)
 #define SCR_CW 15	/* close screen window */
 #define SCR_CD 16       /* display current directory */
 #define SCR_MS 17	/* message from client */
+#define SCR_SUSP 18	/* suspend fullscreen display for a plain prompt */
+#define SCR_RESU 19	/* resume fullscreen display after SCR_SUSP */
 
 /* Skip reasons */
 

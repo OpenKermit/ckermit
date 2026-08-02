@@ -39,6 +39,52 @@ def test_directory_brief(tmp_path, run_wermit):
     assert "brief_b.txt" in output_words
 
 
+def test_directory_brief_spaced_name_is_not_split_safe(tmp_path, run_wermit):
+    """
+    DIRECTORY /BRIEF's grid output prints a filename containing a
+    space with the space intact without quoting or otherwise
+    protecting it. This means naive whitespace-splitting of the output
+    (as test_directory_brief and friends above do, and as /BRIEF's
+    format invites) is ambiguous for such a name: "file one.txt" is
+    indistinguishable from two separate one-word names once split.
+    test_directory_array below shows the
+    reliable way to enumerate names that might contain spaces.
+    """
+    (tmp_path / "file one.txt").write_text("payload\n")
+    (tmp_path / "plain.txt").touch()
+
+    result = run_wermit(f"cd {tmp_path}, directory /brief")
+    assert_ok(result)
+
+    # The full name does appear, contiguously, in the raw output...
+    assert "file one.txt" in result.stdout
+    # ...but splitting on whitespace, the only tool /BRIEF's grid
+    # format gives you, loses that: "file" and "one.txt" come out as
+    # two separate, indistinguishable-from-real words.
+    words = result.stdout.split()
+    assert "file" in words
+    assert "one.txt" in words
+    assert "file one.txt" not in words
+
+
+def test_directory_array_preserves_spaced_name(tmp_path, run_wermit):
+    """
+    Unlike /BRIEF's grid text, /ARRAY stores each listed name as a
+    discrete array element, with no whitespace-based format ambiguity.
+    This is the reliable way to enumerate filenames that might
+    contain spaces.
+    """
+    (tmp_path / "file one.txt").write_text("payload\n")
+
+    result = run_wermit(
+        f"cd {tmp_path}, directory /array:&a, "
+        "echo COUNT:\\&a[0], echo NAME:[\\&a[1]]"
+    )
+    assert_ok(result)
+    assert "COUNT:1" in result.stdout
+    assert "NAME:[file one.txt]" in result.stdout
+
+
 def test_directory_verbose(tmp_path, run_wermit):
     """
     Test the /verbose switch, verifying it includes file metadata (like size).

@@ -164,7 +164,8 @@ extern int protocol, remfile, rempipe, remappd, reliable, xreliable, fmask,
   fncnv, frecl, maxrps, wslotr, bigsbsiz, bigrbsiz, urpsiz, rpsiz, spsiz,
   bctr, npad, timef, timint, spsizr, spsizf, maxsps, spmax, nfils, displa,
   atcapr, pkttim, rtimo, fncact, mypadn, fdispla, f_save, pktpaus, setreliable,
-  fnrpath, fnspath, atenci, atenco, atdati, atdato, atleni, atleno, atblki,
+  fnrpath, fnspath, fnrconfirm, fnrconfirm_scope, atenci, atenco, atdati,
+  atdato, atleni, atleno, atblki,
   atblko, attypi, attypo, atsidi, atsido, atsysi, atsyso, atdisi, atdiso,
   rpsizf;
 
@@ -728,6 +729,20 @@ struct keytab rpathtab[] = {
     { "relative",  PATH_REL,  0      }
 };
 int nrpathtab = (sizeof(rpathtab) / sizeof(struct keytab));
+
+struct keytab confirmtab[] = {          /* SET RECEIVE CONFIRM, /CONFIRM */
+    { "all", CONFIRM_ALL, 0 },
+    { "off", CONFIRM_OFF, 0 },
+    { "on",  CONFIRM_ON,  0 }
+};
+int nconfirmtab = (sizeof(confirmtab) / sizeof(struct keytab));
+
+struct keytab confscopetab[] = {        /* SET RECEIVE CONFIRM scope */
+    { "both",   3, 0 },
+    { "local",  1, 0 },
+    { "remote", 2, 0 }
+};
+int nconfscopetab = (sizeof(confscopetab) / sizeof(struct keytab));
 
 #ifdef CK_CTRLZ
 struct keytab eoftab[] = {              /* EOF detection method */
@@ -1909,6 +1924,7 @@ struct keytab srtab[] = {
 #ifndef NOCSETS
     { "character-set-selection", XYCSET, 0 },
 #endif /* NOCSETS */
+    { "confirm", XYRCONFIRM, 0 },
     { "control-prefix", XYQCTL, 0 },
 #ifdef CKXXCHAR
     { "double-character", XYDBL, 0 },
@@ -6977,6 +6993,22 @@ Make sure your timeout interval is long enough for %d-byte packets.\n",z);
         return(success = 1);            /* Note: 0 = ON, 1 = OFF */
         /* In other words, ON = leave pathnames ON, OFF = take them off. */
 
+      case XYRCONFIRM:                  /* SET RECEIVE CONFIRM */
+        if (xx != XYRECV) {
+            printf("?Sorry, CONFIRM applies only to SET RECEIVE\n");
+            return(-9);
+        }
+        if ((x = cmkey(confirmtab,nconfirmtab,"Confirmation level","on",
+                       xxstring)) < 0)
+          return(x);
+        if ((y = cmkey(confscopetab,nconfscopetab,"Scope","local",
+                       xxstring)) < 0)
+          return(y);
+        if ((z = cmcfm()) < 0) return(z);
+        fnrconfirm = x;
+        fnrconfirm_scope = y;
+        return(success = 1);
+
       case XYPAUS:                      /* SET SEND/RECEIVE PAUSE */
         y = cmnum("Milliseconds to pause between packets","0",10,&x,xxstring);
         if ((y = setnum(&z,x,y,15000)) < 0)
@@ -7914,30 +7946,42 @@ dormt(xx) int xx;
         retcode = 0;
         break;
 
-      case XZDEL:                               /* Delete */
-        if ((x = cmtxt("Name of remote file(s) to delete",
-                       "",&s,xxstring)) < 0) {
-            if (x == -3) {
-                printf("?Name of remote file(s) required\n");
-                return(-9);
-            } else return(x);
-        }
-        if ((x = remtxt(&s)) < 0)
-          return(x);
-        if (local) ttflui();            /* If local, flush tty input buffer */
-        retcode = sstate = rfilop(s,'E');
-        break;
+      case XZDEL: {                             /* Delete */
+          char embuf[CKMAXPATH*2+1];
+          if ((x = cmtxt("Name of remote file(s) to delete",
+                         "",&s,xxstring)) < 0) {
+              if (x == -3) {
+                  printf("?Name of remote file(s) required\n");
+                  return(-9);
+              } else return(x);
+          }
+          if ((x = remtxt(&s)) < 0)
+            return(x);
+          if (local) ttflui();          /* If local, flush tty input buffer */
+          /* Strip outer {} or "" quotes if present, then re-escape
+             remaining literal braces so the peer wildcard matcher
+             treats them as literal. */
+          retcode = sstate =
+            rfilop(bresc(brstrip(s),embuf,sizeof(embuf)),'E');
+          break;
+      }
 
-      case XZDIR:                       /* Directory */
-        if ((x = cmtxt("Remote directory or file specification","",&s,
-                       xxstring)) < 0)
-          return(x);
-        if ((x = remtxt(&s)) < 0)
-          return(x);
-        if (local) ttflui();            /* If local, flush tty input buffer */
-        rmsg();
-        retcode = sstate = setgen('D',s,"","");
-        break;
+      case XZDIR: {                     /* Directory */
+          char embuf[CKMAXPATH*2+1];
+          if ((x = cmtxt("Remote directory or file specification","",&s,
+                         xxstring)) < 0)
+            return(x);
+          if ((x = remtxt(&s)) < 0)
+            return(x);
+          if (local) ttflui();          /* If local, flush tty input buffer */
+          rmsg();
+          /* Strip outer {} or "" quotes if present, then re-escape
+             remaining literal braces so the peer wildcard matcher
+             treats them as literal. */
+          retcode = sstate =
+            setgen('D',bresc(brstrip(s),embuf,sizeof(embuf)),"","");
+          break;
+      }
 
       case XZHLP:                       /* Help */
         if ((x = remcfm()) < 0) return(x);
@@ -8144,7 +8188,7 @@ dormt(xx) int xx;
               else
                 return(x);
           }
-          ckstrncpy(buf,s,TMPBUFSIZ);
+          ckstrncpy(buf,brstrip(s),TMPBUFSIZ); /* Strip any braces/quotes */
           if ((x = cmfld("Name of remote destination file or directory",
                          "",&s, xxstring)) < 0) {
               if (x == -3) {
@@ -8152,7 +8196,7 @@ dormt(xx) int xx;
                   return(-9);
               } else return(x);
           }
-          ckstrncpy(tmpbuf,s,TMPBUFSIZ);
+          ckstrncpy(tmpbuf,brstrip(s),TMPBUFSIZ);
           if ((x = remcfm()) < 0)
             return(x);
           if (local) ttflui();          /* If local, flush tty input buffer */
@@ -8169,14 +8213,14 @@ dormt(xx) int xx;
                   return(-9);
               } else return(x);
           }
-          ckstrncpy(buf,s,TMPBUFSIZ);
+          ckstrncpy(buf,brstrip(s),TMPBUFSIZ); /* Strip any braces/quotes */
           if ((x = cmfld("New name of remote file","",&s, xxstring)) < 0) {
               if (x == -3) {
                   printf("?Name of remote file required\n");
                   return(-9);
               } else return(x);
           }
-          ckstrncpy(tmpbuf,s,TMPBUFSIZ);
+          ckstrncpy(tmpbuf,brstrip(s),TMPBUFSIZ);
           if ((x = remcfm()) < 0)
             return(x);
           if (local) ttflui();          /* If local, flush device buffer */

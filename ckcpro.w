@@ -3618,7 +3618,10 @@ sgetinit(reget,xget) int reget, xget;
 #endif /* CK_ANSIC */
 {	/* Server end of GET command */
     char * fs = NULL;			/* Pointer to filespec */
-    int i, n, done = 0;
+    int i, done = 0;
+#ifdef NOMSEND
+    int n;
+#endif /* NOMSEND */
 #ifdef PIPESEND
     extern int usepipes, pipesend;
 #endif /* PIPESEND */
@@ -3730,6 +3733,7 @@ sgetinit(reget,xget) int reget, xget;
     if (!fs) fs = "";			/* A filename is required */
     if (*fs) {
 	havefs = 1;
+#ifdef NOMSEND
 	n = 0;				/* Check for quoted name */
 	if ((n = strlen(fs)) > 1) {
 	    /* Note: this does not allow for multiple quoted names */
@@ -3741,6 +3745,7 @@ sgetinit(reget,xget) int reget, xget;
 	    } else
 	      n = 0;			/* This means no quoting */
 	}
+#endif /* NOMSEND */
 
 #ifdef PIPESEND
 	debug(F111,"sgetinit",fs,usepipes);
@@ -3753,22 +3758,25 @@ sgetinit(reget,xget) int reget, xget;
 	}
 	if (!pipesend) {		/* If it's not a pipe */
 #endif /* PIPESEND */
-	    if (n == 0) {		/* If the name was not quoted */
 #ifndef NOMSEND
-		nfils = fnparse(fs);	/* Allow it to be a list of names */
-		debug(F111,"sgetinit A",fs,nfils);
-	    } else {			/* If it was quoted */
-#endif /* NOMSEND */
-		nzxopts = 0;
+	    /*
+	      fnparse() splits the field into filespecs, supporting
+	      brace-quoted single names, multiple quoted names, and
+	      unquoted space-separated lists.
+	    */
+	    nfils = fnparse(fs);
+	    debug(F111,"sgetinit A",fs,nfils);
+#else /* NOMSEND */
+	    nzxopts = 0;
 #ifdef UNIXOROSK
-		if (matchdot)  nzxopts |= ZX_MATCHDOT;
+	    if (matchdot)  nzxopts |= ZX_MATCHDOT;
 #endif /* UNIXOROSK */
-		if (recursive) nzxopts |= ZX_RECURSE;
-		/* Treat as a single filespec */
-		nfils = 0 - nzxpand(fs,nzxopts);
-		debug(F111,"sgetinit B",fs,nfils);
-		cmarg = fs;
-	    }
+	    if (recursive) nzxopts |= ZX_RECURSE;
+	    /* Treat as a single filespec */
+	    nfils = 0 - nzxpand(fs,nzxopts);
+	    debug(F111,"sgetinit B",fs,nfils);
+	    cmarg = fs;
+#endif /* NOMSEND */
 #ifdef PIPESEND
 	}
 #endif /* PIPESEND */

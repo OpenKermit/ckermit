@@ -3354,6 +3354,216 @@ hasdotdot(s) char *s;
     return(0);
 }
 
+/*
+  R Q _ C O N F I R M _ x x x : SET RECEIVE CONFIRM support
+
+  Prompt for confirmation of incoming file names before writing.
+  rq_confirm_start() is called once per GET/MGET/RECEIVE command
+  (from doxget() in ckuus6.c) to record requested targets.
+  rq_confirm_check() is called from rcvfil() for each incoming file to
+  determine whether to prompt.
+*/
+
+#define RQ_MAXTOK 64
+
+static char rq_tok[RQ_MAXTOK][CKMAXPATH+1]; /* Precise (non-wildcard) names */
+static int rq_ntok = 0;
+static int rq_active = 0;              /* 0 for RECEIVE: no name list at all */
+static int rq_recursive = 0;           /* Current command was /RECURSIVE */
+static int rq_level = CONFIRM_OFF;     /* Effective level for this command */
+static int rq_goall = 0;               /* "Go" answered: stop asking */
+static char rq_root[CKMAXPATH+1];      /* Resolved local target directory */
+
+/*
+  Determines whether path is a descendant of or equal to root.
+  Both arguments must be fully qualified paths.  Follows the same
+  canonicalize, then strncmp() approach as zinroot().
+*/
+int
+#ifdef CK_ANSIC
+rq_under_root( char * root, char * path )
+#else
+rq_under_root(root,path) char *root, *path;
+#endif /* CK_ANSIC */
+{
+    int rlen;
+
+    if (!root || !*root || !path)
+      return(0);
+    rlen = (int)strlen(root);
+    while (rlen > 1 && ISDIRSEP(root[rlen-1]))
+      rlen--;
+    if (strncmp(root,path,rlen) != 0)
+      return(0);
+    if (path[rlen] == '\0')
+      return(1);                       /* Path is the root itself */
+    if (ISDIRSEP(path[rlen]))
+      return(1);
+    return(0);
+}
+
+/*
+  Determines whether fqpath matches a file requested by the current
+  command or falls within a recursive target directory.
+*/
+static int
+#ifdef CK_ANSIC
+rq_is_matched( char * fqpath )
+#else
+rq_is_matched(fqpath) char * fqpath;
+#endif /* CK_ANSIC */
+{
+    char * b;
+    int i;
+    extern int filecase;
+
+    b = getbasename(fqpath);           /* Compare by name, not full path */
+    for (i = 0; i < rq_ntok; i++) {     /* Any precise (non-wildcard) name */
+        if (ckmatch(rq_tok[i],b,filecase,1)) /* given to GET/MGET? */
+          return(1);
+    }
+    /* Recursive GET: also accept anything under its target directory */
+    if (rq_recursive && rq_root[0] && rq_under_root(rq_root,fqpath))
+      return(1);
+    return(0);                         /* Not requested; caller should ask */
+}
+
+/*
+  Called once per GET/MGET/RECEIVE/REGET/RETRIEVE command after the
+  remote filespec and /RECURSIVE are known. reqtext is the raw remote
+  filespec text, or NULL for RECEIVE. override is the /CONFIRM switch
+  value for this command, or -1 if unspecified.
+*/
+void
+#ifdef CK_ANSIC
+rq_confirm_start( char * reqtext, int rcvcmd, int recur, int override )
+#else
+rq_confirm_start(reqtext,rcvcmd,recur,override)
+    char * reqtext; int rcvcmd, recur, override;
+#endif /* CK_ANSIC */
+{
+    char * d;
+    extern int fnrconfirm, fnrconfirm_scope, tcp_incoming;
+
+    rq_ntok = 0;
+    rq_recursive = recur;
+    rq_goall = 0;
+    rq_active = !rcvcmd;
+    rq_root[0] = '\0';
+    /*
+      rq_under_root() does a plain strncmp() against rq_root, so it
+      must be resolved the same way as the fqpath it will be compared
+      against (rcvfil() passes fqpath through zfnqfp() before calling
+      rq_confirm_check()); otherwise a working directory reached
+      through a symlink would never match.
+    */
+    d = zgtdir();
+    if (d)
+      zfnqfp(d,CKMAXPATH+1,rq_root);
+
+    rq_level = (override > -1) ? override : fnrconfirm;
+
+    if (rq_level != CONFIRM_OFF) {
+        int efflocal = local && !tcp_incoming;
+        int allowed = !inserver &&
+          ((efflocal && (fnrconfirm_scope & 1)) ||
+           (!efflocal && (fnrconfirm_scope & 2)));
+        if (!allowed)
+          rq_level = CONFIRM_OFF;
+    }
+
+    if (rq_active && rq_level != CONFIRM_OFF && reqtext && *reqtext) {
+        char * copy;
+        char * buf;
+        char * outv[RQ_MAXTOK];
+        int len, i, count;
+
+        /* fnsplit() mutates its string argument's trailing
+           whitespace, and reqtext is the caller's cmarg, reused
+           right after this call returns, so split a private copy,
+           never reqtext itself. */
+        len = (int)strlen(reqtext);
+        copy = (char *)malloc(len+1);
+        buf = (char *)malloc(len+2);
+        if (copy && buf) {
+            ckstrncpy(copy,reqtext,len+1);
+            count = fnsplit(copy,outv,RQ_MAXTOK,buf);
+            if (count > RQ_MAXTOK)
+              count = RQ_MAXTOK;
+            for (i = 0; i < count; i++) {
+                char ebuf[CKMAXPATH*2+1];
+                /*
+                  fnsplit() resolves a name back to its literal form,
+                  so a name with an embedded brace comes out looking
+                  like ckmatch()'s bare-brace alternation
+                  syntax (e.g. "file{one}.txt"). Escape it back with
+                  bresc() before testing or storing it, so iswild()
+                  and ckmatch() both read a
+                  literal brace as literal, the same way they already
+                  do for a REMOTE DELETE/DIRECTORY target. This does
+                  not stop an actual wildcard request (e.g. "*.txt",
+                  or a "{a,b}" alternation with no matching literal
+                  file) from being recognized as such: '*'/'?' pass
+                  through bresc() untouched, and an escaped
+                  alternation pattern no longer matches any expanded
+                  filename, so it still prompts.
+                */
+                bresc(outv[i],ebuf,sizeof(ebuf));
+                if (outv[i][0] && !iswild(ebuf) && rq_ntok < RQ_MAXTOK)
+                  ckstrncpy(rq_tok[rq_ntok++],ebuf,CKMAXPATH+1);
+            }
+        }
+        if (copy) free(copy);
+        if (buf) free(buf);
+    }
+}
+
+/*
+  Called from rcvfil() with the fully qualified local path for an
+  incoming file. Returns:
+    1: accept file (no prompt needed or user responded Yes/Go).
+    0: user responded No (skip current file, continue transfer).
+   -1: user responded Quit or EOF (abort transfer).
+*/
+int
+#ifdef CK_ANSIC
+rq_confirm_check( char * fqpath )
+#else
+rq_confirm_check(fqpath) char * fqpath;
+#endif /* CK_ANSIC */
+{
+    int matched, ask, ans;
+    char msg[CKMAXPATH+64];
+
+    if (rq_level == CONFIRM_OFF)
+      return(1);
+    if (rq_goall)
+      return(1);
+
+    matched = rq_active ? rq_is_matched(fqpath) : 0;
+
+    if (!rq_active)
+      ask = 1;                         /* RECEIVE: nothing to match */
+    else if (!matched)
+      ask = 1;                         /* Not what was asked for */
+    else if (rq_recursive && rq_level == CONFIRM_ALL)
+      ask = 1;                         /* ALL asks about everything */
+    else
+      ask = 0;
+
+    if (!ask)
+      return(1);
+
+    ckmakmsg(msg,sizeof(msg)," Accept incoming file \"",fqpath,"\"? ",NULL);
+    ans = getyesno(msg,3);
+    switch (ans) {
+      case 0: return(0);               /* No */
+      case 1: return(1);               /* Yes */
+      case 3: rq_goall = 1; return(1); /* Go: this one and the rest */
+      default: return(-1);             /* Quit, or no answer (EOF) */
+    }
+}
+
 /*  R C V F I L -- Receive a file  */
 
 /*
@@ -3943,6 +4153,19 @@ Please confirm output file specification or supply an alternative:";
 
     fspec[fspeclen] = NUL;
     makestr(&prfspec,fspec);		/* New preliminary filename */
+
+    if (!discard) {			/* SET RECEIVE CONFIRM */
+	int rq_x = rq_confirm_check(fspec);
+	if (rq_x == 0) {		/* No: skip only this file */
+	    discard = 1;
+	    rejection = 1;
+	    rf_err = "Refused by user";
+	    return(1);
+	} else if (rq_x < 0) {		/* Quit: abort the whole transfer */
+	    rf_err = "Refused by user";
+	    return(0);
+	}
+    }
 
 #ifdef PIPESEND
   rcvfilx:
