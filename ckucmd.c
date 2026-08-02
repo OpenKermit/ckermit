@@ -6726,8 +6726,15 @@ CMDIRPARSE:
                         continue;
                     }
 #endif  /* FUNCTIONTEST */
+		    /*
+		      dqn counts doublequotes seen so far, which does not
+		      distinguish a real closing quote from a backslash-escaped
+		      one. Require that the quote before this space is not
+		      itself escaped, matching the check in setatm().
+		    */
 		    if ((!dq && ((*pp != lbrace) || (bracelvl == 0))) ||
-			(dq && dqn > 1 && *(bp-2) == '"')) {
+			(dq && dqn > 1 && *(bp-2) == '"' &&
+			 (bp < pp + 3 || *(bp-3) != CMDQ))) {
 			np = bp;     /* If field-terminating space, return. */
 			cmbptr = np;
 			if (setatm(pp,0) < 0) {
@@ -7350,7 +7357,15 @@ setatm(cp,fcode) char *cp; int fcode;
 	if (bracelvl < 0)
 	  bracelvl = 0;
 	if (bracelvl == 0) {
-	    if (dq) {
+	    /*
+	      fcode 1 and 3 indicate copying an already resolved value
+	      back into the atom buffer, rather than parsing raw typed
+	      input. Backslashes protecting embedded quotes have been
+	      consumed, so an escaped quote cannot be distinguished from
+	      a field closer. Skip quote-based field-end detection for
+	      fcode 1 and 3.
+	    */
+	    if (dq && fcode != 1 && fcode != 3) {
 		if (*cp == SP || *cp == HT) {
 		    if (cp > dqp+1) {
 			if (*(cp-1) == '"' && *(cp-2) != CMDQ) {
@@ -7358,7 +7373,8 @@ setatm(cp,fcode) char *cp; int fcode;
 			}
 		    }
 		}
-	    } else if ((*cp == SP || *cp == HT) && fcode != 1 && fcode != 3) {
+	    } else if (!dq && (*cp == SP || *cp == HT) &&
+		       fcode != 1 && fcode != 3) {
 #ifdef FUNCTIONTEST
                 if (fnstate == 0)
 #endif /* FUNCTIONTEST */
@@ -7884,12 +7900,13 @@ xxesc(s) char **s;
         x &= 255;
 #endif /* OS2 */
 	if (y == 0 || x > 255) {	/* No valid digits? */
-	    *s = p;			/* point after it */
-	    return(-1);			/* return failure. */
+	    return(-1);			/* Return failure; *s untouched. */
+	    /* Callers (e.g. zzstring()) back up string pointer by 2
+	       characters on failure, assuming *s was not moved. */
 	}
     } else if (radix == 16) {		/* Special case for hex */
-	if ((x = unhex(*p++)) < 0) { *s = p - 1; return(-1); }
-	if ((y = unhex(*p++)) < 0) { *s = p - 2; return(-1); }
+	if ((x = unhex(*p++)) < 0) return(-1);
+	if ((y = unhex(*p++)) < 0) return(-1);
 	x = ((x << 4) & 0xF0) | (y & 0x0F);
 #ifdef OS2
         wideresult = x;

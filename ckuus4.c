@@ -451,6 +451,10 @@ extern int ntapiline;
 
 extern struct keytab colxtab[];
 extern int ncolx;
+extern struct keytab confirmtab[];
+extern int nconfirmtab;
+extern struct keytab confscopetab[];
+extern int nconfscopetab;
 
 extern char ttname[], *zinptr, *kermrc;
 extern char inidir[];
@@ -470,7 +474,8 @@ extern int
   npad, pkttim, bigrbsiz, bigsbsiz, keep, atcapr, autopar, bctr, bctu,
   crunched, ckdelay, ebq, ebqflg, pktlog, retrans, rpackets, rptflg, rptq,
   rtimo, spackets, spsiz, spsizf, spsizr, timeouts, fncact, fncnv, urpsiz,
-  wmax, wslotn, wslotr, fdispla, spmax, fnrpath, fnspath;
+  wmax, wslotn, wslotr, fdispla, spmax, fnrpath, fnspath,
+  fnrconfirm, fnrconfirm_scope;
 extern long crc16;
 #endif /* NOXFER */
 
@@ -5993,6 +5998,17 @@ shofil() {
     printf(" Send pathnames:          %s\n", pathval(fnspath));
     n++;
     printf(" Receive pathnames:       %s\n", pathval(fnrpath));
+    n++;
+    printf(" Receive confirm:         ");
+    for (i = 0; i < nconfirmtab; i++)
+      if (confirmtab[i].kwval == fnrconfirm) break;
+    printf("%s", (i == nconfirmtab) ? "unknown" : confirmtab[i].kwd);
+    if (fnrconfirm != CONFIRM_OFF) {
+        for (i = 0; i < nconfscopetab; i++)
+          if (confscopetab[i].kwval == fnrconfirm_scope) break;
+        printf(" %s", (i == nconfscopetab) ? "unknown" : confscopetab[i].kwd);
+    }
+    printf("\n");
     n++;
 #ifdef UNIXOROSK
     printf(" Match dot files:         %s\n", matchdot ? "yes" : "no");

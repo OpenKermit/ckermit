@@ -283,6 +283,9 @@ int doxsend( int );
 int dquote( char *, int, int );
 int filhelp( int, char *, char *, int, int );
 int fnparse( char * );
+int fnsplit( char *, char **, int, char * );
+char * brquote( char *, char *, int );
+char * bresc( char *, char *, int );
 int freeslot( int );
 int ftpopen( char *, char *, int );
 int gattr( CHAR *, struct zattr * );
@@ -299,6 +302,9 @@ int gettoken( FILE * );
 int getyesno( char *, int );
 int gnirts( char *, char *, int );
 int hasdotdot( char * );
+void rq_confirm_start( char *, int, int, int );
+int rq_confirm_check( char * );
+int rq_under_root( char *, char * );
 #ifndef OS2
 int hash( char * );     /* Conflicts with SRP support on Windows and OS/2 */
 #endif /* OS2 */

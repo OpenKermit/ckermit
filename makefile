@@ -1055,13 +1055,16 @@ unit-test:
 	@$(MAKE) "CC=`cat .buildcc.cache`" "CFLAGS=`cat .buildflags.cache`" \
 		tests/unit/bin/test_lib tests/unit/bin/test_strings \
 		tests/unit/bin/test_net tests/unit/bin/test_mpsafe \
-		tests/unit/bin/test_zfnqfp tests/unit/bin/test_hasdotdot
+		tests/unit/bin/test_zfnqfp tests/unit/bin/test_hasdotdot \
+		tests/unit/bin/test_rq_confirm tests/unit/bin/test_fnsplit
 	./tests/unit/bin/test_lib
 	./tests/unit/bin/test_strings
 	./tests/unit/bin/test_net
 	./tests/unit/bin/test_mpsafe
 	./tests/unit/bin/test_zfnqfp
 	./tests/unit/bin/test_hasdotdot
+	./tests/unit/bin/test_rq_confirm
+	./tests/unit/bin/test_fnsplit
 
 # Rules for the unit test binaries.
 #
@@ -1137,7 +1140,6 @@ tests/unit/bin/test_mpsafe: tests/unit/test_mpsafe.c ckcpro.c ckcfnp.h
 		tests/unit/test_mpsafe.c tests/unit/bin/ckcpro_test.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
 
-# test_zfnqfp exercises zfnqfp(), which lives in ckufio.c.
 tests/unit/bin/test_zfnqfp: tests/unit/test_zfnqfp.c ckufio.c ckclib.c ckcfnp.h
 	@mkdir -p tests/unit/bin
 	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
@@ -1154,7 +1156,6 @@ tests/unit/bin/test_zfnqfp: tests/unit/test_zfnqfp.c ckufio.c ckclib.c ckcfnp.h
 		tests/unit/bin/ckclib_test_zfnqfp.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
 
-# test_hasdotdot exercises hasdotdot(), which lives in ckcfns.c.
 tests/unit/bin/test_hasdotdot: tests/unit/test_hasdotdot.c ckcfns.c ckcfnp.h
 	@mkdir -p tests/unit/bin
 	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
@@ -1166,6 +1167,41 @@ tests/unit/bin/test_hasdotdot: tests/unit/test_hasdotdot.c ckcfns.c ckcfnp.h
 		-c ckcfns.c -o tests/unit/bin/ckcfns_test.$(EXT); \
 	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
 		tests/unit/test_hasdotdot.c tests/unit/bin/ckcfns_test.$(EXT) \
+		-o $@ $$GCSECTIONS $$CHECKLIBS
+
+tests/unit/bin/test_rq_confirm: tests/unit/test_rq_confirm.c ckcfns.c ckcfnp.h
+	@mkdir -p tests/unit/bin
+	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	case `uname -s` in \
+	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
+	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
+	esac; \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		-c ckcfns.c -o tests/unit/bin/ckcfns_test_rq.$(EXT); \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		tests/unit/test_rq_confirm.c \
+		tests/unit/bin/ckcfns_test_rq.$(EXT) \
+		-o $@ $$GCSECTIONS $$CHECKLIBS
+
+tests/unit/bin/test_fnsplit: tests/unit/test_fnsplit.c ckuusx.c ckucmd.c \
+  ckclib.c ckcfnp.h
+	@mkdir -p tests/unit/bin
+	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	case `uname -s` in \
+	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
+	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
+	esac; \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		-c ckuusx.c -o tests/unit/bin/ckuusx_test_fs.$(EXT); \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		-c ckucmd.c -o tests/unit/bin/ckucmd_test_fs.$(EXT); \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		-c ckclib.c -o tests/unit/bin/ckclib_test_fs.$(EXT); \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		tests/unit/test_fnsplit.c \
+		tests/unit/bin/ckuusx_test_fs.$(EXT) \
+		tests/unit/bin/ckucmd_test_fs.$(EXT) \
+		tests/unit/bin/ckclib_test_fs.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
 
 #Clean up intermediate and object files

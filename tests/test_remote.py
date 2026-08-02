@@ -196,3 +196,258 @@ def test_local_server_remote_commands_disabled_by_default(
             assert (client_dir / "old.txt").exists()
     elif command_name == "get":
         assert (server_dir / "target.txt").exists() == is_enabled
+
+
+def _wrap(name, style):
+    """Wrap name in the given outer quoting style with no internal
+    escaping, for the "just add delimiters" case."""
+    if style == "brace":
+        return "{" + name + "}"
+    if style == "doublequote":
+        return '"' + name + '"'
+    raise ValueError(style)
+
+
+@pytest.mark.parametrize("style", ["none", "brace", "doublequote"])
+def test_remote_delete_with_space(tmp_path, wermit_loopback, style):
+    """
+    REMOTE DELETE's filespec field is captured by cmtxt(),
+    which reads to the end of the line as one blob rather than
+    splitting on unquoted spaces the way cmfld()/cmifi() do. A space
+    in the name needs no quoting here, and wrapping it in
+    either delimiter style works. Contrast with REMOTE RENAME/REMOTE COPY below.
+    """
+    d = tmp_path / "d"
+    d.mkdir()
+    name = "file one.txt"
+    (d / name).write_text("payload\n")
+
+    arg = name if style == "none" else _wrap(name, style)
+    result = wermit_loopback(d, "", f"remote delete {arg}")
+
+    assert_ok(result)
+    assert not (d / name).exists()
+
+
+@pytest.mark.parametrize("style", ["none", "brace", "doublequote"])
+def test_remote_directory_with_space(tmp_path, wermit_loopback, style):
+    """
+    REMOTE DIRECTORY (RDIR) shares REMOTE DELETE's cmtxt() field
+    parser, so the same space-handling applies: no quoting needed,
+    and either delimiter style works.
+    """
+    d = tmp_path / "d"
+    d.mkdir()
+    name = "file one.txt"
+    (d / name).write_text("payload\n")
+
+    arg = name if style == "none" else _wrap(name, style)
+    result = wermit_loopback(d, "", f"remote directory {arg}")
+
+    assert_ok(result)
+    assert name in result.stdout
+
+
+@pytest.mark.parametrize("style", ["brace", "doublequote"])
+def test_remote_rename_with_space(tmp_path, wermit_loopback, style):
+    """
+    REMOTE RENAME's two filename arguments are each parsed with a
+    separate cmfld() call (ckuus7.c), the same field parser GET uses
+    elsewhere. Each resolved field is now stripped with brstrip()
+    before use, the same as every other cmfld()/cmifi() caller in the
+    tree, so a brace- or doublequote-wrapped name works correctly.
+    """
+    d = tmp_path / "d"
+    d.mkdir()
+    src = "file one.txt"
+    dst = "file two.txt"
+    (d / src).write_text("payload\n")
+
+    result = wermit_loopback(
+        d, "",
+        f"remote rename {_wrap(src, style)} {_wrap(dst, style)}")
+
+    assert_ok(result)
+    assert not (d / src).exists()
+    assert (d / dst).exists()
+
+
+@pytest.mark.parametrize("style", ["brace", "doublequote"])
+def test_remote_copy_with_space(tmp_path, wermit_loopback, style):
+    """
+    REMOTE COPY shares REMOTE RENAME's exact two-field cmfld()
+    mechanism and setgen()/srv_copy() wire encoding, and got the same
+    brstrip() fix.
+    """
+    d = tmp_path / "d"
+    d.mkdir()
+    src = "file one.txt"
+    dst = "file two.txt"
+    (d / src).write_text("payload\n")
+
+    result = wermit_loopback(
+        d, "",
+        f"remote copy {_wrap(src, style)} {_wrap(dst, style)}")
+
+    assert_ok(result)
+    assert (d / src).exists()
+    assert (d / dst).exists()
+
+
+@pytest.mark.parametrize("with_space", [False, True], ids=["nospace", "space"])
+@pytest.mark.parametrize("style", ["brace", "doublequote"])
+def test_remote_rename_embedded_brace_name(
+        tmp_path, wermit_loopback, style, with_space):
+    """
+    REMOTE RENAME shares REMOTE DELETE's family convention for an
+    embedded balanced {brace} pair: leave it unescaped. Its field is
+    parsed with cmfld() (not cmtxt()) but that field also runs
+    unconditionally through xxstring(), so the same reasoning applies
+    (doc/spaces.md's "The convention splits by command family");
+    brstrip() (the fix from test_remote_rename_with_space above)
+    already strips a genuine outer wrap before the name is used, no
+    further escaping needed.
+    """
+    d = tmp_path / "d"
+    d.mkdir()
+    name = "file {one} two.txt" if with_space else "file{one}.txt"
+    (d / name).write_text("payload\n")
+
+    arg = _wrap(name, style)
+    result = wermit_loopback(d, "", f"remote rename {arg} renamed.txt")
+
+    assert_ok(result)
+    assert not (d / name).exists()
+    assert (d / "renamed.txt").exists()
+
+
+@pytest.mark.parametrize("with_space", [False, True], ids=["nospace", "space"])
+@pytest.mark.parametrize("style", ["brace", "doublequote"])
+def test_remote_delete_embedded_brace_name(
+        tmp_path, wermit_loopback, style, with_space):
+    """
+    REMOTE DELETE follows the GET/REMOTE family's convention for an
+    embedded balanced {brace} pair: leave it unescaped (the opposite
+    of local DIR/SEND/DELETE). This needed a fix. REMOTE DELETE's
+    field cmtxt() is run through xxstring() before transmission,
+    which doesn't touch a bare brace, but the resolved name's literal
+    brace still had no backslash in front of it by the time it
+    reached the far end, so the far end's wildcard matcher
+    (iswild()/fgen()) misread it as pattern syntax. Fixed by
+    re-escaping any brace left in the resolved name
+    after stripping outer quotes.
+    """
+    d = tmp_path / "d"
+    d.mkdir()
+    name = "file {one} two.txt" if with_space else "file{one}.txt"
+    (d / name).write_text("payload\n")
+
+    arg = _wrap(name, style)
+    result = wermit_loopback(d, "", f"remote delete {arg}")
+
+    assert_ok(result)
+    assert not (d / name).exists()
+
+
+@pytest.mark.parametrize("with_space", [False, True], ids=["nospace", "space"])
+@pytest.mark.parametrize("style", ["brace", "doublequote"])
+def test_remote_directory_embedded_brace_name(
+        tmp_path, wermit_loopback, style, with_space):
+    """
+    REMOTE DIRECTORY (RDIR) supports embedded brace names, leaving
+    the brace pair unescaped.
+    """
+    d = tmp_path / "d"
+    d.mkdir()
+    name = "file {one} two.txt" if with_space else "file{one}.txt"
+    (d / name).write_text("payload\n")
+
+    arg = _wrap(name, style)
+    result = wermit_loopback(d, "", f"remote directory {arg}")
+
+    assert_ok(result)
+    assert name in result.stdout
+
+
+@pytest.mark.parametrize("with_space", [False, True], ids=["nospace", "space"])
+@pytest.mark.parametrize("style", ["brace", "doublequote"])
+def test_remote_delete_embedded_doublequote_name(
+        tmp_path, wermit_loopback, style, with_space):
+    """
+    REMOTE DELETE handles an embedded, balanced pair of double quote
+    characters correctly for either outer delimiter.
+    The embedded
+    quotes must be escaped (\\"), the same convention DIR/SEND use,
+    and escaping survives xxstring() intact since it isn't a brace;
+    with braces as the outer delimiter, the embedded quotes are left
+    unescaped, since doublequotes don't affect brace tracking, again
+    matching DIR/SEND.
+    """
+    d = tmp_path / "d"
+    d.mkdir()
+    name = 'file "one" two.txt' if with_space else 'file"one".txt'
+    (d / name).write_text("payload\n")
+
+    escaped = name.replace('"', '\\"') if style == "doublequote" else name
+    arg = _wrap(escaped, style)
+    result = wermit_loopback(d, "", f"remote delete {arg}")
+
+    assert_ok(result)
+    assert not (d / name).exists()
+
+
+def test_remote_delete_numeric_content_embedded_brace(
+        tmp_path, wermit_loopback):
+    """
+    REMOTE DELETE's family (GET/REMOTE DELETE/REMOTE RENAME/REMOTE
+    COPY) convention, leaving an embedded balanced {brace} pair
+    unescaped, has no numeric-content gap, unlike escaping it (see
+    test_remote_delete_numeric_content_embedded_brace_escaped_fails
+    below). "{123}" round-trips correctly here because no backslash
+    is involved, so xxesc() is never asked to interpret it.
+    """
+    d = tmp_path / "d"
+    d.mkdir()
+    name = "file{123}.txt"
+    (d / name).write_text("payload\n")
+    (d / "fileone.txt").write_text("decoy\n")
+
+    result = wermit_loopback(d, "", "remote delete file{123}.txt")
+
+    assert_ok(result)
+    assert not (d / name).exists()
+    assert (d / "fileone.txt").exists()
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="xxesc() intentionally reads \\{123\\} as a numeric "
+    "escape (character code 123), not literal text; this is exactly "
+    "why the recommended convention for this family is to leave the "
+    "pair unescaped, see the passing test right above")
+def test_remote_delete_numeric_content_embedded_brace_escaped_fails(
+        tmp_path, wermit_loopback):
+    """
+    Escaping a purely numeric bracketed segment (e.g. "{123}") does
+    NOT work on any command whose field parser unconditionally runs
+    xxstring() (REMOTE DELETE's cmtxt(), same as GET's cmfld()):
+    "123" parses as a valid decimal number, so xxesc() converts the
+    whole escaped sequence to the single character with that code
+    instead of leaving the digits as literal text. This is inherent
+    to \\{decimal}/\\{octal}/\\{hex} being an intentional escape
+    syntax that shares delimiters with the literal-brace convention;
+    there's no way to tell them apart from the escaped text alone.
+    Contrast with test_brace_convention.py's
+    test_local_delete_numeric_content_embedded_brace, where local
+    DELETE's cmifi() only runs xxstring() when a variable reference is
+    also present, so escaping this same content works fine there.
+    """
+    d = tmp_path / "d"
+    d.mkdir()
+    name = "file{123}.txt"
+    (d / name).write_text("payload\n")
+
+    result = wermit_loopback(d, "", r"remote delete file\{123\}.txt")
+
+    assert_ok(result)
+    assert not (d / name).exists()

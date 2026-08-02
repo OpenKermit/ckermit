@@ -2854,25 +2854,217 @@ setgen(type,arg1,arg2,arg3) char type, *arg1, *arg2, *arg3;
 }
 #endif /* NOXFER */
 
+/*  F N S P L I T  --  */
+
+/*
+  Argument is a character string containing one or more filespecs.
+
+  Splits it into up to maxout tokens.  Leading and trailing whitespace is
+  discarded, an unquoted space or tab separates tokens, and (except in NOICP
+  builds) a backslash quotes the next character or introduces a numeric escape
+  exactly as xxesc() defines. A single level of {brace} quoting is recognized,
+  honoring nested braces. A brace group is one token, including spaces and tabs
+  inside it, and the braces themselves are not part of the resulting token.
+  Inside a brace group, a backslash immediately followed by '{', '}', or itself
+  is a literal escape: the backslash is dropped and the following character is
+  copied as-is, without affecting nesting depth. This is the wire-side
+  counterpart to the client-side quoting done when a filespec is sent.
+
+  Token text is copied into buf, which must be at least strlen(string)+2
+  bytes. outv[] is pointed at the copies, for up to maxout of them (any
+  tokens beyond that are still parsed, so the true count is always returned,
+  but are not stored). Mutates trailing whitespace out of string in place.
+  Touches no global state, so it is safe to call from anywhere that needs
+  this splitting behavior.
+*/
+int
+#ifdef CK_ANSIC
+fnsplit( char * string, char ** outv, int maxout, char * buf )
+#else
+fnsplit(string,outv,maxout,buf)
+    char *string; char **outv; int maxout; char *buf;
+#endif /* CK_ANSIC */
+{
+    char *p, *s, *q;
+    int r = 0, x;
+
+    s = string;                         /* Input string */
+    p = q = buf;                        /* Point to the copy */
+    while (*s == SP || *s == HT)        /* Skip leading spaces and tabs */
+      s++;
+    for (x = (int)strlen(s);            /* Strip trailing spaces */
+         (x > 1) && (s[x-1] == SP || s[x-1] == HT);
+         x--)
+      s[x-1] = NUL;
+    while (*s) {                        /* One token per iteration */
+        if (*s == '{') {                /* Brace-quoted token */
+            int depth = 1;
+            s++;
+            while (*s && depth > 0) {
+                if (*s == CMDQ &&
+                    (s[1] == '{' || s[1] == '}' || s[1] == CMDQ)) {
+                    s++;                /* Escaped delimiter or backslash: */
+                    *q++ = *s++;        /* literal, doesn't affect depth */
+                    continue;
+                }
+                if (*s == '{')
+                  depth++;
+                else if (*s == '}') {
+                    depth--;
+                    if (depth == 0) {
+                        s++;
+                        break;
+                    }
+                }
+                if (depth > 0)
+                  *q++ = *s;
+                s++;
+            }
+        } else {                        /* Plain (possibly escaped) token */
+            while (*s && *s != SP) {
+#ifndef NOICP
+                if (*s == CMDQ) {       /* Backslash (quote character)? */
+                    if ((x = xxesc(&s)) > -1) { /* Go interpret it. */
+                        *q++ = (char) x; /* Numeric backslash code, ok */
+                        continue;
+                    } else {            /* Just let it quote next char */
+                        s++;            /* get past the backslash */
+                        *q++ = *s++;    /* deposit next char */
+                        continue;
+                    }
+                }
+#endif /* NOICP */
+                *q++ = *s++;            /* Otherwise copy the character */
+            }
+        }
+        *q++ = NUL;                     /* End of this token */
+        if (r < maxout) outv[r] = p;    /* Add it to the list */
+        r++;                            /* Count it */
+        p = q;                          /* Start of next token */
+        while (*s == SP || *s == HT)    /* Skip to the next token */
+          s++;
+    }
+    if (r < maxout) outv[r] = "";       /* Empty string at end of list */
+    return(r);
+}
+
+/*  B R Q U O T E   --  */
+
+/*
+  The client-side counterpart to fnsplit(): wraps name in {...} for
+  transmission as (part of) a GET-class filespec field, if it needs
+  protection from fnsplit()'s tokenizing (contains a space, tab, or
+  literal backslash, or starts with a literal '{'). A bare backslash
+  needs protection even outside braces, since fnsplit()'s unquoted-
+  token path always treats it as an escape introducer. Escapes any
+  literal backslash, '{', or '}' found inside name as '\\', '\{',
+  '\}', unconditionally, which is simpler and correct compared to
+  detecting whether an internal brace pair is already balanced (see
+  doc/spaces.md).
+
+  Writes into buf, which should be at least 2*strlen(name)+3 bytes
+  (worst case: every character needs escaping, plus the two wrapping
+  braces and a NUL); never writes past bufsize, truncating instead.
+  If no protection is needed, copies name into buf unchanged. Returns
+  buf.
+*/
+char *
+#ifdef CK_ANSIC
+brquote( char * name, char * buf, int bufsize )
+#else
+brquote(name,buf,bufsize) char *name; char *buf; int bufsize;
+#endif /* CK_ANSIC */
+{
+    char * p;
+    int n = 0;
+    int needwrap = 0;
+
+    if (!name) name = "";
+    if (bufsize < 1)
+      return(buf);
+
+    for (p = name; *p; p++) {
+        if (*p == SP || *p == HT || *p == CMDQ) {
+            needwrap = 1;
+            break;
+        }
+    }
+    if (!needwrap && *name == '{')
+      needwrap = 1;
+
+    if (!needwrap) {
+        ckstrncpy(buf,name,bufsize);
+        return(buf);
+    }
+
+    if (n < bufsize - 1) buf[n++] = '{';
+    for (p = name; *p; p++) {
+        if (*p == CMDQ || *p == '{' || *p == '}') {
+            if (n < bufsize - 1) buf[n++] = CMDQ;
+        }
+        if (n < bufsize - 1) buf[n++] = *p;
+    }
+    if (n < bufsize - 1) buf[n++] = '}';
+    buf[n] = NUL;
+    return(buf);
+}
+
+/*  B R E S C  --  */
+
+/*
+  Backslash-escapes every literal '\', '{', or '}' in name,
+  unconditionally, with no outer wrapping, unlike brquote().  Needed
+  by REMOTE DELETE request fields: that field is resolved by xxstring()
+  on the client before transmission, which turns a user-typed "\{"/"\}"
+  into a literal, unescaped brace. The peer wildcard matcher (iswild()/fgen()
+  in ckufio.c) treats a bare '{' as pattern syntax, so re-escaping here
+  before transmission makes a literal brace in the name survive intact,
+  matching what local commands require (see doc/spaces.md). Leaves '*'/'?'
+  alone, since those remain valid wildcard characters for the peer to match.
+
+  Writes into buf, which should be at least 2*strlen(name)+1 bytes
+  (worst case: every character needs escaping, plus the NUL); never
+  writes past bufsize, truncating instead. Returns buf.
+*/
+char *
+#ifdef CK_ANSIC
+bresc( char * name, char * buf, int bufsize )
+#else
+bresc(name,buf,bufsize) char *name; char *buf; int bufsize;
+#endif /* CK_ANSIC */
+{
+    char * p;
+    int n = 0;
+
+    if (!name) name = "";
+    if (bufsize < 1)
+      return(buf);
+
+    for (p = name; *p; p++) {
+        if (*p == CMDQ || *p == '{' || *p == '}') {
+            if (n < bufsize - 1) buf[n++] = CMDQ;
+        }
+        if (n < bufsize - 1) buf[n++] = *p;
+    }
+    buf[n] = NUL;
+    return(buf);
+}
+
 #ifndef NOMSEND
 static char *mgbufp = NULL;
 
 /*  F N P A R S E  --  */
 
 /*
-  Argument is a character string containing one or more filespecs.
-  This function breaks the string apart into an array of pointers, one
-  to each filespec, and returns the number of filespecs.  Used by server
-  when it receives a GET command to allow it to process multiple file
-  specifications in one transaction.  Sets cmlist to point to a list of
-  file pointers, exactly as if they were command line arguments.
+  Used by server when it receives a GET command to allow it to process
+  multiple file specifications in one transaction. Wraps fnsplit()
+  to break the string apart into an array of pointers, one to
+  each filespec.  Sets cmlist to point to a list of file pointers,
+  exactly as if they were command line arguments, and returns the
+  number of filespecs.
 
-  This version of fnparse treats spaces as filename separators.  If your
-  operating system allows spaces in filenames, you'll need a different
-  separator.
-
-  This version of fnparse mallocs a string buffer to contain the names.  It
-  cannot assume that the string that is pointed to by the argument is safe.
+  This mallocs a string buffer to contain the names.  It cannot assume
+  that the string that is pointed to by the argument is safe.
 */
 int
 #ifdef CK_ANSIC
@@ -2881,8 +3073,7 @@ fnparse( char * string )
 fnparse(string) char * string;
 #endif /* CK_ANSIC */
 {
-    char *p, *s, *q;
-    int r = 0, x;                       /* Return code */
+    int r;
 #ifdef RECURSIVE
     debug(F111,"fnparse",string,recursive);
 #endif /* RECURSIVE */
@@ -2898,41 +3089,9 @@ fnparse(string) char * string;
     ckstrncpy(fspec,string,fspeclen);   /* Make copy for \v(filespec) */
 #endif /* NOSPL */
 #endif /* NOICP */
-    s = string;                         /* Input string */
-    p = q = mgbufp;                     /* Point to the copy */
-    r = 0;                              /* Initialize our return code */
-    while (*s == SP || *s == HT)        /* Skip leading spaces and tabs */
-      s++;
-    for (x = strlen(s);                 /* Strip trailing spaces */
-         (x > 1) && (s[x-1] == SP || s[x-1] == HT);
-         x--)
-      s[x-1] = NUL;
-    while (1) {                         /* Loop through rest of string */
-#ifndef NOICP
-        if (*s == CMDQ) {               /* Backslash (quote character)? */
-            if ((x = xxesc(&s)) > -1) { /* Go interpret it. */
-                *q++ = (char) x;        /* Numeric backslash code, ok */
-            } else {                    /* Just let it quote next char */
-                s++;                    /* get past the backslash */
-                *q++ = *s++;            /* deposit next char */
-            }
-            continue;
-        } else if (*s == SP || *s == NUL) { /* Unquoted space or NUL? */
-            *q++ = NUL;                 /* End of output filename. */
-            msfiles[r] = p;             /* Add this filename to the list */
-            debug(F111,"fnparse",msfiles[r],r);
-            r++;                        /* Count it */
-            if (*s == NUL) break;       /* End of string? */
-            while (*s == SP) s++;       /* Skip repeated spaces */
-            p = q;                      /* Start of next name */
-            continue;
-        } else
-#endif /* NOICP */
-            *q++ = *s;                  /* Otherwise copy the character */
-        s++;                            /* Next input character */
-    }
+    r = fnsplit(string, msfiles, MSENDMAX, mgbufp);
     debug(F101,"fnparse r","",r);
-    msfiles[r] = "";                    /* Put empty string at end of list */
+    if (r > MSENDMAX) r = MSENDMAX;     /* Don't overrun msfiles[] */
     cmlist = msfiles;
     return(r);
 }
@@ -3871,6 +4030,8 @@ doxlog(x, fn, fs, fm, status, msg)
 
 #ifdef CK_CURSES
 static int repaint = 0;                 /* Transfer display needs repainting */
+static int fs_suspended = 0;   /* SCR_SUSP left curses mode temporarily */
+static char fs_savedname[80] = "";      /* Current file's name, for SCR_RESU */
 #endif /* CK_CURSES */
 
 #ifndef NOXFER
@@ -4493,6 +4654,18 @@ _PROTOTYP( VOID conbgt, (int) );
 
     if (dest == DEST_S)                 /* SET DESTINATION SCREEN */
       return;                           /*  would interfere... */
+
+    if (f == SCR_SUSP || f == SCR_RESU) {
+        /*
+         * Only the curses fullscreen display suspends for an
+         * interactive prompt; other display modes are unaffected.
+         */
+#ifdef CK_CURSES
+        if (fdispla == XYFD_C)
+          screenc(f,c,n,s);
+#endif /* CK_CURSES */
+        return;
+    }
 
 #ifdef KUI
     if (fdispla == XYFD_G) {            /* If gui display selected */
@@ -7375,6 +7548,51 @@ char *s;        /* a string */
 
     if (!s) s = "";                     /* Always do this. */
 
+    if (f == SCR_SUSP) {
+        /*
+         * Leave curses mode so an interactive prompt can use the
+         * terminal normally. endwin() is called while curscr retains
+         * the last painted screen. SCR_RESU can restore it with a
+         * repaint rather than redrawing from scratch, preserving
+         * state like the displayed filename.
+         */
+        if (cinit && !cendw && !fs_suspended) {
+            endwin();
+            fs_suspended = 1;
+        }
+        return;
+    }
+    if (f == SCR_RESU) {
+        if (fs_suspended) {
+            fs_suspended = 0;
+#ifdef CK_WREFRESH
+#ifdef OS2
+            RestoreCmdMode();
+#else
+#ifdef QNX
+#ifndef QNX16
+            clearok(stdscr, 1);         /* QNX doesn't have curscr */
+#endif /* QNX16 */
+            wrefresh(stdscr);
+#else
+            wrefresh(curscr);
+#endif /* QNX */
+#endif /* OS2 */
+#else  /* No CK_WREFRESH */
+            /*
+             * Reissue SCR_FN with the saved filename. screenc()
+             * redraws the banner when cendw is set, and SCR_FN
+             * restores the filename field, which is not otherwise
+             * preserved across SCR_RESU.
+             */
+            cendw = 1;
+            if (fs_savedname[0])
+              screenc(SCR_FN,0,(CK_OFF_T)0,fs_savedname);
+#endif /* CK_WREFRESH */
+        }
+        return;
+    }
+
     ftp = (what & W_FTP) ? 1 : 0;	/* FTP or Kermit */
     net = network || ftp;
     xnet = ftp ? 1 : nettype;		/* NET_TCPB == 1 */
@@ -7831,6 +8049,7 @@ char *s;        /* a string */
     len = strlen(s);                    /* Length of argument string */
     switch (f) {                        /* Handle our function code */
       case SCR_FN:                      /* Filename */
+        ckstrncpy(fs_savedname,s,sizeof(fs_savedname)); /* For SCR_RESU */
         oldpct = pct = 0L;              /* Reset percents */
 #ifdef GFTIMER
         gtv = (CKFLOAT) -1.0;

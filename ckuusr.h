@@ -516,8 +516,9 @@ struct stringint {			/* String and (wide) integer */
 #define SND_PAT 46	/* Pattern to use locally when GET'ing */
 #define SND_NLS 47	/* (FTP only) MGET forces NLST */
 #define SND_MLS 48	/* (FTP only) MGET forces MLSD */
+#define SND_CFM 49	/* Confirm */
 
-#define SND_MAX 48	/* Highest SEND switch */
+#define SND_MAX 49	/* Highest SEND switch */
 
 #define XXSER  29   	/* SERVER */
 #define XXSET  30	/* SET */
@@ -1776,6 +1777,7 @@ struct stringint {			/* String and (wide) integer */
 #define XYEXTRN  135    /* SET EXTERNAL-PROTOCOL */
 #define XYVAREV  136    /* SET VARIABLE-EVALUATION */
 #define XYLOCALE 137    /* SET LOCALE */
+#define XYRCONFIRM 139  /* SET RECEIVE CONFIRM */
 #ifdef VMS
 #define XYVMSTF  138    /* SET VMS_TEXT */
 #define  VMSTFS    1    /*  STREAM_LF */

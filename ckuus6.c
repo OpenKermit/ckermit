@@ -387,6 +387,7 @@ static struct keytab gettab[] = {       /* GET options */
 #ifdef PIPESEND
     { "/command",         SND_CMD, CM_PSH },
 #endif /* PIPESEND */
+    { "/confirm",         SND_CFM, CM_ARG },
     { "/delete",          SND_DEL, 0 },
     { "/except",          SND_EXC, CM_ARG },
     { "/filenames",       SND_NAM, CM_ARG },
@@ -429,6 +430,7 @@ static struct keytab rcvtab[] = {       /* RECEIVE options */
 #ifdef PIPESEND
     { "/command",         SND_CMD, CM_PSH },
 #endif /* PIPESEND */
+    { "/confirm",         SND_CFM, CM_ARG },
     { "/except",          SND_EXC, CM_ARG },
     { "/filenames",       SND_NAM, CM_ARG },
 #ifdef PIPESEND
@@ -10802,6 +10804,8 @@ doxget(cx) int cx;
 #endif /* PIPESEND */
     extern struct keytab rpathtab[];
     extern int nrpathtab;
+    extern struct keytab confirmtab[];
+    extern int nconfirmtab;
     extern CK_OFF_T calibrate;
     int asname = 0;                     /* Flag for have as-name */
     int konly = 0;                      /* Kermit-only function */
@@ -11176,6 +11180,16 @@ doxget(cx) int cx;
             pv[n].ival = x;             /* Ditto */
             break;
 
+          case SND_CFM:                 /* /CONFIRM */
+            if (!getval) {
+                pv[n].ival = CONFIRM_ON;
+                break;
+            }
+            if ((x = cmkey(confirmtab,nconfirmtab,"","on",xxstring)) < 0)
+              goto xgetx;
+            pv[n].ival = x;
+            break;
+
           case SND_NAM:                 /* Filenames */
             if (!getval) break;
             if ((x = cmkey(fntab,nfntab,"","converted",xxstring)) < 0)
@@ -11240,7 +11254,56 @@ doxget(cx) int cx;
     debug(F110,"xget string",cmarg,0);
     debug(F101,"xget confirmed","",confirmed);
 
-    cmarg = brstrip(cmarg);             /* Strip any braces */
+    /*
+      cmarg holds the request text exactly as typed, quoting and all
+      (cmtxt()/cmfld() only decide where the field ends; xxstring()
+      has already resolved any backslash escapes over the whole
+      field, but has not touched the {}/"" delimiters themselves).
+
+      For MGET, that text can name several files, each individually
+      grouped with {braces} or "doublequotes". cksplit(),
+      used by xwords() for this same two-delimiter grouping,
+      splits it into plain per-name strings with the delimiters
+      removed. For GET/REGET/RETRIEVE there is only ever one name,
+      so brstrip() does this correctly.
+
+      Either way, each resolved name is then re-quoted in canonical
+      brace form for the wire via brquote () if it still needs
+      protection from fnsplit()'s tokenizing on the far end (a space,
+      or a literal leading '{'); the far end never needs to
+      understand doublequote grouping at all.
+
+      This replaces the single whole-string brstrip() call that used
+      to run here unconditionally, which could not tell one quoted
+      name from several and mangled the latter.
+    */
+    if (mget) {
+        struct stringarray * sa;
+        char qbuf[LINBUFSIZ*2];
+        char newline[LINBUFSIZ];
+        int i, len = 0;
+
+        sa = cksplit(1,0,cmarg," ","ALL",1+2,0,0,1);
+        newline[0] = NUL;
+        if (sa && sa->a_size > 0 && sa->a_head) {
+            for (i = 1; i <= sa->a_size; i++) { /* cksplit() is 1-indexed */
+                if (!sa->a_head[i]) continue;
+                brquote(sa->a_head[i],qbuf,sizeof(qbuf));
+                if (len > 0 && len < LINBUFSIZ - 1)
+                  newline[len++] = ' ';
+                ckstrncpy(newline+len,qbuf,LINBUFSIZ-len);
+                len = (int)strlen(newline);
+            }
+        }
+        ckstrncpy(line,newline,LINBUFSIZ);
+    } else if (*cmarg) {
+        char qbuf[LINBUFSIZ*2];
+
+        cmarg = brstrip(cmarg);         /* Strip any braces */
+        brquote(cmarg,qbuf,sizeof(qbuf));
+        ckstrncpy(line,qbuf,LINBUFSIZ);
+    }
+    cmarg = line;
 
     if (!confirmed) {                   /* CR not typed yet, get more fields */
         if (pv[SND_CMD].ival > 0) {
@@ -11669,6 +11732,8 @@ doxget(cx) int cx;
         }
     }
 #endif /* CK_TMPDIR */
+
+    rq_confirm_start(cmarg,rcvcmd,(pv[SND_REC].ival > 0),pv[SND_CFM].ival);
 
     ckstrncpy(fspec,cmarg,CKMAXPATH);   /* Note - this is a REMOTE filespec */
     debug(F111,"xget fspec",fspec,fspeclen);

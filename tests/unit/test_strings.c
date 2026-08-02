@@ -146,6 +146,29 @@ START_TEST(test_cksplit)
     q = cksplit(0, 2, "hello world", " ", "ALL", 0, 0, 0, 0);
     ck_assert_int_eq(q->a_size, 1);
     ck_assert_str_eq(q->a_head[1], "world");
+
+    // Grouping mask (n2): a quoted field containing the separator
+    // character is kept as one word, with the delimiters stripped.
+
+    // n2 = 1: quote grouping
+    q = cksplit(1, 0, "\"hello world\" foo", " ", "ALL", 1, 0, 0, 0);
+    ck_assert_int_eq(q->a_size, 2);
+    ck_assert_str_eq(q->a_head[1], "hello world");
+    ck_assert_str_eq(q->a_head[2], "foo");
+
+    // n2 = 2: brace grouping
+    q = cksplit(1, 0, "{hello world} foo", " ", "ALL", 2, 0, 0, 0);
+    ck_assert_int_eq(q->a_size, 2);
+    ck_assert_str_eq(q->a_head[1], "hello world");
+    ck_assert_str_eq(q->a_head[2], "foo");
+
+    // n2 = 1+2: both delimiters recognized in the same string, the
+    // combination xwords() (ckuus5.c) uses for macro arguments.
+    q = cksplit(1, 0, "\"a b\" {c d} e", " ", "ALL", 1+2, 0, 0, 0);
+    ck_assert_int_eq(q->a_size, 3);
+    ck_assert_str_eq(q->a_head[1], "a b");
+    ck_assert_str_eq(q->a_head[2], "c d");
+    ck_assert_str_eq(q->a_head[3], "e");
 }
 END_TEST
 
@@ -183,6 +206,49 @@ START_TEST(test_dquote)
     // NULL input
     r = dquote(NULL, 10, 0);
     ck_assert_int_eq(r, 0);
+}
+END_TEST
+
+START_TEST(test_brstrip)
+{
+    char buf[64];
+    extern int dblquo;
+
+    /* Plain brace stripping */
+    ckstrncpy(buf, "{hello}", sizeof(buf));
+    ck_assert_str_eq(brstrip(buf), "hello");
+
+    /* A balanced, unescaped brace pair inside the field survives:
+       brstrip() only strips the outermost pair, whatever is inside
+       it is left alone. */
+    ckstrncpy(buf, "{foo {bar} baz}", sizeof(buf));
+    ck_assert_str_eq(brstrip(buf), "foo {bar} baz");
+
+    /* Doublequote stripping, with dblquo on (the default) */
+    dblquo = 1;
+    ckstrncpy(buf, "\"hello\"", sizeof(buf));
+    ck_assert_str_eq(brstrip(buf), "hello");
+
+    /* Doublequote stripping disabled: left unstripped */
+    dblquo = 0;
+    ckstrncpy(buf, "\"hello\"", sizeof(buf));
+    ck_assert_str_eq(brstrip(buf), "\"hello\"");
+    dblquo = 1;
+
+    /* Escaped closing delimiter: brstrip() only ever looks at the
+       very last character to decide whether to strip, so a '}'
+       preceded by a backslash there is read as escaped rather than
+       a real closer, and the whole string is returned unstripped. */
+    ckstrncpy(buf, "{foo\\}", sizeof(buf));
+    ck_assert_str_eq(brstrip(buf), "{foo\\}");
+
+    /* Unbalanced opening delimiter: no matching closer at the end,
+       so the original string comes back untouched. */
+    ckstrncpy(buf, "{foo", sizeof(buf));
+    ck_assert_str_eq(brstrip(buf), "{foo");
+
+    /* NULL input */
+    ck_assert_str_eq(brstrip(NULL), "");
 }
 END_TEST
 
@@ -284,6 +350,7 @@ Suite *strings_suite(void)
     tcase_add_test(tc_core, test_ckstrcmp);
     tcase_add_test(tc_core, test_cksplit);
     tcase_add_test(tc_core, test_dquote);
+    tcase_add_test(tc_core, test_brstrip);
     tcase_add_test(tc_core, test_untabify);
     tcase_add_test(tc_core, test_ckoptsubst);
 

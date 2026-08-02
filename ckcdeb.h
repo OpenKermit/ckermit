@@ -6110,10 +6110,10 @@ _PROTOTYP( char *GetLoadPath, (void) );
 #ifdef BSD44				/* 4.4 BSD has it */
 #define CK_WREFRESH
 #else
-#ifdef LINUX				/* Linux (ncurses) has it too */
+#ifdef LINUX				/* Linux (ncurses) */
 #define CK_WREFRESH
 #else
-#ifdef MACOSX10				/* macOS (ncurses) has it too */
+#ifdef MACOSX10				/* macOS (ncurses) */
 #define CK_WREFRESH
 #else
 #ifdef NEXT				/* Define it for NeXTSTEP */

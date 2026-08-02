@@ -1405,6 +1405,8 @@ int deblog = 0,                         /* Debug log is open */
 
     fnspath = PATH_OFF,                 /* Send file path */
     fnrpath = PATH_AUTO,                /* Receive file path */
+    fnrconfirm = CONFIRM_ON,            /* SET RECEIVE CONFIRM level */
+    fnrconfirm_scope = 1,         /* Scope: LOCAL(1), REMOTE(2), BOTH(3) */
     fackpath = 1,                       /* Send back path in ACK to F */
     binary = XYFT_B,                    /* Default file transfer mode */
     b_save = XYFT_B,                    /* Saved file mode */

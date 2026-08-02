@@ -2566,6 +2566,7 @@ getyesno(msg, flags) char * msg; int flags;
 #ifdef CK_RECALL
     extern int on_recall;               /* around Password prompting */
 #endif /* CK_RECALL */
+    extern int local, backgrd, fdispla; /* For SCR_SUSP/SCR_RESU below */
     int y, z;
 
 #ifndef NOLOCAL
@@ -2581,6 +2582,8 @@ getyesno(msg, flags) char * msg; int flags;
         return(success = 0);
     }
 #endif /* CK_APC */
+
+    xxscreen(SCR_SUSP,0,0,NULL);        /* Suspend curses display mode */
 
 #ifndef NOLOCAL
 #ifdef OS2
@@ -2650,6 +2653,7 @@ getyesno(msg, flags) char * msg; int flags;
     }
 #endif /* OS2 */
 #endif /* NOLOCAL */
+    xxscreen(SCR_RESU,0,0,NULL);    /* Resume curses display mode */
     return(z);
 }
 

@@ -1684,6 +1684,10 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
 	    int len = 0;
 	    debug(F111,"CKMATCH {} ",string, matchpos);
 	    for (p = pattern++; *p; p++) {
+		if (*p == CMDQ && *(p+1)) { /* Escaped char, not a delimiter */
+		    p++;
+		    continue;
+		}
 		if (*p == '{') bc++;
 		if (*p == '}') bc--;
 		if (bc < 1) break;
