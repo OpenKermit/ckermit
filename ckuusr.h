@@ -1778,6 +1778,7 @@ struct stringint {			/* String and (wide) integer */
 #define XYVAREV  136    /* SET VARIABLE-EVALUATION */
 #define XYLOCALE 137    /* SET LOCALE */
 #define XYRCONFIRM 139  /* SET RECEIVE CONFIRM */
+#define XYCOMPAT 140    /* SET COMPATIBILITY */
 #ifdef VMS
 #define XYVMSTF  138    /* SET VMS_TEXT */
 #define  VMSTFS    1    /*  STREAM_LF */
@@ -2876,6 +2877,9 @@ _PROTOTYP( int docmd, (int) );
 _PROTOTYP( int dodir, (int) );
 _PROTOTYP( int dodo, (int, char *, int) );
 _PROTOTYP( int doenable, (int, int) );
+_PROTOTYP( int compat_9, (void) );
+_PROTOTYP( int compat_10, (void) );
+_PROTOTYP( int compat_11_default, (void) );
 _PROTOTYP( int dogoto, (char *, int) );
 _PROTOTYP( int dogta, (int) );
 _PROTOTYP( int dohlp, (int) );

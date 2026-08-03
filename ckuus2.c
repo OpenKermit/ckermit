@@ -3614,6 +3614,32 @@ static char *hmxychkt[] = { "Syntax: SET BLOCK-CHECK number",
 "  immediately at the beginning of the transfer.",
 "" };
 
+static char * hxycompat[] = {
+"Syntax: SET COMPATIBILITY { 9, 10, 11, DEFAULT }",
+" ",
+"Reconfigures a fixed set of other SET and ENABLE settings to match",
+"the defaults of an earlier C-Kermit release, or restores the current",
+"C-Kermit 11 defaults.  This changes settings only; it adds no new",
+"behavior beyond what those settings already control.  Since those
+"versions didn't support IPv6, settings for 9 and 10 also disable IPv6.",
+" ",
+"  9        Match C-Kermit 9.0.302 (2011).",
+"  10       Match C-Kermit 10.0 Beta.12 (2025).",
+"  11       Restore the C-Kermit 11 (current) defaults.  DEFAULT is",
+"           a synonym for this.",
+" ",
+"Settings affected: SET FILE COLLISION, SET TRANSFER MODE, SET",
+"TERMINAL AUTODOWNLOAD ERROR, SET RECEIVE CONFIRM, SET TCP",
+"ADDRESS-FAMILY, SET RECEIVE PATHNAMES. Also, ENABLE/DISABLE for CD,",
+"COPY, DIRECTORY, ENABLE, FINISH, GET, MKDIR, RENAME, SEND, SET,",
+"SPACE, TYPE, WHO, ASSIGN, QUERY, MAIL, and PRINT.",
+" ",
+"SET COMPATIBILITY 9 and SET COMPATIBILITY 10 weaken settings that",
+"C-Kermit 11 tightened for security.  Use them only when",
+"interoperating with old scripts or expectations that require this,",
+"not routinely, and not on a connection to an untrusted peer.",
+"" };
+
 static char * hmxydeb[] = {
 "Syntax: SET DEBUG { SESSION, ON, OFF, TIMESTAMP, MESSAGES }",
 " ",
@@ -10688,6 +10714,9 @@ case XYCOUN:
   Set up a loop counter, for use with IF COUNT.  Local to current macro\n\
   or command file, inherited by subordinate macros and command files."));
 #endif /* NOSPL */
+
+case XYCOMPAT:
+    return(hmsga(hxycompat));
 
 case XYDEBU:
     return(hmsga(hmxydeb));

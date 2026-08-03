@@ -3288,6 +3288,19 @@ MAINNAME( argc, argv ) int argc; char **argv;
 #endif /* CK_XYZ */
 #endif /* NOXFER */
 
+    /*
+      If invoked as kermit9 or kermit10, apply compatibility settings
+      before running initialization files, scripts, or command line flags.
+      Leave howcalled as I_AM_KERMIT to preserve program identity.
+
+      Run after initproto calls so initial file transfer settings are
+      not overwritten.
+    */
+    if (!ckstrcmp(myname,"kermit9",-1,0))
+      compat_9();
+    else if (!ckstrcmp(myname,"kermit10",-1,0))
+      compat_10();
+
     connoi();                           /* Console interrupts off */
 
 #ifndef NOXFER
