@@ -80,7 +80,7 @@ relationship between the different Kermit versions.
   write a nice Markdown file that acts as an up-to-date command reference for
   your specific platform.  A generated version of this can be found at 
   [HELP reference](help-reference.md).
-
+  
 - [9] Android platform support, including NDK builds and a vanity herald.
 
 - [9] Locale support for dates, times, and error messages (with Spanish
@@ -135,6 +135,28 @@ relationship between the different Kermit versions.
   In particular, MacOS FIONREAD appears to be unreliable, and assuming it to be
   reliable led to some hard-to-track-down hangs.
   
+- [11] C-Kermit now is fully able to process filenames with embedded spaces due
+  to numerous bugfixes in commit b06df3874.  Among them:
+  
+  - You can now use `GET` to retrieve a file whose name has embedded spaces
+    (previously you could only `SEND` such a file).
+
+  - `MGET` had bugs around quoting that inadvertently would strip necessary quote characters.
+
+  - The Kermit Protocol treats a space as a delimeter between filenames, unless
+    it is enclosed in braces.  The C-Kermit client accepts both double quotes
+    and braces as quoting characters.  The client now will properly quote all
+    filenames containing spaces with braces when sent to the server, regardless
+    of which scheme the user selected.
+
+  - Several `REMOTE` commands were broken with filenames with embedded spaces or
+    escaped delimiters.
+
+  - Numerous bugs relating to escaping of embedded quote/brace characters as
+    part of filenames were fixed.
+
+  - `GET` and `SEND` used inconsistent quoting rules.
+
 - [11] Recursive transfer fixed on MacOS.
 
 - [11] Fixed filename collision (overwrite) detection on MacOS.
@@ -222,6 +244,11 @@ relationship between the different Kermit versions.
   
 - [11] Disabled MAIL and PRINT handling by default (dc67bddb), and hardened the
   handling of them to prevent shell injection attacks (23ec7368).
+
+- [11] Added new receive confirmation, which prompts for confirmation before
+  receiving a file with a name that wasn't specifically requested locally.  This
+  is governed by a new `SET RECEIVE CONFIRM` option, which defaults to `ON`.
+  This does not prompt when running headless (ie, server or iksd).
 
 - [10] Changed the default value of SET VARIABLE-EVALUATION to SIMPLE
   (non-recursive) to avoid evaluation issues with backslashes in pathnames on
@@ -321,6 +348,13 @@ changed defaults.  This impact is expected to be rare.
   separately-installed OpenSSL
   
 - [11] Fixed backspace after typing the space in "ssh "
+
+- [11] Fix macOS linker working, thanks to jj1bdx.
+
+- [11] Added help text for `HELP SHOW`, describing each sub-option.
+
+- Properly define CK_WREFRESH on Linux and macOS.  The original definition dates
+  to C-Kermit 5A(190) in 1994 and appears to have just never been updated for these platforms.
   
 - [10] Kermit scripts can now run as Unix pipelines
 
@@ -365,6 +399,8 @@ changed defaults.  This impact is expected to be rare.
 - [11] `SET FILE SYSTEM-ID`
 
 - [11] `SET PROTOCOL STARTUP-STRING`
+
+- [11] `SET RECEIVE CONFIRM`
 
 - [10] `VDIRECTORY` (synonym `V`)
 
@@ -439,11 +475,23 @@ wild.
   default for `SET TERMINAL AUTODOWNLOAD ERROR` has changed from `STOP` to
   `CONTINUE` as suggested by a comment in 2001.
 
-- A minor change to the handling of paths in received files, allowing
+- [11] A minor change to the handling of paths in received files, allowing
   `/RECURSIVE` to work for received files by default again (with more path
   safeguards).  For more details, see the [permissions
   documentation](permissions.md).  This mostly restores the pre-11.0 behavior
   for recursive receives, but with added safeguards.
+  
+- [11] Added new receive confirmation, which prompts for confirmation before
+  receiving a file with a name that wasn't specifically requested locally.  This
+  is governed by a new `SET RECEIVE CONFIRM` option, which defaults to `ON`.
+  This does not prompt when running headless (ie, server or iksd).  It will
+  generally not trigger on things requested via `GET` since the user is known to
+  have requested a file.  `SET RECEIVE CONFIRM OFF` will restore previous
+  behavior.
+  
+- [11] The bugfixes for filenames with embedded spaces or quoting
+  characters/braces in commit b06df3874 may cause requests that previously
+  failed to now succeed.
 
 - [10] The default `SET VARIABLE-EVALUATION` setting has changed from
   `RECURSIVE` to `SIMPLE` to prevent pathnames containing backslashes from
@@ -469,7 +517,7 @@ wild.
 - [9] Removed the undocumented `ok` keyword as an alias for `SUCCESS` in IF
   statements.
 
-# C-Kermit 11.0.506 (not yet released)
+# C-Kermit 11.0.506 updates since 11.0.505
 
 - Skip FTP tests when Kermit is built with -DNOFTP, as the Gentoo package does.
 
