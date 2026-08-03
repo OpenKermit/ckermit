@@ -125,15 +125,17 @@ relationship between the different Kermit versions.
 
 ## Major Bugfixes
 
-- [11] Certain packet sizes on the boundary between small and extended packet sizes
-  could lead to a transfer being hung on all platforms.  Fixed the bug and
-  added extensive tests around this scenario.
+- [11] Certain packet sizes on the boundary between small and extended packet
+  sizes could lead to a transfer being hung on all platforms.  Fixed the bug in
+  commit d560c580d and added extensive tests around this scenario.  Bug
+  introduced in C-Kermit 10.0 Beta.05 of 2022.
   
 - [11] Fixed a data corruption bug that occurred during packet size
   renegotiation due to improperly using strlen() to determine the size of binary
-  data that may contain NULL bytes. (b58e0336)  This issue was only observed by
-  running the test suite on NetBSD, but the code pattern indicates it could
-  occur on any platform given the correct circumstances.
+  data that may contain NULL bytes. (commit b58e0336)  This issue was only
+  observed by running the test suite on NetBSD, but the code pattern indicates
+  it could occur on any platform given the correct circumstances.  The bug was
+  introduced in C-Kermit 5A(188) in 1992 in commit a213649d.
 
 - [11] Numerous pty issues were remedied on MacOS; some had been going back decades.
   In particular, MacOS FIONREAD appears to be unreliable, and assuming it to be
@@ -161,25 +163,30 @@ relationship between the different Kermit versions.
 
   - `GET` and `SEND` used inconsistent quoting rules.
 
-- [11] Recursive transfer fixed on MacOS.
+- [11] Recursive transfer fixed on MacOS in commit f60a87eb46.  The bug appears
+  to have been introduced in C-Kermit 10.0 Beta.01, commit 1755b856b in 2022.
 
-- [11] Fixed filename collision (overwrite) detection on MacOS.
+- [11] Fixed filename collision (overwrite) detection on MacOS.  Same origin as
+  the recursive issue.
 
 - [11] Fixed a packet size negotiation bug that manifest itself in talking to
   E-Kermit (eksw).  The bug was introduced in C-Kermit 9.0.305 of 2021-11-16.
 
-- [11] Make sure timeval usec is initialized.  It was used uninitialized, leading to
-  undefined behavior that could corrupt the modification date by many seconds or
-  minutes.
+- [11] Make sure timeval usec is initialized.  It was used uninitialized,
+  leading to undefined behavior that could corrupt the modification date by many
+  seconds or minutes.  The relevant code was added in C-Kermit 8.0.200 (commit
+  c88d9b8561 in 2001), but usec may not have been widely used at the time.
 
 - [11] Added new `SET PROTOCOL STARTUP-STRING` to allow easy inhibiting of all
   startup strings where necessary.
 
-- [11] When transferring multiple files in text mode, the system would detect Unicode
-  encoding on only the first, and blindly apply that assumption to all the rest.
+- [11] When transferring multiple files in text mode, the system would detect
+  Unicode encoding on only the first, and blindly apply that assumption to all
+  the rest.  Commit 93ffe0241.
 
 - [11] Fixed a bug where raw TLS connections could hang waiting for Telnet
-  negotiation.
+  negotiation in commit 0b9dc4f2.  The issue appears to date back to at least
+  C-Kermit 8.0.211 of 2004.
 
 - [11] Fixed a bug in ttopen where pipe connections did not execute the
   configured command.
@@ -291,7 +298,8 @@ changed defaults.  This impact is expected to be rare.
 - [11] Allow pseudoterminals to work even when Kermit itself is not called from
   a controlling terminal.
 
-- [11] Fixed Unicode text detection for very small files
+- [11] Fixed Unicode text detection for very small files in commit dfd875f3e.
+  Issue dates back to the introduction of this code in C-Kermit 9.0.302 in 2011.
 
 - [11] Several improvements to help text
 
