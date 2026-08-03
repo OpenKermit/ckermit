@@ -3620,7 +3620,7 @@ static char * hxycompat[] = {
 "Reconfigures a fixed set of other SET and ENABLE settings to match",
 "the defaults of an earlier C-Kermit release, or restores the current",
 "C-Kermit 11 defaults.  This changes settings only; it adds no new",
-"behavior beyond what those settings already control.  Since those
+"behavior beyond what those settings already control.  Since those",
 "versions didn't support IPv6, settings for 9 and 10 also disable IPv6.",
 " ",
 "  9        Match C-Kermit 9.0.302 (2011).",
