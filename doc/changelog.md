@@ -1,8 +1,8 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.0 announcement (11.0.506)
+# C-Kermit 11.0 wide announcement (11.0.506)
 
-August 2026
+August 3, 2026
 
 This is the public announcement of the release, and is a summary of all changes
 since the last full release, 9.0.302 in 2011.
@@ -113,9 +113,9 @@ relationship between the different Kermit versions.
   codebase (excluding comments) is about 2600 lines smaller than the last 10.x
   beta!
 
-- [11] Now compatible with OpenSSL 3.x. The OpenSSL runtime version check was
-  relaxed to allow minor version updates, and support was added for compiling
-  with `NO_OPENSSL_VERSION_CHECK` to disable the compatibility check.
+- [11] Now compatible with OpenSSL 3.x and 4.x. The OpenSSL runtime version
+  check was relaxed to allow minor version updates, and support was added for
+  compiling with `NO_OPENSSL_VERSION_CHECK` to disable the compatibility check.
   
 - [11] Static binaries are now supported on Linux, with both glibc and musl
   libc.  Official musl static binaries for Linux on amd64 and arm64 are built
@@ -615,7 +615,7 @@ old behavior (which weakens Kermit's security protections).
 
 # C-Kermit 11.0 announcement (11.0.504)
 
-This was the soft launch of C-Kermit 11.0.  A blog post and more public
+This was the quieter launch of C-Kermit 11.0.  A blog post and more public
 announcement will happen with 11.0.506, so the text below will be revised and
 updated for that release.
 
