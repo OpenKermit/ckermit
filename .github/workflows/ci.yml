@@ -91,7 +91,24 @@ jobs:
           sudo apt-get install -y build-essential libssl-dev libpam0g-dev \
             zlib1g-dev libzstd-dev check python3-pytest \
             python3-pytest-xdist python3-pytest-timeout \
-            python3-pyftpdlib lrzsz
+            python3-pyftpdlib lrzsz gkermit
+
+      # Set up peer binaries for compatibility tests.
+      #
+      # Runs on Linux amd64 for standard CI only. Skipped during
+      # release workflows to avoid fetching unmaintained binaries.
+      - name: Set up Kermit compat-test peers
+        if: >-
+          matrix.platform == 'linux' && matrix.arch == 'amd64' &&
+          inputs.upload-artifact != true
+        run: |
+          cp /usr/bin/gkermit gkermit
+          curl -sSfL -o ckermit-old-9.0.302 \
+            https://archive.org/download/ckermit-9.0.302-linux-amd64/ckermit-9.0.302-linux-amd64
+          curl -sSfL -o eksw \
+            https://archive.org/download/eksw_20260802/eksw
+          sha256sum -c tests/compat-binaries.sha256
+          chmod +x ckermit-old-9.0.302 eksw
 
       - name: Install macOS dependencies
         if: matrix.platform == 'macos'
