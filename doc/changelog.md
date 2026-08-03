@@ -54,12 +54,14 @@ relationship between the different Kermit versions.
   of the bug fixes in the v11 release as noted below.  Timing analysis of the
   test suite also led to most of the performance fixes.  Running the tests under
   load led to the discovery and fix of numerous race conditions.
+
   - [11] Also introduced compatibility tests that test the current release
     against gkermit, E-Kermit (eksw), and the last C-Kermit full release prior
-    to 11.0 (9.0.302 from 2011).
+    to 11.0 (9.0.302 from 2011).  This also led to a bugfix dating back to
+    9.0.304.
 
 - [11] Added CI.  All changes now are validated on Linux, MacOS, FreeBSD, and
-  NetBSD using the above test suites.  Approximately 1000 test cases are being
+  NetBSD using the above test suites.  Over 1000 test cases are being
   run.
   
 - [11] Binaries for multiple platforms are automatically built from CI at
@@ -112,6 +114,8 @@ relationship between the different Kermit versions.
 - [11] Static binaries are now supported on Linux, with both glibc and musl
   libc.  Official musl static binaries for Linux on amd64 and arm64 are built
   for each release.
+  
+- [11] Added a number of new pieces of documentation.
 
 - [10] Support for serial-port speeds up to 4,000,000 bps.
 
