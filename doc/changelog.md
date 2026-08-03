@@ -36,7 +36,7 @@ since the last full release, 9.0.302 in 2011.
 ## Summary
 
 C-Kermit 11 is a major new release, the first non-beta since the last 9.x
-release in 2022.  It represents a significant effort to modernize and improve the
+release in 2011.  It represents a significant effort to modernize and improve the
 C-Kermit codebase.
 
 Since all C-Kermit 10.x releases were betas, some people may be upgrading from
@@ -622,7 +622,7 @@ updated for that release.
 ## Summary
 
 C-Kermit 11 is a major new release, the first non-beta since the last 9.x
-release in 2022.  It represents a significant effort to modernize and improve the
+release in 2011.  It represents a significant effort to modernize and improve the
 C-Kermit codebase.
 
 Since all C-Kermit 10.x releases were betas, some people may be upgrading from
