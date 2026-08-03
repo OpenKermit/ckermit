@@ -22,6 +22,11 @@
     part of filenames were fixed.
   - `GET` and `SEND` used inconsistent quoting rules.
 - Added new document about [filenames with spaces, wildcards, and escaping](spaces-wildcards.md) 
+- Introduced compatibility tests that test the current release
+  against gkermit, E-Kermit (eksw), and the last C-Kermit full release prior
+  to 11.0 (9.0.302 from 2011).
+- Fixed a packet size negotiation bug that manifest itself in talking to
+  E-Kermit (eksw).  The bug was introduced in C-Kermit 9.0.305 of 2021-11-16.
 
 # C-Kermit 11.0.505
 
@@ -93,6 +98,9 @@ relationship between the different Kermit versions.
   of the bug fixes in the v11 release as noted below.  Timing analysis of the
   test suite also led to most of the performance fixes.  Running the tests under
   load led to the discovery and fix of numerous race conditions.
+  - [11] Also introduced compatibility tests that test the current release
+    against gkermit, E-Kermit (eksw), and the last C-Kermit full release prior
+    to 11.0 (9.0.302 from 2011).
 
 - [11] Added CI.  All changes now are validated on Linux, MacOS, FreeBSD, and
   NetBSD using the above test suites.  Approximately 1000 test cases are being
@@ -174,6 +182,9 @@ relationship between the different Kermit versions.
 - [11] Recursive transfer fixed on MacOS.
 
 - [11] Fixed filename collision (overwrite) detection on MacOS.
+
+- [11] Fixed a packet size negotiation bug that manifest itself in talking to
+  E-Kermit (eksw).  The bug was introduced in C-Kermit 9.0.305 of 2021-11-16.
 
 - [11] Make sure timeval usec is initialized.  It was used uninitialized, leading to
   undefined behavior that could corrupt the modification date by many seconds or
