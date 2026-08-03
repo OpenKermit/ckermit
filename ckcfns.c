@@ -1661,6 +1661,7 @@ bgetpkt(bufmax) int bufmax;
     }
     dp = data;				/* Point to packet data buffer */
     size = 0;				/* And initialize its size */
+    bufmax = maxdata();			/* Get maximum data length */
 
 #ifdef DEBUG
     if (deblog)
@@ -2541,6 +2542,7 @@ getpkt(bufmax,xlate) int bufmax, xlate;
   We also decide optimally whether it is better to use a short-format or
   long-format packet when we're near the borderline.
 */
+    bufmax = maxdata();			/* Get maximum data length */
 
     if (first == 1) {			/* If first character of this file.. */
 #ifdef UNICODE

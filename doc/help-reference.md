@@ -2117,6 +2117,10 @@ Syntax: GET [ switches... ] remote-filespec [ as-name ]
   it on  disk.  The /AS-NAME or the second "filename" on the GET command
   line is interpreted as the name of a command.
  
+/CONFIRM:{OFF,ON,ALL}
+  Overrides the global SET RECEIVE CONFIRM setting for this transfer; see
+  HELP SET RECEIVE.
+ 
 /DELETE
   Asks the other Kermit to delete the file (or each file in the group)
   after it has been transferred successfully.
@@ -2257,7 +2261,7 @@ Syntax: HEAD [ switches ] filename
 Synonyms: H, HE
 
 ```
-C-Kermit 11.0.503, 2026/07/24, Copyright (C) 2025-2026,
+C-Kermit 11.0.505, 2026/07/28, Copyright (C) 2025-2026,
   John Goerzen.
 Copyright (C) 1985, 2025,
   Trustees of Columbia University in the City of New York.
@@ -3615,6 +3619,12 @@ Optional switches include:
   it on disk.  The /AS-NAME or the "filename" on the RECEIVE command line
   is interpreted as the name of a command.
  
+/CONFIRM:{OFF,ON,ALL}
+  Overrides the global SET RECEIVE CONFIRM setting for this transfer; see
+  HELP SET RECEIVE.  Since RECEIVE never supplies a name to match incoming
+  files against, ON and ALL both cause every incoming file to require
+  confirmation.
+ 
 /EXCEPT:pattern
   Specifies that any files whose names match the pattern, which can be a
   regular filename, or may contain "*" and/or "?" metacharacters,
@@ -4406,8 +4416,196 @@ Syntax: SHIFT [ n ]
 Synonym: SH
 
 ```
-  Display current values of various items (SET parameters, variables, etc).
-  Type SHOW ? for a list of categories.
+Display current values of various items (SET parameters, variables, etc).
+The categories are listed below.
+ 
+SHOW ALARM
+  Shows the time an ALARM is set to go off, if any.
+ 
+SHOW ARGUMENTS
+  Shows the arguments of the active macro, or the command-line
+  arguments Kermit was started with, if not executing a macro.
+ 
+SHOW ARRAYS
+  Lists the names, dimensions, and sizes of all defined arrays.
+ 
+SHOW ASSOCIATIONS
+  Lists the FILE-CHARACTER-SET and XFER-CHARACTER-SET associations
+  established by the ASSOCIATE command.  See also SHOW CHARACTER-SETS.
+ 
+SHOW ATTRIBUTES
+  Shows which file attributes are sent and accepted during file transfer.
+ 
+SHOW BROWSER
+  Shows the name and options of the Web browser invoked by BROWSE.
+ 
+SHOW CD
+  Shows the current working directory.
+ 
+SHOW CHARACTER-SETS
+  Shows file, terminal, and transfer character sets.  See also
+  SHOW ASSOCIATIONS.
+ 
+SHOW COMMUNICATIONS
+  Shows the parameters of the communication device, such as
+  speed, parity, and flow control.
+ 
+SHOW COMMAND
+  Shows command mode parameters such as the prompt, command width,
+  and command echo.
+ 
+SHOW CONNECTION
+  Shows the parameters of the active or most recent host connection.
+ 
+SHOW CONTROL-PREFIXING
+  Shows the control character and 8-bit prefixing table used
+  for file transfer.
+ 
+SHOW COUNT
+  Shows the value of the count register used for counted loops.
+ 
+SHOW DIAL
+  Shows modem dialing parameters, such as dial method,
+  prefixes, and timeouts.
+ 
+SHOW DOUBLE or SHOW IGNORE
+  Lists any characters set to be doubled when sent and ignored when
+  received, for the current transfer character set.  See SET SEND DOUBLE
+  and SET RECEIVE IGNORE.
+ 
+SHOW EDITOR
+  Shows the external text editor and options invoked by the EDIT command.
+ 
+SHOW ESCAPE
+  Shows the CONNECT mode escape character.
+ 
+SHOW EXIT
+  Shows the exit warning, exit message, and other settings that govern when
+  Kermit exits and what happens when it does so.
+ 
+SHOW FEATURES
+  Lists the optional features that are compiled into this version of Kermit.
+ 
+SHOW FILE
+  Shows file-related parameters such as type, names, and collision handling.
+ 
+SHOW FLOW-CONTROL
+  Shows the current and default flow control settings for each
+  connection type.
+ 
+SHOW FTP
+  Shows settings for the built-in FTP client.
+ 
+SHOW FUNCTIONS
+  Lists the built-in functions, or those whose names match a given
+  pattern.
+ 
+SHOW GLOBALS
+  Lists all global variables.
+ 
+SHOW HISTORY
+  Shows the command history.
+ 
+SHOW INPUT
+  Shows the parameters used by the INPUT command, such as timeout
+  and case sensitivity.
+ 
+SHOW INTERFACES
+  Lists the network interfaces on the local system and their IP addresses.
+ 
+SHOW KEY
+  Shows what a given key is mapped to.  Press the key when prompted.
+ 
+SHOW LANGUAGES
+  Shows language and character set settings
+ 
+SHOW LOCALE
+  Shows locale settings.
+ 
+SHOW LOGS
+  Lists the log files that are open, if any.
+ 
+SHOW MACROS
+  Lists macros or shows the definition of a given macro.
+ 
+SHOW MODEM
+  Shows modem type and related dialing signals.
+ 
+SHOW NETWORK
+  Shows network type and related settings, including TCP and TELNET.
+ 
+SHOW OPTIONS
+  Shows settings for the DELETE, DIRECTORY, PURGE, and TYPE commands.
+ 
+SHOW PATTERNS
+  Shows pattern-matching related settings.
+ 
+SHOW PRINTER
+  Shows printer settings.
+ 
+SHOW PROTOCOL
+  Shows Kermit file transfer protocol parameters.
+ 
+SHOW RENAME
+  Shows the settings for the RENAME command.
+ 
+SHOW SCRIPTS
+  Shows settings related to command and script execution, such as
+  quoting, echoing, and error handling.
+ 
+SHOW SEND-LIST
+  Lists the files queued to be sent by the MSEND command.
+ 
+SHOW SERVER
+  Shows server protocol permissions (see ENABLE and DISABLE).
+ 
+SHOW SEXPRESSION
+  Shows S-expression evaluation settings.
+ 
+SHOW SSH
+  Shows Secure Shell (SSH) settings.
+ 
+SHOW STACK
+  Shows the macro invocation stack.
+ 
+SHOW STATUS
+  Shows whether the most recent command succeeded or failed.
+ 
+SHOW STREAMING
+  Shows streaming and reliable connection settings.
+ 
+SHOW TCP
+  Shows TCP/IP settings.
+ 
+SHOW TELNET
+  Shows TELNET protocol settings.
+ 
+SHOW TELOPT
+  Shows the negotiated state of each TELNET option.
+ 
+SHOW TEMP-DIRECTORY
+  Shows the directory used for Kermit's temporary files.
+ 
+SHOW TERMINAL
+  Shows terminal settings and properties.
+ 
+SHOW TRANSFER
+  Shows file transfer settings such as transfer display,
+  mode, and character set translation.
+ 
+SHOW TRANSMIT
+  Shows the settings for the TRANSMIT command.
+ 
+SHOW TRIGGER
+  Lists defined triggers and the most recent one seen.
+ 
+SHOW VARIABLES
+  Lists the built-in variables, or those whose names match a given
+  pattern.
+ 
+SHOW VERSIONS
+  Shows the version numbers of Kermit and its major components.
+ 
 ```
 
 ### SITE
@@ -6473,6 +6671,7 @@ Compile-time default, from `SHOW FILE`:
  File names:              converted
  Send pathnames:          off
  Receive pathnames:       auto
+ Receive confirm:         on local
  Match dot files:         no
  Wildcard-expansion:      on (kermit)
  File collision:          discard
@@ -6678,15 +6877,20 @@ SET HOST [ switches ] hostname-or-address [ service ] [ protocol-switch ]
   TELNET; specify a different TCP port number or service name to choose a
   different service.
  
-  A hostname or address containing colons of its own (an IPv6 address
-  such as ::1) must be enclosed in square brackets.  A port can follow
-  separated by either a colon or a space.  For instance, "[::1]:23"
-  or "[::1] 23".
+  An IPv6 address containing colons (such as ::1) must be enclosed in
+  brackets if followed by a colon-separated port, e.g. "[::1]:23".
+  A port given as a separate space-delimited argument does not require
+  brackets, e.g. "::1 23" or "[::1] 23".
  
   Which IP address family actually gets used for a hostname that has
   both IPv4 and IPv6 addresses is controlled by SET TCP ADDRESS-FAMILY. For
   SET HOST * (listen for an incoming connection), the same setting
   controls which family (or families) are listened on.
+ 
+  A link-local address (fe80::/10) requires a zone identifying its
+  interface, specified as a %interface or %index suffix, e.g.
+  "[fe80::1%eth0]:23". Connecting to a link-local address without a zone
+  fails.
  
   The first set of switches can be:
  
@@ -7573,6 +7777,32 @@ SET RECEIVE CHARACTER-SET { AUTOMATIC, MANUAL }
   on the transfer character-set announcer, if any, of an incoming text file.
   AUTOMATIC by default.  Also see HELP ASSOCIATE.
  
+SET RECEIVE CONFIRM { OFF, ON, ALL } [ LOCAL, REMOTE, BOTH ]
+  Controls whether Kermit prompts for confirmation before writing an
+  incoming file, guarding against unexpected filenames from a remote host.
+  ON (the default) prompts, except when the incoming name is a precise
+  (non-wildcard) match for a name given to GET or MGET, or, for a
+  recursive GET, when the file arrives under the directory named for the
+  transfer. A RECEIVE, or a transfer accepted because the remote host
+  issued SEND, always prompts, since no local filename specification
+  exists for comparison.
+ 
+  ALL applies the same matching rules as ON, but also prompts for each
+  individual file inside a recursive transfer. Use ALL, not ON, if you
+  want every file in a recursive transfer confirmed by name before it
+  can collide with anything already on disk; ON alone does not fully
+  substitute for SET FILE COLLISION REJECT there.
+ 
+  OFF never prompts.
+ 
+  The optional LOCAL/REMOTE/BOTH scope (LOCAL by default) controls whether
+  this setting applies when this Kermit is the local or remote end of the
+  connection. A Kermit acting as an unattended server (SERVER command or
+  IKSD) never prompts, regardless of this setting.
+ 
+  GET, MGET, and RECEIVE also accept a /CONFIRM:{OFF,ON,ALL} switch to
+  override this setting for one command.
+ 
 SET RECEIVE CONTROL-PREFIX number
   ASCII value of prefix character used for quoting control characters in
   packets that Kermit receives, normally 35 (number sign).  Don't change
@@ -8034,6 +8264,10 @@ SET TCP ADDRESS6 <ipv6-address>
   TCP/IP stack choose.  <ipv6-address> must be an IPv6 literal.  Specify
   no <ipv6-address> to remove the preference.  Only affects IPv6
   connections and listeners.
+ 
+  A link-local address (fe80::/10) requires a zone identifying its
+  interface. Specify <ipv6-address> with a %interface (e.g. fe80::1%eth0)
+  or %index (e.g. fe80::1%2) suffix.
  
 SET TCP KEEPALIVE { ON, OFF }
   Setting this ON might help to detect broken connections more quickly.

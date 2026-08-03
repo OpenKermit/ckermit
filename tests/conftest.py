@@ -3,6 +3,7 @@ import os
 import pty
 import re
 import select
+import shlex
 import shutil
 import socket
 import subprocess
@@ -310,6 +311,35 @@ def wermit_path():
     return str(path.absolute())
 
 
+def _optional_binary_path(name):
+    """Return absolute path to a repository-root compatibility binary.
+
+    Skip the test if the binary is not present.
+    """
+    path = Path(__file__).parent.parent / name
+    if not path.exists():
+        pytest.skip(f"{name} binary not present at {path}")
+    return str(path.absolute())
+
+
+@pytest.fixture(scope="session")
+def gkermit_path():
+    """Return path to G-Kermit binary for compatibility tests."""
+    return _optional_binary_path("gkermit")
+
+
+@pytest.fixture(scope="session")
+def eksw_path():
+    """Return path to E-Kermit binary for compatibility tests."""
+    return _optional_binary_path("eksw")
+
+
+@pytest.fixture(scope="session")
+def ckermit_old_path():
+    """Return path to C-Kermit 9.0.302 binary for compatibility tests."""
+    return _optional_binary_path("ckermit-old-9.0.302")
+
+
 @pytest.fixture(scope="session")
 def wermit_ssl_available(wermit_path):
     """
@@ -409,6 +439,11 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
     server_setup_cmds itself ends in "exit" (to instead drive an interactive
     script over the connection) simply leaves that trailing SERVER unreached,
     exactly as in a real take file.
+
+    The returned callable accepts an optional server_binary_path
+    parameter, defaulting to wermit_path. Passing another binary
+    runs the server side with that executable for compatibility
+    testing.
     """
     created_files = []
     opened_logs = []
@@ -417,7 +452,8 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
 
     def _run_pseudoterminal(server_dir, setup_lines, cmd_str,
                             client_prefix, client_debug_prefix,
-                            server_log, client_log, timeout):
+                            server_log, client_log, timeout,
+                            server_binary_path):
         server_ksc = Path(server_dir).parent / \
             f"server_{Path(server_dir).name}.ksc"
         logger.info(
@@ -437,7 +473,7 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
             "-H", "-Y", "-Q", "-C",
             f"{client_debug_prefix}set command more-prompting off, "
             f"set delay 0, set host /network-type:pseudoterminal "
-            f"{wermit_path} {server_ksc.absolute()}, set delay 0, "
+            f"{server_binary_path} {server_ksc.absolute()}, set delay 0, "
             f"{client_prefix}{cmd_str}, close, exit"
         ]
         logger.info(
@@ -464,7 +500,8 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         return transport, prefix, prefix
 
     def _run_tcp(server_dir, setup_lines, cmd_str, client_prefix,
-                client_debug_prefix, server_log, client_log, timeout):
+                client_debug_prefix, server_log, client_log, timeout,
+                server_binary_path):
         switch, server_prefix, client_extra_prefix = \
             _tcp_switch_and_prefixes(transport)
         server_stdout_log = Path(server_dir).parent / \
@@ -491,7 +528,8 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
                 port, server_full_cmd)
             server_log_fh = open(server_stdout_log, "w")
             opened_logs.append(server_log_fh)
-            proc = spawn_wermit(server_full_cmd, stdout=server_log_fh)
+            proc = spawn_wermit(server_full_cmd, stdout=server_log_fh,
+                                binary_path=server_binary_path)
             try:
                 _wait_for_tcp_listener(
                     proc, server_stdout_log, server_log_fh,
@@ -532,7 +570,7 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         return result
 
     def _run(server_dir, server_setup_cmds="", client_commands="",
-             timeout=10):
+             timeout=10, server_binary_path=None):
         # Only ever written to if DEBUG_LOOPBACK enables "log debug"
         # on both sides.  Distinct from _run_tcp's
         # stdout-capture log.
@@ -573,7 +611,8 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         run = _run_pseudoterminal if transport == "pseudoterminal" \
             else _run_tcp
         result = run(server_dir, setup_lines, cmd_str, client_prefix,
-                    client_debug_prefix, server_log, client_log, timeout)
+                    client_debug_prefix, server_log, client_log, timeout,
+                    server_binary_path or wermit_path)
 
         if DEBUG_LOOPBACK:
             for label, log_path in (("Server", server_log),
@@ -640,11 +679,14 @@ def spawn_wermit(wermit_path):
     Asynchronously runs a wermit process in the background, optionally
     redirecting its combined stdout/stderr to a caller-provided file
     object. Automatically terminates/kills the process on teardown.
+
+    An optional binary_path parameter overrides wermit_path to spawn
+    an alternate Kermit binary.
     """
     processes = []
 
-    def _spawn(args, cwd=None, stdout=None):
-        cmd = [wermit_path] + args
+    def _spawn(args, cwd=None, stdout=None, binary_path=None):
+        cmd = [binary_path or wermit_path] + args
         logger.info("spawn_wermit: Launching background process: %s",
                     " ".join(cmd))
         proc = subprocess.Popen(
@@ -1366,3 +1408,30 @@ def zmodem_remote(request, wermit_path, get_free_port, spawn_wermit):
                 path.unlink()
         except OSError:
             pass
+
+
+@pytest.fixture
+def foreign_kermit_pty(wermit_path):
+    """Run wermit against an external binary over a pseudoterminal.
+
+    Used for compatibility testing with Kermit implementations that run
+    over stdin/stdout without SERVER mode support.
+
+    Return a callable with signature:
+        foreign_kermit_pty(peer_argv, cmd_str, cwd, timeout=45,
+                           debug_log=None)
+
+    peer_argv is the external binary argument list. cmd_str is the
+    wermit command string containing a literal "{HOST}" placeholder for
+    the SET HOST target. Return tuple (returncode, stdout).
+
+    The "{HOST}" placeholder is replaced via str.replace() rather than
+    str.format() to preserve literal braces in Kermit commands.
+    """
+    def _run(peer_argv, cmd_str, cwd, timeout=45, debug_log=None):
+        host = ("/network-type:pseudoterminal "
+                + " ".join(shlex.quote(str(a)) for a in peer_argv))
+        full_cmd_str = cmd_str.replace("{HOST}", host)
+        return run_wermit_pty(wermit_path, full_cmd_str, cwd,
+                              timeout=timeout, debug_log=debug_log)
+    return _run

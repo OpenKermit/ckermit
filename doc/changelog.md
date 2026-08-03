@@ -21,7 +21,7 @@
   - Numerous bugs relating to escaping of embedded quote/brace characters as
     part of filenames were fixed.
   - `GET` and `SEND` used inconsistent quoting rules.
-  
+- Added new document about [filenames with spaces, wildcards, and escaping](spaces-wildcards.md) 
 
 # C-Kermit 11.0.505
 
