@@ -205,8 +205,10 @@ relationship between the different Kermit versions.
 
 - [11] Several other pty issues were also remedied on NetBSD. 
 
-- [11] Fix IKSD server refusing all connections when built with SSL support but not
-  configured with an SSL cert.  This had been a long-standing C-Kermit bug.
+- [11] Fix IKSD server refusing all connections when built with SSL support but
+  not configured with an SSL cert.  This had been a long-standing C-Kermit bug.
+  Fixed in commit 5160132b.  Appears to have been introduced in C-Kermit 8.0.200
+  in 2001 with the introduction of the SSL code at that time.
   
 - [10] Fixed the `TOUCH` command, which had been nonfunctional.
 
@@ -276,10 +278,11 @@ changed defaults.  This impact is expected to be rare.
 - [11] Fixed an unhandled exception warning on NetBSD
 
 - [11] Prevent Kermit from killing all of the user's processes in certain edge
-  cases where it may try to kill PID -1.
+  cases where it may try to kill PID -1.  Fixed in commit 72fa00b3.  Bug
+  introduced in C-Kermit 9.0.302 of 2011.
 
-- [11] Correct use of ziperm vs. ziperms for non-CK_PERMS platforms.  Appears to
-  have been latent since C-Kermit 7.0 in 2000.
+- [11] Correct use of ziperm vs. ziperms for non-CK_PERMS platforms.  Fixed in
+  commit 3fcd731c.  Appears to have been latent since C-Kermit 7.0 in 2000.
 
 - [11] Updated the list of text and binary extensions to have more modern filetypes,
   and fixed typos in the old list.
@@ -313,7 +316,8 @@ changed defaults.  This impact is expected to be rare.
 - [11] Fixed Gentoo builds after the ncurses tinfo library split.
 
 - [11] Fixed SET HOST to work properly after an ssh command had been issued
-  earlier in the same session. (10eb1924)
+  earlier in the same session. (10eb1924)  Bug introduced in C-Kermit 9.0.302 of
+  2011.
 
 - [11] Fixed several issues where EINTR from read() could cause C-Kermit to
   improperly close a connection.  In one case, signals such as SIGWINCH at
@@ -336,16 +340,9 @@ changed defaults.  This impact is expected to be rare.
 - [11] Fixed a bug on OpenBSD that could cause ZModem transfers to be truncated
   under heavy load
 
-- [11] Fixed a race, most prominently manifested on OpenBSD, where C-Kermit may
-  attempt to kill a child, but the signal arrives after that PID has been
-  assigned a new process, causing unintended side-effects.  Other platforms
-  don't seem to recycle PIDs as fast.
-  
 - [11] Now give an accurate error message instead of "write access to UUCP
   lockfile" about errors that had nothing to do with the lockfile
   
-- [11] Correctly build the BSD binaries without SSL
-
 - [11] Fixing recursive receive, which led to a deep dive into C-Kermit permissions.
   See the new [C-Kermit permissions documentation](permissions.md).
 
@@ -354,11 +351,9 @@ changed defaults.  This impact is expected to be rare.
 - [11] Fixed a telnet negotiation race related to EINTR and select
 
 - [11] Fixed Unicode BOM detection issue that may manifest on big-endian
-  architectures.
+  architectures.  Fixed in commit da4699ca2.  Dates back to at least C-Kermit
+  8.0.200 of 2001, and possibly further.
 
-- [11] Switched all BSDs to use base system OpenSSL instead of
-  separately-installed OpenSSL
-  
 - [11] Fixed backspace after typing the space in "ssh "
 
 - [11] Fix macOS linker working, thanks to jj1bdx.
