@@ -57,11 +57,11 @@ relationship between the different Kermit versions.
 
   - [11] Also introduced compatibility tests that test the current release
     against gkermit, E-Kermit (eksw), and the last C-Kermit full release prior
-    to 11.0 (9.0.302 from 2011).  This also led to a bugfix dating back to
-    9.0.304.
+    to 11.0 (9.0.302 from 2011).  This also led to a fix for a bug dating back
+    to C-Kermit 9.0.304 of 2012.
 
 - [11] Added CI.  All changes now are validated on Linux, MacOS, FreeBSD, and
-  NetBSD using the above test suites.  Over 1000 test cases are being
+  NetBSD using the above test suites.  Over 1700 test cases are being
   run.
   
 - [11] Binaries for multiple platforms are automatically built from CI at
@@ -82,6 +82,12 @@ relationship between the different Kermit versions.
   write a nice Markdown file that acts as an up-to-date command reference for
   your specific platform.  A generated version of this can be found at 
   [HELP reference](help-reference.md).
+  
+- [11] `SET COMPATIBILITY 9` and `SET COMPATIBILITY 10` to easily change
+  settings to maximize compatibility with C-Kermit 9.0.302 and 10.0 Beta.12,
+  respectively.  This restores previous behavior, which weakens Kermit's
+  security posture.  These settings can also be applied at startup by invoking
+  Kermit as `kermit9` or `kermit10`.
   
 - [9] Android platform support, including NDK builds and a vanity herald.
 
@@ -360,7 +366,7 @@ changed defaults.  This impact is expected to be rare.
 
 - [11] Added help text for `HELP SHOW`, describing each sub-option.
 
-- Properly define CK_WREFRESH on Linux and macOS.  The original definition dates
+- [11] Properly define CK_WREFRESH on Linux and macOS.  The original definition dates
   to C-Kermit 5A(190) in 1994 and appears to have just never been updated for these platforms.
   
 - [10] Kermit scripts can now run as Unix pipelines
@@ -398,6 +404,8 @@ changed defaults.  This impact is expected to be rare.
   rather than using hardcoded system paths.
 
 ## Summary of new and changed commands and scripting functions
+
+- [11] `SET COMPATIBILITY`
 
 - [11] `SET TCP ADDRESS-FAMILY` (see [IPv6 documentation](ipv6.md))
 
@@ -445,6 +453,11 @@ changed defaults.  This impact is expected to be rare.
 All items highlighted here are expected to rarely if ever cause an issue in the
 wild.
 
+Invoking Kermit as `kermit9` or `kermit10` (copy or symlink `kermit` or `wermit`
+to those names) or using `SET COMPATIBILITY` will revert these changed settings
+to Kermit 9.0.302 or 10.0 Beta.12 settings as appropriate, restoring most of the
+old behavior (which weakens Kermit's security protections).
+
 - [11] The default `SET FILE COLLISION` has changed from `BACKUP` to `REJECT`
   for security reasons.  See the options for `COLLISION` under `HELP SET FILE`
   for more details.  This is the one most likely to be user-visible.
@@ -455,10 +468,6 @@ wild.
   IPv6 address fails to connect, the IPv4 address will be tried next.  The
   previous behavior, which was always IPv4, can be restored with `SET TCP
   ADDRESS-FAMILY IPV4`.
-
-- [11] A pseudoterminal started with SET HOST is assumed to be something other
-  than a shell, so shell commands (eg, `rz\n`, or `kermit -I\n`) are no longer
-  sent down it, since these can cause corruption.
 
 - [11] Previous C-Kermit already used `SET FILE TYPE BINARY`, but unfortunately
   they had transfer-mode set to automatic, which would override the binary file
@@ -524,7 +533,7 @@ wild.
 - [9] Removed the undocumented `ok` keyword as an alias for `SUCCESS` in IF
   statements.
 
-# C-Kermit 11.0.506 updates since 11.0.505
+## C-Kermit 11.0.506 updates since 11.0.505
 
 - Skip FTP tests when Kermit is built with -DNOFTP, as the Gentoo package does.
 
@@ -571,6 +580,12 @@ wild.
 - Fixed a packet size negotiation bug that manifest itself in talking to
   E-Kermit (eksw).  The bug was introduced in C-Kermit 9.0.305 of 2021-11-16.
 
+- `SET COMPATIBILITY 9` and `SET COMPATIBILITY 10` to easily change
+  settings to maximize compatibility with C-Kermit 9.0.302 and 10.0 Beta.12,
+  respectively.  This restores previous behavior, which weakens Kermit's
+  security posture.  These settings can also be applied at startup by invoking
+  Kermit as `kermit9` or `kermit10`.
+  
 # C-Kermit 11.0.505
 
 - Now support OpenSSL v4.0.  Support for older OpenSSL remains also.  CI is
@@ -983,10 +998,6 @@ wild.
   IPv6 address fails to connect, the IPv4 address will be tried next.  The
   previous behavior, which was always IPv4, can be restored with `SET TCP
   ADDRESS-FAMILY IPV4`.
-
-- [11] A pseudoterminal started with SET HOST is assumed to be something other
-  than a shell, so shell commands (eg, `rz\n`, or `kermit -I\n`) are no longer
-  sent down it, since these can cause corruption.
 
 - [11] Previous C-Kermit already used `SET FILE TYPE BINARY`, but unfortunately
   they had transfer-mode set to automatic, which would override the binary file
