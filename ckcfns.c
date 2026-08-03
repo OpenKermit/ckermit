@@ -1,4 +1,4 @@
-char *fnsv = "C-Kermit functions, 11.0.503, 24 Jul 2026";
+char *fnsv = "C-Kermit functions, 11.0.506, 03 Aug 2026";
 
 char *nm[] =  { "Disabled", "Local only", "Remote only", "Enabled" };
 
