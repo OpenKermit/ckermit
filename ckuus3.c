@@ -6562,7 +6562,128 @@ setvareval() {
     vareval = x;
     return(success = 1);
 }
+#endif /* NOSPL */
 
+/* SET COMPATIBILITY: reconfigure settings to match an earlier release */
+
+static struct keytab compattab[] = {
+    { "10",      10, 0 },
+    { "11",      11, 0 },
+    { "9",        9, 0 },
+    { "default", 11, 0 }
+};
+static int ncompattab = (sizeof(compattab) / sizeof(struct keytab));
+
+/*
+  Reconfigure settings to match C-Kermit 10.0 Beta.12.
+  Assigns global variables directly to match corresponding SET and ENABLE
+  defaults.
+*/
+int
+compat_10() {
+    extern int fncact;                  /* SET FILE COLLISION */
+    extern int adl_err;                 /* SET TERMINAL AUTODOWNLOAD ERROR */
+    extern int fnrconfirm, fnrconfirm_scope; /* SET RECEIVE CONFIRM */
+    extern int fnrpath;                 /* SET RECEIVE PATHNAMES */
+    extern int en_cwd, en_cpy, en_dir, en_fin, en_get, en_mkd, en_ren,
+        en_sen, en_set, en_spa, en_typ, en_who, en_asg, en_que,
+        en_mai, en_pri, en_ena;
+#ifdef CK_IPV6
+    extern int tcp_af;
+#endif /* CK_IPV6 */
+
+    fncact = XYFX_B;                    /* SET FILE COLLISION BACKUP */
+    xfermode = XMODE_A;                 /* SET TRANSFER MODE AUTOMATIC */
+    adl_err = 1;                        /* SET TERM AUTODOWNLOAD ERROR STOP */
+    fnrconfirm = CONFIRM_OFF;           /* SET RECEIVE CONFIRM OFF BOTH */
+    fnrconfirm_scope = 3;
+#ifdef CK_IPV6
+    tcp_af = TCP_AF_V4;                 /* SET TCP ADDRESS-FAMILY IPV4 */
+#endif /* CK_IPV6 */
+    fnrpath = PATH_ABS;                 /* SET RECEIVE PATHNAMES ABSOLUTE */
+
+    /*
+      Assign individual ENABLE variables. EN_ALL is not used because
+      en_del, en_rmd, en_ret, en_xit, en_bye, and en_hos must remain
+      unchanged.
+
+      Assign en_ena directly because doenable's EN_ENA guard applies only
+      to command dispatch.
+    */
+    en_cwd = en_cpy = en_dir = en_fin = en_get = en_mkd = en_ren =
+        en_sen = en_set = en_spa = en_typ = en_who = en_asg = en_que =
+        en_mai = en_pri = en_ena = 3;
+
+    return(1);
+}
+
+/*
+  Reconfigure settings to match C-Kermit 9.0.302.
+*/
+int
+compat_9() {
+    return(compat_10());
+}
+
+/*
+  Reconfigure settings back to C-Kermit 11 defaults.
+  Resets globals to the initial values used in ckcmai.c.
+*/
+int
+compat_11_default() {
+    extern int fncact;                  /* SET FILE COLLISION */
+    extern int adl_err;                 /* SET TERMINAL AUTODOWNLOAD ERROR */
+    extern int fnrconfirm, fnrconfirm_scope; /* SET RECEIVE CONFIRM */
+    extern int fnrpath;                 /* SET RECEIVE PATHNAMES */
+    extern int en_cwd, en_cpy, en_dir, en_fin, en_get, en_mkd, en_ren,
+        en_sen, en_set, en_spa, en_typ, en_who, en_asg, en_que,
+        en_mai, en_pri, en_ena;
+#ifdef CK_IPV6
+    extern int tcp_af;
+#endif /* CK_IPV6 */
+
+    fncact = XYFX_D;                    /* SET FILE COLLISION DISCARD */
+    xfermode = XMODE_M;                 /* SET TRANSFER MODE MANUAL */
+    adl_err = 0;                    /* SET TERM AUTODOWNLOAD ERROR CONTINUE */
+    fnrconfirm = CONFIRM_ON;            /* SET RECEIVE CONFIRM ON LOCAL */
+    fnrconfirm_scope = 1;
+#ifdef CK_IPV6
+    tcp_af = TCP_AF_AUTO;               /* SET TCP ADDRESS-FAMILY AUTO */
+#endif /* CK_IPV6 */
+    fnrpath = PATH_AUTO;                 /* SET RECEIVE PATHNAMES AUTO */
+
+    en_cwd = en_cpy = en_dir = en_fin = en_get = en_mkd = en_ren =
+        en_sen = en_set = en_spa = en_typ = en_who = en_asg = en_que =
+        en_ena = 2;
+    en_mai = en_pri = 0;
+
+    return(1);
+}
+
+int
+setcompat() {
+    int x = 0, y = 0;
+
+    if ((x = cmkey(compattab,ncompattab,
+		   "C-Kermit version to be compatible with",
+		   "",
+		   xxstring)) < 0)
+      return(x);
+    if ((y = cmcfm()) < 0)
+      return(y);
+    switch (x) {
+      case 9:
+        return(success = compat_9());
+      case 10:
+        return(success = compat_10());
+      case 11:
+        return(success = compat_11_default());
+      default:
+        return(success = 0);
+    }
+}
+
+#ifndef NOSPL
 #ifdef CK_ANSIC                         /* SET ALARM */
 int
 setalarm(long xx)
@@ -11373,6 +11494,9 @@ case XYCARR:                            /* CARRIER-WATCH */
       case XYCASE:
         return(success = seton(&inpcas[cmdlvl]));
 #endif /* NOSPL */
+
+      case XYCOMPAT:                    /* SET COMPATIBILITY */
+        return(setcompat());
 
       case XYCMD:                       /* COMMAND ... */
         if ((y = cmkey(scmdtab,nbytt,"","",xxstring)) < 0)

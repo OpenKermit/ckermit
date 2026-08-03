@@ -2026,6 +2026,7 @@ struct keytab prmtab[] = {
 #endif /* NOLOCAL */
     { "cmd",              XYCMD,   CM_INV },
     { "command",          XYCMD,   0 },
+    { "compatibility",    XYCOMPAT, 0 },
 #ifdef CK_SPEED
     { "con",              XYQCTL,  CM_INV|CM_ABR },
 #endif /* CK_SPEED */
