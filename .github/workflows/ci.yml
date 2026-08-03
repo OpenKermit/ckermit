@@ -100,7 +100,7 @@ jobs:
       - name: Set up Kermit compat-test peers
         if: >-
           matrix.platform == 'linux' && matrix.arch == 'amd64' &&
-          inputs.upload-artifact != true
+          github.event_name != 'workflow_call'
         run: |
           cp /usr/bin/gkermit gkermit
           curl -sSfL -o ckermit-old-9.0.302 \
