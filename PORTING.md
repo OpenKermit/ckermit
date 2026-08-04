@@ -2,8 +2,8 @@
 
 Running notes for the serial-only Victor 9000 port. Branch: `victor9k-port`.
 
-**Status:** all 24 modules of the minimal build compile clean for `ia16-elf-gcc`.
-Nothing has been linked or run on hardware yet.
+**Status:** all 24 modules of the minimal build compile clean for
+`ia16-elf-gcc`. Nothing has been linked or run on hardware yet.
 
 **Verdict:** this is a thin-platform port, not a rewrite. The blocker people
 expect — a modern flat-memory codebase that cannot be squeezed into 64K — did
@@ -31,11 +31,90 @@ code: `ckubs2.mak` says C-Kermit 7.0 could no longer fit an interactive parser
 on the PDP-11, and the makefile marks the 16-bit `minix` target "too big". Both
 refer to a single 64K address space for code **and** data. We have far code
 (medium model), so only the data half of that warning applies to us — and the
-measurements below say we clear it.
+measurements in §9 say we clear it.
 
 ---
 
-## 2. Toolchain and memory model
+## 2. Target: one binary, two operating systems
+
+`CKERMIT.EXE` is an **MS-DOS program that drives the Victor's serial hardware
+directly.** It is launched from a DOS prompt, seizes the µPD7201 and the 8259's
+serial IRQ for the duration of the run, and hands them back on exit.
+
+It is designed to run unmodified on **both**:
+
+- **Victor MS-DOS 3.1** — the machine's native OS.
+- **FreeDOS for Victor** (`~/projects/myfreedos`) — the modern port.
+
+That dual-target property is not aspirational. Everything Kermit touches on the
+serial path is fixed by the Victor's wiring, not by OS convention:
+
+| Resource | Address | Varies by OS? |
+|---|---|---|
+| µPD7201 MPSC, channel A | `0xE000:0040` data, `0xE000:0042` ctrl/RR0 | no — wiring |
+| µPD7201 MPSC, channel B | `0xE000:0041` data, `0xE000:0043` ctrl/RR0 | no — wiring |
+| 8253 Counter 0 — channel A baud | `0xE000:0020`, ctrl `0xE000:0023` | no — wiring |
+| 8253 Counter 1 — channel B baud | `0xE000:0021` | no — wiring |
+| 8253 Counter 2 — system tick | — | no — wiring |
+| VIA2 (6522) clock enables | `0xE800:0041` PA0=chA, PA1=chB (LOW=internal) | no — wiring |
+| 8259 PIC, memory-mapped | `0xE0000`–`0xE0001` | no |
+| **Serial IRQ1 → IVT slot** | — | **YES — see below** |
+
+**Exactly one thing differs between the two platforms: the interrupt vector.**
+
+| Environment | PIC `ICW2` | IRQ1 (serial) lands on |
+|---|---|---|
+| Victor boot ROM | `0x20` | INT 21h–27h range (IRQ1 = INT 21h) |
+| **Victor MS-DOS 3.1** (BIOS `IRQ.LST`) | `0x40` | **INT 41h** |
+| **FreeDOS for Victor** (`kernel/victor_pic.asm`) | `0x08` | **INT 09h** |
+
+So the driver must resolve its vector at startup rather than hardcoding it.
+Detect the host with INT 21h AH=30h — FreeDOS reports OEM `0xFD` in BH — and
+hook `0x09` or `0x41` accordingly. **Do not** probe by hooking both: under the
+FreeDOS port INT 41h may already hold the fixed-disk parameter *table* pointer,
+and writing a code vector over a data vector is an ugly way to fail.
+
+Note that 8253 Counter 2, not Counter 0 or 1, is the system tick (FreeDOS routes
+it IR2 → INT 0Ah). Reprogramming Counter 0 for 38400 therefore does **not**
+disturb DOS timekeeping on either platform. `SET SPEED` is free to write the
+divisor.
+
+### The discipline that makes dual-target hold
+
+Owning the serial hardware gets you half of it. The other half is a rule:
+
+> **Everything that is not the serial port goes through INT 21h. No INT 10h,
+> no INT 16h, no INT 14h, no direct screen memory, no BIOS data area.**
+
+Victor MS-DOS 3.1 has no IBM-compatible BIOS video or keyboard. The FreeDOS
+port supplies some. Targeting the intersection is what lets one binary run on
+both, and it costs almost nothing here:
+
+- **Console** — C-Kermit's entire console surface is seven small functions
+  (`conoc`, `conol`, `coninc`, `conchk`, `congm`, `concb`, `conres`). All map
+  onto INT 21h AH=06h/07h/08h/0Bh.
+- **Files** — the DOS 2.0 handle API (`3Ch`/`3Dh`/`3Eh`/`3Fh`/`40h`/`42h`),
+  directory search (`4Eh`/`4Fh`), cwd (`47h`/`3Bh`), mkdir/rmdir (`39h`/`3Ah`),
+  file times (`57h`). All present in 3.1. Avoid long filenames (`71xx`) and
+  anything DOS 4.0+.
+- **INT 23h / INT 24h** — install Ctrl-Break and critical-error handlers, so a
+  floppy error mid-transfer does not drop the user into "Abort, Retry, Fail"
+  underneath a live protocol.
+
+### Consequences of this decision
+
+- The bare-metal newlib in `~/projects/newlibc/phase3_newlib` — its VFS, FAT
+  driver, SASI block layer, crt0, and linker script — is **out of scope.** It is
+  a fine piece of work and a possible later target, but it is not on the path to
+  this milestone.
+- The FreeDOS `INT 14h` driver (`kernel/victor_int14.asm`) is **not used** as an
+  API. Its guts are reused as source (see §12), but Kermit does not call it:
+  INT 14h AH=00h cannot express any speed above 9600, and it offers no
+  "how many bytes are queued" call, which is exactly what `ttchk()` needs.
+
+---
+
+## 3. Toolchain and memory model
 
 Built with `ia16-elf-gcc 6.3.0` in the `ia16-ubuntu-2` container.
 
@@ -54,14 +133,11 @@ all fit in one 64K DGROUP**. `-mcmodel=medium` gives far code (multiple code
 segments, ~1MB), which is why 296KB of text is not a problem.
 
 OpenWatcom (`~/projects/open-watcom-v2`, `wcc`) *does* have compact/large/huge
-and would allow far data. It was evaluated and **is not needed** — see §9. It
-also costs more: `-DUNIX` immediately fails on Watcom's DOS headers
-(`sys/param.h` missing), so Watcom would mean inventing a platform identity
-from scratch instead of reusing the existing POSIX one.
+and would allow far data. It was evaluated and **is not needed** — see §9a/§9b.
 
 ---
 
-## 3. Build
+## 4. Build
 
 ```sh
 make -f victor9k.mak          # build all objects
@@ -75,7 +151,7 @@ comment explaining why they exist — not in the makefile.
 
 ---
 
-## 4. Source files: in and out
+## 5. Source files: in and out
 
 ### In (24 modules)
 
@@ -126,20 +202,20 @@ entirely translation tables.
 | `ckctel.c` bulk | 290KB | telnet protocol |
 | `ckudia.c` | 238KB | modem dialing + modem database |
 | `ckupty.c` | 50KB | pseudo-terminals (needs `fork`) |
-| `ckucon.c` / `ckucns.c` | 81/78KB | CONNECT — one needs `fork()`, the other `select()` on a tty; neither is usable. See §8. |
+| `ckucon.c` / `ckucns.c` | 81/78KB | CONNECT — one needs `fork()`, the other `select()` on a tty; neither is usable. See §13. |
 | `ckuscr.c` | 18KB | UUCP-style scripting |
 | `ckcmdb.c` | 7KB | malloc debugging |
 
 ---
 
-## 5. Platform abstraction boundaries
+## 6. Platform abstraction boundaries
 
 This is the map that makes the port cheap. Everything Victor-specific is
 reachable from four files.
 
 | Concern | Module | Notes |
 |---|---|---|
-| Serial / TTY I/O | **`ckutio.c`** | `ttopen`, `ttclos`, `ttpkt`, `ttinc`, `ttinl`, `ttoc`, `ttol`, `ttsspd`, `ttflui`. POSIX termios. |
+| Serial / TTY I/O | **`ckutio.c`** | `ttopen`, `ttclos`, `ttpkt`, `ttinc`, `ttinl`, `ttoc`, `ttol`, `ttsspd`, `ttflui`. POSIX termios — see §12. |
 | Console / keyboard | **`ckutio.c`** | `coninc`, `conchk`, `conoc`, `conol`, `congm`, `concb`, `conres`. |
 | Timers | **`ckutio.c`** | `rtimer`, `gtimer`, `ztime`. |
 | File system | **`ckufio.c`** | `zopeni`, `zopeno`, `zinfill`, `zsoutx`, `zclose`, `zchki`, `zchdir`, directory walk. |
@@ -148,11 +224,12 @@ reachable from four files.
 | Terminal emulation / CONNECT | `ckucon.c`, `ckucns.c` | Excluded. |
 
 **`ckutio.c` and `ckufio.c` are the port.** Everything above them is unmodified
-upstream code.
+upstream code. Everything below them is ours, and lives in `ckvictor.c` plus a
+small newlib libgloss (§12).
 
 ---
 
-## 6. Feature flags
+## 7. Feature flags
 
 All in `ckvictor.h`, grouped with rationale. Summary:
 
@@ -176,7 +253,7 @@ Streaming is **not** network-coupled — it is negotiated protocol behaviour in
 
 ---
 
-## 7. Upstream changes made
+## 8. Upstream changes made
 
 Five small, guarded edits. None changes behaviour on any other platform.
 
@@ -196,47 +273,6 @@ Five small, guarded edits. None changes behaviour on any other platform.
 
 Items 2 and 3 are worth offering upstream regardless of this port; both are
 latent hazards on any small-memory target.
-
----
-
-## 8. 16-bit portability audit
-
-Measured under the Victor configuration, not assumed.
-
-### Resolved
-
-| Issue | Finding |
-|---|---|
-| `int` is 32 bits | Not assumed. Builds clean at `int` = 16 bits. |
-| Objects > 64K | **None.** Largest static object is now `rq_tok` at 2064 bytes. |
-| `malloc` > 64K | Avoided. `-DUNIX` makes `ckcdeb.h` define `DYNAMIC`, which turns `bigsbuf`/`bigrbuf` into malloc'd pointers. Without `DYNAMIC` they are `CHAR bigsbuf[SBSIZ+5]` with `SBSIZ = MAXSP*(MAXWS+1) = 2048*33 = 67584` — **over 64K, would not compile**. Do not remove `DYNAMIC`. |
-| `BIGBUFOK` | **Never define it.** It asks for 290000-byte buffers. |
-| Huge stack frames | `scanfile()`'s 48K automatic array — fixed, now 2088 bytes. |
-| Pointer→int casts | Only 4 sites across the whole minimal build; none load-bearing. |
-| Varargs | Not used by the protocol core. |
-| Flat-address assumptions | None found in the modules that compile. |
-
-### Type sizes under this build
-
-`int` 2, `long` 4, pointer 2 (near data) / 4 (far code), `size_t` 2,
-`CK_OFF_T` = `off_t`.
-
-`CK_OFF_T` is the file-offset type used for RESEND/REGET restart. On a 16-bit
-target it resolves to newlib's `off_t` (`long`, 32-bit) — good for 2GB, far
-beyond any Victor disk. **Verify** your newlib's `off_t` is `long` and not
-`int`; if it is `int`, restart breaks above 32KB. This is the one type
-assumption worth checking on real hardware.
-
-### Open risks
-
-1. **`traverse()` in `ckufio.c` is recursive** (calls itself at lines 6295 and
-   6563) with a **1066-byte stack frame**. Depth is directory nesting depth.
-   Eight levels ≈ 8.5KB of a 64K DGROUP. This is the top recursion concern.
-   Mitigate by keeping the stack generous, or by capping traversal depth.
-2. `shofea()` (`ckuus5.c`) has the largest frame at 2106 bytes — SHOW FEATURES.
-   Harmless but worth knowing.
-3. Path lengths: `CKMAXPATH` set to 128. Fine for FAT 8.3, and it feeds several
-   table sizes, so do not raise it casually.
 
 ---
 
@@ -263,19 +299,52 @@ Projected full budget:
 | Static data + bss | 32,325 |
 | Packet buffers (`SBSIZ`+`RBSIZ`, malloc'd) | 8,192 |
 | newlib stdio + bss | ~6,000 |
+| Serial RX/TX rings (256 + 256) | 512 |
 | Stack | ~8,000 |
-| **Total** | **~54,500 of 65,536** |
+| **Total** | **~55,000 of 65,536** |
 
-**~11KB headroom.** Tight but real. This is why `ckvictor.h` sets `MAXSP`/
+**~10KB headroom.** Tight but real. This is why `ckvictor.h` sets `MAXSP`/
 `MAXRP` to 1024 and `SBSIZ`/`RBSIZ` to 4096 rather than the `DYNAMIC` defaults
 of 9024/9050, which would have cost 18KB in packet buffers alone.
 
 If headroom is needed later, in order of payoff: cut `RQ_MAXTOK` further,
 drop `SHOW` commands (`ckuus5.c`, 2432 bytes of data+bss), reduce `CKMAXPATH`.
 
-**Conclusion: OpenWatcom's far-data models are not required.** They remain the
-fallback if the budget is blown later, at the cost of building a new platform
-identity from scratch. See §9a for what that fallback actually buys.
+### 16-bit portability audit
+
+Measured under the Victor configuration, not assumed.
+
+| Issue | Finding |
+|---|---|
+| `int` is 32 bits | Not assumed. Builds clean at `int` = 16 bits. |
+| Objects > 64K | **None.** Largest static object is now `rq_tok` at 2064 bytes. |
+| `malloc` > 64K | Avoided. `-DUNIX` makes `ckcdeb.h` define `DYNAMIC`, which turns `bigsbuf`/`bigrbuf` into malloc'd pointers. Without `DYNAMIC` they are `CHAR bigsbuf[SBSIZ+5]` with `SBSIZ = MAXSP*(MAXWS+1) = 2048*33 = 67584` — **over 64K, would not compile**. Do not remove `DYNAMIC`. |
+| `BIGBUFOK` | **Never define it.** It asks for 290000-byte buffers. |
+| Huge stack frames | `scanfile()`'s 48K automatic array — fixed, now 2088 bytes. |
+| Pointer→int casts | Only 4 sites across the whole minimal build; none load-bearing. |
+| Varargs | Not used by the protocol core. |
+| Flat-address assumptions | None found in the modules that compile. |
+
+Type sizes under this build: `int` 2, `long` 4, pointer 2 (near data) / 4 (far
+code), `size_t` 2, `CK_OFF_T` = `off_t`.
+
+`CK_OFF_T` is the file-offset type used for RESEND/REGET restart. On a 16-bit
+target it resolves to newlib's `off_t` (`long`, 32-bit) — good for 2GB, far
+beyond any Victor disk. **Verify** your newlib's `off_t` is `long` and not
+`int`; if it is `int`, restart breaks above 32KB.
+
+Open risks:
+
+1. **`traverse()` in `ckufio.c` is recursive** (calls itself at lines 6295 and
+   6563) with a **1066-byte stack frame**. Depth is directory nesting depth.
+   Eight levels ≈ 8.5KB of a 64K DGROUP. This is the top recursion concern.
+   Mitigate by keeping the stack generous, or by capping traversal depth.
+   It also means `opendir` must support at least one open `DIR` per nesting
+   level — see §12.
+2. `shofea()` (`ckuus5.c`) has the largest frame at 2106 bytes — SHOW FEATURES.
+   Harmless but worth knowing.
+3. Path lengths: `CKMAXPATH` set to 128. Fine for FAT 8.3, and it feeds several
+   table sizes, so do not raise it casually.
 
 ---
 
@@ -310,14 +379,13 @@ safely, with no source changes.** ia16-gcc cannot match that in medium model.
    packet pool is 8KB, and nothing anywhere is over 64KB. The largest single
    object is 2,064 bytes.
 2. **The stack is not the problem.** Largest measured frame is 2,106 bytes and
-   total stack need is ~8KB — about 12% of the budget. Moving it out would buy
-   back 8KB we are not short of.
-3. **Far access is expensive under ia16-gcc specifically** — see §9b, which
-   measures this properly. Short version: gcc cannot keep a far buffer segment
-   and DGROUP addressable at the same time, so in a loop that touches both
-   buffers *and* globals it reloads `%ds` twice per iteration. That is the
-   inner byte loop of the packet filler, and at 38400+ baud on an 8088 with a
-   4-byte prefetch queue a `mov ds,` per iteration is not affordable.
+   total stack need is ~8KB — about 12% of the budget.
+3. **Far access is expensive under ia16-gcc specifically** — see §9b. Short
+   version: gcc cannot keep a far buffer segment and DGROUP addressable at the
+   same time, so in a loop that touches both buffers *and* globals it reloads
+   `%ds` twice per iteration. That is the inner byte loop of the packet filler,
+   and at 38400 on an 8088 with a 4-byte prefetch queue a `mov ds,` per
+   iteration is not affordable.
 4. **The `__far` blast radius is not local.** The pool is handed out as
    `s_pkt[i].pk_adr`, a plain `CHAR *`, and from there flows through 139+
    `CHAR *` sites across `ckcfns.c` / `ckcfn2.c` / `ckcfn3.c` / `ckcpro.c`.
@@ -328,23 +396,15 @@ safely, with no source changes.** ia16-gcc cannot match that in medium model.
 
 The scenario that genuinely needs far data is **large windows × long packets**.
 `MAXWS 32` × `MAXSP 4096` is a 132KB packet pool — that cannot fit a single
-DGROUP at any tuning, and no amount of trimming elsewhere changes it.
+DGROUP at any tuning. If that becomes the goal, the right move is **not**
+`__far` annotation under ia16-gcc; it is switching to **OpenWatcom large model
+with `-zt`**, where the buffers move out of DGROUP by compiler flag and the
+source stays upstream.
 
-If that is the goal, the right move is **not** `__far` annotation under
-ia16-gcc. It is switching to **OpenWatcom large model with `-zt`**, where the
-buffers move out of DGROUP by compiler flag and the source stays upstream.
-
-The cost of that switch is real and should not be paid speculatively:
-Watcom uses OMF objects and its own C library, so the newlib port does not
-carry over, and `-DUNIX` fails immediately on Watcom's DOS headers
-(`sys/param.h` absent), so a new platform identity has to be built. The newlib
-work is the asset here.
-
-**Recommendation:** ship the milestone on ia16-gcc at 49% DGROUP with a 4KB/4KB
-packet pool. If throughput measurement later says the window needs to be much
-larger, revisit Watcom large model then — and treat it as a deliberate
-re-platforming, not a tweak. §9b explains why that fallback is more attractive
-than it first appears.
+The cost of that switch is real and should not be paid speculatively: Watcom
+uses OMF objects and its own C library, so any newlib work does not carry over.
+(Note that under the §2 architecture this is a *smaller* cost than it used to
+be — we need far less from the C library now. See §12.)
 
 ---
 
@@ -376,9 +436,9 @@ gcc hoists both segment loads into the prologue and repoints `%ds` at the
 destination buffer for the whole function, so those writes carry no prefix at
 all. Cost is one `%es:` prefix on the source read: 1 byte, ~2 clocks on 8088.
 
-**Indexing is what kills it, not farness.** The original "+34%" figure recorded
-earlier in this document was measured on `enc_idx` and overstated the cost of
-far data in general. Corrected here.
+**Indexing is what kills it, not farness.** An earlier "+34%" figure in this
+document was measured on `enc_idx` and overstated the cost of far data in
+general. Corrected here.
 
 ### Buffers plus globals: collapses under gcc
 
@@ -439,32 +499,109 @@ Watcom -ml, far+globals       26          0
 ```
 
 So the answer to "can we co-locate?" is **yes — but it is Watcom that delivers
-it, automatically, in large model, with no source changes.** ia16-gcc cannot,
-because in medium model it has only one data segment and no way to keep a far
-buffer segment and DGROUP resident at the same time.
+it, automatically, in large model, with no source changes.**
 
 ### Caveats before acting on this
 
 - In Watcom large model **every** `char *` in C-Kermit becomes 4 bytes, not
   just the packet pointers. Pointer-heavy code outside the packet loop pays for
-  that in both DGROUP occupancy and cycles. The win shown above is specific to
-  the hot loop.
+  that in both DGROUP occupancy and cycles.
 - The alternative that would make co-location work under gcc — hoisting those
   ~25 globals into locals at function entry and writing them back at exit — is
   a rewrite of `bgetpkt()`/`getpkt()`/`decode()`, i.e. modifying the protocol
   engine. That is the thing this port exists to avoid.
-- Switching still costs newlib (OMF vs ELF objects, different C library) and
-  needs a platform identity, since `-DUNIX` fails immediately on Watcom's DOS
-  headers.
 
 **Net effect on the plan:** unchanged in the near term — at 49% DGROUP with a
-4KB/4KB pool there is nothing to fix. But if large windows × long packets
-become the goal, this is the evidence that the Watcom path is *viable*, not
-merely available.
+4KB/4KB pool there is nothing to fix.
 
 ---
 
-## 10. Does the Unix TTY layer sit on newlib?
+## 10. What is proven, and what is not
+
+Being precise about this matters, because the two are easy to conflate.
+
+### Proven on real Victor hardware
+
+- **38400 bps transmit on µPD7201 channel A.** 8253 Counter 0 at divisor 2,
+  VIA2 PA0 internal clock, polled TX. This is the FreeDOS boot debug console
+  (`kernel/victor_serial_debug.asm`, `BAUD_DIV_38400 = 0x02`, built under
+  `VICTORFAST=1`) and it has carried sustained kernel output during real
+  hardware debugging sessions. The physical layer at 38400 — divisor, clock
+  gating, chip init, 1488/1489 line drivers, cabling — is not in question.
+  (MAME caps around 9600; 38400 is a real-hardware-only path.)
+- **Bidirectional serial at 9600 on channel B**, polled, via the FreeDOS
+  INT 14h driver — `CTTY COM2` drove a full shell session on real hardware.
+
+### Written but never run on hardware
+
+- **Interrupt-driven receive.** `kernel/victor_int14.asm` has the whole
+  apparatus: per-channel `SERPORT` descriptors, 256-byte RX/TX rings, an IRQ1
+  ISR with the MS-DOS 3.1 stack-switching pattern. But both channels ship with
+  `irq_enabled = 0` and IRQ1 masked at the PIC. The note dated 2026-07-14 says
+  the IRQ-buffered path produced no output and hung `ctty COM2`, and that
+  re-enabling requires verifying the µPD7201 interrupt-acknowledge sequence
+  (Reset Tx Int Pending `0x28` / RETI) on real hardware.
+
+### Why the ISR is on the critical path for 38400 but not for the milestone
+
+At 38400 8N1 a byte arrives every ~260µs. The µPD7201's receive FIFO is three
+deep, so a polled reader has well under a millisecond of slack. That is fine
+until Kermit writes a received packet to floppy or SASI — a multi-millisecond
+blocking operation during which polled RX drops bytes on the floor.
+
+But it only bites when the line is busy *while* Kermit is writing. With
+window 1 and streaming off, the sender waits for an ACK per packet, so the disk
+write happens on an idle line and **polled RX is correct at any speed** — just
+slow. Windows and streaming are what make the ISR mandatory.
+
+That gives a clean staging: **polled first for the milestone, ISR before the
+speed and windowing work.** The ISR bring-up does not block getting a file
+across the wire.
+
+---
+
+## 11. Serial driver: design
+
+Lift the working parts of `kernel/victor_int14.asm` — the `SERPORT` descriptor
+layout, the ring buffers, the ISR with its stack-switching prologue, the chip
+init sequence — into `CKERMIT.EXE`. Do not call INT 14h at runtime.
+
+Rationale:
+
+- INT 14h AH=00h has three baud bits; the table in `victor_int14.asm` stops at
+  index 7 = 9600. 38400 is divisor 2 and simply cannot be requested through the
+  standard API.
+- INT 14h has no "bytes queued" call. `ttchk()` needs exactly that, and
+  `ttinl()` wants to pull a whole packet in one go rather than one byte per
+  software interrupt.
+- Owning the chip means Kermit does not depend on the host DOS's serial state —
+  including the not-yet-root-caused DGROUP writer near `serport_b` that forced
+  the `.have_port` descriptor self-repair hack.
+
+Ownership protocol, on `SET LINE`:
+
+1. Detect host DOS → resolve serial IVT slot (`0x41` or `0x09`, §2).
+2. Save the old vector and the 8259 mask.
+3. Mask IRQ1, reset the channel, program WR4/WR3/WR5/WR1, set the VIA clock
+   enable bit, write the 8253 divisor.
+4. Install our ISR, unmask IRQ1.
+
+And the exact inverse on `ttclos()` / exit / Ctrl-Break / critical error. A
+Kermit that leaves IRQ1 hooked after exiting will take the machine down.
+
+Channel choice: **use channel A for Kermit** where possible, leaving channel B
+for `CTTY COM2`. They share IRQ1, so the ISR must poll both RR0s; but only one
+of the two owners can be Kermit at a time.
+
+---
+
+## 12. The layers below C-Kermit
+
+`ckutio.c` and `ckufio.c` are stock Unix modules that compile clean for ia16 and
+express everything in POSIX terms. Keep them. What has to be supplied is the
+layer *underneath*, and under the §2 architecture that layer is small.
+
+### Does the Unix TTY layer sit on newlib?
 
 **Yes.** This was the main open question and the answer is unambiguous.
 
@@ -481,74 +618,114 @@ All 80 errors in the first row were `struct sgttyb`, `RAW`, `CBREAK`, `CRMOD`,
 `TANDEM` — the ancient BSD interface, selected only because no termios macro
 was defined. With `-DPOSIX` it uses termios and **compiles clean**.
 
-`ckufio.c` needed exactly one change (the inode check, §7).
+`ckufio.c` needed exactly one change (the inode check, §8).
 
-**Recommendation: keep `ckutio.c` and `ckufio.c`. Do not write a Victor
-platform module.** The work is in your newlib, not in C-Kermit. Supply a real
-POSIX termios and the port is done — `ttsspd()` maps SET SPEED onto
-`cfsetospeed()`, so 38400 and above come from your baud-rate table, not from
-C-Kermit.
+**Recommendation: keep both modules. Do not write a Victor platform module.**
+The termios layer becomes a thin translator onto our own driver, not a call
+into someone else's serial API:
 
-Caveat: the stock ia16 newlib ships `termios.h` as a **dangling include** of a
-`<sys/termios.h>` that does not exist, and defines no termios functions. Your
-Victor newlib must provide both the header and the implementation.
+| termios call | maps to |
+|---|---|
+| `cfsetospeed` / `cfsetispeed` | 8253 divisor write (76800 / baud) |
+| `cfgetospeed` / `cfgetispeed` | read back the cached divisor |
+| `tcsetattr` | µPD7201 WR3/WR4/WR5 — raw 8N1, no processing |
+| `tcgetattr` | return the cached `struct termios` |
+| `tcflush` | reset ring head/tail |
+| `tcsendbreak` | WR5 send-break bit, timed |
 
----
+and the file descriptor `ckutio.c` opens for the line reads and writes the ring
+buffers directly.
 
-## 11. Platform glue still required
+Note the baud divisor is `76800 / baud`, so the table extends naturally past
+9600: 19200 → 4, 38400 → 2, 57600 → 1. `ttsspd()` maps `SET SPEED` onto
+`cfsetospeed()`, so high speeds come straight from that table.
 
-After the 24 modules compile, these remain undefined. Everything else resolves
-against newlib. `ckvictor.c` already stubs the process-model calls; this is
-what must be **real**:
+If per-byte overhead through newlib's `read()` turns out to hurt at 38400, add a
+`VICTOR9K` fast path in `ttinl()` only — that is one function, not a rewrite.
 
-**Termios — the serial port (your Victor serial API):**
-`tcgetattr` `tcsetattr` `tcflush` `tcsendbreak`
-`cfgetispeed` `cfgetospeed` `cfsetispeed` `cfsetospeed`
+### libgloss: what newlib needs from us
 
-**Directory reading (for `DIR`, wildcards, server file lists):**
-`opendir` `readdir` `closedir`
+A thin INT 21h shim. This replaces the entire bare-metal VFS/FAT/SASI stack
+that a standalone target would have required.
 
-**File system:**
-`access` `chdir` `chmod` `getcwd` `mkdir` `rmdir` `utime`
+| newlib hook | INT 21h |
+|---|---|
+| `_open` | `3Dh` open, `3Ch` create |
+| `_close` | `3Eh` |
+| `_read` / `_write` | `3Fh` / `40h` |
+| `_lseek` | `42h` |
+| `_stat` / `_fstat` | `4Eh` search, `57h` file times |
+| `_unlink` | `41h` |
+| `_rename` | `56h` |
+| `_chdir` / `_getcwd` | `3Bh` / `47h` |
+| `_sbrk` | DOS memory block from the PSP |
+| `_exit` | `4Ch` |
 
-**Misc:** `sleep`
+Plus, from §2's console rule: `_read`/`_write` on fds 0–2 go to INT 21h
+AH=06h/07h/08h/0Bh, never to BIOS.
 
-Stubbed in `ckvictor.c`, safe to leave: `fork` `execl` `execvp` `wait`
-`getuid` `geteuid` `getgid` `getegid` `setuid` `setgid` `getpid` `getppid`
-`getpgrp` `tcgetpgrp` `getlogin` `getpwnam` `getpwuid` `ttyname` `ctermid`
-`alarm` `sysconf` `putenv` `readlink` `umask` `dup2`, plus the symbols owned by
-excluded modules (`conect`, `connv`, `mdmtyp`, `nvlook`, `ck_bracketaddr`).
+### Still to supply beyond newlib
 
-Each stub is wrapped in `#ifndef VICTOR_HAVE_<name>`, so if your newlib already
+**Directory reading** — `opendir` / `readdir` / `closedir` over INT 21h
+`4Eh`/`4Fh`, with a DTA per open `DIR`. The stock ia16 newlib does not provide
+these. There is a reference implementation at
+`~/projects/newlibc/phase3_newlib/libgloss/dirent.c` (over its VFS), but note
+two defects to fix before reuse: `LIBGLOSS_MAX_DIRS` is **2**, and there is a
+single shared static `current_entry`. `traverse()` in `ckufio.c` recurses and
+holds one `DIR` per nesting level (§9), so a depth-3 directory walk fails and
+concurrent walks corrupt each other.
+
+**Filesystem odds and ends** — `access`, `chmod` (`43h`), `mkdir` (`39h`),
+`rmdir` (`3Ah`), `utime` (`57h`), `sleep`.
+
+**Already stubbed in `ckvictor.c`, safe to leave:** `fork` `execl` `execvp`
+`wait` `getuid` `geteuid` `getgid` `getegid` `setuid` `setgid` `getpid`
+`getppid` `getpgrp` `tcgetpgrp` `getlogin` `getpwnam` `getpwuid` `ttyname`
+`ctermid` `alarm` `sysconf` `putenv` `readlink` `umask` `dup2`, plus the
+symbols owned by excluded modules (`conect`, `connv`, `mdmtyp`, `nvlook`,
+`ck_bracketaddr`).
+
+Each stub is wrapped in `#ifndef VICTOR_HAVE_<name>`, so if the library already
 provides one, define that macro. Build first, then add whichever macros the
-linker reports as multiply defined — faster than auditing the library up front.
+linker reports as multiply defined — faster than auditing up front.
 
 ---
 
-## 12. Milestone
+## 13. Milestone
 
 ```
 CKERMIT
-C-Kermit> set line /dev/com1        (or whatever your newlib names it)
+C-Kermit> set line com1
 C-Kermit> set speed 38400
 C-Kermit> send foo.bin
 C-Kermit> receive
 C-Kermit> server
 ```
 
-Suggested order:
+Order of work:
 
-1. **Link it.** Supply termios + dirent + the filesystem calls above. Expect
-   this to be the bulk of the remaining work.
-2. **`C-Kermit>` prompt.** Proves `ckucmd.c` + `coninc`/`conchk` work. No
-   serial port involved. Watch the stack here — `docmd()` is 1152 bytes.
-3. **`SET LINE` / `SET SPEED`.** Proves `ttopen`/`ttsspd`.
-4. **`SEND` one small binary file** at 9600 to a known-good Kermit, with short
-   packets and window 1. This exercises the whole engine end to end.
-5. **Turn on long packets, then windows, then streaming**, one at a time, and
-   re-measure free memory at each step.
-6. **`RECEIVE`, then `GET`, then `SERVER`.**
-7. Push the speed to 38400 and beyond.
+1. **Restore the toolchain.** `ia16-elf-gcc` is not currently installed and the
+   `ia16-ubuntu-2` container is not present. Nothing here is re-verifiable until
+   it is back. This also closes the `off_t` question in two minutes.
+2. **INT 21h libgloss → link `CKERMIT.EXE`.** File and console I/O only; no
+   serial yet. Expect this to be the bulk of the remaining non-driver work.
+3. **`C-Kermit>` prompt, on both DOSes.** Proves `ckucmd.c` + `coninc`/`conchk`
+   and, critically, proves the INT 21h-only console discipline holds on Victor
+   MS-DOS 3.1 as well as FreeDOS. No serial port involved. Watch the stack here
+   — `docmd()` is 1152 bytes.
+4. **7201 driver in `ckvictor.c`, polled, vector auto-detected.** `SET LINE` /
+   `SET SPEED` / `SHOW COMMUNICATIONS`. Verify against a loopback plug before
+   involving another machine.
+5. **`SEND` one small binary file** at 9600 to a known-good Kermit, short
+   packets, window 1, streaming off. This exercises the whole engine end to end
+   and is the real milestone.
+6. **`RECEIVE`, then `GET`, then `SERVER`** — still at 9600, still polled.
+7. **Bring up the RX ISR and ring buffer** as its own task, standalone, on real
+   hardware. Verify the µPD7201 interrupt-acknowledge sequence that
+   `victor_int14.asm` flags as unproven. Instrument dropped-byte counts.
+8. **Turn on long packets, then windows, then streaming**, one at a time,
+   re-measuring free memory at each step.
+9. **Push to 19200, then 38400.**
 
 Only after all that is CONNECT worth considering — and it should be written
 fresh as a small polling loop over `ttinc()`/`coninc()` in `ckvictor.c`, not
@@ -556,9 +733,9 @@ ported from `ckucon.c` (needs `fork()`) or `ckucns.c` (needs `select()`).
 
 ---
 
-## 13. Compile log
+## 14. Compile log
 
-Every module in §4 compiles with **zero errors** at `-mcmodel=medium -Os`.
+Every module in §5 compiles with **zero errors** at `-mcmodel=medium -Os`.
 
 Problems hit and resolved, in order:
 
@@ -571,21 +748,24 @@ Problems hit and resolved, in order:
 | `ckufio.c` `d_ino` missing | `VICTOR9K` branch; FAT has no inode |
 | `ckufio.c` `getppid` conflict | newlib prototype; stub matches it now |
 | `ckutio.c` 80 × `struct sgttyb` | `-DPOSIX` selects termios |
-| `ckutio.c` `sys/termios.h` missing | newlib gap — must be supplied |
+| `ckutio.c` `sys/termios.h` missing | must be supplied — see §12 |
 | `ckvictor.c` prototype conflicts | Rewrote stubs as ANSI matching newlib |
 
 ---
 
-## 14. Open questions
+## 15. Open questions
 
-- Is your newlib's `off_t` a `long`? If it is `int`, RESEND/REGET restart
-  breaks above 32KB. (§8)
-- Does your newlib provide `opendir`/`readdir`/`closedir`? The stock ia16
-  newlib does not, and server mode and wildcards need them.
-- How does your serial layer name ports, for `SET LINE`?
-- What is the real stack size in your Victor runtime? The `traverse()`
-  recursion (§8) makes this matter more than it usually would.
-- Does 38400+ need interrupt-driven receive with a ring buffer? At 38400 a
-  polled `ttinc()` may drop characters; C-Kermit's flow control will recover,
-  but throughput will suffer. Check against the MS-DOS Kermit 3.13 Victor
-  serial code in `~/projects/kermit`.
+- Is newlib's `off_t` a `long`? If it is `int`, RESEND/REGET restart breaks
+  above 32KB. (§9)
+- Does the FreeDOS OEM byte (INT 21h AH=30h → BH) actually come back as `0xFD`
+  on the Victor build? The whole dual-target vector detection rests on it. A
+  fallback (`SET SERIAL-VECTOR` or a command-line switch) is cheap insurance.
+- Does Victor MS-DOS 3.1 install its own handler on IRQ1 for an AUX/COM device?
+  If so, Kermit must quiesce it, not just save and restore the vector.
+- What does the µPD7201 interrupt-acknowledge sequence actually need? This is
+  the one unproven hardware item (§10) and it gates 38400.
+- Real stack size in the DOS environment. The `traverse()` recursion (§9) makes
+  this matter more than it usually would.
+- `SET LINE` naming: `COM1`/`COM2` for channels A/B is the obvious choice and
+  matches the FreeDOS convention, but Kermit is talking to the chip directly, so
+  the names are ours to define.
