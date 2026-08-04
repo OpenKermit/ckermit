@@ -18,7 +18,7 @@
 #  define FAB_OR_NAML_FNS naml$l_long_filename_size
 
 #  define FAB_L_NAMX fab$l_naml
-#  define NAMX NAML
+#  define NAMX_STRUCT NAML
 #  define NAMX_C_MAXRSS NAML$C_MAXRSS
 #  define NAMX_M_NOCONCEAL NAML$M_NOCONCEAL
 #  define NAMX_M_SEARCH_LIST NAML$M_SEARCH_LIST
@@ -52,6 +52,8 @@
 #  define NAMX_L_TYPE naml$l_long_type
 #  define NAMX_B_VER naml$l_long_ver_size
 #  define NAMX_L_VER naml$l_long_ver
+#  define NAMX_DNA_FNA_SET( fab) (fab).fab$l_dna = (char *) -1; \
+    (fab).fab$l_fna = (char *) -1;
 #  define CC_RMS_NAMX cc$rms_naml
 
 #else /* def NAML$C_BID */
@@ -65,7 +67,7 @@
 #  define FAB_OR_NAML_FNS fab$b_fns
 
 #  define FAB_L_NAMX fab$l_nam
-#  define NAMX NAM
+#  define NAMX_STRUCT NAM
 #  define NAMX_C_MAXRSS NAM$C_MAXRSS
 #  define NAMX_M_NOCONCEAL NAM$M_NOCONCEAL
 #  define NAMX_M_SEARCH_LIST NAM$M_SEARCH_LIST
@@ -99,6 +101,7 @@
 #  define NAMX_L_TYPE nam$l_type
 #  define NAMX_B_VER nam$b_ver
 #  define NAMX_L_VER nam$l_ver
+#  define NAMX_DNA_FNA_SET( fab);
 #  define CC_RMS_NAMX cc$rms_nam
 
 #endif /* def NAML$C_BID [else] */

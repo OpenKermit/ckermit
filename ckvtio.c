@@ -1148,7 +1148,7 @@ ttinl(dest,max,timo,eol,start,turn) int max,timo,turn; CHAR *dest,eol,start;
 #endif /* NOXFER */
 #endif /* TTXBUF */
 
-sig_t saval;               /* For saving alarm handler */
+SIGTYP (*saval)() = NULL;               /* For saving alarm handler */
 
 VOID
 ttimoff() {                             /* Turn off any timer interrupts */
@@ -2207,7 +2207,7 @@ ttsspd(cps) int cps; {
 
 /*  C O N I N T  --  Console Interrupt setter  */
 
-static sig_t cctrap;
+static SIGTYP (*cctrap)();
 
 VOID
 #ifdef CK_ANSIC
@@ -2581,9 +2581,28 @@ gtimer() {
 }
 
 #ifdef GFTIMER
-#ifdef VMSI64
-/* The native VMS code is broken in VMS/IA64 8.1. */
-/* Luckily, in VMS 8.1 we can use the Unix code. */
+
+/* 2024-05-16 SMS.  Original code using sys$gettim() used
+ * lib$cvtf_from_internal_time() to get to floating-point (FP), which
+ * produced VAX FP values.  This failed when IEEE FP was used, which
+ * became the default beginning with IA64 hardware.  Old/unnatural
+ * work-around:
+ *
+ *    #ifdef VMSI64
+ */   /*  The native VMS code is broken in VMS/IA64 8.1. */   /*
+ */   /* Luckily, in VMS 8.1 we can use the Unix code. */     /*
+ *
+ * This condition fails on x86_64, or with CC/FLOAT=IEEE_FLOAT (on
+ * Alpha, for example), because the condition of interest is the FP
+ * style in use, not the hardware architecture.
+ *
+ * Modified code uses sys$gettim() everyplace, and tests the FP style,
+ * not the hardware architecture (using lib$cvts_from_internal_time()
+ * for IEEE FP).  Define GFTIMER_UNIX to get the (still available)
+ * alternate (gettimeofday(), et al.) scheme.
+ */
+
+#ifdef GFTIMER_UNIX  /* Alternate scheme using gettimeofday(), et al. */
 
 static struct timeval tzero;
 
@@ -2595,7 +2614,7 @@ rftimer() {
 CKFLOAT
 gftimer() {
     struct timeval tnow, tdelta;
-    CKFLOAT s;
+    CKFLOAT fp_time;
 #ifdef DEBUG
     char fpbuf[64];
 #endif /* DEBUG */
@@ -2608,20 +2627,29 @@ gftimer() {
 	tdelta.tv_sec--;
 	tdelta.tv_usec += 1000000;
     }
-    s = (CKFLOAT) tdelta.tv_sec + ((CKFLOAT) tdelta.tv_usec / 1000000.0);
-    if (s < GFMINTIME)
-      s = GFMINTIME;
+    fp_time = (CKFLOAT) tdelta.tv_sec + ((CKFLOAT) tdelta.tv_usec / 1000000.0);
+    if (fp_time < GFMINTIME)
+      fp_time = GFMINTIME;
 #ifdef DEBUG
     if (deblog) {
-	sprintf(fpbuf,"%f",s);
+	sprintf(fpbuf,"%f",fp_time);
 	debug(F110,"gftimer",fpbuf,0);
     }
 #endif /* DEBUG */
-    return(s);
+    return(fp_time);
 }
 
+#else /* def GFTIMER_UNIX */ /* Original scheme using sys$gettim(), et al. */
 
+#if __IEEE_FLOAT
+#define CVTS
+#endif /* __IEEE_FLOAT */
+
+#ifdef CVTS
+#define LIB_CVTX_FROM_INTERNAL_TIME lib$cvts_from_internal_time /* IEEE */
 #else
+#define LIB_CVTX_FROM_INTERNAL_TIME lib$cvtf_from_internal_time /* VAX */
+#endif /* def CVTS */
 
 static QUAD tzero;
 
@@ -2637,32 +2665,33 @@ rftimer() {
 
 CKFLOAT
 gftimer() {
-    float s;                            /* gcc gawks at CKFLOAT */
+    float fp_time;                      /* gcc gawks at CKFLOAT */
     QUAD tnow, diff;                    /* 64-bit times */
     int status;
-    unsigned long lkd = LIB$K_DELTA_SECONDS_F;
+    unsigned int lkd = LIB$K_DELTA_SECONDS_F;   /* "_F": Fractional. */
 #ifdef DEBUG
     char fpbuf[64];
 #endif /* DEBUG */
     status = sys$gettim(&tnow);
     if (!(status & 1)) vms_lasterr = status;
     debug(F101,"gftimer status 1","",status);
-    status = lib$sub_times(&tnow, &tzero, &diff );
+    status = lib$sub_times(&tnow, &tzero, &diff );  /* (Delta_time < 0.) */
     if (!(status & 1)) vms_lasterr = status;
     debug(F101,"gftimer status 2","",status);
-    status = lib$cvtf_from_internal_time(&lkd,&s,&diff);
+    status = LIB_CVTX_FROM_INTERNAL_TIME(&lkd,&fp_time,&diff);
     if (!(status & 1)) vms_lasterr = status;
     debug(F101,"gftimer status 3","",status);
 #ifdef DEBUG
     if (deblog) {
-        sprintf(fpbuf,"%f",s);
-        debug(F110,"gftimer s",fpbuf,0);
+        sprintf(fpbuf,"%f",fp_time);
+        debug(F110,"gftimer fp_time",fpbuf,0);
     }
 #endif /* DEBUG */
-    return(s > 0.0 ? (CKFLOAT) s : (CKFLOAT) 0.000001);
+    return(fp_time > 0.0 ? (CKFLOAT) fp_time : (CKFLOAT) 0.000001);
 }
-#endif	/* VMSI64 */
+#endif	/* def GFTIMER_UNIX [else] */
 #endif /* GFTIMER */
+
 
 /*  Z T I M E  --  Return date/time string  */
 

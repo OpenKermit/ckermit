@@ -1,10 +1,15 @@
 $!
-$! CKVKER.COM - C-Kermit 9.0 Construction for (Open)VMS
+$! CKVKER.COM - C-Kermit 9.0-11.0 Construction for (Open)VMS
 $!
-$! Version 1.48+sms, 15-Nov-2022
+$! Version 1.50, 2025-08-04
 $!
 $! DCL usage requires VMS 5.0 or higher - use CKVOLD.COM for VMS 4.x.
 $!
+$ p1o = p1 ! Save with original case, content.
+$ p2o = p2
+$ p3o = p3
+$ p5o = p5
+$ 
 $ p1 = f$edit( p1, "UPCASE")
 $ p1_len  = f$length( p1)
 $! Provide help if P1 includes "H" or "?".
@@ -17,7 +22,7 @@ $!
 $Help:
 $type sys$input
    Usage:
-       $ @[directory]ckvker [ p1 [ p2 [ p3 [ p4 [ p5 ] ] ] ] ]
+       $ @[directory]ckvker [ p1 [ p2 [ p3 [ p4 [ p5 [ p6 ] ] ] ] ] ]
 
        P1 = Build options
        P2 = Compiler selection
@@ -37,7 +42,8 @@ $type sys$input
        D = compile and link /DEBUG  (Create map files, etc.)
        F = DISABLE large-file support  (See LARGE_FILE NOTES below.)
        H = display help message
-       I = DISABLE internal FTP (it's enabled by default in network builds)
+       I = DISABLE internal FTP (enabled by default in network builds)
+       J = DISABLE internal HTTP (enabled by default in network builds)
        L = RTL version level -- link with latest math RTL
        M = don't use MMS or MMK; use the DCL MAKE subroutine herein
        N = build with no network support
@@ -60,14 +66,17 @@ $type sys$input
                    options, and other parameters follow.
           BUGFILL7 If you get %CC-E-NEEDMEMBER, '"xab$b_bkz" is not a member
                    of "xaball_ofile"'.  (Effectively implies NOCONVROUTINES.)
-          CK_SSL   includes SSL/TLS support for secure connections.  OpenSSL
-          CKSSL111 logical names will override vendor-supplied SSL kit.
-                   As of Kermit version 9.0.305 (or so), OpenSSL 1.1.1 (or
-                   later) is required, so logical names like OSSL$INCLUDE
-                   (OpenSSL), or SSL111$INCLUDE or SSL3$INCLUDE (VSI SSL),
-                   will be used, with VSI SSL3 preferred over VSI SSL111 if
-                   both are installed.  Specify CK_SSL111 to use VSI SSL111
-                   if VSI SSL3 is also installed.
+          CK_SSL[=vrsn]  includes SSL/TLS support for secure connections.
+                         Optional "=vrsn" argument specifies the version
+                   of vendor SSL to use (using logical names like): 
+                     CK_SSL=111  SSL111  (SSL111$INCLUDE)
+                     CK_SSL=3    SSL3    (SSL3$INCLUDE)
+                     CK_SSL=31   SSL31   (SSL31$INCLUDE), and so on.
+                   If "=vrsn" is not specified, the following SSL kits will
+                   be tried (in this order):
+                     User-built OpenSSL  (OSSL$INCLUDE)
+                     Vendor SSL3         (SSL3$INCLUDE)
+                     Vendor SSL111       (SSL111$INCLUDE)
           CK_SSL0  Do not define C macro OPENSSL_100 (generally unwise).
           INTSELECT If you get %CC-W-PTRMISMATCH on statements with select().
           NEEDUINT If you get complaints about "u_int" not defined (TCPware5.4)
@@ -378,6 +387,14 @@ $!                    IA64-to-x86_64 cross tools can be made to work.
 $! 01-Sep-22 1.48+sms Added definition of C macro OPENSSL_100, unless
 $!                    user specifies CK_SSL0 in P3.
 $! 15-Nov-22 1.48+sms Removed CKWART.C, et al.
+$! 07-Jun-24 1.48+sms Added P1 option J (internal_http).  CKHTTP was never
+$!                    being defined, but compile and link may work now.
+$!                    Could enable in ckcdeb.h for VMS, too, but comments
+$!                    suggest VMS version dependence, best handled here?
+$!                    Added optional "=vrsn" argument to P3 option CK_SSL.
+$! 26-Mar-25 1.49     Restored CKWART.C, et al.
+$! 04-Aug-25 1.50     For IPv6 under DEC_TCPIP need to link against
+$!                    tcp$library:tcp$lib.olb for ip5addr_any symbol
 $!
 $Skip_Help:
 $!
@@ -396,11 +413,13 @@ $ endif
 $ save_verify_image = f$environment( "VERIFY_IMAGE")
 $ save_verify_procedure = f$verify( ck_verify)
 $!
-$ say == "Write sys$output"
+$ say = "Write sys$output"
 $ procedure = f$environment("PROCEDURE")
 $ procname = f$element(0,";",procedure)
+$ procbasename = f$parse( procname, , , "NAME", "SYNTAX_ONLY")
 $ node = f$getsyi("NODENAME")
 $ say "Starting ''procedure' on ''node' at ''f$time()'"
+$ cc_version = "???"
 $ ccopt = ""
 $ lopt = ""
 $ make = ""
@@ -424,10 +443,11 @@ $ nomms=0
 $ mmsclm=264        ! maximum command length limit for MMS/MMK (estimate)
 $ do_ckvcvt=0
 $ ssl=0             ! SSL support disabled by default.
-$ ssl111=0          ! Use vendor SSL 1.1.1 when vendor SSL 3 is available.
 $ sslolb=0          ! SSL uses shared images by default.
+$ ssl_version=""    ! SSL version.
 $ openssl_def = 0   ! Redefined OPENSSL process logical name.
 $ internal_ftp=1    ! FTP client enabled by default.
+$ internal_http=1   ! HTTP client enabled by default.
 $ large_file=1      ! Large file support enabled by default.
 $!
 $ if (f$type( cc) .eqs. "")
@@ -483,11 +503,11 @@ $ if f$trnlnm("CK_SOURCE") .eqs. ""
 $ then
 $   source_device = f$parse(f$environment("procedure"),,,"device")
 $   source_directory = f$parse(f$environment("procedure"),,,"directory")
-$   define K 'source_device''source_directory
+$   ck_source = source_device+ source_directory
 $ else
-$   user_source = f$trnlnm("CK_SOURCE")
-$   define K 'user_source'
+$   ck_source = f$trnlnm("CK_SOURCE")
 $ endif
+$ define K 'ck_source'
 $!
 $! Parse P1: Build options.
 $!
@@ -508,51 +528,80 @@ $   if f$locate( "B", p1) .ne. p1_len then sslolb=1
 $   if f$locate( "D", p1) .ne. p1_len then debug=1
 $   if f$locate( "F", p1) .ne. p1_len then large_file=0
 $   if f$locate( "I", p1) .ne. p1_len then internal_ftp=0
+$   if f$locate( "J", p1) .ne. p1_len then internal_http=0
 $   if f$locate( "L", p1) .ne. p1_len then mathlevel=1
 $   if f$locate( "M", p1) .ne. p1_len then nomms=1
-$   if f$locate( "N", p1) .ne. p1_len
-$   then
-$     net_option="NONET"
-$     internal_ftp=0
-$   endif
 $   if f$locate( "O", p1) .ne. p1_len then mmsclm = 1024
 $   if f$locate( "S", p1) .ne. p1_len then noshare=0
 $   if f$locate( "V", p1) .ne. p1_len then verify=1
 $   if f$locate( "W", p1) .ne. p1_len then On Warning then goto warning_exit
 $   if f$locate( "X", p1) .ne. p1_len then do_ckvcvt=1
+$   if f$locate( "N", p1) .ne. p1_len
+$   then
+$     net_option="NONET"
+$     internal_ftp=0
+$     internal_http=0
+$   endif
 $ endif
 $!
-$! Parse P3: C macros (including SSL).
+$! Parse P3: C macros (primarily CK_SSL[=vrsn]).
 $!
-$ p3_len = f$length( p3)
 $ v_ssl = 0
-$ if (p3 .nes. "") .and. (f$locate( "CK_SSL", p3) .ne. p3_len)
+$ vssl_vrsn = ""
+$ if (p3 .nes. "")
 $ then
-$   ssl = 1
-$   if (f$locate( "CK_SSL111", p3) .ne. p3_len)
+$   p3_len = f$length( p3)
+$   ssl_start = f$locate( "CK_SSL=", p3)
+    if (ssl_start .ne. p3_len) ! CK_SSL=
 $   then
-$     ssl111 = 1
-$     p3 = p3+ ",CK_SSL"        ! Ensure that "CK_SSL" is (also) defined.
+$     ssl = 1
+$     v_ssl = 1
+$! Analyze (and strip out) optional CK_SSL[=vrsn] argument.
+$     ssl_spec = f$element( 0, ",", f$extract( ssl_start, p3_len, p3))
+$     ssl_spec_len = f$length( ssl_spec)
+$     vssl_vrsn_start = f$locate( "=", ssl_spec)
+      vssl_vrsn = f$extract( vssl_vrsn_start+ 1, ssl_spec_len, ssl_spec)
+$     vssl_vrsn = f$edit( vssl_vrsn, "TRIM")
+$     v_ssl = vssl_vrsn .nes. ""
+$! Complain about missing "vrsn" argument.
+$     if (vssl_vrsn .eqs. "")
+$     then
+$       write sys$output -
+ "FATAL: ""CK_SSL=vrsn"" specified without ""vrsn""."
+$       write sys$output ""
+$       goto The_exit
+$     endif
+$! Excise "=vrsn" from P3.
+$     p3_1 = f$extract( 0, (ssl_start+ 6), p3)
+$     p3_2 = f$extract( (ssl_start+ssl_spec_len), p3_len, p3)
+$     p3 = p3_1+ p3_2
 $     p3_len = f$length( p3)
-$   endif
-$   if (f$locate( "CK_SSL0", p3) .eq. p3_len)
+$! Complain about missing explicit vendor SSL.
+$     ssl_lnm = "SSL"+ vssl_vrsn+ "$INCLUDE"
+$     if (f$trnlnm( ssl_lnm) .eqs. "")
+$     then
+$       write sys$output -
+ "FATAL: You specified that vendor SSL (''vssl_vrsn') be used, but the"
+$       write sys$output -
+ "       required logical names (''ssl_lnm') have not been defined."
+$       write sys$output ""
+$       goto The_exit
+$     endif
+$   else ! CK_SSL=
+$     ssl = (f$locate( "CK_SSL", p3) .ne. p3_len)
+$   endif ! CK_SSL=
+$!
+$   if (ssl)
 $   then
-$     p3 = p3+ ",OPENSSL_100"   ! Define "OPENSSL_100", unless "CK_SSL0".
-$   endif
-$ endif
+$     if (f$locate( "CK_SSL0", p3) .eq. p3_len) ! CK_SSL0
+$     then
+$       p3 = p3+ ",OPENSSL_100"   ! Define "OPENSSL_100", unless "CK_SSL0".
+$     endif ! CK_SSL0
+$   endif ! ssl
+$ endif ! (p3 .nes. "")
 $!
 $ if (ssl)
 $ then
-$   if ((f$trnlnm( "OSSL$INCLUDE") .eqs. "") .and. -
-     (f$trnlnm( "SSL111$INCLUDE") .eqs. "") .and. -
-     ((f$trnlnm( "SSL3$INCLUDE") .eqs. "") .or. (ssl111 .ne. 0)))
-$   then
-$     type sys$input
-FATAL: You specified that OpenSSL be used, but the required logical names
-       have not been defined.
-
-$     goto The_exit
-$   endif
 $! Choose between object libraries and shared images for SSL.
 $   if (sslolb)
 $   then
@@ -560,27 +609,44 @@ $     ssl_link = "OLB"
 $   else
 $     ssl_link = "EXE"
 $   endif
-$! Distinguish between VSI SSL and OpenSSL, based on OpenSSL logical names.
-$! Any OpenSSL (OSSL$*") overrides any VSI SSL ("SSL111$*", "SSL3$*").
-$! VSI SSL3 preferred over SSL111 unless used specified SSL111.
 $!
-$   v_ssl = f$trnlnm( "OSSL$INCLUDE") .eqs. ""
-$   if (v_ssl)
+$   if (.not. v_ssl)
 $   then
-$     if ((f$trnlnm("SSL3$INCLUDE") .nes. "") .and. (ssl111 .eq. 0))
+$     if ((f$trnlnm( "OSSL$INCLUDE") .eqs. "") .and. -
+       (f$trnlnm( "SSL111$INCLUDE") .eqs. "") .and. -
+       (f$trnlnm( "SSL3$INCLUDE") .eqs. ""))
 $     then
-$       ssl_brand = "(vendor (3), "+ ssl_link+ ") "
-$     else
-$       ssl_brand = "(vendor (111), "+ ssl_link+ ") "
-$       ssl111 = 3              ! No SSL3, or user specified SSL111.
+$       type sys$input
+FATAL: You specified that (Open)SSL be used, but no required logical names
+       have been defined.
+
+$       goto The_exit
 $     endif
-$   else
-$     ssl_brand = "(OpenSSL, "+ ssl_link+ ") "
-$   endif
-$   ssl_text = "SSL "+ ssl_brand+ "support and"
-$ else
-$   ssl_text = ""
-$ endif
+$!
+$! No explicit vendor SSL selected, so look for (in order):
+$!   User-built OpenSSL  (OSSL$INCLUDE)
+$!   Vendor SSL3         (SSL3$INCLUDE)
+$!   Vendor SSL111       (SSL111$INCLUDE)
+$!
+$     v_ssl = f$trnlnm( "OSSL$INCLUDE") .eqs. ""
+$     if (v_ssl)
+$     then
+$       if (f$trnlnm("SSL3$INCLUDE") .nes. "")
+$       then
+$         ssl_brand = "(vendor (3), "+ ssl_link+ ") "
+$         vssl_vrsn = "3"
+$       else
+$         ssl_brand = "(vendor (111), "+ ssl_link+ ") "
+$         vssl_vrsn = "111"
+$       endif
+$     else ! (v_ssl)
+$       ssl_brand = "(OpenSSL, "+ ssl_link+ ") "
+$     endif ! (v_ssl)
+$     ssl_text = "SSL "+ ssl_brand+ "support and"
+$   else ! (.not. v_ssl)
+$     ssl_text = ""
+$   endif ! (.not. v_ssl)
+$ endif ! (ssl)
 $!
 $ cln_def = ""
 $ if p3 .nes. "" then cln_def = ","+ p3         ! comma delimited string
@@ -595,58 +661,49 @@ $! Find the "openssl" command executable.
 $   openssl_cmd = ""
 $   if (v_ssl)
 $   then
-$     if (ssl111 .ne. 0)
-$     then
-$       openssl_cmd = "$ SSL111$EXE:OPENSSL.EXE"
-$     else
-$       openssl_cmd = "$ SSL3$EXE:OPENSSL.EXE"
-$     endif
+$     openssl_cmd = "$ SSL"+ vssl_vrsn+ "$EXE:OPENSSL.EXE"
 $   else
 $     openssl_exe = f$search( "OSSL$EXE:openssl*.EXE")
 $     openssl_cmd = "$ OSSL$EXE:"+ -
       f$parse( openssl_exe, , , "NAME", "SYNTAX_ONLY")+ ".EXE"
-$   endif
+$   endif ! (v_ssl)
 $!
 $   if (openssl_cmd .eqs. "")
 $   then
 $     type sys$input
 FATAL: Cannot determine the OpenSSL version installed.  Ensure that the
-appropriate SSL set-up procedure has been run.
+       appropriate SSL set-up procedure has been run.
 
 $     goto The_exit
 $   endif
-$   define/user sys$output openssl_version.tmp
+$   temp_file_name = "openssl_version.tmp"
+$   define/user sys$output 'temp_file_name'
 $   openssl_cmd version
 $   close/nolog LOG
-$   open/read LOG openssl_version.tmp
+$   open/read LOG 'temp_file_name'
 $   read LOG line
 $   close LOG
-$   delete_ openssl_version.tmp;
+$   delete_ 'temp_file_name';
 $   ssl_version = f$element(1," ",f$edit(line,"compress"))
 $   if ssl_version .lts. "1.1.1"
 $   then
 $     say -
-"FATAL: OpenSSL version ''ssl_version' is older than 1.1.1, which is too old."
+ "FATAL: OpenSSL version ''ssl_version' is older than 1.1.1, which is too old."
 $     goto The_exit
 $   else
 $     say "OpenSSL ''ssl_version' found"
 $   endif
-$ endif
+$ endif ! (ssl)
 $!
 $! If necessary, define the logical name OPENSSL for #include directives.
 $!
-$ if ssl
+$ if (ssl)
 $ then
 $   openssl_proc = f$edit( f$trnlnm( "OPENSSL", "LNM$PROCESS"), "UPCASE")
 $   openssl_orig = f$edit( f$trnlnm( "OPENSSL"), "UPCASE")
 $   if v_ssl
 $   then
-$     if (ssl111 .ne. 0)
-$     then
-$       openssl_new = "SSL111$INCLUDE:"
-$     else
-$       openssl_new = "SSL3$INCLUDE:"
-$     endif
+$     openssl_new = "SSL"+ vssl_vrsn+ "$INCLUDE:"
 $   else
 $     openssl_new = "OSSL$INCLUDE:[OPENSSL]"
 $   endif
@@ -665,7 +722,7 @@ $     endif
 $   endif
 $   define OPENSSL 'openssl_new'
 $   openssl_def = 1
-$ endif
+$ endif ! (ssl)
 $!
 $! P1 "D", debug option.
 $!
@@ -700,12 +757,13 @@ $! Find out which Kermit version we are building
 $! (from CKCMAI.C's ck_s_ver variable declaration)
 $!
 $ ck_version = "9.0.299"
-$ search /exact /nostatistic /output=ck_version.tmp -
+$ temp_file_name = "ck_version.tmp"
+$ search /exact /nostatistic /output = 'temp_file_name' -
       K:ckcmai.c "char *ck_s_ver = "
-$ open /read /error=end_version VERSION_TMP ck_version.tmp
+$ open /read /error=end_version VERSION_TMP 'temp_file_name'
 $ read /error=end_version VERSION_TMP line
 $ close VERSION_TMP
-$ delete ck_version.tmp;
+$ delete 'temp_file_name';
 $ ck_version = f$element(1,"""",line)
 $end_version:
 $!
@@ -742,10 +800,10 @@ $   write optf "ckvtio.obj"
 $   write optf "ckvcon.obj"
 $   write optf "ckvioc.obj"
 $   write optf "ckusig.obj"
+$   write optf "ckvrtl.obj"
 $   if internal_ftp
 $   then
 $     write optf "ckcftp.obj"
-$     write optf "ckvrtl.obj"
 $   endif
 $   write optf "Identification=""Kermit ''ck_version'"""
 $!
@@ -756,32 +814,20 @@ $     write optf "ck_crp.obj"
 $     write optf "ck_ssl.obj"
 $     if (v_ssl)
 $     then
-$       if (ssl111 .ne. 0)
+$       if (sslolb)
 $       then
-$! Vendor SSL111.
-$         if (sslolb)
-$         then
 $! Object libraries.
-$           write optf "SSL111$LIB:SSL111$LIBSSL32.OLB/library"
-$           write optf "SSL111$LIB:SSL111$LIBCRYPTO32.OLB/library"
-$         else ! sslolb
+$         write optf -
+           "SSL"+ vssl_vrsn+ "$LIB:SSL"+ vssl_vrsn+ "$LIBSSL32.OLB/library"
+$         write optf -
+           "SSL"+ vssl_vrsn+ "$LIB:SSL"+ vssl_vrsn+ "$LIBCRYPTO32.OLB/library"
+$       else ! sslolb
 $! Shared images.
-$           write optf "SYS$SHARE:SSL111$LIBSSL_SHR32.EXE/shareable"
-$           write optf "SYS$SHARE:SSL111$LIBCRYPTO_SHR32.EXE/shareable"
-$         endif ! sslolb
-$       else ! ssl111
-$! Vendor SSL3.
-$         if (sslolb)
-$         then
-$! Object libraries.
-$           write optf "SSL3$LIB:SSL111$LIBSSL32.OLB/library"
-$           write optf "SSL3$LIB:SSL111$LIBCRYPTO32.OLB/library"
-$         else ! sslolb
-$! Shared images.
-$           write optf "SYS$SHARE:SSL3$LIBSSL_SHR32.EXE/shareable"
-$           write optf "SYS$SHARE:SSL3$LIBCRYPTO_SHR32.EXE/shareable"
-$         endif ! sslolb
-$       endif ! ssl111
+$         write optf -
+           "SYS$SHARE:SSL"+ vssl_vrsn+ "$LIBSSL_SHR32.EXE/shareable"
+$         write optf -
+           "SYS$SHARE:SSL"+ vssl_vrsn+ "$LIBCRYPTO_SHR32.EXE/shareable"
+$       endif ! sslolb
 $     else ! v_ssl
 $! OpenSSL.  (Use newer "OSSL$*" logical names).
 $       if (sslolb)
@@ -841,6 +887,15 @@ $ then
 $   say "DECC compiler found"
 $   cc_ver = "DECC"
 $   ccopt = "/decc/unsigned_char"+ccopt
+$!
+$   temp_file_name = "cc_vers.tmp"
+$   define /user_mode sys$output 'temp_file_name'
+$   cc /version
+$   open /read temp_file 'temp_file_name'
+$   read temp_file cc_version
+$   close temp_file
+$   delete 'temp_file_name';*
+$!
 $   goto compile
 $ endif
 $!
@@ -948,6 +1003,34 @@ $     non_vax=1
 $   endif
 $ endif
 $!
+$! Record architecture, source location, C compiler version string, and
+$! DCL parameters in build-log (.blog) file. 
+$!
+$ blogfilename = procbasename+ ".blog"
+$ create /fdl = sys$input 'blogfilename'
+RECORD
+        FORMAT stream_lf
+$!
+$ open /append blog_file 'blogfilename' 
+$ write blog_file "ARCH="+ arch
+$ write blog_file "CC_VERSION="+ -
+   f$extract( 0, f$locate( " on", cc_version), cc_version)
+$ if (ssl_version .nes. "")
+$ then
+$   ssl_version = "OpenSSL "+ ssl_version
+$ endif
+$ write blog_file "SSL_VERSION="+ ssl_version
+$ write blog_file "CK_SOURCE="+ ck_source
+$ write blog_file "P1="+ p1o
+$ write blog_file "P2="+ p2o
+$ write blog_file "P3="+ p3o
+$ write blog_file "P4="+ p4
+$ write blog_file "P5="+ p5o
+$ write blog_file "P6="+ p6
+$ close blog_file
+$!
+$! Announce.
+$!
 $ say f$fao("!/Operating System: OpenVMS(tm) !AS!/", arch)
 $!
 $! cc_ver could start with DECC, GNUC, or VAXC, or be specified by the
@@ -1041,6 +1124,7 @@ $ if net_option .eqs. "NONET"
 $ then
 $   net_name = "no"
 $   internal_ftp = 0
+$   internal_http = 0
 $ else
 $   havetcp = 1
 $   if net_option .eqs. "MULTINET"
@@ -1069,6 +1153,10 @@ $        else
 $          if net_option .eqs. "DEC_TCPIP"                      ! +1.24
 $          then
 $            net_name = "DEC TCP/IP Services for OpenVMS(tm)"
+$            if f$search("tcpip$library:tcpip$lib.olb") .nes.""  ! 1.50
+$            then
+$              write optf "tcpip$library:tcpip$lib/library"
+$            endif
 $            if non_vax .eq. 0
 $            then
 $              if ucxv5
@@ -1166,13 +1254,23 @@ $ if vmsv8 then cln_def = cln_def+",VMSV80"
 $ if ucxv5 then cln_def = cln_def+",UCX50"
 $ if if_dot_h then cln_def = cln_def+",IF_DOT_H"
 $ if havetcp then cln_def = cln_def+",TCPSOCKET"
-$ if vms_ver .lts. "VMS_V62" then cln_def = cln_def+",NOHTTP,NOCMDATE2TM"
+$ if vms_ver .lts. "VMS_V62"
+$ then
+$   cln_def = cln_def+",NOHTTP,NOCMDATE2TM"
+$   internal_http = 0
+$ endif
 $!!! if vms_ver .lts. "VMS_V72" then cln_def = cln_def+",NOSETTIME"
 $!
 $ if_def=""
 $ if internal_ftp
 $ then
-$  if_def=",NEWFTP"
+$  if_def = if_def+ ",NEWFTP"
+$ endif
+$ if internal_http
+$ then
+$  if_def = if_def+ ",CKHTTP"
+$ else
+$  if_def = if_def+ ",NOHTTP"
 $ endif
 $!
 $! LARGE_FILE NOTES :
@@ -1192,7 +1290,7 @@ $ lf_def=""
 $ if large_file .and. non_vax.eq.0 ! Disable for VAX
 $ then
 $  large_file=0
-$  say "Large file support disabled becuase: VAX"
+$  say "Large file support disabled because: VAX"
 $ endif
 $!
 $ if large_file .and. vms_ver .lts. "VMS_V73" ! Disable for VMS pre-7.3
@@ -1255,6 +1353,24 @@ $   say ""
 $   show symb ccopt
 $   show symb lopt
 $!
+$   say "  Compiling CKWART at ''f$time()"
+$!
+$! Note the use of apostrophe (') rather than quotation mark (") in quoting
+$! CCOPT, to prevent CCOPT from being expanded prior to the MAKE call,
+$! which could result in the string being too long.  Using ' rather than "
+$! forces evaluation of CCOPT to occur in the MAKE routine itself.
+$!
+$   CALL MAKE ckwart.OBJ "'CC' 'CCOPT' K:ckwart" -
+          "K:ckwart.c K:ckcsym.h K:ckcdeb.h K:ckclib.h"
+$   say "  Linking CKWART at ''f$time()"
+$!
+$   CALL MAKE ckwart.exe "LINK  ckwart,aux.opt/opt/NOMAP" ckwart.obj
+$   say "  Running CKWART at ''f$time()"
+$   ckwart = "$" +f$parse("CKWART.EXE",,,"DEVICE") +-
+            f$parse("CKWART.EXE",,,"DIRECTORY") + "CKWART"
+$   CALL MAKE ckcpro.c "ckwart  K:ckcpro.w ckcpro.c" -
+          "K:ckcpro.w" K:ckcsym.h
+$!
 $   say f$fao("!/  Compiling WERMIT files at ''f$time()")
 $!
 $! Note how MAKE args are combined in quotes to get around the limitation
@@ -1285,7 +1401,10 @@ $     CALL MAKE ckcftp.obj "'CC' 'CCOPT' K:ckcftp" -
             "K:ckucmd.h K:ckuusr.h K:ckcnet.h K:ckvioc.h" -
             "K:ckctel.h K:ckcxla.h K:ckuxla.h K:ckcuni.h" -
             "K:ckuath.h K:ckvrtl.h K:ck_ssl.h"
+$   endif
 $!
+$   if internal_ftp .or. internal_http
+$   then
 $     CALL MAKE ckvrtl.obj "'CC' 'CCOPT' K:ckvrtl" -
             "K:ckvrtl.c K:ckvrtl.h"
 $   endif
@@ -1501,8 +1620,12 @@ $!
 $CLEAN_ALL:
 $ if f$search("ccflags.mms") .nes. "" then delete/noconf/log ccflags.mms;*
 $ if f$search("ckcpro.c")    .nes. "" then delete/noconf/log ckcpro.c;*
+$ if f$search("ckvblog.txt") .nes. "" then delete/noconf/log ckvblog.txt;*
+$ if f$search("shofeat.txt") .nes. "" then delete/noconf/log shofeat.txt;*
 $ if f$search("*.exe")       .nes. "" then delete/noconf/log *.exe;*
+$ if f$search("*.blog")      .nes. "" then delete/noconf/log *.blog;*
 $ if f$search("*.opt")       .nes. "" then delete/noconf/log *.opt;*
+
 $CLEAN:
 $ if f$search("*.obj")       .nes. "" then delete/noconf/log *.obj;*
 $ if f$search("*.lis")       .nes. "" then delete/noconf/log *.lis;*

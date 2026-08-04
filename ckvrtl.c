@@ -114,7 +114,7 @@ struct atrdef ut_atr[ 3] = {
 
 struct FAB ut_fab = cc$rms_fab;
 struct RAB ut_rab = cc$rms_rab;
-struct NAMX ut_namx = CC_RMS_NAMX;
+struct NAMX_STRUCT ut_namx = CC_RMS_NAMX;
 static struct fibdef ut_fib;
 
 /* Device and file name buffers and their descriptors. */
@@ -131,7 +131,7 @@ struct dsc$descriptor fib_dsc =
 
 #ifdef __DECC
 
-/* We will accept either a UNIX-like path name or a VMS-like path name.
+/* We will accept either a UNIX-like path name or a VMS-like path name. 
    If a slash is found in the name, assume that it's UNIX-like, and
    convert it to VMS form.  Otherwise, use it as-is.
 */
@@ -398,3 +398,4 @@ int dmy_lib$initialize = (int) LIB$INITIALIZE;
 #pragma standard
 
 #endif /* !defined( __VAX) && (__CRTL_VER >= 70301000) */
+

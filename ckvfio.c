@@ -390,7 +390,7 @@ char *WHOCMD = "show users ";		/* For seeing who's logged in */
 char *PWDCMD = "show default ";		/* For seeing current directory */
 
 /*
-  Functions (n is one of the predefined file numbers from ckermi.h):
+  Functions (n is one of the predefined file numbers from ckcker.h):
 
    zopeni(n,name)   -- Opens an existing file for input.
    zopeno(n,name)   -- Opens a new file for output.
@@ -471,6 +471,9 @@ char *PWDCMD = "show default ";		/* For seeing current directory */
 
 #include <lnmdef.h>
 #include <rmsdef.h>
+
+#include "ckcnet.h"                     /* for struct sockaddr */
+#include "ckcfnp.h"                     /* Prototypes (must be last) */
 
 #ifndef MAXWLD
 #define MAXWLD 102400			/* Maximum wildcard filenames */
@@ -571,7 +574,7 @@ static unsigned long sub_pid;
  */
 
 static	struct FAB fab_ifile;		/* For SEND file */
-static	struct NAMX nam_ifile;
+static	struct NAMX_STRUCT nam_ifile;
 static	struct RAB rab_ifile;
 static	struct XABDAT xabdat_ifile;
 static	struct XABFHC xabfhc_ifile;
@@ -584,7 +587,7 @@ static	char aclbuf[512];
 static	unsigned long xuchar = 0;
 
 static	struct FAB fab_rfile;		/* For OPEN READ file */
-static	struct NAMX nam_rfile;
+static	struct NAMX_STRUCT nam_rfile;
 static	struct RAB rab_rfile;
 
 static	struct XABDAT xabdat_rfile;
@@ -601,7 +604,7 @@ static	char raclbuf[512];
  */
 
 static	struct FAB fab_ofile;
-static	struct NAMX nam_ofile;
+static	struct NAMX_STRUCT nam_ofile;
 static	struct RAB rab_ofile;
 static	struct XABDAT xabdat_ofile;
 static	struct XABFHC xabfhc_ofile;
@@ -625,7 +628,7 @@ static	short ofile_ffb;
  */
 
 static	struct FAB path_fab;
-static	struct NAMX path_nam;
+static	struct NAMX_STRUCT path_nam;
 static	char path_exp_name[ NAMX_C_MAXRSS];
 static	char path_res_name[ NAMX_C_MAXRSS];
 
@@ -789,7 +792,7 @@ int get_rms_defaults()
  *
  * 2010-03-22 SMS.
  * This would seem to be a somewhat fuzzy concept on VMS.  For example,
- * is "SYS$DISK:[]" not as relative as "[]"?  We say it's absolute.
+ * is "SYS$DISK:[]" not as relative as "[]"?  We say it's absolute. 
  * What about some other device, like, say, "DUA0:[]"?  We say it's
  * absolute.  Perhaps a check for a real logical name (with a directory
  * spec?) would be more realistic.
@@ -846,6 +849,45 @@ isabsolute(path) char * path; {
     return rc;
 }
 
+/* For the record, old VMS isabsolute() code from ckcmai.c. */
+#ifdef COMMENT
+
+/* Tell if a pathname is absolute (versus relative) */
+/* This should be parceled out to each of the ck*fio.c modules... */
+int
+isabsolute(path) char * path; {
+    int rc = 0;
+    int x;
+    if (!path)
+      return(0);
+    if (!*path)
+      return(0);
+    x = (int) strlen(path);
+    debug(F111,"isabsolute",path,x);
+#ifdef VMS
+    rc = 0;
+    x = ckindex("[",path,0,0,0);        /* 1-based */
+    if (!x)
+       x = ckindex("<",path,0,0,0);
+    debug(F111,"isabsolute left bracket",path,x);
+    if (!x) {
+        x = ckindex(":",path,-1,1,1);
+        if (x)
+          debug(F111,"isabsolute logical",path,x);
+    }
+    if (x > 0)
+      if (path[x] != '.')               /* 0-based */
+        rc = 1;
+#else
+[...]
+#endif /* VMS */
+    debug(F101,"isabsolute rc","",rc);
+    return(rc);
+}
+
+#endif /* def COMMENT */
+
+
 #ifdef CK_TMPDIR
 
 /*  I S D I R  --  Tells if string pointer s is the name of a directory. */
@@ -877,10 +919,7 @@ isdir(path) char *path; {
     path_fab.FAB_L_NAMX = &path_nam;            /* Point FAB to NAM[L]. */
 
     /* Install the path argument in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    path_fab.fab$l_dna = (char *) -1;   /* Using NAML for default name. */
-    path_fab.fab$l_fna = (char *) -1;   /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( path_fab)
     FAB_OR_NAML( path_fab, path_nam).FAB_OR_NAML_FNA = path;
     FAB_OR_NAML( path_fab, path_nam).FAB_OR_NAML_FNS = strlen( path);
 
@@ -1032,10 +1071,7 @@ iswild(path) char *path; {
     path_fab.FAB_L_NAMX = &path_nam;            /* Point FAB to NAM[L]. */
 
     /* Install the path argument in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    path_fab.fab$l_dna = (char *) -1;   /* Using NAML for default name. */
-    path_fab.fab$l_fna = (char *) -1;   /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( path_fab)
     FAB_OR_NAML( path_fab, path_nam).FAB_OR_NAML_FNA = path;
     FAB_OR_NAML( path_fab, path_nam).FAB_OR_NAML_FNS = strlen( path);
 
@@ -1147,10 +1183,7 @@ zopeni(n,name) int n; char *name; {
 	  fab_ifile.fab$b_fac = FAB$M_BIO | FAB$M_GET;
 
 	/* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-	fab_ifile.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-	fab_ifile.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+        NAMX_DNA_FNA_SET( fab_ifile)
 	FAB_OR_NAML( fab_ifile, nam_ifile).FAB_OR_NAML_FNA = name;
 	FAB_OR_NAML( fab_ifile, nam_ifile).FAB_OR_NAML_FNS = strlen( name);
 
@@ -1199,7 +1232,7 @@ zopeni(n,name) int n; char *name; {
 		debug(F100,"zopeni fixed file format - using blk I/O","",0);
 		ifile_bmode = 1;
 	    }
-	}
+  	}
 	debug(F101,"zopeni binary flag at open","",binary);
 	if (binary == XYFT_I) {
 	    debug(F100,"zopeni using IMAGE mode by user request","",0);
@@ -1231,7 +1264,7 @@ zopeni(n,name) int n; char *name; {
 	    /* (but only for odd-record length fixed-block files) */
 
 	    debug(F100,"zopeni record i/o for BINARY, Odd Fixed RL","",0);
-	}
+      	}
 	rab_ifile.rab$l_rop = 0;
 	rms_sts = sys$connect(&rab_ifile);
 	if (!(rms_sts & 1)) vms_lasterr = rms_sts;
@@ -1256,10 +1289,7 @@ zopeni(n,name) int n; char *name; {
 	fab_rfile.fab$b_fac = FAB$M_BRO | FAB$M_GET;
 
 	/* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-	fab_rfile.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-	fab_rfile.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+        NAMX_DNA_FNA_SET( fab_rfile)
 	FAB_OR_NAML( fab_rfile, nam_rfile).FAB_OR_NAML_FNA = name;
 	FAB_OR_NAML( fab_rfile, nam_rfile).FAB_OR_NAML_FNS = strlen( name);
 
@@ -1310,7 +1340,7 @@ zopeni(n,name) int n; char *name; {
 		debug(F100,"zopeni ZRFILE fixed file format - fail","",0);
 		return(0);
 	    }
-	}
+  	}
 	rab_rfile.rab$l_rop = 0;
 	rms_sts = sys$connect(&rab_rfile);
 	if (!(rms_sts & 1)) vms_lasterr = rms_sts;
@@ -1386,31 +1416,42 @@ zopeno(n,name,zz,fcb)
 	}
 
 /* Note: don't add "ctx=rec", "shr=get" here - it slows writes to a crawl */
+/* 2024-04-23 SMS.  Get text-file record format from SET VMS_TEXT. */
 
-	if (n != ZSFILE) {
-	    /* was mrs = 80; 254 is max record size for EDT */
-	    fp[n] = fopen(name, p, "rat=cr", "rfm=var", "mrs=254");
-	} else {			/* Session Log */
-	    extern int sessft;		/* Type */
+	extern int vms_text;        /* VMS record format for text files. */
+	if (n == ZSFILE) {		/* Session Log */
+	    extern int sessft;		/* Type (binary/text) */
+
 	    if (sessft == XYFT_T) {	/* Text */
-		fp[n] = fopen(name, p, "ctx=stm", "rat=cr", "rfm=stmlf");
+	        if (vms_text == VMSTFV) { /* Variable-length. */
+		    fp[n] = fopen(name, p, "rat=cr", "rfm=var");
+	        } else {		  /* Stream_LF (default). */
+		    fp[n] = fopen(name, p, "ctx=stm", "rat=cr", "rfm=stmlf");
+	        }
 	    } else {			/* Binary */
 		fp[n] = fopen(name, p, "ctx=bin", "rat=none",
-			               "rfm=fix", "mrs=512");
+		                       "rfm=fix", "mrs=512");
+	    }
+	} else {			/* Not session Log. */
+	    if (vms_text == VMSTFV) {	  /* Variable-length. */
+		/* was mrs = 80; 254 is max record size for EDT */
+		fp[n] = fopen(name, p, "rat=cr", "rfm=var", "mrs=254");
+	    } else {			  /* Stream_LF (default). */
+		fp[n] = fopen(name, p, "ctx=stm", "rat=cr", "rfm=stmlf");
 	    }
 	}
 	if (fp[n] == NULL) {		/* Failed */
-            if (errno == EVMSERR) {
+	    if (errno == EVMSERR) {
 	        debug(F111,"zopeno fopen failed vaxc$errno",name,vaxc$errno);
-                if (vaxc$errno == RMS$_SYN)
-                  printf("?fopen file name syntax error : %s\n", name);
-                else
-                  printf("?fopen failed %s : %s\n",name,
-                         ckvmserrstr(vaxc$errno));
-            } else {
-	        debug(F111,"zopeno fopen failed errno",name,errno);
-                perror(name);
-            }
+		if (vaxc$errno == RMS$_SYN)
+		    printf("?fopen file name syntax error : %s\n", name);
+		else
+		    printf("?fopen failed %s : %s\n",name,
+		    ckvmserrstr(vaxc$errno));
+	    } else {
+		debug(F111,"zopeno fopen failed errno",name,errno);
+		perror(name);
+	    }
 	} else {			/* Didn't fail */
 	    debug(F100,"zopeno fopen ok", "", 0);
 	}
@@ -1454,10 +1495,7 @@ zopeno(n,name,zz,fcb)
 	fab_ofile.FAB_L_NAMX = &nam_ofile;      /* Point FAB to NAM[L]. */
 
 	/* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-	fab_ofile.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-	fab_ofile.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+        NAMX_DNA_FNA_SET( fab_ofile)
 	FAB_OR_NAML( fab_ofile, nam_ofile).FAB_OR_NAML_FNA = name;
 	FAB_OR_NAML( fab_ofile, nam_ofile).FAB_OR_NAML_FNS = strlen( name);
 
@@ -2444,7 +2482,7 @@ zchout(n,c) register int n; char c;
     if (chkfn(n) < 1) return(-1);
 #endif
     if (n == ZSFILE) {
-	return(write(fileno(fp[n]),&c,1)); /* Use unbuffered for session log */
+    	return(write(fileno(fp[n]),&c,1)); /* Use unbuffered for session log */
     } else {
 	if (putc(c,fp[n]) == EOF)	/* If true, maybe there was an error */
 	  return(ferror(fp[n]) ? -1 : 0); /* Check to make sure */
@@ -2732,7 +2770,7 @@ zchki(name) char *name; {
     extern int zchkid;
     int x;
     struct FAB fab_chki;
-    struct NAMX nam_chki;
+    struct NAMX_STRUCT nam_chki;
     struct XABFHC xabfhc_chki;
     CK_OFF_T iflen = (CK_OFF_T)-1;
 
@@ -2763,10 +2801,7 @@ zchki(name) char *name; {
     fab_chki.FAB_L_NAMX = &nam_chki;            /* Point FAB to NAM[L]. */
 
     /* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    fab_chki.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-    fab_chki.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( fab_chki)
     FAB_OR_NAML( fab_chki, nam_chki).FAB_OR_NAML_FNA = name;
     FAB_OR_NAML( fab_chki, nam_chki).FAB_OR_NAML_FNS = strlen( name);
 
@@ -2806,7 +2841,7 @@ zchko(name) char *name; {
     extern int zchkod;                  /* Used by IF WRITEABLE */
 
     struct FAB fab;			/* let RMS do the work */
-    struct NAMX nam;
+    struct NAMX_STRUCT nam;
     char expanded_str[NAMX_C_MAXRSS+ 1];
 
     if (!name) return(-1);              /* Watch out for null pointer. */
@@ -2817,10 +2852,7 @@ zchko(name) char *name; {
     fab.FAB_L_NAMX = &nam;              /* Point FAB to NAM[L]. */
 
     /* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    fab.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-    fab.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( fab)
     FAB_OR_NAML( fab, nam).FAB_OR_NAML_FNA = name;
     FAB_OR_NAML( fab, nam).FAB_OR_NAML_FNS = strlen( name);
 
@@ -3095,7 +3127,7 @@ nzrtol(name,name2,fncnv,fnrpath,max)
         np = name + start;		/* ptr to name in tmpbuf */
         bb = tmpbuf;			/* destination */
 	if (tmpbuf[0] == '[') {		/* [179] If it starts with a bracket */
-	    *bb++ = *np++;
+	    *bb++ = *np++;		
 	    if (*np != '.')
 	      *bb++ = '.';		/* make relative */
 	}
@@ -3251,7 +3283,7 @@ nzltor(name,name2,fncnv,fnspath,cp_len)
     char *cp, *pp;
     int flag;
     struct FAB fab;
-    struct NAMX nam;
+    struct NAMX_STRUCT nam;
     char expanded_name[ NAMX_C_MAXRSS];
     char dirbuf[ NAMX_C_MAXRSS], *p, *q, *q2, *r, *s, *s2;
     int long rms_status;
@@ -3272,10 +3304,7 @@ nzltor(name,name2,fncnv,fnspath,cp_len)
     fab.FAB_L_NAMX = &nam;              /* Point FAB to NAM[L]. */
 
     /* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    fab.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-    fab.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( fab)
     FAB_OR_NAML( fab, nam).FAB_OR_NAML_FNA = name;
     FAB_OR_NAML( fab, nam).FAB_OR_NAML_FNS = strlen( name);
 
@@ -3934,7 +3963,7 @@ zxcmd(filnum, comand) int filnum; char *comand; {
     if (sts != SS$_NORMAL)
       return(0);
 
-    sprintf(mbxnam,"KERMIT$MBX_%08X", (unsigned int)pid);
+    sprintf(mbxnam,"KERMIT$MBX_%08X", pid);
     debug(F110,"zxcmd mailbox logical", mbxnam, 0);
     mbx_desc.dsc$w_length = strlen(mbxnam);
     mbx_desc.dsc$a_pointer = mbxnam;
@@ -4170,7 +4199,7 @@ zfnqfp(fn, buflen, buf)  char * fn; int buflen; char * buf; {
     static struct zfnfp fnfp;
 
     struct FAB fab;
-    struct NAMX nam;
+    struct NAMX_STRUCT nam;
     char expanded_name[NAMX_C_MAXRSS];
     char tmpnam[NAMX_C_MAXRSS+ 16];
     int long rms_status;
@@ -4207,10 +4236,7 @@ zfnqfp(fn, buflen, buf)  char * fn; int buflen; char * buf; {
     fab.FAB_L_NAMX = &nam;              /* Point the FAB to the NAM[L]. */
 
     /* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    fab.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-    fab.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( fab)
     FAB_OR_NAML( fab, nam).FAB_OR_NAML_FNA = cp;
     FAB_OR_NAML( fab, nam).FAB_OR_NAML_FNS = strlen( cp);
 
@@ -4680,8 +4706,7 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x; {
 	return(-1);
     }
     debug(F110,"zstime built",cdate,0);
-    sprintf(cdate, "%08X%08X",
-	    (unsigned int)attr_date[1], (unsigned int)attr_date[0]);
+    sprintf(cdate, "%08X%08X", attr_date[1], attr_date[0]);
     debug(F110,"zstime $bintim attr_date", cdate, 0);
     setdate = 1;
 
@@ -4736,11 +4761,11 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x; {
 	    unsigned long dfpro = 0L, mask = 0L;
 	    unsigned short tmp;
 	    tmp = xabpro_ofile.xab$w_pro;
-	    rms_sts = sys$setdfprot(0,&dfpro); /* Get default protection */
+    	    rms_sts = sys$setdfprot(0,&dfpro); /* Get default protection */
 	    if (!(rms_sts & 1)) vms_lasterr = rms_sts;
 #ifdef DEBUG
 	    if (deblog) {
-		sprintf(xbuf,"%X",(unsigned int)dfpro);
+		sprintf(xbuf,"%X",dfpro);
 		debug(F111,"zstime sys$setdfprot",xbuf,rms_sts);
 	    }
 #endif /* DEBUG */
@@ -4793,10 +4818,7 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x; {
 	fab_ifile.FAB_L_NAMX = &nam_ifile;  /* Point the FAB to the NAM[L]. */
 
 	/* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-	fab_ifile.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-	fab_ifile.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+        NAMX_DNA_FNA_SET( fab_ifile)
 	FAB_OR_NAML( fab_ifile, nam_ifile).FAB_OR_NAML_FNA = f;
 	FAB_OR_NAML( fab_ifile, nam_ifile).FAB_OR_NAML_FNS = strlen( f);
 
@@ -4812,8 +4834,7 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x; {
 	    return(-1);
 	}
 	memcpy(file_date, &xabdat_ifile.xab$q_cdt, 8);
-	sprintf(cdate, "%08x%08x",
-		(unsigned int)file_date[1], (unsigned int)file_date[0]);
+	sprintf(cdate, "%08x%08x", file_date[1], file_date[0]);
 	debug(F110,"zstime $bintim file_date", cdate, 0);
 	rms_sts = sys$close(&fab_ifile);
 	if (!(rms_sts & 1)) vms_lasterr = rms_sts;
@@ -4938,6 +4959,160 @@ zkermini(s, s_len, def) char *s; int s_len; char *def; {
     return(0);
 }
 
+#ifdef COMMENT
+static int
+parse_fname(cp, cp_len, defnam, flag, fncnv, fnspath)
+char *cp;		/* Pointer to file spec to parse */
+int cp_len;		/* Length of cp field */
+char *defnam;		/* Default file spec */
+int flag;		/* Flag word PARSE_xxx */
+int fncnv;		/* Filename conversion */
+int fnspath;		/* Pathname handling */
+{
+    struct FAB fab;
+    struct NAM nam;
+    char expanded_name[ NAMX_C_MAXRSS];
+    char dirbuf[ NAMX_C_MAXRSS], *p, *q, *q2, *r, *s, *s2;
+    int long rms_status;
+    int cur_len = 0;
+
+    debug(F110,"zltor entry",defnam,0);
+
+    fab = cc$rms_fab;
+    fab.fab$l_nam = &nam;
+    fab.fab$l_fna = cp;
+    fab.fab$b_fns = strlen(cp);
+    if (defnam) {
+	fab.fab$b_dns = strlen(defnam);
+	fab.fab$l_dna = defnam;
+    } else
+      fab.fab$l_dna = 0;
+
+    nam = cc$rms_nam;
+    nam.nam$l_esa = (char *)&expanded_name;
+    nam.nam$b_ess = sizeof(expanded_name);
+
+    if (!CHECK_ERR("%%CKERMIT-W-PARSE, ",
+		sys$parse(&fab)))
+	return(-1);
+
+    *cp = '\0';				/* Start with an empty result */
+
+    if ((PARSE_NODE & flag) && nam.nam$b_node && /* DECnet node:: */
+		cur_len+nam.nam$b_node < cp_len) {
+	cur_len += nam.nam$b_node;
+	strncat(cp, nam.nam$l_node, (int)nam.nam$b_node);
+    }
+    if ((PARSE_DEVICE & flag) && nam.nam$b_dev && /* Device: */
+		cur_len+nam.nam$b_dev < cp_len) {
+	cur_len += nam.nam$b_dev;
+	strncat(cp, nam.nam$l_dev, (int)nam.nam$b_dev);
+    }
+
+    /* Directory Name [] */
+
+    if ((PARSE_DIRECTORY & flag) && nam.nam$b_dir &&
+		cur_len+nam.nam$b_dir < cp_len) {
+	int i; char * tmp;
+        q = nam.nam$l_dir;		/* The directory name from RMS */
+	i = nam.nam$b_dir;		/* Length; string not nul-terminated */
+	debug(F111,"zltor nam$_dir",q,i);
+	if (!q) q = "[]";
+	if (!*q) q = "[]";
+	if (i < 0) i = 0;
+	tmp = NULL;
+	if (i > 0) {			/* Copy directory part */
+	    if (tmp = malloc(i+1)) {
+		p = tmp;
+		for ( ; i > 0 ; i--)
+		  *p++ = *q++;
+		*p = NUL;
+	    }
+	}
+	q = tmp;
+	debug(F111,"zltor directory part",q,i);
+
+	s = zgtdir();			/* Get current directory */
+	debug(F110,"zltor zgtdir",s,0);
+	if (!s) s = "[]";
+	if (!*s) s = "[]";
+	s2 = "";
+	while (*s && *s != '[')
+	  s++;
+	if (*s) {
+	    s2 = s+1;
+	    while (*s2 && *s2 != ']') s2++; /* Closing bracket */
+	}
+	if (!*s)
+	  s = "[]";
+	else
+	  if (*s2) if (!*(s2+1)) *(s2+1) = NUL;
+	debug(F110,"zltor current dir",s,0);
+
+/* First change the VMS pathname to relative format if fnspath == PATH_REL */
+
+	p = dirbuf;			/* Result */
+	*p++ = *q++;			/* Copy left bracket and... */
+
+	s++;				/* Point past it */
+	q2 = q;				/* Remember this place */
+	if (fnspath == PATH_REL) {	/* Compare this and current dir */
+	    while (*s == *q && *s && *q && *s != ']') {
+		s++;
+		q++;
+	    }
+	}
+	if (*s != ']' && *q != ']' && *q != '.') /* No match */
+	  q = q2;			/* So rewind source pointer */
+
+	while (*q) *p++ = *q++;		/* Now copy the rest */
+	*p = NUL;
+	debug(F110,"zltor result 1",dirbuf,0);
+/*
+   VMS directory name is now in dirbuf in either absolute or relative format.
+   Now change it to standard (UNIX) format if desired.
+*/
+	p = dirbuf;			/* Working pointer */
+	r = dirbuf;			/* Result pointer */
+	if (fncnv) {			/* Converting directory format */
+	    int flag = 0;
+	    if (p[1] == '.') {		/* Directory name is relative */
+		r += 2;			/* Point past the leading dot */
+		p += 2;
+	    }
+	    while (*p) {		/* Now convert the rest */
+		if (*p == '.' || *p == '[' || *p == ']') {
+		    if (!flag) *p = '/';
+		    if (*p == ']')
+		      flag = 1;
+		}
+		p++;
+	    }
+	}
+	debug(F110,"zltor result 2",r,0);
+	if (tmp) free(tmp);
+	strncat(cp, r, (int)nam.nam$b_dir);
+	cur_len += strlen(r);
+    }
+    if ((PARSE_NAME & flag) && nam.nam$b_name &&
+		cur_len+nam.nam$b_name < cp_len) {
+	cur_len += nam.nam$b_name;
+	strncat(cp, nam.nam$l_name, (int)nam.nam$b_name);
+    }
+    if ((PARSE_TYPE & flag) && nam.nam$b_type &&
+		cur_len+nam.nam$b_type < cp_len) {
+	cur_len += nam.nam$b_type;
+	strncat(cp, nam.nam$l_type, (int)nam.nam$b_type);
+    }
+    if ((PARSE_VERSION & flag) && nam.nam$b_ver &&
+		cur_len+nam.nam$b_ver < cp_len) {
+	cur_len += nam.nam$b_ver;
+	strncat(cp, nam.nam$l_ver, (int)nam.nam$b_ver);
+    }
+    return(cur_len);
+}
+#endif /* COMMENT */
+
 /* Z G P E R M  --  Returns the permissions (protection) of the given file. */
 
 static char zgpbuf[24];
@@ -4946,7 +5121,7 @@ char *
 zgperm(f) char *f; {
     int x, x1, x2, x3, x4;
     struct FAB fab_perm;
-    struct NAMX nam_perm;
+    struct NAMX_STRUCT nam_perm;
     struct XABFHC xabfhc_perm;
     struct XABPRO xabpro_perm;
     struct XABDAT xabdat_perm;
@@ -4957,10 +5132,7 @@ zgperm(f) char *f; {
     fab_perm.FAB_L_NAMX = &nam_perm;    /* Point the FAB to the NAM[L]. */
 
     /* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    fab_perm.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-    fab_perm.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( fab_perm)
     FAB_OR_NAML( fab_perm, nam_perm).FAB_OR_NAML_FNA = f;
     FAB_OR_NAML( fab_perm, nam_perm).FAB_OR_NAML_FNS = strlen( f);
 
@@ -5234,7 +5406,7 @@ zsattr(xx) struct zattr *xx; {
 int
 zmkdir(path) char *path; {
     struct FAB dir_fab;
-    struct NAMX dir_nam;
+    struct NAMX_STRUCT dir_nam;
     struct dsc$descriptor_s expanded_filename;
 
     char expanded_name[ NAMX_C_MAXRSS];
@@ -5244,10 +5416,7 @@ zmkdir(path) char *path; {
     dir_fab.FAB_L_NAMX = &dir_nam;      /* Point the FAB to the NAM[L]. */
 
     /* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    dir_fab.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-    dir_fab.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( dir_fab)
     FAB_OR_NAML( dir_fab, dir_nam).FAB_OR_NAML_FNA = path;
     FAB_OR_NAML( dir_fab, dir_nam).FAB_OR_NAML_FNS = strlen( path);
 
@@ -5306,7 +5475,7 @@ zrmdir(path) char *path; {
     char *dir_end;
     char *dot_last;
     struct FAB fab_dir;
-    struct NAMX nam_dir;
+    struct NAMX_STRUCT nam_dir;
     char exp_name[ NAMX_C_MAXRSS];
     char dir_name[ NAMX_C_MAXRSS];
 
@@ -5386,10 +5555,7 @@ zrmdir(path) char *path; {
     fab_dir.FAB_L_NAMX = &nam_dir;      /* Point the FAB to the NAM[L]. */
 
     /* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    fab_dir.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-    fab_dir.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( fab_dir)
     FAB_OR_NAML( fab_dir, nam_dir).FAB_OR_NAML_FNA = path;
     FAB_OR_NAML( fab_dir, nam_dir).FAB_OR_NAML_FNS = strlen( path);
 
@@ -5490,10 +5656,8 @@ zrmdir(path) char *path; {
         fab_dir.FAB_L_NAMX = &nam_dir;  /* Point the FAB to the NAM[L]. */
 
         /* Install the path name in the FAB or NAML. */
+        NAMX_DNA_FNA_SET( fab_dir)
 #ifdef NAML$C_MAXRSS
-        fab_dir.fab$l_dna = (char *) -1;    /* Using NAML for default name. */
-        fab_dir.fab$l_fna = (char *) -1;    /* Using NAML for file name. */
-
         /* Special ODS5-QIO-compatible name storage. */
         nam_dir.naml$l_filesys_name = sys_name;
         nam_dir.naml$l_filesys_name_alloc = sizeof( sys_name);
@@ -5736,7 +5900,7 @@ zshcmd(s) char *s; {
     if (i != NULL) {
         debug(F100,"zshcmd: spawn prohibited on remote node","",0);
         printf("Cannot SPAWN with remote node as default directory\n");
-	if (*s)
+ 	if (*s)
 	  printf("therefore, cannot execute the DCL command \"%s\"\n", s);
         return(0);
     }
@@ -5797,7 +5961,7 @@ zstrip(name,name2) char *name, **name2; {
 
     for (cp = name; *cp; cp++) {
 	last = *cp;
-	if (*cp == '/' || *cp == ':' || *cp == '>' || *cp == ']') /* slash? */
+    	if (*cp == '/' || *cp == ':' || *cp == '>' || *cp == ']') /* slash? */
 	  pp = work;
 	else if (*cp == ';')		/* Chop off any version number */
 	  break;
@@ -5898,7 +6062,7 @@ zchkpath(s) char *s; {
  */
     unsigned int dd_len, status;
     struct FAB my_fab;
-    struct NAMX dd_nam, s_nam;
+    struct NAMX_STRUCT dd_nam, s_nam;
     const char *default_dir = "dummy.name";	/* guaranteed to resolve to */
 						/* the current default dir. */
     char dd_expanded_name[ NAMX_C_MAXRSS];
@@ -5909,10 +6073,7 @@ zchkpath(s) char *s; {
     my_fab.FAB_L_NAMX = &dd_nam;        /* Point the FAB to the NAM[L]. */
 
     /* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    my_fab.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-    my_fab.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( my_fab)
     FAB_OR_NAML( my_fab, dd_nam).FAB_OR_NAML_FNA = (char *)default_dir;
     FAB_OR_NAML( my_fab, dd_nam).FAB_OR_NAML_FNS = strlen( default_dir);
 
@@ -5932,10 +6093,7 @@ zchkpath(s) char *s; {
     my_fab.FAB_L_NAMX = &s_nam;
 
     /* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    my_fab.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-    my_fab.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( my_fab)
     FAB_OR_NAML( my_fab, s_nam).FAB_OR_NAML_FNA = s;
     FAB_OR_NAML( my_fab, s_nam).FAB_OR_NAML_FNS = strlen( s);
 
@@ -6129,7 +6287,7 @@ do_label_send(name) char *name; {
     if (fnspath == PATH_REL) {
         rel_dspec = fnd_rel(name);
         debug(F101," do_label_send: rel dir at char","", rel_dspec);
-        zp += sprintf(zp,"07REL_DIR00000008%08ld", (long)rel_dspec);
+        zp += sprintf(zp,"07REL_DIR00000008%08ld", rel_dspec);
     }
     zp += sprintf(zp,"07VMSNAME%08d", strlen(name));
     zp += sprintf(zp,"%s", name);
@@ -6417,10 +6575,7 @@ do_label_recv() {
 
     if ((ofile_lblopts & LBL_NAM) != 0) {
 	/* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-	fab_ofile.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-	fab_ofile.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+        NAMX_DNA_FNA_SET( fab_ofile)
 	FAB_OR_NAML( fab_ofile, nam_ofile).FAB_OR_NAML_FNA = ofile_vmsname;
 	FAB_OR_NAML( fab_ofile, nam_ofile).FAB_OR_NAML_FNS =
 	 strlen( ofile_vmsname);
@@ -6572,6 +6727,64 @@ ckvmserrstr(x) unsigned long x; {
     return((char *)xxvmsmsg);
 }
 
+/*----------------------------------------------------------------------
+ *
+ *       getexedir()
+ *
+ *   Extract the directory spec for the Kermit executable from xarg0
+ *   (copy of argv[ 0]).
+ *
+ * As of 2023-06-26, no header file provides the prototype for
+ * getexedir().  (Or a declaration for exedir or xarg0).
+ *
+/*--------------------------------------------------------------------*/
+
+_PROTOTYP( VOID getexedir, (void) );
+
+VOID
+getexedir( void)
+{
+  extern char *xarg0;
+  extern char *exedir;
+
+  int sts;
+
+/* RMS structures, buffers used for file parsing. */
+
+  struct FAB fab_exe;                   /* File Access Block. */
+  struct NAMX_STRUCT exe_nam;           /* [Long] Name Block. */
+  char exp_nam[ NAMX_C_MAXRSS+ 1];      /* Expanded String Area. */
+
+  /* Initialize the FAB and NAM[L], and link the NAM[L] to the FAB. */
+  fab_exe = cc$rms_fab;
+  exe_nam = CC_RMS_NAMX;
+  fab_exe.FAB_L_NAMX = &exe_nam;
+
+  /* Point the FAB/NAM[L] fields to the actual file spec. */
+
+  NAMX_DNA_FNA_SET( fab_exe)
+  FAB_OR_NAML( fab_exe, exe_nam).FAB_OR_NAML_FNA = xarg0;
+  FAB_OR_NAML( fab_exe, exe_nam).FAB_OR_NAML_FNS = strlen( xarg0);
+
+  exe_nam.NAMX_L_ESA = exp_nam;
+  exe_nam.NAMX_B_ESL = 0;
+  exe_nam.NAMX_B_ESS = sizeof( exp_nam)- 1;
+
+/* Parse the file specification. */
+
+  sts = sys$parse( &fab_exe, 0, 0);     /* Can't fail? */
+
+  /* NUL-terminate at the beginning of the name (end-of-dir+ 1). */
+  *exe_nam.NAMX_L_NAME = '\0';
+
+  if ((sts& STS$M_SEVERITY) == STS$K_SUCCESS)
+  {
+    makestr( &exedir, exp_nam);         /* Save the result. */
+  }
+}
+
+/*--------------------------------------------------------------------*/
+
 /* End of CKVFIO.C */
 
 
@@ -6701,11 +6914,11 @@ isdir(s) char *s; {
     while (i >= 0 && s[i] != ':') i--;
 
     if (i >= 0 && s[i] == ':') {
-	if (i == 0) return(0);		/* Single colon (:) */
-	if (s[i-1] == ':') {
-	    if (i > 1) return(1);	/* DECnet node name (blah::) */
-	    else return(0);		/* or :: alone. */
-	}
+    	if (i == 0) return(0);		/* Single colon (:) */
+    	if (s[i-1] == ':') {
+    	    if (i > 1) return(1);	/* DECnet node name (blah::) */
+    	    else return(0);		/* or :: alone. */
+    	}
 	s_len = i;
 	full_name = malloc(s_len + 1);
 	if (!full_name) return(0);
@@ -6761,9 +6974,9 @@ isdir(s) char *s; {
 	    if (new_len > 2 &&
 	        (name_buf[new_len-1] == ']' || name_buf[new_len-1] == '>') &&
 	        name_buf[new_len-2] == '.') {
-		/* Remove trailing dot in directory of logical name */
-		name_buf[new_len-2] = name_buf[new_len-1];
-		name_buf[new_len-1] = '\0';
+	    	/* Remove trailing dot in directory of logical name */
+	    	name_buf[new_len-2] = name_buf[new_len-1];
+	    	name_buf[new_len-1] = '\0';
 	    }
 	    free(full_name);
 	    return( isdir(name_buf) );

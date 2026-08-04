@@ -1,12 +1,10 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! 2007-02-27 SMS.
-# Updated 2022-11-18 to remove references to wart and ckcpro.w.
-! Actual VMS dependencies.
+! 2025-03-24 SMS.
 
 .FIRST
-    @ ! echo: write to stdout; tab: some spacing
-    @ echo = "write sys$output"
-    @ tab = "    "
+	@ ! echo: write to stdout; tab: some spacing
+	@ echo = "write sys$output"
+	@ tab = "    "
 .include ccflags.mms
 
 SHAREOPTS = KERMIT.OPT/OPTION
@@ -29,31 +27,41 @@ OBJECT_MODULES = ckcfn2.obj, ckcfn3.obj, ckcfns.obj, $(CKCFTP_OBJ), -
 ! Rule Section:
 !
 .C.OBJ :
-    @ echo tab + "Compiling ''f$trnlnm("K")'$(MMS$SOURCE)" - "K:"
-    @ $(CC) $(CCFLAGS) /object=$(MMS$TARGET) $(MMS$SOURCE)
+	@ echo tab + "Compiling ''f$trnlnm("K")'$(MMS$SOURCE)" - "K:"
+	@ $(CC) $(CCFLAGS) /object=$(MMS$TARGET) $(MMS$SOURCE)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 ! Dependencies Section:
 !
 ALL :   wermit.exe  ckvcvt.exe
-    @ continue
+	@ continue
 
 WERMIT :   wermit.exe
-    @ continue
+	@ continue
 
 CKVCVT :   ckvcvt.exe
-    @ continue
+	@ continue
 
 wermit.exe : $(OBJECT_MODULES)
-    @ echo tab + "Linking $(MMS$TARGET_NAME)"
+	@ echo tab + "Linking $(MMS$TARGET_NAME)"
 
-       $(LINK) $(LINKFLAGS) -
-        /exec=wermit.exe $(SHAREOPTS)
+	$(LINK) $(LINKFLAGS) -
+         /exec=wermit.exe $(SHAREOPTS)
+
+ckcpro.c : K:ckcpro.w ckwart.exe K:ckcdeb.h K:ckcasc.h K:ckcker.h
+	@ echo "CKWART $(MMS$SOURCE) CKCPRO.C"
+	@ ckwart = "$" + f$parse("CKWART.EXE",,,"DEVICE") + -
+	 f$parse("CKWART.EXE",,,"DIRECTORY") + "CKWART"
+	@ ckwart K:ckcpro.w ckcpro.c
 
 ckvcvt.exe : ckvcvt.obj
-    @ echo tab + "Linking $(MMS$TARGET_NAME)"
-        $(LINK) $(LINKFLAGS) ckvcvt.obj, aux.opt /options
+	@ echo tab + "Linking $(MMS$TARGET_NAME)"
+	$(LINK) $(LINKFLAGS) ckvcvt.obj, aux.opt /options
+
+ckwart.exe : ckwart.obj
+	@ echo tab + "Linking $(MMS$TARGET_NAME)"
+	$(LINK) /nodebug/nomap ckwart.obj, aux.opt /options
 
 
 ! Object file dependencies:
@@ -77,7 +85,7 @@ ckcftp.obj : K:ckcftp.c K:ckcsym.h K:ckcdeb.h K:ckclib.h -
              K:ckvrtl.h K:ck_ssl.h
 
 ckclib.obj : K:ckclib.c K:ckcsym.h K:ckcdeb.h K:ckclib.h -
-             K:ckcasc.h
+             K:ckcasc.h 
 
 ckcmai.obj : K:ckcmai.c K:ckcsym.h K:ckcasc.h K:ckcdeb.h -
              K:ckclib.h K:ckcker.h K:ckcnet.h K:ckvioc.h -
@@ -89,8 +97,10 @@ ckcnet.obj : K:ckcnet.c K:ckcsym.h K:ckcdeb.h K:ckclib.h -
              K:ckctel.h K:ck_ssl.h K:ckuusr.h K:ckucmd.h -
              K:ckuath.h K:ckcsig.h K:ckvrtl.h
 
-ckcpro.obj : K:ckcpro.c K:ckcker.h K:ckcdeb.h K:ckcsym.h -
+ckcpro.obj : ckcpro.c K:ckcker.h K:ckcdeb.h K:ckcsym.h -
              K:ckcasc.h K:ckclib.h
+	@ echo "Compiling $(MMS$SOURCE)
+	@ $(CC) $(CCFLAGS)/INCLUDE_DIRECTORY=K: $(MMS$SOURCE)
 
 ckctel.obj : K:ckctel.c K:ckcsym.h K:ckcdeb.h K:ckclib.h -
              K:ckcker.h K:ckcnet.h K:ckvioc.h K:ckctel.h -
@@ -188,6 +198,8 @@ ckvrtl.obj : K:ckvrtl.c K:ckvrtl.h
 ckvtio.obj : K:ckvtio.c K:ckcdeb.h K:ckclib.h K:ckcasc.h -
              K:ckcker.h K:ckvvms.h K:ck_ssl.h K:ckcnet.h -
              K:ckvioc.h K:ckctel.h
+
+ckwart.obj : K:ckwart.c K:ckcsym.h K:ckcdeb.h K:ckclib.h
 
 ck_crp.obj : K:ck_crp.c K:ckcsym.h K:ckcdeb.h K:ckclib.h -
              K:ckcnet.h K:ckvioc.h K:ckctel.h
