@@ -275,7 +275,81 @@ drop `SHOW` commands (`ckuus5.c`, 2432 bytes of data+bss), reduce `CKMAXPATH`.
 
 **Conclusion: OpenWatcom's far-data models are not required.** They remain the
 fallback if the budget is blown later, at the cost of building a new platform
-identity from scratch.
+identity from scratch. See §9a for what that fallback actually buys.
+
+---
+
+## 9a. Can we put the buffers and stack in their own segments?
+
+Yes. Both toolchains can, and it was tested rather than assumed. The question
+is what it costs and whether it is needed yet.
+
+### What each toolchain supports
+
+| Capability | `ia16-elf-gcc` | OpenWatcom `wcc` |
+|---|---|---|
+| Extra data segments | `__far` keyword; emits real `.fardata` sections (verified: a 20000-byte `__far` array landed in its own `.fardata` section) | `-mc` / `-ml` / `-mh`: **all** data pointers far (verified 4 bytes) |
+| Automatic placement of big objects | none — every object must be annotated by hand | **`-zt<n>`**: objects ≥ n bytes move to `FAR_DATA` automatically. Verified: at `-zt32767` two 20000-byte arrays stayed in `_BSS`; at `-zt1000` a `FAR_DATA` segment appeared and they left DGROUP. |
+| Source changes required | **yes**, at every pointer that touches the object | **none** |
+| Single object > 64KB | no | yes with `-mh` (a 100,000-byte array compiled) |
+| Stack in its own segment | `-mno-callee-assume-ss-data-segment` (documented "experimental") | `-zu` (SS != DGROUP) |
+
+The stack case is more interesting than it first looks. In small/medium models
+SS **must** equal DS, because a near pointer to a stack local is just a 16-bit
+offset and gets dereferenced through DS. But in compact/large/huge, data
+pointers are already far, so `&local` carries SS explicitly and stays valid
+with SS != DGROUP. Verified: `-ml -zu` on a function passing a pointer to a
+local produced a byte-identical object to `-ml` alone.
+
+So **Watcom large model + `-zu` genuinely gives the stack its own 64K segment,
+safely, with no source changes.** ia16-gcc cannot match that in medium model.
+
+### Why we are not doing it yet
+
+1. **There is no pressure.** Static DGROUP is 32,325 of 65,536 (49%), the
+   packet pool is 8KB, and nothing anywhere is over 64KB. The largest single
+   object is 2,064 bytes.
+2. **The stack is not the problem.** Largest measured frame is 2,106 bytes and
+   total stack need is ~8KB — about 12% of the budget. Moving it out would buy
+   back 8KB we are not short of.
+3. **Far access is expensive in exactly the wrong place.** The same
+   encode-shaped loop compiled near vs far:
+
+   ```
+   enc_near  32 instructions
+   enc_far   43 instructions   (+34%), 19 segment-register operations
+   ```
+
+   That is the inner byte loop of `encode()`/`decode()`. At 38400+ baud on an
+   8088 with a 4-byte prefetch queue, segment loads and override prefixes in
+   that loop cost real throughput. Far data is the wrong trade for the packet
+   pool specifically.
+4. **The `__far` blast radius is not local.** The pool is handed out as
+   `s_pkt[i].pk_adr`, a plain `CHAR *`, and from there flows through 139+
+   `CHAR *` sites across `ckcfns.c` / `ckcfn2.c` / `ckcfn3.c` / `ckcpro.c`.
+   Annotating "just the buffers" means annotating the whole protocol engine —
+   exactly the upstream divergence this port is trying to avoid.
+
+### When it would be worth it
+
+The scenario that genuinely needs far data is **large windows × long packets**.
+`MAXWS 32` × `MAXSP 4096` is a 132KB packet pool — that cannot fit a single
+DGROUP at any tuning, and no amount of trimming elsewhere changes it.
+
+If that is the goal, the right move is **not** `__far` annotation under
+ia16-gcc. It is switching to **OpenWatcom large model with `-zt`**, where the
+buffers move out of DGROUP by compiler flag and the source stays upstream.
+
+The cost of that switch is real and should not be paid speculatively:
+Watcom uses OMF objects and its own C library, so the newlib port does not
+carry over, and `-DUNIX` fails immediately on Watcom's DOS headers
+(`sys/param.h` absent), so a new platform identity has to be built. The newlib
+work is the asset here.
+
+**Recommendation:** ship the milestone on ia16-gcc at 49% DGROUP with a 4KB/4KB
+packet pool. If throughput measurement later says the window needs to be much
+larger, revisit Watcom large model then — and treat it as a deliberate
+re-platforming, not a tweak.
 
 ---
 
