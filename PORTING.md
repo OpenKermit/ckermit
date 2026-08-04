@@ -312,18 +312,12 @@ safely, with no source changes.** ia16-gcc cannot match that in medium model.
 2. **The stack is not the problem.** Largest measured frame is 2,106 bytes and
    total stack need is ~8KB — about 12% of the budget. Moving it out would buy
    back 8KB we are not short of.
-3. **Far access is expensive in exactly the wrong place.** The same
-   encode-shaped loop compiled near vs far:
-
-   ```
-   enc_near  32 instructions
-   enc_far   43 instructions   (+34%), 19 segment-register operations
-   ```
-
-   That is the inner byte loop of `encode()`/`decode()`. At 38400+ baud on an
-   8088 with a 4-byte prefetch queue, segment loads and override prefixes in
-   that loop cost real throughput. Far data is the wrong trade for the packet
-   pool specifically.
+3. **Far access is expensive under ia16-gcc specifically** — see §9b, which
+   measures this properly. Short version: gcc cannot keep a far buffer segment
+   and DGROUP addressable at the same time, so in a loop that touches both
+   buffers *and* globals it reloads `%ds` twice per iteration. That is the
+   inner byte loop of the packet filler, and at 38400+ baud on an 8088 with a
+   4-byte prefetch queue a `mov ds,` per iteration is not affordable.
 4. **The `__far` blast radius is not local.** The pool is handed out as
    `s_pkt[i].pk_adr`, a plain `CHAR *`, and from there flows through 139+
    `CHAR *` sites across `ckcfns.c` / `ckcfn2.c` / `ckcfn3.c` / `ckcpro.c`.
@@ -349,7 +343,124 @@ work is the asset here.
 **Recommendation:** ship the milestone on ia16-gcc at 49% DGROUP with a 4KB/4KB
 packet pool. If throughput measurement later says the window needs to be much
 larger, revisit Watcom large model then — and treat it as a deliberate
-re-platforming, not a tweak.
+re-platforming, not a tweak. §9b explains why that fallback is more attractive
+than it first appears.
+
+---
+
+## 9b. Can the hot code be co-located with the buffers?
+
+The obvious idea: rather than paying for a far pointer on every access, put the
+buffer-touching code in the same segment as the buffers, load the segment
+register once, and let the inner loop run at near speed. This was measured.
+
+**The idea is sound, and on x86 it hinges on one thing: there are four segment
+registers, and the inner loop needs three of them live at once** — one for the
+source buffer, one for the destination buffer, and one for the globals in
+DGROUP. Whether it works comes down to whether the compiler will keep all
+three resident across the loop.
+
+### Buffers only: works, under either compiler
+
+An encode-shaped loop over two `__far` buffers, written with **walking**
+pointers (`*p++`) rather than indexing (`s[i]`):
+
+```
+                    loop insns   segment reloads in loop
+enc_near                    8            0
+enc_walk  (far, walking)    9            0      <- both lds/les hoisted to prologue
+enc_idx   (far, indexed)   12            5      <- reload per access
+```
+
+gcc hoists both segment loads into the prologue and repoints `%ds` at the
+destination buffer for the whole function, so those writes carry no prefix at
+all. Cost is one `%es:` prefix on the source read: 1 byte, ~2 clocks on 8088.
+
+**Indexing is what kills it, not farness.** The original "+34%" figure recorded
+earlier in this document was measured on `enc_idx` and overstated the cost of
+far data in general. Corrected here.
+
+### Buffers plus globals: collapses under gcc
+
+C-Kermit's real packet filler is not the toy above. `bgetpkt()` is 227 lines
+and touches roughly 25 file-scope globals in its inner loop — `size`, `binary`,
+`parity`, `rptflg`, `rptn`, `rptq`, `cxseen`, `what`, `myctlq`, `ffc`, `ccp`,
+`ccu`, `fmask`, `keep`, `interrupted`, `data`, `first`, `crc16`, `crcta`,
+`crctb`, ... That is normal for 1985-vintage C and it is not going to change.
+
+Compiling that shape (far buffers + heavy global access) with ia16-gcc:
+
+```
+  1f:  lea    0x1(%si),%cx
+  22:  mov    %es:(%si),%dl          <- source buffer, ES
+  25:  mov    %ss:0x0,%ax            <- globals via SS override
+  ...
+  56:  mov    -0x2(%bp),%ds          <- %ds RELOADED inside the loop
+  59:  mov    %al,(%bx)
+  63:  mov    -0x2(%bp),%ds          <- and again
+```
+
+gcc used `%ss:` for the globals but had nowhere to keep the destination
+buffer's segment resident, so it reloads `%ds` from a stack slot **twice per
+iteration**. Loop body: ~33 instructions with 2 segment reloads, versus ~10 for
+the near version. On an 8088 a `mov ds,` also flushes the prefetch queue. This
+is strictly worse than not trying.
+
+### Buffers plus globals: works under Watcom large model
+
+Same source, `wcc -ml -zt1000 -oneatx`:
+
+```
+        mov  es,cx                       ; source segment  - loaded ONCE
+        mov  ds,dx                       ; dest segment    - loaded ONCE
+L$1:    mov  al, byte ptr es:-1[si]      ; source: 1 prefix byte
+        mov  byte ptr [bx],23H           ; dest:   NO prefix (DS points at it)
+        add  word ptr ss:_ffc,1          ; globals via SS: - 1 prefix, no reload
+        cmp  word ptr ss:_rptflg,0
+        inc  word ptr ss:_what
+        cmp  word ptr ss:_cxseen,0
+```
+
+Three segments live simultaneously and **zero reloads in the loop body**:
+
+| register | points at | cost per access |
+|---|---|---|
+| `DS` | destination buffer | none — no prefix |
+| `ES` | source buffer | 1 prefix byte |
+| `SS` | DGROUP (globals) | 1 prefix byte |
+
+That works because Watcom pegs `SS` to DGROUP, so every global stays reachable
+with a one-byte override while `DS` and `ES` are free to point at far buffers.
+
+```
+                       loop insns   segment reloads
+ia16-gcc, far+globals         33          2  (mov ds, twice per iteration)
+Watcom -ml, far+globals       26          0
+```
+
+So the answer to "can we co-locate?" is **yes — but it is Watcom that delivers
+it, automatically, in large model, with no source changes.** ia16-gcc cannot,
+because in medium model it has only one data segment and no way to keep a far
+buffer segment and DGROUP resident at the same time.
+
+### Caveats before acting on this
+
+- In Watcom large model **every** `char *` in C-Kermit becomes 4 bytes, not
+  just the packet pointers. Pointer-heavy code outside the packet loop pays for
+  that in both DGROUP occupancy and cycles. The win shown above is specific to
+  the hot loop.
+- The alternative that would make co-location work under gcc — hoisting those
+  ~25 globals into locals at function entry and writing them back at exit — is
+  a rewrite of `bgetpkt()`/`getpkt()`/`decode()`, i.e. modifying the protocol
+  engine. That is the thing this port exists to avoid.
+- Switching still costs newlib (OMF vs ELF objects, different C library) and
+  needs a platform identity, since `-DUNIX` fails immediately on Watcom's DOS
+  headers.
+
+**Net effect on the plan:** unchanged in the near term — at 49% DGROUP with a
+4KB/4KB pool there is nothing to fix. But if large windows × long packets
+become the goal, this is the evidence that the Watcom path is *viable*, not
+merely available.
 
 ---
 
