@@ -18,7 +18,12 @@
 #   stack, lives in it.  "make sizes" exists to keep that honest.
 
 CC      = ia16-elf-gcc
-CFLAGS  = -mcmodel=medium -Os -include ckvictor.h $(XFLAGS)
+
+# -Ivictor supplies <sys/termios.h>.  The stock ia16 newlib ships
+# <termios.h> as a dangling include of a sys/termios.h that does not exist,
+# and defines no termios functions; ours is the uPD7201 driver's control
+# surface.  See victor/sys/termios.h and PORTING.md.
+CFLAGS  = -mcmodel=medium -Os -Ivictor -include ckvictor.h $(XFLAGS)
 LDFLAGS = -mcmodel=medium
 
 # Portable protocol core -- unmodified upstream, this is the part we keep.

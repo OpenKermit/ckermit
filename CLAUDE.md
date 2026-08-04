@@ -22,17 +22,22 @@ only**.
 
 ## Build
 
+The toolchain lives in the `ia16-ubuntu-2` container, which runs under Apple's
+native `container` service — **not Docker**. `~/projects` is mounted at
+`/mnt/projects` inside it.
+
 ```sh
-make -f victor9k.mak          # build all 24 objects
-make -f victor9k.mak sizes    # DGROUP report + largest static objects
-make -f victor9k.mak clean
+container exec -i ia16-ubuntu-2 bash -c \
+  "cd /mnt/projects/ckermit && make -f victor9k.mak"        # 24 objects
+container exec -i ia16-ubuntu-2 bash -c \
+  "cd /mnt/projects/ckermit && make -f victor9k.mak sizes"  # DGROUP report
 ```
 
-Requires `ia16-elf-gcc` (6.3.0, from the `ia16-ubuntu-2` container — not
-currently installed on this machine). `ckcpro.c` is generated from `ckcpro.w` by
-`wart`, a **host** tool built with the host `cc`.
+`ckcpro.c` is generated from `ckcpro.w` by `wart`, a **host** tool built with
+the host `cc`.
 
-Nothing has been linked or run on hardware yet. `make` builds objects only.
+All 24 modules compile clean; DGROUP is 32,311 of 65,536 (49.3%). Nothing has
+been linked or run on hardware yet — `make` builds objects only.
 
 ## Hard rules
 
@@ -67,6 +72,7 @@ Nothing has been linked or run on hardware yet. `make` builds objects only.
 | `PORTING.md` | design doc, memory budget, hardware map, milestone plan |
 | `ckvictor.h` | all ~40 feature `-D` flags, size limits, platform identity |
 | `ckvictor.c` | Victor glue: process-model stubs + (planned) the 7201 driver |
+| `victor/sys/termios.h` | the 7201 driver's control surface; fills a newlib gap, reached via `-Ivictor` |
 | `victor9k.mak` | build + `sizes` target |
 | `ckutio.c` | serial, console, timers — **stock upstream**, this is the port |
 | `ckufio.c` | file system — **stock upstream** |

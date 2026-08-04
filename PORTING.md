@@ -3,7 +3,9 @@
 Running notes for the serial-only Victor 9000 port. Branch: `victor9k-port`.
 
 **Status:** all 24 modules of the minimal build compile clean for
-`ia16-elf-gcc`. Nothing has been linked or run on hardware yet.
+`ia16-elf-gcc`, including `ckutio.c` now that `victor/sys/termios.h` supplies
+the header the stock newlib is missing. Nothing has been linked or run on
+hardware yet.
 
 **Verdict:** this is a thin-platform port, not a rewrite. The blocker people
 expect — a modern flat-memory codebase that cannot be squeezed into 64K — did
@@ -116,7 +118,15 @@ both, and it costs almost nothing here:
 
 ## 3. Toolchain and memory model
 
-Built with `ia16-elf-gcc 6.3.0` in the `ia16-ubuntu-2` container.
+Built with `ia16-elf-gcc 6.3.0` (tkchia's `ppa:tkchia/build-ia16`) inside the
+`ia16-ubuntu-2` container, which runs under Apple's native `container` service —
+**not Docker**. `~/projects` on the host is mounted at `/mnt/projects` inside.
+
+```sh
+container list --all                                   # ia16-ubuntu-2, running
+container exec -i ia16-ubuntu-2 bash -c \
+  "cd /mnt/projects/ckermit && make -f victor9k.mak"
+```
 
 `ia16-elf-gcc` supports only `-mcmodel=tiny|small|medium`. There is **no
 compact, large, or huge model** — verified directly:
@@ -135,6 +145,21 @@ segments, ~1MB), which is why 296KB of text is not a problem.
 OpenWatcom (`~/projects/open-watcom-v2`, `wcc`) *does* have compact/large/huge
 and would allow far data. It was evaluated and **is not needed** — see §9a/§9b.
 
+### The toolchain already targets MS-DOS, at medium model
+
+This was measured, and it removes most of what §12 used to describe as work.
+`__MSDOS__` is defined **by default**, and `/usr/ia16-elf/lib/medium/` ships a
+complete DOS target for exactly the model we build at:
+
+```
+libdos-m.a                              medium-model DOS libgloss (INT 21h)
+dos-m-c0.o                              DOS C runtime startup
+dos-mm.ld dos-mml.ld dos-mms.ld ...     linker scripts producing a DOS .EXE
+```
+
+So the host-OS half of §2 needs almost nothing written. See §12 for the exact
+coverage and the short list of what is still missing.
+
 ---
 
 ## 4. Build
@@ -148,6 +173,10 @@ The entire feature configuration lives in `ckvictor.h`, force-included ahead of
 every file with `-include ckvictor.h`. Nothing else in the tree includes it, so
 it cannot affect any other platform. Keep new `-D` options *there*, next to the
 comment explaining why they exist — not in the makefile.
+
+`victor/` holds headers that fill gaps in the toolchain, reached via `-Ivictor`.
+Currently just `victor/sys/termios.h` (§12). Same principle as `ckvictor.h`: it
+is on the include path only for this build, so it cannot affect anything else.
 
 ---
 
@@ -281,11 +310,11 @@ latent hazards on any small-memory target.
 Measured, 24 modules, `-mcmodel=medium -Os`:
 
 ```
-.text = 302,935 bytes    far code, medium model, ~1MB limit — not a concern
+.text = 302,896 bytes    far code, medium model, ~1MB limit — not a concern
 .data =  11,748 bytes
-.bss  =  20,577 bytes
-STATIC DGROUP = 32,325 of 65,536  (49%)
-free for heap + stack + libc = 33,211 bytes
+.bss  =  20,563 bytes
+STATIC DGROUP = 32,311 of 65,536  (49.3%)
+free for heap + stack + libc = 33,225 bytes
 ```
 
 Largest static objects: `rq_tok` 2064, `optlist` 2050, `tbl` 1632,
@@ -296,7 +325,7 @@ Projected full budget:
 
 | Item | Bytes |
 |---|---:|
-| Static data + bss | 32,325 |
+| Static data + bss | 32,311 |
 | Packet buffers (`SBSIZ`+`RBSIZ`, malloc'd) | 8,192 |
 | newlib stdio + bss | ~6,000 |
 | Serial RX/TX rings (256 + 256) | 512 |
@@ -329,9 +358,10 @@ Type sizes under this build: `int` 2, `long` 4, pointer 2 (near data) / 4 (far
 code), `size_t` 2, `CK_OFF_T` = `off_t`.
 
 `CK_OFF_T` is the file-offset type used for RESEND/REGET restart. On a 16-bit
-target it resolves to newlib's `off_t` (`long`, 32-bit) — good for 2GB, far
-beyond any Victor disk. **Verify** your newlib's `off_t` is `long` and not
-`int`; if it is `int`, restart breaks above 32KB.
+target it resolves to newlib's `off_t`, and if that were `int` rather than
+`long`, restart would break above 32KB. **Verified: `sizeof(off_t) == 4`**
+(static-assert probe, `-mcmodel=medium`). Restart is good to 2GB, far beyond
+any Victor disk. This question is closed.
 
 Open risks:
 
@@ -636,58 +666,107 @@ into someone else's serial API:
 and the file descriptor `ckutio.c` opens for the line reads and writes the ring
 buffers directly.
 
-Note the baud divisor is `76800 / baud`, so the table extends naturally past
-9600: 19200 → 4, 38400 → 2, 57600 → 1. `ttsspd()` maps `SET SPEED` onto
-`cfsetospeed()`, so high speeds come straight from that table.
+**The header exists now: `victor/sys/termios.h`**, reached via `-Ivictor`. It is
+the driver's interface, not a generic POSIX header, and two decisions in it are
+load-bearing:
+
+*`B*` values are small ordinals (`B9600` is 13), not literal baud rates.* This
+is a 16-bit safety property. C-Kermit passes a `B*` value around as an opaque
+token through whatever variable is at hand — `tthang()` in `ckutio.c` does
+`int spdsav; spdsav = cfgetospeed(&ttcur);` with a plain 16-bit `int`. Under the
+BSD convention where `B38400 == 38400` that saves as −27136 and restores a
+garbage speed. With ordinals every value is ≤ 16 and nothing can truncate.
+
+*The set of `B*` constants defined **is** the machine's speed capability.*
+`ttsspd()` wraps each high-speed arm of its switch in `#ifdef B<rate>`, so an
+undefined rate makes C-Kermit reject `SET SPEED` for it rather than program an
+impossible divisor. Given `divisor = 76800 / baud`, only exact divisors are
+clean:
+
+| baud | divisor | | baud | divisor |
+|---:|---:|---|---:|---:|
+| 76800 | 1 | | 2400 | 32 |
+| 38400 | 2 | | 1200 | 64 |
+| 19200 | 4 | | 600 | 128 |
+| 9600 | 8 | | 300 | 256 |
+| 4800 | 16 | | 150 | 512 |
+
+**57600 and 115200 are not achievable** on the Victor's 1.2288 MHz clock — they
+need divisors of 1.33 and 0.67 — and are deliberately left undefined. **76800,
+not 115200, is the ceiling** (divisor 1). An earlier draft of this section said
+"57600 → 1", which was wrong: divisor 1 yields 76800.
+
+`B1800` is the one inexact entry, present only because `ttsspd()`'s `case 180:`
+arm is unguarded; divisor 43 gives 1786 bps (−0.8%), well inside async framing
+tolerance. `B110` (divisor 698) and `B134` (divisor 573) match the divisors the
+FreeDOS Victor driver already uses.
 
 If per-byte overhead through newlib's `read()` turns out to hurt at 38400, add a
 `VICTOR9K` fast path in `ttinl()` only — that is one function, not a rewrite.
 
-### libgloss: what newlib needs from us
+### libgloss: mostly already there
 
-A thin INT 21h shim. This replaces the entire bare-metal VFS/FAT/SASI stack
-that a standalone target would have required.
+An earlier draft of this document said the INT 21h shim would be "the bulk of
+the remaining non-driver work." That was wrong, and the correction is the single
+most useful measurement in this section. `libdos-m.a` in the medium multilib
+(§3) already implements, over INT 21h:
 
-| newlib hook | INT 21h |
+> `open` `close` `read` `write` `lseek` `stat` `fstat` `isatty` `chdir`
+> `getcwd` `mkdir` `rmdir` `unlink` `rename` `access` `chmod` `dup` `dup2`
+> `sbrk` `exit` `getpid` `time` `gettimeofday` `times` `putenv` `setenv`
+> `realpath` `usleep` `abort`
+
+That is the whole of what `ckufio.c` reaches for, plus most of the process-model
+surface. Combined with `dos-m-c0.o` and `dos-mm.ld`, a DOS `.EXE` is a link
+away.
+
+### What is actually still missing
+
+| Missing | Notes |
 |---|---|
-| `_open` | `3Dh` open, `3Ch` create |
-| `_close` | `3Eh` |
-| `_read` / `_write` | `3Fh` / `40h` |
-| `_lseek` | `42h` |
-| `_stat` / `_fstat` | `4Eh` search, `57h` file times |
-| `_unlink` | `41h` |
-| `_rename` | `56h` |
-| `_chdir` / `_getcwd` | `3Bh` / `47h` |
-| `_sbrk` | DOS memory block from the PSP |
-| `_exit` | `4Ch` |
+| ~~`<sys/termios.h>`~~ | **Done** — `victor/sys/termios.h`, see below. |
+| **The termios functions** | Not a separate work item — this *is* the serial driver (§11). No termios symbol exists in any library in the toolchain, so there is nothing to collide with. |
+| **`opendir` / `readdir` / `closedir`** | The real remaining filesystem work. But note `<sys/dirent.h>` already carries an `#ifdef __MSDOS__` branch whose `struct dirent` is shaped around the DOS FindFirst/FindNext DTA (`d_dta[21]`, `d_attr`, `d_time`, `d_date`, `d_size`, `d_name`) — the interface is designed, only the implementation is absent. Build it over INT 21h `4Eh`/`4Fh` with **one DTA per open `DIR`**. |
+| `utime`, `umask` | Small. `utime` is INT 21h `57h`. |
+| `sleep` | Wrapper over the `usleep` that already exists. |
+| `creat` | One line over `open`. |
 
-Plus, from §2's console rule: `_read`/`_write` on fds 0–2 go to INT 21h
-AH=06h/07h/08h/0Bh, never to BIOS.
+There is a reference `opendir` at
+`~/projects/newlibc/phase3_newlib/libgloss/dirent.c` (written over that tree's
+VFS). **Fix two defects before reusing it:** `LIBGLOSS_MAX_DIRS` is **2**, and
+there is a single shared static `current_entry`. `traverse()` in `ckufio.c`
+recurses and holds one open `DIR` per directory level (§9), so a depth-3 walk
+fails outright and concurrent walks corrupt each other's entries.
 
-### Still to supply beyond newlib
+### Stubs in `ckvictor.c` that now collide
 
-**Directory reading** — `opendir` / `readdir` / `closedir` over INT 21h
-`4Eh`/`4Fh`, with a DTA per open `DIR`. The stock ia16 newlib does not provide
-these. There is a reference implementation at
-`~/projects/newlibc/phase3_newlib/libgloss/dirent.c` (over its VFS), but note
-two defects to fix before reuse: `LIBGLOSS_MAX_DIRS` is **2**, and there is a
-single shared static `current_entry`. `traverse()` in `ckufio.c` recurses and
-holds one `DIR` per nesting level (§9), so a depth-3 directory walk fails and
-concurrent walks corrupt each other.
+`ckvictor.c` predates the discovery above and stubs several things `libdos-m.a`
+provides. These will be multiply-defined at link time and need their guard
+macros set:
 
-**Filesystem odds and ends** — `access`, `chmod` (`43h`), `mkdir` (`39h`),
-`rmdir` (`3Ah`), `utime` (`57h`), `sleep`.
+| Symbol | Action |
+|---|---|
+| `dup2` | define `VICTOR_HAVE_DUP2` |
+| `putenv` | define `VICTOR_HAVE_PUTENV` |
+| `getpid` | `VICTOR_HAVE_PIDS` must be **split** — `getpid` comes from the library, but `getppid` / `getpgrp` / `tcgetpgrp` are still ours |
 
-**Already stubbed in `ckvictor.c`, safe to leave:** `fork` `execl` `execvp`
-`wait` `getuid` `geteuid` `getgid` `getegid` `setuid` `setgid` `getpid`
-`getppid` `getpgrp` `tcgetpgrp` `getlogin` `getpwnam` `getpwuid` `ttyname`
-`ctermid` `alarm` `sysconf` `putenv` `readlink` `umask` `dup2`, plus the
-symbols owned by excluded modules (`conect`, `connv`, `mdmtyp`, `nvlook`,
-`ck_bracketaddr`).
+Also `realpath` exists in the library, so `NOREALPATH` may no longer be needed.
 
-Each stub is wrapped in `#ifndef VICTOR_HAVE_<name>`, so if the library already
-provides one, define that macro. Build first, then add whichever macros the
-linker reports as multiply defined — faster than auditing up front.
+**Still genuinely ours, keep stubbed:** `fork` `execl` `execvp` `wait` `getuid`
+`geteuid` `getgid` `getegid` `setuid` `setgid` `getppid` `getpgrp` `tcgetpgrp`
+`getlogin` `getpwnam` `getpwuid` `ttyname` `ctermid` `alarm` `sysconf`
+`readlink` `umask`, plus the symbols owned by excluded modules (`conect`,
+`connv`, `mdmtyp`, `nvlook`, `ck_bracketaddr`).
+
+Each stub is wrapped in `#ifndef VICTOR_HAVE_<name>`. Build, then add whichever
+macros the linker reports as multiply defined — faster than auditing up front.
+
+### Console
+
+From §2's rule, `read`/`write` on fds 0–2 must reach INT 21h AH=06h/07h/08h/0Bh
+and never BIOS. Verify what `libdos-m.a` does for the standard handles before
+assuming it is safe on Victor MS-DOS 3.1 — DOS handle I/O on `CON` is fine, but
+anything that shortcuts to INT 10h/16h is not.
 
 ---
 
@@ -704,11 +783,11 @@ C-Kermit> server
 
 Order of work:
 
-1. **Restore the toolchain.** `ia16-elf-gcc` is not currently installed and the
-   `ia16-ubuntu-2` container is not present. Nothing here is re-verifiable until
-   it is back. This also closes the `off_t` question in two minutes.
-2. **INT 21h libgloss → link `CKERMIT.EXE`.** File and console I/O only; no
-   serial yet. Expect this to be the bulk of the remaining non-driver work.
+1. ~~**`<sys/termios.h>`.**~~ **Done** — `victor/sys/termios.h`. All 24 modules
+   now compile clean and DGROUP measures 32,311 of 65,536 (49.3%).
+2. **Link `CKERMIT.EXE`** against `libdos-m.a` + `dos-m-c0.o` + `dos-mm.ld`,
+   with `opendir`/`readdir`/`closedir` and the four small stubs from §12. Clear
+   the guard-macro collisions as the linker reports them.
 3. **`C-Kermit>` prompt, on both DOSes.** Proves `ckucmd.c` + `coninc`/`conchk`
    and, critically, proves the INT 21h-only console discipline holds on Victor
    MS-DOS 3.1 as well as FreeDOS. No serial port involved. Watch the stack here
@@ -735,7 +814,24 @@ ported from `ckucon.c` (needs `fork()`) or `ckucns.c` (needs `select()`).
 
 ## 14. Compile log
 
-Every module in §5 compiles with **zero errors** at `-mcmodel=medium -Os`.
+All 24 modules in §5 compile with **zero errors** at `-mcmodel=medium -Os`,
+reproduced end to end:
+
+```
+$ make -f victor9k.mak            → 24 objects, 0 errors
+$ make -f victor9k.mak sizes
+  text = 302896   data = 11748   bss = 20563
+  STATIC DGROUP = 32311 of 65536 (49.3%)
+  remaining for heap + stack + libc: 33225
+```
+
+`ckutio.c` was the last holdout, blocked solely on `<sys/termios.h>`; supplying
+`victor/sys/termios.h` cleared it with no other change.
+
+One warning worth chasing before the packet sizing is trusted: **`MAXWS` is
+redefined.** `ckvictor.h` sets it to 8 and something downstream sets it again,
+which means one of the two values is not taking effect and `SBSIZ`/`RBSIZ`
+carving may not be what §9 assumes.
 
 Problems hit and resolved, in order:
 
@@ -748,15 +844,18 @@ Problems hit and resolved, in order:
 | `ckufio.c` `d_ino` missing | `VICTOR9K` branch; FAT has no inode |
 | `ckufio.c` `getppid` conflict | newlib prototype; stub matches it now |
 | `ckutio.c` 80 × `struct sgttyb` | `-DPOSIX` selects termios |
-| `ckutio.c` `sys/termios.h` missing | must be supplied — see §12 |
+| `ckutio.c` `sys/termios.h` missing | supplied as `victor/sys/termios.h`, reached via `-Ivictor` (§12) |
 | `ckvictor.c` prototype conflicts | Rewrote stubs as ANSI matching newlib |
 
 ---
 
 ## 15. Open questions
 
-- Is newlib's `off_t` a `long`? If it is `int`, RESEND/REGET restart breaks
-  above 32KB. (§9)
+- Why is `MAXWS` redefined? Until that is understood, the packet-buffer
+  arithmetic in §9 is not fully trustworthy. (§14)
+- Does `libdos-m.a` route stdin/stdout/stderr through DOS handle I/O only, or
+  does it shortcut to BIOS anywhere? The §2 dual-target rule depends on the
+  former. (§12)
 - Does the FreeDOS OEM byte (INT 21h AH=30h → BH) actually come back as `0xFD`
   on the Victor build? The whole dual-target vector detection rests on it. A
   fallback (`SET SERIAL-VECTOR` or a command-line switch) is cheap insurance.
