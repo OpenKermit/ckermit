@@ -7543,22 +7543,31 @@ cmdgetc(timelimit) int timelimit;
             }
 #endif /* TNCODE */
     } else {
-#ifdef OS2
+#if defined(OS2) || defined(VICTOR9K)
 	c = coninc(0);
-#else /* OS2 */
+#else /* OS2 || VICTOR9K */
 #ifdef CMD_CONINC
 #undef CMD_CONINC
 #endif /* CMD_CONINC */
 	c = getchar();
-#endif /* OS2 */
+#endif /* OS2 || VICTOR9K */
     }
 #else  /* MINIX2 */
+#ifdef VICTOR9K
+/*
+  16-bit segmented targets have no portable way to peek inside the stdio
+  buffer (see cmdconchk() below), so read the console through coninc()
+  and keep CMD_CONINC defined so cmdconchk() can use conchk().
+*/
+    c = coninc(0);
+#else /* VICTOR9K */
 #undef getc
 #ifdef CMD_CONINC
 #undef CMD_CONINC
 #endif /* CMD_CONINC */
     c = getc(stdin);
     /* debug(F101,"cmdgetc getc","",c); */
+#endif /* VICTOR9K */
 #endif /* MINIX2 */
 #ifdef RTU
     if (rtu_bug) {
@@ -7632,10 +7641,10 @@ int
 cmdconchk() {
     int x = 0, y;
     y = pushc ? 1 : 0;			/* Have command character pushed? */
-#ifdef OS2
+#if defined(OS2) || defined(VICTOR9K)
     x = conchk();			/* Check device-driver buffer */
     if (x < 0) x = 0;
-#else /* OS2 */
+#else /* OS2 || VICTOR9K */
 #ifdef CMD_CONINC			/* See cmdgetc() */
     x = conchk();			/* Check device-driver buffer */
     if (x < 0) x = 0;

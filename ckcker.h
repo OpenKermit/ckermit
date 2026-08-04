@@ -1045,7 +1045,15 @@ struct pktinfo {			/* Packet information structure */
 #define FT_UCS2 3			/* UCS2 */
 #define FT_TEXT 4			/* Unknown text */
 #define FT_BIN  5			/* Binary */
+/*
+  scanfile() allocates SCANFILEBUF bytes as an automatic (stack) array.
+  48K is fine on flat-memory hosts but is fatal on 16-bit segmented targets
+  where the whole stack lives in a 64K DGROUP, so allow it to be overridden
+  from the compiler command line, e.g. -DSCANFILEBUF=2048.
+*/
+#ifndef SCANFILEBUF
 #define SCANFILEBUF 49152		/* Size of file scan (48K) */
+#endif /* SCANFILEBUF */
 
 /* Connection closed reasons */
 

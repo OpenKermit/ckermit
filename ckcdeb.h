@@ -1797,6 +1797,12 @@ _PROTOTYP(int ckxfprintf,(FILE *, const char *, ...));
 #define SIGRETURN return(0)
 #endif /* SIGRETURN */
 
+/*
+  Some C libraries (e.g. newlib, and BSD/macOS <sys/signal.h>) already
+  provide a sig_t typedef.  Building with -DCK_NO_SIG_T suppresses ours
+  so the library's definition is used instead.  No effect unless defined.
+*/
+#ifndef CK_NO_SIG_T
 #ifdef CK_ANSIC
 #ifdef OS2
 #ifdef NT
@@ -1810,6 +1816,7 @@ typedef SIGTYP (*sig_t)(int);
 #else /* !CK_ANSIC */
 typedef SIGTYP (*sig_t)();
 #endif /* CK_ANSIC */
+#endif /* CK_NO_SIG_T */
 
 /* We want all characters to be unsigned if the compiler supports it */
 

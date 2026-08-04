@@ -6368,7 +6368,11 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
 #ifdef Plan9
                          1
 #else
+#ifdef VICTOR9K
+                         1	/* FAT/MS-DOS dirent has no inode field */
+#else
                          dirbuf->d_ino != 0
+#endif /* VICTOR9K */
 #endif /* Plan9 */
 #endif /* ultrix */
 #endif /* __FreeBSD__ */

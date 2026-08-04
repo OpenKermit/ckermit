@@ -3366,7 +3366,15 @@ hasdotdot(s) char *s;
   determine whether to prompt.
 */
 
+/*
+  rq_tok is RQ_MAXTOK * (CKMAXPATH+1) bytes of static storage, which is the
+  single largest static object in the program.  On 16-bit segmented targets
+  that is a large fraction of the 64K data group, so allow it to be reduced
+  from the compiler command line, e.g. -DRQ_MAXTOK=16.
+*/
+#ifndef RQ_MAXTOK
 #define RQ_MAXTOK 64
+#endif /* RQ_MAXTOK */
 
 static char rq_tok[RQ_MAXTOK][CKMAXPATH+1]; /* Precise (non-wildcard) names */
 static int rq_ntok = 0;
