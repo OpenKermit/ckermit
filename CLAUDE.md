@@ -47,18 +47,26 @@ all pre-existing — `debug()` expanding to nothing under `NODEBUG` (W111),
 two unreferenced labels, `localtime()` sign mismatch, `execvp()` const
 mismatch, and `docmdline(1)` in `ckcmai.c`. **`ckvictor.c` compiles with
 none.** DGROUP is 39,424 of 65,536 (60%) after the linker adds libc;
-`ckermitw.exe` is 228,554 bytes.
+`ckermitw.exe` is 228,660 bytes.
 
-**It transfers a file.** On Victor MS-DOS 3.1 under MAME it opens
-`/dev/seriala`, programs the line through the OEM driver's IOCTL block (§11a),
-takes the µPD7201 and IRQ1 over for the data path (§11b), and runs a complete
-S/F/A/D/Z/B exchange to a host C-Kermit at 9600 — byte-correct at the far end.
-That is PORTING.md **§16d**, and it is milestone step 5. **§16g finishes that
-step**: `-s *.TXT` transfers too, against one match and against three, which
-exercises the `znext()` path multiple matches take; and the µPD7201 driver's
-two loss counters read `rxlost=0, rxfull=0` through all of it — the first time
-either has been read. **There are no known open defects in the send
-direction.** It has never run on real hardware.
+**It transfers files, both ways, byte-exact.** On Victor MS-DOS 3.1 under MAME
+it opens `/dev/seriala`, programs the line through the OEM driver's IOCTL block
+(§11a), takes the µPD7201 and IRQ1 over for the data path (§11b), and runs
+complete S/F/A/D/Z/B exchanges with a host C-Kermit at 9600. That is PORTING.md
+**§16d** (send, milestone step 5), **§16g** (`-s *.TXT`, one match and three,
+plus the first reading of the driver's two loss counters) and **§16h**
+(`RECEIVE`, and a 2,048-byte round trip over a payload containing every byte
+value — milestone step 6's first half; `GET` and `SERVER` are untried).
+Loss counters read `rxlost=0, rxfull=0` in both directions.
+
+**§16h retracts one earlier claim, and the retraction is instructive.** §16d
+and §16g called their transfers "byte-correct" while the Victor sent 74 bytes
+as 72; that was the DOS runtime translating a *binary* transfer, not C-Kermit
+doing text conversion, and it went unnoticed because every fixture was a
+`.TXT` file. `ckufio.c` is the Unix file module and never passes `"b"`. Fixed
+by a pair that is only correct together — `_fmode = O_BINARY` from an
+initializer in `ckvictor.c`, and `#undef NLCHAR` for `VICTOR9K` in `ckcdeb.h`.
+It has never run on real hardware.
 
 The interactive command parser is off (`NOICP`), and the reason is RAM, not
 DGROUP: with it in, DGROUP measures 60,768 of 65,536 — it *fits* — but the
@@ -68,9 +76,17 @@ XFLAGS=-dKEEP_ICP sizes` re-runs that measurement; `ZT=-zt128` takes DGROUP to
 
 `XFLAGS=-dKEEP_DEBUG` turns on C-Kermit's debug log (`CKERMITW -d -s FOO.BIN`
 writes `./debug.log` on the target). It is affordable here because `-zc` puts
-the format strings in far code — the image goes from 228,554 bytes to 308,862,
+the format strings in far code — the image goes from 228,660 bytes to 309,046,
 which still loads. It is **the** instrument for anything on the target now;
-§16g is what it settled.
+§16g and §16h are what it settled.
+
+Two cheaper instruments came out of §16h. **The debug log's own line endings
+are an `_fmode` oracle** — `debopn()` goes through the same `zopeno()` the
+transfer files do, so CRLF means the runtime is translating and bare LF means
+it is not, and `CKERMITW -d -h` writes one and exits in a 2.5-minute boot with
+no serial line, no `socat` and no host `kermit`. And **`.probe/` holds
+throwaway programs** that answer a libc or DOS question in one short boot;
+build lines are in the comment at the top of each.
 
 **PORTING.md §16a is the how-to** — the Victor boots its hard disk as `A:`,
 the image needs `vtg_image_util` (mtools cannot read it), and MAME's `-bitb`
@@ -79,11 +95,11 @@ socket is single-use, so start `socat` first and never probe the port.
 ## Hard rules
 
 1. **Do not modify upstream C-Kermit files.** The port's value is that the
-   protocol engine is untouched. There are exactly eight guarded upstream
+   protocol engine is untouched. There are exactly nine guarded upstream
    edits (listed in `PORTING.md` §8); every one is wrapped in `#ifndef` or
    `#ifdef VICTOR9K` and changes nothing on any other platform. If you think
-   you need a ninth, say so explicitly rather than doing it quietly — the
-   seventh and eighth were both agreed that way.
+   you need a tenth, say so explicitly rather than doing it quietly — the
+   seventh, eighth and ninth were all agreed that way.
 2. **Feature configuration goes in `ckvictor.h`, never in `victorow.mak`.**
    Each `#define` sits next to a comment explaining why. The makefile passes
    `-fi=ckvictor.h` and nothing else.
@@ -121,7 +137,7 @@ socket is single-use, so start `socat` first and never probe the port.
 |---|---|
 | `PORTING.md` | design doc, memory budget, hardware map, milestone plan |
 | `ckvictor.h` | all ~40 feature `-D` flags, size limits, platform identity |
-| `ckvictor.c` | Victor glue, and **no conditional compilation on the compiler**: process-model stubs (§1), `ioctl`/`FIONREAD`/`TIOCMGET` (§0b), the comm-device `read()`/`write()` and the `alarm()` that bounds the read (§0d), the gaps in Watcom's Unix surface — `gettimeofday`, `uname`, `link`, `kill`, `getpw*` (§1d), the termios half that programs the 7201 and 8253 through the OEM driver's IOCTL block (§1b, PORTING.md §11a), and **the 7201 data path — IRQ1 handler, receive ring, polled transmitter (§1e, PORTING.md §11b)** |
+| `ckvictor.c` | Victor glue, and **no conditional compilation on the compiler**: process-model stubs (§1), `ioctl`/`FIONREAD`/`TIOCMGET` (§0b), the comm-device `read()`/`write()` and the `alarm()` that bounds the read (§0d), the gaps in Watcom's Unix surface — `gettimeofday`, `uname`, `link`, `kill`, `getpw*`, plus an `access()` that is right about a FAT root and the `_fmode = O_BINARY` initializer that stops the DOS runtime translating transfers (§1d, PORTING.md §16h), the termios half that programs the 7201 and 8253 through the OEM driver's IOCTL block (§1b, PORTING.md §11a), and **the 7201 data path — IRQ1 handler, receive ring, polled transmitter (§1e, PORTING.md §11b)** |
 | `victor/sys/termios.h` | the 7201 driver's control surface; no DOS libc has one, reached via `-i=victor` |
 | `victor/sys/ioctl.h` | `FIONREAD` and `TIOCMGET`; without the first `conchk()`/`ttchk()` are hard-wired to 0, and without the second `ttchk()` never reaches `FIONREAD` |
 | `victorow.mak` | the build: Open Watcom `wcc`/`wlink` + `sizes` target |

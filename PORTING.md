@@ -313,7 +313,7 @@ Streaming is **not** network-coupled — it is negotiated protocol behaviour in
 
 ## 8. Upstream changes made
 
-Eight small, guarded edits. None changes behaviour on any other platform.
+Nine small, guarded edits. None changes behaviour on any other platform.
 
 1. **`ckcdeb.h`** — wrapped the `sig_t` typedef in `#ifndef CK_NO_SIG_T`.
    macOS (and the retired build's newlib) already define `sig_t`. Open Watcom
@@ -362,6 +362,26 @@ Eight small, guarded edits. None changes behaviour on any other platform.
    `-DMAXWLD=64`. `zxpand()` allocates `maxnames` pointers *before* it reads
    the first directory entry, so 1024 is a 2,048-byte malloc whether the
    pattern matches two files or none. §16f.
+
+9. **`ckcdeb.h`** — `#undef NLCHAR` for `VICTOR9K`, in the block that
+   already does exactly this for OS/2 and the Atari ST, and directly under
+   the comment that asks for it:
+
+   ```
+   At this point, if there's a system that uses ordinary CRLF line
+   delimitation AND the C compiler actually returns both the CR and
+   the LF when doing input from a file, then #undef NLCHAR.
+   ```
+
+   Both halves of that condition are true here once the runtime is in
+   binary mode, so `feol` becomes 0 and `ckcfns.c` stops converting
+   CRLF to LF and back. It is not an accommodation — it is upstream's own
+   configuration for a CRLF platform, and the port was silently miscategorised
+   as a single-terminator one until §16h. Measured on the target as
+   `MAIN feol=0`. **Not correct alone**: it is one half of a pair with
+   `ckvictor.c`'s `_fmode` initializer, and either half without the other
+   changes which of text and binary transfers is broken rather than fixing
+   anything.
 
 Items 2, 3, 6, 7 and 8 are worth offering upstream regardless of this port.
 2, 3, 7 and 8 are latent hazards on any small-memory target — and 7 and 8
@@ -1985,9 +2005,13 @@ Order of work:
    done on real hardware. (The retired gcc build did the same thing, §16e,
    but needed its packet pools halved to fit its near heap — which is the
    measurement that ended the two-toolchain experiment.)
-6. **`RECEIVE`, then `GET`, then `SERVER`** — still at 9600. The send
-   direction is the one §16d exercised; receive drives the ring harder,
-   because the file writes happen on this end.
+6. **`RECEIVE`, then `GET`, then `SERVER`** — still at 9600. **`RECEIVE` is
+   done — §16h.** 2,048 bytes containing every byte value, received into
+   `A:\` and sent straight back, byte-exact both ways, loss counters 0/0.
+   It took two fixes: `access()` cannot be trusted about a FAT root
+   (`ckvictor.c`), and the DOS runtime was translating every stream in both
+   directions, which is also the correction to §16d's "byte-correct".
+   **`GET` and `SERVER` have not been tried.**
 7. ~~**Bring up the RX ISR and ring buffer** as its own task, standalone, on
    real hardware.~~ Superseded by 4b, except for the real-hardware half.
    What is left of it: run §16d's transfer **on a real Victor**, and settle
@@ -3153,6 +3177,182 @@ that is where the file writes happen on the Victor's end.
 
 ---
 
+## 16h. RECEIVE, and the two defects the send direction was hiding
+
+**A file crosses the wire in both directions, byte-exact.** 2,048 bytes to the
+Victor and the same 2,048 bytes back in one MAME run on Victor MS-DOS 3.1, with
+the driver's loss counters at 0/0 in both directions and `EXIT status=0` on both
+invocations. That is milestone step 6's first half.
+
+Getting there cost two defects, and the second one **corrects the record in
+§16d and §16g**.
+
+The payload matters. It is 2,048 bytes cycling 0x00–0xFF eight times, so it
+contains every byte value — including LF, CR and, decisively, **0x1A**.
+§16d's and §16g's fixtures were all `.TXT`.
+
+### Defect 1: `access(".")` cannot be trusted in a FAT root
+
+`CKERMITW -d -l /dev/seriala -b 9600 -r` failed at the first file, with the
+Victor sending a protocol error rather than data:
+
+```
+s-00-00-  S    Send-Init from the host
+r-00-03-  Y    ACK             <-- receive negotiation is fine
+s-01-03-  F    RXBIN.DAT
+r-00-03-  E    "Write access denied"
+```
+
+`rcvfil()` is the only source of that string, and it comes from `zchko()`.
+The Victor's own log shows `zchko()` contradicting itself inside four lines:
+
+```
+1013: zchko open[RXBIN.DAT]=7      <-- creating the file SUCCEEDS
+1016: zchko delete ok[RXBIN.DAT]   <-- and deleting it succeeds
+1019: zchko access[.]
+1020: zchko access failed:[.]=6    <-- EACCES for the directory it just wrote in
+```
+
+`zchko()` creates the incoming file, deletes it again, and only then asks
+`access(".",W_OK)` whether it may create files there. Open Watcom's `access()`
+(`bld/clib/file/c/accss.c`) is `_dos_getfileattr()` — INT 21h AH=43h — followed
+by a read-only-bit test. **A FAT root directory has no directory entry of its
+own**, so AH=43h has nothing to read for it. It does not fail. It succeeds and
+returns garbage. Measured with `.probe/vaccess.c`:
+
+| path, from `A:\` | `_dos_getfileattr` | attr | `access(W_OK)` |
+|---|---|---|---|
+| `.` `./` `.\` `\` `A:\` `A:.` | rc=0 | **006b** | −1 EACCES |
+| `TEST` (a named subdirectory) | rc=0 | 0010 | 0 |
+| `TESTFILE.TXT` | rc=0 | 0020 | 0 |
+| `NOSUCH.XYZ` | rc=2 | — | −1 |
+| `.` from **inside** `A:\TEST` | rc=0 | **0010** | **0** |
+
+`006b` carries the read-only bit and does *not* carry the directory bit. Asked
+by other spellings the same root answers `00ff` (as `\` seen from a
+subdirectory) or `0000` (as `A:\` seen from the same place) — three different
+answers for one directory, which is what reading a directory entry that does
+not exist looks like. A real subdirectory answers `0010` cleanly, which is why
+running the same transfer from `A:\TEST` worked first time and was the
+experiment that confirmed it.
+
+Fixed in `ckvictor.c` §1d with our own `access()`: for `W_OK`, a directory is
+writeable. That is not a workaround — DOS has no per-directory permissions, and
+the read-only attribute of a directory entry does not stop you creating files
+inside it. Directory-ness is decided with `stat()`, which §16f already
+established answers `"."` here. Watcom's semantics are kept everywhere else,
+with one library bug not copied: it tests `pmode == W_OK`, so it skips the
+read-only check for `R_OK|W_OK`.
+
+This is the same *shape* as §16f's cause 3 — `FindFirst` has no answer for the
+directory you are in — but a different call and a different library. The
+generalisation worth keeping: **on MS-DOS, ask about the root directory by name
+and you will get an answer; it just will not be true.**
+
+### Defect 2: the runtime was translating every transfer, both ways
+
+With the file accepted, 2,048 bytes were sent and **2,056 landed on the
+Victor's disk** — the source with every LF turned into CRLF. Sent back, that
+file returned as **25 bytes**: the first 26 with the lone CR dropped and
+everything from the first 0x1A onward gone.
+
+`ckufio.c` is the **Unix** file module. `zopeni()` is a bare
+`fopen(name,"r")` (line 1422) and `zopeno()` only ever builds `"w"` or `"a"`.
+Neither consults the `binary` flag — on Unix there is nothing to consult it
+for. On DOS that means every transfer, in both directions, went through a
+translating stream: LF↔CRLF, and 0x1A as end-of-file on input.
+
+**This is what §16d and §16g were actually looking at.** Both recorded the
+Victor sending fewer bytes than the file held — 74→72 in §16d, and 63→61,
+54→53, 74→72 in §16g — and both explained it as "the CRLF→LF of a text-mode
+send, which is what C-Kermit is supposed to do". The host logs in the same runs
+say `Global file mode: binary` and `mode: binary: 1`. In a binary transfer
+C-Kermit is supposed to do *nothing of the kind*. So §16d's "the file arrived
+byte-correct" was wrong: the file that arrived was byte-correct against what a
+DOS text-mode read produced, not against what was on the Victor's disk. Nobody
+noticed because every fixture was a `.TXT` file, where the difference is
+invisible unless you compare byte counts and mean it. The step-5 result stands
+— a Kermit transfer completed, and the protocol engine, driver and file system
+all worked — but "byte-correct" belonged to §16h, not to §16d.
+
+The fix is a pair, and **neither half is correct alone**:
+
+- **`_fmode = O_BINARY`** before `main()`, so DOS streams move bytes
+  (`ckvictor.c` §1d). Fixes binary; on its own it would leave a text-mode
+  *receive* writing LF-only files.
+- **`#undef NLCHAR` for `VICTOR9K`** in `ckcdeb.h` (§8 item 9), so `feol`
+  becomes 0 and `ckcfns.c` does no end-of-line conversion, because the local
+  terminator and the wire's are both CRLF. On its own it would break text
+  transfers in the other direction.
+
+Together all four paths are right: binary send and receive byte-exact, text
+send CRLF on disk → CRLF on the wire, text receive CRLF on the wire → CRLF on
+disk. Measured on the target as `MAIN feol=0` and `v9k _fmode=512`.
+
+### The instrument that did not work, and why it is written down
+
+Open Watcom ships `binmode.obj` for exactly this, and **it does not work in
+this program.** That cost most of the session, so the negative result is here
+to stop it being rediscovered.
+
+Measured with `.probe/vfmode.c`: in a small test program it sets `_fmode` to
+0200 correctly — with the object the toolchain ships in `rel/lib286/dos`
+(which is byte-identical to the **small model** build) and with the large-model
+build of the same source. Linked into `CKERMITW.EXE`, either object leaves
+`_fmode` at 0100. Everything checkable said it should work: the record is in
+the XI table (it grows 0x3c → 0x42), `cstart` runs every priority
+(`mov ax,0FFh`), `_TEXT` is a single 60,160-byte segment so a near call reaches
+the routine, and `_fmode` is the plain variable in both programs.
+`.probe/vfmodefp.c` killed the most promising hypothesis — that the 8087
+emulator's own XI initializer was interfering, since `NOGFTIMER` drags
+`emu87.lib` into CKERMITW and not into the probe — by linking the emulator into
+the probe and getting 0200 anyway.
+
+What worked was **registering the initializer ourselves, as a far record**.
+`binmode.obj` uses `AXIN`, the near form: `rtn_type = 0` and a two-byte routine
+offset, which obliges `initrtns.c` to reach it with a near call. `clibl.lib` is
+compiled large, so `struct rt_init` there is `{type, priority, far pointer}`;
+asking for `rtn_type = 1` gets the far call that cannot care which segment the
+routine landed in. Six bytes in `ckvictor.c`, our model and our flags:
+
+```c
+static struct v9k_rt_init __based(__segname("XI")) v9k_fmode_rec =
+    { 1, 32, v9k_set_binmode };
+```
+
+**Why the near form fails here is still not known** — only that it does, and
+that the far form does not. The witness flag in `ckvictor.c` is what makes that
+a measurement rather than an inference: `v9k fmode witness=1` says the routine
+ran, and `v9k _fmode=512` says the value survived, both logged from `access()`
+at the moment before the first incoming file is created. If a future toolchain
+change breaks this, those two lines say which half went.
+
+Two cheap instruments came out of this and are worth keeping:
+
+- **CKERMITW's own `debug.log` line endings are an `_fmode` oracle.**
+  `debopn()` reaches `zopeno()`, the same `fopen(name,"w")` the transfer files
+  use, so CRLF in the log means the runtime is translating and bare LF means it
+  is not. `CKERMITW -d -h` writes one and exits: no serial line, no `socat`, no
+  host `kermit`, about 2.5 minutes instead of 9.
+- `.probe/vaccess.c`, `.probe/vfmode.c` and `.probe/vfmodefp.c`, built per the
+  comment at the top of each.
+
+### What this establishes, and what it does not
+
+`RECEIVE` works, and the round trip is byte-exact over a payload containing
+every byte value — which is the first time this port has moved a genuinely
+binary file. The loss counters read 0/0 through both directions, so §16g's
+result now covers receive as well as send: at 9600, with one packet in flight,
+the ring drops nothing even when the Victor is writing to disk between packets.
+
+**Still under emulation, still only Victor MS-DOS 3.1, still 9600 with window 1
+and short packets.** `GET` and `SERVER` — the rest of milestone step 6 — have
+not been tried. And the two `zchki`/`zchko` call sites are the only ones
+`access()` was measured against; nothing else in C-Kermit's use of it has been
+exercised on this target.
+
+---
+
 ## 15. Open questions
 
 **Closed since the last revision**
@@ -3175,7 +3375,22 @@ that is where the file writes happen on the Victor's end.
 - ~~Do the driver's two loss counters ever fire?~~ **Not at 9600.**
   `rxlost=0, rxfull=0` across a three-file, 44-second transaction — the first
   reading either counter has ever had. Says nothing about 38400 or streaming.
-  (§16g)
+  (§16g) **Now measured for receive too, and still 0/0** (§16h), which is the
+  direction that drives the ring hardest because the disk writes are on this
+  end.
+- ~~The text/binary decision: the host logs "binary" while the Victor sends 74
+  bytes as 72.~~ **It was a defect, not a mode.** `ckufio.c` is the Unix file
+  module and never passes `"b"`, so the DOS runtime translated every stream in
+  both directions — LF↔CRLF, and 0x1A as end-of-file on input. Fixed by a pair
+  of changes that are only correct together: `_fmode = O_BINARY` from an
+  initializer in `ckvictor.c`, and `#undef NLCHAR` for `VICTOR9K` in
+  `ckcdeb.h` (§8 item 9). **This retracts §16d's "byte-correct at the far
+  end"** — that claim now belongs to §16h, over a payload containing every
+  byte value. (§16h)
+- ~~Can `RECEIVE` work at all?~~ **Yes** — and it was blocked by `access()`
+  answering EACCES for the FAT root, which `zchko()` asks about immediately
+  after successfully creating and deleting a file in that same directory.
+  (§16h)
 
 **A decision that is yours, not mine**
 

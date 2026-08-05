@@ -4718,6 +4718,10 @@ _PROTOTYP( int ttsetflow, (int) );
 #undef NLCHAR
 #endif /* OS2 */
 
+#ifdef VICTOR9K				/* Victor 9000 / Sirius 1, MS-DOS */
+#undef NLCHAR
+#endif /* VICTOR9K */
+
 #ifdef GEMDOS				/* Atari ST */
 #undef NLCHAR
 #endif /* GEMDOS */

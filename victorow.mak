@@ -76,6 +76,30 @@ EMPTY   = ckuxla.obj ckcuni.obj ckcnet.obj ckctel.obj
 # Victor-specific glue -- the only non-upstream C file.
 VICTOR  = ckvictor.obj
 
+# NOT LINKED: binmode.obj.  Recording this because it looks like exactly the
+# right answer and it does not work here.
+#
+# ckufio.c is the UNIX file module -- zopeni() is a bare fopen(name,"r") and
+# zopeno() only ever builds "w" or "a", neither consulting the "binary" flag,
+# because on Unix there is nothing to consult it for.  On DOS that silently
+# corrupted every binary transfer in both directions (PORTING.md SS16h).  The
+# runtime's default translation mode is what decides it, and Open Watcom
+# ships binmode.obj to set that mode to O_BINARY before main().
+#
+# Measured on Victor MS-DOS 3.1 (.probe/vfmode.c, .probe/vfmodefp.c): it sets
+# _fmode correctly in a small test program -- with the object the toolchain
+# ships in $(WATCOM)/lib286/dos, which is the SMALL model build, AND with the
+# large-model build of the same source, and with or without the FP emulator
+# linked -- and leaves _fmode at 0100 in CKERMITW.EXE either way.  The record
+# is in the XI table, cstart runs every priority, and _TEXT is one segment, so
+# none of the obvious explanations hold.  Why is not known.
+#
+# ckvictor.c registers the initializer itself instead, as a FAR record
+# (rtn_type 1) where binmode.obj uses the near form.  That works, and it has a
+# witness flag so the debug log says whether it ran.  See ckvictor.c's section
+# 1d and PORTING.md SS16h; the other half of the pair is "#undef NLCHAR" for
+# VICTOR9K in ckcdeb.h, and neither half is correct alone.
+
 OBJS    = $(COMMON) $(UI) $(PLATFORM) $(EMPTY) $(VICTOR)
 
 all: $(EXE) report

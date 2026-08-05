@@ -1883,6 +1883,145 @@ VOID setpwent(void) { }
 VOID endpwent(void) { }
 
 /*
+  _fmode -- make the DOS runtime stop translating, before main() runs.
+
+  ckufio.c is the UNIX file module.  zopeni() is a bare fopen(name,"r")
+  and zopeno() only ever builds "w" or "a"; neither consults the "binary"
+  flag, because on Unix there is nothing to consult it for.  On DOS the
+  runtime then turns LF into CRLF on the way out and CRLF into LF on the
+  way in, and treats ^Z as end of file on input -- which corrupted every
+  binary transfer in BOTH directions (PORTING.md SS16h).  All of C-Kermit's
+  own end-of-line conversion happens in ckcfns.c under !binary, and with
+  "#undef NLCHAR" for VICTOR9K in ckcdeb.h it does none at all, because the
+  local line terminator and the wire's are both CRLF.  So the runtime must
+  not do it a second time: every stream this program opens wants raw bytes.
+
+  Open Watcom ships binmode.obj to set exactly this.  It does not work in
+  this program.  Measured on Victor MS-DOS 3.1 (.probe/vfmode.c,
+  .probe/vfmodefp.c): it sets _fmode correctly in a small test program,
+  with or without the floating-point emulator linked, and leaves _fmode at
+  0100 in CKERMITW.EXE -- with the object the toolchain ships (which is the
+  SMALL model build) and equally with the large-model build of the same
+  source.  Everything checkable says it should work: its record is in the
+  XI table (the table grows 0x3c -> 0x42), cstart runs every priority
+  ("mov ax,0FFh"), and _TEXT is one 60,160-byte segment so a near call
+  reaches it.  The cause is not known, and rather than ship a mechanism
+  that cannot be explained, this file registers its own initializer.
+
+  The difference that matters is FAR.  Watcom's object uses AXIN, the NEAR
+  form: rtn_type 0 and a two-byte routine offset, which obliges the walker
+  in initrtns.c to reach it with a near call.  clibl.lib is compiled large,
+  so struct rt_init there is {type, priority, FAR pointer} -- exactly the
+  six bytes below -- and rtn_type 1 asks for the far call that cannot care
+  which segment the routine landed in.  The witness is not decoration: it
+  is what distinguishes "the initializer never ran" from "it ran and
+  something put _fmode back", and access() below reports it into the debug
+  log at the one moment it matters.
+*/
+int v9k_fmode_witness = 0;              /* Set by the initializer below */
+static int v9k_fmode_told = 0;          /* Reported to the debug log once */
+
+#pragma pack(push,1)
+struct v9k_rt_init {                    /* initrtns.c's large-code layout */
+    unsigned char  rtn_type;            /* 0 = near routine, 1 = far     */
+    unsigned char  priority;            /* 0 highest, 255 lowest         */
+    void (__far * rtn)(void);
+};
+#pragma pack(pop)
+
+static void __far
+v9k_set_binmode(void)
+{
+    v9k_fmode_witness = 1;
+    _fmode = O_BINARY;
+}
+
+/*
+  32 is INIT_PRIORITY_LIBRARY, the same priority binmode.obj asks for --
+  early enough that nothing has opened a stream yet, late enough that the
+  runtime's own data is up.  __based(__segname("XI")) drops the record into
+  the table between XIB and XIE that __InitRtns() walks.
+*/
+static struct v9k_rt_init __based(__segname("XI")) v9k_fmode_rec =
+    { 1, 32, v9k_set_binmode };
+
+/*
+  access().  Watcom HAS one; it is wrong about the directory you are in
+  when that directory is the root, which is where CKERMITW normally runs.
+
+  Its implementation (bld/clib/file/c/accss.c) is two lines:
+
+      if (_dos_getfileattr(path,&attrs)) return(-1);
+      if ((attrs & _A_RDONLY) && pmode == W_OK) return(EACCES);
+      return(0);
+
+  -- INT 21h AH=43h, and then the read-only bit.  But a FAT root directory
+  has no directory entry of its own, so AH=43h has nothing to read for it.
+  It does not fail: it SUCCEEDS and hands back a garbage attribute word,
+  measured on Victor MS-DOS 3.1 as 006b for ".", "./", ".\", "\", "A:\"
+  and "A:.", as 00ff for "\" seen from a subdirectory, and as 0000 for
+  "A:\" seen from the same place.  006b has the read-only bit set and does
+  NOT have the directory bit, so Watcom takes the second branch and reports
+  EACCES for the directory the program is sitting in.  A named subdirectory
+  answers cleanly (0010), and so does "." once the current directory is one.
+
+  That broke RECEIVE outright.  ckufio.c's zchko() creates the incoming
+  file, deletes it again, and only then asks access(".",W_OK) whether it
+  may create files there; the answer came back no and rcvfil() turned it
+  into the protocol error "Write access denied" (PORTING.md SS16h).
+
+  So: for W_OK, a directory is writeable.  That is not a workaround, it is
+  what DOS means -- there are no per-directory permissions, and the
+  read-only attribute of a directory entry does not stop you creating files
+  inside it.  Directory-ness is decided with stat(), which SS16f already
+  established answers "." here where libdos-m's did not, and which the same
+  probe shows answering every spelling of the root correctly.  Everything
+  else keeps Watcom's semantics, with one bug not copied: the library tests
+  "pmode == W_OK", so it skips the read-only check for R_OK|W_OK.
+
+  For F_OK and R_OK the getfileattr call has already answered the question
+  -- the entry either resolves or it does not -- and DOS has no unreadable
+  files.
+*/
+int
+#ifdef CK_ANSIC
+access(const char * path, int mode)
+#else
+access(path,mode) const char * path; int mode;
+#endif /* CK_ANSIC */
+{
+    unsigned attrs;
+    struct stat st;
+
+    /* Once, and from the call that stands immediately before the first
+       incoming file is created: did the initializer above run, and did
+       _fmode survive?  See the comment on v9k_fmode_witness.  Expect
+       witness=1 and _fmode=512 (0200h, O_BINARY); witness=0 would mean
+       the XI record stopped being reached, and witness=1 with _fmode=256
+       would mean something put it back. */
+    if (!v9k_fmode_told) {
+        v9k_fmode_told = 1;
+        debug(F101,"v9k fmode witness","",v9k_fmode_witness);
+        debug(F101,"v9k _fmode","",(int)_fmode);
+    }
+
+    if (_dos_getfileattr(path,&attrs) != 0)
+      return(-1);                       /* No such entry; errno is set  */
+
+    if (!(mode & W_OK))                 /* Existence or readability     */
+      return(0);
+
+    if (stat(path,&st) == 0 && S_ISDIR(st.st_mode))
+      return(0);                        /* A directory: see above       */
+
+    if (attrs & _A_RDONLY) {
+        errno = EACCES;
+        return(-1);
+    }
+    return(0);
+}
+
+/*
   gettimeofday().  ckutio.c's rftimer()/gftimer() subtract two of these to
   get elapsed seconds for the transfer-rate display; nothing needs an
   absolute time of day out of it, only that successive calls advance
