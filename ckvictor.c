@@ -684,12 +684,30 @@ _PROTOTYP( static VOID v9k_ser_progline,
   The driver's control block.  AH=44h, AL=02h to read it and AL=03h to
   write it, BX = handle, CX = 17, DS:DX = the block.  Layout from
   msxv90.asm's "pval" structure, which cites Systems Programmers Toolkit
-  II, Appendix A.  The nine CR bytes are the uPD7201's write registers; on
-  channel A, CR2A is its WR2 and CR2B is channel B's.
+  II, Appendix A; that appendix has since been read directly and agrees
+  field for field.  The nine CR bytes are the uPD7201's write registers;
+  on channel A, CR2A is its WR2 and CR2B is channel B's, which the OEM
+  documentation names the interrupt vector.
 
   The four 16-bit fields come first and the nine bytes after, so the
   struct has no interior padding; the trailing pad to an even size is why
   the length below is a literal 17 rather than sizeof.
+
+  Appendix A says to pass CX = 9, which is the count of CR bytes and not
+  the size of anything it describes -- its own field list adds up to the
+  17 below.  17 is what msxv90.asm passes and what PORTING.md SS11a
+  measured working on Victor MS-DOS 3.1.  Do not "correct" it to 9.
+
+  Note also that AL=02h does NOT read the chip.  Appendix A: "when a
+  request is made to set the port, the configuration information is
+  saved.  Then if the current configuration is requested the parameter
+  block last used to set the port is returned to you."  So a read returns
+  the driver's cache of its own last write.  That is still exactly what
+  the read-modify-write in tcsetattr wants -- the driver applies the whole
+  block, so preserving the fields we do not set preserves what it will
+  apply -- but nothing that comes back from here is evidence about the
+  state of the uPD7201.  Section 1e reads the chip when that is the
+  question.
 */
 
 #define V9K_IOCTL_RDCTL 0x4402          /* Receive control data         */
@@ -698,24 +716,38 @@ _PROTOTYP( static VOID v9k_ser_progline,
 
 struct v9k_portval {
     unsigned short stype;               /* 0011h = port access          */
-    unsigned short status;
+    unsigned short status;              /* 0 = ok; see v9k_portval_io   */
     unsigned short blocktype;           /* 0000h = serial               */
     unsigned short baudr;               /* 8253 DIVISOR, not a baud rate*/
     unsigned char  cr0;
     unsigned char  cr1;                 /* WR1: interrupt enables       */
     unsigned char  cr2a;                /* WR2: interrupt mode          */
-    unsigned char  cr2b;
+    unsigned char  cr2b;                /* WR2 ch B: interrupt vector   */
     unsigned char  cr3;                 /* WR3: Rx width, Rx enable     */
     unsigned char  cr4;                 /* WR4: clock, stop bits, parity*/
     unsigned char  cr5;                 /* WR5: Tx width/enable,DTR,RTS */
-    unsigned char  cr6;
-    unsigned char  cr7;
+    unsigned char  cr6;                 /* WR6: SYNC character          */
+    unsigned char  cr7;                 /* WR7: SYNC character          */
 };
 
 /*
-  Read or write the block.  Returns 0, or -1 with the DOS error left in
-  errno if the driver will not answer -- which is not fatal and is handled
-  at the one call site.
+  Read or write the block.  Returns 0, or -1 with errno set if the driver
+  will not answer -- which is not fatal and is handled at the one call
+  site.
+
+  There are TWO failure channels here and only one of them is the carry
+  flag.  Carry means DOS itself refused the call, and AX is the DOS error.
+  The status word in the block is the driver's own, and Appendix A defines
+  it: false (0) if no error, 01h for an invalid function, -1 for an
+  invalid type.  It is returned with CARRY CLEAR.
+
+  That second channel is not a formality.  PORTING.md SS11a spent three
+  runs discovering that a read issued with stype = 0 comes back carry-
+  clear with the block untouched; the driver was reporting that as
+  status = -1 the whole time and this code was not looking.  It is also
+  the only way we would ever learn that a divisor outside the OEM's
+  documented range (Appendix A stops at 19.2k; we offer 38.4k and 76.8k)
+  had been rejected.
 */
 static int
 #ifdef CK_ANSIC
@@ -735,7 +767,15 @@ v9k_portval_io(fd,wr,p) int fd; int wr; struct v9k_portval * p;
     sr.ds  = FP_SEG(p);
     intdosx(&r,&r,&sr);
     if (r.w.cflag) {
+        debug(F111,"v9k_portval_io DOS error",wr ? "write" : "read",
+              (int)r.w.ax);
         errno = (int)r.w.ax;
+        return(-1);
+    }
+    if (p->status) {                    /* Carry clear and still failed */
+        debug(F111,"v9k_portval_io driver status",wr ? "write" : "read",
+              (int)p->status);
+        errno = EINVAL;
         return(-1);
     }
     return(0);
@@ -746,9 +786,23 @@ v9k_portval_io(fd,wr,p) int fd; int wr; struct v9k_portval * p;
   the order of the two lists has to stay in step.
 
   These are msxv90.asm's "bddat" values, which vickermit.c reproduces
-  byte for byte; the rule behind them is 78125/baud, and B200 is the one
-  entry neither of those two tables has.  See sys/termios.h for why the
-  numerator is 78125 and not the 76800 an earlier revision assumed.
+  byte for byte; the rule behind them is 78125/baud.  See sys/termios.h
+  for why the numerator is 78125 and not the 76800 an earlier revision
+  assumed.
+
+  B200 was the one entry neither of those two tables had, and it used to
+  be round(78125/200) = 391.  Systems Programmers Toolkit II, Appendix A
+  prints the OEM driver's own table and it says 390 (0186h), so that is
+  what is here now: matching what shipped beats matching the arithmetic,
+  and 78125/390 is 200.3 bps either way.
+
+  Appendix A also prints 1.8k as 26h = 38, and that one is NOT taken.
+  78125/38 is 2056 bps -- faster than the same table's 2.0k entry (27h =
+  39, 2003 bps) while labelled slower -- where 2Bh = 43 gives 1817.  A
+  transcription error, and 43 is what stays.  Appendix A's table stops at
+  19.2k; B38400 and B76800 below are msxv90.asm's and are outside
+  anything the OEM documents, which is one of the reasons
+  v9k_portval_io() now reads the driver's status word.
 
   B0 is not a speed -- POSIX gives it the meaning "hang up" -- so its
   entry is never used; tcsetattr drops DTR and RTS and leaves the divisor
@@ -757,7 +811,7 @@ v9k_portval_io(fd,wr,p) int fd; int wr; struct v9k_portval * p;
 static unsigned int v9k_divisor[] = {
        0,                               /* B0     hang up               */
     1562, 1041,  710,  580,  520,       /* B50   B75   B110  B134  B150 */
-     391,  260,  130,   65,   43,       /* B200  B300  B600  B1200 B1800*/
+     390,  260,  130,   65,   43,       /* B200  B300  B600  B1200 B1800*/
       32,   16,    8,    4,    2,       /* B2400 B4800 B9600 B19200     */
                                         /*                       B38400 */
        1                                /* B76800                       */
@@ -877,16 +931,22 @@ tcsetattr(fd,action,t) int fd; int action; const struct termios * t;
     v9k_lastcr5 = cr5;
 
     /*
-      Read-modify-write, so that whatever the driver has in the fields we
-      do not understand survives.
+      Read-modify-write, so that whatever the driver last set in the
+      fields we do not understand survives.  Note "last set", not "has":
+      the read returns the driver's cache of its own last write, not the
+      chip (Appendix A, quoted at v9k_portval_io).  That is the right
+      thing to preserve here anyway, because the write applies the whole
+      block -- but it means no value that comes back below is evidence
+      about the uPD7201.
 
       Zero it first so that nothing uninitialised can ever be written back,
       then stamp the two header words BEFORE the read.  They are not output
       fields: they are how the request identifies itself, and msxv90.asm's
       "pval" carries stype = 0011h as a structure default on the block it
-      hands to the read as well as the write.  Zeroing them and expecting
-      the driver to fill them in returns a block of nothing -- measured,
-      PORTING.md SS11a.
+      hands to the read as well as the write.  Appendix A says the same --
+      "the type is always 11 hexadecimal" -- and getting it wrong returns
+      a block of nothing with the carry clear and the complaint in the
+      status word, which is measured in PORTING.md SS11a.
 
       CR1 and CR2A are deliberately left as they were read.  CR1 is the
       interrupt enable and section 1e owns it now, at the chip, because

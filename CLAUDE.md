@@ -47,7 +47,7 @@ all pre-existing — `debug()` expanding to nothing under `NODEBUG` (W111),
 two unreferenced labels, `localtime()` sign mismatch, `execvp()` const
 mismatch, and `docmdline(1)` in `ckcmai.c`. **`ckvictor.c` compiles with
 none.** DGROUP is 39,424 of 65,536 (60%) after the linker adds libc;
-`ckermitw.exe` is 228,506 bytes.
+`ckermitw.exe` is 228,554 bytes.
 
 **It transfers a file.** On Victor MS-DOS 3.1 under MAME it opens
 `/dev/seriala`, programs the line through the OEM driver's IOCTL block (§11a),

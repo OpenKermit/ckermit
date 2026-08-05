@@ -84,8 +84,10 @@ struct termios {
       divisor = 1250000 / (baud * 16) = 78125 / baud
 
   and 78125 = 5^7 is odd, so NO rate divides it exactly: every entry below
-  is approximate and the table in ckvictor.c is the rounded value, not a
-  formula.  B7200, B14400, B28800, B57600 and B115200 are ABSENT because
+  is approximate and the table in ckvictor.c is a table of measured or
+  published values, not a formula -- B200 is 390 because the OEM driver's
+  own table says 390, where the arithmetic would round to 391.  B7200,
+  B14400, B28800, B57600 and B115200 are ABSENT because
   their divisors (10.9, 5.4, 2.7, 1.4, 0.7) round to errors of 2% to 46%.
   Divisor 1 is the ceiling and it is 78125 bps; B76800 names it, 1.7% low.
 
@@ -98,11 +100,17 @@ struct termios {
   76800/baud would make those 256, 128, 64 and 32.  The FreeDOS driver's
   own subsystem documentation says 1.25 MHz, contradicting its code
   comment, and the two rates it was proven at (9600 -> 8, 38400 -> 2) are
-  the ones where the two rules happen to agree.  See PORTING.md SS11a.
+  the ones where the two rules happen to agree.  A third source has since
+  settled it: Systems Programmers Toolkit II, Appendix A prints the OEM
+  serial driver's own divisor table, 50 through 19.2k, and it is 78125/baud
+  throughout.  See PORTING.md SS11a.
 
   B1800 (divisor 43 -> 1817 bps, +0.9%) is here only because ckutio.c's
-  "case 180:" arm is unguarded.  B38400 is divisor 2 -> 39062 bps, +1.7%;
-  3.13 shipped that and async framing tolerates roughly 2.5%.
+  "case 180:" arm is unguarded; Appendix A prints 38 for 1.8k and that is a
+  transcription error, argued in ckvictor.c at the table.  B38400 is
+  divisor 2 -> 39062 bps, +1.7%; 3.13 shipped that and async framing
+  tolerates roughly 2.5%.  Neither B38400 nor B76800 appears in Appendix A
+  at all.
 */
 
 #define B0          0                   /* Hang up: drop DTR and RTS    */
@@ -111,7 +119,7 @@ struct termios {
 #define B110        3                   /* divisor  710  (  110.04 bps) */
 #define B134        4                   /* divisor  580  (  134.70 bps) */
 #define B150        5                   /* divisor  520  (  150.24 bps) */
-#define B200        6                   /* divisor  391  (  199.81 bps) */
+#define B200        6                   /* divisor  390  (  200.32 bps) */
 #define B300        7                   /* divisor  260  (  300.48 bps) */
 #define B600        8                   /* divisor  130  (  600.96 bps) */
 #define B1200       9                   /* divisor   65  ( 1201.92 bps) */

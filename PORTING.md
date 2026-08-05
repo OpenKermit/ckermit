@@ -383,9 +383,9 @@ _DATA   18,258  |
 _BSS    17,612  |
 STACK    2,048  |
 DGROUP  39,424 of 65,536  (60%)     26,112 left in the segment
-far code   193,362                  outside DGROUP, ~1MB limit — not a concern
+far code   193,400                  outside DGROUP, ~1MB limit — not a concern
 far data         0                  none needed yet
-ckermitw.exe   228,506 bytes
+ckermitw.exe   228,554 bytes
 ```
 
 The heap is **not in this table**, and that is the whole point of the large
@@ -1101,6 +1101,14 @@ Unchanged from the previous revision, and now with a fourth reason:
 §1b, it is INT 21h only, and it cost 48 bytes of DGROUP. What follows is the reference data first and the
 measurements after.
 
+**The OEM documentation has since been read directly** — *Systems Programmers
+Toolkit II*, Appendix A, "Specific implementation for interface port access",
+which is the source `msxv90.asm` cites. It confirms the layout field for
+field and settles three things this section had inferred or got wrong; those
+are marked **[A.2]** below and the code was changed on 2026-08-05 to match.
+Two of them are corrections to measurements 3–5, which claimed more than the
+interface can deliver.
+
 `AH=44h`, `AL=02h` to read and `AL=03h` to write, `BX` = handle, `CX` = 17,
 `DS:DX` = the block. Layout, from `msxv90.asm`'s `pval struc` (which cites
 *Systems Programmers Toolkit II*, Appendix A):
@@ -1126,6 +1134,56 @@ The idiom is read-modify-write: `AL=02h` to fetch current values, overwrite
 `CR1`–`CR5` and `baudr`, `AL=03h` to put them back. 3.13 does exactly this in
 `OPNPRT` and again in `DOBAUD`, `SERHNG` (DTR/RTS for HANGUP) and `SENDBR`.
 
+Appendix A names the nine CR bytes, and they match the port's field comments
+one for one: CR0 control, CR1 interrupt enable, CR2A interrupt mode, **CR2B
+the channel-B interrupt vector**, CR3 receiver, CR4 sampling, CR5
+transmitter, CR6/CR7 SYNC characters.
+
+**[A.2] `stype` is an input, and the appendix says so outright** — "the type
+is always 11 hexadecimal", listed under TYPE, not under anything returned.
+Measurement 2 found this the expensive way; it is now documented rather than
+merely observed.
+
+**[A.2] `AL=02h` does not read the chip.** Appendix A: *"When a request is
+made to set the port, the configuration information is saved. Then if the
+current configuration is requested the parameter block last used to set the
+port is returned to you."* The read returns the driver's **cache of its own
+last write**. Read-modify-write is still exactly right — the write applies
+the whole block, so preserving fields we do not set preserves what the driver
+will apply — but **nothing read through this interface is evidence about the
+state of the µPD7201**. §11b reads the chip when that is the question. See
+the corrections to measurements 3, 4 and 5.
+
+**[A.2] The `status` word is a second, independent failure channel.** "Status
+is returned to reflect if an error occurred… If an error does not occur,
+status is returned as false (0)." Two codes are defined:
+
+| status | meaning |
+|---|---|
+| `0` | no error |
+| `01h` | invalid function requested |
+| `-1` | invalid type requested |
+
+It is returned **with the carry flag clear**. Until 2026-08-05 the port
+checked only carry, which is why measurement 2 below took three runs: the
+driver was reporting the bad `stype` as `status = -1` the entire time.
+`v9k_portval_io()` now fails the call on a nonzero status, logs it, and
+returns `EINVAL`. Cost: 48 bytes of image (228,506 → 228,554), no DGROUP.
+**Run on Victor MS-DOS 3.1 and it fires on nothing** — all seven
+`tcsetattr()` calls come back `status = 0` and the transfer still completes;
+§16c's addendum has that run, and it is also where the cache semantics stop
+being a quotation and become a measurement.
+
+**[A.2] The appendix says `CX = 9` and that is not the block size.** Nine is
+the count of CR bytes; the appendix's own field list adds to 17. The port
+passes 17, which is what `msxv90.asm` passes and what measurement 1 below
+proved works on Victor MS-DOS 3.1. The comment in `ckvictor.c` says not to
+"correct" it.
+
+(Appendix A's parallel-port block is described as just `{type, status}` with
+no `0011h` word, which contradicts its own prose for the serial case. Where
+the appendix and the measurement disagree, the measurement wins.)
+
 **We already hold the handle.** `ttopen()` opens `/dev/seriala` and leaves the
 descriptor in `ttyfd`, so `tcsetattr()` in `ckvictor.c` §1b can issue this
 without opening anything, and `cfsetospeed()` becomes a table lookup plus one
@@ -1137,6 +1195,28 @@ Divisor table, from `msxv90.asm`'s `bddat`. The rule is **`78125 / baud`**:
 | baud | 300 | 1200 | 2400 | 4800 | 9600 | 19200 | 38400 |
 |---|---|---|---|---|---|---|---|
 | divisor | 104h | 41h | 20h | 10h | **8** | 4 | **2** |
+
+**[A.2] Appendix A prints the OEM driver's own table**, 50 baud through
+19.2k, as low-byte/high-byte pairs. It is `78125 / baud` throughout — a third
+independent confirmation of the 1.25 MHz clock, after `msxv90.asm` and
+`vickermit.c`. Two consequences for `v9k_divisor[]`:
+
+- **B200 is 390 (`0186h`), not 391.** 200 was the one rate neither shipped
+  table carried, so the port had been computing `round(78125/200)` = 391.
+  Changed to 390 — matching what shipped beats matching the arithmetic, and
+  it is 200.3 bps either way. `victor/sys/termios.h` updated to suit.
+- **The appendix's 1.8k entry, `26h` = 38, is a transcription error and is
+  not taken.** `78125/38` is 2056 bps, which is *faster* than the same
+  table's 2.0k entry (`27h` = 39, 2003 bps) while labelled slower. `2Bh` = 43
+  gives 1817 bps and is what the port keeps.
+
+Appendix A stops at 19.2k: **B38400 and B76800 are undocumented by the OEM.**
+They are `msxv90.asm`'s, 3.13 shipped 38400, and nothing in the appendix says
+the driver validates the divisor — but this is the case where the status
+check above earns its keep, since a rejected speed would otherwise come back
+carry-clear and be indistinguishable from success. Appendix A also carries
+2.0k (`27h`) and 3.6k (`15h`), which the port does not offer because
+`ckutio.c` has no arm for them.
 
 #### The baud clock is 1.25 MHz, and the port's own header had it wrong
 
@@ -1235,9 +1315,14 @@ TESTFILE.TXT`, `DEBUG.LOG` pulled back off the image.
    | zeroed, `stype` = 0 | `0` | zeros, untouched |
    | zeroed, `stype` = `0011h` | `8` | the real value |
 
-   **Carry was clear in all three.** A driver that ignores the request and
-   one that answers it are indistinguishable from the return status, so
-   the only way to know the read worked is to recognise a value in it.
+   **Carry was clear in all three**, and the conclusion drawn here at the
+   time — that a driver which ignores the request and one which answers it
+   are indistinguishable, so the only way to know is to recognise a value —
+   **was wrong**. Appendix A shows why: the driver reports an unrecognised
+   type in the block's `status` word as `-1`, carry-clear, and the port was
+   not reading it. This is corrected in the code and the failure is now
+   logged. The measurement stands; only the inference from it was bad, and
+   it is a good illustration of the difference.
 
    The first of those caught a real defect on its way past: the hang-up
    path deliberately does not set `baudr`, so it wrote `97BCh` straight
@@ -1248,36 +1333,54 @@ TESTFILE.TXT`, `DEBUG.LOG` pulled back off the image.
    let a field we control come back from a read.** The last divisor and
    last WR5 we programmed live in two statics for exactly that reason.
 
-3. **The round trip is real, and it verifies that we are programming the
-   chip.** With `stype` right, the read returns `cr4 = 44h` and
-   `cr5 = EAh` — the values `tcsetattr()` had just computed for 8-N-1 —
-   and `baudr = 8`. `cr2a` reads back as `10h`, which is the OEM driver's
-   own WR2 and *not* the `14h` 3.13 writes: the deliberate preservation of
-   CR1/CR2A above is working.
+3. **The round trip is real.** With `stype` right, the read returns
+   `cr4 = 44h` and `cr5 = EAh` — the values `tcsetattr()` had just computed
+   for 8-N-1 — and `baudr = 8`. `cr2a` reads back as `10h`, which is the OEM
+   driver's own WR2 and *not* the `14h` 3.13 writes: the deliberate
+   preservation of CR1/CR2A above is working.
 
-4. **Hang-up verified at the register level.** Across `tthang()`, `cr5`
+   **[A.2] Correction.** This measurement was written up as *"it verifies
+   that we are programming the chip"*. It does not. The read returns the
+   driver's cache of the last block written, so the round trip proves the
+   driver stored what we sent it and nothing more. What it does establish is
+   real and worth having — the request is well formed, the fields land where
+   we think they land, and CR2A survives — but the chip is not in evidence.
+
+4. **Hang-up verified at the control-block level.** Across `tthang()`, `cr5`
    goes `EAh` → **`68h`** and back. `EAh AND 7Dh` is `68h`: DTR (bit 7) and
    RTS (bit 1) cleared and nothing else touched. `baudr` reads 8 on both
-   sides of it. This is the first thing in this port whose effect on the
-   hardware has been confirmed by reading the hardware back.
+   sides of it.
 
-5. **`cr1` reads back as 0, and that is suggestive but not established.**
-   WR1 holds the receive-interrupt enables; 0 means the OEM driver is
-   running this port with no receive interrupt at all, which is precisely
-   the polled, unbuffered arrangement that would fall behind and latch an
-   overrun — §16b's leading explanation for the two-byte signature. Do not
-   bank it: CR1 is the one field 3.13 explicitly flagged as not behaving,
-   and a field that is not applied on write may equally not be reported on
-   read. Every other field here round-trips, which is the argument for
-   taking it seriously; §11b can settle it by reading RR1.
+   **[A.2] Correction.** This was written up as *"the first thing in this
+   port whose effect on the hardware has been confirmed by reading the
+   hardware back"*. It is a cache round-trip, not a hardware read-back, and
+   that claim is withdrawn. The first genuine hardware read-back in this
+   port is §11b's, which reads RR0 and RR1 at the chip.
+
+5. **`cr1` reads back as 0, and that is not evidence.** WR1 holds the
+   receive-interrupt enables, and 0 was read here as the OEM driver running
+   this port with no receive interrupt at all — §16b's leading explanation
+   for the two-byte signature. The hedge at the time was that CR1 is the one
+   field 3.13 flagged as not behaving, so a field not applied on write may
+   not be reported on read either.
+
+   **[A.2] Correction.** The hedge was right and the reason is stronger than
+   stated: `cr1 = 0` is simply the driver's cached CR1 from its own last
+   set, so it says nothing whatever about the chip. §11b settled the
+   question properly by reading RR1, and §16c's addendum makes it a
+   measurement rather than an inference — after §1e writes `WR1 = 18h` at
+   the chip and a whole transfer runs on those interrupts, this read still
+   reports 0.
 
 6. **Reception is unchanged: 12 reads, every one returning exactly 2**, in
    all three runs. Identical to §16b, on a line whose registers we had
-   just programmed ourselves and read back to confirm. §11a is neutral on
+   just programmed through the driver's own interface. §11a is neutral on
    the data path, which is what copying 3.13's split predicted, and it is
-   a third measurement — under a changed and now *verified* configuration
-   — that the OEM driver is not a data path. The transfer still ends in
-   retransmissions and a protocol `E` packet.
+   a third measurement that the OEM driver is not a data path. The
+   transfer still ends in retransmissions and a protocol `E` packet.
+   (Originally written "under a changed and now *verified* configuration";
+   per the correction to measurement 3, the configuration was accepted by
+   the driver, not verified at the chip.)
 
 #### What §11a does not do
 
@@ -1355,8 +1458,10 @@ C-Kermit is guaranteed to reach with the descriptor open and the line already
 programmed, and it costs no new interception. Every later call through it
 re-asserts `WR1`, because the IOCTL write may have cleared it — 3.13 found
 that write subfunction does not apply CR1 (*"IOCTL doesn't seem to touch
-it"*), and §11a measured CR1 reading back as 0, which is consistent with the
-field being neither applied nor reported.
+it"*). §11a's `cr1 = 0` read-back used to be offered as corroboration; it
+cannot be, since the read returns the driver's cache rather than the chip
+(§11a **[A.2]**). 3.13's finding is the whole of the evidence, and it is
+enough to justify a re-assert that costs one register write.
 
 Note that this displaces the OEM driver's own ISR while its device stays
 open. That is safe precisely because we never ask it for data again.
@@ -1835,7 +1940,7 @@ Order of work:
 1a. ~~**`opendir`/`readdir`/`closedir`, the four small stubs, `ioctl`/`FIONREAD`,
    and the guard-macro collisions.**~~ **Done** — all in `ckvictor.c`; still
    24 objects, 0 warnings, DGROUP unchanged (§12, §14).
-2. ~~**Link the `.EXE`.**~~ **Done** — `ckermitw.exe`, 228,506 bytes. It
+2. ~~**Link the `.EXE`.**~~ **Done** — `ckermitw.exe`, 228,554 bytes. It
    required `NOICP`, and under the retired gcc build also
    `-mnewlib-nano-stdio` (§9c).
 3. ~~**A prompt, on FreeDOS.**~~ **Superseded and done differently.** There is
@@ -2448,11 +2553,15 @@ in §11a** rather than being repeated here; in one line each:
 - Both IOCTL subfunctions work on Victor MS-DOS 3.1, and all five of
   C-Kermit's calls to set the line now reach the hardware.
 - The register values read back as written, and `tthang()` is visible in
-  the read-back as `cr5` going `EAh` → `68h` → `EAh`. It is the first
-  effect this port has had on the hardware that the hardware confirms.
+  the read-back as `cr5` going `EAh` → `68h` → `EAh`. **Corrected
+  2026-08-05:** this was written up as the first effect on the hardware
+  that the hardware confirms. It is not — `AL=02h` returns the driver's
+  cache of its own last write, not the chip. See §11a **[A.2]**.
 - Getting `stype` wrong on the *read* makes it return nothing with carry
   clear. Two of the three runs went that way; the first wrote stack junk
-  into the 8253 during hang-up before it was caught.
+  into the 8253 during hang-up before it was caught. **Corrected
+  2026-08-05:** not silent after all — the driver reports it in the
+  block's `status` word, which the port now checks.
 - Reception is byte-for-byte what §16b measured — 12 reads, every one of
   exactly 2 — in all three runs. Configuring the OEM driver does not make
   it a data path, and §11b is unchanged as the remaining work.
@@ -2461,6 +2570,53 @@ The one thing worth adding to the harness notes in §16a: `XFLAGS=-dKEEP_DEBUG`
 needs `make clean` first. It is not per-file — `debug()` compiles to nothing
 without it, so a partial rebuild links `ckvictor.o` against a tree that has
 no `dodebug` and fails with `E2028: dodebug_ is an undefined reference`.
+
+### Addendum, 2026-08-05: the status check, and the cache semantics confirmed
+
+A fourth run, after Appendix A was read and `v9k_portval_io()` was given the
+status-word check (§11a **[A.2]**). `KEEP_DEBUG` Watcom build, same harness,
+`KTEST.BAT` running `CKERMITW -d -l /dev/seriala -b 9600 -s TESTFILE.TXT`
+against a host C-Kermit receiver on the `socat` pty.
+
+**The status check changes nothing on Victor MS-DOS 3.1, which is what it
+had to show.** In a 1,796-line `DEBUG.LOG` there is not one
+`v9k_portval_io driver status` line and not one `v9k_portval_io DOS error`
+line. All seven `tcsetattr()` calls — `ttopen`, `ttsspd` ×2, `ttpkt`,
+`tthang`'s B0 and restore, and `ttres` — did both subfunctions with carry
+clear *and* `status = 0`. Nothing was diverted to the direct-programming
+fallback, and the transfer completed: S/F/A/D/Z/B in six exchanges with **no
+retransmissions**, `TESTFILE.TXT` byte-correct at 72 bytes, `C-Kermit EXIT
+status=0`. Identical to §16d.
+
+**And the run is direct evidence for the cache semantics**, which Appendix A
+asserted and nothing here had yet tested:
+
+```
+tcsetattr read-back cr1/cr2a[0]=16     <-- cr1 = 0, at ttopen ...
+v9k_ser_install channel=0
+...
+tcsetattr read-back cr1/cr2a[0]=16     <-- ... and cr1 = 0 at ttres,
+ttres result=0                              after the whole transfer
+```
+
+§1e writes `WR1 = 18h` at the chip on install and again on every
+`v9k_ser_reenable()`, and the transfer demonstrably ran on those receive
+interrupts — six clean reads, `rxlost/rxfull = 0/0`. **The chip's WR1 was
+`18h` and the IOCTL read reports `cr1 = 0` anyway**, on every one of the six
+reads after the install. A read that returned chip state could not do that.
+This is what §11a's measurement 5 was groping at and is the measurement that
+settles it: `AL=02h` returns the driver's cache, so `cr1 = 0` was never
+evidence about the µPD7201, and 3.13's *"IOCTL doesn't seem to touch it"* is
+the sole support for the WR1 re-assert. `cr2a` still reads `10h`, `cr4`
+`44h`, `cr5` `EAh` → `68h` → `EAh` across `tthang()`, all as before — the
+cache is faithful to what was written, it is just not the chip.
+
+The loss counters §16d said would print on the next run do print, from
+`tcsetattr()`: `v9k_ser rxlost/rxfull[0]=0` at all six sample points.
+
+**Not exercised:** the `B200` divisor correction (390, from Appendix A).
+Nothing in this harness runs at 200 baud, and no run of this port ever has.
+It is a documentation-sourced change, not a measured one.
 
 ---
 
