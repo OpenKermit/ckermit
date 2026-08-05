@@ -276,7 +276,54 @@ struct __msdos_DIR {
     struct dirent d_ent;                /* also this DIR's DOS DTA      */
     int           d_pending;            /* an unread entry is in d_ent  */
     int           d_done;               /* FindFirst/Next said no more  */
+#ifdef V9K_DIRTRACE
+    int           d_seen;               /* Entries handed out so far    */
+#endif /* V9K_DIRTRACE */
 };
+
+#ifdef V9K_HEAPREPORT
+_PROTOTYP( VOID v9k_heapmark, (void) );  /* Section 0e, defined below */
+#endif /* V9K_HEAPREPORT */
+
+#ifdef V9K_DIRTRACE
+/*
+  The trace primitive.  write(2) and nothing else -- see the note at the
+  call in opendir() for why this cannot be printf.  Up to two strings, two
+  more strings, and one number, which covers every call site here without
+  needing varargs (and varargs would want stdio to be useful anyway).
+*/
+static VOID
+#ifdef CK_ANSIC
+v9k_trace(char * a, char * b, char * c, char * d, char * e, int n)
+#else
+v9k_trace(a,b,c,d,e,n) char *a, *b, *c, *d, *e; int n;
+#endif /* CK_ANSIC */
+{
+    char buf[160];
+    char num[8];
+    char * s[5];
+    int i, k, j, neg;
+
+    s[0] = a; s[1] = b; s[2] = c; s[3] = d; s[4] = e;
+    k = 0;
+    for (i = 0; i < 5; i++) {
+        if (!s[i])
+          continue;
+        for (j = 0; s[i][j] && k < (int)sizeof(buf) - 12; j++)
+          buf[k++] = s[i][j];
+    }
+    neg = (n < 0);
+    if (neg) n = -n;
+    j = 0;
+    do { num[j++] = (char)('0' + (n % 10)); n /= 10; } while (n && j < 7);
+    if (neg) buf[k++] = '-';
+    while (j > 0) buf[k++] = num[--j];
+    buf[k++] = '\r';
+    buf[k++] = '\n';
+    write(2,buf,(unsigned)k);           /* #undef'd at the top of this
+                                           file: the library's, not ours */
+}
+#endif /* V9K_DIRTRACE */
 
 /*
   If <sys/dirent.h> ever drifts away from the DTA layout, fail here at
@@ -348,11 +395,33 @@ opendir(path) const char * path;
       succeeding and returning an empty directory.  The entry it produces
       is held for the first readdir().
     */
+#ifdef V9K_HEAPREPORT
+    v9k_heapmark();                     /* Section 0e: see the note there
+                                           on why expansion is sampled  */
+#endif /* V9K_HEAPREPORT */
     dos_set_dta(&d->d_ent);
     rc = dos_find_first(pattern,DOS_FIND_ATTRS);
 
+#ifdef V9K_DIRTRACE
+    /*
+      PORTING.md SS15 asked for exactly this: "the cheapest instrument is a
+      temporary _write_r trace of the pattern string opendir() actually
+      receives", and _write_r is what it has to be.  printf was tried first
+      and is not usable here: stdout's buffer is itself the first thing the
+      program allocates, so a trace that goes through stdio re-enters stdio
+      during its own initialisation, and the measurement disappears -- which
+      is a whole MAME run spent learning that the instrument was broken and
+      not the code.  v9k_trace() is write(2) and hand-formatted digits: no
+      buffering, no allocation, nothing to re-enter.
+    */
+    v9k_trace("v9k opendir(",(char *)path,") -> ",pattern," rc=",rc);
+#endif /* V9K_DIRTRACE */
+
     d->d_pending = (rc == 0);
     d->d_done    = (rc != 0);
+#ifdef V9K_DIRTRACE
+    d->d_seen    = 0;
+#endif /* V9K_DIRTRACE */
 
     if (rc == 3) {                      /* Path not found: no such dir  */
         free((char *)d);
@@ -378,6 +447,9 @@ readdir(d) DIR * d;
 
     if (d->d_pending) {                 /* Held over from FindFirst     */
         d->d_pending = 0;
+#ifdef V9K_DIRTRACE
+        d->d_seen = 1;
+#endif /* V9K_DIRTRACE */
         return(&d->d_ent);
     }
     if (d->d_done)
@@ -386,8 +458,17 @@ readdir(d) DIR * d;
     dos_set_dta(&d->d_ent);             /* See note above -- every time */
     if (dos_find_next() != 0) {
         d->d_done = 1;
+#ifdef V9K_DIRTRACE
+        /* One line per directory, not one per file: the screen holds 25
+           lines and a root directory is longer than that. */
+        v9k_trace("v9k readdir end, entries=",(char *)0,(char *)0,
+                  (char *)0,(char *)0,d->d_seen);
+#endif /* V9K_DIRTRACE */
         return((struct dirent *)0);     /* No more; errno unchanged     */
     }
+#ifdef V9K_DIRTRACE
+    d->d_seen++;
+#endif /* V9K_DIRTRACE */
     return(&d->d_ent);
 }
 
@@ -922,6 +1003,7 @@ v9k_comm_read(fd,buf,n) int fd; void * buf; unsigned int n;
    one it has to agree with. */
 _PROTOTYP( V9K_RTYPE v9k_read, (int, void *, V9K_RCOUNT) );
 
+
 V9K_RTYPE
 #ifdef CK_ANSIC
 v9k_read(int fd, void * buf, V9K_RCOUNT n)
@@ -929,6 +1011,9 @@ v9k_read(int fd, void * buf, V9K_RCOUNT n)
 v9k_read(fd,buf,n) int fd; void * buf; V9K_RCOUNT n;
 #endif /* CK_ANSIC */
 {
+#ifdef V9K_HEAPREPORT
+    v9k_heapmark();
+#endif /* V9K_HEAPREPORT */
     /*
       fd > 2 as well as fd == ttyfd because ttopen() sets ttyfd to 0 in
       remote mode, where the "line" is the console and section 0c owns it.
@@ -959,10 +1044,101 @@ v9k_write(int fd, const void * buf, V9K_WCOUNT n)
 v9k_write(fd,buf,n) int fd; const void * buf; V9K_WCOUNT n;
 #endif /* CK_ANSIC */
 {
+#ifdef V9K_HEAPREPORT
+    v9k_heapmark();
+#endif /* V9K_HEAPREPORT */
     if (fd > 2 && fd == ttyfd && v9k_ser_active())
       return((V9K_WTYPE)v9k_ser_put((const char *)buf,(int)n));
     return(write(fd,buf,n));
 }
+
+/* ------------------------------------------------------------------ */
+/* 0e. Heap headroom -- the binding constraint, measured                */
+/* ------------------------------------------------------------------ */
+
+#ifdef V9K_HEAPREPORT
+/*
+  PORTING.md SS15 says heap headroom, not static DGROUP, is what limits the
+  gcc build, and SS16e is where that stopped being an inference: the gcc
+  build reached the file-open step of a real transfer and MS-DOS Kermit
+  printed "TESTFILE.TXT: Not enough space" -- newlib's fopen() could not get
+  its FILE and its BUFSIZ buffer.
+
+  In the medium model the heap and the stack share what is left of the one
+  64K DGROUP: the heap grows up from the end of .bss and the stack grows
+  down from the top, so the free space at any instant is SP minus the
+  current break.  Nothing in the C library reports that number, and a debug
+  build is not available to ask -- the debug log does not fit in this build
+  (SS16e).  So we take it ourselves, at every read() and write() of the
+  transfer and at every opendir(), and keep the smallest one.
+
+  Sampling from opendir() is not decoration: wildcard expansion is the other
+  thing the near heap is too small for, and it fails silently -- ckufio.c's
+  zxpand() returns 0 when its malloc is refused, and ckuusy.c prints "No
+  files for -s" when the buffer for the REAL message could not be had, so
+  an exhausted heap and a pattern that matched nothing print the same line.
+  Interposing on malloc() to catch that directly was tried twice and does
+  not work on this toolchain -- ld's --wrap dies on the far-call
+  relocations, and a malloc() defined here simply never gets called -- so
+  the headroom at the moment of the expansion is the measurement that is
+  actually available.  (SS16f.)
+
+  Cost when V9K_HEAPREPORT is off: nothing at all, not even the two words.
+  It is a diagnostic switch, like KEEP_DEBUG, and it is not set by either
+  makefile:
+
+      make -f victor9k.mak XFLAGS=-DV9K_HEAPREPORT
+
+  The Watcom build has a far heap outside DGROUP, so SP and the break are
+  not in the same address space and the subtraction would be meaningless.
+  It reports nothing there and says so at exit.
+*/
+static unsigned int v9k_heaplow = 0xffffU;   /* Low-water headroom       */
+static unsigned int v9k_heapmin = 0xffffU;   /* Break at that moment     */
+static int v9k_heapatx = 0;                  /* atexit() registered yet? */
+
+_PROTOTYP( VOID v9k_heapreport, (void) );
+
+VOID
+v9k_heapmark() {
+#ifndef __WATCOMC__
+    unsigned int sp, brk;
+    char * p;
+
+    /*
+      Register the report from here rather than from the install path in
+      section 1e, which only runs when a line is opened.  The runs that
+      most need this number -- a wildcard expansion that never touches the
+      serial port -- would otherwise measure and then say nothing.
+    */
+    if (!v9k_heapatx) {
+        v9k_heapatx = 1;
+        atexit(v9k_heapreport);
+    }
+    __asm__ __volatile__ ("movw %%sp,%0" : "=r" (sp));
+    p = (char *) sbrk(0);
+    brk = (unsigned int)(size_t) p;     /* Near pointer: 16 bits        */
+    if (sp > brk && (unsigned int)(sp - brk) < v9k_heaplow) {
+        v9k_heaplow = (unsigned int)(sp - brk);
+        v9k_heapmin = brk;
+    }
+#endif /* __WATCOMC__ */
+}
+
+
+VOID
+v9k_heapreport() {
+#ifndef __WATCOMC__
+    if (v9k_heaplow == 0xffffU)
+      printf("v9k heap: never sampled\n");
+    else
+      printf("v9k heap: low-water %u bytes free (break at %u of 65536)\n",
+             v9k_heaplow, v9k_heapmin);
+#else
+    printf("v9k heap: far heap, not in DGROUP -- not measured\n");
+#endif /* __WATCOMC__ */
+}
+#endif /* V9K_HEAPREPORT */
 
 /* ------------------------------------------------------------------ */
 /* 2. Symbols from excluded modules                                     */
@@ -1203,6 +1379,83 @@ sleep(secs) unsigned int secs;
     return(0);                          /* Never interrupted: no signals */
 }
 #endif /* VICTOR_HAVE_SLEEP */
+
+/*
+  stat() of the CURRENT directory.
+
+  libdos-m's stat() is FindFirst underneath, and FindFirst has no answer for
+  the directory you are already in: measured on Victor MS-DOS 3.1, stat("."),
+  stat("./") and stat(".\") all return -1, while stat("TEST") on a real
+  subdirectory and stat("TESTFILE.TXT") on a real file both work.  A Unix
+  stat() answers all five.
+
+  That one gap is enough to break wildcard expansion outright.  traverse()
+  in ckufio.c begins every walk at "./" and asks xisdir() whether it is a
+  directory; when the answer is no it returns before it opens anything.  The
+  path that matters is the one gnfile() uses during a transfer, because
+  ZX_FILONLY takes it through exactly that test -- so "-s *.TXT" would find
+  its file while parsing the command line and then report "?File not found"
+  when it went to send it.  (PORTING.md SS16f.)
+
+  Rather than special-case the spellings, normalise: drop trailing
+  separators, and answer for "" and "." directly.  The current directory
+  always exists and is always a directory, so this is a fact and not a
+  guess.  Everything else is handed to the library unchanged, which keeps
+  this to the gap and no wider -- ordinary files and named subdirectories
+  still go through libdos-m's own stat().
+
+  This is a definition of stat(), not a wrapper around it: ours is in an
+  object file and the library's is in an archive member that nothing else
+  pulls in, so ours is the one that links.  (An attempt to interpose on
+  malloc() the same way did NOT take -- see SS16f -- so this is checked on
+  the target rather than assumed.)
+*/
+#ifndef __WATCOMC__                     /* Watcom's own stat() answers
+                                           "." and "./" -- measured, and
+                                           _stat_r is newlib's spelling  */
+#ifndef VICTOR_HAVE_STAT
+_PROTOTYP( int _stat_r, (struct _reent *, const char *, struct stat *) );
+
+int
+#ifdef CK_ANSIC
+stat(const char * VICTOR_RESTRICT path, struct stat * VICTOR_RESTRICT buf)
+#else
+stat(path,buf) const char * path; struct stat * buf;
+#endif /* CK_ANSIC */
+{
+    char fixed[CKMAXPATH];
+    int n;
+
+    if (!path || !buf) {
+        errno = EFAULT;
+        return(-1);
+    }
+    n = (int)strlen(path);
+    if (n > 0 && n < (int)sizeof(fixed)) {
+        memcpy(fixed,path,(size_t)n + 1);
+        /*
+          Strip trailing separators, but never turn "\" or "A:\" -- which
+          name the root and are the one place a trailing separator is part
+          of the name -- into something else.
+        */
+        while (n > 1 &&
+               (fixed[n-1] == '/' || fixed[n-1] == '\\') &&
+               fixed[n-2] != ':') {
+            fixed[--n] = '\0';
+        }
+        path = fixed;
+    }
+
+    if (!*path || (path[0] == '.' && path[1] == '\0')) {
+        memset((char *)buf,0,sizeof(struct stat));
+        buf->st_mode = (mode_t)(S_IFDIR | 0755);
+        buf->st_nlink = 1;
+        return(0);
+    }
+    return(_stat_r(_REENT,path,buf));
+}
+#endif /* VICTOR_HAVE_STAT */
+#endif /* __WATCOMC__ */
 
 /*
   creat() is open() with the classic three flags.  The library has open()

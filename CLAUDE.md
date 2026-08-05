@@ -60,14 +60,19 @@ did not fit — **does** fit in DGROUP (`make -f victorow.mak XFLAGS=-dKEEP_ICP`
 60,768, or 19,376 with `ZT=-zt128`). It does not fit in RAM: it needs 429K and
 the machine offers 387K. See PORTING.md §9d.
 
-**The Watcom binary transfers a file.** On Victor MS-DOS 3.1 under MAME it
+**Both binaries transfer a file.** On Victor MS-DOS 3.1 under MAME each
 opens `/dev/seriala`, programs the line through the OEM driver's IOCTL block
 (§11a), takes the µPD7201 and IRQ1 over for the data path (§11b), and runs a
-complete S/F/A/D/Z/B exchange to a host C-Kermit at 9600 — 72 bytes,
-byte-correct, in 10 seconds. That is PORTING.md **§16d** and milestone step 5.
-It has never run on real hardware, and the gcc build has not been run since
-§16c, though it compiles the same §1e from the same `ckvictor.h` and has been
-byte-identical on the wire twice.
+complete S/F/A/D/Z/B exchange to a host C-Kermit at 9600 — byte-correct at
+the far end. That is PORTING.md **§16d** (Watcom) and **§16e** (gcc), and it
+is milestone step 5. Neither has ever run on real hardware. A **wildcard**
+send is not there yet: `-s *.TXT` expands correctly in both passes now but
+still fails to transfer (§16f).
+
+The gcc build needed `SBSIZ`/`RBSIZ` halved to get there, so `ckvictor.h`
+now sets those two per compiler. It is the only place the builds differ, and
+the reason is near heap versus far heap rather than anything about the
+Victor.
 
 **PORTING.md §16a is the how-to** — the Victor boots its hard disk as `A:`,
 the image needs `vtg_image_util` (mtools cannot read it), and MAME's `-bitb`
@@ -79,20 +84,27 @@ build is `make -f victorow.mak sizes`, which reads `wlink`'s map.
 ## Hard rules
 
 1. **Do not modify upstream C-Kermit files.** The port's value is that the
-   protocol engine is untouched. There are exactly six guarded upstream edits
-   (listed in `PORTING.md` §8); every one is wrapped in `#ifndef` or
-   `#ifdef VICTOR9K` and changes nothing on any other platform. If you think you
-   need a seventh, say so explicitly rather than doing it quietly.
+   protocol engine is untouched. There are exactly eight guarded upstream
+   edits (listed in `PORTING.md` §8); every one is wrapped in `#ifndef` or
+   `#ifdef VICTOR9K` and changes nothing on any other platform. If you think
+   you need a ninth, say so explicitly rather than doing it quietly — the
+   seventh and eighth were both agreed that way.
 2. **Feature configuration goes in `ckvictor.h`, never in `victor9k.mak`.**
    Each `#define` sits next to a comment explaining why. The makefile passes
    `-include ckvictor.h` and nothing else.
 3. **Victor-specific C goes in `ckvictor.c`.** It is the only non-upstream C
    file and should stay that way.
-4. **The 64K DGROUP is the binding constraint.** `.data` + `.bss` + heap +
-   stack all share it. After the link, including libc: **gcc 52,728 (80%),
-   12,808 left for heap and stack; Watcom 39,424 (60%), 26,112 left.**
-   **Run `make -f victor9k.mak sizes` after any change that could add static
-   data** and report the number.
+4. **The 64K DGROUP is the binding constraint, and the heap inside it is
+   the sharper one.** `.data` + `.bss` + heap + stack all share it. After the
+   link, including libc: **gcc 52,728 (80%), 12,808 left for heap and stack;
+   Watcom 39,424 (60%), 26,112 left** — and Watcom's heap is *outside*
+   DGROUP, so only the gcc figure is a real ceiling. **Run
+   `make -f victor9k.mak sizes` after any change that could add static data**
+   and report the number. For the heap itself,
+   `XFLAGS=-DV9K_HEAPREPORT` prints the low-water headroom at exit: a
+   working transfer leaves ~2,090 bytes, and the failures this port has hit
+   (a file it could not open, a wildcard that matched nothing) were both
+   that number reaching zero (PORTING.md §16e, §16f).
 5. **Never define `BIGBUFOK`** (asks for 290,000-byte buffers). **Never remove
    `DYNAMIC`** (without it the packet buffers become >64K static arrays and the
    build fails outright).
@@ -112,7 +124,7 @@ build is `make -f victorow.mak sizes`, which reads `wlink`'s map.
 |---|---|
 | `PORTING.md` | design doc, memory budget, hardware map, milestone plan |
 | `ckvictor.h` | all ~40 feature `-D` flags, size limits, platform identity |
-| `ckvictor.c` | Victor glue: process-model stubs, `opendir`/`readdir`/`closedir` and `ioctl` over INT 21h, the comm-device `read()`/`write()` and the `alarm()` that bounds the read (§0d), the termios half that programs the 7201 and 8253 through the OEM driver's IOCTL block (§1b, PORTING.md §11a), and **the 7201 data path — IRQ1 handler, receive ring, polled transmitter (§1e, PORTING.md §11b)** |
+| `ckvictor.c` | Victor glue: process-model stubs, `opendir`/`readdir`/`closedir` and `ioctl` over INT 21h, a `stat()` for the current directory that libdos-m cannot do (§1a, PORTING.md §16f), the comm-device `read()`/`write()` and the `alarm()` that bounds the read (§0d), the heap-headroom instrument (§0e), the termios half that programs the 7201 and 8253 through the OEM driver's IOCTL block (§1b, PORTING.md §11a), and **the 7201 data path — IRQ1 handler, receive ring, polled transmitter (§1e, PORTING.md §11b)** |
 | `victor/sys/termios.h` | the 7201 driver's control surface; fills a newlib gap, reached via `-Ivictor` |
 | `victor/sys/ioctl.h` | `FIONREAD` and `TIOCMGET`; without the first `conchk()`/`ttchk()` are hard-wired to 0, and without the second `ttchk()` never reaches `FIONREAD` |
 | `victor9k.mak` | ia16-elf-gcc build + `sizes` target |

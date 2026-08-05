@@ -783,7 +783,24 @@ static int maxnames = MAXWLD;
 
 /* Define the size of the string space for filename expansion. */
 
+/*
+  The #ifndef SSPACE below is the only change to this block, and it makes
+  the symbol behave the way SBSIZ, RBSIZ, MAXSP and MAXRP already do in
+  ckcker.h -- a compile-time default a platform may override.  No other
+  build defines SSPACE, so nothing changes anywhere else.
+
+  It exists because initspace() below is deliberately greedy: it asks for
+  SSPACE and, if malloc refuses, halves the request and tries again,
+  keeping whatever it finally gets.  On a platform whose heap is the
+  leftover corner of one 64K data group that is exactly the wrong
+  behaviour -- 10,000 bytes takes the whole remaining heap and every
+  allocation after it fails, including the 2,000-byte buffer ckuusy.c
+  wants for the error message that would have explained why.  Measured on
+  Victor MS-DOS 3.1: 212 bytes free at the low-water mark, and a wildcard
+  that matched nothing.  See PORTING.md SS16f.
+*/
 #ifndef DYNAMIC
+#ifndef SSPACE
 #ifdef PROVX1
 #define SSPACE 500
 #else
@@ -805,8 +822,10 @@ static int maxnames = MAXWLD;
 #endif /* pdp11 */
 #endif /* BSD29 */
 #endif /* PROVX1 */
+#endif /* SSPACE */
 static char sspace[SSPACE];             /* Buffer for generating filenames */
 #else /* is DYNAMIC */
+#ifndef SSPACE
 #ifdef CK_64BIT
 #define SSPACE 2000000000		/* Two billion bytes */
 #else
@@ -816,6 +835,7 @@ static char sspace[SSPACE];             /* Buffer for generating filenames */
 #define SSPACE 10000			/* Ten thousand */
 #endif /* BIGBUFOK */
 #endif	/* CK_64BIT */
+#endif /* SSPACE */
 char *sspace = (char *)0;
 #endif /* DYNAMIC */
 static int ssplen = SSPACE;		/* Length of string space buffer */

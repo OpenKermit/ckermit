@@ -5010,6 +5010,18 @@ extern int errno;
 #endif /* UIDBUFLEN */
 
 #ifdef UNIX
+/*
+  The #ifndef MAXWLD is the only change here, and it lets a platform set
+  its own ceiling the way ckcker.h already allows for SBSIZ, RBSIZ, MAXSP
+  and MAXRP.  No other build defines MAXWLD, so nothing changes elsewhere.
+
+  zxpand() in ckufio.c allocates maxnames pointers up front, so this is
+  not a limit that costs nothing until it is reached: at 1024 it is a
+  2,048-byte malloc before a single directory entry has been read, on a
+  platform whose entire heap is the 12K left over inside one 64K data
+  group.  See PORTING.md SS16f.
+*/
+#ifndef MAXWLD
 #ifdef PROVX1
 #define MAXWLD 50
 #else
@@ -5023,6 +5035,7 @@ extern int errno;
 #endif /* BIGBUFOK */
 #endif /* pdp11 */
 #endif /* PROVX1 */
+#endif /* MAXWLD */
 #else
 #ifdef VMS
 #define MAXWLD 102400			/* Maximum wildcard filenames */

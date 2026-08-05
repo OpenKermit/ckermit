@@ -296,7 +296,7 @@ Streaming is **not** network-coupled — it is negotiated protocol behaviour in
 
 ## 8. Upstream changes made
 
-Six small, guarded edits. None changes behaviour on any other platform.
+Eight small, guarded edits. None changes behaviour on any other platform.
 
 1. **`ckcdeb.h`** — wrapped the `sig_t` typedef in `#ifndef CK_NO_SIG_T`.
    newlib (and macOS) already define `sig_t`.
@@ -330,9 +330,23 @@ Six small, guarded edits. None changes behaviour on any other platform.
    upstream inconsistency rather than a Victor accommodation: a platform that
    does not define `NODISPLAY` sees no change at all.
 
-Items 2, 3 and 6 are worth offering upstream regardless of this port. 2 and 3
-are latent hazards on any small-memory target; 6 is a bug on any compiler
-stricter than gcc.
+7. **`ckufio.c`** — wrapped `SSPACE` in `#ifndef`, matching what `ckcker.h`
+   already does for `SBSIZ`, `RBSIZ`, `MAXSP` and `MAXRP`; now
+   `-DSSPACE=2048`. `initspace()` asks malloc for `SSPACE` and, when
+   refused, halves the request and retries, **keeping whatever it finally
+   gets**. Where the heap is large that is a good bargain. Where the heap is
+   the 12K left over inside one 64K DGROUP it is the opposite: the default
+   10,000 takes the whole thing and every allocation after it fails. §16f.
+8. **`ckcdeb.h`** — wrapped the UNIX `MAXWLD` in `#ifndef`; now
+   `-DMAXWLD=64`. `zxpand()` allocates `maxnames` pointers *before* it reads
+   the first directory entry, so 1024 is a 2,048-byte malloc whether the
+   pattern matches two files or none. §16f.
+
+Items 2, 3, 6, 7 and 8 are worth offering upstream regardless of this port.
+2, 3, 7 and 8 are latent hazards on any small-memory target — and 7 and 8
+share a shape worth naming: an allocation sized for comfort, failing
+silently, on a code path whose error message needs its own allocation to be
+printed. 6 is a bug on any compiler stricter than gcc.
 
 ---
 
@@ -861,11 +875,18 @@ Not the same claim as the two above, and kept separate for that reason.
 - **A correct Send-Init packet on the wire at 9600**, byte-identical from
   both toolchains, with retransmission on timeout and a protocol `E`
   packet on giving up (§16a, §16b).
-- **A complete file transfer** (§16d, §11b). Our IRQ1 handler on the
-  µPD7201, a receive ring, a polled transmitter, and the OEM driver out of
-  the data path: S/F/A/D/Z/B all the way through, and a byte-correct 72-byte
-  file at the far end. Open Watcom build only; one small file, 9600 bps,
-  window 1, short packets.
+- **A complete file transfer, from both toolchains** (§16d, §16e, §11b).
+  Our IRQ1 handler on the µPD7201, a receive ring, a polled transmitter, and
+  the OEM driver out of the data path: S/F/A/D/Z/B all the way through, and
+  a byte-correct file at the far end — 72 bytes under Watcom, 74 under gcc,
+  the difference being a text/binary decision and not an error. One small
+  file, one literal filename, 9600 bps, window 1, short packets. A
+  **wildcard** send still does not complete, in either build (§16f).
+- **What DOS itself does with `.` and with trailing separators** (§16f).
+  Measured in the root and in a subdirectory, by probe, because two rounds
+  of reasoning about it had already gone wrong. `FindFirst(".\*.*")` works
+  in both; `stat("./")` fails in a subdirectory; and libdos-m's `stat()`
+  cannot stat the current directory under any spelling.
 
 ### Written but never run on hardware
 
@@ -1673,8 +1694,12 @@ Order of work:
    console path, finds a file, starts the protocol engine, and exits cleanly
    (§16). **Not yet proven on Victor MS-DOS 3.1** — that is still the other
    half of the dual-target claim and needs a 3.1 boot image.
-3a. **Fix wildcard expansion** (§15). `-s FILE` works; `-s *.COM` finds
-   nothing. Blocks any multi-file transfer.
+3a. **Fix wildcard expansion** (§15, §16f). `-s FILE` works; `-s *.COM`
+   found nothing. **Three of four causes fixed** — `SSPACE`'s greedy
+   allocator, `MAXWLD`'s up-front array, and libdos-m's inability to
+   `stat(".")` — and `-s *.TXT` now expands correctly in both passes. It
+   still does not *transfer*: the Victor re-sends Send-Init through its
+   ACKs. Not a heap problem this time (§16f).
 3b. ~~**Make `read()` block, and make `alarm()` fire.**~~ **Done** — §16b,
    `ckvictor.c` §0d, both builds. The port now retransmits on a timeout and
    gives up in the protocol-defined way instead of dropping the line. This
@@ -1691,11 +1716,12 @@ Order of work:
      Receive was the hard half (§16b); transmit is ours too now, polled, so
      the OEM driver is out of the data path in both directions.
 5. ~~**`SEND` one small binary file** at 9600 to a known-good Kermit, short
-   packets, window 1, streaming off.~~ **Done — §16d.** 74 bytes off the
-   Victor's disk, 72 bytes byte-correct at the far end, 10 seconds, under
-   MAME on Victor MS-DOS 3.1 with the Open Watcom build. **This was the real
-   milestone and the port has reached it.** Not yet done on real hardware,
-   and not yet run from the gcc build.
+   packets, window 1, streaming off.~~ **Done, in both builds — §16d and
+   §16e.** 74 bytes off the Victor's disk, byte-correct at the far end,
+   under MAME on Victor MS-DOS 3.1. **This was the real milestone and the
+   port has reached it.** Not yet done on real hardware. The gcc build
+   needed its packet pools halved to get there (§16e), which is the first
+   place the two toolchains have had to be configured differently.
 6. **`RECEIVE`, then `GET`, then `SERVER`** — still at 9600. The send
    direction is the one §16d exercised; receive drives the ring harder,
    because the file writes happen on this end.
@@ -2389,6 +2415,270 @@ that is an inference here and not a measurement.
 
 ---
 
+## 16e. The other toolchain crosses the wire
+
+**The gcc build completes a transfer too**, on the same harness, and getting
+there took two real fixes rather than the confirmation §16d expected. What
+§16d called "an inference and not a measurement" was right to be careful.
+
+```
+r-00-33-^A9 Sz/ @-#Y3~^! z0___F"U1AF     <-- Send-Init, gcc build
+s-00-33-^A9 Y~/ @-#Y3~^>J)0___B"U1@A
+r-01-00-^A1!FTESTFILE.TXT+")
+s-01-00-^Aw!Y/private/tmp/.../TESTFILE.TXT
+r-02-01-^AQ"A."U1""B8#119700101 02:19:28!!11"74,#777-!7@ &1#
+s-02-01-^A%"Y.5!
+r-03-01-^As#DVictor 9~#0 C-Kermit test payload.#M#JBuilt with Open Watcom, ...
+s-03-01-^A%#Y/R9
+r-04-01-^A%$Z(,*                          <-- EOF
+s-04-01-^A%$Y+&1
+r-05-01-^A%%B 8;                          <-- Break
+s-05-01-^A%%Y*A)
+```
+
+74 bytes, byte-correct, no retransmission, `complete, size: 74`. Milestone
+step 5 now holds for **both** builds.
+
+Two differences from §16d's run are worth recording rather than explaining
+away. The gcc build sent the file in **binary** where Watcom sent it as text
+— the D packet carries `#M#J` and 74 bytes arrive instead of 72 — so the two
+builds are making different file-type decisions somewhere in `scanfile()`,
+and neither has been shown to be the wrong one. And the transfer took **0
+seconds against 10**, 129 bytes/sec against 6: §16d's ten seconds were spent
+somewhere that this run did not spend them, which is unexplained and is a
+lead rather than a worry.
+
+### What it took, and what it measures
+
+**The packet buffers had to be halved.** With `SBSIZ`/`RBSIZ` at 2048 the
+gcc build got as far as the file-open step of a real transfer and stopped
+there, sending a protocol Error and printing, on the Victor's own screen:
+
+```
+TESTFILE.TXT: Not enough space
+TESTFILE.TXT: Not enough space
+ No files were transferred: Can't open file.
+```
+
+Twice, because `openi()` tries `zopeni()` a second time with the name
+converted to local form. That is newlib's `fopen()` failing to get a `FILE`
+and a 1,024-byte `BUFSIZ` buffer, and the arithmetic behind it is in
+`ckvictor.h`: `inibufs()` alone wants `SBSIZ+RBSIZ+40` for `bigbufp`,
+`RBSIZ+100` for `srvcmd` and `2 x 14 x MAXWS` for `s_pkt`/`r_pkt` — 7,180
+bytes of a heap that is 12,808 shared with the stack. 1024/1024 gives 3,072
+of it back and the transfer completes.
+
+**This is the first hard difference between the two builds that is a
+property of the toolchains and not of the port.** Watcom's large model puts
+the heap outside DGROUP, so 2048 costs it nothing; gcc's medium model has
+one 64K data group and the heap is what is left in the corner of it. So
+`ckvictor.h` now sets the two sizes per compiler, which is the only place in
+the port where that is true.
+
+### The gcc build has no debug log, measured
+
+`XFLAGS=-DKEEP_DEBUG` does not fit and cannot be made to: the objects alone
+come to **68,693 bytes of near data, 104.8% of DGROUP** before libc adds
+anything, and the link dies in a page of `relocation truncated to fit`.
+Enabling `DEBUG` in just the four modules that matter (`ckufio.c`,
+`ckuusx.c` for `dodebug`, `ckuus4.c` for `debopn`, `ckuusy.c` for the `-d`
+option) does link, at 61,280 — which leaves 4,256 bytes for heap and stack
+together, and `inibufs()` wants 4,108 of that. So the debug log is a
+Watcom-only instrument on this port, and the gcc build needs its own
+instruments. `V9K_HEAPREPORT` in section 0e of `ckvictor.c` is the first of
+them.
+
+### `-d` is not a portable command line
+
+The gcc build **rejects `-d`** — `"-d" - invalid command-line option` — because
+`NODEBUG` compiles the option out of `ckuusy.c` along with everything else.
+§16d's command line is therefore Watcom-only, which cost one MAME run to
+discover. Two other harness landmines cost one run each and belong with the
+rest in §16a:
+
+- **`KTEST.BAT` must have CRLF line endings.** Written with Unix `\n`,
+  COMMAND.COM echoes every line and executes none of them, with a staircase
+  display that looks like a corrupted terminal rather than a corrupted file.
+- **MAME does not exit when `-seconds_to_run` expires.** It writes
+  `Average speed: 100.00% (199 seconds)` to its log and the final snapshot,
+  and then sits there. Poll the log for that line, not the process.
+- **MS-DOS 3.1's COMMAND.COM cannot redirect handle 2.** `2> FILE` puts a
+  literal `2` in `argv` and sends stdout to `FILE`. Anything written to
+  stderr goes to the screen, where only the last 25 lines survive to the
+  snapshot.
+
+---
+
+## 16f. Wildcards: three causes, two fixed
+
+§15's top item — `-s FILE` works and `-s *.COM` reports "No files for -s" —
+has been open for four sessions with a one-line description. It is not one
+defect. It is three, they are independent, and two of them are now fixed.
+The third is the one that a fresh reading would have blamed last.
+
+### What it was not
+
+A probe (`vwild.c`, Open Watcom, throwaway) asked MS-DOS 3.1 directly, in
+the root directory and in a subdirectory, what it does with `.` and with
+trailing separators. The suspicion going in was that a FAT root has no `.`
+entry, so `FindFirst(".\*.*")` would fail there:
+
+```
+== ROOT (cwd=A:\)                    == SUBDIR (cwd=A:\TEST)
+  FF *.*     rc=0  first=MSDOS.SYS     FF *.*     rc=0  first=.
+  FF .\*.*   rc=0  first=MSDOS.SYS     FF .\*.*   rc=0  first=.
+  FF ./*.*   rc=0  first=MSDOS.SYS     FF *.COM   rc=18 (no more files)
+  ST "."     rc=0  isdir=1             ST "."     rc=0  isdir=1
+  ST "./"    rc=0  isdir=1             ST "./"    rc=-1
+  OD "./"    n=19 first=MSDOS.SYS      OD "./"    n=2  first=.
+```
+
+**Wrong on the main point**: DOS resolves `.` in the root perfectly well,
+through `FindFirst` and through `stat`. Worth having anyway for the two
+things it did find — `stat("./")` fails in a subdirectory while `stat(".")`
+succeeds, so a trailing separator is not free — and for closing the
+hypothesis honestly instead of leaving it to be re-guessed.
+
+`opendir()`/`readdir()` in section 0a were then instrumented directly
+(`V9K_DIRTRACE`), which is what §15 asked for in the first place:
+
+```
+v9k opendir(./) -> .\*.* rc=0
+v9k readdir end, entries=26
+```
+
+The whole root directory, enumerated correctly, including the file that was
+supposed to match. And `ckmatch()` itself, linked out of the port's own
+`ckclib.o` into a second probe and run on the target:
+
+```
+ckmatch("*.TXT","TESTFILE.TXT",1,2) = 1
+ckmatch("*.TXT","KTEST.BAT",1,2)    = 0
+```
+
+So the DOS layer, the directory reader and the pattern matcher were all
+correct, and had been all along.
+
+### Cause 1: `initspace()` is greedy, and the heap is not
+
+`v9k heap: low-water 212 bytes free (break at 64602 of 65536)`.
+
+That is the gcc build during a wildcard expansion. The near heap is gone.
+`initspace()` in `ckufio.c` asks for `SSPACE` — 10,000 under `DYNAMIC` —
+and, when malloc refuses, halves the request and tries again, keeping
+whatever it finally gets. On a large machine that is a graceful degradation.
+Here it is a vacuum cleaner: it takes everything left, and the allocations
+after it fail.
+
+The one that fails visibly is in `ckuusy.c`:
+
+```c
+} else {
+    if (!failmsg) failmsg = (char *)malloc(2000);
+    if (failmsg) { ckmakmsg(failmsg,2000,"kermit -s ",*xargv,": ",ck_errstr()); }
+}
+...
+if (!failmsg) failmsg = "No files for -s";
+```
+
+**"No files for -s" is not the diagnosis. It is what gets printed when there
+was not enough memory to write the diagnosis.** The real message, the one
+with `ck_errstr()` in it, needs 2,000 bytes that the expansion has just
+taken. Four sessions of a misleading symptom trace back to those five lines.
+
+Fixed by §8's seventh guarded edit: `SSPACE` becomes overridable and this
+port sets 2,048.
+
+### Cause 2: the file-list array is allocated before the first entry is read
+
+Capping `SSPACE` moved the failure and did not remove it —
+`low-water 414 bytes`. `zxpand()` allocates `maxnames * sizeof(char *)`
+up front, and `MAXWLD` is 1024 for UNIX, so that is a 2,048-byte malloc
+taken before a single directory entry has been read, for a pattern that may
+match nothing. §8's eighth guarded edit makes it overridable; this port sets
+64, which no FAT directory on this machine will reach, and which fails
+loudly (`?Too many files (64 max)`) if it ever does.
+
+With both, `-s *.TXT` gets past the command line for the first time.
+
+### Cause 3: libdos-m cannot stat the current directory
+
+And then it still failed, differently and more informatively: `?File not
+found`, `SENT: (0 files)`, with the directory trace showing **one** expansion
+where there should be two.
+
+`nzxpand()` runs twice for a wildcard send — once in `doarg()` while parsing
+the command line, with flags 0, and again in `gnfile()` when the protocol
+asks for the file, with `ZX_FILONLY`. Those two flag sets take different
+paths through `traverse()`:
+
+```c
+if (stathack) {
+    if (xrecursive || xfilonly || xdironly || xpatslash)
+      itsadir = xisdir(sofar);              /* the transfer's path */
+    else
+      itsadir = (strncmp(sofar,"./",2) == 0);   /* the command line's */
+}
+...
+if (!itsadir) return;                       /* before opening anything */
+```
+
+`sofar` is `"./"`. The command-line pass never calls `stat` at all; the
+transfer's pass depends on it entirely. And, measured with the gcc-built
+probe:
+
+```
+stat(".")           rc=-1
+stat("./")          rc=-1
+stat(".\")          rc=-1
+stat("TESTFILE.TXT") rc=0 isdir=0 size=74
+stat("TEST")        rc=0 isdir=1
+```
+
+**libdos-m's `stat()` cannot stat the directory you are in.** It is
+`FindFirst` underneath and `FindFirst` has no answer for the current
+directory; named files and named subdirectories are fine. Watcom's runtime
+answers all of them (except `"./"` inside a subdirectory), which is why this
+never showed up in that build.
+
+Fixed in section 1a of `ckvictor.c`, where the other libdos-m gaps live: a
+`stat()` that strips trailing separators, answers `""` and `"."` itself —
+the current directory always exists and is always a directory, so that is a
+fact and not a guess — and hands everything else to the library unchanged.
+Unlike the `malloc()` interposition below, this one links and runs: both
+expansions now happen, both enumerate all 26 entries.
+
+Rule 7's measurement, because this one is called from inside `traverse()`'s
+recursion and carries a 128-byte automatic array: `-fstack-usage` puts
+`stat()` at **148 bytes** and `opendir()` at 150, both leaves.
+`traverse()` itself is unchanged at **98 bytes per level** — the edit to
+`ckufio.c` is preprocessor-only — so the deepest chain grows by one leaf
+frame, not by 148 bytes per directory level.
+
+### Where it stands, and the instrument that failed
+
+`-s *.TXT` now expands, twice, correctly, in the gcc build. **It still does
+not complete a transfer**: the Victor sends Send-Init, is ACKed, and sends
+Send-Init again, ten times, until the host gives up. That is *not* the heap
+— headroom at the low-water mark is 2,068 bytes with `SBSIZ`/`RBSIZ` at 512,
+the same room the transfer that works has — so cause 4 is something else and
+is the next session's item. The 512 setting bought a number and no
+behaviour, so the tree keeps 1024, which is the value a completed transfer
+has actually been measured at.
+
+One instrument to record as **not working**, because it cost two runs and
+will look attractive again: you cannot interpose on `malloc()` in the gcc
+build. `ld --wrap=malloc` dies with `R_386_OZSEG16 for symbol with no output
+section` — the far-call relocations have nothing to point at. Defining
+`malloc()` in `ckvictor.c` links cleanly and is simply never called; a
+first-call trace proved it, after an earlier run had drawn a conclusion from
+its silence. Section 0e's headroom sampling is what is available instead,
+and it is enough: it is sampled at `opendir()` precisely because expansion
+is the thing the heap cannot afford.
+
+
+---
+
 ## 15. Open questions
 
 **Closed since the last revision**
@@ -2411,15 +2701,22 @@ that is an inference here and not a measurement.
 
 **Still open**
 
-- **Wildcard expansion returns nothing.** `CKERMIT -s *.COM` reports
-  "No files for -s" on a disk full of `.COM` files, while `-s CGATEST.COM`
-  finds its file and starts the protocol. So `opendir`/`readdir` are reached
-  by one path and not the other, or the scan runs and matches nothing. Not a
-  heap problem — it survives the `SBSIZ` fix. **This is the top item.** The
-  path to instrument is `nzxpand` → `zxpand` → `fgen` → `splitpath` →
-  `traverse` → `opendir("./")` in `ckufio.c`. `NODEBUG` is on, so there is no
-  `debug()` log; the cheapest instrument is a temporary `_write_r` trace of
-  the pattern string `opendir()` actually receives.
+- **Wildcard expansion: one cause left of four.** Mostly answered — see
+  §16f, which replaces everything this entry used to say. `opendir`,
+  `readdir`, `ckmatch` and the DOS layer were all correct throughout; the
+  causes were `SSPACE`, `MAXWLD` and libdos-m's `stat(".")`. What remains is
+  that `-s *.TXT` expands correctly and then **fails to transfer**: the
+  Victor re-sends Send-Init through the host's ACKs until the host gives up,
+  with 2,068 bytes of heap headroom, so this one is not memory. Note the
+  asymmetry to exploit: the literal-filename send works and the wildcard
+  send does not, and the only difference between them is the second
+  expansion `gnfile()` does with `ZX_FILONLY`. Instrument that, in the
+  Watcom debug build first — it should reproduce, since none of the three
+  fixed causes bit that build.
+- **"No files for -s" is not a diagnosis.** Recorded separately because it
+  will mislead again: `ckuusy.c` prints that string when it could not
+  allocate 2,000 bytes for the real error message. Any time it appears,
+  check heap headroom before believing the pattern matched nothing (§16f).
 - ~~**The serial arm of `ioctl(fd,FIONREAD)` returns 0** and must be finished
   by the 7201 driver from its RX ring count.~~ **Done** — §11b. It is
   `(head - tail) & mask` now, and `TIOCMGET` was the other half: without it
@@ -2446,7 +2743,12 @@ that is an inference here and not a measurement.
 - **Heap headroom is the binding constraint now, not static DGROUP.** 12,808
   bytes shared between heap and stack, against 20% of DGROUP still free.
   Anything that raises `SBSIZ`/`RBSIZ`/`MAXSP`/`MAXRP` must be checked against
-  a real run, not against `make sizes`. (§9c, §16)
+  a real run, not against `make sizes`. (§9c, §16) **Now measurable**:
+  `make -f victor9k.mak XFLAGS=-DV9K_HEAPREPORT` prints the low-water
+  headroom at exit. A working transfer leaves 2,090 bytes; the wildcard
+  expansion that failed left 212. Under Watcom the heap is outside DGROUP
+  and the question does not arise, which is the sharpest argument the
+  toolchain decision has yet been given.
 - Does the FreeDOS OEM byte (INT 21h AH=30h → BH) actually come back as `0xFD`
   on the Victor build? The whole dual-target vector detection rests on it. A
   fallback (`SET SERIAL-VECTOR` or a command-line switch) is cheap insurance.

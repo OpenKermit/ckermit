@@ -1,0 +1,12 @@
+Throwaway probes, not part of the build and not linked into CKERMIT.EXE.
+
+  vwild.c   Open Watcom.  Asks MS-DOS 3.1 directly what it does with ".",
+            with trailing separators, with FindFirst and with opendir, in
+            the root directory and in a subdirectory.
+  vmatch.c  ia16-elf-gcc, linked against the port's own ckclib.o.  Asks
+            ckmatch() and libdos-m's stat() the exact questions the
+            wildcard path depends on.
+
+Both exist because reasoning about these answers went wrong twice.  See
+PORTING.md SS16f.  Build lines are in the comment at the top of each file;
+neither is built by victor9k.mak or victorow.mak.

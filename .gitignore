@@ -30,3 +30,8 @@ ckermit.exe.map
 *.obj
 ckermitw.exe
 ckermitw.exe.map
+
+# Throwaway probe binaries (PORTING.md 16f); the .c files are kept.
+.probe/*.exe
+.probe/*.o
+.probe/*.obj

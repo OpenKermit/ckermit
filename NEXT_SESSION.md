@@ -1,20 +1,15 @@
 # Next session
 
-Handoff for the Victor 9000 port, written 4 August 2026 at the end of the
-session that implemented §11b. **The port transfers a file.**
+Handoff for the Victor 9000 port, written 5 August 2026. **Both builds now
+transfer a file, and the wildcard bug is three-quarters solved.**
 
-**Read `PORTING.md` first** — §11b is rewritten and §16d is new. This file
-is only the "what next".
+**Read `PORTING.md` first** — §16e and §16f are new, §8 has grown from six
+guarded upstream edits to eight, and §15's top item has been rewritten. This
+file is only the "what next".
 
 ---
 
 ## 1. Where things stand
-
-A C-Kermit send from the Victor completed, end to end, on Victor MS-DOS 3.1
-under MAME: S / F / A / D / Z / B, 72 bytes byte-correct at the far end, ten
-seconds. That is **milestone step 5** (§13) and it is the thing this port
-exists to do. Under emulation, Open Watcom build; never on real hardware,
-and the gcc build has not been run since §16c.
 
 | | ia16-elf-gcc, medium | Open Watcom, large |
 |---|---|---|
@@ -22,179 +17,198 @@ and the gcc build has not been run since §16c.
 | 24 modules compile | yes, 4 warnings | yes, 17 warnings |
 | warnings are | all pre-existing, all upstream | all pre-existing, all upstream |
 | DGROUP after link | 52,728 / 65,536 (80%) | 39,424 (60%) |
-| left for heap + stack | 12,808 | 26,112 |
-| programs speed/parity/DTR via IOCTL (§11a) | yes | yes |
-| **owns the 7201: ISR, ring, polled TX (§11b)** | **yes, built** | **yes, built** |
-| **completes a transfer** | not run | **yes (§16d)** |
+| left for heap + stack | 12,808 (shared) | 26,112 (heap is outside DGROUP) |
+| `SBSIZ`/`RBSIZ` | **1024** — had to be halved | 2048 |
+| **transfers a literal file** | **yes (§16e)** | **yes (§16d)** |
+| expands `-s *.TXT` | **yes, both passes (§16f)** | yes, always did |
+| **transfers a wildcard match** | **no** | not tried |
+| debug log (`KEEP_DEBUG`) | **does not fit, measured** | yes |
 
-Reads on the Victor went from "twelve, every one of exactly 2 bytes"
-(§16b, §16c) to "six, of 33 / 90 / 8 / 8 / 8 / 8", with no timeout and no
-retransmission anywhere, ending `C-Kermit EXIT status=0`.
+Nothing has run on real hardware. Everything below is MAME, Victor MS-DOS
+3.1.
 
-### What changed
+### What changed this session
 
-`ckvictor.c` §1e is new: an IRQ1 handler on IVT slot 41h against the
-memory-mapped µPD7201, a 512-byte receive ring, a polled transmitter, and
-install/release. The OEM `\dev\seriala` driver is now out of the data path
-in **both** directions and keeps only its §11a IOCTL job — which is exactly
-what `msxv90.asm` has done since 1986.
+**The gcc build completes a transfer** (§16e). This was billed as a cheap
+confirmation and was not: with `SBSIZ`/`RBSIZ` at 2048 the gcc build reached
+the file-open step of a real transfer and failed there — `TESTFILE.TXT: Not
+enough space`, newlib's `fopen()` unable to get a `FILE` and a 1,024-byte
+buffer out of a heap that `inibufs()` had already taken 7,180 bytes of.
+Halved to 1024, it transfers. That is the first configuration difference
+between the two builds, and it is a property of the toolchains — near heap
+versus far heap — not of the port.
 
-Around it: `write()` is renamed to `v9k_write()` for the whole build the
-same way `read()` already was; `victor/sys/ioctl.h` gained `TIOCMGET` and
-the `TIOCM_*` bits; `tcflush()` and `tcdrain()` are real; `tcsetattr()`
-installs the driver and re-asserts WR1; and there is a direct-to-the-chip
-fallback for a DOS whose serial driver will not answer the IOCTL.
+**The wildcard bug was three bugs** (§16f), none of them where four
+sessions of notes were pointing:
 
-**No new upstream edit. §8 still lists six.** DGROUP +672 in each build, 512
-of it the ring. `-fstack-usage` puts the handler at 22 bytes and `tcsetattr`
-at 50.
+1. `initspace()` asks for `SSPACE` (10,000) and halves-and-retries until
+   something succeeds, keeping whatever it gets — so on a 12K heap it takes
+   everything and starves what comes after. **Fixed**: §8 edit 7, now 2048.
+2. `zxpand()` allocates `maxnames` pointers before reading the first
+   directory entry, and `MAXWLD` is 1024, so that is 2,048 bytes spent on a
+   pattern that may match nothing. **Fixed**: §8 edit 8, now 64.
+3. libdos-m's `stat()` **cannot stat the current directory** — `stat(".")`,
+   `stat("./")` and `stat(".\")` all return -1, while named files and named
+   subdirectories are fine. `traverse()` starts every walk at `"./"` and the
+   `ZX_FILONLY` path (the one a transfer uses) asks `xisdir()` about it
+   first. **Fixed**: `stat()` in section 1a of `ckvictor.c`.
 
-### What it proves, and what it does not
+**"No files for -s" was never the diagnosis.** `ckuusy.c` prints that string
+when it could not allocate 2,000 bytes for the real message. Worth
+remembering the next time it appears.
 
-The diagnosis in §16b was right and this is the run that proves the
-negative: changing **only** the data path, and nothing above it, turned
-twelve two-byte reads into a completed transfer. The protocol engine, the
-file system, the timers and the packet framing were never the problem.
-
-It also settled §16b's open hypothesis, from two lines the install path
-prints before it touches anything: on Victor MS-DOS 3.1 **IRQ1 was masked at
-the 8259 (`0B3h`) and the vector at 41h pointed at segment 0**. Nothing was
-servicing the µPD7201's interrupt, measured independently of the CR1
-read-back that was the only evidence before. The OEM driver is polled and
-unbuffered; that half is now established. Whether the specific failure is a
-latched overrun still is not.
-
-Not established: real hardware; anything above 9600; long packets, windows
-or streaming; what happens when a floppy write holds the ring longer than
-the 533ms it buffers at 9600. The handler keeps two counters for exactly
-those questions — bytes lost to a chip overrun, bytes lost to a full ring.
-They did not print on the §16d run because they were logged only from the
-release path, which runs from `atexit()` after C-Kermit has closed
-`DEBUG.LOG`; they are now also logged from `tcsetattr()`, which `ttres()`
-calls on the way out. **Read them on the next run** — that is the first
-thing 19200 and windowing will need.
+`opendir`, `readdir`, `ckmatch` and DOS itself were all correct throughout,
+and are now measured to be (§16f) rather than assumed.
 
 ---
 
 ## 2. Do this next, in rough priority order
 
-**Run §16d's transfer from the gcc build.** One MAME run. Both builds
-compile the same §1e from the same `ckvictor.h` and have been byte-identical
-on the wire twice, so this is expected to pass — which is the reason to do
-it: it is cheap and it converts an inference into a measurement.
+**Finish the wildcard send — cause 4.** `-s *.TXT` now expands correctly,
+twice, and then does not transfer: the Victor sends Send-Init, is ACKed,
+and sends Send-Init again, ten times, until the host gives up with "Too many
+retries". **It is not the heap** — 2,068 bytes free at the low-water mark,
+the same room the working transfer has.
 
-**Milestone step 6: `RECEIVE`, then `GET`, then `SERVER`,** still at 9600.
-The receive direction drives the ring harder than send did, because the file
-writes happen on the Victor end — which is precisely the case §11b has no
-interrupt-level flow control for. Read the two loss counters out of
-`DEBUG.LOG` afterwards; that is what they are for.
+The lever is the asymmetry: `-s TESTFILE.TXT` works and `-s *.TXT` does not,
+and the difference between them is the second expansion, the one `gnfile()`
+does with `ZX_FILONLY` after the protocol has started. Reproduce it in the
+**Watcom debug build** first — none of the three fixed causes bit that
+build, so if it fails there too you get a full `DEBUG.LOG` of the
+`ssfile`/`gnfile` path for free, which the gcc build cannot give you.
 
-**Wildcard expansion** (§13 step 3a, §15). `-s FILE` works, `-s *.COM` finds
-nothing. Blocks multi-file transfer, and it is now the last thing between
-this port and being useful. Untouched for four sessions.
+**Milestone step 6: `RECEIVE`, then `GET`, then `SERVER`,** at 9600. Receive
+drives the ring harder than send did, because the file writes happen on the
+Victor end — the case §11b has no interrupt-level flow control for. **Read
+the two loss counters out of `DEBUG.LOG` afterwards** (bytes lost to a chip
+overrun, bytes lost to a full ring); they are logged from `tcsetattr()` now,
+which `ttres()` reaches on the way out, and they have still never been read.
 
-**Then step 8: long packets, windows, streaming, one at a time.** This is
-where the missing water marks start to matter and where `ttchk()`'s new real
-byte count earns its keep.
+**Then step 8: long packets, windows, streaming, one at a time.** Note that
+the gcc build now carves a single 1,018-byte window slot where Watcom carves
+two — this is where that starts to matter, and where the far heap stops
+being a footnote.
 
 ---
 
-## 3. Things in the new driver that are known-incomplete
+## 3. Instruments, including one that does not work
 
-Listed so they are not rediscovered as bugs.
+- **`XFLAGS=-DV9K_HEAPREPORT`** (§0e of `ckvictor.c`) prints the low-water
+  heap headroom at exit: `v9k heap: low-water 2090 bytes free (break at
+  62666 of 65536)`. Sampled at every `read()`, `write()` and `opendir()`,
+  registers its own `atexit`, so it works in runs that never open a line.
+  Watcom says "far heap, not in DGROUP -- not measured", correctly.
+- **`XFLAGS=-DV9K_DIRTRACE`** traces `opendir()`'s path, the DOS pattern it
+  builds and the `FindFirst` result, plus one entry count per directory. It
+  uses `write(2)` and hand-formatted digits **on purpose**: a `printf`
+  version re-enters stdio while stdout's own buffer is being allocated and
+  the output disappears. That cost a MAME run.
+- **You cannot interpose on `malloc()` in the gcc build.** `ld --wrap` dies
+  on the far-call relocations (`R_386_OZSEG16 for symbol with no output
+  section`); defining `malloc()` in `ckvictor.c` links and is then never
+  called. An earlier run drew a conclusion from that silence and the
+  conclusion was wrong. Both attempts are written up in §16f so they are not
+  tried a third time.
+- **`.probe/`** holds two throwaway programs, not part of the build:
+  `vwild.c` (Watcom — asks DOS directly about `.`, trailing separators,
+  `FindFirst` and `opendir`, in the root and in a subdirectory) and
+  `vmatch.c` (gcc — links the port's own `ckclib.o` and asks `ckmatch()` and
+  libdos-m's `stat()` the exact questions the port needs answered). Both are
+  ~60 lines and both settled a question that reasoning had got wrong.
+
+---
+
+## 4. Things in the driver that are known-incomplete
+
+Unchanged from last session; listed so they are not rediscovered as bugs.
 
 - **No interrupt-level flow control.** 3.13 sends XOFF from inside `SERINT`
   at a 3/4-full mark. Not needed with one packet in flight; needed for
-  streaming. `tcflow()` is a stub for the same reason, and says so.
+  streaming. `tcflow()` is a stub for the same reason.
 - **No stack switch in the handler.** Deliberate — 3.13's `SERINT` does not
-  switch either, on this machine, and a dedicated stack would come out of
-  the 64K DGROUP. The frame is 22 bytes under gcc, ~30 under Watcom.
-  `~/projects/myfreedos`'s `victor_int14.asm` prologue is the reference if
-  this ever needs doing properly.
+  switch either, on this machine. 22 bytes under gcc, ~30 under Watcom.
 - **The IRQ1 vector is hard-coded to 41h.** Right for Victor MS-DOS 3.1;
-  `~/projects/myfreedos` remaps the 8259 and puts its serial ISR at INT 09h,
-  so this is the most likely thing to break "one binary, two DOSes". It is
-  one constant, in `ckvictor.c` §1e.
-- **Ctrl-Break with the line open.** The vector is restored from an
-  `atexit()` handler, which covers everything that goes through `exit()`.
-  It does not cover a Ctrl-Break that DOS turns into a bare termination, and
-  leaving IRQ1 hooked takes the machine down. Not measured on either
-  runtime. Fix, if it bites: hook INT 23h, which is `AH=25h` and stays
-  inside rule 6.
+  `~/projects/myfreedos` puts its serial ISR at INT 09h, so this is the most
+  likely thing to break "one binary, two DOSes". One constant, §1e.
+- **Ctrl-Break with the line open.** Restored from `atexit()`, which does
+  not cover a Ctrl-Break DOS turns into a bare termination. Fix, if it
+  bites: hook INT 23h (`AH=25h`, inside rule 6).
 - **WR2 is left as the OEM driver set it** (`10h`, where 3.13 writes `14h`).
-  They differ in one bit, which 3.13 calls interrupt priority, and with one
-  channel and receive interrupts only there is no priority decision. The
-  transfer works with `10h`. If interrupts ever fail to arrive, this is the
-  first thing to try changing.
-- **The carrier clause.** `ttgmdm()` reports DCD from RR0, except that it
-  forces carrier present when `CLOCAL` is set — otherwise a three-wire cable
-  makes `in_chk()` declare the line dead on the first `ttchk()`. The
-  reasoning is written out in §11b and in the function; it is the one
-  judgement call in the file.
+  First thing to try if interrupts ever fail to arrive.
+- **The carrier clause** in `ttgmdm()` forces carrier present under
+  `CLOCAL`. The one judgement call in the file; reasoning in §11b.
 
 ---
 
-## 4. Still open, from before
+## 5. Still open, from before
+
+**Which toolchain the port should use.** Now much less symmetric. Watcom
+fits the interactive parser, has 26K of far heap, and gets a debug log; gcc
+is at 80% DGROUP, had to have its packet buffers halved to transfer a file
+at all, cannot have a debug log, and needs custom instruments to answer
+questions Watcom answers with `-d`. gcc's only remaining advantage is that
+it is the toolchain the port started with.
 
 **The 42KB gap for the interactive parser.** Unchanged: needs 429KB, DOS
-offers 387KB (§16a, measured). Three untried angles — a leaner DOS
-configuration, trimming ~50KB of what `NOICP` was hiding, or `ZT=-zt128`
-(which frees DGROUP but grew the image, so measure the load requirement
-rather than assuming).
+offers 387KB (§16a, measured).
 
-**Which toolchain the port should use.** Still not decided, and now slightly
-less symmetric: Watcom is the one that has completed a transfer.
+**`NOGFTIMER`.** Floating-point transfer timers on an 8088 with no FPU.
+Still not turned off.
 
-**`NOGFTIMER`.** Floating-point transfer timers on an 8088 with no FPU pull
-in emulation for both builds. Still not turned off.
-
-**`B76800` is really 78125 bps**, 1.7% off its name — same error as
-`B38400`, which 3.13 shipped. Cosmetic.
+**Two unexplained differences between the builds' transfers** (§16e): gcc
+sends the file as binary where Watcom sends it as text (74 bytes against
+72), and gcc's transfer took 0 seconds against Watcom's 10. Neither is
+known to be wrong; both are leads.
 
 ---
 
-## 5. The harness
+## 6. The harness
 
-§16a and §16d have it in full. The landmines all still apply:
+§16a, §16d and §16e have it in full. The landmines, including three new ones:
 
+- **`KTEST.BAT` must have CRLF line endings.** With Unix `\n`, COMMAND.COM
+  echoes every line and runs none — and it looks like a corrupted terminal,
+  not a corrupted file. **New, cost one run.**
+- **`-d` is a Watcom-only option.** `NODEBUG` compiles it out of the gcc
+  build, which rejects the whole command line. **New, cost one run.**
+- **MAME does not exit when `-seconds_to_run` expires.** It writes
+  `Average speed: ...` to its log and sits there. Poll the log, not the
+  process: `until grep -q "Average speed" mame.log; do sleep 10; done`.
+  **New.**
+- **MS-DOS 3.1 cannot redirect handle 2.** `2> FILE` puts a literal `2` in
+  `argv`. Traces on stderr go to the screen, and only the last 25 lines
+  reach the snapshot — so keep trace output short or send it to stdout.
 - **The Victor boots its hard disk as `A:`**, not `C:`.
-- **`~/projects/mame/victor_kermit.img` is the image.** Not an MBR disk, no
-  BPB, **mtools cannot read it** — use `vtg_image_util`
-  (`~/projects/vtg_image_util`, run as `python3 cli_main.py ...`). A backup
-  is beside it as `victor_kermit.img.bak-20260804`.
-- **MAME's `-bitb` socket is single-use.** Start `socat` first and let MAME
-  be the only thing that connects; probing the port burns it.
-- **Test on Victor MS-DOS 3.1, not FreeDOS** (§16a for why).
-- **The emulated keyboard mangles characters** in `-autoboot_command`. Put
-  the commands in a `.BAT` on the image and autoboot that. `KTEST.BAT` is
-  there and is what §16d ran.
+- **`~/projects/mame/victor_kermit.img` is the image**; mtools cannot read
+  it, use `vtg_image_util` (`python3 cli_main.py ...`). Backups beside it:
+  `.bak-20260804` and `.bak-before-gcc-run`.
+- **MAME's `-bitb` socket is single-use.** Start `socat` first.
+- **Test on Victor MS-DOS 3.1, not FreeDOS** (§16a).
 - **`-l /dev/seriala`, with forward slashes.**
-- **`kermit -V` drops into interactive mode and hangs.** Always give the
-  host `kermit` a command file, and a timeout.
-- **`~/.kermrc` sets a line that does not exist.** Use `kermit -y <file>`.
-- **MAME writes `cfg/` and `nvram/` into its working directory.** Run it
-  from `~/projects/mame`.
-- **`XFLAGS=-dKEEP_DEBUG` needs `make clean` first.** Not per-file:
-  `debug()` compiles to nothing without it, so a partial rebuild dies with
-  `E2028: dodebug_ is an undefined reference`.
-- **A run costs 12–15 minutes of wall clock** for 200 emulated seconds. Put
-  every question you have into one `.BAT` and one debug build.
-- The working host receiver is `kermit -y <file>` with `set line
-  /tmp/v9000`, `set speed 9600`, `set carrier-watch off`, `set flow none`,
-  `log packets <file>`, `log transactions <file>`, `receive`. Start it right
-  after MAME; it waits through the boot.
+- **Always give the host `kermit` a command file and a timeout**;
+  `~/.kermrc` sets a line that does not exist, so use `kermit -y <file>`.
+- **Run MAME from `~/projects/mame`** — it writes `cfg/` and `nvram/` into
+  the working directory.
+- **`XFLAGS=-dKEEP_DEBUG` needs `make clean` first** (Watcom only).
+- A run costs 2–15 minutes of wall clock. Put every question into one
+  `.BAT`. A no-serial run at `-seconds_to_run 75` is about 90 seconds and is
+  enough for anything that does not touch the wire.
+- Host receiver: `kermit -y <file>` with `set line /tmp/v9000`,
+  `set speed 9600`, `set carrier-watch off`, `set flow none`,
+  `log packets`, `log transactions`, `receive`. Start it right after MAME.
 
-## 6. Rebuilding
+## 7. Rebuilding
 
 ```sh
 container exec -i ia16-ubuntu-2 bash -c \
-  "cd /mnt/projects/ckermit && make -f victor9k.mak"     # gcc, links ckermit.exe
+  "cd /mnt/projects/ckermit && make -f victor9k.mak"     # gcc, ckermit.exe
 container exec -i ia16-ubuntu-2 bash -c \
-  "cd /mnt/projects/ckermit && make -f victorow.mak"     # Watcom, links ckermitw.exe
+  "cd /mnt/projects/ckermit && make -f victorow.mak"     # Watcom, ckermitw.exe
 ```
 
-Both print their DGROUP figure on link. Diagnostic variants, neither set by
-any makefile and both needing a `clean` first: `XFLAGS=-dKEEP_ICP` restores
-the interactive parser, `XFLAGS=-dKEEP_DEBUG` the debug log. Rule 4 still
-applies: report the DGROUP number after any change that could add static
-data — and the receive ring in `ckvictor.h` is now one of the levers.
+Both print their DGROUP figure on link. Diagnostic variants, none set by any
+makefile: `-dKEEP_ICP` (Watcom, restores the parser), `-dKEEP_DEBUG`
+(Watcom, the debug log), `-DV9K_HEAPREPORT` and `-DV9K_DIRTRACE` (gcc, §3
+above). Rule 4 still applies — report DGROUP after any change that could add
+static data — and note that the heap, not DGROUP, is what has actually been
+biting.

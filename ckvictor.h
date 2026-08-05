@@ -407,11 +407,54 @@ extern long v9k_timezone;
   packets, which is more than a 38400 bps line needs, and the milestone
   (SS13 step 5) runs short packets with window 1 anyway.  Raise only with
   the linker's __heap_end_minimum figure in hand, not by eye.
+
+  AND THEY ARE STILL TOO BIG FOR THE GCC BUILD.  2048/2048 is what the
+  Watcom build transferred a file with (SS16d), but Watcom has a far heap
+  outside DGROUP and gcc does not.  Under gcc the same numbers cost, at
+  inibufs() time:
+
+      bigbufp   malloc(SBSIZ + RBSIZ + 40)      4,136
+      srvcmd    malloc(RBSIZ + 100)             2,148
+      s_pkt, r_pkt  2 x 14 x MAXWS(32)            896
+                                              -------
+                                                7,180  of 12,808
+
+  and the 5,628 left has to hold the stack as well.  It does not: SS16e
+  measured the gcc build reaching the file-open step of a real transfer and
+  failing there, with C-Kermit printing "TESTFILE.TXT: Not enough space" --
+  newlib's fopen() wanting a FILE and a 1,024-byte BUFSIZ buffer and not
+  getting them.  Halving both pools gives 3,072 of that back.
+
+  So the two builds differ here, deliberately and for a reason that is a
+  property of the toolchains and not of the port: near heap versus far heap.
+  Everything else in this file is shared.  Both settings still satisfy the
+  milestone -- dofast() carves RBSIZ/MAXSP window slots, so gcc gets one
+  1,018-byte slot and Watcom two, and step 5 runs window 1 with short
+  packets either way.  Step 8 (long packets, windows, streaming) is where
+  the difference will start to show, and where the Watcom build's far heap
+  stops being a footnote.
 */
 #define MAXSP 1024                      /* Max long packet, send    */
 #define MAXRP 1024                      /* Max long packet, receive */
+#ifdef __WATCOMC__
 #define SBSIZ 2048                      /* Send buffer pool         */
 #define RBSIZ 2048                      /* Receive buffer pool      */
+#else
+/*
+  512 each was tried as well, and is NOT what is here.  A wildcard send
+  expands the pattern twice -- once in doarg() while parsing the command
+  line and again in gnfile() when the protocol asks for the file -- and at
+  1024 that left only 532 bytes of heap at the low-water mark.  Halving
+  again gives back 1,536 (1,024 of bigbufp, 512 of srvcmd, which is sized
+  from RBSIZ) and does take the headroom back to 2,068, comfortably where
+  the transfer that worked was.  It did not make the wildcard send
+  complete, so the change bought a number and no behaviour, and 1024 is
+  the setting a finished transfer has actually been measured at (SS16e).
+  See PORTING.md SS16f for what the remaining failure looks like.
+*/
+#define SBSIZ 1024                      /* Near heap: half as much  */
+#define RBSIZ 1024
+#endif /* __WATCOMC__ */
 
 /*
   MAXWS is deliberately NOT set here.  It used to be, at 8, and it never
@@ -444,6 +487,43 @@ extern long v9k_timezone;
   guarded upstream edit, and one that matches what that file already does
   for its four neighbours.  Not done unilaterally; see PORTING.md SS15.
 */
+
+/*
+  String space for wildcard expansion.
+
+  ckufio.c's initspace() asks malloc for SSPACE bytes and, if it is
+  refused, halves the request and tries again until something succeeds --
+  keeping whatever it finally got.  That is sensible where the heap is
+  large and cheap.  Here it is neither: DYNAMIC's default is 10,000 bytes
+  against a gcc near heap of about 12,700 shared with the stack, so the
+  expansion swallows the heap and every allocation after it fails.  What
+  the user sees is "No files for -s" -- not because nothing matched, but
+  because ckuusy.c could not get 2,000 bytes for the message that would
+  have said so.  Measured on Victor MS-DOS 3.1: 212 bytes free at the
+  low-water mark (PORTING.md SS16f).
+
+  2048 holds 150 or so 8.3 names, which is more than a FAT directory on
+  this machine can contain, and it is a fixed cost rather than "whatever
+  was left".  Overriding it needs ckufio.c's #ifndef -- the seventh
+  guarded upstream edit, PORTING.md SS8.
+*/
+#define SSPACE 2048
+
+/*
+  How many names one wildcard may expand to.
+
+  ckufio.c keeps the matches in an array of maxnames pointers and zxpand()
+  mallocs the whole array before it reads the first directory entry, so
+  the default of 1024 is a 2,048-byte allocation whether the pattern
+  matches two files or none.  Alongside SSPACE above that was most of the
+  heap.  64 names is a limit this machine will not reach in practice --
+  and a wildcard send that hits it fails loudly, with "?Too many files (64
+  max)", which is the opposite of the silence this port has been chasing.
+
+  Needs the #ifndef in ckcdeb.h: the eighth guarded upstream edit,
+  PORTING.md SS8.
+*/
+#define MAXWLD 64
 
 /* Do NOT define BIGBUFOK: it asks for 290000-byte buffers. */
 
@@ -541,6 +621,19 @@ extern long v9k_timezone;
 
   Never defined by either makefile.  Worth the DGROUP under Watcom, where
   -zc puts the format strings in far code; under gcc it is expensive.
+
+  MEASURED, and it is why the gcc build has no debug log at all: with
+  KEEP_DEBUG the objects alone come to 68,693 bytes of near data, 104.8% of
+  DGROUP before libc adds anything, and the link fails with a page of
+  "relocation truncated to fit".  The debug log is a Watcom-only instrument
+  on this port.  (PORTING.md SS16e.)
+
+  V9K_HEAPREPORT is the diagnostic that replaces it for the one question the
+  gcc build actually needs answered -- how much room is left between the top
+  of the heap and the stack.  Section 0e of ckvictor.c; costs nothing when
+  off; also never set by a makefile:
+
+      make -f victor9k.mak XFLAGS=-DV9K_HEAPREPORT
 */
 #ifndef KEEP_DEBUG
 #define NODEBUG                         /* No debug log               */
