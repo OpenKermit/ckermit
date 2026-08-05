@@ -21,3 +21,12 @@ tests/unit/bin/
 .ci-cache/
 .buildcc.cache
 .buildflags.cache
+
+# Victor 9000 port build products
+ckermit.exe
+ckermit.exe.map
+
+# Victor 9000 port, Open Watcom build (victorow.mak)
+*.obj
+ckermitw.exe
+ckermitw.exe.map

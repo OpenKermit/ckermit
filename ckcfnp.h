@@ -507,7 +507,9 @@ void fatal2( char *, char * );
 void freelocal( int );
 void freerpkt( int );
 #ifndef NOLOCAL
-void fxdinit( int );
+#ifndef NODISPLAY			/* ckcker.h makes this a macro when */
+void fxdinit( int );			/* NODISPLAY is set, and then this  */
+#endif /* NODISPLAY */			/* line declares "void ;"           */
 #endif /* NOLOCAL */
 void init_termbuf( int );
 void initial( FILE *, FILE * );

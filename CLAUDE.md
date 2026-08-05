@@ -36,8 +36,38 @@ container exec -i ia16-ubuntu-2 bash -c \
 `ckcpro.c` is generated from `ckcpro.w` by `wart`, a **host** tool built with
 the host `cc`.
 
-All 24 modules compile clean; DGROUP is 32,311 of 65,536 (49.3%). Nothing has
-been linked or run on hardware yet — `make` builds objects only.
+All 24 modules compile clean; DGROUP is 40,278 of 65,536 (61.5%) in the
+objects, 52,000 (79%) after the linker adds libc. `make` links `ckermit.exe`;
+it has run under MAME (PORTING.md §16), never on real hardware.
+
+### The second toolchain
+
+The same tree also builds with **Open Watcom V2**, in the same container at
+`/opt/open-watcom-v2/rel`, in the **large** model — far code *and* far data:
+
+```sh
+container exec -i ia16-ubuntu-2 bash -c \
+  "cd /mnt/projects/ckermit && make -f victorow.mak"        # 24 objects + link
+```
+
+This is a second build of the same port, not a fork: same `ckvictor.h`, same
+stock `ckutio.c`/`ckufio.c`, same single non-upstream C file. It exists to
+answer §9c's open question, and it does: DGROUP 38,704 (59%) against gcc's
+79%, and the interactive command parser — cut from the gcc build because it
+did not fit — **does** fit in DGROUP (`make -f victorow.mak XFLAGS=-dKEEP_ICP`,
+60,768, or 19,376 with `ZT=-zt128`). It does not fit in RAM: it needs 429K and
+the machine offers 387K. See PORTING.md §9d.
+
+The Watcom binary **runs on Victor MS-DOS 3.1 under MAME**, opens the OEM
+serial device `/dev/seriala` at 9600, and puts a correct Kermit Send-Init
+packet on the wire — byte-identical to what the gcc build sends. Neither
+completes a transfer, for the same reason in both: §11's driver work.
+**PORTING.md §16a is the how-to** — the Victor boots its hard disk as `A:`,
+the image needs `vtg_image_util` (mtools cannot read it), and MAME's `-bitb`
+socket is single-use, so start `socat` first and never probe the port.
+
+Rules 1–7 below apply to both builds. Rule 4's DGROUP report for the Watcom
+build is `make -f victorow.mak sizes`, which reads `wlink`'s map.
 
 ## Hard rules
 
@@ -61,9 +91,12 @@ been linked or run on hardware yet — `make` builds objects only.
 6. **INT 21h only** for console and files. No INT 10h, INT 16h, INT 14h, direct
    screen memory, or BIOS data area — Victor MS-DOS 3.1 has no IBM-compatible
    BIOS, and that discipline is the whole reason one binary runs on both DOSes.
-7. **Watch stack frames.** 16-bit target, recursive `traverse()` in `ckufio.c`
-   at 1066 bytes/level. Large automatic arrays are a real hazard here — that is
-   what `SCANFILEBUF` was.
+7. **Watch stack frames.** 16-bit target with a recursive `traverse()` in
+   `ckufio.c`. Large automatic arrays are the hazard — that is what
+   `SCANFILEBUF` was, and what `CKMAXNAM` turned out to be (`traverse()` was
+   1066 bytes/level, now 98). **Run `-fstack-usage` after touching `ckufio.c`,
+   `ckuusr.c`, or the size limits in `ckvictor.h`**, the same way you run
+   `sizes` for DGROUP.
 
 ## Layout of the port
 
@@ -71,9 +104,12 @@ been linked or run on hardware yet — `make` builds objects only.
 |---|---|
 | `PORTING.md` | design doc, memory budget, hardware map, milestone plan |
 | `ckvictor.h` | all ~40 feature `-D` flags, size limits, platform identity |
-| `ckvictor.c` | Victor glue: process-model stubs + (planned) the 7201 driver |
+| `ckvictor.c` | Victor glue: process-model stubs, `opendir`/`readdir`/`closedir` and `ioctl` over INT 21h, + (planned) the 7201 driver |
 | `victor/sys/termios.h` | the 7201 driver's control surface; fills a newlib gap, reached via `-Ivictor` |
-| `victor9k.mak` | build + `sizes` target |
+| `victor/sys/ioctl.h` | `FIONREAD`, without which `conchk()`/`ttchk()` are hard-wired to 0 |
+| `victor9k.mak` | ia16-elf-gcc build + `sizes` target |
+| `victorow.mak` | Open Watcom build + `sizes` target (PORTING.md §9d) |
+| `victorow/` | headers only Open Watcom needs (`pwd.h`, `sys/utsname.h`, `sys/time.h`, `termios.h`, `ckowsys.h`), reached via `-i=victorow` and invisible to the gcc build |
 | `ckutio.c` | serial, console, timers — **stock upstream**, this is the port |
 | `ckufio.c` | file system — **stock upstream** |
 | `ckc*.c` | protocol core — do not touch |

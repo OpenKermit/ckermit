@@ -142,8 +142,13 @@ So data pointers are always near, and **`.data` + `.bss` + heap + stack must
 all fit in one 64K DGROUP**. `-mcmodel=medium` gives far code (multiple code
 segments, ~1MB), which is why 296KB of text is not a problem.
 
-OpenWatcom (`~/projects/open-watcom-v2`, `wcc`) *does* have compact/large/huge
-and would allow far data. It was evaluated and **is not needed** — see §9a/§9b.
+Open Watcom *does* have compact/large/huge and does allow far data. §9a/§9b
+concluded it was **not needed** for the serial-only milestone, and that still
+holds. It has since been *built*, as a second target of the same tree —
+`victorow.mak`, Open Watcom V2 at `/opt/open-watcom-v2/rel` in the same
+container. All 24 modules compile and the program links, at 59% DGROUP against
+gcc's 79%, and with the interactive command parser §9c had to cut back in. See
+**§9d**, which is the measurement §9c asks for.
 
 ### The toolchain already targets MS-DOS, at medium model
 
@@ -165,8 +170,11 @@ coverage and the short list of what is still missing.
 ## 4. Build
 
 ```sh
-make -f victor9k.mak          # build all objects
+make -f victor9k.mak          # build all objects, then link
 make -f victor9k.mak sizes    # DGROUP report + largest static objects
+
+make -f victorow.mak          # the same tree, Open Watcom large model (§9d)
+make -f victorow.mak sizes    # DGROUP report, read from wlink's map
 ```
 
 The entire feature configuration lives in `ckvictor.h`, force-included ahead of
@@ -174,9 +182,12 @@ every file with `-include ckvictor.h`. Nothing else in the tree includes it, so
 it cannot affect any other platform. Keep new `-D` options *there*, next to the
 comment explaining why they exist — not in the makefile.
 
-`victor/` holds headers that fill gaps in the toolchain, reached via `-Ivictor`.
-Currently just `victor/sys/termios.h` (§12). Same principle as `ckvictor.h`: it
-is on the include path only for this build, so it cannot affect anything else.
+`victor/` holds headers that fill gaps in the toolchain, reached via `-Ivictor`
+(`-i=victor` under Watcom): `victor/sys/termios.h` and `victor/sys/ioctl.h`
+(§12), both toolchain-neutral. `victorow/` holds the ones only Open Watcom
+needs, reached via `-i=victorow` and therefore invisible to the gcc build
+(§9d). Same principle as `ckvictor.h`: on the include path only for this build,
+so it cannot affect anything else.
 
 ---
 
@@ -284,7 +295,7 @@ Streaming is **not** network-coupled — it is negotiated protocol behaviour in
 
 ## 8. Upstream changes made
 
-Five small, guarded edits. None changes behaviour on any other platform.
+Six small, guarded edits. None changes behaviour on any other platform.
 
 1. **`ckcdeb.h`** — wrapped the `sig_t` typedef in `#ifndef CK_NO_SIG_T`.
    newlib (and macOS) already define `sig_t`.
@@ -299,9 +310,28 @@ Five small, guarded edits. None changes behaviour on any other platform.
    (`stdin->_IO_read_ptr`), which do not exist in newlib.
 5. **`ckufio.c`** — added a `VICTOR9K` branch to the directory-entry inode
    check, alongside the existing `Plan9` one. FAT has no inode.
+6. **`ckcfnp.h`** — wrapped `void fxdinit( int );` in `#ifndef NODISPLAY`.
+   Two lines earlier in the *other* direction, `ckcker.h` already does this:
 
-Items 2 and 3 are worth offering upstream regardless of this port; both are
-latent hazards on any small-memory target.
+   ```c
+   #ifdef NODISPLAY
+   #define fxdinit(a)
+   #else
+   _PROTOTYP( VOID fxdinit, (int) );
+   #endif /* NODISPLAY */
+   ```
+
+   so under `NODISPLAY` — which `ckcdeb.h` sets for every `NOCURSES` build —
+   the prototype in `ckcfnp.h` expands through that macro to the declaration
+   `void ;`. gcc calls that a useless-type-name warning and carries on; Open
+   Watcom calls it E1026 and stops, in all 15 modules that include
+   `ckcfnp.h`. This is the one edit §9d could not avoid, and it is a genuine
+   upstream inconsistency rather than a Victor accommodation: a platform that
+   does not define `NODISPLAY` sees no change at all.
+
+Items 2, 3 and 6 are worth offering upstream regardless of this port. 2 and 3
+are latent hazards on any small-memory target; 6 is a bug on any compiler
+stricter than gcc.
 
 ---
 
@@ -365,16 +395,141 @@ any Victor disk. This question is closed.
 
 Open risks:
 
-1. **`traverse()` in `ckufio.c` is recursive** (calls itself at lines 6295 and
-   6563) with a **1066-byte stack frame**. Depth is directory nesting depth.
-   Eight levels ≈ 8.5KB of a 64K DGROUP. This is the top recursion concern.
-   Mitigate by keeping the stack generous, or by capping traversal depth.
-   It also means `opendir` must support at least one open `DIR` per nesting
-   level — see §12.
+1. ~~**`traverse()` in `ckufio.c` is recursive with a 1066-byte stack
+   frame.**~~ **Fixed: 98 bytes/level.** See "The `CKMAXNAM` trap" below.
 2. `shofea()` (`ckuus5.c`) has the largest frame at 2106 bytes — SHOW FEATURES.
    Harmless but worth knowing.
-3. Path lengths: `CKMAXPATH` set to 128. Fine for FAT 8.3, and it feeds several
+3. `zcopy()` (`ckufio.c`) is 1114 bytes, essentially all of it `char buf[1024]`
+   — a file-copy buffer. Not recursive and reached only from the COPY command
+   at top level, so it is a ceiling on peak stack rather than a multiplier.
+4. Path lengths: `CKMAXPATH` set to 128. Fine for FAT 8.3, and it feeds several
    table sizes, so do not raise it casually.
+
+### The `CKMAXNAM` trap
+
+The largest stack win in the port, and it was hiding behind a default that
+looked deliberate.
+
+`CKMAXNAM` is the longest single filename *segment*. `ckcdeb.h` derives it from
+`MAXNAMLEN`, but **`ckcdeb.h` is parsed before `<dirent.h>`**, so `MAXNAMLEN`
+is not yet defined and it falls through to `FILENAME_MAX` — which newlib puts
+at **1024**. `traverse()` then declares `char nambuf[CKMAXNAM+4]` as an
+automatic, and `traverse()` is the recursive directory walk.
+
+Measured with `-fstack-usage`, same source, same flags:
+
+| `CKMAXNAM` | `traverse()` frame | depth-8 walk |
+|---|---:|---:|
+| 1024 (what the default actually produced) | 1066 bytes/level | 8,528 bytes |
+| **16 (now set in `ckvictor.h`)** | **98 bytes/level** | **784 bytes** |
+
+An 11x reduction on the one function whose cost multiplies. 16 is chosen
+against FAT 8.3 — the longest legal name is 12 characters — and this port does
+not do long filenames, because `readdir()` returns what DOS FindFirst puts in
+the DTA and that is 8.3 and nothing else.
+
+This is the same class of defect as `SCANFILEBUF` (§8) and it was found the
+same way: by measuring rather than reading. **`-fstack-usage` is cheap; run it
+after any change to `ckufio.c`, `ckuusr.c` or the size limits in
+`ckvictor.h`.** Two frames still above 1KB (`docmd` 1152, `zcopy` 1114) are
+both non-recursive.
+
+`MAXNAMLEN` itself is now pinned at 12 in `ckvictor.h`, which is a *heap*
+saving rather than a stack one: it sizes `d_name[]` inside `struct dirent`,
+and `struct dirent` is the DOS DTA for our `readdir()` (§12). newlib defaults
+it to 259 in anticipation of long-filename support that does not exist, making
+`struct dirent` 290 bytes; at 12 it is 43 bytes — exactly the size of a DTA —
+and a `DIR` is 48. `traverse()` holds one open `DIR` per level.
+
+---
+
+## 9c. `.rodata` is in DGROUP, and it cost us the command parser
+
+**This section supersedes the headline number in §9.** The 49.3% figure was
+real but it was not the whole budget, and the shortfall is not small.
+
+`make sizes` measures `.data` and `.bss` from `ia16-elf-size`. That tool
+reports in Berkeley format, where **`.rodata` is counted in the `text`
+column** — so every string literal in the program was being filed under "far
+code, 1MB limit, not a concern". It is not far. There is no compact, large or
+huge model in `ia16-elf-gcc` (only `tiny`, `small`, `medium` — verified with
+`-print-multi-lib`), so a `char *` is always a 16-bit near pointer and
+everything it can point at must live in the one 64K DGROUP.
+
+The arithmetic is exact:
+
+```
+fartext 236,957  +  rodata 66,578  =  303,535   <- what "text = 303535" was
+```
+
+So the real near-data requirement, with the interactive command parser in:
+
+| | bytes |
+|---|---:|
+| `.rodata` | 66,578 |
+| `.data` | 11,748 |
+| `.bss` | 20,563 |
+| **total near** | **98,889** |
+| DGROUP | 65,536 |
+
+`.rodata` **alone** exceeds DGROUP. The linker agrees: `region dsegvma
+overflowed by 32816 bytes`.
+
+### What was tried
+
+- **`--gc-sections`** with `-ffunction-sections -fdata-sections`: **zero
+  effect**, byte for byte. Everything is reachable from the command tables.
+- **A far-data model**: does not exist in this toolchain.
+- **`__far` on the literals**: supported by the compiler, and the linker
+  script even has `.farrodata.*` output sections — but it needs the qualifier
+  on each object, which means editing upstream everywhere. Ruled out by hard
+  rule 1.
+
+### What was done: `NOICP`
+
+43KB of the 66.5KB of `.rodata` is the command parser's tables and messages,
+concentrated in `ckuus3`–`ckuus7`. Removing it is the only thing that fits:
+
+| | `.rodata` | `.data` | `.bss` | near total |
+|---|---:|---:|---:|---:|
+| with parser | 66,578 | 11,748 | 20,563 | 98,889 |
+| **`NOICP`** | **22,530** | **3,930** | **13,785** | **40,245** |
+
+**This is a real loss.** §13's milestone was "`C-Kermit>` prompt, then SEND".
+There is no prompt. What survives is the command-*line* parser in `ckuusy.c`,
+which is enough to move a file:
+
+```
+CKERMIT -l COM1 -b 9600 -s FOO.BIN
+CKERMIT -l COM1 -b 9600 -r
+CKERMIT -l COM1 -b 9600 -x          (server)
+```
+
+If the prompt is wanted later, the honest options are a different toolchain
+with a large data model (§9a already looked at Watcom for the buffers; this
+is a much stronger reason), or a hand-written minimal parser in `ckvictor.c`
+that reuses none of `ckuus3`–`ckuus7`.
+
+### Heap and stack share what is left, and it is tight
+
+`NOICP` alone still did not link — near data came to 66,272, over by 736.
+**`-mnewlib-nano-stdio`** (newlib's reduced printf/scanf) was worth **14,272
+bytes** and is now mandatory in both `CFLAGS` and `LDFLAGS`; without it the
+build fails at the link.
+
+Final layout, from the linker's own map rather than from `size`:
+
+```
+.data + .bss end   52,000
+DGROUP             65,536
+heap + stack       13,536      <- shared: heap grows up, stack grows down
+```
+
+`-mstack-size=` does **not** apply here (it is ELKS-only); the MZ linker
+script fills DGROUP to 64K and starts SP at the top.
+
+13,536 bytes for both is genuinely tight, and it bit immediately — see §16.
+`SBSIZ`/`RBSIZ` are 2048 each rather than 4096 for this reason.
 
 ---
 
@@ -543,6 +698,132 @@ it, automatically, in large model, with no source changes.**
 
 **Net effect on the plan:** unchanged in the near term — at 49% DGROUP with a
 4KB/4KB pool there is nothing to fix.
+
+---
+
+## 9d. Open Watcom builds the same port, and the parser comes back
+
+§9c ends with "nothing short of removing the command parser fits, and that is a
+property of the toolchain, not of C-Kermit." That was true and it is still
+true — **of `ia16-elf-gcc`**. Open Watcom has a real large model, so the claim
+was worth testing rather than assuming, and the answer is now measured rather
+than estimated.
+
+`victorow.mak` builds the identical source tree with Open Watcom V2's 16-bit
+`wcc`/`wlink`. It is a second build of the same port, not a fork of it: the
+feature configuration is still `ckvictor.h` and only `ckvictor.h`, `ckutio.c`
+and `ckufio.c` are still stock upstream, and `ckvictor.c` is still the only
+non-upstream C file. Open Watcom V2 is already installed in the same
+`ia16-ubuntu-2` container, at `/opt/open-watcom-v2/rel`, with the 16-bit DOS
+libraries (`lib286/dos/clib{s,m,c,l,h}.lib`) present.
+
+```sh
+container exec -i ia16-ubuntu-2 bash -c \
+  "cd /mnt/projects/ckermit && make -f victorow.mak"
+```
+
+### Measured: all 24 modules compile and the program links
+
+Same feature set as the gcc build (`NOICP` on), `-ml -0 -os -zc`:
+
+| | ia16-elf-gcc, medium | Open Watcom, large |
+|---|---:|---:|
+| near data (DGROUP) | 52,000 of 65,536 (79%) | 38,704 of 65,536 (59%) |
+| left in the segment | 13,536 for heap **and** stack | 26,832, stack already counted |
+| far code | 236,957 | 190,498 |
+| far data | none possible | 0 (not needed yet) |
+| `.EXE` | 218,448 | 224,928 |
+
+17 warnings, all of them in stock upstream modules and none in the port's own
+code: 10 × W111 "meaningless use of an expression" (`debug()` expanding to
+nothing under `NODEBUG`), 2 unreferenced labels, `localtime()` called with a
+`long *` where Watcom's `time_t` is unsigned, `execvp()` called without the
+`const`, and `docmdline(1)` in `ckcmai.c` passing the integer 1 to a
+`void *` parameter that is only ever tested for non-null. gcc reports none of
+these; none is a defect the large model makes dangerous.
+
+Two structural differences do the work, and neither needs a source change:
+
+- **`-zc` puts string literals in the code segment.** `.rodata` was 66,578
+  bytes of DGROUP under gcc (§9c); under Watcom the equivalent (`CONST` +
+  `CONST2`) is 1,366 bytes, because everything else went far. All pointers are
+  4 bytes in the large model, so nothing has to know.
+- **`malloc()` is the far heap.** In the compact, large and huge models
+  Watcom's `malloc` is `_fmalloc`. C-Kermit's `DYNAMIC` packet buffers —
+  `SBSIZ`/`RBSIZ`, the thing §9/§14 spends the most words budgeting — stop
+  competing with DGROUP altogether. The 2048/2048 pools that §9 had to argue
+  down from 9024/9050 are a non-issue here.
+
+### Measured: the interactive command parser fits
+
+`KEEP_ICP` (see `ckvictor.h`) turns `NOICP` back off for exactly this
+experiment. Full build, parser in, `-zc`:
+
+| data threshold | DGROUP | `.EXE` |
+|---|---:|---:|
+| default (`-zt` off) | 60,768 of 65,536 | 447,534 |
+| `-zt1024` | 42,528 | 455,370 |
+| `-zt128` | 19,376 | 469,426 |
+
+`-zt<n>` moves data objects of *n* bytes or more into per-module far data
+segments. It is worth more than `-zc` because it moves the keyword **tables**,
+not just the strings they point at — the `struct keytab` arrays in
+`ckuus3`–`ckuus7` that §9c identified as 43KB of `.rodata`.
+
+So: **`C-Kermit>` fits in DGROUP under Open Watcom, with room to spare.** It
+does not follow that it fits in the *machine*, and §16a measures that
+separately: the parser build asks DOS for 429KB contiguous, and the largest
+block a program actually gets on the test setup is 387KB. Fitting the data
+group and fitting the RAM are two different questions and this port has now
+hit both walls.
+
+### What this does *not* settle
+
+- **The 7201 driver is still unwritten** (§11), for either toolchain — and
+  §16a is where that finally shows up as a wire-level symptom.
+- **Which toolchain the port should ultimately use is not decided here.** This
+  section establishes that the large model removes the constraint that forced
+  §9c's amputation. §16a establishes that the two builds are
+  indistinguishable on the wire. Neither decides the question.
+
+The console path was an open question here and §16a closed it: under gcc,
+`ckvictor.c` supplies newlib's `_read_r`/`_write_r` and does the CR/NL
+translation there; Watcom's runtime has its own `read`/`write` over INT 21h
+and that override does not exist. Watcom's text-mode stdout turns out to do
+the same job — output is correctly formatted on both DOSes.
+
+### What the second toolchain cost
+
+Compiling stock upstream Unix modules against a DOS libc that never pretended
+to be POSIX needs a compatibility layer that newlib made unnecessary. It is
+seven files, all new, none upstream:
+
+| File | What it fills |
+|---|---|
+| `victorow.mak` | build, and the DGROUP report read from `wlink`'s map |
+| `victorow/pwd.h` | `struct passwd`; Watcom has no password database at all |
+| `victorow/sys/utsname.h` | `uname()`, for `\v(host)` and the version banner |
+| `victorow/sys/time.h` | `struct timeval`/`gettimeofday()` for the FP timers |
+| `victorow/termios.h` | forwarder to `victor/sys/termios.h`, as newlib's is |
+| `victorow/ckowsys.h` | declarations for the process-model stubs. Watcom does not declare `ttyname()` etc. at all, and in a large model an implicit `int` return **truncates a far pointer** |
+| `ckvictor.h` §`__WATCOMC__` | header surgery, listed below |
+| `ckvictor.c` §`__WATCOMC__` | `gettimeofday`, `uname`, `link`, `kill`, `getpwent`, and an `intdos()` version of the INT 21h console poll |
+
+The `ckvictor.h` section is the interesting part, because it demonstrates the
+technique that kept the upstream edit count at one: **`ckvictor.h` is
+force-included ahead of every module, so it can include a system header and
+then correct what that header defined.** By the time `ckufio.c` reaches its own
+`#include`, the guard has already fired and our correction is what it sees.
+Used for three things:
+
+- `S_IFBLK`, `S_IFLNK` and `S_IFSOCK` are all `0` in Watcom — honest for FAT,
+  but `ziperm()` switches on them and three `case 0:` labels is a hard error.
+- `extern long timezone` in `ckufio.c` cannot agree with Watcom's `__near`
+  declaration of it once the large model makes a bare `extern` far.
+- `mkdir()` takes one argument, not two.
+
+`NO_PARAM_H` and `NO_NL_LANGINFO` are upstream's own knobs for "this system
+does not have that header" and are used as such.
 
 ---
 
@@ -726,31 +1007,113 @@ away.
 |---|---|
 | ~~`<sys/termios.h>`~~ | **Done** — `victor/sys/termios.h`, see below. |
 | **The termios functions** | Not a separate work item — this *is* the serial driver (§11). No termios symbol exists in any library in the toolchain, so there is nothing to collide with. |
-| **`opendir` / `readdir` / `closedir`** | The real remaining filesystem work. But note `<sys/dirent.h>` already carries an `#ifdef __MSDOS__` branch whose `struct dirent` is shaped around the DOS FindFirst/FindNext DTA (`d_dta[21]`, `d_attr`, `d_time`, `d_date`, `d_size`, `d_name`) — the interface is designed, only the implementation is absent. Build it over INT 21h `4Eh`/`4Fh` with **one DTA per open `DIR`**. |
-| `utime`, `umask` | Small. `utime` is INT 21h `57h`. |
-| `sleep` | Wrapper over the `usleep` that already exists. |
-| `creat` | One line over `open`. |
+| ~~`opendir` / `readdir` / `closedir`~~ | **Done** — `ckvictor.c`, over INT 21h `4Eh`/`4Fh`. See below. |
+| ~~`utime`, `umask`, `sleep`, `creat`~~ | **Done** — `ckvictor.c`. |
+| ~~`ioctl` / `FIONREAD`~~ | **Done**, and it was not on this list. See "The `FIONREAD` hole" below — this was the most consequential gap in the section. |
 
-There is a reference `opendir` at
-`~/projects/newlibc/phase3_newlib/libgloss/dirent.c` (written over that tree's
-VFS). **Fix two defects before reusing it:** `LIBGLOSS_MAX_DIRS` is **2**, and
-there is a single shared static `current_entry`. `traverse()` in `ckufio.c`
-recurses and holds one open `DIR` per directory level (§9), so a depth-3 walk
-fails outright and concurrent walks corrupt each other's entries.
+### Directory reading: done
 
-### Stubs in `ckvictor.c` that now collide
+`<sys/dirent.h>` declares the three functions and then says, verbatim,
+`/* FIXME: implement these! */`. `struct __msdos_DIR` is only ever forward
+declared, so its definition was entirely ours to choose — nothing in the
+toolchain constrains the ABI.
 
-`ckvictor.c` predates the discovery above and stubs several things `libdos-m.a`
-provides. These will be multiply-defined at link time and need their guard
-macros set:
+The header's `struct dirent` is not an accident. It is a DOS DTA with field
+names on it: `d_dta[21]`, `d_attr` at 21, `d_time` at 22, `d_date` at 24,
+`d_size` at 26, `d_name` at 30 — byte for byte what INT 21h `4Eh`/`4Fh` writes.
+So the DTA points straight at the caller's `struct dirent` and `readdir()`
+copies nothing. `ckvictor.c` asserts those offsets at compile time.
 
-| Symbol | Action |
+**The DTA is global state, and it is contested.** It belongs to the PSP, not to
+a search, and FindNext takes its continuation state from wherever the DTA
+currently points. Two consequences, and the second was a surprise:
+
+1. Each open `DIR` carries its own DTA. `traverse()` holds one per directory
+   level, so this is the normal case, not an edge case.
+2. **The DTA is re-pointed before *every* FindNext, never once at open time.**
+   This is not tidiness. `libdos-m.a`'s own `stat()` is implemented over INT 21h
+   `1Ah` + `4Eh` — it sets the DTA to its own buffer and does not restore it —
+   and `traverse()` calls `stat()` on each entry *inside* the `readdir()` loop.
+   Setting the DTA once per `DIR` would leave the next FindNext continuing
+   `stat()`'s search instead of ours. Measured from the library disassembly,
+   not assumed.
+
+`opendir()` performs the FindFirst so that a nonexistent directory fails at
+open (DOS error 3) as every caller assumes, and holds the entry for the first
+`readdir()`. DOS error 2 — directory exists, nothing matched — is an empty
+`DIR`, not an error.
+
+The reference implementation at
+`~/projects/newlibc/phase3_newlib/libgloss/dirent.c` was **not** reused: its two
+defects (`LIBGLOSS_MAX_DIRS` of 2, single shared static `current_entry`) are
+exactly the two things the recursion cannot tolerate, and it has no answer to
+the `stat()` DTA collision above.
+
+Frames: `opendir` 146 bytes (not live during recursion — it returns before the
+`readdir()` loop), `readdir` 8 bytes.
+
+### The `FIONREAD` hole
+
+This was not on the missing list and should have been. It is worth more than
+either question §15 was tracking.
+
+`ckutio.c` under `-DPOSIX` defines `NOSYSIOCTLH` ("No ioctl's allowed") and
+skips `#include <sys/ioctl.h>`. The toolchain has no such header and no `ioctl`
+symbol in any library, so **`FIONREAD` was undefined**. `in_chk()` — which is
+the whole of `conchk()` and `ttchk()` — then falls through its entire cascade
+of FIONREAD / `rdchk()` / `select()` / `poll()` and lands on the branch its own
+comment calls *"the hideous hack used in System V and POSIX systems"*, where
+the console's character-ready test is inferred from a **SIGQUIT handler**.
+
+MS-DOS has no SIGQUIT. So as the tree stood, both arms returned a constant:
+
+```
+conchk()  ->  in_chk(0, 0)      ->  always 0
+ttchk()   ->  in_chk(1, ttyfd)  ->  always 0
+```
+
+`ckutio.c` says plainly what that costs (~line 800):
+
+> We really, really, REALLY want FIONREAD, because it is the only way to find
+> out not just *if* stuff is waiting to be read, but how much, which is
+> critical to our sliding-window and streaming procedures.
+
+A `ttchk()` hard-wired to 0 is not cosmetic; it is the input to windowing and
+streaming, which are milestone steps 8 and 9.
+
+Fixed with `victor/sys/ioctl.h` (`FIONREAD` plus the prototype) pulled in by
+`ckvictor.h`, and `ioctl()` in `ckvictor.c`. Defining `FIONREAD` switches **on**
+exactly one reachable call site — `in_chk()`'s `ioctl(fd,FIONREAD,&n)` — and
+switches **off** two SIGQUIT workarounds that could never have worked here.
+Every other `ioctl()` call in `ckutio.c` is guarded by a `TIOCxxx`/`TCxxx` macro
+this port does not define; those belong to the pre-POSIX sgtty interface.
+`myfillbuf()`, the other `FIONREAD` consumer, sits inside `#ifdef MYREAD` and is
+not compiled.
+
+Console side is INT 21h `AH=0Bh`, which answers *whether* not *how many*, so it
+reports at most 1 — enough for `conchk()`, whose callers test against zero.
+**The serial side is a stub returning 0 and it is the driver's to finish (§11);
+it must answer from the RX ring buffer, where the count is real.** Until the
+driver exists there is no port to have bytes waiting on, so 0 is correct rather
+than a placeholder — but this is now on the critical path for milestone step 8.
+
+### Stubs in `ckvictor.c` that collided — resolved
+
+Determined by diffing `ckvictor.o`'s symbol table against `libdos-m.a` +
+`libc.a` + `libg.a`, rather than by waiting for the linker. Exactly the three
+predicted, and no others:
+
+| Symbol | Resolution |
 |---|---|
-| `dup2` | define `VICTOR_HAVE_DUP2` |
-| `putenv` | define `VICTOR_HAVE_PUTENV` |
-| `getpid` | `VICTOR_HAVE_PIDS` must be **split** — `getpid` comes from the library, but `getppid` / `getpgrp` / `tcgetpgrp` are still ours |
+| `dup2` | stub removed; library has it (INT 21h `46h`) |
+| `putenv` | stub removed; library has it |
+| `getpid` | stub removed; library probes INT 21h `AH=87h` with CF pre-set, so it degrades safely on a DOS that lacks it. `getppid` / `getpgrp` / `tcgetpgrp` remain ours. |
 
-Also `realpath` exists in the library, so `NOREALPATH` may no longer be needed.
+`opendir` / `readdir` / `closedir` / `ioctl` are **not** in any library, which
+confirms the "FIXME" above — they are ours alone.
+
+`realpath` does exist in the library, so `NOREALPATH` is now redundant. Left
+defined: it costs nothing and removing it would pull `realpath` into the link.
 
 **Still genuinely ours, keep stubbed:** `fork` `execl` `execvp` `wait` `getuid`
 `geteuid` `getgid` `getegid` `setuid` `setgid` `getppid` `getpgrp` `tcgetpgrp`
@@ -758,15 +1121,36 @@ Also `realpath` exists in the library, so `NOREALPATH` may no longer be needed.
 `readlink` `umask`, plus the symbols owned by excluded modules (`conect`,
 `connv`, `mdmtyp`, `nvlook`, `ck_bracketaddr`).
 
-Each stub is wrapped in `#ifndef VICTOR_HAVE_<name>`. Build, then add whichever
-macros the linker reports as multiply defined — faster than auditing up front.
+### Console: does anything shortcut to BIOS?
 
-### Console
+**No. Answered by disassembly, not by assumption.** Every interrupt instruction
+in `libdos-m.a` is `INT 21h` — 37 of them, no exceptions:
 
-From §2's rule, `read`/`write` on fds 0–2 must reach INT 21h AH=06h/07h/08h/0Bh
-and never BIOS. Verify what `libdos-m.a` does for the standard handles before
-assuming it is safe on Victor MS-DOS 3.1 — DOS handle I/O on `CON` is fine, but
-anything that shortcuts to INT 10h/16h is not.
+| Object | INT | Object | INT |
+|---|---|---|---|
+| `libdos-m.a` (all 24 objects that trap) | `21h` only | `libc.a` | **no interrupts at all** |
+| `dos-m-c0.o` (crt0) | `21h` ×2 | `libgcc.a` | none |
+
+No `INT 10h`, no `INT 16h`, no `INT 13h`, no `INT 14h`, no BIOS data area. The
+standard handles get no special treatment whatsoever: `_read_r` is a bare
+`AH=3Fh` and `_write_r` a bare `AH=40h`, with the fd passed straight through to
+DOS. **The one-binary-two-DOSes property of §2 holds at the library layer.**
+
+(An earlier scan appeared to find `int $0x0` and `int $0xfe` in `libc.a`. That
+was 32-bit misdecoding of 16-bit code — `objdump` defaults to `elf32-i386` for
+these objects. Under `-Mi8086` there are none. Pass `-Mi8086` when reading this
+toolchain's output.)
+
+There is a consequence, and it is the reason the `FIONREAD` section above
+exists. DOS handle I/O on `CON` is *cooked*: `AH=3Fh` line-edits and blocks
+until Enter. It cannot do the single-character raw read `coninc()` needs, nor
+any non-blocking poll. So "no BIOS" is necessary but not sufficient — the raw
+console path has to come from the character functions (`AH=06h`/`07h`/`08h`/
+`0Bh`), which is what `ioctl(0,FIONREAD)` now uses. **`coninc()`'s own
+`read(0,&ch,1)` is still cooked and is the next console work item** (milestone
+step 3); the fix is a `read()`/`write()` pair in `ckvictor.c` that intercepts
+fds 0–2 and delegates everything else to the library, which the linker resolves
+in our favour without touching upstream.
 
 ---
 
@@ -785,13 +1169,20 @@ Order of work:
 
 1. ~~**`<sys/termios.h>`.**~~ **Done** — `victor/sys/termios.h`. All 24 modules
    now compile clean and DGROUP measures 32,311 of 65,536 (49.3%).
-2. **Link `CKERMIT.EXE`** against `libdos-m.a` + `dos-m-c0.o` + `dos-mm.ld`,
-   with `opendir`/`readdir`/`closedir` and the four small stubs from §12. Clear
-   the guard-macro collisions as the linker reports them.
-3. **`C-Kermit>` prompt, on both DOSes.** Proves `ckucmd.c` + `coninc`/`conchk`
-   and, critically, proves the INT 21h-only console discipline holds on Victor
-   MS-DOS 3.1 as well as FreeDOS. No serial port involved. Watch the stack here
-   — `docmd()` is 1152 bytes.
+1a. ~~**`opendir`/`readdir`/`closedir`, the four small stubs, `ioctl`/`FIONREAD`,
+   and the guard-macro collisions.**~~ **Done** — all in `ckvictor.c`; still
+   24 objects, 0 warnings, DGROUP unchanged (§12, §14).
+2. ~~**Link `CKERMIT.EXE`.**~~ **Done** — 218KB, and it required `NOICP` plus
+   `-mnewlib-nano-stdio` to fit (§9c).
+3. ~~**A prompt, on FreeDOS.**~~ **Superseded and done differently.** There is
+   no `C-Kermit>` prompt — `NOICP` removed it (§9c). What was proven instead,
+   under MAME on FreeDOS for Victor: the binary loads, initialises, parses its
+   command line, prints correctly formatted output through an INT 21h-only
+   console path, finds a file, starts the protocol engine, and exits cleanly
+   (§16). **Not yet proven on Victor MS-DOS 3.1** — that is still the other
+   half of the dual-target claim and needs a 3.1 boot image.
+3a. **Fix wildcard expansion** (§15). `-s FILE` works; `-s *.COM` finds
+   nothing. Blocks any multi-file transfer.
 4. **7201 driver in `ckvictor.c`, polled, vector auto-detected.** `SET LINE` /
    `SET SPEED` / `SHOW COMMUNICATIONS`. Verify against a loopback plug before
    involving another machine.
@@ -818,20 +1209,56 @@ All 24 modules in §5 compile with **zero errors** at `-mcmodel=medium -Os`,
 reproduced end to end:
 
 ```
-$ make -f victor9k.mak            → 24 objects, 0 errors
-$ make -f victor9k.mak sizes
-  text = 302896   data = 11748   bss = 20563
-  STATIC DGROUP = 32311 of 65536 (49.3%)
-  remaining for heap + stack + libc: 33225
+$ make -f victor9k.mak            → 24 objects + CKERMIT.EXE (218KB), 0 errors
+  --- near data (DGROUP), from the linker, including libc ---
+    end of .bss = 52000 of 65536 (79%)
+    left for heap + stack = 13536
 ```
+
+**Trust the linker's figure, not `make sizes`.** The `sizes` target measures
+objects and files `.rodata` under "text"; the real near-data total is 79%, not
+49.3%, and libc adds ~26KB on top of the objects. See §9c — this mismeasurement
+is what hid the fact that the interactive command parser could never fit.
+
+Warnings: **26 lines, all pre-existing upstream** (20 of them one repeated
+`ckcfnp.h` complaint, the rest implicit declarations in code paths this port
+does not take). The 23 `MAXWS` redefinition warnings are gone. This session
+added none.
+
+**The makefile had no header dependencies** until now, so editing `ckvictor.h`
+— which is where the entire configuration lives — rebuilt nothing and `make`
+reported success over stale objects. That is fixed (`$(OBJS): $(CONFIG_H)`).
+It is mentioned because it briefly produced a false "0 warnings" reading here;
+**verify with `rm -f *.o` before trusting any build-wide count.**
 
 `ckutio.c` was the last holdout, blocked solely on `<sys/termios.h>`; supplying
 `victor/sys/termios.h` cleared it with no other change.
 
-One warning worth chasing before the packet sizing is trusted: **`MAXWS` is
-redefined.** `ckvictor.h` sets it to 8 and something downstream sets it again,
-which means one of the two values is not taking effect and `SBSIZ`/`RBSIZ`
-carving may not be what §9 assumes.
+DGROUP is **unchanged** after adding `opendir`/`readdir`/`closedir`, `ioctl`,
+`utime`, `sleep` and `creat`: all of it is code, which is far, and the new
+static data is zero. Text grew 685 bytes. The `CKMAXNAM` change moved nothing
+in DGROUP either — it is a stack lever, not a static-data one (§9).
+
+**`MAXWS` is resolved.** `ckvictor.h` set it to 8 and it never took effect:
+unlike `MAXSP` / `MAXRP` / `SBSIZ` / `RBSIZ`, which `ckcker.h` wraps in
+`#ifndef`, `ckcker.h` defines `MAXWS` **unconditionally**, so it always won.
+Measured by probe: **`MAXWS` is 32**; `SBSIZ`/`RBSIZ` are 4096 as intended and
+`MAXSP`/`MAXRP` 1024 as intended.
+
+The buffer arithmetic in §9 is therefore **intact** — under `DYNAMIC` the pools
+are the literal `SBSIZ`/`RBSIZ`, and only the non-`DYNAMIC` path derives them
+from `MAXWS`. What `MAXWS = 32` actually costs is ~736 bytes:
+
+| | at `MAXWS` 32 | at `MAXWS` 8 |
+|---|---:|---:|
+| static `sbufuse[]` + `rbufuse[]` | 128 B | 32 B |
+| heap `s_pkt` + `r_pkt` (14 B each) | 896 B | 224 B |
+
+and it buys nothing, because `dofast()` computes `wslotr = RBSIZ/MAXSP = 4`
+slots and the negotiated window can never exceed what a 4096-byte pool carves.
+The dead `#define` has been removed from `ckvictor.h` (which is what cleared the
+warning) and the real value documented there. **Reclaiming the 736 bytes needs
+a sixth guarded upstream edit — see §15; not done unilaterally.**
 
 Problems hit and resolved, in order:
 
@@ -846,16 +1273,289 @@ Problems hit and resolved, in order:
 | `ckutio.c` 80 × `struct sgttyb` | `-DPOSIX` selects termios |
 | `ckutio.c` `sys/termios.h` missing | supplied as `victor/sys/termios.h`, reached via `-Ivictor` (§12) |
 | `ckvictor.c` prototype conflicts | Rewrote stubs as ANSI matching newlib |
+| `MAXWS` redefined (warning) | `ckcker.h` defines it unguarded and always wins; removed the dead `#define` (above) |
+| `conchk()`/`ttchk()` constant 0 | `FIONREAD` undefined → SIGQUIT fallback. Supplied `victor/sys/ioctl.h` + `ioctl()` (§12) |
+| `traverse()` 1066-byte recursive frame | `CKMAXNAM` was 1024 via `FILENAME_MAX`; pinned to 16 → 98 bytes (§9) |
+| `opendir` etc. absent | Implemented over INT 21h `4Eh`/`4Fh`, one DTA per `DIR` (§12) |
+| `dup2`/`putenv`/`getpid` duplicate | Stubs removed; `libdos-m.a` has all three (§12) |
+
+Two things worth knowing about reading this toolchain, both of which cost time:
+
+- **`objdump` defaults to `elf32-i386`** for these objects and silently
+  misdecodes 16-bit code as 32-bit. Always pass `-Mi8086`.
+- **The 8088 has no `SETcc`** (386 and later). To get the carry flag out of an
+  inline-asm block use `sbb %0,%0` — 0 when clear, −1 when set. That is the
+  idiom `libdos-m.a` itself uses in `_write_r`.
+
+---
+
+## 16. It runs. First execution on an emulated Victor 9000
+
+`CKERMIT.EXE` links (218KB) and **runs on FreeDOS for Victor 9000 under MAME**.
+This is emulation, not hardware — but it is the Victor machine, the Victor
+FreeDOS, and the real binary.
+
+### Reproducing
+
+```sh
+# 1. build
+container exec -i ia16-ubuntu-2 bash -c \
+  "cd /mnt/projects/ckermit && make -f victor9k.mak"
+
+# 2. drop CKERMIT.EXE into the FreeDOS image.  The Victor's disk is NOT an
+#    MBR disk -- sector 0 is a 128-byte Victor label ("V9KSYS-"), and the
+#    FAT16 filesystem starts at byte 66048.  mtools handles it with an
+#    explicit offset:
+cp ~/projects/myfreedos/boot/victor/2026.07.17e_freedos_stage1.img k1.img
+printf 'drive c:\n file="%s/k1.img"\n offset=66048\n mtools_skip_check=1\n' "$PWD" > mtoolsrc
+MTOOLSRC=./mtoolsrc mcopy -o ckermit.exe c:/CKERMIT.EXE
+
+# 3. boot it, typing past FreeCom's date/time prompts
+cd ~/projects/mame && ./mame victor9k -rompath ~/projects/mame/roms \
+  -ramsize 896K -hard1 k1.img -window -skip_gameinfo \
+  -seconds_to_run 85 -snapshot_directory snaps -nomaximize \
+  -autoboot_delay 30 -autoboot_command "\n\nCKERMIT -h\n"
+# MAME writes a final frame to snaps/victor9k/0000.png
+```
+
+**Watch out for the emulated keyboard in `-autoboot_command`:** digits come
+through shifted. `V9KTEST.COM` was typed as `V(KTEST.COM`, which produced a
+convincing but entirely bogus "No files for -s". Prefer digit-free filenames
+in automated runs.
+
+### What works
+
+| | |
+|---|---|
+| Loads and relocates | MZ image, 2,989 relocations, medium-model far code |
+| `crt0`, DGROUP, `main()` | reaches C-Kermit's own initialisation |
+| Console output | via our `_write_r`, correctly formatted |
+| Command-line parser | `CKERMIT -h` prints usage; `argv[0]` picked up from the PSP |
+| Clean exit | returns to `A:\>` |
+| **File lookup and transfer start** | `CKERMIT -s CGATEST.COM` finds the file, opens it, starts the protocol, and then blocks in the serial layer — which is correct, because there is no driver yet (§11) |
+
+### What broke, and what it taught
+
+**1. `\n` went out as bare LF.** DOS handle writes are literal, so C-Kermit's
+output walked diagonally off the screen. `libdos-m.a`'s `_read_r`/`_write_r`
+are bare `AH=3Fh`/`AH=40h` with the fd passed straight to DOS — right for
+files, wrong for the console in both directions (handle reads on `CON` are
+also cooked, so `coninc()` would block for a whole line). Fixed by overriding
+`_read_r`/`_write_r` in `ckvictor.c` — the `_r` forms, not `read`/`write`,
+because newlib's stdio calls those directly and intercepting the public
+wrappers would catch `conol()` but miss every `printf()`.
+
+**2. `%ds` is a scratch register, and INT 21h reads DS:DX.** This one is worth
+remembering. In this memory model `SS == DS == DGROUP`, and ia16-gcc exploits
+it: locals and statics are addressed with an `%ss:` prefix, `%ds` is used as a
+general scratch register, and it is restored with `push %ss; pop %ds` only on
+return. So at any inline-asm site `%ds` may hold anything — in `_write_r` it
+held `0x4000`, a spilled copy of the `AH=40h` constant. DOS then wrote from
+`0x4000:DX`: **it returned success, the byte count was correct, and the screen
+filled with the wrong memory.** Every asm block that hands DOS a pointer now
+goes through the `DOS_DS_CALL` macro, which sets DS from SS around the
+interrupt (`POP` does not disturb the flags, so the carry test still works).
+
+**3. Do not get the carry flag with a second `"=r"` output.** `sbb %1,%1` looks
+natural, but on ia16 the `r` class **includes the segment registers** and gcc
+will allocate one. Each block now has exactly one output, in `%ax`, and turns
+CF into a value with a branch over a constant load.
+
+**4. `malloc` ran out, and said so.** `CKERMIT -s V9KTEST.COM` answered
+`fnlist: no memory for cmargbuf` — a 129-byte allocation failing. Two 4096-byte
+packet pools plus `s_pkt`/`r_pkt` had taken nearly all 13,536 bytes of the
+shared heap/stack space (§9c). `SBSIZ`/`RBSIZ` are 2048 each now, and the
+message is gone. **The heap is the tightest resource in this port** — tighter
+than static DGROUP, which still has 21% free.
+
+### Reading this toolchain's output
+
+- **`objdump` defaults to `elf32-i386`** and silently misdecodes 16-bit code
+  as 32-bit. Always pass `-Mi8086`. (An early scan "found" `int $0x0` and
+  `int $0xfe` in `libc.a` this way; under `-Mi8086` there are none.)
+- **The 8088 has no `SETcc`** — 386 and later only.
+
+---
+
+## 16a. Victor MS-DOS 3.1, and the first Kermit packet on a wire
+
+§16 ran the gcc build on **FreeDOS for Victor**. Everything below is on
+**Victor MS-DOS 3.1** — the OEM DOS, on `~/projects/mame/victor_kermit.img`
+— which is the better target for this: DOS does not touch the serial port
+on its own, and unlike the FreeDOS-for-Victor work in progress it is a
+stable, vendor-tested build. Two things that looked like C-Kermit defects
+under FreeDOS did not reproduce here, and at least one of them was FreeDOS's:
+its `%COMSPEC%` points at `C:` while the machine boots as `A:`, so any
+program large enough to overwrite FreeCom's transient part leaves the shell
+unable to reload its own message strings.
+
+**The Victor boots its hard disk as `A:`, not `C:`.** The image is not an
+MBR disk and has no BPB, so mtools cannot touch it; use `vtg_image_util`
+(`~/projects/vtg_image_util`, docs in
+`~/projects/Victor9000-Disk-Image-Tools/README.md`):
+
+```sh
+vtg_image_util list ~/projects/mame/victor_kermit.img          # partitions
+vtg_image_util copy ckermitw.exe ~/projects/mame/victor_kermit.img:0:\\CKERMITW.EXE
+vtg_image_util copy ~/projects/mame/victor_kermit.img:0:\\DEBUG.LOG ./debug.log
+```
+
+### The serial harness
+
+MAME's `-bitb socket` port is **single-use**: it is consumed by the first
+connection, so probing it before starting MAME burns it. Run `socat` first
+and let MAME be the only thing that connects.
+
+```sh
+socat -d -d TCP-LISTEN:8000,reuseaddr,fork pty,raw,echo=0,link=/tmp/v9000 &
+~/projects/mame/mame victor9k -rompath ~/projects/mame/roms -ramsize 896K \
+  -scsi:0 harddisk -hard1 ~/projects/mame/victor_kermit.img \
+  -rs232a null_modem -bitb socket.127.0.0.1:8000 \
+  -window -skip_gameinfo -seconds_to_run 120 -autoboot_delay 30 \
+  -autoboot_command "\n\nKTEST\n"
+```
+
+`fork` matters: each MAME run gets its own child and its own pty, so the
+listener survives across runs. `/tmp/v9000` only exists while MAME is
+connected. Put the commands in a `.BAT` file on the image and autoboot that
+— the emulated keyboard mangles characters (§16 notes digits; `CKERMITW -r`
+also arrived as `CKERIT_R`), and a batch file removes the keyboard entirely.
+
+### The Victor's serial port is a DOS device
+
+`CONFIG.SYS` on this image loads `porta.exe` and `portb.exe`, which is what
+makes `\dev\seriala` exist; `PORTSET A 9600 NONE 1 8` configures it. So there
+is a working OEM serial driver to aim at long before ours (§11) exists.
+
+**The device name has to be given as `/dev/seriala`, with forward slashes.**
+C-Kermit treats `\dev\seriala` as a *relative path*, prefixes the working
+directory and normalises the separators, and tries to open `A:\/dev/seriala`
+— "Permission denied / can't open device". Leading `/` makes it absolute,
+and MS-DOS accepts `/` as a separator.
+
+### What ran
+
+| | Open Watcom build | ia16-elf-gcc build |
+|---|---|---|
+| loads and relocates on MS-DOS 3.1 | yes | yes |
+| `-h` usage text, correct CRLF | yes | yes (§16) |
+| `argv[0]` from the PSP | `A:\CKERMITW.EXE` | `A:\CKERMITG.EXE` |
+| opens `/dev/seriala` at 9600 | yes | yes |
+| bytes put on the wire | **39** | **39, byte-identical** |
+| completes a transfer | no | no |
+| clean exit, device closed | yes | yes |
+
+The 39 bytes, captured off the socat pty, are a correct Kermit Send-Init:
+
+```
+k e r m i t   - i r \r 001 9 SP S z / SP @ - # Y 3 ~ ^ ! SP z 0 _ _ _ F " U 1 A F \r
+\_____________________/ \_/ ^ ^  ^  \_________________________________/ \___/
+  autoupload command    SOH LEN SEQ TYPE=S      S-packet parameters      check
+```
+
+`kermit -ir` is the command C-Kermit sends to start a receiver at the far
+end (`initproto()` in `ckcmai.c`); then SOH, a 25-byte length, sequence 0,
+and type `S` with the negotiation parameters. **The protocol engine, the
+file system, the command-line parser and the OEM serial path all work well
+enough to put a valid packet on a real wire at 9600 bps.**
+
+### Why the transfer does not complete
+
+Both builds send the S packet exactly **once** and then print "No files were
+transferred". That is not a Watcom defect — the two binaries emit the same
+39 bytes and fail identically, which is the strongest equivalence result
+this port has. It is the missing §11 work arriving from a new direction:
+
+- `alarm()` is a stub that never fires (§1 of `ckvictor.c`), so there is no
+  timeout to retry on;
+- our `ioctl(FIONREAD)` answers 0 for any descriptor that is not the console,
+  because there is no ring buffer to count — `ttchk()` therefore always says
+  "nothing waiting";
+- a DOS character-device read that has nothing to return comes back
+  immediately, which C-Kermit reads as end-of-file rather than as a timeout.
+
+A host-side C-Kermit receiver on the pty (`set line /tmp/v9000`,
+`set carrier-watch off`, `receive`) was tried both after and before the
+Victor's send, so that ACKs would already be buffered when it read. Neither
+changed the outcome, which is consistent with the read side never getting as
+far as looking.
+
+### The parser build does not load
+
+`CKERMICP.EXE` (the `KEEP_ICP` build, §9d) fails at load with FreeDOS's
+"Allocation of DOS memory failed." Measured rather than guessed — from the MZ
+headers, and from a 40-byte `.COM` that asks DOS via INT 21h `AH=4Ah` how
+large a block it can have:
+
+| | image | + minalloc | = needs |
+|---|---:|---:|---:|
+| gcc, serial-only | 206,464 | 33,280 | 239,744 (234K) |
+| Watcom, serial-only | 210,192 | 19,024 | 229,216 (224K) |
+| Watcom, + parser | 412,734 | 26,432 | **439,166 (429K)** |
+| largest block DOS offers | | | **396,224 (387K)** |
+
+42KB short. The machine was configured with `-ramsize 896K`; the kernel and
+shell take the rest. So the parser is not out of reach — but it needs either
+a leaner DOS or ~50KB trimmed from the image, and "it fits in DGROUP" was
+never the same claim as "it loads."
+
+---
+
+### DOSBox is not a usable second target
+
+Worth knowing, since the binary is INT 21h-only and ought to run anywhere.
+Under **DOSBox 0.74** every invocation aborts before producing output with
+`Exit to error: DOS:Illegal 0x33 Call FF` (INT 21h `AH=33h`, Ctrl-Break
+get/set). Plain `dir` works, so the harness is fine. This is an old DOS shim
+being strict, not evidence about Victor MS-DOS 3.1 — but it does mean the
+fast iteration loop has to be MAME at ~85s per run. DOSBox-X would be worth
+trying if a faster loop is wanted.
 
 ---
 
 ## 15. Open questions
 
-- Why is `MAXWS` redefined? Until that is understood, the packet-buffer
-  arithmetic in §9 is not fully trustworthy. (§14)
-- Does `libdos-m.a` route stdin/stdout/stderr through DOS handle I/O only, or
-  does it shortcut to BIOS anywhere? The §2 dual-target rule depends on the
-  former. (§12)
+**Closed since the last revision**
+
+- ~~Why is `MAXWS` redefined?~~ `ckcker.h` defines it unguarded, so it always
+  wins; the real value is 32. The §9 buffer arithmetic is unaffected. (§14)
+- ~~Does `libdos-m.a` shortcut to BIOS anywhere?~~ **No** — every interrupt in
+  the archive is INT 21h, and `libc.a` has none at all. (§12)
+
+**A decision that is yours, not mine**
+
+- **Should `ckcker.h`'s `MAXWS` be wrapped in `#ifndef` — a sixth guarded
+  upstream edit?** It would be a one-line change matching what that same file
+  already does for `MAXSP`, `MAXRP`, `SBSIZ` and `RBSIZ` four lines below, it
+  changes nothing on any other platform (no other build defines `MAXWS`), and
+  it reclaims ~736 bytes (§14). Hard rule 1 says to ask rather than do this
+  quietly, so it is not done. The alternative is to accept 32 and the 736
+  bytes, which is what the tree does today and is perfectly survivable at 49%
+  DGROUP.
+
+**Still open**
+
+- **Wildcard expansion returns nothing.** `CKERMIT -s *.COM` reports
+  "No files for -s" on a disk full of `.COM` files, while `-s CGATEST.COM`
+  finds its file and starts the protocol. So `opendir`/`readdir` are reached
+  by one path and not the other, or the scan runs and matches nothing. Not a
+  heap problem — it survives the `SBSIZ` fix. **This is the top item.** The
+  path to instrument is `nzxpand` → `zxpand` → `fgen` → `splitpath` →
+  `traverse` → `opendir("./")` in `ckufio.c`. `NODEBUG` is on, so there is no
+  `debug()` log; the cheapest instrument is a temporary `_write_r` trace of
+  the pattern string `opendir()` actually receives.
+- **The serial arm of `ioctl(fd,FIONREAD)` returns 0** and must be finished by
+  the 7201 driver from its RX ring count. Correct today (there is no port yet)
+  but on the critical path for milestone steps 8–9, because `ttchk()` is what
+  windowing and streaming read. (§12)
+- ~~**`coninc()` still does a cooked `read(0,&ch,1)`.**~~ Done — `_read_r`
+  now does raw `AH=07h` input with VMIN=1 semantics (§16). **Untested**: no
+  path in the current `NOICP` build reads the console, so this code has never
+  actually run. It will first matter for `-x` (server mode) interruption.
+- **Heap headroom is the binding constraint now, not static DGROUP.** 13,536
+  bytes shared between heap and stack, against 21% of DGROUP still free.
+  Anything that raises `SBSIZ`/`RBSIZ`/`MAXSP`/`MAXRP` must be checked against
+  a real run, not against `make sizes`. (§9c, §16)
 - Does the FreeDOS OEM byte (INT 21h AH=30h → BH) actually come back as `0xFD`
   on the Victor build? The whole dual-target vector detection rests on it. A
   fallback (`SET SERIAL-VECTOR` or a command-line switch) is cheap insurance.
@@ -863,8 +1563,11 @@ Problems hit and resolved, in order:
   If so, Kermit must quiesce it, not just save and restore the vector.
 - What does the µPD7201 interrupt-acknowledge sequence actually need? This is
   the one unproven hardware item (§10) and it gates 38400.
-- Real stack size in the DOS environment. The `traverse()` recursion (§9) makes
-  this matter more than it usually would.
+- Real stack size in the DOS environment — set it explicitly at link time
+  (step 2) rather than inheriting a default. Much less alarming than it was:
+  `traverse()` is 98 bytes/level now, not 1066 (§9), so the sizing is driven by
+  the deepest *non*-recursive chain instead. `docmd()` at 1152 and `zcopy()` at
+  1114 are the two largest frames.
 - `SET LINE` naming: `COM1`/`COM2` for channels A/B is the obvious choice and
   matches the FreeDOS convention, but Kermit is talking to the chip directly, so
   the names are ours to define.

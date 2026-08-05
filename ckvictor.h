@@ -1,12 +1,16 @@
 /*  C K V I C T O R . H  --  Build configuration for Victor 9000 / Sirius 1  */
 
 /*
-  Serial-only C-Kermit for the Victor 9000 (Sirius 1) under Victor MS-DOS,
-  built with ia16-elf-gcc against a newlib-based C runtime.
+  Serial-only C-Kermit for the Victor 9000 (Sirius 1) under Victor MS-DOS.
+  Two toolchains build it, from this one configuration:
+
+      ia16-elf-gcc + newlib   medium model, far code, ONE near 64K DGROUP
+      Open Watcom  wcc/wlink  large model, far code AND far data
 
   This header is force-included ahead of every source file:
 
       ia16-elf-gcc -mcmodel=medium -include ckvictor.h ...
+      wcc -ml -fi=ckvictor.h ...
 
   Nothing else in the tree includes it, so it cannot affect any other
   platform.  It exists because the feature set is expressed as ~40 -D
@@ -15,13 +19,16 @@
   TARGET MODEL
     CPU            8088, real mode, 16-bit
     int            16 bits          long   32 bits
-    code           far  (medium model, multiple code segments, up to 1MB)
-    data           NEAR ONLY -- ia16-elf-gcc has no compact/large/huge model,
-                   so .data + .bss + heap + stack must all fit one 64K DGROUP.
+    code           far, multiple code segments, up to 1MB, in both models
+    data           NEAR ONLY under ia16-elf-gcc, which has no compact/large/
+                   huge model: .data + .bss + heap + stack all share one 64K
+                   DGROUP.  Under Open Watcom's large model, string literals
+                   go to far code (-zc) and malloc() is the far heap.
 
-  The 64K data group is the binding constraint for this port.  Every size
-  choice below exists to keep DGROUP occupancy down.  Do not raise these
-  numbers without re-measuring; see PORTING.md for the current budget.
+  The 64K data group is the binding constraint for this port -- absolutely
+  under gcc, and still worth watching under Watcom.  Every size choice below
+  exists to keep DGROUP occupancy down, and the numbers were measured on the
+  gcc build.  Do not raise them without re-measuring; see PORTING.md SS9/SS9d.
 */
 
 #ifndef CKVICTOR_H
@@ -47,10 +54,163 @@
 #define VICTOR9K
 #endif
 
-/* newlib already provides sig_t; suppress C-Kermit's own typedef. */
+/* newlib already provides sig_t; suppress C-Kermit's own typedef.
+   Open Watcom does not, so there C-Kermit's own typedef is the one we
+   want -- see the Open Watcom section below. */
+#ifndef __WATCOMC__
 #ifndef CK_NO_SIG_T
 #define CK_NO_SIG_T
-#endif
+#endif /* CK_NO_SIG_T */
+#endif /* __WATCOMC__ */
+
+/* ------------------------------------------------------------------ */
+/* Open Watcom                                                          */
+/* ------------------------------------------------------------------ */
+/*
+  Everything from here to the end of this section is inert under
+  ia16-elf-gcc.  It exists because the port is built by two toolchains:
+
+    ia16-elf-gcc + newlib   medium model, ONE near 64K DGROUP  (victor9k.mak)
+    Open Watcom  wcc/wlink  large model, far code AND far data (victorow.mak)
+
+  The Watcom experiment is about the constraint documented at NOICP below:
+  under gcc every string literal is near, DGROUP overflows, and the
+  interactive command parser had to be cut.  Watcom has a real large model,
+  so this section is the price of finding out whether that buys the parser
+  back.
+
+  Most of what follows is header surgery.  ckvictor.h is force-included
+  ahead of every module, so including a system header HERE and adjusting
+  what it defined is the only place where the adjustment sticks: by the
+  time ckufio.c gets to its own #include, the include guard has already
+  fired and our edits are what it sees.  No upstream file is touched.
+*/
+#ifdef __WATCOMC__
+
+/*
+  There is no <sys/param.h>.  NO_PARAM_H is ckcdeb.h's own knob for saying
+  so (ckcdeb.h ~6350), so this costs nothing but the define.
+*/
+#ifndef NO_PARAM_H
+#define NO_PARAM_H
+#endif /* NO_PARAM_H */
+
+/*
+  Signals MS-DOS does not have.  Watcom's <signal.h> stops at SIGIOVFL
+  (12); these three are referenced by name in ckutio.c and ckusig.c on
+  paths that this configuration disables (NOJC, NOCCTRAP) or that degrade
+  safely.  newlib declares all three, which is why the gcc build compiles
+  without them being spelled out anywhere.
+
+  Values are ours to choose and are kept above Watcom's highest.  signal()
+  will reject them with SIG_ERR, and alarm() (stubbed in ckvictor.c) never
+  fires; that is the same situation as under newlib, where alarm() is a
+  stub too.  Protocol timeouts do not depend on either -- they come from
+  C-Kermit's own timer via ztime()/rtimer().
+*/
+#include <signal.h>
+#ifndef SIGHUP
+#define SIGHUP  20                      /* Hangup                       */
+#endif /* SIGHUP */
+#ifndef SIGQUIT
+#define SIGQUIT 21                      /* Quit                         */
+#endif /* SIGQUIT */
+#ifndef SIGALRM
+#define SIGALRM 22                      /* Alarm clock                  */
+#endif /* SIGALRM */
+
+/*
+  Watcom defines S_IFBLK, S_IFLNK and S_IFSOCK as 0 -- honestly, since FAT
+  has no block devices, symlinks or sockets.  But ziperm() in ckufio.c
+  builds an "ls -l" type character with
+
+      switch (mode & S_IFMT) { ... case S_IFBLK: ... case S_IFLNK: ... }
+
+  and three cases with the value 0 is a hard error (E1039), not a warning.
+  The #ifdef guards upstream wraps S_IFLNK and S_IFSOCK in do not help,
+  because both ARE defined -- just to zero.
+
+  So: undefine the two that upstream tests for, and give S_IFBLK a value no
+  st_mode can ever hold.  Nothing on this platform ever produces any of the
+  three, so no behaviour changes; only the switch stops colliding.
+
+  S_ISLNK()/S_ISSOCK() go with them.  They are written in terms of the
+  macros being removed, and ckufio.c tests for the S_IS* spelling first
+  (zgetfs(), isdir()) -- so leaving them behind would just move the error
+  from "duplicate case" to "S_IFLNK has not been declared".  On a FAT
+  filesystem the honest answer to "is this a symlink" is no, and with the
+  macro gone that is the branch upstream takes.
+
+  <fcntl.h> is pulled in alongside <sys/stat.h> because it defines the
+  same three macros a second time; adjusting them before both guards have
+  fired only makes the second header put them back.
+*/
+#include <sys/stat.h>
+#include <fcntl.h>
+#undef S_IFLNK
+#undef S_IFSOCK
+#undef S_ISLNK
+#undef S_ISSOCK
+#undef S_IFBLK
+#define S_IFBLK 0x3000                  /* Unused S_IFMT value on DOS   */
+
+/*
+  nl_langinfo() and <langinfo.h>.  Watcom has neither; newlib has both,
+  which is why ckutio.c's locale_dayname() compiles under gcc.  This is
+  ckcdeb.h's own knob for saying so (ckcdeb.h ~7000), and the function it
+  removes is only reachable from the date parser's locale path.
+*/
+#ifndef NO_NL_LANGINFO
+#define NO_NL_LANGINFO
+#endif /* NO_NL_LANGINFO */
+
+/*
+  The Unix surface Watcom does not declare -- the process model, the one
+  terminal, and gettimeofday() for the floating-point transfer timers.
+  newlib declares all of it and defines none of it; ckvictor.c defines it
+  for both toolchains.  These two headers are the declarations Watcom is
+  missing, and being force-included means ckvictor.c is checked against
+  them too.  See victorow/ckowsys.h.
+*/
+#include <ckowsys.h>
+#include <sys/time.h>
+
+/*
+  ckufio.c declares "extern long timezone;" (~line 214).  Watcom's <time.h>
+  declares it as "extern long __near timezone", and in the large model a
+  bare declaration means __far, so the two disagree (E1057).  ckufio.c
+  never READS the variable in this configuration -- the SVORPOSIX branch of
+  zstrdt() calls tzset() and nothing else -- so the cheapest correct fix is
+  to point the name at a variable of our own, defined in ckvictor.c.  The
+  library's timezone is left exactly as it is.
+*/
+#include <time.h>
+#define timezone v9k_timezone
+extern long v9k_timezone;
+
+/*
+  Watcom's mkdir() takes one argument; the Unix one takes two.  A
+  function-like macro whose expansion names the same function is not
+  re-expanded, so this rewrites the call and nothing else -- no wrapper,
+  no rename, and zmkdir() keeps working.
+*/
+#include <direct.h>
+#define mkdir(path,mode) mkdir(path)
+
+/*
+  The Watcom DOS runtime supplies these itself, so the stubs of the same
+  name in ckvictor.c must not be compiled.  Each guard is the one that file
+  already uses to let a real library win.  (opendir/readdir/closedir are in
+  the same position, but they are a whole section rather than one stub;
+  ckvictor.c switches those on __WATCOMC__ directly.)
+*/
+#define VICTOR_HAVE_EXEC                /* execl/execvp, <unistd.h>     */
+#define VICTOR_HAVE_SLEEP               /* sleep(), <unistd.h>          */
+#define VICTOR_HAVE_CREAT               /* creat(), <io.h>              */
+#define VICTOR_HAVE_UTIME               /* utime(), <utime.h>           */
+#define VICTOR_HAVE_UMASK               /* umask(), <io.h>              */
+
+#endif /* __WATCOMC__ */
 
 /* ------------------------------------------------------------------ */
 /* Size limits -- the 64K DGROUP budget                                 */
@@ -72,6 +232,58 @@
 #define RQ_MAXTOK 16
 
 /*
+  CKMAXNAM is the longest single filename SEGMENT (not path).  This is the
+  most valuable size lever in the whole file, and it is a STACK lever, not
+  a DGROUP one.
+
+  Left to itself it does not come out at anything sane here.  ckcdeb.h sets
+  CKMAXNAM from MAXNAMLEN, but ckcdeb.h is parsed before <dirent.h>, so
+  MAXNAMLEN is not yet defined and it falls through to FILENAME_MAX --
+  which newlib puts at 1024.  traverse() in ckufio.c then declares
+
+      char nambuf[CKMAXNAM+4];
+
+  as an AUTOMATIC, and traverse() is the recursive directory walk that holds
+  one frame per directory level.  Measured with -fstack-usage:
+
+      CKMAXNAM 1024 (default)   traverse = 1066 bytes/level
+      CKMAXNAM 16               traverse =   98 bytes/level
+
+  A depth-8 walk therefore costs 784 bytes of stack instead of 8528.  On a
+  target whose entire stack shares one 64K DGROUP that is the difference
+  between working and not.  This is the same class of hazard as SCANFILEBUF.
+
+  16 is chosen against FAT 8.3: the longest legal name is 12 characters
+  ("12345678.123"), so 16 leaves room and keeps the buffer even-sized.  This
+  port does not do long filenames -- readdir() below returns what DOS
+  FindFirst puts in the DTA, which is 8.3 and nothing else.
+*/
+#define CKMAXNAM 16
+
+/*
+  MAXNAMLEN sizes d_name[] inside struct dirent, and struct dirent doubles
+  as the DOS Disk Transfer Area for our opendir()/readdir() (ckvictor.c).
+  newlib's <sys/dirent.h> defaults it to 259 in anticipation of long-filename
+  support that does not exist, making struct dirent 290 bytes.  DOS FindFirst
+  writes exactly 13 bytes of name, so 12 is the honest value and makes the
+  struct 43 bytes -- which is precisely the size of a DOS DTA.
+
+  traverse() holds one open DIR per directory level, so this is 43 bytes per
+  level of heap rather than 290.
+*/
+#ifndef MAXNAMLEN
+#define MAXNAMLEN 12
+#endif
+
+/*
+  FIONREAD, and the ioctl() prototype that goes with it.  ckutio.c cannot
+  include this itself -- under -DPOSIX it defines NOSYSIOCTLH and skips the
+  include -- and without FIONREAD both conchk() and ttchk() are hard-wired
+  to return 0.  See victor/sys/ioctl.h, which explains the whole problem.
+*/
+#include <sys/ioctl.h>
+
+/*
   Packet buffers.  With DYNAMIC these are malloc'd from the near heap, so
   they compete directly with everything else in DGROUP.
 
@@ -79,15 +291,63 @@
     (window slots) x (negotiated packet length).
 
   9024/9050 (the DYNAMIC default) would take 18K of a 64K data group for
-  packet buffers alone.  4096 each still allows, for example, a 4-slot
-  window of 1000-byte long packets, which is far more throughput than a
-  38400 bps line needs.  Raise later if measurement says there is room.
+  packet buffers alone.
+
+  These were 4096 each, and that did not survive contact with a real link.
+  The heap is not a free-standing resource: it grows UP from the end of
+  .bss while the stack grows DOWN from the top of the same 64K, and after
+  the linker was done there were only 13,536 bytes for the two of them
+  together (SS14).  Two 4096-byte pools plus s_pkt/r_pkt took essentially
+  all of it, and C-Kermit said so on the Victor, in as many words:
+
+      A:\>CKERMIT -s V9KTEST.COM
+      fnlist: no memory for cmargbuf
+
+  -- a malloc of CKMAXPATH+1, i.e. 129 bytes, failing outright.  The same
+  exhaustion is why "-s *.COM" silently reported "No files": the expansion
+  allocates too, and gets nothing.
+
+  2048 each still carves, for example, a 2-slot window of 1024-byte long
+  packets, which is more than a 38400 bps line needs, and the milestone
+  (SS13 step 5) runs short packets with window 1 anyway.  Raise only with
+  the linker's __heap_end_minimum figure in hand, not by eye.
 */
 #define MAXSP 1024                      /* Max long packet, send    */
 #define MAXRP 1024                      /* Max long packet, receive */
-#define MAXWS 8                         /* Sliding window slots     */
-#define SBSIZ 4096                      /* Send buffer pool         */
-#define RBSIZ 4096                      /* Receive buffer pool      */
+#define SBSIZ 2048                      /* Send buffer pool         */
+#define RBSIZ 2048                      /* Receive buffer pool      */
+
+/*
+  MAXWS is deliberately NOT set here.  It used to be, at 8, and it never
+  took effect: unlike MAXSP / MAXRP / SBSIZ / RBSIZ, which ckcker.h wraps in
+  #ifndef, ckcker.h defines MAXWS unconditionally --
+
+      #ifdef pdp11
+      #define MAXWS  8
+      #else
+      #define MAXWS 32
+      #endif
+
+  -- so ckcker.h always wins and the compiler warns about the redefinition.
+  Measured: MAXWS is 32.  Setting it here only produced a warning and a
+  false entry in the memory budget.
+
+  The good news is that this does NOT disturb the buffer arithmetic.  Under
+  DYNAMIC the pools are the literal SBSIZ/RBSIZ above; only the non-DYNAMIC
+  path derives them as MAXSP*(MAXWS+1).  What MAXWS = 32 instead of 8 really
+  costs is:
+
+      static  sbufuse[32] + rbufuse[32]      128 bytes (was 64 at MAXWS 8)
+      heap    s_pkt + r_pkt, 14 bytes each   896 bytes (was 224)
+
+  about 736 bytes more than the port needs, since dofast() computes
+  wslotr = RBSIZ/MAXSP = 4 slots and the negotiated window can never exceed
+  what the 4096-byte pool can carve.
+
+  Reclaiming it means wrapping ckcker.h's MAXWS in #ifndef -- a sixth
+  guarded upstream edit, and one that matches what that file already does
+  for its four neighbours.  Not done unilaterally; see PORTING.md SS15.
+*/
 
 /* Do NOT define BIGBUFOK: it asks for 290000-byte buffers. */
 
@@ -176,7 +436,19 @@
   NODEBUG is worth a lot: debug() calls are threaded through every module
   and each one costs code plus format strings in DGROUP.
 */
+/*
+  KEEP_DEBUG turns the debug log back on for a diagnostic build, the same
+  way KEEP_ICP turns the command parser back on:
+
+      make -f victorow.mak XFLAGS=-dKEEP_DEBUG
+      CKERMITD -d -s FOO.BIN          (writes ./debug.log on the target)
+
+  Never defined by either makefile.  Worth the DGROUP under Watcom, where
+  -zc puts the format strings in far code; under gcc it is expensive.
+*/
+#ifndef KEEP_DEBUG
 #define NODEBUG                         /* No debug log               */
+#endif /* KEEP_DEBUG */
 #define NOTLOG                          /* No transaction log         */
 #define NOSYSLOG                        /* No syslog                  */
 #define NOCURSES                        /* No curses fullscreen       */
@@ -193,10 +465,60 @@
 #define NOWTMP                          /* No wtmp accounting         */
 #define NOPARSEN                        /* No network directory parse */
 
+/* ------------------------------------------------------------------ */
+/* The interactive command parser -- OFF, and this one hurts            */
+/* ------------------------------------------------------------------ */
+/*
+  NOICP removes the "C-Kermit>" prompt.  It was the one thing this port
+  most wanted to keep, and it is off because the program does not fit
+  without it.  This is measured, not estimated:
+
+                          .rodata   .data    .bss     near total
+      with the parser      66,578  11,748  20,563        98,889
+      NOICP                22,530   3,930  13,785        40,245
+                                                 DGROUP =  65,536
+
+  The trap is that .rodata -- every string literal in the program -- lives
+  in DGROUP.  ia16-elf-gcc offers only tiny/small/medium models; there is
+  no compact, large or huge model, so a "char *" is always a 16-bit near
+  pointer and the string it points at must be inside the one 64K data
+  group.  The only far-data mechanism is an explicit __far qualifier on
+  each object, which would mean editing upstream source everywhere.
+
+  The command parser's tables and messages are 43KB of that .rodata,
+  concentrated in ckuus3-7.  Nothing short of removing them fits, and
+  --gc-sections does not help: everything is reachable from the tables.
+
+  What survives is exactly the milestone that matters -- the protocol
+  engine, the file system, and the command-LINE parser in ckuusy.c, which
+  is what actually moves a file:
+
+      CKERMIT -l COM1 -b 9600 -s FOO.BIN      send
+      CKERMIT -l COM1 -b 9600 -r              receive
+      CKERMIT -l COM1 -b 9600 -x              server
+
+  See PORTING.md SS9c.  Four symbols owned by the removed modules are
+  still referenced by code that survives; they are stubbed in ckvictor.c.
+*/
+/*
+  KEEP_ICP is the switch for re-testing that measurement.  It is never
+  defined by either makefile; it exists so the experiment can be repeated
+  with one -D and without editing this file:
+
+      make -f victorow.mak clean
+      make -f victorow.mak XFLAGS=-dKEEP_ICP sizes
+
+  Under ia16-elf-gcc the answer is still no, for the reason above.  Under
+  Open Watcom's large model the string literals are in far code segments
+  and the answer is different; see PORTING.md.
+*/
+#ifndef KEEP_ICP
+#define NOICP                           /* No "C-Kermit>" prompt      */
+#endif /* KEEP_ICP */
+
 /*
   Deliberately NOT defined -- these are the features being ported:
 
-    NOICP     interactive command parser  ("C-Kermit>" prompt)
     NOXFER    file transfer               (SEND / RECEIVE / GET)
     NOSERVER  server mode                 (SERVER)
     NOLOCAL   local mode / SET LINE       (needed to own a serial port)
