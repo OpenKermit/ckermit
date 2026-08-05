@@ -31,6 +31,16 @@
   defined -- that is faster than auditing the library up front.
 */
 
+/*
+  ckvictor.h is force-included ahead of this line by both makefiles, and it
+  renames read() to v9k_read() for the whole build.  This file is where
+  v9k_read() lives and is the one place that still has to reach the real
+  one, so the rename is undone here -- before any header is pulled in, so
+  that <unistd.h> / <io.h> declare read() rather than redeclaring ours.
+  See ckvictor.h and section 0d.
+*/
+#undef read
+
 #include "ckcdeb.h"
 #include "ckcker.h"
 
@@ -50,6 +60,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include <utime.h>
+#include <signal.h>                     /* Section 0d's alarm           */
 #include <sys/ioctl.h>
 #include <sys/termios.h>
 #ifndef __WATCOMC__
@@ -572,27 +583,45 @@ _read_r(r,fd,buf,n) struct _reent * r; int fd; void * buf; size_t n;
 #endif /* __WATCOMC__ -- end of sections 0, 0a and 0c */
 
 /* ------------------------------------------------------------------ */
-/* 0b. ioctl -- FIONREAD only                                           */
+/* 0b. Device input status, and ioctl -- FIONREAD only                  */
 /* ------------------------------------------------------------------ */
 
 /*
-  The one ioctl this port implements, and the reason victor/sys/ioctl.h
-  exists.  in_chk() in ckutio.c calls ioctl(fd,FIONREAD,&n) and is the
-  whole of conchk() and ttchk(); see that header for why the alternative
-  was a SIGQUIT handler that cannot work on MS-DOS.
+  Two polls, one for each kind of device, and then the one ioctl this port
+  implements -- the reason victor/sys/ioctl.h exists.  in_chk() in ckutio.c
+  calls ioctl(fd,FIONREAD,&n) and is the whole of conchk() and ttchk(); see
+  that header for why the alternative was a SIGQUIT handler that cannot
+  work on MS-DOS.
 
   Console: INT 21h AH=0Bh returns AL=0xFF if a character is waiting at
-  standard input and AL=0x00 if not.  It answers "whether", not "how
-  many", so this reports at most 1 -- which is what a keyboard poll can
-  honestly say, and is enough for conchk(), whose callers test it against
-  zero.
+  standard input and AL=0x00 if not.
 
-  Serial: belongs to the uPD7201 driver (PORTING.md SS11), which will
-  answer from its RX ring buffer -- there the count is real and matters,
-  because ttchk() feeds the sliding-window and streaming logic.  Until
-  that driver exists there is no serial port to have bytes waiting on,
-  so 0 is not a placeholder here, it is the correct answer.
+  Anything else: INT 21h AX=4406h (IOCTL, get input status) with the handle
+  in BX, which answers the same question for any character device.  This is
+  what makes the read in section 0d block, and it is the honest answer for
+  the communications device in place of the flat 0 that stood here before.
+
+  Both answer "whether", not "how many", so FIONREAD reports at most 1.
+  That is what a poll of either device can honestly say, and it is enough
+  for conchk(), whose callers test it against zero.  It is NOT enough for
+  ttchk()'s other caller: sdata() in ckcfns.c only slides its window when
+  ttchk() exceeds 4+bctu, so a 0/1 answer means this port fills a window
+  before reading ACKs.  Upstream has been through this before -- see the
+  GEMDOS arm of that same test, and ckcfn2.c's note that the count is only
+  a hint -- so it costs throughput and nothing else.  The real count needs
+  the uPD7201 driver's RX ring (PORTING.md SS11).
+
+  There is a second reason ttchk() still answers 0 on the communications
+  device today, upstream of anything here: in_chk() asks ttgmdm() for
+  carrier first, and with CARRIER-WATCH left at its default of AUTO and no
+  TIOCMGET on this platform, ttgmdm() returns -3 and in_chk() returns 0
+  without ever reaching FIONREAD.  So the code below is correct and
+  currently unreachable for fd == ttyfd.  Both halves belong to SS11.
 */
+
+/* AH=44h is IOCTL; AL=06h is "get input status".  Both builds need it, so
+   unlike DOS_CHK_STDIN it is spelled out here rather than per-toolchain. */
+#define DOS_IOCTL_INSTAT 0x4406
 
 #ifdef __WATCOMC__
 /*
@@ -610,6 +639,23 @@ dos_stdin_ready() {
     intdos(&r,&r);
     return((r.h.al) ? 1 : 0);
 }
+
+static int
+#ifdef CK_ANSIC
+dos_dev_input_ready(int fd)
+#else
+dos_dev_input_ready(fd) int fd;
+#endif /* CK_ANSIC */
+{
+    union REGS r;
+
+    r.w.ax = DOS_IOCTL_INSTAT;
+    r.w.bx = (unsigned int)fd;
+    intdos(&r,&r);
+    if (r.w.cflag)                      /* See the gcc arm below for why */
+      return(1);                        /* an error means "say ready"    */
+    return((r.h.al) ? 1 : 0);
+}
 #else /* __WATCOMC__ */
 static int
 dos_stdin_ready() {
@@ -618,6 +664,36 @@ dos_stdin_ready() {
     __asm__ __volatile__ ("int $0x21"
                           : "=a" (ax)
                           : "0" ((unsigned int)(DOS_CHK_STDIN << 8))
+                          : "cc");
+    return((ax & 0xff) ? 1 : 0);
+}
+
+/*
+  Neither of these passes DOS a pointer, so both use the plain "int $0x21"
+  rather than DOS_DS_CALL -- see the note on DS at the top of section 0.
+
+  A carry return means DOS would not answer the question (bad handle, or a
+  driver that does not implement the subfunction).  Reporting "ready" in
+  that case is deliberate: the caller in section 0d responds by attempting
+  the read, so a device whose status we cannot ask about degrades to being
+  polled by read() itself instead of being waited on forever.
+*/
+static int
+#ifdef CK_ANSIC
+dos_dev_input_ready(int fd)
+#else
+dos_dev_input_ready(fd) int fd;
+#endif /* CK_ANSIC */
+{
+    unsigned int ax;
+
+    __asm__ __volatile__ ("int $0x21\n\t"
+                          "jnc 1f\n\t"
+                          "mov $0x00ff,%%ax\n"
+                          "1:"
+                          : "=a" (ax)
+                          : "0" ((unsigned int)DOS_IOCTL_INSTAT),
+                            "b" ((unsigned int)fd)
                           : "cc");
     return((ax & 0xff) ? 1 : 0);
 }
@@ -657,12 +733,158 @@ ioctl(int fd, int request, ...) {
 
     if (!countp) { errno = EFAULT; return(-1); }
 
-    if (fd == 0)                        /* Console                      */
+    if (fd == 0)                        /* Console: AH=0Bh              */
       *countp = dos_stdin_ready();
-    else                                /* Serial: driver's job (SS11)  */
-      *countp = 0;
+    else                                /* Any other device: AX=4406h   */
+      *countp = dos_dev_input_ready(fd);
 
     return(0);
+}
+
+/* ------------------------------------------------------------------ */
+/* 0d. Making read() block on the communications device                 */
+/* ------------------------------------------------------------------ */
+
+/*
+  ckutio.c's myfillbuf() says what it needs, in its own comment:
+
+      "The new myread()/mygetbuf() always gets something.  If it doesn't,
+       then make it do so!"
+
+  On Unix that is what a raw tty read does (VMIN=1, VTIME=0).  On MS-DOS a
+  handle read of a character device with nothing pending returns 0 at once;
+  myfillbuf() turns that into -3, mygetbuf() reports a dead line, and
+  ttinl() closes the connection.  Measured symptom before this section
+  existed: exactly one Send-Init packet on the wire and then "No files were
+  transferred" (PORTING.md SS16a), on both builds, identically.
+
+  ckutio.c is stock upstream, so the blocking has to happen underneath it.
+  ckvictor.h renames read() to v9k_read() for every module in the build,
+  and this is that function.  Everything that is not the communications
+  device goes straight through to the library's read(), so section 0c's
+  console handling under gcc and Watcom's text-mode translation are both
+  left exactly as they were -- which is the reason for renaming rather than
+  defining read() over the top of either library's.
+*/
+
+extern int ttyfd;                       /* ckutio.c's serial descriptor */
+
+/*
+  alarm() was a stub that returned 0 and never fired, on the reasoning that
+  this port's timeouts come from C-Kermit's own protocol timer.  That is
+  not true of the timeout that matters here.  ttinl() -- the packet reader
+  -- arms alarm(timo) around a setjmp and expects SIGALRM to longjmp out of
+  the read; that longjmp IS its timeout return of -1.  With alarm() dead
+  there are only two ways out of a read that never completes, and ttinl()
+  treats neither as a timeout: it closes the connection on a -3 whose errno
+  is not EINTR, and it retries forever on one whose errno is EINTR.  So no
+  packet would ever be retransmitted, and a link that dropped mid-transfer
+  would hang instead of recovering.
+
+  MS-DOS has no interval timer this port is allowed to use -- hooking INT
+  1Ch is not INT 21h (hard rule 6) -- but it does not need one.  The only
+  place this program can block is the poll below, so the alarm only has to
+  be looked at there: record a deadline in alarm(), test it in the poll,
+  and when it has passed, call the SIGALRM handler synchronously.  timerh()
+  longjmps and ttinl() returns -1, exactly as on Unix.
+
+  Resolution is whole seconds because time() is what both runtimes agree
+  on, and because alarm()'s own argument is in seconds.  A deadline of
+  time()+n therefore fires somewhere between n and n+1 seconds, never
+  early; Kermit's timeouts are 5-10 seconds, so the jitter is noise.
+*/
+static time_t v9k_alarm_at = (time_t)0; /* time() value it expires at   */
+static int    v9k_alarm_on = 0;         /* Whether one is armed at all  */
+
+/*
+  Read the installed SIGALRM handler back by installing SIG_IGN and putting
+  straight back whatever that returned.  Calling nothing unless a real
+  function is there is the point of the exercise: with SIG_DFL installed,
+  the default action for an unhandled signal is to terminate the program on
+  some runtimes, and this one has to be able to time out harmlessly when
+  nobody is listening.
+
+  Returns 1 if the alarm has expired, 0 if it has not (or is not armed).
+  If a handler was installed it does not return at all -- timerh() longjmps
+  past us into ttinl().
+*/
+static int
+v9k_alarm_check() {
+    sig_t h;                            /* ckcdeb.h's, as ckutio.c uses */
+
+    if (!v9k_alarm_on)                  /* alarm(0), or never armed --  */
+      return(0);                        /* ttinl(timo=0): no timeout    */
+    if (time((time_t *)0) < v9k_alarm_at)
+      return(0);
+
+    v9k_alarm_on = 0;                   /* One shot, as alarm(2) is     */
+    h = signal(SIGALRM,SIG_IGN);        /* Peek ...                     */
+    if (h == SIG_ERR)                   /* ... signal() refused the     */
+      return(1);                        /* number: nothing was changed  */
+    signal(SIGALRM,h);                  /* ... otherwise put it back    */
+    if (h != SIG_DFL && h != SIG_IGN)
+      (*h)(SIGALRM);                    /* timerh(): does not return    */
+    return(1);
+}
+
+/*
+  The wait itself.  Poll for input status, and read only once DOS says
+  there is something to read -- a read issued blind is what returns 0 and
+  starts the whole failure off.
+
+  A read that comes back with 0 anyway is not treated as EOF: the poll
+  either raced or the device does not implement the status subfunction (see
+  dos_dev_input_ready), and in both cases the right answer is to keep
+  waiting.  A serial line has no EOF to report, so the only honest ways out
+  of this loop are bytes, a hard error, or the alarm.
+*/
+static int
+#ifdef CK_ANSIC
+v9k_comm_read(int fd, void * buf, unsigned int n)
+#else
+v9k_comm_read(fd,buf,n) int fd; void * buf; unsigned int n;
+#endif /* CK_ANSIC */
+{
+    int rc;
+
+    for (;;) {
+        if (dos_dev_input_ready(fd)) {
+            rc = (int)read(fd,buf,n);   /* Undef'd above: the real one  */
+            if (rc != 0)                /* Bytes, or a genuine error    */
+              return(rc);
+        }
+        if (v9k_alarm_check()) {
+            /*
+              Only reached when the alarm expired with no handler to run.
+              EINTR is the case mygetbuf() and ttinl() already document, so
+              the caller retries -- and the retry blocks again rather than
+              spinning, because the alarm cleared itself above.
+            */
+            errno = EINTR;
+            return(-1);
+        }
+    }
+}
+
+/* Declared here rather than in ckvictor.h: everywhere else in the build the
+   rename makes <unistd.h> / <io.h> declare it, and their spelling is the
+   one it has to agree with. */
+_PROTOTYP( V9K_RTYPE v9k_read, (int, void *, V9K_RCOUNT) );
+
+V9K_RTYPE
+#ifdef CK_ANSIC
+v9k_read(int fd, void * buf, V9K_RCOUNT n)
+#else
+v9k_read(fd,buf,n) int fd; void * buf; V9K_RCOUNT n;
+#endif /* CK_ANSIC */
+{
+    /*
+      fd > 2 as well as fd == ttyfd because ttopen() sets ttyfd to 0 in
+      remote mode, where the "line" is the console and section 0c owns it.
+    */
+    if (fd > 2 && fd == ttyfd)
+      return((V9K_RTYPE)v9k_comm_read(fd,buf,(unsigned int)n));
+    return(read(fd,buf,n));
 }
 
 /* ------------------------------------------------------------------ */
@@ -809,13 +1031,40 @@ ctermid(char * s) {
 #endif
 
 /*
-  alarm()/sysconf(): no interval timers, no runtime configuration query.
-  C-Kermit's timeouts on this platform come from the protocol layer's own
-  timer, driven by the Victor tick counter (see ztime()/rtimer()).
+  alarm().  Records a deadline for section 0d to notice; there is no
+  interval timer behind it, and section 0d explains why there does not need
+  to be.  The return value is the time left on any previous alarm, which
+  ttinc() uses to restore an outer timeout after an inner one.
 */
 #ifndef VICTOR_HAVE_ALARM
-unsigned alarm(unsigned secs) { return(0); }
+unsigned
+#ifdef CK_ANSIC
+alarm(unsigned secs)
+#else
+alarm(secs) unsigned secs;
+#endif /* CK_ANSIC */
+{
+    time_t now = time((time_t *)0);
+    unsigned left = 0;
+
+    /* Compared rather than subtracted: Watcom's time_t is unsigned, so a
+       deadline already in the past would wrap into a huge "time left". */
+    if (v9k_alarm_on && v9k_alarm_at > now)
+      left = (unsigned)(v9k_alarm_at - now);
+
+    if (secs) {
+        v9k_alarm_at = now + (time_t)secs;
+        v9k_alarm_on = 1;
+    } else {
+        v9k_alarm_on = 0;
+    }
+    return(left);
+}
 #endif
+
+/*
+  sysconf(): no runtime configuration query.
+*/
 
 #ifndef VICTOR_HAVE_SYSCONF
 long sysconf(int name) { return(-1L); }

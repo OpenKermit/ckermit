@@ -36,9 +36,11 @@ container exec -i ia16-ubuntu-2 bash -c \
 `ckcpro.c` is generated from `ckcpro.w` by `wart`, a **host** tool built with
 the host `cc`.
 
-All 24 modules compile clean; DGROUP is 40,278 of 65,536 (61.5%) in the
-objects, 52,000 (79%) after the linker adds libc. `make` links `ckermit.exe`;
-it has run under MAME (PORTING.md §16), never on real hardware.
+All 24 modules compile, with 4 warnings, all in stock upstream code and all
+pre-existing (`docmdline(1)` in `ckcmai.c`, and implicit declarations of
+`utime`/`wait`/`gettimeofday`). DGROUP is 52,008 of 65,536 (79%) after the
+linker adds libc. `make` links `ckermit.exe`; it has run under MAME
+(PORTING.md §16, §16a, §16b), never on real hardware.
 
 ### The second toolchain
 
@@ -60,8 +62,10 @@ the machine offers 387K. See PORTING.md §9d.
 
 The Watcom binary **runs on Victor MS-DOS 3.1 under MAME**, opens the OEM
 serial device `/dev/seriala` at 9600, and puts a correct Kermit Send-Init
-packet on the wire — byte-identical to what the gcc build sends. Neither
-completes a transfer, for the same reason in both: §11's driver work.
+packet on the wire — byte-identical to what the gcc build sends. Since §16b
+both builds also **retransmit it on a timeout** and end with a proper
+`E "Too many retries"` packet rather than dropping the line. Neither
+completes a transfer: nothing arrives on RX. See §16b.
 **PORTING.md §16a is the how-to** — the Victor boots its hard disk as `A:`,
 the image needs `vtg_image_util` (mtools cannot read it), and MAME's `-bitb`
 socket is single-use, so start `socat` first and never probe the port.
@@ -104,7 +108,7 @@ build is `make -f victorow.mak sizes`, which reads `wlink`'s map.
 |---|---|
 | `PORTING.md` | design doc, memory budget, hardware map, milestone plan |
 | `ckvictor.h` | all ~40 feature `-D` flags, size limits, platform identity |
-| `ckvictor.c` | Victor glue: process-model stubs, `opendir`/`readdir`/`closedir` and `ioctl` over INT 21h, + (planned) the 7201 driver |
+| `ckvictor.c` | Victor glue: process-model stubs, `opendir`/`readdir`/`closedir` and `ioctl` over INT 21h, the blocking comm-device `read()` and the `alarm()` that bounds it (§0d), + (planned) the 7201 driver |
 | `victor/sys/termios.h` | the 7201 driver's control surface; fills a newlib gap, reached via `-Ivictor` |
 | `victor/sys/ioctl.h` | `FIONREAD`, without which `conchk()`/`ttchk()` are hard-wired to 0 |
 | `victor9k.mak` | ia16-elf-gcc build + `sizes` target |
@@ -134,13 +138,20 @@ conventions — 4-space indent, explanation of *why* over *what*.
 
 ## Related trees on this machine
 
-- `~/projects/myfreedos` — FreeDOS port to the Victor. Source of the µPD7201
-  register map and the serial driver to be lifted (`kernel/victor_int14.asm`,
-  `kernel/victor_serial_debug.asm`, `kernel/victor_pic.asm`,
-  `docs/victor/subsystem-docs/Serial.md`).
+- `~/projects/kermit/msr313src` — MS-DOS Kermit 3.13 source, and
+  **`msxv90.asm` is the primary reference for §11**: a Victor 9000/Sirius
+  serial driver by this same project, for this exact hardware. PORTING.md §11
+  takes its integration model wholesale — the OEM `SERIALA` device is a
+  *configuration* channel reached by INT 21h `AH=44h AL=02h/03h`, never a data
+  path, with the ISR and RX ring ours. `msyv90.asm`/`msuv90.asm` are its screen
+  and keyboard halves and are not relevant to this port.
+- `~/projects/myfreedos` — FreeDOS port to the Victor. Reference for the
+  MS-DOS 3.1 ISR stack-switching prologue and a TX path proven at 38400
+  (`kernel/victor_int14.asm`, `kernel/victor_serial_debug.asm`,
+  `kernel/victor_pic.asm`, `docs/victor/subsystem-docs/Serial.md`).
 - `~/projects/kermit/victor9000` — `vickermit.c`, a 1980s Victor-native Kermit.
-  Useful as a second opinion on chip init.
-- `~/projects/kermit/msr313src` — MS-DOS Kermit 3.13 source.
+  A third opinion on chip init. Where these three disagree, `msxv90.asm` is the
+  one that shipped for this machine.
 - `~/projects/newlibc/phase3_newlib` — bare-metal Victor newlib. **Out of scope**
   for the current plan (see `PORTING.md` §2), but `libgloss/dirent.c` is a
   reference for `opendir`/`readdir` — note the two defects flagged in §12.

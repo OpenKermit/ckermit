@@ -97,16 +97,24 @@
 
 /*
   Signals MS-DOS does not have.  Watcom's <signal.h> stops at SIGIOVFL
-  (12); these three are referenced by name in ckutio.c and ckusig.c on
-  paths that this configuration disables (NOJC, NOCCTRAP) or that degrade
-  safely.  newlib declares all three, which is why the gcc build compiles
-  without them being spelled out anywhere.
+  (12); these three are referenced by name in ckutio.c and ckusig.c.
+  newlib declares all three, which is why the gcc build compiles without
+  them being spelled out anywhere.
 
-  Values are ours to choose and are kept above Watcom's highest.  signal()
-  will reject them with SIG_ERR, and alarm() (stubbed in ckvictor.c) never
-  fires; that is the same situation as under newlib, where alarm() is a
-  stub too.  Protocol timeouts do not depend on either -- they come from
-  C-Kermit's own timer via ztime()/rtimer().
+  SIGHUP and SIGQUIT are only reached on paths this configuration disables
+  (NOJC, NOCCTRAP) or that degrade safely, so their values are ours to
+  choose and are kept above Watcom's highest; signal() rejects them with
+  SIG_ERR and nothing ever raises them.
+
+  SIGALRM is different, and this is the subtle one.  ckvictor.c SS0d fires
+  the alarm by reading back the handler ckutio.c installed and calling it,
+  which only works if signal() agreed to store it.  Watcom's signal()
+  stores handlers for 1..12 and rejects everything else, so SIGALRM has to
+  be a number inside that range or every protocol timeout is lost.  SIGUSR3
+  is the one to take: DOS never generates it, C-Kermit never mentions it
+  (it uses SIGUSR1 and SIGUSR2, and only in the exec() paths this port does
+  not have), and it is unreachable for its own sake here.  Under newlib no
+  such trick is needed -- SIGALRM is 13, NSIG is 32, and signal() stores it.
 */
 #include <signal.h>
 #ifndef SIGHUP
@@ -116,7 +124,7 @@
 #define SIGQUIT 21                      /* Quit                         */
 #endif /* SIGQUIT */
 #ifndef SIGALRM
-#define SIGALRM 22                      /* Alarm clock                  */
+#define SIGALRM SIGUSR3                 /* Alarm clock -- see above     */
 #endif /* SIGALRM */
 
 /*
@@ -282,6 +290,44 @@ extern long v9k_timezone;
   to return 0.  See victor/sys/ioctl.h, which explains the whole problem.
 */
 #include <sys/ioctl.h>
+
+/*
+  read() is renamed for every module in the build, and ckvictor.c SS0d
+  supplies the replacement.  It is the one call that has to behave
+  differently here than MS-DOS makes it behave: a handle read of a
+  character device with nothing pending returns 0, and ckutio.c's
+  myfillbuf() -- stock upstream, and staying that way -- requires a read
+  that blocks until it has something.
+
+  A rename rather than a definition of read() over the top of the library's,
+  because the replacement delegates: everything that is not the
+  communications device goes to the real read(), so the console handling in
+  ckvictor.c SS0c and Watcom's text-mode translation both survive intact.
+  ckvictor.c undefines it at the top so that read() there means the
+  library's.
+
+  Nothing is declared here on purpose.  <unistd.h> and <io.h> declare
+  read(), and this macro turns those declarations into the declaration of
+  v9k_read() -- which is how every module gets a prototype that agrees with
+  its own runtime's, without this file having to guess at the spelling.
+  The two macros below are only for ckvictor.c, which does have to write
+  the definition out.
+
+  Object-like, not function-like, for exactly that reason: a function-like
+  macro rewrites calls but mangles the declarations, turning read()'s
+  parameter list into "v9k_read((int __fd),(void *__buf),...)".  Renaming
+  the bare token is safe here because no module in the build uses "read" as
+  anything but this call -- verified across all 24.
+*/
+#ifdef __WATCOMC__
+#define V9K_RTYPE  int
+#define V9K_RCOUNT unsigned
+#else
+#define V9K_RTYPE  _READ_WRITE_RETURN_TYPE
+#define V9K_RCOUNT size_t
+#endif /* __WATCOMC__ */
+
+#define read v9k_read
 
 /*
   Packet buffers.  With DYNAMIC these are malloc'd from the near heap, so
