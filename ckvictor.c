@@ -1202,20 +1202,165 @@ utime(path,times) const char * path; const struct utimbuf * times;
 /* ------------------------------------------------------------------ */
 
 /*
-  See victor/sys/termios.h for the design.  What is here is the SOFTWARE
-  half only: the cached struct termios, the B* speed codes, and the
-  bookkeeping ckutio.c drives.  Every one of these is a place where the
-  uPD7201 and 8253 will be programmed (PORTING.md SS11), and each is marked
-  with the register it will eventually touch.
+  See victor/sys/termios.h for the design, and PORTING.md SS11a for how
+  this reaches the hardware.
 
-  This half is worth having on its own: it is what lets the program link
-  and lets SET SPEED / SHOW COMMUNICATIONS be exercised before any
-  hardware exists.  It is NOT a serial port.  Nothing below moves a byte.
+  Two halves.  The SOFTWARE half is the cached struct termios, the B*
+  speed codes and the bookkeeping ckutio.c drives; it is what lets the
+  console share this code, where there is nothing to program.  The
+  HARDWARE half applies the cached settings to the uPD7201 and the 8253
+  by handing the OEM serial driver a 17-byte control block through DOS
+  IOCTL -- speed, character width, stop bits, parity, DTR and RTS.
+
+  It does that with the descriptor ttopen() already left in ttyfd.  There
+  is no second open, no interrupt vector and no memory-mapped access: the
+  whole of this section is INT 21h, which is why it could be built and
+  tested before the driver in SS11b exists.
+
+  This is MS-DOS Kermit 3.13's model, not an invention.  msxv90.asm drives
+  this same chip on this same machine and uses its SERIALA handle for
+  exactly three things -- open, close, and this IOCTL.  It never reads or
+  writes data through it.  PORTING.md SS16b measured what happens when you
+  do: the first two bytes of every inbound packet arrive and the rest
+  never does.  So the OEM driver is a configuration channel here, and the
+  data path is SS11b's problem.
+
+  Nothing below moves a byte.
 
   ckutio.c keeps several struct termios of its own (ttold, ttraw, ttcur,
   ...) and treats tcgetattr as "read back what I set".  Caching one
   current setting here matches that and costs 32 bytes.
 */
+
+/*
+  The driver's control block.  AH=44h, AL=02h to read it and AL=03h to
+  write it, BX = handle, CX = 17, DS:DX = the block.  Layout from
+  msxv90.asm's "pval" structure, which cites Systems Programmers Toolkit
+  II, Appendix A.  The nine CR bytes are the uPD7201's write registers; on
+  channel A, CR2A is its WR2 and CR2B is channel B's.
+
+  The four 16-bit fields come first and the nine bytes after, so the
+  struct has no interior padding under either toolchain; the trailing pad
+  to an even size is why the length below is a literal 17 rather than
+  sizeof.
+*/
+
+#define V9K_IOCTL_RDCTL 0x4402          /* Receive control data         */
+#define V9K_IOCTL_WRCTL 0x4403          /* Send control data            */
+#define V9K_PVAL_LEN    17              /* Bytes DOS moves either way   */
+
+struct v9k_portval {
+    unsigned short stype;               /* 0011h = port access          */
+    unsigned short status;
+    unsigned short blocktype;           /* 0000h = serial               */
+    unsigned short baudr;               /* 8253 DIVISOR, not a baud rate*/
+    unsigned char  cr0;
+    unsigned char  cr1;                 /* WR1: interrupt enables       */
+    unsigned char  cr2a;                /* WR2: interrupt mode          */
+    unsigned char  cr2b;
+    unsigned char  cr3;                 /* WR3: Rx width, Rx enable     */
+    unsigned char  cr4;                 /* WR4: clock, stop bits, parity*/
+    unsigned char  cr5;                 /* WR5: Tx width/enable,DTR,RTS */
+    unsigned char  cr6;
+    unsigned char  cr7;
+};
+
+/*
+  Read or write the block.  Returns 0, or -1 with the DOS error left in
+  errno if the driver will not answer -- which is not fatal and is handled
+  at the one call site.
+*/
+static int
+#ifdef CK_ANSIC
+v9k_portval_io(int fd, int wr, struct v9k_portval * p)
+#else
+v9k_portval_io(fd,wr,p) int fd; int wr; struct v9k_portval * p;
+#endif /* CK_ANSIC */
+{
+#ifdef __WATCOMC__
+    union REGS r;
+    struct SREGS sr;
+
+    segread(&sr);
+    r.w.ax = (unsigned int)(wr ? V9K_IOCTL_WRCTL : V9K_IOCTL_RDCTL);
+    r.w.bx = (unsigned int)fd;
+    r.w.cx = (unsigned int)V9K_PVAL_LEN;
+    r.w.dx = FP_OFF(p);                 /* Large model: p is already far*/
+    sr.ds  = FP_SEG(p);
+    intdosx(&r,&r,&sr);
+    if (r.w.cflag) {
+        errno = (int)r.w.ax;
+        return(-1);
+    }
+    return(0);
+#else /* __WATCOMC__ */
+    unsigned int ax;
+
+    /* Passes DOS a pointer, so DS_CALL and not a bare int $0x21.  See
+       the note on DS at the top of section 0. */
+    __asm__ __volatile__ (DOS_DS_CALL("jc 1f\n\t"
+                                      "xor %%ax,%%ax\n"
+                                      "1:")
+                          : "=a" (ax)
+                          : "0" ((unsigned int)(wr ? V9K_IOCTL_WRCTL
+                                                   : V9K_IOCTL_RDCTL)),
+                            "b" ((unsigned int)fd),
+                            "c" ((unsigned int)V9K_PVAL_LEN),
+                            "d" (p)
+                          : "cc", "memory");
+    if (ax) {
+        errno = (int)ax;
+        return(-1);
+    }
+    return(0);
+#endif /* __WATCOMC__ */
+}
+
+/*
+  B* code -> 8253 divisor.  Indexed by the ordinals in sys/termios.h, so
+  the order of the two lists has to stay in step.
+
+  These are msxv90.asm's "bddat" values, which vickermit.c reproduces
+  byte for byte; the rule behind them is 78125/baud, and B200 is the one
+  entry neither of those two tables has.  See sys/termios.h for why the
+  numerator is 78125 and not the 76800 an earlier revision assumed.
+
+  B0 is not a speed -- POSIX gives it the meaning "hang up" -- so its
+  entry is never used; tcsetattr drops DTR and RTS and leaves the divisor
+  alone, which is how msxv90.asm's SERHNG implements HANGUP.
+*/
+static unsigned int v9k_divisor[] = {
+       0,                               /* B0     hang up               */
+    1562, 1041,  710,  580,  520,       /* B50   B75   B110  B134  B150 */
+     391,  260,  130,   65,   43,       /* B200  B300  B600  B1200 B1800*/
+      32,   16,    8,    4,    2,       /* B2400 B4800 B9600 B19200     */
+                                        /*                       B38400 */
+       1                                /* B76800                       */
+};
+
+/*
+  The last divisor we actually programmed.  The hang-up path changes the
+  modem lines and must NOT change the speed, so it has to put back a
+  divisor rather than leave the field at whatever is in the block.
+
+  The read does round-trip "baudr" correctly -- PORTING.md SS11a measured 8
+  coming back -- but only when the request is well formed, and a
+  malformed one returns carry-clear and an untouched block.  A silent
+  failure that leaves a stale value in a field we then write into the 8253
+  is not worth the risk when the value is this cheap to remember.
+  Initialised to 9600, which is what ttopen() sets before anything can
+  hang up.
+*/
+static unsigned int v9k_lastdiv = 8;
+
+/*
+  And the WR5 we last programmed, for the same reason: tcsendbreak has to
+  set one bit and put the register back, and it cannot learn the other
+  seven bits from a read it does not trust.  EAh is the chip's 8-bit,
+  transmitter-enabled, DTR-and-RTS-asserted state, which is both what
+  msxv90.asm programs and what tcsetattr computes for CS8.
+*/
+static unsigned char v9k_lastcr5 = 0xea;
 
 static struct termios victor_ttcur = {
     0,                                  /* c_iflag: raw                 */
@@ -1246,13 +1391,116 @@ tcsetattr(int fd, int action, const struct termios * t)
 tcsetattr(fd,action,t) int fd; int action; const struct termios * t;
 #endif /* CK_ANSIC */
 {
+    struct v9k_portval pv;
+    unsigned int width;
+    unsigned char cr3, cr4, cr5;
+
     if (!t) { errno = EFAULT; return(-1); }
     victor_ttcur = *t;
+
     /*
-      TODO(driver): uPD7201 WR4 (clock/stop bits/parity), WR3 (RX width,
-      RX enable), WR5 (TX width, TX enable, RTS/DTR), and the 8253 divisor
-      for c_ospeed.  Until then this records intent and nothing more.
+      The console goes through this same call -- concb()/conres() in
+      ckutio.c keep their own struct termios -- and there is nothing to
+      program there.  Only the communications device has a uPD7201 behind
+      it.  ttopen() sets ttyfd to 0 when the line IS the console, so the
+      test has to exclude the standard descriptors as well; section 0d
+      makes the same distinction for the same reason.
     */
+    if (fd < 3 || fd != ttyfd)
+      return(0);
+
+    if (t->c_ospeed > B76800) { errno = EINVAL; return(-1); }
+
+    /*
+      Read-modify-write, so that whatever the driver has in the fields we
+      do not understand survives.  If it will not answer, the settings
+      stay cached and we report success: a serial driver with no IOCTL
+      support is a reason to run at whatever speed it is already set to,
+      not a reason to refuse to open the line.  ttopen() treats a -1 here
+      as a failure to open at all.
+    */
+    /*
+      Zero it first so that nothing uninitialised can ever be written back,
+      then stamp the two header words BEFORE the read.  They are not output
+      fields: they are how the request identifies itself, and msxv90.asm's
+      "pval" carries stype = 0011h as a structure default on the block it
+      hands to the read as well as the write.  Zeroing them and expecting
+      the driver to fill them in returns a block of nothing -- measured,
+      PORTING.md SS11a.
+    */
+    memset((char *)&pv,0,sizeof(pv));
+    pv.stype     = 0x0011;              /* Port access                  */
+    pv.blocktype = 0x0000;              /* Serial                       */
+
+    if (v9k_portval_io(fd,0,&pv) < 0) {
+        debug(F101,"tcsetattr IOCTL 4402 failed, settings cached only",
+              "",errno);
+        return(0);
+    }
+    debug(F111,"tcsetattr read-back cr1/cr2a",ckitoa((int)pv.cr1),(int)pv.cr2a);
+    debug(F111,"tcsetattr read-back cr4/cr5",ckitoa((int)pv.cr4),(int)pv.cr5);
+    debug(F101,"tcsetattr read-back baudr","",(int)pv.baudr);
+
+    /*
+      Rx and Tx character width share an encoding on this chip and it is
+      not the obvious one: 00 is 5 bits, 01 is SEVEN, 10 is SIX and 11 is
+      8.  It sits at WR3 bits 7-6 and at WR5 bits 6-5.
+    */
+    switch (t->c_cflag & CSIZE) {
+      case CS5: width = 0; break;
+      case CS6: width = 2; break;
+      case CS7: width = 1; break;
+      default:  width = 3; break;       /* CS8 -- what Kermit always uses*/
+    }
+    cr3 = (unsigned char)((width << 6)
+                          | ((t->c_cflag & CREAD) ? 0x01 : 0x00));
+    cr5 = (unsigned char)((width << 5)
+                          | 0x08                /* Transmitter enable   */
+                          | 0x80                /* DTR asserted         */
+                          | 0x02);              /* RTS asserted         */
+    cr4 = (unsigned char)(0x40                  /* x16 clock            */
+                          | ((t->c_cflag & CSTOPB) ? 0x0c : 0x04));
+    if (t->c_cflag & PARENB) {
+        cr4 |= 0x01;                            /* Parity enable        */
+        if (!(t->c_cflag & PARODD))
+          cr4 |= 0x02;                          /* 1 is EVEN, 0 is odd  */
+    }
+
+    /*
+      B0 means hang up, so drop DTR and RTS and leave the divisor alone.
+      3.13's SERHNG is the same two bits, and ckutio.c's tthang() reaches
+      it the same way: set B0, sleep, set the speed back.
+    */
+    if (t->c_ospeed == B0) {
+        cr5 &= 0x7d;
+        pv.baudr = v9k_lastdiv;         /* Keep the speed, not the junk */
+    } else {
+        pv.baudr = v9k_divisor[t->c_ospeed];
+        v9k_lastdiv = pv.baudr;
+    }
+
+    pv.cr3 = cr3;
+    pv.cr4 = cr4;
+    pv.cr5 = cr5;
+    v9k_lastcr5 = cr5;
+
+    /*
+      CR1 and CR2A are deliberately left as they were read.  They are the
+      interrupt enables and the interrupt mode, and until SS11b installs an
+      ISR the OEM driver still owns interrupts on this chip -- clearing
+      them here would break the reception we do have.  3.13 does write
+      both, because by that point it has taken the vector over.
+
+      Worth recording for SS11b: 3.13 found that the write IOCTL does not
+      apply CR1 at all and pokes WR1 at the chip directly afterwards,
+      commented "IOCTL doesn't seem to touch it".  So enabling receive
+      interrupts is not something this path will be able to do.
+    */
+    if (v9k_portval_io(fd,1,&pv) < 0) {
+        debug(F101,"tcsetattr IOCTL 4403 failed","",errno);
+        return(0);
+    }
+    debug(F101,"tcsetattr divisor","",(int)pv.baudr);
     return(0);
 }
 
@@ -1344,8 +1592,30 @@ tcsendbreak(int fd, int duration)
 tcsendbreak(fd,duration) int fd; int duration;
 #endif /* CK_ANSIC */
 {
-    /* TODO(driver): uPD7201 WR5 send-break bit, held for `duration'. */
-    return(0);
+    struct v9k_portval pv;
+
+    if (fd < 3 || fd != ttyfd)          /* See tcsetattr for the test   */
+      return(0);
+
+    memset((char *)&pv,0,sizeof(pv));
+    pv.stype     = 0x0011;              /* Before the read -- see above */
+    pv.blocktype = 0x0000;
+    if (v9k_portval_io(fd,0,&pv) < 0)
+      return(0);
+    pv.baudr     = v9k_lastdiv;         /* Do not disturb the speed     */
+
+    /*
+      WR5 bit 4 holds the transmit data line low; the chip keeps it there
+      until the bit is cleared, so the duration is ours to time.  POSIX
+      says a zero duration means "at least a quarter of a second"; 275ms
+      is what 3.13's SENDBR waits.
+    */
+    pv.cr5 = (unsigned char)(v9k_lastcr5 | 0x10);
+    if (v9k_portval_io(fd,1,&pv) < 0)
+      return(0);
+    msleep(duration > 0 ? duration : 275);
+    pv.cr5 = v9k_lastcr5;
+    return((v9k_portval_io(fd,1,&pv) < 0) ? -1 : 0);
 }
 
 #ifndef __WATCOMC__

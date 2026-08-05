@@ -843,6 +843,20 @@ Being precise about this matters, because the two are easy to conflate.
 - **Bidirectional serial at 9600 on channel B**, polled, via the FreeDOS
   INT 14h driver — `CTTY COM2` drove a full shell session on real hardware.
 
+### Proven under MAME, on Victor MS-DOS 3.1
+
+Not the same claim as the two above, and kept separate for that reason.
+
+- **The OEM driver's IOCTL control block** (§11a). Both subfunctions
+  answer; `tcsetattr()` programs speed, width, stop bits, parity and the
+  modem lines through them; and the values read back as written, including
+  DTR and RTS dropping and returning across `tthang()`. Confirmed by
+  reading the hardware back, which is more than the two items below have —
+  but under emulation, and never on real hardware.
+- **A correct Send-Init packet on the wire at 9600**, byte-identical from
+  both toolchains, with retransmission on timeout and a protocol `E`
+  packet on giving up (§16a, §16b).
+
 ### Written but never run on hardware
 
 - **Interrupt-driven receive.** `kernel/victor_int14.asm` has the whole
@@ -929,6 +943,11 @@ Unchanged from the previous revision, and now with a fourth reason:
 
 ### 11a. Configuration through the driver's IOCTL control block
 
+**Done, and measured on Victor MS-DOS 3.1 under MAME.** It is in `ckvictor.c`
+§1b, it is INT 21h only, it is shared by both toolchains, and it cost 48
+bytes of DGROUP in each. What follows is the reference data first and the
+measurements after.
+
 `AH=44h`, `AL=02h` to read and `AL=03h` to write, `BX` = handle, `CX` = 17,
 `DS:DX` = the block. Layout, from `msxv90.asm`'s `pval struc` (which cites
 *Systems Programmers Toolkit II*, Appendix A):
@@ -966,6 +985,32 @@ Divisor table, from `msxv90.asm`'s `bddat`. The rule is **`78125 / baud`**:
 |---|---|---|---|---|---|---|---|
 | divisor | 104h | 41h | 20h | 10h | **8** | 4 | **2** |
 
+#### The baud clock is 1.25 MHz, and the port's own header had it wrong
+
+Worth stating separately because a header in this tree asserted the other
+value for four sections. `victor/sys/termios.h` used to say the clock was
+1.2288 MHz and the rule `76800 / baud`, with a per-rate divisor in the
+comment on every `B*` code. That came from a code comment in the FreeDOS
+Victor INT 14h driver (`kernel/victor_int14.asm`, "Crystal: 1.2288 MHz").
+
+It is wrong, and two programs that shipped for this machine say so.
+`msxv90.asm`'s `bddat` and `vickermit.c`'s `Rate[]` are byte-identical
+where they overlap — 300 → 260, 600 → 130, 1200 → 65, 2400 → 32 — and
+`76800 / baud` gives 256, 128, 64, 32 for those. Only `78125 / baud`
+reproduces the tables, `msxv90.asm` states that rule in a comment, and
+78125 × 16 = 1.25 MHz. The FreeDOS driver's *own* subsystem documentation
+(`docs/victor/subsystem-docs/Serial.md`) says 1.25 MHz, contradicting its
+code comment, and the two rates it was proven at — 9600 → 8 and 38400 → 2
+— are exactly the ones where the two rules agree, so its evidence never
+discriminated.
+
+The consequence is that 78125 is odd (5⁷) and **no rate divides it
+exactly**: every divisor is approximate, 9600 is really 9765 (+1.7%) and
+38400 is really 39062 (+1.7%). That is inside async tolerance and it is
+what 3.13 shipped. `victor/sys/termios.h` now carries the corrected rule,
+the per-rate error figures, and the table `ckvictor.c` indexes by `B*`
+code.
+
 Register values 3.13 writes, for 8-N-1 with the receiver enabled:
 
 | reg | value | |
@@ -980,6 +1025,114 @@ Order matters and is called out in the source: WR2 first, WR4 second, then
 1/3/5 in any order, then the three WR0 commands `10h` (reset ext/status),
 `30h` (error reset), `38h` (end of interrupt). `AND 7Dh` on WR5 drops DTR and
 RTS, which is how 3.13 implements HANGUP.
+
+Note the character-width encoding is not the obvious one: `00` is 5 bits,
+**`01` is seven and `10` is six**, `11` is 8. It sits at WR3 bits 7–6 and
+at WR5 bits 6–5. `tcsetattr()` maps `CSIZE` through it.
+
+#### What was implemented
+
+`tcsetattr()` in `ckvictor.c` §1b does the read-modify-write on the
+descriptor `ttopen()` left in `ttyfd`, and it is the only place that
+programs the line. It sets **WR3** (Rx width, `CREAD`), **WR4** (x16
+clock, `CSTOPB`, `PARENB`/`PARODD`) and **WR5** (Tx width, Tx enable, DTR,
+RTS) from `c_cflag`, and `baudr` from `c_ospeed`. `tcsendbreak()` sets WR5
+bit 4, waits, and puts it back. `B0` drops DTR and RTS without touching
+the speed, which is how `tthang()` reaches HANGUP — the same two bits as
+3.13's `SERHNG`.
+
+Two deliberate deviations from 3.13, both because we do not own the chip
+yet:
+
+- **CR1 and CR2A are preserved, not written.** They are the interrupt
+  enables and the interrupt mode, and until §11b installs an ISR the OEM
+  driver still owns interrupts here; clearing them would break the
+  reception we do have. 3.13 writes both because by that point it has
+  taken the vector. Also relevant to §11b: 3.13 found the write IOCTL does
+  **not apply CR1 at all** and pokes WR1 at the chip directly afterwards,
+  commented *"IOCTL doesn't seem to touch it"*. So this path will never be
+  able to enable receive interrupts.
+- A console `fd` is rejected before any INT 21h happens. `concb()` and
+  `conres()` come through the same `tcsetattr()`, and `ttopen()` sets
+  `ttyfd` to 0 when the line *is* the console, so the guard tests
+  `fd >= 3 && fd == ttyfd` — the same distinction §0d makes.
+
+#### Measured, on Victor MS-DOS 3.1 under MAME
+
+A `KEEP_DEBUG` Watcom build, `CKERMITW -d -l /dev/seriala -b 9600 -s
+TESTFILE.TXT`, `DEBUG.LOG` pulled back off the image.
+
+1. **The OEM driver implements both subfunctions.** Neither `AL=02h` nor
+   `AL=03h` ever returned carry. `tcsetattr divisor=8` appears at each of
+   the five places C-Kermit sets the line — `ttopen`, `ttsspd`, `ttpkt`,
+   `tthang`'s restore, and `ttres` on the way out — each returning 0. So
+   speed, width, parity and the modem lines are now real, through the same
+   channel 3.13 used, with no interrupt work.
+
+2. **`stype` must be `0011h` on entry to the READ, and getting that wrong
+   fails silently.** This took three runs to pin down and is the trap in
+   this interface. `stype` looks like an output field; it is not, it is how
+   the request identifies itself, and `msxv90.asm` carries `0011h` as a
+   structure default on the block it hands to the read as well as the
+   write. The three runs, in order:
+
+   | read block on entry | `baudr` came back as | what it was |
+   |---|---|---|
+   | uninitialised stack | `97BCh` | stack junk, untouched |
+   | zeroed, `stype` = 0 | `0` | zeros, untouched |
+   | zeroed, `stype` = `0011h` | `8` | the real value |
+
+   **Carry was clear in all three.** A driver that ignores the request and
+   one that answers it are indistinguishable from the return status, so
+   the only way to know the read worked is to recognise a value in it.
+
+   The first of those caught a real defect on its way past: the hang-up
+   path deliberately does not set `baudr`, so it wrote `97BCh` straight
+   back into the 8253 — an arbitrary divisor programmed into the chip for
+   the half second `tthang()` holds DTR down. That is fixed, and the rule
+   it produced is worth keeping even now that the read is known to work:
+   **read the block to preserve the fields we do not understand, but never
+   let a field we control come back from a read.** The last divisor and
+   last WR5 we programmed live in two statics for exactly that reason.
+
+3. **The round trip is real, and it verifies that we are programming the
+   chip.** With `stype` right, the read returns `cr4 = 44h` and
+   `cr5 = EAh` — the values `tcsetattr()` had just computed for 8-N-1 —
+   and `baudr = 8`. `cr2a` reads back as `10h`, which is the OEM driver's
+   own WR2 and *not* the `14h` 3.13 writes: the deliberate preservation of
+   CR1/CR2A above is working.
+
+4. **Hang-up verified at the register level.** Across `tthang()`, `cr5`
+   goes `EAh` → **`68h`** and back. `EAh AND 7Dh` is `68h`: DTR (bit 7) and
+   RTS (bit 1) cleared and nothing else touched. `baudr` reads 8 on both
+   sides of it. This is the first thing in this port whose effect on the
+   hardware has been confirmed by reading the hardware back.
+
+5. **`cr1` reads back as 0, and that is suggestive but not established.**
+   WR1 holds the receive-interrupt enables; 0 means the OEM driver is
+   running this port with no receive interrupt at all, which is precisely
+   the polled, unbuffered arrangement that would fall behind and latch an
+   overrun — §16b's leading explanation for the two-byte signature. Do not
+   bank it: CR1 is the one field 3.13 explicitly flagged as not behaving,
+   and a field that is not applied on write may equally not be reported on
+   read. Every other field here round-trips, which is the argument for
+   taking it seriously; §11b can settle it by reading RR1.
+
+6. **Reception is unchanged: 12 reads, every one returning exactly 2**, in
+   all three runs. Identical to §16b, on a line whose registers we had
+   just programmed ourselves and read back to confirm. §11a is neutral on
+   the data path, which is what copying 3.13's split predicted, and it is
+   a third measurement — under a changed and now *verified* configuration
+   — that the OEM driver is not a data path. The transfer still ends in
+   retransmissions and a protocol `E` packet.
+
+#### What §11a does not do
+
+`ttchk()` still returns 0, upstream of `FIONREAD`, because `in_chk()` asks
+`ttgmdm()` for carrier first and this port has no `TIOCMGET` (§12). The
+control block is write-registers only and carries no RR0, so modem status
+cannot come from here — 3.13 reads DSR/CD/CTS straight out of RR0. That,
+the real byte count, and the data path are all §11b.
 
 ### 11b. The data path we own
 
@@ -1013,6 +1166,25 @@ will take the machine down.
 
 Note that this displaces the OEM driver's own ISR while its device stays
 open. That is safe precisely because we never ask it for data again.
+
+#### The ISR can be written in C, in both toolchains — checked
+
+Worth knowing before designing around assembler. Both compilers were fed a
+trial handler and the results inspected:
+
+- **ia16-elf-gcc**: `__attribute__((interrupt))` is supported and generates
+  the right thing — it pushes the scratch registers and `DS`, **loads `DS`
+  from `DGROUP` itself**, and ends in `iret`. It rejects a handler with
+  named arguments (`error: interrupt function with named arguments`), so
+  the handler takes `void`.
+- **Open Watcom**: `void __interrupt __far`, plus `_dos_getvect` and
+  `_dos_setvect` — which are INT 21h `AH=35h`/`25h`, so hooking the vector
+  stays inside rule 6. The gcc build needs those two by hand.
+
+What neither gives us is a **stack switch**. A C handler runs on whatever
+stack it interrupts, and under MS-DOS that can be a few hundred bytes;
+this is what `~/projects/myfreedos`'s `victor_int14.asm` prologue exists
+to solve, and it is the part of §11b that will not be C.
 
 ### The ISR, and overrun
 
@@ -1878,6 +2050,17 @@ consistent with `COPY`'s own end-of-file handling on this device not being
 what was assumed, and the test gives no way to tell which. Recorded so the
 next session does not spend another run on it.
 
+§11a adds one measurement that bears on this, and it points the same way:
+**the driver's WR1 reads back as 0** — no receive interrupt enabled on
+this port. A driver with no receive interrupt has no buffer being filled
+behind DOS's back, so it can only ever see the character that happens to
+be in the chip when someone calls it, which is exactly the arrangement
+that falls a millisecond behind at 9600 and latches an overrun it never
+clears. Two cautions keep this short of settled: CR1 is the single field
+`msxv90.asm` records as not behaving through this interface, so a 0 may
+mean "not reported" rather than "not enabled"; and every other field in
+the block does round-trip, which is the reason to weigh it at all.
+
 What does raise the hypothesis well above a guess is MS-DOS Kermit 3.13.
 `msxv90.asm` is a driver for this exact machine by this exact project, and
 its interrupt handler reads RR1, tests bit 5, issues `WR0 = 30h` (Error
@@ -1897,6 +2080,31 @@ driver". It will not: the OEM driver cannot receive a Kermit packet.
 Everything that could be proved without owning the chip has now been
 proved, and §11 is the remaining work rather than one of two parallel
 options.
+
+---
+
+## 16c. §11a on the wire: the line is ours to configure
+
+Three runs of the same harness, with `tcsetattr()` now programming the
+chip through the OEM driver's IOCTL control block. **The measurements live
+in §11a** rather than being repeated here; in one line each:
+
+- Both IOCTL subfunctions work on Victor MS-DOS 3.1, and all five of
+  C-Kermit's calls to set the line now reach the hardware.
+- The register values read back as written, and `tthang()` is visible in
+  the read-back as `cr5` going `EAh` → `68h` → `EAh`. It is the first
+  effect this port has had on the hardware that the hardware confirms.
+- Getting `stype` wrong on the *read* makes it return nothing with carry
+  clear. Two of the three runs went that way; the first wrote stack junk
+  into the 8253 during hang-up before it was caught.
+- Reception is byte-for-byte what §16b measured — 12 reads, every one of
+  exactly 2 — in all three runs. Configuring the OEM driver does not make
+  it a data path, and §11b is unchanged as the remaining work.
+
+The one thing worth adding to the harness notes in §16a: `XFLAGS=-dKEEP_DEBUG`
+needs `make clean` first. It is not per-file — `debug()` compiles to nothing
+without it, so a partial rebuild links `ckvictor.o` against a tree that has
+no `dodebug` and fails with `E2028: dodebug_ is an undefined reference`.
 
 ---
 

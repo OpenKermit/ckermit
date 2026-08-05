@@ -78,40 +78,50 @@ struct termios {
   capability: leaving a rate undefined makes C-Kermit correctly reject it
   rather than program a divisor that cannot be generated.
 
-  The Victor derives its baud clock from an 8253 counter fed at 1.2288 MHz
-  in x16 mode, so
+  The Victor derives its baud clock from an 8253 counter fed at 1.25 MHz in
+  x16 mode, so
 
-      divisor = 1228800 / (baud * 16) = 76800 / baud
+      divisor = 1250000 / (baud * 16) = 78125 / baud
 
-  and only rates that divide 76800 exactly are clean.  That is why B7200,
-  B14400, B28800, B57600 and B115200 are ABSENT -- they need divisors of
-  10.67, 5.33, 2.67, 1.33 and 0.67 respectively and cannot be generated at
-  all.  76800 bps (divisor 1) is the ceiling, not 115200.
+  and 78125 = 5^7 is odd, so NO rate divides it exactly: every entry below
+  is approximate and the table in ckvictor.c is the rounded value, not a
+  formula.  B7200, B14400, B28800, B57600 and B115200 are ABSENT because
+  their divisors (10.9, 5.4, 2.7, 1.4, 0.7) round to errors of 2% to 46%.
+  Divisor 1 is the ceiling and it is 78125 bps; B76800 names it, 1.7% low.
 
-  B1800 is the one inexact entry, and it is here only because ckutio.c's
-  "case 180:" arm is unguarded.  Nearest divisor 43 gives 1786 bps, -0.8%,
-  inside the ~2.5% an async framing tolerates.  B110 (divisor 698 -> 110.03)
-  and B134 (divisor 573 -> 134.03) match the divisors the FreeDOS Victor
-  driver already uses.
+  The 1.25 MHz figure is not an assumption.  An earlier revision of this
+  header said 1.2288 MHz and 76800/baud, copied from a code comment in the
+  FreeDOS Victor INT 14h driver.  Two programs that actually shipped for
+  this machine -- MS-DOS Kermit 3.13's msxv90.asm and the 1980s Victor-
+  native vickermit.c -- carry byte-identical divisor tables, and those
+  tables are 78125/baud: 300 -> 260, 600 -> 130, 1200 -> 65, 2400 -> 32.
+  76800/baud would make those 256, 128, 64 and 32.  The FreeDOS driver's
+  own subsystem documentation says 1.25 MHz, contradicting its code
+  comment, and the two rates it was proven at (9600 -> 8, 38400 -> 2) are
+  the ones where the two rules happen to agree.  See PORTING.md SS11a.
+
+  B1800 (divisor 43 -> 1817 bps, +0.9%) is here only because ckutio.c's
+  "case 180:" arm is unguarded.  B38400 is divisor 2 -> 39062 bps, +1.7%;
+  3.13 shipped that and async framing tolerates roughly 2.5%.
 */
 
-#define B0          0                   /* Hang up                      */
-#define B50         1                   /* divisor 1536                 */
-#define B75         2                   /* divisor 1024                 */
-#define B110        3                   /* divisor  698  (110.03 bps)   */
-#define B134        4                   /* divisor  573  (134.03 bps)   */
-#define B150        5                   /* divisor  512                 */
-#define B200        6                   /* divisor  384                 */
-#define B300        7                   /* divisor  256                 */
-#define B600        8                   /* divisor  128                 */
-#define B1200       9                   /* divisor   64                 */
-#define B1800      10                   /* divisor   43  (1786 bps)     */
-#define B2400      11                   /* divisor   32                 */
-#define B4800      12                   /* divisor   16                 */
-#define B9600      13                   /* divisor    8                 */
-#define B19200     14                   /* divisor    4                 */
-#define B38400     15                   /* divisor    2                 */
-#define B76800     16                   /* divisor    1  -- the ceiling */
+#define B0          0                   /* Hang up: drop DTR and RTS    */
+#define B50         1                   /* divisor 1562  (   50.02 bps) */
+#define B75         2                   /* divisor 1041  (   75.05 bps) */
+#define B110        3                   /* divisor  710  (  110.04 bps) */
+#define B134        4                   /* divisor  580  (  134.70 bps) */
+#define B150        5                   /* divisor  520  (  150.24 bps) */
+#define B200        6                   /* divisor  391  (  199.81 bps) */
+#define B300        7                   /* divisor  260  (  300.48 bps) */
+#define B600        8                   /* divisor  130  (  600.96 bps) */
+#define B1200       9                   /* divisor   65  ( 1201.92 bps) */
+#define B1800      10                   /* divisor   43  ( 1816.86 bps) */
+#define B2400      11                   /* divisor   32  ( 2441.41 bps) */
+#define B4800      12                   /* divisor   16  ( 4882.81 bps) */
+#define B9600      13                   /* divisor    8  ( 9765.63 bps) */
+#define B19200     14                   /* divisor    4  (19531.25 bps) */
+#define B38400     15                   /* divisor    2  (39062.50 bps) */
+#define B76800     16                   /* divisor    1  (78125.00 bps) */
 
 #define __MAX_BAUD B76800
 
