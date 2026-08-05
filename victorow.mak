@@ -1,27 +1,25 @@
 # victorow.mak -- Build C-Kermit for the Victor 9000 / Sirius 1 with Open Watcom
 #
-# The same port as victor9k.mak, built by the other toolchain:
-#
-#   victor9k.mak   ia16-elf-gcc + newlib, medium model  (far code, near data)
-#   victorow.mak   Open Watcom wcc/wlink, large model   (far code, FAR DATA)
+# This is THE build for the port: Open Watcom V2 wcc/wlink, LARGE model --
+# far code and far data.
 #
 #   make -f victorow.mak            build objects and link
 #   make -f victorow.mak sizes      report segment sizes and DGROUP usage
 #   make -f victorow.mak clean
 #
-# WHY A SECOND TOOLCHAIN
-#   ia16-elf-gcc has no compact/large/huge model.  Every "char *" is a near
-#   pointer, so every string literal lives in the one 64K DGROUP, and that
-#   is what forced NOICP -- the interactive "C-Kermit>" parser -- out of the
-#   build (ckvictor.h, and PORTING.md SS9c).  Open Watcom has a real large
-#   model plus -zc, which puts literals in far code segments instead.  This
-#   makefile exists to find out what that buys.
+# WHY THIS TOOLCHAIN
+#   The port was also built by ia16-elf-gcc + newlib in the medium model
+#   until 2026-08-05.  That toolchain has no compact/large/huge model: every
+#   "char *" is a near pointer, so every string literal lived in the one 64K
+#   DGROUP.  It cost the interactive "C-Kermit>" parser (PORTING.md SS9c) and
+#   it left about 2K of heap for a transfer, because malloc() came out of the
+#   same segment.  The large model plus -zc fixes both -- DGROUP 39,424
+#   against gcc's 52,728, and a far heap -- so the gcc build was retired.
+#   PORTING.md SS9d and SS16e keep the measurements.
 #
 # CONFIGURATION
-#   Feature configuration is still ckvictor.h and only ckvictor.h, force-
-#   included ahead of every module (-fi=).  The Watcom-specific part of it
-#   is one clearly marked #ifdef __WATCOMC__ section.  Do not add -D options
-#   here.
+#   Feature configuration is ckvictor.h and only ckvictor.h, force-included
+#   ahead of every module (-fi=).  Do not add -D options here.
 
 WATCOM  = /opt/open-watcom-v2/rel
 WBIN    = $(WATCOM)/arml64
@@ -34,8 +32,8 @@ LINK    = $(WBIN)/wlink
 # -zq   quiet.
 # -zc   place string literals in the code segment rather than in DGROUP.
 #       In the large model all pointers are far, so this is free; it is the
-#       single reason to be here at all.  Set ZC= on the command line to
-#       measure the difference.
+#       single biggest reason this toolchain and not the other.  Set ZC= on
+#       the command line to measure the difference.
 # -bt=dos  target MS-DOS.
 # -zt<n>  put data objects of n bytes or more in FAR segments instead of
 #       DGROUP.  This is the other half of -zc and it is worth even more,
@@ -80,7 +78,7 @@ VICTOR  = ckvictor.obj
 
 OBJS    = $(COMMON) $(UI) $(PLATFORM) $(EMPTY) $(VICTOR)
 
-all: $(EXE)
+all: $(EXE) report
 
 # wlink picks the startup module and the model's libraries out of the
 # LIBRARY records wcc embeds in each object, so "system dos" is all the
@@ -89,7 +87,6 @@ all: $(EXE)
 $(EXE): $(OBJS)
 	$(LINK) system dos name $(EXE) option map=$(EXE).map,quiet \
 	  file { $(OBJS) }
-	@$(MAKE) --no-print-directory -f victorow.mak report
 
 # The protocol state machine is generated from ckcpro.w by wart.
 # wart is a host tool, so build it with the host compiler.
@@ -102,8 +99,8 @@ ckcpro.c: ckcpro.w wart
 ckcpro.obj: ckcpro.c
 
 # Every object depends on the force-included configuration header and on
-# the headers we supply under victor/ and victorow/.  Same reasoning as
-# victor9k.mak: without this, editing ckvictor.h rebuilds nothing.
+# the headers we supply under victor/ and victorow/.  Without this, editing
+# ckvictor.h rebuilds nothing.
 CONFIG_H = ckvictor.h victor/sys/termios.h victor/sys/ioctl.h \
 	   victorow/termios.h victorow/pwd.h victorow/sys/utsname.h
 
@@ -114,20 +111,25 @@ $(OBJS): $(CONFIG_H)
 
 # Report the numbers that actually decide whether this port is viable.
 #
-# Unlike victor9k.mak's "sizes", this reads the LINKER's map rather than
-# the objects: under Watcom the interesting figure is not how much data
-# there is but how much of it is NEAR, and only the linker knows which
-# segments ended up in DGROUP.  Everything in the DGROUP column shares one
-# 64K segment with the stack and the near heap; everything in the far
+# This reads the LINKER's map rather than the objects: the interesting
+# figure is not how much data there is but how much of it is NEAR, and only
+# the linker knows which segments ended up in DGROUP.  Everything in the
+# DGROUP column shares one 64K segment with the stack; everything in the far
 # column does not.
 #
 # Note on the heap: in the compact, large and huge models Watcom's malloc()
 # allocates from the FAR heap, so C-Kermit's DYNAMIC packet buffers do not
-# come out of DGROUP at all.  That is the single biggest difference from
-# the ia16-elf-gcc build, where they do.
-sizes: $(EXE)
+# come out of DGROUP at all.  What bounds them is the 387K the machine
+# offers, not this segment.
+#
+# "sizes" and "report" are the same thing, and both are .PHONY so that they
+# print even when the .EXE is already up to date.  "sizes" used to be a
+# target with no recipe depending on $(EXE), which meant that on an unchanged
+# tree it said "Nothing to be done" and reported no number at all -- unhelpful
+# for a rule that asks you to report DGROUP after every change.
+sizes: report
 
-report:
+report: $(EXE)
 	@echo "--- DGROUP, from the linker, including libc ---"
 	@hx() { printf "%d" "0x$$1"; }; \
 	 tot=`hx \`awk '/^DGROUP /{print $$3}' $(EXE).map\``; \

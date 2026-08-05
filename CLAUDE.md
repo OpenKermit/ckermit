@@ -13,73 +13,64 @@ change the plan, change that file in the same commit.
 
 ## The port in one paragraph
 
-`CKERMIT.EXE` is a serial-only, file-transfer-only C-Kermit for the Victor 9000,
-built with `ia16-elf-gcc` (medium model: far code, **one 64K near-data DGROUP**).
-It runs as an MS-DOS program that drives the µPD7201 serial chip and the 8259
-directly, so a single binary works on both **Victor MS-DOS 3.1** and **FreeDOS
-for Victor**. Everything that is not the serial port goes through **INT 21h
-only**.
+`CKERMITW.EXE` is a serial-only, file-transfer-only C-Kermit for the Victor
+9000, built with **Open Watcom V2** in the **large** model (far code *and* far
+data). It runs as an MS-DOS program that drives the µPD7201 serial chip and the
+8259 directly, so a single binary works on both **Victor MS-DOS 3.1** and
+**FreeDOS for Victor**. Everything that is not the serial port goes through
+**INT 21h only**.
+
+There is **one build**. A second one, `ia16-elf-gcc` + newlib in the medium
+model, existed until 2026-08-05 and was retired: one near 64K DGROUP could not
+hold the command parser and left ~2K of heap for a transfer. PORTING.md §9d and
+§16e keep the measurements; git keeps the code. **Do not reintroduce it** —
+including "just to measure something."
 
 ## Build
 
 The toolchain lives in the `ia16-ubuntu-2` container, which runs under Apple's
 native `container` service — **not Docker**. `~/projects` is mounted at
-`/mnt/projects` inside it.
+`/mnt/projects` inside it. Open Watcom V2 is at `/opt/open-watcom-v2/rel`.
 
 ```sh
 container exec -i ia16-ubuntu-2 bash -c \
-  "cd /mnt/projects/ckermit && make -f victor9k.mak"        # 24 objects
+  "cd /mnt/projects/ckermit && make -f victorow.mak"        # 24 objects + link
 container exec -i ia16-ubuntu-2 bash -c \
-  "cd /mnt/projects/ckermit && make -f victor9k.mak sizes"  # DGROUP report
+  "cd /mnt/projects/ckermit && make -f victorow.mak sizes"  # DGROUP report
 ```
 
 `ckcpro.c` is generated from `ckcpro.w` by `wart`, a **host** tool built with
 the host `cc`.
 
-All 24 modules compile, with 4 warnings, all in stock upstream code and all
-pre-existing (`docmdline(1)` in `ckcmai.c`, and implicit declarations of
-`utime`/`wait`/`gettimeofday`). DGROUP is 52,728 of 65,536 (80%) after the
-linker adds libc. `make` links `ckermit.exe`; it has run under MAME
-(PORTING.md §16, §16a, §16b, §16c), never on real hardware.
+All 24 modules compile. Warnings are 17 lines, all in stock upstream code and
+all pre-existing — `debug()` expanding to nothing under `NODEBUG` (W111),
+two unreferenced labels, `localtime()` sign mismatch, `execvp()` const
+mismatch, and `docmdline(1)` in `ckcmai.c`. **`ckvictor.c` compiles with
+none.** DGROUP is 39,424 of 65,536 (60%) after the linker adds libc;
+`ckermitw.exe` is 228,506 bytes.
 
-### The second toolchain
+**It transfers a file.** On Victor MS-DOS 3.1 under MAME it opens
+`/dev/seriala`, programs the line through the OEM driver's IOCTL block (§11a),
+takes the µPD7201 and IRQ1 over for the data path (§11b), and runs a complete
+S/F/A/D/Z/B exchange to a host C-Kermit at 9600 — byte-correct at the far end.
+That is PORTING.md **§16d**, and it is milestone step 5. It has never run on
+real hardware. A **wildcard** send is the one open defect: `-s *.TXT` expands
+correctly in both passes but still fails to transfer (§16f).
 
-The same tree also builds with **Open Watcom V2**, in the same container at
-`/opt/open-watcom-v2/rel`, in the **large** model — far code *and* far data:
+The interactive command parser is off (`NOICP`), and the reason is RAM, not
+DGROUP: with it in, DGROUP measures 60,768 of 65,536 — it *fits* — but the
+image needs 429K and the machine offers 387K. `make -f victorow.mak
+XFLAGS=-dKEEP_ICP sizes` re-runs that measurement; `ZT=-zt128` takes DGROUP to
+19,376 and does not help the RAM problem. See PORTING.md §9d and §16a.
 
-```sh
-container exec -i ia16-ubuntu-2 bash -c \
-  "cd /mnt/projects/ckermit && make -f victorow.mak"        # 24 objects + link
-```
-
-This is a second build of the same port, not a fork: same `ckvictor.h`, same
-stock `ckutio.c`/`ckufio.c`, same single non-upstream C file. It exists to
-answer §9c's open question, and it does: DGROUP 39,424 (60%) against gcc's
-80%, and the interactive command parser — cut from the gcc build because it
-did not fit — **does** fit in DGROUP (`make -f victorow.mak XFLAGS=-dKEEP_ICP`,
-60,768, or 19,376 with `ZT=-zt128`). It does not fit in RAM: it needs 429K and
-the machine offers 387K. See PORTING.md §9d.
-
-**Both binaries transfer a file.** On Victor MS-DOS 3.1 under MAME each
-opens `/dev/seriala`, programs the line through the OEM driver's IOCTL block
-(§11a), takes the µPD7201 and IRQ1 over for the data path (§11b), and runs a
-complete S/F/A/D/Z/B exchange to a host C-Kermit at 9600 — byte-correct at
-the far end. That is PORTING.md **§16d** (Watcom) and **§16e** (gcc), and it
-is milestone step 5. Neither has ever run on real hardware. A **wildcard**
-send is not there yet: `-s *.TXT` expands correctly in both passes now but
-still fails to transfer (§16f).
-
-The gcc build needed `SBSIZ`/`RBSIZ` halved to get there, so `ckvictor.h`
-now sets those two per compiler. It is the only place the builds differ, and
-the reason is near heap versus far heap rather than anything about the
-Victor.
+`XFLAGS=-dKEEP_DEBUG` turns on C-Kermit's debug log (`CKERMITW -d -s FOO.BIN`
+writes `./debug.log` on the target). It is affordable here because `-zc` puts
+the format strings in far code, and it is **the** instrument for the §16f
+wildcard defect.
 
 **PORTING.md §16a is the how-to** — the Victor boots its hard disk as `A:`,
 the image needs `vtg_image_util` (mtools cannot read it), and MAME's `-bitb`
 socket is single-use, so start `socat` first and never probe the port.
-
-Rules 1–7 below apply to both builds. Rule 4's DGROUP report for the Watcom
-build is `make -f victorow.mak sizes`, which reads `wlink`'s map.
 
 ## Hard rules
 
@@ -89,22 +80,20 @@ build is `make -f victorow.mak sizes`, which reads `wlink`'s map.
    `#ifdef VICTOR9K` and changes nothing on any other platform. If you think
    you need a ninth, say so explicitly rather than doing it quietly — the
    seventh and eighth were both agreed that way.
-2. **Feature configuration goes in `ckvictor.h`, never in `victor9k.mak`.**
+2. **Feature configuration goes in `ckvictor.h`, never in `victorow.mak`.**
    Each `#define` sits next to a comment explaining why. The makefile passes
-   `-include ckvictor.h` and nothing else.
+   `-fi=ckvictor.h` and nothing else.
 3. **Victor-specific C goes in `ckvictor.c`.** It is the only non-upstream C
    file and should stay that way.
-4. **The 64K DGROUP is the binding constraint, and the heap inside it is
-   the sharper one.** `.data` + `.bss` + heap + stack all share it. After the
-   link, including libc: **gcc 52,728 (80%), 12,808 left for heap and stack;
-   Watcom 39,424 (60%), 26,112 left** — and Watcom's heap is *outside*
-   DGROUP, so only the gcc figure is a real ceiling. **Run
-   `make -f victor9k.mak sizes` after any change that could add static data**
-   and report the number. For the heap itself,
-   `XFLAGS=-DV9K_HEAPREPORT` prints the low-water headroom at exit: a
-   working transfer leaves ~2,090 bytes, and the failures this port has hit
-   (a file it could not open, a wildcard that matched nothing) were both
-   that number reaching zero (PORTING.md §16e, §16f).
+4. **Two budgets, and do not confuse them.** DGROUP holds `.data`, `.bss`
+   and the **stack** — 39,424 of 65,536 (60%) after the link, 26,112 free.
+   The **heap is outside it**: `malloc()` is `_fmalloc` in the large model,
+   so the packet buffers do not compete for the segment at all. What bounds
+   them is real-mode RAM, ~387K, of which the image uses ~229K.
+   **Run `make -f victorow.mak sizes` after any change that could add static
+   data** and report the number. Before raising `SBSIZ`/`RBSIZ`/`MAXSP`/
+   `MAXRP`, measure the *image*, not DGROUP — PORTING.md §16a has the
+   method, and §9 has both budgets side by side.
 5. **Never define `BIGBUFOK`** (asks for 290,000-byte buffers). **Never remove
    `DYNAMIC`** (without it the packet buffers become >64K static arrays and the
    build fails outright).
@@ -112,11 +101,15 @@ build is `make -f victorow.mak sizes`, which reads `wlink`'s map.
    screen memory, or BIOS data area — Victor MS-DOS 3.1 has no IBM-compatible
    BIOS, and that discipline is the whole reason one binary runs on both DOSes.
 7. **Watch stack frames.** 16-bit target with a recursive `traverse()` in
-   `ckufio.c`. Large automatic arrays are the hazard — that is what
-   `SCANFILEBUF` was, and what `CKMAXNAM` turned out to be (`traverse()` was
-   1066 bytes/level, now 98). **Run `-fstack-usage` after touching `ckufio.c`,
-   `ckuusr.c`, or the size limits in `ckvictor.h`**, the same way you run
-   `sizes` for DGROUP.
+   `ckufio.c`, and the stack is inside DGROUP. Large automatic arrays are the
+   hazard — that is what `SCANFILEBUF` was, and what `CKMAXNAM` turned out to
+   be (`traverse()` was 1066 bytes/level, now 98). **Open Watcom has no
+   `-fstack-usage`**, so this rule lost its cheap instrument with the gcc
+   build: after touching `ckufio.c`, `ckuusr.c` or the size limits in
+   `ckvictor.h`, **read the source for new automatics** and, if it matters,
+   check the prologue's `sub sp,N` in `wdis` output. Say which you did. The
+   stack is 2,048 bytes (`wlink` default, inherited not chosen) — PORTING.md
+   §15 argues it should probably be raised.
 
 ## Layout of the port
 
@@ -124,12 +117,11 @@ build is `make -f victorow.mak sizes`, which reads `wlink`'s map.
 |---|---|
 | `PORTING.md` | design doc, memory budget, hardware map, milestone plan |
 | `ckvictor.h` | all ~40 feature `-D` flags, size limits, platform identity |
-| `ckvictor.c` | Victor glue: process-model stubs, `opendir`/`readdir`/`closedir` and `ioctl` over INT 21h, a `stat()` for the current directory that libdos-m cannot do (§1a, PORTING.md §16f), the comm-device `read()`/`write()` and the `alarm()` that bounds the read (§0d), the heap-headroom instrument (§0e), the termios half that programs the 7201 and 8253 through the OEM driver's IOCTL block (§1b, PORTING.md §11a), and **the 7201 data path — IRQ1 handler, receive ring, polled transmitter (§1e, PORTING.md §11b)** |
-| `victor/sys/termios.h` | the 7201 driver's control surface; fills a newlib gap, reached via `-Ivictor` |
+| `ckvictor.c` | Victor glue, and **no conditional compilation on the compiler**: process-model stubs (§1), `ioctl`/`FIONREAD`/`TIOCMGET` (§0b), the comm-device `read()`/`write()` and the `alarm()` that bounds the read (§0d), the gaps in Watcom's Unix surface — `gettimeofday`, `uname`, `link`, `kill`, `getpw*` (§1d), the termios half that programs the 7201 and 8253 through the OEM driver's IOCTL block (§1b, PORTING.md §11a), and **the 7201 data path — IRQ1 handler, receive ring, polled transmitter (§1e, PORTING.md §11b)** |
+| `victor/sys/termios.h` | the 7201 driver's control surface; no DOS libc has one, reached via `-i=victor` |
 | `victor/sys/ioctl.h` | `FIONREAD` and `TIOCMGET`; without the first `conchk()`/`ttchk()` are hard-wired to 0, and without the second `ttchk()` never reaches `FIONREAD` |
-| `victor9k.mak` | ia16-elf-gcc build + `sizes` target |
-| `victorow.mak` | Open Watcom build + `sizes` target (PORTING.md §9d) |
-| `victorow/` | headers only Open Watcom needs (`pwd.h`, `sys/utsname.h`, `sys/time.h`, `termios.h`, `ckowsys.h`), reached via `-i=victorow` and invisible to the gcc build |
+| `victorow.mak` | the build: Open Watcom `wcc`/`wlink` + `sizes` target |
+| `victorow/` | headers filling gaps in Open Watcom's DOS libc (`pwd.h`, `sys/utsname.h`, `sys/time.h`, `termios.h`, `ckowsys.h`), reached via `-i=victorow` |
 | `ckutio.c` | serial, console, timers — **stock upstream**, this is the port |
 | `ckufio.c` | file system — **stock upstream** |
 | `ckc*.c` | protocol core — do not touch |
@@ -168,9 +160,10 @@ conventions — 4-space indent, explanation of *why* over *what*.
 - `~/projects/kermit/victor9000` — `vickermit.c`, a 1980s Victor-native Kermit.
   A third opinion on chip init. Where these three disagree, `msxv90.asm` is the
   one that shipped for this machine.
-- `~/projects/newlibc/phase3_newlib` — bare-metal Victor newlib. **Out of scope**
-  for the current plan (see `PORTING.md` §2), but `libgloss/dirent.c` is a
-  reference for `opendir`/`readdir` — note the two defects flagged in §12.
+- `~/projects/newlibc/phase3_newlib` — bare-metal Victor newlib. **Out of
+  scope** (see `PORTING.md` §2), and doubly so now that the port no longer
+  uses newlib at all. Kept in this list only because `PORTING.md` §12 cites
+  its `libgloss/dirent.c` and the two defects flagged there.
 
 ## Working style for this project
 
