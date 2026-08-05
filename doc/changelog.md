@@ -1,5 +1,15 @@
 # OpenKermit C-Kermit Changelog
 
+# C-Kermit 11.0.507 (not yet released)
+
+- Fixed a bug (in commit 70ac526a7) where a pty didn't have IXON forced off,
+  which manifested itself when doing an unprefixed send to gkermit.  The bug
+  had existed since the introduction of the pty code in commit d0f8b1da7 in
+  2000.
+
+- Applied fixes for compilation under OpenVMS x86_64.  Thank you Tony
+  Nicholson for this submission.
+
 # C-Kermit 11.0 wide announcement (11.0.506)
 
 August 3, 2026
