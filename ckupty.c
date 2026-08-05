@@ -1,4 +1,4 @@
-char *ckptyv = "Pseudoterminal support, 10.0.107, 16 Apr 2023";
+char *ckptyv = "Pseudoterminal support, 11.0.507, 05 Aug 2026";
 
 /*  C K U P T Y  --  C-Kermit pseudoterminal control functions for UNIX  */
 
@@ -1722,14 +1722,14 @@ getptyslave(fd, fc) int * fd, fc;
 	termbuf.c_oflag |= ONLCR|OXTABS|OPOST;
 	termbuf.c_iflag |= ICRNL|IGNPAR;
 	termbuf.c_cflag |= HUPCL;
-	termbuf.c_iflag &= ~IXOFF;
+	termbuf.c_iflag &= ~(IXOFF|IXON);
 #endif /* BSD44 */
 #else /* BSD42 */
 	termbuf.c_lflag |= ECHO|ICANON|IEXTEN|ISIG;
 	termbuf.c_oflag |= ONLCR|OXTABS|OPOST;
 	termbuf.c_iflag |= ICRNL|IGNPAR;
 	termbuf.c_cflag |= HUPCL;
-	termbuf.c_iflag &= ~IXOFF;
+	termbuf.c_iflag &= ~(IXOFF|IXON);
 #endif /* BSD42 */
 #endif /* USE_TERMIO */
 #endif /* HPUX */
