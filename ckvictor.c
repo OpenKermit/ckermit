@@ -1946,6 +1946,150 @@ static struct v9k_rt_init __based(__segname("XI")) v9k_fmode_rec =
     { 1, 32, v9k_set_binmode };
 
 /*
+  Server capabilities, and the command-line switch that chooses how many.
+
+  C-Kermit 11 initialises every ENABLE variable in ckcmai.c to 2, and
+  ENABLED() in ckcker.h reads
+
+      (local && (x & 1)) || (!local && (x & 2))
+
+  so 2 means "enabled in remote mode only".  A Victor running
+
+      CKERMITW -l /dev/seriala -b 9600 -x
+
+  OWNS the line, which is exactly what makes it LOCAL -- so every server
+  command is disabled.  Measured, PORTING.md SS16i: the first run of server
+  mode answered the host's I packet with a correct ACK and then refused
+  each command with a well-formed E packet -- "GET disabled", "SEND
+  disabled", "FINISH disabled".  The protocol engine and the driver were
+  working; the capability gate was shut.
+
+  This is stock upstream policy, not a defect and not something this port
+  introduced.  Upstream's own ENABLE help says it: "By default, most
+  commands are enabled for REMOTE but disabled for LOCAL to prevent
+  security issues."  C-Kermit 9 and 10 shipped these at 3 (both modes);
+  11 tightened them, which is why compat_10() above -- SET COMPATIBILITY
+  10 -- exists to put them back.
+
+  On a full C-Kermit the answer is to type ENABLE GET at the prompt before
+  SERVER.  NOICP removes the prompt, so the decision has to be made at
+  startup, and this is where the port makes it:
+
+      CKERMITW -x                  server offers everything it can do
+      CKERMITW -x --safe-server    server offers GET, SEND and FINISH only
+
+  The default is the full set -- everything the build can actually perform,
+  which is compat_10's list plus DELETE/RMDIR/RETRIEVE/EXIT/BYE.  HOST is
+  left alone because NOPUSH already removed the thing it would run, and
+  MAIL and PRINT because this build has no transport for either; setting
+  those to 3 would only turn a refusal into a failure.  --safe-server is
+  for a line whose far end is not entirely yours: it grants the three
+  commands a file transfer needs and nothing that manipulates the Victor's
+  file system.  Note the asymmetry -- en_ena stays at its default under
+  --safe-server, so a peer cannot ENABLE its way back out of it.
+
+  These variables are read only by the server-command handlers in
+  ckcpro.w, so a -s, -r or -g run never consults them; setting them here
+  costs those invocations nothing.
+
+  HOW THE SWITCH IS PARSED, because it is not obvious and it is not a
+  tenth upstream edit.  ckuusy.c's cmdlin() would call XFATAL on an option
+  it does not know, so upstream must never see this one.  Open Watcom's
+  cstart (bld/clib/startup/a/cstrt086.asm) copies the DOS command tail from
+  PSP:81h to the bottom of the stack and leaves a far pointer to the copy
+  in _LpCmdLine, all BEFORE it calls __InitRtns -- and on 16-bit targets
+  argv itself is built by an XI initializer, __Init_Argv, at
+  INIT_PRIORITY_THREAD, which is 1 (bld/clib/startup/c/argcv.c,
+  bld/watcom/h/rtprior.h).  __InitRtns always runs the lowest priority not
+  yet done, so a record at priority 0 runs before argv exists.  This one
+  reads the copy, records the switch, and blanks it with spaces; argv is
+  then built from a command line that no longer contains it, and cmdlin()
+  parses what it expects.
+
+  Priority 0 also means the floating-point and run-time initializers have
+  not run yet, so this routine calls nothing -- no libc, and in particular
+  no debug(), because the log is not open.  What it decides is reported
+  from uname() instead, which sysinit() reaches in EVERY invocation --
+  including "CKERMITW -d -h", which writes a debug log and exits without
+  opening the line, so the switch is checkable in one 2.5-minute boot with
+  no serial line and no host.  "v9k srvcaps safe" in DEBUG.LOG is the
+  witness: 0 for the full set, 1 for --safe-server.
+*/
+
+int v9k_srvcaps_safe = 0;               /* --safe-server was given      */
+static int v9k_srvcaps_told = 0;        /* Reported to the debug log once */
+
+extern char __far * _LpCmdLine;         /* Watcom's copy of the DOS tail */
+
+extern int en_xit, en_cwd, en_cpy, en_del, en_mkd, en_rmd, en_dir, en_fin,
+    en_get, en_ren, en_sen, en_set, en_spa, en_typ, en_who, en_bye,
+    en_asg, en_que, en_ret, en_ena;
+
+#define V9K_SAFE_SERVER "--safe-server"
+
+/*
+  One token of the command line against a literal, case-insensitively and
+  without libc, because at priority 0 there is no libc worth trusting.
+  Written out by hand for the same reason.
+*/
+static int __far
+v9k_tokeq(tok, end, lit) char __far * tok; char __far * end; char * lit; {
+    char a, b;
+
+    while (tok < end && *lit) {
+        a = *tok++;
+        b = *lit++;
+        if (a >= 'A' && a <= 'Z') a += 'a' - 'A';
+        if (b >= 'A' && b <= 'Z') b += 'a' - 'A';
+        if (a != b)
+          return(0);
+    }
+    return(tok == end && *lit == '\0');
+}
+
+static void __far
+v9k_set_srvcaps(void)
+{
+    char __far * p;
+    char __far * tok;
+
+    p = _LpCmdLine;
+    if (p) {
+        while (*p) {
+            while (*p == ' ' || *p == '\t')
+              p++;
+            if (!*p)
+              break;
+            tok = p;
+            while (*p && *p != ' ' && *p != '\t')
+              p++;
+            if (v9k_tokeq(tok,p,V9K_SAFE_SERVER)) {
+                v9k_srvcaps_safe = 1;
+                while (tok < p)             /* Blank it: cmdlin() must   */
+                  *tok++ = ' ';             /* never see an option it     */
+            }                               /* would call XFATAL on.      */
+        }
+    }
+
+    /* What a file transfer needs, in either direction, plus the command
+       that lets the far end shut the server down again. */
+    en_get = en_sen = en_fin = 3;
+
+    if (!v9k_srvcaps_safe) {
+        en_xit = en_cwd = en_cpy = en_del = en_mkd = en_rmd = en_dir =
+          en_ren = en_set = en_spa = en_typ = en_who = en_bye = en_asg =
+          en_que = en_ret = en_ena = 3;
+    }
+}
+
+/*
+  Priority 0: before __Init_Argv at priority 1, which is the whole point.
+  Far record for the same reason the one above is far -- PORTING.md SS16h.
+*/
+static struct v9k_rt_init __based(__segname("XI")) v9k_srvcaps_rec =
+    { 1, 0, v9k_set_srvcaps };
+
+/*
   access().  Watcom HAS one; it is wrong about the directory you are in
   when that directory is the root, which is where CKERMITW normally runs.
 
@@ -2073,6 +2217,18 @@ uname(n) struct utsname * n;
 #endif /* CK_ANSIC */
 {
     if (!n) { errno = EFAULT; return(-1); }
+
+    /* Once, and from here rather than from anywhere later, because
+       sysinit() reaches uname() in EVERY invocation -- including
+       "CKERMITW -d -h", which writes a debug log and exits without
+       opening the line.  That makes the switch checkable in one 2.5-minute
+       boot with no serial line and no host.  0 is the full capability set,
+       1 is --safe-server; see the comment on v9k_set_srvcaps(). */
+    if (!v9k_srvcaps_told) {
+        v9k_srvcaps_told = 1;
+        debug(F101,"v9k srvcaps safe","",v9k_srvcaps_safe);
+    }
+
     ckstrncpy(n->sysname, "MS-DOS",  _UTSNAME_LENGTH);
     ckstrncpy(n->nodename,"victor",  _UTSNAME_LENGTH);
     ckstrncpy(n->release, "",        _UTSNAME_LENGTH);

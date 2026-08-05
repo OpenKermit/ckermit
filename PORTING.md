@@ -2005,13 +2005,20 @@ Order of work:
    done on real hardware. (The retired gcc build did the same thing, §16e,
    but needed its packet pools halved to fit its near heap — which is the
    measurement that ended the two-toolchain experiment.)
-6. **`RECEIVE`, then `GET`, then `SERVER`** — still at 9600. **`RECEIVE` is
-   done — §16h.** 2,048 bytes containing every byte value, received into
-   `A:\` and sent straight back, byte-exact both ways, loss counters 0/0.
-   It took two fixes: `access()` cannot be trusted about a FAT root
+6. ~~**`RECEIVE`, then `GET`, then `SERVER`** — still at 9600.~~ **Done.**
+   **`RECEIVE` — §16h**: 2,048 bytes containing every byte value, received
+   into `A:\` and sent straight back, byte-exact both ways, loss counters
+   0/0. It took two fixes: `access()` cannot be trusted about a FAT root
    (`ckvictor.c`), and the DOS runtime was translating every stream in both
    directions, which is also the correction to §16d's "byte-correct".
-   **`GET` and `SERVER` have not been tried.**
+   **`GET` and `SERVER` — §16i**: `-g` fetches 512 bytes byte-exact from a
+   host server and `-f` shuts it down; `-x` serves `GET` and `SEND`
+   byte-exact and exits on FINISH. Server mode needed a decision rather than
+   a fix — C-Kermit 11 disables every server capability in local mode, and
+   `NOICP` removes the prompt where you would type `ENABLE`, so
+   `ckvictor.c` settles it at startup and `--safe-server` narrows it.
+   `REMOTE DIRECTORY` streams its listing and never terminates it; that is
+   open, and outside this step.
 7. ~~**Bring up the RX ISR and ring buffer** as its own task, standalone, on
    real hardware.~~ Superseded by 4b, except for the real-hardware half.
    What is left of it: run §16d's transfer **on a real Victor**, and settle
@@ -3353,6 +3360,264 @@ exercised on this target.
 
 ---
 
+## 16i. GET, SERVER, and a capability gate nobody had opened
+
+**Milestone step 6 is complete.** `GET` works, server mode works, and files
+cross byte-exact in both directions with the Victor acting as client and as
+server. Three MAME runs on Victor MS-DOS 3.1, same harness as §16a/§16d/§16g/
+§16h, `XFLAGS=-dKEEP_DEBUG` throughout.
+
+Getting there turned up one thing that is **not** a defect in this port and
+one that may be. The first cost most of the session and is the more useful
+result, because the answer was a policy decision this port had never been in
+a position to make.
+
+### GET: the port drives a server for the first time
+
+`RECEIVE` (§16h) is passive — the Victor waits and something else starts the
+conversation. `GET` is the first time the port **asks** for something: it
+sends an R packet naming a file and then becomes a receiver. The host ran
+`server`; the Victor ran
+
+```
+CKERMITW -d -l /dev/seriala -b 9600 -g GETBIN.DAT
+```
+
+`GETBIN.DAT` is 512 bytes cycling 0x00–0xFF twice, so it carries every byte
+value including LF, CR and 0x1A, on the §16h principle that a `.TXT` fixture
+hides exactly the defects that matter.
+
+| | |
+|---|---|
+| bytes on the host | 512 |
+| bytes on the Victor's disk | **512, MD5 identical** |
+| `C-Kermit EXIT status` | 0 |
+| `tstats filcnt` | 1 |
+| `v9k_ser rxlost/rxfull` | 0 / 0 |
+| `v9k fmode witness` / `v9k _fmode` | 1 / 512 |
+| `MAIN feol` | 0 |
+
+A second invocation, `CKERMITW -d -l /dev/seriala -b 9600 -f`, shut the host's
+server down. `-f` is `setgen('F',...)` in `ckuusy.c`, which returns `'g'` —
+the generic-command state — and the packet log shows the whole exchange in
+four lines: the Victor negotiates, then sends the one-character command.
+
+```
+r-00-52-^A9 Iz/ @-#Y3~^! z0___F"U1A<     <-- Victor: I (negotiate)
+s-00-52-^A9 Y~/ @-#Y3~^>J)0___C"U1AC     <-- host: ACK
+r-00-56-^A$ GF4                          <-- Victor: G, type F = Finish
+s-00-56-^A# Y>                           <-- host: ACK, server exits
+```
+
+`C-Kermit EXIT status=0`. Both halves of the client side of step 6 work.
+
+### The first server run refused everything
+
+`CKERMITW -d -l /dev/seriala -b 9600 -x` started, negotiated correctly, and
+then declined every single thing the host asked for:
+
+```
+s-00-04-^A, RRXBIN.DAT H         <-- host: R (GET)
+r-00-02-^A/ EGET disabled/
+s-00-00-^A9 S~/ @-#Y3~^>J)...    <-- host: S (SEND)
+r-00-03-^A0 ESEND disabled7
+s-00-00-^A9 I~/ @-#Y3~^>J)...    <-- host: I
+r-00-05-^A9 Yz/ @-#Y3~^! z0...   <-- Victor: ACK.  Negotiation is FINE.
+s-00-05-^A$ GF4                  <-- host: G F (Finish)
+r-00-02-^A2 EFINISH disabledR
+```
+
+That middle ACK is the important line. The server's protocol engine, the
+7201 driver, the ring and the timers were all working — it parsed each
+command and answered with a correctly formed, correctly sequenced E packet.
+Nothing was broken. It was **refusing**.
+
+`ckcker.h` line 771 says why:
+
+```c
+#define ENABLED(x) ((local && (x & 1)) || (!local && (x & 2)))
+```
+
+and `ckcmai.c` initialises every one of the `en_*` variables to **2** —
+enabled in remote mode only. A Victor running `-l /dev/seriala` **owns** the
+line, and owning the line is exactly what `local` means. So a Victor server
+has every capability switched off, by design, in stock C-Kermit 11.
+
+This is upstream policy and it is deliberate. Upstream's own ENABLE help text
+(`ckuus2.c`) states it: *"By default, most commands are enabled for REMOTE but
+disabled for LOCAL to prevent security issues."* And `compat_10()` in
+`ckuus3.c` — `SET COMPATIBILITY 10` — sets this exact list back to 3, which
+dates the change: **9 and 10 shipped these at 3; 11 tightened them.** The help
+for that command is blunt about which direction is which: *"SET COMPATIBILITY
+9 and SET COMPATIBILITY 10 weaken settings that C-Kermit 11 tightened for
+security."*
+
+On a full C-Kermit you type `ENABLE GET` at the prompt before `SERVER`.
+**`NOICP` removes the prompt.** So the port has to make the decision at
+startup, and until server mode was first tried there was nothing to make it
+for. `ckvictor.c`'s stub for `compat_10()` carried the comment "C-Kermit 11
+defaults are what this port wants regardless"; that was true of everything
+except this.
+
+### Where the decision is expressed, and why it is not a tenth upstream edit
+
+In `ckvictor.c`, from an initializer, with a command-line switch:
+
+```
+CKERMITW -x                  server offers everything the build can do
+CKERMITW -x --safe-server    server offers GET, SEND and FINISH only
+```
+
+The default is the full set: `compat_10`'s list plus DELETE, RMDIR,
+RETRIEVE, EXIT and BYE. `HOST` is left alone because `NOPUSH` already removed
+the thing it would run, and `MAIL` and `PRINT` because this build has no
+transport for either — setting those to 3 would turn a refusal into a
+failure. `--safe-server` grants the three commands a file transfer needs and
+nothing that manipulates the Victor's file system; note the asymmetry, that
+`en_ena` keeps its default there, so a peer cannot ENABLE its way back out.
+
+The switch is the interesting part, because `cmdlin()` calls `XFATAL` on any
+option it does not know — and under `NOICP` upstream compiles the whole `--`
+path down to exactly that:
+
+```c
+#else  /* NOICP */
+  case '-':
+  case '+':
+    XFATAL("Extended options not configured");
+#endif /* NOICP */
+```
+
+So upstream must never see it. It does not, and no upstream file was touched
+to arrange that. Open Watcom's startup provides the seam, in two parts read
+out of its own source:
+
+- `bld/clib/startup/a/cstrt086.asm` copies the DOS command tail from `PSP:81h`
+  to the bottom of the stack and leaves a far pointer to the copy in
+  `_LpCmdLine` (lines 309–325) — and only **then** calls `__InitRtns`
+  (line 423).
+- On 16-bit targets **argv itself is built by an XI initializer**:
+  `bld/clib/startup/c/argcv.c` registers `__Init_Argv` at
+  `INIT_PRIORITY_THREAD`, which `bld/watcom/h/rtprior.h` defines as **1**.
+  `__InitRtns` always runs the lowest priority not yet done.
+
+A record at **priority 0** therefore runs before argv exists. It scans
+`_LpCmdLine`, records the switch, and blanks the token with spaces; argv is
+then built from a command line that no longer contains it. Priority 0 also
+means the FPU and run-time initializers have not run, so the routine calls
+nothing at all — no libc, and in particular no `debug()`, because there is no
+log yet. What it decided is reported later from `uname()`, which `sysinit()`
+reaches in **every** invocation.
+
+Three measurements, all from one 2.5-minute boot with no serial line and no
+host — the §16h oracle pattern:
+
+| run | result |
+|---|---|
+| `CKERMITW -d --bogus-opt -h` | `Extended options not configured` — the control: unknown `--` options really are fatal here |
+| `CKERMITW -d --safe-server -h` | usage text, **byte-identical** to the no-flag run; `v9k srvcaps safe=1` |
+| `CKERMITW -d -h` | `v9k srvcaps safe=0` |
+
+The control matters. Without it, "our option did not cause an error" would be
+consistent with upstream quietly ignoring it, and the blanking would be
+unproven.
+
+### Server mode, measured
+
+With the gate open, the same server run that had refused everything:
+
+| | full set | `--safe-server` |
+|---|---|---|
+| host `get RXBIN.DAT` (Victor sends) | 2048, **identical** | 2048, **identical** |
+| host `send` → `SRVBIN`/`SAFEBIN.DAT` (Victor receives) | 512, **identical** | 512, **identical** |
+| host `remote directory` | streams, never terminates | **`E REMOTE DIRECTORY disabled`** |
+| host `finish` | never sent (see below) | **honoured, server exits** |
+| `v9k_ser rxlost/rxfull` | (log lost) | 0 / 0 |
+| `v9k srvcaps safe` | 0 | 1 |
+
+Both directions byte-exact, both modes. The safe-mode run is the one to read
+as the clean result: it did the two transfers, was refused the one command it
+should be refused, took the FINISH, and exited — `[$ GF]` in the log, then
+`doexit`. Its exit status is **8**, and that is not a defect either:
+`ckcker.h` defines `W_REMO` as 8 and `ckcpro.c` does `xitsta |= (what &
+W_KERMIT)`, so 8 says "a REMOTE command failed" — which is precisely the
+refusal the run was designed to provoke.
+
+**`REMOTE DIRECTORY` in the full-capability run is the one open item.** The
+Victor streamed the entire listing correctly — all 51 entries of `A:\`,
+alphabetical, ending at `VMATCH.EXE`, each D packet ACKed — and then never
+sent the terminating Z. The host timed out (six of the run's seven timeouts
+fall inside that transaction, and one D packet was retransmitted three times;
+the two file transfers had one timeout between them), marked it
+`incomplete: discarded`, and **never put the following
+FINISH on the wire at all** — so the server was still running when MAME's
+clock expired, and its `DEBUG.LOG` was never closed or renamed. Whether that
+server would have honoured a FINISH is therefore untested; the safe-mode run
+says a server in the same state does. `snddir()` in `ckcfns.c` is C-Kermit's
+own internal lister, not `ls` through a pipe, so this is entirely inside
+upstream's file-send path, and it is not diagnosed.
+
+That is an argument for `--safe-server`, and worth weighing when choosing
+which default to ship: the capability that hung is one the milestone does not
+need.
+
+### The wildcard send, re-measured against streams that do not translate
+
+§16g's `-s *.TXT` byte counts were taken through the translating streams §16h
+later found, so they were re-run. **The difference is exactly what §16h
+predicts, and it settles the retraction with numbers:**
+
+| file | on the Victor's disk | §16g received | now |
+|---|---|---|---|
+| `ALPHA.TXT` | 63 | 61 | **63, identical** |
+| `BETA.TXT` | 54 | 53 | **54, identical** |
+| `TESTFILE.TXT` | 74 | 72 | **74, identical** |
+
+`files transferred: 3`, `total file characters: 191` — which is 63+54+74. All
+three `cmp` clean against the files extracted from the disk image. The
+multi-file `znext()` path of §16g is therefore intact **and** now delivers the
+bytes that are actually on the disk.
+
+One footnote from getting there, because a DOS user will type it wrong again:
+`-s *.txt` matched **nothing** — `nzxpand[*.txt]=0` — where `-s *.TXT` matched
+three files. `ckufio.c` line 6262 calls `ckmatch(xpat, s, 1, mopts)`, and
+`ckclib.c` line 1344 documents the third argument as *"icase is 1 if
+case-sensitive"*. FAT returns names in upper case, so a lower-case pattern
+cannot match anything on this file system. Correct behaviour for the Unix
+module it is; surprising on this target.
+
+### Sizes
+
+DGROUP **39,440 of 65,536 (60%)**, 26,096 free in the segment; `ckermitw.exe`
+is **229,070** bytes. With `KEEP_DEBUG`, DGROUP is **39,792** and the image is
+**309,506** — that image measured 309,064 before this section's changes, so
+the capability work cost about 440 bytes and `KEEP_DEBUG`'s DGROUP did not
+move at all. The two new routines take 10 and 24 bytes of stack (`sub sp`,
+read from `wdis`), and they run at startup rather than anywhere near
+`traverse()`.
+
+One correction: §16h records the `KEEP_DEBUG` image as 309,046, and a clean
+rebuild of the committed tree gives **309,064**. The copy that was on the disk
+image measures 309,046 exactly, so that figure was taken from a build made
+before the session's last source edit rather than from the tree as committed.
+
+### What this establishes, and what it does not
+
+Milestone step 6 is done: `RECEIVE` (§16h), `GET` and `SERVER`. The port now
+works as client and as server, sending and receiving, byte-exact over a
+payload containing every byte value, with the loss counters at 0/0 everywhere
+they could be read.
+
+**Still under emulation, still only Victor MS-DOS 3.1, still 9600 with window
+1 and short packets.** `REMOTE DIRECTORY` does not complete and is not
+diagnosed. The full capability set has been exercised only for GET, SEND and
+that one failing DIRECTORY — DELETE, RMDIR, CWD, SPACE, TYPE, RENAME and the
+rest are enabled by default and **entirely untested**. And `BYE` has never
+been sent, so the only way the far end has ever stopped a Victor server is
+FINISH.
+
+---
+
 ## 15. Open questions
 
 **Closed since the last revision**
@@ -3391,6 +3656,16 @@ exercised on this target.
   answering EACCES for the FAT root, which `zchko()` asks about immediately
   after successfully creating and deleting a file in that same directory.
   (§16h)
+- ~~Do `GET` and `SERVER` work?~~ **Yes, both** — milestone step 6 is
+  complete. `GET` needed nothing new. **Server mode needed a decision, not a
+  fix**: C-Kermit 11 initialises every `en_*` to 2, "remote mode only", and a
+  Victor that owns its serial line is by definition local, so the first
+  server run ACKed the host's negotiation and then refused every command with
+  a well-formed E packet. `ckvictor.c` now settles the capability set at
+  startup, from a priority-0 initializer, with `--safe-server` to narrow it
+  to GET/SEND/FINISH. **No tenth guarded upstream edit** — the switch is
+  removed from Watcom's copy of the command tail before `argv` is built, so
+  `cmdlin()` never sees it. (§16i)
 
 **A decision that is yours, not mine**
 
@@ -3407,6 +3682,24 @@ exercised on this target.
 
 **Still open**
 
+- **`REMOTE DIRECTORY` streams its listing and never terminates it.** All 51
+  entries of `A:\` arrive correctly and each D packet is ACKed; the Z never
+  comes, the host times out and discards the transaction, and — the part
+  that costs a run — the host then never sends the FINISH that would have
+  closed the server, so the Victor's `DEBUG.LOG` is never flushed. `snddir()`
+  is C-Kermit's own internal lister, so this is inside upstream's file-send
+  path. Not diagnosed. It is enabled by default; `--safe-server` refuses it
+  cleanly and the session survives. (§16i)
+- **Most of the default capability set has never been exercised.** `-x`
+  without `--safe-server` enables DELETE, RMDIR, CWD, SPACE, TYPE, RENAME,
+  COPY, MKDIR and the rest. Only GET, SEND and DIRECTORY have been on the
+  wire. `BYE` has never been sent either, so FINISH is the only way the far
+  end has ever stopped a Victor server. (§16i)
+- **Wildcard patterns are case-sensitive against upper-case FAT names.**
+  `-s *.txt` matches nothing; `-s *.TXT` matches three files. `ckufio.c` line
+  6262 passes `icase=1` to `ckmatch()`, which `ckclib.c` line 1344 documents
+  as case-sensitive. Right for the Unix module it is, surprising on DOS, and
+  it will be typed wrong again. (§16i)
 - **"No files for -s" is not a diagnosis.** Recorded separately because it
   will mislead again: `ckuusy.c` prints that string when it could not
   allocate 2,000 bytes for the real error message. Any time it appears,
