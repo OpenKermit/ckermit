@@ -977,8 +977,12 @@ Not the same claim as the two above, and kept separate for that reason.
   path: S/F/A/D/Z/B all the way through, and a byte-correct 72-byte file at
   the far end. One small file, one literal filename, 9600 bps, window 1,
   short packets. The gcc build did the same thing on the same harness (§16e),
-  74 bytes, the difference being a text/binary decision and not an error. A
-  **wildcard** send still does not complete (§16f).
+  74 bytes, the difference being a text/binary decision and not an error.
+- **A wildcard send, and a multi-file one** (§16g). `-s *.TXT` completing
+  against one match and against three, byte-correct, with the `znext()` path
+  that multiple matches take exercised for the first time. The same run read
+  the driver's two loss counters — `rxlost=0, rxfull=0` — which had never
+  been read at all.
 - **What DOS itself does with `.` and with trailing separators** (§16f).
   Measured in the root and in a subdirectory, by probe, because two rounds
   of reasoning about it had already gone wrong. `FindFirst(".\*.*")` works
@@ -1950,14 +1954,13 @@ Order of work:
    console path, finds a file, starts the protocol engine, and exits cleanly
    (§16). **Not yet proven on Victor MS-DOS 3.1** — that is still the other
    half of the dual-target claim and needs a 3.1 boot image.
-3a. **Fix wildcard expansion** (§15, §16f). `-s FILE` works; `-s *.COM`
-   found nothing. **Three of four causes fixed** — `SSPACE`'s greedy
-   allocator, `MAXWLD`'s up-front array, and an inability to `stat(".")`
-   (a `libdos-m` gap that Watcom's own `stat()` does not have) — and
-   `-s *.TXT` now expands correctly in both passes. It still does not
-   *transfer*: the Victor re-sends Send-Init through its ACKs. Not a heap
-   problem (§16f), and the remaining cause is the one open defect in the
-   port.
+3a. ~~**Fix wildcard expansion** (§15, §16f).~~ **Done — §16g.** `-s *.COM`
+   found nothing; `-s *.TXT` now transfers, against one match and against
+   three. Four causes: `SSPACE`'s greedy allocator and `MAXWLD`'s up-front
+   array (both fixed, and both guarded upstream edits), an inability to
+   `stat(".")` (a `libdos-m` gap Watcom does not have), and a fourth that
+   never reproduced under Open Watcom and is closed as retired rather than
+   diagnosed.
 3b. ~~**Make `read()` block, and make `alarm()` fire.**~~ **Done** — §16b,
    `ckvictor.c` §0d. The port now retransmits on a timeout and
    gives up in the protocol-defined way instead of dropping the line. This
@@ -1976,7 +1979,9 @@ Order of work:
 5. ~~**`SEND` one small binary file** at 9600 to a known-good Kermit, short
    packets, window 1, streaming off.~~ **Done — §16d.** 72 bytes off the
    Victor's disk, byte-correct at the far end, under MAME on Victor MS-DOS
-   3.1. **This was the real milestone and the port has reached it.** Not yet
+   3.1. **This was the real milestone and the port has reached it.** §16g
+   completes it: the wildcard and multi-file forms of the same send, and the
+   driver's loss counters at zero through all of it. Not yet
    done on real hardware. (The retired gcc build did the same thing, §16e,
    but needed its packet pools halved to fit its near heap — which is the
    measurement that ended the two-toolchain experiment.)
@@ -2841,12 +2846,17 @@ cost one run each and belong with the rest in §16a:
 
 ---
 
-## 16f. Wildcards: three causes, two fixed
+## 16f. Wildcards: four causes, three fixed and one retired
 
 §15's top item — `-s FILE` works and `-s *.COM` reports "No files for -s" —
-has been open for four sessions with a one-line description. It is not one
-defect. It is three, they are independent, and two of them are now fixed.
-The third is the one that a fresh reading would have blamed last.
+was open for four sessions with a one-line description. It is not one defect.
+It is four, they are independent, three of them were fixed here, and the
+fourth left with the gcc build without ever being understood. The third is
+the one that a fresh reading would have blamed last.
+
+**This section is history for everything except causes 1 and 2.** Those two
+are guarded upstream edits and are live in the tree. Cause 3 was a `libdos-m`
+gap and its fix is gone with that runtime; cause 4 is closed by §16g.
 
 ### What it was not
 
@@ -2994,22 +3004,32 @@ underneath will break `traverse()`'s `ZX_FILONLY` path the same way. If a
 future runtime change reintroduces it, the symptom is a wildcard that expands
 once instead of twice.
 
-### Where it stands, and the instrument that failed
+### Cause 4, and how it ended
 
-`-s *.TXT` expands, twice, correctly. **It still does not complete a
-transfer**: the Victor sends Send-Init, is ACKed, and sends Send-Init again,
-ten times, until the host gives up. **This is the one open defect in the
-port**, and it is cause 4.
+`-s *.TXT` expanded, twice, correctly, and **still did not complete a
+transfer**: the Victor sent Send-Init, was ACKed, and sent Send-Init again,
+ten times, until the host gave up. That was written up here as the port's one
+open defect.
 
-It is *not* the heap. That was established twice over: under gcc, headroom at
+It was *not* the heap. That was established twice over: under gcc, headroom at
 the low-water mark was 2,068 bytes — the same room the transfer that works
 has — and the current build's heap is outside DGROUP entirely, so the
-resource the first three causes exhausted no longer exists in that form. Cause
-4 is something else.
+resource the first three causes exhausted no longer exists in that form.
 
-The asymmetry to exploit is that a literal-filename send works and a wildcard
-send does not, and the only difference between them is the second expansion
-`gnfile()` does with `ZX_FILONLY`. Instrument that, with `KEEP_DEBUG`.
+**Cause 4 does not reproduce under Open Watcom.** §16g is the run. It was
+never observed under this toolchain — every measurement above, including the
+symptom, is from the gcc build, and the fix for cause 3 was a replacement
+`stat()` that only ever existed there. So this is not a diagnosis: the defect
+left with the build it lived in, and what it actually was is now
+unanswerable, because there is no longer a compiler that produces it. Recorded
+that way deliberately rather than as a fix.
+
+One thing §16g does explain is the *shape* of the symptom. "Send-Init, ACK,
+Send-Init" is exactly what a crossed NAK produces — a host receiver NAKs
+packet 0 while it waits, that NAK arrives after the Victor's S has gone out,
+and the Victor correctly resends packet 0. §16g caught one, recovered from it
+in a single retry, and went on to transfer three files. Whether the gcc build
+was the same mechanism failing to converge is a guess and is left as one.
 
 One instrument to record as **not working**, because it cost two runs and
 will look attractive again: you could not interpose on `malloc()` in the gcc
@@ -3021,6 +3041,115 @@ its silence. Under Open Watcom the question is moot for a better reason —
 `KEEP_DEBUG` gives a real debug log, which the gcc build could not afford
 (§16e).
 
+---
+
+## 16g. The wildcard send works, and the ring loses nothing
+
+**`CKERMITW -d -l /dev/seriala -b 9600 -s *.TXT` completes**, and so does the
+multi-file form of it. This closes §16f's cause 4 — the port's last open
+defect — and it reads the two driver loss counters for the first time.
+
+Same harness as §16a and §16d, unchanged. `XFLAGS=-dKEEP_DEBUG`, so the image
+is 308,862 bytes rather than 228,554 and the Victor writes its own `DEBUG.LOG`
+alongside the host's packet log. Host receiver: C-Kermit 9.0.302 on the
+`socat` pty, `set speed 9600`, `set carrier-watch off`, `set flow none`,
+`receive`, `log packets`, `log transactions`.
+
+### Run 1 — one match
+
+`*.TXT` matched `TESTFILE.TXT` and nothing else, which is the exact case §16f
+left failing. It transferred, first attempt, no retransmission anywhere:
+
+```
+r-00-55-^A9 Sz/ @-#Y3~^! z0___F"U1AF     <-- Send-Init
+s-00-55-^A9 Y~4 @-#Y3~^>J)0___B"U1@F     <-- ACK, acted on
+r-01-03-^A1!FTESTFILE.TXT+")             <-- F
+r-02-08-^AQ"A."U1""B8#1...               <-- A
+r-03-11-^Ao#DVictor 9~#0 C-Kermit ...    <-- D
+r-04-14-^A%$Z(,*                         <-- Z
+r-05-16-^A%%B 8;                         <-- B
+```
+
+72 bytes at the far end against 74 on the Victor's disk — the CRLF→LF of a
+text-mode send, same as §16d. `C-Kermit EXIT status=0`.
+
+The Victor's `DEBUG.LOG` shows **both** expansions, which is what §16f's cause
+3 was about and what a runtime regression would break first:
+
+```
+ 184: nzxpand[*.TXT]=0          <-- doarg(), flags 0, 25 entries swept
+ 961: nzxpand[*.TXT]=1          <-- gnfile(), ZX_FILONLY
+1594: gnfile znext A[TESTFILE.TXT]=1
+1698: sinit ok[TESTFILE.TXT]=0
+```
+
+### Run 2 — three matches, the path that had never run
+
+One match is the easy half of a wildcard. With more than one, `gnfile()` sets
+`sndsrc = -1` and every file after the first comes from the `znext()` loop,
+driven by `<sseof>Y` — a different path through `ckcfns.c` that this port had
+never executed. `ALPHA.TXT` and `BETA.TXT` were added to the image to force
+it. **Three files, one transaction, all byte-correct:**
+
+```
+files transferred       : 3
+total file characters   : 186
+elapsed time (seconds)  : 44
+```
+
+61, 53 and 72 bytes received against 63, 54 and 74 sent. The log walks the
+list and terminates on its own:
+
+```
+1707: gnfile znext X[*.TXT]=0     -> B[ALPHA.TXT]=3
+2999: gnfile znext X[ALPHA.TXT]=0 -> B[BETA.TXT]=2
+3923: gnfile znext X[BETA.TXT]=0  -> B[TESTFILE.TXT]=1
+4850: gnfile znext X[TESTFILE.TXT]=0 -> B[]=0
+4854: gnfile setting sndsrc back=1
+```
+
+### The one retransmission, and why it is not a defect
+
+Run 2 sent Send-Init twice. That is the exact shape §16f reported as cause 4,
+so it is worth being precise about: the host receiver NAKs packet 0 while it
+waits, one of those NAKs arrived after the Victor's S had gone out, and the
+Victor did what Kermit says to do —
+
+```
+[# N]                                    <-- NAK, type N, sequence 0
+resend seq=0 / resend retry=1
+HEXDUMP: ttol s (28 bytes)  01 39 20 53 7a 2f ...
+```
+
+— resent packet 0, was ACKed, and went on. One retry, self-recovered. Run 1,
+where no NAK crossed, shows none at all.
+
+### The loss counters, read at last
+
+§16d pointed the instrument at the wrong second and got nothing; §11b has kept
+these two counters since it was written and nobody had ever seen them. Both
+runs, at every `tcsetattr()` on the way out:
+
+```
+v9k_ser rxlost/rxfull[0]=0
+```
+
+**Zero bytes lost to a µPD7201 overrun, zero lost to a full ring** — across a
+three-file, 44-second transaction. The receive ring and the polled transmitter
+of §11b are not dropping anything at 9600 with one packet in flight. That is
+the first direct measurement of the driver's own error path rather than an
+inference from "the transfer completed".
+
+### What this establishes, and what it does not
+
+Milestone step 5 is now genuinely complete: literal and wildcard sends, single
+and multiple files, byte-correct, clean exit, no losses. **Still under
+emulation, still only Victor MS-DOS 3.1, still 9600 with window 1 and short
+packets.** A zero loss counter at 9600 with one packet in flight says nothing
+about 19200 or 38400, and nothing about streaming — which is the case §11b has
+no interrupt-level flow control for, and the case that would make these
+counters interesting. `RECEIVE` is the next thing to point them at, because
+that is where the file writes happen on the Victor's end.
 
 ---
 
@@ -3037,6 +3166,16 @@ its silence. Under Open Watcom the question is moot for a better reason —
   actually in the linked image: 86 × INT 21h, 89 × the 8087 emulator's
   34h–3Dh, one `int 3`. The four BIOS-using modules in the library
   (`biosfunc`, `b_disk`, `b_timofd`, `dointr`) are not linked. (§12)
+- ~~Wildcard expansion: one cause left of four, the port's one open defect.~~
+  **Gone.** `-s *.TXT` transfers, single-match and multi-match, byte-correct
+  (§16g). Causes 1 and 2 are the guarded `SSPACE` and `MAXWLD` edits and are
+  live; cause 3 was a `libdos-m` gap that Watcom does not have; **cause 4 was
+  never reproduced under Open Watcom and is closed as retired rather than
+  diagnosed** — it left with the build it lived in. (§16f, §16g)
+- ~~Do the driver's two loss counters ever fire?~~ **Not at 9600.**
+  `rxlost=0, rxfull=0` across a three-file, 44-second transaction — the first
+  reading either counter has ever had. Says nothing about 38400 or streaming.
+  (§16g)
 
 **A decision that is yours, not mine**
 
@@ -3053,18 +3192,6 @@ its silence. Under Open Watcom the question is moot for a better reason —
 
 **Still open**
 
-- **Wildcard expansion: one cause left of four. This is the port's one open
-  defect.** Mostly answered — see §16f, which replaces everything this entry
-  used to say. `opendir`, `readdir`, `ckmatch` and the DOS layer were all
-  correct throughout; the causes were `SSPACE`, `MAXWLD` and the retired
-  build's inability to `stat(".")` (a `libdos-m` gap Watcom does not have).
-  What remains is that `-s *.TXT` expands correctly and then **fails to
-  transfer**: the Victor re-sends Send-Init through the host's ACKs until the
-  host gives up. It is not memory — it was not under gcc at 2,068 bytes of
-  headroom, and the heap is outside DGROUP now. Note the asymmetry to
-  exploit: the literal-filename send works and the wildcard send does not,
-  and the only difference between them is the second expansion `gnfile()`
-  does with `ZX_FILONLY`. Instrument that with `KEEP_DEBUG`.
 - **"No files for -s" is not a diagnosis.** Recorded separately because it
   will mislead again: `ckuusy.c` prints that string when it could not
   allocate 2,000 bytes for the real error message. Any time it appears,

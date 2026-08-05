@@ -53,9 +53,12 @@ none.** DGROUP is 39,424 of 65,536 (60%) after the linker adds libc;
 `/dev/seriala`, programs the line through the OEM driver's IOCTL block (§11a),
 takes the µPD7201 and IRQ1 over for the data path (§11b), and runs a complete
 S/F/A/D/Z/B exchange to a host C-Kermit at 9600 — byte-correct at the far end.
-That is PORTING.md **§16d**, and it is milestone step 5. It has never run on
-real hardware. A **wildcard** send is the one open defect: `-s *.TXT` expands
-correctly in both passes but still fails to transfer (§16f).
+That is PORTING.md **§16d**, and it is milestone step 5. **§16g finishes that
+step**: `-s *.TXT` transfers too, against one match and against three, which
+exercises the `znext()` path multiple matches take; and the µPD7201 driver's
+two loss counters read `rxlost=0, rxfull=0` through all of it — the first time
+either has been read. **There are no known open defects in the send
+direction.** It has never run on real hardware.
 
 The interactive command parser is off (`NOICP`), and the reason is RAM, not
 DGROUP: with it in, DGROUP measures 60,768 of 65,536 — it *fits* — but the
@@ -65,8 +68,9 @@ XFLAGS=-dKEEP_ICP sizes` re-runs that measurement; `ZT=-zt128` takes DGROUP to
 
 `XFLAGS=-dKEEP_DEBUG` turns on C-Kermit's debug log (`CKERMITW -d -s FOO.BIN`
 writes `./debug.log` on the target). It is affordable here because `-zc` puts
-the format strings in far code, and it is **the** instrument for the §16f
-wildcard defect.
+the format strings in far code — the image goes from 228,554 bytes to 308,862,
+which still loads. It is **the** instrument for anything on the target now;
+§16g is what it settled.
 
 **PORTING.md §16a is the how-to** — the Victor boots its hard disk as `A:`,
 the image needs `vtg_image_util` (mtools cannot read it), and MAME's `-bitb`

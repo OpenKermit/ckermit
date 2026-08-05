@@ -1,111 +1,112 @@
 # Next session
 
-Handoff for the Victor 9000 port, written 5 August 2026. **The port transfers
-a file, and it now has exactly one toolchain.**
+Handoff for the Victor 9000 port, written 5 August 2026. **The wildcard send
+works, the driver's loss counters have been read, and the send direction has
+no known open defects.**
 
-**Read `PORTING.md` first** — §3, §4, §9 and §15 were rewritten around the
-single build, and §9c/§9d/§14/§16/§16e now carry "history" banners marking
-them as a record of a closed question. This file is only the "what next".
+**Read `PORTING.md` first** — §16g is new and is this session; §16f now ends
+in it, and §15's "still open" list lost its top item. This file is only the
+"what next".
 
 ---
 
 ## 1. What changed this session
 
-**The `ia16-elf-gcc` build was retired. Open Watcom V2 large model is the
-only build.**
+Nothing in the source tree. **This session was measurement**, and it closed
+the port's last open defect by failing to reproduce it.
 
-This was a decision, not a discovery — the evidence had been accumulating for
-three sessions and §9d/§16e/§16f is where it is written up. The short form:
-one near 64K DGROUP is the wrong shape for this program. It cost the
-interactive command parser outright, it forced `SBSIZ`/`RBSIZ` to be halved
-before a transfer would complete, it left ~2,090 bytes of heap at the
-low-water mark of a *working* run and 212 during a wildcard expansion, and it
-could not afford a debug log at all. The large model's far heap and `-zc`
-remove every one of those.
+**`-s *.TXT` transfers.** Two MAME runs on Victor MS-DOS 3.1, the §16a
+harness unchanged, `XFLAGS=-dKEEP_DEBUG`:
 
-What that took out of the tree:
+| | run 1 | run 2 |
+|---|---|---|
+| pattern matches | 1 file | **3 files** |
+| S/F/A/D/Z/B | complete | complete, ×3 |
+| bytes at the far end | 72 (of 74) | 61, 53, 72 (of 63, 54, 74) |
+| byte-correct | yes | yes |
+| retransmissions | none | one, a crossed NAK |
+| `rxlost` / `rxfull` | **0 / 0** | **0 / 0** |
+| exit | `status=0` | `status=0` |
 
-| | before | after |
-|---|---:|---:|
-| `ckvictor.c` | 3,037 lines | **2,002** |
-| `__WATCOMC__` conditionals | 23 blocks | **0** |
-| makefiles | 2 | **1** |
+Run 2 is the one that matters most, because more than one match is a
+different path: `gnfile()` sets `sndsrc = -1` and every file after the first
+comes out of the `znext()` loop driven by `<sseof>Y`. That path had never
+executed on this port.
 
-Deleted: `victor9k.mak`; `ckvictor.c` sections 0, 0a, 0c, 0e and 1c — the
-inline-assembly INT 21h layer (`_read_r`, `_write_r`, `dos_getch`,
-`DOS_DS_CALL`), the hand-built `opendir`/`readdir`/`closedir` over the DOS
-DTA, the `stat()` that answered `"."`, the `sleep`/`creat`/`utime`/`umask`/
-`exec` stubs, `_link_r`/`_kill_r`, and the `V9K_HEAPREPORT` and `V9K_DIRTRACE`
-instruments; and the per-compiler `SBSIZ`/`RBSIZ` split in `ckvictor.h`.
-Watcom's runtime supplies all of it. `victor/` and `victorow/` both stay.
+**Cause 4 is closed as retired, not as diagnosed.** §16f called it the port's
+one open defect, but every measurement in that section — including the
+symptom — came from the `ia16-elf-gcc` build, and the fix for cause 3 was a
+replacement `stat()` that only existed there. It does not reproduce under
+Open Watcom, and there is no longer a compiler that produces it, so what it
+actually was is unanswerable. Recorded that way deliberately.
 
-**Verified: the linked binary is byte-identical to before the change.**
-DGROUP 39,424 (60%), `ckermitw.exe` 228,506 bytes, and `ckvictor.c` compiles
-with zero warnings.
+What §16g *does* explain is the symptom's shape. "Send-Init, ACK, Send-Init"
+is exactly what a crossed NAK produces — the host receiver NAKs packet 0
+while it waits, the NAK lands after the Victor's S has gone out, the Victor
+resends packet 0. Run 2 caught one in the Victor's own log (`[# N]`,
+`resend retry=1`) and recovered in a single retry. Whether gcc's ten-retry
+loop was the same mechanism failing to converge is a guess and stays one.
 
-**Rule 6 was re-measured against Open Watcom** (§12), because the old proof
-was a disassembly of `libdos-m.a` and that library is gone. All 239 library
-modules in the linked image: 86 × INT 21h, 89 × the 8087 emulator's 34h–3Dh,
-one `int 3`. **No BIOS interrupts.** `clibl.lib` does contain BIOS-using
-modules — `biosfunc`, `b_disk`, `b_timofd`, `dointr` — and none is linked.
-`intdos()` resolves to `intd086`, which hard-codes INT 21h.
+**The two loss counters were read for the first time.** §11b has kept them
+since it was written; §16d pointed the instrument at the wrong second and got
+nothing. `v9k_ser rxlost/rxfull[0]=0` at every `tcsetattr()` on the way out of
+both runs. **Zero bytes lost to a µPD7201 overrun, zero to a full ring**,
+across a three-file 44-second transaction. That is the first direct
+measurement of the driver's error path rather than an inference from "the
+transfer completed" — and it says nothing about 38400 or streaming, which is
+where they would get interesting.
+
+Rebuilt clean afterwards: DGROUP **39,424 of 65,536 (60%)**, `ckermitw.exe`
+**228,554 bytes** — unchanged, as it must be, since no C changed.
 
 ---
 
 ## 2. Do this next, in rough priority order
 
-**Finish the wildcard send — cause 4. This is the port's one open defect.**
-`-s *.TXT` expands correctly, twice, and then does not transfer: the Victor
-sends Send-Init, is ACKed, and sends Send-Init again, ten times, until the
-host gives up with "Too many retries". **It is not the heap** — that was
-established under gcc at 2,068 bytes free, and the heap is outside DGROUP
-now.
-
-The lever is the asymmetry: `-s TESTFILE.TXT` works and `-s *.TXT` does not,
-and the only difference is the second expansion, the one `gnfile()` does with
-`ZX_FILONLY` after the protocol has started. **Build with
-`XFLAGS=-dKEEP_DEBUG` and read the `ssfile`/`gnfile` path out of
-`DEBUG.LOG`.** That instrument now exists unconditionally, which it did not
-when this bug was last worked on.
-
-**Milestone step 6: `RECEIVE`, then `GET`, then `SERVER`,** at 9600. Receive
-drives the ring harder than send did, because the file writes happen on the
-Victor end — the case §11b has no interrupt-level flow control for. **Read
-the two loss counters out of `DEBUG.LOG` afterwards** (bytes lost to a chip
-overrun, bytes lost to a full ring); they are logged from `tcsetattr()`,
-which `ttres()` reaches on the way out, and they have still never been read.
+**Milestone step 6: `RECEIVE`, then `GET`, then `SERVER`,** at 9600. This is
+now the top item. Receive drives the ring harder than send did, because the
+file writes happen on the Victor's end — the case §11b has no interrupt-level
+flow control for. **Point the loss counters at it**: they are known-zero for
+send now, so a non-zero reading during receive is a clean signal rather than
+an ambiguous one. `RXTEST.BAT` is already on the image from an earlier
+session; check what it says before trusting it.
 
 **Consider raising the stack.** `wlink`'s map says `STACK 2,048` — Watcom's
 default, inherited rather than chosen. `traverse()` is 98 bytes/level and the
 largest non-recursive frames are `docmd()` at 1152 and `zcopy()` at 1114, so
-a deep walk landing in `docmd()` is already most of 2K. There are 26,112 free
-bytes in DGROUP and nothing else wants them. `option stack=8k` in
-`victorow.mak`. Deliberately not done in the same change as the retirement.
+a deep walk landing in `docmd()` is already most of 2K. `sfile()` alone has a
+257-byte `pktnam[]`. There are 26,112 free bytes in DGROUP and nothing else
+wants them. `option stack=8k` in `victorow.mak`. Still deliberately not done
+in the same change as anything else.
 
 **Then step 8: long packets, windows, streaming, one at a time.** The far
 heap means `SBSIZ`/`RBSIZ` can now grow — 9024/9050, the `DYNAMIC` default,
 would cost nothing in DGROUP. Measure the *image* against the machine's 387K
-(§16a's method), not DGROUP.
+(§16a's method), not DGROUP. Note the debug build is already 308,862 bytes,
+so that is the headroom being spent.
+
+**`NOGFTIMER`.** Still not turned off, and still why `emu87.lib`/`math87l.lib`
+are in the link at all (89 of the image's INT sites). Turning it off drops the
+FP emulator entirely and would buy back image space for step 8.
 
 ---
 
 ## 3. Instruments
 
 - **`XFLAGS=-dKEEP_DEBUG`** — C-Kermit's own debug log. `CKERMITW -d -s
-  FOO.BIN` writes `./debug.log` on the target. Needs `make clean` first. This
-  is the instrument for almost everything now; the two custom ones the gcc
-  build needed were deleted with it.
+  FOO.BIN` writes `./debug.log` on the target. Needs `make clean` first.
+  Image goes 228,554 → 308,862 bytes and still loads. This settled §16g and
+  is the instrument for everything now.
+- **The driver's own two counters** ride along with it:
+  `v9k_ser rxlost/rxfull[N]=M` — N is bytes lost to a chip overrun, M bytes
+  lost to a full ring. Logged from `tcsetattr()`, which `ttres()` reaches on
+  the way out, so they appear near the end of `DEBUG.LOG`. Baseline is 0/0.
 - **`XFLAGS=-dKEEP_ICP`** — restores the interactive parser, for re-running
   §9d's DGROUP measurement. It links (60,768 of 65,536; 19,376 with
   `ZT=-zt128`) and it does **not load** — 429K needed against 387K offered.
 - **`.probe/`** holds throwaway programs, not part of the build: `vwild.c`
-  (Watcom — asks DOS directly about `.`, trailing separators, `FindFirst` and
-  `opendir`, in the root and in a subdirectory) and `vmatch.c` (**gcc — no
-  longer buildable**, kept for the questions it asked). Both settled a
-  question that reasoning had got wrong.
-- **You cannot interpose on `malloc()` under gcc** — written up in §16f so it
-  is not tried a third time. Moot now, but the write-up explains why the
-  heap instrumentation took the shape it did.
+  (Watcom) and `vmatch.c` (gcc — no longer buildable, kept for the questions
+  it asked).
 - **There is no `-fstack-usage` equivalent under Open Watcom.** Rule 7 lost
   its cheap instrument. Read the source for new automatics; if it matters,
   read the prologue's `sub sp,N` in `wdis` output. Do not stand a second
@@ -118,8 +119,9 @@ would cost nothing in DGROUP. Measure the *image* against the machine's 387K
 Unchanged; listed so they are not rediscovered as bugs.
 
 - **No interrupt-level flow control.** 3.13 sends XOFF from inside `SERINT`
-  at a 3/4-full mark. Not needed with one packet in flight; needed for
-  streaming. `tcflow()` is a stub for the same reason.
+  at a 3/4-full mark. Not needed with one packet in flight — and §16g's
+  `rxfull=0` is the measurement that says so, at 9600. Needed for streaming.
+  `tcflow()` is a stub for the same reason.
 - **No stack switch in the handler.** Deliberate — 3.13's `SERINT` does not
   switch either, on this machine. The frame is ~30 bytes, dominated by
   Watcom's fixed 12-register prologue.
@@ -139,33 +141,27 @@ Unchanged; listed so they are not rediscovered as bugs.
 ## 5. Still open, from before
 
 **Nothing has run on real hardware.** Everything is MAME, Victor MS-DOS 3.1.
-That is the largest single gap in the port and it has not moved.
+That is now, unambiguously, the largest single gap in the port, and it has not
+moved.
 
 **The 42KB gap for the interactive parser.** Needs 429KB, DOS offers 387KB
-(§16a, measured). Retiring gcc did not change this — the parser's problem was
-never DGROUP under Watcom.
-
-**`NOGFTIMER`.** Floating-point transfer timers on an 8088 with no FPU. Still
-not turned off, and now known to be why `emu87.lib`/`math87l.lib` are in the
-link at all (89 of the image's INT sites). Turning it off would drop the FP
-emulator entirely.
-
-**One unexplained difference, downgraded from two** (§16e): the gcc build's
-transfer reported 0 seconds against Watcom's 10. The other — gcc sending the
-file as binary (74 bytes) where Watcom sends it as text (72) — no longer has
-a second build to be a difference *between*, but the text/binary decision is
-still worth understanding before step 8.
+(§16a, measured).
 
 **The µPD7201 interrupt-acknowledge sequence.** §11b's handler issues
 `WR0 = 38h` then the 8259's specific EOI and works under emulation, which is
 what 3.13 does. MAME's µPD7201 is not the part, so this is not settled, and
-it gates 38400.
+it gates 38400. §16g's zero loss counters are at 9600 and do not speak to it.
+
+**The text/binary decision.** The host logs "Global file mode: binary" while
+the Victor sends 74 bytes as 72 — a text-mode send with CRLF→LF. Correct, and
+consistent across §16d and §16g, but worth understanding before step 8 turns
+on long packets.
 
 ---
 
 ## 6. The harness
 
-§16a and §16d have it in full. The landmines:
+§16a, §16d and §16g have it in full. The landmines:
 
 - **`KTEST.BAT` must have CRLF line endings.** With Unix `\n`, COMMAND.COM
   echoes every line and runs none — and it looks like a corrupted terminal,
@@ -173,14 +169,20 @@ it gates 38400.
 - **MAME does not exit when `-seconds_to_run` expires.** It writes
   `Average speed: ...` to its log and sits there. Poll the log, not the
   process: `until grep -q "Average speed" mame.log; do sleep 10; done`.
+- **Budget the emulated seconds.** A 3-file 9600 transfer took 44 s of
+  transfer inside a `-seconds_to_run 240` run; 180 was enough for one file.
+  Boot plus `-autoboot_delay 30` eats the first ~55 s.
 - **MS-DOS 3.1 cannot redirect handle 2.** `2> FILE` puts a literal `2` in
-  `argv`. Traces on stderr go to the screen, and only the last 25 lines
-  reach the snapshot — so keep trace output short or send it to stdout.
+  `argv`.
 - **The Victor boots its hard disk as `A:`**, not `C:`.
 - **`~/projects/mame/victor_kermit.img` is the image**; mtools cannot read
   it, use `vtg_image_util` (`python3 cli_main.py ...`). Backups beside it:
-  `.bak-20260804` and `.bak-before-gcc-run`.
-- **MAME's `-bitb` socket is single-use.** Start `socat` first.
+  `.bak-20260804`, `.bak-before-gcc-run`, `.bak-20260805-wild`.
+- **On the image now:** the plain (non-debug) `CKERMITW.EXE`, a `KTEST.BAT`
+  that runs the §16g wildcard test, and `ALPHA.TXT` / `BETA.TXT` /
+  `TESTFILE.TXT` as the three `*.TXT` fixtures.
+- **MAME's `-bitb` socket is single-use.** Start `socat` first, with `fork`,
+  and it survives across runs.
 - **Test on Victor MS-DOS 3.1, not FreeDOS** (§16a).
 - **`-l /dev/seriala`, with forward slashes.**
 - **Always give the host `kermit` a command file and a timeout**;
@@ -188,15 +190,13 @@ it gates 38400.
 - **Run MAME from `~/projects/mame`** — it writes `cfg/` and `nvram/` into
   the working directory.
 - **`XFLAGS=-dKEEP_DEBUG` needs `make clean` first.**
-- **Digits come through shifted in `-autoboot_command`.** `V9KTEST.COM` was
-  typed as `V(KTEST.COM` once and produced a convincing but bogus "No files
-  for -s". Prefer digit-free filenames in automated runs.
-- A run costs 2–15 minutes of wall clock. Put every question into one
-  `.BAT`. A no-serial run at `-seconds_to_run 75` is about 90 seconds and is
-  enough for anything that does not touch the wire.
+- **Digits come through shifted in `-autoboot_command`.** Prefer digit-free
+  filenames in automated runs — which is why the fixtures are `ALPHA`/`BETA`.
+- A run costs 3–5 minutes of wall clock. Put every question into one `.BAT`.
 - Host receiver: `kermit -y <file>` with `set line /tmp/v9000`,
   `set speed 9600`, `set carrier-watch off`, `set flow none`,
-  `log packets`, `log transactions`, `receive`. Start it right after MAME.
+  `log packets`, `log transactions`, `receive`. Start it right after MAME —
+  its NAKs while waiting are normal and the Victor handles them.
 
 ## 7. Rebuilding
 
@@ -208,6 +208,6 @@ container exec -i ia16-ubuntu-2 bash -c \
 ```
 
 The link prints its DGROUP figure. Rule 4 still applies — report DGROUP after
-any change that could add static data — but note the second half of it now:
-the heap is **outside** DGROUP, so anything that raises the packet buffers has
-to be measured against the machine's 387K, not against this segment.
+any change that could add static data — but note the second half of it: the
+heap is **outside** DGROUP, so anything that raises the packet buffers has to
+be measured against the machine's 387K, not against this segment.
