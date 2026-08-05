@@ -11,6 +11,12 @@ Behavioral properties of E-Kermit 0.94:
 - Supports block check types 1, 3, and 5. Block check type 2 is known
   to stall.
 - Supports window sizes 1 through 3.
+- readpkt() in eksw's unixio.c treats a raw 0x0A (LF) byte as an alternate
+  packet terminator in addition to the negotiated one.  The comments say
+  it has something to do with HyperTerminal.
+
+  This means it cannot correctly receive any packet whose data contains an
+  unprefixed 0x0A, e.g. under SET CONTROL UNPREFIX ALL.
 """
 import subprocess
 
@@ -227,3 +233,36 @@ def test_remote_local_mode_flags_are_no_ops(
         tmp_path, foreign_kermit_pty, eksw_path, "send",
         "rl.txt", b"remote/local mode flag check",
         eksw_flags=[mode_flag])
+
+
+@pytest.mark.xfail(
+    reason="E-Kermit readpkt() (eksw unixio.c) treats any raw 0x0A byte as "
+           "an alternate packet terminator, so it cannot receive "
+           "unprefixed binary data containing one; not fixable from "
+           "the C-Kermit side. See this module's docstring.",
+    strict=True)
+def test_unprefixed_lf_hangs(tmp_path, foreign_kermit_pty, eksw_path):
+    """SEND with SET CONTROL UNPREFIX ALL, to data containing 0x0A.
+
+    pattern_bytes() output contains every byte value 0-255, including 0x0A, once
+    per 256-byte block. Under SET CONTROL UNPREFIX ALL, C-Kermit sends that byte
+    raw. eksw's readpkt() then reads it as if it were the end of the packet,
+    desyncing the exchange. Run under a short timeout since the known failure
+    is a hang.
+    """
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+    dest_dir = tmp_path / "dest"
+    dest_dir.mkdir()
+    src = src_dir / "lf.dat"
+    content = pattern_bytes(4 * KERMIT_PACKET_LEN)
+    src.write_bytes(content)
+
+    returncode, stdout = foreign_kermit_pty(
+        [eksw_path, "-B", "-r"],
+        "set command more-prompting off, set control unprefix all, "
+        f"set delay 0, set host {{HOST}}, send {{{src}}}, close, exit",
+        dest_dir, timeout=5)
+    assert returncode == 0, stdout
+    assert (dest_dir / _eksw_receive_name("lf.dat")).read_bytes() \
+        == content
