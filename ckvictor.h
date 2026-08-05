@@ -330,6 +330,56 @@ extern long v9k_timezone;
 #define read v9k_read
 
 /*
+  write() is renamed for the same reason and by exactly the same mechanism,
+  and it arrived with the driver in ckvictor.c SS1e.
+
+  Once this port owns the uPD7201, it owns BOTH directions.  MS-DOS Kermit
+  3.13 uses its SERIALA handle for open, close and IOCTL and never for a
+  byte of data (PORTING.md SS11), and half-owning the chip is worse than
+  either extreme: the OEM driver's transmit path and our receive interrupt
+  would be selecting registers on the same control port, and its notion of
+  what the line is doing would be built out of a receiver we had emptied
+  behind its back.  So ttol() and ttoc()'s write() has to land on our
+  transmitter, and this is how.
+
+  It delegates exactly as read() does -- everything that is not the
+  communications device, and everything written before the driver is
+  installed, goes straight to the library's write(), so DEBUG.LOG, the
+  console and every file C-Kermit creates are untouched.
+
+  Same audit as read(): no module in the build uses "write" as an
+  identifier -- the 60-odd other occurrences across the 24 are all inside
+  string literals and comments, which the preprocessor does not touch.
+*/
+#ifdef __WATCOMC__
+#define V9K_WTYPE  int
+#define V9K_WCOUNT unsigned
+#else
+#define V9K_WTYPE  _READ_WRITE_RETURN_TYPE
+#define V9K_WCOUNT size_t
+#endif /* __WATCOMC__ */
+
+#define write v9k_write
+
+/*
+  The uPD7201 receive ring (ckvictor.c SS1e).  It is the only new static
+  array this port adds and it comes straight out of DGROUP, so it is here
+  with the other size levers rather than buried in the driver.
+
+  It has to cover the longest gap between two of C-Kermit's reads, not the
+  longest packet: myfillbuf() drains it in one call and comes straight
+  back, so the ring is only accumulating while Kermit is doing something
+  else -- writing the last packet's data to a floppy, mostly.  512 bytes is
+  533ms at 9600 bps and 133ms at 38400.  It is also what MS-DOS Kermit 3.13
+  chose for this machine (msxv90.asm's "source" buffer, BUFSIZ).
+
+  Must be a power of two: the head and tail pointers are masked with
+  V9K_RXBUFSIZ-1, which is what lets the interrupt handler and the
+  foreground share them with no critical section at all.
+*/
+#define V9K_RXBUFSIZ 512
+
+/*
   Packet buffers.  With DYNAMIC these are malloc'd from the near heap, so
   they compete directly with everything else in DGROUP.
 

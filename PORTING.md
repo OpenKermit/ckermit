@@ -2,10 +2,11 @@
 
 Running notes for the serial-only Victor 9000 port. Branch: `victor9k-port`.
 
-**Status:** all 24 modules of the minimal build compile clean for
-`ia16-elf-gcc`, including `ckutio.c` now that `victor/sys/termios.h` supplies
-the header the stock newlib is missing. Nothing has been linked or run on
-hardware yet.
+**Status:** **it transfers a file.** Both toolchains build all 24 modules
+clean; the Open Watcom binary runs on Victor MS-DOS 3.1 under MAME, drives the
+µPD7201 through the driver in §11b, and completes a Kermit send to a host
+C-Kermit at 9600 — milestone step 5 (§13, §16d). Under emulation only;
+nothing here has run on a real Victor.
 
 **Verdict:** this is a thin-platform port, not a rewrite. The blocker people
 expect — a modern flat-memory codebase that cannot be squeezed into 64K — did
@@ -726,10 +727,14 @@ container exec -i ia16-ubuntu-2 bash -c \
 
 Same feature set as the gcc build (`NOICP` on), `-ml -0 -os -zc`:
 
+Figures are current as of §11b, which added 672 bytes to each — 512 of them
+the receive ring. The far-code and `.EXE` sizes are as first measured here
+and have drifted a little since.
+
 | | ia16-elf-gcc, medium | Open Watcom, large |
 |---|---:|---:|
-| near data (DGROUP) | 52,000 of 65,536 (79%) | 38,704 of 65,536 (59%) |
-| left in the segment | 13,536 for heap **and** stack | 26,832, stack already counted |
+| near data (DGROUP) | 52,728 of 65,536 (80%) | 39,424 of 65,536 (60%) |
+| left in the segment | 12,808 for heap **and** stack | 26,112, stack already counted |
 | far code | 236,957 | 190,498 |
 | far data | none possible | 0 (not needed yet) |
 | `.EXE` | 218,448 | 224,928 |
@@ -856,18 +861,39 @@ Not the same claim as the two above, and kept separate for that reason.
 - **A correct Send-Init packet on the wire at 9600**, byte-identical from
   both toolchains, with retransmission on timeout and a protocol `E`
   packet on giving up (§16a, §16b).
+- **A complete file transfer** (§16d, §11b). Our IRQ1 handler on the
+  µPD7201, a receive ring, a polled transmitter, and the OEM driver out of
+  the data path: S/F/A/D/Z/B all the way through, and a byte-correct 72-byte
+  file at the far end. Open Watcom build only; one small file, 9600 bps,
+  window 1, short packets.
 
 ### Written but never run on hardware
 
-- **Interrupt-driven receive.** `kernel/victor_int14.asm` has the whole
-  apparatus: per-channel `SERPORT` descriptors, 256-byte RX/TX rings, an IRQ1
-  ISR with the MS-DOS 3.1 stack-switching pattern. But both channels ship with
-  `irq_enabled = 0` and IRQ1 masked at the PIC. The note dated 2026-07-14 says
-  the IRQ-buffered path produced no output and hung `ctty COM2`, and that
-  re-enabling requires verifying the µPD7201 interrupt-acknowledge sequence
-  (Reset Tx Int Pending `0x28` / RETI) on real hardware.
+- **Our interrupt-driven receive at speed.** §16d proves the mechanism at
+  9600 with one packet in flight. It says nothing about 19200 or 38400,
+  about long packets, or about a floppy write holding the ring for longer
+  than the 533ms it buffers at 9600. The handler's two loss counters exist
+  to answer exactly that.
+- **The FreeDOS-for-Victor interrupt-driven receive.**
+  `kernel/victor_int14.asm` has the whole apparatus: per-channel `SERPORT`
+  descriptors, 256-byte RX/TX rings, an IRQ1 ISR with the MS-DOS 3.1
+  stack-switching pattern. But both channels ship with `irq_enabled = 0` and
+  IRQ1 masked at the PIC. The note dated 2026-07-14 says the IRQ-buffered
+  path produced no output and hung `ctty COM2`, and that re-enabling
+  requires verifying the µPD7201 interrupt-acknowledge sequence (Reset Tx
+  Int Pending `0x28` / RETI) on real hardware. Our own handler now works
+  under emulation without that sequence, on the same chip, which is evidence
+  about the acknowledge question but not an answer to it — MAME's µPD7201 is
+  not the part.
 
-### Why the ISR is on the critical path for 38400 but not for the milestone
+### Why the ISR turned out to be on the critical path for the milestone too
+
+The subsection below was written before §16b, and its conclusion — polled
+receive first, the ISR later — was wrong for a reason it could not have
+known. Its reasoning about *speed* still holds exactly as written; what it
+missed is that the OEM driver could not receive a packet at any speed. §16b
+measured that, §11b replaced it, and §16d is the transfer. Kept because the
+speed argument is still the argument for windows and streaming.
 
 At 38400 8N1 a byte arrives every ~260µs. The µPD7201's receive FIFO is three
 deep, so a polled reader has well under a millisecond of slack. That is fine
@@ -879,9 +905,13 @@ window 1 and streaming off, the sender waits for an ACK per packet, so the disk
 write happens on an idle line and **polled RX is correct at any speed** — just
 slow. Windows and streaming are what make the ISR mandatory.
 
-That gives a clean staging: **polled first for the milestone, ISR before the
-speed and windowing work.** The ISR bring-up does not block getting a file
-across the wire.
+That gave what looked like a clean staging: polled first for the milestone,
+ISR before the speed and windowing work. **It did not survive contact.** The
+ISR bring-up turned out to be the whole of getting a file across the wire,
+because the polled path we were going to lean on was the OEM driver's and it
+loses the packet (§16b). What remains true is the other half: windows and
+streaming are what make the ISR mandatory *for throughput*, and §11b's ring
+has no interrupt-level flow control yet for exactly that reason.
 
 One thing §16b adds to this: whatever the driver does about *errors* is not
 optional even at 9600 with window 1. Measured — the OEM `\dev\seriala`
@@ -927,6 +957,11 @@ independently, which is the real reason to copy the model:
 
 11a is small, is pure INT 21h, needs no interrupt work, and makes `SET SPEED`
 and `tcsetattr()` real on their own. 11b is where the risk is.
+
+**Both are done.** 11a is measured in §16c, 11b in §16d, and the split earned
+its keep: 11a shipped and was verified on hardware two sessions before 11b
+existed, and when 11b landed there was exactly one new thing that could be
+wrong.
 
 ### Why we still cannot just use the OEM driver
 
@@ -1128,13 +1163,28 @@ TESTFILE.TXT`, `DEBUG.LOG` pulled back off the image.
 
 #### What §11a does not do
 
-`ttchk()` still returns 0, upstream of `FIONREAD`, because `in_chk()` asks
-`ttgmdm()` for carrier first and this port has no `TIOCMGET` (§12). The
+`ttchk()` returns 0, upstream of `FIONREAD`, because `in_chk()` asks
+`ttgmdm()` for carrier first and this port had no `TIOCMGET` (§12). The
 control block is write-registers only and carries no RR0, so modem status
 cannot come from here — 3.13 reads DSR/CD/CTS straight out of RR0. That,
-the real byte count, and the data path are all §11b.
+the real byte count, and the data path were all §11b, and are done.
+
+One thing §11a keeps doing after §11b, which is easy to miss: **every call
+through `tcsetattr()` still ends by re-asserting WR1 at the chip.** The IOCTL
+write may clear the receive-interrupt enable, so if it did not, the interrupt
+could go away silently in the middle of a transfer.
 
 ### 11b. The data path we own
+
+**Done, and it completes a file transfer.** It is `ckvictor.c` §1e, it is
+shared by both toolchains, and it cost 672 bytes of DGROUP in each — 512 of
+them the receive ring. §16d has the measurement; this section is the design
+and the reference data.
+
+The shape is the one §16b argued for: **our interrupt handler for receive, a
+polled transmitter**, and the OEM `\dev\seriala` driver out of the data path
+entirely in both directions. It keeps its IOCTL job from §11a and nothing
+else, which is exactly the division `msxv90.asm` has used since 1986.
 
 Memory-mapped, not I/O ports. From `msxv90.asm`:
 
@@ -1149,46 +1199,95 @@ And its `mdminfo` for channel A resolves §2's open question about the vector:
 specific EOI `61h`. 8253 control byte is `(port << 6) | 36h` — mode 3, binary,
 low byte then high byte of the divisor.
 
+The vector is the one constant here that is not a property of the hardware —
+it is a property of how the 8259 was programmed at boot. `~/projects/myfreedos`
+remaps the PIC in its own kernel and puts its serial ISR at INT 09h. So 41h
+is right for Victor MS-DOS 3.1, where it has been used, and is an open
+question for FreeDOS for Victor (§15).
+
+DSR is not on this chip at all. `msxv90.asm`'s `getmodem` explains why: the
+Victor brings no DSR pin to the 7201, so it comes off the **6522 at `E804h`,
+PA3 for channel A and PA5 for channel B, active LOW**. DCD and CTS are RR0
+bits 3 and 5.
+
 Ownership protocol, on `SET LINE`:
 
-1. Configure via 11a. If the handle is not open, fall back to programming the
-   chip: WR0 `18h` (channel reset), then the register order above. 3.13 has
-   this fallback and prints *"Cannot open com port / Going direct to serial
-   controller hardware..."*; it is worth having for the same reason.
+1. Configure via 11a. If the handle will not answer the IOCTL, fall back to
+   programming the chip: WR0 `18h` (channel reset), then the register order
+   above. 3.13 has this fallback and prints *"Cannot open com port / Going
+   direct to serial controller hardware..."*. **Implemented**, and not
+   hypothetical: 11a's IOCTL is measured on Victor MS-DOS 3.1 and nobody has
+   measured FreeDOS for Victor, which this binary also has to run on.
 2. Save the old vector at 41h and the 8259 mask.
 3. Install our ISR, unmask IRQ1, `WR1 |= 18h`.
 
-And the exact inverse on `ttclos()` / exit / Ctrl-Break / critical error —
-3.13's `SERRST` **spins on RR1 bit 0 until the transmitter and shift register
-are empty** before it tears anything down, which is worth copying; otherwise
-the last packet is truncated. A Kermit that leaves IRQ1 hooked after exiting
-will take the machine down.
+And the exact inverse on exit — 3.13's `SERRST` **spins on RR1 bit 0 until
+the transmitter and shift register are empty** before it tears anything
+down, which is copied; otherwise the last packet is truncated. A Kermit that
+leaves IRQ1 hooked after exiting will take the machine down.
+
+The release hangs on `atexit()` rather than on `ttclos()`, because C-Kermit
+can leave from several places and all of them go through `exit()` — including
+`ckusig.c`'s SIGINT handler. What that does **not** cover is a Ctrl-Break
+that DOS turns into a bare program termination before the runtime's INT 23h
+handler sees it. Known, not measured on either runtime, and the reason to be
+careful with Ctrl-Break while the line is open.
+
+Where the install hook goes: `tcsetattr()`, at the end. That is the one place
+C-Kermit is guaranteed to reach with the descriptor open and the line already
+programmed, and it costs no new interception. Every later call through it
+re-asserts `WR1`, because the IOCTL write may have cleared it — 3.13 found
+that write subfunction does not apply CR1 (*"IOCTL doesn't seem to touch
+it"*), and §11a measured CR1 reading back as 0, which is consistent with the
+field being neither applied nor reported.
 
 Note that this displaces the OEM driver's own ISR while its device stays
 open. That is safe precisely because we never ask it for data again.
 
-#### The ISR can be written in C, in both toolchains — checked
+**WR2 is left as the OEM driver set it.** §11a read it back as `10h` where
+3.13 writes `14h`; the two differ in one bit, which 3.13's own comment
+attributes to interrupt priority (Ra>Rb>Ta>Tb), and with one channel and
+receive interrupts only there is no priority decision to make. Reasoned, not
+measured — but the transfer in §16d works with `10h`, which is the strongest
+form the argument can take. The direct-programming fallback writes `14h`,
+because in that path there is no OEM setting to preserve.
 
-Worth knowing before designing around assembler. Both compilers were fed a
-trial handler and the results inspected:
+#### The ISR is written in C, in both toolchains
 
-- **ia16-elf-gcc**: `__attribute__((interrupt))` is supported and generates
-  the right thing — it pushes the scratch registers and `DS`, **loads `DS`
-  from `DGROUP` itself**, and ends in `iret`. It rejects a handler with
-  named arguments (`error: interrupt function with named arguments`), so
-  the handler takes `void`.
+Both compilers were fed the handler and the generated code inspected:
+
+- **ia16-elf-gcc**: `__attribute__((interrupt))` pushes the scratch
+  registers it actually uses plus `DS`, **loads `DGROUP` from a relocation**
+  rather than trusting the interrupted `DS`, and ends in `iret`. It rejects
+  a handler with named arguments (`error: interrupt function with named
+  arguments`), so the handler takes `void` — and so it has to be written
+  ANSI-only, since the attribute is part of its type and has no K&R
+  spelling.
 - **Open Watcom**: `void __interrupt __far`, plus `_dos_getvect` and
   `_dos_setvect` — which are INT 21h `AH=35h`/`25h`, so hooking the vector
-  stays inside rule 6. The gcc build needs those two by hand.
+  stays inside rule 6. The gcc build issues those two itself; `AH=25h`
+  takes `DS:DX`, and `DS` has to hold the *handler's* segment rather than
+  DGROUP, which is the one INT 21h call in this file that cannot use
+  `DOS_DS_CALL`. Both builds go through one `v9k_getvect`/`v9k_setvect`
+  pair taking a segment and an offset, so install and release have no
+  `#ifdef` in them.
 
-What neither gives us is a **stack switch**. A C handler runs on whatever
-stack it interrupts, and under MS-DOS that can be a few hundred bytes;
-this is what `~/projects/myfreedos`'s `victor_int14.asm` prologue exists
-to solve, and it is the part of §11b that will not be C.
+Neither emits a stack probe in the handler, and neither gives a **stack
+switch**: a C handler runs on whatever stack it interrupts.
+
+**We do not switch stacks, deliberately.** A dedicated interrupt stack would
+have to come out of the same 64K DGROUP that is this port's binding
+constraint, and 3.13's `SERINT` does not switch either, on this machine, and
+shipped. The handler holds no arrays and calls nothing; `-fstack-usage`
+reports its frame at **22 bytes** under gcc, against roughly 30 for Watcom's
+fixed 12-register prologue. That is the number to watch if this ever turns
+out to be the wrong call. `~/projects/myfreedos`'s `victor_int14.asm`
+prologue remains the reference for doing it properly.
 
 ### The ISR, and overrun
 
-This is the part §16b says is not optional. 3.13's `SERINT`, per interrupt:
+This is the part §16b says is not optional. Ours is 3.13's `SERINT` with the
+terminal-emulator half removed:
 
 1. Read RR0. Read RR1 (select register 1, then read).
 2. `WR0 = 38h` (end of interrupt), then the 8259 EOI (`61h`).
@@ -1196,8 +1295,15 @@ This is the part §16b says is not optional. 3.13's `SERINT`, per interrupt:
 4. **If RR1 bit 5 (overrun) is set, `WR0 = 30h` — Error Reset — and
    substitute a `BELL` for the character that was lost**, storing both it and
    the real character so the byte stream stays framed.
-5. Store into a ring (3.13 uses 512 bytes) and bump the count.
-6. XON/XOFF at the interrupt level, with water marks at 3/4 and 1/4 full.
+5. Store into a ring and advance head.
+6. ~~XON/XOFF at the interrupt level, with water marks at 3/4 and 1/4 full.~~
+   **Not done.** With one channel, a window of 1 and a 512-byte ring there is
+   at most one packet in flight, so a correct peer cannot fill it; the ring
+   holds 533ms of 9600 bps. It starts to matter with streaming or a real
+   window, and `tcflow()` and the water marks arrive together when it does.
+   Two counters in the handler — bytes lost to a chip overrun, bytes lost to
+   a full ring — go to the debug log at release so this is measurable rather
+   than assumed.
 
 Step 4 is the one to take seriously. The chip latches overrun in RR1 and will
 not resume until Error Reset, so an ISR that omits it wedges the channel on
@@ -1206,10 +1312,36 @@ does to us today. `msxv90.asm`'s own edit history shows this was learned the
 hard way on this hardware: *"9 August 1986 Revise SERINT to insert control-G
 for overrun chars"* and *"6 November 1986 Fix receiver overrun detection"*.
 
-`count` also gives `FIONREAD` a real number for the first time, which is what
-§12 and milestone step 8 have been waiting for. `ttgmdm()` needs feeding too —
-3.13's `getmodem`/`shomodem` read DSR, CD and CTS out of RR0 — or `in_chk()`
-will keep returning 0 before it ever reaches the count (§12).
+The ring is 512 bytes, a power of two, with head written only by the handler
+and tail only by the foreground. That combination needs **no critical section
+at all** on this target: each index has exactly one writer, and a 16-bit
+store on an 8088 cannot be interrupted part-way, because interrupts are taken
+between instructions. The one lock the driver does need is around any
+foreground *select-then-access* pair on the control port — the handler shares
+that pointer — which is why `tcdrain()` and the release path bracket their
+RR1 reads with `cli`/`sti` and a bare RR0 read does not need to.
+
+`FIONREAD` is now `(head - tail) & mask`: a real number for the first time,
+which is what §12 and milestone step 8 have been waiting for. `ttgmdm()` is
+fed too, through a `TIOCMGET` that `victor/sys/ioctl.h` defines and
+`ckvictor.c` answers out of RR0 and the 6522 — without it `in_chk()` returns
+0 before it ever reaches the count (§12).
+
+#### The carrier clause, which is the one judgement call
+
+`in_chk()` asks `ttgmdm()` for carrier **before** it asks how many bytes are
+waiting, and treats "no DCD" as a lost connection: it closes the device and
+returns -2. A three-wire cable does not carry DCD, so a literal RR0 would end
+every transfer at the first `ttchk()` — turning a working port into a broken
+one by making `ttgmdm()` honest.
+
+C-Kermit has already said whether it wants carrier to mean anything here.
+`ttopen()` and `ttpkt()` call `carrctl()`, whose entire body is *set `CLOCAL`
+when carrier is not to be required*, and those are the settings cached in
+`victor_ttcur`. So: **when `CLOCAL` is set, report carrier present; otherwise
+report RR0 as it reads.** With `CARRIER-WATCH ON`, or a modem connection,
+`CLOCAL` is clear and the real bit is what comes back. CTS, DSR, DTR and RTS
+are always reported truthfully.
 
 ### Sources
 
@@ -1415,19 +1547,23 @@ not compiled.
 Console side is INT 21h `AH=0Bh`, which answers *whether* not *how many*, so it
 reports at most 1 — enough for `conchk()`, whose callers test against zero.
 
-The serial side was a stub returning 0. It is now INT 21h `AX=4406h` (IOCTL,
-get input status), the same primitive §16b's blocking read waits on, and it
-answers *whether* as well — so at most 1 there too. That is honest but nearly
-useless to the caller that wanted it: `sdata()` in `ckcfns.c` only slides its
-window when `ttchk()` exceeds `4 + bctu`, so 1 never triggers it and this port
-still sends a full window before reading ACKs. Upstream has been here before —
-see the `GEMDOS` arm of that same test, which exists because the Atari ST's
-`ttchk()` could also only return 0 or 1. **A real count still needs the §11
-driver's RX ring**, and it is still on the critical path for milestone step 8.
+The serial side was a stub returning 0. It became INT 21h `AX=4406h` (IOCTL,
+get input status), the same primitive §16b's blocking read waits on, and that
+answers *whether* as well — so at most 1 there too. Honest, but nearly useless
+to the caller that wanted it: `sdata()` in `ckcfns.c` only slides its window
+when `ttchk()` exceeds `4 + bctu`, so 1 never triggered it and the port sent a
+full window before reading ACKs. Upstream has been here before — see the
+`GEMDOS` arm of that same test, which exists because the Atari ST's `ttchk()`
+could also only return 0 or 1.
 
-There is a *second* reason `ttchk()` reports 0 on the communications device,
-which was missed the first time round and is upstream of everything above.
-`in_chk()` checks carrier before it checks for bytes:
+**Both of those are fixed as of §11b.** For the communications device
+`FIONREAD` is now the depth of the driver's receive ring, `(head - tail) &
+mask` — a real count, which is what milestone step 8 needs. `AX=4406h` remains
+the answer for every other device and for the line before the driver installs.
+
+There was a *second* reason `ttchk()` reported 0 on the communications device,
+missed the first time round and upstream of everything above. `in_chk()` checks
+carrier before it checks for bytes:
 
 ```c
 } else if (xlocal && !netconn && ttcarr != CAR_OFF) {
@@ -1437,11 +1573,21 @@ which was missed the first time round and is upstream of everything above.
 
 `ttcarr` initialises to `CAR_AUT`, this port is always `xlocal`, and `ttgmdm()`
 on a platform with no `TIOCMGET` and no `K_MDMCTL` falls all the way through to
-`return(-3)`. So `in_chk()` returns 0 without ever reaching `FIONREAD`, and the
-`AX=4406h` answer above is **correct but currently unreachable for `ttyfd`**.
-Both halves belong to §11: the driver has to supply modem signals as well as a
-count. Nothing else is affected — `conchk()` passes `channel = 0` and skips the
+`return(-3)`. So `in_chk()` returned 0 without ever reaching `FIONREAD`, and
+the `AX=4406h` answer above was **correct but unreachable for `ttyfd`**.
+
+Also fixed in §11b, and it needed nothing but a macro: `ckutio.c` selects that
+whole arm with `#ifdef TIOCMGET → #define K_MDMCTL`, so defining `TIOCMGET` in
+`victor/sys/ioctl.h` is the entire switch, and `ioctl()` answers it out of RR0
+and the 6522. Note the two are useless apart — a real byte count that
+`in_chk()` never reaches is no count at all, which is why they arrived
+together. `conchk()` was never affected: it passes `channel = 0` and skips the
 carrier block entirely.
+
+`TIOCMBIS` and `TIOCMBIC` are deliberately left undefined. `tthang()` prefers
+them when they exist, and this port hangs up 3.13's way — `B0` through
+`tcsetattr()`, dropping DTR and RTS in WR5 (§11a) — so defining the bit-set
+pair would silently move `tthang()` onto a second, redundant path.
 
 ### Stubs in `ckvictor.c` that collided — resolved
 
@@ -1535,25 +1681,34 @@ Order of work:
    also measured the answer to a question step 4 used to leave open: the OEM
    `\dev\seriala` driver delivers the first two bytes of a packet and then
    stops, so **there is no way to reach step 5 without step 4**.
-4. **7201 driver in `ckvictor.c`, on MS-DOS Kermit 3.13's model** (§11).
-   Splits in two, and 4a is worth doing on its own:
-   - 4a. **Configuration through the OEM driver's IOCTL control block**
-     (`AH=44h AL=03h` on the handle `ttopen()` already holds). Makes
-     `tcsetattr()`/`SET SPEED`/`SHOW COMMUNICATIONS` real with no interrupt
-     work and no chip programming; pure INT 21h.
-   - 4b. **Our own ISR and RX ring** against the memory-mapped chip, with
-     RR1 overrun recovery from the first version. Verify against a loopback
-     plug before involving another machine. Receive is the hard half (§16b);
-     transmit is already proven through the OEM driver.
-5. **`SEND` one small binary file** at 9600 to a known-good Kermit, short
-   packets, window 1, streaming off. This exercises the whole engine end to end
-   and is the real milestone.
-6. **`RECEIVE`, then `GET`, then `SERVER`** — still at 9600, still polled.
-7. **Bring up the RX ISR and ring buffer** as its own task, standalone, on real
-   hardware. Verify the µPD7201 interrupt-acknowledge sequence that
-   `victor_int14.asm` flags as unproven. Instrument dropped-byte counts.
+4. ~~**7201 driver in `ckvictor.c`, on MS-DOS Kermit 3.13's model** (§11).~~
+   **Done**, in both halves:
+   - 4a. ~~**Configuration through the OEM driver's IOCTL control block**
+     (`AH=44h AL=03h` on the handle `ttopen()` already holds).~~ **Done** —
+     §11a, §16c. Pure INT 21h, and the values read back as written.
+   - 4b. ~~**Our own ISR and RX ring** against the memory-mapped chip, with
+     RR1 overrun recovery from the first version.~~ **Done** — §11b, §16d.
+     Receive was the hard half (§16b); transmit is ours too now, polled, so
+     the OEM driver is out of the data path in both directions.
+5. ~~**`SEND` one small binary file** at 9600 to a known-good Kermit, short
+   packets, window 1, streaming off.~~ **Done — §16d.** 74 bytes off the
+   Victor's disk, 72 bytes byte-correct at the far end, 10 seconds, under
+   MAME on Victor MS-DOS 3.1 with the Open Watcom build. **This was the real
+   milestone and the port has reached it.** Not yet done on real hardware,
+   and not yet run from the gcc build.
+6. **`RECEIVE`, then `GET`, then `SERVER`** — still at 9600. The send
+   direction is the one §16d exercised; receive drives the ring harder,
+   because the file writes happen on this end.
+7. ~~**Bring up the RX ISR and ring buffer** as its own task, standalone, on
+   real hardware.~~ Superseded by 4b, except for the real-hardware half.
+   What is left of it: run §16d's transfer **on a real Victor**, and settle
+   the µPD7201 interrupt-acknowledge question `victor_int14.asm` flags —
+   ours works under emulation without the sequence, which is evidence and
+   not an answer. The dropped-byte instrumentation asked for here exists:
+   two counters in the handler, logged at release.
 8. **Turn on long packets, then windows, then streaming**, one at a time,
-   re-measuring free memory at each step.
+   re-measuring free memory at each step. This is where the ring's missing
+   interrupt-level flow control starts to matter (§11b).
 9. **Push to 19200, then 38400.**
 
 Only after all that is CONNECT worth considering — and it should be written
@@ -1633,7 +1788,7 @@ Problems hit and resolved, in order:
 | `ckutio.c` `sys/termios.h` missing | supplied as `victor/sys/termios.h`, reached via `-Ivictor` (§12) |
 | `ckvictor.c` prototype conflicts | Rewrote stubs as ANSI matching newlib |
 | `MAXWS` redefined (warning) | `ckcker.h` defines it unguarded and always wins; removed the dead `#define` (above) |
-| `conchk()`/`ttchk()` constant 0 | `FIONREAD` undefined → SIGQUIT fallback. Supplied `victor/sys/ioctl.h` + `ioctl()` (§12) |
+| `conchk()`/`ttchk()` constant 0 | `FIONREAD` undefined → SIGQUIT fallback. Supplied `victor/sys/ioctl.h` + `ioctl()` (§12). `ttchk()` needed `TIOCMGET` as well, and a real count from §11b's ring |
 | `traverse()` 1066-byte recursive frame | `CKMAXNAM` was 1024 via `FILENAME_MAX`; pinned to 16 → 98 bytes (§9) |
 | `opendir` etc. absent | Implemented over INT 21h `4Eh`/`4Fh`, one DTA per `DIR` (§12) |
 | `dup2`/`putenv`/`getpid` duplicate | Stubs removed; `libdos-m.a` has all three (§12) |
@@ -2061,6 +2216,14 @@ clears. Two cautions keep this short of settled: CR1 is the single field
 mean "not reported" rather than "not enabled"; and every other field in
 the block does round-trip, which is the reason to weigh it at all.
 
+**§16d removes both cautions.** When §11b's driver installs itself it
+records what it found first, and on Victor MS-DOS 3.1 that is `IRQ1 mask =
+0B3h` — bit 1 set, IRQ1 masked at the 8259 — and the vector at 41h pointing
+at segment 0. Nothing was servicing this chip's interrupt, measured two ways
+that do not depend on the IOCTL. The polled-and-unbuffered half of this
+explanation is now established. The latched-overrun half still is not, and
+the handler's loss counters are what would show it.
+
 What does raise the hypothesis well above a guess is MS-DOS Kermit 3.13.
 `msxv90.asm` is a driver for this exact machine by this exact project, and
 its interrupt handler reads RR1, tests bit 5, issues `WR0 = 30h` (Error
@@ -2108,6 +2271,124 @@ no `dodebug` and fails with `E2028: dodebug_ is an undefined reference`.
 
 ---
 
+## 16d. A file crosses the wire
+
+**A C-Kermit file transfer from the Victor 9000 completed**, on Victor
+MS-DOS 3.1 under MAME, with §11b's driver owning the µPD7201. This is
+milestone step 5 (§13) and it is the first time this port has done the thing
+it exists to do.
+
+Same harness as §16a and §16b, unchanged: `socat` listener first, MAME
+second, `KTEST.BAT` autobooted, `CKERMITW -d -l /dev/seriala -b 9600 -s
+TESTFILE.TXT`. Host receiver: C-Kermit 9.0.302 on the `socat` pty, `set line
+/tmp/v9000`, `set speed 9600`, `set carrier-watch off`, `set flow none`,
+`receive`, `log packets`.
+
+The host's packet log, in full, after the retransmissions that opened the
+conversation:
+
+```
+r-00-28-^A9 Sz/ @-#Y3~^! z0___F"U1AF     <-- Send-Init from the Victor
+s-00-28-^A9 Y~/ @-#Y3~^>J)0___B"U1@A     <-- our ACK ...
+r-01-05-^A1!FTESTFILE.TXT+")             <-- ... which the Victor ACTED ON
+s-01-05-^Aw!Y/private/tmp/.../TESTFILE.TXT
+r-02-10-^AQ"A."U1""B8#119700101 01:19:28!!11"74,#666-!3@ /"O
+s-02-10-^A%"Y.5!
+r-03-13-^Ao#DVictor 9~#0 C-Kermit test payload.#JBuilt with Open Watcom, ...
+s-03-13-^A%#Y/R9
+r-04-15-^A%$Z(,*                          <-- EOF
+s-04-15-^A%$Y+&1
+r-05-17-^A%%B 8;                          <-- Break: end of transaction
+s-05-17-^A%%Y*A)
+```
+
+and the transaction log:
+
+```
+Receiving TESTFILE.TXT
+ mode: binary: 1
+ complete, size: 72
+ elapsed time (seconds)  : 10
+```
+
+The file arrived byte-correct. 72 received against 74 on the Victor's disk
+is the two carriage returns of CRLF→LF text conversion, which is what
+C-Kermit is supposed to do.
+
+| | §16b / §16c | §11b |
+|---|---|---|
+| reads | **12, every one of exactly 2 bytes** | **6, of 33 / 90 / 8 / 8 / 8 / 8** |
+| Victor reacts to the host's ACK | **no** | **yes** |
+| S / F / A / D / Z / B sequence | never past S | **complete** |
+| file written at the far end | no | **yes, 72 bytes, correct** |
+| timeouts, retransmissions | 12 and 13–15 | **none** |
+| exit | protocol `E "Too many retries"` | `C-Kermit EXIT status=0` |
+
+The Victor's own `DEBUG.LOG`, `XFLAGS=-dKEEP_DEBUG`, on the same run. Six
+reads, all of whole packets, no timeout anywhere, and `tthang` / `ttres` /
+`ttclos` / `conres` all completing in order. `ttgmdm` is in it too, working
+for the first time: `TIOCMGET ioctl=0`, `bits=358` — DSR, carrier, CTS, DTR
+and RTS — so `in_chk()` gets past its carrier test and reaches the byte
+count instead of stopping at a -3.
+
+### Two lines of that log settle §16b's hypothesis
+
+§16b said the OEM driver's two-byte signature looked like a latched receive
+overrun on a polled, unbuffered port, and was careful to call that "hypothesis,
+not measurement" — the only evidence was CR1 reading back as 0 through an
+IOCTL that 3.13 says does not report CR1 reliably. The install path prints
+what it found before touching anything:
+
+```
+v9k_ser_install old IRQ1 mask=179       <-- 0B3h: bit 1 SET
+v9k_ser_install old vector seg=0
+```
+
+**IRQ1 was masked at the 8259, and the vector at 41h pointed at segment 0.**
+Nothing was servicing the µPD7201's interrupt at all. That is independent of
+the CR1 read-back and it says the same thing: the OEM driver runs this port
+polled, with no buffer being filled behind DOS's back, so it can only ever
+return the character that happens to be in the chip when someone asks. At
+9600 the next character is a millisecond behind. §16b's leading explanation
+is now the measured configuration; whether the specific mechanism is a
+latched overrun is still not directly observed, and the counters below are
+what would show it.
+
+The loss counters themselves did not print on this run, and the reason is
+worth writing down: they were logged from the release path, and the release
+runs from `atexit()`, by which time C-Kermit has already closed `DEBUG.LOG`.
+They are now also logged from `tcsetattr()`, which `ttres()` calls on the way
+out, so the next run has them. Nothing was lost — six clean reads and no
+retransmission is a stronger statement than a zero counter — but the
+instrument was pointed at the wrong second.
+
+**What this establishes.** Not just that the driver works — that the whole
+diagnosis was right. §16b said the OEM `\dev\seriala` driver delivers the
+first two bytes of every inbound packet and then stops, that everything above
+the driver was already correct, and that §11's split was the fix. Changing
+only the data path, and changing nothing above it, turns twelve two-byte
+reads into a completed transfer. The protocol engine, the file system, the
+timers and the packet framing were never the problem, and this is the run
+that proves the negative.
+
+It also closes §12's two loose ends by using them: `ttchk()` returns a real
+count out of the ring, and `ttgmdm()` answers out of RR0, so `in_chk()`
+reaches its byte count for the first time instead of stopping at a -3.
+
+**What it does not establish.** Under emulation, not on real hardware. One
+file, 74 bytes, one data packet, at 9600 with window 1 and short packets —
+which is exactly milestone step 5 and no more. Nothing here says anything
+about 19200 or 38400, about long packets, about windowing or streaming, or
+about what happens when a floppy write holds the ring for longer than 533ms.
+The two counters the handler keeps for precisely those questions — bytes lost
+to a chip overrun, bytes lost to a full ring — are what to read next.
+
+The gcc build was not run. Both builds compile the same §1e from the same
+`ckvictor.h` and have been byte-identical on the wire twice (§16a, §16b), but
+that is an inference here and not a measurement.
+
+---
+
 ## 15. Open questions
 
 **Closed since the last revision**
@@ -2139,25 +2420,47 @@ no `dodebug` and fails with `E2028: dodebug_ is an undefined reference`.
   `traverse` → `opendir("./")` in `ckufio.c`. `NODEBUG` is on, so there is no
   `debug()` log; the cheapest instrument is a temporary `_write_r` trace of
   the pattern string `opendir()` actually receives.
-- **The serial arm of `ioctl(fd,FIONREAD)` returns 0** and must be finished by
-  the 7201 driver from its RX ring count. Correct today (there is no port yet)
-  but on the critical path for milestone steps 8–9, because `ttchk()` is what
-  windowing and streaming read. (§12)
+- ~~**The serial arm of `ioctl(fd,FIONREAD)` returns 0** and must be finished
+  by the 7201 driver from its RX ring count.~~ **Done** — §11b. It is
+  `(head - tail) & mask` now, and `TIOCMGET` was the other half: without it
+  `in_chk()` asked `ttgmdm()` for carrier, got -3 and returned 0 before ever
+  reaching the count. (§12)
+- **Which interrupt vector does IRQ1 arrive on under FreeDOS for Victor?**
+  `ckvictor.c` §1e hooks **41h**, which is `msxv90.asm`'s and is right for
+  Victor MS-DOS 3.1 (§16d). But `~/projects/myfreedos` remaps the 8259 in
+  its own kernel and puts its serial ISR at INT 09h, so the number is a
+  property of the boot configuration and not of the hardware. This is the
+  most likely thing to break the "one binary, two DOSes" claim, and it is
+  one constant.
+- **Ctrl-Break with the line open.** The IRQ1 vector is put back from an
+  `atexit()` handler, which covers every path through `exit()` including
+  `ckusig.c`'s SIGINT handler. It does not cover a Ctrl-Break that DOS turns
+  into a bare termination before the runtime's INT 23h handler sees it, and
+  a Kermit that exits with IRQ1 pointing into freed memory takes the machine
+  down. Not measured on either runtime. The fix, if it bites, is to hook
+  INT 23h — which is `AH=25h` and so stays inside rule 6.
 - ~~**`coninc()` still does a cooked `read(0,&ch,1)`.**~~ Done — `_read_r`
   now does raw `AH=07h` input with VMIN=1 semantics (§16). **Untested**: no
   path in the current `NOICP` build reads the console, so this code has never
   actually run. It will first matter for `-x` (server mode) interruption.
-- **Heap headroom is the binding constraint now, not static DGROUP.** 13,536
-  bytes shared between heap and stack, against 21% of DGROUP still free.
+- **Heap headroom is the binding constraint now, not static DGROUP.** 12,808
+  bytes shared between heap and stack, against 20% of DGROUP still free.
   Anything that raises `SBSIZ`/`RBSIZ`/`MAXSP`/`MAXRP` must be checked against
   a real run, not against `make sizes`. (§9c, §16)
 - Does the FreeDOS OEM byte (INT 21h AH=30h → BH) actually come back as `0xFD`
   on the Victor build? The whole dual-target vector detection rests on it. A
   fallback (`SET SERIAL-VECTOR` or a command-line switch) is cheap insurance.
-- Does Victor MS-DOS 3.1 install its own handler on IRQ1 for an AUX/COM device?
-  If so, Kermit must quiesce it, not just save and restore the vector.
-- What does the µPD7201 interrupt-acknowledge sequence actually need? This is
-  the one unproven hardware item (§10) and it gates 38400.
+- ~~Does Victor MS-DOS 3.1 install its own handler on IRQ1 for an AUX/COM
+  device? If so, Kermit must quiesce it, not just save and restore the
+  vector.~~ **Answered by §16d, at least for `porta.exe`.** Taking the vector
+  and the chip out from under the OEM driver while its device stays open is
+  enough; the transfer completes. That works because nothing ever asks the
+  OEM driver for data again — §11a's IOCTL is the only thing left using its
+  handle.
+- What does the µPD7201 interrupt-acknowledge sequence actually need? Still
+  the unproven hardware item (§10) and it gates 38400. §11b's handler issues
+  `WR0 = 38h` then the 8259's specific EOI and works under emulation, which
+  is what 3.13 does; MAME's µPD7201 is not the part, so this is not settled.
 - Real stack size in the DOS environment — set it explicitly at link time
   (step 2) rather than inheriting a default. Much less alarming than it was:
   `traverse()` is 98 bytes/level now, not 1066 (§9), so the sizing is driven by

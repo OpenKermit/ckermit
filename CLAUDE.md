@@ -38,7 +38,7 @@ the host `cc`.
 
 All 24 modules compile, with 4 warnings, all in stock upstream code and all
 pre-existing (`docmdline(1)` in `ckcmai.c`, and implicit declarations of
-`utime`/`wait`/`gettimeofday`). DGROUP is 52,056 of 65,536 (79%) after the
+`utime`/`wait`/`gettimeofday`). DGROUP is 52,728 of 65,536 (80%) after the
 linker adds libc. `make` links `ckermit.exe`; it has run under MAME
 (PORTING.md §16, §16a, §16b, §16c), never on real hardware.
 
@@ -54,22 +54,21 @@ container exec -i ia16-ubuntu-2 bash -c \
 
 This is a second build of the same port, not a fork: same `ckvictor.h`, same
 stock `ckutio.c`/`ckufio.c`, same single non-upstream C file. It exists to
-answer §9c's open question, and it does: DGROUP 38,752 (59%) against gcc's
-79%, and the interactive command parser — cut from the gcc build because it
+answer §9c's open question, and it does: DGROUP 39,424 (60%) against gcc's
+80%, and the interactive command parser — cut from the gcc build because it
 did not fit — **does** fit in DGROUP (`make -f victorow.mak XFLAGS=-dKEEP_ICP`,
 60,768, or 19,376 with `ZT=-zt128`). It does not fit in RAM: it needs 429K and
 the machine offers 387K. See PORTING.md §9d.
 
-The Watcom binary **runs on Victor MS-DOS 3.1 under MAME**, opens the OEM
-serial device `/dev/seriala` at 9600, and puts a correct Kermit Send-Init
-packet on the wire — byte-identical to what the gcc build sends. Since §16b
-both builds also **retransmit it on a timeout** and end with a proper
-`E "Too many retries"` packet rather than dropping the line. Since §11a
-both also program the line — speed, width, parity, DTR/RTS — through the
-OEM driver's IOCTL control block. Neither completes a transfer: the OEM
-driver delivers the first **two** bytes of every inbound packet and then
-goes silent, twelve times out of twelve, and configuring it does not
-change that. See §16b and §16c; the fix is §11b, our own data path.
+**The Watcom binary transfers a file.** On Victor MS-DOS 3.1 under MAME it
+opens `/dev/seriala`, programs the line through the OEM driver's IOCTL block
+(§11a), takes the µPD7201 and IRQ1 over for the data path (§11b), and runs a
+complete S/F/A/D/Z/B exchange to a host C-Kermit at 9600 — 72 bytes,
+byte-correct, in 10 seconds. That is PORTING.md **§16d** and milestone step 5.
+It has never run on real hardware, and the gcc build has not been run since
+§16c, though it compiles the same §1e from the same `ckvictor.h` and has been
+byte-identical on the wire twice.
+
 **PORTING.md §16a is the how-to** — the Victor boots its hard disk as `A:`,
 the image needs `vtg_image_util` (mtools cannot read it), and MAME's `-bitb`
 socket is single-use, so start `socat` first and never probe the port.
@@ -90,8 +89,8 @@ build is `make -f victorow.mak sizes`, which reads `wlink`'s map.
 3. **Victor-specific C goes in `ckvictor.c`.** It is the only non-upstream C
    file and should stay that way.
 4. **The 64K DGROUP is the binding constraint.** `.data` + `.bss` + heap +
-   stack all share it. After the link, including libc: **gcc 52,056 (79%),
-   13,480 left for heap and stack; Watcom 38,752 (59%), 26,784 left.**
+   stack all share it. After the link, including libc: **gcc 52,728 (80%),
+   12,808 left for heap and stack; Watcom 39,424 (60%), 26,112 left.**
    **Run `make -f victor9k.mak sizes` after any change that could add static
    data** and report the number.
 5. **Never define `BIGBUFOK`** (asks for 290,000-byte buffers). **Never remove
@@ -113,9 +112,9 @@ build is `make -f victorow.mak sizes`, which reads `wlink`'s map.
 |---|---|
 | `PORTING.md` | design doc, memory budget, hardware map, milestone plan |
 | `ckvictor.h` | all ~40 feature `-D` flags, size limits, platform identity |
-| `ckvictor.c` | Victor glue: process-model stubs, `opendir`/`readdir`/`closedir` and `ioctl` over INT 21h, the blocking comm-device `read()` and the `alarm()` that bounds it (§0d), the termios half that programs the 7201 and 8253 through the OEM driver's IOCTL control block (§1b, PORTING.md §11a), + (planned) the 7201 data path (§11b) |
+| `ckvictor.c` | Victor glue: process-model stubs, `opendir`/`readdir`/`closedir` and `ioctl` over INT 21h, the comm-device `read()`/`write()` and the `alarm()` that bounds the read (§0d), the termios half that programs the 7201 and 8253 through the OEM driver's IOCTL block (§1b, PORTING.md §11a), and **the 7201 data path — IRQ1 handler, receive ring, polled transmitter (§1e, PORTING.md §11b)** |
 | `victor/sys/termios.h` | the 7201 driver's control surface; fills a newlib gap, reached via `-Ivictor` |
-| `victor/sys/ioctl.h` | `FIONREAD`, without which `conchk()`/`ttchk()` are hard-wired to 0 |
+| `victor/sys/ioctl.h` | `FIONREAD` and `TIOCMGET`; without the first `conchk()`/`ttchk()` are hard-wired to 0, and without the second `ttchk()` never reaches `FIONREAD` |
 | `victor9k.mak` | ia16-elf-gcc build + `sizes` target |
 | `victorow.mak` | Open Watcom build + `sizes` target (PORTING.md §9d) |
 | `victorow/` | headers only Open Watcom needs (`pwd.h`, `sys/utsname.h`, `sys/time.h`, `termios.h`, `ckowsys.h`), reached via `-i=victorow` and invisible to the gcc build |

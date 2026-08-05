@@ -33,13 +33,14 @@
 
 /*
   ckvictor.h is force-included ahead of this line by both makefiles, and it
-  renames read() to v9k_read() for the whole build.  This file is where
-  v9k_read() lives and is the one place that still has to reach the real
-  one, so the rename is undone here -- before any header is pulled in, so
-  that <unistd.h> / <io.h> declare read() rather than redeclaring ours.
-  See ckvictor.h and section 0d.
+  renames read() to v9k_read() and write() to v9k_write() for the whole
+  build.  This file is where those two live and is the one place that still
+  has to reach the real ones, so the renames are undone here -- before any
+  header is pulled in, so that <unistd.h> / <io.h> declare read() and
+  write() rather than redeclaring ours.  See ckvictor.h and section 0d.
 */
 #undef read
+#undef write
 
 #include "ckcdeb.h"
 #include "ckcker.h"
@@ -583,8 +584,24 @@ _read_r(r,fd,buf,n) struct _reent * r; int fd; void * buf; size_t n;
 #endif /* __WATCOMC__ -- end of sections 0, 0a and 0c */
 
 /* ------------------------------------------------------------------ */
-/* 0b. Device input status, and ioctl -- FIONREAD only                  */
+/* 0b. Device input status, and ioctl -- FIONREAD and TIOCMGET          */
 /* ------------------------------------------------------------------ */
+
+/*
+  The two sections that follow are the driver's customers, and the driver
+  itself is section 1e, a long way down the file next to the termios half
+  it belongs with.  These are its entry points, declared here so that 0b
+  and 0d can be read in place.  Every one of them answers for the
+  communications device only, and every one of them is inert -- returning
+  0, or "not mine" -- until v9k_ser_install() has taken the chip over.
+*/
+extern int ttyfd;                       /* ckutio.c's serial descriptor */
+
+_PROTOTYP( static int v9k_ser_active, (void) );        /* Is the chip ours?*/
+_PROTOTYP( static int v9k_ser_count,  (void) );        /* Bytes in the ring*/
+_PROTOTYP( static int v9k_ser_get, (char *, int) );    /* Out of the ring  */
+_PROTOTYP( static int v9k_ser_put, (const char *, int) ); /* Polled write  */
+_PROTOTYP( static int v9k_ser_mdm,    (void) );        /* RR0 -> TIOCM_*   */
 
 /*
   Two polls, one for each kind of device, and then the one ioctl this port
@@ -601,22 +618,24 @@ _read_r(r,fd,buf,n) struct _reent * r; int fd; void * buf; size_t n;
   what makes the read in section 0d block, and it is the honest answer for
   the communications device in place of the flat 0 that stood here before.
 
-  Both answer "whether", not "how many", so FIONREAD reports at most 1.
-  That is what a poll of either device can honestly say, and it is enough
-  for conchk(), whose callers test it against zero.  It is NOT enough for
-  ttchk()'s other caller: sdata() in ckcfns.c only slides its window when
-  ttchk() exceeds 4+bctu, so a 0/1 answer means this port fills a window
-  before reading ACKs.  Upstream has been through this before -- see the
-  GEMDOS arm of that same test, and ckcfn2.c's note that the count is only
-  a hint -- so it costs throughput and nothing else.  The real count needs
-  the uPD7201 driver's RX ring (PORTING.md SS11).
+  Both answer "whether", not "how many", so through those two the answer is
+  at most 1.  That is what a poll of either device can honestly say, and it
+  is enough for conchk(), whose callers test it against zero.  It was NOT
+  enough for ttchk()'s other caller: sdata() in ckcfns.c only slides its
+  window when ttchk() exceeds 4+bctu, so a 0/1 answer meant this port
+  filled a window before reading ACKs.
 
-  There is a second reason ttchk() still answers 0 on the communications
-  device today, upstream of anything here: in_chk() asks ttgmdm() for
-  carrier first, and with CARRIER-WATCH left at its default of AUTO and no
-  TIOCMGET on this platform, ttgmdm() returns -3 and in_chk() returns 0
-  without ever reaching FIONREAD.  So the code below is correct and
-  currently unreachable for fd == ttyfd.  Both halves belong to SS11.
+  On the communications device neither is used any more.  Once section 1e
+  has taken the uPD7201 over, FIONREAD is the depth of its receive ring --
+  a real number, which is what SS12 and the milestone were waiting for --
+  and TIOCMGET is RR0.  The two calls below remain the answer for every
+  other device, and for the communications device before the driver is
+  installed or if it never is.
+
+  TIOCMGET matters more than it looks.  in_chk() -- which IS ttchk() --
+  asks ttgmdm() for carrier BEFORE it asks how many bytes are waiting, so
+  while ttgmdm() returned -3 the whole of FIONREAD was correct and
+  unreachable for fd == ttyfd.  See victor/sys/ioctl.h.
 */
 
 /* AH=44h is IOCTL; AL=06h is "get input status".  Both builds need it, so
@@ -717,7 +736,7 @@ ioctl(int fd, int request, ...) {
     __builtin_va_list ap;
 #endif /* __WATCOMC__ */
 
-    if (request != FIONREAD) {
+    if (request != FIONREAD && request != TIOCMGET) {
         errno = EINVAL;
         return(-1);
     }
@@ -733,7 +752,25 @@ ioctl(int fd, int request, ...) {
 
     if (!countp) { errno = EFAULT; return(-1); }
 
-    if (fd == 0)                        /* Console: AH=0Bh              */
+    /*
+      Modem signals come from the chip or from nowhere.  Refusing the call
+      rather than inventing an answer is deliberate: ttgmdm() turns a -1
+      into "I could not read the signals", which in_chk() is careful NOT to
+      treat as a lost carrier, whereas a made-up zero would look exactly
+      like a dropped line and close the connection.
+    */
+    if (request == TIOCMGET) {
+        if (fd < 3 || fd != ttyfd || !v9k_ser_active()) {
+            errno = ENOTTY;
+            return(-1);
+        }
+        *countp = v9k_ser_mdm();
+        return(0);
+    }
+
+    if (fd >= 3 && fd == ttyfd && v9k_ser_active())
+      *countp = v9k_ser_count();        /* The real depth of the ring   */
+    else if (fd == 0)                   /* Console: AH=0Bh              */
       *countp = dos_stdin_ready();
     else                                /* Any other device: AX=4406h   */
       *countp = dos_dev_input_ready(fd);
@@ -766,8 +803,6 @@ ioctl(int fd, int request, ...) {
   left exactly as they were -- which is the reason for renaming rather than
   defining read() over the top of either library's.
 */
-
-extern int ttyfd;                       /* ckutio.c's serial descriptor */
 
 /*
   alarm() was a stub that returned 0 and never fired, on the reasoning that
@@ -828,9 +863,21 @@ v9k_alarm_check() {
 }
 
 /*
-  The wait itself.  Poll for input status, and read only once DOS says
-  there is something to read -- a read issued blind is what returns 0 and
-  starts the whole failure off.
+  The wait itself.  Two ways to do it, and which one runs is the whole
+  difference between PORTING.md SS16b and a working transfer.
+
+  Once section 1e owns the uPD7201, this drains 1e's receive ring, which
+  the interrupt handler has been filling all along -- so the bytes are
+  already in memory before Kermit ever asks for them, and "block until
+  something arrives" is just "spin until the ring is not empty".
+
+  Before that, and for any line the driver did not take, it polls DOS for
+  input status and reads only once DOS says there is something to read; a
+  read issued blind is what returns 0 and starts the whole failure off.
+  That is the path SS16b measured, and it delivers the first two bytes of
+  every inbound packet and then nothing, twelve times out of twelve.  It is
+  kept because it is the honest fallback for a device that is not ours, and
+  because it is what runs if the install ever fails.
 
   A read that comes back with 0 anyway is not treated as EOF: the poll
   either raced or the device does not implement the status subfunction (see
@@ -848,7 +895,11 @@ v9k_comm_read(fd,buf,n) int fd; void * buf; unsigned int n;
     int rc;
 
     for (;;) {
-        if (dos_dev_input_ready(fd)) {
+        if (v9k_ser_active()) {
+            rc = v9k_ser_get((char *)buf,(int)n);
+            if (rc > 0)
+              return(rc);
+        } else if (dos_dev_input_ready(fd)) {
             rc = (int)read(fd,buf,n);   /* Undef'd above: the real one  */
             if (rc != 0)                /* Bytes, or a genuine error    */
               return(rc);
@@ -885,6 +936,32 @@ v9k_read(fd,buf,n) int fd; void * buf; V9K_RCOUNT n;
     if (fd > 2 && fd == ttyfd)
       return((V9K_RTYPE)v9k_comm_read(fd,buf,(unsigned int)n));
     return(read(fd,buf,n));
+}
+
+/*
+  And the other direction.  ttol() and ttoc() in ckutio.c are the only
+  writers to the communications device and both of them call write(), so
+  this is where C-Kermit's transmit path meets the transmitter in section
+  1e.  Anything else -- DEBUG.LOG, the console, every file the protocol
+  creates -- goes to the library's write() untouched, which is the same
+  delegation v9k_read() does and for the same reason.
+
+  Until the driver is installed this is a pure pass-through, so the OEM
+  serial driver keeps carrying transmit exactly as it did in SS16a and SS16b,
+  where it put a byte-correct Send-Init packet on the wire in both builds.
+*/
+_PROTOTYP( V9K_WTYPE v9k_write, (int, const void *, V9K_WCOUNT) );
+
+V9K_WTYPE
+#ifdef CK_ANSIC
+v9k_write(int fd, const void * buf, V9K_WCOUNT n)
+#else
+v9k_write(fd,buf,n) int fd; const void * buf; V9K_WCOUNT n;
+#endif /* CK_ANSIC */
+{
+    if (fd > 2 && fd == ttyfd && v9k_ser_active())
+      return((V9K_WTYPE)v9k_ser_put((const char *)buf,(int)n));
+    return(write(fd,buf,n));
 }
 
 /* ------------------------------------------------------------------ */
@@ -1230,7 +1307,21 @@ utime(path,times) const char * path; const struct utimbuf * times;
   ckutio.c keeps several struct termios of its own (ttold, ttraw, ttcur,
   ...) and treats tcgetattr as "read back what I set".  Caching one
   current setting here matches that and costs 32 bytes.
+
+  That last paragraph was true of the whole section until section 1e
+  existed.  It still is of everything except the four calls below that now
+  reach it: tcsetattr() ends by installing the driver, and tcflush(),
+  tcdrain() and the release path are 1e's.  Nothing here moves a byte; 1e
+  does.
 */
+_PROTOTYP( static int  v9k_ser_install,  (int) );
+_PROTOTYP( static VOID v9k_ser_reenable, (void) );
+_PROTOTYP( static VOID v9k_ser_release,  (void) );
+_PROTOTYP( static VOID v9k_ser_flush,    (void) );
+_PROTOTYP( static VOID v9k_ser_drain,    (void) );
+_PROTOTYP( static VOID v9k_ser_selchan,  (void) );
+_PROTOTYP( static VOID v9k_ser_progline,
+           (unsigned char, unsigned char, unsigned char, unsigned int) );
 
 /*
   The driver's control block.  AH=44h, AL=02h to read it and AL=03h to
@@ -1392,8 +1483,9 @@ tcsetattr(fd,action,t) int fd; int action; const struct termios * t;
 #endif /* CK_ANSIC */
 {
     struct v9k_portval pv;
-    unsigned int width;
+    unsigned int width, divisor;
     unsigned char cr3, cr4, cr5;
+    int ok;
 
     if (!t) { errno = EFAULT; return(-1); }
     victor_ttcur = *t;
@@ -1410,36 +1502,6 @@ tcsetattr(fd,action,t) int fd; int action; const struct termios * t;
       return(0);
 
     if (t->c_ospeed > B76800) { errno = EINVAL; return(-1); }
-
-    /*
-      Read-modify-write, so that whatever the driver has in the fields we
-      do not understand survives.  If it will not answer, the settings
-      stay cached and we report success: a serial driver with no IOCTL
-      support is a reason to run at whatever speed it is already set to,
-      not a reason to refuse to open the line.  ttopen() treats a -1 here
-      as a failure to open at all.
-    */
-    /*
-      Zero it first so that nothing uninitialised can ever be written back,
-      then stamp the two header words BEFORE the read.  They are not output
-      fields: they are how the request identifies itself, and msxv90.asm's
-      "pval" carries stype = 0011h as a structure default on the block it
-      hands to the read as well as the write.  Zeroing them and expecting
-      the driver to fill them in returns a block of nothing -- measured,
-      PORTING.md SS11a.
-    */
-    memset((char *)&pv,0,sizeof(pv));
-    pv.stype     = 0x0011;              /* Port access                  */
-    pv.blocktype = 0x0000;              /* Serial                       */
-
-    if (v9k_portval_io(fd,0,&pv) < 0) {
-        debug(F101,"tcsetattr IOCTL 4402 failed, settings cached only",
-              "",errno);
-        return(0);
-    }
-    debug(F111,"tcsetattr read-back cr1/cr2a",ckitoa((int)pv.cr1),(int)pv.cr2a);
-    debug(F111,"tcsetattr read-back cr4/cr5",ckitoa((int)pv.cr4),(int)pv.cr5);
-    debug(F101,"tcsetattr read-back baudr","",(int)pv.baudr);
 
     /*
       Rx and Tx character width share an encoding on this chip and it is
@@ -1473,34 +1535,81 @@ tcsetattr(fd,action,t) int fd; int action; const struct termios * t;
     */
     if (t->c_ospeed == B0) {
         cr5 &= 0x7d;
-        pv.baudr = v9k_lastdiv;         /* Keep the speed, not the junk */
+        divisor = v9k_lastdiv;          /* Keep the speed, not the junk */
     } else {
-        pv.baudr = v9k_divisor[t->c_ospeed];
-        v9k_lastdiv = pv.baudr;
+        divisor = v9k_divisor[t->c_ospeed];
+        v9k_lastdiv = divisor;
     }
-
-    pv.cr3 = cr3;
-    pv.cr4 = cr4;
-    pv.cr5 = cr5;
     v9k_lastcr5 = cr5;
 
     /*
-      CR1 and CR2A are deliberately left as they were read.  They are the
-      interrupt enables and the interrupt mode, and until SS11b installs an
-      ISR the OEM driver still owns interrupts on this chip -- clearing
-      them here would break the reception we do have.  3.13 does write
-      both, because by that point it has taken the vector over.
+      Read-modify-write, so that whatever the driver has in the fields we
+      do not understand survives.
 
-      Worth recording for SS11b: 3.13 found that the write IOCTL does not
-      apply CR1 at all and pokes WR1 at the chip directly afterwards,
-      commented "IOCTL doesn't seem to touch it".  So enabling receive
-      interrupts is not something this path will be able to do.
+      Zero it first so that nothing uninitialised can ever be written back,
+      then stamp the two header words BEFORE the read.  They are not output
+      fields: they are how the request identifies itself, and msxv90.asm's
+      "pval" carries stype = 0011h as a structure default on the block it
+      hands to the read as well as the write.  Zeroing them and expecting
+      the driver to fill them in returns a block of nothing -- measured,
+      PORTING.md SS11a.
+
+      CR1 and CR2A are deliberately left as they were read.  CR1 is the
+      interrupt enable and section 1e owns it now, at the chip, because
+      3.13 found this IOCTL does not apply it; every path out of here ends
+      by putting it back.  CR2A is the interrupt mode, and 1e's install
+      explains why it is left alone.
     */
-    if (v9k_portval_io(fd,1,&pv) < 0) {
-        debug(F101,"tcsetattr IOCTL 4403 failed","",errno);
-        return(0);
+    memset((char *)&pv,0,sizeof(pv));
+    pv.stype     = 0x0011;              /* Port access                  */
+    pv.blocktype = 0x0000;              /* Serial                       */
+
+    ok = (v9k_portval_io(fd,0,&pv) < 0) ? 0 : 1;
+    if (!ok) {
+        debug(F101,"tcsetattr IOCTL 4402 failed","",errno);
+    } else {
+        debug(F111,"tcsetattr read-back cr1/cr2a",
+              ckitoa((int)pv.cr1),(int)pv.cr2a);
+        debug(F111,"tcsetattr read-back cr4/cr5",
+              ckitoa((int)pv.cr4),(int)pv.cr5);
+        debug(F101,"tcsetattr read-back baudr","",(int)pv.baudr);
+
+        pv.baudr = divisor;
+        pv.cr3   = cr3;
+        pv.cr4   = cr4;
+        pv.cr5   = cr5;
+        if (v9k_portval_io(fd,1,&pv) < 0) {
+            debug(F101,"tcsetattr IOCTL 4403 failed","",errno);
+            ok = 0;
+        } else
+          debug(F101,"tcsetattr divisor","",(int)divisor);
     }
-    debug(F101,"tcsetattr divisor","",(int)pv.baudr);
+
+    /*
+      If the driver would not answer, program the chip ourselves.  MS-DOS
+      Kermit 3.13 has exactly this fallback, and it is not hypothetical
+      here: SS11a measured both IOCTL subfunctions working on Victor MS-DOS
+      3.1, and nobody has measured FreeDOS for Victor, which this binary is
+      also meant to run on.  Failing to program the line used to mean
+      running at whatever speed the driver was already set to; now that
+      section 1e owns the chip, it means programming it directly.  Either
+      way it is not a reason to refuse to open the line -- ttopen() treats
+      a -1 from here as a failure to open at all.
+    */
+    if (!ok)
+      v9k_ser_progline(cr3,cr4,cr5,(t->c_ospeed == B0) ? 0 : divisor);
+
+    /*
+      Last, take the chip over, or put back the receive-interrupt enable
+      that the IOCTL write or the reset above may just have cleared.  This
+      is the one place C-Kermit is guaranteed to reach with the descriptor
+      open and the line programmed, which is why the install lives here
+      rather than behind a hook of its own.
+    */
+    if (v9k_ser_active())
+      v9k_ser_reenable();
+    else
+      v9k_ser_install(fd);
     return(0);
 }
 
@@ -1559,7 +1668,17 @@ tcflush(int fd, int queue)
 tcflush(fd,queue) int fd; int queue;
 #endif /* CK_ANSIC */
 {
-    /* TODO(driver): reset the RX and/or TX ring head/tail pointers. */
+    /*
+      Only the input queue exists to be flushed.  The transmitter is polled
+      (section 1e) so there is never anything queued in this direction --
+      v9k_ser_put() does not return until the last byte is in the chip.
+      TCOFLUSH and the output half of TCIOFLUSH are therefore satisfied by
+      doing nothing, not ignored.
+    */
+    if (fd < 3 || fd != ttyfd)
+      return(0);
+    if (queue == TCIFLUSH || queue == TCIOFLUSH)
+      v9k_ser_flush();
     return(0);
 }
 
@@ -1570,7 +1689,9 @@ tcdrain(int fd)
 tcdrain(fd) int fd;
 #endif /* CK_ANSIC */
 {
-    /* TODO(driver): spin until the TX ring empties and WR0 TX-empty set. */
+    if (fd < 3 || fd != ttyfd)
+      return(0);
+    v9k_ser_drain();                    /* RR1 bit 0: transmitter empty */
     return(0);
 }
 
@@ -1581,7 +1702,16 @@ tcflow(int fd, int action)
 tcflow(fd,action) int fd; int action;
 #endif /* CK_ANSIC */
 {
-    /* TODO(driver): assert/release RTS, or send XON/XOFF. */
+    /*
+      Still a stub, and now deliberately so rather than for want of a
+      driver.  ttoc() calls tcflow(TCOON) only when a single-character
+      write has timed out and SET FLOW is XON/XOFF, to unstick a
+      transmitter it thinks is held off by an XOFF -- and this port has no
+      interrupt-level flow control to hold it off with (section 1e).  With
+      one channel, a window of 1 and a 512-byte ring there is nothing yet
+      for a water mark to protect.  If streaming ever goes in, this and
+      the ISR's high/low marks arrive together.
+    */
     return(0);
 }
 
@@ -1616,6 +1746,783 @@ tcsendbreak(fd,duration) int fd; int duration;
     msleep(duration > 0 ? duration : 275);
     pv.cr5 = v9k_lastcr5;
     return((v9k_portval_io(fd,1,&pv) < 0) ? -1 : 0);
+}
+
+/* ------------------------------------------------------------------ */
+/* 1e. The uPD7201 data path -- our interrupt, our ring, our transmit   */
+/* ------------------------------------------------------------------ */
+
+/*
+  Section 1b configures the line through the OEM serial driver.  This
+  section moves the bytes, and it does not use the OEM driver at all: it
+  talks to the uPD7201 at its memory-mapped address, hooks the interrupt
+  the 8259 raises for it, and keeps a receive ring of its own.  Together
+  they are PORTING.md SS11's two halves, and the split is MS-DOS Kermit
+  3.13's -- msxv90.asm opens SERIALA, uses the handle for IOCTL and for
+  nothing else, and puts the data path here.
+
+  The reason it has to be here is measured, not theoretical.  SS16b and
+  SS16a put a byte-correct Send-Init packet on the wire through the OEM
+  driver's write() and then read the reply through its read(): twelve
+  reads, every one returning exactly two bytes, three separate runs, on a
+  line whose registers SS11a had just programmed and read back to confirm.
+  The OEM driver transmits and cannot receive.  3.13's authors reached the
+  same conclusion with the same hardware in 1986.
+
+  What is here:
+
+    - an interrupt handler on IVT slot 41h that empties the receiver into
+      a 512-byte ring, and resets the chip's error latch when it has to;
+    - a polled transmitter, because transmit was never the broken half and
+      because a receive-only interrupt is the smaller thing to get right;
+    - the real answers to FIONREAD (the depth of the ring) and TIOCMGET
+      (RR0), which is what makes ttchk() mean something for the first time;
+    - install and release, and the direct-to-the-chip fallback for a DOS
+      whose serial driver does not implement the SS11a IOCTL.
+
+  Two things it deliberately does not have.
+
+  There is NO STACK SWITCH.  A C interrupt handler runs on whatever stack
+  it interrupted, and neither toolchain will give us one (PORTING.md SS11b);
+  a dedicated stack would have to come out of the same 64K DGROUP that is
+  already this port's binding constraint.  3.13's SERINT does not switch
+  either, on this machine, and it shipped.  The handler below holds no
+  arrays, calls nothing, and its frame is reported by -fstack-usage next to
+  every other function in the build -- which is the number to watch if this
+  ever turns out to be the wrong call.
+
+  There is NO INTERRUPT-LEVEL FLOW CONTROL.  3.13 sends XOFF from inside
+  SERINT at a 3/4-full water mark.  With one channel, a window of 1 and a
+  512-byte ring there is at most one packet in flight, so the ring cannot
+  be driven full by a correct peer; it would start to matter with streaming
+  or a real window, and the counters below are there to say so if it does.
+
+  Constants -- the segments, the vector, the 8259 masks and EOI, the
+  register values and the order they have to be written in -- are read out
+  of msxv90.asm rather than guessed.  ~/projects/myfreedos's
+  kernel/victor_int14.asm and victor_pic.asm agree independently on the
+  addresses and on the RR0 bit assignments.
+*/
+
+/*
+  Memory-mapped, not I/O ports: IN and OUT do not reach any of this.
+
+  On the 7201 the "control" address is both the status port to read and the
+  command port to write.  Reading it gives RR0; writing a register number
+  to it points the read/write pointer at that register, and the pointer
+  resets itself to 0 after the next access -- which is the property that
+  lets the handler below and the foreground share the port without a lock,
+  as long as neither ever leaves the pointer parked.
+*/
+#define V9K_SEG_7201    0xE004          /* uPD7201 serial controller    */
+#define V9K_SEG_8253    0xE002          /* Baud rate counters           */
+#define V9K_SEG_8259    0xE000          /* Interrupt controller         */
+#define V9K_SEG_6522    0xE804          /* The 6522 that also has DSR   */
+
+#define V9K_OFF_CTLA    2               /* Channel A control/status     */
+#define V9K_OFF_DATA    0               /* Channel A data               */
+#define V9K_OFF_CTLB    3               /* Channel B control/status     */
+#define V9K_OFF_DATB    1               /* Channel B data               */
+
+#define V9K_8253_CTL    3               /* 8253 control word            */
+                                        /* Divisor port = channel number*/
+#define V9K_8259_CMD    0               /* OCW2 -- where the EOI goes   */
+#define V9K_8259_IMR    1               /* OCW1 -- the interrupt mask   */
+
+/*
+  IR1 on the 8259 is "all from the 7201", and under the Victor's own ROM
+  configuration it arrives as INT 41h -- msxv90.asm carries the vector as
+  mdintv = 104h, which is 4 x 41h, with the 8259 mask bit and the specific
+  end-of-interrupt byte that go with it.
+
+  This is the one constant here that is not a property of the hardware.  It
+  is a property of how the 8259 was programmed at boot, and
+  ~/projects/myfreedos remaps the PIC in its own kernel -- its serial ISR
+  goes in at INT 09h.  So this number is right for Victor MS-DOS 3.1, which
+  is where it has been used, and is an open question for FreeDOS for
+  Victor.  PORTING.md SS15.
+*/
+#define V9K_IRQ1_VEC    0x41            /* 3.13's mdintv = 104h = 4*41h */
+#define V9K_IRQ1_BIT    0x02            /* Its bit in the 8259 mask     */
+#define V9K_IRQ1_EOI    0x61            /* Specific EOI for IRQ1        */
+
+/* RR0, read from the control address.  Agreed by msxv90.asm and by
+   myfreedos's victor_int14.asm. */
+#define V9K_RR0_RXRDY   0x01            /* A character is waiting       */
+#define V9K_RR0_TXEMPTY 0x04            /* Transmit buffer is free      */
+#define V9K_RR0_DCD     0x08            /* Carrier detect input         */
+#define V9K_RR0_CTS     0x20            /* Clear to send input          */
+
+/* RR1, reached by writing 1 to the control address and reading it back. */
+#define V9K_RR1_ALLSENT 0x01            /* Transmitter AND shift empty  */
+#define V9K_RR1_OVERRUN 0x20            /* Receiver overrun, LATCHED    */
+
+/* WR0 commands, written to the control address with the pointer at 0. */
+#define V9K_CMD_RESET   0x18            /* Channel reset                */
+#define V9K_CMD_EXTRST  0x10            /* Reset external/status ints   */
+#define V9K_CMD_ERRRST  0x30            /* Error reset -- see the ISR   */
+#define V9K_CMD_EOI     0x38            /* End of interrupt (channel A) */
+
+/* WR1: interrupt on every received character, nothing else.  3.13's
+   REG1_7201 or ENABLE_INT.  Bit 1 (transmit interrupt) stays clear
+   because the transmitter here is polled. */
+#define V9K_WR1_RXINT   0x18
+#define V9K_WR1_OFF     0x00
+
+/*
+  Reaching a fixed physical address needs a far pointer in both models --
+  the gcc build's data is near and the Watcom build's is far, but neither
+  can name segment E004h without one.  Watcom has MK_FP; ia16-elf-gcc has
+  __far and builds the same thing out of an integer, segment in the high
+  half.  Both fold to a constant when the offset is one.
+*/
+#ifdef __WATCOMC__
+#define V9K_FARB(seg,off) (*(volatile unsigned char __far *)MK_FP((seg),(off)))
+#else
+#define V9K_FARB(seg,off)                                               \
+    (*(volatile unsigned char __far *)                                  \
+       (((unsigned long)(seg) << 16) | (unsigned long)(unsigned int)(off)))
+#endif /* __WATCOMC__ */
+
+/* The channel we were given.  Set by v9k_ser_install() from the device
+   name; everything else reads these. */
+static unsigned int  v9k_chan    = 0;           /* 0 = A, 1 = B         */
+static unsigned int  v9k_off_ctl = V9K_OFF_CTLA;
+static unsigned int  v9k_off_dat = V9K_OFF_DATA;
+static unsigned char v9k_dsrbit  = 0x08;        /* 6522 PA3 for A       */
+
+#define V9K_CTL   V9K_FARB(V9K_SEG_7201,v9k_off_ctl)
+#define V9K_DAT   V9K_FARB(V9K_SEG_7201,v9k_off_dat)
+
+/*
+  WR2 and the end-of-interrupt command live on channel A whichever channel
+  is carrying the data -- they are chip-wide, not per-channel, and 3.13
+  writes both to STATA_7201 explicitly even when it is running channel B.
+*/
+#define V9K_CTLA  V9K_FARB(V9K_SEG_7201,V9K_OFF_CTLA)
+
+#define V9K_IMR   V9K_FARB(V9K_SEG_8259,V9K_8259_IMR)
+#define V9K_EOI   V9K_FARB(V9K_SEG_8259,V9K_8259_CMD)
+
+/*
+  Blocking interrupts.  Needed in exactly one shape: any foreign sequence
+  that writes a register number and then reads or writes it, because the
+  handler uses the same pointer.  A bare read of RR0 does not need it --
+  the handler always leaves the pointer at 0 -- and neither does anything
+  touching the ring.
+*/
+#ifdef __WATCOMC__
+#define V9K_CLI() _disable()
+#define V9K_STI() _enable()
+#else
+#define V9K_CLI() __asm__ __volatile__ ("cli" : : : "cc")
+#define V9K_STI() __asm__ __volatile__ ("sti" : : : "cc")
+#endif /* __WATCOMC__ */
+
+/*
+  The ring.  Single producer (the handler, which only ever advances head),
+  single consumer (v9k_ser_get, which only ever advances tail), and a power
+  of two so that the wrap is a mask.  That combination needs no critical
+  section at all: each index is written by exactly one side, and a 16-bit
+  store on an 8088 cannot be interrupted part-way -- interrupts are taken
+  between instructions, not inside them.
+
+  Size and the reasoning behind it are in ckvictor.h with the other DGROUP
+  levers.
+*/
+#define V9K_RXMASK (V9K_RXBUFSIZ - 1)
+
+static volatile unsigned char v9k_rxbuf[V9K_RXBUFSIZ];
+static volatile unsigned int  v9k_rxhead = 0;   /* Handler writes here  */
+static volatile unsigned int  v9k_rxtail = 0;   /* Foreground reads here*/
+
+/*
+  Two counters, for the debug log only.  They are the difference between
+  "the transfer was slow" and "the ring is too small", and neither is
+  guessable from the outside.
+*/
+static volatile unsigned int  v9k_rxlost = 0;   /* Chip overran us      */
+static volatile unsigned int  v9k_rxfull = 0;   /* Ring overran Kermit  */
+
+static int v9k_ser_on   = 0;            /* Have we taken the chip?      */
+static int v9k_ser_atx  = 0;            /* atexit() registered yet?     */
+static unsigned int  v9k_oldvec_seg = 0;
+static unsigned int  v9k_oldvec_off = 0;
+static unsigned char v9k_oldimr = 0;    /* 8259 mask as we found it     */
+
+/*
+  Interrupt vectors, through INT 21h AH=35h and AH=25h -- which is the
+  whole reason hooking one does not break hard rule 6.  Both toolchains get
+  the same pair, taking and returning a segment and an offset rather than a
+  function pointer, so that the install and release paths below have no
+  #ifdef in them.
+
+  Watcom has _dos_getvect/_dos_setvect, which are those two calls.  The gcc
+  build has to issue them itself, and AH=25h is one of the calls that takes
+  its argument in DS:DX, so DS has to be loaded with the HANDLER's segment
+  rather than with DGROUP -- which is why this one does not use
+  DOS_DS_CALL.
+
+  BX carries the segment rather than a "r"-class operand on purpose: on
+  ia16 the general register class includes the segment registers, and
+  letting the compiler choose is how the first version of _write_r came to
+  load DS with a spilled constant (see the note at the top of section 0).
+*/
+#ifdef __WATCOMC__
+static VOID
+#ifdef CK_ANSIC
+v9k_getvect(int vec, unsigned int * seg, unsigned int * off)
+#else
+v9k_getvect(vec,seg,off) int vec; unsigned int * seg; unsigned int * off;
+#endif /* CK_ANSIC */
+{
+    void __far * p = (void __far *)_dos_getvect((unsigned int)vec);
+
+    *seg = FP_SEG(p);
+    *off = FP_OFF(p);
+}
+
+static VOID
+#ifdef CK_ANSIC
+v9k_setvect(int vec, unsigned int seg, unsigned int off)
+#else
+v9k_setvect(vec,seg,off) int vec; unsigned int seg; unsigned int off;
+#endif /* CK_ANSIC */
+{
+    _dos_setvect((unsigned int)vec,
+                 (void (__interrupt __far *)())MK_FP(seg,off));
+}
+#else /* __WATCOMC__ */
+static VOID
+#ifdef CK_ANSIC
+v9k_getvect(int vec, unsigned int * seg, unsigned int * off)
+#else
+v9k_getvect(vec,seg,off) int vec; unsigned int * seg; unsigned int * off;
+#endif /* CK_ANSIC */
+{
+    unsigned int s, o;
+
+    __asm__ __volatile__ ("push %%es\n\t"
+                          "int $0x21\n\t"
+                          "movw %%es,%%ax\n\t"
+                          "pop %%es"
+                          : "=a" (s), "=b" (o)
+                          : "0" ((unsigned int)(0x3500 | (vec & 0xff)))
+                          : "cc");
+    *seg = s;
+    *off = o;
+}
+
+static VOID
+#ifdef CK_ANSIC
+v9k_setvect(int vec, unsigned int seg, unsigned int off)
+#else
+v9k_setvect(vec,seg,off) int vec; unsigned int seg; unsigned int off;
+#endif /* CK_ANSIC */
+{
+    __asm__ __volatile__ ("push %%ds\n\t"
+                          "movw %%bx,%%ds\n\t"
+                          "int $0x21\n\t"
+                          "pop %%ds"
+                          :
+                          : "a" ((unsigned int)(0x2500 | (vec & 0xff))),
+                            "b" (seg),
+                            "d" (off)
+                          : "cc", "memory");
+}
+#endif /* __WATCOMC__ */
+
+/*
+  The handler.  Written ANSI-only for the same reason ioctl() above is: the
+  attribute that makes it an interrupt routine is part of its type in both
+  toolchains, and there is no K&R spelling of it.
+
+  ia16-elf-gcc's __attribute__((interrupt)) pushes the scratch registers it
+  actually uses plus DS, loads DGROUP from a relocation rather than trusting
+  the interrupted DS, and ends in iret.  Watcom's __interrupt __far does the
+  same with a fixed register set.  Neither emits a stack probe here.
+
+  The body is 3.13's SERINT with the terminal-emulator half taken out:
+
+    1. Read RR0 and RR1 before anything is acknowledged.
+    2. Tell the 7201 the interrupt is over, then the 8259 -- 3.13 does both
+       early so the machine is not held off while we work.
+    3. Nothing waiting: return.
+    4. OVERRUN.  This is the step PORTING.md SS16b says is not optional.  The
+       chip LATCHES an overrun in RR1 and will not resume receiving until
+       WR0 gets an Error Reset, so a handler that skips it wedges the
+       channel on the first byte it was late for -- which is the exact shape
+       of what the OEM driver does to us today.  msxv90.asm's edit history
+       records this being found and fixed twice on this hardware in 1986.
+       3.13 also stores a BELL in place of whatever was lost, and that is
+       copied: the packet is ruined either way and will be retransmitted,
+       but the length stays right, so ttinl() still finds the next SOH
+       where it expects it rather than one byte early.
+    5. Store, and drop the byte if Kermit has not kept up.  Dropping the
+       NEWEST byte rather than overwriting the oldest is deliberate -- the
+       oldest bytes are the front of a packet Kermit is about to read.
+*/
+#ifdef __WATCOMC__
+static void __interrupt __far
+v9k_ser_isr(void)
+#else
+static void __attribute__((interrupt))
+v9k_ser_isr(void)
+#endif /* __WATCOMC__ */
+{
+    unsigned char rr0, rr1, c;
+    unsigned int nh;
+
+    rr0 = V9K_CTL;                      /* RR0: pointer is already at 0 */
+    V9K_CTL = 1;                        /* Point at RR1 ...             */
+    rr1 = V9K_CTL;                      /* ... and read it; pointer     */
+                                        /*     resets itself to 0 again */
+    V9K_CTLA = V9K_CMD_EOI;             /* 7201 end of interrupt        */
+    V9K_EOI  = V9K_IRQ1_EOI;            /* 8259 specific EOI for IRQ1   */
+
+    if (!(rr0 & V9K_RR0_RXRDY))         /* Nothing for us               */
+      return;
+
+    if (rr1 & V9K_RR1_OVERRUN) {        /* Latched -- clear it or wedge */
+        V9K_CTL = V9K_CMD_ERRRST;
+        v9k_rxlost++;
+        nh = (v9k_rxhead + 1) & V9K_RXMASK;
+        if (nh != v9k_rxtail) {         /* Mark the gap, as 3.13 does   */
+            v9k_rxbuf[v9k_rxhead] = (unsigned char)'\007';
+            v9k_rxhead = nh;
+        }
+    }
+
+    c  = V9K_DAT;
+    nh = (v9k_rxhead + 1) & V9K_RXMASK;
+    if (nh != v9k_rxtail) {
+        v9k_rxbuf[v9k_rxhead] = c;
+        v9k_rxhead = nh;
+    } else
+      v9k_rxfull++;                     /* Ring full: this byte is gone */
+}
+
+/*
+  Its address, as a segment and an offset, for v9k_setvect() above.  Both
+  toolchains put the handler in far code, so this is a plain far pointer
+  taken apart -- Watcom has the macros for it and ia16-elf-gcc represents a
+  far pointer as a 32-bit value with the segment in the high half.
+*/
+#ifdef __WATCOMC__
+#define V9K_ISR_SEG FP_SEG((void __far *)v9k_ser_isr)
+#define V9K_ISR_OFF FP_OFF((void __far *)v9k_ser_isr)
+#else
+#define V9K_ISR_SEG \
+    ((unsigned int)(((unsigned long)(void __far *)&v9k_ser_isr) >> 16))
+#define V9K_ISR_OFF \
+    ((unsigned int)((unsigned long)(void __far *)&v9k_ser_isr))
+#endif /* __WATCOMC__ */
+
+/*
+  Which of the two channels we were told to drive, from the SET LINE name
+  -- "/dev/seriala", "SERIALB", "COM2".  Anything that does not end in a B
+  or a 2 is channel A, which is both the default and what SS11's "use
+  channel A for Kermit, leave B for CTTY COM2" prefers.
+
+  Idempotent, and called from both the install and the direct-programming
+  fallback, because either can be the first to touch the chip.
+*/
+static VOID
+v9k_ser_selchan() {
+    extern char ttname[];               /* ckcmai.c: the SET LINE name  */
+    int n;
+    char last;
+
+    n = (int)strlen(ttname);
+    last = n ? ttname[n-1] : 'a';
+    if (last == 'b' || last == 'B' || last == '2') {
+        v9k_chan    = 1;
+        v9k_off_ctl = V9K_OFF_CTLB;
+        v9k_off_dat = V9K_OFF_DATB;
+        v9k_dsrbit  = 0x20;             /* 6522 PA5 for channel B       */
+    } else {
+        v9k_chan    = 0;
+        v9k_off_ctl = V9K_OFF_CTLA;
+        v9k_off_dat = V9K_OFF_DATA;
+        v9k_dsrbit  = 0x08;             /* 6522 PA3 for channel A       */
+    }
+}
+
+/*
+  Program the line at the chip, for a DOS whose serial driver will not
+  answer the SS11a IOCTL.  3.13 has exactly this fallback and says so on the
+  screen ("Cannot open com port / Going direct to serial controller
+  hardware..."); it matters here because this binary is meant to run on
+  FreeDOS for Victor as well as on Victor MS-DOS 3.1, and only the latter
+  has been measured.
+
+  The write order is not free and msxv90.asm calls it out: channel reset,
+  then WR2 first, then WR4 second, then 1/3/5 in any order.  WR2 goes to
+  channel A whichever channel this is.  Its value here is 3.13's 0x14 --
+  when the IOCTL has failed there is no OEM setting to preserve, which is
+  the only reason SS11a leaves it alone in the normal path.
+
+  The 8253 control byte is (channel << 6) | 36h -- mode 3, binary, low byte
+  of the divisor then high byte -- and the divisor goes to the port with
+  the channel's own number.
+*/
+static VOID
+#ifdef CK_ANSIC
+v9k_ser_progline(unsigned char cr3, unsigned char cr4, unsigned char cr5,
+                 unsigned int divisor)
+#else
+v9k_ser_progline(cr3,cr4,cr5,divisor)
+    unsigned char cr3; unsigned char cr4; unsigned char cr5;
+    unsigned int divisor;
+#endif /* CK_ANSIC */
+{
+    v9k_ser_selchan();
+    V9K_CLI();
+    V9K_CTL  = V9K_CMD_RESET;           /* Reset this channel           */
+    V9K_CTLA = 2;   V9K_CTLA = 0x14;    /* WR2 first, and chip-wide     */
+    V9K_CTL  = 4;   V9K_CTL  = cr4;     /* WR4 second                   */
+    V9K_CTL  = 3;   V9K_CTL  = cr3;
+    V9K_CTL  = 5;   V9K_CTL  = cr5;
+    if (divisor) {
+        V9K_FARB(V9K_SEG_8253,V9K_8253_CTL) =
+            (unsigned char)((v9k_chan << 6) | 0x36);
+        V9K_FARB(V9K_SEG_8253,v9k_chan) = (unsigned char)(divisor & 0xff);
+        V9K_FARB(V9K_SEG_8253,v9k_chan) = (unsigned char)(divisor >> 8);
+    }
+    V9K_STI();
+}
+
+/*
+  Put back the one register the SS11a IOCTL cannot be trusted with.  3.13
+  found that the write subfunction does not apply CR1 and pokes WR1 at the
+  chip afterwards, commented "IOCTL doesn't seem to touch it"; SS11a
+  measured CR1 reading back as 0 on this driver, which is consistent with
+  it either not applying the field or not reporting it.  Either way, every
+  tcsetattr() after the install has to end here or the receive interrupt
+  might quietly go away in the middle of a transfer.
+*/
+static VOID
+v9k_ser_reenable() {
+    if (!v9k_ser_on)
+      return;
+    /*
+      And the two loss counters, here rather than only in the release path,
+      because by the time atexit() runs the debug log is already closed --
+      measured, the release's own debug() lines do not reach DEBUG.LOG.
+      tcsetattr() is called from ttres() on the way out, so the last time
+      through this is the end-of-session figure.
+    */
+    debug(F111,"v9k_ser rxlost/rxfull",
+          ckitoa((int)v9k_rxlost),(int)v9k_rxfull);
+    V9K_CLI();
+    V9K_CTL  = 1;   V9K_CTL = V9K_WR1_RXINT;
+    V9K_CTL  = V9K_CMD_EXTRST;
+    V9K_CTL  = V9K_CMD_ERRRST;
+    V9K_CTLA = V9K_CMD_EOI;
+    V9K_STI();
+}
+
+/*
+  Give the chip back.  The exact inverse of the install below, and the
+  order matters as much: a Kermit that exits with IRQ1 still pointing into
+  its own freed memory takes the machine down with the next character.
+
+  It waits for the transmitter first.  3.13's SERRST spins on RR1 bit 0 --
+  transmitter buffer AND shift register empty -- before it tears anything
+  down, because the alternative is truncating the last packet on the wire,
+  and the last packet is usually the one that says the transfer finished.
+*/
+static VOID
+v9k_ser_release() {
+    unsigned int spin;
+    unsigned char rr1;
+
+    if (!v9k_ser_on)
+      return;
+
+    for (spin = 60000U; spin; spin--) { /* Bounded: a dead chip must not */
+        V9K_CLI();                      /* hang the exit path            */
+        V9K_CTL = 1;
+        rr1 = V9K_CTL;
+        V9K_STI();
+        if (rr1 & V9K_RR1_ALLSENT)
+          break;
+    }
+
+    V9K_CLI();
+    V9K_IMR = (unsigned char)(V9K_IMR | V9K_IRQ1_BIT);  /* Mask IRQ1    */
+    V9K_CTL = 1;   V9K_CTL = V9K_WR1_OFF;               /* No RX ints   */
+    v9k_ser_on = 0;
+    V9K_STI();
+
+    /* Now that nothing can fire, DOS may have the vector back.  Then put
+       the mask bit back the way we found it rather than simply leaving
+       IRQ1 masked, in case the host DOS's own driver wanted it. */
+    v9k_setvect(V9K_IRQ1_VEC,v9k_oldvec_seg,v9k_oldvec_off);
+    if (!(v9k_oldimr & V9K_IRQ1_BIT))
+      V9K_IMR = (unsigned char)(V9K_IMR & ~V9K_IRQ1_BIT);
+
+    debug(F101,"v9k_ser_release rxlost","",(int)v9k_rxlost);
+    debug(F101,"v9k_ser_release rxfull","",(int)v9k_rxfull);
+}
+
+/*
+  Take the chip.  Called from tcsetattr() once the line has been programmed
+  -- that is the one place C-Kermit is guaranteed to reach with the
+  descriptor open and the speed already set, and it costs no new hook.
+
+  This displaces the OEM driver's own interrupt handler while its device
+  stays open, which is safe for exactly one reason: we never ask it for a
+  byte again.  Section 0d's read and the write above both route past it
+  from here on, and section 1b keeps using its IOCTL, which is a different
+  thing entirely.
+
+  The order is mask, hook, configure, unmask.  Masking first means the
+  window where the vector points at us but the chip is not set up yet
+  cannot fire.
+*/
+static int
+#ifdef CK_ANSIC
+v9k_ser_install(int fd)
+#else
+v9k_ser_install(fd) int fd;
+#endif /* CK_ANSIC */
+{
+    if (v9k_ser_on)
+      return(0);
+
+    v9k_ser_selchan();
+
+    v9k_oldimr = V9K_IMR;
+    V9K_IMR = (unsigned char)(v9k_oldimr | V9K_IRQ1_BIT);
+
+    v9k_getvect(V9K_IRQ1_VEC,&v9k_oldvec_seg,&v9k_oldvec_off);
+    v9k_setvect(V9K_IRQ1_VEC,V9K_ISR_SEG,V9K_ISR_OFF);
+
+    V9K_CLI();
+    v9k_rxhead = v9k_rxtail = 0;
+    v9k_rxlost = v9k_rxfull = 0;
+    V9K_CTL  = 1;   V9K_CTL = V9K_WR1_RXINT;
+    V9K_CTL  = V9K_CMD_EXTRST;
+    V9K_CTL  = V9K_CMD_ERRRST;
+    V9K_CTLA = V9K_CMD_EOI;
+    while (V9K_CTL & V9K_RR0_RXRDY)     /* Drop whatever the OEM driver */
+      (void)V9K_DAT;                    /* left sitting in the receiver */
+    v9k_ser_on = 1;
+    V9K_STI();
+
+    V9K_IMR = (unsigned char)(V9K_IMR & ~V9K_IRQ1_BIT);
+
+    /*
+      WR2 is left exactly as the OEM driver set it.  SS11a read it back as
+      10h where 3.13 writes 14h, and the two differ in one bit, which
+      3.13's own comment attributes to interrupt priority (Ra>Rb>Ta>Tb).
+      With one channel and receive interrupts only there is no priority
+      decision to be made, and both values select the same 8086 vector
+      mode -- so this is one fewer register to disturb and to put back.
+      Reasoned, not measured: if interrupts never arrive, it is the first
+      thing to try changing.
+    */
+
+    /*
+      Getting the vector back on the way out is not optional: after exit
+      this program's memory is somebody else's, and an IRQ1 still pointing
+      into it takes the machine down with the next character on the line.
+      ttclos() is not enough on its own -- C-Kermit can be told to exit
+      from several places -- so the release is hung on atexit(), which
+      covers every path that goes through exit(), including the SIGINT
+      handler in ckusig.c.
+
+      What it does NOT cover is a Ctrl-Break that DOS turns into a plain
+      program termination without the runtime's INT 23h handler getting
+      there first.  Known, not measured on either runtime, and it is the
+      reason to be careful with Ctrl-Break while the line is open.
+    */
+    if (!v9k_ser_atx) {                 /* Once, and only once          */
+        v9k_ser_atx = 1;
+        atexit(v9k_ser_release);
+    }
+    debug(F101,"v9k_ser_install channel","",(int)v9k_chan);
+    debug(F101,"v9k_ser_install old IRQ1 mask","",(int)v9k_oldimr);
+    debug(F101,"v9k_ser_install old vector seg","",(int)v9k_oldvec_seg);
+    return(0);
+}
+
+static int
+v9k_ser_active() {
+    return(v9k_ser_on);
+}
+
+/*
+  How many bytes are in the ring.  head and tail are each written by one
+  side only, so this can read both without stopping anything; head may
+  advance while we look, which only ever makes the answer conservative.
+
+  This is what FIONREAD returns for the communications device, and it is
+  the number sdata() in ckcfns.c has been asking for since section 0b --
+  it slides its send window only when ttchk() exceeds 4+bctu, so the 0-or-1
+  it used to get meant the window filled before any ACK was read.
+*/
+static int
+v9k_ser_count() {
+    if (!v9k_ser_on)
+      return(0);
+    return((int)((v9k_rxhead - v9k_rxtail) & V9K_RXMASK));
+}
+
+/*
+  Take up to n bytes out of the ring.  Returns 0 when it is empty, which is
+  what makes section 0d's loop spin rather than report end of file.
+*/
+static int
+#ifdef CK_ANSIC
+v9k_ser_get(char * buf, int n)
+#else
+v9k_ser_get(buf,n) char * buf; int n;
+#endif /* CK_ANSIC */
+{
+    int i = 0;
+    unsigned int t;
+
+    if (!v9k_ser_on || n <= 0)
+      return(0);
+    t = v9k_rxtail;
+    while (i < n && t != v9k_rxhead) {
+        buf[i++] = (char)v9k_rxbuf[t];
+        t = (t + 1) & V9K_RXMASK;
+    }
+    v9k_rxtail = t;                     /* One store, ours alone        */
+    return(i);
+}
+
+/*
+  Throw away everything waiting to be read -- the ring, and whatever the
+  chip is still holding.  tcflush()'s TCIFLUSH, which ttflui() reaches
+  before every packet exchange.
+
+  Clearing the error latch on the way out is not decoration: if the reason
+  Kermit is flushing is that it fell behind, the latch is exactly what is
+  set, and leaving it set means the flush is the last thing that ever
+  happens on this channel.
+*/
+static VOID
+v9k_ser_flush() {
+    if (!v9k_ser_on)
+      return;
+    V9K_CLI();
+    while (V9K_CTL & V9K_RR0_RXRDY)
+      (void)V9K_DAT;
+    V9K_CTL = V9K_CMD_ERRRST;
+    v9k_rxtail = v9k_rxhead;
+    V9K_STI();
+}
+
+/*
+  Wait until the transmitter and its shift register are both empty --
+  tcdrain(), and 3.13's SERRST spin.  Bounded for the same reason the
+  release path's copy is: this must not be able to hang the program.
+*/
+static VOID
+v9k_ser_drain() {
+    unsigned int spin;
+    unsigned char rr1;
+
+    if (!v9k_ser_on)
+      return;
+    for (spin = 60000U; spin; spin--) {
+        V9K_CLI();
+        V9K_CTL = 1;
+        rr1 = V9K_CTL;
+        V9K_STI();
+        if (rr1 & V9K_RR1_ALLSENT)
+          return;
+    }
+    debug(F100,"v9k_ser_drain gave up waiting for the transmitter","",0);
+}
+
+/*
+  Polled transmit, which is 3.13's OUTCHR: wait for RR0 to say the transmit
+  buffer is free, then store the byte at the data address.  No interrupt is
+  enabled for this direction (WR1 bit 1 stays clear) and none is wanted --
+  transmit was never the half that was broken.
+
+  The spin is bounded.  3.13 counts a full 16-bit register and gives up;
+  60000 turns of this loop is a few tenths of a second on a 5 MHz 8088,
+  which is hundreds of character times at 9600 bps and still short enough
+  that a dead line does not hang the program.  A partial write is reported
+  as a partial write: ttol() retries the remainder, which is exactly what
+  it does with a short write from any other Unix.
+*/
+#define V9K_TXSPIN 60000U
+
+static int
+#ifdef CK_ANSIC
+v9k_ser_put(const char * buf, int n)
+#else
+v9k_ser_put(buf,n) const char * buf; int n;
+#endif /* CK_ANSIC */
+{
+    int i;
+    unsigned int spin;
+
+    for (i = 0; i < n; i++) {
+        for (spin = V9K_TXSPIN; spin; spin--)
+          if (V9K_CTL & V9K_RR0_TXEMPTY)
+            break;
+        if (!spin) {
+            debug(F101,"v9k_ser_put transmitter stuck","",i);
+            errno = EIO;
+            return(i ? i : -1);
+        }
+        V9K_DAT = (unsigned char)buf[i];
+    }
+    return(n);
+}
+
+/*
+  Modem signals, for ttgmdm() by way of ioctl(TIOCMGET).  RR0 carries DCD
+  and CTS.  DSR does not exist on this chip at all -- 3.13's getmodem
+  explains that the 7201 has no pin for it on the Victor, so it comes off
+  the 6522 that also runs the keyboard and the CRT brightness, PA3 for
+  channel A and PA5 for B, and a ZERO there means the line is ACTIVE.
+
+  DTR and RTS are reported from the last WR5 we programmed rather than
+  read: they are outputs, WR5 is write-only, and section 1b is the only
+  thing that ever changes them.
+
+  The carrier clause is the one judgement call in this file, so it is
+  spelled out.  in_chk() -- ttchk() -- asks this for carrier BEFORE it asks
+  how many bytes are waiting, and treats "no DCD" as a lost connection: it
+  closes the device and returns -2.  A three-wire cable between two Victors,
+  or between a Victor and anything else, does not carry DCD, so a literal
+  RR0 would end every transfer at the first ttchk().  But C-Kermit has
+  already told us whether it wants carrier to mean anything: ttopen() and
+  ttpkt() call carrctl(), whose entire body is "set CLOCAL when carrier is
+  not to be required", and the settings it set are the ones cached in
+  victor_ttcur.  So when CLOCAL is on, say the carrier is there.  With
+  CARRIER-WATCH ON, or a modem connection, CLOCAL is clear and RR0 is
+  reported as it reads.
+*/
+static int
+v9k_ser_mdm() {
+    unsigned char rr0;
+    int z = 0;
+
+    if (!v9k_ser_on)
+      return(0);
+
+    rr0 = V9K_CTL;                      /* Pointer is at 0: this is RR0 */
+    if (rr0 & V9K_RR0_DCD) z |= TIOCM_CAR;
+    if (rr0 & V9K_RR0_CTS) z |= TIOCM_CTS;
+    if (!(V9K_FARB(V9K_SEG_6522,1) & v9k_dsrbit))
+      z |= TIOCM_DSR;                   /* Active LOW on the 6522       */
+
+    if (v9k_lastcr5 & 0x80) z |= TIOCM_DTR;
+    if (v9k_lastcr5 & 0x02) z |= TIOCM_RTS;
+
+    if (victor_ttcur.c_cflag & CLOCAL)  /* See above                    */
+      z |= TIOCM_CAR;
+    return(z);
 }
 
 #ifndef __WATCOMC__
