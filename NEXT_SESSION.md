@@ -46,7 +46,7 @@ where the host's estimator gets caught out.
 | elapsed | 54 s | **51 s** | **51 s** |
 | cps | 603 | **633** | **631** |
 
-Per byte would have left the total unmoved. It fell fourfold to ninefold.
+Per byte would have left the total unmoved. It fell threefold to ninefold.
 The two sizes fit **~0.124 s fixed per `write()` plus ~15 µs/byte** (~64
 KB/s), which predicts 4,096 → 1.5 s, 8,192 → 1.0 s, 16,384 → 0.75 s, and a
 floor of 0.6 s for one write. **8,192 collects most of it**; going higher
@@ -114,10 +114,9 @@ numbers comparable. Two caveats stand:
 ## 2. Do this next, in rough priority order
 
 **Real hardware.** Still nothing, ever, and by some distance the largest
-gap — and note it is now the *only* way to get at two of this port's open
-questions, since MAME cannot go above 9600. Anything about 19200, 38400, the
-µPD7201 interrupt-acknowledge sequence, or the true cost of a disk write
-needs the real machine.
+gap — and note it is now the *only* route to four of this port's open
+questions, since MAME cannot go above 9600: **19200, 38400, the µPD7201
+interrupt-acknowledge sequence, and the true cost of a disk write.**
 
 **Profile the remaining 8.8 s.** This is the open end of §16n and the
 instrument for it does not exist yet. The §0e tag says *where* the

@@ -4407,7 +4407,7 @@ where the host's estimator gets caught out.
 | wire bytes | 39,574 | 39,574 | 39,574 |
 
 If the cost were per byte, an 8 KB write would take eight times a 1 KB write
-and the total would not move. It fell by a factor of four to nine. **Per
+and the total would not move. It fell by a factor of three to nine. **Per
 call.** Fitting the two sizes gives about **0.124 s of fixed cost per
 `write()` plus 15 µs/byte** (~64 KB/s of actual transfer), which predicts
 
