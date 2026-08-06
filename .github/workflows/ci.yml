@@ -238,7 +238,10 @@ jobs:
       # them.
       - name: Build and test on FreeBSD
         uses: vmactions/freebsd-vm@v1
+        env:
+          KERMIT_TEST_DEBUG_LOOPBACK: 1
         with:
+          envs: KERMIT_TEST_DEBUG_LOOPBACK
           cpu: ${{ steps.cpus.outputs.count }}
           usesh: true
           prepare: |
@@ -281,7 +284,10 @@ jobs:
       # SSL logic as with FreeBSD
       - name: Build and test on NetBSD
         uses: vmactions/netbsd-vm@v1
+        env:
+          KERMIT_TEST_DEBUG_LOOPBACK: 1
         with:
+          envs: KERMIT_TEST_DEBUG_LOOPBACK
           cpu: ${{ steps.cpus.outputs.count }}
           usesh: true
           prepare: |
@@ -336,7 +342,10 @@ jobs:
       # SSL logic as with FreeBSD
       - name: Build and test on OpenBSD
         uses: vmactions/openbsd-vm@v1
+        env:
+          KERMIT_TEST_DEBUG_LOOPBACK: 1
         with:
+          envs: KERMIT_TEST_DEBUG_LOOPBACK
           cpu: ${{ steps.cpus.outputs.count }}
           usesh: true
           prepare: |
