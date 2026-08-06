@@ -42,12 +42,16 @@ container exec -i ia16-ubuntu-2 bash -c \
 `ckcpro.c` is generated from `ckcpro.w` by `wart`, a **host** tool built with
 the host `cc`.
 
-All 24 modules compile. Warnings are 17 lines, all in stock upstream code and
+All 24 modules compile. Warnings are 19 lines, all in stock upstream code and
 all pre-existing — `debug()` expanding to nothing under `NODEBUG` (W111),
 two unreferenced labels, `localtime()` sign mismatch, `execvp()` const
 mismatch, and `docmdline(1)` in `ckcmai.c`. **`ckvictor.c` compiles with
-none.** DGROUP is 39,440 of 65,536 (60%) after the linker adds libc;
-`ckermitw.exe` is 229,070 bytes.
+none.** It was 17 until `NOFLOAT` (§16j): dropping `GFTIMER` moves `ztime()`
+onto upstream's `ZTIMEV7` branch, whose K&R redeclarations of `localtime()`
+and `time()` produce two more sign mismatches at `ckutio.c:12319-12320`.
+DGROUP is 48,176 of 65,536 (73%) after the linker adds libc; `ckermitw.exe`
+is 202,294 bytes and needs 216,566 at load, of the 396,224 the machine
+offers.
 
 **It transfers files, both ways, byte-exact, as client and as server.** On
 Victor MS-DOS 3.1 under MAME it opens `/dev/seriala`, programs the line
@@ -70,8 +74,8 @@ with a well-formed E packet. `NOICP` removes the prompt where you would type
 **priority-0 XI initializer**, which also parses `--safe-server` (GET, SEND
 and FINISH only; the default is everything the build can do) by blanking the
 switch out of Watcom's copy of the DOS command tail **before `argv` is
-built**, so `cmdlin()` never sees an option it would reject. That is why this
-is still nine guarded upstream edits and not ten.
+built**, so `cmdlin()` never sees an option it would reject. That is why
+server mode cost no upstream edit at all.
 
 **§16h retracts one earlier claim, and the retraction is instructive.** §16d
 and §16g called their transfers "byte-correct" while the Victor sent 74 bytes
@@ -82,6 +86,37 @@ by a pair that is only correct together — `_fmode = O_BINARY` from an
 initializer in `ckvictor.c`, and `#undef NLCHAR` for `VICTOR9K` in `ckcdeb.h`.
 It has never run on real hardware.
 
+**§16k is the one to read before touching the receive path, and its first
+sentence is that `-d` costs about 25 ms per received byte.** That is enough
+to break long packets by itself, and it is why §16j's "receive ceiling in
+(480, 968]" was an artifact of the instrument rather than a property of the
+port. Under it was a real limit, and it was `V9K_RXBUFSIZ` at 512 with
+`rxpeak` sitting at 502 — the suspect §16j talked itself out of. The ring is
+now **4096**, `DRPSIZ` is **4000**, and **32,768 bytes transfer byte-exact at
+582 cps** with `rxlost=0 rxfull=0`. `MYBUFLEN` was exonerated and no upstream
+edit was needed — still eleven. The three ring counters now print to
+**stdout at exit in every build**, because a run fast enough to measure is
+exactly a run that cannot carry a debug log.
+
+**§16j retracts a number, and it is the one to know before touching packet
+sizes.** `dofast()` — the only thing that turns `SBSIZ`/`RBSIZ`/`MAXSP`/
+`MAXRP` into a wire packet length — is inside the `#ifndef NOTCPIP` that
+opens at `ckcmai.c:3390` and does not close until 3644, its `#endif`
+comments misattributed by one level, so **this build never calls it** and
+those four symbols had never influenced a byte on the wire. Every transfer
+in §16d–§16i ran 90-byte packets and window 1; the I packet printed in §16i
+decodes to exactly that. What reaches the wire is `DRPSIZ`/`DFWSIZ`, now
+`#ifndef`-guarded (the eleventh edit). The four capacity symbols still
+matter — `makebuf()` divides the pool by the window — but they are capacity,
+not the packet length. When checking a `#ifdef` region, **count nesting from
+line 1, not from the enclosing function**; doing the latter is what hid this.
+
+**`DRPSIZ` is 4000 in the tree, and that rule still stands for changing
+it**: no change to the packet length without a run that reaches FINISH and
+reports `rxlost`/`rxfull`/`rxpeak`. §16k satisfied it three times over.
+`XFLAGS=-dDRPSIZ=90` puts short packets back for one build without a tree
+edit.
+
 The interactive command parser is off (`NOICP`), and the reason is RAM, not
 DGROUP: with it in, DGROUP measures 60,768 of 65,536 — it *fits* — but the
 image needs 429K and the machine offers 387K. `make -f victorow.mak
@@ -90,9 +125,11 @@ XFLAGS=-dKEEP_ICP sizes` re-runs that measurement; `ZT=-zt128` takes DGROUP to
 
 `XFLAGS=-dKEEP_DEBUG` turns on C-Kermit's debug log (`CKERMITW -d -s FOO.BIN`
 writes `./debug.log` on the target). It is affordable here because `-zc` puts
-the format strings in far code — the image goes from 229,070 bytes to 309,506,
-which still loads. It is **the** instrument for anything on the target now;
-§16g, §16h and §16i are what it settled.
+the format strings in far code — the image goes from 202,212 bytes to 282,456,
+which still loads with 108,728 bytes to spare. It settled §16g–§16j. **But it
+is not free in time: about 25 ms per received byte (§16k), which starves the
+receive ring on its own. Never use it to measure anything about throughput or
+long packets** — that is what the stdout counters are for.
 
 Two cheaper instruments came out of §16h. **The debug log's own line endings
 are an `_fmode` oracle** — `debopn()` goes through the same `zopeno()` the
@@ -117,25 +154,29 @@ socket is single-use, so start `socat` first and never probe the port.
 ## Hard rules
 
 1. **Do not modify upstream C-Kermit files.** The port's value is that the
-   protocol engine is untouched. There are exactly nine guarded upstream
+   protocol engine is untouched. There are exactly eleven guarded upstream
    edits (listed in `PORTING.md` §8); every one is wrapped in `#ifndef` or
    `#ifdef VICTOR9K` and changes nothing on any other platform. If you think
-   you need a tenth, say so explicitly rather than doing it quietly — the
-   seventh, eighth and ninth were all agreed that way.
+   you need a twelfth, say so explicitly rather than doing it quietly — the
+   seventh through eleventh were all agreed that way.
 2. **Feature configuration goes in `ckvictor.h`, never in `victorow.mak`.**
    Each `#define` sits next to a comment explaining why. The makefile passes
    `-fi=ckvictor.h` and nothing else.
 3. **Victor-specific C goes in `ckvictor.c`.** It is the only non-upstream C
    file and should stay that way.
 4. **Two budgets, and do not confuse them.** DGROUP holds `.data`, `.bss`
-   and the **stack** — 39,440 of 65,536 (60%) after the link, 26,096 free.
+   and the **stack** — 48,176 of 65,536 (73%) after the link, 17,360 free.
    The **heap is outside it**: `malloc()` is `_fmalloc` in the large model,
    so the packet buffers do not compete for the segment at all. What bounds
-   them is real-mode RAM, ~387K, of which the image uses ~229K.
+   them is real-mode RAM: the machine hands out 396,224 bytes and the image
+   needs 216,566, leaving 179,658 — out of which the far heap then takes
+   about 25K of packet buffers. **The receive ring is the exception**: at
+   4,096 bytes it is `.bss` and comes straight out of the 64K (§16k).
    **Run `make -f victorow.mak sizes` after any change that could add static
    data** and report the number. Before raising `SBSIZ`/`RBSIZ`/`MAXSP`/
-   `MAXRP`, measure the *image*, not DGROUP — PORTING.md §16a has the
-   method, and §9 has both budgets side by side.
+   `MAXRP`, measure the *image*, not DGROUP — `python3 .probe/mzsize.py
+   ckermitw.exe` is §16a's method made repeatable, and §9 has both budgets
+   side by side.
 5. **Never define `BIGBUFOK`** (asks for 290,000-byte buffers). **Never remove
    `DYNAMIC`** (without it the packet buffers become >64K static arrays and the
    build fails outright).
@@ -150,8 +191,10 @@ socket is single-use, so start `socat` first and never probe the port.
    build: after touching `ckufio.c`, `ckuusr.c` or the size limits in
    `ckvictor.h`, **read the source for new automatics** and, if it matters,
    check the prologue's `sub sp,N` in `wdis` output. Say which you did. The
-   stack is 2,048 bytes (`wlink` default, inherited not chosen) — PORTING.md
-   §15 argues it should probably be raised.
+   stack is **8,192 bytes**, set by `option stack=` in `victorow.mak` and
+   chosen rather than inherited (§16j); it was `wlink`'s default 2,048
+   through §16i, which was most of one `docmd()` frame away from a
+   moderately deep `traverse()`.
 
 ## Layout of the port
 

@@ -309,6 +309,7 @@ v9k_alarm_check() {
       return(0);
 
     v9k_alarm_on = 0;                   /* One shot, as alarm(2) is     */
+    debug(F101,"v9k alarm expired at","",(int)v9k_alarm_at);
     h = signal(SIGALRM,SIG_IGN);        /* Peek ...                     */
     if (h == SIG_ERR)                   /* ... signal() refused the     */
       return(1);                        /* number: nothing was changed  */
@@ -591,6 +592,7 @@ alarm(secs) unsigned secs;
     } else {
         v9k_alarm_on = 0;
     }
+    debug(F111,"v9k alarm secs/at",ckitoa((int)secs),(int)v9k_alarm_at);
     return(left);
 }
 #endif
@@ -1318,12 +1320,22 @@ static volatile unsigned int  v9k_rxhead = 0;   /* Handler writes here  */
 static volatile unsigned int  v9k_rxtail = 0;   /* Foreground reads here*/
 
 /*
-  Two counters, for the debug log only.  They are the difference between
-  "the transfer was slow" and "the ring is too small", and neither is
+  Three counters, for the debug log only.  They are the difference between
+  "the transfer was slow" and "the ring is too small", and none of them is
   guessable from the outside.
+
+  rxpeak is the high-water mark, and it is what makes the other two worth
+  reading.  rxfull == 0 on its own says only "it did not overflow", which
+  is the same answer whether the ring was one byte from the edge or never
+  held more than four; the difference is exactly what you need when you are
+  deciding whether V9K_RXBUFSIZ is the thing standing between this port and
+  a longer packet (PORTING.md SS16j).  Maintained in the handler, which
+  costs a subtract, a mask and a compare per byte -- 2us or so of the 26us
+  a byte takes at 38400, and this is the only place that knows.
 */
 static volatile unsigned int  v9k_rxlost = 0;   /* Chip overran us      */
 static volatile unsigned int  v9k_rxfull = 0;   /* Ring overran Kermit  */
+static volatile unsigned int  v9k_rxpeak = 0;   /* Most it ever held    */
 
 static int v9k_ser_on   = 0;            /* Have we taken the chip?      */
 static int v9k_ser_atx  = 0;            /* atexit() registered yet?     */
@@ -1422,6 +1434,9 @@ v9k_ser_isr(void)
     if (nh != v9k_rxtail) {
         v9k_rxbuf[v9k_rxhead] = c;
         v9k_rxhead = nh;
+        nh = (nh - v9k_rxtail) & V9K_RXMASK;    /* Occupancy after us   */
+        if (nh > v9k_rxpeak)
+          v9k_rxpeak = nh;
     } else
       v9k_rxfull++;                     /* Ring full: this byte is gone */
 }
@@ -1529,6 +1544,7 @@ v9k_ser_reenable() {
     */
     debug(F111,"v9k_ser rxlost/rxfull",
           ckitoa((int)v9k_rxlost),(int)v9k_rxfull);
+    debug(F101,"v9k_ser rxpeak","",(int)v9k_rxpeak);
     V9K_CLI();
     V9K_CTL  = 1;   V9K_CTL = V9K_WR1_RXINT;
     V9K_CTL  = V9K_CMD_EXTRST;
@@ -1579,6 +1595,27 @@ v9k_ser_release() {
 
     debug(F101,"v9k_ser_release rxlost","",(int)v9k_rxlost);
     debug(F101,"v9k_ser_release rxfull","",(int)v9k_rxfull);
+
+    /*
+      And the same three to STDOUT, in every build, which is not
+      redundancy.  They are the only evidence that separates "the ring is
+      too small" from "the chip overran the handler", and the debug log
+      cannot be where they live: -d costs about 25ms per received byte
+      (PORTING.md SS16k), which starves the ring by itself and so changes
+      the very number it is being asked to report.  Measured: with -d a
+      968-byte packet never gets through and rxfull reaches 2,483; without
+      it the same packet ACKs first time.  A run that is fast enough to be
+      worth measuring is exactly a run that cannot carry a debug log, so
+      one line on the way out is the only way to read this at all.
+
+      atexit() and not the debug log's own site for the same reason the
+      comment in v9k_ser_reenable() gives in reverse: by the time this
+      runs DEBUG.LOG is closed, but stdout is still open, and a .BAT that
+      redirects it catches this line.
+    */
+    printf("v9k: rxlost=%u rxfull=%u rxpeak=%u of %u\n",
+           (unsigned)v9k_rxlost, (unsigned)v9k_rxfull,
+           (unsigned)v9k_rxpeak, (unsigned)V9K_RXBUFSIZ);
 }
 
 /*

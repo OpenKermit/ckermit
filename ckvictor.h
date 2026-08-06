@@ -327,18 +327,65 @@ extern long v9k_timezone;
   array this port adds and it comes straight out of DGROUP, so it is here
   with the other size levers rather than buried in the driver.
 
-  It has to cover the longest gap between two of C-Kermit's reads, not the
-  longest packet: myfillbuf() drains it in one call and comes straight
-  back, so the ring is only accumulating while Kermit is doing something
-  else -- writing the last packet's data to a floppy, mostly.  512 bytes is
-  533ms at 9600 bps and 133ms at 38400.  It is also what MS-DOS Kermit 3.13
-  chose for this machine (msxv90.asm's "source" buffer, BUFSIZ).
+  WHAT THIS HAS TO COVER, CORRECTED.  It used to say here that the ring
+  covers "the longest gap between two of C-Kermit's reads, not the longest
+  packet", because myfillbuf() drains it in one call and comes straight
+  back.  That is the wrong model and it is what made 512 look sufficient.
+
+  myfillbuf() does drain the ring in one call, but into mybuf[], and
+  ttinl() then walks mybuf[] one byte at a time and only calls read()
+  again when it runs out.  The rest of the packet is still arriving the
+  whole time.  So what the ring has to hold is not a gap between reads --
+  it is the BACKLOG the foreground accumulates over one packet, and that
+  backlog is proportional to the packet length whenever the foreground is
+  even slightly slower than the line.  On this machine it is.
+
+  Measured at 9600 bps, MS-DOS 3.1 under MAME (PORTING.md SS16k), both
+  runs byte-exact with rxlost = 0:
+
+      ring  512   packets to 2,668 on the wire   rxpeak = 502 of 512
+      ring 4096   packets to 3,605 on the wire   rxpeak = 502 of 4096
+
+  Read those two lines together, because the second is the informative
+  one: the peak backlog is the SAME 502 bytes with eight times the ring
+  and a third again the packet length.  It is not proportional to
+  anything.  The foreground keeps up with the line on average; what 502 is
+  is one fixed-duration stall -- about 523ms at 9600 -- during which
+  nothing is drained at all.  (Which stall is not established; the file
+  write between packets is the obvious candidate and has not been
+  isolated.)
+
+  That is why 512 failed the way it did.  It was not too small for the
+  average case, it was ten bytes from the edge of the ONE case that
+  matters, and a longer packet only has to leave that stall more room to
+  land inside the data rather than in the turnaround.  Hence packets of
+  968 and 1,952 that ACKed first time and 3,904 that never arrived.
+
+  So 4096 is not sized from a rate at all.  It holds an entire
+  maximum-length packet, which is the only assumption that stays true when
+  something else gets slower -- and there is nothing to fall back on if it
+  does not, because there is no flow control here (tcflow() is a stub).
+  Against a measured 502 it is an eight-fold margin.
+
+  Cost is 3,584 bytes of DGROUP over the old 512 -- measured 44,592 ->
+  48,176 of 65,536 (73%), against 20,944 that were free.  This is one of
+  the few things in this file that really does come out of the segment.
+
+  512 was also what MS-DOS Kermit 3.13 chose for this machine
+  (msxv90.asm's "source" buffer, BUFSIZ) -- but 3.13 never negotiated long
+  packets, so that precedent does not carry to this build.
 
   Must be a power of two: the head and tail pointers are masked with
   V9K_RXBUFSIZ-1, which is what lets the interrupt handler and the
   foreground share them with no critical section at all.
+
+  ckvictor.c maintains rxpeak alongside rxlost/rxfull and prints all three
+  to stdout at exit in EVERY build.  That is deliberate and PORTING.md
+  SS16k is the reason: -d costs about 25ms per received byte, which
+  starves this ring by itself, so the debug log cannot be where the ring's
+  own numbers are read.
 */
-#define V9K_RXBUFSIZ 512
+#define V9K_RXBUFSIZ 4096
 
 /*
   Packet buffers.  With DYNAMIC these are malloc'd, and in the large model
@@ -349,21 +396,126 @@ extern long v9k_timezone;
     SBSIZ/RBSIZ are the total buffer pools, carved at runtime into
     (window slots) x (negotiated packet length).
 
-  9024/9050 (the DYNAMIC default) would take 18K, which the far heap could
-  now afford.  2048 each is what is here because it is what a completed
-  transfer has actually been measured at (PORTING.md SS16d), and because
-  dofast() carves RBSIZ/MAXSP window slots -- two 1,018-byte slots, which is
-  more than a 38400 bps line needs and more than the milestone (SS13 step 5,
-  short packets with window 1) asks for.
+  These four are the CAPACITY.  They are not what reaches the wire, and
+  believing otherwise cost this port a session -- see DRPSIZ/DFWSIZ below.
+  Through SS16i they were 1024/1024/2048/2048.
 
-  Step 8 -- long packets, sliding windows, streaming -- is where raising
-  these becomes interesting, and where the far heap stops being a footnote.
-  Raise with a measurement, not by eye.
+  8192 and 4000 are chosen to hold two 4,000-byte packets exactly:
+  inibufs() mallocs SBSIZ+RBSIZ+40 = 16,424 and hands each half to
+  makebuf(), which divides a pool by the negotiated slot count.  So the
+  pool has to be at least (packet length) x (window), and at window 1 it is
+  twice what it needs -- deliberately, so that turning the window up to 2
+  later is a one-line change here and not a re-measurement.
+
+  MAXSP/MAXRP at 4000 rather than the protocol's 9024 ceiling because
+  dofast() clamps to 4000 anyway (ckcfn3.c:361) and a 9,024-byte packet is
+  9.4 seconds of 9600 bps line time to lose to one bad byte.
+
+  Cost, all of it on the far heap and none in DGROUP: 16,424 for the pools
+  plus RBSIZ+100 = 8,292 for srvcmd, against the ~183K the image leaves
+  free (PORTING.md SS16j).  Under DYNAMIC there is no static array of
+  either size -- ckcfn3.c:334 and ckcmai.c:1017 are pointers -- which is
+  why hard rule 5 says never to remove DYNAMIC.
 */
-#define MAXSP 1024                      /* Max long packet, send    */
-#define MAXRP 1024                      /* Max long packet, receive */
-#define SBSIZ 2048                      /* Send buffer pool         */
-#define RBSIZ 2048                      /* Receive buffer pool      */
+#define MAXSP 4000                      /* Max long packet, send    */
+#define MAXRP 4000                      /* Max long packet, receive */
+#define SBSIZ 8192                      /* Send buffer pool         */
+#define RBSIZ 8192                      /* Receive buffer pool      */
+
+/*
+  And these two are what actually reaches the wire.
+
+  DRPSIZ and DFWSIZ initialise urpsiz and wslotr, which rpar() encodes into
+  the MAXLX1/MAXLX2 and WINDO fields of every S and I packet this program
+  sends.  On a normal build nobody sets them, because dofast() overwrites
+  both at startup from the four capacity symbols above.  **This build never
+  calls dofast().**  It is inside the #ifndef NOTCPIP that opens at
+  ckcmai.c:3390 and does not close until 3644 -- the #endif comments at
+  3574 and 3644 are misattributed by one level -- so every NOTCPIP build
+  silently loses it, along with getdialenv().  Confirmed three ways in
+  PORTING.md SS16j, the least arguable being that the preprocessed ckcmai.c
+  contains "dofast" only as a prototype, with no call anywhere.
+
+  So until SS16j the port negotiated MAXL=90, WINDO=1, MAXLX=90 -- the stock
+  DRPSIZ/DFWSIZ -- through its entire history, and SBSIZ/RBSIZ/MAXSP/MAXRP
+  had never once influenced a byte on the wire.  The I packet quoted in
+  SS16i decodes to exactly that; the evidence was in the document before
+  anyone read it.
+
+  DFWSIZ stays at 1 on purpose.  There is no interrupt-level flow control
+  here (ckvictor.c SS1e; tcflow() is a stub), and what holds rxlost/rxfull
+  at 0/0 is that the far end waits for an ACK before sending again -- so
+  nothing arrives while the 8088 is writing the last packet to disk.  A
+  longer packet does not disturb that; a second window slot does.  SS13
+  step 8 says one at a time, and the packet length is the one that costs
+  nothing.
+
+  Needs the #ifndefs in ckcker.h: the ELEVENTH guarded upstream edit,
+  PORTING.md SS8.
+
+  WHY THIS IS 4000, AND WHY IT WAS 90 FOR ONE SESSION IN BETWEEN.
+
+  SS16j set 4000, watched the ramp die, and put it back:
+
+      236 bytes  -> ACKed
+      480 bytes  -> ACKed
+      968 bytes  -> dead
+
+  and recorded a "receive ceiling in (480, 968] that nothing in the port's
+  configuration explains".  Two things were wrong with that, and SS16k has
+  both on the target.
+
+  FIRST, the ceiling was an artifact of the instrument.  Every run that
+  established it was a -d run, and -d costs about 25ms per received byte
+  -- 4,274 "TTINL myread char" lines for one file.  That starves the ring
+  by itself: rxfull reached 2,483 and rxpeak pinned at 511 of 512.  The
+  identical binary at the identical DRPSIZ=4000 with -d dropped delivered
+  the same 968-byte packet on the first try, and 2,048 bytes byte-exact in
+  four seconds.  The debug log could not measure this because the debug
+  log was causing it.
+
+  SECOND, there was a real ceiling underneath, and it was the ring after
+  all -- the "obvious suspect" SS16j talked itself out of.  Without -d,
+  packets of 968 and 1,952 ACKed first time and 3,904 never arrived, with
+  rxpeak 502 of 512.  V9K_RXBUFSIZ is now 4096 and the margin is eightfold
+  rather than tenbyte; see the ring's own comment above for why the number
+  is what it is, because the reason is not the one you would guess.
+
+  Measured with both changes in, 9600 bps, MS-DOS 3.1 under MAME:
+
+      32,768 bytes, byte-exact, 56s, 582 cps
+      longest packet on the wire 3,605
+      v9k: rxlost=0 rxfull=0 rxpeak=502 of 4096
+
+  NOT yet clean: that run still took one timeout and two retransmissions,
+  with rxfull = 0 -- so whatever they are, they are not this ring.  The
+  standing suspicion is the timeout itself; see PORTING.md SS16k, which has
+  the arithmetic and no measurement to back it.
+
+  Which is why both are wrapped in #ifndef here as well as in ckcker.h: the
+  packet length is then a one-flag experiment and not a tree edit,
+
+      make -f victorow.mak clean
+      make -f victorow.mak XFLAGS="-dDRPSIZ=90"
+
+  which is how SS16k bisected the ceiling and how you go back to short
+  packets if a change here turns out to be wrong.  wcc puts $(XFLAGS) after
+  -fi=ckvictor.h on the command line, but -d options are processed before
+  the forced include either way, so the guard is what makes the override
+  win rather than collide.
+
+  Do NOT combine that with -dKEEP_DEBUG and believe the result.  SS16k is
+  the whole story: -d costs about 25ms per received byte, which is enough
+  to starve the receive ring on its own, so a -d run cannot measure
+  anything about long packets.  The counters print to stdout in every
+  build precisely so that they never have to.
+*/
+#ifndef DRPSIZ
+#define DRPSIZ 4000                     /* RECEIVE PACKET-LENGTH    */
+#endif /* DRPSIZ */
+#ifndef DFWSIZ
+#define DFWSIZ 1                        /* WINDOW: see above        */
+#endif /* DFWSIZ */
 
 /*
   MAXWS is deliberately NOT set here.  It used to be, at 8, and it never
@@ -547,6 +699,39 @@ extern long v9k_timezone;
 #define NOUUCP                          /* No UUCP lockfiles          */
 #define NOWTMP                          /* No wtmp accounting         */
 #define NOPARSEN                        /* No network directory parse */
+
+/*
+  No floating point, and it is worth more than anything else in this list.
+
+  The 8088 in a Victor has no 8087, so every float operation goes through
+  Open Watcom's software emulator -- emu87.lib and math87l.lib, which the
+  linker pulls in whole.  Measured (PORTING.md SS16j): dropping them takes
+  25,582 bytes off far code and 992 off DGROUP, and what the image needs at
+  load from 239,486 to 212,900.  That is 26,586 bytes of the machine's 387K,
+  bought by turning off arithmetic this port does not do.
+
+  NOFLOAT is upstream's own switch: ckcdeb.h undefines CKFLOAT, GFTIMER and
+  FNFLOAT together.  What it costs here is nothing that runs:
+
+    - isfloat(), ckround() and fpformat() are script-language functions and
+      NOSPL has already removed every caller.
+    - GFTIMER only makes the elapsed-time statistics fractional.
+    - The one live use is the round-trip-time estimate in ckcfn2.c, and
+      upstream ships the integer path for it four lines below the float one
+      (ckcfn2.c:434 vs :442).  The integer form works out about 1.13 times
+      larger, so the adaptive receive timeout gets slightly more patient --
+      the safe direction on a 9600 bps line with an 8088 at the far end.
+
+  NOGFTIMER alone was tried first and is not worth having: it saves 1,424
+  bytes and leaves the emulator linked, because CKFLOAT and not GFTIMER is
+  what drags it in.
+
+  Needs two #ifdef CKFLOAT guards in ckcfnp.h, which declares ckround() and
+  fpformat() with a type that NOFLOAT deletes while both definitions are
+  already guarded.  That is the TENTH guarded upstream edit, PORTING.md SS8,
+  and it is the same defect as the sixth in the same file.
+*/
+#define NOFLOAT                         /* No floating point at all   */
 
 /* ------------------------------------------------------------------ */
 /* The interactive command parser -- OFF, and it is RAM, not DGROUP     */

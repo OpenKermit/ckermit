@@ -19,8 +19,9 @@ question, not a live one.**
 
 **Verdict:** this is a thin-platform port, not a rewrite. The blocker people
 expect — a modern flat-memory codebase that cannot be squeezed into 64K — did
-not materialise. DGROUP after the link, including libc, is **39,424 bytes of
-65,536 (60%)**, with the protocol engine untouched.
+not materialise. DGROUP after the link, including libc, is **48,176 bytes of
+65,536 (73%)**, with the protocol engine untouched. (39,424 / 60% before the
+8K stack of §16j and the 4K receive ring of §16k.)
 
 ---
 
@@ -148,8 +149,9 @@ follow, and they are the reason this is the toolchain:
 - `malloc()` is `_fmalloc` — the **far heap**, outside DGROUP. C-Kermit's
   `DYNAMIC` packet buffers stop competing with static data altogether. What
   bounds them is the 387K the machine offers, not the segment.
-- DGROUP holds `.data`, `.bss` and the stack, and nothing else: **39,424 of
-  65,536 (60%)** after the link, including libc.
+- DGROUP holds `.data`, `.bss` and the stack, and nothing else: **48,176 of
+  65,536 (73%)** after the link, including libc. It was 39,424 / 60% until
+  §16j chose an 8,192-byte stack and §16k a 4,096-byte receive ring.
 
 `-zt<n>` is available and not used by default: it moves data objects of *n*
 bytes or more into per-module far data segments. It is worth more than `-zc`
@@ -313,7 +315,7 @@ Streaming is **not** network-coupled — it is negotiated protocol behaviour in
 
 ## 8. Upstream changes made
 
-Nine small, guarded edits. None changes behaviour on any other platform.
+Eleven small, guarded edits. None changes behaviour on any other platform.
 
 1. **`ckcdeb.h`** — wrapped the `sig_t` typedef in `#ifndef CK_NO_SIG_T`.
    macOS (and the retired build's newlib) already define `sig_t`. Open Watcom
@@ -383,11 +385,48 @@ Nine small, guarded edits. None changes behaviour on any other platform.
    changes which of text and binary transfers is broken rather than fixing
    anything.
 
-Items 2, 3, 6, 7 and 8 are worth offering upstream regardless of this port.
+10. **`ckcfnp.h`** — wrapped the `ckround()` and `fpformat()` prototypes in
+    `#ifdef CKFLOAT`. This is the sixth edit's defect again, in the same
+    file and for the same reason: `ckcfnp.h` declares them with a type that
+    `NOFLOAT` deletes, while both definitions are **already** guarded —
+    `ckclib.c` wraps `isfloat()` and `ckround()` in `#ifdef CKFLOAT` (lines
+    2012–2209) and `ckuus4.c` wraps `fpformat()` (line 8029). So upstream's
+    own `NOFLOAT` cannot compile in this tree at all, on any platform, and
+    the guard is what makes the switch usable rather than a Victor
+    accommodation. No other build defines `NOFLOAT`, so nothing changes
+    anywhere else.
+
+    What it buys here is the largest single saving in the port's history:
+    the 8088 has no 8087, every float goes through Open Watcom's software
+    emulator, and dropping `emu87.lib`/`math87l.lib` takes **26,586 bytes**
+    off what the image needs at load. §16j.
+
+11. **`ckcker.h`** — wrapped `DRPSIZ`, `DFWSIZ` and `DFBCT` in `#ifndef`,
+    the same shape as edits 2, 3, 7 and 8 and matching what that same file
+    already does for `SBSIZ`, `RBSIZ`, `MAXSP` and `MAXRP` a few lines
+    below; now `DRPSIZ=4000`, `DFWSIZ=1`. No other build defines any of the
+    three, so nothing changes elsewhere.
+
+    These initialise `urpsiz` (RECEIVE PACKET-LENGTH) and `wslotr` (WINDOW),
+    which `rpar()` encodes into every S and I packet. On most platforms
+    nobody overrides them because `dofast()` recomputes both at startup —
+    but `dofast()` is inside the `#ifndef NOTCPIP` that opens at
+    `ckcmai.c:3390` and does not close until 3644, so a serial-only build
+    never calls it and these values are the only thing that reaches the
+    wire. Without this edit the port negotiated 90-byte packets for its
+    entire history while believing the four capacity symbols controlled it.
+    §16j.
+
+Items 2, 3, 6, 7, 8, 10 and 11 are worth offering upstream regardless of this
+port.
 2, 3, 7 and 8 are latent hazards on any small-memory target — and 7 and 8
 share a shape worth naming: an allocation sized for comfort, failing
 silently, on a code path whose error message needs its own allocation to be
-printed. 6 is a bug on any compiler that enforces C89 here.
+printed. 6 and 10 are the same defect twice in the same file — a prototype
+in `ckcfnp.h` that is not guarded the way its own definition is — and 10 is
+the more serious of the pair, because it makes an upstream configuration
+switch (`NOFLOAT`) uncompilable everywhere rather than only under one
+combination of flags.
 
 ---
 
@@ -2029,6 +2068,23 @@ Order of work:
 8. **Turn on long packets, then windows, then streaming**, one at a time,
    re-measuring free memory at each step. This is where the ring's missing
    interrupt-level flow control starts to matter (§11b).
+   - 8a. **Long packets — DONE.** §16j got the negotiation
+     (`MAXL=94, MAXLX=3999, WINDO=1`, up from `MAXL=90, MAXLX=90`) and hit
+     what it called a receive ceiling in (480, 968]. §16k found that was
+     two ceilings: `-d` at ~25 ms per received byte, and under it
+     `V9K_RXBUFSIZ` at 512 with `rxpeak` sitting at 502. The ring is now
+     4096 and `DRPSIZ` is **4000** in the tree; **32,768 bytes transfer
+     byte-exact at 582 cps**, longest packet 3,605 on the wire,
+     `rxlost=0 rxfull=0`.
+     Getting even this far was not a matter of raising `SBSIZ`/`RBSIZ`/
+     `MAXSP`/`MAXRP`: those reach the wire only through `dofast()`, which no
+     `NOTCPIP` build ever calls, so **every transfer in §16d–§16i ran 90-byte
+     packets** and those four symbols had never done anything.
+   - 8b. **Windows.** `DFWSIZ` is deliberately still 1. This is the step
+     that removes the one-packet-in-flight property the missing flow
+     control has been relying on, so it wants `tcflow()` implemented first
+     or a much larger ring.
+   - 8c. **Streaming.**
 9. **Push to 19200, then 38400.**
 
 Only after all that is CONNECT worth considering — and it should be written
@@ -2096,8 +2152,12 @@ from `MAXWS`. What `MAXWS = 32` actually costs is ~736 bytes:
 | static `sbufuse[]` + `rbufuse[]` | 128 B | 32 B |
 | heap `s_pkt` + `r_pkt` (14 B each) | 896 B | 224 B |
 
-and it buys nothing, because `dofast()` computes `wslotr = RBSIZ/MAXSP = 4`
-slots and the negotiated window can never exceed what a 4096-byte pool carves.
+and it buys nothing, because the negotiated window can never exceed what the
+pool carves. (This paragraph used to say "because `dofast()` computes
+`wslotr = RBSIZ/MAXSP = 4` slots". **`dofast()` is never called in this
+build** — §16j — so the window came from `DFWSIZ`, which was 1. The
+conclusion is unchanged and the arithmetic was never load-bearing here, but
+the reason given for it was wrong.)
 The dead `#define` has been removed from `ckvictor.h` (which is what cleared the
 warning) and the real value documented there. **Reclaiming the 736 bytes needs
 a sixth guarded upstream edit — see §15; not done unilaterally.**
@@ -3618,6 +3678,381 @@ FINISH.
 
 ---
 
+## 16j. Step 8, and the packet length that was never ours
+
+Three changes, in descending order of how much they were worth and ascending
+order of how much they taught: the stack, floating point, and long packets.
+The third is the one that matters, because chasing it found that **this port
+has never sent a packet longer than 90 bytes, and the four symbols everyone
+assumed controlled that have never influenced a byte on the wire.**
+
+### The stack is now a number that was chosen
+
+`wlink`'s default for `system dos` is 2,048 bytes and that is what the port
+had through §16i — inherited, never decided. §15 had argued for raising it
+and deliberately kept it out of the toolchain change. It is now `option
+stack=8k` in `victorow.mak`.
+
+The case for it is unchanged: `traverse()` in `ckufio.c` recurses at 98
+bytes per level and the two largest non-recursive frames measured are
+`docmd()` at 1152 and `zcopy()` at 1114, so a directory walk a few levels
+deep that lands inside `docmd()` is already most of 2K. The stack is in
+DGROUP (hard rule 4) and there were 26,096 free bytes there.
+
+Cost: DGROUP 39,440 → 45,584, and **6,144 bytes of load memory, not of file
+size** — the stack is `.bss`-like, so it lands in the MZ header's `minalloc`
+and the `.EXE` does not grow by a byte.
+
+### Floating point, and the largest single saving in the port's history
+
+`NEXT_SESSION.md` carried `NOGFTIMER` as the way to drop `emu87.lib` and
+`math87l.lib`. It is not. Measured: `NOGFTIMER` saves 1,424 bytes and
+**leaves the emulator linked**, because `CKFLOAT` and not `GFTIMER` is what
+drags it in. Only two objects in the whole program reference floating point —
+`ckclib.obj` (`_fltused_`) and `ckcfn2.obj` (`__CHP`).
+
+`NOFLOAT` is upstream's own switch and removes it completely:
+
+| | stack-8K baseline | `NOGFTIMER` | `NOFLOAT` |
+|---|---:|---:|---:|
+| DGROUP | 45,584 | 45,552 | **44,592** |
+| far code | 193,878 | 193,090 | **168,296** |
+| `ckermitw.exe` | 229,070 | 227,646 | **202,212** |
+| needs at load | 239,486 | 238,670 | **212,900** |
+| `emu87`/`math87` in the map | 14 | 14 | **0** |
+
+**26,586 bytes** off what the image asks DOS for. Nothing that runs is lost:
+`isfloat()`, `ckround()` and `fpformat()` are script-language functions and
+`NOSPL` had already removed every caller, and the one live use — the
+round-trip-time estimate at `ckcfn2.c:434` — has upstream's integer path four
+lines below it at `:442`. The integer form works out about 1.13× larger, so
+the adaptive receive timeout becomes slightly more patient, which is the safe
+direction here.
+
+It cost the tenth guarded upstream edit (§8) and two warnings. The warnings
+are worth recording because they are a real behaviour change: dropping
+`GFTIMER` moves `ztime()` off the `gettimeofday()` implementation and onto
+upstream's legacy `ZTIMEV7` branch (`ckutio.c:12314`), whose K&R
+redeclarations of `time()` and `localtime()` produce sign mismatches at lines
+12319–12320. The only functional consequence is that `ztmsec`/`ztusec` stay
+at -1 and debug-log timestamps lose their `.mmm` suffix — both readers in
+`ckuusx.c` guard on exactly that. The build is now **19 warnings**, still all
+in stock upstream code, and `ckvictor.c` still contributes none.
+
+### Long packets: four symbols that do nothing
+
+The plan was one variable at a time — raise `MAXSP`/`MAXRP` to 4000 and
+`SBSIZ`/`RBSIZ` to 8192, leaving the window alone — on the arithmetic in
+`dofast()` (`ckcfn3.c:352`):
+
+```
+maxpktsiz = MAXSP, clamped to 4000
+wslotr    = RBSIZ / maxpktsiz
+urpsiz    = adjpkl(maxpktsiz, wslotr, RBSIZ)
+```
+
+which at 1024/2048 yields two slots of 1,018 — the number `ckvictor.h` and
+§16d–§16i had all quoted. DGROUP and image did not move, exactly as
+predicted, because under `DYNAMIC` these are far-heap allocations made at
+runtime; the Victor confirmed it, `inibufs size 2=16424` with no halving.
+
+**Then the wire said 90.** The Victor's ACK to the host's S packet decodes as
+`MAXL=90, WINDO=1, MAXLX1=0, MAXLX2=90` — a 90-byte receive length and window
+1, against a host offering 3,999.
+
+`dofast()` is never called. It sits inside the `#ifndef NOTCPIP` that opens
+at `ckcmai.c:3390` and **does not close until 3644** — the `#endif` comments
+at 3574 and 3644 are misattributed by one level, so the region reads as
+unconditional when you look at it locally, and everything in 3575–3643 —
+`getdialenv()`, `dofast()`, and a `debug()` line — disappears from any build
+that defines `NOTCPIP`. Three independent confirmations:
+
+| method | result |
+|---|---|
+| `#if`/`#endif` nesting counted **from line 1**, not from the function | 3 blocks open at 3589, outermost `#ifndef NOTCPIP` at 3390 |
+| `strings ckcmai.obj` | contains `main argc` (line 3651), **no** `main argc after prescan` (3575), **no** `dofast` |
+| preprocessed `ckcmai.c` | `dofast` and `getdialenv` appear **only as prototypes — no call anywhere** |
+
+The first method is the one to remember: counting from the enclosing function
+header gave depth 0 and was wrong, because a block opened earlier and closed
+inside the range. **Count from line 1.**
+
+With `dofast()` gone, `urpsiz` and `wslotr` keep their initialisers `DRPSIZ`
+and `DFWSIZ` — 90 and 1, because the 4095/30 pair is reachable only through
+`NEWDEFAULTS`, which is reachable only through `BIGBUFOK`, which hard rule 5
+forbids. `NEWDEFAULTS` would not have helped anyway: `makebuf()` divides a
+pool by the slot count, so its window of 30 would have carved the 8,192-byte
+pool into 273-byte packets.
+
+**This retracts a number, not a result.** Every transfer in §16d, §16g, §16h
+and §16i used 90-byte packets and window 1. The transfers were real and the
+files were byte-exact; only the claim about *how* they were carried was
+wrong. The proof needed no new run — the I packet already printed in §16i
+decodes to `MAXL=90, WINDO=1, MAXLX=90`, identical to today's. "Two 1,018-byte
+slots" described what `dofast()` would have computed had it been reachable;
+it was in `ckvictor.h`, and §9's `MAXWS` paragraph reasoned from the same
+`dofast()` arithmetic (corrected in place). §16d–§16i are **not** wrong about
+this: they all say "window 1 and short packets", which is exactly what was
+happening.
+
+The fix is the **eleventh** guarded upstream edit (§8): `#ifndef` around
+`DRPSIZ`, `DFWSIZ` and `DFBCT` in `ckcker.h`, the same shape as edits 2, 3, 7
+and 8 — a size constant made overridable. The window stays at 1 deliberately:
+with no interrupt-level flow control and a 512-byte RX ring, what has held
+`rxlost`/`rxfull` at 0/0 is that the far end waits for an ACK before sending
+again, so nothing arrives while the 8088 is writing the last packet to disk.
+A longer packet does not disturb that; a second slot does.
+
+### And then the long packets did not work
+
+`DRPSIZ 4000` negotiates exactly as intended. On Victor MS-DOS 3.1 the port
+advertised `MAXL=94, WINDO=1, MAXLX=42×95+9 = 3999` — confirmed from both
+ends, the host's packet log and the Victor's own `rpar rpsiz=4000` — the host
+accepted, and long-format D packets started flowing.
+
+C-Kermit slow-starts the data length rather than jumping to the negotiated
+maximum (`spar slow-start spsiz=244` in the Victor's log), and the ramp is
+where it died:
+
+| data length | result |
+|---:|---|
+| 236 | ACKed |
+| 480 | ACKed |
+| **968** | **Victor timed out, NAKed, host retransmitted twice, transfer dead** |
+
+So there is a receive ceiling somewhere in **(480, 968]** that nothing in the
+port's configuration accounts for. `V9K_RXBUFSIZ` is 512 and is the obvious
+suspect, but `v9k_comm_read()` drains the ring in a loop and returns what it
+has, so at 9600 bps it ought to keep up; `MYBUFLEN` in `ckutio.c` is 1024,
+which is above the failure and below the target. **Neither is confirmed.**
+The run that showed this never reached FINISH, so the Victor's `DEBUG.LOG` —
+and with it `rxlost`/`rxfull`, which would separate those two hypotheses in
+one reading — was never flushed.
+
+**`DRPSIZ` is therefore back at the stock 90 in the committed tree.** A build
+that negotiates a packet length it cannot honour cannot receive a file at
+all, which is worse than one that never asks; the guard that makes 4000
+settable is the deliverable here, not the 4000. Raising it back is a
+one-constant experiment and it is the first thing the next session should do,
+with a fixture small enough that the run reaches FINISH.
+
+> **Superseded by §16k.** That experiment was run. Both hypotheses above are
+> resolved and both were partly wrong: the (480, 968] boundary was an
+> artifact of `-d` itself at ~25 ms per received byte, and the real limit
+> underneath was `V9K_RXBUFSIZ` — the suspect this section dismissed —
+> sitting at `rxpeak = 502` of 512. `MYBUFLEN` was exonerated. The ring is
+> now 4096 and **`DRPSIZ` is 4000 in the tree**. Read §16k before trusting
+> any number in the rest of this section.
+
+What this section actually establishes about step 8, stated plainly: **long
+packets negotiate, and carry data to at least 480 bytes. They have not
+carried a file.** §16d–§16i's transfers are unaffected — they ran at 90 and
+still do. (§16k carries a file: 32,768 bytes, byte-exact.)
+
+### Sizes
+
+DGROUP **44,592 of 65,536 (68%)**, 20,944 free; `ckermitw.exe` **202,212**,
+needing **212,900** of the 396,224 the machine offers — **183,324 spare**,
+against 162,882 before this section, out of which the far heap then takes
+about 25K of packet buffers. With `KEEP_DEBUG`, 282,456 and 287,496 needed.
+
+(§16k's 4096-byte ring then takes DGROUP to **48,176 of 65,536 (73%)** and
+the image to 202,294, needing 216,566 — 179,658 spare. Those are the current
+figures; the ones above are this section's.)
+
+`.probe/mzsize.py` is §16a's method made repeatable: it reads the MZ header
+and reports image + `minalloc` against 396,224. Run it, not `ls -l`, before
+believing a build will load.
+
+### Three things the harness cost this section
+
+**MAME here runs about 1:1 with wall clock**, so `-seconds_to_run` is a real
+time budget and 12,288 bytes at the then-unknown 90-byte packet length did
+not fit in 500 of them. Size the fixture to the packet length, not to the
+principle — 4,096 bytes is two long packets and still carries every byte
+value.
+
+**`-log` wrote no `mame.log` in this MAME build**, so §16a's advice to poll
+for `"Average speed"` waits forever on a file that never appears. MAME exited
+on its own both times; wait on the *process*, not the log.
+
+**`pgrep -f "mame victor9k"` matches your own polling shell**, whose command
+line contains the pattern, so the wait never ends and the emulator looks like
+it is still running long after it exited. Match the binary path
+(`[m]ame/mame victor9k`) or check the job directly.
+
+---
+
+## 16k. The receive ceiling was the instrument, and then it was the ring
+
+§16j left one item at the top of the list: an undiagnosed receive ceiling in
+(480, 968] that "nothing in the port's configuration explains". It is
+diagnosed. There were two ceilings stacked on top of each other, the outer
+one was the debug log, and **the port now negotiates and honours 4,000-byte
+packets** — 32,768 bytes byte-exact at 582 cps.
+
+The headline for anyone reading this before touching the receive path:
+**`-d` costs about 25 ms per received byte, which is enough to break long
+packets by itself.** The instrument this port has leaned on since §16g
+cannot be used to measure the thing §16j was trying to measure.
+
+### What §16j actually saw
+
+Reproduced exactly, first run of this session, `DRPSIZ 4000` and
+`KEEP_DEBUG`: 236 ACKed, 480 ACKed, 968 dead. The host's packet log shows
+the ramp and the host's own timeouts.
+
+But the Victor's `DEBUG.LOG` — flushed this time, because the run reached a
+clean exit — says the failure is not a timeout at all:
+
+```
+v9k_ser rxlost/rxfull[0]=2483
+v9k_ser rxpeak=511
+```
+
+`rxlost = 0`, so the µPD7201 never overran the handler and §11b's ISR is not
+implicated. `rxfull = 2483`, so the **ring** overran Kermit, 2,483 bytes
+thrown away. `rxpeak = 511` of 512, pinned at capacity.
+
+`rxpeak` is new this session and it is what makes the other two worth
+reading: `rxfull = 0` alone cannot distinguish "never close" from "one byte
+from the edge", and that distinction turned out to be the whole story.
+
+The read sizes in the same log are the mechanism, in order:
+
+```
+244, 488, 511, 376, 511, 442, 511, 511, 511
+```
+
+The 236-byte packet arrives as one 244-byte read and the 480-byte packet as
+one 488-byte read, both comfortably inside the ring. From 968 on, every read
+finds the ring full. **The whole session made 18 `read()` calls** — roughly
+one per packet.
+
+That kills §16j's model, which is recorded in `ckvictor.h` and was wrong:
+the ring "has to cover the longest gap between two of C-Kermit's reads, not
+the longest packet, because `myfillbuf()` drains it in one call and comes
+straight back". It drains it in one call *into `mybuf[]`*, and `ttinl()`
+then walks `mybuf[]` one byte at a time and only calls `read()` again when
+it runs out — while the rest of the packet is still arriving.
+
+### The 25 ms per byte, and why it hid the real answer
+
+4,274 `TTINL myread char` lines for one file: `ttinl()` emits a debug line
+per byte, and `ckhexdump()` dumps the whole buffer per read. The arithmetic
+that follows from the host's packet log is ~25 ms per received byte, and it
+corroborates a note already in §16a — "12,288 bytes at 90-byte packets does
+not fit in 500 seconds" is the same number seen from the other side.
+
+Against a host packet timeout of 15 s that gives a ceiling in bytes, not in
+buffers: 480 × 25 ms = 12 s squeaks through, 968 × 25 ms = 24 s never does.
+**That is the (480, 968] boundary, and it is arithmetic about the logging,
+not about the hardware.**
+
+The control settles it. Same binary, same `DRPSIZ=4000`, `-d` dropped:
+
+| | with `-d` | without |
+|---|---|---|
+| 968-byte packet | never delivered | ACKed first try |
+| 2,048 bytes | never completed | **4 s, byte-exact** |
+
+### The real ceiling underneath, which was the ring after all
+
+With `-d` gone the ramp goes further and then still stops. 16,384 bytes,
+`DRPSIZ 4000`, ring still 512:
+
+| data length | result |
+|---:|---|
+| 968 | ACKed |
+| 1,952 | ACKed |
+| **3,904** | timeout, retransmit, and the recovery then collapses |
+
+So §16j's "obvious suspect" was right and the reasoning that dismissed it
+was wrong. `V9K_RXBUFSIZ` is now **4096**.
+
+`MYBUFLEN` is exonerated: it is 1,024 and packets of 1,952 and 2,668 crossed
+it intact. No upstream edit was needed and none was made.
+
+### The number that was not what I expected
+
+Sizing the ring, the obvious model is that the backlog is proportional to
+packet length — the foreground runs a bit slower than the line, so a longer
+packet accumulates more. Measured, it is not:
+
+| ring | longest packet on the wire | `rxpeak` |
+|---:|---:|---:|
+| 512 | 2,668 | **502** of 512 |
+| 4096 | 3,605 | **502** of 4096 |
+
+The same 502 with eight times the ring and a third again the packet length.
+It is not a rate deficit at all; it is **one fixed stall of about 523 ms at
+9600** during which nothing is drained. Which stall is not established — the
+file write between packets is the obvious candidate and has not been
+isolated, and that is a genuine loose end rather than a formality.
+
+This is why 512 failed the way it did: not too small on average, **ten bytes
+from the edge of the one case that matters**, so whether a given packet
+survived depended on where that stall landed. 968 and 1,952 survived; 3,904
+did not.
+
+4096 is therefore not sized from the measured 502. It holds an entire
+maximum-length packet even if the foreground contributes nothing while one
+is in flight, which is the only assumption that stays true when something
+else gets slower — and with `tcflow()` a stub there is nothing to fall back
+on. Cost: 3,584 bytes of DGROUP, 44,592 → **48,176 of 65,536 (73%)**.
+
+### Reading the counters without the log that breaks them
+
+`ckvictor.c` now prints all three to **stdout at `atexit()`, in every
+build**:
+
+```
+v9k: rxlost=0 rxfull=0 rxpeak=502 of 4096
+```
+
+This is not redundancy with the `debug()` lines. A run fast enough to be
+worth measuring is exactly a run that cannot carry a debug log, so the
+counters had to leave it. A `.BAT` that redirects stdout catches the line;
+`STEPE.BAT` in the harness below is the pattern.
+
+### Measured, with both changes in
+
+Victor MS-DOS 3.1 under MAME, 9600 bps, host C-Kermit 9.0.302, Victor as
+`CKERMITW -l /dev/seriala -b 9600 -r`, no `-d`:
+
+- **32,768 bytes, byte-exact** (`cmp` against the source after pulling the
+  file back off the image), 56 s, 582 cps
+- longest packet on the wire **3,605**
+- `v9k: rxlost=0 rxfull=0 rxpeak=502 of 4096`
+- and 16,384 bytes byte-exact on the previous build, `rxpeak = 502 of 512`
+
+`DRPSIZ` is **4000** in `ckvictor.h`. §16j's standing rule — do not raise it
+without a run that reaches FINISH and reports `rxlost`/`rxfull` — is
+satisfied three times over.
+
+### Not clean, and the arithmetic for the next session
+
+The 32 KB run still took **one timeout and two retransmissions**, with
+`rxfull = 0`. Whatever they are, they are not this ring.
+
+The standing suspicion, derived from the source and **not measured**, is the
+timeout itself. `CK_TIMERS` is on and `rttflg` defaults to 1, so `rcvtimo`
+is computed by `getrtt()` from `gtimer()`, which has **whole-second
+resolution** (`ckutio.c`); with `mintime = 1` the floor is 1 s and the
+file-receiver path lands on 3. Meanwhile this port's `alarm()` records
+`time() + secs` and fires when `time()` reaches it — so an `alarm(n)` armed
+part-way through a second fires in **(n−1, n]**, i.e. *early*, up to a full
+second early. The comment in `ckvictor.c` §0d claims the opposite ("fires
+somewhere between n and n+1 seconds, never early") and that claim is wrong.
+
+At `rcvtimo = 3` that is a 2 s worst case against 4.2 s of line time for a
+3,999-byte packet. **Rounding the deadline up (`time() + secs + 1`) is a
+one-line change in our own file** and is the first thing to try. It was not
+done this session because it is a behaviour change and this session already
+had two.
+
+---
+
 ## 15. Open questions
 
 **Closed since the last revision**
@@ -3656,6 +4091,17 @@ FINISH.
   answering EACCES for the FAT root, which `zchko()` asks about immediately
   after successfully creating and deleting a file in that same directory.
   (§16h)
+- ~~Real stack size: `wlink`'s 2,048 was inherited, not chosen.~~ **Chosen
+  now, and it is 8,192** — `option stack=$(STACK)` in `victorow.mak`. It
+  costs 6,144 bytes of DGROUP (39,440 → 45,584) and, because the stack is
+  `.bss`-like, 6,144 bytes of `minalloc` rather than any file size. (§16j)
+- ~~Would `NOGFTIMER` drop the FP emulator and buy back image space?~~
+  **No — that attribution was wrong.** `NOGFTIMER` saves 1,424 bytes and
+  leaves `emu87.lib`/`math87l.lib` linked, because `CKFLOAT` and not
+  `GFTIMER` is what pulls them in. **`NOFLOAT` removes them entirely**, for
+  26,586 bytes, at the cost of the tenth guarded upstream edit and a
+  slightly coarser adaptive timeout. (§16j)
+
 - ~~Do `GET` and `SERVER` work?~~ **Yes, both** — milestone step 6 is
   complete. `GET` needed nothing new. **Server mode needed a decision, not a
   fix**: C-Kermit 11 initialises every `en_*` to 2, "remote mode only", and a
@@ -3754,17 +4200,53 @@ FINISH.
   the unproven hardware item (§10) and it gates 38400. §11b's handler issues
   `WR0 = 38h` then the 8259's specific EOI and works under emulation, which
   is what 3.13 does; MAME's µPD7201 is not the part, so this is not settled.
-- **Real stack size, and it is now a number rather than a default.**
-  `wlink`'s map reports `STACK 2,048` inside DGROUP. That is Watcom's default
-  and it was inherited, not chosen. Against it: `traverse()` at 98 bytes/level
-  and the two largest non-recursive frames, `docmd()` at 1152 and `zcopy()` at
-  1114 — measured under gcc, so treat them as the right order of magnitude
-  rather than exact. A depth-8 walk landing inside `docmd()` is already most
-  of 2K. There are 26,112 free bytes in DGROUP and no competition for them
-  now that the heap is far, so **raising the stack is cheap and should
-  probably be done**: `option stack=8k` in `victorow.mak`. Not done in the
-  same change as the toolchain retirement, deliberately — it is a behaviour
-  change and wants its own measurement.
+- **`dofast()` is unreachable in this build, and so is `getdialenv()`.**
+  Both are inside the `#ifndef NOTCPIP` that opens at `ckcmai.c:3390` and
+  closes at 3644, with `#endif` comments misattributed by one level (§16j).
+  Routed around rather than fixed: the eleventh guarded upstream edit makes
+  `DRPSIZ`/`DFWSIZ` overridable so the port sets the packet length directly.
+  **The `ckcmai.c` nesting itself is still wrong**, it is wrong for every
+  `NOTCPIP` build and not only this one, and it is worth reporting upstream.
+  Note that repairing it would not by itself help here — under the nesting
+  the comments *intend*, `dofast()` lands inside `#ifndef NOICP`, which this
+  port also defines.
+- **`SET FILE COLLISION` is `BACKUP`, and BACKUP cannot work on FAT.**
+  `fncact` defaults to `XYFX_B` (`ckcmai.c:1326`) and `znewn()` builds the
+  backup name by appending `.~N~` to the whole filename — `LONGBIN.DAT.~1~`,
+  which is not a legal 8.3 name. So a receive onto a name that already
+  exists is refused, with the attribute-packet reply `N?` and reason
+  `reason[30]` = **"name"** (`ckcfn3.c:1386`). §16d–§16i never saw it
+  because every run used a fresh filename; §16j hit it the moment a
+  truncated run left a 0-byte file behind, and the symptom is a transfer
+  that sends S, F, A, then Z with data `D` and no data packets at all.
+  Not diagnosed further and not fixed — `SET FILE COLLISION` is an ICP
+  command this build does not have, so if it needs changing it changes in
+  `ckvictor.h` or an initializer. Until then, **use a fresh name per run**.
+- ~~There is an undiagnosed receive ceiling between 480 and 968 bytes, and
+  it is the single most important open item.~~ **Diagnosed, and it was two
+  ceilings.** The outer one was the instrument: `-d` costs ~25 ms per
+  received byte, which starves the ring on its own, and every run that
+  established (480, 968] was a `-d` run. The inner one was
+  `V9K_RXBUFSIZ` — the "obvious suspect" §16j talked itself out of — now
+  **4096**, with `rxpeak` added so `rxfull = 0` can be told from "ten bytes
+  from the edge". `MYBUFLEN` is exonerated and needed no upstream edit.
+  `DRPSIZ` is **4000** and 32,768 bytes transfer byte-exact. (§16k)
+- **What is the ~502-byte stall?** `rxpeak` is the same 502 with a 512-byte
+  ring and a 4096-byte one, so it is one fixed pause of about 523 ms at
+  9600, not a rate deficit. The file write between packets is the obvious
+  candidate and has **not** been isolated. It bounds how far the ring can
+  be trimmed back, and it is the thing to understand before 38400, where
+  the same stall is four times as many bytes. (§16k)
+- **One timeout and two retransmissions survive in a clean 32 KB run**,
+  with `rxfull = 0`, so they are not the ring. Suspicion, from the source
+  and unmeasured: `gtimer()` has whole-second resolution, so `getrtt()`
+  drives `rcvtimo` to 3, and this port's `alarm(n)` fires in (n−1, n] —
+  *early*, contradicting its own comment in `ckvictor.c` §0d. Rounding the
+  deadline up is a one-line change in our own file and is the first thing
+  to try. (§16k)
+- **Window 2** is the increment after that, and it is the one that removes
+  the "only one packet in flight" property the missing flow control relies
+  on. `DFWSIZ` is still 1.
 - **No `-fstack-usage` equivalent under Open Watcom.** Rule 7's discipline
   (measure frames after touching `ckufio.c`, `ckuusr.c` or the size limits)
   lost its cheap instrument with the gcc build. The numbers above are the last

@@ -108,9 +108,23 @@ all: $(EXE) report
 # LIBRARY records wcc embeds in each object, so "system dos" is all the
 # help it needs.  The map is not optional: DGROUP is the binding
 # constraint and the linker is the only thing that knows the real total.
+#
+# STACK.  wlink's default for "system dos" is 2,048 bytes, and until now that
+# is what this port had -- inherited, never chosen.  Against it: ckufio.c's
+# traverse() recurses at 98 bytes per level, and the two largest non-recursive
+# frames measured are docmd() at 1152 and zcopy() at 1114, so a directory walk
+# a few levels deep that lands inside docmd() is already most of 2K.  The
+# stack lives in DGROUP (hard rule 4) and there were 26,096 bytes free there,
+# so 8K costs nothing this build needs for anything else.  PORTING.md SS15
+# argued for this and deliberately did not bundle it with another change.
+#
+# This is a linker option, not a feature, which is why it is here and not in
+# ckvictor.h -- there is no #define that sets it.
+STACK   = 8k
+
 $(EXE): $(OBJS)
 	$(LINK) system dos name $(EXE) option map=$(EXE).map,quiet \
-	  file { $(OBJS) }
+	  option stack=$(STACK) file { $(OBJS) }
 
 # The protocol state machine is generated from ckcpro.w by wart.
 # wart is a host tool, so build it with the host compiler.

@@ -1,236 +1,205 @@
 # Next session
 
-Handoff for the Victor 9000 port, written 5 August 2026. **Milestone step 6 is
-complete: `GET` and `SERVER` both work, the port transfers byte-exact as
-client and as server, and §16g's wildcard send has been re-measured at its
-true byte counts.**
+Handoff for the Victor 9000 port, written 5 August 2026 (third session that
+day). **Step 8a is done. The port sends and receives 4,000-byte packets and
+32,768 bytes transfer byte-exact.**
 
-**Read `PORTING.md` first** — §16i is new and is this session; milestone step 6
-is struck through in §13; §15 gained three "still open" entries and lost one.
-This file is only the "what next".
+**Read `PORTING.md` §16k first** — it is this session and it retracts two
+claims from §16j. §15 closed one question and opened two. §13 step 8a is now
+DONE. The headline DGROUP figures in §0 and §1 were stale since §16j and are
+corrected.
 
 ---
 
 ## 1. What changed this session
 
-**`GET`, and the first time the port drives a server.** `CKERMITW -g
-GETBIN.DAT` against a host `server`: 512 bytes cycling 0x00–0xFF twice, **MD5
-identical** on the Victor's disk, `EXIT status=0`, `filcnt=1`, `rxlost/rxfull
-0/0`. A second invocation, `-f`, sent a `G F` the host ACKed and shut its
-server down.
+**The (480, 968] receive ceiling was two ceilings, and the outer one was the
+instrument.** `-d` costs about **25 ms per received byte** — `ttinl()` emits
+a debug line per byte and `ckhexdump()` dumps the buffer per read; one file
+produced 4,274 `TTINL myread char` lines. Against the host's 15-second packet
+timeout that is a ceiling in bytes: 480 × 25 ms = 12 s squeaks through, 968 ×
+25 ms = 24 s never does. **Every run that established (480, 968] was a `-d`
+run.** With `-d` dropped, the same binary at the same `DRPSIZ=4000` delivered
+the same 968-byte packet first try, 2,048 bytes in 4 seconds.
 
-**`SERVER`, after the session's one real discovery.** The first `-x` run
-refused *everything* — and the packet log shows it ACKing the host's `I`
-packet correctly in between the refusals, so nothing was broken:
+**Underneath it the real limit was the ring — the suspect §16j dismissed.**
+Without `-d`, packets of 968 and 1,952 ACKed and 3,904 died, with
+`rxpeak = 502 of 512`. `V9K_RXBUFSIZ` is now **4096**. `MYBUFLEN` is
+exonerated and **no upstream edit was needed** — still eleven.
 
-```
-s-00-04-^A, RRXBIN.DAT H       -> r-00-02-^A/ EGET disabled
-s-00-00-^A9 S~/ @-#Y3~...      -> r-00-03-^A0 ESEND disabled
-s-00-05-^A$ GF4                -> r-00-02-^A2 EFINISH disabled
-```
-
-`ENABLED()` in `ckcker.h` is `(local && (x&1)) || (!local && (x&2))`, and
-C-Kermit 11 initialises every `en_*` to **2** — remote mode only. A Victor
-that owns its serial line **is** local, so a `-x` server has every capability
-switched off. That is upstream policy, stated in upstream's own ENABLE help
-("enabled for REMOTE but disabled for LOCAL to prevent security issues"), and
-`compat_10()` dates it: 9 and 10 shipped these at 3, and 11 tightened them.
-Normally you type `ENABLE GET`; `NOICP` removes the prompt.
-
-**The decision is now made at startup, in `ckvictor.c`, and it is still nine
-guarded upstream edits.**
+**`rxpeak` is new and it is what made this readable.** `rxfull = 0` alone
+cannot tell "never close" from "ten bytes from the edge", and that was the
+whole story. All three counters now print **to stdout at `atexit()` in every
+build**, because a run fast enough to measure is exactly a run that cannot
+carry a debug log:
 
 ```
-CKERMITW -x                  everything the build can do  (default)
-CKERMITW -x --safe-server    GET, SEND and FINISH only
+v9k: rxlost=0 rxfull=0 rxpeak=502 of 4096
 ```
 
-The switch is parsed by an XI initializer at **priority 0**, which blanks it
-out of Watcom's copy of the DOS command tail *before* `__Init_Argv` builds
-`argv` at priority 1 — so `cmdlin()` never sees an option it would kill the
-program over. §16i has the two source citations that make that orderly rather
-than lucky.
+**The number I got wrong on the way, and it matters for 38400.** I sized the
+ring expecting the backlog to scale with packet length. It does not:
 
-**Measured, after the change:**
+| ring | longest packet | `rxpeak` |
+|---:|---:|---:|
+| 512 | 2,668 | **502** of 512 |
+| 4096 | 3,605 | **502** of 4096 |
 
-| | full set | `--safe-server` |
-|---|---|---|
-| host `get RXBIN.DAT` | 2048, identical | 2048, identical |
-| host `send` → Victor | 512, identical | 512, identical |
-| host `remote directory` | streams, never ends | `E REMOTE DIRECTORY disabled` |
-| host `finish` | never sent (see §4) | honoured, server exits |
-| `v9k srvcaps safe` | 0 | 1 |
+The same 502 with 8× the ring. It is **one fixed stall of ~523 ms at 9600**,
+not a rate deficit. Which stall is *not established* — the inter-packet file
+write is the obvious candidate and was not isolated. So 4096 is sized to hold
+a whole maximum-length packet, which is the only assumption that survives
+something else getting slower.
 
-**The wildcard send, re-measured now that the streams do not translate** —
-this is the number that closes §16h's retraction:
+**Measured, both changes in**, 9600, MS-DOS 3.1 under MAME, Victor as
+`CKERMITW -l /dev/seriala -b 9600 -r`, no `-d`:
 
-| file | on disk | §16g | now |
-|---|---|---|---|
-| `ALPHA.TXT` | 63 | 61 | **63, identical** |
-| `BETA.TXT` | 54 | 53 | **54, identical** |
-| `TESTFILE.TXT` | 74 | 72 | **74, identical** |
+- **32,768 bytes byte-exact** (`cmp` after pulling it back off the image),
+  56 s, **582 cps**, longest packet 3,605
+- 16,384 bytes byte-exact on the previous build (ring 512, `rxpeak` 502/512)
+- 2,048 bytes byte-exact, 4 s
 
-Sizes: DGROUP **39,440 of 65,536 (60%)**, `ckermitw.exe` **229,070**;
-`KEEP_DEBUG` DGROUP 39,792, image **309,506**. The capability work cost ~440
-bytes, all far code.
+| | §16j | now |
+|---|---:|---:|
+| DGROUP | 44,592 (68%) | **48,176 (73%)** |
+| `V9K_RXBUFSIZ` | 512 | **4096** |
+| `DRPSIZ` | 90 | **4000** |
+| `ckermitw.exe` | 202,212 | **202,294** |
+| needs at load | 212,900 | **216,566** of 396,224 |
+| spare | 183,324 | **179,658** |
 
 ---
 
 ## 2. Do this next, in rough priority order
 
-**Real hardware.** Nothing has ever run on one, and with step 6 closed this is
-now the only thing between the port and "it works". Everything below is
-smaller than this.
+**Round the alarm deadline up — one line, in our own file.** This is the top
+item and it is the leading explanation for the one timeout and two
+retransmissions that survive in the clean 32 KB run (`rxfull = 0`, so not the
+ring). Derived from the source, **not measured**:
 
-**Decide what `-x` should offer by default.** It currently offers everything,
-and one of those capabilities (`REMOTE DIRECTORY`) hangs — see §4. Flipping
-the default to the safe set is a two-line change in `v9k_set_srvcaps()`; the
-switch would then select the full set instead. This is a judgement call about
-who is on the far end, not a bug fix.
+- `CK_TIMERS` is on and `rttflg` defaults to 1, so `rcvtimo` comes from
+  `getrtt()`, computed from `gtimer()` — which has **whole-second
+  resolution**. With `mintime = 1` the file-receiver path lands on 3.
+- `ckvictor.c`'s `alarm()` records `time() + secs` and fires when `time()`
+  reaches it, so `alarm(n)` armed part-way through a second fires in
+  **(n−1, n]** — *early*, by up to a full second. **The comment in §0d claims
+  the opposite** ("never early") and is wrong.
+- At `rcvtimo = 3` that is a 2 s worst case against 4.2 s of line time for a
+  3,999-byte packet.
 
-**`REMOTE DIRECTORY`.** Streams all 50 entries correctly, never sends the
-terminating Z. `snddir()` is C-Kermit's own lister, so it is upstream code all
-the way down. Cheap first step: `--safe-server` refuses it, so a run that
-needs a clean FINISH is not blocked while this is open.
+Fix is `v9k_alarm_at = now + secs + 1`. Then re-run the 32 KB fixture and
+count retransmissions in the host's packet log.
 
-**Then step 8: long packets, windows, streaming, one at a time.** The far heap
-means `SBSIZ`/`RBSIZ` can grow — 9024/9050, the `DYNAMIC` default, would cost
-nothing in DGROUP. Measure the *image* against the machine's 387K (§16a's
-method), not DGROUP.
+**Isolate the ~502-byte stall.** It bounds how far the ring could be trimmed
+and it is four times as many bytes at 38400. §16k did not isolate it.
 
-**Consider raising the stack.** Unchanged, and still deliberately not bundled
-with anything else. `wlink`'s map says `STACK 2,048` — Watcom's default,
-inherited rather than chosen. `traverse()` is 98 bytes/level and the largest
-non-recursive frames are `docmd()` at 1152 and `zcopy()` at 1114. The two new
-routines this session add 10 and 24 bytes and run at startup. There are 26,096
-free bytes in DGROUP. `option stack=8k` in `victorow.mak`.
+**Real hardware.** Still nothing, ever. Unchanged and still the largest gap.
 
-**`NOGFTIMER`.** Still not turned off, and still why `emu87.lib`/`math87l.lib`
-are in the link. Turning it off drops the FP emulator and buys back image space
-for step 8. §16h ruled it out as the cause of the `binmode.obj` mystery.
+**Then 8b, windows.** `DFWSIZ` is still 1. This is the step that removes the
+one-packet-in-flight property the missing flow control relies on, so
+`tcflow()` or a much larger ring probably comes first.
+
+**Report the `ckcmai.c` nesting upstream.** Unchanged from §16j — wrong for
+every `NOTCPIP` build, and it silently costs `getdialenv()` too.
+
+**`REMOTE DIRECTORY`** still streams its listing and never terminates it
+(§16i). Unchanged; use `--safe-server` when you need the log.
 
 ---
 
 ## 3. Instruments
 
-- **`XFLAGS=-dKEEP_DEBUG`** — C-Kermit's own debug log. Needs `make clean`
-  first. Image 229,070 → 309,506 and still loads.
-- **`CKERMITW -d -h` is the 2.5-minute oracle.** No serial line, no `socat`,
-  no host `kermit`. It reaches `sysinit()` → `uname()`, so **anything decided
-  before `main()` can be witnessed there** — `v9k srvcaps safe=` and
-  `v9k fmode witness=` both are. The log's own line endings are the `_fmode`
-  oracle (CRLF = the runtime is translating).
-- **Run the control when testing a command-line switch.** Under `NOICP` any
-  `--` argument is `XFATAL("Extended options not configured")`, so
-  `CKERMITW -d --bogus-opt -h` is what distinguishes "our option was consumed"
-  from "upstream ignored it". Without it the test proves nothing.
-- **The witness lines**: `v9k srvcaps safe=` (0 full, 1 safe),
-  `v9k fmode witness=` / `v9k _fmode=` (expect 1 and 512).
-- **The driver's two counters**: `v9k_ser rxlost/rxfull[N]=M`, from
-  `tcsetattr()`, which `ttres()` reaches on the way out. 0/0 everywhere so far.
-- **`.probe/`** holds throwaway programs, not part of the build. Build lines
-  in the comment at the top of each.
-- **`XFLAGS=-dKEEP_ICP`** — restores the parser, for re-running §9d's
-  measurement. Links, does **not** load: 429K needed against 387K.
+- **`v9k: rxlost=… rxfull=… rxpeak=… of …` on stdout at exit, every build.**
+  The one that mattered this session. A `.BAT` that redirects stdout catches
+  it; `STEPE.BAT` is the pattern.
+- **`XFLAGS=-dDRPSIZ=90`** — packet length is a one-flag experiment now, both
+  here and in `ckcker.h`. This is how the ceiling was bisected.
+- **Do NOT combine `-dKEEP_DEBUG` with long packets and believe the result.**
+  That is the whole lesson of §16k. `-d` is still the right instrument for
+  anything that is not throughput.
+- **`python3 .probe/mzsize.py ckermitw.exe`** — run this, not `ls -l`.
+- **`CKERMITW -d -h` is the 2.5-minute oracle** — no serial line, no `socat`,
+  no host `kermit`. Reaches `sysinit()` → `uname()` and `inibufs`. Does not
+  reach `rpar()`, so it cannot tell you the negotiated packet length.
+- **Decode the negotiation yourself**: `MAXL TIME NPAD PADC EOL QCTL QBIN
+  CHKT REPT CAPAS WINDO MAXLX1 MAXLX2`, each `unchar(c) = c - 32`, long
+  length = `MAXLX1*95 + MAXLX2`.
+- **Packet lengths straight off the host log**: `awk '{print length($0)}'
+  host.pkt | sort -n | tail`. The wire packet is the line minus the 8-char
+  `s-NN-TT-` prefix.
 - **There is no `-fstack-usage` under Open Watcom.** Read the source for new
-  automatics; if it matters, read the prologue's `sub sp,N` in `wdis` output.
+  automatics; check `sub sp,N` in `wdis` if it matters.
 
 ---
 
 ## 4. Things that are known-incomplete
 
-- **`REMOTE DIRECTORY` never terminates its listing** (§16i). It is enabled by
-  default. When it fails the host also never sends the following FINISH, so
-  the Victor's server stays up and its `DEBUG.LOG` is never flushed — which
-  costs you the whole run's Victor-side log. Use `--safe-server` for any run
-  where you need the log.
-- **Most of the default capability set is untested.** DELETE, RMDIR, CWD,
-  SPACE, TYPE, RENAME, COPY, MKDIR are all enabled and have never been on the
-  wire. `BYE` has never been sent; FINISH is the only shutdown ever tried.
-- **Wildcards are case-sensitive.** `-s *.txt` matches nothing on a FAT
-  volume; `-s *.TXT` matches. `ckufio.c:6262` passes `icase=1`, which
-  `ckclib.c:1344` documents as case-sensitive. You will type this wrong again.
-- **No interrupt-level flow control.** Not needed with one packet in flight —
-  `rxfull=0` in every direction at 9600. Needed for streaming. `tcflow()` is a
-  stub for the same reason.
-- **No stack switch in the handler.** Deliberate — 3.13's `SERINT` does not
-  switch either. The frame is ~30 bytes.
-- **The IRQ1 vector is hard-coded to 41h.** Right for Victor MS-DOS 3.1;
-  `~/projects/myfreedos` puts its serial ISR at INT 09h, so this is the most
-  likely thing to break "one binary, two DOSes". One constant, §1e.
-- **Ctrl-Break with the line open.** Restored from `atexit()`, which does not
-  cover a Ctrl-Break DOS turns into a bare termination. Fix, if it bites: hook
-  INT 23h (`AH=25h`, inside rule 6).
-- **WR2 is left as the OEM driver set it** (`10h`, where 3.13 writes `14h`).
-  First thing to try if interrupts ever fail to arrive.
+- **One timeout + two retransmissions in a clean 32 KB run.** §2. Not the
+  ring (`rxfull = 0`). Not diagnosed.
+- **The ~502-byte stall is unidentified.** §2.
+- **`SET FILE COLLISION` is `BACKUP`, and BACKUP cannot work on FAT.**
+  `znewn()` appends `.~N~` to the whole name — not a legal 8.3 name — so a
+  receive onto an existing name is refused with reason "name". Symptom: S, F,
+  A, then **Z with data `D` and no data packets at all**. **Use a fresh
+  filename per run and delete leftovers from the image.**
+- **`REMOTE DIRECTORY` never terminates its listing** (§16i).
+- **Most of the default capability set is untested** (§16i). `BYE` never sent.
+- **Wildcards are case-sensitive.** `-s *.TXT`, not `*.txt`.
+- **No interrupt-level flow control**, `tcflow()` is a stub.
+- **No stack switch in the handler** — deliberate, ~30-byte frame.
+- **The IRQ1 vector is hard-coded to 41h.** Most likely thing to break "one
+  binary, two DOSes".
+- **Ctrl-Break with the line open** is not covered by `atexit()`.
+- **WR2 is left as the OEM driver set it** (`10h` vs 3.13's `14h`).
 - **The carrier clause** in `ttgmdm()` forces carrier present under `CLOCAL`.
 
 ---
 
 ## 5. Still open, from before
 
-**Nothing has run on real hardware.** Everything is MAME, Victor MS-DOS 3.1.
-Unchanged, and now the largest gap by a wide margin.
+**Nothing has run on real hardware.** All MAME, Victor MS-DOS 3.1.
 
-**The 42KB gap for the interactive parser.** Needs 429KB, DOS offers 387KB
-(§16a, measured).
+**The gap for the interactive parser** — `XFLAGS=-dKEEP_ICP` plus
+`.probe/mzsize.py` settles it in one build and no MAME run. Not re-measured
+since `NOFLOAT`, and note the ring just spent 3,584 bytes of DGROUP.
 
-**The µPD7201 interrupt-acknowledge sequence.** §11b's handler issues
-`WR0 = 38h` then the 8259's specific EOI and works under emulation, which is
-what 3.13 does. MAME's µPD7201 is not the part, so this is not settled, and it
-gates 38400. The zero loss counters are at 9600 and do not speak to it.
+**The µPD7201 interrupt-acknowledge sequence.** Unsettled, gates 38400.
 
 **Why `binmode.obj`'s near init record does not work here** (§16h). Routed
-around, not diagnosed. The far record this port registers itself is now used
-twice — `_fmode` at priority 32 and the capability set at priority 0 — so the
-mechanism has more riding on it than it did.
+around, not diagnosed.
 
 ---
 
 ## 6. The harness
 
-§16a, §16d, §16g, §16h and §16i have it in full. The landmines:
+§16a, §16d, §16g–§16k have it in full. What this session added or corrected:
 
-- **`-autoboot_command` takes the literal two-character escape `\n`, not a
-  real newline.** Use `"\n\nFOO\n"` in double quotes.
-- **`.BAT` files must have CRLF line endings.** With Unix `\n`, COMMAND.COM
-  echoes every line and runs none.
-- **MAME does not exit when `-seconds_to_run` expires.** Poll the log, not the
-  process: `until grep -q "Average speed" mame.log; do sleep 10; done`.
-- **The host `kermit`'s stdout is buffered until it exits**, so `echo` markers
-  in a `-y` command file all arrive at once at the end. Watch the transaction
-  log for live progress, not stdout.
-- **Budget the emulated seconds.** 9600 with short packets runs about 14 cps
-  host→Victor and 55 cps Victor→host — a 2048-byte send takes ~110 s, the same
-  file back ~36 s. Each program load off the emulated disk is another ~15 s.
-  Boot plus `-autoboot_delay 30` eats the first ~60 s.
-- **Start the host `kermit` after the Victor is ready**, and give it
-  `set retry 20`. If the Victor is the passive side (`-r`, `-x`), start the
-  host later; if the Victor is active (`-s`, `-g`, `-f`), have the host
-  waiting first.
-- **`grep` the extracted `DEBUG.LOG` with `-a`.** It contains NUL bytes.
-- **MS-DOS 3.1 cannot redirect handle 2.** `2> FILE` puts a literal `2` in
-  `argv`. Handle 1 and `>>` both work.
-- **The Victor boots its hard disk as `A:`**, not `C:`.
-- **`~/projects/mame/victor_kermit.img` is the image**; mtools cannot read it,
-  use `vtg_image_util` (`python3 cli_main.py ...`). Backups beside it, newest
-  `.bak-20260805-get`. **Never write to the image while MAME is running.**
-- **On the image now:** the `KEEP_DEBUG` `CKERMITW.EXE`, and from this session
-  `GSRV.BAT`/`SRV.BAT`/`SAFE.BAT`/`WILD.BAT`, `GETBIN.DAT` and `SRVBIN.DAT`
-  and `SAFEBIN.DAT` (512 each), `RXBIN.DAT` (2048), plus the logs
-  `GETDBG/FINDBG/SAFESRV/WILD2/FULLCAP/SAFECAP.LOG` and the §16h leftovers.
-- **MAME's `-bitb` socket is single-use.** Start `socat` first, with `fork`.
-- **Test on Victor MS-DOS 3.1, not FreeDOS** (§16a).
-- **`-l /dev/seriala`, with forward slashes.**
-- **Always give the host `kermit` a command file**; `~/.kermrc` sets a line
-  that does not exist, so use `kermit -y <file>`.
-- **Run MAME from `~/projects/mame`** — it writes `cfg/` and `nvram/` into the
-  working directory.
-- **`XFLAGS=-dKEEP_DEBUG` needs `make clean` first.**
-- **Digits come through shifted in `-autoboot_command`.** Prefer digit-free
-  filenames in automated runs.
-- A transfer run costs 8–10 minutes of wall clock; a boot-and-run-a-program
-  run costs ~2.5. Put every question into one `.BAT`.
+- **Put the Victor in `-r` (receive), not `-x` server mode, when the point is
+  a receive measurement.** A failed server run can leave the server wedged so
+  the host's `finish` never lands, and then MAME's `-seconds_to_run` kills the
+  program before it flushes anything. `-r` always exits.
+- **One `kermit` attempt per MAME run, and unique log names per run.** `log
+  packets` *truncates*, so attempt 2 destroyed attempt 1's evidence — that
+  cost a run this session.
+- **Size the fixture to the packet length.** 2,048 bytes reaches the 968-byte
+  rung of C-Kermit's slow start; 16 KB reaches ~2,600; 32 KB reaches ~3,600.
+- **Verify by pulling the file back off the image and `cmp`**, rather than a
+  second transfer — no host `receive` timing to get wrong.
+- **Wait on the run script's PID.** `pgrep -f "mame victor9k"` matches your
+  own polling shell.
+- `~/projects/mame/victor_kermit.img.bak-20260805-ceiling` is the backup from
+  before this session's runs.
+- **On the image now:** the shipping `CKERMITW.EXE` (202,294, `DRPSIZ` 4000,
+  ring 4096), `STEPE.BAT` (`-r`, no `-d`, stdout to `STEPE.OUT`), `STEPC.BAT`
+  (the `-d` server run that reproduced §16j), plus §16h–§16j leftovers.
+  `RCVA/RCVB/RCVC.DAT` are receive fixtures — delete before reusing a name.
+- Everything else from §16i's list still holds: `-bitb` is single-use so start
+  `socat` first with `fork`; `.BAT` files need CRLF; `-autoboot_command` takes
+  the literal `\n`; digits come through shifted; MS-DOS 3.1 cannot redirect
+  handle 2; the disk boots as `A:`; use `vtg_image_util`, never write to the
+  image while MAME runs; `kermit -y <file>` always.
+
+---
 
 ## 7. Rebuilding
 
@@ -239,9 +208,10 @@ container exec -i ia16-ubuntu-2 bash -c \
   "cd /mnt/projects/ckermit && make -f victorow.mak"        # ckermitw.exe
 container exec -i ia16-ubuntu-2 bash -c \
   "cd /mnt/projects/ckermit && make -f victorow.mak sizes"  # DGROUP report
+python3 .probe/mzsize.py ckermitw.exe                       # will it LOAD
 ```
 
-The link prints its DGROUP figure. Rule 4 still applies — report DGROUP after
-any change that could add static data — but note the second half of it: the
-heap is **outside** DGROUP, so anything that raises the packet buffers has to
-be measured against the machine's 387K, not against this segment.
+Rule 4 still applies, and so does its second half: the heap is **outside**
+DGROUP, so anything that raises the packet buffers is measured against the
+machine's 396,224, not against the segment. The **ring is not** — it is
+`.bss` and comes straight out of the 64K.
