@@ -21,3 +21,8 @@ tests/unit/bin/
 .ci-cache/
 .buildcc.cache
 .buildflags.cache
+
+# For compatibility testing
+ckermit-old-9.0.302
+gkermit
+eksw
