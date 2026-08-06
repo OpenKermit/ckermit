@@ -4157,6 +4157,191 @@ and remains un-isolated.
 Timing the non-tty writes there is an instrument that needs no upstream edit
 and has not been built.
 
+> **Superseded by §16m.** The instrument was built and the stall is
+> identified: it is the ring filling during the *host's retransmission*, the
+> one moment the host transmits without waiting for our ACK. Same root cause
+> as §16l's timeouts, and it is not in this port. The file write was not it.
+
+---
+
+## 16m. The stall is the host's retransmission, and it was never ours
+
+The ~502-byte high-water mark has been on the open list since §16k, called a
+stall in §16k, re-measured and left unidentified in §16l, and named as the
+top item in the handoff. **It is identified.** The peak is the ring filling
+while the host resends a packet the Victor has not finished turning around —
+and since §16l established that the timeouts causing those resends are the
+host's round-trip estimator being surprised by its own slow start, the last
+unexplained number in the receive path turns out to be the second symptom of
+a cause already diagnosed and already known to be outside this port.
+
+Getting there cost four runs, three refuted hypotheses and one instrument
+that had to be fixed before it could be believed. All four transfers were
+byte-exact.
+
+### The instrument, and the bias that had to come out of it first
+
+`ckvictor.c` §0e is new. The foreground keeps one byte saying where it is —
+in the library's `write()` (1), in the polled transmitter (2), in the
+library's `read()` (3), in `v9k_comm_read()` (4), or in upstream code it
+does not own (0) — and the interrupt handler copies that byte at the instant
+it raises `rxpeak`. Two stores in the interrupt path, taken only when the
+high-water mark moves, and no INT 21h anywhere near it. That last part is
+the whole design constraint: §16k's lesson is that an instrument slow enough
+to starve the receive changes the number it is reporting.
+
+Alongside it, three things that are affordable because they happen per
+packet rather than per byte: the non-tty writes are timed (`v9k_write()`
+sees every one of them), the interval between putting an ACK on the wire and
+asking for the next byte is timed, and the handler counts how many times
+occupancy crosses 256 going up. Everything prints to stdout at `atexit()`
+with the ring counters, for the same reason they do.
+
+**The first run's tag was wrong, and the reason is worth keeping.**
+`v9k_ser_get()` used to publish the tail once, after the copy loop —
+correct, and one store instead of many. But for as long as that copy runs
+the handler sees head moving and tail not, so the ring *appears* to keep
+filling while it is actually being emptied. A backlog that piled up while
+the foreground was somewhere else therefore gets its peak latched during the
+drain that is removing it, and the tag reads "we were reading all along" no
+matter what really happened. Run 1 duly reported tag 4. The tail is now
+published inside the loop, one store per byte, and the instrument is honest.
+
+### Three hypotheses, measured and refuted
+
+**The inter-packet file write** — the standing candidate since §16k. The
+writes were timed for the first time: **32 of them, 1,024 bytes each**
+(`OBUFSIZE`, `ckcker.h`), totalling 3.5, 7.0, 5.5 and 4.5 seconds across the
+four runs, worst single write 0.50 s — and the *first* write, in all three
+runs that recorded which one it was. So the disk is a real
+cost, 6–11% of a 54-second transfer, and it is not the stall — because
+`ckcpro.w:1700` decodes and writes **before** `ack()`, and with a window of
+one the host is silent until that ACK arrives. Everything the Victor does
+before the ACK is free of ring occupancy by construction. It is not free of
+elapsed time, which is a different finding, below.
+
+**The post-ACK window.** Timed directly: in two of the four runs the worst
+gap between the ACK going out and the next read was **0 hundredths across
+29 and 34 gaps**, while `rxpeak` in those same runs read 544 and 513. A
+quantity that is zero when the effect is at its largest is not the cause.
+
+**The drain granularity.** `myfillbuf()` asks for `MYBUFLEN` (1024) and
+`ttinl()` then processes the whole bufferful character by character before
+asking again, which predicts a peak of MYBUFLEN times the ratio of line rate
+to processing rate. The arithmetic fitted beautifully — all five historical
+readings collapse to 510–556 µs per character — so the prediction was made
+in advance and tested with `XFLAGS=-dV9K_RXCHUNK=256`, which caps what
+`v9k_comm_read()` hands back without touching upstream. Predicted `rxpeak`
+≈ 133. **Measured 504.** Refuted, cleanly, and the knob stays in the tree
+(off unless defined) because a refuted experiment is cheaper to re-run than
+to rebuild.
+
+### What it actually is
+
+The handler now also counts every byte it stores and latches that count at
+the peak, which turns the question into arithmetic: the Victor's byte
+offsets are positions in the host's send stream, and the host's packet log
+gives the wire length of every packet it sent, resends included. Run 4:
+
+```
+v9k: rxpeak=513 of 4096
+v9k: rxbytes=39574 peakat=4570 stallat=4036
+
+offset 4036 -> RESEND seq=06 type=D (1953 wire bytes, 272 into it)
+offset 4570 -> RESEND seq=06 type=D (1953 wire bytes, 806 into it)
+```
+
+Both the first crossing of 256 and the peak itself land inside the
+**retransmission of seq=06** — the packet the host resent after its one
+timeout. The original seq=06 occupies 1811–3764 and the resend 3764–5717.
+(`.probe/mapoffset.py` does the arithmetic; `.probe/pktstat.py` counts the
+log.)
+
+That is the mechanism, and it is the only moment it can happen: **with a
+window of one, the retransmission is the one time the host transmits without
+waiting for our ACK.** The Victor is still decoding and writing the original
+copy of seq=06 when the resend starts arriving, so the ring fills — 806
+bytes into the resend, 0.84 s of line time, which is the turnaround for a
+1,944-byte packet plus two file writes and agrees with the write timings
+above.
+
+The whole chain, end to end: slow start doubles the packet length → the
+Victor's pre-ACK turnaround grows with it → the host's estimator, built from
+packets a quarter that long, times out (§16l) → it resends → the resend
+arrives while the Victor is still turning the original around → `rxpeak`.
+One cause, two symptoms, neither of them in this port.
+
+The crossing counter agrees across all four runs:
+
+| | resends | crossings of 256 | `rxpeak` |
+|---|---:|---:|---:|
+| run 1 | 1 | 2 | 515 |
+| run 2 | 4 | 6 | 544 |
+| run 3 (`V9K_RXCHUNK=256`) | 1 | 3 | 504 |
+| run 4 | 1 | 2 | 513 |
+
+and it explains every invariance that made this so hard to place: the peak
+does not scale with ring size, packet length, fixture or drain chunk because
+none of those is what sets it.
+
+### The cost that is real, and what it says about 38400
+
+Separately from the stall, the runs put a number on something never
+measured: **the dead time is ~12.5 s of a 32,768-byte transfer, and it is
+almost identical in runs that differ by 7 s of elapsed time.**
+
+| | wire bytes | line time | elapsed | dead |
+|---|---:|---:|---:|---:|
+| run 1 | 39,492 | 41.1 s | 54 s | 12.9 s |
+| run 2 | 46,673 | 48.6 s | 61 s | 12.4 s |
+
+Run 2 was slower entirely because four retransmissions put 7.2 KB more on
+the wire. The Victor's own overhead did not move. Of that ~12.5 s the file
+writes are 3.5–7.0 s, measured; the rest is decode and protocol.
+
+This is the number that matters for 38400, and it is not encouraging in the
+way one would hope: line time falls by four but the ~12.5 s does not move at
+all, so 32 KB would take about 23 s rather than 9 — roughly **1,400 cps, not
+2,400**. The ring, meanwhile, is fine: the peak scales with line rate, so
+the same event at 38400 is about 2,100 bytes, still comfortably inside 4,096.
+**38400 is a CPU and disk problem, not a buffer problem.**
+
+### Two corrections to §16l
+
+**The longest packet in §16l's run 2 was 3,585 data bytes, not 3,099.** The
+log's largest sent packet decodes to 3,585 with a 3,602-character line. This
+strengthens §16l rather than weakening it: after the timeout the host backed
+off and then climbed *past* the length that had timed out, without further
+trouble.
+
+**The attribution of 537 → 606 cps to `SET RECEIVE TIMEOUT 20` does not
+survive a third and fourth run.** Run 2 of this section used that setting
+and reproduced §16l run 1 exactly — 2 timeouts, 4 retransmissions, 61 s,
+537 cps — while runs 1, 3 and 4 with the same setting got 1 and 1 at 54 s
+and ~603 cps. The setting was held constant and the outcome varied, so what
+§16l measured as an improvement is **run-to-run variance in where the host's
+estimator first gets caught out**. The structural claim in §16l stands
+untouched — every timeout is the host's, every one lands on a slow-start
+doubling, and the Victor sends only ACKs and never a NAK, which held across
+all four runs here as well.
+
+### Sizes
+
+DGROUP **48,240** of 65,536 (73%), up 64 bytes from §16l's 48,176 — the
+counters and latches. Image 202,310 → **203,300**, needing 217,572 of
+396,224, 178,652 spare. `ckvictor.c` still compiles with no warnings, and
+there is **no upstream edit — still eleven**.
+
+### Measured, and on what
+
+Victor MS-DOS 3.1 under MAME, 9600, host C-Kermit 9.0.302 over a `socat`
+pty, `CKERMITW -l /dev/seriala -b 9600 -r`, no `-d`, a 32,768-byte fixture
+of pseudo-random bytes containing all 256 values, a fresh target name per
+run, `cmp` against the source after pulling the file back off the image.
+**Four runs, four byte-exact.** `rxlost=0 rxfull=0` in every one.
+
+Still nothing on real hardware.
+
 ---
 
 ## 15. Open questions
@@ -4337,24 +4522,33 @@ and has not been built.
   **4096**, with `rxpeak` added so `rxfull = 0` can be told from "ten bytes
   from the edge". `MYBUFLEN` is exonerated and needed no upstream edit.
   `DRPSIZ` is **4000** and 32,768 bytes transfer byte-exact. (§16k)
-- **What is the ~502-byte stall?** `rxpeak` reads 502, 502, 547 and 500
-  across two ring sizes, two fixtures and longest-packets from 2,668 to
-  3,905, so it is one fixed pause of about half a second at 9600, not a
-  rate deficit. The file write between packets is the obvious candidate
-  and has **not** been isolated. It bounds how far the ring can be trimmed
-  back, and it is the thing to understand before 38400, where the same
-  stall is four times as many bytes. The instrument to build is a timer
-  around the non-tty writes in `v9k_write()`, which sees every one of them
-  and sits next to a `gettimeofday()` already reading INT 21h `AH=2Ch`.
-  (§16k, §16l)
+- ~~**What is the ~502-byte stall?**~~ **Identified, and it is the host's
+  retransmission.** With a window of one that is the only moment the host
+  transmits without waiting for our ACK, so the ring fills while the Victor
+  is still turning the original packet around. Both the peak and the first
+  crossing of 256 land inside the resent packet, by byte offset. Same root
+  cause as the timeouts above, and equally not ours. Refuted along the way,
+  each by measurement: the inter-packet file write (it happens *before* the
+  ACK, when the host is silent), the post-ACK window (0 hundredths in the
+  runs with the largest peaks), and the `MYBUFLEN` drain granularity
+  (`V9K_RXCHUNK=256` predicted 133 and measured 504). (§16m)
+- **The turnaround costs ~12.5 s per 32 KB and that is what bounds 38400.**
+  Measured twice, near-identical in runs whose elapsed times differ by 7 s.
+  The file writes are 3.5–7.0 s of it (32 × 1,024 bytes, worst 0.50 s, always
+  the first). Line time falls by four at 38400 but this does not move, so
+  expect ~1,400 cps rather than ~2,400 — a CPU and disk problem, not a
+  buffer one. The ring at 4,096 already covers the ~2,100-byte peak that the
+  same retransmission would produce there. (§16m)
 - ~~**One timeout and two retransmissions survive in a clean 32 KB run.**~~
   **Diagnosed, and not ours.** The roundup was made and is right, but the
   Victor sends **only ACKs, never a NAK**, across two byte-exact 32 KB
   receives — its timer never fires. Every timeout is the *host's*, and each
   one lands on the packet where C-Kermit's slow start doubles the length
   and hands its round-trip estimator 4.1 seconds of line time it did not
-  predict. `SET RECEIVE TIMEOUT 20` on the host took 2 timeouts and 4
-  retransmissions down to 1 and 1, and 537 cps up to 606. (§16l)
+  predict. Four more runs in §16m held `SET RECEIVE TIMEOUT 20` constant and
+  got 1, 4, 1 and 1 retransmissions, so §16l's 537 → 606 cps is **variance,
+  not the setting** — but everything structural above survived all six runs.
+  (§16l, §16m)
 - **Window 2** is the increment after that, and it is the one that removes
   the "only one packet in flight" property the missing flow control relies
   on. `DFWSIZ` is still 1.

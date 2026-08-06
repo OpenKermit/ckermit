@@ -10,3 +10,15 @@ Throwaway probes, not part of the build and not linked into CKERMIT.EXE.
 Both exist because reasoning about these answers went wrong twice.  See
 PORTING.md SS16f.  Build lines are in the comment at the top of each file;
 neither is built by victor9k.mak or victorow.mak.
+
+Host-side, for reading what a run did:
+
+  mzsize.py     What an MZ image needs at load, against the 396,224 bytes
+                the machine offers.  Run this, not "ls -l".
+  pktstat.py    Counts a C-Kermit packet log: packets, retransmissions
+                (uppercase S-), timeouts (<timeout>), longest packet, and
+                the types actually received.  PORTING.md SS16l.
+  mapoffset.py  Turns a byte offset from the v9k: counters into "which
+                packet, and was it a resend", by adding up wire lengths
+                from the host's packet log.  This is what settled the
+                rxpeak question; PORTING.md SS16m.

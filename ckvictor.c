@@ -338,6 +338,124 @@ v9k_alarm_check() {
     return(1);
 }
 
+/* ------------------------------------------------------------------ */
+/* 0e. Where was the foreground when the ring filled?                   */
+/* ------------------------------------------------------------------ */
+
+/*
+  PORTING.md SS16k and SS16l measured the same thing four times without being
+  able to name it: rxpeak reads 500 to 547 across two ring sizes, two
+  fixtures and longest-packets from 2,668 to 3,905 bytes.  At 9600 that is
+  about half a second in which the handler below kept storing bytes and
+  nobody took any out.  rxpeak says how big the pause is; it does not say
+  what the foreground was doing, and every candidate -- the inter-packet
+  file write, the console, the drain loop itself -- predicts the same
+  high-water mark.
+
+  So the handler latches one thing more.  The foreground keeps a single byte
+  saying where it is, at the four places in this file that can hold it up,
+  and the handler copies that byte at the moment it raises rxpeak.  Cost in
+  the interrupt path: two stores, taken only when the high-water mark moves.
+  No INT 21h anywhere near it, which is the whole point -- SS16k's lesson is
+  that an instrument slow enough to starve the receive changes the number it
+  was asked to report, and the debug log at 25ms a byte is exactly that.
+
+  What each value means when it comes back out at exit:
+
+    0  Upstream code.  Not inside anything below, so the time went on
+       decoding, on stdio's own buffering, or somewhere else we do not own.
+    1  The library's write(), for a descriptor that is not the comm device
+       -- zoutdump()'s file write, 1024 bytes at a time (OBUFSIZE in
+       ckcker.h).  The standing candidate, and v9k_wtagfd carries the
+       descriptor so the console can be told from the file.
+    2  v9k_ser_put(), the polled transmitter: an ACK on its way out.  Its
+       spin is bounded at 60000 turns, which the comment there calls "a few
+       tenths of a second" -- the same time scale as the stall, so it is a
+       candidate and not just bookkeeping.
+    3  The library's read(), again for something that is not the comm
+       device.
+    4  v9k_comm_read() itself.  This is the important one to be able to
+       rule out: if the peak is latched here, Kermit was reading the whole
+       time and simply could not keep up, which is a rate deficit rather
+       than a stall -- the opposite of what SS16k concluded from rxpeak
+       alone.
+*/
+#define V9K_TAG_NONE  0
+#define V9K_TAG_WRITE 1
+#define V9K_TAG_TTOL  2
+#define V9K_TAG_READ  3
+#define V9K_TAG_DRAIN 4
+
+static volatile unsigned char v9k_wtag   = V9K_TAG_NONE;
+static volatile unsigned int  v9k_wtagfd = 0;
+
+/*
+  Hundredths of a second since midnight, from INT 21h AH=2Ch -- Watcom's
+  _dos_gettime, the same clock gettimeofday() reads a few hundred lines
+  below and the only one this machine offers finer than a second.
+
+  One INT 21h and no more, so it is affordable twice around a write() that
+  happens 32 times in a 32K receive.  It is emphatically NOT affordable per
+  byte, which is why the tag above counts rather than times.
+*/
+#define V9K_CENTIS_DAY 8640000L         /* 24 * 60 * 60 * 100           */
+
+static long
+v9k_centis() {
+    struct dostime_t t;
+
+    _dos_gettime(&t);
+    return(((((long)t.hour * 60L + (long)t.minute) * 60L
+             + (long)t.second) * 100L) + (long)t.hsecond);
+}
+
+/* Elapsed since t0, in hundredths, across midnight if it has to be. */
+static long
+#ifdef CK_ANSIC
+v9k_centis_since(long t0)
+#else
+v9k_centis_since(t0) long t0;
+#endif /* CK_ANSIC */
+{
+    long now = v9k_centis();
+
+    return(now >= t0 ? now - t0 : now + V9K_CENTIS_DAY - t0);
+}
+
+/*
+  And the other half of the same question: how long the writes we can see
+  actually take.  Split by descriptor, because the two suspects are on
+  opposite sides of it -- fd > 2 is the file zoutdump() is filling, fd <= 2
+  is the console.
+*/
+static unsigned int v9k_wf_n = 0, v9k_wc_n = 0;     /* How many          */
+static long v9k_wf_max = 0L, v9k_wc_max = 0L;       /* Worst one, centis */
+static long v9k_wf_tot = 0L, v9k_wc_tot = 0L;       /* All of them       */
+static unsigned int v9k_wf_maxn = 0;                /* Which write it was*/
+static unsigned int v9k_wf_maxb = 0;                /* And how big       */
+
+/*
+  The gap that the protocol makes it possible to measure at all.
+
+  With a window of one, the host is silent from the end of the packet it is
+  sending until the ACK for it comes back -- so everything Kermit does
+  BEFORE the ACK (decoding, the file write) is free, and only what it does
+  AFTER can let the ring fill.  That makes "how long between putting an ACK
+  on the wire and asking for the next byte" the exact quantity SS16l could
+  not get at, and it is two INT 21h calls per packet to measure: one when
+  the transmitter is done, one when the read comes back round.
+
+  Timed here rather than in the handler because it is foreground-to-
+  foreground; the handler's job is only to say how many bytes piled up
+  while this was going on, which is rxpeak.
+*/
+static int  v9k_gap_pend = 0;           /* An ACK has just gone out     */
+static long v9k_gap_at   = 0L;          /* When the transmitter finished*/
+static unsigned int v9k_gap_n = 0;      /* How many gaps measured       */
+static long v9k_gap_max  = 0L;          /* The worst, in hundredths     */
+static long v9k_gap_tot  = 0L;          /* All of them                  */
+static unsigned int v9k_gap_maxn = 0;   /* Which one was the worst      */
+
 /*
   The wait itself.  Two ways to do it, and which one runs is the whole
   difference between PORTING.md SS16b and a working transfer.
@@ -370,15 +488,53 @@ v9k_comm_read(fd,buf,n) int fd; void * buf; unsigned int n;
 {
     int rc;
 
+    if (v9k_gap_pend) {                 /* Section 0e: close the gap    */
+        long dt;
+
+        v9k_gap_pend = 0;
+        dt = v9k_centis_since(v9k_gap_at);
+        v9k_gap_n++;
+        v9k_gap_tot += dt;
+        if (dt > v9k_gap_max) {
+            v9k_gap_max  = dt;
+            v9k_gap_maxn = v9k_gap_n;   /* Countable against the pkt log */
+        }
+    }
+
+    /*
+      An experiment, off unless asked for: hand back at most this many
+      bytes per call.  ckutio.c's myfillbuf() asks for MYBUFLEN (1024) and
+      then processes the whole bufferful character by character before it
+      asks again, so the ring fills for the length of that processing and
+      the high-water mark should be MYBUFLEN times the ratio of the line
+      rate to the processing rate -- which is what would make rxpeak the
+      same 500-odd bytes at every packet length and every ring size, as it
+      has been since SS16k.  Capping what we return shortens the interval
+      between drains without touching upstream, so if that reading is right
+      then rxpeak falls in proportion and nothing else changes.
+
+      Build it with XFLAGS=-dV9K_RXCHUNK=256, the same one-flag idiom as
+      -dDRPSIZ=90.
+    */
+#ifdef V9K_RXCHUNK
+    if (n > V9K_RXCHUNK)
+      n = V9K_RXCHUNK;
+#endif /* V9K_RXCHUNK */
+
+    v9k_wtag = V9K_TAG_DRAIN;           /* Section 0e: we are draining  */
     for (;;) {
         if (v9k_ser_active()) {
             rc = v9k_ser_get((char *)buf,(int)n);
-            if (rc > 0)
-              return(rc);
+            if (rc > 0) {
+                v9k_wtag = V9K_TAG_NONE;
+                return(rc);
+            }
         } else if (dos_dev_input_ready(fd)) {
             rc = (int)read(fd,buf,n);   /* Undef'd above: the real one  */
-            if (rc != 0)                /* Bytes, or a genuine error    */
-              return(rc);
+            if (rc != 0) {              /* Bytes, or a genuine error    */
+                v9k_wtag = V9K_TAG_NONE;
+                return(rc);
+            }
         }
         if (v9k_alarm_check()) {
             /*
@@ -387,6 +543,7 @@ v9k_comm_read(fd,buf,n) int fd; void * buf; unsigned int n;
               the caller retries -- and the retry blocks again rather than
               spinning, because the alarm cleared itself above.
             */
+            v9k_wtag = V9K_TAG_NONE;
             errno = EINTR;
             return(-1);
         }
@@ -406,13 +563,20 @@ v9k_read(int fd, void * buf, V9K_RCOUNT n)
 v9k_read(fd,buf,n) int fd; void * buf; V9K_RCOUNT n;
 #endif /* CK_ANSIC */
 {
+    V9K_RTYPE rc;
+
     /*
       fd > 2 as well as fd == ttyfd because ttopen() sets ttyfd to 0 in
       remote mode, where the "line" is the console and section 0c owns it.
     */
     if (fd > 2 && fd == ttyfd)
       return((V9K_RTYPE)v9k_comm_read(fd,buf,(unsigned int)n));
-    return(read(fd,buf,n));
+
+    v9k_wtagfd = (unsigned int)fd;      /* Section 0e                   */
+    v9k_wtag   = V9K_TAG_READ;
+    rc = read(fd,buf,n);
+    v9k_wtag   = V9K_TAG_NONE;
+    return(rc);
 }
 
 /*
@@ -436,9 +600,52 @@ v9k_write(int fd, const void * buf, V9K_WCOUNT n)
 v9k_write(fd,buf,n) int fd; const void * buf; V9K_WCOUNT n;
 #endif /* CK_ANSIC */
 {
-    if (fd > 2 && fd == ttyfd && v9k_ser_active())
-      return((V9K_WTYPE)v9k_ser_put((const char *)buf,(int)n));
-    return(write(fd,buf,n));
+    V9K_WTYPE rc;
+    long t0, dt;
+
+    if (fd > 2 && fd == ttyfd && v9k_ser_active()) {
+        v9k_wtag = V9K_TAG_TTOL;        /* Section 0e                   */
+        rc = (V9K_WTYPE)v9k_ser_put((const char *)buf,(int)n);
+        v9k_wtag = V9K_TAG_NONE;
+        /*
+          v9k_ser_put() is polled and does not return until the last byte
+          is in the chip, so this is as close to "the ACK is on the wire"
+          as the foreground can stand; the gap starts here.
+        */
+        v9k_gap_at   = v9k_centis();
+        v9k_gap_pend = 1;
+        return(rc);
+    }
+
+    /*
+      Everything else -- and this is the only place in the program that sees
+      the file writes, so it is where they get timed.  Two INT 21h calls
+      around a call that happens of the order of 32 times in a 32K receive
+      (OBUFSIZE is 1024): unmeasurable against the transfer, and the only
+      way to put a number on the candidate PORTING.md SS16l left standing.
+    */
+    v9k_wtagfd = (unsigned int)fd;
+    v9k_wtag   = V9K_TAG_WRITE;
+    t0 = v9k_centis();
+    rc = write(fd,buf,n);
+    dt = v9k_centis_since(t0);
+    v9k_wtag   = V9K_TAG_NONE;
+
+    if (fd > 2) {                       /* A file: zoutdump(), usually  */
+        v9k_wf_n++;
+        v9k_wf_tot += dt;
+        if (dt > v9k_wf_max) {
+            v9k_wf_max  = dt;
+            v9k_wf_maxn = v9k_wf_n;
+            v9k_wf_maxb = (unsigned int)n;
+        }
+    } else {                            /* The console                  */
+        v9k_wc_n++;
+        v9k_wc_tot += dt;
+        if (dt > v9k_wc_max)
+          v9k_wc_max = dt;
+    }
+    return(rc);
 }
 
 
@@ -1359,6 +1566,41 @@ static volatile unsigned int  v9k_rxlost = 0;   /* Chip overran us      */
 static volatile unsigned int  v9k_rxfull = 0;   /* Ring overran Kermit  */
 static volatile unsigned int  v9k_rxpeak = 0;   /* Most it ever held    */
 
+/*
+  And three more that turn rxpeak from a number into a lead.  Section 0e has
+  the argument; in short, rxpeak alone cannot separate "one long pause" from
+  "never quite keeping up", and it cannot say which of this file's four
+  blocking places the pause was in.
+
+  peaktag/peakfd are section 0e's tag and descriptor, copied at the instant
+  the high-water mark moves.  rxstall counts how many times occupancy passed
+  V9K_RXSTALL going up, which is the difference between one stall in a
+  transfer and one per packet -- and that in turn is the difference between
+  a fixed cost and a rate deficit.  All three are set only in the handler,
+  and none costs more than a compare and a store per byte.
+*/
+#define V9K_RXSTALL 256                 /* "Well behind", in bytes      */
+
+static volatile unsigned char v9k_peaktag  = V9K_TAG_NONE;
+static volatile unsigned int  v9k_peakfd   = 0;
+static volatile unsigned int  v9k_rxstall  = 0;
+
+/*
+  And where in the stream it happened, which is what turns a number into a
+  packet.  rxbytes counts every byte the handler stores; latching it at the
+  peak and at the first crossing gives two byte offsets, and the host's own
+  packet log converts an offset into "which packet" by adding up the packet
+  lengths -- so the question "is the peak sitting on the retransmission?"
+  becomes arithmetic rather than argument.
+
+  A 32-bit increment per byte is about 1.6us on a 5MHz 8088, against 26us a
+  byte at 38400.  Long rather than int because a transfer bigger than 64K
+  would otherwise wrap the answer silently.
+*/
+static volatile unsigned long v9k_rxbytes  = 0L;    /* Every byte stored */
+static volatile unsigned long v9k_peakat   = 0L;    /* Offset at rxpeak  */
+static volatile unsigned long v9k_stallat  = 0L;    /* First crossing    */
+
 static int v9k_ser_on   = 0;            /* Have we taken the chip?      */
 static int v9k_ser_atx  = 0;            /* atexit() registered yet?     */
 static unsigned int  v9k_oldvec_seg = 0;
@@ -1456,9 +1698,19 @@ v9k_ser_isr(void)
     if (nh != v9k_rxtail) {
         v9k_rxbuf[v9k_rxhead] = c;
         v9k_rxhead = nh;
+        v9k_rxbytes++;
         nh = (nh - v9k_rxtail) & V9K_RXMASK;    /* Occupancy after us   */
-        if (nh > v9k_rxpeak)
-          v9k_rxpeak = nh;
+        if (nh > v9k_rxpeak) {
+            v9k_rxpeak  = nh;
+            v9k_peaktag = v9k_wtag;             /* Section 0e: and who  */
+            v9k_peakfd  = v9k_wtagfd;           /* was holding us up    */
+            v9k_peakat  = v9k_rxbytes;          /* and where in the file*/
+        }
+        if (nh == V9K_RXSTALL) {                /* Crossed it going up  */
+            if (!v9k_rxstall)
+              v9k_stallat = v9k_rxbytes;
+            v9k_rxstall++;
+        }
     } else
       v9k_rxfull++;                     /* Ring full: this byte is gone */
 }
@@ -1638,6 +1890,25 @@ v9k_ser_release() {
     printf("v9k: rxlost=%u rxfull=%u rxpeak=%u of %u\n",
            (unsigned)v9k_rxlost, (unsigned)v9k_rxfull,
            (unsigned)v9k_rxpeak, (unsigned)V9K_RXBUFSIZ);
+
+    /*
+      Section 0e, on the same terms and for the same reason.  peaktag says
+      where the foreground was when the ring was fullest, stall says how
+      many times it got that far behind at all, and the two write lines are
+      what the only writes this program can see actually cost.  Hundredths,
+      from INT 21h AH=2Ch.
+    */
+    printf("v9k: peaktag=%u fd=%u stall%u=%u\n",
+           (unsigned)v9k_peaktag, (unsigned)v9k_peakfd,
+           (unsigned)V9K_RXSTALL, (unsigned)v9k_rxstall);
+    printf("v9k: rxbytes=%lu peakat=%lu stallat=%lu\n",
+           v9k_rxbytes, v9k_peakat, v9k_stallat);
+    printf("v9k: wfile n=%u max=%ld at #%u of %u tot=%ld cs\n",
+           v9k_wf_n, v9k_wf_max, v9k_wf_maxn, v9k_wf_maxb, v9k_wf_tot);
+    printf("v9k: wcon n=%u max=%ld tot=%ld cs\n",
+           v9k_wc_n, v9k_wc_max, v9k_wc_tot);
+    printf("v9k: txgap n=%u max=%ld at #%u tot=%ld cs\n",
+           v9k_gap_n, v9k_gap_max, v9k_gap_maxn, v9k_gap_tot);
 }
 
 /*
@@ -1747,6 +2018,17 @@ v9k_ser_count() {
 /*
   Take up to n bytes out of the ring.  Returns 0 when it is empty, which is
   what makes section 0d's loop spin rather than report end of file.
+
+  The tail is advanced inside the loop, one byte at a time, and it did not
+  used to be.  Publishing it only at the end is correct -- one store, and
+  nothing else writes it -- but it makes the handler's view of occupancy
+  wrong for as long as the copy runs: head keeps moving, tail does not, so
+  the ring appears to keep filling while it is actually being emptied.  That
+  costs nothing in the data path and everything in section 0e's tag, because
+  a backlog that piled up while the foreground was elsewhere gets its peak
+  latched here, during the drain that is removing it, and the tag then reads
+  "we were reading all along" no matter what really happened.  One store per
+  byte buys an honest instrument.
 */
 static int
 #ifdef CK_ANSIC
@@ -1764,8 +2046,8 @@ v9k_ser_get(buf,n) char * buf; int n;
     while (i < n && t != v9k_rxhead) {
         buf[i++] = (char)v9k_rxbuf[t];
         t = (t + 1) & V9K_RXMASK;
+        v9k_rxtail = t;                 /* Ours alone, so publish it now */
     }
-    v9k_rxtail = t;                     /* One store, ours alone        */
     return(i);
 }
 

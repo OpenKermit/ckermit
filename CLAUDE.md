@@ -49,8 +49,8 @@ mismatch, and `docmdline(1)` in `ckcmai.c`. **`ckvictor.c` compiles with
 none.** It was 17 until `NOFLOAT` (§16j): dropping `GFTIMER` moves `ztime()`
 onto upstream's `ZTIMEV7` branch, whose K&R redeclarations of `localtime()`
 and `time()` produce two more sign mismatches at `ckutio.c:12319-12320`.
-DGROUP is 48,176 of 65,536 (73%) after the linker adds libc; `ckermitw.exe`
-is 202,310 bytes and needs 216,582 at load, of the 396,224 the machine
+DGROUP is 48,240 of 65,536 (73%) after the linker adds libc; `ckermitw.exe`
+is 203,300 bytes and needs 217,572 at load, of the 396,224 the machine
 offers.
 
 **It transfers files, both ways, byte-exact, as client and as server.** On
@@ -97,6 +97,26 @@ now **4096**, `DRPSIZ` is **4000**, and **32,768 bytes transfer byte-exact at
 edit was needed — still eleven. The three ring counters now print to
 **stdout at exit in every build**, because a run fast enough to measure is
 exactly a run that cannot carry a debug log.
+
+**§16m closes the last open number in the receive path, and the answer is
+the same cause as §16l's.** The ~502-byte `rxpeak` that §16k called a stall
+is the ring filling during the **host's retransmission** — with a window of
+one, the only moment the host transmits without waiting for our ACK. The
+handler now latches a byte offset at the peak, and both it and the first
+crossing of 256 land *inside the resent packet*. Three hypotheses died by
+measurement first: the inter-packet file write (it runs **before** `ack()`,
+`ckcpro.w:1700`, so the host is silent through it), the post-ACK window (0
+hundredths in the two runs with the largest peaks), and `MYBUFLEN` drain
+granularity (`XFLAGS=-dV9K_RXCHUNK=256` predicted 133, measured 504). What
+the file writes *do* cost was measured for the first time: 32 × 1,024 bytes,
+3.5–7.0 s, worst 0.50 s and always the first. **The per-transfer dead time
+is ~12.5 s per 32 KB and does not shrink with line rate**, so 38400 should
+be expected to give ~1,400 cps, not ~2,400 — a CPU and disk problem, not a
+buffer one. §16m also retracts two things from §16l: its run-2 longest
+packet was 3,585 not 3,099, and the 537 → 606 cps improvement attributed to
+`SET RECEIVE TIMEOUT 20` is run-to-run variance (four runs at that setting
+gave 1, 4, 1 and 1 retransmissions). Four runs, four byte-exact, `rxlost=0
+rxfull=0` throughout. Still eleven upstream edits.
 
 **§16l says the retransmissions are not ours, and that is the thing to know
 before spending anything on them.** `alarm()` did fire up to a second early
@@ -154,6 +174,17 @@ no serial line, no `socat` and no host `kermit`. And **`.probe/` holds
 throwaway programs** that answer a libc or DOS question in one short boot;
 build lines are in the comment at the top of each.
 
+§16m adds two more. **The interrupt handler is a clock you can afford** —
+it already sees every received byte, so latching a byte count, a foreground
+location tag or anything else there costs a store and no INT 21h, and the
+resulting offsets map onto the host's packet log to say *which packet* an
+event happened in (`.probe`-adjacent scripts live in the session scratchpad;
+the method is in §16m). And **`v9k_ser_get()` must publish the tail inside
+its copy loop, not after it** — publishing once at the end makes the handler
+see occupancy rising while the ring is being emptied, which silently
+mis-attributes every peak to the drain. That bug produced a confident wrong
+answer before it was found.
+
 §16i adds a third: **anything decided before `main()` can be witnessed through
 `uname()`**, which `sysinit()` reaches in every invocation, so
 `CKERMITW -d -h` reports it in that same 2.5-minute boot. `v9k srvcaps safe=`
@@ -180,11 +211,11 @@ socket is single-use, so start `socat` first and never probe the port.
 3. **Victor-specific C goes in `ckvictor.c`.** It is the only non-upstream C
    file and should stay that way.
 4. **Two budgets, and do not confuse them.** DGROUP holds `.data`, `.bss`
-   and the **stack** — 48,176 of 65,536 (73%) after the link, 17,360 free.
+   and the **stack** — 48,240 of 65,536 (73%) after the link, 17,296 free.
    The **heap is outside it**: `malloc()` is `_fmalloc` in the large model,
    so the packet buffers do not compete for the segment at all. What bounds
    them is real-mode RAM: the machine hands out 396,224 bytes and the image
-   needs 216,582, leaving 179,642 — out of which the far heap then takes
+   needs 217,572, leaving 178,652 — out of which the far heap then takes
    about 25K of packet buffers. **The receive ring is the exception**: at
    4,096 bytes it is `.bss` and comes straight out of the 64K (§16k).
    **Run `make -f victorow.mak sizes` after any change that could add static
@@ -217,7 +248,7 @@ socket is single-use, so start `socat` first and never probe the port.
 |---|---|
 | `PORTING.md` | design doc, memory budget, hardware map, milestone plan |
 | `ckvictor.h` | all ~40 feature `-D` flags, size limits, platform identity |
-| `ckvictor.c` | Victor glue, and **no conditional compilation on the compiler**: process-model stubs (§1), `ioctl`/`FIONREAD`/`TIOCMGET` (§0b), the comm-device `read()`/`write()` and the `alarm()` that bounds the read (§0d), the gaps in Watcom's Unix surface — `gettimeofday`, `uname`, `link`, `kill`, `getpw*`, plus an `access()` that is right about a FAT root and the `_fmode = O_BINARY` initializer that stops the DOS runtime translating transfers (§1d, PORTING.md §16h), the priority-0 initializer that opens the server capability gate and parses `--safe-server` off the command tail before `argv` exists (PORTING.md §16i), the termios half that programs the 7201 and 8253 through the OEM driver's IOCTL block (§1b, PORTING.md §11a), and **the 7201 data path — IRQ1 handler, receive ring, polled transmitter (§1e, PORTING.md §11b)** |
+| `ckvictor.c` | Victor glue, and **no conditional compilation on the compiler**: process-model stubs (§1), `ioctl`/`FIONREAD`/`TIOCMGET` (§0b), the comm-device `read()`/`write()` and the `alarm()` that bounds the read (§0d), the foreground location tag and write/gap timers the interrupt handler latches against `rxpeak` (§0e, PORTING.md §16m), the gaps in Watcom's Unix surface — `gettimeofday`, `uname`, `link`, `kill`, `getpw*`, plus an `access()` that is right about a FAT root and the `_fmode = O_BINARY` initializer that stops the DOS runtime translating transfers (§1d, PORTING.md §16h), the priority-0 initializer that opens the server capability gate and parses `--safe-server` off the command tail before `argv` exists (PORTING.md §16i), the termios half that programs the 7201 and 8253 through the OEM driver's IOCTL block (§1b, PORTING.md §11a), and **the 7201 data path — IRQ1 handler, receive ring, polled transmitter (§1e, PORTING.md §11b)** |
 | `victor/sys/termios.h` | the 7201 driver's control surface; no DOS libc has one, reached via `-i=victor` |
 | `victor/sys/ioctl.h` | `FIONREAD` and `TIOCMGET`; without the first `conchk()`/`ttchk()` are hard-wired to 0, and without the second `ttchk()` never reaches `FIONREAD` |
 | `victorow.mak` | the build: Open Watcom `wcc`/`wlink` + `sizes` target |
