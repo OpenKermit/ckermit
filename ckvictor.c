@@ -365,9 +365,11 @@ v9k_alarm_check() {
     0  Upstream code.  Not inside anything below, so the time went on
        decoding, on stdio's own buffering, or somewhere else we do not own.
     1  The library's write(), for a descriptor that is not the comm device
-       -- zoutdump()'s file write, 1024 bytes at a time (OBUFSIZE in
-       ckcker.h).  The standing candidate, and v9k_wtagfd carries the
-       descriptor so the console can be told from the file.
+       -- zoutdump()'s file write, V9K_OBUFSIZE bytes at a time (it was
+       ckcker.h's OBUFSIZE, 1024, when this was written; SS1d below now sets
+       the size and ckvictor.h says why).  The standing candidate, and
+       v9k_wtagfd carries the descriptor so the console can be told from
+       the file.
     2  v9k_ser_put(), the polled transmitter: an ACK on its way out.  Its
        spin is bounded at 60000 turns, which the comment there calls "a few
        tenths of a second" -- the same time scale as the stall, so it is a
@@ -394,8 +396,23 @@ static volatile unsigned int  v9k_wtagfd = 0;
   _dos_gettime, the same clock gettimeofday() reads a few hundred lines
   below and the only one this machine offers finer than a second.
 
+  "Finer than a second" is all it is.  PORTING.md SS16n went back over every
+  figure this file has ever printed -- six runs, three independent timers --
+  and every one is a multiple of FIFTY hundredths, with no max ever reading
+  anything but 0 or 50.  AH=2Ch has a hundredths field and MS-DOS 3.1 on
+  this machine only ever puts 0 or 50 in it, so the real quantum is HALF A
+  SECOND.
+
+  Which is a warning about how to read anything timed with this, and SS16n
+  has the arithmetic: a single interval shorter than the quantum reads 0 or
+  50 according to whether it happened to cross a boundary, so no individual
+  event here has ever been timed.  A SUM is different -- an interval of true
+  length d < 0.5 crosses with probability d/0.5, so adding up many of them
+  is an unbiased estimate of the total even though no term of it is.  Quote
+  the tot= figures, never the max=.
+
   One INT 21h and no more, so it is affordable twice around a write() that
-  happens 32 times in a 32K receive.  It is emphatically NOT affordable per
+  happens 4 times in a 32K receive.  It is emphatically NOT affordable per
   byte, which is why the tag above counts rather than times.
 */
 #define V9K_CENTIS_DAY 8640000L         /* 24 * 60 * 60 * 100           */
@@ -620,9 +637,11 @@ v9k_write(fd,buf,n) int fd; const void * buf; V9K_WCOUNT n;
     /*
       Everything else -- and this is the only place in the program that sees
       the file writes, so it is where they get timed.  Two INT 21h calls
-      around a call that happens of the order of 32 times in a 32K receive
-      (OBUFSIZE is 1024): unmeasurable against the transfer, and the only
-      way to put a number on the candidate PORTING.md SS16l left standing.
+      around a call that happens of the order of 32K/V9K_OBUFSIZE times in a
+      32K receive: unmeasurable against the transfer, and the only way to put
+      a number on the candidate PORTING.md SS16l left standing.  It is also
+      what says whether V9K_OBUFSIZE bought anything, so it gets cheaper to
+      run the bigger the buffer gets.
     */
     v9k_wtagfd = (unsigned int)fd;
     v9k_wtag   = V9K_TAG_WRITE;
@@ -2429,6 +2448,44 @@ v9k_set_srvcaps(void)
 */
 static struct v9k_rt_init __based(__segname("XI")) v9k_srvcaps_rec =
     { 1, 0, v9k_set_srvcaps };
+
+/*
+  The file output buffer size, for the same reason and by the same mechanism.
+
+  ckcker.h defines OBUFSIZE as 1024 on the branch this build takes, and
+  defines it UNGUARDED, so ckvictor.h cannot pre-empt it the way it does
+  DRPSIZ.  It does not need to.  OBUFSIZE is read exactly twice -- to give
+  the int zobufsize its initial value (ckcmai.c:1652), and to bound SET
+  BUFFERS, which NOICP removes.  The two places that move bytes both read
+  the variable:
+
+      getiobs()   malloc(zobufsize)              ckcmai.c:3795
+      zmchout()   flush when zoutcnt >= zobufsize  ckcker.h
+
+  so setting the variable before getiobs() runs is the whole change.  main()
+  calls getiobs() at ckcmai.c:3331, well after sysinit() at 3176 -- but
+  sysinit() is ckutio.c, which is stock, so the earliest hook this port owns
+  is the XI table.  Priority 32 rather than 0 because unlike --safe-server
+  this has nothing to say about argv and every reason to want the runtime up:
+  it is a plain int store, but the buffer it sizes is malloc'd later.
+
+  What it costs is far heap, not DGROUP -- zoutbuffer is a char * under
+  DYNAMIC and malloc() is _fmalloc in the large model, so rule 4's second
+  budget is the one that pays.  What it is FOR, and how to tell whether it
+  worked, is the comment on V9K_OBUFSIZE in ckvictor.h: PORTING.md SS16m
+  measured 32 writes and 3.5-7.0 seconds, and the "v9k: wfile" line at exit
+  reports the same four numbers for any other size.
+*/
+extern int zobufsize;                   /* ckcmai.c                     */
+
+static void __far
+v9k_set_obufsize(void)
+{
+    zobufsize = V9K_OBUFSIZE;
+}
+
+static struct v9k_rt_init __based(__segname("XI")) v9k_obufsize_rec =
+    { 1, 32, v9k_set_obufsize };
 
 /*
   access().  Watcom HAS one; it is wrong about the directory you are in

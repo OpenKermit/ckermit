@@ -4344,6 +4344,150 @@ Still nothing on real hardware.
 
 ---
 
+## 16n. The disk cost is per call, and a quarter of the dead time is gone
+
+§16m's parting instruction was to attack the ~12.5 seconds of dead time
+rather than the ring, and it named the file writes as the one component that
+had been measured: 32 writes of 1,024 bytes costing 3.5–7.0 s of a
+54-second transfer. **That is now 4 writes and about 1 second, the dead time
+is 9.8 s instead of 12.8, and 32,768 bytes arrive at 633 cps instead of
+603.** The cost was per call, not per byte, which is the outcome that made
+the change worth making and was not knowable in advance.
+
+### The change, and why it is not a twelfth upstream edit
+
+`OBUFSIZE` is 1,024 here because `ckcker.h` falls through to its "not
+`BIGBUFOK`" default, and unlike `DRPSIZ` that default is **unguarded**, so
+`ckvictor.h` cannot pre-empt it. It does not have to. `OBUFSIZE` is read in
+exactly two places — to give the `int zobufsize` its initial value
+(`ckcmai.c:1652`) and to bound `SET BUFFERS` (`ckuus7.c:3755`), which `NOICP`
+removes. Everything that moves a byte reads the **variable**:
+
+```
+getiobs()   malloc(zobufsize)                 ckcmai.c:3795
+zmchout()   flush when zoutcnt >= zobufsize   ckcker.h
+```
+
+so anything that runs before `getiobs()` sets the size. `main()` calls it at
+`ckcmai.c:3331`, after `sysinit()` at 3176 — but `sysinit()` is `ckutio.c`,
+which is stock, so the earliest hook this port owns is the XI table that
+§16h and §16i already use. `ckvictor.c` §1d now has a third record, priority
+32, far, setting `zobufsize = V9K_OBUFSIZE`. **No upstream edit — still
+eleven.**
+
+The cost is far heap, not DGROUP: `zoutbuffer` is a `char *` under `DYNAMIC`
+and `malloc()` is `_fmalloc` in the large model, so rule 4's *second* budget
+pays and the 64K segment does not move at all.
+
+### Per call or per byte, which was the whole question
+
+Both runs used the identical fixture bytes, the same `set receive timeout
+20`, and produced the **identical 39,574 wire bytes with one timeout and one
+retransmission** — so unlike §16m's comparison this one is not confounded by
+where the host's estimator gets caught out.
+
+| | §16m run 4 (1,024) | 16n run 1 | 16n run 2 |
+|---|---:|---:|---:|
+| file writes | 32 | **4** | **4** |
+| disk total | 4.50 s | 0.50 s | 1.50 s |
+| `rxpeak` | 513 | **309** | **310** |
+| elapsed | 54 s | **51 s** | **51 s** |
+| cps | 603 | **633** | **631** |
+| wire bytes | 39,574 | 39,574 | 39,574 |
+
+If the cost were per byte, an 8 KB write would take eight times a 1 KB write
+and the total would not move. It fell by a factor of four to nine. **Per
+call.** Fitting the two sizes gives about **0.124 s of fixed cost per
+`write()` plus 15 µs/byte** (~64 KB/s of actual transfer), which predicts
+
+| `V9K_OBUFSIZE` | writes | disk time for 32 KB |
+|---:|---:|---:|
+| 1,024 | 32 | 4.5 s |
+| 4,096 | 8 | 1.5 s |
+| **8,192** | **4** | **1.0 s** |
+| 16,384 | 2 | 0.75 s |
+
+so 8,192 collects most of what is available — the floor, one write for the
+whole file, is 0.6 s — and the remaining sizes are not worth the far heap.
+`V9K_OBUFSIZE` is `#ifndef`-guarded, so `XFLAGS=-dV9K_OBUFSIZE=1024` puts
+§16m's baseline back for one build with no tree edit.
+
+### A second effect, which confirms §16m rather than adding to it
+
+`rxpeak` fell from 513 to **309**, on the same fixture and the same
+retransmission. That is not a coincidence and it is not independent: §16m
+established that the peak is the ring filling while the host resends a
+packet the Victor has not finished turning around, so the peak is a direct
+measure of **our pre-ACK turnaround**. Shorten the turnaround by removing
+file writes from it and the peak shortens with it — 204 bytes, 0.21 s at
+9600, about one write. `stallat` is 4,036 and 4,034 against §16m's 4,036,
+and `peakat` 4,366 and 4,365 against 4,570; all four still land inside the
+resend of seq=06, which occupies 3,764–5,717. Same mechanism, same place,
+smaller.
+
+### The correction: the clock is half a second, not a hundredth
+
+**§16m's "worst single write 0.50 s, and always the first" does not survive
+looking at the instrument.** Every timing figure this port has ever printed
+— across six runs and three independent timers, file writes, console writes
+and post-ACK gaps — is a multiple of **50 hundredths**, and no `max` has
+ever read anything but 0 or 50:
+
+```
+max=0  max=50   tot=0 tot=50 tot=100 tot=150 tot=350 tot=450 tot=550 tot=700
+```
+
+So the Victor's DOS clock advances in **half-second steps**. `v9k_centis()`
+reports hundredths because `AH=2Ch` has a hundredths field, but the field
+only ever holds 0 or 50, and §16m's note that "a 0 means under one tick" was
+right in spirit and wrong by a factor of nine about the tick. What follows:
+
+- **No individual write was ever timed.** 50 is the smallest non-zero value
+  the instrument can return, so "the worst write took 0.50 s" means only
+  "that write crossed a boundary". Which write shows it is close to a coin
+  flip — §16m saw it on the first three times running and read a pattern
+  into it; here it landed on #4 and then on #1.
+- **The totals are still sound, and are the half worth quoting.** A write of
+  true duration *d* < 0.5 s crosses a boundary with probability *d*/0.5, so
+  the sum over many writes is an *unbiased* estimator of the true total even
+  though no single term is. That is why 32 samples (9 crossings → 4.5 s)
+  is a usable number and 4 samples (1 and 3 crossings → 0.5 and 1.5 s) is a
+  noisy one, and why the two runs here differ threefold on the disk while
+  agreeing to a second on elapsed time.
+
+The aggregate-versus-individual warning was already in the handoff; what is
+new is that the quantum is 0.5 s, which makes it much stronger than it read.
+
+### What this says about 38400
+
+§16m's arithmetic, with the new dead time: line time for 32 KB falls by four
+to about 10.3 s, the dead time is now 9.8 s rather than 12.5, so 32,768
+bytes would take **about 20 s, or ~1,630 cps** — up from §16m's ~1,400
+projection and still a long way from the ~2,400 the line rate alone
+suggests. The conclusion is unchanged and only slightly less bleak:
+**38400 is a CPU problem now, much less a disk one.** Of the 9.8 s that
+remains, about 1 s is disk; the rest is decode and protocol and has never
+been profiled.
+
+### Sizes
+
+DGROUP **48,240** of 65,536 (73%) — **unchanged**, which is the point of the
+far heap. Image 203,300 → **203,338** (+38: one XI record and one function).
+Needs 217,594 of 396,224, 178,630 spare. `ckvictor.c` compiles with no
+warnings.
+
+### Measured, and on what
+
+Victor MS-DOS 3.1 under MAME, 9600, host C-Kermit 9.0.302 over a `socat`
+pty, `CKERMITW -l /dev/seriala -b 9600 -r`, no `-d`, the same 32,768-byte
+fixture §16m run 4 used, a fresh target name per run, `cmp` against the
+source after pulling the file back off the image. **Two runs, two
+byte-exact**, `rxlost=0 rxfull=0` in both.
+
+Still nothing on real hardware.
+
+---
+
 ## 15. Open questions
 
 **Closed since the last revision**

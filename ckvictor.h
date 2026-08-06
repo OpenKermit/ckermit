@@ -518,6 +518,69 @@ extern long v9k_timezone;
 #endif /* DFWSIZ */
 
 /*
+  V9K_OBUFSIZE -- how much of a received file is held before it is written.
+
+  PORTING.md SS16m put the first number on the disk: 32 writes of 1,024 bytes
+  in a 32,768-byte receive, 3.5 to 7.0 seconds of a 54-second transfer, worst
+  single write half a second and always the first.  That is 6 to 11% of the
+  elapsed time, and it is part of the ~12.5 seconds of dead time that does
+  NOT shrink when the line gets faster -- which is why SS16m says 38400 should
+  be expected to give ~1,400 cps rather than ~2,400.  The disk is the largest
+  measured component of it.
+
+  1,024 is OBUFSIZE from ckcker.h, and that is the "Not BIGBUFOK" fallback,
+  which the file defines UNGUARDED --
+
+      #else / * Not BIGBUFOK * /
+      #define INBUFSIZE 1024
+      #define OBUFSIZE 1024
+
+  -- so unlike DRPSIZ above it cannot be pre-empted from here.  It does not
+  have to be.  OBUFSIZE is only ever read twice: to initialise the int
+  zobufsize (ckcmai.c:1652) and to bound SET BUFFERS, which this build does
+  not have.  Everything that actually moves bytes reads the VARIABLE --
+  getiobs() mallocs zobufsize (ckcmai.c:3795) and zmchout() flushes at
+  zobufsize (ckcker.h) -- so anything that runs before getiobs() can set the
+  size with no upstream edit at all.  ckvictor.c SS1d has that initializer,
+  next to the two that are already there, and it is an XI record for the
+  same reason the _fmode one is: getiobs() is
+  called from main(), and the XI table is the only hook this port has that
+  is guaranteed to be earlier.
+
+  The cost is far heap, not DGROUP: zoutbuffer is a char * under DYNAMIC and
+  malloc() is _fmalloc in the large model, so this does not touch the 64K
+  (rule 4).  8,192 takes 7K more of the ~150K that is left after the packet
+  buffers, and turns 32 writes into 4.
+
+  Whether that bought anything was the open question, and PORTING.md SS16n
+  answered it: the cost is PER CALL.  Two runs against SS16m run 4, same
+  fixture and the same 39,574 wire bytes with the same single retransmission,
+  took the disk from 32 writes and 4.5 s to 4 writes and about 1 s, the dead
+  time from 12.8 s to 9.8, and 32,768 bytes from 603 to 633 cps.  Fitting
+  the two sizes gives ~0.124 s fixed per write() plus ~15us/byte, so
+
+      1,024  32 writes  4.5 s        8,192   4 writes  1.0 s
+      4,096   8 writes  1.5 s       16,384   2 writes  0.75 s
+
+  and 8,192 collects most of what there is -- one write for the whole file
+  would still cost 0.6 s.  Going higher buys tenths and spends far heap.
+
+  The instrument that says so is the "v9k: wfile" line, which reports n, the
+  worst reading, which write it was, how many bytes it carried, and the
+  total.  Read the TOTAL and not the worst: SS16n found this machine's DOS
+  clock advances in half-second steps, so a single write has never actually
+  been timed.
+
+      make -f victorow.mak clean
+      make -f victorow.mak XFLAGS="-dV9K_OBUFSIZE=1024"
+
+  puts SS16m's baseline back for one build without a tree edit.
+*/
+#ifndef V9K_OBUFSIZE
+#define V9K_OBUFSIZE 8192               /* File OUTPUT buffer bytes */
+#endif /* V9K_OBUFSIZE */
+
+/*
   MAXWS is deliberately NOT set here.  It used to be, at 8, and it never
   took effect: unlike MAXSP / MAXRP / SBSIZ / RBSIZ, which ckcker.h wraps in
   #ifndef, ckcker.h defines MAXWS unconditionally --

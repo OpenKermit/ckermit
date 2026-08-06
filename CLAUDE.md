@@ -50,7 +50,7 @@ none.** It was 17 until `NOFLOAT` (§16j): dropping `GFTIMER` moves `ztime()`
 onto upstream's `ZTIMEV7` branch, whose K&R redeclarations of `localtime()`
 and `time()` produce two more sign mismatches at `ckutio.c:12319-12320`.
 DGROUP is 48,240 of 65,536 (73%) after the linker adds libc; `ckermitw.exe`
-is 203,300 bytes and needs 217,572 at load, of the 396,224 the machine
+is 203,338 bytes and needs 217,594 at load, of the 396,224 the machine
 offers.
 
 **It transfers files, both ways, byte-exact, as client and as server.** On
@@ -109,14 +109,33 @@ measurement first: the inter-packet file write (it runs **before** `ack()`,
 hundredths in the two runs with the largest peaks), and `MYBUFLEN` drain
 granularity (`XFLAGS=-dV9K_RXCHUNK=256` predicted 133, measured 504). What
 the file writes *do* cost was measured for the first time: 32 × 1,024 bytes,
-3.5–7.0 s, worst 0.50 s and always the first. **The per-transfer dead time
-is ~12.5 s per 32 KB and does not shrink with line rate**, so 38400 should
-be expected to give ~1,400 cps, not ~2,400 — a CPU and disk problem, not a
-buffer one. §16m also retracts two things from §16l: its run-2 longest
+3.5–7.0 s (its "worst 0.50 s and always the first" is **corrected by §16n**
+— that is the clock's quantum, not a property of the first write). **The
+per-transfer dead time is ~12.5 s per 32 KB and does not shrink with line
+rate**, so 38400 should be expected to give ~1,400 cps, not ~2,400 — a CPU
+and disk problem, not a buffer one; **§16n took the disk out of that and
+the figures are now 9.8 s and ~1,630 cps.** §16m also retracts two things
+from §16l: its run-2 longest
 packet was 3,585 not 3,099, and the 537 → 606 cps improvement attributed to
 `SET RECEIVE TIMEOUT 20` is run-to-run variance (four runs at that setting
 gave 1, 4, 1 and 1 retransmissions). Four runs, four byte-exact, `rxlost=0
 rxfull=0` throughout. Still eleven upstream edits.
+
+**§16n is where the throughput work starts, and its answer is that the disk
+cost is per call.** `OBUFSIZE` is 1,024 and `ckcker.h` defines it unguarded,
+so it cannot be pre-empted from `ckvictor.h` — but it is only ever read to
+seed the `int zobufsize` and to bound `SET BUFFERS`, which `NOICP` removes,
+while `getiobs()` and `zmchout()` both read the *variable*. A third XI
+initializer therefore sets `zobufsize = V9K_OBUFSIZE` (**8192**) before
+`main()` reaches `getiobs()`, for **no upstream edit — still eleven**, and
+out of far heap rather than DGROUP. Measured twice against §16m run 4 on
+identical wire bytes: **32 writes and 4.5 s become 4 and ~1 s, dead time
+12.8 s → 9.8, and 603 → 633 cps.** `rxpeak` fell 513 → 309 as well, which
+*confirms* §16m — the peak measures our pre-ACK turnaround, so shortening
+it shortens the peak. §16n also **corrects §16m's "worst write 0.50 s and
+always the first"**: every timing figure the port has ever printed is a
+multiple of 50, so **this machine's DOS clock advances by half a second**
+and no individual write has ever been timed. Quote `tot=`, never `max=`.
 
 **§16l says the retransmissions are not ours, and that is the thing to know
 before spending anything on them.** `alarm()` did fire up to a second early
@@ -215,7 +234,7 @@ socket is single-use, so start `socat` first and never probe the port.
    The **heap is outside it**: `malloc()` is `_fmalloc` in the large model,
    so the packet buffers do not compete for the segment at all. What bounds
    them is real-mode RAM: the machine hands out 396,224 bytes and the image
-   needs 217,572, leaving 178,652 — out of which the far heap then takes
+   needs 217,594, leaving 178,630 — out of which the far heap then takes
    about 25K of packet buffers. **The receive ring is the exception**: at
    4,096 bytes it is `.bss` and comes straight out of the 64K (§16k).
    **Run `make -f victorow.mak sizes` after any change that could add static
