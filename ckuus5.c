@@ -12540,6 +12540,10 @@ printf("NOWTMP not defined\n");
 #ifdef NETCONN
     printf(" Network support (type SHOW NET for further info)\n");
     if (++lines > cmd_rows - 3) { if (!askmore()) return(1); else lines = 0; }
+#ifdef CK_IPV6
+    printf(" Internet Protocol version 6 (IPv6)\n");
+    if (++lines > cmd_rows - 3) { if (!askmore()) return(1); else lines = 0; }
+#endif /* CK_IPV6 */
 #ifdef IKS_OPTION
     printf(" Telnet Kermit Option\n");
     if (++lines > cmd_rows - 3) { if (!askmore()) return(1); else lines = 0; }
