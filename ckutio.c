@@ -8963,7 +8963,15 @@ myfillbuf() {
 */
           if (fcntl(fd, F_GETFL, 0) & O_NONBLOCK) {
               int wantread = 1;
-              while (n == 0) {
+/*
+  Loop on an explicit "try again" condition. SSL_read()
+  returns -1 for the routine SSL_ERROR_WANT_READ/WANT_WRITE case (the
+  normal outcome on a non-blocking fd whenever the peer has not sent a
+  full record yet), so a loop test of n == 0 exits after that first
+  such call instead of retrying, and returns -1 as if it were a hard
+  I/O error.
+*/
+              while(1) {
                   int rc = ck_deadline_select(fd, wantread);
                   if (rc <= 0)
                     return(rc < 0 ? -3 : -4);
@@ -8972,8 +8980,9 @@ myfillbuf() {
                     case SSL_ERROR_NONE:
                       if (n < 0)
                         return(-2);
-                      break;            /* n > 0: return below.  */
-                                        /* n == 0: shouldn't happen; loop. */
+                      if (n > 0)
+                        return(n);
+                      break;            /* n == 0: select() again. */
                     case SSL_ERROR_WANT_WRITE:
                       wantread = 0;
                       break;
@@ -8992,7 +9001,6 @@ myfillbuf() {
                       return(-3);
                   }
               }
-              return(n);
           }
 #endif /* SELECT */
           while (n == 0) {
@@ -11273,8 +11281,12 @@ ttoc_failed:
     return(-1);                         /* Return failure code. */
 }
 
-/*  T T I N L  --  Read a record (up to break character) from comm line.  */
+/*  T T I N L _ I N N E R --  Read a record (up to break character) from comm
+    line.  */
 /*
+
+  The inner worker; wrapped by ttinl() below.
+
   Reads up to "max" characters from the connection, terminating on:
     (a) the packet length field if the "turn" argument is zero, or
     (b) on the packet-end character (eol) if the "turn" argument is nonzero
@@ -11320,22 +11332,22 @@ ttoc_failed:
 
 static int pushedback = 0;
 
-int
+static int
 #ifdef PARSENSE
 #ifdef CK_ANSIC
-ttinl(CHAR *dest, int max, volatile int timo, CHAR eol, volatile CHAR start,
+ttinl_inner(CHAR *dest, int max, volatile int timo, CHAR eol, volatile CHAR start,
       int turn)
 #else
-ttinl(dest,max,timo,eol,start,turn) int max,timo,turn; CHAR *dest, eol, start;
+ttinl_inner(dest,max,timo,eol,start,turn) int max,timo,turn; CHAR *dest, eol, start;
 #endif /* CK_ANSIC */
 #else /* not PARSENSE */
 #ifdef CK_ANSIC
-ttinl(CHAR *dest, int max, volatile int timo, CHAR eol)
+ttinl_inner(CHAR *dest, int max, volatile int timo, CHAR eol)
 #else
-ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
+ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
 #endif /* CK_ANSIC */
 #endif /* PARSENSE */
-/* ttinl */ {
+/* ttinl_inner */ {
 
 #ifndef MYREAD
     CHAR ch, dum;
@@ -11734,6 +11746,61 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
         ttimoff();
         return(n);
     }
+}
+
+/*
+  T T I N L
+
+  Wraps ttinl_inner() with the deadline-select()-gated, non-blocking
+  SSL_read() retry loop.  That loop only activates when ttyfd is
+  already non-blocking; ttinl_inner() itself never puts it there, so
+  without this wrapper an SSL/TLS ttinl() read falls through to
+  myfillbuf()'s original blocking SSL_read() call, which nothing bounds
+  once a deadline expires.
+
+  Only ttyfd's O_NONBLOCK flag is touched here, and only when SSL/TLS is
+  active; every other caller of ttinl() is unaffected. The flag is
+  restored in this one place after ttinl_inner() returns, regardless of
+  which of its many return paths was taken, rather than editing each of
+  them.
+*/
+int
+#ifdef PARSENSE
+#ifdef CK_ANSIC
+ttinl(CHAR *dest, int max,int timo, CHAR eol, CHAR start, int turn)
+#else
+ttinl(dest,max,timo,eol,start,turn) int max,timo,turn; CHAR *dest, eol, start;
+#endif /* CK_ANSIC */
+#else /* not PARSENSE */
+#ifdef CK_ANSIC
+ttinl(CHAR *dest, int max,int timo, CHAR eol)
+#else
+ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
+#endif /* CK_ANSIC */
+#endif /* PARSENSE */
+/* ttinl */ {
+    int rc;
+#ifdef CK_SSL
+    int oflags = -1;
+
+    if ((ssl_active_flag || tls_active_flag) && ttyfd > -1) {
+        oflags = fcntl(ttyfd,F_GETFL,0);
+        if (oflags > -1 && fcntl(ttyfd,F_SETFL,oflags|O_NONBLOCK) < 0)
+          oflags = -1;
+    }
+#endif /* CK_SSL */
+
+#ifdef PARSENSE
+    rc = ttinl_inner(dest,max,timo,eol,start,turn);
+#else
+    rc = ttinl_inner(dest,max,timo,eol);
+#endif /* PARSENSE */
+
+#ifdef CK_SSL
+    if (oflags > -1)
+      fcntl(ttyfd,F_SETFL,oflags);
+#endif /* CK_SSL */
+    return(rc);
 }
 #endif /* NOXFER */
 
