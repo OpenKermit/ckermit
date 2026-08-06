@@ -1007,6 +1007,32 @@ Being precise about this matters, because the two are easy to conflate.
 
 ### Proven on real Victor hardware
 
+- **This port, transferring files in both directions at 9600, 19200 and
+  38400** (§16o). Victor 9000, 896 KB, Victor MS-DOS 3.1 booted from a Pico
+  SASI emulator serving `victor_kermit.img`, channel A through
+  `/dev/seriala`, 1 m USB-C to RS-232 to a Mac running C-Kermit. Six
+  transfers, two per rate, each validated by a round trip that came back
+  md5-identical. **No code change** — §16n's binary, eleven upstream edits.
+  This is the claim the whole project existed to make and everything below
+  it in this subsection is a component of it.
+- **Our interrupt-driven receive, clean *in one measured transfer* at
+  19200.** `rxlost=0 rxfull=0` across 20,431 received bytes at a ~520 µs
+  byte interval, which says the ISR is re-entered promptly enough that the
+  three-deep receive FIFO never overruns — i.e. **the `WR0 = 38h` +
+  specific-EOI acknowledge sequence works on the real µPD7201**, not merely
+  on MAME's model of it. **Read the qualifier.** The same session's packet
+  log shows the Victor NAKing three packets in a different transfer, at a
+  rate the log does not record, so the receive path is *not* uniformly
+  clean on hardware and this is a measurement of one good run rather than a
+  property of the driver. At 38400 the counters were never read at all.
+  (§16o)
+- **The OEM driver programs 38400 through its IOCTL control block.** The
+  divisor is `msxv90.asm`'s and undocumented — Appendix A stops at 19.2k —
+  and the driver accepts it. (§16o, §11a)
+- **This machine's DOS clock advances in half-second steps.** Inferred from
+  six emulated runs in §16n and confirmed on hardware: every timing figure
+  the port has printed, on either platform, is a multiple of 50 hundredths.
+  Quote `tot=`, never `max=`. (§16o)
 - **38400 bps transmit on µPD7201 channel A.** 8253 Counter 0 at divisor 2,
   VIA2 PA0 internal clock, polled TX. This is the FreeDOS boot debug console
   (`kernel/victor_serial_debug.asm`, `BAUD_DIV_38400 = 0x02`, built under
@@ -1056,11 +1082,12 @@ Not the same claim as the two above, and kept separate for that reason.
 
 ### Written but never run on hardware
 
-- **Our interrupt-driven receive at speed.** §16d proves the mechanism at
-  9600 with one packet in flight. It says nothing about 19200 or 38400,
-  about long packets, or about a floppy write holding the ring for longer
-  than the 533ms it buffers at 9600. The handler's two loss counters exist
-  to answer exactly that.
+- ~~**Our interrupt-driven receive at speed.**~~ **Largely closed by §16o**,
+  which is why the entry moved up. 19200 is proven clean on hardware
+  (`rxlost=0 rxfull=0`); 38400 is proven to transfer but its counters have
+  never been read, so "clean at 38400" is the one part of this that remains
+  unproven. Nothing here has been tested against a *floppy* write holding
+  the ring — every hardware run so far was SASI.
 - **The FreeDOS-for-Victor interrupt-driven receive.**
   `kernel/victor_int14.asm` has the whole apparatus: per-channel `SERPORT`
   descriptors, 256-byte RX/TX rings, an IRQ1 ISR with the MS-DOS 3.1
@@ -4534,6 +4561,250 @@ Still nothing on real hardware.
 
 ---
 
+## 16o. It runs on the real machine, at 9600, 19200 and 38400
+
+Every section from §16d to §16n ends with the sentence "still nothing on
+real hardware." **That sentence is retired.** On 6 August 2026 the port ran
+on a physical Victor 9000 and moved files in both directions at all three
+rates, six transfers, every one of them successful.
+
+**It took no code change.** The binary that ran is §16n's — 203,338 bytes,
+the same eleven guarded upstream edits, the same `ckvictor.h`. Nothing in
+this section is a fix; it is all measurement.
+
+### The configuration
+
+Stated in full because §10 distinguishes what is proven on which hardware
+and this is the first entry that earns the top half of that list.
+
+| | |
+|---|---|
+| machine | Victor 9000, **896 KB** physical RAM |
+| operating system | **Victor MS-DOS 3.1** (the OEM DOS, not FreeDOS) |
+| boot media | Pico SASI emulator serving `victor_kermit.img` — the same image MAME boots, unmodified |
+| serial | µPD7201 **channel A**, `/dev/seriala`, OEM `porta.exe` loaded from `CONFIG.SYS` |
+| cable | USB-C to RS-232, **1 m**, previously run at 38400 many times |
+| host | Apple M4, macOS, C-Kermit |
+| rates | 9600, 19200, 38400 — **two transfers at each** |
+| validation | file sent to the Victor, sent back off it, `diff` clean and **md5 identical** to the original |
+
+The Pico serving the MAME image as-is is worth noting on its own: it means
+the whole harness — image, `.BAT` files, fixtures, host-side script — moves
+between emulator and bench with the serial device name as the only
+difference. `HW_TESTING.md` §1.4 predicted three differences and there were
+three.
+
+### The counters, from the one instrumented pair
+
+A 19,808-byte file at 19200, one transfer each way. Both directions clean.
+
+```
+-s hw_test3.md          -r
+rxlost=0 rxfull=0       rxlost=0 rxfull=0
+rxpeak=54 of 4096       rxpeak=56 of 4096
+peaktag=0 stall256=0    peaktag=0 stall256=0
+rxbytes=184             rxbytes=20431
+peakat=88 stallat=0     peakat=116 stallat=0
+wfile n=0               wfile n=3 of 8192 tot=50 cs
+wcon  n=1 tot=50 cs     wcon  n=1 tot=0 cs
+txgap n=17 tot=100 cs   txgap n=14 tot=0 cs
+```
+
+**Three things come out of that, and one of them is a surprise.**
+
+#### `rxpeak` collapsed, and it is the strongest evidence yet that §16l's timeouts were the emulator's
+
+**56 bytes at 19200, against 309–513 under MAME at 9600.** One sixth the
+occupancy at twice the line rate. §16m established what the peak measures —
+our pre-ACK turnaround, sampled while the host resends, because with a
+window of one that is the only moment the host transmits without waiting for
+us. `peakat=116` puts this peak inside the first 116 bytes, which is the S/F
+negotiation, and `stall256=0` says the ring never crossed 256 for the whole
+remaining transfer.
+
+The reading that suggests is that **this transfer had no retransmissions**:
+the real machine turns a packet around fast enough that the host's
+round-trip estimator is never caught out, so the resend §16m needed to
+produce a peak never happens. The host packet log below confirms that for
+*this* transfer and **refutes the generalisation** — do not read `rxpeak =
+56` as a property of the port on hardware.
+
+### The packet log, which was kept after all, and it takes half of that back
+
+`run1.pkt` was found in the tree after the counters had already been
+written up. It is the whole bench session in one host `kermit` invocation —
+twelve segments, three of them dead air while the operator typed at the
+Victor's keyboard with the host still in `receive`. **The rate is not
+recorded per segment, so none of what follows can be attributed to 9600,
+19200 or 38400.**
+
+| lines | direction | file | outcome |
+|---|---|---|---|
+| 1–12 | Victor → host | `testfile.txt`, 74 B | clean |
+| 13–40 | host → Victor | `hw_testing.md` | clean |
+| 41–72 | — | — | dead air: 16 timeouts, 16 host NAKs |
+| 73–81 | host → Victor | S only | 4 timeouts, 4 S resends — Victor not yet running |
+| 82–119 | host → Victor | `hw_testing.md` | **1 timeout, 1 resend** (seq 06) |
+| 120–130 | host → Victor | `hw_testing.md` | **refused — Z with data `D`** |
+| 131–158 | host → Victor | `hw_testing.md` | clean |
+| 159–210 | host → Victor | `hw_testing.md` | **3 NAKs *from the Victor*, 5 resends, 2 timeouts** |
+| 211–223 | — | — | dead air: 6 timeouts, 3 S resends |
+| 224–251 | Victor → host | `hw_test3.md` | clean |
+| 256–283 | Victor → host | `hw_test3.md` | clean |
+| 284–311 | host → Victor | `hw_testing.md` | clean |
+
+Session totals are 13 retransmissions and 31–40 timeouts depending on how
+they are counted, and **most of both are dead air rather than transfer
+failures** — 7 of the 13 resends are the host reoffering its S packet to a
+Victor that was not running yet. Counting only inside transfers: **6
+retransmissions across nine transactions.**
+
+Three things fall out, and the second is the important one.
+
+**Every Victor → host transfer was clean.** Three of them, zero resends,
+zero NAKs. The send direction — polled TX, the half already proven on this
+hardware by the FreeDOS debug console — behaved perfectly.
+
+**The Victor sends NAKs on real hardware, and §16l said it never does.**
+Three of them in the 159–210 transfer, each answered by a host resend. §16l
+established across two byte-exact 32 KB MAME receives that "the Victor sent
+only ACKs, never a NAK, so its receive timer never expired", and concluded
+every timeout was the host's. **That was a property of the emulator, not of
+the port.** A NAK is the Victor telling the host a packet failed its
+checksum — that is corrupted data on our receive path, whether from a
+µPD7201 overrun or from the line, and it is the first direct evidence of
+either on hardware. Note also that this transfer carried the file in 19 D
+packets where the clean ones used 8–12: C-Kermit shortens packets after
+errors, so the log shows it adapting.
+
+**This is exactly the "byte-exact is not clean" caveat, now with
+evidence.** Every file still arrived md5-identical, because that is what
+the checksums and resends are *for*. The counters, not the file, are what
+say whether the driver is clean — and the run whose counters we have
+(`rxpeak = 56`, `rxlost = 0`) was one of the clean segments, which is why it
+looked better than the session was.
+
+**One thing the log settles outright:** the longest packet in it is **3,991
+bytes**, so `DRPSIZ = 4000` long packets are live on real hardware as a
+measurement rather than the arithmetic below.
+
+**And one triage entry proved itself on first contact.** The 120–130 segment
+is S, F, A, then **Z whose data field is `D`**, with no data packets at all
+— the signature §16j documented for `SET FILE COLLISION = BACKUP` refusing
+a name that already exists on FAT. `HW_TESTING.md`'s failure table has the
+row; the bench hit it on the third attempt at the same filename.
+
+#### `rxlost=0` at 19200 says the interrupt-acknowledge sequence is right on the real part
+
+At 19200 a byte arrives every ~520 µs and the µPD7201's receive FIFO is three
+deep, so a handler that is not being re-entered promptly overruns. It did not,
+across 20,431 received bytes. Our `WR0 = 38h` followed by the 8259's specific
+EOI — which is what `msxv90.asm` does — is correct on the actual chip and not
+merely on MAME's model of it.
+
+This is the item §10 has carried as unproven since §11b, and it is the same
+question that left `~/projects/myfreedos`'s IRQ-driven receive shipping with
+`irq_enabled = 0` to this day. It is answered at 19200. See below for why
+38400 does not yet answer it as cleanly as it looks.
+
+#### The half-second clock is the Victor's, not MAME's
+
+§16n inferred from six emulated runs that this machine's DOS clock advances
+in half-second steps, and flagged the possibility that it was an emulation
+artifact. **It is not.** Every timing figure in both hardware runs — 50, 50,
+100, 0 — is a multiple of 50 hundredths. §16n's rule stands unchanged on
+hardware: **quote `tot=`, never `max=`**, and treat any figure built from
+few samples as noise.
+
+### What 38400 settles
+
+Two risks `HW_TESTING.md` §5 was built around, and both are retired at the
+functional level.
+
+**The OEM driver accepts the undocumented divisor.** §11a noted that the
+driver's Appendix A stops at 19.2k, that `B38400` and `B76800` are
+`msxv90.asm`'s rather than the OEM's, and that nothing in the appendix says
+the driver validates what it is given — with the §11a status check added
+precisely so a rejection could not come back carry-clear and look like
+success. It did not reject. `tcsetattr()` programs 38400 through the IOCTL
+control block on real hardware and the line runs.
+
+**And the data path holds at a ~260 µs byte interval.** Both directions,
+twice.
+
+### What this does *not* settle, and the first one is easy to overread
+
+- **`rxlost` was never read at 38400, and the packet log makes that the
+  most urgent gap in this section.** The transfers were byte-exact, and
+  byte-exactness is not the same claim: Kermit checksums every packet and
+  resends what fails, so a µPD7201 overrun corrupts a packet, gets caught,
+  gets resent, and the file still arrives perfect. Overruns surface as lost
+  **throughput**, not lost data. So 38400 is proven to *work* and is not yet
+  proven to be *clean*. **And we now know the receive path is not uniformly
+  clean**: the Victor NAKed three packets in one transfer, at a rate the log
+  does not record. If that transfer was at 38400 it is the
+  interrupt-acknowledge sequence starting to fail; if it was at 9600 it is
+  something else entirely and more interesting. **The next bench run must
+  capture the six `v9k:` lines per rate**, because that is the only
+  instrument that can tell an overrun (`rxlost`) from a ring overflow
+  (`rxfull`) from line noise (neither counter moves and the checksum still
+  fails).
+- **The disk cost is still not measured**, and it is the item that looks
+  measured. `wfile n=3 tot=50` is three writes and **one** clock-boundary
+  crossing. Inverting §16n's estimator on one crossing gives ~0.17 s per
+  write with variance that swamps it; it cannot be distinguished from MAME's
+  0.124 s. §16n's caveat — that 0.124 s fixed per `write()` is very slow for
+  a real drive and probably the emulator's — stands untested. What *is*
+  confirmed is that `V9K_OBUFSIZE = 8192` is live on the machine: `of 8192`
+  is the buffer reporting its own size, and 19,808 bytes took the 3 writes
+  that implies. The measurement needs `XFLAGS=-dV9K_OBUFSIZE=1024` on a
+  32 KB fixture, which turns 4 writes into 32 and finally puts enough
+  samples under the half-second quantum.
+- **No elapsed time or cps was recorded**, so §16n's projection of ~1,630
+  cps at 38400 — the one that says the dead time and not the line rate is
+  what bounds this port — is still arithmetic. This is now testable and
+  nowhere else can test it.
+- **The fixture was 19,808 bytes of markdown, not the 32,768-byte
+  all-byte-values fixture** every measurement from §16k on used. So none of
+  these numbers is directly comparable to §16k–§16n, and **every byte value
+  has still never been round-tripped on hardware** — §16h's `_fmode =
+  O_BINARY` fix is confirmed to the extent that a text file survived a round
+  trip md5-identical, which is real evidence and not the whole test.
+- ~~**No host packet log.**~~ There was one — `run1.pkt`, analysed above.
+  What it lacks is a **rate per segment**, which is what stops it answering
+  the question above. One `kermit` session per rate, with its own log name,
+  fixes that for free.
+- **FreeDOS for Victor is untouched**, including the IRQ1 vector question
+  (41h here, INT 09h there) that is the most likely thing to break the "one
+  binary, two DOSes" claim.
+
+### One consistency check, which is arithmetic and not measurement
+
+20,431 wire bytes carried a 19,808-byte file: 623 bytes of overhead, 3.1%.
+A markdown file is mostly LFs and printable text, and under `_fmode =
+O_BINARY` an LF is a control character that Kermit prefixes with `#` — so
+roughly 500 of that 623 is control-character quoting for ~500 lines, leaving
+~123 for framing. At `DRPSIZ = 4000` that is about six data packets plus
+S/F/A/Z/B, eleven packets at ~11 bytes of framing each. The numbers
+reconcile, which is a weak confirmation that **long packets are live on
+hardware** — the host packet log would say so directly.
+
+### Sizes
+
+Unchanged. No source change was made for this section: DGROUP 48,240 of
+65,536, image 203,338 needing 217,594 of 396,224, **eleven upstream edits**.
+
+### Measured, and on what
+
+Real Victor 9000, 896 KB, Victor MS-DOS 3.1 from a Pico SASI emulator
+serving `victor_kermit.img`, µPD7201 channel A through `/dev/seriala`, 1 m
+USB-C to RS-232 to an Apple M4 Mac running C-Kermit. **Six transfers — two
+at 9600, two at 19200, two at 38400 — all successful**, validated by round
+trip with `diff` and md5 against the original. The `v9k:` counters were read
+for one 19,808-byte round trip at 19200 and are quoted above.
+
+---
+
 ## 15. Open questions
 
 **Closed since the last revision**
@@ -4677,10 +4948,18 @@ Still nothing on real hardware.
   enough; the transfer completes. That works because nothing ever asks the
   OEM driver for data again — §11a's IOCTL is the only thing left using its
   handle.
-- What does the µPD7201 interrupt-acknowledge sequence actually need? Still
-  the unproven hardware item (§10) and it gates 38400. §11b's handler issues
-  `WR0 = 38h` then the 8259's specific EOI and works under emulation, which
-  is what 3.13 does; MAME's µPD7201 is not the part, so this is not settled.
+- **What does the µPD7201 interrupt-acknowledge sequence actually need?**
+  **Partly answered, and no longer the top hardware unknown — but not
+  closed.** §11b's sequence (`WR0 = 38h` then the 8259's specific EOI,
+  3.13's) carried 20,431 bytes at 19200 with `rxlost=0`, so it works on the
+  real part. **What replaced it as the open item is narrower and sharper:
+  the Victor NAKed three packets in one transfer of the same session**
+  (§16o), which is corrupted data on the receive path, at a rate the packet
+  log does not record. Three candidates and one instrument: a µPD7201
+  overrun moves `rxlost`, a ring overflow moves `rxfull`, and line noise
+  moves neither. **One bench session, one `kermit` log per rate, the six
+  `v9k:` lines captured per run.** Until then 38400 is proven to transfer
+  and not proven to be clean.
 - **`dofast()` is unreachable in this build, and so is `getdialenv()`.**
   Both are inside the `#ifndef NOTCPIP` that opens at `ckcmai.c:3390` and
   closes at 3644, with `#endif` comments misattributed by one level (§16j).
@@ -4728,9 +5007,16 @@ Still nothing on real hardware.
   the first). Line time falls by four at 38400 but this does not move, so
   expect ~1,400 cps rather than ~2,400 — a CPU and disk problem, not a
   buffer one. The ring at 4,096 already covers the ~2,100-byte peak that the
-  same retransmission would produce there. (§16m)
+  same retransmission would produce there. (§16m) **Revised to 9.8 s and
+  ~1,630 cps by §16n**, and **now testable**: §16o ran 38400 on hardware, so
+  the projection that has bounded every throughput argument in this port can
+  finally be checked against a measurement. It needs one 38400 run with the
+  elapsed time recorded — no code change, and the same run that closes the
+  `rxlost` question above. (§16o)
 - ~~**One timeout and two retransmissions survive in a clean 32 KB run.**~~
-  **Diagnosed, and not ours.** The roundup was made and is right, but the
+  **Diagnosed, and not ours** — **under MAME only; §16o retracts the "never
+  a NAK" half on hardware**, where the Victor NAKed three packets in one
+  transfer. The roundup was made and is right, but the
   Victor sends **only ACKs, never a NAK**, across two byte-exact 32 KB
   receives — its timer never fires. Every timeout is the *host's*, and each
   one lands on the packet where C-Kermit's slow start doubles the length

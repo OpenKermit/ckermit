@@ -1,140 +1,150 @@
 # Next session
 
-Handoff for the Victor 9000 port, written 6 August 2026. **The file-write
-cost is per call, not per byte; an 8 KB output buffer took it from 4.5 s to
-about 1 s and the dead time from 12.8 s to 9.8.** This is the first piece of
-the throughput work §16m handed over.
+Handoff for the Victor 9000 port, written 6 August 2026. **It runs on real
+hardware.** Six transfers on a physical Victor 9000 — two each at 9600,
+19200 and 38400 — every one round-tripped md5-identical, and it took no
+code change at all.
 
-**Read `PORTING.md` §16n first.** It is this session: the one-variable
-measurement, the model it supports, why it cost no upstream edit, and a
-correction to §16m about the clock that changes how every timing figure in
-this port should be read.
+**Read `PORTING.md` §16o first**, and read its "what this does not settle"
+subsection before quoting any number from it. `HW_TESTING.md` is the bench
+plan the session ran against, with per-leg status filled in.
 
 ---
 
-## 1. What changed this session
+## 1. What happened this session
 
-**One knob and one initializer, both in our own files.** `V9K_OBUFSIZE` in
-`ckvictor.h` (**8192**, `#ifndef`-guarded) and a third XI record in
-`ckvictor.c` §1d that sets `zobufsize` before `main()` reaches `getiobs()`.
+**No code changed.** The binary is §16n's: 203,338 bytes, DGROUP 48,240 of
+65,536, eleven guarded upstream edits. This session is measurement only.
 
-The reason this is not a twelfth upstream edit is worth keeping: `OBUFSIZE`
-is 1,024 and `ckcker.h` defines it **unguarded**, so `ckvictor.h` cannot
-pre-empt it the way it does `DRPSIZ`. But `OBUFSIZE` is read only to seed
-the `int zobufsize` (`ckcmai.c:1652`) and to bound `SET BUFFERS`
-(`ckuus7.c:3755`), which `NOICP` removes — while both places that move bytes
-read the **variable**: `getiobs()` mallocs `zobufsize` (`ckcmai.c:3795`) and
-`zmchout()` flushes at `zobufsize` (`ckcker.h`). `sysinit()` would have been
-the natural hook and is `ckutio.c`, which is stock, so the XI table is the
-earliest one this port owns.
+### The configuration
 
-**No upstream edit — still eleven.** DGROUP **48,240, unchanged** (the
-buffer is far heap). Image 203,300 → **203,338**, needs 217,594 of 396,224.
+| | |
+|---|---|
+| machine | Victor 9000, 896 KB, **Victor MS-DOS 3.1** |
+| boot | Pico SASI emulator serving `victor_kermit.img` — **the MAME image, unmodified** |
+| serial | µPD7201 channel A, `/dev/seriala`, OEM `porta.exe` |
+| cable | 1 m USB-C to RS-232, to an Apple M4 Mac running C-Kermit |
+| runs | 9600 ×2, 19200 ×2, 38400 ×2, all successful |
 
-### The answer
+The Pico serving the MAME image as-is is the reason this was cheap: the
+image, the `.BAT` files, the fixtures and the host script all move between
+emulator and bench unchanged, and the serial device name is the only
+difference. `HW_TESTING.md` §1.4 predicted three differences; there were
+three.
 
-Two runs against §16m run 4, same fixture bytes, same `set receive timeout
-20`, and — unusually — the **identical 39,574 wire bytes with the same one
-timeout and one retransmission**, so the comparison is not confounded by
-where the host's estimator gets caught out.
+### What the counters said
 
-| | §16m r4 (1,024) | 16n r1 | 16n r2 |
-|---|---:|---:|---:|
-| file writes | 32 | **4** | **4** |
-| disk total | 4.50 s | 0.50 s | 1.50 s |
-| `rxpeak` | 513 | **309** | **310** |
-| elapsed | 54 s | **51 s** | **51 s** |
-| cps | 603 | **633** | **631** |
+One instrumented pair, a 19,808-byte file at 19200, one transfer each way.
 
-Per byte would have left the total unmoved. It fell threefold to ninefold.
-The two sizes fit **~0.124 s fixed per `write()` plus ~15 µs/byte** (~64
-KB/s), which predicts 4,096 → 1.5 s, 8,192 → 1.0 s, 16,384 → 0.75 s, and a
-floor of 0.6 s for one write. **8,192 collects most of it**; going higher
-buys tenths and spends far heap.
+- **`rxlost=0 rxfull=0`, both directions.** At a ~520 µs byte interval with
+  a three-deep receive FIFO, that says the ISR is re-entered promptly enough
+  never to overrun — **the `WR0 = 38h` + specific-EOI acknowledge sequence
+  is right on the real µPD7201**. That is §10's leading unproven item since
+  §11b, and the same question that left `~/projects/myfreedos`'s IRQ-driven
+  receive shipping with `irq_enabled = 0`.
+- **`rxpeak = 56 of 4096`**, against 309–513 under MAME at *half* the rate,
+  with `peakat=116` (inside the S/F negotiation) and `stall256=0`. §16m
+  established the peak measures our pre-ACK turnaround while the host
+  resends, so a peak this small means **that transfer had no
+  retransmissions**. The packet log confirms it — and confirms the
+  instrumented run was one of the clean ones. **Do not read it as a property
+  of the port.**
 
-**`rxpeak` fell 513 → 309, and that confirms §16m rather than adding to
-it.** §16m established the peak is our pre-ACK turnaround measured while the
-host resends; take four file writes out of that turnaround and the peak
-shortens by 204 bytes, which is 0.21 s at 9600 — about one write. `stallat`
-and `peakat` still land inside the resend of seq=06 (3,764–5,717).
+### The packet log, and the finding that outranks everything above
 
-### The correction, and it matters for every measurement here
+`run1.pkt` was sitting untracked in the tree — the whole session, one host
+`kermit` invocation, twelve segments. Session totals of 13 resends and ~35
+timeouts are mostly **dead air** while the operator typed at the Victor with
+the host still in `receive`; in-transfer it is 6 resends over nine
+transactions. But:
 
-**§16m's "worst single write 0.50 s, and always the first" is wrong, and so
-is the assumption underneath it.** Every timing figure this port has printed
-— six runs, three independent timers — is a multiple of **50 hundredths**,
-and no `max` has ever read anything but 0 or 50. **This machine's DOS clock
-advances in half-second steps.**
+- **All three Victor → host transfers were clean.** Zero resends, zero NAKs.
+- **One host → Victor transfer drew 3 NAKs *from the Victor*.** A NAK is a
+  failed checksum at the Victor: corrupted data on our receive path. §16l's
+  "the Victor sends only ACKs, never a NAK" was the **emulator's** property,
+  and §16o retracts it for hardware.
+- **The rate is not recorded per segment**, so the NAKs cannot be attributed
+  to 9600, 19200 or 38400. That is the single most annoying gap in the
+  session and it costs nothing to fix: one `kermit` session per rate, one
+  log name each.
+- One triage entry proved itself: a segment of S, F, A, then **Z with data
+  `D`** and no data packets — `SET FILE COLLISION = BACKUP` refusing a name
+  that already existed. Third attempt at the same filename.
+- **Longest packet 3,991 bytes**, so `DRPSIZ = 4000` long packets are live
+  on hardware as a measurement.
+- **The half-second clock quantum is the Victor's, not MAME's.** Every
+  figure in both runs — 50, 50, 100, 0 — is a multiple of 50. §16n's
+  inference survives to hardware and its rule is unchanged: **quote `tot=`,
+  never `max=`.**
 
-- **No individual event has ever been timed.** 50 is the smallest non-zero
-  reading possible, so "worst write 0.50 s" only means "that write crossed a
-  boundary". Which one shows it is near enough a coin flip — §16m saw the
-  first write three times and read a pattern into it; here it was #4, then
-  #1.
-- **Totals are still sound and are the half to quote.** An interval of true
-  length *d* < 0.5 s crosses with probability *d*/0.5, so a sum over many
-  samples is an unbiased estimate of the total though no term of it is. That
-  is why 32 samples give a usable 4.5 s and 4 samples give a noisy 0.5/1.5,
-  and why the two runs differ threefold on disk while agreeing on elapsed.
+### What 38400 settled
 
-**Quote `tot=`, never `max=`.**
+Both risks `HW_TESTING.md` §5 was built around. The OEM driver **accepts**
+`msxv90.asm`'s undocumented divisor even though its Appendix A stops at
+19.2k — §11a's status check was added for exactly the rejection that did not
+happen — and the data path holds at a ~260 µs byte interval, twice, both
+directions.
 
-### The number that matters next
+### The trap this session fell into, and it is worth keeping
 
-**Dead time is 9.8 s per 32 KB, of which about 1 s is now disk.** The rest
-is decode and protocol and **has never been profiled**. At 38400 that
-projects to ~20 s for 32 KB, **~1,630 cps** (§16m said ~1,400). Still not
-the ~2,400 the line rate alone suggests. It is now **a CPU problem, much
-less a disk one**.
-
-### The harness limit that bounds all of that
-
-**MAME cannot run this machine above about 9600.** Not a configuration
-limit — above 9600 the emulation is too slow to meet the serial timing
-thresholds, and the host on the other end of the `-bitb` socket is real and
-does not slow down to match. So **38400 is a real-hardware-only path, and
-every 38400 figure in §16m and §16n is arithmetic that nothing in this
-harness can test.**
-
-At 9600 the emulator is faithful, and both runs measured it for free:
-`-seconds_to_run 300`, MAME exited **302 s of wall clock later, twice**.
-Emulated time tracks real time to ~1%, which is what makes any of the 9600
-numbers comparable. Two caveats stand:
-
-- **Real-time is not cycle-accurate.** The 9.8 s is a faithful measurement
-  of the *emulated* machine and an untested estimate of a real one.
-- **The disk timing is almost certainly MAME's, not the Victor's.** 0.124 s
-  fixed per `write()` is very slow for a real drive. §16n's **direction**
-  (per call, not per byte) is safe anywhere; the **size** of the saving may
-  not transfer, and 8,192 may be over-provisioned for real hardware. It
-  costs only far heap, so leave it — and re-measure on the real machine.
+**`wfile n=3 tot=50` does not measure the disk.** Three writes and *one*
+clock-boundary crossing; inverting §16n's estimator on one crossing gives
+~0.17 s per write with variance that swamps it, and it cannot be
+distinguished from MAME's 0.124 s. §16n's caveat — that its disk figure is
+probably the emulator's — is **still untested**. What is confirmed is that
+`V9K_OBUFSIZE = 8192` is live: `of 8192` is the buffer reporting its own
+size.
 
 ---
 
 ## 2. Do this next, in rough priority order
 
-**Real hardware.** Still nothing, ever, and by some distance the largest
-gap — and note it is now the *only* route to four of this port's open
-questions, since MAME cannot go above 9600: **19200, 38400, the µPD7201
-interrupt-acknowledge sequence, and the true cost of a disk write.**
+**Two runs at the bench close five open legs.** Both at 38400, both with the
+32,768-byte all-byte-values fixture (the one every measurement from §16k on
+used), both with `log packets` on the host. One stock, one with
+`XFLAGS=-dV9K_OBUFSIZE=1024`. Between them they give:
 
-**Profile the remaining 8.8 s.** This is the open end of §16n and the
-instrument for it does not exist yet. The §0e tag says *where* the
-foreground was when the ring peaked, which is not the same as where it
-spends its time — and §16n's clock finding means anything sampled at half-
-second resolution needs many samples to say anything. Cheapest honest
-instrument is probably to widen the §0e tag to more foreground states and
-have the **interrupt handler** sample it (it already runs per received byte,
-and §16m established that costs a store and no INT 21h) — a profile by
-occupancy rather than by clock, which sidesteps the quantum entirely.
+1. **`rxlost`/`rxfull` per rate, and this is now the top item, not a
+   formality.** The Victor NAKed three packets in the last session at an
+   unrecorded rate — corrupted data on the receive path. Three candidates,
+   one instrument: an overrun moves `rxlost`, a ring overflow moves
+   `rxfull`, line noise moves neither and the checksum still fails.
+   **One `kermit` session per rate with its own log name**, and the six
+   `v9k:` lines captured per run. Byte-exactness is not cleanliness.
+2. **cps and elapsed at 38400** — §16n projects ~1,630 rather than the
+   ~2,400 the line rate suggests, on the grounds that dead time and not line
+   time is what bounds this port. That projection has shaped every
+   throughput argument here and has never been checked. Nothing but real
+   hardware can check it.
+3. **The disk cost per write on real media** — the 1,024-byte A/B, which
+   turns 4 writes into 32 and puts enough samples under the half-second
+   quantum. It also says whether `V9K_OBUFSIZE = 8192` was sized against a
+   real disk or an emulated one.
+4. **The retransmission count** — `grep -c '^S-'`, `grep -c '<timeout>'`,
+   which confirms or kills the "no retransmissions on hardware" reading of
+   `rxpeak = 56`.
+5. **Every byte value, round-tripped on hardware** — the markdown fixture
+   was text, so §16h's `_fmode = O_BINARY` fix has real hardware evidence
+   but not its full test.
 
-**Then 8b, windows.** `DFWSIZ` is still 1. §16m's note stands: with a window
-of 2 the host transmits while we work all the time, so the ring becomes a
-steady-state story rather than an occasional-peak one. Size it from the dead
-time, not from `rxpeak`.
+**Then server mode on hardware** (`-g`, `-f`, `-x`, `--safe-server`) —
+`HW_TESTING.md` leg 0.7, untouched.
 
-**`V9K_OBUFSIZE` higher is not worth a run** unless something else changes —
-the model says 16,384 saves 0.25 s.
+**Then FreeDOS for Victor** — `HW_TESTING.md` Tier 4, and the IRQ1 vector
+question (41h here, INT 09h there) that is the most likely thing to break
+the "one binary, two DOSes" claim.
+
+**Then windows.** `DFWSIZ` is still 1. §16m's note stands, and §16o
+sharpens it: if the peak really is turnaround-during-resend and resends do
+not happen on hardware, a window of 2 changes the ring from an
+occasional-peak story to a steady-state one and the sizing argument has to
+be redone from the dead time. Do it under MAME first.
+
+**Profile the remaining dead time.** The open end of §16n, and the
+instrument does not exist yet — §16o's clock finding means anything sampled
+at half-second resolution needs many samples. The cheapest honest approach
+is still to widen the §0e foreground tag and have the **interrupt handler**
+sample it: a profile by occupancy rather than by clock.
 
 **Report the `ckcmai.c` nesting upstream.** Unchanged from §16j.
 
@@ -147,20 +157,19 @@ the model says 16,384 saves 0.25 s.
 
 - **`v9k:` lines on stdout at exit, every build.** Six of them —
   `rxlost/rxfull/rxpeak`, `peaktag/fd/stall256`, `rxbytes/peakat/stallat`,
-  `wfile`, `wcon`, `txgap`. A `.BAT` redirecting stdout catches them;
-  `STEPM.BAT` is the current pattern.
-- **The clock quantum is 0.5 s (§16n).** Read `tot=`, never `max=`, and
-  treat any figure built from few samples as noisy.
+  `wfile`, `wcon`, `txgap`. On hardware, capture them by redirecting stdout
+  in a `.BAT` (`STEPM.BAT` is the pattern) and `TYPE`ing it back, or — the
+  one that scales — **ship the log off with Kermit itself**, `CKERMITW -l
+  /dev/seriala -b 19200 -s RUN1.LOG`.
+- **The clock quantum is 0.5 s and it is the Victor's** (§16n, confirmed
+  §16o). Read `tot=`, never `max=`; treat few-sample figures as noise. Three
+  samples measure nothing.
 - **Byte offsets map onto the host packet log**, resends included:
-  `python3 .probe/mapoffset.py host.pkt <offset>...`; wire length is
-  `unchar(LEN) + 3`, or data + 9 for a long packet.
+  `python3 .probe/mapoffset.py host.pkt <offset>...`
 - **`grep -c '^S-'` counts retransmissions, `grep -c '<timeout>'` counts
   timeouts** (§16l). `python3 .probe/pktstat.py host.pkt` decodes a log.
-- **The packet log escapes control characters**, so the type is body[4].
 - **`XFLAGS=-dV9K_OBUFSIZE=1024`** — §16m's disk baseline in one flag.
-- **`XFLAGS=-dV9K_RXCHUNK=256`** caps what `v9k_comm_read()` returns —
-  refuted as an explanation for `rxpeak`, kept as a knob.
-- **`XFLAGS=-dDRPSIZ=90`** — packet length in one flag.
+- **`XFLAGS=-dV9K_RXCHUNK=256`**, **`XFLAGS=-dDRPSIZ=90`** — kept knobs.
 - **Do NOT combine `-dKEEP_DEBUG` with anything about throughput.** ~25 ms
   per received byte (§16k).
 - **`python3 .probe/mzsize.py ckermitw.exe`** — run this, not `ls -l`.
@@ -172,33 +181,35 @@ the model says 16,384 saves 0.25 s.
 
 ## 4. Things that are known-incomplete
 
-- **`SET FILE COLLISION` is `BACKUP`, and BACKUP cannot work on FAT.** Use a
-  fresh filename per run and delete leftovers. Symptom: S, F, A, then **Z
-  with data `D` and no data packets**.
+- **`SET FILE COLLISION` is `BACKUP`, and BACKUP cannot work on FAT.** Fresh
+  filename per run. Symptom: S, F, A, then **Z with data `D` and no data
+  packets**.
 - **`SET TIMER OFF` is not a C-Kermit 9.0.302 command.**
 - **`REMOTE DIRECTORY` never terminates its listing** (§16i).
 - **Most of the default capability set is untested** (§16i). `BYE` never sent.
 - **Wildcards are case-sensitive.** `-s *.TXT`.
 - **No interrupt-level flow control**, `tcflow()` is a stub.
 - **No stack switch in the handler** — deliberate, ~30-byte frame.
-- **The IRQ1 vector is hard-coded to 41h.**
-- **Ctrl-Break with the line open** is not covered by `atexit()`.
+- **The IRQ1 vector is hard-coded to 41h.** Right for MS-DOS 3.1, and §16o
+  is six more runs of evidence for that; still unknown for FreeDOS.
+- **Ctrl-Break with the line open** is not covered by `atexit()`. On the
+  bench this costs a power cycle, and the FreeDOS bench discipline says
+  power-cycle the Pico too.
 - **WR2 is left as the OEM driver set it** (`10h` vs 3.13's `14h`).
 - **The carrier clause** in `ttgmdm()` forces carrier present under `CLOCAL`.
+- **No floppy has ever been in the path.** Every hardware run was SASI, so
+  §10's question about a floppy write holding the ring is untouched.
+- **The receive path corrupts packets on hardware, sometimes.** Three NAKs
+  in one transfer of the first bench session (§16o), cause and rate both
+  unknown. Kermit recovers and the file is correct; the cost is throughput.
+  This is the port's one known-live defect.
 
 ---
 
 ## 5. Still open, from before
 
-**Nothing has run on real hardware.** All MAME, Victor MS-DOS 3.1.
-
-**The gap for the interactive parser** — `XFLAGS=-dKEEP_ICP` plus
-`.probe/mzsize.py` settles it in one build and no MAME run.
-
-**The µPD7201 interrupt-acknowledge sequence.** Unsettled, gates 38400 —
-though §16m says the ring is not what stands in the way, and §16n says the
-disk is no longer most of what does. **Real hardware only**: MAME cannot
-reach 38400, so this cannot be settled in the current harness at all.
+**The parser build** — `XFLAGS=-dKEEP_ICP` plus `.probe/mzsize.py` settles
+the DGROUP half in one build; it does not load, and that was measured.
 
 **Why `binmode.obj`'s near init record does not work here** (§16h).
 
@@ -206,32 +217,34 @@ reach 38400, so this cannot be settled in the current harness at all.
 
 ## 6. The harness
 
-§16a, §16d, §16g–§16n have it in full. Unchanged this session, and it ran
-twice without trouble:
+Both harnesses now matter, and `HW_TESTING.md` is the bench half.
+
+**Bench.** Pico SASI serving `victor_kermit.img`; channel A; 1 m USB-C to
+RS-232; host `set line /dev/tty.usbserial-*`, `set speed <rate>`, `set
+carrier-watch off`, `set flow none`, `log packets <unique>`. Power-cycle the
+Victor *and* the Pico between runs. Fresh target filename every run. Do not
+write to the image while the machine is running.
+
+**MAME.** Unchanged, and still the right place for anything that would cost
+a drive to get wrong:
 
 - `socat` first (single-use `-bitb`), then MAME, then wait ~105 s before
   starting the host `kermit`. `-seconds_to_run 300` for a 32 KB receive.
-- **9600 is the harness ceiling**, and it is the emulator, not a setting.
-  Do not spend a run trying 19200 or 38400.
+- **9600 is the emulator's ceiling**, not a setting. §16o is why 19200 and
+  38400 numbers now exist at all.
 - **`-seconds_to_run` against wall clock is a free speed check** — 302 s for
-  300 means the emulator kept up and the timings mean something.
-- **MAME exits on its own** when that expires; wait on the *process* and
-  match `[m]ame/mame victor9k` so `pgrep` does not match the polling shell.
+  300 means the timings mean something.
 - **Use `-r`, not `-x`**, when the point is a receive measurement.
 - **One `kermit` attempt per MAME run, unique log names** — `log packets`
   truncates.
-- **Verify by pulling the file back off the image and `cmp`.**
-- **Reuse the previous fixture bytes** when the point is an A/B — §16n's
-  runs were tight because the wire byte count came out identical.
-- `~/projects/mame/victor_kermit.img.bak-20260806-obuf` is this session's
-  backup.
-- **On the image now:** `CKERMITW.EXE` (203,338), `STEPH`–`STEPM.BAT` (all
-  `-r`, no `-d`, stdout redirected) and `RCVF`–`RCVK.DAT` as receive
-  fixtures, plus §16h–§16m leftovers. Delete before reusing a name.
-- Everything else from §16i's list still holds: `.BAT` files need CRLF;
-  `-autoboot_command` takes the literal `\n`; digits come through shifted;
+- `~/projects/mame/victor_kermit.img.bak-20260806-obuf` is the last backup.
+- **On the image now:** `CKERMITW.EXE` (203,338), `STEPH`–`STEPM.BAT`,
+  `RCVF`–`RCVK.DAT`, plus `HW_TEST1`–`HW_TEST3.MD` from §16o and §16h–§16m
+  leftovers. Delete before reusing a name.
+- `.BAT` files need CRLF; `-autoboot_command` takes the literal `\n`; digits
+  come through shifted under MAME (**the real keyboard does not do this**);
   MS-DOS 3.1 cannot redirect handle 2; the disk boots as `A:`; use
-  `vtg_image_util`, never write to the image while MAME runs.
+  `vtg_image_util`, never mtools.
 
 ---
 
