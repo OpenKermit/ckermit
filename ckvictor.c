@@ -280,10 +280,29 @@ ioctl(int fd, int request, ...) {
   longjmps and ttinl() returns -1, exactly as on Unix.
 
   Resolution is whole seconds because time() is what both runtimes agree
-  on, and because alarm()'s own argument is in seconds.  A deadline of
-  time()+n therefore fires somewhere between n and n+1 seconds, never
-  early; Kermit's timeouts are 5-10 seconds, so the jitter is noise.
+  on, and because alarm()'s own argument is in seconds.  That resolution
+  costs a second in the wrong direction, and an earlier version of this
+  comment had the direction backwards.  time() is a floor: arm alarm(n)
+  at real time T+0.9 and time() reports T, so a deadline of T+n is
+  reached at real T+n -- only n-0.9 seconds later.  A deadline of time()+n
+  therefore fires in (n-1, n], which is *early*, by up to a full second.
+
+  That is not the noise the old comment assumed it was.  CK_TIMERS is on
+  and rttflg defaults to 1, so rcvtimo comes from getrtt(), which is
+  itself computed from gtimer()'s whole seconds; on the file-receiver
+  path it lands on 3.  A 2-second worst case against the 4.2 seconds of
+  line time a 3,999-byte packet takes at 9600 is a timeout that fires
+  while the packet is still arriving.
+
+  So the deadline is rounded up by one second, which turns (n-1, n] into
+  (n, n+1] -- late, never early, which is the direction a protocol
+  timeout wants to err in.  The fudge is added to the deadline and taken
+  back off the returned time-remaining, so that the value ttoc() and
+  ttinc() subtract from and re-arm with stays the number of seconds the
+  caller actually asked for.
 */
+#define V9K_ALARM_ROUNDUP ((time_t)1)   /* time()'s floor, compensated  */
+
 static time_t v9k_alarm_at = (time_t)0; /* time() value it expires at   */
 static int    v9k_alarm_on = 0;         /* Whether one is armed at all  */
 
@@ -582,12 +601,15 @@ alarm(secs) unsigned secs;
     unsigned left = 0;
 
     /* Compared rather than subtracted: Watcom's time_t is unsigned, so a
-       deadline already in the past would wrap into a huge "time left". */
-    if (v9k_alarm_on && v9k_alarm_at > now)
-      left = (unsigned)(v9k_alarm_at - now);
+       deadline already in the past would wrap into a huge "time left".
+       The roundup comes back off here so that callers which subtract from
+       this value and re-arm -- ttoc() does exactly that -- are working in
+       the seconds they asked for rather than in ours. */
+    if (v9k_alarm_on && v9k_alarm_at > now + V9K_ALARM_ROUNDUP)
+      left = (unsigned)(v9k_alarm_at - now - V9K_ALARM_ROUNDUP);
 
     if (secs) {
-        v9k_alarm_at = now + (time_t)secs;
+        v9k_alarm_at = now + (time_t)secs + V9K_ALARM_ROUNDUP;
         v9k_alarm_on = 1;
     } else {
         v9k_alarm_on = 0;

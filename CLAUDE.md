@@ -50,7 +50,7 @@ none.** It was 17 until `NOFLOAT` (§16j): dropping `GFTIMER` moves `ztime()`
 onto upstream's `ZTIMEV7` branch, whose K&R redeclarations of `localtime()`
 and `time()` produce two more sign mismatches at `ckutio.c:12319-12320`.
 DGROUP is 48,176 of 65,536 (73%) after the linker adds libc; `ckermitw.exe`
-is 202,294 bytes and needs 216,566 at load, of the 396,224 the machine
+is 202,310 bytes and needs 216,582 at load, of the 396,224 the machine
 offers.
 
 **It transfers files, both ways, byte-exact, as client and as server.** On
@@ -97,6 +97,21 @@ now **4096**, `DRPSIZ` is **4000**, and **32,768 bytes transfer byte-exact at
 edit was needed — still eleven. The three ring counters now print to
 **stdout at exit in every build**, because a run fast enough to measure is
 exactly a run that cannot carry a debug log.
+
+**§16l says the retransmissions are not ours, and that is the thing to know
+before spending anything on them.** `alarm()` did fire up to a second early
+— `time()` is a floor, so a `time()+n` deadline lands in (n−1, n], and the
+comment in `ckvictor.c` §0d claiming "never early" was wrong — and the
+deadline is now rounded up. But that was never the cause: across two
+byte-exact 32,768-byte receives the Victor sent **only ACKs, never a NAK**,
+so its receive timer never expired. Every timeout in the log is the
+*host's*, and each lands on the packet where C-Kermit's slow start doubles
+the length and hands its round-trip estimator 4.1 seconds of line time it
+did not predict. `SET RECEIVE TIMEOUT 20` **on the host** took 2 timeouts
+and 4 retransmissions to 1 and 1, and 537 cps to 606. Two instruments came
+out of it: an uppercase `S-` line in a C-Kermit packet log is a
+retransmission (`ckcfns.c:2002`) and a `<timeout>` line is a timeout
+(`ckcfns.c:2900`), which makes a log countable in one `grep -c`.
 
 **§16j retracts a number, and it is the one to know before touching packet
 sizes.** `dofast()` — the only thing that turns `SBSIZ`/`RBSIZ`/`MAXSP`/
@@ -169,7 +184,7 @@ socket is single-use, so start `socat` first and never probe the port.
    The **heap is outside it**: `malloc()` is `_fmalloc` in the large model,
    so the packet buffers do not compete for the segment at all. What bounds
    them is real-mode RAM: the machine hands out 396,224 bytes and the image
-   needs 216,566, leaving 179,658 — out of which the far heap then takes
+   needs 216,582, leaving 179,642 — out of which the far heap then takes
    about 25K of packet buffers. **The receive ring is the exception**: at
    4,096 bytes it is `.bss` and comes straight out of the 64K (§16k).
    **Run `make -f victorow.mak sizes` after any change that could add static

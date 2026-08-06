@@ -3857,8 +3857,10 @@ against 162,882 before this section, out of which the far heap then takes
 about 25K of packet buffers. With `KEEP_DEBUG`, 282,456 and 287,496 needed.
 
 (§16k's 4096-byte ring then takes DGROUP to **48,176 of 65,536 (73%)** and
-the image to 202,294, needing 216,566 — 179,658 spare. Those are the current
-figures; the ones above are this section's.)
+the image to 202,294, needing 216,566 — 179,658 spare; §16l's alarm roundup
+adds 16 bytes of code and no data, so the current figures are DGROUP
+**48,176** and image **202,310**, needing **216,582** — 179,642 spare. The
+ones above are this section's.)
 
 `.probe/mzsize.py` is §16a's method made repeatable: it reads the MZ header
 and reports image + `minalloc` against 396,224. Run it, not `ls -l`, before
@@ -4051,6 +4053,110 @@ one-line change in our own file** and is the first thing to try. It was not
 done this session because it is a behaviour change and this session already
 had two.
 
+> **Partly superseded by §16l.** The roundup was done and is in the tree, and
+> the analysis above of `alarm()` firing early is correct. But it is **not**
+> why the 32 KB run retransmits: the Victor never times out at all. Read
+> §16l before spending anything else on this.
+
+---
+
+## 16l. The alarm did fire late, and the retransmissions were never ours
+
+§16k left the roundup at the top of the list, with an explicit warning that
+its case was derived and not measured. The change is made and it is right on
+its own terms. **The hypothesis attached to it is wrong**, and the packet log
+says so in one line: across two complete 32,768-byte receives, the Victor
+sent **nothing but ACKs — not one NAK.** Its receive timeout never expired,
+so no rounding of it could ever have changed a retransmission.
+
+### The change, which stays
+
+`ckvictor.c`'s `alarm()` now records `time() + secs + V9K_ALARM_ROUNDUP`,
+with the roundup taken back off the returned time-remaining so that `ttoc()`
+— which subtracts from that value and re-arms — keeps working in the seconds
+its caller asked for. The direction §16k derived is real: `time()` is a
+floor, so a deadline of `time()+n` armed at real time T+0.9 is reached only
+n−0.9 seconds later, i.e. in **(n−1, n]**. The comment in §0d claiming
+"never early" was wrong and is replaced with the derivation. Rounded up, the
+window is (n, n+1] — late, which is the direction a protocol timeout should
+err in.
+
+Cost: nothing in DGROUP (48,176 of 65,536, unchanged — the change is code,
+not data), and 16 bytes of image, 202,294 → **202,310**, needing 216,582 of
+396,224. No upstream edit; still eleven.
+
+### What the packet log actually shows
+
+Two runs, same 32,768-byte fixture of pseudo-random bytes containing all 256
+values, MS-DOS 3.1 under MAME, 9600, `CKERMITW -l /dev/seriala -b 9600 -r`,
+no `-d`. **Both byte-exact** (`cmp` after pulling the file back off the
+image).
+
+| | run 1 | run 2 (`set receive timeout 20` on the host) |
+|---|---:|---:|
+| host timeouts | 2 | **1** |
+| retransmissions | 4 | **1** |
+| elapsed / rate | 60 s, 537 cps | **54 s, 606 cps** |
+| longest packet | 3,905 | 3,099 |
+| `rxpeak` | 547 of 4096 | 500 of 4096 |
+| `rxlost` / `rxfull` | 0 / 0 | 0 / 0 |
+
+`logpkt('S',...)` at `ckcfns.c:2002` is commented "Log the resent packet", so
+**an uppercase `S-` line in the packet log is a retransmission** and a
+`<timeout>` line is `logpkt('r',-1,"<timeout>",0)` from `ckcfns.c:2900`.
+Those two facts make the log countable, and they are the cheapest instrument
+this section adds.
+
+Every `r-` line in both runs decodes to type **`Y`**. The Victor ACKs, always,
+and never NAKs — which is what a receiver whose timer never fires looks like.
+The duplicate ACKs (`r seq=07` twice, `r seq=08` twice in run 1) are the
+Victor re-ACKing a packet the *host* sent twice, not the Victor prompting for
+anything.
+
+### Where the timeouts do come from
+
+Both runs put every timeout at the same place: **the packet immediately after
+C-Kermit's slow start doubles the length.**
+
+```
+run 1   s seq=06  1953   ACKed
+        s seq=07  3905   <timeout>, resent          <-- first 3.9K packet
+run 2   s seq=05   977   ACKed
+        s seq=06  1953   <timeout>, resent          <-- first 1.9K packet
+```
+
+and in both, after the host backs the length off and climbs again — run 2
+reaches 3,099 with no further trouble — nothing else times out. That is a
+round-trip estimator being handed a packet whose transmission time just
+doubled: 3,905 bytes at 9600 is **4.1 seconds of line time on its own**, and
+the estimate feeding the host's timer was built from packets a quarter that
+long. Raising the host's floor to 20 s halved the damage and bought 13% of
+throughput, and it is a **host** setting — nothing on the Victor changed
+between those two runs.
+
+So the standing "one timeout and two retransmissions, not diagnosed" is
+diagnosed, and it is not a defect in this port. `SET RECEIVE TIMEOUT` on the
+host is the mitigation. (`SET TIMER OFF` is **not** a command in C-Kermit
+9.0.302 — it is rejected with "No keywords match"; the dynamic-timer flag
+`rttflg` is set by the keyword form of `SET RECEIVE TIMEOUT`, per
+`ckuus7.c:6960`.)
+
+### The stall is still there, and now has four readings
+
+`rxpeak` across every long-packet run to date: **502** (§16k, ring 512),
+**502** (§16k, ring 4096), **547**, **500**. Four readings inside 10% of each
+other across two ring sizes, two fixtures and longest-packets from 2,668 to
+3,905. §16k's reading of this — one fixed stall of roughly half a second at
+9600, not a rate deficit — survives a second fixture, and it is still
+**unidentified**. The inter-packet file write remains the obvious candidate
+and remains un-isolated.
+
+`ckvictor.c`'s `v9k_write()` sees *every* write, not just the comm device
+(anything that is not `ttyfd` falls through to the library), and
+`gettimeofday()` next to it already reads INT 21h `AH=2Ch` for hundredths.
+Timing the non-tty writes there is an instrument that needs no upstream edit
+and has not been built.
+
 ---
 
 ## 15. Open questions
@@ -4231,19 +4337,24 @@ had two.
   **4096**, with `rxpeak` added so `rxfull = 0` can be told from "ten bytes
   from the edge". `MYBUFLEN` is exonerated and needed no upstream edit.
   `DRPSIZ` is **4000** and 32,768 bytes transfer byte-exact. (§16k)
-- **What is the ~502-byte stall?** `rxpeak` is the same 502 with a 512-byte
-  ring and a 4096-byte one, so it is one fixed pause of about 523 ms at
-  9600, not a rate deficit. The file write between packets is the obvious
-  candidate and has **not** been isolated. It bounds how far the ring can
-  be trimmed back, and it is the thing to understand before 38400, where
-  the same stall is four times as many bytes. (§16k)
-- **One timeout and two retransmissions survive in a clean 32 KB run**,
-  with `rxfull = 0`, so they are not the ring. Suspicion, from the source
-  and unmeasured: `gtimer()` has whole-second resolution, so `getrtt()`
-  drives `rcvtimo` to 3, and this port's `alarm(n)` fires in (n−1, n] —
-  *early*, contradicting its own comment in `ckvictor.c` §0d. Rounding the
-  deadline up is a one-line change in our own file and is the first thing
-  to try. (§16k)
+- **What is the ~502-byte stall?** `rxpeak` reads 502, 502, 547 and 500
+  across two ring sizes, two fixtures and longest-packets from 2,668 to
+  3,905, so it is one fixed pause of about half a second at 9600, not a
+  rate deficit. The file write between packets is the obvious candidate
+  and has **not** been isolated. It bounds how far the ring can be trimmed
+  back, and it is the thing to understand before 38400, where the same
+  stall is four times as many bytes. The instrument to build is a timer
+  around the non-tty writes in `v9k_write()`, which sees every one of them
+  and sits next to a `gettimeofday()` already reading INT 21h `AH=2Ch`.
+  (§16k, §16l)
+- ~~**One timeout and two retransmissions survive in a clean 32 KB run.**~~
+  **Diagnosed, and not ours.** The roundup was made and is right, but the
+  Victor sends **only ACKs, never a NAK**, across two byte-exact 32 KB
+  receives — its timer never fires. Every timeout is the *host's*, and each
+  one lands on the packet where C-Kermit's slow start doubles the length
+  and hands its round-trip estimator 4.1 seconds of line time it did not
+  predict. `SET RECEIVE TIMEOUT 20` on the host took 2 timeouts and 4
+  retransmissions down to 1 and 1, and 537 cps up to 606. (§16l)
 - **Window 2** is the increment after that, and it is the one that removes
   the "only one packet in flight" property the missing flow control relies
   on. `DFWSIZ` is still 1.

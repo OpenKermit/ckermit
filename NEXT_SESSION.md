@@ -1,97 +1,80 @@
 # Next session
 
-Handoff for the Victor 9000 port, written 5 August 2026 (third session that
-day). **Step 8a is done. The port sends and receives 4,000-byte packets and
-32,768 bytes transfer byte-exact.**
+Handoff for the Victor 9000 port, written 5 August 2026 (fourth session that
+day). **The alarm roundup is in, and the retransmissions it was supposed to
+fix turned out not to be ours at all.**
 
-**Read `PORTING.md` §16k first** — it is this session and it retracts two
-claims from §16j. §15 closed one question and opened two. §13 step 8a is now
-DONE. The headline DGROUP figures in §0 and §1 were stale since §16j and are
-corrected.
+**Read `PORTING.md` §16l first** — it is this session. It keeps §16k's
+derivation about `alarm()` firing early (that part was right), retracts the
+hypothesis attached to it, and closes the "one timeout and two
+retransmissions, not diagnosed" item that has been open since §16k.
 
 ---
 
 ## 1. What changed this session
 
-**The (480, 968] receive ceiling was two ceilings, and the outer one was the
-instrument.** `-d` costs about **25 ms per received byte** — `ttinl()` emits
-a debug line per byte and `ckhexdump()` dumps the buffer per read; one file
-produced 4,274 `TTINL myread char` lines. Against the host's 15-second packet
-timeout that is a ceiling in bytes: 480 × 25 ms = 12 s squeaks through, 968 ×
-25 ms = 24 s never does. **Every run that established (480, 968] was a `-d`
-run.** With `-d` dropped, the same binary at the same `DRPSIZ=4000` delivered
-the same 968-byte packet first try, 2,048 bytes in 4 seconds.
+**The alarm deadline is rounded up, and it stays.** `ckvictor.c`'s `alarm()`
+now records `time() + secs + V9K_ALARM_ROUNDUP`. §16k's derivation was
+correct: `time()` is a floor, so a `time()+n` deadline armed at real T+0.9 is
+reached only n−0.9 seconds later — the window is **(n−1, n]**, *early*, and
+the §0d comment claiming "never early" was wrong. Rounded up it is (n, n+1],
+which is the direction a protocol timeout should err in. The roundup is taken
+back off the returned time-remaining so `ttoc()`, which subtracts from that
+value and re-arms, still works in the seconds its caller asked for.
 
-**Underneath it the real limit was the ring — the suspect §16j dismissed.**
-Without `-d`, packets of 968 and 1,952 ACKed and 3,904 died, with
-`rxpeak = 502 of 512`. `V9K_RXBUFSIZ` is now **4096**. `MYBUFLEN` is
-exonerated and **no upstream edit was needed** — still eleven.
+No upstream edit — **still eleven**. DGROUP **unchanged** at 48,176 of 65,536
+(the change is code, not data). Image 202,294 → **202,310**, needs 216,582 of
+396,224.
 
-**`rxpeak` is new and it is what made this readable.** `rxfull = 0` alone
-cannot tell "never close" from "ten bytes from the edge", and that was the
-whole story. All three counters now print **to stdout at `atexit()` in every
-build**, because a run fast enough to measure is exactly a run that cannot
-carry a debug log:
+**But it fixed nothing observable, and the packet log says why in one line:
+the Victor never times out.** Across two complete 32,768-byte receives, every
+single `r-` line decodes to type **`Y`**. **Not one NAK.** A receiver whose
+timer fires does not look like that, so no rounding of that timer could have
+changed a retransmission.
 
-```
-v9k: rxlost=0 rxfull=0 rxpeak=502 of 4096
-```
+**The timeouts are the host's, and they land on slow-start doublings.** Both
+runs put every timeout on the packet immediately after C-Kermit doubles the
+length — run 1 at the first 3,905-byte packet, run 2 at the first 1,953-byte
+one — and in both, after the host backs off and climbs again, nothing else
+times out. 3,905 bytes at 9600 is **4.1 seconds of line time on its own**,
+against an estimate built from packets a quarter that long.
 
-**The number I got wrong on the way, and it matters for 38400.** I sized the
-ring expecting the backlog to scale with packet length. It does not:
+**Measured**, 9600, MS-DOS 3.1 under MAME, `CKERMITW -l /dev/seriala -b 9600
+-r`, no `-d`, 32,768-byte fixture of pseudo-random bytes containing all 256
+values. **Both byte-exact** (`cmp` after pulling the file back off the image):
 
-| ring | longest packet | `rxpeak` |
-|---:|---:|---:|
-| 512 | 2,668 | **502** of 512 |
-| 4096 | 3,605 | **502** of 4096 |
-
-The same 502 with 8× the ring. It is **one fixed stall of ~523 ms at 9600**,
-not a rate deficit. Which stall is *not established* — the inter-packet file
-write is the obvious candidate and was not isolated. So 4096 is sized to hold
-a whole maximum-length packet, which is the only assumption that survives
-something else getting slower.
-
-**Measured, both changes in**, 9600, MS-DOS 3.1 under MAME, Victor as
-`CKERMITW -l /dev/seriala -b 9600 -r`, no `-d`:
-
-- **32,768 bytes byte-exact** (`cmp` after pulling it back off the image),
-  56 s, **582 cps**, longest packet 3,605
-- 16,384 bytes byte-exact on the previous build (ring 512, `rxpeak` 502/512)
-- 2,048 bytes byte-exact, 4 s
-
-| | §16j | now |
+| | run 1 | run 2 (`set receive timeout 20` on the host) |
 |---|---:|---:|
-| DGROUP | 44,592 (68%) | **48,176 (73%)** |
-| `V9K_RXBUFSIZ` | 512 | **4096** |
-| `DRPSIZ` | 90 | **4000** |
-| `ckermitw.exe` | 202,212 | **202,294** |
-| needs at load | 212,900 | **216,566** of 396,224 |
-| spare | 183,324 | **179,658** |
+| host timeouts | 2 | **1** |
+| retransmissions | 4 | **1** |
+| elapsed / rate | 60 s, 537 cps | **54 s, 606 cps** |
+| longest packet | 3,905 | 3,099 |
+| `rxpeak` | 547 of 4096 | 500 of 4096 |
+| `rxlost` / `rxfull` | 0 / 0 | 0 / 0 |
+
+Nothing on the Victor changed between those two runs. The mitigation is a
+**host** setting.
 
 ---
 
 ## 2. Do this next, in rough priority order
 
-**Round the alarm deadline up — one line, in our own file.** This is the top
-item and it is the leading explanation for the one timeout and two
-retransmissions that survive in the clean 32 KB run (`rxfull = 0`, so not the
-ring). Derived from the source, **not measured**:
+**Isolate the ~502-byte stall.** Now the top item. `rxpeak` reads 502, 502,
+547, 500 across two ring sizes, two fixtures and longest-packets from 2,668
+to 3,905 — four readings inside 10% of each other, so §16k's "one fixed pause
+of about half a second at 9600, not a rate deficit" survives a second
+fixture. Still unidentified.
 
-- `CK_TIMERS` is on and `rttflg` defaults to 1, so `rcvtimo` comes from
-  `getrtt()`, computed from `gtimer()` — which has **whole-second
-  resolution**. With `mintime = 1` the file-receiver path lands on 3.
-- `ckvictor.c`'s `alarm()` records `time() + secs` and fires when `time()`
-  reaches it, so `alarm(n)` armed part-way through a second fires in
-  **(n−1, n]** — *early*, by up to a full second. **The comment in §0d claims
-  the opposite** ("never early") and is wrong.
-- At `rcvtimo = 3` that is a 2 s worst case against 4.2 s of line time for a
-  3,999-byte packet.
+The instrument is cheap and needs no upstream edit: **`v9k_write()` in
+`ckvictor.c` sees every write, not just the comm device** — anything that is
+not `ttyfd` falls through to the library — and `gettimeofday()` a few hundred
+lines below already reads INT 21h `AH=2Ch` for hundredths. Time the non-tty
+writes there, keep the max, and print it with the ring counters at
+`atexit()`. If the max is ~0.5 s the inter-packet file write is the stall and
+the question is closed.
 
-Fix is `v9k_alarm_at = now + secs + 1`. Then re-run the 32 KB fixture and
-count retransmissions in the host's packet log.
-
-**Isolate the ~502-byte stall.** It bounds how far the ring could be trimmed
-and it is four times as many bytes at 38400. §16k did not isolate it.
+It bounds how far the ring could be trimmed and it is four times as many
+bytes at 38400.
 
 **Real hardware.** Still nothing, ever. Unchanged and still the largest gap.
 
@@ -109,24 +92,28 @@ every `NOTCPIP` build, and it silently costs `getdialenv()` too.
 
 ## 3. Instruments
 
+- **An uppercase `S-` line in a C-Kermit packet log is a retransmission**
+  (`logpkt('S',...)`, `ckcfns.c:2002`, commented "Log the resent packet") and
+  a `<timeout>` line is a timeout (`ckcfns.c:2900`). So
+  `grep -c '^S-' host.pkt` and `grep -c '<timeout>' host.pkt` count a run.
+  New this session and it is what made §16l countable.
+- **The packet log escapes control characters, so `^A` is two bytes.** The
+  type character is body[4], not body[3]. Getting this wrong prints the
+  sequence number where the type should be and every packet looks alike.
 - **`v9k: rxlost=… rxfull=… rxpeak=… of …` on stdout at exit, every build.**
-  The one that mattered this session. A `.BAT` that redirects stdout catches
-  it; `STEPE.BAT` is the pattern.
-- **`XFLAGS=-dDRPSIZ=90`** — packet length is a one-flag experiment now, both
-  here and in `ckcker.h`. This is how the ceiling was bisected.
+  A `.BAT` that redirects stdout catches it; `STEPE.BAT` is the pattern.
+- **`XFLAGS=-dDRPSIZ=90`** — packet length is a one-flag experiment, both
+  here and in `ckcker.h`.
 - **Do NOT combine `-dKEEP_DEBUG` with long packets and believe the result.**
-  That is the whole lesson of §16k. `-d` is still the right instrument for
-  anything that is not throughput.
+  That is the whole lesson of §16k — `-d` costs ~25 ms per received byte.
+  It is still the right instrument for anything that is not throughput.
 - **`python3 .probe/mzsize.py ckermitw.exe`** — run this, not `ls -l`.
 - **`CKERMITW -d -h` is the 2.5-minute oracle** — no serial line, no `socat`,
   no host `kermit`. Reaches `sysinit()` → `uname()` and `inibufs`. Does not
   reach `rpar()`, so it cannot tell you the negotiated packet length.
 - **Decode the negotiation yourself**: `MAXL TIME NPAD PADC EOL QCTL QBIN
   CHKT REPT CAPAS WINDO MAXLX1 MAXLX2`, each `unchar(c) = c - 32`, long
-  length = `MAXLX1*95 + MAXLX2`.
-- **Packet lengths straight off the host log**: `awk '{print length($0)}'
-  host.pkt | sort -n | tail`. The wire packet is the line minus the 8-char
-  `s-NN-TT-` prefix.
+  length = `MAXLX1*95 + MAXLX2`. (Confirmed 3,999 and window 1 this session.)
 - **There is no `-fstack-usage` under Open Watcom.** Read the source for new
   automatics; check `sub sp,N` in `wdis` if it matters.
 
@@ -134,9 +121,11 @@ every `NOTCPIP` build, and it silently costs `getdialenv()` too.
 
 ## 4. Things that are known-incomplete
 
-- **One timeout + two retransmissions in a clean 32 KB run.** §2. Not the
-  ring (`rxfull = 0`). Not diagnosed.
-- **The ~502-byte stall is unidentified.** §2.
+- **The ~502-byte stall is unidentified.** §2. Now the top item.
+- **`SET TIMER OFF` is not a C-Kermit 9.0.302 command** — it is rejected with
+  "No keywords match". The dynamic-timer flag `rttflg` is set by the keyword
+  form of `SET RECEIVE TIMEOUT` (`ckuus7.c:6960`). A bare number sets the
+  override only, which is what run 2 above actually did.
 - **`SET FILE COLLISION` is `BACKUP`, and BACKUP cannot work on FAT.**
   `znewn()` appends `.~N~` to the whole name — not a legal 8.3 name — so a
   receive onto an existing name is refused with reason "name". Symptom: S, F,
@@ -161,7 +150,7 @@ every `NOTCPIP` build, and it silently costs `getdialenv()` too.
 
 **The gap for the interactive parser** — `XFLAGS=-dKEEP_ICP` plus
 `.probe/mzsize.py` settles it in one build and no MAME run. Not re-measured
-since `NOFLOAT`, and note the ring just spent 3,584 bytes of DGROUP.
+since `NOFLOAT`, and note the ring spent 3,584 bytes of DGROUP in §16k.
 
 **The µPD7201 interrupt-acknowledge sequence.** Unsettled, gates 38400.
 
@@ -172,27 +161,32 @@ around, not diagnosed.
 
 ## 6. The harness
 
-§16a, §16d, §16g–§16k have it in full. What this session added or corrected:
+§16a, §16d, §16g–§16l have it in full. What this session added or corrected:
 
-- **Put the Victor in `-r` (receive), not `-x` server mode, when the point is
-  a receive measurement.** A failed server run can leave the server wedged so
-  the host's `finish` never lands, and then MAME's `-seconds_to_run` kills the
-  program before it flushes anything. `-r` always exits.
+- **The whole harness is reproducible from scratch in about 6 minutes per
+  run.** `socat` first (single-use `-bitb`), then MAME, then wait ~105 s for
+  the boot and `-autoboot_delay 30` before starting the host `kermit`. The
+  sender's own S-packet retries cover the slack in that estimate.
+- **MAME exits on its own** when `-seconds_to_run` expires in this build
+  (§16k's observation, confirmed twice more). `-log` still writes no
+  `mame.log`, so §16a's "poll for Average speed" does not work — wait on the
+  process, and match `[m]ame/mame victor9k` so `pgrep` does not match the
+  polling shell.
+- **A run takes ~300 emulated seconds for a 32 KB receive**: boot, plus 30 s
+  autoboot delay, plus ~60 s of transfer.
+- **Put the Victor in `-r` (receive), not `-x` server mode**, when the point
+  is a receive measurement. A failed server run can wedge the server so the
+  host's `finish` never lands. `-r` always exits.
 - **One `kermit` attempt per MAME run, and unique log names per run.** `log
-  packets` *truncates*, so attempt 2 destroyed attempt 1's evidence — that
-  cost a run this session.
-- **Size the fixture to the packet length.** 2,048 bytes reaches the 968-byte
-  rung of C-Kermit's slow start; 16 KB reaches ~2,600; 32 KB reaches ~3,600.
-- **Verify by pulling the file back off the image and `cmp`**, rather than a
-  second transfer — no host `receive` timing to get wrong.
-- **Wait on the run script's PID.** `pgrep -f "mame victor9k"` matches your
-  own polling shell.
-- `~/projects/mame/victor_kermit.img.bak-20260805-ceiling` is the backup from
+  packets` *truncates*.
+- **Verify by pulling the file back off the image and `cmp`.**
+- `~/projects/mame/victor_kermit.img.bak-20260805-alarm` is the backup from
   before this session's runs.
-- **On the image now:** the shipping `CKERMITW.EXE` (202,294, `DRPSIZ` 4000,
-  ring 4096), `STEPE.BAT` (`-r`, no `-d`, stdout to `STEPE.OUT`), `STEPC.BAT`
-  (the `-d` server run that reproduced §16j), plus §16h–§16j leftovers.
-  `RCVA/RCVB/RCVC.DAT` are receive fixtures — delete before reusing a name.
+- **On the image now:** the shipping `CKERMITW.EXE` (202,310, `DRPSIZ` 4000,
+  ring 4096), `STEPF.BAT`/`STEPG.BAT` (both `-r`, no `-d`, stdout to
+  `STEPF.OUT`/`STEPG.OUT`), plus §16h–§16k leftovers. `RCVA/RCVB/RCVC.DAT`
+  and now `RCVD/RCVE.DAT` are receive fixtures — delete before reusing a
+  name.
 - Everything else from §16i's list still holds: `-bitb` is single-use so start
   `socat` first with `fork`; `.BAT` files need CRLF; `-autoboot_command` takes
   the literal `\n`; digits come through shifted; MS-DOS 3.1 cannot redirect
