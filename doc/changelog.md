@@ -1,6 +1,8 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.0.507 (not yet released)
+# C-Kermit 11.0.507
+
+August 5, 2026
 
 - Fixed a bug (in commit 70ac526a7) where a pty didn't have IXON forced off,
   which manifested itself when doing an unprefixed send to gkermit.  The bug
@@ -9,6 +11,8 @@
 
 - Applied fixes for compilation under OpenVMS x86_64.  Thank you Tony
   Nicholson for this submission.
+
+- List IPv6 support in `SHOW FEATURES`.
 
 # C-Kermit 11.0 wide announcement (11.0.506)
 
