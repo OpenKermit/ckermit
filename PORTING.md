@@ -1013,7 +1013,12 @@ Being precise about this matters, because the two are easy to conflate.
   `VICTORFAST=1`) and it has carried sustained kernel output during real
   hardware debugging sessions. The physical layer at 38400 — divisor, clock
   gating, chip init, 1488/1489 line drivers, cabling — is not in question.
-  (MAME caps around 9600; 38400 is a real-hardware-only path.)
+  **MAME caps around 9600 and 38400 is a real-hardware-only path.** The cap
+  is not configuration: above 9600 the emulator cannot execute the machine
+  fast enough to meet the serial timing thresholds, and the other end of the
+  `-bitb` socket is a real host at a real line rate that will not wait. So
+  no rate above 9600 can be tested in this harness at all — see §16n, which
+  also measures the emulator at ~99% of real time *at* 9600.
 - **Bidirectional serial at 9600 on channel B**, polled, via the FreeDOS
   INT 14h driver — `CTTY COM2` drove a full shell session on real hardware.
 
@@ -4299,6 +4304,12 @@ Run 2 was slower entirely because four retransmissions put 7.2 KB more on
 the wire. The Victor's own overhead did not move. Of that ~12.5 s the file
 writes are 3.5–7.0 s, measured; the rest is decode and protocol.
 
+> **Read §16n's 38400 subsection alongside this.** MAME cannot run this
+> machine above about 9600 — the emulation is too slow to meet the timing
+> thresholds against a real host on the other end of the socket — so
+> everything below is arithmetic and no run in this harness can ever test
+> it. §16n also revises the figure to ~1,630 cps.
+
 This is the number that matters for 38400, and it is not encouraging in the
 way one would hope: line time falls by four but the ~12.5 s does not move at
 all, so 32 KB would take about 23 s rather than 9 — roughly **1,400 cps, not
@@ -4458,7 +4469,7 @@ right in spirit and wrong by a factor of nine about the tick. What follows:
 The aggregate-versus-individual warning was already in the handoff; what is
 new is that the quantum is 0.5 s, which makes it much stronger than it read.
 
-### What this says about 38400
+### What this says about 38400, and what the harness cannot say at all
 
 §16m's arithmetic, with the new dead time: line time for 32 KB falls by four
 to about 10.3 s, the dead time is now 9.8 s rather than 12.5, so 32,768
@@ -4468,6 +4479,41 @@ suggests. The conclusion is unchanged and only slightly less bleak:
 **38400 is a CPU problem now, much less a disk one.** Of the 9.8 s that
 remains, about 1 s is disk; the rest is decode and protocol and has never
 been profiled.
+
+**But that projection cannot be tested here, and it is worth being blunt
+about why.** §11's "MAME caps around 9600" is not a configuration limit, it
+is the emulator running out of time: above 9600 the emulation cannot execute
+the machine fast enough to meet the serial timing thresholds, because the
+other end of the `-bitb` socket is a *real* host transmitting at a real line
+rate through `socat` and does not slow down to match. So **38400 is a
+real-hardware-only path for this port, and every 38400 figure in §16m and
+§16n is arithmetic, not measurement.** Nothing in this harness will ever
+confirm or refute them.
+
+That makes the emulator's own speed at 9600 a number worth having, and both
+runs give it for free: `-seconds_to_run 300` and MAME exited **302 s of wall
+clock later, in both runs** (launch is `sleep 105` before the host `kermit`
+starts, so 07:00:39 → 07:05:41 and 07:07:03 → 07:12:05). **Emulated time
+tracked real time to within about 1%** — which is exactly what one would
+expect just below the ceiling, and it is what makes the 9600 numbers
+comparable at all. If it had drifted, the "dead time" would have been partly
+the emulator's and the whole of §16n would be measuring the wrong machine.
+
+Two caveats survive that, and neither is closed:
+
+- **Real-time is not the same as cycle-accurate.** MAME keeping up with the
+  wall clock says emulated seconds and real seconds agree; it says nothing
+  about whether the emulated 8088 retires instructions at the rate real
+  silicon does. The 9.8 s of decode and protocol is a faithful measurement
+  of *this emulated machine* and an untested estimate of a real one.
+- **The disk timing is almost certainly MAME's and not the Victor's.**
+  0.124 s of fixed cost per `write()` is very slow for a hard disk, and the
+  emulator has no reason to model the real drive's overheads faithfully. The
+  **direction** of §16n's result is safe on any hardware — fewer, larger
+  writes cannot be worse — but the **size** of the saving may not transfer,
+  and 8,192 could turn out to be over-provisioned for a real Victor. It
+  costs far heap and nothing else, so it is not worth pre-emptively undoing;
+  it is worth re-measuring the first time this runs on the real machine.
 
 ### Sizes
 

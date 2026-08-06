@@ -87,11 +87,37 @@ projects to ~20 s for 32 KB, **~1,630 cps** (§16m said ~1,400). Still not
 the ~2,400 the line rate alone suggests. It is now **a CPU problem, much
 less a disk one**.
 
+### The harness limit that bounds all of that
+
+**MAME cannot run this machine above about 9600.** Not a configuration
+limit — above 9600 the emulation is too slow to meet the serial timing
+thresholds, and the host on the other end of the `-bitb` socket is real and
+does not slow down to match. So **38400 is a real-hardware-only path, and
+every 38400 figure in §16m and §16n is arithmetic that nothing in this
+harness can test.**
+
+At 9600 the emulator is faithful, and both runs measured it for free:
+`-seconds_to_run 300`, MAME exited **302 s of wall clock later, twice**.
+Emulated time tracks real time to ~1%, which is what makes any of the 9600
+numbers comparable. Two caveats stand:
+
+- **Real-time is not cycle-accurate.** The 9.8 s is a faithful measurement
+  of the *emulated* machine and an untested estimate of a real one.
+- **The disk timing is almost certainly MAME's, not the Victor's.** 0.124 s
+  fixed per `write()` is very slow for a real drive. §16n's **direction**
+  (per call, not per byte) is safe anywhere; the **size** of the saving may
+  not transfer, and 8,192 may be over-provisioned for real hardware. It
+  costs only far heap, so leave it — and re-measure on the real machine.
+
 ---
 
 ## 2. Do this next, in rough priority order
 
-**Real hardware.** Still nothing, ever, and by some distance the largest gap.
+**Real hardware.** Still nothing, ever, and by some distance the largest
+gap — and note it is now the *only* way to get at two of this port's open
+questions, since MAME cannot go above 9600. Anything about 19200, 38400, the
+µPD7201 interrupt-acknowledge sequence, or the true cost of a disk write
+needs the real machine.
 
 **Profile the remaining 8.8 s.** This is the open end of §16n and the
 instrument for it does not exist yet. The §0e tag says *where* the
@@ -172,7 +198,8 @@ the model says 16,384 saves 0.25 s.
 
 **The µPD7201 interrupt-acknowledge sequence.** Unsettled, gates 38400 —
 though §16m says the ring is not what stands in the way, and §16n says the
-disk is no longer most of what does.
+disk is no longer most of what does. **Real hardware only**: MAME cannot
+reach 38400, so this cannot be settled in the current harness at all.
 
 **Why `binmode.obj`'s near init record does not work here** (§16h).
 
@@ -185,6 +212,10 @@ twice without trouble:
 
 - `socat` first (single-use `-bitb`), then MAME, then wait ~105 s before
   starting the host `kermit`. `-seconds_to_run 300` for a 32 KB receive.
+- **9600 is the harness ceiling**, and it is the emulator, not a setting.
+  Do not spend a run trying 19200 or 38400.
+- **`-seconds_to_run` against wall clock is a free speed check** — 302 s for
+  300 means the emulator kept up and the timings mean something.
 - **MAME exits on its own** when that expires; wait on the *process* and
   match `[m]ame/mame victor9k` so `pgrep` does not match the polling shell.
 - **Use `-r`, not `-x`**, when the point is a receive measurement.

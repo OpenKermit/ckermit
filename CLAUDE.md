@@ -137,6 +137,18 @@ always the first"**: every timing figure the port has ever printed is a
 multiple of 50, so **this machine's DOS clock advances by half a second**
 and no individual write has ever been timed. Quote `tot=`, never `max=`.
 
+**MAME cannot run this machine above about 9600, so every 38400 figure in
+§16m and §16n is arithmetic and no run in this harness can test it.** The
+cap is not configuration: above 9600 the emulation is too slow to meet the
+serial timing thresholds, and the real host on the other end of the `-bitb`
+socket does not slow down to match. **38400 is a real-hardware-only path.**
+At 9600 the emulator is faithful — §16n measured 302 s of wall clock for
+`-seconds_to_run 300`, twice — which is what makes the 9600 numbers
+comparable at all. Two caveats stand: real-time is not cycle-accurate, and
+the **disk timing is almost certainly MAME's rather than the Victor's**
+(0.124 s per `write()` is very slow for a real drive), so §16n's *direction*
+transfers to hardware and the *size* of its saving may not.
+
 **§16l says the retransmissions are not ours, and that is the thing to know
 before spending anything on them.** `alarm()` did fire up to a second early
 — `time()` is a floor, so a `time()+n` deadline lands in (n−1, n], and the
