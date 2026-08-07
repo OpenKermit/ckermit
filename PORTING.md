@@ -5503,9 +5503,29 @@ The §16o bench, unchanged. Legs V, W, X, Y, Z at 38400 and U at 19200, SASI;
 transfer in every leg was byte-exact against the fixture; what varied was
 what it cost to get there.
 
-**Still not measured: elapsed time and cps.** No run in this port's history
-has recorded them, and leg Y is the first one where the answer would be
-interesting. It is the oldest open item on the list.
+**Still not captured: elapsed time and cps** — which is a narrower claim
+than "not measured". It has been on the operator's screen for every run of
+this project, and in no file, because **C-Kermit suppresses its transfer
+display when stdout is redirected** and a redirect is how every `v9k:`
+counter reaches the image. Two instruments close that: the Victor now
+prints `elapsed=<cs> wire=<B/s>`, latched on the first read that returns
+data so startup dead air is excluded, and every `.ksc` take-file ends in
+`statistics`.
+
+What the counters already bound — line time plus the dead time the Victor
+measures, so these are **ceilings** on cps rather than values, `txgap`
+covering only ACK-sent to next-read:
+
+| leg | wire bytes | line | measured dead | elapsed ≥ | cps ≤ |
+|---|---:|---:|---:|---:|---:|
+| **Y** 38400 asm | 37,569 | 9.8 s | 2.0 s | 11.8 s | **2,780** |
+| Z 38400 C | 45,412 | 11.8 s | 4.5 s | 16.3 s | 2,010 |
+| U 19200 C | 37,569 | 19.6 s | 0.5 s | 20.1 s | 1,630 |
+
+§16n's ~1,630 cps projection for 38400 sits at leg Y's *floor*, not near its
+ceiling, so it is probably pessimistic — but that is an inference from
+bounds and not a measurement, and it stays that way until one run uses the
+instruments above.
 
 ---
 

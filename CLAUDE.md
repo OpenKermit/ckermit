@@ -50,7 +50,7 @@ none.** It was 17 until `NOFLOAT` (§16j): dropping `GFTIMER` moves `ztime()`
 onto upstream's `ZTIMEV7` branch, whose K&R redeclarations of `localtime()`
 and `time()` produce two more sign mismatches at `ckutio.c:12319-12320`.
 DGROUP is 48,272 of 65,536 (73%) after the linker adds libc; `ckermitw.exe`
-is 204,404 bytes and needs 218,580 at load, of the 396,224 the machine
+is 204,602 bytes and needs 218,826 at load, of the 396,224 the machine
 offers.
 
 **It runs on a real Victor 9000, and PORTING.md §16o is the section that
@@ -101,7 +101,12 @@ longer measures pre-ACK turnaround (§16m); it measures how far decoding
 falls behind during a 3,991-byte packet at full rate. §16k's sizing rested
 on retransmission behaviour that no longer happens.
 
-**Still never measured: elapsed time and cps.** Oldest open item.
+**Still never *captured*: elapsed time and cps.** On the operator's screen
+every run and in no file, because C-Kermit's transfer display goes away
+under the redirect that records the `v9k:` counters. Both instruments now
+exist — the Victor prints `elapsed=`/`wire=`, and the take-files end in
+`statistics` — and no run has used them yet. The counters bound leg Y at
+**≤ 2,780 cps** against §16n's 1,630 projection.
 
 **§16q built the instrument §16p asked for.**
 `lost evt`/`max`/`tag`/`fd`/`lostat`/`lostend` latch on the overrun path:
@@ -320,7 +325,7 @@ socket is single-use, so start `socat` first and never probe the port.
    The **heap is outside it**: `malloc()` is `_fmalloc` in the large model,
    so the packet buffers do not compete for the segment at all. What bounds
    them is real-mode RAM: the machine hands out 396,224 bytes and the image
-   needs 218,580, leaving 177,644 — out of which the far heap then takes
+   needs 218,826, leaving 177,398 — out of which the far heap then takes
    about 25K of packet buffers. **The receive ring is the exception**: at
    4,096 bytes it is `.bss` and comes straight out of the 64K (§16k).
    **Run `make -f victorow.mak sizes` after any change that could add static

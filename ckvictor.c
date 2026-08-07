@@ -489,6 +489,27 @@ v9k_centis_since(t0) long t0;
   opposite sides of it -- fd > 2 is the file zoutdump() is filling, fd <= 2
   is the console.
 */
+/*
+  Wall clock across the transfer, which this port went its whole life
+  without recording.  SS16t closed the last defect with cps still unmeasured
+  and the handoff claiming it "has never once been recorded" -- which was
+  half true: it was on the operator's screen every run and in no file ever,
+  because C-Kermit suppresses its transfer display when stdout is
+  redirected, and a redirect is how every counter here gets captured.
+
+  Latched on the first read that returns data rather than at ttopen(), so
+  the startup dead air -- which SS16r measured at nine S retransmissions in
+  one run -- is not counted as transfer time.  Closed at release.  One INT
+  21h at each end, and one compare per drain call, which happens about
+  once per 1,024 bytes.
+
+  Read it with the quantum in mind (v9k_centis() above): a single interval
+  is good to half a second, so 12 seconds carries about 4%.  That is fine
+  for a total and useless for anything per-packet.
+*/
+static long v9k_run_t0  = 0L;
+static int  v9k_run_on  = 0;
+
 static unsigned int v9k_wf_n = 0, v9k_wc_n = 0;     /* How many          */
 static long v9k_wf_max = 0L, v9k_wc_max = 0L;       /* Worst one, centis */
 static long v9k_wf_tot = 0L, v9k_wc_tot = 0L;       /* All of them       */
@@ -596,6 +617,10 @@ v9k_comm_read(fd,buf,n) int fd; void * buf; unsigned int n;
             rc = v9k_ser_get((char *)buf,(int)n);
             v9k_wtag = V9K_TAG_DRAIN;
             if (rc > 0) {
+                if (!v9k_run_on) {      /* First data: start the clock  */
+                    v9k_run_on = 1;
+                    v9k_run_t0 = v9k_centis();
+                }
                 v9k_wtag = V9K_TAG_AFTER(V9K_TAG_DRAIN);
                 return(rc);
             }
@@ -2472,6 +2497,21 @@ v9k_ser_release() {
            v9k_wc_n, v9k_wc_max, v9k_wc_tot);
     printf("v9k: txgap n=%u max=%ld at #%u tot=%ld cs\n",
            v9k_gap_n, v9k_gap_max, v9k_gap_maxn, v9k_gap_tot);
+
+    /*
+      And the wall clock, with the wire rate worked out here because the
+      arithmetic wants a long divide and the reader has a DOS screen.  This
+      is BYTES ON THE WIRE per second, not C-Kermit's file cps -- it counts
+      retransmissions and every packet header, so it is the honest figure
+      for what the line and this handler achieved.  Divide the file size by
+      elapsed for the other one.
+    */
+    if (v9k_run_on) {
+        long el = v9k_centis_since(v9k_run_t0);
+
+        printf("v9k: elapsed=%ld cs wire=%lu B/s\n",
+               el, el ? (v9k_rxbytes * 100L) / el : 0L);
+    }
 }
 
 /*

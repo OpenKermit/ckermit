@@ -27,18 +27,40 @@ v9k: lost evt=0 max=0 tag=0 fd=0
 ```
 
 Still **eleven** guarded upstream edits. DGROUP 48,272 of 65,536 (73%),
-image 204,404, needs 218,580 with 177,644 spare.
+image 204,602, needs 218,826 with 177,398 spare.
 
 ---
 
 ## 1. Do this next, in priority order
 
-**1. Measure elapsed time and cps.** The oldest open item in the project,
-and it has never once been recorded. It is now the interesting number:
-§16n projected ~1,630 cps at 38400 on the grounds that dead time and not
+**1. Measure elapsed time and cps — and the instruments now exist.** This
+was never *captured*, though it has been on the operator's screen every
+run: C-Kermit suppresses its transfer display when stdout is redirected,
+and a redirect is how every counter here gets recorded. Two changes fix
+that and both are in the tree:
+
+- the Victor prints `v9k: elapsed=<cs> wire=<B/s>`, latched on the first
+  read that returns data (so startup dead air is excluded) and closed at
+  release;
+- every `.ksc` take-file ends in `statistics`, which is C-Kermit's own
+  file-cps figure and goes to stdout.
+
+What the existing counters already bound, from line time plus the dead time
+the Victor measures (`txgap` + `wfile`) — these are **ceilings**, since
+`txgap` covers only ACK-sent to next-read and §16m put total dead time much
+higher:
+
+| leg | wire bytes | line | measured dead | elapsed ≥ | cps ≤ |
+|---|---:|---:|---:|---:|---:|
+| **Y** 38400 asm | 37,569 | 9.8 s | 2.0 s | 11.8 s | **2,780** |
+| Z 38400 C | 45,412 | 11.8 s | 4.5 s | 16.3 s | 2,010 |
+| U 19200 C | 37,569 | 19.6 s | 0.5 s | 20.1 s | 1,630 |
+
+§16n projected **~1,630 cps** at 38400 on the grounds that dead time and not
 line time bounds this port, and that projection has shaped every throughput
-argument here. Leg Y is the first run where the answer means anything.
-Nothing but real hardware can measure it.
+argument here. Leg Y's *ceiling* is 2,780, so it looks pessimistic — but a
+ceiling is not a measurement. One run with the two instruments above settles
+it.
 
 **2. Re-do the ring sizing, because the old argument is void.** `rxpeak` is
 **2,621 of 4,096** — the highest ever recorded — with `peaktag = 12`,
@@ -109,8 +131,10 @@ maintain the burst table. Without that, the report would print
 - **`v9k:` lines on stdout at exit, every build.** `isr=`, then
   `rxlost/rxfull/rxpeak`, `peaktag/fd/stall256`, `rxbytes/peakat/stallat`,
   `norx/othrx/rr0/oth`, `lost evt/max/tag/fd`, `lostat/lostend`, `wfile`,
-  `wcon`, `txgap` — plus a `b<N>` row per burst in a `-dV9K_CISR` build
-  without `-dV9K_LEANLOST`.
+  `wcon`, `txgap`, `elapsed/wire` — plus a `b<N>` row per burst in a
+  `-dV9K_CISR` build without `-dV9K_LEANLOST`. **`wire=` is bytes on the
+  wire per second**, retransmissions and headers included; it is not
+  C-Kermit's file cps, which is what the take-files' `statistics` prints.
 - **A byte at 38400 is 260 µs, at 19200 520 µs, at 9600 1,040 µs.** The tree
   said 26 µs in seven places until §16t; if you ever see that figure again
   it is a relic. Both ends are 8N1 — `tcgetattr` returns a *cached* struct
@@ -160,7 +184,10 @@ maintain the burst table. Without that, the report would print
 - **The assembly ISR's overrun branch has never executed.** 38400 is clean
   now, so nothing reaches it. It is transcribed from the C and reviewed in
   `wdis`, and that is all the evidence there is.
-- **Elapsed time and cps have never been measured.** §1 item 1.
+- **Elapsed time and cps have never been captured to a file.** Seen on
+  screen every run, recorded in none, because C-Kermit's transfer display
+  goes away under a redirect. Instruments added; no run has used them yet.
+  §1 item 1.
 
 ---
 
@@ -182,7 +209,9 @@ Power-cycle the Victor *and* the Pico between runs. Fresh target filename
 every run. Do not write to the image while the machine is running.
 
 Take-files in the tree drive the host side:
-`kermit -C "take s16tY.ksc, exit"`.
+`kermit -C "take s16tY.ksc, exit"`. Each ends in `statistics`, so redirect
+that output if you want the host's cps kept:
+`kermit -C "take s16tY.ksc, exit" > s16tY.host`.
 
 **MAME.** Still the right place for anything that would cost a drive to get
 wrong, and it validated `ckvisr.asm` before the bench.
@@ -201,7 +230,8 @@ wrong, and it validated `ckvisr.asm` before the bench.
   boots as `A:`; use `vtg_image_util`, never mtools.
 - Backups: `victor_kermit.img.bak-20260807-asm` is the last one taken
   before the current binaries went on.
-- **On the image now:** `CKERMITW.EXE` (204,404, assembly ISR),
+- **On the image now:** `CKERMITW.EXE` (204,404, assembly ISR — **the
+  204,602 build with the clock is not on it yet**),
   `CKLEAN.EXE` (204,388, `-dV9K_CISR -dV9K_LEANLOST`), `STEPY`/`STEPZ.BAT`
   at 38400, `STEPASM.BAT` at 9600, plus a long tail of older `STEP*` and
   `RCV*` files. Delete before reusing a name.

@@ -1,0 +1,5 @@
+set speed 38400
+set receive timeout 20
+log packets s16sQ.pkt
+send rcvq.dat
+statistics

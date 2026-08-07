@@ -1,0 +1,3 @@
+set speed 19200
+set receive timeout 20
+receive
