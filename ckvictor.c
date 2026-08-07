@@ -1482,10 +1482,32 @@ tcflow(fd,action) int fd; int action;
       driver.  ttoc() calls tcflow(TCOON) only when a single-character
       write has timed out and SET FLOW is XON/XOFF, to unstick a
       transmitter it thinks is held off by an XOFF -- and this port has no
-      interrupt-level flow control to hold it off with (section 1e).  With
-      one channel, a window of 1 and a 512-byte ring there is nothing yet
-      for a water mark to protect.  If streaming ever goes in, this and
-      the ISR's high/low marks arrive together.
+      interrupt-level flow control to hold it off with (section 1e).
+
+      Why nothing needs it yet, stated properly -- the old wording here
+      said "a 512-byte ring", which has been wrong since SS16k took the
+      ring to 4,096.  With a window of one the host sends a packet and
+      waits for our ACK, so bytes in flight never exceed ONE PACKET, and
+      the worst case is a foreground that drains nothing for a whole
+      packet: occupancy equals the packet length.  The longest packet
+      this port has ever put on a wire is 3,991 bytes and the ring is
+      4,096.  rxfull has been 0 in every run ever recorded, including a
+      floppy receive whose writes took 1.5 seconds each (SS16s leg S).
+
+      So the margin is 105 bytes, and it is an accident of DRPSIZ = 4000
+      sitting under V9K_RXBUFSIZ rather than anything anyone chose.  That
+      is why this is a precondition for LONGER PACKETS as well as for
+      windowing, and why it outranks both: raise DRPSIZ past about 4,090
+      and the guarantee above is gone at a window of one.
+
+      When it goes in, two constraints are already established.  The bench
+      cable is three wires (HW_TESTING.md SS1.2), so RTS/CTS is not
+      available and it has to be XON/XOFF -- safe because Kermit prefixes
+      control characters in data.  And this handler runs with interrupts
+      DISABLED throughout, unlike msxv90.asm's, which does its flow
+      control after an sti and polls TX-ready in a bounded loop; copying
+      that would block receive and reintroduce SS16t's defect.  Test
+      TX-ready once, send if clear, retry on the next byte if not.
     */
     return(0);
 }

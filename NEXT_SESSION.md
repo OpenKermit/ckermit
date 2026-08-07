@@ -71,24 +71,56 @@ falls behind during a 3,991-byte packet at full rate. The ring is 64% full
 at its worst. **Anything that lengthens packets or opens the window has to
 start from this number, not from §16k's.**
 
-**3. Then windows.** `DFWSIZ` is still 1, and item 2 is its precondition. Do
-it under MAME first. Note the interaction §16s found: with a window of one
-the file write happens *before* `ack()`, so the line is idle through it —
-which is why a floppy with 1.5-second writes loses nothing. **Open the
-window and that stops being true**, and a 1.5 s write at 38400 is 5,760
-bytes against a 4,096-byte ring. Flow control is a precondition for
-windowing, not an optimisation.
+**3. Flow control, and it comes before windowing.** `tcflow()` is a stub and
+the ISR has no water marks.
 
-**4. Server mode on hardware** (`-g`, `-f`, `-x`, `--safe-server`) —
+Nothing needs it *today*, and the reason is worth knowing exactly:
+`rxfull = 0` in every run ever recorded, because with a window of one the
+host sends a packet and waits for our ACK, so **bytes in flight never exceed
+one packet**. Worst case — the foreground drains nothing for a whole packet
+— occupancy equals the packet length. The longest packet is **3,991** wire
+bytes and the ring is **4,096**.
+
+**That 105-byte gap is the entire safety margin, and it is an accident**:
+`DRPSIZ = 4000` happens to sit under `V9K_RXBUFSIZ`. So flow control gates
+*two* things, which is why it outranks windowing rather than being a note
+inside it — **you cannot raise `DRPSIZ` past about 4,090 either.**
+
+Design, constrained by two things already established:
+
+- **The cable is three wires** (TX/RX/GND, `HW_TESTING.md` §1.2), so RTS/CTS
+  is unavailable without rewiring. XON/XOFF only — safe here because Kermit
+  prefixes control characters in data, so 0x11/0x13 never appear bare.
+- **This ISR has no `sti`.** 3.13 does flow control inside `SERINT` but only
+  after re-enabling interrupts, then polls TX-ready in a `loop` bounded at
+  65,536 turns (`msxv90.asm:srint9`). **Do not copy that** — polling with
+  interrupts off blocks receive, which is the defect §16t just fixed.
+  Single-shot instead: past the high mark and no XOFF outstanding, test
+  TX-ready *once* and write XOFF if clear, otherwise skip and retry on the
+  next byte. ~5 instructions per byte against the 75 §16t recovered.
+- Water marks 3/4 and 1/4, and an `xofsnt` that distinguishes user-level
+  from buffer-level, both straight from 3.13 (`MNTRGH`/`MNTRGL`, and it is
+  the same chip on this machine).
+- The host harness runs `set flow none`; it needs `set flow xon/xoff` before
+  any of this is observable.
+
+**4. Then windows.** `DFWSIZ` is still 1, and items 2 and 3 are both
+preconditions. Do it under MAME first. Note the interaction §16s found: with
+a window of one the file write happens *before* `ack()`, so the line is idle
+through it — which is why a floppy with 1.5-second writes loses nothing.
+**Open the window and that stops being true**, and a 1.5 s write at 38400 is
+5,760 bytes against a 4,096-byte ring.
+
+**5. Server mode on hardware** (`-g`, `-f`, `-x`, `--safe-server`) —
 `HW_TESTING.md` leg 0.7, still untouched.
 
-**5. FreeDOS for Victor** — `HW_TESTING.md` Tier 4, and the IRQ1 vector
+**6. FreeDOS for Victor** — `HW_TESTING.md` Tier 4, and the IRQ1 vector
 question (41h here, INT 09h there) that is the most likely thing to break
 the "one binary, two DOSes" claim.
 
-**6. Report the `ckcmai.c` nesting upstream.** Unchanged since §16j.
+**7. Report the `ckcmai.c` nesting upstream.** Unchanged since §16j.
 
-**7. `REMOTE DIRECTORY`** still streams its listing and never terminates it
+**8. `REMOTE DIRECTORY`** still streams its listing and never terminates it
 (§16i).
 
 ---
@@ -170,8 +202,11 @@ maintain the burst table. Without that, the report would print
 - **`REMOTE DIRECTORY` never terminates its listing** (§16i).
 - **Most of the default capability set is untested** (§16i). `BYE` never sent.
 - **Wildcards are case-sensitive.** `-s *.TXT`.
-- **No interrupt-level flow control**, `tcflow()` is a stub. See §1 item 3 —
-  this becomes a precondition the moment the window opens.
+- **No interrupt-level flow control**, `tcflow()` is a stub, and the ring has
+  no water marks. Safe today only because the ring (4,096) exceeds the
+  longest packet (3,991) at a window of one — a **105-byte margin that is
+  an accident of `DRPSIZ`**. It gates longer packets as well as windowing.
+  §1 item 3.
 - **No stack switch in the handler** — deliberate, and the assembly one is a
   10-byte frame.
 - **The IRQ1 vector is hard-coded to 41h.** Right for MS-DOS 3.1; unknown
