@@ -40,7 +40,15 @@ transfer, 564 µs per received byte against a 260 µs byte time, giving a
 RTS/CTS is available and flow control does not have to be XON/XOFF.
 
 Still **eleven** guarded upstream edits. DGROUP 48,272 of 65,536 (73%),
-image 204,764, needs 218,988 with 177,236 spare.
+image 204,764, **needs 218,988 (213K) at load — smallest Victor 384K**.
+
+**§16x retracted the memory figure this project had used since §16a.**
+396,224 was a FreeDOS measurement filed under an MS-DOS 3.1 heading; Victor
+MS-DOS 3.1 gives **824,784 at 896K**, and the model is `free = installed RAM
+− 92,720` because this DOS loads high. Measured at 256K and 896K; predicted
+and confirmed that `CKERMITW` **does not load on a 256K machine** and does
+on 512K. **Quote the requirement, not the spare** — `mzsize.py` now prints
+the smallest Victor that can load a build, and that is the number to report.
 
 ---
 
@@ -71,7 +79,7 @@ ceiling was loose by 2.7×. Doubling 19200 → 38400 bought **+24%** measured,
 above 38400 is worth more than 34%**, so rate is finished as a lever.
 
 **The compile flag has been tried and it is not the lever — see §16w
-before spending anything here.** `-ot` fits (235,090 of 396,224, DGROUP
+before spending anything here.** `-ot` fits (needs 235,090, DGROUP
 48,576) and is **slower**: 632 → 624 cps and `rxpeak` 294 → 333 on
 protocol-identical runs. §16t's own model predicts it — an 8088 fetches
 through a four-byte queue over an 8-bit bus at ~4 clocks a byte, so **code
@@ -263,7 +271,14 @@ maintain the burst table. Without that, the report would print
   ISR: `__interrupt` always saves twelve registers, and `#pragma aux` cannot
   be used for one at all. Compile it and read `wdis` before believing
   otherwise.
-- **`python3 .probe/mzsize.py ckermitw.exe`** — run this, not `ls -l`.
+- **`python3 .probe/mzsize.py ckermitw.exe`** — run this, not `ls -l`. It
+  prints **the smallest Victor that can load the build**, which is the
+  number to report; `-a 0` gives the requirement alone and `-a <bytes>`
+  checks another machine. **Quote the requirement, not the spare** (§16x).
+- **`.probe/vmem.c`** asks a running Victor what DOS will give it, INT 21h
+  `AH=4Ah` plus `_psp`. Build lines in its header. This is what retired the
+  396,224 figure, and it is the way to answer the same question on
+  FreeDOS-for-Victor or on real hardware, neither of which has been asked.
 - **`CKERMITW -d -h` is the 2.5-minute oracle** for anything decided before
   or during `sysinit()`.
 - **Do NOT combine `-dKEEP_DEBUG` with anything about throughput** — ~25 ms
@@ -317,8 +332,13 @@ maintain the burst table. Without that, the report would print
 
 ## 5. Still open, from before
 
-**The parser build** — `XFLAGS=-dKEEP_ICP` plus `.probe/mzsize.py` settles
-the DGROUP half in one build; it does not load, and that was measured.
+**The parser build**, and §16x changed why it is off. RAM was never the
+reason: MS-DOS 3.1 gives 805K at 896K and the parser build's 429K fits.
+Today `XFLAGS=-dKEEP_ICP` **does not link** — DGROUP over by 4,736; and
+`ZT=-zt128` clears that but breaks `ckvisr.asm` (`E2083`, because the ring
+leaves the group the assembly ISR reaches through `DS`); and `isfloat_` is
+undefined, wanted by `ckucmd.c` and compiled out by `NOFLOAT`. Three
+specific fixes, and a **640K** floor if they are made.
 
 **Why `binmode.obj`'s near init record does not work here** (§16h).
 

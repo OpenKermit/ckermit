@@ -148,7 +148,8 @@ follow, and they are the reason this is the toolchain:
   leaves DGROUP entirely: `CONST` + `CONST2` measure **1,366 bytes**.
 - `malloc()` is `_fmalloc` — the **far heap**, outside DGROUP. C-Kermit's
   `DYNAMIC` packet buffers stop competing with static data altogether. What
-  bounds them is the 387K the machine offers, not the segment.
+  bounds them is real-mode RAM, not the segment -- 805K on the 896K bench
+  and 293K on a 384K machine (SS16x; SS16a's "387K" was wrong).
 - DGROUP holds `.data`, `.bss` and the stack, and nothing else: **48,176 of
   65,536 (73%)** after the link, including libc. It was 39,424 / 60% until
   §16j chose an 8,192-byte stack and §16k a 4,096-byte receive ring.
@@ -449,8 +450,10 @@ ckermitw.exe   228,554 bytes
 
 The heap is **not in this table**, and that is the whole point of the large
 model: `malloc()` is `_fmalloc`, so `SBSIZ`/`RBSIZ` and every other runtime
-allocation come from the far heap. What bounds them is the ~387K the machine
-gives a program (§16a), not the 26,112 bytes left in DGROUP.
+allocation come from the far heap. What bounds them is the RAM the machine
+gives a program -- **805K at 896K, 293K at the 384K floor** (§16x; §16a's
+"387K" was a FreeDOS figure and is retracted) -- not the 26,112 bytes left
+in DGROUP.
 
 So there are two separate budgets now, and confusing them is the mistake this
 section exists to prevent:
@@ -458,7 +461,7 @@ section exists to prevent:
 | Budget | Ceiling | What is in it | Headroom |
 |---|---:|---|---:|
 | DGROUP | 65,536 | `.data`, `.bss`, **stack** | 26,112 |
-| Real mode | ~387K | far code, far data, **heap** | ~158K |
+| Real mode | 805K at 896K, 293K at 384K | far code, far data, **heap** | see §16x |
 
 `ckvictor.h` still sets `MAXSP`/`MAXRP` to 1024 and `SBSIZ`/`RBSIZ` to 2048
 rather than the `DYNAMIC` defaults of 9024/9050 — not because DGROUP demands
@@ -925,10 +928,11 @@ not just the strings they point at — the `struct keytab` arrays in
 
 So: **`C-Kermit>` fits in DGROUP under Open Watcom, with room to spare.** It
 does not follow that it fits in the *machine*, and §16a measures that
-separately: the parser build asks DOS for 429KB contiguous, and the largest
-block a program actually gets on the test setup is 387KB. Fitting the data
-group and fitting the RAM are two different questions and this port has now
-hit both walls.
+separately: the parser build asks DOS for 429KB contiguous. **The "387KB"
+this paragraph used to cite is retracted by §16x** -- MS-DOS 3.1 gives 805K
+at 896K, so 429KB fits there and the parser is blocked by DGROUP and by
+`ckvisr.asm`, not by RAM. Fitting the data group and fitting the RAM remain
+two different questions, which is what this section is for.
 
 ### What this did *not* settle at the time
 
@@ -2442,6 +2446,13 @@ large a block it can have:
 | Watcom, serial-only | 210,192 | 19,024 | 229,216 (224K) |
 | Watcom, + parser | 412,734 | 26,432 | **439,166 (429K)** |
 | largest block DOS offers | | | **396,224 (387K)** |
+
+**§16x retracts that last row.** It is a FreeDOS figure -- the failure
+quoted above is FreeDOS's message -- and it sat here under an MS-DOS 3.1
+heading and was inherited by every later section. **Victor MS-DOS 3.1 gives
+824,784 (805K) at 896K**, so the parser build's 429K would fit; what stops
+it today is DGROUP and `ckvisr.asm`. Read §16x before using any number from
+this table.
 
 42KB short. The machine was configured with `-ramsize 896K`; the kernel and
 shell take the rest. So the parser is not out of reach — but it needs either
@@ -5772,10 +5783,13 @@ answer is no**, and the reason is a model this tree already had.
 | far code | 170,676 | 186,318 |
 | file | 204,764 | 222,178 |
 | **needs at load** | 218,988 | **235,090** |
-| spare of 396,224 | 177,236 | 161,134 |
+| **smallest Victor** | **384K**, 81,508 spare | **384K**, 65,406 spare |
 
-`-ot` costs 304 bytes of DGROUP and about 16 K of real-mode headroom. Both
-are affordable, so the question did not die on the budget.
+`-ot` costs 304 bytes of DGROUP and 16,102 bytes of image. Both are
+affordable, so the question did not die on the budget -- though **§16x is
+the better way to read that 16 K**: it is noise against the 896K bench and
+**20% of the 384K floor machine's remaining headroom**, which is the number
+that decides how widely this port can run.
 
 ### And it is slower
 
@@ -5846,6 +5860,113 @@ two `.OUT` files could not be confused — §16t's provenance rule. Take-file
 **`CKOT.EXE` and `STEPOT.BAT` were deleted from the image afterwards**: a
 known-slower binary sitting next to the bench build is a trap, not a record.
 The tree rebuilds bit-identical to the shipping 204,764 image.
+
+---
+
+## 16x. 396,224 was wrong, and the Victor gives twice that
+
+**Retraction.** Every memory statement in this tree since §16a has been
+measured against **396,224 bytes (387K)**, described as what "the machine
+offers" or "hands out". It is wrong for Victor MS-DOS 3.1 — the real figure
+at 896K is **824,784 (805K)** — and it was never a RAM size in the first
+place. **A Victor takes RAM in 128K increments from 128K to 896K. No Victor
+has ever had 396,224 bytes of anything.**
+
+The question that found it was simply "where did that number come from".
+
+### Where it came from
+
+§16a's table, one INT 21h `AH=4Ah` probe, in a subsection headed *"The
+parser build does not load"* whose evidence is `CKERMICP.EXE` failing with
+**FreeDOS's** "Allocation of DOS memory failed" — filed inside a section
+whose opening line is "Everything below is on **Victor MS-DOS 3.1**". So a
+FreeDOS-flavoured measurement sat under an MS-DOS 3.1 heading, and every
+later section inherited it without re-asking. It reached nine places in
+`PORTING.md`, both of `CLAUDE.md`'s budget passages, `NEXT_SESSION.md`, and
+`mzsize.py`'s hard-coded `AVAIL`.
+
+### `.probe/vmem.c`, and it was validated before it was believed
+
+INT 21h only: `AH=4Ah` on our own PSP block with `BX = FFFFh`, whose
+failure returns the largest block available, plus `_psp` to show what sits
+below. Run under Victor MS-DOS 3.1 with `porta.exe` and `portb.exe` loaded:
+
+| `-ramsize` | total | below (`psp`) | **free block** | above |
+|---|---:|---:|---:|---:|
+| 896K | 917,504 | 11,584 | **824,784** | 81,136 |
+| 256K | 262,144 | 11,584 | **169,424** | 81,136 |
+
+**The overhead above is 81,136 bytes at both sizes, to the byte**, and `psp`
+is `02D4` in both. That is the whole model: **Victor MS-DOS 3.1 loads high**,
+so a program gets one large low block and
+
+```
+free = installed RAM - 92,720
+```
+
+It was not believed on arithmetic. The model *predicts* 169,424 free at
+256K and therefore that `CKERMITW`, needing 218,988, cannot load there. Both
+came true in the same run — the probe printed 169,424 and DOS answered
+`CKERMITW -h` with **"Program too big to fit in memory"**. A 512K boot,
+run before the probe existed, had already loaded it and printed the full
+usage text.
+
+### What each machine actually gives
+
+| RAM | free | `CKERMITW` needs 218,988 | parser build needs 439,166 |
+|---:|---:|---|---|
+| 128K | 38,352 | no | no |
+| 256K | 169,424 | **no**, measured | no |
+| 384K | 300,496 | fits, +81,508 | no |
+| 512K | 431,568 | **fits**, measured | no, −7,598 |
+| 640K | 562,640 | fits | fits |
+| 896K | 824,784 | **fits**, measured | fits |
+
+**The port's floor is 384K**, and that row is arithmetic — MAME offers
+128K/256K/512K/640K/768K/896K and cannot test 384K. 256K and 512K are
+measured, and they bracket it.
+
+### It does not reopen the parser, and the reasons are now different
+
+The obvious inference — §9d and §16a dropped `NOICP` because 429K would not
+fit in 387K, and 429K fits in 805K — **is wrong, and I checked instead of
+publishing it.** `XFLAGS=-dKEEP_ICP` does not link today, for three reasons
+that have nothing to do with RAM:
+
+- **DGROUP overflows by 4,736 bytes.** CLAUDE.md's "with it in, DGROUP
+  measures 60,768 — it *fits*" is stale; the tree has grown since, most
+  visibly the 4,096-byte ring (§16k) and the 8,192-byte stack (§16j).
+- **`ZT=-zt128` fixes DGROUP and breaks `ckvisr.asm`** — two `E2083 cannot
+  reference address … from frame` errors, because moving objects into far
+  segments moves the receive ring out of the group the assembly ISR reaches
+  through `DS`. **This is exactly the hazard §16t flagged**, arriving from
+  the direction it did not predict. CLAUDE.md's note that `-zt128` "does not
+  help the RAM problem" now understates it: it does not link.
+- **`isfloat_` is undefined** — `ckucmd.c` wants it and `NOFLOAT` (§16j)
+  compiled it out.
+
+So the parser is a real possibility again on a 640K-or-larger machine, at a
+cost that is now three specific engineering problems rather than one
+impossible number. Nothing here says it is worth doing.
+
+### The reading rule this replaces
+
+**Quote the requirement, not the spare.** `CKERMITW` needs **218,988 (213K)
+at load** and that is the same on every machine; "177,236 spare" was only
+ever true of the 896K bench. `mzsize.py` now says so in its header, takes
+`-a <bytes>` to check another machine and `-a 0` to print the requirement
+alone. §16w's `-ot` experiment is the case in point: 16K of extra image
+read as noise against 896K and is 5% of the 384K floor machine's budget.
+
+### Measured, and on what
+
+MAME `victor9k` at `-ramsize 896K` and `-ramsize 256K`, Victor MS-DOS 3.1
+from `victor_kermit.img`, `porta.exe` and `portb.exe` from `CONFIG.SYS`,
+`STEPMEM.BAT` running `VMEM` then `CKERMITW -h`. The 512K load result is
+from an earlier boot of the same `.BAT` before `VMEM` existed. **All three
+are emulator figures**; the bench machine is 896K, so no free-memory reading
+has been taken on real hardware, and the 384K floor is arithmetic on top of
+that.
 
 ---
 
@@ -5979,8 +6100,12 @@ The tree rebuilds bit-identical to the shipping 204,764 image.
   it measured. **What replaces it as the thing to watch is real-mode RAM**:
   §16a's table is the method — image size plus `minalloc` against what
   INT 21h `AH=4Ah` says the machine will give — and the parser build failing
-  to load at 429K against 387K available is the standing proof that this
-  ceiling is real. Re-measure there, not in DGROUP, before raising
+  to load was long cited here as proof. **§16x retracts the 387K** -- it was
+  FreeDOS's, MS-DOS 3.1 gives 805K at 896K, and the parser build is blocked
+  by DGROUP and `ckvisr.asm` instead. The ceiling is still real and still
+  the thing to watch, but it is `free = installed RAM - 92,720` and the
+  binding case is the **384K floor machine**, not the 896K bench.
+  Re-measure there, not in DGROUP, before raising
   `SBSIZ`/`RBSIZ`/`MAXSP`/`MAXRP`.
 - Does the FreeDOS OEM byte (INT 21h AH=30h → BH) actually come back as `0xFD`
   on the Victor build? The whole dual-target vector detection rests on it. A

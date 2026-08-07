@@ -50,8 +50,12 @@ none.** It was 17 until `NOFLOAT` (§16j): dropping `GFTIMER` moves `ztime()`
 onto upstream's `ZTIMEV7` branch, whose K&R redeclarations of `localtime()`
 and `time()` produce two more sign mismatches at `ckutio.c:12319-12320`.
 DGROUP is 48,272 of 65,536 (73%) after the linker adds libc; `ckermitw.exe`
-is 204,764 bytes and needs 218,988 at load, of the 396,224 the machine
-offers.
+is 204,764 bytes and **needs 218,988 (213K) at load**. Quote that figure —
+it is the port's cost and it is the same on every machine. **The 396,224
+that appears throughout this tree is not a RAM size and no Victor has that
+much**: it is the largest block INT 21h `AH=4Ah` handed out on *one*
+configuration — 896K, MS-DOS 3.1, `porta.exe` and `portb.exe` loaded. A
+Victor takes RAM in 128K increments from 128K to 896K.
 
 **It runs on a real Victor 9000, and PORTING.md §16o is the section that
 says so.** 6 August 2026: 896 KB, Victor MS-DOS 3.1 booted from a Pico SASI
@@ -285,11 +289,19 @@ reports `rxlost`/`rxfull`/`rxpeak`. §16k satisfied it three times over.
 `XFLAGS=-dDRPSIZ=90` puts short packets back for one build without a tree
 edit.
 
-The interactive command parser is off (`NOICP`), and the reason is RAM, not
-DGROUP: with it in, DGROUP measures 60,768 of 65,536 — it *fits* — but the
-image needs 429K and the machine offers 387K. `make -f victorow.mak
-XFLAGS=-dKEEP_ICP sizes` re-runs that measurement; `ZT=-zt128` takes DGROUP to
-19,376 and does not help the RAM problem. See PORTING.md §9d and §16a.
+The interactive command parser is off (`NOICP`), and **§16x retired the
+reason that used to be given.** "The image needs 429K and the machine offers
+387K" rested on the 396,224 figure, which was a FreeDOS measurement filed
+under an MS-DOS 3.1 heading; MS-DOS 3.1 actually offers **824,784 at 896K**,
+so 429K fits there. What blocks the parser today is three build problems,
+none of them RAM: `XFLAGS=-dKEEP_ICP` **overflows DGROUP by 4,736 bytes**
+(the "60,768, it *fits*" measurement is stale — the ring and the stack have
+grown since); `ZT=-zt128` clears that and then **breaks `ckvisr.asm`** with
+`E2083 cannot reference address … from frame`, because moving objects to far
+segments moves the receive ring out of the group the assembly ISR reaches
+through `DS`; and `isfloat_` is undefined, wanted by `ckucmd.c` and compiled
+out by `NOFLOAT`. So the parser is possible again on a **640K or larger**
+machine at the cost of three specific fixes. See PORTING.md §16x, §9d, §16a.
 
 `XFLAGS=-dKEEP_DEBUG` turns on C-Kermit's debug log (`CKERMITW -d -s FOO.BIN`
 writes `./debug.log` on the target). It is affordable here because `-zc` puts
@@ -351,15 +363,21 @@ socket is single-use, so start `socat` first and never probe the port.
    and the **stack** — 48,272 of 65,536 (73%) after the link, 17,264 free.
    The **heap is outside it**: `malloc()` is `_fmalloc` in the large model,
    so the packet buffers do not compete for the segment at all. What bounds
-   them is real-mode RAM: the machine hands out 396,224 bytes and the image
-   needs 218,988, leaving 177,236 — out of which the far heap then takes
-   about 25K of packet buffers. **The receive ring is the exception**: at
-   4,096 bytes it is `.bss` and comes straight out of the 64K (§16k).
+   them is real-mode RAM: **the image needs 218,988 (213K) at load**, and
+   the far heap then takes about 25K of packet buffers on top. **The receive
+   ring is the exception**: at 4,096 bytes it is `.bss` and comes straight
+   out of the 64K (§16k).
    **Run `make -f victorow.mak sizes` after any change that could add static
    data** and report the number. Before raising `SBSIZ`/`RBSIZ`/`MAXSP`/
    `MAXRP`, measure the *image*, not DGROUP — `python3 .probe/mzsize.py
    ckermitw.exe` is §16a's method made repeatable, and §9 has both budgets
    side by side.
+   **Quote the requirement, not the spare.** A Victor takes RAM in 128K
+   increments from 128K to 896K, so "177,236 spare" is true only of the
+   896K bench machine and says nothing about the ones most people have.
+   `mzsize.py -a <bytes>` checks against a different machine; `-a 0` prints
+   the requirement alone. Every byte added to the image is a byte of the
+   smallest Victor this port can ever run on.
 5. **Never define `BIGBUFOK`** (asks for 290,000-byte buffers). **Never remove
    `DYNAMIC`** (without it the packet buffers become >64K static arrays and the
    build fails outright).
