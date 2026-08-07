@@ -296,10 +296,13 @@ in `ckvictor.c` §2b (`NOFLOAT` removes `CKFLOAT`, which removes upstream's),
 `__near` on the receive ring (`-zt` would otherwise move it out of the group
 `ckvisr.asm` reaches through `DS` — **the one to remember, since `-zt` is
 the lever anyone short of DGROUP will reach for**), and the threshold sweep.
-**But `KEEP_ICP` is not scripting**: `ckvictor.h` defines `NOSPL`
-separately, so the build gets a `C-Kermit>` prompt and *not* `-C` or `TAKE`
-files. `KEEP_SPL` prices that half and does not link yet — DGROUP fits at
-`-zt512`, and `ckuus4.c` wants three more §2a-style stubs. §16y has both.
+**`KEEP_ICP` is not scripting**: `ckvictor.h` defines `NOSPL` separately, so
+the build gets a `C-Kermit>` prompt and not `-C`, variables, macros or
+`INPUT`. **It does keep `TAKE`** — that is `#ifndef NOICP`, not `NOSPL`
+(§16y corrects an earlier claim here). `KEEP_SPL` links via §2c and costs
+**637,714 at load against 428,662, +209,052**. And a `KEEP_ICP` build still
+cannot run a take-file: that is the **`findinpath()` defect in `prescan()`
+(`ckuus4.c:1741`)**, which is the top item in `NEXT_SESSION.md`.
 
 **§16x is why that became possible**, and it is a retraction worth knowing.
 "The image needs 429K and the machine offers 387K" rested on **396,224**,

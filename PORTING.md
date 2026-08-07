@@ -6063,30 +6063,61 @@ KEEP_ICP: Usage: A:\CKICP.EXE [filename] [-x arg [-x arg]...[-yyy]..] [ = text ]
 `[filename]` and `[ = text ]` exist only when there is a parser to consume
 them.
 
-### And then it refused every command, which is the finding
+### And then it refused every command, which is a real bug
 
 `CKICP PTEST.KSC` came back *"invalid command-line option"*, and so did
-`CKICP -C "echo PARSER-ALIVE, exit"`. Neither is a defect. **`ckvictor.h`
-defines `NOSPL` independently of `NOICP`** (line 732 as it was), and `-C` is
-`#ifndef NOSPL` at `ckuusy.c:2230` and `:3542`, as is the argv[1]
-command-file path. The usage text advertises `[filename]` regardless, which
-is how this looked like a bug for one run.
+`CKICP -C "echo PARSER-ALIVE, exit"`.
 
-**So `KEEP_ICP` buys an interactive prompt and nothing that lets the Victor
-drive itself from a file.** That distinction decides whether the feature is
-worth its 210 KB to any particular user, and it was invisible before this
-run: the header comment claimed "the interactive command parser itself is
-NOT removed", written before `NOICP` went in further down the same file.
+**The first draft of this section blamed `NOSPL` for both, and that was
+wrong about the more important one.** `-C` is indeed `#ifndef NOSPL`
+(`ckuusy.c:2230` and `:3542`). But **`TAKE` is not**: the keyword
+(`ckuusr.c:1732`) and its handler (`ckuusr.c:10566`) sit outside every
+`NOSPL` region — the enclosing one closes at 9833 — and the
+argv[1]-as-command-file path is gated on `#ifndef NOICP`, not `NOSPL`
+(`dotake(cmdfil)`, `ckcmai.c:2602`; only the `addmac("\\%0",cmdfil)` line
+beside it is `NOSPL`).
 
-`KEEP_SPL` now exists to price the other half. It does **not** link yet:
+**So a `KEEP_ICP` build should be able to run `TAKE` files, and the fact
+that it cannot is a defect rather than a configuration consequence.** The
+path is `prescan()` at `ckuus4.c:1741`: a non-absolute argument goes to
+`findinpath()`, and a miss there is fatal. `PTEST.KSC` was in the FAT root
+of the boot drive with no `PATH` set, so "`findinpath()` does not look in
+the current directory" is the first suspect — and this port has form there,
+since §1d carries an `access()` written specifically to be right about a
+FAT root. **Not confirmed.** `KEEP_DEBUG` would show it in one boot.
 
-- DGROUP needs `-zt512` rather than `-zt2048` — it fits there, so this is
-  not a wall;
-- and `ckuus4.c` wants three more symbols, `chkaes_`, `_inesc` and
-  `_oldesc`, which are §2a's problem again — orphans of a removed module,
-  stubbable the same way, and **not yet stubbed** because what each one
-  should *do* deserves the same treatment `getyesno()` got rather than a
-  guess.
+What `KEEP_ICP` does lose to `NOSPL` is therefore narrower than this section
+first claimed: `-C`, and the script language proper. The header comment in
+`ckvictor.h` was still asserting "the interactive command parser itself is
+NOT removed", written before `NOICP` went in further down the same file, and
+that is fixed.
+
+`KEEP_SPL` prices the other half, and §2c made it link:
+
+- DGROUP needs **`-zt512`** — 54,832 of 65,536 (83%); `-zt1024` lands on
+  exactly 65,536 and is the wall;
+- `ckuus4.c` wanted `chkaes_`, `_inesc` and `_oldesc`, all from `ckucns.c`,
+  which this port does not build. **The coupling is worth knowing**:
+  `doinput()` — the `INPUT` command — excludes ANSI escape sequences from
+  the session log, so it reaches into the CONNECT module's recognizer at
+  `ckuus4.c:7309`, under `#ifndef NOLOCAL`. `NOLOCAL` has to stay undefined
+  because it is what gives local mode and `SET LINE`, so the guard that
+  would remove the reference is one this port cannot use. §2c answers with
+  "never in an escape sequence", which is the truth for a build with no
+  terminal emulator — and **not** by copying `ckucns.c`'s `oldesc[] = -1`,
+  which the OR at 7310 would turn into "drop every character `INPUT` reads
+  from the session log".
+
+| build | needs at load | smallest Victor (derived) |
+|---|---:|---|
+| shipping, `NOICP` | 218,988 (213K) | 384K |
+| `KEEP_ICP` | 428,662 (418K) | 512K |
+| `KEEP_ICP` + `KEEP_SPL` | **637,714 (622K)** | **768K** |
+
+**Scripting is +209,052 bytes on top of the parser, a further 49%**, and it
+moves the floor two RAM steps. Given that `TAKE` is on the cheaper switch,
+what that buys is variables, macros, `IF`/`WHILE`, functions and `INPUT` —
+not the ability to drive the machine from a file.
 
 ### Measured, and on what
 

@@ -733,18 +733,26 @@ extern long v9k_timezone;
   were one decision.  They are two, and SS16y is what separated them.
 
   NOSPL IS DEFINED INDEPENDENTLY OF NOICP, so a KEEP_ICP build gets the
-  "C-Kermit>" prompt and NOT the script language -- which also costs it
+  "C-Kermit>" prompt and NOT the script language.  What that costs is
+
       -C "commands"        ckuusy.c:2230 and :3542, both #ifndef NOSPL
-      TAKE files           the same, and argv[1]-as-command-file with it
-  even though the usage text keeps advertising "[filename]".  That is worth
-  knowing before choosing between them: the parser alone is an INTERACTIVE
-  feature, and everything that would let the Victor drive itself from a file
-  is on this switch rather than that one.
+      variables, macros, IF/WHILE/FOR, \f...() functions, INPUT
+
+  and, importantly, NOT take-files: TAKE's keyword (ckuusr.c:1732) and
+  handler (ckuusr.c:10566) are outside every NOSPL region, and the
+  argv[1]-as-command-file path is #ifndef NOICP (ckcmai.c:2602).  An earlier
+  version of this comment said take-files went with NOSPL; they do not, and
+  SS16y has the correction.  A KEEP_ICP build that cannot run one is hitting
+  the findinpath() defect in prescan(), not a missing feature.
 
   KEEP_SPL exists so the cost can be measured with one -d, the same idiom as
-  KEEP_ICP, and it is never defined by the makefile:
+  KEEP_ICP, and it is never defined by the makefile.  It needs -zt512 (83%
+  of DGROUP; -zt1024 lands exactly on 65,536) and section 2c's stubs, and it
+  costs 637,714 bytes at load against KEEP_ICP's 428,662 -- +209,052, which
+  moves the smallest usable machine from 512K to 768K:
 
-      make -f victorow.mak XFLAGS="-dKEEP_ICP -dKEEP_SPL" ZT=-zt2048
+      make -f victorow.mak XFLAGS=-dKEEP_ICP ZT=-zt2048              418K
+      make -f victorow.mak XFLAGS="-dKEEP_ICP -dKEEP_SPL" ZT=-zt512  622K
 */
 #ifndef KEEP_SPL
 #define NOSPL                           /* No script language         */

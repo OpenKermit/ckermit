@@ -3479,6 +3479,60 @@ isfloat(s,flag) char * s; int flag;
 #endif /* NOICP */
 
 /* ------------------------------------------------------------------ */
+/* 2c. Symbols the script language wants from the CONNECT module        */
+/* ------------------------------------------------------------------ */
+
+/*
+  Only in a KEEP_SPL build, and the coupling is worth stating because it is
+  not obvious that scripting should depend on a terminal emulator at all.
+
+  doinput() -- the script INPUT command -- logs what it reads to the session
+  log, and it wants to leave ANSI escape sequences out of that log.  So at
+  ckuus4.c:7309 it calls chkaes() and reads inesc[]/oldesc[], the CONNECT
+  module's escape-sequence recognizer state:
+
+      if (noescseq) {
+          dummy = chkaes(c,0);
+          if (inesc[0] != ES_NORMAL || oldesc[0] != ES_NORMAL)
+            skip = 1;
+      }
+
+  All three live in ckucns.c, which this port does not build -- there is no
+  terminal emulation here, and rule 6 (INT 21h only) is most of why.  The
+  reference survives because it is guarded by "#ifndef NOLOCAL", and NOLOCAL
+  has to stay undefined: it is what gives us local mode and SET LINE, which
+  is how the program owns a serial port at all.  So the guard that would
+  have removed this is one we cannot use.
+
+  WHAT THE RIGHT ANSWER IS, rather than what merely links: with no terminal
+  emulator this program is NEVER inside an escape sequence, so nothing
+  should ever be skipped from the session log.  That means both arrays read
+  ES_NORMAL and chkaes() reports "no APC to execute".
+
+  Note that ckucns.c initialises oldesc[] to -1 and NOT to ES_NORMAL, and
+  copying that would be a defect here: the test above is an OR, so a -1 in
+  oldesc[0] makes skip = 1 and the session log silently drops every
+  character INPUT ever reads.  ES_NORMAL is 0 (ckucns.c:348) and is what
+  both arrays want.
+*/
+#ifndef NOSPL
+#ifndef VICTOR_HAVE_CHKAES
+int inesc[2]  = { 0, 0 };               /* ES_NORMAL: never in a sequence */
+int oldesc[2] = { 0, 0 };               /* NOT -1 -- see above            */
+
+int
+#ifdef CK_ANSIC
+chkaes(char c, int src)
+#else
+chkaes(c,src) char c; int src;
+#endif /* CK_ANSIC */
+{
+    return(0);                          /* No APC sequence to execute   */
+}
+#endif /* VICTOR_HAVE_CHKAES */
+#endif /* NOSPL */
+
+/* ------------------------------------------------------------------ */
 /* 3. TO BE IMPLEMENTED against real Victor hardware                    */
 /* ------------------------------------------------------------------ */
 

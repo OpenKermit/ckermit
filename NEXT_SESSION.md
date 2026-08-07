@@ -5,7 +5,8 @@ known live defect.** 38400 was the last one and §16t closed it: the cause
 was the cost of our own interrupt handler, and `ckvisr.asm` — the port's
 first assembly — replaced it.
 
-**Read `PORTING.md` §16v first**, then §16t. §16v is the bench run that
+**Read `PORTING.md` §16y first** — it is where the next session's work is —
+then §16v, then §16t. §16v is the bench run that
 finally measured throughput, and it moves the bottleneck: **the line is no
 longer it.** §16t is still the best thing in the file for its four wrong
 turns.
@@ -42,6 +43,14 @@ RTS/CTS is available and flow control does not have to be XON/XOFF.
 Still **eleven** guarded upstream edits. DGROUP 48,272 of 65,536 (73%),
 image 204,764, **needs 218,988 (213K) at load — smallest Victor 384K**.
 
+**§16y built the interactive command parser.** `XFLAGS=-dKEEP_ICP
+ZT=-zt2048` links, loads on the Victor and prints a parser's help text —
+**428,662 (418K)** at load against the shipping build's 218,988. Three fixes,
+no upstream edit: `isfloat()` (§2b), `__near` on the receive ring, and the
+threshold. **It cannot run a take-file yet**, and that is §1 item 1.
+`KEEP_SPL` adds the script language for a further **+209,052**, and is
+probably not worth it — `TAKE` is on the cheaper switch.
+
 **§16x retracted the memory figure this project had used since §16a.**
 396,224 was a FreeDOS measurement filed under an MS-DOS 3.1 heading; Victor
 MS-DOS 3.1 gives **824,784 at 896K**, and the model is `free = installed RAM
@@ -54,7 +63,71 @@ the smallest Victor that can load a build, and that is the number to report.
 
 ## 1. Do this next, in priority order
 
-**1. The foreground decode path, because §16v measured it at 62% of a
+**1. Fix `findinpath()` so `TAKE` works. This is the whole session.**
+
+§16y built the interactive parser — `XFLAGS=-dKEEP_ICP ZT=-zt2048` links,
+loads on the Victor and prints a parser's help text. But it will not run a
+command file:
+
+```
+A> CKICP PTEST.KSC
+"PTEST.KSC" - invalid command-line option, type "kermit -h" for help
+```
+
+**That is a defect, not a missing feature, and the distinction was got wrong
+once already.** `TAKE` is *not* removed by `NOSPL`: the keyword
+(`ckuusr.c:1732`) and handler (`ckuusr.c:10566`) are outside every `NOSPL`
+region, and the argv[1]-as-command-file path is `#ifndef NOICP`
+(`dotake(cmdfil)`, `ckcmai.c:2602`). Only `-C` is `NOSPL`. So a `KEEP_ICP`
+build *should* run take-files.
+
+**The suspect, and it is one boot from confirmed.** `prescan()` at
+`ckuus4.c:1741`:
+
+```c
+if (!isabsolute(yargv[1]))      /* If not absolute */
+  s = findinpath(yargv[1]);     /* Look in PATH */
+else
+  s = yargv[1];
+if (!s)
+  doexit(BAD_EXIT,xitsta);
+zfnqfp(s,CKMAXPATH,cmdfil);     /* In case of CD in file */
+```
+
+`PTEST.KSC` was in the FAT root of the boot drive with **no `PATH` set**, so
+"`findinpath()` never looks in the current directory" is the first thing to
+check — `findinpath()` is `ckuus4.c:1323`, and `zfnqfp()` is the other
+candidate. **This port has form here**: §1d carries an `access()` written
+specifically to be right about a FAT root, and §16f is a whole section about
+getting DOS path questions wrong twice.
+
+Note the error text says *"invalid command-line option"* rather than
+exiting, which means the `doexit(BAD_EXIT)` above was **not** reached and
+the file was never even offered to `findinpath()` — so read the enclosing
+condition before assuming the body is at fault.
+
+**How to work it:**
+
+- `XFLAGS="-dKEEP_ICP -dKEEP_DEBUG" ZT=-zt2048` and `CKICP -d PTEST.KSC`
+  gives `findinpath` and `zfnqfp` traces in one 2.5-minute MAME boot. Debug
+  costs ~25 ms per received byte (§16k) but there is no transfer here, so
+  it is free for this question.
+- Try an **absolute** path (`A:\PTEST.KSC`) as the control — it takes the
+  `else` branch and skips `findinpath()` entirely, which splits the two
+  candidates in one run.
+- `.probe/` is the place for a short DOS program if the question turns into
+  "what does `findinpath()` see", per §16f's precedent.
+- The fix belongs in `ckvictor.c` if it is ours, and is a **twelfth upstream
+  edit** if it is not — say so explicitly rather than doing it quietly.
+
+**Then prove it end to end**, because that is the point: a take-file on the
+Victor doing `set speed`, `send`, `statistics`. This port has driven every
+run from a `.BAT` and switches; a take-file is the first time the machine
+could script itself.
+
+---
+
+**2. The foreground decode path, because §16v measured it at 62% of a
 38400 transfer.** Throughput is measured and the old item 1 is closed:
 **1,013 cps at 38400**, byte-exact, zero retransmissions. Where 34.00 s
 went:
@@ -105,7 +178,7 @@ So there is **no cheap lever left**, since the decode path is upstream
   also means **1,013 cps is a worst-case-ish figure**, which is the right
   one to quote but not the whole picture.
 
-**2. Re-do the ring sizing, and §16v gives it a model rather than a
+**3. Re-do the ring sizing, and §16v gives it a model rather than a
 number.** The peak is `rxpeak = 2,589 of 4,096` at 38400 (§16t's 2,621 on
 the same leg; two samples, same place). `peaktag = 12` is packet decoding,
 and §16v says why: the foreground runs at 564 µs a byte against a 260 µs
@@ -126,7 +199,7 @@ FINISH and reports `rxlost`/`rxfull`/`rxpeak`.
 Note this bounds *observed* occupancy, not the safe bound — item 3's worst
 case is still "the foreground drains nothing", which is the packet length.
 
-**3. Flow control, and it comes before windowing.** `tcflow()` is a stub and
+**4. Flow control, and it comes before windowing.** `tcflow()` is a stub and
 the ISR has no water marks.
 
 Nothing needs it *today*, and the reason is worth knowing exactly:
@@ -187,23 +260,23 @@ Design, constrained by two things already established:
   — the host holds RTS asserted only because it is not using it — so a run
   that changes it is no longer a control for that.
 
-**4. Then windows.** `DFWSIZ` is still 1, and items 2 and 3 are both
+**5. Then windows.** `DFWSIZ` is still 1, and items 3 and 4 are both
 preconditions. Do it under MAME first. Note the interaction §16s found: with
 a window of one the file write happens *before* `ack()`, so the line is idle
 through it — which is why a floppy with 1.5-second writes loses nothing.
 **Open the window and that stops being true**, and a 1.5 s write at 38400 is
 5,760 bytes against a 4,096-byte ring.
 
-**5. Server mode on hardware** (`-g`, `-f`, `-x`, `--safe-server`) —
+**6. Server mode on hardware** (`-g`, `-f`, `-x`, `--safe-server`) —
 `HW_TESTING.md` leg 0.7, still untouched.
 
-**6. FreeDOS for Victor** — `HW_TESTING.md` Tier 4, and the IRQ1 vector
+**7. FreeDOS for Victor** — `HW_TESTING.md` Tier 4, and the IRQ1 vector
 question (41h here, INT 09h there) that is the most likely thing to break
 the "one binary, two DOSes" claim.
 
-**7. Report the `ckcmai.c` nesting upstream.** Unchanged since §16j.
+**8. Report the `ckcmai.c` nesting upstream.** Unchanged since §16j.
 
-**8. `REMOTE DIRECTORY`** still streams its listing and never terminates it
+**9. `REMOTE DIRECTORY`** still streams its listing and never terminates it
 (§16i).
 
 ---
@@ -332,13 +405,8 @@ maintain the burst table. Without that, the report would print
 
 ## 5. Still open, from before
 
-**The parser build**, and §16x changed why it is off. RAM was never the
-reason: MS-DOS 3.1 gives 805K at 896K and the parser build's 429K fits.
-Today `XFLAGS=-dKEEP_ICP` **does not link** — DGROUP over by 4,736; and
-`ZT=-zt128` clears that but breaks `ckvisr.asm` (`E2083`, because the ring
-leaves the group the assembly ISR reaches through `DS`); and `isfloat_` is
-undefined, wanted by `ckucmd.c` and compiled out by `NOFLOAT`. Three
-specific fixes, and a **640K** floor if they are made.
+**The parser build is no longer "still open" — §16y built it.** See §1
+item 1 for the one thing left, and §16y for the sizes.
 
 **Why `binmode.obj`'s near init record does not work here** (§16h).
 
