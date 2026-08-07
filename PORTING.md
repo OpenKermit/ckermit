@@ -1015,17 +1015,15 @@ Being precise about this matters, because the two are easy to conflate.
   md5-identical. **No code change** — §16n's binary, eleven upstream edits.
   This is the claim the whole project existed to make and everything below
   it in this subsection is a component of it.
-- **Our interrupt-driven receive, clean *in one measured transfer* at
-  19200.** `rxlost=0 rxfull=0` across 20,431 received bytes at a ~520 µs
-  byte interval, which says the ISR is re-entered promptly enough that the
-  three-deep receive FIFO never overruns — i.e. **the `WR0 = 38h` +
-  specific-EOI acknowledge sequence works on the real µPD7201**, not merely
-  on MAME's model of it. **Read the qualifier.** The same session's packet
-  log shows the Victor NAKing three packets in a different transfer, at a
-  rate the log does not record, so the receive path is *not* uniformly
-  clean on hardware and this is a measurement of one good run rather than a
-  property of the driver. At 38400 the counters were never read at all.
-  (§16o)
+- **Our interrupt-driven receive, clean at 9600 and 19200 and NOT at
+  38400.** `rxlost = 0` at both lower rates over full 32 KB receives, so the
+  `WR0 = 38h` + specific-EOI acknowledge sequence works on the real µPD7201
+  up to a ~520 µs byte interval. **At 38400 it does not**: `rxlost = 203`
+  and `207` in two runs, 0.45% of received bytes, in bursts of roughly 50.
+  Files still arrive byte-exact because Kermit resends what fails a
+  checksum — the cost is throughput, not data. Ruled out by measurement as
+  causes: the file writes (8× as many changed nothing) and the ring
+  (`rxfull = 0`, `rxpeak` ≤ 2,098 of 4,096). (§16o, §16p)
 - **The OEM driver programs 38400 through its IOCTL control block.** The
   divisor is `msxv90.asm`'s and undocumented — Appendix A stops at 19.2k —
   and the driver accepts it. (§16o, §11a)
@@ -4730,7 +4728,9 @@ success. It did not reject. `tcsetattr()` programs 38400 through the IOCTL
 control block on real hardware and the line runs.
 
 **And the data path holds at a ~260 µs byte interval.** Both directions,
-twice.
+twice — **in the sense that the files arrive correct, which §16p shows is
+not the same as the chip keeping up.** `rxlost = 203` at 38400. Risk A is
+dead; Risk B is alive and is now measured rather than suspected.
 
 ### What this does *not* settle, and the first one is easy to overread
 
@@ -4802,6 +4802,145 @@ USB-C to RS-232 to an Apple M4 Mac running C-Kermit. **Six transfers — two
 at 9600, two at 19200, two at 38400 — all successful**, validated by round
 trip with `diff` and md5 against the original. The `v9k:` counters were read
 for one 19,808-byte round trip at 19200 and are quoted above.
+
+---
+
+## 16p. 38400 is not clean, and the counters say which of the three it is
+
+§16o said 38400 was proven to transfer and not proven to be clean, and named
+the one run that would settle it. That run has happened — four of them, one
+per rate plus a buffer A/B — and **the answer is that the µPD7201 overruns
+at 38400 and only at 38400.**
+
+All four transfers were **byte-exact against the fixture**. That is the
+point: byte-exactness was never the question.
+
+### The four runs
+
+32,768-byte all-byte-values fixture (`RCVK.DAT` from §16n, so these are
+comparable to §16k–§16n), `CKERMITW -l /dev/seriala -b <rate> -r`, one host
+`kermit` session per rate with its own packet log.
+
+| run | rate | `V9K_OBUFSIZE` | `rxlost` | `rxfull` | `rxpeak` | `stall256` | NAKs from Victor | `rxbytes` | `wfile` | `txgap` |
+|---|---|---|---:|---:|---:|---:|---:|---:|---|---|
+| 1 | 9600 | 8192 | **0** | 0 | 569 | 2 | 1 | 39,438 | 4 / 50 cs | 22 / 50 cs |
+| 2 | 19200 | 8192 | **0** | 0 | 1705 | 4 | 1 | 42,484 | 4 / 50 cs | 30 / 150 cs |
+| 3 | 38400 | 8192 | **203** | 0 | 2009 | 24 | 4 | 42,757 | 4 / 100 cs | 32 / 400 cs |
+| 4 | 38400 | 1024 | **207** | 0 | 2098 | 27 | 6 | 47,698 | 32 / 150 cs | 36 / 450 cs |
+
+Loss rate is **0.47% and 0.43%** of received bytes — the same number twice,
+which is what makes it a property rather than an accident.
+
+**The NAK count tracks it.** 1, 1, 4, 6 against `rxlost` of 0, 0, 203, 207.
+A NAK is the Victor telling the host a packet failed its checksum, so the
+two instruments are measuring the same events from opposite ends of the
+wire, and they agree. §16o's three unexplained NAKs are explained: that
+transfer was at 38400.
+
+**The losses are bursty, not uniform.** 203 bytes across 4 corrupted packets
+is ~50 bytes per event, which at 38400 is ~13 ms of blockage. A handler that
+was merely too slow per byte would fail at 38400 completely rather than
+lose one byte in 220.
+
+### Two causes ruled out by measurement, and a third by reading
+
+**Not the disk.** That is what run 4 was for. It does **eight times the file
+writes** — 32 against 4, confirmed by the `of 1024` in its own output — and
+loses the same fraction: 0.43% against 0.47%, 6 NAKs against 4. If a
+blocking `write()` were what held IRQ1 off, eight times as many of them
+would show. `V9K_OBUFSIZE` is not implicated in the overrun at all.
+
+**Not the ring.** `rxfull = 0` in all four runs and `rxpeak` never exceeded
+**2,098 of 4,096**. §16k's ring has close to half its capacity spare at the
+worst rate. Growing it would not help and shrinking it to 2,048 would be
+tight but survivable — neither is worth a run.
+
+**Not our own critical sections.** Every `V9K_CLI()` in `ckvictor.c` is in
+`v9k_ser_progline()`, `v9k_ser_reenable()`, `v9k_ser_flush()`,
+`v9k_ser_drain()` or the install/release pair — all setup and teardown.
+**The polled transmitter does not disable interrupts** (`v9k_ser_put()`, and
+its comment says why: no interrupt is enabled for that direction), and
+neither does the ring drain. So the hold-off is not something this port
+does deliberately.
+
+That leaves DOS itself, the interrupt-acknowledge sequence under load, or
+something in the foreground that is slow without being ours. **Not
+diagnosed.**
+
+### The instrument this needs, which does not exist yet
+
+The handler latches its foreground tag at the **peak** (§0e, §16m). What is
+wanted now is a tag latched at the **first loss**, plus a count of loss
+*events* separate from lost *bytes* — 203 bytes in 4 bursts and 203 bytes in
+203 bursts are different defects. That is a handful of stores in a handler
+that already runs per received byte, which §16m established costs nothing,
+and it would say directly what the foreground was doing when the chip
+overran.
+
+One hint to carry into it, offered as a correlation and not a cause:
+**`txgap` total rises 50 → 150 → 400 → 450 hundredths** across the four
+runs. The port spends roughly eight times as long in transmit gaps at 38400
+as at 9600. The transmitter does not mask interrupts, so this is not itself
+the mechanism, but whatever it is measuring scales with the failure.
+
+### The disk model from §16n does not survive contact with the drive
+
+This is the other thing run 4 bought, and it retracts a number rather than
+an argument.
+
+| | writes | disk total |
+|---|---:|---:|
+| run 3, 8192 | 4 | 1.00 s |
+| run 4, 1024 | 32 | 1.50 s |
+
+§16n fitted MAME at **0.124 s fixed per `write()` plus ~15 µs/byte** and
+predicted 32 writes would cost about 4 seconds. **They cost 1.5.** Eight
+times the calls for one and a half times the time is not a per-call cost;
+on this drive the cost tracks **bytes**, which is the opposite of what the
+emulator showed. §16n's caveat — that 0.124 s per call is very slow for a
+real drive and probably MAME's — was right, and it was right for the reason
+it guessed.
+
+So **`V9K_OBUFSIZE = 8192` bought about half a second per 32 KB on real
+hardware, not the four seconds §16n measured.** It costs only far heap and
+there is no reason to change it, but it is no longer part of any throughput
+argument. Note the sample is small — 2 and 3 crossings of a half-second
+clock (§16n, §16o) — but the prediction was 8× and the observation is 1.5×,
+which is far outside what two or three samples can explain away.
+
+### What the packet logs add
+
+Segmented per transaction, the way §16o's was:
+
+| rate | segments | in-transfer resends | timeouts | NAKs |
+|---|---|---:|---:|---:|
+| 9600 | 2 (`RUN1.DAT` twice) | 16 then 2 | 13 then 2 | 1 |
+| 19200 | 1 | 4 | 3 | 1 |
+| 38400 | 3 (`RUN3.DAT`, a stub, `RUN4.DAT`) | 5, 1, 7 | 1, 1, 1 | 4 and 6 |
+
+**The 9600 log is the one to read carefully, because its raw counts are the
+worst of the three and its `rxlost` is zero.** 18 resends and 15 timeouts,
+almost all in a first attempt that restarted — startup dead air, the host
+reoffering its S packet to a Victor that was not listening yet. Raw
+`grep -c '^S-'` over a whole session is not a quality measure; §16o said the
+same thing and this is the second session in a row where it would have
+misled. Segment the log first.
+
+### Sizes
+
+No source change. DGROUP 48,240 of 65,536, image 203,338, **eleven upstream
+edits**. The 1024 build differs from stock in **exactly one byte** — offset
+147,167, `0x04` against `0x20`, the high half of the immediate in
+`v9k_set_obufsize()` — which is worth recording as the cheapest possible
+confirmation that an `XFLAGS` define reached the code it was aimed at.
+
+### Measured, and on what
+
+The §16o bench: real Victor 9000, 896 KB, Victor MS-DOS 3.1 from a Pico SASI
+emulator, µPD7201 channel A, 1 m USB-C to RS-232 to an Apple M4 Mac running
+C-Kermit. Four receives, one per configuration, the same 32,768-byte
+fixture every time, **all four byte-exact by `cmp` after pulling the file
+back off the image**.
 
 ---
 
@@ -4948,18 +5087,21 @@ for one 19,808-byte round trip at 19200 and are quoted above.
   enough; the transfer completes. That works because nothing ever asks the
   OEM driver for data again — §11a's IOCTL is the only thing left using its
   handle.
-- **What does the µPD7201 interrupt-acknowledge sequence actually need?**
-  **Partly answered, and no longer the top hardware unknown — but not
-  closed.** §11b's sequence (`WR0 = 38h` then the 8259's specific EOI,
-  3.13's) carried 20,431 bytes at 19200 with `rxlost=0`, so it works on the
-  real part. **What replaced it as the open item is narrower and sharper:
-  the Victor NAKed three packets in one transfer of the same session**
-  (§16o), which is corrupted data on the receive path, at a rate the packet
-  log does not record. Three candidates and one instrument: a µPD7201
-  overrun moves `rxlost`, a ring overflow moves `rxfull`, and line noise
-  moves neither. **One bench session, one `kermit` log per rate, the six
-  `v9k:` lines captured per run.** Until then 38400 is proven to transfer
-  and not proven to be clean.
+- **Why does the receive path overrun at 38400?** This is now the port's
+  one live defect and the successor to "what does the interrupt-acknowledge
+  sequence need". That question is answered for 9600 and 19200 — §11b's
+  sequence works on the real part, `rxlost = 0` over full 32 KB receives.
+  At 38400 the chip loses **0.45% of received bytes in bursts of ~50**,
+  twice, reproducibly (§16p). Ruled out: the file writes, the ring, and
+  every `V9K_CLI()` in `ckvictor.c` (all setup/teardown; the polled
+  transmitter and the ring drain leave interrupts enabled). Left: DOS, the
+  acknowledge sequence under load, or a slow foreground that is not ours.
+  **The instrument to build first is a foreground tag latched at the first
+  loss, and a count of loss *events* as distinct from lost *bytes*** — 203
+  bytes in 4 bursts and 203 in 203 are different defects. Correlation to
+  carry in: `txgap` total scales with the failure, 50 → 450 hundredths
+  across the four runs, though the transmitter does not mask interrupts so
+  it cannot be the mechanism itself.
 - **`dofast()` is unreachable in this build, and so is `getdialenv()`.**
   Both are inside the `#ifndef NOTCPIP` that opens at `ckcmai.c:3390` and
   closes at 3644, with `#endif` comments misattributed by one level (§16j).
@@ -5007,12 +5149,16 @@ for one 19,808-byte round trip at 19200 and are quoted above.
   the first). Line time falls by four at 38400 but this does not move, so
   expect ~1,400 cps rather than ~2,400 — a CPU and disk problem, not a
   buffer one. The ring at 4,096 already covers the ~2,100-byte peak that the
-  same retransmission would produce there. (§16m) **Revised to 9.8 s and
-  ~1,630 cps by §16n**, and **now testable**: §16o ran 38400 on hardware, so
-  the projection that has bounded every throughput argument in this port can
-  finally be checked against a measurement. It needs one 38400 run with the
-  elapsed time recorded — no code change, and the same run that closes the
-  `rxlost` question above. (§16o)
+  same retransmission would produce there — **which §16p confirms exactly:
+  `rxpeak` at 38400 measured 2,009 and 2,098.** (§16m) **Revised to 9.8 s
+  and ~1,630 cps by §16n**, and then **half of §16n's disk arithmetic was
+  retracted by §16p**: on the real drive the write cost tracks bytes rather
+  than calls, so `V9K_OBUFSIZE = 8192` saves about half a second per 32 KB
+  and not four. The dead-time projection itself is **still untested** —
+  §16p's runs were about `rxlost` and no elapsed time was recorded. One
+  38400 run with a stopwatch closes it, and it should now be expected to
+  come in *worse* than ~1,630 cps because 0.45% byte loss buys a
+  retransmission storm on top. (§16o, §16p)
 - ~~**One timeout and two retransmissions survive in a clean 32 KB run.**~~
   **Diagnosed, and not ours** — **under MAME only; §16o retracts the "never
   a NAK" half on hardware**, where the Victor NAKed three packets in one

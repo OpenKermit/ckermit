@@ -14,15 +14,15 @@ Written 6 August 2026, before any of it had been run. Every measurement in
 > accepts `msxv90.asm`'s undocumented divisor, and the µPD7201
 > interrupt-acknowledge sequence holds at a ~260 µs byte interval.
 >
-> **What is not yet captured is the counter set at 38400**, and the
-> session's packet log turned that from a formality into the open question.
-> All three Victor → host transfers were clean; in the other direction **the
-> Victor NAKed three packets in one transfer**, at a rate the log does not
-> record. A NAK is a failed checksum at the Victor — corrupted data on the
-> receive path. Every file still arrived md5-identical because that is what
-> resends are for, which is precisely why **byte-exact is not the same claim
-> as clean**. Rates are proven; cleanliness is not. The disk questions in
-> Tier 3 are also still open.
+> **Second session, same day — and 38400 is not clean.** Four 32 KB
+> receives, one per rate plus a buffer A/B, all four byte-exact. `rxlost`
+> was **0 at 9600, 0 at 19200, and 203 / 207 at 38400** — the µPD7201
+> overrunning on 0.45% of received bytes. Kermit resends what fails a
+> checksum, which is why the files are perfect and why **byte-exact is not
+> the same claim as clean**. Not the disk (8× the writes changed nothing),
+> not the ring (`rxfull=0`, `rxpeak` ≤ 2,098 of 4,096). §16p has it. The
+> disk questions in Tier 3 are answered and §16n's per-call model was the
+> emulator's.
 
 This file is the bench plan. It is modelled on
 `~/projects/myfreedos/docs/victor/HW_VALIDATION_PLAN.md`, which is the same
@@ -329,7 +329,7 @@ problem). They are not the same defect and they have different fixes.
 |---|---|---|---|---|
 | 2.1 | Line programs at 38400 | `-b 38400`, IOCTL status | Accepted, or a clean rejection (Risk A) | ☑ **accepted** — Risk A is dead |
 | 2.2 | Short send | `-s` a small file | Any bytes at all at the right rate | ☑ |
-| 2.3 | Receive 32 KB | as 0.4 | Byte-exact; **read `rxlost` vs `rxfull`** | ◐ byte-exact, repeatedly — **but the counters were not captured** |
+| 2.3 | Receive 32 KB | as 0.4 | Byte-exact; **read `rxlost` vs `rxfull`** | ✗ **byte-exact but NOT clean — `rxlost=203`, twice.** `rxfull=0`. It is the chip, not the ring (§16p) |
 | 2.4 | Sustained send 32 KB | as 1.3 | Byte-exact — the TX half is polled and proven | ☑ |
 | 2.5 | cps | from 2.3 | §16n predicts ~1,630, not ~2,400 | ☐ elapsed not recorded |
 
@@ -337,13 +337,17 @@ problem). They are not the same defect and they have different fixes.
 38400 was the one thing on this list already proven on this hardware, by the
 FreeDOS debug console.
 
-**2.3 is the one leg to go back for.** Byte-exactness is the protocol
-working, not the driver being clean: a µPD7201 overrun corrupts a packet,
-the checksum catches it, the host resends, and the file still arrives
-perfect. `rxlost` is the only thing that tells those apart, and it is the
-number that says whether the interrupt-acknowledge sequence is *right* at
-38400 or merely *survivable*. `rxfull` likewise separates "the ring is fine"
-from "the foreground is only just keeping up". One run, six lines.
+**2.3 was the leg to go back for, it was gone back for, and it failed.**
+§16p: `rxlost = 203` and `207` in two runs at 38400, 0.45% of received bytes
+in bursts of ~50, against **0** at both 9600 and 19200. Byte-exactness was
+the protocol working, not the driver being clean — the checksum catches each
+corrupted packet and the host resends it. The NAK counts from the packet
+logs (1, 1, 4, 6) track `rxlost` from the other end of the wire.
+
+The A/B in run 4 also killed the obvious suspect: **eight times the file
+writes changed nothing**, so a blocking `write()` is not what holds IRQ1
+off. `rxfull = 0` and `rxpeak` ≤ 2,098 of 4,096 rule out the ring too.
+**38400 is a real defect and it is the port's only live one.**
 
 ---
 
@@ -355,9 +359,9 @@ Each closes a caveat currently standing in `PORTING.md`.
 | # | Question | Read from | What it settles | Status |
 |---|---|---|---|---|
 | 3.1 | Clock quantum | every timing figure in any run | If figures are no longer all multiples of 50, the 0.5 s quantum was MAME's and §16m/§16n's timings can be read finer | ☑ **the quantum is the Victor's.** Every figure in both runs — 50, 50, 100, 0 — is a multiple of 50. §16n's inference survives to hardware; `tot=` not `max=` still stands |
-| 3.2 | Disk cost per write | `wfile n= tot=` at 0.4 | Whether 0.124 s/call is the Victor or the emulator | ☐ **not measured.** `n=3 tot=50` is *one* boundary crossing; it implies ~0.17 s/write but from a single crossing the variance swamps the estimate. Indistinguishable from MAME's 0.124 |
-| 3.3 | Disk cost per byte | rerun 0.4 with `XFLAGS=-dV9K_OBUFSIZE=1024` | Confirms per-call on real media; says whether 8,192 is right-sized or over-provisioned | ☐ |
-| 3.4 | Dead time per 32 KB | elapsed minus line time, at 0.4 and 2.3 | §16n's 9.8 s, and whether the ~1,630 cps projection holds | ☐ elapsed not recorded |
+| 3.2 | Disk cost per write | `wfile n= tot=` at 0.4 | Whether 0.124 s/call is the Victor or the emulator | ☑ **it was the emulator's.** 4 writes 1.00 s, 32 writes 1.50 s — per-call would have predicted 8× (§16p) |
+| 3.3 | Disk cost per byte | rerun 0.4 with `XFLAGS=-dV9K_OBUFSIZE=1024` | Confirms per-call on real media; says whether 8,192 is right-sized or over-provisioned | ☑ **cost tracks bytes, not calls.** `V9K_OBUFSIZE=8192` saves ~0.5 s per 32 KB here, not §16n's 4 s. Keep it (far heap, free) but drop it from throughput arguments |
+| 3.4 | Dead time per 32 KB | elapsed minus line time, at 0.4 and 2.3 | §16n's 9.8 s, and whether the ~1,630 cps projection holds | ☐ elapsed still not recorded — and now expect *worse* than 1,630, since 0.45% loss buys retransmissions |
 | 3.5 | `rxpeak` behaviour | 0.4, 1.2, 2.3 | §16m says the peak is our pre-ACK turnaround during the host's resend; it should scale with turnaround, not with rate | ☑ measured at 19200: **56**, against 309–513 under MAME at 9600 |
 
 3.2 is the trap in this tier and the first hardware session fell into it:

@@ -66,17 +66,25 @@ one that left FreeDOS-for-Victor's IRQ receive disabled. `rxpeak` was **56
 of 4096**, against 309–513 under MAME at *half* the rate. And §16n's
 half-second clock quantum is confirmed to be the **Victor's**, not MAME's.
 
-**But the session's packet log — found in the tree after those counters were
-written up — takes half of that back, and §16o's second half is the part to
-read.** Every Victor → host transfer was clean, three of three. The other
-direction was not: **the Victor NAKed three packets in one transfer**, which
-is corrupted data on our receive path, at a rate the log does not record.
-§16l's "the Victor sends only ACKs, never a NAK" was a property of the
-**emulator**. Every file still arrived md5-identical, because checksums and
-resends are what that is for — which is exactly why **byte-exact is not the
-same claim as clean**, and why the counters were never read at 38400 is now
-the most urgent gap in the port. `rxlost` distinguishes an overrun,
-`rxfull` a ring overflow, and neither moving means line noise.
+**§16p then measured the thing §16o could not, and 38400 is not clean.**
+Four 32 KB receives, one per rate plus a buffer A/B, all four byte-exact —
+and `rxlost` was **0 at 9600, 0 at 19200, 203 and 207 at 38400**. The
+µPD7201 overruns on **0.45% of received bytes** in bursts of ~50, and the
+files arrive perfect only because Kermit resends whatever fails a checksum.
+The Victor's NAK counts (1, 1, 4, 6) measure the same events from the far
+end. **Byte-exact is not the same claim as clean**, and §16l's "the Victor
+sends only ACKs, never a NAK" was the emulator's property.
+
+**Two suspects are dead and this is the port's one live defect.** Not the
+disk — run 4 did 8× the file writes for the same loss rate. Not the ring —
+`rxfull = 0`, `rxpeak` ≤ 2,098 of 4,096. Not our own critical sections
+either: every `V9K_CLI()` is setup or teardown, and both the polled
+transmitter and the ring drain leave interrupts enabled. **The instrument to
+build next is a foreground tag latched at the first loss, plus a count of
+loss events as distinct from lost bytes.** §16p also retracts §16n's disk
+model: on the real drive the write cost tracks bytes, not calls, so
+`V9K_OBUFSIZE = 8192` saves ~0.5 s per 32 KB rather than 4 s. Keep it, but
+drop it from throughput arguments.
 
 **It transfers files, both ways, byte-exact, as client and as server.** On
 Victor MS-DOS 3.1 under MAME it opens `/dev/seriala`, programs the line

@@ -1,13 +1,35 @@
 # Next session
 
 Handoff for the Victor 9000 port, written 6 August 2026. **It runs on real
-hardware.** Six transfers on a physical Victor 9000 — two each at 9600,
-19200 and 38400 — every one round-tripped md5-identical, and it took no
-code change at all.
+hardware, and 38400 loses bytes.** Two bench sessions: §16o got it working
+at all three rates, §16p measured the counters per rate and found the
+µPD7201 overrunning on 0.45% of received bytes at 38400 and only there. No
+code changed in either.
 
-**Read `PORTING.md` §16o first**, and read its "what this does not settle"
-subsection before quoting any number from it. `HW_TESTING.md` is the bench
-plan the session ran against, with per-leg status filled in.
+**Read `PORTING.md` §16p first, then §16o.** `HW_TESTING.md` is the bench
+plan both sessions ran against, with per-leg status filled in.
+
+---
+
+## 0. The one live defect
+
+`rxlost` = **0** at 9600, **0** at 19200, **203** and **207** at 38400, over
+four 32 KB receives that were all byte-exact. Kermit resends what fails a
+checksum, so the cost is throughput and not data.
+
+**Ruled out already — do not re-test these.** The file writes (run 4 did 8×
+as many for the same loss rate), the receive ring (`rxfull = 0`, `rxpeak` ≤
+2,098 of 4,096), and every `V9K_CLI()` in `ckvictor.c` (all setup/teardown;
+`v9k_ser_put()` and the ring drain leave interrupts enabled).
+
+**Build this instrument first:** a foreground tag latched at the **first
+loss**, and a count of loss *events* separate from lost *bytes*. 203 bytes
+in 4 bursts and 203 in 203 are different defects and the current counters
+cannot tell them apart. The handler already runs per received byte and §16m
+established that a store there costs nothing.
+
+Correlation to carry in, not a cause: `txgap` total scales with the failure
+— 50 → 150 → 400 → 450 hundredths across the four runs.
 
 ---
 
@@ -104,28 +126,26 @@ size.
 used), both with `log packets` on the host. One stock, one with
 `XFLAGS=-dV9K_OBUFSIZE=1024`. Between them they give:
 
-1. **`rxlost`/`rxfull` per rate, and this is now the top item, not a
-   formality.** The Victor NAKed three packets in the last session at an
-   unrecorded rate — corrupted data on the receive path. Three candidates,
-   one instrument: an overrun moves `rxlost`, a ring overflow moves
-   `rxfull`, line noise moves neither and the checksum still fails.
-   **One `kermit` session per rate with its own log name**, and the six
-   `v9k:` lines captured per run. Byte-exactness is not cleanliness.
+1. ~~**`rxlost`/`rxfull` per rate.**~~ **Done — §16p, and it is §0 above.**
 2. **cps and elapsed at 38400** — §16n projects ~1,630 rather than the
    ~2,400 the line rate suggests, on the grounds that dead time and not line
    time is what bounds this port. That projection has shaped every
    throughput argument here and has never been checked. Nothing but real
    hardware can check it.
-3. **The disk cost per write on real media** — the 1,024-byte A/B, which
-   turns 4 writes into 32 and puts enough samples under the half-second
-   quantum. It also says whether `V9K_OBUFSIZE = 8192` was sized against a
-   real disk or an emulated one.
-4. **The retransmission count** — `grep -c '^S-'`, `grep -c '<timeout>'`,
-   which confirms or kills the "no retransmissions on hardware" reading of
-   `rxpeak = 56`.
-5. **Every byte value, round-tripped on hardware** — the markdown fixture
-   was text, so §16h's `_fmode = O_BINARY` fix has real hardware evidence
-   but not its full test.
+3. ~~**The disk cost per write on real media.**~~ **Done — §16p.** 4 writes
+   1.00 s, 32 writes 1.50 s: the cost tracks **bytes**, not calls, so
+   §16n's per-call model was the emulator's. `V9K_OBUFSIZE = 8192` saves
+   ~0.5 s per 32 KB here rather than 4 s. Keep it — far heap, free — but it
+   is no longer part of any throughput argument.
+4. ~~**The retransmission count.**~~ **Done — §16p**, and it killed the
+   `rxpeak = 56` reading: there are retransmissions at every rate. Note the
+   9600 log has the *worst* raw counts (18 resends, 15 timeouts) and
+   `rxlost = 0` — almost all of it is startup dead air. **Segment the log
+   before quoting a `grep -c`.**
+5. ~~**Every byte value, round-tripped on hardware.**~~ **Done — §16p.**
+   All four runs used the 32,768-byte all-256-values fixture and all four
+   came back byte-exact, so §16h's `_fmode = O_BINARY` fix is fully tested
+   on hardware.
 
 **Then server mode on hardware** (`-g`, `-f`, `-x`, `--safe-server`) —
 `HW_TESTING.md` leg 0.7, untouched.
@@ -199,10 +219,9 @@ sample it: a profile by occupancy rather than by clock.
 - **The carrier clause** in `ttgmdm()` forces carrier present under `CLOCAL`.
 - **No floppy has ever been in the path.** Every hardware run was SASI, so
   §10's question about a floppy write holding the ring is untouched.
-- **The receive path corrupts packets on hardware, sometimes.** Three NAKs
-  in one transfer of the first bench session (§16o), cause and rate both
-  unknown. Kermit recovers and the file is correct; the cost is throughput.
-  This is the port's one known-live defect.
+- **The receive path overruns at 38400.** 0.45% of received bytes, twice,
+  reproducibly (§16p). Cause not diagnosed; see §0 above. This is the port's
+  one known-live defect, and 9600 and 19200 are clean.
 
 ---
 
