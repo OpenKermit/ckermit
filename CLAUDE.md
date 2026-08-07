@@ -101,12 +101,21 @@ longer measures pre-ACK turnaround (§16m); it measures how far decoding
 falls behind during a 3,991-byte packet at full rate. §16k's sizing rested
 on retransmission behaviour that no longer happens.
 
-**Still never *captured*: elapsed time and cps.** On the operator's screen
-every run and in no file, because C-Kermit's transfer display goes away
-under the redirect that records the `v9k:` counters. Both instruments now
-exist — the Victor prints `elapsed=`/`wire=`, and the take-files end in
-`statistics` — and no run has used them yet. The counters bound leg Y at
-**≤ 2,780 cps** against §16n's 1,630 projection.
+**§16u captured elapsed time and cps for the first time, and they are 9600
+figures.** This project spent its whole life with both on the operator's
+screen and in no file, because C-Kermit's transfer display goes away under
+the redirect that records the `v9k:` counters. A 32 KB receive under MAME
+now reports **632 cps** from the host's `statistics` and `elapsed=6700 cs
+wire=590 B/s` from the Victor, byte-exact, reproducing §16n's 633 cps and
+§16t's `rxpeak = 294` exactly. **The reading rule is that those two elapsed
+figures differ by 15.2 s and neither is wrong** — the Victor's clock starts
+at the first byte received, before the S packet, and closes at release, so
+it spans negotiation and teardown, while `statistics` covers the file.
+Quote them as a pair; `wire=` is a receive-leg figure only, since it divides
+`rxbytes`. **Nothing above 9600 has either figure yet**, and §16u loosens
+the leg-Y ceiling of ≤ 2,780 cps by showing what its arithmetic omits.
+`cts=1` in that run is not evidence about the bench cable — MAME's
+`null_modem` asserts the inputs.
 
 **§16q built the instrument §16p asked for.**
 `lost evt`/`max`/`tag`/`fd`/`lostat`/`lostend` latch on the overrun path:

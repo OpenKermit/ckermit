@@ -6,7 +6,10 @@ was the cost of our own interrupt handler, and `ckvisr.asm` — the port's
 first assembly — replaced it.
 
 **Read `PORTING.md` §16t first.** It carries both the fix and four wrong
-turns that are worth more than the fix.
+turns that are worth more than the fix. Then **§16u**, which is short: the
+clock and `mdm` instruments are validated end to end, and the reading rule
+they came with is that the Victor's `elapsed=` and the host's `statistics`
+do not measure the same interval.
 
 ---
 
@@ -33,17 +36,42 @@ image 204,764, needs 218,988 with 177,236 spare.
 
 ## 1. Do this next, in priority order
 
-**1. Measure elapsed time and cps — and the instruments now exist.** This
-was never *captured*, though it has been on the operator's screen every
-run: C-Kermit suppresses its transfer display when stdout is redirected,
-and a redirect is how every counter here gets recorded. Two changes fix
-that and both are in the tree:
+**1. Measure elapsed time and cps at 38400 on the bench — the instruments
+are built, validated and staged, and only the drive is left.** §16u ran
+both of them through a 32 KB receive at 9600 under MAME and they work:
 
-- the Victor prints `v9k: elapsed=<cs> wire=<B/s>`, latched on the first
-  read that returns data (so startup dead air is excluded) and closed at
-  release;
-- every `.ksc` take-file ends in `statistics`, which is C-Kermit's own
-  file-cps figure and goes to stdout.
+```
+v9k: elapsed=6700 cs wire=590 B/s        elapsed time : 00:00:52 (51.829 sec)
+v9k: mdm cts=1 dsr=1 (...)               effective data rate : 632 cps
+```
+
+632 cps reproduces §16n's 633 and `rxpeak = 294` reproduces §16t's 294, so
+the harness is the same one. **What §16u adds is a reading rule: the two
+elapsed figures differ by 15.2 s and neither is wrong.** The Victor's clock
+starts on the first byte received — the host's `kermit -ir` string, before
+the S packet — and closes at release, so it spans negotiation and teardown;
+the host's `statistics` covers the file. Quote them as a pair. `wire=` is
+also a **receive-leg** figure: it divides `rxbytes`, so on a send leg it
+would divide the ACK stream.
+
+**Everything for the bench run is already on the image and in the tree:**
+
+| | 38400 | 19200 |
+|---|---|---|
+| Victor `.BAT` | `STEPCA.BAT` → `STEPCA.OUT` | `STEPCB.BAT` → `STEPCB.OUT` |
+| host take-file | `s16uCA.ksc` → `s16uCA.pkt` | `s16uCB.ksc` → `s16uCB.pkt` |
+| fixture sent | `rcvca.dat` | `rcvcb.dat` |
+| Victor writes | `RCVCA.DAT` | `RCVCB.DAT` |
+
+`CKERMITW.EXE` on the image is now the **204,764** build with the clock and
+`mdm` (md5 verified after the copy). Run each as
+`kermit -C "take s16uCA.ksc, exit" > s16uCA.host` so the `statistics` output
+is kept, then pull `STEPCA.OUT` and `RCVCA.DAT` off the image and md5 the
+latter against `rcvca.dat`.
+
+**`cts=1` under MAME is not the answer to the cable question** — the
+emulator's `null_modem` asserts the inputs. Only the bench reading counts,
+and it decides item 3 below.
 
 What the existing counters already bound, from line time plus the dead time
 the Victor measures (`txgap` + `wfile`) — these are **ceilings**, since
@@ -61,6 +89,14 @@ line time bounds this port, and that projection has shaped every throughput
 argument here. Leg Y's *ceiling* is 2,780, so it looks pessimistic — but a
 ceiling is not a measurement. One run with the two instruments above settles
 it.
+
+**§16u loosens that ceiling, in the direction that matters.** Both the
+`line` and `measured dead` columns exclude negotiation and teardown, and
+§16u measured that exclusion at about **fifteen seconds at 9600** — one
+slow-start timeout at `set receive timeout 20`. So `elapsed ≥` understates
+elapsed, `cps ≤` is a genuine but weak ceiling, and 2,780 should not be read
+as "nearly achievable". Compare the bench run's host `statistics` against
+§16n's 1,630, not its `wire=`.
 
 **2. Re-do the ring sizing, because the old argument is void.** `rxpeak` is
 **2,621 of 4,096** — the highest ever recorded — with `peaktag = 12`,
@@ -232,10 +268,13 @@ maintain the burst table. Without that, the report would print
 - **The assembly ISR's overrun branch has never executed.** 38400 is clean
   now, so nothing reaches it. It is transcribed from the C and reviewed in
   `wdis`, and that is all the evidence there is.
-- **Elapsed time and cps have never been captured to a file.** Seen on
-  screen every run, recorded in none, because C-Kermit's transfer display
-  goes away under a redirect. Instruments added; no run has used them yet.
-  §1 item 1.
+- **Elapsed time and cps are captured at 9600 and nowhere else.** §16u did
+  it under MAME — 632 cps, `elapsed=6700 cs`, byte-exact. **No rate above
+  9600 has ever had either figure recorded**, which is the whole of §1 item
+  1 and is bench-only.
+- **`cts` has been read once, under MAME, where it means nothing.** The
+  emulator asserts it. Whether the bench cable crosses the pair is still
+  open and still gates item 3.
 
 ---
 
@@ -276,13 +315,15 @@ wrong, and it validated `ckvisr.asm` before the bench.
   **digits come through shifted under MAME** so use digit-free `.BAT` names
   (`STEPASM`, not `STEP0`); MS-DOS 3.1 cannot redirect handle 2; the disk
   boots as `A:`; use `vtg_image_util`, never mtools.
-- Backups: `victor_kermit.img.bak-20260807-asm` is the last one taken
-  before the current binaries went on.
-- **On the image now:** `CKERMITW.EXE` (204,404, assembly ISR — **the
-  204,764 build with the clock and `mdm` is not on it yet**),
-  `CKLEAN.EXE` (204,388, `-dV9K_CISR -dV9K_LEANLOST`), `STEPY`/`STEPZ.BAT`
-  at 38400, `STEPASM.BAT` at 9600, plus a long tail of older `STEP*` and
-  `RCV*` files. Delete before reusing a name.
+- Backups: `victor_kermit.img.bak-20260807-clock` is the last one taken,
+  immediately before the 204,764 build went on.
+- **On the image now:** `CKERMITW.EXE` is the **204,764** build — assembly
+  ISR, clock and `mdm`, md5-verified after the copy and proven by §16u's
+  9600 receive. Also `CKLEAN.EXE` (204,388, `-dV9K_CISR -dV9K_LEANLOST`,
+  **stale — predates the clock**), `STEPCA.BAT`/`STEPCB.BAT` staged for the
+  next bench run at 38400/19200, `STEPCM.BAT` at 9600 (§16u),
+  `STEPY`/`STEPZ.BAT` at 38400, `STEPASM.BAT` at 9600, plus a long tail of
+  older `STEP*` and `RCV*` files. Delete before reusing a name.
 
 ---
 

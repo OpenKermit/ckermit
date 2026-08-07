@@ -5529,6 +5529,91 @@ instruments above.
 
 ---
 
+## 16u. The clock works, and the two instruments measure different intervals
+
+The first run in this project's history to put elapsed time and cps **in a
+file**. MAME, Victor MS-DOS 3.1, 9600, a 32,768-byte receive with the
+assembly ISR, on the 204,764 build that carries §16t's clock and §16t's
+`mdm` sample. Byte-exact against the fixture.
+
+```
+v9k: isr=asm
+v9k: rxlost=0 rxfull=0 rxpeak=294 of 4096
+v9k: wfile n=4 max=50 at #1 of 8192 tot=150 cs
+v9k: txgap n=30 max=50 at #18 tot=50 cs
+v9k: elapsed=6700 cs wire=590 B/s
+v9k: mdm cts=1 dsr=1 (dcd=1 rts=1 dtr=1, see comment)
+```
+
+and from the host's `statistics`, which is the other half of the pair:
+
+```
+ elapsed time           : 00:00:52 (51.829 sec)
+ effective data rate    : 632 cps
+```
+
+Three things reproduce exactly, which is what makes the rest of it
+readable. **632 cps against §16n's 633** for the same transfer over the same
+harness. **`rxpeak = 294` against §16t's 294** for the same run. And the
+Victor's own arithmetic checks: 39,575 received bytes × 100 ÷ 6,700
+hundredths = 590, which is the `wire=` it printed.
+
+### The two elapsed figures differ by 15.2 seconds and neither is wrong
+
+This is the finding, and it is a reading rule rather than a defect.
+
+- **The Victor's clock spans the whole conversation.** It starts on the
+  first read that returns data — which is the host's `kermit -ir`
+  autoupload string, *before* the S packet — and closes at release. So it
+  contains negotiation, the file, the Z/B exchange and teardown.
+- **The host's `statistics` covers the file.** That is what "effective data
+  rate" means in C-Kermit and it is the figure to quote as cps.
+- **The gap in this run has a name.** One timeout and one retransmission,
+  the host waiting for the ACK to sequence 05 (`s16uCM.pkt:14`) — §16l's
+  slow-start signature, the packet where C-Kermit doubles the length and
+  hands its round-trip estimator line time it did not predict. `set receive
+  timeout 20` on the host is what sizes it.
+
+**Quote them as a pair and never interchangeably**: `statistics` is the file
+cps, `wire=` is the line rate including headers and resends, and the two
+elapsed times behind them are not the same interval. §16t's ceilings table
+is unaffected as a *bound* — it was built from line time plus measured dead
+time, both of which exclude negotiation — but this run shows that what it
+excludes is worth about fifteen seconds at 9600, so its `elapsed ≥` column
+is loose in the direction that makes `cps ≤` a weak ceiling rather than a
+tight one.
+
+One limitation of `wire=` that only shows up on the other leg: it divides
+`rxbytes`, so **it is a receive-leg figure**. On a send leg it would divide
+the ACK stream by the whole elapsed time and report a small fraction of what
+the line actually carried.
+
+### `cts=1` here is not evidence about the bench cable
+
+MAME's `null_modem` asserts the modem inputs, so this reading says only that
+`v9k_ser_mdm()` is reached at the right moment and that its bits decode —
+which is worth having before the drive, and is all it is worth. The question
+§16t added the line to answer, *does the 1 m USB-C to RS-232 cable carry and
+cross RTS/CTS*, is unchanged and still bench-only.
+
+### And the DGROUP immediate moved
+
+`mov ax,DGROUP` links as **`29ad`** in this image against §16t's `29a6`,
+matching the map both times. It moved because the image grew by 360 bytes.
+That is the argument for §16t's check being **per build** rather than done
+once: the number it validates is not a constant.
+
+### Measured, and on what
+
+The §16a MAME harness unchanged — `socat` first, MAME second, host `kermit`
+at t+110 s, `-seconds_to_run 300`. `STEPCM.BAT` on the image; take-file
+`s16uCM.ksc`; host packet log `s16uCM.pkt`; host statistics `s16uCM.host`;
+Victor counters `s16uCM.out`; received file `gotCM.dat`, md5-identical to
+`rcvcm.dat`. `wfile n = 4` for 32,768 bytes is §16n's `V9K_OBUFSIZE = 8192`
+doing exactly what it was sized to do.
+
+---
+
 ## 15. Open questions
 
 **Closed since the last revision**
