@@ -42,3 +42,9 @@ ckermitw.exe.map
 mame.log
 kermit.log
 socat.log
+
+#testing artifacts
+*.dat
+*.pkt
+*.out
+*.host
