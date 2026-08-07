@@ -49,8 +49,8 @@ mismatch, and `docmdline(1)` in `ckcmai.c`. **`ckvictor.c` compiles with
 none.** It was 17 until `NOFLOAT` (§16j): dropping `GFTIMER` moves `ztime()`
 onto upstream's `ZTIMEV7` branch, whose K&R redeclarations of `localtime()`
 and `time()` produce two more sign mismatches at `ckutio.c:12319-12320`.
-DGROUP is 48,240 of 65,536 (73%) after the linker adds libc; `ckermitw.exe`
-is 203,338 bytes and needs 217,594 at load, of the 396,224 the machine
+DGROUP is 48,272 of 65,536 (73%) after the linker adds libc; `ckermitw.exe`
+is 204,404 bytes and needs 218,580 at load, of the 396,224 the machine
 offers.
 
 **It runs on a real Victor 9000, and PORTING.md §16o is the section that
@@ -66,41 +66,42 @@ one that left FreeDOS-for-Victor's IRQ receive disabled. `rxpeak` was **56
 of 4096**, against 309–513 under MAME at *half* the rate. And §16n's
 half-second clock quantum is confirmed to be the **Victor's**, not MAME's.
 
-**§16p then measured the thing §16o could not, and 38400 is not clean.**
-Four 32 KB receives, one per rate plus a buffer A/B, all four byte-exact —
-and `rxlost` was **0 at 9600, 0 at 19200, 203 and 207 at 38400**. The
-µPD7201 overruns on **0.45% of received bytes** in bursts of ~50, and the
-files arrive perfect only because Kermit resends whatever fails a checksum.
-The Victor's NAK counts (1, 1, 4, 6) measure the same events from the far
-end. **Byte-exact is not the same claim as clean**, and §16l's "the Victor
-sends only ACKs, never a NAK" was the emulator's property.
+**§16t closed the port's last live defect: 38400 is clean.** `rxlost = 0`,
+zero NAKs, zero retransmissions, byte-exact — **identical to a clean 19200
+run in every protocol measure** (18 packets, longest 3,991, 37,569 wire
+bytes). The cause was **the cost of our own interrupt handler**: at 260 µs a
+byte the C version took about twice that, of which ~123 µs was Open
+Watcom's twelve-register `__interrupt` prologue plus the `DS` reload it does
+per port access. **`ckvisr.asm` is the port's first assembly** — 110
+instructions against 185, 10 stack ops against 24, **2 segment loads against
+19**, the last because the 7201 (`E004:0-3`) and the 8259 (`E000:0-1`) are
+0x40 apart and **one `ES` reaches both**. `XFLAGS=-dV9K_CISR` puts the C
+handler back; it stays compiled as the specification. **No twelfth upstream
+edit.** Two structural consequences: `ckvictor.c` is no longer the only
+non-upstream source, and 29 of its variables lost `static`.
 
-**Two suspects are dead and this is the port's one live defect.** Not the
-disk — run 4 did 8× the file writes for the same loss rate. Not the ring —
-`rxfull = 0`, `rxpeak` ≤ 2,098 of 4,096. Not our own critical sections
-either: every `V9K_CLI()` is setup or teardown, and both the polled
-transmitter and the ring drain leave interrupts enabled. §16p also retracts
-§16n's disk model: on the real drive the write cost tracks bytes, not calls,
-so `V9K_OBUFSIZE = 8192` saves ~0.5 s per 32 KB rather than 4 s. Keep it,
-but drop it from throughput arguments.
+**Four wrong turns are written up in §16t because they generalise.** The
+tree said a byte at 38400 was **26 µs**; it is **260 µs**, which §11 had
+right all along — *when two figures for one quantity exist, the older has
+usually been checked more*. §16r's "the losses are bursts, therefore not
+per-byte cost" was a **false dichotomy** — a *marginally* slow handler falls
+progressively behind and loses consecutively. **§16s's own instrument was
+inflating the defect 2.5×**: the burst table went on the overrun path, which
+is rare only while the receiver keeps up — *inside a burst it is the
+per-byte path*. And two hypotheses died cheaply and correctly: the other
+µPD7201 channel sharing IRQ1 (`norx = 0, othrx = 0`) and the disk — §16s put
+a **floppy** under it, 1.5 s writes against 0 on SASI, and lost nothing,
+because with a window of one the write happens before `ack()` and the line
+is idle.
 
-**§16r ran that instrument at the bench and the losses are bursts.**
-`evt = 5` against `rxlost = 322`, longest burst 179 — a handler merely too
-slow per byte would have given `evt` near 322 with `max = 1`, so **that
-hypothesis is dead**. One burst corrupts one packet: the Victor NAKed seq
-03, 05, 10, 13, 19, and `lostat`/`lostend` fall in the first and last of
-them. **`tag = 0`** — the foreground was in upstream code at the first loss,
-none of `ckvictor.c`'s four blocking places — while **`peaktag = 4`** puts
-the *peak* in the ring drain, a different place entirely, so `rxpeak` was
-never going to lead anywhere on this defect. The ring is exonerated a third
-time (`rxfull = 0`, `rxpeak` 1,532 of 4,096). **One question is left: how
-many bytes a burst spans** — ~180 says a single blocking hold-off, ~1,700
-says a rate deficit lasting a whole long packet — and §16r names the three
-additions that would answer it. One methodological trap worth carrying:
-`rxbytes` was 253 short of the host's sent stream because the Victor missed
-nine S transmissions of startup dead air, so **every offset must be shifted
-by that difference before `.probe/mapoffset.py` means anything**; unshifted,
-§16r's first loss reads as a startup artifact.
+**The next binding constraint is the ring, and the old sizing argument is
+void.** `rxpeak` is now **2,621 of 4,096**, the highest ever, with
+`peaktag = 12` — packet decoding. With retransmissions gone the peak no
+longer measures pre-ACK turnaround (§16m); it measures how far decoding
+falls behind during a 3,991-byte packet at full rate. §16k's sizing rested
+on retransmission behaviour that no longer happens.
+
+**Still never measured: elapsed time and cps.** Oldest open item.
 
 **§16q built the instrument §16p asked for.**
 `lost evt`/`max`/`tag`/`fd`/`lostat`/`lostend` latch on the overrun path:
@@ -117,7 +118,7 @@ overrun bit, not bytes**, so one hold-off losing fifty bytes can raise it by
 one and "0.45% of received bytes" is a lower bound. Two design points worth
 keeping: burst boundaries are measured as a gap in the **byte stream**, not
 as consecutive handler entries, because the latter needs a store on the
-per-byte path (~5 µs of a 26 µs byte at 38400) inside an instrument built to
+per-byte path (~5 µs of a 260 µs byte at 38400) inside an instrument built to
 ask whether that path is too slow — §16k's mistake, caught by reading `wdis`
 rather than by thinking; and `rxbytes` now counts the substituted BELL,
 which affects only lossy runs.
@@ -309,13 +310,17 @@ socket is single-use, so start `socat` first and never probe the port.
    Each `#define` sits next to a comment explaining why. The makefile passes
    `-fi=ckvictor.h` and nothing else.
 3. **Victor-specific C goes in `ckvictor.c`.** It is the only non-upstream C
-   file and should stay that way.
+   file and should stay that way. **`ckvisr.asm` (§16t) is the one exception
+   and it is assembly, not C** — the µPD7201 receive ISR, which exists
+   because Open Watcom's `__interrupt` saves twelve registers with no way to
+   ask for fewer. Do not add a second assembly file without the same kind of
+   measurement behind it.
 4. **Two budgets, and do not confuse them.** DGROUP holds `.data`, `.bss`
-   and the **stack** — 48,240 of 65,536 (73%) after the link, 17,296 free.
+   and the **stack** — 48,272 of 65,536 (73%) after the link, 17,264 free.
    The **heap is outside it**: `malloc()` is `_fmalloc` in the large model,
    so the packet buffers do not compete for the segment at all. What bounds
    them is real-mode RAM: the machine hands out 396,224 bytes and the image
-   needs 217,594, leaving 178,630 — out of which the far heap then takes
+   needs 218,580, leaving 177,644 — out of which the far heap then takes
    about 25K of packet buffers. **The receive ring is the exception**: at
    4,096 bytes it is `.bss` and comes straight out of the 64K (§16k).
    **Run `make -f victorow.mak sizes` after any change that could add static
@@ -348,7 +353,8 @@ socket is single-use, so start `socat` first and never probe the port.
 |---|---|
 | `PORTING.md` | design doc, memory budget, hardware map, milestone plan |
 | `ckvictor.h` | all ~40 feature `-D` flags, size limits, platform identity |
-| `ckvictor.c` | Victor glue, and **no conditional compilation on the compiler**: process-model stubs (§1), `ioctl`/`FIONREAD`/`TIOCMGET` (§0b), the comm-device `read()`/`write()` and the `alarm()` that bounds the read (§0d), the foreground location tag and write/gap timers the interrupt handler latches against `rxpeak` (§0e, PORTING.md §16m), the gaps in Watcom's Unix surface — `gettimeofday`, `uname`, `link`, `kill`, `getpw*`, plus an `access()` that is right about a FAT root and the `_fmode = O_BINARY` initializer that stops the DOS runtime translating transfers (§1d, PORTING.md §16h), the priority-0 initializer that opens the server capability gate and parses `--safe-server` off the command tail before `argv` exists (PORTING.md §16i), the termios half that programs the 7201 and 8253 through the OEM driver's IOCTL block (§1b, PORTING.md §11a), and **the 7201 data path — IRQ1 handler, receive ring, polled transmitter (§1e, PORTING.md §11b)** |
+| `ckvictor.c` | Victor glue, and **no conditional compilation on the compiler**: process-model stubs (§1), `ioctl`/`FIONREAD`/`TIOCMGET` (§0b), the comm-device `read()`/`write()` and the `alarm()` that bounds the read (§0d), the foreground location tag — now including the `fopen`/`fclose` wrappers and the breadcrumb that subdivides "upstream" (§0e, PORTING.md §16m, §16s) — and the write/gap timers the interrupt handler latches against `rxpeak`, the gaps in Watcom's Unix surface — `gettimeofday`, `uname`, `link`, `kill`, `getpw*`, plus an `access()` that is right about a FAT root and the `_fmode = O_BINARY` initializer that stops the DOS runtime translating transfers (§1d, PORTING.md §16h), the priority-0 initializer that opens the server capability gate and parses `--safe-server` off the command tail before `argv` exists (PORTING.md §16i), the termios half that programs the 7201 and 8253 through the OEM driver's IOCTL block (§1b, PORTING.md §11a), and **the 7201 data path — IRQ1 handler, receive ring, polled transmitter (§1e, PORTING.md §11b)** |
+| `ckvisr.asm` | the µPD7201 receive ISR, by hand — the port's only assembly, and the reason is that Open Watcom's `__interrupt` saves twelve registers with no way to ask for fewer (§16t). Assembled with `wasm`, reads no header, so `ckvictor.c` carries a build-time check that the ring size the two agree on has not drifted. `XFLAGS=-dV9K_CISR` selects the C handler instead |
 | `victor/sys/termios.h` | the 7201 driver's control surface; no DOS libc has one, reached via `-i=victor` |
 | `victor/sys/ioctl.h` | `FIONREAD` and `TIOCMGET`; without the first `conchk()`/`ttchk()` are hard-wired to 0, and without the second `ttchk()` never reaches `FIONREAD` |
 | `victorow.mak` | the build: Open Watcom `wcc`/`wlink` + `sizes` target |

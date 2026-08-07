@@ -24,6 +24,7 @@
 WATCOM  = /opt/open-watcom-v2/rel
 WBIN    = $(WATCOM)/arml64
 CC      = $(WBIN)/wcc
+ASM     = $(WBIN)/wasm
 LINK    = $(WBIN)/wlink
 
 # -ml   large model: far code AND far data.  The whole point of this build.
@@ -74,7 +75,15 @@ PLATFORM = ckutio.obj ckufio.obj ckusig.obj
 EMPTY   = ckuxla.obj ckcuni.obj ckcnet.obj ckctel.obj
 
 # Victor-specific glue -- the only non-upstream C file.
-VICTOR  = ckvictor.obj
+#
+# ckvisr.obj joined it in SS16t and is the only assembly in the port.  It is
+# the uPD7201 receive handler, and it exists because Open Watcom's
+# __interrupt saves twelve registers with no way to ask for fewer, which
+# costs about half the 260us a byte allows at 38400.  PORTING.md SS16t has
+# the measurement; the head of ckvisr.asm has the reasoning; ckvictor.c
+# still holds the C handler, which is the specification and which
+# XFLAGS=-dV9K_CISR puts back in the vector.
+VICTOR  = ckvictor.obj ckvisr.obj
 
 # NOT LINKED: binmode.obj.  Recording this because it looks like exactly the
 # right answer and it does not work here.
@@ -146,6 +155,13 @@ $(OBJS): $(CONFIG_H)
 
 %.obj: %.c
 	$(CC) $(CFLAGS) -fo=$@ $<
+
+# wasm takes none of CFLAGS: no model, no includes, nothing force-included.
+# ckvisr.asm names its own segments and its own group and reads no header,
+# which is why ckvictor.c carries a compile-time check that the ring size
+# the two agree on has not drifted.
+ckvisr.obj: ckvisr.asm
+	$(ASM) -zq -bt=dos -fo=$@ ckvisr.asm
 
 # Report the numbers that actually decide whether this port is viable.
 #

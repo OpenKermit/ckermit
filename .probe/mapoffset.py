@@ -10,7 +10,14 @@ Wire length: SOH LEN SEQ TYPE [data] CHECK EOL.  For a short packet that is
 unchar(LEN) + 3; for a long one (LEN == 0) it is data + 9, the extra being
 LENX1 LENX2 and the header check.
 
-usage: mapoffset.py <host.pkt> <offset> [<offset> ...]
+The Victor's offsets are NOT the host's unless nothing was missed before the
+first byte it stored.  PORTING.md 16r's run started 253 bytes into the host's
+stream -- nine S retransmissions of startup dead air the Victor never saw --
+and unshifted, its first loss mapped into the seventh S retransmission and
+read as a startup artifact.  Pass rxbytes and the shift is computed and
+applied for you, which is the only reliable way to do it:
+
+usage: mapoffset.py <host.pkt> [--rxbytes N] <offset> [<offset> ...]
 """
 import re, sys
 
@@ -39,8 +46,21 @@ for line in open(sys.argv[1], encoding='latin-1'):
 print(f"{sys.argv[1]}: {pos} bytes sent to the Victor in "
       f"{sum(1 for p in pkts if p[2] != '<timeout>')} packets\n")
 
-for arg in sys.argv[2:]:
-    off = int(arg)
+args = sys.argv[2:]
+shift = 0
+if args and args[0] in ('--rxbytes', '-r'):
+    rxbytes = int(args[1])
+    args = args[2:]
+    shift = pos - rxbytes
+    print(f"rxbytes={rxbytes} against {pos} sent: the Victor's stream starts "
+          f"{shift} bytes into the host's.")
+    if shift < 0:
+        print("  NEGATIVE -- the Victor stored more than the host sent.  "
+              "Wrong log, or a run the log does not cover.")
+    print("  Every offset below is shifted by that amount.\n")
+
+for arg in args:
+    off = int(arg) + shift
     hit = None
     for (s, e, kind, seq, typ, wire) in pkts:
         if kind == '<timeout>':
@@ -51,10 +71,11 @@ for arg in sys.argv[2:]:
     if hit:
         s, e, kind, seq, typ, wire = hit
         what = "RESEND" if kind == 'S' else "first send"
-        print(f"offset {off:6d} -> {what} seq={seq:02d} type={typ} "
-              f"({wire} wire bytes, {off - s} into it, {e - off} left)")
+        print(f"offset {arg:>6} -> {off:6d} -> {what} seq={seq:02d} "
+              f"type={typ} ({wire} wire bytes, {off - s} into it, "
+              f"{e - off} left)")
     else:
-        print(f"offset {off:6d} -> past the end of the log ({pos})")
+        print(f"offset {arg:>6} -> {off:6d} -> past the end of the log ({pos})")
 
 print("\npacket map:")
 for (s, e, kind, seq, typ, wire) in pkts:

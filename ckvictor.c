@@ -38,9 +38,14 @@
   has to reach the real ones, so the renames are undone here -- before any
   header is pulled in, so that <unistd.h> / <io.h> declare read() and
   write() rather than redeclaring ours.  See ckvictor.h and section 0d.
+
+  fopen() and fclose() joined them in SS16s, for section 0e's tag rather
+  than for the driver, and are undone here on the same terms.
 */
 #undef read
 #undef write
+#undef fopen
+#undef fclose
 
 #include "ckcdeb.h"
 #include "ckcker.h"
@@ -381,15 +386,54 @@ v9k_alarm_check() {
        time and simply could not keep up, which is a rate deficit rather
        than a stall -- the opposite of what SS16k concluded from rxpeak
        alone.
-*/
-#define V9K_TAG_NONE  0
-#define V9K_TAG_WRITE 1
-#define V9K_TAG_TTOL  2
-#define V9K_TAG_READ  3
-#define V9K_TAG_DRAIN 4
 
-static volatile unsigned char v9k_wtag   = V9K_TAG_NONE;
-static volatile unsigned int  v9k_wtagfd = 0;
+  WIDENED FOR SS16r, which asked for it by name.  The vocabulary above has
+  five values and four of them are ours, so everything else -- most of the
+  program -- came back as 0, "upstream".  SS16r's first loss was tagged 0 and
+  that named no suspect at all: packet decoding, stdio and the DOS file open
+  that follows the F packet are one bucket.  Three cheap widenings, none of
+  them on a per-byte path:
+
+    5  fopen().  The receive file is CREATED here -- a directory search and
+       a FAT allocation inside one INT 21h -- and it happens between the F
+       packet and the first data packet, which is exactly the stretch
+       SS16r's first burst landed in.  Renamed in ckvictor.h the same way
+       read() and write() are.  ckufio.c's zopeno() calls the bare open()
+       just before this to ask whether the name is a tty; that one is a
+       lookup that fails with ENOENT on a new file, so the cost is here.
+    6  v9k_ser_get(), the copy out of the ring, as distinct from the loop
+       around it.  4 used to cover both, and they are not the same thing:
+       the loop is where the foreground WAITS with interrupts enabled and
+       is holding nothing off, while the copy is real work with the ring's
+       tail moving under the handler.  4 keeps its old meaning (somewhere
+       in v9k_comm_read()) so SS16r's peaktag=4 stays readable; 6 is the
+       part of it that could actually matter.
+    7  fclose().  The 8K flush and the directory update at the end of a
+       receive, for the same reason as 5.
+
+  And the breadcrumb, which is the one that widens 0.  These four regions
+  used to store V9K_TAG_NONE on the way out; they now store V9K_TAG_UPBASE
+  plus the tag they are leaving, so "upstream" subdivides into "upstream,
+  since the file write returned" (9), "since the ACK went out" (10) and so
+  on for the same single store.  A loss tagged 12 is upstream after a ring
+  drain -- packet decoding.  A loss tagged 9 is upstream after a file write
+  -- between packets.  Those are different places in the protocol and 0
+  could not tell them apart.  0 now means only "before any of these ran".
+*/
+#define V9K_TAG_NONE   0
+#define V9K_TAG_WRITE  1
+#define V9K_TAG_TTOL   2
+#define V9K_TAG_READ   3
+#define V9K_TAG_DRAIN  4
+#define V9K_TAG_FOPEN  5
+#define V9K_TAG_GET    6
+#define V9K_TAG_FCLOSE 7
+
+#define V9K_TAG_UPBASE 8                /* Upstream, since tag N-8 ended */
+#define V9K_TAG_AFTER(t) ((unsigned char)((t) + V9K_TAG_UPBASE))
+
+volatile unsigned char v9k_wtag   = V9K_TAG_NONE;
+volatile unsigned int  v9k_wtagfd = 0;
 
 /*
   Hundredths of a second since midnight, from INT 21h AH=2Ch -- Watcom's
@@ -541,15 +585,24 @@ v9k_comm_read(fd,buf,n) int fd; void * buf; unsigned int n;
     v9k_wtag = V9K_TAG_DRAIN;           /* Section 0e: we are draining  */
     for (;;) {
         if (v9k_ser_active()) {
+            /*
+              Section 0e, widened: the copy is tagged apart from the loop.
+              Two stores per turn of a loop that already makes a call and
+              walks the ring, so it is free at this granularity -- and it
+              separates "waiting, holding nothing off" from "moving the
+              tail under the handler", which tag 4 could not.
+            */
+            v9k_wtag = V9K_TAG_GET;
             rc = v9k_ser_get((char *)buf,(int)n);
+            v9k_wtag = V9K_TAG_DRAIN;
             if (rc > 0) {
-                v9k_wtag = V9K_TAG_NONE;
+                v9k_wtag = V9K_TAG_AFTER(V9K_TAG_DRAIN);
                 return(rc);
             }
         } else if (dos_dev_input_ready(fd)) {
             rc = (int)read(fd,buf,n);   /* Undef'd above: the real one  */
             if (rc != 0) {              /* Bytes, or a genuine error    */
-                v9k_wtag = V9K_TAG_NONE;
+                v9k_wtag = V9K_TAG_AFTER(V9K_TAG_DRAIN);
                 return(rc);
             }
         }
@@ -560,7 +613,7 @@ v9k_comm_read(fd,buf,n) int fd; void * buf; unsigned int n;
               the caller retries -- and the retry blocks again rather than
               spinning, because the alarm cleared itself above.
             */
-            v9k_wtag = V9K_TAG_NONE;
+            v9k_wtag = V9K_TAG_AFTER(V9K_TAG_DRAIN);
             errno = EINTR;
             return(-1);
         }
@@ -592,7 +645,7 @@ v9k_read(fd,buf,n) int fd; void * buf; V9K_RCOUNT n;
     v9k_wtagfd = (unsigned int)fd;      /* Section 0e                   */
     v9k_wtag   = V9K_TAG_READ;
     rc = read(fd,buf,n);
-    v9k_wtag   = V9K_TAG_NONE;
+    v9k_wtag   = V9K_TAG_AFTER(V9K_TAG_READ);
     return(rc);
 }
 
@@ -623,7 +676,7 @@ v9k_write(fd,buf,n) int fd; const void * buf; V9K_WCOUNT n;
     if (fd > 2 && fd == ttyfd && v9k_ser_active()) {
         v9k_wtag = V9K_TAG_TTOL;        /* Section 0e                   */
         rc = (V9K_WTYPE)v9k_ser_put((const char *)buf,(int)n);
-        v9k_wtag = V9K_TAG_NONE;
+        v9k_wtag = V9K_TAG_AFTER(V9K_TAG_TTOL);
         /*
           v9k_ser_put() is polled and does not return until the last byte
           is in the chip, so this is as close to "the ACK is on the wire"
@@ -648,7 +701,7 @@ v9k_write(fd,buf,n) int fd; const void * buf; V9K_WCOUNT n;
     t0 = v9k_centis();
     rc = write(fd,buf,n);
     dt = v9k_centis_since(t0);
-    v9k_wtag   = V9K_TAG_NONE;
+    v9k_wtag   = V9K_TAG_AFTER(V9K_TAG_WRITE);
 
     if (fd > 2) {                       /* A file: zoutdump(), usually  */
         v9k_wf_n++;
@@ -664,6 +717,59 @@ v9k_write(fd,buf,n) int fd; const void * buf; V9K_WCOUNT n;
         if (dt > v9k_wc_max)
           v9k_wc_max = dt;
     }
+    return(rc);
+}
+
+/*
+  And the two DOS calls that are not reads or writes, renamed by exactly
+  the same mechanism (ckvictor.h) for exactly the same reason -- section
+  0e's tag vocabulary, widened because SS16r's first loss came back tagged
+  0 and 0 was most of the program.
+
+  fopen() on the receive file is a directory search and a FAT allocation,
+  and it happens between the F packet and the first data packet.  fclose()
+  is the flush of whatever is left in the V9K_OBUFSIZE buffer plus the
+  directory update.  Neither is on a per-byte path -- they happen once per
+  transfer -- so the tag is the only thing added; there is no timer here
+  because the clock's quantum is half a second (see v9k_centis() above) and
+  a single event shorter than that has never been measurable on this
+  machine.
+
+  Pure pass-throughs otherwise, and deliberately so: everything in the
+  build that opens or closes a stdio file goes through these, including
+  DEBUG.LOG.
+*/
+_PROTOTYP( FILE * v9k_fopen, (const char *, const char *) );
+
+FILE *
+#ifdef CK_ANSIC
+v9k_fopen(const char * path, const char * mode)
+#else
+v9k_fopen(path,mode) const char * path; const char * mode;
+#endif /* CK_ANSIC */
+{
+    FILE * f;
+
+    v9k_wtag = V9K_TAG_FOPEN;           /* Section 0e                   */
+    f = fopen(path,mode);
+    v9k_wtag = V9K_TAG_AFTER(V9K_TAG_FOPEN);
+    return(f);
+}
+
+_PROTOTYP( int v9k_fclose, (FILE *) );
+
+int
+#ifdef CK_ANSIC
+v9k_fclose(FILE * f)
+#else
+v9k_fclose(f) FILE * f;
+#endif /* CK_ANSIC */
+{
+    int rc;
+
+    v9k_wtag = V9K_TAG_FCLOSE;          /* Section 0e                   */
+    rc = fclose(f);
+    v9k_wtag = V9K_TAG_AFTER(V9K_TAG_FCLOSE);
     return(rc);
 }
 
@@ -1523,12 +1629,30 @@ tcsendbreak(fd,duration) int fd; int duration;
 /* The channel we were given.  Set by v9k_ser_install() from the device
    name; everything else reads these. */
 static unsigned int  v9k_chan    = 0;           /* 0 = A, 1 = B         */
-static unsigned int  v9k_off_ctl = V9K_OFF_CTLA;
-static unsigned int  v9k_off_dat = V9K_OFF_DATA;
+unsigned int  v9k_off_ctl = V9K_OFF_CTLA;
+unsigned int  v9k_off_dat = V9K_OFF_DATA;
 static unsigned char v9k_dsrbit  = 0x08;        /* 6522 PA3 for A       */
+
+/*
+  The channel we did NOT take, which until SS16t nothing in this file had any
+  reason to name.  It has one now, and the reason is the shape of the chip.
+
+  The uPD7201 is two channels behind ONE interrupt request line, and
+  v9k_ser_install() takes the IRQ1 vector for the whole of it.  CONFIG.SYS
+  on this image loads porta.exe AND portb.exe, so the OEM driver has
+  configured the other channel and, as far as we know, left its receive
+  interrupts enabled.  From the moment we hook the vector, that channel's
+  interrupts arrive HERE -- and the handler reads our channel's RR0, issues
+  the EOI and returns without touching the other one.  The EOI clears the
+  interrupt-under-service latch; it does not clear an interrupt REQUEST
+  whose cause is an unread receive buffer, so the chip re-asserts at once
+  and the entry repeats.
+*/
+unsigned int  v9k_off_oth = V9K_OFF_CTLB;
 
 #define V9K_CTL   V9K_FARB(V9K_SEG_7201,v9k_off_ctl)
 #define V9K_DAT   V9K_FARB(V9K_SEG_7201,v9k_off_dat)
+#define V9K_CTLO  V9K_FARB(V9K_SEG_7201,v9k_off_oth)
 
 /*
   WR2 and the end-of-interrupt command live on channel A whichever channel
@@ -1563,9 +1687,25 @@ static unsigned char v9k_dsrbit  = 0x08;        /* 6522 PA3 for A       */
 */
 #define V9K_RXMASK (V9K_RXBUFSIZ - 1)
 
-static volatile unsigned char v9k_rxbuf[V9K_RXBUFSIZ];
-static volatile unsigned int  v9k_rxhead = 0;   /* Handler writes here  */
-static volatile unsigned int  v9k_rxtail = 0;   /* Foreground reads here*/
+/*
+  The ring itself.  Not static since SS16t: ckvisr.asm is a separate
+  translation unit and cannot see a static, so every symbol the hand-written
+  handler touches has file scope now.  All 29 keep the v9k_ prefix, which is
+  what makes that safe in a program of 24 modules and ~100 upstream files.
+
+  ckvisr.asm hard-codes the ring mask as a literal, because an assembler
+  cannot read ckvictor.h.  This is the check that the two never drift: if
+  V9K_RXBUFSIZ stops being 4096, or stops being a power of two, the build
+  fails here rather than corrupting a transfer on the bench.
+*/
+#if !defined(V9K_CISR) && (V9K_RXBUFSIZ != 4096)
+  /* ckvisr.asm's V9K_RXMASK is 0FFFh -- change both or neither. */
+  int v9k_ring_size_disagrees_with_ckvisr_asm[-1];
+#endif
+
+volatile unsigned char v9k_rxbuf[V9K_RXBUFSIZ];
+volatile unsigned int  v9k_rxhead = 0;   /* Handler writes here  */
+volatile unsigned int  v9k_rxtail = 0;   /* Foreground reads here*/
 
 /*
   Three counters, for the debug log only.  They are the difference between
@@ -1578,12 +1718,12 @@ static volatile unsigned int  v9k_rxtail = 0;   /* Foreground reads here*/
   held more than four; the difference is exactly what you need when you are
   deciding whether V9K_RXBUFSIZ is the thing standing between this port and
   a longer packet (PORTING.md SS16j).  Maintained in the handler, which
-  costs a subtract, a mask and a compare per byte -- 2us or so of the 26us
+  costs a subtract, a mask and a compare per byte -- 2us or so of the 260us
   a byte takes at 38400, and this is the only place that knows.
 */
-static volatile unsigned int  v9k_rxlost = 0;   /* Chip overran us      */
-static volatile unsigned int  v9k_rxfull = 0;   /* Ring overran Kermit  */
-static volatile unsigned int  v9k_rxpeak = 0;   /* Most it ever held    */
+volatile unsigned int  v9k_rxlost = 0;   /* Chip overran us      */
+volatile unsigned int  v9k_rxfull = 0;   /* Ring overran Kermit  */
+volatile unsigned int  v9k_rxpeak = 0;   /* Most it ever held    */
 
 /*
   And three more that turn rxpeak from a number into a lead.  Section 0e has
@@ -1600,9 +1740,9 @@ static volatile unsigned int  v9k_rxpeak = 0;   /* Most it ever held    */
 */
 #define V9K_RXSTALL 256                 /* "Well behind", in bytes      */
 
-static volatile unsigned char v9k_peaktag  = V9K_TAG_NONE;
-static volatile unsigned int  v9k_peakfd   = 0;
-static volatile unsigned int  v9k_rxstall  = 0;
+volatile unsigned char v9k_peaktag  = V9K_TAG_NONE;
+volatile unsigned int  v9k_peakfd   = 0;
+volatile unsigned int  v9k_rxstall  = 0;
 
 /*
   And where in the stream it happened, which is what turns a number into a
@@ -1612,13 +1752,13 @@ static volatile unsigned int  v9k_rxstall  = 0;
   lengths -- so the question "is the peak sitting on the retransmission?"
   becomes arithmetic rather than argument.
 
-  A 32-bit increment per byte is about 1.6us on a 5MHz 8088, against 26us a
+  A 32-bit increment per byte is about 1.6us on a 5MHz 8088, against 260us a
   byte at 38400.  Long rather than int because a transfer bigger than 64K
   would otherwise wrap the answer silently.
 */
-static volatile unsigned long v9k_rxbytes  = 0L;    /* Every byte stored */
-static volatile unsigned long v9k_peakat   = 0L;    /* Offset at rxpeak  */
-static volatile unsigned long v9k_stallat  = 0L;    /* First crossing    */
+volatile unsigned long v9k_rxbytes  = 0L;    /* Every byte stored */
+volatile unsigned long v9k_peakat   = 0L;    /* Offset at rxpeak  */
+volatile unsigned long v9k_stallat  = 0L;    /* First crossing    */
 
 /*
   And the same treatment for the loss itself, which is what PORTING.md SS16p
@@ -1660,7 +1800,7 @@ static volatile unsigned long v9k_stallat  = 0L;    /* First crossing    */
   Separating the bursts by a gap in the STREAM rather than by "consecutive
   entries to the handler" is deliberate, and it is what keeps this free.
   Consecutive-entry counting needs the good-byte path to clear the run,
-  which Watcom codes as a DGROUP reload and a store -- about 5us of a 26us
+  which Watcom codes as a DGROUP reload and a store -- about 5us of a 260us
   byte at 38400, on the one path that runs per byte, in an instrument whose
   entire purpose is to find out whether the per-byte path is too slow.  That
   is SS16k's mistake exactly.  Measuring the gap instead puts every added
@@ -1676,13 +1816,168 @@ static volatile unsigned long v9k_stallat  = 0L;    /* First crossing    */
 */
 #define V9K_LOSTGAP 16                  /* Clean bytes that end a burst */
 
-static volatile unsigned char v9k_losttag  = V9K_TAG_NONE;
-static volatile unsigned int  v9k_lostfd   = 0;
-static volatile unsigned int  v9k_lostevt  = 0;     /* Bursts, not bytes */
-static volatile unsigned int  v9k_lostrun  = 0;     /* Inside one now    */
-static volatile unsigned int  v9k_lostmax  = 0;     /* Longest burst     */
-static volatile unsigned long v9k_lostat   = 0L;    /* Offset, first loss*/
-static volatile unsigned long v9k_lostend  = 0L;    /* Offset, last loss */
+volatile unsigned char v9k_losttag  = V9K_TAG_NONE;
+volatile unsigned int  v9k_lostfd   = 0;
+volatile unsigned int  v9k_lostevt  = 0;     /* Bursts, not bytes */
+volatile unsigned int  v9k_lostrun  = 0;     /* Inside one now    */
+volatile unsigned int  v9k_lostmax  = 0;     /* Longest burst     */
+volatile unsigned long v9k_lostat   = 0L;    /* Offset, first loss*/
+volatile unsigned long v9k_lostend  = 0L;    /* Offset, last loss */
+
+/*
+  And the table SS16r asked for, which is the whole point of this revision.
+  SS16r came back evt=5 max=179 and could not say how many BYTES the 179
+  covered -- 179 losses no more than V9K_LOSTGAP apart span anywhere from
+  about 180 to about 3,000, and that range is the difference between one
+  blocking hold-off of ~46ms and a rate deficit running the length of a
+  long packet.  Those are different defects with different fixes.
+  lostat/lostend bracket the FIRST and LAST loss of the whole run, which
+  spans all five bursts and answers nothing.
+
+  So: first offset, last offset, count and tag, per burst, for the first
+  V9K_LOSTBURST of them.  A burst's span is bend - bat and is read directly.
+  SS16r's other two asks fall out of the same table rather than needing
+  code: the largest burst is whichever row has the largest n, so there is
+  no need to choose between tagging the first burst and tagging the largest
+  -- every row carries its own tag.
+
+  Two tags per row, not one, because they answer different questions.
+  btag is where the foreground was at the burst's FIRST loss, which is the
+  suspect: whatever was running when the receiver first fell behind.
+  bendtag is where it was at the last, and the pair says whether the
+  foreground moved during the burst.  A burst that opens and closes in the
+  same place is one long operation; one that starts in a file write and
+  ends somewhere upstream is a hold-off whose effects outlived it.
+
+  All of it is on the rare path -- inside "if (rr1 & V9K_RR1_OVERRUN)",
+  which by measurement runs 322 times in 43,589 bytes and not at all in a
+  clean run -- so the per-byte cost this instrument exists to measure is
+  untouched.  That is SS16q's rule and it is why the burst boundary is
+  still a gap in the stream rather than a run counter cleared per byte.
+
+  8 rows is 8 * (4 + 4 + 2 + 2 + 1 + 1) = 112 bytes of .bss, which comes
+  out of DGROUP (hard rule 4) and is reported by "make -f victorow.mak
+  sizes".  It is sized off SS16r's five bursts with room to see that the
+  count grew; lostevt still counts them all, so an overflow is visible
+  rather than silent.
+*/
+#define V9K_LOSTBURST 8                 /* Rows in the table below      */
+
+/*
+  ckvisr.asm does not maintain the burst table -- deliberately, see note 2
+  at the head of that file -- so selecting it selects the lean shape too.
+
+  This is not a tidiness point.  Without it the table would still be
+  allocated, still be all zeroes, and the exit report would still print a
+  row per burst: "b1 at=0 end=0 n=0 sp=0 t=0/0", which is not obviously
+  wrong and would be read as a measurement.  A counter that no longer has
+  anything writing to it has to stop printing, not print zeroes.
+*/
+#if !defined(V9K_CISR) && !defined(V9K_LEANLOST)
+#define V9K_LEANLOST
+#endif
+
+/*
+  SS16t's counters, and the branch they sit in is the point.
+
+  ANSWERED, AND THE ANSWER IS NO.  Kept because a dead hypothesis with a
+  counter still attached to it is cheaper to leave than to re-derive, and
+  because the counter is what makes every future run say so again for free.
+
+  SS16s measured 1.03 bytes lost per overrun interrupt, twice, at 38400 --
+  a steady HALF-RATE deficit rather than a stall, sustained for tens of
+  milliseconds and starting hundreds of bytes into a packet rather than at
+  its front.  Nothing in the foreground explained it: the tag said
+  upstream, the ring never filled, and a disk 100x slower changed nothing
+  (SS16s leg S).  What halves a service rate without involving the
+  foreground at all is a second interrupt source sharing the line, and the
+  uPD7201's other channel is exactly that -- see the comment on
+  v9k_off_oth for why this handler could not clear it.
+
+  SS16t ran it at the bench at 19200 and 38400: norx = 0 and othrx = 0 in
+  BOTH.  Every interrupt this program has ever seen was a real received
+  byte on our own channel.  There is no storm, nothing else shares IRQ1,
+  and the deficit is the handler's own cost -- which is where SS16t went
+  next, after correcting the byte time it had been reasoning from (260us
+  at 38400, not the 26us four comments in this file used to claim).
+
+  What each counter says, if it ever comes back non-zero:
+
+    isrnorx   entries where OUR channel had no received byte.  Measured 0
+              twice; anything of the order of the byte count would mean
+              the handler is being entered twice per byte by something
+              else.  This is the whole experiment.
+    isrothrx  of those, how many found a byte waiting in the OTHER
+              channel's receiver -- which is the difference between "some
+              other device shares IRQ1" and "it is the half of this chip we
+              did not take".
+    norxrr0   our RR0 and the other channel's, latched at the first such
+              entry, so a cause that is not RXRDY at all (a break, a
+              transmit-buffer-empty, an external/status change) is still
+              identifiable from the bits.
+
+  Every one of these is inside "if (!(rr0 & V9K_RR0_RXRDY))", a branch that
+  already exists and that a healthy run never takes.  The per-byte path is
+  not touched, which is SS16q's rule and SS16k's mistake.
+
+  Reading the other channel's RR0 costs a pointer reset (writing 0 to WR0
+  is a null command that only sets the register pointer) and a read, both
+  on that same rare path.  It is a diagnostic build's licence: the other
+  channel belongs to the OEM driver and we are reaching into it.
+*/
+volatile unsigned int  v9k_isrnorx  = 0;
+volatile unsigned int  v9k_isrothrx = 0;
+volatile unsigned char v9k_norxrr0  = 0;     /* Ours, first time  */
+volatile unsigned char v9k_norxoth  = 0;     /* Theirs            */
+volatile unsigned char v9k_norxseen = 0;     /* Latched yet?      */
+
+/*
+  THE TABLE, AND WHY IT HAS A SWITCH -- which is a mistake of SS16s, found
+  in SS16t, and worth stating plainly because the rule it broke is one this
+  file has been careful about twice before.
+
+  SS16q's rule is "keep the instrument off the per-byte path".  SS16s
+  checked that, in wdis, and the clean path came back 67 instructions
+  before and after -- so the table looked free.  That was the wrong path to
+  check.  The overrun branch is rare only while the receiver is keeping up.
+  Once it falls behind, every byte for the rest of the packet arrives with
+  the latch already set and takes this branch: INSIDE A BURST, THE OVERRUN
+  PATH IS THE PER-BYTE PATH.
+
+  The numbers say it is not free there.  Same fixture, same rate, same
+  bench, and the only thing that changed between the first row and the rest
+  is this table:
+
+      SS16r, before the table     rxlost = 322,  max = 179
+      SS16s leg Q                 rxlost = 810,  max = 473
+      SS16s leg R                 rxlost = 849,  max = 473
+      SS16t leg V                 rxlost = 784,  max = 467
+
+  2.5x, and the mechanism is positive feedback.  A byte arrives every 260us
+  at 38400; the handler is marginal against that; one overrun puts it on
+  this longer branch; the longer branch guarantees the next overrun; and
+  the burst sustains itself until the line goes idle at the end of the
+  packet.  That last clause is testable and already tested -- it is why
+  every burst measured so far ends on a packet boundary.
+
+  So: XFLAGS=-dV9K_LEANLOST builds the overrun path in exactly SS16r's
+  shape -- Error Reset, rxlost, the burst detector, the BELL, nothing else
+  -- which makes this an A/B on one variable instead of an argument.  Near
+  322 confirms the feedback model and says the defect is handler cost.
+  Near 800 says the table was never the difference and something else
+  changed between SS16r and SS16s.
+
+  The counters the table replaced (lostevt/max/tag/at/end) stay in both
+  builds, so a lean run is still readable next to a full one.
+*/
+#ifndef V9K_LEANLOST
+static volatile unsigned long v9k_bat[V9K_LOSTBURST];   /* First loss   */
+static volatile unsigned long v9k_bend[V9K_LOSTBURST];  /* Last loss    */
+static volatile unsigned int  v9k_bn[V9K_LOSTBURST];    /* Losses in it */
+static volatile unsigned int  v9k_bfd[V9K_LOSTBURST];   /* fd at first  */
+static volatile unsigned char v9k_btag[V9K_LOSTBURST];  /* Tag at first */
+static volatile unsigned char v9k_bendtag[V9K_LOSTBURST]; /* ... at last*/
+#endif /* V9K_LEANLOST */
 
 static int v9k_ser_on   = 0;            /* Have we taken the chip?      */
 static int v9k_ser_atx  = 0;            /* atexit() registered yet?     */
@@ -1750,11 +2045,17 @@ v9k_setvect(vec,seg,off) int vec; unsigned int seg; unsigned int off;
        NEWEST byte rather than overwriting the oldest is deliberate -- the
        oldest bytes are the front of a packet Kermit is about to read.
 */
-static void __interrupt __far
+/* Not static: with ckvisr.asm installed this is unreferenced, and a
+   file-scope definition is the way to keep it compiling -- and so
+   from rotting -- without an unreferenced-symbol warning. */
+void __interrupt __far
 v9k_ser_isr(void)
 {
     unsigned char rr0, rr1, c;
     unsigned int nh;
+#ifndef V9K_LEANLOST
+    unsigned int bi;                    /* Burst row; overrun path only */
+#endif /* V9K_LEANLOST */
 
     rr0 = V9K_CTL;                      /* RR0: pointer is already at 0 */
     V9K_CTL = 1;                        /* Point at RR1 ...             */
@@ -1763,8 +2064,26 @@ v9k_ser_isr(void)
     V9K_CTLA = V9K_CMD_EOI;             /* 7201 end of interrupt        */
     V9K_EOI  = V9K_IRQ1_EOI;            /* 8259 specific EOI for IRQ1   */
 
-    if (!(rr0 & V9K_RR0_RXRDY))         /* Nothing for us               */
-      return;
+    if (!(rr0 & V9K_RR0_RXRDY)) {       /* Nothing for us               */
+        /*
+          SS16t.  Before this, the handler simply returned here and the
+          entry was invisible -- which is why a source stealing every
+          other interrupt slot could not be told from a slow handler.
+        */
+        unsigned char rr0o;
+
+        V9K_CTLO = 0;                   /* Null command: point at RR0   */
+        rr0o = V9K_CTLO;
+        v9k_isrnorx++;
+        if (rr0o & V9K_RR0_RXRDY)
+          v9k_isrothrx++;
+        if (!v9k_norxseen) {
+            v9k_norxseen = 1;
+            v9k_norxrr0  = rr0;
+            v9k_norxoth  = rr0o;
+        }
+        return;
+    }
 
     if (rr1 & V9K_RR1_OVERRUN) {        /* Latched -- clear it or wedge */
         V9K_CTL = V9K_CMD_ERRRST;
@@ -1776,20 +2095,43 @@ v9k_ser_isr(void)
           is for the very first loss, where lostend is still 0 and the
           subtraction would not mean anything yet.
         */
-        if (!v9k_lostevt) {             /* The first loss of the run     */
-            v9k_lostevt = 1;
+        if (!v9k_lostevt
+            || v9k_rxbytes - v9k_lostend > (unsigned long)V9K_LOSTGAP) {
+            /*
+              A new burst.  The !v9k_lostevt arm has to stay: on the very
+              first loss lostend is still 0 and the subtraction would be
+              comparing an offset against nothing, which reads as "a new
+              burst" only by luck once rxbytes has passed V9K_LOSTGAP.
+            */
+            if (!v9k_lostevt) {         /* The first loss of the run     */
+                v9k_losttag = v9k_wtag; /* Section 0e, latched HERE      */
+                v9k_lostfd  = v9k_wtagfd;
+                v9k_lostat  = v9k_rxbytes;
+            }
+            v9k_lostevt++;
             v9k_lostrun = 1;
-            v9k_losttag = v9k_wtag;     /* Section 0e, latched HERE      */
-            v9k_lostfd  = v9k_wtagfd;
-            v9k_lostat  = v9k_rxbytes;
-        } else if (v9k_rxbytes - v9k_lostend > (unsigned long)V9K_LOSTGAP) {
-            v9k_lostevt++;              /* Clean run since: a new burst  */
-            v9k_lostrun = 1;
+#ifndef V9K_LEANLOST
+            bi = v9k_lostevt - 1;       /* Row for this burst            */
+            if (bi < V9K_LOSTBURST) {
+                v9k_bat[bi]  = v9k_rxbytes;
+                v9k_btag[bi] = v9k_wtag;
+                v9k_bfd[bi]  = v9k_wtagfd;
+            }
+#endif /* V9K_LEANLOST */
         } else
           v9k_lostrun++;                /* Still inside the same one     */
         if (v9k_lostrun > v9k_lostmax)
           v9k_lostmax = v9k_lostrun;
         v9k_lostend = v9k_rxbytes;
+
+#ifndef V9K_LEANLOST
+        bi = v9k_lostevt - 1;           /* Close the row out as we go    */
+        if (bi < V9K_LOSTBURST) {
+            v9k_bend[bi]    = v9k_rxbytes;
+            v9k_bn[bi]      = v9k_lostrun;
+            v9k_bendtag[bi] = v9k_wtag;
+        }
+#endif /* V9K_LEANLOST */
 
         nh = (v9k_rxhead + 1) & V9K_RXMASK;
         if (nh != v9k_rxtail) {         /* Mark the gap, as 3.13 does   */
@@ -1835,8 +2177,24 @@ v9k_ser_isr(void)
   Its address, as a segment and an offset, for v9k_setvect() above.  The
   handler is in far code, so this is a plain far pointer taken apart.
 */
-#define V9K_ISR_SEG FP_SEG((void __far *)v9k_ser_isr)
-#define V9K_ISR_OFF FP_OFF((void __far *)v9k_ser_isr)
+/*
+  SS16t: which of the two handlers goes in the vector.  ckvisr.asm is the
+  default; XFLAGS=-dV9K_CISR selects the C one above, which stays in the
+  build as the specification and as a fallback -- the assembly version
+  cannot be exercised at 38400 anywhere but the bench, so being able to put
+  the known-good handler back without editing anything is worth the space.
+
+  Both are far, so this is a plain far pointer taken apart either way.
+*/
+#ifdef V9K_CISR
+#define V9K_ISR_FN  v9k_ser_isr
+#else
+_PROTOTYP( void __far v9k_ser_isr_asm, (void) );        /* ckvisr.asm */
+#define V9K_ISR_FN  v9k_ser_isr_asm
+#endif /* V9K_CISR */
+
+#define V9K_ISR_SEG FP_SEG((void __far *)V9K_ISR_FN)
+#define V9K_ISR_OFF FP_OFF((void __far *)V9K_ISR_FN)
 
 /*
   Which of the two channels we were told to drive, from the SET LINE name
@@ -1859,11 +2217,13 @@ v9k_ser_selchan() {
         v9k_chan    = 1;
         v9k_off_ctl = V9K_OFF_CTLB;
         v9k_off_dat = V9K_OFF_DATB;
+        v9k_off_oth = V9K_OFF_CTLA;     /* SS16t: the one we did not take */
         v9k_dsrbit  = 0x20;             /* 6522 PA5 for channel B       */
     } else {
         v9k_chan    = 0;
         v9k_off_ctl = V9K_OFF_CTLA;
         v9k_off_dat = V9K_OFF_DATA;
+        v9k_off_oth = V9K_OFF_CTLB;
         v9k_dsrbit  = 0x08;             /* 6522 PA3 for channel A       */
     }
 }
@@ -1956,6 +2316,9 @@ v9k_ser_reenable() {
 static VOID
 v9k_ser_release() {
     unsigned int spin;
+#ifndef V9K_LEANLOST
+    unsigned int bi;                    /* Burst table row, at exit     */
+#endif /* V9K_LEANLOST */
     unsigned char rr1;
 
     if (!v9k_ser_on)
@@ -2003,6 +2366,21 @@ v9k_ser_release() {
       runs DEBUG.LOG is closed, but stdout is still open, and a .BAT that
       redirects it catches this line.
     */
+    /*
+      Which handler actually ran.  SS16t builds two and they are selected by
+      a -d flag, so a .OUT file on the image is otherwise indistinguishable
+      from the other build's -- and this session has already lost time twice
+      to results whose provenance had to be reconstructed afterwards.  One
+      word, printed by the code that was compiled, settles it.
+    */
+    printf("v9k: isr=%s\n",
+#ifdef V9K_CISR
+           "c"
+#else
+           "asm"
+#endif /* V9K_CISR */
+           );
+
     printf("v9k: rxlost=%u rxfull=%u rxpeak=%u of %u\n",
            (unsigned)v9k_rxlost, (unsigned)v9k_rxfull,
            (unsigned)v9k_rxpeak, (unsigned)V9K_RXBUFSIZ);
@@ -2021,6 +2399,19 @@ v9k_ser_release() {
            v9k_rxbytes, v9k_peakat, v9k_stallat);
 
     /*
+      SS16t, and it is meant to be read against rxbytes on the line above.
+      norx near 0 says every interrupt this program saw was one of ours and
+      the half-rate deficit is somewhere else entirely.  norx of the order
+      of rxbytes says the handler is being entered roughly twice per byte,
+      which is the deficit itself, and othrx says whether the other half of
+      the uPD7201 is the source.  rr0 are the two status bytes at the first
+      such entry, for a cause that is not a waiting byte.
+    */
+    printf("v9k: norx=%u othrx=%u rr0=%02x oth=%02x\n",
+           v9k_isrnorx, v9k_isrothrx,
+           (unsigned)v9k_norxrr0, (unsigned)v9k_norxoth);
+
+    /*
       The loss instrument, and the two lines are meant to be read together
       with the rxlost above.  evt against that rxlost is the shape of the
       defect -- near it means single misses all through, far below it means
@@ -2036,6 +2427,45 @@ v9k_ser_release() {
            (unsigned)v9k_losttag, (unsigned)v9k_lostfd);
     printf("v9k: lostat=%lu lostend=%lu\n",
            v9k_lostat, v9k_lostend);
+
+    /*
+      And a row per burst, which is what SS16r ended by asking for.  sp is
+      the one number the whole revision exists to produce: the span in
+      RECEIVED bytes between a burst's first and last loss.  Read it against
+      n on the same line --
+
+        sp near n      the losses are back to back, a few bytes apart, and
+                       the burst is one short hold-off of roughly n*260us.
+        sp near a long packet's length
+                       the receiver was behind for the whole packet, which
+                       is a rate deficit and a different defect.
+
+      sp is a LOWER bound on the span in the HOST's stream, and by how much
+      is not knowable from here: rxbytes counts bytes stored, plus one BELL
+      per overrun interrupt, and a hold-off that loses fifty bytes presents
+      one latched bit.  So sp under-reports by the bytes that were lost and
+      never substituted.  It cannot over-report, which is what makes the
+      "sp near n" reading safe and the other one directional.
+
+      t is section 0e's tag at the first loss and at the last, in that
+      order; fd goes with the first.  See V9K_TAG_* -- 9 and above are the
+      widened "upstream, since tag N-8 returned".  Rows only, no header:
+      this goes to a DOS console through a .BAT redirect.
+    */
+#ifndef V9K_LEANLOST
+    for (bi = 0; bi < V9K_LOSTBURST && bi < v9k_lostevt; bi++)
+      printf("v9k: b%u at=%lu end=%lu n=%u sp=%lu t=%u/%u fd=%u\n",
+             bi + 1, v9k_bat[bi], v9k_bend[bi], v9k_bn[bi],
+             v9k_bend[bi] - v9k_bat[bi],
+             (unsigned)v9k_btag[bi], (unsigned)v9k_bendtag[bi],
+             (unsigned)v9k_bfd[bi]);
+    if (v9k_lostevt > V9K_LOSTBURST)
+      printf("v9k: %u bursts, %u shown\n",
+             v9k_lostevt, (unsigned)V9K_LOSTBURST);
+#else
+    printf("v9k: lean (no burst table)\n");
+#endif /* V9K_LEANLOST */
+
     printf("v9k: wfile n=%u max=%ld at #%u of %u tot=%ld cs\n",
            v9k_wf_n, v9k_wf_max, v9k_wf_maxn, v9k_wf_maxb, v9k_wf_tot);
     printf("v9k: wcon n=%u max=%ld tot=%ld cs\n",

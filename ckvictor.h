@@ -323,6 +323,23 @@ extern long v9k_timezone;
 #define write v9k_write
 
 /*
+  fopen() and fclose(), renamed by the same object-like-macro trick and for
+  a much smaller reason: ckvictor.c section 0e's foreground tag.
+  PORTING.md SS16r found its first loss tagged 0, "somewhere upstream", and
+  0 covers packet decoding, stdio and the DOS file open after the F packet
+  alike.  These two put the open and the close of the receive file into
+  tags of their own, at the cost of two stores per transfer.
+
+  The wrappers delegate unconditionally -- there is no Victor behaviour
+  here at all, unlike read() and write(), which have a communications
+  device to route around.  Same audit as those two: no module in the build
+  uses either token as anything but the call, and <stdio.h>'s declarations
+  become the declarations of ours.  ckvictor.c undefines both.
+*/
+#define fopen  v9k_fopen
+#define fclose v9k_fclose
+
+/*
   The uPD7201 receive ring (ckvictor.c SS1e).  It is the only new static
   array this port adds and it comes straight out of DGROUP, so it is here
   with the other size levers rather than buried in the driver.

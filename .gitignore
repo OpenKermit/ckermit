@@ -35,3 +35,10 @@ ckermitw.exe.map
 .probe/*.exe
 .probe/*.o
 .probe/*.obj
+.probe/vburst
+.probe/vasm
+
+# Emulator harness scratch (PORTING.md 16a)
+mame.log
+kermit.log
+socat.log

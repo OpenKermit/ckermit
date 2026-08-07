@@ -4992,7 +4992,7 @@ Seven statics and a handful of stores, all on the overrun path:
 **A burst is separated by a gap in the stream, not by consecutive entries to
 the handler, and that choice is the point.** Consecutive-entry counting
 needs the good-byte path to clear the run counter, which Watcom codes as a
-DGROUP reload and a store — about 5 µs of a 26 µs byte at 38400, on the one
+DGROUP reload and a store — about 5 µs of a 260 µs byte at 38400, on the one
 path that runs per byte, inside an instrument whose entire purpose is to
 find out whether the per-byte path is too slow. **That is §16k's mistake
 exactly**, and it was caught by reading the `wdis` output rather than by
@@ -5158,6 +5158,13 @@ covers everything upstream, which is most of the program. The file *open*
 that follows the F packet is a DOS call on the path to the first NAKed
 packet and is currently indistinguishable from packet decoding.
 
+**One of the two readings above is retracted by §16s**, on the chip's
+behaviour rather than on any measurement: the 7201 latches one overrun and
+every handler entry clears it, so a single blocking hold-off — of 46 ms or
+of any other length — raises `rxlost` exactly once. `max = 179` is 179
+separate overflow episodes and cannot be one hold-off. What is left of the
+question is the density, which is what §16s's `sp` measures.
+
 ### Measured, and on what
 
 The §16o bench, unchanged: real Victor 9000, 896 KB, Victor MS-DOS 3.1 from
@@ -5166,6 +5173,339 @@ Mac running C-Kermit. One receive at 38400 of the 32,768-byte all-byte-values
 fixture, host log `r38400b.pkt`, Victor counters in `STEP0.OUT`. The file
 was **not** checked byte-for-byte this time; §16p established byte-exactness
 at this rate over two runs and this run was about the counters.
+
+---
+
+## 16s. The three instruments §16r asked for, built and not yet run
+
+§16r ended with one question and named three additions that would answer
+it. All three are in the tree. **None of them has been near a Victor**, and
+the reason is §16q's: the loss path only executes when the µPD7201
+overruns, the chip only overruns at 38400, and MAME cannot drive this
+machine above 9600. What was done instead is what §16q did — the arithmetic
+is replayed on the host by `.probe/vburst.c`, now 17 cases, all passing —
+and a 38400 bench run is what turns any of this into a measurement.
+
+### 1. A row per burst, and `sp` is the number
+
+`lostat`/`lostend` bracket the first and last loss of the *whole run*.
+Across §16r's five bursts that spanned 21,301 bytes and answered nothing.
+The table replaces it for the first `V9K_LOSTBURST` = 8 bursts:
+
+```
+v9k: b1 at=21305 end=21484 n=179 sp=179 t=12/9 fd=0
+```
+
+`sp` is `end - at`: **the span in received bytes between a burst's first
+and last loss**, which is the question §16r could not settle.
+
+**Before reading it, one correction to §16r that follows from the chip
+rather than from any measurement.** The 7201 is programmed to interrupt on
+every received character (`WR1 = 18h`) and its receive FIFO is three deep,
+so the latch sets only when a *fourth* byte arrives before the first is
+read, and every handler entry clears it with an Error Reset. **A single
+blocking hold-off, however long, therefore raises `rxlost` exactly once**:
+the FIFO overflows, the foreground releases, the first entry finds the
+latch and clears it, and if the per-byte path can keep up — which §16r
+established it can — no later entry finds it again. §16r's `max = 179`
+cannot be one hold-off of ~46 ms. It is **179 separate overflow episodes**,
+each needing at least four byte times of non-service, so that burst covered
+at least 179 × 104 µs ≈ **18.6 ms, or ~716 bytes of the host's stream** —
+a floor that was derivable from §16r's own numbers and was not derived.
+
+What `sp` adds is the density inside that stretch. **Compare `sp` against
+2`n`, not against `n`**: one overrun interrupt advances `rxbytes` twice,
+once for the substituted BELL and once for the byte it then reads, so
+back-to-back overruns are two stream positions apart and the floor is
+`sp` = 2(`n` − 1).
+
+| | |
+|---|---|
+| `sp` ≈ 2`n` | consecutive handler entries each found the latch — the receiver lost at least as much as it kept for the length of the burst, and every entry was ≥ 4 byte times after the one before. Repeated short hold-offs, or a per-byte path that cannot catch up once the FIFO is full; **not** one long `CLI` region. |
+| `sp` ≫ 2`n` | the episodes are spread through a longer stretch in which the handler mostly kept up. A marginal deficit that tips over occasionally, and the tag pair says whether the foreground moved while it ran. |
+
+For §16r's largest burst the two readings are `sp` ≈ 356 against `sp` of
+the order of the packet the burst sat in — an order of magnitude apart,
+which is the separation an instrument needs.
+
+**`sp` is a lower bound on the span in the *host's* stream, and it cannot
+be an upper one.** `rxbytes` counts bytes stored plus one substituted BELL
+per overrun *interrupt* (§16q), and an episode that loses fifty bytes
+presents the handler with one latched bit — so `sp` under-reports by
+whatever was lost and never substituted, by an amount not knowable from
+here. That asymmetry makes the two readings unequal in strength: a row
+reporting `sp = 1,700` really did cover at least 1,700 received bytes,
+while one reporting `sp = 179` may have covered many more.
+
+### 2. Every burst carries its own tag, so there is nothing to choose
+
+§16r asked for the tag to be latched at the largest burst rather than the
+first, because four of its five bursts were untagged and the first is not
+obviously representative. The table makes that a non-question: each row
+carries its own, and the largest burst is whichever row has the largest
+`n`. `lost tag`/`fd` stay as they were — first loss of the run — so §16r's
+figures remain comparable.
+
+**Two tags per row, not one.** `t=A/B` is §0e's tag at the burst's first
+loss and at its last. The first is the suspect: whatever was running when
+the receiver fell behind. The pair says whether the foreground moved while
+the burst ran — a burst that opens and closes in the same place is one long
+operation, one that opens in a file write and closes upstream is a hold-off
+whose effects outlived it.
+
+### 3. §0e's vocabulary, widened three ways
+
+§16r's first loss came back `tag = 0`, "upstream", which is most of the
+program. Three widenings, none of them on a per-byte path:
+
+| | |
+|---|---|
+| **5** | `fopen()` — the receive file is *created* here, between the F packet and the first data packet. `ckufio.c`'s `zopeno()` calls the bare `open()` just before it to ask whether the name is a tty; on a new file that fails with ENOENT, so the cost is in `fopen()`. |
+| **6** | `v9k_ser_get()`, the copy out of the ring, split out of **4**. Those were one tag and are not one thing: the loop around it is where the foreground *waits* with interrupts enabled and holds nothing off; the copy is real work with the tail moving under the handler. **4 keeps its old meaning** — somewhere in `v9k_comm_read()` — so §16r's `peaktag = 4` stays readable. |
+| **7** | `fclose()` — the flush of the `V9K_OBUFSIZE` buffer and the directory update at the end of a receive. |
+| **9–15** | the breadcrumb. The four blocking regions used to store `V9K_TAG_NONE` on the way out and now store `V9K_TAG_UPBASE` (8) plus the tag they are leaving, for the same single store. |
+
+The breadcrumb is the one that widens 0, and it is the cheapest of the
+three: **9** is upstream since a file write returned (between packets),
+**10** is upstream since the ACK went out, **12** is upstream since a ring
+drain returned (packet decoding). Those are different places in the
+protocol and `tag = 0` could not tell them apart. **0 now means only
+"before any of these has ever run"**, so a `tag = 0` in a future run is
+itself a finding rather than a shrug.
+
+`fopen()` and `fclose()` are renamed in `ckvictor.h` by the object-like
+macro trick `read()` and `write()` already use, and `ckvictor.c` undefines
+both. The wrappers delegate unconditionally — there is no Victor behaviour
+in them at all, unlike `read()`/`write()`, which have a device to route
+around. **No twelfth upstream edit; still eleven.**
+
+That the rename actually took is checkable without a run and was checked:
+`wdis ckufio.obj` has **three references to `v9k_fopen_`/`v9k_fclose_` and
+none to the library's `fopen_`/`fclose_`**. Worth doing, because a rename
+that silently failed would leave the new tags permanently unset and read as evidence
+about where the foreground was.
+
+Neither wrapper times anything, deliberately. The clock's quantum is half a
+second (§16n) and both calls happen once per transfer, so a timer there
+would report 0 or 50 according to whether it crossed a boundary — §16n's
+rule applied before the fact rather than after.
+
+### What it cost
+
+**112 bytes of DGROUP, which is the table**, 8 rows × (4 + 4 + 2 + 2 + 1 +
+1). DGROUP 48,256 → **48,368 of 65,536 (73%)**; `ckermitw.exe` 203,626 →
+**204,058**; load 218,410 with 177,814 spare. `ckvictor.c` still compiles
+with no warnings.
+
+**The per-byte path is byte-for-byte unchanged**, and that was checked in
+`wdis` rather than assumed — §16q's rule, and §16k's mistake is what it
+exists to prevent. Everything added sits inside `if (rr1 &
+V9K_RR1_OVERRUN)`, which by measurement ran 322 times in 43,589 bytes and
+does not run at all in a clean transfer. The ISR's frame grew by 2 bytes
+for the row index.
+
+### What would falsify it
+
+`.probe/vburst.c` replays the whole update — burst boundaries, the table,
+the tag pair — against patterns with known answers, on the host, in one
+`cc`. The case that matters is the pair it was extended for: 179 overruns
+back to back report `sp = 356`, and the same 179 spread eight good bytes
+apart report `sp = 1,780`, while `evt`, `max` and `lostat` are identical in
+both.
+**If those two came back the same the addition would be worthless**, which
+is the same test §16q applied one level up. Overflow is tested too: 12
+bursts into 8 rows keeps bursts 1–8 and leaves `lostevt` at 12, so a table
+that ran out is visible rather than silent.
+
+Re-run it after touching the loss path. It is still the only test that code
+has, and now more so: the per-burst table cannot be exercised under MAME
+either.
+
+### The next run, and the trap to carry into it
+
+38400, the 32,768-byte all-byte-values fixture, `STEP0.BAT`'s redirect.
+Read `b1`–`b5` and compare `sp` against `n`.
+
+**Difference `rxbytes` against the host's sent byte count before mapping
+any offset.** §16r's stream started 253 bytes into the host's — nine S
+retransmissions of startup dead air that the Victor never saw — and
+unshifted, its first loss read as a startup artifact. `at=` and `end=` in
+the table are the same kind of number and need the same shift.
+
+---
+
+## 16t. The handler was the defect, and 38400 is clean
+
+`rxlost = 0` at 38400, on the real machine, with zero NAKs and zero
+retransmissions. The receive path's one live defect — open since §16p, and
+narrowed but not diagnosed by §16q, §16r and §16s — was the cost of the
+interrupt handler itself. Replacing it with hand-written assembly closed it.
+
+```
+v9k: isr=asm
+v9k: rxlost=0 rxfull=0 rxpeak=2621 of 4096
+v9k: lost evt=0 max=0 tag=0 fd=0
+```
+
+Against the C handler in the **same bench session, back to back**:
+
+| | leg Z, C | leg Y, assembly | leg U, 19200 C |
+|---|---:|---:|---:|
+| `rxlost` | 490 | **0** | 0 |
+| NAKs from the Victor | 5 | **0** | 0 |
+| resends / timeouts | 6 / 1 | **0 / 0** | 0 / 0 |
+| packets | 37 | **18** | 18 |
+| longest packet | 2,845 | **3,991** | 3,991 |
+| wire bytes | 45,412 | **37,569** | 37,569 |
+
+Leg Y is identical to a clean 19200 run in every protocol measure. Both
+files byte-exact against the 32,768-byte all-byte-values fixture.
+
+### Four wrong turns, and each one is a lesson that stands
+
+**The byte time was wrong by a factor of ten, and that is what hid the
+answer.** §16k-era comments put a byte at 38400 at **26 µs**; it is
+**260 µs**, which is what §11 has said since the beginning and what §16o
+confirmed at the bench. Every argument of the form "the handler cannot
+possibly be that slow" was reasoning from the wrong budget. Corrected in
+four places in `ckvictor.c` and in three other files. **When two figures for
+the same quantity exist in one tree, the older one has usually been checked
+more.**
+
+**§16r's dichotomy was false and it cost three sessions.** It read `evt = 5,
+max = 179` as proof that the loss was not per-byte cost, on the grounds that
+a slow handler would lose single bytes throughout. A *marginally* slow one
+does not: it falls progressively behind and loses consecutively, which is
+exactly `evt = 5, max = 179`. §16s corrected half of this from the chip's
+latch behaviour; this is the other half. **"The measurement rules out X"
+deserves the same scrutiny as "the measurement shows X".**
+
+**The instrument was inflating the defect it measured.** §16s added a
+per-burst table to the overrun path and checked, in `wdis`, that the clean
+path was untouched — 67 instructions before and after. That was the wrong
+path to check. The overrun branch is rare only while the receiver is keeping
+up; **inside a burst it is the per-byte path**. Removing it
+(`XFLAGS=-dV9K_LEANLOST`) took `rxlost` from 822 to 483 and the longest
+burst from 401 to 204, back to back. §16q's rule was right and was applied
+to the wrong branch.
+
+**Two hypotheses died cheaply, and both were worth the run.** The µPD7201 is
+two channels behind one IRQ, `CONFIG.SYS` loads `porta.exe` *and*
+`portb.exe`, and this handler never touched the other channel — so an
+unserviced channel B re-asserting after every EOI would have stolen exactly
+every other slot. `norx = 0, othrx = 0` at both rates: every interrupt this
+program has ever seen was a real byte on its own channel. Separately, a
+**floppy** receive (§16s legs S and T) put 1.5-second writes under the ring
+— `wfile tot = 600 cs` against 0 on SASI — and lost nothing at 19200,
+because with a window of one the file write happens *before* `ack()` and the
+line is idle throughout. Both counters cost nothing and both now answer for
+free in every run.
+
+### What the handler was spending its time on
+
+The C handler is 185 instructions with `V9K_LEANLOST`, and 52 of them do no
+work:
+
+- **24 stack operations.** Open Watcom's `__interrupt` saves all twelve
+  registers and there is no way to ask for fewer. `.probe/vasm.c` establishes
+  this three ways: `__interrupt` with a C body and with an `_asm` body emit
+  the identical prologue, and **`#pragma aux` cannot be used for an ISR at
+  all** — its code is inlined at call sites, so taking its address emits a
+  reference to a symbol nothing defines. `msxv90.asm`, the same chip on this
+  machine at this rate, saves five.
+- **14 `mov ax,DGROUP` / `mov ds,ax` pairs.** `V9K_FARB` builds a fresh far
+  pointer per port access, so Watcom rebuilds `DS` for every one and again
+  for every counter update between them.
+
+On a 5 MHz 8088 the bottleneck is instruction fetch at ~4 clocks a byte.
+Those pairs are 70 bytes ≈ 56 µs; the stack traffic ≈ 67 µs. **~123 µs of a
+260 µs budget**, which is why the handler sat right at the margin: fine on
+most packets, and once tipped, unable to recover until the line went idle at
+the end of one. That is also why every burst ended on a packet boundary.
+
+### `ckvisr.asm`
+
+The port's first assembly, and the only way to own the prologue.
+
+| | C (lean) | assembly |
+|---|---:|---:|
+| instructions | 185 | **110** |
+| stack operations | 24 | **10** |
+| segment-register loads | 19 | **2** |
+
+The segment collapse is a gift from the hardware map: the 7201 at `E004:0-3`
+and the 8259 at `E000:0-1` are `0xE0040-43` and `0xE0000-01` — 0x40 apart,
+**both inside one 64 K segment**. `ES` is loaded once with `E000h` and every
+port access is `es`-relative: channel A control `42h`, data `40h`, channel B
+`43h`/`41h`, the 8259 command port `0`. The C handler cannot express this
+because the two segments are separate constants in separate far pointers.
+
+Otherwise it is a faithful transcription: same order, same tests, same
+counters. It does **not** maintain the burst table, for the reason above, so
+selecting it implies `V9K_LEANLOST` — otherwise the exit report would print
+`b1 at=0 end=0 n=0` from a table nothing writes, which is not obviously
+wrong and would be read as a measurement.
+
+`XFLAGS=-dV9K_CISR` puts the C handler back in the vector. It stays compiled
+in both builds — file-scope rather than `static`, so an unreferenced
+definition is not a warning — as the specification and as the fallback.
+
+### What it cost, and what it changed structurally
+
+DGROUP **48,272** of 65,536 (73%), image 204,404, needs 218,580 with 177,644
+spare. Both builds compile with no warnings in `ckvictor.c`.
+
+Two structural changes worth stating plainly. **`ckvictor.c` is no longer the
+only non-upstream source file**, and **29 of its variables lost `static`** so
+a separate translation unit can reach them; all keep the `v9k_` prefix, which
+is what makes that safe across 24 modules. Still **eleven** guarded upstream
+edits — the handler never needed one.
+
+### How it was checked before it went to the bench
+
+The overrun branch cannot be reached under MAME at any rate the emulator can
+drive, so what could be validated was validated:
+
+- **32,768 bytes at 9600 under MAME, `cmp`-clean**, `rxlost=0 rxfull=0`,
+  `rxpeak = 294` against §16n's 309 for the same run. That exercises the
+  vector install, the DGROUP base, the shared-`ES` port addressing, the ring
+  head/tail and occupancy arithmetic and every counter.
+- **The linked `mov ax,DGROUP` immediate**, read out of the executable:
+  `29a6`, matching the map. `ckvisr.asm` declares the group as a subset of
+  what `wcc` emits, and had the linker taken that as authoritative, `DS`
+  would have been wrong by the size of `CONST`+`CONST2` — a silent,
+  data-dependent corruption of every variable the handler touches.
+- **A build-time check on the ring size**, because an assembler cannot read
+  `ckvictor.h` and `V9K_RXMASK` is a literal `0FFFh`.
+
+### The number that moved, and the one that did not
+
+**Bytes lost per overrun was 1.03 in every 38400 run** — §16s legs Q, R and
+T, §16t legs V, W, X and Z. That is `T/B − 1` for a service period `T` and a
+byte time `B`: the handler was taking almost exactly twice as long as a byte.
+It is the tightest description of the defect the instruments ever produced,
+and it was only readable once `B` was right.
+
+**`rxpeak` is now 2,621 of 4,096, the highest ever recorded**, with
+`peaktag = 12` — upstream, after a ring drain, which is packet decoding.
+With retransmissions gone the peak no longer measures pre-ACK turnaround
+(§16m); it measures how far decoding falls behind during a 3,991-byte packet
+at full rate. **The ring is 64% full at its worst, and that is the next
+binding constraint** for longer packets or a window above 1. §16k's sizing
+argument was built on retransmission behaviour that no longer happens and
+has to be redone from this.
+
+### Measured, and on what
+
+The §16o bench, unchanged. Legs V, W, X, Y, Z at 38400 and U at 19200, SASI;
+§16s legs S and T to floppy. Host logs `s16t[UVWXYZ].pkt` and
+`s16s[PQRST].pkt`, Victor counters in `s16t*.out` and `s16s*.out`. Every
+transfer in every leg was byte-exact against the fixture; what varied was
+what it cost to get there.
+
+**Still not measured: elapsed time and cps.** No run in this port's history
+has recorded them, and leg Y is the first one where the answer would be
+interesting. It is the oldest open item on the list.
 
 ---
 
@@ -5312,26 +5652,22 @@ at this rate over two runs and this run was about the counters.
   enough; the transfer completes. That works because nothing ever asks the
   OEM driver for data again — §11a's IOCTL is the only thing left using its
   handle.
-- **Why does the receive path overrun at 38400?** This is now the port's
-  one live defect and the successor to "what does the interrupt-acknowledge
-  sequence need". That question is answered for 9600 and 19200 — §11b's
-  sequence works on the real part, `rxlost = 0` over full 32 KB receives.
-  At 38400 the chip overruns on **at least 0.45% of received bytes**, twice,
-  reproducibly (§16p) — a lower bound, because `rxlost` counts interrupts
-  that found the latched bit rather than bytes (§16q). Ruled out: the file
-  writes, the ring, and every `V9K_CLI()` in `ckvictor.c` (all
-  setup/teardown; the polled transmitter and the ring drain leave interrupts
-  enabled). **The losses are bursts, not a per-byte deficit** — §16r
-  measured `evt = 5` against `rxlost = 322`, one burst per NAKed packet — and
-  the foreground at the first loss was in **upstream code**, none of
-  `ckvictor.c`'s four blocking places. Left: DOS, the acknowledge sequence
-  under load, or a slow foreground that is not ours. **What separates the
-  last two readings is a burst's span in bytes** (~180 says one blocking
-  hold-off, ~1,700 says a rate deficit lasting a long packet); the
-  instrument does not record it yet, and §16r names the three additions that
-  would. Correlation to carry in: `txgap` total scales with the failure, 50
-  → 550 hundredths, though the transmitter does not mask interrupts so it
-  cannot be the mechanism itself.
+- ~~Why does the receive path overrun at 38400?~~ **Answered, and fixed
+  (§16t): the cost of our own interrupt handler.** At 260 µs a byte the C
+  handler was taking about twice that, of which ~123 µs was Open Watcom's
+  twelve-register `__interrupt` prologue and the `DS` reload it does per
+  port access. `ckvisr.asm` replaces it — 110 instructions against 185, ten
+  stack operations against twenty-four, two segment loads against nineteen —
+  and 38400 now runs `rxlost = 0` with zero NAKs and zero retransmissions,
+  identical to a clean 19200 run in every protocol measure. Ruled out along
+  the way and worth not re-testing: the file writes (§16p, and §16s put a
+  floppy with 1.5-second writes under it and lost nothing), the ring
+  (`rxfull = 0` throughout), every `V9K_CLI()` in `ckvictor.c`, and the
+  other half of the µPD7201 sharing IRQ1 (`norx = 0, othrx = 0` at two
+  rates, §16t). Three of the four sessions spent on this were misdirected by
+  a byte time that was wrong by 10× and by §16r's false dichotomy; both are
+  written up in §16t because the reasoning errors are more reusable than the
+  fix.
 - **`dofast()` is unreachable in this build, and so is `getdialenv()`.**
   Both are inside the `#ifndef NOTCPIP` that opens at `ckcmai.c:3390` and
   closes at 3644, with `#endif` comments misattributed by one level (§16j).
