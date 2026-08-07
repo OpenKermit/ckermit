@@ -553,19 +553,26 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         logger.info(
             "wermit_loopback: Client running command sequence: %s",
             cmd_str)
-        result = run_wermit(
-            full_client_cmd, timeout=timeout + TCP_TIMEOUT_MARGIN)
-        _wait_or_kill(proc)
-
-        if server_stdout_log.exists():
-            try:
-                logger.info(
-                    "wermit_loopback: Server stdout log:\n%s",
-                    tail_text(server_stdout_log, "Server stdout log"))
-            except OSError as e:
-                logger.warning(
-                    "wermit_loopback: Failed to read server stdout "
-                    "log %s: %s", server_stdout_log, e)
+        try:
+            result = run_wermit(
+                full_client_cmd, timeout=timeout + TCP_TIMEOUT_MARGIN)
+        finally:
+            # Always drain the server's stdout log, even if the client
+            # timed out: subprocess.run(timeout=...) raises
+            # TimeoutExpired immediately, with no chance for the caller
+            # to log anything first, so without this a client-side hang
+            # loses the one piece of evidence (what the server was
+            # doing) that would otherwise help explain it.
+            _wait_or_kill(proc)
+            if server_stdout_log.exists():
+                try:
+                    logger.info(
+                        "wermit_loopback: Server stdout log:\n%s",
+                        tail_text(server_stdout_log, "Server stdout log"))
+                except OSError as e:
+                    logger.warning(
+                        "wermit_loopback: Failed to read server stdout "
+                        "log %s: %s", server_stdout_log, e)
 
         return result
 
@@ -610,23 +617,31 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
 
         run = _run_pseudoterminal if transport == "pseudoterminal" \
             else _run_tcp
-        result = run(server_dir, setup_lines, cmd_str, client_prefix,
-                    client_debug_prefix, server_log, client_log, timeout,
-                    server_binary_path or wermit_path)
-
-        if DEBUG_LOOPBACK:
-            for label, log_path in (("Server", server_log),
-                                    ("Client", client_log)):
-                if log_path.exists():
-                    try:
-                        logger.info(
-                            "wermit_loopback: %s process debug log:\n%s",
-                            label,
-                            tail_text(log_path, f"{label} debug log"))
-                    except Exception as e:
-                        logger.warning(
-                            "wermit_loopback: Failed to read %s log %s: %s",
-                            label, log_path, e)
+        try:
+            result = run(server_dir, setup_lines, cmd_str, client_prefix,
+                        client_debug_prefix, server_log, client_log, timeout,
+                        server_binary_path or wermit_path)
+        finally:
+            # Always dump both debug logs, even on a client-side
+            # timeout: subprocess.run(timeout=...) raises
+            # TimeoutExpired immediately, with no chance to log
+            # anything first, so without this a hang here loses its
+            # debug trace entirely even though DEBUG_LOOPBACK wrote it
+            # to disk.
+            if DEBUG_LOOPBACK:
+                for label, log_path in (("Server", server_log),
+                                        ("Client", client_log)):
+                    if log_path.exists():
+                        try:
+                            logger.info(
+                                "wermit_loopback: %s process debug "
+                                "log:\n%s",
+                                label,
+                                tail_text(log_path, f"{label} debug log"))
+                        except Exception as e:
+                            logger.warning(
+                                "wermit_loopback: Failed to read %s "
+                                "log %s: %s", label, log_path, e)
 
         return result
 
