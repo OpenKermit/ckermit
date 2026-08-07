@@ -457,24 +457,60 @@ wrong, and it validated `ckvisr.asm` before the bench.
   boots as `A:`; use `vtg_image_util`, never mtools.
 - Backups: `victor_kermit.img.bak-20260807-preregress` is the last one,
   taken before the image was cleared of §16w–§16y experiment files.
-- **On the image now**, cleaned of the §16w–§16y experiments and staged for
-  a hardware regression of the shipping build:
-  - `CKERMITW.EXE` — **204,764, md5 `79752cbc733c2c1927099cd3e4231cff`**,
-    verified by reading it back off the image after the copy. Bit-identical
-    to every §16v bench binary, so this regression tests that §16w–§16y
-    changed nothing: `__near`, §2b and §2c are all guarded out here.
-  - `STEPEA.BAT` at 38400 and `STEPEB.BAT` at 19200, each
-    `CKERMITW -l /dev/seriala -b <rate> -r`, writing `STEPEA/EB.OUT`.
-  - Host side `s16zREA.ksc` / `s16zREB.ksc` in the tree, sending
-    `rcvea.dat` / `rcveb.dat` (both the 32,768-byte all-byte-values
-    fixture). The Victor writes `RCVEA.DAT` / `RCVEB.DAT` — fresh names, so
-    `SET FILE COLLISION BACKUP` cannot bite.
+- **On the image now**, cleaned of the §16w–§16y experiments. **Two
+  binaries, deliberately, and the exit report does not distinguish them —
+  keep the `.OUT` names apart:**
+  - **`CKICP.EXE` — 433,830, md5 `3160898a98ad013fe97d66c78471bc4a`**, the
+    §16y parser build (`XFLAGS=-dKEEP_ICP ZT=-zt2048`). **This is the one to
+    test.** Needs 428,662 (418K) of the bench machine's 824,784.
+  - `CKERMITW.EXE` — 204,764, md5 `79752cbc733c2c1927099cd3e4231cff`, the
+    shipping build, **bit-identical to every §16v bench binary**, for the
+    regression leg.
+  - `PTEST.KSC` (`echo`, `show versions`, `exit`) and `RXEA.KSC`
+    (`set line`, `set speed 38400`, `receive`, `statistics`, `exit`).
+  - `STEPEA.BAT` at 38400 and `STEPEB.BAT` at 19200 drive the shipping
+    build's regression, writing `STEPEA/EB.OUT`; host take-files
+    `s16zREA.ksc` / `s16zREB.ksc` send `rcvea.dat` / `rcveb.dat`.
   - Older `STEP*`/`RCV*` from §16t and §16v are still there. Delete before
     reusing a name.
-  - **`CKICP.EXE` was removed.** It is a 433,830-byte parser build that
-    cannot run a take-file (§1 item 1) and a known-different binary beside
-    the one under regression is the trap §16w called out. Rebuild it with
-    `XFLAGS=-dKEEP_ICP ZT=-zt2048` when it is wanted.
+
+### Testing the parser at the bench — this is what §16y was for
+
+**The bench is the only place this can be tested, and the reason is the
+keyboard.** MAME mangles typed input (§16a: digits arrive shifted, and
+`CKERMITW -r` once arrived as `CKERIT_R`), which is why every run in this
+project has come from a `.BAT`. An interactive prompt needs a real keyboard,
+and the Victor has one.
+
+Type `CKICP` and expect `C-Kermit>`. In rough order:
+
+1. **`show versions`** — proves the parser reads a line, looks up a keyword
+   and runs a command. **Console input has never been exercised in this
+   port**: every `NOICP` build only ever wrote to the console, so
+   `coninc()`/`congks()` through INT 21h are new ground. If anything is
+   going to fail, it is more likely this than the parser.
+2. **`take ptest.ksc`** — and this one is a **diagnostic, not just a
+   feature**. Interactive `TAKE` goes through `cmifip()` (`ckuusr.c` around
+   10590), a *different* path from the command-line `argv[1]` route that
+   §1 item 1 is about (`prescan()` → `findinpath()`, `ckuus4.c:1741`). So:
+   - it works → the defect is isolated to `findinpath()`/`prescan()`, and
+     item 1 gets much smaller;
+   - it fails the same way → the problem is lower down, in `zopeni()` or
+     `access()` on a FAT root, and §1d is where to look.
+   Try `CKICP PTEST.KSC` from the DOS prompt too, as the control that
+   reproduces the known failure.
+3. **`take rxea.ksc`**, with the host running
+   `kermit -C "take s16zREA.ksc, exit" > s16zREA.host` — a full 32 KB
+   receive at 38400 driven by the Victor from a file. **No transfer has ever
+   been run with the parser build.**
+4. **The same by hand** — `set line /dev/seriala`, `set speed 38400`,
+   `receive` — if the take-file route fails, since it isolates the parser
+   from the file lookup.
+
+Worth knowing before reading results: the parser build **cannot** do `-C`,
+variables, macros or `INPUT` (that is `NOSPL`, and `KEEP_SPL` costs another
+209 KB), and `SET FILE COLLISION` is still `BACKUP`, which cannot work on
+FAT — **use a fresh target name every run.**
 
 ---
 
