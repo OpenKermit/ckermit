@@ -70,19 +70,32 @@ ceiling was loose by 2.7×. Doubling 19200 → 38400 bought **+24%** measured,
 **+17%** after correcting leg CB for its two retransmissions. **Nothing
 above 38400 is worth more than 34%**, so rate is finished as a lever.
 
-Where to start, and it is a question nobody has asked yet: `victorow.mak`
-compiles with **`-os`**, optimise for size. That was correct while DGROUP
-and the image were binding, and it has never been measured against `-ot` on
-the decode path. Measure before believing — and measure the *image* too,
-since `-ot` costs bytes and §16a's `mzsize.py` is the check that matters.
-`ckcfns.c` (unprefixing, block check) and `ckcpro.c` are where the time is;
-**they are upstream files, so this is a compile-flag question, not an edit
-one.**
+**The compile flag has been tried and it is not the lever — see §16w
+before spending anything here.** `-ot` fits (235,090 of 396,224, DGROUP
+48,576) and is **slower**: 632 → 624 cps and `rxpeak` 294 → 333 on
+protocol-identical runs. §16t's own model predicts it — an 8088 fetches
+through a four-byte queue over an 8-bit bus at ~4 clocks a byte, so **code
+size is execution time** and `-ot`'s 9.2% of extra far code is a cost. The
+MAME caveat runs in the safe direction for once. `-os` stays, and the
+makefile now says why on both grounds.
 
-Then re-read §16m: `txgap` covers only ACK-sent to next-read, so the 21.2 s
-is not yet split between per-byte decode and anything fixed per packet. A
-tag or a counter around `decode()` would split it, and §16m's rule applies —
-the interrupt handler is a clock you can afford, the foreground is not.
+So there is **no cheap lever left**, since the decode path is upstream
+(hard rule 1). Two things to do before anything expensive:
+
+- **Split the 21.2 s.** It is one subtraction — elapsed minus line minus
+  `wfile` minus `txgap` — so nothing yet separates per-byte decode from
+  per-packet fixed cost, and the two have completely different fixes. A tag
+  or counter around the decode call splits it. §16m's rule applies: the
+  interrupt handler is a clock you can afford, the foreground is not, so
+  instrument at packet granularity and not per byte.
+- **Run a text fixture, because every measurement this port has is on
+  adversarial data.** The 32,768-byte fixture holds every byte value, so
+  Kermit's control and high-bit prefixing expands it to **37,568 wire
+  bytes, 14.7%** — and decode cost is per *wire* byte. Plain ASCII should
+  present materially fewer. That is an inference from the packet logs
+  bounding it at ~15%, **not a measurement**, and one run settles it. It
+  also means **1,013 cps is a worst-case-ish figure**, which is the right
+  one to quote but not the whole picture.
 
 **2. Re-do the ring sizing, and §16v gives it a model rather than a
 number.** The peak is `rxpeak = 2,589 of 4,096` at 38400 (§16t's 2,621 on

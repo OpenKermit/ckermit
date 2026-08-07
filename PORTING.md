@@ -5756,6 +5756,99 @@ one had the answer already on screen.
 
 ---
 
+## 16w. `-ot` fits, and it is slower
+
+§16v ended by naming the compile flag as the first thing to try against the
+foreground decode cost: `victorow.mak` builds with **`-os`**, optimise for
+size, chosen when DGROUP and the image were the binding constraints and
+never measured against `-ot` for speed. It has now been measured. **The
+answer is no**, and the reason is a model this tree already had.
+
+### It fits, which was the real risk
+
+| | `-os` (shipping) | `-ot` |
+|---|---:|---:|
+| DGROUP | 48,272 (73%) | 48,576 (74%) |
+| far code | 170,676 | 186,318 |
+| file | 204,764 | 222,178 |
+| **needs at load** | 218,988 | **235,090** |
+| spare of 396,224 | 177,236 | 161,134 |
+
+`-ot` costs 304 bytes of DGROUP and about 16 K of real-mode headroom. Both
+are affordable, so the question did not die on the budget.
+
+### And it is slower
+
+A/B under MAME at 9600, 32,768-byte receive, against §16u's run on the same
+fixture, take-file and harness. **The two runs are protocol-identical** — 24
+packets, longest 3,585, one timeout, one retransmission, and `rxbytes =
+39,575` in both — so nothing but the code differs.
+
+| | `-os` | `-ot` | |
+|---|---:|---:|---|
+| host elapsed | 51.829 s | 52.432 s | +1.2% |
+| host cps | **632** | **624** | −1.3% |
+| Victor `elapsed=` | 6,700 cs | 6,800 cs | +1 quantum |
+| **`rxpeak`** | **294** | **333** | **+13.3%** |
+
+Both byte-exact. **`rxpeak` is the instrument that matters here**, because
+it measures how far decoding falls behind the ring and nothing else — and
+it moved 13% the *wrong* way. It is also the reproducible one: `-os` gave
+294 in §16t and 294 again in §16u, two runs a session apart, against 333
+for `-ot`. The cps difference alone would be near the noise floor (§16n saw
+632 and 633 across sessions); the `rxpeak` difference is not.
+
+### §16t's own model predicts this
+
+This is not a surprise once the right paragraph is recalled. §16t costed the
+interrupt handler by **instruction fetch on a 5 MHz 8088 at ~4 clocks per
+instruction byte** — that is how it turned 70 bytes of segment-load pairs
+into 56 µs. An 8088 fetches through a four-byte queue over an **8-bit** bus,
+so on this part *code size is execution time*. `-ot` grew far code by
+**9.2%** buying inlining and unrolling, and on this CPU that trade runs
+backwards.
+
+**So `-os` is not a compromise forced by memory. On an 8088 it is also the
+fast choice**, and `victorow.mak`'s comment now says so rather than
+justifying it on DGROUP alone.
+
+**The MAME caveat runs in the safe direction**, which is worth stating
+because it usually does not. If the emulator under-models prefetch-queue
+starvation — the most likely way for it to be unfaithful here — then it
+*understates* the penalty on large code, and the real 8088 would be at least
+as unkind to `-ot`. A bench run could refine the size of the effect; it is
+not needed to settle the sign.
+
+### What this leaves, and one thing nobody has measured
+
+The decode path is upstream code (hard rule 1), so with the compile flag
+eliminated there is no cheap lever left on the 21.2 s. Before anything
+expensive, note what the packet logs already say about its *input*:
+
+**The fixture is close to worst case for Kermit's prefixing, and no run has
+ever used ordinary text.** 32,768 payload bytes go out as **37,568 wire
+bytes — 14.7% expansion** — because the fixture contains every byte value
+and control and high-bit characters are prefixed. Decode cost is per *wire*
+byte, so a plain-ASCII file should present materially fewer of them and cost
+less per file byte. That is an inference from the logs and **not a
+measurement**; the bound it implies is ~15%, and one run with a text fixture
+would turn it into a number. It also means **1,013 cps is a figure for
+adversarial data**, which is the right thing to quote but not the whole
+picture.
+
+### Measured, and on what
+
+The §16a MAME harness. The `-ot` build went on the image as `CKOT.EXE` with
+its own `STEPOT.BAT`, deliberately not overwriting `CKERMITW.EXE`, so the
+two `.OUT` files could not be confused — §16t's provenance rule. Take-file
+`s16wOT.ksc`, host log `s16wOT.pkt`, statistics `s16wOT.host`, counters
+`s16wOT.out`, received file `gotOT.dat`, md5-identical to `rcvot.dat`.
+**`CKOT.EXE` and `STEPOT.BAT` were deleted from the image afterwards**: a
+known-slower binary sitting next to the bench build is a trap, not a record.
+The tree rebuilds bit-identical to the shipping 204,764 image.
+
+---
+
 ## 15. Open questions
 
 **Closed since the last revision**

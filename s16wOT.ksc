@@ -1,0 +1,6 @@
+set line /tmp/v9000
+set speed 9600
+set receive timeout 20
+log packets s16wOT.pkt
+send rcvot.dat
+statistics

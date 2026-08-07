@@ -29,7 +29,15 @@ LINK    = $(WBIN)/wlink
 
 # -ml   large model: far code AND far data.  The whole point of this build.
 # -0    8088/8086 instruction set only.  The Victor is an 8088.
-# -os   optimize for size.  This is a 64K-DGROUP, 128K-of-RAM machine.
+# -os   optimize for size.  This is a 64K-DGROUP, 128K-of-RAM machine --
+#       and on this CPU it is ALSO the fast choice, which is not obvious
+#       and was measured rather than assumed (PORTING.md SS16w).  An 8088
+#       fetches instructions through a four-byte queue over an EIGHT-bit
+#       bus at about 4 clocks a byte, so code size is execution time.
+#       Built with -ot the image still fits -- 235,090 of 396,224, and
+#       DGROUP 48,576 -- but far code grows 9.2% and the transfer gets
+#       SLOWER: 632 cps to 624, and rxpeak 294 to 333 on protocol-
+#       identical runs.  Do not re-try this without reading SS16w first.
 # -zq   quiet.
 # -zc   place string literals in the code segment rather than in DGROUP.
 #       In the large model all pointers are far, so this is free; it is the
