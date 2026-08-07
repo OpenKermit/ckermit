@@ -50,7 +50,7 @@ none.** It was 17 until `NOFLOAT` (§16j): dropping `GFTIMER` moves `ztime()`
 onto upstream's `ZTIMEV7` branch, whose K&R redeclarations of `localtime()`
 and `time()` produce two more sign mismatches at `ckutio.c:12319-12320`.
 DGROUP is 48,272 of 65,536 (73%) after the linker adds libc; `ckermitw.exe`
-is 204,602 bytes and needs 218,826 at load, of the 396,224 the machine
+is 204,764 bytes and needs 218,988 at load, of the 396,224 the machine
 offers.
 
 **It runs on a real Victor 9000, and PORTING.md §16o is the section that
@@ -325,7 +325,7 @@ socket is single-use, so start `socat` first and never probe the port.
    The **heap is outside it**: `malloc()` is `_fmalloc` in the large model,
    so the packet buffers do not compete for the segment at all. What bounds
    them is real-mode RAM: the machine hands out 396,224 bytes and the image
-   needs 218,826, leaving 177,398 — out of which the far heap then takes
+   needs 218,988, leaving 177,236 — out of which the far heap then takes
    about 25K of packet buffers. **The receive ring is the exception**: at
    4,096 bytes it is `.bss` and comes straight out of the 64K (§16k).
    **Run `make -f victorow.mak sizes` after any change that could add static

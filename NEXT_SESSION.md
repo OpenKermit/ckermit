@@ -27,7 +27,7 @@ v9k: lost evt=0 max=0 tag=0 fd=0
 ```
 
 Still **eleven** guarded upstream edits. DGROUP 48,272 of 65,536 (73%),
-image 204,602, needs 218,826 with 177,398 spare.
+image 204,764, needs 218,988 with 177,236 spare.
 
 ---
 
@@ -88,9 +88,19 @@ inside it — **you cannot raise `DRPSIZ` past about 4,090 either.**
 
 Design, constrained by two things already established:
 
-- **The cable is three wires** (TX/RX/GND, `HW_TESTING.md` §1.2), so RTS/CTS
-  is unavailable without rewiring. XON/XOFF only — safe here because Kermit
-  prefixes control characters in data, so 0x11/0x13 never appear bare.
+- **Mechanism is an open question, and RTS/CTS is the front runner.** The
+  hardware has it: the 7201 has a CTS input (`V9K_RR0_CTS`), RTS is an
+  output §1b already drives in WR5, and `v9k_ser_mdm()` already reports
+  both. Dropping RTS is *two port writes* — no TX-ready test, no state
+  coupled to the transmitter — where XON/XOFF needs all three, and it is
+  binary-transparent. **What is unknown is whether the bench cable carries
+  and crosses the pair.** `HW_TESTING.md` §1.2's "three wires are
+  sufficient" is a statement about this port's requirements, not a
+  description of the cable — the bullet right after it says the port drives
+  DTR and RTS. **The exit report now samples CTS during the transfer, so
+  the next run answers it**, and the host would need `set flow rts/cts`.
+  XON/XOFF is the fallback if the pair is not wired, and is safe because
+  Kermit prefixes control characters so 0x11/0x13 never appear bare.
 - **This ISR has no `sti`.** 3.13 does flow control inside `SERINT` but only
   after re-enabling interrupts, then polls TX-ready in a `loop` bounded at
   65,536 turns (`msxv90.asm:srint9`). **Do not copy that** — polling with
@@ -101,8 +111,8 @@ Design, constrained by two things already established:
 - Water marks 3/4 and 1/4, and an `xofsnt` that distinguishes user-level
   from buffer-level, both straight from 3.13 (`MNTRGH`/`MNTRGL`, and it is
   the same chip on this machine).
-- The host harness runs `set flow none`; it needs `set flow xon/xoff` before
-  any of this is observable.
+- The host harness runs `set flow none`; it needs `set flow rts/cts` or
+  `set flow xon/xoff` to match whichever mechanism goes in.
 
 **4. Then windows.** `DFWSIZ` is still 1, and items 2 and 3 are both
 preconditions. Do it under MAME first. Note the interaction §16s found: with
@@ -163,10 +173,13 @@ maintain the burst table. Without that, the report would print
 - **`v9k:` lines on stdout at exit, every build.** `isr=`, then
   `rxlost/rxfull/rxpeak`, `peaktag/fd/stall256`, `rxbytes/peakat/stallat`,
   `norx/othrx/rr0/oth`, `lost evt/max/tag/fd`, `lostat/lostend`, `wfile`,
-  `wcon`, `txgap`, `elapsed/wire` — plus a `b<N>` row per burst in a
+  `wcon`, `txgap`, `elapsed/wire`, `mdm` — plus a `b<N>` row per burst in a
   `-dV9K_CISR` build without `-dV9K_LEANLOST`. **`wire=` is bytes on the
   wire per second**, retransmissions and headers included; it is not
   C-Kermit's file cps, which is what the take-files' `statistics` prints.
+  **In `mdm`, only `cts` and `dsr` are measurements** — `dcd` is forced on
+  by the carrier clause under `CLOCAL`, and `rts`/`dtr` are read back from
+  the last WR5 written rather than from the pins.
 - **A byte at 38400 is 260 µs, at 19200 520 µs, at 9600 1,040 µs.** The tree
   said 26 µs in seven places until §16t; if you ever see that figure again
   it is a relic. Both ends are 8N1 — `tcgetattr` returns a *cached* struct
@@ -266,7 +279,7 @@ wrong, and it validated `ckvisr.asm` before the bench.
 - Backups: `victor_kermit.img.bak-20260807-asm` is the last one taken
   before the current binaries went on.
 - **On the image now:** `CKERMITW.EXE` (204,404, assembly ISR — **the
-  204,602 build with the clock is not on it yet**),
+  204,764 build with the clock and `mdm` is not on it yet**),
   `CKLEAN.EXE` (204,388, `-dV9K_CISR -dV9K_LEANLOST`), `STEPY`/`STEPZ.BAT`
   at 38400, `STEPASM.BAT` at 9600, plus a long tail of older `STEP*` and
   `RCV*` files. Delete before reusing a name.

@@ -510,6 +510,26 @@ v9k_centis_since(t0) long t0;
 static long v9k_run_t0  = 0L;
 static int  v9k_run_on  = 0;
 
+/*
+  And the modem inputs, sampled once at that same moment -- which answers a
+  question the port has never asked and cannot answer from the source.
+
+  RTS/CTS flow control is available on this hardware: the 7201 has a CTS
+  input (V9K_RR0_CTS), v9k_ser_mdm() below already reports it, and RTS is
+  an output section 1b drives in WR5.  What is NOT known is whether the
+  bench cable -- a 1 m USB-C to RS-232 through a null modem -- actually
+  carries and CROSSES those two pins.  HW_TESTING.md SS1.2 says three wires
+  are SUFFICIENT, which is a statement about this port's requirements and
+  says nothing about what the cable has in it.
+
+  So sample it during a transfer, when the far end is live and asserting.
+  CTS set is strong evidence the pair is wired, because the host runs with
+  flow control off and therefore holds its RTS asserted throughout.  CTS
+  clear is weaker -- an unconnected 1489 input is not guaranteed to read
+  either way -- so it means "not proven", not "not wired".
+*/
+static int  v9k_run_mdm = 0;
+
 static unsigned int v9k_wf_n = 0, v9k_wc_n = 0;     /* How many          */
 static long v9k_wf_max = 0L, v9k_wc_max = 0L;       /* Worst one, centis */
 static long v9k_wf_tot = 0L, v9k_wc_tot = 0L;       /* All of them       */
@@ -618,8 +638,9 @@ v9k_comm_read(fd,buf,n) int fd; void * buf; unsigned int n;
             v9k_wtag = V9K_TAG_DRAIN;
             if (rc > 0) {
                 if (!v9k_run_on) {      /* First data: start the clock  */
-                    v9k_run_on = 1;
-                    v9k_run_t0 = v9k_centis();
+                    v9k_run_on  = 1;
+                    v9k_run_t0  = v9k_centis();
+                    v9k_run_mdm = v9k_ser_mdm();
                 }
                 v9k_wtag = V9K_TAG_AFTER(V9K_TAG_DRAIN);
                 return(rc);
@@ -1500,14 +1521,32 @@ tcflow(fd,action) int fd; int action;
       windowing, and why it outranks both: raise DRPSIZ past about 4,090
       and the guarantee above is gone at a window of one.
 
-      When it goes in, two constraints are already established.  The bench
-      cable is three wires (HW_TESTING.md SS1.2), so RTS/CTS is not
-      available and it has to be XON/XOFF -- safe because Kermit prefixes
-      control characters in data.  And this handler runs with interrupts
+      When it goes in, the mechanism is an open question and RTS/CTS is
+      the front runner, not the fallback.
+
+      This hardware has it: the 7201 has a CTS input (V9K_RR0_CTS), RTS is
+      an output section 1b already drives in WR5, and v9k_ser_mdm() below
+      already reports both.  Dropping RTS from the handler is a register
+      select and a byte -- two port writes, no TX-ready test, no state
+      coupled to the transmitter -- where XON/XOFF needs all three.  It is
+      also binary-transparent, so it does not lean on Kermit's control
+      prefixing the way an in-band character does.
+
+      What is NOT known is whether the bench cable carries and crosses the
+      pair.  HW_TESTING.md SS1.2 says three wires are SUFFICIENT, which is
+      a statement about this port's requirements and not a description of
+      the cable -- the bullet immediately after it says the port drives
+      DTR and RTS.  The exit report now samples CTS during the transfer
+      (v9k_run_mdm, section 0d) so the next run answers it.
+
+      If the pair turns out not to be wired, XON/XOFF is the fallback and
+      is safe because Kermit prefixes control characters in data.  Either
+      way, one constraint holds: this handler runs with interrupts
       DISABLED throughout, unlike msxv90.asm's, which does its flow
-      control after an sti and polls TX-ready in a bounded loop; copying
-      that would block receive and reintroduce SS16t's defect.  Test
-      TX-ready once, send if clear, retry on the next byte if not.
+      control after an sti and polls TX-ready in a bounded loop.  Copying
+      that would block receive and reintroduce SS16t's defect.  RTS needs
+      no poll at all; XON/XOFF would test TX-ready once and retry on the
+      next byte rather than looping.
     */
     return(0);
 }
@@ -2533,6 +2572,26 @@ v9k_ser_release() {
 
         printf("v9k: elapsed=%ld cs wire=%lu B/s\n",
                el, el ? (v9k_rxbytes * 100L) / el : 0L);
+
+        /*
+          cts= is the one to read: it says whether RTS/CTS is a real option
+          on this cable, which decides whether flow control has to be
+          XON/XOFF.
+
+          The other four are nearly free and nearly worthless, and it is
+          worth saying which is which.  dcd is FORCED by the carrier clause
+          in v9k_ser_mdm() whenever CLOCAL is set, which the harness always
+          sets, so it reads 1 and means nothing here.  rts and dtr are read
+          back from the last WR5 we programmed, not from the pins, so they
+          say what we asked for and not what arrived.  dsr comes off the
+          6522 and is real.  Only cts and dsr are measurements.
+        */
+        printf("v9k: mdm cts=%d dsr=%d (dcd=%d rts=%d dtr=%d, see comment)\n",
+               (v9k_run_mdm & TIOCM_CTS) ? 1 : 0,
+               (v9k_run_mdm & TIOCM_DSR) ? 1 : 0,
+               (v9k_run_mdm & TIOCM_CAR) ? 1 : 0,
+               (v9k_run_mdm & TIOCM_RTS) ? 1 : 0,
+               (v9k_run_mdm & TIOCM_DTR) ? 1 : 0);
     }
 }
 
