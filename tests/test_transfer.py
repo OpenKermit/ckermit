@@ -200,32 +200,25 @@ def _run_nul_replay_transfer(tmp_path, wermit_loopback):
     client_dir, server_dir = make_loopback_dirs(tmp_path)
     src_file = client_dir / "nul_replay.dat"
     src_file.write_bytes(content)
-    debug_log = tmp_path / "server_debug.log"
 
-    try:
-        result = wermit_loopback(
-            server_dir,
-            server_setup_cmds=(
-                f"log debug {debug_log}, set control unprefix all, "
-                "set file type binary, set delay 0"
-            ),
-            client_commands=(
-                "set control unprefix all, set file type binary, "
-                f"set delay 0, send {src_file}"
-            ),
-            timeout=30,
-        )
-        assert_ok(result)
+    result = wermit_loopback(
+        server_dir,
+        server_setup_cmds=(
+            "set control unprefix all, set file type binary, set delay 0"
+        ),
+        client_commands=(
+            "set control unprefix all, set file type binary, "
+            f"set delay 0, send {src_file}"
+        ),
+        timeout=30,
+        # Enable server debug logging to slow server execution.
+        server_debug_log=True,
+    )
+    assert_ok(result)
 
-        dest_file = server_dir / "nul_replay.dat"
-        assert dest_file.exists()
-        assert dest_file.read_bytes() == content
-    finally:
-        # The debug log only exists to slow the server down (see
-        # docstring); it is not surfaced on failure the way
-        # KERMIT_TEST_DEBUG_LOOPBACK's logs are, so there is no reason
-        # to keep it around. It can be tens of MB per attempt.
-        debug_log.unlink(missing_ok=True)
+    dest_file = server_dir / "nul_replay.dat"
+    assert dest_file.exists()
+    assert dest_file.read_bytes() == content
 
 
 @pytest.mark.parametrize("loopback_transport", ["pseudoterminal"],
@@ -242,13 +235,11 @@ def test_kermit_transfer_unprefixed_nul_replay(tmp_path, wermit_loopback,
     relative to the sender, to make that happen some of the time,
     without any external system load.
 
-    LOG DEBUG output is the limiting factor on the file size.
-    It inflates roughly 30x over the bytes transferred, so a larger
-    file catches the race more often but also risks filling a
-    tmpfs-backed /tmp.  2 MB keeps that peak well under 1 GB.
-    the pre-fix code on NetBSD (where this bug was originally found),
-    this catches the corruption in roughly a third of runs of the
-    full parametrized set; it is not expected to catch it every time.
+    LOG DEBUG output inflates roughly 30x over the bytes transferred
+    before compression (piped through gzip on disk via debug_log_command
+    in conftest.py). A transfer size of 2 MB catches the race on NetBSD
+    without excessive disk usage. It is not expected to trigger on every
+    run.
 
     Restricted to the pseudoterminal transport. The race comes from
     LOG DEBUG slowing the server relative to the client, not from

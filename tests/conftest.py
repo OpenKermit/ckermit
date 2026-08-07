@@ -8,6 +8,7 @@ import shutil
 import socket
 import subprocess
 import termios
+import zlib
 import pytest
 from pathlib import Path
 import logging
@@ -137,20 +138,88 @@ def truncated(label, text):
     )
 
 
-def tail_text(path, label, max_chars=MAX_LOGGED_CHARS):
-    """Returns at most the last max_chars characters of a text file,
-    formatted the same way truncated() would, without first reading
-    the whole file into memory.
+def compressed_debug_log_path(debug_log):
+    """Returns the .gz path written on disk for a logical debug_log path.
 
-    A session that retries in a tight loop, or a large-file transfer
-    with debug logging on, can leave behind a log hundreds of
-    megabytes in size. Reading and decoding all of that just to keep
-    the last max_chars via truncated() a moment later was slow enough
-    on its own to trip pytest's timeout. Seeking near the end keeps
-    the amount of data read and decoded bounded regardless of the
-    file's actual size.
+    Debug traces are piped through gzip as they are written to prevent
+    excessive disk usage during large file transfers. Callers reading a
+    debug log inspect this compressed path instead of the logical path.
+    """
+    return Path(str(debug_log) + ".gz")
+
+
+def debug_log_command(debug_log):
+    """Returns a "log debug ..." command clause piping output through gzip.
+
+    This uses Kermit's "log debug |command" syntax via popen(). Braces
+    are required so the command parser does not truncate the filename at
+    the first space.
+
+    When running under a PTY session leader, process termination sends
+    SIGHUP to the process group. The HUP trap ensures gzip flushes its
+    output before exiting. The exec command replaces the intermediate shell
+    with the gzip process.
+    """
+    gz_path = compressed_debug_log_path(debug_log)
+    return f"log debug {{|trap '' HUP; exec gzip -c > {gz_path}}}"
+
+
+def _tail_gz_bytes(path, max_bytes, read_chunk=65536):
+    """Decompress gzip file at path, returning trailing max_bytes.
+
+    Reads and decompresses in small chunks, maintaining a bounded
+    trailing window so peak memory usage is O(max_bytes).
+
+    Uses raw zlib instead of the gzip module so incomplete or truncated
+    streams yield available decompressed data without raising.
+    """
+    decompressor = zlib.decompressobj(zlib.MAX_WBITS | 16)
+    tail = b""
+    pending = b""
+    with path.open("rb") as f:
+        while True:
+            if not pending:
+                pending = f.read(read_chunk)
+                if not pending:
+                    break
+            try:
+                out = decompressor.decompress(pending, max_bytes)
+            except zlib.error:
+                break
+            pending = decompressor.unconsumed_tail
+            if out:
+                tail = (tail + out)[-max_bytes:]
+    try:
+        tail = (tail + decompressor.flush())[-max_bytes:]
+    except zlib.error:
+        pass
+    return tail
+
+
+def tail_text(path, label, max_chars=MAX_LOGGED_CHARS):
+    """Return at most the last max_chars characters of a file.
+
+    For uncompressed files, seeks near the end to keep data reading
+    bounded regardless of file size.
+
+    For gzip files (ending in .gz), streams through the file and
+    retains only a trailing window of decompressed output via
+    _tail_gz_bytes().
+
+    Uses raw zlib for gzip decompression to handle truncated streams.
     """
     path = Path(path)
+    if path.suffix == ".gz":
+        max_bytes = max_chars * 4
+        tail = _tail_gz_bytes(path, max_bytes)
+        text = tail.decode("utf-8", errors="replace")
+        if len(text) <= max_chars:
+            return text
+        text = text[-max_chars:]
+        return (
+            f"[{label}: compressed log, showing last "
+            f"{len(text)} chars]\n{text}"
+        )
     size = path.stat().st_size
     # Read a generous byte margin per character: a UTF-8 character can
     # take up to 4 bytes, and the file may also contain raw invalid
@@ -444,6 +513,12 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
     parameter, defaulting to wermit_path. Passing another binary
     runs the server side with that executable for compatibility
     testing.
+
+    The returned callable accepts an optional server_debug_log flag
+    (default False). When True, forces the server debug log on
+    unconditionally via debug_log_command(), independent of
+    KERMIT_TEST_DEBUG_LOOPBACK. Use server_debug_log instead of putting
+    a "log debug" command in server_setup_cmds.
     """
     created_files = []
     opened_logs = []
@@ -453,7 +528,7 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
     def _run_pseudoterminal(server_dir, setup_lines, cmd_str,
                             client_prefix, client_debug_prefix,
                             server_log, client_log, timeout,
-                            server_binary_path):
+                            server_binary_path, debug_server):
         server_ksc = Path(server_dir).parent / \
             f"server_{Path(server_dir).name}.ksc"
         logger.info(
@@ -463,11 +538,14 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         server_ksc.write_text("\n".join(setup_lines) + "\n")
         if server_ksc not in created_files:
             created_files.append(server_ksc)
+        if debug_server:
+            gz_path = compressed_debug_log_path(server_log)
+            if gz_path not in created_files:
+                created_files.append(gz_path)
         if DEBUG_LOOPBACK:
-            if server_log not in created_files:
-                created_files.append(server_log)
-            if client_log not in created_files:
-                created_files.append(client_log)
+            gz_path = compressed_debug_log_path(client_log)
+            if gz_path not in created_files:
+                created_files.append(gz_path)
 
         full_client_cmd = [
             "-H", "-Y", "-Q", "-C",
@@ -501,18 +579,21 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
 
     def _run_tcp(server_dir, setup_lines, cmd_str, client_prefix,
                 client_debug_prefix, server_log, client_log, timeout,
-                server_binary_path):
+                server_binary_path, debug_server):
         switch, server_prefix, client_extra_prefix = \
             _tcp_switch_and_prefixes(transport)
         server_stdout_log = Path(server_dir).parent / \
             f"tcp_server_{Path(server_dir).name}.log"
         if server_stdout_log not in created_files:
             created_files.append(server_stdout_log)
+        if debug_server:
+            gz_path = compressed_debug_log_path(server_log)
+            if gz_path not in created_files:
+                created_files.append(gz_path)
         if DEBUG_LOOPBACK:
-            if server_log not in created_files:
-                created_files.append(server_log)
-            if client_log not in created_files:
-                created_files.append(client_log)
+            gz_path = compressed_debug_log_path(client_log)
+            if gz_path not in created_files:
+                created_files.append(gz_path)
 
         server_cmd_str = ", ".join(setup_lines)
         port = None
@@ -553,18 +634,17 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         logger.info(
             "wermit_loopback: Client running command sequence: %s",
             cmd_str)
+        result = None
         try:
             result = run_wermit(
                 full_client_cmd, timeout=timeout + TCP_TIMEOUT_MARGIN)
         finally:
-            # Always drain the server's stdout log, even if the client
-            # timed out: subprocess.run(timeout=...) raises
-            # TimeoutExpired immediately, with no chance for the caller
-            # to log anything first, so without this a client-side hang
-            # loses the one piece of evidence (what the server was
-            # doing) that would otherwise help explain it.
+            # Drain the server stdout log if the client failed or timed out.
+            # This preserves server state details when a client-side error
+            # occurs before logging. This step is omitted on success.
             _wait_or_kill(proc)
-            if server_stdout_log.exists():
+            if (result is None or result.returncode != 0) \
+               and server_stdout_log.exists():
                 try:
                     logger.info(
                         "wermit_loopback: Server stdout log:\n%s",
@@ -577,19 +657,25 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         return result
 
     def _run(server_dir, server_setup_cmds="", client_commands="",
-             timeout=10, server_binary_path=None):
-        # Only ever written to if DEBUG_LOOPBACK enables "log debug"
-        # on both sides.  Distinct from _run_tcp's
-        # stdout-capture log.
+             timeout=10, server_binary_path=None, server_debug_log=False):
+        # Target paths for debug logs. Written only if DEBUG_LOOPBACK
+        # or server_debug_log is enabled. Distinct from _run_tcp stdout logs.
         server_log = Path(server_dir).parent / \
             f"server_{Path(server_dir).name}.log"
         client_log = Path(server_dir).parent / \
             f"client_{Path(server_dir).name}.log"
 
+        # server_debug_log enables the server debug log independently of
+        # DEBUG_LOOPBACK using debug_log_command(). Do not embed a "log debug"
+        # command in server_setup_cmds; debopn() closes any existing debug log
+        # before opening a new one, which can terminate the server process
+        # during connection setup.
+        debug_server = DEBUG_LOOPBACK or server_debug_log
+
         # Build the far end's command sequence.
         setup_lines = []
-        if DEBUG_LOOPBACK:
-            setup_lines.append(f"log debug {server_log}")
+        if debug_server:
+            setup_lines.append(debug_log_command(server_log))
         setup_lines.append("set command more-prompting off")
         setup_lines.append("set delay 0")
         if transport != "pseudoterminal":
@@ -612,36 +698,40 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
             if use_clear_unprefix else ""
         )
         client_debug_prefix = (
-            f"log debug {client_log}, " if DEBUG_LOOPBACK else ""
+            f"{debug_log_command(client_log)}, " if DEBUG_LOOPBACK else ""
         )
 
         run = _run_pseudoterminal if transport == "pseudoterminal" \
             else _run_tcp
+        result = None
         try:
             result = run(server_dir, setup_lines, cmd_str, client_prefix,
                         client_debug_prefix, server_log, client_log, timeout,
-                        server_binary_path or wermit_path)
+                        server_binary_path or wermit_path, debug_server)
         finally:
-            # Always dump both debug logs, even on a client-side
-            # timeout: subprocess.run(timeout=...) raises
-            # TimeoutExpired immediately, with no chance to log
-            # anything first, so without this a hang here loses its
-            # debug trace entirely even though DEBUG_LOOPBACK wrote it
-            # to disk.
-            if DEBUG_LOOPBACK:
-                for label, log_path in (("Server", server_log),
-                                        ("Client", client_log)):
-                    if log_path.exists():
-                        try:
-                            logger.info(
-                                "wermit_loopback: %s process debug "
-                                "log:\n%s",
-                                label,
-                                tail_text(log_path, f"{label} debug log"))
-                        except Exception as e:
-                            logger.warning(
-                                "wermit_loopback: Failed to read %s "
-                                "log %s: %s", label, log_path, e)
+            # Dump debug logs on failure or timeout. The server log is
+            # dumped if debug_server is True. The client log is dumped if
+            # DEBUG_LOOPBACK is True.
+            failed = result is None or result.returncode != 0
+            logs = []
+            if failed and DEBUG_LOOPBACK:
+                logs.append(("Client", client_log))
+            if failed and debug_server:
+                logs.append(("Server", server_log))
+            for label, log_path in logs:
+                gz_path = compressed_debug_log_path(log_path)
+                if gz_path.exists():
+                    try:
+                        _wait_for_gz_stable(gz_path)
+                        logger.info(
+                            "wermit_loopback: %s process debug "
+                            "log:\n%s",
+                            label,
+                            tail_text(gz_path, f"{label} debug log"))
+                    except Exception as e:
+                        logger.warning(
+                            "wermit_loopback: Failed to read %s "
+                            "log %s: %s", label, gz_path, e)
 
         return result
 
@@ -872,10 +962,32 @@ def wermit_tcp_loopback(spawn_wermit, run_wermit, get_free_port):
 # wermit-under-test must be started (as a TCP listener) before its
 # remote peer is spawned, and only collected afterwards.
 
+def _wait_for_gz_stable(path, timeout=2.0, poll=0.05):
+    """Waits briefly for a .gz debug log to stop growing.
+
+    The gzip writer runs in a child process spawned via popen(), so the
+    test harness can't wait on it directly. Kermit exiting confirms the
+    pipe is closed, but gzip requires time to flush its trailer and exit.
+    This polling loop prevents reading empty or incomplete log files.
+    """
+    deadline = time.time() + timeout
+    last_size = -1
+    while time.time() < deadline:
+        try:
+            size = path.stat().st_size
+        except OSError:
+            size = -1
+        if size > 0 and size == last_size:
+            return
+        last_size = size
+        time.sleep(poll)
+
+
 def _log_debug_file(label, path):
-    path = Path(path)
+    path = compressed_debug_log_path(path)
     if not path.exists():
         return
+    _wait_for_gz_stable(path)
     try:
         logger.info(
             "%s: wermit debug log:\n%s",
@@ -931,7 +1043,7 @@ def start_wermit_pty(wermit_path, cmd_str, cwd, debug_log=None):
     """
     master, slave = pty.openpty()
 
-    debug_prefix = f"log debug {debug_log}, " if debug_log else ""
+    debug_prefix = f"{debug_log_command(debug_log)}, " if debug_log else ""
     cmd = [
         wermit_path, "-H", "-Y", "-C",
         f"{debug_prefix}set command more-prompting off, {cmd_str}"
@@ -960,57 +1072,66 @@ def finish_wermit_pty(proc, master, timeout=45, debug_log=None):
     output = []
     start_time = time.time()
 
-    while proc.poll() is None:
-        if time.time() - start_time > timeout:
-            captured = b"".join(output).decode('utf-8', errors='replace')
-            logger.error(
-                "finish_wermit_pty: wermit (pid %d) timed out after %ds. "
-                "pty output captured before timeout:\n%s",
-                proc.pid, timeout, truncated("pty output", captured))
-            _log_process_snapshot("finish_wermit_pty")
-            proc.terminate()
-            try:
-                proc.wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                proc.wait(timeout=2)
-            os.close(master)
-            if debug_log:
-                _log_debug_file("finish_wermit_pty", debug_log)
-            raise subprocess.TimeoutExpired(
-                proc.args, timeout, output=captured.encode())
+    try:
+        while proc.poll() is None:
+            if time.time() - start_time > timeout:
+                captured = b"".join(output).decode('utf-8', errors='replace')
+                logger.error(
+                    "finish_wermit_pty: wermit (pid %d) timed out after "
+                    "%ds. pty output captured before timeout:\n%s",
+                    proc.pid, timeout, truncated("pty output", captured))
+                _log_process_snapshot("finish_wermit_pty")
+                proc.terminate()
+                try:
+                    proc.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait(timeout=2)
+                os.close(master)
+                if debug_log:
+                    _log_debug_file("finish_wermit_pty", debug_log)
+                raise subprocess.TimeoutExpired(
+                    proc.args, timeout, output=captured.encode())
 
-        r, _, _ = select.select([master], [], [], 0.1)
-        if master in r:
-            try:
-                data = os.read(master, 4096)
-                if not data:
+            r, _, _ = select.select([master], [], [], 0.1)
+            if master in r:
+                try:
+                    data = os.read(master, 4096)
+                    if not data:
+                        break
+                    output.append(data)
+                except OSError:
                     break
-                output.append(data)
-            except OSError:
+
+        # Read any remaining output after process exits
+        while True:
+            r, _, _ = select.select([master], [], [], 0.05)
+            if master in r:
+                try:
+                    data = os.read(master, 4096)
+                    if not data:
+                        break
+                    output.append(data)
+                except OSError:
+                    break
+            else:
                 break
 
-    # Read any remaining output after process exits
-    while True:
-        r, _, _ = select.select([master], [], [], 0.05)
-        if master in r:
-            try:
-                data = os.read(master, 4096)
-                if not data:
-                    break
-                output.append(data)
-            except OSError:
-                break
-        else:
-            break
+        os.close(master)
+        proc.wait()
 
-    os.close(master)
-    proc.wait()
+        # Decompress and log the debug trace only on failure. On
+        # success, pytest discards captured logs, making
+        # decompression unnecessary.
+        if debug_log and proc.returncode != 0:
+            _log_debug_file("finish_wermit_pty", debug_log)
 
-    if debug_log:
-        _log_debug_file("finish_wermit_pty", debug_log)
-
-    return proc.returncode, b"".join(output).decode('utf-8', errors='replace')
+        return (proc.returncode,
+                b"".join(output).decode('utf-8', errors='replace'))
+    finally:
+        # Remove the compressed debug log upon exit.
+        if debug_log:
+            compressed_debug_log_path(debug_log).unlink(missing_ok=True)
 
 
 def finish_wermit_pty_pair(proc_a, master_a, proc_b, master_b, timeout=45):
