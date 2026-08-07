@@ -639,12 +639,10 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
             result = run_wermit(
                 full_client_cmd, timeout=timeout + TCP_TIMEOUT_MARGIN)
         finally:
-            # Drain the server stdout log if the client failed or timed out.
-            # This preserves server state details when a client-side error
-            # occurs before logging. This step is omitted on success.
+            # Always drain server stdout. Post-transfer assertions may
+            # fail even when the client process exits 0.
             _wait_or_kill(proc)
-            if (result is None or result.returncode != 0) \
-               and server_stdout_log.exists():
+            if server_stdout_log.exists():
                 try:
                     logger.info(
                         "wermit_loopback: Server stdout log:\n%s",
