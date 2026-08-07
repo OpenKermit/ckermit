@@ -5687,10 +5687,28 @@ asserted throughout, so a set CTS is the strong-evidence case the §16t
 comment described. §16u's `cts = 1` under MAME was worth nothing because
 `null_modem` asserts the inputs; this one is worth what it says.
 
-So the front runner wins on availability as well as on cost: **flow control
-should be RTS/CTS**, two port writes on the path §16t spent a session
-stripping, and binary-transparent. XON/XOFF is no longer needed as a
-fallback.
+So the front runner wins on availability as well as on cost: **RTS/CTS is
+the right default** — two port writes on the path §16t spent a session
+stripping, and binary-transparent.
+
+**That does not retire XON/XOFF, and the reason is interoperability rather
+than this bench.** A Victor Kermit that talks only to equipment with a
+wired, crossed RTS/CTS pair is a Victor Kermit that fails against a good
+deal of the hardware it would actually meet — and the far end's wiring is
+not something this port can measure or assume. Both mechanisms belong in
+it; the bench cable settles the *default*, not the feature set.
+
+The plumbing for both already exists and neither needs an upstream edit,
+which is the useful part: `ckutio.c` already translates C-Kermit's `flow`
+setting into exactly the termios bits `ckvictor.c`'s `tcsetattr()` receives
+— `FLO_XONX` sets `c_iflag |= (IXON|IXOFF)` at `ckutio.c:6617`, `FLO_RTSC`
+sets `c_cflag |= CRTSCTS` at `ckutio.c:6252`. `victor/sys/termios.h` defines
+all three and already documents the split it implies: `tcflow()` is the
+XON/XOFF half, and RTS/CTS is the driver's job whenever `CRTSCTS` is set.
+Selection under `NOICP` is the one open piece, since there is no `SET FLOW`
+prompt — `dfflow` is `FLO_NONE` at `ckutio.c:1202`, and §16i's priority-0
+initializer plus a switch parsed off the DOS command tail is the pattern
+that has already solved this shape of problem twice.
 
 ### Two smaller results
 
@@ -5719,13 +5737,22 @@ to RS-232, the **204,764** build with the assembly ISR, the clock and the
 `s16uCB.out`, received files `gotCA.dat` / `gotCB.dat`, both md5-identical
 to the 32,768-byte all-byte-values fixture.
 
-**A harness rule came out of it: take-files must be self-contained.** As
-generated these two carried `set speed` and nothing else, relying on
-`~/.kermrc` for `set line` and `set parity none`; they were hand-edited to
-name both before they would run. Which of the two was actually missing was
-not diagnosed, and does not need to be — a take-file that states its own
-line, speed and parity cannot be wrong about them, and the committed
-versions are the ones that ran.
+**One thing in this section was wrong when first written and is corrected
+here.** It said a harness rule had come out of the run — that take-files
+must be self-contained, because these two "were hand-edited to name both
+before they would run". They would have run as generated. `~/.kermrc`
+carries `set line`, `set speed`, `set parity none`, `set carrier-watch off`
+and `set flow none`, so the added lines were redundant, not repairs. The
+committed take-files are still the ones that ran, and there is no rule.
+
+The mistake is worth a sentence because of *how* it was made. `~/.kermrc`
+was read during the same session and seen to contain `set line` — the fact
+that would have settled it. Rather than resolve the contradiction between
+that and "the file had to be edited", the write-up recorded the question as
+"not diagnosed" and built a rule on top of it anyway. **A contradiction
+parked as an open question is not neutral; it silently licences whatever is
+written next.** §16t's four wrong turns are all versions of this, and this
+one had the answer already on screen.
 
 ---
 

@@ -122,29 +122,49 @@ inside it — **you cannot raise `DRPSIZ` past about 4,090 either.**
 
 Design, constrained by two things already established:
 
-- **Mechanism is decided: RTS/CTS.** §16v read **`cts = 1` on the real
-  cable**, in both bench legs, with the host running `set flow none` and
-  therefore holding its RTS asserted throughout — the strong-evidence case.
-  It is a genuine read: the only forced bit in `v9k_ser_mdm()` is `dcd`
-  under `CLOCAL`, and CTS comes straight off RR0. So the cheaper mechanism
-  is also the available one: dropping RTS is *two port writes*, no TX-ready
-  test, no state coupled to the transmitter, and binary-transparent, where
-  XON/XOFF needs all three. **XON/XOFF is no longer needed as a fallback.**
-  The host side needs `set flow rts/cts`.
-- **This ISR has no `sti`.** 3.13 does flow control inside `SERINT` but only
-  after re-enabling interrupts, then polls TX-ready in a `loop` bounded at
-  65,536 turns (`msxv90.asm:srint9`). **Do not copy that** — polling with
-  interrupts off blocks receive, which is the defect §16t just fixed.
-  Single-shot instead: past the high mark and no XOFF outstanding, test
-  TX-ready *once* and write XOFF if clear, otherwise skip and retry on the
-  next byte. ~5 instructions per byte against the 75 §16t recovered.
+- **Build both. RTS/CTS is the default; XON/XOFF is an interoperability
+  requirement, not a fallback.** §16v read **`cts = 1` on the real cable**
+  in both legs, with the host running `set flow none` and therefore holding
+  RTS asserted throughout — the strong-evidence case, and a genuine read
+  since the only forced bit in `v9k_ser_mdm()` is `dcd` under `CLOCAL`. So
+  RTS/CTS is available *here*, and it is also the cheaper path: dropping RTS
+  is two port writes, no TX-ready test, no state coupled to the transmitter,
+  binary-transparent. **But the far end's wiring is not something this port
+  can measure or assume**, and a Victor Kermit that only talks to equipment
+  with a crossed RTS/CTS pair fails against a lot of what it would actually
+  meet. The bench settles the default, not the feature set.
+- **Neither mechanism needs an upstream edit — the plumbing is already
+  there.** `ckutio.c` translates C-Kermit's `flow` into exactly the termios
+  bits our `tcsetattr()` receives: `FLO_XONX` → `c_iflag |= (IXON|IXOFF)`
+  (`ckutio.c:6617`), `FLO_RTSC` → `c_cflag |= CRTSCTS` (`ckutio.c:6252`).
+  `victor/sys/termios.h` defines all three and already states the split —
+  `tcflow()` is the XON/XOFF half, RTS/CTS is the driver's job under
+  `CRTSCTS`. **So implement against the termios bits, not against a private
+  flag.**
+- **Selection is the one open piece, because `NOICP` removes `SET FLOW`.**
+  `dfflow` is `FLO_NONE` at `ckutio.c:1202`. §16i's priority-0 XI
+  initializer, plus a switch blanked off the DOS command tail before `argv`
+  exists, is the pattern that has solved this exact shape twice already
+  (server capabilities, `--safe-server`) and cost no upstream edit either
+  time. Run the unknown-option control, per §16i.
+- **This ISR has no `sti`, and that constraint now bites, because XON/XOFF
+  is in scope rather than a fallback.** 3.13 does flow control inside
+  `SERINT` but only after re-enabling interrupts, then polls TX-ready in a
+  `loop` bounded at 65,536 turns (`msxv90.asm:srint9`). **Do not copy
+  that** — polling with interrupts off blocks receive, which is the defect
+  §16t fixed and §16v shows we have no headroom to reintroduce. Single-shot
+  instead: past the high mark and no XOFF outstanding, test TX-ready *once*
+  and write XOFF if clear, otherwise skip and retry on the next byte. ~5
+  instructions per byte against the 75 §16t recovered. **RTS/CTS needs none
+  of this**, which is the other half of why it is the default.
 - Water marks 3/4 and 1/4, and an `xofsnt` that distinguishes user-level
   from buffer-level, both straight from 3.13 (`MNTRGH`/`MNTRGL`, and it is
   the same chip on this machine).
-- The host harness runs `set flow none` — in `~/.kermrc` *and* in the
-  take-files — and needs `set flow rts/cts` in both when this goes in.
-  Note that `set flow none` is also what makes §16v's `cts` reading
-  evidence, so a run that changes it is no longer a control.
+- The host harness runs `set flow none`, from `~/.kermrc`, and needs `set
+  flow rts/cts` or `set flow xon/xoff` to match whichever is under test.
+  **Note that `set flow none` is what makes §16v's `cts` reading evidence**
+  — the host holds RTS asserted only because it is not using it — so a run
+  that changes it is no longer a control for that.
 
 **4. Then windows.** `DFWSIZ` is still 1, and items 2 and 3 are both
 preconditions. Do it under MAME first. Note the interaction §16s found: with
@@ -297,29 +317,27 @@ the DGROUP half in one build; it does not load, and that was measured.
 RS-232. Power-cycle the Victor *and* the Pico between runs. Fresh target
 filename every run. Do not write to the image while the machine is running.
 
-**Write take-files self-contained — this cost a hand-edit at the bench in
-§16v.** `~/.kermrc` does carry `set line`, `set parity none`, `set
-carrier-watch off` and `set flow none`, and the §16u take-files were
-generated leaning on it; they had to have `set line` and `set parity none`
-added before they would run. Which one was actually missing was never
-diagnosed and does not need to be. Every line the run depends on goes in
-the file:
+**`~/.kermrc` already sets up the bench, so a take-file only needs what
+differs.** It carries `set line /dev/tty.usbserial-BG022B8M`, `set speed`,
+`set parity none`, `set carrier-watch off` and `set flow none`. A take-file
+therefore needs the speed for the leg, the log name, the transfer and
+`statistics`:
 
 ```
-set line /dev/tty.usbserial-BG022B8M
 set speed 38400
-set parity none
-set carrier-watch off
-set flow none
 set receive timeout 20
 log packets s16uCA.pkt
 send rcvca.dat
 statistics
 ```
 
-Each ends in `statistics`, so redirect to keep the host's cps:
-`kermit -C "take s16uCA.ksc, exit" > s16uCA.host`. `s16uCA.ksc` and
-`s16uCB.ksc` in the tree are the exact files that ran §16v.
+Redirect to keep the host's cps: `kermit -C "take s16uCA.ksc, exit" >
+s16uCA.host`. `s16uCA.ksc` and `s16uCB.ksc` in the tree are the files that
+ran §16v; they additionally repeat `set line` and `set parity none`, which
+is harmless and was not necessary. **An earlier version of this section
+claimed those lines were required and built a rule on it. They were not,
+and there is no rule** — see the retraction at the end of §16v, which is
+about how the error was made rather than about take-files.
 
 **MAME.** Still the right place for anything that would cost a drive to get
 wrong, and it validated `ckvisr.asm` before the bench.

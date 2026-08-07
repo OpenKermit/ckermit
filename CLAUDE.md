@@ -121,10 +121,15 @@ ceiling**, so §16n's ~1,630 projection is dead (it is above that ceiling),
 38400 bought only +17% to +24%. The build compiles `-os`; `-ot` on the
 decode path has never been measured and is the open question.
 
-**§16v also settled flow control: `cts = 1` on the real cable**, both legs,
-a genuine RR0 read with the host holding RTS asserted under `set flow none`
-— so RTS/CTS is wired and XON/XOFF is not needed as a fallback. Two reading
-rules survive: the Victor's `elapsed=` and the host's `statistics` **do not
+**§16v also settled the flow-control default: `cts = 1` on the real cable**,
+both legs, a genuine RR0 read with the host holding RTS asserted under `set
+flow none`. So RTS/CTS is wired here and is the cheaper path — but **the
+bench settles the default, not the feature set: XON/XOFF stays in scope as
+an interoperability requirement**, because the far end's wiring is not
+something this port can measure. Neither costs an upstream edit; `ckutio.c`
+already hands our `tcsetattr()` the right termios bits (`IXON|IXOFF` at
+`ckutio.c:6617`, `CRTSCTS` at `6252`), and selection under `NOICP` is §16i's
+initializer pattern. Two reading rules survive: the Victor's `elapsed=` and the host's `statistics` **do not
 measure the same interval** (the Victor's starts at the first byte received,
 before the S packet, and closes at release — 1.7 s wider on a clean run,
 15.2 s when a startup timeout intervenes), and **`wire=` is a receive-leg
