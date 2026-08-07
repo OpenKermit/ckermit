@@ -4944,6 +4944,231 @@ back off the image**.
 
 ---
 
+## 16q. The instrument §16p asked for, and what `rxlost` actually counts
+
+§16p ended by naming the one instrument that would turn its result into a
+diagnosis: a foreground tag latched at the **first loss**, and a count of
+loss **events** as distinct from lost **bytes**. That instrument is now in
+the handler. **It has not yet seen a loss** — see the last subsection, which
+is the whole caveat.
+
+### Reading `rxlost` correctly, which §16p did not
+
+Before the new counters mean anything, the old one has to be re-read, and
+this is a correction to §16p rather than an addition to it.
+
+`v9k_rxlost` is incremented from a **single test of the latched RR1 overrun
+bit**, once per entry to the handler. So it counts **interrupts that found
+an overrun, not bytes that were lost.** A hold-off long enough to lose fifty
+bytes presents the handler with one latched bit and whatever the three-deep
+receiver managed to keep, and can therefore raise `rxlost` by as little as
+one.
+
+So **§16p's "0.45% of received bytes" is a lower bound, not a measurement**,
+and the true loss is at least that and possibly much worse. What is
+unambiguous is the direction: each increment means at least one byte went
+missing, so `rxlost = 0` at 9600 and 19200 still means exactly what §16p
+said it meant, and the 38400 result is if anything stronger than reported.
+
+This also sharpens §16p's own arithmetic. It read 203 as "203 bytes across 4
+corrupted packets, so ~50 bytes per event". The 4 comes from the NAK count,
+which is solid — but if the 203 were 203 *separate* hold-offs they would be
+spread across the whole ~11-packet transfer and would corrupt far more than
+4 packets. **The NAK count and `rxlost` are only consistent if the losses
+are concentrated**, which is evidence for the burst reading that §16p could
+only assume. The new counter tests it directly.
+
+### What was added
+
+Seven statics and a handful of stores, all on the overrun path:
+
+| | |
+|---|---|
+| `lost evt` | bursts. A loss opens a new one when more than `V9K_LOSTGAP` bytes have arrived cleanly since the previous loss |
+| `lost max` | the longest burst, which sizes the worst hold-off |
+| `lost tag`/`fd` | §0e's foreground tag latched at the **first** loss — the counterpart of `peaktag`, and the one that names a suspect |
+| `lostat`/`lostend` | byte offsets of the first and last loss, which `.probe/mapoffset.py` turns into packets |
+
+**A burst is separated by a gap in the stream, not by consecutive entries to
+the handler, and that choice is the point.** Consecutive-entry counting
+needs the good-byte path to clear the run counter, which Watcom codes as a
+DGROUP reload and a store — about 5 µs of a 26 µs byte at 38400, on the one
+path that runs per byte, inside an instrument whose entire purpose is to
+find out whether the per-byte path is too slow. **That is §16k's mistake
+exactly**, and it was caught by reading the `wdis` output rather than by
+thinking about it. Measuring the stream gap instead puts every added
+instruction on a path that by measurement runs 203 times in 42,757 bytes,
+and it is the better definition anyway: one good byte drained in the middle
+of a hold-off should not read as two hold-offs. `wdis` confirms the
+non-overrun path is now `test al,20H / je / jmp` and touches no memory.
+
+`V9K_LOSTGAP` is 16 because the two scales are nowhere near each other —
+losses inside one hold-off land within a few stream positions, distinct
+hold-offs are separated by whole packets — so anything from about 8 to 1000
+gives the same answer.
+
+### One semantic correction to `rxbytes`
+
+The BELL that the overrun path substitutes for a lost byte now **increments
+`rxbytes`**, which it did not before. `rxbytes` is read as a stream offset
+to map onto the host's packet log, and the BELL occupies a position in that
+stream, so leaving it out made every offset in a lossy run drift low by the
+loss count. That is 203 bytes at 38400 — small, but 38400 is exactly the run
+where the offsets matter. **Runs with `rxlost = 0` are unaffected, so every
+figure in §16k–§16p stands as printed.**
+
+### Validated three ways, and the third one is the gap
+
+**The arithmetic**, by `.probe/vburst.c` — the counter update transcribed
+byte for byte out of the ISR and replayed on the host against synthetic
+patterns with known answers. The two readings §16p could not separate now
+come back unmistakably different:
+
+```
+203 losses, 4 bursts                   evt=4    max=51    ok
+203 losses, spread singly              evt=203  max=1     ok
+```
+
+plus a burst broken by good bytes, both sides of the `V9K_LOSTGAP`
+boundary, a first loss at offset 0, and a clean transfer. All pass.
+
+**That it costs nothing**, by a full 32,768-byte receive at 9600 under MAME
+against the §16n binary's own numbers:
+
+| | §16n, before | §16q, after |
+|---|---|---|
+| bytes | 32,768 byte-exact | 32,768 **byte-exact** |
+| `rxpeak` | 309 of 4096 | **309 of 4096** |
+| `wfile` | 4 writes | 4 writes, tot 150 cs |
+| cps | 633 | 618 (53 s wall) |
+
+`rxpeak` landing on 309 again is the result worth keeping: it is the
+handler's own timing made visible, and the instrument did not move it.
+MAME ran at 96.99% of real time for 299 s, so the figures are comparable.
+
+**And the third: the loss path itself has never executed.** MAME cannot
+drive this machine above about 9600 (§16n) and the chip does not overrun
+below 38400 (§16p), so **no run in the emulator harness can reach the code
+that was added.** `.probe/vburst.c` is what stands in for that, and it
+proves the arithmetic only — it says nothing about whether the overrun bit
+behaves as assumed. The first real exercise of this code is the next bench
+session, and the honest status is *written and reasoned, not observed*.
+
+### Sizes
+
+`ckvictor.c` still compiles with **no warnings**, and the ISR prologue is
+still pushes and `mov bp,sp` with no `sub sp,N` — no new stack, hard rule 7
+checked by reading `wdis` output as §7 requires. DGROUP 48,240 → **48,256**
+(+16), image 203,338 → **203,626**, load 217,866 of 396,224 with 178,358
+spare. **Still eleven upstream edits** — this is all in `ckvictor.c`.
+
+---
+
+## 16r. The loss is bursty, and it is not where the peak is
+
+§16q's instrument ran at the bench, at 38400, on the first attempt. **The
+answer is unambiguous: the losses are bursts.**
+
+```
+v9k: rxlost=322 rxfull=0 rxpeak=1532 of 4096
+v9k: peaktag=4 fd=6 stall256=31
+v9k: rxbytes=43589 peakat=21487 stallat=1096
+v9k: lost evt=5 max=179 tag=0 fd=0
+v9k: lostat=183 lostend=21484
+v9k: wfile n=4 max=50 at #1 of 8192 tot=100 cs
+v9k: txgap n=39 max=50 at #3 tot=550 cs
+```
+
+**`evt = 5` against `rxlost = 322`.** The two readings §16q's
+`.probe/vburst.c` was built to separate predict `evt` near 322 with
+`max = 1` (a handler too slow per byte) or `evt` in single figures with a
+large `max` (something holding the machine off). It is the second, with no
+room for argument: five events, longest 179. **The per-byte-cost hypothesis
+is dead**, and with it the worry that the handler simply cannot run at
+38400.
+
+### Five bursts, five NAKs, and they are the same five packets
+
+The host log for this run (`r38400b.pkt`, 48 packets, 13 resends, 8
+timeouts) shows the Victor NAKing **seq 03, 05, 10, 13 and 19** — five, and
+no others. `lostat` maps 112 bytes into **seq 03**, the first of them;
+`lostend` maps into **seq 19**, the last. **One burst corrupts one packet**,
+which is what §16p inferred from NAK counts alone and could not show.
+
+### The offset alignment, which nearly produced a wrong answer
+
+`rxbytes = 43,589` against 43,842 bytes sent: **the Victor's stream starts
+253 bytes into the host's.** The host sent the S packet nine times before
+the Victor first ACKed (8 timeouts, 9 × 28 = 252 bytes) — startup dead air,
+§16p's lesson arriving again — and the Victor received none of it.
+
+`.probe/mapoffset.py` maps a Victor offset onto the host's *sent* stream and
+therefore needs that shift applied by hand. Unshifted, `lostat = 183` lands
+in the seventh S retransmission and the whole result reads as a startup
+artifact with a worthless tag. Shifted, it lands in the first NAKed data
+packet. Three things agree on the shift: the byte arithmetic (253 ≈ 252),
+and both endpoints landing on the first and last packets the Victor NAKed.
+**Check `rxbytes` against the host's byte count before mapping any offset**,
+and if they differ, that difference is the shift.
+
+### The tag says it is not one of ours, and the peak was never the loss
+
+**`tag = 0`**: at the first loss the foreground was in upstream code — not
+`write()` (1), not the polled transmitter (2), not `read()` (3), not
+`v9k_comm_read()` (4). Meanwhile **`peaktag = 4`, `fd = 6`**: the ring's
+high-water mark was reached with the foreground in the drain, on the comm
+device.
+
+Those are two different places, and separating them is the entire reason
+§16q exists. §16m established that `rxpeak` measures our pre-ACK turnaround
+during the host's retransmission; this says the *loss* is somewhere else
+again. **`rxpeak` was never going to lead anywhere on this defect.**
+`peakat = 21,487` sits 3 bytes past `lostend = 21,484`, so the peak rides on
+the last burst rather than being an independent stall — consistent with the
+peak being a consequence of the resend the burst provoked.
+
+The ring is exonerated for the third time: `rxfull = 0`, `rxpeak` 1,532 of
+4,096. `txgap` total is **550 hundredths**, the highest recorded and
+continuing §16p's correlation with the failure.
+
+### What this does not yet say, and the next instrument
+
+**How long a burst lasts in bytes.** A burst of 179 losses separated by at
+most `V9K_LOSTGAP` clean bytes spans anywhere from ~180 to ~3,000 bytes,
+which is the difference between:
+
+- **one blocking hold-off** of roughly 46 ms, and
+- **a sustained rate deficit** running the length of a whole long packet.
+
+The five NAKs land on packets where C-Kermit's slow start grows the length —
+the same pattern §16l found for the host's timeouts — which leans toward the
+second, but leaning is not measuring. A burst spanning ~1,700 bytes inside a
+1,759-byte packet would settle it, and so would one spanning 200.
+
+Two cheap additions settle it, both on the rare path:
+
+1. **Per-burst first and last offset** — at minimum for the largest burst,
+   which gives its span directly.
+2. **Latch `tag` at the largest burst, not the first.** Four of the five
+   bursts are currently untagged, and the first is not obviously the
+   representative one.
+
+A third would help interpret both: **widen §0e's tag vocabulary**. `tag = 0`
+covers everything upstream, which is most of the program. The file *open*
+that follows the F packet is a DOS call on the path to the first NAKed
+packet and is currently indistinguishable from packet decoding.
+
+### Measured, and on what
+
+The §16o bench, unchanged: real Victor 9000, 896 KB, Victor MS-DOS 3.1 from
+a Pico SASI emulator, µPD7201 channel A, 1 m USB-C to RS-232 to an Apple M4
+Mac running C-Kermit. One receive at 38400 of the 32,768-byte all-byte-values
+fixture, host log `r38400b.pkt`, Victor counters in `STEP0.OUT`. The file
+was **not** checked byte-for-byte this time; §16p established byte-exactness
+at this rate over two runs and this run was about the counters.
+
+---
+
 ## 15. Open questions
 
 **Closed since the last revision**
@@ -5091,17 +5316,22 @@ back off the image**.
   one live defect and the successor to "what does the interrupt-acknowledge
   sequence need". That question is answered for 9600 and 19200 — §11b's
   sequence works on the real part, `rxlost = 0` over full 32 KB receives.
-  At 38400 the chip loses **0.45% of received bytes in bursts of ~50**,
-  twice, reproducibly (§16p). Ruled out: the file writes, the ring, and
-  every `V9K_CLI()` in `ckvictor.c` (all setup/teardown; the polled
-  transmitter and the ring drain leave interrupts enabled). Left: DOS, the
-  acknowledge sequence under load, or a slow foreground that is not ours.
-  **The instrument to build first is a foreground tag latched at the first
-  loss, and a count of loss *events* as distinct from lost *bytes*** — 203
-  bytes in 4 bursts and 203 in 203 are different defects. Correlation to
-  carry in: `txgap` total scales with the failure, 50 → 450 hundredths
-  across the four runs, though the transmitter does not mask interrupts so
-  it cannot be the mechanism itself.
+  At 38400 the chip overruns on **at least 0.45% of received bytes**, twice,
+  reproducibly (§16p) — a lower bound, because `rxlost` counts interrupts
+  that found the latched bit rather than bytes (§16q). Ruled out: the file
+  writes, the ring, and every `V9K_CLI()` in `ckvictor.c` (all
+  setup/teardown; the polled transmitter and the ring drain leave interrupts
+  enabled). **The losses are bursts, not a per-byte deficit** — §16r
+  measured `evt = 5` against `rxlost = 322`, one burst per NAKed packet — and
+  the foreground at the first loss was in **upstream code**, none of
+  `ckvictor.c`'s four blocking places. Left: DOS, the acknowledge sequence
+  under load, or a slow foreground that is not ours. **What separates the
+  last two readings is a burst's span in bytes** (~180 says one blocking
+  hold-off, ~1,700 says a rate deficit lasting a long packet); the
+  instrument does not record it yet, and §16r names the three additions that
+  would. Correlation to carry in: `txgap` total scales with the failure, 50
+  → 550 hundredths, though the transmitter does not mask interrupts so it
+  cannot be the mechanism itself.
 - **`dofast()` is unreachable in this build, and so is `getdialenv()`.**
   Both are inside the `#ifndef NOTCPIP` that opens at `ckcmai.c:3390` and
   closes at 3644, with `#endif` comments misattributed by one level (§16j).

@@ -79,12 +79,48 @@ sends only ACKs, never a NAK" was the emulator's property.
 disk — run 4 did 8× the file writes for the same loss rate. Not the ring —
 `rxfull = 0`, `rxpeak` ≤ 2,098 of 4,096. Not our own critical sections
 either: every `V9K_CLI()` is setup or teardown, and both the polled
-transmitter and the ring drain leave interrupts enabled. **The instrument to
-build next is a foreground tag latched at the first loss, plus a count of
-loss events as distinct from lost bytes.** §16p also retracts §16n's disk
-model: on the real drive the write cost tracks bytes, not calls, so
-`V9K_OBUFSIZE = 8192` saves ~0.5 s per 32 KB rather than 4 s. Keep it, but
-drop it from throughput arguments.
+transmitter and the ring drain leave interrupts enabled. §16p also retracts
+§16n's disk model: on the real drive the write cost tracks bytes, not calls,
+so `V9K_OBUFSIZE = 8192` saves ~0.5 s per 32 KB rather than 4 s. Keep it,
+but drop it from throughput arguments.
+
+**§16r ran that instrument at the bench and the losses are bursts.**
+`evt = 5` against `rxlost = 322`, longest burst 179 — a handler merely too
+slow per byte would have given `evt` near 322 with `max = 1`, so **that
+hypothesis is dead**. One burst corrupts one packet: the Victor NAKed seq
+03, 05, 10, 13, 19, and `lostat`/`lostend` fall in the first and last of
+them. **`tag = 0`** — the foreground was in upstream code at the first loss,
+none of `ckvictor.c`'s four blocking places — while **`peaktag = 4`** puts
+the *peak* in the ring drain, a different place entirely, so `rxpeak` was
+never going to lead anywhere on this defect. The ring is exonerated a third
+time (`rxfull = 0`, `rxpeak` 1,532 of 4,096). **One question is left: how
+many bytes a burst spans** — ~180 says a single blocking hold-off, ~1,700
+says a rate deficit lasting a whole long packet — and §16r names the three
+additions that would answer it. One methodological trap worth carrying:
+`rxbytes` was 253 short of the host's sent stream because the Victor missed
+nine S transmissions of startup dead air, so **every offset must be shifted
+by that difference before `.probe/mapoffset.py` means anything**; unshifted,
+§16r's first loss reads as a startup artifact.
+
+**§16q built the instrument §16p asked for.**
+`lost evt`/`max`/`tag`/`fd`/`lostat`/`lostend` latch on the overrun path:
+`evt` counts bursts, `tag` is §0e's foreground location latched at the
+**first** loss rather than at the peak. `evt` near 4 means something holds
+the machine off and `tag` names it; `evt` near `rxlost` means the per-byte
+path is too slow. **The MAME harness cannot reach this code** — the chip
+does not overrun below 38400 and the emulator cannot drive above 9600 — so
+`.probe/vburst.c` replays the arithmetic on the host instead (8 cases, all
+pass) and a 32 KB 9600 receive proves only that it costs nothing: byte-exact
+with `rxpeak = 309`, identical to §16n's pre-change run. **§16q also
+corrects §16p's headline: `rxlost` counts interrupts that found the latched
+overrun bit, not bytes**, so one hold-off losing fifty bytes can raise it by
+one and "0.45% of received bytes" is a lower bound. Two design points worth
+keeping: burst boundaries are measured as a gap in the **byte stream**, not
+as consecutive handler entries, because the latter needs a store on the
+per-byte path (~5 µs of a 26 µs byte at 38400) inside an instrument built to
+ask whether that path is too slow — §16k's mistake, caught by reading `wdis`
+rather than by thinking; and `rxbytes` now counts the substituted BELL,
+which affects only lossy runs.
 
 **It transfers files, both ways, byte-exact, as client and as server.** On
 Victor MS-DOS 3.1 under MAME it opens `/dev/seriala`, programs the line

@@ -1,42 +1,112 @@
 # Next session
 
 Handoff for the Victor 9000 port, written 6 August 2026. **It runs on real
-hardware, and 38400 loses bytes.** Two bench sessions: §16o got it working
-at all three rates, §16p measured the counters per rate and found the
-µPD7201 overrunning on 0.45% of received bytes at 38400 and only there. No
-code changed in either.
+hardware, 38400 loses bytes, and the instrument that will say why is now
+built but has never run.** Three sessions: §16o got it working at all three
+rates, §16p measured the counters per rate and found the µPD7201 overrunning
+at 38400 and only there, §16q built the loss instrument and proved it costs
+nothing.
 
-**Read `PORTING.md` §16p first, then §16o.** `HW_TESTING.md` is the bench
-plan both sessions ran against, with per-leg status filled in.
+**Read `PORTING.md` §16q first, then §16p, then §16o.** `HW_TESTING.md` is
+the bench plan these sessions ran against, with per-leg status filled in.
 
 ---
 
-## 0. The one live defect
+## 0. The one live defect, now narrowed to one question
 
-`rxlost` = **0** at 9600, **0** at 19200, **203** and **207** at 38400, over
-four 32 KB receives that were all byte-exact. Kermit resends what fails a
-checksum, so the cost is throughput and not data.
+At 38400 and only at 38400, the µPD7201 overruns. **§16r established the
+shape: the losses are bursts.** `evt = 5` against `rxlost = 322`, longest
+burst 179 — where a handler merely too slow per byte would have given `evt`
+near 322 with `max = 1`. **That hypothesis is dead.**
 
-**Ruled out already — do not re-test these.** The file writes (run 4 did 8×
-as many for the same loss rate), the receive ring (`rxfull = 0`, `rxpeak` ≤
-2,098 of 4,096), and every `V9K_CLI()` in `ckvictor.c` (all setup/teardown;
-`v9k_ser_put()` and the ring drain leave interrupts enabled).
+**One burst corrupts one packet.** The Victor NAKed seq 03, 05, 10, 13, 19 —
+five NAKs, five bursts, with `lostat` in the first and `lostend` in the last.
 
-**Build this instrument first:** a foreground tag latched at the **first
-loss**, and a count of loss *events* separate from lost *bytes*. 203 bytes
-in 4 bursts and 203 in 203 are different defects and the current counters
-cannot tell them apart. The handler already runs per received byte and §16m
-established that a store there costs nothing.
+**`tag = 0`: the foreground was in upstream code** at the first loss, none
+of `ckvictor.c`'s four blocking places. And `peaktag = 4` — the *peak* was
+in the ring drain, a different place entirely. **`rxpeak` was never going to
+lead anywhere on this defect**; §16m already showed it measures our pre-ACK
+turnaround.
+
+**`rxlost` counts interrupts that found the latched overrun bit, not bytes**
+(§16q corrects §16p). So §16p's "0.45% of received bytes" is a lower bound.
+
+### The one question left, and what answers it
+
+**How many bytes does a burst span?** 179 losses separated by up to
+`V9K_LOSTGAP` clean bytes span anywhere from ~180 to ~3,000 bytes:
+
+- **~180** → one blocking hold-off of roughly 46 ms. Hunt for a long
+  interrupts-off region in DOS or upstream.
+- **~1,700** → a sustained rate deficit lasting a whole long packet. A
+  different defect with a different fix.
+
+The five NAKs land on packets where C-Kermit's slow start grows the length —
+§16l's pattern for host timeouts — which leans toward the second. Leaning is
+not measuring.
+
+**Build next, all on the rare path:**
+
+1. **Per-burst first/last offset**, at least for the largest burst. Gives
+   the span directly and settles the question above.
+2. **Latch `tag` at the largest burst, not the first.** Four of five bursts
+   are untagged now, and the first is not obviously representative.
+3. **Widen §0e's tag vocabulary.** `tag = 0` means "upstream", which is most
+   of the program. The file *open* after the F packet is a DOS call on the
+   path to the first NAKed packet and is currently indistinguishable from
+   packet decoding.
+
+### Reading offsets: check the shift first
+
+`rxbytes` was 43,589 against 43,842 sent — **the Victor's stream starts 253
+bytes into the host's**, because it missed nine S transmissions of startup
+dead air. `.probe/mapoffset.py` maps onto the *host's sent* stream, so that
+shift must be applied by hand or every offset lands in the wrong packet.
+Unshifted, §16r's first loss looks like a startup artifact and the tag reads
+as worthless; shifted, it is the first NAKed data packet. **Always
+difference `rxbytes` against the host's byte count before mapping.**
+
+**Ruled out already — do not re-test these.** The file writes (§16p run 4
+did 8× as many for the same loss rate), the receive ring (`rxfull = 0`,
+`rxpeak` 1,532 of 4,096 even at 38400), every `V9K_CLI()` in `ckvictor.c`
+(all setup/teardown; `v9k_ser_put()` and the ring drain leave interrupts
+enabled), and the per-byte cost of the handler (§16r).
 
 Correlation to carry in, not a cause: `txgap` total scales with the failure
-— 50 → 150 → 400 → 450 hundredths across the four runs.
+— 50 → 150 → 400 → 450 → **550** hundredths.
 
 ---
 
 ## 1. What happened this session
 
-**No code changed.** The binary is §16n's: 203,338 bytes, DGROUP 48,240 of
-65,536, eleven guarded upstream edits. This session is measurement only.
+**`ckvictor.c` only — still eleven guarded upstream edits.** The binary is
+203,626 bytes (was 203,338), DGROUP 48,256 of 65,536 (was 48,240), load
+217,866 with 178,358 spare.
+
+Added the §16p instrument: `lost evt`/`max`/`tag`/`fd`/`lostat`/`lostend`,
+latched on the overrun path. Two design points worth carrying:
+
+- **Burst boundaries are measured as a gap in the byte stream, not as
+  consecutive handler entries.** The obvious version needs the good-byte
+  path to clear a run counter, which Watcom codes as a DGROUP reload plus a
+  store — ~5 µs of a 26 µs byte at 38400, on the per-byte path, inside an
+  instrument built to ask whether the per-byte path is too slow. §16k's
+  mistake exactly; caught by reading `wdis`, not by thinking.
+- **`rxbytes` now counts the substituted BELL.** It is read as a stream
+  offset and the BELL occupies a stream position. Only affects runs with
+  losses, so §16k–§16p's printed figures stand.
+
+Validated: `.probe/vburst.c` (arithmetic, 8 cases, on the host) and a 32 KB
+9600 receive under MAME that came back byte-exact with **`rxpeak = 309`,
+identical to §16n's pre-change run**.
+
+**Then it ran at the bench at 38400 and worked first time** — §16r, and it
+is §0 above. Counters in `STEP0.OUT` on the image (note: **`STEP0` with a
+zero**, not the letter O), host log `r38400b.pkt` in the tree.
+
+---
+
+## 1b. What the earlier bench sessions found
 
 ### The configuration
 
@@ -121,10 +191,9 @@ size.
 
 ## 2. Do this next, in rough priority order
 
-**Two runs at the bench close five open legs.** Both at 38400, both with the
-32,768-byte all-byte-values fixture (the one every measurement from §16k on
-used), both with `log packets` on the host. One stock, one with
-`XFLAGS=-dV9K_OBUFSIZE=1024`. Between them they give:
+**Leg one is §0's run: 38400, 32 KB fixture, read `lost evt`/`tag`.** It is
+the only thing standing between the port's one live defect and a diagnosis,
+and the code for it is already on the image.
 
 1. ~~**`rxlost`/`rxfull` per rate.**~~ **Done — §16p, and it is §0 above.**
 2. **cps and elapsed at 38400** — §16n projects ~1,630 rather than the
@@ -175,9 +244,10 @@ sample it: a profile by occupancy rather than by clock.
 
 ## 3. Instruments
 
-- **`v9k:` lines on stdout at exit, every build.** Six of them —
+- **`v9k:` lines on stdout at exit, every build.** Eight of them —
   `rxlost/rxfull/rxpeak`, `peaktag/fd/stall256`, `rxbytes/peakat/stallat`,
-  `wfile`, `wcon`, `txgap`. On hardware, capture them by redirecting stdout
+  **`lost evt/max/tag/fd`**, **`lostat/lostend`**, `wfile`, `wcon`, `txgap`.
+  On hardware, capture them by redirecting stdout
   in a `.BAT` (`STEPM.BAT` is the pattern) and `TYPE`ing it back, or — the
   one that scales — **ship the log off with Kermit itself**, `CKERMITW -l
   /dev/seriala -b 19200 -s RUN1.LOG`.
@@ -186,6 +256,9 @@ sample it: a profile by occupancy rather than by clock.
   samples measure nothing.
 - **Byte offsets map onto the host packet log**, resends included:
   `python3 .probe/mapoffset.py host.pkt <offset>...`
+- **`.probe/vburst.c`** replays the ISR's burst detector on the host against
+  patterns with known answers — `cc -o .probe/vburst .probe/vburst.c`. Re-run
+  it after touching that logic; it is the only test the loss path has.
 - **`grep -c '^S-'` counts retransmissions, `grep -c '<timeout>'` counts
   timeouts** (§16l). `python3 .probe/pktstat.py host.pkt` decodes a log.
 - **`XFLAGS=-dV9K_OBUFSIZE=1024`** — §16m's disk baseline in one flag.
@@ -219,9 +292,17 @@ sample it: a profile by occupancy rather than by clock.
 - **The carrier clause** in `ttgmdm()` forces carrier present under `CLOCAL`.
 - **No floppy has ever been in the path.** Every hardware run was SASI, so
   §10's question about a floppy write holding the ring is untouched.
-- **The receive path overruns at 38400.** 0.45% of received bytes, twice,
-  reproducibly (§16p). Cause not diagnosed; see §0 above. This is the port's
-  one known-live defect, and 9600 and 19200 are clean.
+- **The receive path overruns at 38400.** At least 0.45% of received bytes,
+  twice, reproducibly (§16p) — a lower bound, see §0. Cause not diagnosed.
+  This is the port's one known-live defect, and 9600 and 19200 are clean.
+- **The loss instrument cannot be exercised under MAME** at any rate the
+  emulator can drive (§16q). It has run once, at the bench (§16r); every
+  future change to it is unverifiable until the next bench session, so
+  re-run `.probe/vburst.c` after touching the burst logic.
+- **`tag` is latched at the *first* loss**, which need not be the
+  representative burst, and four of §16r's five bursts are untagged.
+- **`tag = 0` is a large bucket** — everything upstream, including the DOS
+  file open after the F packet.
 
 ---
 
@@ -256,10 +337,12 @@ a drive to get wrong:
 - **Use `-r`, not `-x`**, when the point is a receive measurement.
 - **One `kermit` attempt per MAME run, unique log names** — `log packets`
   truncates.
-- `~/projects/mame/victor_kermit.img.bak-20260806-obuf` is the last backup.
-- **On the image now:** `CKERMITW.EXE` (203,338), `STEPH`–`STEPM.BAT`,
-  `RCVF`–`RCVK.DAT`, plus `HW_TEST1`–`HW_TEST3.MD` from §16o and §16h–§16m
-  leftovers. Delete before reusing a name.
+- `~/projects/mame/victor_kermit.img.bak-20260806-lostinstr` is the last
+  backup (taken before §16q's binary went on).
+- **On the image now:** `CKERMITW.EXE` (**203,626**, the §16q instrument
+  build), `STEPH`–`STEPN.BAT`, `RCVF`–`RCVK.DAT` + `RCVN.DAT`, `STEPN.OUT`,
+  plus `HW_TEST1`–`HW_TEST3.MD` from §16o and §16h–§16m leftovers. Delete
+  before reusing a name.
 - `.BAT` files need CRLF; `-autoboot_command` takes the literal `\n`; digits
   come through shifted under MAME (**the real keyboard does not do this**);
   MS-DOS 3.1 cannot redirect handle 2; the disk boots as `A:`; use

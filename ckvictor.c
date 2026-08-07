@@ -1620,6 +1620,70 @@ static volatile unsigned long v9k_rxbytes  = 0L;    /* Every byte stored */
 static volatile unsigned long v9k_peakat   = 0L;    /* Offset at rxpeak  */
 static volatile unsigned long v9k_stallat  = 0L;    /* First crossing    */
 
+/*
+  And the same treatment for the loss itself, which is what PORTING.md SS16p
+  ended by asking for.  SS16p measured rxlost at 0, 0, 203 and 207 across the
+  four rates and could not say what shape the loss had, because rxlost is a
+  running total and a total cannot tell 203 separate misses from four bursts
+  of fifty.  Those are different defects: 203 misses is a handler that is too
+  slow per byte, four bursts is something that holds the machine off four
+  times and has nothing to do with per-byte cost.
+
+  Read rxlost carefully first, because it is not what SS16p called it.  Each
+  entry to the handler can raise it at most ONCE -- it is set from a single
+  test of the latched RR1 bit -- so it counts INTERRUPTS THAT FOUND AN
+  OVERRUN, not bytes.  A hold-off long enough to lose fifty bytes presents
+  the handler with one latched bit and the three the receiver managed to
+  keep, so it can raise rxlost by as little as one.  rxlost is therefore a
+  LOWER bound on bytes lost, and SS16p's "0.45% of received bytes" is a lower
+  bound too.  What is unambiguous is that each increment means at least one
+  byte went missing.
+
+  So the four below bracket the shape rather than the size:
+
+    lostevt   bursts.  A loss opens a new one when more than V9K_LOSTGAP
+              bytes have been received cleanly since the previous loss, and
+              continues the current one otherwise.  If this comes back 4
+              against rxlost 203, the loss is four bursts and the foreground
+              is being held off; if it comes back near 203, the handler is
+              losing single bytes all through the transfer and the cause is
+              per-byte cost after all.
+    lostmax   the longest of those runs, which sizes the worst hold-off.
+    lostat    byte offset at the FIRST loss, with losttag/lostfd -- section
+              0e's tag, latched at the loss the way peaktag is latched at
+              the peak.  This is the one that names a suspect: the peak is
+              a consequence of the hold-off and the first loss is inside it.
+    lostend   byte offset at the last loss.  With lostat it says whether the
+              losses cluster in one stretch of the transfer or run through
+              it, which the host's packet log then converts into packets.
+
+  Separating the bursts by a gap in the STREAM rather than by "consecutive
+  entries to the handler" is deliberate, and it is what keeps this free.
+  Consecutive-entry counting needs the good-byte path to clear the run,
+  which Watcom codes as a DGROUP reload and a store -- about 5us of a 26us
+  byte at 38400, on the one path that runs per byte, in an instrument whose
+  entire purpose is to find out whether the per-byte path is too slow.  That
+  is SS16k's mistake exactly.  Measuring the gap instead puts every added
+  instruction on a path that by measurement runs 203 times in 42,757 bytes,
+  and it is the better definition anyway: one good byte drained in the
+  middle of a hold-off should not read as two hold-offs.
+
+  V9K_LOSTGAP is 16 because the two scales are nowhere near each other.
+  Losses inside one hold-off land within a few stream positions of each
+  other -- the receiver is three deep -- while distinct hold-offs are
+  separated by whole packets, which are thousands of bytes here.  Any
+  threshold between about 8 and 1000 gives the same answer.
+*/
+#define V9K_LOSTGAP 16                  /* Clean bytes that end a burst */
+
+static volatile unsigned char v9k_losttag  = V9K_TAG_NONE;
+static volatile unsigned int  v9k_lostfd   = 0;
+static volatile unsigned int  v9k_lostevt  = 0;     /* Bursts, not bytes */
+static volatile unsigned int  v9k_lostrun  = 0;     /* Inside one now    */
+static volatile unsigned int  v9k_lostmax  = 0;     /* Longest burst     */
+static volatile unsigned long v9k_lostat   = 0L;    /* Offset, first loss*/
+static volatile unsigned long v9k_lostend  = 0L;    /* Offset, last loss */
+
 static int v9k_ser_on   = 0;            /* Have we taken the chip?      */
 static int v9k_ser_atx  = 0;            /* atexit() registered yet?     */
 static unsigned int  v9k_oldvec_seg = 0;
@@ -1705,10 +1769,43 @@ v9k_ser_isr(void)
     if (rr1 & V9K_RR1_OVERRUN) {        /* Latched -- clear it or wedge */
         V9K_CTL = V9K_CMD_ERRRST;
         v9k_rxlost++;
+        /*
+          New burst or continuation of the one in progress?  See the comment
+          on v9k_lostevt: this is the whole difference between the two
+          defects PORTING.md SS16p could not separate.  The !v9k_lostevt arm
+          is for the very first loss, where lostend is still 0 and the
+          subtraction would not mean anything yet.
+        */
+        if (!v9k_lostevt) {             /* The first loss of the run     */
+            v9k_lostevt = 1;
+            v9k_lostrun = 1;
+            v9k_losttag = v9k_wtag;     /* Section 0e, latched HERE      */
+            v9k_lostfd  = v9k_wtagfd;
+            v9k_lostat  = v9k_rxbytes;
+        } else if (v9k_rxbytes - v9k_lostend > (unsigned long)V9K_LOSTGAP) {
+            v9k_lostevt++;              /* Clean run since: a new burst  */
+            v9k_lostrun = 1;
+        } else
+          v9k_lostrun++;                /* Still inside the same one     */
+        if (v9k_lostrun > v9k_lostmax)
+          v9k_lostmax = v9k_lostrun;
+        v9k_lostend = v9k_rxbytes;
+
         nh = (v9k_rxhead + 1) & V9K_RXMASK;
         if (nh != v9k_rxtail) {         /* Mark the gap, as 3.13 does   */
             v9k_rxbuf[v9k_rxhead] = (unsigned char)'\007';
             v9k_rxhead = nh;
+            /*
+              Counted, which it was not before this section.  The BELL
+              stands in for a byte the host really sent, so it occupies a
+              position in the stream, and rxbytes is read as a stream
+              offset to map onto the host's packet log.  Leaving it out
+              made every offset in a lossy run drift low by the loss count
+              -- 203 bytes at 38400, which is small but is exactly the run
+              where the offsets matter.  Runs with rxlost = 0 are
+              unaffected, so SS16k-SS16p's figures stand as printed.
+            */
+            v9k_rxbytes++;
         }
     }
 
@@ -1922,6 +2019,23 @@ v9k_ser_release() {
            (unsigned)V9K_RXSTALL, (unsigned)v9k_rxstall);
     printf("v9k: rxbytes=%lu peakat=%lu stallat=%lu\n",
            v9k_rxbytes, v9k_peakat, v9k_stallat);
+
+    /*
+      The loss instrument, and the two lines are meant to be read together
+      with the rxlost above.  evt against that rxlost is the shape of the
+      defect -- near it means single misses all through, far below it means
+      bursts -- and max sizes the worst one.  losttag is section 0e's tag
+      latched at the FIRST loss rather than at the peak, which is the whole
+      point: the peak is downstream of the hold-off and the first loss is
+      inside it.  Printed unconditionally even when evt is 0, because "no
+      loss at this rate" is a result that has to be visible next to one that
+      is not.
+    */
+    printf("v9k: lost evt=%u max=%u tag=%u fd=%u\n",
+           v9k_lostevt, v9k_lostmax,
+           (unsigned)v9k_losttag, (unsigned)v9k_lostfd);
+    printf("v9k: lostat=%lu lostend=%lu\n",
+           v9k_lostat, v9k_lostend);
     printf("v9k: wfile n=%u max=%ld at #%u of %u tot=%ld cs\n",
            v9k_wf_n, v9k_wf_max, v9k_wf_maxn, v9k_wf_maxb, v9k_wf_tot);
     printf("v9k: wcon n=%u max=%ld tot=%ld cs\n",
