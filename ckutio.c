@@ -15275,10 +15275,10 @@ ttptycmd(s) char *s;
 			}
 		    }
 		    dbuf[x++] = c;	/* Copy and count it */
-		    debug(F000,">>> char",ckitoa(in_state),c);
 		    out_prev = c;
 		}
 		s = dbuf;		/* New source */
+		ckhexdump("ttptycmd >>> net (telnet)",dbuf,x);
 	    } else
 #endif /* TNCODE */
 	      x = pbuf_avail - pbuf_written; /* How much to send */
@@ -15524,17 +15524,14 @@ ttptycmd(s) char *s;
 			  break;
 			if (!is_tn) {	/* Not Telnet - keep all bytes */
 			    *p++ = (CHAR)c;
-			    debug(F000,"<<< char","",c);
 #ifdef TNCODE
 			} else {	/* Telnet - must handle IAC and NVT */
-			    debug(F000,"<<< char",ckitoa(in_state),c);
 			    switch (c) {
 			      case 0x00: /* NUL */
 				if (in_state == HAVE_CR) {
 				    debug(F000,"<<< SKIP","",c);
 				} else {
 				    *p++ = c;
-				    debug(F000,"<<< Keep","",c);
 				}
 				in_state = 0;
 				break;
@@ -15542,11 +15539,9 @@ ttptycmd(s) char *s;
 				if (!TELOPT_U(TELOPT_BINARY))
 				  in_state = HAVE_CR;
 				*p++ = c;
-				debug(F000,"<<< Keep","",c);
 				break;
 			      case 0xff: /* IAC */
 				if (in_state == HAVE_IAC) {
-				    debug(F000,"<<< KEEP","",c);
 				    *p++ = c;
 				    in_state = 0;
 				} else {
@@ -15575,7 +15570,6 @@ ttptycmd(s) char *s;
 				    in_state = 0;
 				} else {
 				    *p++ = c;
-				    debug(F000,"<<< keep","",c);
 				    in_state = 0;
 				}
 			    }
@@ -15598,6 +15592,7 @@ ttptycmd(s) char *s;
 			     " count=",
 			     ckitoa(x));
 		    debug(F100,msgbuf,"",0);
+		    ckhexdump("ttptycmd <<< net (telnet)",p0,x);
 		} else {
 		    x = ttxin(n,tbuf+tbuf_avail);
 		    debug(F101,"ttptycmd ttxin x","",x);
