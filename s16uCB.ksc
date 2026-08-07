@@ -1,4 +1,6 @@
+set line /dev/tty.usbserial-BG022B8M
 set speed 19200
+set parity none
 set receive timeout 20
 log packets s16uCB.pkt
 send rcvcb.dat

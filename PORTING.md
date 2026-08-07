@@ -5614,6 +5614,121 @@ doing exactly what it was sized to do.
 
 ---
 
+## 16v. 1,013 cps at 38400, and the line is no longer the bottleneck
+
+The bench run §16u staged. Two legs on the real Victor, both **byte-exact**,
+both `rxlost = 0 rxfull = 0`, and both with elapsed time and cps recorded
+for the first time at a rate MAME cannot reach.
+
+| leg | wire B | line | elapsed | host | **cps** | `wire=` | pkts | longest | resend/TO |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| **CA 38400** | 37,568 | 9.78 s | 34.00 s | 32.32 s | **1,013** | 1,104 | 18 | 3,991 | 0 / 0 |
+| CB 19200 | 43,445 | 22.63 s | 41.00 s | 39.95 s | 820 | 1,059 | 28 | 3,896 | 2 / 1 |
+| CM 9600 (§16u, MAME) | 39,575 | 41.22 s | 67.00 s | 51.83 s | 632 | 590 | 24 | 3,585 | 1 / 1 |
+
+**Leg CA is a repeat of §16t's leg Y** — 18 packets, longest 3,991, 37,568
+wire bytes against Y's 37,569, zero resends both — so it supplies the
+elapsed time leg Y never had. That makes the comparison exact, and the
+result is that **both published estimates for 38400 were too high**:
+
+| | cps at 38400 |
+|---|---:|
+| §16n projection | ~1,630 |
+| §16t ceiling for leg Y | ≤ 2,780 |
+| **measured, leg CA** | **1,013** |
+
+§16u predicted the ceiling would prove loose. It is loose by **2.7×**.
+
+### Where the 34 seconds went
+
+```
+line time (37,568 B at 38400, 8N1)      9.78 s    29%
+disk       (wfile tot = 50 cs)          0.50 s     1%
+txgap      (ACK-sent to next-read)      2.50 s     7%
+unaccounted                            21.20 s    62%
+```
+
+**Sixty-two percent of the transfer is foreground CPU**, and `peaktag = 12`
+names it: upstream, after a ring drain, which is packet decoding. Per
+received byte that is **564 µs — about 2,800 cycles on a 5 MHz 8088 —
+against a 260 µs byte time at 38400.**
+
+That is the same shape of defect §16t found in the interrupt handler, one
+level up. The ISR was costing about twice a byte time and the chip
+overran; the foreground costs about **2.2** byte times and the chip does
+not, because the ring absorbs the difference within a packet and the
+foreground catches up in the silence after it. `rxpeak = 2,589 of 4,096` is
+exactly that backlog: of a 3,991-byte packet the foreground keeps up with
+about 1,400 bytes and finishes the rest after the last byte lands.
+
+### The consequence, which is a ceiling and not a projection
+
+Take the line out entirely and 24.2 s remain, so **this port cannot exceed
+about 1,353 cps at any line rate** without making the foreground cheaper.
+§16n's 1,630 is therefore not merely optimistic — **it is above the ceiling
+this run's own non-line time implies.** Doubling 19200 to 38400 bought
+**+24%** as measured (820 → 1,013), or **+17%** after correcting leg CB for
+the two retransmissions that inflated its wire bytes. Everything above
+38400 is worth at most 34% more.
+
+The next lever is therefore the decode path and not the wire, and the
+obvious first question is that `victorow.mak` compiles with **`-os`**,
+optimise for size. That was the right default while DGROUP and the image
+budget were the binding constraints; it has never been measured against
+`-ot` on the hot path. Nothing here says it would pay — only that this is
+the first time the question has been worth asking.
+
+### RTS/CTS is wired, and that settles the flow-control mechanism
+
+**`cts = 1` on the real cable, in both legs.** This is a genuine read: in
+`v9k_ser_mdm()` the only forced bit is `dcd` under `CLOCAL`, while CTS comes
+straight off RR0. The host ran `set flow none` and therefore held its RTS
+asserted throughout, so a set CTS is the strong-evidence case the §16t
+comment described. §16u's `cts = 1` under MAME was worth nothing because
+`null_modem` asserts the inputs; this one is worth what it says.
+
+So the front runner wins on availability as well as on cost: **flow control
+should be RTS/CTS**, two port writes on the path §16t spent a session
+stripping, and binary-transparent. XON/XOFF is no longer needed as a
+fallback.
+
+### Two smaller results
+
+**The Victor sent a NAK — the first one ever recorded.** Leg CB,
+`s16uCB.pkt:20`, `r-08-11-…N` for sequence 8, after the host's timeout and
+resend of sequence 7. §16l recorded "only ACKs, never a NAK" across two
+receives and that is now contradicted on hardware at 19200. `rxlost = 0`, so
+it was **not** a chip overrun; whether it was a checksum failure or the
+Victor's own receive timer is not determinable from this log. Leg CA at the
+higher rate was perfectly clean, so this is not a rate effect.
+
+**§16u's explanation of the two elapsed figures is confirmed.** The Victor
+minus host gap is **1.68 s** on CA and **1.05 s** on CB, against 15.2 s at
+9600 — and §16u attributed that 15.2 s to a single startup slow-start
+timeout. Leg CA had zero timeouts. With none, the gap is just negotiation
+and teardown, which is what the clock was designed to include.
+
+### Measured, and on what
+
+The §16o bench: Pico SASI serving `victor_kermit.img`, channel A, 1 m USB-C
+to RS-232, the **204,764** build with the assembly ISR, the clock and the
+`mdm` sample. `STEPCA.BAT` at 38400 and `STEPCB.BAT` at 19200, each
+`CKERMITW -l /dev/seriala -b <rate> -r`. Host take-files `s16uCA.ksc` /
+`s16uCB.ksc`, packet logs `s16uCA.pkt` / `s16uCB.pkt`, statistics
+`s16uCA.host` / `s16uCB.host`, Victor counters `s16uCA.out` /
+`s16uCB.out`, received files `gotCA.dat` / `gotCB.dat`, both md5-identical
+to the 32,768-byte all-byte-values fixture.
+
+**A harness rule came out of it: take-files must be self-contained.** As
+generated these two carried `set speed` and nothing else, relying on
+`~/.kermrc` for `set line` and `set parity none`; they were hand-edited to
+name both before they would run. Which of the two was actually missing was
+not diagnosed, and does not need to be — a take-file that states its own
+line, speed and parity cannot be wrong about them, and the committed
+versions are the ones that ran.
+
+---
+
 ## 15. Open questions
 
 **Closed since the last revision**

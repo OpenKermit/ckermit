@@ -101,21 +101,34 @@ longer measures pre-ACK turnaround (§16m); it measures how far decoding
 falls behind during a 3,991-byte packet at full rate. §16k's sizing rested
 on retransmission behaviour that no longer happens.
 
-**§16u captured elapsed time and cps for the first time, and they are 9600
-figures.** This project spent its whole life with both on the operator's
-screen and in no file, because C-Kermit's transfer display goes away under
-the redirect that records the `v9k:` counters. A 32 KB receive under MAME
-now reports **632 cps** from the host's `statistics` and `elapsed=6700 cs
-wire=590 B/s` from the Victor, byte-exact, reproducing §16n's 633 cps and
-§16t's `rxpeak = 294` exactly. **The reading rule is that those two elapsed
-figures differ by 15.2 s and neither is wrong** — the Victor's clock starts
-at the first byte received, before the S packet, and closes at release, so
-it spans negotiation and teardown, while `statistics` covers the file.
-Quote them as a pair; `wire=` is a receive-leg figure only, since it divides
-`rxbytes`. **Nothing above 9600 has either figure yet**, and §16u loosens
-the leg-Y ceiling of ≤ 2,780 cps by showing what its arithmetic omits.
-`cts=1` in that run is not evidence about the bench cable — MAME's
-`null_modem` asserts the inputs.
+**§16u built the throughput instruments and §16v used them on the bench:
+1,013 cps at 38400, and the line is no longer the bottleneck.** This project
+spent its whole life with elapsed time and cps on the operator's screen and
+in no file, because C-Kermit's transfer display goes away under the redirect
+that records the `v9k:` counters. §16u closed that with a Victor-side
+`elapsed=`/`wire=` line and a `statistics` at the end of every take-file,
+validated at 9600 under MAME (632 cps, reproducing §16n's 633 and §16t's
+`rxpeak = 294`). §16v then ran both bench legs, byte-exact, `rxlost = 0`:
+**38400 → 1,013 cps** (18 packets, zero retransmissions) and 19200 → 820.
+
+**The finding is where the 34 seconds go.** Line time is 9.78 s — **29%**.
+Disk is 0.50 s, `txgap` 2.50 s, and **21.2 s (62%) is foreground packet
+decoding**, which `peaktag = 12` names: **564 µs per received byte, ~2,800
+cycles on a 5 MHz 8088, against a 260 µs byte time.** That is §16t's ISR
+defect one level up. **Take the wire out entirely and ~1,353 cps is the
+ceiling**, so §16n's ~1,630 projection is dead (it is above that ceiling),
+§16t's ≤ 2,780 was loose by 2.7×, and rate is finished as a lever — 19200 →
+38400 bought only +17% to +24%. The build compiles `-os`; `-ot` on the
+decode path has never been measured and is the open question.
+
+**§16v also settled flow control: `cts = 1` on the real cable**, both legs,
+a genuine RR0 read with the host holding RTS asserted under `set flow none`
+— so RTS/CTS is wired and XON/XOFF is not needed as a fallback. Two reading
+rules survive: the Victor's `elapsed=` and the host's `statistics` **do not
+measure the same interval** (the Victor's starts at the first byte received,
+before the S packet, and closes at release — 1.7 s wider on a clean run,
+15.2 s when a startup timeout intervenes), and **`wire=` is a receive-leg
+figure** since it divides `rxbytes`. Quote the pair, never one alone.
 
 **§16q built the instrument §16p asked for.**
 `lost evt`/`max`/`tag`/`fd`/`lostat`/`lostend` latch on the overrun path:

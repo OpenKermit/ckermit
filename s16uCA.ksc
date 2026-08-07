@@ -1,5 +1,7 @@
+set line /dev/tty.usbserial-BG022B8M
 set speed 38400
 set receive timeout 20
+set parity none
 log packets s16uCA.pkt
 send rcvca.dat
 statistics

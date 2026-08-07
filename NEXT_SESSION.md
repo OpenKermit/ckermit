@@ -5,29 +5,39 @@ known live defect.** 38400 was the last one and §16t closed it: the cause
 was the cost of our own interrupt handler, and `ckvisr.asm` — the port's
 first assembly — replaced it.
 
-**Read `PORTING.md` §16t first.** It carries both the fix and four wrong
-turns that are worth more than the fix. Then **§16u**, which is short: the
-clock and `mdm` instruments are validated end to end, and the reading rule
-they came with is that the Victor's `elapsed=` and the host's `statistics`
-do not measure the same interval.
+**Read `PORTING.md` §16v first**, then §16t. §16v is the bench run that
+finally measured throughput, and it moves the bottleneck: **the line is no
+longer it.** §16t is still the best thing in the file for its four wrong
+turns.
 
 ---
 
 ## 0. Where the port is
 
 **File transfer works, both directions, as client and as server, at 9600,
-19200 and 38400, on real hardware, byte-exact.**
-
-38400 now transfers **identically to a clean 19200 run** in every protocol
-measure — 18 packets, longest 3,991, 37,569 wire bytes, zero NAKs, zero
-retransmissions, `rxlost = 0 rxfull = 0`. Before §16t it needed 37 packets
-and lost 1.8% of received bytes.
+19200 and 38400, on real hardware, byte-exact — and it runs at 1,013 cps at
+38400.**
 
 ```
 v9k: isr=asm
-v9k: rxlost=0 rxfull=0 rxpeak=2621 of 4096
-v9k: lost evt=0 max=0 tag=0 fd=0
+v9k: rxlost=0 rxfull=0 rxpeak=2589 of 4096
+v9k: peaktag=12 fd=0 stall256=26
+v9k: elapsed=3400 cs wire=1104 B/s
+v9k: mdm cts=1 dsr=1 (dcd=1 rts=1 dtr=1, see comment)
 ```
+```
+ elapsed time           : 00:00:32 (32.322 sec)
+ effective data rate    : 1013 cps
+```
+
+18 packets, longest 3,991, zero NAKs, zero retransmissions, zero timeouts.
+Before §16t the same leg needed 37 packets and lost 1.8% of received bytes.
+
+**Two things changed with §16v and they set everything below.** The
+throughput bound is now the **foreground decode path** — 62% of a 38400
+transfer, 564 µs per received byte against a 260 µs byte time, giving a
+**no-line ceiling of ~1,353 cps**. And **`cts = 1` on the real cable**, so
+RTS/CTS is available and flow control does not have to be XON/XOFF.
 
 Still **eleven** guarded upstream edits. DGROUP 48,272 of 65,536 (73%),
 image 204,764, needs 218,988 with 177,236 spare.
@@ -36,76 +46,64 @@ image 204,764, needs 218,988 with 177,236 spare.
 
 ## 1. Do this next, in priority order
 
-**1. Measure elapsed time and cps at 38400 on the bench — the instruments
-are built, validated and staged, and only the drive is left.** §16u ran
-both of them through a 32 KB receive at 9600 under MAME and they work:
+**1. The foreground decode path, because §16v measured it at 62% of a
+38400 transfer.** Throughput is measured and the old item 1 is closed:
+**1,013 cps at 38400**, byte-exact, zero retransmissions. Where 34.00 s
+went:
 
 ```
-v9k: elapsed=6700 cs wire=590 B/s        elapsed time : 00:00:52 (51.829 sec)
-v9k: mdm cts=1 dsr=1 (...)               effective data rate : 632 cps
+line time (37,568 B at 38400)      9.78 s   29%
+disk      (wfile tot = 50 cs)      0.50 s    1%
+txgap     (ACK-sent to next-read)  2.50 s    7%
+unaccounted                       21.20 s   62%   <- packet decoding
 ```
 
-632 cps reproduces §16n's 633 and `rxpeak = 294` reproduces §16t's 294, so
-the harness is the same one. **What §16u adds is a reading rule: the two
-elapsed figures differ by 15.2 s and neither is wrong.** The Victor's clock
-starts on the first byte received — the host's `kermit -ir` string, before
-the S packet — and closes at release, so it spans negotiation and teardown;
-the host's `statistics` covers the file. Quote them as a pair. `wire=` is
-also a **receive-leg** figure: it divides `rxbytes`, so on a send leg it
-would divide the ACK stream.
+`peaktag = 12` names it — upstream, after a ring drain. That is **564 µs
+per received byte, ~2,800 cycles on a 5 MHz 8088, against a 260 µs byte
+time**: the same shape as §16t's ISR defect one level up, and the reason
+`rxpeak` sits at 2,589 without ever overflowing.
 
-**Everything for the bench run is already on the image and in the tree:**
+**The number that should govern every throughput decision from here is the
+no-line ceiling: ~1,353 cps.** Take the wire out entirely and 24.2 s
+remain. §16n's ~1,630 projection is above it and is dead; §16t's ≤ 2,780
+ceiling was loose by 2.7×. Doubling 19200 → 38400 bought **+24%** measured,
+**+17%** after correcting leg CB for its two retransmissions. **Nothing
+above 38400 is worth more than 34%**, so rate is finished as a lever.
 
-| | 38400 | 19200 |
-|---|---|---|
-| Victor `.BAT` | `STEPCA.BAT` → `STEPCA.OUT` | `STEPCB.BAT` → `STEPCB.OUT` |
-| host take-file | `s16uCA.ksc` → `s16uCA.pkt` | `s16uCB.ksc` → `s16uCB.pkt` |
-| fixture sent | `rcvca.dat` | `rcvcb.dat` |
-| Victor writes | `RCVCA.DAT` | `RCVCB.DAT` |
+Where to start, and it is a question nobody has asked yet: `victorow.mak`
+compiles with **`-os`**, optimise for size. That was correct while DGROUP
+and the image were binding, and it has never been measured against `-ot` on
+the decode path. Measure before believing — and measure the *image* too,
+since `-ot` costs bytes and §16a's `mzsize.py` is the check that matters.
+`ckcfns.c` (unprefixing, block check) and `ckcpro.c` are where the time is;
+**they are upstream files, so this is a compile-flag question, not an edit
+one.**
 
-`CKERMITW.EXE` on the image is now the **204,764** build with the clock and
-`mdm` (md5 verified after the copy). Run each as
-`kermit -C "take s16uCA.ksc, exit" > s16uCA.host` so the `statistics` output
-is kept, then pull `STEPCA.OUT` and `RCVCA.DAT` off the image and md5 the
-latter against `rcvca.dat`.
+Then re-read §16m: `txgap` covers only ACK-sent to next-read, so the 21.2 s
+is not yet split between per-byte decode and anything fixed per packet. A
+tag or a counter around `decode()` would split it, and §16m's rule applies —
+the interrupt handler is a clock you can afford, the foreground is not.
 
-**`cts=1` under MAME is not the answer to the cable question** — the
-emulator's `null_modem` asserts the inputs. Only the bench reading counts,
-and it decides item 3 below.
+**2. Re-do the ring sizing, and §16v gives it a model rather than a
+number.** The peak is `rxpeak = 2,589 of 4,096` at 38400 (§16t's 2,621 on
+the same leg; two samples, same place). `peaktag = 12` is packet decoding,
+and §16v says why: the foreground runs at 564 µs a byte against a 260 µs
+byte time, so during a packet it falls behind at about **0.54 bytes per
+byte received** and catches up in the silence after. That predicts
 
-What the existing counters already bound, from line time plus the dead time
-the Victor measures (`txgap` + `wfile`) — these are **ceilings**, since
-`txgap` covers only ACK-sent to next-read and §16m put total dead time much
-higher:
+```
+rxpeak ~= 0.54 x packet length      3,991 x 0.54 = 2,155, measured 2,589
+```
 
-| leg | wire bytes | line | measured dead | elapsed ≥ | cps ≤ |
-|---|---:|---:|---:|---:|---:|
-| **Y** 38400 asm | 37,569 | 9.8 s | 2.0 s | 11.8 s | **2,780** |
-| Z 38400 C | 45,412 | 11.8 s | 4.5 s | 16.3 s | 2,010 |
-| U 19200 C | 37,569 | 19.6 s | 0.5 s | 20.1 s | 1,630 |
+which is the right shape and about 20% low, so treat 0.54 as a floor. The
+useful consequence is that **the peak now scales with packet length**, which
+§16k's argument could not say. It is a model to test, not a result: one run
+at `XFLAGS=-dDRPSIZ=2000` would confirm or kill it cheaply, and the rule
+still stands that no packet-length change ships without a run that reaches
+FINISH and reports `rxlost`/`rxfull`/`rxpeak`.
 
-§16n projected **~1,630 cps** at 38400 on the grounds that dead time and not
-line time bounds this port, and that projection has shaped every throughput
-argument here. Leg Y's *ceiling* is 2,780, so it looks pessimistic — but a
-ceiling is not a measurement. One run with the two instruments above settles
-it.
-
-**§16u loosens that ceiling, in the direction that matters.** Both the
-`line` and `measured dead` columns exclude negotiation and teardown, and
-§16u measured that exclusion at about **fifteen seconds at 9600** — one
-slow-start timeout at `set receive timeout 20`. So `elapsed ≥` understates
-elapsed, `cps ≤` is a genuine but weak ceiling, and 2,780 should not be read
-as "nearly achievable". Compare the bench run's host `statistics` against
-§16n's 1,630, not its `wire=`.
-
-**2. Re-do the ring sizing, because the old argument is void.** `rxpeak` is
-**2,621 of 4,096** — the highest ever recorded — with `peaktag = 12`,
-upstream after a ring drain, which is packet decoding. §16m established the
-peak measures pre-ACK turnaround *during the host's retransmission*; there
-are no retransmissions now, so it measures something else: how far decoding
-falls behind during a 3,991-byte packet at full rate. The ring is 64% full
-at its worst. **Anything that lengthens packets or opens the window has to
-start from this number, not from §16k's.**
+Note this bounds *observed* occupancy, not the safe bound — item 3's worst
+case is still "the foreground drains nothing", which is the packet length.
 
 **3. Flow control, and it comes before windowing.** `tcflow()` is a stub and
 the ISR has no water marks.
@@ -124,19 +122,15 @@ inside it — **you cannot raise `DRPSIZ` past about 4,090 either.**
 
 Design, constrained by two things already established:
 
-- **Mechanism is an open question, and RTS/CTS is the front runner.** The
-  hardware has it: the 7201 has a CTS input (`V9K_RR0_CTS`), RTS is an
-  output §1b already drives in WR5, and `v9k_ser_mdm()` already reports
-  both. Dropping RTS is *two port writes* — no TX-ready test, no state
-  coupled to the transmitter — where XON/XOFF needs all three, and it is
-  binary-transparent. **What is unknown is whether the bench cable carries
-  and crosses the pair.** `HW_TESTING.md` §1.2's "three wires are
-  sufficient" is a statement about this port's requirements, not a
-  description of the cable — the bullet right after it says the port drives
-  DTR and RTS. **The exit report now samples CTS during the transfer, so
-  the next run answers it**, and the host would need `set flow rts/cts`.
-  XON/XOFF is the fallback if the pair is not wired, and is safe because
-  Kermit prefixes control characters so 0x11/0x13 never appear bare.
+- **Mechanism is decided: RTS/CTS.** §16v read **`cts = 1` on the real
+  cable**, in both bench legs, with the host running `set flow none` and
+  therefore holding its RTS asserted throughout — the strong-evidence case.
+  It is a genuine read: the only forced bit in `v9k_ser_mdm()` is `dcd`
+  under `CLOCAL`, and CTS comes straight off RR0. So the cheaper mechanism
+  is also the available one: dropping RTS is *two port writes*, no TX-ready
+  test, no state coupled to the transmitter, and binary-transparent, where
+  XON/XOFF needs all three. **XON/XOFF is no longer needed as a fallback.**
+  The host side needs `set flow rts/cts`.
 - **This ISR has no `sti`.** 3.13 does flow control inside `SERINT` but only
   after re-enabling interrupts, then polls TX-ready in a `loop` bounded at
   65,536 turns (`msxv90.asm:srint9`). **Do not copy that** — polling with
@@ -147,8 +141,10 @@ Design, constrained by two things already established:
 - Water marks 3/4 and 1/4, and an `xofsnt` that distinguishes user-level
   from buffer-level, both straight from 3.13 (`MNTRGH`/`MNTRGL`, and it is
   the same chip on this machine).
-- The host harness runs `set flow none`; it needs `set flow rts/cts` or
-  `set flow xon/xoff` to match whichever mechanism goes in.
+- The host harness runs `set flow none` — in `~/.kermrc` *and* in the
+  take-files — and needs `set flow rts/cts` in both when this goes in.
+  Note that `set flow none` is also what makes §16v's `cts` reading
+  evidence, so a run that changes it is no longer a control.
 
 **4. Then windows.** `DFWSIZ` is still 1, and items 2 and 3 are both
 preconditions. Do it under MAME first. Note the interaction §16s found: with
@@ -268,13 +264,21 @@ maintain the burst table. Without that, the report would print
 - **The assembly ISR's overrun branch has never executed.** 38400 is clean
   now, so nothing reaches it. It is transcribed from the C and reviewed in
   `wdis`, and that is all the evidence there is.
-- **Elapsed time and cps are captured at 9600 and nowhere else.** §16u did
-  it under MAME — 632 cps, `elapsed=6700 cs`, byte-exact. **No rate above
-  9600 has ever had either figure recorded**, which is the whole of §1 item
-  1 and is bench-only.
-- **`cts` has been read once, under MAME, where it means nothing.** The
-  emulator asserts it. Whether the bench cable crosses the pair is still
-  open and still gates item 3.
+- **The Victor sent a NAK, once, and it is not explained.** §16v leg CB,
+  19200, `s16uCB.pkt:20` — the first in this project's history, against
+  §16l's "only ACKs, never a NAK". `rxlost = 0`, so **not** a chip overrun;
+  checksum failure versus our own receive timer is not separable from that
+  log. Leg CA at the higher rate was perfectly clean, so it is not a rate
+  effect. One occurrence, no instrument pointed at it.
+- **The 21.2 s of foreground time is one bucket.** §16v measures it by
+  subtraction — elapsed minus line minus `wfile` minus `txgap` — so it is
+  a total, not a decomposition, and nothing yet separates per-byte decode
+  from per-packet fixed cost. §1 item 1.
+- **`wire=` is a receive-leg figure.** It divides `rxbytes`, so on a send
+  leg it reports the ACK stream over the whole elapsed time. No send leg has
+  ever been timed.
+- **cps above 38400 is unmeasured and probably uninteresting** — §16v's
+  no-line ceiling of ~1,353 cps caps the payoff at 34%.
 
 ---
 
@@ -290,15 +294,32 @@ the DGROUP half in one build; it does not load, and that was measured.
 ## 6. The harness
 
 **Bench.** Pico SASI serving `victor_kermit.img`; channel A; 1 m USB-C to
-RS-232; host `set line /dev/tty.usbserial-*` (in `~/.kermrc`), `set speed
-<rate>`, `set carrier-watch off`, `set flow none`, `log packets <unique>`.
-Power-cycle the Victor *and* the Pico between runs. Fresh target filename
-every run. Do not write to the image while the machine is running.
+RS-232. Power-cycle the Victor *and* the Pico between runs. Fresh target
+filename every run. Do not write to the image while the machine is running.
 
-Take-files in the tree drive the host side:
-`kermit -C "take s16tY.ksc, exit"`. Each ends in `statistics`, so redirect
-that output if you want the host's cps kept:
-`kermit -C "take s16tY.ksc, exit" > s16tY.host`.
+**Write take-files self-contained — this cost a hand-edit at the bench in
+§16v.** `~/.kermrc` does carry `set line`, `set parity none`, `set
+carrier-watch off` and `set flow none`, and the §16u take-files were
+generated leaning on it; they had to have `set line` and `set parity none`
+added before they would run. Which one was actually missing was never
+diagnosed and does not need to be. Every line the run depends on goes in
+the file:
+
+```
+set line /dev/tty.usbserial-BG022B8M
+set speed 38400
+set parity none
+set carrier-watch off
+set flow none
+set receive timeout 20
+log packets s16uCA.pkt
+send rcvca.dat
+statistics
+```
+
+Each ends in `statistics`, so redirect to keep the host's cps:
+`kermit -C "take s16uCA.ksc, exit" > s16uCA.host`. `s16uCA.ksc` and
+`s16uCB.ksc` in the tree are the exact files that ran §16v.
 
 **MAME.** Still the right place for anything that would cost a drive to get
 wrong, and it validated `ckvisr.asm` before the bench.
@@ -318,10 +339,12 @@ wrong, and it validated `ckvisr.asm` before the bench.
 - Backups: `victor_kermit.img.bak-20260807-clock` is the last one taken,
   immediately before the 204,764 build went on.
 - **On the image now:** `CKERMITW.EXE` is the **204,764** build — assembly
-  ISR, clock and `mdm`, md5-verified after the copy and proven by §16u's
-  9600 receive. Also `CKLEAN.EXE` (204,388, `-dV9K_CISR -dV9K_LEANLOST`,
-  **stale — predates the clock**), `STEPCA.BAT`/`STEPCB.BAT` staged for the
-  next bench run at 38400/19200, `STEPCM.BAT` at 9600 (§16u),
+  ISR, clock and `mdm`, md5-verified after the copy and proven on hardware
+  by §16v at both 38400 and 19200. Also `CKLEAN.EXE` (204,388,
+  `-dV9K_CISR -dV9K_LEANLOST`, **stale — predates the clock**),
+  `STEPCA.BAT`/`STEPCB.BAT` at 38400/19200 (§16v, and their `.OUT` and
+  `RCVCA/RCVCB.DAT` are still there — delete before reusing),
+  `STEPCM.BAT` at 9600 (§16u),
   `STEPY`/`STEPZ.BAT` at 38400, `STEPASM.BAT` at 9600, plus a long tail of
   older `STEP*` and `RCV*` files. Delete before reusing a name.
 
