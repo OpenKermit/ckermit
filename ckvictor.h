@@ -724,12 +724,31 @@ extern long v9k_timezone;
 /* ------------------------------------------------------------------ */
 /*
   NOSPL removes the script language (variables, macros, IF/WHILE, functions)
-  -- ~1100 references, and a large amount of both code and data.  The
-  interactive command parser itself is NOT removed; NOICP is deliberately
-  left undefined because "C-Kermit>" with SEND/RECEIVE/GET/SERVER is the
-  entire point of the milestone.
+  -- ~1100 references, and a large amount of both code and data.
+
+  The comment here used to end "the interactive command parser itself is NOT
+  removed; NOICP is deliberately left undefined", which stopped being true
+  further down this file when NOICP went in, and the stale half was
+  misleading in a specific way: it read as though scripting and the parser
+  were one decision.  They are two, and SS16y is what separated them.
+
+  NOSPL IS DEFINED INDEPENDENTLY OF NOICP, so a KEEP_ICP build gets the
+  "C-Kermit>" prompt and NOT the script language -- which also costs it
+      -C "commands"        ckuusy.c:2230 and :3542, both #ifndef NOSPL
+      TAKE files           the same, and argv[1]-as-command-file with it
+  even though the usage text keeps advertising "[filename]".  That is worth
+  knowing before choosing between them: the parser alone is an INTERACTIVE
+  feature, and everything that would let the Victor drive itself from a file
+  is on this switch rather than that one.
+
+  KEEP_SPL exists so the cost can be measured with one -d, the same idiom as
+  KEEP_ICP, and it is never defined by the makefile:
+
+      make -f victorow.mak XFLAGS="-dKEEP_ICP -dKEEP_SPL" ZT=-zt2048
 */
+#ifndef KEEP_SPL
 #define NOSPL                           /* No script language         */
+#endif /* KEEP_SPL */
 #define NOSCRIPT                        /* No UUCP-style script       */
 #define NOSEXP                          /* No S-expressions           */
 #define NOLEARN                         /* No learned scripts         */

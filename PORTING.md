@@ -5911,20 +5911,45 @@ came true in the same run — the probe printed 169,424 and DOS answered
 run before the probe existed, had already loaded it and printed the full
 usage text.
 
-### What each machine actually gives
+### What each machine gives — two measurements and a model
 
-| RAM | free | `CKERMITW` needs 218,988 | parser build needs 439,166 |
+**Read the middle column before using any other one.** This table was first
+published with five derived rows formatted exactly like the two measured
+ones, and §16y then contradicted a derived row. Measured and derived are
+now marked, and they are not the same kind of fact.
+
+| RAM | free | how | `CKERMITW` needs 218,988 |
 |---:|---:|---|---|
-| 128K | 38,352 | no | no |
-| 256K | 169,424 | **no**, measured | no |
-| 384K | 300,496 | fits, +81,508 | no |
-| 512K | 431,568 | **fits**, measured | no, −7,598 |
-| 640K | 562,640 | fits | fits |
-| 896K | 824,784 | **fits**, measured | fits |
+| 128K | 38,352 | derived | no — and **DOS did not come up** at this size |
+| 256K | 169,424 | **measured** | **no**, and the load failure was observed |
+| 384K | 300,496 | derived | fits, +81,508 |
+| 512K | 431,568 | derived | loads — observed, but see below |
+| 640K | 562,640 | derived | fits |
+| 896K | 824,784 | **measured, twice** | **fits**, measured |
 
-**The port's floor is 384K**, and that row is arithmetic — MAME offers
-128K/256K/512K/640K/768K/896K and cannot test 384K. 256K and 512K are
-measured, and they bracket it.
+The model is `free = installed RAM − 92,720`, and it is better motivated
+than a two-point fit usually is, because the overhead **decomposes into two
+constants that were separately observed**: 11,584 bytes below the program
+(`psp = 02D4`, identical in *every* run this port has ever made, including
+the broken ones below) and 81,136 above, identical at 256K and 896K. Neither
+scales with RAM, which is what a DOS kernel plus drivers plus a shell should
+do. It is still two points.
+
+**MAME cannot model 512K or 640K on `victor9k`, so those rows cannot be
+confirmed here.** Both report **759,248 bytes free**, identically, which
+implies a machine of 851,968 (832K) — not a size the Victor comes in, and at
+640K it is arithmetically impossible: 759,248 free plus 11,584 below is more
+than the 655,360 bytes such a machine has. It is not the harness: 896K
+reproduces 824,784 through the same script that produced the bad readings,
+and 256K produced a correct, self-consistent figure. The option is accepted
+— MAME rejects `999K` and names 128/256/512/640/768/896 as valid — and then
+not honoured. **128K did not boot DOS far enough to run the probe at all.**
+
+So the honest statement of the floor is: **the requirement is 218,988 and
+the only sizes this harness can measure are 256K (too small, confirmed) and
+896K.** The 384K floor is the model's answer, not a measurement, and no
+machine between those two has been verified. On real hardware only the 896K
+bench exists.
 
 ### It does not reopen the parser, and the reasons are now different
 
@@ -5967,6 +5992,111 @@ from an earlier boot of the same `.BAT` before `VMEM` existed. **All three
 are emulator figures**; the bench machine is 896K, so no free-memory reading
 has been taken on real hardware, and the 384K floor is arithmetic on top of
 that.
+
+---
+
+## 16y. The parser builds, loads and runs — and it is not the same as scripting
+
+`KEEP_ICP` links, loads on the Victor and prints a parser's help text. The
+three blockers §16x listed are gone, and none of them cost an upstream edit.
+**Still eleven**, and the shipping build is bit-identical at 204,764 with
+`ckvictor.c` compiling with no warnings.
+
+The decision this was for is the trade §16x made possible and the operator
+made: **384K is not a floor worth keeping if the price is the parser.**
+
+### The three fixes, and one of them matters beyond this build
+
+**`isfloat_`** — `ckclib.c:2012` wraps it in `#ifdef CKFLOAT` and §16j's
+`NOFLOAT` removes `CKFLOAT`. What decided the replacement was reading the
+caller rather than the linker error: the only surviving reference is
+`nlookup()` at `ckucmd.c:8158`, and it is a validity *assertion* on a
+numeric keyword table that never reads `floatval`. So the predicate is what
+is needed, not the value — and a `NOFLOAT` build has no business computing
+the value, since upstream's accumulates into the type that does not exist
+here. `ckvictor.c` §2b, integer syntax, guarded `#ifndef NOICP` /
+`#ifdef NOFLOAT`.
+
+**The ring had to be pinned, and this is the one to remember.** `-zt<n>`
+moves data objects of n bytes or more into far segments, and it will move a
+4,096-byte ring out of DGROUP — which `ckvisr.asm` reaches through `DS`
+loaded from the DGROUP base (§16t). The link fails with
+
+```
+E2083: file ckvisr.obj(ckvisr): cannot reference address ... from frame ...
+```
+
+`v9k_rxbuf`, `v9k_rxhead` and `v9k_rxtail` are now `__near`. **This is worth
+a keyword rather than a note about flags**, because `-zt` is the one lever
+that buys DGROUP room, so anyone short of room will reach for it, and the
+ring is the object that must not move. It costs nothing when `ZT` is empty.
+
+**DGROUP** then wanted a threshold, and sweeping it is worth doing rather
+than taking the first that links — `-zt` also decides how much data lands in
+the *file* instead of in `minalloc`:
+
+| `ZT` | DGROUP | image |
+|---|---:|---:|
+| `-zt128` | 28,880 (44%) | 449,002 |
+| `-zt512` | 47,024 (71%) | 439,442 |
+| `-zt1024` | 52,032 (79%) | 434,946 |
+| **`-zt2048`** | **58,480 (89%)** | **433,830** |
+| `-zt4096` | over by 640 | — |
+
+**`-zt2048` beats `-zt128` by 15 KB**, because DGROUP `.bss` costs only
+`minalloc` while far data is emitted into the image.
+
+### What it needs, and what actually ran
+
+```
+ckicp.exe   file 433,830   image 398,550 + minalloc 30,112 = needs 428,662 (418K)
+```
+
+Booted at 896K under MAME. The help text is itself the proof that the parser
+is in, and the diff is the whole result:
+
+```
+NOICP:    Usage: A:\CKERMITW.EXE[-x arg [-x arg]...[-yyy]..]
+KEEP_ICP: Usage: A:\CKICP.EXE [filename] [-x arg [-x arg]...[-yyy]..] [ = text ] ]
+```
+
+`[filename]` and `[ = text ]` exist only when there is a parser to consume
+them.
+
+### And then it refused every command, which is the finding
+
+`CKICP PTEST.KSC` came back *"invalid command-line option"*, and so did
+`CKICP -C "echo PARSER-ALIVE, exit"`. Neither is a defect. **`ckvictor.h`
+defines `NOSPL` independently of `NOICP`** (line 732 as it was), and `-C` is
+`#ifndef NOSPL` at `ckuusy.c:2230` and `:3542`, as is the argv[1]
+command-file path. The usage text advertises `[filename]` regardless, which
+is how this looked like a bug for one run.
+
+**So `KEEP_ICP` buys an interactive prompt and nothing that lets the Victor
+drive itself from a file.** That distinction decides whether the feature is
+worth its 210 KB to any particular user, and it was invisible before this
+run: the header comment claimed "the interactive command parser itself is
+NOT removed", written before `NOICP` went in further down the same file.
+
+`KEEP_SPL` now exists to price the other half. It does **not** link yet:
+
+- DGROUP needs `-zt512` rather than `-zt2048` — it fits there, so this is
+  not a wall;
+- and `ckuus4.c` wants three more symbols, `chkaes_`, `_inesc` and
+  `_oldesc`, which are §2a's problem again — orphans of a removed module,
+  stubbable the same way, and **not yet stubbed** because what each one
+  should *do* deserves the same treatment `getyesno()` got rather than a
+  guess.
+
+### Measured, and on what
+
+MAME `victor9k -ramsize 896K`, Victor MS-DOS 3.1, `CKICP.EXE` and
+`STEPICP.BAT` on `victor_kermit.img`. **No transfer has been run with this
+build** — it has been proved to load and to parse its own command line, and
+nothing more. **And which machines it fits cannot be answered here**: §16x's
+own table says MAME misreports 512K and 640K, which are exactly the sizes
+this question turns on. The requirement, 428,662, is exact and comes from
+the MZ header rather than from an emulator.
 
 ---
 

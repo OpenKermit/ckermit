@@ -1789,9 +1789,31 @@ unsigned int  v9k_off_oth = V9K_OFF_CTLB;
   int v9k_ring_size_disagrees_with_ckvisr_asm[-1];
 #endif
 
-volatile unsigned char v9k_rxbuf[V9K_RXBUFSIZ];
-volatile unsigned int  v9k_rxhead = 0;   /* Handler writes here  */
-volatile unsigned int  v9k_rxtail = 0;   /* Foreground reads here*/
+/*
+  __near PINS THE RING IN DGROUP, and it is not decoration.
+
+  ckvisr.asm reaches every one of these through DS, having loaded it from
+  the DGROUP group base (SS16t).  That is only correct while they are IN
+  DGROUP -- and -zt<n>, the flag that moves data objects of n bytes or more
+  into far segments, will happily move a 4,096-byte array out of it.  The
+  failure is not subtle when it happens at link time,
+
+      E2083: file ckvisr.obj(ckvisr): cannot reference address ... from frame
+
+  and SS16x hit exactly that trying to build the parser with -zt128.  What
+  makes it worth a keyword rather than a rule about flags is that -zt is the
+  one lever that buys DGROUP room, so anyone who needs room will reach for
+  it, and the ring is the one object that must not move.
+
+  This costs nothing in the shipping build, where ZT is empty and every
+  object is near anyway.  Only the head and tail need it as much as the
+  buffer does; the counters are ints and fall under any useful threshold,
+  but they are pinned too, because "the handler's variables live in DGROUP"
+  is easier to keep true than a list of exceptions.
+*/
+volatile unsigned char __near v9k_rxbuf[V9K_RXBUFSIZ];
+volatile unsigned int  __near v9k_rxhead = 0;   /* Handler writes here  */
+volatile unsigned int  __near v9k_rxtail = 0;   /* Foreground reads here*/
 
 /*
   Three counters, for the debug log only.  They are the difference between
@@ -3375,6 +3397,86 @@ getyesno(msg,flags) char * msg; int flags;
     return(1);
 }
 #endif /* VICTOR_HAVE_GETYESNO */
+
+/* ------------------------------------------------------------------ */
+/* 2b. Symbols orphaned by NOFLOAT when the parser is present           */
+/* ------------------------------------------------------------------ */
+
+/*
+  The mirror image of section 2a, and it only exists in a KEEP_ICP build.
+
+  isfloat() lives in ckclib.c inside "#ifdef CKFLOAT" (ckclib.c:2012), and
+  ckcdeb.h defines CKFLOAT only when NOFLOAT is absent -- so SS16j's NOFLOAT
+  removes it.  Nothing in the shipping build misses it, because the one
+  surviving caller is in the parser.  Turn the parser back on and the link
+  fails with "isfloat_ is an undefined reference", which is one of the three
+  things SS16x found standing between this port and KEEP_ICP.
+
+  WHAT THE CALLER ACTUALLY WANTS decides how much of it has to be rebuilt,
+  and the answer is: much less than the name suggests.  The only reference
+  is nlookup() at ckucmd.c:8158 --
+
+      if (!isfloat(this,0)) {
+          printf("NOT A NUMBER: %s\n",this);
+
+  -- which is a validity ASSERTION on a numeric keyword table, and it never
+  reads floatval.  So what is needed is the predicate, not the value, and a
+  NOFLOAT build has no business computing the value anyway: upstream's
+  version accumulates into a CKFLOAT, which is the type that does not exist
+  here.
+
+  Integer syntax only, therefore, and no floatval.  Under NOFLOAT the
+  keyword tables that reach nlookup() are integer tables, so a fraction
+  would be a defect in the caller rather than input this should accept --
+  but the contract's return of 2 for "has a fractional part" is honoured
+  anyway, because answering 1 to a number this build cannot represent would
+  be a lie of exactly the kind SS16x was about.
+
+  Contract, from ckclib.c:
+    flag == 0   the whole string must be a number
+    flag != 0   stop at the first character that is not legal
+    returns     0 not a number, 1 integer, 2 has a fractional part
+*/
+#ifndef NOICP
+#ifdef NOFLOAT
+int
+#ifdef CK_ANSIC
+isfloat(char * s, int flag)
+#else
+isfloat(s,flag) char * s; int flag;
+#endif /* CK_ANSIC */
+{
+    int digits = 0;                     /* Seen at least one digit      */
+    int frac = 0;                       /* Seen a decimal point         */
+    char c;
+
+    if (!s) return(0);
+    if (!*s) return(0);
+
+    while (isspace(*s)) s++;
+
+    if (*s == '-' || *s == '+')         /* Optional sign                */
+      s++;
+
+    while ((c = *s++)) {
+        if (isdigit(c)) {
+            digits++;
+            continue;
+        }
+        if (c == '.' && !frac) {        /* One decimal point, at most   */
+            frac = 1;
+            continue;
+        }
+        if (flag)                       /* Stop at the first bad one    */
+          break;
+        return(0);                      /* or fail on it                */
+    }
+    if (!digits)                        /* "." and "-" are not numbers  */
+      return(0);
+    return(frac ? 2 : 1);
+}
+#endif /* NOFLOAT */
+#endif /* NOICP */
 
 /* ------------------------------------------------------------------ */
 /* 3. TO BE IMPLEMENTED against real Victor hardware                    */

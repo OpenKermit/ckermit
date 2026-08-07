@@ -52,10 +52,9 @@ and `time()` produce two more sign mismatches at `ckutio.c:12319-12320`.
 DGROUP is 48,272 of 65,536 (73%) after the linker adds libc; `ckermitw.exe`
 is 204,764 bytes and **needs 218,988 (213K) at load**. Quote that figure —
 it is the port's cost and it is the same on every machine. **The 396,224
-that appears throughout this tree is not a RAM size and no Victor has that
-much**: it is the largest block INT 21h `AH=4Ah` handed out on *one*
-configuration — 896K, MS-DOS 3.1, `porta.exe` and `portb.exe` loaded. A
-Victor takes RAM in 128K increments from 128K to 896K.
+that appears in older sections is not a RAM size, and §16x retracts it as a
+figure for this DOS too**; Victor MS-DOS 3.1 hands out **824,784 at 896K**.
+A Victor takes RAM in 128K increments from 128K to 896K.
 
 **It runs on a real Victor 9000, and PORTING.md §16o is the section that
 says so.** 6 August 2026: 896 KB, Victor MS-DOS 3.1 booted from a Pico SASI
@@ -289,19 +288,34 @@ reports `rxlost`/`rxfull`/`rxpeak`. §16k satisfied it three times over.
 `XFLAGS=-dDRPSIZ=90` puts short packets back for one build without a tree
 edit.
 
-The interactive command parser is off (`NOICP`), and **§16x retired the
-reason that used to be given.** "The image needs 429K and the machine offers
-387K" rested on the 396,224 figure, which was a FreeDOS measurement filed
-under an MS-DOS 3.1 heading; MS-DOS 3.1 actually offers **824,784 at 896K**,
-so 429K fits there. What blocks the parser today is three build problems,
-none of them RAM: `XFLAGS=-dKEEP_ICP` **overflows DGROUP by 4,736 bytes**
-(the "60,768, it *fits*" measurement is stale — the ring and the stack have
-grown since); `ZT=-zt128` clears that and then **breaks `ckvisr.asm`** with
-`E2083 cannot reference address … from frame`, because moving objects to far
-segments moves the receive ring out of the group the assembly ISR reaches
-through `DS`; and `isfloat_` is undefined, wanted by `ckucmd.c` and compiled
-out by `NOFLOAT`. So the parser is possible again on a **640K or larger**
-machine at the cost of three specific fixes. See PORTING.md §16x, §9d, §16a.
+The interactive command parser is off (`NOICP`), and **§16y now builds it**
+— `XFLAGS=-dKEEP_ICP ZT=-zt2048` links, loads on the Victor and prints a
+parser's help text, needing **428,662 (418K)** against the shipping build's
+218,988. Three fixes got it there and none was an upstream edit: `isfloat()`
+in `ckvictor.c` §2b (`NOFLOAT` removes `CKFLOAT`, which removes upstream's),
+`__near` on the receive ring (`-zt` would otherwise move it out of the group
+`ckvisr.asm` reaches through `DS` — **the one to remember, since `-zt` is
+the lever anyone short of DGROUP will reach for**), and the threshold sweep.
+**But `KEEP_ICP` is not scripting**: `ckvictor.h` defines `NOSPL`
+separately, so the build gets a `C-Kermit>` prompt and *not* `-C` or `TAKE`
+files. `KEEP_SPL` prices that half and does not link yet — DGROUP fits at
+`-zt512`, and `ckuus4.c` wants three more §2a-style stubs. §16y has both.
+
+**§16x is why that became possible**, and it is a retraction worth knowing.
+"The image needs 429K and the machine offers 387K" rested on **396,224**,
+which was a *FreeDOS* measurement filed under an MS-DOS 3.1 heading in §16a
+and then inherited everywhere. **Victor MS-DOS 3.1 gives 824,784 at 896K**,
+and the model is `free = installed RAM − 92,720` — this DOS loads high,
+11,584 below the program and 81,136 above, both constant. `.probe/vmem.c`
+asks a running machine; `mzsize.py` reports the smallest Victor that can
+load a build. **Quote the requirement, not the spare.**
+
+**Two cautions on those machine numbers.** Only **256K and 896K** have been
+measured — 256K predicted and confirmed that `CKERMITW` will not load — and
+everything else is the model talking. And **MAME misreports 512K and 640K
+on `victor9k`**: both claim 759,248 free, which is arithmetically impossible
+at 640K, so the sizes this question turns on cannot be settled in emulation.
+See PORTING.md §16y, §16x, §9d, §16a.
 
 `XFLAGS=-dKEEP_DEBUG` turns on C-Kermit's debug log (`CKERMITW -d -s FOO.BIN`
 writes `./debug.log` on the target). It is affordable here because `-zc` puts

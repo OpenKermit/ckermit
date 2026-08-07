@@ -67,11 +67,16 @@ def report(path, avail=None):
 
     # The number that governs how widely this build can run.  A Victor comes
     # in 128K increments to 896K; print the smallest one that can load it.
+    #
+    # DERIVED, not measured.  Only 256K and 896K have ever been read off a
+    # machine (SS16x), and MAME misreports 512K and 640K on victor9k -- both
+    # claim 759,248 free, which is impossible at 640K.  So treat this line
+    # as the model's answer and not as a fact about any particular Victor.
     fits = [k for k in range(128, 897, 128)
             if k * 1024 - V9K_DOS_OVERHEAD >= need]
     if fits:
         k = fits[0]
-        print("%-24s smallest Victor: %dK (%d free, %d spare)"
+        print("%-24s smallest Victor: %dK (%d free, %d spare) [derived]"
               % ("", k, k * 1024 - V9K_DOS_OVERHEAD,
                  k * 1024 - V9K_DOS_OVERHEAD - need))
     else:
