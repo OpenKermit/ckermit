@@ -455,17 +455,26 @@ wrong, and it validated `ckvisr.asm` before the bench.
   **digits come through shifted under MAME** so use digit-free `.BAT` names
   (`STEPASM`, not `STEP0`); MS-DOS 3.1 cannot redirect handle 2; the disk
   boots as `A:`; use `vtg_image_util`, never mtools.
-- Backups: `victor_kermit.img.bak-20260807-clock` is the last one taken,
-  immediately before the 204,764 build went on.
-- **On the image now:** `CKERMITW.EXE` is the **204,764** build — assembly
-  ISR, clock and `mdm`, md5-verified after the copy and proven on hardware
-  by §16v at both 38400 and 19200. Also `CKLEAN.EXE` (204,388,
-  `-dV9K_CISR -dV9K_LEANLOST`, **stale — predates the clock**),
-  `STEPCA.BAT`/`STEPCB.BAT` at 38400/19200 (§16v, and their `.OUT` and
-  `RCVCA/RCVCB.DAT` are still there — delete before reusing),
-  `STEPCM.BAT` at 9600 (§16u),
-  `STEPY`/`STEPZ.BAT` at 38400, `STEPASM.BAT` at 9600, plus a long tail of
-  older `STEP*` and `RCV*` files. Delete before reusing a name.
+- Backups: `victor_kermit.img.bak-20260807-preregress` is the last one,
+  taken before the image was cleared of §16w–§16y experiment files.
+- **On the image now**, cleaned of the §16w–§16y experiments and staged for
+  a hardware regression of the shipping build:
+  - `CKERMITW.EXE` — **204,764, md5 `79752cbc733c2c1927099cd3e4231cff`**,
+    verified by reading it back off the image after the copy. Bit-identical
+    to every §16v bench binary, so this regression tests that §16w–§16y
+    changed nothing: `__near`, §2b and §2c are all guarded out here.
+  - `STEPEA.BAT` at 38400 and `STEPEB.BAT` at 19200, each
+    `CKERMITW -l /dev/seriala -b <rate> -r`, writing `STEPEA/EB.OUT`.
+  - Host side `s16zREA.ksc` / `s16zREB.ksc` in the tree, sending
+    `rcvea.dat` / `rcveb.dat` (both the 32,768-byte all-byte-values
+    fixture). The Victor writes `RCVEA.DAT` / `RCVEB.DAT` — fresh names, so
+    `SET FILE COLLISION BACKUP` cannot bite.
+  - Older `STEP*`/`RCV*` from §16t and §16v are still there. Delete before
+    reusing a name.
+  - **`CKICP.EXE` was removed.** It is a 433,830-byte parser build that
+    cannot run a take-file (§1 item 1) and a known-different binary beside
+    the one under regression is the trap §16w called out. Rebuild it with
+    `XFLAGS=-dKEEP_ICP ZT=-zt2048` when it is wanted.
 
 ---
 
