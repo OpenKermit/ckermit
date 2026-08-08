@@ -1259,7 +1259,27 @@ cmdini() {
                     ckstrncpy(p,buf,n+1); /* Add new speed */
                     spdtab[j].kwd = p;
                     spdtab[j].flgs = 0;
-                    spdtab[j].kwval = (int) ss[i] / 10;
+/*
+  Guarded upstream edit 15 (PORTING.md section 8) -- and deliberately NOT
+  wrapped in #ifdef VICTOR9K, because there is nothing to wrap: on a
+  platform with a 32-bit int the two expressions compute the same value,
+  bit for bit.  Guarding it would mean knowingly shipping the wrong one
+  everywhere else.
+
+  The cast used to bind tighter than the divide.  ss[i] is a long, so on a
+  16-bit int "(int) ss[i] / 10" truncates FIRST: (int)38400L is -27136 and
+  -27136/10 is -2713.  cmkey() hands that back as the keyword's value, SET
+  SPEED sees x < 0 and returns without a message, and the speed silently
+  does not change.  Every rate above 32767 is affected, and 76800 and
+  115200 are worse than 38400 because they stay positive -- they are
+  ACCEPTED, as 11260 and 49660 bps.
+
+  Only SET SPEED reaches this table.  The -b command-line option divides as
+  a long already (ckuusy.c, "zz = atol(*xargv); i = zz / 10L;"), which is
+  why a 16-bit build can transfer at 38400 all day and never see it.
+  PORTING.md SS16ad.
+*/
+                    spdtab[j].kwval = (int) (ss[i] / 10);
                     m++;                /* Count this one */
                 }
             }
@@ -7354,11 +7374,16 @@ doshow(x) int x;
         break;
 #endif /* OS2MOUSE */
 
-#ifndef NOFRILLS
+/*
+  The dispatch half of guarded upstream edit 12 (PORTING.md section 8);
+  the keyword is in ckuusr.c and the reasoning is written out there.
+  shover() above is #ifndef NOSHOW, so it is already compiled here.
+*/
+#if !defined(NOFRILLS) || defined(VICTOR9K)
       case SHVER:
         shover();
         break;
-#endif /* NOFRILLS */
+#endif /* !NOFRILLS || VICTOR9K */
 
 #ifndef NOSPL
       case SHBUI:                       /* Built-in variables */

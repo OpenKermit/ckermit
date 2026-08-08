@@ -46,6 +46,7 @@
 #undef write
 #undef fopen
 #undef fclose
+#undef getcwd
 
 #include "ckcdeb.h"
 #include "ckcker.h"
@@ -86,6 +87,7 @@
 
 /* The one DOS function number this file still spells out (section 0b). */
 #define DOS_CHK_STDIN   0x0b            /* Check standard input status  */
+#define DOS_RAW_STDIN   0x07            /* Direct console input, no echo*/
 
 /*
   ckufio.c's "extern long timezone" is aliased to this by ckvictor.h,
@@ -166,6 +168,46 @@ dos_stdin_ready() {
     r.h.ah = DOS_CHK_STDIN;
     intdos(&r,&r);
     return((r.h.al) ? 1 : 0);
+}
+
+/*
+  One character from the keyboard, raw and unechoed, and it is the fix for
+  the command prompt echoing every line twice.
+
+  read(0,...) goes to the Watcom runtime, which for a character device in
+  text mode issues INT 21h AH=3Fh -- and AH=3Fh on CON is DOS's COOKED line
+  input.  DOS collects and echoes a whole line, echoes a bare CR when Enter
+  is pressed, and only then hands the first byte back.  C-Kermit's parser
+  then reads the rest out of DOS's buffer one byte at a time and echoes each
+  one itself, from column 0, on top of what DOS already drew:
+
+      C-Kermit>show communications      <- DOS echoed this as it was typed
+      show communicationsnications      <- and this is Kermit echoing it
+                                           again after DOS's bare CR
+
+  Two echoers and one carriage return.  It looked like a missing newline
+  and was not one; PORTING.md SS16ac has the arithmetic.
+
+  AH=07h is "direct console input without echo" and does no Ctrl-C check.
+  AH=08h checks, and is deliberately not used: a Ctrl-C taken by DOS goes
+  through INT 23h and can terminate the program with the IRQ1 vector still
+  pointing into our handler.  Delivering byte 3 to the parser instead is
+  both what raw mode means and the safer of the two while SS15's Ctrl-Break
+  question is open.
+
+  Extended keys are the untested part.  On an IBM-compatible, AH=07h
+  returns 0 and the scan code follows on the next call; whether the
+  Victor's keyboard driver does the same is not known, and nothing in this
+  build reads arrow keys (NORECALL, NOSETKEY), so the byte is passed
+  through as-is rather than guessed at.
+*/
+static int
+dos_raw_stdin() {
+    union REGS r;
+
+    r.h.ah = DOS_RAW_STDIN;
+    intdos(&r,&r);
+    return((int)(r.h.al & 0xff));
 }
 
 /*
@@ -671,6 +713,33 @@ v9k_comm_read(fd,buf,n) int fd; void * buf; unsigned int n;
    one it has to agree with. */
 _PROTOTYP( V9K_RTYPE v9k_read, (int, void *, V9K_RCOUNT) );
 
+/*
+  The console line discipline, and it lives here because DOS has none.
+
+  A Unix tty in cbreak mode maps CR to NL on the way in (ICRNL) and NL to
+  CR-NL on the way out (OPOST|ONLCR), and every console path in C-Kermit
+  assumes it.  The clearest case is cmdnewl() (ckucmd.c:7714), which echoes
+  the character that terminated the command and nothing else: given a raw
+  CR it returns the cursor to column 0 without advancing a line, and the
+  next thing printed overprints what you just typed.  That is exactly what
+  the parser did on the Victor, and upstream even documents the shape of it
+  in the comment above its own BSD44 workaround three lines further down.
+
+  Doing it here rather than in ckucmd.c costs no upstream edit and gets the
+  other direction free.  The two flags are read out of the console's cached
+  termios (section 1b), which is the point: conbin() clears ICRNL and OPOST
+  when it puts the console in binary mode (ckutio.c:12671 and :12673), so
+  remote-mode packet I/O over fd 0 turns the translation off by the normal
+  route instead of needing a special case here.
+
+  isatty() as well, because a redirected stdout is a file and a file gets
+  what the program wrote.  That also keeps every .OUT this project has
+  recorded byte-identical.
+*/
+_PROTOTYP( static unsigned int v9k_con_iflag, (void) );
+_PROTOTYP( static unsigned int v9k_con_oflag, (void) );
+_PROTOTYP( static unsigned int v9k_con_lflag, (void) );
+
 
 V9K_RTYPE
 #ifdef CK_ANSIC
@@ -688,10 +757,40 @@ v9k_read(fd,buf,n) int fd; void * buf; V9K_RCOUNT n;
     if (fd > 2 && fd == ttyfd)
       return((V9K_RTYPE)v9k_comm_read(fd,buf,(unsigned int)n));
 
+    /*
+      Non-canonical console input, VMIN = 1: one keystroke, raw, unechoed.
+      ICANON clear is what concb() asks for and what this build starts with,
+      and honouring it here is what keeps DOS's cooked line editor -- and its
+      echo -- out of the way.  See dos_raw_stdin() for what that cost.
+    */
+    if (n > 0 && fd == 0 && !(v9k_con_lflag() & ICANON) && isatty(0)) {
+        char * p = (char *)buf;
+        int c;
+
+        v9k_wtagfd = (unsigned int)fd;  /* Section 0e                   */
+        v9k_wtag   = V9K_TAG_READ;
+        c = dos_raw_stdin();
+        v9k_wtag   = V9K_TAG_AFTER(V9K_TAG_READ);
+
+        if (c == '\r' && (v9k_con_iflag() & ICRNL))
+          c = '\n';
+        p[0] = (char)c;
+        return((V9K_RTYPE)1);
+    }
+
     v9k_wtagfd = (unsigned int)fd;      /* Section 0e                   */
     v9k_wtag   = V9K_TAG_READ;
     rc = read(fd,buf,n);
     v9k_wtag   = V9K_TAG_AFTER(V9K_TAG_READ);
+
+    /* ICRNL, for the reason given at the forward declarations above. */
+    if (rc > 0 && fd == 0 && (v9k_con_iflag() & ICRNL) && isatty(0)) {
+        char * p = (char *)buf;
+        int i;
+        for (i = 0; i < (int)rc; i++)
+          if (p[i] == '\r')             /* ckcasc.h is not included here */
+            p[i] = '\n';
+    }
     return(rc);
 }
 
@@ -708,6 +807,36 @@ v9k_read(fd,buf,n) int fd; void * buf; V9K_RCOUNT n;
   where it put a byte-correct Send-Init packet on the wire.
 */
 _PROTOTYP( V9K_WTYPE v9k_write, (int, const void *, V9K_WCOUNT) );
+
+/*
+  ONLCR: the output half of the console line discipline described at
+  v9k_read().  Written as runs so that a conol() of a whole line is still
+  one INT 21h call plus one per newline, rather than one per character.
+  Returns the caller's count, not the expanded one -- the caller asked how
+  many of ITS bytes went out.
+*/
+static V9K_WTYPE
+#ifdef CK_ANSIC
+v9k_con_write(int fd, const char * p, unsigned int n)
+#else
+v9k_con_write(fd,p,n) int fd; const char * p; unsigned int n;
+#endif /* CK_ANSIC */
+{
+    unsigned int i, run = 0;
+
+    for (i = 0; i < n; i++) {
+        if (p[i] == '\n') {
+            if (run > 0)
+              if (write(fd,p + i - run,run) < 0) return((V9K_WTYPE)-1);
+            run = 0;
+            if (write(fd,"\r\n",2) < 0) return((V9K_WTYPE)-1);
+        } else
+          run++;
+    }
+    if (run > 0)
+      if (write(fd,p + n - run,run) < 0) return((V9K_WTYPE)-1);
+    return((V9K_WTYPE)n);
+}
 
 V9K_WTYPE
 #ifdef CK_ANSIC
@@ -745,7 +874,12 @@ v9k_write(fd,buf,n) int fd; const void * buf; V9K_WCOUNT n;
     v9k_wtagfd = (unsigned int)fd;
     v9k_wtag   = V9K_TAG_WRITE;
     t0 = v9k_centis();
-    rc = write(fd,buf,n);
+    if ((fd == 1 || fd == 2) &&
+        (v9k_con_oflag() & (OPOST|ONLCR)) == (OPOST|ONLCR) &&
+        isatty(fd))
+      rc = v9k_con_write(fd,(const char *)buf,(unsigned int)n);
+    else
+      rc = write(fd,buf,n);
     dt = v9k_centis_since(t0);
     v9k_wtag   = V9K_TAG_AFTER(V9K_TAG_WRITE);
 
@@ -800,6 +934,53 @@ v9k_fopen(path,mode) const char * path; const char * mode;
     f = fopen(path,mode);
     v9k_wtag = V9K_TAG_AFTER(V9K_TAG_FOPEN);
     return(f);
+}
+
+/*
+  getcwd(), normalised to the shape a UNIX build expects.  The reasoning is
+  in ckvictor.h at the rename; the short form is that DOS returns "A:\" for
+  the root of a drive, upstream joins paths with '/' and never tests for a
+  separator already being there, and zfnqfp() therefore produced "A:\/NAME".
+
+  Two changes and no more: separators forward, and no trailing separator.
+  The second is the one that matters -- upstream's own zgtdir() contract is
+  a directory name with nothing on the end, because that is what getcwd()
+  gives it on every system it was written for.  At a drive root the result
+  is "A:", which INT 21h reads as "the current directory of drive A", and
+  the current directory of a drive whose root we are in is the root.
+
+  Not touched: the drive letter and colon stay, because the alternative is
+  inventing a mount point, and nothing above here needs one.
+*/
+_PROTOTYP( char * v9k_getcwd, (char *, size_t) );
+
+char *
+#ifdef CK_ANSIC
+v9k_getcwd(char * buf, size_t size)
+#else
+v9k_getcwd(buf,size) char * buf; size_t size;
+#endif /* CK_ANSIC */
+{
+    char * s;
+    int n;
+
+    s = getcwd(buf,size);
+    if (!s)
+      return(s);
+
+    for (n = 0; s[n]; n++)              /* Separators forward             */
+      if (s[n] == '\\')
+        s[n] = '/';
+
+    /*
+      Then drop a trailing one, but never the whole string: "/" on a system
+      with no drive letters is the root and has nothing to spare.
+    */
+    while (n > 1 && s[n-1] == '/')
+      s[--n] = '\0';
+
+    debug(F110,"v9k_getcwd",s,0);
+    return(s);
 }
 
 _PROTOTYP( int v9k_fclose, (FILE *) );
@@ -950,10 +1131,32 @@ char * getlogin(void) { return((char *)0); }
 #endif
 
 /*
-  Terminal naming.  There is exactly one console.
+  Terminal naming.  There is exactly one console, and the important half of
+  that sentence is that the serial line is NOT it.
+
+  This returned "CON:" for every descriptor, and it cost SET LINE.  ttopen()
+  decides local versus remote by opening the device and then asking
+  ttyname() what it really is (ckutio.c:3180), comparing that against
+  cttnam -- which sysinit() filled in from ttyname(0), i.e. "CON:".  So
+  opening /dev/seriala got fd 7, was told it was called "CON:", concluded
+  the line was the controlling terminal, set xlocal = 0 and then forced
+  ttyfd to 0 as well (the NOFDZERO block at ckutio.c:2919).  SET SPEED then
+  said "?SET SPEED has no effect without prior SET LINE" because it was, by
+  then, quite right.  PORTING.md SS16aa.
+
+  Only the interactive path reached it: that whole test is inside
+  "if (*lcl < 0)", and cmdlin()'s -l passes lcl = 1, so the shipping build
+  told ttopen() the answer instead of asking.  Which is why file transfer
+  has worked for the port's whole life with this stub in it.
+
+  POSIX says ttyname() returns NULL for a descriptor that is not a terminal,
+  and returning NULL is what ckutio.c wants: it treats an empty answer as
+  "not the console" and leaves xlocal at 1.  Descriptors 0-2 are the
+  console; 3 and 4 are DOS's STDAUX and STDPRN, and everything the port
+  opens comes back at 5 or above.
 */
 #ifndef VICTOR_HAVE_TTYNAME
-char * ttyname(int f) { return("CON:"); }
+char * ttyname(int f) { return((f >= 0 && f <= 2) ? "CON:" : (char *)0); }
 char *
 ctermid(char * s) {
     if (s) { s[0]='C'; s[1]='O'; s[2]='N'; s[3]=':'; s[4]='\0'; return(s); }
@@ -1202,9 +1405,30 @@ v9k_portval_io(fd,wr,p) int fd; int wr; struct v9k_portval * p;
   78125/38 is 2056 bps -- faster than the same table's 2.0k entry (27h =
   39, 2003 bps) while labelled slower -- where 2Bh = 43 gives 1817.  A
   transcription error, and 43 is what stays.  Appendix A's table stops at
-  19.2k; B38400 and B76800 below are msxv90.asm's and are outside
-  anything the OEM documents, which is one of the reasons
-  v9k_portval_io() now reads the driver's status word.
+  19.2k.
+
+  B38400 (divisor 2) is msxv90.asm's: its bddat table ends "dw 2H ; 38400
+  baud" and its keyword table ends "mkeyw '38400',15".  B76800 (divisor 1)
+  is NOT -- an earlier version of this comment said both were, and the
+  string 76800 does not occur anywhere in msxv90.asm.  Divisor 1 has no
+  source at all: not Appendix A, not 3.13, not the 1980s vickermit.c.  It
+  was extrapolated by continuing the halving, and as an x16 setting it is
+  unprogrammable: the 8253 is in Mode 3 (msxv90.asm's control byte is 36H,
+  and v9k_ser_progline() below writes the same) and modes 2 and 3 both
+  require a count of at least 2.
+
+  B76800 is therefore gone from victor/sys/termios.h, and so are B57600 and
+  B115200, which existed for one day as x1 entries.  x1 does reach those
+  rates -- the NEC datasheet permits x1 in async, contrary to an earlier
+  claim in this file -- but it fails on a free-running link, and the only
+  path to the 7201's RxCA is through the LS90 chain, so there is no external
+  clock that would make it work.  PORTING.md SS11a0.  39,062.50 bps at
+  count 2 is the ceiling.
+
+  The divisors themselves are now measured rather than argued -- CLK5 is
+  5 MHz on a logic analyzer and reaches the 8253 through two LS90 halves,
+  so the counters see 1.25 MHz; see victor/sys/termios.h and PORTING.md
+  SS11a.
 
   B0 is not a speed -- POSIX gives it the meaning "hang up" -- so its
   entry is never used; tcsetattr drops DTR and RTS and leaves the divisor
@@ -1214,10 +1438,34 @@ static unsigned int v9k_divisor[] = {
        0,                               /* B0     hang up               */
     1562, 1041,  710,  580,  520,       /* B50   B75   B110  B134  B150 */
      390,  260,  130,   65,   43,       /* B200  B300  B600  B1200 B1800*/
-      32,   16,    8,    4,    2,       /* B2400 B4800 B9600 B19200     */
+      32,   16,    8,    4,    2        /* B2400 B4800 B9600 B19200     */
                                         /*                       B38400 */
-       1                                /* B76800                       */
 };
+
+/*
+  THE CLOCK MODE IS x16 AND THERE IS NOWHERE ELSE TO GO.  For one day this
+  file carried a v9k_clkbits[] table so that B57600/B76800/B115200 could use
+  the 7201's x1 mode and reach rates the 8253 cannot produce with a legal
+  Mode 3 count.  The bench killed it: x1 works, and a 32 KB send at x1
+  completed byte-exact, but x1 RECEIVE accepted 33% of 110-byte packets
+  where x16 was clean at a three times worse rate mismatch.  The operator
+  then traced the schematic and closed the last avenue -- the only path to
+  the 7201's RxCA is through the 74LS90 divider chain, so there is no fixed
+  tap and no external clock to be had.  PORTING.md SS11a0.
+
+  So: x16 always, count 2 at the top, 39,062.50 bps.  The table above ends
+  where the hardware does.
+
+  The overrides survive because the experiment should stay repeatable
+  without a broken rate in the table:
+
+      make -f victorow.mak XFLAGS="-dV9K_CLKBITS=0x00 -dV9K_COUNT=130"
+
+  0x00 is x1, 0x40 x16, 0x80 x32, 0xc0 x64.  They override every speed, so
+  such a build ignores -b and SET SPEED entirely -- deliberately: one build,
+  one point, no ambiguity about what was on the wire.
+*/
+
 
 /*
   The last divisor we actually programmed.  The hang-up path changes the
@@ -1253,6 +1501,87 @@ static struct termios victor_ttcur = {
     B9600                               /* c_ospeed                     */
 };
 
+/*
+  The console needs a cache of its own, and giving it one is a bug fix
+  rather than tidiness.
+
+  ckutio.c drives BOTH devices through this same pair of calls.  congm()
+  seeds ccold/cccbrk/ccraw with tcgetattr(0,...) (ckutio.c:12375-12377),
+  and concb(), conbin() and conres() write them back with tcsetattr(0,...)
+  (ckutio.c:12566 and neighbours).  While there was one cached struct,
+  every one of those console writes landed on top of the communication
+  line's settings -- including c_ospeed, which is what ttgspd() reads.
+  SET SPEED would program the chip correctly and then have its recorded
+  speed overwritten by the next console mode change, so SHOW
+  COMMUNICATIONS reported whatever the console struct happened to carry.
+
+  It was nearly invisible under NOICP, where the console changes state
+  perhaps twice in a run and nothing reads the speed back afterwards.  The
+  interactive parser calls concb() at the top of every command
+  (ckuus5.c:2779) and again from popclvl() at the end of every take-file
+  (ckuus5.c:5107), which is where it was found.
+
+  Nothing here programs anything: the console has no uPD7201 behind it, so
+  the console half of tcsetattr() is a store and a return.  The two structs
+  start identical, which is exactly what congm() used to be handed.
+*/
+/*
+  ICRNL and OPOST|ONLCR are the console's line discipline, and they are here
+  rather than raw because DOS supplies none and C-Kermit assumes a Unix tty:
+  see the comment at v9k_con_iflag()'s forward declaration, above v9k_read().
+  congm() copies this into ccold, cccbrk and ccraw, and conbin() then clears
+  ICRNL and OPOST out of ccraw, which is how binary console mode turns the
+  translation off without a special case anywhere.
+*/
+static struct termios victor_ttcon = {
+    ICRNL,                              /* c_iflag: CR to NL on input   */
+    OPOST | ONLCR,                      /* c_oflag: NL to CR-NL on out  */
+    CS8 | CREAD | CLOCAL,               /* c_cflag: 8N1, no modem ctl   */
+    0,                                  /* c_lflag: no echo, no canon   */
+    { 0 },                              /* c_cc                         */
+    B9600,                              /* c_ispeed                     */
+    B9600                               /* c_ospeed                     */
+};
+
+static unsigned int
+#ifdef CK_ANSIC
+v9k_con_iflag(void)
+#else
+v9k_con_iflag()
+#endif /* CK_ANSIC */
+{
+    return((unsigned int)victor_ttcon.c_iflag);
+}
+
+static unsigned int
+#ifdef CK_ANSIC
+v9k_con_oflag(void)
+#else
+v9k_con_oflag()
+#endif /* CK_ANSIC */
+{
+    return((unsigned int)victor_ttcon.c_oflag);
+}
+
+static unsigned int
+#ifdef CK_ANSIC
+v9k_con_lflag(void)
+#else
+v9k_con_lflag()
+#endif /* CK_ANSIC */
+{
+    return((unsigned int)victor_ttcon.c_lflag);
+}
+
+/*
+  Which of the two a descriptor names.  ttopen() sets ttyfd to 0 when the
+  line IS the console, so the standard descriptors have to be excluded as
+  well as tested against ttyfd; section 0d makes the same distinction for
+  the same reason, and this was the test tcsetattr() already used to decide
+  whether to touch the chip.
+*/
+#define V9K_ISCOMM(fd) ((fd) >= 3 && (fd) == ttyfd)
+
 int
 #ifdef CK_ANSIC
 tcgetattr(int fd, struct termios * t)
@@ -1261,7 +1590,8 @@ tcgetattr(fd,t) int fd; struct termios * t;
 #endif /* CK_ANSIC */
 {
     if (!t) { errno = EFAULT; return(-1); }
-    *t = victor_ttcur;                  /* Cached, not read from chip   */
+    /* Cached, not read from chip */
+    *t = V9K_ISCOMM(fd) ? victor_ttcur : victor_ttcon;
     return(0);
 }
 
@@ -1278,20 +1608,25 @@ tcsetattr(fd,action,t) int fd; int action; const struct termios * t;
     int ok;
 
     if (!t) { errno = EFAULT; return(-1); }
-    victor_ttcur = *t;
 
     /*
-      The console goes through this same call -- concb()/conres() in
-      ckutio.c keep their own struct termios -- and there is nothing to
-      program there.  Only the communications device has a uPD7201 behind
-      it.  ttopen() sets ttyfd to 0 when the line IS the console, so the
-      test has to exclude the standard descriptors as well; section 0d
-      makes the same distinction for the same reason.
+      The console goes through this same call -- concb(), conbin() and
+      conres() in ckutio.c hand it their own struct termios -- and there is
+      nothing to program there.  Only the communications device has a
+      uPD7201 behind it.  Remember what was asked for, so that the next
+      tcgetattr() on the console reads back what was set, and return
+      without touching the line: see victor_ttcon above for what it cost
+      when this store landed on victor_ttcur instead.
     */
-    if (fd < 3 || fd != ttyfd)
-      return(0);
+    if (!V9K_ISCOMM(fd)) {
+        victor_ttcon = *t;
+        debug(F111,"tcsetattr console fd",ckitoa(fd),(int)t->c_ospeed);
+        return(0);
+    }
+    victor_ttcur = *t;
+    debug(F111,"tcsetattr line fd",ckitoa(fd),(int)t->c_ospeed);
 
-    if (t->c_ospeed > B76800) { errno = EINVAL; return(-1); }
+    if (t->c_ospeed > __MAX_BAUD) { errno = EINVAL; return(-1); }
 
     /*
       Rx and Tx character width share an encoding on this chip and it is
@@ -1310,7 +1645,12 @@ tcsetattr(fd,action,t) int fd; int action; const struct termios * t;
                           | 0x08                /* Transmitter enable   */
                           | 0x80                /* DTR asserted         */
                           | 0x02);              /* RTS asserted         */
-    cr4 = (unsigned char)(0x40                  /* x16 clock            */
+    /* WR4 bits 7-6 are the clock mode: x16, always.  See the divisor
+       table above for why nothing else is reachable. */
+#ifndef V9K_CLKBITS
+#define V9K_CLKBITS 0x40                /* x16 -- see the divisor table */
+#endif /* V9K_CLKBITS */
+    cr4 = (unsigned char)(V9K_CLKBITS
                           | ((t->c_cflag & CSTOPB) ? 0x0c : 0x04));
     if (t->c_cflag & PARENB) {
         cr4 |= 0x01;                            /* Parity enable        */
@@ -1327,7 +1667,11 @@ tcsetattr(fd,action,t) int fd; int action; const struct termios * t;
         cr5 &= 0x7d;
         divisor = v9k_lastdiv;          /* Keep the speed, not the junk */
     } else {
+#ifdef V9K_COUNT
+        divisor = V9K_COUNT;            /* SS11a0 sweep override        */
+#else
         divisor = v9k_divisor[t->c_ospeed];
+#endif /* V9K_COUNT */
         v9k_lastdiv = divisor;
     }
     v9k_lastcr5 = cr5;
@@ -1442,7 +1786,7 @@ cfsetospeed(t,speed) struct termios * t; speed_t speed;
 #endif /* CK_ANSIC */
 {
     if (!t) { errno = EFAULT; return(-1); }
-    if (speed > B76800) { errno = EINVAL; return(-1); }
+    if (speed > __MAX_BAUD) { errno = EINVAL; return(-1); }
     t->c_ospeed = t->c_ispeed = speed;
     return(0);
 }

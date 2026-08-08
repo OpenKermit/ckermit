@@ -7491,7 +7491,24 @@ zfnqfp(fname, buflen, buf)  char * fname; int buflen; char * buf;
           break;
     }
     if (!*s) return(NULL);
+/*
+  The other half of guarded upstream edit 13 (PORTING.md section 8), and it
+  is not optional: isabsolute() alone changes who calls findinpath(), while
+  this is what stops the current directory being prepended to a name that
+  already has a drive letter on it.  "A:\FOO" would otherwise qualify to
+  "A:/A:\FOO".
+
+  isabsolute() is this module's own idea of the question -- ckufio.c already
+  calls it twice, at the RECEIVE PATHNAMES test and in zxpand() -- so on
+  every other platform this is the same test spelled differently: its UNIX
+  arm is exactly "*path == '/'", plus the '~' that DTILDE adds and that a
+  pathname reaching here has already been through zzstring() to remove.
+*/
+#ifdef VICTOR9K
+    if (isabsolute(s)) {                /* Pathname is absolute */
+#else
     if (*s == '/') {                    /* Pathname is absolute */
+#endif /* VICTOR9K */
         ckstrncpy(buf,s,len);
         x = strlen(buf);
         y = 0;

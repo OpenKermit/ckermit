@@ -316,7 +316,10 @@ Streaming is **not** network-coupled — it is negotiated protocol behaviour in
 
 ## 8. Upstream changes made
 
-Eleven small, guarded edits. None changes behaviour on any other platform.
+Fifteen edits, thirteen of them small, guarded and invisible to every
+other platform. **Edit 14 is the exception and is flagged as such**: it
+repairs a mis-nested `#endif` in `ckcmai.c`, and a preprocessor conditional
+cannot itself be made conditional.
 
 1. **`ckcdeb.h`** — wrapped the `sig_t` typedef in `#ifndef CK_NO_SIG_T`.
    macOS (and the retired build's newlib) already define `sig_t`. Open Watcom
@@ -418,8 +421,130 @@ Eleven small, guarded edits. None changes behaviour on any other platform.
     entire history while believing the four capacity symbols controlled it.
     §16j.
 
-Items 2, 3, 6, 7, 8, 10 and 11 are worth offering upstream regardless of this
-port.
+12. **`ckuusr.c` and `ckuus5.c`** — `#if !defined(NOFRILLS) ||
+    defined(VICTOR9K)` around the `SHOW VERSIONS` keyword
+    (`ckuusr.c`, `shotab`) and around its `case SHVER:` dispatch
+    (`ckuus5.c`). Two halves of one feature, so one edit.
+
+    `shover()` itself is `#ifndef NOSHOW`, not `#ifndef NOFRILLS`, so on any
+    build that keeps the command parser and drops the frills the routine is
+    **compiled and linked already** and only the two lines that reach it are
+    missing. On this port that is not a nicety: `KEEP_ICP` and `KEEP_SPL`
+    and `KEEP_DEBUG` produce binaries that look identical on the machine,
+    provenance has cost this project time twice (§2 of `NEXT_SESSION.md`),
+    and `SHOW VERSIONS` is the only way to ask a running image what it is —
+    the Victor has no `strings`. Costs 88 bytes at load in the `KEEP_ICP`
+    build and nothing at all in the shipping one, which has no parser to
+    type it at.
+
+    The alternative was to make `NOFRILLS` conditional on `KEEP_ICP` in
+    `ckvictor.h`, which needs no upstream edit — and it was rejected. That
+    switch also gates `zmail()`/`zprint()` in `ckufio.c` and REMOTE
+    MAIL/PRINT in `ckcfn3.c` and `ckcfns.c`, so it would pull external
+    commands into a `NOPUSH` build and, worse, make the parser build differ
+    from the shipping build **inside the protocol engine**. The whole value
+    of `KEEP_ICP` as a regression build is that it is the shipping build
+    plus a parser.
+
+13. **`ckcmai.c` and `ckufio.c`** — `#ifdef VICTOR9K` arms giving
+    `isabsolute()` (`ckcmai.c:1768`) and `zfnqfp()`'s absolute test
+    (`ckufio.c:7494`) a DOS pathname. Two halves of one feature, so one
+    edit, and **neither half works alone**.
+
+    `isabsolute()`'s UNIX arm tests for a leading `/`, so `A:\FOO.KSC` is
+    "relative"; `prescan()` then sends it to `findinpath()`, which under
+    `NOSPL` searches an empty path list and exits (§16ab). Fixing that alone
+    just moves the failure: `zfnqfp()` spells the same question
+    `*s == '/'` and would prepend the current directory to a name that
+    already has a drive letter, giving `A:/A:\FOO.KSC`.
+
+    The first half is upstream's own `OS2` arm, six lines below and
+    unreachable from a build that cannot define `OS2` — the port has to
+    define `UNIX`, because that is what selects `ckutio.c`/`ckufio.c` and
+    what makes `ckcdeb.h` define `DYNAMIC` (§1). The letter test is written
+    out rather than calling `isalpha()` because `ckcmai.c` does not include
+    `<ctype.h>`; its two existing `isalpha()` calls are inside `#ifdef`s no
+    supported build compiles, which is a latent defect in its own right.
+    The second half calls `isabsolute()` from a module that already calls it
+    twice, so on every other platform it is the same test spelled
+    differently — the UNIX arm *is* `*path == '/'`, plus the `~` that
+    `DTILDE` adds and that a pathname reaching `zfnqfp()` has already been
+    through `zzstring()` to expand.
+
+    Note this is the *second* defect on that path and the smaller one.
+    The first was ours: `getcwd()` returning `A:\` with a separator upstream
+    could not see, fixed in `ckvictor.c` for no upstream edit (§16ab). This
+    edit only buys the absolute form.
+
+14. **`ckcmai.c`** — moved one `#endif`. The `#ifndef NOTCPIP` at line
+    3417 was closed 70 lines past where its own comment says it belongs:
+    the `#endif  /* NOTCPIP */` after the `sstelnet` block actually closed
+    the `#ifndef NOICP` on the line below the opener, and the
+    `#endif /* NOICP */` at the end of the command-file block actually
+    closed `NOTCPIP`. Misattributed by one level, exactly as §16j found for
+    the narrower case.
+
+    Compiled out of **every** build that defines `NOTCPIP`, as a result:
+    the environment-variable block, `dofast()`, `dotakeini()` (the init
+    file) and `if (cmdfil[0]) docmdfile(0)` (a command file named on the
+    command line). Such a build silently ignores its init file and, if
+    given a command file, reports the *filename* as an invalid option —
+    because `docmdfile()` is also what sets `cfilef`, and `cfilef` is the
+    only thing that tells `cmdlin()` to skip argv[1] (`ckuusy.c:1597`).
+
+    **This one is not a no-op elsewhere, and it cannot be made one.** An
+    `#endif` cannot be placed conditionally; preprocessor nesting balances
+    lexically whatever the macros say. So there is no `#ifdef VICTOR9K`
+    form of "close this region earlier". What the change does elsewhere is
+    restore behaviour upstream plainly intended — the reading is confirmed
+    by the code inside the region carrying its own `#ifndef NOICP` guards
+    around `dotakeini()` and `docmdfile()`, which would be redundant if the
+    whole region were already inside `NOICP`, and by `cmdfil` and `cfilef`
+    being declared unconditionally.
+
+    **A second, guarded part comes with it, and it is the interesting
+    half.** Restoring the region hands `dofast()` back, and `dofast()` sets
+    `wslotr = RBSIZ / MAXSP = 8192 / 4000 = 2`. So the first Victor build
+    with the nesting repaired would have negotiated a **window of two** —
+    on a port with no interrupt-level flow control, whose 4,096-byte
+    receive ring is safe only because a window of one puts at most one
+    packet in flight (§16v; the margin is 105 bytes). The call is therefore
+    `#ifndef VICTOR9K`, and that guard is a no-op everywhere else. Remove
+    it when flow control and windowing are done. **A preprocessor repair
+    that silently changes the wire protocol is the thing to watch for
+    here**, and this one would have — unmeasured, against a rule
+    (`CLAUDE.md`) that says no window or packet-length change ships without
+    a run that reaches FINISH and reports `rxlost`/`rxfull`/`rxpeak`.
+
+15. **`ckuus5.c`** — one pair of parentheses in `cmdini()`:
+
+    ```c
+    -   spdtab[j].kwval = (int) ss[i] / 10;
+    +   spdtab[j].kwval = (int) (ss[i] / 10);
+    ```
+
+    The cast bound tighter than the divide. `ss[i]` is a `long`, so on a
+    16-bit `int` the truncation happened first: `(int)38400L` is -27136 and
+    -27136/10 is -2713. `cmkey()` returns that as the keyword's value, `SET
+    SPEED` sees `x < 0` and returns **with no message**, and the speed
+    silently does not change. Every rate above 32767 is affected, and 76800
+    and 115200 are worse than 38400 because they stay positive — they are
+    *accepted*, as 11260 and 49660 bps.
+
+    **Not wrapped in `#ifdef VICTOR9K`, on purpose.** On a platform with a
+    32-bit `int` the two expressions compute the same value bit for bit, so
+    there is nothing to guard; wrapping it would mean knowingly shipping
+    the wrong expression everywhere else. It is the only edit in this set
+    that is simultaneously unguarded and a provable no-op elsewhere.
+
+    Only `SET SPEED` reaches this table, which is why a 16-bit build can
+    transfer at 38400 indefinitely and never see it: `-b` divides as a long
+    already (`ckuusy.c`, `zz = atol(*xargv); i = zz / 10L;`). §16ad.
+
+Items 2, 3, 6, 7, 8, 10, 11, 13, 14 and 15 are worth offering upstream
+regardless of this port, and **14 and 15 are the ones to send first**: it is a plain
+defect, it is ~40 years old, and it disables two documented features in any
+configuration that turns TCP/IP off.
 2, 3, 7 and 8 are latent hazards on any small-memory target — and 7 and 8
 share a shape worth naming: an allocation sized for comfort, failing
 silently, on a code path whose error message needs its own allocation to be
@@ -1191,6 +1316,404 @@ Unchanged from the previous revision, and now with a fourth reason:
   state — including the not-yet-root-caused DGROUP writer near `serport_b`.
 - **The OEM driver loses the packet** (§16b). Whatever the mechanism, 3.13's
   authors reached the same conclusion with the same hardware.
+
+### 11a0. The baud clock tree, measured on the board
+
+7 August 2026, and it settles an argument that had run through four
+documents. **CLK5 reads precisely 5 MHz on a logic analyzer**, and the
+schematic's serial sheet shows it reaching the 8253's `CLK0` and `CLK1`
+through two 74LS90 divide-by-two sections — 12E and 10E, each drawn using
+only the `CKA -> QA` half. So:
+
+```
+CLK5 5,000,000 Hz --> LS90 12E /2 --> LS90 10E /2 --> 8253 CLK0/CLK1 1,250,000 Hz
+8253 count --> LS153 15F mux --> uPD7201 RXCA/TXCA, /16 (WR4 = x16)
+
+    bps = 5,000,000 / (4 * 16 * count) = 78125 / count
+```
+
+The board's other oscillator read 14.2–16.5 MHz on the same capture, which
+is the sampling quantisation of a 15 MHz square wave rather than a real
+spread. 15 / 3 = 5.000 exactly, consistent with CLK5 being divided down from
+the master rather than being its own can — which is why it is **not** the
+4.9152 MHz baud crystal a machine wanting exact rates would use.
+
+**So every async rate on this machine is 1.72% fast** and no integer count
+fixes it: 78125/9600 = 8.14, and 8 gives 9765.63. That is inside async
+framing tolerance (~2.5%) and is why it interoperates with a host set to the
+nominal rate. `victor/sys/termios.h` labels each `B*` code with both numbers
+and those labels are now measurement rather than inference.
+
+This confirms, and retires the argument over, four secondary sources:
+`msxv90.asm`'s own "78125/(baud rate)" comment; Appendix A's divisor table
+(110 -> 710, 150 -> 520, 300 -> 260, all 78125-derived); `vickermit.c`'s
+byte-identical table; and MAME's `15_MHz_XTAL / 12` on `set_clk<0>`/`<1>`,
+which reaches 1.25 MHz by a different division and the same answer. **The
+one source that disagreed is `~/projects/myfreedos/kernel/victor_int14.asm`,
+whose comment says "Crystal: 1.2288 MHz" and whose 110–1200 baud divisors
+(698, 512, 256, 128, 64) are 1.7% fast in the other direction.** It works,
+because 1.7% is inside tolerance either way, and from 2400 up the two tables
+are identical — which is why two ports of the same machine have disagreed
+below 2400 without anyone noticing. That file is not in this tree; flagged
+for its owner.
+
+### The x1 clock mode, a retraction, and the sweep that settles it
+
+**The operator ran this machine at 115 Kb in 1990** with a different comms
+program. That is the governing fact in this subsection: the rate is
+achievable on this hardware, so any argument concluding otherwise has an
+error in it, and the job is to find the settings rather than to reason about
+whether they exist.
+
+**Retraction.** This document and three code comments claimed the uPD7201's
+x1 clock mode was synchronous-only. It is not. The NEC datasheet, pin
+description for RxCA/RxCB:
+
+> The Receiver Clocks may be 1, 16, 32, or 64 times the data rate in
+> asynchronous modes. Receive data is sampled on the rising edge of RxC.
+
+and WR4's clock-mode field is independent of the stop-bit field that selects
+async in the first place. x1 async is permitted, and the claim was asserted
+three times before anyone opened the datasheet that was on the same machine.
+
+**What the datasheet does not say** is anything about start-bit
+re-centring — there is no half-bit delay, no bit-centre search, no sampling
+diagram. The only statement is the one quoted. So the open question is not
+legality but phase: at one clock per bit the sample point sits wherever the
+local generator's phase puts it relative to the incoming bits, and the
+receiver cannot tell the start of a start bit from the end of one. That
+predicts *marginal* behaviour rather than failure — a stable phase that
+lands mid-bit works indefinitely, and a slowly drifting one works until it
+crosses a bit boundary. Which is exactly the kind of thing that has to be
+measured over time rather than demonstrated once.
+
+**It splits by direction.** Transmit at x1 should be sound — the
+transmitter defines its own bit boundaries, "TxD changes on the falling edge
+of TxC" — so a Victor *sending* at x1 should frame cleanly. Receive is the
+half at risk. The datasheet requires the same multiplier for both, so they
+cannot be mixed.
+
+#### The rate table for the sweep
+
+`bps = 1,250,000 / (factor * count)`, count >= 2 for 8253 Mode 3:
+
+| target | factor | count | actual | error | note |
+|---|---|---:|---:|---:|---|
+| 9600 | x16 | 8 | 9,765.63 | +1.73% | shipping control |
+| 9600 | **x1** | **130** | 9,615.38 | **+0.16%** | the discriminator |
+| 19200 | x16 | 4 | 19,531.25 | +1.73% | shipping |
+| 38400 | x16 | 2 | 39,062.50 | +1.73% | shipping, unchanged control |
+| 38400 | x1 | 33 | 37,878.79 | -1.36% | x1 at a proven rate |
+| 57600 | x1 | 22 | 56,818.18 | -1.36% | `B57600` |
+| 76800 | x1 | 16 | 78,125.00 | +1.73% | `B76800`, now legal |
+| 115200 | x1 | 11 | 113,636.36 | -1.36% | `B115200` |
+
+**Run the x1/9600 point first, because it is the one that isolates the
+variable.** Its frequency error is +0.16%, an order of magnitude *better*
+than the +1.73% this port has run at 9600 for its entire life. So if
+x1/9600 fails where x16/9600 succeeds, the cause is the sampling phase and
+nothing else. If it succeeds, the phase concern is empty and the rest of the
+table is a straight rate sweep.
+
+#### What is in the tree to drive it
+
+`victor/sys/termios.h` gains `B57600`, `B115200`, and a redefined `B76800`
+(x1 count 16, replacing the illegal x16 count 1). `ckvictor.c` gains
+`v9k_clkbits[]`, a table parallel to `v9k_divisor[]` giving each B code its
+WR4 bits 7-6, with a compile-time check that the two stay the same length.
+`tcsetattr()` takes the clock mode from it instead of hard-coding x16.
+`ttspdlist()` picks all four up automatically — verified through the
+preprocessor — so `-b 115200` and `SET SPEED 115200` work with **no upstream
+edit**; edit 15 is what makes the keyword table return the right value for
+them.
+
+For points with no B code, one build per point:
+
+```sh
+make -f victorow.mak XFLAGS="-dV9K_CLKBITS=0x00 -dV9K_COUNT=130"   # x1/9600
+```
+
+`0x00` x1, `0x40` x16, `0x80` x32, `0xc0` x64. The override applies to every
+speed, so such a build ignores `-b` and `SET SPEED` — deliberately, so there
+is no ambiguity about what was on the wire.
+
+#### Protocol
+
+For each point: a 32 KB transfer each direction, checking md5 both ways, and
+`rxlost`/`rxfull`/`rxpeak` plus retransmission and timeout counts from the
+packet log. Then leave the link up for a few minutes — **the phase concern
+predicts intermittency, not immediate failure, so a single clean transfer
+does not clear a point.**
+
+**The logic analyzer is the part that makes this decisive**, and it answers a
+question the transfer cannot: whether the OEM driver's IOCTL actually
+applies CR4. §11a already knows the write subfunction does not apply CR1.
+If it silently ignores the clock-mode bits too, the chip stays at x16 and
+every x1 point runs at 1/16 the intended rate — which a scope on TxD shows
+in seconds and a failed transfer does not distinguish from a phase problem.
+**Measure the bit period on TxD before believing any result.**
+
+**MAME cannot run this sweep.** Its RS-232 link is bit-synchronous, so x1
+would very likely pass in emulation regardless of what the hardware does —
+a false positive. It also caps around 9600 (§16n). Hardware only.
+
+#### First sweep run, 7 August 2026 — x1 takes effect and corrupts
+
+Three points ran on the bench before the session ended. The results narrow
+the question sharply and **eliminate one of the two candidate causes.**
+
+```
+S96X16  x16 count   8   rxbytes=39503  file=32768  rxlost=0 rxfull=0  60.0 s  clean
+S96X1   x1  count 130   rxbytes=20309  file= 1156  rxlost=0 rxfull=0  27.0 s  Protocol error
+S384X1  x1  count  33   no output at all -- died before the exit report
+```
+
+The Mac gave up on retransmissions in `S96X1`; the operator stopped after
+`S384X1`.
+
+**x1 is being applied, and the rate is approximately right.** 1,156 bytes of
+the fixture were written correctly — 3.5%, which is the operator's "a few
+percent in" — before it degraded. Had the OEM driver's IOCTL ignored CR4's
+clock-mode bits, the chip would have stayed at x16 with count 130 and run at
+601 bps against a host at 9600; nothing would have framed at all, from the
+first byte. So the "CR4 not applied" candidate is **dead**, and the §11a
+worry that the write subfunction might drop the clock bits the way it drops
+CR1 does not apply.
+
+**It is corruption, not loss.** `rxlost = 0` and `rxfull = 0`: the µPD7201
+reported no overrun and the receive ring never filled. 20,309 bytes were
+clocked in and **94.3% of them were rejected by the protocol**. The bytes
+arrive; their values are wrong. That is the signature of mis-sampling, and
+it is not the signature of an overrun, a slow handler, or a ring that is too
+small — all three of which this port has seen before and all three of which
+show up as `rxlost` or `rxfull`.
+
+So the evidence is consistent with the sampling-phase mechanism §11a0
+predicted: at one clock per bit the receiver anchors to the first RxC edge
+after the start-bit transition, which is up to a full bit late, and nothing
+re-centres it. **Consistent with is not the same as demonstrated**, and the
+alternatives are not yet excluded — the LS153 may route something
+unexpected in this configuration, or the x1 clock may have an integrity
+problem at the mux that x16's oversampling was hiding. The scope settles it.
+
+**What to probe, and both are TTL on small DIPs rather than the 40-pin
+7201:**
+
+- **LS153 15F pin 7** (`1Y`) — the receive clock actually reaching the
+  7201 for channel A.
+- **MC1489 14D pin 3** — the TTL-level received data from the Mac.
+
+Three things to read off them:
+
+1. **RxD bit period** should be 104.17 µs (host at 9600).
+2. **RxC period.** 104.0 µs confirms x1 with count 130. If it reads ~6.5 µs
+   the chip is at x16 after all and everything above is wrong.
+3. **Where the RxC rising edge falls inside each RxD bit cell, and whether
+   that offset drifts.** This is the measurement that decides it. The
+   mechanism predicts an offset that walks at roughly the 0.16% frequency
+   difference — one full bit every ~625 bit times — with corruption
+   whenever it crosses a bit boundary.
+
+Running `S96X16` with the same probes is the control: at x16 the RxC period
+should be 6.5 µs and the oversampling is directly visible.
+
+**A caution on reading the corruption pattern:** if it is periodic — clean
+runs alternating with bursts — that is the phase walking, and it also
+explains why 3.5% got through before the protocol gave up. If it is uniform
+from the first packet, the mechanism is something else.
+
+#### Second sweep run: the model confirmed, and the envelope it implies
+
+`S96X1S` — x1, count 130, `DRPSIZ=90` — ran 8 August 2026. The Mac reported
+
+```
+ Packets sent: 65        Retransmissions: 132
+ Timeouts: 1             Damaged packets: 0
+ Transfer canceled by receiver.  Receiver's message: "Too many retries."
+```
+
+197 attempts for 65 distinct packets is **33.0% first-attempt success**
+against a **predicted 39.2%**. Backing the rate error out of the
+observation, at ~110 wire bytes per packet:
+
+```
+implied p_char 1.003%  ->  implied rate error 0.1114%
+                           measured rate error 0.1150%   (scope, TD vs RD)
+```
+
+Within 3% of the pin measurement. The Victor side agrees: `rxlost = 0
+rxfull = 0` again — still corruption, never overrun — `wfile of 2683` bytes
+against 1,156 with long packets, and `txgap n = 198` matching the attempt
+count.
+
+**Three points now fit one relation across a 400x range of packet length:**
+
+```
+P(packet accepted) = (1 - 9 x rate_error) ^ L        L = wire bytes
+```
+
+| what the Victor received | L | predicted | observed |
+|---|---:|---:|---:|
+| ACKs, send leg | ~10 | 90% | "a few retransmissions" |
+| short data, `S96X1S` | ~110 | 39% | **33%** |
+| long data, `S96X1` | ~1700-4000 | ~0% | 94.3% rejected |
+
+The 9 is the number of bit times from the start-bit sample to the stop-bit
+sample in 8N1; it is the distance over which the two clocks drift apart
+before the next start bit re-anchors. At x16 there is no such term at all,
+because the half-bit centring absorbs the drift — which is why x16 tolerates
+1.73% and x1 does not tolerate 0.115%.
+
+**The mechanism is settled. x1 works, and its capacity is packet length
+times rate error.**
+
+#### The envelope, and what it does to the remaining sweep points
+
+At x1 the 8253's count quantisation is coarse — one step at count 130 is
+0.77% — so the Victor cannot meet a standard-rate host halfway. Against a
+host at the nominal rate:
+
+| target | count | actual | error | P(110-byte packet) |
+|---|---:|---:|---:|---:|
+| 9600 | 130 | 9,615.38 | 0.16% | 20% |
+| 19200 | 65 | 19,230.77 | 0.16% | 20% |
+| 38400 | 33 | 37,878.79 | **1.36%** | **0.0001%** |
+| 57600 | 22 | 56,818.18 | **1.36%** | **0.0001%** |
+| 76800 | 16 | 78,125.00 | **1.73%** | **0.00003%** |
+| 115200 | 11 | 113,636.36 | **1.36%** | **0.0001%** |
+
+**So `S384X1`, `S576`, `S768` and `S1152` cannot work as staged**, at any
+packet length, against a Mac set to the nominal rate. Their nominal mismatch
+is an order of magnitude worse than the one that already costs 67% of
+packets at 9600. `S384X1` producing a zero-length `.OUT` on the first sweep
+is consistent with this and needs no other explanation.
+
+Those four points are only reachable if **the host is set to the Victor's
+computed rate** — 37,879, 56,818, 78,125, 113,636 — which macOS will not do
+through termios. `.probe/macspeed.c` does it with `IOSSIOSPEED`:
+
+```sh
+cc -O2 -o .probe/macspeed .probe/macspeed.c
+.probe/macspeed /dev/cu.usbserial-XXXX 113636 -h
+```
+
+`-h` holds the descriptor open, which is required: the rate is a property of
+the open port and macOS restores the driver's own idea of it on last close.
+Run C-Kermit in another terminal against the same device and **give it no
+`set speed` command at all** — `ttpkt()` calls `ttsspd()` whenever a speed
+was set, which would put a standard rate back over the top. The helper
+prints what `tcgetattr` reads back, but treat that as advisory; a
+non-standard rate does not always survive the round trip through termios
+even when the hardware has taken it. The scope is the measurement that
+counts.
+
+With the host matched, the remaining error is two free-running crystals,
+perhaps 100 ppm, and the envelope becomes:
+
+| packet | at 0.115% (nominal mismatch) | at ~100 ppm (matched) |
+|---:|---:|---:|
+| 110 B | 33% | 90% |
+| 500 B | 0.3% | 64% |
+| 1000 B | ~0% | 40% |
+| 4000 B | ~0% | 2.7% |
+
+**Matching the host does not rescue long packets.** Two independent crystals
+cannot hold 4,000 bytes together at x1. A few hundred bytes is the ceiling,
+and that is a property of the mode rather than of this implementation.
+
+#### What this is worth, stated against the measured bottleneck
+
+The operator ran 115 Kb on this machine in 1990, and that is now supported
+rather than merely asserted: x1 is a real async mode on this hardware, the
+Victor transmits 32 KB at x1 cleanly, and the receive side works to a
+length that the rate match determines.
+
+But §16v measured the throughput bound as the **foreground decode path** —
+564 µs per received byte, a **~1,353 cps ceiling** — against 1,013 cps
+already achieved at 38400 with x16 and 4,000-byte packets. So a perfect
+113,636 bps x1 link buys at most about a third, and must pay for it with
+short packets, more turnarounds, and rate matching at both ends. **Windowing
+is what would recover the turnaround cost, and it is gated on flow control**
+(NEXT_SESSION.md items 4 and 5). Rate is still not the lever; §16v's
+conclusion survives the whole of this subsection.
+
+#### Closed: 39,062.50 bps is the ceiling, and the code now says so
+
+8 August 2026. The operator traced the serial sheet and closed the last
+avenue: **the only path to the 7201's RxCA is through the 74LS90 divider
+chain.** There is no fixed tap that bypasses the 8253, and no external clock
+from the connector that reaches the receiver. The LS153 at 15F selects among
+LS90 outputs, not around them.
+
+That makes the ceiling arithmetic and final:
+
+```
+bps = 1,250,000 / (16 x count)      count >= 2 (8253 Mode 3)
+    = 78,125 / count
+    = 39,062.50 at count 2
+```
+
+**Which is what the port has shipped since §16o.** `B38400` is count 2, it
+was already the fastest thing the machine can do asynchronously, and §16v
+measured it at 1,013 cps. The three days of x1 work did not raise the
+ceiling; it established where the ceiling is and why.
+
+**What changed in the tree:**
+
+- `victor/sys/termios.h` — `B57600`, `B76800` and `B115200` removed;
+  `__MAX_BAUD` back to `B38400`. This matters more than it looks: `ttspdlist()`,
+  `ttsspd()` and `ttgspd()` all key off these `#define`s, so defining one is
+  enough to let `SET SPEED` and `-b` select a rate that cannot transfer.
+  Verified through the preprocessor that the offered list now ends at 38400.
+- `ckvictor.c` — `v9k_divisor[]` ends at 2; `v9k_clkbits[]` and its
+  compile-time length check are gone; `tcsetattr()` uses x16 directly.
+- **The overrides stay.** `XFLAGS="-dV9K_CLKBITS=0x00 -dV9K_COUNT=<n>"`
+  still forces any clock mode and count for one build, so the experiment is
+  repeatable without a broken rate in the shipping table. Confirmed it still
+  builds.
+
+Shipping build: 205,530 bytes, needs **219,738 (214K)**, smallest Victor
+384K. Nineteen warnings, the same nineteen.
+
+The x1 sweep binaries (`CKX9600`, `CKX384`, `CKX96S`) and their `.BAT`s are
+off the image; `S96X16.BAT` stays, because the x16 control is worth keeping.
+
+**What was actually gained.** Three things that were assumptions on 5 August
+are measurements now: the 8253 sees exactly 1,250,000 Hz (LS153 pin 7, two
+counts, same product); every rate on this machine is 1.72% fast and no
+integer count fixes it; and x1 is a real async mode that transmits 32 KB
+byte-exact but cannot receive long packets on a free-running link. None of
+that was known before, and the first of them settled an argument that had
+run through four documents in two projects.
+
+#### Retractions from this sequence, because there were four
+
+1. **"x1 is synchronous-only."** Wrong. The datasheet permits x1 in async
+   and says so in the RxC pin description. Asserted three times before the
+   datasheet was opened, and it was on the same machine throughout.
+2. **"Roughly half of characters sample too near an edge."** Wrong by ~10x.
+   The correct figure is `9 x rate error`.
+3. **"x1 is dead / not viable."** Wrong. It is viable with a length
+   constraint, and the send leg proves the transmit half outright.
+4. **The 102.40 µs Victor bit period was presented in a table of measured
+   values and was derived** — from the LS153 pin 7 period times 16. The
+   operator caught it, the TD measurement then confirmed the derivation
+   exactly, and the correction is the reason the model could be tested at
+   all. **Keep measured and derived apart in the same table, always.**
+
+**A second finding from the same sheet, and nobody is using it.** The 8253's
+`OUT0`/`OUT1` do not reach the 7201 directly. They are *inputs* to an
+**LS153 dual 4-to-1 multiplexer at 15F**, whose `1Y` (pin 7) and `2Y` (pin
+9) drive `RXCA`/`TXCA` and `RXCB`/`TXCB`. The OEM's Table C-2 names them
+"MUX SERIAL A/B" for exactly this reason. The other mux inputs appear to be
+fixed taps off the LS90 chain. **Neither this port nor the FreeDOS driver
+programs those select lines**, so the mux sits in whatever state reset or
+the OEM driver leaves it. Two consequences worth carrying: there is a degree
+of freedom here that has never been touched, and if a fixed tap does feed
+one of those inputs it is the only route to a clock the 8253 cannot make —
+which matters because the 8253 is in Mode 3 (`36H`) and modes 2 and 3 both
+require a count of at least 2, putting divisor 2 (39,062 bps) at the ceiling
+and making `B76800`'s divisor 1 unprogrammable.
 
 ### 11a. Configuration through the driver's IOCTL control block
 
@@ -6128,6 +6651,679 @@ nothing more. **And which machines it fits cannot be answered here**: §16x's
 own table says MAME misreports 512K and 640K, which are exactly the sizes
 this question turns on. The requirement, 428,662, is exact and comes from
 the MZ header rather than from an emulator.
+
+---
+
+## 16z. The console and the line shared one termios cache
+
+The first regression pass over the `KEEP_ICP` build, 7 August 2026, run by
+the operator on the Victor. **The parser works**: the herald prints, `SHOW`
+and `SET` parse, `SET LINE /dev/seriala` opens the port, and `TAKE` runs a
+command file from the prompt. Four reported symptoms, and they sort into
+three that are the configuration doing what it was told and one defect.
+
+### `TAKE` works, and that is the useful result
+
+`PTEST.KSC` is three lines — `echo`, `show versions`, `exit` — and all three
+executed, in order, including the `exit` that ended the session. So §1 item 1
+of `NEXT_SESSION.md` is **narrower than it was written**: `TAKE` is not
+broken, only the `argv[1]`-as-command-file path through `prescan()`
+(`ckuus4.c:1741`) is. That also means a take-file is available *now* as a way
+to drive the machine, which is what the item wanted it for.
+
+The file is CRLF and worked, which is worth recording because `_fmode` is
+`O_BINARY` here (§16h) and it is not obvious that the trailing CR gets
+stripped. Write take-files with CRLF; that is the ending that has been run.
+
+### Three non-defects
+
+- **`show versions` — "?No keywords match"**. `NOFRILLS`. Now fixed, and it
+  is the twelfth upstream edit; see §8 item 12 for why the cheap route
+  (making `NOFRILLS` conditional on `KEEP_ICP` in `ckvictor.h`, no upstream
+  edit) was the wrong one.
+- **`connect` — "file-transfer-only"**. Ours, `ckvictor.c` §1e-adjacent, and
+  deliberate: neither `ckucon.c` (needs `fork()`) nor `ckucns.c` (needs
+  `select()` on a tty) is linked.
+- **`show communications` says "unknown" before `SET LINE`, and "Modem
+  signals unavailable"**. `shoparc()` prints "unknown" when `ttyfd == -1`
+  (`ckuus4.c`), and the default line is `dftty = CTTNAM = "/dev/tty"` with
+  `dfloc = 0`, i.e. remote. Both correct.
+
+### The defect: `SET SPEED` did not stick
+
+`ckvictor.c`'s `tcsetattr()` stored `victor_ttcur = *t` **before** the test
+that decides whether the descriptor is the communication line, and
+`tcgetattr()` ignored its `fd` argument entirely. One cached `struct termios`
+for two devices.
+
+`ckutio.c` drives both through that pair. `congm()` seeds `ccold`,
+`cccbrk` and `ccraw` with `tcgetattr(0,...)` (`ckutio.c:12375-12377`), and
+`concb()`, `conbin()` and `conres()` write them back with `tcsetattr(0,...)`
+(`ckutio.c:12566` and neighbours). Every one of those console writes landed
+on the line's settings, `c_ospeed` included — and `c_ospeed` is what
+`ttgspd()` reads and what `SHOW COMMUNICATIONS` prints. `SET SPEED`
+programmed the 8253 divisor correctly and then had its *recorded* speed
+overwritten by the next console mode change.
+
+**This is a reporting defect, not a wire defect.** `tcsetattr()` computes
+the divisor from `t->c_ospeed` and writes the chip before it returns, so the
+line ran at the requested rate; nothing that has ever been transferred is in
+question. But `ttgspd()` is also how `ttpkt()` and the transfer display
+learn the speed, so it was not harmless.
+
+Fixed by giving the console its own `victor_ttcon` and routing on
+`V9K_ISCOMM(fd)`, which is the test `tcsetattr()` already used for whether to
+touch the chip. Port file, no upstream edit. Costs 32 bytes of `_DATA`.
+
+**Why it survived to here.** Under `NOICP` the console changes state perhaps
+twice in a run and nothing reads the speed back afterwards. The interactive
+parser calls `concb()` at the top of every command (`ckuus5.c:2779`) and
+again from `popclvl()` at the end of every take-file (`ckuus5.c:5107`) — the
+parser did not introduce the bug, it introduced a reader for it. That is the
+general point worth keeping: **a switch that turns on a large body of
+upstream code is an instrument, and the first thing it measures is the port's
+own assumptions about what upstream calls and how often.**
+
+### Not yet confirmed on the machine
+
+The mechanism above is read out of the source, and the arithmetic of it is
+certain. What is **not** established is that it is the whole of what the
+operator saw: `concb()` returns early when `constate == CON_CB`
+(`ckutio.c:12452`), so it writes only on a state transition, and no transition
+was proved to fall between the `SET SPEED` and the `SHOW COMMUNICATIONS`.
+The report also describes `SET SPEED` printing nothing at all, and
+`ckuus3.c:12321-12370` has no silent path — it prints one of `?SET SPEED has
+no effect without prior SET LINE`, `?SET SPEED fails, speed is <n>`, or
+`<line>, <n> bps`. **Treat "the cache was shared" as proved and "that is why
+you saw what you saw" as pending**, until the run below.
+
+### The run that settles it
+
+Staged on `victor_kermit.img`: `CKICPD.EXE` (`KEEP_ICP` + `KEEP_DEBUG`,
+531,826 at load, smallest Victor 640K), `SPDTEST.KSC`, `STEPSPD.BAT`.
+`tcsetattr()` now logs `tcsetattr console fd` / `tcsetattr line fd` with the
+`c_ospeed` it was handed, so the two caches are distinguishable in one log.
+Three runs, one boot, no `socat` needed — nothing transfers:
+
+```
+STEPSPD                             (both argv[1] runs, logs renamed)
+CKICPD -d                           then: take spdtest.ksc
+```
+
+`STEPSPD.BAT` runs `CKICPD -d SPDTEST.KSC` and then `CKICPD -d
+A:\SPDTEST.KSC`, which is §1 item 1's relative-versus-absolute control, and
+keeps both debug logs. The third run is the speed sequence with the parser
+reading the same file from the prompt, where it is known to work.
+
+---
+
+## 16aa. The run, and it found a different defect
+
+7 August 2026, real Victor hardware, §16o's bench machine. §16z's run
+executed, and **§16z's account of `SET SPEED` was wrong.** Not the mechanism
+— the two devices really did share one cached `struct termios`, and that is
+fixed and stays fixed. It was wrong about the cause of what the operator saw.
+`SET SPEED` never got as far as the cache.
+
+Three findings, one of them mine rather than the port's.
+
+### `SHOW VERSIONS` works on hardware
+
+Edit 12 confirmed on the machine, the whole block, from `C-Kermit 11.0.506`
+through `CONNECT Command for Victor 9000: not implemented`. That last line is
+worth noting on its own: `shover()` prints `connv`, and `connv` is the string
+`ckvictor.c` defines for the stub, so **`SHOW VERSIONS` names the port's own
+modules and not just upstream's.**
+
+### The defect: `ttyname()` said everything was the console
+
+`SET LINE /dev/seriala` reported success and left the program in **remote**
+mode, which is why `SET SPEED` answered `?SET SPEED has no effect without
+prior SET LINE` — correctly, by then. `SPD3.LOG`:
+
+```
+priv_opn result=7
+ttopen untimed ttyfd[/dev/seriala]=7
+ttopen ttyname(ttyfd) xlocal[CON:]=0
+ttopen setting ttyfd = 0
+...
+SET LINE local=0
+```
+
+`ckvictor.c`'s `ttyname()` was `return("CON:")` for every descriptor.
+`ttopen()` decides locality by opening the device and then asking `ttyname()`
+what it *really* is (`ckutio.c:3180`), comparing against `cttnam` — which
+`sysinit()` filled in from `ttyname(0)`, i.e. `"CON:"`. So the serial line
+identified itself as the controlling terminal, `xlocal` went to 0, and the
+`NOFDZERO` block at `ckutio.c:2919` then forced **`ttyfd` to 0** as well.
+
+Fixed by returning `NULL` for anything that is not descriptor 0, 1 or 2,
+which is what POSIX says and what `ckutio.c` wants — it treats an empty
+answer as "not the console" and leaves `xlocal` at 1.
+
+**Why the port has transferred files for its whole life with this in it.**
+The entire test is inside `if (*lcl < 0)` — "caller wants us to figure out if
+line is controlling tty". `cmdlin()`'s `-l` passes `lcl = 1`, so the shipping
+build *tells* `ttopen()` the answer. Only `SET LINE`, which passes -1, asks.
+There has never been a `SET LINE` before this build.
+
+That is the same shape as §16z's own defect and the second instance of it in
+two sessions: **a stub written to satisfy one caller, correct for that caller,
+wrong for the one the parser introduced.** Both were latent for the port's
+whole life and neither was reachable without the parser.
+
+### The console had no line discipline, and upstream assumes one
+
+Separately reported by the operator and confirmed in the source: typing at
+the prompt echoes correctly, but pressing Enter returns the cursor to column
+0 without advancing a line, so the next output overprints the command.
+
+`cmdnewl()` (`ckucmd.c:7714`) echoes the character that terminated the
+command **and nothing else**. On Unix the tty has `ICRNL`, so `gtword()` is
+handed an LF and `ONLCR` turns the echo back into CR-LF. This console is raw
+in both directions — `c_iflag` and `c_oflag` were 0 — so the CR from
+`AH=07h` was echoed as a bare CR. Upstream describes the shape of this
+exactly, three lines below, in the comment above its own `BSD44` workaround.
+
+Done in `ckvictor.c`, not `ckucmd.c`, so it costs no upstream edit: the
+console's cached termios now carries `ICRNL` and `OPOST|ONLCR`, and
+`v9k_read()`/`v9k_write()` honour those two bits for descriptors 0 and 1/2
+when `isatty()` agrees. **`conbin()` clears `ICRNL` and `OPOST` out of
+`ccraw`** (`ckutio.c:12671`, `:12673`), so binary console mode — which is
+what remote-mode packet I/O over fd 0 uses — turns the translation off by
+the normal route rather than by a special case here. The `isatty()` test is
+what keeps every `.OUT` this project has recorded byte-identical: a
+redirected stdout is a file, and a file gets what the program wrote.
+
+### `SPD1`/`SPD2` tested nothing, and the reason is worth writing down
+
+Both runs failed identically:
+
+```
+"SPDTEST.KSC" - invalid command-line option, type "A:\CKICPD.EXE -h" for help
+```
+
+That is **not** §1 item 1 reproducing. `STEPSPD.BAT` ran `CKICPD -d
+SPDTEST.KSC`, and `prescan()`'s filename branch is guarded by
+`yargc > 1 && *yargv[1] != '-'` (`ckuus4.c:1610`) — *first* argument, not
+*an* argument. With `-d` in front, the branch is skipped and the filename
+falls through to `cmdlin()`, which rejects it. Upstream behaviour, correctly
+documented in its own comment as "Filename as 1st argument".
+
+So the experiment has to be `CKICPD SPDTEST.KSC -d`: the filename first, and
+`-d` after, which `prescan()`'s later argument loop still picks up because
+the filename branch advances `yargv` past it. `STEPSPD.BAT` now does that.
+**§16y's original failure is still unexplained** — it was `CKICP PTEST.KSC`
+with no switches at all, which does take the branch.
+
+### The take-file was mine, and `---` is a continuation
+
+None of the four `show communications` commands ran. `SPD3.LOG`:
+
+```
+getnct[echo --- after set line ---<CR><LF>]
+getnct[show communications<CR><LF>]
+CMD(F)[echo --- after set line --show communications<LF>]
+```
+
+A trailing `-` is C-Kermit's line-continuation character, and my `echo`
+lines ended in `---`. The parser stripped one and appended the next line, so
+each `show communications` became part of the preceding `echo`'s argument.
+Rewritten without it. **Nothing about this is a port defect**, and the log
+shows the continuation machinery working exactly as designed.
+
+### Sizes after both fixes
+
+| build | needs at load | smallest Victor |
+|---|---:|---|
+| shipping, `NOICP` | 219,372 (214K) | 384K |
+| `KEEP_ICP` | 429,070 (419K) | 512K |
+| `KEEP_ICP` + `KEEP_DEBUG` | 532,146 (519K) | 640K |
+
+Still twelve guarded upstream edits — both fixes are in `ckvictor.c`.
+`ckvictor.c` still compiles with no warnings.
+
+### What is still unconfirmed
+
+Everything above is either measured in `SPD3.LOG` or read out of upstream
+source. **Neither fix has run on the machine.** The re-staged run is the
+same three legs; §16z's speed sequence has still never executed, because
+`SET LINE` never made the program local.
+
+---
+
+## 16ab. `SET LINE` works, and §1 item 1 is diagnosed
+
+7 August 2026, real hardware, §16aa's binaries. Two of §16aa's three fixes
+are confirmed on the machine, one is not, and the run also produced the
+answer to the oldest open item in `NEXT_SESSION.md`.
+
+### Confirmed: `ttyname()`, and the whole of §16z behind it
+
+```
+ttopen ttyname(ttyfd) xlocal[]=1
+SET LINE local=1
+tcsetattr line fd[7]=13
+```
+
+`ttyfd` stays 7, `xlocal` stays 1, and the `tcsetattr line fd[7]` /
+`tcsetattr console fd[0]` pair shows the two termios caches going to the
+right places. `SET SPEED 19200` then reached `ttsspd` (`cps=1920`, `s=14`)
+and `ttgspd` read **19200** back — the first time in this port's life that a
+speed set from the prompt has been read back correctly.
+
+`SET SPEED 38400` is a separate question and is **not** answered here: there
+is no `ttsspd cps=3840` in the log at all, so it failed in the parser before
+reaching `ttsspd`. Not investigated yet.
+
+### Confirmed: `ICRNL`. Not confirmed: the overprint
+
+The input half works. `gtword` is handed **10**, not 13:
+
+```
+gtword c=99
+gtword c=10
+CMD(P)[take spdtest.ksc]
+```
+
+The operator still reports the overprint, so `ICRNL` was not the whole
+story, and the write-side theory in §16aa is now doubtful too:
+
+- `cmdnewl()` uses **stdio** `putchar`, not `conoc`. Both of upstream's
+  `#define putchar conoc` are guarded — `ckcdeb.h:5118` by `datageneral`,
+  `ckucmd.c:250` by `GEMDOS` — so neither is in play, and §16aa's `ONLCR`
+  in `v9k_write()` never sees the parser's newline at all. It still fixes
+  `conoc()`/`conol()`, which do use `write()`.
+- **stdout is in text mode**, so stdio should be translating that `\n`
+  itself. `SPD1.OUT` and `SPD2.OUT` — stdout, redirected — end in CRLF,
+  while `SPD3.LOG` has bare LF, which is §16h's `_fmode` oracle reading
+  exactly as designed: files binary, stdout text.
+- `cmdnewl()` ends in `fflush(stdout)`, and so do `cmdecho()` and
+  `prompt()`, so the parser is not mixing buffered and unbuffered writes.
+
+So on the evidence the newline is emitted and translated, and something
+else produces what is on the screen. **This is open**, and the next thing it
+needs is a photograph rather than another hypothesis.
+
+### `CKICP FILE.KSC`: one defect, two symptoms
+
+`SPD1.LOG` ends with the answer, in a line printed by the exit path:
+
+```
+doclean DeleteStartupFile[A:\/SPDTEST.KSC]=0
+```
+
+`cmdfil` is **`A:\/SPDTEST.KSC`**. `zfnqfp()` built it (`ckufio.c:7500`):
+
+```c
+if ((p = zgtdir())) {            /* So get current directory */
+    x = ckstrncpy(buf,p,len);
+    buf[x++] = '/';
+```
+
+unconditionally, and `zgtdir()` returns DOS's `A:\`. This build defines
+`UNIX`, so every path primitive above it joins with `/` and tests for `/`;
+a trailing `\` is a separator upstream cannot see on the end of a string it
+assumes has none. The same line explains `zfnqfp path[A:\/A:\]` in the
+startup trace, which has been in every debug log this port has ever written
+and which nobody read.
+
+**The second symptom is why the message was so misleading.** `dotake()`
+could not open `A:\/SPDTEST.KSC`, so `tlevel` stayed at -1, so `docmdfile()`
+never reached `cfilef = 1` (`ckcmai.c:2604`) — and `cfilef` is the *only*
+thing that tells `cmdlin()` to skip argv[1] (`ckuusy.c:1597`). So the
+command file silently failed to open and the filename was then reported as
+an invalid option. `findinpath()` was never the suspect it was written up
+as: it found the file.
+
+Fixed by renaming `getcwd()` to a `ckvictor.c` wrapper that returns a
+Unix-shaped path — separators forward, no trailing one. At a drive root
+that is `A:`, and `A:` + `/` + `NAME` is a path INT 21h accepts; it is
+COMMAND.COM that will not take `/`, and nothing here goes through
+COMMAND.COM. **No upstream edit — still twelve.**
+
+### The absolute-path leg: guarded upstream edit 13
+
+```
+A> CKICPD A:\SPDTEST.KSC -d
+?No files match - a:\spdtest.ksc
+```
+
+No `SPD2.LOG` at all, which is the tell: `prescan()` exited inside the
+filename branch, before its argument loop could process `-d`.
+`isabsolute()` (`ckcmai.c:1755`) tests only for a leading `/` under `UNIX`,
+so `A:\SPDTEST.KSC` is "relative", goes to `findinpath()`, and
+`findinpath()` under `NOSPL` searches an **empty** path list — it hands the
+name to `cmifip()` and returns NULL when that fails, which lands on
+`doexit(BAD_EXIT,xitsta)`.
+
+Fixed as §8's thirteenth guarded edit, and **the half that was asked for was
+not sufficient**: `zfnqfp()` spells the same question `*s == '/'`
+(`ckufio.c:7494`), so an `isabsolute()` that says yes just moves the failure
+to a qualified name of `A:/A:\SPDTEST.KSC`. Both arms are in, and the
+reasoning for each is in §8 item 13.
+
+One consequence worth knowing: with the absolute form now taking
+`prescan()`'s `else` branch, `findinpath()` is skipped entirely, which also
+sidesteps the second problem that path had — `CMDQ` is `\`, and
+`findinpath()` pushes the name through the command parser, where `\S` is a
+quoted `S`. The relative form still goes through `findinpath()` and still
+has it; it works because `SPDTEST.KSC` contains no backslash.
+
+**Not run on hardware.**
+
+### A stack hazard noticed on the way past
+
+`findinpath()` declares `char takepath[4096]` (`ckuus4.c:1337`) — a 4K
+automatic on an 8K stack (rule 7). It is `#ifndef NOICP`, so the shipping
+build does not have it, but every `KEEP_ICP` build calls it on the argv[1]
+path. Read, not measured; no `-fstack-usage` under Open Watcom.
+
+### `Built for:` now names the machine
+
+`SHOW VERSIONS` said `Built for: Unknown Platform`, and so did both of the
+`... for Unknown Platform` lines under it. `ckuver.h` assigns `HERALD` to
+`ckxsys` (`ckutio.c:292`) and `ckzsys` (`ckufio.c:308`), picks it from a
+chain of platform `#ifdef`s that this port matches none of, and ends with an
+`#ifndef HERALD` fallback — so defining it in `ckvictor.h` is upstream's own
+mechanism and costs **no edit**. It is now ` Victor 9000 / Sirius 1`: the
+machine, not the operating system, because one image runs on both DOSes and
+`Running on:` already reports which from `uname()`.
+
+The leading space is required, not cosmetic — two of the three places it
+prints are `"%s for%s"` in `shover()`, where the space is the separator, and
+every arm of upstream's chain has one.
+
+**`CKCPU` is deliberately left undefined next door.** With it undefined,
+`ckuus4.c:13706` falls through to `unm_mch` from `uname()`, which already
+answers `Victor` — a runtime answer, and a better one than a compile-time
+constant. Defining it would replace a correct value with a guess.
+
+### Sizes
+
+Shipping needs **219,532 (214K)**, smallest Victor 384K. `KEEP_ICP` 429,230
+(419K), 512K. `KEEP_ICP` + `KEEP_DEBUG` 532,338 (519K), 640K. `ckvictor.c`
+compiles with no warnings; the tree's 19 are unchanged, though edit 13
+shifts the reported line numbers in `ckcmai.c` and `ckufio.c`.
+
+---
+
+## 16ac. Two echoers, and the region that swallows `main()`
+
+7 August 2026, real hardware, §16ab's binaries. The path fixes worked and
+were not enough; the overprint is explained and fixed; and the actual cause
+of `CKICP FILE.KSC` turns out to be §16j's defect, one region wider than
+§16j recorded.
+
+### The path fixes worked, measured
+
+```
+SPD1:  v9k_getcwd[A:]   ...  DeleteStartupFile[A:/SPDTEST.KSC]
+SPD2:  isabsolute[A:]=2 ...  DeleteStartupFile[A:\SPDTEST.KSC]
+```
+
+`cmdfil` was `A:\/SPDTEST.KSC` before §16ab and is correct in both forms
+now — relative through `getcwd()`, absolute through edit 13. Both legs still
+printed "invalid command-line option", which is what led to the next
+paragraph.
+
+### The overprint: DOS was echoing, and so were we
+
+The operator's description settled it where three rounds of source reading
+had not. Screen before Enter, 28 columns:
+
+```
+C-Kermit>show communications
+```
+
+after Enter:
+
+```
+show communicationsnications
+```
+
+Columns 0-18 are `show communications` written a second time; columns 19-27
+are the tail of the original line, untouched. So something emitted a **bare
+CR** and then the command text was echoed **again** from column 0. Two
+echoers and one carriage return — not a missing newline, which is what it
+looked like and what §16aa and §16ab both chased.
+
+`read(0,...)` goes to the Watcom runtime, which for a character device in
+text mode issues INT 21h **AH=3Fh**, and AH=3Fh on CON is DOS's **cooked**
+line input. DOS collects the line, echoes it as it is typed, echoes a bare
+CR on Enter, and only then returns the first byte. C-Kermit's parser reads
+the rest out of DOS's buffer one byte at a time and `cmdecho()`s each one
+itself, from column 0.
+
+Fixed in `ckvictor.c`: `v9k_read()` now honours `ICANON`. With it clear —
+which is what `concb()` asks for and what this build starts with — a console
+read is one INT 21h **AH=07h**, direct console input without echo, VMIN = 1.
+`AH=08h` was rejected on purpose: it checks for Ctrl-C, which goes through
+INT 23h and can terminate the program with IRQ1 still vectored into our
+handler, and §15's Ctrl-Break question is still open. Byte 3 goes to the
+parser instead, which is what raw mode means anyway.
+
+**Untested:** extended keys. On an IBM-compatible, AH=07h returns 0 and the
+scan code follows on the next call; whether the Victor's keyboard driver
+does the same is not known. Nothing in this build reads arrow keys
+(`NORECALL`, `NOSETKEY`), so the byte is passed through rather than guessed
+at.
+
+Two earlier conclusions survive and were necessary: `ICRNL` (§16aa) is what
+makes the parser see LF rather than CR, and it is still right; `ONLCR` in
+`v9k_write()` still fixes `conoc()`/`conol()`, which do use `write()`. What
+was wrong was the *diagnosis* — §16aa said the newline was emitted and
+something else drew the screen, and half of that was true.
+
+### The real `CKICP FILE.KSC` defect: `#ifndef NOTCPIP` again
+
+`SPD1.LOG` jumps straight from `setprefix=0` (`ckcmai.c:3413`) to
+`main argc=3` (`ckcmai.c:3678`), with nothing in between — no
+`main argc after prescan()`, no `howcalled`, no `main 2 cfilef`. Counting
+`#if` nesting from line 1:
+
+```
+3417  #ifndef NOTCPIP
+3418  #ifndef NOICP
+        ... if (sstelnet || inserver) { ... }
+3601  #endif  /* NOTCPIP */    <- actually closes NOICP@3418
+        ... environment variables ...
+3649    dotakeini(0);                        <- the init file
+3657    debug(F111,"main 2 cfilef",...)
+3658    if (cmdfil[0]) { docmdfile(0); }     <- the command file
+3671  #endif /* NOICP */       <- actually closes NOTCPIP@3417
+```
+
+**Everything from 3602 to 3670 is inside `#ifndef NOTCPIP`, and this build
+defines `NOTCPIP`.** So `prescan()` finds the command file, qualifies it
+into `cmdfil` correctly — and nothing ever runs it. `cfilef` therefore stays
+0, and `cfilef` is the only thing that tells `cmdlin()` to skip argv[1]
+(`ckuusy.c:1597`), which is why the *filename* is reported as an invalid
+option. The init file is gone the same way: `dotakeini()` is two lines
+above.
+
+**This is §16j's defect and the same `#ifndef NOTCPIP`.** §16j found it
+swallowing `dofast()` and concluded that four capacity symbols had never
+reached the wire; it did not follow the region to its end. The rule §16j
+wrote — *count nesting from line 1, not from the enclosing function* — is
+right, and applying it once more would have found this two months earlier.
+
+**Fixed, as guarded upstream edit 14, and it is the first change this port
+has made that is not a no-op elsewhere.** An `#endif` cannot be placed
+conditionally — preprocessor nesting balances lexically whatever the macros
+say — so there is no `#ifdef VICTOR9K` form of "close this region 70 lines
+earlier". Upstream's own `#endif` moved to where its own comment says it
+belongs. §8 item 14 has the evidence for that reading rather than the
+alternative one (a *missing opener* rather than a drifted closer): the code
+inside carries its own `#ifndef NOICP` guards around `dotakeini()` and
+`docmdfile()`, which would be redundant otherwise, and `cmdfil`/`cfilef` are
+declared unconditionally.
+
+**And the repair tried to change the wire protocol on the way past.**
+`dofast()` is in the same region, `CK_FAST` is defined on every UNIX build,
+and `dofast()` sets `wslotr = RBSIZ / MAXSP = 8192 / 4000 = 2`. So the first
+Victor build with the nesting fixed would have negotiated a **window of
+two** — on a port with no interrupt-level flow control, whose 4,096-byte
+ring is safe only because a window of one puts at most one packet in flight,
+with a 105-byte margin. That is exactly the change `CLAUDE.md` says cannot
+ship without a run reaching FINISH and reporting
+`rxlost`/`rxfull`/`rxpeak`, and it would have arrived unmeasured as a side
+effect of a preprocessor repair. The call is now `#ifndef VICTOR9K`, which
+*is* expressible as a guard and is a no-op elsewhere. Remove it when
+NEXT_SESSION.md items 4 and 5 — flow control, then windows — are done.
+
+The general lesson is the one to keep: **when a preprocessor repair widens
+what a build compiles, enumerate what newly comes in before believing the
+repair is inert.** The only reason this was caught is that §16j had already
+written down what `dofast()` does.
+
+**Attribution, because it was queried and the answer matters:** the
+mis-nesting is upstream's and predates every edit in this tree. At `HEAD`,
+before edit 13 existed, the region opened at 3390 and closed at 3644 with
+`#endif /* NOICP */` — which is precisely the 3390 → 3644 §16j recorded.
+Edit 13's `#ifdef VICTOR9K` / `#else` / `#endif` in `isabsolute()` is
+balanced and sits ~1,900 lines above; it moved the line numbers by 27 and
+nothing else.
+
+**Not run on hardware.**
+
+### Sizes
+
+Shipping needs **219,772 (214K)**, smallest Victor 384K. `KEEP_ICP` 429,486
+(419K), 512K. `KEEP_ICP` + `KEEP_DEBUG` 532,722 (520K), 640K. Nineteen
+warnings, the same nineteen; `ckvictor.c` clean. **Fourteen** upstream
+edits, thirteen of them guarded no-ops elsewhere.
+
+---
+
+## 16ad. Verified under MAME, and one defect left
+
+7 August 2026, MAME `victor9k -ramsize 896K`, Victor MS-DOS 3.1, no serial
+line and no host — nothing here transfers. Run before spending hardware
+time, which is what it is for.
+
+### `CKICP FILE.KSC` works, both forms
+
+`STEPSPD.BAT` autobooted; both legs produced 2,826 bytes of the script's own
+output where they had produced one line of "invalid command-line option".
+That confirms three changes at once — edit 14's `#endif`, edit 13's
+`isabsolute()`/`zfnqfp()`, and §16ab's `getcwd()` wrapper — and it is the
+first time in this port's life that a command file named on the command line
+has run.
+
+Also confirmed in the same output: `Built for:  Victor 9000 / Sirius 1`
+(with the two spaces upstream's format produces on every platform), both
+module lines carrying `for Victor 9000 / Sirius 1`, `Line: /dev/seriala,
+speed: 9600, **mode: local**` after `SET LINE`, and `SET SPEED 19200`
+reading back as 19200.
+
+### The console echoes once
+
+A Lua `-autoboot_script` was needed rather than `-autoboot_command`, because
+the latter posts its whole string at once and DOS type-aheads it into the
+keyboard buffer — which is precisely the thing under test. The script posts
+`CKICPD -d` at t=61, `show communications` at t=201, and snapshots at t=235;
+`emu.add_machine_frame_notifier` is the hook. The snapshot shows
+
+```
+C-Kermit>show communications
+
+Communications Parameters:
+ Line: /dev/tty, speed: unknown, mode: remote, modem: none
+```
+
+— the typed command once, on the prompt line, output starting on a fresh
+line below.
+
+**The control was not run.** The pre-§16ac binary has never been under MAME,
+so this says "with the fix the console behaves correctly", not "MAME
+reproduces the bug and the fix cures it". The mechanism is DOS's, not the
+emulator's — cooked INT 21h AH=3Fh versus raw AH=07h, in the same MS-DOS 3.1
+binary either way — so it should transfer, but that is an argument and not a
+measurement. Extended keys remain untested on both.
+
+### The `SET SPEED` *command* is broken above 32767 bps
+
+**This is not about 38400 on the wire.** File transfer at 38400 is proven
+on hardware three times over (§16o, §16t, §16v — 1,013 cps) and none of it
+is in question here. Those runs are `STEPCA.BAT` on the image:
+
+```
+CKERMITW -l /dev/seriala -b 38400 -r > STEPCA.OUT
+```
+
+`-b` on the command line, in the shipping `NOICP` build, which has no `SET
+SPEED` command at all. What follows is a defect in the interactive parser's
+keyword table, reachable only from a `KEEP_ICP` build, which has never sent
+a byte.
+
+Reproduced under MAME, so it needs no hardware. `SET SPEED 38400` returns to
+the prompt in silence and the speed does not change:
+
+```
+cmkey numeric calling nlookup =1
+nlookup DIRECT HIT[38400]=-2713
+cmkey nlookup[38400]=-2713
+docmd returns=-2713
+```
+
+`ckuus5.c:1262`, in `cmdini()`, building `spdtab` from `ttspdlist()`:
+
+```c
+spdtab[j].kwval = (int) ss[i] / 10;
+```
+
+The cast binds tighter than the division. `ss[i]` is a `long` 38400,
+`(int)38400L` is **-27136** on a 16-bit `int`, and -27136/10 is **-2713**.
+`cmkey()` returns that as the match value; `ckuus3.c`'s `SET SPEED` sees
+`x < 0` and does `return(x)` with no message, which is exactly the reported
+symptom.
+
+Every speed above 32767 is affected on a 16-bit target, and two of them fail
+in the worse direction:
+
+| speed | kwval | result |
+|---|---:|---|
+| 19200 | 1920 | correct |
+| 38400 | -2713 | rejected silently |
+| 57600 | -793 | rejected silently |
+| 76800 | 1126 | **accepted as 11260 bps** |
+| 115200 | 4966 | **accepted as 49660 bps** |
+
+**Why no transfer ever hit it, concretely.** `-b` takes a different path —
+`ckuusy.c:4164` does `zz = atol(*xargv); i = zz / 10L;`, dividing as a long
+— and `STEPCA.BAT` above is how every published 38400 measurement was
+driven. The `set speed 38400` that appears in `s16uCA.ksc` is the **Mac
+host's**, desktop C-Kermit with a 32-bit `int`, where the truncation cannot
+happen. The bug needs `SET SPEED`, which needs the command parser.
+
+**And MAME's ~9600 line-rate ceiling does not bear on this**, which is worth
+stating because it is the obvious objection. The run had no `-rs232a` and no
+`-bitb`: nothing was connected and no byte moved. In that same run `SET
+SPEED 19200` **succeeded** — `nlookup DIRECT HIT[19200]=1920`, `ttsspd
+cps=1920`, `ttgspd speed=19200` — while 38400 produced no `ttsspd` call at
+all. A ceiling on emulated line rate cannot make one keyword parse and the
+other not.
+
+The fix is one token, `(int) (ss[i] / 10)`, and unlike edit 14 it really is
+a no-op everywhere else: on a platform with 32-bit `int` the two expressions
+compute the same value. Not made yet — it would be edit 15 and §8's rule is
+to agree upstream edits rather than make them quietly. Worth reporting
+upstream alongside 14.
+
+### Harness notes
+
+- **`-logfile` is not a MAME option here** (v0.287); it exits with status 6
+  and runs nothing. `-log` writes `error.log`. One run was lost to this.
+- **`-autoboot_command` cannot test interactive echo**, for the reason
+  above. `-autoboot_script` with a frame notifier can, and can also
+  `manager.machine.video:snapshot()` on demand rather than relying on the
+  final frame.
+- **`STEPSPD.BAT`'s `REN DEBUG.LOG SPD1.LOG` fails silently if the target
+  exists**, leaving a stale log next to a fresh `.OUT`. Delete the previous
+  `SPD*` files before a run; §16a's landmine list gains one.
+- MAME ran 419 emulated seconds in 419 wall seconds, 99.66% — consistent
+  with §16n's 1:1.
 
 ---
 

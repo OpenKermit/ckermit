@@ -1766,12 +1766,39 @@ isabsolute(path) char * path;
     x = (int) strlen(path);
     debug(F111,"isabsolute",path,x);
 #ifdef UNIX
+#ifdef VICTOR9K
+/*
+  A DOS target that presents as UNIX.  It has to, because UNIX is what
+  selects ckutio.c and ckufio.c and what makes ckcdeb.h define DYNAMIC, but
+  its pathnames have drive letters and backslashes and this function is the
+  one place where that difference is not cosmetic: prescan() (ckuus4.c)
+  sends anything it calls relative through findinpath(), which under NOSPL
+  searches an empty path list and then exits.  So "kermit A:\FOO.KSC" could
+  not run a command file.
+
+  This is upstream's own OS2 arm, six lines below, reached from a build that
+  cannot define OS2.  The letter test is written out rather than calling
+  isalpha() because ckcmai.c does not include <ctype.h> -- the two existing
+  callers are inside #ifdefs no supported build compiles.
+
+  PORTING.md section 8, guarded upstream edit 13.
+*/
+    if (*path == '/' || *path == '\\')
+      rc = 1;
+    else if (x > 2 &&
+             ((*path >= 'A' && *path <= 'Z') ||
+              (*path >= 'a' && *path <= 'z')) &&
+             *(path+1) == ':' &&
+             (*(path+2) == '/' || *(path+2) == '\\'))
+      rc = 1;
+#else /* VICTOR9K */
     if (*path == '/'
 #ifdef DTILDE
         || *path == '~'
 #endif /* DTILDE */
         )
       rc = 1;
+#endif /* VICTOR9K */
 #else /* def UNIX */
 #ifdef OS2
     if (*path == '/' || *path == '\\')
@@ -3571,6 +3598,32 @@ MAINNAME( argc, argv ) int argc; char **argv;
 #endif /* TNCODE */
 #endif /* OS2 */
     }
+/*
+  Guarded upstream edit 14 (PORTING.md section 8), and the only one in this
+  port that is NOT a no-op on other platforms -- an #endif cannot be placed
+  conditionally, so there is no #ifdef VICTOR9K form of this.
+
+  These two #endif comments were misattributed by one level.  The one below
+  said NOTCPIP and closed the "#ifndef NOICP" on the line after "#ifndef
+  NOTCPIP"; the partner said NOICP and sat 70 lines further down, at the end
+  of the command-file block, closing NOTCPIP.  Everything between -- the
+  environment-variable block, dotakeini() and "if (cmdfil[0]) docmdfile()"
+  -- was therefore compiled out of every build that defines NOTCPIP, which
+  silently ignores both its init file and any command file named on the
+  command line.
+
+  The repair is one #endif moved to where its own comment says it belongs.
+  That the code between carries its own "#ifndef NOICP" guards around
+  dotakeini() and docmdfile() is the evidence for this reading rather than
+  the other one: those inner guards would be redundant if the whole region
+  were already inside NOICP.  cmdfil and cfilef are declared unconditionally
+  at the top of this file, so nothing here needs an outer guard.
+
+  PORTING.md section 16ac.  Found on a Victor because NOTCPIP plus a command
+  parser is a combination almost nobody builds; section 16j found the same
+  region eating dofast() and did not follow it to its end.
+*/
+#endif  /* NOICP */
 #endif  /* NOTCPIP */
     debug(F101,"main argc after prescan()","",argc);
 
@@ -3586,7 +3639,33 @@ MAINNAME( argc, argv ) int argc; char **argv;
 
 #ifndef NOXFER
 #ifdef CK_FAST
+#ifndef VICTOR9K
+/*
+  Part of guarded upstream edit 14, and the part that IS a no-op elsewhere.
+
+  Restoring the region above hands this call back to every NOTCPIP build,
+  which is correct for them and is exactly what PORTING.md section 16j
+  wanted -- but on the Victor it would be a protocol change smuggled in
+  behind a preprocessor repair.  dofast() computes
+
+      wslotr = RBSIZ / MAXSP = 8192 / 4000 = 2
+
+  so the first Victor build with the nesting fixed would negotiate a window
+  of TWO, and recompute urpsiz from the same pair.  The port's window is 1
+  on purpose: it has no interrupt-level flow control, and the only thing
+  that keeps the 4,096-byte receive ring from overrunning is that a window
+  of one puts at most one packet in flight (PORTING.md section 16v, and the
+  margin is 105 bytes).  The rule in CLAUDE.md is that no packet-length or
+  window change ships without a run that reaches FINISH and reports
+  rxlost/rxfull/rxpeak; this would have been one, unmeasured, as a side
+  effect of something else.
+
+  So the Victor keeps taking DRPSIZ/DFWSIZ from ckvictor.h (upstream edit
+  11).  Remove this guard when sections 4 and 5 of NEXT_SESSION.md -- flow
+  control, then windows -- are actually done.
+*/
     dofast();                           /* By now FAST defaults should be OK */
+#endif /* VICTOR9K */
 #endif /* CK_FAST */
 #endif /* NOXFER */
 
@@ -3641,7 +3720,12 @@ MAINNAME( argc, argv ) int argc; char **argv;
 #ifndef OS2                             /* Preserve name so we can delete it */
     *cmdfil = '\0';                     /* Done, nullify the file name */
 #endif /* OS2 */
-#endif /* NOICP */
+/*
+  The partner of the #endif pair 70 lines above -- guarded upstream edit 14.
+  It was labelled NOICP and closed NOTCPIP, dragging this whole block inside
+  a region no NOTCPIP build compiles.  Removed rather than relabelled: the
+  block it appeared to guard is guarded from the inside.
+*/
 
 #ifndef NOCMDL
 /* Look for a UNIX-style command line... */

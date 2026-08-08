@@ -56,6 +56,33 @@
 #define VICTOR9K
 #endif
 
+/*
+  What the build says it was built FOR.  ckuver.h assigns HERALD to ckxsys
+  (ckutio.c:292) and ckzsys (ckufio.c:308), picks it from a long chain of
+  platform #ifdefs, and ends with
+
+      #ifndef HERALD
+      #define HERALD " Unknown Platform"
+      #endif
+
+  so defining it here is upstream's own mechanism and costs no edit.  Every
+  arm of that chain starts with a space and this one has to as well: two of
+  the three places it is printed are "%s for%s" in shover(), where the
+  space is the separator.
+
+  The machine and not the operating system, because that is what the binary
+  is built for -- one image runs on Victor MS-DOS 3.1 and on FreeDOS for
+  Victor, and SHOW VERSIONS reports which one it is running on separately,
+  out of uname().  Sirius 1 is the same machine sold outside the USA.
+
+  Left alone next door: CKCPU.  With it undefined, ckuus4.c's \\v(machine)
+  falls through to unm_mch from uname(), which already answers "Victor" --
+  a runtime answer, and a better one than a compile-time constant.
+*/
+#ifndef HERALD
+#define HERALD " Victor 9000 / Sirius 1"
+#endif /* HERALD */
+
 /* Open Watcom does not declare sig_t, so C-Kermit's own typedef is the one
    we want; CK_NO_SIG_T stays undefined. */
 
@@ -340,6 +367,32 @@ extern long v9k_timezone;
 #define fclose v9k_fclose
 
 /*
+  getcwd(), renamed by the same trick, and this one is a correctness fix.
+
+  This build defines UNIX, so every path primitive above it joins with '/'
+  and tests for '/'.  DOS hands back "A:\" for the root of a drive -- a
+  separator upstream cannot see, on the end of a string upstream assumes
+  has none.  zfnqfp() (ckufio.c:7500) does
+
+      x = ckstrncpy(buf,zgtdir(),len);  buf[x++] = '/';
+
+  unconditionally, so a relative name became "A:\/NAME", which DOS will not
+  open.  That is what stopped "CKICP FILE.KSC" from running a take-file: the
+  file was found, its qualified name was mangled, dotake() failed, and
+  because dotake() failing is also what leaves cfilef at 0, cmdlin() then
+  went on to reject the filename as an unknown option.  One defect, two
+  symptoms, and the second one is the message everybody saw.
+  PORTING.md SS16ab.
+
+  ckvictor.c's wrapper returns a Unix-shaped path: separators forward, no
+  trailing one.  At the root of a drive -- the only directory this project
+  has ever run in -- that is "A:", and "A:" + "/" + "NAME" is a path DOS
+  accepts.  INT 21h takes '/' as a separator throughout; it is COMMAND.COM
+  that does not, and nothing here goes through COMMAND.COM.
+*/
+#define getcwd v9k_getcwd
+
+/*
   The uPD7201 receive ring (ckvictor.c SS1e).  It is the only new static
   array this port adds and it comes straight out of DGROUP, so it is here
   with the other size levers rather than buried in the driver.
@@ -445,13 +498,23 @@ extern long v9k_timezone;
   DRPSIZ and DFWSIZ initialise urpsiz and wslotr, which rpar() encodes into
   the MAXLX1/MAXLX2 and WINDO fields of every S and I packet this program
   sends.  On a normal build nobody sets them, because dofast() overwrites
-  both at startup from the four capacity symbols above.  **This build never
-  calls dofast().**  It is inside the #ifndef NOTCPIP that opens at
-  ckcmai.c:3390 and does not close until 3644 -- the #endif comments at
-  3574 and 3644 are misattributed by one level -- so every NOTCPIP build
-  silently loses it, along with getdialenv().  Confirmed three ways in
-  PORTING.md SS16j, the least arguable being that the preprocessed ckcmai.c
-  contains "dofast" only as a prototype, with no call anywhere.
+  both at startup from the four capacity symbols above.  **This build does
+  not call dofast(), and the reason changed with SS16ac.**
+
+  It used to be an accident: dofast() sat inside the #ifndef NOTCPIP whose
+  #endif comments were misattributed by one level, so every NOTCPIP build
+  silently lost it along with getdialenv(), the init file and any command
+  file named on the command line.  SS16j confirmed that three ways, the
+  least arguable being that the preprocessed ckcmai.c contained "dofast"
+  only as a prototype.
+
+  SS16ac repaired the nesting -- guarded upstream edit 14 -- because the
+  init file and the command file are wanted.  dofast() is then explicitly
+  guarded out for VICTOR9K instead, and the reason is at the call site:
+  wslotr = RBSIZ / MAXSP = 2, so taking it back would open the window to
+  TWO on a port that has no interrupt-level flow control and whose 4,096-
+  byte ring is safe only because one packet is in flight at a time.  Remove
+  that guard when flow control and windowing are actually done.
 
   So until SS16j the port negotiated MAXL=90, WINDO=1, MAXLX=90 -- the stock
   DRPSIZ/DFWSIZ -- through its entire history, and SBSIZ/RBSIZ/MAXSP/MAXRP

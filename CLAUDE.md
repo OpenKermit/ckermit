@@ -49,8 +49,8 @@ mismatch, and `docmdline(1)` in `ckcmai.c`. **`ckvictor.c` compiles with
 none.** It was 17 until `NOFLOAT` (§16j): dropping `GFTIMER` moves `ztime()`
 onto upstream's `ZTIMEV7` branch, whose K&R redeclarations of `localtime()`
 and `time()` produce two more sign mismatches at `ckutio.c:12319-12320`.
-DGROUP is 48,272 of 65,536 (73%) after the linker adds libc; `ckermitw.exe`
-is 204,764 bytes and **needs 218,988 (213K) at load**. Quote that figure —
+DGROUP is 48,304 of 65,536 (73%) after the linker adds libc; `ckermitw.exe`
+is 205,530 bytes and **needs 219,738 (214K) at load**. Quote that figure —
 it is the port's cost and it is the same on every machine. **The 396,224
 that appears in older sections is not a RAM size, and §16x retracts it as a
 figure for this DOS too**; Victor MS-DOS 3.1 hands out **824,784 at 896K**.
@@ -291,7 +291,7 @@ edit.
 The interactive command parser is off (`NOICP`), and **§16y now builds it**
 — `XFLAGS=-dKEEP_ICP ZT=-zt2048` links, loads on the Victor and prints a
 parser's help text, needing **428,662 (418K)** against the shipping build's
-218,988. Three fixes got it there and none was an upstream edit: `isfloat()`
+219,738. Three fixes got it there and none was an upstream edit: `isfloat()`
 in `ckvictor.c` §2b (`NOFLOAT` removes `CKFLOAT`, which removes upstream's),
 `__near` on the receive ring (`-zt` would otherwise move it out of the group
 `ckvisr.asm` reaches through `DS` — **the one to remember, since `-zt` is
@@ -300,9 +300,101 @@ the lever anyone short of DGROUP will reach for**), and the threshold sweep.
 the build gets a `C-Kermit>` prompt and not `-C`, variables, macros or
 `INPUT`. **It does keep `TAKE`** — that is `#ifndef NOICP`, not `NOSPL`
 (§16y corrects an earlier claim here). `KEEP_SPL` links via §2c and costs
-**637,714 at load against 428,662, +209,052**. And a `KEEP_ICP` build still
-cannot run a take-file: that is the **`findinpath()` defect in `prescan()`
-(`ckuus4.c:1741`)**, which is the top item in `NEXT_SESSION.md`.
+**637,714 at load against 428,662, +209,052**.
+
+**§16z, §16aa and §16ab regression-tested that build on the machine, and
+§16ab is the section to read before touching the parser.** The parser
+works, `TAKE` works from the prompt (`PTEST.KSC` ran `echo`, `show
+versions` and `exit` in order), `SHOW VERSIONS` works on hardware — the
+twelfth upstream edit, and the only way to identify a build on the machine
+— and `SET LINE /dev/seriala` now reports **local**, so a speed set from
+the prompt reads back for the first time in the port's life.
+
+**Four defects came out of it, all fixed in `ckvictor.c` for no upstream
+edit, and they share a shape worth keeping.**
+
+1. One cached `struct termios` for the console and the line, so every
+   console mode change through `concb()`/`conres()` overwrote the line's
+   `c_ospeed` and `SET SPEED` did not stick. The chip was programmed
+   correctly; `ttgspd()` lied.
+2. `ttyname()` returned `"CON:"` for **every** descriptor, so `ttopen()`
+   concluded the serial line *was* the controlling terminal, set remote
+   mode and forced `ttyfd` to 0 — and `SET LINE` then "succeeded".
+3. The console prompt echoed every line **twice**, the second copy from
+   column 0 on top of the first. Two rounds of source reading blamed a
+   missing newline and were wrong. `read(0,...)` was reaching DOS's
+   *cooked* line input (INT 21h AH=3Fh via the Watcom runtime), which
+   echoes as you type and emits a bare CR on Enter; C-Kermit then read the
+   buffered line back one byte at a time and echoed it again itself. Two
+   echoers, one carriage return. `v9k_read()` now honours `ICANON` and
+   does AH=07h — direct console input, no echo, VMIN 1 — and `ICRNL`/
+   `ONLCR` from the earlier round are still needed and still right (§16ac).
+   **Confirmed under MAME (§16ad)**, along with `CKICP FILE.KSC` in both
+   the relative and absolute forms, `mode: local` after `SET LINE`, and
+   `SET SPEED 19200` reading back.
+4. `getcwd()` returned DOS's `A:\`. This build defines `UNIX`, so
+   `zfnqfp()` joins with `/` and never tests for a separator already on
+   the end — the qualified name came out `A:\/NAME`. **One defect, two
+   symptoms**: `dotake()` could not open it, and `dotake()` failing is also
+   what leaves `cfilef` at 0, which is the only thing that tells `cmdlin()`
+   to skip argv[1]. So the file silently failed to open and the *filename*
+   was then reported as an invalid option. That is what broke
+   the *qualified name* for `CKICP FILE.KSC`; the absolute form took the
+   **thirteenth** upstream edit, and that needed two files —
+   `isabsolute()` (`ckcmai.c`) and `zfnqfp()`'s own copy of the same test
+   (`ckufio.c`) — because fixing only the first moves the failure rather
+   than removing it. **`CKICP FILE.KSC` still does not work**, and §16ac
+   says why: the `#ifndef NOTCPIP` at `ckcmai.c:3417` is mis-nested and
+   compiles out `dotakeini()` and `if (cmdfil[0]) docmdfile(0)` — 70 lines
+   of `main()` — so the file is found, qualified, and never run. That is
+   §16j's defect and the same region. **Edit 14 fixed it, and it is the
+   one edit in this port that is not a no-op elsewhere** — an `#endif`
+   cannot be placed conditionally, so upstream's own `#endif` moved to
+   where its own comment says it belongs. Watch the second-order effect
+   it nearly had: `dofast()` is in the widened region and sets
+   `wslotr = RBSIZ/MAXSP = 2`, so the repair would have opened the window
+   to two, unmeasured, on a port with no flow control and a 105-byte ring
+   margin. That call is now `#ifndef VICTOR9K`. **When a preprocessor
+   repair widens what a build compiles, enumerate what newly comes in
+   before believing the repair is inert.**
+
+Every one was latent for the port's whole life and **none was reachable
+without the parser** — `cmdlin()`'s `-l` passes `lcl = 1`, so `ttopen()`
+was told the answer rather than asked; nothing read the speed back; nothing
+echoed at a prompt; nothing qualified a relative pathname. **A switch that
+turns on a large body of upstream code is an instrument, and the first
+thing it measures is the port's own stubs.**
+
+**One defect is left and it is upstream's: the `SET SPEED` keyword table.**
+**It is not a wire problem** — 38400 transfers are proven on hardware and
+are driven by `-b 38400`, which never touches this table; this is the
+interactive command in a `KEEP_ICP` build only.
+`cmdini()` builds the speed keyword table with `spdtab[j].kwval = (int)
+ss[i] / 10` (`ckuus5.c:1262`) — the cast binds tighter than the divide, so
+`(int)38400L` is -27136 on a 16-bit `int` and the keyword's value comes out
+-2713. `cmkey()` returns it, `SET SPEED` sees `x < 0` and returns silently.
+**Every speed above 32767 is affected, and 76800/115200 are worse** — they
+stay positive and are accepted as 11260 and 49660 bps. Only `SET SPEED`
+reaches it; `-b` divides as a long (`ckuusy.c:4164`), which is why every
+38400 figure this port has published is sound. Fixed as edit 15, `(int) (ss[i] / 10)`,
+and verified under MAME: `nlookup DIRECT HIT[38400]=3840`, `tcsetattr
+divisor=2`, `ttgspd speed=38400`. Deliberately unguarded — it is a no-op
+wherever `int` is 32 bits. §16ad.
+
+**38400 is a hardware ceiling, not a setting, and §11a0 is where that was
+established.** `bps = 1,250,000/(16 x count)` with the 8253 in Mode 3, so
+count 2 and **39,062.50 bps** is the fastest the machine does
+asynchronously — which is what the port has shipped since §16o. The 8253's
+1.25 MHz is **measured** at LS153 15F pin 7 (156,250 Hz at count 8 and
+9,615 Hz at count 130, both x count = 1,250,000), which also settled a
+1.25-vs-1.2288 MHz argument that ran through four documents. Every rate on
+this machine is consequently **1.72% fast** and no integer count fixes it.
+The 7201's x1 mode reaches higher rates and the datasheet permits it in
+async — a 32 KB send at x1 completed byte-exact — but x1 *receive* needs the
+two ends matched to ~100 ppm, and the only path to RxCA is through the LS90
+chain, so there is no external clock to be had. `B57600`/`B76800`/`B115200`
+were removed again for that reason: `ttspdlist()`/`ttsspd()`/`ttgspd()` key
+off those `#define`s, so defining one offers a rate that cannot transfer.
 
 **§16x is why that became possible**, and it is a retraction worth knowing.
 "The image needs 429K and the machine offers 387K" rested on **396,224**,
@@ -362,11 +454,17 @@ socket is single-use, so start `socat` first and never probe the port.
 ## Hard rules
 
 1. **Do not modify upstream C-Kermit files.** The port's value is that the
-   protocol engine is untouched. There are exactly eleven guarded upstream
-   edits (listed in `PORTING.md` §8); every one is wrapped in `#ifndef` or
-   `#ifdef VICTOR9K` and changes nothing on any other platform. If you think
-   you need a twelfth, say so explicitly rather than doing it quietly — the
-   seventh through eleventh were all agreed that way.
+   protocol engine is untouched. There are exactly fifteen upstream
+   edits (listed in `PORTING.md` §8); thirteen are wrapped in `#ifndef` or
+   `#ifdef VICTOR9K` and change nothing on any other platform. **14 and 15
+   are not, and both are flagged as such**: 14 moves a mis-nested `#endif`
+   (an `#endif` cannot be placed conditionally), and 15 fixes a cast that
+   binds wrong, which is a no-op wherever `int` is 32 bits and so would be
+   actively harmful to guard. If you think you need a sixteenth, say so
+   explicitly rather than doing it quietly — the seventh through fifteenth
+   were all agreed that way. Say it again if
+   the edit turns out to need a second file: 12 and 13 both did, and 13's
+   second half was the one that made the first half do anything.
 2. **Feature configuration goes in `ckvictor.h`, never in `victorow.mak`.**
    Each `#define` sits next to a comment explaining why. The makefile passes
    `-fi=ckvictor.h` and nothing else.
@@ -377,10 +475,10 @@ socket is single-use, so start `socat` first and never probe the port.
    ask for fewer. Do not add a second assembly file without the same kind of
    measurement behind it.
 4. **Two budgets, and do not confuse them.** DGROUP holds `.data`, `.bss`
-   and the **stack** — 48,272 of 65,536 (73%) after the link, 17,264 free.
+   and the **stack** — 48,304 of 65,536 (73%) after the link, 17,232 free.
    The **heap is outside it**: `malloc()` is `_fmalloc` in the large model,
    so the packet buffers do not compete for the segment at all. What bounds
-   them is real-mode RAM: **the image needs 218,988 (213K) at load**, and
+   them is real-mode RAM: **the image needs 219,738 (214K) at load**, and
    the far heap then takes about 25K of packet buffers on top. **The receive
    ring is the exception**: at 4,096 bytes it is `.bss` and comes straight
    out of the 64K (§16k).

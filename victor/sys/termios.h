@@ -87,13 +87,31 @@ struct termios {
   is approximate and the table in ckvictor.c is a table of measured or
   published values, not a formula -- B200 is 390 because the OEM driver's
   own table says 390, where the arithmetic would round to 391.  B7200,
-  B14400, B28800, B57600 and B115200 are ABSENT because
-  their divisors (10.9, 5.4, 2.7, 1.4, 0.7) round to errors of 2% to 46%.
-  Divisor 1 is the ceiling and it is 78125 bps; B76800 names it, 1.7% low.
+  B14400, B28800, B57600, B76800 and B115200 are ABSENT: their divisors
+  (10.9, 5.4, 2.7, 1.4, 1, 0.7) either round to errors of 2% to 46% or, at
+  divisor 1, cannot be programmed at all.  See the ceiling note below.
 
-  The 1.25 MHz figure is not an assumption.  An earlier revision of this
-  header said 1.2288 MHz and 76800/baud, copied from a code comment in the
-  FreeDOS Victor INT 14h driver.  Two programs that actually shipped for
+  THE 1.25 MHz IS MEASURED, and this is the thing to quote.  7 August 2026,
+  on the bench: a logic analyzer on the board's CLK5 reads precisely 5 MHz,
+  and the serial sheet of the schematic shows CLK5 reaching the 8253's CLK0
+  and CLK1 through two 74LS90 divide-by-two sections (12E and 10E, each
+  drawn as CKA -> QA).  So the counters see 5,000,000 / 4 = 1,250,000 Hz,
+  the 7201 divides by 16, and
+
+      bps = 5,000,000 / (4 * 16 * count) = 78125 / count
+
+  exactly as the tables below say.  The board's other oscillator read
+  between 14.2 and 16.5 MHz on the same capture, which is the sampling
+  quantisation of a 15 MHz square wave and not a real spread; 15 / 3 = 5.000
+  is consistent with CLK5 being divided down from it rather than being its
+  own can, which is why it is not the 4.9152 MHz baud crystal one would
+  expect on a machine that wanted exact rates.
+
+  Everything from here to the end of this paragraph is the argument that
+  preceded the measurement, kept because it is how the question was settled
+  before anyone put a probe on it.  An earlier revision of this header said
+  1.2288 MHz and 76800/baud, copied from a code comment in the FreeDOS
+  Victor INT 14h driver.  Two programs that actually shipped for
   this machine -- MS-DOS Kermit 3.13's msxv90.asm and the 1980s Victor-
   native vickermit.c -- carry byte-identical divisor tables, and those
   tables are 78125/baud: 300 -> 260, 600 -> 130, 1200 -> 65, 2400 -> 32.
@@ -109,8 +127,8 @@ struct termios {
   "case 180:" arm is unguarded; Appendix A prints 38 for 1.8k and that is a
   transcription error, argued in ckvictor.c at the table.  B38400 is
   divisor 2 -> 39062 bps, +1.7%; 3.13 shipped that and async framing
-  tolerates roughly 2.5%.  Neither B38400 nor B76800 appears in Appendix A
-  at all.
+  tolerates roughly 2.5%.  B38400 does not appear in Appendix A at all --
+  msxv90.asm is its only source, and its table ends there too.
 */
 
 #define B0          0                   /* Hang up: drop DTR and RTS    */
@@ -129,9 +147,41 @@ struct termios {
 #define B9600      13                   /* divisor    8  ( 9765.63 bps) */
 #define B19200     14                   /* divisor    4  (19531.25 bps) */
 #define B38400     15                   /* divisor    2  (39062.50 bps) */
-#define B76800     16                   /* divisor    1  (78125.00 bps) */
 
-#define __MAX_BAUD B76800
+/*
+  AND B38400 IS THE CEILING.  This is measured and traced, not assumed, and
+  the sequence that established it is PORTING.md SS11a0.
+
+    - The 8253's counters see 1,250,000 Hz.  Measured at LS153 15F pin 7:
+      156,250 Hz at count 8 and 9,615 Hz at count 130, both x count =
+      1,250,000 exactly.  So bps = 1250000/(16*count) = 78125/count.
+    - The 8253 is programmed in Mode 3 (msxv90.asm writes 36H and so does
+      v9k_ser_progline()), and modes 2 and 3 both require a count of at
+      least 2.  Modes 0, 4 and 5 accept count 1 but are one-shots and cannot
+      produce a continuous clock.  So count 2 is the floor and 39,062.50 bps
+      is the ceiling.
+    - The uPD7201's x1 clock mode reaches higher rates arithmetically and
+      the datasheet permits it in async, but it fails on a free-running
+      link: SS11a0 measured 33% packet acceptance at 110 bytes where x16 at
+      a THREE TIMES WORSE rate mismatch was clean.  Transmit at x1 is fine
+      -- a 32 KB send completed -- so this is a receive-side limit.
+    - And there is no way around the 8253: the operator traced the sheet and
+      the only path to the 7201's RxCA is through the 74LS90 divider chain.
+      No fixed tap, no external clock from the connector.  The LS153 at 15F
+      selects among LS90 outputs, not around them.
+
+  So do not add B57600, B76800 or B115200 back.  They existed here for one
+  day as x1 entries, they do not work, and ttspdlist()/ttsspd()/ttgspd() all
+  pick them up automatically from these #defines -- which means defining one
+  is enough to let SET SPEED and -b select a rate that cannot transfer.
+
+  XFLAGS="-dV9K_CLKBITS=0x00 -dV9K_COUNT=<n>" still overrides both the clock
+  mode and the count for one build, so the experiment is repeatable without
+  putting a broken speed in the table.  0x00 is x1, 0x40 x16, 0x80 x32,
+  0xc0 x64.
+*/
+
+#define __MAX_BAUD B38400
 
 /* ------------------------------------------------------------------ */
 /* c_iflag -- input modes                                               */

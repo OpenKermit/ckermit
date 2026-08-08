@@ -1,12 +1,13 @@
 # Next session
 
-Handoff for the Victor 9000 port, written 7 August 2026. **The port has no
-known live defect.** 38400 was the last one and §16t closed it: the cause
-was the cost of our own interrupt handler, and `ckvisr.asm` — the port's
-first assembly — replaced it.
+Handoff for the Victor 9000 port, written 8 August 2026. **One live defect:
+`-s <name>` cannot send a file of 32,768 bytes or more** (§1 item 1a,
+upstream edit 16, one word). Everything else that was open on 7 August is
+fixed and most of it is verified.
 
-**Read `PORTING.md` §16y first** — it is where the next session's work is —
-then §16v, then §16t. §16v is the bench run that
+**Read `PORTING.md` §11a0 first** — the measured clock tree, why 38400 is a
+hardware ceiling rather than a setting, and four retractions — then §16ad,
+then §16v. §16v is the bench run that
 finally measured throughput, and it moves the bottleneck: **the line is no
 longer it.** §16t is still the best thing in the file for its four wrong
 turns.
@@ -40,14 +41,34 @@ transfer, 564 µs per received byte against a 260 µs byte time, giving a
 **no-line ceiling of ~1,353 cps**. And **`cts = 1` on the real cable**, so
 RTS/CTS is available and flow control does not have to be XON/XOFF.
 
-Still **eleven** guarded upstream edits. DGROUP 48,272 of 65,536 (73%),
-image 204,764, **needs 218,988 (213K) at load — smallest Victor 384K**.
+**Fifteen** upstream edits, thirteen of them guarded no-ops elsewhere.
+§16z added `SHOW VERSIONS` under `NOFRILLS`, §16ab gave `isabsolute()` and
+`zfnqfp()` a DOS pathname, and **§16ac's edit 14 is the one exception** — a
+mis-nested `#endif` in `ckcmai.c`, which cannot be guarded and does change
+other platforms.
+DGROUP 48,304 of 65,536 (73%), image 205,530, **needs 219,738 (214K) at
+load — smallest Victor 384K**.
 
 **§16y built the interactive command parser.** `XFLAGS=-dKEEP_ICP
 ZT=-zt2048` links, loads on the Victor and prints a parser's help text —
-**428,662 (418K)** at load against the shipping build's 218,988. Three fixes,
+**429,452 (419K)** at load against the shipping build's 219,738. Three fixes,
 no upstream edit: `isfloat()` (§2b), `__near` on the receive ring, and the
-threshold. **It cannot run a take-file yet**, and that is §1 item 1.
+threshold. **§16z, §16aa and §16ab regression-tested it on the machine.**
+Four defects, all latent for the port's whole life and none reachable
+without the parser, all fixed in `ckvictor.c` for no upstream edit:
+
+- one cached `struct termios` for the console and the line, so `SET SPEED`
+  did not stick (§16z);
+- `ttyname()` said every descriptor was `CON:`, so `SET LINE` left the
+  program in remote mode (§16aa) — **fixed and confirmed on hardware**,
+  `SET LINE local=1`, and `SET SPEED 19200` now reads back;
+- no `ICRNL` on console input (§16aa) — fixed and confirmed, `gtword` is
+  handed 10 — but **the overprint is still there**, so that was not the
+  whole story and §16ab has what is left of the theory;
+- `getcwd()` returned `A:\`, and upstream joins paths with `/` without ever
+  testing for a separator already on the end, so `zfnqfp()` built
+  `A:\/NAME` (§16ab). **That is what broke `CKICP FILE.KSC`.**
+
 `KEEP_SPL` adds the script language for a further **+209,052**, and is
 probably not worth it — `TAKE` is on the cheaper switch.
 
@@ -63,67 +84,154 @@ the smallest Victor that can load a build, and that is the number to report.
 
 ## 1. Do this next, in priority order
 
-**1. Fix `findinpath()` so `TAKE` works. This is the whole session.**
+**0. ~~The x1 sweep.~~ CLOSED 8 August 2026. Do not reopen it without
+reading PORTING.md §11a0 first.**
 
-§16y built the interactive parser — `XFLAGS=-dKEEP_ICP ZT=-zt2048` links,
-loads on the Victor and prints a parser's help text. But it will not run a
-command file:
+**39,062.50 bps at count 2 is the hardware ceiling, and the port has shipped
+it since §16o.** `bps = 1,250,000/(16 x count)`, count >= 2 because the 8253
+is in Mode 3, and the operator traced the sheet: **the only path to the
+7201's RxCA is through the 74LS90 chain** — no fixed tap around the 8253, no
+external clock from the connector. The LS153 selects among LS90 outputs, not
+around them.
+
+x1 was tried properly and is not the way past it. It is a real async mode —
+the datasheet permits it and a 32 KB **send** at x1 completed byte-exact —
+but x1 *receive* accepted 33% of 110-byte packets where x16 was clean at a
+three times worse rate mismatch, and closing the rate gap needs the two ends
+matched to ~100 ppm against an FTDI that tunes in ~400 ppm steps.
+
+`B57600`/`B76800`/`B115200` are **removed** from `victor/sys/termios.h` and
+`__MAX_BAUD` is back to `B38400`. That removal matters: `ttspdlist()`,
+`ttsspd()` and `ttgspd()` all key off those `#define`s, so defining one is
+enough to let `SET SPEED` and `-b` offer a rate that cannot transfer.
+
+The `XFLAGS="-dV9K_CLKBITS=0x00 -dV9K_COUNT=<n>"` override survives, so the
+experiment is repeatable without shipping a broken speed.
+
+**Three things are measurements now that were assumptions a week ago**, and
+they are the value of the exercise: the 8253 sees exactly **1,250,000 Hz**
+(LS153 15F pin 7, two counts, same product — which also settled the
+1.25 vs 1.2288 MHz argument that ran through four documents); **every rate
+on this machine is 1.72% fast** and no integer count fixes it, which is what
+the x16 control's six errors in 32 KB were showing; and x1's envelope is
+`P(packet) = (1 - 9 x rate_error)^L`.
+
+**0b. Run the hardware leg for the parser. Verified under MAME.**
+
+§16ad ran the whole sequence under MAME, so hardware is confirmation rather
+than discovery: `CKICPD SPDTEST.KSC -d` and `CKICPD A:\SPDTEST.KSC -d` both
+run the script; `SET LINE` reports local; **`SET SPEED 38400` and 19200 both
+read back**, with `tcsetattr divisor=` 2 and 4; `SHOW VERSIONS` names the
+machine; and the prompt echoes a typed line exactly once.
 
 ```
-A> CKICP PTEST.KSC
-"PTEST.KSC" - invalid command-line option, type "kermit -h" for help
+STEPSPD                       (at A>)
+CKICPD -d                     (at A>)
+take spdtest.ksc              (at the C-Kermit> prompt)
+REN DEBUG.LOG SPD3.LOG        (at A>, after Kermit exits)
 ```
 
-**That is a defect, not a missing feature, and the distinction was got wrong
-once already.** `TAKE` is *not* removed by `NOSPL`: the keyword
-(`ckuusr.c:1732`) and handler (`ckuusr.c:10566`) are outside every `NOSPL`
-region, and the argv[1]-as-command-file path is `#ifndef NOICP`
-(`dotake(cmdfil)`, `ckcmai.c:2602`). Only `-C` is `NOSPL`. So a `KEEP_ICP`
-build *should* run take-files.
+The image was cleaned of `SPD*` and `DEBUG.LOG` after the MAME run, so the
+`REN`s will succeed.
 
-**The suspect, and it is one boot from confirmed.** `prescan()` at
-`ckuus4.c:1741`:
+What MAME could not settle:
+
+- **Extended keys.** The console now reads INT 21h AH=07h. Whether the
+  Victor's keyboard driver uses the 0-then-scan-code convention is unknown,
+  so a function or arrow key may deliver a stray NUL. Nothing in this build
+  wants arrow keys; it is a "do not be surprised" note.
+- **The echo control.** The pre-§16ac binary has never been under MAME, so
+  §16ad shows the fix behaving correctly rather than the bug reproducing and
+  then going away.
+- **A transfer.** Edit 14 widened what `main()` compiles and the shipping
+  binary is no longer the one measured at 1,013 cps. `dofast()` is guarded
+  out on purpose (§8 item 14), but one 32 KB leg reporting `rxlost=0
+  rxfull=0` and a byte-exact md5 is what says the wire protocol did not
+  move.
+
+**1. Report edits 14, 15 and 16 upstream.**
+
+Two independent defects, both found only because this port is an unusual
+build, and neither specific to it:
+
+- **14** — `ckcmai.c`'s `#ifndef NOTCPIP` has been mis-nested for a very
+  long time and disables two documented features, the init file and a
+  command file named on the command line, in every configuration that turns
+  TCP/IP off. §8 item 14 and §16ac have the analysis, including why the
+  drifted-closer reading is the right one. Item 8 of this list used to
+  cover the `dofast()` half of the same region; one report now.
+- **15** — `ckuus5.c`'s `(int) ss[i] / 10` casts before dividing, so `SET
+  SPEED` is broken for every rate above 32767 on any 16-bit target. §8
+  item 15.
+- **16** — `ckuusy.c:3690` stores `zchki()`'s `CK_OFF_T` return, which is
+  the *file size*, in a 16-bit `int`, so `-s <name>` refuses any file of
+  32,768 bytes or more. §1 item 1a. Not yet made.
+
+All three are the same species: a value that needs more than 16 bits
+assigned to an `int`. A 16-bit build is the only place they show, which is
+why this port keeps finding them.
+
+**1a. Fix `-s` for files of 32,768 bytes or more. Found 8 August 2026 on
+the bench; it is upstream edit 16 and it is one word.**
 
 ```c
-if (!isabsolute(yargv[1]))      /* If not absolute */
-  s = findinpath(yargv[1]);     /* Look in PATH */
-else
-  s = yargv[1];
-if (!s)
-  doexit(BAD_EXIT,xitsta);
-zfnqfp(s,CKMAXPATH,cmdfil);     /* In case of CD in file */
+int fil2snd, rc;                                   /* ckuusy.c:3690 */
+...
+if ((rc = zchki(*xargv)) > -1 || (rc == -2))       /* ckuusy.c:3726 */
 ```
 
-`PTEST.KSC` was in the FAT root of the boot drive with **no `PATH` set**, so
-"`findinpath()` never looks in the current directory" is the first thing to
-check — `findinpath()` is `ckuus4.c:1323`, and `zfnqfp()` is the other
-candidate. **This port has form here**: §1d carries an `access()` written
-specifically to be right about a FAT root, and §16f is a whole section about
-getting DOS path questions wrong twice.
+`zchki()` returns `CK_OFF_T` — **4 bytes here, measured** — and on success it
+returns the **file size** (`ckufio.c:2477`). Assigned to a 16-bit `int`, a
+32,768-byte file becomes **-32768**, which is neither `> -1` nor `-2`, so the
+send falls through to the failure branch. `zchki()` had *succeeded*, which is
+why the error line reads
 
-Note the error text says *"invalid command-line option"* rather than
-exiting, which means the `doexit(BAD_EXIT)` above was **not** reached and
-the file was never even offered to `findinpath()` — so read the enclosing
-condition before assuming the body is at fault.
+```
+kermit -s TRANS.DAT:
+```
 
-**How to work it:**
+with nothing after the colon: nothing set `errno`, because nothing failed.
+**An empty `ck_errstr()` on that line is the signature** — it means the file
+was found and the caller threw the answer away.
 
-- `XFLAGS="-dKEEP_ICP -dKEEP_DEBUG" ZT=-zt2048` and `CKICP -d PTEST.KSC`
-  gives `findinpath` and `zfnqfp` traces in one 2.5-minute MAME boot. Debug
-  costs ~25 ms per received byte (§16k) but there is no transfer here, so
-  it is free for this question.
-- Try an **absolute** path (`A:\PTEST.KSC`) as the control — it takes the
-  `else` branch and skips `findinpath()` entirely, which splits the two
-  candidates in one run.
-- `.probe/` is the place for a short DOS program if the question turns into
-  "what does `findinpath()` see", per §16f's precedent.
-- The fix belongs in `ckvictor.c` if it is ours, and is a **twelfth upstream
-  edit** if it is not — say so explicitly rather than doing it quietly.
+It is periodic, not a simple threshold, because the wrap repeats every 64K:
+
+| size | as int16 | `-s <name>` |
+|---:|---:|---|
+| 32,767 | 32,767 | works |
+| 32,768 | -32,768 | **fails** |
+| 65,535 | -1 | **fails** |
+| 65,536 | 0 | works |
+| 98,304 | -32,768 | **fails** |
+
+**Why it went four sections unnoticed.** §16d sent `TESTFILE.TXT`, 74 bytes.
+§16g used `-s *.TXT`, and wildcards take the `nzxpand()` branch — which is
+only reached *because* `zchki` appeared to fail, so the wildcard path routes
+around the bug. And every 32 KB test this port has run was a **receive**;
+`zchki` is not in that path. **The port has never sent a large file by
+name.**
+
+Fix: declare `rc` as `CK_OFF_T`. A no-op wherever `int` is 32 bits, so like
+edit 15 it should not be guarded — guarding it would ship the broken form
+everywhere else. Send it upstream with 14 and 15; all three are plain 16-bit
+portability defects.
+
+**Workaround until then:** use a wildcard. `-s TRANS.*` transfers the same
+32 KB file correctly, because it reaches `nzxpand()`.
 
 **Then prove it end to end**, because that is the point: a take-file on the
-Victor doing `set speed`, `send`, `statistics`. This port has driven every
-run from a `.BAT` and switches; a take-file is the first time the machine
-could script itself.
+Victor doing `set speed`, `send`, `statistics`. `TAKE` from the prompt
+already works, so this is available now and does not wait on item 0.
+
+**Three rules for writing them**, all learned the hard way:
+
+- **CRLF** line endings (`PTEST.KSC` is CRLF and works, and `_fmode` is
+  `O_BINARY` here so it is not obvious that it should).
+- **Never end a line with `-`** — that is C-Kermit's continuation
+  character, and it silently ate four commands out of §16z's test script.
+- **The filename must be argv[1] literally.** `prescan()`'s branch is
+  guarded by `yargc > 1 && *yargv[1] != '-'` (`ckuus4.c:1610`), so
+  `CKICPD -d FILE.KSC` never takes it. Put switches after.
 
 ---
 
@@ -274,7 +382,9 @@ through it — which is why a floppy with 1.5-second writes loses nothing.
 question (41h here, INT 09h there) that is the most likely thing to break
 the "one binary, two DOSes" claim.
 
-**8. Report the `ckcmai.c` nesting upstream.** Unchanged since §16j.
+**8. ~~Report the `ckcmai.c` nesting upstream.~~** Folded into item 1 —
+§16ac found the same region also swallowing `dotakeini()` and
+`docmdfile()`, and edit 14 fixed it. One report, not two.
 
 **9. `REMOTE DIRECTORY`** still streams its listing and never terminates it
 (§16i).
@@ -337,7 +447,14 @@ maintain the burst table. Without that, the report would print
   **always pass `--rxbytes`**, which computes and applies the startup
   dead-air shift. §16r nearly published a wrong answer for want of it.
 - **`python3 .probe/pktstat.py host.pkt`** decodes a log; `grep -c '^S-'`
-  counts retransmissions and `grep -c '<timeout>'` counts timeouts.
+  counts retransmissions and `grep -c '<timeout>'` counts timeouts. **Both
+  are receive-leg instruments.** On a Victor-*send* log the length field it
+  reads is 0 for long packets and `S-` counts the host retransmitting, so it
+  reported "longest 49, retransmissions 0" for a log with 3,614-character
+  lines and four Victor resends. Read send logs by hand until it is fixed.
+- **`.probe/macspeed.c`** sets a non-standard bit rate on a macOS port via
+  `IOSSIOSPEED`, which is the only way to reach the x1 rates the Victor can
+  actually produce (§11a0). `-h` to hold it; give C-Kermit no `set speed`.
 - **`.probe/vburst.c`** replays the burst detector on the host, 17 cases —
   `cc -o .probe/vburst .probe/vburst.c`. Re-run after touching that logic.
 - **`.probe/vasm.c`** records what Open Watcom will and will not do for an
@@ -368,6 +485,17 @@ maintain the burst table. Without that, the report would print
 - **`REMOTE DIRECTORY` never terminates its listing** (§16i).
 - **Most of the default capability set is untested** (§16i). `BYE` never sent.
 - **Wildcards are case-sensitive.** `-s *.TXT`.
+- **`-s <name>` fails for any file of 32,768 bytes or more**, periodically,
+  because `ckuusy.c:3690` stores `zchki()`'s `CK_OFF_T` return — the file
+  size — in a 16-bit `int`. §1 item 1a, upstream edit 16. The tell is
+  `kermit -s NAME:` with an **empty** message after the colon, which means
+  `errno` was never set and the file was found. Wildcards route around it.
+- **`pktstat.py` misreads a Victor-send log.** Its "longest packet" reads
+  the one-byte LEN field, which is 0 for long packets, and it counts `S-`
+  lines, which is the *host* retransmitting. On a send test it reported
+  "longest 49, retransmissions 0" for a log whose longest line was 3,614
+  characters and which contained four Victor resends. Read the log directly
+  for send legs until it is fixed.
 - **No interrupt-level flow control**, `tcflow()` is a stub, and the ring has
   no water marks. Safe today only because the ring (4,096) exceeds the
   longest packet (3,991) at a window of one — a **105-byte margin that is
@@ -457,22 +585,44 @@ wrong, and it validated `ckvisr.asm` before the bench.
   boots as `A:`; use `vtg_image_util`, never mtools.
 - Backups: `victor_kermit.img.bak-20260807-preregress` is the last one,
   taken before the image was cleared of §16w–§16y experiment files.
-- **On the image now**, cleaned of the §16w–§16y experiments. **Two
-  binaries, deliberately, and the exit report does not distinguish them —
-  keep the `.OUT` names apart:**
-  - **`CKICP.EXE` — 433,830, md5 `3160898a98ad013fe97d66c78471bc4a`**, the
-    §16y parser build (`XFLAGS=-dKEEP_ICP ZT=-zt2048`). **This is the one to
-    test.** Needs 428,662 (418K) of the bench machine's 824,784.
-  - `CKERMITW.EXE` — 204,764, md5 `79752cbc733c2c1927099cd3e4231cff`, the
-    shipping build, **bit-identical to every §16v bench binary**, for the
-    regression leg.
-  - `PTEST.KSC` (`echo`, `show versions`, `exit`) and `RXEA.KSC`
-    (`set line`, `set speed 38400`, `receive`, `statistics`, `exit`).
-  - `STEPEA.BAT` at 38400 and `STEPEB.BAT` at 19200 drive the shipping
-    build's regression, writing `STEPEA/EB.OUT`; host take-files
-    `s16zREA.ksc` / `s16zREB.ksc` send `rcvea.dat` / `rcveb.dat`.
+- **On the image now.** Names are deliberately distinct because the exit
+  report cannot tell two builds apart — keep the `.OUT` names apart too.
+  - `CKERMITW.EXE` — shipping build, all of §16z–§16ad.
+  - `CKICP.EXE` / `CKICPD.EXE` — the parser build, and the same with
+    `KEEP_DEBUG`. `CKICPD` needs 532,904 (520K), so a 640K machine minimum.
+  - **The x1 sweep binaries and their one-line `.BAT`s:**
+
+    | BAT | binary | mode | count | bps |
+    |---|---|---|---:|---:|
+    | `S96X16` | `CKERMITW -b 9600` | x16 | 8 | 9,766 |
+    | `S96X1` | `CKX9600.EXE` | x1 | 130 | 9,615 |
+    | **`S96X1S`** | **`CKX96S.EXE`** | **x1 + `DRPSIZ=90`** | **130** | **9,615** |
+    | `S384X1` | `CKX384.EXE` | x1 | 33 | 37,879 |
+    | `S576` | `CKERMITW -b 57600` | x1 | 22 | 56,818 |
+    | `S768` | `CKERMITW -b 76800` | x1 | 16 | 78,125 |
+    | `S1152` | `CKERMITW -b 115200` | x1 | 11 | 113,636 |
+
+    `S96X1S` is the unrun one and it is §1 item 0. The `CKX*` builds carry
+    `-dV9K_CLKBITS`/`-dV9K_COUNT` and therefore **ignore `-b` entirely** —
+    one build, one point, no ambiguity about what was on the wire.
+  - `SPDTEST.KSC` + `STEPSPD.BAT` (parser regression), `PTEST.KSC`,
+    `TRANS.DAT` (32,768 bytes, md5 `d94d2beda069ef0ef340977e7fd6995d`).
   - Older `STEP*`/`RCV*` from §16t and §16v are still there. Delete before
-    reusing a name.
+    reusing a name — `REN DEBUG.LOG X.LOG` fails silently if `X.LOG`
+    exists, leaving a stale log beside a fresh `.OUT`.
+
+**Expected bit periods on TD, for the analyzer** — the right-hand column is
+what you would see if the OEM driver's IOCTL ignored CR4's clock bits the
+way it ignores CR1. It does not; this is measured. Kept as the check:
+
+| BAT | expected | if CR4 were ignored |
+|---|---:|---:|
+| S96X16 | 102.4 µs | 102.4 µs |
+| S96X1 / S96X1S | 104.0 µs | 1664.0 µs |
+| S384X1 | 26.4 µs | 422.4 µs |
+| S576 | 17.6 µs | 281.6 µs |
+| S768 | 12.8 µs | 204.8 µs |
+| S1152 | 8.8 µs | 140.8 µs |
 
 ### Testing the parser at the bench — this is what §16y was for
 
