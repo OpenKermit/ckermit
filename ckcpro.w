@@ -327,7 +327,8 @@ extern int protostartup;		/* SET PROTOCOL STARTUP-STRING */
 /* BEGIN is NOT a GOTO! */
 #define TINIT if (tinit(1) < 0) return(-9)
 #define SERVE { TINIT; resetc(); nakstate=1; what=W_NOTHING; cmarg2=""; \
-sendmode=SM_SEND; havefs=0; recursive=r_save; fnspath=p_save; BEGIN serve; }
+sendmode=SM_SEND; havefs=0; recursive=r_save; fnspath=p_save; \
+debug(F100,"SERVE waiting for next command","",0); BEGIN serve; }
 #define RESUME { rdebug(); if (!server) { wheremsg(); return(0); } else \
 if (justone) { justone=0; wheremsg(); return(0); } else { SERVE; } }
 
