@@ -291,6 +291,15 @@ PORT_COLLISION_RETRIES = 3
 #
 PORT_BIND_FAILURE_MARKER = "Unable to bind to socket"
 
+# ckermit's message when a TCP server's tn_wait() finds the connection it just
+# accepted already gone.  Checked server's captured stdout to recognize the
+# other half of the same get_free_port() race PORT_BIND_FAILURE_MARKER covers:
+# the bind succeeds, but a stray leftover connection from something else lands
+# in the listener's single accept() ahead of the real client, which is never
+# consumed from the accept() backlog.  See _run_tcp's use of this for the
+# resulting client-side timeout.
+STRAY_CONNECTION_MARKER = "Connection closed by peer"
+
 
 class PortCollisionError(RuntimeError):
     """Raised by _wait_for_tcp_listener when the spawned listener's
@@ -596,7 +605,6 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
                 created_files.append(gz_path)
 
         server_cmd_str = ", ".join(setup_lines)
-        port = None
         for attempt in range(PORT_COLLISION_RETRIES):
             port = get_free_port()
             server_full_cmd = [
@@ -615,44 +623,67 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
                 _wait_for_tcp_listener(
                     proc, server_stdout_log, server_log_fh,
                     "wermit_loopback")
-                break
             except PortCollisionError:
                 if attempt == PORT_COLLISION_RETRIES - 1:
                     raise
                 logger.info(
                     "wermit_loopback: port %d raced, retrying", port)
                 _wait_or_kill(proc, timeout=1)
+                continue
 
-        full_client_cmd = [
-            "-H", "-Y", "-Q", "-C",
-            f"{client_debug_prefix}set command more-prompting off, "
-            "set delay 0, set tcp reverse-dns-lookup off, "
-            f"{client_extra_prefix}set host localhost {port} /{switch}, "
-            f"if failure exit {SSL_CONNECT_FAILURE_CODE}, "
-            f"set delay 0, {client_prefix}{cmd_str}, close, exit"
-        ]
-        logger.info(
-            "wermit_loopback: Client running command sequence: %s",
-            cmd_str)
-        result = None
-        try:
-            result = run_wermit(
-                full_client_cmd, timeout=timeout + TCP_TIMEOUT_MARGIN)
-        finally:
-            # Always drain server stdout. Post-transfer assertions may
-            # fail even when the client process exits 0.
-            _wait_or_kill(proc)
-            if server_stdout_log.exists():
+            full_client_cmd = [
+                "-H", "-Y", "-Q", "-C",
+                f"{client_debug_prefix}set command more-prompting off, "
+                "set delay 0, set tcp reverse-dns-lookup off, "
+                f"{client_extra_prefix}set host localhost {port} "
+                f"/{switch}, "
+                f"if failure exit {SSL_CONNECT_FAILURE_CODE}, "
+                f"set delay 0, {client_prefix}{cmd_str}, close, exit"
+            ]
+            logger.info(
+                "wermit_loopback: Client running command sequence: %s",
+                cmd_str)
+            result = None
+            try:
                 try:
+                    result = run_wermit(
+                        full_client_cmd,
+                        timeout=timeout + TCP_TIMEOUT_MARGIN)
+                except subprocess.TimeoutExpired:
+                    # If some other process's  connection lands on this
+                    # listener's single accept() before the client in this test
+                    # does, the server gives up immediately while the client's
+                    # connect() has already completed at the TCP level, so it
+                    # just sits waiting for protocol data that will never come
+                    # until this timeout.  STRAY_CONNECTION_MARKER in the
+                    # server's stdout is that server-side give-up.  Retry with a
+                    # fresh port rather than failing.
+                    stray = (
+                        server_stdout_log.exists() and
+                        STRAY_CONNECTION_MARKER in
+                        server_stdout_log.read_text(errors="replace"))
+                    if not stray or attempt == PORT_COLLISION_RETRIES - 1:
+                        raise
                     logger.info(
-                        "wermit_loopback: Server stdout log:\n%s",
-                        tail_text(server_stdout_log, "Server stdout log"))
-                except OSError as e:
-                    logger.warning(
-                        "wermit_loopback: Failed to read server stdout "
-                        "log %s: %s", server_stdout_log, e)
+                        "wermit_loopback: port %d's listener accepted "
+                        "a stray connection, retrying", port)
+                    continue
+            finally:
+                # Always drain server stdout. Post-transfer assertions
+                # may fail even when the client process exits 0.
+                _wait_or_kill(proc)
+                if server_stdout_log.exists():
+                    try:
+                        logger.info(
+                            "wermit_loopback: Server stdout log:\n%s",
+                            tail_text(
+                                server_stdout_log, "Server stdout log"))
+                    except OSError as e:
+                        logger.warning(
+                            "wermit_loopback: Failed to read server "
+                            "stdout log %s: %s", server_stdout_log, e)
 
-        return result
+            return result
 
     def _run(server_dir, server_setup_cmds="", client_commands="",
              timeout=10, server_binary_path=None, server_debug_log=False):
