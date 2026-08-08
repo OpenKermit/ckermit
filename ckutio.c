@@ -11097,7 +11097,6 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
 	    errno = 0;
 	    /* On encrypted connections myread returns encrypted bytes */
 	    n = myread();
-	    debug(F000,"TTINL myread char","",n);
 	    if (n < 0) {	/* Timeout or i/o error? */
 #ifdef DEBUG
 		if (deblog) {
@@ -11159,7 +11158,6 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
 		CHAR ch = n;
 		ck_tn_decrypt((char *)&ch,1);
 		n = ch;
-		debug(F000,"TTINL decryp char","",n);
 	    }
 	    pushedback = 0;
 #endif /* CK_ENCRYPTION */
