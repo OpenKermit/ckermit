@@ -1335,6 +1335,34 @@ static jmp_buf sjbuf;
 static jmp_buf jjbuf;
 #endif /* V7 */
 
+/*
+  State for the deadline-based timeout mechanism. ck_deadline_flag is
+  set by deadline_timerh() and deadline_xtimerh(). ck_deadline_active,
+  ck_deadline_sec, and ck_deadline_tv record the absolute deadline set
+  by ck_deadline_set() for ck_deadline_remaining_ms() and
+  ck_deadline_expired() to measure against.
+*/
+static volatile sig_atomic_t ck_deadline_flag = 0;
+static int ck_deadline_active = 0;
+#ifdef GFTIMER
+static struct timeval ck_deadline_tv;
+#else /* GFTIMER */
+static time_t ck_deadline_sec = (time_t)0;
+#endif /* GFTIMER */
+
+/*
+  Saved deadline state for ck_deadline_save() and ck_deadline_restore().
+  Used when an untimed read is nested inside an active timed read.
+*/
+typedef struct {
+    int active;
+#ifdef GFTIMER
+    struct timeval tv;
+#else /* GFTIMER */
+    time_t sec;
+#endif /* GFTIMER */
+} ck_deadline_state_t;
+
 /* static */				/* (Not static any more) */
 int ttyfd = -1;				/* TTY file descriptor */
 
@@ -1582,11 +1610,23 @@ _PROTOTYP( SIGTYP timerh, () );
 _PROTOTYP( SIGTYP cctrap, () );
 _PROTOTYP( SIGTYP esctrp, () );
 _PROTOTYP( SIGTYP sig_ign, () );
+_PROTOTYP( SIGTYP deadline_timerh, () );
+_PROTOTYP( SIGTYP deadline_xtimerh, () );
 #else
 _PROTOTYP( SIGTYP timerh, (int) );
 _PROTOTYP( SIGTYP cctrap, (int) );
 _PROTOTYP( SIGTYP esctrp, (int) );
+_PROTOTYP( SIGTYP deadline_timerh, (int) );
+_PROTOTYP( SIGTYP deadline_xtimerh, (int) );
 #endif /* apollo */
+_PROTOTYP( VOID ck_deadline_set, (int) );
+_PROTOTYP( static VOID ck_deadline_save, (ck_deadline_state_t *) );
+_PROTOTYP( static VOID ck_deadline_restore, (ck_deadline_state_t *) );
+_PROTOTYP( long ck_deadline_remaining_ms, (void) );
+_PROTOTYP( int ck_deadline_expired, (void) );
+#ifdef SELECT
+_PROTOTYP( static int ck_deadline_select, (int, int) );
+#endif /* SELECT */
 _PROTOTYP( int do_open, (char *) );
 _PROTOTYP( static int in_chk, (int, int) );
 _PROTOTYP( static int ttrpid, (char *) );
@@ -1698,6 +1738,215 @@ xtimerh(foo) int foo;
     longjmp(sjbuf,1);
 #endif /* CK_POSIX_SIG */
 }
+
+/*
+  SIGALRM handlers for deadline-based timeouts. Unlike timerh() and
+  xtimerh(), these set ck_deadline_flag and return normally instead of
+  unwinding via siglongjmp().
+*/
+/*ARGSUSED*/
+SIGTYP
+#ifdef CK_ANSIC
+deadline_timerh( int foo )
+#else
+deadline_timerh(foo) int foo;
+#endif /* CK_ANSIC */
+{
+    ck_deadline_flag = 1;
+}
+
+/*ARGSUSED*/
+SIGTYP
+#ifdef CK_ANSIC
+deadline_xtimerh( int foo )
+#else
+deadline_xtimerh(foo) int foo;
+#endif /* CK_ANSIC */
+{
+    ck_deadline_flag = 1;
+}
+
+/*
+  D E A D L I N E _ S I G N A L
+
+  Install a SIGALRM handler using sigaction with SA_RESTART cleared.
+  This ensures interrupted system calls return EINTR rather than
+  restarting automatically. Returns previous signal handler.
+*/
+static sig_t
+#ifdef CK_ANSIC
+deadline_signal( SIGTYP (*handler)(int) )
+#else
+deadline_signal(handler) SIGTYP (*handler)(int);
+#endif /* CK_ANSIC */
+{
+    struct sigaction sa, oa;
+    memset((char *)&sa, 0, sizeof(sa));
+    sa.sa_handler = handler;
+    sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
+    if (sigaction(SIGALRM, &sa, &oa) < 0)
+      return SIG_ERR;
+    return oa.sa_handler;
+}
+
+/*
+  C K _ D E A D L I N E _ S E T
+
+  Records an absolute deadline "seconds" from now, for
+  ck_deadline_remaining_ms()/ck_deadline_expired() to measure against.
+  seconds <= 0 clears the deadline (treated as infinite by the other
+  two functions).  Uses gettimeofday()-based sub-second timing when
+  GFTIMER is available (every platform this project builds and tests
+  for), and whole-second time() otherwise.
+*/
+VOID
+#ifdef CK_ANSIC
+ck_deadline_set(int seconds)
+#else
+ck_deadline_set(seconds) int seconds;
+#endif /* CK_ANSIC */
+{
+    ck_deadline_flag = 0;
+    if (seconds <= 0) {
+	ck_deadline_active = 0;
+	return;
+    }
+    ck_deadline_active = 1;
+#ifdef GFTIMER
+#ifdef GTODONEARG			/* Account for Mot's definition */
+    (VOID) gettimeofday(&ck_deadline_tv);
+#else
+    (VOID) gettimeofday(&ck_deadline_tv, (struct timezone *)0);
+#endif /* GTODONEARG */
+    ck_deadline_tv.tv_sec += seconds;
+#else /* GFTIMER */
+    ck_deadline_sec = time((time_t *)0) + (time_t)seconds;
+#endif /* GFTIMER */
+}
+
+/*
+  C K _ D E A D L I N E _ S A V E ,  C K _ D E A D L I N E _ R E S T O R E
+
+  Save and restore shared deadline state.
+
+  Nested untimed reads (such as Telnet option processing called from
+  ttinl()) clear the shared deadline state. Callers save state before
+  clearing it and restore state afterward so outer deadlines remain active.
+*/
+static VOID
+ck_deadline_save(ck_deadline_state_t *save) {
+    save->active = ck_deadline_active;
+#ifdef GFTIMER
+    save->tv = ck_deadline_tv;
+#else /* GFTIMER */
+    save->sec = ck_deadline_sec;
+#endif /* GFTIMER */
+}
+
+static VOID
+ck_deadline_restore(ck_deadline_state_t *save) {
+    ck_deadline_active = save->active;
+#ifdef GFTIMER
+    ck_deadline_tv = save->tv;
+#else /* GFTIMER */
+    ck_deadline_sec = save->sec;
+#endif /* GFTIMER */
+}
+
+/*
+  C K _ D E A D L I N E _ R E M A I N I N G _ M S
+
+  Returns the number of milliseconds left before the deadline
+  ck_deadline_set() last recorded, clamped to 0 (never negative), or
+  -1 if no deadline is active (infinite).  Millisecond resolution
+  requires GFTIMER; without it, this rounds to whole seconds.
+*/
+long
+ck_deadline_remaining_ms() {
+    long ms;
+#ifdef GFTIMER
+    struct timeval now;
+#else /* GFTIMER */
+    time_t now;
+#endif /* GFTIMER */
+
+    if (!ck_deadline_active)
+      return(-1L);
+
+#ifdef GFTIMER
+#ifdef GTODONEARG			/* Account for Mot's definition */
+    (VOID) gettimeofday(&now);
+#else
+    (VOID) gettimeofday(&now, (struct timezone *)0);
+#endif /* GTODONEARG */
+    ms = (ck_deadline_tv.tv_sec - now.tv_sec) * 1000L +
+      (ck_deadline_tv.tv_usec - now.tv_usec) / 1000L;
+#else /* GFTIMER */
+    now = time((time_t *)0);
+    ms = (long)(ck_deadline_sec - now) * 1000L;
+#endif /* GFTIMER */
+    return(ms > 0L ? ms : 0L);
+}
+
+/*
+  C K _ D E A D L I N E _ E X P I R E D
+
+  Returns nonzero if ck_deadline_set()'s deadline has passed, 0 if it
+  has not or if no deadline is active.
+*/
+int
+ck_deadline_expired() {
+    return(ck_deadline_active && ck_deadline_remaining_ms() <= 0L);
+}
+
+#ifdef SELECT
+/*
+  C K _ D E A D L I N E _ S E L E C T
+
+  Waits for fd to become ready for reading (wantread != 0) or writing
+  (wantread == 0), bounded by ck_deadline_remaining_ms() (or forever,
+  if no deadline is active).  Retries internally on EINTR instead of
+  reporting it to the caller.  Returns 1 if fd is ready, 0 if the
+  deadline expired first, or -1 on any other select() failure (errno
+  left set).
+*/
+static int
+#ifdef CK_ANSIC
+ck_deadline_select(int fd, int wantread)
+#else
+ck_deadline_select(fd,wantread) int fd, wantread;
+#endif /* CK_ANSIC */
+{
+    for (;;) {
+	fd_set fds;
+	struct timeval tv, *tvp;
+	long ms;
+	int rc;
+
+	ms = ck_deadline_remaining_ms();
+	if (ms < 0L) {
+	    tvp = NULL;
+	} else {
+	    tv.tv_sec = ms / 1000L;
+	    tv.tv_usec = (ms % 1000L) * 1000L;
+	    tvp = &tv;
+	}
+	FD_ZERO(&fds);
+	FD_SET(fd, &fds);
+	if (wantread)
+	  rc = select(fd + 1, &fds, NULL, NULL, tvp);
+	else
+	  rc = select(fd + 1, NULL, &fds, NULL, tvp);
+	if (rc < 0) {
+	    if (errno == EINTR)
+	      continue;
+	    return(-1);
+	}
+	return(rc > 0 ? 1 : 0);
+    }
+}
+#endif /* SELECT */
 
 
 /* Control-C trap for communication line input functions */
@@ -2784,18 +3033,17 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
     debug(F101,"ttopen xlocal","",xlocal);
     if (timo > 0) {
 	int xx;
-	saval = signal(SIGALRM,timerh);	/* Timed, set up timer. */
+/*
+  do_open has no internal deadline check, so SIGALRM unblocks the call.
+  If the call fails and ck_deadline_expired() is true, set ttotmo.
+*/
+	ck_deadline_set(timo);
+	saval = deadline_signal(deadline_timerh); /* Timed, set up timer. */
 	xx = alarm(timo);		/* Timed open() */
 	debug(F101,"ttopen alarm","",xx);
-	if (
-#ifdef CK_POSIX_SIG
-	    sigsetjmp(sjbuf,1)
-#else
-	    setjmp(sjbuf)
-#endif /* CK_POSIX_SIG */
-	    ) {
-	    ttotmo = 1;			/* Flag timeout. */
-	} else ttyfd = do_open(ttname);
+	ttyfd = do_open(ttname);
+	if (ttyfd < 0 && ck_deadline_expired())
+	  ttotmo = 1;			/* Flag timeout. */
 	ttimoff();
 	debug(F111,"ttopen","modem",modem);
 	debug(F101,"ttopen ttyfd","",ttyfd);
@@ -3064,20 +3312,17 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
     ttotmo = 0;				/* Flag no timeout */
     if (timo > 0) {
 	int xx;
-	saval = signal(SIGALRM,timerh);	/* Timed, set up timer. */
+/*
+  do_open has no internal deadline check, so SIGALRM unblocks the call.
+  If the call fails and ck_deadline_expired() is true, set ttotmo.
+*/
+	ck_deadline_set(timo);
+	saval = deadline_signal(deadline_timerh); /* Timed, set up timer. */
 	xx = alarm(timo);		/* Timed open() */
 	debug(F101,"ttopen alarm","",xx);
-	if (
-#ifdef CK_POSIX_SIG
-	    sigsetjmp(sjbuf,1)
-#else
-	    setjmp(sjbuf)
-#endif /* CK_POSIX_SIG */
-	    ) {
-	    ttotmo = 1;			/* Flag timeout. */
-	} else {
-	    ttyfd = do_open(fnam);
-	}
+	ttyfd = do_open(fnam);
+	if (ttyfd < 0 && ck_deadline_expired())
+	  ttotmo = 1;			/* Flag timeout. */
 	ttimoff();
 	debug(F111,"ttopen timed ttyfd",fnam,ttyfd);
     } else {
@@ -3713,22 +3958,15 @@ ttclos(foo) int foo;
 	|| ttyfd > 0
 #endif /* NOFDZERO */
 	) {
-	saval = signal(SIGALRM,xtimerh); /* Enable timer interrupt. */
+/*
+  Each stage below (hangup, tty-mode reset, close) sets an explicit
+  deadline and checks ck_deadline_expired() afterwards to handle
+  stuck system calls.
+*/
+	ck_deadline_set(8);
+	saval = deadline_signal(deadline_xtimerh); /* Enable timer interrupt. */
 	xx = alarm(8);			/* Allow 8 seconds. */
 	debug(F101,"ttclos alarm","",xx);
-	if (
-#ifdef CK_POSIX_SIG
-	    sigsetjmp(sjbuf,1)
-#else
-	    setjmp(sjbuf)
-#endif /* CK_POSIX_SIG */
-	    ) {				/* Timer went off? */
-	    x = -1;
-#ifdef DEBUG
-	    debug(F111,"ttclos ALARM TRAP errno",ckitoa(ttc_state),errno);
-	    printf("ttclos() timeout: %s\n", ttc_nam[ttc_state]);
-#endif /* DEBUG */
-	}
 	/* Hang up the device (drop DTR) */
 
 	errno = 0;
@@ -3762,6 +4000,13 @@ ttclos(foo) int foo;
 	    }
 #endif	/* HUPCL */
 #endif	/* CK_NOHUPCL */
+	    if (ck_deadline_expired()) {
+		x = -1;
+#ifdef DEBUG
+		debug(F111,"ttclos ALARM TRAP errno",ckitoa(ttc_state),errno);
+		printf("ttclos() timeout: %s\n", ttc_nam[ttc_state]);
+#endif /* DEBUG */
+	    }
 	}
 	/* Put back device modes as we found them */
 
@@ -3773,10 +4018,19 @@ ttclos(foo) int foo;
 	    /* since it probably won't work. */
 	    if (x > -1) {
 		debug(F101,"ttclos calling ttres()","",x);
-		signal(SIGALRM,xtimerh); /* Re-enable the alarm. */
+		ck_deadline_set(8);
+		deadline_signal(deadline_xtimerh); /* Re-enable the alarm. */
 		alarm(8);		/* Re-arm the timer */
 		x = ttres();		/* Reset device modes. */
 		debug(F101,"ttclos ttres()","",x);
+		if (ck_deadline_expired()) {
+		    x = -1;
+#ifdef DEBUG
+		    debug(F111,"ttclos ALARM TRAP errno",ckitoa(ttc_state),
+			  errno);
+		    printf("ttclos() timeout: %s\n", ttc_nam[ttc_state]);
+#endif /* DEBUG */
+		}
 		alarm(0);
 	    }
 	}
@@ -3788,10 +4042,18 @@ ttclos(foo) int foo;
 	    ttc_state = 3;
 	    errno = 0;
 	    debug(F101,"ttclos calling close","",x);
-	    signal(SIGALRM,xtimerh);	/* Re-enable alarm. */
+	    ck_deadline_set(8);
+	    deadline_signal(deadline_xtimerh); /* Re-enable alarm. */
 	    alarm(8);			/* Re-arm the timer */
 	    x = close(ttyfd);		/* Close the device. */
 	    debug(F101,"ttclos close()","",x);
+	    if (ck_deadline_expired()) {
+		x = -1;
+#ifdef DEBUG
+		debug(F111,"ttclos ALARM TRAP errno",ckitoa(ttc_state),errno);
+		printf("ttclos() timeout: %s\n", ttc_nam[ttc_state]);
+#endif /* DEBUG */
+	    }
 	    if (x > -1)
 	      ttc_state = 3;
 	}
@@ -8512,6 +8774,7 @@ ttpushback(s,n) CHAR * s; int n;
  * Returns: When OK	=> a positive character, 0 or greater.
  *	    When EOF	=> -2.
  *	    When error	=> -3, error code in errno.
+ *	    When timed out (myfillbuf() deadline expired) => -4.
  *
  * Older myread()s additionally returned -1 to indicate that there was nothing
  * to read, upon which the caller would call myread() again until it got
@@ -8552,6 +8815,8 @@ mygetbuf() {
 	my_count = 0;
 	my_item = -1;
 	debug(F101,"mygetbuf errno","",errno);
+	if (x == -4)		 /* myfillbuf() deadline expired: not an */
+	  return(-4);		 /* I/O error, no connection to close. */
 #ifdef TCPSOCKET
 	if (netconn && ttnet == NET_TCPB) {
 /*
@@ -8628,6 +8893,9 @@ mygetbuf() {
 	 * of the O.S., all available data is read into mybuf, up to the size
 	 * of mybuf.  If there is none, the first character to arrive is
 	 * awaited and returned.
+	 *
+	 * Also returns -4 (distinct from the -1/-2/-3 failure codes above)
+	 * when the active deadline expires while waiting.
 	 */
 int
 myfillbuf() {
@@ -8671,22 +8939,70 @@ myfillbuf() {
 
 #ifdef CK_SSL
       if (ssl_active_flag || tls_active_flag) {
-	  int error, n = 0;
+	  SSL *ssl_h = ssl_active_flag ? ssl_con : tls_con;
+	  int n = 0;
 	  debug(F100,"myfillbuf calling SSL_read() fd","",0);
+#ifdef SELECT
+/*
+  ck_deadline_select() confirms readiness before calling SSL_read().
+
+  Non-blocking gating is conditional on O_NONBLOCK being set on fd,
+  not toggled by myfillbuf(). Toggling O_NONBLOCK in myfillbuf()
+  races child processes that share the open file description.
+
+  When fd is blocking, execution falls through to the blocking
+  SSL_read() call.
+*/
+	  if (fcntl(fd, F_GETFL, 0) & O_NONBLOCK) {
+	      int wantread = 1;
+/*
+  Loop on an explicit "try again" condition. SSL_read()
+  returns -1 for the routine SSL_ERROR_WANT_READ/WANT_WRITE case (the
+  normal outcome on a non-blocking fd whenever the peer has not sent a
+  full record yet), so a loop test of n == 0 exits after that first
+  such call instead of retrying, and returns -1 as if it were a hard
+  I/O error.
+*/
+	      while(1) {
+		  int rc = ck_deadline_select(fd, wantread);
+		  if (rc <= 0)
+		    return(rc < 0 ? -3 : -4);
+		  n = SSL_read(ssl_h, (char *)mybuf, sizeof(mybuf));
+		  switch (SSL_get_error(ssl_h,n)) {
+		    case SSL_ERROR_NONE:
+		      if (n < 0)
+			return(-2);
+		      if (n > 0)
+			return(n);
+		      break;		/* n == 0: select() again. */
+		    case SSL_ERROR_WANT_WRITE:
+		      wantread = 0;
+		      break;
+		    case SSL_ERROR_WANT_READ:
+		      wantread = 1;
+		      break;
+		    case SSL_ERROR_SYSCALL:
+		      if (n != 0)
+			return(-1);
+		      /* fall through */
+		    case SSL_ERROR_WANT_X509_LOOKUP:
+		    case SSL_ERROR_SSL:
+		    case SSL_ERROR_ZERO_RETURN:
+		    default:
+		      ttclos(0);
+		      return(-3);
+		  }
+	      }
+	  }
+#endif /* SELECT */
 	  while (n == 0) {
-	      if (ssl_active_flag)
-                n = SSL_read(ssl_con, (char *)mybuf, sizeof(mybuf));
-	      else if (tls_active_flag)
-                n = SSL_read(tls_con, (char *)mybuf, sizeof(mybuf));
-              else
-		break;
-	      switch (SSL_get_error(ssl_active_flag?ssl_con:tls_con,n)) {
+	      n = SSL_read(ssl_h, (char *)mybuf, sizeof(mybuf));
+	      switch (SSL_get_error(ssl_h,n)) {
 		case SSL_ERROR_NONE:
-		  if (n > 0)
-                    return(n);
 		  if (n < 0)
-                    return(-2);
-		  msleep(50);
+		    return(-2);
+		  if (n == 0)
+		    msleep(50);
 		  break;
 		case SSL_ERROR_WANT_WRITE:
 		case SSL_ERROR_WANT_READ:
@@ -8694,15 +9010,17 @@ myfillbuf() {
 		case SSL_ERROR_SYSCALL:
 		  if (n != 0)
 		    return(-1);
+		  /* fall through */
 		case SSL_ERROR_WANT_X509_LOOKUP:
 		case SSL_ERROR_SSL:
 		case SSL_ERROR_ZERO_RETURN:
 		default:
 		  ttclos(0);
 		  return(-3);
-            }
-        }
-    }
+	      }
+	  }
+	  return(n);
+      }
 #endif /* CK_SSL */
 #ifdef CK_KERBEROS
 #ifdef KRB4
@@ -8778,23 +9096,11 @@ myfillbuf() {
     if (fd < 0)
       return(-3);
     {
-        /*
-	  select() is never automatically restarted after a caught signal on
-	  Linux, regardless of SA_RESTART, unlike most other blocking calls.  A
-	  harmless signal such as SIGWINCH from a terminal resize makes
-	  select() return EINTR, which fell through to the same -3 (I/O error)
-	  return as a real failure, closing the connection. So retry on EINTR
-	  instead of failing.
-        */
-        fd_set rfd;
-        int rc;
-        do {
-            FD_ZERO(&rfd);
-            FD_SET(fd, &rfd);
-            rc = select(fd + 1, &rfd, NULL, NULL, NULL);
-        } while (rc < 0 && errno == EINTR);
-        if (rc < 0)
-          return(-3);
+	int rc = ck_deadline_select(fd, 1);
+	if (rc < 0)
+	  return(-3);
+	if (rc == 0)			/* Deadline expired */
+	  return(-4);
     }
 #endif /* SELECT */
 #ifdef CK_POSIX_SIG
@@ -9991,7 +10297,10 @@ genbrk(fn,msec) int fn, msec; {
   Returns:
    >= 0: number of characters waiting, 0 or greater,
      -1: on any kind of error,
-     -2: if there is (definitely) no connection.
+     -2: if there is (definitely) no connection,
+     -3: myfillbuf() deadline expired, reachable
+         only on a platform without FIONREAD, none of which this
+         project builds or tests today.
   Note: In UNIX we don't have to call nettchk() because a socket
   file descriptor works just like in serial i/o, ioctls and all.
   (But this will change if we add non-file-descriptor channels,
@@ -10360,6 +10669,8 @@ in_chk(channel, fd) int channel, fd;
 	    my_count = myfillbuf();
 	    my_item = -1;		/* ^^^ */
 	    debug(F101,"in_chk myfillbuf my_count","",my_count);
+	    if (my_count == -4)		/* Deadline expired: distinct from */
+	      return(-3);		/* a real I/O error. */
 	    if (my_count < 0)
 	      return(-1);
 	    else
@@ -10467,31 +10778,42 @@ ttxin(n,buf) int n; CHAR *buf;
 
 #ifdef MYREAD
     debug(F101,"ttxin MYREAD","",n);
-    while (x < n) {
-	c = myread();
-	if (c < 0) {
-	    debug(F101,"ttxin myread returns","",c);
-	    if (c == -3) x = -1;
-	    break;
-        }
-	buf[x++] = c & ttpmsk;
+/*
+  Untimed read by contract. Save and restore any active deadline around
+  the read loop, as this function may be called from a nested context such
+  as Telnet option negotiation inside ttinl().
+*/
+    {
+	ck_deadline_state_t saved_deadline;
+	ck_deadline_save(&saved_deadline);
+	ck_deadline_set(0);
+	while (x < n) {
+	    c = myread();
+	    if (c < 0) {
+		debug(F101,"ttxin myread returns","",c);
+		if (c == -3) x = -1;
+		break;
+	    }
+	    buf[x++] = c & ttpmsk;
 #ifdef RLOGCODE
 #ifdef CK_KERBEROS
-        /* It is impossible to know how many characters are waiting */
-        /* to be read when you are using Encrypted Rlogin or SSL    */
-        /* as the transport since the number of real data bytes     */
-        /* can be greater or less than the number of bytes on the   */
-        /* wire which is what ttchk() returns.                      */
-        if (netconn && (ttnproto == NP_EK4LOGIN || ttnproto == NP_EK5LOGIN))
-	  if (ttchk() <= 0)
-	    break;
+	    /* It is impossible to know how many characters are waiting */
+	    /* to be read when you are using Encrypted Rlogin or SSL    */
+	    /* as the transport since the number of real data bytes     */
+	    /* can be greater or less than the number of bytes on the   */
+	    /* wire which is what ttchk() returns.                      */
+	    if (netconn && (ttnproto == NP_EK4LOGIN || ttnproto == NP_EK5LOGIN))
+	      if (ttchk() <= 0)
+		break;
 #endif /* CK_KERBEROS */
 #endif /* RLOGCODE */
 #ifdef CK_SSL
-        if (ssl_active_flag || tls_active_flag)
-	  if (ttchk() <= 0)
-	    break;
+	    if (ssl_active_flag || tls_active_flag)
+	      if (ttchk() <= 0)
+		break;
 #endif /* CK_SSL */
+	}
+	ck_deadline_restore(&saved_deadline);
     }
 #else
     debug(F101,"ttxin READ","",n);
@@ -10823,49 +11145,16 @@ ttoc(c) char c;
 
     c &= 0xff;
     /* debug(F101,"ttoc","",(CHAR) c); */
-    saval = signal(SIGALRM,timerh);	/* Enable timer interrupt */
+/*
+  On write failure, ttoc_failed checks ck_deadline_expired(). If the
+  deadline expired, execute XON/XOFF recovery.
+*/
+    ck_deadline_set(TTOC_TMO);
+    saval = deadline_signal(deadline_timerh); /* Enable timer interrupt */
     xx = alarm(TTOC_TMO);		/* for this many seconds. */
     if (xx < 0) xx = 0;			/* Save old alarm value. */
     /* debug(F101,"ttoc alarm","",xx); */
-    if (
-#ifdef CK_POSIX_SIG
-	sigsetjmp(sjbuf,1)
-#else
-	setjmp(sjbuf)
-#endif /* CK_POSIX_SIG */
-	) {		/* Timer went off? */
-	ttimoff();			/* Yes, cancel this alarm. */
-	if (xx - TTOC_TMO > 0) alarm(xx - TTOC_TMO); /* Restore previous one */
-        /* debug(F100,"ttoc timeout","",0); */
-#ifdef NETCONN
-	if (!netconn) {
-#endif /* NETCONN */
-	    debug(F101,"ttoc timeout","",c);
-	    if (ttflow == FLO_XONX) {
-		debug(F101,"ttoc flow","",ttflow); /* Maybe we're xoff'd */
-#ifndef Plan9
-#ifdef POSIX
-		/* POSIX way to unstick. */
-		debug(F100,"ttoc tcflow","",tcflow(ttyfd,TCOON));
-#else
-#ifdef BSD4				/* Berkeley way to do it. */
-#ifdef TIOCSTART
-/* .... Used to be "ioctl(ttyfd, TIOCSTART, 0);".  Who knows? */
-		{
-		  int x = 0;
-		  debug(F101,"ttoc TIOCSTART","",ioctl(ttyfd, TIOCSTART, &x));
-		}
-#endif /* TIOCSTART */
-#endif /* BSD4 */
-					/* Is there a Sys V way to do this? */
-#endif /* POSIX */
-#endif /* Plan9 */
-	    }
-#ifdef NETCONN
-        }
-#endif /* NETCONN */
-	return(-1);			/* Return failure code. */
-    } else {
+    {
         int rc;
 #ifdef BEOSORBEBOX
 #ifdef NETCONN
@@ -10904,13 +11193,13 @@ ttoc(c) char c;
 		  break;
 		case SSL_ERROR_SYSCALL:
 		  if (rc != 0)
-		    return(-1);
+		    goto ttoc_failed;
 		case SSL_ERROR_WANT_X509_LOOKUP:
 		case SSL_ERROR_SSL:
 		case SSL_ERROR_ZERO_RETURN:
 		default:
 		  ttclos(0);
-		  return(-1);
+		  goto ttoc_failed;
 	      }
 	  } else
 #endif /* CK_SSL */
@@ -10936,20 +11225,58 @@ ttoc(c) char c;
 #endif /* KRB5 */
 #endif /* CK_KERBEROS */
 	    rc = write(fd,&c,1);	/* Try to write the character. */
-	if (rc < 1) {			/* Failed */
-	    ttimoff();			/* Turn off the alarm. */
-	    alarm(xx);			/* Restore previous alarm. */
-	    debug(F101,"ttoc errno","",errno); /* Log the error, */
-	    return(-1);			/* and return the error code. */
-	}
+	if (rc < 1)			/* Failed */
+	  goto ttoc_failed;
     }
     ttimoff();				/* Success, turn off the alarm. */
     alarm(xx);				/* Restore previous alarm. */
     return(0);				/* Return good code. */
+
+ttoc_failed:
+    ttimoff();				/* Cancel this alarm. */
+    if (ck_deadline_expired()) {
+	if (xx - TTOC_TMO > 0) alarm(xx - TTOC_TMO); /* Restore previous one */
+        /* debug(F100,"ttoc timeout","",0); */
+#ifdef NETCONN
+	if (!netconn) {
+#endif /* NETCONN */
+	    debug(F101,"ttoc timeout","",c);
+	    if (ttflow == FLO_XONX) {
+		debug(F101,"ttoc flow","",ttflow); /* Maybe we're xoff'd */
+#ifndef Plan9
+#ifdef POSIX
+		/* POSIX way to unstick. */
+		debug(F100,"ttoc tcflow","",tcflow(ttyfd,TCOON));
+#else
+#ifdef BSD4				/* Berkeley way to do it. */
+#ifdef TIOCSTART
+/* .... Used to be "ioctl(ttyfd, TIOCSTART, 0);".  Who knows? */
+		{
+		  int x = 0;
+		  debug(F101,"ttoc TIOCSTART","",ioctl(ttyfd, TIOCSTART, &x));
+		}
+#endif /* TIOCSTART */
+#endif /* BSD4 */
+					/* Is there a Sys V way to do this? */
+#endif /* POSIX */
+#endif /* Plan9 */
+	    }
+#ifdef NETCONN
+        }
+#endif /* NETCONN */
+    } else {
+	alarm(xx);			/* Restore previous alarm. */
+	debug(F101,"ttoc errno","",errno); /* Log the error, */
+    }
+    return(-1);				/* Return failure code. */
 }
 
-/*  T T I N L  --  Read a record (up to break character) from comm line.  */
+/*  T T I N L _ I N N E R --  Read a record (up to break character) from comm
+    line.  */
 /*
+
+  The inner worker; wrapped by ttinl() below.
+
   Reads up to "max" characters from the connection, terminating on:
     (a) the packet length field if the "turn" argument is zero, or
     (b) on the packet-end character (eol) if the "turn" argument is nonzero
@@ -10995,21 +11322,21 @@ ttoc(c) char c;
 
 static int pushedback = 0;
 
-int
+static int
 #ifdef PARSENSE
 #ifdef CK_ANSIC
-ttinl(CHAR *dest, int max,int timo, CHAR eol, CHAR start, int turn)
+ttinl_inner(CHAR *dest, int max,int timo, CHAR eol, CHAR start, int turn)
 #else
-ttinl(dest,max,timo,eol,start,turn) int max,timo,turn; CHAR *dest, eol, start;
+ttinl_inner(dest,max,timo,eol,start,turn) int max,timo,turn; CHAR *dest, eol, start;
 #endif /* CK_ANSIC */
 #else /* not PARSENSE */
 #ifdef CK_ANSIC
-ttinl(CHAR *dest, int max,int timo, CHAR eol)
+ttinl_inner(CHAR *dest, int max,int timo, CHAR eol)
 #else
-ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
+ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
 #endif /* CK_ANSIC */
 #endif /* PARSENSE */
-/* ttinl */ {
+/* ttinl_inner */ {
 
 #ifndef MYREAD
     CHAR ch, dum;
@@ -11058,24 +11385,23 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
 
     *dest = '\0';                       /* Clear destination buffer */
     if (timo < 0) timo = 0;		/* Safety */
+/*
+  Record deadline for the record read. myread() returns -4 if the
+  deadline expires during buffer fill.
+*/
+    ck_deadline_set(timo);
     if (timo) {				/* Don't time out if timo == 0 */
 	int xx;
-	saval = signal(SIGALRM,timerh);	/* Enable timer interrupt */
+/*
+  Arm deadline_timerh as a backstop for blocking calls. Timeout
+  enforcement is handled primarily by checking for return code -4 from
+  myread().
+*/
+	saval = deadline_signal(deadline_timerh); /* Enable timer interrupt */
 	xx = alarm(timo);		/* Set it. */
 	debug(F101,"ttinl alarm","",xx);
     }
-    if (
-#ifdef CK_POSIX_SIG
-	sigsetjmp(sjbuf,1)
-#else
-	setjmp(sjbuf)
-#endif /* CK_POSIX_SIG */
-	) {				/* Timer went off? */
-	debug(F100,"ttinl timout","",0); /* Get here on timeout. */
-	/* debug(F110," with",(char *) dest,0); */
-	ttimoff();			/* Turn off timer */
-	return(-1);			/* and return error code. */
-    } else {
+    {
 	register int i, n = -1;		/* local variables */
 	int ccn = 0;
 #ifdef PARSENSE
@@ -11114,7 +11440,14 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
 		  these retries can go on for, so a dead connection times out
 		  instead of retrying forever.
 		*/
-		if (n == -3) {
+		if (n == -4) {
+/*
+  myfillbuf() deadline expired.
+*/
+		    debug(F100,"ttinl timeout (deadline)","",0);
+		    ttimoff();		/* Turn off timer */
+		    return(-1);
+		} else if (n == -3) {
 		    if (errno == EINTR) {
 			debug(F111,"ttinl EINTR myread i","continuing",i);
 			continue;
@@ -11405,6 +11738,61 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
 	return(n);
     }
 }
+
+/*
+  T T I N L
+
+  Wraps ttinl_inner() with the deadline-select()-gated, non-blocking
+  SSL_read() retry loop.  That loop only activates when ttyfd is
+  already non-blocking; ttinl_inner() itself never puts it there, so
+  without this wrapper an SSL/TLS ttinl() read falls through to
+  myfillbuf()'s original blocking SSL_read() call, which nothing bounds
+  once a deadline expires.
+
+  Only ttyfd's O_NONBLOCK flag is touched here, and only when SSL/TLS is
+  active; every other caller of ttinl() is unaffected. The flag is
+  restored in this one place after ttinl_inner() returns, regardless of
+  which of its many return paths was taken, rather than editing each of
+  them.
+*/
+int
+#ifdef PARSENSE
+#ifdef CK_ANSIC
+ttinl(CHAR *dest, int max,int timo, CHAR eol, CHAR start, int turn)
+#else
+ttinl(dest,max,timo,eol,start,turn) int max,timo,turn; CHAR *dest, eol, start;
+#endif /* CK_ANSIC */
+#else /* not PARSENSE */
+#ifdef CK_ANSIC
+ttinl(CHAR *dest, int max,int timo, CHAR eol)
+#else
+ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
+#endif /* CK_ANSIC */
+#endif /* PARSENSE */
+/* ttinl */ {
+    int rc;
+#ifdef CK_SSL
+    int oflags = -1;
+
+    if ((ssl_active_flag || tls_active_flag) && ttyfd > -1) {
+	oflags = fcntl(ttyfd,F_GETFL,0);
+	if (oflags > -1 && fcntl(ttyfd,F_SETFL,oflags|O_NONBLOCK) < 0)
+	  oflags = -1;
+    }
+#endif /* CK_SSL */
+
+#ifdef PARSENSE
+    rc = ttinl_inner(dest,max,timo,eol,start,turn);
+#else
+    rc = ttinl_inner(dest,max,timo,eol);
+#endif /* PARSENSE */
+
+#ifdef CK_SSL
+    if (oflags > -1)
+      fcntl(ttyfd,F_SETFL,oflags);
+#endif /* CK_SSL */
+    return(rc);
+}
 #endif /* NOXFER */
 
 /*  T T I N C --  Read a character from the communication line  */
@@ -11466,8 +11854,19 @@ ttinc(timo) int timo;
 #endif /* MYREAD */
 	) {
 #ifdef MYREAD
-        /* Comm line failure returns -1 thru myread, so no &= 0377 */
-	n = myread();			/* Wait for a character... */
+/*
+  Untimed read by contract. Save and restore any active deadline around
+  the read, as this branch may be reached during nested Telnet option
+  negotiation inside ttinl().
+*/
+	{
+	    ck_deadline_state_t saved_deadline;
+	    ck_deadline_save(&saved_deadline);
+	    ck_deadline_set(0);
+	    /* Comm line failure returns -1 thru myread, so no &= 0377 */
+	    n = myread();		/* Wait for a character... */
+	    ck_deadline_restore(&saved_deadline);
+	}
 	/* debug(F000,"ttinc MYREAD n","",n); */
 #ifdef CK_ENCRYPTION
 	/* debug(F101,"ttinc u_encrypt","",TELOPT_U(TELOPT_ENCRYPTION)); */
@@ -11526,28 +11925,32 @@ debug(F110,"XXX netclos in ifdef NETCONN...OK","B",0);
     } else {				/* Timed read */
 
 	int oldalarm;
-	saval = signal(SIGALRM,timerh);	/* Set up handler, save old one. */
+/*
+  Set deadline for timed read. Check for return code -4 (myread) or
+  ck_deadline_expired() to set ttinctimo.
+*/
+	ck_deadline_set(timo);
+	saval = deadline_signal(deadline_timerh); /* Set up handler, save one. */
 	oldalarm = alarm(timo);		/* Set alarm, save old one. */
-	if (
-#ifdef CK_POSIX_SIG
-	    sigsetjmp(sjbuf,1)
+#ifdef MYREAD
+	n = myread();		/* If managing internal buffer... */
+	debug(F101,"ttinc myread","",n);
+	ch = n;
 #else
-	    setjmp(sjbuf)
-#endif /* CK_POSIX_SIG */
+	n = read(fd,&ch,1);		/* Otherwise call the system. */
+	if (n == 0) n = -1;
+	debug(F101,"ttinc read","",n);
+#endif /* MYREAD */
+	if (
+#ifdef MYREAD
+	    n == -4
+#else
+	    n < 0 && ck_deadline_expired()
+#endif /* MYREAD */
 	    ) {				/* Timer expired */
 	    ttinctimo = 1;
 	    n = -1;			/* set flag */
 	} else {
-#ifdef MYREAD
-	    n = myread();		/* If managing own buffer... */
-	    debug(F101,"ttinc myread","",n);
-	    ch = n;
-#else
-	    n = read(fd,&ch,1);		/* Otherwise call the system. */
-	    if (n == 0) n = -1;
-	    debug(F101,"ttinc read","",n);
-#endif /* MYREAD */
-
 #ifdef CK_ENCRYPTION
 	    if (TELOPT_U(TELOPT_ENCRYPTION) && n >= 0) {
 		ck_tn_decrypt((char *)&ch,1);
@@ -13159,19 +13562,17 @@ coninc(timo) int timo;
 
 /* Timed read... */
 
-    saval = signal(SIGALRM,timerh);	/* Set up timeout handler. */
+/*
+  Set deadline for console read. If read fails and deadline expired,
+  return -2.
+*/
+    ck_deadline_set(timo);
+    saval = deadline_signal(deadline_timerh); /* Set up timeout handler. */
     xx = alarm(timo);			/* Set the alarm. */
     debug(F101,"coninc alarm set","",timo);
-    if (
-#ifdef CK_POSIX_SIG
-	sigsetjmp(sjbuf,1)
-#else
-	setjmp(sjbuf)
-#endif /* CK_POSIX_SIG */
-	)				/* The read() timed out. */
+    n = read(0, &ch, 1);
+    if (n < 0 && ck_deadline_expired())
       n = -2;				/* Code for timeout. */
-    else
-      n = read(0, &ch, 1);
     ttimoff();				/* Turn off timer */
     if (n > 0) {			/* Got character OK. */
 #ifdef IKSD
@@ -15658,6 +16059,11 @@ ttptycmd(s) char *s;
   ttinc()/ttinl() uses elsewhere in this file.  On timeout, treat it exactly
   like a 0-byte, non-error read, falling through to the "nothing to
   add here currently" handling below rather than being fatal.
+
+  Left on timerh()/sigsetjmp() rather than converted to
+  deadline_timerh(). This branch is dead
+  code in every build this project tests, since PTY_USE_NDELAY is
+  defined wherever O_NDELAY is, which is every platform here.
 */
 		{
 		    int oldalarm;
