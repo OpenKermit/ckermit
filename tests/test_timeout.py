@@ -11,14 +11,10 @@ GIVE_UP_BOUND = 45
 
 
 def test_receive_gives_up_on_stalled_peer(run_wermit, get_free_port):
-    """
-    Test that RECEIVE times out when connected to a stalled peer.
+    """Verify RECEIVE times out when connected to a stalled peer.
 
-    The peer is a TCP listener that accepts the connection via the
-    kernel listen backlog without calling accept(), and never transmits
-    data. wermit is run as the receiver with SET SEND TIMEOUT 2 and
-    SET RETRY-LIMIT 3. Verify that the process terminates within
-    GIVE_UP_BOUND seconds rather than hanging.
+    The peer accepts the connection via the kernel backlog without calling
+    accept() or transmitting data.
     """
     port = get_free_port()
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -38,9 +34,7 @@ def test_receive_gives_up_on_stalled_peer(run_wermit, get_free_port):
         listener.close()
 
     assert elapsed < GIVE_UP_BOUND, (
-        f"receive took {elapsed:.1f}s to give up on a peer that never "
-        "sent a byte; a broken deadline mechanism would hang instead "
-        "of exiting within this bound"
+        f"RECEIVE took {elapsed:.1f}s to give up on stalled peer"
     )
     assert result.returncode != 0
     assert "Too many retries" in result.stdout, result.stdout

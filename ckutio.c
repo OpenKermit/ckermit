@@ -15474,15 +15474,62 @@ ttptycmd(s) char *s;
 		    }
 		} else if (xlocal && netconn) {
 		    /*
-		      We have to use a byte loop here because ttxin()
-		      does not decrypt or, for that matter, handle Telnet.
+		      ttxin() does not decrypt or process Telnet options.
 		    */
 		    int c;
 		    CHAR * p;
 		    CHAR * p0;
+/*
+  use_bulk applies to non-PTY network connections when SSL or TLS is
+  not active.  This includes raw sockets and Telnet.
+
+  The FIONREAD count n is accurate for these sockets.  Read all available
+  bytes in one read() call and decrypt them in bulk.
+
+  If Telnet framing is present, process the buffer through the IAC/NVT
+  state machine.
+*/
+		    int use_bulk = (ttnet != NET_PTY)
+#ifdef CK_SSL
+			&& !ssl_active_flag && !tls_active_flag
+#endif /* CK_SSL */
+			;
+		    int rawlen = -1;	/* -1 = not sourcing from bulk read */
+
 		    p = tbuf + tbuf_avail;
 		    p0 = p;
+
+		    if (use_bulk) {
+			errno = 0;
+			rawlen = read(ttyfd, p0, n);
+			debug(F111,"ttptycmd ttyfd bulk read (net)",
+			      ckitoa(errno),rawlen);
+			if (rawlen < 0) {
+			    if (errno == EAGAIN
+#ifdef EWOULDBLOCK
+				|| errno == EWOULDBLOCK
+#endif /* EWOULDBLOCK */
+				)
+			      rawlen = 0;
+			    else
+			      debug(F101,"ttptycmd read net error","",rawlen);
+			}
+			if (!is_tn) {
+			    p += (rawlen > 0) ? rawlen : 0;
+#ifdef CK_ENCRYPTION
+			} else if (rawlen > 0 && TELOPT_U(TELOPT_ENCRYPTION)) {
+			    ck_tn_decrypt((char *)p0,rawlen);
+#endif /* CK_ENCRYPTION */
+			}
+		    }
+
+		    if (rawlen < 0 || is_tn) {
 		    for (x = 0; x < n; x++) {
+			if (rawlen >= 0) {
+			    if (x >= rawlen)
+			      break;
+			    c = 0xff & (unsigned)p0[x];
+			} else {
 			if (ttnet == NET_PTY) {
 /*
   n came from in_chk()'s FIONREAD count, which on MacOS ptys is not reliable.
@@ -15520,6 +15567,7 @@ ttptycmd(s) char *s;
 */
 			if ((c = ttinc(2)) < 0)
 			  break;
+			}
 			if (!is_tn) {	/* Not Telnet - keep all bytes */
 			    *p++ = (CHAR)c;
 #ifdef TNCODE
@@ -15574,18 +15622,17 @@ ttptycmd(s) char *s;
 #endif	/* TNCODE */
 			}
 		    }
+		    }
 /*
-  x is this loop's iteration count, which is how many bytes it consumed from
-  ttinc(), not how many it kept: Telnet CR-NUL and IAC-escape handling can
-  consume a byte without appending it to p (a dropped NUL after CR, the first
-  half of an IAC escape, or a command tn_doop() absorbed).  tbuf_avail below
-  must advance by what p actually wrote, not by the iteration count, or it runs
-  ahead of the real data and every later read lands past the end of what's
-  valid, corrupting the stream.
+  Set x to the number of bytes appended to p.
+
+  Telnet protocol handling can consume bytes without writing to p.
+  Advancing tbuf_avail by the actual output length prevents stream
+  corruption.
 */
 		    x = (int)(p - p0);
 		    ckmakmsg(msgbuf,500,
-			     "ttptycmd read net [ttinc loop] errno=",
+			     "ttptycmd read net errno=",
 			     ckitoa(errno),
 			     " count=",
 			     ckitoa(x));

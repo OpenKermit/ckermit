@@ -226,29 +226,10 @@ def _run_nul_replay_transfer(tmp_path, wermit_loopback):
 @pytest.mark.parametrize("attempt", range(5))
 def test_kermit_transfer_unprefixed_nul_replay(tmp_path, wermit_loopback,
                                                attempt, loopback_transport):
-    """
-    Regression test for the data-corruption bug fixed in b58e0336.
+    """Binary transfer with embedded NUL bytes under out-of-order replay.
 
-    Hitting that replay path requires a packet to actually arrive out
-    of order, which is normally timing-dependent. Enabling LOG DEBUG on
-    the server only (not the client) slows the receiving side enough,
-    relative to the sender, to make that happen some of the time,
-    without any external system load.
-
-    LOG DEBUG output inflates roughly 30x over the bytes transferred
-    before compression (piped through gzip on disk via debug_log_command
-    in conftest.py). A transfer size of 2 MB catches the race on NetBSD
-    without excessive disk usage. It is not expected to trigger on every
-    run.
-
-    Restricted to the pseudoterminal transport. The race comes from
-    LOG DEBUG slowing the server relative to the client, not from
-    transport choice, so sweeping all five attempts over
-    raw-socket/telnet/SSL too would multiply cost without improving
-    the odds of catching it. See
-    test_kermit_transfer_unprefixed_nul_replay_transport_smoke for a
-    single-attempt check that this same path also runs cleanly over
-    the other transports.
+    Forces SET CONTROL UNPREFIX ALL on the server with server debug logging
+    enabled to test packet replay processing when the server lags the client.
     """
     _run_nul_replay_transfer(tmp_path, wermit_loopback)
 

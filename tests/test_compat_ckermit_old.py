@@ -24,21 +24,18 @@ def loopback_transport(request):
 
 @pytest.fixture
 def old_loopback(wermit_loopback, ckermit_old_path):
-    """wermit_loopback fixture bound to ckermit-old-9.0.302.
+    """Return a wermit_loopback fixture bound to C-Kermit 9.0.302.
 
-    The 2011 C-Kermit 9.0.302 binary occasionally fails under heavy
-    parallelism when receiving under SET CONTROL UNPREFIX ALL. The old
-    binary lacks the strlen packet replay fix from commit b58e0336.
+    C-Kermit 9.0.302 lacks support for packet replay handling with
+    unprefixed control characters.
     """
     return partial(wermit_loopback, server_binary_path=ckermit_old_path)
 
 
 def _xfail_old_ckermit_unprefix_replay(request):
-    """Mark test xfail(strict=False) for old C-Kermit unprefix flake."""
+    """Mark test xfail(strict=False) for C-Kermit 9.0.302 unprefix flake."""
     request.node.add_marker(pytest.mark.xfail(
-        reason="Known rare flake: old ckermit predates b58e0336's fix "
-               "for a SET CONTROL UNPREFIX ALL packet-replay bug (see "
-               "old_loopback()'s docstring)",
+        reason="C-Kermit 9.0.302 packet replay unprefix flake",
         strict=False,
     ))
 

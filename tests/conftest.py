@@ -35,7 +35,7 @@ DEBUG_LOOPBACK = bool(os.environ.get("KERMIT_TEST_DEBUG_LOOPBACK"))
 # (see SET PROTOCOL's help text); upload-* are left blank since
 # nothing here relies on kermit's remote-command-on-connect feature.
 ZMODEM_QUIET_PROTOCOL_CLAUSE = (
-    'set protocol zmodem "" "" "sz -q %s" "sz -q -a %s" "rz -q" "rz -q"'
+    'set protocol zmodem "" "" "sz -q -8 %s" "sz -q -a %s" "rz -q" "rz -q"'
 )
 
 # Exit code used by TcpLoopbackSession.run_client's "if failure exit"
@@ -139,39 +139,33 @@ def truncated(label, text):
 
 
 def compressed_debug_log_path(debug_log):
-    """Returns the .gz path written on disk for a logical debug_log path.
+    """Return the .gz path written on disk for a logical debug_log path.
 
-    Debug traces are piped through gzip as they are written to prevent
-    excessive disk usage during large file transfers. Callers reading a
-    debug log inspect this compressed path instead of the logical path.
+    Debug traces are compressed with gzip during execution. Callers
+    inspect this compressed path instead of the logical path.
     """
     return Path(str(debug_log) + ".gz")
 
 
 def debug_log_command(debug_log):
-    """Returns a "log debug ..." command clause piping output through gzip.
+    """Return a Kermit log debug command string piping output through gzip.
 
-    This uses Kermit's "log debug |command" syntax via popen(). Braces
-    are required so the command parser does not truncate the filename at
-    the first space.
+    Uses Kermit's "log debug |command" syntax. Enclosing braces prevent
+    filename truncation on spaces.
 
-    When running under a PTY session leader, process termination sends
-    SIGHUP to the process group. The HUP trap ensures gzip flushes its
-    output before exiting. The exec command replaces the intermediate shell
-    with the gzip process.
+    Traps SIGHUP so gzip flushes output on PTY process group termination,
+    and uses exec to replace the shell process.
     """
     gz_path = compressed_debug_log_path(debug_log)
     return f"log debug {{|trap '' HUP; exec gzip -c > {gz_path}}}"
 
 
 def _tail_gz_bytes(path, max_bytes, read_chunk=65536):
-    """Decompress gzip file at path, returning trailing max_bytes.
+    """Decompress gzip file at path, returning at most max_bytes from tail.
 
-    Reads and decompresses in small chunks, maintaining a bounded
-    trailing window so peak memory usage is O(max_bytes).
+    Maintains a bounded window during decompression to limit memory usage.
 
-    Uses raw zlib instead of the gzip module so incomplete or truncated
-    streams yield available decompressed data without raising.
+    Uses raw zlib to handle incomplete or truncated streams without raising.
     """
     decompressor = zlib.decompressobj(zlib.MAX_WBITS | 16)
     tail = b""
@@ -199,14 +193,10 @@ def _tail_gz_bytes(path, max_bytes, read_chunk=65536):
 def tail_text(path, label, max_chars=MAX_LOGGED_CHARS):
     """Return at most the last max_chars characters of a file.
 
-    For uncompressed files, seeks near the end to keep data reading
-    bounded regardless of file size.
+    For uncompressed files, seeks near the end of the file.
 
-    For gzip files (ending in .gz), streams through the file and
-    retains only a trailing window of decompressed output via
-    _tail_gz_bytes().
-
-    Uses raw zlib for gzip decompression to handle truncated streams.
+    For gzip files, streams through the file and retains trailing output
+    via _tail_gz_bytes().
     """
     path = Path(path)
     if path.suffix == ".gz":
@@ -992,12 +982,11 @@ def wermit_tcp_loopback(spawn_wermit, run_wermit, get_free_port):
 # remote peer is spawned, and only collected afterwards.
 
 def _wait_for_gz_stable(path, timeout=2.0, poll=0.05):
-    """Waits briefly for a .gz debug log to stop growing.
+    """Wait for a .gz debug log file to stop growing.
 
     The gzip writer runs in a child process spawned via popen(), so the
-    test harness can't wait on it directly. Kermit exiting confirms the
-    pipe is closed, but gzip requires time to flush its trailer and exit.
-    This polling loop prevents reading empty or incomplete log files.
+    test harness cannot wait on it directly. Polling prevents reading
+    incomplete log files after Kermit exits.
     """
     deadline = time.time() + timeout
     last_size = -1
@@ -1149,16 +1138,14 @@ def finish_wermit_pty(proc, master, timeout=45, debug_log=None):
         os.close(master)
         proc.wait()
 
-        # Decompress and log the debug trace only on failure. On
-        # success, pytest discards captured logs, making
-        # decompression unnecessary.
+        # Decompress and log the debug trace on failure.
         if debug_log and proc.returncode != 0:
             _log_debug_file("finish_wermit_pty", debug_log)
 
         return (proc.returncode,
                 b"".join(output).decode('utf-8', errors='replace'))
     finally:
-        # Remove the compressed debug log upon exit.
+        # Remove the compressed debug log on exit.
         if debug_log:
             compressed_debug_log_path(debug_log).unlink(missing_ok=True)
 
