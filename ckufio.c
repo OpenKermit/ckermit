@@ -2033,7 +2033,7 @@ zsout(n,s) int n; char *s;
 	return((rc == k) ? 0 : -1);
     }
     rc = fputs(s,fp[n]) == EOF ? -1 : 0;
-    if (n == ZWFILE)
+    if (n == ZWFILE || n == ZDFILE)
       fflush(fp[n]);
     return(rc);
 }
@@ -2062,7 +2062,7 @@ zsoutl(n,s) int n; char *s;
       return(write(fileno(fp[n]),"\n",1) == 1 ? 0 : -1);
     else if (fputs("\n",fp[n]) == EOF)
       return(-1);
-    if (n == ZDIFIL || n == ZWFILE)     /* Flush connection log records */
+    if (n == ZDIFIL || n == ZWFILE || n == ZDFILE) /* Flush log records */
       fflush(fp[n]);
     return(0);
 }
