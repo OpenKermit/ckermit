@@ -2261,7 +2261,7 @@ Syntax: HEAD [ switches ] filename
 Synonyms: H, HE
 
 ```
-C-Kermit 11.0.507, 2026/08/05, Copyright (C) 2025-2026,
+C-Kermit 11.0.508, 2026/08/09, Copyright (C) 2025-2026,
   John Goerzen.
 Copyright (C) 1985, 2025,
   Trustees of Columbia University in the City of New York.
@@ -6920,6 +6920,18 @@ SET HOST [ switches ] hostname-or-address [ service ] [ protocol-switch ]
   "[fe80::1%eth0]:23". Connecting to a link-local address without a zone
   fails.
  
+  For KVM/Linux VSOCK connections (SET NETWORK TYPE VSOCK, or
+  SET HOST /NETWORK-TYPE:VSOCK), the host argument is "CID:PORT", e.g.
+  "1:9600".  There is no name resolution, so the CID and port are always
+  given directly.  The CID may also be one of the symbolic names ANY,
+  HYPERVISOR, LOCAL, or HOST in place of a number.  CID 1 (LOCAL) is the
+  VSOCK loopback address, analogous to IPv4's 127.0.0.1.  SSL/TLS and
+  Telnet negotiation are never used over a VSOCK connection.
+ 
+  SET HOST * (or SET HOST /SERVER) listens for an incoming VSOCK
+  connection.  An optional ":PORT" selects the port to listen on,
+  e.g. "SET HOST *:9600"; the default is port 1649.
+ 
   The first set of switches can be:
  
  /NETWORK-TYPE:name
@@ -7497,6 +7509,7 @@ Select the type of network to be used with SET HOST connections:
  
   SET NETWORK TYPE COMMAND   ; Make a connection through an external command
   SET NETWORK TYPE TCP/IP    ; Internet: Telnet, Rlogin, etc.
+  SET NETWORK TYPE VSOCK     ; KVM/Linux VSOCK (AF_VSOCK) connections.
  
 If only one network type is listed above, that is the default network for
 SET HOST commands.  Also see SET HOST, TELNET, RLOGIN.
@@ -7525,6 +7538,7 @@ Network directory: (none)
 SSH COMMAND: ssh -e none
 
 Supported networks:
+ KVM/Linux VSOCK (AF_VSOCK)
  TCP/IP
 
 SET TCP parameters:
@@ -8557,16 +8571,16 @@ SET TELNET parameters:
  bug binary-u-means-me-too: off
  bug sb-implies-will-do: on
  bug auth-krb5-des: on
- terminal-type: none (xterm-256color will be used)
+ terminal-type: none (xterm will be used)
  environment: on
    ACCOUNT: 
-   DISPLAY: :1
+   DISPLAY: 
    JOB    : 
    PRINTER: 
    USER   : jgoerzen
    SYSTEM : UNIX
   LOCATION: 
- .Xauthority-file: /run/user/1000/xauth_xgjRwW
+ .Xauthority-file: /home/jgoerzen/.Xauthority
 ```
 
 ### SET TEL
@@ -8776,7 +8790,7 @@ Compile-time default, from `SHOW TERMINAL`:
 ```
 Terminal parameters:
    Bytesize: Command: 8 bits              Terminal: 8 bits         
-                Type:                         Print: off            
+                Type:                        Print: off            
                 Echo: remote         Locking-shift: off            
         Newline-mode: off               Cr-display: normal         
                  APC: off             Autodownload: on, error continue
