@@ -3543,37 +3543,68 @@ static struct v9k_rt_init __based(__segname("XI")) v9k_obufsize_rec =
 
   Why an initializer rather than a line in ckvictor.h: prefixing is a
   variable with an upstream initialiser, not a #define, so pre-empting it
-  would be an upstream edit.  main() calls setprefix(prefixing) at
-  ckcmai.c:3413 -- guarded by NOXFER and NOCKSPEED, neither of them defined
-  here -- and reads the variable at that moment, so anything that runs
-  before main() gets to choose.  Under NOICP there is no SET PREFIXING to
-  type, which is the same hole SS16i's server capabilities fell down and the
-  same way out.  Priority 32 for the reason the obufsize record gives: this
-  has nothing to say about argv and every reason to want the runtime up.
+  would be an upstream edit.  Under NOICP there is no SET PREFIXING to type,
+  which is the same hole SS16i's server capabilities fell down and the same
+  way out.  Priority 32 for the reason the obufsize record gives: this has
+  nothing to say about argv and every reason to want the runtime up.
 
-  Which setting is V9K_PREFIXING in ckvictor.h, and the reason it is a knob
-  rather than a constant is that this change needs a control.  SS16v's leg
-  CA cannot serve as one: the shipping binary has moved since (SS16z
-  through SS16ad), so a run against CA measures those changes as well as
-  this one.  XFLAGS="-dV9K_PREFIXING=PX_ALL" builds the baseline from the
-  same tree.
+  WHY IT WRITES ptab AND NOT JUST prefixing, which is the whole point of
+  this comment.  Setting the variable alone did nothing for eleven weeks and
+  the wire says so.  main() reaches, in this order:
 
-  UNMEASURED.  The arithmetic says up to 13% on that fixture and nothing
-  here has been to the bench.  It has to be checked the way SS16w checked
-  -ot: byte-exact against the fixture, and rxpeak read as the instrument
-  rather than cps, which SS16n showed has a +/-1 noise floor between
-  sessions.  The number that says the MECHANISM worked is neither -- it is
-  the wire-byte count in the host's packet log, which should fall from
-  37,568 toward 32,768.  A file of ordinary text should show less, because
-  it has fewer control characters to unprefix in the first place; that is
-  SS16w's open question and this change is the reason to answer it.
+      ckcmai.c:3295   initproto(PROTO_K, ...)
+                        -> if (ptab[protocol].prefix > -1)
+                               prefixing = ptab[protocol].prefix;
+      ckcmai.c:3413   setprefix(prefixing)
+
+  ptab[PROTO_K].prefix is statically PX_ALL (ckcmai.c:719, the #else of
+  NEWDEFAULTS, which this build does not define), and PX_ALL is 0, so the
+  "> -1" test passes and initproto OVERWRITES anything an XI initializer put
+  in prefixing -- 118 lines before the value is read.  Upstream knows this
+  about itself: the comment at ckcmai.c:3319 says compat_9()/compat_10() run
+  "after initproto calls so initial file transfer settings are not
+  overwritten."  An XI record runs before main() and therefore before
+  initproto, which is the one place that ordering does not hold.
+
+  So the durable place to say it is ptab, which initproto copies FROM.
+  Writing prefixing as well is not redundant: it is what a build with no
+  initproto call for PROTO_K would use, and it keeps the two agreeing for
+  anything that reads the variable before main() gets that far.
+
+  HOW THIS WAS FOUND, because the method generalises: not by reading the
+  source, which had been read twice and produced the comment this replaces,
+  but by decoding the prefix characters out of a packet log.  A run's
+  ctlp[] table is recoverable from the wire -- every value the sender
+  prefixed appears after a QCTL -- and 16ah leg BS prefixed exactly the 66
+  values setprefix() sets for PX_ALL while the host, over the identical
+  fixture in the same session, prefixed exactly the 32 it sets for PX_CAU.
+  8,869 prefix characters against 4,512, and the 4,357 difference is the
+  whole of the send leg's wire-byte excess.  v9k/tools/pktstat.py counts
+  them.  A setting that is applied and then quietly overwritten looks
+  exactly like a setting that was never right; only the wire tells them
+  apart.
+
+  Which setting is V9K_PREFIXING in ckvictor.h.  It stays a knob because
+  this change needs a control, and now it has a real one:
+  XFLAGS="-dV9K_PREFIXING=PX_ALL" reproduces the behaviour every leg in this
+  project up to and including 16ah actually ran, whatever its binary said.
+
+  UNMEASURED ON THE WIRE.  Every published send figure in this project was
+  taken with PX_ALL in force, so 16ah leg BS's "+24.3% against the host's
+  +9.7%" is a measurement of PX_ALL against PX_CAU and not, as that section
+  has it, of two ends disagreeing about one policy.  What this fix predicts
+  is that a Victor send drops from 8,869 prefix characters to about 4,512 --
+  count them, do not time them, because 4,357 bytes is ~1.1 s at 38400 and
+  the bench does not repeat to better than ~1.3 s.
 */
 extern int prefixing;                   /* ckcmai.c                     */
+extern struct ck_p ptab[];              /* ckcmai.c:712                 */
 
 static void __far
 v9k_set_prefixing(void)
 {
     prefixing = V9K_PREFIXING;
+    ptab[PROTO_K].prefix = V9K_PREFIXING;
 }
 
 static struct v9k_rt_init __based(__segname("XI")) v9k_prefixing_rec =
