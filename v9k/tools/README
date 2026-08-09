@@ -22,12 +22,51 @@ increments from 128K to 896K, so "spare" is a fact about the bench machine
 and not about the port.
 
 
-pktstat.py -- counts a C-Kermit packet log: packets, retransmissions
-(uppercase S-), timeouts (<timeout>), longest packet, and the types
-actually received.  PORTING.md SS16l, which is also where the two
-one-line greps that this replaces are recorded.
+pktstat.py -- counts a C-Kermit packet log in BOTH directions: packets and
+types, WIRE BYTES, longest packet, timeouts, and retransmissions by either
+end.  PORTING.md SS16l is where the two one-line greps it replaces are
+recorded.
 
     python3 v9k/tools/pktstat.py s16afAG.pkt
+    python3 v9k/tools/pktstat.py --rxbytes 44720 --rxfull 741 s16afAJ.pkt
+
+It reads SEND legs correctly as of 2026-08-09.  It did not before: it
+measured only the lines the log-writer sent, so on a Victor-send leg it
+reported the host's ACK stream and counted the HOST's retransmissions --
+"longest 49, retransmissions 0" for vic_tran2.pkt, whose longest packet is
+3,716 and which contains four VICTOR resends.  A remote retransmission has
+no marker of its own; it is the same sequence number arriving twice
+running, which is what the tool now looks for.
+
+Wire bytes are the reason to reach for it.  The bench does not repeat to
+better than ~1.3 s (NEXT_SESSION item 5b), so an effect worth less than
+that cannot be timed -- but if it shows up as traffic it can be COUNTED,
+exactly and deterministically.  That is how NEXT_SESSION item 5a is meant
+to be run.
+
+Two things it does that are not obvious and that a hand count gets wrong.
+The end-of-line terminator is a byte on the wire but appears only in SENT
+lines, so it is added back per packet, from the S packet's negotiated EOL
+rather than from an assumption -- without that the two directions are not
+comparable.  And the total is computed twice, from the line length and
+from the packet's own LEN field, so a truncated log or a raw LF inside a
+packet is reported instead of silently shortening the answer.
+
+--rxbytes reconciles the log against the Victor's ISR counter, which counts
+the same bytes by a wholly independent route:
+
+    host wire bytes - rxbytes = rxfull + startup offset
+
+rxbytes counts only bytes the ISR STORED, so an overrun shows up exactly:
+16af leg AJ sent 45,461, counted 44,720, and the 741 difference is that
+leg's published rxfull to the byte.  A clean leg leaves a small startup
+constant (-11 with no startup timeout, +28 when a timeout means the Victor
+missed the first S packet).  Any other residual means the leg is not
+usable for a byte comparison, and the tool says so.
+
+Note that "wire bytes" in PORTING.md SS16u onward is the Victor's rxbytes,
+which is that startup constant away from what the host actually sent.  This
+tool reports the host's figure; quote which one you mean.
 
 
 mapoffset.py -- turns a byte offset from the v9k: counters (peakat,
