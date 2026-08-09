@@ -207,7 +207,15 @@ container exec -i ia16-ubuntu-2 bash -c \
 > before concluding anything.** That is how CH was diagnosed, and the result
 > was a completely successful transfer sitting behind an unanswered question.
 
-**Three files per leg. A leg missing any of them is a leg to re-run.**
+**Three files per leg. A leg missing any of them is a leg to re-run** — with
+one judgement call the 9 August sitting had to make and got right. Leg CH was
+run by hand after the scripted attempt hung, so its `STEPCH.OUT` is 0 bytes
+and its `v9k:` counters exist as a **photograph of the screen**, transcribed
+into §16ai. That is a weaker artefact than a file, but it is legible, it was
+read, and the leg's actual question — did the wire protocol move — is
+answered by the md5 and `rxlost`/`rxfull`, which are not in doubt. **Do not
+re-run a leg whose result you already have just to improve the format of the
+evidence.** The rule is about missing *results*, not missing *files*.
 
 | file | where it comes from | why |
 |---|---|---|
@@ -428,10 +436,16 @@ did not move.** Throughput is secondary and the parser build has 6,512 bytes
 of near heap against the shipping build's 17,232, so do not be surprised by
 a slower number.
 
-> **RESULT — PASS, after the run sheet was fixed.** The first attempt hung;
-> see the visibility box at the top, and re-read it before re-running, because
-> the fix is in `RXEA.KSC` and it is the reason this now works unattended.
-> Run by hand it transferred **32,768 bytes at 38400, byte-exact,
+> **RESULT — PASS. This leg is DONE and does not need re-running.** The
+> scripted attempt hung on an unanswered prompt; run by hand, with a human
+> answering it, the transfer completed. `RXEA.KSC` was fixed *afterwards* so
+> that a future run of this leg does not need the human — **the fix is not a
+> precondition of the result above, and re-running CH would test the
+> take-file, not the port.** If someone is at the machine anyway it costs one
+> leg to confirm the take-file works unattended and to get the counters into
+> a file instead of a photograph; neither is worth a trip.
+>
+> By hand it transferred **32,768 bytes at 38400, byte-exact,
 > `rxlost = 0 rxfull = 0 rxpeak = 2,852 of 4,096`, 1,213 cps** — inside the
 > shipping build's 1,167–1,475 band, so no difference to read.
 >

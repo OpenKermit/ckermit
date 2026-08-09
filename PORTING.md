@@ -8370,6 +8370,14 @@ was measured on, and this is what says the wire protocol did not move. 1,213
 against the shipping build's 1,167–1,475 band is inside the noise and should
 not be read as a difference.
 
+**The leg is complete and wants no re-run.** Its `STEPCH.OUT` is empty
+because the successful run was the hand-driven one, so the counters above are
+transcribed from a photograph of the screen rather than read out of a file.
+That is a weaker artefact and it is still an answer: the md5 and the loss
+counters are what the leg was sent for. `RXEA.KSC` was fixed afterwards so a
+future run needs no human — **the fix is not a precondition of this result,
+and re-running would measure the take-file rather than the port.**
+
 **The leg's `elapsed=11300 cs` is meaningless and the reason matters**: it
 includes the time the machine sat at an interactive prompt waiting for a
 human. The Victor's `elapsed` starts at the first byte received and closes at
