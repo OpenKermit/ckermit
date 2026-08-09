@@ -18,7 +18,7 @@
 ;;
 ;;    * 24 stack operations.  Open Watcom's __interrupt saves all twelve
 ;;      registers and there is no way to ask it not to -- confirmed by
-;;      compiling it three ways (.probe/vasm.c): __interrupt with a C body
+;;      compiling it three ways (v9k/probes/vasm.c): __interrupt with a C body
 ;;      and with an _asm body emit the identical twelve-push prologue, and
 ;;      a #pragma aux written in assembly cannot be used at all, because
 ;;      its code is inlined at call sites and taking its address emits a

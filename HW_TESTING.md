@@ -200,7 +200,7 @@ presents real ones.
 
 The last row is the point of this table. Same binary, same `.BAT` files,
 same `/dev/seriala`, same fixtures, same host script, same instruments:
-`.probe/pktstat.py`, `.probe/mapoffset.py`, `grep -c '^S-'` for
+`v9k/tools/pktstat.py`, `v9k/tools/mapoffset.py`, `grep -c '^S-'` for
 retransmissions and `grep -c '<timeout>'` for timeouts.
 
 ---
@@ -231,7 +231,7 @@ v9k: wcon  n= max= tot=                    console writes
 v9k: txgap n= max= at #  tot=              transmit gaps
 ```
 
-`python3 .probe/mapoffset.py run1.pkt <offset>...` turns `peakat`/`stallat`
+`python3 v9k/tools/mapoffset.py run1.pkt <offset>...` turns `peakat`/`stallat`
 into "which packet, and was it a resend".
 
 ---

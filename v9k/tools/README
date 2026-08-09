@@ -1,0 +1,43 @@
+v9k/tools/ -- standing instruments for the Victor 9000 port.  Host-side
+Python 3, no dependencies, not built by victorow.mak.
+
+These are NOT probes.  A probe answers one question once; these are read
+every time a change is measured, and one of them is a build rule.  They
+lived in ".probe/" until 2026-08-09, where the name said the opposite of
+what CLAUDE.md's hard rule 4 required of them.
+
+
+mzsize.py -- what an MZ image needs at LOAD, and the smallest Victor that
+can run it.  CLAUDE.md hard rule 4: "Before raising SBSIZ/RBSIZ/MAXSP/
+MAXRP, measure the image, not DGROUP."  Run this, not "ls -l" -- the file
+size is not the requirement, because DOS also adds minalloc paragraphs for
+.bss and the stack.
+
+    python3 v9k/tools/mzsize.py ckermitw.exe
+    python3 v9k/tools/mzsize.py -a 393216 ckermitw.exe   # a 384K machine
+    python3 v9k/tools/mzsize.py -a 0 ckermitw.exe        # requirement alone
+
+Quote the REQUIREMENT, not the spare: a Victor takes RAM in 128K
+increments from 128K to 896K, so "spare" is a fact about the bench machine
+and not about the port.
+
+
+pktstat.py -- counts a C-Kermit packet log: packets, retransmissions
+(uppercase S-), timeouts (<timeout>), longest packet, and the types
+actually received.  PORTING.md SS16l, which is also where the two
+one-line greps that this replaces are recorded.
+
+    python3 v9k/tools/pktstat.py s16afAG.pkt
+
+
+mapoffset.py -- turns a byte offset from the v9k: counters (peakat,
+stallat, lostat, lostend) into "which packet, and was it a resend", by
+adding up wire lengths from the host's packet log.  This is the tool that
+settled the rxpeak question in PORTING.md SS16m.
+
+    python3 v9k/tools/mapoffset.py s16afAG.pkt --rxbytes 37568 15673
+
+
+A caution that applies to all three: they read the HOST's packet log and
+the VICTOR's counters, which do not measure the same interval (SS16u).
+Quote the pair, never one alone.

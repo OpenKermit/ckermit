@@ -4,7 +4,7 @@
 
   Build and run on the HOST, not the target:
 
-      cc -o .probe/vburst .probe/vburst.c && .probe/vburst
+      cc -o v9k/proofs/vburst v9k/proofs/vburst.c && v9k/proofs/vburst
 
   The reason this exists.  The loss path in v9k_ser_isr() only runs when the
   uPD7201 overruns, and SS16p established that it overruns at 38400 and at no

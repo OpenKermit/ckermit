@@ -3288,8 +3288,8 @@ VOID endpwent(void) { }
   not do it a second time: every stream this program opens wants raw bytes.
 
   Open Watcom ships binmode.obj to set exactly this.  It does not work in
-  this program.  Measured on Victor MS-DOS 3.1 (.probe/vfmode.c,
-  .probe/vfmodefp.c): it sets _fmode correctly in a small test program,
+  this program.  Measured on Victor MS-DOS 3.1 (v9k/probes/vfmode.c,
+  v9k/probes/vfmodefp.c): it sets _fmode correctly in a small test program,
   with or without the floating-point emulator linked, and leaves _fmode at
   0100 in CKERMITW.EXE -- with the object the toolchain ships (which is the
   SMALL model build) and equally with the large-model build of the same

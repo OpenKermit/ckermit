@@ -123,7 +123,7 @@ wire bytes → 37,568, and **38.00 s → 28.00 s, 862 → 1,170 cps, +35.7%**.
 quantum** over a 6-bit checksum (28.00 vs 27.00 s, 26 µs/wire byte) where it
 cost 11.5 s and 142 µs, so there is no speed argument left for shipping
 weaker error detection. Correctness is proved twice and they are different
-claims — `.probe/vcrc16.c` checks the table identity exhaustively over all
+claims — `v9k/proofs/vcrc16.c` checks the table identity exhaustively over all
 256 entries and the loop over 20,500 length-and-fill combinations, and four
 transfers came back byte-exact. **A block check that is fast and wrong fails
 silently**, which is why the probe is exhaustive rather than sampled.
@@ -222,7 +222,7 @@ figure** since it divides `rxbytes`. Quote the pair, never one alone.
 the machine off and `tag` names it; `evt` near `rxlost` means the per-byte
 path is too slow. **The MAME harness cannot reach this code** — the chip
 does not overrun below 38400 and the emulator cannot drive above 9600 — so
-`.probe/vburst.c` replays the arithmetic on the host instead (8 cases, all
+`v9k/proofs/vburst.c` replays the arithmetic on the host instead (8 cases, all
 pass) and a 32 KB 9600 receive proves only that it costs nothing: byte-exact
 with `rxpeak = 309`, identical to §16n's pre-change run. **§16q also
 corrects §16p's headline: `rxlost` counts interrupts that found the latched
@@ -478,7 +478,7 @@ off those `#define`s, so defining one offers a rate that cannot transfer.
 which was a *FreeDOS* measurement filed under an MS-DOS 3.1 heading in §16a
 and then inherited everywhere. **Victor MS-DOS 3.1 gives 824,784 at 896K**,
 and the model is `free = installed RAM − 92,720` — this DOS loads high,
-11,584 below the program and 81,136 above, both constant. `.probe/vmem.c`
+11,584 below the program and 81,136 above, both constant. `v9k/probes/vmem.c`
 asks a running machine; `mzsize.py` reports the smallest Victor that can
 load a build. **Quote the requirement, not the spare.**
 
@@ -501,15 +501,22 @@ Two cheaper instruments came out of §16h. **The debug log's own line endings
 are an `_fmode` oracle** — `debopn()` goes through the same `zopeno()` the
 transfer files do, so CRLF means the runtime is translating and bare LF means
 it is not, and `CKERMITW -d -h` writes one and exits in a 2.5-minute boot with
-no serial line, no `socat` and no host `kermit`. And **`.probe/` holds
-throwaway programs** that answer a libc or DOS question in one short boot;
-build lines are in the comment at the top of each.
+no serial line, no `socat` and no host `kermit`. And **`v9k/probes/` holds
+one-shot programs** that answer a libc or DOS question in one short boot;
+build lines are in the comment at the top of each. **`v9k/` is the port's
+own tree and the top-level `tools/` and `tests/` are upstream's** — do not
+put port material in those. `v9k/tools/` holds standing instruments (hard
+rule 4 requires one of them), `v9k/proofs/` holds the host programs §8
+cites as the correctness argument for a shipped edit, and `make -C
+v9k/proofs` builds and runs them. It was `.probe/` until 2026-08-09; a
+directory a build rule depends on should not be hidden from `ls`, and the
+one name did not fit all three kinds of thing in it.
 
 §16m adds two more. **The interrupt handler is a clock you can afford** —
 it already sees every received byte, so latching a byte count, a foreground
 location tag or anything else there costs a store and no INT 21h, and the
 resulting offsets map onto the host's packet log to say *which packet* an
-event happened in (`.probe`-adjacent scripts live in the session scratchpad;
+event happened in (`v9k/tools/mapoffset.py` does exactly this;
 the method is in §16m). And **`v9k_ser_get()` must publish the tail inside
 its copy loop, not after it** — publishing once at the end makes the handler
 see occupancy rising while the ring is being emptied, which silently
@@ -562,7 +569,7 @@ socket is single-use, so start `socat` first and never probe the port.
    out of the 64K (§16k).
    **Run `make -f victorow.mak sizes` after any change that could add static
    data** and report the number. Before raising `SBSIZ`/`RBSIZ`/`MAXSP`/
-   `MAXRP`, measure the *image*, not DGROUP — `python3 .probe/mzsize.py
+   `MAXRP`, measure the *image*, not DGROUP — `python3 v9k/tools/mzsize.py
    ckermitw.exe` is §16a's method made repeatable, and §9 has both budgets
    side by side.
    **Quote the requirement, not the spare.** A Victor takes RAM in 128K
@@ -602,6 +609,9 @@ socket is single-use, so start `socat` first and never probe the port.
 | `victor/sys/ioctl.h` | `FIONREAD` and `TIOCMGET`; without the first `conchk()`/`ttchk()` are hard-wired to 0, and without the second `ttchk()` never reaches `FIONREAD` |
 | `victorow.mak` | the build: Open Watcom `wcc`/`wlink` + `sizes` target |
 | `victorow/` | headers filling gaps in Open Watcom's DOS libc (`pwd.h`, `sys/utsname.h`, `sys/time.h`, `termios.h`, `ckowsys.h`), reached via `-i=victorow` |
+| `v9k/tools/` | standing instruments, not disposable: `mzsize.py` (**hard rule 4 requires it**), `pktstat.py`, `mapoffset.py` |
+| `v9k/proofs/` | host programs §8 cites as the correctness argument for a shipped edit — `vcrc16.c` (edit 17) and `vburst.c` (the ISR burst detector). `make -C v9k/proofs` builds *and runs* them |
+| `v9k/probes/` | genuine one-shots, kept so the answer stays checkable; build line at the top of each |
 | `ckutio.c` | serial, console, timers — **stock upstream**, this is the port |
 | `ckufio.c` | file system — **stock upstream** |
 | `ckc*.c` | protocol core — do not touch |

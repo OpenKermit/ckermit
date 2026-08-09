@@ -1,0 +1,64 @@
+v9k/ -- everything the Victor 9000 port needs that is not compiled into
+CKERMITW.EXE.  Nothing here is built by victorow.mak and nothing here is
+upstream C-Kermit.  The top-level tools/ and tests/ directories ARE
+upstream (a musl build script, a pytest suite) and are not to be used for
+port material; that is why this tree exists under its own name, which is
+the same v9k prefix the port's code and counters already use.
+
+This was ".probe/" until 2026-08-09.  The leading dot hid it from ls and
+from anyone browsing a checkout, while PORTING.md cited it two dozen times
+and CLAUDE.md's hard rule 4 REQUIRED running one of its scripts.  A
+directory that a build rule depends on is not a scratch directory.  The
+split below is the other half of that repair: three kinds of thing had
+accumulated under one name that fitted only the third.
+
+
+tools/          Standing instruments.  Run these; do not treat them as
+                disposable.  See v9k/tools/README.
+
+    mzsize.py       What an MZ image needs at load, and the smallest
+                    Victor that can run it.  CLAUDE.md hard rule 4
+                    requires this before changing SBSIZ/RBSIZ/MAXSP/MAXRP
+                    -- "measure the image, not DGROUP".
+    pktstat.py      Counts a C-Kermit packet log: packets, retransmissions
+                    (uppercase S-), timeouts (<timeout>), longest packet,
+                    and the types actually received.  PORTING.md SS16l.
+    mapoffset.py    Turns a byte offset from the v9k: counters into "which
+                    packet, and was it a resend", by adding up wire
+                    lengths from the host's packet log.  This is what
+                    settled the rxpeak question; PORTING.md SS16m.
+
+proofs/         Host programs that PORTING.md SS8 cites as the correctness
+                argument for a shipped change.  These are evidence, not
+                probes: if one of them is unfindable or unrunnable, the
+                edit it justifies is unverifiable.  "make -C v9k/proofs"
+                builds and runs all of them.  See v9k/proofs/README.
+
+    vcrc16.c        Proves the VICTOR9K arm of chk3() computes the same
+                    CRC as upstream's.  Upstream edit 17, PORTING.md
+                    SS16af.
+    vburst.c        Proves the ISR's burst-detection arithmetic separates
+                    the two defects it was built to tell apart.  The MAME
+                    harness cannot reach that code at all.  PORTING.md
+                    SS16q.
+
+probes/         Genuine one-shots: a short program that answered one libc
+                or DOS question and is kept only so the answer stays
+                checkable.  Build lines are in the comment at the top of
+                each file.  These ARE disposable in the sense the old
+                README meant -- nothing depends on them.
+
+    vwild.c         What MS-DOS 3.1 does with ".", trailing separators,
+                    FindFirst and opendir.  SS16f.
+    vmatch.c        ckmatch() and stat() on the exact questions the
+                    wildcard path depends on.  SS16f.  (Built against the
+                    retired gcc build; kept for its answer, not its build
+                    line.)
+    vaccess.c       What access() returns for a FAT root.  SS12.
+    vfmode.c        Whether _fmode reaches the DOS runtime.  SS16h.
+    vfmodefp.c      Killed the 8087-emulator hypothesis under it.  SS16h.
+    vasm.c          What Open Watcom's __interrupt prologue actually
+                    emits, which is why ckvisr.asm exists.  SS16t.
+    vmem.c          What a running machine says it has free.  SS16x.
+    macspeed.c      Sets a nonstandard rate on a Mac serial port through
+                    IOSSIOSPEED, which termios cannot express.  SS11a0.

@@ -2,7 +2,7 @@
   macspeed.c -- set an arbitrary, non-standard bit rate on a macOS serial
   port, and optionally hold it there.
 
-  HOST-SIDE, unlike everything else in .probe/.  It exists because of
+  HOST-SIDE, unlike everything else in v9k/probes/.  It exists because of
   PORTING.md SS11a0: the Victor's x1 clock mode produces rates the 8253's
   count quantisation puts nowhere near a standard one --
 
@@ -16,9 +16,9 @@
   So the host has to move, and macOS will not do these rates through
   termios.  IOSSIOSPEED will.
 
-  Build:  cc -O2 -o .probe/macspeed .probe/macspeed.c
+  Build:  cc -O2 -o v9k/probes/macspeed v9k/probes/macspeed.c
 
-  Use:    .probe/macspeed /dev/tty.usbserial-BG022B8M 9615 -h
+  Use:    v9k/probes/macspeed /dev/tty.usbserial-BG022B8M 9615 -h
 
   -h holds the descriptor open and sleeps.  That matters: IOSSIOSPEED is a
   property of the open port, and macOS restores the driver's idea of the

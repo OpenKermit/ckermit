@@ -103,7 +103,7 @@ VICTOR  = ckvictor.obj ckvisr.obj
 # runtime's default translation mode is what decides it, and Open Watcom
 # ships binmode.obj to set that mode to O_BINARY before main().
 #
-# Measured on Victor MS-DOS 3.1 (.probe/vfmode.c, .probe/vfmodefp.c): it sets
+# Measured on Victor MS-DOS 3.1 (v9k/probes/vfmode.c, v9k/probes/vfmodefp.c): it sets
 # _fmode correctly in a small test program -- with the object the toolchain
 # ships in $(WATCOM)/lib286/dos, which is the SMALL model build, AND with the
 # large-model build of the same source, and with or without the FP emulator

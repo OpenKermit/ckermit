@@ -13,7 +13,7 @@
 # the requirement is the same everywhere.  Use -a 0 to print it alone.
 #
 # The default below is the 896K bench machine.  SS16x measured what Victor
-# MS-DOS 3.1 actually hands out, with .probe/vmem.c, and the model is
+# MS-DOS 3.1 actually hands out, with v9k/probes/vmem.c, and the model is
 #
 #     free = installed RAM - 92,720
 #
@@ -27,9 +27,9 @@
 # understated MS-DOS 3.1 by better than 2x.  See SS16x before reintroducing
 # it anywhere.
 #
-#   python3 .probe/mzsize.py ckermitw.exe [...]      # vs the 896K bench
-#   python3 .probe/mzsize.py -a 0 ckermitw.exe       # requirement only
-#   python3 .probe/mzsize.py -a 300496 ckermitw.exe  # vs a 384K machine
+#   python3 v9k/tools/mzsize.py ckermitw.exe [...]      # vs the 896K bench
+#   python3 v9k/tools/mzsize.py -a 0 ckermitw.exe       # requirement only
+#   python3 v9k/tools/mzsize.py -a 300496 ckermitw.exe  # vs a 384K machine
 #
 # MZ header fields used, all little-endian words:
 #   0x02  bytes in last page      0x04  pages of 512

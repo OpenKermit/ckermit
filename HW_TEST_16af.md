@@ -10,7 +10,7 @@ the run is incomplete without all three; see "Produced by the run" below.
 Edit 17 rewrites `chk3()` for `VICTOR9K` only: the same CRC-16, same
 polynomial, same initial value, same absence of a final XOR, computed in
 `unsigned int` through one 256-entry table instead of in `long` through two
-16-entry `long` tables. `.probe/vcrc16.c` proves the algorithms identical
+16-entry `long` tables. `v9k/proofs/vcrc16.c` proves the algorithms identical
 over all 256 table entries and 20,500 length-and-fill combinations.
 
 Two claims are outstanding and **only the bench can settle them**:

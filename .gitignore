@@ -31,12 +31,15 @@ ckermit.exe.map
 ckermitw.exe
 ckermitw.exe.map
 
-# Throwaway probe binaries (PORTING.md 16f); the .c files are kept.
-.probe/*.exe
-.probe/*.o
-.probe/*.obj
-.probe/vburst
-.probe/vasm
+# v9k/ build outputs; every .c and .py under it is kept.  See v9k/README.
+v9k/probes/*.exe
+v9k/probes/*.o
+v9k/probes/*.obj
+v9k/probes/macspeed
+v9k/probes/vasm
+v9k/proofs/*.bin
+v9k/proofs/vburst
+v9k/proofs/vcrc16
 
 # Emulator harness scratch (PORTING.md 16a)
 mame.log

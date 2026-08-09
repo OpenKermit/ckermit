@@ -465,29 +465,29 @@ maintain the burst table. Without that, the report would print
 - **The clock quantum is 0.5 s and it is the Victor's.** Read `tot=`, never
   `max=`. Three samples measure nothing.
 - **Byte offsets map onto the host packet log**, resends included:
-  `python3 .probe/mapoffset.py host.pkt --rxbytes <rxbytes> <offset>...` —
+  `python3 v9k/tools/mapoffset.py host.pkt --rxbytes <rxbytes> <offset>...` —
   **always pass `--rxbytes`**, which computes and applies the startup
   dead-air shift. §16r nearly published a wrong answer for want of it.
-- **`python3 .probe/pktstat.py host.pkt`** decodes a log; `grep -c '^S-'`
+- **`python3 v9k/tools/pktstat.py host.pkt`** decodes a log; `grep -c '^S-'`
   counts retransmissions and `grep -c '<timeout>'` counts timeouts. **Both
   are receive-leg instruments.** On a Victor-*send* log the length field it
   reads is 0 for long packets and `S-` counts the host retransmitting, so it
   reported "longest 49, retransmissions 0" for a log with 3,614-character
   lines and four Victor resends. Read send logs by hand until it is fixed.
-- **`.probe/macspeed.c`** sets a non-standard bit rate on a macOS port via
+- **`v9k/probes/macspeed.c`** sets a non-standard bit rate on a macOS port via
   `IOSSIOSPEED`, which is the only way to reach the x1 rates the Victor can
   actually produce (§11a0). `-h` to hold it; give C-Kermit no `set speed`.
-- **`.probe/vburst.c`** replays the burst detector on the host, 17 cases —
-  `cc -o .probe/vburst .probe/vburst.c`. Re-run after touching that logic.
-- **`.probe/vasm.c`** records what Open Watcom will and will not do for an
+- **`v9k/proofs/vburst.c`** replays the burst detector on the host, 17 cases —
+  `cc -o v9k/proofs/vburst v9k/proofs/vburst.c`. Re-run after touching that logic.
+- **`v9k/probes/vasm.c`** records what Open Watcom will and will not do for an
   ISR: `__interrupt` always saves twelve registers, and `#pragma aux` cannot
   be used for one at all. Compile it and read `wdis` before believing
   otherwise.
-- **`python3 .probe/mzsize.py ckermitw.exe`** — run this, not `ls -l`. It
+- **`python3 v9k/tools/mzsize.py ckermitw.exe`** — run this, not `ls -l`. It
   prints **the smallest Victor that can load the build**, which is the
   number to report; `-a 0` gives the requirement alone and `-a <bytes>`
   checks another machine. **Quote the requirement, not the spare** (§16x).
-- **`.probe/vmem.c`** asks a running Victor what DOS will give it, INT 21h
+- **`v9k/probes/vmem.c`** asks a running Victor what DOS will give it, INT 21h
   `AH=4Ah` plus `_psp`. Build lines in its header. This is what retired the
   396,224 figure, and it is the way to answer the same question on
   FreeDOS-for-Victor or on real hardware, neither of which has been asked.
@@ -693,8 +693,8 @@ container exec -i ia16-ubuntu-2 bash -c \
   "cd /mnt/projects/ckermit && make -f victorow.mak"        # ckermitw.exe
 container exec -i ia16-ubuntu-2 bash -c \
   "cd /mnt/projects/ckermit && make -f victorow.mak sizes"  # DGROUP report
-python3 .probe/mzsize.py ckermitw.exe                       # will it LOAD
-cc -o .probe/vburst .probe/vburst.c && .probe/vburst        # burst logic
+python3 v9k/tools/mzsize.py ckermitw.exe                       # will it LOAD
+cc -o v9k/proofs/vburst v9k/proofs/vburst.c && v9k/proofs/vburst        # burst logic
 ```
 
 Rule 4 still applies: the heap is **outside** DGROUP, the ring is not, and

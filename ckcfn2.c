@@ -323,7 +323,7 @@ long crctb[16] = { 0L, 010611L, 021422L, 031233L, 043044L,
 /*
   The same two tables collapsed into one, and narrowed to the width the
   values actually occupy.  crctab16[b] is crcta[b >> 4] ^ crctb[b & 0x0F]
-  for every b, which .probe/vcrc16.c checks exhaustively rather than by
+  for every b, which v9k/proofs/vcrc16.c checks exhaustively rather than by
   sampling -- it is the entire basis for chk3() below doing one lookup
   where upstream does two, and it is cheap to prove.
 
@@ -1708,7 +1708,7 @@ chk3(pkt,len) register CHAR *pkt; register int len;
   4,095 and lost bytes, all three block-1 legs sat at 2,6xx with rxfull = 0.
 
   Same polynomial, same initial value, same absence of a final XOR, and
-  therefore the same value on every input; .probe/vcrc16.c proves the table
+  therefore the same value on every input; v9k/proofs/vcrc16.c proves the table
   identity over all 256 entries and the loop over 20,500 length-and-fill
   combinations.  This is not a weaker block check, which is the thing that
   matters: SS16ae's faster number came from replacing CRC-16 with a 6-bit

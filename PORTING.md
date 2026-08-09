@@ -630,7 +630,7 @@ guarding them would mean knowingly shipping the broken form everywhere else.
     is the distinction 15 and 16 turn on. It changes nothing anywhere else.
 
     Correctness is proved twice over and the two proofs are different
-    claims: `.probe/vcrc16.c` checks the table identity `crctab16[b] ==
+    claims: `v9k/proofs/vcrc16.c` checks the table identity `crctab16[b] ==
     crcta[b>>4] ^ crctb[b&0x0F]` **exhaustively** over all 256 entries, and
     the loop identity over 20,500 length-and-fill combinations (every length
     0–4099, past `DRPSIZ`, × five patterns). Then §16af transferred 32,768
@@ -1688,11 +1688,11 @@ is consistent with this and needs no other explanation.
 
 Those four points are only reachable if **the host is set to the Victor's
 computed rate** — 37,879, 56,818, 78,125, 113,636 — which macOS will not do
-through termios. `.probe/macspeed.c` does it with `IOSSIOSPEED`:
+through termios. `v9k/probes/macspeed.c` does it with `IOSSIOSPEED`:
 
 ```sh
-cc -O2 -o .probe/macspeed .probe/macspeed.c
-.probe/macspeed /dev/cu.usbserial-XXXX 113636 -h
+cc -O2 -o v9k/probes/macspeed v9k/probes/macspeed.c
+v9k/probes/macspeed /dev/cu.usbserial-XXXX 113636 -h
 ```
 
 `-h` holds the descriptor open, which is required: the rate is a property of
@@ -3947,7 +3947,7 @@ The Victor's own log shows `zchko()` contradicting itself inside four lines:
 (`bld/clib/file/c/accss.c`) is `_dos_getfileattr()` — INT 21h AH=43h — followed
 by a read-only-bit test. **A FAT root directory has no directory entry of its
 own**, so AH=43h has nothing to read for it. It does not fail. It succeeds and
-returns garbage. Measured with `.probe/vaccess.c`:
+returns garbage. Measured with `v9k/probes/vaccess.c`:
 
 | path, from `A:\` | `_dos_getfileattr` | attr | `access(W_OK)` |
 |---|---|---|---|
@@ -4024,7 +4024,7 @@ Open Watcom ships `binmode.obj` for exactly this, and **it does not work in
 this program.** That cost most of the session, so the negative result is here
 to stop it being rediscovered.
 
-Measured with `.probe/vfmode.c`: in a small test program it sets `_fmode` to
+Measured with `v9k/probes/vfmode.c`: in a small test program it sets `_fmode` to
 0200 correctly — with the object the toolchain ships in `rel/lib286/dos`
 (which is byte-identical to the **small model** build) and with the large-model
 build of the same source. Linked into `CKERMITW.EXE`, either object leaves
@@ -4032,7 +4032,7 @@ build of the same source. Linked into `CKERMITW.EXE`, either object leaves
 the XI table (it grows 0x3c → 0x42), `cstart` runs every priority
 (`mov ax,0FFh`), `_TEXT` is a single 60,160-byte segment so a near call reaches
 the routine, and `_fmode` is the plain variable in both programs.
-`.probe/vfmodefp.c` killed the most promising hypothesis — that the 8087
+`v9k/probes/vfmodefp.c` killed the most promising hypothesis — that the 8087
 emulator's own XI initializer was interfering, since `NOGFTIMER` drags
 `emu87.lib` into CKERMITW and not into the probe — by linking the emulator into
 the probe and getting 0200 anyway.
@@ -4063,7 +4063,7 @@ Two cheap instruments came out of this and are worth keeping:
   use, so CRLF in the log means the runtime is translating and bare LF means it
   is not. `CKERMITW -d -h` writes one and exits: no serial line, no `socat`, no
   host `kermit`, about 2.5 minutes instead of 9.
-- `.probe/vaccess.c`, `.probe/vfmode.c` and `.probe/vfmodefp.c`, built per the
+- `v9k/probes/vaccess.c`, `v9k/probes/vfmode.c` and `v9k/probes/vfmodefp.c`, built per the
   comment at the top of each.
 
 ### What this establishes, and what it does not
@@ -4524,7 +4524,7 @@ adds 16 bytes of code and no data, so the current figures are DGROUP
 **48,176** and image **202,310**, needing **216,582** — 179,642 spare. The
 ones above are this section's.)
 
-`.probe/mzsize.py` is §16a's method made repeatable: it reads the MZ header
+`v9k/tools/mzsize.py` is §16a's method made repeatable: it reads the MZ header
 and reports image + `minalloc` against 396,224. Run it, not `ls -l`, before
 believing a build will load.
 
@@ -4916,7 +4916,7 @@ offset 4570 -> RESEND seq=06 type=D (1953 wire bytes, 806 into it)
 Both the first crossing of 256 and the peak itself land inside the
 **retransmission of seq=06** — the packet the host resent after its one
 timeout. The original seq=06 occupies 1811–3764 and the resend 3764–5717.
-(`.probe/mapoffset.py` does the arithmetic; `.probe/pktstat.py` counts the
+(`v9k/tools/mapoffset.py` does the arithmetic; `v9k/tools/pktstat.py` counts the
 log.)
 
 That is the mechanism, and it is the only moment it can happen: **with a
@@ -5619,7 +5619,7 @@ Seven statics and a handful of stores, all on the overrun path:
 | `lost evt` | bursts. A loss opens a new one when more than `V9K_LOSTGAP` bytes have arrived cleanly since the previous loss |
 | `lost max` | the longest burst, which sizes the worst hold-off |
 | `lost tag`/`fd` | §0e's foreground tag latched at the **first** loss — the counterpart of `peaktag`, and the one that names a suspect |
-| `lostat`/`lostend` | byte offsets of the first and last loss, which `.probe/mapoffset.py` turns into packets |
+| `lostat`/`lostend` | byte offsets of the first and last loss, which `v9k/tools/mapoffset.py` turns into packets |
 
 **A burst is separated by a gap in the stream, not by consecutive entries to
 the handler, and that choice is the point.** Consecutive-entry counting
@@ -5651,7 +5651,7 @@ figure in §16k–§16p stands as printed.**
 
 ### Validated three ways, and the third one is the gap
 
-**The arithmetic**, by `.probe/vburst.c` — the counter update transcribed
+**The arithmetic**, by `v9k/proofs/vburst.c` — the counter update transcribed
 byte for byte out of the ISR and replayed on the host against synthetic
 patterns with known answers. The two readings §16p could not separate now
 come back unmistakably different:
@@ -5681,7 +5681,7 @@ MAME ran at 96.99% of real time for 299 s, so the figures are comparable.
 **And the third: the loss path itself has never executed.** MAME cannot
 drive this machine above about 9600 (§16n) and the chip does not overrun
 below 38400 (§16p), so **no run in the emulator harness can reach the code
-that was added.** `.probe/vburst.c` is what stands in for that, and it
+that was added.** `v9k/proofs/vburst.c` is what stands in for that, and it
 proves the arithmetic only — it says nothing about whether the overrun bit
 behaves as assumed. The first real exercise of this code is the next bench
 session, and the honest status is *written and reasoned, not observed*.
@@ -5712,7 +5712,7 @@ v9k: txgap n=39 max=50 at #3 tot=550 cs
 ```
 
 **`evt = 5` against `rxlost = 322`.** The two readings §16q's
-`.probe/vburst.c` was built to separate predict `evt` near 322 with
+`v9k/proofs/vburst.c` was built to separate predict `evt` near 322 with
 `max = 1` (a handler too slow per byte) or `evt` in single figures with a
 large `max` (something holding the machine off). It is the second, with no
 room for argument: five events, longest 179. **The per-byte-cost hypothesis
@@ -5734,7 +5734,7 @@ which is what §16p inferred from NAK counts alone and could not show.
 the Victor first ACKed (8 timeouts, 9 × 28 = 252 bytes) — startup dead air,
 §16p's lesson arriving again — and the Victor received none of it.
 
-`.probe/mapoffset.py` maps a Victor offset onto the host's *sent* stream and
+`v9k/tools/mapoffset.py` maps a Victor offset onto the host's *sent* stream and
 therefore needs that shift applied by hand. Unshifted, `lostat = 183` lands
 in the seventh S retransmission and the whole result reads as a startup
 artifact with a worthless tag. Shifted, it lands in the first NAKed data
@@ -5815,7 +5815,7 @@ it. All three are in the tree. **None of them has been near a Victor**, and
 the reason is §16q's: the loss path only executes when the µPD7201
 overruns, the chip only overruns at 38400, and MAME cannot drive this
 machine above 9600. What was done instead is what §16q did — the arithmetic
-is replayed on the host by `.probe/vburst.c`, now 17 cases, all passing —
+is replayed on the host by `v9k/proofs/vburst.c`, now 17 cases, all passing —
 and a 38400 bench run is what turns any of this into a measurement.
 
 ### 1. A row per burst, and `sp` is the number
@@ -5938,7 +5938,7 @@ for the row index.
 
 ### What would falsify it
 
-`.probe/vburst.c` replays the whole update — burst boundaries, the table,
+`v9k/proofs/vburst.c` replays the whole update — burst boundaries, the table,
 the tag pair — against patterns with known answers, on the host, in one
 `cc`. The case that matters is the pair it was extended for: 179 overruns
 back to back report `sp = 356`, and the same 179 spread eight good bytes
@@ -6039,7 +6039,7 @@ The C handler is 185 instructions with `V9K_LEANLOST`, and 52 of them do no
 work:
 
 - **24 stack operations.** Open Watcom's `__interrupt` saves all twelve
-  registers and there is no way to ask for fewer. `.probe/vasm.c` establishes
+  registers and there is no way to ask for fewer. `v9k/probes/vasm.c` establishes
   this three ways: `__interrupt` with a C body and with an `_asm` body emit
   the identical prologue, and **`#pragma aux` cannot be used for an ISR at
   all** — its code is inlined at call sites, so taking its address emits a
@@ -6506,7 +6506,7 @@ later section inherited it without re-asking. It reached nine places in
 `PORTING.md`, both of `CLAUDE.md`'s budget passages, `NEXT_SESSION.md`, and
 `mzsize.py`'s hard-coded `AVAIL`.
 
-### `.probe/vmem.c`, and it was validated before it was believed
+### `v9k/probes/vmem.c`, and it was validated before it was believed
 
 INT 21h only: `AH=4Ah` on our own PSP block with `BX = FFFFh`, whose
 failure returns the largest block available, plus `_psp` to show what sits

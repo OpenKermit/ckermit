@@ -3,7 +3,7 @@
 
   Build and run on the HOST, not the target:
 
-      cc -o .probe/vcrc16 .probe/vcrc16.c && .probe/vcrc16
+      cc -o v9k/proofs/vcrc16 v9k/proofs/vcrc16.c && v9k/proofs/vcrc16
 
   The reason this exists.  PORTING.md SS16af replaces chk3()'s arithmetic for
   VICTOR9K only: upstream computes a 16-bit CRC in long variables through two
