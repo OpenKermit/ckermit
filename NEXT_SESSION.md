@@ -165,7 +165,10 @@ build, and neither specific to it:
   item 15.
 - **16** — `ckuusy.c:3690` stores `zchki()`'s `CK_OFF_T` return, which is
   the *file size*, in a 16-bit `int`, so `-s <name>` refuses any file of
-  32,768 bytes or more. §1 item 1a. Not yet made.
+  32,768 bytes or more. §1 item 1a. **Made** — `rc` is now `CK_OFF_T`,
+  the build is byte-identical to the shipping one (DGROUP 48,304, image
+  205,530), and `wdis` confirms a signed 32-bit compare where `dx` used to
+  be discarded. **Still needs the end-to-end run below.**
 
 All three are the same species: a value that needs more than 16 bits
 assigned to an `int`. A 16-bit build is the only place they show, which is

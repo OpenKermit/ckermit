@@ -454,14 +454,15 @@ socket is single-use, so start `socat` first and never probe the port.
 ## Hard rules
 
 1. **Do not modify upstream C-Kermit files.** The port's value is that the
-   protocol engine is untouched. There are exactly fifteen upstream
+   protocol engine is untouched. There are exactly sixteen upstream
    edits (listed in `PORTING.md` §8); thirteen are wrapped in `#ifndef` or
-   `#ifdef VICTOR9K` and change nothing on any other platform. **14 and 15
-   are not, and both are flagged as such**: 14 moves a mis-nested `#endif`
-   (an `#endif` cannot be placed conditionally), and 15 fixes a cast that
-   binds wrong, which is a no-op wherever `int` is 32 bits and so would be
-   actively harmful to guard. If you think you need a sixteenth, say so
-   explicitly rather than doing it quietly — the seventh through fifteenth
+   `#ifdef VICTOR9K` and change nothing on any other platform. **14, 15 and
+   16 are not, and all three are flagged as such**: 14 moves a mis-nested
+   `#endif` (an `#endif` cannot be placed conditionally), 15 fixes a cast
+   that binds wrong, and 16 widens an `int` that was holding a `CK_OFF_T`.
+   The last two are no-ops wherever `int` is 32 bits and so would be
+   actively harmful to guard. If you think you need a seventeenth, say so
+   explicitly rather than doing it quietly — the seventh through sixteenth
    were all agreed that way. Say it again if
    the edit turns out to need a second file: 12 and 13 both did, and 13's
    second half was the one that made the first half do anything.

@@ -316,10 +316,12 @@ Streaming is **not** network-coupled — it is negotiated protocol behaviour in
 
 ## 8. Upstream changes made
 
-Fifteen edits, thirteen of them small, guarded and invisible to every
-other platform. **Edit 14 is the exception and is flagged as such**: it
-repairs a mis-nested `#endif` in `ckcmai.c`, and a preprocessor conditional
-cannot itself be made conditional.
+Sixteen edits, thirteen of them small, guarded and invisible to every
+other platform. **Edits 14, 15 and 16 are the exceptions and are flagged as
+such**: 14 repairs a mis-nested `#endif` in `ckcmai.c`, and a preprocessor
+conditional cannot itself be made conditional; 15 and 16 fix a 16-bit
+truncation each, and both are provable no-ops wherever `int` is 32 bits, so
+guarding them would mean knowingly shipping the broken form everywhere else.
 
 1. **`ckcdeb.h`** — wrapped the `sig_t` typedef in `#ifndef CK_NO_SIG_T`.
    macOS (and the retired build's newlib) already define `sig_t`. Open Watcom
@@ -541,7 +543,48 @@ cannot itself be made conditional.
     transfer at 38400 indefinitely and never see it: `-b` divides as a long
     already (`ckuusy.c`, `zz = atol(*xargv); i = zz / 10L;`). §16ad.
 
-Items 2, 3, 6, 7, 8, 10, 11, 13, 14 and 15 are worth offering upstream
+16. **`ckuusy.c`** — one declaration in `cmdlin()`'s `case 's':`
+
+    ```c
+    -   int fil2snd, rc;
+    +   int fil2snd;
+    +   CK_OFF_T rc;
+    ```
+
+    `zchki()` returns `CK_OFF_T`, and on success what it returns is the
+    **file's size** (`ckufio.c:2477`). Stored in a 16-bit `int`, a
+    32,768-byte file arrives as -32768, which is neither `> -1` nor `-2`,
+    so the caller at `ckuusy.c:3727` concludes the file does not exist and
+    `-s <name>` refuses to send it. `zchki()` had *succeeded*; nothing set
+    `errno`; so the diagnostic comes out as
+
+    ```
+    kermit -s TRANS.DAT:
+    ```
+
+    with nothing after the colon. **An empty `ck_errstr()` on that line is
+    the signature** — it means the file was found and the caller threw the
+    answer away.
+
+    It is **periodic, not a ceiling**, because the wrap repeats every 64K:
+    32,767 works, 32,768 through 65,535 fail, 65,536 works, 98,304 fails.
+
+    **Not wrapped, for edit 15's reason** — where `int` is 32 bits `rc`
+    already holds the whole value and the two declarations are identical.
+
+    **Why it went sixteen sections unnoticed.** §16d sent a 74-byte file.
+    §16g used `-s *.TXT`, and a wildcard takes the `nzxpand()` branch —
+    which is reached *only because* `zchki` appeared to fail, so the
+    wildcard path routes around the defect. And every 32 KB test in this
+    port has been a **receive**, and `zchki` is not in the receive path.
+    The port had never sent a large file by name. Found on the bench,
+    8 August 2026. **Workaround in any unfixed build: send by wildcard.**
+
+    Proven so far only at the level of generated code — `wdis` shows
+    `dx:ax` surviving the call and a signed 32-bit compare (`cmp dx,0xffff`
+    / `jg`) where the old form discarded `dx`. **Not yet run end to end.**
+
+Items 2, 3, 6, 7, 8, 10, 11, 13, 14, 15 and 16 are worth offering upstream
 regardless of this port, and **14 and 15 are the ones to send first**: it is a plain
 defect, it is ~40 years old, and it disables two documented features in any
 configuration that turns TCP/IP off.

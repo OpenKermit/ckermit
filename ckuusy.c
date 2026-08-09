@@ -3687,7 +3687,17 @@ extern char *line, *tmpbuf;             /* Character buffers for anything */
 	    break;
 
 	  case 's': {			/* send */
-	      int fil2snd, rc;
+	      int fil2snd;
+/*
+  zchki() returns CK_OFF_T -- the file's size on success -- so rc must be
+  CK_OFF_T too.  As a 16-bit int a 32768-byte file arrives as -32768, which
+  is neither > -1 nor -2, and the send falls through to the "file not found"
+  branch even though zchki() succeeded.  The wrap repeats every 64K, so this
+  is periodic rather than a simple ceiling.  Unguarded on purpose: it is a
+  no-op wherever int is 32 bits, and guarding it would ship the broken form
+  everywhere else.
+*/
+	      CK_OFF_T rc;
 	      if (!recursive)
 	      nolinks = 0;		/* Follow links by default */
 
