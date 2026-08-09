@@ -7507,6 +7507,32 @@ The `ckvictor.c` initializer and `V9K_PREFIXING` stay, because they are
 correct for the direction they govern — a Victor **sending** a file. That
 direction is **unmeasured**; no leg in this section tested it.
 
+> **Correction, 9 August 2026 (desk, after §16ah).** The sentence above rests
+> on a premise that was never true: **the initializer was not selecting
+> anything.** `main()` reaches `initproto(PROTO_K,...)` at `ckcmai.c:3295`
+> before `setprefix(prefixing)` at 3413, and `initproto` copies
+> `ptab[protocol].prefix` — statically `PX_ALL` — over whatever an XI record
+> put in the variable. So **every leg in this project, in both directions,
+> ran the Victor at `PX_ALL`**, whatever `V9K_PREFIXING` said. Established by
+> decoding the prefix characters out of the packet logs: a run's `ctlp[]`
+> table is recoverable from the wire, and §16ah leg BS prefixed exactly the
+> 66 values `setprefix()` sets for `PX_ALL`. Fixed in `ckvictor.c` by writing
+> `ptab[PROTO_K].prefix`, which is what `initproto` copies *from*; no
+> upstream edit. **Unverified on the wire — `HW_TEST_16ai.md` legs CC/CD.**
+>
+> **This section's structural conclusion is unaffected and was right for the
+> right reason**: unprefixing *is* a sender-side decision, which is exactly
+> why leg BK's Victor-side setting could not move a receive leg — and it
+> could not have moved one even if it had been taking effect. What is wrong
+> is only the inference that the initializer was therefore doing its job in
+> the other direction.
+>
+> **Re-derive this section's per-leg byte counts before quoting them.**
+> `v9k/tools/pktstat.py` counts wire bytes and prefixes exactly and reads
+> both directions; it did neither when this section was written. Leg BK
+> comes back at **41,937 wire bytes with the host at `PX_ALL`** and leg BX at
+> 37,551 with the host at `PX_CAU`, which is not how the figures here read.
+
 ### The block check costs 142 µs per wire byte, and the model was low by 2.4×
 
 Two independent same-round, same-binary comparisons:
@@ -8111,6 +8137,32 @@ the Victor has room, and the prefixing initializer §16ae kept on the argument
 that it was "right for a Victor sending" is now measured and looks like the
 wrong choice on wire bytes. Nobody has yet run a Victor send with
 `cautious` to compare, and that is one leg.
+
+> **Correction, 9 August 2026 (desk).** Two things in that paragraph are
+> wrong and the conclusion survives both.
+>
+> **The numbers.** 40,726 and 35,950 are withdrawn. Counted from the logs —
+> and cross-checked against the Victor's own `rxbytes` counter, which agrees
+> **to the byte** on leg BC — they are **41,945 (+28.0%)** and **37,585
+> (+14.7%)**. The 14.7% figure is what the rest of this document already
+> quotes for this fixture, so this table was the outlier. The gap is 4,360
+> wire bytes, not 4,776.
+>
+> **The attribution.** It is not "two policies", one per end. `ckvictor.c`
+> selected `PX_CAU` and `initproto()` overwrote it with `PX_ALL` before
+> anything read it (see the correction in §16ae), so **this is `PX_ALL`
+> measured against `PX_CAU` and the Victor's initializer was inert.** The
+> observation that the Victor's traffic is much more expensive is therefore
+> *more* firmly established, not less — it is a clean single-variable
+> comparison of the two stock policies over identical data — but it is not
+> evidence about what a Victor running `cautious` does, because no such leg
+> exists. `HW_TEST_16ai.md` legs CC and CD are that leg and its control.
+>
+> Recovered by decoding prefix characters: leg BS emitted **8,869** of them
+> and the host **4,512** over the same 32,768 bytes, and that 4,357
+> difference is the whole excess. `v9k/tools/pktstat.py` reports it, and
+> also reads send legs correctly, which it did not when this section was
+> written — the "read `s16ahBS.pkt` by hand" instruction above is obsolete.
 
 ### Leg 3: the `errno` change failed on the bench too, and has been removed
 
