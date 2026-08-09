@@ -49,8 +49,8 @@ mismatch, and `docmdline(1)` in `ckcmai.c`. **`ckvictor.c` compiles with
 none.** It was 17 until `NOFLOAT` (§16j): dropping `GFTIMER` moves `ztime()`
 onto upstream's `ZTIMEV7` branch, whose K&R redeclarations of `localtime()`
 and `time()` produce two more sign mismatches at `ckutio.c:12319-12320`.
-DGROUP is 48,304 of 65,536 (73%) after the linker adds libc; `ckermitw.exe`
-is 205,530 bytes and **needs 219,738 (214K) at load**. Quote that figure —
+DGROUP is 48,816 of 65,536 (74%) after the linker adds libc; `ckermitw.exe`
+is 205,968 bytes and **needs 220,160 (215K) at load**. Quote that figure —
 it is the port's cost and it is the same on every machine. **The 396,224
 that appears in older sections is not a RAM size, and §16x retracts it as a
 figure for this DOS too**; Victor MS-DOS 3.1 hands out **824,784 at 896K**.
@@ -97,12 +97,59 @@ a **floppy** under it, 1.5 s writes against 0 on SASI, and lost nothing,
 because with a window of one the write happens before `ack()` and the line
 is idle.
 
-**The next binding constraint is the ring, and the old sizing argument is
-void.** `rxpeak` is now **2,621 of 4,096**, the highest ever, with
-`peaktag = 12` — packet decoding. With retransmissions gone the peak no
-longer measures pre-ACK turnaround (§16m); it measures how far decoding
-falls behind during a 3,991-byte packet at full rate. §16k's sizing rested
-on retransmission behaviour that no longer happens.
+**The ring was the next binding constraint and §16af closed it.** `rxpeak`
+is **2,581 of 4,096** with 1,515 bytes of margin, `rxfull = 0` at block 3
+for the first time, and §16k's sizing argument no longer needs redoing
+because nothing presses on it. `peaktag = 12` still names foreground packet
+decoding, which is where the next lever is: `ttinl()`'s per-byte loop at
+~133 µs and the ISR at ~172 are the two largest remaining items, and **only
+the second is ours**.
+
+**§16af is the seventeenth upstream edit and it is the one §16ae asked
+for.** `chk3()` computed a 16-bit CRC in `long` through two `long[16]`
+tables; on an 8088 built with `-0` that put **two software shift loops** in
+the per-byte path (`wdis`: `mov cx,8` / `sar dx,1` / `rcr ax,1` / `loop`),
+because an 8086 has no shift-by-immediate. A `#ifdef VICTOR9K` arm does the
+**same CRC** — same polynomial, same init, no final XOR — in `unsigned int`
+through one 256-entry table: **603 8088 cycles per byte become 81**, 36 loop
+instructions become 15, and the function loses its stack frame.
+`crcta[]`/`crctb[]` are untouched because `ckcfns.c` reads them for the file
+CRC and narrowing them would need a second file. On the bench at 38400,
+against a same-session baseline control that reproduced §16ae leg PC **to
+the byte** (44,720 wire bytes, 3,800 cs): **`rxfull` 741 → 0**, `rxpeak`
+4,095-pinned → 2,581, 26 packets and 3 resends → **18 and zero**, 44,720
+wire bytes → 37,568, and **38.00 s → 28.00 s, 862 → 1,170 cps, +35.7%**.
+**§16ae's uncomfortable trade-off is gone**: CRC-16 now costs **one clock
+quantum** over a 6-bit checksum (28.00 vs 27.00 s, 26 µs/wire byte) where it
+cost 11.5 s and 142 µs, so there is no speed argument left for shipping
+weaker error detection. Correctness is proved twice and they are different
+claims — `.probe/vcrc16.c` checks the table identity exhaustively over all
+256 entries and the loop over 20,500 length-and-fill combinations, and four
+transfers came back byte-exact. **A block check that is fast and wrong fails
+silently**, which is why the probe is exhaustive rather than sampled.
+
+**Three prediction failures are written up in §16af because they generalise.**
+An 8088 **cycle** count said the saving was ~104 µs/wire byte; MAME measured
+54. That is the fourth hand-costed 8088 figure in this tree to come out
+optimistic — §16t's *fetch* model was the earlier one — so **treat both as
+ordering arguments, never as magnitudes**. Then, from the MAME leg, this
+project asserted §16ae's 142 µs "bundles the overflow recovery" and put the
+true figure near 63; the bench says ~80 was arithmetic and ~60 was the
+overflow that the arithmetic *caused*, so §16ae had measured block 3's total
+penalty correctly and it simply was not all CRC. **And a clean baseline
+block-3 figure does not exist and cannot be taken** — the baseline cannot run
+block 3 cleanly at 38400, which is the defect itself. The pattern in all
+three: a difference between two legs is only a measurement of one mechanism
+if the other mechanisms are equal, and an overflowing leg is never equal to a
+clean one.
+
+**§16af's null leg is the one to copy.** AH ran the new binary at block 1,
+where edit 17 has no mechanism to do anything, and had to reproduce §16ae
+leg BX — it did, within one clock quantum. That is what makes the headline
+**attributable**: any binary differs from any other in layout, §16w showed
+this machine is unusually sensitive to code size, and a floor that had moved
+would have meant the rebuild was being measured rather than the edit.
+**Spend a leg on the result that is supposed to be nothing.**
 
 **§16u built the throughput instruments and §16v used them on the bench:
 1,013 cps at 38400, and the line is no longer the bottleneck.** This project
@@ -141,15 +188,18 @@ the receive cost** — a 16-bit CRC done in `long` arithmetic (`crcta[]`/
 +28%, the fastest run the port has ever done**, and it moves the no-line
 ceiling from ~1,353 to **~1,957 cps**. That is not a recommendation to ship
 a 6-bit checksum; it is the argument for spending edit 17 on `chk3()`'s
-arithmetic and keeping CRC-16, now worth ~5-6% rather than the ~2.3% an
-unchecked estimate had claimed. **§16t's instruction-fetch model was low by
-2.4× and had been used to argue against taking the measurement** — the
-~200 µs this project quotes for the assembly ISR comes from that same
-unchecked model. **And `rxfull != 0` is now a live defect**: three of four
-block-3 legs pinned `rxpeak` at 4,095 of 4,096 and lost bytes (556, 640,
-649), while all three block-1 legs sat at 2,6xx with a spread of 38. The
-protocol hid it — all seven legs byte-exact — by resending, which is why
-leg PA needed 49,214 wire bytes to move 32,768.
+arithmetic and keeping CRC-16 — **which §16af then did, and the CRC now
+costs one clock quantum instead of 43%**. **§16t's instruction-fetch model
+was low by 2.4× and had been used to argue against taking the
+measurement** — the ~200 µs this project quotes for the assembly ISR comes
+from that same unchecked model. **And `rxfull != 0` was a live defect**:
+three of four block-3 legs pinned `rxpeak` at 4,095 of 4,096 and lost bytes
+(556, 640, 649), while all three block-1 legs sat at 2,6xx with a spread of
+38. The protocol hid it — all seven legs byte-exact — by resending, which
+is why leg PA needed 49,214 wire bytes to move 32,768. **§16af closed it**;
+the 142 µs this section measured was ~80 of CRC arithmetic and ~60 of the
+overflow that the arithmetic caused, which is why removing the arithmetic
+removed both.
 
 **§16v also settled the flow-control default: `cts = 1` on the real cable**,
 both legs, a genuine RR0 read with the host holding RTS asserted under `set
@@ -318,7 +368,7 @@ edit.
 The interactive command parser is off (`NOICP`), and **§16y now builds it**
 — `XFLAGS=-dKEEP_ICP ZT=-zt2048` links, loads on the Victor and prints a
 parser's help text, needing **428,662 (418K)** against the shipping build's
-219,738. Three fixes got it there and none was an upstream edit: `isfloat()`
+220,160. Three fixes got it there and none was an upstream edit: `isfloat()`
 in `ckvictor.c` §2b (`NOFLOAT` removes `CKFLOAT`, which removes upstream's),
 `__near` on the receive ring (`-zt` would otherwise move it out of the group
 `ckvisr.asm` reaches through `DS` — **the one to remember, since `-zt` is
@@ -481,7 +531,7 @@ socket is single-use, so start `socat` first and never probe the port.
 ## Hard rules
 
 1. **Do not modify upstream C-Kermit files.** The port's value is that the
-   protocol engine is untouched. There are exactly sixteen upstream
+   protocol engine is untouched. There are exactly seventeen upstream
    edits (listed in `PORTING.md` §8); thirteen are wrapped in `#ifndef` or
    `#ifdef VICTOR9K` and change nothing on any other platform. **14, 15 and
    16 are not, and all three are flagged as such**: 14 moves a mis-nested
@@ -503,10 +553,10 @@ socket is single-use, so start `socat` first and never probe the port.
    ask for fewer. Do not add a second assembly file without the same kind of
    measurement behind it.
 4. **Two budgets, and do not confuse them.** DGROUP holds `.data`, `.bss`
-   and the **stack** — 48,304 of 65,536 (73%) after the link, 17,232 free.
+   and the **stack** — 48,816 of 65,536 (74%) after the link, 16,720 free.
    The **heap is outside it**: `malloc()` is `_fmalloc` in the large model,
    so the packet buffers do not compete for the segment at all. What bounds
-   them is real-mode RAM: **the image needs 219,738 (214K) at load**, and
+   them is real-mode RAM: **the image needs 220,160 (215K) at load**, and
    the far heap then takes about 25K of packet buffers on top. **The receive
    ring is the exception**: at 4,096 bytes it is `.bss` and comes straight
    out of the 64K (§16k).

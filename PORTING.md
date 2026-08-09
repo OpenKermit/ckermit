@@ -316,7 +316,7 @@ Streaming is **not** network-coupled — it is negotiated protocol behaviour in
 
 ## 8. Upstream changes made
 
-Sixteen edits, thirteen of them small, guarded and invisible to every
+Seventeen edits, fourteen of them small, guarded and invisible to every
 other platform. **Edits 14, 15 and 16 are the exceptions and are flagged as
 such**: 14 repairs a mis-nested `#endif` in `ckcmai.c`, and a preprocessor
 conditional cannot itself be made conditional; 15 and 16 fix a 16-bit
@@ -583,6 +583,61 @@ guarding them would mean knowingly shipping the broken form everywhere else.
     Proven so far only at the level of generated code — `wdis` shows
     `dx:ax` surviving the call and a signed 32-bit compare (`cmp dx,0xffff`
     / `jg`) where the old form discarded `dx`. **Not yet run end to end.**
+
+17. **`ckcfn2.c`** — a `VICTOR9K` arm in `chk3()`, plus the 256-entry
+    `crctab16[]` it reads. **The same CRC**: same polynomial, same initial
+    value, same absence of a final XOR, computed in `unsigned int` through
+    one table instead of in `long` through two.
+
+    ```c
+    -   c = crc ^ (long)(*pkt);
+    -   crc = (crc >> 8) ^ (crcta[(c & 0xF0) >> 4] ^ crctb[c & 0x0F]);
+    +   c = (crc ^ (unsigned int)(*pkt++)) & 0xFF;
+    +   crc = ((crc >> 8) & 0xFF) ^ crctab16[c];
+    ```
+
+    Upstream holds a 16-bit quantity in `long` variables and indexes two
+    `long[16]` tables with it (`ckcfn2.c:312`). On a 32-bit machine that is
+    free. On an 8088 built with `-0` it is not, and `wdis` on the shipping
+    build says exactly how much: the loop contained **two software shift
+    loops**, because an 8086 has no shift-by-immediate —
+
+    ```
+    mov cx,4 / L: sar dx,1 / rcr ax,1 / loop L      (c & 0xF0) >> 4
+    mov cx,8 / L: sar dx,1 / rcr ax,1 / loop L      crc >> 8
+    ```
+
+    — twelve iterations at ~21 cycles on every byte, purely to move bits a
+    16-bit variable would not have needed moved, plus four word loads where
+    two would do and all three `register` declarations spilled to the frame.
+    **603 8088 cycles per byte become 81**; 36 loop instructions become 15;
+    the function loses its stack frame entirely. Watcom recognised
+    `crc >> 8` as `mov al,ah / xor ah,ah` rather than a shift by CL, which
+    is better than the hand estimate that argued for the edit.
+
+    **`crcta[]`/`crctb[]` are left exactly as they are.** `ckcfns.c:260`
+    declares them `extern long` and reads them in six places for the
+    running file CRC (`\v(crc16)`), a path §16af did not measure. Narrowing
+    them would make this a two-file edit, and §8 has twice recorded that an
+    edit needing a second file is a different and larger thing than the one
+    that was agreed. The cost of that decision is 512 bytes of DGROUP
+    duplicating 128 already spent.
+
+    **Guarded, and it did not have to be.** The new form is correct on any
+    platform — the two masks are free where `int` is 16 bits and
+    load-bearing where it is wider. It is inside `#ifdef VICTOR9K` anyway
+    because it is an optimisation for one CPU and not a defect fix, which
+    is the distinction 15 and 16 turn on. It changes nothing anywhere else.
+
+    Correctness is proved twice over and the two proofs are different
+    claims: `.probe/vcrc16.c` checks the table identity `crctab16[b] ==
+    crcta[b>>4] ^ crctb[b&0x0F]` **exhaustively** over all 256 entries, and
+    the loop identity over 20,500 length-and-fill combinations (every length
+    0–4099, past `DRPSIZ`, × five patterns). Then §16af transferred 32,768
+    bytes byte-exact against a stock C-Kermit at 9600 under MAME and three
+    times at 38400 on the machine. **A block check that is fast and wrong
+    fails silently**, which is why the probe exists and why it is
+    exhaustive rather than sampled.
 
 Items 2, 3, 6, 7, 8, 10, 11, 13, 14, 15 and 16 are worth offering upstream
 regardless of this port, and **14 and 15 are the ones to send first**: it is a plain
@@ -7545,6 +7600,204 @@ cost a MAME run several sections ago. A documented landmine stepped on
 again is worth a sentence for the same reason §16t's byte-time was: the
 tree knew, and the knowledge was in a section nobody re-read before
 generating a file for the same target.
+
+---
+
+## 16af. The seventeenth edit, and the trade-off §16ae could not resolve
+
+§16ae ended by naming what it had *not* done: "What the measurement
+justifies is not shipping block 1 — it is spending the seventeenth upstream
+edit on `chk3()`'s arithmetic and keeping the CRC." That edit is now made
+(§8, item 17) and measured on the machine. **`rxfull` is 0 at block 3 for
+the first time in the port's life, and CRC-16 costs one clock quantum over
+a 6-bit checksum where it used to cost 11.5 seconds.**
+
+### The four legs
+
+One MAME leg to prove correctness, three bench legs to measure. All four
+**byte-exact** against the 32,768-byte all-byte-values fixture
+(`d94d2beda069ef0ef340977e7fd6995d`).
+
+| leg | where | build | prefixing × block | `rxbytes` | `rxpeak` | `rxfull` | pkts | resend/TO | `elapsed=` | cps |
+|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|
+| **AF** | MAME 9600 | edit 17 | default × 3 | 39,575 | 299 | 0 | — | 1 / 1 | 6,450 cs | 508 |
+| **AJ** | bench 38400 | **baseline** | cautious × 3 | 44,720 | **4,095** *pinned* | **741** | 26 | 3 / 1 | 3,800 cs | 862 |
+| **AG** | bench 38400 | **edit 17** | cautious × 3 | **37,568** | **2,581** | **0** | **18** | **0 / 0** | **2,800 cs** | **1,170** |
+| **AH** | bench 38400 | edit 17 | cautious × 1 | 37,534 | 2,585 | 0 | 18 | 0 / 0 | 2,700 cs | 1,214 |
+
+cps is 32,768 ÷ the Victor's `elapsed`, which is §16u's wider interval and
+therefore conservative. Compare like with like: §16ae's whole table is on
+the same clock.
+
+### The control reproduced its target exactly, and that is what makes AG readable
+
+**AJ came back at 44,720 wire bytes and 3,800 cs — §16ae leg PC's figures,
+to the byte and to the quantum.** Not "consistent with"; identical. AJ
+exists because §16ae's comparison target was measured in a different
+session, and its own closing lesson was that a control which is not stated
+is not a control — a control which is not *contemporaneous* is only a
+little better. Had AJ come back anywhere else, AG would have been
+uninterpretable in absolute terms and the session would have produced only
+the AG−AJ difference.
+
+The one figure that did not reproduce is `rxfull` itself: 741 today against
+PC's 640. That is the expected shape — §16q established `rxlost`/`rxfull`
+count *events on a lossy path*, which is the least reproducible thing in
+the counter set, and everything that measures work rather than damage
+matched exactly.
+
+### The defect is closed
+
+`rxfull` **741 → 0**. `rxpeak` came off the 4,096 ceiling to **2,581** —
+*below* all three of §16ae's block-1 legs (2,592 / 2,611 / 2,630), so with
+edit 17 the foreground keeps up with a 4,000-byte packet at 38400 better
+than a **6-bit checksum** did without it.
+
+A pinned `rxpeak` of 4,095 is a ceiling and not a measurement — it means
+"at least this much" and cannot be differenced, which is why §16ae could
+only bound the effect and not size it.
+
+The resend traffic follows the ring: **26 packets and 3 retransmissions
+become 18 and zero**, one timeout becomes none, and 44,720 wire bytes
+become 37,568 — the same 37,568 §16v leg CA moved. That is **16% fewer
+bytes on the wire**, and it is worth more than the CPU saving because it is
+work that was never useful.
+
+**38.00 s → 28.00 s. 862 → 1,170 cps. +35.7%, on the block check the port
+actually ships.**
+
+### The trade-off §16ae called uncomfortable is gone
+
+That section's closing worry was that its entire gain came from replacing
+CRC-16 with a 6-bit checksum on a cable that has never shown a line error.
+AG and AH settle the cost of not doing that, and they are the cleanest pair
+in the port's history — same binary, same session, same cable, **18
+packets and zero retransmissions in both**, wire bytes within 34 of each
+other, one variable:
+
+| block check, one binary, one session | `elapsed=` | µs/wire byte |
+|---|---:|---:|
+| CRC-16 (AG) | 28.00 s | 745 |
+| 6-bit checksum (AH) | 27.00 s | 719 |
+| **cost of keeping CRC-16** | **1.00 s — one clock quantum** | **26** |
+
+Before edit 17 that gap was 11.50 s and §16ae's 142 µs. **Edit 17 removed
+116 of the 142, 82% of the block check's measured cost, and CRC-16 now
+costs at most 3.7% instead of 43%.** There is no longer a speed argument
+for shipping a weaker block check, which is the outcome §16ae asked for
+rather than the one it measured.
+
+### AH is a null result and that is the pass
+
+Edit 17 has no mechanism to change the block-1 path: it adds a table a
+block-1 transfer never reads and rewrites a function it never calls. AH
+therefore had to reproduce §16ae leg BX, and did — 2,700 cs against 2,650
+(one quantum), `rxpeak` 2,585 against 2,611 (inside the 38-count spread of
+BX/BK/round-1), `rxbytes` 37,534 against 37,523.
+
+This is the leg that makes AG **attributable**. Any binary differs from any
+other in layout, and §16w established that this machine is unusually
+sensitive to code *size* — `-ot` grew far code 9.2% and cost 13% of
+`rxpeak`. A block-1 floor that had moved would have meant the rebuild
+itself changed something and AG's delta was measuring layout. **Spend a leg
+on the result that is supposed to be nothing**; without it the headline is
+an assertion.
+
+### What §16ae's 142 µs actually was, and a correction to a correction
+
+The session that made this edit predicted the saving twice and was wrong
+both times, in opposite directions. Worth recording, because the
+instruments involved are ones this tree keeps reaching for.
+
+- **The 8088 cycle count said 603 → 81, i.e. ~104 µs/wire byte at 5 MHz.**
+  MAME leg AF measured 54. The instruction-cycle model over-predicts, the
+  same way §16t's instruction-*fetch* model did — and this is now the
+  fourth time a hand-costed 8088 figure in this tree has come out
+  optimistic. Treat both models as ordering arguments, never as magnitudes.
+- **Then, from AF, this session asserted that §16ae's 142 µs "bundles
+  chk3's cost with the overflow recovery" and put the true figure near 63.**
+  Directionally right, quantitatively too aggressive. The bench says the
+  arithmetic is worth ~80 µs/wire byte (26 remaining + ~54 removed), with
+  the balance of the 142 being the overflow the arithmetic *caused*. §16ae
+  measured block 3's total penalty correctly; it simply was not all CRC.
+
+The honest decomposition, then: **block 3 on the baseline cost 142 µs/wire
+byte over block 1, of which roughly 80 was CRC arithmetic and roughly 60
+was ring overflow and resend recovery that the arithmetic triggered.** Edit
+17 removes the arithmetic, which removes the overflow, which is why the
+measured gain (116 µs) exceeds the arithmetic saving (54–80 µs).
+
+**And a clean baseline block-3 figure does not exist and cannot be
+measured.** The baseline cannot run block 3 cleanly at 38400 — that is the
+defect. Every block-3 leg the port has ever run on the baseline overflowed.
+
+### Where the ceiling is now
+
+Leg AG: line time is 37,568 × 260 µs = **9.77 s of 28.00**, so the
+foreground is **485 µs per wire byte**, down from §16v's 564 and §16ae's
+446-at-block-1. Take the wire out entirely and the ceiling is **~1,797
+cps**; AH's is ~1,900.
+
+**§16t's "the next binding constraint is the ring" is closed.** `rxpeak` is
+2,581 of 4,096 — 63%, with 1,515 bytes of margin — and §16k's sizing
+argument no longer needs redoing, because nothing is pressing on it.
+`peaktag = 12` still names foreground packet decoding, which is where the
+next lever is if anyone wants one: `ttinl()`'s per-byte loop at ~133 µs and
+the ISR at ~172 are the two largest remaining items, and **only the second
+is ours**.
+
+### One free item found on the way and not taken
+
+`ttinl()`'s inner loop contains `errno = 0;`, and Open Watcom's `errno.h`
+defines `errno` as `(*__get_errno_ptr())` — so the shipping build makes a
+**far call per received byte**, ~25 µs. It needs no upstream edit:
+`ckvictor.h` is force-included, so `#define errno (*v9k_errnop)` ahead of
+`errno.h` takes that header's `#else` branch, which then declares the
+pointer itself. (The plain `extern int errno` route does not link — the
+symbol is not in `clibl.lib`.) Unmeasured, and left for whoever wants ~3%.
+
+### Measured, and on what
+
+The §16o bench: Pico SASI serving `victor_kermit.img`, channel A, 1 m USB-C
+to RS-232, host device `/dev/tty.usbserial-ABBFKXM1`. Victor side
+`CKERMITW -l /dev/seriala -b 38400 -r > STEPxx.OUT` from
+`STEPAG/AH/AJ.BAT`; leg AJ runs `CKBASE.EXE`, the 205,552-byte baseline,
+staged alongside so the control is a *binary* difference and not a rebuild.
+Edit-17 build is 205,968 bytes, needs **220,160 (215K)** at load, DGROUP
+48,816 of 65,536 (74%). Take-files `s16afAG/AH/AJ.ksc`, packet logs
+`s16af*.pkt`, counters `s16af*.out`, received files `gotAG/AH/AJ.dat`, all
+md5-identical to the fixture. Run sheet: `HW_TEST_16af.md`.
+
+Leg AF is the §16a MAME harness at 9600, mirroring §16u leg CM: take-file
+`s16afAF.ksc`, `STEPAF.BAT`, counters `s16afAF.out`, host statistics
+`s16afAF.host`, received `gotAF.dat`. **`rxbytes = 39,575` in both AF and
+CM, with the same 1 timeout and 1 retransmission**, so the two are
+protocol-identical and the only difference is the code — §16w's A/B design.
+Host clock 51.829 s → 49.689 s, 632 → 659 cps.
+
+**The host `statistics` was captured for AF and not for AG/AH/AJ**, so
+every 38400 figure here is Victor-clock. §16v's pair for leg CA was 34.00 s
+Victor against 32.32 s host, which puts AG's host figure near 26.3 s and
+~1,245 cps.
+
+**The reason that gap exists is a handoff failure, not a harness one, and
+the first write-up of this section got it wrong.** It said the run sheet had
+buried the redirect — true, `HW_TEST_16af.md` asked for it once as
+punctuation on the end of a command line, with no mention in its artefact
+table or its "Reading the result" section. But that only matters to someone
+who is *following* the document, and **the document was never handed over as
+one.** It was produced and then referred to in passing as "the run sheet",
+which reads as a note-to-self about work done, not as an instruction set to
+execute. The operator ran the three legs from the leg table and had no
+reason to think the file governed anything else.
+
+**A document is not an instruction until someone is told to follow it.**
+Both defects are now fixed — the run sheet lists three artefacts per leg and
+says why each is wanted, and it is named as the thing to work from — but the
+ordering matters for the next time: the internal organisation of a procedure
+is worth nothing if the handoff does not establish that there is a procedure.
+§16ae lost the same figure, and its own note blamed capture rather than
+asking why capture was optional.
 
 ---
 
