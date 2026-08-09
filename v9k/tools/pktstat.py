@@ -101,6 +101,23 @@ def unchar(b):
     return b - 32
 
 
+def unctl(q):
+    """The value a QCTL prefix was quoting.
+
+    ctl() is XOR 0x40, but only over the ranges that land on a control
+    character.  Anything else after QCTL is a prefix character quoting
+    itself -- QCTL, REPT or QBIN, and their 8th-bit forms -- which every
+    policy prefixes and which therefore says nothing about the policy.
+    """
+    if 64 <= q <= 95 or 192 <= q <= 223:
+        return q ^ 0x40                         # -> 0..31 and 128..159
+    if q == 63:
+        return 127                              # DEL
+    if q == 191:
+        return 255
+    return q                                    # a prefix quoting itself
+
+
 def escape_width(body):
     """How many characters of `body` stand for the one start-of-packet byte.
 
@@ -161,6 +178,9 @@ class Params:
         self.npad = 0
         self.eol = 1                            # CR, unless S says otherwise
         self.bctl = 1                           # until CHKT is negotiated
+        self.qctl = 0x23                        # '#'
+        self.qbin = None                        # only when actually in use
+        self.rept = None
         self.seen = False
 
     def learn(self, body, data_off):
@@ -171,8 +191,14 @@ class Params:
             return
         self.npad = unchar(d[2])
         self.eol = 1 if unchar(d[4]) else 0
+        self.qctl = d[5]
+        # 'Y' offers 8th-bit quoting, 'N' declines; anything else IS the
+        # prefix character.  Same shape for REPT, where a space means none.
+        self.qbin = d[6] if d[6] not in b'YN ' else None
         chkt = chr(d[7])
         self.bctl = int(chkt) if chkt in '123' else 1
+        if len(d) > 8 and d[8] not in b' ':
+            self.rept = d[8]
         self.seen = True
 
     def per_packet(self):
@@ -193,10 +219,51 @@ class Side:
         self.longest_wire = 0
         self.longest_seq = None
         self.types = {}
+        self.nctl = 0                           # QCTL prefixes emitted
+        self.nrept = 0                          # REPT prefixes emitted
+        self.n8bit = 0                          # QBIN prefixes emitted
+        self.decoded = 0                        # payload characters recovered
+        self.ctlp = set()                       # values this end prefixed
 
     def wire(self, params):
         """Bytes this side put on the wire, terminators and padding included."""
         return self.bytes_len + self.packets * params.per_packet()
+
+    def scan_data(self, d, params):
+        """Walk one D packet's data field, counting prefixes.
+
+        This recovers the SENDER's ctlp[] table from the wire, which is the
+        only way to see what prefixing a run actually used: the setting is a
+        variable that several things write, and the packet log is downstream
+        of all of them.  It is how PORTING.md found that ckvictor.c's PX_CAU
+        initializer was being overwritten by initproto() -- 16ah leg BS
+        prefixed the 66 values of PX_ALL while its own binary said PX_CAU.
+
+        The prefix characters are whatever the S packet negotiated.  QBIN is
+        'Y' or 'N' when 8th-bit quoting is offered but not in use, so it only
+        counts as a prefix when it is an actual character.
+        """
+        qc, rp, qb = params.qctl, params.rept, params.qbin
+        i = 0
+        while i < len(d):
+            c = d[i]
+            if rp is not None and c == rp:
+                self.nrept += 1
+                i += 2                          # REPT + count, then the char
+                continue
+            if qb is not None and c == qb:
+                self.n8bit += 1
+                i += 1
+                continue
+            if c == qc:
+                if i + 1 < len(d):
+                    self.ctlp.add(unctl(d[i + 1]))
+                self.nctl += 1
+                self.decoded += 1
+                i += 2
+                continue
+            self.decoded += 1
+            i += 1
 
 
 def read_log(path, payload_override=None):
@@ -264,6 +331,9 @@ def read_log(path, payload_override=None):
 
         if typ == 'S':
             params.learn(body, data_off)
+        elif typ == 'D':
+            end = len(body) - params.bctl - (1 if has_eol else 0)
+            side.scan_data(body[data_off:end], params)
         elif typ == 'F' and filename is None:
             end = len(body) - params.bctl - (1 if has_eol else 0)
             filename = body[data_off:end].decode('latin-1', 'replace')
@@ -306,6 +376,68 @@ def attr_payload(data):
         except (KeyError, ValueError):
             continue
     return None
+
+
+# The tables setprefix() builds (ckcmai.c:2683), transcribed.  Recovering a
+# run's policy from the wire is the point: PORTING.md's prefixing defect was
+# a setting that main() applied and then initproto() overwrote, which no
+# amount of reading the setting could show.
+#
+# A caution these tables cannot carry themselves: this is a TRANSCRIPTION, in
+# the same sense v9k/proofs/ carries transcriptions.  If setprefix() changes
+# upstream, the naming here goes quietly wrong while still printing a name.
+# The counts above it are measurements and stay true either way.
+def _px_all():
+    return set(range(0, 32)) | set(range(127, 160)) | {255}
+
+
+def _px_cau():
+    s = {0, 1, 129}                             # NUL, SOH and its 8-bit form
+    s |= {13, 141, 255}                         # CR, NVT rules
+    s |= {4, 132, 10, 138, 21, 149}             # RLOGIN escape triggers
+    s |= {17, 19, 145, 147}                     # XON/XOFF: PX_CAU forces
+    s |= {3, 16, 14, 15, 24, 25, 26, 154,       # the "cautious" additions
+          28, 29, 30, 131, 144, 156, 157, 158}
+    return s
+
+
+def _px_wil():
+    return {0, 1, 129, 13, 141, 255, 4, 132, 10, 138, 21, 149}
+
+
+def _px_non():
+    return {13, 255, 1, 129}
+
+
+POLICIES = (('PX_ALL', _px_all()), ('PX_CAU', _px_cau()),
+            ('PX_WIL', _px_wil()), ('PX_NON', _px_non()))
+
+
+def policy(observed, params=None):
+    """Name the prefixing policy a sender used, from what it prefixed.
+
+    Only values that actually OCCUR in the payload can appear, so an exact
+    match needs a fixture carrying every byte value -- which is what this
+    project's 32,768-byte fixture is for.  On any other data the honest
+    answer is "consistent with", and it is reported as such.
+    """
+    if not observed:
+        return 'no data packets'
+    if params is not None:
+        # The prefix characters themselves are prefixed under every policy,
+        # so they carry no information about which one is in force.
+        for ch in (params.qctl, params.rept, params.qbin):
+            if ch is not None:
+                observed = observed - {ch, ch | 0x80}
+    for name, ref in POLICIES:
+        if observed == ref:
+            return f'{name} exactly ({len(observed)} values)'
+    fits = [n for n, ref in POLICIES if observed <= ref]
+    if fits:
+        return (f'consistent with {fits[-1]} ({len(observed)} of '
+                f'{len(dict(POLICIES)[fits[-1]])} values seen)')
+    return (f'{len(observed)} values, matching no stock policy'
+            f' -- extra: {sorted(observed - _px_all())}')
 
 
 def census(types):
@@ -351,6 +483,12 @@ def report(path, r, show_packets=False, rxbytes=None, rxfull=0):
         print(f'    longest packet : {side.longest:,}'
               f'   ({side.longest_wire:,} wire bytes, seq {side.longest_seq})')
         print(f'    retransmissions: {side.resends}   (by the {who} Kermit)')
+        if side.nctl or side.nrept or side.n8bit:
+            print(f'    prefixes        : ctl {side.nctl:,}, '
+                  f'8-bit {side.n8bit:,}, repeat {side.nrept:,}'
+                  f'   over {side.decoded:,} payload chars')
+            print(f'    prefixing policy: '
+                  f'{policy(side.ctlp, params)}')
 
     if r['payload']:
         total = carrier.wire(params)
