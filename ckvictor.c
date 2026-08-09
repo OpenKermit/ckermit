@@ -3817,11 +3817,29 @@ getbasename(s) char * s;
   no command parser, so this answers yes (1); the contract is
   0 = no, 1 = yes, 3 = yes-to-all, anything else = quit/EOF.
 
-  The only caller that survives NOICP is rq_confirm_check() in ckcfns.c,
-  and it calls this ONLY when SET RECEIVE CONFIRM has been turned on --
-  which, with no parser, cannot happen.  So this is unreachable in
-  practice; answering yes is the behaviour that matches the default
-  (confirmation off, accept the file) if it ever is reached.
+  THIS IS LOAD-BEARING, and the comment that used to sit here said the
+  opposite.  It claimed the only surviving caller, rq_confirm_check() in
+  ckcfns.c, "calls this ONLY when SET RECEIVE CONFIRM has been turned on --
+  which, with no parser, cannot happen", and concluded the function was
+  unreachable.  Both halves are wrong:
+
+    - fnrconfirm is CONFIRM_ON *by default* (ckcmai.c:1408), with
+      fnrconfirm_scope = 1 meaning LOCAL.  Nothing has to turn it on.
+    - A Victor driving its own serial line IS local, so rq_confirm_check()
+      reaches the prompt on every RECEIVE this port has ever run.
+
+  So every scripted receive leg in this project's history has depended on
+  this stub answering yes.  Delete it as dead code and each one hangs at
+  " Accept incoming file ...? " with its output redirected to a file, which
+  is precisely what happened to HW_TEST_16ai leg CH -- in a KEEP_ICP build,
+  where the linker keeps upstream's real getyesno() and discards this one
+  (W1027, and the link order is what decides it).  That is also why the
+  parser build needs "set receive confirm off" and "set exit warning off" in
+  a take-file and the shipping build does not.
+
+  The lesson is the general one: a stub whose comment says it is unreachable
+  has, by construction, no test proving it.  This one was reachable on every
+  single run.
 */
 int
 #ifdef CK_ANSIC

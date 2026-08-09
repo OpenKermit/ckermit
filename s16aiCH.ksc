@@ -30,6 +30,13 @@
 
 set speed 38400
 set receive timeout 20
+; The Victor reads its own binary off SASI before it can answer an S
+; packet: about 40 s for the 205 KB shipping build and about 85 s for
+; the 435 KB parser build.  MAXTRY is 10 (ckcker.h:472), which is not
+; always enough patience, and a host that gives up looks exactly like a
+; Victor that failed.  Start the Victor FIRST and wait for it -- this is
+; the belt to that braces.
+set retry 30
 set parity none
 set prefixing cautious
 set block 3

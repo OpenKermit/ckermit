@@ -14,6 +14,17 @@ in the tree; the fixtures exist and the target names are checked clear.
 Written 9 August 2026, after PORTING.md §16ah. **The headline changed at the
 desk before this sheet was written**, and §1 is that change.
 
+> **RUN THE SAME DAY. All seven legs passed, every transferred file
+> byte-exact, `rxlost = 0 rxfull = 0` throughout.** Results are recorded
+> inline against each leg and written up in PORTING.md **§16ai**. Two things
+> were done for the first time — a transfer on the parser build, and server
+> mode on real hardware — and the prefixing fix landed within a byte of
+> prediction.
+>
+> **Both failures in the sitting were this document's, not the port's**, and
+> the fixes are in the two boxes under "Before every leg". If you are
+> re-running, read those first.
+
 ---
 
 ## What moved since §16ah, and read this before §1
@@ -147,6 +158,55 @@ container exec -i ia16-ubuntu-2 bash -c \
 
 ## Before every leg
 
+> **RUN 9 August 2026. All seven legs done, every file byte-exact.** Results
+> are in PORTING.md §16ai. **Two defects in this sheet were found by running
+> it and are fixed below** — read the next two boxes before re-running
+> anything, because both of them made a working port look broken.
+
+> ### ⏱ THE MACHINE TAKES 40–85 SECONDS TO START. WAIT FOR IT.
+>
+> `CKERMITW` is 205 KB and `CKICP` is 435 KB, and the Victor reads the whole
+> image off SASI before `main()` runs: **about 40 s** for the shipping build,
+> **about 85 s** for the parser build. On any leg where the **host** sends
+> first, starting it too soon exhausts `MAXTRY` (10, `ckcker.h:472`) against a
+> Victor that has not reached `receive` yet — and **a host that gives up looks
+> exactly like a Victor that failed.** Leg CE's timeout and leg CH's first
+> attempt were both this.
+>
+> **Start the Victor, wait for the drive to go quiet, then start the host.**
+> The host take-files now also carry `set retry 30`, which is the belt to that
+> braces — but patience in the host does not help if you cannot see what the
+> machine is doing, which is the next box.
+
+> ### 👁 THE REDIRECT HIDES EVERYTHING, INCLUDING QUESTIONS
+>
+> `> STEP<LEG>.OUT` is required — the `v9k:` counters only reach stdout — but
+> it also swallows the transfer display **and any prompt**. A parser build
+> asks two questions on the receive path:
+>
+> ```
+>  Accept incoming file "A:/rcvch.dat"?
+>  OK to exit?
+> ```
+>
+> Redirected, both sit unanswered forever and the leg looks like a hang. That
+> is what happened to CH. `RXEA.KSC` now carries **`set receive confirm off`**
+> and **`set exit warning off`**, which is the right layer to fix it at: the
+> prompts are correct behaviour for an interactive build, and it is the
+> redirect that makes them fatal.
+>
+> **Why the shipping build never does this**, so the asymmetry is not a
+> surprise: `fnrconfirm` is `CONFIRM_ON` *by default* (`ckcmai.c:1408`), scope
+> `LOCAL`, and a Victor driving its own line is local — so
+> `rq_confirm_check()` reaches the prompt on **every** receive. `NOICP` builds
+> survive only because `ckvictor.c` supplies a `getyesno()` that returns yes.
+> In a `KEEP_ICP` build the linker keeps *upstream's* and discards ours
+> (`W1027`, decided by link order).
+>
+> **If a leg seems to hang, run the Victor side by hand without the redirect
+> before concluding anything.** That is how CH was diagnosed, and the result
+> was a completely successful transfer sitting behind an unanswered question.
+
 **Three files per leg. A leg missing any of them is a leg to re-run.**
 
 | file | where it comes from | why |
@@ -221,6 +281,24 @@ python3 v9k/tools/pktstat.py s16aiCC.pkt s16aiCD.pkt
 | `prefixes ctl` | ~4,512 | ~8,869 |
 | `WIRE BYTES` | ~37,5xx | ~41,945 |
 
+> **RESULT, 9 August 2026 — PASS, and predicted to the byte.** CC came back
+> `PX_CAU exactly (32 values)`, **4,512** prefixes, **37,557** wire bytes,
+> +14.6%, 18 packets. CD came back `PX_ALL exactly (66 values)`, **8,869**,
+> **41,945**, +28.0%, 19 packets. Both byte-exact. **Saving: 4,388 wire
+> bytes, −10.5%.**
+>
+> **The null leg is the best this project has produced.** CD reproduces
+> §16ah leg BS on every measure — prefixes, wire bytes, packet count, and
+> `rxbytes = 216` — and the host clocks are **29 ms apart** (23.604 against
+> 23.633) on a bench whose spread is 1.3 s.
+>
+> Host clocks: CC **22.207 s / 1,475 cps**, CD 23.604 s / 1,388. **1,475 is
+> the fastest figure this port has produced**, but the two legs are 1.397 s
+> apart against a ~1.3 s floor — **quote the wire-byte count as the result
+> and the cps as an illustration.** And note CC's 37,557 is *identical* to
+> leg BC's host-sent figure: same policy, same data, opposite directions,
+> same count.
+
 **CD must reproduce §16ah leg BS**, which ran a different binary but the same
 effective policy — 8,869 prefixes, 41,945 wire bytes, `PX_ALL exactly`. A CD
 that does not means something *other* than prefixing moved between the two
@@ -261,6 +339,18 @@ to confirm the shipping binary did not otherwise move.
 **Do not read a cps difference against BC or BD.** Those two legs are 1.277 s
 apart from each other on one binary. Anything CE does inside ~1.3 s is the
 bench, not the change.
+
+> **RESULT — PASS on the counters, off-shape on the clock.** Byte-exact,
+> `rxlost = 0 rxfull = 0 rxpeak = 2,478 of 4,096`. But 1 timeout and 2
+> retransmissions, 40,544 wire bytes against the clean 37,55x, 30.756 s and
+> 1,065 cps — **the startup race, not the change**; the host was started
+> before the Victor had finished loading. The null result stands: prefixing
+> is sender-side and a Victor receive is untouched.
+>
+> **Its reconciliation is exact and worth keeping.**
+> `pktstat.py --rxbytes 40544 s16aiCE.pkt` gives a residual of **+0** with
+> `rxfull = 0` — two independent counts of the same 40,544 bytes agreeing to
+> the byte, on a leg that retransmitted twice.
 
 ---
 
@@ -338,6 +428,19 @@ did not move.** Throughput is secondary and the parser build has 6,512 bytes
 of near heap against the shipping build's 17,232, so do not be surprised by
 a slower number.
 
+> **RESULT — PASS, after the run sheet was fixed.** The first attempt hung;
+> see the visibility box at the top, and re-read it before re-running, because
+> the fix is in `RXEA.KSC` and it is the reason this now works unattended.
+> Run by hand it transferred **32,768 bytes at 38400, byte-exact,
+> `rxlost = 0 rxfull = 0 rxpeak = 2,852 of 4,096`, 1,213 cps** — inside the
+> shipping build's 1,167–1,475 band, so no difference to read.
+>
+> **Ignore this leg's `elapsed=11300 cs`.** The Victor's clock starts at the
+> first byte received and closes at release (§16u); it counted the time the
+> machine spent at an unanswered prompt. The host's 27 s is the figure. **A
+> clock that measures an interval cannot tell a slow line from a stopped
+> operator.**
+
 Note `CKICP.EXE` needs **429,890 (419K)** at load — **smallest Victor 512K**,
 with 1,678 bytes spare on that machine. `CKICPD.EXE` needs **533,110
 (520K)**, smallest Victor **640K**. Both re-measured 9 August; the 532,904
@@ -374,6 +477,14 @@ it. And `BYE` is not sent: it has never been sent in this port's life, and a
 leg that ends by shutting the far end down cannot be retried without a power
 cycle. `FINISH` leaves the Victor at the DOS prompt with its exit report
 written, which is the point of running it.
+
+> **RESULT — PASS, and it is a first: server mode has never run on the
+> machine.** SEND to the server **1,058 cps**, GET from the server **1,431
+> cps**, then FINISH; both `SUCCESS`, both byte-exact, `rxlost = 0
+> rxfull = 0 rxpeak = 2,332`. **No E packet**, so §16i's priority-0
+> capability initializer works on hardware — a second, independent check on
+> the XI mechanism that leg CC's defect was found in. `HW_TESTING.md` leg 0.7
+> is closed. `REMOTE DIRECTORY` and `BYE` remain untested by choice.
 
 `--safe-server` (GET, SEND and FINISH only) is a second run of the same leg
 if CS passes; per §16i, **run the unknown-option control too** — under

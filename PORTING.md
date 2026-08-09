@@ -8292,6 +8292,157 @@ proofs re-run and passing. Still **seventeen** upstream edits.
 
 ---
 
+## 16ai. The prefixing fix is verified, server mode runs on the machine, and the harness had two defects of its own
+
+Seven legs on the real Victor, `HW_TEST_16ai.md` run as written. **Every
+transferred file byte-exact**, `rxlost = 0` and `rxfull = 0` in all of them.
+The headline landed exactly where the arithmetic said it would; two things
+that had never been done on hardware were done; and **the two failures in the
+sitting were both in the run sheet rather than in the port.**
+
+### The prefixing fix: predicted, then measured, and the null leg is perfect
+
+`ckvictor.c` had selected `PX_CAU` since §16ae and every leg this project ever
+ran sent `PX_ALL`, because `initproto()` at `ckcmai.c:3295` copies
+`ptab[protocol].prefix` over the variable 118 lines before `setprefix()` reads
+it. The fix writes `ptab[PROTO_K].prefix`. Legs CC and CD are the treatment
+and its control, both Victor sends of the 32,768-byte all-byte-values fixture
+at 38400:
+
+| | **CC** (`CKERMITW`, `PX_CAU`) | **CD** (`CKPXALL`, `PX_ALL`) | §16ah **BS** |
+|---|---:|---:|---:|
+| prefixing policy | **`PX_CAU` exactly (32)** | `PX_ALL` exactly (66) | `PX_ALL` exactly (66) |
+| control prefixes | **4,512** | 8,869 | 8,869 |
+| wire bytes | **37,557** | 41,945 | 41,945 |
+| expansion | **+14.6%** | +28.0% | +28.0% |
+| packets | 18 | 19 | 19 |
+| `rxbytes` (ACKs) | 208 | 216 | 216 |
+| Victor `elapsed` | 2,300 cs | 2,400 cs | 2,450 cs |
+| host clock | **22.207 s** | 23.604 s | 23.633 s |
+| **cps** | **1,475** | 1,388 | 1,386 |
+
+**The saving is 4,388 wire bytes, −10.5%**, and it is a *count*, not a
+difference of two clocks. That was the whole design of the leg: the effect is
+~1.1 s of line time at 38400, under this bench's ~1.3 s repeatability floor
+(§16ah), so it was made answerable by measuring it in units that do not vary.
+**When the bench cannot resolve an effect in seconds, find a counter that
+measures the same mechanism.**
+
+**CD is the best null leg this project has produced.** It reproduces §16ah
+leg BS on *every* measure — same 8,869 prefixes, same 41,945 wire bytes, same
+216 `rxbytes`, same 19 packets — and the two host clocks are **29 ms apart**
+on a bench whose spread is 1.3 s. That is what makes CC attributable. It was
+cheap because `CKPXALL.EXE` is the same tree, the same commit and the same
+**205,228 bytes** as `CKERMITW.EXE`, differing only in the immediate constant
+the initializer stores, so §16w's code-size sensitivity had nothing to act on
+— where §16af had to spend a whole leg establishing the same thing.
+
+**1,475 cps is the fastest figure this port has produced**, beating §16ah leg
+BS's 1,386. But CC and CD are 1.397 s apart, which is barely over the noise
+floor: **quote the wire-byte count as the result and the cps as an
+illustration.** The two legs differ by 4,388 wire bytes = 1.14 s of line time
+at 38400, and they came back 1.397 s apart, which is consistent — but a
+single pair cannot separate 1.14 from 1.40 on this bench.
+
+**One number is worth keeping for its own sake.** CC's 37,557 wire bytes is
+*identical* to leg BC's host-sent figure. Same policy, same data, opposite
+directions, same count — which is what "prefixing is a property of the sender
+and the data, not of the machine" looks like when it is measured rather than
+argued.
+
+### Server mode works on real hardware — leg CS, and it is a first
+
+`CKERMITW -x`, driven entirely from the host: **SEND to the server 1,058 cps,
+GET from the server 1,431 cps, then FINISH**, both transfers `SUCCESS` and
+byte-exact, `rxlost = 0 rxfull = 0 rxpeak = 2,332`. `HW_TESTING.md` leg 0.7
+had been untouched since it was written and §16i's server work had only ever
+run under MAME. **No E packet appeared**, so §16i's priority-0 capability
+initializer is doing its job on the machine — which is a second, independent
+check on the XI mechanism that §1 just found failing elsewhere. `REMOTE
+DIRECTORY` and `BYE` were deliberately excluded and remain untested.
+
+### A transfer on the parser build — leg CH, and it is also a first
+
+**`CKICP` transferred 32,768 bytes at 38400, byte-exact, `rxlost = 0
+rxfull = 0`, `rxpeak = 2,852 of 4,096`, at 1,213 cps.** Edit 14 widened what
+`main()` compiles, so the parser binary is not the one any throughput figure
+was measured on, and this is what says the wire protocol did not move. 1,213
+against the shipping build's 1,167–1,475 band is inside the noise and should
+not be read as a difference.
+
+**The leg's `elapsed=11300 cs` is meaningless and the reason matters**: it
+includes the time the machine sat at an interactive prompt waiting for a
+human. The Victor's `elapsed` starts at the first byte received and closes at
+release (§16u); it does not know the difference between a slow line and a
+stopped operator. The host's `statistics` — 27 s, 1,213 cps — is the figure.
+
+### The two failures were the run sheet's, and both generalise
+
+**1. The parser build prompts, and a redirect hides the prompt.** Leg CH hung
+indefinitely. Run interactively it turned out to be sitting at
+`Accept incoming file "A:/rcvch.dat"?` and then at `OK to exit?`, neither of
+which is visible when stdout is redirected to a file — **which the sheet
+required, because the `v9k:` counters only reach stdout.**
+
+The mechanism is worth writing down because it is not where anyone would
+look. `fnrconfirm` is `CONFIRM_ON` **by default** (`ckcmai.c:1408`), scope
+`LOCAL`, and a Victor driving its own serial line *is* local, so
+`rq_confirm_check()` (`ckcfns.c:3567`) reaches the prompt on **every**
+`RECEIVE` this port has ever run. The shipping build never prompted only
+because `ckvictor.c` supplies a `getyesno()` that returns yes. In a
+`KEEP_ICP` build the linker keeps *upstream's* `getyesno()` and discards ours
+(`W1027`, decided by link order), so the prompt becomes real.
+
+**So that stub is load-bearing, and its comment said it was unreachable.**
+It claimed the prompt "cannot happen" without a parser to turn `SET RECEIVE
+CONFIRM` on — but nothing has to turn it on; it is the default. Every
+scripted receive leg in this project's history has depended on that function
+answering yes. Corrected in place. **A stub whose comment says it is
+unreachable has, by construction, no test proving it.**
+
+Fixed in the harness rather than the code: `RXEA.KSC` now carries `set
+receive confirm off` and `set exit warning off`. That is the right layer —
+the prompts are correct behaviour for an interactive build, and it is the
+*redirect* that makes them fatal.
+
+**2. The machine takes 40–85 seconds to load the program, and the host gives
+up.** `CKERMITW` is 205 KB and `CKICP` is 435 KB, read off a SASI emulator
+before `main()` runs. Start the host too soon and it exhausts `MAXTRY`
+(10, `ckcker.h:472`) against a Victor that has not reached `receive` yet —
+**and a host that gives up looks exactly like a Victor that failed.** Leg
+CE's 1 timeout / 2 retransmissions and leg CH's first attempt (12 timeouts,
+`FAILURE`) are both this.
+
+Two fixes, and both are wanted. Procedurally, the sheet now says to wait for
+the Victor with explicit times rather than leaving it to judgement.
+Mechanically, the host take-files for every leg where the **host** initiates
+now carry `set retry 30`. Neither is sufficient alone: patience in the host
+does not help if the operator is watching a blank screen wondering whether
+anything is happening, which is the complaint that surfaced this.
+
+**The general defect is that the sheet optimised for capture and not for
+visibility.** Three artefacts per leg, all written to files, and nothing on
+the screen to say what the machine was doing. That is fine while everything
+works and useless the moment it does not.
+
+### Leg CE, and one instrument result worth keeping
+
+CE went off-shape — 1 timeout, 2 retransmissions, 40,544 wire bytes against
+the clean 37,55x, 30.756 s and 1,065 cps — which is the startup race above,
+not a defect. It is still byte-exact with `rxlost = 0 rxfull = 0`. **Its
+reconciliation is exact**: `pktstat.py --rxbytes 40544` gives a residual of
+**+0** against the host's 40,544, with `rxfull = 0`. Two independent counts
+of the same 40,544 bytes, agreeing to the byte on a leg that retransmitted
+twice.
+
+**Shipping build after this section:** unchanged — DGROUP **48,304 of 65,536
+(73%)**, image **205,228**, **needs 219,452 (214K)**, smallest Victor 384K.
+The only source change in this section is a corrected comment, and the
+binary is byte-identical (md5 `537486a8…`) across it. Still **seventeen**
+upstream edits.
+
+---
+
 ## 15. Open questions
 
 **Closed since the last revision**

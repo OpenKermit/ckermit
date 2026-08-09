@@ -4,10 +4,32 @@ Handoff for the Victor 9000 port, written 9 August 2026, revised after
 §16ah and then again at the desk the same day. **No live defect in the
 receive path.** §16af closed the last one.
 
-**`HW_TEST_16ai.md` is the run sheet for the next sitting and everything it
-needs is built, staged and verified.** Seven legs: the prefixing fix (CC/CD),
-its null leg (CE), the parser build (CF/CG/CH) and server mode (CS). Read
-that file, not this section, when you sit down at the Victor.
+**`HW_TEST_16ai.md` RAN, 9 August 2026 — all seven legs, every transferred
+file byte-exact, `rxlost = 0 rxfull = 0` throughout. PORTING.md §16ai is the
+write-up.** In one sitting:
+
+- **The prefixing fix is verified and it is exactly what was predicted.**
+  Leg CC came back `PX_CAU exactly (32 values)`, **4,512 prefixes, 37,557
+  wire bytes, +14.6%**; the control CD came back `PX_ALL exactly (66)`,
+  8,869, 41,945, +28.0%. **4,388 wire bytes saved, −10.5%.**
+  **CD reproduced §16ah leg BS on every measure** — prefixes, wire bytes,
+  packet count, `rxbytes = 216` — with host clocks **29 ms apart** on a bench
+  whose spread is 1.3 s. That is the best null leg this project has produced.
+- **1,475 cps is the fastest figure the port has ever produced** (CC).
+  But CC and CD are 1.397 s apart against a ~1.3 s floor, so **quote the
+  wire-byte count as the result and the cps as an illustration.**
+- **Server mode works on real hardware, a first.** Leg CS: SEND to the
+  server 1,058 cps, GET from the server 1,431, then FINISH — both `SUCCESS`,
+  both byte-exact, no E packet. `HW_TESTING.md` leg 0.7 is closed and item 13
+  below with it.
+- **The parser build transfers, a first.** Leg CH: 32,768 bytes at 38400,
+  byte-exact, `rxpeak = 2,852 of 4,096`, 1,213 cps — inside the shipping
+  build's band, so the wire protocol did not move. Item 7 is closed.
+
+**The only two failures in the sitting were the run sheet's**, and both are
+fixed. See "The harness had two defects" below — they are the kind that make
+a working port look broken, so they are worth reading before the next
+sitting.
 
 ---
 
@@ -207,6 +229,45 @@ MS-DOS 3.1 gives **824,784 at 896K**, and the model is `free = installed RAM
 and confirmed that `CKERMITW` **does not load on a 256K machine** and does
 on 512K. **Quote the requirement, not the spare** — `mzsize.py` now prints
 the smallest Victor that can load a build, and that is the number to report.
+
+---
+
+## The harness had two defects, and both made a working port look broken
+
+**1. The machine takes 40–85 seconds to start, and the host gives up first.**
+`CKERMITW` is 205 KB and `CKICP` is 435 KB, read off SASI before `main()`
+runs. On any leg where the **host** initiates, starting it too soon exhausts
+`MAXTRY` (10, `ckcker.h:472`) against a Victor that has not reached `receive`
+yet — **and a host that gives up looks exactly like a Victor that failed.**
+Leg CE's timeout and leg CH's first attempt were both this. Fixed twice
+over: the run sheet now states the wait explicitly, and every host take-file
+where the host initiates carries `set retry 30`.
+
+**2. The parser build asks two questions, and the redirect hides them.**
+` Accept incoming file "A:/rcvch.dat"? ` and ` OK to exit? `. Redirected to
+`STEP<LEG>.OUT` — which is *required*, because the `v9k:` counters only reach
+stdout — both sit unanswered forever and the leg looks like a hang. `RXEA.KSC`
+now carries `set receive confirm off` and `set exit warning off`.
+
+**The mechanism is worth knowing, because it says something about the
+shipping build too.** `fnrconfirm` is `CONFIRM_ON` **by default**
+(`ckcmai.c:1408`), scope `LOCAL`, and a Victor driving its own serial line
+*is* local — so `rq_confirm_check()` (`ckcfns.c:3567`) reaches the prompt on
+**every `RECEIVE` this port has ever run.** `NOICP` builds survive only
+because `ckvictor.c` supplies a `getyesno()` that returns yes; a `KEEP_ICP`
+build links upstream's instead (`W1027`, decided by link order).
+
+**So that stub is load-bearing and its comment said it was unreachable.**
+Corrected in place. **A stub whose comment says it is unreachable has, by
+construction, no test proving it** — this one was on the path of every
+single receive leg in the project's history.
+
+**And the general defect: the sheet optimised for capture, not visibility.**
+Three artefacts per leg, all written to files, nothing on screen to say what
+the machine was doing. Fine while everything works, useless the moment it
+does not. **If a leg seems to hang, run the Victor side by hand without the
+redirect before concluding anything** — that is how CH was diagnosed, and
+what was behind the hang was a completely successful transfer.
 
 ---
 
@@ -780,8 +841,18 @@ through it — which is why a floppy with 1.5-second writes loses nothing.
 **Open the window and that stops being true**, and a 1.5 s write at 38400 is
 5,760 bytes against a 4,096-byte ring.
 
-**13. Server mode on hardware** (`-g`, `-f`, `-x`, `--safe-server`) —
-`HW_TESTING.md` leg 0.7, still untouched.
+**13. ~~Server mode on hardware.~~ DONE — §16ai leg CS, and it was a
+first.** `CKERMITW -x` driven entirely from the host: SEND to the server
+**1,058 cps**, GET from the server **1,431 cps**, then FINISH. Both
+`SUCCESS`, both byte-exact, `rxlost = 0 rxfull = 0 rxpeak = 2,332`. **No E
+packet**, so §16i's priority-0 capability initializer works on the machine —
+a second, independent check on the XI mechanism whose failure §16ai's
+headline was about. `HW_TESTING.md` leg 0.7 is closed.
+
+What is left of it: **`--safe-server` is still unrun** (one more leg, with
+the unknown-option control per §16i), and `REMOTE DIRECTORY` and `BYE` were
+excluded deliberately — the first never terminates its listing (§16i, item
+15) and the second cannot be retried without a power cycle.
 
 **14. FreeDOS for Victor** — `HW_TESTING.md` Tier 4, and the IRQ1 vector
 question (41h here, INT 09h there) that is the most likely thing to break
@@ -909,6 +980,11 @@ maintain the burst table. Without that, the report would print
 
 ## 4. Things that are known-incomplete
 
+- **The Victor takes 40–85 s to load the program**, 205 KB shipping and
+  435 KB parser, off SASI before `main()` runs. Any leg where the host
+  initiates must start the Victor first and *wait*; `MAXTRY` is 10
+  (`ckcker.h:472`) and a host that gives up looks exactly like a Victor that
+  failed. Host take-files now carry `set retry 30`.
 - **`SET FILE COLLISION` is `BACKUP`, and BACKUP cannot work on FAT.** Fresh
   filename per run. Symptom: S, F, A, then **Z with data `D`** and no data
   packets.
@@ -956,12 +1032,16 @@ maintain the burst table. Without that, the report would print
   legs**, and the cause is unknown. That, not the Victor's 50 cs clock, is
   what bounds every per-item cost in this port — §16ah retired §16af's "one
   clock quantum" on exactly this. §1 item 5b.
-- **The prefixing fix is in the tree and unverified on the wire.** Every
-  send figure this project has published was taken with `PX_ALL` in force,
-  whatever the binary said; the corrected pair is **+28.0% sending against
-  the host's +14.7%**. Legs CC/CD of `HW_TEST_16ai.md`. **`PX_CAU` sends
-  control characters raw, so byte-exactness is the thing to check first** —
-  a leg that is fast and wrong is the failure mode here.
+- ~~**The prefixing fix is unverified on the wire.**~~ **VERIFIED — §16ai
+  legs CC/CD.** `PX_CAU exactly (32 values)`, 4,512 prefixes, 37,557 wire
+  bytes, byte-exact, against the control's `PX_ALL exactly (66)`, 8,869 and
+  41,945. −10.5% traffic.
+- **The parser build has two interactive prompts on the receive path that
+  the shipping build cannot have**, and a redirect makes them fatal.
+  `set receive confirm off` and `set exit warning off` are in `RXEA.KSC`;
+  any *new* Victor-side take-file for a `KEEP_ICP` build needs them too.
+  This is a property of the build, not a bug — see "The harness had two
+  defects" above for why the shipping build is exempt.
 - **Three other XI initializers have never been checked for the same
   problem.** `_fmode`, the server capability gate and `zobufsize` all set
   upstream state before `main()`, and `initproto()` is not the only thing
