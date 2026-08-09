@@ -1,10 +1,25 @@
 # Next session
 
-Handoff for the Victor 9000 port, written 9 August 2026. **No live defect
-in the receive path.** §16af closed the last one. What is open is
-*verification* rather than repair, and the ordering in §1 reflects that.
+Handoff for the Victor 9000 port, written 9 August 2026, revised after
+§16ah. **No live defect in the receive path.** §16af closed the last one.
+What is open is *verification* rather than repair, and the ordering in §1
+reflects that.
 
-**Read `PORTING.md` §16af first** — the seventeenth upstream edit, the
+**§16ah ran `HW_TEST_16ag.md`'s seven legs and §1 items 1, 2 and 4 are
+closed.** All seven byte-exact, `rxlost = 0 rxfull = 0`, host clock captured
+on every one. What changed:
+
+- **Upstream edit 16 is verified** (leg BS) — the port's last shipped edit
+  with only a `wdis` reading behind it.
+- **The `errno` change is removed**, under the rule written before the legs
+  ran. It measured slower on both instruments.
+- **§16af's CRC-16 cost is superseded** — 69–103 µs per wire byte, not 26.
+- **The bench does not repeat to better than ~1.3 s**, which is the fact that
+  governs every future A/B on it.
+
+**Read `PORTING.md` §16ah first** — seven bench legs, a closed edit, a
+removed change, and a retraction of §16af's headline number — then §16ag for
+the two free items of which only one was free, then §16af — the seventeenth upstream edit, the
 bench legs that measured it, and three prediction failures that generalise
 — then §11a0 for the clock tree and why 38400 is a hardware ceiling, then
 §16ae for the block-check analysis §16af rests on. §16t is still the best
@@ -12,20 +27,28 @@ thing in the file for its four wrong turns.
 
 **One thing to understand before reading any number below.** The Victor's
 clock advances in 50 cs steps, so a one-second difference between two legs
-is *one quantum* and means 100 ± 50 cs. The host's `statistics` has
-millisecond resolution and would resolve it — and it **was not captured**
-for §16af's three bench legs, or for §16ae's seven. That is why §1 item 1
-is a calibration run and not a code change: **almost every per-item cost in
-this port is currently known only to within a factor of two**, and one
-sitting fixes that for everything downstream.
+is *one quantum*. §16ah captured the host's millisecond clock on all seven
+legs and **the quantum turned out not to be the binding limit — the bench's
+own run-to-run spread is.** Two legs of one binary, both clean, eleven wire
+bytes apart, came back **1.277 s apart**, where §16ag's MAME arms held to
+1 ms. So: **do not make a bench claim about an effect smaller than ~1.3 s
+on two legs per arm**, and expect roughly a third of legs to go off-shape
+and be unusable for an A/B. That is what retired §16af's "one clock
+quantum" (see §16ah), and it governs everything below.
 
 ---
 
 ## 0. Where the port is
 
 **File transfer works, both directions, as client and as server, at 9600,
-19200 and 38400, on real hardware, byte-exact — and it runs at 1,170 cps at
-38400 with CRC-16 intact.** §16af leg AG:
+19200 and 38400, on real hardware, byte-exact.** At 38400 with CRC-16
+intact it **receives at ~1,167 cps and sends at 1,386** (§16ah legs BC and
+BS) — the send figure is the fastest this port has produced, and sending
+beats receiving by 19% *while carrying 13% more wire traffic*, which is the
+receive foreground being the bottleneck seen from the other side. **Read
+those two against §1 item 5b before differencing them with anything: this
+bench does not repeat to better than ~1.3 s.** §16af leg AG, for the
+counter shape:
 
 ```
 v9k: isr=asm
@@ -38,8 +61,11 @@ v9k: mdm cts=1 dsr=1 (dcd=1 rts=1 dtr=1, see comment)
 
 18 packets, longest 3,991, zero NAKs, zero retransmissions, zero timeouts.
 cps here is 32,768 ÷ the Victor's `elapsed`, which is the wider interval
-(§16u) and therefore conservative; the host figure is probably near 1,245
-and **was not captured** — see §1 item 1.
+(§16u) and therefore conservative. **Leg AG's own host figure was never
+captured** and the estimate of ~1,245 that used to sit here should not be
+used: §16ah measured the same binary and block check properly (legs BC/BD,
+28.057 and 29.334 s) and found the run-to-run spread larger than the
+estimate's precision.
 
 **§16af closed the ring defect and dissolved §16ae's trade-off.** Upstream
 edit 17 rewrites `chk3()` for `VICTOR9K` — same CRC-16, same polynomial,
@@ -78,12 +104,15 @@ mis-nested `#endif` (which cannot be placed conditionally), 15 and 16 each
 fix a 16-bit truncation and are provable no-ops wherever `int` is 32 bits.
 Edit 17 is guarded even though it did not have to be, because it is an
 optimisation for one CPU and not a defect fix.
-DGROUP 48,816 of 65,536 (74%), image 205,968, **needs 220,160 (215K) at
-load — smallest Victor 384K**.
+DGROUP 48,304 of 65,536 (73%), image 205,212, **needs 219,452 (214K) at
+load — smallest Victor 384K** (§16ah).
 
 **§16y built the interactive command parser.** `XFLAGS=-dKEEP_ICP
 ZT=-zt2048` links, loads on the Victor and prints a parser's help text —
-**429,452 (419K)** at load against the shipping build's 220,160. Three fixes,
+**429,890 (419K)** at load — **smallest Victor 512K** — against the shipping
+build's 219,452 (384K). **It is a feature this port intends to ship, not an
+instrument**; `NOICP` is a default chosen because 384K reaches three times
+as many machines, not a verdict that the parser cannot be had. Three fixes,
 no upstream edit: `isfloat()` (§2b), `__near` on the receive ring, and the
 threshold. **§16z, §16aa and §16ab regression-tested it on the machine.**
 Four defects, all latent for the port's whole life and none reachable
@@ -116,119 +145,116 @@ the smallest Victor that can load a build, and that is the number to report.
 
 ## 1. Do this next, in priority order
 
-**The shape of this list changed with §16af.** Nothing in the receive path
-is broken, so the top of it is no longer repair — it is **making the port's
-own measurements trustworthy**, and then closing an edit that shipped
-without ever being run. Items 1 and 2 are one bench sitting between them
-and they unblock everything after.
+**Items 1 through 4 are closed and item 5 is a standing decision, not a
+task.** §16af emptied the repair queue, §16ag took the two cheap code
+levers, and §16ah spent the bench sitting that items 1, 2 and 4 were
+waiting for. What is left starts at **5a**, and the honest summary of it is
+that the port has no known defect and no cheap lever — every remaining item
+is either a measurement whose instrument is in question (5a, 5b, 9), a
+feature nobody has needed yet (11, 12), or a confirmation run (7, 13, 14).
+
+**Read item 5b before planning any of it.** The bench does not repeat to
+better than ~1.3 s, which is larger than several of the effects the items
+below propose to measure — including 5a's. Where that bites, the way out is
+usually a counter rather than a clock.
 
 ---
 
-**1. Repeat legs AG and AH with the `.host` redirect. Two legs, no code
-change, and it is first because everything else on this list is currently
-estimated to within a factor of two.**
+**1. ~~Repeat legs AG and AH with the `.host` redirect.~~ DONE — §16ah legs
+BA/BB, and the answer was not the one this item expected.**
 
-The Victor's clock quantum is 50 cs. §16af's cleanest result — the
-remaining cost of CRC-16 over a 6-bit checksum — is AG − AH = **one
-quantum**, i.e. 100 ± 50 cs, i.e. **13 to 40 µs per wire byte**. Against
-the ~60–90 8088 cycles that separate the two block checks, that band admits
-an effective clock anywhere from 1.5 to 7 MHz. **The model cannot be
-calibrated from it**, which is why items 3 and 4 below carry ranges rather
-than numbers.
+The host clock was captured on all seven legs. BA failed to reproduce AG
+(1 timeout, 2 resends, 40,555 wire bytes); **BB reproduced §16ae leg BX to
+the byte** (37,523). The block-check cost therefore came from BB against
+the clean block-3 legs BC and BD, same binary, same session:
 
-The host's `statistics` resolves milliseconds and fixes this in one
-sitting. Re-run `STEPAG` and `STEPAH` exactly as `HW_TEST_16af.md`
-specifies — **including `> s16afAG.host`**, which is the step that was
-missed both in §16af and in §16ae.
+| | block 1 | block 3 | Δ | µs / wire byte |
+|---|---:|---:|---:|---:|
+| BB → BC | 25.475 s | 28.057 s | **2.582 s** | **68.8** |
+| BB → BD | 25.475 s | 29.334 s | **3.859 s** | **102.7** |
 
-Deliverable: a calibration constant (µs per 8088 cycle on this machine, for
-a memory-bound loop) that every later estimate can be quoted against.
+**§16af's 1.00 s / 26 µs / "at most 3.7%" is withdrawn. CRC-16 costs 10–15%
+of the transfer.** Its conclusion survives — 10–15% is not 43%, and the case
+for CRC-16 was never a speed case — but the number must not be quoted again.
 
-**2. Send a 32 KB file BY NAME, and get two results for one leg.**
+**The µs-per-8088-cycle constant this item asked for was not obtained**, and
+the reason is the bench spread above: the effect and the noise are the same
+size. Getting it needs more legs per arm, not a better clock.
 
-- **It closes upstream edit 16, which shipped unverified.** §8's own words:
-  *"Proven so far only at the level of generated code… Not yet run end to
-  end."* A 16-bit `rc` threw away `zchki()`'s return — which on success is
-  the *file size* — so `-s <name>` refused any file of 32,768 through
-  65,535 bytes, periodically, every 64K. The fix is made and the evidence
-  is a `wdis` reading and nothing else.
-- **It is the port's first send-direction measurement of any kind.**
-  `V9K_PREFIXING` and `ckvictor.c`'s prefixing initializer govern
-  Victor→host only (§16ae: `ctlp[]` is read by the packet *builders*), and
-  no leg has ever exercised them. `wire=` divides `rxbytes`, so on a send
-  leg it reports the ACK stream — read it accordingly, and read the packet
-  log by hand because `pktstat.py` misreads send logs (§4).
+**2. ~~Send a 32 KB file BY NAME.~~ DONE — §16ah leg BS, and it delivered
+both results it was sent for.**
 
-```
-CKERMITW -l /dev/seriala -b 38400 -s RCVAG.DAT > STEPSND.OUT
-```
+**Upstream edit 16 is closed.** `-s RCVAG.DAT` on a file of exactly 32,768
+bytes — inside the broken range — transferred byte-exact with **no error
+line in `STEPBS.OUT` at all**. The signature it was watching for (`kermit
+-s NAME:` with an empty message) did not appear. It was the last shipped
+edit in this port with only a `wdis` reading behind it.
 
-The fixture is already on the image at exactly 32,768 bytes — **inside the
-broken range** — so a pass is meaningful and a failure is diagnostic. Host
-side: a receiver with `log packets` and `statistics`.
+**And the port has a send measurement for the first time: 1,386 cps, the
+fastest figure it has ever produced.**
 
-**3. `NOCKXXCHAR`. A `ckvictor.h` one-liner, no upstream edit, and the size
-half is already measured.**
+| | sending (BS) | receiving (BC) |
+|---|---:|---:|
+| wire bytes for 32,768 | **40,726 (+24.3%)** | 35,950 (+9.7%) |
+| non-line cost | **13.04 s** | 18.71 s |
+| no-line ceiling | ~2,512 cps | ~1,751 cps |
+| **cps** | **1,386** | 1,167 |
 
-`ckcdeb.h:3390` turns `CKXXCHAR` on for any build defining `UNIX`, which
-puts a test on `ttinl()`'s per-byte loop:
+Sending beats receiving by 19% **while carrying 13% more traffic**, which
+confirms from the other side that the receive foreground is the bottleneck.
+**The open question it opens is item 5a.**
 
-```
-cmp   word ptr ss:_ignflag,0
-je    L$310
-shl   bx,1
-mov   ax,seg _dblt
-mov   ds,ax
-test  byte ptr _dblt[bx],1
-```
+**3. ~~`NOCKXXCHAR`.~~ DONE AND SHIPPED, §16ag.** `ckcdeb.h:3390` turned
+`CKXXCHAR` on for any build defining `UNIX`, putting a test on `ttinl()`'s
+per-byte loop whose only setters are behind `#ifndef NOICP` and which could
+therefore never be true. Now defined in `ckvictor.h`.
 
-It backs `SET SEND DOUBLE-CHAR` / `SET RECEIVE IGNORE-CHAR`, **whose only
-setters are behind `#ifndef NOICP`**. Every write to `ignflag`/`dblflag` in
-a shipping build is the initializer to 0 at `ckcfn3.c:292-293`. The test
-can never be true. Built and measured 9 August:
-
-| | shipping | `-dNOCKXXCHAR` | Δ |
+| | before | after | Δ |
 |---|---:|---:|---:|
 | DGROUP | 48,816 (74%) | **48,304 (73%)** | −512 |
 | file | 205,968 | 205,212 | −756 |
 | needs at load | 220,160 (215K) | **219,452 (214K)** | −708 |
-| warnings | 19 | 19, identical | — |
 
-The −512 is exactly `short dblt[256]`, so **it repays edit 17's CRC table
-to the byte** and the image lands below even the sixteen-edit baseline
-(205,552). `wdis` confirms `ignflag`/`dblt` vanish from `ttinl()`.
-`KEEP_ICP` still links with it (433,246), losing only those two commands.
+Those are the shipping figures today. −512 is exactly `short dblt[256]`,
+repaying edit 17's CRC table to the byte;
+`wdis` confirms `ignflag`/`dblt` leave `ckutio.obj` entirely; 19 warnings
+unchanged. The throughput half is measured too: **−1.07 s, 2.1%, at 9600
+under MAME**, two legs reproducing to 1 ms.
 
-Outstanding: the **throughput** half. A MAME A/B at 9600 settles it without
-bench time — leg AF is the template, and a protocol-identical run is the
-test to look for (`rxbytes` equal in both).
+**It is `#ifndef KEEP_ICP`.** The first version shipped it unconditionally,
+taking `SET SEND DOUBLE-CHARACTER` and `SET RECEIVE IGNORE-CHARACTER` out
+of the parser build to save DGROUP in a build that has no parser — on an
+invented premise that the parser is only an instrument. **It is a feature
+this port intends to ship**; `ckvictor.h` calls `NOICP` the removal of "the
+one thing this port most wants back". Guarded, `KEEP_ICP` needs **429,890
+(419K), smallest Victor 512K** — the same smallest machine either way, so
+the two commands cost margin, not reach.
 
-**4. The `errno` far call. Also no upstream edit.**
+**Read the 2.1% carefully, because §16ag does not claim it is the test.**
+The change removes two instructions from the loop *and* 512 bytes of DGROUP
+*and* 756 of code, and at 9600 the foreground has 555 µs of slack per byte,
+so per-byte savings have room to hide. The size is the more likely
+mechanism. The direction is not in doubt on any reading; the attribution is.
 
-`errno.h:34` defines `errno` as `(*__get_errno_ptr())`, and `ttinl()`'s
-loop opens with `errno = 0;` — so the shipping build makes a **far call per
-received byte**. `ckvictor.h` is force-included ahead of `errno.h`, so:
+**4. ~~The `errno` far call.~~ REMOVED — §16ah leg 3. Do not reopen it
+without reading that section first.**
 
-```c
-extern int * v9k_errnop;
-#define errno (*v9k_errnop)
-```
+Built in §16ag, verified in `wdis` (27 far calls leave `ckutio.obj`),
+measured **98 ms slower** under MAME at 9600 and **350 ms slower** on the
+bench at 38400 on the best-matched pair the harness can produce — BC against
+BE, identical `rxbytes` (37,557), identical packet count, both 0/0, one
+binary difference. Removed under the decision rule written into
+`HW_TEST_16ag.md` *before* the legs ran.
 
-makes `errno.h` take its `#else` branch, `_WCRTDATA extern int errno;`,
-which expands to a correct declaration of the pointer. A priority-0 XI
-initializer sets it once from `__get_errno_ptr()`.
+**The caveat, so it is not discovered later:** the treatment arm was n = 1.
+Leg BF went off-shape and was excluded. The decision rests on BE being the
+best-matched leg available *and* on MAME agreeing. The way back is one
+`git revert` and one more pair of legs.
 
-**Use the pointer, not a private `int`.** The library writes the real errno
-through that function; a separate variable would silently disconnect every
-library error from every test of `errno`. (`extern int errno` does not link
-anyway — the symbol is not in `clibl.lib`.)
-
-Two risks to clear *before* writing it: grep for anything that `#undef`s
-`errno` or uses it as a member name, since this is a build-wide macro; and
-satisfy yourself that nothing dereferences it before the XI initializer
-runs. Gain is on the order of 100 cycles per wire byte — **15 to 65 µs on
-the current calibration band**, which is exactly why item 1 comes first.
-Testable under MAME.
+**What it means for `ttinl()`:** the loop's per-byte cost is now known to be
+resistant to two separate attacks (§16ag's `NOCKXXCHAR` gain is probably its
+*size*, not its instructions; the `errno` far call removal is a measured
+loss), which strengthens item 5's argument rather than weakening it.
 
 **5. Do NOT spend edit 18 on `ttinl()`, and do not strip the ISR
 counters — reasons, so the decision does not get re-litigated.**
@@ -253,6 +279,58 @@ confirmed the defect edit 17 just fixed**, and §16k put them in every build
 because a run fast enough to measure cannot carry a debug log. If it is
 ever worth doing, drop only the 32-bit `rxbytes` counter (it exists to give
 `mapoffset.py` byte offsets) and keep the two that matter.
+
+**5a. Run a Victor send with `cautious` prefixing. One leg, no code change,
+and it is the cheapest open question in the file.**
+
+§16ah leg BS measured the send direction for the first time and found the
+Victor's prefixing expanding 32,768 bytes to **40,726 wire bytes (+24.3%)**
+where the host's `cautious` expanded the same payload to **35,950 (+9.7%)**.
+Same fixture, same session, same cable — two *policies* over identical data.
+
+`ckvictor.c`'s prefixing initializer and `V9K_PREFIXING` were kept in §16ae
+on the argument that they are "right for a Victor **sending**", which was
+explicitly flagged as unmeasured. It is measured now and it looks like the
+wrong choice: 4,776 wire bytes of pure overhead, ~1.24 s of line time at
+38400.
+
+**Why it is still only a lead.** BS was *faster* than any receive leg despite
+carrying 13% more traffic, so the Victor has headroom here and this is not a
+defect. And the comparison is policy-vs-policy, not Victor-vs-host: nobody
+has run a Victor send with `cautious` to see what it actually costs the
+sender. That is the leg — `XFLAGS=-dV9K_PREFIXING=...` or the initializer,
+one send leg, against BS as the control.
+
+**Run it as a wire-byte comparison, NOT a timing A/B, and this is the one
+thing that makes it answerable at all.** The effect is 4,776 wire bytes,
+which is ~1.24 s of line time at 38400 — **below item 5b's ~1.3 s noise
+floor**, so the clock cannot resolve it and two legs will not fix that.
+**Wire bytes are counted, not timed**: `rxbytes` on a receive leg, and the
+packet log on a send leg, are exact and deterministic. Read those against
+BS's 40,726 and ignore `elapsed=` entirely. The general form is worth
+keeping — **when the bench cannot resolve an effect in seconds, look for a
+counter that measures the same mechanism in units that do not vary.**
+
+**5b. Find out why this bench does not repeat, or stop quoting differences
+smaller than 1.3 s.**
+
+§16ah legs BC and BD: same binary, same block check, both 0 timeouts and 0
+retransmissions, `rxbytes` **37,557 against 37,568** — and **1.277 s apart**.
+BE and BF, same binary as each other, 1.310 s apart. §16ag's MAME arms held
+to **1 ms and 5 ms**. So the bench's spread is ~250× the emulator's, and it
+is the same size as the effect §16af tried to size and 5× the effect §16ag
+tried to detect. **2 of 7 legs went off-shape** (1 timeout, 2 resends,
+~40,55x wire bytes), against 1 of 7 under MAME.
+
+Ruled out already: **the ring.** `rxpeak` is 2,4xx–2,6xx and `rxfull` is 0 in
+every leg. Untested candidates: the host's round-trip estimator making
+different decisions run to run (§16l established every timeout in these logs
+is the host's, so this is the leading one), thermal or cable variation, and
+the Pico SASI's write timing.
+
+**Until this is understood, the rule is arithmetic and not judgement: an
+A/B on this bench needs enough legs per arm that the standard error is below
+the effect, and two is not enough for anything under ~1.3 s.**
 
 ---
 
@@ -292,8 +370,53 @@ the x16 control's six errors in 32 KB were showing; and x1's envelope is
 
 **7. Run the hardware leg for the parser. Verified under MAME.**
 
-§16ad ran the whole sequence under MAME, so hardware is confirmation rather
-than discovery: `CKICPD SPDTEST.KSC -d` and `CKICPD A:\SPDTEST.KSC -d` both
+**7.0 — PRECONDITION: rebuild and re-stage `CKICP.EXE` and `CKICPD.EXE`
+first. The copies on the image are from 8 August 12:32 and predate two
+upstream edits, one of which would make the transfer leg lie.**
+
+| | landed | in the staged parser binaries? |
+|---|---|---|
+| edit 16 — `-s <name>` ≥ 32K | `d840218`, 8 Aug 17:49 | **no** |
+| edit 17 — fast `chk3()` | `4610f2e`, 9 Aug 07:57 | **no** |
+| §16ag `NOCKXXCHAR` (now `#ifndef KEEP_ICP`) | 9 Aug | no, and it is a wash — the guard means the parser build keeps `dblt` either way |
+
+**Edit 17 is the one that matters and it is a trap, not an inconvenience.**
+Without it, `chk3()` computes the CRC in `long` through two `long[16]`
+tables, which is precisely the defect §16af found: at 38400 with block check
+3 it pinned `rxpeak` at 4,095 of 4,096 and lost 556–649 bytes on three legs
+of four. **The transfer leg below is at 38400.** Run it against the staged
+binary and you would reproduce §16af's ring defect and read it as *"the
+parser build breaks transfers"* — a wrong conclusion that would look
+thoroughly convincing, because `rxfull` would be non-zero and the resends
+real. Edit 16's absence is milder but the same shape: `-s <name>` on the
+32 KB fixture would fail for a reason that has nothing to do with the parser.
+
+```sh
+container exec -i ia16-ubuntu-2 bash -c \
+  "cd /mnt/projects/ckermit && make -f victorow.mak clean && \
+   make -f victorow.mak XFLAGS=-dKEEP_ICP ZT=-zt2048"
+cp ckermitw.exe ckicp.exe
+container exec -i ia16-ubuntu-2 bash -c \
+  "cd /mnt/projects/ckermit && make -f victorow.mak clean && \
+   make -f victorow.mak XFLAGS='-dKEEP_ICP -dKEEP_DEBUG' ZT=-zt2048"
+cp ckermitw.exe ckicpd.exe
+container exec -i ia16-ubuntu-2 bash -c \
+  "cd /mnt/projects/ckermit && make -f victorow.mak clean && make -f victorow.mak"
+
+python3 v9k/tools/mzsize.py ckicp.exe ckicpd.exe      # RECORD BOTH
+IMG=~/projects/mame/victor_kermit.img
+vtg_image_util copy ckicp.exe  $IMG:0:\\CKICP.EXE
+vtg_image_util copy ckicpd.exe $IMG:0:\\CKICPD.EXE
+```
+
+**Measured from HEAD for the plain parser build, 9 August:** file 435,154,
+DGROUP **59,024 of 65,536 (90%)**, needs **429,890 (419K)**, **smallest
+Victor 512K**, 26 warnings. **`CKICPD` has not been rebuilt** — the 532,904
+/ 640K figure quoted below and in §6 is the 8 August number and should be
+re-measured, not re-quoted.
+
+Then the leg itself. §16ad ran the whole sequence under MAME, so hardware is
+confirmation rather than discovery: `CKICPD SPDTEST.KSC -d` and `CKICPD A:\SPDTEST.KSC -d` both
 run the script; `SET LINE` reports local; **`SET SPEED 38400` and 19200 both
 read back**, with `tcsetattr divisor=` 2 and 4; `SHOW VERSIONS` names the
 machine; and the prompt echoes a typed line exactly once.
@@ -339,9 +462,9 @@ build, and neither specific to it:
   item 15.
 - **16** — `ckuusy.c:3690` stores `zchki()`'s `CK_OFF_T` return, which is
   the *file size*, in a 16-bit `int`, so `-s <name>` refuses any file of
-  32,768 bytes or more. **Made**, and `wdis` confirms a signed 32-bit
-  compare where `dx` used to be discarded — but **still unrun**, which is
-  §1 item 2.
+  32,768 bytes or more. **Made, and now run** — §16ah leg BS sent exactly
+  32,768 bytes by name, byte-exact, no error line. `wdis` confirms a signed
+  32-bit compare where `dx` used to be discarded.
 - **17** — `ckcfn2.c`'s `chk3()` computes a 16-bit CRC in `long` through
   two `long[16]` tables. Correct everywhere, and on any 16-bit target with
   no shift-by-immediate it costs two software shift loops per byte. **This
@@ -355,8 +478,8 @@ All three are the same species: a value that needs more than 16 bits
 assigned to an `int`. A 16-bit build is the only place they show, which is
 why this port keeps finding them.
 
-**8a. `-s` for files of 32,768 bytes or more — the analysis, kept because
-the fix is made but unverified. The run that closes it is §1 item 2.**
+**8a. `-s` for files of 32,768 bytes or more — the analysis, kept because it
+is what to send upstream. VERIFIED ON HARDWARE, §16ah leg BS.**
 
 ```c
 int fil2snd, rc;                                   /* ckuusy.c:3690 */
@@ -400,8 +523,8 @@ edit 15 it should not be guarded — guarding it would ship the broken form
 everywhere else. Send it upstream with 14 and 15; all three are plain 16-bit
 portability defects.
 
-**Workaround until then:** use a wildcard. `-s TRANS.*` transfers the same
-32 KB file correctly, because it reaches `nzxpand()`.
+**Workaround in any unfixed build:** use a wildcard. `-s TRANS.*` transfers
+the same 32 KB file correctly, because it reaches `nzxpand()`.
 
 **Then prove it end to end**, because that is the point: a take-file on the
 Victor doing `set speed`, `send`, `statistics`. `TAKE` from the prompt
@@ -459,10 +582,12 @@ size is execution time** and `-ot`'s 9.2% of extra far code is a cost. The
 MAME caveat runs in the safe direction for once. `-os` stays, and the
 makefile now says why on both grounds.
 
-**Two cheap levers are left and they are §1 items 3 and 4** —
-`NOCKXXCHAR` and the `errno` far call, neither an upstream edit. After
-those, the decode path is upstream code and §1 item 5 argues against
-spending edit 18 on it. Two things to do before anything expensive:
+**Both cheap levers are spent, and the decode path is now upstream code.**
+§1 item 3 shipped `NOCKXXCHAR`; §1 item 4 built the `errno` far-call removal
+and §16ah took it back out for measuring slower on both instruments. What is
+left in `ttinl()`'s loop is upstream's, and **§1 item 5 argues against
+spending edit 18 on it** — an argument the two failed attacks strengthen
+rather than weaken. Two things to do before anything expensive:
 
 - **Split the 17.7 s.** It is one subtraction — elapsed minus line minus
   `wfile` minus `txgap` — so nothing yet separates per-byte decode from
@@ -486,8 +611,12 @@ spending edit 18 on it. Two things to do before anything expensive:
 nothing is pressing on the ring and there is no sizing crisis to resolve.
 What survives is the model below and the `DRPSIZ` ceiling in item 11; the
 0.54-bytes-per-byte figure is now wrong in magnitude (the foreground fell
-from 564 to ~485 µs a byte) though right in shape. Do not re-derive it
-until item 1 has produced a calibration.**
+from 564 to ~485 µs a byte) though right in shape. An earlier revision said
+"do not re-derive it until item 1 has produced a calibration"; **item 1 is
+closed and produced no calibration** — the bench spread and the effect are
+the same size (§16ah) — so that gate never opens and is withdrawn. If this
+model is ever wanted, the thing to derive it from is `rxpeak`, which is
+counted exactly and does not care about the timing noise.**
 
 The superseded reasoning, kept because the *method* is still the right one: The peak is `rxpeak = 2,589 of 4,096` at 38400 (§16t's 2,621 on
 the same leg; two samples, same place). `peaktag = 12` is packet decoding,
@@ -506,8 +635,10 @@ at `XFLAGS=-dDRPSIZ=2000` would confirm or kill it cheaply, and the rule
 still stands that no packet-length change ships without a run that reaches
 FINISH and reports `rxlost`/`rxfull`/`rxpeak`.
 
-Note this bounds *observed* occupancy, not the safe bound — item 3's worst
-case is still "the foreground drains nothing", which is the packet length.
+Note this bounds *observed* occupancy, not the safe bound — the worst case
+is still "the foreground drains nothing for a whole packet", which is the
+packet length, and it is **item 11** that turns on it. (This used to say
+"item 3", from a numbering two revisions old.)
 
 **11. Flow control, and it comes before windowing.** `tcflow()` is a stub and
 the ISR has no water marks.
@@ -644,6 +775,15 @@ maintain the burst table. Without that, the report would print
   with `CSTOPB` clear, so `CONFIG.SYS`'s `stop(1.5)` never survives.
 - **The clock quantum is 0.5 s and it is the Victor's.** Read `tot=`, never
   `max=`. Three samples measure nothing.
+- **`rxpeak` measures the host's retransmission, not the transfer.** §16m
+  reached that by instrumenting the peak; §16ag confirmed it by absence —
+  leg AM ran with no retransmission and came back at **17 of 4,096** where
+  every retransmitting leg in the same session sat at 299. So a `rxpeak`
+  comparison between two legs is only meaningful if both retransmitted the
+  same number of times.
+- **Two legs per arm, and do not trust a single pair's spread.** §16ag's
+  control arm put two runs of one binary **321 ms** apart while its other
+  two arms held to 1 ms and 5 ms, with no explanation offered or found.
 - **Byte offsets map onto the host packet log**, resends included:
   `python3 v9k/tools/mapoffset.py host.pkt --rxbytes <rxbytes> <offset>...` —
   **always pass `--rxbytes`**, which computes and applies the startup
@@ -691,12 +831,10 @@ maintain the burst table. Without that, the report would print
 - **`REMOTE DIRECTORY` never terminates its listing** (§16i).
 - **Most of the default capability set is untested** (§16i). `BYE` never sent.
 - **Wildcards are case-sensitive.** `-s *.TXT`.
-- **`-s <name>` for files of 32,768 bytes or more: fixed, never run.**
-  Upstream edit 16. The tell, if it is still broken, is `kermit -s NAME:`
-  with an **empty** message after the colon — `errno` was never set and the
-  file was found. Wildcards route around it. **§1 item 2 is the run that
-  closes this**, and it is the only shipped edit in the port with no
-  runtime evidence behind it.
+- ~~**`-s <name>` for files of 32,768 bytes or more.**~~ **CLOSED** — §16ah
+  leg BS sent exactly 32,768 bytes by name, byte-exact, no error line.
+  Upstream edit 16 now has runtime evidence and **no shipped edit in this
+  port lacks it.**
 - **`pktstat.py` misreads a Victor-send log.** Its "longest packet" reads
   the one-byte LEN field, which is 0 for long packets, and it counts `S-`
   lines, which is the *host* retransmitting. On a send test it reported
@@ -732,10 +870,24 @@ maintain the burst table. Without that, the report would print
   subtraction — elapsed minus line minus `wfile` minus `txgap` — so it is
   a total, not a decomposition, and nothing yet separates per-byte decode
   from per-packet fixed cost. §1 item 9.
-- **Every per-item cost in this port is known to within a factor of two**,
-  because the Victor's clock quantum (50 cs) is the same size as the
-  differences being measured and the host `statistics` was not captured.
-  §1 item 1.
+- **The bench does not repeat to better than ~1.3 s on protocol-identical
+  legs**, and the cause is unknown. That, not the Victor's 50 cs clock, is
+  what bounds every per-item cost in this port — §16ah retired §16af's "one
+  clock quantum" on exactly this. §1 item 5b.
+- **The Victor's send prefixing costs +24.3% in wire bytes against the
+  host's +9.7%** over identical data (§16ah leg BS). Measured for the first
+  time and never compared against `cautious` on the sending side. §1 item 5a.
+- **The shipping binary is 44 bytes different from the one the bench ran.**
+  §16ah legs BC/BD ran 205,256, which carried the `errno` initializer
+  compiled-but-unreachable; removing it took the build to **205,212**. The
+  removed code never executed, and §16w's size sensitivity makes the delta
+  non-zero in principle. Any future leg reporting `rxlost=0 rxfull=0` and a
+  byte-exact md5 sweeps it up; nothing needs to be done for its own sake.
+- **`NOCKXXCHAR`'s 2.1% is not attributed.** The change removes two
+  instructions per byte, 512 bytes of DGROUP and 756 of code all at once,
+  and §16w established this machine is sensitive to the last of those. It
+  ships because no reading makes it a loss, not because the mechanism is
+  known.
 - **`v9k/proofs/` carries transcriptions, not references.** `vcrc16.c` has
   its own copy of upstream's `chk3()` and of `crcta[]`/`crctb[]`;
   `vburst.c` has its own copy of the ISR counter update. They prove
@@ -757,7 +909,10 @@ maintain the burst table. Without that, the report would print
 ## 5. Still open, from before
 
 **The parser build is no longer "still open" — §16y built it.** See §1
-item 1 for the one thing left, and §16y for the sizes.
+**item 7** for what is left of it — the hardware leg, whose one real unknown
+is that **no transfer has ever been run with the parser build** — and §16y
+for the sizes. (This used to point at §1 item 1, which now means the closed
+calibration item.)
 
 **Why `binmode.obj`'s near init record does not work here** (§16h).
 
@@ -784,10 +939,14 @@ statistics
 ```
 
 **Redirect to keep the host's cps, and treat it as mandatory rather than
-optional:** `kermit -C "take s16uCA.ksc, exit" > s16uCA.host`. This has now
-been skipped twice — §16ae's seven legs and §16af's three — and it is the
-reason §1 item 1 exists. **Three files per leg: `.host`, `.pkt`, and the
-Victor's `.OUT`.** A leg missing the `.host` cannot resolve any difference
+optional:** `kermit -C "take s16uCA.ksc, exit" > s16uCA.host`. It was
+skipped twice — §16ae's seven legs and §16af's three — which cost a whole
+sitting to repair; **§16ah captured it on all seven legs and found that the
+Victor's 50 cs quantum was never the binding limit anyway, the bench's own
+~1.3 s spread is** (§1 item 5b). Capture it regardless: it is what
+distinguishes "the difference is below the noise" from "we cannot see the
+difference". **Three files per leg: `.host`, `.pkt`, and the Victor's
+`.OUT`.** A leg missing the `.host` cannot resolve any difference
 smaller than the Victor's 50 cs quantum, which is most of them. `s16uCA.ksc` and `s16uCB.ksc` in the tree are the files that
 ran §16v; they additionally repeat `set line` and `set parity none`, which
 is harmless and was not necessary. **An earlier version of this section
@@ -818,8 +977,21 @@ wrong, and it validated `ckvisr.asm` before the bench.
   taken before the image was cleared of §16w–§16y experiment files.
 - **On the image now.** Names are deliberately distinct because the exit
   report cannot tell two builds apart — keep the `.OUT` names apart too.
-  - `CKERMITW.EXE` — shipping build, **now edit 17** (§16af), 205,968
-    bytes, needs 220,160.
+  - `CKERMITW.EXE` — the current shipping build, 205,212, needs 219,452,
+    md5 `3c31dbf4…`. Re-staged and round-trip verified after §16ah removed
+    the `errno` code. **This name always means "current shipping"** — a
+    stale binary under it is the trap §16ah's staging notes are about.
+  - `CKAP.EXE` — 205,256, md5 `433148fa…`. **The binary §16ah legs
+    BA/BB/BS/BC/BD actually ran**, and §16ag legs AP/AQ before them. It
+    differs from what now ships by the 44 bytes of removed `errno` code.
+  - `CKFERR.EXE` — 204,888, md5 `415cf233…`, `-dV9K_FAST_ERRNO`. Legs BE/BF,
+    and §16ag legs AL/AN. **The change it carries is no longer in the
+    tree** (§16ah); the binary is kept because it is a measured artefact.
+  - `CKAK.EXE` — §16af's edit-17 build, 205,968, md5 `8d40f7f6…`, which
+    §16ag legs AK/AR/AM ran.
+  - `STEPBA/BB/BS/BC/BD/BE/BF.BAT` — the seven bench legs of
+    `HW_TEST_16ag.md`, staged and verified CRLF *after* landing on the
+    image. Host side: `s16ahB*.ksc` and `rcvb*.dat` in the tree.
   - `CKBASE.EXE` — the sixteen-edit baseline, 205,552, staged as §16af's
     control so leg AJ is a *binary* difference and not a rebuild. Keep it:
     any future "did this change help" leg wants the same shape.
@@ -827,7 +999,11 @@ wrong, and it validated `ckvisr.asm` before the bench.
     `STEPAF.BAT` for the MAME leg. All four are tracked in git now, so
     re-stage them from a checkout rather than regenerating.
   - `CKICP.EXE` / `CKICPD.EXE` — the parser build, and the same with
-    `KEEP_DEBUG`. `CKICPD` needs 532,904 (520K), so a 640K machine minimum.
+    `KEEP_DEBUG`. **STALE: both are from 8 August 12:32 and predate upstream
+    edits 16 and 17.** Do not run a 38400 transfer against them — without
+    edit 17 they carry the slow `chk3()` and will reproduce §16af's ring
+    defect. **§1 item 7.0 rebuilds and re-stages them**, and re-measures
+    `CKICPD`, whose "532,904 (520K), 640K minimum" is the 8 August figure.
   - **The x1 sweep binaries and their one-line `.BAT`s:**
 
     | BAT | binary | mode | count | bps |
@@ -869,6 +1045,11 @@ keyboard.** MAME mangles typed input (§16a: digits arrive shifted, and
 `CKERMITW -r` once arrived as `CKERIT_R`), which is why every run in this
 project has come from a `.BAT`. An interactive prompt needs a real keyboard,
 and the Victor has one.
+
+**Rebuild and re-stage `CKICP.EXE`/`CKICPD.EXE` before any of this** — the
+staged copies are from 8 August and predate edits 16 and 17, and step 3
+below is a 38400 transfer that would reproduce §16af's ring defect against
+them. §1 item 7.0 has the commands.
 
 Type `CKICP` and expect `C-Kermit>`. In rough order:
 

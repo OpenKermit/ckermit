@@ -86,6 +86,7 @@
 /* Open Watcom does not declare sig_t, so C-Kermit's own typedef is the one
    we want; CK_NO_SIG_T stays undefined. */
 
+
 /* ------------------------------------------------------------------ */
 /* Open Watcom: filling the gaps in its Unix surface                    */
 /* ------------------------------------------------------------------ */
@@ -906,6 +907,51 @@ extern long v9k_timezone;
 #define NOPARSEN                        /* No network directory parse */
 
 /*
+  Packet character doubling and ignoring, and this one is on the per-byte
+  receive path, which is why it gets a comment rather than a line.
+
+  ckcdeb.h:3390 turns CKXXCHAR on for any build that defines UNIX, and this
+  one does (see "Platform identity" above).  It backs two commands, SET SEND
+  DOUBLE-CHARACTER and SET RECEIVE IGNORE-CHARACTER, and it puts a test at
+  the top of ttinl()'s per-byte loop:
+
+      cmp   word ptr ss:_ignflag,0
+      je    L$310
+      shl   bx,1
+      mov   ax,seg _dblt
+      mov   ds,ax
+      test  byte ptr _dblt[bx],1
+
+  The only writers of ignflag/dblflag/dblt are ckuus7.c (the SET commands)
+  and ckuus3.c (SHOW), both inside "#ifndef NOICP".  In a shipping build the
+  only write that ever happens is the initialiser to 0 at ckcfn3.c:292-293,
+  so the branch is never taken and the table is never read.  What it costs
+  is the two instructions before the "je" on every received byte, and
+
+      short dblt[256]                                       512 bytes of DGROUP
+
+  which is exactly what PORTING.md SS16af's CRC table cost, so this repays
+  edit 17 to the byte.  Measured: DGROUP 48,816 -> 48,304, image 205,968 ->
+  205,212, needs 220,160 -> 219,452 at load.  Warnings unchanged at 19.
+
+  IT IS GUARDED BY "#ifndef KEEP_ICP", and the reason is that the two SET
+  commands are only dead where the parser is.  A KEEP_ICP build can reach
+  them, and the interactive parser is a FEATURE THIS PORT INTENDS TO SHIP --
+  see the NOICP comment below, which calls it "the one thing this port most
+  wants back".  Taking two documented commands out of a user-facing build to
+  save DGROUP in a build that does not contain them is the wrong way round.
+
+  What the guard costs, measured rather than projected, is in the table
+  above for the shipping build and here for the parser one.  The number that
+  governs it is PORTING.md SS16x's: what matters is the SMALLEST VICTOR THAT
+  CAN LOAD THE BUILD, not the spare.  That does not move -- both forms need
+  a 512K machine -- so the cost is margin on that machine and not reach.
+*/
+#ifndef KEEP_ICP
+#define NOCKXXCHAR                      /* No SET SEND DOUBLE-CHAR    */
+#endif /* KEEP_ICP */
+
+/*
   No floating point, and it is worth more than anything else in this list.
 
   The 8088 in a Victor has no 8087, so every float operation goes through
@@ -952,13 +998,29 @@ extern long v9k_timezone;
   parser in, DGROUP measures 60,768 of 65,536 -- it FITS, with 4,768 to
   spare, and -zt128 takes it to 19,376 (PORTING.md SS9d).
 
-  What it does not fit is the machine.  The parser build asks DOS for
-  429KB contiguous and the largest block a program gets on the test setup
-  is 387KB, so it loads on neither DOS (PORTING.md SS16a).  Fitting the
-  data group and fitting the RAM are two different questions and this port
-  has hit both walls.
+  IT ALSO FITS THE MACHINE, AND THIS PARAGRAPH USED TO SAY THE OPPOSITE.
+  It said the parser build asks DOS for 429KB while the largest block a
+  program gets is 387KB, so it "loads on neither DOS".  Both halves are
+  wrong.  The 387KB came from 396,224, which PORTING.md SS16x retracted --
+  it was a FreeDOS measurement filed under an MS-DOS 3.1 heading, and
+  Victor MS-DOS 3.1 actually gives 824,784 free at 896K, the model being
+  free = installed RAM - 92,720.  And SS16y then BUILT the parser and
+  LOADED IT ON THE REAL VICTOR, where it prints a parser's help text.
 
-  What survives is exactly the milestone that matters -- the protocol
+  So the honest statement is a machine size and not a wall:
+
+      shipping build      needs 219,452 (214K)      smallest Victor 384K
+      KEEP_ICP            needs 429,890 (419K)      smallest Victor 512K
+      KEEP_ICP+KEEP_DEBUG needs 532,904 (520K)      smallest Victor 640K
+
+  NOICP is therefore a DEFAULT and not a verdict.  It is off because the
+  file-transfer milestone is what the port was built for and 384K reaches
+  three times as many machines as 512K -- not because the parser cannot be
+  had.  Anything that trades a user-facing feature away "because the parser
+  build is only an instrument" has the intent backwards; see the NOCKXXCHAR
+  comment above, which was written that way once and corrected.
+
+  What the default build keeps is the milestone that matters -- the protocol
   engine, the file system, and the command-LINE parser in ckuusy.c, which
   is what actually moves a file:
 
@@ -970,13 +1032,20 @@ extern long v9k_timezone;
   that survives; they are stubbed in ckvictor.c.
 */
 /*
-  KEEP_ICP is the switch for re-testing that measurement.  It is never
-  defined by the makefile; it exists so the experiment can be repeated with
-  one -d and without editing this file:
+  KEEP_ICP builds the parser back in.  It is never defined by the makefile,
+  so the default build is the small one, but it is a SUPPORTED
+  CONFIGURATION and not an experiment -- SS16y built it, SS16z through
+  SS16ad regression-tested it on the machine and fixed four defects it
+  exposed, and SS1 item 7 of NEXT_SESSION.md is its remaining hardware leg.
 
       make -f victorow.mak clean
-      make -f victorow.mak XFLAGS=-dKEEP_ICP sizes
-      make -f victorow.mak XFLAGS=-dKEEP_ICP ZT=-zt128 sizes
+      make -f victorow.mak XFLAGS=-dKEEP_ICP ZT=-zt2048 sizes
+
+  -zt2048 is not optional decoration: without it the near/far data
+  threshold leaves DGROUP over the line.  And the receive ring must stay
+  __near, or -zt moves it out of the group ckvisr.asm reaches through DS
+  (PORTING.md SS16y).  KEEP_SPL adds the script language on top for a
+  further ~209KB and is a separate question.
 */
 #ifndef KEEP_ICP
 #define NOICP                           /* No "C-Kermit>" prompt      */

@@ -49,8 +49,8 @@ mismatch, and `docmdline(1)` in `ckcmai.c`. **`ckvictor.c` compiles with
 none.** It was 17 until `NOFLOAT` (§16j): dropping `GFTIMER` moves `ztime()`
 onto upstream's `ZTIMEV7` branch, whose K&R redeclarations of `localtime()`
 and `time()` produce two more sign mismatches at `ckutio.c:12319-12320`.
-DGROUP is 48,816 of 65,536 (74%) after the linker adds libc; `ckermitw.exe`
-is 205,968 bytes and **needs 220,160 (215K) at load**. Quote that figure —
+DGROUP is 48,304 of 65,536 (73%) after the linker adds libc; `ckermitw.exe`
+is 205,212 bytes and **needs 219,452 (214K) at load**. Quote that figure —
 it is the port's cost and it is the same on every machine. **The 396,224
 that appears in older sections is not a RAM size, and §16x retracts it as a
 figure for this DOS too**; Victor MS-DOS 3.1 hands out **824,784 at 896K**.
@@ -96,6 +96,60 @@ per-byte path*. And two hypotheses died cheaply and correctly: the other
 a **floppy** under it, 1.5 s writes against 0 on SASI, and lost nothing,
 because with a window of one the write happens before `ack()` and the line
 is idle.
+
+**§16ah is seven legs on the machine and it closes the port's last unverified
+edit.** All seven byte-exact, `rxlost = 0 rxfull = 0` throughout, every leg
+with its host clock captured. **Leg BS sent a 32,768-byte file BY NAME at
+38400** — inside the range upstream edit 16 repaired — byte-exact and with no
+error line at all, so **edit 16 is no longer the one shipped edit with only a
+`wdis` reading behind it**. That leg is also the port's **first send-direction
+measurement**: **1,386 cps, the fastest figure this port has produced**, and
+sending beats receiving by 19% (non-line cost 13.04 s against 18.71) — the
+same conclusion §16v and §16af reached about the receive foreground, seen from
+the other side. **But the Victor's prefixing costs +24.3% in wire bytes
+against the host's +9.7%** over identical data, so §16ae's `V9K_PREFIXING`
+initializer is now measured and looks like the wrong policy; one leg with
+`cautious` would settle it. **The `errno` change failed on the bench as it did
+under MAME** — BC against BE is the best-matched pair the harness can produce,
+identical `rxbytes` and packet count, and the treatment was 350 ms *slower* —
+so it was removed under the rule written down before the legs ran. **And
+§16af's headline figure is superseded: CRC-16 costs 2.6–3.9 s over a 6-bit
+checksum, 69–103 µs per wire byte, 10–15% of the transfer — not the 1.00 s,
+26 µs and 3.7% §16af published.** That figure was not mismeasured, it was
+**under-determined**: it was a difference of two 50 cs readings quoted as one
+number. **The limiting fact is that this bench does not repeat to better than
+~1.3 s** — BC and BD are the same binary, both clean, eleven wire bytes apart,
+and 1.277 s apart, where §16ag's MAME arms held to 1 ms. Budget for ~a third
+of bench legs going off-shape, and **do not make a bench claim about an effect
+smaller than ~1.3 s on two legs per arm.**
+
+**§16ag took the two free items §16af listed, and only one of them was
+free.** `NOCKXXCHAR` ships: `ckcdeb.h:3390` turns `CKXXCHAR` on for any
+build defining `UNIX`, it backs two `SET` commands **whose only setters are
+behind `#ifndef NOICP`**, and its test on `ttinl()`'s per-byte loop can
+therefore never be true in a shipping build. It costs **−512 DGROUP (exactly
+`short dblt[256]`, repaying §16af's CRC table to the byte), −756 image**, and
+measured **−1.07 s, 2.1%, at 9600 under MAME** over two legs that reproduced
+to 1 ms. **The `errno` far call did not ship.** The mechanism is confirmed —
+`ckvictor.h` is force-included, so `#define errno (*v9k_errnop)` makes
+Watcom's `errno.h` take its `#else` branch, whose `extern int errno`
+*expands to a correct declaration of the pointer*, and 27 far calls leave
+`ckutio.obj` — but it measured **98 ms slower**, twenty times the spread of
+either arm. `XFLAGS=-dV9K_FAST_ERRNO` turns it on and the code stays
+compiled either way, so **the shipping binary is byte-identical to the one
+the legs measured**. **This is the fifth hand-costed 8088 prediction in this
+tree to be wrong and the first to be wrong in sign**, so §16af's "ordering
+arguments, never magnitudes" is itself downgraded: they are not reliable for
+ordering either. Two readings survive and the harness cannot separate them
+(MAME is not cycle-accurate; §16w's layout sensitivity has no null leg
+available to a change that alters code size). **The structural point is the
+one to carry forward: at 9600 the foreground has 555 µs of slack per byte
+and at 38400 it has none**, so a per-byte foreground saving can hide at 9600
+— which also means `NOCKXXCHAR`'s 2.1% is probably its *size*, not its two
+instructions, and should not be quoted as the cost of the test. One leg came
+back off-shape (0 timeouts, 0 resends) and was excluded, but it confirmed
+§16m by absence: **`rxpeak` was 17 of 4,096 without a retransmission against
+299 with one.** Still seventeen upstream edits.
 
 **The ring was the next binding constraint and §16af closed it.** `rxpeak`
 is **2,581 of 4,096** with 1,515 bytes of margin, `rxfull = 0` at block 3
@@ -365,10 +419,15 @@ reports `rxlost`/`rxfull`/`rxpeak`. §16k satisfied it three times over.
 `XFLAGS=-dDRPSIZ=90` puts short packets back for one build without a tree
 edit.
 
-The interactive command parser is off (`NOICP`), and **§16y now builds it**
+**The interactive command parser is off by DEFAULT (`NOICP`), and that is a
+default rather than a verdict — it is a feature this port intends to ship.**
+`ckvictor.h` calls `NOICP` the removal of "the one thing this port most
+wants back", and the paragraph that used to say the parser "loads on neither
+DOS" rested on the 387K figure §16x retracted. **§16y builds it**
 — `XFLAGS=-dKEEP_ICP ZT=-zt2048` links, loads on the Victor and prints a
-parser's help text, needing **428,662 (418K)** against the shipping build's
-220,160. Three fixes got it there and none was an upstream edit: `isfloat()`
+parser's help text, needing **429,890 (419K)** — **smallest Victor 512K** —
+against the shipping build's
+219,452. Three fixes got it there and none was an upstream edit: `isfloat()`
 in `ckvictor.c` §2b (`NOFLOAT` removes `CKFLOAT`, which removes upstream's),
 `__near` on the receive ring (`-zt` would otherwise move it out of the group
 `ckvisr.asm` reaches through `DS` — **the one to remember, since `-zt` is
@@ -377,7 +436,7 @@ the lever anyone short of DGROUP will reach for**), and the threshold sweep.
 the build gets a `C-Kermit>` prompt and not `-C`, variables, macros or
 `INPUT`. **It does keep `TAKE`** — that is `#ifndef NOICP`, not `NOSPL`
 (§16y corrects an earlier claim here). `KEEP_SPL` links via §2c and costs
-**637,714 at load against 428,662, +209,052**.
+**637,714 at load against 429,890, +207,824**.
 
 **§16z, §16aa and §16ab regression-tested that build on the machine, and
 §16ab is the section to read before touching the parser.** The parser
@@ -560,10 +619,10 @@ socket is single-use, so start `socat` first and never probe the port.
    ask for fewer. Do not add a second assembly file without the same kind of
    measurement behind it.
 4. **Two budgets, and do not confuse them.** DGROUP holds `.data`, `.bss`
-   and the **stack** — 48,816 of 65,536 (74%) after the link, 16,720 free.
+   and the **stack** — 48,304 of 65,536 (73%) after the link, 17,232 free.
    The **heap is outside it**: `malloc()` is `_fmalloc` in the large model,
    so the packet buffers do not compete for the segment at all. What bounds
-   them is real-mode RAM: **the image needs 220,160 (215K) at load**, and
+   them is real-mode RAM: **the image needs 219,452 (214K) at load**, and
    the far heap then takes about 25K of packet buffers on top. **The receive
    ring is the exception**: at 4,096 bytes it is `.bss` and comes straight
    out of the 64K (§16k).

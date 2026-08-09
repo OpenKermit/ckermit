@@ -580,9 +580,15 @@ guarding them would mean knowingly shipping the broken form everywhere else.
     The port had never sent a large file by name. Found on the bench,
     8 August 2026. **Workaround in any unfixed build: send by wildcard.**
 
-    Proven so far only at the level of generated code — `wdis` shows
-    `dx:ax` surviving the call and a signed 32-bit compare (`cmp dx,0xffff`
-    / `jg`) where the old form discarded `dx`. **Not yet run end to end.**
+    Proven first at the level of generated code — `wdis` shows `dx:ax`
+    surviving the call and a signed 32-bit compare (`cmp dx,0xffff` / `jg`)
+    where the old form discarded `dx` — and **now run end to end on the
+    machine**: §16ah leg BS sent a file of exactly 32,768 bytes, inside the
+    broken range, by name, at 38400, byte-exact, with no error line in the
+    output at all. The signature this leg watched for — `kermit -s NAME:`
+    with an *empty* message after the colon, meaning `zchki()` succeeded and
+    the caller discarded the answer — did not appear. **It was the last
+    shipped edit in this port with no runtime evidence behind it.**
 
 17. **`ckcfn2.c`** — a `VICTOR9K` arm in `chk3()`, plus the 256-entry
     `crctab16[]` it reads. **The same CRC**: same polynomial, same initial
@@ -7816,6 +7822,421 @@ ordering matters for the next time: the internal organisation of a procedure
 is worth nothing if the handoff does not establish that there is a procedure.
 §16ae lost the same figure, and its own note blamed capture rather than
 asking why capture was optional.
+
+---
+
+## 16ag. Two free items, and only one of them was free
+
+§16af's closing paragraph listed one item it had found and not taken — the
+`errno` far call in `ttinl()`'s per-byte loop — and `NEXT_SESSION.md` added a
+second, `NOCKXXCHAR`, whose size half had been measured and whose throughput
+half had not. Neither costs an upstream edit. **Both are now built and both
+are measured, and the measurement disagreed with the prediction about which
+one was worth having.** `NOCKXXCHAR` ships. The `errno` change does not.
+
+Still **seventeen** upstream edits; only `ckvictor.h` and `ckvictor.c` moved.
+
+### What the two changes are
+
+**`NOCKXXCHAR`.** `ckcdeb.h:3390` turns `CKXXCHAR` on for any build defining
+`UNIX`, and this one does. It backs `SET SEND DOUBLE-CHARACTER` and `SET
+RECEIVE IGNORE-CHARACTER`, and it puts a test at the top of `ttinl()`'s
+per-byte loop. The only writers of `ignflag`/`dblflag`/`dblt` are `ckuus7.c`
+(the SET commands) and `ckuus3.c` (SHOW), **both inside `#ifndef NOICP`**, so
+in a shipping build the only write that ever happens is the initialiser to 0
+at `ckcfn3.c:292-293` and the branch can never be taken. `wdis` confirms
+`ignflag` and `dblt` leave `ckutio.obj` entirely.
+
+**The `errno` pointer.** Open Watcom's `errno.h` defines `errno` as
+`(*__get_errno_ptr())`, so `errno = 0;` at `ckutio.c:11097` — inside the same
+per-byte loop — was a **far call per received byte**. `ckvictor.h` is force
+included ahead of every source file, so `#define errno (*v9k_errnop)` there
+makes `errno.h` take its `#else` branch, and that branch's
+`_WCRTDATA extern int errno;` **expands to a correct declaration of the
+pointer itself**. Verified by preprocessing: `ckutio.c` line 4582 reads
+`__declspec(__watcall) extern int (*v9k_errnop);`. The same is true of the
+three `extern int errno;` lines in `ckcdeb.h`, which is what makes this safe
+as a build-wide macro rather than a local dodge. 27 far calls leave
+`ckutio.obj`; the per-byte sequence becomes `lds bx,ss:_v9k_errnop` /
+`mov word ptr [bx],0`.
+
+Use the library's pointer and not a private `int`: the runtime sets the real
+errno through that accessor, so a separate variable would silently disconnect
+every library failure from every test of `errno`. (`extern int errno` does
+not link in any case — the symbol is not in `clibl.lib`, only the accessor
+is exported.)
+
+### Seven legs, six of them protocol-identical
+
+The §16a MAME harness at 9600, one 32,768-byte receive per leg, all seven
+**byte-exact** against `d94d2beda069ef0ef340977e7fd6995d` and all seven with
+`rxlost = 0 rxfull = 0`. Host `statistics` captured for every one — which is
+§16af's handoff lesson applied rather than restated.
+
+| leg | build | image | TO/RS | `rxbytes` | `rxpeak` | Victor | **host** | cps |
+|---|---|---:|---|---:|---:|---:|---:|---:|
+| **AK** | shipping edit-17 (control) | 205,968 | 1/1 | 39,575 | 299 | 6,550 cs | **49.819 s** | 657 |
+| **AR** | control, repeated | 205,968 | 1/1 | 39,575 | 299 | 6,650 cs | **50.140 s** | 653 |
+| AM | control, *off-shape* | 205,968 | **0/0** | **37,568** | **17** | 6,400 cs | 48.046 s | 682 |
+| **AP** | + `NOCKXXCHAR` | 205,256 | 1/1 | 39,575 | 299 | 6,450 cs | **48.807 s** | 671 |
+| **AQ** | + `NOCKXXCHAR`, repeated | 205,256 | 1/1 | 39,575 | 299 | 6,500 cs | **48.806 s** | 671 |
+| AL | + `NOCKXXCHAR` + `errno` | 204,888 | 1/1 | 39,575 | 299 | 6,450 cs | 48.902 s | 670 |
+| AN | + both, repeated | 204,888 | 1/1 | 39,575 | 299 | 6,500 cs | 48.907 s | 670 |
+
+Leg AK reproduced §16af leg AF — a different session, the same binary —
+at 49.819 s against 49.689 and `rxbytes`/`rxpeak` to the digit, which is
+what makes the session readable at all.
+
+**The packet logs of AK, AP, AQ, AL, AN and AR are identical apart from the
+filename and the timestamp in the attribute packet**, same length to the
+byte. This is §16w's A/B design met exactly: the protocol did the same work
+in every leg, so the differences are code.
+
+### `NOCKXXCHAR`: −1.0 s, and it ships
+
+**49.819 / 50.140 → 48.807 / 48.806.** Against a control-arm mean near
+49.88 that is **−1.07 s, −2.1%**, and 657/653 → 671 cps. The treatment arm
+reproduced **to 1 ms**.
+
+The size half repays §16af's CRC table to the byte, which is the neat part:
+
+| | before | after | Δ |
+|---|---:|---:|---:|
+| DGROUP | 48,816 (74%) | **48,304 (73%)** | −512 |
+| image | 205,968 | 205,212 | −756 |
+| needs at load | 220,160 (215K) | **219,452 (214K)** | −708 |
+
+−512 is exactly `short dblt[256]`. Warnings unchanged at 19, all
+pre-existing upstream; `ckvictor.c` still compiles with none.
+
+**The flag is wrapped in `#ifndef KEEP_ICP`, and the first version of this
+section got that backwards.** It shipped the define unconditionally, on the
+reasoning that "the parser build is an instrument, and an instrument whose
+packet path differs from the shipping build's is measuring the wrong
+program." **That premise was invented.** `ckvictor.h` has said since the
+port began that `NOICP` removes *"the one thing this port most wants
+back"*: the parser is a feature intended to ship, and §16y and §16z–§16ad
+built and regression-tested it on the machine. The sentence that misled was
+§16ab's — *"a switch that turns on a large body of upstream code is an
+instrument, and the first thing it measures is the port's own stubs"* —
+which says what enabling the parser **revealed**, not what it is **for**.
+
+Guarded, the saving lands where the commands are dead and the commands
+survive where they are live:
+
+| | shipping | `KEEP_ICP` |
+|---|---:|---:|
+| DGROUP | 48,304 (73%) | 59,024 (90%) |
+| needs at load | 219,452 (214K) | 429,890 (419K) |
+| smallest Victor | **384K** | **512K** |
+| warnings | 19 | 26, unchanged by the guard |
+
+Removing the two commands from the parser build would have bought it 1,764
+bytes — 3,442 bytes of 512K margin instead of 1,678 — and **would not have
+moved the smallest machine that can load it.** By §16x's rule that is the
+figure which governs, so the commands cost margin and not reach, and two
+documented commands are worth more than margin that changes nothing.
+
+**What is not established is the mechanism.** The change removes two
+instructions from the per-byte loop *and* 512 bytes from DGROUP *and* 756
+bytes of code, and §16w established that this machine is sensitive to code
+layout. Nothing here separates those. The direction is not in doubt on any
+reading; the attribution is.
+
+### The `errno` pointer: +98 ms, and it does not ship
+
+**48.807 / 48.806 → 48.902 / 48.907.** The change is **98 ms slower**,
+twenty times the spread of either arm, on the leg it was supposed to win by
+about a second.
+
+This is the fifth hand-costed 8088 prediction in this tree to be wrong and
+**the first to be wrong in sign**. The four before it — §16t's
+instruction-fetch model, §16af's cycle count, and two others §16af lists —
+were all optimistic about magnitude. This one predicted ~0.8 s of saving
+from removing a far call per byte and got a small loss. §16af's rule was
+"treat both models as ordering arguments, never as magnitudes"; **that rule
+was too weak, and the correction is that they are not reliable for ordering
+either.**
+
+Two readings survive and this harness cannot separate them:
+
+- **MAME is not cycle-accurate.** It is the caveat §16n and §16v have both
+  carried, and a change whose entire mechanism is instruction cost is
+  precisely the thing an emulator that approximates instruction cost is
+  least qualified to judge. A far call is few instructions doing a lot of
+  bus work; `lds` is one instruction reading four bytes. Which of those an
+  emulator charges more for is a property of the emulator.
+- **Layout.** §16w measured this machine losing 13% of `rxpeak` to a 9.2%
+  growth in far code. AP and AL differ by 368 bytes and there is no null
+  leg available — a change that necessarily alters code size cannot have
+  one, which is the limit of §16af leg AH's method rather than an oversight
+  here.
+
+**It is off by default and the code stays.** `XFLAGS=-dV9K_FAST_ERRNO`
+turns it on. Everything in `ckvictor.c` §1f stays compiled either way, so
+the flag is a one-line rebuild and **the shipping binary is byte-identical
+(md5 `433148fa…`) to the one legs AP and AQ measured** — ship what was
+measured, not a near relative of it.
+
+The bench is what would settle it, and the reason is structural: **at 9600
+the foreground has 555 µs of slack per byte** — 1,040 µs of byte time
+against §16af's 485 µs of foreground cost — so a per-byte foreground saving
+has room to hide in. At 38400 the byte time is 260 µs and the foreground is
+*behind*, which is why `rxpeak` climbs to 2,581 there and sits at 299 here.
+**A per-byte cost that is absorbed by slack at 9600 is on the critical path
+at 38400**, and this port has no instrument at 38400 but the machine itself.
+
+That argument cuts at `NOCKXXCHAR` too, and it should be said plainly: if
+slack hides per-byte savings at 9600, then `NOCKXXCHAR`'s −1.07 s is
+evidence that its gain is **not** coming from the two instructions it
+removes from the loop. The most likely candidate is the 512 bytes of
+DGROUP and 756 of code. That does not change the decision — the change is
+free and good on every axis — but it does mean **the 2.1% should not be
+quoted as "the per-byte test cost 2.1%"**, and it is a second reason the
+`errno` result is less surprising than it first looks.
+
+### The one leg that did not run the same protocol, and what it confirmed
+
+Leg AM was meant to be the control repeated and came back with **zero
+timeouts and zero retransmissions**, 37,568 wire bytes instead of 39,575.
+It is therefore not a second AK sample and is excluded from every
+comparison above — that is §16w's rule doing its job rather than a wasted
+run, and AR was run to replace it.
+
+It paid for itself anyway. **`rxpeak` was 17 of 4,096, against 299 in every
+leg that retransmitted.** §16m concluded that the peak measures the host's
+retransmission — with a window of one, the only moment the host transmits
+without waiting for our ACK — and predicted therefore that a leg with no
+retransmission would have essentially no peak. **AM is that leg and the
+peak collapsed by 17×.** §16m's finding was reached by instrumenting the
+peak and mapping it onto the packet log; this is the first time it has been
+confirmed by the *absence* of the mechanism.
+
+### The control arm was the noisy one, which is backwards
+
+AK and AR are the same binary and differ by **321 ms**; AP/AQ differ by 1 ms
+and AL/AN by 5 ms. Three legs of one arm spanning 451 ms while two other
+arms hold to single-digit milliseconds is not what a simple noise model
+predicts, and there is no explanation for it here. It does not threaten
+either result — the `NOCKXXCHAR` difference is 1.07 s against that 451 ms,
+and the `errno` comparison is between the two *tight* arms and never touches
+the control — but **a repeat that lands 321 ms away is the reason arms get
+two legs**, and the next session should not assume 5 ms is this harness's
+resolution.
+
+### Measured, and on what
+
+§16a MAME harness: `socat` first, MAME second, host `kermit` at t+110 s,
+`-seconds_to_run 300`, `-ramsize 896K`. Take-files `s16agAK/AM/AN/AP/AQ/AR/
+AL.ksc`; `STEPAK/AM/AN/AP/AQ/AR/AL.BAT` on the image; host packet logs
+`s16ag*.pkt`, host statistics `s16ag*.host`, Victor counters `s16ag*.out`,
+received files `gotAK.dat` … `gotAR.dat`, every one md5-identical to the
+fixture. Control binary is the on-image `CKERMITW.EXE` at 205,968 bytes
+(§16af's edit-17 build); `CKAP.EXE` is `NOCKXXCHAR` only and `CKAL.EXE` is
+both changes.
+
+**Shipping build after this section:** DGROUP **48,320 of 65,536 (73%)**,
+image **205,256**, **needs 219,480 (214K)** at load, smallest Victor still
+384K. (**§16ah revises this**: removing the `errno` code took the build to
+48,304 / 205,212 / 219,452.) 19 warnings, all pre-existing upstream, `ckvictor.c` clean. Both
+standing proofs re-run and passing.
+
+---
+
+## 16ah. The bench answers three questions, and disagrees with §16af about the fourth
+
+Seven legs at 38400 on the real Victor, `HW_TEST_16ag.md` run as written.
+**All seven byte-exact**, `rxlost = 0` and `rxfull = 0` in every one. One
+upstream edit is closed, one change is removed, and **§16af's headline figure
+for the cost of CRC-16 is superseded — it was low by a factor of 2.6 to 3.9,
+and the reason is that it rested on a single pair.**
+
+| leg | binary | block | TO/RS | `rxbytes` | `rxpeak` | Victor | **host** | cps |
+|---|---|---:|---|---:|---:|---:|---:|---:|
+| **BS** | shipping | 3 | 0/0 | 216 *(ACKs)* | 52 | 2,450 cs | **23.633 s** | **1,386** |
+| BB | shipping | **1** | 0/0 | 37,523 | 2,600 | 2,650 cs | **25.475 s** | 1,286 |
+| BA | shipping | 3 | 1/2 | 40,555 | 2,494 | 2,950 cs | 27.885 s | 1,175 |
+| **BC** | shipping | 3 | 0/0 | 37,557 | 2,568 | 2,900 cs | **28.057 s** | 1,167 |
+| **BD** | shipping | 3 | 0/0 | 37,568 | 2,532 | 3,150 cs | **29.334 s** | 1,117 |
+| **BE** | `V9K_FAST_ERRNO` | 3 | 0/0 | 37,557 | 2,514 | 3,000 cs | **28.407 s** | 1,153 |
+| BF | `V9K_FAST_ERRNO` | 3 | 1/2 | 40,544 | 2,475 | 3,150 cs | 29.717 s | 1,102 |
+
+### Leg BS: upstream edit 16 is closed, and the port has a send measurement
+
+**`-s RCVAG.DAT` on a file of exactly 32,768 bytes worked.** That is the
+range edit 16 repaired — a 16-bit `rc` at `ckuusy.c:3690` threw away
+`zchki()`'s return, which on success is the file size, so `-s <name>` refused
+32,768 through 65,535 bytes and did it again every 64K. The edit shipped in
+§8 with a `wdis` reading and the note *"Not yet run end to end."* It has now
+been run end to end: **`gotbs.dat` is md5-identical to the fixture, and
+`STEPBS.OUT` contains no error line at all.** The failure signature this leg
+was watching for — `kermit -s NAME:` with an empty message after the colon,
+meaning `zchki()` succeeded and the caller discarded the answer — did not
+appear. **It was the only shipped edit in this port with no runtime evidence
+behind it, and it is not any more.**
+
+**And it is the first send-direction measurement the port has ever taken**,
+which §16ae flagged as the gap: `V9K_PREFIXING` and `ckvictor.c`'s prefixing
+initializer govern Victor→host only, because `ctlp[]` is read by the packet
+*builders*, and nothing had ever exercised them.
+
+| | Victor **sending** (BS) | Victor **receiving** (BC) |
+|---|---:|---:|
+| wire bytes for 32,768 | **40,726** | 35,950 |
+| expansion | **+24.3%** | +9.7% |
+| packets | 20 | 18 |
+| line time at 38400 | 10.59 s | 9.35 s |
+| elapsed | **23.633 s** | 28.057 s |
+| non-line | **13.04 s** | 18.71 s |
+| no-line ceiling | **~2,512 cps** | ~1,751 cps |
+| **cps** | **1,386** | 1,167 |
+
+Two results, and the second is the interesting one.
+
+**The Victor sends faster than it receives — 1,386 against 1,167, +19%** —
+and that is the fastest figure this port has ever produced. The asymmetry is
+structural and it confirms from the other side what §16v and §16af concluded
+about the receive path: building a packet and pushing it out of a polled
+transmitter costs **13.04 s** where decoding one costs **18.71 s**, on the
+same machine, over the same payload. The receive foreground is the port's
+bottleneck and the send path is not close to it.
+
+**But the Victor's prefixing is much more expensive than the host's: +24.3%
+against +9.7%, 4,776 more wire bytes for the same 32,768.** The two are
+directly comparable — same fixture, same session, same cable — and they are
+two *policies* over identical data, the host running `set prefixing cautious`
+and the Victor running its initializer. **The send is still faster despite
+carrying 13% more traffic**, which is why this is a lead and not a defect:
+the Victor has room, and the prefixing initializer §16ae kept on the argument
+that it was "right for a Victor sending" is now measured and looks like the
+wrong choice on wire bytes. Nobody has yet run a Victor send with
+`cautious` to compare, and that is one leg.
+
+### Leg 3: the `errno` change failed on the bench too, and has been removed
+
+§16ag built it, verified in `wdis` that 27 far calls leave `ckutio.obj`, and
+measured it **98 ms slower** under MAME at 9600. It shipped off, behind
+`V9K_FAST_ERRNO`, with a decision rule written into `HW_TEST_16ag.md` before
+the legs ran: *make it the default if the treatment arm is faster by more
+than the within-arm spread; otherwise it has failed on both instruments and
+should come out of the tree rather than stay as a permanent maybe.*
+
+**The cleanest pair in the sitting is BC against BE**, and they are as
+matched as this harness can produce — **identical `rxbytes` (37,557),
+identical packet count (19), both 0/0, one binary difference:**
+
+```
+BC  shipping        28.057 s
+BE  V9K_FAST_ERRNO  28.407 s      +350 ms
+```
+
+The treatment is slower, again. It is also inside the control arm's own
+spread (BC 28.057, BD 29.334), so the weaker reading is "indistinguishable"
+and the stronger is "slower"; **neither is "faster", which is what the rule
+required.** The code is removed — `ckvictor.h`'s macro and `ckvictor.c` §1f
+both — and the mechanism is written up here rather than carried in the tree.
+
+**One honest caveat: the treatment arm has n = 1.** Leg BF went off-shape
+(1 timeout, 2 retransmissions, 40,544 wire bytes) and is excluded, so BE
+stands alone. The decision rests on BE being the best-matched leg available
+*and* on MAME having said the same thing at 9600. If anyone wants to reopen
+it, the way back is one commit and one more pair of legs, not a rewrite.
+
+**What it cost the shipping binary:** 205,256 → **205,212**, the 44 bytes
+being the initializer and pointer that were compiled but unreachable with the
+flag off. **That means the binary that now ships is 44 bytes different from
+the one legs BC and BD measured**, and §16w established this machine is
+sensitive to code size. The delta is 0.02% and the removed code never ran,
+but it has not been run, and the honest place for that is the list in §4 of
+`NEXT_SESSION.md` rather than a footnote here.
+
+### The calibration leg, which produced a different answer than it was sent for
+
+Leg 1 existed because §16af could only say CRC-16 costs **one clock
+quantum** over a 6-bit checksum — 100 ± 50 cs, i.e. 13 to 40 µs per wire
+byte — and could not resolve it further on a 50 cs clock. The deliverable was
+supposed to be a µs-per-8088-cycle constant.
+
+**It did not produce one, and the reason is the result.**
+
+Leg BA was the AG repeat and **failed to reproduce AG**: 1 timeout, 2
+retransmissions, 40,555 wire bytes against AG's 37,568. Leg BB, the AH
+repeat, reproduced **§16ae leg BX exactly** — 37,523 wire bytes, to the byte.
+So the intended pair was half-delivered. But BB is a clean block-1 leg and
+BC and BD are clean block-3 legs **on the same binary in the same session**,
+which is a better comparison than BA/BB would have been:
+
+| | block 1 | block 3 | Δ | µs / wire byte |
+|---|---:|---:|---:|---:|
+| BB → BC | 25.475 s | 28.057 s | **2.582 s** | **68.8** |
+| BB → BD | 25.475 s | 29.334 s | **3.859 s** | **102.7** |
+
+**§16af said 1.00 s and 26 µs. The bench says 2.6 to 3.9 s and 69 to 103 µs
+— CRC-16 costs 10% to 15% of the transfer, not 3.7%.** The Victor's own
+clock says the same thing independently: BB 2,650 cs against BC 2,900 and BD
+3,150, a difference of 250–500 cs where §16af's pair differed by 100.
+
+**§16af's figure was not mismeasured; it was under-determined, and this is
+the specific way a single pair lies.** AG−AH was one draw from a distribution
+this session has now sampled properly, and the draw came out at the small end.
+§16af even said the right thing about its own instrument — "a pinned `rxpeak`
+is a ceiling and not a measurement" — and then quoted a *difference* of two
+50 cs readings as though it were one.
+
+**§16af's conclusion survives, and its number does not.** There is still no
+speed argument for shipping a 6-bit checksum: 10–15% is not 43%, edit 17 still
+removed most of what §16ae measured, and the correctness case for CRC-16 was
+never about speed. But **"CRC-16 now costs one clock quantum" should not be
+quoted again**, and §16af's "at most 3.7%" is withdrawn.
+
+### The finding that limits everything above: this bench is not repeatable to better than ~1.3 s
+
+**BC and BD are the same binary, the same block check, both 0/0, `rxbytes`
+37,557 against 37,568 — eleven bytes apart — and they are 1.277 s apart.**
+BE and BF, same binary as each other, are 1.310 s apart. §16ag's MAME arms
+reproduced to **1 ms and 5 ms**.
+
+So the bench's run-to-run spread at 38400 is roughly **250 times MAME's**,
+and it is the same size as the effect §16af was trying to size and five times
+the effect §16ag was trying to detect. Two consequences worth stating
+plainly:
+
+- **Any bench claim about an effect smaller than ~1.3 s needs more than two
+  legs per arm.** This is not the same lesson as §16af's leg AH (spend a leg
+  on the null result) — that one is about attribution, this one is about
+  power. Both are needed and neither substitutes.
+- **2 of 7 legs went off-shape** (BA and BF, both 1 timeout / 2
+  retransmissions and ~40,55x wire bytes), against 1 of 7 under MAME. Budget
+  for roughly a third of bench legs being unusable for an A/B, because a leg
+  that retransmits differently is not comparable and is re-run, not adjusted.
+
+The cause is not established here. Candidates, none tested: the host's
+round-trip estimator making different decisions run to run (§16l showed every
+timeout in these logs is the host's), thermal or cable variation, and the
+Pico SASI's write timing. **`rxpeak` is 2,4xx–2,6xx in every leg and
+`rxfull` is 0 in every leg**, so it is not the ring, which is the one
+candidate this port can already rule out.
+
+### Measured, and on what
+
+The §16o bench: Pico SASI serving `victor_kermit.img`, channel A, 1 m USB-C
+to RS-232. `CKERMITW.EXE` (205,256, md5 `433148fa…`) for BA/BB/BS/BC/BD and
+`CKFERR.EXE` (204,888, md5 `415cf233…`) for BE/BF, both staged and
+round-trip verified off the image before the sitting; `CKAK.EXE` preserves
+§16af's 205,968-byte build. Run sheet `HW_TEST_16ag.md`, take-files
+`s16ahBA/BB/BS/BC/BD/BE/BF.ksc`, `STEPB*.BAT` on the image, host statistics
+`s16ah*.host`, packet logs `s16ah*.pkt`, Victor counters `s16ah*.out`,
+transferred files `gotBA.dat`…`gotBF.dat` and `gotbs.dat` — **all seven
+md5-identical to `d94d2beda069ef0ef340977e7fd6995d`**.
+
+**Every leg has all three artefacts this time.** §16ae lost the host clock
+across seven legs and §16af across three; the run sheet was handed over as
+the thing to work from and the redirect was taken on all seven.
+
+**Shipping build after this section:** DGROUP **48,304 of 65,536 (73%)**,
+image **205,212**, **needs 219,452 (214K)** at load, smallest Victor 384K.
+19 warnings, all pre-existing upstream, `ckvictor.c` clean. Both standing
+proofs re-run and passing. Still **seventeen** upstream edits.
 
 ---
 
