@@ -1,6 +1,6 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.0.508
+# C-Kermit 11.0.508 (not yet released)
 
 August 9, 2026
 

@@ -2261,7 +2261,7 @@ Syntax: HEAD [ switches ] filename
 Synonyms: H, HE
 
 ```
-C-Kermit 11.0.505, 2026/07/28, Copyright (C) 2025-2026,
+C-Kermit 11.0.507, 2026/08/05, Copyright (C) 2025-2026,
   John Goerzen.
 Copyright (C) 1985, 2025,
   Trustees of Columbia University in the City of New York.
@@ -6031,6 +6031,34 @@ Synonym for [SET COMMAND](#set-command).
 
 Synonym for [SET COMMAND](#set-command).
 
+### SET COMPATIBILITY
+
+```
+Syntax: SET COMPATIBILITY { 9, 10, 11, DEFAULT }
+ 
+Reconfigures a fixed set of other SET and ENABLE settings to match
+the defaults of an earlier C-Kermit release, or restores the current
+C-Kermit 11 defaults.  This changes settings only; it adds no new
+behavior beyond what those settings already control.  Since those
+versions didn't support IPv6, settings for 9 and 10 also disable IPv6.
+ 
+  9        Match C-Kermit 9.0.302 (2011).
+  10       Match C-Kermit 10.0 Beta.12 (2025).
+  11       Restore the C-Kermit 11 (current) defaults.  DEFAULT is
+           a synonym for this.
+ 
+Settings affected: SET FILE COLLISION, SET TRANSFER MODE, SET
+TERMINAL AUTODOWNLOAD ERROR, SET RECEIVE CONFIRM, SET TCP
+ADDRESS-FAMILY, SET RECEIVE PATHNAMES. Also, ENABLE/DISABLE for CD,
+COPY, DIRECTORY, ENABLE, FINISH, GET, MKDIR, RENAME, SEND, SET,
+SPACE, TYPE, WHO, ASSIGN, QUERY, MAIL, and PRINT.
+ 
+SET COMPATIBILITY 9 and SET COMPATIBILITY 10 weaken settings that
+C-Kermit 11 tightened for security.  Use them only when
+interoperating with old scripts or expectations that require this,
+not routinely, and not on a connection to an untrusted peer.
+```
+
 ### SET CONTROL-CHARACTER
 
 Synonym: CON
@@ -8529,16 +8557,16 @@ SET TELNET parameters:
  bug binary-u-means-me-too: off
  bug sb-implies-will-do: on
  bug auth-krb5-des: on
- terminal-type: none (xterm will be used)
+ terminal-type: none (xterm-256color will be used)
  environment: on
    ACCOUNT: 
-   DISPLAY: 
+   DISPLAY: :1
    JOB    : 
    PRINTER: 
    USER   : jgoerzen
    SYSTEM : UNIX
   LOCATION: 
- .Xauthority-file: /home/jgoerzen/.Xauthority
+ .Xauthority-file: /run/user/1000/xauth_xgjRwW
 ```
 
 ### SET TEL
@@ -8748,7 +8776,7 @@ Compile-time default, from `SHOW TERMINAL`:
 ```
 Terminal parameters:
    Bytesize: Command: 8 bits              Terminal: 8 bits         
-                Type:                        Print: off            
+                Type:                         Print: off            
                 Echo: remote         Locking-shift: off            
         Newline-mode: off               Cr-display: normal         
                  APC: off             Autodownload: on, error continue

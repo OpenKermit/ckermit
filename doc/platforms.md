@@ -22,6 +22,8 @@ While the statically-linked version does have ncurses built in, C-Kermit
 degrades gracefully if you lack a terminfo database.  Therefore, it is a truly
 standalone binary.
 
+C-Kermit on Linux supports [vsock](vsock.md) for communicating with guest VMs.
+
 ## macOS
 
 Official binaries for this release are built on macOS 26 and are built without
