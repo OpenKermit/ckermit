@@ -12544,6 +12544,10 @@ printf("NOWTMP not defined\n");
     printf(" Internet Protocol version 6 (IPv6)\n");
     if (++lines > cmd_rows - 3) { if (!askmore()) return(1); else lines = 0; }
 #endif /* CK_IPV6 */
+#ifdef CK_VSOCK
+    printf(" KVM/Linux VSOCK support (AF_VSOCK)\n");
+    if (++lines > cmd_rows - 3) { if (!askmore()) return(1); else lines = 0; }
+#endif /* CK_VSOCK */
 #ifdef IKS_OPTION
     printf(" Telnet Kermit Option\n");
     if (++lines > cmd_rows - 3) { if (!askmore()) return(1); else lines = 0; }

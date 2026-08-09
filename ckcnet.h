@@ -42,6 +42,7 @@
 #define NET_HX25 14                     /* HP-UX 10 X.25 */
 #define NET_PTY  15                     /* Pseudoterminal */
 #define NET_SSH  16                     /* SSH */
+#define NET_VSOCK 17                    /* KVM/Linux VSOCK (AF_VSOCK) */
 
 #ifdef OS2                              /* In OS/2, only the 32-bit */
 #ifndef __32BIT__                       /* version gets NETBIOS */
@@ -1227,6 +1228,22 @@ typedef char * caddr_t; /* core address type */
 #include <net/if.h>
 #endif /* CK_IPV6 */
 
+/*
+  Define CK_VSOCK when AF_VSOCK is supported and <linux/vm_sockets.h>
+  is available.  CK_HAVE_VM_SOCKETS_H is defined by the build system
+  when <linux/vm_sockets.h> is present.
+*/
+#ifdef LINUX
+#ifdef TCPSOCKET
+#ifdef AF_VSOCK
+#ifdef CK_HAVE_VM_SOCKETS_H
+#include <linux/vm_sockets.h>
+#define CK_VSOCK
+#endif /* CK_HAVE_VM_SOCKETS_H */
+#endif /* AF_VSOCK */
+#endif /* TCPSOCKET */
+#endif /* LINUX */
+
 /* Include interface address headers when CK_GETIFADDRS is defined. */
 #ifdef CK_GETIFADDRS
 #include <ifaddrs.h>
@@ -1549,8 +1566,8 @@ extern char * tcp_http_proxy_pwd;       /* Password of user */
 #endif /* GSOCKNAME_T */
 
 _PROTOTYP( int ck_straddr, (struct sockaddr *, GSOCKNAME_T, char *, int) );
-_PROTOTYP( unsigned short ck_getport, (struct sockaddr *) );
-_PROTOTYP( VOID ck_setport, (struct sockaddr *, unsigned short) );
+_PROTOTYP( unsigned int ck_getport, (struct sockaddr *) );
+_PROTOTYP( VOID ck_setport, (struct sockaddr *, unsigned int) );
 #ifdef CK_IPV6
 _PROTOTYP( int ck_tcp_connect, (char *, char *, int, int *,
                                 struct sockaddr_storage *, GSOCKNAME_T *,
@@ -1559,6 +1576,10 @@ _PROTOTYP( int ck_scopeaddr6, (char *, struct in6_addr *, unsigned int *) );
 #endif /* CK_IPV6 */
 _PROTOTYP( int ck_splithostport, (char *, char *, int, char *, int) );
 _PROTOTYP( VOID ck_bracketaddr, (char *, int) );
+#ifdef CK_VSOCK
+_PROTOTYP( int ck_parse_vsock_addr,
+           (char *, unsigned int *, unsigned int *) );
+#endif /* CK_VSOCK */
 
 #endif /* TCPSOCKET */
 

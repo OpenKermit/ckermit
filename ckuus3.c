@@ -10115,6 +10115,9 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n");
 #ifdef SSHBUILTIN
               (nettype != NET_SSH) &&
 #endif /* SSHBUILTIN */
+#ifdef CK_VSOCK
+              (nettype != NET_VSOCK) &&
+#endif /* CK_VSOCK */
               (nettype != NET_TCPB)) {
               printf("?Network type not supported\n");
               return(success = 0);

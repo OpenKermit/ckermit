@@ -8934,6 +8934,20 @@ static char *hxyhost[] = {
 "  fails.",
 " ",
 #endif /* CK_IPV6 */
+#ifdef CK_VSOCK
+"  For KVM/Linux VSOCK connections (SET NETWORK TYPE VSOCK, or",
+"  SET HOST /NETWORK-TYPE:VSOCK), the host argument is \"CID:PORT\", e.g.",
+"  \"1:9600\".  There is no name resolution, so the CID and port are always",
+"  given directly.  The CID may also be one of the symbolic names ANY,",
+"  HYPERVISOR, LOCAL, or HOST in place of a number.  CID 1 (LOCAL) is the",
+"  VSOCK loopback address, analogous to IPv4's 127.0.0.1.  SSL/TLS and",
+"  Telnet negotiation are never used over a VSOCK connection.",
+" ",
+"  SET HOST * (or SET HOST /SERVER) listens for an incoming VSOCK",
+"  connection.  An optional \":PORT\" selects the port to listen on,",
+"  e.g. \"SET HOST *:9600\"; the default is port 1649.",
+" ",
+#endif /* CK_VSOCK */
 "  The first set of switches can be:",
 " ",
 " /NETWORK-TYPE:name",
@@ -9419,6 +9433,9 @@ static char *hxynet[] = {
 #ifdef TCPSOCKET
 "  SET NETWORK TYPE TCP/IP    ; Internet: Telnet, Rlogin, etc.",
 #endif /* TCPSOCKET */
+#ifdef CK_VSOCK
+"  SET NETWORK TYPE VSOCK     ; KVM/Linux VSOCK (AF_VSOCK) connections.",
+#endif /* CK_VSOCK */
 #ifdef ANYX25
 "  SET NETWORK TYPE X.25      ; X.25 peer-to-peer connections.",
 #endif /* ANYX25 */

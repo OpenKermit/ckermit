@@ -725,6 +725,9 @@ int tcpsrfd = -1;
 #ifdef CK_IPV6
 int tcpsrfd6 = -1;                      /* IPv6 listener; see tcpsrv_open() */
 #endif /* CK_IPV6 */
+#ifdef CK_VSOCK
+int vsocksrfd = -1;             /* VSOCK listener; see vsocksrv_open() */
+#endif /* CK_VSOCK */
 
 #ifdef CK_KERBEROS
 
@@ -961,6 +964,9 @@ _PROTOTYP( int ttbufr, ( VOID ) );
 _PROTOTYP( int tcpsrv_open, (char *, int *, int ) );
 
 static unsigned short tcpsrv_port = 0;
+#ifdef CK_VSOCK
+static unsigned int vsocksrv_port = 0;
+#endif /* CK_VSOCK */
 
 #endif /* NOLISTEN */
 #endif /* OS2 */
@@ -1548,6 +1554,26 @@ ck_straddr(sa,salen,buf,buflen)
     *buf = '\0';
     if (!sa)
       return(-1);
+#ifdef CK_VSOCK
+    if (sa->sa_family == AF_VSOCK) {
+        struct sockaddr_vm * svm = (struct sockaddr_vm *)sa;
+        char * cs, * ps;
+        int cn, pn;
+
+        /* Verify buffer space for "cid:port" before writing. */
+        cs = ckuitoa(svm->svm_cid);
+        cn = (int)strlen(cs);
+        ps = ckuitoa(svm->svm_port);
+        pn = (int)strlen(ps);
+        if (cn + 1 + pn + 1 > buflen)    /* cid + ":" + port + NUL */
+          return(-1);
+        bcopy(cs,buf,(size_t)cn);
+        buf[cn] = ':';
+        bcopy(ps,buf + cn + 1,(size_t)pn);
+        buf[cn + 1 + pn] = '\0';
+        return(0);
+    }
+#endif /* CK_VSOCK */
 #ifdef CK_IPV6
     if (sa->sa_family == AF_INET6 &&
         salen >= (GSOCKNAME_T)sizeof(struct sockaddr_in6)) {
@@ -1591,8 +1617,11 @@ ck_straddr(sa,salen,buf,buflen)
   always passed in host byte order.  The network-byte-order conversion
   happens inside these functions.  An unrecognized family is treated
   as "no port" (ck_getport() returns 0 and ck_setport() is a no-op).
+
+  Port numbers use unsigned int to accommodate 32-bit VSOCK ports
+  as well as 16-bit TCP and IPv6 ports.
 */
-unsigned short
+unsigned int
 #ifdef CK_ANSIC
 ck_getport(struct sockaddr * sa)
 #else /* CK_ANSIC */
@@ -1601,6 +1630,10 @@ ck_getport(sa) struct sockaddr * sa;
 {
     if (!sa)
       return(0);
+#ifdef CK_VSOCK
+    if (sa->sa_family == AF_VSOCK)
+      return(((struct sockaddr_vm *)sa)->svm_port);
+#endif /* CK_VSOCK */
 #ifdef CK_IPV6
     if (sa->sa_family == AF_INET6)
       return(ntohs(((struct sockaddr_in6 *)sa)->sin6_port));
@@ -1612,21 +1645,27 @@ ck_getport(sa) struct sockaddr * sa;
 
 VOID
 #ifdef CK_ANSIC
-ck_setport(struct sockaddr * sa, unsigned short port)
+ck_setport(struct sockaddr * sa, unsigned int port)
 #else /* CK_ANSIC */
-ck_setport(sa,port) struct sockaddr * sa; unsigned short port;
+ck_setport(sa,port) struct sockaddr * sa; unsigned int port;
 #endif /* CK_ANSIC */
 {
     if (!sa)
       return;
+#ifdef CK_VSOCK
+    if (sa->sa_family == AF_VSOCK) {
+        ((struct sockaddr_vm *)sa)->svm_port = port;
+        return;
+    }
+#endif /* CK_VSOCK */
 #ifdef CK_IPV6
     if (sa->sa_family == AF_INET6) {
-        ((struct sockaddr_in6 *)sa)->sin6_port = htons(port);
+        ((struct sockaddr_in6 *)sa)->sin6_port = htons((unsigned short)port);
         return;
     }
 #endif /* CK_IPV6 */
     if (sa->sa_family == AF_INET)
-      ((struct sockaddr_in *)sa)->sin_port = htons(port);
+      ((struct sockaddr_in *)sa)->sin_port = htons((unsigned short)port);
 }
 
 #ifdef CK_IPV6
@@ -1999,6 +2038,104 @@ ck_splithostport(in,hostbuf,hostbuflen,portbuf,portbuflen)
     return(1);
 }
 
+#ifdef CK_VSOCK
+/*
+  ck_vsock_uint() parses a string as an unsigned decimal integer.
+  It rejects non-digit characters, signs, and values that overflow
+  unsigned int.  Used by ck_parse_vsock_addr() for both CID and
+  port fields.
+
+  Returns 0 on success (*val set), -1 on any invalid input.
+*/
+static int
+#ifdef CK_ANSIC
+ck_vsock_uint(char * s, unsigned int * val)
+#else /* CK_ANSIC */
+ck_vsock_uint(s,val) char * s; unsigned int * val;
+#endif /* CK_ANSIC */
+{
+    char * ep;
+    unsigned long v;
+
+    if (!rdigits(s))
+      return(-1);
+
+    errno = 0;
+    ep = NULL;
+    v = strtoul(s,&ep,10);
+    if (!ep || *ep != '\0' || errno == ERANGE || v > (unsigned long)UINT_MAX)
+      return(-1);
+    *val = (unsigned int) v;
+    return(0);
+}
+
+/*
+  ck_parse_vsock_addr() parses a VSOCK "CID:PORT" address specifier,
+  the syntax SET HOST uses for a VSOCK connection, into numeric CID
+  and port values.  The CID field may also be one of the
+  case-insensitive symbolic names "any", "hypervisor", "local", or
+  "host" in place of a decimal number, mapping to VMADDR_CID_ANY,
+  VMADDR_CID_HYPERVISOR, VMADDR_CID_LOCAL, and VMADDR_CID_HOST
+  respectively.  There is no name resolution of any kind (no DNS, no
+  /etc/services); both fields are either a symbolic name (CID only)
+  or plain unsigned decimal digits.
+
+  Returns 0 on success (*cid and *port both set), -1 on any malformed
+  input: missing or extra colon, an empty field, a non-numeric field
+  that isn't a recognized CID name, or a decimal value that overflows
+  unsigned int.  *cid and *port are left unmodified on failure.
+*/
+int
+#ifdef CK_ANSIC
+ck_parse_vsock_addr(char * in, unsigned int * cid, unsigned int * port)
+#else /* CK_ANSIC */
+ck_parse_vsock_addr(in,cid,port)
+    char * in; unsigned int * cid; unsigned int * port;
+#endif /* CK_ANSIC */
+{
+    char * p;
+    char cidbuf[32], portbuf[32];
+    int n;
+    unsigned int cidval, portval;
+
+    if (!in || !cid || !port)
+      return(-1);
+
+    p = strchr(in,':');
+    if (!p || strchr(p + 1,':'))
+      return(-1);                     /* need exactly one colon */
+
+    n = (int)(p - in);
+    if (n < 1 || n >= (int)sizeof(cidbuf))
+      return(-1);
+    bcopy(in,cidbuf,(size_t)n);
+    cidbuf[n] = '\0';
+
+    n = (int)strlen(p + 1);
+    if (n < 1 || n >= (int)sizeof(portbuf))
+      return(-1);
+    ckstrncpy(portbuf,p + 1,sizeof(portbuf));
+
+    if (!ckstrcmp(cidbuf,"any",sizeof(cidbuf),0))
+      cidval = (unsigned int) VMADDR_CID_ANY;
+    else if (!ckstrcmp(cidbuf,"hypervisor",sizeof(cidbuf),0))
+      cidval = (unsigned int) VMADDR_CID_HYPERVISOR;
+    else if (!ckstrcmp(cidbuf,"local",sizeof(cidbuf),0))
+      cidval = (unsigned int) VMADDR_CID_LOCAL;
+    else if (!ckstrcmp(cidbuf,"host",sizeof(cidbuf),0))
+      cidval = (unsigned int) VMADDR_CID_HOST;
+    else if (ck_vsock_uint(cidbuf,&cidval) < 0)
+      return(-1);
+
+    if (ck_vsock_uint(portbuf,&portval) < 0)
+      return(-1);
+
+    *cid = cidval;
+    *port = portval;
+    return(0);
+}
+#endif /* CK_VSOCK */
+
 /*
   Enclose unbracketed multi-colon IPv6 address literals in brackets.
 
@@ -2212,6 +2349,9 @@ ck_linger(sock, onoff, timo) int sock; int onoff; int timo;
 #endif /* IKSD */
       if (sock == -1 ||
         nettype != NET_TCPA && nettype != NET_TCPB &&
+#ifdef CK_VSOCK
+        nettype != NET_VSOCK &&
+#endif /* CK_VSOCK */
         nettype != NET_SSH || ttmdm >= 0) {
         tcp_linger = onoff;
         tcp_linger_tmo = timo;
@@ -2536,6 +2676,9 @@ keepalive(sock,onoff) int sock; int onoff;
 #endif /* IKSD */
       if (sock == -1 ||
         nettype != NET_TCPA && nettype != NET_TCPB && nettype != NET_SSH
+#ifdef CK_VSOCK
+                && nettype != NET_VSOCK
+#endif /* CK_VSOCK */
                 || ttmdm >= 0) {
         tcp_keepalive = onoff;
         return 1;
@@ -3118,6 +3261,149 @@ tcpsocket_open(name,lcl,nett,timo) char * name; int * lcl; int nett; int timo {
 }
 #endif /* NOTUSED */
 
+#ifdef CK_VSOCK
+/*
+  V S O C K S R V _ O P E N  --  Open a VSOCK server connection
+
+  Calling conventions are the same as tcpsrv_open(). VSOCK has one
+  address family, so there is no dual-listener complexity, service
+  lookup, SSL, or Telnet.
+*/
+int
+#ifdef CK_ANSIC
+vsocksrv_open( char * name, int * lcl, int nett )
+#else /* CK_ANSIC */
+vsocksrv_open(name,lcl,nett) char * name; int * lcl; int nett;
+#endif /* CK_ANSIC */
+{
+    char * p;
+    unsigned int vport;
+    struct sockaddr_vm saddr, acc_addr;
+    GSOCKNAME_T acc_addrlen;
+    SOCKOPT_T on = 1;
+    char peerbuf[CK_IPADDRLEN];
+    int i;
+
+    debug(F101,"vsocksrv_open nett","",nett);
+
+    if (nett != NET_VSOCK)
+      return(-1);
+
+    netclos();                          /* Close any previous connection. */
+    ckstrncpy(namecopy,name,NAMECPYL);  /* Copy the "*[:port]" spec. */
+
+    p = namecopy;                       /* Was a port requested? */
+    while (*p != '\0' && *p != ':')
+      p++;
+    if (*p == ':') {                    /* Have a colon */
+        *p++ = '\0';                    /* Get port number */
+        if (ck_vsock_uint(p,&vport) < 0) {
+            fprintf(stderr,"?Invalid VSOCK port: %s\n",p);
+            errno = 0;
+            return(-1);
+        }
+    } else {                            /* Otherwise use the same */
+        vport = 1649;                   /* well-known port TCP defaults to */
+    }
+
+    /* If we currently have a listener active but the port has
+       changed, close it, mirroring tcpsrv_open(). */
+    if (vsocksrfd != -1 && vsocksrv_port != vport) {
+        debug(F100,"vsocksrv_open closing previous connection","",0);
+        close(vsocksrfd);
+        vsocksrfd = -1;
+    }
+
+    if (vsocksrfd == -1) {
+        bzero((char *)&saddr,sizeof(saddr));
+        saddr.svm_family = AF_VSOCK;
+        saddr.svm_cid = VMADDR_CID_ANY;
+        saddr.svm_port = vport;
+
+        if ((vsocksrfd = socket(AF_VSOCK,SOCK_STREAM,0)) < 0) {
+            perror("VSOCK socket error");
+            debug(F101,"vsocksrv_open socket error","",errno);
+            return(-1);
+        }
+        errno = 0;
+
+        /* SO_REUSEADDR: harmless if the kernel ignores it for
+           AF_VSOCK; not worth special-casing away. */
+        setsockopt(vsocksrfd,SOL_SOCKET,SO_REUSEADDR,(char *)&on,sizeof on);
+
+        printf("\nBinding VSOCK socket to port %u ...\n",vport);
+        if (bind(vsocksrfd,(struct sockaddr *)&saddr,sizeof(saddr)) < 0) {
+            i = errno;
+            close(vsocksrfd);
+            vsocksrfd = -1;
+            vsocksrv_port = 0;
+            ttyfd = -1;
+            wasclosed = 1;
+            errno = i;
+            printf("?Unable to bind to VSOCK socket (errno = %d)\n",errno);
+            return(-1);
+        }
+        printf("Listening ...\n");
+        if (listen(vsocksrfd,15) < 0) {
+            i = errno;
+            close(vsocksrfd);
+            vsocksrfd = -1;
+            vsocksrv_port = 0;
+            ttyfd = -1;
+            wasclosed = 1;
+            errno = i;
+            return(-1);
+        }
+        vsocksrv_port = vport;
+    }
+
+    printf("\nWaiting to Accept a VSOCK connection on port %u ...\n",vport);
+    acc_addrlen = sizeof(acc_addr);
+    bzero((char *)&acc_addr,sizeof(acc_addr));
+    if ((ttyfd = accept(vsocksrfd,(struct sockaddr *)&acc_addr,
+                         &acc_addrlen)) < 0) {
+        i = errno;
+        close(vsocksrfd);
+        vsocksrfd = -1;
+        vsocksrv_port = 0;
+        ttyfd = -1;
+        wasclosed = 1;
+        errno = i;
+        debug(F101,"vsocksrv_open accept errno","",errno);
+        return(-1);
+    }
+
+    ttnet = nett;
+    ttnproto = NP_NONE;
+
+#ifdef SO_LINGER
+    ck_linger(ttyfd,tcp_linger,tcp_linger_tmo);
+#endif /* SO_LINGER */
+#ifdef SO_KEEPALIVE
+    keepalive(ttyfd,tcp_keepalive);
+#endif /* SO_KEEPALIVE */
+
+    if (ck_straddr((struct sockaddr *)&acc_addr,acc_addrlen,
+                    peerbuf,sizeof(peerbuf)) == 0) {
+        if (!quiet
+#ifndef NOICP
+            && !doconx
+#endif /* NOICP */
+            )
+          printf("%s connected\n",peerbuf);
+        /* Stash "*cid:port" back into name, same convention
+           tcpsrv_open() uses, so a later REDIAL/reopen can tell this
+           was an incoming VSOCK connection. */
+        name[0] = '*';
+        ckstrncpy(&name[1],peerbuf,78);
+    }
+
+    if (lcl) if (*lcl < 0) *lcl = 1; /* Local mode */
+
+    return(0);
+}
+#endif /* CK_VSOCK */
+
 /*  T C P S R V _ O P E N  --  Open a TCP/IP Server connection  */
 /*
   Calling conventions same as ttopen(), except third argument is network
@@ -3652,7 +3938,7 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
             if (ck_straddr((struct sockaddr *)&acc_addr,acc_addrlen,
                             ipaddr,CK_IPADDRLEN) < 0)
               ipaddr[0] = '\0';
-            connport = ck_getport((struct sockaddr *)&acc_addr);
+            connport = (int)ck_getport((struct sockaddr *)&acc_addr);
         } else {
             ckstrncpy(ipaddr,(char *)inet_ntoa(saddr.sin_addr),CK_IPADDRLEN);
             connport = ntohs(saddr.sin_port);
@@ -3729,8 +4015,8 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
             ckstrncpy(name,ipaddr,80);
             ckstrncat(name,":",80);
 #ifdef CK_IPV6
-            ckstrncat(name,ckuitoa(tcpsrv_isv6 ?
-                                    connport : ntohs(saddr.sin_port)),80);
+            ckstrncat(name,ckuitoa((unsigned int)(tcpsrv_isv6 ?
+                                    connport : ntohs(saddr.sin_port))),80);
 #else /* CK_IPV6 */
             ckstrncat(name,ckuitoa(ntohs(saddr.sin_port)),80);
 #endif /* CK_IPV6 */
@@ -4784,6 +5070,71 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
 
     } else /* Note that IBMX25 support can coexist with TCP/IP support. */
 #endif /* IBMX25 */
+
+#ifdef CK_VSOCK
+      if (nett == NET_VSOCK) {
+        unsigned int vcid, vport;
+        struct sockaddr_vm svm;
+        int i;
+
+        netclos();                      /* Close any previous connection. */
+        ttnproto = NP_NONE;              /* No protocol layered on top. */
+
+        if (name[0] == '*')              /* Server/listener mode. */
+          return(vsocksrv_open(name,lcl,nett));
+
+        if (ck_parse_vsock_addr(name,&vcid,&vport) < 0) {
+            fprintf(stderr,"?Invalid VSOCK address: %s\n",name);
+            errno = 0;
+            return(-1);
+        }
+
+        if (!quiet) {
+            printf(" Trying %u:%u... ",vcid,vport);
+            fflush(stdout);
+        }
+
+        if ((ttyfd = socket(AF_VSOCK,SOCK_STREAM,0)) < 0) {
+            i = errno;
+            debug(F101,"netopen vsock socket error","",i);
+            perror("VSOCK socket error");
+            netclos();
+            errno = i;
+            return(-1);
+        }
+
+        bzero((char *)&svm,sizeof(svm));
+        svm.svm_family = AF_VSOCK;
+        svm.svm_cid = vcid;
+        svm.svm_port = vport;
+
+        if (connect(ttyfd,(struct sockaddr *)&svm,sizeof(svm)) < 0) {
+            i = errno;
+            debug(F101,"netopen vsock connect errno","",i);
+            if (!quiet)
+              printf("Failed\n");
+            netclos();
+            ttyfd = -1;
+            wasclosed = 1;
+            ttnproto = NP_NONE;
+            errno = i;
+            return(-1);
+        }
+        if (!quiet)
+          printf("Connected\n");
+
+#ifdef SO_LINGER
+        ck_linger(ttyfd,tcp_linger,tcp_linger_tmo);
+#endif /* SO_LINGER */
+#ifdef SO_KEEPALIVE
+        keepalive(ttyfd,tcp_keepalive);
+#endif /* SO_KEEPALIVE */
+
+        ttnet = nett;
+        if (lcl) if (*lcl < 0) *lcl = 1; /* Local mode */
+        return(0);
+      }
+#endif /* CK_VSOCK */
 
 /*   Add support for other networks here. */
 

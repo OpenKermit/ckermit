@@ -11237,6 +11237,28 @@ setlin(xx, zz, fc) int xx, zz, fc;
         }
 #endif /* SUPERLAT */
 
+#ifdef CK_VSOCK
+        if (mynet == NET_VSOCK) {       /* Plain "CID:PORT" or "*"; no */
+            if (line[0]) {              /* service/username/password. */
+                x = cx_net(mynet,       /* nettype */
+                           0,           /* protocol (not used) */
+                           line,        /* host (CID:PORT, or "*") */
+                           "",          /* service (not used) */
+                           NULL,        /* alternate username */
+                           NULL,        /* password */
+                           NULL,        /* command to execute */
+                           0,           /* param1 */
+                           0,           /* param2 */
+                           0,           /* param3 */
+                           cx,          /* enter CONNECT mode */
+                           sx,          /* enter SERVER mode */
+                           zz,          /* close connection if open */
+                           0            /* gui */
+                           );
+            }
+        }
+#endif /* CK_VSOCK */
+
 #ifdef DECNET
         if (mynet == NET_DEC) {
             if (!line[0]) {                   /* If they gave a host name... */

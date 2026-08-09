@@ -5458,6 +5458,11 @@ shonet() {
     if (++n > cmd_rows - 3) { if (!askmore()) return(0); else n = 0; }
 #endif /* SUPERLAT */
 
+#ifdef CK_VSOCK
+    printf(" KVM/Linux VSOCK (AF_VSOCK)\n");
+    if (++n > cmd_rows - 3) { if (!askmore()) return(0); else n = 0; }
+#endif /* CK_VSOCK */
+
 #ifdef TCPSOCKET
     if (
 #ifdef OS2
@@ -5551,6 +5556,10 @@ shonet() {
       printf("NetBIOS\n");
     else if (nettype == NET_SLAT)
       printf("SuperLAT\n");
+#ifdef CK_VSOCK
+    else if (nettype == NET_VSOCK)
+      printf("VSOCK\n");
+#endif /* CK_VSOCK */
 
 #ifdef NETFILE
     else if ( nettype == NET_FILE )

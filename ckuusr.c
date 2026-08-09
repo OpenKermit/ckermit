@@ -2669,6 +2669,9 @@ struct keytab netcmd[] = {
 #ifdef SUPERLAT
     { "tes32",        NET_SLAT, 0 },	/* Emulux TES32 */
 #endif /* SUPERLAT */
+#ifdef CK_VSOCK
+    { "vsock",        NET_VSOCK, 0 },	/* KVM/Linux VSOCK (AF_VSOCK) */
+#endif /* CK_VSOCK */
 #ifdef ANYX25				/* X.25 */
 #ifdef SUNX25
     { "x",            NET_SX25, CM_INV|CM_ABR },
