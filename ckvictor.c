@@ -3519,6 +3519,67 @@ static struct v9k_rt_init __based(__segname("XI")) v9k_obufsize_rec =
     { 1, 32, v9k_set_obufsize };
 
 /*
+  Control-character prefixing, and this is a throughput change rather than a
+  correctness one.  PORTING.md SS16v measured the bound as the foreground
+  decode path -- 564us per RECEIVED WIRE byte against a 260us byte time --
+  so the cheapest thing that can be done for it is to make fewer wire bytes
+  arrive.  Every one of them is paid for four times over: the interrupt
+  handler stores it, v9k_ser_get() copies it, chk3() runs it through the
+  CRC and bdecode() decodes it.
+
+  Upstream initialises prefixing = PX_ALL (ckcmai.c:1312, because this build
+  does not define NEWDEFAULTS), which asks the far end to prefix every
+  control character.  SS16w measured what that costs on the all-byte-values
+  fixture: 32,768 payload bytes went out as 37,568 wire bytes, 14.7% of them
+  prefixes.  PX_CAU is upstream's own "cautious" setting and it is cautious
+  in exactly the ways that matter to a serial line -- setprefix() keeps CR,
+  XON/XOFF, IAC, DEL and the packet-start character prefixed (ckcmai.c:2699)
+  and re-prefixes XON/XOFF on its own if flow control ever becomes FLO_XONX
+  (2705), so selecting it here does not have to be revisited when SS16v's
+  flow-control work lands.
+
+  CK_SPEED is what compiles the machinery, and it is on: ckcdeb.h:3385
+  defines it unless NOCKSPEED, which ckvictor.h does not.
+
+  Why an initializer rather than a line in ckvictor.h: prefixing is a
+  variable with an upstream initialiser, not a #define, so pre-empting it
+  would be an upstream edit.  main() calls setprefix(prefixing) at
+  ckcmai.c:3413 -- guarded by NOXFER and NOCKSPEED, neither of them defined
+  here -- and reads the variable at that moment, so anything that runs
+  before main() gets to choose.  Under NOICP there is no SET PREFIXING to
+  type, which is the same hole SS16i's server capabilities fell down and the
+  same way out.  Priority 32 for the reason the obufsize record gives: this
+  has nothing to say about argv and every reason to want the runtime up.
+
+  Which setting is V9K_PREFIXING in ckvictor.h, and the reason it is a knob
+  rather than a constant is that this change needs a control.  SS16v's leg
+  CA cannot serve as one: the shipping binary has moved since (SS16z
+  through SS16ad), so a run against CA measures those changes as well as
+  this one.  XFLAGS="-dV9K_PREFIXING=PX_ALL" builds the baseline from the
+  same tree.
+
+  UNMEASURED.  The arithmetic says up to 13% on that fixture and nothing
+  here has been to the bench.  It has to be checked the way SS16w checked
+  -ot: byte-exact against the fixture, and rxpeak read as the instrument
+  rather than cps, which SS16n showed has a +/-1 noise floor between
+  sessions.  The number that says the MECHANISM worked is neither -- it is
+  the wire-byte count in the host's packet log, which should fall from
+  37,568 toward 32,768.  A file of ordinary text should show less, because
+  it has fewer control characters to unprefix in the first place; that is
+  SS16w's open question and this change is the reason to answer it.
+*/
+extern int prefixing;                   /* ckcmai.c                     */
+
+static void __far
+v9k_set_prefixing(void)
+{
+    prefixing = V9K_PREFIXING;
+}
+
+static struct v9k_rt_init __based(__segname("XI")) v9k_prefixing_rec =
+    { 1, 32, v9k_set_prefixing };
+
+/*
   access().  Watcom HAS one; it is wrong about the directory you are in
   when that directory is the root, which is where CKERMITW normally runs.
 

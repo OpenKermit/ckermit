@@ -124,6 +124,33 @@ ceiling**, so §16n's ~1,630 projection is dead (it is above that ceiling),
 38400 bought only +17% to +24%. The build compiles `-os`; `-ot` on the
 decode path has never been measured and is the open question.
 
+**§16ae answered it, and the answer was the block check, not the wire.**
+The session set out to cut wire bytes by unprefixing control characters and
+found the host had been doing that all along: **three sessions of "default"
+land on 37,5xx wire bytes, which is `cautious`'s number**, so §16w's "close
+to worst case for Kermit's prefixing" described a fixture that had already
+had the cheap prefixes taken out. The change is also on the wrong end —
+`ctlp[]` is read only in `bgetpkt()` and `getpkt()`, the packet *builders*,
+so **unprefixing is a sender-side decision** and a receiver's setting cannot
+affect what arrives. `ckvictor.c`'s initializer and `V9K_PREFIXING` stay
+because they are right for a Victor *sending*, which is **unmeasured**.
+What the 2×2 did measure is **`chk3()` at ~142 µs per wire byte, ~17% of
+the receive cost** — a 16-bit CRC done in `long` arithmetic (`crcta[]`/
+`crctb[]` are `long[16]`, `ckcfn2.c:312`). **`SET BLOCK 1` on the host takes
+26.50 s and 1,236 cps against §16v's 34.00 s and 964 on the same clock,
++28%, the fastest run the port has ever done**, and it moves the no-line
+ceiling from ~1,353 to **~1,957 cps**. That is not a recommendation to ship
+a 6-bit checksum; it is the argument for spending edit 17 on `chk3()`'s
+arithmetic and keeping CRC-16, now worth ~5-6% rather than the ~2.3% an
+unchecked estimate had claimed. **§16t's instruction-fetch model was low by
+2.4× and had been used to argue against taking the measurement** — the
+~200 µs this project quotes for the assembly ISR comes from that same
+unchecked model. **And `rxfull != 0` is now a live defect**: three of four
+block-3 legs pinned `rxpeak` at 4,095 of 4,096 and lost bytes (556, 640,
+649), while all three block-1 legs sat at 2,6xx with a spread of 38. The
+protocol hid it — all seven legs byte-exact — by resending, which is why
+leg PA needed 49,214 wire bytes to move 32,768.
+
 **§16v also settled the flow-control default: `cts = 1` on the real cable**,
 both legs, a genuine RR0 read with the host holding RTS asserted under `set
 flow none`. So RTS/CTS is wired here and is the cheaper path — but **the

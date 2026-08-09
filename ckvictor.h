@@ -661,6 +661,41 @@ extern long v9k_timezone;
 #endif /* V9K_OBUFSIZE */
 
 /*
+  V9K_PREFIXING -- how many control characters the far end is asked to
+  prefix, and therefore how many wire bytes arrive.
+
+  PORTING.md SS16v measured the throughput bound as the foreground decode
+  path, 564us per received WIRE byte against a 260us byte time, so the
+  cheapest lever left is to make fewer wire bytes.  SS16w measured what
+  upstream's default costs on the all-byte-values fixture: 32,768 payload
+  bytes went out as 37,568 wire bytes, 14.7% of them prefixes.
+
+  Upstream initialises prefixing = PX_ALL at ckcmai.c:1312 -- prefix every
+  control character -- because this build does not define NEWDEFAULTS.
+  PX_CAU is upstream's own "cautious" setting, and setprefix() keeps CR,
+  XON/XOFF, IAC, DEL and the packet-start character prefixed regardless
+  (ckcmai.c:2699).  The values are ckcker.h's PX_ALL / PX_CAU / PX_WIL /
+  PX_NON, which is why this expands in ckvictor.c and not here: -fi puts
+  this file ahead of ckcker.h, so the names are not in scope yet.
+
+  Selecting it is ckvictor.c's XI initializer, for the reason the comment
+  there gives -- prefixing is an upstream VARIABLE with an upstream
+  initialiser, so pre-empting it in this file would be an upstream edit,
+  and NOICP leaves no SET PREFIXING to type.
+
+      make -f victorow.mak clean
+      make -f victorow.mak XFLAGS="-dV9K_PREFIXING=PX_ALL"
+
+  builds the control leg.  That control is not optional when measuring
+  this: the shipping binary has moved since SS16v's leg CA (SS16z through
+  SS16ad), so CA is not a baseline for it and the prefixing change cannot
+  be attributed without one built from the same tree.
+*/
+#ifndef V9K_PREFIXING
+#define V9K_PREFIXING PX_CAU            /* Control-char prefixing   */
+#endif /* V9K_PREFIXING */
+
+/*
   MAXWS is deliberately NOT set here.  It used to be, at 8, and it never
   took effect: unlike MAXSP / MAXRP / SBSIZ / RBSIZ, which ckcker.h wraps in
   #ifndef, ckcker.h defines MAXWS unconditionally --

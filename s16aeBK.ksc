@@ -1,0 +1,34 @@
+; Leg BK -- block check alone.  All x block 1, PA's other variable moved.
+;
+; This is the leg round 1 got right by accident, and it is the port's best
+; result: 27.00 s, 37,534 wire bytes, rxlost=0 rxfull=0, zero resends,
+; zero timeouts, byte-exact.  719us per wire byte against SS16v leg CA's
+; 906 on the same wire-byte count -- a nearly controlled A/B, since the
+; two differ by 2 bytes of traffic and by the block check.
+;
+; That prices chk3() at about 130us per wire byte, ~15% of the receive
+; cost.  The estimate it replaces was ~60us, from SS16t's instruction-fetch
+; model; THE MODEL WAS LOW BY 2x.  Which also means the estimate for the
+; proposed chk3() long -> unsigned int upstream edit (~2.3%) was built on
+; the wrong number and is nearer 5%.
+;
+; RE-RUN THIS ONE MORE THAN ONCE.  It is a single measurement carrying the
+; whole conclusion, and round 1 demonstrated this bench has run-to-run
+; variance big enough to invent a finding: legs PA and PC were the same
+; experiment twice over and returned rxpeak 2,006 and 4,095.
+;
+; Block check 1 is a 6-bit checksum -- weaker than CRC-16.  The bench cable
+; has shown zero errors at 38400 (SS16t, SS16v, and PA/BK here), which is
+; what makes it measurable.  It is NOT by itself an argument for shipping
+; it as the default, and the far end's line quality is not something this
+; port can assume.
+
+set line /dev/tty.usbserial-ABBFKXM1
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing all
+set block 1
+log packets s16aeBK.pkt
+send rcvbk.dat
+statistics

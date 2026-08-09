@@ -35,6 +35,25 @@ v9k: mdm cts=1 dsr=1 (dcd=1 rts=1 dtr=1, see comment)
 18 packets, longest 3,991, zero NAKs, zero retransmissions, zero timeouts.
 Before §16t the same leg needed 37 packets and lost 1.8% of received bytes.
 
+**§16ae beat that leg by 28% and turned up a live defect doing it.** With
+`set block 1` on the host, leg BX ran **26.50 s and 1,236 cps** against the
+same clock's 964 for the leg above, on the same 37,5xx wire bytes and with
+`rxfull = 0`. Read §16ae before touching throughput or the ring:
+
+- **`chk3()` costs ~142 µs per wire byte, ~17% of the receive cost.** It
+  computes a 16-bit CRC in `long` arithmetic. The estimate it replaces was
+  ~60 µs, from §16t's fetch model, and that estimate had been used to argue
+  against making the measurement.
+- **`rxfull != 0` is a defect now, not headroom.** Three of four block-3
+  legs pinned `rxpeak` at 4,095 of 4,096 and dropped bytes; all three
+  block-1 legs sat at 2,6xx.
+- **The prefixing work was aimed at the wrong end and at a baseline that
+  was never `all`.** The host has always defaulted to `cautious`; a
+  receiver's `prefixing` cannot affect what arrives.
+- **The next binary is unproven in the send direction.** `ckvictor.c`'s
+  new initializer and `V9K_PREFIXING` govern Victor→host only, and no leg
+  has tested that.
+
 **Two things changed with §16v and they set everything below.** The
 throughput bound is now the **foreground decode path** — 62% of a 38400
 transfer, 564 µs per received byte against a 260 µs byte time, giving a

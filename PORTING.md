@@ -7370,6 +7370,184 @@ upstream alongside 14.
 
 ---
 
+## 16ae. The block check was the lever, and the prefixing baseline was never what it looked like
+
+Two rounds on the bench, seven receive legs, **every one byte-exact**. The
+session set out to measure control-character prefixing and ended up
+measuring the block check, because the thing it meant to change was already
+in the state it was being changed to.
+
+### The 2×2, and it is the round that counts
+
+Round 2 pinned both variables on the host, which round 1 had not. All four
+legs run the same shipping `CKERMITW.EXE`, 38400, the 32,768-byte
+all-byte-values fixture:
+
+| leg | `set prefixing` | `set block` | rxbytes | `rxpeak` | `rxfull` | elapsed | µs/wire B | cps |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| **PA** | all | 3 | 49,214 | 4,095 | **556** | 41.00 s | 833 | 799 |
+| **PC** | cautious | 3 | 44,720 | 4,095 | **640** | 38.00 s | 850 | 862 |
+| **BK** | all | 1 | 41,909 | 2,592 | 0 | 29.00 s | 692 | 1,130 |
+| **BX** | cautious | 1 | 37,523 | 2,611 | 0 | **26.50 s** | 706 | **1,236** |
+
+cps here is 32,768 ÷ the Victor's `elapsed`, which is §16u's wider interval;
+§16v's leg CA on that same clock was **964**, not the 1,013 the host
+reported. Compare like with like.
+
+**`BX` is the fastest transfer in the port's history.**
+
+### The prefixing baseline was already `cautious`, and that is a retraction
+
+Every wire-byte count this project has published sits at 37,5xx:
+
+| run | host `prefixing` | wire bytes |
+|---|---|---:|
+| §16v leg CA | not stated (default) | 37,536 |
+| §16ae round 1, leg BK | not stated (default) | 37,534 |
+| §16ae round 2, leg **BX** | **cautious**, explicit | 37,523 |
+| §16ae round 2, leg **BK** | **all**, explicit | 41,909 |
+
+Three sessions of "default" land on the `cautious` number and nowhere near
+the `all` number. **The Mac host has been unprefixing control characters
+for the whole life of this port**, and §16w's "14.7% expansion, close to
+worst case for Kermit's prefixing" was describing a fixture that had
+*already* had the cheap prefixes taken out of it.
+
+So the ~13% this section was built to capture had been banked before the
+first line of it was written. The effect is real and replicated —
+**−9.1% wire bytes at block 3 and −10.5% at block 1** — it simply has
+nowhere left to go. `PX_WIL` (`SET PREFIXING MINIMAL`) is the untried
+setting if more is wanted.
+
+### And the change was on the wrong end anyway
+
+`ctlp[]` is read in exactly two places, `bgetpkt()` (`ckcfns.c:1798`) and
+`getpkt()` (`ckcfns.c:2904`) — both packet **builders**. Nothing in
+`decode()` or `bdecode()` consults it, because a bare control character
+decodes as itself. **Unprefixing is a sender-side decision**, which is
+precisely what makes it safe to do unilaterally, and it means a receiver's
+own setting cannot affect what arrives.
+
+Round 1 proved this by measurement before the code was read: leg BK ran the
+Victor at `PX_CAU` and put 37,534 bytes on the wire against §16v CA's
+37,536. Two bytes.
+
+The `ckvictor.c` initializer and `V9K_PREFIXING` stay, because they are
+correct for the direction they govern — a Victor **sending** a file. That
+direction is **unmeasured**; no leg in this section tested it.
+
+### The block check costs 142 µs per wire byte, and the model was low by 2.4×
+
+Two independent same-round, same-binary comparisons:
+
+| | block 3 | block 1 | Δ |
+|---|---:|---:|---:|
+| `prefixing all` (PA→BK) | 833 µs | 692 µs | **−141** |
+| `prefixing cautious` (PC→BX) | 850 µs | 706 µs | **−144** |
+
+`chk3()` (`ckcfn2.c:1628`) computes a **16-bit CRC in `long` arithmetic** —
+`crcta[]`/`crctb[]` are `long[16]` at `ckcfn2.c:312` — so on a 16-bit CPU
+it does roughly double the necessary work, and it is **~17% of the receive
+cost**.
+
+The estimate this replaces was **~60 µs**, derived here from §16t's
+instruction-fetch model. **That model has now been wrong twice in one
+session** and both times in the same direction — it also underpinned the
+~2.3% figure that argued against the `chk3()` upstream edit. At 142 µs that
+edit is worth nearer **5-6%**, keeps CRC-16, and is one self-contained file.
+It is still not made, and §8 still lists sixteen.
+
+Reproducibility is good where the conclusion rests: block-1 legs gave
+**719 / 692 / 706 µs** across three runs in two sessions.
+
+### The ring is a live defect, and the block check is why
+
+`rxpeak` sorted by block check, all seven legs:
+
+| block check | `rxpeak` | `rxfull` |
+|---|---|---|
+| **3** | 2,006 · 4,095 · 4,095 · 4,095 | 0 · 649 · 556 · **640** |
+| **1** | 2,630 · 2,592 · 2,611 | 0 · 0 · 0 |
+
+Three of four block-3 legs pinned at the 4,096 ceiling and lost bytes. All
+three block-1 legs sat at 2,6xx with a spread of 38. **That is not
+run-to-run variance** — the CRC's 142 µs is what pushes the foreground past
+what the ring can absorb during a 4,000-byte packet.
+
+Nothing was corrupted: all seven files are md5-identical to the fixture,
+because the block check catches the damaged packet and the host resends.
+The cost shows up as traffic instead — leg PA needed **49,214 wire bytes to
+move 32,768**.
+
+§16t said the ring was the next binding constraint and that §16k's sizing
+argument had to be redone. This is that arriving as a measured failure.
+`rxfull != 0` is now a defect, not headroom.
+
+### What it does to §16v's ceiling
+
+Leg BX: line time is 37,523 × 260 µs = **9.76 s of 26.50**, so the
+foreground is **446 µs per wire byte**, down from §16v's 564. Take the wire
+out entirely and the ceiling rises from **~1,353 cps to ~1,957**.
+
+### The uncomfortable part
+
+The entire gain is a **6-bit checksum replacing CRC-16** on a cable that has
+never shown a line error. That is a real weakening of error detection, and
+the far end's line quality is not something this port can assume. What the
+measurement justifies is not shipping block 1 — it is spending the
+seventeenth upstream edit on `chk3()`'s arithmetic and keeping the CRC.
+
+### Two lessons, both the same shape as §16t's
+
+**A control that is not stated is not a control.** Round 1 left `prefixing`
+at the host's default and then attributed a difference to it. The default
+was knowable in one command and nobody ran it, so an entire round was spent
+measuring a variable that was already at its target value — and the round-1
+write-up drew a confident conclusion ("the mechanism did not engage") that
+was half right for the wrong reason.
+
+**An estimate that has never been checked is not evidence, however often it
+has been cited.** §16t's fetch model earned its authority by predicting the
+ISR saving and the sign of §16w's `-ot` result. It was then used to argue
+*against* making a measurement — the ~60 µs figure was the reason the
+`chk3()` edit was deprioritised. The measurement, when finally taken, was
+2.4× the estimate. §16t's own checklist ends with "cycle-count the actual
+ISR on Victor hardware before making more complex optimizations", and the
+~200 µs figure this session used for the ISR is from that same unchecked
+model.
+
+### Measured, and on what
+
+The §16o bench: Pico SASI serving `victor_kermit.img`, channel A, 1 m USB-C
+to RS-232, host device `/dev/tty.usbserial-ABBFKXM1`, the **205,552** build.
+Victor side `CKERMITW -l /dev/seriala -b 38400 -r > STEPxx.OUT` from
+`STEPPA/PC/BK/BX.BAT`. Host take-files `s16aePA/PC/BK/BX.ksc`, packet logs
+`s16ae*.pkt`, counters `STEP*.OUT`, received files `RCVPA/PC/BK/BX.DAT`,
+**all four md5-identical** to the 32,768-byte fixture
+(`d94d2beda069ef0ef340977e7fd6995d`).
+
+Round 1's three legs are superseded and are not tabulated above beyond the
+two figures quoted, because they did not pin `prefixing` and so measured a
+Victor-side variable that cannot affect a receive. Their `rxpeak` and
+`rxfull` values are still evidence and are included in the ring table.
+
+**The host `statistics` output was not captured in either round.** Every cps
+in this section is Victor-clock and therefore conservative; §16v's pair for
+leg CA was 34.00 s Victor against 32.32 s host, so leg BX's host figure is
+probably near 1,300.
+
+**Round 1's `.BAT` files were written with Unix LF line endings and did not
+run**; the legs were driven by hand instead. They are CRLF now.
+
+This adds nothing to §16a's landmine list because **it is already the first
+item on it** — "`KTEST.BAT` must have CRLF line endings", recorded when it
+cost a MAME run several sections ago. A documented landmine stepped on
+again is worth a sentence for the same reason §16t's byte-time was: the
+tree knew, and the knowledge was in a section nobody re-read before
+generating a file for the same target.
+
+---
+
 ## 15. Open questions
 
 **Closed since the last revision**

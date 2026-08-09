@@ -1,0 +1,30 @@
+; Leg PC -- prefixing alone.  Cautious x block 3, PA's only variable moved.
+;
+; setprefix(PX_CAU) unprefixes the control range but keeps CR, XON, XOFF,
+; DEL, 255 and the packet-start character prefixed (ckcmai.c:2699), and
+; re-prefixes XON/XOFF by itself if flow control is ever XON/XOFF (2705).
+; So it is safe on this cable without further argument.
+;
+; Read, in this order:
+;
+;   1. cmp RCVPC.DAT rcvpc.dat -- byte-exact, or the leg is void.  This is
+;      the first change that alters what goes ON THE WIRE, so the failure
+;      mode is corruption rather than slowness.
+;   2. rxbytes in STEPPC.OUT against PA's.  THIS IS THE ONE THAT SAYS THE
+;      MECHANISM ENGAGED.  Round 1 failed here and nowhere else: 37,534
+;      against 37,536, two bytes, no effect.  Anything under about 40,000
+;      with zero resends means it worked this time.
+;   3. rxpeak and rxfull.  Unprefixing raises the FILE bytes produced per
+;      WIRE byte, so the foreground does more work per byte drained even
+;      though it does less per file byte.  That is a reason to expect
+;      rxpeak to RISE, and round 1 already put rxfull at 649 once.
+
+set line /dev/tty.usbserial-ABBFKXM1
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+log packets s16aePC.pkt
+send rcvpc.dat
+statistics
