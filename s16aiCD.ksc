@@ -1,0 +1,38 @@
+; Leg CD -- the host RECEIVES.  The Victor SENDS TRANS.DAT with PX_ALL.
+;
+; THE CONTROL FOR LEG CC, and it is an unusually good one: CKPXALL.EXE is
+; built from the same tree, the same commit and the same flags as
+; CKERMITW.EXE, differing only in the immediate constant the prefixing
+; initializer stores.  Both are 205,228 bytes.  wdis shows the whole
+; difference:
+;
+;     CKERMITW  mov word ptr _ptab+0cH,1        ; PX_CAU
+;     CKPXALL   xor ax,ax / mov ..., ax         ; PX_ALL
+;
+; So SS16w's finding that this machine is sensitive to code size has NO
+; purchase here -- the layouts are identical.  That is worth having,
+; because SS16af had to spend a whole null leg establishing the same thing
+; for a change that did alter code size.
+;
+; NOTE THE DIRECTION.  Host receives, so START THIS FIRST.
+;
+; It should reproduce SS16ah leg BS, which ran a DIFFERENT binary (205,256,
+; md5 433148fa, pre-edit-17-era numbering) but the same effective policy:
+;
+;     prefixing policy   PX_ALL exactly (66 values)
+;     prefixes  ctl      8,869
+;     WIRE BYTES         41,945
+;
+; A CD that does NOT reproduce BS's prefix count means something other than
+; prefixing moved between the two binaries, and CC is then not attributable
+; either.  That is the null-leg discipline of SS16af: spend a leg on the
+; result that is supposed to be nothing.
+
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+log packets s16aiCD.pkt
+receive gotcd.dat
+statistics

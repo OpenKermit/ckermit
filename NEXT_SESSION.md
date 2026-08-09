@@ -1,7 +1,74 @@
 # Next session
 
 Handoff for the Victor 9000 port, written 9 August 2026, revised after
-§16ah. **No live defect in the receive path.** §16af closed the last one.
+§16ah and then again at the desk the same day. **No live defect in the
+receive path.** §16af closed the last one.
+
+**`HW_TEST_16ai.md` is the run sheet for the next sitting and everything it
+needs is built, staged and verified.** Seven legs: the prefixing fix (CC/CD),
+its null leg (CE), the parser build (CF/CG/CH) and server mode (CS). Read
+that file, not this section, when you sit down at the Victor.
+
+---
+
+## What changed at the desk, 9 August, after §16ah
+
+**A shipping-behaviour defect was found and fixed, and item 5a is
+superseded.** `ckvictor.h` has selected `PX_CAU` prefixing since §16ae and
+**every leg this project has ever run sent `PX_ALL`.** `main()` reaches
+`initproto(PROTO_K,...)` at `ckcmai.c:3295` before `setprefix(prefixing)` at
+3413, and `initproto` copies `ptab[protocol].prefix` — statically `PX_ALL`,
+and `PX_ALL` is 0 so the `> -1` test passes — over whatever the XI
+initializer put in the variable, 118 lines before anything reads it.
+Upstream knows this about its own ordering: `ckcmai.c:3319` says
+`compat_9()`/`compat_10()` run *"after initproto calls so initial file
+transfer settings are not overwritten"*. **An XI record runs before `main()`,
+which is the one position from which that guarantee does not hold.** Fixed
+by writing `ptab[PROTO_K].prefix`, which is what `initproto` copies *from*.
+No upstream edit — still seventeen. **Unverified on the wire; that is legs
+CC/CD.**
+
+**How it was found generalises, and it is the reason `pktstat.py` was
+rewritten first.** Not by reading the source — the source had been read
+twice and produced the comment the fix replaces — but by decoding the prefix
+characters out of `s16ahBS.pkt`. **A run's `ctlp[]` table is recoverable from
+the wire**, because every value the sender prefixed appears after a QCTL.
+Leg BS prefixed exactly the 66 values `setprefix()` sets for `PX_ALL`; the
+host, over the identical fixture in the same session, prefixed exactly the 32
+it sets for `PX_CAU`. **A setting that is applied and then quietly
+overwritten looks exactly like a setting that was never right; only the wire
+tells them apart.**
+
+**`pktstat.py` reads send legs now, and counts wire bytes.** It measured only
+the lines the log-writer *sent*, so on a send leg it reported the host's ACK
+stream — "longest 49, retransmissions 0" for a log whose longest packet is
+3,716 and which holds four Victor resends. Both halves fixed. A remote
+retransmission has no marker of its own; it is the same sequence number
+arriving twice running. **`--rxbytes` reconciles the log against the Victor's
+ISR counter**, which counts the same bytes by an independent route:
+`host wire bytes − rxbytes = rxfull + startup offset`. On §16af leg AJ that
+residual is **exactly the 741 `rxfull` that leg published**; on a clean leg it
+is −11, or +28 where a startup timeout means the Victor missed the first S
+packet.
+
+**Two of §16ah's published figures are withdrawn.** Its send/receive table
+gives 40,726 and 35,950 wire bytes, +24.3% and +9.7%. Counted from the logs
+— and cross-checked against `rxbytes` to the byte on leg BC — they are
+**41,945 (+28.0%)** and **37,585 (+14.7%)**. The 14.7% is what §1 item 9
+already quotes for this fixture, so §16ah's table was the outlier. **The
+conclusion survives and is now correctly attributed**: it is `PX_ALL`
+measured against `PX_CAU`, not two ends disagreeing about one policy.
+
+**Item 7.0 is done.** `CKICP.EXE` and `CKICPD.EXE` are rebuilt from HEAD,
+re-measured and staged: **435,154 / needs 429,890 (419K) / smallest Victor
+512K with 1,678 bytes spare**, and **546,422 / needs 533,110 (520K) /
+smallest Victor 640K**. The stale 8 August copies are gone. `CKPXALL.EXE` is
+new — the same tree and the same 205,228 bytes as `CKERMITW.EXE`, differing
+only in one immediate constant, which makes it a control with **no code-size
+difference at all** for §16w to bite on.
+
+---
+
 What is open is *verification* rather than repair, and the ordering in §1
 reflects that.
 
@@ -280,36 +347,35 @@ because a run fast enough to measure cannot carry a debug log. If it is
 ever worth doing, drop only the 32-bit `rxbytes` counter (it exists to give
 `mapoffset.py` byte offsets) and keep the two that matter.
 
-**5a. Run a Victor send with `cautious` prefixing. One leg, no code change,
-and it is the cheapest open question in the file.**
+**5a. ~~Run a Victor send with `cautious` prefixing.~~ SUPERSEDED — the
+Victor was never running `cautious`, and the fix is in the tree awaiting
+legs CC/CD of `HW_TEST_16ai.md`.**
 
-§16ah leg BS measured the send direction for the first time and found the
-Victor's prefixing expanding 32,768 bytes to **40,726 wire bytes (+24.3%)**
-where the host's `cautious` expanded the same payload to **35,950 (+9.7%)**.
-Same fixture, same session, same cable — two *policies* over identical data.
+This item proposed running the arm it believed was already running.
+`ckvictor.h` selects `PX_CAU`; `initproto()` overwrote it with `PX_ALL`
+before anything read it; §16ah leg BS's "+24.3% against the host's +9.7%" is
+therefore `PX_ALL` measured against `PX_CAU` and not two ends disagreeing
+about one policy. The header of this file has the mechanism. **The figures
+themselves are also withdrawn — 41,945 (+28.0%) and 37,585 (+14.7%) counted
+from the logs, against `rxbytes` to the byte on leg BC.**
 
-`ckvictor.c`'s prefixing initializer and `V9K_PREFIXING` were kept in §16ae
-on the argument that they are "right for a Victor **sending**", which was
-explicitly flagged as unmeasured. It is measured now and it looks like the
-wrong choice: 4,776 wire bytes of pure overhead, ~1.24 s of line time at
-38400.
+**What survives, and it is the part worth carrying forward:**
 
-**Why it is still only a lead.** BS was *faster* than any receive leg despite
-carrying 13% more traffic, so the Victor has headroom here and this is not a
-defect. And the comparison is policy-vs-policy, not Victor-vs-host: nobody
-has run a Victor send with `cautious` to see what it actually costs the
-sender. That is the leg — `XFLAGS=-dV9K_PREFIXING=...` or the initializer,
-one send leg, against BS as the control.
-
-**Run it as a wire-byte comparison, NOT a timing A/B, and this is the one
-thing that makes it answerable at all.** The effect is 4,776 wire bytes,
-which is ~1.24 s of line time at 38400 — **below item 5b's ~1.3 s noise
-floor**, so the clock cannot resolve it and two legs will not fix that.
-**Wire bytes are counted, not timed**: `rxbytes` on a receive leg, and the
-packet log on a send leg, are exact and deterministic. Read those against
-BS's 40,726 and ignore `elapsed=` entirely. The general form is worth
-keeping — **when the bench cannot resolve an effect in seconds, look for a
-counter that measures the same mechanism in units that do not vary.**
+- **Run it as a wire-byte comparison, NOT a timing A/B.** The effect is
+  ~4,400 wire bytes, ~1.1 s of line time at 38400, **below item 5b's ~1.3 s
+  noise floor**. The clock cannot resolve it and more legs will not change
+  that. `pktstat.py` counts prefixes and wire bytes exactly. **When the
+  bench cannot resolve an effect in seconds, look for a counter that
+  measures the same mechanism in units that do not vary.**
+- **`PX_CAU` puts control characters on the wire raw**, which is the point
+  of it and also the only way it can go wrong. `cmp` before the counts: a
+  leg that is fast and wrong is the failure mode. XON/XOFF stay prefixed
+  under `PX_CAU` regardless (`ckcmai.c:2731`), so flow control is not the
+  exposure.
+- **The control costs nothing extra.** `CKPXALL.EXE` is the same tree and
+  the same 205,228 bytes, differing in one immediate constant, so §16w's
+  code-size sensitivity has no purchase — unlike §16af, which had to spend a
+  whole null leg establishing that.
 
 **5b. Find out why this bench does not repeat, or stop quoting differences
 smaller than 1.3 s.**
@@ -370,9 +436,15 @@ the x16 control's six errors in 32 KB were showing; and x1's envelope is
 
 **7. Run the hardware leg for the parser. Verified under MAME.**
 
-**7.0 — PRECONDITION: rebuild and re-stage `CKICP.EXE` and `CKICPD.EXE`
-first. The copies on the image are from 8 August 12:32 and predate two
-upstream edits, one of which would make the transfer leg lie.**
+**7.0 — ~~PRECONDITION: rebuild and re-stage.~~ DONE 9 August 2026.** Both
+binaries are rebuilt from HEAD, re-measured, staged and round-trip verified:
+`CKICP.EXE` **435,154, md5 `f5456cae…`, needs 429,890 (419K), smallest
+Victor 512K** with 1,678 bytes spare, and `CKICPD.EXE` **546,422, md5
+`6d991fc7…`, needs 533,110 (520K), smallest Victor 640K** — which re-measures
+the stale "532,904 / 640K" figure rather than re-quoting it. The rest of this
+item is now `HW_TEST_16ai.md` legs CF, CG and CH. **The reasoning below is
+kept because it is why the rebuild mattered, and because the same trap will
+exist again the next time a binary sits on the image across an edit.**
 
 | | landed | in the staged parser binaries? |
 |---|---|---|
@@ -788,12 +860,24 @@ maintain the burst table. Without that, the report would print
   `python3 v9k/tools/mapoffset.py host.pkt --rxbytes <rxbytes> <offset>...` —
   **always pass `--rxbytes`**, which computes and applies the startup
   dead-air shift. §16r nearly published a wrong answer for want of it.
-- **`python3 v9k/tools/pktstat.py host.pkt`** decodes a log; `grep -c '^S-'`
-  counts retransmissions and `grep -c '<timeout>'` counts timeouts. **Both
-  are receive-leg instruments.** On a Victor-*send* log the length field it
-  reads is 0 for long packets and `S-` counts the host retransmitting, so it
-  reported "longest 49, retransmissions 0" for a log with 3,614-character
-  lines and four Victor resends. Read send logs by hand until it is fixed.
+- **`python3 v9k/tools/pktstat.py host.pkt`** decodes a log **in both
+  directions** — packets and types, **wire bytes**, longest packet, timeouts,
+  retransmissions by either end, **prefix counts and the prefixing policy**.
+  It read only the log-writer's own half until 9 August 2026 and reported
+  "longest 49, retransmissions 0" for a send log with 3,614-character lines
+  and four Victor resends; both halves are fixed. A remote retransmission has
+  no marker of its own — it is the same sequence number arriving twice
+  running. **`--rxbytes N [--rxfull N]` reconciles against the Victor's ISR
+  counter**: `host wire bytes − rxbytes = rxfull + startup offset`, where the
+  offset is **−11** clean or **+28** with a startup timeout, and anything
+  else means the two ends did not see the same transfer. On §16af leg AJ the
+  residual is exactly that leg's published `rxfull` of 741.
+  **Reach for it whenever an effect is too small to time**: wire bytes are
+  counted and deterministic where the bench's clock is not.
+  The `PX_*` tables it names policies from are a **transcription** of
+  `setprefix()`, in the sense `v9k/proofs/` uses the word — if upstream
+  changes, the naming goes quietly wrong while still printing a name. The
+  counts are measurements and stay true either way.
 - **`v9k/probes/macspeed.c`** sets a non-standard bit rate on a macOS port via
   `IOSSIOSPEED`, which is the only way to reach the x1 rates the Victor can
   actually produce (§11a0). `-h` to hold it; give C-Kermit no `set speed`.
@@ -835,12 +919,10 @@ maintain the burst table. Without that, the report would print
   leg BS sent exactly 32,768 bytes by name, byte-exact, no error line.
   Upstream edit 16 now has runtime evidence and **no shipped edit in this
   port lacks it.**
-- **`pktstat.py` misreads a Victor-send log.** Its "longest packet" reads
-  the one-byte LEN field, which is 0 for long packets, and it counts `S-`
-  lines, which is the *host* retransmitting. On a send test it reported
-  "longest 49, retransmissions 0" for a log whose longest line was 3,614
-  characters and which contained four Victor resends. Read the log directly
-  for send legs until it is fixed.
+- ~~**`pktstat.py` misreads a Victor-send log.**~~ **FIXED 9 August 2026.**
+  It reads both directions, counts wire bytes and prefixes, names the
+  prefixing policy, and reconciles against `rxbytes`. Checked against all 47
+  logs in the tree with no unparsable lines.
 - **No interrupt-level flow control**, `tcflow()` is a stub, and the ring has
   no water marks. Safe today only because the ring (4,096) exceeds the
   longest packet (3,991) at a window of one — a **105-byte margin that is
@@ -874,9 +956,20 @@ maintain the burst table. Without that, the report would print
   legs**, and the cause is unknown. That, not the Victor's 50 cs clock, is
   what bounds every per-item cost in this port — §16ah retired §16af's "one
   clock quantum" on exactly this. §1 item 5b.
-- **The Victor's send prefixing costs +24.3% in wire bytes against the
-  host's +9.7%** over identical data (§16ah leg BS). Measured for the first
-  time and never compared against `cautious` on the sending side. §1 item 5a.
+- **The prefixing fix is in the tree and unverified on the wire.** Every
+  send figure this project has published was taken with `PX_ALL` in force,
+  whatever the binary said; the corrected pair is **+28.0% sending against
+  the host's +14.7%**. Legs CC/CD of `HW_TEST_16ai.md`. **`PX_CAU` sends
+  control characters raw, so byte-exactness is the thing to check first** —
+  a leg that is fast and wrong is the failure mode here.
+- **Three other XI initializers have never been checked for the same
+  problem.** `_fmode`, the server capability gate and `zobufsize` all set
+  upstream state before `main()`, and `initproto()` is not the only thing
+  that re-initialises. `_fmode` and `zobufsize` are witnessed indirectly (a
+  binary transfer is byte-exact; `wfile` fell to 4 writes), and the server
+  gate was witnessed through `uname()` in §16i — **but none was checked
+  against a later upstream write of the same variable.** Leg CS exercises the
+  server gate on hardware by a different route.
 - **The shipping binary is 44 bytes different from the one the bench ran.**
   §16ah legs BC/BD ran 205,256, which carried the `errno` initializer
   compiled-but-unreachable; removing it took the build to **205,212**. The
@@ -977,10 +1070,17 @@ wrong, and it validated `ckvisr.asm` before the bench.
   taken before the image was cleared of §16w–§16y experiment files.
 - **On the image now.** Names are deliberately distinct because the exit
   report cannot tell two builds apart — keep the `.OUT` names apart too.
-  - `CKERMITW.EXE` — the current shipping build, 205,212, needs 219,452,
-    md5 `3c31dbf4…`. Re-staged and round-trip verified after §16ah removed
-    the `errno` code. **This name always means "current shipping"** — a
-    stale binary under it is the trap §16ah's staging notes are about.
+  - `CKERMITW.EXE` — the current shipping build, **205,228, needs 219,452
+    (214K), smallest Victor 384K, md5 `537486a8…`** — re-staged 9 August
+    with the prefixing fix. **This name always means "current shipping"** —
+    a stale binary under it is the trap §16ah's staging notes are about.
+    (It was 205,212 / md5 `3c31dbf4…` before the fix; the load requirement
+    did not move, because the 16 extra bytes land inside a paragraph DOS was
+    already rounding up.)
+  - `CKPXALL.EXE` — **205,228, md5 `ddb93453…`, `-dV9K_PREFIXING=PX_ALL`.**
+    The control for leg CC: same tree, same commit, same size, differing
+    only in the immediate constant the prefixing initializer stores, so
+    §16w's code-size sensitivity has nothing to act on.
   - `CKAP.EXE` — 205,256, md5 `433148fa…`. **The binary §16ah legs
     BA/BB/BS/BC/BD actually ran**, and §16ag legs AP/AQ before them. It
     differs from what now ships by the 44 bytes of removed `errno` code.
@@ -999,11 +1099,16 @@ wrong, and it validated `ckvisr.asm` before the bench.
     `STEPAF.BAT` for the MAME leg. All four are tracked in git now, so
     re-stage them from a checkout rather than regenerating.
   - `CKICP.EXE` / `CKICPD.EXE` — the parser build, and the same with
-    `KEEP_DEBUG`. **STALE: both are from 8 August 12:32 and predate upstream
-    edits 16 and 17.** Do not run a 38400 transfer against them — without
-    edit 17 they carry the slow `chk3()` and will reproduce §16af's ring
-    defect. **§1 item 7.0 rebuilds and re-stages them**, and re-measures
-    `CKICPD`, whose "532,904 (520K), 640K minimum" is the 8 August figure.
+    `KEEP_DEBUG`. **Rebuilt and re-staged 9 August**, 435,154 md5
+    `f5456cae…` and 546,422 md5 `6d991fc7…`. The 8 August copies predated
+    upstream edits 16 and 17 and are gone; without edit 17 a 38400 transfer
+    against them reproduces §16af's ring defect and reads as "the parser
+    build breaks transfers".
+  - `STEPCC/CD/CE/CH/CS.BAT` — the five legs of `HW_TEST_16ai.md`, staged
+    and verified CRLF **after** landing on the image. Host side:
+    `s16aiC*.ksc` and `rcvce/rcvch/rcvcs.dat` in the tree. `RXEA.KSC`,
+    `PTEST.KSC`, `SPDTEST.KSC`, `STEPSPD.BAT` and `TRANS.DAT` are reused
+    unchanged from §16y/§16z.
   - **The x1 sweep binaries and their one-line `.BAT`s:**
 
     | BAT | binary | mode | count | bps |

@@ -1,0 +1,47 @@
+; Leg CC -- the host RECEIVES.  The Victor SENDS TRANS.DAT with PX_CAU.
+;
+; THIS IS THE LEG THE PREFIXING FIX EXISTS FOR, and it is a COUNTING leg,
+; not a timing one.  Read wire bytes and prefix characters out of the log.
+; Ignore elapsed= and ignore cps.  The effect is about 4,400 wire bytes,
+; which is ~1.1 s of line time at 38400, and this bench does not repeat to
+; better than ~1.3 s (SS16ah legs BC/BD: one binary, both clean, eleven wire
+; bytes apart, 1.277 s apart).  The clock CANNOT resolve this and more legs
+; will not change that.  Wire bytes are counted, not timed.
+;
+; NOTE THE DIRECTION.  The host is the receiver, so START THIS FIRST -- the
+; Victor is the initiator and will give up if nothing answers its S packets.
+;
+; WHAT IS BEING TESTED.  ckvictor.c has selected PX_CAU since SS16ae, and
+; every leg this project ever ran sent PX_ALL anyway.  main() reaches
+; initproto(PROTO_K,...) at ckcmai.c:3295 before setprefix(prefixing) at
+; 3413, and initproto copies ptab[protocol].prefix -- statically PX_ALL --
+; over whatever the XI initializer put in the variable.  The fix writes
+; ptab[PROTO_K].prefix, which is what initproto copies FROM.
+;
+; READ IT WITH ONE COMMAND:
+;
+;     python3 v9k/tools/pktstat.py s16aiCC.pkt
+;
+; PASS is the "prefixing policy" line reading PX_CAU exactly (32 values),
+; against leg CD's PX_ALL exactly (66 values).  Expected numbers, from
+; decoding SS16ah leg BS and the host's own arm of the same session:
+;
+;     prefixes  ctl ~4,512   (CD, and BS, gave 8,869)
+;     WIRE BYTES ~37,5xx     (CD, and BS, gave 41,945)
+;
+; The policy line is the result.  The byte counts are the size of it.
+;
+; AND IT MUST BE BYTE-EXACT.  PX_CAU sends control characters raw, which is
+; the whole point and also the only way this can go wrong.  cmp gotcc.dat
+; against the fixture.  XON/XOFF stay prefixed under PX_CAU regardless
+; (ckcmai.c:2731), so flow control is not the risk; a driver eating a raw
+; control character would be.
+
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+log packets s16aiCC.pkt
+receive gotcc.dat
+statistics

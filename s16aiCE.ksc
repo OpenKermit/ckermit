@@ -1,0 +1,37 @@
+; Leg CE -- the host SENDS.  The Victor RECEIVES 32 KB at 38400.
+;
+; THE NULL LEG for the prefixing fix, and it is the one that says the
+; shipping binary did not otherwise move.  Prefixing is a SENDER-side
+; decision -- ctlp[] is read only by bgetpkt() and getpkt(), the packet
+; BUILDERS (SS16ae) -- so a change to the Victor's prefixing has no
+; mechanism by which it can affect a Victor receive.  This leg is here to
+; check that claim rather than to assert it.
+;
+; PASS is SS16ah leg BC/BD's shape:
+;
+;     rxlost=0  rxfull=0  rxpeak 2,4xx-2,6xx of 4096
+;     18 packets, 0 retransmissions, 0 timeouts
+;     rxbytes ~37,55x, byte-exact md5
+;
+; DO NOT read a cps difference against BC or BD.  Those legs are 1.277 s
+; apart from each other on one binary (SS16ah, NEXT_SESSION item 5b), so
+; anything this leg does inside ~1.3 s is the bench, not the change.  The
+; counters are the instrument here; the clock is not.
+;
+; Reconcile the two ends afterwards, which is a check neither one can do
+; alone:
+;
+;     python3 v9k/tools/pktstat.py --rxbytes <rxbytes from STEPCE.OUT> \
+;                                  s16aiCE.pkt
+;
+; Residual should be -11 (no startup timeout) or +28 (with one).  Anything
+; else means the log and the Victor did not see the same transfer.
+
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+log packets s16aiCE.pkt
+send rcvce.dat
+statistics
