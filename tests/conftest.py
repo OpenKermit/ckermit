@@ -35,7 +35,7 @@ DEBUG_LOOPBACK = bool(os.environ.get("KERMIT_TEST_DEBUG_LOOPBACK"))
 # (see SET PROTOCOL's help text); upload-* are left blank since
 # nothing here relies on kermit's remote-command-on-connect feature.
 ZMODEM_QUIET_PROTOCOL_CLAUSE = (
-    'set protocol zmodem "" "" "sz -q -8 %s" "sz -q -a %s" "rz -q" "rz -q"'
+    'set protocol zmodem "" "" "sz -q %s" "sz -q -a %s" "rz -q" "rz -q"'
 )
 
 # Exit code used by TcpLoopbackSession.run_client's "if failure exit"

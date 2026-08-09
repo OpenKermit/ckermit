@@ -18,30 +18,54 @@ def _build_has_vsock(run_wermit):
     return "vsock" in _show_features_output(run_wermit).lower()
 
 
-def _vsock_runtime_available():
+def _vsock_loopback_works():
     """
-    Return True if the host allows opening AF_VSOCK sockets.
+    Return True if a CID 1 (localhost) VSOCK connection actually succeeds.
+
+    Socket creation alone only proves the af_vsock module is loaded.
+    Connecting to CID 1 additionally requires the vsock_loopback
+    transport, which some GitHub-hosted Ubuntu runners lack even
+    though AF_VSOCK sockets can be created there, so probe the real
+    connect path instead of just constructing a socket.
     """
     af_vsock = getattr(socket, "AF_VSOCK", None)
     if af_vsock is None:
         return False
     try:
-        s = socket.socket(af_vsock, socket.SOCK_STREAM)
+        srv = socket.socket(af_vsock, socket.SOCK_STREAM)
     except OSError:
         return False
-    s.close()
-    return True
+    try:
+        srv.bind((socket.VMADDR_CID_ANY, socket.VMADDR_PORT_ANY))
+        srv.listen(1)
+        port = srv.getsockname()[1]
+        try:
+            cli = socket.socket(af_vsock, socket.SOCK_STREAM)
+        except OSError:
+            return False
+        try:
+            cli.settimeout(2)
+            cli.connect((1, port))
+        except OSError:
+            return False
+        finally:
+            cli.close()
+        return True
+    except OSError:
+        return False
+    finally:
+        srv.close()
 
 
 @pytest.fixture
 def vsock_available(run_wermit):
     """
-    Skip test unless wermit was built with CK_VSOCK and host supports AF_VSOCK.
+    Skip test unless wermit was built with CK_VSOCK and CID 1 loopback works.
     """
     if not _build_has_vsock(run_wermit):
         pytest.skip("build has no VSOCK support (not CK_VSOCK)")
-    if not _vsock_runtime_available():
-        pytest.skip("this host does not permit AF_VSOCK sockets")
+    if not _vsock_loopback_works():
+        pytest.skip("this host does not support VSOCK CID 1 loopback")
     return True
 
 
