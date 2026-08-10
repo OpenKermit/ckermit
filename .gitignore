@@ -50,4 +50,9 @@ socat.log
 *.dat
 *.pkt
 *.out
+# ...except the leg artefacts.  A leg's .OUT is the ONLY place the v9k:
+# counters are recorded -- rxlost/rxfull/rxpeak, the SS1f flow counters and
+# elapsed= -- and it is one of the three files a leg has to produce.  See
+# v9k/legs/README.md.
+!v9k/legs/*.OUT
 *.host

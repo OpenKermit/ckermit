@@ -1,0 +1,16 @@
+
+Closing /dev/seriala...OK
+v9k: isr=asm
+v9k: rxlost=0 rxfull=0 rxpeak=2978 of 4096
+v9k: peaktag=12 fd=0 stall256=114
+v9k: rxbytes=37568 peakat=7676 stallat=612
+v9k: norx=0 othrx=0 rr0=00 oth=00
+v9k: lost evt=0 max=0 tag=0 fd=0
+v9k: lostat=0 lostend=0
+v9k: lean (no burst table)
+v9k: flow in=0 out=0 hi=65535 lo=896 held=0 rel=0 xoff=0 xon=0 stuck=0
+v9k: wfile n=4 max=50 at #4 of 8192 tot=50 cs
+v9k: wcon n=1 max=0 tot=0 cs
+v9k: txgap n=18 max=0 at #0 tot=0 cs
+v9k: elapsed=3350 cs wire=1121 B/s
+v9k: mdm cts=1 dsr=1 (dcd=1 rts=1 dtr=1, see comment)

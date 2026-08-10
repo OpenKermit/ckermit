@@ -1286,6 +1286,20 @@ _PROTOTYP( static VOID v9k_ser_progline,
            (unsigned char, unsigned char, unsigned char, unsigned int) );
 
 /*
+  Section 1f's control surface, forward-declared here because tcsetattr()
+  below is where the termios bits arrive and 1f is where the chip is.
+  v9k_ser_setflow() takes the two flags off a struct termios; the other two
+  are what tcflow() needs.
+*/
+_PROTOTYP( static VOID v9k_ser_setflow, (unsigned int, unsigned int) );
+_PROTOTYP( static VOID v9k_ser_hold,    (void) );
+_PROTOTYP( static VOID v9k_ser_unhold,  (void) );
+
+/* Defined in 1f with the rest of its state; tcflow() above needs the one
+   flag, and it is not static because ckvisr.asm sets it. */
+extern volatile unsigned char v9k_txheld;
+
+/*
   The driver's control block.  AH=44h, AL=02h to read it and AL=03h to
   write it, BX = handle, CX = 17, DS:DX = the block.  Layout from
   msxv90.asm's "pval" structure, which cites Systems Programmers Toolkit
@@ -1488,8 +1502,16 @@ static unsigned int v9k_lastdiv = 8;
   seven bits from a read it does not trust.  EAh is the chip's 8-bit,
   transmitter-enabled, DTR-and-RTS-asserted state, which is both what
   msxv90.asm programs and what tcsetattr computes for CS8.
+
+  NOT static, and that is section 1f's doing rather than tidiness: under
+  RTS/CTS the interrupt handler drops RTS, so bit 1 of this byte is written
+  from ckvisr.asm as well as from here, and an assembler cannot see a
+  static.  It is the thirtieth symbol in this file to lose the keyword for
+  that reason and it keeps the v9k_ prefix like the other twenty-nine.
+  Reading it back is still how v9k_ser_mdm() reports RTS, which is what
+  makes that report honest while a hold-off is in force.
 */
-static unsigned char v9k_lastcr5 = 0xea;
+unsigned char v9k_lastcr5 = 0xea;
 
 static struct termios victor_ttcur = {
     0,                                  /* c_iflag: raw                 */
@@ -1740,6 +1762,19 @@ tcsetattr(fd,action,t) int fd; int action; const struct termios * t;
       v9k_ser_progline(cr3,cr4,cr5,(t->c_ospeed == B0) ? 0 : divisor);
 
     /*
+      Flow control.  This is the right hook for it because it is the
+      moment the line is programmed and WR5 is rewritten, so the driver's
+      idea of the mode and the state of the RTS pin are settled together.
+      The termios struct is passed in for a cross-check only -- section
+      1f's v9k_ser_setflow() reads upstream's "flow" variable instead, and
+      the comment there has the measurement that says why.
+
+      It runs before the install below on the first call, which is what the
+      driver wants: the state is settled before the vector is hooked.
+    */
+    v9k_ser_setflow((unsigned int)t->c_cflag,(unsigned int)t->c_iflag);
+
+    /*
       Last, take the chip over, or put back the receive-interrupt enable
       that the IOCTL write or the reset above may just have cleared.  This
       is the one place C-Kermit is guaranteed to reach with the descriptor
@@ -1843,55 +1878,45 @@ tcflow(fd,action) int fd; int action;
 #endif /* CK_ANSIC */
 {
     /*
-      Still a stub, and now deliberately so rather than for want of a
-      driver.  ttoc() calls tcflow(TCOON) only when a single-character
-      write has timed out and SET FLOW is XON/XOFF, to unstick a
-      transmitter it thinks is held off by an XOFF -- and this port has no
-      interrupt-level flow control to hold it off with (section 1e).
+      No longer a stub.  Section 1f is the driver; this is POSIX's four
+      actions mapped onto it.
 
-      Why nothing needs it yet, stated properly -- the old wording here
-      said "a 512-byte ring", which has been wrong since SS16k took the
-      ring to 4,096.  With a window of one the host sends a packet and
-      waits for our ACK, so bytes in flight never exceed ONE PACKET, and
-      the worst case is a foreground that drains nothing for a whole
-      packet: occupancy equals the packet length.  The longest packet
-      this port has ever put on a wire is 3,991 bytes and the ring is
-      4,096.  rxfull has been 0 in every run ever recorded, including a
-      floppy receive whose writes took 1.5 seconds each (SS16s leg S).
+      The caller that would matter is ttoc() (ckutio.c:10849), which reaches
+      for tcflow(TCOON) when a single-character write has timed out and flow
+      is XON/XOFF, to unstick a transmitter it believes is held off by an
+      XOFF whose XON never came.  That is exactly the recovery TCOON does
+      here now -- and IT NEVER RUNS IN THIS BUILD, because upstream wrote
+      the call inside a debug() argument and NODEBUG defines debug() as
+      nothing.  See V9K_FCSPIN in section 1f: the driver has to carry its
+      own backstop, and this entry point is correct but unreached.
 
-      So the margin is 105 bytes, and it is an accident of DRPSIZ = 4000
-      sitting under V9K_RXBUFSIZ rather than anything anyone chose.  That
-      is why this is a precondition for LONGER PACKETS as well as for
-      windowing, and why it outranks both: raise DRPSIZ past about 4,090
-      and the guarantee above is gone at a window of one.
-
-      When it goes in, the mechanism is an open question and RTS/CTS is
-      the front runner, not the fallback.
-
-      This hardware has it: the 7201 has a CTS input (V9K_RR0_CTS), RTS is
-      an output section 1b already drives in WR5, and v9k_ser_mdm() below
-      already reports both.  Dropping RTS from the handler is a register
-      select and a byte -- two port writes, no TX-ready test, no state
-      coupled to the transmitter -- where XON/XOFF needs all three.  It is
-      also binary-transparent, so it does not lean on Kermit's control
-      prefixing the way an in-band character does.
-
-      What is NOT known is whether the bench cable carries and crosses the
-      pair.  HW_TESTING.md SS1.2 says three wires are SUFFICIENT, which is
-      a statement about this port's requirements and not a description of
-      the cable -- the bullet immediately after it says the port drives
-      DTR and RTS.  The exit report now samples CTS during the transfer
-      (v9k_run_mdm, section 0d) so the next run answers it.
-
-      If the pair turns out not to be wired, XON/XOFF is the fallback and
-      is safe because Kermit prefixes control characters in data.  Either
-      way, one constraint holds: this handler runs with interrupts
-      DISABLED throughout, unlike msxv90.asm's, which does its flow
-      control after an sti and polls TX-ready in a bounded loop.  Copying
-      that would block receive and reintroduce SS16t's defect.  RTS needs
-      no poll at all; XON/XOFF would test TX-ready once and retry on the
-      next byte rather than looping.
+      TCIOFF/TCION are the other direction -- transmit a STOP or START
+      character -- and they go through the same assert/release path the
+      water marks use, so the state stays consistent whichever way the
+      hold-off was raised.  Nothing in this build calls them; they are here
+      because a partial tcflow() is worse than none for the next reader.
     */
+    if (fd < 3 || fd != ttyfd)          /* See tcsetattr for the test   */
+      return(0);
+
+    switch (action) {
+      case TCOOFF:                      /* Suspend our transmitter      */
+        v9k_txheld = 1;
+        break;
+      case TCOON:                       /* Resume it -- ttoc()'s call   */
+        v9k_txheld = 0;
+        break;
+      case TCIOFF:                      /* Hold the far end off         */
+        v9k_ser_hold();
+        break;
+      case TCION:                       /* Let it go again              */
+        v9k_ser_unhold();
+        break;
+      default:
+        errno = EINVAL;
+        return(-1);
+    }
+    debug(F101,"tcflow action","",action);
     return(0);
 }
 
@@ -2431,6 +2456,192 @@ static volatile unsigned char v9k_btag[V9K_LOSTBURST];  /* Tag at first */
 static volatile unsigned char v9k_bendtag[V9K_LOSTBURST]; /* ... at last*/
 #endif /* V9K_LEANLOST */
 
+/* ------------------------------------------------------------------ */
+/* 1f. Flow control -- RTS/CTS and XON/XOFF, both directions            */
+/* ------------------------------------------------------------------ */
+
+/*
+  PORTING.md SS1 item 11.  Two mechanisms, two directions, and the four
+  combinations are genuinely different pieces of code, so they are named
+  apart rather than folded into one "flow" variable:
+
+    v9k_fc_in    how WE hold the FAR END off, when our ring fills.
+                 XOFF: transmit one, once.  RTS: drop the WR5 bit.
+    v9k_fc_out   how the FAR END holds US off, before we transmit.
+                 XOFF: obey one seen in the input stream.  CTS: test RR0.
+
+  Both come off the termios struct in tcsetattr(), which is upstream's own
+  plumbing rather than a private flag: ttpkt() sets IXON|IXOFF in c_iflag
+  for FLO_XONX and tthflow() sets CRTSCTS in c_cflag for the hardware
+  settings.  IXON is POSIX's "obey the far end's XON/XOFF on our output"
+  and IXOFF is "send XON/XOFF to control our input", so the two termios
+  bits map onto the two directions exactly.  (tthflow() only does anything
+  because ckvictor.h defines POSIX_CRTSCTS; without it that function
+  preprocesses to an empty body on this platform, which is why CRTSCTS had
+  never once reached this file.  The comment on that #define has the
+  measurement.)
+
+  WHERE THE ASSERT LIVES, AND WHY IT IS THE HANDLER.  The whole point of
+  flow control here is the case where the FOREGROUND is not running -- it is
+  inside a 0.5-second file write, or decoding a packet -- so a hold-off the
+  foreground has to raise cannot be raised when it is needed.  The interrupt
+  handler is the only thing that runs during a stall, and it already
+  computes the ring occupancy the water mark is a test on.  So the ASSERT is
+  in the handler (both of them, ckvisr.asm and v9k_ser_isr) and the RELEASE
+  is in v9k_ser_get(), which is by definition running.
+
+  WHAT IT COSTS THE HANDLER, because SS16t is the reason that question gets
+  asked.  On the clean per-byte path, two things:
+
+    * one word compare of the occupancy against v9k_rxhigh.  This is why
+      the mark is a VARIABLE and not V9K_RXHIGH directly: with flow control
+      off it is set to 0FFFFh, and occupancy is masked to 4,095, so the
+      compare can never be true and no second test is needed to know that
+      flow control is off.  Two instructions, always.
+    * one byte test of v9k_fc_out before the byte is stored, to decide
+      whether an XOFF in the stream is data or a command.  Two instructions,
+      always; the three that follow only when XON/XOFF is selected.
+
+  Call it 25 clocks on a 5 MHz 8088, ~5us of the 260us a byte takes at
+  38400, ~2% of the handler.  That is affordable now in a way it was not
+  before SS16af -- rxpeak is 2,581 of 4,096 with the ring no longer the
+  binding constraint -- but it is a real cost and it is paid by every build,
+  including the ones with flow control off.  It is measurable the same way
+  everything else here is: a 32 KB receive at 9600 under MAME reproduces to
+  1 ms (SS16ag), which is far finer than the effect.
+
+  WHAT IS *NOT* IN THE HANDLER.  3.13's SERINT polls TX-ready in a loop
+  bounded at 65,536 turns before writing its XOFF (msxv90.asm:srint9), after
+  an sti.  Neither half of that is copied.  Polling with interrupts off
+  blocks receive, which is precisely the defect SS16t fixed and SS16v shows
+  there is no headroom to reintroduce; and re-enabling interrupts inside a
+  handler with no stack switch invites a nested entry on a 10-byte frame.
+  So the XOFF is SINGLE-SHOT: test RR0 for a free transmit buffer once, and
+  if it is busy do nothing and try again on the next received byte.  The
+  cost of a missed attempt is 260us at 38400 and the ring has 1,024 bytes of
+  headroom above the mark, so ~4 byte-times of slippage against ~3,900 of
+  margin.  RTS/CTS needs none of this, which is the other half of why it is
+  the cheaper mechanism.
+
+  THE ONE RACE, and it is why v9k_ser_put() disables interrupts.  Both the
+  handler and the polled transmitter write the SAME data register.  The
+  transmitter's sequence is "test RR0 for TxEmpty, then store" and an
+  interrupt taken between the two would let the handler put an XOFF in the
+  buffer that our byte then overwrites -- one character lost from the middle
+  of a packet, which the block check would catch and the protocol would
+  retransmit, so the symptom would be a slow line and not a wrong file.
+  Bracketing the test and the store with cli/sti closes it for two
+  instructions per transmitted byte, against 260us of wire time each.
+
+  RELEASE.  v9k_ser_get() drops the mark to v9k_rxlow before it lets go, so
+  the far end is not restarted into a ring that is still nearly full.  1/4
+  and 3/4 are 3.13's MNTRGL/MNTRGH on this same chip.
+
+  WHAT THIS UNBLOCKS, which is the reason it is worth having at all while
+  nothing needs it.  Two things turn on it, and the second is the surprise:
+
+    * WINDOWING.  DFWSIZ is 1, and that is what holds rxfull at 0 -- the far
+      end sends a packet and waits for our ACK, so bytes in flight never
+      exceed one packet.  Open the window and that stops being true.
+    * LONGER PACKETS.  The worst case at a window of one is a foreground
+      that drains nothing for a whole packet, so occupancy equals the packet
+      length.  The longest this port has put on a wire is 3,991 and the ring
+      is 4,096.  THAT 105-BYTE MARGIN IS AN ACCIDENT -- DRPSIZ = 4000
+      happens to sit under V9K_RXBUFSIZ -- so DRPSIZ could not be raised past
+      about 4,090 either.  Now it can, because there is something to fall
+      back on when the assumption breaks.
+
+  Neither is done here.  Raising DRPSIZ or DFWSIZ still needs a run that
+  reaches FINISH and reports rxlost/rxfull/rxpeak, and now also one that
+  reports the counters below.
+*/
+
+#define V9K_FC_NONE 0                   /* No flow control              */
+#define V9K_FC_SOFT 1                   /* XON/XOFF, in band            */
+#define V9K_FC_HARD 2                   /* RTS out, CTS in              */
+
+#define V9K_XON   0x11                  /* DC1 -- start                 */
+#define V9K_XOFF  0x13                  /* DC3 -- stop                  */
+
+#define V9K_WR5_RTS 0x02                /* The bit the handler drops    */
+
+/*
+  How long any foreground spin on the transmitter waits before giving up.
+  60,000 turns is a few tenths of a second on a 5 MHz 8088 -- hundreds of
+  character times, and still short enough that a dead line cannot hang the
+  program.  Used by v9k_ser_put() below, which is where it was defined
+  until section 1f wanted it too.
+
+  V9K_FCSPIN is the OTHER bound, and the two are separate on purpose: the
+  one above is for a broken chip and this one is for a working peer that is
+  holding us off.  A far end whose disk write takes a second is entitled to
+  keep XOFF asserted for a second, so spending the transmitter's budget on
+  it would turn ordinary flow control into a write error.  600,000 turns is
+  of the order of seconds rather than an exact figure -- it is a backstop
+  against an XOFF whose XON never arrives, not a timeout anyone should be
+  relying on.  When it fires, v9k_fc_stuck counts it and the write comes
+  back short, which is what ttol() already knows how to retry.
+
+  THAT BACKSTOP IS NOT BELT AND BRACES, AND THIS IS WHY.  POSIX's recovery
+  from a lost XON is tcflow(TCOON), and ckutio.c does call it -- ttoc()
+  reaches for it when a single-character write has timed out and flow is
+  XON/XOFF (ckutio.c:10849).  But it is written as
+
+      debug(F100,"ttoc tcflow","",tcflow(ttyfd,TCOON));
+
+  and under NODEBUG ckcdeb.h:5486 defines debug(a,b,c,d) as NOTHING, so the
+  call is discarded with the macro.  Measured, not read: "tcflow" does not
+  occur anywhere in the preprocessed ckutio.c for this build except in its
+  own prototype.  It is the only caller of tcflow() in the Unix module, so
+  in any NODEBUG build -- which is this port's default -- the entire POSIX
+  unstick path is gone.  A functional side effect inside a debug argument
+  is an upstream defect and belongs in PORTING.md SS8's report list, but it
+  is not this port's to fix quietly (hard rule 1), and it means the driver
+  cannot delegate its own recovery to it.  Hence the bound here.
+*/
+#define V9K_TXSPIN 60000U
+#define V9K_FCSPIN 600000L
+
+/*
+  Not static, all nine: ckvisr.asm reads or writes every one of them and an
+  assembler cannot see a static.  Same rule and same v9k_ prefix as the ring.
+*/
+volatile unsigned char v9k_fc_in   = V9K_FC_NONE;   /* We hold them off */
+volatile unsigned char v9k_fc_out  = V9K_FC_NONE;   /* They hold us off */
+volatile unsigned char v9k_holding = 0;   /* Hold-off asserted by us    */
+volatile unsigned char v9k_txheld  = 0;   /* Our transmitter is stopped */
+
+/*
+  The high mark as a WORD the handler compares against, rather than the
+  V9K_RXHIGH constant.  0FFFFh when flow control is off, which is
+  unreachable because occupancy is masked to V9K_RXBUFSIZ-1 -- so "is flow
+  control on" and "have we crossed the mark" are one compare instead of two.
+*/
+volatile unsigned int v9k_rxhigh = 0xffffU;
+volatile unsigned int v9k_rxlow  = V9K_RXLOW;
+
+/*
+  The instrument.  Without it this feature ships untestable: the high mark
+  is above every occupancy this port has ever recorded, so a normal leg
+  cannot distinguish "flow control worked" from "flow control was never
+  reached", and those are the two things a reader most needs to tell apart.
+  held/rel count our assertions; xoff/xon count the far end's.
+*/
+/*
+  Which flow control this run wants, as one of ckcdeb.h's FLO_* codes.
+  ckvictor.h's V9K_FLOW is the compiled default and the priority-0 XI
+  initializer in section 1d overrides it from the DOS command tail.  It is
+  read once, by v9k_ser_install(), into cxflow[CXT_DIRECT]; the comment
+  there says why that is the durable place and "flow" is not.
+*/
+int v9k_flowsel = V9K_FLOW;
+
+volatile unsigned int v9k_fc_held = 0;  /* Times we asserted a hold-off */
+volatile unsigned int v9k_fc_rel  = 0;  /* Times we released one        */
+volatile unsigned int v9k_fc_xoff = 0;  /* XOFFs received and obeyed    */
+volatile unsigned int v9k_fc_xon  = 0;  /* XONs received                */
+volatile unsigned int v9k_fc_stuck= 0;  /* Writes abandoned, held off   */
+
 static int v9k_ser_on   = 0;            /* Have we taken the chip?      */
 static int v9k_ser_atx  = 0;            /* atexit() registered yet?     */
 static unsigned int  v9k_oldvec_seg = 0;
@@ -2604,6 +2815,39 @@ v9k_ser_isr(void)
     }
 
     c  = V9K_DAT;
+
+    /*
+      Section 1f, and it comes BEFORE the store because an XOFF the far end
+      sent to stop our transmitter is not part of Kermit's byte stream and
+      must not reach the ring.  Safe only because both ends agreed to
+      XON/XOFF: PX_CAU keeps DC1 and DC3 prefixed in packet data whatever
+      else it unprefixes (ckcmai.c:2699), and setprefix() re-prefixes them
+      unconditionally when flow is FLO_XONX (ckcmai.c:2705), so a raw one on
+      the wire is always a command.  With v9k_fc_out at V9K_FC_NONE -- the
+      shipping default -- this is one byte compare and every value goes to
+      the ring exactly as it did before section 1f existed.
+
+      Deliberately NOT counted in rxbytes.  That counter exists so
+      mapoffset.py can turn an offset into "which packet" against the host's
+      packet log, and a flow-control character is not in that log; counting
+      it would shift every later offset by one.  The BELL above IS counted,
+      and the difference is the point -- it stands in for a wire byte the
+      host really sent as packet data.  v9k_fc_xoff/xon report these
+      instead.
+    */
+    if (v9k_fc_out == V9K_FC_SOFT) {
+        if (c == V9K_XOFF) {
+            v9k_txheld = 1;
+            v9k_fc_xoff++;
+            return;
+        }
+        if (c == V9K_XON) {
+            v9k_txheld = 0;
+            v9k_fc_xon++;
+            return;
+        }
+    }
+
     nh = (v9k_rxhead + 1) & V9K_RXMASK;
     if (nh != v9k_rxtail) {
         v9k_rxbuf[v9k_rxhead] = c;
@@ -2621,8 +2865,34 @@ v9k_ser_isr(void)
               v9k_stallat = v9k_rxbytes;
             v9k_rxstall++;
         }
-    } else
-      v9k_rxfull++;                     /* Ring full: this byte is gone */
+    } else {
+        v9k_rxfull++;                   /* Ring full: this byte is gone */
+        nh = V9K_RXMASK;                /* ... and we are past any mark */
+    }
+
+    /*
+      Section 1f: the high water mark.  One unsigned compare, and it is the
+      whole test -- v9k_rxhigh is 0FFFFh when flow control is off and
+      occupancy is masked to V9K_RXMASK, so there is nothing else to ask.
+
+      The XOFF is single-shot by construction: if the transmit buffer is
+      busy this falls straight through with v9k_holding still clear and the
+      next received byte tries again.  No loop, no sti, no state coupled to
+      the transmitter.  See the head of section 1f for why 3.13's bounded
+      poll is not copied.
+    */
+    if (nh >= v9k_rxhigh && !v9k_holding) {
+        if (v9k_fc_in == V9K_FC_HARD) {
+            v9k_lastcr5 &= (unsigned char)~V9K_WR5_RTS;
+            V9K_CTL = 5;   V9K_CTL = v9k_lastcr5;
+            v9k_holding = 1;
+            v9k_fc_held++;
+        } else if (V9K_CTL & V9K_RR0_TXEMPTY) {
+            V9K_DAT = (unsigned char)V9K_XOFF;
+            v9k_holding = 1;
+            v9k_fc_held++;
+        }
+    }
 }
 
 /*
@@ -2918,6 +3188,32 @@ v9k_ser_release() {
     printf("v9k: lean (no burst table)\n");
 #endif /* V9K_LEANLOST */
 
+    /*
+      Section 1f, and this line is the ONLY way to tell "flow control
+      worked" from "flow control was never reached".  The high mark is
+      3,072 of 4,096 and the largest occupancy this port has ever recorded
+      is 2,581, so on a healthy leg every counter here reads 0 and that IS
+      the result -- it says the insurance did not have to pay out, not that
+      it is absent.  held/rel are ours; xoff/xon are the far end's.
+
+      A leg that means to exercise the mechanism builds with
+      -dV9K_RXHIGH=256 -dV9K_RXLOW=64 and expects held and rel to move
+      together and to end equal.  held > rel at exit means the far end was
+      left held off, which on RTS/CTS is harmless (the release path drops
+      out with the line closing anyway) and on XON/XOFF leaves a real
+      terminal stopped.
+
+      stuck is the one that should never move: it counts writes abandoned
+      because the far end held us off past V9K_FCSPIN, which is seconds.  A
+      non-zero stuck with xoff > xon is a lost XON and the reason the
+      backstop exists; a non-zero stuck under RTS/CTS is CTS never coming
+      back, which usually means the cable, not the peer.
+    */
+    printf("v9k: flow in=%u out=%u hi=%u lo=%u held=%u rel=%u xoff=%u xon=%u stuck=%u\n",
+           (unsigned)v9k_fc_in, (unsigned)v9k_fc_out,
+           v9k_rxhigh, v9k_rxlow,
+           v9k_fc_held, v9k_fc_rel, v9k_fc_xoff, v9k_fc_xon, v9k_fc_stuck);
+
     printf("v9k: wfile n=%u max=%ld at #%u of %u tot=%ld cs\n",
            v9k_wf_n, v9k_wf_max, v9k_wf_maxn, v9k_wf_maxb, v9k_wf_tot);
     printf("v9k: wcon n=%u max=%ld tot=%ld cs\n",
@@ -2994,6 +3290,40 @@ v9k_ser_install(fd) int fd;
     v9k_getvect(V9K_IRQ1_VEC,&v9k_oldvec_seg,&v9k_oldvec_off);
     v9k_setvect(V9K_IRQ1_VEC,V9K_ISR_SEG,V9K_ISR_OFF);
 
+    /*
+      Section 1f, and the placement is the whole of the reasoning -- it is
+      SS16ai's lesson applied to a second variable.
+
+      What this port wants to say is "the default flow control for a direct
+      serial line is X", and the durable place to say it is NOT the variable
+      upstream reads.  main() runs initflow() at ckcmai.c:3269, which sets
+      cxflow[] from its own table and then flow = cxflow[cxtype]; anything
+      an XI initializer put in either would be gone before ttopen() was
+      reached.  What runs AFTER initflow and BEFORE the value is used is
+      this install, because it is called from tcsetattr() and tcsetattr() is
+      called from ttopen() -- and every ttopen() in this program is followed
+      within a few lines by cxtype = CXT_DIRECT and setflow(), which is the
+      call that copies cxflow[cxtype] into flow (ckuusy.c:3941-3943 for the
+      -l option, ckuusr.c:11245 and neighbours for SET LINE).
+
+      So writing cxflow[CXT_DIRECT] here lands one statement before the copy
+      that reads it.  Writing "flow" instead would be overwritten by that
+      same copy -- which is exactly the shape of the prefixing defect SS16ai
+      found, where an initializer set the variable and initproto() copied
+      over it 118 lines later.
+
+      It also gets the parser build's precedence right for free.  SET FLOW
+      sets autoflow = 0 (ckuus3.c:11939) and setflow() returns immediately
+      when autoflow is clear, so a typed setting is not disturbed by this
+      one.  Which flow control is v9k_flowsel, from ckvictor.h's V9K_FLOW
+      and the command line; see the initializer in section 1d.
+    */
+    {
+        extern int cxflow[];            /* ckcmai.c:1130                */
+
+        cxflow[CXT_DIRECT] = v9k_flowsel;
+    }
+
     V9K_CLI();
     v9k_rxhead = v9k_rxtail = 0;
     v9k_rxlost = v9k_rxfull = 0;
@@ -3066,6 +3396,155 @@ v9k_ser_count() {
 }
 
 /*
+  Section 1f's foreground half.  The same two sequences the handler runs,
+  with interrupts blocked -- the handler leaves the 7201's register pointer
+  at 0, but a WR5 write is "point at 5, then store", and an interrupt taken
+  between those two would have the handler read RR0 out of a port that is
+  pointing at WR5.  That is the one shape section 1e's comment on V9K_CLI()
+  says needs it.
+
+  v9k_ser_hold() is also tcflow(TCIOFF); v9k_ser_unhold() is tcflow(TCION)
+  and the release below.  Unlike the handler's copy, the XOFF/XON here does
+  spin for the transmitter -- bounded, and the foreground is by definition
+  running, so a few hundred microseconds is affordable where in the handler
+  it is not.
+*/
+static VOID
+v9k_ser_hold() {
+    unsigned int spin;
+
+    if (!v9k_ser_on || v9k_holding || v9k_fc_in == V9K_FC_NONE)
+      return;
+    if (v9k_fc_in == V9K_FC_HARD) {
+        V9K_CLI();
+        v9k_lastcr5 &= (unsigned char)~V9K_WR5_RTS;
+        V9K_CTL = 5;   V9K_CTL = v9k_lastcr5;
+        v9k_holding = 1;
+        V9K_STI();
+    } else {
+        for (spin = V9K_TXSPIN; spin; spin--) {
+            V9K_CLI();
+            if (V9K_CTL & V9K_RR0_TXEMPTY) {
+                V9K_DAT = (unsigned char)V9K_XOFF;
+                v9k_holding = 1;
+                V9K_STI();
+                break;
+            }
+            V9K_STI();
+        }
+    }
+    if (v9k_holding)
+      v9k_fc_held++;
+}
+
+static VOID
+v9k_ser_unhold() {
+    if (!v9k_ser_on || !v9k_holding)
+      return;
+    if (v9k_fc_in == V9K_FC_HARD) {
+        V9K_CLI();
+        v9k_lastcr5 |= (unsigned char)V9K_WR5_RTS;
+        V9K_CTL = 5;   V9K_CTL = v9k_lastcr5;
+        v9k_holding = 0;
+        V9K_STI();
+    } else {
+        unsigned int spin;
+
+        for (spin = V9K_TXSPIN; spin; spin--) {
+            V9K_CLI();
+            if (V9K_CTL & V9K_RR0_TXEMPTY) {
+                V9K_DAT = (unsigned char)V9K_XON;
+                v9k_holding = 0;
+                V9K_STI();
+                break;
+            }
+            V9K_STI();
+        }
+    }
+    if (!v9k_holding)
+      v9k_fc_rel++;
+}
+
+/*
+  And the selection.  WHAT IT READS IS UPSTREAM'S "flow" VARIABLE, and the
+  reason it is not the termios bits is measured rather than argued -- the
+  first version of this function read the bits, and leg FB of PORTING.md
+  SS16aj came back with the mode still off.
+
+  ckutio.c's ttpkt() DOES set them.  Its SVORPOSIX arm puts IXON|IXOFF in
+  ttraw.c_iflag for FLO_XONX (ckutio.c:6617) and calls tthflow(), which
+  puts CRTSCTS in ttraw.c_cflag for the hardware settings.  Then, 141 lines
+  later and 4 lines before the tcsetattr() that applies the whole struct,
+
+      #define TESTING234
+      #ifdef TESTING234
+          if (1) {
+              ...
+              ttraw.c_iflag &= ~(INPCK|IGNPAR|IXON|IXOFF);      ckutio.c:6758
+
+  clears them again, unconditionally, on every BSD44ORPOSIX build.  It is a
+  debugging block that was left switched on -- "if (1)" inside an #ifdef of
+  its own #define -- and it means SET FLOW XON/XOFF cannot reach a driver
+  through termios on any modern Unix build of C-Kermit 11, not just this
+  one.  It does NOT touch c_cflag, so the CRTSCTS half survives; the port
+  reads that back as a cross-check below and logs both.
+
+  So there are two candidate sources, one of which is right for one
+  mechanism and wrong for the other, and taking the one that is right for
+  both is not a workaround -- "flow" is upstream's own answer to "what flow
+  control is in effect", it is exactly what ttpkt() was passed, and reading
+  it at the moment ttpkt() programs the line asks the question at the right
+  time.  NEXT_SESSION.md's design note said to implement against the
+  termios bits and not a private flag; this is not a private flag, and the
+  note was written on the premise that the bits arrive.
+
+  Mapping.  FLO_XONX is the only soft setting this driver implements.
+  FLO_RTSC is the only hard one: FLO_DTRC and FLO_DTRT drive DTR, which on
+  this machine is a WR5 bit with no water-mark meaning, so they are treated
+  as none rather than half-implemented.  FLO_KEEP and FLO_AUTO never reach
+  a driver -- setflow() resolves AUTO and ttpkt() resolves KEEP.
+
+  Every call re-asserts RTS in WR5 (tcsetattr computes cr5 with the bit set
+  and writes it), so any hold-off in force has just been cancelled by the
+  hardware whatever this file believes.  Clearing v9k_holding is therefore
+  not a reset for tidiness, it is keeping the flag equal to the pin.
+*/
+static VOID
+#ifdef CK_ANSIC
+v9k_ser_setflow(unsigned int cflag, unsigned int iflag)
+#else
+v9k_ser_setflow(cflag,iflag) unsigned int cflag; unsigned int iflag;
+#endif /* CK_ANSIC */
+{
+    extern int flow;                    /* ckcmai.c:1152                */
+
+    if (flow == FLO_RTSC) {
+        v9k_fc_in  = V9K_FC_HARD;
+        v9k_fc_out = V9K_FC_HARD;
+    } else if (flow == FLO_XONX) {
+        v9k_fc_in  = V9K_FC_SOFT;
+        v9k_fc_out = V9K_FC_SOFT;
+    } else {
+        v9k_fc_in  = V9K_FC_NONE;
+        v9k_fc_out = V9K_FC_NONE;
+    }
+    v9k_rxhigh  = (v9k_fc_in == V9K_FC_NONE)
+                    ? 0xffffU : (unsigned int)V9K_RXHIGH;
+    v9k_rxlow   = (unsigned int)V9K_RXLOW;
+    v9k_holding = 0;                    /* WR5 has RTS back up          */
+    v9k_txheld  = 0;                    /* Nothing can be holding us    */
+    debug(F111,"v9k_ser_setflow flow/in",
+          ckitoa(flow),(int)v9k_fc_in);
+    /* The cross-check.  cflag should carry CRTSCTS whenever flow is
+       FLO_RTSC; iflag should carry IXON|IXOFF whenever it is FLO_XONX and
+       will not, until ckutio.c:6758 changes.  Logged so that the day it
+       does change is visible rather than inferred. */
+    debug(F111,"v9k_ser_setflow crtscts/ixon",
+          ckitoa((cflag & CRTSCTS) ? 1 : 0),
+          (iflag & (IXON|IXOFF)) ? 1 : 0);
+}
+
+/*
   Take up to n bytes out of the ring.  Returns 0 when it is empty, which is
   what makes section 0d's loop spin rather than report end of file.
 
@@ -3098,6 +3577,21 @@ v9k_ser_get(buf,n) char * buf; int n;
         t = (t + 1) & V9K_RXMASK;
         v9k_rxtail = t;                 /* Ours alone, so publish it now */
     }
+
+    /*
+      Section 1f: the release, and this is the right place for it because
+      it is the only code in the program that makes the ring emptier.  The
+      handler asserts the hold-off at the 3/4 mark and this lets go at 1/4,
+      so the far end is never restarted into a ring that is still nearly
+      full -- 3.13's MNTRGH/MNTRGL on this same chip.
+
+      Cost when nothing is held off is one byte test, and it is outside the
+      copy loop rather than in it.
+    */
+    if (v9k_holding
+        && ((v9k_rxhead - t) & V9K_RXMASK) <= v9k_rxlow)
+      v9k_ser_unhold();
+
     return(i);
 }
 
@@ -3152,15 +3646,29 @@ v9k_ser_drain() {
   enabled for this direction (WR1 bit 1 stays clear) and none is wanted --
   transmit was never the half that was broken.
 
-  The spin is bounded.  3.13 counts a full 16-bit register and gives up;
-  60000 turns of this loop is a few tenths of a second on a 5 MHz 8088,
-  which is hundreds of character times at 9600 bps and still short enough
-  that a dead line does not hang the program.  A partial write is reported
-  as a partial write: ttol() retries the remainder, which is exactly what
-  it does with a short write from any other Unix.
-*/
-#define V9K_TXSPIN 60000U
+  The spin is bounded, V9K_TXSPIN above.  A partial write is reported as a
+  partial write: ttol() retries the remainder, which is exactly what it does
+  with a short write from any other Unix -- and that is also what makes the
+  flow-control wait below safe to bound rather than block.
 
+  SECTION 1f ADDS TWO THINGS TO THE LOOP, and both are on the per-byte path,
+  so what they cost is worth stating: about five instructions against 260us
+  of wire time for the byte they precede, which is nothing.
+
+    * The far end's hold-off.  v9k_txheld is set by the handler when it sees
+      an XOFF; CTS is read from RR0 when the mechanism is hardware.  Neither
+      is tested when flow control is off -- v9k_txheld stays 0 and v9k_fc_out
+      stays V9K_FC_NONE -- so the default build spins on exactly the one bit
+      it always did.
+    * cli/sti around the TxEmpty test and the store.  The handler writes the
+      SAME data register to send its XOFF, and an interrupt taken between
+      our test and our store would let it put an XOFF into a buffer our byte
+      then overwrites: one character lost from the middle of a packet.  The
+      block check would catch it and the packet would be retransmitted, so
+      the symptom is a slow line rather than a wrong file -- which is
+      exactly the kind of defect that survives a byte-exact transfer, and
+      the reason to close it rather than measure it.
+*/
 static int
 #ifdef CK_ANSIC
 v9k_ser_put(const char * buf, int n)
@@ -3170,17 +3678,38 @@ v9k_ser_put(buf,n) const char * buf; int n;
 {
     int i;
     unsigned int spin;
+    unsigned long hold;
+    int sent;
 
     for (i = 0; i < n; i++) {
-        for (spin = V9K_TXSPIN; spin; spin--)
-          if (V9K_CTL & V9K_RR0_TXEMPTY)
-            break;
-        if (!spin) {
+        sent = 0;
+        spin = V9K_TXSPIN;
+        hold = V9K_FCSPIN;
+        while (spin) {
+            if (v9k_txheld              /* Far end said XOFF, or TCOOFF */
+                || (v9k_fc_out == V9K_FC_HARD
+                    && !(V9K_CTL & V9K_RR0_CTS))) {
+                if (!--hold) {          /* Held off far too long        */
+                    v9k_fc_stuck++;
+                    break;
+                }
+                continue;               /* NOT out of the chip's budget */
+            }
+            spin--;
+            V9K_CLI();                  /* See the comment above        */
+            if (V9K_CTL & V9K_RR0_TXEMPTY) {
+                V9K_DAT = (unsigned char)buf[i];
+                sent = 1;
+            }
+            V9K_STI();
+            if (sent)
+              break;
+        }
+        if (!sent) {
             debug(F101,"v9k_ser_put transmitter stuck","",i);
             errno = EIO;
             return(i ? i : -1);
         }
-        V9K_DAT = (unsigned char)buf[i];
     }
     return(n);
 }
@@ -3611,6 +4140,80 @@ static struct v9k_rt_init __based(__segname("XI")) v9k_prefixing_rec =
     { 1, 32, v9k_set_prefixing };
 
 /*
+  Flow control's command-line switches.  Section 1f is the driver; this is
+  only how the operator chooses between its four states without a prompt.
+
+      CKERMITW --rtscts     RTS out, CTS in
+      CKERMITW --xonxoff    XON/XOFF, both directions
+      CKERMITW --noflow     none, and this is the shipping default
+
+  Same mechanism as --safe-server and for the same reason: NOICP removes SET
+  FLOW, and cmdlin() would XFATAL on an option it does not know, so the
+  switch has to be read and blanked out of Watcom's copy of the DOS command
+  tail BEFORE __Init_Argv builds argv at priority 1.  The comment on
+  v9k_set_srvcaps() above has the mechanism in full, including why nothing
+  in here may call libc.
+
+  --noflow exists even though it is the default, and it is not redundant:
+  it is the control leg.  A binary built with -dV9K_FLOW=FLO_RTSC can be
+  made to run with flow control off without rebuilding, which is what makes
+  an A/B one binary and one switch rather than two binaries -- and SS16w
+  established that this machine is sensitive enough to code size that two
+  binaries is a confound.
+
+  It is also the answer to SS16i's rule about running the unknown-option
+  control: an option this initializer does NOT recognise stays in the
+  command tail and reaches cmdlin(), which fatals on it.  So "CKERMITW
+  --rtscts" starting normally and "CKERMITW --rtsctz" fatalling is the pair
+  that distinguishes "recognised" from "silently ignored".
+
+  WHAT IS DELIBERATELY NOT DONE HERE.  This does not write flow, cxflow[] or
+  anything else upstream owns -- initflow() would overwrite all of it at
+  ckcmai.c:3269, which is the trap SS16ai wrote up.  It records the choice
+  in v9k_flowsel and v9k_ser_install() applies it at the one moment that
+  survives.
+*/
+#define V9K_SW_RTSCTS  "--rtscts"
+#define V9K_SW_XONXOFF "--xonxoff"
+#define V9K_SW_NOFLOW  "--noflow"
+
+static void __far
+v9k_set_flow(void)
+{
+    char __far * p;
+    char __far * tok;
+    int sel = -1;
+
+    p = _LpCmdLine;
+    if (p) {
+        while (*p) {
+            while (*p == ' ' || *p == '\t')
+              p++;
+            if (!*p)
+              break;
+            tok = p;
+            while (*p && *p != ' ' && *p != '\t')
+              p++;
+            if (v9k_tokeq(tok,p,V9K_SW_RTSCTS))
+              sel = FLO_RTSC;
+            else if (v9k_tokeq(tok,p,V9K_SW_XONXOFF))
+              sel = FLO_XONX;
+            else if (v9k_tokeq(tok,p,V9K_SW_NOFLOW))
+              sel = FLO_NONE;
+            else
+              continue;                 /* Not ours: leave it for argv  */
+            while (tok < p)             /* Blank it, as --safe-server   */
+              *tok++ = ' ';             /* does and for the same reason */
+        }
+    }
+    if (sel > -1)                       /* Last one on the line wins    */
+      v9k_flowsel = sel;
+}
+
+static struct v9k_rt_init __based(__segname("XI")) v9k_flow_rec =
+    { 1, 0, v9k_set_flow };
+
+/*
   access().  Watcom HAS one; it is wrong about the directory you are in
   when that directory is the root, which is where CKERMITW normally runs.
 
@@ -3748,6 +4351,13 @@ uname(n) struct utsname * n;
     if (!v9k_srvcaps_told) {
         v9k_srvcaps_told = 1;
         debug(F101,"v9k srvcaps safe","",v9k_srvcaps_safe);
+        /* Section 1f's switch, by the same route and for the same reason.
+           This is what --rtscts / --xonxoff / --noflow ASKED FOR; it is not
+           what the line ended up doing, because upstream's setflow() has a
+           say and tcsetattr() is where the answer lands.  The "v9k: flow"
+           line at exit reports that.  FLO_* from ckcdeb.h: 0 none, 1
+           XON/XOFF, 2 RTS/CTS. */
+        debug(F101,"v9k flowsel","",v9k_flowsel);
     }
 
     ckstrncpy(n->sysname, "MS-DOS",  _UTSNAME_LENGTH);

@@ -57,6 +57,45 @@
 #endif
 
 /*
+  POSIX_CRTSCTS -- and this one is load-bearing rather than cosmetic.
+
+  ckcdeb.h defines CK_RTSCTS for every UNIX build (line 246), so C-Kermit
+  believes this platform can do RTS/CTS and offers it.  It does NOT define
+  POSIX_CRTSCTS, because that symbol is handed out per-platform (__linux__,
+  the BSDs, IRIX52, BeOS) and the Victor is none of them.  The consequence
+  is not a missing feature, it is a SILENTLY EMPTY FUNCTION: with none of
+  those arms taken, every branch of ckutio.c's tthflow() preprocesses away
+  and the whole body reduces to "int x = 0; return(x);".  Measured, not
+  read -- wcc -pl on ckutio.c with this build's flags, where tthflow()'s
+  body is thirty blank #line directives.
+
+  So ttpkt()'s FLO_RTSC arm called tthflow(flow,1,&ttraw), which did
+  nothing, and CRTSCTS never reached our tcsetattr().  NEXT_SESSION.md's
+  "the plumbing is already there -- CRTSCTS at ckutio.c:6252" was reading a
+  line inside #ifdef OXOS.  Defining this takes the POSIX arm instead
+  (ckutio.c:5920), which is written entirely in tcgetattr()/tcsetattr() --
+  both ours -- so the bit now arrives in c_cflag and the cached termios
+  this port hands back to tcgetattr() describes the line honestly.
+
+  It is confined: three uses in ckutio.c (the tthflow arm, two FLO_KEEP
+  lines in ttvt(), and one in ttpkt()) plus a string in SHOW FEATURES.  No
+  upstream edit.
+
+  IT IS NOT WHAT THE DRIVER DECIDES ON, and that is worth knowing here
+  because the obvious reading of this #define is that it would be.  The
+  matching IXON|IXOFF for XON/XOFF never survives ttpkt(): ckutio.c:6758
+  clears them again unconditionally four lines before the tcsetattr() that
+  applies the struct.  So one of the two mechanisms arrives through termios
+  and the other cannot, and ckvictor.c SS1f reads upstream's "flow"
+  variable for both rather than being right by accident for one.  This
+  #define stays because it makes the platform's own description true, not
+  because anything depends on it.
+*/
+#ifndef POSIX_CRTSCTS
+#define POSIX_CRTSCTS
+#endif /* POSIX_CRTSCTS */
+
+/*
   What the build says it was built FOR.  ckuver.h assigns HERALD to ckxsys
   (ckutio.c:292) and ckzsys (ckufio.c:308), picks it from a long chain of
   platform #ifdefs, and ends with
@@ -695,6 +734,101 @@ extern long v9k_timezone;
 #ifndef V9K_PREFIXING
 #define V9K_PREFIXING PX_CAU            /* Control-char prefixing   */
 #endif /* V9K_PREFIXING */
+
+/*
+  V9K_FLOW -- interrupt-level flow control, and V9K_RXHIGH/V9K_RXLOW are its
+  water marks.  PORTING.md SS1 item 11; the driver is ckvictor.c SS1f.
+
+  BOTH MECHANISMS ARE BUILT.  RTS/CTS is two port writes with no TX-ready
+  test and is binary-transparent; XON/XOFF is an interoperability
+  requirement rather than a fallback, because the far end's wiring is not
+  something this port can measure.  SS16v read cts = 1 on the bench cable in
+  both legs with the host holding RTS asserted under "set flow none", so the
+  host's RTS reaches our CTS here -- which settles the INPUT half of RTS/CTS
+  and says nothing about the output half.
+
+  THE DEFAULT IS FLO_NONE, AND THAT IS A MEASUREMENT ARGUMENT, NOT A
+  PREFERENCE.  Two reasons, in order of weight:
+
+    1. Nothing needs it.  With DFWSIZ = 1 the far end sends a packet and
+       waits for our ACK, so bytes in flight never exceed one packet; the
+       longest this port has put on a wire is 3,991 and the ring is 4,096.
+       rxfull has been 0 in every clean run ever recorded.  Flow control
+       here is insurance against a longer packet or a second window slot,
+       and both of those are still ahead of it.
+    2. THE PORT'S HALF OF RTS/CTS WORKS AND THE HOST'S DOES NOT, which is
+       measured on a logic analyzer rather than argued.  PORTING.md SS16an.
+
+       The Victor's RTS pin moves: negative before any driver, positive
+       when the OEM driver loads, a blip on every chip reprogram, 175us on
+       each HANGUP, and -- the one that matters -- EIGHT PAUSES OF 785ms TO
+       ~1s DURING SS16al LEG GB, which is SS1f dropping RTS at the 1,024
+       water mark and raising it again at 896 on a clean byte-exact 32 KB
+       transfer.  Data kept arriving for hundreds of milliseconds after
+       each drop, because the far end was never told to watch that pin:
+       `kermit -C "show features"` on the bench Mac does not list
+       POSIX_CRTSCTS, so its tthflow() is the same empty function this
+       build had before this file defined the symbol.
+
+       So this comment has now said, in order, "unmeasured", "measured not
+       to work", "never tested", and finally what the scope says.  Three of
+       those four were written from counters inside the two programs, and
+       BOTH PROGRAMS CAN BE RIGHT ABOUT WHAT THEY DID WHILE NOTHING HAPPENS
+       BETWEEN THEM.  When the question is about a wire, measure the wire.
+
+       WHAT IS LEFT IS THE HOST, NOT THIS PORT.  The risk that chose
+       FLO_NONE -- gating the transmitter on a CTS nobody had measured,
+       which on a one-way cable would turn a working port into a silent one
+       -- is retired: the pin moves, the pair is all but certainly wired
+       (SS16an has the 25ms tell, and one two-probe capture would close it),
+       and SS16ak leg DS already sent 32,768 bytes at 1,475 cps with the CTS
+       gate on the per-byte path.  What is missing is the BENEFIT: no far
+       end has ever been shown to stop, because the only far end tested
+       cannot be made to.
+
+       So the default waits on the host.  Either `stty -f <port> crtscts
+       -hupcl` immediately before kermit -- untested, free, and plausible
+       because TESTING234 clears c_iflag only and an empty tthflow() cannot
+       clear CRTSCTS either -- or a host C-Kermit built from this tree with
+       POSIX_CRTSCTS.  Either one plus a re-run of SS16al legs GA/GB and
+       rxpeak caps or does not for a reason that is about the Victor.
+
+  So the feature ships built, selectable and instrumented, and the shipping
+  binary behaves exactly as the byte-exact legs of SS16ah/SS16ai did:
+
+      CKERMITW --rtscts    ...     RTS/CTS both directions
+      CKERMITW --xonxoff   ...     XON/XOFF both directions
+      CKERMITW --noflow    ...     explicit none (the default)
+
+      make -f victorow.mak XFLAGS="-dV9K_FLOW=FLO_RTSC"
+
+  parsed off the DOS command tail before argv exists, the same priority-0 XI
+  mechanism --safe-server uses (PORTING.md SS16i), because NOICP removes SET
+  FLOW.  A KEEP_ICP build's SET FLOW overrides either: it clears autoflow,
+  and this port sets cxflow[CXT_DIRECT] rather than flow, so upstream's own
+  precedence does the right thing with no special case.  The FLO_* names are
+  ckcdeb.h's, which is why this expands in ckvictor.c and not here.
+
+  WATER MARKS.  3/4 and 1/4 of the ring, which is 3.13's MNTRGH/MNTRGL on
+  this same chip.  At 3,072 the high mark is above every occupancy this port
+  has ever recorded (rxpeak 2,581 at 38400, SS16af), which is the point:
+  turning flow control on must not change a transfer that was already
+  working.  It also means the assert path DOES NOT RUN in a normal leg, so
+  the counters on the "v9k: flow=" line are the only thing that can say
+  whether it ever fired -- and a leg that wants to exercise it should build
+  with -dV9K_RXHIGH=256 -dV9K_RXLOW=64 rather than wait for a defect.
+*/
+#ifndef V9K_FLOW
+#define V9K_FLOW FLO_NONE               /* Default flow control     */
+#endif /* V9K_FLOW */
+
+#ifndef V9K_RXHIGH
+#define V9K_RXHIGH (V9K_RXBUFSIZ - (V9K_RXBUFSIZ / 4))   /* 3/4 full   */
+#endif /* V9K_RXHIGH */
+
+#ifndef V9K_RXLOW
+#define V9K_RXLOW  (V9K_RXBUFSIZ / 4)                    /* 1/4 full   */
+#endif /* V9K_RXLOW */
 
 /*
   MAXWS is deliberately NOT set here.  It used to be, at 8, and it never

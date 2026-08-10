@@ -91,6 +91,55 @@ difference at all** for §16w to bite on.
 
 ---
 
+**Flow control is built, run on the machine, and shipped OFF — PORTING.md
+§16aj (build), §16ak (seven bench legs), §16al (four more).** RTS/CTS and
+XON/XOFF, both directions, both interrupt handlers, `tcflow()` implemented,
+`--rtscts` / `--xonxoff` / `--noflow`, **no upstream edit**. Eleven bench
+legs, every transferred file byte-exact, `rxfull = 0` throughout.
+
+**Two results decide it, and they point opposite ways:**
+
+- **It is free.** §1f costs **≤ 0.11 s on a 32 KB receive** — leg GP, the
+  pre-§1f binary, has a non-line cost of 21.43 s against the shipping
+  build's 21.54 (§16al) — and turning RTS/CTS on at the shipping marks was
+  **6 ms** from its control (§16ak leg DE). The CTS gate on the
+  transmitter's per-byte path ran at **1,475 cps**, the port's fastest
+  figure (§16ak leg DS).
+- **The output half has never been tested.** §16al leg GB dropped RTS
+  **eleven** times on a clean byte-exact leg and `rxpeak` came back **2,974
+  against its control's 2,978** — and **§16am retracts it**: the bench
+  Mac's C-Kermit has no `POSIX_CRTSCTS`, so its `tthflow()` is empty and
+  `set flow rts/cts` never configured the port. The far end was never able
+  to pause. `HW_TEST_16am.md` is the leg that answers it without Kermit.
+
+So `V9K_FLOW` stays `FLO_NONE` for a *measured* reason. §1 item 11 has the
+three remaining candidates for the RTS fault and the one cheap leg left
+(`--xonxoff` at 1024/896 against a `--noflow` control). Shipping build:
+DGROUP **48,336 (73%)**, image **206,758**, **needs 220,950 (215K)**,
+smallest Victor **384K, unchanged**, md5 `c5652a5b…`.
+
+**§16ak's "+11% for §1f" is WITHDRAWN.** The same `CKPRE` binary had a
+non-line cost of 18.29 s in §16ah and 21.43 s in §16al, wire held constant
+— **the bench's run-to-run spread is the host, not the Victor**, which is
+also the standing answer to §1 item 5b.
+
+**Two upstream defects came out of it and neither is fixed** (§1 item 8):
+`ttpkt()`'s `TESTING234` block clears `IXON|IXOFF` four lines before the
+`tcsetattr()` that applies them, and the only call to `tcflow(TCOON)` in
+`ckutio.c` sits inside a `debug()` argument that `NODEBUG` deletes. **Do
+not quote `ckutio.c:6252`/`:6617` as "the plumbing is already there"** —
+that claim, which lived in this file, was wrong in both halves.
+
+**Three harness failures cost three sittings in this sequence and each is
+now a rule rather than an anecdote:** a re-run into a target name that
+already existed (`SET FILE COLLISION BACKUP` cannot work on FAT — put
+`IF EXIST <target> DEL <target>` in every receive `.BAT`); a run sheet that
+named a `-d` flag without staging the binary that carried it; and **a full
+image**, which makes a working port look thoroughly broken — eleven packets,
+then a hang, on a binary that had transferred cleanly twice before.
+**`vtg_image_util info <img>` goes in every run sheet's §0**, and partition
+1 (`D:`) is 9.7 MB, 100% free, and has never been used.
+
 What is open is *verification* rather than repair, and the ordering in §1
 reflects that.
 
@@ -124,6 +173,23 @@ bytes apart, came back **1.277 s apart**, where §16ag's MAME arms held to
 on two legs per arm**, and expect roughly a third of legs to go off-shape
 and be unusable for an A/B. That is what retired §16af's "one clock
 quantum" (see §16ah), and it governs everything below.
+
+**§16ak is a second data point and it points the other way: 398 ms.** Three
+protocol-identical clean receive legs came in at 31.137, 31.143 and 31.535 s
+on the same 37,557 wire bytes, and the closest two are **6 ms** apart; the
+two send legs are **3 ms** apart. So ~1.3 s is a **bound and not a floor**,
+whatever causes it is intermittent, and item 5b is still open with one more
+sitting to compare. **Do not relax the rule on one sitting** — but do check
+the actual spread of your own null pair before deciding an effect is
+invisible.
+
+**And §16aj shows MAME is not automatically the quiet instrument either.**
+Its two groups of legs, same fixture and same rate, drifted **12–15 s
+apart** because the host machine got busier — the host's own timeout count
+went 3 → 5 and C-Kermit's slow start then chose a different packet shape,
+24 packets and a longest of 3,991 early against 38 and 3,387 late. §16ag's
+1 ms was a property of that sitting, not of the emulator. **Run the control
+adjacent to the treatment and compare nothing across a gap.**
 
 ---
 
@@ -185,7 +251,14 @@ is 9.77 s of AG's 28.00, so the foreground is ~485 µs per wire byte and the
 superseded.
 
 Also standing from §16v: **`cts = 1` on the real cable**, so RTS/CTS is
-available and flow control does not have to be XON/XOFF.
+available *inbound* and flow control does not have to be XON/XOFF. §16aj
+built both and left the default off; the outbound half — our RTS at the
+host's CTS — is still unmeasured and is what item 11 now turns on.
+
+**Flow control exists and is switched off** (§16aj, `ckvictor.c` §1f) —
+RTS/CTS and XON/XOFF, both directions, in both handlers, `tcflow()`
+implemented, four instructions per byte in the ISR. §1 item 11 is the one
+leg that decides whether the default changes.
 
 **Seventeen** upstream edits, fourteen of them guarded no-ops elsewhere.
 **14, 15 and 16 are the exceptions and are flagged as such** — 14 moves a
@@ -193,8 +266,9 @@ mis-nested `#endif` (which cannot be placed conditionally), 15 and 16 each
 fix a 16-bit truncation and are provable no-ops wherever `int` is 32 bits.
 Edit 17 is guarded even though it did not have to be, because it is an
 optimisation for one CPU and not a defect fix.
-DGROUP 48,304 of 65,536 (73%), image 205,212, **needs 219,452 (214K) at
-load — smallest Victor 384K** (§16ah).
+DGROUP **48,336 of 65,536 (73%)**, image **206,758**, **needs 220,950
+(215K) at load — smallest Victor 384K** (§16aj; it was 48,304 / 205,212 /
+219,452 through §16ai, and the smallest machine did not move).
 
 **§16y built the interactive command parser.** `XFLAGS=-dKEEP_ICP
 ZT=-zt2048` links, loads on the Victor and prints a parser's help text —
@@ -579,10 +653,27 @@ What MAME could not settle:
   rxfull=0` and a byte-exact md5 is what says the wire protocol did not
   move.
 
-**8. Report edits 14, 15, 16 and 17 upstream.**
+**8. Report edits 14, 15, 16 and 17 upstream — plus the two `ckutio.c`
+defects §16aj found and did NOT fix.**
 
-Two independent defects, both found only because this port is an unusual
-build, and neither specific to it:
+The two new ones are flow control's, they are not 16-bit defects, and
+neither is specific to this port:
+
+- **`ckutio.c:6758`** — `ttpkt()`'s `TESTING234` block clears `IXON|IXOFF`
+  out of `ttraw` unconditionally, four lines before the `tcsetattr()` that
+  applies it and 141 lines after the `FLO_XONX` arm set them. `SET FLOW
+  XON/XOFF` therefore cannot reach a driver through termios on any build
+  taking the `BSD44ORPOSIX` arm. It is an `if (1)` inside an `#ifdef` of
+  its own `#define` — a debugging block left switched on. **Not fixed
+  here: it is not a guarded no-op, it changes behaviour everywhere, and
+  hard rule 1 says say so rather than do it.**
+- **`ckutio.c:10849`** — `ttoc()`'s `tcflow(ttyfd,TCOON)`, the POSIX
+  recovery from a lost XON, is the argument of a `debug()` call, so
+  `NODEBUG` discards it. It is the only caller of `tcflow()` in the
+  module. `ckvictor.c`'s `V9K_FCSPIN` is the port's own backstop for it.
+
+Then the four edits. Two independent defects, both found only because this
+port is an unusual build, and neither specific to it:
 
 - **14** — `ckcmai.c`'s `#ifndef NOTCPIP` has been mis-nested for a very
   long time and disables two documented features, the init file and a
@@ -773,69 +864,117 @@ is still "the foreground drains nothing for a whole packet", which is the
 packet length, and it is **item 11** that turns on it. (This used to say
 "item 3", from a numbering two revisions old.)
 
-**11. Flow control, and it comes before windowing.** `tcflow()` is a stub and
-the ISR has no water marks.
+**11. ~~Flow control.~~ BUILT, SHIPPED OFF, AND NOW MEASURED ON THE
+MACHINE — PORTING.md §16aj (build), §16ak (seven legs), §16al (four legs).**
 
-Nothing needs it *today*, and the reason is worth knowing exactly:
-`rxfull = 0` in every run ever recorded, because with a window of one the
-host sends a packet and waits for our ACK, so **bytes in flight never exceed
-one packet**. Worst case — the foreground drains nothing for a whole packet
-— occupancy equals the packet length. The longest packet is **3,991** wire
-bytes and the ring is **4,096**.
+`ckvictor.c` §1f is the driver: **RTS/CTS and XON/XOFF, both directions, in
+both interrupt handlers**, selected by `--rtscts` / `--xonxoff` /
+`--noflow` off the DOS command tail (§16i's priority-0 XI mechanism) or by
+`-dV9K_FLOW=`. Water marks 3/4 and 1/4. Assert in the handler because the
+case it exists for is the one where the foreground is not running; release
+in `v9k_ser_get()`. `tcflow()` implemented. **No upstream edit — still
+seventeen.**
 
-**That 105-byte gap is the entire safety margin, and it is an accident**:
-`DRPSIZ = 4000` happens to sit under `V9K_RXBUFSIZ`. So flow control gates
-*two* things, which is why it outranks windowing rather than being a note
-inside it — **you cannot raise `DRPSIZ` past about 4,090 either.**
+**What eleven bench legs settled:**
 
-Design, constrained by two things already established:
+| | answer | leg |
+|---|---|---|
+| does the CTS gate wedge the transmitter? | **no** — 32,768 bytes at **1,475 cps**, the port's fastest | §16ak DS |
+| does turning it on cost anything? | **no** — byte-identical to its control, **6 ms** apart | §16ak DE |
+| what does §1f itself cost? | **≤ 0.11 s on a 32 KB receive**, ~3 µs/wire byte | §16al GP/GQ |
+| **does our RTS pin actually move?** | **YES — on a scope. Eight pauses of 785 ms–1 s during leg GB** | §16an |
+| **does the far end stop?** | **no, and it is the HOST** — data kept arriving hundreds of ms after each drop, because macOS was never told to watch CTS | §16an |
+| does the Victor obey a real XOFF? | **unknown** — the host never sent one | §16ak DX |
 
-- **Build both. RTS/CTS is the default; XON/XOFF is an interoperability
-  requirement, not a fallback.** §16v read **`cts = 1` on the real cable**
-  in both legs, with the host running `set flow none` and therefore holding
-  RTS asserted throughout — the strong-evidence case, and a genuine read
-  since the only forced bit in `v9k_ser_mdm()` is `dcd` under `CLOCAL`. So
-  RTS/CTS is available *here*, and it is also the cheaper path: dropping RTS
-  is two port writes, no TX-ready test, no state coupled to the transmitter,
-  binary-transparent. **But the far end's wiring is not something this port
-  can measure or assume**, and a Victor Kermit that only talks to equipment
-  with a crossed RTS/CTS pair fails against a lot of what it would actually
-  meet. The bench settles the default, not the feature set.
-- **Neither mechanism needs an upstream edit — the plumbing is already
-  there.** `ckutio.c` translates C-Kermit's `flow` into exactly the termios
-  bits our `tcsetattr()` receives: `FLO_XONX` → `c_iflag |= (IXON|IXOFF)`
-  (`ckutio.c:6617`), `FLO_RTSC` → `c_cflag |= CRTSCTS` (`ckutio.c:6252`).
-  `victor/sys/termios.h` defines all three and already states the split —
-  `tcflow()` is the XON/XOFF half, RTS/CTS is the driver's job under
-  `CRTSCTS`. **So implement against the termios bits, not against a private
-  flag.**
-- **Selection is the one open piece, because `NOICP` removes `SET FLOW`.**
-  `dfflow` is `FLO_NONE` at `ckutio.c:1202`. §16i's priority-0 XI
-  initializer, plus a switch blanked off the DOS command tail before `argv`
-  exists, is the pattern that has solved this exact shape twice already
-  (server capabilities, `--safe-server`) and cost no upstream edit either
-  time. Run the unknown-option control, per §16i.
-- **This ISR has no `sti`, and that constraint now bites, because XON/XOFF
-  is in scope rather than a fallback.** 3.13 does flow control inside
-  `SERINT` but only after re-enabling interrupts, then polls TX-ready in a
-  `loop` bounded at 65,536 turns (`msxv90.asm:srint9`). **Do not copy
-  that** — polling with interrupts off blocks receive, which is the defect
-  §16t fixed and §16v shows we have no headroom to reintroduce. Single-shot
-  instead: past the high mark and no XOFF outstanding, test TX-ready *once*
-  and write XOFF if clear, otherwise skip and retry on the next byte. ~5
-  instructions per byte against the 75 §16t recovered. **RTS/CTS needs none
-  of this**, which is the other half of why it is the default.
-- Water marks 3/4 and 1/4, and an `xofsnt` that distinguishes user-level
-  from buffer-level, both straight from 3.13 (`MNTRGH`/`MNTRGL`, and it is
-  the same chip on this machine).
-- The host harness runs `set flow none`, from `~/.kermrc`, and needs `set
-  flow rts/cts` or `set flow xon/xoff` to match whichever is under test.
-  **Note that `set flow none` is what makes §16v's `cts` reading evidence**
-  — the host holds RTS asserted only because it is not using it — so a run
-  that changes it is no longer a control for that.
+**`V9K_FLOW` stays `FLO_NONE`.** The **input** half of RTS/CTS works and is
+fast; the **output** half has never actually been tested — see §16am.
 
-**12. Then windows.** `DFWSIZ` is still 1, and items 10 and 11 are both
-preconditions. Do it under MAME first. Note the interaction §16s found: with
+**§16an put a logic analyzer on the pin and the port's half works.** The
+Victor's RTS is negative before any driver, positive once the OEM driver
+loads, blips on every chip reprogram, drops 175 µs on each `HANGUP`, and —
+the one that matters — **shows eight pauses of 785 ms to ~1 s during §16al
+leg GB**, which is §1f dropping RTS at the 1,024 mark and raising it at 896
+on a clean byte-exact 32 KB transfer. **Data kept arriving for hundreds of
+milliseconds after each drop**, because the bench Mac's C-Kermit has no
+`POSIX_CRTSCTS`, its `tthflow()` is an empty function, and nothing was ever
+told to watch that pin (§16am).
+
+**Three candidates are down to one and it is not ours:** the WR5 write
+reaches the pin (dead), the cable carries it (strongly indicated — §16an has
+a 25 ms tell where `cts` lags `dsr`/`dcd`, and **one two-probe capture at
+both ends of the CTS conductor during a `STEPGB` run closes it**), and the
+host does not act on CTS (**this is it**).
+
+**So the default waits on the host, not on the port.** The risk that chose
+`FLO_NONE` — gating the transmitter on an unmeasured CTS — is retired. What
+is missing is the benefit: no far end has been shown to stop because the
+only one tested cannot be. `stty -f <port> crtscts -hupcl` before `kermit`
+is untested and free; a host C-Kermit built from this tree with
+`POSIX_CRTSCTS` is the honest fix. **XON/XOFF has no `stty` shortcut** — its
+bits are exactly the `c_iflag` ones `TESTING234` clears.
+
+**And the analyzer found something it was not aimed at: `msleep()` does not
+sleep.** The 175 µs `HANGUP` pulse should be 500 ms (`HUPTIME`). This build
+has no `select`/`nanosleep`/`usleep`, so `msleep()` compiles upstream's
+fallback — `if (m > 0) while (m > 0) m--;` — an empty loop on a local that
+`-os` may delete outright. **`tthang()` cannot hang up a modem and
+`tcsendbreak()` does not send a break**, and the second is `ckvictor.c` §1b's
+own code. See §1 item 16 and the known-incomplete list.
+
+**The instrument lesson is the one to carry:** every flow-control
+measurement before this was a counter inside one of the two programs, and
+**both programs can be right about what they did while nothing happens
+between them.** When the question is about a wire, measure the wire.
+`stty` shortcut: its bits are exactly the ones `TESTING234` clears.
+
+**Three method points, all from §16al and all reusable:**
+
+0. **Before running an experiment that depends on the far end behaving a
+   particular way, measure that the far end can.** §16aj wrote down "a line
+   of upstream source is not evidence that the build compiles it" about this
+   port's own build; §16am is the same rule pointed at the *other end of the
+   wire*, and **`SHOW FEATURES` is `wcc -pl` for a binary you did not
+   build**. Three legs and a fourth about to be scheduled went to finding
+   that out afterwards, and the check was one command.
+1. **Non-line cost is how you compare an off-shape leg.** Host clock minus
+   wire bytes × 260 µs made leg GP usable when its clock alone was not, and
+   it is what turned §16ak's unattributable +11% into a withdrawn figure.
+2. **When a leg keeps going off-shape, change what you ask of it, not how
+   many times you ask.** A narrow band (1024/896) gives a **cap** to read
+   where a low mark (256/64) gave a comparison, and a cap survives a
+   retransmission.
+3. **The bench's run-to-run spread is the HOST.** The same `CKPRE` binary
+   had a non-line cost of **18.29 s in §16ah and 21.43 s in §16al** with the
+   wire held constant — 172 ms per packet of macOS/USB turnaround. That is
+   the standing answer to item 5b and the reason adjacent pairs work and
+   cross-sitting comparisons do not.
+
+**Two upstream defects came out of building it**, both in `ckutio.c`, both
+found by preprocessing and both on item 8's report list: `:6758`'s
+`TESTING234` block clears `IXON|IXOFF` four lines before the `tcsetattr()`
+that applies them, and `:10849`'s `tcflow(TCOON)` — the only caller in the
+module — sits inside a `debug()` argument that `NODEBUG` deletes. So §1f
+reads upstream's **`flow`** variable, not the termios bits. **Do not quote
+`ckutio.c:6252`/`:6617` as "the plumbing is already there".**
+
+**Withdrawn:** §16ak's "+11% for §1f". **Isolated, not explained:** §16ak's
+`stall256 = 2,399` on leg DB, which §16al did not reproduce (GB 47, GA 114)
+— it belongs to the 256/64 configuration, where the high mark and
+`V9K_RXSTALL` are the same number, and **is not evidence that anything
+paused.**
+
+**Three harness failures cost three sittings in this sequence, and all three
+are worth remembering as rules rather than as anecdotes:** a re-run into a
+target name that already existed (`SET FILE COLLISION BACKUP` cannot work on
+FAT — put `IF EXIST <target> DEL <target>` in every receive `.BAT`); a run
+sheet that named a `-d` flag without staging the binary carrying it; and **a
+full image** (`vtg_image_util info` belongs in every §0 — partition 1 is
+9.7 MB and 100% free and has never been used).
+
+**12. Then windows.** `DFWSIZ` is still 1. Item 11 is no longer a blocker —
+the mechanism exists — but it is still a **precondition in practice**: turn
+the window up and turn flow control on in the same sitting, or the 105-byte
+margin is doing the work alone. Do it under MAME first. Note the interaction §16s found: with
 a window of one the file write happens *before* `ack()`, so the line is idle
 through it — which is why a floppy with 1.5-second writes loses nothing.
 **Open the window and that stops being true**, and a 1.5 s write at 38400 is
@@ -864,6 +1003,39 @@ the "one binary, two DOSes" claim.
 
 **15. `REMOTE DIRECTORY`** still streams its listing and never terminates it
 (§16i).
+
+**16. `msleep()` does not sleep, and `tcsendbreak()` is this port's own
+broken code because of it.** §16an, found by a scope aimed at something
+else: `HANGUP` should hold DTR and RTS down for `HUPTIME` = 500 ms and the
+capture shows **175 µs**.
+
+`ckutio.c`'s `msleep()` has arms for `select()`, `nanosleep()` and
+`usleep()`; this build has none, so it compiles the fallback —
+
+```c
+if (m >= 1000) { sleep(m/1000); m %= 1000; if (m < 10) return(0); }
+if (m > 0) while (m > 0) m--;              /* an empty decrement loop */
+```
+
+— which for any `m` under 1000 is a side-effect-free loop on a local that
+`-os` is entitled to delete. Two shipped things depend on it:
+
+- **`tthang()` cannot hang up a modem.** Latent: no modem has ever been on
+  this bench.
+- **`tcsendbreak()` does not send a break.** `ckvictor.c` §1b sets WR5 bit
+  4, calls `msleep(275)` and clears it — so the break is two IOCTL round
+  trips long where POSIX says *at least* a quarter second. **This one is
+  the port's own code**, and it has never been exercised.
+
+**The fix is the port's and it runs into hard rule 6.** INT 21h's only clock
+is `AH=2Ch`, which advances in **500 ms steps** on this machine (§16n), so
+anything shorter needs a busy loop calibrated once against it — 1980s style,
+and `ckvictor.c` §1d is where it belongs beside the other Watcom gaps.
+Calibrate at startup, not per call.
+
+**Neither is on any critical path**, which is exactly why this sat unnoticed
+for the port's whole life. Do it when something needs a break or a hangup —
+or when `msleep()` turns up in a third place.
 
 ---
 
@@ -904,9 +1076,9 @@ maintain the burst table. Without that, the report would print
 
 - **`v9k:` lines on stdout at exit, every build.** `isr=`, then
   `rxlost/rxfull/rxpeak`, `peaktag/fd/stall256`, `rxbytes/peakat/stallat`,
-  `norx/othrx/rr0/oth`, `lost evt/max/tag/fd`, `lostat/lostend`, `wfile`,
-  `wcon`, `txgap`, `elapsed/wire`, `mdm` — plus a `b<N>` row per burst in a
-  `-dV9K_CISR` build without `-dV9K_LEANLOST`. **`wire=` is bytes on the
+  `norx/othrx/rr0/oth`, `lost evt/max/tag/fd`, `lostat/lostend`, **`flow`**,
+  `wfile`, `wcon`, `txgap`, `elapsed/wire`, `mdm` — plus a `b<N>` row per
+  burst in a `-dV9K_CISR` build without `-dV9K_LEANLOST`. **`wire=` is bytes on the
   wire per second**, retransmissions and headers included; it is not
   C-Kermit's file cps, which is what the take-files' `statistics` prints.
   **In `mdm`, only `cts` and `dsr` are measurements** — `dcd` is forced on
@@ -949,6 +1121,25 @@ maintain the burst table. Without that, the report would print
   `setprefix()`, in the sense `v9k/proofs/` uses the word — if upstream
   changes, the naming goes quietly wrong while still printing a name. The
   counts are measurements and stay true either way.
+- **`v9k: flow in= out= hi= lo= held= rel= xoff= xon= stuck=`** (§16aj).
+  `in`/`out` are 0 none, 1 XON/XOFF, 2 RTS/CTS, and they are read from
+  upstream's `flow` and not from the termios bits — see §1 item 11 for why
+  that distinction is load-bearing. **On a healthy shipping leg every
+  counter is 0 and that IS the result**: the high mark is 3,072 and the
+  largest occupancy this port has recorded is 2,581, so the insurance did
+  not have to pay out. A leg that means to exercise the mechanism builds
+  `-dV9K_RXHIGH=256 -dV9K_RXLOW=64` and expects `held` and `rel` to move
+  together and **end equal**; `held > rel` leaves the far end held off.
+  `stuck` should never move — it counts writes abandoned after seconds of
+  hold-off. **Intercepted XON/XOFF are excluded from `rxbytes` on purpose**,
+  because they are not in the host's packet log; `pktstat.py --rxbytes` gave
+  the same −11 residual with five of them as without (§16aj leg FH), which
+  is the check that says the choice was right.
+- **A MAME A/B is only comparable within legs run back to back.** §16ag's
+  arms held to 1 ms; §16aj's two groups, same fixture, drifted **12–15 s
+  apart** because the host machine got busier — the *host's* timeout count
+  went 3 → 5 and the packet shape changed with it. The emulator is not the
+  variable. Run the control adjacent to the treatment, always.
 - **`v9k/probes/macspeed.c`** sets a non-standard bit rate on a macOS port via
   `IOSSIOSPEED`, which is the only way to reach the x1 rates the Victor can
   actually produce (§11a0). `-h` to hold it; give C-Kermit no `set speed`.
@@ -985,9 +1176,22 @@ maintain the burst table. Without that, the report would print
   initiates must start the Victor first and *wait*; `MAXTRY` is 10
   (`ckcker.h:472`) and a host that gives up looks exactly like a Victor that
   failed. Host take-files now carry `set retry 30`.
-- **`SET FILE COLLISION` is `BACKUP`, and BACKUP cannot work on FAT.** Fresh
-  filename per run. Symptom: S, F, A, then **Z with data `D`** and no data
-  packets.
+- **`SET FILE COLLISION` is `BACKUP`, and BACKUP cannot work on FAT.**
+  Symptom: S, F, A, then **Z with data `D`** and no data packets, a
+  ~287-byte packet log, and `No files were transferred (refused:
+  destination file already exists)` on the Victor's screen. **This has now
+  voided two sittings' worth of legs (§16ak's re-run of DA/DB).** "Fresh
+  filename per run" is a rule a person has to remember; the fix that works
+  is in the `.BAT` —
+
+  ```
+  IF EXIST RCVGB.DAT DEL RCVGB.DAT
+  CKFCMID -l /dev/seriala -b 38400 --rtscts -r > STEPGB.OUT
+  ```
+
+  **Put that line in every receive `.BAT` from now on**, and still use a
+  target name that has never been used, so a re-run cannot silently compare
+  itself against an older file.
 - **`REMOTE DIRECTORY` never terminates its listing** (§16i).
 - **Most of the default capability set is untested** (§16i). `BYE` never sent.
 - **Wildcards are case-sensitive.** `-s *.TXT`.
@@ -999,15 +1203,34 @@ maintain the burst table. Without that, the report would print
   It reads both directions, counts wire bytes and prefixes, names the
   prefixing policy, and reconciles against `rxbytes`. Checked against all 47
   logs in the tree with no unparsable lines.
-- **No interrupt-level flow control**, `tcflow()` is a stub, and the ring has
-  no water marks. Safe today only because the ring (4,096) exceeds the
-  longest packet (3,991) at a window of one — a **105-byte margin that is
-  an accident of `DRPSIZ`**. It gates longer packets as well as windowing.
-  §1 item 11. **§16af did not change this**: `rxpeak` fell to 2,581, but
-  that is *observed* occupancy, and the safe bound is still "the foreground
-  drains nothing for a whole packet", which is the packet length.
+- ~~**No interrupt-level flow control**, `tcflow()` is a stub, and the ring
+  has no water marks.~~ **BUILT — §16aj**, both mechanisms, both directions,
+  `tcflow()` implemented, marks at 3/4 and 1/4. **It ships OFF** and the
+  reason is item 11: nothing needs it at a window of one, and selecting
+  RTS/CTS gates the transmitter on a CTS nothing has measured in that
+  direction. So the 105-byte margin between `DRPSIZ = 4000` and the 4,096
+  ring is still what holds today — but it is now an accident with a
+  fallback, which is what made it a precondition for items 10 and 12.
 - **No stack switch in the handler** — deliberate, and the assembly one is a
   10-byte frame.
+- **`msleep()` is a no-op below one second** (§16an), so `tthang()` cannot
+  hang up a modem and **`tcsendbreak()` does not send a break** — the latter
+  is `ckvictor.c` §1b's own code. Measured on a scope: a `HANGUP` that
+  should hold the lines down for `HUPTIME` = 500 ms holds them for 175 µs.
+  §1 item 16.
+- **Nothing has ever shown the host's CTS moving at the moment the Victor's
+  RTS does** (§16an). The cable is strongly indicated to carry it — `cts`
+  lags `dsr`/`dcd` by 25 ms on power-down, so it is a separate signal — but
+  the watcher runs were taken during power-up, not during a transfer. **One
+  two-probe capture, both ends of the CTS conductor during a `STEPGB` run,
+  closes it.**
+- **Out of disk space makes the Victor HANG, not fail** (§16al attempt 1).
+  Eleven or twelve packets in, the 8,192-byte `V9K_OBUFSIZE` flush has
+  nowhere to go, and the Victor stops responding **forever** — the host
+  times out after 30-odd retries, the Victor never does, because §0d's
+  `alarm()` bounds the *read* and nothing bounds a failed write. Never
+  diagnosed: a `KEEP_DEBUG` leg under MAME against a deliberately full image
+  would do it, cheaply and safely.
 - **The IRQ1 vector is hard-coded to 41h.** Right for MS-DOS 3.1; unknown
   for FreeDOS.
 - **Ctrl-Break with the line open** is not covered by `atexit()`.
@@ -1042,14 +1265,50 @@ maintain the burst table. Without that, the report would print
   any *new* Victor-side take-file for a `KEEP_ICP` build needs them too.
   This is a property of the build, not a bug — see "The harness had two
   defects" above for why the shipping build is exempt.
-- **Three other XI initializers have never been checked for the same
+- ~~**The RTS/CTS output direction is unmeasured.**~~ **CLOSED on the port's
+  side by §16an**: the pin moves, eight times mid-transfer, on a scope. What
+  is open is the *host's* side — nothing has been shown to stop for it,
+  because the bench Mac's C-Kermit cannot be made to watch CTS.
+- **`stall256 = 2,399` on leg DB against 47 on its control, unexplained**
+  (§16ak). Occupancy crossed the 256 mark upward fifty times more often on
+  the RTS/CTS leg, which needs the sender to have paused — but 15
+  assert/release cycles cannot produce 2,399 crossings. It is the only
+  positive hint that the host obeys our RTS and it is not proof.
+- **Leg DC lost 19 bytes and nothing else in the sitting lost any** (§16ak).
+  XON/XOFF at the same water marks as RTS/CTS, 11 bursts, first non-zero
+  `rxlost` on this bench since §16t. Cause not established.
+- **Nothing counts a FAILED XOFF attempt.** The single-shot assert re-reads
+  RR0 on every byte until the transmitter is free. That retry is invisible
+  and it is the leading suspect for DC.
+- **`pktstat.py`'s reconciliation has no term for BELL substitution.** Leg
+  DC's residual is −15 where the formula wants −11, and the difference is
+  the 19 BELLs the ISR put in the stream. It needs `--rxlost`.
+- **Whether §1f costs 11% of a 38400 receive is open** (§16ak). Three clean
+  legs at 31.1–31.5 s against §16ah leg BC's 28.057 s on the identical
+  37,557 wire bytes — but cross-sitting. `CKPRE.EXE` is on the image and one
+  adjacent pair settles it.
+- **Nothing has seen a far end obey our XOFF, and now on hardware too.**
+  §16ak leg DX armed the interception path on a real cable and the host
+  never sent one — `xoff = 0`. A null, not a failure: the leg still ran
+  byte-exact at 1,475 cps.
+- **`held = rel` on every leg that asserted** (§16ak), which is the property
+  to check; `held > rel` would mean the far end was left held off.
+- **The flow-control assert has never run on the ring-full path.**
+  `v9k_ringfull` re-enters the water-mark check with occupancy forced to the
+  mask; nothing has executed it, the same standing caveat as the assembly
+  handler's overrun branch.
+- **Four other XI initializers have never been checked for the same
   problem.** `_fmode`, the server capability gate and `zobufsize` all set
   upstream state before `main()`, and `initproto()` is not the only thing
   that re-initialises. `_fmode` and `zobufsize` are witnessed indirectly (a
   binary transfer is byte-exact; `wfile` fell to 4 writes), and the server
   gate was witnessed through `uname()` in §16i — **but none was checked
   against a later upstream write of the same variable.** Leg CS exercises the
-  server gate on hardware by a different route.
+  server gate on hardware by a different route. §16aj's flow-control
+  initializer is the fourth, and it is the one that was *designed* around
+  the trap: it writes nothing upstream owns, and `v9k_ser_install()` puts
+  the value into `cxflow[CXT_DIRECT]` one statement before `setflow()`
+  reads it.
 - **The shipping binary is 44 bytes different from the one the bench ran.**
   §16ah legs BC/BD ran 205,256, which carried the `errno` initializer
   compiled-but-unreachable; removing it took the build to **205,212**. The
@@ -1178,6 +1437,16 @@ wrong, and it validated `ckvisr.asm` before the bench.
   - `STEPAG.BAT` / `STEPAH.BAT` / `STEPAJ.BAT` — §16af's three legs, and
     `STEPAF.BAT` for the MAME leg. All four are tracked in git now, so
     re-stage them from a checkout rather than regenerating.
+  - **§16aj's flow-control legs.** `CKFCA.EXE` — the shipping build,
+    206,758, md5 `c5652a5b…`, same tree as `CKERMITW.EXE`. `CKFCLO.EXE` —
+    **the same 206,758 bytes** with `-dV9K_RXHIGH=256 -dV9K_RXLOW=64`,
+    differing in two immediate constants, so `--xonxoff` against
+    `--noflow` on it is one binary and one switch with no code-size
+    difference for §16w to bite on. `CKFCD.EXE` — 288,106, `KEEP_DEBUG`,
+    for the `-d -h` switch witness. `CKPRE.EXE` — 205,228, md5
+    `537486a8…`, **HEAD before §1f rebuilt**, which is how leg FZ is a
+    binary difference and not a rebuild. `STEPFA/FB/FC/FD/FE/FG/FH/FJ/FZ`
+    and `RCVF*.DAT`; host side `s16ajF*.ksc` and `rcvf*.dat` in the tree.
   - `CKICP.EXE` / `CKICPD.EXE` — the parser build, and the same with
     `KEEP_DEBUG`. **Rebuilt and re-staged 9 August**, 435,154 md5
     `f5456cae…` and 546,422 md5 `6d991fc7…`. The 8 August copies predated

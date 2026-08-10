@@ -1,0 +1,35 @@
+; Leg DB -- the host SENDS.  The Victor RECEIVES with --rtscts.
+;
+; THIS IS THE LEG THE SITTING EXISTS FOR.  Same binary as DA, one switch.
+; The Victor drops RTS at 256 bytes of ring occupancy and raises it at 64.
+; SS16v settled that the host's RTS reaches our CTS; nothing has ever
+; measured our RTS reaching the host's, and that is the only thing standing
+; between this feature and being on by default.
+;
+; THE READING IS rxpeak, NOT THE CLOCK, and that is deliberate -- SS16ai's
+; rule: when the bench cannot resolve an effect in seconds, find a counter
+; that measures the same mechanism.
+;
+;     rxpeak ~256-600   the host stopped when we asked.  RTS IS WIRED
+;                       OUTBOUND.  held/rel > 0 and equal.
+;     rxpeak ~2,4xx     we asserted (held>0) and the far end kept sending.
+;                       Not wired, or not honoured.  The default stays off
+;                       and XON/XOFF is the answer for this cable.
+;
+; held/rel say WE asserted.  rxpeak says THEY listened.  They are separate
+; readings and the leg needs both.
+;
+; CAVEAT, from SS16ag: rxpeak also moves with retransmissions.  If DA and DB
+; do not have the same resend count the comparison is weaker -- but the
+; effect here is ~8x and a resend moves it by hundreds, not thousands.
+
+set speed 38400
+set receive timeout 20
+set retry 30
+set parity none
+set flow rts/cts
+set prefixing cautious
+set block 3
+log packets s16ajDB.pkt
+send rcvdb.dat
+statistics

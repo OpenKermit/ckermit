@@ -1,0 +1,22 @@
+; Leg GP -- the host SENDS.  CKPRE (HEAD BEFORE section 1f, md5 537486a8)
+; RECEIVES 32 KB at 38400.
+;
+; THE CONTROL SS16aj's SHEET SHOULD HAVE HAD.  SS16ak's three clean receive
+; legs did 37,557 wire bytes in 31.137 / 31.143 / 31.535 s; SS16ah leg BC
+; did the identical 37,557 in 28.057 s.  That is +11%, eight times that
+; sitting's own 398 ms spread -- but a CROSS-SITTING comparison, which
+; SS16aj itself says not to make.  GP and GQ make it a within-sitting one.
+;
+; PASS is simply a clean leg: rxlost=0 rxfull=0, 18 packets, 0 resends,
+; 0 timeouts, 37,557 wire bytes, byte-exact.  The RESULT is the host clock,
+; read against GQ and against nothing else.
+set speed 38400
+set receive timeout 20
+set retry 30
+set parity none
+set flow none
+set prefixing cautious
+set block 3
+log packets s16alGP.pkt
+send rcvgp.dat
+statistics

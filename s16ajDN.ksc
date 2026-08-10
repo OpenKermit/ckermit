@@ -1,0 +1,30 @@
+; Leg DN -- the host SENDS.  The Victor RECEIVES 32 KB at 38400.
+;
+; THE NULL LEG.  Shipping build, no switch: flow control is compiled in and
+; switched off, so this leg has to reproduce SS16ai leg CE / SS16ah leg BC
+; and say that the machine, the cable and the harness are behaving before
+; anything else in the sitting is attributed to anything.
+;
+; PASS:  rxlost=0 rxfull=0, rxpeak 2,4xx-2,6xx of 4096, 18 packets,
+;        0 retransmissions, 0 timeouts, rxbytes ~37,55x, byte-exact.
+;        On the "v9k: flow" line: in=0 out=0 hi=65535, every counter 0.
+;
+; "set flow none" is deliberate and it is also what makes the mdm cts=
+; reading in STEPDN.OUT evidence -- the host holds RTS asserted only
+; because it is not using it (SS16v).  DO NOT change it on this leg.
+;
+; Reconcile afterwards:
+;   python3 v9k/tools/pktstat.py --rxbytes <from STEPDN.OUT> s16ajDN.pkt
+; Residual -11 clean, +28 with a startup timeout, anything else means the
+; two ends did not see the same transfer.
+
+set speed 38400
+set receive timeout 20
+set retry 30
+set parity none
+set flow none
+set prefixing cautious
+set block 3
+log packets s16ajDN.pkt
+send rcvdn.dat
+statistics

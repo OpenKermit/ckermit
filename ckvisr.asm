@@ -31,7 +31,7 @@
 ;;      fetch at about 4 clocks a byte, so those 70 bytes cost about 56us
 ;;      of the 260us budget, and the stack traffic about 67us more.
 ;;
-;;  WHAT IS DIFFERENT, and there are only two things.
+;;  WHAT IS DIFFERENT, and there are three things.
 ;;
 ;;    1. ONE segment register covers both chips.  The 7201 is at E004:0-3
 ;;       and the 8259 at E000:0-1, which are 0xE0040-43 and 0xE0000-01 in
@@ -41,7 +41,16 @@
 ;;       channel B 43h/41h, the 8259 command port 0.  The C handler cannot
 ;;       express this because V9K_SEG_7201 and V9K_SEG_8259 are separate
 ;;       constants in separate far pointers.
-;;    2. No burst table.  SS16s added a per-burst table to the overrun
+;;    2. Flow control is here, and it is the only thing in this file that
+;;       is not a transcription of the C handler's arithmetic -- it writes
+;;       to the chip.  ckvictor.c SS1f is the specification and has the
+;;       reasoning; what matters when reading the code below is that the
+;;       clean per-byte path pays exactly four instructions for it (one
+;;       byte compare of _v9k_fc_out before the store, one word compare of
+;;       the occupancy against _v9k_rxhigh after it) and that neither test
+;;       needs a second one to know flow control is off: _v9k_rxhigh is
+;;       0FFFFh then, and the occupancy is masked to 0FFFh.
+;;    3. No burst table.  SS16s added a per-burst table to the overrun
 ;;       path believing it was rare; it is rare only while the receiver is
 ;;       keeping up, and inside a burst the overrun path IS the per-byte
 ;;       path.  It cost 2.5x the loss rate.  The counters it was built
@@ -90,7 +99,19 @@ V9K_CMD_EOI     EQU     38h             ; 7201 end of interrupt
 V9K_CMD_ERRRST  EQU     30h             ; 7201 error reset
 V9K_IRQ1_EOI    EQU     61h             ; 8259 specific EOI for IRQ1
 V9K_RR0_RXRDY   EQU     01h
+V9K_RR0_TXEMPTY EQU     04h
 V9K_RR1_OVERRUN EQU     20h
+
+;;  Flow control -- ckvictor.c SS1f, which is the specification for this the
+;;  same way SS1e is for the rest of the file.  V9K_FC_* must agree with the
+;;  #defines there; there is no compile-time check for these the way there is
+;;  for the ring size, because they are compared against a variable this
+;;  file only reads.
+V9K_FC_SOFT     EQU     1               ; XON/XOFF, in band
+V9K_FC_HARD     EQU     2               ; RTS out, CTS in
+V9K_XON         EQU     11h
+V9K_XOFF        EQU     13h
+V9K_WR5_RTS     EQU     02h             ; The bit we drop to hold them off
 
 ;;  Ring geometry.  MUST match V9K_RXBUFSIZ in ckvictor.h; there is a
 ;;  compile-time check for that in ckvictor.c next to the ring itself.
@@ -128,6 +149,17 @@ V9K_BELL        EQU     07h
         EXTRN   _v9k_norxrr0   : BYTE
         EXTRN   _v9k_norxoth   : BYTE
         EXTRN   _v9k_norxseen  : BYTE
+
+;;  Section 1f's state.  All in DGROUP with the rest.
+        EXTRN   _v9k_fc_in     : BYTE
+        EXTRN   _v9k_fc_out    : BYTE
+        EXTRN   _v9k_holding   : BYTE
+        EXTRN   _v9k_txheld    : BYTE
+        EXTRN   _v9k_lastcr5   : BYTE
+        EXTRN   _v9k_rxhigh    : WORD
+        EXTRN   _v9k_fc_held   : WORD
+        EXTRN   _v9k_fc_xoff   : WORD
+        EXTRN   _v9k_fc_xon    : WORD
 
 CONST   SEGMENT WORD PUBLIC USE16 'DATA'
 CONST   ENDS
@@ -254,6 +286,21 @@ v9k_getbyte:
         add     bx,V9K_7201_BIAS
         mov     al,es:[bx]                      ; AL = the received byte
 
+;;  Data, or the far end telling us to stop?  Before the store, because an
+;;  XOFF meant for our transmitter is not part of Kermit's byte stream.  Safe
+;;  only because both ends agreed: PX_CAU keeps DC1/DC3 prefixed in packet
+;;  data whatever else it unprefixes.  Two instructions when flow control is
+;;  off, which is the shipping default.  NOT counted in rxbytes -- see the C
+;;  handler for why (mapoffset.py's offsets are against the host packet log,
+;;  and a flow character is not in it).
+        cmp     byte ptr _v9k_fc_out,V9K_FC_SOFT
+        jne     v9k_store
+        cmp     al,V9K_XOFF
+        je      v9k_gotxoff
+        cmp     al,V9K_XON
+        je      v9k_gotxon
+
+v9k_store:
         mov     bx,word ptr _v9k_rxhead
         mov     dx,bx
         inc     dx
@@ -284,7 +331,7 @@ v9k_getbyte:
         mov     word ptr _v9k_peakat+2,dx
 v9k_nopeak:
         cmp     ax,V9K_RXSTALL                  ; crossed it going up
-        jne     v9k_done
+        jne     v9k_flowchk
         cmp     word ptr _v9k_rxstall,0
         jne     v9k_bumpstall
         mov     dx,word ptr _v9k_rxbytes
@@ -293,10 +340,76 @@ v9k_nopeak:
         mov     word ptr _v9k_stallat+2,dx
 v9k_bumpstall:
         inc     word ptr _v9k_rxstall
+
+;; ---------------------------------------------------------------------
+;;  The high water mark -- ckvictor.c SS1f.  AX still holds the occupancy.
+;;
+;;  ONE compare is the whole test on the clean path, and that is why the
+;;  mark is a variable: with flow control off ckvictor.c leaves _v9k_rxhigh
+;;  at 0FFFFh and AX is masked to V9K_RXMASK, so "is it on" and "have we
+;;  crossed it" are the same question.
+;;
+;;  The XOFF is single-shot.  If the transmit buffer is busy we fall through
+;;  with _v9k_holding still clear and try again on the next byte -- no poll,
+;;  no sti.  3.13's SERINT loops here (msxv90.asm:srint9) and copying that
+;;  would block receive, which is the defect SS16t fixed.
+;; ---------------------------------------------------------------------
+v9k_flowchk:
+        cmp     ax,word ptr _v9k_rxhigh
+        jb      v9k_done
+        cmp     byte ptr _v9k_holding,0
+        jne     v9k_done
+        cmp     byte ptr _v9k_fc_in,V9K_FC_HARD
+        je      v9k_droprts
+
+;;  XON/XOFF: read RR0 once, and give up for now if the transmitter is busy.
+        mov     bx,_v9k_off_ctl
+        add     bx,V9K_7201_BIAS
+        mov     al,es:[bx]
+        test    al,V9K_RR0_TXEMPTY
+        jz      v9k_done
+        mov     bx,_v9k_off_dat
+        add     bx,V9K_7201_BIAS
+        mov     byte ptr es:[bx],V9K_XOFF
+        jmp     v9k_held
+
+;;  RTS/CTS: point WR5 and clear bit 1.  Two port writes, no test at all,
+;;  which is the whole reason this mechanism is the cheaper one.  lastcr5 is
+;;  written back so v9k_ser_mdm() reports the pin and not a stale request.
+v9k_droprts:
+        mov     al,byte ptr _v9k_lastcr5
+        and     al,0FDh                         ; NOT V9K_WR5_RTS, in a byte
+        mov     byte ptr _v9k_lastcr5,al
+        mov     bx,_v9k_off_ctl
+        add     bx,V9K_7201_BIAS
+        mov     byte ptr es:[bx],5
+        mov     es:[bx],al
+
+v9k_held:
+        mov     byte ptr _v9k_holding,1
+        inc     word ptr _v9k_fc_held
         jmp     v9k_done
 
+;; ---------------------------------------------------------------------
+;;  The far end's XON/XOFF, intercepted above.  v9k_ser_put() tests
+;;  _v9k_txheld before every byte it sends.
+;; ---------------------------------------------------------------------
+v9k_gotxoff:
+        mov     byte ptr _v9k_txheld,1
+        inc     word ptr _v9k_fc_xoff
+        jmp     v9k_done
+
+v9k_gotxon:
+        mov     byte ptr _v9k_txheld,0
+        inc     word ptr _v9k_fc_xon
+        jmp     v9k_done
+
+;;  Ring full.  Flow control has already failed by definition, but assert it
+;;  anyway: whatever is coming next is also going to be dropped.
 v9k_ringfull:
         inc     word ptr _v9k_rxfull            ; this byte is gone
+        mov     ax,V9K_RXMASK
+        jmp     v9k_flowchk
 
 v9k_done:
         pop     es

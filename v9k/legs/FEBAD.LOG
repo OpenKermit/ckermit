@@ -1,0 +1,89 @@
+Debug Log []
+ Victor 9000 / Sirius 1
+Tue Jan  1 00:03:09 1980
+
+byteorder=0
+prescan *yargv[-h]
+prescan arg=h
+MAIN feol=0
+makever Kermit version[C-Kermit 11.0.506, 2026/08/03]
+conbgt process group test=0
+NOJC[jc]=0
+conbgt jc=0
+conbgt isatty test=0
+conbgt backgrd=1
+sysinit ttyname(0)[CON:]
+sysinit CTTNAM[/dev/tty]
+sysinit cttnam[CON:]
+xttgwsiz LINES[(NULL)]
+v9k srvcaps safe=0
+v9k flowsel=0
+sysinit uname machine[Victor]
+sysinit uname sysname[MS-DOS]
+sysinit uname release[]
+sysinit uname version[]
+zgtdir SVORPOSIX CWDBL=128
+v9k_getcwd[A:]
+sysinit startupdir[A:/]
+ckcmai myname[A:\CKFCD.EXE]=0
+STAT=5
+zchki stat return code[A:\CKFCD.EXE]=0
+zchki stat errmsg[]
+zchki stat ok:[A:\CKFCD.EXE]=0
+v9k fmode witness=1
+v9k _fmode=512
+zchki access ok:[A:\CKFCD.EXE]=288106
+zgtdir SVORPOSIX CWDBL=128
+v9k_getcwd[A:]
+xttgwsiz LINES[(NULL)]
+initflow=0
+initproto spsiz=90
+connoi conistate=0
+conint conistate=0
+conbgt process group test=0
+NOJC[jc]=0
+conbgt jc=0
+conbgt isatty test=0
+conbgt backgrd=1
+conint backgrd=1
+conint jc=0
+conint background ignoring signals, jc=0
+zoutbuffer malloc=8192
+getiobs ok
+main ckhost[victor]
+setflow autoflow=1
+setflow local=0
+setflow network=0
+setflow cxtype=0
+setflow flow=0
+ttgspd ttyfd=-1
+ttgspd cfgetospeed 1 POSIX=0
+ttgspd code=0
+ttgspd speed=0
+inibufs s=8192
+inibufs r=8192
+inibufs size 1=16424
+inibufs size z=16424
+inibufs size 2=16424
+inibufs bigsbsiz=8205
+inibufs bigrbsiz=8209
+setprefix=1
+main argc after prescan()=4
+howcalled[A:\CKFCD.EXE]=0
+main 2 cfilef[]=0
+main argc=4
+cmdlin xargv[--xonxofz]=3
+cmdlin args 1[--xonxofz]=3
+doarg entry[-xonxofz]=3
+doarg arg=-
+fatal[Extended options not configured]=1
+fatal[Extended options not configured]=0
+doexit exitstat=1
+doexit code=1
+doexit xitsta=0
+doexit about to doclean
+doclean calling dologend
+doclean exithangup=1
+conres cgmf=-1
+conres constate=0
+C-Kermit EXIT status=1
