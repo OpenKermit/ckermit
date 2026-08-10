@@ -73,5 +73,7 @@ will be posted after a general release is made, and may not be made for every
 release.  Tony's builds are built under VSI OpenVMS V9.2-3 for x86_64.  Please
 consult the links below for the releases that have an OpenVMS build:
 
+- [11.0.508](https://github.com/OpenKermit/ckermit/releases/tag/v11.0.508)
 - [11.0.507](https://github.com/OpenKermit/ckermit/releases/tag/v11.0.507)
 - [11.0.506](https://github.com/OpenKermit/ckermit/releases/tag/v11.0.506)
+
