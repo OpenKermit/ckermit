@@ -1,11 +1,11 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.0.508 (not yet released)
+# C-Kermit 11.0.508
 
 August 9, 2026
 
-- Added support for VSOCK sockets on Linux.  These are used as a lightweight way
-  to communicate between a host and a guest VM.
+- Added support for [VSOCK](vsock.md) sockets on Linux.  These are used as a
+  lightweight way to communicate between a host and a guest VM.
 
 - Made a number of improvements to the test suites such that they are less flaky
   on the BSD VMs they run within in CI.
