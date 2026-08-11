@@ -68,7 +68,26 @@ when off. **No upstream edit**, +184 bytes (**225,822**), DGROUP unchanged,
 smallest Victor still 384K. Verified under MAME at 9600 with no redirect:
 byte-exact, `rxlost = 0 rxfull = 0`, **`wcon n = 1` against leg HG's 514**,
 and the unknown-option control (`--nodisplaz` → `Extended options not
-configured`) was run per §16i's rule. **`> NUL` still works too**, but the
+configured`) was run per §16i's rule. **Then verified on the machine —
+§16ap leg HJ**, 38400 receive, byte-exact, `wcon n = 1` with no redirect,
+and it makes **four legs at 38400 receive carrying an identical 37,557 wire
+bytes in 18 packets with zero retransmissions**: HJ 30.960 s and HA 31.568
+against HB 35.965 and HD 35.857. **The switch and the redirect give the
+same control to 0.608 s**, so the switch costs nothing of its own, and
+`rxpeak` across the four is 2,974 / 2,975 / 2,975 / 3,032 — **HA is the
+outlier and the display is not.**
+
+**Two traps this sequence walked into, both now rules.** `CKERMITW.EXE` was
+left as the stale 206,758-byte pre-display build while the work shipped
+under the staging name `CKDISP.EXE`, so `CKERMITW --nodisplay` answered
+`Extended options not configured` — **the same string the unknown-option
+control produces**, which reads exactly like a broken switch. The name now
+means what `CLAUDE.md` says it means: **225,822, md5 `3759f47f…`, round-trip
+verified off the image, and `CKDISP.EXE` is deleted.** And **a re-run gets a
+new leg letter**: HJ re-used `s16aoHB.ksc`, so it overwrote HB's `.host` and
+truncated its `.pkt`, both `.gitignore`d — leg HB's artefacts are gone and
+its figures survive only in §16ap. §6's "unique log names" was written for
+MAME; it is the bench's rule too. **`> NUL` still works too**, but the
 switch keeps stdout on the console — which means **a display leg and an
 instrumented leg can be the same leg again**, and §16ao's "they cannot" is
 now only true of the redirect. **Do not reach for `-dNOCURSES`**: it deletes
