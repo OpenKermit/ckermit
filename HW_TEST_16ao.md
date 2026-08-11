@@ -58,12 +58,25 @@ checked. These are the ones that cost them.
    Four receive legs write 32 KB each. **Out of disk makes the Victor hang,
    not fail** (§16al) — eleven packets then silence forever.
    Partition 1 (`D:`) is 9.7 MB and 100% free if you ever need room.
-2. **The binary.** `CKDISP.EXE`, **225,638 bytes**, md5
-   **`4502705df1a3c0a34e990839b34f8436`**, = `ckermitw.exe` at commit
-   `1962e1a`. This is the **only** binary this sheet uses; every leg names
-   it explicitly. `CKERMITW.EXE` on the image is the *old* 206,758-byte
-   build with no display at all — do not substitute it, and do not read a
-   result from it.
+2. **The binary.** **`CKERMITW.EXE`, 225,822 bytes, md5
+   `3759f47f44202ae8e498c5ac7adf822a`** — HEAD, with the display *and*
+   `--nodisplay`. Every `.BAT` in this sheet names `CKDISP`, which was the
+   staging name while the display was under test; **`CKDISP.EXE` no longer
+   exists on the image** and the `.BAT`s must be re-staged against
+   `CKERMITW` before a re-run.
+
+   **The legs recorded in §16ap ran an earlier build** — 225,638 bytes, md5
+   `4502705d…`, commit `1962e1a`, before `--nodisplay` added 184 bytes. The
+   difference is one XI record that scans the command tail once before
+   `main()` and finds nothing; it is outside the timed interval and does not
+   affect the figures. A re-run is not comparing the same binary, though, so
+   say which one it was.
+
+   **A `--nodisplay` re-run is cheaper than this sheet.** The whole reason
+   arm A used a redirect was that no runtime switch existed. It does now, so
+   both arms can keep stdout on the console and **both** can report their
+   counters — no photographs, and `wcon n=` distinguishes the arms
+   directly. If you re-run this, re-run it that way.
 3. **The fixture.** `TRANS.DAT` on the image, 32,768 bytes, md5
    `d94d2beda069ef0ef340977e7fd6995d`. The host copies `rcvha.dat` …
    `rcvhh.dat` are byte-identical to it, so **wire bytes are comparable
