@@ -46,19 +46,36 @@ If you're using libvirt, something like this in your machine definition:
 
 # Kermit usage
 
-Let's say you've configured the guest as CID 3.  On the guest, you'll type
-something like:
+Let's say you've configured the guest as CID 3.  You have access to it, perhaps
+via `virsh console` or VNC.  (You can run C-Kermit across `virsh console` but it
+will be a lot slower than vsock.)  On the guest, you'll type something like:
 
-`set host /network-type vsock *:5353`
+`set host /network-type:vsock *:5353`
 
 This has Kermit listening for a connection.
 
+A more complete session on the guest might look like this:
+
+```
+ENABLE ALL BOTH
+SET RECEIVE CONFIRM OFF
+SET HOST /SERVER /NETWORK-TYPE:VSOCK *:5353
+```
+
+This is an unusual situation where the server is running in interactive mode,
+but you directly control the other end, so probably don't want to have to
+confirm all the actions.  See [permissions](permissions.md) for more.
+
 Then, on the host, you'll run something like:
 
-`set host /network-type vsock 3:5353`
+`set host /network-type:vsock 3:5353`
 
 This will establish the connection.
 
-It's all ready to go.  Maybe you'll run `SERVER` on one end, and `GET filename`
-on the other.
+It's all ready to go.  You can use `GET`, `SEND`, `RDIR`, `RDEL`, etc. to
+control the remote end.
 
+# A note on security
+
+vsock provides no particular security.  It's like opening a port on localhost.
+You can't access it remotely, though, that helps compared with TCP.
