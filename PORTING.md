@@ -9987,9 +9987,11 @@ the hardware result is an operator observation of a *display*, which is the
 right kind of evidence for it, and the wire-level figures behind it are
 MAME's.
 
-**Not measured: what the display costs at 38400.** At 9600 the foreground
-has ~555 µs of slack per byte and at 38400 it has none (§16ag), so 3.8% at
-9600 is not transferable. The specific exposure is the `fflush()` in
+**Not measured here: what the display costs at 38400. §16ap measured it —
+4.188 s receiving and 5.035 s sending, and the cost is a constant rather
+than a fraction.** At 9600 the foreground has ~555 µs of slack per byte and
+at 38400 it has none (§16ag), so 3.8% at 9600 was not transferable as a
+percentage, though the 4.5 s behind it was. The specific exposure is the `fflush()` in
 `move()`: 55 cursor addresses per repaint now sit on the same foreground
 path §16v measured at 485 µs per wire byte. One paired leg — same fixture,
 `CKPRE`-style control against `CKDISP` — would settle it, and it needs the
@@ -10002,3 +10004,112 @@ there. The fallback to `XYFD_S` exists and is automatic whenever the
 fullscreen display is unavailable, but **nothing detects the case**. Either
 `victor_ansi.asm` grows a VT52/Z19 layer, or the port detects the DOS and
 picks a dialect, or FreeDOS gets the CRT display. §1 item 14.
+
+## 16ap. What the display costs: a constant, not a fraction
+
+`HW_TEST_16ao.md`, eight legs, 10 August 2026. **All six received files
+md5-identical to the fixture, `rxlost = 0` and `rxfull = 0` on every leg.**
+
+The control is the same binary as the treatment. `xxscreen()` tests
+`!backgrd` at runtime and `conbgt()` derives `backgrd` from `isatty(0) &&
+isatty(1)`, so **redirecting stdout turns the display off with no code-size
+difference at all** — §16w has nothing to act on for the first time in this
+project's history. `wcon n=1` on all four control legs and 331–514 on all
+four display legs is the check that the variable did what was intended.
+
+| leg | dir | rate | display | wire | pkt | rs | host clock | non-line |
+|---|---|---:|---|---:|---:|---:|---:|---:|
+| HA | recv | 38400 | off | 37,557 | 18 | 0 | 31.568 | **21.803** |
+| HB | recv | 38400 | **on** | 37,557 | 18 | 0 | 35.965 | **26.200** |
+| HC | recv | 38400 | off | 40,544 | 25 | 2 | 32.655 | **22.114** |
+| HD | recv | 38400 | **on** | 37,557 | 18 | 0 | 35.857 | **26.092** |
+| HE | send | 38400 | off | 37,557 | 18 | 0 | 22.283 | **12.518** |
+| HF | send | 38400 | **on** | 37,557 | 18 | 0 | 27.318 | **17.553** |
+| HG | recv | 9600 | **on** | 46,769 | 30 | 4 | 68.979 | **20.339** |
+| HH | recv | 9600 | off | 39,564 | 24 | 1 | 57.091 | **15.944** |
+
+### The headline
+
+**Receive at 38400: the display costs 4.188 s, against a control spread of
+0.310 s — 13.5× the noise.** That is 13.0% of a 32 KB transfer. Send costs
+5.035 s (22.6%) on the best-matched pair the harness can produce: HE and HF
+are **byte-identical on the wire**, 37,557 both, 18 packets, zero
+retransmissions each. Receive at 9600 costs 4.395 s (7.7%).
+
+**The three numbers to read together are 4.188, 5.035 and 4.395 — and the
+point is that they are the same number.** The display costs about
+**4–5 seconds per 32 KB transfer regardless of line rate**, because it is
+console-write time and console writes do not care what the serial port is
+doing. The percentages differ only because the denominator does: the
+faster the transfer, the larger the fraction.
+
+**So §16ao's "3.8% at 9600 under MAME does not transfer" was right for the
+wrong reason.** MAME measured `wcon tot = 450 cs`; hardware measures
+4.2–5.0 s. **The absolute transferred perfectly; only the percentage did
+not**, because MAME's transfer took 119 s where the bench takes 31. This
+is the fourth time in this tree a percentage has travelled worse than the
+absolute it came from. **Quote the seconds. The percentage is a property of
+the denominator.**
+
+### Safety: it does not touch the ring
+
+Decision rule 2 passes cleanly. `rxfull = 0` and `rxlost = 0` on all eight.
+On the four legs comparable by §16ag's rule — same retransmission count —
+`rxpeak` is **3,032 with the display off (HA) against 2,975 with it on (HB
+and HD, identical to each other)**. The display leg is 57 bytes *lower*, so
+there is no ring pressure to find; painting happens after the ACK, when the
+line is idle, the same reason §16s's floppy cost nothing.
+
+Worth noting in passing: HA's 3,032 of 4,096 is higher than §16af's
+published 2,581 and leaves 1,064 bytes of margin. Different sitting, both
+clean, and nothing is pressing on it — but 2,581 is not the standing figure
+it was.
+
+### What it licenses, by the rule written before the legs ran
+
+`HW_TEST_16ao.md`'s decision rule said **≥ 5% licenses a `--nodisplay`
+switch** through §16i's priority-0 XI mechanism. 13.0% receiving and 22.6%
+sending are over that, so the rule fires and the switch should be built —
+`--rtscts`/`--safe-server` is the shape, and it costs no upstream edit.
+
+**But note what already works and costs nothing: `CKDISP … > NUL`.** The
+display is off whenever stdout is not a terminal, which is exactly what
+arm A of this sheet was. An operator who wants the speed back has it today;
+the switch is a convenience that keeps the counters on screen while
+suppressing the display, and nothing depends on it.
+
+**What should NOT be done is `-dNOCURSES`.** It deletes the CRT display as
+well and changes code size by 18,880 bytes, which puts §16w back in play —
+the whole reason this sheet's control was a redirect and not a rebuild.
+
+### A new caveat on an old instrument: `wcon tot=` is unbiased and very noisy
+
+HB and HD are protocol-identical legs 108 ms apart on the host clock, and
+their `wcon tot=` readings are **350 cs and 600 cs**. That is not
+measurement error, it is the 0.5 s clock quantum (§16n): each console write
+is far shorter than a tick, so `v9k_centis_since()` returns 0 unless the
+write happens to straddle one, in which case it returns 50. `tot` is
+therefore a sum of 0-or-500 ms samples.
+
+The estimator is **unbiased** — a write of duration *d* straddles with
+probability *d*/0.5 s and contributes 0.5 s, so E[tot] = *n·d*, the true
+total — but its standard error is 0.5 s × √(straddles), which is ±1.3 s on
+seven of them. Over the four display legs (350, 600, 450, 700) the mean is
+**5.25 s**, against 4.19–5.04 s from the clock. **The two instruments
+agree, and they are genuinely independent.**
+
+**The rule: `wcon n=` is exact and `wcon tot=` is ±1.5 s on a single leg.**
+Quote `n`; average `tot` over at least four legs or do not quote it. The
+same applies to `wfile tot=` and `txgap tot=`, which are built the same way
+— §16n's "quote `tot=`, never `max=`" was right and incomplete.
+
+### Two smaller things
+
+**HE at 1,470 cps is within 5 cps of the port's fastest figure ever**
+(§16ak leg DS, 1,475). It is a send with the display off, which is the
+fastest thing this port does.
+
+**HC and HG went off-shape** — 2 and 4 retransmissions — which is 2 of 8,
+consistent with §16ah's "expect roughly a third". Non-line cost made both
+usable, which is the third sitting in a row where that method has earned
+its place.

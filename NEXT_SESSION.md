@@ -38,11 +38,37 @@ rule 6 holds. **No upstream edit — still seventeen.** Image 206,758 →
    lines, because `printw` is buffered `printf` while `move()` is unbuffered
    `conol()`. `fflush()` before each escape sequence, and in `refresh()`.
 
-**Open from it:** what the display costs **at 38400** is unmeasured — 3.8%
-at 9600 does not transfer, since the foreground has no slack at 38400
-(§16ag). One paired leg settles it. And **FreeDOS-for-Victor will paint
-noise**: `kernel/victor_ansi.asm:141` parses only `ESC [`. That is the
-port's first behavioural difference between the two DOSes; see item 14.
+**§16ap measured what it costs, and the answer is a constant: ~4-5 s per
+32 KB transfer at ANY line rate**, because it is console-write time and
+console writes do not care about the wire. Eight legs, all byte-exact,
+`rxlost = 0 rxfull = 0` throughout. **Receive at 38400: 4.188 s against a
+control spread of 0.310 s** (13.0%); send 5.035 s (22.6%, on a wire-
+identical pair); receive at 9600 4.395 s (7.7%). **The percentages differ
+only because the denominator does.** MAME's 4.5 s was right and its 3.8%
+was not — *quote the seconds, the percentage is a property of the
+denominator*. **It does not touch the ring**: `rxpeak` 2,975 with the
+display against 3,032 without, on legs with the same retransmission count.
+
+**Two things came out of §16ap that outlive it.** The control was **the
+same binary** — redirecting stdout turns the display off at runtime, so
+§16w's code-size sensitivity had nothing to act on for the first time in
+this project's history; reach for that shape whenever a feature can be
+disabled at runtime. And **`wcon tot=` is unbiased but very noisy**: two
+protocol-identical legs 108 ms apart read 350 and 600 cs, because each
+console write is far shorter than the 0.5 s tick and `tot` is a sum of
+0-or-500 ms samples. **`n=` is exact; `tot=` is ±1.5 s on one leg** — average
+it over four or do not quote it, and the same applies to `wfile tot=` and
+`txgap tot=`.
+
+**Open from it:** the decision rule written before the legs said ≥ 5%
+licenses a **`--nodisplay` switch** (§16i's priority-0 XI mechanism, no
+upstream edit), and 13.0%/22.6% fires it. **`CKDISP … > NUL` already does
+the job at zero cost** — the display is off whenever stdout is not a
+terminal — so the switch is a convenience, not a blocker. **Do not reach for
+`-dNOCURSES`**: it deletes the CRT display too and moves code size by
+18,880 bytes. And **FreeDOS-for-Victor will paint noise**:
+`kernel/victor_ansi.asm:141` parses only `ESC [`. That is the port's first
+behavioural difference between the two DOSes; see item 14.
 
 **`HW_TEST_16ai.md` RAN, 9 August 2026 — all seven legs, every transferred
 file byte-exact, `rxlost = 0 rxfull = 0` throughout. PORTING.md §16ai is the
