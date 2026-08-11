@@ -60,13 +60,19 @@ console write is far shorter than the 0.5 s tick and `tot` is a sum of
 it over four or do not quote it, and the same applies to `wfile tot=` and
 `txgap tot=`.
 
-**Open from it:** the decision rule written before the legs said ≥ 5%
-licenses a **`--nodisplay` switch** (§16i's priority-0 XI mechanism, no
-upstream edit), and 13.0%/22.6% fires it. **`CKDISP … > NUL` already does
-the job at zero cost** — the display is off whenever stdout is not a
-terminal — so the switch is a convenience, not a blocker. **Do not reach for
-`-dNOCURSES`**: it deletes the CRT display too and moves code size by
-18,880 bytes. And **FreeDOS-for-Victor will paint noise**:
+**`--nodisplay` is BUILT** — the decision rule fired and the switch is
+`ckvictor.c`'s fourth command-tail option after `--safe-server` and the
+three flow ones. It sets `fdispla = XYFD_N`, which the `xxscreen()` macro
+tests before calling anything, so the display costs one compare per packet
+when off. **No upstream edit**, +184 bytes (**225,822**), DGROUP unchanged,
+smallest Victor still 384K. Verified under MAME at 9600 with no redirect:
+byte-exact, `rxlost = 0 rxfull = 0`, **`wcon n = 1` against leg HG's 514**,
+and the unknown-option control (`--nodisplaz` → `Extended options not
+configured`) was run per §16i's rule. **`> NUL` still works too**, but the
+switch keeps stdout on the console — which means **a display leg and an
+instrumented leg can be the same leg again**, and §16ao's "they cannot" is
+now only true of the redirect. **Do not reach for `-dNOCURSES`**: it deletes
+the CRT display too and moves code size by 18,880 bytes. And **FreeDOS-for-Victor will paint noise**:
 `kernel/victor_ansi.asm:141` parses only `ESC [`. That is the port's first
 behavioural difference between the two DOSes; see item 14.
 

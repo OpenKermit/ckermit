@@ -4241,6 +4241,84 @@ static struct v9k_rt_init __based(__segname("XI")) v9k_flow_rec =
     { 1, 0, v9k_set_flow };
 
 /*
+  --nodisplay -- turn the file-transfer display off for one run.
+
+      CKERMITW --nodisplay -l /dev/seriala -b 38400 -r
+
+  §16ap measured what the fullscreen display costs and the answer is
+  **4-5 seconds per 32 KB transfer at any line rate** -- 4.188 s receiving
+  at 38400 against a control spread of 0.310 s, 5.035 s sending, 4.395 s
+  receiving at 9600. It is console-write time, so it does not scale with
+  the wire; only the percentage moves, from 7.7% at 9600 to 22.6% on a
+  38400 send. The run sheet's decision rule said an effect over 5% licenses
+  a switch, and it did.
+
+  IT IS NOT THE ONLY WAY OFF, and the other one is worth knowing because it
+  is what §16ao's own control legs used: **redirect stdout**. `xxscreen()`
+  tests `!backgrd`, `conbgt()` derives `backgrd` from `isatty(0) &&
+  isatty(1)`, so `CKERMITW ... > NUL` suppresses the display with no code at
+  all. What this switch adds is the ability to suppress the display while
+  KEEPING stdout on the console -- so the `v9k:` counters and any error
+  still reach the operator's screen, which a redirect takes away and which
+  MS-DOS 3.1 cannot give back (it will not redirect handle 2).
+
+  WHY IT WRITES fdispla AND WHY THAT IS SAFE. XYFD_N is upstream's own
+  "SET FILE DISPLAY NONE", tested by the `xxscreen()` macro before
+  `ckscreen()` is even called, so the whole display costs one compare per
+  packet when it is off. §16ai's trap -- an XI record writing a variable
+  upstream re-initialises later -- was checked rather than assumed: every
+  other writer of `fdispla` in this build is either a static initializer,
+  inside `fxdinit()`, or in the parser. And **`fxdinit()` is unreachable
+  once this is XYFD_N**: its only live caller is `ckscreen()`
+  (`ckuusx.c:4629`), which the macro gate stops; the three in `ck_cls()`
+  and friends are in the `#ifndef NOTERMCAP` / `#ifndef CK_CURPOS` region
+  this build excludes (§1g); the rest are `SET FILE DISPLAY` in `ckuus7.c`.
+  So nothing writes it after this and there is no ordering to lose.
+
+  Priority 0, like --safe-server and the flow switch, and it blanks the
+  token out of Watcom's copy of the DOS tail before `argv` is built so
+  `cmdlin()` never sees an option it would reject.
+*/
+#define V9K_SW_NODISPLAY "--nodisplay"
+
+extern int fdispla;                     /* ckuusx.c, XYFD_* from ckcker.h */
+
+int v9k_nodisplay = 0;                  /* Witnessed through uname()    */
+
+static void __far
+v9k_set_nodisplay(void)
+{
+    char __far * p;
+    char __far * tok;
+    int off = 0;
+
+    p = _LpCmdLine;
+    if (p) {
+        while (*p) {
+            while (*p == ' ' || *p == '\t')
+              p++;
+            if (!*p)
+              break;
+            tok = p;
+            while (*p && *p != ' ' && *p != '\t')
+              p++;
+            if (!v9k_tokeq(tok,p,V9K_SW_NODISPLAY))
+              continue;                 /* Not ours: leave it for argv  */
+            off = 1;
+            while (tok < p)             /* Blank it, as --safe-server   */
+              *tok++ = ' ';             /* does and for the same reason */
+        }
+    }
+    if (off) {
+        v9k_nodisplay = 1;
+        fdispla = XYFD_N;
+    }
+}
+
+static struct v9k_rt_init __based(__segname("XI")) v9k_nodisplay_rec =
+    { 1, 0, v9k_set_nodisplay };
+
+/*
   access().  Watcom HAS one; it is wrong about the directory you are in
   when that directory is the root, which is where CKERMITW normally runs.
 
@@ -4385,6 +4463,11 @@ uname(n) struct utsname * n;
            line at exit reports that.  FLO_* from ckcdeb.h: 0 none, 1
            XON/XOFF, 2 RTS/CTS. */
         debug(F101,"v9k flowsel","",v9k_flowsel);
+        /* And --nodisplay (§16ap), by the same route.  1 means the
+           file-transfer display was switched off on the command line;
+           note that a redirect turns it off too and does NOT show up
+           here, because that is backgrd and not this flag. */
+        debug(F101,"v9k nodisplay","",v9k_nodisplay);
     }
 
     ckstrncpy(n->sysname, "MS-DOS",  _UTSNAME_LENGTH);

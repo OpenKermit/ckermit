@@ -10069,14 +10069,41 @@ it was.
 
 `HW_TEST_16ao.md`'s decision rule said **≥ 5% licenses a `--nodisplay`
 switch** through §16i's priority-0 XI mechanism. 13.0% receiving and 22.6%
-sending are over that, so the rule fires and the switch should be built —
-`--rtscts`/`--safe-server` is the shape, and it costs no upstream edit.
+sending are over that, so the rule fired. **`--nodisplay` is built, and it
+is `ckvictor.c`'s fourth command-tail switch after `--safe-server`,
+`--rtscts`/`--xonxoff`/`--noflow`.** No upstream edit; +184 bytes of image
+(225,638 → **225,822**), DGROUP unchanged at 48,736, **smallest Victor
+still 384K**.
 
-**But note what already works and costs nothing: `CKDISP … > NUL`.** The
-display is off whenever stdout is not a terminal, which is exactly what
-arm A of this sheet was. An operator who wants the speed back has it today;
-the switch is a convenience that keeps the counters on screen while
-suppressing the display, and nothing depends on it.
+It writes `fdispla = XYFD_N`, which the `xxscreen()` macro tests *before*
+`ckscreen()` is called, so the display costs one compare per packet when it
+is off. **§16ai's trap was checked rather than assumed**: every other
+writer of `fdispla` in this build is a static initializer, inside
+`fxdinit()`, or in the parser — and `fxdinit()` is itself unreachable once
+`fdispla` is `XYFD_N`, because its only live caller is `ckscreen()`
+(`ckuusx.c:4629`) behind that same macro gate, and the three in `ck_cls()`
+and friends are in the `#ifndef CK_CURPOS` region §1g excludes.
+
+**Verified under MAME at 9600**, no redirect, `--nodisplay` on the command
+line: 32,768 bytes byte-exact, `rxlost = 0 rxfull = 0 rxpeak = 305`, no
+display on screen, and **`wcon n = 1`** — against `n = 514` on §16ap's own
+leg HG, the same rate and direction with the display on. **The
+unknown-option control was run** per §16i's rule: `CKDISP --nodisplaz -h`
+answers `Extended options not configured`, so `--nodisplay` being accepted
+means the switch was recognised and not merely ignored.
+
+**`CKDISP … > NUL` was already a way off and remains one.** The display is
+suppressed whenever stdout is not a terminal, which is exactly what arm A
+of this sheet was. What the switch adds is suppressing the display **while
+keeping stdout on the console**, so the `v9k:` counters and any error still
+reach the operator — which a redirect takes away and which MS-DOS 3.1
+cannot give back, since it will not redirect handle 2.
+
+**A consequence worth writing down: `--nodisplay` makes the display leg and
+the throughput leg the same leg again.** §16ao's constraint — that an
+instrumented run cannot show the display and a display run cannot be
+instrumented — was a property of using the redirect as the switch. It is
+now only true of the redirect.
 
 **What should NOT be done is `-dNOCURSES`.** It deletes the CRT display as
 well and changes code size by 18,880 bytes, which puts §16w back in play —
