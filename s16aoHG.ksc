@@ -1,0 +1,6 @@
+set speed 9600
+set retry 30
+set receive timeout 20
+log packets s16aoHG.pkt
+send rcvhg.dat
+statistics
