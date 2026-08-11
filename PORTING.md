@@ -10109,6 +10109,46 @@ now only true of the redirect.
 well and changes code size by 18,880 bytes, which puts §16w back in play —
 the whole reason this sheet's control was a redirect and not a rebuild.
 
+### Leg HJ: `--nodisplay` reproduces the redirect's control on the machine
+
+Run after the switch shipped, on the bench at 38400, against leg HB's own
+take-file. **Byte-exact** (`RCVHB.DAT` md5 `d94d2beda…`), `rxlost = 0
+rxfull = 0`, `wcon n = 1` **with no redirect** — the command line is
+`CKERMITW --nodisplay -l /dev/seriala -b 38400 -r` and nothing appeared on
+screen between it and `Closing /dev/seriala`.
+
+Four legs at 38400 receive, and **all four carry 37,557 wire bytes in 18
+packets with zero retransmissions** — the tightest set this project has:
+
+| leg | display off by | host clock | cps |
+|---|---|---:|---:|
+| HA | redirect | 31.568 | 1,038 |
+| **HJ** | **`--nodisplay`** | **30.960** | **1,058** |
+| HB | *display on* | 35.965 | 911 |
+| HD | *display on* | 35.857 | 913 |
+
+**HJ and HA are 0.608 s apart, and both are ~5 s from the display legs.**
+So the two ways of switching the display off produce the same control, and
+the switch does not add a cost of its own. Against HJ the display costs
+**4.951 s**; against HA, 4.343 s; §16ap's published figure, which includes
+off-shape HC by non-line cost, is 4.188 s. All three are the same answer.
+
+`rxpeak` is worth a second look now there are four matched legs: **2,974
+(HJ, off), 2,975 (HB and HD, on), 3,032 (HA, off)**. HA is the outlier and
+the display is not — three of the four sit within one byte of each other
+regardless of whether the screen was being painted. §16ap's "no ring
+pressure" conclusion is stronger than the two legs it was drawn from.
+`peaktag` splits the same way: 12 on HJ, HB and HD, 6 on HA.
+
+**One harness cost, and it is a rule this project already had for MAME.**
+HJ re-used `s16aoHB.ksc`, so `> s16aoHB.host` overwrote leg HB's host file
+and `log packets s16aoHB.pkt` truncated its packet log — both are
+`.gitignore`d, so **leg HB's original artefacts are gone.** Its figures
+survive only because they were written into this section. §6 already says
+"one `kermit` attempt per MAME run, unique log names — `log packets`
+truncates"; it applies at the bench too, and this is the first time it has
+bitten there. **A re-run gets a new leg letter, not the old one.**
+
 ### A new caveat on an old instrument: `wcon tot=` is unbiased and very noisy
 
 HB and HD are protocol-identical legs 108 ms apart on the host clock, and
