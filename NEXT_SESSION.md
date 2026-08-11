@@ -1,8 +1,48 @@
 # Next session
 
 Handoff for the Victor 9000 port, written 9 August 2026, revised after
-§16ah and then again at the desk the same day. **No live defect in the
-receive path.** §16af closed the last one.
+§16ah and then again at the desk the same day, and again on 10 August after
+§16ao. **No live defect in the receive path.** §16af closed the last one.
+
+**§16ao: the port had NO file-transfer display at all, and now it has the
+fullscreen one — validated on real hardware at 38400, both directions.**
+`ckvictor.h` defined `NOCURSES`; `ckcdeb.h:6098` turns that into
+`NODISPLAY`; `ckcker.h:730` then expands `xxscreen()` and `ckscreen()` to
+**nothing**. Every transfer this project has ever run showed a blank screen
+and nobody noticed, because **every instrumented leg redirects stdout**,
+which sets `backgrd` and would have suppressed the display anyway. Fixed
+with `CK_CURSES` + `CK_CURPOS` in `ckvictor.h`, a new **`victorow/curses.h`**,
+and **`ckvictor.c` §1g** — the Victor console in **VT52/Z19** (`ESC Y
+(row+0x20)(col+0x20)`, `ESC E`, `ESC K`), which is INT 21h only, so hard
+rule 6 holds. **No upstream edit — still seventeen.** Image 206,758 →
+**225,638**, needs **239,702 (234K)**, **smallest Victor still 384K**.
+
+**Four things from it that generalise:**
+
+1. **Ask the preprocessor before you ask the machine.** Four runtime gates
+   (`fdispla`, `local`, `backgrd`, `displa`) were traced and *all four
+   passed* across a bench sitting and three MAME legs, because there were no
+   call sites for them to gate. `wcc -pl` settled it in one second. §16aj's
+   rule, third time: **a line of upstream source is not evidence that the
+   build compiles it.**
+2. **A diagnostic must not change the thing it measures.** The first
+   `backgrd` reading was taken as `CKICPD -d -h > output.log`, and the
+   redirect set the exact variable under test. `-d` writes its own log; the
+   redirect was never needed.
+3. **A display leg and a throughput leg cannot be the same leg.** The
+   `.OUT` redirect sets `backgrd = 1` and suppresses the display. Photograph
+   the exit screen or run one of each. **`v9k: wcon n=` tells you which case
+   you are in**: 0 = no display, ~485 = fullscreen on a 32 KB receive.
+4. **"Everything goes through one path" is a claim to enumerate.** The
+   first build painted every field correctly and concatenated onto two
+   lines, because `printw` is buffered `printf` while `move()` is unbuffered
+   `conol()`. `fflush()` before each escape sequence, and in `refresh()`.
+
+**Open from it:** what the display costs **at 38400** is unmeasured — 3.8%
+at 9600 does not transfer, since the foreground has no slack at 38400
+(§16ag). One paired leg settles it. And **FreeDOS-for-Victor will paint
+noise**: `kernel/victor_ansi.asm:141` parses only `ESC [`. That is the
+port's first behavioural difference between the two DOSes; see item 14.
 
 **`HW_TEST_16ai.md` RAN, 9 August 2026 — all seven legs, every transferred
 file byte-exact, `rxlost = 0 rxfull = 0` throughout. PORTING.md §16ai is the

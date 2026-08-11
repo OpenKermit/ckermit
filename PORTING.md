@@ -340,10 +340,31 @@ about upstream, and they belong in the same report as 14-17:
   `tcflow()` in the module, so the whole unstick path vanishes in a
   `NODEBUG` build. A functional side effect inside a logging macro.
 
-Neither is touched here. Fixing the first is not a guarded no-op — it
-changes behaviour on every platform, which is the point of reporting it
-rather than patching it (hard rule 1). §16aj has the measurements and what
-the port does instead.
+**Three more were found by §16ao while building the file-transfer
+display, and none is fixed here either:**
+
+- **`ckcdeb.h:6098`** — `NOCURSES` implies `NODISPLAY`. "There is no curses
+  library on this platform" is turned into "compile out every file-transfer
+  display", including the CRT and SERIAL modes, which need nothing but
+  `write()`. `ckcker.h:730` then expands `xxscreen()` and `ckscreen()` to
+  nothing. Any build that honestly declares it has no curses silently loses
+  its progress display.
+- **`ckuusx.c:6372`** — `fxdinit()` gates the fullscreen display on a
+  termcap probe even in builds whose curses never reads a termcap.
+  `ck_termset()`, the only consumer of what `tgetent()` loads, is called
+  four lines below under `#ifndef MYCURSES`. With no TERM in the
+  environment it prints "Fullscreen file transfer display disabled" and
+  falls back, on information it did not obtain.
+- **`ckuusx.c:7070`** — `ck_curpos(row, col) int row, int col;` is a
+  malformed K&R declarator; the second `int` is a syntax error. The block
+  is only reached when neither termcap nor `MYCURSES` has supplied
+  `CK_CURPOS`, which is why **it has apparently never been compiled**.
+
+Neither of the `ckutio.c` pair is touched here, and nor are these three.
+Fixing the first `ckutio.c` one is not a guarded no-op — it changes
+behaviour on every platform, which is the point of reporting it rather than
+patching it (hard rule 1). §16aj has the measurements and what the port
+does instead; §16ao has the same for the display three.
 
 1. **`ckcdeb.h`** — wrapped the `sig_t` typedef in `#ifndef CK_NO_SIG_T`.
    macOS (and the retired build's newlib) already define `sig_t`. Open Watcom
@@ -9769,3 +9790,215 @@ image **206,758**, **needs 220,950 (215K)**, smallest Victor 384K, md5
 - `SET LINE` naming: `COM1`/`COM2` for channels A/B is the obvious choice and
   matches the FreeDOS convention, but Kermit is talking to the chip directly, so
   the names are ours to define.
+
+## 16ao. The port had no file-transfer display at all, and now it has the fullscreen one
+
+**Validated on real hardware at 38400, both directions, 10 August 2026.**
+Receiving and sending, the display is correct and the progress bar tracks
+the transfer's actual duration. Before this section `CKERMITW` showed
+**nothing at all** during a transfer — not a percentage, not a dot, not a
+packet type — on any build, in either direction, for the port's entire
+life.
+
+### What was wrong, and why four correct-looking explanations came first
+
+`ckvictor.h` defined `NOCURSES`, meaning "there is no curses library here",
+which is true. `ckcdeb.h:6098` turns `NOCURSES` into **`NODISPLAY`**, and
+`ckcker.h:730` then makes **both** `xxscreen()` and `ckscreen()` expand to
+nothing:
+
+```c
+#ifdef NODISPLAY
+#define xxscreen(a,b,c,d)
+#define ckscreen(a,b,c,d)
+#endif
+```
+
+Upstream conflates "no curses" with "no display of any kind" — the CRT and
+SERIAL modes need nothing but `write()` and go with it.
+
+**The chain of investigation is the part worth keeping, because every step
+of it was sound and none of it was the answer.** `ckscreen()` has four
+runtime gates and each was checked in turn on the machine:
+
+| gate | where | verdict |
+|---|---|---|
+| `fdispla != XYFD_N` | `ckuusx.c:381` | XYFD_S — fine |
+| `local` | `ckcker.h:739`, and again in `rpack()`/`spack()` | **1** — `SHOW COMMUNICATIONS` printed `mode: local` under MAME |
+| `!backgrd` | `ckcker.h:739`, `ckuusx.c:4641` | **0** — `conbgt isatty test=1` in a `-d` log |
+| `displa` | `ckuus6.c:11649`, `ckuusr.c:5440` | follows `local`, so 1 |
+
+All four passed and the screen was still blank, because **there were no call
+sites for them to gate**. `wcc -pl` settled it in one second:
+
+```c
+    if (x)
+       ;                    /* this was xxscreen(SCR_PT,pkttyp,n,mydata) */
+```
+
+`ckscreen` appears **zero** times in the preprocessed `ckcfn2.c`.
+
+**§16aj's rule, learned again and more expensively: a line of upstream
+source is not evidence that the build compiles it.** §16aj applied it to
+`tthflow()` and §16am to the far end of the wire; here it cost a chain of
+four runtime hypotheses, one bench sitting and three MAME legs before anyone
+preprocessed the file. **Ask the preprocessor before you ask the machine —
+it is faster and it cannot be misread.**
+
+**Two `backgrd` findings survive as facts about this port even though
+neither was the cause.** `conbgt()` sets `backgrd = 1` whenever
+`isatty(0) && isatty(1)` is false (`ckutio.c:9643`), and the port's
+`getpgrp()`/`tcgetpgrp()` stubs both return 1 so the process-group test
+contributes nothing. **Every bench leg in this project's history redirects
+stdout to `STEP<LEG>.OUT`**, which sets that flag — so even after this
+section, *the display does not run on an instrumented leg*. That is
+upstream's intent and is correct; it means a throughput leg and a display
+leg cannot be the same leg. The first diagnostic run was itself lost to
+this: `CKICPD -d -h > output.log` set the exact variable under test, and
+`-d` writes its log to disk anyway so the redirect was never needed.
+**A diagnostic must not change the thing it measures.**
+
+### The Victor is VT52/Z19, not ANSI, and that was not obvious
+
+Removing `NOCURSES` gets `fdispla = XYFD_S` — the one-line CRT display
+(bytes, percent, CPS, packet length, repainted from column 0). That works,
+and it is **a regression against MS-DOS Kermit 3.13 on this same machine**,
+which has the fullscreen display. So the target is `XYFD_C`.
+
+The console's dialect is **DEC VT52 with Heath/Zenith Z19 extensions**, and
+it does **not** interpret ANSI CSI sequences:
+
+| operation | sequence |
+|---|---|
+| cursor to (row, col) | `ESC Y (row+0x20) (col+0x20)` |
+| erase whole screen, home | `ESC E` |
+| erase to end of screen | `ESC J` |
+| erase to end of line | `ESC K` |
+
+The Victor *Supplementary Technical Reference Manual* says so directly —
+"the set of escape sequences is designed to be very similar to a DEC VT52
+terminal … some of the more fancy features are borrowed from a Heath Z19
+terminal" — but **the conclusive evidence is `msyv90.asm`**, MS-DOS Kermit's
+Victor screen driver: it is a VT100 emulator whose entire job is
+**translating incoming ANSI into these sequences** (`ESC[r;cH` → `ESC Y` at
+`:1322`, `ESC[2J` → `ESC E` and `ESC[0K` → `ESC K` at `:1626-1751`). A
+console that understood ANSI would not need that table.
+
+**Hard rule 6 is not in conflict, and that was genuinely uncertain going
+in.** The worry was that 3.13 could show this display only because
+`msyv90.asm` is a screen driver with the hardware to itself. It is not so:
+`msxv90.asm:1100` (POSCUR) writes `ESC Y` with `AH=09h` and the two
+coordinate bytes with `AH=02h`, `CMBLNK` sends `ESC E`, `CLEARL` sends
+`ESC K`. Direct writes to the `F000:0` screen array exist in `msyv90.asm`
+only for the Tektronix bitmap. `vickermit.c:195` does the same in C.
+**The fullscreen display costs no BIOS call, no screen memory and no INT
+10h.**
+
+### Why upstream's own do-it-yourself curses could not be used
+
+`ckuusx.c:6732` already carries `MYCURSES`, which is nothing but three
+`printf`s of escape sequences and even has a VT52 arm. Two independent
+things make it unusable here:
+
+1. **`ckuusx.c:6237` is `#define isvt52 0` for every non-VMS build**, so the
+   VT52 arm is unreachable and the ANSI arm is what compiles.
+2. **That arm is off by one anyway**: `ESC Y (row+037) (col+037)` is +31
+   applied to `move()`'s 0-based coordinates, where the Victor wants +32.
+   `vickermit.c` gets away with +31 because *its* coordinates are 1-based.
+
+So the port supplies its own, using the mechanism it already uses for
+`termios.h` and `sys/ioctl.h`: **`victorow/curses.h`** declares the surface
+and **`ckvictor.c` §1g** implements it. The surface is small — `screenc()`
+uses `move` 55 times, `printw` 68, `refresh` 11, `clrtoeol` 11, and that is
+all. `initscr`/`endwin`/`touchwin`/`clearok` are no-ops because there is no
+off-screen image; upstream's own `MYCURSES` makes the same four no-ops,
+which is the check on that reasoning.
+
+**No upstream edit. Still seventeen.**
+
+### Two upstream blocks had to be worked around, and both are report items
+
+- **`fxdinit()` gates the display on a termcap probe it does not need**
+  (`ckuusx.c:6372`). It reads `getenv("TERM")`, and if empty sets `x = 0`
+  *without calling `tgetent()` at all*, prints "Warning: terminal type
+  unknown" and "Fullscreen file transfer display disabled", and drops
+  `fdispla` to `XYFD_S`. DOS sets no TERM, so that branch is taken every
+  time — in a build whose curses never consults a termcap, since
+  `ck_termset()`, the only consumer, is called four lines below under
+  `#ifndef MYCURSES`. Worked around with a `tgetent()` stub (§1g — it is
+  also the only symbol the fullscreen path leaves unresolved at link) and a
+  `putenv("TERM=victor")` beside the `_fmode` initializer.
+- **`ckuusx.c:7070` does not compile.** `ck_curpos(row, col) int row, int
+  col;` is not valid K&R — the second `int` is a syntax error. Every other
+  configuration reaches `CK_CURPOS` through termcap or `MYCURSES` first, so
+  **nothing has ever built that block**. `ckvictor.h` defines `CK_CURPOS`
+  and §1g supplies `ck_cls`/`ck_cleol`/`ck_curpos` in VT52 — which is wanted
+  regardless, since that fallback emits ANSI at a console that cannot read
+  it.
+
+### The bug this section made, and it is a general one
+
+The first build put every field on screen **correctly and concatenated onto
+two lines**. `printw` is `printf`, buffered by Watcom's stdio; `move()` and
+`clrtoeol()` go through `conol()` → `write()`, unbuffered. **Two output
+paths to one console**, so every `ESC Y` overtook the text it was meant to
+place. Fixed with `fflush(stdout)` before each escape sequence and in
+`refresh()` — which is what refresh *means* here: not "repaint from an
+image", there is no image, but "get the buffered half out".
+
+The comment in the first draft claimed the single output path made ordering
+safe. It was wrong because only three of the four calls were on it. **When
+a design argument rests on "everything goes through one path", enumerate
+what everything is.**
+
+### Numbers
+
+| | before | CRT (`XYFD_S`) | **fullscreen (`XYFD_C`)** |
+|---|---:|---:|---:|
+| DGROUP | 48,336 (73%) | 48,592 (74%) | **48,736 (74%)** |
+| image | 206,758 | 216,070 | **225,638** |
+| needs at load | 220,950 (215K) | 231,174 (225K) | **239,702 (234K)** |
+| smallest Victor | 384K | 384K | **384K, unchanged** |
+
+18 warning lines, **none in `ckvictor.c`**. The display costs **18,880
+bytes of image and does not move the smallest machine it can run on**,
+which is the figure that matters (§16x).
+
+**`v9k: wcon` is the instrument, and it is unambiguous**: `n=0` before,
+`n=31` with the CRT display, **`n=485 tot=450 cs`** with the fullscreen one
+on a 32 KB receive — 4.5 s of console writes in 119 s, **3.8%**. It works
+because `ckvictor.h`'s `#define write v9k_write` renames the call in
+C-Kermit's sources but not inside Watcom's libc, so `conol()` is counted and
+`printf` is not.
+
+### What is measured and what is not
+
+**Measured under MAME at 9600:** a 32,768-byte receive, md5
+`315a5931…` identical both ends, `rxlost=0 rxfull=0 rxpeak=368 of 4096`,
+the full screen with `Percent Done: 35 /////////////////-` and the
+`...10...20...30` scale, `Last Message: SUCCESS. Files: 1, Bytes: 32768,
+442 CPS`.
+
+**Measured on real hardware at 38400:** both directions, display correct,
+progress accurate to the transfer's duration. **Counter readings were not
+captured on the hardware legs and cannot be**, because the display and the
+`.OUT` redirect are mutually exclusive (see the `backgrd` note above). So
+the hardware result is an operator observation of a *display*, which is the
+right kind of evidence for it, and the wire-level figures behind it are
+MAME's.
+
+**Not measured: what the display costs at 38400.** At 9600 the foreground
+has ~555 µs of slack per byte and at 38400 it has none (§16ag), so 3.8% at
+9600 is not transferable. The specific exposure is the `fflush()` in
+`move()`: 55 cursor addresses per repaint now sit on the same foreground
+path §16v measured at 485 µs per wire byte. One paired leg — same fixture,
+`CKPRE`-style control against `CKDISP` — would settle it, and it needs the
+screen photographed rather than redirected.
+
+**A difference between the two DOSes, and it is this port's first.**
+FreeDOS-for-Victor's `kernel/victor_ansi.asm:141` parses only `ESC [` and
+passes everything else through, so these sequences will render as noise
+there. The fallback to `XYFD_S` exists and is automatic whenever the
+fullscreen display is unavailable, but **nothing detects the case**. Either
+`victor_ansi.asm` grows a VT52/Z19 layer, or the port detects the DOS and
+picks a dialect, or FreeDOS gets the CRT display. §1 item 14.

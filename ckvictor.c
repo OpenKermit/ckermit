@@ -3854,6 +3854,33 @@ v9k_set_binmode(void)
 {
     v9k_fmode_witness = 1;
     _fmode = O_BINARY;
+
+    /*
+      And the other thing that has to be true before main() runs: a TERM.
+
+      fxdinit() (ckuusx.c:6372) reads getenv("TERM") and, if it is empty,
+      sets x = 0 WITHOUT calling tgetent() at all, prints "Warning: terminal
+      type unknown" and "Fullscreen file transfer display disabled", and
+      drops fdispla from XYFD_C to XYFD_S.  DOS sets no TERM, so on this
+      machine that branch is taken every time and the fullscreen display can
+      never come up -- in a build whose curses (section 1g) does not consult
+      termcap and does not care what TERM says.
+
+      Setting it here rather than asking the operator to put "SET TERM=..."
+      in AUTOEXEC.BAT is the same choice section 1d makes about _fmode: a
+      default the program can guarantee beats a default the environment has
+      to remember.  putenv() copies into the runtime's own environment
+      block, so it does not matter that DOS's is fixed-size.
+
+      The name is not arbitrary even though nothing parses it: it is what
+      "SHOW TERMINAL" and any debug log will print, and "victor" says which
+      escape-sequence dialect section 1g is emitting.  An operator who
+      really has a different terminal on the console can still override it
+      -- DOS's SET wins, because putenv() only fills in what getenv() would
+      otherwise find empty.
+    */
+    if (!getenv("TERM"))
+      putenv("TERM=victor");
 }
 
 /*
@@ -4366,6 +4393,287 @@ uname(n) struct utsname * n;
     ckstrncpy(n->version, "",        _UTSNAME_LENGTH);
     ckstrncpy(n->machine, "Victor",  _UTSNAME_LENGTH);
     return(0);
+}
+
+/* ------------------------------------------------------------------ */
+/* 1g. The Victor console as curses -- VT52/Z19 through INT 21h         */
+/* ------------------------------------------------------------------ */
+
+/*
+  This is the implementation half of victorow/curses.h, which carries the
+  design and the evidence.  In one paragraph: C-Kermit's fullscreen
+  file-transfer display (fdispla = XYFD_C, ckuusx.c's screenc()) is the one
+  MS-DOS Kermit 3.13 shows on this machine, it needs only a handful of
+  curses primitives, and on the Victor those primitives are four escape
+  sequences written to the console with ordinary INT 21h.  No curses
+  library, no termcap, no screen memory, no INT 10h.
+
+  The sequences are the machine's documented set -- DEC VT52 with Heath Z19
+  extensions -- and NOT ANSI, which this console does not interpret:
+
+      cursor to (row, col)   ESC Y (row+0x20) (col+0x20)
+      erase to end of line   ESC K
+      erase to end of screen ESC J
+      erase whole screen     ESC E   (cursor goes home)
+
+  The +0x20 offset is the VT52 encoding: coordinates travel as printable
+  characters, so row 0 column 0 is ESC Y SP SP.  msxv90.asm:1100 (POSCUR)
+  does exactly this with AH=09h then AH=02h twice, and vickermit.c:195 does
+  it in C as printf("\033Y%c%c", x+31, y+31) -- +31 there because its
+  coordinates are 1-based and ours, like curses', are 0-based.
+
+  WHY THESE GO THROUGH conol(), AND THE fflush() THAT HAS TO GO WITH IT.
+
+  conol() is ckutio.c's console writer, so it lands on section 0e's write
+  path and is counted by the "v9k: wcon" line at exit -- which is how the
+  display's cost gets measured at all, since printf() inside Watcom's libc
+  calls its own write and never reaches our wrapper (ckvictor.h's "#define
+  write v9k_write" renames the call in C-Kermit's sources only).
+
+  But the FIELD TEXT does not come this way.  screenc() writes it with
+  printw(), which victorow/curses.h makes printf(), which is buffered by
+  Watcom's stdio -- so there are two output paths to one console and the
+  cursor addresses arrive in a different order than the text they position.
+  Measured, not reasoned about: the first build of this section put a
+  fullscreen display on the Victor whose fields were all correct and all
+  concatenated onto two lines, because every ESC Y overtook the printf
+  output it was meant to place.
+
+  So each sequence flushes stdout first, and refresh() -- which upstream
+  calls after every field group and which a no-op curses would ignore --
+  does the same.  That is what refresh() MEANS here: not "repaint from an
+  image", there is no image, but "make the console actually show what has
+  been written".  The alternative, routing printw() through conol() as
+  well, needs a vsprintf buffer on a 64K DGROUP and buys nothing this does
+  not.
+
+  The cost is one fflush per positioning call, which is a libc test-and-
+  return when the buffer is empty.
+
+  ESC E vs ESC J for clear().  Upstream's own VT52 arm does move(0,0) then
+  erase-to-end-of-screen, which is correct but is two writes and leaves the
+  cursor placement implicit.  ESC E is the Victor's own "erase entire screen
+  and home the cursor" (Supplementary Technical Reference Manual), one
+  sequence, and it is what msxv90.asm's CMBLNK sends.
+*/
+
+#define V9K_VT52_OFFSET  0x20           /* VT52 coordinate bias           */
+#define V9K_ESC          033            /* ckcasc.h's ESC, without the    */
+                                        /* include -- this file takes its */
+                                        /* headers from ckcdeb/ckcker only*/
+
+/*
+  80x25, less the 25th line the OEM driver reserves for its own status use
+  (ESC x1 turns it on; 3.13 puts its "X: cancel file" banner there through
+  exactly that mechanism).  fxdinit() will override COLS/LINES from the
+  environment if someone sets LINES, which is upstream's behaviour and is
+  left alone.
+*/
+int LINES = 24;
+int COLS  = 80;
+
+/*
+  A cursor address is at most four bytes and this is called 55 times per
+  screen repaint, so it is worth not calling printf for it.  ckstrncpy and
+  friends are not needed either -- the buffer is fixed and so is its length.
+*/
+int
+#ifdef CK_ANSIC
+move( int row, int col )
+#else
+move(row,col) int row; int col;
+#endif /* CK_ANSIC */
+{
+    char b[5];
+
+    /* Clamp rather than trust: a coordinate past the screen edge is a
+       display bug, but sending it as a stray control character would be a
+       corrupted screen, and the two are very different to debug. */
+    if (row < 0) row = 0;
+    if (col < 0) col = 0;
+    if (row > 24) row = 24;
+    if (col > 79) col = 79;
+
+    fflush(stdout);                     /* Ordering: see the note above */
+    b[0] = V9K_ESC;
+    b[1] = 'Y';
+    b[2] = (char) (row + V9K_VT52_OFFSET);
+    b[3] = (char) (col + V9K_VT52_OFFSET);
+    b[4] = '\0';
+    conol(b);
+    return(0);
+}
+
+int
+#ifdef CK_ANSIC
+clear( void )
+#else
+clear()
+#endif /* CK_ANSIC */
+{
+    char b[3];
+    fflush(stdout);                     /* Ordering: see the note above */
+    b[0] = V9K_ESC; b[1] = 'E'; b[2] = '\0';    /* Erase screen, cursor home */
+    conol(b);
+    return(0);
+}
+
+int
+#ifdef CK_ANSIC
+clrtoeol( void )
+#else
+clrtoeol()
+#endif /* CK_ANSIC */
+{
+    char b[3];
+    fflush(stdout);                     /* Ordering: see the note above */
+    b[0] = V9K_ESC; b[1] = 'K'; b[2] = '\0';    /* Erase to end of line */
+    conol(b);
+    return(0);
+}
+
+/*
+  The three that do nothing (and refresh(), which does one thing), and why
+  that is right rather than lazy.  Real
+  curses keeps an off-screen image and reconciles it with the terminal on
+  refresh(); there is no image here, every write goes straight at the
+  console, so there is nothing to allocate in initscr(), nothing to flush in
+  refresh(), nothing to release in endwin() and no window to touch.
+  Upstream's own do-it-yourself curses makes the same four no-ops
+  (ckuusx.c:6714-6725), which is the check on this reasoning.
+
+  This costs the display one property real curses would give it: it repaints
+  by rewriting fields rather than by diffing, so it writes more bytes than
+  it strictly must.  At 80x25 on a console this machine drives directly that
+  is not worth an image buffer out of a 64K DGROUP.
+*/
+int
+#ifdef CK_ANSIC
+initscr( void )
+#else
+initscr()
+#endif /* CK_ANSIC */
+{ return(0); }
+
+int
+#ifdef CK_ANSIC
+refresh( void )
+#else
+refresh()
+#endif /* CK_ANSIC */
+{
+    /* The one of the four that is NOT a no-op.  See the ordering note at
+       the top of this section: field text is buffered printf and cursor
+       addresses are unbuffered conol(), so "make the screen match" here
+       means "get the buffered half out". */
+    fflush(stdout);
+    return(0);
+}
+
+int
+#ifdef CK_ANSIC
+endwin( void )
+#else
+endwin()
+#endif /* CK_ANSIC */
+{ return(0); }
+
+int
+#ifdef CK_ANSIC
+touchwin( int w )
+#else
+touchwin(w) int w;
+#endif /* CK_ANSIC */
+{ return(w * 0); }
+
+int
+#ifdef CK_ANSIC
+clearok( int w, int ok )
+#else
+clearok(w,ok) int w; int ok;
+#endif /* CK_ANSIC */
+{ return((w * 0) + (ok * 0)); }
+
+/*
+  ck_cls(), ck_cleol(), ck_curpos() -- SCREEN CLEAR / CLEOL / MOVE, and the
+  CLS command, which are a different surface from the curses one above.
+
+  Upstream has a fallback for them at ckuusx.c:7055, reached when neither
+  termcap nor MYCURSES has supplied CK_CURPOS.  Two things are wrong with
+  taking it here, and only the first is ours to care about:
+
+    1. It emits ANSI -- printf("\033[%d;%dH") -- which this console does not
+       interpret.  SCREEN CLEAR would print "[2J" and leave the screen
+       alone.  Exactly the defect victorow/curses.h was written to avoid,
+       one layer up.
+
+    2. It does not compile.  ckuusx.c:7070 declares
+       "ck_curpos(row, col) int row, int col;", which is not valid K&R --
+       the second "int" is a syntax error, not a style.  Every other build
+       reaches CK_CURPOS through termcap or MYCURSES first, so nothing has
+       ever compiled this block.  Reported, not edited: defining CK_CURPOS
+       here is a smaller change than touching upstream and it is what this
+       port needs anyway.
+
+  So section 1g owns them, in the machine's own dialect.  ck_curpos()'s
+  arguments are 1-based -- ckuusr.c:13721 passes what the user typed at
+  "SCREEN MOVE row col" -- where move() above is 0-based like curses, which
+  is why this is not simply a call through.
+*/
+int
+#ifdef CK_ANSIC
+ck_cls( void )
+#else
+ck_cls()
+#endif /* CK_ANSIC */
+{ return(clear()); }
+
+int
+#ifdef CK_ANSIC
+ck_cleol( void )
+#else
+ck_cleol()
+#endif /* CK_ANSIC */
+{ return(clrtoeol()); }
+
+int
+#ifdef CK_ANSIC
+ck_curpos( int row, int col )
+#else
+ck_curpos(row,col) int row; int col;
+#endif /* CK_ANSIC */
+{
+    if (row > 0) row--;                 /* 1-based in, 0-based to move() */
+    if (col > 0) col--;
+    return(move(row,col));
+}
+
+/*
+  tgetent() -- the termcap probe, stubbed, and this is NOT cosmetic.
+
+  fxdinit() (ckuusx.c:6372) asks getenv("TERM") and then tgetent(), and if
+  either fails it prints "Warning: terminal type unknown" and "Fullscreen
+  file transfer display disabled" and drops fdispla to XYFD_S.  It does that
+  even in a build whose curses never consults termcap -- ck_termset(), the
+  only consumer of what tgetent() loaded, is called four lines below under
+  "#ifndef MYCURSES" and this build's curses is neither MYCURSES nor the
+  library.  So the probe gates a display it has no information about.
+
+  Two things are therefore needed and neither is an upstream edit: this
+  function, which is the only unresolved symbol the fullscreen path leaves
+  at link time, and the TERM in section 1d's environment initializer.
+  Returning 1 is "entry found"; there is no capability database behind it
+  because nothing in this build reads one.
+*/
+int
+#ifdef CK_ANSIC
+tgetent( char * buf, char * term )
+#else
+tgetent(buf,term) char * buf; char * term;
+#endif /* CK_ANSIC */
+{
+    if (buf) *buf = '\0';               /* Nothing will parse it, but an  */
+    return(term && *term ? 1 : 0);      /* uninitialised buffer is worse. */
 }
 
 /* ------------------------------------------------------------------ */

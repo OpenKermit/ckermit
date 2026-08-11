@@ -1026,7 +1026,66 @@ extern long v9k_timezone;
 #endif /* KEEP_DEBUG */
 #define NOTLOG                          /* No transaction log         */
 #define NOSYSLOG                        /* No syslog                  */
-#define NOCURSES                        /* No curses fullscreen       */
+/*
+  NOCURSES is NOT defined here, and the reason is not obvious.
+
+  What this port wants is "no curses library", and NOCURSES is the switch
+  that says so.  But ckcdeb.h:6098 turns NOCURSES into NODISPLAY, and
+  ckcker.h:730 then makes xxscreen() and ckscreen() expand to NOTHING --
+  which deletes the ENTIRE file-transfer display, CRT and SERIAL modes
+  included, not just the fullscreen one.  Upstream conflates "no curses"
+  with "no display at all".
+
+  Nothing else in this build would define CK_CURSES on its own (ckcdeb.h
+  reaches it only through SOLARIS, VMS, CK_NCURSES, MYCURSES or
+  CK_WREFRESH, none of which apply), so leaving NOCURSES undefined gives
+  fdispla = XYFD_S -- the one-line CRT display, which is conol()/write() and
+  INT 21h only.  Verified with wcc -pl: ckscreen appears in the preprocessed
+  ckcfn2.c, and no curses header is reached.
+
+  -dNOCURSES puts the old behaviour -- no display at all -- back for one
+  build, and it is worth having: it is the control for measuring what the
+  display costs.
+*/
+
+/*
+  CK_CURSES asks for the FULLSCREEN transfer display, fdispla = XYFD_C --
+  the one MS-DOS Kermit 3.13 shows on this machine and the one C-Kermit
+  shows on a Mac.  XYFD_S, the line that NOCURSES-undefined gets you on its
+  own, is a regression against 3.13 and this port does not want to ship one.
+
+  There is no curses library for DOS here and none is wanted.  What
+  ckuusx.c's screenc() actually needs is move(), clear(), clrtoeol(),
+  printw() and four no-ops, and on the Victor those are four escape
+  sequences written with INT 21h.  victorow/curses.h declares them and
+  ckvictor.c section 1g implements them -- the same header-plus-glue split
+  as victor/sys/termios.h.  Read victorow/curses.h before touching any of
+  it: it carries the evidence that this console is VT52/Z19 and not ANSI,
+  and the two independent reasons upstream's own MYCURSES cannot be used.
+
+  Two consequences to know.  fxdinit() disables the fullscreen display
+  unless getenv("TERM") is non-empty AND tgetent() succeeds, even though
+  nothing in this build reads a termcap -- section 1g stubs tgetent() and
+  section 1d's initializer supplies a TERM, which is what makes XYFD_C
+  survive to the transfer.  And the escape sequences are MS-DOS 3.1's:
+  FreeDOS-for-Victor's kernel/victor_ansi.asm parses only ESC [ and passes
+  everything else through, so on that DOS this display will paint noise.
+  The fallback path exists and is automatic, but nothing DETECTS the case
+  yet -- it is the first thing in this port that is not the same on both
+  DOSes.  See NEXT_SESSION.md item 14.
+*/
+#define CK_CURSES                       /* Fullscreen transfer display */
+
+/*
+  CK_CURPOS says "cursor control is already provided", which stops
+  ckuusx.c:7055 compiling its own ANSI-emitting version of ck_cls(),
+  ck_cleol() and ck_curpos().  ckvictor.c section 1g provides them in VT52
+  instead.  Two reasons, and the second is the one to remember: that
+  fallback would print "[2J" at a console that cannot read it, and it does
+  not compile anyway -- ckuusx.c:7070's K&R declarator is malformed and no
+  other configuration has ever reached it.
+*/
+#define CK_CURPOS                       /* Section 1g has cursor control */
 #define NOTERMCAP                       /* No termcap                 */
 #define NOESCSEQ                        /* No escape-sequence parsing */
 
