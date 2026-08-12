@@ -42,15 +42,16 @@ container exec -i ia16-ubuntu-2 bash -c \
 `ckcpro.c` is generated from `ckcpro.w` by `wart`, a **host** tool built with
 the host `cc`.
 
-All 24 modules compile. Warnings are 19 lines, all in stock upstream code and
+All 24 modules compile. Warnings are 18 lines, all in stock upstream code and
 all pre-existing — `debug()` expanding to nothing under `NODEBUG` (W111),
 two unreferenced labels, `localtime()` sign mismatch, `execvp()` const
 mismatch, and `docmdline(1)` in `ckcmai.c`. **`ckvictor.c` compiles with
 none.** It was 17 until `NOFLOAT` (§16j): dropping `GFTIMER` moves `ztime()`
 onto upstream's `ZTIMEV7` branch, whose K&R redeclarations of `localtime()`
-and `time()` produce two more sign mismatches at `ckutio.c:12319-12320`.
-DGROUP is 48,304 of 65,536 (73%) after the linker adds libc; `ckermitw.exe`
-is 205,212 bytes and **needs 219,452 (214K) at load**. Quote that figure —
+and `time()` produce two more sign mismatches at `ckutio.c:12399-12400`
+(they moved 80 lines when edit 18 went in).
+DGROUP is 48,752 of 65,536 (74%) after the linker adds libc; `ckermitw.exe`
+is 226,330 bytes and **needs 240,378 (234K) at load**. Quote that figure —
 it is the port's cost and it is the same on every machine. **The 396,224
 that appears in older sections is not a RAM size, and §16x retracts it as a
 figure for this DOS too**; Victor MS-DOS 3.1 hands out **824,784 at 896K**.
@@ -708,6 +709,31 @@ and the model is `free = installed RAM − 92,720` — this DOS loads high,
 asks a running machine; `mzsize.py` reports the smallest Victor that can
 load a build. **Quote the requirement, not the spare.**
 
+**§16aq is upstream edit 18 and it is the largest single gain this port has
+measured.** `ttinl()`'s per-byte loop now has a `VICTOR9K` bulk arm that
+finds the packet terminator in the already-buffered run with `memchr()` and
+copies it with `memcpy()` — `repne scasb` and `rep movsw` **do not refetch**,
+which is what §16w says bounds this machine. Six clean bench legs, three per
+arm: **25.660 s against 31.140 s, 1,277 cps against 1,052, 17.6%**, with
+within-arm spreads of **16 ms and 9 ms**, so the arms never come within
+5.469 s of touching. Non-line cost 15.895 against 21.375 — **25.6% of the
+foreground gone** — and **`rxpeak` 459 against 2,946, 6.4×**, which is the
+ring margin item 12 was waiting for. Send is unaffected (1,471 cps, arm inert
+at 11.6 bytes/run). **The edit is purely additive — no upstream line
+changed** — and it rests on a fact `wcc -pl` found and the source hides:
+`ckvictor.h:1100` defines `NOPARSEN` thinking it means "no network directory
+parse", but `ckcdeb.h:3971` uses it to suppress `PARSENSE`, so **this build
+has never done length-driven packet reading** and a packet ends at `eol` and
+nowhere else. That is why `memchr()` is *exactly* equivalent, corrupted input
+included. **Leave `NOPARSEN` alone.** Two method points outlive the edit:
+`--nobulk` makes the control and the treatment **the same binary** (§16ap's
+shape, and §16w then has nothing to act on), and `v9k: bulk sel= n=` exists
+because **an equivalence test cannot see a switch that silently failed** — a
+mutation deleting it escaped every case in `v9k/proofs/vttinl.c` until the
+counter existed. **Read the counter before the clock.** The corruption leg
+did NOT run: the cable-round-mains-wiring stimulus produced zero errors on
+both arms, which is an instrument failure and not a null result.
+
 **Two cautions on those machine numbers.** Only **256K and 896K** have been
 measured — 256K predicted and confirmed that `CKERMITW` will not load — and
 everything else is the model talking. And **MAME misreports 512K and 640K
@@ -764,18 +790,22 @@ socket is single-use, so start `socat` first and never probe the port.
 ## Hard rules
 
 1. **Do not modify upstream C-Kermit files.** The port's value is that the
-   protocol engine is untouched. There are exactly seventeen upstream
-   edits (listed in `PORTING.md` §8); thirteen are wrapped in `#ifndef` or
+   protocol engine is untouched. There are exactly eighteen upstream
+   edits (listed in `PORTING.md` §8); fourteen are wrapped in `#ifndef` or
    `#ifdef VICTOR9K` and change nothing on any other platform. **14, 15 and
    16 are not, and all three are flagged as such**: 14 moves a mis-nested
    `#endif` (an `#endif` cannot be placed conditionally), 15 fixes a cast
    that binds wrong, and 16 widens an `int` that was holding a `CK_OFF_T`.
    The last two are no-ops wherever `int` is 32 bits and so would be
-   actively harmful to guard. If you think you need a seventeenth, say so
-   explicitly rather than doing it quietly — the seventh through sixteenth
+   actively harmful to guard. If you think you need a nineteenth, say so
+   explicitly rather than doing it quietly — the seventh through eighteenth
    were all agreed that way. Say it again if
    the edit turns out to need a second file: 12 and 13 both did, and 13's
    second half was the one that made the first half do anything.
+   **18 is the model for how to add one**: purely additive (no upstream line
+   changed), gated at run time so the control is the same binary, and proved
+   against a reference transcribed out of `wcc -pl` output rather than out of
+   the source — `v9k/proofs/vttinl.c`, 100,023 cases, 13 of 13 mutants caught.
 2. **Feature configuration goes in `ckvictor.h`, never in `victorow.mak`.**
    Each `#define` sits next to a comment explaining why. The makefile passes
    `-fi=ckvictor.h` and nothing else.
@@ -786,10 +816,10 @@ socket is single-use, so start `socat` first and never probe the port.
    ask for fewer. Do not add a second assembly file without the same kind of
    measurement behind it.
 4. **Two budgets, and do not confuse them.** DGROUP holds `.data`, `.bss`
-   and the **stack** — 48,304 of 65,536 (73%) after the link, 17,232 free.
+   and the **stack** — 48,752 of 65,536 (74%) after the link, 16,784 free.
    The **heap is outside it**: `malloc()` is `_fmalloc` in the large model,
    so the packet buffers do not compete for the segment at all. What bounds
-   them is real-mode RAM: **the image needs 219,452 (214K) at load**, and
+   them is real-mode RAM: **the image needs 240,378 (234K) at load**, and
    the far heap then takes about 25K of packet buffers on top. **The receive
    ring is the exception**: at 4,096 bytes it is `.bss` and comes straight
    out of the 64K (§16k).
@@ -836,9 +866,9 @@ socket is single-use, so start `socat` first and never probe the port.
 | `victorow.mak` | the build: Open Watcom `wcc`/`wlink` + `sizes` target |
 | `victorow/` | headers filling gaps in Open Watcom's DOS libc (`pwd.h`, `sys/utsname.h`, `sys/time.h`, `termios.h`, `ckowsys.h`), reached via `-i=victorow`. **`curses.h` is different in kind**: not a gap in libc but the declaration half of the fullscreen transfer display, whose implementation is `ckvictor.c` §1g. Read its header comment before touching the display — it carries the evidence that this console is VT52/Z19 and not ANSI (§16ao) |
 | `v9k/tools/` | standing instruments, not disposable: `mzsize.py` (**hard rule 4 requires it**), `pktstat.py`, `mapoffset.py`, `ctswatch.py` (host-side `TIOCMGET`, §16am — the modem lines read without Kermit in the path) |
-| `v9k/proofs/` | host programs §8 cites as the correctness argument for a shipped edit — `vcrc16.c` (edit 17) and `vburst.c` (the ISR burst detector). `make -C v9k/proofs` builds *and runs* them |
+| `v9k/proofs/` | host programs §8 cites as the correctness argument for a shipped edit — `vcrc16.c` (edit 17), `vttinl.c` (edit 18) and `vburst.c` (the ISR burst detector). `make -C v9k/proofs` builds *and runs* them |
 | `v9k/probes/` | genuine one-shots, kept so the answer stays checkable; build line at the top of each |
-| `ckutio.c` | serial, console, timers — **stock upstream**, this is the port |
+| `ckutio.c` | serial, console, timers — **stock upstream except upstream edit 18**, the `VICTOR9K` bulk-read arm at the bottom of `ttinl()`'s per-byte loop (§16aq). Purely additive; `--nobulk` disables it at run time and `v9k: bulk sel= n=` says which arm ran |
 | `ckufio.c` | file system — **stock upstream** |
 | `ckc*.c` | protocol core — do not touch |
 

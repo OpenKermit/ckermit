@@ -1,0 +1,44 @@
+; Leg KS -- HW_TEST_16aq Part 2.  THE HOST RECEIVES.  The Victor sends
+; FIXTURE.DAT by name.
+;
+; NOTE THE DIRECTION.  This is the only leg in the sheet where the host is
+; the receiver, so START THIS BEFORE typing STEPKS on the Victor -- the
+; Victor is the initiator here and will give up if nothing answers its S
+; packets.  Same as SS16ah leg BS.
+;
+; THIS IS A REGRESSION CHECK, NOT A MEASUREMENT.  ttinl() is the PACKET
+; READER, so on a send leg the only thing it reads is the ACK stream --
+; tiny packets, no long buffered runs, and the bulk arm should be very
+; nearly inert.  What this leg proves is that the arm does not break the
+; direction it was not designed for.
+;
+; THE INTERESTING FAILURE IS A SURPRISE, NOT A CRASH.  Expect "bulk sel=1"
+; with a SMALL n.  If n comes back large on a send leg, the reasoning behind
+; this whole sheet is wrong somewhere -- it would mean the arm is finding
+; long runs in a stream that should not have any -- and that is worth
+; understanding BEFORE running Part 3, because Part 3's prediction rests on
+; the same reading of what the arm does.
+;
+; FIXTURE.DAT, NOT TRANS.DAT.  There is no TRANS.DAT on this image.  The
+; tree root holds TRANS.DAT.~1~ through ~3~ with the same md5
+; (d94d2beda069ef0ef340977e7fd6995d), which is what makes the wrong name
+; easy to write and is why the first draft of the sheet had it.
+;
+; TWO READING TRAPS, both from SS16ah leg BS and both still true:
+;   - "wire=" in the Victor's .OUT divides rxbytes, so on a send leg it
+;     reports the ACK STREAM over the whole elapsed time.  It is NOT the
+;     send rate.  The host's statistics is the send rate.
+;   - pktstat.py MISREADS send logs: its "longest packet" reads the one-byte
+;     LEN field, which is 0 for long packets, and its S- count is the HOST
+;     retransmitting.  Read s16aqKS.pkt by hand.
+;
+; The binary is CKBULK.EXE, 226,330 bytes, md5 a9fa6b5c...
+
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+log packets s16aqKS.pkt
+receive gotks.dat
+statistics

@@ -316,7 +316,7 @@ Streaming is **not** network-coupled — it is negotiated protocol behaviour in
 
 ## 8. Upstream changes made
 
-Seventeen edits, fourteen of them small, guarded and invisible to every
+Eighteen edits, fifteen of them small, guarded and invisible to every
 other platform. **Edits 14, 15 and 16 are the exceptions and are flagged as
 such**: 14 repairs a mis-nested `#endif` in `ckcmai.c`, and a preprocessor
 conditional cannot itself be made conditional; 15 and 16 fix a 16-bit
@@ -688,6 +688,83 @@ does instead; §16ao has the same for the display three.
     fails silently**, which is why the probe exists and why it is
     exhaustive rather than sampled.
 
+18. **`ckutio.c`** — a `VICTOR9K` bulk-read arm at the bottom of
+    `ttinl()`'s per-byte loop, plus one local and the gate that selects it.
+    **Purely additive: no upstream line is changed.** The arm consumes only
+    what `myread()` has already buffered, so refills, EOF, `EINTR`, the
+    alarm and every error return still happen in untouched upstream code,
+    exactly when they did before.
+
+    ```c
+    if (v9k_bulk_ok) {
+        while (my_count > 0 && i < max-1) {
+            CHAR * bsrc = mybuf + my_item + 1;
+            int room = (max-1) - i;
+            int bk = (my_count < room) ? my_count : room;
+            CHAR * bp = (CHAR *)memchr(bsrc,eol,(size_t)bk);
+            int blen = bp ? (int)(bp - bsrc) + 1 : bk;
+            memcpy(dest+i,bsrc,(size_t)blen);
+            i += blen; my_item += blen; my_count -= blen;
+            v9k_bulkn++;
+            if (bp) { /* same exit as the byte loop's */ }
+            n = dest[i-1];
+        }
+    }
+    ```
+
+    **The design rests on a fact the source does not show, and `wcc -pl` is
+    what found it.** `ckvictor.h:1100` defines `NOPARSEN` with the comment
+    "No network directory parse". That is not what it means: `ckcdeb.h:3971`
+    uses it to suppress `PARSENSE`, and `ckcdeb.h:3966` spells out the
+    consequence — "**length-driven packet reading**". So this build does
+    **not** compile the length-driven `ttinl()` that `ckutio.c` reads like
+    it has. It compiles the four-argument form, in which a packet ends at
+    `eol` and nowhere else: no length field, no `havelen`, no extended
+    header, no sequence-number peek, no mid-packet SOP resync.
+
+    That makes the arm's claim unusually strong. `memchr(src, eol, n)` looks
+    for **exactly** the byte the byte loop looks for, on exactly the same
+    stream, so the two are equivalent **on corrupted input as well as
+    clean** — a mangled terminator makes both run to `max-1` or to the
+    alarm, because neither is reading a length. `NOPARSEN` is left as it is;
+    see §16aq for why turning `PARSENSE` on would move foreground cost the
+    wrong way.
+
+    **The gate**, read once outside the loop, is
+    `v9k_bulkin && (ttpmsk == 0377) && !(!xlocal && xfrcan)`. Parity sensed
+    would need every byte masked on the way into `dest[]`, which `memcpy()`
+    cannot do; the cancellation scan counts *consecutive* `xfrchr` and the
+    arm must not swallow the count. Both are dead on this port and both are
+    checked anyway, so the arm is inert in any configuration it was not
+    reasoned about rather than subtly wrong in it.
+
+    **`v9k_bulkin` is a variable, not an `#ifdef`, and that is the
+    instrument.** `--nobulk` turns the arm off at run time, so the control
+    leg and the treatment leg are the same 226,330 bytes in the same places
+    — §16ap's shape, which leaves §16w's code-size sensitivity nothing to
+    act on. `v9k_bulkn` counts the runs copied and prints at exit as
+    `v9k: bulk sel= n=`. It is not decoration: **an equivalence test cannot
+    see a switch that silently failed**, because a correct arm returns the
+    byte loop's answer either way, and a mutation deleting the switch from
+    the gate escaped every case in the proof until the counter existed.
+
+    Correctness is proved twice and they are different claims.
+    `v9k/proofs/vttinl.c` transcribes the byte loop **out of `wcc -pl`
+    output, not out of `ckutio.c`**, and compares the two over **100,023
+    cases** — terminator at every offset against every refill granularity,
+    five terminator values, overflow, `max` on either side of the
+    terminator, EOF and hard error injected at every offset, several packets
+    per refill, both gate conditions, and the runtime switch. **13 of 13
+    deliberate mutants are caught** and a no-op control stays clean. Then
+    §16aq transferred 32,768 bytes byte-exact nine times — twice under MAME
+    at 9600 and seven times at 38400 on the machine.
+
+    Two things the proof caught that reading did not: the overflow return
+    value (`n` must be carried forward or it is a byte from up to 1023
+    positions earlier — both arms return "a positive number `rpack()`
+    misreads as a length", so a transfer test cannot separate them), and the
+    clamp to the room left in `dest[]` rather than to `my_count` alone.
+
 Items 2, 3, 6, 7, 8, 10, 11, 13, 14, 15 and 16 are worth offering upstream
 regardless of this port, and **14 and 15 are the ones to send first**: it is a plain
 defect, it is ~40 years old, and it disables two documented features in any
@@ -704,6 +781,14 @@ combination of flags.
 ---
 
 ## 9. Memory budget
+
+**Current figures, as of §16aq (upstream edit 18): DGROUP 48,752 of 65,536
+(74%), far code 191,592, image 226,330, needs 240,378 (234K) at load,
+smallest Victor 384K.** The block below is the ORIGINAL snapshot and is kept
+because the commentary under it is what this section is for; it is not the
+shipping build's numbers. Every section from §16ag onward states its own, and
+`make -f victorow.mak sizes` plus `python3 v9k/tools/mzsize.py ckermitw.exe`
+answer the question in two commands.
 
 Measured from `wlink`'s map, 24 modules, `-ml -0 -os -zc`, **including libc**
 (`make -f victorow.mak sizes`):
@@ -10180,3 +10265,163 @@ fastest thing this port does.
 consistent with §16ah's "expect roughly a third". Non-line cost made both
 usable, which is the third sitting in a row where that method has earned
 its place.
+
+---
+
+## 16aq. Upstream edit 18: the bulk-read arm, and the largest single gain this port has measured
+
+**17.6% faster and 6.4× less ring pressure, on three clean legs per arm with
+a 16 ms noise floor.** This is the biggest throughput result in the port's
+history and the measurement is the least ambiguous one it has produced.
+
+### What the edit is
+
+`ttinl()`'s per-byte loop walks the packet a byte at a time through the
+`myread()` macro. Edit 18 adds an arm at the bottom of that loop which finds
+the terminator in the already-buffered run with `memchr()` and copies the run
+with `memcpy()`. On a 5 MHz 8088 that matters because `repne scasb` and
+`rep movsw` **do not refetch**, and §16w established that instruction fetch
+at ~4 clocks a byte is what bounds this machine. The library routines were
+checked rather than assumed — `memchr` is `repne scasb`, `memcpy` is
+`shr cx,1 / rep movsw / adc cx,cx / rep movsb` — and they are far *calls*,
+once per run, amortised over the whole run.
+
+Full description, gate and proof: §8 item 18.
+
+### The result
+
+Six legs, three per arm, every one clean shape — 18 packets, 37,557 wire
+bytes, 0 timeouts, 0 retransmissions, 0 damaged packets, byte-exact.
+
+| leg | arm | host clock | cps | `rxpeak` | `bulk n` | run len |
+|---|---|---:|---:|---:|---:|---:|
+| KA | bulk on | 25.668 s | 1,277 | 481 | 243 | 154.6 |
+| KC | bulk on | 25.652 s | 1,277 | 488 | 249 | 150.9 |
+| KN_2 | bulk on | 25.659 s | 1,277 | 409 | 243 | 154.6 |
+| KD | `--nobulk` | 31.137 s | 1,052 | 2,748 | — | — |
+| KP_1 | `--nobulk` | 31.137 s | 1,052 | 3,035 | — | — |
+| KP_2 | `--nobulk` | 31.146 s | 1,052 | 3,055 | — | — |
+
+- **5.480 s, 17.6%.** Within-arm spread 16 ms and 9 ms, so the effect is
+  **343× the floor**.
+- **The arms do not come within 5.469 s of touching.** Arm B's worst leg
+  beats arm A's best by more than the whole effect. There is no leg-selection
+  question to argue about.
+- **Non-line cost 15.895 s against 21.375 s — a 25.6% reduction** in the
+  foreground work §16v identified as the bottleneck.
+- **`rxpeak` 459 against 2,946 — 6.4×**, on legs with identical
+  retransmission counts, so §16ag's comparability rule is satisfied.
+- **1,277 cps is the port's fastest receive figure**, against §16ah's 1,167.
+
+### Why MAME could not see it, and why that was predictable
+
+Legs JA and JB (9600, MAME) read `elapsed = 10,350 cs`, **identical**, with
+`bulk sel=1 n=3441` against `sel=0 n=0`. Two reasons, and both were written
+into `HW_TEST_16aq.md` before the bench legs ran:
+
+1. **§16ag's structural point, for the third time.** At 9600 the foreground
+   has ~555 µs of slack per byte and at 38400 it has none.
+2. **Mean run length was 11.9 bytes**, because `rxpeak` was 303 of 4,096 —
+   the ring never filled, so `myfillbuf()` returned tiny chunks and there was
+   nothing for `rep movsw` to amortise over. At 38400 the same figure is
+   **151–204 bytes**, 13–17× larger.
+
+**Mean run length (`rxbytes / bulk n`) is the mechanism variable and it
+transfers where the seconds do not.** It predicted the direction and rough
+size of the bench result from a MAME leg that measured no difference at all.
+
+### The sixth hand-costed 8088 prediction, and the first to be wrong low
+
+§16af's ~133 µs per wire byte for `ttinl()`'s loop predicted ~3.5 s and ~13%.
+The measurement is 5.48 s and 17.6%. That is the **sixth** such prediction in
+this tree and the sixth to be wrong; it is the first to be wrong in the
+useful direction. §16af's "ordering arguments, never magnitudes" stands, and
+§16ag's downgrade of it — not reliable for ordering either — is not
+contradicted here only because the ordering happened to hold.
+
+### The structural consequence: the ring is no longer under any pressure
+
+`rxpeak` at 459 of 4,096 leaves ~3,600 bytes of margin on a clean receive,
+where §16af left 1,515. **That is the constraint item 12 was waiting on.**
+Windows were gated on ring margin — open the window and the sender no longer
+stops after every packet, so the ring must absorb a whole packet of backlog —
+and there is now room for it. Line and foreground are still strictly
+serialized at `DFWSIZ = 1` (9.77 s + 15.90 s), so overlapping them is worth
+more than this edit was.
+
+**One reading that confirms §16m from a new direction.** On the two off-shape
+legs, which each took 1 timeout and 2 resends, the arms nearly converge —
+`rxpeak` 2,285 (bulk) against 2,569 (`--nobulk`). A faster foreground cannot
+help there, because with a window of one the peak measures **the host's
+retransmission burst**, the only moment it transmits without waiting for our
+ACK. That is §16m's finding, seen through an instrument built for something
+else.
+
+### The send direction: inert, as predicted
+
+Leg KS sent 32,768 bytes by name at 38400: byte-exact, **1,471 cps** against
+§16ai leg CC's 1,475 — the port's fastest — so no regression. `bulk sel=1
+n=18` over 208 ACK bytes, **11.6 bytes per run**. `ttinl()` is the packet
+*reader*, so on a send leg it sees only the ACK stream and the arm has
+nothing to work on. The sheet named a large `n` here as the result that would
+have invalidated its own reasoning; it did not appear.
+
+### Part 3 was attempted and the stimulus did not fire — the question is open
+
+Legs KN and KP were to run bulk and `--nobulk` over a 10-foot cable wrapped
+around mains wiring, to test the one claim `vttinl.c` cannot reach: that the
+two arms recover from corruption identically. **Both legs came back at 37,557
+wire bytes in 18 packets with zero crunched packets, zero timeouts, zero
+resends and `rxlost = 0`** — the clean shape, on both arms. The noise did not
+happen.
+
+**This is an instrument failure, not a null result, and it must not be
+written up as one.** The prediction — that corruption makes no difference
+between the arms, because neither reads a length — remains untested.
+
+The probable cause is physics: magnetic coupling goes with **current**, not
+voltage, and house wiring with little load drawn through it radiates almost
+nothing. A switching load cycling beside the cable is a stimulus where
+proximity to quiet wiring is not. A bit-flipping shim between `kermit` and
+the FTDI would hit the corrupted-terminator path deterministically, at the
+cost of no longer being real-world noise.
+
+**§16am's rule applies again and this is its third outing: before running an
+experiment that depends on something happening, measure that it can happen.**
+Verify the stimulus moves the error counters before spending a matched pair
+on it.
+
+### Harness notes, both about names
+
+**A re-run under an old leg letter destroyed artefacts, exactly as
+`HW_TEST_16aq.md` §0 item 5 says it would.** KN and KP were re-run under
+their own names once the cable turned up. `s16aqKN.pkt` (run 1) and
+`s16aqKP.pkt` + `s16aqKP.host` (run 1) are gone. Run 1's KP host clock,
+31.137 s, survives only in `v9k/legs/README-KN-KP.md` and here. Worse than
+the loss: `s16aqKN.host` (run 1, 08:55) sat next to `s16aqKN.pkt` (run 2,
+11:43) with matching names and a three-hour gap, and read as a pair they
+describe a leg that never happened.
+
+**And the naming that avoided a loss caused a different error.** Run 2's KN
+statistics went to `s16aqKN_2.host` — which does not match the glob
+`s16aqKN.*`, because that pattern needs a literal dot after `KN`. A first
+pass over this sitting concluded run 2's host statistics had never been
+captured, on the strength of a glob rather than a listing. **`ls s16aqKN*`
+and `ls s16aqKN.*` are different questions; when the answer is "the file is
+missing", ask the broader one before saying so.**
+
+### This sitting's repeatability is anomalous and should not be quoted forward
+
+Within-arm spreads of **16 ms and 9 ms**, against §16ah's 1.277 s and
+§16ak's 398 ms — 25–80× tighter than anything this bench has produced. It
+does not threaten the result, which would survive a 1.3 s floor with room to
+spare, but "the bench repeats to 16 ms" is not a claim to carry out of one
+sitting. Quote it as *at most* 16 ms **here**.
+
+### Sizes
+
+DGROUP **48,752 of 65,536 (74%)**, far code 191,592, image **226,330**,
+**needs 240,378 (234K) at load — smallest Victor 384K, unchanged.** The edit
+costs +508 bytes of image and +16 of DGROUP. 18 compiler warnings, all in
+stock upstream code, **none added** — measured against a stashed baseline
+rather than assumed. `ckvictor.c` still compiles with none.

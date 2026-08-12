@@ -1,8 +1,55 @@
 # Next session
 
 Handoff for the Victor 9000 port, written 9 August 2026, revised after
-§16ah and then again at the desk the same day, and again on 10 August after
-§16ao. **No live defect in the receive path.** §16af closed the last one.
+§16ah and then again at the desk the same day, again on 10 August after
+§16ao, and again on 11 August after §16aq. **No live defect in the receive
+path.** §16af closed the last one.
+
+**§16aq is upstream edit 18 and it is the largest single gain this port has
+measured: 17.6% faster and 6.4× less ring pressure.** `ttinl()`'s per-byte
+loop now has a bulk arm that finds the terminator in the already-buffered run
+with `memchr()` and copies it with `memcpy()` — `repne scasb` and `rep movsw`
+**do not refetch**, which is what §16w says bounds this machine. Six clean
+legs, three per arm: **25.660 s against 31.140 s, 1,277 cps against 1,052**,
+with within-arm spreads of **16 ms and 9 ms**, so the effect is 343× the
+floor and the arms never come within 5.469 s of touching. Non-line cost
+15.895 s against 21.375 — **25.6% of the foreground gone**. Image 226,330,
+needs 240,378 (234K), **smallest Victor still 384K**.
+
+**The design rests on a fact `wcc -pl` found and the source hides.**
+`ckvictor.h:1100` defines `NOPARSEN` with the comment "No network directory
+parse"; `ckcdeb.h:3971` uses it to suppress `PARSENSE`, and `ckcdeb.h:3966`
+says what that costs — **length-driven packet reading**. So this build has
+never compiled the `ttinl()` that `ckutio.c` reads like it has: a packet ends
+at `eol` and nowhere else. That is why `memchr()` is *exactly* equivalent
+rather than approximately, on corrupted input as well as clean. **Leave
+`NOPARSEN` alone** — turning `PARSENSE` on adds per-byte header bookkeeping
+and the lookahead/pushback, which moves foreground cost the wrong way.
+
+**Two things from §16aq generalise beyond the edit.** `--nobulk` makes the
+control and the treatment **the same binary**, so §16w's code-size
+sensitivity has nothing to act on — reach for that shape whenever a feature
+can be switched at run time. And `v9k: bulk sel= n=` exists because **an
+equivalence test cannot see a switch that silently failed**: a correct arm
+returns the byte loop's answer either way, and a mutation deleting the switch
+escaped every case in `v9k/proofs/vttinl.c` until the counter existed. Read
+the counter before the clock.
+
+**The ring is no longer under any pressure and that is what item 12 was
+waiting for.** `rxpeak` is **459 of 4,096** on a clean receive, against
+§16af's 2,581. Windows were gated on ring margin; there is now ~3,600 bytes
+of it. Line and foreground are still strictly serialized at `DFWSIZ = 1`
+(9.77 s + 15.90 s), so **overlapping them is worth more than edit 18 was.**
+
+**§16aq's Part 3 was attempted and the stimulus did not fire.** Legs KN/KP
+ran bulk against `--nobulk` over a 10-foot cable wrapped around mains wiring
+and both came back at the clean 37,557 wire bytes with zero crunched packets
+and `rxlost = 0`. **That is an instrument failure, not a null result** — the
+claim that both arms recover from corruption identically is still untested.
+Magnetic coupling goes with *current*, not voltage; a switching load beside
+the cable is a stimulus where proximity to quiet wiring is not. §16am's rule,
+third outing: **before running an experiment that depends on something
+happening, measure that it can happen.**
 
 **§16ao: the port had NO file-transfer display at all, and now it has the
 fullscreen one — validated on real hardware at 38400, both directions.**
@@ -857,7 +904,15 @@ already works, so this is available now and does not wait on item 0.
 
 ---
 
-**9. The foreground decode path. Still the bound, but §16af moved every
+**9. ~~The foreground decode path.~~ EDIT 18 TOOK 25.6% OF IT — §16aq.**
+`ttinl()`'s per-byte loop was ~133 µs of the ~485 µs per wire byte; the bulk
+arm removed 5.48 s of a 31.14 s receive. **What is left is `rpack()`,
+`decode()`, `zmchout()` and the protocol state machine, and item 5's argument
+against touching `ttinl()` further still holds** — what edit 18 did was
+bypass the loop wholesale for the body of a packet, not micro-optimise it.
+**The next lever is not in this path at all; it is item 12.**
+
+**9a. The old item 9, kept because its framing is still right. §16af moved every
 number in this item — the breakdown below is leg AG, not §16v's leg CA.**
 **1,170 cps at 38400** with CRC-16, byte-exact, zero retransmissions.
 Where 28.00 s goes:
@@ -1062,7 +1117,12 @@ sheet that named a `-d` flag without staging the binary carrying it; and **a
 full image** (`vtg_image_util info` belongs in every §0 — partition 1 is
 9.7 MB and 100% free and has never been used).
 
-**12. Then windows.** `DFWSIZ` is still 1. Item 11 is no longer a blocker —
+**12. WINDOWS — NOW THE HIGHEST-VALUE ITEM IN THIS FILE.** §16aq took
+`rxpeak` to 459 of 4,096, so the ring margin that gated this is no longer
+scarce: ~3,600 bytes free on a clean receive. Line and foreground are still
+strictly serialized at window 1 — 9.77 s + 15.90 s — so overlapping them
+takes a 25.66 s receive toward ~16 s, **which is worth more than edit 18
+was.** `DFWSIZ` is still 1. Item 11 is no longer a blocker —
 the mechanism exists — but it is still a **precondition in practice**: turn
 the window up and turn flow control on in the same sitting, or the 105-byte
 margin is doing the work alone. Do it under MAME first. Note the interaction §16s found: with

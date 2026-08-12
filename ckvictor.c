@@ -3134,6 +3134,19 @@ v9k_ser_release() {
            (unsigned)v9k_norxrr0, (unsigned)v9k_norxoth);
 
     /*
+      Edit 18's arm (ckutio.c), and this line is what makes a --nobulk leg
+      a control instead of an assumption.  n is the number of buffered runs
+      it copied: 0 says it never ran, which is what --nobulk must produce
+      and is ALSO what a switch that silently failed to take effect would
+      NOT produce.  sel is what the command line asked for, so the two
+      together separate "off because I asked" from "off because the gate
+      refused" -- the gate declines when parity has been sensed or the
+      cancellation scan is live (see ttinl()), and neither is the normal
+      case on this port.
+    */
+    printf("v9k: bulk sel=%d n=%lu\n", v9k_bulkin, v9k_bulkn);
+
+    /*
       The loss instrument, and the two lines are meant to be read together
       with the rxlost above.  evt against that rxlost is the shape of the
       defect -- near it means single misses all through, far below it means
@@ -4319,6 +4332,80 @@ static struct v9k_rt_init __based(__segname("XI")) v9k_nodisplay_rec =
     { 1, 0, v9k_set_nodisplay };
 
 /*
+  --nobulk -- put ttinl()'s per-byte loop back for one run.
+
+      CKERMITW --nobulk -l /dev/seriala -b 38400 -r
+
+  UPSTREAM EDIT 18 (ckutio.c) reads a whole buffered run out of mybuf[]
+  with memchr()/memcpy() instead of walking it a byte at a time through
+  the myread() macro.  This switch is its control, and the reason it is a
+  runtime switch rather than a build flag is §16ap's: a control built from
+  a SECOND BINARY is also a control for §16w's code-size sensitivity, and
+  this project has spent whole legs establishing that the rebuild was not
+  what moved.  With one binary and one switch there is nothing for that to
+  act on -- the treatment and the control are the same 8088 instructions
+  in the same places, differing in one compare outside the loop.
+
+  v9k_bulkn IS NOT DECORATION.  It counts the runs the arm actually
+  copied, and it exists because equivalence CANNOT be observed from the
+  outside: an arm that is correct returns the byte loop's answer whether
+  or not it was supposed to run, so a --nobulk that silently failed to
+  take effect would produce a control leg identical to the treatment and
+  a null result that looked like a real one.  v9k/proofs/vttinl.c found
+  exactly that -- a mutation deleting the switch from the gate escaped
+  every equivalence case in the file until the counter existed.  This is
+  the same role `wcon n=` plays for the display (§16ao): 0 means the arm
+  never ran, non-zero means it did.  READ IT ON EVERY LEG.
+
+  It is also the trap §16ap walked into, one level up: "--nobulk" against
+  a binary that does not have the switch answers "Extended options not
+  configured", which is the same string the unknown-option control is
+  supposed to produce.  Run the control (§16i) and check the counter.
+
+  Priority 0 and the same command-tail blanking as the three above.
+*/
+#define V9K_SW_NOBULK "--nobulk"
+
+/*
+  Read by ttinl() (ckutio.c) through ckvictor.h, which the build force-
+  includes.  Not static, and deliberately not const: the whole point is
+  that the shipping binary can be switched either way at run time.
+*/
+int  v9k_bulkin = 1;                    /* Edit 18's arm: on by default */
+long v9k_bulkn  = 0;                    /* Runs it copied; 0 = never ran */
+
+static void __far
+v9k_set_nobulk(void)
+{
+    char __far * p;
+    char __far * tok;
+    int off = 0;
+
+    p = _LpCmdLine;
+    if (p) {
+        while (*p) {
+            while (*p == ' ' || *p == '\t')
+              p++;
+            if (!*p)
+              break;
+            tok = p;
+            while (*p && *p != ' ' && *p != '\t')
+              p++;
+            if (!v9k_tokeq(tok,p,V9K_SW_NOBULK))
+              continue;                 /* Not ours: leave it for argv  */
+            off = 1;
+            while (tok < p)             /* Blank it, as --safe-server   */
+              *tok++ = ' ';             /* does and for the same reason */
+        }
+    }
+    if (off)
+      v9k_bulkin = 0;
+}
+
+static struct v9k_rt_init __based(__segname("XI")) v9k_nobulk_rec =
+    { 1, 0, v9k_set_nobulk };
+
+/*
   access().  Watcom HAS one; it is wrong about the directory you are in
   when that directory is the root, which is where CKERMITW normally runs.
 
@@ -4468,6 +4555,10 @@ uname(n) struct utsname * n;
            note that a redirect turns it off too and does NOT show up
            here, because that is backgrd and not this flag. */
         debug(F101,"v9k nodisplay","",v9k_nodisplay);
+        /* And --nobulk (edit 18), same route, same 2.5-minute boot.  1 is
+           the arm enabled, 0 is the control.  This says what was ASKED
+           for; whether the arm then ran is "v9k: bulk n=" at exit. */
+        debug(F101,"v9k bulkin","",v9k_bulkin);
     }
 
     ckstrncpy(n->sysname, "MS-DOS",  _UTSNAME_LENGTH);

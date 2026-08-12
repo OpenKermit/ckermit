@@ -11078,6 +11078,9 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
     } else {
 	register int i, n = -1;		/* local variables */
 	int ccn = 0;
+#ifdef VICTOR9K
+	int v9k_bulk_ok;		/* Edit 18: is the bulk arm allowed? */
+#endif /* VICTOR9K */
 #ifdef PARSENSE
 	register int flag = 0;
 	debug(F000,"ttinl start","",start);
@@ -11085,6 +11088,15 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
 
 	ttpmsk = ttprty ? 0177 : 0377;	/* Set parity stripping mask. */
 	sopmask = needpchk ? 0177 : ttpmsk; /* And SOP matching mask. */
+
+#ifdef VICTOR9K
+/*
+  Upstream edit 18 -- see the bulk arm at the bottom of the loop below,
+  and v9k/proofs/vttinl.c for the equivalence argument.  The gate is read
+  once here because neither term can change while the loop runs.
+*/
+	v9k_bulk_ok = v9k_bulkin && (ttpmsk == 0377) && !(!xlocal && xfrcan);
+#endif /* VICTOR9K */
 
 /* Now read into destination, stripping parity and looking for the */
 /* the packet terminator, and also for several Ctrl-C's typed in a row. */
@@ -11400,6 +11412,74 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
 #endif /* STREAMING */
 		return(i);
 	    }
+
+#ifdef VICTOR9K
+/*
+  UPSTREAM EDIT 18 -- bulk drain of whatever myread() has already buffered.
+
+  Everything above this block is untouched, and this block reads no bytes
+  from the line: it only consumes what mybuf[] already holds, so refills,
+  EOF, EINTR, the alarm and every error return continue to happen in the
+  code above exactly when they did before.  That is what keeps the edit to
+  one guarded, additive block.
+
+  Why it is worth having.  This build does not define PARSENSE (ckvictor.h
+  defines NOPARSEN), so the loop above has no length field to parse and no
+  SOP resync: a packet ends at eol and nowhere else.  memchr() is therefore
+  looking for exactly the byte the loop is looking for, on exactly the same
+  stream, and the two are equivalent on corrupted input as well as clean --
+  neither one is reading a length.  On a 5MHz 8088 that swaps a per-byte
+  loop, whose real cost is instruction fetch at about four clocks a byte
+  (PORTING.md SS16w), for "rep scasb" plus "rep movsw", which do not refetch.
+
+  Equivalence is proved rather than argued: v9k/proofs/vttinl.c transcribes
+  the compiled loop out of "wcc -pl" output and compares the two over
+  100,023 cases -- terminator at every offset against every refill size,
+  overflow, fault injection, several packets per buffer, and the residual
+  my_count/my_item that the NEXT call continues from.
+
+  Two details that the proof caught and reading did not:
+
+    - n has to be carried forward.  When the buffer fills without a
+      terminator the loop falls out and returns n, and the arm's n would
+      otherwise be a byte from up to MYBUFLEN positions earlier.  Exact
+      because the gate has established ttpmsk == 0377.
+    - the run has to be clamped to the room left in dest[], not just to
+      my_count, or a long buffered run overruns the caller's packet buffer.
+*/
+	    if (v9k_bulk_ok) {
+		while (my_count > 0 && i < max-1) {
+		    CHAR * bsrc = mybuf + my_item + 1;
+		    CHAR * bp;
+		    int room = (max-1) - i;
+		    int bk = (my_count < room) ? my_count : room;
+		    int blen;
+
+		    bp = (CHAR *)memchr(bsrc,eol,(size_t)bk);
+		    blen = bp ? (int)(bp - bsrc) + 1 : bk;
+
+		    memcpy(dest+i,bsrc,(size_t)blen);
+		    i += blen;
+		    my_item += blen;
+		    my_count -= blen;
+		    v9k_bulkn++;	/* So a control leg can prove it ran */
+
+		    if (bp) {		/* Terminator: same exit as above */
+			dest[i] = '\0';
+			if (timo)
+			  ttimoff();
+			ckhexdump("ttinl got",dest,i);
+#ifdef STREAMING
+			if (streaming && sndtyp == 'D')
+			  return(-1);
+#endif /* STREAMING */
+			return(i);
+		    }
+		    n = dest[i-1];	/* See the note above */
+		}
+	    }
+#endif /* VICTOR9K */
+
 	} /* End of while() */
 	ttimoff();
 	return(n);

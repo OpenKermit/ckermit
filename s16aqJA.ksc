@@ -1,0 +1,9 @@
+set line /tmp/v9000
+set speed 9600
+set carrier-watch off
+set flow none
+set receive timeout 20
+log packets s16aqJA.pkt
+send rcvja.dat
+statistics
+exit

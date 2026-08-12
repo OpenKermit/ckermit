@@ -1245,6 +1245,24 @@ extern long v9k_timezone;
 #endif /* KEEP_ICP */
 
 /*
+  UPSTREAM EDIT 18's two variables, declared here because this header is
+  force-included (-fi=ckvictor.h) and ckutio.c is stock upstream: the edit
+  itself must not carry a declaration of anything Victor-specific, or it
+  stops being one guarded block.  Both are DEFINED in ckvictor.c.
+
+  v9k_bulkin selects the bulk arm at RUN TIME (--nobulk turns it off) so
+  that the control leg and the treatment leg are the same binary -- §16ap's
+  finding, and the only shape that leaves §16w's code-size sensitivity
+  nothing to act on.  v9k_bulkn counts the runs the arm copied, and it is
+  the only way to tell an arm that was switched off from an arm whose
+  switch silently failed: equivalence cannot show the difference, because a
+  correct arm returns the byte loop's answer either way.  Reported at exit
+  as "v9k: bulk sel= n=".  See v9k/proofs/vttinl.c.
+*/
+extern int  v9k_bulkin;                 /* 1 = arm enabled, 0 = --nobulk */
+extern long v9k_bulkn;                  /* Runs copied; 0 = never ran    */
+
+/*
   Deliberately NOT defined -- these are the features being ported:
 
     NOXFER    file transfer               (SEND / RECEIVE / GET)
