@@ -5003,7 +5003,7 @@ cmcvtdate(s,t) char * s; int t;
 			p2++;
 			break;
 		    }
-		} else if (*p2 == ')') {
+		} else if (*p2 == '(') {
 		    pc++;
 		}
 		p2++;

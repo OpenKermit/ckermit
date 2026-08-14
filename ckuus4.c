@@ -8,13 +8,15 @@
       The Kermit Project, New York City
     Jeffrey E Altman <jaltman@secure-endpoints.com>
       Secure Endpoints Inc., New York City
+    John goerzen <jgoerzen@complete.org>
+      Open Kermit Project, Kansas
 
   Copyright (C) 1985, 2023,
     Trustees of Columbia University in the City of New York.
+  Copyright (C) 2025-2026, John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
-    Last update:
-    Tue May  2 19:09:58 2023
+    Last update: 13 August 2026 (jgoerzen)
 */
 
 /*
@@ -8066,7 +8068,12 @@ fpformat(fpresult,places,round) CKFLOAT fpresult; int places, round;
         (places > 0 ||                  /* round result to decimal places. */
          (places == 0 && round)))
       fpresult += (0.5 / pow(10.0,(CKFLOAT)places));
-    y = (ftmp == 0.0) ? 1 : (int)log10(ftmp);
+    if (ftmp == 0.0) {
+        y = 1;
+    } else {
+        double logtmp = log10(ftmp);
+        y = (int)logtmp;
+    }
     size = y + x + 3;                   /* Estimated length of result */
     if (fpresult < 0.0) size++;
 #else
@@ -8405,9 +8412,9 @@ jpgdate(fp) FILE * fp;
 	    tmpbuf[k] = NUL;
 	}
         if (!datebuf[0]) {		/* First date */
-	    strncpy(datebuf,tmpbuf,19);
+	    ckstrncpy(datebuf,tmpbuf,sizeof(datebuf)); /* Always NUL-term. */
         } else if (strncmp(tmpbuf,datebuf,19) < 0) { /* Earlier date */
-	    strncpy(datebuf,tmpbuf,19);
+	    ckstrncpy(datebuf,tmpbuf,sizeof(datebuf)); /* Always NUL-term. */
         }
     }
     return((char *) datebuf);
@@ -12256,7 +12263,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 		seplen = 0;
 	    } else
 	      seplen = strlen(sep);
-	}
+	} else				/* CSV/TSV: sep is "," or tab, */
+	  seplen = strlen(sep);	/* set unconditionally above. */
         for (i = lo; i <= hi; i++) {    /* Loop thru selected array elements */
             s = a_ptr[x][i];            /* Get next element */
             if (!s)
@@ -15656,7 +15664,8 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
         *old,                           /* Save original target pointer */
 #endif /* COMMENT */
         *p,                             /* Worker */
-        *q,                             /* Worker */
+        *q = NULL,                      /* Worker; NULL until case 'f' */
+                                         /* allocates vnambuf's copy */
         *s3;                            /* Worker */
     int  x3;                            /* Worker */
     char *r  = (char *)0;               /* For holding function args */

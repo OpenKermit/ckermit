@@ -967,7 +967,7 @@ cmdlin() {
 			    /* *xargv contains a value of the form tag=value */
 			    /* we need to lookup the tag and save the value  */
 			    int x,y,z;
-			    char * p, * q;
+			    char * p, * q = NULL;
 			    makestr(&p,*xargv);
 			    y = ckindex("=",p,0,0,1);
 			    if (y > 0)

@@ -11676,7 +11676,7 @@ ck_krb_rlogin(hostname, port,
                     goto reread;
             }
 
-            printf(check);
+            printf("%s",check);
             while ((c = ttinc(1)) >= 0) {
                 printf("%c",c);
                 if (c == '\n')

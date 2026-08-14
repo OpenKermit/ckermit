@@ -1213,7 +1213,7 @@ ttbufr() {                              /* TT Buffer Read */
                   ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
                   debug(F110,"ttbufr SSL_ERROR_SSL",ssl_err,0);
                   if (ssl_debug_flag)
-                      printf(ssl_err);
+                      printf("%s",ssl_err);
               } else if (ssl_debug_flag) {
                   debug(F100,"ttbufr SSL_ERROR_SSL","",0);
                   fflush(stderr);
@@ -7100,7 +7100,7 @@ nettchk() {                             /* for reading from network */
                     ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
                     debug(F110,"nettchk SSL_ERROR_SSL",ssl_err,0);
                     if (ssl_debug_flag)
-                        printf(ssl_err);
+                        printf("%s",ssl_err);
                 } else if (ssl_debug_flag) {
                     debug(F100,"nettchk SSL_ERROR_SSL","",0);
                     fflush(stderr);
@@ -7913,7 +7913,7 @@ nettol(s,n) CHAR *s; int n;
                   ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
                   debug(F110,"nettol SSL_ERROR_SSL",ssl_err,0);
                   if (ssl_debug_flag)
-                      printf(ssl_err);
+                      printf("%s",ssl_err);
               } else if (ssl_debug_flag) {
                   debug(F100,"nettol SSL_ERROR_SSL","",0);
                   fflush(stderr);
@@ -8134,7 +8134,7 @@ nettoc(c) CHAR c;
                   ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
                   debug(F110,"nettoc SSL_ERROR_SSL",ssl_err,0);
                   if (ssl_debug_flag)
-                      printf(ssl_err);
+                      printf("%s",ssl_err);
               } else if (ssl_debug_flag) {
                   debug(F100,"nettoc SSL_ERROR_SSL","",0);
                   fflush(stderr);
@@ -14774,7 +14774,8 @@ http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
   rather than converted.
 */
 
-#define INCR_CHECK(x,y) x += y; if (x > size + answer.bytes) goto dnsout
+#define INCR_CHECK(x,y) \
+    do { x += y; if (x > size + answer.bytes) goto dnsout; } while (0)
 #define CHECK(x,y) if (x + y > size + answer.bytes) goto dnsout
 #define NTOHSP(x,y) x[0] << 8 | x[1]; x += y
 
@@ -15059,8 +15060,8 @@ locate_srv_dns(host, service, protocol, addr_pp, naddrs)
 #undef CHECK
 #undef NTOHSP
 
-#define INCR_CHECK(x, y) x += y; if (x > size + answer.bytes) \
-                         return 0
+#define INCR_CHECK(x, y) \
+    do { x += y; if (x > size + answer.bytes) return 0; } while (0)
 #define CHECK(x, y) if (x + y > size + answer.bytes) \
                          return 0
 #define NTOHSP(x, y) x[0] << 8 | x[1]; x += y
@@ -15100,9 +15101,9 @@ locate_txt_rr(prefix, name, retstr) char *prefix, *name; char **retstr;
            a search on the prefix alone then the intention is to allow
            the local domain or domain search lists to be expanded.
         */
-        h = host + strlen (host);
+        h = name + strlen(name);        /* Check for trailing dot */
         ckmakmsg(host,sizeof(host),prefix, ".", name,
-                 ((h > host) && (h[-1] != '.'))?".":NULL);
+                 ((h > name) && (h[-1] != '.'))?".":NULL);
 
     }
     size = res_search(host, C_IN, T_TXT, answer.bytes, sizeof(answer.bytes));
@@ -15414,7 +15415,7 @@ fwdx_open_client_channel(channel) int channel;
             return(-1);
 
         ckmakmsg(buf,sizeof(buf),"/tmp/.X11-unix/X",ckitoa(display),NULL,NULL);
-        strncpy(saddr_un.sun_path, buf, sizeof(saddr_un.sun_path));
+        ckstrncpy(saddr_un.sun_path, buf, sizeof(saddr_un.sun_path));
         if (connect(sock,(struct sockaddr *)&saddr_un, SUN_LEN(&saddr_un)) < 0)
           return(-1);
     } else
@@ -15548,7 +15549,7 @@ fwdx_server_avail() {
             return(0);
 
         ckmakmsg(buf,sizeof(buf),"/tmp/.X11-unix/X",ckitoa(display),NULL,NULL);
-        strncpy(saddr_un.sun_path, buf, sizeof(saddr_un.sun_path));
+        ckstrncpy(saddr_un.sun_path, buf, sizeof(saddr_un.sun_path));
         if (connect(sock,(struct sockaddr *)&saddr_un,SUN_LEN(&saddr_un)) < 0)
             return(0);
         close(sock);

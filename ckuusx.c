@@ -1353,74 +1353,77 @@ static char *binp[SYS_MAX][FTPATTERNS] = {
 VOID
 initpat() {
     int i;
+    char *p;
     for (i = 0; i < FTPATTERNS; i++) {
         txtpatterns[i] = NULL;
         binpatterns[i] = NULL;
     }
     for (i = 0; i < FTPATTERNS; i++) {
 #ifdef UNIX
-        makestr(&(txtpatterns[i]),txtp[SYS_UNIX][i]);
+        p = txtp[SYS_UNIX][i];
 #else /* UNIX */
 #ifdef OS2
 #ifdef NT
-        makestr(&(txtpatterns[i]),txtp[SYS_WIN32][i]);
+        p = txtp[SYS_WIN32][i];
 #else /* NT */
-        makestr(&(txtpatterns[i]),txtp[SYS_OS2][i]);
+        p = txtp[SYS_OS2][i];
 #endif /* NT */
 #else /* OS2 */
 #ifdef VMS
-        makestr(&(txtpatterns[i]),txtp[SYS_VMS][i]);
+        p = txtp[SYS_VMS][i];
 #else /* VMS */
 #ifdef STRATUS
-        makestr(&(txtpatterns[i]),txtp[SYS_VOS][i]);
+        p = txtp[SYS_VOS][i];
 #else /* STRATUS */
 #ifdef datageneral
-        makestr(&(txtpatterns[i]),txtp[SYS_DG][i]);
+        p = txtp[SYS_DG][i];
 #else /* datageneral */
 #ifdef OSK
-        makestr(&(txtpatterns[i]),txtp[SYS_OSK][i]);
+        p = txtp[SYS_OSK][i];
 #else /* OSK */
-        makestr(&(txtpatterns[i]),txtp[SYS_UNK][i]);
+        p = txtp[SYS_UNK][i];
 #endif /* OSK */
 #endif /* datageneral */
 #endif /* STRATUS */
 #endif /* VMS */
 #endif /* OS2 */
 #endif /* UNIX */
-        if (!txtp[i])
+        makestr(&(txtpatterns[i]),p);
+        if (!p)
           break;
     }
     for (i = 0; i < FTPATTERNS; i++) {
 #ifdef UNIX
-        makestr(&(binpatterns[i]),binp[SYS_UNIX][i]);
+        p = binp[SYS_UNIX][i];
 #else /* UNIX */
 #ifdef OS2
 #ifdef NT
-        makestr(&(binpatterns[i]),binp[SYS_WIN32][i]);
+        p = binp[SYS_WIN32][i];
 #else /* NT */
-        makestr(&(binpatterns[i]),binp[SYS_OS2][i]);
+        p = binp[SYS_OS2][i];
 #endif /* NT */
 #else /* OS2 */
 #ifdef VMS
-        makestr(&(binpatterns[i]),binp[SYS_VMS][i]);
+        p = binp[SYS_VMS][i];
 #else /* VMS */
 #ifdef STRATUS
-        makestr(&(binpatterns[i]),binp[SYS_VOS][i]);
+        p = binp[SYS_VOS][i];
 #else /* STRATUS */
 #ifdef datageneral
-        makestr(&(binpatterns[i]),binp[SYS_DG][i]);
+        p = binp[SYS_DG][i];
 #else /* datageneral */
 #ifdef OSK
-        makestr(&(binpatterns[i]),binp[SYS_OSK][i]);
+        p = binp[SYS_OSK][i];
 #else /* OSK */
-        makestr(&(binpatterns[i]),binp[SYS_UNK][i]);
+        p = binp[SYS_UNK][i];
 #endif /* OSK */
 #endif /* datageneral */
 #endif /* STRATUS */
 #endif /* VMS */
 #endif /* OS2 */
 #endif /* UNIX */
-        if (!binp[i])
+        makestr(&(binpatterns[i]),p);
+        if (!p)
           break;
     }
 }
@@ -9926,16 +9929,18 @@ initslot(n) int n;
     k = dbfld[db_START].len;
     strncpy(&dbrec[dbfld[db_START].off],ckdate(),k);
 
+    /* These are fixed-width raw fields in a packed record, not */
+    /* NUL-terminated strings, so memcpy() is used, not strncpy(). */
     k = dbfld[db_ULEN].len;
-    strncpy(&dbrec[dbfld[db_ULEN].off],"0000",4);
+    memcpy(&dbrec[dbfld[db_ULEN].off],"0000",4);
 
     k = dbfld[db_DLEN].len;
-    strncpy(&dbrec[dbfld[db_DLEN].off],"0000",4);
+    memcpy(&dbrec[dbfld[db_DLEN].off],"0000",4);
 
     k = dbfld[db_ILEN].len;
-    strncpy(&dbrec[dbfld[db_ILEN].off],"0000",4);
+    memcpy(&dbrec[dbfld[db_ILEN].off],"0000",4);
 
-    strncpy(&dbrec[dbfld[db_INFO].off],"INIT",4);
+    memcpy(&dbrec[dbfld[db_INFO].off],"INIT",4);
     return(updslot(n));
 }
 

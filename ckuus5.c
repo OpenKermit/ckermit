@@ -8735,47 +8735,11 @@ gettok() {
       case '\n':
       case '\0': return(N_EOT);         /* End of line, return that */
     }
-#ifdef COMMENT
-/* This is the original code, which allows only integer numbers. */
-
-    if (isxdigit(*cp)) {                /* Digit, must be a number */
-        int radix = 10;                 /* Default radix */
-        for (tp = tbuf; isxdigit(*cp); cp++)
-          *tp++ = (char) (isupper(*cp) ? tolower(*cp) : *cp);
-        *tp = '\0';                     /* End number */
-        switch(isupper(*cp) ? tolower(*cp) : *cp) { /* Examine break char */
-          case 'h':
-          case 'x': radix = 16; cp++; break; /* if radix signifier... */
-          case 'o':
-          case 'q': radix = 8; cp++; break;
-          case 't': radix = 2; cp++; break;
-        }
-        for (tp = tbuf, tokval = 0; *tp != '\0'; tp++)  {
-            int dig;
-            dig = *tp - '0';            /* Convert number */
-            if (dig > 10) dig -= 'a'-'0'-10;
-            if (dig >= radix) {
-                if (cmdlvl == 0 && !x_ifnum && !xerror)
-                  printf("?Invalid digit '%c' in number\n",*tp);
-                xerror = 1;
-                return(NUMBER);
-            }
-            tokval = radix*tokval + dig;
-        }
-        return(NUMBER);
-    }
-    if (cmdlvl == 0 && !x_ifnum && !xerror)
-      printf("Invalid character '%c' in input\n",*cp);
-    xerror = 1;
-    cp++;
-    return(gettok());
-#else
 /* This code allows non-numbers to be treated as macro names */
     {
         int i, x;
         char * s, * cp1;
         cp1 = cp;
-        tp = tbuf;
         for (i = 0; i < 80; i++) {
             /* Look ahead to next break character */
             /* pretty much anything that is not in the switch() above. */
@@ -8829,7 +8793,6 @@ gettok() {
         }
         return(NUMBER);
     }
-#endif /* COMMENT */
 }
 
 static CK_OFF_T

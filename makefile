@@ -1056,7 +1056,8 @@ unit-test:
 		tests/unit/bin/test_lib tests/unit/bin/test_strings \
 		tests/unit/bin/test_net tests/unit/bin/test_mpsafe \
 		tests/unit/bin/test_zfnqfp tests/unit/bin/test_hasdotdot \
-		tests/unit/bin/test_rq_confirm tests/unit/bin/test_fnsplit
+		tests/unit/bin/test_rq_confirm tests/unit/bin/test_fnsplit \
+		tests/unit/bin/test_fpformat
 	./tests/unit/bin/test_lib
 	./tests/unit/bin/test_strings
 	./tests/unit/bin/test_net
@@ -1065,6 +1066,7 @@ unit-test:
 	./tests/unit/bin/test_hasdotdot
 	./tests/unit/bin/test_rq_confirm
 	./tests/unit/bin/test_fnsplit
+	./tests/unit/bin/test_fpformat
 
 # Rules for the unit test binaries.
 #
@@ -1203,6 +1205,30 @@ tests/unit/bin/test_fnsplit: tests/unit/test_fnsplit.c ckuusx.c ckucmd.c \
 		tests/unit/bin/ckucmd_test_fs.$(EXT) \
 		tests/unit/bin/ckclib_test_fs.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
+
+# test_fpformat exercises fpformat() from ckuus4.c. ckuus4.c as a
+# whole is not self-contained, so compilation uses
+# -ffunction-sections/-fdata-sections and --gc-sections. fpformat()
+# requires ckstrncpy() from ckclib.c and deblog/dodebug stubs.
+# fpformat() also calls pow()/log10(), so need -lm
+
+tests/unit/bin/test_fpformat: tests/unit/test_fpformat.c ckuus4.c \
+  ckclib.c ckcfnp.h
+	@mkdir -p tests/unit/bin
+	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	case `uname -s` in \
+	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
+	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
+	esac; \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		-c ckuus4.c -o tests/unit/bin/ckuus4_test_fs.$(EXT); \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		-c ckclib.c -o tests/unit/bin/ckclib_test_fp.$(EXT); \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		tests/unit/test_fpformat.c \
+		tests/unit/bin/ckuus4_test_fs.$(EXT) \
+		tests/unit/bin/ckclib_test_fp.$(EXT) \
+		-o $@ $$GCSECTIONS $$CHECKLIBS -lm
 
 #Clean up intermediate and object files
 clean:
@@ -2641,7 +2667,7 @@ macos:
 	HAVE_UTMPX=''; \
 	$(MAKE) CC=$(CC) CC2=$(CC2) xermit KTARGET=$${KTARGET:-$(@)} \
 	"CFLAGS=-Wno-dangling-else -Wno-string-compare -Wno-parentheses \
-	-Wno-pointer-sign -Wno-unused-value -Wdeprecated-declarations \
+	-Wno-unused-value -Wdeprecated-declarations \
 	-DMACOSX10 -DMACOSX103 -DCK_NCURSES -DTCPSOCKET -DCKHTTP \
 	-DUSE_STRERROR -DUSE_NAMESER_COMPAT -DNOCHECKOVERFLOW -DFNFLOAT \
 	-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 $$HAVE_UTMPX \

@@ -3878,7 +3878,8 @@ static int cast_fb64_start P((struct cast_fb *, int, int));
 static int cast_fb64_is P((unsigned char *, int, struct cast_fb *));
 static int cast_fb64_reply P((unsigned char *, int, struct cast_fb *));
 static int cast_fb64_session P((Session_Key *, int, struct cast_fb *, int));
-static void cast_fb64_stream_key P((Block, struct cast_stinfo *, int));
+static void cast_fb64_stream_key
+    P((unsigned char *, struct cast_stinfo *, int));
 static int cast_fb64_keyid P((int, unsigned char *, int *, struct cast_fb *));
 static void _cast_cfb64_encrypt P((unsigned char *,int, struct cast_stinfo *));
 static int _cast_cfb64_decrypt P((int, struct cast_stinfo *));
@@ -4330,7 +4331,7 @@ cast_fb64_keyid(int dir, unsigned char *kp, int *lenp, struct cast_fb *fbp)
 
 static void
 cast_fb64_printsub(unsigned char *data, int cnt, unsigned char *buf,
-		   int buflen, unsigned char *type)
+		   int buflen, char *type)
 {
     char lbuf[64];
     int i;
@@ -5397,7 +5398,7 @@ static void
 fatal(char *msg) {
     if (!msg) msg = "";
 
-    printf(msg);
+    printf("%s",msg);
     exit(1);        /* Exit indicating failure */
 }
 

@@ -12255,7 +12255,7 @@ z_close( int channel )               /* Close file on given channel */
 z_close(channel) int channel;
 #endif /* CK_ANSIC */
 {
-    int x;
+    int x = 0;                          /* 0 = success, incl. stdin/out/err */
     FILE * t;
     if (!z_inited)                      /* Called before any files are open? */
       return(z_error = FX_NOP);
@@ -12948,7 +12948,8 @@ dofile(op) int op;
     char zfilnam[CKMAXPATH+2];
     char * p, * m;
     struct FDB fl, sw, nu;
-    CK_OFF_T z;
+    CK_OFF_T z = 0;                     /* Seek target; always set before */
+                                         /* use, by fcode == _CMNUW/_CMKEY */
     int rsize, filmode = 0, relative = -1, eofflg = 0;
     int rc, x, y, cx, n, getval, dummy, confirmed, listing = -1;
     int charflag = 0, sizeflag = 0;
@@ -13601,8 +13602,8 @@ dofile(op) int op;
         } else if (cmresult.fcode == _CMKEY) {
             eofflg = cmresult.nresult;
             relative = 0;
-            y = 0 - eofflg;
-        }
+            z = 0 - eofflg;              /* EOF/LAST sentinel: -1 = EOF, */
+        }                                /* -2 = LAST (z_seek()/z_line()). */
         if ((x = cmcfm()) < 0)
           return(x);
 	if (n == -9) return(success = 0);

@@ -1617,7 +1617,16 @@ void Vscrnperror( const char *str );
 #define printf ckxprintf
 #define fprintf ckxfprintf
 #ifdef CK_ANSIC
-_PROTOTYP(int ckxprintf,(const char *, ...));
+/*
+  Provide hint to the compiler about format strings
+*/
+#ifdef __GNUC__
+#define CK_PRINTF_FMT(fmtidx,argidx) \
+    __attribute__((format(__printf__,fmtidx,argidx)))
+#else
+#define CK_PRINTF_FMT(fmtidx,argidx)
+#endif /* __GNUC__ */
+_PROTOTYP(int ckxprintf,(const char *, ...)) CK_PRINTF_FMT(1,2);
 #ifdef NEXT
 _PROTOTYP(void ckxperror,(const char *));
 #else
@@ -1627,7 +1636,7 @@ _PROTOTYP(void ckxperror,(const char *));
 _PROTOTYP(int ckxperror,(const char *));
 #endif /* CK_SCOV5 */
 #endif /* NEXT */
-_PROTOTYP(int ckxfprintf,(FILE *, const char *, ...));
+_PROTOTYP(int ckxfprintf,(FILE *, const char *, ...)) CK_PRINTF_FMT(2,3);
 #endif /* CK_ANSIC */
 #ifdef putchar
 #undef putchar
