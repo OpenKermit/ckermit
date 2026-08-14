@@ -1210,6 +1210,7 @@ tests/unit/bin/test_fnsplit: tests/unit/test_fnsplit.c ckuusx.c ckucmd.c \
 # whole is not self-contained, so compilation uses
 # -ffunction-sections/-fdata-sections and --gc-sections. fpformat()
 # requires ckstrncpy() from ckclib.c and deblog/dodebug stubs.
+# fpformat() also calls pow()/log10(), so need -lm
 
 tests/unit/bin/test_fpformat: tests/unit/test_fpformat.c ckuus4.c \
   ckclib.c ckcfnp.h
@@ -1227,7 +1228,7 @@ tests/unit/bin/test_fpformat: tests/unit/test_fpformat.c ckuus4.c \
 		tests/unit/test_fpformat.c \
 		tests/unit/bin/ckuus4_test_fs.$(EXT) \
 		tests/unit/bin/ckclib_test_fp.$(EXT) \
-		-o $@ $$GCSECTIONS $$CHECKLIBS
+		-o $@ $$GCSECTIONS $$CHECKLIBS -lm
 
 #Clean up intermediate and object files
 clean:
