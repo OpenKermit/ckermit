@@ -14774,7 +14774,8 @@ http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
   rather than converted.
 */
 
-#define INCR_CHECK(x,y) x += y; if (x > size + answer.bytes) goto dnsout
+#define INCR_CHECK(x,y) \
+    do { x += y; if (x > size + answer.bytes) goto dnsout; } while (0)
 #define CHECK(x,y) if (x + y > size + answer.bytes) goto dnsout
 #define NTOHSP(x,y) x[0] << 8 | x[1]; x += y
 
@@ -15059,8 +15060,8 @@ locate_srv_dns(host, service, protocol, addr_pp, naddrs)
 #undef CHECK
 #undef NTOHSP
 
-#define INCR_CHECK(x, y) x += y; if (x > size + answer.bytes) \
-                         return 0
+#define INCR_CHECK(x, y) \
+    do { x += y; if (x > size + answer.bytes) return 0; } while (0)
 #define CHECK(x, y) if (x + y > size + answer.bytes) \
                          return 0
 #define NTOHSP(x, y) x[0] << 8 | x[1]; x += y
