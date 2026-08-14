@@ -3878,7 +3878,8 @@ static int cast_fb64_start P((struct cast_fb *, int, int));
 static int cast_fb64_is P((unsigned char *, int, struct cast_fb *));
 static int cast_fb64_reply P((unsigned char *, int, struct cast_fb *));
 static int cast_fb64_session P((Session_Key *, int, struct cast_fb *, int));
-static void cast_fb64_stream_key P((Block, struct cast_stinfo *, int));
+static void cast_fb64_stream_key
+    P((unsigned char *, struct cast_stinfo *, int));
 static int cast_fb64_keyid P((int, unsigned char *, int *, struct cast_fb *));
 static void _cast_cfb64_encrypt P((unsigned char *,int, struct cast_stinfo *));
 static int _cast_cfb64_decrypt P((int, struct cast_stinfo *));
