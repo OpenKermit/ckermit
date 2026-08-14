@@ -3570,7 +3570,14 @@ ttclos( int foo )			/* Arg req'd for signal() prototype */
 ttclos(foo) int foo;
 #endif /* CK_ANSIC */
 {
-    int xx, x = 0;
+    int xx;
+    /* Set both before and after sigsetjmp() below; must survive a */
+    /* longjmp() back. */
+#ifdef CK_ANSIC
+    volatile int x = 0;
+#else
+    int x = 0;
+#endif /* CK_ANSIC */
     extern int exithangup;
 
     debug(F101,"ttclos ttyfd","",ttyfd);
@@ -10809,17 +10816,10 @@ ttoc(c) char c;
 #endif /* CK_ANSIC */
 /* ttoc */ {
 #define TTOC_TMO 15			/* Timeout in case we get stuck */
-    int xx, fd;
+    int xx;
 
     if (ttyfd < 0)			/* Check for not open. */
       return(-1);
-
-#ifdef NETCMD
-    if (ttpipe)
-      fd = fdout;
-    else
-#endif /* NETCMD */
-      fd = ttyfd;
 
     c &= 0xff;
     /* debug(F101,"ttoc","",(CHAR) c); */
@@ -10867,6 +10867,13 @@ ttoc(c) char c;
 	return(-1);			/* Return failure code. */
     } else {
         int rc;
+        int fd;                        /* Only needed by the plain write() */
+#ifdef NETCMD                          /* fallback below */
+        if (ttpipe)
+          fd = fdout;
+        else
+#endif /* NETCMD */
+          fd = ttyfd;
 #ifdef BEOSORBEBOX
 #ifdef NETCONN
         if (netconn && !ttpipe && !ttpty)
@@ -10998,13 +11005,14 @@ static int pushedback = 0;
 int
 #ifdef PARSENSE
 #ifdef CK_ANSIC
-ttinl(CHAR *dest, int max,int timo, CHAR eol, CHAR start, int turn)
+ttinl(CHAR *dest, int max, volatile int timo, CHAR eol, volatile CHAR start,
+      int turn)
 #else
 ttinl(dest,max,timo,eol,start,turn) int max,timo,turn; CHAR *dest, eol, start;
 #endif /* CK_ANSIC */
 #else /* not PARSENSE */
 #ifdef CK_ANSIC
-ttinl(CHAR *dest, int max,int timo, CHAR eol)
+ttinl(CHAR *dest, int max, volatile int timo, CHAR eol)
 #else
 ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
 #endif /* CK_ANSIC */
