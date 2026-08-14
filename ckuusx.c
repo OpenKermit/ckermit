@@ -1706,7 +1706,7 @@ scanfile(name,flag,nscanfile) char * name; int * flag, nscanfile;
 	    if (!ckstrcmp((char *)buf,"%PDF-1.",7,1)) {
 		if (isdigit(buf[7])) {
 		    if (buf[8] == '\015' ||
-			count > 9 && buf[8] == SP && buf[9] == '\015') {
+			(count > 9 && buf[8] == SP && buf[9] == '\015')) {
 #ifdef DEBUG
 			buf[8] = NUL;
 			debug(F110,"scanfile PDF",buf,0);
@@ -7856,7 +7856,7 @@ char *s;        /* a string */
                 || IS_SSH()
 #endif /* SSHBUILTIN */
 #ifdef CK_ENCRYPTION
-                || ck_tn_encrypting() && ck_tn_decrypting()
+                || (ck_tn_encrypting() && ck_tn_decrypting())
 #endif /* CK_ENCRYPTION */
 #ifdef CK_SSL
                 || tls_active_flag || ssl_active_flag
@@ -9083,7 +9083,7 @@ char *s;        /* a string */
                 || IS_SSH()
 #endif /* SSHBUILTIN */
 #ifdef CK_ENCRYPTION
-                || ck_tn_encrypting() && ck_tn_decrypting()
+                || (ck_tn_encrypting() && ck_tn_decrypting())
 #endif /* CK_ENCRYPTION */
 #ifdef CK_SSL
                 || tls_active_flag || ssl_active_flag

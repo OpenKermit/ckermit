@@ -1524,7 +1524,7 @@ _PROTOTYP(int sndwho,(char *));
 	if (filcnt == 1)		/* rcvfil set this to 1 for 1st file */
 	  crc16 = 0L;			/* Clear file CRC */
 	fnp = fspec;			/* This is the full path */
-	if (server && !ENABLED(en_cwd) || /* if DISABLE CD */
+	if ((server && !ENABLED(en_cwd)) || /* if DISABLE CD */
 	    !fackpath			  /* or F-ACK-PATH OFF */
 	    ) {
 	    zstrip(fspec,&fnp);		/* don't send back full path */

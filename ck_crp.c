@@ -1111,7 +1111,8 @@ encrypt_is(data, cnt) unsigned char *data; int cnt;
     type = *data++;
     if (type < ENCTYPE_CNT)
         remote_supports_encrypt |= typemask(type);
-    if (!(ep = finddecryption(type))) {
+    ep = finddecryption(type);
+    if (!ep) {
 #ifdef DEBUG
         if (encrypt_debug_mode) {
             sprintf(dbgbuf, ">>>encrypt_is:  "
@@ -1251,7 +1252,7 @@ encrypt_start(data, cnt) unsigned char *data; int cnt;
         return(-1);
     }
 
-    if (ep = finddecryption(decrypt_mode)) {
+    if ((ep = finddecryption(decrypt_mode))) {
         if ( decrypt_input != ep->input ) {
             decrypt_input = ep->input;
             EncryptKSGlobalHack->decrypt = decrypt_ks_stream;

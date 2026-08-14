@@ -70,3 +70,14 @@ def test_variable_ref_invalid_byte_no_oob_read(run_wermit, tmp_path):
             f"byte 0x{n:02x}: \\fcontents(%<byte>) returned "
             f"non-empty/leaked data: {result.stdout!r}"
         )
+
+
+def test_femail_whitespace_only_arg_no_oob_read(run_wermit):
+    """Verify that \\femail() evaluates to empty on whitespace-only input."""
+    for arg in (" ", "\t", " " * 20, "\t" * 20, " \t" * 10):
+        result = run_wermit(f"echo E=[\\femail({arg})]")
+        assert_ok(result)
+        assert "E=[]" in result.stdout, (
+            f"\\femail({arg!r}) did not evaluate to empty: "
+            f"{result.stdout!r}"
+        )

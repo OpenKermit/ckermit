@@ -414,8 +414,8 @@ tn_outst(notquiet) int notquiet;
             e = ck_tn_encrypting();
             d = ck_tn_decrypting();
             if (TELOPT_ME(TELOPT_ENCRYPTION)) {
-                if (TELOPT_SB(TELOPT_ENCRYPTION).encrypt.stop && e ||
-                    !TELOPT_SB(TELOPT_ENCRYPTION).encrypt.stop && !e
+                if ((TELOPT_SB(TELOPT_ENCRYPTION).encrypt.stop && e) ||
+                    (!TELOPT_SB(TELOPT_ENCRYPTION).encrypt.stop && !e)
                     ) {
                     if ( notquiet )
                       printf("?Telnet waiting for WILL %s subnegotiation\r\n",
@@ -429,8 +429,8 @@ tn_outst(notquiet) int notquiet;
                 }
             }
             if (TELOPT_U(TELOPT_ENCRYPTION)) {
-                if (TELOPT_SB(TELOPT_ENCRYPTION).encrypt.stop && d ||
-                    !TELOPT_SB(TELOPT_ENCRYPTION).encrypt.stop && !d
+                if ((TELOPT_SB(TELOPT_ENCRYPTION).encrypt.stop && d) ||
+                    (!TELOPT_SB(TELOPT_ENCRYPTION).encrypt.stop && !d)
                     ) {
                     if ( notquiet )
                       printf("?Telnet waiting for DO %s subnegotiation\r\n",
@@ -1352,8 +1352,8 @@ fwdx_tn_sb( sb, n ) unsigned char * sb; int n;
     int rc = -1;
 
     /* check to ensure we have negotiated Forward X */
-    if ( sstelnet && !TELOPT_ME(TELOPT_FORWARD_X) ||
-         !sstelnet && !TELOPT_U(TELOPT_FORWARD_X) ) {
+    if ( (sstelnet && !TELOPT_ME(TELOPT_FORWARD_X)) ||
+         (!sstelnet && !TELOPT_U(TELOPT_FORWARD_X)) ) {
         debug(F100,"fwdx_tn_sb() not negotiated","",0);
         return(0);
     }
@@ -2184,7 +2184,7 @@ iks_tn_sb(sb, n) CHAR * sb; int n;
 #ifndef NOXFER
         if (inserver
 #ifdef CK_AUTODL
-            || !local && cmdadl
+            || (!local && cmdadl)
 #endif /* CK_AUTODL */
             ) {
 #ifdef CK_AUTODL

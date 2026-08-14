@@ -14348,7 +14348,7 @@ tt_is_secure() {	  /* Tells whether the current connection is secure */
 	|| IS_SSH()
 #endif /* SSHBUILTIN */
 #ifdef CK_ENCRYPTION
-	|| ck_tn_encrypting() && ck_tn_decrypting()
+	|| (ck_tn_encrypting() && ck_tn_decrypting())
 #endif /* CK_ENCRYPTION */
 #ifdef CK_SSL
 	|| tls_active_flag || ssl_active_flag

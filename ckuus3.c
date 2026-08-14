@@ -11209,7 +11209,7 @@ case XYCARR:                            /* CARRIER-WATCH */
 #ifdef CK_APC
                   /* Don't let this be set remotely */
                   if (apcactive == APC_LOCAL ||
-                      apcactive == APC_REMOTE && !(apcstatus & APC_UNCH))
+                      (apcactive == APC_REMOTE && !(apcstatus & APC_UNCH)))
                     return(success = 0);
 #endif /* CK_APC */
                   ck_tn_enc_start(); /* fdc 2021-12-17 */
@@ -11220,7 +11220,7 @@ case XYCARR:                            /* CARRIER-WATCH */
 #ifdef CK_APC
                   /* Don't let this be set remotely */
                   if (apcactive == APC_LOCAL ||
-                      apcactive == APC_REMOTE && !(apcstatus & APC_UNCH))
+                      (apcactive == APC_REMOTE && !(apcstatus & APC_UNCH)))
                     return(success = 0);
 #endif /* CK_APC */
                   ck_tn_enc_stop(); /* fdc 2021-12-17 */
@@ -13356,7 +13356,7 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
 #ifdef CK_APC
           /* Don't let this be set remotely */
           if (apcactive == APC_LOCAL ||
-              apcactive == APC_REMOTE && !(apcstatus & APC_UNCH)) {
+              (apcactive == APC_REMOTE && !(apcstatus & APC_UNCH))) {
               if ((y = cmcfm()) < 0) return(y);
               return(success = 0);
           }

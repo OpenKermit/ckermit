@@ -4538,10 +4538,11 @@ shoparc() {
 #endif /* IKSD */
          ) {
         printf(" Network Host: %s%s",ttname,
-               (reliable == SET_ON || (reliable == SET_AUTO && !local)
+               (reliable == SET_ON || ((reliable == SET_AUTO && !local)
 #ifdef TN_COMPORT
                && !istncomport()
 #endif /* TN_COMPORT */
+               )
 #ifdef IKSD
                || inserver
 #endif /* IKSD */
@@ -4750,7 +4751,7 @@ shoparc() {
            printf(", telnet protocol");
            if (0
 #ifdef CK_ENCRYPTION
-               || ck_tn_encrypting() && ck_tn_decrypting()
+               || (ck_tn_encrypting() && ck_tn_decrypting())
 #endif /* CK_ENCRYPTION */
 #ifdef CK_SSL
                || tls_active_flag || ssl_active_flag
@@ -12695,9 +12696,9 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 	k = strlen(s);			/* Strip junk from end */
 	if (k < 1) goto xemail;
 	k--;
-	while (k >= 0 && s[k] == CK_CR || s[k] == LF)
+	while (k >= 0 && (s[k] == CK_CR || s[k] == LF))
 	  s[k--] = NUL;
-	while (k >= 0 && s[k] == SP || s[k] == HT)
+	while (k >= 0 && (s[k] == SP || s[k] == HT))
 	  s[k--] = NUL;
 	if (k == 0)
 	  goto xemail;
@@ -14728,7 +14729,7 @@ char *                                  /* Evaluate builtin variable */
             || IS_SSH()
 #endif /* SSHBUILTIN */
 #ifdef CK_ENCRYPTION
-            || ck_tn_encrypting() && ck_tn_decrypting()
+            || (ck_tn_encrypting() && ck_tn_decrypting())
 #endif /* CK_ENCRYPTION */
 #ifdef CK_SSL
             || tls_active_flag || ssl_active_flag
@@ -14771,11 +14772,11 @@ char *                                  /* Evaluate builtin variable */
 #ifdef CK_AUTHENTICATION
 #ifdef CK_SSL
         if ((ssl_active_flag || tls_active_flag) &&
-            ck_tn_auth_valid() == AUTH_VALID &&
-            (sstelnet ? (!TELOPT_U(TELOPT_AUTHENTICATION)) :
-                        (!TELOPT_ME(TELOPT_AUTHENTICATION))) ||
+            (((ck_tn_auth_valid() == AUTH_VALID) &&
+              (sstelnet ? (!TELOPT_U(TELOPT_AUTHENTICATION)) :
+                          (!TELOPT_ME(TELOPT_AUTHENTICATION)))) ||
              ck_tn_authenticated() == AUTHTYPE_NULL ||
-             ck_tn_authenticated() == AUTHTYPE_AUTO)
+             ck_tn_authenticated() == AUTHTYPE_AUTO))
           return("X_509_CERTIFICATE");
         else
 #endif /* CK_SSL */

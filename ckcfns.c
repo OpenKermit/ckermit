@@ -3987,7 +3987,7 @@ Please confirm output file specification or supply an alternative:";
     debug(F111,"rcvfil ofn1len",ofn1,ofn1len);
     ofn1x = (ofn1len != (CK_OFF_T)-1);
 
-    if ( (
+    if ( ( (
 #ifdef UNIX
 	strcmp(ofn1,"/dev/null") &&	/* It's not the null device? */
 #else
@@ -3996,7 +3996,7 @@ Please confirm output file specification or supply an alternative:";
 #endif /* OSK */
 #endif /* UNIX */
 	!stdouf ) &&			/* Not copying to standard output? */
-	ofn1x ||			/* File of same name exists? */
+	ofn1x ) ||			/* File of same name exists? */
 	dirflg ) {			/* Or file is a directory? */
         debug(F111,"rcvfil exists",ofn1,fncact);
 #ifdef CK_PERMS
@@ -5580,10 +5580,11 @@ spar(s) CHAR *s;
 	if (whatru & WMI_STREAM) {
 	    if (streamrq == SET_ON ||
 		(streamrq == SET_AUTO &&
-		 (reliable == SET_ON || (reliable == SET_AUTO && !local)
+		 (reliable == SET_ON || ((reliable == SET_AUTO && !local)
 #ifdef TN_COMPORT
                   && !istncomport()
 #endif /* TN_COMPORT */
+                  )
 #ifdef IKSD
                    || inserver
 #endif /* IKSD */
