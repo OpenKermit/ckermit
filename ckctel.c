@@ -2199,33 +2199,6 @@ iks_tn_sb(sb, n) CHAR * sb; int n;
                 tn_siks(KERMIT_RESP_START);
             }
         }
-#ifndef IKSDONLY
-#ifdef CK_AUTODL
-#ifdef OS2
-        else if (local && (IsConnectMode() && autodl) ||
-                   (!IsConnectMode() && inautodl)
-                   ) {
-            /* If we are a pseudo-server and the other side requests */
-            /* that we stop, tell then that we have even though we   */
-            /* have not.  Otherwise, the other side might refuse to  */
-            /* enter SERVER mode.                                    */
-
-            tn_siks(KERMIT_RESP_STOP);  /* STOP */
-        }
-#else /* OS2 */
-        else if ((local && what == W_CONNECT && autodl) ||
-                   (local && what != W_CONNECT && inautodl)
-                   ) {
-            /* If we are a pseudo-server and the other side requests */
-            /* that we stop, tell then that we have even though we   */
-            /* have not.  Otherwise, the other side might refuse to  */
-            /* enter SERVER mode.                                    */
-
-            tn_siks(KERMIT_RESP_STOP);  /* STOP */
-        }
-#endif /* OS2 */
-#endif /* CK_AUTODL */
-#endif /* IKSDONLY */
         else
 #endif /* NOXFER */
         {
