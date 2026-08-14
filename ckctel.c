@@ -1071,7 +1071,7 @@ tn_get_display()
 #endif /* CK_ENVIRONMENT */
         if ((TELOPT_ME(TELOPT_XDISPLOC) ||
               TELOPT_U(TELOPT_FORWARD_X))
-#if OS2
+#ifdef OS2
 #ifdef SSHBUILTIN
             || (IS_SSH() && ssh_get_iparam(SSH_IPARAM_XFW))
 #endif   /* SSHBUILTIN */

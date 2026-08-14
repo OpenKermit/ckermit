@@ -15730,23 +15730,6 @@ remote_files(new_query, arg, pattern, proxy_switch)
     return((CHAR *)p);
 }
 
-/* N O T  P O R T A B L E !!! */
-
-#if (SIZEOF_SHORT == 4)
-typedef unsigned short ftp_uint32;
-typedef short ftp_int32;
-#else
-#if (SIZEOF_INT == 4)
-typedef unsigned int ftp_uint32;
-typedef int ftp_int32;
-#else
-#if (SIZEOF_LONG == 4)
-typedef ULONG ftp_uint32;
-typedef long ftp_int32;
-#endif
-#endif
-#endif
-
 /* Perhaps use these in general, certainly use them for GSSAPI */
 
 #ifndef looping_write
