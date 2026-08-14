@@ -309,7 +309,7 @@ ask(str) char *str; {
     fd = dup(fileno(stdin));
     in = fdopen(fd, "r");
     while(1) {
-        fprintf(stderr,str);
+        fprintf(stderr,"%s",str);
         fflush(stderr);
         if (fgets(buf, 99, in) == NULL) /* EOF? */
             return(0);

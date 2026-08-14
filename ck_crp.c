@@ -5397,7 +5397,7 @@ static void
 fatal(char *msg) {
     if (!msg) msg = "";
 
-    printf(msg);
+    printf("%s",msg);
     exit(1);        /* Exit indicating failure */
 }
 

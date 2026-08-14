@@ -3512,7 +3512,7 @@ show_hostname_warning(char *s1, char *s2)
                     "Continue? (Y/N) ",
                     3, NULL, 0);
     else if (verbosity)
-        printf(prefix);
+        printf("%s",prefix);
     return(ok);
 }
 
@@ -3889,13 +3889,13 @@ ssl_reply(how,data,cnt) int how; unsigned char *data; int cnt;
                     ERR_print_errors(bio_err);
                     len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
                     ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
-                    printf(ssl_err);
+                    printf("%s",ssl_err);
                 } else if ( verbosity ) {
                     printf("[SSL - FAILED]\r\n");
                     ERR_print_errors(bio_err);
                     len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
                     ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
-                    printf(ssl_err);
+                    printf("%s",ssl_err);
                 }
                 debug(F110,"ssl_reply","[SSL - FAILED]",0);
                 auth_finished(AUTH_REJECT);
@@ -4269,13 +4269,13 @@ ck_tn_tls_negotiate(VOID)
                     ERR_print_errors(bio_err);
                     len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
                     ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
-                    printf(ssl_err);
+                    printf("%s",ssl_err);
                 } else if ( verbosity ) {
                     printf("[TLS - FAILED]\r\n");
                     ERR_print_errors(bio_err);
                     len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
                     ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
-                    printf(ssl_err);
+                    printf("%s",ssl_err);
                 }
                 debug(F110,"ck_tn_tls_negotiate","[TLS - FAILED]",0);
                 auth_finished(AUTH_REJECT);

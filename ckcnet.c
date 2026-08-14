@@ -1213,7 +1213,7 @@ ttbufr() {                              /* TT Buffer Read */
                   ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
                   debug(F110,"ttbufr SSL_ERROR_SSL",ssl_err,0);
                   if (ssl_debug_flag)
-                      printf(ssl_err);
+                      printf("%s",ssl_err);
               } else if (ssl_debug_flag) {
                   debug(F100,"ttbufr SSL_ERROR_SSL","",0);
                   fflush(stderr);
@@ -7100,7 +7100,7 @@ nettchk() {                             /* for reading from network */
                     ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
                     debug(F110,"nettchk SSL_ERROR_SSL",ssl_err,0);
                     if (ssl_debug_flag)
-                        printf(ssl_err);
+                        printf("%s",ssl_err);
                 } else if (ssl_debug_flag) {
                     debug(F100,"nettchk SSL_ERROR_SSL","",0);
                     fflush(stderr);
@@ -7913,7 +7913,7 @@ nettol(s,n) CHAR *s; int n;
                   ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
                   debug(F110,"nettol SSL_ERROR_SSL",ssl_err,0);
                   if (ssl_debug_flag)
-                      printf(ssl_err);
+                      printf("%s",ssl_err);
               } else if (ssl_debug_flag) {
                   debug(F100,"nettol SSL_ERROR_SSL","",0);
                   fflush(stderr);
@@ -8134,7 +8134,7 @@ nettoc(c) CHAR c;
                   ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
                   debug(F110,"nettoc SSL_ERROR_SSL",ssl_err,0);
                   if (ssl_debug_flag)
-                      printf(ssl_err);
+                      printf("%s",ssl_err);
               } else if (ssl_debug_flag) {
                   debug(F100,"nettoc SSL_ERROR_SSL","",0);
                   fflush(stderr);
