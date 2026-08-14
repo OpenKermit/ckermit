@@ -830,7 +830,7 @@ tn_sopt(cmd,opt) int cmd, opt;
             return(0);
         }
         tncnts[index][m]++;
-        tncnts[index][tnopps[m]] = 0;
+        tncnts[index][(CHAR)tnopps[m]] = 0;
     }
     buf[0] = (CHAR) IAC;
     buf[1] = (CHAR) (cmd & 0xff);

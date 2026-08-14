@@ -1593,13 +1593,13 @@ xxundef(s,verbose,simulate) char * s; int verbose, simulate;
         char c = *(s+2), * p = NULL;
         if (c >= '0' && c <= '9') {
             if (maclvl < 0)
-              p = g_var[c];
+              p = g_var[(unsigned char)c];
             else
               p = m_arg[maclvl][c - '0'];
         } else {
             if (isupper(c)) c += ('a'-'A');
             if (c >= 'a' && c <= 'z')
-              p = g_var[c];
+              p = g_var[(unsigned char)c];
         }
         if (!p) return(-1);
     }
@@ -11800,7 +11800,8 @@ dogta(cx) int cx;
         c = (char) (i + '0');           /* Make name */
         mbuf[1] = (char) c;             /* Insert digit */
         if (cx == XXGTA) {              /* Get arg from level-minus-2 */
-            if (maclvl == 1) p = g_var[c]; /* If at level 1 use globals 0..9 */
+            if (maclvl == 1)            /* At level 1, use globals 0..9 */
+              p = g_var[(unsigned char)c];
             else p = m_arg[maclvl-2][i];   /* Otherwise they're on the stack */
             debug(F111," dogta _GETARGS m_arg addmac var i",mbuf,i);
             debug(F111," dogta _GETARGS m_arg addmac def i",p,i);

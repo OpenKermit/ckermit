@@ -42,3 +42,31 @@ def test_fjoin_csv_separator_overflow_reports_error(run_wermit):
     )
     # Ensure the result was not silently truncated without the separator.
     assert f"RESULT=[{'x' * elt1_len}]" not in result.stdout
+
+
+def test_variable_ref_invalid_byte_no_oob_read(run_wermit, tmp_path):
+    """Verify that variable references with high bytes evaluate to empty.
+
+    References such as \\%<byte> and \\fcontents(%<byte>) with invalid
+    variable name bytes (such as 0x80 or 0xff) must evaluate as undefined
+    variables (empty strings) and not read out of bounds.
+
+    The commands are written to a TAKE file to avoid passing raw non-UTF-8
+    bytes through pytest-xdist process communication.
+    """
+    for n in (0x80, 0xff):
+        script = tmp_path / f"highbyte_{n:02x}.cmd"
+        script.write_bytes(
+            b"echo A=[\\%" + bytes([n]) + b"]\n"
+            b"echo B=[\\fcontents(%" + bytes([n]) + b")]\n"
+        )
+        result = run_wermit(f"take {script}")
+        assert_ok(result)
+        assert "A=[]" in result.stdout, (
+            f"byte 0x{n:02x}: \\%<byte> returned non-empty/leaked "
+            f"data: {result.stdout!r}"
+        )
+        assert "B=[]" in result.stdout, (
+            f"byte 0x{n:02x}: \\fcontents(%<byte>) returned "
+            f"non-empty/leaked data: {result.stdout!r}"
+        )

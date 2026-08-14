@@ -8629,7 +8629,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             }
             if (c >= '0' && c <= '9') { /* Digit for macro arg */
                 if (maclvl < 0)         /* Digit variables are global */
-                  p = g_var[c];         /* if no macro is active */
+                  p = g_var[(unsigned char)c]; /* if no macro is active */
                 else                    /* otherwise */
                   p = m_arg[maclvl][c - '0']; /* they're on the stack */
             } else if (c == '*') {
@@ -8655,7 +8655,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 #endif /* COMMENT */
             } else {
                 if (isupper(c)) c -= ('a'-'A');
-                p = g_var[c];           /* Letter for global variable */
+                if (c >= 33 && (unsigned int)c <= GVARS)
+                  p = g_var[(unsigned char)c]; /* Letter for global var */
             }
             if (!p) p = "";
             goto fnend;
@@ -15775,7 +15776,7 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
             vp = NULL;                  /* Assume definition is empty */
             if (vb >= '0' && vb <= '9') { /* Digit for macro arg */
                 if (maclvl < 0)         /* Digit variables are global */
-                  vp = g_var[vb];       /* if no macro is active */
+                  vp = g_var[(unsigned char)vb]; /* if no macro is active */
                 else                    /* otherwise */
                   vp = m_arg[maclvl][vb - '0']; /* they're on the stack */
             } else if (vb == '*') {     /* Macro args string */
@@ -15796,7 +15797,8 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
 #endif /* COMMENT */
             } else {
                 if (isupper(vb)) vb += ('a'-'A');
-                vp = g_var[vb];         /* Letter for global variable */
+                if (vb >= 33 && (unsigned int)vb <= GVARS)
+                  vp = g_var[(unsigned char)vb]; /* Letter, global var */
             }
             if (!vp) vp = "";
 #ifdef COMMENT
