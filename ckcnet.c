@@ -15414,7 +15414,7 @@ fwdx_open_client_channel(channel) int channel;
             return(-1);
 
         ckmakmsg(buf,sizeof(buf),"/tmp/.X11-unix/X",ckitoa(display),NULL,NULL);
-        strncpy(saddr_un.sun_path, buf, sizeof(saddr_un.sun_path));
+        ckstrncpy(saddr_un.sun_path, buf, sizeof(saddr_un.sun_path));
         if (connect(sock,(struct sockaddr *)&saddr_un, SUN_LEN(&saddr_un)) < 0)
           return(-1);
     } else
@@ -15548,7 +15548,7 @@ fwdx_server_avail() {
             return(0);
 
         ckmakmsg(buf,sizeof(buf),"/tmp/.X11-unix/X",ckitoa(display),NULL,NULL);
-        strncpy(saddr_un.sun_path, buf, sizeof(saddr_un.sun_path));
+        ckstrncpy(saddr_un.sun_path, buf, sizeof(saddr_un.sun_path));
         if (connect(sock,(struct sockaddr *)&saddr_un,SUN_LEN(&saddr_un)) < 0)
             return(0);
         close(sock);

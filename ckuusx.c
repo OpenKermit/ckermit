@@ -9926,16 +9926,18 @@ initslot(n) int n;
     k = dbfld[db_START].len;
     strncpy(&dbrec[dbfld[db_START].off],ckdate(),k);
 
+    /* These are fixed-width raw fields in a packed record, not */
+    /* NUL-terminated strings, so memcpy() is used, not strncpy(). */
     k = dbfld[db_ULEN].len;
-    strncpy(&dbrec[dbfld[db_ULEN].off],"0000",4);
+    memcpy(&dbrec[dbfld[db_ULEN].off],"0000",4);
 
     k = dbfld[db_DLEN].len;
-    strncpy(&dbrec[dbfld[db_DLEN].off],"0000",4);
+    memcpy(&dbrec[dbfld[db_DLEN].off],"0000",4);
 
     k = dbfld[db_ILEN].len;
-    strncpy(&dbrec[dbfld[db_ILEN].off],"0000",4);
+    memcpy(&dbrec[dbfld[db_ILEN].off],"0000",4);
 
-    strncpy(&dbrec[dbfld[db_INFO].off],"INIT",4);
+    memcpy(&dbrec[dbfld[db_INFO].off],"INIT",4);
     return(updslot(n));
 }
 

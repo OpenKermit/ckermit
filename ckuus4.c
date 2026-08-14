@@ -8405,9 +8405,9 @@ jpgdate(fp) FILE * fp;
 	    tmpbuf[k] = NUL;
 	}
         if (!datebuf[0]) {		/* First date */
-	    strncpy(datebuf,tmpbuf,19);
+	    ckstrncpy(datebuf,tmpbuf,sizeof(datebuf)); /* Always NUL-term. */
         } else if (strncmp(tmpbuf,datebuf,19) < 0) { /* Earlier date */
-	    strncpy(datebuf,tmpbuf,19);
+	    ckstrncpy(datebuf,tmpbuf,sizeof(datebuf)); /* Always NUL-term. */
         }
     }
     return((char *) datebuf);
