@@ -2641,7 +2641,7 @@ macos:
 	HAVE_UTMPX=''; \
 	$(MAKE) CC=$(CC) CC2=$(CC2) xermit KTARGET=$${KTARGET:-$(@)} \
 	"CFLAGS=-Wno-dangling-else -Wno-string-compare -Wno-parentheses \
-	-Wno-pointer-sign -Wno-unused-value -Wdeprecated-declarations \
+	-Wno-unused-value -Wdeprecated-declarations \
 	-DMACOSX10 -DMACOSX103 -DCK_NCURSES -DTCPSOCKET -DCKHTTP \
 	-DUSE_STRERROR -DUSE_NAMESER_COMPAT -DNOCHECKOVERFLOW -DFNFLOAT \
 	-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 $$HAVE_UTMPX \

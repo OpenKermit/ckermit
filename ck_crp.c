@@ -4330,7 +4330,7 @@ cast_fb64_keyid(int dir, unsigned char *kp, int *lenp, struct cast_fb *fbp)
 
 static void
 cast_fb64_printsub(unsigned char *data, int cnt, unsigned char *buf,
-		   int buflen, unsigned char *type)
+		   int buflen, char *type)
 {
     char lbuf[64];
     int i;
