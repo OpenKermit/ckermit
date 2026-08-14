@@ -1424,7 +1424,7 @@ getreason(s) char *s;
 	rejection = c;			/* remember it, */
 	c -= '!';			/* get offset */
 	p = ((unsigned int) ((CHAR) c) <= (unsigned int) nreason) ?
-	  reason[c] :
+	  reason[(CHAR) c] :
 	    "unknown";
     }
     return(p);

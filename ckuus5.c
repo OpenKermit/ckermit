@@ -3682,12 +3682,12 @@ vardef(s,isarray,x1,x2) char * s; int * isarray, * x1, * x2;
               return(NULL);
             if (c >= '0' && c <= '9') { /* Digit for macro arg */
                 if (maclvl < 0)         /* Digit variables are global */
-                  return(g_var[c]);     /* if no macro is active */
+                  return(g_var[(unsigned char)c]); /* if no macro active */
                 else                    /* otherwise */
                   return(m_arg[maclvl][c - '0']); /* they're on the stack */
             } else if (isalpha(c)) {
                 if (isupper(c)) c -= ('a'-'A');
-                return(g_var[c]);           /* Letter for global variable */
+                return(g_var[(unsigned char)c]); /* Letter for global var */
             } else
               return(NULL);
         } else if (c == '&') {          /* Array reference. */
@@ -4609,7 +4609,7 @@ addmac(nam,def) char *nam, *def;
 
         if (c >= '0' && c <= '9') {     /* \%0-9 variable */
             if (maclvl < 0) {           /* Are we calling or in a macro? */
-                g_var[c] = p;           /* No, it's top level one */
+                g_var[(unsigned char)c] = p; /* Top level one */
                 makestr(&(toparg[c - '0']),p); /* Take care \&_[] too */
             } else {                    /* Yes, it's a macro argument */
                 m_arg[maclvl][c - '0'] = p; /* Assign the value */
@@ -4618,7 +4618,7 @@ addmac(nam,def) char *nam, *def;
         } else {                        /* It's a \%a-z variable */
             if (c < 33 || (unsigned int)c > GVARS) return(-1);
             if (isupper(c)) c = (char) tolower(c);
-            g_var[c] = p;               /* Put pointer in global-var table */
+            g_var[(unsigned char)c] = p; /* Put ptr in global-var table */
         }
         if (tra_asg) traceval(nam,p);
         return(0);
@@ -4847,15 +4847,15 @@ delmac( char *nam, int exact )          /* Delete the named macro */
         p = (char *)0;                  /* Initialize value pointer */
         if (maclvl < 0 && c >= '0' && c <= '9') { /* Top-level digit? */
             p = toparg[c - '0'];
-            if (p) if (p != g_var[c]) {
+            if (p) if (p != g_var[(unsigned char)c]) {
                 free(p);
                 toparg[c - '0'] = NULL;
             }
-            p = g_var[c];
-            g_var[c] = NULL;            /* Zero the table entry */
+            p = g_var[(unsigned char)c];
+            g_var[(unsigned char)c] = NULL; /* Zero the table entry */
         } else if (maclvl > -1 && c >= '0' && c <= '9') { /* Digit? */
             p = m_xarg[maclvl][c - '0'];
-            if (p) if (p != g_var[c]) {
+            if (p) if (p != g_var[(unsigned char)c]) {
                 free(p);
                 m_xarg[maclvl][c - '0'] = NULL;
             }
@@ -4863,8 +4863,8 @@ delmac( char *nam, int exact )          /* Delete the named macro */
             m_arg[maclvl][c - '0'] = NULL; /* Zero the table pointer */
         } else {                        /* It's a global variable */
             if (c < 33 || (unsigned int)c > GVARS) return(0);
-            p = g_var[c];               /* Get pointer from global-var table */
-            g_var[c] = NULL;            /* Zero the table entry */
+            p = g_var[(unsigned char)c]; /* Get ptr from global-var table */
+            g_var[(unsigned char)c] = NULL; /* Zero the table entry */
         }
         if (p) {
             debug(F010,"delmac def",p,0);
@@ -9102,24 +9102,24 @@ dclarray(a,n) char a; int n;
     c = a;
     a -= ARRAYBASE;                     /* Convert name to number */
     rc = a;				/* Array index will be return code */
-    if ((p = a_ptr[a]) != NULL) {       /* Delete old array of same name */
-        if (a_link[a] > -1) {           /* Is it a link? */
+    if ((p = a_ptr[(unsigned char)a]) != NULL) { /* Delete old array */
+        if (a_link[(unsigned char)a] > -1) { /* Is it a link? */
             if (n == 0) {               /* If we're just deleting it */
-                a_ptr[a] = (char **) NULL; /* clear all the info. */
-                a_dim[a] = 0;
-                a_link[a] = -1;
+                a_ptr[(unsigned char)a] = (char **) NULL; /* clear info */
+                a_dim[(unsigned char)a] = 0;
+                a_link[(unsigned char)a] = -1;
                 return(0);
             }                           /* Not deleting */
-            a = a_link[a];              /* Switch to linked-to array */
+            a = a_link[(unsigned char)a]; /* Switch to linked-to array */
         }
-        n2 = a_dim[a];                  /* Real array */
+        n2 = a_dim[(unsigned char)a];   /* Real array */
         for (i = 0; i <= n2; i++) {     /* First delete its elements */
             if (p[i]) {
                 free(p[i]);
                 p[i] = NULL;
             }
         }
-        free((char *)a_ptr[a]);         /* Then the element list */
+        free((char *)a_ptr[(unsigned char)a]); /* Then the element list */
         if (n == 0) {                   /* If undeclaring this array... */
             for (i = 0; i < 122 - ARRAYBASE; i++) { /* Any linked arrays? */
                 if (i != a && a_link[i] == a) {     /* Find them */
@@ -9129,16 +9129,16 @@ dclarray(a,n) char a; int n;
                 }
             }
         }
-        a_ptr[a] = (char **) NULL;      /* Remove pointer to element list */
-        a_dim[a] = 0;                   /* Set dimension at zero. */
-        a_link[a] = -1;                 /* Unset link word */
+        a_ptr[(unsigned char)a] = (char **) NULL; /* Remove element ptr */
+        a_dim[(unsigned char)a] = 0;    /* Set dimension at zero. */
+        a_link[(unsigned char)a] = -1;  /* Unset link word */
     }
     if (n < 0)				/* If only undeclaring, */
       return(0);			/*  we're done. */
     p = (char **) malloc((n+1) * sizeof(char **)); /* Allocate for new array */
     if (p == NULL) return(-1);          /* Check */
-    a_ptr[a] = p;                       /* Save pointer to member list */
-    a_dim[a] = n;                       /* Save dimension */
+    a_ptr[(unsigned char)a] = p;        /* Save pointer to member list */
+    a_dim[(unsigned char)a] = n;        /* Save dimension */
     for (i = 0; i <= n; i++)            /* Initialize members to null */
       p[i] = NULL;
     for (i = 0; i < (int) 'z' - ARRAYBASE; i++) { /* Any linked arrays? */

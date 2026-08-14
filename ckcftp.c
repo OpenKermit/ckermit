@@ -15018,7 +15018,7 @@ ftp_login(host) char * host;
           if (ftp_logname) {
               user = ftp_logname;
               pass = ftp_tmp;
-          } else if (uidbuf[0] && (ftp_tmp || pwbuf[0] && pwflg)) {
+          } else if (uidbuf[0] && (ftp_tmp || (pwbuf[0] && pwflg))) {
               user = uidbuf;
               if (ftp_tmp) {
                   pass = ftp_tmp;

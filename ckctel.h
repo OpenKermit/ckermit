@@ -181,8 +181,8 @@ extern char *telcmds[];
 
 #define TELCMD_FIRST    TN_EOF
 #define TELCMD_LAST     IAC
-#define TELCMD_OK(x)    ((unsigned int)(x) <= TELCMD_LAST && \
-                         (unsigned int)(x) >= TELCMD_FIRST || \
+#define TELCMD_OK(x)    (((unsigned int)(x) <= TELCMD_LAST && \
+                         (unsigned int)(x) >= TELCMD_FIRST) || \
                           (unsigned int)(x) == TN_SAK)
 #define TELCMD(x)       (TELCMD_OK(x)? ((x) == TN_SAK?"SAK": \
                          telcmds[(x)-TELCMD_FIRST]):tel_unk(x))

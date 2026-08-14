@@ -9725,10 +9725,10 @@ cx_net(net, protocol, xhost, svc,
 	*/
 	makestr(&slmsg,"Authentication failure");
 	if ((ttnproto == NP_TELNET || ttnproto == NP_KERMIT) &&
-	    (line[0] == '*' &&
-	     TELOPT_DEF_S_U_MODE(TELOPT_AUTHENTICATION) == TN_NG_MU ||
-	     line[0] != '*' &&
-	     TELOPT_DEF_C_ME_MODE(TELOPT_AUTHENTICATION) == TN_NG_MU)
+	    ((line[0] == '*' &&
+	     TELOPT_DEF_S_U_MODE(TELOPT_AUTHENTICATION) == TN_NG_MU) ||
+	     (line[0] != '*' &&
+	     TELOPT_DEF_C_ME_MODE(TELOPT_AUTHENTICATION) == TN_NG_MU))
 	    ) {
 #ifdef CK_KERBEROS
 	    if ( auth_type_user[0] == AUTHTYPE_KERBEROS_V4 ) {
@@ -9837,13 +9837,13 @@ cx_net(net, protocol, xhost, svc,
 	    }
 	}
 	if (ttnproto == NP_EK4LOGIN || ttnproto == NP_EK5LOGIN ||
-	    (ttnproto == NP_TELNET || ttnproto == NP_KERMIT) &&
+	    ((ttnproto == NP_TELNET || ttnproto == NP_KERMIT) &&
 	    ((line[0] == '*' &&
 	      TELOPT_DEF_S_U_MODE(TELOPT_ENCRYPTION) == TN_NG_MU &&
 	      TELOPT_DEF_S_ME_MODE(TELOPT_ENCRYPTION) == TN_NG_MU) ||
 	     (line[0] != '*' &&
 	      TELOPT_DEF_C_U_MODE(TELOPT_ENCRYPTION) == TN_NG_MU &&
-	      TELOPT_DEF_C_ME_MODE(TELOPT_ENCRYPTION) == TN_NG_MU))
+	      TELOPT_DEF_C_ME_MODE(TELOPT_ENCRYPTION) == TN_NG_MU)))
 	    ) {
 	    if (!ck_crypt_is_installed()) {
 		return(cx_fail(msg,

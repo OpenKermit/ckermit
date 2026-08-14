@@ -2348,11 +2348,11 @@ ck_linger(sock, onoff, timo) int sock; int onoff; int timo;
     if (!inserver)
 #endif /* IKSD */
       if (sock == -1 ||
-        nettype != NET_TCPA && nettype != NET_TCPB &&
+        (nettype != NET_TCPA && nettype != NET_TCPB &&
 #ifdef CK_VSOCK
         nettype != NET_VSOCK &&
 #endif /* CK_VSOCK */
-        nettype != NET_SSH || ttmdm >= 0) {
+        nettype != NET_SSH) || ttmdm >= 0) {
         tcp_linger = onoff;
         tcp_linger_tmo = timo;
         return(1);
@@ -2478,7 +2478,7 @@ sendbuf(sock,size) int sock; int size;
     if (!inserver)
 #endif /* IKSD */
       if (sock == -1 ||
-        nettype != NET_TCPA && nettype != NET_TCPB && nettype != NET_SSH
+        (nettype != NET_TCPA && nettype != NET_TCPB && nettype != NET_SSH)
                 || ttmdm >= 0) {
         tcp_sendbuf = size;
         return 1;
@@ -2579,8 +2579,8 @@ recvbuf(sock,size) int sock; int size;
     if (!inserver)
 #endif /* IKSD */
       if (sock == -1 ||
-	  nettype != NET_TCPA && nettype != NET_TCPB &&
-	  nettype != NET_SSH || ttmdm >= 0) {
+	  (nettype != NET_TCPA && nettype != NET_TCPB &&
+	  nettype != NET_SSH) || ttmdm >= 0) {
         tcp_recvbuf = size;
         return(1);
     }
@@ -2675,11 +2675,11 @@ keepalive(sock,onoff) int sock; int onoff;
     if (!inserver)
 #endif /* IKSD */
       if (sock == -1 ||
-        nettype != NET_TCPA && nettype != NET_TCPB && nettype != NET_SSH
+        (nettype != NET_TCPA && nettype != NET_TCPB && nettype != NET_SSH
 #ifdef CK_VSOCK
                 && nettype != NET_VSOCK
 #endif /* CK_VSOCK */
-                || ttmdm >= 0) {
+                ) || ttmdm >= 0) {
         tcp_keepalive = onoff;
         return 1;
     }
@@ -2801,7 +2801,7 @@ dontroute(sock,onoff) int sock; int onoff;
     if (!inserver)
 #endif /* IKSD */
       if (sock == -1 ||
-        nettype != NET_TCPA && nettype != NET_TCPB && nettype != NET_SSH
+        (nettype != NET_TCPA && nettype != NET_TCPB && nettype != NET_SSH)
                 || ttmdm >= 0) {
         tcp_dontroute = onoff;
         return 1;
@@ -2924,7 +2924,7 @@ no_delay(sock,onoff)  int sock; int onoff;
     if (!inserver)
 #endif /* IKSD */
       if (sock == -1 ||
-        nettype != NET_TCPA && nettype != NET_TCPB && nettype != NET_SSH
+        (nettype != NET_TCPA && nettype != NET_TCPB && nettype != NET_SSH)
                 || ttmdm >= 0) {
         tcp_nodelay = onoff;
         return(1);
@@ -6271,10 +6271,10 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
   can not be used to resolve the real name of machine if it was originally
   accessed by an alias used to represent a cluster.
 */
-     if ((tcp_rdns && dns || tcp_rdns == SET_ON
+     if (((tcp_rdns && dns) || tcp_rdns == SET_ON
 #ifdef CK_KERBEROS
-         || tcp_rdns == SET_AUTO &&
-          (ck_krb5_is_installed() || ck_krb4_is_installed())
+         || (tcp_rdns == SET_AUTO &&
+          (ck_krb5_is_installed() || ck_krb4_is_installed()))
 #endif /* CK_KERBEROS */
          )
 #ifndef NOHTTP
@@ -15882,8 +15882,8 @@ fwdx_check_sockets(fd_set *ibits)
     static char buffer[32000];
 
     debug(F100,"fwdx_check_sockets()","",0);
-    if ( sstelnet && !TELOPT_ME(TELOPT_FORWARD_X) ||
-         !sstelnet && !TELOPT_U(TELOPT_FORWARD_X)) {
+    if ( (sstelnet && !TELOPT_ME(TELOPT_FORWARD_X)) ||
+         (!sstelnet && !TELOPT_U(TELOPT_FORWARD_X))) {
         debug(F110,"fwdx_check_sockets()","TELOPT_FORWARD_X not negotiated",0);
         return;
     }
@@ -15915,8 +15915,8 @@ fwdx_init_fd_set(fd_set *ibits)
 {
     int x,set=0,cnt=0;
 
-    if ( sstelnet && !TELOPT_ME(TELOPT_FORWARD_X) ||
-         !sstelnet && !TELOPT_U(TELOPT_FORWARD_X)) {
+    if ( (sstelnet && !TELOPT_ME(TELOPT_FORWARD_X)) ||
+         (!sstelnet && !TELOPT_U(TELOPT_FORWARD_X))) {
         debug(F110,"fwdx_init_fd_set()","TELOPT_FORWARD_X not negotiated",0);
         return(0);
     }

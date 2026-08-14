@@ -5531,15 +5531,19 @@ shuffledate(p,opt) char * p; int opt;
     if (len < 8 || len > 31) return(p);
 
     if (opt == 4) {			/* Asctime format (26 Nov 2005) */
-	char c, * s;
+	char c, * s, * origp;
 	long z; int k;
+	origp = p;			/* Save original pointer for error */
+					/* return */
 	ckstrncpy(ibuf,p,31);
-	k = len;
-	while (k >= 0 && ibuf[k] == CK_CR || ibuf[k] == LF)
+	/* Index of ibuf's last real char. len can exceed what
+	   ckstrncpy() copied, when len == 31. */
+	k = (int)strlen(ibuf) - 1;
+	while (k >= 0 && (ibuf[k] == CK_CR || ibuf[k] == LF))
 	  ibuf[k--] = NUL;
-	while (k >= 0 && ibuf[k] == SP || ibuf[k] == HT)
+	while (k >= 0 && (ibuf[k] == SP || ibuf[k] == HT))
 	  ibuf[k--] = NUL;
-	if (k < 9) ckstrncpy(&ibuf[8]," 00:00:00",9);
+	if (k < 9) ckstrncpy(&ibuf[8]," 00:00:00",10);
 	p = ibuf;
         z = mjd(p);                     /* Convert to modified Julian date */
         z = z % 7L;
@@ -5557,8 +5561,10 @@ shuffledate(p,opt) char * p; int opt;
 	c = p[6];
         p[6] = NUL;
 	mm = atoi(&ibuf[4]);		/* Month */
-	s = moname[mm-1];		/* Name of month */
 	p[6] = c;
+	if (mm < 1 || mm > 12)		/* Invalid month digits */
+	  return(origp);
+	s = moname[mm-1];		/* Name of month */
 
         obuf[4] = s[0];			/* Month */
         obuf[5] = s[1];

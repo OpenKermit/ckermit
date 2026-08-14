@@ -1342,7 +1342,7 @@ int ttpipe = 0;				/* NETCMD: Use pipe instead of ttyfd */
 int ttpty  = 0;                         /* NETPTY: Use pty instead of ttfyd */
 
 #ifdef NETPTY				/* These are in ckupty.c */
-extern PID_T pty_fork_pid;
+extern PID_T pty_fork_pid, pty_net_pid;
 extern int pty_master_fd, pty_slave_fd;
 #endif	/* NETPTY */
 
@@ -1991,7 +1991,7 @@ winchh(foo) int foo;
     }
 
 #ifdef NETPTY
-    if (pty_fork_pid > -1) {		/* "set host" to a PTY? */
+    if (pty_net_pid > -1) {		/* "set host" to a PTY? */
 	int x;
 
 #ifdef TIOCSWINSZ
@@ -2007,7 +2007,7 @@ winchh(foo) int foo;
 #endif /* TIOCSWINSZ */
 
 	errno = 0;
-	x = kill(pty_fork_pid,SIGWINCH);
+	x = kill(pty_net_pid,SIGWINCH);
 	debug(F101,"winchh kill","",x);
 	debug(F101,"winchh kill errno","",errno);
     }
@@ -3661,6 +3661,7 @@ ttclos(foo) int foo;
     if (ttpty) {
 #ifndef NODOPTY
         end_pty();
+	pty_net_pid = -1;
 #endif /* NODOPTY */
         close(ttyfd);
 	netconn = 0;
@@ -14347,7 +14348,7 @@ tt_is_secure() {	  /* Tells whether the current connection is secure */
 	|| IS_SSH()
 #endif /* SSHBUILTIN */
 #ifdef CK_ENCRYPTION
-	|| ck_tn_encrypting() && ck_tn_decrypting()
+	|| (ck_tn_encrypting() && ck_tn_decrypting())
 #endif /* CK_ENCRYPTION */
 #ifdef CK_SSL
 	|| tls_active_flag || ssl_active_flag
