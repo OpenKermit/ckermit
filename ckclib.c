@@ -1082,7 +1082,7 @@ makelist(s,list,len) char * s; char *list[]; int len;
 	    n++;
 	}
     }
-    if (*p && i < len) {		/* Last one */
+    if (p && *p && i < len) {		/* Last one */
 	if (list[i])
 	  free(list[i]);
 	if ((list[i] = (char *)malloc(n+1))) {
