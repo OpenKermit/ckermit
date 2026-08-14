@@ -1384,6 +1384,7 @@ static int matchpos = 0;
 int matchend = 0;
 static int matchdepth = 0;
 static int stringpos = 0;
+static int dot = 0;			/* Set at top level, read at all levels */
 static char * ostring = NULL;
 
 #define MATCHRETURN(x,y) { rc=y; where=x; goto xckmatch; }
@@ -1437,7 +1438,7 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
     CHAR cp;				/* Current character from pattern */
     CHAR cs;				/* Current character from string */
     char * patstart;			/* Start of pattern */
-    int plen, dot, globbing, xstar = 0;
+    int plen, globbing, xstar = 0;
     int bronly = 0;			/* Whole pattern is {a,b,c,...} */
 
     debug(F111,"CKMATCH ENTRY pat opt",pattern,opts);

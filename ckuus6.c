@@ -2432,10 +2432,9 @@ dncvt(k,cx, prefix, suffix) int k, cx, prefix, suffix;
             }
         }
         if (x == 0 || x == 2) {         /* Local call */
-            int xx,kx;                  /* Begin 1 Dec 2001... */
+            int xx = -1, kx = 0;         /* Begin 1 Dec 2001... */
             /* Account for PBX internal calls */
             if (ndialpxx) {
-                xx = -1;
                 j = (int) strlen(ybuf);
                 for (kx = 0; kx < ndialpxx; kx++) {
                     i = (int) strlen(dialpxx[kx]);
@@ -4069,7 +4068,7 @@ dotype(file, paging, first, head, pat, width, prefix, incs, outcs, outfile, z)
 #endif /* NT */
 
 #ifndef MAC
-    sig_t oldsig;
+    sig_t oldsig = SIG_ERR;             /* Set only if SIGINT trap installed */
 #endif /* MAC */
 
 #ifdef KUI
@@ -4489,7 +4488,8 @@ dotype(file, paging, first, head, pat, width, prefix, incs, outcs, outfile, z)
   xxdotype:
 #ifndef AMIGA
 #ifndef MAC
-    signal(SIGINT,oldsig);              /* Put old signal action back. */
+    if (oldsig != SIG_ERR)              /* Put old signal action back, */
+      signal(SIGINT,oldsig);            /* if a trap was ever installed. */
 #endif /* MAC */
 #endif /* AMIGA */
     if (tailing && tail) {
@@ -9264,7 +9264,7 @@ docopy() {
 	    if (zchki(nm) >= (CK_OFF_T)0) { /* Destination file exists? */
 
 		char d1[20], * d2;
-		char * n1, * n2;
+		char * n1 = line, * n2 = nm; /* No separator: whole name */
 		int i;
 
 		i = strlen(line);	/* Isolate source filename */
@@ -9763,6 +9763,7 @@ shorename() {
       case RENX_FAIL: s = "fail"; break;
       case RENX_OVWR: s = "overwrite"; break;
       case RENX_SKIP: s = "proceed"; break;
+      default: s = "unknown"; break;
     }
     printf(" rename collision: %s\n",s);
     printf(" rename list:      %s\n",showoff(ren_list));

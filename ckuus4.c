@@ -12256,7 +12256,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 		seplen = 0;
 	    } else
 	      seplen = strlen(sep);
-	}
+	} else				/* CSV/TSV: sep is "," or tab, */
+	  seplen = strlen(sep);	/* set unconditionally above. */
         for (i = lo; i <= hi; i++) {    /* Loop thru selected array elements */
             s = a_ptr[x][i];            /* Get next element */
             if (!s)
@@ -15656,7 +15657,8 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
         *old,                           /* Save original target pointer */
 #endif /* COMMENT */
         *p,                             /* Worker */
-        *q,                             /* Worker */
+        *q = NULL,                      /* Worker; NULL until case 'f' */
+                                         /* allocates vnambuf's copy */
         *s3;                            /* Worker */
     int  x3;                            /* Worker */
     char *r  = (char *)0;               /* For holding function args */

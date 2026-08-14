@@ -15100,9 +15100,9 @@ locate_txt_rr(prefix, name, retstr) char *prefix, *name; char **retstr;
            a search on the prefix alone then the intention is to allow
            the local domain or domain search lists to be expanded.
         */
-        h = host + strlen (host);
+        h = name + strlen(name);        /* Check for trailing dot */
         ckmakmsg(host,sizeof(host),prefix, ".", name,
-                 ((h > host) && (h[-1] != '.'))?".":NULL);
+                 ((h > name) && (h[-1] != '.'))?".":NULL);
 
     }
     size = res_search(host, C_IN, T_TXT, answer.bytes, sizeof(answer.bytes));
