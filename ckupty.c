@@ -1863,7 +1863,7 @@ exec_cmd(s) char * s;
 /* fc = 0 for interactive access; fc = 1 for running external protocols */
 /* Returns -1 on failure and the PID (a positive number) on success */
 
-static int pty_fc = -1;			/* Global copy of fc */
+int pty_fc = -1;			/* Global copy of fc */
 
 int
 #ifdef CK_ANSIC
