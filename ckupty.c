@@ -418,6 +418,14 @@ PID_T pty_fork_pid = -1;		/* pty fork pid */
 int pty_slave_fd = -1;			/* pty slave file descriptor */
 int pty_master_fd = -1;			/* pty master file descriptor */
 
+/*
+  PID of the persistent SET HOST to PTY connection (do_pty() fc == 0).
+  pty_fork_pid is overwritten by transient REDIRECT or external protocol
+  children (fc == 1). Signal forwarding targeting the connection itself,
+  such as SIGWINCH, uses pty_net_pid.
+*/
+PID_T pty_net_pid = -1;
+
 /* termbuf routines (begin) */
 /*
   init_termbuf()
@@ -1942,6 +1950,8 @@ do_pty(fd, cmd, fc) int * fd; char * cmd; int fc;
         }
         pty_fork_pid = i;		/* So we can clean it up later */
 	pty_fork_active = 1;
+	if (fc == 0)			/* Persistent connection, not a */
+	  pty_net_pid = i;		/* transient external-protocol child */
 	debug(F101,"do_pty pty_fork_pid","",pty_fork_pid);
 #ifdef HAVE_PTYTRAP
         /* HPUX does not allow the master to read end of file.  */
