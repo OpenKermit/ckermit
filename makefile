@@ -1056,7 +1056,8 @@ unit-test:
 		tests/unit/bin/test_lib tests/unit/bin/test_strings \
 		tests/unit/bin/test_net tests/unit/bin/test_mpsafe \
 		tests/unit/bin/test_zfnqfp tests/unit/bin/test_hasdotdot \
-		tests/unit/bin/test_rq_confirm tests/unit/bin/test_fnsplit
+		tests/unit/bin/test_rq_confirm tests/unit/bin/test_fnsplit \
+		tests/unit/bin/test_fpformat
 	./tests/unit/bin/test_lib
 	./tests/unit/bin/test_strings
 	./tests/unit/bin/test_net
@@ -1065,6 +1066,7 @@ unit-test:
 	./tests/unit/bin/test_hasdotdot
 	./tests/unit/bin/test_rq_confirm
 	./tests/unit/bin/test_fnsplit
+	./tests/unit/bin/test_fpformat
 
 # Rules for the unit test binaries.
 #
@@ -1202,6 +1204,29 @@ tests/unit/bin/test_fnsplit: tests/unit/test_fnsplit.c ckuusx.c ckucmd.c \
 		tests/unit/bin/ckuusx_test_fs.$(EXT) \
 		tests/unit/bin/ckucmd_test_fs.$(EXT) \
 		tests/unit/bin/ckclib_test_fs.$(EXT) \
+		-o $@ $$GCSECTIONS $$CHECKLIBS
+
+# test_fpformat exercises fpformat() from ckuus4.c. ckuus4.c as a
+# whole is not self-contained, so compilation uses
+# -ffunction-sections/-fdata-sections and --gc-sections. fpformat()
+# requires ckstrncpy() from ckclib.c and deblog/dodebug stubs.
+
+tests/unit/bin/test_fpformat: tests/unit/test_fpformat.c ckuus4.c \
+  ckclib.c ckcfnp.h
+	@mkdir -p tests/unit/bin
+	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	case `uname -s` in \
+	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
+	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
+	esac; \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		-c ckuus4.c -o tests/unit/bin/ckuus4_test_fs.$(EXT); \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		-c ckclib.c -o tests/unit/bin/ckclib_test_fp.$(EXT); \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		tests/unit/test_fpformat.c \
+		tests/unit/bin/ckuus4_test_fs.$(EXT) \
+		tests/unit/bin/ckclib_test_fp.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
 
 #Clean up intermediate and object files

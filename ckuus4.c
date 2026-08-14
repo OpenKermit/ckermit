@@ -8066,7 +8066,12 @@ fpformat(fpresult,places,round) CKFLOAT fpresult; int places, round;
         (places > 0 ||                  /* round result to decimal places. */
          (places == 0 && round)))
       fpresult += (0.5 / pow(10.0,(CKFLOAT)places));
-    y = (ftmp == 0.0) ? 1 : (int)log10(ftmp);
+    if (ftmp == 0.0) {
+        y = 1;
+    } else {
+        double logtmp = log10(ftmp);
+        y = (int)logtmp;
+    }
     size = y + x + 3;                   /* Estimated length of result */
     if (fpresult < 0.0) size++;
 #else

@@ -3983,6 +3983,7 @@ dosexp(s) char *s;
 		float r;
 		char * s0, * s1;
 		char * q0, * q1;
+		double placesval;
 
 		s0 = p[2];
 		if (!s0) s0 = "";
@@ -3999,7 +4000,8 @@ dosexp(s) char *s;
 		if (!*q1) q1 = "0";
 		ckstrncpy(buf2,q1,32);
 		q1 = buf2;
-		r = ckround(atof(q0),(int)(atof(q1)),sxroundbuf,31);
+		placesval = atof(q1);
+		r = ckround(atof(q0),(int)placesval,sxroundbuf,31);
 		s2 = sxroundbuf;
 		sexprc = 0;
 		goto xdosexp;

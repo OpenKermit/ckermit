@@ -1,6 +1,19 @@
 from conftest import assert_ok
 
 
+def test_sexpression_round(run_wermit):
+    """Test \\fsexpression(round ...) with different place counts."""
+    result = run_wermit(
+        "echo A=[\\fsexpression(round 3.14159 2)], "
+        "echo B=[\\fsexpression(round 3.14159 0)], "
+        "echo C=[\\fsexpression(round 2.7)]"
+    )
+    assert_ok(result)
+    assert "A=[3.14]" in result.stdout
+    assert "B=[3]" in result.stdout
+    assert "C=[3]" in result.stdout
+
+
 def test_fjoin_csv_separator_overflow_reports_error(run_wermit):
     """Test that \\fjoin() in CSV mode reports RESULT_TOO_LONG when the
     separator cannot fit in the result buffer.
