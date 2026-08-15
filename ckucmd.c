@@ -5576,11 +5576,12 @@ shuffledate(p,opt) char * p; int opt;
 	  obuf[8] = p[6];
         obuf[9] = p[7];
         if (notime) {                   /* Just the date */
-            obuf[10] = p[0];		/* Year */
-            obuf[11] = p[1];
-            obuf[12] = p[2];
-            obuf[13] = p[3];
-            obuf[14] = NUL;
+            obuf[10] = SP;              /* Space */
+            obuf[11] = p[0];		/* Year */
+            obuf[12] = p[1];
+            obuf[13] = p[2];
+            obuf[14] = p[3];
+            obuf[15] = NUL;
         } else {                           /* Date and time */
             ckstrncpy(&obuf[10],&p[8],10); /* Time */
             obuf[19] = SP;                 /* Space */
