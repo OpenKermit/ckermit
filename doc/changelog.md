@@ -1,5 +1,34 @@
 # OpenKermit C-Kermit Changelog
 
+# C-Kermit 11.0.509 (not yet released)
+
+- Fixed a bug in statements like `\fcvtdate(..., -4)` where there was no space
+  between the day and the year, producing outputs like `Sat Nov 262005` instead
+  of `Sat Nov 26 2005`.
+
+- Fixed an out-of-bounds month lookup in shuffledate() for month values
+  outside 1-12, and corrected off-by-one whitespace stripping in date
+  parsing.  Added unit tests for these date-handling functions.
+
+- Fixed an issue where SIGWINCH window-resize signals were not forwarded to
+  child processes after running an external protocol such as Zmodem.
+
+- Fixed pty cleanup after external protocol execution, preventing a
+  transfer-interrupting Ctrl-C from terminating PTY connections.
+
+- Ran with various warning-enable options, cleaning up warnings along the way.
+
+- Fixed bugs identified during the warning sweep:
+  - Corrected operator precedence grouping in `\femail()`.
+  - Fixed array indexing with signed `char`.
+  - Fixed uninitialized seek offsets in `FILE SEEK`.
+  - Fixed an uninitialized buffer read during DNS TXT record lookups.
+  - Fixed a comment-parsing defect in `cmcvtdate()`.
+  - Replaced an unbounded `vsprintf()` in `ckxprintf()` with `vsnprintf()` and
+    added GCC format attributes to printf wrappers.
+  - Fixed a potential buffer overflow in UNIX domain socket path handling in
+    `ckcnet.c`.
+
 # C-Kermit 11.0.508
 
 August 9, 2026
