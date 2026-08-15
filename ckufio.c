@@ -4693,6 +4693,7 @@ zdtstr(timearg) time_t timearg;
     return("");
 #else
     struct tm * time_stamp;
+    struct tm ts;
     int yy, ss;
 
     debug(F101,"zdtstr timearg","",timearg);
@@ -4704,27 +4705,33 @@ zdtstr(timearg) time_t timearg;
         return("");
     }
 /*
+  localtime() returns a pointer to static storage. Copy it immediately
+  because debug() calls can invoke localtime() via ztime() and
+  overwrite the buffer before its fields are read.
+*/
+    ts = *time_stamp;
+/*
   We assume that tm_year is ALWAYS years since 1900.
   Any platform where this is not the case will have problems
   starting in 2000.
 */
-    yy = time_stamp->tm_year;           /* Year - 1900 */
-    debug(F101,"zdtstr tm_year","",time_stamp->tm_year);
+    yy = ts.tm_year;                    /* Year - 1900 */
+    debug(F101,"zdtstr tm_year","",ts.tm_year);
     if (yy > 1000) {
         debug(F101,"zstrdt YEAR-2000 ALERT 1: localtime year","",yy);
     }
     yy += 1900;
     debug(F101,"zdatstr year","",yy);
 
-    if (time_stamp->tm_mon  < 0 || time_stamp->tm_mon  > 11)
+    if (ts.tm_mon  < 0 || ts.tm_mon  > 11)
       return("");
-    if (time_stamp->tm_mday < 0 || time_stamp->tm_mday > 31)
+    if (ts.tm_mday < 0 || ts.tm_mday > 31)
       return("");
-    if (time_stamp->tm_hour < 0 || time_stamp->tm_hour > 23)
+    if (ts.tm_hour < 0 || ts.tm_hour > 23)
       return("");
-    if (time_stamp->tm_min  < 0 || time_stamp->tm_min  > 59)
+    if (ts.tm_min  < 0 || ts.tm_min  > 59)
       return("");
-    ss = time_stamp->tm_sec;            /* Seconds */
+    ss = ts.tm_sec;                     /* Seconds */
     if (ss < 0 || ss  > 59)             /* Some systems give a BIG number */
       ss = 0;
     sprintf(datbuf,
@@ -4735,10 +4742,10 @@ zdtstr(timearg) time_t timearg;
             "%04d%02d%02d %02d:%02d:%02d",
 #endif /* pdp11 */
             yy,
-            time_stamp->tm_mon + 1,
-            time_stamp->tm_mday,
-            time_stamp->tm_hour,
-            time_stamp->tm_min
+            ts.tm_mon + 1,
+            ts.tm_mday,
+            ts.tm_hour,
+            ts.tm_min
 #ifndef pdp11
             , ss
 #endif /* pdp11 */
@@ -5057,29 +5064,38 @@ zstrdt(date,len) char * date; int len;
             tmx += n;
         }
         time_stamp = localtime(&tmx);
-        debug(F101,"zstrdt tmx 1","",tmx);
         if (!time_stamp)
           return(-1);
+/*
+  localtime() returns a pointer to static storage. Copy it before any
+  debug() calls, which can invoke localtime() via ztime() and
+  overwrite the buffer before its fields are read.
+*/
+        {
+            struct tm ts;
+            ts = *time_stamp;
+            debug(F101,"zstrdt tmx 1","",tmx);
 #ifdef BSD44
-        {   /* New to 7.0 - Works in at at least BSDI 3.1 and FreeBSD 2.2.7 */
-            long zz;
-            zz = time_stamp->tm_gmtoff; /* Seconds away from Zero Meridian */
-            debug(F101,"zstrdt BSD44 tm_gmtoff","",zz);
-            tmx -= zz;
-            debug(F101,"zstrdt BSD44 tmx 3 (GMT)","",tmx);
-        }
+            {   /* New to 7.0 - Works in at least BSDI 3.1 and FreeBSD 2.2.7 */
+                long zz;
+                zz = ts.tm_gmtoff; /* Seconds away from Zero Meridian */
+                debug(F101,"zstrdt BSD44 tm_gmtoff","",zz);
+                tmx -= zz;
+                debug(F101,"zstrdt BSD44 tmx 3 (GMT)","",tmx);
+            }
 #else
-        /*
-           Daylight Savings Time adjustment.
-           Do this everywhere BUT in BSD44 because in BSD44,
-           tm_gmtoff also includes the DST adjustment.
-        */
-        if (time_stamp->tm_isdst) {
-            tmx -= 60L * 60L;
-            debug(F101,"zstrdt tmx 3 (DST)","",tmx);
-        }
+            /*
+               Daylight Savings Time adjustment.
+               Do this everywhere BUT in BSD44 because in BSD44,
+               tm_gmtoff also includes the DST adjustment.
+            */
+            if (ts.tm_isdst) {
+                tmx -= 60L * 60L;
+                debug(F101,"zstrdt tmx 3 (DST)","",tmx);
+            }
 #endif /* BSD44 */
-        n = time_stamp->tm_year;
+            n = ts.tm_year;
+        }
         if (n < 300) {
             n += 1900;
         }
