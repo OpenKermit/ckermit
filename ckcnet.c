@@ -8321,7 +8321,7 @@ netflui() {
     if (ttnproto == NP_TELNET) {
         if ((n = ttchk()) <= 0)
           goto exit_flui;
-        while (n-- >= 0) {
+        while (n-- > 0) {
             /* Netflui must process Telnet negotiations or get out of sync */
             ch = ttinc(1);
             if (ch == IAC) {
