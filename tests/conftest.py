@@ -148,16 +148,23 @@ def compressed_debug_log_path(debug_log):
 
 
 def debug_log_command(debug_log):
-    """Return a Kermit log debug command string piping output through gzip.
+    """Return Kermit commands to start a timestamped debug log piped
+    through gzip.
 
     Uses Kermit's "log debug |command" syntax. Enclosing braces prevent
     filename truncation on spaces.
 
     Traps SIGHUP so gzip flushes output on PTY process group termination,
     and uses exec to replace the shell process.
+
+    Prefixes with "set debug timestamps on" so each line carries a
+    millisecond timestamp.
     """
     gz_path = compressed_debug_log_path(debug_log)
-    return f"log debug {{|trap '' HUP; exec gzip -c > {gz_path}}}"
+    return (
+        "set debug timestamps on, "
+        f"log debug {{|trap '' HUP; exec gzip -c > {gz_path}}}"
+    )
 
 
 def _tail_gz_bytes(path, max_bytes, read_chunk=65536):
