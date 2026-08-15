@@ -1057,7 +1057,7 @@ unit-test:
 		tests/unit/bin/test_net tests/unit/bin/test_mpsafe \
 		tests/unit/bin/test_zfnqfp tests/unit/bin/test_hasdotdot \
 		tests/unit/bin/test_rq_confirm tests/unit/bin/test_fnsplit \
-		tests/unit/bin/test_fpformat
+		tests/unit/bin/test_fpformat tests/unit/bin/test_shuffledate
 	./tests/unit/bin/test_lib
 	./tests/unit/bin/test_strings
 	./tests/unit/bin/test_net
@@ -1067,6 +1067,7 @@ unit-test:
 	./tests/unit/bin/test_rq_confirm
 	./tests/unit/bin/test_fnsplit
 	./tests/unit/bin/test_fpformat
+	./tests/unit/bin/test_shuffledate
 
 # Rules for the unit test binaries.
 #
@@ -1229,6 +1230,27 @@ tests/unit/bin/test_fpformat: tests/unit/test_fpformat.c ckuus4.c \
 		tests/unit/bin/ckuus4_test_fs.$(EXT) \
 		tests/unit/bin/ckclib_test_fp.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS -lm
+
+tests/unit/bin/test_shuffledate: tests/unit/test_shuffledate.c \
+  ckucmd.c ckuus4.c ckclib.c ckcfnp.h
+	@mkdir -p tests/unit/bin
+	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	case `uname -s` in \
+	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
+	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
+	esac; \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		-c ckucmd.c -o tests/unit/bin/ckucmd_test_sd.$(EXT); \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		-c ckuus4.c -o tests/unit/bin/ckuus4_test_sd.$(EXT); \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		-c ckclib.c -o tests/unit/bin/ckclib_test_sd.$(EXT); \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		tests/unit/test_shuffledate.c \
+		tests/unit/bin/ckucmd_test_sd.$(EXT) \
+		tests/unit/bin/ckuus4_test_sd.$(EXT) \
+		tests/unit/bin/ckclib_test_sd.$(EXT) \
+		-o $@ $$GCSECTIONS $$CHECKLIBS
 
 #Clean up intermediate and object files
 clean:
