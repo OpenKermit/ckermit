@@ -16,6 +16,15 @@
 - Fixed pty cleanup after external protocol execution, preventing a
   transfer-interrupting Ctrl-C from terminating PTY connections.
 
+- Fixed a bug in the telnet buffer processing loop that could cause individual
+  or repeated 1-second stalls in certain circumstances
+
+- Enable SET DEBUG TIMESTAMPS during tests to help pinpoint timeouts and
+  performance problems
+
+- Save off localtime() results in zdtstr()/zstrdt() to prevent mtime skew when
+  SET DEBUG TIMESTAMPS is ON.
+
 - Ran with various warning-enable options, cleaning up warnings along the way.
 
 - Fixed bugs identified during the warning sweep:
