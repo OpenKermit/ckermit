@@ -1912,6 +1912,7 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
         }
 
         if (connect(fd,rp->ai_addr,rp->ai_addrlen) == 0) {
+            debug(F110,"ck_tcp_connect connected",tbuf,fd);
             /* getaddrinfo() never returns an address larger than
                sockaddr_storage for any family the local resolver
                supports, so this is just a self-documenting guard
