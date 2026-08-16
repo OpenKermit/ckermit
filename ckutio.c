@@ -15558,22 +15558,23 @@ ttptycmd(s) char *s;
 				break;
 			      default:	/* All others */
 				if (in_state == HAVE_IAC) {
-#ifdef COMMENT
 /*
-  tn_doop() will consume an unknown number of bytes and we'll overshoot
-  the for-loop.  The only Telnet command I've ever seen arrive here is
-  a Data Mark, which comes when the remote protocol exits and the remote
-  job returns to its shell prompt.  On the assumption it's a 1-byte command,
-  we don't write out the IAC or the command, and we clear the state.  If
-  we called tn_doop() we'd have no way of knowing how many bytes it took
-  from the input stream.
+  c is the Telnet command byte (WILL/WONT/DO/DONT/SB) following IAC.
+  tn_doop() expects IAC as its argument and reads the command byte
+  via the ttinc() callback. Push c into ttpush so tn_doop() reads c
+  first.
+
+  tn_doop() reads any remaining bytes for the command through ttinc()
+  and transmits the response.
+
+  These reads are not reflected in this loop's byte budget, so later
+  iterations may retry ttinc(2) against bytes tn_doop() already
+  consumed. Each retry is bounded by ttinc()'s 2-second timeout.
 */
 				    int xx;
-				    xx = tn_doop((CHAR)c,duplex,ttinc);
+				    ttpush = c;
+				    xx = tn_doop((CHAR)IAC,duplex,ttinc);
 				    debug(F111,"<<< DOOP",ckctoa(c),xx);
-#else
-				    debug(F101,"<<< DOOP","",c);
-#endif	/* COMMENT */
 				    in_state = 0;
 				} else {
 				    *p++ = c;
