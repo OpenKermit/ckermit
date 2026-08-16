@@ -3583,7 +3583,8 @@ zsetfil(n, fc) int n, fc;
 	}
 	if (initspace(mtchs,n) < 0)
 	  return(-1);
-      case 2:				/* Fall thru deliberately */
+	/* Fall through */
+      case 2:
 	return(ssplen);
       case 3:				/* Listsize */
 	if (mtchs) {
@@ -3594,7 +3595,8 @@ zsetfil(n, fc) int n, fc;
 	if (!mtchs)
 	  return(-1);
 	maxnames = n;
-      case 4:				/* Fall thru deliberately */
+	/* Fall through */
+      case 4:
 	return(maxnames);
     }
 #endif /* DYNAMIC */

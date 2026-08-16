@@ -1820,6 +1820,7 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
 	    }
 	  case -9:
 	    printf("Command or field too long\n");
+	    /* Fall through */
 	  case -4:			/* EOF */
 	  case -2:			/* Out of space. */
 	  case -1:			/* Reparse needed */
@@ -2899,6 +2900,7 @@ cmfld(xhlp,xdef,xp,f) char *xhlp, *xdef, **xp; xx_strp f;
         switch (x) {
 	  case -9:
 	    printf("Command or field too long\n");
+	    /* Fall through */
 	  case -4:			/* EOF */
 	  case -3:			/* Empty. */
 	  case -2:			/* Out of space. */
@@ -3064,6 +3066,7 @@ cmtxt(xhlp,xdef,xp,f) char *xhlp; char *xdef; char **xp; xx_strp f;
 	    }
 	  case -9:			/* Buffer overflow */
 	    printf("Command or field too long\n");
+	    /* Fall through */
 	  case -4:			/* EOF */
 #ifdef MAC
 	  case -3:			/* Quit/Timeout */
@@ -3322,6 +3325,7 @@ cmkey2(table,n,xhlp,xdef,tok,f,pmsg)
 	    return(cmflgs = 0);
 	  case -9:
 	    printf("Command or field too long\n");
+	    /* Fall through */
 	  case -4:			/* EOF */
 	  case -3:			/* Null Command/Quit/Timeout */
 	  case -2:			/* Buffer overflow */
@@ -6010,6 +6014,7 @@ cmcfm() {
         switch (x) {
 	  case -9:
 	    printf("Command or field too long\n");
+	    /* Fall through */
 	  case -4:			/* EOF */
 	  case -2:
 	  case -1:
@@ -6972,6 +6977,9 @@ CMDIRPARSE:
 			qmflag = 1;
 			return(cmflgs = 3);
 		    }
+		    /* Not a help query here; treat "?" like Esc/Tab
+		       completion instead. */
+		    /* Fall through */
 
 		  case ESC:		/* Esc or Tab completion */
 		    if (!comment) {
@@ -7853,7 +7861,8 @@ xxesc(s) char **s;
     switch (x) {			/* Start interpreting */
       case 'd':				/* Decimal radix indicator */
       case 'D':
-	p++;				/* Just point past it and fall thru */
+	p++;				/* Just point past it */
+	/* Fall through */
       case '0':				/* Starts with digit */
       case '1':
       case '2':  case '3':  case '4':  case '5':

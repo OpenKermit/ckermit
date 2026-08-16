@@ -2076,6 +2076,7 @@ isfloat(s,flag) char *s; int flag;
 		f += (CKFLOAT)(c - '0') / d;
 		continue;
 	    }
+	    /* Fall through */
 	  default:
 	    if (flag)			/* Illegal character */
 	      goto done;		/* Break */
@@ -3243,6 +3244,7 @@ cksplit(fc,n1,s1,s2,s3,n2,n3,n4,n5)
 	    }
 	    if (collapse)
 	      break;
+	    /* Fall through */
 
 	  case ST_IW:			/* INWORD (but not in a group) */
 	    if (class & CL_SEP) {	/* Ends on any kind of separator */

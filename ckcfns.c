@@ -1131,8 +1131,10 @@ xpnbyte(a,tcs,fcs,fn) int a, tcs, fcs; int (*fn)();
 				jbuf[jx++] = 0x1b; /* ESC */
 				jbuf[jx++] = 0x28; /* ( */
 				jbuf[jx++] = 0x4a; /* J */
+				/* Fall through */
 			      case 0:		   /* from Roman */
 				jbuf[jx++] = 0x0e; /* SO */
+				/* Fall through */
 			      default:		   /* State is already Kana*/
 				jbuf[jx++] = (a & 0x7f); /* and the char */
 				break;
@@ -1143,10 +1145,12 @@ xpnbyte(a,tcs,fcs,fn) int a, tcs, fcs; int (*fn)();
 			    switch (jstate) {
 			      case 1:	/* Current state is Katakana */
 				jbuf[jx++] = 0x0f; /* SI  */
+				/* Fall through */
 			      case 0:	/* Current state is Roman */
 				jbuf[jx++] = 0x1b; /* ESC */
 				jbuf[jx++] = 0x24; /* $   */
 				jbuf[jx++] = 0x42; /* B   */
+				/* Fall through */
 			      default:	/* Current state is already Kanji */
 				jbuf[jx++] = eu.x_char[byteorder] & 0x7f;
 				jbuf[jx++] = eu.x_char[1-byteorder] & 0x7f;
@@ -2482,6 +2486,8 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
 	    break;
 	}
 #endif /* KANJI */
+	/* If tcs != FC_JEUC, this shouldn't happen */
+	/* Fall through */
 
       default:
 	debug(F101,"xgnbyte bad xlatype","",xlatype);

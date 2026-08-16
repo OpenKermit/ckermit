@@ -15961,10 +15961,15 @@ ucs2_to_utf8(ucs2, utf8) USHORT ucs2; CHAR ** utf8;
 
     switch (utf8len) {                  /* code falls through cases! */
       case 6: utf8return[i--] = (ucs2 | byteMark) & byteMask; ucs2 >>= 6;
+	      /* Fall through */
       case 5: utf8return[i--] = (ucs2 | byteMark) & byteMask; ucs2 >>= 6;
+	      /* Fall through */
       case 4: utf8return[i--] = (ucs2 | byteMark) & byteMask; ucs2 >>= 6;
+	      /* Fall through */
       case 3: utf8return[i--] = (ucs2 | byteMark) & byteMask; ucs2 >>= 6;
+	      /* Fall through */
       case 2: utf8return[i--] = (ucs2 | byteMark) & byteMask; ucs2 >>= 6;
+	      /* Fall through */
       case 1: utf8return[i--] =  ucs2 | firstByteMark[utf8len];
     }
     debug(F111,"ucs2_to_utf8",utf8return,utf8len);

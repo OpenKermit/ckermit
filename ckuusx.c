@@ -3394,7 +3394,7 @@ askmore() {
           /* Yes */
 	  case 'p': case 'P': case 'g': case 'G': /* Proceed or Go */
 	    xaskmore = 0;
-	    /* fall thru on purpose */
+	    /* Fall through */
 
           case SP: case 'y': case 'Y': case 012:  case 015:
 #ifdef OSK
@@ -5770,6 +5770,7 @@ dodebug(f,s1,s2,n) int f; char *s1, *s2; CK_OFF_T n;
 */
       case F010:
 	n = -debxlen;
+	/* Fall through */
 /*
   This one treats n as the length of the string s2, which may contain NULs.
   It's good for logging NUL-bearing data in the debug log.
@@ -8423,6 +8424,7 @@ char *s;        /* a string */
             debug(F101,"screenc SCR_PT Z pktnum","",n);
             debug(F101,"screenc SCR_PT Z oldpct","",oldpct);
             debug(F101,"screenc SCR_PT Z pct","",pct);
+            /* Fall through */
           case 'D':                     /* Data packet */
             if (fsiz > 0L) {            /* Show percent done if known */
                 oldpct = pct;           /* Remember previous percent */

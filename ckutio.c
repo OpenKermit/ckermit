@@ -8702,6 +8702,7 @@ myfillbuf() {
 		case SSL_ERROR_SYSCALL:
 		  if (n != 0)
 		    return(-1);
+		  /* Fall through */
 		case SSL_ERROR_WANT_X509_LOOKUP:
 		case SSL_ERROR_SSL:
 		case SSL_ERROR_ZERO_RETURN:
@@ -10706,6 +10707,7 @@ ttol(s,n) int n; CHAR *s;
 		  case SSL_ERROR_SYSCALL:
                     if (x != 0)
 		      return(-1);
+		    /* Fall through */
 		  case SSL_ERROR_WANT_X509_LOOKUP:
 		  case SSL_ERROR_SSL:
 		  case SSL_ERROR_ZERO_RETURN:
@@ -10913,6 +10915,7 @@ ttoc(c) char c;
 		case SSL_ERROR_SYSCALL:
 		  if (rc != 0)
 		    return(-1);
+		  /* Fall through */
 		case SSL_ERROR_WANT_X509_LOOKUP:
 		case SSL_ERROR_SSL:
 		case SSL_ERROR_ZERO_RETURN:
@@ -16499,6 +16502,7 @@ ckxfprintf(va_alist) va_dcl
 	      case SSL_ERROR_SYSCALL:
                 if (rc != 0)
 		  return(-1);
+		/* Fall through */
 	      case SSL_ERROR_WANT_X509_LOOKUP:
 	      case SSL_ERROR_SSL:
 	      case SSL_ERROR_ZERO_RETURN:
@@ -16623,6 +16627,7 @@ ckxprintf(va_alist) va_dcl
 	      case SSL_ERROR_SYSCALL:
                 if (rc != 0)
 		  return(-1);
+		/* Fall through */
 	      case SSL_ERROR_WANT_X509_LOOKUP:
 	      case SSL_ERROR_SSL:
 	      case SSL_ERROR_ZERO_RETURN:

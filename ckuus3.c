@@ -3834,6 +3834,7 @@ dosexp(s) char *s;
               case SX_AND:              /* (AND) */
               case SX_BWA:              /* Bitwise (&) */
                 result++;
+                /* Fall through */
               case SX_LOR:              /* (OR) */
               case SX_BWO:              /* Bitwise (|) */
               case SX_ADD:              /* (+) */
@@ -5661,6 +5662,7 @@ setdial(y) int y;
           return(y);
         dialtmo = x;
         mdmwaitd = z;
+        return(success = 1);
       case XYDESC:                      /* DIAL ESCAPE-CHARACTER */
         y = cmnum("ASCII value of character to escape back to modem",
                   "43",10,&x,xxstring);
@@ -5791,6 +5793,7 @@ setdial(y) int y;
 
           default:
             printf("?Unexpected SET DIAL STRING parameter\n");
+            return(-2);
         }
 
       case XYDFC:                       /* DIAL FLOW-CONTROL */
@@ -12838,6 +12841,8 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
                 printf("?Illegal value for prefix character\n");
                 return(-9);
             }
+          default:
+            return(-2);
         }
 #endif /* NOXFER */
 
@@ -14055,6 +14060,8 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
               makestr(&ckcdpath,s);
               return(success = 1);
           }
+          default:
+            return(-2);
         }
 
 #ifndef NOLOCAL

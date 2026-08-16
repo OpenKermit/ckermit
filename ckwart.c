@@ -707,8 +707,9 @@ gettoken(fp) FILE *fp;
 		continue;
 	    } else {			/* and keep looping */
 		ungetc(c,fp);		/* put this back into input */
-		c = '/';		/* put character back, fall thru */
+		c = '/';		/* put character back */
 	    }
+	    /* Fall through */
 
 	  default:
 	    if (isword(c)) {

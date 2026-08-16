@@ -3418,6 +3418,8 @@ parser(m) int m;
             switch (zz) {
               case -4:                  /* EOF (e.g. on redirected stdin) */
                 doexit(GOOD_EXIT,xitsta); /* ...exit successfully */
+                /* doexit() does not return, but is not declared noreturn */
+                /* Fall through */
               case -1:                  /* Reparse needed */
                 repars = 1;             /* Just set reparse flag and... */
                 continue;
@@ -3506,7 +3508,8 @@ parser(m) int m;
 #endif /* CK_RECALL */
                   /* cmderr(); */ newerrmsg("");
 
-		cmini(ckxech);		/* (fall thru) */
+		cmini(ckxech);		/* Reinitialize the parser */
+		/* Fall through */
 
 	      case -3:			/* Empty command OK at top level */
 		repars = 0;		/* Don't need to reparse. */
@@ -7038,7 +7041,8 @@ doshow(x) int x;
               case _CMKEY:              /* If it was a keyword */
                 y = mlook(mactab,atmbuf,nmac); /* get full name */
                 if (y > -1)
-                  s = mactab[y].kwd;    /* (fall thru on purpose...) */
+                  s = mactab[y].kwd;    /* Else s stays atmbuf, set above */
+                /* Fall through */
               case _CMFLD:
                 k = ckstrncpy(p,s,left) + 1; /* Copy result to list */
                 left -= k;
@@ -7367,6 +7371,7 @@ doshow(x) int x;
           return(y);
         ckstrncpy(line,s,LINBUFSIZ);
         /* if (line[0]) ckstrncat(line,"*",LINBUFSIZ); */
+        /* Fall through */
 
       case SHFUN:                       /* or built-in functions */
 #ifdef CK_TTGWSIZ

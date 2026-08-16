@@ -13518,6 +13518,9 @@ dofile(op) int op;
 				return(y);
 			      makestr(&seek_target,brstrip(s));
 			      break;
+			  } else {
+			      printf("?This switch requires an argument\n");
+			      return(-9);
 			  }
 		      }
                       default: rsize = cmresult.nresult;

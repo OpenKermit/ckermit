@@ -2206,7 +2206,7 @@ doftparg(c) char c;
                 debok = 1;
             }
 #endif /* DEBUG */
-            /* fall thru on purpose */
+            /* Fall through */
 
           case 't':                     /* Trace */
             ftp_deb++;
@@ -4793,7 +4793,8 @@ iscanceled() {
         switch (c) {
           case 032:                     /* Ctrl-X or X */
           case 'z':
-          case 'Z': cancelgroup++;      /* fall thru on purpose */
+          case 'Z': cancelgroup++;
+            /* Fall through */
           case 030:                     /* Ctrl-Z or Z */
           case 'x':
           case 'X': cancelfile++; rc++; break;
@@ -5298,8 +5299,9 @@ doftpput(cx,who) int cx, who;
 
 #ifdef FTP_RESTART
           case SND_RES:                 /* /RECOVER (resend) */
-            pv[SND_ARR].ival = 0;       /* fall thru on purpose... */
+            pv[SND_ARR].ival = 0;
 #endif /* FTP_RESTART */
+            /* Fall through */
 
           case SND_NOB:
           case SND_DEL:                 /* /DELETE */
@@ -6756,9 +6758,10 @@ doftpget(cx,who) int cx, who;
         if (cx == FTP_GET || cx == FTP_RGE)
           getone++;
         switch (cx) {
-          case FTP_DEL:                 /* (fall thru on purpose) */
-          case FTP_MDE: mdel++;         /* (ditto) */
-          case FTP_GET:                 /* (ditto) */
+          case FTP_DEL:                 /* Falls through deliberately */
+          case FTP_MDE: mdel++;         /* to also count as a get */
+            /* Fall through */
+          case FTP_GET:
           case FTP_MGE: mget++; break;
           case FTP_RGE: pv[SND_RES].ival = 1; break;
         }
@@ -16142,6 +16145,7 @@ secure_getbyte(fd,fc) int fd,fc;
 		    }
 		    break;
 		}
+		/* Fall through */
               case SSL_ERROR_WANT_WRITE:
               case SSL_ERROR_WANT_READ:
               case SSL_ERROR_SYSCALL:
@@ -16710,6 +16714,7 @@ radix_encode(inbuf, outbuf, inlen, outlen, decode)
         if (i%3) outbuf[j++] = radixN[c];
         switch (i%3) {
           case 1: outbuf[j++] = pad;
+            /* Fall through */
           case 2: outbuf[j++] = pad;
         }
         outbuf[*outlen = j] = '\0';

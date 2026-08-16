@@ -37,6 +37,15 @@
     added GCC format attributes to printf wrappers.
   - Fixed a potential buffer overflow in UNIX domain socket path handling in
     `ckcnet.c`.
+  - `SET DIAL TIMEOUT` reset `DIAL ESCAPE-CHARACTER` to 43.  Also, 
+    an unexpected `DIAL STRING` parameter caused control to pass to `DIAL
+    FLOW-CONTROL`.  These bugs introduced in C-Kermit 6.0.192 of 1996, commit
+    4b5eddeab4bc511701864c151fb0bebb067278d5.
+  - `REPEAT` and `CD` switch value handling could fall into handler for
+    different commands.
+  - `\funtab()` with a parameter over the maximum length would fall into
+    `\funhex()`.
+  - `FILE SEEK /FIND` without an argument corrupted `rsize`.
 
 # C-Kermit 11.0.508
 
