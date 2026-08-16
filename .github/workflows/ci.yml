@@ -104,9 +104,9 @@ jobs:
         run: |
           cp /usr/bin/gkermit gkermit
           curl -sSfL -o ckermit-old-9.0.302 \
-            https://archive.org/download/ckermit-9.0.302-linux-amd64/ckermit-9.0.302-linux-amd64
+            https://kermit.mirrors.quux.org/openkermit/testtools/ckermit-9.0.302-linux-amd64
           curl -sSfL -o eksw \
-            https://archive.org/download/eksw_20260802/eksw
+            https://kermit.mirrors.quux.org/openkermit/testtools/eksw
           sha256sum -c tests/compat-binaries.sha256
           chmod +x ckermit-old-9.0.302 eksw
 
