@@ -210,13 +210,23 @@ def _run_ttptycmd_negotiation_case(
         # real Zmodem fixtures) doesn't reliably notice the client
         # closing the connection, so don't wait on a graceful exit
         # here, just tear it down.
+        #
+        # This must never raise. A loaded CI runner can take longer
+        # than a few seconds to reap even a killed process (observed
+        # on OpenBSD CI: both the post-terminate() and post-kill()
+        # waits timed out), and an exception from cleanup here would
+        # fail the test regardless of whether its actual assertions
+        # already passed.
         if proc.poll() is None:
             proc.terminate()
             try:
-                proc.wait(timeout=3)
+                proc.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 proc.kill()
-                proc.wait(timeout=3)
+                try:
+                    proc.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    pass
         try:
             os.close(master)
         except OSError:
