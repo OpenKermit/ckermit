@@ -39,7 +39,7 @@
 #include <sys/stat.h>
 #ifndef SUNOS41
 #include <sys/ioctl.h>
-#endif	/* SUNOS41 */
+#endif  /* SUNOS41 */
 #include <sys/file.h>
 #include <sys/time.h>
 #include <ctype.h>
@@ -94,7 +94,7 @@
 #ifndef ultrix
 #include <string.h>
 #endif /* ultrix */
-/* #include <sys/param.h> */		/* (now done in ckcdeb.h) */
+/* #include <sys/param.h> */            /* (now done in ckcdeb.h) */
 
 #ifdef HAVE_STREAMS
 /* krlogin doesn't test sys/tty... */
@@ -118,11 +118,11 @@
 #else
 #ifdef MACOSX10
 #define HAVE_OPENPTY
-#endif	/* MACOSX10 */
-#endif	/* __FreeBSD__ */
-#endif	/* HAVE_OPENPTY */
-#endif	/* NO_OPENPTY */
-#endif	/* COMMENT */
+#endif  /* MACOSX10 */
+#endif  /* __FreeBSD__ */
+#endif  /* HAVE_OPENPTY */
+#endif  /* NO_OPENPTY */
+#endif  /* COMMENT */
 
 #ifdef HAVE_VHANGUP
 #ifndef OPEN_CTTY_ONLY_ONCE
@@ -154,7 +154,7 @@ _PROTOTYP(long ptyint_update_wtmp, (struct utmp *, char *, char *));
 #define PTY_LOGIN_PROCESS 0
 #define PTY_USER_PROCESS 1
 #define PTY_DEAD_PROCESS 2
-#define PTY_TTYSLOT_USABLE (0x1)	/* flags to update_utmp*/
+#define PTY_TTYSLOT_USABLE (0x1)        /* flags to update_utmp*/
 #define PTY_UTMP_USERNAME_VALID (0x2)
 #endif /* WANT_UTMP */
 

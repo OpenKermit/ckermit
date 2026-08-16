@@ -85,7 +85,7 @@
 #endif /* UNICODE */
 #ifndef NOUNICODE
 #define NOUNICODE
-#endif	/* NOUNICODE */
+#endif  /* NOUNICODE */
 
 #else /* Not NOCSETS - Rest of this file... */
 

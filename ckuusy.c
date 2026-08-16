@@ -193,9 +193,9 @@ extern unsigned char NetBiosAdapter;
 #undef XFATAL
 #endif /* XFATAL */
 
-int haveftpuid = 0;			/* Have FTP user ID */
+int haveftpuid = 0;                     /* Have FTP user ID */
 
-static char * failmsg = NULL;		/* Failure message */
+static char * failmsg = NULL;           /* Failure message */
 
 #ifdef NEWFTP
 extern char * ftp_host;
@@ -326,7 +326,7 @@ urlparse(s,url) char *s; struct urldata * url;
 
     makestr(&urlbuf,s);
 
-    if (url->sav) {			/* In case we were called before... */
+    if (url->sav) {                     /* In case we were called before... */
         free(url->sav);
         url->sav = NULL;
     }
@@ -368,46 +368,46 @@ urlparse(s,url) char *s; struct urldata * url;
         }
         url->nopts = 0;
     }
-    p = urlbuf;				/* Was a service requested? */
-    while (*p && *p != ':')		/* Look for colon */
+    p = urlbuf;                         /* Was a service requested? */
+    while (*p && *p != ':')             /* Look for colon */
       p++;
     if (*p == ':') {                    /* Have a colon */
-        *p++ = NUL;			/* Get service name or number */
-        if (*p == ':')			/* a second colon */
-          *p++ = NUL;			/* get rid of that one too */
-        while (*p == '/') *p++ = NUL;	/* and slashes */
+        *p++ = NUL;                     /* Get service name or number */
+        if (*p == ':')                  /* a second colon */
+          *p++ = NUL;                   /* get rid of that one too */
+        while (*p == '/') *p++ = NUL;   /* and slashes */
 #ifdef COMMENT
         /* Trailing slash is part of path - leave it - jaltman */
         x = strlen(p);                  /* Length of remainder */
         if (p[x-1] == '/')              /* If there is a trailing slash */
-          p[x-1] = NUL;			/* remove it. */
+          p[x-1] = NUL;                 /* remove it. */
 #endif /* COMMENT */
-        if (urlbuf[0]) {		/* Anything left? */
+        if (urlbuf[0]) {                /* Anything left? */
             char *q = p, *r = p, *w = p;
-	    makestr(&url->svc,urlbuf);
+            makestr(&url->svc,urlbuf);
 
             while (*p != NUL && *p != '@') /* look for @ */
-	      p++;
-            if (*p == '@') {		/* Signifies user ID, maybe password */
+              p++;
+            if (*p == '@') {            /* Signifies user ID, maybe password */
                 *p++ = NUL;
-		url->hos = p;
+                url->hos = p;
                 while (*w != NUL && *w != ':')
                   w++;
                 if (*w == ':')
                   *w++ = NUL;
-		url->usr = r;		/* Username */
-		if (*w)
-		  url->psw = w;		/* Password */
+                url->usr = r;           /* Username */
+                if (*w)
+                  url->psw = w;         /* Password */
                 q = p;
-            } else {			/* No username or password */
+            } else {                    /* No username or password */
                 p = q;
-		url->hos = p;
+                url->hos = p;
             }
 #ifdef COMMENT
-	    debug(F111,"urlparse url->usr",url->usr,url->usr);
-	    debug(F111,"urlparse url->psw",url->usr,url->psw);
-	    debug(F111,"urlparse url->hos",url->usr,url->hos);
-#endif	/* COMMENT */
+            debug(F111,"urlparse url->usr",url->usr,url->usr);
+            debug(F111,"urlparse url->psw",url->usr,url->psw);
+            debug(F111,"urlparse url->hos",url->usr,url->hos);
+#endif  /* COMMENT */
 
             /* Strip brackets from IPv6 host and locate port or path. */
             if (*p == '[') {
@@ -415,39 +415,39 @@ urlparse(s,url) char *s; struct urldata * url;
                 while (*p != NUL && *p != ']') p++;
                 if (*p == ']') *p++ = NUL;
             }
-            while (*p != NUL && *p != ':' && *p != '/')	/* Port? */
+            while (*p != NUL && *p != ':' && *p != '/') /* Port? */
               p++;
-            if (*p == ':') {		/* TCP port */
+            if (*p == ':') {            /* TCP port */
                 *p++ = NUL;
                 r = p;
-		url->por = r;
+                url->por = r;
                 while (*p != NUL && *p != '/')
-		  p++;
+                  p++;
                 /* '/' is part of path, leave it until we can copy */
                 if (*p == '/') {
-		    makestr(&url->pth,p);  /* Path */
-		    *p = NUL;
+                    makestr(&url->pth,p);  /* Path */
+                    *p = NUL;
                 }
-            } else {			/* No port */
+            } else {                    /* No port */
                 /* '/' is part of path, leave it */
                 if (*p == '/') {
-		    makestr(&url->pth,p);  /* Path */
-		    *p = NUL;
+                    makestr(&url->pth,p);  /* Path */
+                    *p = NUL;
                 }
             }
         }
-	/* Copy non-NULL result strings */
-	if (url->svc) if (*url->svc) {
+        /* Copy non-NULL result strings */
+        if (url->svc) if (*url->svc) {
             p = url->svc;
             url->svc = NULL;
             makestr(&url->svc,p);
         }
-	if (url->hos) if (*url->hos) {
+        if (url->hos) if (*url->hos) {
             p = url->hos;
             url->hos = NULL;
             makestr(&url->hos,p);
         }
-	if (url->por) if (*url->por) {
+        if (url->por) if (*url->por) {
             p = url->por;
             url->por = NULL;
             makestr(&url->por,p);
@@ -459,21 +459,21 @@ urlparse(s,url) char *s; struct urldata * url;
   fields that were empty, e.g. ftp://:@ftp.xyzcorp.com/somepath/somefile,
   which causes the client to prompt for the username and/or password.
 */
-	if (url->usr) /* if (*url->usr) */ {
+        if (url->usr) /* if (*url->usr) */ {
             p = url->usr;
             url->usr = NULL;
             makestr(&url->usr,p);
         }
-	if (url->psw) /* if (*url->psw) */ {
+        if (url->psw) /* if (*url->psw) */ {
             p = url->psw;
             url->psw = NULL;
             makestr(&url->psw,p);
         }
         /* Save a copy of the full url if one was found. */
-	if (url->svc)
-	  makestr(&url->sav,s);
+        if (url->svc)
+          makestr(&url->sav,s);
         free(urlbuf);
-	return(url->svc ? 1 : 0);
+        return(url->svc ? 1 : 0);
     }
     free(urlbuf);
     return(0);
@@ -633,43 +633,43 @@ xx_ftp(host, port) char * host, * port;
       return(0);
     debug(F111,"ftp xx_ftp host",ftp_host,haveftpuid);
     debug(F111,"ftp xx_ftp uidbuf 1",uidbuf,haveftpuid);
-    ftp_cmdlin = 1;			/* 1 = FTP started from command line */
+    ftp_cmdlin = 1;                     /* 1 = FTP started from command line */
     if (nfils > 0)
-      ftp_cmdlin++;			/* 2 = same plus file transfer */
+      ftp_cmdlin++;                     /* 2 = same plus file transfer */
 
 #ifndef NOURL
     /* debug(F111,"ftp xx_ftp g_url.usr",g_url.usr,g_url.usr); */
-    if (haveurl && g_url.usr) {		/* Wed Oct  9 15:15:22 2002 */
-	if (!*(g_url.usr)) {		/* Force username prompt if */
-	    haveftpuid = 0;		/* "ftp://:@host" given. */
-	    uidbuf[0] = NUL;
-	    makestr(&ftp_logname,NULL);
-	}
-	debug(F111,"ftp xx_ftp uidbuf 2",uidbuf,haveftpuid);
+    if (haveurl && g_url.usr) {         /* Wed Oct  9 15:15:22 2002 */
+        if (!*(g_url.usr)) {            /* Force username prompt if */
+            haveftpuid = 0;             /* "ftp://:@host" given. */
+            uidbuf[0] = NUL;
+            makestr(&ftp_logname,NULL);
+        }
+        debug(F111,"ftp xx_ftp uidbuf 2",uidbuf,haveftpuid);
     }
 #endif /* NOURL */
     debug(F111,"ftp xx_ftp uidbuf 3",uidbuf,haveftpuid);
     if (haveftpuid) {
-	makestr(&ftp_logname,uidbuf);
-	debug(F111,"ftp_logname",ftp_logname,haveftpuid);
+        makestr(&ftp_logname,uidbuf);
+        debug(F111,"ftp_logname",ftp_logname,haveftpuid);
     }
     if (!port) {
-	if ((p = ckstrchr(ftp_host,':')))
-	  *p++ = NUL;
-	port = p;
+        if ((p = ckstrchr(ftp_host,':')))
+          *p++ = NUL;
+        port = p;
     }
     if (!port) {
 #ifdef CK_URL
         if (haveurl) {
-	    if (g_url.por)
-	      port = g_url.por;
+            if (g_url.por)
+              port = g_url.por;
             else if (g_url.svc)
-	      port = g_url.svc;
+              port = g_url.svc;
             else
-	      port = "ftp";
+              port = "ftp";
         } else
 #endif /* CK_URL */
-	  port = "ftp";
+          port = "ftp";
     }
 
 #ifdef CK_SSL
@@ -681,13 +681,13 @@ xx_ftp(host, port) char * host, * port;
       return(-1);
     debug(F111,"ftp xx_ftp action",ckctoa((char)ftp_action),nfils);
     if (nfils > 0) {
-	switch (ftp_action) {
-	  case 'g':
-	    return(cmdlinget(stayflg));
-	  case 'p':
-	  case 's':
-	    return(cmdlinput(stayflg));
-	}
+        switch (ftp_action) {
+          case 'g':
+            return(cmdlinget(stayflg));
+          case 'p':
+          case 's':
+            return(cmdlinput(stayflg));
+        }
     }
     return(1);
 }
@@ -762,34 +762,34 @@ usage() {
       conola(hlp4);
     if (howcalled == I_AM_KERMIT || howcalled == I_AM_IKSD ||
         howcalled == I_AM_SSHSUB) {
-	int c;
-	conoll("");
-	conoll("Complete listing of command-line options:");
-	conoll("");
-	for (c = 31; c < 128; c++) {
-	    if (!opthlp[c])
-	      continue;
-	    if (arghlp[c]) {
-		printf(" -%c <arg>%s\n",
-		       (char)c,
-		       (optact[c] ? " (action option)" : "")
-		       );
-		printf("     %s\n",opthlp[c]);
-		printf("     Argument: %s\n\n",arghlp[c]);
-	    } else {			/* Option without arg */
-		printf(" -%c  %s%s\n",
-		       (char)c, opthlp[c],
-		       (optact[c]?" (action option)":"")
-		       );
-		printf("     Argument: (none)\n\n");
-	    }
-	}
+        int c;
+        conoll("");
+        conoll("Complete listing of command-line options:");
+        conoll("");
+        for (c = 31; c < 128; c++) {
+            if (!opthlp[c])
+              continue;
+            if (arghlp[c]) {
+                printf(" -%c <arg>%s\n",
+                       (char)c,
+                       (optact[c] ? " (action option)" : "")
+                       );
+                printf("     %s\n",opthlp[c]);
+                printf("     Argument: %s\n\n",arghlp[c]);
+            } else {                    /* Option without arg */
+                printf(" -%c  %s%s\n",
+                       (char)c, opthlp[c],
+                       (optact[c]?" (action option)":"")
+                       );
+                printf("     Argument: (none)\n\n");
+            }
+        }
 #ifdef OS2ORUNIX
-	printf("To prevent this message from scrolling, use '%s -h | more'.\n",
-	       xarg0);
+        printf("To prevent this message from scrolling, use '%s -h | more'.\n",
+               xarg0);
 #endif /* OS2ORUNIX */
-	printf("For a list of extended options use '%s --help'.\n",
-	       xarg0);
+        printf("For a list of extended options use '%s --help'.\n",
+               xarg0);
     }
 #endif /* MINIX */
 }
@@ -822,11 +822,11 @@ cmdlin() {
 #ifdef TCPSOCKET
 #ifndef NOHTTP
     if (howcalled == I_AM_HTTP) {       /* If I was called as HTTP... */
-	char rdns[128];
+        char rdns[128];
 #ifdef OS2
-	char * agent = "Kermit 95";
+        char * agent = "Kermit 95";
 #else
-	char * agent = "C-Kermit";
+        char * agent = "C-Kermit";
 #endif /* OS2 */
 
         debug(F100,"http personality","",0);
@@ -836,7 +836,7 @@ cmdlin() {
             int type;
             char * lfile;
 
-	    type = lookup(urltab,g_url.svc,nurltab,NULL);
+            type = lookup(urltab,g_url.svc,nurltab,NULL);
             if (!(type == URL_HTTP || type == URL_HTTPS)) {
                 printf("?Internal Error: HTTP command line processing\n");
                 debug(F100,"Error: HTTP command line processing","",0);
@@ -848,226 +848,226 @@ cmdlin() {
                            type == URL_HTTPS, rdns,128,NULL) == 0);
             if (x) {
 #ifdef KUI
-		char asname[CKMAXPATH+1];
+                char asname[CKMAXPATH+1];
 #endif /* KUI */
                 if (!quiet) {
                     if (rdns[0])
-		      printf("Connected to %s [%s]\r\n",g_url.hos,rdns);
+                      printf("Connected to %s [%s]\r\n",g_url.hos,rdns);
                     else
-		      printf("Connected to %s\r\n",g_url.hos);
+                      printf("Connected to %s\r\n",g_url.hos);
                 }
                 if (g_url.pth)
                   zstrip(g_url.pth,&lfile);
                 else
-		  g_url.pth = "/";
+                  g_url.pth = "/";
 
                 if (!*lfile)
                   lfile = "index.html";
 
 #ifdef KUI
-		if (uq_file(NULL,	/* K95 GUI: Put up file box. */
-			    NULL,	/* (not tested...) */
-			    4,
-			    NULL,
-			    lfile,
-			    asname,
-			    CKMAXPATH+1
-			    ) > 0)
-		  lfile = asname;
+                if (uq_file(NULL,       /* K95 GUI: Put up file box. */
+                            NULL,       /* (not tested...) */
+                            4,
+                            NULL,
+                            lfile,
+                            asname,
+                            CKMAXPATH+1
+                            ) > 0)
+                  lfile = asname;
 #endif /* KUI */
 
                 x = http_get(agent,
-			     NULL,	/* hdrlist */
-			     g_url.usr,
-			     g_url.psw,
-			     0,
-			     lfile,
-			     g_url.pth,
-			     0		/* stdio */
-			     );
+                             NULL,      /* hdrlist */
+                             g_url.usr,
+                             g_url.psw,
+                             0,
+                             lfile,
+                             g_url.pth,
+                             0          /* stdio */
+                             );
                 x = (http_close() == 0);
             } else {
                 if (!quiet)
-		  printf("?HTTP Connection failed.\r\n");
+                  printf("?HTTP Connection failed.\r\n");
             }
             doexit(x ? GOOD_EXIT : BAD_EXIT, -1);
         } else
 #endif /* CK_URL */
 #endif /* NOICP */
-	  {
-	      int http_action = 0;
-	      char * host = NULL, * svc = NULL, * lpath = NULL;
-	      char * user = NULL, * pswd = NULL, * path = NULL;
-	      char * xp;
+          {
+              int http_action = 0;
+              char * host = NULL, * svc = NULL, * lpath = NULL;
+              char * user = NULL, * pswd = NULL, * path = NULL;
+              char * xp;
 
-	      while (--xargc > 0) {	/* Go through command line words */
-		  xargv++;
-		  debug(F111,"cmdlin http xargv",*xargv,xargc);
-		  xp = *xargv+1;
-		  if (**xargv == '-') { /* Got an option */
-		      x = *(*xargv+1);	/* Get the option letter */
-		      switch (x) {
-			case 'd':	/* Debug */
+              while (--xargc > 0) {     /* Go through command line words */
+                  xargv++;
+                  debug(F111,"cmdlin http xargv",*xargv,xargc);
+                  xp = *xargv+1;
+                  if (**xargv == '-') { /* Got an option */
+                      x = *(*xargv+1);  /* Get the option letter */
+                      switch (x) {
+                        case 'd':       /* Debug */
 #ifdef DEBUG
-			  if (deblog) {
-			      debtim = 1;
-			  } else {
-			      deblog = debopn("debug.log",0);
-			  }
+                          if (deblog) {
+                              debtim = 1;
+                          } else {
+                              deblog = debopn("debug.log",0);
+                          }
 #endif /* DEBUG */
-			  break;
-			case 'S':	/* Stay */
-			case 'Y':	/* No initialization file */
-			  break;	/* (already done in prescan) */
-			case 'q':	/* Quiet */
-			  quiet = 1;
-			  break;
-			case 'u':	/* Options that require arguments */
-			case 'P':
-			case 'g':
-			case 'p':
-			case 'H':
-			case 'l':
-			  if (*(xp+1)) {
-			      XFATAL("Invalid argument bundling");
-			  }
-			  xargv++, xargc--;
-			  if ((xargc < 1) || (**xargv == '-')) {
-			      XFATAL("Missing argument");
-			  }
-			  switch (x) {
-			    case 'u':
-			      user = *xargv;
-			      break;
-			    case 'P':
-			      pswd = *xargv;
-			      break;
-			    case 'l':
-			      if (http_action != HTTP_PUT)
-				lpath = *xargv;
-			      break;
-			    case 'g':
-			      http_action = HTTP_GET;
-			      path = *xargv;
-			      debug(F111,"cmdlin http GET",path,http_action);
-			      break;
-			    case 'p':
-			      http_action = HTTP_PUT;
-			      path = *xargv;
-			      break;
-			    case 'H':
-			      http_action = HTTP_HED;
-			      path = *xargv;
-			  }
-			  break;
+                          break;
+                        case 'S':       /* Stay */
+                        case 'Y':       /* No initialization file */
+                          break;        /* (already done in prescan) */
+                        case 'q':       /* Quiet */
+                          quiet = 1;
+                          break;
+                        case 'u':       /* Options that require arguments */
+                        case 'P':
+                        case 'g':
+                        case 'p':
+                        case 'H':
+                        case 'l':
+                          if (*(xp+1)) {
+                              XFATAL("Invalid argument bundling");
+                          }
+                          xargv++, xargc--;
+                          if ((xargc < 1) || (**xargv == '-')) {
+                              XFATAL("Missing argument");
+                          }
+                          switch (x) {
+                            case 'u':
+                              user = *xargv;
+                              break;
+                            case 'P':
+                              pswd = *xargv;
+                              break;
+                            case 'l':
+                              if (http_action != HTTP_PUT)
+                                lpath = *xargv;
+                              break;
+                            case 'g':
+                              http_action = HTTP_GET;
+                              path = *xargv;
+                              debug(F111,"cmdlin http GET",path,http_action);
+                              break;
+                            case 'p':
+                              http_action = HTTP_PUT;
+                              path = *xargv;
+                              break;
+                            case 'H':
+                              http_action = HTTP_HED;
+                              path = *xargv;
+                          }
+                          break;
 
 #ifdef CK_SSL
 #ifndef NOICP
                         case 'z': {
-			    /* *xargv contains a value of the form tag=value */
-			    /* we need to lookup the tag and save the value  */
-			    int x,y,z;
-			    char * p, * q = NULL;
-			    makestr(&p,*xargv);
-			    y = ckindex("=",p,0,0,1);
-			    if (y > 0)
+                            /* *xargv contains a value of the form tag=value */
+                            /* we need to lookup the tag and save the value  */
+                            int x,y,z;
+                            char * p, * q = NULL;
+                            makestr(&p,*xargv);
+                            y = ckindex("=",p,0,0,1);
+                            if (y > 0)
                               p[y-1] = '\0';
-			    x = lookup(httpztab,p,nhttpztab,&z);
-			    if (x < 0) {
-				printf("?Invalid security option: \"%s\"\n",p);
-			    } else {
-				printf("Security option: \"%s",p);
-				if (httpztab[z].flgs & CM_ARG) {
-				    q = &p[y];
-				    if (!*q)
+                            x = lookup(httpztab,p,nhttpztab,&z);
+                            if (x < 0) {
+                                printf("?Invalid security option: \"%s\"\n",p);
+                            } else {
+                                printf("Security option: \"%s",p);
+                                if (httpztab[z].flgs & CM_ARG) {
+                                    q = &p[y];
+                                    if (!*q)
                                       fatal("?Missing required value");
-				}
-				/* -z options w/args */
-				switch (httpztab[z].kwval) {
-				  case HT_CERTFI:
-				    makestr(&ssl_rsa_cert_file,q);
-				    break;
-				  case HT_OKCERT:
-				    ssl_certsok_flag = 1;
-				    break;
-				  case HT_KEY:
-				    makestr(&ssl_rsa_key_file,q);
-				    break;
-				  case HT_SECURE:
-				    svc="https";
-				    break;
-				  case HT_VERIFY:
-				    if (!rdigits(q))
+                                }
+                                /* -z options w/args */
+                                switch (httpztab[z].kwval) {
+                                  case HT_CERTFI:
+                                    makestr(&ssl_rsa_cert_file,q);
+                                    break;
+                                  case HT_OKCERT:
+                                    ssl_certsok_flag = 1;
+                                    break;
+                                  case HT_KEY:
+                                    makestr(&ssl_rsa_key_file,q);
+                                    break;
+                                  case HT_SECURE:
+                                    svc="https";
+                                    break;
+                                  case HT_VERIFY:
+                                    if (!rdigits(q))
                                       printf("?Bad number: %s\n",q);
-				    ssl_verify_flag = atoi(q);
-				    break;
-				}
-			    }
-			    free(p);
-			    break;
+                                    ssl_verify_flag = atoi(q);
+                                    break;
+                                }
+                            }
+                            free(p);
+                            break;
                         }
 #endif /* NOICP */
 #endif /* CK_SSL */
 
-			case 'h':	/* Help */
-			default:
-			  printf("Usage: %s host [ options... ]\n",xarg0);
-			  conola(http_hlp);
-			  doexit(GOOD_EXIT,-1);
-		      }
-		  } else {		/* No dash - must be hostname */
-		      host = *xargv;
-		      if (xargc > 1) {
-			  svc = *(xargv+1);
-			  if (svc) if (*svc == '-' || !*svc)
-			    svc = NULL;
-			  if (svc) {
-			      xargv++;
-			      xargc--;
-			  }
-		      }
-		  }
-	      }
-	      if (!svc) svc = "";
-	      if (!*svc) svc = "http";
-	      if (!host) XFATAL("No http host given");
+                        case 'h':       /* Help */
+                        default:
+                          printf("Usage: %s host [ options... ]\n",xarg0);
+                          conola(http_hlp);
+                          doexit(GOOD_EXIT,-1);
+                      }
+                  } else {              /* No dash - must be hostname */
+                      host = *xargv;
+                      if (xargc > 1) {
+                          svc = *(xargv+1);
+                          if (svc) if (*svc == '-' || !*svc)
+                            svc = NULL;
+                          if (svc) {
+                              xargv++;
+                              xargc--;
+                          }
+                      }
+                  }
+              }
+              if (!svc) svc = "";
+              if (!*svc) svc = "http";
+              if (!host) XFATAL("No http host given");
 
-	      /* Check action args before opening the connection */
-	      if (http_action) {
-		  if (http_action == HTTP_PUT) {
-		      if (!lpath)
-			XFATAL("No local path for http PUT");
-		  }
-		  if (!path)
-		    XFATAL("No remote path for http action");
-	      }
-	      /* Now it's OK to open the connection */
-	      rdns[0] = NUL;
-	      x = (http_open(host,
-			     svc,!ckstrcmp("https",svc,-1,0),rdns,128,NULL
-			     ) == 0);
-	      if (!x) {
-		  if (!quiet)
-		    printf("?HTTP Connection failed.\r\n");
-		  doexit(BAD_EXIT,-1);
-	      }
-	      if (!quiet) {
-		  if (rdns[0])
-		    printf("Connected to %s [%s]\r\n",host,rdns);
-		  else
-		    printf("Connected to %s\r\n",host);
-	      }
-	      if (http_action) {
+              /* Check action args before opening the connection */
+              if (http_action) {
+                  if (http_action == HTTP_PUT) {
+                      if (!lpath)
+                        XFATAL("No local path for http PUT");
+                  }
+                  if (!path)
+                    XFATAL("No remote path for http action");
+              }
+              /* Now it's OK to open the connection */
+              rdns[0] = NUL;
+              x = (http_open(host,
+                             svc,!ckstrcmp("https",svc,-1,0),rdns,128,NULL
+                             ) == 0);
+              if (!x) {
+                  if (!quiet)
+                    printf("?HTTP Connection failed.\r\n");
+                  doexit(BAD_EXIT,-1);
+              }
+              if (!quiet) {
+                  if (rdns[0])
+                    printf("Connected to %s [%s]\r\n",host,rdns);
+                  else
+                    printf("Connected to %s\r\n",host);
+              }
+              if (http_action) {
                   int pcpy = 0;
-		  if (http_action != HTTP_PUT) { /* Supply default */
-		      if (!lpath) {		 /* local path... */
-			  zstrip(path,&lpath);
-			  if (!lpath)
-			    lpath = "";
-			  if (!*lpath)
-			    lpath = "index.html";
-		      }
-		  }
+                  if (http_action != HTTP_PUT) { /* Supply default */
+                      if (!lpath) {              /* local path... */
+                          zstrip(path,&lpath);
+                          if (!lpath)
+                            lpath = "";
+                          if (!*lpath)
+                            lpath = "index.html";
+                      }
+                  }
                   if (*path != '/') {
                       char * p = (char *) malloc(strlen(path)+2);
                       if (!p) fatal("?Memory allocation error\n");
@@ -1076,144 +1076,144 @@ cmdlin() {
                       path = p;
                       pcpy = 1;
                   }
-		  switch (http_action) {
-		    case HTTP_GET:
-		      x = http_get(agent,NULL,user,pswd,0,lpath,path,0);
-		      break;
+                  switch (http_action) {
+                    case HTTP_GET:
+                      x = http_get(agent,NULL,user,pswd,0,lpath,path,0);
+                      break;
 
-		    case HTTP_PUT:
-		      x = http_put(agent,NULL,"text/HTML",
-				   user,pswd,0,lpath,path,NULL,0);
-		      break;
+                    case HTTP_PUT:
+                      x = http_put(agent,NULL,"text/HTML",
+                                   user,pswd,0,lpath,path,NULL,0);
+                      break;
 
-		    case HTTP_HED:
-		      x = http_head(agent,NULL,user,pswd,0,lpath,path,0);
-		      break;
-		  }
-		  debug(F101,"cmdline http result","",x);
+                    case HTTP_HED:
+                      x = http_head(agent,NULL,user,pswd,0,lpath,path,0);
+                      break;
+                  }
+                  debug(F101,"cmdline http result","",x);
                   x = (http_close() == 0);
                   if (pcpy) free(path);
                   doexit(x ? GOOD_EXIT : BAD_EXIT, -1);
-	      }
-	      return(0);
-	  }
+              }
+              return(0);
+          }
     } else
 #endif /* NOHTTP */
 #ifdef NEWFTP
-      if (howcalled == I_AM_FTP) {	/* If I was called as FTP... */
-	  debug(F100,"ftp personality","",0);
+      if (howcalled == I_AM_FTP) {      /* If I was called as FTP... */
+          debug(F100,"ftp personality","",0);
 #ifdef CK_URL
-	  if (haveurl)
+          if (haveurl)
             doftparg('U');
-	  else
+          else
 #endif /* CK_URL */
-	    {
-		while (--xargc > 0) {	/* Go through command line words */
-		    xargv++;
-		    debug(F111,"cmdlin ftp xargv",*xargv,xargc);
-		    if (**xargv == '-') { /* Got an option */
-			int xx;
-			x = *(*xargv+1); /* Get the option letter */
-			xx = doftparg(x);
-			if (xx < 0) {
-			    if (what == W_COMMAND)
-			      return(0);
-			    else
-			      doexit(BAD_EXIT,1);
-			}
-		    } else {		/* No dash - must be hostname */
-			makestr(&ftp_host,*xargv);
-			if (xargc > 1) {
-			    port = *(xargv+1);
-			    if (port) if (*port == '-' || !*port)
-			      port = NULL;
-			    if (port) {
-				xargv++;
-				xargc--;
-			    }
-			}
-			debug(F110,"cmdlin ftp host",ftp_host,0);
-			debug(F110,"cmdlin ftp port",port,0);
-		    }
-		} /* while */
-	    } /* if (haveurl) */
+            {
+                while (--xargc > 0) {   /* Go through command line words */
+                    xargv++;
+                    debug(F111,"cmdlin ftp xargv",*xargv,xargc);
+                    if (**xargv == '-') { /* Got an option */
+                        int xx;
+                        x = *(*xargv+1); /* Get the option letter */
+                        xx = doftparg(x);
+                        if (xx < 0) {
+                            if (what == W_COMMAND)
+                              return(0);
+                            else
+                              doexit(BAD_EXIT,1);
+                        }
+                    } else {            /* No dash - must be hostname */
+                        makestr(&ftp_host,*xargv);
+                        if (xargc > 1) {
+                            port = *(xargv+1);
+                            if (port) if (*port == '-' || !*port)
+                              port = NULL;
+                            if (port) {
+                                xargv++;
+                                xargc--;
+                            }
+                        }
+                        debug(F110,"cmdlin ftp host",ftp_host,0);
+                        debug(F110,"cmdlin ftp port",port,0);
+                    }
+                } /* while */
+            } /* if (haveurl) */
 
-	  if (ftp_host) {
-	      int xx;
+          if (ftp_host) {
+              int xx;
 #ifdef NODIAL
-	      xx = xx_ftp(ftp_host,port);
-	      if (xx < 0 && (haveurl || ftp_cmdlin > 1)) doexit(BAD_EXIT,-1);
+              xx = xx_ftp(ftp_host,port);
+              if (xx < 0 && (haveurl || ftp_cmdlin > 1)) doexit(BAD_EXIT,-1);
 #else
 #ifdef NOICP
-	      xx = xx_ftp(ftp_host,port);
-	      if (xx < 0 && (haveurl || ftp_cmdlin > 1)) doexit(BAD_EXIT,-1);
+              xx = xx_ftp(ftp_host,port);
+              if (xx < 0 && (haveurl || ftp_cmdlin > 1)) doexit(BAD_EXIT,-1);
 #else
-	      if (*ftp_host == '=') {	/* Skip directory lookup */
-		  xx = xx_ftp(&ftp_host[1],port);
-		  if (xx < 0 && (haveurl || ftp_cmdlin > 1))
-		    doexit(BAD_EXIT,-1);
-	      } else {			/* Want lookup */
-		  int i;
-		  nhcount = 0;		/* Check network directory */
-		  debug(F101,"cmdlin nnetdir","",nnetdir);
-		  if (nnetdir > 0)	/* If there is a directory... */
-		    lunet(ftp_host);	/* Look up the name */
-		  else			/* If no directory */
-		    nhcount = 0;	/* we didn't find anything there */
+              if (*ftp_host == '=') {   /* Skip directory lookup */
+                  xx = xx_ftp(&ftp_host[1],port);
+                  if (xx < 0 && (haveurl || ftp_cmdlin > 1))
+                    doexit(BAD_EXIT,-1);
+              } else {                  /* Want lookup */
+                  int i;
+                  nhcount = 0;          /* Check network directory */
+                  debug(F101,"cmdlin nnetdir","",nnetdir);
+                  if (nnetdir > 0)      /* If there is a directory... */
+                    lunet(ftp_host);    /* Look up the name */
+                  else                  /* If no directory */
+                    nhcount = 0;        /* we didn't find anything there */
 #ifdef DEBUG
-		  if (deblog) {
-		      debug(F101,"cmdlin lunet nhcount","",nhcount);
-		      if (nhcount > 0) {
-			  debug(F110,"cmdlin lunet nh_p[0]",nh_p[0],0);
-			  debug(F110,"cmdlin lunet nh_p2[0]",nh_p2[0],0);
-			  debug(F110,"cmdlin lunet nh_px[0][0]",
-				nh_px[0][0],0);
-		      }
-		  }
+                  if (deblog) {
+                      debug(F101,"cmdlin lunet nhcount","",nhcount);
+                      if (nhcount > 0) {
+                          debug(F110,"cmdlin lunet nh_p[0]",nh_p[0],0);
+                          debug(F110,"cmdlin lunet nh_p2[0]",nh_p2[0],0);
+                          debug(F110,"cmdlin lunet nh_px[0][0]",
+                                nh_px[0][0],0);
+                      }
+                  }
 #endif /* DEBUG */
-		  if (nhcount == 0) {
-		      xx = xx_ftp(ftp_host,port);
-		      if (xx < 0 && (haveurl || ftp_cmdlin > 1))
-			doexit(BAD_EXIT,-1);
-		  } else {
-		      for (i = 0; i < nhcount; i++) {
-			  if (ckstrcmp(nh_p2[i],"tcp/ip",6,0))
-			    continue;
-			  makestr(&ftp_host,nh_p[i]);
-			  debug(F110,"cmdlin calling xx_ftp",ftp_host,0);
-			  if (!quiet)
-			    printf("Trying %s...\n",ftp_host);
-			  if (xx_ftp(ftp_host,port) > -1)
-			    break;
-		      }
-		  }
-	      }
+                  if (nhcount == 0) {
+                      xx = xx_ftp(ftp_host,port);
+                      if (xx < 0 && (haveurl || ftp_cmdlin > 1))
+                        doexit(BAD_EXIT,-1);
+                  } else {
+                      for (i = 0; i < nhcount; i++) {
+                          if (ckstrcmp(nh_p2[i],"tcp/ip",6,0))
+                            continue;
+                          makestr(&ftp_host,nh_p[i]);
+                          debug(F110,"cmdlin calling xx_ftp",ftp_host,0);
+                          if (!quiet)
+                            printf("Trying %s...\n",ftp_host);
+                          if (xx_ftp(ftp_host,port) > -1)
+                            break;
+                      }
+                  }
+              }
 #endif /* NODIAL */
 #endif /* NOICP */
-	      if (!ftpisconnected())
-		doexit(BAD_EXIT,-1);
-	  }
-	  return(0);
+              if (!ftpisconnected())
+                doexit(BAD_EXIT,-1);
+          }
+          return(0);
       }
 #endif /* NEWFTP */
 
 #ifdef TNCODE
     if (howcalled == I_AM_TELNET) {     /* If I was called as Telnet... */
 
-        while (--xargc > 0) {		/* Go through command line words */
+        while (--xargc > 0) {           /* Go through command line words */
             xargv++;
             debug(F111,"cmdlin telnet xargv",*xargv,xargc);
             if (**xargv == '=')
-	      return(0);
-            if (!strcmp(*xargv,"--"))	/* getopt() conformance */
-	      return(0);
+              return(0);
+            if (!strcmp(*xargv,"--"))   /* getopt() conformance */
+              return(0);
 #ifdef VMS
             else if (**xargv == '/')
-	      continue;
+              continue;
 #endif /* VMS */
-            else if (**xargv == '-') {	/* Got an option (begins with dash) */
+            else if (**xargv == '-') {  /* Got an option (begins with dash) */
                 int xx;
-                x = *(*xargv+1);	/* Get the option letter */
+                x = *(*xargv+1);        /* Get the option letter */
                 debug(F111,"cmdlin telnet args 1",*xargv,xargc);
                 xx = dotnarg(x);
                 debug(F101,"cmdlin telnet doarg","",xx);
@@ -1221,28 +1221,28 @@ cmdlin() {
                 if (xx < 0) {
 #ifndef NOICP
                     if (what == W_COMMAND)
-		      return(0);
+                      return(0);
                     else
 #endif /* NOICP */
-		      {
+                      {
 #ifdef OS2
-			  sleep(1);	/* Give it a chance... */
+                          sleep(1);     /* Give it a chance... */
 #endif /* OS2 */
-			  doexit(BAD_EXIT,1); /* Go handle option */
-		      }
+                          doexit(BAD_EXIT,1); /* Go handle option */
+                      }
                 }
-            } else {			/* No dash must be hostname */
+            } else {                    /* No dash must be hostname */
                 ckstrncpy(ttname,*xargv,TTNAMLEN+1);
                 debug(F110,"cmdlin telnet host",ttname,0);
 
 #ifndef NOICP
 #ifndef NODIAL
-                nhcount = 0;		/* Check network directory */
+                nhcount = 0;            /* Check network directory */
                 debug(F101,"cmdlin telnet nnetdir","",nnetdir);
-                if (nnetdir > 0)	/* If there is a directory... */
-		  lunet(*xargv);	/* Look up the name */
-                else			/* If no directory */
-		  nhcount = 0;		/* we didn't find anything there */
+                if (nnetdir > 0)        /* If there is a directory... */
+                  lunet(*xargv);        /* Look up the name */
+                else                    /* If no directory */
+                  nhcount = 0;          /* we didn't find anything there */
 #ifdef DEBUG
                 if (deblog) {
                     debug(F101,"cmdlin telnet lunet nhcount","",nhcount);
@@ -1250,14 +1250,14 @@ cmdlin() {
                         debug(F110,"cmdlin telnet lunet nh_p[0]",nh_p[0],0);
                         debug(F110,"cmdlin telnet lunet nh_p2[0]",nh_p2[0],0);
                         debug(F110,"cmdlin telnet lunet nh_px[0][0]",
-			      nh_px[0][0],0);
+                              nh_px[0][0],0);
                     }
                 }
 #endif /* DEBUG */
                 if (nhcount > 0 && nh_p2[0]) /* If network type specified */
-		  if (ckstrcmp(nh_p2[0],"tcp/ip",6,0)) /* it must be TCP/IP */
-		    nhcount = 0;
-                if (nhcount == 1) {	/* Still OK, so make substitution */
+                  if (ckstrcmp(nh_p2[0],"tcp/ip",6,0)) /* it must be TCP/IP */
+                    nhcount = 0;
+                if (nhcount == 1) {     /* Still OK, so make substitution */
                     ckstrncpy(ttname,nh_p[0],TTNAMLEN+1);
                     debug(F110,"cmdlin telnet lunet substitution",ttname,0);
                 }
@@ -1272,7 +1272,7 @@ cmdlin() {
                 }
 #ifndef NOICP
 #ifndef NODIAL
-                else if (nhcount) {	/* No - how about in net directory? */
+                else if (nhcount) {     /* No - how about in net directory? */
                     if (nh_px[0][0]) {
                         ckstrncat(ttname,":",TTNAMLEN+1);
                         ckstrncat(ttname,nh_px[0][0],TTNAMLEN+1);
@@ -1280,30 +1280,30 @@ cmdlin() {
                 }
 #endif /* NODIAL */
 #endif /* NOICP */
-                local = 1;		/* Try to open the connection */
+                local = 1;              /* Try to open the connection */
                 nettype = NET_TCPB;
                 mdmtyp = -nettype;
                 if (ttopen(ttname,&local,mdmtyp,0) < 0) {
                     XFATAL("can't open host connection");
                 }
-                network = 1;		/* It's open */
+                network = 1;            /* It's open */
 #ifdef CKLOGDIAL
                 dolognet();
 #endif /* CKLOGDIAL */
 #ifndef NOXFER
-                reliable = 1;		/* It's reliable */
-                xreliable = 1;		/* ... */
+                reliable = 1;           /* It's reliable */
+                xreliable = 1;          /* ... */
                 setreliable = 1;
 #endif /* NOXFER */
-                cflg = 1;		/* Connect */
-                stayflg = 1;		/* Stay */
-                tn_exit = 1;		/* Telnet-like exit condition */
+                cflg = 1;               /* Connect */
+                stayflg = 1;            /* Stay */
+                tn_exit = 1;            /* Telnet-like exit condition */
                 quiet = 1;
-                exitonclose = 1;	/* Exit when connection closes */
+                exitonclose = 1;        /* Exit when connection closes */
 #ifndef NOSPL
                 if (local) {
-                    if (nmac) {		/* Any macros defined? */
-                        int k;		/* Yes */
+                    if (nmac) {         /* Any macros defined? */
+                        int k;          /* Yes */
                         k = mlook(mactab,"on_open",nmac); /* Look this up */
                         if (k >= 0) {                     /* If found, */
                             if (dodo(k,ttname,0) > -1)    /* set it up, */
@@ -1320,20 +1320,20 @@ cmdlin() {
 #endif /* TNCODE */
 #ifdef RLOGCODE
     else if (howcalled == I_AM_RLOGIN) { /* If I was called as Rlogin... */
-        while (--xargc > 0) {		/* Go through command line words */
+        while (--xargc > 0) {           /* Go through command line words */
             xargv++;
             debug(F111,"cmdlin rlogin xargv",*xargv,xargc);
             if (**xargv == '=')
-	      return(0);
-            if (!strcmp(*xargv,"--"))	/* getopt() conformance */
-	      return(0);
+              return(0);
+            if (!strcmp(*xargv,"--"))   /* getopt() conformance */
+              return(0);
 #ifdef VMS
             else if (**xargv == '/')
-	      continue;
+              continue;
 #endif /* VMS */
-            else if (**xargv == '-') {	/* Got an option (begins with dash) */
+            else if (**xargv == '-') {  /* Got an option (begins with dash) */
                 int xx;
-                x = *(*xargv+1);	/* Get the option letter */
+                x = *(*xargv+1);        /* Get the option letter */
                 debug(F111,"cmdlin rlogin args 1",*xargv,xargc);
                 xx = dorlgarg(x);
                 debug(F101,"cmdlin rlogin doarg","",xx);
@@ -1341,28 +1341,28 @@ cmdlin() {
                 if (xx < 0) {
 #ifndef NOICP
                     if (what == W_COMMAND)
-		      return(0);
+                      return(0);
                     else
 #endif /* NOICP */
-		      {
+                      {
 #ifdef OS2
-			  sleep(1);	/* Give it a chance... */
+                          sleep(1);     /* Give it a chance... */
 #endif /* OS2 */
-			  doexit(BAD_EXIT,1); /* Go handle option */
-		      }
+                          doexit(BAD_EXIT,1); /* Go handle option */
+                      }
                 }
-            } else {			/* No dash must be hostname */
+            } else {                    /* No dash must be hostname */
                 ckstrncpy(ttname,*xargv,TTNAMLEN+1);
                 debug(F110,"cmdlin rlogin host",ttname,0);
 
 #ifndef NOICP
 #ifndef NODIAL
-                nhcount = 0;		/* Check network directory */
+                nhcount = 0;            /* Check network directory */
                 debug(F101,"cmdlin rlogin nnetdir","",nnetdir);
-                if (nnetdir > 0)	/* If there is a directory... */
-		  lunet(*xargv);	/* Look up the name */
-                else			/* If no directory */
-		  nhcount = 0;		/* we didn't find anything there */
+                if (nnetdir > 0)        /* If there is a directory... */
+                  lunet(*xargv);        /* Look up the name */
+                else                    /* If no directory */
+                  nhcount = 0;          /* we didn't find anything there */
 #ifdef DEBUG
                 if (deblog) {
                     debug(F101,"cmdlin rlogin lunet nhcount","",nhcount);
@@ -1370,14 +1370,14 @@ cmdlin() {
                         debug(F110,"cmdlin rlogin lunet nh_p[0]",nh_p[0],0);
                         debug(F110,"cmdlin rlogin lunet nh_p2[0]",nh_p2[0],0);
                         debug(F110,"cmdlin rlogin lunet nh_px[0][0]",
-			      nh_px[0][0],0);
+                              nh_px[0][0],0);
                     }
                 }
 #endif /* DEBUG */
                 if (nhcount > 0 && nh_p2[0]) /* If network type specified */
-		  if (ckstrcmp(nh_p2[0],"tcp/ip",6,0)) /* it must be TCP/IP */
-		    nhcount = 0;
-                if (nhcount == 1) {	/* Still OK, so make substitution */
+                  if (ckstrcmp(nh_p2[0],"tcp/ip",6,0)) /* it must be TCP/IP */
+                    nhcount = 0;
+                if (nhcount == 1) {     /* Still OK, so make substitution */
                     ckstrncpy(ttname,nh_p[0],TTNAMLEN+1);
                     debug(F110,"cmdlin rlogin lunet substitution",ttname,0);
                 }
@@ -1388,30 +1388,30 @@ cmdlin() {
                     ckstrncat(ttname,":login",TTNAMLEN+1);
                     debug(F110,"cmdlin rlogin host2",ttname,0);
                 }
-                local = 1;		/* Try to open the connection */
+                local = 1;              /* Try to open the connection */
                 nettype = NET_TCPB;
                 mdmtyp = -nettype;
                 if (ttopen(ttname,&local,mdmtyp,0) < 0) {
                     XFATAL("can't open host connection");
                 }
-                network = 1;		/* It's open */
+                network = 1;            /* It's open */
 #ifdef CKLOGDIAL
                 dolognet();
 #endif /* CKLOGDIAL */
 #ifndef NOXFER
-                reliable = 1;		/* It's reliable */
-                xreliable = 1;		/* ... */
+                reliable = 1;           /* It's reliable */
+                xreliable = 1;          /* ... */
                 setreliable = 1;
 #endif /* NOXFER */
-                cflg = 1;		/* Connect */
-                stayflg = 1;		/* Stay */
-                tn_exit = 1;		/* Telnet-like exit condition */
+                cflg = 1;               /* Connect */
+                stayflg = 1;            /* Stay */
+                tn_exit = 1;            /* Telnet-like exit condition */
                 quiet = 1;
-                exitonclose = 1;	/* Exit when connection closes */
+                exitonclose = 1;        /* Exit when connection closes */
 #ifndef NOSPL
                 if (local) {
-                    if (nmac) {		/* Any macros defined? */
-                        int k;		/* Yes */
+                    if (nmac) {         /* Any macros defined? */
+                        int k;          /* Yes */
                         k = mlook(mactab,"on_open",nmac); /* Look this up */
                         if (k >= 0) {                     /* If found, */
                             if (dodo(k,ttname,0) > -1)    /* set it up, */
@@ -1429,20 +1429,20 @@ cmdlin() {
 #endif /* TCPSOCKET */
 
 #ifdef SSHBUILTIN
-      if (howcalled == I_AM_SSH) {	/* If I was called as SSH... */
-	  debug(F100,"ssh personality","",0);
+      if (howcalled == I_AM_SSH) {      /* If I was called as SSH... */
+          debug(F100,"ssh personality","",0);
 #ifdef CK_URL
-	  if (haveurl) {
+          if (haveurl) {
               ssh_set_sparam(SSH_SPARAM_HST, g_url.hos);
               ssh_set_sparam(SSH_SPARAM_PRT,g_url.svc);
-	          ckstrncpy(ttname,ssh_get_sparam(SSH_SPARAM_HST),TTNAMLEN+1);
+                  ckstrncpy(ttname,ssh_get_sparam(SSH_SPARAM_HST),TTNAMLEN+1);
               ckstrncat(ttname,":",TTNAMLEN+1);
               ckstrncat(ttname,ssh_get_sparam(SSH_SPARAM_PRT),TTNAMLEN+1);
           }
-	  else
+          else
 #endif /* CK_URL */
-	  {
-              while (--xargc > 0) {	/* Go through command line words */
+          {
+              while (--xargc > 0) {     /* Go through command line words */
                   xargv++;
                   debug(F111,"cmdlin ssh xargv",*xargv,xargc);
                   if (**xargv == '=')
@@ -1453,10 +1453,10 @@ cmdlin() {
                   else if (**xargv == '/')
                       continue;
 #endif /* VMS */
-		  /* Got an option (begins with dash) */
+                  /* Got an option (begins with dash) */
                   else if (**xargv == '-') {
                       int xx;
-                      x = *(*xargv+1);	/* Get the option letter */
+                      x = *(*xargv+1);  /* Get the option letter */
                       debug(F111,"cmdlin args 1",*xargv,xargc);
                       xx = dossharg(x);
                       debug(F101,"cmdlin doarg","",xx);
@@ -1464,28 +1464,28 @@ cmdlin() {
                       if (xx < 0) {
 #ifndef NOICP
                           if (what == W_COMMAND)
-			    return(0);
+                            return(0);
                           else
 #endif /* NOICP */
                           {
 #ifdef OS2
-                              sleep(1);	/* Give it a chance... */
+                              sleep(1); /* Give it a chance... */
 #endif /* OS2 */
                               doexit(BAD_EXIT,1); /* Go handle option */
                           }
                       }
-                  } else {			/* No dash must be hostname */
+                  } else {                      /* No dash must be hostname */
                       ckstrncpy(ttname,*xargv,TTNAMLEN+1);
                       ssh_set_sparam(SSH_SPARAM_HST, ttname);
                       debug(F110,"cmdlin ssh host",ttname,0);
 #ifndef NOICP
 #ifndef NODIAL
-                      nhcount = 0;		/* Check network directory */
+                      nhcount = 0;              /* Check network directory */
                       debug(F101,"cmdlin nnetdir","",nnetdir);
-                      if (nnetdir > 0)	/* If there is a directory... */
-			lunet(*xargv);	/* Look up the name */
-                      else		/* If no directory */
-			nhcount = 0;	/* we didn't find anything there */
+                      if (nnetdir > 0)  /* If there is a directory... */
+                        lunet(*xargv);  /* Look up the name */
+                      else              /* If no directory */
+                        nhcount = 0;    /* we didn't find anything there */
 #ifdef DEBUG
                       if (deblog) {
                           debug(F101,"cmdlin lunet nhcount","",nhcount);
@@ -1493,15 +1493,15 @@ cmdlin() {
                               debug(F110,"cmdlin lunet nh_p[0]",nh_p[0],0);
                               debug(F110,"cmdlin lunet nh_p2[0]",nh_p2[0],0);
                               debug(F110,
-				    "cmdlin lunet nh_px[0][0]",nh_px[0][0],0);
+                                    "cmdlin lunet nh_px[0][0]",nh_px[0][0],0);
                           }
                       }
 #endif /* DEBUG */
-		      /* If network type specified */
-		      /* it must be TCP/IP */
+                      /* If network type specified */
+                      /* it must be TCP/IP */
                       if (nhcount > 0 && nh_p2[0])
-			if (ckstrcmp(nh_p2[0],"tcp/ip",6,0))
-			  nhcount = 0;
+                        if (ckstrcmp(nh_p2[0],"tcp/ip",6,0))
+                          nhcount = 0;
                       if (nhcount == 1) { /* Still OK, so make substitution */
                           ckstrncpy(ttname,nh_p[0],TTNAMLEN+1);
                           ssh_set_sparam(SSH_SPARAM_HST, ttname);
@@ -1509,7 +1509,7 @@ cmdlin() {
                       }
 #endif /* NODIAL */
 #endif /* NOICP */
-		      /* Service from command line? */
+                      /* Service from command line? */
                       if (--xargc > 0 && !haveurl) {
                           xargv++;
                           ckstrncat(ttname,":",TTNAMLEN+1);
@@ -1521,7 +1521,7 @@ cmdlin() {
                       /* Do not substitute net dir service for ssh port */
 #ifndef NOICP
 #ifndef NODIAL
-		      /* No - how about in net directory? */
+                      /* No - how about in net directory? */
                       else if (nhcount) {
                           if (nh_px[0][0]) {
                               ckstrncat(ttname,":",TTNAMLEN+1);
@@ -1537,30 +1537,30 @@ cmdlin() {
                   }
               }
           }
-          local = 1;			/* Try to open the connection */
+          local = 1;                    /* Try to open the connection */
           nettype = NET_SSH;
           mdmtyp = -nettype;
           if (ttopen(ttname,&local,mdmtyp,0) < 0) {
               XFATAL("can't open host connection");
           }
-          network = 1;			/* It's open */
+          network = 1;                  /* It's open */
 #ifdef CKLOGDIAL
           dolognet();
 #endif /* CKLOGDIAL */
 #ifndef NOXFER
-          reliable = 1;			/* It's reliable */
-          xreliable = 1;		/* ... */
+          reliable = 1;                 /* It's reliable */
+          xreliable = 1;                /* ... */
           setreliable = 1;
 #endif /* NOXFER */
-          cflg = 1;			/* Connect */
-          stayflg = 1;			/* Stay */
-          tn_exit = 1;			/* Telnet-like exit condition */
+          cflg = 1;                     /* Connect */
+          stayflg = 1;                  /* Stay */
+          tn_exit = 1;                  /* Telnet-like exit condition */
           quiet = 1;
-          exitonclose = 1;		/* Exit when connection closes */
+          exitonclose = 1;              /* Exit when connection closes */
 #ifndef NOSPL
           if (local) {
-              if (nmac) {		/* Any macros defined? */
-                  int k;		/* Yes */
+              if (nmac) {               /* Any macros defined? */
+                  int k;                /* Yes */
                   k = mlook(mactab,"on_open",nmac); /* Look this up */
                   if (k >= 0) {                     /* If found, */
                       if (dodo(k,ttname,0) > -1)    /* set it up, */
@@ -1569,7 +1569,7 @@ cmdlin() {
               }
           }
 #endif /* NOSPL */
-	  return(0);
+          return(0);
       }
 #endif /* SSHBUILTIN */
 
@@ -1638,25 +1638,25 @@ cmdlin() {
                       doexit(BAD_EXIT,1); /* Go handle option */
                   }
             }
-        } else if (!haveurl) {		/* No dash where expected */
-	    char xbuf[40];        /* enlarged a bit due to warning 20211209 */
+        } else if (!haveurl) {          /* No dash where expected */
+            char xbuf[40];        /* enlarged a bit due to warning 20211209 */
             char buf[128];
-	    int k;
-	    k = ckstrncpy(xbuf,*xargv,40);
-	    if (k > 30) {
-		xbuf[30] = '.';
-		xbuf[29] = '.';
-		xbuf[28] = '.';
-	    }
-	    xbuf[31] = NUL;
+            int k;
+            k = ckstrncpy(xbuf,*xargv,40);
+            if (k > 30) {
+                xbuf[30] = '.';
+                xbuf[29] = '.';
+                xbuf[28] = '.';
+            }
+            xbuf[31] = NUL;
             ckmakmsg(buf,
-		     128,
-		     "invalid command-line option, type \"",
-		     myname,
-		     " -h\" for help",
-		     NULL
-		     );
-	    fatal2(xbuf,buf);
+                     128,
+                     "invalid command-line option, type \"",
+                     myname,
+                     " -h\" for help",
+                     NULL
+                     );
+            fatal2(xbuf,buf);
         }
     }
 #ifdef DEBUG
@@ -1872,7 +1872,7 @@ struct keytab xargtab[] = {
 #ifndef NOLOCAL
 #ifdef UNIX
     { "unbuffered",  XA_UNBUF, 0 },
-#endif	/* UNIX */
+#endif  /* UNIX */
 #endif /* NOLOCAL */
 #ifdef CK_LOGIN
 #ifndef NOLOCAL
@@ -1950,7 +1950,7 @@ inixopthlp() {
             xarghlp[j] = "Whether to allow anonymous IKSD logins";
             break;
 #ifdef UNIX
-	  case XA_PRIV:
+          case XA_PRIV:
             xopthlp[j] = "--privid:{on,off} [IKSD only]";
             xarghlp[j] = "Whether to allow privileged IDs to login to IKSD";
             break;
@@ -2045,7 +2045,7 @@ inixopthlp() {
             xopthlp[j] = "--unbuffered";
             xarghlp[j] = "Force unbuffered console i/o.";
             break;
-#endif	/* UNIX */
+#endif  /* UNIX */
 #ifdef IKSDB
           case XA_DBAS:
             xopthlp[j] = "--database:{on,off}";
@@ -2057,42 +2057,42 @@ inixopthlp() {
             break;
 #endif /* IKSDB */
 #ifdef CK_PERMS
-	  case XA_NPRM:
+          case XA_NPRM:
             xopthlp[j] = "--noperms";
             xarghlp[j] = "Disable file-transfer Permissions attribute.";
             break;
 #endif /* CK_PERMS */
 #ifdef KUI
           case XA_CHGD:
-	    xopthlp[j] = "--changedim";
-	    xarghlp[j] = "Change Dimension on Window Resize";
+            xopthlp[j] = "--changedim";
+            xarghlp[j] = "Change Dimension on Window Resize";
           case XA_SCALE:
-	    xopthlp[j] = "--scalefont";
-	    xarghlp[j] = "Scale Font on Window Resize";
+            xopthlp[j] = "--scalefont";
+            xarghlp[j] = "Scale Font on Window Resize";
           case XA_WMAX:
-	    xopthlp[j] = "--maximize";
-	    xarghlp[j] = "start K95G window maximized.";
-	    break;
+            xopthlp[j] = "--maximize";
+            xarghlp[j] = "start K95G window maximized.";
+            break;
           case XA_WMIN:
-	    xopthlp[j] = "--minimize";
-	    xarghlp[j] = "start K95G window minimized.";
-	    break;
-	  case XA_XPOS:
-	    xopthlp[j] = "--xpos:n";
-	    xarghlp[j] = "X-coordinate of window position (number).";
-	    break;
-	  case XA_YPOS:
-	    xopthlp[j] = "--ypos:n";
-	    xarghlp[j] = "Y-coordinate of window position (number).";
-	    break;
-	  case XA_FNAM:
-	    xopthlp[j] = "--fontname:s (or --facename:s)";
-	    xarghlp[j] = "Font/typeface name: string with _ replacing blank.";
-	    break;
-	  case XA_FSIZ:
-	    xopthlp[j] = "--fontsize:n";
-	    xarghlp[j] = "Font point size (number).";
-	    break;
+            xopthlp[j] = "--minimize";
+            xarghlp[j] = "start K95G window minimized.";
+            break;
+          case XA_XPOS:
+            xopthlp[j] = "--xpos:n";
+            xarghlp[j] = "X-coordinate of window position (number).";
+            break;
+          case XA_YPOS:
+            xopthlp[j] = "--ypos:n";
+            xarghlp[j] = "Y-coordinate of window position (number).";
+            break;
+          case XA_FNAM:
+            xopthlp[j] = "--fontname:s (or --facename:s)";
+            xarghlp[j] = "Font/typeface name: string with _ replacing blank.";
+            break;
+          case XA_FSIZ:
+            xopthlp[j] = "--fontsize:n";
+            xarghlp[j] = "Font point size (number).";
+            break;
           case XA_NOMN:
             xopthlp[j] = "--nomenubar";
             xarghlp[j] = "No Menu Bar";
@@ -2112,65 +2112,65 @@ inixopthlp() {
 #endif /* KUI */
 #ifndef NOPUSH
           case XA_NOPUSH:
-	    xopthlp[j] = "--nopush";
-	    xarghlp[j] = "Disable external command execution.";
-	    break;
+            xopthlp[j] = "--nopush";
+            xarghlp[j] = "Disable external command execution.";
+            break;
 #endif /* NOPUSH */
 #ifdef OS2
           case XA_LOCK:
-	    xopthlp[j] = "--lockdown";
-	    xarghlp[j] = "Enable all lockdown options.";
-	    break;
+            xopthlp[j] = "--lockdown";
+            xarghlp[j] = "Enable all lockdown options.";
+            break;
           case XA_NOCLOSE:
             xopthlp[j] = "--noclose";
             xarghlp[j] = "Disable Close Window and Menu Exit.";
             break;
           case XA_NOSCROLL:
-	    xopthlp[j] = "--noscroll";
-	    xarghlp[j] = "Disable scrollback operations.";
-	    break;
+            xopthlp[j] = "--noscroll";
+            xarghlp[j] = "Disable scrollback operations.";
+            break;
           case XA_NOESCAPE:
-	    xopthlp[j] = "--noescape";
-	    xarghlp[j] = "Disable escape from connect mode.";
-	    break;
-	  case XA_ROWS:
-	    xopthlp[j] = "--height:n";
-	    xarghlp[j] = "Screen height (number of rows).";
-	    break;
-	  case XA_COLS:
-	    xopthlp[j] = "--width:n";
-	    xarghlp[j] = "Screen width (number of columns).";
-	    break;
+            xopthlp[j] = "--noescape";
+            xarghlp[j] = "Disable escape from connect mode.";
+            break;
+          case XA_ROWS:
+            xopthlp[j] = "--height:n";
+            xarghlp[j] = "Screen height (number of rows).";
+            break;
+          case XA_COLS:
+            xopthlp[j] = "--width:n";
+            xarghlp[j] = "Screen width (number of columns).";
+            break;
           case XA_TITL:
             xopthlp[j] = "--title:string";
             xarghlp[j] = "Window Title.";
             break;
 #endif /* OS2 */
-	  case XA_CSET:
-	    xopthlp[j] = "--rcharset:name";
-	    xarghlp[j] = "Name of remote terminal character set.";
-	    break;
-	  case XA_TERM:
-	    xopthlp[j] = "--termtype:name";
+          case XA_CSET:
+            xopthlp[j] = "--rcharset:name";
+            xarghlp[j] = "Name of remote terminal character set.";
+            break;
+          case XA_TERM:
+            xopthlp[j] = "--termtype:name";
 #ifdef OS2
-	    xarghlp[j] = "Choose terminal emulation.";
+            xarghlp[j] = "Choose terminal emulation.";
 #else
-	    xarghlp[j] = "Choose terminal type.";
+            xarghlp[j] = "Choose terminal type.";
 #endif /* OS2 */
-	    break;
-	  case XA_USER:
-	    xopthlp[j] = "--user:name";
+            break;
+          case XA_USER:
+            xopthlp[j] = "--user:name";
 #ifndef NETCONN
-	    xarghlp[j] = "Username (for network login)";
+            xarghlp[j] = "Username (for network login)";
 #else
-	    xarghlp[j] = "Username.";
+            xarghlp[j] = "Username.";
 #endif /* NETCONN */
-	    break;
+            break;
 #ifdef HAVE_LOCALE
           case XA_NOLOCALE:
-	    xopthlp[j] = "--nolocale";
-	    xarghlp[j] = "Disable use of locale for messages and strings.";
-	    break;
+            xopthlp[j] = "--nolocale";
+            xarghlp[j] = "Disable use of locale for messages and strings.";
+            break;
 #endif /* HAVE_LOCALE */
        }
     }
@@ -2225,7 +2225,7 @@ iniopthlp() {
             break;
 #endif /* IKSD */
           case 'B': opthlp[i] =
-	  "Kermit is running in Batch or Background (no controlling terminal)";
+          "Kermit is running in Batch or Background (no controlling terminal)";
             break;
 #ifndef NOSPL
           case 'C':
@@ -2374,9 +2374,9 @@ iniopthlp() {
             optact[i] = 1;
 #ifdef OS2ORUNIX
             opthlp[i] =
-	      "Print this message (pipe thru 'more' to prevent scrolling)";
+              "Print this message (pipe thru 'more' to prevent scrolling)";
 #else
-	      "Print this message";
+              "Print this message";
 #endif /* OS2ORUNIX */
             arghlp[i] = NULL;
             break;
@@ -2388,7 +2388,7 @@ iniopthlp() {
           case 'j':                     /* SET HOST (TCP/IP socket) */
             opthlp[i] = "Make a TCP connection";
             arghlp[i] =
-	      "TCP host name/address and optional service name or number";
+              "TCP host name/address and optional service name or number";
             break;
 #endif /* TCPSOCKET */
           case 'k':                     /* receive to stdout */
@@ -2642,25 +2642,25 @@ doxarg(s,pre) char ** s; int pre;
 #endif /* CK_PERMS */
 
       case XA_ANFI:                     /* Anonymous init file */
-	if (!isabsolute(p))
-	  if (zfnqfp(p,CKMAXPATH,tmpbuf))
-	    p = tmpbuf;
+        if (!isabsolute(p))
+          if (zfnqfp(p,CKMAXPATH,tmpbuf))
+            p = tmpbuf;
         makestr(&anonfile,p);
         /* printf("anonfile=%s\n",anonfile); */
         break;
 
       case XA_USFI:                     /* IKS: Forbidden user file */
-	if (!isabsolute(p))
-	  if (zfnqfp(p,CKMAXPATH,tmpbuf))
-	    p = tmpbuf;
+        if (!isabsolute(p))
+          if (zfnqfp(p,CKMAXPATH,tmpbuf))
+            p = tmpbuf;
         makestr(&userfile,p);
         /* printf("userfile=%s\n",userfile); */
         break;
 
       case XA_ROOT:                     /* IKS: Anonymous root */
-	if (!isabsolute(p))
-	  if (zfnqfp(p,CKMAXPATH,tmpbuf))
-	    p = tmpbuf;
+        if (!isabsolute(p))
+          if (zfnqfp(p,CKMAXPATH,tmpbuf))
+            p = tmpbuf;
         makestr(&anonroot,p);
         /* printf("anonroot=%s\n",anonroot); */
         break;
@@ -2694,18 +2694,18 @@ doxarg(s,pre) char ** s; int pre;
         break;
 
       case XA_IKFI:                     /* Transfer log file */
-	if (!isabsolute(p))
-	  if (zfnqfp(p,CKMAXPATH,tmpbuf))
-	    p = tmpbuf;
+        if (!isabsolute(p))
+          if (zfnqfp(p,CKMAXPATH,tmpbuf))
+            p = tmpbuf;
         makestr(&xferfile,p);
         xferlog = 1;
         /* printf("xferfile=%s\n",xferfile); */
         break;
 
       case XA_BAFI:                     /* IKS: banner (greeting) file */
-	if (!isabsolute(p))
-	  if (zfnqfp(p,CKMAXPATH,tmpbuf))
-	    p = tmpbuf;
+        if (!isabsolute(p))
+          if (zfnqfp(p,CKMAXPATH,tmpbuf))
+            p = tmpbuf;
         makestr(&bannerfile,p);
         /* printf("bannerfile=%s\n",bannerfile); */
         break;
@@ -2727,9 +2727,9 @@ doxarg(s,pre) char ** s; int pre;
 #ifndef NOHELP
         /* Fall through */
       case XA_HEFI:                     /* IKS: custom help file */
-	if (!isabsolute(p))
-	  if (zfnqfp(p,CKMAXPATH,tmpbuf))
-	    p = tmpbuf;
+        if (!isabsolute(p))
+          if (zfnqfp(p,CKMAXPATH,tmpbuf))
+            p = tmpbuf;
         makestr(&helpfile,p);
         /* printf("helpfile=%s\n",helpfile); */
         break;
@@ -2748,13 +2748,13 @@ doxarg(s,pre) char ** s; int pre;
 #ifndef NOICP
         cmdint = 0;
 #endif /* NOICP */
-	xsuspend = 0;
+        xsuspend = 0;
         break;
 
 #ifdef UNIX
-      case XA_UNBUF:			/* Unbuffered console i/o*/
-	break;				/* This one is handled in ckcmai.c */
-#endif	/* UNIX */
+      case XA_UNBUF:                    /* Unbuffered console i/o*/
+        break;                          /* This one is handled in ckcmai.c */
+#endif  /* UNIX */
 
 #ifdef IKSDB
       case XA_DBFI: {
@@ -2762,16 +2762,16 @@ doxarg(s,pre) char ** s; int pre;
           extern int dbenabled;
           struct zfnfp * zz;
           if ((zz = zfnqfp(p,CKMAXPATH,tmpbuf))) {
-	      char *s, *s2 = NULL;
+              char *s, *s2 = NULL;
               makestr(&dbdir,zz->fpath);
               makestr(&dbfile,zz->fpath);
-	      for (s = dbdir; *s; s++) {
-		  if (ISDIRSEP(*s))
-		    s2 = s+1;
-	      }
-	      if (s2) *s2 = NUL;
-	      debug(F110,"XA_DBFI dbdir",dbdir,0);
-	      debug(F110,"XA_DBFI dbfile",dbfile,0);
+              for (s = dbdir; *s; s++) {
+                  if (ISDIRSEP(*s))
+                    s2 = s+1;
+              }
+              if (s2) *s2 = NUL;
+              debug(F110,"XA_DBFI dbdir",dbdir,0);
+              debug(F110,"XA_DBFI dbfile",dbfile,0);
               dbenabled = 1;
           }
           break;
@@ -2786,25 +2786,25 @@ doxarg(s,pre) char ** s; int pre;
 #endif /* IKSDB */
 
       case XA_VERS: {
-	  extern char * ck_s_ver;
-	  printf("%s",ck_s_ver);
-	  printf("\n");
-	  if (stayflg || what == W_COMMAND)
-	    break;
-	  else
-	    doexit(GOOD_EXIT,-1);
-	    /* doexit() does not return, but is not declared noreturn */
+          extern char * ck_s_ver;
+          printf("%s",ck_s_ver);
+          printf("\n");
+          if (stayflg || what == W_COMMAND)
+            break;
+          else
+            doexit(GOOD_EXIT,-1);
+            /* doexit() does not return, but is not declared noreturn */
       }
 #ifndef NOXFER
 #ifdef CK_PERMS
       /* Fall through */
       case XA_NPRM: {
-	  extern int atlpri, atlpro, atgpri, atgpro;
-	  atlpri = 0;
-	  atlpro = 0;
-	  atgpri = 0;
-	  atgpro = 0;
-	  break;
+          extern int atlpri, atlpro, atgpri, atgpro;
+          atlpri = 0;
+          atlpro = 0;
+          atgpri = 0;
+          atgpro = 0;
+          break;
       }
 #endif /* CK_PERMS */
 #endif /* NOXFER */
@@ -2826,49 +2826,49 @@ doxarg(s,pre) char ** s; int pre;
       case XA_XPOS:
         if (!rdigits(p))
           return(-1);
-	kui_init.pos_init++;
-	kui_init.pos_x = atoi(p);
+        kui_init.pos_init++;
+        kui_init.pos_x = atoi(p);
         break;
 
       case XA_YPOS:
         if (!rdigits(p))
           return(-1);
-	kui_init.pos_init++;
-	kui_init.pos_y = atoi(p);
+        kui_init.pos_init++;
+        kui_init.pos_y = atoi(p);
         break;
 
       case XA_FNAM: {
-	  extern struct _kui_init kui_init;
-	  extern struct keytab * term_font;
-	  extern struct keytab * _term_font;
-	  extern int tt_font, ntermfont;
-	  int x, z;
-	  if (ntermfont == 0)
-	    BuildFontTable(&term_font, &_term_font, &ntermfont);
-	  if (!(term_font && _term_font && ntermfont > 0)) {
+          extern struct _kui_init kui_init;
+          extern struct keytab * term_font;
+          extern struct keytab * _term_font;
+          extern int tt_font, ntermfont;
+          int x, z;
+          if (ntermfont == 0)
+            BuildFontTable(&term_font, &_term_font, &ntermfont);
+          if (!(term_font && _term_font && ntermfont > 0)) {
             printf("?Unable to construct Font Facename Table\n");
-	    return(0);
+            return(0);
           }
-	  x = lookup(term_font,p,ntermfont,&z);
-	  if (x < 0) {
+          x = lookup(term_font,p,ntermfont,&z);
+          if (x < 0) {
               x = lookup(_term_font,p,ntermfont,&z);
               if (x < 0) {
                   printf("?Invalid Font Facename: %s\n",p);
                   return(0);
               }
           }
-	  tt_font = x;
-	  kui_init.face_init++;
-	  makestr(&kui_init.facename,term_font[z].kwd);
-	  break;
+          tt_font = x;
+          kui_init.face_init++;
+          makestr(&kui_init.facename,term_font[z].kwd);
+          break;
       }
       case XA_FSIZ: {
-	  extern struct _kui_init kui_init;
-	  extern int tt_font_size;
+          extern struct _kui_init kui_init;
+          extern int tt_font_size;
           char * q;
           int halfpoint = 0;
 
-	  kui_init.font_init++;
+          kui_init.font_init++;
           for ( q=p ; *q ; q++ ) {
               if ( *q == '.') {
                   *q++ = '\0';
@@ -2882,10 +2882,10 @@ doxarg(s,pre) char ** s; int pre;
                   break;
               }
           }
-	  if (!rdigits(p))
-	    return(-1);
-	  tt_font_size = kui_init.font_size = 2 * atoi(p) + halfpoint;
-	  break;
+          if (!rdigits(p))
+            return(-1);
+          tt_font_size = kui_init.font_size = 2 * atoi(p) + halfpoint;
+          break;
       }
       case XA_NOMN:
         kui_init.nomenubar = 1;
@@ -2935,26 +2935,26 @@ doxarg(s,pre) char ** s; int pre;
 #endif /* OS2 */
 
 #ifndef NOLOCAL
-      case XA_TERM: {			/* Terminal type */
+      case XA_TERM: {                   /* Terminal type */
           extern struct keytab ttyptab[];
           extern int nttyp;
 #ifdef TNCODE
-	  extern char * tn_term;
+          extern char * tn_term;
 #endif /* TNCODE */
 #ifdef OS2
-	  int x, z;
-	  extern int tt_type, tt_type_mode;
-	  x = lookup(ttyptab,p,nttyp,&z);
-	  if (x < 0)
-	    return(-1);
-	  tt_type_mode = tt_type = x;
+          int x, z;
+          extern int tt_type, tt_type_mode;
+          x = lookup(ttyptab,p,nttyp,&z);
+          if (x < 0)
+            return(-1);
+          tt_type_mode = tt_type = x;
 #endif /* OS2 */
 #ifdef TNCODE
-	  makestr(&tn_term,p);
+          makestr(&tn_term,p);
 #endif /* TNCODE */
-	  break;
+          break;
       }
-      case XA_CSET: {			/* Remote Character Set */
+      case XA_CSET: {                   /* Remote Character Set */
 #ifndef NOCSETS
 #ifdef CKOUNI
           extern struct keytab txrtab[];
@@ -2965,47 +2965,47 @@ doxarg(s,pre) char ** s; int pre;
           extern int ntermc;
           x = lookup(ttcstab,p,ntermc,&z);
 #endif /* CKOUNI */
-	  if (x < 0)
-	    return(-1);
+          if (x < 0)
+            return(-1);
           setremcharset(z,4 /* TT_GR_ALL (in ckuus7.c) */);
 #else /* NOCSETS */
           return(-1);
 #endif /* NOCSETS */
-	  break;
+          break;
       }
-      case XA_ROWS: {			/* Screen rows (height) */
+      case XA_ROWS: {                   /* Screen rows (height) */
 #ifdef OS2
           extern int row_init;
 #else /* OS2 */
-	  extern int tt_rows;
+          extern int tt_rows;
 #endif /* OS2 */
-	  if (!rdigits(p))
-	    return(-1);
+          if (!rdigits(p))
+            return(-1);
 #ifdef OS2
-	  if (!os2_settermheight(atoi(p)))
-	    return(-1);
+          if (!os2_settermheight(atoi(p)))
+            return(-1);
           row_init++;
 #else  /* Not OS/2 */
-	  tt_rows = atoi(p);
+          tt_rows = atoi(p);
 #endif /* OS2 */
-	  break;
+          break;
       }
-      case XA_COLS: {			/* Screen columns (width) */
+      case XA_COLS: {                   /* Screen columns (width) */
 #ifdef OS2
           extern int col_init;
 #else /* OS2 */
-	  extern int tt_cols;
+          extern int tt_cols;
 #endif /* OS2 */
-	  if (!rdigits(p))
-	    return(-1);
+          if (!rdigits(p))
+            return(-1);
 #ifdef OS2
-	  if (!os2_settermwidth(atoi(p)))
-	    return(-1);
+          if (!os2_settermwidth(atoi(p)))
+            return(-1);
           col_init++;
 #else  /* Not OS/2 */
-	  tt_cols = atoi(p);
+          tt_cols = atoi(p);
 #endif /* OS2 */
-	  break;
+          break;
       }
 #ifdef OS2
     case XA_TITL: {
@@ -3016,29 +3016,29 @@ doxarg(s,pre) char ** s; int pre;
     }
 #endif /* OS2 */
 
-#ifdef COMMENT				/* TO BE FILLED IN ... */
-      case XA_TEL:			/* Make a Telnet connection */
-      case XA_FTP:			/* Make an FTP connection */
-      case XA_SSH:			/* Make an SSH connection */
+#ifdef COMMENT                          /* TO BE FILLED IN ... */
+      case XA_TEL:                      /* Make a Telnet connection */
+      case XA_FTP:                      /* Make an FTP connection */
+      case XA_SSH:                      /* Make an SSH connection */
 #endif /* COMMENT */
 
 #ifndef NOSPL
-      case XA_USER:			/* Username for login */
+      case XA_USER:                     /* Username for login */
 #ifdef IKSD
-	if (!inserver)
+        if (!inserver)
 #endif /* IKSD */
-	{
-	    ckstrncpy(uidbuf,*xargv,UIDBUFLEN);
-	    haveftpuid = 1;
-	}
-	break;
+        {
+            ckstrncpy(uidbuf,*xargv,UIDBUFLEN);
+            haveftpuid = 1;
+        }
+        break;
 #endif /* NOSPL */
 #endif /* NOLOCAL */
 
-      case XA_NOLOCALE: {		/* Don't do locale */
-	  extern int nolocale;
-	  nolocale = 1;
-	  break;
+      case XA_NOLOCALE: {               /* Don't do locale */
+          extern int nolocale;
+          nolocale = 1;
+          break;
       }
       default:
         return(-1);
@@ -3142,7 +3142,7 @@ static int nikstab = sizeof(ikstab) / sizeof(struct keytab);
 
 #ifndef NOICP
 int
-setiks() {				/* SET IKS */
+setiks() {                              /* SET IKS */
 #ifdef IKSDCONF
 #ifdef CK_LOGIN
     extern int ckxsyslog, ckxwtmp, ckxanon;
@@ -3176,7 +3176,7 @@ setiks() {				/* SET IKS */
 #ifdef CK_LOGIN
     if (y == IKS_ANON) {
         if ((y = cmkey(iksantab,niksantab,"","",xxstring)) < 0)
-	  return(y);
+          return(y);
     }
 #endif /* CK_LOGIN */
 
@@ -3184,7 +3184,7 @@ setiks() {				/* SET IKS */
 #ifdef CKSYSLOG
       case IKS_SYSL:                     /* IKS: Syslog level */
         if ((z = cmkey(oktab,noktab,"","",xxstring)) < 0)
-	  return(z);
+          return(z);
         if ((x = cmcfm()) < 0) return(x);
         if (iksdcf) return(success = 0);
 #ifndef SYSLOGLEVEL
@@ -3214,7 +3214,7 @@ setiks() {				/* SET IKS */
         if ((z = cmtxt(
  "DOMAIN to be used for user authentication when none is specified",
                        "", &s,xxstring)) < 0)
-	  return(z);
+          return(z);
         if (iksdcf) return(success = 0);
         if (!*s) s= NULL;
           makestr(&iks_domain,s);
@@ -3223,32 +3223,32 @@ setiks() {				/* SET IKS */
 #ifdef OS2
       case IKS_ACCT:
         if ((z = cmtxt("Name of local account to use for anonymous logins",
-			"GUEST", &s,xxstring)) < 0)
-	  return(z);
+                        "GUEST", &s,xxstring)) < 0)
+          return(z);
         if (iksdcf) return(success = 0);
         if (*s) {
             makestr(&anonacct,s);
         } else if ( anonacct ) {
-	    free(anonacct);
-	    anonacct = NULL;
-	}
+            free(anonacct);
+            anonacct = NULL;
+        }
         break;
 #endif /* OS2 */
       case IKS_ANLG:
         if ((z = cmkey(oktab,noktab,"","no",xxstring)) < 0)
-	  return(z);
+          return(z);
         if ((x = cmcfm()) < 0) return(x);
         if (iksdcf) return(success = 0);
         ckxanon = z;
 #ifdef OS2
-	if (ckxanon && !anonacct)
-	  makestr(&anonacct,"GUEST");
+        if (ckxanon && !anonacct)
+          makestr(&anonacct,"GUEST");
 #endif /* OS2 */
         break;
 #endif /* CK_LOGIN */
       case IKS_BAFI:
         if ((z = cmifi("Filename","",&s,&x,xxstring)) < 0)
-	  return(z);
+          return(z);
         if (x) {
             printf("?Wildcards not allowed\n");
             return(-9);
@@ -3261,12 +3261,12 @@ setiks() {				/* SET IKS */
         if ((x = cmcfm()) < 0) return(x);
         if (iksdcf) return(success = 0);
         if (*s)
-	  makestr(&bannerfile,s);
+          makestr(&bannerfile,s);
         break;
       case IKS_CDFI:
         if ((z = cmtxt("list of cd message file names","READ.ME",
-		       &s,xxstring)) < 0)
-	  return(z);
+                       &s,xxstring)) < 0)
+          return(z);
         if (iksdcf) return(success = 0);
         if (*s) {
             makelist(s,cdmsgfile,16);
@@ -3275,14 +3275,14 @@ setiks() {				/* SET IKS */
         break;
       case IKS_CDMS:
         if ((z = cmkey(oktab,noktab,"","no",xxstring)) < 0)
-	  return(z);
+          return(z);
         if ((x = cmcfm()) < 0) return(x);
         if (iksdcf) return(success = 0);
         srvcdmsg = z;
         break;
       case IKS_HEFI:
         if ((z = cmifi("Filename","",&s,&x,xxstring)) < 0)
-	  return(z);
+          return(z);
         if (x) {
             printf("?Wildcards not allowed\n");
             return(-9);
@@ -3292,11 +3292,11 @@ setiks() {				/* SET IKS */
         if ((x = cmcfm()) < 0) return(x);
         if (iksdcf) return(success = 0);
         if (*s)
-	  makestr(&helpfile,s);
+          makestr(&helpfile,s);
         break;
       case IKS_ANFI:
         if ((z = cmifi("Filename","",&s,&x,xxstring)) < 0)
-	  return(z);
+          return(z);
         if (x) {
             printf("?Wildcards not allowed\n");
             return(-9);
@@ -3311,7 +3311,7 @@ setiks() {				/* SET IKS */
         break;
       case IKS_USFI:
         if ((z = cmifi("Filename","",&s,&x,xxstring)) < 0)
-	  return(z);
+          return(z);
         if (x) {
             printf("?Wildcards not allowed\n");
             return(-9);
@@ -3326,7 +3326,7 @@ setiks() {				/* SET IKS */
         break;
       case IKS_IKFI:
         if ((z = cmifi("Filename","",&s,&x,xxstring)) < 0)
-	  return(z);
+          return(z);
         if (x) {
             printf("?Wildcards not allowed\n");
             return(-9);
@@ -3342,7 +3342,7 @@ setiks() {				/* SET IKS */
         break;
       case IKS_IKLG:
         if ((z = cmkey(oktab,noktab,"","no",xxstring)) < 0)
-	  return(z);
+          return(z);
         if ((x = cmcfm()) < 0) return(x);
         if (iksdcf) return(success = 0);
         xferlog = z;
@@ -3352,9 +3352,9 @@ setiks() {				/* SET IKS */
 #ifdef CK_PERM
       case IKS_PERM:
         if ((z = cmtxt("Octal file permssion code","000",
-		       &s,xxstring)) < 0)
-	  return(z);
-	if (z < 0) return(z);
+                       &s,xxstring)) < 0)
+          return(z);
+        if (z < 0) return(z);
         if (iksdcf) return(success = 0);
         y = 0;
         while (*s) {
@@ -3368,7 +3368,7 @@ setiks() {				/* SET IKS */
 #ifdef UNIX
       case IKS_PRIV:                     /* IKS: Priv'd login allowed */
         if ((z = cmkey(oktab,noktab,"","no",xxstring)) < 0)
-	  return(z);
+          return(z);
         if ((x = cmcfm()) < 0) return(x);
         if (iksdcf) return(success = 0);
         ckxpriv = z;
@@ -3376,26 +3376,26 @@ setiks() {				/* SET IKS */
 #endif /* UNIX */
 
       case IKS_ROOT:                     /* IKS: Anonymous root */
-	if ((z = cmdir("Name of disk and/or directory","",&s,
-		       xxstring)) < 0 ) {
-	    if (z != -3)
-	      return(z);
-	}
+        if ((z = cmdir("Name of disk and/or directory","",&s,
+                       xxstring)) < 0 ) {
+            if (z != -3)
+              return(z);
+        }
         if (*s) {
-	    if (zfnqfp(s,CKMAXPATH,tmpbuf))
-	      s = tmpbuf;
+            if (zfnqfp(s,CKMAXPATH,tmpbuf))
+              s = tmpbuf;
         } else
-	  s = "";
+          s = "";
         if ((x = cmcfm()) < 0) return(x);
         if (iksdcf) return(success = 0);
         if (*s)
-	  makestr(&anonroot,s);
+          makestr(&anonroot,s);
         /* printf("anonroot=%s\n",anonroot); */
         break;
 
       case IKS_TIMO:
-	z = cmnum("login timeout, seconds","0",10,&x,xxstring);
-	if (z < 0) return(z);
+        z = cmnum("login timeout, seconds","0",10,&x,xxstring);
+        if (z < 0) return(z);
         if (x < 0 || x > 7200) {
             printf("?Value must be between 0 and 7200\r\n");
             return(-9);
@@ -3408,7 +3408,7 @@ setiks() {				/* SET IKS */
 #ifdef CKWTMP
       case IKS_WTMP:                     /* IKS: wtmp log */
         if ((z = cmkey(oktab,noktab,"","no",xxstring)) < 0)
-	  return(z);
+          return(z);
         if ((x = cmcfm()) < 0) return(x);
         if (iksdcf) return(success = 0);
         ckxwtmp = z;
@@ -3416,7 +3416,7 @@ setiks() {				/* SET IKS */
 
       case IKS_WTFI:                     /* IKS: wtmp logfile */
         if ((z = cmifi("Filename","",&s,&x,xxstring)) < 0)
-	  return(z);
+          return(z);
         if (x) {
             printf("?Wildcards not allowed\n");
             return(-9);
@@ -3426,7 +3426,7 @@ setiks() {				/* SET IKS */
         if ((x = cmcfm()) < 0) return(x);
         if (iksdcf) return(success = 0);
         if (*s)
-	  makestr(&wtmpfile,s);
+          makestr(&wtmpfile,s);
         break;
 #endif /* CKWTMP */
 #endif /* CK_LOGIN */
@@ -3436,7 +3436,7 @@ setiks() {				/* SET IKS */
           extern int dbenabled;
           struct zfnfp * zz;
           if ((z = cmifi("Filename","",&s,&x,xxstring)) < 0)
-	    return(z);
+            return(z);
           if (x) {
               printf("?Wildcards not allowed\n");
               return(-9);
@@ -3449,13 +3449,13 @@ setiks() {				/* SET IKS */
               makestr(&dbfile,(char *)tmpbuf);
               dbenabled = 1;
           } else
-	    return(success = 0);
+            return(success = 0);
           break;
       }
       case IKS_DBAS: {
           extern int dbenabled;
           if ((z = cmkey(oktab,noktab,"","no",xxstring)) < 0)
-	    return(z);
+            return(z);
           if ((x = cmcfm()) < 0) return(x);
           if (iksdcf) return(success = 0);
           dbenabled = z;
@@ -3465,17 +3465,17 @@ setiks() {				/* SET IKS */
 
       case IKS_INIT:
         if ((z = cmtxt("Alternate init file specification","",
-		       &s,xxstring)) < 0)
-	  return(z);
+                       &s,xxstring)) < 0)
+          return(z);
         if (z < 0) return(z);
         if (iksdcf) return(success = 0);
         ckstrncpy(kermrc,s,KERMRCL);
-        rcflag = 1;			/* Flag that this has been done */
+        rcflag = 1;                     /* Flag that this has been done */
         break;
 
       case IKS_NOIN:
         if ((z = cmkey(oktab,noktab,"","no",xxstring)) < 0)
-	  return(z);
+          return(z);
         if ((x = cmcfm()) < 0) return(x);
         if (iksdcf) return(success = 0);
         noinit = z;
@@ -3483,7 +3483,7 @@ setiks() {				/* SET IKS */
 
       case IKS_SRVR:
         if ((z = cmkey(oktab,noktab,"","no",xxstring)) < 0)
-	  return(z);
+          return(z);
         if ((x = cmcfm()) < 0) return(x);
         if (iksdcf) return(success = 0);
         arg_x = z;
@@ -3530,340 +3530,340 @@ extern char *line, *tmpbuf;             /* Character buffers for anything */
         switch (x) {                    /* Big switch on arg */
 
 #ifndef NOICP
-	  case '-':			/* Extended commands... */
-	    if (doxarg(xargv,0) < 0) {
-		XFATAL("Extended option error");
-	    }
-	    /* Fall through */
-	  case '+':			/* Extended command for prescan() */
-	    return(0);
+          case '-':                     /* Extended commands... */
+            if (doxarg(xargv,0) < 0) {
+                XFATAL("Extended option error");
+            }
+            /* Fall through */
+          case '+':                     /* Extended command for prescan() */
+            return(0);
 #else  /* NOICP */
-	  case '-':
-	  case '+':
-	    XFATAL("Extended options not configured");
+          case '-':
+          case '+':
+            XFATAL("Extended options not configured");
 #endif /* NOICP */
 
 #ifndef NOSPL
-	  case 'C': {			/* Commands for parser */
-	      char * s;
-	      xargv++, xargc--;
-	      if ((xargc < 1) || (**xargv == '-')) {
-		  XFATAL("No commands given for -C");
-	      }
-	      s = *xargv;		/* Get the argument (must be quoted) */
-	      if (!*s)			/* If empty quotes */
-		s = NULL;		/* ignore this option */
-	      if (s) {
-		  makestr(&clcmds,s);	/* Make pokeable copy */
-		  s = clcmds;		/* Change tabs to spaces */
-		  while (*s) {
-		      if (*s == '\t') *s = ' ';
-		      s++;
-		  }
-	      }
-	      break;
-	  }
+          case 'C': {                   /* Commands for parser */
+              char * s;
+              xargv++, xargc--;
+              if ((xargc < 1) || (**xargv == '-')) {
+                  XFATAL("No commands given for -C");
+              }
+              s = *xargv;               /* Get the argument (must be quoted) */
+              if (!*s)                  /* If empty quotes */
+                s = NULL;               /* ignore this option */
+              if (s) {
+                  makestr(&clcmds,s);   /* Make pokeable copy */
+                  s = clcmds;           /* Change tabs to spaces */
+                  while (*s) {
+                      if (*s == '\t') *s = ' ';
+                      s++;
+                  }
+              }
+              break;
+          }
 #endif /* NOSPL */
 
 #ifndef NOXFER
-	  case 'D':			/* Delay */
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("missing delay value");
-	    }
-	    z = atoi(*xargv);		/* Convert to number */
-	    if (z > -1)			/* If in range */
-	      ckdelay = z;		/* set it */
-	    else {
-		XFATAL("bad delay value");
-	    }
-	    break;
+          case 'D':                     /* Delay */
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("missing delay value");
+            }
+            z = atoi(*xargv);           /* Convert to number */
+            if (z > -1)                 /* If in range */
+              ckdelay = z;              /* set it */
+            else {
+                XFATAL("bad delay value");
+            }
+            break;
 #endif /* NOXFER */
 
-	  case 'E':			/* Exit on close */
+          case 'E':                     /* Exit on close */
 #ifdef NETCONN
-	    tn_exit = 1;
+            tn_exit = 1;
 #endif /* NETCONN */
-	    exitonclose = 1;
-	    break;
+            exitonclose = 1;
+            break;
 
 #ifndef NOICP
-	  case 'S':			/* "Stay" - enter interactive */
-	    stayflg = 1;		/* command parser after executing */
-	    xfinish = 0;		/* command-line actions. */
-	    break;
+          case 'S':                     /* "Stay" - enter interactive */
+            stayflg = 1;                /* command parser after executing */
+            xfinish = 0;                /* command-line actions. */
+            break;
 #endif /* NOICP */
 
-	  case 'T':			/* File transfer mode = text */
-	    binary = XYFT_T;
-	    xfermode = XMODE_M;		/* Transfer mode manual */
-	    filepeek = 0;
+          case 'T':                     /* File transfer mode = text */
+            binary = XYFT_T;
+            xfermode = XMODE_M;         /* Transfer mode manual */
+            filepeek = 0;
 #ifdef PATTERNS
-	    patterns = 0;
+            patterns = 0;
 #endif /* PATTERNS */
-	    break;
+            break;
 
-	  case '7':
-	    break;
+          case '7':
+            break;
 
 #ifdef IKSD
-	  case 'A': {			/* Internet server */
-	      /* Already done in prescan() */
-	      /* but implies 'x' &&  'Q'   */
+          case 'A': {                   /* Internet server */
+              /* Already done in prescan() */
+              /* but implies 'x' &&  'Q'   */
 #ifdef OS2
-	      char * p;
-	      if (*(xp+1)) {
-		  XFATAL("invalid argument bundling");
-	      }
+              char * p;
+              if (*(xp+1)) {
+                  XFATAL("invalid argument bundling");
+              }
 #ifdef NT
-	      /* Support for Pragma Systems Telnet/Terminal Servers */
-	      p = getenv("PRAGMASYS_INETD_SOCK");
-	      if (!(p && atoi(p) != 0)) {
-		  xargv++, xargc--;
-		  if (xargc < 1 || **xargv == '-') {
-		      XFATAL("missing socket handle");
-		  }
-	      }
+              /* Support for Pragma Systems Telnet/Terminal Servers */
+              p = getenv("PRAGMASYS_INETD_SOCK");
+              if (!(p && atoi(p) != 0)) {
+                  xargv++, xargc--;
+                  if (xargc < 1 || **xargv == '-') {
+                      XFATAL("missing socket handle");
+                  }
+              }
 #else /* NT */
-	      xargv++, xargc--;
-	      if (xargc < 1 || **xargv == '-') {
-		  XFATAL("missing socket handle");
-	      }
+              xargv++, xargc--;
+              if (xargc < 1 || **xargv == '-') {
+                  XFATAL("missing socket handle");
+              }
 #endif /* NT */
 #endif /* OS2 */
 #ifdef NOICP                            /* If no Interactive Command Parser */
-	      action = 'x';		/* -A implies -x. */
+              action = 'x';             /* -A implies -x. */
 #endif /* NOICP */
 #ifndef NOXFER
-	      dofast();
+              dofast();
 #endif /* NOXFER */
-	      break;
-	  }
+              break;
+          }
 #endif /* IKSD */
 
 #ifndef NOXFER
-	  case 'Q':			/* Quick (i.e. FAST) */
-	    dofast();
-	    break;
+          case 'Q':                     /* Quick (i.e. FAST) */
+            dofast();
+            break;
 #endif /* NOXFER */
 
-	  case 'R':			/* Remote-Only */
-	    break;			/* This is handled in prescan(). */
+          case 'R':                     /* Remote-Only */
+            break;                      /* This is handled in prescan(). */
 
 #ifndef NOSERVER
-	  case 'x':			/* server */
-	  case 'O':			/* (for One command only) */
-	    if (action) {
-		XFATAL("conflicting actions");
-	    }
-	    if (x == 'O') justone = 1;
-	    xfinish = 1;
-	    action = 'x';
-	    break;
+          case 'x':                     /* server */
+          case 'O':                     /* (for One command only) */
+            if (action) {
+                XFATAL("conflicting actions");
+            }
+            if (x == 'O') justone = 1;
+            xfinish = 1;
+            action = 'x';
+            break;
 #endif /* NOSERVER */
 
 #ifndef NOXFER
-	  case 'f':			/* finish */
-	    if (action) {
-		XFATAL("conflicting actions");
-	    }
-	    action = setgen('F',"","","");
-	    break;
+          case 'f':                     /* finish */
+            if (action) {
+                XFATAL("conflicting actions");
+            }
+            action = setgen('F',"","","");
+            break;
 #endif /* NOXFER */
 
-	  case 'r': {			/* receive */
-	      if (action) {
-		  XFATAL("conflicting actions");
-	      }
-	      action = 'v';
-	      break;
-	  }
+          case 'r': {                   /* receive */
+              if (action) {
+                  XFATAL("conflicting actions");
+              }
+              action = 'v';
+              break;
+          }
 
 #ifndef NOXFER
-	  case 'k':			/* receive to stdout */
-	    if (action) {
-		XFATAL("conflicting actions");
-	    }
-	    stdouf = 1;
-	    action = 'v';
-	    break;
+          case 'k':                     /* receive to stdout */
+            if (action) {
+                XFATAL("conflicting actions");
+            }
+            stdouf = 1;
+            action = 'v';
+            break;
 
-	  case 's': {			/* send */
-	      int fil2snd, rc;
-	      if (!recursive)
-	      nolinks = 0;		/* Follow links by default */
+          case 's': {                   /* send */
+              int fil2snd, rc;
+              if (!recursive)
+              nolinks = 0;              /* Follow links by default */
 
-	      if (action) {
-		  XFATAL("conflicting actions");
-	      }
-	      if (*(xp+1)) {
-		  XFATAL("invalid argument bundling after -s");
-	      }
-	      nfils = 0;		/* Initialize file counter */
-	      fil2snd = 0;		/* Assume nothing to send  */
-	      z = 0;			/* Flag for stdin */
-	      cmlist = xargv + 1;	/* Remember this pointer */
-	      while (++xargv, --xargc > 0) { /* Traverse the list */
+              if (action) {
+                  XFATAL("conflicting actions");
+              }
+              if (*(xp+1)) {
+                  XFATAL("invalid argument bundling after -s");
+              }
+              nfils = 0;                /* Initialize file counter */
+              fil2snd = 0;              /* Assume nothing to send  */
+              z = 0;                    /* Flag for stdin */
+              cmlist = xargv + 1;       /* Remember this pointer */
+              while (++xargv, --xargc > 0) { /* Traverse the list */
 #ifdef PIPESEND
-		  if (usepipes && protocol == PROTO_K && **xargv == '!') {
-		      cmarg = *xargv;
-		      cmarg++;
-		      debug(F110,"doarg pipesend",cmarg,0);
-		      nfils = -1;
-		      z = 1;
-		      pipesend = 1;
-		  } else
+                  if (usepipes && protocol == PROTO_K && **xargv == '!') {
+                      cmarg = *xargv;
+                      cmarg++;
+                      debug(F110,"doarg pipesend",cmarg,0);
+                      nfils = -1;
+                      z = 1;
+                      pipesend = 1;
+                  } else
 #endif /* PIPESEND */
-		    if (**xargv == '-') { /* Check for sending stdin */
-			if (strcmp(*xargv,"-") != 0) /* next option? */
-			  break;
-			z++;		/* "-" alone means send from stdin. */
+                    if (**xargv == '-') { /* Check for sending stdin */
+                        if (strcmp(*xargv,"-") != 0) /* next option? */
+                          break;
+                        z++;            /* "-" alone means send from stdin. */
 #ifdef RECURSIVE
-		    } else if (!strcmp(*xargv,".")) {
-			fil2snd = 1;
-			nfils++;
-			recursive = 1;
-			nolinks = 2;
+                    } else if (!strcmp(*xargv,".")) {
+                        fil2snd = 1;
+                        nfils++;
+                        recursive = 1;
+                        nolinks = 2;
 #endif /* RECURSIVE */
-		    } else /* Check if file exists */
-		      if ((rc = zchki(*xargv)) > -1 || (rc == -2)) {
-			  if  (rc != -2)
-			    fil2snd = 1;
-			  nfils++;	/* Bump file counter */
-		      } else if (iswild(*xargv) && nzxpand(*xargv,0) > 0) {
-		      /* or contains wildcard characters matching real files */
-			  fil2snd = 1;
-			  nfils++;
-		      } else {
-			  if (!failmsg)
-			    failmsg = (char *)malloc(2000);
-			  if (failmsg) {
-			      ckmakmsg(failmsg,2000,
+                    } else /* Check if file exists */
+                      if ((rc = zchki(*xargv)) > -1 || (rc == -2)) {
+                          if  (rc != -2)
+                            fil2snd = 1;
+                          nfils++;      /* Bump file counter */
+                      } else if (iswild(*xargv) && nzxpand(*xargv,0) > 0) {
+                      /* or contains wildcard characters matching real files */
+                          fil2snd = 1;
+                          nfils++;
+                      } else {
+                          if (!failmsg)
+                            failmsg = (char *)malloc(2000);
+                          if (failmsg) {
+                              ckmakmsg(failmsg,2000,
 #ifdef VMS
-				       "%CKERMIT-E-SEARCHFAIL "
+                                       "%CKERMIT-E-SEARCHFAIL "
 #else
-				       "kermit -s "
-#endif	/* VMS */
-				       ,
-				       *xargv,
-				       ": ",
-				       ck_errstr()
-				       );
-			  }
-		      }
-	      }
-	      xargc++, xargv--;		/* Adjust argv/argc */
-	      if (!fil2snd && z == 0) {
-		  if (!failmsg) {
+                                       "kermit -s "
+#endif  /* VMS */
+                                       ,
+                                       *xargv,
+                                       ": ",
+                                       ck_errstr()
+                                       );
+                          }
+                      }
+              }
+              xargc++, xargv--;         /* Adjust argv/argc */
+              if (!fil2snd && z == 0) {
+                  if (!failmsg) {
 #ifdef VMS
-		      failmsg = "%CKERMIT-E-SEARCHFAIL, no files for -s";
+                      failmsg = "%CKERMIT-E-SEARCHFAIL, no files for -s";
 #else
-		      failmsg = "No files for -s";
+                      failmsg = "No files for -s";
 #endif /* VMS */
-		  }
-		  XFATAL(failmsg);
-	      }
-	      if (z > 1) {
-		  XFATAL("kermit -s: too many -'s");
-	      }
-	      if (z == 1 && fil2snd) {
-		  XFATAL("invalid mixture of filenames and '-' in -s");
-	      }
-	      debug(F101,"doarg s nfils","",nfils);
-	      debug(F101,"doarg s z","",z);
-	      if (nfils == 0) {		/* no file parameters were specified */
-		  if (is_a_tty(0)) {	/* (used to be is_a_tty(1) - why?) */
-		      XFATAL("sending from terminal not allowed");
-		  } else stdinf = 1;
-	      }
-	      debug(F101,"doarg s stdinf","",stdinf);
-	      debug(F111,"doarg",*xargv,nfils);
-	      action = 's';
-	      break;
-	  }
+                  }
+                  XFATAL(failmsg);
+              }
+              if (z > 1) {
+                  XFATAL("kermit -s: too many -'s");
+              }
+              if (z == 1 && fil2snd) {
+                  XFATAL("invalid mixture of filenames and '-' in -s");
+              }
+              debug(F101,"doarg s nfils","",nfils);
+              debug(F101,"doarg s z","",z);
+              if (nfils == 0) {         /* no file parameters were specified */
+                  if (is_a_tty(0)) {    /* (used to be is_a_tty(1) - why?) */
+                      XFATAL("sending from terminal not allowed");
+                  } else stdinf = 1;
+              }
+              debug(F101,"doarg s stdinf","",stdinf);
+              debug(F111,"doarg",*xargv,nfils);
+              action = 's';
+              break;
+          }
 
-	  case 'g':			/* get */
-	  case 'G':			/* get to stdout */
-	    if (action) {
-		XFATAL("conflicting actions");
-	    }
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling after -g");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc == 0) || (**xargv == '-')) {
-		XFATAL("missing filename for -g");
-	    }
-	    if (x == 'G') stdouf = 1;
-	    cmarg = *xargv;
-	    action = 'r';
-	    break;
+          case 'g':                     /* get */
+          case 'G':                     /* get to stdout */
+            if (action) {
+                XFATAL("conflicting actions");
+            }
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling after -g");
+            }
+            xargv++, xargc--;
+            if ((xargc == 0) || (**xargv == '-')) {
+                XFATAL("missing filename for -g");
+            }
+            if (x == 'G') stdouf = 1;
+            cmarg = *xargv;
+            action = 'r';
+            break;
 #endif /* NOXFER */
 
 #ifndef NOLOCAL
-	  case 'c':			/* connect before */
-	    cflg = 1;
-	    break;
+          case 'c':                     /* connect before */
+            cflg = 1;
+            break;
 
-	  case 'n':			/* connect after */
-	    cnflg = 1;
-	    break;
+          case 'n':                     /* connect after */
+            cnflg = 1;
+            break;
 #endif /* NOLOCAL */
 
-	  case 'h':			/* help */
-	    usage();
+          case 'h':                     /* help */
+            usage();
 #ifndef NOICP
-	    if (stayflg || what == W_COMMAND)
-	      break;
-	    else
+            if (stayflg || what == W_COMMAND)
+              break;
+            else
 #endif /* NOICP */
-	      doexit(GOOD_EXIT,-1);
-	      /* doexit() does not return, but is not declared noreturn */
+              doexit(GOOD_EXIT,-1);
+              /* doexit() does not return, but is not declared noreturn */
 
 #ifndef NOXFER
-	      /* Fall through */
-	  case 'a':			/* "as" */
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling after -a");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("missing name in -a");
-	    }
-	    cmarg2 = *xargv;
-	    debug(F111,"doarg a",cmarg2,xargc);
-	    break;
+              /* Fall through */
+          case 'a':                     /* "as" */
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling after -a");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("missing name in -a");
+            }
+            cmarg2 = *xargv;
+            debug(F111,"doarg a",cmarg2,xargc);
+            break;
 #endif /* NOXFER */
 
 #ifndef NOICP
-	  case 'Y':			/* No initialization file */
-	    noinit = 1;
-	    break;
+          case 'Y':                     /* No initialization file */
+            noinit = 1;
+            break;
 
-	  case 'y':			/* Alternate init-file name */
-	    noinit = 0;
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling after -y");
-	    }
-	    xargv++, xargc--;
-	    if (xargc < 1) {
-		XFATAL("missing filename in -y");
-	    }
-	    /* strcpy(kermrc,*xargv); ... already done in prescan()... */
-	    break;
+          case 'y':                     /* Alternate init-file name */
+            noinit = 0;
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling after -y");
+            }
+            xargv++, xargc--;
+            if (xargc < 1) {
+                XFATAL("missing filename in -y");
+            }
+            /* strcpy(kermrc,*xargv); ... already done in prescan()... */
+            break;
 #endif /* NOICP */
 
 #ifndef NOXFER
-	  case 'I':			/* Assume we have an "Internet" */
-	    reliable = 1;		/* or other reliable connection */
-	    xreliable = 1;
-	    setreliable = 1;
+          case 'I':                     /* Assume we have an "Internet" */
+            reliable = 1;               /* or other reliable connection */
+            xreliable = 1;
+            setreliable = 1;
 
-	    /* I'm not so sure about this -- what about VMS? (next comment) */
-	    clearrq = 1;		/* therefore the channel is clear */
+            /* I'm not so sure about this -- what about VMS? (next comment) */
+            clearrq = 1;                /* therefore the channel is clear */
 
 #ifndef VMS
 /*
@@ -3872,53 +3872,53 @@ extern char *line, *tmpbuf;             /* Character buffers for anything */
   we can become deadlocked the first time we receive a file that contains
   Xoff.
 */
-	    flow = FLO_NONE;
+            flow = FLO_NONE;
 #endif /* VMS */
-	    break;
+            break;
 #endif /* NOXFER */
 
 #ifndef NOLOCAL
-	  case 'l':			/* SET LINE */
+          case 'l':                     /* SET LINE */
 #ifdef NETCONN
 #ifdef ANYX25
-	  case 'X':			/* SET HOST to X.25 address */
+          case 'X':                     /* SET HOST to X.25 address */
 #ifdef SUNX25
-	  case 'Z':			/* SET HOST to X.25 file descriptor */
+          case 'Z':                     /* SET HOST to X.25 file descriptor */
 #endif /* SUNX25 */
 #endif /* ANYX25 */
 #ifdef TCPSOCKET
-	  case 'J':
-	  case 'j':			/* SET HOST (TCP/IP socket) */
+          case 'J':
+          case 'j':                     /* SET HOST (TCP/IP socket) */
 #endif /* TCPSOCKET */
 #endif /* NETCONN */
 #ifndef NOXFER
-	    if (x == 'j' || x == 'J' || x == 'X' || x == 'Z') {
-		reliable = 1;		/* or other reliable connection */
-		xreliable = 1;
-		setreliable = 1;
-	    }
+            if (x == 'j' || x == 'J' || x == 'X' || x == 'Z') {
+                reliable = 1;           /* or other reliable connection */
+                xreliable = 1;
+                setreliable = 1;
+            }
 #endif /* NOXFER */
-	    network = 0;
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling after -l or -j");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("communication line device name missing");
-	    }
+            network = 0;
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling after -l or -j");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("communication line device name missing");
+            }
 
 #ifdef NETCONN
-	    if (x == 'J') {
-		cflg    = 1;		/* Connect */
-		stayflg = 1;		/* Stay */
-		tn_exit = 1;		/* Telnet-like exit condition */
-		exitonclose = 1;
-	    }
+            if (x == 'J') {
+                cflg    = 1;            /* Connect */
+                stayflg = 1;            /* Stay */
+                tn_exit = 1;            /* Telnet-like exit condition */
+                exitonclose = 1;
+            }
 #endif /* NETCONN */
-	    ckstrncpy(ttname,*xargv,TTNAMLEN+1);
-	    local = (strcmp(ttname,CTTNAM) != 0);
-	    if (local && strcmp(ttname,"0") == 0)
-	      local = 0;
+            ckstrncpy(ttname,*xargv,TTNAMLEN+1);
+            local = (strcmp(ttname,CTTNAM) != 0);
+            if (local && strcmp(ttname,"0") == 0)
+              local = 0;
 /*
   NOTE: We really do not need to call ttopen here, since it should be called
   again later, automatically, when we first try to condition the device via
@@ -3927,558 +3927,558 @@ extern char *line, *tmpbuf;             /* Character buffers for anything */
   options should not matter.  However, the network cases immediately below
   complicate matters a bit, so we'll settle this in a future edit.
 */
-	    if (x == 'l') {
-		if (ttopen(ttname,&local,mdmtyp,0) < 0) {
-		    XFATAL("can't open device");
-		}
+            if (x == 'l') {
+                if (ttopen(ttname,&local,mdmtyp,0) < 0) {
+                    XFATAL("can't open device");
+                }
 #ifdef CKLOGDIAL
-		dologline();
+                dologline();
 #endif /* CKLOGDIAL */
-		debug(F101,"doarg speed","",speed);
-		cxtype = (mdmtyp > 0) ? CXT_MODEM : CXT_DIRECT;
-		speed = ttgspd();	/* Get the speed. */
-		setflow();		/* Do something about flow control. */
+                debug(F101,"doarg speed","",speed);
+                cxtype = (mdmtyp > 0) ? CXT_MODEM : CXT_DIRECT;
+                speed = ttgspd();       /* Get the speed. */
+                setflow();              /* Do something about flow control. */
 #ifndef NOSPL
-		if (local) {
-		    if (nmac) {		/* Any macros defined? */
-			int k;		/* Yes */
-			k = mlook(mactab,"on_open",nmac); /* Look this up */
-			if (k >= 0) {	/* If found, */
-			    if (dodo(k,ttname,0) > -1) /* set it up, */
-			      parser(1); /* and execute it */
-			}
-		    }
-		}
+                if (local) {
+                    if (nmac) {         /* Any macros defined? */
+                        int k;          /* Yes */
+                        k = mlook(mactab,"on_open",nmac); /* Look this up */
+                        if (k >= 0) {   /* If found, */
+                            if (dodo(k,ttname,0) > -1) /* set it up, */
+                              parser(1); /* and execute it */
+                        }
+                    }
+                }
 #endif /* NOSPL */
 
 #ifdef NETCONN
-	    } else {
-		if (x == 'j' || x == 'J') { /* IP network host name */
-		    char * s = line;
-		    char * service = tmpbuf;
-		    if (xargc > 0) {	/* Check if it's followed by */
-			/* A service name or number */
-			if (*(xargv+1) && *(*(xargv+1)) != '-') {
-			    xargv++, xargc--;
-			    ckstrncat(ttname,":",TTNAMLEN+1);
-			    ckstrncat(ttname,*xargv,TTNAMLEN+1);
-			}
-		    }
-		    nettype = NET_TCPB;
-		    mdmtyp = -nettype;	/* Perhaps already set in init file */
-		    telnetfd = 1;	/* Or maybe an open file descriptor */
-		    ckstrncpy(line, ttname, LINBUFSIZ); /* Working copy */
-		    for (s = line; *s != NUL && *s != ':'; s++);
-		    if (*s) {
-			*s++ = NUL;
-			ckstrncpy(service, s, TMPBUFSIZ);
-		    } else *service = NUL;
-		    s = line;
+            } else {
+                if (x == 'j' || x == 'J') { /* IP network host name */
+                    char * s = line;
+                    char * service = tmpbuf;
+                    if (xargc > 0) {    /* Check if it's followed by */
+                        /* A service name or number */
+                        if (*(xargv+1) && *(*(xargv+1)) != '-') {
+                            xargv++, xargc--;
+                            ckstrncat(ttname,":",TTNAMLEN+1);
+                            ckstrncat(ttname,*xargv,TTNAMLEN+1);
+                        }
+                    }
+                    nettype = NET_TCPB;
+                    mdmtyp = -nettype;  /* Perhaps already set in init file */
+                    telnetfd = 1;       /* Or maybe an open file descriptor */
+                    ckstrncpy(line, ttname, LINBUFSIZ); /* Working copy */
+                    for (s = line; *s != NUL && *s != ':'; s++);
+                    if (*s) {
+                        *s++ = NUL;
+                        ckstrncpy(service, s, TMPBUFSIZ);
+                    } else *service = NUL;
+                    s = line;
 #ifndef NODIAL
 #ifndef NOICP
-		    /* Look up in network directory */
-		    x = 0;
-		    if (*s == '=') {	/* If number starts with = sign */
-			s++;		/* strip it */
-			while (*s == SP) /* and also any leading spaces */
-			  s++;
-			ckstrncpy(line,s,LINBUFSIZ); /* Do this again. */
-			nhcount = 0;
-		    } else if (!isdigit(line[0])) {
+                    /* Look up in network directory */
+                    x = 0;
+                    if (*s == '=') {    /* If number starts with = sign */
+                        s++;            /* strip it */
+                        while (*s == SP) /* and also any leading spaces */
+                          s++;
+                        ckstrncpy(line,s,LINBUFSIZ); /* Do this again. */
+                        nhcount = 0;
+                    } else if (!isdigit(line[0])) {
 /*
   nnetdir will be greater than 0 if the init file has been processed and it
   contained a SET NETWORK DIRECTORY command.
 */
-			xx = 0;		/* Initialize this */
-			if (nnetdir > 0) /* If there is a directory... */
-			  xx = lunet(line); /* Look up the name */
-			else		/* If no directory */
-			  nhcount = 0;	/* we didn't find anything there */
-			if (xx < 0) {	/* Lookup error: */
-			    ckmakmsg(tmpbuf,
-				     TMPBUFSIZ,
-				    "?Fatal network directory lookup error - ",
-				     line,
-				     "\n",
-				     NULL
-				     );
-			    XFATAL(tmpbuf);
-			}
-		    }
+                        xx = 0;         /* Initialize this */
+                        if (nnetdir > 0) /* If there is a directory... */
+                          xx = lunet(line); /* Look up the name */
+                        else            /* If no directory */
+                          nhcount = 0;  /* we didn't find anything there */
+                        if (xx < 0) {   /* Lookup error: */
+                            ckmakmsg(tmpbuf,
+                                     TMPBUFSIZ,
+                                    "?Fatal network directory lookup error - ",
+                                     line,
+                                     "\n",
+                                     NULL
+                                     );
+                            XFATAL(tmpbuf);
+                        }
+                    }
 #endif /* NOICP */
 #endif /* NODIAL */
-		    /* Add service to line specification for ttopen() */
-		    if (*service) {	/* There is a service specified */
-			ckstrncat(line, ":",LINBUFSIZ);
-			ckstrncat(line, service,LINBUFSIZ);
-			ttnproto = NP_DEFAULT;
-		    } else {
-			ckstrncat(line, ":telnet",LINBUFSIZ);
-			ttnproto = NP_TELNET;
-		    }
+                    /* Add service to line specification for ttopen() */
+                    if (*service) {     /* There is a service specified */
+                        ckstrncat(line, ":",LINBUFSIZ);
+                        ckstrncat(line, service,LINBUFSIZ);
+                        ttnproto = NP_DEFAULT;
+                    } else {
+                        ckstrncat(line, ":telnet",LINBUFSIZ);
+                        ttnproto = NP_TELNET;
+                    }
 
 #ifndef NOICP
 #ifndef NODIAL
-		    if ((nhcount > 1) && !quiet && !backgrd) {
-			printf("%d entr%s found for \"%s\"%s\n",
-			       nhcount,
-			       (nhcount == 1) ? "y" : "ies",
-			       s,
-			       (nhcount > 0) ? ":" : "."
-			       );
-			for (i = 0; i < nhcount; i++)
-			  printf("%3d. %s %-12s => %s\n",
-				 i+1, n_name, nh_p2[i], nh_p[i]
-				 );
-		    }
-		    if (nhcount == 0)
-		      n = 1;
-		    else
-		      n = nhcount;
+                    if ((nhcount > 1) && !quiet && !backgrd) {
+                        printf("%d entr%s found for \"%s\"%s\n",
+                               nhcount,
+                               (nhcount == 1) ? "y" : "ies",
+                               s,
+                               (nhcount > 0) ? ":" : "."
+                               );
+                        for (i = 0; i < nhcount; i++)
+                          printf("%3d. %s %-12s => %s\n",
+                                 i+1, n_name, nh_p2[i], nh_p[i]
+                                 );
+                    }
+                    if (nhcount == 0)
+                      n = 1;
+                    else
+                      n = nhcount;
 #else
-		    n = 1;
-		    nhcount = 0;
+                    n = 1;
+                    nhcount = 0;
 #endif /* NODIAL */
-		    for (i = 0; i < n; i++) {
+                    for (i = 0; i < n; i++) {
 #ifndef NODIAL
-			if (nhcount >= 1) {
-			    /* Copy the current entry to line */
-			    ckstrncpy(line,nh_p[i],LINBUFSIZ);
+                        if (nhcount >= 1) {
+                            /* Copy the current entry to line */
+                            ckstrncpy(line,nh_p[i],LINBUFSIZ);
                     /* Check to see if the network entry contains a service */
-			    for (s = line ; (*s != NUL) && (*s != ':'); s++)
-			      ;
-			    /* If directory does not have a service ... */
-			    /* and the user specified one */
-			    if (!*s && *service) {
-				ckstrncat(line, ":",LINBUFSIZ);
-				ckstrncat(line, service,LINBUFSIZ);
-			    }
-			    if (lookup(netcmd,nh_p2[i],nnets,&z) > -1) {
-				mdmtyp = 0 - netcmd[z].kwval;
-			    } else {
-				printf(
-				 "Error - network type \"%s\" not supported\n",
-				       nh_p2[i]
-				       );
-				continue;
-			    }
-			}
+                            for (s = line ; (*s != NUL) && (*s != ':'); s++)
+                              ;
+                            /* If directory does not have a service ... */
+                            /* and the user specified one */
+                            if (!*s && *service) {
+                                ckstrncat(line, ":",LINBUFSIZ);
+                                ckstrncat(line, service,LINBUFSIZ);
+                            }
+                            if (lookup(netcmd,nh_p2[i],nnets,&z) > -1) {
+                                mdmtyp = 0 - netcmd[z].kwval;
+                            } else {
+                                printf(
+                                 "Error - network type \"%s\" not supported\n",
+                                       nh_p2[i]
+                                       );
+                                continue;
+                            }
+                        }
 #endif /* NODIAL */
-		    }
+                    }
 #endif /* NOICP */
-		    ckstrncpy(ttname, line,TTNAMLEN+1);
-		    cxtype = CXT_TCPIP;	/* Set connection type */
-		    setflow();		/* Set appropriate flow control. */
+                    ckstrncpy(ttname, line,TTNAMLEN+1);
+                    cxtype = CXT_TCPIP; /* Set connection type */
+                    setflow();          /* Set appropriate flow control. */
 #ifdef SUNX25
-		} else if (x == 'X') {	/* X.25 address */
-		    nettype = NET_SX25;
-		    mdmtyp = -nettype;
-		} else if (x == 'Z') {	/* Open X.25 file descriptor */
-		    nettype = NET_SX25;
-		    mdmtyp = -nettype;
-		    x25fd = 1;
+                } else if (x == 'X') {  /* X.25 address */
+                    nettype = NET_SX25;
+                    mdmtyp = -nettype;
+                } else if (x == 'Z') {  /* Open X.25 file descriptor */
+                    nettype = NET_SX25;
+                    mdmtyp = -nettype;
+                    x25fd = 1;
 #endif /* SUNX25 */
 #ifdef STRATUSX25
-		} else if (x == 'X') {	/* X.25 address */
-		    nettype = NET_VX25;
-		    mdmtyp = -nettype;
+                } else if (x == 'X') {  /* X.25 address */
+                    nettype = NET_VX25;
+                    mdmtyp = -nettype;
 #endif /* STRATUSX25 */
 #ifdef IBMX25
-		} else if (x == 'X') {	/* X.25 address */
-		    nettype = NET_IX25;
-		    mdmtyp = -nettype;
+                } else if (x == 'X') {  /* X.25 address */
+                    nettype = NET_IX25;
+                    mdmtyp = -nettype;
 #endif /* IBMX25 */
 #ifdef HPX25
-		} else if (x == 'X') {	/* X.25 address */
-		    nettype = NET_HX25;
-		    mdmtyp = -nettype;
+                } else if (x == 'X') {  /* X.25 address */
+                    nettype = NET_HX25;
+                    mdmtyp = -nettype;
 #endif /* HPX25 */
-		}
-		if (ttopen(ttname,&local,mdmtyp,0) < 0) {
-		    XFATAL("can't open host connection");
-		}
-		network = 1;
+                }
+                if (ttopen(ttname,&local,mdmtyp,0) < 0) {
+                    XFATAL("can't open host connection");
+                }
+                network = 1;
 #ifdef CKLOGDIAL
-		dolognet();
+                dolognet();
 #endif /* CKLOGDIAL */
-		cxtype = CXT_X25;	/* Set connection type */
-		setflow();		/* Set appropriate flow control. */
+                cxtype = CXT_X25;       /* Set connection type */
+                setflow();              /* Set appropriate flow control. */
 #ifndef NOSPL
-		if (local) {
-		    if (nmac) {		/* Any macros defined? */
-			int k;		/* Yes */
-			k = mlook(mactab,"on_open",nmac); /* Look this up */
-			if (k >= 0) {	/* If found, */
-			    if (dodo(k,ttname,0) > -1) /* set it up, */
-			      parser(1);        /* and execute it */
-			}
-		    }
-		}
+                if (local) {
+                    if (nmac) {         /* Any macros defined? */
+                        int k;          /* Yes */
+                        k = mlook(mactab,"on_open",nmac); /* Look this up */
+                        if (k >= 0) {   /* If found, */
+                            if (dodo(k,ttname,0) > -1) /* set it up, */
+                              parser(1);        /* and execute it */
+                        }
+                    }
+                }
 #endif /* NOSPL */
 #endif /* NETCONN */
-	    }
-	    /* add more here -- decnet, etc... */
-	    haveline = 1;
-	    break;
+            }
+            /* add more here -- decnet, etc... */
+            haveline = 1;
+            break;
 
 #ifdef ANYX25
-	  case 'U':			/* X.25 call user data */
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("missing call user data string");
-	    }
-	    ckstrncpy(udata,*xargv,MAXCUDATA);
-	    if ((int)strlen(udata) <= MAXCUDATA) {
-		cudata = 1;
-	    } else {
-		XFATAL("Invalid call user data");
-	    }
-	    break;
+          case 'U':                     /* X.25 call user data */
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("missing call user data string");
+            }
+            ckstrncpy(udata,*xargv,MAXCUDATA);
+            if ((int)strlen(udata) <= MAXCUDATA) {
+                cudata = 1;
+            } else {
+                XFATAL("Invalid call user data");
+            }
+            break;
 
-	  case 'o':			/* X.25 closed user group */
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("missing closed user group index");
-	    }
-	    z = atoi(*xargv);		/* Convert to number */
-	    if (z >= 0 && z <= 99) {
-		closgr = z;
-	    } else {
-		XFATAL("Invalid closed user group index");
-	    }
-	    break;
+          case 'o':                     /* X.25 closed user group */
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("missing closed user group index");
+            }
+            z = atoi(*xargv);           /* Convert to number */
+            if (z >= 0 && z <= 99) {
+                closgr = z;
+            } else {
+                XFATAL("Invalid closed user group index");
+            }
+            break;
 
-	  case 'u':			/* X.25 reverse charge call */
-	    revcall = 1;
-	    break;
+          case 'u':                     /* X.25 reverse charge call */
+            revcall = 1;
+            break;
 #endif /* ANYX25 */
 #endif /* NOLOCAL */
 
-	  case 'b':			/* Bits-per-second for serial device */
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("missing bps");
-	    }
-	    zz = atol(*xargv);		/* Convert to long int */
-	    i = zz / 10L;
+          case 'b':                     /* Bits-per-second for serial device */
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("missing bps");
+            }
+            zz = atol(*xargv);          /* Convert to long int */
+            i = zz / 10L;
 #ifndef NOLOCAL
-	    if (ttsspd(i) > -1)		/* Check and set it */
+            if (ttsspd(i) > -1)         /* Check and set it */
 #endif /* NOLOCAL */
-	      speed = ttgspd();		/* and read it back. */
+              speed = ttgspd();         /* and read it back. */
 #ifndef NOLOCAL
-	    else {
-		XFATAL("unsupported transmission rate");
-	    }
+            else {
+                XFATAL("unsupported transmission rate");
+            }
 #endif /* NOLOCAL */
-	    break;
+            break;
 
 #ifndef NODIAL
 #ifndef NOICP
-	  case 'm':			/* Modem type */
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling after -m");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("modem type missing");
-	    }
-	    y = lookup(mdmtab,*xargv,nmdm,&z);
-	    if (y < 0) {
-		XFATAL("unknown modem type");
-	    }
-	    usermdm = 0;
-	    usermdm = (y == dialudt) ? x : 0;
-	    initmdm(y);
-	    break;
+          case 'm':                     /* Modem type */
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling after -m");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("modem type missing");
+            }
+            y = lookup(mdmtab,*xargv,nmdm,&z);
+            if (y < 0) {
+                XFATAL("unknown modem type");
+            }
+            usermdm = 0;
+            usermdm = (y == dialudt) ? x : 0;
+            initmdm(y);
+            break;
 #endif /* NOICP */
 #endif /* NODIAL */
 
 #ifndef NOXFER
-	  case 'e':			/* Extended packet length */
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling after -e");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("missing length");
-	    }
-	    z = atoi(*xargv);		/* Convert to number */
-	    if (z > 10 && z <= maxrps) {
-		rpsiz = urpsiz = z;
-		if (z > 94) rpsiz = 94;	/* Fallback if other Kermit can't */
-	    } else {
-		XFATAL("Unsupported packet length");
-	    }
-	    break;
+          case 'e':                     /* Extended packet length */
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling after -e");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("missing length");
+            }
+            z = atoi(*xargv);           /* Convert to number */
+            if (z > 10 && z <= maxrps) {
+                rpsiz = urpsiz = z;
+                if (z > 94) rpsiz = 94; /* Fallback if other Kermit can't */
+            } else {
+                XFATAL("Unsupported packet length");
+            }
+            break;
 
-	  case 'v':			/* Vindow size */
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("missing or bad window size");
-	    }
-	    z = atoi(*xargv);		/* Convert to number */
-	    if (z < 32) {		/* If in range */
-		wslotr = z;		/* set it */
-		if (z > 1) swcapr = 1;	/* Set capas bit if windowing */
-	    } else {
-		XFATAL("Unsupported packet length");
-	    }
-	    break;
+          case 'v':                     /* Vindow size */
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("missing or bad window size");
+            }
+            z = atoi(*xargv);           /* Convert to number */
+            if (z < 32) {               /* If in range */
+                wslotr = z;             /* set it */
+                if (z > 1) swcapr = 1;  /* Set capas bit if windowing */
+            } else {
+                XFATAL("Unsupported packet length");
+            }
+            break;
 #endif /* NOXFER */
 
-	  case 'i':			/* Treat files as binary */
-	    binary = XYFT_B;
-	    xfermode = XMODE_M;		/* Transfer mode manual */
-	    filepeek = 0;
+          case 'i':                     /* Treat files as binary */
+            binary = XYFT_B;
+            xfermode = XMODE_M;         /* Transfer mode manual */
+            filepeek = 0;
 #ifdef PATTERNS
-	    patterns = 0;
+            patterns = 0;
 #endif /* PATTERNS */
-	    break;
+            break;
 
 #ifndef NOXFER
-	  case 'w':			/* Writeover */
-	    ckwarn = 0;
-	    fncact = XYFX_X;
-	    break;
+          case 'w':                     /* Writeover */
+            ckwarn = 0;
+            fncact = XYFX_X;
+            break;
 #endif /* NOXFER */
 
-	  case 'q':			/* Quiet */
-	    quiet = 1;
-	    break;
+          case 'q':                     /* Quiet */
+            quiet = 1;
+            break;
 
 #ifdef DEBUG
-	  case 'd':			/* DEBUG */
-	    break;			/* Handled in prescan() */
+          case 'd':                     /* DEBUG */
+            break;                      /* Handled in prescan() */
 #endif /* DEBUG */
 
-	  case '0': {			/* In the middle */
-	      extern int tt_escape, lscapr;
-	      tt_escape = 0;		/* No escape character */
-	      flow = 0;			/* No Xon/Xoff (what about hwfc?) */
+          case '0': {                   /* In the middle */
+              extern int tt_escape, lscapr;
+              tt_escape = 0;            /* No escape character */
+              flow = 0;                 /* No Xon/Xoff (what about hwfc?) */
 #ifndef NOXFER
-	      lscapr = 0;		/* No locking shifts */
+              lscapr = 0;               /* No locking shifts */
 #endif /* NOXFER */
 #ifdef CK_APC
-	      {
-		  extern int apcstatus;	/* No APCs */
-		  apcstatus = APC_OFF;
-	      }
+              {
+                  extern int apcstatus; /* No APCs */
+                  apcstatus = APC_OFF;
+              }
 #endif /* CK_APC */
 #ifndef NOLOCAL
 #ifdef CK_AUTODL
-              setautodl(0,0);		/* No autodownload */
+              setautodl(0,0);           /* No autodownload */
 #endif /* CK_AUTODL */
 #endif /* NOLOCAL */
 #ifndef NOCSETS
-	      {
-		  extern int tcsr, tcsl; /* No character-set translation */
-		  tcsr = 0;
-		  tcsl = tcsr;		/* Make these equal */
-	      }
+              {
+                  extern int tcsr, tcsl; /* No character-set translation */
+                  tcsr = 0;
+                  tcsl = tcsr;          /* Make these equal */
+              }
 #endif /* NOCSETS */
 #ifdef TNCODE
-	      TELOPT_DEF_C_U_MODE(TELOPT_KERMIT) = TN_NG_RF;
-	      TELOPT_DEF_C_ME_MODE(TELOPT_KERMIT) = TN_NG_RF;
-	      TELOPT_DEF_S_U_MODE(TELOPT_KERMIT) = TN_NG_RF;
-	      TELOPT_DEF_S_ME_MODE(TELOPT_KERMIT) = TN_NG_RF;
+              TELOPT_DEF_C_U_MODE(TELOPT_KERMIT) = TN_NG_RF;
+              TELOPT_DEF_C_ME_MODE(TELOPT_KERMIT) = TN_NG_RF;
+              TELOPT_DEF_S_U_MODE(TELOPT_KERMIT) = TN_NG_RF;
+              TELOPT_DEF_S_ME_MODE(TELOPT_KERMIT) = TN_NG_RF;
 #endif /* TNCODE */
-	  }
+          }
 /* Fall thru... */
 
-	  case '8':			/* 8-bit clean */
-	    parity = 0;
-	    cmdmsk = 0xff;
-	    cmask = 0xff;
-	    break;
+          case '8':                     /* 8-bit clean */
+            parity = 0;
+            cmdmsk = 0xff;
+            cmask = 0xff;
+            break;
 
-	  case 'V': {
-	      extern int xfermode;
+          case 'V': {
+              extern int xfermode;
 #ifdef PATTERNS
-	      extern int patterns;
-	      patterns = 0;		/* No patterns */
+              extern int patterns;
+              patterns = 0;             /* No patterns */
 #endif /* PATTERNS */
-	      xfermode = XMODE_M;	/* Manual transfer mode */
-	      filepeek = 0;
-	      break;
-	  }
+              xfermode = XMODE_M;       /* Manual transfer mode */
+              filepeek = 0;
+              break;
+          }
 
-	  case 'p':			/* SET PARITY */
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("missing parity");
-	    }
-	    switch(x = **xargv) {
-	      case 'e':
-	      case 'o':
-	      case 'm':
-	      case 's': parity = x; break;
-	      case 'n': parity = 0; break;
-	      default:  { XFATAL("invalid parity"); }
-	    }
-	    break;
+          case 'p':                     /* SET PARITY */
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("missing parity");
+            }
+            switch(x = **xargv) {
+              case 'e':
+              case 'o':
+              case 'm':
+              case 's': parity = x; break;
+              case 'n': parity = 0; break;
+              default:  { XFATAL("invalid parity"); }
+            }
+            break;
 
-	  case 't':			/* Line turnaround handshake */
-	    turn = 1;
-	    turnch = XON;		/* XON is turnaround character */
-	    duplex = 1;			/* Half duplex */
-	    flow = 0;			/* No flow control */
-	    break;
+          case 't':                     /* Line turnaround handshake */
+            turn = 1;
+            turnch = XON;               /* XON is turnaround character */
+            duplex = 1;                 /* Half duplex */
+            flow = 0;                   /* No flow control */
+            break;
 
-	  case 'B':
-	    bgset = 1;			/* Force background (batch) */
-	    backgrd = 1;
-	    break;
+          case 'B':
+            bgset = 1;                  /* Force background (batch) */
+            backgrd = 1;
+            break;
 
-	  case 'z':			/* Force foreground */
-	    bgset = 0;
-	    backgrd = 0;
-	    break;
+          case 'z':                     /* Force foreground */
+            bgset = 0;
+            backgrd = 0;
+            break;
 
 #ifndef NOXFER
 #ifdef RECURSIVE
-	  case 'L':
-	    recursive = 2;
-	    nolinks = 2;
-	    fnspath = PATH_REL;
-	    break;
+          case 'L':
+            recursive = 2;
+            nolinks = 2;
+            fnspath = PATH_REL;
+            break;
 #endif /* RECURSIVE */
 #endif /* NOXFER */
 
 #ifndef NOSPL
-	  case 'M':			/* My User Name */
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("missing username");
-	    }
-	    if ((int)strlen(*xargv) > 63) {
-		XFATAL("username too long");
-	    }
+          case 'M':                     /* My User Name */
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("missing username");
+            }
+            if ((int)strlen(*xargv) > 63) {
+                XFATAL("username too long");
+            }
 #ifdef IKSD
-	    if (!inserver)
+            if (!inserver)
 #endif /* IKSD */
-	      {
-		  ckstrncpy(uidbuf,*xargv,UIDBUFLEN);
-		  haveftpuid = 1;
-	      }
-	    break;
+              {
+                  ckstrncpy(uidbuf,*xargv,UIDBUFLEN);
+                  haveftpuid = 1;
+              }
+            break;
 #endif /* NOSPL */
 
 #ifdef CK_NETBIOS
-	  case 'N':			/* NetBios Adapter Number follows */
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling after -N");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("missing NetBios Adapter number");
-	    }
-	    if ((strlen(*xargv) != 1) ||
-		(*xargv)[0] != 'X' &&
-		(atoi(*xargv) < 0) &&
-		(atoi(*xargv) > 9)) {
-		XFATAL("Invalid NetBios Adapter - Adapters 0 to 9 are valid");
-	    }
-	    break;
+          case 'N':                     /* NetBios Adapter Number follows */
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling after -N");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("missing NetBios Adapter number");
+            }
+            if ((strlen(*xargv) != 1) ||
+                (*xargv)[0] != 'X' &&
+                (atoi(*xargv) < 0) &&
+                (atoi(*xargv) > 9)) {
+                XFATAL("Invalid NetBios Adapter - Adapters 0 to 9 are valid");
+            }
+            break;
 #endif /* CK_NETBIOS */
 
 #ifdef NETCONN
-	  case 'F':
-	    network = 1;
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling after -F");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("network file descriptor missing");
-	    }
-	    ckstrncpy(ttname,*xargv,TTNAMLEN+1);
-	    nettype = NET_TCPB;
-	    mdmtyp = -nettype;
-	    telnetfd = 1;
-	    local = 1;
-	    break;
+          case 'F':
+            network = 1;
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling after -F");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("network file descriptor missing");
+            }
+            ckstrncpy(ttname,*xargv,TTNAMLEN+1);
+            nettype = NET_TCPB;
+            mdmtyp = -nettype;
+            telnetfd = 1;
+            local = 1;
+            break;
 #endif /* NETCONN */
 
 #ifdef COMMENT
 #ifdef OS2PM
-	  case 'P':			/* OS/2 Presentation Manager */
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling after -P");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("pipe data missing");
-	    }
-	    pipedata = *xargv;
-	    break;
+          case 'P':                     /* OS/2 Presentation Manager */
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling after -P");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("pipe data missing");
+            }
+            pipedata = *xargv;
+            break;
 #endif /* OS2PM */
 #else
-	  case 'P':			/* Filenames literal */
-	    fncnv  = XYFN_L;
-	    f_save = XYFN_L;
-	    break;
+          case 'P':                     /* Filenames literal */
+            fncnv  = XYFN_L;
+            f_save = XYFN_L;
+            break;
 #endif /* COMMENT */
 
 #ifndef NOICP
-	  case 'H':
-	    noherald = 1;
-	    break;
+          case 'H':
+            noherald = 1;
+            break;
 #endif /* NOICP */
 
 #ifdef OS2
-	  case 'W':
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling after -W");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1)) { /* could be negative */
-		XFATAL("Window handle missing");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("Kermit Instance missing");
-	    }
-	    /* Action done in prescan */
-	    break;
+          case 'W':
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling after -W");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1)) { /* could be negative */
+                XFATAL("Window handle missing");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("Kermit Instance missing");
+            }
+            /* Action done in prescan */
+            break;
 
-	  case '#':			/* K95 stdio threads */
-	    xargv++, xargc--;		/* Skip past argument */
-	    break;			/* Action done in prescan */
+          case '#':                     /* K95 stdio threads */
+            xargv++, xargc--;           /* Skip past argument */
+            break;                      /* Action done in prescan */
 #endif /* OS2 */
 
 #ifdef NEWFTP
-	  case '9':			/* FTP */
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling after -9");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("FTP server address missing");
-	    }
-	    makestr(&ftp_host,*xargv);
-	    break;
+          case '9':                     /* FTP */
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling after -9");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("FTP server address missing");
+            }
+            makestr(&ftp_host,*xargv);
+            break;
 #endif /* NEWFTP */
 
-	  default:
-	    fatal2(*xargv,
+          default:
+            fatal2(*xargv,
 #ifdef NT
                    "invalid command-line option, type \"k95 -h\" for help"
 #else
@@ -4488,10 +4488,10 @@ extern char *line, *tmpbuf;             /* Character buffers for anything */
                    "invalid command-line option, type \"kermit -h\" for help"
 #endif /* OS2 */
 #endif /* NT */
-		   );
+                   );
         }
-	if (!xp) break;
-	x = *++xp;			/* See if options are bundled */
+        if (!xp) break;
+        x = *++xp;                      /* See if options are bundled */
     }
     return(0);
 }
@@ -4515,17 +4515,17 @@ dotnarg(x) char x;
         switch (x) {                    /* Big switch on arg */
 
 #ifndef NOICP
-	  case '-':			/* Extended commands... */
+          case '-':                     /* Extended commands... */
             if (doxarg(xargv,0) < 0) {
                 XFATAL("Extended option error");
             }
             /* Fall through */
-	  case '+':			/* Extended command for prescan() */
+          case '+':                     /* Extended command for prescan() */
             return(0);
 #else  /* NOICP */
-	  case '-':
-	  case '+':
-	    XFATAL("Extended options not configured");
+          case '-':
+          case '+':
+            XFATAL("Extended options not configured");
 #endif /* NOICP */
 
 /*
@@ -4553,155 +4553,155 @@ dotnarg(x) char x;
  * -Y                Disable init file processing
  *
  */
-	  case 'h':			/* help */
-	    usage();
-	    doexit(GOOD_EXIT,-1);
-	    break;
+          case 'h':                     /* help */
+            usage();
+            doexit(GOOD_EXIT,-1);
+            break;
 
-	  case '8':			/* Telnet Binary in both directions */
-	    TELOPT_DEF_C_U_MODE(TELOPT_BINARY) = TN_NG_MU;
-	    TELOPT_DEF_C_ME_MODE(TELOPT_BINARY) = TN_NG_MU;
-	    parity = 0;
-	    cmdmsk = 0xff;
-	    cmask = 0xff;
-	    break;
+          case '8':                     /* Telnet Binary in both directions */
+            TELOPT_DEF_C_U_MODE(TELOPT_BINARY) = TN_NG_MU;
+            TELOPT_DEF_C_ME_MODE(TELOPT_BINARY) = TN_NG_MU;
+            parity = 0;
+            cmdmsk = 0xff;
+            cmask = 0xff;
+            break;
 
-	  case 'a':			/* Require Telnet Auth */
-	    TELOPT_DEF_C_ME_MODE(TELOPT_AUTHENTICATION) = TN_NG_MU;
-	    break;
+          case 'a':                     /* Require Telnet Auth */
+            TELOPT_DEF_C_ME_MODE(TELOPT_AUTHENTICATION) = TN_NG_MU;
+            break;
 
-	  case 'Y':
-	    xargv++, xargc--;		/* Skip past argument */
-	    break;			/* Action done in prescan */
+          case 'Y':
+            xargv++, xargc--;           /* Skip past argument */
+            break;                      /* Action done in prescan */
 
 #ifdef OS2
-          case '#':			/* K95 stdio threads */
-	    xargv++, xargc--;		/* Skip past argument */
-	    break;			/* Action done in prescan */
+          case '#':                     /* K95 stdio threads */
+            xargv++, xargc--;           /* Skip past argument */
+            break;                      /* Action done in prescan */
 #endif /* OS2 */
 
-          case 'q':	                /* Quiet */
-	    quiet = 1;
-	    break;
+          case 'q':                     /* Quiet */
+            quiet = 1;
+            break;
 
-	  case 'd':
+          case 'd':
 #ifdef DEBUG
-	    if (deblog) {
-		debtim = 1;
-	    } else {
-		deblog = debopn("debug.log",0);
-	    }
+            if (deblog) {
+                debtim = 1;
+            } else {
+                deblog = debopn("debug.log",0);
+            }
 #endif /* DEBUG */
-	    break;
+            break;
 
-	  case 'E': {			/* No Escape character */
-	      extern int tt_escape;
-	      tt_escape = 0;
-	  }
-	    break;
+          case 'E': {                   /* No Escape character */
+              extern int tt_escape;
+              tt_escape = 0;
+          }
+            break;
 
-	  case 'K':
-	    TELOPT_DEF_C_ME_MODE(TELOPT_AUTHENTICATION) = TN_NG_RF;
-	    uidbuf[0] = NUL;
-	    break;
+          case 'K':
+            TELOPT_DEF_C_ME_MODE(TELOPT_AUTHENTICATION) = TN_NG_RF;
+            uidbuf[0] = NUL;
+            break;
 
-	  case 'l': /* Set username and request telnet authentication */
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("missing username");
-	    }
-	    if ((int)strlen(*xargv) > 63) {
-		XFATAL("username too long");
-	    }
-	    ckstrncpy(uidbuf,*xargv,UIDBUFLEN);
-	    TELOPT_DEF_C_ME_MODE(TELOPT_AUTHENTICATION) = TN_NG_MU;
-	    break;
+          case 'l': /* Set username and request telnet authentication */
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("missing username");
+            }
+            if ((int)strlen(*xargv) > 63) {
+                XFATAL("username too long");
+            }
+            ckstrncpy(uidbuf,*xargv,UIDBUFLEN);
+            TELOPT_DEF_C_ME_MODE(TELOPT_AUTHENTICATION) = TN_NG_MU;
+            break;
 
-	  case 'L':			/* Require BINARY mode outbound only */
-	    TELOPT_DEF_C_ME_MODE(TELOPT_BINARY) = TN_NG_MU;
-	    break;
+          case 'L':                     /* Require BINARY mode outbound only */
+            TELOPT_DEF_C_ME_MODE(TELOPT_BINARY) = TN_NG_MU;
+            break;
 
-	  case 'x':			/* Require Encryption */
-	    TELOPT_DEF_C_U_MODE(TELOPT_ENCRYPTION) = TN_NG_MU;
-	    TELOPT_DEF_C_ME_MODE(TELOPT_ENCRYPTION) = TN_NG_MU;
-	    break;
+          case 'x':                     /* Require Encryption */
+            TELOPT_DEF_C_U_MODE(TELOPT_ENCRYPTION) = TN_NG_MU;
+            TELOPT_DEF_C_ME_MODE(TELOPT_ENCRYPTION) = TN_NG_MU;
+            break;
 
-	  case 'D':			/* Disable use of Forward X */
-	    TELOPT_DEF_C_U_MODE(TELOPT_FORWARD_X) = TN_NG_RF;
-	    break;
+          case 'D':                     /* Disable use of Forward X */
+            TELOPT_DEF_C_U_MODE(TELOPT_FORWARD_X) = TN_NG_RF;
+            break;
 
-	  case 'f':			/* Forward credentials to host */
-	    {
+          case 'f':                     /* Forward credentials to host */
+            {
 #ifdef CK_AUTHENTICATION
-		extern int forward_flag;
-		forward_flag = 1;
+                extern int forward_flag;
+                forward_flag = 1;
 #endif
-		break;
-	    }
+                break;
+            }
 
-	  case 'k': {
+          case 'k': {
 #ifdef CK_KERBEROS
-	      extern char * krb5_d_realm, * krb4_d_realm;
+              extern char * krb5_d_realm, * krb4_d_realm;
 #endif /* CK_KERBEROS */
-	      if (*(xp+1)) {
-		  XFATAL("invalid argument bundling");
-	      }
-	      xargv++, xargc--;
-	      if ((xargc < 1) || (**xargv == '-')) {
-		  XFATAL("missing realm");
-	      }
+              if (*(xp+1)) {
+                  XFATAL("invalid argument bundling");
+              }
+              xargv++, xargc--;
+              if ((xargc < 1) || (**xargv == '-')) {
+                  XFATAL("missing realm");
+              }
 #ifdef CK_KERBEROS
-	      if ((int)strlen(*xargv) > 63) {
-		  XFATAL("realm too long");
-	      }
-	      makestr(&krb5_d_realm,*xargv);
-	      makestr(&krb4_d_realm,*xargv);
+              if ((int)strlen(*xargv) > 63) {
+                  XFATAL("realm too long");
+              }
+              makestr(&krb5_d_realm,*xargv);
+              makestr(&krb4_d_realm,*xargv);
 #endif /* CK_KERBEROS */
-	      break;
-	  }
+              break;
+          }
 
-	  case 'T': {
-	      if (*(xp+1)) {
-		  XFATAL("invalid argument bundling");
-	      }
-	      xargv++, xargc--;
-	      if ((xargc < 1) || (**xargv == '-')) {
-		  XFATAL("missing cert=, key=, crlfile=, crldir=, or cipher=");
-	      }
+          case 'T': {
+              if (*(xp+1)) {
+                  XFATAL("invalid argument bundling");
+              }
+              xargv++, xargc--;
+              if ((xargc < 1) || (**xargv == '-')) {
+                  XFATAL("missing cert=, key=, crlfile=, crldir=, or cipher=");
+              }
 #ifdef CK_SSL
-	      if (!strncmp(*xargv,"cert=",5)) {
-		  extern char * ssl_rsa_cert_file;
-		  makestr(&ssl_rsa_cert_file,&(*xargv[5]));
-	      } else if ( !strncmp(*xargv,"key=",4) ) {
-		  extern char * ssl_rsa_key_file;
-		  makestr(&ssl_rsa_key_file,&(*xargv[4]));
-	      } else if ( !strncmp(*xargv,"crlfile=",8) ) {
-		  extern char * ssl_crl_file;
-		  makestr(&ssl_crl_file,&(*xargv[8]));
-	      } else if ( !strncmp(*xargv,"crldir=",7) ) {
-		  extern char * ssl_crl_dir;
-		  makestr(&ssl_crl_dir,&(*xargv[7]));
-	      } else if ( !strncmp(*xargv,"cipher=",7) ) {
-		  extern char * ssl_cipher_list;
-		  makestr(&ssl_cipher_list,&(*xargv[7]));
-	      } else {
-		  XFATAL("invalid parameter");
-	      }
+              if (!strncmp(*xargv,"cert=",5)) {
+                  extern char * ssl_rsa_cert_file;
+                  makestr(&ssl_rsa_cert_file,&(*xargv[5]));
+              } else if ( !strncmp(*xargv,"key=",4) ) {
+                  extern char * ssl_rsa_key_file;
+                  makestr(&ssl_rsa_key_file,&(*xargv[4]));
+              } else if ( !strncmp(*xargv,"crlfile=",8) ) {
+                  extern char * ssl_crl_file;
+                  makestr(&ssl_crl_file,&(*xargv[8]));
+              } else if ( !strncmp(*xargv,"crldir=",7) ) {
+                  extern char * ssl_crl_dir;
+                  makestr(&ssl_crl_dir,&(*xargv[7]));
+              } else if ( !strncmp(*xargv,"cipher=",7) ) {
+                  extern char * ssl_cipher_list;
+                  makestr(&ssl_cipher_list,&(*xargv[7]));
+              } else {
+                  XFATAL("invalid parameter");
+              }
 #endif /* CK_SSL */
-	      break;
-	  }
+              break;
+          }
 
-	  default:
-	    fatal2(*xargv,
-		   "invalid command-line option, type \"telnet -h\" for help"
-		   );
+          default:
+            fatal2(*xargv,
+                   "invalid command-line option, type \"telnet -h\" for help"
+                   );
         }
 
-	if (!xp) break;
-	x = *++xp;			/* See if options are bundled */
+        if (!xp) break;
+        x = *++xp;                      /* See if options are bundled */
     }
     return(0);
 }
@@ -4727,17 +4727,17 @@ dorlgarg(x) char x;
         switch (x) {                    /* Big switch on arg */
 
 #ifndef NOICP
-	  case '-':			/* Extended commands... */
+          case '-':                     /* Extended commands... */
             if (doxarg(xargv,0) < 0) {
             XFATAL("Extended option error");
             }
             /* Fall through */
-	  case '+':			/* Extended command for prescan() */
+          case '+':                     /* Extended command for prescan() */
             return(0);
 #else  /* NOICP */
-	  case '-':
-	  case '+':
-	    XFATAL("Extended options not configured");
+          case '-':
+          case '+':
+            XFATAL("Extended options not configured");
 #endif /* NOICP */
 
 /*
@@ -4745,55 +4745,55 @@ dorlgarg(x) char x;
  * -l user           Set username
  *
  */
-	  case 'h':			/* help */
-	    usage();
-	    doexit(GOOD_EXIT,-1);
-	    break;
+          case 'h':                     /* help */
+            usage();
+            doexit(GOOD_EXIT,-1);
+            break;
 
           case 'Y':
-	    xargv++, xargc--;		/* Skip past argument */
-	    break;			/* Action done in prescan */
+            xargv++, xargc--;           /* Skip past argument */
+            break;                      /* Action done in prescan */
 #ifdef OS2
-          case '#':			/* K95 stdio threads */
-	    xargv++, xargc--;		/* Skip past argument */
-	    break;			/* Action done in prescan */
+          case '#':                     /* K95 stdio threads */
+            xargv++, xargc--;           /* Skip past argument */
+            break;                      /* Action done in prescan */
 #endif /* OS2 */
-          case 'q':	                /* Quiet */
-	    quiet = 1;
-	    break;
+          case 'q':                     /* Quiet */
+            quiet = 1;
+            break;
 
-	  case 'd':
+          case 'd':
 #ifdef DEBUG
-	    if (deblog) {
-		debtim = 1;
-	    } else {
-		deblog = debopn("debug.log",0);
-	    }
+            if (deblog) {
+                debtim = 1;
+            } else {
+                deblog = debopn("debug.log",0);
+            }
 #endif /* DEBUG */
-	    break;
+            break;
 
-	  case 'l': /* Set username and request telnet authentication */
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("missing username");
-	    }
-	    if ((int)strlen(*xargv) > 63) {
-		XFATAL("username too long");
-	    }
-	    ckstrncpy(uidbuf,*xargv,UIDBUFLEN);
-	    break;
+          case 'l': /* Set username and request telnet authentication */
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("missing username");
+            }
+            if ((int)strlen(*xargv) > 63) {
+                XFATAL("username too long");
+            }
+            ckstrncpy(uidbuf,*xargv,UIDBUFLEN);
+            break;
 
-	  default:
-	    fatal2(*xargv,
-		   "invalid command-line option, type \"rlogin -h\" for help"
-		   );
+          default:
+            fatal2(*xargv,
+                   "invalid command-line option, type \"rlogin -h\" for help"
+                   );
         }
 
-	if (!xp) break;
-	x = *++xp;			/* See if options are bundled */
+        if (!xp) break;
+        x = *++xp;                      /* See if options are bundled */
     }
     return(0);
 }
@@ -4819,17 +4819,17 @@ dossharg(x) char x;
         switch (x) {                    /* Big switch on arg */
 
 #ifndef NOCICP
-	  case '-':			/* Extended commands... */
+          case '-':                     /* Extended commands... */
             if (doxarg(xargv,0) < 0) {
                 XFATAL("Extended option error");
             }
             /* Fall through */
-	  case '+':			/* Extended command for prescan() */
+          case '+':                     /* Extended command for prescan() */
             return(0);
 #else  /* NOICP */
-	  case '-':
-	  case '+':
-	    XFATAL("Extended options not configured");
+          case '-':
+          case '+':
+            XFATAL("Extended options not configured");
 #endif /* NOICP */
 
 /*
@@ -4839,24 +4839,24 @@ dossharg(x) char x;
  * -l user           Set username
  *
  */
-	  case 'h':			/* help */
-	    usage();
-	    doexit(GOOD_EXIT,-1);
-	    break;
+          case 'h':                     /* help */
+            usage();
+            doexit(GOOD_EXIT,-1);
+            break;
 
           case 'Y':
-	    xargv++, xargc--;		/* Skip past argument */
-	    break;			/* Action done in prescan */
+            xargv++, xargc--;           /* Skip past argument */
+            break;                      /* Action done in prescan */
 #ifdef OS2
-          case '#':			/* K95 stdio threads */
-	    xargv++, xargc--;		/* Skip past argument */
-	    break;			/* Action done in prescan */
+          case '#':                     /* K95 stdio threads */
+            xargv++, xargc--;           /* Skip past argument */
+            break;                      /* Action done in prescan */
 #endif /* OS2 */
-          case 'q':	                /* Quiet */
-	    quiet = 1;
-	    break;
+          case 'q':                     /* Quiet */
+            quiet = 1;
+            break;
 
-	  case 'd':
+          case 'd':
 #ifdef DEBUG
               if (deblog) {
                   debtim = 1;
@@ -4864,30 +4864,30 @@ dossharg(x) char x;
                   deblog = debopn("debug.log",0);
               }
 #endif /* DEBUG */
-	    break;
+            break;
 
-	  case 'l': /* Set username and request telnet authentication */
-	    if (*(xp+1)) {
-		XFATAL("invalid argument bundling");
-	    }
-	    xargv++, xargc--;
-	    if ((xargc < 1) || (**xargv == '-')) {
-		XFATAL("missing username");
-	    }
-	    if ((int)strlen(*xargv) > 63) {
-		XFATAL("username too long");
-	    }
-	    ckstrncpy(uidbuf,*xargv,UIDBUFLEN);
-	    break;
+          case 'l': /* Set username and request telnet authentication */
+            if (*(xp+1)) {
+                XFATAL("invalid argument bundling");
+            }
+            xargv++, xargc--;
+            if ((xargc < 1) || (**xargv == '-')) {
+                XFATAL("missing username");
+            }
+            if ((int)strlen(*xargv) > 63) {
+                XFATAL("username too long");
+            }
+            ckstrncpy(uidbuf,*xargv,UIDBUFLEN);
+            break;
 
-	  default:
-	    fatal2(*xargv,
-		   "invalid command-line option, type \"ssh -h\" for help"
-		   );
+          default:
+            fatal2(*xargv,
+                   "invalid command-line option, type \"ssh -h\" for help"
+                   );
         }
 
-	if (!xp) break;
-	x = *++xp;			/* See if options are bundled */
+        if (!xp) break;
+        x = *++xp;                      /* See if options are bundled */
     }
     return(0);
 }

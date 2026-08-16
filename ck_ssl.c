@@ -71,7 +71,7 @@ char * GetAppData(int);
 #endif
 #endif /* OS2 */
 
-extern int quiet;			/* fdc - Mon Nov 28 11:44:15 2005 */
+extern int quiet;                       /* fdc - Mon Nov 28 11:44:15 2005 */
 
 static int ssl_installed = 1;
 #endif /* CK_SSL */
@@ -285,7 +285,7 @@ extern char szHostName[], szUserNameRequested[], szUserNameAuthenticated[];
 
 _PROTOTYP(int X509_to_user,(X509 *, char *, int));
 
-static int verbosity = 0;		/* Message control */
+static int verbosity = 0;               /* Message control */
 static VOID
 setverbosity() {
     verbosity = ssl_verbose_flag;
@@ -892,7 +892,7 @@ static BIGNUM *get_RSA_F4()
     static BIGNUM *bn;
 
     if (!bn) {
-	bn = BN_new();
+        bn = BN_new();
         BN_add_word(bn, RSA_F4);
     }
     return bn;
@@ -1358,7 +1358,7 @@ ssl_display_comp(SSL * ssl)
     const COMP_METHOD *method;
 #endif  /* OPENSSL_NO_COMP */
 
-    if ( quiet )			/* fdc - Mon Nov 28 11:44:15 2005 */
+    if ( quiet )                        /* fdc - Mon Nov 28 11:44:15 2005 */
         return;
 
     if ( !ck_ssleay_is_installed() )
@@ -1395,7 +1395,7 @@ int verbose;
     const char *cipher_list;
     char buf[512]="";
 
-    if ( quiet )			/* fdc - Mon Nov 28 11:44:15 2005 */
+    if ( quiet )                        /* fdc - Mon Nov 28 11:44:15 2005 */
         return(0);
 
     if ( !ck_ssleay_is_installed() )
@@ -1778,54 +1778,54 @@ ssl_once_init()
         printf("  . C-Kermit built with %s\r\n",OPENSSL_VERSION_TEXT);
         printf("  . Version found  %s\r\n",SSLeay_version(SSLEAY_VERSION));
 #ifdef OPENSSL_300
-	printf("  OpenSSL versions 3.0.0 or newer must be the same\r\n");
-	printf("  major version number, and Kermit may not be used with\r\n");
-	printf("  a version of OpenSSL older than the one supplied at\r\n");
-	printf("  compilation time.\r\n");
+        printf("  OpenSSL versions 3.0.0 or newer must be the same\r\n");
+        printf("  major version number, and Kermit may not be used with\r\n");
+        printf("  a version of OpenSSL older than the one supplied at\r\n");
+        printf("  compilation time.\r\n");
 #else /* OPENSSL_300 */
 #ifdef OPENSSL_100
-	printf("  OpenSSL versions 1.0.0 or newer must be the same\r\n");
-	printf("  major and minor version number, and Kermit may not\r\n");
-	printf("  be used with a version of OpenSSL older than the one\r\n");
-	printf("  supplied at compile time.\r\n");
+        printf("  OpenSSL versions 1.0.0 or newer must be the same\r\n");
+        printf("  major and minor version number, and Kermit may not\r\n");
+        printf("  be used with a version of OpenSSL older than the one\r\n");
+        printf("  supplied at compile time.\r\n");
 #else /* OPENSSL_100 */
         printf("  OpenSSL versions prior to 1.0.0 must be the same.\r\n");
 #endif /* OPENSSL_100 */
 #endif /* OPENSSL_300 */
 
-	s = "R";
+        s = "R";
 #ifdef SOLARIS
-	printf("  Set CD_LIBRARY_PATH for %s.\r\n",OPENSSL_VERSION_TEXT);
-	s = " Or r";
-#endif	/* SOLARIS */
+        printf("  Set CD_LIBRARY_PATH for %s.\r\n",OPENSSL_VERSION_TEXT);
+        s = " Or r";
+#endif  /* SOLARIS */
 
 #ifdef HPUX
-	printf("  Set SHLIB_PATH for %s.\r\n",OPENSSL_VERSION_TEXT);
-	s = " Or r";
-#endif	/* HPUX */
+        printf("  Set SHLIB_PATH for %s.\r\n",OPENSSL_VERSION_TEXT);
+        s = " Or r";
+#endif  /* HPUX */
 
 #ifdef AIX
-	printf("  Set LIBPATH for %s.\r\n",OPENSSL_VERSION_TEXT);
-	s = " Or r";
-#endif	/* AIX */
+        printf("  Set LIBPATH for %s.\r\n",OPENSSL_VERSION_TEXT);
+        s = " Or r";
+#endif  /* AIX */
 
 #ifdef LINUX
-	printf("  Set LD_LIBRARY_PATH for %s.\r\n",OPENSSL_VERSION_TEXT);
-	s = " Or r";
-#endif	/* LINUX */
+        printf("  Set LD_LIBRARY_PATH for %s.\r\n",OPENSSL_VERSION_TEXT);
+        s = " Or r";
+#endif  /* LINUX */
 
         printf(" %sebuild C-Kermit from source on this computer to make \
 versions agree.\r\n",s);
 
 #ifdef KTARGET
-	{
-	    char * s;
-	    s = KTARGET;
-	    if (!s) s = "";
-	    if (!*s) s = "(unknown)";
-	    printf("  C-Kermit makefile target: %s\r\n",s);
-	}
-#endif	/* KTARGET */
+        {
+            char * s;
+            s = KTARGET;
+            if (!s) s = "";
+            if (!*s) s = "(unknown)";
+            printf("  C-Kermit makefile target: %s\r\n",s);
+        }
+#endif  /* KTARGET */
         printf("  Or if that is what you did then try to find out why\r\n");
         printf("  the program loader (image activator) is choosing a\r\n");
         printf("  different OpenSSL library than the one specified in \
@@ -2557,10 +2557,10 @@ ssl_tn_init(mode) int mode;
             SSL_set_session(ssl_con, SSL_get_session(ssl_conx));
         }
 #ifdef SSL_KRB5
-		if (ssl_conx->kssl_ctx) {
-			kssl_ctx_free(ssl_conx->kssl_ctx);
-			ssl_conx->kssl_ctx = NULL;
-		}
+                if (ssl_conx->kssl_ctx) {
+                        kssl_ctx_free(ssl_conx->kssl_ctx);
+                        ssl_conx->kssl_ctx = NULL;
+                }
 #endif /* SSL_KRB5 */
         SSL_free(ssl_conx);
         ssl_conx = NULL;
@@ -2577,10 +2577,10 @@ ssl_tn_init(mode) int mode;
         if ( mode == SSL_CLIENT )
             SSL_set_session(tls_con, SSL_get_session(tls_conx));
 #ifdef SSL_KRB5
-		if (tls_conx->kssl_ctx) {
-			kssl_ctx_free(tls_conx->kssl_ctx);
-			tls_conx->kssl_ctx = NULL;
-		}
+                if (tls_conx->kssl_ctx) {
+                        kssl_ctx_free(tls_conx->kssl_ctx);
+                        tls_conx->kssl_ctx = NULL;
+                }
 #endif /* SSL_KRB5 */
         SSL_free(tls_conx);
         tls_conx = NULL;
@@ -2928,10 +2928,10 @@ ssl_http_init(hostname) char * hostname;
     if (tls_conx) {
         SSL_set_session(tls_http_con, SSL_get_session(tls_conx));
 #ifdef SSL_KRB5
-		if (tls_conx->kssl_ctx) {
-			kssl_ctx_free(tls_conx->kssl_ctx);
-			tls_conx->kssl_ctx = NULL;
-		}
+                if (tls_conx->kssl_ctx) {
+                        kssl_ctx_free(tls_conx->kssl_ctx);
+                        tls_conx->kssl_ctx = NULL;
+                }
 #endif /* SSL_KRB5 */
         SSL_free(tls_conx);
         tls_conx = NULL;
@@ -3022,7 +3022,7 @@ ssl_get_dNSName(ssl) SSL * ssl;
             gen = sk_GENERAL_NAME_value(ialt, i);
             if (gen->type == GEN_DNS) {
                 if (!gen->d.ia5 || !CK_ASN1_STRING_LEN(gen->d.ia5))
-		  break;
+                  break;
                 if (strlen((char *)CK_ASN1_STRING_DATA(gen->d.ia5)) !=
                     CK_ASN1_STRING_LEN(gen->d.ia5)) {
                     /* Ignoring IA5String containing null character */
@@ -3068,18 +3068,18 @@ ssl_get_commonName(ssl) SSL * ssl;
     name_text_len = 0;
     if ((server_cert = SSL_get_peer_certificate(ssl))) {
         name_text_len =
-	    X509_NAME_get_text_by_NID(X509_get_subject_name(server_cert),
-				      NID_commonName, name, sizeof(name));
+            X509_NAME_get_text_by_NID(X509_get_subject_name(server_cert),
+                                      NID_commonName, name, sizeof(name));
         X509_free(server_cert);
     }
     if (name_text_len <= 0) {
-	/* Common Name was empty or not retrieved */
+        /* Common Name was empty or not retrieved */
         err = 0;
     } else if (strlen(name) != name_text_len) {
         /* Ignoring Common Name containing null character */
-	err = 0;
+        err = 0;
     } else {
-	err = 1;
+        err = 1;
     }
     if (err > 0)
       return name;
@@ -3274,9 +3274,9 @@ ssl_verify_crl(int ok, X509_STORE_CTX *ctx)
             return 0;
         }
 #if OPENSSL_VERSION_NUMBER >= 0x10100005L
-	X509_OBJECT_free(obj);
+        X509_OBJECT_free(obj);
 #else
-	X509_OBJECT_free_contents(&obj);
+        X509_OBJECT_free_contents(&obj);
 #endif
     }
 
@@ -3294,7 +3294,7 @@ ssl_verify_crl(int ok, X509_STORE_CTX *ctx)
     crl = X509_OBJECT_get0_X509_CRL(obj);
 #else
     rc = X509_STORE_get_by_subject(store_ctx, X509_LU_CRL, issuer, &obj);
-    X509_STORE_CTX_free(store_ctx);		/* calls X509_STORE_CTX_cleanup() */
+    X509_STORE_CTX_free(store_ctx);             /* calls X509_STORE_CTX_cleanup() */
     crl = obj.data.crl;
 #endif
     if (rc > 0 && crl != NULL) {
@@ -3328,7 +3328,7 @@ ssl_verify_crl(int ok, X509_STORE_CTX *ctx)
             }
         }
 #if OPENSSL_VERSION_NUMBER >= 0x10100005L
-	X509_OBJECT_free(obj);
+        X509_OBJECT_free(obj);
 #else
         X509_OBJECT_free_contents(&obj);
 #endif
@@ -3406,7 +3406,7 @@ tls_get_SAN_objs(SSL * ssl, int type)
              */
             if ((gen->type | V_ASN1_CONTEXT_SPECIFIC) == (type | V_ASN1_CONTEXT_SPECIFIC)) {
                 if (!gen->d.ia5 || !CK_ASN1_STRING_LEN(gen->d.ia5))
-		  break;
+                  break;
                 if (strlen((char *)CK_ASN1_STRING_DATA(gen->d.ia5)) !=
                     CK_ASN1_STRING_LEN(gen->d.ia5)) {
                     /* Ignoring IA5String containing null character */
@@ -3557,7 +3557,7 @@ inet_aton(char * ipaddress, struct in_addr * ia) {
     }
     return(0);
 }
-#endif	/* NO_DCL_INET_ATON */
+#endif  /* NO_DCL_INET_ATON */
 
 #endif /* MACOSX */
 #endif /* SOLARIS7 */
@@ -3678,9 +3678,9 @@ ssl_check_server_name(SSL * ssl, char * hostname)
                 return 0;
         }
         rv = show_hostname_warning(hostname,
-				   (char *)((i == 0 || dNSName[i - 1] == NULL) ?
-			           (char *)"UNKNOWN" : (char *)dNSName[i - 1]))
-	     ? 0 : -1;
+                                   (char *)((i == 0 || dNSName[i - 1] == NULL) ?
+                                   (char *)"UNKNOWN" : (char *)dNSName[i - 1]))
+             ? 0 : -1;
         for (i = 0; dNSName[i]; i++)
             free(dNSName[i]);
         return rv;
@@ -3698,7 +3698,7 @@ ssl_check_server_name(SSL * ssl, char * hostname)
 int
 tls_is_user_valid(SSL * ssl, const char *user)
 {
-#ifndef OS2		 /* [jt] 2013/11/21 - K-95 doesn't have X509_userok */
+#ifndef OS2              /* [jt] 2013/11/21 - K-95 doesn't have X509_userok */
     X509 *client_cert;
     int r = 0;
 
@@ -4651,7 +4651,7 @@ ck_ssl_outgoing(fd) int fd;
             if (tn_deb || debses)
                 tn_debug("[TLS - OK]");
             else if (!quiet)
-		printf("[TLS - OK]\r\n");
+                printf("[TLS - OK]\r\n");
             debug(F110,"ck_ssl_outgoing","[TLS - OK]",0);
             ssl_display_connect_details(tls_con,0,verbosity);
         }
@@ -4732,8 +4732,8 @@ ck_ssl_outgoing(fd) int fd;
             }
             if (tn_deb || debses)
                 tn_debug("[SSL - OK]");
-	    else if (!quiet)
-	        printf("[SSL - OK]\r\n");
+            else if (!quiet)
+                printf("[SSL - OK]\r\n");
             debug(F110,"ck_ssl_outgoing","[SSL - OK]",0);
             ssl_display_connect_details(ssl_con,0,verbosity);
         }
@@ -4960,7 +4960,7 @@ X509_to_user(X509 *peer_cert, char *userid, int len)
         gen = sk_GENERAL_NAME_value(ialt, i);
         if (gen->type == GEN_DNS) {
             if (!gen->d.ia5 || !CK_ASN1_STRING_LEN(gen->d.ia5))
-	      break;
+              break;
             if (strlen((char *)CK_ASN1_STRING_DATA(gen->d.ia5)) !=
                 CK_ASN1_STRING_LEN(gen->d.ia5)) {
                 /* Ignoring IA5String containing null character */

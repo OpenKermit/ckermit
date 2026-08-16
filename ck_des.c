@@ -36,7 +36,7 @@
 
 /* This is required by ckclib.c and normally defined in ckuus4.c */
 #ifdef CRYPT_DLL
-int fp_digits = 0;		      /* Digits of floating point precision */
+int fp_digits = 0;                    /* Digits of floating point precision */
 #else
 extern int fp_digits;
 #endif /* CRYPT_DLL */

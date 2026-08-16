@@ -12,10 +12,10 @@ char *ckusigv = "Signal support, 10.0.100, 23 Sep 2022";
     copyright text in the ckcmai.c module for disclaimer and permissions.
 */
 #include "ckcsym.h"
-#include "ckcasc.h"			/* ASCII character symbols */
-#include "ckcdeb.h"			/* Debug & other symbols */
-#include "ckcker.h"			/* Kermit symbols */
-#include "ckcnet.h"			/* Network symbols */
+#include "ckcasc.h"                     /* ASCII character symbols */
+#include "ckcdeb.h"                     /* Debug & other symbols */
+#include "ckcker.h"                     /* Kermit symbols */
+#include "ckcnet.h"                     /* Network symbols */
 #ifndef NOSPL
 #include "ckuusr.h"
 #endif /* NOSPL */
@@ -137,9 +137,9 @@ cc_execute( sj_buf, dofunc, failfunc)
 #ifdef NTASM
          isinterrupted
 #else
-		 cksetjmp(ckjdref(sj_buf))
+                 cksetjmp(ckjdref(sj_buf))
 #endif /* NTASM */
-		 ) {
+                 ) {
 #ifdef NTASM
           __asm
             {
@@ -162,10 +162,10 @@ cc_execute( sj_buf, dofunc, failfunc)
             {
                debug(F100,"cc_execute __except","",0);
                debug(F111,
-		     "exception_filter",
-		     "_exception_code",
-		     etExceptionCode()
-		     );
+                     "exception_filter",
+                     "_exception_code",
+                     etExceptionCode()
+                     );
                longjmp(ckjdref(sj_buf),SIGINT);
             }
 #else /* NT */
@@ -177,22 +177,22 @@ cc_execute( sj_buf, dofunc, failfunc)
 #endif /* NOCCTRAP */
 
 int
-#ifdef CK_ANSIC				/* ANSIC C declaration... */
+#ifdef CK_ANSIC                         /* ANSIC C declaration... */
 alrm_execute(ckjptr(sj_buf),
-	     int timo,
-	     ck_sighand handler,
-	     ck_sigfunc dofunc,
-	     ck_sigfunc failfunc
-	     )
+             int timo,
+             ck_sighand handler,
+             ck_sigfunc dofunc,
+             ck_sigfunc failfunc
+             )
 
 #else /* Not ANSIC C ... */
 
 alrm_execute(sj_buf,
-	     timo,
-	     handler,
-	     dofunc,
-	     failfunc
-	     )
+             timo,
+             handler,
+             dofunc,
+             failfunc
+             )
     ckjptr(sj_buf);
     int timo;
     ck_sighand handler;
@@ -234,13 +234,13 @@ _PROTOTYP(SIGTYP (*savhandler), (int));
 #endif /* NTASM */
     if (
 #ifdef NTASM
-		 sj_buf->retcode
+                 sj_buf->retcode
 #else
-		 cksetjmp(ckjdref(sj_buf))
+                 cksetjmp(ckjdref(sj_buf))
 #endif /* NTASM */
-		) {
-	(*failfunc)(NULL) ;
-	rc = -1 ;
+                ) {
+        (*failfunc)(NULL) ;
+        rc = -1 ;
     } else {
 #ifdef NT
        __try {
@@ -250,9 +250,9 @@ _PROTOTYP(SIGTYP (*savhandler), (int));
        {
           debug(F100,"alrm_execute __except","",0);
           debug(F111,"exception_filter",
-		"_exception_code",
-		GetExceptionCode()
-		);
+                "_exception_code",
+                GetExceptionCode()
+                );
           longjmp(ckjdref(sj_buf),SIGINT);
        }
 #else /* NT */
@@ -266,22 +266,22 @@ _PROTOTYP(SIGTYP (*savhandler), (int));
 }
 
 int
-#ifdef CK_ANSIC				/* ANSIC C declaration... */
+#ifdef CK_ANSIC                         /* ANSIC C declaration... */
 cc_alrm_execute(ckjptr(sj_buf),
-		int timo,
-		ck_sighand handler,
-		ck_sigfunc dofunc,
-		ck_sigfunc failfunc
-		)
+                int timo,
+                ck_sighand handler,
+                ck_sigfunc dofunc,
+                ck_sigfunc failfunc
+                )
 
 #else /* Not ANSIC C ... */
 
 cc_alrm_execute(sj_buf,
-	     timo,
-	     handler,
-	     dofunc,
-	     failfunc
-	     )
+             timo,
+             handler,
+             dofunc,
+             failfunc
+             )
     ckjptr(sj_buf);
     int timo;
     ck_sighand handler;
@@ -322,13 +322,13 @@ _PROTOTYP(SIGTYP (*savhandler), (int));
 #endif /* NTASM */
     if (
 #ifdef NTASM
-		 sj_buf->retcode
+                 sj_buf->retcode
 #else
-		 cksetjmp(ckjdref(sj_buf))
+                 cksetjmp(ckjdref(sj_buf))
 #endif /* NTASM */
-		) {
-	(*failfunc)(NULL) ;
-	rc = -1 ;
+                ) {
+        (*failfunc)(NULL) ;
+        rc = -1 ;
     } else {
 #ifdef NT
        __try {
@@ -336,13 +336,13 @@ _PROTOTYP(SIGTYP (*savhandler), (int));
        }
        __except( exception_filter() )
        {
-	   debug(F100,"cc_alrm_execute __except","",0);
-	   debug(F111,
-		 "exception_filter",
-		 "_exception_code",
-		 GetExceptionCode()
-		 );
-	   longjmp(ckjdref(sj_buf),SIGINT) ;
+           debug(F100,"cc_alrm_execute __except","",0);
+           debug(F111,
+                 "exception_filter",
+                 "_exception_code",
+                 GetExceptionCode()
+                 );
+           longjmp(ckjdref(sj_buf),SIGINT) ;
        }
 #else /* NT */
        (*dofunc)(NULL) ;

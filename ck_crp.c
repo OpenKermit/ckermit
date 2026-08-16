@@ -1043,10 +1043,10 @@ encrypt_support(_typelist, _cnt) unsigned char * _typelist; int _cnt;
     remote_supports_decrypt = 0;
 
     while (cnt-- > 0) {
-	debug(F101,"XXX cnt","",cnt);
+        debug(F101,"XXX cnt","",cnt);
         type = *typelist++;
-	debug(F101,"XXX type","",type);
-	debug(F101,"XXX ENCTYPE_ANY","",ENCTYPE_ANY);
+        debug(F101,"XXX type","",type);
+        debug(F101,"XXX ENCTYPE_ANY","",ENCTYPE_ANY);
         if ( EncryptType == ENCTYPE_ANY ||
              EncryptType == type ) {
 #ifdef DEBUG
@@ -1071,9 +1071,9 @@ encrypt_support(_typelist, _cnt) unsigned char * _typelist; int _cnt;
             debug(F111,"encrypt_support","findencryption == NULL",use_type);
             return(-1);
         }
-	debug(F100,"XXX ep not NULL","",0);
+        debug(F100,"XXX ep not NULL","",0);
         type = ep->start ? (*ep->start)(DIR_ENCRYPT, 0) : 0;
-	debug(F101,"XXX new type","",type);
+        debug(F101,"XXX new type","",type);
 #ifdef DEBUG
         if (encrypt_debug_mode) {
             sprintf(dbgbuf, ">>>(*ep->start)() %s returned %d (%s)\n",
@@ -2118,7 +2118,7 @@ fb64_start(fbp, dir, server)
                      TELOPT(fbp->fb_feed[2]),
                      enctype_names[fbp->fb_feed[4]]); /* safe */
             tn_hex((CHAR *)tn_msg,TN_MSG_LEN,&fbp->fb_feed[6],
-		(p-fbp->fb_feed)-2-6);
+                (p-fbp->fb_feed)-2-6);
             ckstrncat(tn_msg,"IAC SE",TN_MSG_LEN);
             debug(F100,tn_msg,"",0);
             if (tn_deb || debses) tn_debug(tn_msg);
@@ -2207,7 +2207,7 @@ fb64_is(data, cnt, fbp)
                      TELOPT(fbp->fb_feed[2]),
                      enctype_names[fbp->fb_feed[4]]); /* safe */
             tn_hex((CHAR *)tn_msg,TN_MSG_LEN,&fbp->fb_feed[6],
-		(p-fbp->fb_feed)-2-6);
+                (p-fbp->fb_feed)-2-6);
             ckstrncat(tn_msg,"IAC SE",TN_MSG_LEN);
             debug(F100,tn_msg,"",0);
             if (tn_deb || debses) tn_debug(tn_msg);
@@ -2250,7 +2250,7 @@ fb64_is(data, cnt, fbp)
                      TELOPT(fbp->fb_feed[2]),
                      enctype_names[fbp->fb_feed[4]]); /* safe */
             tn_hex((CHAR *)tn_msg,TN_MSG_LEN,&fbp->fb_feed[6],
-		(p-fbp->fb_feed)-2-6);
+                (p-fbp->fb_feed)-2-6);
             ckstrncat(tn_msg,"IAC SE",TN_MSG_LEN);
             debug(F100,tn_msg,"",0);
             if (tn_deb || debses) tn_debug(tn_msg);
@@ -2947,7 +2947,7 @@ des3_fb64_start(fbp, dir, server)
                      TELOPT(fbp->fb_feed[2]),
                      enctype_names[fbp->fb_feed[4]]); /* safe */
             tn_hex((CHAR *)tn_msg,TN_MSG_LEN,&fbp->fb_feed[6],
-		(p-fbp->fb_feed)-2-6);
+                (p-fbp->fb_feed)-2-6);
             ckstrncat(tn_msg,"IAC SE",TN_MSG_LEN);
             debug(F100,tn_msg,"",0);
             if (tn_deb || debses) tn_debug(tn_msg);
@@ -3036,7 +3036,7 @@ des3_fb64_is(data, cnt, fbp)
                      TELOPT(fbp->fb_feed[2]),
                      enctype_names[fbp->fb_feed[4]]); /* safe */
             tn_hex((CHAR *)tn_msg,TN_MSG_LEN,&fbp->fb_feed[6],
-		(p-fbp->fb_feed)-2-6);
+                (p-fbp->fb_feed)-2-6);
             ckstrncat(tn_msg,"IAC SE",TN_MSG_LEN);
             debug(F100,tn_msg,"",0);
             if (tn_deb || debses) tn_debug(tn_msg);
@@ -3079,7 +3079,7 @@ des3_fb64_is(data, cnt, fbp)
                      TELOPT(fbp->fb_feed[2]),
                      enctype_names[fbp->fb_feed[4]]); /* safe */
             tn_hex((CHAR *)tn_msg,TN_MSG_LEN,&fbp->fb_feed[6],
-		(p-fbp->fb_feed)-2-6);
+                (p-fbp->fb_feed)-2-6);
             ckstrncat(tn_msg,"IAC SE",TN_MSG_LEN);
             debug(F100,tn_msg,"",0);
             if (tn_deb || debses) tn_debug(tn_msg);
@@ -3199,7 +3199,7 @@ des3_fb64_session(key, server, fbp)
     if (!key || (key->type == SK_DES) || (keys2use < 2)) {
         CHAR buf[80];
         sprintf((char *)buf,"Can't set 3DES session key (%d < %d)",
-                key ? key->length : 0, 2 * (int)sizeof(Block));	/* safe */
+                key ? key->length : 0, 2 * (int)sizeof(Block)); /* safe */
 #ifdef DEBUG
         if (encrypt_debug_mode)
             printf("%s\r\n",buf);
@@ -4332,7 +4332,7 @@ cast_fb64_keyid(int dir, unsigned char *kp, int *lenp, struct cast_fb *fbp)
 
 static void
 cast_fb64_printsub(unsigned char *data, int cnt, unsigned char *buf,
-		   int buflen, char *type)
+                   int buflen, char *type)
 {
     char lbuf[64];
     int i;
@@ -4374,14 +4374,14 @@ cast_fb64_printsub(unsigned char *data, int cnt, unsigned char *buf,
 
 void
 cast_cfb64_printsub(unsigned char *data, int cnt, unsigned char *buf,
-		    int buflen)
+                    int buflen)
 {
     cast_fb64_printsub(data, cnt, buf, buflen, "CFB64");
 }
 
 void
 cast_ofb64_printsub(unsigned char *data, int cnt, unsigned char *buf,
-		    int buflen)
+                    int buflen)
 {
     cast_fb64_printsub(data, cnt, buf, buflen, "OFB64");
 }
@@ -4822,7 +4822,7 @@ static uint32 S4[] = {
 
 void
 ck_cast_ecb_encrypt(uint8p out, uint8p in, CastKeySched *sched,
-		    int mode /* zero means encrypt */)
+                    int mode /* zero means encrypt */)
 {
     uint32 t[2];
 

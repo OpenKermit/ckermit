@@ -72,7 +72,7 @@ int ttgcwsz();                  /* ckocon.c */
 static int dohfile( int );              /* Prototype for static func */
 #endif /* CK_ANSIC */
 
-extern char * ck_cryear;		/* For copyright notice */
+extern char * ck_cryear;                /* For copyright notice */
 extern xx_strp xxstring;
 extern char * ccntab[];
 /*
@@ -398,7 +398,7 @@ char *introtxt[] = {
 #endif /* CK_RECALL */
 #ifndef NOLASTFILE
 " . CTRL-K:      Insert the most recently entered local file specifiction.",
-#endif	/* NOLASTFILE */
+#endif  /* NOLASTFILE */
 
 " . ?            (question mark) Display a menu for the current command field."
 ,
@@ -673,7 +673,7 @@ static char * hmxysexp[] = {
 "  part.  The default is OFF.  SHOW SEXPRESSION displays the current settings."
 ,""
 };
-#endif	/* NOSEXP */
+#endif  /* NOSEXP */
 
 #ifdef OS2
 #ifdef KUI
@@ -906,8 +906,8 @@ static char *hmxxputenv[] = {
 "  not include an equal sign.",
 "",
 };
-#endif	/* NOPUTENV */
-#endif	/* UNIX */
+#endif  /* NOPUTENV */
+#endif  /* UNIX */
 
 static char *hmxxtak[] = {
 "Syntax: TAKE filename [ arguments ]",
@@ -1433,7 +1433,7 @@ static char *hxyinp[] = {
 "  read-only variable \\v(inscale).  The default value is 1.0.",
 " ",
 
-#endif	/* CKFLOAT */
+#endif  /* CKFLOAT */
 
 "SET INPUT SILENCE <number>",
 "  The maximum number to seconds of silence (no input at all) before the",
@@ -4510,7 +4510,7 @@ static char *ifhlp[] = { "Syntax: IF [NOT] condition commandlist",
 #endif /* CK_TMPDIR */
 #ifdef UNIX
 "  LINK string                       - The string is a symbolic link",
-#endif	/* UNIX */
+#endif  /* UNIX */
 "  READABLE filename                 - Succeeds if the file is readable",
 "  WRITEABLE filename                - Succeeds if the file is writeable",
 #ifdef ZFCDAT
@@ -5789,9 +5789,9 @@ doxopts() {
               xxstring
               );
     if (y == -3) {
-	printf("\n");
+        printf("\n");
         if ((x = cmcfm()) < 0)
-	  return(x);
+          return(x);
         for (i = 0; i <= XA_MAX; i++) {
             if (xopthlp[i]) {
                 printf("%s\n",xopthlp[i]);
@@ -5905,26 +5905,26 @@ or the word ALL, or carriage return for an overview",
               n = 0;
         }
     }
-    if (all) {				/* Jeff, Jan 2003 */
+    if (all) {                          /* Jeff, Jan 2003 */
         printf("\n");
         if (++n >= cmd_rows) {
             if (!askmore())
               return(0);
-	    else
+            else
               n = 0;
         }
         printf("The following extended options are available:\n");
         if (++n >= cmd_rows) {
             if (!askmore())
               return(0);
-	    else
+            else
               n = 0;
         }
         printf("\n");
         if (++n >= cmd_rows) {
             if (!askmore())
               return(0);
-	    else
+            else
               n = 0;
         }
         for (i = 0; i <= XA_MAX; i++) {
@@ -5935,9 +5935,9 @@ or the word ALL, or carriage return for an overview",
                 n += 3;
                 if (n > (cmd_rows - 4)) {
                     if (!askmore())
-		      return(0);
+                      return(0);
                     else
-		      n = 0;
+                      n = 0;
                 }
             }
         }
@@ -6807,18 +6807,18 @@ case XXLDIR:                            /* LDIRECTORY */
 case XXDIR:                             /* DIRECTORY */
     return(hmsga(hmxxdir));
 
-case XXTOUC:				/* TOUCH */
+case XXTOUC:                            /* TOUCH */
     return(hmsga(hmxxtouch));
 
-case XXCHG:				/* CHANGE */
+case XXCHG:                             /* CHANGE */
     return(hmsga(hmxxchange));
 
-case XXWDIR:				/* WDIRECTORY */
+case XXWDIR:                            /* WDIRECTORY */
   return(hmsg("  WDIRECTORY is shorthand for DIRECTORY /SORT:DATE /REVERSE;\n\
   it produces a listing in reverse chronological order.  See the DIRECTORY\n\
   command for further information."));
 
-case XXHDIR:				/* HDIRECTORY */
+case XXHDIR:                            /* HDIRECTORY */
   return(hmsg("  HDIRECTORY is shorthand for DIRECTORY /SORT:SIZE /REVERSE;\n\
   it produces a listing showing the biggest files first.  See the DIRECTORY\n\
   command for further information."));
@@ -6982,9 +6982,9 @@ Hang up the phone or network connection."));
         printf("\n%s, Copyright (C) 1985, 2025,\n\
 Trustees of Columbia University in the City of New York.\n\
 Copyright (C) 2025-%s, John Goerzen\n\n",
-	       versio,
-	       ck_cryear
-	       );
+               versio,
+               ck_cryear
+               );
         return(dotype(helpfile,xaskmore,3,0,NULL,0,NULL,0,0,NULL,0));
     } else {
         printf("\n%s, Copyright (C) 2025-%s,",versio,ck_cryear);
@@ -7356,7 +7356,7 @@ case XXBIN:
     return(hmsg(
 "Inhibits automatic transfer-mode switching and forces BINARY transfer mode\n\
 for all files."));
-#endif	/* NEWFTP */
+#endif  /* NEWFTP */
 
 case XXDATE:
     return(hmsga(hmxxdate));
@@ -7619,7 +7619,7 @@ case XXWILD:
 #ifdef LOCUS
 case XXLOCU:
     return(hmsga(hmxylocus));
-#endif	/* LOCUS */
+#endif  /* LOCUS */
 
 case XXPAT:
     return(hmsga(hmxxpat));
@@ -7784,8 +7784,8 @@ case XXPURGE:
 #ifndef NOPUTENV
   case XXPUTE:
     return(hmsga(hmxxputenv));
-#endif	/* NOPUTENV */
-#endif	/* UNIX */
+#endif  /* NOPUTENV */
+#endif  /* UNIX */
 
   case XXNOTAV:
     return(hmsg(" This command is not configured in this version of Kermit."));
@@ -8639,7 +8639,7 @@ static char *hxyterm[] = {
 "  to put it in the needed mode.",
 " ",
 
-#endif	/* OS2 */
+#endif  /* OS2 */
 
 "SET TERMINAL LF-DISPLAY { CRLF, NORMAL }",
 "  Specifies how incoming linefeed characters are to be displayed",
@@ -11298,7 +11298,7 @@ case XYTIMER:
 #ifndef NOSEXP
   case XYSEXP:
     return(hmsga(hmxysexp));
-#endif	/* NOSEXP */
+#endif  /* NOSEXP */
 
 #ifndef NOSPL
   case XYVAREV:
@@ -11308,7 +11308,7 @@ case XYTIMER:
   values like in any other programming language, making life much easier\n\
   when those values happen to be Windows or DOS pathnames, which contain\n\
   backslashes."));
-#endif	/* NOSPL */
+#endif  /* NOSPL */
 
 #ifdef HAVE_LOCALE
   case XYLOCALE:
@@ -11415,12 +11415,12 @@ dohfunc(xx) int xx;
                xx == FN_IND ? "left" : "right"
         );
         break;
-      case FN_COUNT:			/* Count occurrences of s1 in s2 */
-	printf("\\fcount(s1,s2,n1)\n\
+      case FN_COUNT:                    /* Count occurrences of s1 in s2 */
+        printf("\\fcount(s1,s2,n1)\n\
   s1 = string or character to look for.\n\
   s2 = string to look in.\n\
   n1 = optional 1-based starting position, default = 1.\n");
-	printf("Returns integer:\n\
+        printf("Returns integer:\n\
   Number of occurrences of s1 in s2, 0 or more.\n");
         break;
 
@@ -11647,7 +11647,7 @@ dohfunc(xx) int xx;
         printf("Returns string:\n\
   The result of unhexifying s1, or nothing if s1 is not a hex string.\n");
         break;
-      case FN_UNTAB:			/* Untabify */
+      case FN_UNTAB:                    /* Untabify */
         printf("\\funtabify(s1)\n\
   s1 = string.\n");
         printf("Returns string:\n\
@@ -11880,7 +11880,7 @@ Assign string words to an array.\n\
   Number of words in source string.\n");
 #else
         hmsga(hfsplit);
-#endif	/* COMMENT */
+#endif  /* COMMENT */
         break;
 
       case FN_DTIM:                     /* CVTDATE */
@@ -12394,7 +12394,7 @@ Returns number:\n");
         printf("\
   Returns the (selected) elements of the array joined to together,\n\
   separated by the separator.\n");
-	printf("\n\
+        printf("\n\
   If s is CSV (literally), that means the array is to be transformed into a\n\
   comma-separated list.  No other arguments are needed.  If s is TSV, then\n\
   a tab-separated list is created.\n");
@@ -12578,13 +12578,13 @@ Returns number:\n");
   1 if orientation is landscape;\n\
   2 if orientation is portrait;\n\
   3 if the image is square.\n");
-	printf("\n\
+        printf("\n\
 If an array name is included, and if the function's return value is\n\
 greater than 0, element 1 of the array is filled in with the image\n\
 width in pixels, element 2 the image height, and element 3 is the image's\n\
 'date taken' (if present) in 'yyyy:mm:dd hh:mm:ss' format; for example\n\
 2013:05:17 21:14:12.\n");
-	break;
+        break;
 
       case FN_PID:
         printf("\\fgetpidinfo(n1)\n\
@@ -12596,7 +12596,7 @@ width in pixels, element 2 the image height, and element 3 is the image's\n\
         break;
 
       case FN_FUNC:
-	printf("\\ffunction(s1)\n\
+        printf("\\ffunction(s1)\n\
  s1 = name of function.\n");
         printf("Returns integer:\n\
   1 if s1 is the name of an available built-in function;\n\
@@ -12604,7 +12604,7 @@ width in pixels, element 2 the image height, and element 3 is the image's\n\
         break;
 
       case FN_RECURSE:
-	printf("\\frecurse(s1)\n\
+        printf("\\frecurse(s1)\n\
  s1 = name of \\&x or \\&x[] type variable\n");
         printf("Returns the result of evaluating the variable recursively.\n");
         break;
@@ -12624,7 +12624,7 @@ width in pixels, element 2 the image height, and element 3 is the image's\n\
     and cset2 are names of File Character-Sets \
 ('set file char ?' for a list).\n");
         break;
-#endif	/* NOCSETS */
+#endif  /* NOCSETS */
 
       case FN_UNPCT:
         printf("\\fdecodehex(s1[,s2])\n\

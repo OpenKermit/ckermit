@@ -109,7 +109,7 @@ extern int TlsIndex;
 extern int inserver;
 #endif /* IKSD */
 
-static int is_tn = 0;			/* Do Telnet negotiations */
+static int is_tn = 0;                   /* Do Telnet negotiations */
 
 #ifndef NOSPL
 #ifdef DCMDBUF
@@ -121,15 +121,15 @@ extern int techo, cmdlvl;
 extern int mecho;
 #endif /* NOSPL */
 
-static int scr_echo;			/* Whether to echo script commands */
+static int scr_echo;                    /* Whether to echo script commands */
 
-static int exp_alrm = 15;		/* Time to wait for expect string */
-#define SND_ALRM 15			/* Time to allow for sending string */
-#define NULL_EXP 2			/* Time to pause on null expect strg*/
-#define DEL_MSEC 300			/* Milliseconds to pause on ~d */
+static int exp_alrm = 15;               /* Time to wait for expect string */
+#define SND_ALRM 15                     /* Time to allow for sending string */
+#define NULL_EXP 2                      /* Time to pause on null expect strg*/
+#define DEL_MSEC 300                    /* Milliseconds to pause on ~d */
 
 #define SBUFL 512
-static char seq_buf[SBUFL+2], *s;	/* expect-send sequence buffer */
+static char seq_buf[SBUFL+2], *s;       /* expect-send sequence buffer */
 static int got_it, no_cr;
 
 /*  Connect state parent/child communication signal handlers */
@@ -138,9 +138,9 @@ static ckjmpbuf alrmrng;
 
 static SIGTYP
 #ifdef CK_ANSIC
-scrtime(int foo)			/* modem read failure handler, */
+scrtime(int foo)                        /* modem read failure handler, */
 #else
-scrtime(foo) int foo;			/* Alarm handler */
+scrtime(foo) int foo;                   /* Alarm handler */
 #endif /* CK_ANSIC */
 /* scrtime */ {
 
@@ -176,88 +176,88 @@ sequenc() {
     int i;
     char c, oct_char;
 
-    no_cr = 0;				/* output needs cr appended */
+    no_cr = 0;                          /* output needs cr appended */
     for (i = 0; i < SBUFL; ) {
-	if (*s == '\0' || *s == '-' || isspace(*s) ) { /* done */
-	    seq_buf[i] = '\0';
-	    return(0) ;
-	}
-	if (*s == '~') {		/* escape character */
-	    s++;
-	    switch (c = *s) {
-		case 'n':  seq_buf[i++] = LF; break;
-		case 'r':  seq_buf[i++] = CK_CR; break;
-		case 't':  seq_buf[i++] = '\t'; break;
-		case 'b':  seq_buf[i++] = '\b'; break;
-		case 'q':  seq_buf[i++] = '?';  break;
+        if (*s == '\0' || *s == '-' || isspace(*s) ) { /* done */
+            seq_buf[i] = '\0';
+            return(0) ;
+        }
+        if (*s == '~') {                /* escape character */
+            s++;
+            switch (c = *s) {
+                case 'n':  seq_buf[i++] = LF; break;
+                case 'r':  seq_buf[i++] = CK_CR; break;
+                case 't':  seq_buf[i++] = '\t'; break;
+                case 'b':  seq_buf[i++] = '\b'; break;
+                case 'q':  seq_buf[i++] = '?';  break;
 #ifdef COMMENT
 /* The default case should catch these now... */
-		case '~':  seq_buf[i++] = '~';  break;
-		case '-':  seq_buf[i++] = '-';  break;
+                case '~':  seq_buf[i++] = '~';  break;
+                case '-':  seq_buf[i++] = '-';  break;
 #endif /* COMMENT */
-		case '\'': seq_buf[i++] = '\''; break;
-		case '\"': seq_buf[i++] = '\"'; break;
-		case 's':  seq_buf[i++] = ' ';  break;
-		case 'x':  seq_buf[i++] = '\021'; break;
-		case 'c':  no_cr = 1; break;
-		case 'd': {			/* send what we have & then */
-		    seq_buf[i] = '\0';		/* expect to send rest after */
-		    no_cr = 1;			/* sender delays a little */
-		    s++;
-		    return(1);
-		}
-		case 'w': {			/* wait count */
-		    exp_alrm = 15;		/* default to 15 sec */
-		    if (isdigit(*(s+1))) {
-			s++;
-			exp_alrm = *s & 15;
-			if (isdigit(*(s+1)) ) {
-			    s++;
-			    exp_alrm = exp_alrm * 10 + (*s & 15);
-			}
-		    }
-		    break;
-		}
-		default:
-		    if ( isdigit(c) ) {	    	/* octal character */
-		    	oct_char = (char) (c & 7); /* most significant digit */
-			if (isdigit( *(s+1) ) ) {
-			    s++;
-			    oct_char = (char) ((oct_char<<3) | ( *s & 7 ));
-			    if (isdigit( *(s+1) ) ) {
-				s++;
-			    	oct_char = (char) ((oct_char<<3) | ( *s & 7 ));
-			    }
-			}
-			seq_buf[i++] = oct_char;
-			break;
-		    } else seq_buf[i++] = *s; /* Treat ~ as quote */
-	      }
-	} else seq_buf[i++] = *s;	/* Plain old character */
-	s++;
+                case '\'': seq_buf[i++] = '\''; break;
+                case '\"': seq_buf[i++] = '\"'; break;
+                case 's':  seq_buf[i++] = ' ';  break;
+                case 'x':  seq_buf[i++] = '\021'; break;
+                case 'c':  no_cr = 1; break;
+                case 'd': {                     /* send what we have & then */
+                    seq_buf[i] = '\0';          /* expect to send rest after */
+                    no_cr = 1;                  /* sender delays a little */
+                    s++;
+                    return(1);
+                }
+                case 'w': {                     /* wait count */
+                    exp_alrm = 15;              /* default to 15 sec */
+                    if (isdigit(*(s+1))) {
+                        s++;
+                        exp_alrm = *s & 15;
+                        if (isdigit(*(s+1)) ) {
+                            s++;
+                            exp_alrm = exp_alrm * 10 + (*s & 15);
+                        }
+                    }
+                    break;
+                }
+                default:
+                    if ( isdigit(c) ) {         /* octal character */
+                        oct_char = (char) (c & 7); /* most significant digit */
+                        if (isdigit( *(s+1) ) ) {
+                            s++;
+                            oct_char = (char) ((oct_char<<3) | ( *s & 7 ));
+                            if (isdigit( *(s+1) ) ) {
+                                s++;
+                                oct_char = (char) ((oct_char<<3) | ( *s & 7 ));
+                            }
+                        }
+                        seq_buf[i++] = oct_char;
+                        break;
+                    } else seq_buf[i++] = *s; /* Treat ~ as quote */
+              }
+        } else seq_buf[i++] = *s;       /* Plain old character */
+        s++;
     }
     seq_buf[i] = '\0';
-    return(0);				/* end of space, return anyway */
+    return(0);                          /* end of space, return anyway */
 }
 
 
 /* Output buffering for "recvseq" and "flushi" */
 
-#define	MAXBURST 256		/* maximum size of input burst */
-static CHAR conbuf[MAXBURST];	/* buffer to hold output for console */
-static int concnt = 0;		/* number of characters buffered */
-static CHAR sesbuf[MAXBURST];	/* buffer to hold output for session log */
-static int sescnt = 0;		/* number of characters buffered */
+#define MAXBURST 256            /* maximum size of input burst */
+static CHAR conbuf[MAXBURST];   /* buffer to hold output for console */
+static int concnt = 0;          /* number of characters buffered */
+static CHAR sesbuf[MAXBURST];   /* buffer to hold output for session log */
+static int sescnt = 0;          /* number of characters buffered */
 
 static VOID
 myflsh() {
     if (concnt > 0) {
-	conxo(concnt, (char *) conbuf);
-	concnt = 0;
+        conxo(concnt, (char *) conbuf);
+        concnt = 0;
     }
     if (sescnt > 0) {
         logstr((char *) sesbuf, sescnt);
-	sescnt = 0;
+        sescnt = 0;
     }
 }
 
@@ -277,12 +277,12 @@ dorseq(threadinfo) VOID * threadinfo;
 #endif /* CK_ANSIC */
 /* dorseq */ {
     int i, x;
-    int burst = 0;			/* chars remaining in input burst */
+    int burst = 0;                      /* chars remaining in input burst */
 
 #ifdef NTSIG
     setint();
-    if (threadinfo) {			/* Thread local storage... */
-	TlsSetValue(TlsIndex,threadinfo);
+    if (threadinfo) {                   /* Thread local storage... */
+        TlsSetValue(TlsIndex,threadinfo);
     }
 #endif /* NTSIG */
 #ifdef CK_LOGIN
@@ -295,57 +295,57 @@ dorseq(threadinfo) VOID * threadinfo;
 #endif /* CK_LOGIN */
 
     while (!got_it) {
-	for (i = 0; i < rseql-1; i++) rseqgot[i] = rseqgot[i+1];
-	x = ttinc(0);			/* Read a character */
-	debug(F101,"recvseq","",x);
-	if (x < 0) {
+        for (i = 0; i < rseql-1; i++) rseqgot[i] = rseqgot[i+1];
+        x = ttinc(0);                   /* Read a character */
+        debug(F101,"recvseq","",x);
+        if (x < 0) {
 #ifdef NTSIG
-	    ckThreadEnd(threadinfo);
+            ckThreadEnd(threadinfo);
 #endif /* NTSIG */
-	    SIGRETURN;			/* Check for error */
-	}
+            SIGRETURN;                  /* Check for error */
+        }
 #ifdef NETCONN
 #ifdef TNCODE
 /* Check for telnet protocol negotiation */
-	if (((x & 0xff) == IAC) && is_tn) { /* Telnet negotiation */
-	    myflsh();
-	    burst = 0;
-	    switch (tn_doop((CHAR)(x & 0xff),duplex,ttinc)) {
-	      case 2: duplex = 0; continue;
-	      case 1: duplex = 1;
-	      default: continue;
-	    }
-	}
+        if (((x & 0xff) == IAC) && is_tn) { /* Telnet negotiation */
+            myflsh();
+            burst = 0;
+            switch (tn_doop((CHAR)(x & 0xff),duplex,ttinc)) {
+              case 2: duplex = 0; continue;
+              case 1: duplex = 1;
+              default: continue;
+            }
+        }
 #endif /* TNCODE */
 #endif /* NETCONN */
-	rseqgot[rseql-1] = (char) (x & 0x7f); /* Got a character */
-	burst--;			/* One less waiting */
-	if (scr_echo) conbuf[concnt++] = rseqgot[rseql-1]; /* Buffer it */
-	if (seslog)			/* Log it in session log */
+        rseqgot[rseql-1] = (char) (x & 0x7f); /* Got a character */
+        burst--;                        /* One less waiting */
+        if (scr_echo) conbuf[concnt++] = rseqgot[rseql-1]; /* Buffer it */
+        if (seslog)                     /* Log it in session log */
 #ifdef UNIX
-	  if (sessft != 0 || rseqgot[rseql-1] != '\r')
+          if (sessft != 0 || rseqgot[rseql-1] != '\r')
 #else
 #ifdef OSK
-	    if (sessft != 0 || rseqgot[rseql-1] != '\012')
+            if (sessft != 0 || rseqgot[rseql-1] != '\012')
 #endif /* OSK */
 #endif /* UNIX */
-	      if (rseqgot[rseql-1])	/* Filter out NULs */
-		sesbuf[sescnt++] = rseqgot[rseql-1];
-	if ((int)strlen(rseqtrace) < SBUFL-2 )
-	  strcat(rseqtrace,dbchr(rseqgot[rseql-1]));
-	got_it = (!strncmp(rseqe, rseqgot, rseql));
-	if (burst <= 0) {		/* Flush buffered output */
-	    myflsh();
-	    if ((burst = ttchk()) < 0) { /* Get size of next input burst */
+              if (rseqgot[rseql-1])     /* Filter out NULs */
+                sesbuf[sescnt++] = rseqgot[rseql-1];
+        if ((int)strlen(rseqtrace) < SBUFL-2 )
+          strcat(rseqtrace,dbchr(rseqgot[rseql-1]));
+        got_it = (!strncmp(rseqe, rseqgot, rseql));
+        if (burst <= 0) {               /* Flush buffered output */
+            myflsh();
+            if ((burst = ttchk()) < 0) { /* Get size of next input burst */
 #ifdef NTSIG
-		ckThreadEnd(threadinfo);
+                ckThreadEnd(threadinfo);
 #endif /* NTSIG */
-		SIGRETURN;
-	    }
-	    /* prevent overflow of "conbuf" and "sesbuf" */
-	    if (burst > MAXBURST)
-	      burst = MAXBURST;
-	}
+                SIGRETURN;
+            }
+            /* prevent overflow of "conbuf" and "sesbuf" */
+            if (burst > MAXBURST)
+              burst = MAXBURST;
+        }
     }
 #ifdef NTSIG
     ckThreadEnd(threadinfo);
@@ -360,7 +360,7 @@ failrseq(void * threadinfo)
 failrseq(threadinfo) VOID * threadinfo;
 #endif /* CK_ANSIC */
 /* failrseq */ {
-     got_it = 0;			/* Timed out here */
+     got_it = 0;                        /* Timed out here */
      SIGRETURN;
 }
 
@@ -374,17 +374,17 @@ recvseq() {
     int i, l;
 
     sequenc();
-    l = (int)strlen(e=seq_buf);		/* no more than 7 chars allowed */
+    l = (int)strlen(e=seq_buf);         /* no more than 7 chars allowed */
     if (l > 7) {
-	e += l-7;
-	l = 7;
+        e += l-7;
+        l = 7;
     }
     tlog(F111,"expecting sequence",e,(long) l);
-    if (l == 0) {			/* null sequence, delay a little */
-	sleep (NULL_EXP);
-	got_it = 1;
-	tlog(F100,"got it (null sequence)","",0L);
-	return;
+    if (l == 0) {                       /* null sequence, delay a little */
+        sleep (NULL_EXP);
+        got_it = 1;
+        tlog(F100,"got it (null sequence)","",0L);
+        return;
     }
     *trace = '\0';
     for (i = 0; i < 7; i++) got[i]='\0';
@@ -398,7 +398,7 @@ recvseq() {
 
     tlog(F110,"received sequence: ",trace,0L);
     tlog(F101,"returning with got-it code","",(long) got_it);
-    myflsh();				/* Flush buffered output */
+    myflsh();                           /* Flush buffered output */
     return;
 }
 
@@ -407,9 +407,9 @@ recvseq() {
  return 0 if okay,
  1 if failed to read (modem hangup or whatever)
 */
-static int oseqret = 0;			/* Return code for outseq */
-					/* Out here to prevent clobbering */
-					/* by longjmp. */
+static int oseqret = 0;                 /* Return code for outseq */
+                                        /* Out here to prevent clobbering */
+                                        /* by longjmp. */
 
 static SIGTYP
 #ifdef CK_ANSIC
@@ -426,8 +426,8 @@ dooseq(threadinfo) VOID * threadinfo;
 
 #ifdef NTSIG
     setint();
-    if (threadinfo) {			/* Thread local storage... */
-	TlsSetValue(TlsIndex,threadinfo);
+    if (threadinfo) {                   /* Thread local storage... */
+        TlsSetValue(TlsIndex,threadinfo);
     }
 #endif /* NTSIG */
 #ifdef CK_LOGIN
@@ -443,54 +443,54 @@ dooseq(threadinfo) VOID * threadinfo;
     tlog(F111,"sending sequence ",seq_buf,(long) l);
 
     if (!strcmp(seq_buf,"EOT")) {
-	ttoc(dopar('\004'));
-	if (scr_echo) conol("<EOT>");
-	if (seslog && duplex)
+        ttoc(dopar('\004'));
+        if (scr_echo) conol("<EOT>");
+        if (seslog && duplex)
             logstr("<EOT>",5);
     } else if (!strcmp(seq_buf,"BREAK") ||
-	       !strcmp(seq_buf,"\\b") ||
-	       !strcmp(seq_buf,"\\B")) {
-	ttsndb();
-	if (scr_echo) conol("<BREAK>");
-	if (seslog)
-	  logstr("{BREAK}",7);
+               !strcmp(seq_buf,"\\b") ||
+               !strcmp(seq_buf,"\\B")) {
+        ttsndb();
+        if (scr_echo) conol("<BREAK>");
+        if (seslog)
+          logstr("{BREAK}",7);
     } else {
-	if (l > 0) {
-	    for ( sb = seq_buf; *sb; sb++)
-	      *sb = dopar(*sb);	/* add parity */
-	    ttol((CHAR *)seq_buf,l); /* send it */
-	    if (scr_echo && duplex) {
+        if (l > 0) {
+            for ( sb = seq_buf; *sb; sb++)
+              *sb = dopar(*sb); /* add parity */
+            ttol((CHAR *)seq_buf,l); /* send it */
+            if (scr_echo && duplex) {
 #ifndef NOLOCAL
 #ifdef OS2
-		{			/* Echo to emulator */
-		    char *s = seq_buf;
-		    while (*s) {
-			scriptwrtbuf((USHORT)*s);
-		    }
-		}
+                {                       /* Echo to emulator */
+                    char *s = seq_buf;
+                    while (*s) {
+                        scriptwrtbuf((USHORT)*s);
+                    }
+                }
 #endif /* OS2 */
 #endif /* NOLOCAL */
-		conxo(l,seq_buf);
-	    }
-	    if (seslog && duplex) /* log it */
-	      logstr(seq_buf,strlen(seq_buf));
-	}
-	if (!no_cr) {
-	    ttoc( dopar(CK_CR) );
+                conxo(l,seq_buf);
+            }
+            if (seslog && duplex) /* log it */
+              logstr(seq_buf,strlen(seq_buf));
+        }
+        if (!no_cr) {
+            ttoc( dopar(CK_CR) );
 #ifdef TCPSOCKET
-	    if (is_tn) {
-		if (!TELOPT_ME(TELOPT_BINARY) && tn_nlm != TNL_CR)
-		  ttoc((char)((tn_nlm == TNL_CRLF) ?
-			      dopar(LF) : dopar(NUL)));
-		else if (TELOPT_ME(TELOPT_BINARY) &&
-			 (tn_b_nlm == TNL_CRLF || tn_b_nlm == TNL_CRNUL))
-		  ttoc((char)((tn_b_nlm == TNL_CRLF) ?
-			      dopar(LF) : dopar(NUL)));
-	    }
+            if (is_tn) {
+                if (!TELOPT_ME(TELOPT_BINARY) && tn_nlm != TNL_CR)
+                  ttoc((char)((tn_nlm == TNL_CRLF) ?
+                              dopar(LF) : dopar(NUL)));
+                else if (TELOPT_ME(TELOPT_BINARY) &&
+                         (tn_b_nlm == TNL_CRLF || tn_b_nlm == TNL_CRNUL))
+                  ttoc((char)((tn_b_nlm == TNL_CRLF) ?
+                              dopar(LF) : dopar(NUL)));
+            }
 #endif /* TCPSOCKET */
-	    if (seslog && duplex)
-	      logchar(dopar(CK_CR));
-	}
+            if (seslog && duplex)
+              logchar(dopar(CK_CR));
+        }
     }
 #ifdef NTSIG
     ckThreadEnd(threadinfo);
@@ -505,7 +505,7 @@ failoseq(void * threadinfo)
 failoseq(threadinfo) VOID * threadinfo;
 #endif /* CK_ANSIC */
 /* failoseq */ {
-     oseqret = -1;		/* else -- alarm rang */
+     oseqret = -1;              /* else -- alarm rang */
      SIGRETURN;
 }
 
@@ -513,15 +513,15 @@ static int
 outseq() {
     int delay;
 
-    oseqret = 0;			/* Initialize return code */
+    oseqret = 0;                        /* Initialize return code */
     while(1) {
-	delay = sequenc();
-	alrm_execute( ckjaddr(alrmrng), SND_ALRM, scrtime, dooseq, failoseq ) ;
+        delay = sequenc();
+        alrm_execute( ckjaddr(alrmrng), SND_ALRM, scrtime, dooseq, failoseq ) ;
 
-	if (!delay)
-	  return(oseqret);
+        if (!delay)
+          return(oseqret);
 #ifndef MAC
-	msleep(DEL_MSEC);		/* delay, loop to next send */
+        msleep(DEL_MSEC);               /* delay, loop to next send */
 #endif /* MAC */
     }
 }
@@ -536,41 +536,41 @@ dologin( char *cmdstr )
 dologin(cmdstr) char *cmdstr;
 #endif /* CK_ANSIC */
 {
-    sig_t savealm;		/* Save incoming alarm function */
+    sig_t savealm;              /* Save incoming alarm function */
     char *e;
 
-    s = cmdstr;				/* Make global to this module */
+    s = cmdstr;                         /* Make global to this module */
 
     tlog(F100,loginv,"",0L);
 
     if (speed < 0L) speed = ttgspd();
     if (ttopen(ttname,&local,mdmtyp,0) < 0) {
-	ckmakmsg(seq_buf,SBUFL,"Sorry, can't open ",ttname,NULL,NULL);
-	perror(seq_buf);
-	return(0);
+        ckmakmsg(seq_buf,SBUFL,"Sorry, can't open ",ttname,NULL,NULL);
+        perror(seq_buf);
+        return(0);
     }
     /* Whether to echo script commands ... */
     scr_echo = (!quiet && !backgrd && secho);
 #ifndef NOSPL
     if (scr_echo && cmdlvl > 1) {
-	if (cmdstk[cmdlvl].src == CMD_TF)
-	  scr_echo = techo;
-	if (cmdstk[cmdlvl].src == CMD_MD)
-	  scr_echo = mecho;
+        if (cmdstk[cmdlvl].src == CMD_TF)
+          scr_echo = techo;
+        if (cmdstk[cmdlvl].src == CMD_MD)
+          scr_echo = mecho;
     }
 #endif /* NOSPL */
     if (scr_echo) {
 #ifdef NETCONN
-	if (network)
-	  printf("Executing SCRIPT to host %s.\n",ttname);
-	else
+        if (network)
+          printf("Executing SCRIPT to host %s.\n",ttname);
+        else
 #endif /* NETCONN */
-	  printf("Executing SCRIPT through %s, speed %ld.\n",ttname,speed);
+          printf("Executing SCRIPT through %s, speed %ld.\n",ttname,speed);
     }
 #ifdef TNCODE
     /* TELNET input must be scanned for IAC */
     is_tn = (local && network && IS_TELNET()) ||
-	    (!local && sstelnet);
+            (!local && sstelnet);
 #endif /* TNCODE */
 
     *seq_buf = 0;
@@ -580,38 +580,38 @@ dologin(cmdstr) char *cmdstr;
 /* Condition console terminal and communication line... */
 
     if (ttvt(speed,flow) < 0) {
-	printf("Sorry, Can't condition communication line\n");
-	return(0);
+        printf("Sorry, Can't condition communication line\n");
+        return(0);
     }
     /* Save initial timer interrupt value */
     savealm = signal(SIGALRM,SIG_IGN);
 
-    flushi();				/* Flush stale input */
+    flushi();                           /* Flush stale input */
 
 /* start expect - send sequence */
 
-    while (*s) {			/* While not done with buffer */
+    while (*s) {                        /* While not done with buffer */
 
-	while (*s && isspace(*s)) s++;	/* Skip over separating whitespaces */
-					/* Gather up expect sequence */
-	got_it = 0;
-	recvseq();
+        while (*s && isspace(*s)) s++;  /* Skip over separating whitespaces */
+                                        /* Gather up expect sequence */
+        got_it = 0;
+        recvseq();
 
-	while (!got_it) {		/* Have it yet? */
-	    if (*s++ != '-')		/* No, is there a conditional send? */
-	      goto failret;		/* No, return failure */
-	    flushi();			/* Yes, flush out input buffer */
-	    if (outseq())		/* If unable to send, */
-	      goto failret;		/* return failure. */
-	    if (*s++ != '-')		/* If no conditional response here, */
-	      goto failret;		/* return failure. */
-	    recvseq();			/* All OK, read response from host. */
-	}				/* Loop back and check got_it */
+        while (!got_it) {               /* Have it yet? */
+            if (*s++ != '-')            /* No, is there a conditional send? */
+              goto failret;             /* No, return failure */
+            flushi();                   /* Yes, flush out input buffer */
+            if (outseq())               /* If unable to send, */
+              goto failret;             /* return failure. */
+            if (*s++ != '-')            /* If no conditional response here, */
+              goto failret;             /* return failure. */
+            recvseq();                  /* All OK, read response from host. */
+        }                               /* Loop back and check got_it */
 
-	while (*s && !isspace(*s++) ) ;	/* Skip over conditionals */
-	while (*s && isspace(*s)) s++;	/* Skip over separating whitespaces */
-	flushi();			/* Flush */
-	if (*s) if (outseq()) goto failret; /* If any */
+        while (*s && !isspace(*s++) ) ; /* Skip over conditionals */
+        while (*s && isspace(*s)) s++;  /* Skip over separating whitespaces */
+        flushi();                       /* Flush */
+        if (*s) if (outseq()) goto failret; /* If any */
     }
     signal(SIGALRM,savealm);
     if (scr_echo) printf("Script successful.\n");
@@ -631,53 +631,53 @@ VOID
 flushi() {
     int n, x;
     if (
-	seslog				/* Logging session? */
-	|| scr_echo			/* Or console echoing? */
+        seslog                          /* Logging session? */
+        || scr_echo                     /* Or console echoing? */
 #ifdef NETCONN
 #ifdef TNCODE
-	/* TELNET input must be scanned for IAC */
-	|| is_tn
+        /* TELNET input must be scanned for IAC */
+        || is_tn
 #endif /* TNCODE */
 #endif /* NETCONN */
-	) {
-        if ((n = ttchk()) < 0)		/* Yes, anything in buffer? */
-	  return;
-	if (n > MAXBURST) n = MAXBURST;	/* Make sure not too much, */
-	myflsh();			/* and that buffers are empty. */
-	while (n-- > 0) {
-  	    x = ttinc(0);		/* Collect a character */
+        ) {
+        if ((n = ttchk()) < 0)          /* Yes, anything in buffer? */
+          return;
+        if (n > MAXBURST) n = MAXBURST; /* Make sure not too much, */
+        myflsh();                       /* and that buffers are empty. */
+        while (n-- > 0) {
+            x = ttinc(0);               /* Collect a character */
 #ifdef NETCONN
 #ifdef TNCODE
 /* Check for telnet protocol negotiation */
-  	    if (is_tn && ((x & 0xff) == IAC) ) {
-		myflsh();		/* Sync output */
-  		switch (tn_doop((CHAR)(x & 0xff),duplex,ttinc)) {
-  		  case 2: duplex = 0; break;
-  		  case 1: duplex = 1;
-		  default: break;
-		}
+            if (is_tn && ((x & 0xff) == IAC) ) {
+                myflsh();               /* Sync output */
+                switch (tn_doop((CHAR)(x & 0xff),duplex,ttinc)) {
+                  case 2: duplex = 0; break;
+                  case 1: duplex = 1;
+                  default: break;
+                }
 
-		/* Recalculate flush count */
-		if ((n = ttchk()) < 0)
-		  return;
-		if (n > MAXBURST) n = MAXBURST;
-  		continue;
-  	    }
+                /* Recalculate flush count */
+                if ((n = ttchk()) < 0)
+                  return;
+                if (n > MAXBURST) n = MAXBURST;
+                continue;
+            }
 #endif /* TNCODE */
 #endif /* NETCONN */
-	    if (scr_echo) conbuf[concnt++] = (CHAR) x; /* buffer for console */
-	    if (seslog)
+            if (scr_echo) conbuf[concnt++] = (CHAR) x; /* buffer for console */
+            if (seslog)
 #ifdef UNIX
-	      if (sessft != 0 || x != '\r')
+              if (sessft != 0 || x != '\r')
 #else
 #ifdef OSK
-	      if (sessft != 0 || x != '\012')
+              if (sessft != 0 || x != '\012')
 #endif /* OSK */
 #endif /* UNIX */
-		sesbuf[sescnt++] = (CHAR) x; /* buffer for session log */
-  	}
-	myflsh();
-    } else ttflui();			/* Otherwise just flush. */
+                sesbuf[sescnt++] = (CHAR) x; /* buffer for session log */
+        }
+        myflsh();
+    } else ttflui();                    /* Otherwise just flush. */
 }
 
 #else /* NOSCRIPT */

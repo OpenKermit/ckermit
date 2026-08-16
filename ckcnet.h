@@ -92,8 +92,8 @@
 #define NP_K5U2U       18               /* TCP/IP Kerberos 5 User to User */
 #define NP_CTERM       19               /* DEC CTERM */
 #define NP_LAT         20               /* DEC LAT */
-#define NP_SSL_RAW     21		/* SSL with no Telnet permitted */
-#define NP_TLS_RAW     22		/* TLS with no Telnet permitted */
+#define NP_SSL_RAW     21               /* SSL with no Telnet permitted */
+#define NP_TLS_RAW     22               /* TLS with no Telnet permitted */
 
 /* others here... */
 
@@ -220,7 +220,7 @@ _PROTOTYP( int locate_txt_rr, (char *prefix, char *name, char **retstr) );
 #ifdef TCPSOCKET
 _PROTOTYP( int gettcpport, (void) );
 _PROTOTYP( int gettcpport, (void) );
-#endif	/* TCPSOCKET */
+#endif  /* TCPSOCKET */
 
 /*
   SunLink X.25 support by Marcello Frutig, Catholic University,
@@ -1021,8 +1021,8 @@ typedef unsigned int u_int;
 
 #include <in.h>
 #ifdef VMS
-#include <inet.h>			/* (SMS 2007/02/15) */
-#endif	/* VMS */
+#include <inet.h>                       /* (SMS 2007/02/15) */
+#endif  /* VMS */
 #include <netdb.h>
 #include <socket.h>
 #include "ckvioc.h"
@@ -1250,20 +1250,20 @@ typedef char * caddr_t; /* core address type */
 #include <net/if.h>
 #endif /* CK_GETIFADDRS */
 
-#ifndef NOINADDRX		      /* 301 - Needed for Solaris 10 and 11 */
+#ifndef NOINADDRX                     /* 301 - Needed for Solaris 10 and 11 */
 #ifdef SOLARIS
 #define NOINADDRX
 #ifdef INADDR_NONE
 #undef INADDR_NONE
-#endif	/* INADDR_NONE */
-#endif	/* SOLARIS */
-#endif	/* NOINADDRX */
+#endif  /* INADDR_NONE */
+#endif  /* SOLARIS */
+#endif  /* NOINADDRX */
 
 #ifdef NOINADDRX
 #ifdef INADDRX
 #undef INADDRX
-#endif	/* INADDRX */
-#endif	/* NOINADDRX */
+#endif  /* INADDRX */
+#endif  /* NOINADDRX */
 
 #ifdef TCPSOCKET
 #ifndef NOHADDRLIST
@@ -1475,16 +1475,16 @@ extern char * tcp_http_proxy_pwd;       /* Password of user */
 #else
 #ifdef HPUX
 #define socklen_t int
-#endif	/* HPUX */
-#endif	/* TRU64 */
+#endif  /* HPUX */
+#endif  /* TRU64 */
 
 #ifndef SOCKOPT_T
 #ifdef CK_64BIT
 #ifndef NT
 #define SOCKOPT_T socklen_t
 #endif  /* NT */
-#endif	/* CK_64BIT */
-#endif	/* SOCKOPT_T */
+#endif  /* CK_64BIT */
+#endif  /* SOCKOPT_T */
 
 #ifndef SOCKOPT_T
 #define SOCKOPT_T int
@@ -1530,8 +1530,8 @@ extern char * tcp_http_proxy_pwd;       /* Password of user */
 #ifndef NT
 #define GSOCKNAME_T socklen_t
 #endif  /* NT */
-#endif	/* CK_64BIT */
-#endif	/* GSOCKNAME_T */
+#endif  /* CK_64BIT */
+#endif  /* GSOCKNAME_T */
 
 #ifndef GSOCKNAME_T
 #define GSOCKNAME_T int

@@ -641,7 +641,7 @@ tn_wait(where) char * where;
               case 6:                   /* Logout */
                 break;
               case -1:
-		if (!quiet)
+                if (!quiet)
                 printf("?Telnet Option negotiation error.\n");
                 if (tn_deb || debses)
                   tn_debug("<Telnet Option negotiation error>");
@@ -649,7 +649,7 @@ tn_wait(where) char * where;
               case -2:
                 printf("?Connection closed by peer.\n");
                 if (tn_deb || debses) tn_debug("<Connection closed by peer>");
-		ttclos(0);
+                ttclos(0);
                 return(-2);
               default:
                 if (ch < 0) {
@@ -1882,7 +1882,7 @@ fwdx_send_data_from_channel(channel, data, len)
                            " DATA CHANNEL=",ckitoa(channel)," ",
                            NULL,NULL,NULL,NULL,NULL,NULL,NULL );
                 tn_hex((CHAR *)fwdx_msg_out,
-		       TN_MSG_LEN,&sb_priv[j_sav],j-(j_sav+2));
+                       TN_MSG_LEN,&sb_priv[j_sav],j-(j_sav+2));
                 ckstrncat((char *)fwdx_msg_out," IAC SE",TN_MSG_LEN);
             }
 #endif /* DEBUG */
@@ -2028,15 +2028,15 @@ iks_wait(sb,flushok) int sb; int flushok;
                   "u_start",
                   TELOPT_SB(TELOPT_KERMIT).kermit.u_start
                   );
-            tn_siks(KERMIT_REQ_START);	/* SB KERMIT SOP x */
+            tn_siks(KERMIT_REQ_START);  /* SB KERMIT SOP x */
             tn_wait_flg = 1;            /* MUST wait for response: RFC2840 */
             do {
                 if (flushok)
                   tn_wait_idx = 0;
                 x = tn_wait("iks_wait() me_iks_req_start");
             } while (x == 0 &&
-		     flushok &&
-		     tn_wait_idx == TN_WAIT_BUF_SZ &&
+                     flushok &&
+                     tn_wait_idx == TN_WAIT_BUF_SZ &&
 /*
   The idea here is that if, while waiting for a response to SB KERMIT SOP,
   we get a DONT KERMIT, as happens in at least one real-life situation,
@@ -2045,8 +2045,8 @@ iks_wait(sb,flushok) int sb; int flushok;
   calls tn_xdoop(), which will unset TELOPT_ME(TELOPT_KERMIT) if DONT KERMIT
   arrives.  -fdc, 2013-04-10.
 */
-		     TELOPT_ME(TELOPT_KERMIT)
-		     );
+                     TELOPT_ME(TELOPT_KERMIT)
+                     );
             tn_wait_flg = tn_wait_save;
             if (flushok)
               tn_wait_idx = 0;
@@ -3032,8 +3032,8 @@ tn_ini() {
       case NP_NONE:
       case NP_SSL:
       case NP_TLS:                      /* If not talking to a telnet port, */
-      case NP_SSL_RAW:			/* SSL and TLS with Telnet */
-      case NP_TLS_RAW:			/* negotiations disabled. */
+      case NP_SSL_RAW:                  /* SSL and TLS with Telnet */
+      case NP_TLS_RAW:                  /* negotiations disabled. */
         ttnproto = NP_TELNET;           /* pretend it's telnet anyway, */
         oldplex = duplex;               /* save old duplex value */
         duplex = 1;                     /* and set to half duplex for telnet */
@@ -3042,7 +3042,7 @@ tn_ini() {
          * wrapped Telnet), there is no peer that will ever send Telnet
          * negotiation responses, so waiting for them causes trouble.
          * tn_wait() reads and consumes bytes off the connection 
-	 * looking for an IAC, stashing anything else
+         * looking for an IAC, stashing anything else
          * into its own side buffer.  If the peer's first real
          * application data (such as a Kermit packet) arrives before
          * tn_wait() gives up, it gets silently discarded here instead
@@ -3054,9 +3054,9 @@ tn_ini() {
         if (inserver)
 #endif /* CK_SSL */
           debug(F100,"tn_ini skipping telnet negotiations","",0);
-	else
-	  tn_wait("tn_ini - waiting to see if telnet negotiations were sent");
-	tn_push();
+        else
+          tn_wait("tn_ini - waiting to see if telnet negotiations were sent");
+        tn_push();
         return(0);
       case NP_TCPRAW:                   /* Raw socket requested. */
         debug(F100,"tn_ini telnet negotiations ignored","tn_init",tn_init);
@@ -3093,7 +3093,7 @@ tn_hex(buf, buflen, data, datalen)
 #endif /* CK_ANSIC */
 {
     int i = 0, j = 0, k = 0;
-    CHAR tmp[16];		/* in case value is treated as negative */
+    CHAR tmp[16];               /* in case value is treated as negative */
     if (datalen <= 0 || data == NULL || buf == NULL || buflen <= 0)
         return(0);
 
@@ -3374,7 +3374,7 @@ tn_sb( opt, len, fn ) int opt; int * len; int (*fn)();
             if ( deblog || tn_deb || debses ) {
                 ckmakmsg( tn_msg,TN_MSG_LEN,
                           "TELNET RCVD SB ",TELOPT(opt),
-			  " DATA(buffer-full) ",NULL);
+                          " DATA(buffer-full) ",NULL);
                 tn_hex((CHAR *)tn_msg,TN_MSG_LEN,&sb[1],n-3);
                 if (flag == 2)
                     ckstrncat(tn_msg," SE",TN_MSG_LEN);
@@ -4818,11 +4818,11 @@ tn_xdoop(z, echo, fn) CHAR z; int echo; int (*fn)();
   The idea here is to nullify any outstanding Telnet Kermit subnegotiations.
   The first three should do the trick, but they don't.
   Setting TELOPT_U(TELOPT_KERMIT) to 0, however, does.
-		TELOPT_ME(TELOPT_KERMIT) = 0;
-		TELOPT_SB(TELOPT_KERMIT).kermit.me_req_start = 0;
-		TELOPT_SB(TELOPT_KERMIT).kermit.me_req_stop = 0;
+                TELOPT_ME(TELOPT_KERMIT) = 0;
+                TELOPT_SB(TELOPT_KERMIT).kermit.me_req_start = 0;
+                TELOPT_SB(TELOPT_KERMIT).kermit.me_req_stop = 0;
 */
-		TELOPT_U(TELOPT_KERMIT) = 0;
+                TELOPT_U(TELOPT_KERMIT) = 0;
 /* End section added 2013-04-12 */
 #endif /* IKS_OPTION */
                 break;
@@ -5407,7 +5407,7 @@ tn_doop(z, echo, fn) CHAR z; int echo; int (*fn)();
 #ifdef CK_SSL
     debug(F101,"tn_doop ssl_raw_flag","",ssl_raw_flag);
     if (ssl_raw_flag || tls_raw_flag) return(7);
-#endif	/* CK_SSL */
+#endif  /* CK_SSL */
     debug(F100,"tn_doop ttnproto proceeding...","",0);
 
     if (z != (CHAR) IAC) {
@@ -5601,7 +5601,7 @@ tn_rnenv(sb, len) CHAR * sb; int len;
 #define SFUTLNTVER "SFUTLNTVER"
 #define SFUTLNTMODE "SFUTLNTMODE"
 #define SFUTLNTVER_VALUE  "2"
-#define SFUTLNTMODE_VALUE "console"	/* The other value is "stream" */
+#define SFUTLNTMODE_VALUE "console"     /* The other value is "stream" */
 
 /* Telnet send new environment */
 /* Returns -1 on error, 0 if nothing happens, 1 on success */
@@ -5619,7 +5619,7 @@ tn_snenv(sb, len) CHAR * sb; int len;
     int i,j,n;                          /* Worker. */
     int type = 0;       /* 0 for NONE, 1 for VAR, 2 for USERVAR in progress */
     extern int ck_lcname;
-    char localuidbuf[UIDBUFLEN];	/* (Initialized just below) */
+    char localuidbuf[UIDBUFLEN];        /* (Initialized just below) */
     char * uu = uidbuf;
     char * disp = NULL;
 
@@ -6636,10 +6636,10 @@ tnc_tn_sb(sb, len) CHAR * sb; int len;
         switch ( sb[1] ) {
           case TNC_CTL_OFLOW_REQUEST:
             /* determine local outbound flow control and send to peer */
-	    /* Cisco IOS returns 0 (TNC_CTL_OFLOW_REQUEST) when attempting */
-	    /* to set the inbound flow control if it is not supported      */
-	    /* separately from outbound flow control.  So must reset       */
-	    /* wait for sb flag.                                           */
+            /* Cisco IOS returns 0 (TNC_CTL_OFLOW_REQUEST) when attempting */
+            /* to set the inbound flow control if it is not supported      */
+            /* separately from outbound flow control.  So must reset       */
+            /* wait for sb flag.                                           */
             debug(F110,"tnc_tn_sb","oflow request",0);
             TELOPT_SB(TELOPT_COMPORT).comport.wait_for_sb = 0;
             break;
