@@ -1,8 +1,25 @@
 from conftest import assert_ok
 
 
+def test_file_seek_find_without_argument_reports_error(tmp_path, run_wermit):
+    """FILE SEEK /FIND without an argument must report a syntax error."""
+    test_file = tmp_path / "seekfindtest.txt"
+    test_file.write_text("line1\nline2\nline3\n")
+
+    cmds = (
+        f"file open /read \\%c {test_file}, "
+        f"file seek /find \\%c"
+    )
+    result = run_wermit(cmds)
+
+    assert "?This switch requires an argument" in result.stdout
+    assert "?Syntax error" in result.stdout
+
+
 def test_file_seek_eof_and_last(tmp_path, run_wermit):
-    """Test FILE SEEK with EOF and LAST keywords for byte and line positions."""
+    """
+    Test FILE SEEK with EOF and LAST keywords for byte and line positions.
+    """
     test_file = tmp_path / "seektest.txt"
     test_file.write_text("line1\nline2\nline3\n")
     file_size = test_file.stat().st_size  # 18 bytes: three 6-byte lines
