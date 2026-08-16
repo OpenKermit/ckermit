@@ -25,6 +25,10 @@
 - Save off localtime() results in zdtstr()/zstrdt() to prevent mtime skew when
   SET DEBUG TIMESTAMPS is ON.
 
+- Converted tabs to spaces in the source.  Inconsistent use of tabs vs. spaces
+  was causing confusion, for humans and also possibly for gcc with
+  -Wmisleading-indentation.  This was done using the expand(1) command.
+
 - Ran with various warning-enable options, cleaning up warnings along the way.
 
 - Fixed bugs identified during the warning sweep:
