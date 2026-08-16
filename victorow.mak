@@ -168,8 +168,17 @@ $(OBJS): $(CONFIG_H)
 # ckvisr.asm names its own segments and its own group and reads no header,
 # which is why ckvictor.c carries a compile-time check that the ring size
 # the two agree on has not drifted.
+# RXMASK is the ONE thing the assembler has to be told, because it carries
+# its own copy of the ring mask and cannot read ckvictor.h.  Empty by default
+# -- ckvisr.asm's IFNDEF then supplies 0FFFh, matching V9K_RXBUFSIZ 4096.
+# Change the ring and you must pass both, e.g.
+#     make -f victorow.mak XFLAGS=-dV9K_RXBUFSIZ=8192 RXMASK=-dV9K_RXMASK=1FFFh
+# and if you pass only one, v9k_ser_install() refuses to start and says so
+# (PORTING.md SS16au) rather than corrupting the ring quietly.
+RXMASK  =
+
 ckvisr.obj: ckvisr.asm
-	$(ASM) -zq -bt=dos -fo=$@ ckvisr.asm
+	$(ASM) -zq -bt=dos $(RXMASK) -fo=$@ ckvisr.asm
 
 # Report the numbers that actually decide whether this port is viable.
 #

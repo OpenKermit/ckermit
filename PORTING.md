@@ -10425,3 +10425,526 @@ DGROUP **48,752 of 65,536 (74%)**, far code 191,592, image **226,330**,
 costs +508 bytes of image and +16 of DGROUP. 18 compiler warnings, all in
 stock upstream code, **none added** — measured against a stashed baseline
 rather than assumed. `ckvictor.c` still compiles with none.
+
+## 16ar. Sliding windows: the mechanism works, and the ring behaves as modelled
+
+**§1 item 12, and the headline is that a window is now a run-time switch on
+the shipping binary, negotiated end to end, byte-exact, for NO UPSTREAM
+EDIT — still eighteen.** `--window=N` off the DOS command tail (§16i's
+priority-0 XI mechanism, the fourth switch after `--safe-server`, the flow
+three and `--nodisplay`). DGROUP **48,784 of 65,536 (74%)**, image
+**226,936**, **needs 240,984 (235K)**, **smallest Victor 384K, unchanged**.
+
+`DFWSIZ` **is still 1 in the tree.** This section does not change the
+default; it builds the lever and measures what it does.
+
+### It writes `ptab`, and that is the whole design
+
+`initproto()` does `wslotr = ptab[protocol].winsize` at `ckcmai.c:2021`,
+118 lines before anything reads `wslotr` — so an XI record that sets the
+*variable* is undone before it matters. That is exactly the trap that ate
+the prefixing setting for the port's entire life (§16ai). The switch writes
+`ptab[PROTO_K].winsize`, which is what `initproto()` copies **from**.
+**The second time this trap has been walked up to and the first time it was
+seen in advance.**
+
+### The pool is the ceiling, and it is 2
+
+Nothing in this build calls `adjpkl()` for the receive direction —
+`dofast()` is guarded out (§8 item 14) and the other two call sites are
+`REMOTE SET` handlers. So `urpsiz` stays at `DRPSIZ` while `makebuf()`
+divides `RBSIZ` by the slot count, and the condition nobody upstream is
+going to check is `(DRPSIZ + 6) × slots <= RBSIZ`, i.e. **4,006 × 2 = 8,012
+≤ 8,192**. `ckvictor.h`'s `SBSIZ`/`RBSIZ` comment turns out to have
+anticipated this exactly — *"at window 1 it is twice what it needs,
+deliberately, so that turning the window up to 2 later is a one-line
+change"*. It is, and this is it. The switch **clamps rather than shrinks
+the packet**, because shrinking `DRPSIZ` to fit would change the packet
+length between the two arms and confound the measurement; `cap=` prints the
+clamp so it is visible rather than inferred.
+
+### One binary, one digit
+
+`--window=1` against `--window=2` is **the same 8088 instructions in the
+same places**, so §16w's code-size sensitivity has nothing to act on. That
+is §16aq's `--nobulk` shape reused, and it is now the default way this port
+builds a control. `v9k/proofs/vwindow.c` is the parser's correctness
+argument — 17 cases, and the ones that matter are the **near misses**
+(`--windows=2`, `--window=`, `--window=2x`), which must be left in place so
+`cmdlin()` fatals on them, because that fatal is §16i's unknown-option
+control. Leg WC ran it on the machine: `--windoz=2` →
+`Extended options not configured`, `ask=0`, nothing transferred.
+
+### Four legs under MAME at 9600
+
+Two arms, run twice, the second pair adjacent and with the host quiet.
+
+| | WA / WD (window 1) | WB / WE (window 2) |
+|---|---:|---:|
+| `neg` (Victor) / host `slots used` | 1 / 1 of 30 | **2 / 2 of 30** |
+| `rxpeak` of 4,096 | 305 / **305** | 656 / **655** |
+| `peakat` | 4,353 / 4,353 | 30,029 / 30,026 |
+| `rxbytes` | 39,794 / 39,794 | 37,864 / 37,864 |
+| `rxlost` / `rxfull` | 0 / 0 | 0 / 0 |
+| md5 | byte-exact | byte-exact |
+
+**The two runs of each arm reproduce TO THE BYTE.** `pktstat.py --rxbytes`
+reconciles at the usual **−11**, so both ends saw the same transfer.
+
+**`rxpeak` doubling is the mechanism becoming visible**, and `mapoffset.py`
+puts the window-2 peak inside **seq=20, an ordinary 3,396-byte data
+packet** — not a resend, so it is steady-state occupancy and not §16m's
+artefact. Ask where the peak is before reading it as a cap; this one is
+where it should be.
+
+### The number the sitting was for — **RETRACTED BY §16as**
+
+> **This prediction was wrong and the bench measured 4,095 pinned with
+> `rxfull` 179–182.** The model below is valid only where the receiver
+> keeps up with the line, which is true at 9600 and false at 38400; the
+> real bound is window × packet length. §16as has the analysis. It is left
+> here unedited because the *way* it was wrong is the lesson.
+
+Decode time does not care about the line rate; the arrival rate does.
+Scaling 655 by 4× for the rate and again by the longer packet the bench
+negotiates (3,991 against 3,396) gives a predicted **`rxpeak` of
+2,600–3,100 of 4,096 at 38400 with a window of 2** — comparable to §16af's
+2,581, which ran clean, with ~1,000–1,500 bytes of margin. **So the bench
+leg can be run without growing the ring first**, which is what the ring
+growth would have cost: `V9K_RXBUFSIZ` is `.bss` inside DGROUP *and*
+`ckvisr.asm` carries `V9K_RXMASK` as a literal `0FFFh`, so 4,096 → 8,192 is
+an assembly change, not a constant.
+
+**This is arithmetic on one measured number and it is labelled as such.**
+The bench leg reports `rxpeak` itself, which is the check.
+
+### 9600 cannot show the payoff, and did not
+
+Non-line cost (host clock − wire bytes × 1,040 µs): window 1 **39.0 and
+41.6 s**, window 2 **32.9 and 41.4 s**. The arms overlap completely, and
+**the within-arm spread is up to 8.5 s** — WB and WE are the same binary
+and the same 37,864 bytes and 8.5 s apart. At 9600 the line is 39.4 s of an
+~80 s transfer and there is nothing to overlap. **§16al's finding
+reproduced on the emulator: the spread is the HOST**, since the Victor's
+byte counts were identical across it. No cps figure from this sitting is a
+window result.
+
+### The instrument this section added, and what is wrong with it
+
+**`dec` splits the foreground bucket §1 item 9 asked about** — last byte of
+a packet handed up, to the ACK for it handed down, which is decode plus the
+file write plus the protocol state machine. On a receive leg with a window
+of one it is also, exactly, the time a window would have to overlap.
+
+**It cannot tell a decode from a silence.** All four legs read
+`max = 3250 cs` — 32.5 seconds — and the guard built for it read `to = 0`.
+The guard spoils an interval when *our* alarm fires; §16l established long
+ago that **every timeout in these logs is the host's**, so our alarm never
+expires and the guard is correct about a case that does not occur.
+Subtracting `max` by hand gives 64.6 and 73.2 cs against the **68.2 cs that
+`rxpeak / line rate` gives independently**, which is why the counter is
+kept: it corroborates, it does not adjudicate.
+
+**The rule is §16ai's, learned again on this port's own instrument: when
+the clock cannot resolve an effect, find the counter that measures the same
+mechanism in units that do not vary.** `rxpeak` is bytes, counted exactly,
+with no 0.5 s quantum and no silence in it. **`rxpeak` is the answer here
+and `dec` is the cross-check.**
+
+### Two process checks that matched themselves
+
+`pgrep -f "mame victor9k"` **also matches the shell running the wait loop**,
+so this sitting spent fifteen minutes concluding MAME had not exited when
+it had; and `pgrep -f "projects/mame/mame"` matched **nothing while MAME was
+running**, because its `argv[0]` is `./mame`. **A detector that can see
+itself and a detector that cannot see the target produce the same
+confident wrong answer.** Wait on the child PID.
+
+Related, and the same species: `vtg_image_util dir` is a **usage error**,
+and a `grep` over a usage error prints nothing — which reads exactly like
+"the target names are fresh". The subcommand is `list`. **A precondition
+that errors looks like a precondition that passed; check the exit status.**
+
+### What is next for item 12
+
+**One bench sitting at 38400, and it is written up and staged as
+`HW_TEST_16ar.md`** — five legs (`XA`/`XB`/`XD`/`XE` as two adjacent
+control-treatment pairs, `XF` for flow control), `CKWINB.EXE` on the image
+round-trip verified, `.BAT`s CRLF-verified after landing, target names
+clear, fixtures and take-files in the tree. Results go to **§16as**.
+
+The one thing that sitting needs which is not on the image is a **host**
+command: `stty -f <port> crtscts -hupcl` before leg XF, because the bench
+Mac's C-Kermit has no `POSIX_CRTSCTS` and its `tthflow()` is empty
+(§16am, §16an). Without it XF measures nothing.
+
+**Note the leg letters.** WA and WB were superseded by WD and WE — the
+first pair ran the pre-`dec`-fix binary and WA was disturbed by a host
+command during the transfer — so their `.BAT`s and the binary they named
+were removed from the image rather than left as a leg that no longer
+resolves. Their figures survive in the table above.
+
+## 16as. Windows on the machine: they work, they cost 9.3%, and the answer is no
+
+**Five bench legs at 38400, every transferred file byte-exact, and §1 item
+12 is answered in the negative.** A window of 2 negotiates correctly, runs
+correctly, and is **9.3% slower** than a window of 1 while moving **21.4%
+more wire bytes**. `DFWSIZ` **stays at 1**. The `--window=N` switch stays,
+because the shipping default is unchanged and a future flow-control result
+would reopen the question in one leg.
+
+`HW_TEST_16ar.md` is the run sheet, with the results inline.
+
+| leg | window | `rxfull` | `rxpeak` | wire | to/re | clock | non-line | cps |
+|---|---:|---:|---:|---:|---|---:|---:|---:|
+| XA | 1 | 0 | 2,819 | 40,621 | 1/2 | 27.618 s | 17.057 s | 1,186 |
+| **XD** | **1** | **0** | **279** | **37,557** | **0/0** | **25.786 s** | **16.021 s** | **1,271** |
+| XB | 2 | 179 | **4,095** | 45,577 | 0/2 | 28.183 s | 16.333 s | 1,163 |
+| XE | 2 | 182 | **4,095** | 45,577 | 0/2 | 28.199 s | 16.349 s | 1,162 |
+| XF | 2+rtscts | 282 | **4,095** | 45,577 | 0/2 | 28.382 s | 16.532 s | 1,155 |
+
+**Leg XD is the control and it reproduces §16aq exactly** — 37,557 wire
+bytes, 0 timeouts, 0 retransmissions, 25.786 s against 25.660. The three
+window-2 legs are identical to the byte on the wire (45,577 three times)
+and within 199 ms of each other on the clock, so this is not a noisy
+sitting: **the bench repeated to ~200 ms here**, against §16ah's 1.3 s and
+§16ak's 398 ms.
+
+### The window gained no overlap at all, and that is the finding
+
+Non-line cost — host clock minus wire × 260 µs, which is the quantity a
+window is supposed to reduce — is **16.021 s at window 1 and 16.333 /
+16.349 at window 2.** It did not fall. Everything the window did was to
+overflow the ring and buy two retransmissions.
+
+### Why: the receiver is slower than the line, and a window cannot fix that
+
+| | foreground | line | receiver vs line | ring occupancy |
+|---|---:|---:|---|---|
+| 9600 (§16ar) | 427 µs/byte | 1,040 µs | **2.4× faster** | bounded — 655 measured |
+| **38400** | 427 µs/byte | **260 µs** | **1.64× slower** | **grows until it pins** |
+
+A window converts "line, then foreground, serialized" into "both at once",
+and the buffer has to hold the difference. Over a 32 KB transfer that
+difference is **16.0 − 9.8 = 6.2 s of line time, about 24 KB** — against a
+4,096-byte ring. **The full overlap this port wanted was never within reach
+of this ring**, and no allocation fixes it: the ring is `.bss` inside
+DGROUP and there are 16,752 bytes free in the whole segment.
+
+So the item-12 premise — *"line and foreground are strictly serialized, so
+overlapping them takes a 25.66 s receive toward ~16 s"* — is arithmetically
+right and operationally unreachable. **The ceiling it names is real; a
+window is not the way to it.** Making the foreground faster is, which is
+what edit 18 did.
+
+### §16ar's prediction is RETRACTED, and the error generalises
+
+§16ar predicted `rxpeak` **2,600–3,100 of 4,096** and `rxfull = 0`.
+Measured: **4,095 pinned, `rxfull` 179–182.**
+
+The arithmetic was not wrong; the regime was. §16ar modelled occupancy as
+**one decode's worth of arrivals**, decode × line rate, and scaled the
+9600 measurement by 4. That model is valid **only where the receiver keeps
+up with the line**, because only then does the ring drain back to zero
+between packets. At 9600 it does. At 38400 it does not, so occupancy grows
+monotonically and the real bound is **window × packet length — 2 × 3,991 =
+7,982 into a 4,096-byte ring.** Overflow was certain before the leg ran and
+one line of arithmetic in the run sheet would have said so.
+
+**The durable form: a number measured on one side of a regime boundary
+cannot be scaled across it.** §16ar had both halves of the boundary in hand
+— it published 427 µs of foreground and it knew the line rates — and still
+scaled the wrong quantity. This is the sixth hand-built prediction in this
+tree to come out wrong (§16t, §16af ×3, §16ag, and now this), and the first
+whose error was in the *model* rather than in a constant.
+
+### Leg XF: flow control asserted and the far end did not stop
+
+`flow in=2 out=2 hi=3072 lo=1024 held=2 rel=2 stuck=0` — the port's half
+worked exactly as §16aj built it and §16an saw on the scope: two asserts,
+two releases, `held = rel`. And the wire is **byte-identical to XB and XE**
+at 45,577, with `rxfull` *worse* at 282. **Nothing on the far end paused.**
+
+That is §16am and §16an a third time, and it is the standing blocker: the
+bench Mac's C-Kermit has no `POSIX_CRTSCTS`, so only `stty` can configure
+that port, and whether `stty` was run before this leg is **not recorded**.
+Either way the shipping decision is unchanged, but the leg is only a
+*confirmation* if it was.
+
+### What would reopen this
+
+A window pays only if the far end can be made to stop. With working
+outbound flow control the ring no longer has to hold the whole 24 KB — it
+has to hold one flow-control round trip — and `--window=2` becomes one leg
+away from a real result. **That, and not the window, is item 12's blocker,
+and it has been the same blocker since §16ak.** Everything else is built.
+
+### The instrument, which came out well
+
+`dec` got its first clean reading here. On leg XD: **`dec tot` = 16.50 s
+over 19 intervals, against 16.021 s of non-line cost by subtraction** —
+one clock quantum apart, by two independent routes. That is the first
+*direct* measurement of the foreground bucket §1 item 9 has been asking
+about since §16v, and it confirms the subtraction that every figure in
+§16v, §16af and §16aq rested on. `to = 0` on all five legs.
+
+## 16at. The window that fits: shorten the packet, not the ring
+
+**§16as's defect is repaired for no DGROUP, no assembly and no upstream
+edit — still eighteen — and the repair is a division.** The `--window=N`
+clamp now checks the **ring** as well as the buffer pool, and the ring is
+the ceiling that was binding all along.
+
+### The line §16ar should have written
+
+A window of W lets the far end hold **W unacknowledged packets**, so
+in-flight bytes are **hard-bounded at W × (packet wire length)** —
+structurally, not statistically — and the ring must hold all of it, because
+nothing drains it while the foreground decodes.
+
+At the shipping `DRPSIZ = 4000` that is **2 × 3,998 = 7,996 into a
+4,096-byte ring**, so the ring ceiling is `4096 / 4008 = 1`: **this build
+cannot usefully open a window at all**, and §16as measured what happens
+when it tries. The clamp now says so — `--window=2` comes back `use=1` —
+and the exit line prints **`pool=` and `ring=` separately**, because a
+single `cap=` would hide which one bit and checking only the pool is
+exactly what cost §16as its sitting.
+
+### Shorten the packet and the window fits
+
+| `DRPSIZ` | pool ceiling | **ring ceiling** | in-flight at W=2 | margin |
+|---:|---:|---:|---:|---:|
+| 4000 (shipping) | 2 | **1** | 7,996 | **−3,900** |
+| 2000 | 4 | **2** | 4,016 | 80 |
+| **1800** | 4 | **2** | **3,596** | **500** |
+| 1300 | 6 | **3** | 3,924 | 172 |
+
+**`DRPSIZ = 1800` costs nothing measurable to build**: `CKWIN18.EXE` is
+226,972 bytes with DGROUP 48,784 — **byte-for-byte the same size as the
+shipping build**, because `DRPSIZ` only changes immediates. Growing the
+ring instead would have cost 4,096 of DGROUP *and* an edit to
+`ckvisr.asm`, whose `V9K_RXMASK` is a literal `0FFFh`.
+
+**And it makes the window its own flow control.** The far end cannot get
+more than W packets ahead whatever it wants to do, so nothing here depends
+on RTS/CTS — which sidesteps the §16am/§16an blocker §16as ended on. That
+blocker was never the only route; it was the only route *at DRPSIZ 4000*.
+
+### Verified under MAME at 9600 — legs YA and YB
+
+| | YA `--window=1` | YB `--window=2` |
+|---|---:|---:|
+| `window ask/use/neg` | 1 / 1 / 1 | **2 / 2 / 2** |
+| `pool` / `ring` | 4 / **2** | 4 / **2** |
+| `rxlost` / **`rxfull`** | 0 / **0** | 0 / **0** |
+| `rxpeak` of 4,096 | 201 | **635** |
+| longest packet | 1,798 wire | 1,742 wire |
+| md5 | byte-exact | byte-exact |
+
+**`rxfull = 0` with `rxpeak = 635` is the repair**, against §16as's pinned
+4,095 and `rxfull` 179 at the same window size. The clocks are **not
+usable** — both legs took timeouts, as every 9600 leg in this harness has
+— and 9600 could not show the payoff anyway. That is `HW_TEST_16at.md`,
+four bench legs at 38400.
+
+### A number for item 9, and it is the one that was missing
+
+`dec` now has readings at two packet lengths on the same harness. Excluding
+the single timeout-contaminated interval in each (§16as: `max` names it):
+
+| | packets | foreground |
+|---|---:|---:|
+| `DRPSIZ 4000` (leg WD) | 25 | ~15.5 s |
+| `DRPSIZ 1800` (leg YA) | 37 | ~17.5 s |
+
+**≈ 167 ms per packet of fixed cost**, which is the per-byte / per-packet
+split §1 item 9 has wanted since §16v. **Indicative, not settled** — both
+legs carried timeouts and different retransmission counts — but it is the
+first separation of the two and it is what says `DRPSIZ 1800` should cost
+about +2 s of foreground against the ~9 s of serialization a window
+removes.
+
+### Route B: keep the long packets and grow the ring instead
+
+Shortening the packet is not the only way to satisfy W x L, and it is not
+obviously the right one -- it pays in **per-packet fixed cost**, which this
+tree has never measured cleanly.  The alternative is to grow the ring and
+keep the packets, and the ring is now a lever rather than a constant:
+
+| | route A | route B |
+|---|---|---|
+| ring | 4,096 unchanged | **8,192** |
+| DRPSIZ | 1,800 | 3,800 |
+| in-flight at W=2 / margin | 3,596 / 500 | 7,616 / 576 |
+| DGROUP | **48,784 (74%)** | **52,880 (80%)** |
+| needs at load | 241,214 (235K) | 245,310 (239K) |
+| **smallest Victor** | **384K** | **384K** |
+
+**Both keep the smallest Victor at 384K**, which is the figure that decides
+reach, so the choice is margin against packets rather than reach against
+speed.  Route B is verified under MAME -- leg WN, byte-exact, `rxfull = 0`,
+`rxpeak = 754 of 8192`, `pool=2 ring=2`.
+
+**Making the ring a lever needed the assembly.** `ckvisr.asm` carried
+`V9K_RXMASK` as a literal `0FFFh` with a compile-time check in ckvictor.c
+that simply refused any other size.  It is now `IFNDEF`-guarded and set
+from the makefile (`RXMASK=-dV9K_RXMASK=1FFFh`), and the compile-time check
+became two: a power-of-two test that does not need to know what the
+assembler was told, and -- the one that matters -- a **runtime** check.
+
+**The runtime check exists because a mismatch does not fail, it corrupts.**
+Head and tail would wrap at different points, silently, on a machine whose
+protocol would present the damage as retransmissions.  `ckvisr.asm` now
+publishes the mask it was assembled with as `_v9k_isr_rxmask`, and
+`v9k_ser_install()` compares it against `V9K_RXMASK` before the handler is
+ever put in the vector.  A `#if` cannot do that across two translation
+units; one compare per program run can.
+
+**It was tested by building the mismatch deliberately** (leg WM: ring 8192
+in C, 4096 in the assembler), and the first version of the check FAILED
+that test in two ways worth recording. `v9k_ser_install()`'s return value is
+**ignored** at its only call site, so returning -1 fell through to the OEM
+driver's polled path -- which SS16b measured losing every inbound packet
+after two bytes, i.e. a build error would have presented as a transfer that
+mysteriously does not work.  And the message never arrived: stdout is
+redirected on every instrumented leg, DOS buffers it, the program then
+blocked in receive forever, and the leg produced a **zero-byte `.OUT`**.
+It now prints, flushes and exits, and leg WM re-run gives
+
+```
+v9k: FATAL ring size mismatch: ckvisr.asm=4096 ckvictor.h=8192
+v9k: rebuild with RXMASK=-dV9K_RXMASK=1FFFh, or both defaults
+```
+
+**A safety check that has never fired is not known to work**, and this one
+was wrong the first time.  Spend the leg that makes it fire.
+
+### A window of more than 2 buys nothing, and here is why
+
+Once the window is open the receiver runs continuously: the sender sends
+N+1 while we decode N and cannot send N+2 until we ACK N.  Because decode
+(439 us/byte) exceeds line time (260 us/byte), **the foreground is already
+saturated at W=2** -- the line goes idle waiting for us, not the reverse.
+A third slot can only help when the LINE is the bottleneck, and on this
+machine it is not.  That is why route C (a 16 KB ring) is deferred: its
+only benefit is *bigger packets*, i.e. fewer of them, so it is worth
+considering only if the per-packet cost turns out to be large -- and
+`HW_TEST_16at.md` leg ZA is what measures that.
+
+### The prediction for the bench, stated so it can be checked
+
+Foreground 16.5 s (leg XD's `dec tot`) plus ~2 s of extra per-packet cost,
+against a 9.8 s line, overlapped: **~18.5 s and ~1,770 cps, about +39% on
+§16as leg XD's 25.786 s and 1,271.**
+
+**That is an ordering argument and not a magnitude** — six hand-built
+predictions in this tree have been wrong and §16ar was wrong about this
+exact quantity. **What is not an estimate is `rxfull = 0`**: that follows
+from the W × L bound rather than from a rate comparison, and it is the
+claim the bench should check first. If `rxfull` comes back non-zero the
+bound itself is wrong and nothing else in the sitting is interpretable.
+
+## 16au. Windows fit, and buy nothing: the serialization was never there
+
+**Eight bench legs at 38400, all byte-exact, `rxfull = 0` on every one. The
+W × L bound is confirmed and the window is confirmed to be worth 1 ms.**
+`DFWSIZ` stays 1, `DRPSIZ` stays 4000, `V9K_RXBUFSIZ` stays 4096. **§1 item
+12 is closed for good**, and not because the ring was too small.
+
+| leg | rt | W | `rxfull` | `rxpeak` | wire | pkts | to/re | clock | non-line | `dec` | cps |
+|---|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| ZA | A | 1 | 0 | 453 | 37,667 | 28 | 0/0 | 26.677 | 16.884 | 17.00 | 1,228 |
+| ZD | A | 1 | 0 | 404 | 37,667 | 28 | 0/0 | 26.438 | 16.645 | 17.00 | 1,239 |
+| ZB | A | 2 | 0 | 3,011 | 37,678 | 29 | 0/0 | 26.423 | 16.627 | 17.00 | 1,240 |
+| ZE | A | 2 | 0 | 2,607 | 37,678 | 29 | 0/0 | 26.405 | 16.609 | 18.50 | 1,241 |
+| BA | B | 1 | 0 | 1,603 | 40,632 | 33 | 1/2 | 27.509 | 16.945 | 17.00 | 1,191 |
+| **BD** | B | 1 | 0 | 558 | 37,557 | 18 | 0/0 | **25.789** | 16.024 | 16.00 | **1,271** |
+| **BB** | B | **2** | 0 | 4,380 | 37,568 | 19 | 0/0 | **25.788** | 16.020 | 17.50 | **1,271** |
+| **BE** | B | **2** | 0 | 4,756 | 37,568 | 19 | 0/0 | **25.804** | 16.036 | 17.50 | 1,270 |
+
+Route A is `DRPSIZ` 1800 on the 4,096 ring; route B is `DRPSIZ` 3800 on an
+8,192 ring. Six of eight legs are perfectly clean.
+
+### The bound was right and the window really is open
+
+`rxpeak` respects W × L on both routes — 3,011 / 2,607 against route A's
+3,596, and 4,380 / 4,756 against route B's 7,616 — and `rxfull = 0`
+everywhere, against §16as's 179–282. The window is genuinely negotiated
+(`neg=2`, host `2 of 30`) and genuinely used: **`rxpeak` rises 7.8×, 558 to
+4,380**, which is the far end running ahead into the ring during the decode
+interval, exactly as intended.
+
+### And it is worth 1 ms
+
+| route | W=1 | W=2 | Δ |
+|---|---:|---:|---:|
+| B | **25.789 s** | **25.788 / 25.804 s** | **1 ms / 15 ms** |
+| A | 26.438 s | 26.423 / 26.405 s | 15 / 33 ms |
+
+**Leg BD reproduces §16as leg XD to 3 ms** (25.789 against 25.786), which
+is the null leg doing its job: growing the ring on its own changes nothing,
+as predicted.
+
+### The model item 12 rested on is RETRACTED
+
+Since §16v this project has said *"line time and foreground are strictly
+serialized, so overlapping them takes a 25.66 s receive toward ~16 s."*
+**They were already overlapped.** `ttinl()` processes bytes as they arrive,
+so the 9.77 s of "line time" is **not idle time waiting for the wire** — it
+is time the CPU spends in the ISR and in `ttinl()`'s per-byte loop. There
+was never any idle to reclaim, which is why the ~16 s ceiling this item
+chased for six sections does not exist.
+
+The legs show the mechanism directly rather than by inference. With the
+window open, `dec` grows **16.00 → 17.50 s** while non-line cost holds at
+**16.02**: about **1.5 s of reception moved into the decode interval and
+the decode interval grew by exactly that.** Same cycles, relabelled.
+
+> **On a single-CPU machine with no DMA the "I/O" IS CPU work, in an ISR.
+> Overlapping I/O with compute cannot create capacity; it can only change
+> which bucket the same cycles are counted in.**
+
+That is why edits 17 and 18 worked and this did not. **The only lever on
+this machine is doing less work per byte** — never rearranging when the
+work happens. Any future throughput idea should be tested against that
+sentence first.
+
+### Item 9's number, measured cleanly: ~65 ms per packet
+
+Leg BD (18 packets, 25.789 s) against leg ZD (28 packets, 26.438 s), wire
+bytes within 110 of each other, both 0 timeouts and 0 retransmissions:
+
+**0.649 s ÷ 10 packets = 65 ms per packet.**
+
+That is the per-byte / per-packet split §1 item 9 has wanted since §16v,
+and the first clean measurement of it. **It also retracts §16at's
+139–167 ms**, which was fitted from MAME legs carrying timeouts — a
+contaminated estimate, wrong by 2.5×, and the same species of error as
+§16as's contaminated `dec`.
+
+**It kills route C on evidence rather than on judgement.** `DRPSIZ` 8000
+would remove ~9 packets: **0.6 s, 2.3%**, for 12,288 bytes of DGROUP. The
+per-packet term is only ~1.2 s of a 25.8 s transfer, so **`DRPSIZ` 4000 is
+already near-optimal** and there is nothing to buy at the top end either.
+
+### Three wrong predictions on one item, and the pattern in them
+
+§16ar predicted the ring would hold (it did not). §16at predicted ~17 s
+(it was 25.79). §16at predicted 139–167 ms per packet (it is 65). **The
+first was a regime error, the second a model error, the third a
+contaminated fit** — and the model error is the one that mattered, because
+it had been in this file since §16v and every version of item 12 was built
+on top of it. **A number that has been quoted for six sections is not
+thereby a measurement.** "Line and foreground are serialized" was an
+inference from a subtraction, never an observation, and the subtraction was
+consistent with both models.
+
+### What is kept, and why
+
+Nothing ships, but three things stay because they cost nothing and are now
+correct and tested: **`--window=N`** with the two-ceiling clamp;
+**`V9K_RXBUFSIZ` as a build-time lever** with `RXMASK` in the makefile;
+and the **install-time mask check** that leg WM proved fires. Together they
+mean the next person to wonder about windows can answer it in one leg
+instead of six sections — and cannot corrupt a ring by trying.
+

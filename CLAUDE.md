@@ -734,6 +734,115 @@ counter existed. **Read the counter before the clock.** The corruption leg
 did NOT run: the cable-round-mains-wiring stimulus produced zero errors on
 both arms, which is an instrument failure and not a null result.
 
+**§16au closed item 12 for good: a window FITS, works, and is worth 1 ms —
+and the model the item rested on since §16v is retracted.** Eight more
+bench legs at 38400, all byte-exact, `rxfull = 0` on every one once the
+ring holds W × (packet wire length). Route B (ring 8,192, `DRPSIZ` 3,800):
+**25.789 s at window 1 against 25.788 / 25.804 at window 2**; route A (ring
+4,096, `DRPSIZ` 1,800) 26.438 against 26.405. **Nothing ships** — `DFWSIZ`
+1, `DRPSIZ` 4000, `V9K_RXBUFSIZ` 4096. The W × L bound was right (`rxpeak`
+respected it on both routes) and the window was genuinely open (`rxpeak`
+558 → 4,380, 7.8×). **"Line and foreground are strictly serialized, so
+overlapping them takes 25.66 s toward ~16 s" is WRONG: they were already
+overlapped.** `ttinl()` processes bytes as they arrive, so the 9.77 s of
+"line time" is not idle waiting for the wire but the CPU busy in the ISR
+and the per-byte loop — with the window open `dec` grows 16.00 → 17.50 s
+while non-line cost holds at 16.02, i.e. 1.5 s of reception moved into the
+decode interval and the decode interval grew by exactly that. **On a
+single-CPU machine with no DMA the "I/O" IS CPU work in an ISR; overlapping
+it with compute cannot create capacity, only relabel which bucket the
+cycles fall in. THE ONLY LEVER IS DOING LESS WORK PER BYTE** — test any
+throughput idea against that before building it. **Item 9's number is
+measured at last, ~65 ms per packet** (18 packets/25.789 s against
+28/26.438, wire within 110 bytes, both 0/0), which retracts §16at's
+139–167 ms (fitted from timeout-contaminated MAME legs) and kills a bigger
+`DRPSIZ` on evidence: 8000 would save ~9 packets = 0.6 s for 12,288 bytes
+of DGROUP. **Three predictions wrong on one item** — a regime error, a
+model error and a contaminated fit — and the durable lesson is that **a
+number quoted for six sections is not thereby a measurement.** Kept because
+they cost nothing and are tested: `--window=N` with a two-ceiling clamp
+(pool *and* ring), `V9K_RXBUFSIZ` as a build lever with `RXMASK` in the
+makefile, and an **install-time check that ckvisr.asm's ring mask matches
+ckvictor.h's** — a mismatch does not fail, it corrupts silently, and the
+first version of that check was itself wrong twice (its return value is
+ignored at the only call site, and its message died in a buffered redirect
+giving a zero-byte `.OUT`). **A safety check that has never fired is not
+known to work; spend the leg that makes it fire.**
+
+**Superseded by §16au — §16as's reading of the same item:** Five bench legs, all
+byte-exact, the three window-2 legs identical to the byte on the wire
+(45,577) and within 199 ms on the clock. Against a clean window-1 control
+that reproduced §16aq exactly (37,557 wire bytes, 0/0, 25.786 s):
+**25.786 → 28.19 s, 1,271 → 1,162 cps, wire +21.4%**, `rxpeak` **pinned at
+4,095 of 4,096**, `rxfull` 179–182. **It gained NO overlap** — non-line
+cost 16.021 s against 16.333. **`DFWSIZ` stays at 1**; the switch stays
+because the default is unchanged and one leg reopens it.
+**The reason is a regime fact worth carrying: the receiver is 1.64× SLOWER
+than the line at 38400** (427 µs of foreground per wire byte against 260),
+so a window overlaps nothing and just fills the ring; at 9600 it is 2.4×
+*faster*, which is why §16ar's MAME legs were clean. **Item 12's premise —
+overlap takes 25.66 s toward ~16 s — is arithmetically right and out of
+reach**: the buffer would have to hold the 6.2 s difference, ~24 KB,
+against a 4,096-byte ring in a segment with 16,752 bytes free in total.
+The ceiling is real; **a window is not the way to it, and making the
+foreground faster is.**
+**§16ar's `rxpeak` prediction (2,600–3,100) is RETRACTED and the error is
+the lesson**: it modelled occupancy as one decode's worth of arrivals and
+scaled a 9600 measurement by 4, which holds **only where the receiver keeps
+up with the line** — the ring drains between packets there and not here,
+and the real bound is window × packet length, 2 × 3,991 into 4,096. **A
+number measured on one side of a regime boundary cannot be scaled across
+it.** Sixth wrong hand-built prediction in this tree, and the first whose
+error was in the model rather than a constant.
+**Leg XF says flow control is still the blocker**: `held=2 rel=2` — our RTS
+asserted and released correctly — and the wire came back byte-identical to
+the legs without it with `rxfull` *worse*. §16am/§16an a third time. **A
+window pays only if the far end can be made to stop.**
+**And `dec` — §0e's new counter, item 9's foreground split — came out
+well**: on the clean control `dec tot` = 16.50 s against 16.021 s of
+non-line cost by subtraction, one quantum apart by two independent routes,
+which confirms the subtraction every figure in §16v, §16af and §16aq rested
+on.
+
+**§16ar built sliding windows — §1 item 12 — and they work.** `--window=N`
+off the DOS command tail, **no upstream edit, still eighteen**; DGROUP
+48,784 (74%), image 226,936, needs 240,984 (235K), **smallest Victor 384K,
+unchanged**. **`DFWSIZ` is still 1 in the tree**: the lever is built and
+measured, the default is not changed. Four MAME legs at 9600, two arms,
+**each arm reproducing TO THE BYTE**: window 2 negotiated on both ends
+independently (`neg=2`, and the host's `window slots used: 2 of 30`),
+byte-exact, `rxlost = 0 rxfull = 0`, reconciling at the usual −11, and
+**`rxpeak` 305 → 655 with `mapoffset.py` putting the peak inside an
+ordinary 3,396-byte data packet rather than a resend** — steady-state
+occupancy, the ring filling through the decode interval because the far end
+is now sending through it. **Predicted `rxpeak` at 38400 is 2,600–3,100 of
+4,096**, so the bench leg can run without growing the ring — which matters
+because `V9K_RXBUFSIZ` is `.bss` in DGROUP *and* `ckvisr.asm` carries
+`V9K_RXMASK` as a literal `0FFFh`, so 4,096 → 8,192 is an assembly change.
+**9600 cannot show the payoff and did not** — arms overlapped completely
+with an 8.5 s within-arm spread on identical byte counts, which is §16al's
+"the spread is the host" reproduced on the emulator.
+**Two design points generalise.** The switch writes
+`ptab[PROTO_K].winsize`, not `wslotr`, because `initproto()` copies the
+first over the second 118 lines before anything reads it — **§16ai's trap,
+caught in advance for the first time**. And **the pool is the ceiling at
+2**: nothing in this build calls `adjpkl()` on the receive side, so
+`(DRPSIZ + 6) × slots <= RBSIZ` is the port's own check and not upstream's.
+**And two instrument failures worth more than the legs.** The new `dec`
+counter (§0e, item 9's foreground split) **cannot tell a decode from a
+silence** — all four legs read `max = 3250 cs`, 32.5 s, and the guard built
+for it never fired because §16l still holds and every timeout is the
+*host's*, so our alarm never expires; `rxpeak` answers the ring question in
+bytes with no quantum and no silence in it, and **`dec` corroborates rather
+than adjudicates**. Then: `pgrep -f "mame victor9k"` **matches the shell
+running the wait loop**, and `pgrep -f "projects/mame/mame"` matches
+**nothing while MAME runs** because its `argv[0]` is `./mame` — fifteen
+minutes went to the first. **A detector that can see itself and a detector
+that cannot see the target give the same confident wrong answer.** Same
+species: `vtg_image_util dir` is a usage error and a `grep` over one prints
+nothing, which reads exactly like "the names are fresh" — the subcommand is
+`list`, and **a precondition that errors looks like one that passed.**
+
 **Two cautions on those machine numbers.** Only **256K and 896K** have been
 measured — 256K predicted and confirmed that `CKERMITW` will not load — and
 everything else is the model talking. And **MAME misreports 512K and 640K

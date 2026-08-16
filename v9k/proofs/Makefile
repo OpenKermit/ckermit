@@ -11,7 +11,7 @@
 CC      = cc
 CFLAGS  = -O2 -Wall
 
-PROOFS  = vcrc16 vburst vttinl
+PROOFS  = vcrc16 vburst vttinl vwindow
 
 .PHONY: all clean $(PROOFS)
 

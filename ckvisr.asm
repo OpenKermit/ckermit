@@ -113,9 +113,26 @@ V9K_XON         EQU     11h
 V9K_XOFF        EQU     13h
 V9K_WR5_RTS     EQU     02h             ; The bit we drop to hold them off
 
-;;  Ring geometry.  MUST match V9K_RXBUFSIZ in ckvictor.h; there is a
-;;  compile-time check for that in ckvictor.c next to the ring itself.
+;;  Ring geometry.  MUST match V9K_RXBUFSIZ in ckvictor.h.
+;;
+;;  It used to be a bare literal with a compile-time check in ckvictor.c that
+;;  simply refused any size but 4096.  That was fine while the ring never
+;;  moved, and PORTING.md SS16au is where it had to: a sliding window needs
+;;  the ring to hold W x (packet wire length), so the ring size became a
+;;  lever rather than a constant.
+;;
+;;  Overridable from the makefile -- RXMASK=-dV9K_RXMASK=1FFFh -- because an
+;;  assembler cannot read ckvictor.h and the alternative is editing two files
+;;  in step and hoping.  Hoping is not good enough here: if these two
+;;  disagree the ring does not fail, it CORRUPTS, silently, on a machine
+;;  whose transfers are checksummed well enough to hide it as retransmissions.
+;;  So the value is also published as _v9k_isr_rxmask below and ckvictor.c
+;;  checks it at install time, which turns a silent corruption into a refusal
+;;  to start.  A compile-time check cannot do that job across two translation
+;;  units; a runtime one can, and it costs one compare per program run.
+        IFNDEF  V9K_RXMASK
 V9K_RXMASK      EQU     0FFFh           ; V9K_RXBUFSIZ - 1, 4096 - 1
+        ENDIF
 V9K_RXSTALL     EQU     256
 V9K_LOSTGAP     EQU     16
 V9K_BELL        EQU     07h
@@ -166,6 +183,11 @@ CONST   ENDS
 CONST2  SEGMENT WORD PUBLIC USE16 'DATA'
 CONST2  ENDS
 _DATA   SEGMENT WORD PUBLIC USE16 'DATA'
+;;  What ring size THIS OBJECT was assembled for, so ckvictor.c can check it
+;;  against its own before the handler is ever put in the vector.  See the
+;;  V9K_RXMASK comment above for why a compile-time check cannot do this.
+        PUBLIC  _v9k_isr_rxmask
+_v9k_isr_rxmask DW      V9K_RXMASK
 _DATA   ENDS
 _BSS    SEGMENT WORD PUBLIC USE16 'BSS'
 _BSS    ENDS

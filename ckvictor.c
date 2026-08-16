@@ -601,6 +601,81 @@ static long v9k_gap_tot  = 0L;          /* All of them                  */
 static unsigned int v9k_gap_maxn = 0;   /* Which one was the worst      */
 
 /*
+  The OTHER side of the ACK, and PORTING.md SS1 item 9 is what asks for it.
+
+  v9k_gap_* above measures ACK-sent to next-read and reads 0.00 s over 18
+  packets (SS16af leg AG), which says the foreground goes straight back to
+  reading once the ACK is away.  So none of the non-line cost is after the
+  ACK; all of it is BEFORE -- between the last byte of a packet being handed
+  up and the ACK for that packet going down.  That interval is decode(), the
+  file write and the protocol state machine, and it is the 15.895 s that
+  SS16aq could only get at by subtracting line time from the wall clock.
+
+  With a window of one it is free: the host sent one packet and is silent
+  until its ACK comes back, so nothing arrives while we are in here.  That
+  is exactly what stops being true at DFWSIZ > 1 -- the host is sending the
+  NEXT packet through this whole interval, and the receive ring has to hold
+  every byte of it, because nothing drains the ring while the foreground is
+  decoding.  So this counter is the ring requirement for a window, measured
+  BEFORE the window is opened:
+
+      bytes the ring must absorb = (dec tot / dec n) x (bytes per second)
+
+  which at 38400 is centiseconds x 38.46.  The same number is the payoff:
+  it is the time a window overlaps with the line instead of adding to it.
+
+  dec tot MINUS wfile tot is the decode alone, which is why the two print
+  next to each other.
+
+  Cost is one INT 21h per read return and one per serial write, of the order
+  of five per packet against the ~883 ms per packet being measured.  The
+  0.5 s clock quantum (SS16n) means a single packet reads 0 or 50 cs and
+  nothing in between, so quote tot=, never max=; SS16ap put that noise at
+  +/-1.5 s on one leg, which is why this wants four legs or none.
+
+  Like wire=, it is a RECEIVE-leg figure.  On a send leg the serial writes
+  are data packets and the reads are ACKs, so it measures ACK-in to
+  next-packet-out -- a real quantity, but not this one.
+
+  READ tot= WITH THIS CAVEAT OR NOT AT ALL: an interval that contains a
+  SILENCE is not a decode, and this counter cannot tell the two apart.
+  SS16ar leg WA came back max=3250 cs -- 32.5 SECONDS -- and nothing decodes
+  for 32 seconds.  The interval spanned a stall: the far end stopped
+  sending mid-packet, and "last byte in to next byte out" swallowed the
+  whole wait.
+
+  The obvious guard was built and it DOES NOT FIRE.  v9k_comm_read()'s
+  alarm path spoils the open interval and counts it in to=, which is right
+  for a timeout of OURS -- and to= read 0 on all four legs of SS16ar,
+  because SS16l already established that every timeout in these logs is the
+  HOST'S.  Our alarm never expires; we sit in the read loop while the far
+  end works out that it needs to retransmit.  So the guard is correct, it
+  is kept for the case it covers, and it is not the case that happens.
+
+  What that leaves: on a leg with 0 timeouts, tot is the whole story.  On a
+  leg with timeouts, the contamination is one enormous interval per stall
+  and max= names it, so subtracting max by hand recovers a usable mean --
+  SS16ar did exactly that and got 64.6 and 73.2 cs against the 68.2 that
+  rxpeak/line-rate gives independently.  That agreement is the reason the
+  counter is kept rather than removed.
+
+  AND FOR THE RING QUESTION, PREFER rxpeak.  This counter was added to
+  predict how many bytes a window would pile into the ring, and rxpeak with
+  the window actually open measures the same thing IN BYTES, counted
+  exactly, with no 0.5 s quantum and no silence to confuse it.  SS16ai's
+  rule: when the clock cannot resolve an effect, find the counter that
+  measures the same mechanism in units that do not vary.  dec is the
+  cross-check; rxpeak is the answer.
+*/
+static long v9k_rd_at   = 0L;           /* Last bytes handed upstream   */
+static int  v9k_rd_seen = 0;            /* ...has happened, interval open*/
+static unsigned int v9k_dec_n = 0;      /* How many intervals closed    */
+static long v9k_dec_max  = 0L;          /* The worst, in hundredths     */
+static long v9k_dec_tot  = 0L;          /* All of them                  */
+static unsigned int v9k_dec_maxn = 0;   /* Which one was the worst      */
+static unsigned int v9k_dec_to = 0;     /* Intervals a timeout spoiled  */
+
+/*
   The wait itself.  Two ways to do it, and which one runs is the whole
   difference between PORTING.md SS16b and a working transfer.
 
@@ -679,9 +754,11 @@ v9k_comm_read(fd,buf,n) int fd; void * buf; unsigned int n;
             rc = v9k_ser_get((char *)buf,(int)n);
             v9k_wtag = V9K_TAG_DRAIN;
             if (rc > 0) {
+                v9k_rd_at   = v9k_centis(); /* Section 0e: interval opens*/
+                v9k_rd_seen = 1;
                 if (!v9k_run_on) {      /* First data: start the clock  */
                     v9k_run_on  = 1;
-                    v9k_run_t0  = v9k_centis();
+                    v9k_run_t0  = v9k_rd_at;
                     v9k_run_mdm = v9k_ser_mdm();
                 }
                 v9k_wtag = V9K_TAG_AFTER(V9K_TAG_DRAIN);
@@ -690,6 +767,10 @@ v9k_comm_read(fd,buf,n) int fd; void * buf; unsigned int n;
         } else if (dos_dev_input_ready(fd)) {
             rc = (int)read(fd,buf,n);   /* Undef'd above: the real one  */
             if (rc != 0) {              /* Bytes, or a genuine error    */
+                if (rc > 0) {           /* Section 0e: interval opens   */
+                    v9k_rd_at   = v9k_centis();
+                    v9k_rd_seen = 1;
+                }
                 v9k_wtag = V9K_TAG_AFTER(V9K_TAG_DRAIN);
                 return(rc);
             }
@@ -701,6 +782,22 @@ v9k_comm_read(fd,buf,n) int fd; void * buf; unsigned int n;
               the caller retries -- and the retry blocks again rather than
               spinning, because the alarm cleared itself above.
             */
+            /*
+              Section 0e: spoil the open decode interval rather than let it
+              close on the NAK that is about to go out.  Leg WA of SS16ar
+              read dec max=3250 cs -- 32.5 SECONDS -- on a leg with four
+              timeouts, because "last byte in to next byte out" spans the
+              whole timeout wait when the byte out is a NAK and not an ACK.
+              An interval that contains a timeout is not a measurement of
+              decoding, and averaging it in silently overstates the ring
+              requirement a window would face, which is the one number this
+              counter exists to produce.  Counted, not just dropped: dec to=
+              is how a leg says how much it threw away.
+            */
+            if (v9k_rd_seen) {
+                v9k_rd_seen = 0;
+                v9k_dec_to++;
+            }
             v9k_wtag = V9K_TAG_AFTER(V9K_TAG_DRAIN);
             errno = EINTR;
             return(-1);
@@ -849,6 +946,25 @@ v9k_write(fd,buf,n) int fd; const void * buf; V9K_WCOUNT n;
     long t0, dt;
 
     if (fd > 2 && fd == ttyfd && v9k_ser_active()) {
+        /*
+          Section 0e: the decode interval closes here, before the bytes go
+          out, because "the ACK is ready" is the quantity -- v9k_ser_put()
+          is polled and its own duration is line time, not foreground time.
+          Cleared so that two writes with no read between them count once:
+          one interval per packet is what makes dec n comparable with the
+          packet count in the host's log.
+        */
+        if (v9k_rd_seen) {
+            long ddt = v9k_centis_since(v9k_rd_at);
+
+            v9k_rd_seen = 0;
+            v9k_dec_n++;
+            v9k_dec_tot += ddt;
+            if (ddt > v9k_dec_max) {
+                v9k_dec_max  = ddt;
+                v9k_dec_maxn = v9k_dec_n; /* Countable against the pkt log */
+            }
+        }
         v9k_wtag = V9K_TAG_TTOL;        /* Section 0e                   */
         rc = (V9K_WTYPE)v9k_ser_put((const char *)buf,(int)n);
         v9k_wtag = V9K_TAG_AFTER(V9K_TAG_TTOL);
@@ -2148,14 +2264,28 @@ unsigned int  v9k_off_oth = V9K_OFF_CTLB;
   handler touches has file scope now.  All 29 keep the v9k_ prefix, which is
   what makes that safe in a program of 24 modules and ~100 upstream files.
 
-  ckvisr.asm hard-codes the ring mask as a literal, because an assembler
-  cannot read ckvictor.h.  This is the check that the two never drift: if
-  V9K_RXBUFSIZ stops being 4096, or stops being a power of two, the build
-  fails here rather than corrupting a transfer on the bench.
+  ckvisr.asm carries its own copy of the mask, because an assembler cannot
+  read this header.  TWO checks keep them from drifting, and they catch
+  different things.
+
+  The compile-time one below is the cheap half: the ring must be a power of
+  two, because head and tail are masked rather than compared, and it must be
+  big enough to be worth having.  Neither of those needs to know what the
+  assembler was told.
+
+  The other half is at run time, in v9k_ser_install(), and it exists because
+  a mismatch here does not fail -- it CORRUPTS, silently, on a machine whose
+  transfers are checksummed well enough to present it as retransmissions.
+  ckvisr.asm publishes the value it was assembled with as _v9k_isr_rxmask
+  and the installer refuses to put the handler in the vector if it disagrees
+  with this one.  A #if cannot do that across two translation units; one
+  compare per program run can.  PORTING.md SS16au.
 */
-#if !defined(V9K_CISR) && (V9K_RXBUFSIZ != 4096)
-  /* ckvisr.asm's V9K_RXMASK is 0FFFh -- change both or neither. */
-  int v9k_ring_size_disagrees_with_ckvisr_asm[-1];
+#if (V9K_RXBUFSIZ & (V9K_RXBUFSIZ - 1)) != 0
+  int v9k_ring_size_is_not_a_power_of_two[-1];
+#endif
+#if V9K_RXBUFSIZ < 1024
+  int v9k_ring_size_is_too_small[-1];
 #endif
 
 /*
@@ -2180,6 +2310,14 @@ unsigned int  v9k_off_oth = V9K_OFF_CTLB;
   but they are pinned too, because "the handler's variables live in DGROUP"
   is easier to keep true than a list of exceptions.
 */
+/*
+  ckvisr.asm's copy of the ring mask, checked against ours in
+  v9k_ser_install().  Declared here beside the ring it describes.
+*/
+#ifndef V9K_CISR
+extern unsigned int v9k_isr_rxmask;
+#endif /* V9K_CISR */
+
 volatile unsigned char __near v9k_rxbuf[V9K_RXBUFSIZ];
 volatile unsigned int  __near v9k_rxhead = 0;   /* Handler writes here  */
 volatile unsigned int  __near v9k_rxtail = 0;   /* Foreground reads here*/
@@ -3233,6 +3371,43 @@ v9k_ser_release() {
            v9k_wc_n, v9k_wc_max, v9k_wc_tot);
     printf("v9k: txgap n=%u max=%ld at #%u tot=%ld cs\n",
            v9k_gap_n, v9k_gap_max, v9k_gap_maxn, v9k_gap_tot);
+    /*
+      Section 0e, SS1 item 9: last byte in to ACK out.  Read tot=, not max=
+      -- the clock quantum is 0.5 s.  dec tot minus wfile tot is the decode
+      alone; dec tot x 38.46 is the bytes a window would pile into the ring
+      at 38400, which is what sizes DFWSIZ.  n should equal the packet count
+      in the host's log on a receive leg, and a mismatch means this counted
+      something that was not an ACK.
+    */
+    printf("v9k: dec n=%u max=%ld at #%u tot=%ld cs to=%u\n",
+           v9k_dec_n, v9k_dec_max, v9k_dec_maxn, v9k_dec_tot, v9k_dec_to);
+    /*
+      SS1 item 12.  ask is --window=N, use is that clamped to the buffer
+      pool, neg is what the far end agreed to -- and NEG IS THE ONE THAT
+      HAPPENED.  A leg with use=2 neg=1 negotiated the window away and is a
+      window-1 leg wearing a window-2 label, which is exactly the silent
+      failure SS16aq's bulk counter exists to prevent.  cap is the pool
+      ceiling, printed so that a clamp is visible rather than inferred.
+    */
+    {
+        extern int wslotn;              /* ckcmai.c: negotiated slots   */
+        extern int v9k_window_ask;      /* Defined with the switch below */
+        extern int v9k_window_use;
+        extern int v9k_window_pool;
+        extern int v9k_window_ring;
+
+        /*
+          pool= and ring= are printed separately because SS16as was caused
+          by checking only the first, and a single cap= would hide which
+          one bit.  ring= is normally the smaller and at the shipping
+          DRPSIZ it is 1.
+        */
+        printf("v9k: window ask=%d use=%d neg=%d pool=%d ring=%d\n",
+               v9k_window_ask, v9k_window_use, wslotn,
+               (int)(RBSIZ / (DRPSIZ + 6)),
+               (int)(V9K_RXBUFSIZ / (DRPSIZ + V9K_PKT_WIRE_XTRA)));
+    }
+
 
     /*
       And the wall clock, with the wire rate worked out here because the
@@ -3294,6 +3469,38 @@ v9k_ser_install(fd) int fd;
 {
     if (v9k_ser_on)
       return(0);
+
+#ifndef V9K_CISR
+    /*
+      The ring-size agreement check, and it is here rather than at compile
+      time because it spans two translation units.  ckvisr.asm publishes the
+      mask it was assembled with; if it disagrees with ours the head and tail
+      wrap at different points and the ring does not fail, it CORRUPTS --
+      silently, and on this machine the protocol would present that as
+      retransmissions rather than as an error.  PORTING.md SS16au.
+
+      IT EXITS RATHER THAN RETURNING AN ERROR, and the first version of this
+      check got that wrong in two ways worth recording.  v9k_ser_install()'s
+      return value is IGNORED at its only call site (tcsetattr, above), so
+      returning -1 fell back to the OEM driver's polled path -- which SS16b
+      measured losing every inbound packet after two bytes, i.e. a
+      configuration error would have presented as a transfer that mysteriously
+      does not work.  And the message never arrived: stdout is redirected to
+      a file on every instrumented leg, DOS buffers it, and the program then
+      blocked in receive forever, so the leg produced a ZERO-BYTE .OUT.
+
+      A build-configuration error is not a runtime condition to degrade
+      through.  Say it, flush it because the redirect is buffered, and stop.
+    */
+    if (v9k_isr_rxmask != (unsigned int)V9K_RXMASK) {
+        printf("v9k: FATAL ring size mismatch: ckvisr.asm=%u ckvictor.h=%u\n",
+               (unsigned)v9k_isr_rxmask + 1, (unsigned)V9K_RXBUFSIZ);
+        printf("v9k: rebuild with RXMASK=-dV9K_RXMASK=%Xh, or both defaults\n",
+               (unsigned)V9K_RXMASK);
+        fflush(stdout);
+        exit(1);
+    }
+#endif /* V9K_CISR */
 
     v9k_ser_selchan();
 
@@ -4406,6 +4613,174 @@ static struct v9k_rt_init __based(__segname("XI")) v9k_nobulk_rec =
     { 1, 0, v9k_set_nobulk };
 
 /*
+  --window=N -- open the sliding window for one run.  PORTING.md SS1 item 12.
+
+      CKERMITW --window=2 -l /dev/seriala -b 38400 -r
+
+  DFWSIZ has been 1 for the port's whole life and ckvictor.h says why: with
+  one packet in flight the far end is silent from the end of a packet until
+  its ACK comes back, so nothing arrives while the 8088 is decoding and
+  writing, and the 4,096-byte ring is safe by construction rather than by
+  flow control.  That is also the cost -- line and foreground are strictly
+  SERIALIZED, 9.77 s and 15.90 s of a 25.66 s receive (SS16aq), and a window
+  is the only thing that overlaps them.
+
+  A RUNTIME SWITCH RATHER THAN A REBUILD, and that is SS16aq's lesson taken
+  at its word: a control built from a second binary is also a control for
+  SS16w's code-size sensitivity, and this project has spent whole legs
+  establishing that the rebuild was not what moved.  --window=1 against
+  --window=2 is one binary, one immediate, nothing for SS16w to act on.
+
+  IT WRITES ptab, AND THAT IS THE WHOLE POINT -- the same trap that ate the
+  prefixing setting for the port's entire life (SS16ai, v9k_set_prefixing()
+  above).  main() reaches initproto(PROTO_K,...) at ckcmai.c:3295, which
+  does
+
+      if (ptab[protocol].winsize > -1)
+          wslotr = ptab[protocol].winsize;      (ckcmai.c:2021)
+
+  118 lines before anything reads wslotr.  An XI record runs before main(),
+  which is exactly the position from which writing the VARIABLE is undone.
+  wslotr is set too, but ptab is the one that does the work.
+
+  THE POOL IS THE CEILING, AND IT IS 2.  Nothing in this build calls
+  adjpkl() for the receive direction: dofast() is guarded out (SS8 item 14)
+  and the two other callers are REMOTE SET handlers.  So urpsiz stays at
+  DRPSIZ while makebuf() divides RBSIZ by the slot count, and the condition
+  nobody else is going to check is
+
+      (DRPSIZ + 6) x slots <= RBSIZ        4,006 x 2 = 8,012 <= 8,192
+
+  which ckvictor.h's SBSIZ/RBSIZ comment says was the intent all along:
+  "at window 1 it is twice what it needs -- deliberately, so that turning
+  the window up to 2 later is a one-line change".  It is, and this is it.
+  A larger window needs larger pools, which are far heap and cost load RAM
+  rather than DGROUP -- do not raise them until a leg says a window pays.
+
+  CLAMPED RATHER THAN REFUSED, and REPORTED EITHER WAY.  Shrinking DRPSIZ to
+  fit, which is what upstream's adjpkl() would do, would change the packet
+  length between the two arms and confound the thing being measured.  So the
+  window is clamped instead and the exit line prints what was asked for
+  beside what took effect -- SS16aq's rule, that a switch which silently
+  failed produces a control identical to the treatment and a null result
+  that looks real.  READ v9k: window ON EVERY LEG.
+
+  WHAT TO EXPECT, so that a bad leg is recognisable.  The ring stops being
+  safe by construction: through the whole "dec" interval above the far end
+  is sending and nothing is draining, so rxpeak should rise from SS16aq's
+  459 to about (dec tot / dec n) x 38.46 bytes at 38400.  If that exceeds
+  4,096, rxfull goes non-zero and the protocol resends -- byte-exact still,
+  but slower, which is the shape SS16ae saw at block 3.  RUN IT UNDER MAME
+  AT 9600 FIRST, where the foreground is faster than the line and the ring
+  cannot fill, so the leg tests the negotiation and the protocol only.
+*/
+#define V9K_SW_WINDOW "--window="
+
+extern int wslotr;                      /* ckcmai.c:771                 */
+
+int v9k_window_ask = 0;                 /* What the operator asked for  */
+int v9k_window_use = 0;                 /* What took effect; 0 = DFWSIZ */
+int v9k_window_pool = 0;                /* Ceiling from SBSIZ/RBSIZ     */
+int v9k_window_ring = 0;                /* Ceiling from V9K_RXBUFSIZ    */
+
+static void __far
+v9k_set_window(void)
+{
+    char __far * p;
+    char __far * tok;
+    char __far * q;
+    char * lit;
+    int n, cap;
+
+    p = _LpCmdLine;
+    if (!p)
+      return;
+
+    while (*p) {
+        while (*p == ' ' || *p == '\t')
+          p++;
+        if (!*p)
+          break;
+        tok = p;
+        while (*p && *p != ' ' && *p != '\t')
+          p++;
+
+        /*
+          A prefix match, so v9k_tokeq() -- which wants a whole token -- is
+          not the tool.  Case-folded on the same terms it uses.
+        */
+        q   = tok;
+        lit = V9K_SW_WINDOW;
+        while (q < p && *lit) {
+            char a = *q;
+            if (a >= 'A' && a <= 'Z') a += 'a' - 'A';
+            if (a != *lit)
+              break;
+            q++; lit++;
+        }
+        if (*lit)
+          continue;                     /* Not ours: leave it for argv  */
+
+        n = 0;
+        while (q < p && *q >= '0' && *q <= '9')
+          n = n * 10 + (*q++ - '0');
+        if (q != p || n < 1)
+          continue;                     /* Malformed: let cmdlin() say so*/
+
+        v9k_window_ask = n;
+        while (tok < p)                 /* Blank it, as --safe-server   */
+          *tok++ = ' ';                 /* does and for the same reason */
+    }
+
+    if (v9k_window_ask < 1)
+      return;
+
+    /*
+      TWO CEILINGS, AND THE SECOND ONE IS THE ONE THAT MATTERS.  SS16as ran
+      a window of 2 at DRPSIZ = 4000 on the 4,096-byte ring, pinned rxpeak
+      at 4,095 and lost bytes on every leg, and the arithmetic that would
+      have predicted it is one line:
+
+        a window of W lets the far end have W unacknowledged packets, so
+        in-flight bytes are HARD-BOUNDED at W x (packet wire length) --
+        structurally, not statistically -- and the ring has to hold that
+        many, because nothing drains it while the foreground decodes.
+
+      2 x 3,998 = 7,996 into 4,096.  Overflow was certain before the leg
+      ran.  The first version of this switch checked only the buffer POOL,
+      which said 2 was fine, and the pool was never the binding constraint.
+
+      Note what the ring ceiling says about the shipping build: at
+      DRPSIZ = 4000 it is 4096/4008 = 1, i.e. THIS BUILD CANNOT USEFULLY
+      OPEN A WINDOW AT ALL, and --window=2 now clamps to 1 and says so
+      rather than reproducing SS16as.  Shortening the packet is what buys
+      the headroom -- at DRPSIZ = 1800 the ring holds 2 -- and that costs
+      no DGROUP and no assembly, which is why it is the experiment to run
+      before spending either.  See PORTING.md SS16as.
+    */
+    v9k_window_pool = RBSIZ / (DRPSIZ + 6);
+    v9k_window_ring = V9K_RXBUFSIZ / (DRPSIZ + V9K_PKT_WIRE_XTRA);
+
+    cap = (v9k_window_pool < v9k_window_ring)
+            ? v9k_window_pool : v9k_window_ring;
+    if (cap < 1)
+      cap = 1;
+    if (cap > MAXWS)
+      cap = MAXWS;
+
+    n = v9k_window_ask;
+    if (n > cap)
+      n = cap;
+
+    v9k_window_use = n;
+    wslotr = n;                         /* Undone by initproto(); see above */
+    ptab[PROTO_K].winsize = n;          /* This is the one that survives  */
+}
+
+static struct v9k_rt_init __based(__segname("XI")) v9k_window_rec =
+    { 1, 0, v9k_set_window };
+
+/*
   access().  Watcom HAS one; it is wrong about the directory you are in
   when that directory is the root, which is where CKERMITW normally runs.
 
@@ -4658,7 +5033,8 @@ move( int row, int col )
 move(row,col) int row; int col;
 #endif /* CK_ANSIC */
 {
-    char b[5];
+    char b[12];
+    int i;
 
     /* Clamp rather than trust: a coordinate past the screen edge is a
        display bug, but sending it as a stray control character would be a

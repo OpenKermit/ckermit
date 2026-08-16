@@ -495,7 +495,27 @@ extern long v9k_timezone;
   starves this ring by itself, so the debug log cannot be where the ring's
   own numbers are read.
 */
+#ifndef V9K_RXBUFSIZ
 #define V9K_RXBUFSIZ 4096
+#endif /* V9K_RXBUFSIZ */
+
+/*
+  How many wire bytes a DRPSIZ-byte packet actually costs, over and above
+  DRPSIZ itself.  MEASURED, not assumed: at DRPSIZ = 4000 the longest
+  packet SS16as saw on the wire was 3,991 data with 3,998 wire bytes, so
+  the framing and the terminator come to 7.  8 is used because the only
+  consumer bounds a buffer with it, and rounding the wrong way there is how
+  a ring overflows.
+
+  The consumer is ckvictor.c's --window=N clamp, and PORTING.md SS16as is
+  why it exists: a window of W lets the far end hold W unacknowledged
+  packets, so in-flight bytes are hard-bounded at W x (DRPSIZ + this), and
+  the RING has to hold every one of them because nothing drains it while
+  the foreground is decoding.  At the shipping DRPSIZ that ceiling is
+  4096 / 4008 = ONE -- this build cannot usefully open a window at all, and
+  SS16as measured what happens when it tries.
+*/
+#define V9K_PKT_WIRE_XTRA 8
 
 /*
   Packet buffers.  With DYNAMIC these are malloc'd, and in the large model
@@ -562,13 +582,41 @@ extern long v9k_timezone;
   SS16i decodes to exactly that; the evidence was in the document before
   anyone read it.
 
-  DFWSIZ stays at 1 on purpose.  There is no interrupt-level flow control
-  here (ckvictor.c SS1e; tcflow() is a stub), and what holds rxlost/rxfull
-  at 0/0 is that the far end waits for an ACK before sending again -- so
-  nothing arrives while the 8088 is writing the last packet to disk.  A
-  longer packet does not disturb that; a second window slot does.  SS13
-  step 8 says one at a time, and the packet length is the one that costs
-  nothing.
+  DFWSIZ stays at 1 on purpose, and it is now the DEFAULT rather than the
+  only setting -- see --window=N in ckvictor.c (PORTING.md SS1 item 12).
+
+  What holds rxlost/rxfull at 0/0 at a window of one is that the far end
+  waits for an ACK before sending again, so nothing arrives while the 8088
+  is decoding the last packet and writing it to disk.  A longer packet does
+  not disturb that; a second window slot does.  SS13 step 8 says one at a
+  time, and the packet length is the one that costs nothing.
+
+  That safety is also the cost: line and foreground are strictly SERIALIZED,
+  9.77 s and 15.90 s of a 25.66 s receive after edit 18 (SS16aq), and a
+  window is the only thing that overlaps them.  SS16aq took rxpeak to 459 of
+  4,096, so the ring margin that gated this is no longer scarce -- which is
+  why the switch exists now and did not before.
+
+  Two things bound it, and neither is in ckcker.h:
+
+    THE POOL.  Nothing in this build calls adjpkl() for the receive
+    direction -- dofast() is guarded out (SS8 item 14) and the other two
+    callers are REMOTE SET handlers -- so urpsiz stays at DRPSIZ while
+    makebuf() divides RBSIZ by the slot count.  The condition is
+    (DRPSIZ + 6) x slots <= RBSIZ, which is 4,006 x 2 = 8,012 <= 8,192:
+    the ceiling is exactly 2 at these sizes, and it is the one the
+    SBSIZ/RBSIZ comment above says was designed in.  v9k_set_window()
+    clamps to it and prints the clamp.
+
+    THE RING.  Through the whole decode interval the far end is now
+    sending and nothing is draining, so rxpeak rises from 459 to about
+    (dec tot / dec n) x 38.46 bytes at 38400 -- which is what the "dec"
+    counter (ckvictor.c section 0e) was added to measure BEFORE the window
+    is opened.  Over 4,096 and rxfull goes non-zero.
+
+  Raising the window past 2 means raising SBSIZ/RBSIZ, which are far heap
+  and cost load RAM rather than DGROUP.  Do not raise them until a leg says
+  a window pays.
 
   Needs the #ifndefs in ckcker.h: the ELEVENTH guarded upstream edit,
   PORTING.md SS8.
