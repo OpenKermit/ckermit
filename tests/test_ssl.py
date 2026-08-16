@@ -254,6 +254,69 @@ def test_ssl_verify_no_bypasses_trust(server_dir, wermit_tcp_loopback,
     assert str(server_dir) in result.stdout
 
 
+def test_ssl_selfsigned_cert_rejected_by_default(server_dir,
+                                                  wermit_tcp_loopback,
+                                                  ssl_pki):
+    """
+    Default verify mode rejects a directly self-signed server
+    certificate (X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT), the same as
+    one signed by an untrusted CA.
+    """
+    session = wermit_tcp_loopback(
+        server_dir,
+        protocol="ssl",
+        setup_cmds=(
+            "set authentication ssl verbose on, "
+            "set authentication ssl rsa-cert-file "
+            f"{ssl_pki['selfsigned_server_crt']}, "
+            "set authentication ssl rsa-key-file "
+            f"{ssl_pki['selfsigned_server_key']}"
+        ),
+    )
+    result = session.run_client(
+        "remote pwd",
+        protocol="ssl",
+        setup_cmds="set authentication ssl verbose on",
+    )
+    session.wait_for_server_exit()
+
+    assert "[SSL - FAILED]" in result.stdout
+    assert str(server_dir) not in result.stdout
+
+
+def test_ssl_selfsigned_cert_accepted_with_verify_no(server_dir,
+                                                      wermit_tcp_loopback,
+                                                      ssl_pki):
+    """
+    SET AUTHENTICATION SSL VERIFY NO accepts a directly self-signed
+    server certificate.
+    """
+    session = wermit_tcp_loopback(
+        server_dir,
+        protocol="ssl",
+        setup_cmds=(
+            "set authentication ssl verbose on, "
+            "set authentication ssl rsa-cert-file "
+            f"{ssl_pki['selfsigned_server_crt']}, "
+            "set authentication ssl rsa-key-file "
+            f"{ssl_pki['selfsigned_server_key']}"
+        ),
+    )
+    result = session.run_client(
+        "remote pwd",
+        protocol="ssl",
+        setup_cmds=(
+            "set authentication ssl verbose on, "
+            "set authentication ssl verify no"
+        ),
+    )
+    session.wait_for_server_exit()
+
+    assert_ok(result)
+    assert "[SSL - OK]" in result.stdout
+    assert str(server_dir) in result.stdout
+
+
 @pytest.mark.parametrize("with_client_cert", [True, False],
                          ids=["with-cert", "without-cert"])
 def test_ssl_mutual_tls(server_dir, wermit_tcp_loopback, ssl_pki,

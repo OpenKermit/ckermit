@@ -1274,13 +1274,19 @@ def _openssl(*args):
     assert_ok(result, label=f"openssl {' '.join(args)}")
 
 
-def _make_ca(d, name, subj):
-    """Self-signed CA: returns (key_path, crt_path)."""
+def _make_ca(d, name, subj, san=None):
+    """
+    Self-signed certificate: returns (key_path, crt_path).
+    san is an optional subjectAltName extension value.
+    """
     key = d / f"{name}.key"
     crt = d / f"{name}.crt"
-    _openssl("req", "-x509", "-newkey", "rsa:2048", "-nodes",
-              "-keyout", str(key), "-out", str(crt), "-days", "2",
-              "-subj", subj)
+    args = ["req", "-x509", "-newkey", "rsa:2048", "-nodes",
+            "-keyout", str(key), "-out", str(crt), "-days", "2",
+            "-subj", subj]
+    if san:
+        args += ["-addext", f"subjectAltName={san}"]
+    _openssl(*args)
     return key, crt
 
 
@@ -1371,6 +1377,9 @@ def ssl_pki(tmp_path_factory, wermit_ssl_available):
       - a second, untrusted CA, and a "localhost" server cert/key signed
         by it instead of the trusted CA, for "wrong CA" negative tests
       - an already-expired server cert/key signed by the trusted CA
+      - a self-signed "localhost" server cert/key (not signed by either
+        CA above), for testing self-signed leaf verification separately
+        from the untrusted-CA path
 
     The server certs' CN/SAN is "localhost". Tests must connect to
     that hostname, not an IP address, to avoid C-Kermit's interactive
@@ -1405,6 +1414,10 @@ def ssl_pki(tmp_path_factory, wermit_ssl_available):
         dates=("20190101000000Z", "20200101000000Z")
     )
 
+    selfsigned_key, selfsigned_crt = _make_ca(
+        d, "selfsigned_server", "/CN=localhost", san="DNS:localhost"
+    )
+
     return {
         "ca_crt": ca_crt,
         "ca_key": ca_key,
@@ -1418,6 +1431,8 @@ def ssl_pki(tmp_path_factory, wermit_ssl_available):
         "untrusted_server_key": untrusted_server_key,
         "expired_crt": expired_crt,
         "expired_key": expired_key,
+        "selfsigned_server_crt": selfsigned_crt,
+        "selfsigned_server_key": selfsigned_key,
     }
 
 
