@@ -1696,7 +1696,7 @@ doundef(cx) int cx;
         }
         switch (cmresult.nresult) {
           case UND_MAT: domatch  = 1; break;
-          case UND_SIM: simulate = 1; /* fall thru on purpose */
+          case UND_SIM: simulate = 1; /* Fall through */
           case UND_VRB: verbose  = 1; break;
 
 #ifdef COMMENT
@@ -4782,14 +4782,15 @@ dogrep() {
 		gr_excp++;
 		makestr(&grep_except,s);
 	    }
+	    break;
 	  case GREP_DISP:		/* Display options */
 	    if (getval) {
                 if ((y = cmnum("number: max lines to show",
                                "0",10,&x,xxstring)) < 0)
                   return(y);
                 dispmode = x;           /* Number of lines to display */
-                break;
 	    }
+	    break;
 	  case GREP_VERB:               /* VERBATIM */
             cmfdbi(&fl,                 /* Don't call zzstring */
                    _CMFLD,              /* fcode */
@@ -7513,7 +7514,8 @@ dodel() {                               /* DELETE */
             deltree = 1;
             nolinks = 2;
             matchdot = 1;
-            recursive = 1;              /* Fall through purposely... */
+            recursive = 1;
+            /* Fall through */
           case DEL_DIR:
             deldirs = 1;
             goto again;
@@ -8761,6 +8763,8 @@ dopaus(cx) int cx;
             if ((y = cmcfm()) < 0) return(y);
             break;
         }
+        /* Fall through */
+        /* filewait is always 0 here; this is unreachable */
 
       default:                          /* Shouldn't happen */
         return(-2);
@@ -10995,8 +10999,8 @@ doxget(cx) int cx;
             }
             if (rcvcmd)
               sw.hlpmsg = "Command, or switch"; /* Change help message */
-            /* Fall thru... */
 #endif /* PIPESEND */
+            /* Fall through */
 
           case SND_REC:                 /* /RECURSIVE */
             pv[SND_PTH].ival = PATH_REL; /* Implies relative pathnames */
@@ -11244,6 +11248,7 @@ doxget(cx) int cx;
         } else {
             ckstrncpy(line,cmresult.sresult,LINBUFSIZ);
         }
+        /* Fall through */
       case _CMCFM:                      /* (6) Confirmation */
         confirmed = 1;
         break;
@@ -12346,6 +12351,8 @@ boolexp(cx) int cx;
 	else
 	  return(-2);
       }
+      /* FNFLOAT: isfloat() true case shares ifc=9999 with _CMNUM */
+      /* Fall through */
       case _CMNUM:                      /* A number... */
         ifc = 9999;                     /* Set special "if-code" */
         break;

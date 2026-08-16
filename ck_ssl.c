@@ -564,6 +564,7 @@ X509_STORE_CTX *ctx;
                     ok = 0;
                 goto return_time;
             }
+            break;
         }
         case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT:
             if (ssl_verify_flag & SSL_VERIFY_FAIL_IF_NO_PEER_CERT) {

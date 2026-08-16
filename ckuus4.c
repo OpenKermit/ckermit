@@ -7165,6 +7165,7 @@ doinput(timo,ms,mp,flags,count)
                       default:
 			continue;
                     }
+                    /* Fall through */
                   case CK_CR:
                     cr = 1;
                     break;
@@ -9842,6 +9843,10 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 	    }
 	    goto fnend;
 	}
+	failed = 1;
+	if (fndiags)
+	  ckmakmsg(fnval,FNVALL,"<ERROR:OVERFLOW:\\f",fn,"()>",NULL);
+	goto fnend;
 
       case FN_UNH: {                    /* \funhex(arg1) */
           int c[2], i;
@@ -11979,6 +11984,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                            "<ERROR:ARG_NOT_NUMERIC:\\f",fn,"()>",NULL);
                 goto fnend;
             }
+            /* Fall through */
           case FN_FGCHAR:               /* Read or write character or line */
           case FN_FPCHAR:
           case FN_FGLINE:
@@ -16022,6 +16028,7 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
             break;
 	  case 'q':			/* 299 String to be take literally */
 	    quoting = 1;		/* 299 */
+	    /* Fall through */
           case '$':                     /* An environment variable */
           case 'v':                     /* Or a named builtin variable. */
           case 'm':                     /* Or a macro /long variable */

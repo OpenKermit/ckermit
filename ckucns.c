@@ -1076,7 +1076,8 @@ learnchar(c) int c;
 	    learnbc = 0;
 	}
 	learnbp = 0;
-	fputs("\nPAUSE 1\nOUTPUT ",learnfp); /* Emit OUTPUT and fall thru */
+	fputs("\nPAUSE 1\nOUTPUT ",learnfp); /* Emit OUTPUT */
+	/* Fall through */
 
       case 2:				/* Already in Keyboard state */
 	if (c == 0) {
@@ -1606,8 +1607,9 @@ conect() {
 			    x = mdmhup();
 			  if (x < 1)
 #endif /* NODIAL */
-			    tthang();	/* fall thru deliberately... */
+			    tthang();
 		      }
+		      /* Fall through */
 		      case IDLE_RET:	/* Return to command mode */
 			cx_status = CSX_IDLE;
 			active = 0;
@@ -1624,7 +1626,10 @@ conect() {
 			continue;
 		      case IDLE_EXIT:	/* Exit from Kermit */
 			doexit(GOOD_EXIT,xitsta);
+			/* doexit() does not return, but is not
+			   declared noreturn */
 #ifdef TNCODE
+			/* Fall through */
 		      case IDLE_TAYT:	/* Send Telnet Are You There? */
 			if (network && IS_TELNET()) {
 			    tnopt[0] = (CHAR) IAC;

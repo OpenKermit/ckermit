@@ -4156,6 +4156,7 @@ doxsend(cx) int cx;
 	pv[SND_CMD].ival = 1; break;
       case XXMMOVE:			/* MMOVE */
 	mlist = 1;
+	/* Fall through */
       case XXMOVE:			/* MOVE */
 	pv[SND_DEL].ival = 1; break;
       case XXRSEN:			/* RESEND */
@@ -4276,6 +4277,7 @@ doxsend(cx) int cx;
 	  case SND_RES:			/* /RECOVER (resend) */
 	    pv[SND_ARR].ival = 0;
 	    pv[SND_BIN].ival = 1;	/* Implies /BINARY */
+	    /* Fall through */
 	  case SND_NOB:			/* /NOBACKUP */
 	  case SND_DEL:			/* /DELETE */
 	  case SND_SHH:			/* /QUIET */
@@ -8332,6 +8334,8 @@ docmd(cx) int cx;
 	if (msgflg)  printf("\r\n");
 #endif /* OSK */
 	  doexit(GOOD_EXIT,xitsta);
+	  /* doexit() does not return, but is not declared noreturn */
+	  /* Fall through */
       case -3:				/* Null command */
 	return(0);
       case -9:				/* Like -2, but errmsg already done */
@@ -8351,9 +8355,11 @@ docmd(cx) int cx;
 	repars = 1;			/* Force reparse */
 	cmres();
 	cx = XXDO;			/* Try DO command */
+	/* Re-dispatch on the new cx */
 #else
 	return(cx);
 #endif /* NOSPL */
+	/* Fall through */
       default:
 	if (cx < 0)
 	  return(cx);
@@ -8980,6 +8986,7 @@ docmd(cx) int cx;
 	    switch (x) {
 	      case 0:
 		if (msgflg) printf("?Connection was not open\n");
+		/* Fall through */
 	      case -1:
 		return(0);
 	      case 1:
@@ -13858,7 +13865,8 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n"
 		}
 		switch (cmresult.nresult) {
 		  case 2:		/* /CLOSE */
-		    closing = 1;	/* Fall thru on purpose */
+		    closing = 1;
+		    /* Fall through */
 		  case 0:		/* /OFF */
 		    off = 1;
 		    on = 0;

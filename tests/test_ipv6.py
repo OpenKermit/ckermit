@@ -289,10 +289,13 @@ def test_address_family_ipv4_connects(run_wermit):
 
     listener = _OneShotListener(socket.AF_INET, "127.0.0.1")
     try:
+        # A loopback connect should be near-instant, but on a
+        # CI VM the default 10s timeout has been observed to be too tight.
         result = run_wermit(
             "set tcp address-family ipv4, "
             "set tcp reverse-dns-lookup off, "
-            f"set host 127.0.0.1 {listener.port} /raw-socket")
+            f"set host 127.0.0.1 {listener.port} /raw-socket",
+            timeout=30)
         assert_ok(result, "IPv4 connect failed")
         peer = listener.wait()
         assert peer is not None and peer[0] == "127.0.0.1"

@@ -5399,8 +5399,10 @@ jpnxkt(a, obuf) int a; int obuf[];
 	    obuf[r++] = 0x1b;
 	    obuf[r++] = 0x28;
 	    obuf[r++] = 0x4a;
+	    /* Fall through */
 	  case 0:				/* from Roman */
 	    obuf[r++] = 0x0e;
+	    /* Fall through */
 	  default:
 	    obuf[r++] = (a & 0x7f);
 	  break;
@@ -5446,10 +5448,12 @@ jpnxkn(ibuf, obuf) int ibuf[], obuf[];
         switch (jpnlst) {
   	  case 1:
 	    obuf[r++] = 0x0f; /* From Katakana */
+	    /* Fall through */
   	  case 0:
 	    obuf[r++] = 0x1b;
 	    obuf[r++] = 0x24;
 	    obuf[r++] = 0x42;
+	    /* Fall through */
 	  default:
 	    obuf[r++] = c1;
 	    obuf[r++] = c2;

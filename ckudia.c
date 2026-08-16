@@ -6150,7 +6150,7 @@ _dodial(threadinfo) VOID * threadinfo;
 		    mdmstat = D_FAILED;
 		    dialsta = DIA_ERR;	/* Command error */
 		}
-		/* otherwise fall thru... */
+		/* Fall through */
 
 	      case n_DF200:
 		if (didweget(lbuf,"Attached")) {
@@ -7254,8 +7254,9 @@ gethrn() {
 	    if (mymdmtyp == n_XJACK || mymdmtyp == n_SUPRAX) {
 		spdchg(600);
 		break;
-	    } /* fall thru */
+	    }
 #endif /* MINIDIAL */
+	    /* Fall through */
 	  case 10:			/* CONNECT 2400 */
 	    spdchg(2400L);		/* Change speed if necessary. */
 	    mdmstat = CONNECTED;
@@ -7463,7 +7464,8 @@ gethrn() {
 	    if (mymdmtyp == n_INTEL || mymdmtyp == n_KEEPINTOUCH) {
 		spdchg(14400L);
 		mdmstat = CONNECTED;
-	    } /* fall thru on purpose... */
+	    }
+	    /* Fall through */
 	  case 31:
 	    if (mymdmtyp == n_UCOM_AT || mymdmtyp == n_MICROLINK) {
 		spdchg(4800L);
@@ -7560,7 +7562,8 @@ gethrn() {
 	    } else if (mymdmtyp == n_INTEL || mymdmtyp == n_KEEPINTOUCH) {
 		spdchg(9600L);
 		mdmstat = CONNECTED;
-	    } /* fall thru on purpose... */
+	    }
+	    /* Fall through */
 	  case 39:
 	    if (mymdmtyp == n_UCOM_AT) {
 		spdchg(38400L);
@@ -7596,7 +7599,8 @@ gethrn() {
 	    } else if (is_motorola) {
 		spdchg(38400L);
 		mdmstat = CONNECTED;
-	    } /* fall thru on purpose... */
+	    }
+	    /* Fall through */
 	  case 43:
 	    if (mymdmtyp == n_UCOM_AT) {
 		spdchg(57600L);

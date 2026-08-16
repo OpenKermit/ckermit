@@ -5468,6 +5468,7 @@ tn_rnenv(sb, len) CHAR * sb; int len;
                 /* no environment variables to send.  we are done */
                 if (j == 0 && sb[i] == IAC)
                     return(1);
+                /* Fall through */
               case 1:                   /* VAR in progress */
               case 2:                   /* USERVAR in progress */
               case 3:                   /* VALUE in progress */
@@ -5577,7 +5578,8 @@ tn_rnenv(sb, len) CHAR * sb; int len;
             /* Take next character literally */
             if ( ++i >= len )
                 break;
-            /* otherwise, fallthrough so byte will be added to string. */
+            /* Otherwise the byte will be added to the string */
+            /* Fall through */
         default:
             switch (type) {
             case 1:     /* VAR in progress */
@@ -5664,6 +5666,7 @@ tn_snenv(sb, len) CHAR * sb; int len;
                 /* VAR and USERVAR.                             */
                 if (!(j == 0 && sb[i] == IAC))
                   break;
+                /* Fall through */
             case 1:                   /* VAR in progress */
                 varname[j] = '\0' ;
                 if (!varname[0]) {      /* Send All */
@@ -5695,6 +5698,7 @@ tn_snenv(sb, len) CHAR * sb; int len;
                 /* VAR and USERVAR.                             */
                   if (!(j == 0 && sb[i] == IAC))
                       break;
+                  /* Fall through */
             case 2:                   /* USERVAR in progress */
                 varname[j] = '\0' ;
                 if (!varname[0]) {      /* Send All */
@@ -5752,6 +5756,8 @@ tn_snenv(sb, len) CHAR * sb; int len;
           case TEL_ENV_ESC:     /* ESC */
             if (++i >= len)
               break;
+            /* Otherwise the byte will be added to varname */
+            /* Fall through */
           default:
             if (j < 16 )
               varname[j++] = sb[i];
@@ -5788,6 +5794,7 @@ tn_snenv(sb, len) CHAR * sb; int len;
                 /* VAR and USERVAR.                             */
                 if (!(j == 0 && sb[i] == IAC))
                   break;
+                /* Fall through */
               case 1:                   /* VAR in progress */
                 varname[j] = '\0';
                 if (!varname[0]) {
@@ -5875,6 +5882,7 @@ tn_snenv(sb, len) CHAR * sb; int len;
                   /* VAR and USERVAR.                             */
                   if (!(j == 0 && sb[i] == IAC))
                       break;
+                  /* Fall through */
             case 2:     /* USERVAR in progress */
                   varname[j] = '\0';
                   if (!varname[0]) {

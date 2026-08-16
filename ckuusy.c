@@ -2721,9 +2721,11 @@ doxarg(s,pre) char ** s; int pre;
           break;
         else
           doexit(GOOD_EXIT,-1);
+        /* doexit() does not return, but is not declared noreturn */
 #endif /* NOHELP */
 
 #ifndef NOHELP
+        /* Fall through */
       case XA_HEFI:                     /* IKS: custom help file */
 	if (!isabsolute(p))
 	  if (zfnqfp(p,CKMAXPATH,tmpbuf))
@@ -2791,9 +2793,11 @@ doxarg(s,pre) char ** s; int pre;
 	    break;
 	  else
 	    doexit(GOOD_EXIT,-1);
+	    /* doexit() does not return, but is not declared noreturn */
       }
 #ifndef NOXFER
 #ifdef CK_PERMS
+      /* Fall through */
       case XA_NPRM: {
 	  extern int atlpri, atlpro, atgpri, atgpro;
 	  atlpri = 0;
@@ -3529,7 +3533,8 @@ extern char *line, *tmpbuf;             /* Character buffers for anything */
 	  case '-':			/* Extended commands... */
 	    if (doxarg(xargv,0) < 0) {
 		XFATAL("Extended option error");
-	    } /* Full thru... */
+	    }
+	    /* Fall through */
 	  case '+':			/* Extended command for prescan() */
 	    return(0);
 #else  /* NOICP */
@@ -3816,8 +3821,10 @@ extern char *line, *tmpbuf;             /* Character buffers for anything */
 	    else
 #endif /* NOICP */
 	      doexit(GOOD_EXIT,-1);
+	      /* doexit() does not return, but is not declared noreturn */
 
 #ifndef NOXFER
+	      /* Fall through */
 	  case 'a':			/* "as" */
 	    if (*(xp+1)) {
 		XFATAL("invalid argument bundling after -a");
@@ -4511,7 +4518,8 @@ dotnarg(x) char x;
 	  case '-':			/* Extended commands... */
             if (doxarg(xargv,0) < 0) {
                 XFATAL("Extended option error");
-            } /* Full thru... */
+            }
+            /* Fall through */
 	  case '+':			/* Extended command for prescan() */
             return(0);
 #else  /* NOICP */
@@ -4722,7 +4730,8 @@ dorlgarg(x) char x;
 	  case '-':			/* Extended commands... */
             if (doxarg(xargv,0) < 0) {
             XFATAL("Extended option error");
-            } /* Full thru... */
+            }
+            /* Fall through */
 	  case '+':			/* Extended command for prescan() */
             return(0);
 #else  /* NOICP */
@@ -4813,7 +4822,8 @@ dossharg(x) char x;
 	  case '-':			/* Extended commands... */
             if (doxarg(xargv,0) < 0) {
                 XFATAL("Extended option error");
-            } /* Full thru... */
+            }
+            /* Fall through */
 	  case '+':			/* Extended command for prescan() */
             return(0);
 #else  /* NOICP */
