@@ -2,8 +2,137 @@
 
 Handoff for the Victor 9000 port, written 9 August 2026, revised after
 §16ah and then again at the desk the same day, again on 10 August after
-§16ao, and again on 11 August after §16aq. **No live defect in the receive
-path.** §16af closed the last one.
+§16ao, and again on 11 August after §16aq and then §16ar, and again on
+15 August after §16av. **No live defect in the receive path.** §16af
+closed the last one.
+
+---
+
+## §16av: six travel-desk items, no hardware, and two of them were worse
+## than the notes said
+
+**15 August 2026, no Victor in reach.** Ten MAME legs at 9600 (NA, NB, NC,
+ND, NF, NR, NS, NT, NU, NX), static analysis, and one host tool. **No
+upstream edit — still eighteen.** DGROUP 48,816 (74%), image **230,224**,
+**needs 242,288 (236K)**, **smallest Victor 384K, unchanged**, warnings 18,
+`ckvictor.c` 0. md5 `5b7eb873…`.
+
+**The image grew 3,058 bytes and the machine only sees 1,074.** The rest
+is relocation table and paragraph padding. That gap is the reason hard
+rule 4 says to quote `mzsize.py` and not `ls -l`, and this is the widest
+it has ever been in one change.
+
+**1. `msleep()` sleeps now, and it is measured.** `NAP` in `ckvictor.h`
+puts `msleep()` on its own `nap()` arm (`ckutio.c:12065`) and `ckvictor.c`
+§1d supplies a calibrated busy loop — INT 21h's clock advances in 500 ms
+steps, so anything shorter has to be counted, not timed. **`v9k: nap
+per=409 n=1 req=500 ms tot=50 cs` on five legs**, `per` identical on all
+five. The defect read **175 µs** on a scope (§16an); it now reads one
+clock quantum, which is what a true 500 ms sleep reads. **Every run
+exercises it** — `exithangup` is 1, so `ttclos()` → `tthang()` →
+`msleep(500)` — so the exit path is ~1.5 s longer and DTR/RTS really drop.
+`tcsendbreak()` is fixed by the same change and is still unexercised.
+
+**2. FILE COLLISION defaults to REPLACE, and the old story was wrong.**
+The port has never run BACKUP: `initproto()` copies `ptab[PROTO_K].fnca`
+(statically **`XYFX_D`**, `ckcmai.c:727`) over `ckcmai.c:1326`'s `XYFX_B`
+before anything reads it, so `znewn()` has never been called and the
+shipped behaviour was a **flat refusal**. **The first fix walked into
+§16ai's trap and `v9k: coll=` caught it** — leg NB read `coll=4` after an
+initializer that wrote 1. Fixed by writing `ptab`, verified by legs NC/ND:
+two different 4 KB fixtures, one filename, nothing deleted between them,
+**0 timeouts, 0 retransmissions, 641 cps, and the file off the image has
+the SECOND fixture's md5.** `-dV9K_COLLISION=XYFX_D` restores the refusal.
+**But `--safe-server` overrides it to RENAME** (`ckcpro.c:502`, because
+`en_del` is off) **and RENAME cannot work on FAT either.** Two
+report-upstream items, §16av part 2.
+
+**3. Out of disk was an INFINITE LOOP, not a missing timeout.**
+`zoutdump()` (`ckufio.c:2172`) tests `write() > -1` and DOS returns **0
+with CF clear** on a full volume — so it subtracts nothing, advances
+nothing, and goes round for ever. No `alarm()` can reach a receiver that
+never asks to read. One compare in `v9k_write()` turns "wrote nothing, no
+error" into `ENOSPC`. **Leg NF: an image filled to 8.0 KB free, 32 KB
+sent, host reports `FAILURE / Error writing data` in 58 s** where the
+documented behaviour is a hang that outlives the host. `-dV9K_NOSPC_OFF`
+is the control and **has not been run**. Leg NF's own `.OUT` is 0 bytes —
+the redirect was on the disk under test; use `> D:\` next time.
+
+**4. Ctrl-C was two keystrokes from leaving IRQ1 hooked.** Watcom's
+`raise()` demotes SIGINT to `SIG_DFL` and hands INT 23h back to DOS
+*before* calling the handler (`bld/clib/process/c/signl.c`), so a handler
+fires once; and upstream's `cctrap` sets `cc_int`, **which is read nowhere
+in the tree**. So the first ^C did nothing observable and spent the single
+shot, and the second killed the program with the chip hooked. Fixed with a
+self-re-arming handler installed from `v9k_ser_install()`. **`cc=0` on
+every leg — the mechanism is established from both runtimes' sources and
+NOTHING HAS PRESSED CTRL-C ON A VICTOR.** That is a bench item.
+
+**5. The "one binary, two DOSes" claim was false, in two places.** IRQ1 is
+INT 41h under MS-DOS 3.1 and **INT 09h under FreeDOS for Victor**
+(`myfreedos/kernel/victor_pic.asm`, ICW2 0x40 vs 0x08). ICW2 is
+write-only, so the question goes to INT 21h `AH=30h`, whose BH is **0xFD**
+for FreeDOS. **`v9k: dos oem=ff ver=310 irq1=41` on every leg** — the
+MS-DOS branch, unchanged. And the console: §16ao's VT52 is right for
+MS-DOS 3.1 and FreeDOS's `victor_ansi.asm:154` passes anything that is not
+`ESC [` **straight through to the screen**, so §1g now has an ANSI arm
+chosen by the same probe. **Neither FreeDOS branch has ever executed.**
+
+**6. `REMOTE DIRECTORY` is two defects and one of them is fixed.**
+`MAXWLD` 64 and `SSPACE` 2048 both carried a comment saying the limit
+could not be reached in practice; **this project's own image has 156 files
+in its root** and an ordinary listing reaches both (leg NR: `?Too many
+files (64 max)` and `E No files match`). Raised to **256 / 4096** — heap,
+so the load requirement does not move. **Leg NT then reproduced §16i's
+original defect with a trace it never had**: the listing streams, and at
+the slow-start jump from 126 to **1,414** wire bytes the Victor resends
+packet 14 every ~10 s, ten times, while the host ACKs each one — and never
+answers the FINISH. **Leg NU bounds it**: a three-entry listing completes
+perfectly and exits cleanly. Short works, long wedges. **Both `.OUT` and
+`DEBUG.LOG` were 0 bytes because the process never exits to flush them**,
+which is why §16i could not diagnose it and this leg could not either.
+
+**7. `v9k/tools/wirenoise.py`** replaces `socat` in the MAME harness and
+corrupts the wire on purpose, so §16aq's untested "both arms recover
+identically" claim can finally be run. Corruption is keyed on **byte
+offset, not a random sequence**, so two arms meet the same noise even
+after they diverge, and a leg is reproducible from its seed. Its first
+mixer had a **visible period of 100** and was caught by looking at the
+offsets; splitmix64 replaced it. **Self-tested on the host; no leg run.**
+
+**What generalises, from §16av's last section:** a counter written to catch
+a known trap caught that exact trap (`coll=`); two `ckvictor.h` comments
+asserted a limit could not be reached and an ordinary listing reached both;
+a leg that fills the disk cannot report through a file on that disk and a
+leg that never exits cannot report through a buffered log — **ask what the
+failure under test does to the channel the leg reports through**; and
+**the other end of `wcc -pl` is somebody else's source tree** — two of
+these six were settled by reading Open Watcom's and FreeDOS's own sources,
+neither of which this project had ever opened.
+
+**Item 12 — sliding windows — is BUILT, MEASURED THIRTEEN TIMES ON THE
+MACHINE, AND CLOSED. Nothing ships. §16au.** `--window=N` is a run-time
+switch on the shipping binary and `V9K_RXBUFSIZ` is now a build lever, both
+for **no upstream edit — still eighteen**, smallest Victor still 384K. A
+window of 2 negotiates end to end, transfers byte-exact, and **once the
+ring is sized to hold W × (packet wire length) it costs 1 ms.** 25.789 s at
+window 1 against 25.788 / 25.804 at window 2. **`DFWSIZ` 1, `DRPSIZ` 4000,
+`V9K_RXBUFSIZ` 4096 — every default unchanged.**
+
+**THE MODEL BEHIND IT, IN THIS FILE SINCE §16v, IS RETRACTED.** "Line and
+foreground are strictly serialized, so overlapping them takes 25.66 s
+toward ~16 s" — **they were already overlapped.** `ttinl()` processes bytes
+as they arrive, so the 9.77 s of "line time" is not idle waiting for the
+wire; it is the CPU busy in the ISR and the per-byte loop. **That ~16 s
+ceiling does not exist.**
+
+> **On a single-CPU machine with no DMA the "I/O" IS CPU work, in an ISR.
+> Overlapping I/O with compute cannot create capacity, only relabel which
+> bucket the cycles fall in. The only lever is doing less work per byte.**
+
+**Test any future throughput idea against that sentence before building
+it** — it is why edits 17 and 18 worked and this did not. **And item 9 has
+its number at last: ~65 ms per packet.** Read item 12, then §16au.
 
 **§16aq is upstream edit 18 and it is the largest single gain this port has
 measured: 17.6% faster and 6.4× less ring pressure.** `ttinl()`'s per-byte
@@ -1330,24 +1459,87 @@ packet**, so §16i's priority-0 capability initializer works on the machine —
 a second, independent check on the XI mechanism whose failure §16ai's
 headline was about. `HW_TESTING.md` leg 0.7 is closed.
 
-What is left of it: **`--safe-server` is still unrun** (one more leg, with
-the unknown-option control per §16i), and `REMOTE DIRECTORY` and `BYE` were
+**`--safe-server` is no longer unrun — §16av leg NS closed it.** Driven
+entirely from the host at 9600 under MAME: `send rcvns.dat` to the server
+came back **byte-exact md5**, `remote directory` was refused with
+`E REMOTE DIRECTORY disabled`, and `finish` was honoured (`GF` → `Y`). The
+unknown-option control ran too (§16i's rule): leg NX, `--safe-serverz`,
+printed `Extended options not configured`, so the switch was parsed rather
+than silently ignored. **One thing it exposed:** a `--safe-server` has
+`en_del` off, and `ckcpro.c:502` then forces FILE COLLISION to RENAME,
+which cannot work on FAT — leg NS reported `v9k: coll=0`. §16av part 2.
+
+What is left of it: `REMOTE DIRECTORY` and `BYE` were
 excluded deliberately — the first never terminates its listing (§16i, item
 15) and the second cannot be retried without a power cycle.
 
-**14. FreeDOS for Victor** — `HW_TESTING.md` Tier 4, and the IRQ1 vector
-question (41h here, INT 09h there) that is the most likely thing to break
-the "one binary, two DOSes" claim.
+**14. FreeDOS for Victor** — `HW_TESTING.md` Tier 4. **The two things
+that would have broken it are now handled, from FreeDOS's own sources, and
+NEITHER BRANCH HAS EVER EXECUTED.** §16av part 5.
+
+- **The IRQ1 vector.** Three answers on this machine, all in
+  `myfreedos/kernel/victor_pic.asm`'s header: boot ROM ICW2 0x20, MS-DOS
+  3.1 0x40 (INT 41h), FreeDOS **0x08 (INT 09h)**. ICW2 is write-only, so
+  the probe is INT 21h `AH=30h`, whose BH is **0xFD** for FreeDOS
+  (`hdr/version.h:40`, `kernel.asm:75`). Only the vector moves — the mask
+  bit and the specific EOI encode the IR level, so `ckvisr.asm` is
+  untouched. `v9k: dos oem= ver= irq1=` says which branch ran;
+  `-dV9K_IRQ1_FORCE=0x09` is the control.
+- **The console.** `victor_ansi.asm:154` passes anything that is not
+  `ESC [` **straight through to the screen**, so §16ao's VT52 display
+  would print a `Y` and two coordinate bytes 55 times a repaint. §1g now
+  has an ANSI arm (`ESC[r;cH`, `ESC[2J`, `ESC[K` — exactly what that
+  driver documents) chosen by the same probe;
+  `-dV9K_CON_FORCE_ANSI` / `-dV9K_CON_FORCE_VT52` override it.
+
+What is left is the run: **boot FreeDOS for Victor and see `irq1=09` in
+the exit report and a legible transfer display.** Also unanswered on that
+DOS: how much memory it gives (`v9k/probes/vmem.c` asks), and whether
+`/dev/seriala`'s IOCTL control block behaves the same.
 
 **~~Report the `ckcmai.c` nesting upstream.~~** Folded into item 8 —
 §16ac found the same region also swallowing `dotakeini()` and
 `docmdfile()`, and edit 14 fixed it. One report, not two.
 
-**15. `REMOTE DIRECTORY`** still streams its listing and never terminates it
-(§16i).
+**15. `REMOTE DIRECTORY` — HALF FIXED, HALF BOUNDED. §16av part 6.**
 
-**16. `msleep()` does not sleep, and `tcsendbreak()` is this port's own
-broken code because of it.** §16an, found by a scope aimed at something
+Two defects, not one. The first was the port's own and is fixed: `MAXWLD`
+was 64 and `SSPACE` 2048, both with a comment saying the limit could not be
+reached in practice, and **the project's own image has 156 files in its
+root** — so leg NR's server answered `?Too many files (64 max)` on the
+console and `E No files match` on the wire. Now **256 / 4096**; both are
+`malloc`'d so the load requirement does not move.
+
+The second is §16i's and is now traced rather than described. Leg NT: the
+listing streams correctly through seq 13, and at C-Kermit's slow-start jump
+from **126 to 1,414 wire bytes** the Victor resends packet 14 every ~10 s
+— ten times, while the host ACKs every one — and then does not answer the
+FINISH either. **Leg NU bounds it**: `REMOTE DIRECTORY RCVN*.DAT`, three
+matches in one packet, completes perfectly (header, entries, summary,
+FINISH, clean exit, 166 KB debug log). **Short listings work; long ones
+wedge, at the first long packet the Victor sends.**
+
+**The reason neither leg diagnosed it is the instrument, and fixing that is
+the next step.** The process never exits, so `STEPNT.OUT` and `DEBUG.LOG`
+both came back **0 bytes** — stdio never flushed. Two levers exist now that
+did not before: make `debug()` flush per line (or per packet) under a
+`-d` flag so a wedged run still leaves evidence, and **§16av's Ctrl-C
+handler**, which exits through `atexit()` and closes the log — that is
+exactly the "make it exit so the log lands" lever this needs, on a bench
+where a person can press the key.
+
+**16. ~~`msleep()` does not sleep.~~ FIXED AND MEASURED — §16av part 1.**
+`NAP` in `ckvictor.h` moves `msleep()` onto upstream's own `nap()` arm
+(`ckutio.c:12065`) and `ckvictor.c` §1d supplies a calibrated busy loop.
+**`v9k: nap per=409 n=1 req=500 ms tot=50 cs` on five MAME legs** — half a
+second, one clock quantum, against the 175 µs a scope caught. No upstream
+edit. `tcsendbreak()` is fixed by the same change and **is still
+unexercised**: nothing has asked this port for a break. The analysis below
+is kept because it is why the fix has the shape it has.
+
+---
+
+*The original item:* §16an, found by a scope aimed at something
 else: `HANGUP` should hold DTR and RTS down for `HUPTIME` = 500 ms and the
 capture shows **175 µs**.
 
@@ -1495,6 +1687,35 @@ maintain the burst table. Without that, the report would print
   ISR: `__interrupt` always saves twelve registers, and `#pragma aux` cannot
   be used for one at all. Compile it and read `wdis` before believing
   otherwise.
+- **`v9k: nap per= n= req= tot= cs cc=`** (§16av). `per` is spins per
+  centisecond from the one-off calibration; `n`/`req`/`tot` are calls,
+  milliseconds asked for and centiseconds observed; `cc` counts Ctrl-C
+  interrupts handled. **Every run that opened a line has n>=1**, because
+  `exithangup` sends `tthang()` through `msleep(500)`. Read `tot` against
+  `req/10` in the aggregate only — one 500 ms nap reads 50 or 100 and
+  neither is wrong. `per=0 n=0` means nothing asked for a delay; any other
+  zero is a defect.
+- **`v9k: dos oem= ver= irq1=`** (§16av). `oem` is BH from INT 21h
+  `AH=30h`; **0xfd is FreeDOS and irq1 is then 09**, anything else takes
+  the MS-DOS 3.1 layout and 41. The whole "one binary, two DOSes" claim
+  turns on this byte, and a wrong branch looks exactly like a chip that
+  never interrupts.
+- **`v9k: coll=`** (§16av). The file-collision policy actually in force at
+  exit. `XYFX_X` = 1 (REPLACE, this port's default), `XYFX_D` = 4
+  (refuse), `XYFX_R` = 0 (RENAME, which a `--safe-server` forces and which
+  FAT cannot do). It exists because §16ai's trap is invisible otherwise —
+  and it caught that exact trap on leg NB.
+- **`nospc=` on the `v9k: wfile` line** (§16av). Writes that returned 0
+  bytes with no error, i.e. a full disk. Non-zero means the transfer was
+  failed deliberately rather than allowed to spin.
+- **`python3 v9k/tools/wirenoise.py --listen 8000 --link /tmp/v9000 --flip
+  3e-4 --dir to-victor --seed 17`** (§16av) — a drop-in replacement for the
+  harness `socat` line that corrupts the wire on purpose. Corruption is
+  keyed on byte OFFSET, so two arms of an A/B meet the same noise and a leg
+  is reproducible from its seed. It reports bytes relayed and corrupted,
+  with offsets that feed `mapoffset.py`. **Read the corrupted count before
+  the result**: §16aq's cable-round-mains stimulus produced zero errors and
+  that was an instrument failure, not a null.
 - **`python3 v9k/tools/mzsize.py ckermitw.exe`** — run this, not `ls -l`. It
   prints **the smallest Victor that can load the build**, which is the
   number to report; `-a 0` gives the requirement alone and `-a <bytes>`
@@ -1534,9 +1755,21 @@ maintain the burst table. Without that, the report would print
   **Put that line in every receive `.BAT` from now on**, and still use a
   target name that has never been used, so a re-run cannot silently compare
   itself against an older file.
-- **`REMOTE DIRECTORY` never terminates its listing** (§16i).
+- **`REMOTE DIRECTORY` wedges on LONG listings only** (§16i, §16av part
+  6). Short ones complete and exit cleanly (leg NU); a 156-file root
+  resends its first 1,414-byte packet for ever (leg NT). The `MAXWLD` 64 /
+  `SSPACE` 2048 ceiling that a 156-file root hits *first* is fixed (256 /
+  4096). Item 15.
 - **Most of the default capability set is untested** (§16i). `BYE` never sent.
 - **Wildcards are case-sensitive.** `-s *.TXT`.
+- **The FreeDOS console arm has never run** (§16av part 5), and neither has
+  the FreeDOS IRQ1 branch. Both are written from `myfreedos`'s own sources.
+- **`v9k/tools/wirenoise.py` has never corrupted a real wire** (§16av part
+  7). It is self-tested on the host — relay, direction, `--after`,
+  reproducibility, reported offsets matching observed corruptions — and the
+  leg it exists for (edit 18's bulk arm against `--nobulk` over a noisy
+  line) is unrun. Its first mixer had a period of 100 and was caught by
+  looking at the offsets, which is the check to repeat if it is changed.
 - ~~**`-s <name>` for files of 32,768 bytes or more.**~~ **CLOSED** — §16ah
   leg BS sent exactly 32,768 bytes by name, byte-exact, no error line.
   Upstream edit 16 now has runtime evidence and **no shipped edit in this
@@ -1566,16 +1799,33 @@ maintain the burst table. Without that, the report would print
   the watcher runs were taken during power-up, not during a transfer. **One
   two-probe capture, both ends of the CTS conductor during a `STEPGB` run,
   closes it.**
-- **Out of disk space makes the Victor HANG, not fail** (§16al attempt 1).
-  Eleven or twelve packets in, the 8,192-byte `V9K_OBUFSIZE` flush has
-  nowhere to go, and the Victor stops responding **forever** — the host
-  times out after 30-odd retries, the Victor never does, because §0d's
-  `alarm()` bounds the *read* and nothing bounds a failed write. Never
-  diagnosed: a `KEEP_DEBUG` leg under MAME against a deliberately full image
-  would do it, cheaply and safely.
-- **The IRQ1 vector is hard-coded to 41h.** Right for MS-DOS 3.1; unknown
-  for FreeDOS.
-- **Ctrl-Break with the line open** is not covered by `atexit()`.
+- ~~**Out of disk space makes the Victor HANG, not fail.**~~ **DIAGNOSED
+  AND FIXED — §16av part 3**, and the mechanism is smaller and worse than
+  the note said. It is not a missing timeout: `zoutdump()`
+  (`ckufio.c:2172`) tests `write() > -1`, and INT 21h `AH=40h` on a full
+  volume returns **0 with CF clear**, which is the success branch — so the
+  loop subtracts nothing, advances nothing, and spins for ever. No
+  `alarm()` can reach a receiver that never asks to read. One compare in
+  `v9k_write()` turns it into `ENOSPC`. Leg NF: 8.0 KB free, 32 KB sent,
+  host gets `FAILURE / Error writing data` in 58 s. **The control
+  (`-dV9K_NOSPC_OFF`) has not been run.** And note what the leg taught
+  about itself: **`STEPNF.OUT` came back 0 bytes**, because the redirect
+  carrying every `v9k:` counter was on the disk under test. Write an
+  out-of-disk leg's output to `D:\`, which is 9.7 MB and empty.
+- ~~**The IRQ1 vector is hard-coded to 41h.**~~ **Chosen at run time from
+  INT 21h `AH=30h` — §16av part 5.** 41h for MS-DOS 3.1, 09h for FreeDOS
+  (OEM 0xFD). Reported as `v9k: dos oem= ver= irq1=`. **The FreeDOS branch
+  has never executed.**
+- ~~**Ctrl-Break with the line open** is not covered by `atexit()`.~~
+  **Fixed, unexercised — §16av part 4.** The exposure was two keystrokes,
+  not one: Watcom's `raise()` demotes SIGINT to `SIG_DFL` and returns INT
+  23h to DOS *before* calling the handler, and upstream's `cctrap` sets a
+  `cc_int` that **nothing in the tree reads** — so the first ^C did
+  nothing observable and spent the single shot, and the second terminated
+  the program with IRQ1 still hooked. A self-re-arming handler installed
+  from `v9k_ser_install()` closes it. **`cc=0` on every leg: nothing has
+  pressed Ctrl-C on a Victor.** MAME's keyboard is not the instrument;
+  the bench is.
 - **WR2 is left as the OEM driver set it** (`10h` vs 3.13's `14h`). Never
   tested, and no longer suspected of anything — it was on the list only
   while 38400 was unexplained.

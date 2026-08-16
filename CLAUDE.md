@@ -50,8 +50,8 @@ none.** It was 17 until `NOFLOAT` (§16j): dropping `GFTIMER` moves `ztime()`
 onto upstream's `ZTIMEV7` branch, whose K&R redeclarations of `localtime()`
 and `time()` produce two more sign mismatches at `ckutio.c:12399-12400`
 (they moved 80 lines when edit 18 went in).
-DGROUP is 48,752 of 65,536 (74%) after the linker adds libc; `ckermitw.exe`
-is 226,330 bytes and **needs 240,378 (234K) at load**. Quote that figure —
+DGROUP is 48,816 of 65,536 (74%) after the linker adds libc; `ckermitw.exe`
+is 230,224 bytes and **needs 242,288 (236K) at load**. Quote that figure —
 it is the port's cost and it is the same on every machine. **The 396,224
 that appears in older sections is not a RAM size, and §16x retracts it as a
 figure for this DOS too**; Victor MS-DOS 3.1 hands out **824,784 at 896K**.
@@ -709,6 +709,53 @@ and the model is `free = installed RAM − 92,720` — this DOS loads high,
 asks a running machine; `mzsize.py` reports the smallest Victor that can
 load a build. **Quote the requirement, not the spare.**
 
+**§16av is six items taken off the list with no Victor in reach, and two
+of them were worse than the notes describing them.** Ten MAME legs at
+9600, **no upstream edit — still eighteen**; DGROUP 48,816 (74%), image
+226,330 → **230,224**, needs **242,288 (236K)**, **smallest Victor 384K,
+unchanged**. The image grew 3,058 bytes and the machine sees 1,074 of it —
+the rest is relocation table and padding, which is why hard rule 4 says
+`mzsize.py` and not `ls -l`. **`msleep()` sleeps now**: `NAP` in
+`ckvictor.h` puts it on upstream's own `nap()` arm and §1d supplies a
+busy loop calibrated against the 500 ms DOS clock — `v9k: nap per=409 n=1
+req=500 ms tot=50 cs` on five legs, against the **175 µs** a scope caught
+in §16an. **`SET FILE COLLISION` defaults to REPLACE**, and the old story
+was wrong: `initproto()` copies `ptab[PROTO_K].fnca` (`XYFX_D`) over
+`ckcmai.c:1326`'s `XYFX_B`, so this port has never run BACKUP and
+`znewn()` has never been called — the shipped behaviour was a flat
+refusal. **The first version of that fix walked into §16ai's trap and the
+`v9k: coll=` counter written to catch it caught it** (`coll=4` after an
+initializer that wrote 1); the fix writes `ptab`. **Out of disk was an
+INFINITE LOOP, not a missing timeout**: `zoutdump()` tests `write() > -1`
+and DOS returns 0 with CF clear on a full volume, so it subtracts nothing
+and spins for ever — one compare in `v9k_write()` turns it into `ENOSPC`,
+and leg NF gets `FAILURE / Error writing data` in 58 s where the machine
+used to hang. **Ctrl-C was two keystrokes from leaving IRQ1 hooked**:
+Watcom's `raise()` demotes SIGINT and hands INT 23h back to DOS *before*
+calling the handler, and upstream's `cctrap` sets a `cc_int` **nothing in
+the tree reads**. **The "one binary, two DOSes" claim was false in two
+places** — IRQ1 is 41h on MS-DOS 3.1 and **09h on FreeDOS for Victor**,
+and FreeDOS's console driver passes anything that is not `ESC [` straight
+to the screen, so §16ao's VT52 output would *print*. Both are now chosen
+from INT 21h `AH=30h` (BH 0xfd = FreeDOS), and **neither FreeDOS branch
+has ever executed**. **`REMOTE DIRECTORY` is two defects**: `MAXWLD` 64
+and `SSPACE` 2048 each carried a comment saying the limit could not be
+reached in practice and a 156-file root reaches both (now 256/4096), and
+under that is §16i's original wedge — the listing streams and then, at
+C-Kermit's slow-start jump from 126 to **1,414** wire bytes, the Victor
+resends packet 14 every ~10 s while the host ACKs every one. **Leg NU
+bounds it: a three-entry listing completes and exits cleanly.** Neither
+leg could diagnose it because the process never exits and both `.OUT` and
+`DEBUG.LOG` came back 0 bytes. Same shape as leg NF's 0-byte `.OUT` on a
+full disk: **ask what the failure under test does to the channel the leg
+reports through.** `v9k/tools/wirenoise.py` is new — a corrupting relay
+that replaces `socat` in the MAME harness so §16aq's untested "both arms
+recover identically" can finally run; corruption is keyed on byte offset
+so two arms meet the same noise, and its first mixer had a **visible
+period of 100**. Two of these six were settled by reading Open Watcom's
+and FreeDOS's own sources: **the other end of `wcc -pl` is somebody
+else's source tree.**
+
 **§16aq is upstream edit 18 and it is the largest single gain this port has
 measured.** `ttinl()`'s per-byte loop now has a `VICTOR9K` bulk arm that
 finds the packet terminator in the already-buffered run with `memchr()` and
@@ -925,10 +972,10 @@ socket is single-use, so start `socat` first and never probe the port.
    ask for fewer. Do not add a second assembly file without the same kind of
    measurement behind it.
 4. **Two budgets, and do not confuse them.** DGROUP holds `.data`, `.bss`
-   and the **stack** — 48,752 of 65,536 (74%) after the link, 16,784 free.
+   and the **stack** — 48,816 of 65,536 (74%) after the link, 16,720 free.
    The **heap is outside it**: `malloc()` is `_fmalloc` in the large model,
    so the packet buffers do not compete for the segment at all. What bounds
-   them is real-mode RAM: **the image needs 240,378 (234K) at load**, and
+   them is real-mode RAM: **the image needs 242,288 (236K) at load**, and
    the far heap then takes about 25K of packet buffers on top. **The receive
    ring is the exception**: at 4,096 bytes it is `.bss` and comes straight
    out of the 64K (§16k).
@@ -968,13 +1015,13 @@ socket is single-use, so start `socat` first and never probe the port.
 |---|---|
 | `PORTING.md` | design doc, memory budget, hardware map, milestone plan |
 | `ckvictor.h` | all ~40 feature `-D` flags, size limits, platform identity |
-| `ckvictor.c` | Victor glue, and **no conditional compilation on the compiler**: process-model stubs (§1), `ioctl`/`FIONREAD`/`TIOCMGET` (§0b), the comm-device `read()`/`write()` and the `alarm()` that bounds the read (§0d), the foreground location tag — now including the `fopen`/`fclose` wrappers and the breadcrumb that subdivides "upstream" (§0e, PORTING.md §16m, §16s) — and the write/gap timers the interrupt handler latches against `rxpeak`, the gaps in Watcom's Unix surface — `gettimeofday`, `uname`, `link`, `kill`, `getpw*`, plus an `access()` that is right about a FAT root and the `_fmode = O_BINARY` initializer that stops the DOS runtime translating transfers (§1d, PORTING.md §16h), the priority-0 initializer that opens the server capability gate and parses `--safe-server` off the command tail before `argv` exists (PORTING.md §16i), the termios half that programs the 7201 and 8253 through the OEM driver's IOCTL block (§1b, PORTING.md §11a), **the 7201 data path — IRQ1 handler, receive ring, polled transmitter (§1e, PORTING.md §11b)**, **flow control — RTS/CTS and XON/XOFF, both directions, water marks in the handler and the release in the ring drain (§1f, PORTING.md §16aj)**, and **the console as curses — VT52/Z19 cursor addressing for the fullscreen file-transfer display (§1g, PORTING.md §16ao)** |
+| `ckvictor.c` | Victor glue, and **no conditional compilation on the compiler**: process-model stubs (§1), `ioctl`/`FIONREAD`/`TIOCMGET` (§0b), the comm-device `read()`/`write()` and the `alarm()` that bounds the read (§0d), the foreground location tag — now including the `fopen`/`fclose` wrappers and the breadcrumb that subdivides "upstream" (§0e, PORTING.md §16m, §16s) — and the write/gap timers the interrupt handler latches against `rxpeak`, the gaps in Watcom's Unix surface — `gettimeofday`, `uname`, `link`, `kill`, `getpw*`, plus an `access()` that is right about a FAT root and the `_fmode = O_BINARY` initializer that stops the DOS runtime translating transfers (§1d, PORTING.md §16h), the priority-0 initializer that opens the server capability gate and parses `--safe-server` off the command tail before `argv` exists (PORTING.md §16i), the termios half that programs the 7201 and 8253 through the OEM driver's IOCTL block (§1b, PORTING.md §11a), **the 7201 data path — IRQ1 handler, receive ring, polled transmitter (§1e, PORTING.md §11b)**, **flow control — RTS/CTS and XON/XOFF, both directions, water marks in the handler and the release in the ring drain (§1f, PORTING.md §16aj)**, and **the console as curses — VT52/Z19 cursor addressing for the fullscreen file-transfer display, with an ANSI arm for FreeDOS-for-Victor chosen from the same INT 21h `AH=30h` probe that picks the IRQ1 vector (§1g, PORTING.md §16ao, §16av)**, `nap()` — the calibrated busy loop that makes `msleep()` work at all (§1d, §16av) |
 | `ckvisr.asm` | the µPD7201 receive ISR, by hand — the port's only assembly, and the reason is that Open Watcom's `__interrupt` saves twelve registers with no way to ask for fewer (§16t). Assembled with `wasm`, reads no header, so `ckvictor.c` carries a build-time check that the ring size the two agree on has not drifted. `XFLAGS=-dV9K_CISR` selects the C handler instead. §16aj added the flow-control assert to it: four instructions on the clean per-byte path, and the mark is a variable so one compare answers both "is it on" and "have we crossed it" |
 | `victor/sys/termios.h` | the 7201 driver's control surface; no DOS libc has one, reached via `-i=victor` |
 | `victor/sys/ioctl.h` | `FIONREAD` and `TIOCMGET`; without the first `conchk()`/`ttchk()` are hard-wired to 0, and without the second `ttchk()` never reaches `FIONREAD` |
 | `victorow.mak` | the build: Open Watcom `wcc`/`wlink` + `sizes` target |
 | `victorow/` | headers filling gaps in Open Watcom's DOS libc (`pwd.h`, `sys/utsname.h`, `sys/time.h`, `termios.h`, `ckowsys.h`), reached via `-i=victorow`. **`curses.h` is different in kind**: not a gap in libc but the declaration half of the fullscreen transfer display, whose implementation is `ckvictor.c` §1g. Read its header comment before touching the display — it carries the evidence that this console is VT52/Z19 and not ANSI (§16ao) |
-| `v9k/tools/` | standing instruments, not disposable: `mzsize.py` (**hard rule 4 requires it**), `pktstat.py`, `mapoffset.py`, `ctswatch.py` (host-side `TIOCMGET`, §16am — the modem lines read without Kermit in the path) |
+| `v9k/tools/` | standing instruments, not disposable: `mzsize.py` (**hard rule 4 requires it**), `pktstat.py`, `mapoffset.py`, `ctswatch.py` (host-side `TIOCMGET`, §16am — the modem lines read without Kermit in the path), `wirenoise.py` (§16av — a drop-in replacement for the harness `socat` line that corrupts the wire on purpose, keyed on byte offset so two arms of an A/B meet the same noise) |
 | `v9k/proofs/` | host programs §8 cites as the correctness argument for a shipped edit — `vcrc16.c` (edit 17), `vttinl.c` (edit 18) and `vburst.c` (the ISR burst detector). `make -C v9k/proofs` builds *and runs* them |
 | `v9k/probes/` | genuine one-shots, kept so the answer stays checkable; build line at the top of each |
 | `ckutio.c` | serial, console, timers — **stock upstream except upstream edit 18**, the `VICTOR9K` bulk-read arm at the bottom of `ttinl()`'s per-byte loop (§16aq). Purely additive; `--nobulk` disables it at run time and `v9k: bulk sel= n=` says which arm ran |

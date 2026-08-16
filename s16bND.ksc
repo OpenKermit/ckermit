@@ -1,0 +1,11 @@
+set line /tmp/v9000
+set speed 9600
+set parity none
+set carrier-watch off
+set flow none
+set receive timeout 20
+set retry 30
+log packets s16bND.pkt
+; leg ND sends a DIFFERENT fixture under leg NC's name: the collision IS the test
+send rcvnc2.dat rcvnc.dat
+statistics

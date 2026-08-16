@@ -1,0 +1,5 @@
+ECHO OFF
+REM Leg NU -- REMOTE DIRECTORY of a SHORT match, to bound leg NT.
+IF EXIST NU.LOG DEL NU.LOG
+CKNAPD2 -d -l /dev/seriala -b 9600 -x > STEPNU.OUT
+REN DEBUG.LOG NU.LOG

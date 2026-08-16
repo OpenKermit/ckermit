@@ -784,6 +784,33 @@ extern long v9k_timezone;
 #endif /* V9K_PREFIXING */
 
 /*
+  V9K_COLLISION -- what RECEIVE does when the name already exists.
+
+  Upstream defaults to BACKUP everywhere but VMS, and BACKUP CANNOT WORK
+  ON FAT: the only name znewn() knows how to build is "name.~N~"
+  (ckufio.c:4000), which is two dots and a four-character extension.  The
+  rename fails and the file is refused, which is a confusing way to spell
+  "refuse" and has voided two of this project's own bench sittings.
+
+  REPLACE overwrites, which is the DOS convention and what MS-DOS Kermit
+  3.13 does on this same machine.  It is a real cost, stated plainly: a
+  RECEIVE into an existing name destroys that file.  XYFX_D puts the old
+  effective behaviour (refuse) back, and it is the value to build with if
+  that trade is not wanted:
+
+      make -f victorow.mak XFLAGS=-dV9K_COLLISION=XYFX_D
+
+  APPEND (XYFX_A) is the third policy this filesystem can support.  RENAME
+  goes through znewn() as well and is no more available than BACKUP.
+
+  Expanded in ckvictor.c, not here, so the XYFX_ name does not have to be
+  in scope at the point this header is force-included.
+*/
+#ifndef V9K_COLLISION
+#define V9K_COLLISION XYFX_X            /* RECEIVE overwrites       */
+#endif /* V9K_COLLISION */
+
+/*
   V9K_FLOW -- interrupt-level flow control, and V9K_RXHIGH/V9K_RXLOW are its
   water marks.  PORTING.md SS1 item 11; the driver is ckvictor.c SS1f.
 
@@ -924,8 +951,24 @@ extern long v9k_timezone;
   with the far heap it is a smaller matter, but a fixed allocation is still
   the right shape.  Overriding it needs ckufio.c's #ifndef -- the seventh
   guarded upstream edit, PORTING.md SS8.
+
+  RAISED FROM 2048, AND THE SENTENCE ABOVE IT IS WHY IT HAD TO BE.  "More
+  than a FAT directory on this machine can contain" was written without a
+  measurement and is false of this project's own test image, whose root
+  holds 156 files: 156 8.3 names at 13 bytes apiece is 2,028, and
+  nzxpand("./*") stores them with the "./" still on the front, which is
+  2,340.  A REMOTE DIRECTORY of the working image therefore could not fit
+  in the string space, and that -- with MAXWLD below -- is what leg NR
+  found.  4096 holds ~270 such names.
+
+  A FAT12 root can hold more than that (512 entries is the usual figure
+  for a partition this size), so this is a working limit and not a proof.
+  What makes it acceptable is that overrunning it FAILS LOUDLY: ckufio.c
+  prints "?Too many files (N max)".  What made the old value unacceptable
+  is not that it was small but that the comment claimed it could not be
+  reached.
 */
-#define SSPACE 2048
+#define SSPACE 4096
 
 /*
   How many names one wildcard may expand to.
@@ -934,14 +977,29 @@ extern long v9k_timezone;
   mallocs the whole array before it reads the first directory entry, so
   the default of 1024 is a 2,048-byte allocation whether the pattern
   matches two files or none.  Alongside SSPACE above that was most of the
-  heap.  64 names is a limit this machine will not reach in practice --
-  and a wildcard send that hits it fails loudly, with "?Too many files (64
-  max)", which is the opposite of the silence this port has been chasing.
+  heap.  A wildcard send that hits the limit fails loudly, with "?Too many
+  files (N max)", which is the opposite of the silence this port has been
+  chasing.
 
   Needs the #ifndef in ckcdeb.h: the eighth guarded upstream edit,
   PORTING.md SS8.
+
+  RAISED FROM 64, WHICH THIS COMMENT USED TO CALL "a limit this machine
+  will not reach in practice".  Leg NR reached it with no wildcard at all:
+  REMOTE DIRECTORY on a server expands "./*" over the working directory,
+  and this project's own image has 156 files in its root, so the server
+  answered "?Too many files (64 max)" on the console and "E No files
+  match" on the wire.  That is what NEXT_SESSION.md item 15 had recorded
+  since SS16i as "REMOTE DIRECTORY streams its listing and never
+  terminates it" -- a different symptom, from a 51-file image, and the
+  ceiling is what the same command does today.
+
+  256 pointers is 1,024 bytes of far heap in the large model, against the
+  ~33KB of slack a 384K Victor has after the image and the packet buffers.
+  It does not move the load requirement at all, because the array is
+  malloc'd: see hard rule 4, the heap is outside DGROUP.
 */
-#define MAXWLD 64
+#define MAXWLD 256
 
 /* Do NOT define BIGBUFOK: it asks for 290000-byte buffers. */
 
@@ -1148,6 +1206,29 @@ extern long v9k_timezone;
 #define NOPARSEN                        /* No network directory parse */
 
 /*
+  NAP -- and this one turns something ON rather than off.
+
+  ckutio.c's msleep() tries select(), poll() and usleep() before it reaches
+  a chain of clock loops and, at the end of it, a bare "while (m > 0) m--;"
+  that -os may delete outright.  This build has none of the first three, so
+  the fallback is what it compiled, and a logic analyzer caught the
+  consequence: a HANGUP that should hold DTR and RTS down for HUPTIME =
+  500ms held them for 175us (PORTING.md SS16an).  tcsendbreak(), which is
+  this port's own code in ckvictor.c section 1b, was sending a "quarter
+  second" break two IOCTL round trips long.
+
+  Defining NAP selects msleep()'s nap() arm at ckutio.c:12065, and
+  ckvictor.c section 1d supplies nap() -- a busy loop calibrated once
+  against the DOS clock, because INT 21h's clock advances in 500ms steps
+  here (SS16n) and both delays that need this are inside one quantum.  It
+  is upstream's own extension point, so no upstream edit.
+
+  ckuus5.c:11397 puts NAP in SHOW FEATURES on the strength of this
+  #define, which is now accurate.
+*/
+#define NAP                             /* msleep() calls our nap()   */
+
+/*
   Packet character doubling and ignoring, and this one is on the per-byte
   receive path, which is why it gets a comment rather than a line.
 
@@ -1309,6 +1390,15 @@ extern long v9k_timezone;
 */
 extern int  v9k_bulkin;                 /* 1 = arm enabled, 0 = --nobulk */
 extern long v9k_bulkn;                  /* Runs copied; 0 = never ran    */
+
+/*
+  nap() is declared here for the same reason: ckutio.c calls it from
+  msleep()'s NAP arm and stock upstream carries no declaration of it,
+  because on the systems that have one it comes from a system header.
+  Without this the call is an implicit int(), which is a new warning in a
+  file that has 18 of them and no room for a nineteenth.
+*/
+int nap(long);                          /* ckvictor.c section 1d      */
 
 /*
   Deliberately NOT defined -- these are the features being ported:

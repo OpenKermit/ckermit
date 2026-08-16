@@ -577,6 +577,43 @@ static long v9k_wf_max = 0L, v9k_wc_max = 0L;       /* Worst one, centis */
 static long v9k_wf_tot = 0L, v9k_wc_tot = 0L;       /* All of them       */
 static unsigned int v9k_wf_maxn = 0;                /* Which write it was*/
 static unsigned int v9k_wf_maxb = 0;                /* And how big       */
+static unsigned int v9k_wf_nospc = 0;               /* Disk-full writes  */
+
+/*
+  nap()'s counters, declared here with the other timers because the exit
+  report is above the function -- nap() itself is in section 1d, and so is
+  the argument for why this port has one at all.
+
+  They exist because the defect they replace was SILENT.  msleep() returned
+  0 and the program carried on; only a logic analyzer aimed at something
+  else found that a 500ms hold-off was 175us (PORTING.md SS16an).  A
+  counter is what makes the repair visible without one:
+
+    per  spins per centisecond, from the calibration.  Zero means nap()
+         was never called, which is a fact about the leg and not a fault.
+    n    calls that actually delayed.
+    req  milliseconds asked for, summed.
+    tot  centiseconds the clock says elapsed, summed.
+
+  Read tot against req with the quantum in mind, exactly as SS16n says for
+  wfile: ONE 500ms nap reads 50 or 100 and neither is wrong.  What the pair
+  rules out is the defect -- 175us reads 0 nearly every time.  Because
+  exithangup is 1 by default (ckcmai.c:1290), ttclos() calls tthang(),
+  which calls msleep(500), so EVERY run that opens the line exercises this
+  and the line is never absent from a leg.
+*/
+static long v9k_nap_per = 0L;           /* Spins per centisecond        */
+static unsigned int v9k_nap_n = 0;      /* Calls that delayed           */
+static long v9k_nap_req = 0L;           /* Milliseconds asked for       */
+static long v9k_nap_tot = 0L;           /* Centiseconds observed        */
+
+/*
+  And Ctrl-C, for the same reason and reported on the same line: the
+  handler that counts this is below with v9k_ser_install(), and a run that
+  was interrupted rather than finished should say so in its own .OUT
+  rather than being inferred from a missing "statistics".
+*/
+static unsigned int v9k_ccint_n = 0;    /* Ctrl-C interrupts handled    */
 
 /*
   The gap that the protocol makes it possible to measure at all.
@@ -1006,6 +1043,52 @@ v9k_write(fd,buf,n) int fd; const void * buf; V9K_WCOUNT n;
             v9k_wf_max  = dt;
             v9k_wf_maxn = v9k_wf_n;
             v9k_wf_maxb = (unsigned int)n;
+        }
+        /*
+          A FULL DISK, and this is what made it hang instead of fail.
+
+          INT 21h AH=40h on a full volume writes as many bytes as fit and
+          returns with CF CLEAR and AX short -- zero, once there is no room
+          at all.  That is not an error by DOS's definition and Watcom's
+          write() passes it straight through, so zoutdump() (ckufio.c:2172)
+          sees
+
+              while (zoutcnt > 0)
+                  if ((x = write(...)) > -1) { zoutcnt -= x; zp += x; }
+                  else return(-1);
+
+          take the SUCCESS branch with x = 0, subtract nothing, advance
+          nothing, and go round again.  For ever.  The loop has no other
+          exit and nothing above it has a timeout: section 0d's alarm()
+          bounds the READ, and a receiver that never asks to read is a
+          receiver no alarm can reach.  So the far end retries, gives up
+          and reports a failure, and the Victor sits there until it is
+          switched off -- which is exactly what an out-of-space image did
+          to a bench sitting, eleven packets in, on a binary that had
+          transferred cleanly twice before.
+
+          On POSIX a regular-file write() cannot return 0 for a positive
+          count, which is why upstream has never had to defend against it
+          and why this is a report rather than an edit (NEXT_SESSION.md
+          SS1 item 8).  Here it is one compare in the place that already
+          wraps every write in the program: turn "wrote nothing, no error"
+          into the error DOS declined to raise, and zoutdump() takes its
+          else branch, returns -1, and the transfer fails the way a
+          transfer is supposed to fail.
+
+          A SHORT write is left alone deliberately.  zoutdump() handles a
+          partial write correctly and will come round for the rest, and
+          the next call is the one that returns 0 -- so the last chunk
+          that fits still lands on the disk and only the byte that cannot
+          be written is reported.  Counted, because "the disk filled" is a
+          fact a leg should be able to state rather than infer.
+        */
+        if (rc == (V9K_WTYPE)0 && n > (V9K_WCOUNT)0) {
+            v9k_wf_nospc++;
+#ifndef V9K_NOSPC_OFF                   /* The control leg: -dV9K_NOSPC_OFF */
+            errno = ENOSPC;             /* puts the hang back, deliberately */
+            rc = (V9K_WTYPE)-1;
+#endif /* V9K_NOSPC_OFF */
         }
     } else {                            /* The console                  */
         v9k_wc_n++;
@@ -2157,13 +2240,48 @@ tcsendbreak(fd,duration) int fd; int duration;
   end-of-interrupt byte that go with it.
 
   This is the one constant here that is not a property of the hardware.  It
-  is a property of how the 8259 was programmed at boot, and
-  ~/projects/myfreedos remaps the PIC in its own kernel -- its serial ISR
-  goes in at INT 09h.  So this number is right for Victor MS-DOS 3.1, which
-  is where it has been used, and is an open question for FreeDOS for
-  Victor.  PORTING.md SS15.
+  is a property of how the 8259 was programmed at boot, and the three
+  answers in circulation on this machine are all different:
+
+      Victor boot ROM       ICW2 = 0x20    IRQ1 -> INT 21h+0 ... 27h
+      Victor MS-DOS 3.1     ICW2 = 0x40    IRQ1 -> INT 41h
+      FreeDOS for Victor    ICW2 = 0x08    IRQ1 -> INT 09h
+
+  The first two are msxv90.asm's mdintv = 104h = 4 x 41h and the Victor
+  Boot ROM v3.6 listing; the third is ~/projects/myfreedos's
+  kernel/victor_pic.asm, whose own header comment gives all three and
+  whose IRQ_BASE is 0x08 because it remaps the PIC to the IBM layout so
+  that FreeDOS's stock handlers work.
+
+  SO A BUILD THAT HARD-CODES 41h IS NOT THE ONE BINARY THIS PORT CLAIMS
+  TO BE.  On FreeDOS it would take the vector DOS uses for something else
+  entirely, leave the real IRQ1 vector pointing at FreeDOS's own serial
+  handler, and receive nothing -- while looking, from the C side, exactly
+  like a chip that never interrupts.
+
+  ONLY THE VECTOR MOVES.  The mask bit and the specific EOI below encode
+  the IR LEVEL, not the vector, so ICW2 does not touch them; and
+  ckvisr.asm, which issues the EOI, needs no knowledge of any of this.
+
+  HOW IT IS DECIDED, and it is INT 21h so hard rule 6 holds.  The 8259's
+  ICW2 is write-only -- there is no way to ask the chip what base it was
+  given -- so the question has to be put to whoever programmed it.  INT
+  21h AH=30h returns the OEM number in BH, and FreeDOS answers 0xFD --
+  myfreedos/hdr/version.h:40 defines OEM_ID as 0xfd and says in so many
+  words that it is what int 21 30 returns in BH, and kernel.asm:75
+  carries the same byte in the version block.  Anything else is treated
+  as the MS-DOS 3.1 layout, which is the conservative way round: 0x41 is
+  what every leg in this project has run.
+
+  XFLAGS=-dV9K_IRQ1_FORCE=0x09 overrides the probe without a source
+  change, which is the control leg for the day someone tests this on a
+  FreeDOS that answers something unexpected.  The exit report prints
+  "v9k: dos oem= ver= irq1=" so a leg says which branch it took rather
+  than leaving it to be inferred.
 */
-#define V9K_IRQ1_VEC    0x41            /* 3.13's mdintv = 104h = 4*41h */
+#define V9K_IRQ1_VEC    0x41            /* MS-DOS 3.1: 3.13's mdintv/4  */
+#define V9K_IRQ1_FDOS   0x09            /* FreeDOS for Victor, ICW2=08h */
+#define V9K_OEM_FREEDOS 0xfd            /* myfreedos hdr/version.h:40   */
 #define V9K_IRQ1_BIT    0x02            /* Its bit in the 8259 mask     */
 #define V9K_IRQ1_EOI    0x61            /* Specific EOI for IRQ1        */
 
@@ -2818,6 +2936,57 @@ v9k_setvect(vec,seg,off) int vec; unsigned int seg; unsigned int off;
 }
 
 /*
+  Which interrupt IRQ1 arrives on, decided once and remembered.  See the
+  V9K_IRQ1_VEC comment above for why this is a question at all and why
+  INT 21h AH=30h is the only instrument for it: ICW2 is write-only, so
+  the 8259 cannot be asked and whoever programmed it has to be.
+*/
+static int v9k_irq1_vec  = V9K_IRQ1_VEC;
+static int v9k_dos_done  = 0;
+static unsigned int v9k_dos_oem = 0;    /* BH from AH=30h, for the report */
+static unsigned int v9k_dos_ver = 0;    /* AL major * 100 + AH minor      */
+
+/*
+  Which DOS, asked once.  Two things in this file turn on the answer and
+  they are in different sections: the IRQ1 vector here, and the console's
+  escape-sequence dialect in section 1g (PORTING.md SS16ao gives the VT52
+  evidence; myfreedos/kernel/victor_ansi.asm is why it is not the only
+  answer).  One probe, one place, so the two cannot disagree.
+
+  It is deliberately NOT Watcom's _osmajor/_osminor: those carry the
+  version and not the OEM byte, and the OEM byte is the whole
+  discriminator here.
+*/
+static unsigned int
+v9k_dosid() {
+    union REGS r;
+
+    if (!v9k_dos_done) {
+        v9k_dos_done = 1;
+        r.h.ah = 0x30;                  /* Get MS-DOS version           */
+        r.h.al = 0x00;
+        intdos(&r,&r);
+        v9k_dos_ver = (unsigned int)r.h.al * 100 + (unsigned int)r.h.ah;
+        v9k_dos_oem = (unsigned int)r.h.bh;
+#ifdef V9K_IRQ1_FORCE
+        v9k_irq1_vec = V9K_IRQ1_FORCE;  /* The control leg              */
+#else
+        if (v9k_dos_oem == V9K_OEM_FREEDOS)
+          v9k_irq1_vec = V9K_IRQ1_FDOS;
+#endif /* V9K_IRQ1_FORCE */
+        debug(F101,"v9k_dosid oem","",(int)v9k_dos_oem);
+        debug(F101,"v9k_dosid irq1","",v9k_irq1_vec);
+    }
+    return(v9k_dos_oem);
+}
+
+static int
+v9k_irq1_vector() {
+    (VOID) v9k_dosid();
+    return(v9k_irq1_vec);
+}
+
+/*
   The handler.  Written ANSI-only for the same reason ioctl() above is: the
   attribute that makes it an interrupt routine is part of its type, and
   there is no K&R spelling of it.
@@ -3202,7 +3371,7 @@ v9k_ser_release() {
     /* Now that nothing can fire, DOS may have the vector back.  Then put
        the mask bit back the way we found it rather than simply leaving
        IRQ1 masked, in case the host DOS's own driver wanted it. */
-    v9k_setvect(V9K_IRQ1_VEC,v9k_oldvec_seg,v9k_oldvec_off);
+    v9k_setvect(v9k_irq1_vector(),v9k_oldvec_seg,v9k_oldvec_off);
     if (!(v9k_oldimr & V9K_IRQ1_BIT))
       V9K_IMR = (unsigned char)(V9K_IMR & ~V9K_IRQ1_BIT);
 
@@ -3240,6 +3409,16 @@ v9k_ser_release() {
            "asm"
 #endif /* V9K_CISR */
            );
+    /*
+      Which DOS this turned out to be, and therefore which interrupt IRQ1
+      was taken on.  oem is BH from INT 21h AH=30h; 0xfd is FreeDOS and
+      irq1 is then 09, anything else is the MS-DOS 3.1 layout and 41.
+      Printed rather than assumed because the whole "one binary, two
+      DOSes" claim turns on this one byte, and a wrong branch looks
+      exactly like a chip that never interrupts.
+    */
+    printf("v9k: dos oem=%02x ver=%u irq1=%02x\n",
+           v9k_dos_oem, v9k_dos_ver, (unsigned int)v9k_irq1_vec);
 
     printf("v9k: rxlost=%u rxfull=%u rxpeak=%u of %u\n",
            (unsigned)v9k_rxlost, (unsigned)v9k_rxfull,
@@ -3365,12 +3544,33 @@ v9k_ser_release() {
            v9k_rxhigh, v9k_rxlow,
            v9k_fc_held, v9k_fc_rel, v9k_fc_xoff, v9k_fc_xon, v9k_fc_stuck);
 
-    printf("v9k: wfile n=%u max=%ld at #%u of %u tot=%ld cs\n",
-           v9k_wf_n, v9k_wf_max, v9k_wf_maxn, v9k_wf_maxb, v9k_wf_tot);
+    printf("v9k: wfile n=%u max=%ld at #%u of %u tot=%ld cs nospc=%u\n",
+           v9k_wf_n, v9k_wf_max, v9k_wf_maxn, v9k_wf_maxb, v9k_wf_tot,
+           v9k_wf_nospc);
     printf("v9k: wcon n=%u max=%ld tot=%ld cs\n",
            v9k_wc_n, v9k_wc_max, v9k_wc_tot);
     printf("v9k: txgap n=%u max=%ld at #%u tot=%ld cs\n",
            v9k_gap_n, v9k_gap_max, v9k_gap_maxn, v9k_gap_tot);
+    /*
+      Section 1d.  per=0 n=0 means nothing asked for a delay this run; any
+      other zero is a defect.  tot is quantized at 50 cs, so compare it
+      with req/10 in the aggregate and never on one call.
+    */
+    printf("v9k: nap per=%ld n=%u req=%ld ms tot=%ld cs cc=%u\n",
+           v9k_nap_per, v9k_nap_n, v9k_nap_req, v9k_nap_tot, v9k_ccint_n);
+    /*
+      The file-collision policy that was actually in force, printed rather
+      than assumed -- SS16ai's initializer trap is that a setting applied
+      before main() can be overwritten before anything reads it, and the
+      only way to tell that apart from a setting that was never right is to
+      read it back at the end.  XYFX_X = 1 is this port's default and the
+      one that makes RECEIVE overwrite instead of refuse; XYFX_B = 2 is
+      upstream's, and it cannot work on FAT.
+    */
+    {
+        extern int fncact;              /* ckcmai.c                     */
+        printf("v9k: coll=%d\n", fncact);
+    }
     /*
       Section 0e, SS1 item 9: last byte in to ACK out.  Read tot=, not max=
       -- the clock quantum is 0.5 s.  dec tot minus wfile tot is the decode
@@ -3408,7 +3608,6 @@ v9k_ser_release() {
                (int)(V9K_RXBUFSIZ / (DRPSIZ + V9K_PKT_WIRE_XTRA)));
     }
 
-
     /*
       And the wall clock, with the wire rate worked out here because the
       arithmetic wants a long divide and the reader has a DOS screen.  This
@@ -3443,6 +3642,72 @@ v9k_ser_release() {
                (v9k_run_mdm & TIOCM_RTS) ? 1 : 0,
                (v9k_run_mdm & TIOCM_DTR) ? 1 : 0);
     }
+}
+
+/*
+  Ctrl-C while the line is open, and what was wrong with it.
+
+  The old note here said this was "known, not measured on either runtime".
+  Both halves are readable, and reading them turns a vague caution into a
+  two-keystroke defect with a three-line fix.
+
+  OPEN WATCOM'S HALF (bld/clib/process/c/signl.c, sigsy.c).  signal() hooks
+  INT 23h lazily: any signal(SIGINT, f) with f other than SIG_DFL calls
+  __grab_int23(), and signal(SIGINT, SIG_DFL) hands the vector back to DOS.
+  The installed handler calls raise(SIGINT).  And raise() is the old
+  unreliable-signal kind:
+
+      case SIGINT:
+        if (func != SIG_IGN && func != SIG_DFL && func != SIG_ERR) {
+            _RWD_sigtab[sig] = SIG_DFL;         <-- demoted
+            __restore_int23();                  <-- vector given back
+            (*func)(sig);
+        }
+
+  So a handler fires ONCE.  After that SIGINT is SIG_DFL, INT 23h belongs
+  to DOS again, and DOS's own INT 23h terminates the program on the spot:
+  no atexit(), no v9k_ser_release(), IRQ1 still vectored into memory that
+  is about to be handed to the next program.
+
+  UPSTREAM'S HALF (ckutio.c:1705-1718, 2727).  ttopen() installs cctrap,
+  whose entire body is "cc_int = 1".  And cc_int IS READ NOWHERE IN THE
+  TREE -- one definition, one assignment, no readers.  So the first Ctrl-C
+  of a session did nothing observable AND spent the runtime's single shot,
+  and the SECOND one killed the program with the chip still hooked.  That
+  is the whole of the exposure and it needed two keystrokes, which is
+  probably why it was never seen: legs are driven from .BAT files.
+
+  THE FIX is to be the handler and to re-arm inside it, which is what the
+  demotion above obliges every handler on this runtime to do.  Installed
+  from v9k_ser_install() rather than from an initializer, because
+  ttopen()'s signal() runs later and would overwrite an earlier one; the
+  cctrap it displaces cannot be missed, having no readers.
+
+  exit() from here is legitimate rather than merely convenient: DOS calls
+  INT 23h at a re-entrant point and documents that the handler may
+  terminate the process, and Watcom's own handler has already re-enabled
+  interrupts before raising.  exit() runs atexit(), which is
+  v9k_ser_release() -- transmitter drained, IRQ1 restored, mask restored.
+
+  What this deliberately does NOT do is try to make Ctrl-C cancel a
+  transfer and continue.  That would need a flag upstream reads, and the
+  only such flag in this build is the dead one above.
+*/
+static SIGTYP
+#ifdef CK_ANSIC
+v9k_ccint(int sig)
+#else
+v9k_ccint(sig) int sig;
+#endif /* CK_ANSIC */
+{
+    signal(SIGINT,v9k_ccint);           /* Re-arm FIRST: raise() demoted */
+    v9k_ccint_n++;                      /* us and gave the vector back   */
+    exit(1);                            /* atexit -> v9k_ser_release()   */
+}
+
+static VOID
+v9k_ccint_arm() {
+    signal(SIGINT,v9k_ccint);
 }
 
 /*
@@ -3507,8 +3772,8 @@ v9k_ser_install(fd) int fd;
     v9k_oldimr = V9K_IMR;
     V9K_IMR = (unsigned char)(v9k_oldimr | V9K_IRQ1_BIT);
 
-    v9k_getvect(V9K_IRQ1_VEC,&v9k_oldvec_seg,&v9k_oldvec_off);
-    v9k_setvect(V9K_IRQ1_VEC,V9K_ISR_SEG,V9K_ISR_OFF);
+    v9k_getvect(v9k_irq1_vector(),&v9k_oldvec_seg,&v9k_oldvec_off);
+    v9k_setvect(v9k_irq1_vector(),V9K_ISR_SEG,V9K_ISR_OFF);
 
     /*
       Section 1f, and the placement is the whole of the reasoning -- it is
@@ -3578,15 +3843,21 @@ v9k_ser_install(fd) int fd;
       covers every path that goes through exit(), including the SIGINT
       handler in ckusig.c.
 
-      What it does NOT cover is a Ctrl-Break that DOS turns into a plain
-      program termination without the runtime's INT 23h handler getting
-      there first.  Known, not measured on either runtime, and it is the
-      reason to be careful with Ctrl-Break while the line is open.
+      WHAT IT DID NOT COVER WAS Ctrl-C, and the mechanism is now read out
+      of both runtimes rather than guessed at.  This file used to say
+      "known, not measured on either runtime"; it is measured now, and it
+      was worse than the note implied.  See v9k_ccint() below.
     */
     if (!v9k_ser_atx) {                 /* Once, and only once          */
         v9k_ser_atx = 1;
         atexit(v9k_ser_release);
     }
+    /*
+      Ctrl-C, and it has to be installed HERE -- after ttopen(), which
+      installs upstream's own trap (ckutio.c:2727) and would otherwise
+      overwrite this one.
+    */
+    v9k_ccint_arm();
     debug(F101,"v9k_ser_install channel","",(int)v9k_chan);
     debug(F101,"v9k_ser_install old IRQ1 mask","",(int)v9k_oldimr);
     debug(F101,"v9k_ser_install old vector seg","",(int)v9k_oldvec_seg);
@@ -4023,6 +4294,138 @@ VOID setpwent(void) { }
 VOID endpwent(void) { }
 
 /*
+  nap() -- the sub-second delay upstream's msleep() could not make here.
+
+  ckutio.c's msleep() has arms for select(), poll(), usleep(), nap(),
+  times(), ftime() and a final fallback; with none of the first three
+  defined, this build compiled the fallback, which is
+
+      if (m > 0) while (m > 0) m--;                   ckutio.c:12142
+
+  -- a side-effect-free loop on a local that -os is entitled to delete.
+  It was found by a logic analyzer aimed at something else (PORTING.md
+  SS16an): a HANGUP that should hold DTR and RTS down for HUPTIME = 500ms
+  held them for 175us.  Two shipped things rested on it.  tthang() cannot
+  hang up a modem, which is latent because no modem has ever been on this
+  bench; and section 1b's tcsendbreak(), which is THIS PORT'S OWN CODE,
+  sent a break two IOCTL round trips long where POSIX asks for at least a
+  quarter of a second.
+
+  Defining NAP in ckvictor.h moves msleep() onto its nap() arm
+  (ckutio.c:12065), so the repair is upstream's own extension point and
+  costs no upstream edit.  ckuus5.c:11397 then lists NAP in SHOW FEATURES,
+  which is now a true statement about this build.
+
+  WHY IT IS A COUNTED LOOP AND NOT A TIMED ONE.  Hard rule 6 is INT 21h
+  only, and INT 21h's clock is AH=2Ch, which on this machine advances in
+  500ms steps (PORTING.md SS16n, and v9k_centis() above says the same
+  thing at more length).  The one clock available cannot resolve either of
+  the two delays that need it -- 275ms and 500ms are both inside a single
+  quantum.  So anything shorter than a quantum has to be counted rather
+  than timed, which is how this was done in 1980 and is still the only way
+  here.  Whole seconds are a different case and are polled against the
+  clock below, because a count accumulates error and a poll does not.
+
+  THE CALIBRATION.  The count is a property of the CPU, so it is measured
+  at run time rather than written down: sync to a tick edge, then spin in
+  chunks until the clock moves again, and divide the iterations by the
+  hundredths the move reports.  Reading the delta rather than assuming 50
+  is deliberate -- it costs one subtraction and it means a Victor whose
+  DOS ticks differently, or an emulator, calibrates itself correctly
+  instead of being 10x wrong in silence.
+
+  Three things bias it, and all three are in the safe direction, which is
+  why there is no attempt to correct them:
+
+    - the chunk loop reads the clock between chunks and the delay loop
+      does not, so the measured rate is LOWER than the true one and the
+      spin is very slightly short.  V9K_NAPCHUNK is sized so that one
+      INT 21h is ~1% of a chunk, and the 1/16 margin below covers it.
+    - interrupts during calibration make the measured rate lower still,
+      and interrupts during a delay make the delay longer.  A calibration
+      taken on a busy machine over-sleeps later; one taken idle is exact.
+    - POSIX asks for AT LEAST the requested time, so long is right and
+      short is wrong.  The margin is +1/16, about 6%.
+
+  Calibration is lazy rather than run from an initializer.  It costs up to
+  two quanta -- a second -- and the preprocessed build has exactly three
+  callers (tthang's msleep(500), one msleep(10), and tcsendbreak here), so
+  a run that never hangs up or sends a break never pays it.
+*/
+#define V9K_NAPCHUNK 2048L              /* Iterations between clock reads */
+
+static volatile int v9k_napsink = 0;    /* volatile: -os must not delete  */
+
+static VOID
+#ifdef CK_ANSIC
+v9k_spin(long n)
+#else
+v9k_spin(n) long n;
+#endif /* CK_ANSIC */
+{
+    while (n-- > 0L)
+      v9k_napsink++;
+}
+
+static VOID
+v9k_napcal() {
+    long t0, n, d;
+
+    t0 = v9k_centis();                  /* Sync to a tick edge, so that  */
+    while (v9k_centis() == t0)          /* the interval below is a whole */
+      ;                                 /* quantum and not a fragment    */
+    t0 = v9k_centis();
+    n = 0L;
+    do {
+        v9k_spin(V9K_NAPCHUNK);
+        n += V9K_NAPCHUNK;
+        d = v9k_centis_since(t0);
+    } while (d <= 0L);
+    v9k_nap_per = n / d;
+    if (v9k_nap_per < 1L)               /* An implausibly fast clock, or */
+      v9k_nap_per = 1L;                 /* a very slow loop.  Never 0.   */
+}
+
+int
+#ifdef CK_ANSIC
+nap(long m)
+#else
+nap(m) long m;
+#endif /* CK_ANSIC */
+{
+    long n, t0, at, want;
+
+    if (m <= 0L)
+      return(0);
+
+    /*
+      Calibrate BEFORE the interval starts, or the first call reports its
+      own calibration as sleep and reads two quanta high.  Only the part
+      that needs a spin needs it.
+    */
+    if (!v9k_nap_per && (m % 1000L) > 0L)
+      v9k_napcal();
+
+    at = v9k_centis();                  /* Two INT 21h per CALL, and the */
+    v9k_nap_n++;                        /* calls are counted in ones     */
+    v9k_nap_req += m;
+
+    if (m >= 1000L) {                   /* Whole seconds: poll the clock */
+        want = (m / 1000L) * 100L;      /* so the error does not add up  */
+        t0 = v9k_centis();
+        while (v9k_centis_since(t0) < want)
+          ;
+        m %= 1000L;
+    }
+    if (m > 0L) {
+        n = (m * v9k_nap_per) / 10L;    /* per centisecond x m/10 ms     */
+        v9k_spin(n + (n >> 4));         /* +1/16: POSIX says AT LEAST    */
+    }
+    v9k_nap_tot += v9k_centis_since(at);
+    return(0);
+}
+
+/*
   _fmode -- make the DOS runtime stop translating, before main() runs.
 
   ckufio.c is the UNIX file module.  zopeni() is a bare fopen(name,"r")
@@ -4385,6 +4788,86 @@ v9k_set_prefixing(void)
 
 static struct v9k_rt_init __based(__segname("XI")) v9k_prefixing_rec =
     { 1, 32, v9k_set_prefixing };
+
+/*
+  FILE COLLISION, and this one is a defect rather than a preference.
+
+  What this build actually did was REFUSE -- ptab[PROTO_K].fnca is
+  XYFX_D for everything but VMS (ckcmai.c:727) and initproto() copies it
+  over the XYFX_B at ckcmai.c:1326 before anything reads either.  See the
+  ordering note below, which is where that was established and where the
+  first version of this comment was wrong.
+
+  Two of the six policies are unavailable here whatever is chosen, and it
+  is worth writing down because BACKUP is upstream's documented default
+  and someone will reach for it: BACKUP and RENAME both go through
+  znewn(), whose only name form is "name.~N~" (ckufio.c:4000) -- two dots
+  and a four-character extension, which FAT cannot hold.  That leaves
+  APPEND, DISCARD and REPLACE.
+
+  THE SYMPTOM IS WORTH KNOWING BECAUSE IT LOOKS LIKE A PORT DEFECT.  The
+  host sends S, F, A and then Z with data "D" -- no data packets at all, a
+  ~287-byte packet log -- and the Victor's screen says "No files were
+  transferred (refused: destination file already exists)".  It has voided
+  two bench sittings of this project's own legs (NEXT_SESSION.md's harness
+  notes), both times on a re-run into a name a previous leg had created.
+
+  REPLACE is the default here for three reasons and the third is the weak
+  one, so it is labelled:
+
+    1. It is the DOS convention.  MS-DOS Kermit 3.13, which is the sibling
+       implementation for this exact machine, overwrites.
+    2. The behaviour it replaces is a flat refusal, which is the status
+       quo that has already misled this project twice -- and once more
+       during the leg that verified this very change (leg NB).
+    3. Upstream itself picks REPLACE for VMS.  Which is a weaker argument
+       than it looks: VMS versions files itself, so REPLACE there loses
+       nothing, and here it does.
+
+  So the cost is real and is stated rather than hidden: a RECEIVE into an
+  existing name now overwrites it silently.  XFLAGS=-dV9K_COLLISION=XYFX_D
+  puts the old effective behaviour back without an edit, and a KEEP_ICP
+  build has SET FILE COLLISION.
+
+  IT WRITES ptab, AND THE FIRST VERSION OF THIS DID NOT.  SS16ai's trap,
+  walked into a second time and caught by the counter that was added
+  specifically to catch it: leg NB came back "v9k: coll=4" after an
+  initializer that had assigned 1.  initproto() does
+
+      ckcmai.c:2026   if (ptab[protocol].fnca > -1)
+                          fncact = ptab[protocol].fnca;
+
+  and ptab[PROTO_K].fnca is statically XYFX_D (ckcmai.c:727), which is
+  > -1, so it overwrites whatever an XI record put in the variable -- the
+  same shape, in the same function, as the prefixing defect above.  So the
+  durable place is ptab, and the variable is written as well for the same
+  reason it is there.
+
+  AND THAT CORRECTS THE STORY IN THIS COMMENT.  ckcmai.c:1326 sets fncact
+  = XYFX_B, and this file used to say the port therefore shipped BACKUP
+  and degraded to a refusal when znewn() built a name FAT cannot hold.
+  It never got that far: initproto() replaced XYFX_B with XYFX_D before
+  anything read it, so the shipped behaviour has always been a FLAT
+  REFUSAL, znewn() has never been called, and the FAT argument -- while
+  true of BACKUP -- was not the mechanism.  The observable is identical,
+  which is why the wrong explanation survived: "refused: destination file
+  already exists" is what both produce.
+
+  The other writers of fncact are ckcfn3.c's temporary switch to APPEND
+  for recovery (1809/1985/2630, which restores it) and ckcfns.c:7397,
+  which is a REMOTE SET arriving from a peer.  Neither runs at startup.
+*/
+extern int fncact;                      /* ckcmai.c:1326                */
+
+static void __far
+v9k_set_collision(void)
+{
+    fncact = V9K_COLLISION;
+    ptab[PROTO_K].fnca = V9K_COLLISION; /* What initproto() copies FROM */
+}
+
+static struct v9k_rt_init __based(__segname("XI")) v9k_collision_rec =
+    { 1, 32, v9k_set_collision };
 
 /*
   Flow control's command-line switches.  Section 1f is the driver; this is
@@ -5022,9 +5505,52 @@ int LINES = 24;
 int COLS  = 80;
 
 /*
+  THE OTHER DOS DOES NOT SPEAK VT52, and this is the port's first
+  behavioural difference between the two of them.
+
+  Everything above is measured on Victor MS-DOS 3.1, whose console driver
+  is the Victor's own and takes ESC Y / ESC E / ESC K.  FreeDOS for Victor
+  supplies its own console driver instead, and it is an ANSI one:
+  myfreedos/kernel/victor_ansi.asm parses ESC '[' and nothing else --
+  "Not '[' - abort sequence, pass through character" at line 154.  So on
+  FreeDOS the VT52 form does not merely fail to move the cursor, it PRINTS:
+  a 'Y' and two coordinate bytes land on the screen as text, 55 times a
+  repaint.
+
+  What that driver does support is listed in its own header and it covers
+  exactly the three sequences this section needs:
+
+      ESC[row;colH   set cursor position, 1-BASED
+      ESC[2J         clear entire screen
+      ESC[K          clear from cursor to end of line
+
+  so the fix is a dialect switch and not a reduced display.  It is chosen
+  from the same INT 21h AH=30h probe that picks the IRQ1 vector (section
+  1e), for the same reason: one question, one answer, no way for the two
+  to disagree.  XFLAGS=-dV9K_CON_FORCE_ANSI and -dV9K_CON_FORCE_VT52
+  override it, which is how this gets tested on either machine.
+
+  UNVERIFIED ON FREEDOS.  The ANSI arm is written from that driver's
+  source and its supported-sequence list; no FreeDOS-for-Victor run has
+  ever been made with this build.  The VT52 arm is the one with hardware
+  behind it (PORTING.md SS16ao, SS16ap).  Cursor homing after the clear is
+  spelled out as ESC[1;1H rather than left to ESC[2J, because that
+  driver's clear does not document where it leaves the cursor and an
+  explicit two-sequence clear costs four bytes once per transfer.
+*/
+#if defined(V9K_CON_FORCE_ANSI)
+#define V9K_CON_ANSI() 1
+#elif defined(V9K_CON_FORCE_VT52)
+#define V9K_CON_ANSI() 0
+#else
+#define V9K_CON_ANSI() (v9k_dosid() == V9K_OEM_FREEDOS)
+#endif /* V9K_CON_FORCE_ANSI */
+
+/*
   A cursor address is at most four bytes and this is called 55 times per
   screen repaint, so it is worth not calling printf for it.  ckstrncpy and
   friends are not needed either -- the buffer is fixed and so is its length.
+  The ANSI form is longer and is built by hand for the same reason.
 */
 int
 #ifdef CK_ANSIC
@@ -5045,11 +5571,24 @@ move(row,col) int row; int col;
     if (col > 79) col = 79;
 
     fflush(stdout);                     /* Ordering: see the note above */
-    b[0] = V9K_ESC;
-    b[1] = 'Y';
-    b[2] = (char) (row + V9K_VT52_OFFSET);
-    b[3] = (char) (col + V9K_VT52_OFFSET);
-    b[4] = '\0';
+    if (V9K_CON_ANSI()) {               /* ESC [ row+1 ; col+1 H        */
+        i = 0;
+        b[i++] = V9K_ESC;
+        b[i++] = '[';
+        if (row >= 9) b[i++] = (char)('0' + (row + 1) / 10);
+        b[i++] = (char)('0' + (row + 1) % 10);
+        b[i++] = ';';
+        if (col >= 9) b[i++] = (char)('0' + (col + 1) / 10);
+        b[i++] = (char)('0' + (col + 1) % 10);
+        b[i++] = 'H';
+        b[i]   = '\0';
+    } else {                            /* ESC Y row+32 col+32          */
+        b[0] = V9K_ESC;
+        b[1] = 'Y';
+        b[2] = (char) (row + V9K_VT52_OFFSET);
+        b[3] = (char) (col + V9K_VT52_OFFSET);
+        b[4] = '\0';
+    }
     conol(b);
     return(0);
 }
@@ -5061,10 +5600,18 @@ clear( void )
 clear()
 #endif /* CK_ANSIC */
 {
-    char b[3];
     fflush(stdout);                     /* Ordering: see the note above */
-    b[0] = V9K_ESC; b[1] = 'E'; b[2] = '\0';    /* Erase screen, cursor home */
-    conol(b);
+    if (V9K_CON_ANSI()) {
+        char b[11];                     /* ESC[2J ESC[1;1H NUL          */
+        b[0] = V9K_ESC; b[1] = '['; b[2] = '2'; b[3] = 'J';
+        b[4] = V9K_ESC; b[5] = '['; b[6] = '1'; b[7] = ';';
+        b[8] = '1'; b[9] = 'H'; b[10] = '\0';
+        conol(b);
+    } else {
+        char b[3];
+        b[0] = V9K_ESC; b[1] = 'E'; b[2] = '\0'; /* Erase screen + home */
+        conol(b);
+    }
     return(0);
 }
 
@@ -5075,9 +5622,13 @@ clrtoeol( void )
 clrtoeol()
 #endif /* CK_ANSIC */
 {
-    char b[3];
+    char b[4];
     fflush(stdout);                     /* Ordering: see the note above */
-    b[0] = V9K_ESC; b[1] = 'K'; b[2] = '\0';    /* Erase to end of line */
+    if (V9K_CON_ANSI()) {
+        b[0] = V9K_ESC; b[1] = '['; b[2] = 'K'; b[3] = '\0';
+    } else {
+        b[0] = V9K_ESC; b[1] = 'K'; b[2] = '\0'; /* Erase to end of line */
+    }
     conol(b);
     return(0);
 }

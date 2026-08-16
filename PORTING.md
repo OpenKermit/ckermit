@@ -10948,3 +10948,439 @@ and the **install-time mask check** that leg WM proved fires. Together they
 mean the next person to wonder about windows can answer it in one leg
 instead of six sections — and cannot corrupt a ring by trying.
 
+---
+
+## 16av. Six defects off the travel list: a sleep that did not sleep, a collision policy that never took, a write loop with no exit, and the DOS this port has never met
+
+Written 15 August 2026, at a desk, with no Victor 9000 in reach. Everything
+here is either static analysis, a host-side tool, or a leg under MAME at
+9600 — the emulator's ceiling — and nothing in it has been on real hardware.
+Six items from `NEXT_SESSION.md` §1 were picked because they can be settled
+without the machine; five of them moved, one was diagnosed rather than
+fixed, and **two of the six turned into defects that were worse than the
+notes describing them.**
+
+Legs are named NA, NB, NC, ND, NF, NR, NS, NT, NU and NX. Every one ran on
+Victor MS-DOS 3.1 under MAME at 9600 with `socat` on the `-bitb` socket.
+
+### What shipped
+
+| | before | after |
+|---|---:|---:|
+| DGROUP | 48,784 (74%) | **48,816 (74%)** |
+| image | 227,166 | **230,224** |
+| needs at load | 241,214 (235K) | **242,288 (236K)** |
+| smallest Victor | 384K | **384K, unchanged** |
+| upstream edits | 18 | **18 — none of this needed one** |
+| warnings | 18, `ckvictor.c` 0 | **18, `ckvictor.c` 0** |
+
+**The file grew 3,058 bytes and the machine only sees 1,074 of it.** The
+rest is relocation-table growth and paragraph padding, which DOS does not
+have to hold. That is the standing reason hard rule 4 says to quote
+`mzsize.py`'s requirement and not `ls -l`, and this is the first time the
+two have been this far apart in one change.
+
+### 1. `msleep()` did not sleep, and now it does — measured at 500 ms
+
+§16an found this with a logic analyzer aimed at something else: a `HANGUP`
+that should hold DTR and RTS down for `HUPTIME` = 500 ms held them for
+**175 µs**. `ckutio.c`'s `msleep()` tries `select()`, `poll()` and
+`usleep()` and then falls through a chain of clock loops to
+
+```c
+if (m > 0) while (m > 0) m--;                     /* ckutio.c:12142 */
+```
+
+— a side-effect-free loop on a local that `-os` may delete outright.
+Confirmed with `wcc -pl` rather than by reading: the preprocessed
+`msleep()` is that fallback and nothing else, and the whole build contains
+exactly **three** callers — `tthang()`'s `msleep(500)`, one `msleep(10)` on
+`ttol()`'s partial-write retry, and this port's own `tcsendbreak()`.
+
+**The repair is upstream's own extension point and cost no edit.** Defining
+`NAP` in `ckvictor.h` moves `msleep()` onto its `nap()` arm
+(`ckutio.c:12065`), and `ckvictor.c` §1d supplies `nap()`. `ckuus5.c:11397`
+then lists NAP in `SHOW FEATURES`, which is now a true statement.
+
+**Why it is a counted loop and not a timed one.** Hard rule 6 is INT 21h
+only, and INT 21h's clock is `AH=2Ch`, which advances in **500 ms steps**
+on this machine (§16n). Both delays that need this — 275 ms and 500 ms —
+are inside a single quantum, so the one clock available cannot resolve
+either. Anything shorter than a quantum has to be counted. Whole seconds
+are polled against the clock instead, because a count accumulates error and
+a poll does not.
+
+The count is calibrated at run time rather than written down: sync to a
+tick edge, spin in chunks until the clock moves again, divide the
+iterations by the hundredths the move reports. **The delta is read rather
+than assumed to be 50** — it costs one subtraction and it means a machine
+whose DOS ticks differently calibrates itself instead of being 10× wrong in
+silence. Three things bias it and **all three are in the safe direction**,
+which is why none is corrected: the calibration loop reads the clock
+between chunks and the delay loop does not, so the measured rate is low;
+interrupts during calibration make it lower still; and POSIX asks for *at
+least* the requested time. A 1/16 margin covers the lot.
+
+**Measured, legs NA/NB/NC/ND/NS:**
+
+```
+v9k: nap per=409 n=1 req=500 ms tot=50 cs cc=0
+```
+
+`per = 409` spins per centisecond, **identical on all five legs**. `n = 1`,
+`req = 500 ms`, `tot = 50 cs` — **half a second, which is one quantum and
+exactly what a true 500 ms sleep reads.** The defect read 0. Read `tot`
+against `req` in the aggregate and never on one call, for §16n's reason.
+
+**Every run exercises this, which is why it is reported.** `exithangup` is
+1 by default (`ckcmai.c:1290`), so `ttclos()` calls `tthang()` on every
+exit that had a line open. The port's exit path is now ~1.5 s longer (up to
+one second of calibration, once, plus the 500 ms it was always supposed to
+take) and DTR and RTS genuinely drop for half a second. `tcsendbreak()` is
+fixed by the same change and is still unexercised.
+
+`ttol()`'s `msleep(10)` sites are both error paths — `EWOULDBLOCK` and a
+partial write, which upstream's own comment calls "This never happens". Our
+`v9k_ser_put()` returns short only when the transmitter is stuck past
+`V9K_TXSPIN` or a flow hold-off outlasts `V9K_FCSPIN`, so on a healthy leg
+neither is reached and there is no throughput exposure.
+
+### 2. `SET FILE COLLISION`: the port has been refusing files, and not for the reason written down
+
+`NEXT_SESSION.md` has said since §16al that the collision default is BACKUP
+and that BACKUP cannot work on FAT, because `znewn()`'s only name form is
+`name.~N~` (`ckufio.c:4000`) — two dots and a four-character extension.
+**The FAT half is true and the BACKUP half is not.** `ckcmai.c:1326` sets
+`fncact = XYFX_B`, and `initproto()` replaces it with
+`ptab[PROTO_K].fnca` — statically **`XYFX_D`**, DISCARD (`ckcmai.c:727`) —
+before anything reads either. So `znewn()` has never been called on this
+port and the shipped behaviour has always been a **flat refusal**. The
+observable is identical either way, which is why the wrong explanation
+survived: "refused: destination file already exists" is what both produce.
+
+The port now defaults to **REPLACE** (`V9K_COLLISION`, default `XYFX_X`),
+for two good reasons and one weak one that is labelled as weak: it is the
+DOS convention and what MS-DOS Kermit 3.13 does on this same machine; the
+behaviour it replaces is a refusal that has voided two bench sittings; and
+upstream picks REPLACE for VMS, which is a weaker argument than it looks
+because VMS versions files itself. **The cost is stated rather than
+hidden**: a `RECEIVE` into an existing name now destroys that file.
+`XFLAGS=-dV9K_COLLISION=XYFX_D` restores the old behaviour.
+
+**IT WALKED INTO §16ai'S TRAP, AND THE COUNTER ADDED TO CATCH IT CAUGHT
+IT.** The first version assigned `fncact` and nothing else, exactly as the
+prefixing initializer once did, and leg NB came back
+
+```
+v9k: coll=4
+```
+
+after an initializer that had written 1. `initproto()` at `ckcmai.c:2026`
+does `if (ptab[protocol].fnca > -1) fncact = ptab[protocol].fnca;` — the
+same shape, in the same function, 118 lines before anything reads it. The
+fix writes `ptab[PROTO_K].fnca` as well.
+
+Leg NB is also a clean reproduction of the failure signature: S, F, A, then
+**Z with data `D`**, no data packets, a **285-byte** packet log — against
+`NEXT_SESSION.md`'s "~287-byte" description — and `No files were
+transferred (refused: destination file already exists)` on the Victor's
+screen. The receiver's refusal reaches the wire as `N?` in the ACK to the
+attribute packet, which `getreason()` decodes as reason "name".
+
+**Verified, legs NC and ND.** NC sent a 4,096-byte fixture into a name the
+`.BAT` had deleted; **ND sent a DIFFERENT 4,096-byte fixture into the name
+NC had just created**, and nothing deleted between them. ND: `SUCCESS`, **0
+timeouts, 0 retransmissions, 6.382 s, 641 cps**, `coll=1` on both legs, and
+the file lifted back off the image afterwards has **the md5 of the second
+fixture**. Two patterns, one name, the second one wins.
+
+**A server disables this, deliberately, and it matters here.** `ckcpro.c:502`:
+if `en_del` is off, C-Kermit changes the collision action to **RENAME** to
+protect existing files. `--safe-server` turns `en_del` off, so leg NS came
+back `coll=0`. **RENAME goes through `znewn()` and cannot work on FAT
+either**, so a `--safe-server` Victor sent a file whose name already exists
+will attempt a rename FAT cannot express. The policy is right — a safe
+server should not overwrite — and the mechanism fails messily rather than
+safely. Two report-upstream items fall out: the fallback wants a choice
+that a filesystem without `~N~` names can honour, and the *save* of the old
+value is inside `#ifndef NOICP` (`ckcpro.c:508`) while the *restore* is not
+(`ckuusx.c:816`), so in a `NOICP` build the change is permanent for the
+life of the process.
+
+### 3. Out of disk: an infinite loop in `zoutdump()`, one compare away
+
+§16al lost a bench sitting to a full image: four legs failed with `Too many
+retries` after eleven packets and then silence, every output file 0 bytes,
+and **the Victor never gave up.** It was recorded as "out of disk space
+makes the Victor hang rather than fail" and attributed to §0d's `alarm()`
+bounding the read while nothing bounds a failed write. **The real
+mechanism is smaller and worse than that:**
+
+```c
+while (zoutcnt > 0) {                              /* ckufio.c:2172 */
+    if ((x = write(fileno(fp[ZOFILE]),zp,zoutcnt)) > -1) {
+        zoutcnt -= x;                              /* x is 0 */
+        zp += x;                                   /* x is 0 */
+    } else { zoutcnt = 0; return(-1); }
+}
+```
+
+INT 21h `AH=40h` on a full volume writes what fits and returns **CF clear,
+AX short** — zero once there is no room at all. That is not an error by
+DOS's definition, Watcom's `write()` passes it through, and `0 > -1` takes
+the success branch. **The loop subtracts nothing, advances nothing, and
+goes round again for ever.** No timeout can reach it: a receiver that never
+asks to read is a receiver no `alarm()` can bound.
+
+On POSIX a regular-file `write()` cannot return 0 for a positive count,
+which is why upstream has never defended against it. **The fix is one
+compare in `v9k_write()`, which already wraps every write in the program:**
+turn "wrote nothing, no error" into the `ENOSPC` DOS declined to raise, and
+`zoutdump()` takes its `else` branch. A *short* write is left alone
+deliberately — upstream handles it correctly and comes round for the rest,
+and the next call is the one that returns 0, so the last bytes that fit
+still land.
+
+**Verified, leg NF.** A 30 MB image copy filled to **8.0 KB free**, sent a
+32,768-byte file. The host reported
+
+```
+status  : FAILURE
+reason  : Error writing data
+elapsed : 00:00:58
+```
+
+— a clean protocol failure in 58 s where the documented behaviour is a hang
+that outlives the host. `-dV9K_NOSPC_OFF` puts the hang back, and **that
+control leg has not been run**: the treatment fired, which is the half that
+matters, but "the fix is what made the difference" rests on the mechanism
+above and not on a leg.
+
+**A harness lesson came with it, and it is not small.** Leg NF's
+`STEPNF.OUT` is **0 bytes** — the redirect that carries every `v9k:` counter
+was itself on the disk under test. An out-of-disk leg cannot report from
+the Victor's side unless its output goes somewhere else, and partition 1
+(`D:`) is 9.7 MB and empty. `> D:\STEPNF.OUT` next time.
+
+### 4. Ctrl-C: two keystrokes from leaving IRQ1 hooked, and both runtimes are readable
+
+`ckvictor.c` has said since §11b that a Ctrl-Break which DOS turns into a
+plain termination is not covered by `atexit()`, "known, not measured on
+either runtime". Both halves are readable and reading them turns a vague
+caution into a specific defect.
+
+**Open Watcom** (`bld/clib/process/c/signl.c`, `sigsy.c`): `signal()` hooks
+INT 23h lazily — any `signal(SIGINT, f)` with `f` other than `SIG_DFL`
+calls `__grab_int23()`, and `SIG_DFL` hands the vector back. The handler
+calls `raise(SIGINT)`, and `raise()` is the old unreliable-signal kind:
+
+```c
+case SIGINT:
+  if (func != SIG_IGN && func != SIG_DFL && func != SIG_ERR) {
+      _RWD_sigtab[sig] = SIG_DFL;      /* demoted */
+      __restore_int23();               /* vector given back */
+      (*func)(sig);
+  }
+```
+
+**A handler fires once.** After that SIGINT is `SIG_DFL`, INT 23h belongs to
+DOS, and DOS's own INT 23h terminates the program on the spot: no
+`atexit()`, no `v9k_ser_release()`, IRQ1 still vectored into memory about to
+be handed to the next program.
+
+**Upstream** (`ckutio.c:1705-1718`, `:2727`): `ttopen()` installs `cctrap`,
+whose entire body is `cc_int = 1` — and **`cc_int` is read nowhere in the
+tree.** One definition, one assignment, no readers. So the first Ctrl-C of
+a session did nothing observable *and* spent the runtime's single shot, and
+the second killed the program with the chip still hooked. Two keystrokes,
+which is probably why it was never seen: legs are driven from `.BAT` files.
+
+The fix is to be the handler and to re-arm inside it, which the demotion
+above obliges every handler on this runtime to do. Installed from
+`v9k_ser_install()` rather than an initializer, because `ttopen()`'s
+`signal()` runs later and would overwrite an earlier one; the `cctrap` it
+displaces cannot be missed. `exit()` from an INT 23h handler is legitimate
+rather than merely convenient — DOS calls it at a re-entrant point and
+documents that the handler may terminate the process, and Watcom's handler
+has already re-enabled interrupts. **`cc=` in the exit report counts it,
+and it is 0 on all five legs**, which is the honest reading: the code is
+written, its mechanism is established from both runtimes' sources, and
+**nothing has pressed Ctrl-C on a Victor.** MAME's keyboard is not the
+instrument for that; the bench is.
+
+It deliberately does not try to make Ctrl-C cancel a transfer and continue.
+That needs a flag upstream reads, and the only such flag in this build is
+the dead one above.
+
+### 5. FreeDOS: the one binary is not one binary, and the vector is only half of it
+
+Item 14 has flagged the IRQ1 vector as "the most likely thing to break the
+one-binary-two-DOSes claim". It is worse than a question — the three
+answers on this machine are all different, and they are all in
+`myfreedos/kernel/victor_pic.asm`'s own header:
+
+| | ICW2 | IRQ1 arrives on |
+|---|---:|---|
+| Victor boot ROM | 0x20 | INT 21h+ |
+| Victor MS-DOS 3.1 | 0x40 | **INT 41h** — what this port hard-coded |
+| FreeDOS for Victor | 0x08 | **INT 09h** |
+
+A build that hard-codes 41h would, on FreeDOS, take a vector DOS uses for
+something else, leave the real IRQ1 pointing at FreeDOS's own serial
+handler, and receive nothing — **while looking, from the C side, exactly
+like a chip that never interrupts.**
+
+**ICW2 is write-only**, so the 8259 cannot be asked what base it was given
+and the question has to be put to whoever programmed it. INT 21h `AH=30h`
+returns the OEM number in BH and FreeDOS answers **0xFD**
+(`myfreedos/hdr/version.h:40`, and `kernel.asm:75` carries the same byte).
+Anything else is treated as the MS-DOS 3.1 layout, which is the
+conservative way round. Only the vector moves: the 8259 mask bit and the
+specific EOI encode the IR *level*, so `ckvisr.asm` needs to know nothing
+about any of this. `-dV9K_IRQ1_FORCE=0x09` is the control.
+
+**Measured on every leg:**
+
+```
+v9k: dos oem=ff ver=310 irq1=41
+```
+
+Victor MS-DOS 3.1 reports version 3.10 and OEM 0xFF, so the probe takes the
+MS-DOS branch and nothing about the shipping path changed. **The FreeDOS
+branch has never executed.**
+
+**The console is the other half, and it is the port's first behavioural
+difference between the two DOSes.** §16ao established this console is
+VT52/Z19 — `ESC Y`, `ESC E`, `ESC K` — on Victor MS-DOS 3.1. FreeDOS for
+Victor supplies its own console driver and it is an ANSI one:
+`kernel/victor_ansi.asm` parses `ESC '['` and, at line 154, "Not '[' -
+abort sequence, pass through character". So on FreeDOS the VT52 form does
+not merely fail to move the cursor, **it prints** — a `Y` and two
+coordinate bytes on the screen as text, 55 times per repaint. What that
+driver does support covers exactly the three sequences §1g needs
+(`ESC[r;cH`, `ESC[2J`, `ESC[K`), so the fix is a dialect switch and not a
+reduced display, chosen from the same `AH=30h` probe.
+`-dV9K_CON_FORCE_ANSI` / `-dV9K_CON_FORCE_VT52` override it.
+**The ANSI arm is written from that driver's source and has never run.**
+
+### 6. `REMOTE DIRECTORY`: two defects, one fixed, one now bounded
+
+Item 15 has said since §16i that `REMOTE DIRECTORY` "streams its listing
+and never terminates it". Leg NR, a `KEEP_DEBUG` server on today's tree,
+did something else entirely — it answered
+
+```
+E No files match                            (on the wire)
+?Too many files (64 max) - use SET FILE LISTSIZE to increase   (on the console)
+```
+
+**`MAXWLD` is 64 and this project's own test image has 156 files in its
+root.** `REMOTE DIRECTORY` with no argument expands `./*` over the working
+directory, so the ceiling is what an ordinary listing hits first.
+`ckvictor.h` called 64 "a limit this machine will not reach in practice"
+and called `SSPACE`'s 2,048 bytes "more than a FAT directory on this
+machine can contain" — **both sentences were written without a measurement
+and both are false of the image this project has been using all along.**
+156 names at 13 bytes is 2,028, and `nzxpand("./*")` keeps the `./` on the
+front, which is 2,340. Raised to **`MAXWLD` 256, `SSPACE` 4096**. Neither
+moves the load requirement: both are `malloc`'d, and hard rule 4's heap is
+outside DGROUP.
+
+**Leg NT, with the new limits, reproduced §16i's original defect with a
+packet-level trace it never had.** The listing streams correctly and then:
+
+| seq | wire bytes | sends |
+|---:|---:|---:|
+| 3–6 | 244–260 | 2–3 |
+| 7–13 | 71 → 126 | 1 each |
+| **14** | **1,414** | **10 and counting** |
+
+The Victor sends packet 14, the host ACKs it (`s-14-...Y`, a well-formed
+5-byte ACK), and the Victor resends the identical packet **~10 seconds
+later** — a timeout, not a spin. Ten times, until MAME's clock ran out. It
+never answered the FINISH that followed either, and both `STEPNT.OUT` and
+`DEBUG.LOG` came back **0 bytes** because the process never exited to flush
+them. **That is why §16i could not diagnose it and why this leg could not
+either.**
+
+**Leg NU bounds it.** `REMOTE DIRECTORY RCVN*.DAT` — three matches, one
+packet — completed perfectly: header, three entries, `Summary: 0
+directories, 3 files, 10240 bytes`, then FINISH honoured and a clean exit
+with a 166 KB debug log. **So short listings work and long ones wedge**,
+and the transition is at the jump from 126 to 1,414 bytes, which is
+C-Kermit's slow-start packet-length growth on the *sending* side — §16l's
+mechanism seen from the other end. The Victor transmits the long packet
+correctly (the host received and ACKed it) and then does not see the reply.
+
+**Two instruments would settle it and neither exists yet.** A debug log
+that survives a wedge — `debug()` output is buffered through stdio, so a
+flush per line, or per packet, would leave the evidence on disk. And the
+Ctrl-C handler built in part 4 above, which is exactly the "make it exit so
+the log closes" lever this needs, on a bench where a person can press the
+key.
+
+### 7. A corruption injector, because §16aq's stimulus never fired
+
+§16aq's Part 3 set out to show that upstream edit 18's bulk arm and the
+byte loop recover from corrupted input identically. The stimulus was a
+ten-foot cable wrapped around mains wiring and it produced **zero errors on
+both arms** — an instrument failure, not a null result, since magnetic
+coupling goes with current and quiet house wiring carries none.
+
+`v9k/tools/wirenoise.py` replaces the `socat` line in the MAME harness: it
+listens on the `-bitb` port, creates the `/tmp/v9000` pty, relays both
+directions, and corrupts one of them on request. **Corruption is driven by
+byte OFFSET, not by a random sequence**, and that is the design decision
+worth defending: an A/B needs both arms to meet the same noise, and a plain
+RNG cannot give that, because the moment one arm retransmits the two
+streams diverge in length and every subsequent draw lands elsewhere.
+Keying on the offset means the arms are corrupted in the same places for as
+long as their streams agree, and a leg is reproducible from its seed alone.
+It reports bytes relayed and bytes corrupted, with offsets, so that a leg
+with no errors can be told from a leg whose noise source was never
+connected — §16am's rule, made unconditional.
+
+**Its first mixer was wrong and the check that caught it was free.** CRC32
+over a decimal string put the corrupted offsets at 15, 19, 40, 44, 48, 113,
+117, 146, 213, 217, 246 — **a visible period of 100.** A corruption pattern
+with a period is not noise; it would have hit the same place in every
+packet and the leg would have measured something other than what it
+claimed. Replaced with splitmix64's finalizer and checked over 200,000
+offsets: 10,196 hits at p = 0.05, 130 distinct gaps, no structure.
+
+**The leg it was built for has not been run.** The tool is self-tested on
+the host — relay, direction control, `--after`, reproducibility, and the
+reported offsets matching the observed corruptions exactly — and nothing
+has yet been corrupted on a wire.
+
+### What generalises
+
+**A counter added to catch a specific trap caught that exact trap, twice
+removed.** `v9k: coll=` was written into the exit report *because* §16ai
+said a setting applied before `main()` can be overwritten before anything
+reads it. It then reported `coll=4` after an initializer that wrote 1. The
+value of the instrument was not that it found something new; it is that the
+known failure mode was made visible instead of inferred, and it cost one
+`printf`.
+
+**Two comments in `ckvictor.h` asserted that a limit could not be reached,
+and an ordinary directory listing reached both.** `MAXWLD` and `SSPACE`
+each carried a sentence of the form "this machine will not reach it in
+practice", written when the limits were chosen to save DGROUP. Neither had
+a measurement. **A limit is a claim about the world and wants a number
+beside it**, or it wants a loud failure — these had the second, which is
+why nothing was corrupted, but the first would have saved a leg.
+
+**A leg that fills the disk cannot report through a file on that disk**, and
+a leg whose program never exits cannot report through a buffered log. Both
+were discovered by losing the evidence. The general form: **before running
+a leg, ask what the failure under test does to the channel the leg reports
+through.**
+
+**The other end of `wcc -pl` is somebody else's source tree.** Two of these
+six were settled by reading Open Watcom's `signl.c` and FreeDOS's
+`victor_pic.asm` and `victor_ansi.asm` — both installed on this machine,
+neither ever opened by this project before. §16aj's rule was "a line of
+upstream source is not evidence that the build compiles it"; §16am extended
+it to the far end of the wire; this extends it to the runtime and the
+operating system. **The libraries are readable. Read them.**
