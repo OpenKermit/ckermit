@@ -2900,6 +2900,7 @@ volatile unsigned int v9k_fc_stuck= 0;  /* Writes abandoned, held off   */
 
 static int v9k_ser_on   = 0;            /* Have we taken the chip?      */
 static int v9k_ser_atx  = 0;            /* atexit() registered yet?     */
+static int v9k_debseen  = 0;            /* -d latched at install, SS16aw */
 static unsigned int  v9k_oldvec_seg = 0;
 static unsigned int  v9k_oldvec_off = 0;
 static unsigned char v9k_oldimr = 0;    /* 8259 mask as we found it     */
@@ -3402,13 +3403,37 @@ v9k_ser_release() {
       to results whose provenance had to be reconstructed afterwards.  One
       word, printed by the code that was compiled, settles it.
     */
-    printf("v9k: isr=%s\n",
+    /*
+      And on the same line, whether the debug log was open, because that is
+      the other thing a .OUT file cannot tell you and it is worth more than
+      the isr= word beside it.  The comment above says -d costs ~25ms per
+      byte and that a run worth measuring cannot carry a debug log; that
+      warning has been in this file since SS16k and three REMOTE DIRECTORY
+      legs ran with -d anyway (SS16i, and SS16av legs NR/NT/NU), because a
+      comment lives in the source and the trap lives in the run sheet.
+      nxtdir() in ckcfns.c debugs FOUR TIMES PER OUTPUT CHARACTER, so on
+      that path -d is ~100ms a character: SS16aw ran one binary over one
+      listing with the flag and without it and got 33.787s against 2.248s,
+      15x, and the slow arm had been read for two sessions as the feature
+      being broken.  One integer, printed by the run itself, is what makes
+      that unmisreadable next time.  It is not
+      #ifdef'd: deblog is defined unconditionally (ckcmai.c:1372) and is a
+      constant 0 in a NODEBUG build, which is exactly the answer wanted.
+
+      THE VALUE IS LATCHED IN v9k_ser_install(), NOT READ HERE, and the
+      reason is the first version of this field: doexit() (ckuusx.c:5478)
+      zeroes deblog and closes ZDFILE before calling exit(), so reading the
+      variable from an atexit() handler reported deb=0 on a leg that had
+      just spent 33 seconds writing a debug log.  The live value is ORed
+      back in so that a log opened after the line was still reports 1.
+    */
+    printf("v9k: isr=%s deb=%d\n",
 #ifdef V9K_CISR
            "c"
 #else
            "asm"
 #endif /* V9K_CISR */
-           );
+           , (v9k_debseen || deblog) ? 1 : 0);
     /*
       Which DOS this turned out to be, and therefore which interrupt IRQ1
       was taken on.  oem is BH from INT 21h AH=30h; 0xfd is FreeDOS and
@@ -3734,6 +3759,26 @@ v9k_ser_install(fd) int fd;
 {
     if (v9k_ser_on)
       return(0);
+
+    /*
+      Latch whether the debug log is open, for the deb= field of the exit
+      report.  It has to be sampled HERE and not read there, and legs RB and
+      RC are why: doexit() (ckuusx.c:5478) sets deblog = 0 and closes ZDFILE
+      before it calls exit(), so an atexit() handler always sees 0 no matter
+      how the run was started.  The first version of deb= read the variable
+      at print time and reported deb=0 on a leg that had run with -d -- a
+      check that fires wrong is worse than no check, and the only reason
+      this one was caught is that SS16aw spent a leg making it fire.
+
+      This point is after prescan() (ckcmai.c:3166, "Pre-Check for
+      debugging, etc") has opened the log and before any transfer, which is
+      what makes the sample meaningful -- and prescan() runs before the
+      option loop, so it does not matter whether -d precedes -l on the
+      command line.  The print site ORs the live value back in anyway, so a
+      log opened later still reports 1.
+    */
+    if (deblog)
+      v9k_debseen = 1;
 
 #ifndef V9K_CISR
     /*

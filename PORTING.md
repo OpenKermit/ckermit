@@ -2861,7 +2861,8 @@ Order of work:
    `NOICP` removes the prompt where you would type `ENABLE`, so
    `ckvictor.c` settles it at startup and `--safe-server` narrows it.
    `REMOTE DIRECTORY` streams its listing and never terminates it; that is
-   open, and outside this step.
+   open, and outside this step.  **(§16aw: it terminates. That claim was the
+   debug log, and the feature is closed.)**
 7. ~~**Bring up the RX ISR and ring buffer** as its own task, standalone, on
    real hardware.~~ Superseded by 4b, except for the real-hardware half.
    What is left of it: run §16d's transfer **on a real Victor**, and settle
@@ -4424,7 +4425,12 @@ should be refused, took the FINISH, and exited — `[$ GF]` in the log, then
 W_KERMIT)`, so 8 says "a REMOTE command failed" — which is precisely the
 refusal the run was designed to provoke.
 
-**`REMOTE DIRECTORY` in the full-capability run is the one open item.** The
+**`REMOTE DIRECTORY` in the full-capability run is the one open item.**
+**RETRACTED BY §16aw: it was not an item at all.** This run carried `-d`,
+and `nxtdir()` debugs four times per output character, so the listing was
+being produced at roughly one character per 100 ms and MAME's clock expired
+before the Z could be reached. With the log shut, a 157-file root lists in
+31.077 s with zero timeouts. The observation as it stood: the
 Victor streamed the entire listing correctly — all 51 entries of `A:\`,
 alphabetical, ending at `VMATCH.EXE`, each D packet ACKed — and then never
 sent the terminating Z. The host timed out (six of the run's seven timeouts
@@ -4491,7 +4497,7 @@ they could be read.
 
 **Still under emulation, still only Victor MS-DOS 3.1, still 9600 with window
 1 and short packets.** `REMOTE DIRECTORY` does not complete and is not
-diagnosed. The full capability set has been exercised only for GET, SEND and
+diagnosed. **(§16aw: it does complete. This run carried `-d`.)** The full capability set has been exercised only for GET, SEND and
 that one failing DIRECTORY — DELETE, RMDIR, CWD, SPACE, TYPE, RENAME and the
 rest are enabled by default and **entirely untested**. And `BYE` has never
 been sent, so the only way the far end has ever stopped a Victor server is
@@ -9705,7 +9711,11 @@ image **206,758**, **needs 220,950 (215K)**, smallest Victor 384K, md5
 
 **Still open**
 
-- **`REMOTE DIRECTORY` streams its listing and never terminates it.** All 51
+- ~~**`REMOTE DIRECTORY` streams its listing and never terminates it.**~~
+  **RETRACTED BY §16aw — this run was `-d`, and `nxtdir()` debugs four times
+  per output character.** With the log shut the same command lists a
+  157-file root in 31.077 s, terminating Z included. The observation as it
+  stood: all 51
   entries of `A:\` arrive correctly and each D packet is ACKed; the Z never
   comes, the host times out and discards the transaction, and — the part
   that costs a run — the host then never sends the FINISH that would have
@@ -11384,3 +11394,244 @@ neither ever opened by this project before. §16aj's rule was "a line of
 upstream source is not evidence that the build compiles it"; §16am extended
 it to the far end of the wire; this extends it to the runtime and the
 operating system. **The libraries are readable. Read them.**
+
+---
+
+## 16aw. `REMOTE DIRECTORY` was never broken: two sessions measured the debug log
+
+Written 16 August 2026, at a desk, no Victor in reach. Five legs under MAME
+at 9600 — **RA** for the feature, **RB/RC** for the attribution, **RD/RE**
+to make the new guard fire — one `printf`, and **no upstream edit, still
+eighteen.** DGROUP 48,816 → **48,832 of 65,536 (74%)**, image 230,224 →
+**230,274**, needs **242,354 (236K)**, **smallest Victor 384K, unchanged**,
+warnings 18, `ckvictor.c` 0.
+
+**`REMOTE DIRECTORY` lists this project's own 157-file root in 31.077
+seconds with zero timeouts and zero retransmissions.** Leg RA, `CKERMITW
+-x` with the full capability set, driven entirely from the host:
+
+```
+Summary: 1 directory, 157 files, 7129606 bytes
+
+ status                 : SUCCESS
+ damaged packets rec'd  : 0
+ timeouts               : 0
+ retransmissions        : 0
+ elapsed time           : 00:00:31 (31.077 sec)
+ effective data rate    : 275 cps
+```
+
+All 157 entries in order, the one subdirectory, the summary line, the
+terminating Z, the B, and then the `finish` that follows it — answered,
+`Closing /dev/seriala...OK`, a clean exit with the counters flushed.
+`rxlost=0 rxfull=0 rxpeak=20 of 4096`. The file and directory counts agree
+with `vtg_image_util info` exactly.
+
+**The binary was `CKRDIR.EXE`, md5 `5b7eb873…` — bit for bit the binary
+§16av shipped**, running the command §16av said wedges.
+
+### So §1 item 15's second defect does not exist, and neither did §16i's
+
+"`REMOTE DIRECTORY` streams its listing and never terminates it" has been in
+this file since §16i. `NEXT_SESSION.md` has carried "short listings work,
+long ones wedge" since §16av. **Both were the debug log**, and the reason
+nobody caught it is that *every* `REMOTE DIRECTORY` leg this port has ever
+run was run with `-d`: §16i's, and §16av's NR, NT and NU.
+
+The evidence was already in the tree. `s16bNT.pkt` — leg NT's host packet
+log, the one artefact of that leg that survived — reads completely
+differently once the lengths are decoded instead of the resends counted:
+
+| | leg NT (`-d`) | **leg RA (shipping)** |
+|---|---|---|
+| data packet lengths | 236, 244, 252, 126, 68, 87, 96, 106, 112, 116, 118, **1406** | **236, 480, 968, 1944, 3896, 738** |
+| entries delivered | **56 of 157**, no summary | **157 of 157**, summary |
+| timeouts / resends | 13 / 9 | **0 / 0** |
+| listing produced at | **~8.7 characters a second** | **~264 characters a second** |
+| terminating Z | never reached | sent and ACKed |
+
+**Leg NT's packet lengths were collapsing, not growing**, and that is the
+tell that was there to read: C-Kermit's slow start was knocking the length
+*down*, because the host kept timing out waiting for a server that produced
+a character every 115 ms. Leg RA's grow the way a healthy transfer's do —
+236 → 480 → 968 → 1944 → 3896 — until they reach `DRPSIZ`.
+
+**And the packet-14 "loop" was not a loop.** The host NAKed packet 14 three
+times while the Victor was still building it; the Victor sent it, then found
+three queued NAKs and honoured each one. Three resends, three ACKs, and the
+log ends there because the operator gave up — not because anything was
+stuck.
+
+### The mechanism, from `wcc -pl` rather than from the source
+
+`nxtdir()` (`ckcfns.c:6637`) hands the packetizer **one character per
+call**, and in a `KEEP_DEBUG` build its hot path is four `dodebug()` calls
+per character — three inside the `if (deblog)` guard and one outside it:
+
+```c
+    if (deblog) {
+	dodebug(5,"nxtdir funcnxt",(char *)(""),(long)(funcnxt));
+	dodebug(5,"nxtdir funclen",(char *)(""),(long)(funclen));
+	dodebug(6,"nxtdir funcbuf",(char *)(funcbuf+funcnxt),(long)(0));
+    }
+    if (funcnxt < funclen) {
+	c = funcbuf[funcnxt++];
+	dodebug(0,"nxtdir return 1",(char *)(""),(long)((unsigned)(c & 0xff)));
+	return((unsigned)(c & 0xff));
+    }
+```
+
+The shipping build preprocesses the same lines to a compare, a load, an
+increment and a bare `;`. **§16k measured `-d` at about 25 ms per byte;
+four calls is ~100 ms a character, and leg NT produced one every 115 ms.**
+Two independent routes to the same constant, one of them measured six
+sections ago for an unrelated reason.
+
+**Legs RB and RC are the adjacent control, and they are the same binary.**
+`CKRDBG.EXE` twice over the same four-entry listing, differing only in
+whether `-d` is on the command line — §16aq's and §16ap's shape, so §16w's
+code-size sensitivity has nothing to act on:
+
+| | RB (no `-d`) | RC (`-d`) | ratio |
+|---|---:|---:|---:|
+| elapsed (host clock) | **2.248 s** | **33.787 s** | **15.0×** |
+| effective data rate | 131 cps | 8 cps | 16.4× |
+| timeouts / resends | 0 / 0 | 1 / 0 | |
+
+**Legs RD and RE replicate it on the rebuilt binary**, which is worth
+having because the pair was re-run for an unrelated reason (the guard
+below) and therefore constitutes an independent repeat rather than a
+re-reading:
+
+| | RD (no `-d`) | RE (`-d`) | ratio |
+|---|---:|---:|---:|
+| elapsed (host clock) | **1.961 s** | **35.587 s** | **18.1×** |
+| effective data rate | 150 cps | 8 cps | 18.8× |
+| timeouts / resends | 0 / 0 | 1 / 0 | |
+
+All four byte-correct against `vtg_image_util list`, all four `SUCCESS`,
+all four exiting cleanly. The `-d` arms agree to 1 cps across sittings; the
+clean arms differ by 287 ms, which is the harness.
+
+### `MAXWLD` and `SSPACE` are now proven at full scale
+
+§16av raised them from 64 / 2048 to 256 / 4096 after leg NR answered
+`?Too many files (64 max)` on the console and `E No files match` on the
+wire, and **no leg had ever confirmed the fix**, because the leg that would
+have — NT — never finished. Leg RA expands 158 entries through `nzxpand()`
+and lists every one. That half of item 15 is now measured rather than
+argued.
+
+One cosmetic difference from a Unix listing, noted so it is not reported
+later as a defect: a directory prints with its size and a leading `d` in
+the permissions column (`drwxrwxrwx 0 ... TEST`) rather than as `<DIR>`.
+Upstream takes the `<DIR>` branch on `itsadir && len < 0`, and this port's
+`zgetfs()` returns 0 rather than -2 for a directory. The entry is correctly
+identified either way, and the summary counts it as a directory.
+
+### The guard: `v9k: isr=asm deb=1`
+
+The exit report gains one integer, and the argument for it is the one
+already written beside `isr=`: **a `.OUT` file cannot tell you which build
+produced it**, and the debug log is a far bigger confounder than the choice
+of ISR ever was. The comment two lines above the new `printf` has said since
+§16k that `-d` costs ~25 ms a byte and that a run worth measuring cannot
+carry a debug log — and three legs carried one anyway, because **a comment
+lives in the source and the trap lives in the run sheet.** `deblog` is
+defined unconditionally (`ckcmai.c:1372`) and is a constant 0 in a `NODEBUG`
+build, so the field costs one `%d`, needs no `#ifdef`, and cannot be wrong.
+
+**It was exercised in both states before being believed, and the first
+version of it was wrong.** Legs RB and RC printed `deb=0` on *both* arms —
+including the arm that had just spent 33.787 s writing a debug log. The
+cause is four lines above the new `printf`, in a comment that had been
+right there since §16t: `doexit()` (`ckuusx.c:5478`) sets `deblog = 0` and
+`zclose(ZDFILE)`s **before** it calls `exit()`, so an `atexit()` handler
+can never see the variable set. The field now latches in
+`v9k_ser_install()` — after `prescan()` has opened the log, before any
+transfer — and ORs the live value back in at print time. **Legs RD and RE
+are the re-run that makes it fire, and it does:**
+
+```
+STEPRD.OUT   v9k: isr=asm deb=0    dec tot=650 cs    elapsed=950 cs
+STEPRE.OUT   v9k: isr=asm deb=1    dec tot=9950 cs   elapsed=13000 cs
+```
+
+One binary, one flag, and the Victor's own clock agreeing with the host's
+about the 15×: 6.5 s of decode against 99.5.
+
+That is the second time in this project that a check written to catch a
+known trap was itself wrong on its first outing (§16au's ring-mask check
+was wrong twice), and both were caught the same way: **by spending the leg
+that makes the check fire.** A guard that has only ever been observed
+agreeing with the expected answer has not been tested — leg RC agreed with
+"the shipping build has no log" while reporting on a build that did.
+
+**The instrument item 15 used to ask for is withdrawn.** It wanted `debug()`
+flushed per line so that a wedged run would still leave evidence. There was
+no wedge; and per-line flushing would deepen the very cost that produced the
+symptom. §16av's Ctrl-C handler remains the right lever for a genuinely
+stuck run, and is still unexercised.
+
+### What is on the image, so the next session does not have to guess
+
+| on `victor_kermit.img` | bytes | md5 | what it is |
+|---|---:|---|---|
+| `CKRDIR.EXE` | 230,224 | `5b7eb873…` | the §16av shipping build. **Leg RA** |
+| `CKRDBG.EXE` | 312,758 | `ee5d8b59…` | `KEEP_DEBUG` **with** the `deb=` latch. Legs RD/RE |
+| `CKRDR2.EXE` | 230,274 | `5f2a1580…` | the shipping build as it stands after this section |
+
+`STEPRA.BAT` drives leg RA, `STEPRD.BAT` legs RB/RC, `STEPRF.BAT` legs
+RD/RE. **Note that `CKRDIR.EXE` is deliberately NOT the current shipping
+build** — it is kept as the binary leg RA actually ran, and `CKRDR2.EXE` is
+the current one. The `CKRDBG.EXE` that ran legs RB and RC (312,740,
+`5592256b…`, the version whose `deb=` was wrong) has been overwritten by
+the fixed one, which is why RD/RE exist.
+
+### One report-upstream item, found on the way past
+
+`ckcfns.c:6914`, in `snddir()`, is an `if` with no body:
+
+```c
+    if (zfnqfp(name,CKMAXPATH,fnbuf))
+
+    debug(F110,"snddir name 2",name,0);
+```
+
+`debug()` carries its own `;` in every build, so the body is an empty
+statement and this compiles clean and silent. But `zfnqfp()`'s return value
+is discarded, and eight lines later `fnbuf` is the `%s` of the listing's
+`"Listing files: %s"` header — on the failure path an **uninitialised
+automatic**, so the header prints stack contents and `sprintf` runs to
+whatever NUL it finds. Harmless on the path this port takes, because
+`zfnqfp()` succeeds; not fixed here, because what the header should say when
+qualification fails is upstream's decision. `NEXT_SESSION.md` item 8.
+
+### What generalises
+
+**When a measurement and a working system disagree, suspect the
+instrument's cost before the system's correctness.** This one had every
+warning sign: the only artefact that survived was the *host's*, both of the
+Victor's own channels came back 0 bytes, and the port's own source carried a
+comment saying that this exact instrument distorts this exact class of
+measurement. It still took two sessions and part of a third, because "long
+listings wedge" is a more interesting sentence than "the log is slow" and it
+got written down first.
+
+**A collapsing packet length is a diagnosis.** C-Kermit's slow start moves
+the packet length in the direction the wire is behaving. Leg NT's went
+236 → 68 while the notes described the problem as a length problem at 1,414.
+The series was in the log all along and nobody plotted it.
+
+**`grep -c '^S-'` counts resends; it does not say whether they were
+warranted.** Nine retransmissions in leg NT were read as the Victor failing
+to see ACKs. Every one was the Victor correctly answering a NAK the host had
+every right to send. **Count the far end's provocations before reading the
+near end's responses as a fault.**
+
+**And a fourth, about this session's own harness:** `pgrep -f "\./mame
+victor9k"` inside an `until` loop **matches the shell running the loop**, so
+the wait never ends — §16ar found exactly this and wrote it down, and it
+cost time here again. `ps -ax -o comm | grep mame$` does not have the
+problem. **A detector that can see itself and a detector that cannot see the
+target give the same confident wrong answer.**

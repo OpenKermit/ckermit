@@ -83,14 +83,20 @@ chosen by the same probe. **Neither FreeDOS branch has ever executed.**
 could not be reached in practice; **this project's own image has 156 files
 in its root** and an ordinary listing reaches both (leg NR: `?Too many
 files (64 max)` and `E No files match`). Raised to **256 / 4096** — heap,
-so the load requirement does not move. **Leg NT then reproduced §16i's
-original defect with a trace it never had**: the listing streams, and at
-the slow-start jump from 126 to **1,414** wire bytes the Victor resends
-packet 14 every ~10 s, ten times, while the host ACKs each one — and never
-answers the FINISH. **Leg NU bounds it**: a three-entry listing completes
-perfectly and exits cleanly. Short works, long wedges. **Both `.OUT` and
-`DEBUG.LOG` were 0 bytes because the process never exits to flush them**,
-which is why §16i could not diagnose it and this leg could not either.
+so the load requirement does not move, **and §16aw has now confirmed that
+half at full scale** — 158 entries expanded and listed, which leg NT never
+reached. **The second half of this item is RETRACTED BY §16aw: there is no
+second defect.** It said leg NT "reproduced §16i's original defect" — the
+listing streaming and then the Victor resending packet 14 every ~10 s while
+the host ACKed each one, never answering the FINISH — and that leg NU
+bounded it at three entries. **All of that was `-d`.** `nxtdir()` debugs
+four times per output character, so the log costs ~100 ms a character and
+leg NT was producing one every 115 ms; leg RA runs the same command on the
+same root with the log shut and finishes in **31.077 s, 0 timeouts, 0
+retransmissions**. The three resends were three queued NAKs answered
+correctly. The 0-byte `.OUT` and `DEBUG.LOG` were real and are still the
+reason nobody could see this from the Victor's side — but what they were
+hiding was a slow run, not a stuck one.
 
 **7. `v9k/tools/wirenoise.py`** replaces `socat` in the MAME harness and
 corrupts the wire on purpose, so §16aq's untested "both arms recover
@@ -921,10 +927,10 @@ What MAME could not settle:
   move.
 
 **8. Report edits 14, 15, 16 and 17 upstream — plus the two `ckutio.c`
-defects §16aj found and did NOT fix.**
+defects §16aj found and did NOT fix, and the `ckcfns.c` one §16aw found.**
 
-The two new ones are flow control's, they are not 16-bit defects, and
-neither is specific to this port:
+The two flow-control ones are not 16-bit defects, and neither is specific to
+this port:
 
 - **`ckutio.c:6758`** — `ttpkt()`'s `TESTING234` block clears `IXON|IXOFF`
   out of `ttraw` unconditionally, four lines before the `tcsetattr()` that
@@ -938,6 +944,24 @@ neither is specific to this port:
   recovery from a lost XON, is the argument of a `debug()` call, so
   `NODEBUG` discards it. It is the only caller of `tcflow()` in the
   module. `ckvictor.c`'s `V9K_FCSPIN` is the port's own backstop for it.
+- **`ckcfns.c:6914`** — `snddir()` has an `if` with no body:
+
+  ```c
+      if (zfnqfp(name,CKMAXPATH,fnbuf))
+
+      debug(F110,"snddir name 2",name,0);
+  ```
+
+  `debug()` carries its own `;` in every build, so the body is an empty
+  statement and this compiles clean and silent — but `zfnqfp()`'s result is
+  discarded, and eight lines later `fnbuf` is the `%s` of the listing's
+  `"Listing files: %s"` header. On the failure path that is an
+  **uninitialised automatic**, so the header prints stack contents and
+  `sprintf` runs to whatever NUL it finds. Found by §16aw while reading the
+  function for an unrelated reason; harmless on the path this port takes,
+  because `zfnqfp()` succeeds. **Not fixed here** — it needs a decision
+  about what the header should say when qualification fails, which is
+  upstream's to make.
 
 Then the four edits. Two independent defects, both found only because this
 port is an unusual build, and neither specific to it:
@@ -1501,32 +1525,57 @@ DOS: how much memory it gives (`v9k/probes/vmem.c` asks), and whether
 §16ac found the same region also swallowing `dotakeini()` and
 `docmdfile()`, and edit 14 fixed it. One report, not two.
 
-**15. `REMOTE DIRECTORY` — HALF FIXED, HALF BOUNDED. §16av part 6.**
+**15. ~~`REMOTE DIRECTORY`.~~ CLOSED — §16aw. It was never broken, and two
+sessions had been measuring the debug log.**
 
-Two defects, not one. The first was the port's own and is fixed: `MAXWLD`
-was 64 and `SSPACE` 2048, both with a comment saying the limit could not be
-reached in practice, and **the project's own image has 156 files in its
-root** — so leg NR's server answered `?Too many files (64 max)` on the
-console and `E No files match` on the wire. Now **256 / 4096**; both are
-`malloc`'d so the load requirement does not move.
+**Leg RA: the shipping build lists this project's own 157-file root in
+31.077 s, `status: SUCCESS`, 0 timeouts, 0 retransmissions, 275 cps** —
+all 157 entries and the one subdirectory in order, the summary line, the
+terminating Z, the B, and the `finish` after it answered, then `Closing
+/dev/seriala...OK` and a clean exit with the counters flushed.
+`rxlost=0 rxfull=0 rxpeak=20 of 4096`. The binary was **md5 `5b7eb873…`,
+bit for bit the one §16av shipped**, running the command §16av said wedges.
 
-The second is §16i's and is now traced rather than described. Leg NT: the
-listing streams correctly through seq 13, and at C-Kermit's slow-start jump
-from **126 to 1,414 wire bytes** the Victor resends packet 14 every ~10 s
-— ten times, while the host ACKs every one — and then does not answer the
-FINISH either. **Leg NU bounds it**: `REMOTE DIRECTORY RCVN*.DAT`, three
-matches in one packet, completes perfectly (header, entries, summary,
-FINISH, clean exit, 166 KB debug log). **Short listings work; long ones
-wedge, at the first long packet the Victor sends.**
+**The wedge was `-d`.** `nxtdir()` (`ckcfns.c`) hands the packetizer **one
+character per call** and debugs **four times per character** — three inside
+`if (deblog)` and one outside it, which `wcc -pl` shows and the source
+hides. Legs RB and RC are the adjacent control and they are **the same
+binary** (`CKRDBG.EXE`), differing only in whether `-d` is on the command
+line, over the same four-entry listing:
 
-**The reason neither leg diagnosed it is the instrument, and fixing that is
-the next step.** The process never exits, so `STEPNT.OUT` and `DEBUG.LOG`
-both came back **0 bytes** — stdio never flushed. Two levers exist now that
-did not before: make `debug()` flush per line (or per packet) under a
-`-d` flag so a wedged run still leaves evidence, and **§16av's Ctrl-C
-handler**, which exits through `atexit()` and closes the log — that is
-exactly the "make it exit so the log lands" lever this needs, on a bench
-where a person can press the key.
+| | RB (no `-d`) | RC (`-d`) | ratio |
+|---|---:|---:|---:|
+| elapsed (host clock) | **2.248 s** | **33.787 s** | **15.0×** |
+| effective data rate | 131 cps | 8 cps | 16.4× |
+| timeouts / resends | 0 / 0 | 1 / 0 | |
+
+§16k measured `-d` at ~25 ms a byte; four calls is ~100 ms a character, and
+leg NT produced one every **115 ms**. Two independent routes, one of them
+taken six sections ago for an unrelated reason.
+
+**What leg NT actually showed, re-read.** 56 of 157 entries in ~336 s and
+no summary, at ~8.7 characters a second. Its data-packet lengths were
+**236, 244, 252, 126, 68, 87, 96, 106, 112, 116, 118** — *collapsing*,
+because C-Kermit's slow start was knocking the length down against a server
+that could not feed it. Leg RA's are **236, 480, 968, 1944, 3896** —
+growing, until they reach `DRPSIZ`. And the packet-14 "resend every 10 s"
+was the Victor **correctly answering three NAKs the host had queued** while
+it waited; three resends, three ACKs, then the log ends because the
+operator gave up. Nothing was stuck at any point.
+
+**§16av's `MAXWLD` 256 / `SSPACE` 4096 fix now has runtime evidence at full
+scale** — 158 entries expanded and listed — which leg NT could never
+produce.
+
+**The guard is `deb=` on the `v9k: isr=` line.** Its first version was
+wrong and legs RB/RC caught it: both printed `deb=0`, because `doexit()`
+(`ckuusx.c:5478`) zeroes `deblog` and closes the log *before* calling
+`exit()`, so an `atexit()` reporter never sees it. It now latches in
+`v9k_ser_install()` and ORs the live value in at print time; **legs RD and
+RE are the re-run that makes it fire in both states.** The instrument this
+item used to ask for — a per-line `debug()` flush — is **withdrawn**: it
+would deepen the very cost that caused the problem, and there was never a
+wedge for it to capture.
 
 **16. ~~`msleep()` does not sleep.~~ FIXED AND MEASURED — §16av part 1.**
 `NAP` in `ckvictor.h` moves `msleep()` onto upstream's own `nap()` arm
@@ -1582,6 +1631,13 @@ fallback.
 **The exit report says which one ran** — `v9k: isr=asm` or `isr=c`. Two
 builds selected by a `-d` flag produce otherwise identical-looking `.OUT`
 files, and provenance cost this project time twice before that line existed.
+
+**The same line now says whether the debug log was open** — `v9k: isr=asm
+deb=1` (§16aw). `deb=1` means every timing figure in that leg is void:
+`-d` costs ~25 ms a byte (§16k) and four times that per character on the
+`REMOTE DIRECTORY` path. **Read `deb=` before reading the clock**, the way
+§16aq says to read `bulk sel=` before reading the clock. It was the absence
+of this field that let three legs be interpreted as a broken feature.
 
 Selecting the assembly handler implies `V9K_LEANLOST`, because it does not
 maintain the burst table. Without that, the report would print
@@ -1700,6 +1756,13 @@ maintain the burst table. Without that, the report would print
   the MS-DOS 3.1 layout and 41. The whole "one binary, two DOSes" claim
   turns on this byte, and a wrong branch looks exactly like a chip that
   never interrupts.
+- **`deb=` on the `v9k: isr=` line** (§16aw). 1 if the debug log was open,
+  **latched at `v9k_ser_install()`** because `doexit()` closes the log
+  before `atexit()` runs and the first version therefore always said 0.
+  **`deb=1` voids every timing figure in the leg** — `-d` is ~25 ms a byte
+  (§16k), and four times that per character on the `REMOTE DIRECTORY`
+  path, which is what made a working feature look broken for two sessions.
+  Read it before the clock.
 - **`v9k: coll=`** (§16av). The file-collision policy actually in force at
   exit. `XYFX_X` = 1 (REPLACE, this port's default), `XYFX_D` = 4
   (refuse), `XYFX_R` = 0 (RENAME, which a `--safe-server` forces and which
@@ -1755,11 +1818,14 @@ maintain the burst table. Without that, the report would print
   **Put that line in every receive `.BAT` from now on**, and still use a
   target name that has never been used, so a re-run cannot silently compare
   itself against an older file.
-- **`REMOTE DIRECTORY` wedges on LONG listings only** (§16i, §16av part
-  6). Short ones complete and exit cleanly (leg NU); a 156-file root
-  resends its first 1,414-byte packet for ever (leg NT). The `MAXWLD` 64 /
-  `SSPACE` 2048 ceiling that a 156-file root hits *first* is fixed (256 /
-  4096). Item 15.
+- ~~**`REMOTE DIRECTORY` wedges on LONG listings only**~~ **RETRACTED —
+  §16aw.** It does not wedge on any listing. Leg RA lists a 157-file root
+  in **31.077 s, 0 timeouts, 0 retransmissions**, summary and terminating
+  Z included, and answers the FINISH. Every leg that saw a "wedge" ran
+  `-d`, and `nxtdir()` debugs four times per output character — 15× on the
+  clock, measured on one binary with and without the flag (legs RB/RC).
+  The `MAXWLD` 64 / `SSPACE` 2048 ceiling was real and is fixed (256 /
+  4096), now confirmed at full scale. Item 15.
 - **Most of the default capability set is untested** (§16i). `BYE` never sent.
 - **Wildcards are case-sensitive.** `-s *.TXT`.
 - **The FreeDOS console arm has never run** (§16av part 5), and neither has

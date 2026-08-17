@@ -409,7 +409,7 @@ hour re-deriving something already measured under emulation.
 | "No files for `-s`" | **not a diagnosis** — `ckuusy.c` prints it when it could not allocate 2,000 bytes for the real message. Check heap headroom. | §16f |
 | `-s *.txt` matches nothing | wildcards are case-sensitive against upper-case FAT names. `*.TXT`. | §16i |
 | Machine dies after Ctrl-Break | IRQ1 vector restored from `atexit()`, which a bare DOS termination bypasses; the vector then points into freed memory. Power cycle. | §10 open items |
-| `REMOTE DIRECTORY` never ends | known, undiagnosed; `--safe-server` refuses it cleanly | §16i |
+| ~~`REMOTE DIRECTORY` never ends~~ | **retracted — it ends. Every leg that saw otherwise ran `-d`, which costs 4 debug calls per output character. 157-file root in 31.077 s, 0 timeouts** | §16aw |
 | Timeouts in the host log | historically the **host's**, not ours — the Victor has never sent a NAK across a 32 KB receive | §16l |
 
 ---

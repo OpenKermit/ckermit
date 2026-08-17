@@ -709,6 +709,45 @@ and the model is `free = installed RAM − 92,720` — this DOS loads high,
 asks a running machine; `mzsize.py` reports the smallest Victor that can
 load a build. **Quote the requirement, not the spare.**
 
+**§16aw closed `REMOTE DIRECTORY`, and the finding is that it was never
+broken: two sessions had measured the debug log.** Leg RA lists this
+project's own **157-file root in 31.077 s, zero timeouts, zero
+retransmissions**, summary line, terminating Z, FINISH answered, clean
+exit — running the binary §16av shipped, md5 `5b7eb873…`, bit for bit.
+**`nxtdir()` (`ckcfns.c`) hands the packetizer ONE CHARACTER PER CALL and
+debugs FOUR TIMES PER CHARACTER**, which `wcc -pl` shows and the source
+hides; with `-d` the listing is produced at ~8.7 characters a second
+against ~264 without, and **every `REMOTE DIRECTORY` leg in this port's
+history ran `-d`** (§16i, and §16av's NR, NT and NU). §16k had measured
+`-d` at ~25 ms a byte six sections earlier — four calls is ~100 ms a
+character, and leg NT produced one every 115 ms, so **two independent
+routes agree.** The evidence was in the tree the whole time: **leg NT's
+packet lengths were COLLAPSING (236 → 68), not growing** — C-Kermit's slow
+start knocking the length down against a server that could not feed it —
+and the packet-14 "loop every 10 s" was the Victor correctly answering
+three NAKs the host had queued while it waited. **Ordinary retransmission
+of a queued NAK looks exactly like a wedge if you stop the clock in the
+middle of it, and a collapsing packet length is a diagnosis.** §16av's
+`MAXWLD` 256 / `SSPACE` 4096 fix now has runtime evidence at full scale,
+which the leg that motivated it never produced. The guard is one integer:
+**`v9k: isr=asm deb=1`** — a `.OUT` file could not say whether the log was
+open, the warning that it distorts measurement had been in `ckvictor.c`
+since §16k, and three legs carried one anyway, because **a comment lives
+in the source and the trap lives in the run sheet.** **The first version of
+that guard was WRONG and the leg spent to make it fire is what caught it**
+— it read `deblog` at print time and `doexit()` (`ckuusx.c:5478`) zeroes
+that and closes the log *before* calling `exit()`, so an `atexit()`
+reporter always sees 0; it now latches in `v9k_ser_install()`. Second time
+in this tree a check written for a known trap was itself wrong on its
+first outing (§16au's ring-mask check was wrong twice), and both were
+caught the same way: **a guard observed only agreeing with the expected
+answer has not been tested.** No upstream edit — still eighteen; DGROUP
+48,832 (74%), image 230,274, needs 242,354 (236K), smallest Victor 384K
+unchanged. One report-upstream item came out of reading the function:
+`ckcfns.c:6914`
+is an `if` with no body, so `snddir()` discards `zfnqfp()`'s result and can
+print an uninitialised `fnbuf` in the listing header.
+
 **§16av is six items taken off the list with no Victor in reach, and two
 of them were worse than the notes describing them.** Ten MAME legs at
 9600, **no upstream edit — still eighteen**; DGROUP 48,816 (74%), image
