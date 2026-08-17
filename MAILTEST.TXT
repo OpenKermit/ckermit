@@ -1,0 +1,2 @@
+MAILTEST.TXT -- sent by MAIL (disposition M) with en_mai disabled.
+If this file lands on the Victor disk, MAIL was stored rather than refused.

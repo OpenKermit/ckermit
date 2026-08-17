@@ -15,6 +15,8 @@ are recorded at all.
 | `STEPF*.OUT`, `FE*.LOG` | §16aj, MAME at 9600 — the flow-control build validated, and the switch witness read back through `uname()` |
 | `STEPD*.OUT` | §16ak, seven bench legs at 38400 |
 | `STEPG*.OUT` | §16al, four bench legs — two of them 0 bytes, which is the full-disk failure and is kept as the evidence for it |
+| `STEPR*.OUT` | §16aw, five MAME legs — `REMOTE DIRECTORY` and the `deb=` latch |
+| `STEPS*.OUT` | §16ax, six MAME legs — the server capability sweep. `STEPSA.OUT` is 0 bytes and is kept for the same reason `STEPG*` are: leg SA's terminating `REMOTE EXIT` failed in the **host's** parser, so the server never exited and MAME was killed under it |
 
 **The received files are not here and that is deliberate.** Every one was
 md5-identical to `TRANS.DAT`, `d94d2beda069ef0ef340977e7fd6995d`, so twelve

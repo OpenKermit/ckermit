@@ -251,6 +251,24 @@ extern long v9k_timezone;
 #define mkdir(path,mode) mkdir(path)
 
 /*
+  And rmdir() has to lose a separator the same call gave it.  ckcfn3.c's
+  ckmkdir() appends "/" to the name before calling down, and on the
+  UNIXOROSK arm it does that for BOTH directions -- "Must end in "/" for
+  zmkdir()", ckcfn3.c:133.  Upstream's own OS/2 arm twenty lines below
+  appends it only when fc == 0, which is the tell: a DOS-shaped file
+  system does not accept a trailing separator where a Unix one does.
+  INT 21h AH=3Ah refuses "SRVTM/", so REMOTE RMDIR could not remove a
+  directory at all -- measured on the wire in PORTING.md SS16ax, where the
+  server answered "srvtm/: " with an empty errno string and the directory
+  stayed.  mkdir is unaffected: the same name with the same slash created
+  it.  The strip is unconditional because a trailing separator is never
+  meaningful to rmdir on any system, so this is a no-op wherever the
+  runtime already tolerated it.  ckvictor.c undefines the macro before
+  defining the function, or the wrapper would call itself.
+*/
+#define rmdir(path) v9k_rmdir(path)
+
+/*
   The Watcom DOS runtime supplies execl/execvp, sleep(), creat(), utime(),
   umask(), opendir/readdir/closedir and a stat() that answers "." itself,
   so ckvictor.c does not write any of them out; see its section 1a.  The

@@ -1375,6 +1375,24 @@ a {
 	    errpkt((CHAR *)"Access denied"); /* and non-default area given, */
 	    RESUME;			/* refuse. */
 	} else {
+#ifdef VICTOR9K
+/*
+  UPSTREAM EDIT 20 -- PORTING.md SS8 item 20, SS16ax.  Purely additive:
+  the arms below are unchanged and this one cannot compile anywhere else.
+  The #else path answers REMOTE SPACE by running df(1) through syscmd(),
+  and NOPUSH empties syscmd() out, so this build could only ever reply
+  "Can't check space".  ckcfns.c's VICTOR9K sndspace() asks DOS instead
+  (INT 21h AH=36h, in ckvictor.c) and ignores the drive argument -- see
+  the comment there for why.
+*/
+_PROTOTYP(int sndspace,(int));
+	    if (sndspace(0)) {
+		BEGIN ssinit;		/* send the report. */
+	    } else {			/* If not ok, */
+		errpkt((CHAR *)"Can't send space"); /* send error message */
+		RESUME;			/* and return to server command wait */
+	    }
+#else
 #ifdef OS2
 _PROTOTYP(int sndspace,(int));
 	    if (sndspace(x ? toupper(srvcmd[2]) : 0)) {
@@ -1395,6 +1413,7 @@ _PROTOTYP(int sndspace,(int));
 		RESUME;			/* and await next server command */
 	    }
 #endif /* OS2 */
+#endif /* VICTOR9K */
 	}
     }
 #endif /* NOSERVER */

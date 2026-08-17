@@ -1,0 +1,2 @@
+PRTTEST.TXT -- sent by REMOTE PRINT (disposition P) with en_pri disabled.
+If this file lands on the Victor disk, PRINT was stored rather than refused.

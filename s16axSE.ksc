@@ -1,0 +1,68 @@
+set line /tmp/v9000
+set speed 9600
+set parity none
+set carrier-watch off
+set flow none
+set receive timeout 10
+set retry 10
+set take error off
+set file collision rename
+log packets s16axSE.pkt
+echo === SE01 remote copy SRVA.TXT SRVB.TXT
+remote copy SRVA.TXT SRVB.TXT > s16axSE-copy.txt
+echo === SE02 remote directory SRV*.TXT
+remote directory SRV*.TXT
+echo === SE03 remote rename SRVB.TXT SRVC.TXT
+remote rename SRVB.TXT SRVC.TXT > s16axSE-ren.txt
+echo === SE04 remote type SRVC.TXT
+remote type SRVC.TXT
+echo === SE05 retrieve SRVC.TXT
+retrieve SRVC.TXT
+echo === SE06 remote copy SRVA.TXT SRVD.TXT
+remote copy SRVA.TXT SRVD.TXT > s16axSE-copy2.txt
+echo === SE07 remote delete SRVD.TXT
+remote delete SRVD.TXT
+echo === SE08 remote directory SRV*.TXT should show SRVA only
+remote directory SRV*.TXT
+echo === SE09 remote mkdir SRVTM
+remote mkdir SRVTM > s16axSE-mkd.txt
+echo === SE10 remote cd SRVTM
+remote cd SRVTM
+echo === SE11 remote cd A:/ back to root
+remote cd A:/
+echo === SE12 remote pwd
+remote pwd > s16axSE-pwd.txt
+echo === SE13 remote rmdir SRVTM
+remote rmdir SRVTM > s16axSE-rmd.txt
+echo === SE14 remote space expect disabled
+remote space
+echo === SE15 remote who expect disabled
+remote who
+echo === SE16 remote help
+remote help > s16axSE-help.txt
+echo === SE17 remote print PRTTEST.TXT expect refusal
+remote print PRTTEST.TXT
+echo === SE18 mail MAILTEST.TXT expect refusal
+mail MAILTEST.TXT nobody@example.com
+echo === SE19 remote exit
+remote exit > s16axSE-exit.txt
+echo === SE done, waiting for the --safe-server to load
+pause 75
+echo === SC01 remote directory SRVA.TXT expect refusal
+remote directory SRVA.TXT
+echo === SC02 remote delete SRVA.TXT expect refusal
+remote delete SRVA.TXT
+echo === SC03 remote cd SRVTM expect refusal
+remote cd SRVTM
+echo === SC04 remote mkdir SRVX expect refusal
+remote mkdir SRVX > s16axSC-mkd.txt
+echo === SC05 remote type SRVA.TXT expect refusal
+remote type SRVA.TXT
+echo === SC06 get SRVA.TXT must work
+get SRVA.TXT
+echo === SC07 remote exit expect refusal
+remote exit > s16axSC-exit.txt
+echo === SC08 finish
+finish
+echo === SC done
+statistics

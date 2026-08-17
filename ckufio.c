@@ -4780,7 +4780,26 @@ zfcdat(name) char *name;
 #ifdef TIMESTAMP
     struct stat buffer;
     extern int diractive;
+#ifdef VICTOR9K
+/*
+  UPSTREAM EDIT 19 -- PORTING.md SS8 item 19, SS16ax.
+
+  This holds st_mtime, which is a time_t.  On a target where int is 16
+  bits the assignment below truncates it mod 65536, and zdtstr() then
+  renders whatever is left as a date in 1970: every entry in a REMOTE
+  DIRECTORY listing, and the date attribute of every file the server
+  sends, since ckufio.c:4635 gets it from here too.  Measured on the wire
+  -- a file copied on the Victor at 1980-01-01 00:02 was listed as
+  1970-01-01 11:50:50, and a GET of it landed on the client dated 1970.
+
+  Guarded rather than simply widened.  It is a no-op wherever int is 32
+  bits, so edits 15 and 16 would say to leave it unguarded; it is here
+  under a #ifdef because that was the call made when it was agreed.
+*/
+    time_t mtime;
+#else
     unsigned int mtime;
+#endif /* VICTOR9K */
     int x;
     char * s;
 

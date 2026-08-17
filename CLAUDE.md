@@ -50,8 +50,8 @@ none.** It was 17 until `NOFLOAT` (§16j): dropping `GFTIMER` moves `ztime()`
 onto upstream's `ZTIMEV7` branch, whose K&R redeclarations of `localtime()`
 and `time()` produce two more sign mismatches at `ckutio.c:12399-12400`
 (they moved 80 lines when edit 18 went in).
-DGROUP is 48,816 of 65,536 (74%) after the linker adds libc; `ckermitw.exe`
-is 230,224 bytes and **needs 242,288 (236K) at load**. Quote that figure —
+DGROUP is 48,896 of 65,536 (74%) after the linker adds libc; `ckermitw.exe`
+is 230,690 bytes and **needs 242,786 (237K) at load**. Quote that figure —
 it is the port's cost and it is the same on every machine. **The 396,224
 that appears in older sections is not a RAM size, and §16x retracts it as a
 figure for this DOS too**; Victor MS-DOS 3.1 hands out **824,784 at 896K**.
@@ -709,6 +709,48 @@ and the model is `free = installed RAM − 92,720` — this DOS loads high,
 asks a running machine; `mzsize.py` reports the smallest Victor that can
 load a build. **Quote the requirement, not the spare.**
 
+**§16ax put the whole server capability set on the wire — the item §16i
+opened the day server mode was built — and it cost upstream edits 19 and
+20.** Six MAME legs at 9600. **`BYE` works**: ACKed, `doclean()`,
+`zkself()`, clean exit with `rxlost=0 rxfull=0 rxpeak=22`, so FINISH is no
+longer the only way the far end can stop a Victor server. PWD, CD, MKDIR,
+RMDIR, DIRECTORY, TYPE, COPY, RENAME, DELETE, RETRIEVE, SET, MESSAGE,
+HELP, SPACE and EXIT all work; HOST, QUERY, ASSIGN, PRINT, LOGIN and WHO
+refuse cleanly and by name; **`--safe-server` is verified on the wire for
+the first time** (six commands refused, `GET` still byte-exact).
+**`REMOTE PRINT` is refused in the A-packet ACK** — before any data — so
+the file is never created; **`MAIL` is the same case handled worse and
+that one is upstream's**, because `case 'M'`'s refusal sits inside
+`#ifndef NOFRILLS` while `case 'P'`'s does not, so MAIL fails at the first
+data packet with `E Can't open file` instead.
+**Three defects, and the first was found by the server itself.** `REMOTE
+HELP` prints the capability table out of the `en_*` variables, and it said
+SPACE and WHO were `Enabled` while both could only answer `Can't check
+space` / `Can't do who command` — both go through `syscmd()`, whose body
+`NOPUSH` deletes. That is exactly the "refusal into a failure" §16i's own
+comment forbids. **WHO is now zeroed; SPACE got an answer instead** (edit
+20). **`REMOTE RMDIR` could not remove a directory at all**: `ckmkdir()`
+appends `/` for both directions on the `UNIXOROSK` arm and INT 21h
+`AH=3Ah` will not take it — upstream's OS/2 arm appends it only for
+`mkdir`, which is the tell — fixed with a `ckvictor.h` macro and a
+nine-line `v9k_rmdir()`, **no upstream edit**. **And every date the server
+reported was 1970**: `zfcdat()`'s `unsigned int mtime` truncates a
+`time_t`, which hit both the listing and the *file date attribute*, so a
+`GET` from a Victor landed on the client dated 1970 (edit 19). The proof is
+two files one binary apart, both md5-identical, dated `Jan 1 1970` and
+`Aug 16 22:02`.
+**Two harness lessons.** Leg SA's `.OUT` came back 0 bytes because its
+terminating `REMOTE EXIT` failed on the *host* and the server never
+exited — **ask what a leg's last command does to the channel the leg
+reports through**. And five commands (PWD, HELP, EXIT, COPY, RENAME)
+never reached the wire because C-Kermit **9.0.302's** `remcfm()` falls off
+an empty argument — a bug *this tree* fixed in 2014 (`ckuus7.c:7455`) — so
+**the bench Mac's client is eight years older than the source being
+ported**; use `remote pwd > file`. §16am's rule from a third direction:
+before concluding a feature does not work, check that the thing asking for
+it can ask. **`REMOTE HELP` should be the first command of any future
+server leg.**
+
 **§16aw closed `REMOTE DIRECTORY`, and the finding is that it was never
 broken: two sessions had measured the debug log.** Leg RA lists this
 project's own **157-file root in 31.077 s, zero timeouts, zero
@@ -985,15 +1027,21 @@ socket is single-use, so start `socat` first and never probe the port.
 ## Hard rules
 
 1. **Do not modify upstream C-Kermit files.** The port's value is that the
-   protocol engine is untouched. There are exactly eighteen upstream
-   edits (listed in `PORTING.md` §8); fourteen are wrapped in `#ifndef` or
+   protocol engine is untouched. There are exactly twenty upstream
+   edits (listed in `PORTING.md` §8); sixteen are wrapped in `#ifndef` or
    `#ifdef VICTOR9K` and change nothing on any other platform. **14, 15 and
    16 are not, and all three are flagged as such**: 14 moves a mis-nested
    `#endif` (an `#endif` cannot be placed conditionally), 15 fixes a cast
    that binds wrong, and 16 widens an `int` that was holding a `CK_OFF_T`.
    The last two are no-ops wherever `int` is 32 bits and so would be
-   actively harmful to guard. If you think you need a nineteenth, say so
-   explicitly rather than doing it quietly — the seventh through eighteenth
+   actively harmful to guard. **19 is a third one of exactly that shape —
+   `unsigned int mtime` holding a `time_t` in `zfcdat()` — and is guarded
+   anyway, by decision rather than by argument (§16ax).** **20 is the first
+   edit that ADDS a capability**: a `VICTOR9K` arm in `ckcpro.w` and
+   `ckcfns.c` that answers `REMOTE SPACE` from INT 21h `AH=36h` instead of
+   from `df` through a `syscmd()` that `NOPUSH` has emptied out.
+   If you think you need a twenty-first, say so
+   explicitly rather than doing it quietly — the seventh through twentieth
    were all agreed that way. Say it again if
    the edit turns out to need a second file: 12 and 13 both did, and 13's
    second half was the one that made the first half do anything.
@@ -1011,10 +1059,10 @@ socket is single-use, so start `socat` first and never probe the port.
    ask for fewer. Do not add a second assembly file without the same kind of
    measurement behind it.
 4. **Two budgets, and do not confuse them.** DGROUP holds `.data`, `.bss`
-   and the **stack** — 48,816 of 65,536 (74%) after the link, 16,720 free.
+   and the **stack** — 48,896 of 65,536 (74%) after the link, 16,640 free.
    The **heap is outside it**: `malloc()` is `_fmalloc` in the large model,
    so the packet buffers do not compete for the segment at all. What bounds
-   them is real-mode RAM: **the image needs 242,288 (236K) at load**, and
+   them is real-mode RAM: **the image needs 242,786 (237K) at load**, and
    the far heap then takes about 25K of packet buffers on top. **The receive
    ring is the exception**: at 4,096 bytes it is `.bss` and comes straight
    out of the 64K (§16k).
@@ -1064,8 +1112,8 @@ socket is single-use, so start `socat` first and never probe the port.
 | `v9k/proofs/` | host programs §8 cites as the correctness argument for a shipped edit — `vcrc16.c` (edit 17), `vttinl.c` (edit 18) and `vburst.c` (the ISR burst detector). `make -C v9k/proofs` builds *and runs* them |
 | `v9k/probes/` | genuine one-shots, kept so the answer stays checkable; build line at the top of each |
 | `ckutio.c` | serial, console, timers — **stock upstream except upstream edit 18**, the `VICTOR9K` bulk-read arm at the bottom of `ttinl()`'s per-byte loop (§16aq). Purely additive; `--nobulk` disables it at run time and `v9k: bulk sel= n=` says which arm ran |
-| `ckufio.c` | file system — **stock upstream** |
-| `ckc*.c` | protocol core — do not touch |
+| `ckufio.c` | file system — **stock upstream except upstream edit 19**, one declaration in `zfcdat()`: `unsigned int mtime` was truncating a `time_t` and dating the whole volume to 1970 (§16ax) |
+| `ckc*.c` | protocol core — do not touch. **The exceptions are edits 17, 18 and 20**, and 20 is the only one that adds a capability: a `VICTOR9K` `sndspace()` in `ckcfns.c` and the arm in `ckcpro.w` that calls it, so `REMOTE SPACE` is answered from INT 21h rather than from a `df` that `NOPUSH` deleted (§16ax) |
 
 ## Code style
 

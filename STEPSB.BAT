@@ -1,0 +1,7 @@
+ECHO OFF
+REM Leg SB -- server capability sweep: file system commands, ends with BYE.
+IF EXIST STEPSB.OUT DEL STEPSB.OUT
+IF EXIST SRVB.TXT DEL SRVB.TXT
+IF EXIST SRVC.TXT DEL SRVC.TXT
+IF EXIST SRVTMP\NUL RD SRVTMP
+CKRDR2 -l /dev/seriala -b 9600 -x > STEPSB.OUT

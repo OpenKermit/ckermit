@@ -1,0 +1,25 @@
+C-Kermit C-Kermit 11.0.506, 2026/08/03, Victor 9000 / Sirius 1
+
+Client Command     Status        Description
+ GET                Enabled       Transfer file(s) from server to client.
+ SEND               Enabled       Transfer file(s) from client to server.
+ MAIL               Disabled      Send file(s) as e-mail.
+ REMOTE ASSIGN      not configured
+ REMOTE CD          Enabled       Change server's directory.
+ REMOTE COPY        Enabled       Copy a file on the server.
+ REMOTE DELETE      Enabled       Delete a file on the server.
+ REMOTE DIRECTORY   Enabled       List files on the server.
+ REMOTE EXIT        Enabled       Exit from Kermit server program.
+ REMOTE HOST        Disabled      Execute a shell command on the server.
+ REMOTE PRINT       Disabled      Send a file to the server for printing.
+ REMOTE QUERY       not configured
+ REMOTE MKDIR       Enabled       Create a directory on the server.
+ REMOTE RMDIR       Enabled       Remove a directory on the server.
+ REMOTE RENAME      Enabled       Rename a file on the server.
+ REMOTE SET         Enabled       Set a parameter on the server
+ REMOTE SPACE       Disabled      Inquire about disk space on the server.
+ REMOTE TYPE        Enabled       Display a server file on your screen.
+ REMOTE WHO         Disabled      List who is logged in to the server.
+ FINISH             Enabled       Exit from Kermit server program.
+ BYE                Enabled       Log the server out and disconnect.
+

@@ -1,0 +1,43 @@
+set line /tmp/v9000
+set speed 9600
+set parity none
+set carrier-watch off
+set flow none
+set receive timeout 10
+set retry 5
+set take error off
+log packets s16axSA.pkt
+echo === SA01 remote pwd
+remote pwd
+echo === SA02 remote space
+remote space
+echo === SA03 remote directory SRVA.TXT
+remote directory SRVA.TXT
+echo === SA04 remote type SRVA.TXT
+remote type SRVA.TXT
+echo === SA05 remote who
+remote who
+echo === SA06 remote status
+remote status
+echo === SA07 remote set file type text
+remote set file type text
+echo === SA08 remote message
+remote message hello from the host
+echo === SA09 remote help
+remote help
+echo === SA10 remote kermit show version
+remote kermit show version
+echo === SA11 remote host dir
+remote host dir
+echo === SA12 remote query kermit version
+remote query kermit version
+echo === SA13 remote assign foo bar
+remote assign foo bar
+echo === SA14 remote print SRVA.TXT
+remote print SRVA.TXT
+echo === SA15 remote login user pass
+remote login user pass
+echo === SA16 remote exit
+remote exit
+echo === SA done
+statistics

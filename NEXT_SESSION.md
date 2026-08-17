@@ -3,8 +3,72 @@
 Handoff for the Victor 9000 port, written 9 August 2026, revised after
 §16ah and then again at the desk the same day, again on 10 August after
 §16ao, and again on 11 August after §16aq and then §16ar, and again on
-15 August after §16av. **No live defect in the receive path.** §16af
-closed the last one.
+15 August after §16av, and again on 17 August after §16ax. **No live
+defect in the receive path.** §16af closed the last one.
+
+---
+
+## §16ax: the whole server capability set, on the wire
+
+**16–17 August 2026, no Victor in reach.** Six MAME legs at 9600 (SA, SB,
+SE, SC, SF), **upstream edits 19 and 20 — the count is now twenty**, both
+agreed before being written. DGROUP **48,896 (74%)**, image **230,690**,
+needs **242,786 (237K)** — the requirement moved for the first time since
+§16aq — **smallest Victor 384K, unchanged**, warnings 18, `ckvictor.c` 0.
+md5 `0bdecef1…`.
+
+**§16i's oldest open item is closed.** `BYE` works — ACK, `doclean()`,
+`zkself()`, clean exit, `rxlost=0 rxfull=0 rxpeak=22` — so FINISH is no
+longer the only way the far end can stop a Victor server. PWD, CD, MKDIR,
+RMDIR, DIRECTORY, TYPE, COPY, RENAME, DELETE, RETRIEVE, SET, MESSAGE, HELP,
+SPACE and EXIT all work; HOST, QUERY, ASSIGN, PRINT, LOGIN and WHO refuse
+cleanly by name; **`--safe-server` is on the wire for the first time** —
+six commands refused, `GET` still byte-exact.
+
+**Three defects, all fixed and all verified by leg SF.**
+
+1. **SPACE and WHO were advertised and impossible.** The server's own
+   `REMOTE HELP` said `Enabled` while both answered `Can't check space` /
+   `Can't do who command`; both go through `syscmd()`, whose body `NOPUSH`
+   deletes. **WHO is zeroed. SPACE got an answer** — upstream edit 20, a
+   `VICTOR9K` arm in `ckcpro.w` + `ckcfns.c` calling `v9k_dskspace()`
+   (INT 21h `AH=36h`). Leg SF says `Free space: 416K`; `vtg_image_util
+   info` says `416.0 KB`.
+2. **`REMOTE RMDIR` could not remove a directory.** `ckmkdir()` appends
+   `/` for both directions on the `UNIXOROSK` arm; `AH=3Ah` refuses it.
+   `ckvictor.h` macro + nine-line `v9k_rmdir()`, **no upstream edit** —
+   upstream's OS/2 arm appends the slash only for `mkdir`, which is the
+   tell.
+3. **Every date the server reported was 1970.** `zfcdat()`'s
+   `unsigned int mtime` truncates a `time_t` — upstream edit 19, guarded.
+   It hit the listing *and* the file date attribute: two `GET`s of one
+   file, one binary apart, landed dated `Jan 1 1970` and `Aug 16 22:02`.
+
+**Two harness lessons, and the second one is the expensive one.** Leg SA's
+`.OUT` came back 0 bytes because its last command, `REMOTE EXIT`, failed on
+the host and the server never exited — **ask what a leg's terminating
+command does to the channel the leg reports through**. And five commands
+never reached the wire at all because **C-Kermit 9.0.302's `remcfm()` is
+eight years behind this tree** (`ckuus7.c:7455`, fixed 2014-11-03): PWD,
+HELP, EXIT, COPY and RENAME all answer `?Not confirmed` on an empty
+argument. Use `remote pwd > file`. §16am's rule from a third direction.
+**Make `REMOTE HELP` the first command of every future server leg** — one
+round trip, and it prints the entire `en_*` configuration as the server
+understands it.
+
+**Still untested after all six legs:** `REMOTE STATUS` (the 9.0.302 client
+has no such command; `<generic>Q` and `sndstatus()` are compiled in and
+have never been asked), and `en_ena`/`en_ret`, which **have no reader in
+this build** — `RETRIEVE` is gated by `en_del`, and `ENABLE` lives in the
+parser `NOICP` removes.
+
+**On the image now** (partition 0 is down to **416 KB free, 4.2%** — the
+next session should clear the old `CK*.EXE` legs or use `D:`):
+`CKSRV2.EXE` 230,690 md5 `0bdecef1…` is the current shipping build;
+`CKSRV.EXE` 230,274 md5 `4a98698c…` is the one-change build legs SE and SC
+ran; `CKRDR2.EXE` 230,274 md5 `5f2a1580…` is §16aw's, which legs SA and SB
+ran. `STEPSA/SB/SE/SF.BAT` and `SRVA.TXT` are staged; host side
+`s16axS*.ksc` in the tree.
 
 ---
 

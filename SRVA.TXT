@@ -1,0 +1,3 @@
+SRVA.TXT -- fixture for the server capability sweep (PORTING.md 16ax).
+Line two: abcdefghijklmnopqrstuvwxyz 0123456789
+Line three: this file is TYPEd, COPYd, RENAMEd, DELETEd and GET.

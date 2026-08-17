@@ -316,12 +316,16 @@ Streaming is **not** network-coupled — it is negotiated protocol behaviour in
 
 ## 8. Upstream changes made
 
-Eighteen edits, fifteen of them small, guarded and invisible to every
+Twenty edits, seventeen of them small, guarded and invisible to every
 other platform. **Edits 14, 15 and 16 are the exceptions and are flagged as
 such**: 14 repairs a mis-nested `#endif` in `ckcmai.c`, and a preprocessor
 conditional cannot itself be made conditional; 15 and 16 fix a 16-bit
 truncation each, and both are provable no-ops wherever `int` is 32 bits, so
 guarding them would mean knowingly shipping the broken form everywhere else.
+**Edit 19 is a third 16-bit truncation and is guarded anyway** — the same
+argument as 15 and 16 applies to it and was heard and declined; that was
+the call made when it was agreed, and it is recorded here so the
+inconsistency is visible rather than mysterious.
 
 **Two further upstream defects are FOUND AND NOT FIXED**, both in
 `ckutio.c` and both discovered by §16aj while building flow control. They
@@ -765,7 +769,65 @@ does instead; §16ao has the same for the display three.
     misreads as a length", so a transfer test cannot separate them), and the
     clamp to the room left in `dest[]` rather than to `my_count` alone.
 
-Items 2, 3, 6, 7, 8, 10, 11, 13, 14, 15 and 16 are worth offering upstream
+19. **`ckufio.c`** — one declaration in `zfcdat()`. `unsigned int mtime`
+    is assigned `buffer.st_mtime`, a `time_t`, so on a 16-bit target the
+    date is truncated mod 65536 and `zdtstr()` renders the remainder as a
+    time on **1970-01-01**. This is the third instance of edit 15 and 16's
+    shape and the first one found by testing a feature rather than by
+    reading:
+
+    ```c
+    #ifdef VICTOR9K
+        time_t mtime;
+    #else
+        unsigned int mtime;
+    #endif /* VICTOR9K */
+    ```
+
+    **It has two symptoms and only one of them is cosmetic.** `nxtdir()`
+    calls `zfcdat()` for every entry, so a `REMOTE DIRECTORY` listing dates
+    the whole volume to 1970 — and `ckufio.c:4635` calls it for
+    `xx->date.val`, the **file date attribute**, so every file a Victor
+    server sends carries the wrong date and lands on the client with it.
+    §16ax measured both: a file the Victor itself created at 1980-01-01
+    00:02 listed as `1970-01-01 11:50:50`, and the `GET` of it arrived on
+    the Mac dated 1 January 1970. Anything that compares dates across the
+    link — `SET FILE COLLISION UPDATE` is the one in this build — was
+    therefore comparing a truncation.
+
+    **Guarded, against the argument that governed 15 and 16.** It is a
+    no-op wherever `int` is 32 bits, so by that rule it should be
+    unguarded; it is wrapped because that was the decision taken, and §8's
+    header says so rather than leaving the inconsistency to be rediscovered.
+
+20. **`ckcpro.w` and `ckcfns.c`** — a `VICTOR9K` arm for `REMOTE SPACE`,
+    in the shape of the OS/2 one that has been there all along. **Purely
+    additive in both files: no upstream line changes**, and neither arm
+    compiles anywhere else.
+
+    Every UNIX build answers `REMOTE SPACE` by running `df` through
+    `syscmd()`, and `NOPUSH` compiles `syscmd()`'s body away to
+    `return(0)`, so `<generic>U`'s `#else` path could only ever reply
+    `Can't check space`. §16ax measured exactly that. `ckcfns.c` gains a
+    `sndspace()` beside the OS/2 one, using `memstr`/`memptr` because the
+    report is a single line, and `ckvictor.c` §1d gains `v9k_dskspace()` —
+    INT 21h `AH=36h`, free clusters × sectors/cluster × bytes/sector, all
+    three multiplied **as longs** because the product does not fit in 16
+    bits on any volume worth the question.
+
+    **The drive argument is deliberately ignored.** Upstream's caller
+    passes `x ? toupper(srvcmd[2]) : 0`, and with no argument on the
+    command `srvcmd[2]` is *past the terminating NUL* — honouring it would
+    report on whatever letter the previous command left in the buffer. The
+    VICTOR9K arm passes 0, which is DOS's default drive, which is the
+    volume the server is serving from.
+
+    This is the first upstream edit in the port that **adds a capability**
+    rather than repairing or accelerating one. It costs 64 bytes of DGROUP
+    (`spctext[64]`) and 288 bytes of image, and it moves the load
+    requirement from 236K to **237K** — still 384K of Victor.
+
+Items 2, 3, 6, 7, 8, 10, 11, 13, 14, 15, 16 and 19 are worth offering upstream
 regardless of this port, and **14 and 15 are the ones to send first**: it is a plain
 defect, it is ~40 years old, and it disables two documented features in any
 configuration that turns TCP/IP off.
@@ -782,8 +844,8 @@ combination of flags.
 
 ## 9. Memory budget
 
-**Current figures, as of §16aq (upstream edit 18): DGROUP 48,752 of 65,536
-(74%), far code 191,592, image 226,330, needs 240,378 (234K) at load,
+**Current figures, as of §16ax (upstream edits 19 and 20): DGROUP 48,896 of
+65,536 (74%), far code 193,864, image 230,690, needs 242,786 (237K) at load,
 smallest Victor 384K.** The block below is the ORIGINAL snapshot and is kept
 because the commentary under it is what this section is for; it is not the
 shipping build's numbers. Every section from §16ag onward states its own, and
@@ -9723,11 +9785,22 @@ image **206,758**, **needs 220,950 (215K)**, smallest Victor 384K, md5
   is C-Kermit's own internal lister, so this is inside upstream's file-send
   path. Not diagnosed. It is enabled by default; `--safe-server` refuses it
   cleanly and the session survives. (§16i)
-- **Most of the default capability set has never been exercised.** `-x`
-  without `--safe-server` enables DELETE, RMDIR, CWD, SPACE, TYPE, RENAME,
-  COPY, MKDIR and the rest. Only GET, SEND and DIRECTORY have been on the
-  wire. `BYE` has never been sent either, so FINISH is the only way the far
-  end has ever stopped a Victor server. (§16i)
+- ~~**Most of the default capability set has never been exercised.**~~
+  **Done — §16ax put all of it on the wire.** Six legs under MAME at 9600.
+  Working: PWD, CD, MKDIR, RMDIR, DIRECTORY, TYPE, COPY, RENAME, DELETE,
+  RETRIEVE, SET, MESSAGE, HELP, SPACE, EXIT and **BYE**, so FINISH is no
+  longer the only way the far end can stop a Victor server. Refusing
+  cleanly and correctly: HOST (NOPUSH), QUERY and ASSIGN (NOSPL), PRINT
+  (refused in the A-packet ACK, so the file is never created), LOGIN, and
+  WHO. `--safe-server` verified on the wire for the first time — DIRECTORY,
+  DELETE, CD, MKDIR, TYPE and EXIT all refused by name while GET still
+  works. Three defects came out of it and all three are fixed: SPACE and
+  WHO were advertised while `NOPUSH` made them impossible (SPACE now
+  answered by upstream edit 20, WHO now honestly disabled), `REMOTE RMDIR`
+  could not remove a directory at all, and every date the server reported
+  was truncated to 1970 (upstream edit 19). Still untested: `REMOTE
+  STATUS`, which the 9.0.302 host has no command for, and `en_ena`/`en_ret`,
+  which this build has no reader for. (§16ax)
 - **Wildcard patterns are case-sensitive against upper-case FAT names.**
   `-s *.txt` matches nothing; `-s *.TXT` matches three files. `ckufio.c` line
   6262 passes `icase=1` to `ckmatch()`, which `ckclib.c` line 1344 documents
@@ -11635,3 +11708,206 @@ the wait never ends — §16ar found exactly this and wrote it down, and it
 cost time here again. `ps -ax -o comm | grep mame$` does not have the
 problem. **A detector that can see itself and a detector that cannot see the
 target give the same confident wrong answer.**
+
+---
+
+## 16ax. The untested capability set, on the wire
+
+Written 16-17 August 2026, at a desk, no Victor in reach. **Six legs under
+MAME at 9600** — SA and SB on the §16aw shipping binary, SE and SC on one
+capability change, SF on the two upstream edits this section adds. **Two
+upstream edits, 19 and 20 — the count goes from eighteen to twenty**, both
+agreed under hard rule 1 before being written. DGROUP 48,832 →
+**48,896 of 65,536 (74%)**, image 230,274 → **230,690**, needs **242,786
+(237K)** — the first time the requirement has moved since §16aq — and
+**smallest Victor 384K, unchanged**. Warnings 18, `ckvictor.c` 0.
+md5 `5f2a1580…` → `0bdecef1…`.
+
+§16i has carried this item since the day server mode was built: "most of the
+default capability set has never been exercised … `BYE` has never been sent
+either, so FINISH is the only way the far end has ever stopped a Victor
+server." Every one of them is now a measurement.
+
+### BYE works, and so does everything else the item named
+
+Leg SB's last command was `G L`. The Victor ACKed it, ran `doclean()` and
+`zkself()`, and exited through its own `atexit()` handler with the counters
+intact — `Closing /dev/seriala...OK`, `rxlost=0 rxfull=0 rxpeak=22 of
+4096`, `nap n=2` (the BYE handler's own 750 ms plus `tthang()`'s 500, both
+of which only work because §16av made `msleep()` sleep). `zkself()` takes
+the `PID_T` branch and ends at `exit(kill(getppid(),1))`, so the process
+leaves with a nonzero status; nothing on DOS reads it and the exit is
+otherwise clean.
+
+| command | packet | the Victor's answer |
+|---|---|---|
+| `REMOTE PWD` | `G A` | `Y A:` |
+| `REMOTE CD` | `G C` | `Y A:/SRVTMP`, and `A:/` gets back to the root |
+| `REMOTE MKDIR` | `G m` | `Y A:/srvtmp/` |
+| `REMOTE RMDIR` | `G d` | `Y srvtm/: removed` — **after this section's fix** |
+| `REMOTE DIRECTORY` | `G D` | the listing; an empty directory answers `E No files match` |
+| `REMOTE TYPE` | `G T` | the file, text mode |
+| `REMOTE COPY` | `G K` | ACK, and the copy is in the next listing |
+| `REMOTE RENAME` | `G R` | ACK |
+| `REMOTE DELETE` | `G E` | `Deleting "SRVD.TXT" … 1 file deleted, 187 bytes freed` |
+| `RETRIEVE` | `H` | the file, byte-exact, and gone from the next listing |
+| `REMOTE SET` | `G S` | ACK |
+| `REMOTE MESSAGE` | `G M` | ACK |
+| `REMOTE HELP` | `G H` | the server's own capability table |
+| `REMOTE SPACE` | `G U` | ` Free space: 416K` — **after upstream edit 20** |
+| `REMOTE EXIT` | `G X` | ACK, clean exit |
+| `BYE` | `G L` | ACK, clean exit |
+
+And the refusals, which are as much a result as the successes, because a
+server that refuses correctly is a server whose capability gate works:
+
+| `REMOTE HOST` | `C dir` | `E REMOTE HOST disabled` | `NOPUSH`, `en_hos` 0 |
+|---|---|---|---|
+| `REMOTE QUERY`, `REMOTE ASSIGN` | `G V` | `E Variable query/set not available` | `NOSPL` |
+| `REMOTE LOGIN` | `G I` | `E Login ignored.` | no login configured |
+| `REMOTE KERMIT` | `K …` | `E Unimplemented server function` | there is no `<serve>K` in `ckcpro.w` on any platform |
+| `REMOTE PRINT` | S/F/A | refused **in the A-packet ACK**, reason `+` | `en_pri` 0, `gattr()` `case 'P'` |
+| `REMOTE WHO` | `G W` | `E REMOTE WHO disabled` | after this section; it was `Can't do who command` |
+
+**`REMOTE PRINT`'s refusal is the one worth reading closely**, because it is
+the one that could have written to the disk and did not. `ckcfn3.c`'s
+`gattr()` sees disposition `P`, finds `en_pri` 0, and returns the refusal in
+the ACK to the **attribute** packet — before any data arrives and before
+`rcv_firstdata()` would have tried to `openc()` a pipe to `lp`. The host
+answers with `Z` data `D` (discard) and the fixture on the image is
+byte-identical afterwards.
+
+**`MAIL` is the same case handled worse, and that one is upstream's.** The
+`case 'M'` arm that would have refused it sits inside `#ifndef NOFRILLS`
+(`ckcfn3.c:1769`) while `case 'P'` twelve lines below does not, so with
+`NOFRILLS` defined the disposition is never checked. The Victor accepted the
+F packet, ACKed the A packet, opened nothing, and answered the **first data
+packet** with `E Can't open file`. Same outcome, three round trips later,
+with an error message that names the wrong thing. Report-upstream item; not
+fixed here.
+
+### `--safe-server` is verified on the wire for the first time
+
+§16i built it and checked it through `uname()`; leg SC ran it. `DIRECTORY`,
+`DELETE`, `CD`, `MKDIR`, `TYPE` and `EXIT` each came back with their own
+name — `E REMOTE DIRECTORY disabled`, `E REMOTE CD disabled`, `E EXIT
+disabled` — and `GET SRVA.TXT` in the middle of them transferred byte-exact.
+The gate is per-command and it is the right way round.
+
+### Three defects, and the first was found by the server itself
+
+**`REMOTE HELP` is the instrument this section did not expect to need.**
+`sndhlp()` prints the capability table out of the `en_*` variables, so the
+server states its own configuration in a form the client can read. It said:
+
+```
+ REMOTE SPACE       Enabled       Inquire about disk space on the server.
+ REMOTE WHO         Enabled       List who is logged in to the server.
+```
+
+while `G U` and `G W` answered `Can't check space` and `Can't do who
+command`. Both are served by `syscmd()`, which is a shell pipe, and
+`NOPUSH` compiles its body away to `return(0)` — so both were **advertised
+and impossible**, which is precisely the "turn a refusal into a failure"
+that §16i's own comment in `ckvictor.c` says to avoid for HOST, MAIL and
+PRINT. The initializer had the rule written above it and had not applied it
+to these two.
+
+WHO is now zeroed rather than merely left alone, because the default 2
+prints as "Remote only" and 0 prints as "Disabled" — upstream does the same
+thing to `en_hos` under `NOPUSH` (`ckcmai.c:1596`). **SPACE got an answer
+instead**: upstream edit 20, `INT 21h AH=36h` in `ckvictor.c` behind a
+`VICTOR9K` arm of `sndspace()` and `<generic>U`, both purely additive.
+**Leg SF answers ` Free space: 416K` and `vtg_image_util info` reads
+`Free: 416.0 KB (4.2%)` on the same volume** — two routes to the same
+number, one of them through the FAT the other through DOS, which is what
+makes the arithmetic (clusters × sectors/cluster × bytes/sector, all as
+longs) a measurement rather than a hope.
+
+**`REMOTE RMDIR` could not remove a directory.** `ckmkdir()` appends `/` to
+the name before calling down — "Must end in `/` for `zmkdir()`",
+`ckcfn3.c:133` — and on the `UNIXOROSK` arm it does that for **both**
+directions. INT 21h `AH=3Ah` will not take a trailing separator, so every
+`REMOTE RMDIR` this port has ever served failed with `srvtm/: ` and an empty
+`ck_errstr()`. It failed from inside the directory and from the root alike,
+which is what ruled out the obvious explanation before the fix was written. **Upstream's own OS/2 arm twenty lines below appends it only
+when `fc == 0`**, which is the tell: someone met this on a DOS-shaped file
+system before. The fix is a `ckvictor.h` macro and a nine-line function in
+`ckvictor.c`, in the shape of the `mkdir()` shim already beside it — **no
+upstream edit**, and `mkdir` is untouched because the same name with the
+same slash created the directory in the first place.
+
+**Every date the server reported was 1970.** That is upstream edit 19 and
+§8 has it; the evidence is a pair of files that differ by one binary:
+
+```
+-rw-rw-rw-  187  Jan  1  1970  SRVA.TXT.~1~     leg SC, before edit 19
+-rw-rw-rw-  187  Aug 16 22:02  SRVA.TXT.~2~     leg SF, after
+```
+
+Same file, same server, same `GET`, both md5 `225c084e…`. The listing moved
+the same way — `1970-01-01 02:39:06` became `2026-08-16 22:02:02` — and the
+A-packet date went from `19700101` to `120260816`. **The listing is the
+symptom you notice and the attribute is the one that matters**: a client
+that keeps server dates was keeping a truncation, and `SET FILE COLLISION
+UPDATE` compares exactly that field.
+
+### Two capability variables have no reader in this build
+
+`en_ret` is assigned by `ckvictor.c` and tested **nowhere** — `RETRIEVE` is
+gated by `en_del` at `<serve>H`, and `ckcfns.c:6179` even carries
+`/* en_ret, */` commented out of its own extern list. `en_ena` is tested
+only inside `ckuus6.c`'s `doenable()`, which is the local `ENABLE` command
+that `NOICP` removes. Both are set to 3 by the initializer and neither
+changes anything; they are left in place because they cost nothing and
+would matter to a `KEEP_ICP` build, but nobody should test them looking for
+an effect.
+
+### What the harness did wrong, and one thing it did right
+
+**Leg SA lost its Victor-side counters, and the cause is that the leg's
+last command failed on the host.** `REMOTE EXIT` never reached the wire, so
+the server sat in command-wait until `-seconds_to_run` killed MAME under it
+and `STEPSA.OUT` came back **0 bytes**. Same shape as §16av's leg NF and its
+full-disk redirect: **ask what a leg's terminating command does to the
+channel the leg reports through.** Every leg after SA ends in `REMOTE EXIT`,
+`BYE` or `FINISH` for that reason.
+
+**Five commands failed in the *host's* parser and none of them was ours.**
+`REMOTE PWD`, `HELP`, `EXIT`, `COPY` and `RENAME` all answered `?Not
+confirmed` before sending a packet. They are the five that end in
+`remcfm()`, and C-Kermit 9.0.302's `remcfm()` falls off the end of an empty
+argument into a test for `>` or `|`. **This tree already has the fix** —
+`ckuus7.c:7455`, `if (!*s) return(1);`, dated 2014-11-03 — so the bench Mac's
+`kermit` is simply eight years older than the source being ported. The
+workaround is the redirect form the parser is looking for: `remote pwd >
+file`. `REMOTE CDUP` is a different one — 9.0.302 answers "?Sorry, REMOTE
+CDUP not supported yet" and never sends `G B` at all.
+
+**That is §16am's rule arriving from a third direction.** §16am found that a
+host advertising "Hardware flow control" did not compile `POSIX_CRTSCTS`;
+§16aj found that a line of upstream source is not evidence that *this* build
+compiles it. Here the far end's *parser* is a version behind, so five
+capabilities read as untestable when only the client was at fault.
+**Before concluding that a feature does not work, check that the thing
+asking for it can ask.**
+
+**And the one that went right: `REMOTE HELP` should be the first command of
+any future server leg.** It is one round trip, it costs nothing, and it
+prints the whole `en_*` configuration as the server understands it — which
+is how a defect that had been shipping since §16i was found in the same
+session that was merely trying to exercise it.
+
+### Timings, and why they are not the port's
+
+Legs SB, SE and SF took host timeouts on `COPY` (2), `RENAME` (1), `MKDIR`
+(1), `DELETE` of a nonexistent file (2) and an F packet (3) — 10 to 25
+seconds for operations that touch one small file. Nothing was lost;
+`set retry 10` covered all of them and every leg finished with
+`rxlost=0 rxfull=0`. **The common factor is a directory search or a
+directory write on a 168-entry FAT root**, and §16n's caveat applies at
+full force: MAME's disk timing is almost certainly MAME's and not the
+Victor's (0.124 s per `write()` is very slow for a real drive). **These
+numbers should not be quoted as the cost of a server command on a Victor**
+until a bench sitting has them; what they do establish is that the
+commands complete and that the protocol rides out a slow server correctly.

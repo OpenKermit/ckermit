@@ -1,0 +1,43 @@
+set line /tmp/v9000
+set speed 9600
+set parity none
+set carrier-watch off
+set flow none
+set receive timeout 10
+set retry 10
+set take error off
+log packets s16axSB.pkt
+echo === SB01 remote pwd
+remote pwd > s16axSB-pwd.txt
+echo === SB02 remote copy SRVA.TXT SRVB.TXT
+remote copy SRVA.TXT SRVB.TXT
+echo === SB03 remote directory SRV*.TXT
+remote directory SRV*.TXT
+echo === SB04 remote rename SRVB.TXT SRVC.TXT
+remote rename SRVB.TXT SRVC.TXT
+echo === SB05 remote type SRVC.TXT
+remote type SRVC.TXT
+echo === SB06 remote delete SRVC.TXT
+remote delete SRVC.TXT
+echo === SB07 remote directory SRV*.TXT after delete
+remote directory SRV*.TXT
+echo === SB08 remote mkdir SRVTMP
+remote mkdir SRVTMP
+echo === SB09 remote cd SRVTMP
+remote cd SRVTMP
+echo === SB10 remote pwd in SRVTMP
+remote pwd > s16axSB-pwd2.txt
+echo === SB11 remote directory in SRVTMP
+remote directory
+echo === SB12 remote cdup
+remote cdup
+echo === SB13 remote pwd after cdup
+remote pwd > s16axSB-pwd3.txt
+echo === SB14 remote rmdir SRVTMP
+remote rmdir SRVTMP
+echo === SB15 remote help
+remote help > s16axSB-help.txt
+echo === SB16 bye
+bye
+echo === SB done
+statistics

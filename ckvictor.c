@@ -88,6 +88,7 @@
 /* The one DOS function number this file still spells out (section 0b). */
 #define DOS_CHK_STDIN   0x0b            /* Check standard input status  */
 #define DOS_RAW_STDIN   0x07            /* Direct console input, no echo*/
+#define DOS_GET_DISKFREE 0x36           /* Free space on a drive (1d)   */
 
 /*
   ckufio.c's "extern long timezone" is aliased to this by ckvictor.h,
@@ -4339,6 +4340,80 @@ VOID setpwent(void) { }
 VOID endpwent(void) { }
 
 /*
+  rmdir() -- the same call, with the trailing separator taken back off.
+
+  ckvictor.h has the argument for this next to the mkdir() macro: ckmkdir()
+  (ckcfn3.c:133) appends "/" for both directions on the UNIXOROSK arm, and
+  INT 21h AH=3Ah will not take it, so REMOTE RMDIR failed on every
+  directory it was asked to remove (PORTING.md SS16ax, leg SE: "srvtm/: ",
+  the directory still there afterwards).
+
+  128 bytes of stack, because ckvictor.h holds CKMAXPATH to 128 -- hard
+  rule 7, and this sits under ckmkdir(), which already has two buffers of
+  that size on the frame.  A name that does not fit is passed through
+  unchanged rather than truncated: rmdir() will then fail on it, which is
+  the same answer it gives today and never the wrong directory.
+*/
+
+/*
+  v9k_dskspace() -- free bytes on a drive, for REMOTE SPACE.
+
+  Upstream edit 20 (PORTING.md SS8 item 20, SS16ax) gives ckcpro.w's
+  <generic>U and ckcfns.c's sndspace() a VICTOR9K arm; this is the half
+  that asks DOS.  Every other Unix build answers REMOTE SPACE by running
+  df(1) through syscmd(), and NOPUSH compiles syscmd()'s body away, which
+  is why the command could only ever fail here.
+
+  INT 21h AH=36h, DL = drive (0 = default, 1 = A:), and it is rule 6
+  clean.  It returns sectors/cluster in AX, free clusters in BX, bytes/
+  sector in CX, total clusters in DX, and AX = 0FFFFh for an invalid
+  drive.  The three factors are multiplied as longs because the product
+  overflows 16 bits on any volume worth asking about -- this machine's is
+  9.7 MB.  Returns -1 if DOS would not answer.
+*/
+
+long
+#ifdef CK_ANSIC
+v9k_dskspace(int drive)
+#else
+v9k_dskspace(drive) int drive;
+#endif /* CK_ANSIC */
+{
+    union REGS r;
+
+    r.h.ah = DOS_GET_DISKFREE;
+    r.h.dl = (unsigned char)(drive & 0xff);
+    intdos(&r,&r);
+    if (r.w.ax == 0xFFFF)               /* Invalid drive                */
+      return(-1L);
+    return((long)r.w.ax * (long)r.w.bx * (long)r.w.cx);
+}
+
+#undef rmdir                            /* Or this would call itself */
+
+int
+#ifdef CK_ANSIC
+v9k_rmdir(const char * path)
+#else
+v9k_rmdir(path) const char * path;
+#endif /* CK_ANSIC */
+{
+    char buf[CKMAXPATH+1];
+    int n;
+
+    if (!path)
+      return(rmdir(path));              /* Let the runtime complain */
+    n = (int)strlen(path);
+    if (n < 2 || n > CKMAXPATH)         /* "/" alone is not a trailing */
+      return(rmdir(path));              /* separator, it is the root  */
+    if (path[n-1] != '/' && path[n-1] != '\\')
+      return(rmdir(path));
+    memcpy(buf,path,n-1);
+    buf[n-1] = '\0';
+    return(rmdir(buf));
+}
+
+/*
   nap() -- the sub-second delay upstream's msleep() could not make here.
 
   ckutio.c's msleep() has arms for select(), poll(), usleep(), nap(),
@@ -4597,7 +4672,29 @@ static struct v9k_rt_init __based(__segname("XI")) v9k_fmode_rec =
   which is compat_10's list plus DELETE/RMDIR/RETRIEVE/EXIT/BYE.  HOST is
   left alone because NOPUSH already removed the thing it would run, and
   MAIL and PRINT because this build has no transport for either; setting
-  those to 3 would only turn a refusal into a failure.  --safe-server is
+  those to 3 would only turn a refusal into a failure.
+
+  SPACE and WHO were that same case and this initializer got them wrong
+  until PORTING.md SS16ax measured them.  Both were served by syscmd()
+  (ckcpro.w's <generic>U and <generic>W), syscmd() is a shell pipe, and
+  NOPUSH compiles its body away to "return(0)" -- so a Victor server that
+  advertised them could only ever answer "Can't check space" and "Can't do
+  who command", which is exactly the failure-instead-of-refusal the
+  paragraph above was written to avoid.
+
+  WHO is zeroed rather than merely left alone: the default is 2, and 2
+  prints as "Remote only" in the server's own REMOTE HELP table (nm[] at
+  ckcfns.c:3), where 0 prints as "Disabled" alongside HOST, MAIL and
+  PRINT.  Zeroing is also what upstream itself does to en_hos under
+  NOPUSH (ckcmai.c:1596).  Nothing on a single-user DOS machine could
+  answer it anyway.
+
+  SPACE was zeroed for one build and is enabled again, because it was the
+  one of the two worth having: upstream edit 20 gives ckcpro.w and
+  ckcfns.c a VICTOR9K arm that asks DOS directly (INT 21h AH=36h,
+  v9k_dskspace() in section 1d) instead of running df(1).
+
+  --safe-server is
   for a line whose far end is not entirely yours: it grants the three
   commands a file transfer needs and nothing that manipulates the Victor's
   file system.  Note the asymmetry -- en_ena stays at its default under
@@ -4690,9 +4787,16 @@ v9k_set_srvcaps(void)
        that lets the far end shut the server down again. */
     en_get = en_sen = en_fin = 3;
 
+    /* WHO goes through syscmd(), which NOPUSH has already emptied out, so
+       the honest state is the one HOST, MAIL and PRINT are already in --
+       see the SPACE and WHO paragraph in the comment above.  SPACE was
+       here too until upstream edit 20 gave it an answer that does not
+       need a shell; it is back in the enabled list below. */
+    en_who = 0;
+
     if (!v9k_srvcaps_safe) {
         en_xit = en_cwd = en_cpy = en_del = en_mkd = en_rmd = en_dir =
-          en_ren = en_set = en_spa = en_typ = en_who = en_bye = en_asg =
+          en_ren = en_set = en_spa = en_typ = en_bye = en_asg =
           en_que = en_ret = en_ena = 3;
     }
 }
