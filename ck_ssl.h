@@ -55,7 +55,7 @@
 #ifndef OPENSSL_098                     /* sms 15 November 2022 */
 #define OPENSSL_098
 #endif /* OPENSSL_098 */
-#endif	/* OPENSSL_100 */
+#endif  /* OPENSSL_100 */
 
 #ifdef OPENSSL_098
 #ifndef OPENSSL_097                     /* sms 15 November 2022 */
@@ -64,7 +64,7 @@
 #endif /* OPENSSL_098 */
 #ifdef CK_DES
 #include <openssl/des.h>
-#endif	/* CK_DES */
+#endif  /* CK_DES */
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
 #include <openssl/rand.h>

@@ -104,9 +104,9 @@ jobs:
         run: |
           cp /usr/bin/gkermit gkermit
           curl -sSfL -o ckermit-old-9.0.302 \
-            https://archive.org/download/ckermit-9.0.302-linux-amd64/ckermit-9.0.302-linux-amd64
+            https://kermit.mirrors.quux.org/openkermit/testtools/ckermit-9.0.302-linux-amd64
           curl -sSfL -o eksw \
-            https://archive.org/download/eksw_20260802/eksw
+            https://kermit.mirrors.quux.org/openkermit/testtools/eksw
           sha256sum -c tests/compat-binaries.sha256
           chmod +x ckermit-old-9.0.302 eksw
 
@@ -238,7 +238,10 @@ jobs:
       # them.
       - name: Build and test on FreeBSD
         uses: vmactions/freebsd-vm@v1
+        env:
+          KERMIT_TEST_DEBUG_LOOPBACK: 1
         with:
+          envs: KERMIT_TEST_DEBUG_LOOPBACK
           cpu: ${{ steps.cpus.outputs.count }}
           usesh: true
           prepare: |
@@ -260,7 +263,7 @@ jobs:
             make -j4 ${{ inputs.upload-artifact && 'freebsd' ||
               'freebsd+ssl' }}
             make check
-            pytest -rs --log-level=INFO -n 8
+            pytest -rs --log-level=INFO -n auto
 
       - name: Upload binary
         if: inputs.upload-artifact
@@ -281,7 +284,10 @@ jobs:
       # SSL logic as with FreeBSD
       - name: Build and test on NetBSD
         uses: vmactions/netbsd-vm@v1
+        env:
+          KERMIT_TEST_DEBUG_LOOPBACK: 1
         with:
+          envs: KERMIT_TEST_DEBUG_LOOPBACK
           cpu: ${{ steps.cpus.outputs.count }}
           usesh: true
           prepare: |
@@ -315,7 +321,7 @@ jobs:
             make -j4 ${{ inputs.upload-artifact && 'netbsd' ||
               'netbsd+ssl-des' }}
             make check
-            pytest -rs --log-level=INFO -n 8
+            pytest -rs --log-level=INFO -n auto
 
       - name: Upload binary
         if: inputs.upload-artifact
@@ -336,7 +342,10 @@ jobs:
       # SSL logic as with FreeBSD
       - name: Build and test on OpenBSD
         uses: vmactions/openbsd-vm@v1
+        env:
+          KERMIT_TEST_DEBUG_LOOPBACK: 1
         with:
+          envs: KERMIT_TEST_DEBUG_LOOPBACK
           cpu: ${{ steps.cpus.outputs.count }}
           usesh: true
           prepare: |
@@ -356,7 +365,7 @@ jobs:
             make -j4 ${{ inputs.upload-artifact && 'openbsd' ||
               'openbsd+ssl' }}
             make check
-            pytest -rs --log-level=INFO -n 8
+            pytest -rs --log-level=INFO -n auto
 
       - name: Upload binary
         if: inputs.upload-artifact

@@ -42,6 +42,7 @@
 #define NET_HX25 14                     /* HP-UX 10 X.25 */
 #define NET_PTY  15                     /* Pseudoterminal */
 #define NET_SSH  16                     /* SSH */
+#define NET_VSOCK 17                    /* KVM/Linux VSOCK (AF_VSOCK) */
 
 #ifdef OS2                              /* In OS/2, only the 32-bit */
 #ifndef __32BIT__                       /* version gets NETBIOS */
@@ -91,8 +92,8 @@
 #define NP_K5U2U       18               /* TCP/IP Kerberos 5 User to User */
 #define NP_CTERM       19               /* DEC CTERM */
 #define NP_LAT         20               /* DEC LAT */
-#define NP_SSL_RAW     21		/* SSL with no Telnet permitted */
-#define NP_TLS_RAW     22		/* TLS with no Telnet permitted */
+#define NP_SSL_RAW     21               /* SSL with no Telnet permitted */
+#define NP_TLS_RAW     22               /* TLS with no Telnet permitted */
 
 /* others here... */
 
@@ -219,7 +220,7 @@ _PROTOTYP( int locate_txt_rr, (char *prefix, char *name, char **retstr) );
 #ifdef TCPSOCKET
 _PROTOTYP( int gettcpport, (void) );
 _PROTOTYP( int gettcpport, (void) );
-#endif	/* TCPSOCKET */
+#endif  /* TCPSOCKET */
 
 /*
   SunLink X.25 support by Marcello Frutig, Catholic University,
@@ -1020,8 +1021,8 @@ typedef unsigned int u_int;
 
 #include <in.h>
 #ifdef VMS
-#include <inet.h>			/* (SMS 2007/02/15) */
-#endif	/* VMS */
+#include <inet.h>                       /* (SMS 2007/02/15) */
+#endif  /* VMS */
 #include <netdb.h>
 #include <socket.h>
 #include "ckvioc.h"
@@ -1227,26 +1228,42 @@ typedef char * caddr_t; /* core address type */
 #include <net/if.h>
 #endif /* CK_IPV6 */
 
+/*
+  Define CK_VSOCK when AF_VSOCK is supported and <linux/vm_sockets.h>
+  is available.  CK_HAVE_VM_SOCKETS_H is defined by the build system
+  when <linux/vm_sockets.h> is present.
+*/
+#ifdef LINUX
+#ifdef TCPSOCKET
+#ifdef AF_VSOCK
+#ifdef CK_HAVE_VM_SOCKETS_H
+#include <linux/vm_sockets.h>
+#define CK_VSOCK
+#endif /* CK_HAVE_VM_SOCKETS_H */
+#endif /* AF_VSOCK */
+#endif /* TCPSOCKET */
+#endif /* LINUX */
+
 /* Include interface address headers when CK_GETIFADDRS is defined. */
 #ifdef CK_GETIFADDRS
 #include <ifaddrs.h>
 #include <net/if.h>
 #endif /* CK_GETIFADDRS */
 
-#ifndef NOINADDRX		      /* 301 - Needed for Solaris 10 and 11 */
+#ifndef NOINADDRX                     /* 301 - Needed for Solaris 10 and 11 */
 #ifdef SOLARIS
 #define NOINADDRX
 #ifdef INADDR_NONE
 #undef INADDR_NONE
-#endif	/* INADDR_NONE */
-#endif	/* SOLARIS */
-#endif	/* NOINADDRX */
+#endif  /* INADDR_NONE */
+#endif  /* SOLARIS */
+#endif  /* NOINADDRX */
 
 #ifdef NOINADDRX
 #ifdef INADDRX
 #undef INADDRX
-#endif	/* INADDRX */
-#endif	/* NOINADDRX */
+#endif  /* INADDRX */
+#endif  /* NOINADDRX */
 
 #ifdef TCPSOCKET
 #ifndef NOHADDRLIST
@@ -1458,16 +1475,16 @@ extern char * tcp_http_proxy_pwd;       /* Password of user */
 #else
 #ifdef HPUX
 #define socklen_t int
-#endif	/* HPUX */
-#endif	/* TRU64 */
+#endif  /* HPUX */
+#endif  /* TRU64 */
 
 #ifndef SOCKOPT_T
 #ifdef CK_64BIT
 #ifndef NT
 #define SOCKOPT_T socklen_t
 #endif  /* NT */
-#endif	/* CK_64BIT */
-#endif	/* SOCKOPT_T */
+#endif  /* CK_64BIT */
+#endif  /* SOCKOPT_T */
 
 #ifndef SOCKOPT_T
 #define SOCKOPT_T int
@@ -1513,8 +1530,8 @@ extern char * tcp_http_proxy_pwd;       /* Password of user */
 #ifndef NT
 #define GSOCKNAME_T socklen_t
 #endif  /* NT */
-#endif	/* CK_64BIT */
-#endif	/* GSOCKNAME_T */
+#endif  /* CK_64BIT */
+#endif  /* GSOCKNAME_T */
 
 #ifndef GSOCKNAME_T
 #define GSOCKNAME_T int
@@ -1549,8 +1566,8 @@ extern char * tcp_http_proxy_pwd;       /* Password of user */
 #endif /* GSOCKNAME_T */
 
 _PROTOTYP( int ck_straddr, (struct sockaddr *, GSOCKNAME_T, char *, int) );
-_PROTOTYP( unsigned short ck_getport, (struct sockaddr *) );
-_PROTOTYP( VOID ck_setport, (struct sockaddr *, unsigned short) );
+_PROTOTYP( unsigned int ck_getport, (struct sockaddr *) );
+_PROTOTYP( VOID ck_setport, (struct sockaddr *, unsigned int) );
 #ifdef CK_IPV6
 _PROTOTYP( int ck_tcp_connect, (char *, char *, int, int *,
                                 struct sockaddr_storage *, GSOCKNAME_T *,
@@ -1559,6 +1576,10 @@ _PROTOTYP( int ck_scopeaddr6, (char *, struct in6_addr *, unsigned int *) );
 #endif /* CK_IPV6 */
 _PROTOTYP( int ck_splithostport, (char *, char *, int, char *, int) );
 _PROTOTYP( VOID ck_bracketaddr, (char *, int) );
+#ifdef CK_VSOCK
+_PROTOTYP( int ck_parse_vsock_addr,
+           (char *, unsigned int *, unsigned int *) );
+#endif /* CK_VSOCK */
 
 #endif /* TCPSOCKET */
 

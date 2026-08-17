@@ -40,13 +40,13 @@ char *ckxv = "UNIX Communications support, 11.0.500, 22 Jul 2026";
   platform.
 */
 
-extern int nettype;			/* Defined in ckcmai.c */
+extern int nettype;                     /* Defined in ckcmai.c */
 extern int duplex;
 
 /* Includes */
 
-#include "ckcsym.h"			/* This must go first   */
-#include "ckcdeb.h"			/* This must go second  */
+#include "ckcsym.h"                     /* This must go first   */
+#include "ckcdeb.h"                     /* This must go second  */
 
 /* This is for -DNONET builds external SSH client builds */
 #ifndef NETCONN
@@ -64,12 +64,12 @@ extern int duplex;
 #endif /* OSF13 */
 
 #ifndef HPUXPRE65
-#include <errno.h>			/* Error number symbols */
+#include <errno.h>                      /* Error number symbols */
 #else
 #ifndef ERRNO_INCLUDED
-#include <errno.h>			/* Error number symbols */
-#endif	/* ERRNO_INCLUDED */
-#endif	/* HPUXPRE65 */
+#include <errno.h>                      /* Error number symbols */
+#endif  /* ERRNO_INCLUDED */
+#endif  /* HPUXPRE65 */
 
 #ifdef __386BSD__
 #define ENOTCONN 57
@@ -99,7 +99,7 @@ static struct timeval tv;
 #include <sys/time.h>
 #endif /* CLIX */
 
-#include "ckcnet.h"			/* Symbols for network types. */
+#include "ckcnet.h"                     /* Symbols for network types. */
 #ifdef CK_SSL
 #include "ck_ssl.h"
 #endif /* CK_SSL */
@@ -109,7 +109,7 @@ static struct timeval tv;
   file-system-related symbols to find out which system we're being compiled
   under.  For example, MAXNAMLEN is defined in BSD4.2 but not 4.1.
 */
-#ifdef SDIRENT				/* Directory bits... */
+#ifdef SDIRENT                          /* Directory bits... */
 #define DIRENT
 #endif /* SDIRENT */
 
@@ -170,7 +170,7 @@ bzero(s,n) char *s; int n; {
 #endif /* MIPS */
 
 #ifdef M_UNIX
-#undef NGROUPS_MAX		/* Prevent multiple definition warnings */
+#undef NGROUPS_MAX              /* Prevent multiple definition warnings */
 #endif /* M_UNIX */
 
 /*
@@ -178,15 +178,15 @@ bzero(s,n) char *s; int n; {
   library routine, so _poll comes up undefined at link time.
 */
 #ifdef CK_POLL
-#ifndef AIXRS			/* IBM AIX needs special handling */
-#include <poll.h>		/* "standard" (SVID) i/o multiplexing, etc */
+#ifndef AIXRS                   /* IBM AIX needs special handling */
+#include <poll.h>               /* "standard" (SVID) i/o multiplexing, etc */
 #else /* AIXRS */
-#ifdef SVR4			/* AIX 3.2 is like SVID... */
+#ifdef SVR4                     /* AIX 3.2 is like SVID... */
 #include <poll.h>
-#else				/* But AIX 3.1 is not ... */
-#include <sys/poll.h>		/* The include file is in include/sys */
-#define events reqevents	/* And it does not map IBM-specific member */
-#define revents rtnevents	/* names to the System V equivalents */
+#else                           /* But AIX 3.1 is not ... */
+#include <sys/poll.h>           /* The include file is in include/sys */
+#define events reqevents        /* And it does not map IBM-specific member */
+#define revents rtnevents       /* names to the System V equivalents */
 #endif /* SVR4 */
 #endif /* AIXRS */
 #endif /* CK_POLL */
@@ -210,9 +210,9 @@ bzero(s,n) char *s; int n; {
 */
 #ifdef BSD4
 #ifdef MAXNAMLEN
-#ifndef FT21				/* Except for Fortune. */
+#ifndef FT21                            /* Except for Fortune. */
 #ifndef FT18
-#ifndef BELLV10				/* And Bell Labs Research UNIX V10 */
+#ifndef BELLV10                         /* And Bell Labs Research UNIX V10 */
 #define BSD42
 #endif /* BELLV10 */
 #endif /* FT18 */
@@ -220,18 +220,18 @@ bzero(s,n) char *s; int n; {
 #endif /* MAXNAMLEN */
 #endif /* BSD4 */
 
-#ifdef SUNOS41				/* From Christian Corti */
-#define BSD44ORPOSIX			/* Uni Stuttgart */
-#define SVORPOSIX			/* February 2010 */
+#ifdef SUNOS41                          /* From Christian Corti */
+#define BSD44ORPOSIX                    /* Uni Stuttgart */
+#define SVORPOSIX                       /* February 2010 */
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <limits.h>
-#endif	/* SUNOS41 */
+#endif  /* SUNOS41 */
 
 #ifdef SNI542
-#include <sys/filio.h>			/* 299 for FIONREAD */
-#endif	/* SNI542 */
+#include <sys/filio.h>                  /* 299 for FIONREAD */
+#endif  /* SNI542 */
 
 /*
   Minix 2.0 support added by Terry McConnell,
@@ -244,7 +244,7 @@ bzero(s,n) char *s; int n; {
 #define SVORPOSIX
 #ifndef MINIX3
 #define DCLTIMEVAL
-#endif	/* MINIX3 */
+#endif  /* MINIX3 */
 #define NOFILEH
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -266,42 +266,42 @@ bzero(s,n) char *s; int n; {
 #include <limits.h>
 #endif /* MINIX */
 
-#ifdef CK_REDIR		/* <sys/wait.h> needed only for REDIRECT command. */
+#ifdef CK_REDIR         /* <sys/wait.h> needed only for REDIRECT command. */
 /*
   If anybody can figure out how to make this work with NeXTSTEP, be
   my guest!  (NeXTBlah/NeXTBlah/bsd/sys/wait.h does not define WEXITSTATUS)
 */
-#ifndef CK_WAIT_H			/* If wait.h not already included... */
-#ifdef OSF				/* force OSF to select POSIX wait */
-#ifdef _BSD				/* instead of BSD (see ckcdeb.h) */
+#ifndef CK_WAIT_H                       /* If wait.h not already included... */
+#ifdef OSF                              /* force OSF to select POSIX wait */
+#ifdef _BSD                             /* instead of BSD (see ckcdeb.h) */
 #define CK_OSF_BSD
 #undef _BSD
 #endif /* _BSD */
 #endif /* OSF */
-#include <sys/wait.h>			/* Include it */
+#include <sys/wait.h>                   /* Include it */
 #ifdef OSF
 #ifdef CK_OSF_BSD
-#define _BSD				/* Restore it */
+#define _BSD                            /* Restore it */
 #undef CK_OSF_BSD
 #endif /* CK_OSF_BSD */
 #endif /* OSF */
 #endif /* CK_WAIT_H */
 #endif /* CK_REDIR */
 
-#include "ckuver.h"			/* Version herald */
+#include "ckuver.h"                     /* Version herald */
 char *ckxsys = HERALD;
 
 #ifdef CK_UTSNAME
 #include <sys/utsname.h>
 
-#ifdef TRU64				/* Tru64 UNIX 4.0 and later */
+#ifdef TRU64                            /* Tru64 UNIX 4.0 and later */
 /* Verified on Tru64 4.0F - might break on 4.0E or earlier */
-#include <sys/sysinfo.h>		/* (don't know about OSF/1 or DU) */
+#include <sys/sysinfo.h>                /* (don't know about OSF/1 or DU) */
 #include <machine/hal_sysinfo.h>
 #endif /* TRU64 */
 
-#ifdef SOLARIS25			/* Solaris 2.5 and later */
-#include <sys/systeminfo.h>		/* (don't know about earlier ones) */
+#ifdef SOLARIS25                        /* Solaris 2.5 and later */
+#include <sys/systeminfo.h>             /* (don't know about earlier ones) */
 #endif /* SOLARIS25 */
 
 #ifdef UW7
@@ -333,22 +333,22 @@ char unm_ver[CK_SYSNMLN+1] = { '\0', '\0' };
 #endif /* CK_UTSNAME */
 
 #ifdef CIE
-#include <stat.h>			/* For chasing symlinks, etc. */
+#include <stat.h>                       /* For chasing symlinks, etc. */
 #else
 #include <sys/stat.h>
 #endif /* CIE */
 
-#ifdef QNX				/* 299 */
+#ifdef QNX                              /* 299 */
 #ifndef IXANY
 #define IXANY 0
-#endif	/* IXANY */
-#endif	/* QNX */
+#endif  /* IXANY */
+#endif  /* QNX */
 
 /* UUCP lockfile material... */
 
 #ifndef NOUUCP
 #ifdef USETTYLOCK
-#ifdef HAVE_LOCKDEV			/* Red Hat baudboy/lockdev */
+#ifdef HAVE_LOCKDEV                     /* Red Hat baudboy/lockdev */
 /*
   Watch out: baudboy.h references open() without making sure it has been
   declared, resulting in warnings on at least Red Hat 7.3.  It's declared in
@@ -365,21 +365,21 @@ char unm_ver[CK_SYSNMLN+1] = { '\0', '\0' };
   Extra: HAVE_LOCKDEV has been added als openSuSE >= 11.3 doesn't use baudboy
   but ttylock.  - jb, 26 Jul 2010
 */
-#include <fcntl.h>			/* This has to come before baudboy */
-#ifdef HAVE_BAUDBOY			/* Red Hat baudboy/lockdev */
+#include <fcntl.h>                      /* This has to come before baudboy */
+#ifdef HAVE_BAUDBOY                     /* Red Hat baudboy/lockdev */
 #include <baudboy.h>
-#else  /* !HAVE_BAUDBOY */		/* openSuSE lock via ttylock */
+#else  /* !HAVE_BAUDBOY */              /* openSuSE lock via ttylock */
 #include <ttylock.h>
 #endif  /* HAVE_BAUDBOY */
-#define LOCK_DIR "/var/lock"		/* (even though we don't care) */
+#define LOCK_DIR "/var/lock"            /* (even though we don't care) */
 
 #else  /* !HAVE_LOCKDEV */
 
 #ifdef USE_UU_LOCK
 #ifdef __FreeBSD__
-#include <libutil.h>			/* FreeBSD */
+#include <libutil.h>                    /* FreeBSD */
 #else
-#include <util.h>			/* OpenBSD */
+#include <util.h>                       /* OpenBSD */
 #endif /* HAVE_LOCKDEV */
 #endif /* __FreeBSD */
 #endif /* USE_UU_LOCK */
@@ -430,13 +430,13 @@ char unm_ver[CK_SYSNMLN+1] = { '\0', '\0' };
 #endif /* HPUX */
 #endif /* PIDSTRING */
 
-#ifdef __bsdi__				/* BSDI (at least thru 1.1) */
+#ifdef __bsdi__                         /* BSDI (at least thru 1.1) */
 #ifdef PIDSTRING
 #undef PIDSTRING
 #endif /* PIDSTRING */
 #endif /* __bsdi__ */
 
-#ifdef OSF32				/* Digital UNIX (OSF/1) 3.2 */
+#ifdef OSF32                            /* Digital UNIX (OSF/1) 3.2 */
 #ifdef PIDSTRING
 #undef PIDSTRING
 #endif /* PIDSTRING */
@@ -482,7 +482,7 @@ char unm_ver[CK_SYSNMLN+1] = { '\0', '\0' };
 #ifdef HPUX10
 #define LOCK_DIR "/var/spool/locks"
 #else
-#ifdef RTAIX				/* IBM RT PC AIX 2.2.1 */
+#ifdef RTAIX                            /* IBM RT PC AIX 2.2.1 */
 #define LOCK_DIR "/etc/locks"
 #else
 #ifdef AIXRS
@@ -532,14 +532,14 @@ char unm_ver[CK_SYSNMLN+1] = { '\0', '\0' };
 #endif /* BSD44 */
 #endif /* !LOCK_DIR (outside ifndef) */
 
-#ifdef OSF2				/* OSF/1 2.0 or later */
-#ifdef LOCK_DIR				/* (maybe 1.x too, who knows...) */
+#ifdef OSF2                             /* OSF/1 2.0 or later */
+#ifdef LOCK_DIR                         /* (maybe 1.x too, who knows...) */
 #undef LOCK_DIR
 #define LOCK_DIR "/var/spool/locks"
 #endif /* LOCK_DIR */
 #endif /* OSF2 */
 
-#ifdef NOLOCKF				/* But NOLOCKF cancels LOCKF */
+#ifdef NOLOCKF                          /* But NOLOCKF cancels LOCKF */
 #ifdef LOCKF
 #undef LOCKF
 #endif /* LOCKF */
@@ -667,41 +667,41 @@ Time functions
 
 /* Whether to include <sys/file.h> */
 
-#ifdef RTU				/* RTU doesn't */
+#ifdef RTU                              /* RTU doesn't */
 #define NOFILEH
 #endif /* RTU */
 
-#ifdef CIE				/* CIE does. */
+#ifdef CIE                              /* CIE does. */
 #undef NOFILEH
 #endif /* CIE */
 
-#ifdef BSD41				/* 4.1 BSD doesn't */
+#ifdef BSD41                            /* 4.1 BSD doesn't */
 #define NOFILEH
 #endif /* BSD41 */
 
-#ifdef is68k				/* Integrated Solutions 68000 UNIX  */
-#define NOFILEH				/* e.g. on Plexux P60 and Sun-1 */
+#ifdef is68k                            /* Integrated Solutions 68000 UNIX  */
+#define NOFILEH                         /* e.g. on Plexux P60 and Sun-1 */
 #endif /* is68k */
 
-#ifdef MINIX				/* MINIX */
+#ifdef MINIX                            /* MINIX */
 #define NOFILEH
 #endif /* MINIX */
 
-#ifdef COHERENT				/* Coherent */
+#ifdef COHERENT                         /* Coherent */
 #define NOFILEH
 #endif /* COHERENT */
 
-#ifndef NOFILEH				/* Now include if selected. */
+#ifndef NOFILEH                         /* Now include if selected. */
 #include <sys/file.h>
 #endif /* NOFILEH */
 
 /* POSIX */
 
-#ifdef BSD44ORPOSIX			/* POSIX uses termios.h */
+#ifdef BSD44ORPOSIX                     /* POSIX uses termios.h */
 #define TERMIOS
 #ifdef __bsdi__
 #ifdef POSIX
-#undef _POSIX_SOURCE			/* Get extra stuff from termios.h */
+#undef _POSIX_SOURCE                    /* Get extra stuff from termios.h */
 #endif /* POSIX */
 #endif /* __bsdi__ */
 #include <termios.h>
@@ -720,10 +720,10 @@ Time functions
 #define _POSIX_SOURCE
 #endif /* POSIX */
 #endif /* __bsdi__ */
-#ifndef BSD44				/* Really POSIX */
-#ifndef CK_QNX32			/* was CK_QNX32 */
-#define NOSYSIOCTLH			/* No ioctl's allowed. */
-#undef ultrix				/* Turn off any ultrix features. */
+#ifndef BSD44                           /* Really POSIX */
+#ifndef CK_QNX32                        /* was CK_QNX32 */
+#define NOSYSIOCTLH                     /* No ioctl's allowed. */
+#undef ultrix                           /* Turn off any ultrix features. */
 #endif /* CK_QNX32 */
 #endif /* BSD44 */
 #endif /* POSIX */
@@ -759,17 +759,17 @@ Time functions
 #endif /* TERMIOX */
 #endif /* ATTSV */
 
-#ifdef COHERENT			/* Use termio.h, not sgtty.h for Coherent */
+#ifdef COHERENT                 /* Use termio.h, not sgtty.h for Coherent */
 #include <termio.h>
 #endif /* COHERENT */
 
-#ifdef MINIX				/* MINIX uses ioctl's */
-#define NOSYSIOCTLH			/* but has no <sys/ioctl.h> */
+#ifdef MINIX                            /* MINIX uses ioctl's */
+#define NOSYSIOCTLH                     /* but has no <sys/ioctl.h> */
 #endif /* MINIX */
 
 /* Others */
 
-#ifndef NOSYSIOCTLH			/* Others use ioctl() */
+#ifndef NOSYSIOCTLH                     /* Others use ioctl() */
 #ifdef SUN4S5
 /*
   This is to get rid of cpp warning messages that occur because all of
@@ -804,7 +804,7 @@ Time functions
   efficiency of CONNECT, etc.
 */
 #ifdef BELLV10
-#include <sys/filio.h>			/* For FIONREAD */
+#include <sys/filio.h>                  /* For FIONREAD */
 #ifdef FIONREAD
 #define MYREAD
 #endif /* MYREAD */
@@ -835,23 +835,23 @@ Time functions
 #endif /* FIONREAD */
 #endif /* XENIX */
 
-#ifdef CK_SCOV5				/* Ditto for SCO OpenServer 5.0 */
-#ifndef SCO_OSR507			/* 299 */
+#ifdef CK_SCOV5                         /* Ditto for SCO OpenServer 5.0 */
+#ifndef SCO_OSR507                      /* 299 */
 #ifdef FIONREAD
 #undef FIONREAD
 #endif /* FIONREAD */
-#endif	/* SCO_OSR507 */
+#endif  /* SCO_OSR507 */
 #endif /* CK_SCOV5 */
 
-#ifdef SCO_OSR507			/* 299 */
+#ifdef SCO_OSR507                       /* 299 */
 #ifdef RDCHK
 #undef RDCHK
-#endif	/* RDCHK */
-#endif	/* SCO_OSR507 */
+#endif  /* RDCHK */
+#endif  /* SCO_OSR507 */
 
 /* Whether to include <fcntl.h> */
 
-#ifndef is68k				/* Only a few don't have this one. */
+#ifndef is68k                           /* Only a few don't have this one. */
 #ifndef BSD41
 #ifndef FT21
 #ifndef FT18
@@ -871,14 +871,14 @@ Time functions
 #endif /* _I386 */
 #endif /* COHERENT */
 
-#ifdef ATT7300				/* Unix PC, internal modem dialer */
+#ifdef ATT7300                          /* Unix PC, internal modem dialer */
 #include <sys/phone.h>
 #endif /* ATT7300 */
 
-#ifdef HPUX				/* HP-UX variations. */
+#ifdef HPUX                             /* HP-UX variations. */
 #define HPUXJOBCTL
-#include <sys/modem.h>			/* HP-UX modem signals */
-#ifdef hp9000s500			/* Model 500 */
+#include <sys/modem.h>                  /* HP-UX modem signals */
+#ifdef hp9000s500                       /* Model 500 */
 #undef HPUXJOBCTL
 #endif /* hp9000s500 */
 #ifdef HPUXPRE65
@@ -886,7 +886,7 @@ Time functions
 typedef long mflag;
 #endif /* HPUXPRE65 */
 #ifdef HPUXJOBCTL
-#include <sys/bsdtty.h>			/* HP-UX Berkeley tty support */
+#include <sys/bsdtty.h>                 /* HP-UX Berkeley tty support */
 #endif /* HPUXJOBCTL */
 #endif /* HPUX */
 
@@ -936,18 +936,18 @@ struct timezone {
 #ifdef OLINUXHISPEED
 #include <linux/serial.h>
 #endif /* OLINUXHISPEED */
-#ifdef __alpha__			/* Linux on DEC Alpha */
-#ifndef __GLIBC__			/* But not with glibc */
+#ifdef __alpha__                        /* Linux on DEC Alpha */
+#ifndef __GLIBC__                       /* But not with glibc */
 #include <asm/termios.h>
 #endif /* __GLIBC__ */
 #endif /* __alpha__ */
 #endif /* __linux__ */
 
-#ifdef NOIEXTEN				/* This is broken on some systems */
-#undef IEXTEN				/* like Convex/OS 9.1 */
+#ifdef NOIEXTEN                         /* This is broken on some systems */
+#undef IEXTEN                           /* like Convex/OS 9.1 */
 #endif /* NOIEXTEN */
-#ifndef IEXTEN				/* Turn off ^O/^V processing. */
-#define IEXTEN 0			/* Needed, at least, on BSDI. */
+#ifndef IEXTEN                          /* Turn off ^O/^V processing. */
+#define IEXTEN 0                        /* Needed, at least, on BSDI. */
 #endif /* IEXTEN */
 /*
   Pick up definitions needed for select() if we don't have them already.
@@ -977,7 +977,7 @@ struct timezone {
 #undef FIONREAD
 #endif /* aegis */
 
-#ifdef sxaE50				/* PFU Compact A SX/A TISP V10/L50 */
+#ifdef sxaE50                           /* PFU Compact A SX/A TISP V10/L50 */
 #undef FIONREAD
 #endif /* sxaE50 */
 
@@ -1060,8 +1060,8 @@ struct timezone {
 #define termio termios
 #endif /* OXOS */
 
-#ifdef SVORPOSIX			/* AT&T Sys V or POSIX */
-#ifdef UNIXWAREPOSIX			/* UnixWare 7 POSIX build */
+#ifdef SVORPOSIX                        /* AT&T Sys V or POSIX */
+#ifdef UNIXWAREPOSIX                    /* UnixWare 7 POSIX build */
 /*
   In Unixware POSIX builds, <[sys/]time.h> refuses to define the
   structs we need to access the higher speeds, so we have to do it
@@ -1163,20 +1163,20 @@ char *initrawq(), *qaddr[2]={0,0};
     int dfloc = 0;                      /* controlling terminal name. */
 #endif /* PROVX1 */
 #else
-    char *dftty = DFTTY;		/* Default location specified on */
-    char *dfmdm = "none";		/* command line. */
+    char *dftty = DFTTY;                /* Default location specified on */
+    char *dfmdm = "none";               /* command line. */
     int dfloc = 1;                      /* controlling terminal name. */
 #endif /* DFTTY */
 #endif /* BEOS */
 
-#define CON_RES 0			/* Console state is "reset" */
-#define CON_CB  1			/* Console state is CBREAK */
-#define CON_BIN 2			/* Console state is binary */
+#define CON_RES 0                       /* Console state is "reset" */
+#define CON_CB  1                       /* Console state is CBREAK */
+#define CON_BIN 2                       /* Console state is binary */
     static int constate = CON_RES;
 
-#define CONI_RES 0			/* Console interrupts are "reset" */
-#define CONI_INT 1			/* Console intterupts are set */
-#define CONI_NOI 2			/* Console intterupts are disabled */
+#define CONI_RES 0                      /* Console interrupts are "reset" */
+#define CONI_INT 1                      /* Console intterupts are set */
+#define CONI_NOI 2                      /* Console intterupts are disabled */
     static int conistate = CONI_RES;
 
 #ifdef CK_SMALL
@@ -1184,45 +1184,45 @@ char *initrawq(), *qaddr[2]={0,0};
 #else
 #define CONBUFSIZ 255
 #endif /* CK_SMALL */
-    static char conbuf[CONBUFSIZ];	/* Console readahead buffer */
-    static int  conbufn = 0;		/* Chars in readahead buffer */
-    static char *conbufp = conbuf;	/* Next char in readahead buffer */
+    static char conbuf[CONBUFSIZ];      /* Console readahead buffer */
+    static int  conbufn = 0;            /* Chars in readahead buffer */
+    static char *conbufp = conbuf;      /* Next char in readahead buffer */
 
     char cttnam[DEVNAMLEN+1] = { '\0', '\0' }; /* Determined at runtime */
 
 #ifdef RTU
-    int rtu_bug = 0;		    /* set to 1 when returning from SIGTSTP */
+    int rtu_bug = 0;                /* set to 1 when returning from SIGTSTP */
 #endif /* RTU */
 
     int dfprty = DEFPAR;                /* Default parity (0 = none) */
     int ttprty = 0;                     /* The parity that is in use. */
-    static int ttpmsk = 0xff;		/* Parity stripping mask. */
+    static int ttpmsk = 0xff;           /* Parity stripping mask. */
     int ttmdm = 0;                      /* Modem in use. */
-    int ttcarr = CAR_AUT;		/* Carrier handling mode. */
-    int dfflow = FLO_NONE;		/* Default flow control is NONE */
+    int ttcarr = CAR_AUT;               /* Carrier handling mode. */
+    int dfflow = FLO_NONE;              /* Default flow control is NONE */
     int backgrd = 0;                    /* Assume in foreground (no '&' ) */
 #ifdef F_SETFL
-    int iniflags = -1;			/* fcntl flags for ttyfd */
+    int iniflags = -1;                  /* fcntl flags for ttyfd */
 #endif /* F_SETFL */
-    int fdflag = 0;			/* Flag for redirected stdio */
-    int ttfdflg = 0;			/* Open File descriptor was given */
-    int tvtflg = 0;			/* Flag that ttvt has been called */
-    long ttspeed = -1L;			/* For saving speed */
-    int ttflow = -9;			/* For saving flow */
-    int ttld = -1;			/* Line discipline */
+    int fdflag = 0;                     /* Flag for redirected stdio */
+    int ttfdflg = 0;                    /* Open File descriptor was given */
+    int tvtflg = 0;                     /* Flag that ttvt has been called */
+    long ttspeed = -1L;                 /* For saving speed */
+    int ttflow = -9;                    /* For saving flow */
+    int ttld = -1;                      /* Line discipline */
 
 #ifdef sony_news
-    static int km_con = -1;		/* Kanji mode for console tty */
-    static int km_ext = -1;		/* Kanji mode for external device */
+    static int km_con = -1;             /* Kanji mode for console tty */
+    static int km_ext = -1;             /* Kanji mode for external device */
 #endif /* sony_news */
 
 #ifdef PARSENSE
-    static int needpchk = 1;		/* Need parity check */
+    static int needpchk = 1;            /* Need parity check */
 #else
     static int needpchk = 0;
 #endif /* PARSENSE */
 
-    extern int stopbits;		/* Stop bits */
+    extern int stopbits;                /* Stop bits */
 #ifdef HWPARITY
 /*
   Unfortunately we must do this with global variables rather than through the
@@ -1232,7 +1232,7 @@ char *initrawq(), *qaddr[2]={0,0};
   variable, which is communicated to this module thru ttpkt(), and represented
   locally by the ttprty variable.
 */
-    extern int hwparity;		/* Hardware parity */
+    extern int hwparity;                /* Hardware parity */
 #endif /* HWPARITY */
 
 #ifdef TCPSOCKET
@@ -1241,24 +1241,24 @@ static int nodelay_sav = -1;
 #endif /* TCP_NODELAY */
 #endif /* TCPSOCKET */
 
-static int sigint_ign = 0;		/* SIGINT is ignored */
+static int sigint_ign = 0;              /* SIGINT is ignored */
 
 /*
   Having this module rely on external globals is bad, but fixing this
   requires overhaul of the ck*tio.c modules for all the different operating
   systems supported by C-Kermit.  Left for a future release.
 */
-extern int ttnproto;			/* Defined in ckcnet.c */
-extern int ttnet;			/* Defined in ckcnet.c */
+extern int ttnproto;                    /* Defined in ckcnet.c */
+extern int ttnet;                       /* Defined in ckcnet.c */
 extern int nopush, xfrcan, xfrchr, xfrnum; /* Defined in ckcmai.c */
 extern int xsuspend, wasclosed;
 extern int inserver, local;
 
 int ckxech = 0; /* 0 if system normally echoes console characters, else 1 */
 
-int ckmaxfiles = 0;			/* Max number of open files */
+int ckmaxfiles = 0;                     /* Max number of open files */
 
-#ifdef CK_ENCRYPTION			/* Kerberos */
+#ifdef CK_ENCRYPTION                    /* Kerberos */
 #include "ckuath.h"
 extern int me_encrypt, u_encrypt;
 #endif /* CK_ENCRYPTION */
@@ -1270,22 +1270,22 @@ extern int me_encrypt, u_encrypt;
 
 /* Declarations of variables global within this module */
 
-#ifdef TTLEBUF				/* See ckcnet.h */
+#ifdef TTLEBUF                          /* See ckcnet.h */
 int ttpush = -1;
 #define LEBUFSIZ 4096
 static CHAR le_buf[LEBUFSIZ];
 static int le_start = 0, le_end = 0, le_data = 0;
 #endif /* TTLEBUF */
 
-#define MSGBUF_SIZE 1024		/* For debugging */
+#define MSGBUF_SIZE 1024                /* For debugging */
 static char msgbuf[MSGBUF_SIZE];
 
 static int gotsigs = 0;
 
-static time_t tcount = (time_t)0;	/* Elapsed time counter */
+static time_t tcount = (time_t)0;       /* Elapsed time counter */
 
-static sig_t saval;	/* For saving alarm() handler */
-static sig_t savquit;	/* and other signal handlers */
+static sig_t saval;     /* For saving alarm() handler */
+static sig_t savquit;   /* and other signal handlers */
 #ifdef SIGUSR1
 static sig_t savusr1;
 #endif /* SIGUSR1 */
@@ -1300,9 +1300,9 @@ static sig_t savdanger;
 #endif /* SIGDANGER */
 
 #ifndef NOJC
-static sig_t jchdlr;	/* For checking suspend handler */
+static sig_t jchdlr;    /* For checking suspend handler */
 #endif /* NOJC */
-static int jcshell = -1;		/* And flag for result */
+static int jcshell = -1;                /* And flag for result */
 
 /*
   BREAKNULS is defined for systems that simulate sending a BREAK signal
@@ -1321,12 +1321,12 @@ static int jcshell = -1;		/* And flag for result */
 #endif /* V7 */
 
 #ifdef BREAKNULS
-static char				/* A string of nulls */
+static char                             /* A string of nulls */
 *brnuls = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 #endif /* BREAKNULS */
 
-#ifdef CK_POSIX_SIG			/* Longjump buffers */
-static sigjmp_buf sjbuf;		/* POSIX signal handling */
+#ifdef CK_POSIX_SIG                     /* Longjump buffers */
+static sigjmp_buf sjbuf;                /* POSIX signal handling */
 #else
 static jmp_buf sjbuf;
 #endif /* CK_POSIX_SIG */
@@ -1335,24 +1335,24 @@ static jmp_buf sjbuf;
 static jmp_buf jjbuf;
 #endif /* V7 */
 
-/* static */				/* (Not static any more) */
-int ttyfd = -1;				/* TTY file descriptor */
+/* static */                            /* (Not static any more) */
+int ttyfd = -1;                         /* TTY file descriptor */
 
-int ttpipe = 0;				/* NETCMD: Use pipe instead of ttyfd */
+int ttpipe = 0;                         /* NETCMD: Use pipe instead of ttyfd */
 int ttpty  = 0;                         /* NETPTY: Use pty instead of ttfyd */
 
-#ifdef NETPTY				/* These are in ckupty.c */
-extern PID_T pty_fork_pid;
+#ifdef NETPTY                           /* These are in ckupty.c */
+extern PID_T pty_fork_pid, pty_net_pid;
 extern int pty_master_fd, pty_slave_fd;
-#endif	/* NETPTY */
+#endif  /* NETPTY */
 
 #ifdef NETCMD
 #ifdef NETCONN
-static int pipe0[2], pipe1[2];		/* Pipes for net i/o */
+static int pipe0[2], pipe1[2];          /* Pipes for net i/o */
 #endif /* NETCONN */
-static PID_T ttpid = 0;			/* Process ID for fork */
-static int fdin, fdout;			/* File descriptors for pipe */
-static FILE * ttout = NULL;		/* File pointer for output pipe */
+static PID_T ttpid = 0;                 /* Process ID for fork */
+static int fdin, fdout;                 /* File descriptors for pipe */
+static FILE * ttout = NULL;             /* File pointer for output pipe */
 #ifdef DCLFDOPEN
 /* fdopen() needs declaring because it's not declared in <stdio.h> */
 _PROTOTYP( FILE * fdopen, (int, char *) );
@@ -1363,24 +1363,24 @@ extern int pexitstat, quiet;
 
 #ifdef Plan9
 int ttyctlfd  = -1;   /* TTY control channel - What? UNIX doesn't have one? */
-int consctlfd = -1;			/* Console control channel */
-int noisefd = -1;			/* tone channel */
-static int ttylastspeed = -1;		/* So we can lie about the speed */
+int consctlfd = -1;                     /* Console control channel */
+int noisefd = -1;                       /* tone channel */
+static int ttylastspeed = -1;           /* So we can lie about the speed */
 #endif /* Plan9 */
 
-int telnetfd = 0;			/* File descriptor is for telnet */
+int telnetfd = 0;                       /* File descriptor is for telnet */
 #ifdef NETCONN
-int x25fd = 0;				/* File descriptor is for X.25 */
+int x25fd = 0;                          /* File descriptor is for X.25 */
 #endif /* NETCONN */
 
-char lockpid[16] = { '\0', '\0' };	/* PID stored in lockfile, as string */
+char lockpid[16] = { '\0', '\0' };      /* PID stored in lockfile, as string */
 
 static int lkf = 0,                     /* Line lock flag */
     cgmf = 0,                           /* Flag that console modes saved */
     xlocal = 0,                         /* Flag for tty local or remote */
-    curcarr = 0;			/* Carrier mode: require/ignore. */
+    curcarr = 0;                        /* Carrier mode: require/ignore. */
 
-static int netconn = 0;			/* 1 if network connection active */
+static int netconn = 0;                 /* 1 if network connection active */
 
 static char escchr;                     /* Escape or attn character */
 
@@ -1389,7 +1389,7 @@ static char escchr;                     /* Escape or attn character */
 #endif /* CK_SCO32V4 */
 
 #ifdef HAVE_TV
-    static struct timeval tv;		/* For getting time, from sys/time.h */
+    static struct timeval tv;           /* For getting time, from sys/time.h */
 #endif /* HAVE_TV */
 #ifdef HAVE_TZ
     static struct timezone tz;
@@ -1400,33 +1400,33 @@ static char escchr;                     /* Escape or attn character */
 #endif /* OSF */
 
 #ifdef BSD29
-    static long xclock;			/* For getting time from sys/time.h */
+    static long xclock;                 /* For getting time from sys/time.h */
     static struct timeb ftp;            /* And from sys/timeb.h */
 #endif /* BSD29 */
 
 #ifdef BSD41
-    static long xclock;			/* For getting time from sys/time.h */
+    static long xclock;                 /* For getting time from sys/time.h */
     static struct timeb ftp;            /* And from sys/timeb.h */
 #endif /* BSD41 */
 
 #ifdef BELLV10
-    static long xclock;			/* For getting time from sys/time.h */
+    static long xclock;                 /* For getting time from sys/time.h */
     static struct timeb ftp;            /* And from sys/timeb.h */
 #endif /* BELLV10 */
 
 #ifdef FT21
-    static long xclock;			/* For getting time from sys/time.h */
+    static long xclock;                 /* For getting time from sys/time.h */
     static struct timeb ftp;            /* And from sys/timeb.h */
 #endif /* FT21 */
 
 #ifdef TOWER1
-    static long xclock;			/* For getting time from sys/time.h */
-    static struct timeb ftp;		/* And from sys/timeb.h */
+    static long xclock;                 /* For getting time from sys/time.h */
+    static struct timeb ftp;            /* And from sys/timeb.h */
 #endif /* TOWER1 */
 
 #ifdef COHERENT
-    static long xclock;			/* For getting time from sys/time.h */
-    static struct timeb ftp;		/* And from sys/timeb.h */
+    static long xclock;                 /* For getting time from sys/time.h */
+    static struct timeb ftp;            /* And from sys/timeb.h */
 #endif /* COHERENT */
 
 #ifdef V7
@@ -1435,31 +1435,31 @@ static char escchr;                     /* Escape or attn character */
 
 /* sgtty/termio information... */
 
-#ifdef BSD44ORPOSIX			/* POSIX or BSD44 */
+#ifdef BSD44ORPOSIX                     /* POSIX or BSD44 */
   static struct termios
     ttold, ttraw, tttvt, ttcur,
     ccold, ccraw, cccbrk;
-#else					/* BSD, V7, etc */
+#else                                   /* BSD, V7, etc */
 
-#ifdef COHERENT				/* Hack alert... */
+#ifdef COHERENT                         /* Hack alert... */
 #define ATTSV
 #endif /* COHERENT */
 
 #ifdef ATTSV
-  static struct termio ttold = {0};	/* Init'd for word alignment, */
-  static struct termio ttraw = {0};	/* which is important for some */
-  static struct termio tttvt = {0};	/* systems, like Zilog... */
+  static struct termio ttold = {0};     /* Init'd for word alignment, */
+  static struct termio ttraw = {0};     /* which is important for some */
+  static struct termio tttvt = {0};     /* systems, like Zilog... */
   static struct termio ttcur = {0};
   static struct termio ccold = {0};
   static struct termio ccraw = {0};
   static struct termio cccbrk = {0};
 #else
   static struct sgttyb                  /* sgtty info... */
-    ttold, ttraw, tttvt, ttcur, 	/* for communication line */
-    ccold, ccraw, cccbrk;		/* and for console */
+    ttold, ttraw, tttvt, ttcur,         /* for communication line */
+    ccold, ccraw, cccbrk;               /* and for console */
 #ifdef BELLV10
-  static struct ttydevb			/* Device info... */
-    tdold, tdcur;			/* for communication device */
+  static struct ttydevb                 /* Device info... */
+    tdold, tdcur;                       /* for communication device */
 #endif /* BELLV10 */
 #ifdef TIOCGETC
   static struct tchars tchold, tchnoi;
@@ -1470,7 +1470,7 @@ static char escchr;                     /* Escape or attn character */
   static struct ltchars ltchold, ltchnoi;
   static int ltcharf;
 #endif /* TIOCGLTC */
-  int lmodef = 0;			/* Local modes */
+  int lmodef = 0;                       /* Local modes */
   int lmode = 0;
 #endif /* ATTSV */
 #endif /* BSD44ORPOSIX */
@@ -1486,23 +1486,23 @@ static char escchr;                     /* Escape or attn character */
 
 #ifdef ATT7300
 static int attmodem = 0;                /* ATT7300 internal-modem status */
-struct updata dialer = {0};		/* Condition dialer for data call */
+struct updata dialer = {0};             /* Condition dialer for data call */
 #endif /* ATT7300 */
 
 #ifndef NOUUCP
 #define FLFNAML 128
 #ifndef USETTYLOCK
 #ifdef RTAIX
-char lkflfn[FLFNAML] = { '\0', '\0' };	/* and possible link to it */
+char lkflfn[FLFNAML] = { '\0', '\0' };  /* and possible link to it */
 #endif /* RTAIX */
-char lock2[FLFNAML] =  { '\0', '\0' };	/* Name of second lockfile */
+char lock2[FLFNAML] =  { '\0', '\0' };  /* Name of second lockfile */
 #endif /* USETTYLOCK */
 #else
 #define FLFNAML 7
 #endif /* NOUUCP */
 char flfnam[FLFNAML+1] = { '\0', '\0' }; /* UUCP lock file path name */
 
-int haslock = 0;			/* =1 if this kermit locked uucp */
+int haslock = 0;                        /* =1 if this kermit locked uucp */
 
 #ifndef OXOS
 #ifdef SVORPOSIX
@@ -1521,7 +1521,7 @@ static int conesc = 0;
 /* Local copy of comm device name or network host */
 static char ttnmsv[DEVNAMLEN+1] = { '\0', '\0' };
 #ifdef USETTYLOCK
-static char lockname[DEVNAMLEN+1];	/* Ditto, the part after "/dev/". */
+static char lockname[DEVNAMLEN+1];      /* Ditto, the part after "/dev/". */
 #endif /* USETTYLOCK */
 
 #ifdef aegis
@@ -1549,27 +1549,27 @@ main(argc,argv) int argc; char **argv; {
         if (status.all != pfm_$cleanup_set) {
                 /* only handle faults for the original process */
                 if (pid == getpid() && status.all > pgm_$max_severity) {
-		    /* blew up in main process */
-		    status_$t quo;
-		    pfm_$cleanup_rec clean;
+                    /* blew up in main process */
+                    status_$t quo;
+                    pfm_$cleanup_rec clean;
 
-		    /* restore the console in any case */
-		    conres();
+                    /* restore the console in any case */
+                    conres();
 
-		    /* attempt a clean exit */
-		    debug(F101, "cleanup fault status", "", status.all);
+                    /* attempt a clean exit */
+                    debug(F101, "cleanup fault status", "", status.all);
 
-		    /* doexit(), then send status to continuation */
-		    quo = pfm_$cleanup(clean);
-		    if (quo.all == pfm_$cleanup_set)
-		      doexit(pgm_$program_faulted,-1);
-		    else if (quo.all > pgm_$max_severity)
-		      pfm_$signal(quo); /* blew up in doexit() */
+                    /* doexit(), then send status to continuation */
+                    quo = pfm_$cleanup(clean);
+                    if (quo.all == pfm_$cleanup_set)
+                      doexit(pgm_$program_faulted,-1);
+                    else if (quo.all > pgm_$max_severity)
+                      pfm_$signal(quo); /* blew up in doexit() */
                 }
                 /* send to the original continuation */
                 pfm_$signal(status);
                 /*NOTREACHED*/
-	    }
+            }
         return(ckcmai(argc, argv));
 }
 #endif /* aegis */
@@ -1638,7 +1638,7 @@ _PROTOTYP( void alarm_expired, (void) );
 #endif /* BEOSORBEBOX */
 
 #ifndef xunchar
-#define xunchar(ch) (((ch) - 32 ) & 0xFF )	/* Character to number */
+#define xunchar(ch) (((ch) - 32 ) & 0xFF )      /* Character to number */
 #endif /* xunchar */
 
 #ifdef CK_ANSIC
@@ -1648,7 +1648,7 @@ xxlast(char *s, char c)
 static char *
 xxlast(s,c) char *s; char c;
 #endif /* CK_ANSIC */
-/* xxlast */ {		/*  Last occurrence of character c in string s. */
+/* xxlast */ {          /*  Last occurrence of character c in string s. */
     int i;
     for (i = (int)strlen(s); i > 0; i--)
       if (s[i-1] == c ) return(s + (i - 1));
@@ -1702,18 +1702,18 @@ xtimerh(foo) int foo;
 
 /* Control-C trap for communication line input functions */
 
-int cc_int;				/* Flag */
-sig_t occt;			/* For saving old SIGINT handler */
+int cc_int;                             /* Flag */
+sig_t occt;                     /* For saving old SIGINT handler */
 
 /*ARGSUSED*/
 SIGTYP
 #ifdef CK_ANSIC
-cctrap( int foo )			/* Needs arg for ANSI C */
+cctrap( int foo )                       /* Needs arg for ANSI C */
 #else
 cctrap(foo) int foo;
 #endif /* CK_ANSIC */
 {
-  cc_int = 1;				/* signal() prototype. */
+  cc_int = 1;                           /* signal() prototype. */
   return;
 }
 
@@ -1721,9 +1721,9 @@ cctrap(foo) int foo;
 
 /*
  * ttgwsiz() returns:
- *	1    tt_rows and tt_cols are known, both altered, both > 0
- *	0    tt_rows and/or tt_cols are known, both altered, one or both <= 0
- *	-1   tt_rows and tt_cols are unknown and unaltered
+ *      1    tt_rows and tt_cols are known, both altered, both > 0
+ *      0    tt_rows and/or tt_cols are known, both altered, one or both <= 0
+ *      -1   tt_rows and tt_cols are unknown and unaltered
  */
 
 extern int tt_rows, tt_cols;
@@ -1735,27 +1735,27 @@ xttgwsiz() {
     p = getenv("LINES");
     debug(F110,"xttgwsiz LINES",p,0);
     if (p) {
-	rows = atol(p);
-	if (rows > 0) {
-	    p = getenv("COLUMNS");
-	    debug(F110,"xttgwsiz COLUMNS",p,0);
-	    if (p) {
-		cols = atol(p);
-		if (cols > 0) {
-		    tt_rows = rows;
-		    tt_cols = cols;
-		    return(1);
-		}
-		return(0);
-	    }
-	}
+        rows = atol(p);
+        if (rows > 0) {
+            p = getenv("COLUMNS");
+            debug(F110,"xttgwsiz COLUMNS",p,0);
+            if (p) {
+                cols = atol(p);
+                if (cols > 0) {
+                    tt_rows = rows;
+                    tt_cols = cols;
+                    return(1);
+                }
+                return(0);
+            }
+        }
     }
     return(-1);
 }
 
 #ifdef TTLEBUF
 VOID
-le_init() {				/* LocalEchoInit() */
+le_init() {                             /* LocalEchoInit() */
     int i;
     for (i = 0; i < LEBUFSIZ; i++)
       le_buf[i] = '\0';
@@ -1765,7 +1765,7 @@ le_init() {				/* LocalEchoInit() */
 }
 
 VOID
-le_clean() {				/* LocalEchoCleanup() */
+le_clean() {                            /* LocalEchoCleanup() */
     le_init();
     return;
 }
@@ -1774,9 +1774,9 @@ int
 le_inbuf() {
     int rc = 0;
     if (le_start != le_end) {
-	rc = (le_end -
-	      le_start +
-	      LEBUFSIZ) % LEBUFSIZ;
+        rc = (le_end -
+              le_start +
+              LEBUFSIZ) % LEBUFSIZ;
     }
     debug(F111,"le_inbuf","chars waiting",rc);
     return(rc);
@@ -1875,22 +1875,22 @@ ttgwsiz() {
     int r, c;
 
     if (dev_size(0, -1, -1, &r, &c) == 0) {
-	debug(F101,"ttgwsiz QNX r","",r);
-	debug(F101,"ttgwsiz QNX c","",c);
-	tt_rows = r;
-	tt_cols = c;
-	return ((r > 0 && c > 0) ? 1 : 0);
+        debug(F101,"ttgwsiz QNX r","",r);
+        debug(F101,"ttgwsiz QNX c","",c);
+        tt_rows = r;
+        tt_cols = c;
+        return ((r > 0 && c > 0) ? 1 : 0);
     } else return(xttgwsiz());
 #else /* QNX */
 #ifdef TIOCGWINSZ
 
 /* Note, this was M_UNIX, changed to XENIX to allow cross compilation... */
-#ifdef XENIX				/* SCO UNIX 3.2v4.0 */
-#include <sys/stream.h>			/* typedef mblk_t needed by ptem.h */
-#include <sys/ptem.h>			/* for ttgwsiz() */
+#ifdef XENIX                            /* SCO UNIX 3.2v4.0 */
+#include <sys/stream.h>                 /* typedef mblk_t needed by ptem.h */
+#include <sys/ptem.h>                   /* for ttgwsiz() */
 #endif /* XENIX */
 
-#ifdef I386IX				/* Ditto for Interactive */
+#ifdef I386IX                           /* Ditto for Interactive */
 #include <sys/stream.h>
 #include <sys/ptem.h>
 #endif /* I386IX */
@@ -1908,18 +1908,18 @@ ttgwsiz() {
     x = ioctl(0, (int)TIOCGWINSZ, (char *)&w);
     debug(F101,"ttgwsiz TIOCGWINSZ","",x);
     if (x < 0) {
-	return(xttgwsiz());
+        return(xttgwsiz());
     } else if (w.ws_row > 0 && w.ws_col > 0) {
-	tt_rows = w.ws_row;
-	tt_cols = w.ws_col;
-	tt_xpixel = w.ws_xpixel;
-	tt_ypixel = w.ws_ypixel;
-	debug(F101,"ttgwsiz tt_rows","",tt_rows);
-	debug(F101,"ttgwsiz tt_cols","",tt_cols);
-	return(1);
+        tt_rows = w.ws_row;
+        tt_cols = w.ws_col;
+        tt_xpixel = w.ws_xpixel;
+        tt_ypixel = w.ws_ypixel;
+        debug(F101,"ttgwsiz tt_rows","",tt_rows);
+        debug(F101,"ttgwsiz tt_cols","",tt_cols);
+        return(1);
     } else {
-	debug(F100,"ttgwsiz TIOCGWINSZ 00","",0);
-	return(xttgwsiz());
+        debug(F100,"ttgwsiz TIOCGWINSZ 00","",0);
+        return(xttgwsiz());
     }
 #else
     return(xttgwsiz());
@@ -1931,13 +1931,13 @@ ttgwsiz() {
 
 #ifdef RLOGCODE
 _PROTOTYP( int rlog_naws, (void) );
-#endif	/* RLOGCODE */
+#endif  /* RLOGCODE */
 
 #ifndef NOSIGWINCH
 #ifdef SIGWINCH
 SIGTYP
 #ifdef CK_ANSIC
-winchh( int foo )			/* SIGWINCH handler */
+winchh( int foo )                       /* SIGWINCH handler */
 #else
 winchh(foo) int foo;
 #endif /* CK_ANSIC */
@@ -1962,22 +1962,22 @@ winchh(foo) int foo;
     extern int tt_rows, tt_cols, cmd_rows, cmd_cols;
 #ifdef DEBUG
     if (deblog) {
-	debug(F100,"***************","",0);
-	debug(F100,"SIGWINCH caught","",0);
-	debug(F100,"***************","",0);
+        debug(F100,"***************","",0);
+        debug(F100,"SIGWINCH caught","",0);
+        debug(F100,"***************","",0);
 #ifdef NETPTY
-	debug(F101,"SIGWINCH pty_fork_pid","",pty_fork_pid);
+        debug(F101,"SIGWINCH pty_fork_pid","",pty_fork_pid);
 #endif /* NETPTY */
     }
 #endif /* DEUB */
     signal(SIGWINCH,winchh);            /* Re-arm the signal */
     x = ttgwsiz();                      /* Get new window size */
-    cmd_rows = tt_rows;			/* Adjust command screen too */
+    cmd_rows = tt_rows;                 /* Adjust command screen too */
     cmd_cols = tt_cols;
 
 #ifdef CK_TTYFD
-    if					/* If we don't have a connection */
-#ifdef VMS				/* we're done. */
+    if                                  /* If we don't have a connection */
+#ifdef VMS                              /* we're done. */
       (vmsttyfd() == -1)
 #else
       (ttyfd == -1)
@@ -1991,25 +1991,25 @@ winchh(foo) int foo;
     }
 
 #ifdef NETPTY
-    if (pty_fork_pid > -1) {		/* "set host" to a PTY? */
-	int x;
+    if (pty_net_pid > -1) {             /* "set host" to a PTY? */
+        int x;
 
 #ifdef TIOCSWINSZ
-	struct winsize w;		/* Resize the PTY */
-	errno = 0;
-	w.ws_col = tt_cols;
-	w.ws_row = tt_rows;
-	w.ws_xpixel = tt_xpixel;
-	w.ws_ypixel = tt_ypixel;
-	x = ioctl(ttyfd,TIOCSWINSZ,&w);
-	debug(F101,"winchh TIOCSWINSZ","",x);
-	debug(F101,"winchh TIOCSWINSZ errno","",errno);
+        struct winsize w;               /* Resize the PTY */
+        errno = 0;
+        w.ws_col = tt_cols;
+        w.ws_row = tt_rows;
+        w.ws_xpixel = tt_xpixel;
+        w.ws_ypixel = tt_ypixel;
+        x = ioctl(ttyfd,TIOCSWINSZ,&w);
+        debug(F101,"winchh TIOCSWINSZ","",x);
+        debug(F101,"winchh TIOCSWINSZ errno","",errno);
 #endif /* TIOCSWINSZ */
 
-	errno = 0;
-	x = kill(pty_fork_pid,SIGWINCH);
-	debug(F101,"winchh kill","",x);
-	debug(F101,"winchh kill errno","",errno);
+        errno = 0;
+        x = kill(pty_net_pid,SIGWINCH);
+        debug(F101,"winchh kill","",x);
+        debug(F101,"winchh kill errno","",errno);
     }
 #endif /* NETPTY */
 
@@ -2039,7 +2039,7 @@ winchh(foo) int foo;
 
 SIGTYP
 #ifdef CK_ANSIC
-sighup( int foo )			/* SIGHUP handler */
+sighup( int foo )                       /* SIGHUP handler */
 #else
 sighup(foo) int foo;
 #endif /* CK_ANSIC */
@@ -2050,7 +2050,7 @@ sighup(foo) int foo;
     debug(F100,"***************","",0);
     doexit(BAD_EXIT,-1);
     /*NOTREACHED*/
-    SIGRETURN;				/* Shut picky compilers up... */
+    SIGRETURN;                          /* Shut picky compilers up... */
 }
 
 #ifdef CK_SCO32V4
@@ -2082,7 +2082,7 @@ _PROTOTYP( char * ttyname, (int) );
 #endif /* SV68R3V6 */
 #endif /* CK_SCO32V4 */
 
-#ifndef SIGUSR1				/* User-defined signals */
+#ifndef SIGUSR1                         /* User-defined signals */
 #define SIGUSR1 30
 #endif /* SIGUSR1 */
 
@@ -2096,10 +2096,10 @@ _PROTOTYP( char * ttyname, (int) );
   signals before exec(), which is the purpose of restorsigs().
 */
 static VOID
-ignorsigs() {				/* Ignore these signals */
-    savquit = signal(SIGQUIT,SIG_IGN);	/* Ignore Quit signal */
+ignorsigs() {                           /* Ignore these signals */
+    savquit = signal(SIGQUIT,SIG_IGN);  /* Ignore Quit signal */
 
-#ifdef SIGDANGER			/* Ignore danger signals */
+#ifdef SIGDANGER                        /* Ignore danger signals */
 /*
   This signal is sent when the system is low on swap space.  Processes
   that don't handle it are candidates for termination.  If swap space doesn't
@@ -2118,13 +2118,13 @@ ignorsigs() {				/* Ignore these signals */
 */
     savpipe = signal(SIGPIPE,SIG_IGN);
 #endif /* SIGPIPE */
-    savusr1 = signal(SIGUSR1,SIG_IGN);	/* Ignore user-defined signals */
+    savusr1 = signal(SIGUSR1,SIG_IGN);  /* Ignore user-defined signals */
     savusr2 = signal(SIGUSR2,SIG_IGN);
 }
 
 VOID
-restorsigs() {				/* Restore these signals */
-    (VOID) signal(SIGQUIT,savquit);	/* (used in ckufio.c) */
+restorsigs() {                          /* Restore these signals */
+    (VOID) signal(SIGQUIT,savquit);     /* (used in ckufio.c) */
 #ifdef SIGDANGER
     (VOID) signal(SIGDANGER,savdanger);
 #endif /* SIGDANGER */
@@ -2154,23 +2154,23 @@ sysinit() {
     fprintf(stderr,"PRIV_INI=%d\n",x);
 #endif /* SUIDDEBUG */
     if (x) {
-	if (x & 1) fprintf(stderr,"Fatal: setuid failure.\n");
-	if (x & 2) fprintf(stderr,"Fatal: setgid failure.\n");
-	if (x & 4) fprintf(stderr,"Fatal: C-Kermit setuid to root!\n");
-	exit(1);
+        if (x & 1) fprintf(stderr,"Fatal: setuid failure.\n");
+        if (x & 2) fprintf(stderr,"Fatal: setgid failure.\n");
+        if (x & 4) fprintf(stderr,"Fatal: C-Kermit setuid to root!\n");
+        exit(1);
     }
-    signal(SIGINT,SIG_IGN);		/* Ignore interrupts at first */
-    signal(SIGFPE,SIG_IGN);		/* Ignore floating-point exceptions */
-    signal(SIGHUP,sighup);		/* Catch SIGHUP */
+    signal(SIGINT,SIG_IGN);             /* Ignore interrupts at first */
+    signal(SIGFPE,SIG_IGN);             /* Ignore floating-point exceptions */
+    signal(SIGHUP,sighup);              /* Catch SIGHUP */
 #ifndef NOSIGWINCH
 #ifdef SIGWINCH
-    signal(SIGWINCH,winchh);		/* Catch window-size change */
+    signal(SIGWINCH,winchh);            /* Catch window-size change */
 #endif /* SIGWINCH */
 #endif /* NOSIGWINCH */
 
 #ifdef SIGXFSZ
-    signal(SIGXFSZ,SIG_IGN);		/* Ignore writing past file limit */
-#endif	/* SIGXFSZ */
+    signal(SIGXFSZ,SIG_IGN);            /* Ignore writing past file limit */
+#endif  /* SIGXFSZ */
 
 #ifndef NOJC
 /*
@@ -2181,35 +2181,35 @@ sysinit() {
 #ifdef SIGTSTP
     jchdlr = signal(SIGTSTP,SIG_IGN);
     if (jchdlr == SIG_IGN) {
-	jcshell = 0;
-	debug(F100,"sysinit jchdlr: SIG_IGN","",0);
+        jcshell = 0;
+        debug(F100,"sysinit jchdlr: SIG_IGN","",0);
     } else if (jchdlr == SIG_DFL) {
-	debug(F100,"sysinit jchdlr: SIG_DFL","",0);
-	jcshell = 1;
+        debug(F100,"sysinit jchdlr: SIG_DFL","",0);
+        jcshell = 1;
     } else {
-	debug(F100,"sysinit jchdlr: other","",0);
-	jcshell = 3;
+        debug(F100,"sysinit jchdlr: other","",0);
+        jcshell = 3;
     }
-    (VOID) signal(SIGTSTP,jchdlr);	/* Put it back... */
+    (VOID) signal(SIGTSTP,jchdlr);      /* Put it back... */
 #endif /* SIGTSTP */
 #endif /* NOJC */
 
-    conbgt(0);				/* See if we're in the background */
-    congm();				/* Get console modes */
+    conbgt(0);                          /* See if we're in the background */
+    congm();                            /* Get console modes */
 
-    (VOID) signal(SIGALRM,SIG_IGN);	/* Ignore alarms */
+    (VOID) signal(SIGALRM,SIG_IGN);     /* Ignore alarms */
 
-    ignorsigs();			/* Ignore some other signals */
+    ignorsigs();                        /* Ignore some other signals */
 
 #ifdef F_SETFL
-    iniflags = fcntl(0,F_GETFL,0);	/* Get stdin flags */
+    iniflags = fcntl(0,F_GETFL,0);      /* Get stdin flags */
 #endif /* F_SETFL */
 
 #ifdef ultrix
-    gtty(0,&vanilla);			/* Get sgtty info */
+    gtty(0,&vanilla);                   /* Get sgtty info */
 #else
 #ifdef AUX
-    set42sig();				/* Don't ask! (hakanson@cs.orst.edu) */
+    set42sig();                         /* Don't ask! (hakanson@cs.orst.edu) */
 #endif /* AUX */
 #endif /* ultrix */
 /*
@@ -2219,7 +2219,7 @@ sysinit() {
 */
     s = NULL;
 #ifndef MINIX
-    if (isatty(0))			/* Name of controlling terminal */
+    if (isatty(0))                      /* Name of controlling terminal */
       s = ttyname(0);
     else if (isatty(1))
       s = ttyname(1);
@@ -2246,7 +2246,7 @@ sysinit() {
     debug(F110,"sysinit CTTNAM",CTTNAM,0);
     debug(F110,"sysinit cttnam",cttnam,0);
 
-    ttgwsiz();				/* Get window (screen) dimensions. */
+    ttgwsiz();                          /* Get window (screen) dimensions. */
 
 #ifndef NOSYSCONF
 #ifdef _SC_OPEN_MAX
@@ -2256,33 +2256,33 @@ sysinit() {
 
 #ifdef Plan9
     if (!backgrd) {
-    	consctlfd = open("/dev/consctl", O_WRONLY);
-    	/*noisefd = open("/dev/noise", O_WRONLY)*/
+        consctlfd = open("/dev/consctl", O_WRONLY);
+        /*noisefd = open("/dev/noise", O_WRONLY)*/
     }
     ckxech = 1;
 #endif /* Plan9 */
 
 #ifdef CK_UTSNAME
     if (uname(&name) > -1) {
-	ckstrncpy(unm_mch,name.machine,CK_SYSNMLN);
-	ckstrncpy(unm_nam,name.sysname,CK_SYSNMLN);
-	ckstrncpy(unm_rel,name.release,CK_SYSNMLN);
-	ckstrncpy(unm_ver,name.version,CK_SYSNMLN);
+        ckstrncpy(unm_mch,name.machine,CK_SYSNMLN);
+        ckstrncpy(unm_nam,name.sysname,CK_SYSNMLN);
+        ckstrncpy(unm_rel,name.release,CK_SYSNMLN);
+        ckstrncpy(unm_ver,name.version,CK_SYSNMLN);
 #ifdef DEBUG
-	if (deblog) {
-	    debug(F110,"sysinit uname machine",unm_mch,0);
-	    debug(F110,"sysinit uname sysname",unm_nam,0);
-	    debug(F110,"sysinit uname release",unm_rel,0);
-	    debug(F110,"sysinit uname version",unm_ver,0);
-	}
+        if (deblog) {
+            debug(F110,"sysinit uname machine",unm_mch,0);
+            debug(F110,"sysinit uname sysname",unm_nam,0);
+            debug(F110,"sysinit uname release",unm_rel,0);
+            debug(F110,"sysinit uname version",unm_ver,0);
+        }
 #endif /* DEBUG */
 
 #ifdef HPUX9PLUS
-	if (name.machine[5] == '8')
-	  hpis800 = 1;
-	else
-	  hpis800 = 0;
-	debug(F101,"sysinit hpis800","",hpis800);
+        if (name.machine[5] == '8')
+          hpis800 = 1;
+        else
+          hpis800 = 0;
+        debug(F101,"sysinit hpis800","",hpis800);
 #endif /* HPUX9PLUS */
 #ifdef TRU64
         getsysinfo(GSI_PLATFORM_NAME, unm_mod, CK_SYSNMLN, 0, 0);
@@ -2298,12 +2298,12 @@ sysinit() {
 #ifdef CK_ENVIRONMENT
     {
 #ifdef TNCODE
-	extern char tn_env_acct[], tn_env_disp[], tn_env_job[],
-	tn_env_prnt[], tn_env_sys[];
+        extern char tn_env_acct[], tn_env_disp[], tn_env_job[],
+        tn_env_prnt[], tn_env_sys[];
 #endif /* TNCODE */
-	extern char uidbuf[];
+        extern char uidbuf[];
         extern char * whoami();
-	char *p;
+        char *p;
 #ifdef CKSENDUID
         uidbuf[0] = '\0';
 #ifdef IKSD
@@ -2311,36 +2311,36 @@ sysinit() {
 #endif /* IKSD */
             p = getenv("USER");
             debug(F110,"sysinit uidbuf from USER",uidbuf,0);
-	    if (!p) p = "";
+            if (!p) p = "";
             if (!*p) {
                 p = getenv("LOGNAME");
                 debug(F110,"sysinit uidbuf from LOGNAME",uidbuf,0);
             }
-	    if (!p) p = "";
+            if (!p) p = "";
             if (!*p) {
                 p = whoami();
                 debug(F110,"sysinit uidbuf from whoami()",uidbuf,0);
             }
-	    if (!p) p = "";
-	    ckstrncpy(uidbuf, *p ? p : "UNKNOWN", UIDBUFLEN);
+            if (!p) p = "";
+            ckstrncpy(uidbuf, *p ? p : "UNKNOWN", UIDBUFLEN);
 #ifdef IKSD
         }
 #endif /* IKSD */
-	debug(F110,"sysinit final uidbuf",uidbuf,0);
+        debug(F110,"sysinit final uidbuf",uidbuf,0);
 #endif /* CKSENDUID */
 
 #ifdef TNCODE
-	if ((p = getenv("JOB"))) ckstrncpy(tn_env_job,p,63);
-	if ((p = getenv("ACCT"))) ckstrncpy(tn_env_acct,p,63);
-	if ((p = getenv("PRINTER"))) ckstrncpy(tn_env_prnt,p,63);
-	if ((p = getenv("DISPLAY"))) ckstrncpy(tn_env_disp,p,63);
+        if ((p = getenv("JOB"))) ckstrncpy(tn_env_job,p,63);
+        if ((p = getenv("ACCT"))) ckstrncpy(tn_env_acct,p,63);
+        if ((p = getenv("PRINTER"))) ckstrncpy(tn_env_prnt,p,63);
+        if ((p = getenv("DISPLAY"))) ckstrncpy(tn_env_disp,p,63);
 #ifdef aegis
-	ckstrncpy(tn_env_sys,"Aegis",64);
+        ckstrncpy(tn_env_sys,"Aegis",64);
 #else
 #ifdef Plan9
-	ckstrncpy(tn_env_sys,"Plan9",64);
+        ckstrncpy(tn_env_sys,"Plan9",64);
 #else
-	ckstrncpy(tn_env_sys,"UNIX",64);
+        ckstrncpy(tn_env_sys,"UNIX",64);
 #endif /* Plan9 */
 #endif /* aegis */
 #endif /* TNCODE */
@@ -2348,11 +2348,11 @@ sysinit() {
 #endif /* CK_ENVIRONMENT */
 #ifdef CK_SNDLOC
     {
-	extern char * tn_loc;
-	char *p;
-	if ((p = getenv("LOCATION")))
-	  if ((tn_loc = (char *)malloc((int)strlen(p)+1)))
-	    strcpy(tn_loc,p);		/* safe */
+        extern char * tn_loc;
+        char *p;
+        if ((p = getenv("LOCATION")))
+          if ((tn_loc = (char *)malloc((int)strlen(p)+1)))
+            strcpy(tn_loc,p);           /* safe */
     }
 #endif /* CK_SNDLOC */
 
@@ -2360,11 +2360,11 @@ sysinit() {
     startupdir[CKMAXPATH] = '\0';
     x = strlen(startupdir);
     if (x <= 0) {
-	startupdir[0] = '/';
-	startupdir[1] = '\0';
+        startupdir[0] = '/';
+        startupdir[1] = '\0';
     } else if (startupdir[x-1] != '/') {
-	startupdir[x] = '/';
-	startupdir[x+1] = '\0';
+        startupdir[x] = '/';
+        startupdir[x+1] = '\0';
     }
     debug(F110,"sysinit startupdir",startupdir,0);
 #ifdef TTLEBUF
@@ -2384,7 +2384,7 @@ int
 syscleanup() {
 #ifdef F_SETFL
     if (iniflags > -1)
-      fcntl(0,F_SETFL,iniflags);	/* Restore stdin flags */
+      fcntl(0,F_SETFL,iniflags);        /* Restore stdin flags */
 #endif /* F_SETFL */
 #ifdef ultrix
     stty(0,&vanilla);                   /* Get sgtty info */
@@ -2423,7 +2423,7 @@ syscleanup() {
    -2 upon timeout waiting for device to open
    -1 on other error
 */
-static int ttotmo = 0;			/* Timeout flag */
+static int ttotmo = 0;                  /* Timeout flag */
 /* Flag kept here to avoid being clobbered by longjmp.  */
 
 int
@@ -2438,7 +2438,7 @@ ttopen(ttname,lcl,modem,timo) char *ttname; int *lcl, modem, timo;
 #else
 #ifdef SVORPOSIX
 #ifndef CIE
-#else					/* CIE Regulus */
+#else                                   /* CIE Regulus */
 #define ctermid(x) strcpy(x,"")
 #endif /* CIE */
 #endif /* SVORPOSIX */
@@ -2452,12 +2452,12 @@ ttopen(ttname,lcl,modem,timo) char *ttname; int *lcl, modem, timo;
     char fullname[DEVNAMLEN+1];
 #endif /* OPENFIRST */
 
-    char * fnam;			/* Full name after expansion */
+    char * fnam;                        /* Full name after expansion */
 
     int y;
 
 #ifndef pdp11
-#define NAMEFD	 /* Feature to allow name to be an open file descriptor */
+#define NAMEFD   /* Feature to allow name to be an open file descriptor */
 #endif /* pdp11 */
 
 #ifdef NAMEFD
@@ -2477,15 +2477,15 @@ ttopen(ttname,lcl,modem,timo) char *ttname; int *lcl, modem, timo;
     ttpmsk = 0xff;
     lockpid[0] = '\0';
 
-    if (ttyfd > -1) {			/* If device already opened */
+    if (ttyfd > -1) {                   /* If device already opened */
         if (!strncmp(ttname,ttnmsv,DEVNAMLEN)) /* are new & old names equal? */
-	  return(0);			/* Yes, nothing to do - just return */
-	ttnmsv[0] = '\0';		/* No, clear out old name */
-	ttclos(ttyfd);			/* close old connection.  */
+          return(0);                    /* Yes, nothing to do - just return */
+        ttnmsv[0] = '\0';               /* No, clear out old name */
+        ttclos(ttyfd);                  /* close old connection.  */
     }
-    wasclosed = 0;			/* New connection, not closed yet. */
-    ttpipe = 0;				/* Assume it's not a pipe */
-    ttpty = 0;				/* or a pty... */
+    wasclosed = 0;                      /* New connection, not closed yet. */
+    ttpipe = 0;                         /* Assume it's not a pipe */
+    ttpty = 0;                          /* or a pty... */
 
 debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
 #ifdef NETCONN
@@ -2499,26 +2499,26 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
   clues, so let's use them...
 */
     debug(F110,"XXX netopen in ifdef NETCONN...OK","A",0);
-    if (ttyfd < 0) {			/* Connection is not open */
-	if (!strcmp(ttname,ttnmsv)) {	/* Old and new names the same? */
-	    if (((netconn > 0) && (ttmdm < 0)) ||
-		((ttnet > 0) &&
-		 (!ckstrchr(ttname,'/')) && (ckstrchr(ttname,':')))
-		) {
-		int x, rc;
-		x = (ttmdm < 0) ? -ttmdm : ttnet;
-		rc = netopen(ttname, lcl, x);
-		debug(F111,"ttopen REOPEN netopen",ttname,rc);
-		if (rc > -1) {
-		    netconn = 1;
-		    xlocal = *lcl = 1;
-		} else {
-		    netconn = 0;
-		}
-		gotsigs = 0;
-		return(rc);
-	    }
-	}
+    if (ttyfd < 0) {                    /* Connection is not open */
+        if (!strcmp(ttname,ttnmsv)) {   /* Old and new names the same? */
+            if (((netconn > 0) && (ttmdm < 0)) ||
+                ((ttnet > 0) &&
+                 (!ckstrchr(ttname,'/')) && (ckstrchr(ttname,':')))
+                ) {
+                int x, rc;
+                x = (ttmdm < 0) ? -ttmdm : ttnet;
+                rc = netopen(ttname, lcl, x);
+                debug(F111,"ttopen REOPEN netopen",ttname,rc);
+                if (rc > -1) {
+                    netconn = 1;
+                    xlocal = *lcl = 1;
+                } else {
+                    netconn = 0;
+                }
+                gotsigs = 0;
+                return(rc);
+            }
+        }
     }
 #endif /* NETCONN */
 
@@ -2546,59 +2546,59 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
     debug(F100,"ttopen MYREAD *NOT* defined","",0);
 #endif /* MYREAD */
 
-#ifdef	NETCONN
-    if (modem < 0) {			/* modem < 0 = code for network */
-	int x;
-	ttmdm = modem;
-	modem = -modem;			/* Positive network type number */
-	fdflag = 0;			/* Stdio not redirected. */
-	netconn = 1;			/* And it's a network connection */
-	debug(F111,"ttopen net",ttname,modem);
+#ifdef  NETCONN
+    if (modem < 0) {                    /* modem < 0 = code for network */
+        int x;
+        ttmdm = modem;
+        modem = -modem;                 /* Positive network type number */
+        fdflag = 0;                     /* Stdio not redirected. */
+        netconn = 1;                    /* And it's a network connection */
+        debug(F111,"ttopen net",ttname,modem);
 #ifdef NAMEFD
-	for (p = ttname; isdigit(*p); p++) /* Check for all digits */
+        for (p = ttname; isdigit(*p); p++) /* Check for all digits */
           ; /* Believe it or not, this semicolon must be on a new line */
- 	if (*p == '\0' && (telnetfd || x25fd)) { /* Avoid X.121 addresses */
-	    ttyfd = atoi(ttname);	/* Is there a way to test it's open? */
-	    ttfdflg = 1;		/* We got an open file descriptor */
-	    debug(F111,"ttopen net ttfdflg",ttname,ttfdflg);
-	    debug(F101,"ttopen net ttyfd","",ttyfd);
-	    ckstrncpy(ttnmsv,ttname,DEVNAMLEN); /* Remember the "name". */
-	    x = 1;			/* Return code is "good". */
-	    if (telnetfd) {
-		ttnet = NET_TCPB;
-		if (ttnproto != NP_TCPRAW)
-		  ttnproto = NP_TELNET;
+        if (*p == '\0' && (telnetfd || x25fd)) { /* Avoid X.121 addresses */
+            ttyfd = atoi(ttname);       /* Is there a way to test it's open? */
+            ttfdflg = 1;                /* We got an open file descriptor */
+            debug(F111,"ttopen net ttfdflg",ttname,ttfdflg);
+            debug(F101,"ttopen net ttyfd","",ttyfd);
+            ckstrncpy(ttnmsv,ttname,DEVNAMLEN); /* Remember the "name". */
+            x = 1;                      /* Return code is "good". */
+            if (telnetfd) {
+                ttnet = NET_TCPB;
+                if (ttnproto != NP_TCPRAW)
+                  ttnproto = NP_TELNET;
 #ifdef SUNX25
-	    } else if (x25fd) {
-		ttnet = NET_SX25;
-		ttnproto = NP_NONE;
+            } else if (x25fd) {
+                ttnet = NET_SX25;
+                ttnproto = NP_NONE;
 #endif /* SUNX25 */
-	    }
-	} else {			/* Host name or address given */
+            }
+        } else {                        /* Host name or address given */
 #ifdef NETPTY
-	    if (modem == NET_PTY) {
-		int x;
-		if (nopush) {
-		    debug(F100,"ttopen PTY: nopush","",0);
-		    return(-1);
-		}
+            if (modem == NET_PTY) {
+                int x;
+                if (nopush) {
+                    debug(F100,"ttopen PTY: nopush","",0);
+                    return(-1);
+                }
                 ttnet = NET_PTY;
-		ttnproto = NP_NONE;
+                ttnproto = NP_NONE;
                 netconn = 1;            /* but we don't use network i/o */
                 ttpty = 1;
                 debug(F110,"ttopen PTY",ttname,0);
-		x = do_pty(&ttyfd,ttname,0);
+                x = do_pty(&ttyfd,ttname,0);
                 debug(F101,"ttopen do_pty return code","",x);
-		if (x > -1) {
-		    ckstrncpy(ttnmsv,ttname,DEVNAMLEN);
-		    xlocal = *lcl = 1;	/* It's local */
-		} else {
-		    ttpty = 0;
-		    netconn = 0;
-		}
-		gotsigs = 0;
-		return(x);
-	    }
+                if (x > -1) {
+                    ckstrncpy(ttnmsv,ttname,DEVNAMLEN);
+                    xlocal = *lcl = 1;  /* It's local */
+                } else {
+                    ttpty = 0;
+                    netconn = 0;
+                }
+                gotsigs = 0;
+                return(x);
+            }
 #endif /* NETPTY */
 #ifdef NETCMD
 /*
@@ -2606,81 +2606,81 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
   those systems we punt by not defining NETCMD, but we might be able to do
   better -- see workarounds for this problem in ckufio.c (search for dup2).
 */
-	    if (modem == NET_CMD) {
-		if (nopush) {
-		    debug(F100,"ttopen pipe: nopush","",0);
-		    return(-1);
-		}
-		if (pipe(pipe0) || pipe(pipe1)) {
-		    perror("Pipe error");
-		    return(-1);
-		}
-		ttpid = fork();		/* Make a fork */
+            if (modem == NET_CMD) {
+                if (nopush) {
+                    debug(F100,"ttopen pipe: nopush","",0);
+                    return(-1);
+                }
+                if (pipe(pipe0) || pipe(pipe1)) {
+                    perror("Pipe error");
+                    return(-1);
+                }
+                ttpid = fork();         /* Make a fork */
 
-		switch (ttpid) {
-		  case -1:		/* Error making fork */
-		    close(pipe0[0]);
-		    close(pipe0[1]);
-		    close(pipe1[0]);
-		    close(pipe1[1]);
-		    perror("Fork error");
-		    return(-1);
-		  case 0:		/* Child. */
-		    close(pipe0[0]);
-		    close(pipe1[1]);
-		    dup2(pipe0[1], 1);
-		    close(pipe0[1]);
-		    dup2(pipe1[0], 0);
-		    close(pipe1[0]);
-		    exec_cmd(ttname);   /* Command to run is in ttname as with NET_PTY */
-		    _exit(0);
-		  default:		/* Parent */
-		    close(pipe0[1]);
-		    close(pipe1[0]);
-		    fdin = pipe0[0];	/* Read from pipe */
-		    fdout = pipe1[1];	/* Write to pipe */
-		    ttout = fdopen(fdout,"w"); /* Get stream so we can */
-		    if (!ttout) {	/* make it unbuffered. */
-			perror("fdopen failure");
-			return(-1);
-		    }
-		    setbuf(ttout,NULL);
-		    ckstrncpy(ttnmsv,ttname,DEVNAMLEN);
-		    xlocal = *lcl = 1;	/* It's local */
-		    netconn = 1;	/* Call it a network connection */
-		    ttmdm = modem;	/* Remember network type */
-		    ttyfd = fdin;
-		    ttpipe = 1;
-		    gotsigs = 0;
-		    return(0);
-		}
-	    }
+                switch (ttpid) {
+                  case -1:              /* Error making fork */
+                    close(pipe0[0]);
+                    close(pipe0[1]);
+                    close(pipe1[0]);
+                    close(pipe1[1]);
+                    perror("Fork error");
+                    return(-1);
+                  case 0:               /* Child. */
+                    close(pipe0[0]);
+                    close(pipe1[1]);
+                    dup2(pipe0[1], 1);
+                    close(pipe0[1]);
+                    dup2(pipe1[0], 0);
+                    close(pipe1[0]);
+                    exec_cmd(ttname);   /* Command to run is in ttname as with NET_PTY */
+                    _exit(0);
+                  default:              /* Parent */
+                    close(pipe0[1]);
+                    close(pipe1[0]);
+                    fdin = pipe0[0];    /* Read from pipe */
+                    fdout = pipe1[1];   /* Write to pipe */
+                    ttout = fdopen(fdout,"w"); /* Get stream so we can */
+                    if (!ttout) {       /* make it unbuffered. */
+                        perror("fdopen failure");
+                        return(-1);
+                    }
+                    setbuf(ttout,NULL);
+                    ckstrncpy(ttnmsv,ttname,DEVNAMLEN);
+                    xlocal = *lcl = 1;  /* It's local */
+                    netconn = 1;        /* Call it a network connection */
+                    ttmdm = modem;      /* Remember network type */
+                    ttyfd = fdin;
+                    ttpipe = 1;
+                    gotsigs = 0;
+                    return(0);
+                }
+            }
 #endif /* NETCMD */
 #endif /* NAMEFD */
             debug(F110,"XXX netopen in ifdef NETCONN...","B",0);
-	    x = netopen(ttname, lcl, modem); /* (see ckcnet.h) */
+            x = netopen(ttname, lcl, modem); /* (see ckcnet.h) */
             debug(F110,"XXX netopen in ifdef NETCONN...OK","B",0);
-	    if (x > -1) {
-		ckstrncpy(ttnmsv,ttname,DEVNAMLEN);
-	    } else netconn = 0;
+            if (x > -1) {
+                ckstrncpy(ttnmsv,ttname,DEVNAMLEN);
+            } else netconn = 0;
 #ifdef NAMEFD
-	}
+        }
 #endif /* NAMEFD */
 
-#ifdef sony_news			/* Sony NEWS */
-	if (ioctl(ttyfd,TIOCKGET,&km_ext) < 0) { /* Get Kanji mode */
-	    perror("ttopen error getting Kanji mode (network)");
-	    debug(F111,"ttopen error getting Kanji mode","network",0);
-	    km_ext = -1;		/* Make sure this stays undefined. */
-	}
+#ifdef sony_news                        /* Sony NEWS */
+        if (ioctl(ttyfd,TIOCKGET,&km_ext) < 0) { /* Get Kanji mode */
+            perror("ttopen error getting Kanji mode (network)");
+            debug(F111,"ttopen error getting Kanji mode","network",0);
+            km_ext = -1;                /* Make sure this stays undefined. */
+        }
 #endif /* sony_news */
 
-	xlocal = *lcl = 1;		/* Network connections are local. */
-	debug(F101,"ttopen net x","",x);
-	gotsigs = 0;
-	return(x);
-    } else {				/* Terminal device */
-#endif	/* NETCONN */
+        xlocal = *lcl = 1;              /* Network connections are local. */
+        debug(F101,"ttopen net x","",x);
+        gotsigs = 0;
+        return(x);
+    } else {                            /* Terminal device */
+#endif  /* NETCONN */
 
 #ifdef NAMEFD
 /*
@@ -2688,34 +2688,34 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
   communication device, rather than a device name.  Kermit assumes that the
   line is already open, locked, conditioned with the right parameters, etc.
 */
-	for (p = ttname; isdigit(*p); p++) ; /* Check for all-digits */
-	if (*p == '\0') {
-	    ttyfd = atoi(ttname);	/* Is there a way to test it's open? */
-	    debug(F111,"ttopen got open fd",ttname,ttyfd);
-	    ckstrncpy(ttnmsv,ttname,DEVNAMLEN); /* Remember the "name". */
-	    if (ttyfd >= 0 && ttyfd < 3) /* If it's stdio... */
-	      xlocal = *lcl = 0;	/* we're in remote mode */
-	    else			/* otherwise */
-	      xlocal = *lcl = 1;	/* local mode. */
-	    netconn = 0;		/* Assume it's not a network. */
-	    tvtflg = 0;			/* Might need to initialize modes. */
-	    ttmdm = modem;		/* Remember modem type. */
-	    fdflag = 0;			/* Stdio not redirected. */
-	    ttfdflg = 1;		/* Flag we were opened this way. */
-	    debug(F111,"ttopen non-net ttfdflg",ttname,ttfdflg);
-	    debug(F101,"ttopen non-net ttyfd","",ttyfd);
+        for (p = ttname; isdigit(*p); p++) ; /* Check for all-digits */
+        if (*p == '\0') {
+            ttyfd = atoi(ttname);       /* Is there a way to test it's open? */
+            debug(F111,"ttopen got open fd",ttname,ttyfd);
+            ckstrncpy(ttnmsv,ttname,DEVNAMLEN); /* Remember the "name". */
+            if (ttyfd >= 0 && ttyfd < 3) /* If it's stdio... */
+              xlocal = *lcl = 0;        /* we're in remote mode */
+            else                        /* otherwise */
+              xlocal = *lcl = 1;        /* local mode. */
+            netconn = 0;                /* Assume it's not a network. */
+            tvtflg = 0;                 /* Might need to initialize modes. */
+            ttmdm = modem;              /* Remember modem type. */
+            fdflag = 0;                 /* Stdio not redirected. */
+            ttfdflg = 1;                /* Flag we were opened this way. */
+            debug(F111,"ttopen non-net ttfdflg",ttname,ttfdflg);
+            debug(F101,"ttopen non-net ttyfd","",ttyfd);
 
-#ifdef sony_news			/* Sony NEWS */
-	    /* Get device Kanji mode */
-	    if (ioctl(ttyfd,TIOCKGET,&km_ext) < 0) {
-		perror("ttopen error getting Kanji mode");
-		debug(F101,"ttopen error getting Kanji mode","",0);
-		km_ext = -1;		/* Make sure this stays undefined. */
-	    }
+#ifdef sony_news                        /* Sony NEWS */
+            /* Get device Kanji mode */
+            if (ioctl(ttyfd,TIOCKGET,&km_ext) < 0) {
+                perror("ttopen error getting Kanji mode");
+                debug(F101,"ttopen error getting Kanji mode","",0);
+                km_ext = -1;            /* Make sure this stays undefined. */
+            }
 #endif /* sony_news */
-	    gotsigs = 0;
-	    return(0);			/* Return success */
-	}
+            gotsigs = 0;
+            return(0);                  /* Return success */
+        }
 #endif /* NAMEFD */
 #ifdef NETCONN
     }
@@ -2723,12 +2723,12 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
 
 /* Here we have to open a serial device of the given name. */
 
-    netconn = 0;			/* So it's not a network connection */
-    occt = signal(SIGINT, cctrap);	/* Set Control-C trap, save old one */
+    netconn = 0;                        /* So it's not a network connection */
+    occt = signal(SIGINT, cctrap);      /* Set Control-C trap, save old one */
     sigint_ign = 0;
 
-    tvtflg = 0;			/* Flag for use by ttvt(). */
-				/* 0 = ttvt not called yet for this device */
+    tvtflg = 0;                 /* Flag for use by ttvt(). */
+                                /* 0 = ttvt not called yet for this device */
 
     fdflag = (!isatty(0) || !isatty(1)); /* Flag for stdio redirected */
     debug(F101,"ttopen fdflag","",fdflag);
@@ -2746,7 +2746,7 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
 #else
 #ifdef ATT7300
     if ((attmodem & DOGETY) == 0)       /* offgetty() program. */
-      attmodem |= offgetty(ttname);	/* Remember response.  */
+      attmodem |= offgetty(ttname);     /* Remember response.  */
 #endif /* ATT7300 */
 #endif /* ACUCNTRL */
 
@@ -2779,75 +2779,75 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
  timer is provided.  If carrier is not required, the timer should never
  go off, and should do no harm...
 */
-    ttotmo = 0;				/* Flag no timeout */
+    ttotmo = 0;                         /* Flag no timeout */
     debug(F101,"ttopen timo","",timo);
     debug(F101,"ttopen xlocal","",xlocal);
     if (timo > 0) {
-	int xx;
-	saval = signal(SIGALRM,timerh);	/* Timed, set up timer. */
-	xx = alarm(timo);		/* Timed open() */
-	debug(F101,"ttopen alarm","",xx);
-	if (
+        int xx;
+        saval = signal(SIGALRM,timerh); /* Timed, set up timer. */
+        xx = alarm(timo);               /* Timed open() */
+        debug(F101,"ttopen alarm","",xx);
+        if (
 #ifdef CK_POSIX_SIG
-	    sigsetjmp(sjbuf,1)
+            sigsetjmp(sjbuf,1)
 #else
-	    setjmp(sjbuf)
+            setjmp(sjbuf)
 #endif /* CK_POSIX_SIG */
-	    ) {
-	    ttotmo = 1;			/* Flag timeout. */
-	} else ttyfd = do_open(ttname);
-	ttimoff();
-	debug(F111,"ttopen","modem",modem);
-	debug(F101,"ttopen ttyfd","",ttyfd);
-	debug(F101,"ttopen alarm return","",ttotmo);
+            ) {
+            ttotmo = 1;                 /* Flag timeout. */
+        } else ttyfd = do_open(ttname);
+        ttimoff();
+        debug(F111,"ttopen","modem",modem);
+        debug(F101,"ttopen ttyfd","",ttyfd);
+        debug(F101,"ttopen alarm return","",ttotmo);
     } else {
-	errno = 0;
-	ttyfd = do_open(ttname);
+        errno = 0;
+        ttyfd = do_open(ttname);
     }
     debug(F111,"ttopen ttyfd",ttname,ttyfd);
-    if (ttyfd < 0) {			/* If couldn't open, fail. */
-	debug(F101,"ttopen errno","",errno);
-	if (errno > 0 && !quiet)
-	  perror(ttname);		/* Print message */
+    if (ttyfd < 0) {                    /* If couldn't open, fail. */
+        debug(F101,"ttopen errno","",errno);
+        if (errno > 0 && !quiet)
+          perror(ttname);               /* Print message */
 
 #ifdef ATT7300
-	if (attmodem & DOGETY)		/* was getty(1m) running before us? */
-	  ongetty(ttnmsv);		/* yes, restart on tty line */
-	attmodem &= ~DOGETY;		/* no phone in use, getty restored */
+        if (attmodem & DOGETY)          /* was getty(1m) running before us? */
+          ongetty(ttnmsv);              /* yes, restart on tty line */
+        attmodem &= ~DOGETY;            /* no phone in use, getty restored */
 #else
 #ifdef ACUCNTRL
         /* Should put call to priv_on() here, but that would be risky! */
-	acucntrl("enable",ttname);	/* acucntrl() program. */
-	/* and priv_off() here... */
+        acucntrl("enable",ttname);      /* acucntrl() program. */
+        /* and priv_off() here... */
 #endif /* ACUNTRL */
 #endif /* ATT7300 */
 
-	signal(SIGINT,occt);		/* Put old Ctrl-C trap back. */
-	if (errno == EACCES) {		/* Device is protected against user */
-	    debug(F110,"ttopen EACCESS",ttname,0); /* Return -4 */
-	    return(-4);
-	} else return(ttotmo ? -2 : -1); /* Otherwise -2 if timeout, or -1 */
+        signal(SIGINT,occt);            /* Put old Ctrl-C trap back. */
+        if (errno == EACCES) {          /* Device is protected against user */
+            debug(F110,"ttopen EACCESS",ttname,0); /* Return -4 */
+            return(-4);
+        } else return(ttotmo ? -2 : -1); /* Otherwise -2 if timeout, or -1 */
     }
 
 #ifdef QNX
     {
-	extern int qnxportlock;
-	x = qnxopencount();
-	debug(F101,"ttopen qnxopencount","",x);
-	debug(F101,"ttopen qnxportlock","",qnxportlock);
-	if (x < 0 && qnxportlock) {
-	    ttclos(0);
-	    printf("?Can't get port open count\n");
-	    printf("(Try again with SET QNX-PORT-LOCK OFF)\n");
-	    return(-1);			/* Indicate device is in use */
-	}
-	if (x > 1) {			/* 1 == me */
-	    if (qnxportlock)
-	      ttclos(0);
-	      return(-2);		/* Indicate device is in use */
-	    else if (!quiet)
-	      printf("WARNING: \"%s\" looks busy...\n",ttdev);
-	}
+        extern int qnxportlock;
+        x = qnxopencount();
+        debug(F101,"ttopen qnxopencount","",x);
+        debug(F101,"ttopen qnxportlock","",qnxportlock);
+        if (x < 0 && qnxportlock) {
+            ttclos(0);
+            printf("?Can't get port open count\n");
+            printf("(Try again with SET QNX-PORT-LOCK OFF)\n");
+            return(-1);                 /* Indicate device is in use */
+        }
+        if (x > 1) {                    /* 1 == me */
+            if (qnxportlock)
+              ttclos(0);
+              return(-2);               /* Indicate device is in use */
+            else if (!quiet)
+              printf("WARNING: \"%s\" looks busy...\n",ttdev);
+        }
     }
 #endif /* QNX */
 
@@ -2859,55 +2859,55 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
     if (!ttfdflg && !isatty(ttyfd) && strcmp(ttname,"/dev/null"))
 #endif /* Plan9 */
       {
-	fprintf(stderr,"%s is not a terminal device\n",ttname);
-	debug(F111,"ttopen not a tty",ttname,errno);
-	close(ttyfd);
-	ttyfd = -1;
-	wasclosed = 1;
-	signal(SIGINT,occt);
-	return(-1);
+        fprintf(stderr,"%s is not a terminal device\n",ttname);
+        debug(F111,"ttopen not a tty",ttname,errno);
+        close(ttyfd);
+        ttyfd = -1;
+        wasclosed = 1;
+        signal(SIGINT,occt);
+        return(-1);
     }
 
 #ifdef aegis
-	/* Apollo C runtime claims that console pads are tty devices, which
-	 * is reasonable, but they aren't any good for packet transfer. */
-	ios_$inq_type_uid((short)ttyfd, ttyuid, st);
-	if (st.all != status_$ok) {
-	    fprintf(stderr, "problem getting tty object type: ");
-	    error_$print(st);
-	} else if (ttyuid != sio_$uid) { /* reject non-SIO lines */
-	    close(ttyfd); ttyfd = -1;
-	    wasclosed = 1;
-	    errno = ENOTTY; perror(ttname);
-	    signal(SIGINT,occt);
-	    return(-1);
-	}
+        /* Apollo C runtime claims that console pads are tty devices, which
+         * is reasonable, but they aren't any good for packet transfer. */
+        ios_$inq_type_uid((short)ttyfd, ttyuid, st);
+        if (st.all != status_$ok) {
+            fprintf(stderr, "problem getting tty object type: ");
+            error_$print(st);
+        } else if (ttyuid != sio_$uid) { /* reject non-SIO lines */
+            close(ttyfd); ttyfd = -1;
+            wasclosed = 1;
+            errno = ENOTTY; perror(ttname);
+            signal(SIGINT,occt);
+            return(-1);
+        }
 #endif /* aegis */
 
     sigint_ign = (occt == SIG_IGN) ? 1 : 0;
 
-    ckstrncpy(ttnmsv,ttname,DEVNAMLEN);	/* Keep copy of name locally. */
+    ckstrncpy(ttnmsv,ttname,DEVNAMLEN); /* Keep copy of name locally. */
 
 /* Caller wants us to figure out if line is controlling tty */
 
     if (*lcl < 0) {
         if (strcmp(ttname,CTTNAM) == 0) { /* "/dev/tty" always remote */
             xlocal = 0;
-	    debug(F111,"ttopen ttname=CTTNAM",ttname,xlocal);
+            debug(F111,"ttopen ttname=CTTNAM",ttname,xlocal);
         } else if (strcmp(ttname,cttnam) == 0) {
             xlocal = 0;
-	    debug(F111,"ttopen ttname=cttnam",ttname,xlocal);
-	} else if (cttnam[0]) {
+            debug(F111,"ttopen ttname=cttnam",ttname,xlocal);
+        } else if (cttnam[0]) {
 #ifdef BEBOX_DR7
-            x = ttnmsv;			/* ttyname() is broken */
+            x = ttnmsv;                 /* ttyname() is broken */
 #else
             x = ttyname(ttyfd);         /* Get real name of ttname. */
 #endif /* BEBOX_DR7 */
-	    if (!x) x = "";
-	    if (*x)
-	      xlocal = ((strncmp(x,cttnam,DEVNAMLEN) == 0) ? 0 : 1);
-	    else
-	      xlocal = 1;
+            if (!x) x = "";
+            if (*x)
+              xlocal = ((strncmp(x,cttnam,DEVNAMLEN) == 0) ? 0 : 1);
+            else
+              xlocal = 1;
             debug(F111,"ttopen ttyname(ttyfd) xlocal",x,xlocal);
         }
     }
@@ -2916,18 +2916,18 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
 /* Note, the following code was added so that Unix "idle-line" snoopers */
 /* would not think Kermit was idle when it was transferring files, and */
 /* maybe log people out. */
-    if (xlocal == 0) {			/* Remote mode */
-	if (fdflag == 0) {		/* Standard i/o is not redirected */
-	    debug(F100,"ttopen setting ttyfd = 0","",0);
+    if (xlocal == 0) {                  /* Remote mode */
+        if (fdflag == 0) {              /* Standard i/o is not redirected */
+            debug(F100,"ttopen setting ttyfd = 0","",0);
 #ifdef LYNXOS
-	    /* On Lynx OS, fd 0 is open for read only. */
-	    dup2(ttyfd,0);
+            /* On Lynx OS, fd 0 is open for read only. */
+            dup2(ttyfd,0);
 #endif /* LYNXOS */
-	    close(ttyfd);		/* Use file descriptor 0 */
-	    ttyfd = 0;
-	} else {			/* Standard i/o is redirected */
-	    debug(F101,"ttopen stdio redirected","",ttyfd);
-	}
+            close(ttyfd);               /* Use file descriptor 0 */
+            ttyfd = 0;
+        } else {                        /* Standard i/o is redirected */
+            debug(F101,"ttopen stdio redirected","",ttyfd);
+        }
     }
 #endif /* NOFDZERO */
 
@@ -2937,51 +2937,51 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
 
     lkf = 0;                            /* Check lock */
     if (xlocal > 0) {
-	int xx; int xpid;
+        int xx; int xpid;
         if ((xx = ttlock(ttname)) < 0) { /* Can't lock it. */
             debug(F111,"ttopen ttlock fails",ttname,xx);
-	    /* WARNING - This close() can hang if tty is an empty socket... */
-            close(ttyfd);		/* Close the device. */
-	    ttyfd = -1;			/* Erase its file descriptor. */
-	    wasclosed = 1;
-	    signal(SIGINT,occt);	/* Put old SIGINT back. */
-	    sigint_ign = (occt == SIG_IGN) ? 1 : 0;
-	    if (xx == -2) {		/* If lockfile says device in use, */
+            /* WARNING - This close() can hang if tty is an empty socket... */
+            close(ttyfd);               /* Close the device. */
+            ttyfd = -1;                 /* Erase its file descriptor. */
+            wasclosed = 1;
+            signal(SIGINT,occt);        /* Put old SIGINT back. */
+            sigint_ign = (occt == SIG_IGN) ? 1 : 0;
+            if (xx == -2) {             /* If lockfile says device in use, */
 #ifndef NOUUCP
-		debug(F111,"ttopen reading lockfile pid",flfnam,xx);
-		xpid = ttrpid(flfnam);	/* Try to read pid from lockfile */
-		if (xpid > -1) {	/* If we got a pid */
+                debug(F111,"ttopen reading lockfile pid",flfnam,xx);
+                xpid = ttrpid(flfnam);  /* Try to read pid from lockfile */
+                if (xpid > -1) {        /* If we got a pid */
                     if (!quiet)
-		      printf("Locked by process %d\n",xpid); /* tell them. */
-		    sprintf(lockpid,"%d",xpid);	/* Record it too */
-		    debug(F110,"ttopen lockpid",lockpid,0);
-		} else if (*flfnam) {
-		    extern char *DIRCMD;
-		    char *p = NULL;
-		    int x;
-		    x = (int)strlen(flfnam) + (int)strlen(DIRCMD) + 2;
-		    p = malloc(x);	/* Print a directory listing. */
+                      printf("Locked by process %d\n",xpid); /* tell them. */
+                    sprintf(lockpid,"%d",xpid); /* Record it too */
+                    debug(F110,"ttopen lockpid",lockpid,0);
+                } else if (*flfnam) {
+                    extern char *DIRCMD;
+                    char *p = NULL;
+                    int x;
+                    x = (int)strlen(flfnam) + (int)strlen(DIRCMD) + 2;
+                    p = malloc(x);      /* Print a directory listing. */
 /*
   Note: priv_on() won't help here, because we do not pass privs along to
   to inferior processes, in this case ls.  So if the real user does not have
   directory-listing access to the lockfile directory, this will result in
   something like "not found".  That's why we try this only as a last resort.
 */
-		    if (p) {		/* If we got the space... */
-			ckmakmsg(p,x,DIRCMD," ",flfnam,NULL);
-			zsyscmd(p);	/* Get listing. */
-			if (p) {	/* free the space */
-			    free(p);
-			    p = NULL;
-			}
-		    }
-		}
+                    if (p) {            /* If we got the space... */
+                        ckmakmsg(p,x,DIRCMD," ",flfnam,NULL);
+                        zsyscmd(p);     /* Get listing. */
+                        if (p) {        /* free the space */
+                            free(p);
+                            p = NULL;
+                        }
+                    }
+                }
 #endif /* NOUUCP */
-		return(-5);		/* Code for device in use */
-		/* Otherwise forward ttlock()'s code as-is: -3 means the
-		   lock directory itself refused us, anything else is a
-		   generic failure reported from errno. */
-	    } else return(xx);
+                return(-5);             /* Code for device in use */
+                /* Otherwise forward ttlock()'s code as-is: -3 means the
+                   lock directory itself refused us, anything else is a
+                   generic failure reported from errno. */
+            } else return(xx);
         } else lkf = 1;
     }
 #else  /* OPENFIRST */
@@ -2994,66 +2994,66 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
   privs, and if it succeeds, it has created a lockfile where it didn't create
   one before.
 */
-    xlocal = *lcl;			/* Is the device my login terminal? */
+    xlocal = *lcl;                      /* Is the device my login terminal? */
     debug(F111,"ttopen xlocal","A",xlocal);
     fnam = ttname;
     if (strcmp(ttname,CTTNAM) && netconn == 0) {
-	if (zfnqfp(ttname,DEVNAMLEN+1,fullname)) {
-	    if ((int)strlen(fullname) > 0)
-	      fnam = fullname;
-	}
+        if (zfnqfp(ttname,DEVNAMLEN+1,fullname)) {
+            if ((int)strlen(fullname) > 0)
+              fnam = fullname;
+        }
     }
     debug(F110,"ttopen fnam",fnam,0);
     if (xlocal < 0) {
-	xlocal = (strcmp(fnam,CTTNAM) != 0);
+        xlocal = (strcmp(fnam,CTTNAM) != 0);
     }
     debug(F111,"ttopen xlocal","B",xlocal);
 
     lkf = 0;                            /* No lock yet */
-    if (xlocal > 0) {			/* If not... */
-	int xx; int xpid;
-	xx = ttlock(fnam);		/* Try to lock it. */
-	debug(F101,"ttopen ttlock","",xx);
-        if (xx < 0) {			/* Can't lock it. */
+    if (xlocal > 0) {                   /* If not... */
+        int xx; int xpid;
+        xx = ttlock(fnam);              /* Try to lock it. */
+        debug(F101,"ttopen ttlock","",xx);
+        if (xx < 0) {                   /* Can't lock it. */
             debug(F111,"ttopen ttlock fails",fnam,xx);
-	    if (xx == -2) {		/* If lockfile says device in use, */
+            if (xx == -2) {             /* If lockfile says device in use, */
 #ifndef NOUUCP
-		debug(F111,"ttopen reading lockfile pid",flfnam,xx);
-		xpid = ttrpid(flfnam);	/* Try to read pid from lockfile */
-		if (xpid > -1) {	/* If we got a pid */
+                debug(F111,"ttopen reading lockfile pid",flfnam,xx);
+                xpid = ttrpid(flfnam);  /* Try to read pid from lockfile */
+                if (xpid > -1) {        /* If we got a pid */
                     if (!quiet)
-		      printf("Locked by process %d\n",xpid); /* tell them. */
-		    ckstrncpy(lockpid,ckitoa(xpid),16);
-		    debug(F110,"ttopen lockpid",lockpid,0);
+                      printf("Locked by process %d\n",xpid); /* tell them. */
+                    ckstrncpy(lockpid,ckitoa(xpid),16);
+                    debug(F110,"ttopen lockpid",lockpid,0);
 #ifndef NOPUSH
-		} else if (flfnam[0] && !nopush) {
-		    extern char *DIRCMD;
-		    char *p = NULL;
-		    int x;
-		    x = (int)strlen(flfnam) + (int)strlen(DIRCMD) + 2;
-		    p = malloc(x);	/* Print a directory listing. */
+                } else if (flfnam[0] && !nopush) {
+                    extern char *DIRCMD;
+                    char *p = NULL;
+                    int x;
+                    x = (int)strlen(flfnam) + (int)strlen(DIRCMD) + 2;
+                    p = malloc(x);      /* Print a directory listing. */
 /*
   Note: priv_on() won't help here, because we do not pass privs along to
   to inferior processes, in this case ls.  So if the real user does not have
   directory-listing access to the lockfile directory, this will result in
   something like "not found".  That's why we try this only as a last resort.
 */
-		    if (p) {		/* If we got the space... */
-			ckmakmsg(p,x,DIRCMD," ",flfnam,NULL);
-			zsyscmd(p);	/* Get listing. */
-			if (p) {	/* free the space */
-			    free(p);
-			    p = NULL;
-			}
-		    }
+                    if (p) {            /* If we got the space... */
+                        ckmakmsg(p,x,DIRCMD," ",flfnam,NULL);
+                        zsyscmd(p);     /* Get listing. */
+                        if (p) {        /* free the space */
+                            free(p);
+                            p = NULL;
+                        }
+                    }
 #endif /* NOPUSH */
-		}
+                }
 #endif /* NOUUCP */
-		return(-5);		/* Code for device in use */
-		/* Otherwise forward ttlock()'s code as-is: -3 means the
-		   lock directory itself refused us, anything else is a
-		   generic failure reported from errno. */
-	    } else return(xx);
+                return(-5);             /* Code for device in use */
+                /* Otherwise forward ttlock()'s code as-is: -3 means the
+                   lock directory itself refused us, anything else is a
+                   generic failure reported from errno. */
+            } else return(xx);
         } else lkf = 1;
     }
     /* Have lock -- now it's safe to open the device */
@@ -3061,64 +3061,64 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
     debug(F101,"ttopen lkf","",lkf);
     debug(F101,"ttopen timo","",timo);
 
-    ttotmo = 0;				/* Flag no timeout */
+    ttotmo = 0;                         /* Flag no timeout */
     if (timo > 0) {
-	int xx;
-	saval = signal(SIGALRM,timerh);	/* Timed, set up timer. */
-	xx = alarm(timo);		/* Timed open() */
-	debug(F101,"ttopen alarm","",xx);
-	if (
+        int xx;
+        saval = signal(SIGALRM,timerh); /* Timed, set up timer. */
+        xx = alarm(timo);               /* Timed open() */
+        debug(F101,"ttopen alarm","",xx);
+        if (
 #ifdef CK_POSIX_SIG
-	    sigsetjmp(sjbuf,1)
+            sigsetjmp(sjbuf,1)
 #else
-	    setjmp(sjbuf)
+            setjmp(sjbuf)
 #endif /* CK_POSIX_SIG */
-	    ) {
-	    ttotmo = 1;			/* Flag timeout. */
-	} else {
-	    ttyfd = do_open(fnam);
-	}
-	ttimoff();
-	debug(F111,"ttopen timed ttyfd",fnam,ttyfd);
+            ) {
+            ttotmo = 1;                 /* Flag timeout. */
+        } else {
+            ttyfd = do_open(fnam);
+        }
+        ttimoff();
+        debug(F111,"ttopen timed ttyfd",fnam,ttyfd);
     } else {
-	errno = 0;
-	ttyfd = do_open(fnam);
-	debug(F111,"ttopen untimed ttyfd",fnam,ttyfd);
+        errno = 0;
+        ttyfd = do_open(fnam);
+        debug(F111,"ttopen untimed ttyfd",fnam,ttyfd);
     }
-    if (ttyfd < 0) {			/* If couldn't open, fail. */
-	debug(F111,"ttopen errno",fnam,errno);
-	debug(F111,"ttopen xlocal","C",xlocal);
-	if (xlocal == 0) {
-	    debug(F100,"ttopen substituting 0","",0);
-	    ttyfd = 0;
-	} else {
-	    if (errno > 0 && !quiet) {
-	        debug(F111,"ttopen perror",fnam,errno);
-		perror(fnam);		/* Print message */
-	    }
-	    if (ttunlck())                  /* Release the lock file */
-	      fprintf(stderr,"Warning, problem releasing lock\r\n");
-	}
+    if (ttyfd < 0) {                    /* If couldn't open, fail. */
+        debug(F111,"ttopen errno",fnam,errno);
+        debug(F111,"ttopen xlocal","C",xlocal);
+        if (xlocal == 0) {
+            debug(F100,"ttopen substituting 0","",0);
+            ttyfd = 0;
+        } else {
+            if (errno > 0 && !quiet) {
+                debug(F111,"ttopen perror",fnam,errno);
+                perror(fnam);           /* Print message */
+            }
+            if (ttunlck())                  /* Release the lock file */
+              fprintf(stderr,"Warning, problem releasing lock\r\n");
+        }
     }
 
-    if (ttyfd < 0) {			/* ttyfd is still < 0? */
+    if (ttyfd < 0) {                    /* ttyfd is still < 0? */
 #ifdef ATT7300
-	if (attmodem & DOGETY)		/* was getty(1m) running before us? */
-	  ongetty(ttnmsv);		/* yes, restart on tty line */
-	attmodem &= ~DOGETY;		/* no phone in use, getty restored */
+        if (attmodem & DOGETY)          /* was getty(1m) running before us? */
+          ongetty(ttnmsv);              /* yes, restart on tty line */
+        attmodem &= ~DOGETY;            /* no phone in use, getty restored */
 #else
 #ifdef ACUCNTRL
         /* Should put call to priv_on() here, but that would be risky! */
-	acucntrl("enable",fnam);	/* acucntrl() program. */
-	/* and priv_off() here... */
+        acucntrl("enable",fnam);        /* acucntrl() program. */
+        /* and priv_off() here... */
 #endif /* ACUNTRL */
 #endif /* ATT7300 */
 
-	signal(SIGINT,occt);		/* Put old Ctrl-C trap back. */
-	if (errno == EACCES) {		/* Device is protected against user */
-	    debug(F110,"ttopen EACCESS",fnam,0); /* Return -4 */
-	    return(-4);
-	} else return(ttotmo ? -2 : -1); /* Otherwise -2 if timeout, or -1 */
+        signal(SIGINT,occt);            /* Put old Ctrl-C trap back. */
+        if (errno == EACCES) {          /* Device is protected against user */
+            debug(F110,"ttopen EACCESS",fnam,0); /* Return -4 */
+            return(-4);
+        } else return(ttotmo ? -2 : -1); /* Otherwise -2 if timeout, or -1 */
     }
 
 /* Make sure it's a real tty. */
@@ -3129,17 +3129,17 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
 #else
       if (!ttfdflg && !isatty(ttyfd) && strcmp(fnam,"/dev/null"))
 #endif /* Plan9 */
-	{
-	    fprintf(stderr,"%s is not a terminal device\n",fnam);
-	    debug(F111,"ttopen not a tty",fnam,errno);
-	    if (ttunlck())		/* Release the lock file */
-	      fprintf(stderr,"Warning, problem releasing lock\r\n");
-	    close(ttyfd);
-	    ttyfd = -1;
-	    wasclosed = 1;
-	    signal(SIGINT,occt);
-	    return(-1);
-	}
+        {
+            fprintf(stderr,"%s is not a terminal device\n",fnam);
+            debug(F111,"ttopen not a tty",fnam,errno);
+            if (ttunlck())              /* Release the lock file */
+              fprintf(stderr,"Warning, problem releasing lock\r\n");
+            close(ttyfd);
+            ttyfd = -1;
+            wasclosed = 1;
+            signal(SIGINT,occt);
+            return(-1);
+        }
 
 #ifdef aegis
     /*
@@ -3148,42 +3148,42 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
     */
     ios_$inq_type_uid((short)ttyfd, ttyuid, st);
     if (st.all != status_$ok) {
-	fprintf(stderr, "problem getting tty object type: ");
-	error_$print(st);
-    } else if (ttyuid != sio_$uid) {	/* Reject non-SIO lines */
-	close(ttyfd); ttyfd = -1;
-	wasclosed = 1;
-	errno = ENOTTY; perror(fnam);
-	signal(SIGINT,occt);
-	return(-1);
+        fprintf(stderr, "problem getting tty object type: ");
+        error_$print(st);
+    } else if (ttyuid != sio_$uid) {    /* Reject non-SIO lines */
+        close(ttyfd); ttyfd = -1;
+        wasclosed = 1;
+        errno = ENOTTY; perror(fnam);
+        signal(SIGINT,occt);
+        return(-1);
     }
 #endif /* aegis */
 
     sigint_ign = (occt == SIG_IGN) ? 1 : 0;
 
-    ckstrncpy(ttnmsv,ttname,DEVNAMLEN);	/* Keep copy of name locally. */
+    ckstrncpy(ttnmsv,ttname,DEVNAMLEN); /* Keep copy of name locally. */
 
 /* Caller wants us to figure out if line is controlling tty */
 
     if (*lcl < 0) {
-	char * s;
+        char * s;
         if (strcmp(fnam,CTTNAM) == 0) { /* "/dev/tty" always remote */
             xlocal = 0;
-	    debug(F111,"ttopen fnam=CTTNAM",fnam,xlocal);
+            debug(F111,"ttopen fnam=CTTNAM",fnam,xlocal);
         } else if (strcmp(fnam,cttnam) == 0) {
             xlocal = 0;
-	    debug(F111,"ttopen fnam=cttnam",fnam,xlocal);
-	} else if (cttnam[0]) {
+            debug(F111,"ttopen fnam=cttnam",fnam,xlocal);
+        } else if (cttnam[0]) {
 #ifdef BEBOX_DR7
-            s = ttnmsv;			/* ttyname() is broken */
+            s = ttnmsv;                 /* ttyname() is broken */
 #else
             s = ttyname(ttyfd);         /* Get real name of ttname. */
 #endif /* BEBOX_DR7 */
-	    if (!s) s = "";
-	    if (*s)
-	      xlocal = ((strncmp(s,cttnam,DEVNAMLEN) == 0) ? 0 : 1);
-	    else
-	      xlocal = 1;
+            if (!s) s = "";
+            if (*s)
+              xlocal = ((strncmp(s,cttnam,DEVNAMLEN) == 0) ? 0 : 1);
+            else
+              xlocal = 1;
             debug(F111,"ttopen ttyname(ttyfd) xlocal",s,xlocal);
         }
     }
@@ -3192,18 +3192,18 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
 /* Note, the following code was added so that Unix "idle-line" snoopers */
 /* would not think Kermit was idle when it was transferring files, and */
 /* maybe log people out. */
-    if (xlocal == 0) {			/* Remote mode */
-	if (fdflag == 0) {		/* Standard i/o is not redirected */
-	    debug(F100,"ttopen setting ttyfd = 0","",0);
+    if (xlocal == 0) {                  /* Remote mode */
+        if (fdflag == 0) {              /* Standard i/o is not redirected */
+            debug(F100,"ttopen setting ttyfd = 0","",0);
 #ifdef LYNXOS
-	    /* On Lynx OS, fd 0 is open for read only. */
-	    dup2(ttyfd,0);
+            /* On Lynx OS, fd 0 is open for read only. */
+            dup2(ttyfd,0);
 #endif /* LYNXOS */
-	    close(ttyfd);		/* Use file descriptor 0 */
-	    ttyfd = 0;
-	} else {			/* Standard i/o is redirected */
-	    debug(F101,"ttopen stdio redirected","",ttyfd);
-	}
+            close(ttyfd);               /* Use file descriptor 0 */
+            ttyfd = 0;
+        } else {                        /* Standard i/o is redirected */
+            debug(F101,"ttopen stdio redirected","",ttyfd);
+        }
     }
 #endif /* NOFDZERO */
 #endif /* OPENFIRST */
@@ -3216,13 +3216,13 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
 
 #ifdef  V7
 #ifndef MINIX
-    if (kmem[TTY] < 0) {		/*  If open, then skip this.  */
-	qaddr[TTY] = initrawq(ttyfd);   /* Init the queue. */
-	if ((kmem[TTY] = open("/dev/kmem", 0)) < 0) {
-	    fprintf(stderr, "Can't read /dev/kmem in ttopen.\n");
-	    perror("/dev/kmem");
-	    exit(1);
-	}
+    if (kmem[TTY] < 0) {                /*  If open, then skip this.  */
+        qaddr[TTY] = initrawq(ttyfd);   /* Init the queue. */
+        if ((kmem[TTY] = open("/dev/kmem", 0)) < 0) {
+            fprintf(stderr, "Can't read /dev/kmem in ttopen.\n");
+            perror("/dev/kmem");
+            exit(1);
+        }
     }
 #endif /* !MINIX */
 #endif /* V7 */
@@ -3233,23 +3233,23 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
     ioctl(ttyfd, TIOCMODEM, &temp);
 #ifdef TIOCSINUSE
     if (xlocal && ioctl(ttyfd, TIOCSINUSE, NULL) < 0) {
-	if (!quiet)
-	  perror(fnam);
+        if (!quiet)
+          perror(fnam);
     }
 #endif /* TIOCSINUSE */
 #endif /* ultrix */
 
 /* Get tty device settings  */
 
-#ifdef BSD44ORPOSIX			/* POSIX */
+#ifdef BSD44ORPOSIX                     /* POSIX */
     tcgetattr(ttyfd,&ttold);
     debug(F101,"ttopen tcgetattr ttold.c_lflag","",ttold.c_lflag);
     tcgetattr(ttyfd,&ttraw);
     debug(F101,"ttopen tcgetattr ttraw.c_lflag","",ttraw.c_lflag);
     tcgetattr(ttyfd,&tttvt);
     debug(F101,"ttopen tcgetattr tttvt.c_lflag","",tttvt.c_lflag);
-#else					/* BSD, V7, and all others */
-#ifdef ATTSV				/* AT&T UNIX */
+#else                                   /* BSD, V7, and all others */
+#ifdef ATTSV                            /* AT&T UNIX */
     ioctl(ttyfd,TCGETA,&ttold);
     debug(F101,"ttopen ioctl TCGETA ttold.c_lflag","",ttold.c_lflag);
     ioctl(ttyfd,TCGETA,&ttraw);
@@ -3265,25 +3265,25 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
     debug(F101,"ttopen gtty ttold.sg_flags","",ttold.sg_flags);
 #endif /* BELLV10 */
 
-#ifdef sony_news			/* Sony NEWS */
+#ifdef sony_news                        /* Sony NEWS */
     if (ioctl(ttyfd,TIOCKGET,&km_ext) < 0) { /* Get console Kanji mode */
-	perror("ttopen error getting Kanji mode");
-	debug(F101,"ttopen error getting Kanji mode","",0);
-	km_ext = -1;			/* Make sure this stays undefined. */
+        perror("ttopen error getting Kanji mode");
+        debug(F101,"ttopen error getting Kanji mode","",0);
+        km_ext = -1;                    /* Make sure this stays undefined. */
     }
 #endif /* sony_news */
 
 #ifdef TIOCGETC
     debug(F100,"ttopen TIOCGETC","",0);
-    tcharf = 0;				/* In remote mode, also get */
-    if (xlocal == 0) {			/* special characters */
-	if (ioctl(ttyfd,TIOCGETC,&tchold) < 0) {
-	    debug(F100,"ttopen TIOCGETC failed","",0);
-	} else {
-	    tcharf = 1;			/* It worked. */
-	    ioctl(ttyfd,TIOCGETC,&tchnoi); /* Get another copy */
-	    debug(F100,"ttopen TIOCGETC ok","",0);
-	}
+    tcharf = 0;                         /* In remote mode, also get */
+    if (xlocal == 0) {                  /* special characters */
+        if (ioctl(ttyfd,TIOCGETC,&tchold) < 0) {
+            debug(F100,"ttopen TIOCGETC failed","",0);
+        } else {
+            tcharf = 1;                 /* It worked. */
+            ioctl(ttyfd,TIOCGETC,&tchnoi); /* Get another copy */
+            debug(F100,"ttopen TIOCGETC ok","",0);
+        }
     }
 #else
     debug(F100,"ttopen TIOCGETC not defined","",0);
@@ -3291,15 +3291,15 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
 
 #ifdef TIOCGLTC
     debug(F100,"ttopen TIOCGLTC","",0);
-    ltcharf = 0;			/* In remote mode, also get */
-    if (xlocal == 0) {			/* local special characters */
-	if (ioctl(ttyfd,TIOCGLTC,&ltchold) < 0) {
-	    debug(F100,"ttopen TIOCGLTC failed","",0);
-	} else {
-	    ltcharf = 1;		/* It worked. */
-	    ioctl(ttyfd,TIOCGLTC,&ltchnoi); /* Get another copy */
-	    debug(F100,"ttopen TIOCGLTC ok","",0);
-	}
+    ltcharf = 0;                        /* In remote mode, also get */
+    if (xlocal == 0) {                  /* local special characters */
+        if (ioctl(ttyfd,TIOCGLTC,&ltchold) < 0) {
+            debug(F100,"ttopen TIOCGLTC failed","",0);
+        } else {
+            ltcharf = 1;                /* It worked. */
+            ioctl(ttyfd,TIOCGLTC,&ltchnoi); /* Get another copy */
+            debug(F100,"ttopen TIOCGLTC ok","",0);
+        }
     }
 #else
     debug(F100,"ttopen TIOCGLTC not defined","",0);
@@ -3309,10 +3309,10 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
     debug(F100,"ttopen TIOCLGET","",0);
     lmodef = 0;
     if (ioctl(ttyfd,TIOCLGET,&lmode) < 0) {
-	debug(F100,"ttopen TIOCLGET failed","",0);
+        debug(F100,"ttopen TIOCLGET failed","",0);
     } else {
-	lmodef = 1;
-	debug(F100,"ttopen TIOCLGET ok","",0);
+        lmodef = 1;
+        debug(F100,"ttopen TIOCLGET ok","",0);
     }
 #endif /* TIOCLGET */
 
@@ -3334,10 +3334,10 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
     { union txname ld_name; int ld_idx = 0;
       ttld = 0;
         do {
-  	  ld_name.tx_which = ld_idx++;
-  	  ioctl(ttyfd, TXGETCD, &ld_name);
-	  if (!strncmp(ld_name.tx_name, "rts", 3))
-  	    ttld |= 1;
+          ld_name.tx_which = ld_idx++;
+          ioctl(ttyfd, TXGETCD, &ld_name);
+          if (!strncmp(ld_name.tx_name, "rts", 3))
+            ttld |= 1;
         } while (*ld_name.tx_name);
         debug(F101,"AIX line discipline","",ttld);
       }
@@ -3347,9 +3347,9 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
 #ifdef BSD41
 /* For 4.1BSD only, force "old" tty driver, new one botches TANDEM. */
     { int k;
-      ioctl(ttyfd, TIOCGETD, &ttld);	/* Get and save line discipline */
+      ioctl(ttyfd, TIOCGETD, &ttld);    /* Get and save line discipline */
       debug(F101,"4.1bsd line discipline","",ttld);
-      k = OTTYDISC;			/* Switch to "old" discipline */
+      k = OTTYDISC;                     /* Switch to "old" discipline */
       k = ioctl(ttyfd, TIOCSETD, &k);
       debug(F101,"4.1bsd tiocsetd","",k);
     }
@@ -3379,50 +3379,50 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
     debug(F100,"ttopen O_NDELAY","",0);
     if (xlocal > 0) {
       if (fcntl(ttyfd, F_GETFL, 0) & O_NDELAY) {
-	debug(F100,"ttopen fcntl O_NDELAY","",0);
+        debug(F100,"ttopen fcntl O_NDELAY","",0);
 #ifndef aegis
-	if (fcntl(ttyfd,F_SETFL, fcntl(ttyfd, F_GETFL, 0) & ~O_NDELAY) < 0) {
-	    debug(F100,"ttopen fcntl failure to unset O_NDELAY","",0);
-	    perror("Can't unset O_NDELAY");
-	}
+        if (fcntl(ttyfd,F_SETFL, fcntl(ttyfd, F_GETFL, 0) & ~O_NDELAY) < 0) {
+            debug(F100,"ttopen fcntl failure to unset O_NDELAY","",0);
+            perror("Can't unset O_NDELAY");
+        }
 #endif /* aegis */
-	/* Some systems, notably Xenix (don't know how common this is in
-	 * other systems), need special treatment to get rid of the O_NDELAY
-	 * behaviour on read() with respect to carrier presence (i.e. read()
-	 * returning 0 when carrier absent), even though the above fcntl()
-	 * is enough to make read() wait for input when carrier is present.
-	 * This magic, in turn, requires CLOCAL for working when the carrier
-	 * is absent. But if xlocal == 0, presumably you already have CLOCAL
-	 * or you have a carrier, otherwise you wouldn't be running this.
-	 */
-	debug(F101,"ttopen xlocal","",xlocal);
+        /* Some systems, notably Xenix (don't know how common this is in
+         * other systems), need special treatment to get rid of the O_NDELAY
+         * behaviour on read() with respect to carrier presence (i.e. read()
+         * returning 0 when carrier absent), even though the above fcntl()
+         * is enough to make read() wait for input when carrier is present.
+         * This magic, in turn, requires CLOCAL for working when the carrier
+         * is absent. But if xlocal == 0, presumably you already have CLOCAL
+         * or you have a carrier, otherwise you wouldn't be running this.
+         */
+        debug(F101,"ttopen xlocal","",xlocal);
 #ifdef ATTSV
 #ifdef BSD44ORPOSIX
 #ifdef CLOCAL
-	if (xlocal)			/* Unset this if it's defined. */
-	  ttraw.c_cflag |= CLOCAL;
+        if (xlocal)                     /* Unset this if it's defined. */
+          ttraw.c_cflag |= CLOCAL;
 #endif /* CLOCAL */
-	debug(F101,"ttopen BSD44ORPOSIX calling tcsetattr","",TCSADRAIN);
-	if (tcsetattr(ttyfd, TCSADRAIN, &ttraw) < 0) {
-	    debug(F100,"ttopen POSIX tcseattr fails","",0);
-	    perror("tcsetattr");
-	}
+        debug(F101,"ttopen BSD44ORPOSIX calling tcsetattr","",TCSADRAIN);
+        if (tcsetattr(ttyfd, TCSADRAIN, &ttraw) < 0) {
+            debug(F100,"ttopen POSIX tcseattr fails","",0);
+            perror("tcsetattr");
+        }
 #else /* !BSD44ORPOSIX */
-	if (xlocal) {
-	    ttraw.c_cflag |= CLOCAL;
-	    debug(F100,"ttopen calling ioctl(TCSETA)","",0);
-	    errno = 0;
-	    if (ioctl(ttyfd, TCSETA, &ttraw) < 0) {
+        if (xlocal) {
+            ttraw.c_cflag |= CLOCAL;
+            debug(F100,"ttopen calling ioctl(TCSETA)","",0);
+            errno = 0;
+            if (ioctl(ttyfd, TCSETA, &ttraw) < 0) {
                 debug(F101,"ttopen ioctl(TCSETA) fails","",errno);
                 perror("ioctl(TCSETA)");
             }
-	}
+        }
 #endif /* BSD44ORPOSIX */
 #endif /* ATTSV */
 #ifndef NOCOTFMC /* = NO Close(Open()) To Force Mode Change */
 /* Reportedly lets uugetty grab the device in SCO UNIX 3.2 / XENIX 2.3 */
-	debug(F100,"ttopen executing close/open","",0);
-	close( priv_opn(fnam, O_RDWR) ); /* Magic to force change. */
+        debug(F100,"ttopen executing close/open","",0);
+        close( priv_opn(fnam, O_RDWR) ); /* Magic to force change. */
 #endif /* NOCOTFMC */
       }
     }
@@ -3447,35 +3447,35 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
  * any communication is done.  Well, we'll see...
  */
     if (xlocal) {
-    	curcarr = -2;
-	debug(F100,"ttopen calling carrctl","",0);
-	carrctl(&ttraw, ttcarr == CAR_ON);
-	debug(F100,"ttopen carrctl ok","",0);
+        curcarr = -2;
+        debug(F100,"ttopen calling carrctl","",0);
+        carrctl(&ttraw, ttcarr == CAR_ON);
+        debug(F100,"ttopen carrctl ok","",0);
 
 #ifdef COHERENT
 #define SVORPOSIX
 #endif /* COHERENT */
 
 #ifdef SVORPOSIX
-	ttraw.c_lflag &= ~ECHO;
-	ttold.c_lflag &= ~ECHO;
+        ttraw.c_lflag &= ~ECHO;
+        ttold.c_lflag &= ~ECHO;
 #ifdef BSD44ORPOSIX
-	y = tcsetattr(ttyfd, TCSADRAIN, &ttraw);
-	debug(F101,"ttopen tcsetattr","",y);
+        y = tcsetattr(ttyfd, TCSADRAIN, &ttraw);
+        debug(F101,"ttopen tcsetattr","",y);
 #else
-	y = ioctl(ttyfd, TCSETA, &ttraw);
-	debug(F100,"ttopen ioctl","",y);
+        y = ioctl(ttyfd, TCSETA, &ttraw);
+        debug(F100,"ttopen ioctl","",y);
 #endif /* BSD44ORPOSIX */
 
 #else /* BSD, etc */
-	ttraw.sg_flags &= ~ECHO;
-	ttold.sg_flags &= ~ECHO;
+        ttraw.sg_flags &= ~ECHO;
+        ttold.sg_flags &= ~ECHO;
 #ifdef BELLV10
-	y = ioctl(ttyfd,TIOCSETP,&ttraw);
-	debug(F100,"ttopen ioctl","",y);
+        y = ioctl(ttyfd,TIOCSETP,&ttraw);
+        debug(F100,"ttopen ioctl","",y);
 #else
-	y = stty(ttyfd,&ttraw);
-	debug(F100,"ttopen stty","",y);
+        y = stty(ttyfd,&ttraw);
+        debug(F100,"ttopen stty","",y);
 #endif /* BELLV10 */
 #endif /* SVORPOSIX */
 
@@ -3483,7 +3483,7 @@ debug(F110,"XXX netopen in ifdef NETCONN...","A",0);
 #undef SVORPOSIX
 #endif /* COHERENT */
 
-	/* ttflui(); */  /*  This fails for some reason.  */
+        /* ttflui(); */  /*  This fails for some reason.  */
     }
 
     /* Get current speed */
@@ -3521,17 +3521,17 @@ do_open(ttname) char *ttname;
 #ifdef QNX6
     /* O_NONBLOCK on /dev/tty makes open() fail */
     return(priv_opn(ttname, O_RDWR |
-		    (
-		     ((int)strcmp(ttname,"/dev/tty") == 0) ?
-		     0 :
-		     (ttcarr != CAR_ON) ? O_NONBLOCK : 0)
-		    )
-	   );
+                    (
+                     ((int)strcmp(ttname,"/dev/tty") == 0) ?
+                     0 :
+                     (ttcarr != CAR_ON) ? O_NONBLOCK : 0)
+                    )
+           );
 #else  /* !QNX6 */
 
-#ifndef	O_NDELAY			/* O_NDELAY not defined */
+#ifndef O_NDELAY                        /* O_NDELAY not defined */
     return(priv_opn(ttname,2));
-#else					/* O_NDELAY defined */
+#else                                   /* O_NDELAY defined */
 
 #ifdef ATT7300
 /*
@@ -3543,7 +3543,7 @@ do_open(ttname) char *ttname;
 */
     return(priv_opn(ttname, O_RDWR | O_NDELAY));
 
-#else	/* !ATT7300 */
+#else   /* !ATT7300 */
 
     /* Normal case. Use O_NDELAY according to SET CARRIER. See ttscarr(). */
     flags = O_RDWR;
@@ -3560,17 +3560,24 @@ do_open(ttname) char *ttname;
 
 /*  T T C L O S  --  Close the TTY, releasing any lock.  */
 
-static int ttc_state = 0;		/* ttclose() state */
+static int ttc_state = 0;               /* ttclose() state */
 static char * ttc_nam[] = { "setup", "hangup", "reset", "close" };
 
 int
 #ifdef CK_ANSIC
-ttclos( int foo )			/* Arg req'd for signal() prototype */
+ttclos( int foo )                       /* Arg req'd for signal() prototype */
 #else
 ttclos(foo) int foo;
 #endif /* CK_ANSIC */
 {
-    int xx, x = 0;
+    int xx;
+    /* Set both before and after sigsetjmp() below; must survive a */
+    /* longjmp() back. */
+#ifdef CK_ANSIC
+    volatile int x = 0;
+#else
+    int x = 0;
+#endif /* CK_ANSIC */
     extern int exithangup;
 
     debug(F101,"ttclos ttyfd","",ttyfd);
@@ -3580,7 +3587,7 @@ ttclos(foo) int foo;
     debug(F100,"ttclos NOFDZERO","",0);
 #endif /* NOFDZERO */
 
-    if (ttyfd < 0)			/* Wasn't open. */
+    if (ttyfd < 0)                      /* Wasn't open. */
       return(0);
 
 #ifdef IKSD                             /* (Jeff Johnson 16 May 2023) */
@@ -3592,7 +3599,7 @@ ttclos(foo) int foo;
     }
 #endif /* IKSD */
 
-    tvtflg = 0;				/* (some day get rid of this...) */
+    tvtflg = 0;                         /* (some day get rid of this...) */
     gotsigs = 0;
 
 #ifdef IKSD
@@ -3604,49 +3611,49 @@ ttclos(foo) int foo;
           tn_reset();                   /* The Reset Telnet Option table.  */
 #endif /* TNCODE */
 #ifdef CK_SSL
-	  if (ssl_active_flag) {
-	      if (ssl_debug_flag)
-		BIO_printf(bio_err,"calling SSL_shutdown(ssl)\n");
-	      SSL_shutdown(ssl_con);
-	      SSL_free(ssl_con);
-	      ssl_con = NULL;
-	      ssl_active_flag = 0;
-	  }
-	  if (tls_active_flag) {
-	      if (ssl_debug_flag)
-		BIO_printf(bio_err,"calling SSL_shutdown(tls)\n");
-	      SSL_shutdown(tls_con);
-	      SSL_free(tls_con);
-	      tls_con = NULL;
-	      tls_active_flag = 0;
-	  }
+          if (ssl_active_flag) {
+              if (ssl_debug_flag)
+                BIO_printf(bio_err,"calling SSL_shutdown(ssl)\n");
+              SSL_shutdown(ssl_con);
+              SSL_free(ssl_con);
+              ssl_con = NULL;
+              ssl_active_flag = 0;
+          }
+          if (tls_active_flag) {
+              if (ssl_debug_flag)
+                BIO_printf(bio_err,"calling SSL_shutdown(tls)\n");
+              SSL_shutdown(tls_con);
+              SSL_free(tls_con);
+              tls_con = NULL;
+              tls_active_flag = 0;
+          }
 #endif /* CK_SSL */
     }
 #endif /* IKSD */
 #ifdef NETCMD
     debug(F101,"XXX NETCMD ttpipe","",ttpipe);
 
-    if (ttpipe) {			/* We've been using a pipe */
-	/* ttpipe = 0; */
-	if (ttpid > 0) {
-	    int wstat;
-	    int statusp;
-	    close(fdin);		/* Close these. */
-	    close(fdout);
-	    fdin = fdout = -1;
-	    kill(ttpid,1);		/* Kill fork with SIGHUP */
-	    while (1) {
-		wstat = wait(&statusp);
-		if (wstat == ttpid || wstat == -1)
-		  break;
-		pexitstat = (statusp & 0xff) ? statusp : statusp >> 8;
-	    }
-	    ttpid = 0;
-	}
-	netconn = 0;
-	wasclosed = 1;
-	ttyfd = -1;
-	return(0);
+    if (ttpipe) {                       /* We've been using a pipe */
+        /* ttpipe = 0; */
+        if (ttpid > 0) {
+            int wstat;
+            int statusp;
+            close(fdin);                /* Close these. */
+            close(fdout);
+            fdin = fdout = -1;
+            kill(ttpid,1);              /* Kill fork with SIGHUP */
+            while (1) {
+                wstat = wait(&statusp);
+                if (wstat == ttpid || wstat == -1)
+                  break;
+                pexitstat = (statusp & 0xff) ? statusp : statusp >> 8;
+            }
+            ttpid = 0;
+        }
+        netconn = 0;
+        wasclosed = 1;
+        ttyfd = -1;
+        return(0);
     }
 #endif /* NETCMD */
 #ifdef NETPTY
@@ -3654,10 +3661,11 @@ ttclos(foo) int foo;
     if (ttpty) {
 #ifndef NODOPTY
         end_pty();
+        pty_net_pid = -1;
 #endif /* NODOPTY */
         close(ttyfd);
-	netconn = 0;
-	wasclosed = 1;
+        netconn = 0;
+        wasclosed = 1;
         ttpty = 0;
         ttyfd = -1;
         return(0);
@@ -3665,27 +3673,27 @@ ttclos(foo) int foo;
 #endif /* NETPTY */
 
     debug(F110,"XXX netclos in ifdef NETCONN...","A",0);
-#ifdef	NETCONN
+#ifdef  NETCONN
     debug(F110,"XXX netclos in ifdef NETCONN...OK","A",0);
-    if (netconn) {			/* If it's a network connection. */
-	debug(F100,"ttclos closing net","",0);
-	netclos();			/* Let the network module close it. */
-	netconn = 0;			/* No more network connection. */
-	debug(F101,"ttclos ttyfd after netclos","",ttyfd); /* Should be -1 */
-	return(0);
+    if (netconn) {                      /* If it's a network connection. */
+        debug(F100,"ttclos closing net","",0);
+        netclos();                      /* Let the network module close it. */
+        netconn = 0;                    /* No more network connection. */
+        debug(F101,"ttclos ttyfd after netclos","",ttyfd); /* Should be -1 */
+        return(0);
     }
-#endif	/* NETCONN */
+#endif  /* NETCONN */
 
-    if (xlocal) {			/* We're closing a SET LINE device */
-#ifdef FT21				/* Fortune 2.1-specific items ... */
-	ioctl(ttyfd,TIOCHPCL, NULL);
+    if (xlocal) {                       /* We're closing a SET LINE device */
+#ifdef FT21                             /* Fortune 2.1-specific items ... */
+        ioctl(ttyfd,TIOCHPCL, NULL);
 #endif /* FT21 */
-#ifdef ultrix				/* Ultrix-specific items ... */
+#ifdef ultrix                           /* Ultrix-specific items ... */
 #ifdef TIOCSINUSE
-	/* Unset the INUSE flag that we set in ttopen() */
-	ioctl(ttyfd, TIOCSINUSE, NULL);
+        /* Unset the INUSE flag that we set in ttopen() */
+        ioctl(ttyfd, TIOCSINUSE, NULL);
 #endif /* TIOCSINUSE */
-	ioctl(ttyfd, TIOCNMODEM, &x);
+        ioctl(ttyfd, TIOCNMODEM, &x);
 #endif /* ultrix */
     }
 
@@ -3693,14 +3701,14 @@ ttclos(foo) int foo;
 
 #ifdef O_NDELAY
 #ifndef aegis
-    if (ttyfd > 0) {			/* But skip it on stdin. */
-	debug(F100,"ttclos setting O_NDELAY","",0);
-	x = fcntl(ttyfd,F_SETFL,fcntl(ttyfd,F_GETFL, 0)|O_NDELAY);
+    if (ttyfd > 0) {                    /* But skip it on stdin. */
+        debug(F100,"ttclos setting O_NDELAY","",0);
+        x = fcntl(ttyfd,F_SETFL,fcntl(ttyfd,F_GETFL, 0)|O_NDELAY);
 #ifdef DEBUG
-	if (deblog && x == -1) {
-	    perror("Warning - Can't set O_NDELAY");
-	    debug(F101,"ttclos fcntl failure to set O_NDELAY","",x);
-	}
+        if (deblog && x == -1) {
+            perror("Warning - Can't set O_NDELAY");
+            debug(F101,"ttclos fcntl failure to set O_NDELAY","",x);
+        }
 #endif /* DEBUG */
     }
 #endif /* aegis */
@@ -3710,129 +3718,129 @@ ttclos(foo) int foo;
     ttc_state = 0;
     if (xlocal
 #ifdef NOFDZERO
-	|| ttyfd > 0
+        || ttyfd > 0
 #endif /* NOFDZERO */
-	) {
-	saval = signal(SIGALRM,xtimerh); /* Enable timer interrupt. */
-	xx = alarm(8);			/* Allow 8 seconds. */
-	debug(F101,"ttclos alarm","",xx);
-	if (
+        ) {
+        saval = signal(SIGALRM,xtimerh); /* Enable timer interrupt. */
+        xx = alarm(8);                  /* Allow 8 seconds. */
+        debug(F101,"ttclos alarm","",xx);
+        if (
 #ifdef CK_POSIX_SIG
-	    sigsetjmp(sjbuf,1)
+            sigsetjmp(sjbuf,1)
 #else
-	    setjmp(sjbuf)
+            setjmp(sjbuf)
 #endif /* CK_POSIX_SIG */
-	    ) {				/* Timer went off? */
-	    x = -1;
+            ) {                         /* Timer went off? */
+            x = -1;
 #ifdef DEBUG
-	    debug(F111,"ttclos ALARM TRAP errno",ckitoa(ttc_state),errno);
-	    printf("ttclos() timeout: %s\n", ttc_nam[ttc_state]);
+            debug(F111,"ttclos ALARM TRAP errno",ckitoa(ttc_state),errno);
+            printf("ttclos() timeout: %s\n", ttc_nam[ttc_state]);
 #endif /* DEBUG */
-	}
-	/* Hang up the device (drop DTR) */
+        }
+        /* Hang up the device (drop DTR) */
 
-	errno = 0;
-	debug(F111,"ttclos A",ckitoa(x),ttc_state);
-	if (ttc_state < 1) {
-	    ttc_state = 1;
-	    debug(F101,"ttclos exithangup","",exithangup);
-	    if (exithangup) {
-		alarm(8);		/* Re-arm the timer */
-		debug(F101,"ttclos calling tthang()","",x);
-		x = tthang();		/* Hang up first, then... */
-		debug(F101,"ttclos tthang()","",x);
-	    }
+        errno = 0;
+        debug(F111,"ttclos A",ckitoa(x),ttc_state);
+        if (ttc_state < 1) {
+            ttc_state = 1;
+            debug(F101,"ttclos exithangup","",exithangup);
+            if (exithangup) {
+                alarm(8);               /* Re-arm the timer */
+                debug(F101,"ttclos calling tthang()","",x);
+                x = tthang();           /* Hang up first, then... */
+                debug(F101,"ttclos tthang()","",x);
+            }
 #ifndef CK_NOHUPCL
 /*
   Oct 2006 - Leave DTR on if SET EXIT HANGUP OFF.
   Suggested by Soewono Effendi.
 */
 #ifdef HUPCL
-	    else {
-		ttold.c_cflag &= ~HUPCL; /* Let's see how this travels */
+            else {
+                ttold.c_cflag &= ~HUPCL; /* Let's see how this travels */
 #ifdef BSD44ORPOSIX
-		tcsetattr(ttyfd,TCSANOW,&ttold);
+                tcsetattr(ttyfd,TCSANOW,&ttold);
 #else /* !BSD44ORPOSIX */
 #ifdef ATTSV
-		ioctl(ttyfd,TCSETAW,&ttold);
+                ioctl(ttyfd,TCSETAW,&ttold);
 #else  /* !ATTSV */
-		stty(ttyfd,&ttold);
-#endif	/* ATTSV */
-#endif	/* BSD44ORPOSIX */
-	    }
-#endif	/* HUPCL */
-#endif	/* CK_NOHUPCL */
-	}
-	/* Put back device modes as we found them */
+                stty(ttyfd,&ttold);
+#endif  /* ATTSV */
+#endif  /* BSD44ORPOSIX */
+            }
+#endif  /* HUPCL */
+#endif  /* CK_NOHUPCL */
+        }
+        /* Put back device modes as we found them */
 
-	errno = 0;
-	debug(F111,"ttclos B",ckitoa(x),ttc_state);
-	if (ttc_state < 2) {
-	    ttc_state = 2;
-	    /* Don't try to mess with tty modes if tthang failed() */
-	    /* since it probably won't work. */
-	    if (x > -1) {
-		debug(F101,"ttclos calling ttres()","",x);
-		signal(SIGALRM,xtimerh); /* Re-enable the alarm. */
-		alarm(8);		/* Re-arm the timer */
-		x = ttres();		/* Reset device modes. */
-		debug(F101,"ttclos ttres()","",x);
-		alarm(0);
-	    }
-	}
-	/* Close the device */
+        errno = 0;
+        debug(F111,"ttclos B",ckitoa(x),ttc_state);
+        if (ttc_state < 2) {
+            ttc_state = 2;
+            /* Don't try to mess with tty modes if tthang failed() */
+            /* since it probably won't work. */
+            if (x > -1) {
+                debug(F101,"ttclos calling ttres()","",x);
+                signal(SIGALRM,xtimerh); /* Re-enable the alarm. */
+                alarm(8);               /* Re-arm the timer */
+                x = ttres();            /* Reset device modes. */
+                debug(F101,"ttclos ttres()","",x);
+                alarm(0);
+            }
+        }
+        /* Close the device */
 
-	errno = 0;
-	debug(F101,"ttclos C","",ttc_state);
-	if (ttc_state < 3) {
-	    ttc_state = 3;
-	    errno = 0;
-	    debug(F101,"ttclos calling close","",x);
-	    signal(SIGALRM,xtimerh);	/* Re-enable alarm. */
-	    alarm(8);			/* Re-arm the timer */
-	    x = close(ttyfd);		/* Close the device. */
-	    debug(F101,"ttclos close()","",x);
-	    if (x > -1)
-	      ttc_state = 3;
-	}
-	debug(F101,"ttclos D","",ttc_state);
-	ttimoff();			/* Turn off timer. */
-	if (x < 0) {
-	    printf("?WARNING - close failed: %s\n",ttnmsv);
+        errno = 0;
+        debug(F101,"ttclos C","",ttc_state);
+        if (ttc_state < 3) {
+            ttc_state = 3;
+            errno = 0;
+            debug(F101,"ttclos calling close","",x);
+            signal(SIGALRM,xtimerh);    /* Re-enable alarm. */
+            alarm(8);                   /* Re-arm the timer */
+            x = close(ttyfd);           /* Close the device. */
+            debug(F101,"ttclos close()","",x);
+            if (x > -1)
+              ttc_state = 3;
+        }
+        debug(F101,"ttclos D","",ttc_state);
+        ttimoff();                      /* Turn off timer. */
+        if (x < 0) {
+            printf("?WARNING - close failed: %s\n",ttnmsv);
 #ifdef DEBUG
-	    if (deblog) {
-		printf("errno = %d\n", errno);
-		debug(F101,"ttclos failed","",errno);
-	    }
+            if (deblog) {
+                printf("errno = %d\n", errno);
+                debug(F101,"ttclos failed","",errno);
+            }
 #endif /* DEBUG */
-	}
-	/* Unlock after closing but before any getty mumbo jumbo */
+        }
+        /* Unlock after closing but before any getty mumbo jumbo */
 
-	debug(F100,"ttclos about to call ttunlck","",0);
+        debug(F100,"ttclos about to call ttunlck","",0);
         if (ttunlck())                  /* Release uucp-style lock */
-	  fprintf(stderr,"Warning, problem releasing lock\r\n");
+          fprintf(stderr,"Warning, problem releasing lock\r\n");
     }
 
 /* For bidirectional lines, restore getty if it was there before. */
 
-#ifdef ACUCNTRL				/* 4.3BSD acucntrl() method. */
+#ifdef ACUCNTRL                         /* 4.3BSD acucntrl() method. */
     if (xlocal) {
-	debug(F100,"ttclos ACUCNTRL","",0);
-	acucntrl("enable",ttnmsv);	/* Enable getty on the device. */
+        debug(F100,"ttclos ACUCNTRL","",0);
+        acucntrl("enable",ttnmsv);      /* Enable getty on the device. */
     }
 #else
-#ifdef ATT7300				/* ATT UNIX PC (3B1, 7300) method. */
+#ifdef ATT7300                          /* ATT UNIX PC (3B1, 7300) method. */
     if (xlocal) {
-	debug(F100,"ttclos ATT7300 ongetty","",0);
-	if (attmodem & DOGETY)		/* Was getty(1m) running before us? */
-	  ongetty(ttnmsv);		/* Yes, restart getty on tty line */
-	attmodem &= ~DOGETY;		/* No phone in use, getty restored */
+        debug(F100,"ttclos ATT7300 ongetty","",0);
+        if (attmodem & DOGETY)          /* Was getty(1m) running before us? */
+          ongetty(ttnmsv);              /* Yes, restart getty on tty line */
+        attmodem &= ~DOGETY;            /* No phone in use, getty restored */
     }
 #endif /* ATT7300 */
 #endif /* System-dependent getty-restoring methods */
 
 #ifdef sony_news
-    km_ext = -1;			/* Invalidate device's Kanji-mode */
+    km_ext = -1;                        /* Invalidate device's Kanji-mode */
 #endif /* sony_news */
 
     ttyfd = -1;                         /* Invalidate the file descriptor. */
@@ -3849,7 +3857,7 @@ ttclos(foo) int foo;
  -1 if it believes that the hangup attempt failed.
 */
 
-#define HUPTIME 500			/* Milliseconds for hangup */
+#define HUPTIME 500                     /* Milliseconds for hangup */
 
 #ifndef USE_TIOCSDTR
 #ifdef __NetBSD__
@@ -3883,17 +3891,17 @@ tthang() {
 #ifdef NOLOCAL
     return(0);
 #else
-    int x = 0;				/* Sometimes used as return code. */
+    int x = 0;                          /* Sometimes used as return code. */
 #ifndef POSIX
-    int z;				/* worker */
+    int z;                              /* worker */
 #endif /* POSIX */
 
 #ifdef COHERENT
 #define SVORPOSIX
 #endif /* COHERENT */
 
-#ifdef SVORPOSIX			/* AT&T, POSIX, HPUX declarations. */
-    int spdsav;				/* for saving speed */
+#ifdef SVORPOSIX                        /* AT&T, POSIX, HPUX declarations. */
+    int spdsav;                         /* for saving speed */
 #ifdef HUP_POSIX
     int spdsavi;
 #else
@@ -3912,12 +3920,12 @@ tthang() {
       modem_sav;
     char modem_state[64];
 #endif /* HPUX */
-    int flags;				/* fcntl flags */
+    int flags;                          /* fcntl flags */
     unsigned short ttc_save;
 #endif /* SVORPOSIX */
 
     if (ttyfd < 0) return(0);           /* Don't do this if not open  */
-    if (xlocal < 1) return(0);		/* Don't do this if not local */
+    if (xlocal < 1) return(0);          /* Don't do this if not local */
 
 #ifdef NETCMD
     if (ttpipe)
@@ -3928,7 +3936,7 @@ tthang() {
       return((ttclos(0) < 0) ? -1 : 1);
 #endif /* NETPTY */
 #ifdef NETCONN
-    if (netconn) {			/* Network connection. */
+    if (netconn) {                      /* Network connection. */
 #ifdef TN_COMPORT
         if (istncomport()) {
             int rc = tnc_set_dtr_state(0);
@@ -3939,7 +3947,7 @@ tthang() {
             return(rc >= 0 ? 1 : -1);
         } else
 #endif /* TN_COMPORT */
-	  return((netclos() < 0) ? -1 : 1); /* Just close it. */
+          return((netclos() < 0) ? -1 : 1); /* Just close it. */
   }
 #endif /* NETCONN */
 
@@ -3956,75 +3964,75 @@ tthang() {
   work (i.e. DTR does not drop), whereas the TIOCSDTR method works just fine,
 */
     {
-	struct termios ttcur;
-	int x;
-	debug(F100,"tthang HUP_POSIX style","",0);
-	x = tcgetattr(ttyfd, &ttcur);	/* Get current attributes */
-	debug(F111,"tthang tcgetattr",ckitoa(errno),x);
-	if (x < 0) return(-1);
-	spdsav = cfgetospeed(&ttcur);	/* Get current speed */
-	debug(F111,"tthang cfgetospeed",ckitoa(errno),spdsav);
-	spdsavi = cfgetispeed(&ttcur);	/* Get current speed */
-	debug(F111,"tthang cfgetispeed",ckitoa(errno),spdsavi);
-	x = cfsetospeed(&ttcur,B0);	/* Replace by 0 */
-	debug(F111,"tthang cfsetospeed",ckitoa(errno),x);
-	if (x < 0) return(-1);
-	x = cfsetispeed(&ttcur,B0);
-	debug(F111,"tthang cfsetispeed",ckitoa(errno),x);
-	if (x < 0) return(-1);
-	x = tcsetattr(ttyfd,TCSADRAIN,&ttcur);
-	debug(F111,"tthang tcsetattr B0",ckitoa(errno),x);
-	if (x < 0) return(-1);
-	msleep(HUPTIME);		/* Sleep 0.5 sec */
-	x = cfsetospeed(&ttcur,spdsav); /* Restore prev speed */
-	if (x < 0) return(-1);
-	debug(F111,"tthang cfsetospeed prev",ckitoa(errno),x);
-	x = cfsetispeed(&ttcur,spdsavi);
-	debug(F111,"tthang cfsetispeed prev",ckitoa(errno),x);
-	if (x < 0) return(-1);
-	x = tcsetattr(ttyfd,TCSADRAIN,&ttcur);
-	debug(F111,"tthang tcsetattr restore",ckitoa(errno),x);
-	if (x < 0) return(-1);
-	return(1);
+        struct termios ttcur;
+        int x;
+        debug(F100,"tthang HUP_POSIX style","",0);
+        x = tcgetattr(ttyfd, &ttcur);   /* Get current attributes */
+        debug(F111,"tthang tcgetattr",ckitoa(errno),x);
+        if (x < 0) return(-1);
+        spdsav = cfgetospeed(&ttcur);   /* Get current speed */
+        debug(F111,"tthang cfgetospeed",ckitoa(errno),spdsav);
+        spdsavi = cfgetispeed(&ttcur);  /* Get current speed */
+        debug(F111,"tthang cfgetispeed",ckitoa(errno),spdsavi);
+        x = cfsetospeed(&ttcur,B0);     /* Replace by 0 */
+        debug(F111,"tthang cfsetospeed",ckitoa(errno),x);
+        if (x < 0) return(-1);
+        x = cfsetispeed(&ttcur,B0);
+        debug(F111,"tthang cfsetispeed",ckitoa(errno),x);
+        if (x < 0) return(-1);
+        x = tcsetattr(ttyfd,TCSADRAIN,&ttcur);
+        debug(F111,"tthang tcsetattr B0",ckitoa(errno),x);
+        if (x < 0) return(-1);
+        msleep(HUPTIME);                /* Sleep 0.5 sec */
+        x = cfsetospeed(&ttcur,spdsav); /* Restore prev speed */
+        if (x < 0) return(-1);
+        debug(F111,"tthang cfsetospeed prev",ckitoa(errno),x);
+        x = cfsetispeed(&ttcur,spdsavi);
+        debug(F111,"tthang cfsetispeed prev",ckitoa(errno),x);
+        if (x < 0) return(-1);
+        x = tcsetattr(ttyfd,TCSADRAIN,&ttcur);
+        debug(F111,"tthang tcsetattr restore",ckitoa(errno),x);
+        if (x < 0) return(-1);
+        return(1);
     }
 #else
 #ifdef BSD44ORPOSIX
 #ifdef QNX
     {
-	int x;
-	x = tcdropline(ttyfd,500);
-	debug(F101,"tthang QNX tcdropline","",x);
-	ttcur.c_cflag |= CLOCAL;
-	x = tcsetattr(ttyfd,TCSADRAIN,&ttcur);
-	debug(F101,"tthang QNX tcsetattr restore","",x);
-	if (x < 0) {
-	    debug(F101,"tthang QNX tcsetattr restore errno","",errno);
-	    return(-1);
-	}
-	/* Fix flags - ensure O_NONBLOCK is off */
+        int x;
+        x = tcdropline(ttyfd,500);
+        debug(F101,"tthang QNX tcdropline","",x);
+        ttcur.c_cflag |= CLOCAL;
+        x = tcsetattr(ttyfd,TCSADRAIN,&ttcur);
+        debug(F101,"tthang QNX tcsetattr restore","",x);
+        if (x < 0) {
+            debug(F101,"tthang QNX tcsetattr restore errno","",errno);
+            return(-1);
+        }
+        /* Fix flags - ensure O_NONBLOCK is off */
 
-	errno = 0;
-	debug(F101,"tthang QNX iniflags","",iniflags);
-	if (fcntl(ttyfd, F_SETFL, iniflags) == -1) {
-	    debug(F101,"tthang QNX F_SETFL errno","",errno);
-	    return(-1);
-	}
-	return(x);
+        errno = 0;
+        debug(F101,"tthang QNX iniflags","",iniflags);
+        if (fcntl(ttyfd, F_SETFL, iniflags) == -1) {
+            debug(F101,"tthang QNX F_SETFL errno","",errno);
+            return(-1);
+        }
+        return(x);
     }
 #else  /* QNX */
     {
-	int x;
+        int x;
 #ifdef USE_TIOCSDTR
-	debug(F100,"tthang BSD44ORPOSIX USE_TIOCSDTR","",0);
-	errno = 0;
-	x = ioctl(ttyfd, TIOCCDTR, NULL);
-	debug(F111,"tthang BSD44ORPOSIX ioctl TIOCCDTR",ckitoa(errno),x);
-	if (x < 0) return(-1);
-	msleep(HUPTIME);		/* Sleep 0.5 sec */
-	errno = 0;
-	x = ioctl(ttyfd, TIOCSDTR, NULL);
-	debug(F111,"tthang BSD44ORPOSIX ioctl TIOCSDTR",ckitoa(errno),x);
-	if (x < 0) return(-1);
+        debug(F100,"tthang BSD44ORPOSIX USE_TIOCSDTR","",0);
+        errno = 0;
+        x = ioctl(ttyfd, TIOCCDTR, NULL);
+        debug(F111,"tthang BSD44ORPOSIX ioctl TIOCCDTR",ckitoa(errno),x);
+        if (x < 0) return(-1);
+        msleep(HUPTIME);                /* Sleep 0.5 sec */
+        errno = 0;
+        x = ioctl(ttyfd, TIOCSDTR, NULL);
+        debug(F111,"tthang BSD44ORPOSIX ioctl TIOCSDTR",ckitoa(errno),x);
+        if (x < 0) return(-1);
 #else  /* USE_TIOCSDTR */
 
 #ifdef HUP_CLOSE_POSIX
@@ -4036,151 +4044,151 @@ tthang() {
   code actually works, but all the steps are crucial: setting CLOCAL, the
   O_NDELAY manipulations, etc.
 */
-	debug(F100,"tthang HUP_CLOSE_POSIX close/open","",0);
-	debug(F101,"tthang HUP_CLOSE_POSIX O_NONBLOCK","",O_NONBLOCK);
-	debug(F101,"tthang HUP_CLOSE_POSIX O_NDELAY","",O_NDELAY);
-	errno = 0;
-	x = tcgetattr(ttyfd, &ttcur);	/* Get current attributes */
-	debug(F101,"tthang HUP_CLOSE_POSIX tcgetattr","",x);
-	if (x < 0) {
-	    debug(F101,"tthang HUP_CLOSE_POSIX tcgetattr errno","",errno);
-	    return(-1);
-	}
-	errno = 0;
+        debug(F100,"tthang HUP_CLOSE_POSIX close/open","",0);
+        debug(F101,"tthang HUP_CLOSE_POSIX O_NONBLOCK","",O_NONBLOCK);
+        debug(F101,"tthang HUP_CLOSE_POSIX O_NDELAY","",O_NDELAY);
+        errno = 0;
+        x = tcgetattr(ttyfd, &ttcur);   /* Get current attributes */
+        debug(F101,"tthang HUP_CLOSE_POSIX tcgetattr","",x);
+        if (x < 0) {
+            debug(F101,"tthang HUP_CLOSE_POSIX tcgetattr errno","",errno);
+            return(-1);
+        }
+        errno = 0;
 
-	x = close(ttyfd);		/* Close without releasing lock */
-	if (x < 0) {
-	    debug(F101,"tthang HUP_CLOSE_POSIX close errno","",errno);
-	    return(-1);
-	}
-	errno = 0;
-	x = msleep(500);		/* Pause half a second */
-	if (x < 0) {			/* Or if that doesn't work, 1 sec */
-	    debug(F101,"tthang HUP_CLOSE_POSIX msleep errno","",errno);
-	    sleep(1);
-	}
-	errno = 0;
-	ttyfd = priv_opn(ttnmsv, (O_RDWR|O_NDELAY)); /* Reopen the device */
-	debug(F111,"tthang HUP_CLOSE_POSIX reopen",ttnmsv,ttyfd);
-	if (ttyfd < 0) {
-	    debug(F101,"tthang HUP_CLOSE_POSIX reopen errno","",errno);
-	    return(-1);
-	}
-	debug(F101,"tthang HUP_CLOSE_POSIX re-ttopen ttyfd","",ttyfd);
+        x = close(ttyfd);               /* Close without releasing lock */
+        if (x < 0) {
+            debug(F101,"tthang HUP_CLOSE_POSIX close errno","",errno);
+            return(-1);
+        }
+        errno = 0;
+        x = msleep(500);                /* Pause half a second */
+        if (x < 0) {                    /* Or if that doesn't work, 1 sec */
+            debug(F101,"tthang HUP_CLOSE_POSIX msleep errno","",errno);
+            sleep(1);
+        }
+        errno = 0;
+        ttyfd = priv_opn(ttnmsv, (O_RDWR|O_NDELAY)); /* Reopen the device */
+        debug(F111,"tthang HUP_CLOSE_POSIX reopen",ttnmsv,ttyfd);
+        if (ttyfd < 0) {
+            debug(F101,"tthang HUP_CLOSE_POSIX reopen errno","",errno);
+            return(-1);
+        }
+        debug(F101,"tthang HUP_CLOSE_POSIX re-ttopen ttyfd","",ttyfd);
 
-	/* Restore previous attributes */
+        /* Restore previous attributes */
 
-	errno = 0;
-	tvtflg = 0;
-	ttcur.c_cflag |= CLOCAL;
-	x = tcsetattr(ttyfd,TCSADRAIN,&ttcur);
-	debug(F101,"tthang HUP_CLOSE_POSIX tcsetattr restore","",x);
-	if (x < 0) {
-	    debug(F101,"tthang HUP_CLOSE_POSIX tcsetattr restore errno",
-		  "",errno);
-	    return(-1);
-	}
-	/* Fix flags - ensure O_NDELAY and O_NONBLOCK are off */
+        errno = 0;
+        tvtflg = 0;
+        ttcur.c_cflag |= CLOCAL;
+        x = tcsetattr(ttyfd,TCSADRAIN,&ttcur);
+        debug(F101,"tthang HUP_CLOSE_POSIX tcsetattr restore","",x);
+        if (x < 0) {
+            debug(F101,"tthang HUP_CLOSE_POSIX tcsetattr restore errno",
+                  "",errno);
+            return(-1);
+        }
+        /* Fix flags - ensure O_NDELAY and O_NONBLOCK are off */
 
-	errno = 0;
+        errno = 0;
         if ((x = fcntl(ttyfd, F_GETFL, 0)) == -1) {
-	    debug(F101,"tthang HUP_CLOSE_POSIX F_GETFL errno","",errno);
-	    return(-1);
-	}
-	debug(F101,"tthang HUP_CLOSE_POSIX flags","",x);
-	errno = 0;
+            debug(F101,"tthang HUP_CLOSE_POSIX F_GETFL errno","",errno);
+            return(-1);
+        }
+        debug(F101,"tthang HUP_CLOSE_POSIX flags","",x);
+        errno = 0;
         x &= ~(O_NONBLOCK|O_NDELAY);
-	debug(F101,"tthang HUP_CLOSE_POSIX flags to set","",x);
-	debug(F101,"tthang HUP_CLOSE_POSIX iniflags","",iniflags);
-	if (fcntl(ttyfd, F_SETFL, x) == -1) {
-	    debug(F101,"tthang HUP_CLOSE_POSIX F_SETFL errno","",errno);
-	    return(-1);
-	}
+        debug(F101,"tthang HUP_CLOSE_POSIX flags to set","",x);
+        debug(F101,"tthang HUP_CLOSE_POSIX iniflags","",iniflags);
+        if (fcntl(ttyfd, F_SETFL, x) == -1) {
+            debug(F101,"tthang HUP_CLOSE_POSIX F_SETFL errno","",errno);
+            return(-1);
+        }
 #ifdef DEBUG
-	if (deblog) {
-	    if ((x = fcntl(ttyfd, F_GETFL, 0)) > -1) {
-		debug(F101,"tthang HUP_CLOSE_POSIX flags","",x);
-		debug(F101,"tthang HUP_CLOSE_POSIX flags & O_NONBLOCK",
-		      "",x&O_NONBLOCK);
-		debug(F101,"tthang HUP_CLOSE_POSIX flags & O_NDELAY",
-		      "",x&O_NDELAY);
-	    }
-	}
+        if (deblog) {
+            if ((x = fcntl(ttyfd, F_GETFL, 0)) > -1) {
+                debug(F101,"tthang HUP_CLOSE_POSIX flags","",x);
+                debug(F101,"tthang HUP_CLOSE_POSIX flags & O_NONBLOCK",
+                      "",x&O_NONBLOCK);
+                debug(F101,"tthang HUP_CLOSE_POSIX flags & O_NDELAY",
+                      "",x&O_NDELAY);
+            }
+        }
 #endif /* DEBUG */
 
 #else  /* HUP_CLOSE_POSIX */
 
-	/* General BSD44ORPOSIX case (Linux, BSDI, FreeBSD, etc) */
+        /* General BSD44ORPOSIX case (Linux, BSDI, FreeBSD, etc) */
 
-	debug(F100,"tthang BSD44ORPOSIX B0","",0);
-	x = tcgetattr(ttyfd, &ttcur);	/* Get current attributes */
-	debug(F111,"tthang BSD44ORPOSIX tcgetattr",ckitoa(errno),x);
-	if (x < 0) return(-1);
-	spdsav = cfgetospeed(&ttcur);	/* Get current speed */
-	debug(F111,"tthang BSD44ORPOSIX cfgetospeed",ckitoa(errno),spdsav);
-	spdsavi = cfgetispeed(&ttcur);	/* Get current speed */
-	debug(F111,"tthang BSD44ORPOSIX cfgetispeed",ckitoa(errno),spdsavi);
-	x = cfsetospeed(&ttcur,B0);	/* Replace by 0 */
-	debug(F111,"tthang BSD44ORPOSIX cfsetospeed",ckitoa(errno),x);
-	if (x < 0) return(-1);
-	x = cfsetispeed(&ttcur,B0);
-	debug(F111,"tthang BSD44ORPOSIX cfsetispeed",ckitoa(errno),x);
-	if (x < 0) return(-1);
-	/* This gets EINVAL on NetBSD 1.4.1 because of B0... */
-	x = tcsetattr(ttyfd,TCSADRAIN,&ttcur);
-	debug(F111,"tthang BSD44ORPOSIX tcsetattr B0",ckitoa(errno),x);
-	if (x < 0) return(-1);
-	msleep(HUPTIME);		/* Sleep 0.5 sec */
-	debug(F101,"tthang BSD44ORPOSIX restore output speed","",spdsav);
-	x = cfsetospeed(&ttcur,spdsav); /* Restore prev speed */
-	debug(F111,"tthang BSD44ORPOSIX cfsetospeed prev",ckitoa(errno),x);
-	if (x < 0) return(-1);
-	debug(F101,"tthang BSD44ORPOSIX restore input speed","",spdsavi);
-	x = cfsetispeed(&ttcur,spdsavi);
-	debug(F111,"tthang BSD44ORPOSIX cfsetispeed prev",ckitoa(errno),x);
-	if (x < 0) return(-1);
-	ttcur.c_cflag |= CLOCAL;	/* Don't expect CD after hangup */
-	x = tcsetattr(ttyfd,TCSADRAIN,&ttcur);
-	debug(F111,"tthang BSD44ORPOSIX tcsetattr restore",ckitoa(errno),x);
-	if (x < 0) return(-1);
+        debug(F100,"tthang BSD44ORPOSIX B0","",0);
+        x = tcgetattr(ttyfd, &ttcur);   /* Get current attributes */
+        debug(F111,"tthang BSD44ORPOSIX tcgetattr",ckitoa(errno),x);
+        if (x < 0) return(-1);
+        spdsav = cfgetospeed(&ttcur);   /* Get current speed */
+        debug(F111,"tthang BSD44ORPOSIX cfgetospeed",ckitoa(errno),spdsav);
+        spdsavi = cfgetispeed(&ttcur);  /* Get current speed */
+        debug(F111,"tthang BSD44ORPOSIX cfgetispeed",ckitoa(errno),spdsavi);
+        x = cfsetospeed(&ttcur,B0);     /* Replace by 0 */
+        debug(F111,"tthang BSD44ORPOSIX cfsetospeed",ckitoa(errno),x);
+        if (x < 0) return(-1);
+        x = cfsetispeed(&ttcur,B0);
+        debug(F111,"tthang BSD44ORPOSIX cfsetispeed",ckitoa(errno),x);
+        if (x < 0) return(-1);
+        /* This gets EINVAL on NetBSD 1.4.1 because of B0... */
+        x = tcsetattr(ttyfd,TCSADRAIN,&ttcur);
+        debug(F111,"tthang BSD44ORPOSIX tcsetattr B0",ckitoa(errno),x);
+        if (x < 0) return(-1);
+        msleep(HUPTIME);                /* Sleep 0.5 sec */
+        debug(F101,"tthang BSD44ORPOSIX restore output speed","",spdsav);
+        x = cfsetospeed(&ttcur,spdsav); /* Restore prev speed */
+        debug(F111,"tthang BSD44ORPOSIX cfsetospeed prev",ckitoa(errno),x);
+        if (x < 0) return(-1);
+        debug(F101,"tthang BSD44ORPOSIX restore input speed","",spdsavi);
+        x = cfsetispeed(&ttcur,spdsavi);
+        debug(F111,"tthang BSD44ORPOSIX cfsetispeed prev",ckitoa(errno),x);
+        if (x < 0) return(-1);
+        ttcur.c_cflag |= CLOCAL;        /* Don't expect CD after hangup */
+        x = tcsetattr(ttyfd,TCSADRAIN,&ttcur);
+        debug(F111,"tthang BSD44ORPOSIX tcsetattr restore",ckitoa(errno),x);
+        if (x < 0) return(-1);
 
 #endif /* HUP_CLOSE_POSIX */
 #endif /* USE_TIOCSDTR */
 
-	return(1);
+        return(1);
     }
 
 #endif /* QNX */
 #else /* BSD44ORPOSIX */
 
-#ifdef aegis				/* Apollo Aegis */
+#ifdef aegis                            /* Apollo Aegis */
     sio_$control((short)ttyfd, sio_$dtr, false, st);    /* DTR down */
-    msleep(HUPTIME);					/* pause */
+    msleep(HUPTIME);                                    /* pause */
     sio_$control((short)ttyfd, sio_$dtr, true,  st);    /* DTR up */
     return(1);
 #endif /* aegis */
 
-#ifdef ANYBSD				/* Any BSD version. */
-#ifdef TIOCCDTR				/* Except those that don't have this */
+#ifdef ANYBSD                           /* Any BSD version. */
+#ifdef TIOCCDTR                         /* Except those that don't have this */
     debug(F100,"tthang BSD style","",0);
-    if (ioctl(ttyfd,TIOCCDTR,0) < 0) {	/* Clear DTR. */
-	debug(F101,"tthang TIOCCDTR fails","",errno);
-	return(-1);
+    if (ioctl(ttyfd,TIOCCDTR,0) < 0) {  /* Clear DTR. */
+        debug(F101,"tthang TIOCCDTR fails","",errno);
+        return(-1);
     }
-    msleep(HUPTIME);			/* For about 1/2 sec */
+    msleep(HUPTIME);                    /* For about 1/2 sec */
     errno = 0;
-    x = ioctl(ttyfd,TIOCSDTR,0);	/* Restore DTR */
+    x = ioctl(ttyfd,TIOCSDTR,0);        /* Restore DTR */
     if (x < 0) {
-	/*
-	  For some reason, this tends to fail with "no such device or address"
-	  but the operation still works, probably because of the close/open
-	  later on.  So let's not scare the user unnecessarily here.
-	*/
-	debug(F101,"tthang TIOCSDTR errno","",errno); /* Log the error */
-	x = 1;				/* Pretend we succeeded */
-    } else if (x == 0) x = 1;		/* Success */
+        /*
+          For some reason, this tends to fail with "no such device or address"
+          but the operation still works, probably because of the close/open
+          later on.  So let's not scare the user unnecessarily here.
+        */
+        debug(F101,"tthang TIOCSDTR errno","",errno); /* Log the error */
+        x = 1;                          /* Pretend we succeeded */
+    } else if (x == 0) x = 1;           /* Success */
 #endif /* TIOCCDTR */
-    close(do_open(ttnmsv));		/* Clear i/o error condition */
+    close(do_open(ttnmsv));             /* Clear i/o error condition */
     errno = 0;
     return(x);
 #endif /* ANYBSD */
@@ -4194,44 +4202,44 @@ tthang() {
 /* New way, from Hellmuth Michaelis */
     debug(F100,"tthang HP-UX style, HPUXDEBUG","",0);
     if (ioctl(ttyfd,MCGETA,&modem_rtn) == -1) { /* Get current status. */
-	debug(F100,"tthang HP-UX: can't get modem lines, NO HANGUP!","",0);
-	return(-1);
+        debug(F100,"tthang HP-UX: can't get modem lines, NO HANGUP!","",0);
+        return(-1);
     }
     sprintf(modem_state,"%#lx",modem_rtn);
     debug(F110,"tthang HP-UX: modem lines = ",modem_state,0);
-    modem_sav = modem_rtn;		/* Save current modem signals */
-    modem_rtn &= ~MDTR;			/* Turn DTR bit off */
+    modem_sav = modem_rtn;              /* Save current modem signals */
+    modem_rtn &= ~MDTR;                 /* Turn DTR bit off */
     sprintf(modem_state,"%#lx",modem_rtn);
     debug(F110,"tthang HP-UX: DTR down = ",modem_state,0);
     if (ioctl(ttyfd,MCSETAF,&modem_rtn) < 0) { /* lower DTR */
-	debug(F100,"tthang HP-UX: can't lower DTR!","",0);
-	return(-1);			/* oops, can't. */
+        debug(F100,"tthang HP-UX: can't lower DTR!","",0);
+        return(-1);                     /* oops, can't. */
     }
-    msleep(HUPTIME);			/* Pause half a second. */
-    x = 1;				/* Set return code */
+    msleep(HUPTIME);                    /* Pause half a second. */
+    x = 1;                              /* Set return code */
     if (ioctl(ttyfd,MCGETA,&modem_rtn) > -1) { /* Get line status. */
-	sprintf(modem_state,"%#lx",modem_rtn);
-	debug(F110,"tthang HP-UX: modem lines got = ",modem_state,0);
-	if ((modem_rtn & MDCD) != 0) {	/* Check if CD is low. */
-	    debug(F100,"tthang HP-UX: DCD not down","",0);
-	    x = -1;			/* CD didn't drop, fail. */
-	} else {
-	    debug(F100,"tthang HP-UX: DCD down","",0);
-	}
+        sprintf(modem_state,"%#lx",modem_rtn);
+        debug(F110,"tthang HP-UX: modem lines got = ",modem_state,0);
+        if ((modem_rtn & MDCD) != 0) {  /* Check if CD is low. */
+            debug(F100,"tthang HP-UX: DCD not down","",0);
+            x = -1;                     /* CD didn't drop, fail. */
+        } else {
+            debug(F100,"tthang HP-UX: DCD down","",0);
+        }
     } else {
-	x = -1;
-	debug(F100,"tthang HP-UX: can't get DCD status !","",0);
+        x = -1;
+        debug(F100,"tthang HP-UX: can't get DCD status !","",0);
     }
 
     /* Even if above calls fail, DTR should be turned back on. */
 
     modem_sav |= MDTR;
     if (ioctl(ttyfd,MCSETAF,&modem_sav) < 0) {
-	x = -1;
-	debug(F100,"tthang HP-UX: can't set saved state","",0);
+        x = -1;
+        debug(F100,"tthang HP-UX: can't set saved state","",0);
     } else {
-	sprintf(modem_state,"%#lx",modem_sav);
-	debug(F110,"tthang HP-UX: final modem lines = ",modem_state,0);
+        sprintf(modem_state,"%#lx",modem_sav);
+        debug(F110,"tthang HP-UX: final modem lines = ",modem_state,0);
     }
     return(x);
 
@@ -4252,29 +4260,29 @@ tthang() {
   This code could be activated for AIX 3.1 with PTF 2006 or later
   (e.g. AIX 3.2), but close/open does the job too, so why bother.
 */
-#ifdef TIOCMBIS				/* Bit Set */
-#ifdef TIOCMBIC				/* Bit Clear */
-#ifdef TIOCM_DTR			/* DTR */
+#ifdef TIOCMBIS                         /* Bit Set */
+#ifdef TIOCMBIC                         /* Bit Clear */
+#ifdef TIOCM_DTR                        /* DTR */
 
 /* Clear DTR, sleep 300 msec, turn it back on. */
 /* If any of the ioctl's return failure, go on to the next section. */
 
-    z = TIOCM_DTR;			/* Code for DTR. */
+    z = TIOCM_DTR;                      /* Code for DTR. */
 
     debug(F101,"tthang TIOCM signal mask","",z);
     if (ioctl(ttyfd,TIOCMBIC,&z) > -1) {   /* Try to lower DTR. */
-	debug(F100,"tthang TIOCMBIC ok","",0);
-	msleep(HUPTIME);		   /* Pause half a second. */
-	if (ioctl(ttyfd,TIOCMBIS,&z) > -1) { /* Try to turn it back on. */
-	    debug(F100,"tthang TIOCMBIS ok","",0);
+        debug(F100,"tthang TIOCMBIC ok","",0);
+        msleep(HUPTIME);                   /* Pause half a second. */
+        if (ioctl(ttyfd,TIOCMBIS,&z) > -1) { /* Try to turn it back on. */
+            debug(F100,"tthang TIOCMBIS ok","",0);
 #ifndef CLSOPN
-	    return(1);			/* Success, done. */
+            return(1);                  /* Success, done. */
 #endif /* CLSOPN */
-	} else {			/* Couldn't raise, continue. */
-	    debug(F101,"tthang TIOCMBIS errno","",errno);
-	}
-    } else {				/* Couldn't lower, continue. */
- 	debug(F101,"tthang TIOCMBIC errno","",errno);
+        } else {                        /* Couldn't raise, continue. */
+            debug(F101,"tthang TIOCMBIS errno","",errno);
+        }
+    } else {                            /* Couldn't lower, continue. */
+        debug(F101,"tthang TIOCMBIC errno","",errno);
     }
 #endif /* TIOCM_DTR */
 #endif /* TIOCMBIC */
@@ -4295,17 +4303,17 @@ tthang() {
 
 /* Return code for ioctl failures... */
 #ifdef ATT6300
-    x = 1;				/* ATT6300 doesn't want to fail... */
+    x = 1;                              /* ATT6300 doesn't want to fail... */
 #else
     x = -1;
 #endif /* ATT6300 */
 
     debug(F100,"tthang get settings","",0);
     if (ioctl(ttyfd,TCGETA,&ttcur) < 0) /* Get current settings. */
-      return(x);			/* Fail if this doesn't work. */
+      return(x);                        /* Fail if this doesn't work. */
     if ((flags = fcntl(ttyfd,F_GETFL,0)) < 0) /* Get device flags. */
       return(x);
-    ttc_save = ttcur.c_cflag;		/* Remember current speed. */
+    ttc_save = ttcur.c_cflag;           /* Remember current speed. */
     spdsav = ttc_save & CBAUD;
     debug(F101,"tthang speed","",spdsav);
 
@@ -4315,16 +4323,16 @@ tthang() {
 #endif /* O_NDELAY */
 
 #ifdef ATT7300 /* This is the way it is SUPPOSED to work */
-    ttcur.c_cflag &= ~CBAUD;		/* Change the speed to zero.  */
+    ttcur.c_cflag &= ~CBAUD;            /* Change the speed to zero.  */
 #else
 #ifdef RTAIX
-    ttcur.c_cflag &= ~CBAUD;		/* Change the speed to zero.  */
+    ttcur.c_cflag &= ~CBAUD;            /* Change the speed to zero.  */
 #else          /* This way really works but may be dangerous */
 #ifdef u3b2
-    ttcur.c_cflag = ~(CBAUD|CLOCAL);	/* Special for AT&T 3B2s */
-					/* (CLOCAL must be OFF) */
+    ttcur.c_cflag = ~(CBAUD|CLOCAL);    /* Special for AT&T 3B2s */
+                                        /* (CLOCAL must be OFF) */
 #else
-#ifdef SCO3R2				/* SCO UNIX 3.2 */
+#ifdef SCO3R2                           /* SCO UNIX 3.2 */
 /*
   This is complete nonsense, but an SCO user claimed this change made
   hanging up work.  Comments from other SCO UNIX 3.2 users would be
@@ -4332,14 +4340,14 @@ tthang() {
 */
     ttcur.c_cflag = CBAUD|B0;
 #else
-#ifdef AIXRS				/* AIX on RS/6000 */
+#ifdef AIXRS                            /* AIX on RS/6000 */
 /*
   Can't set speed to zero on AIX 3.1 on RS/6000 64-port adapter,
   even though you can do it on the built-in port and the 8- and 16-port
   adapters.  (Untested on 128-port adapter.)
 */
     ttcur.c_cflag = CLOCAL|HUPCL|spdsav; /* Speed 0 causes EINVAL */
-#else					/* None of the above */
+#else                                   /* None of the above */
 /*
   Set everything, including the speed, to zero, except for the CLOCAL
   and HUPCL bits.
@@ -4354,23 +4362,23 @@ tthang() {
 #ifdef TCXONC
     debug(F100,"tthang TCXONC","",0);
     if (ioctl(ttyfd, TCXONC, 1) < 0) {
-	debug(F101,"tthang TCXONC failed","",errno);
+        debug(F101,"tthang TCXONC failed","",errno);
     }
 #endif /* TCXONC */
 
 #ifdef TIOCSTART
     debug(F100,"tthang TIOCSTART","",0);
     if (ioctl(ttyfd, TIOCSTART, 0) < 0) {
-	debug(F101,"tthang TIOCSTART failed","",errno);
+        debug(F101,"tthang TIOCSTART failed","",errno);
     }
 #endif /* TIOCSTART */
 
     if (ioctl(ttyfd,TCSETAF,&ttcur) < 0) { /* Fail if we can't. */
-	debug(F101,"tthang TCSETAF failed","",errno);
-	fcntl(ttyfd, F_SETFL, flags);	/* Restore flags */
-	return(-1);			/* before returning. */
+        debug(F101,"tthang TCSETAF failed","",errno);
+        fcntl(ttyfd, F_SETFL, flags);   /* Restore flags */
+        return(-1);                     /* before returning. */
     }
-    msleep(300);			/* Give modem time to notice. */
+    msleep(300);                        /* Give modem time to notice. */
 
 #ifndef NOCOTFMC
 
@@ -4388,12 +4396,12 @@ tthang() {
   The only way to undo the damage is to close the fd and then reopen it.
 */
     if (attmodem & ISMODEM) {
-	debug(F100,"tthang attmodem close/open","",0);
-	ioctl(ttyfd,PIOCUNHOLD,&dialer); /* Return call to handset. */
-	ioctl(ttyfd,PIOCDISC,&dialer);	/* Disconnect phone. */
-	close(ttyfd);			/* Close and reopen the fd. */
-	ttyfd = priv_opn(ttnmsv, O_RDWR | O_NDELAY);
-	attmodem &= ~ISMODEM;		/* Phone no longer in use. */
+        debug(F100,"tthang attmodem close/open","",0);
+        ioctl(ttyfd,PIOCUNHOLD,&dialer); /* Return call to handset. */
+        ioctl(ttyfd,PIOCDISC,&dialer);  /* Disconnect phone. */
+        close(ttyfd);                   /* Close and reopen the fd. */
+        ttyfd = priv_opn(ttnmsv, O_RDWR | O_NDELAY);
+        attmodem &= ~ISMODEM;           /* Phone no longer in use. */
     }
 #else /* !ATT7300 */
 /* It seems we have to close and open the device for other AT&T systems */
@@ -4427,7 +4435,7 @@ tthang() {
     debug(F101,"tthang close/open, OPENFLGS","",OPENFLGS);
     close(ttyfd);
     msleep(10);
-    ttyfd = priv_opn(ttnmsv, OPENFLGS);	/* Open it again */
+    ttyfd = priv_opn(ttnmsv, OPENFLGS); /* Open it again */
 #endif /* CLSOPN */
 #undef OPENFLGS
 
@@ -4440,7 +4448,7 @@ tthang() {
 /* (Does the order of ioctl & fcntl matter ? ) */
 
     debug(F100,"tthang restore settings","",0);
-    ttcur.c_cflag = ttc_save;		/* Get old speed back. */
+    ttcur.c_cflag = ttc_save;           /* Get old speed back. */
     if (ioctl(ttyfd,TCSETAF,&ttcur) < 0) /* ioctl parameters. */
       return(-1);
 #ifdef O_NDELAY
@@ -4451,9 +4459,9 @@ tthang() {
   causes trouble on non-IBM UNIXes, change the #ifdef to use _IBMR2 rather
   than O_NDELAY.
 */
-    flags &= ~O_NDELAY;			/* Don't require carrier on reopen */
+    flags &= ~O_NDELAY;                 /* Don't require carrier on reopen */
 #endif /* O_NDELAY */
-    if (fcntl(ttyfd,F_SETFL,flags) < 0)	/* fcntl parameters */
+    if (fcntl(ttyfd,F_SETFL,flags) < 0) /* fcntl parameters */
       return(-1);
 
     return(1);
@@ -4513,58 +4521,58 @@ ttres() {                               /* Restore the tty to normal. */
 
     if (ttyfd < 0) return(-1);          /* Not open. */
 
-    if (ttfdflg) return(0);		/* Don't mess with terminal modes if */
-					/* we got ttyfd from another process */
-#ifdef	NETCONN
-    if (netconn) {			/* Network connection */
+    if (ttfdflg) return(0);             /* Don't mess with terminal modes if */
+                                        /* we got ttyfd from another process */
+#ifdef  NETCONN
+    if (netconn) {                      /* Network connection */
         tvtflg = 0;
 #ifdef TCPSOCKET
 #ifdef TCP_NODELAY
         {
-	    extern int tcp_nodelay;	/* Just put this back if necessary */
-	    if (ttnet == NET_TCPB) {
-		if (nodelay_sav > -1) {
-		    no_delay(ttyfd,nodelay_sav);
-		    nodelay_sav = -1;
-		}
-	    }
+            extern int tcp_nodelay;     /* Just put this back if necessary */
+            if (ttnet == NET_TCPB) {
+                if (nodelay_sav > -1) {
+                    no_delay(ttyfd,nodelay_sav);
+                    nodelay_sav = -1;
+                }
+            }
         }
 #endif /* TCP_NODELAY */
 #ifdef TN_COMPORT
         if (istncomport()) {
             int rc = -1;
             if ((rc = tnsetflow(ttflow)) < 0)
-	      return(rc);
+              return(rc);
             if (ttspeed <= 0)
-	      ttspeed = tnc_get_baud();
+              ttspeed = tnc_get_baud();
             else if ((rc = tnc_set_baud(ttspeed)) < 0)
-	      return(rc);
+              return(rc);
             tnc_set_datasize(8);
-	    tnc_set_stopsize(stopbits);
+            tnc_set_stopsize(stopbits);
 
 #ifdef HWPARITY
             if (hwparity) {
                 switch (hwparity) {
-		  case 'e':			/* Even */
+                  case 'e':                     /* Even */
                     debug(F100,"ttres 8 bits + even parity","",0);
                     tnc_set_parity(3);
                     break;
-		  case 'o':			/* Odd */
+                  case 'o':                     /* Odd */
                     debug(F100,"ttres 8 bits + odd parity","",0);
                     tnc_set_parity(2);
                     break;
-		  case 'm':			/* Mark */
+                  case 'm':                     /* Mark */
                     debug(F100,"ttres 8 bits + invalid parity: mark","",0);
                     tnc_set_parity(4);
                     break;
-		  case 's':			/* Space */
+                  case 's':                     /* Space */
                     debug(F100,"ttres 8 bits + invalid parity: space","",0);
                     tnc_set_parity(5);
                     break;
                 }
             } else
 #endif /* HWPARITY */
-	    {
+            {
                 tnc_set_parity(1);              /* None */
             }
             tvtflg = 0;
@@ -4572,9 +4580,9 @@ ttres() {                               /* Restore the tty to normal. */
         }
 #endif /* TN_COMPORT */
 #endif /* TCPSOCKET */
-	return(0);
+        return(0);
     }
-#endif	/* NETCONN */
+#endif  /* NETCONN */
 #ifdef NETCMD
     if (ttpipe) return(0);
 #endif /* NETCMD */
@@ -4584,55 +4592,55 @@ ttres() {                               /* Restore the tty to normal. */
 
 /* Real terminal device, so restore its original modes */
 
-#ifdef BSD44ORPOSIX			/* For POSIX like this */
+#ifdef BSD44ORPOSIX                     /* For POSIX like this */
     debug(F100,"ttres BSD44ORPOSIX","",0);
     x = tcsetattr(ttyfd,TCSADRAIN,&ttold);
-#else					/* For all others... */
+#else                                   /* For all others... */
 #ifdef ATTSV                            /* For AT&T versions... */
     debug(F100,"ttres ATTSV","",0);
-    x = ioctl(ttyfd,TCSETAW,&ttold);	/* Restore tty modes this way. */
+    x = ioctl(ttyfd,TCSETAW,&ttold);    /* Restore tty modes this way. */
 #else
 /* Here we restore the modes for BSD */
 
-#ifdef LPASS8				/* Undo "pass8" if it were done */
+#ifdef LPASS8                           /* Undo "pass8" if it were done */
     if (lmodef) {
-	if (ioctl(ttyfd,TIOCLSET,&lmode) < 0)
-	  debug(F100,"ttres TIOCLSET failed","",0);
-	else
-	  debug(F100,"ttres TIOCLSET ok","",0);
+        if (ioctl(ttyfd,TIOCLSET,&lmode) < 0)
+          debug(F100,"ttres TIOCLSET failed","",0);
+        else
+          debug(F100,"ttres TIOCLSET ok","",0);
     }
 #endif /* LPASS8 */
 
-#ifdef CK_DTRCTS		   /* Undo hardware flow if it were done */
+#ifdef CK_DTRCTS                   /* Undo hardware flow if it were done */
     if (lmodef) {
- 	if (ioctl(ttyfd,TIOCLSET,&lmode) < 0)
- 	  debug(F100,"ttres TIOCLSET failed","",0);
- 	else
- 	  debug(F100,"ttres TIOCLSET ok","",0);
+        if (ioctl(ttyfd,TIOCLSET,&lmode) < 0)
+          debug(F100,"ttres TIOCLSET failed","",0);
+        else
+          debug(F100,"ttres TIOCLSET ok","",0);
     }
 #endif /* CK_DTRCTS */
 
-#ifdef TIOCGETC				/* Put back special characters */
+#ifdef TIOCGETC                         /* Put back special characters */
     if (tcharf && (xlocal == 0)) {
-	if (ioctl(ttyfd,TIOCSETC,&tchold) < 0)
-	  debug(F100,"ttres TIOCSETC failed","",0);
-	else
-	  debug(F100,"ttres TIOCSETC ok","",0);
+        if (ioctl(ttyfd,TIOCSETC,&tchold) < 0)
+          debug(F100,"ttres TIOCSETC failed","",0);
+        else
+          debug(F100,"ttres TIOCSETC ok","",0);
     }
 #endif /* TIOCGETC */
 
-#ifdef TIOCGLTC				/* Put back local special characters */
+#ifdef TIOCGLTC                         /* Put back local special characters */
     if (ltcharf && (xlocal == 0)) {
-	if (ioctl(ttyfd,TIOCSLTC,&ltchold) < 0)
-	  debug(F100,"ttres TIOCSLTC failed","",0);
-	else
-	  debug(F100,"ttres TIOCSLTC ok","",0);
+        if (ioctl(ttyfd,TIOCSLTC,&ltchold) < 0)
+          debug(F100,"ttres TIOCSLTC failed","",0);
+        else
+          debug(F100,"ttres TIOCSLTC ok","",0);
     }
 #endif /* TIOCGLTC */
 
 #ifdef BELLV10
     debug(F100,"ttres BELLV10","",0);
-    x = ioctl(ttyfd,TIOCSETP,&ttold);	/* Restore both structs */
+    x = ioctl(ttyfd,TIOCSETP,&ttold);   /* Restore both structs */
     x = ioctl(ttyfd,TIOCSDEV,&tdold);
 #else
     debug(F100,"ttres stty","",0);
@@ -4640,9 +4648,9 @@ ttres() {                               /* Restore the tty to normal. */
 #endif /* BELLV10 */
 
     if (!xlocal)
-      msleep(100);			/* This replaces sleep(1)... */
-					/* Put back sleep(1) if tty is */
-					/* messed up after close. */
+      msleep(100);                      /* This replaces sleep(1)... */
+                                        /* Put back sleep(1) if tty is */
+                                        /* messed up after close. */
 #endif /* ATTSV */
 #endif /* BSD44ORPOSIX */
 
@@ -4659,27 +4667,27 @@ ttres() {                               /* Restore the tty to normal. */
 #endif /* AIXRS */
 
 #ifdef BSD41
-    if (ttld > -1) {			/* Put back line discipline */
-	x = ioctl(ttyfd, TIOCSETD, &ttld);
-	debug(F101,"ttres BSD41 line discipline restore","",x);
-	if (x < 0) debug(F101,"...ioctl errno","",errno);
-	ttld = -1;
+    if (ttld > -1) {                    /* Put back line discipline */
+        x = ioctl(ttyfd, TIOCSETD, &ttld);
+        debug(F101,"ttres BSD41 line discipline restore","",x);
+        if (x < 0) debug(F101,"...ioctl errno","",errno);
+        ttld = -1;
     }
 #endif /* BSD41 */
 
 #ifdef sony_news
-    x = xlocal ? km_ext : km_con;	/* Restore Kanji mode. */
-    if (x != -1) {			/* Make sure we know original modes. */
-	if (ioctl(ttyfd,TIOCKSET, &x) < 0) {
-	    perror("ttres can't set Kanji mode");
-	    debug(F101,"ttres error setting Kanji mode","",x);
-	    return(-1);
-	}
+    x = xlocal ? km_ext : km_con;       /* Restore Kanji mode. */
+    if (x != -1) {                      /* Make sure we know original modes. */
+        if (ioctl(ttyfd,TIOCKSET, &x) < 0) {
+            perror("ttres can't set Kanji mode");
+            debug(F101,"ttres error setting Kanji mode","",x);
+            return(-1);
+        }
     }
     debug(F100,"ttres set Kanji mode ok","",0);
 #endif /* sony_news */
 
-    tvtflg = 0;				/* Invalidate terminal mode settings */
+    tvtflg = 0;                         /* Invalidate terminal mode settings */
     debug(F101,"ttres return code","",x);
     return(x);
 }
@@ -4701,36 +4709,36 @@ ttchkpid(f) char *f;
 #endif /* CK_ANSIC */
 {
     int pid, mypid, x;
-    pid = ttrpid(f);			/* Read pid from file. */
-    if (pid > -1) {			/* If we were able to read the pid.. */
-	debug(F101,"ttchkpid lock pid","",pid);
-	errno = 0;			/* See if process still exists. */
-	mypid = (int)getpid();		/* Get my own pid. */
-	debug(F101,"ttchkpid my pid","",mypid);
-	if (pid == mypid) {		/* It's me! */
-	    x = -1;			/* So I can delete it */
-	    errno = ESRCH;		/* pretend it's invalid */
-	} else {			/* It's not me */
-	    x = kill((PID_T)pid, 0);	/* See if it's a live process */
-	    debug(F101,"ttchkpid kill errno","",errno);
-	}
-	debug(F101,"ttchkpid pid test","",x);
-	if (x < 0 && errno == ESRCH) { /* pid is invalid */
-	    debug(F111,"removing stale lock",f,pid);
-	    if (!backgrd)
-	      printf("Removing stale lock %s (pid %d terminated)\n", f, pid);
-	    priv_on();
-	    x = unlink(f);		/* Remove the lockfile. */
-	    priv_chk();
-	    debug(F111,"ttchkpid unlink",f,x);
-	    if (x > -1)
-	      return(0);		/* Device is not locked after all */
-	    else if (!backgrd)
-	      perror(f);
-	}
-	return(1);
+    pid = ttrpid(f);                    /* Read pid from file. */
+    if (pid > -1) {                     /* If we were able to read the pid.. */
+        debug(F101,"ttchkpid lock pid","",pid);
+        errno = 0;                      /* See if process still exists. */
+        mypid = (int)getpid();          /* Get my own pid. */
+        debug(F101,"ttchkpid my pid","",mypid);
+        if (pid == mypid) {             /* It's me! */
+            x = -1;                     /* So I can delete it */
+            errno = ESRCH;              /* pretend it's invalid */
+        } else {                        /* It's not me */
+            x = kill((PID_T)pid, 0);    /* See if it's a live process */
+            debug(F101,"ttchkpid kill errno","",errno);
+        }
+        debug(F101,"ttchkpid pid test","",x);
+        if (x < 0 && errno == ESRCH) { /* pid is invalid */
+            debug(F111,"removing stale lock",f,pid);
+            if (!backgrd)
+              printf("Removing stale lock %s (pid %d terminated)\n", f, pid);
+            priv_on();
+            x = unlink(f);              /* Remove the lockfile. */
+            priv_chk();
+            debug(F111,"ttchkpid unlink",f,x);
+            if (x > -1)
+              return(0);                /* Device is not locked after all */
+            else if (!backgrd)
+              perror(f);
+        }
+        return(1);
     }
-    return(1);				/* Failure to read pid */
+    return(1);                          /* Failure to read pid */
 }
 
 #ifdef HPUX
@@ -4760,7 +4768,7 @@ ttrpid(name) char *name;
     if (!name) return(-1);
     if (!*name) return(-1);
     priv_on();
-    len = zchki(name);			/* Get file length */
+    len = zchki(name);                  /* Get file length */
     priv_chk();
     debug(F101,"ttrpid zchki","",len);
     if (len < 0)
@@ -4768,7 +4776,7 @@ ttrpid(name) char *name;
     if (len > 31)
       return(-1);
     priv_on();
-    fd = open(name,O_RDONLY);		/* Try to open lockfile. */
+    fd = open(name,O_RDONLY);           /* Try to open lockfile. */
     priv_chk();
     debug(F101,"ttrpid fd","",fd);
     if (fd <= 0)
@@ -4786,33 +4794,33 @@ ttrpid(name) char *name;
   pid.  So for COHERENT only, we only allow string pids.  For all others, we
   decide based on the size of the lockfile.
 */
-    if (len > 4) {			/* If file > 4 bytes it's a string */
+    if (len > 4) {                      /* If file > 4 bytes it's a string */
 #endif /* COHERENT */
-	x = read(fd,buf,(int)len);
-	debug(F111,"ttrpid string read",buf,x);
-	if (x < 0) {
-	    pid = -1;
-	} else {
-	    buf[31] = '\0';
-	    x = sscanf(buf,"%d",&pid);	/* Get the integer pid from it. */
-	}
+        x = read(fd,buf,(int)len);
+        debug(F111,"ttrpid string read",buf,x);
+        if (x < 0) {
+            pid = -1;
+        } else {
+            buf[31] = '\0';
+            x = sscanf(buf,"%d",&pid);  /* Get the integer pid from it. */
+        }
 #ifndef COHERENT
-    } else if (len == 4) {		/* 4 bytes so binary */
-	x = read(fd, (char *)&pid, 4);	/* Read the bytes into an int */
-	debug(F101,"ttrpid integer read","",x);
-	if (x < 4)
-	  pid = -1;
-    } else if (len == 2) {		/* 2 bytes binary */
-	x = read(fd, (char *)&spid, 2);	/* Read the bytes into a short */
-	debug(F101,"ttrpid short read","",x);
-	if (x < 2)
-	  pid = -1;
-	else
-	  pid = spid;
+    } else if (len == 4) {              /* 4 bytes so binary */
+        x = read(fd, (char *)&pid, 4);  /* Read the bytes into an int */
+        debug(F101,"ttrpid integer read","",x);
+        if (x < 4)
+          pid = -1;
+    } else if (len == 2) {              /* 2 bytes binary */
+        x = read(fd, (char *)&spid, 2); /* Read the bytes into a short */
+        debug(F101,"ttrpid short read","",x);
+        if (x < 2)
+          pid = -1;
+        else
+          pid = spid;
     } else
       pid = -1;
 #endif /* COHERENT */
-    close(fd);				/* Close the lockfile */
+    close(fd);                          /* Close the lockfile */
     debug(F101,"ttrpid pid","",pid);
     return(pid);
 }
@@ -4847,7 +4855,7 @@ ttrpid(name) char *name;
   Note: Once privileges are turned on using priv_on(), it is essential that
   they are turned off again before this function returns.
 */
-#ifdef SVR4				/* Lockfile uses device numbers. */
+#ifdef SVR4                             /* Lockfile uses device numbers. */
 /*
   Although I can't find this in writing anywhere (e.g. in SVID for SVR4),
   it is the behavior of the "reference version" of SVR4, i.e. the Intel
@@ -4857,14 +4865,14 @@ ttrpid(name) char *name;
   since there can be multiple names for the same device, symlinks, etc.
 */
 #ifndef NOLFDEVNO
-#ifndef LFDEVNO				/* Define this for SVR4 */
-#ifndef AIXRS				/* But not for RS/6000 AIX 3.2, etc. */
-#ifndef BSD44				/* If anybody else needs it... */
+#ifndef LFDEVNO                         /* Define this for SVR4 */
+#ifndef AIXRS                           /* But not for RS/6000 AIX 3.2, etc. */
+#ifndef BSD44                           /* If anybody else needs it... */
 #ifndef __386BSD__
 #ifndef __FreeBSD__
 #ifndef HPUX10
-#ifndef IRIX51				/* SGI IRIX 5.1 or later */
-#ifndef CK_SCOV5			/* SCO Open Server 5.0 */
+#ifndef IRIX51                          /* SGI IRIX 5.1 or later */
+#ifndef CK_SCOV5                        /* SCO Open Server 5.0 */
 #define LFDEVNO
 #endif /* CK_SCOV5 */
 #endif /* IRIX51 */
@@ -4873,9 +4881,9 @@ ttrpid(name) char *name;
 #endif /* __386BSD__ */
 #endif /* BSD44 */
 #endif /* AIXRS */
-#endif /* LFDEVNO */			/* ... define it here or on CC */
+#endif /* LFDEVNO */                    /* ... define it here or on CC */
 #endif /* NOLFDEVNO */
-#endif /* SVR4 */			/* command line. */
+#endif /* SVR4 */                       /* command line. */
 
 #ifdef COHERENT
 #define LFDEVNO
@@ -4891,15 +4899,15 @@ ttrpid(name) char *name;
   platforms, in order to get people used to it...
 */
 #ifdef LFDEVNO
-#ifndef major				/* If we didn't find it */
-#ifdef SVR4				/* then for Sys V R4 */
-#include <sys/mkdev.h>			/* look here */
-#else					/* or for SunOS versions */
-#ifdef SUNOS4				/* ... */
-#include <sys/sysmacros.h>		/* look here */
-#else					/* Otherwise take a chance: */
-#define	major(dev) ( (int) ( ((unsigned)(dev) >> 8) & 0xff))
-#define	minor(dev) ( (int) ( (dev) & 0xff))
+#ifndef major                           /* If we didn't find it */
+#ifdef SVR4                             /* then for Sys V R4 */
+#include <sys/mkdev.h>                  /* look here */
+#else                                   /* or for SunOS versions */
+#ifdef SUNOS4                           /* ... */
+#include <sys/sysmacros.h>              /* look here */
+#else                                   /* Otherwise take a chance: */
+#define major(dev) ( (int) ( ((unsigned)(dev) >> 8) & 0xff))
+#define minor(dev) ( (int) ( (dev) & 0xff))
 #endif /* SUNOS4 */
 #endif /* SVR4 */
 #endif /* major */
@@ -4946,25 +4954,25 @@ char * uucplockdir = "";
 char * uucplockdir = "";
 #endif /* NOUUCP */
 
-#ifdef QNX				/* Only for QNX4 */
-int					/* Visible to outside world */
-qnxopencount() {			/* Get QNX device open count */
+#ifdef QNX                              /* Only for QNX4 */
+int                                     /* Visible to outside world */
+qnxopencount() {                        /* Get QNX device open count */
     struct _dev_info_entry info;
     int x;
 
-    x = -1;				/* Unknown */
+    x = -1;                             /* Unknown */
     if (ttyfd > -1) {
-	if (!dev_info(ttyfd, &info)) {
-	    debug(F101,"ttlock QNX open_count","",info.open_count);
-	    x = info.open_count;
-	}
+        if (!dev_info(ttyfd, &info)) {
+            debug(F101,"ttlock QNX open_count","",info.open_count);
+            x = info.open_count;
+        }
     }
     return(x);
 }
 #endif /* QNX */
 
 char *
-ttglckdir() {				/* Get Lockfile directory name */
+ttglckdir() {                           /* Get Lockfile directory name */
 #ifdef __OpenBSD__
     return("/var/spool/lock");
 #else /* __OpenBSD__ */
@@ -4998,7 +5006,7 @@ ttlock(ttdev) char *ttdev;
     int islink = 0;
 #ifdef __FreeBSD__
     char *devname;
-#endif	/* __FreeBSD__ */
+#endif  /* __FreeBSD__ */
 
 #ifdef NOUUCP
     debug(F100,"ttlock NOUUCP","",0);
@@ -5009,18 +5017,18 @@ ttlock(ttdev) char *ttdev;
 
 #ifdef USETTYLOCK
     haslock = 0;                        /* Not locked yet. */
-    *flfnam = '\0';			/* Lockfile name is empty. */
+    *flfnam = '\0';                     /* Lockfile name is empty. */
 #ifdef __FreeBSD__
     if ((devname = xxlast(ttdev,'/')) != NULL)
 #ifdef FREEBSD8
       ckstrncat(lockname,devname+1,DEVNAMLEN-ckstrncpy(lockname,"pts",4));
 #else
       ckstrncpy(lockname,devname+1,DEVNAMLEN);
-#endif	/* FREEBSD8 */
+#endif  /* FREEBSD8 */
 #else
     if (!strncmp(ttdev,"/dev/",5) && ttdev[5])
       ckstrncpy(lockname,ttdev+5,DEVNAMLEN);
-#endif	/* __FreeBSD__ */
+#endif  /* __FreeBSD__ */
     else
       ckstrncpy(lockname,ttdev,DEVNAMLEN);
 /*
@@ -5034,42 +5042,42 @@ ttlock(ttdev) char *ttdev;
   routines as we do without them.  Thus the priv_on/off() sandwich.
 */
 #ifdef USE_UU_LOCK
-    priv_on();				/* Turn on privs */
-    x = uu_lock(lockname);		/* Try to set the lock */
-    priv_chk();				/* Turn privs off */
+    priv_on();                          /* Turn on privs */
+    x = uu_lock(lockname);              /* Try to set the lock */
+    priv_chk();                         /* Turn privs off */
     debug(F111,"ttlock uu_lock",lockname,x);
     switch (x) {
       case UU_LOCK_INUSE:
-	return(-2);
+        return(-2);
       case UU_LOCK_OK:
 #ifdef BSD44
-	ckmakmsg(flfnam,FLFNAML,"/var/spool/lock/LCK..",lockname,NULL,NULL);
+        ckmakmsg(flfnam,FLFNAML,"/var/spool/lock/LCK..",lockname,NULL,NULL);
 #endif /* BSD44 */
-	haslock = 1;
-	return(0);
+        haslock = 1;
+        return(0);
       default:
-	return(-1);
+        return(-1);
     }
 #else  /* USE_UU_LOCK */
-    priv_on();				/* Turn on privs */
-    if (ttylocked(lockname)) {		/* This should remove any stale lock */
-	if (ttylocked(lockname)) {	/* so check again. */
-	    priv_chk();
-	    return(-5);			/* Still locked, fail. */
-	}
+    priv_on();                          /* Turn on privs */
+    if (ttylocked(lockname)) {          /* This should remove any stale lock */
+        if (ttylocked(lockname)) {      /* so check again. */
+            priv_chk();
+            return(-5);                 /* Still locked, fail. */
+        }
     }
-    x = ttylock(lockname);		/* Lock it. */
-    priv_chk();				/* Turn off privs */
+    x = ttylock(lockname);              /* Lock it. */
+    priv_chk();                         /* Turn off privs */
 
     debug(F111,"ttlock lockname",lockname,x);
     if (x > -1) {
-	/*
-	  We don't really know the name of the lockfile, but
-	  this is what the man page says it is.  In USETTYLOCK
+        /*
+          We don't really know the name of the lockfile, but
+          this is what the man page says it is.  In USETTYLOCK
           builds, it is used only for display by SHOW COMM.
-	*/
-	ckmakmsg(flfnam,FLFNAML,"/etc/locks/LCK..",lockname,NULL,NULL);
-	haslock = 1;
+        */
+        ckmakmsg(flfnam,FLFNAML,"/etc/locks/LCK..",lockname,NULL,NULL);
+        haslock = 1;
     }
     return(x);
 #endif /* USE_UU_LOCK */
@@ -5077,34 +5085,34 @@ ttlock(ttdev) char *ttdev;
 
 #ifndef HPUX
 
-    int lockfd;				/* File descriptor for lock file. */
-    PID_T pid;				/* Process id of this process. */
-    int tries;				/* How many times we've tried... */
+    int lockfd;                         /* File descriptor for lock file. */
+    PID_T pid;                          /* Process id of this process. */
+    int tries;                          /* How many times we've tried... */
     int dummy;
-    struct stat devbuf;			/* For device numbers (SVR4). */
+    struct stat devbuf;                 /* For device numbers (SVR4). */
 
 #ifdef PIDSTRING
-    char pid_str[32];			/* My pid in string format. */
+    char pid_str[32];                   /* My pid in string format. */
 #endif /* PIDSTRING */
 
     char *device, *devname;
 
 /* Note: ridiculously long to prevent gcc complaints when used in sprintf */
-#define LFNAML 5126			/* Max length for lock file name. */
-    char lockfil[LFNAML];		/* Lock file name */
+#define LFNAML 5126                     /* Max length for lock file name. */
+    char lockfil[LFNAML];               /* Lock file name */
 #ifdef RTAIX
-    char lklockf[LFNAML];		/* Name for link to lock file  */
+    char lklockf[LFNAML];               /* Name for link to lock file  */
 #endif /* RTAIX */
 #ifdef CKSYMLINK
-    char symlock[LFNAML];		/* Name for symlink lockfile name */
+    char symlock[LFNAML];               /* Name for symlink lockfile name */
 #endif /* CKSYMLINK */
-    char tmpnam[LFNAML+30];		/* Temporary lockfile name. */
-    char *lockdir = LOCK_DIR;		/* Defined near top of this file, */
-					/* or on cc command line. */
+    char tmpnam[LFNAML+30];             /* Temporary lockfile name. */
+    char *lockdir = LOCK_DIR;           /* Defined near top of this file, */
+                                        /* or on cc command line. */
     haslock = 0;                        /* Not locked yet. */
-    *flfnam = '\0';			/* Lockfile name is empty. */
-    lock2[0] = '\0';			/* Clear secondary lockfile name. */
-    pid = getpid();			/* Get id of this process. */
+    *flfnam = '\0';                     /* Lockfile name is empty. */
+    lock2[0] = '\0';                    /* Clear secondary lockfile name. */
+    pid = getpid();                     /* Get id of this process. */
 
 /*  Construct name of lockfile and temporary file */
 
@@ -5117,20 +5125,20 @@ ttlock(ttdev) char *ttdev;
       return(-1);
 
 #ifdef CKSYMLINK
-    islink = 1;				/* Assume it's a symlink */
-    linkto[0] = '\0';			/* But we don't know to what */
+    islink = 1;                         /* Assume it's a symlink */
+    linkto[0] = '\0';                   /* But we don't know to what */
     if (islink) {
-	n = readlink(ttdev,linkto,DEVNAMLEN); /* See if it's a link */
-	debug(F111,"ttlock readlink",ttdev,n);
-	if (n > -1)			/* It is */
-	  linkto[n] = '\0';
-	else				/* It's not */
-	  islink = 0;
-	debug(F111,"ttlock link",linkto,islink);
+        n = readlink(ttdev,linkto,DEVNAMLEN); /* See if it's a link */
+        debug(F111,"ttlock readlink",ttdev,n);
+        if (n > -1)                     /* It is */
+          linkto[n] = '\0';
+        else                            /* It's not */
+          islink = 0;
+        debug(F111,"ttlock link",linkto,islink);
     }
     if (islink) {
-	linkdev = (devname = xxlast(linkto,'/')) ? devname + 1 : linkto;
-	debug(F110,"ttlock linkdev",linkdev,0);
+        linkdev = (devname = xxlast(linkto,'/')) ? devname + 1 : linkto;
+        debug(F110,"ttlock linkdev",linkdev,0);
     }
 #endif /* CKSYMLINK */
 
@@ -5139,53 +5147,53 @@ ttlock(ttdev) char *ttdev;
   name given for the device is a symlink, because later we will change
   the name if it contains any uppercase characters.
 */
-#ifdef CK_SCOV5				/* SCO Open Server 5.0 */
+#ifdef CK_SCOV5                         /* SCO Open Server 5.0 */
     if (!islink) {
-	islink = 1;
-	ckstrncpy(linkto,ttdev,DEVNAMLEN);
-	linkdev = (devname = xxlast(linkto,'/')) ? devname + 1 : linkto;
-	debug(F110,"ttlock linkdev",linkdev,0);
+        islink = 1;
+        ckstrncpy(linkto,ttdev,DEVNAMLEN);
+        linkdev = (devname = xxlast(linkto,'/')) ? devname + 1 : linkto;
+        debug(F110,"ttlock linkdev",linkdev,0);
     }
 #else
-#ifdef M_XENIX				/* SCO Xenix or UNIX */
+#ifdef M_XENIX                          /* SCO Xenix or UNIX */
     if (!islink) {
-	islink = 1;
-	ckstrncpy(linkto,ttdev,DEVNAMLEN);
-	linkdev = (devname = xxlast(linkto,'/')) ? devname + 1 : linkto;
-	debug(F110,"ttlock linkdev",linkdev,0);
+        islink = 1;
+        ckstrncpy(linkto,ttdev,DEVNAMLEN);
+        linkdev = (devname = xxlast(linkto,'/')) ? devname + 1 : linkto;
+        debug(F110,"ttlock linkdev",linkdev,0);
     }
 #endif /* M_XENIX */
 #endif /* CK_SCOV5 */
 
-#ifdef ISIII				/* Interactive System III, PC/IX */
+#ifdef ISIII                            /* Interactive System III, PC/IX */
     ckstrncpy(lockfil, device, DEVNAMLEN);
 #else  /* not ISIII */
-#ifdef LFDEVNO				/* Lockfilename has device numbers. */
+#ifdef LFDEVNO                          /* Lockfilename has device numbers. */
 #ifdef COHERENT
-    sprintf(lockfil,"LCK..%d.%d",	/* SAFE */
-	    major(devbuf.st_rdev),	   /* major device number */
-	    0x1f & minor(devbuf.st_rdev)); /* minor device number */
+    sprintf(lockfil,"LCK..%d.%d",       /* SAFE */
+            major(devbuf.st_rdev),         /* major device number */
+            0x1f & minor(devbuf.st_rdev)); /* minor device number */
 #else
     /* Note: %d changed to %u in 8.0 -- %u is part of SVID for SVR4 */
     /* Lockfile name format verified to agree with Solaris cu, Dec 2001 */
     sprintf(lockfil,"LK.%03u.%03u.%03u", /* SAFE */
-	    major(devbuf.st_dev),	/* device */
-	    major(devbuf.st_rdev),	/* major device number */
-	    minor(devbuf.st_rdev));	/* minor device number */
+            major(devbuf.st_dev),       /* device */
+            major(devbuf.st_rdev),      /* major device number */
+            minor(devbuf.st_rdev));     /* minor device number */
 #endif /* COHERENT */
 #else  /* Not LFDEVNO */
-#ifdef PTX				/* Dynix PTX */
+#ifdef PTX                              /* Dynix PTX */
     if ((device != &ttdev[5]) && (strncmp(ttdev,"/dev/",5) == 0)) {
-	if ((int)strlen(device) + 8 < LFNAML)
-	  sprintf(lockfil,"LCK..%.3s%s", &ttdev[5], device);
-	else
-	  ckstrncpy(lockfil,"LOCKFILE_NAME_TOO_LONG",LFNAML);
+        if ((int)strlen(device) + 8 < LFNAML)
+          sprintf(lockfil,"LCK..%.3s%s", &ttdev[5], device);
+        else
+          ckstrncpy(lockfil,"LOCKFILE_NAME_TOO_LONG",LFNAML);
     } else
 #endif /* PTX */
       if ((int)strlen(device) + 5 < LFNAML)
-	sprintf(lockfil,"LCK..%s", device);
+        sprintf(lockfil,"LCK..%s", device);
       else
-	ckstrncpy(lockfil,"LOCKFILE_NAME_TOO_LONG",LFNAML);
+        ckstrncpy(lockfil,"LOCKFILE_NAME_TOO_LONG",LFNAML);
 #ifdef RTAIX
     ckstrncpy(lklockf,device,DEVNAMLEN);
 #endif /* RTAIX */
@@ -5197,39 +5205,39 @@ ttlock(ttdev) char *ttdev;
 #endif /* LFDEVNO */
 #endif /* ISIII */
 
-#ifdef CK_SCOV5				/* SCO Open Server 5.0 */
+#ifdef CK_SCOV5                         /* SCO Open Server 5.0 */
     {
-	/* Lowercase the entire filename. */
+        /* Lowercase the entire filename. */
         /* SCO says we must do this in V5.0 and later. */
-	/* BUT... watch out for devices -- like Digiboard Portserver */
-	/* That can have hundreds of ports... */
-	char *p = (char *)(lockfil + 5);
-	while (*p) { if (isupper(*p)) *p = (char) tolower(*p); p++; }
+        /* BUT... watch out for devices -- like Digiboard Portserver */
+        /* That can have hundreds of ports... */
+        char *p = (char *)(lockfil + 5);
+        while (*p) { if (isupper(*p)) *p = (char) tolower(*p); p++; }
     }
 #ifdef CKSYMLINK
-    if (islink) {			/* If no change */
-	if (!strcmp(lockfil,symlock)) {	/* then no second lockfile needed */
-	    islink = 0;
-	    symlock[0] = '\0';
-	}
+    if (islink) {                       /* If no change */
+        if (!strcmp(lockfil,symlock)) { /* then no second lockfile needed */
+            islink = 0;
+            symlock[0] = '\0';
+        }
     }
 #endif /* CKSYMLINK */
 #else
-#ifdef M_XENIX				/* SCO Xenix or UNIX */
+#ifdef M_XENIX                          /* SCO Xenix or UNIX */
     {
-	int x; char c;
-	x = (int)strlen(lockfil) - 1;	/* Get last letter of device name. */
-	if (x > 0) {			/* If it's uppercase, lower it. */
-	    c = lockfil[x];
-	    if (c >= 'A' && c <= 'Z') lockfil[x] += ('a' - 'A');
-	}
+        int x; char c;
+        x = (int)strlen(lockfil) - 1;   /* Get last letter of device name. */
+        if (x > 0) {                    /* If it's uppercase, lower it. */
+            c = lockfil[x];
+            if (c >= 'A' && c <= 'Z') lockfil[x] += ('a' - 'A');
+        }
     }
 #ifdef CKSYMLINK
     if (islink) {
-	if (!strcmp(lockfil,symlock)) {	/* No change */
-	    islink = 0;			/* so no second lockfile */
-	    symlock[0] = '\0';
-	}
+        if (!strcmp(lockfil,symlock)) { /* No change */
+            islink = 0;                 /* so no second lockfile */
+            symlock[0] = '\0';
+        }
     }
 #endif /* CKSYMLINK */
 #endif /* M_XENIX */
@@ -5249,14 +5257,14 @@ ttlock(ttdev) char *ttdev;
     /* If it's a link then also make a lockfile for the real name */
     debug(F111,"ttlock link symlock",symlock,islink);
     if (islink && symlock[0]) {
-	/* But only if the lockfile names would be different. */
-	/* WARNING: They won't be, e.g. for /dev/ttyd2 => /hw/ttys/ttyd2 */
-	ckmakmsg(lock2,FLFNAML,lockdir,"/",symlock,NULL);
-	debug(F110,"ttlock lock2",lock2,0);
-	if (!strcmp(lock2,flfnam)) {	/* Are lockfile names the same? */
-	    debug(F100,"ttlock lock2 cleared","",0);
-	    lock2[0] = '\0';		/* Clear secondary lockfile name. */
-	}
+        /* But only if the lockfile names would be different. */
+        /* WARNING: They won't be, e.g. for /dev/ttyd2 => /hw/ttys/ttyd2 */
+        ckmakmsg(lock2,FLFNAML,lockdir,"/",symlock,NULL);
+        debug(F110,"ttlock lock2",lock2,0);
+        if (!strcmp(lock2,flfnam)) {    /* Are lockfile names the same? */
+            debug(F100,"ttlock lock2 cleared","",0);
+            lock2[0] = '\0';            /* Clear secondary lockfile name. */
+        }
     }
 #endif /* CKSYMLINK */
 #endif /* LFDEVNO */
@@ -5265,56 +5273,56 @@ ttlock(ttdev) char *ttdev;
     debug(F110,"ttlock flfnam",flfnam,0);
     debug(F110,"ttlock tmpnam",tmpnam,0);
 
-    if (priv_on()) {			/* Turn on privileges if possible. */
-	/* priv_on() only fails when this binary is genuinely set-uid/
-	   set-gid and the switch itself failed (e.g. an earlier
-	   priv_chk() in this process permanently dropped privileges
-	   via priv_can()); don't proceed to creat() as if we were
-	   still able to elevate. */
-	debug(F100,"ttlock priv_on failed","",0);
-	return(-1);			/* Can't lock without privileges. */
+    if (priv_on()) {                    /* Turn on privileges if possible. */
+        /* priv_on() only fails when this binary is genuinely set-uid/
+           set-gid and the switch itself failed (e.g. an earlier
+           priv_chk() in this process permanently dropped privileges
+           via priv_can()); don't proceed to creat() as if we were
+           still able to elevate. */
+        debug(F100,"ttlock priv_on failed","",0);
+        return(-1);                     /* Can't lock without privileges. */
     }
-    lockfd = creat(tmpnam, 0444);	/* Try to create temp lock file. */
-    if (lockfd < 0) {			/* Create failed. */
-	int savederrno = errno;
-	debug(F111,"ttlock creat failed",tmpnam,savederrno);
-	if (savederrno == ENOENT) {
-	    perror(lockdir);
-	    printf("UUCP not installed or Kermit misconfigured\n");
-	} else {
-	    if (!quiet)
-	      perror(lockdir);
-	    unlink(tmpnam);		/* Get rid of the temporary file. */
-	}
-	if (priv_chk())			/* Turn off privileges!!! */
-	  debug(F100,"ttlock priv_chk failed to drop privileges","",0);
-	errno = savederrno;
-	/* -3 means the lock directory itself refused us; anything else
-	   (e.g. ENOENT, a missing lock directory) is a generic failure
-	   so the caller reports it from errno instead of blaming
-	   lockfile permissions. */
-	return((savederrno == EACCES || savederrno == EPERM) ? -3 : -1);
+    lockfd = creat(tmpnam, 0444);       /* Try to create temp lock file. */
+    if (lockfd < 0) {                   /* Create failed. */
+        int savederrno = errno;
+        debug(F111,"ttlock creat failed",tmpnam,savederrno);
+        if (savederrno == ENOENT) {
+            perror(lockdir);
+            printf("UUCP not installed or Kermit misconfigured\n");
+        } else {
+            if (!quiet)
+              perror(lockdir);
+            unlink(tmpnam);             /* Get rid of the temporary file. */
+        }
+        if (priv_chk())                 /* Turn off privileges!!! */
+          debug(F100,"ttlock priv_chk failed to drop privileges","",0);
+        errno = savederrno;
+        /* -3 means the lock directory itself refused us; anything else
+           (e.g. ENOENT, a missing lock directory) is a generic failure
+           so the caller reports it from errno instead of blaming
+           lockfile permissions. */
+        return((savederrno == EACCES || savederrno == EPERM) ? -3 : -1);
     }
 /* Now write the pid into the temp lockfile in the appropriate format */
 
-#ifdef PIDSTRING			/* For Honey DanBer UUCP, */
-    sprintf(				/* write PID as decimal string */
-	    pid_str,
-#ifdef LINUXFSSTND			/* The "Linux File System Standard" */
-#ifdef FSSTND10				/* Version 1.0 calls for */
-	    "%010d\n",			/* leading zeros */
-#else					/* while version 1.2 calls for */
-	    "%10d\n",			/* leading spaces */
+#ifdef PIDSTRING                        /* For Honey DanBer UUCP, */
+    sprintf(                            /* write PID as decimal string */
+            pid_str,
+#ifdef LINUXFSSTND                      /* The "Linux File System Standard" */
+#ifdef FSSTND10                         /* Version 1.0 calls for */
+            "%010d\n",                  /* leading zeros */
+#else                                   /* while version 1.2 calls for */
+            "%10d\n",                   /* leading spaces */
 #endif /* FSSTND10 */
 #else
 #ifdef COHERENT
-	    "%d\n",			/* with leading nothing */
+            "%d\n",                     /* with leading nothing */
 #else
-	    "%10d\n",			/* with leading blanks */
+            "%10d\n",                   /* with leading blanks */
 #endif /* COHERENT */
 #endif /* LINUXFSSTND */
-	    (int) pid
-	    );				/* safe */
+            (int) pid
+            );                          /* safe */
     dummy = write(lockfd, pid_str, 11);
     debug(F111,"ttlock hdb pid string",pid_str,(int) pid);
 
@@ -5328,51 +5336,51 @@ ttlock(ttdev) char *ttdev;
 /* Now try to rename the temp file to the real lock file name. */
 /* This will fail if a lock file of that name already exists.  */
 
-    close(lockfd);			/* Close the temp lockfile. */
-    chmod(tmpnam,0444);			/* Permission for a valid lock. */
+    close(lockfd);                      /* Close the temp lockfile. */
+    chmod(tmpnam,0444);                 /* Permission for a valid lock. */
     tries = 0;
     while (!haslock && tries++ < 2) {
         haslock = 0;
         dummy = link(tmpnam,flfnam);    /* Create a link to it. */
         if (dummy == 0) haslock = 1;
-	if (haslock) {                  /* If we got the lockfile */
+        if (haslock) {                  /* If we got the lockfile */
 #ifdef RTAIX
-	    link(flfnam,lkflfn);
+            link(flfnam,lkflfn);
 #endif /* RTAIX */
 #ifdef CKSYMLINK
 #ifndef LFDEVNO
-	    if (islink && lock2[0])
-	      dummy = link(flfnam,lock2);
+            if (islink && lock2[0])
+              dummy = link(flfnam,lock2);
 #endif /* LFDEVNO */
 #endif /* CKSYMLINK */
 
-	      break;			/* We're done. */
+              break;                    /* We're done. */
 
-	} else {			/* We didn't create a new lockfile. */
-	    if (priv_chk())
-	      debug(F100,"ttlock priv_chk failed to drop privileges","",0);
-	    if (ttchkpid(flfnam)) {	/* Check existing lockfile */
-		priv_on();		/* cause ttchkpid turns priv_off... */
-		unlink(tmpnam);		/* Delete the tempfile */
-		debug(F100,"ttlock found tty locked","",0);
-		priv_chk();		/* Turn off privs */
-		return(-2);		/* Code for device is in use. */
-	    }
-	    if (priv_on()) {		/* Re-elevate for the next attempt; */
-		/* if privileges can't be reacquired (e.g. a permanent
-		   drop already happened), don't loop again as if we
-		   still had them -- bail with the same failure code
-		   the loop would return if it simply ran out of
-		   tries. */
-		debug(F100,"ttlock priv_on failed, giving up","",0);
-		break;
-	    }
-	}
+        } else {                        /* We didn't create a new lockfile. */
+            if (priv_chk())
+              debug(F100,"ttlock priv_chk failed to drop privileges","",0);
+            if (ttchkpid(flfnam)) {     /* Check existing lockfile */
+                priv_on();              /* cause ttchkpid turns priv_off... */
+                unlink(tmpnam);         /* Delete the tempfile */
+                debug(F100,"ttlock found tty locked","",0);
+                priv_chk();             /* Turn off privs */
+                return(-2);             /* Code for device is in use. */
+            }
+            if (priv_on()) {            /* Re-elevate for the next attempt; */
+                /* if privileges can't be reacquired (e.g. a permanent
+                   drop already happened), don't loop again as if we
+                   still had them -- bail with the same failure code
+                   the loop would return if it simply ran out of
+                   tries. */
+                debug(F100,"ttlock priv_on failed, giving up","",0);
+                break;
+            }
+        }
     }
-    unlink(tmpnam);			/* Unlink (remove) the temp file. */
+    unlink(tmpnam);                     /* Unlink (remove) the temp file. */
     if (priv_chk())
       debug(F100,"ttlock priv_chk failed to drop privileges","",0);
-    return(haslock ? 0 : -1);		/* Return link's return code. */
+    return(haslock ? 0 : -1);           /* Return link's return code. */
 
 #else /* HPUX */
 
@@ -5405,34 +5413,34 @@ ttlock(ttdev) char *ttdev;
 
   -fdc, March 1998.
 */
-#define LFNAML 80			/* Max length for lock file name. */
+#define LFNAML 80                       /* Max length for lock file name. */
 
-    int lockfd;				/* File descriptor for lock file. */
-    PID_T pid;				/* Process ID of this process. */
-    int fpid;				/* pid found in existing lockfile. */
-    int tries;				/* How many times we've tried... */
-    int i, k;				/* Workers */
+    int lockfd;                         /* File descriptor for lock file. */
+    PID_T pid;                          /* Process ID of this process. */
+    int fpid;                           /* pid found in existing lockfile. */
+    int tries;                          /* How many times we've tried... */
+    int i, k;                           /* Workers */
 
-    char *device, *devname;		/* "/dev/xxx", "xxx" */
-    char *unit, *p;			/* <instance>p<port> part of xxx */
+    char *device, *devname;             /* "/dev/xxx", "xxx" */
+    char *unit, *p;                     /* <instance>p<port> part of xxx */
 
-    char lockfil[LFNAML];		/* Lockfile name (no path) */
-    char tmpnam[LFNAML];		/* Temporary lockfile name. */
+    char lockfil[LFNAML];               /* Lockfile name (no path) */
+    char tmpnam[LFNAML];                /* Temporary lockfile name. */
 
-#ifdef HPUX10				/* Lockfile directory */
-    char *lockdir = "/var/spool/locks";	/* Always this for 10.00 and higher */
+#ifdef HPUX10                           /* Lockfile directory */
+    char *lockdir = "/var/spool/locks"; /* Always this for 10.00 and higher */
 #else  /* HP-UX 9.xx and below */
 #ifdef LOCK_DIR
-    char *lockdir = LOCK_DIR;		/* Defined near top of this file */
+    char *lockdir = LOCK_DIR;           /* Defined near top of this file */
 #else
-    char *lockdir = "/usr/spool/uucp";	/* or not... */
+    char *lockdir = "/usr/spool/uucp";  /* or not... */
 #endif /* LOCK_DIR */
 #endif /* HPUX10 */
 
     haslock = 0;                        /* Not locked yet. */
-    *flfnam = '\0';			/* Lockfile name is empty. */
-    lock2[0] = '\0';			/* Second one too. */
-    pid = getpid();			/* Get my process ID */
+    *flfnam = '\0';                     /* Lockfile name is empty. */
+    lock2[0] = '\0';                    /* Second one too. */
+    pid = getpid();                     /* Get my process ID */
 /*
   Construct name of lockfile and temporary file...
   device  = name of tty device without the path, e.g. "tty0p0"
@@ -5442,12 +5450,12 @@ ttlock(ttdev) char *ttdev;
     debug(F110,"TTLOCK device",device,0);
     ckmakmsg(lockfil,LFNAML,"LCK..",device,NULL,NULL);
 
-    k = 0;				/* Assume device is not locked */
-    n = 0;				/* Digit counter */
-    unit = device;			/* Unit = <instance>p<port> */
-    while (*unit && !isdigit(*unit))	/* Search for digit... */
+    k = 0;                              /* Assume device is not locked */
+    n = 0;                              /* Digit counter */
+    unit = device;                      /* Unit = <instance>p<port> */
+    while (*unit && !isdigit(*unit))    /* Search for digit... */
       unit++;
-    p = unit;				/* Verify <num>p<num> format... */
+    p = unit;                           /* Verify <num>p<num> format... */
     debug(F110,"TTLOCK unit 1",unit,0);
 /*
   The unit number is recognized as:
@@ -5455,59 +5463,59 @@ ttlock(ttdev) char *ttdev;
   (b) any (a) that includes one and only one letter "p", with at least
       one digit before and after it.
 */
-    while (isdigit(*p)) p++, n++;	/* Get a run of digits */
-    if (*p && n > 0) {			/* Have a "p"? */
-	if (*p == 'p' && isdigit(*(p+1))) {
-	    p++;
-	    n = 0;
-	    while (isdigit(*p)) p++, n++;
-	}
+    while (isdigit(*p)) p++, n++;       /* Get a run of digits */
+    if (*p && n > 0) {                  /* Have a "p"? */
+        if (*p == 'p' && isdigit(*(p+1))) {
+            p++;
+            n = 0;
+            while (isdigit(*p)) p++, n++;
+        }
     }
     if (n == 0 || *p) unit = "";
     debug(F110,"TTLOCK unit 2",unit,0);
 
-    if (*unit) {			/* Device name has unit number. */
-	/* The following loop not only searches for the various lockfile    */
-	/* synonyms, but also removes all -- not just one -- stale lockfile */
-	/* for the device, should there be more than one.  See ttchkpid().  */
-	ttydexists = 0;
-	for (i = 0; *devprefix[i]; i++) { /* For each driver... */
-	    /* Make device name */
-	    ckmakmsg(lock2,FLFNAML,"/dev/",devprefix[i],unit,NULL);
-	    priv_on();			/* Privs on */
-	    k = zchki(lock2) != -1;	/* See if device exists */
-	    priv_chk();			/* Privs off */
-	    debug(F111,"TTLOCK exist",lock2,k);
+    if (*unit) {                        /* Device name has unit number. */
+        /* The following loop not only searches for the various lockfile    */
+        /* synonyms, but also removes all -- not just one -- stale lockfile */
+        /* for the device, should there be more than one.  See ttchkpid().  */
+        ttydexists = 0;
+        for (i = 0; *devprefix[i]; i++) { /* For each driver... */
+            /* Make device name */
+            ckmakmsg(lock2,FLFNAML,"/dev/",devprefix[i],unit,NULL);
+            priv_on();                  /* Privs on */
+            k = zchki(lock2) != -1;     /* See if device exists */
+            priv_chk();                 /* Privs off */
+            debug(F111,"TTLOCK exist",lock2,k);
             if (k) {
-		if (!strcmp(devprefix[i],"ttyd")) /* ttyd device exists */
-		  ttydexists = 1;
-		/* Make lockfile name */
-		ckmakmsg(lock2,FLFNAML,lockdir,"/LCK..",devprefix[i],unit);
-		debug(F110,"TTLOCK checking",lock2,0);
-		priv_on();		/* Privs on */
-		k = zchki(lock2) != -1;	/* See if lockfile exists */
-		priv_chk();		/* Privs off */
-		debug(F111,"TTLOCK check for lock A",lock2,k);
-		if (k) if (ttchkpid(lock2)) { /* If pid still active, fail. */
-		    ckstrncpy(flfnam,lock2,FLFNAML);
-		    return(-2);
-		}
-	    }
-	}
-    } else {				/* Some other device-name format */
-	/* This takes care of symbolic links, etc... */
-	/* But does not chase them down! */
-	ckmakmsg(lock2,FLFNAML,lockdir,"/LCK..",device,NULL);
-	priv_on();
-	k = zchki(lock2) != -1;		/* Check for existing lockfile */
-	priv_chk();
-	debug(F111,"TTLOCK check for lock B",lock2,k);
-	if (k) if (ttchkpid(lock2)) {	/* Check pid from lockfile */
-	    ckstrncpy(flfnam,lock2,FLFNAML);
-	    debug(F110,"TTLOCK in use",device,0);
-	    debug(F101,"TTLOCK returns","",-2);
-	    return(-2);
-	}
+                if (!strcmp(devprefix[i],"ttyd")) /* ttyd device exists */
+                  ttydexists = 1;
+                /* Make lockfile name */
+                ckmakmsg(lock2,FLFNAML,lockdir,"/LCK..",devprefix[i],unit);
+                debug(F110,"TTLOCK checking",lock2,0);
+                priv_on();              /* Privs on */
+                k = zchki(lock2) != -1; /* See if lockfile exists */
+                priv_chk();             /* Privs off */
+                debug(F111,"TTLOCK check for lock A",lock2,k);
+                if (k) if (ttchkpid(lock2)) { /* If pid still active, fail. */
+                    ckstrncpy(flfnam,lock2,FLFNAML);
+                    return(-2);
+                }
+            }
+        }
+    } else {                            /* Some other device-name format */
+        /* This takes care of symbolic links, etc... */
+        /* But does not chase them down! */
+        ckmakmsg(lock2,FLFNAML,lockdir,"/LCK..",device,NULL);
+        priv_on();
+        k = zchki(lock2) != -1;         /* Check for existing lockfile */
+        priv_chk();
+        debug(F111,"TTLOCK check for lock B",lock2,k);
+        if (k) if (ttchkpid(lock2)) {   /* Check pid from lockfile */
+            ckstrncpy(flfnam,lock2,FLFNAML);
+            debug(F110,"TTLOCK in use",device,0);
+            debug(F101,"TTLOCK returns","",-2);
+            return(-2);
+        }
     }
 /*
   Get here only if there is no (more) lockfile, so now we make one (or two)...
@@ -5525,9 +5533,9 @@ ttlock(ttdev) char *ttdev;
       sprintf(tmpnam,"%s/LTMP.%05d",lockdir,(int) pid); /* Make temp name */
 #ifdef DEBUG
     if (deblog) {
-	debug(F110,"TTLOCK flfnam",flfnam,0);
-	debug(F110,"TTLOCK lock2",lock2,0);
-	debug(F110,"TTLOCK tmpnam",tmpnam,0);
+        debug(F110,"TTLOCK flfnam",flfnam,0);
+        debug(F110,"TTLOCK lock2",lock2,0);
+        debug(F110,"TTLOCK tmpnam",tmpnam,0);
     }
 #endif /* DEBUG */
 /*
@@ -5536,21 +5544,21 @@ ttlock(ttdev) char *ttdev;
    Kermit uses 444; the difference lets us tell whether Kermit created
    the lock file.
 */
-    priv_on();				/* Turn on privileges. */
-    lockfd = creat(tmpnam, 0444);	/* Try to create temporary file. */
-    if (lockfd < 0) {			/* Create failed. */
-	debug(F111,"TTLOCK creat failed",tmpnam,errno);
-	if (errno == ENOENT) {
-	    perror(lockdir);
-	    printf("UUCP not installed or Kermit misconfigured\n");
-	} else {
-	    if (!quiet)
-	      perror(lockdir);
-	    unlink(tmpnam);		/* Get rid of the temporary file. */
-	}
-	priv_chk();			/* Turn off privileges!!! */
-	debug(F101,"TTLOCK returns","",-1);
-	return(-1);			/* Return failure code. */
+    priv_on();                          /* Turn on privileges. */
+    lockfd = creat(tmpnam, 0444);       /* Try to create temporary file. */
+    if (lockfd < 0) {                   /* Create failed. */
+        debug(F111,"TTLOCK creat failed",tmpnam,errno);
+        if (errno == ENOENT) {
+            perror(lockdir);
+            printf("UUCP not installed or Kermit misconfigured\n");
+        } else {
+            if (!quiet)
+              perror(lockdir);
+            unlink(tmpnam);             /* Get rid of the temporary file. */
+        }
+        priv_chk();                     /* Turn off privileges!!! */
+        debug(F101,"TTLOCK returns","",-1);
+        return(-1);                     /* Return failure code. */
     }
     debug(F110,"TTLOCK temp ok",tmpnam,0);
 
@@ -5560,9 +5568,9 @@ ttlock(ttdev) char *ttdev;
 
 #ifdef DEBUG
     if (deblog) {
-	debug(F101,"TTLOCK pid","",pid);
-	debug(F101,"TTLOCK sizeof pid","",sizeof(pid));
-	debug(F101,"TTLOCK write pid returns","",i);
+        debug(F101,"TTLOCK pid","",pid);
+        debug(F101,"TTLOCK sizeof pid","",sizeof(pid));
+        debug(F101,"TTLOCK write pid returns","",i);
     }
 #endif /* DEBUG */
 
@@ -5571,33 +5579,33 @@ ttlock(ttdev) char *ttdev;
   This will fail if a lock file of that name already exists, which
   will catch race conditions with other users.
 */
-    close(lockfd);			/* Close the temp lockfile. */
+    close(lockfd);                      /* Close the temp lockfile. */
     chmod(tmpnam,0444);
 
     tries = 0;
     while (!haslock && tries++ < 2) {
-	haslock = (link(tmpnam,flfnam) == 0); /* Create a link to it. */
-	debug(F101,"TTLOCK link","",haslock);
-	if (haslock) {			/* If we made the lockfile... */
-	    if (haslock) {		/* If we made the lockfile ... */
-		if (lock2[0]) {		/* if there is to be a 2nd lockfile */
-		    lockfd = creat(lock2, 0444); /* Create it */
-		    debug(F111,"TTLOCK lock2 creat", lock2, lockfd);
-		    if (lockfd > -1) {	/* Created OK, write pid. */
-			write(lockfd, (char *)&pid, sizeof(pid) );
-			close(lockfd);	/* Close and */
-			chmod(lock2, 0444); /* set permissions. */
-		    } else {		 /* Not OK, but don't fail. */
-			lock2[0] = '\0'; /* Just remember it's not there. */
-		    }
-		}
-		break;			/* and we're done. */
-	    }
-	}
+        haslock = (link(tmpnam,flfnam) == 0); /* Create a link to it. */
+        debug(F101,"TTLOCK link","",haslock);
+        if (haslock) {                  /* If we made the lockfile... */
+            if (haslock) {              /* If we made the lockfile ... */
+                if (lock2[0]) {         /* if there is to be a 2nd lockfile */
+                    lockfd = creat(lock2, 0444); /* Create it */
+                    debug(F111,"TTLOCK lock2 creat", lock2, lockfd);
+                    if (lockfd > -1) {  /* Created OK, write pid. */
+                        write(lockfd, (char *)&pid, sizeof(pid) );
+                        close(lockfd);  /* Close and */
+                        chmod(lock2, 0444); /* set permissions. */
+                    } else {             /* Not OK, but don't fail. */
+                        lock2[0] = '\0'; /* Just remember it's not there. */
+                    }
+                }
+                break;                  /* and we're done. */
+            }
+        }
     }
-    unlink(tmpnam);			/* Unlink (remove) the temp file. */
-    priv_chk();				/* Turn off privs */
-    i = haslock ? 0 : -1;		/* Our return value */
+    unlink(tmpnam);                     /* Unlink (remove) the temp file. */
+    priv_chk();                         /* Turn off privs */
+    i = haslock ? 0 : -1;               /* Our return value */
     debug(F101,"TTLOCK returns","",i);
     return(i);
 #endif /* HPUX */
@@ -5617,73 +5625,73 @@ ttunlck() {                             /* Remove UUCP lockfile(s). */
 #ifdef USETTYLOCK
 
     if (haslock && *flfnam) {
-	int x;
-	priv_on();			/* Turn on privs */
+        int x;
+        priv_on();                      /* Turn on privs */
 #ifdef USE_UU_LOCK
-	x = uu_unlock(lockname);
+        x = uu_unlock(lockname);
 #else  /* USE_UU_LOCK */
-	x = ttyunlock(lockname);	/* Try to unlock */
+        x = ttyunlock(lockname);        /* Try to unlock */
 #endif /* USE_UU_LOCK */
-	priv_chk();			/* Turn off privs */
-	if (x < 0 && !quiet)
-	  printf("Warning - Can't remove lockfile: %s\n", flfnam);
+        priv_chk();                     /* Turn off privs */
+        if (x < 0 && !quiet)
+          printf("Warning - Can't remove lockfile: %s\n", flfnam);
 
-	*flfnam = '\0';			/* Erase the name. */
-	haslock = 0;
-	return(0);
+        *flfnam = '\0';                 /* Erase the name. */
+        haslock = 0;
+        return(0);
     }
 
 #else  /* No ttylock()... */
 
     if (haslock && *flfnam) {
-	/* Don't remove lockfile if we didn't make it ourselves */
-	if ((x = ttrpid(flfnam)) != (int)getpid()) {
-	    debug(F111,"ttunlck lockfile seized",flfnam,x);
-	    printf("Warning - Lockfile %s seized by pid %d\n",
-		   flfnam,
-		   x
-		   );
-	    return(0);
-	}
-	priv_on();			/* Turn privileges on.  */
-	errno = 0;
-	x = unlink(flfnam);		/* Remove the lockfile. */
-	debug(F111,"ttunlck unlink",flfnam,x);
-	if (x < 0) {
-	    if (errno && !quiet)
-	      perror(ttnmsv);
-	    printf("Warning - Can't remove lockfile: %s\n", flfnam);
-	}
-	haslock = 0;
-	*flfnam = '\0';			/* Erase the name. */
+        /* Don't remove lockfile if we didn't make it ourselves */
+        if ((x = ttrpid(flfnam)) != (int)getpid()) {
+            debug(F111,"ttunlck lockfile seized",flfnam,x);
+            printf("Warning - Lockfile %s seized by pid %d\n",
+                   flfnam,
+                   x
+                   );
+            return(0);
+        }
+        priv_on();                      /* Turn privileges on.  */
+        errno = 0;
+        x = unlink(flfnam);             /* Remove the lockfile. */
+        debug(F111,"ttunlck unlink",flfnam,x);
+        if (x < 0) {
+            if (errno && !quiet)
+              perror(ttnmsv);
+            printf("Warning - Can't remove lockfile: %s\n", flfnam);
+        }
+        haslock = 0;
+        *flfnam = '\0';                 /* Erase the name. */
 
 #ifdef RTAIX
-	errno = 0;
-	x = unlink(lkflfn);		/* Remove link to lockfile */
-	debug(F111,"ttunlck AIX link unlink",lkflfn,x);
-	if (x < 0) {
-	    if (errno && !quiet)
-	      perror(ttnmsv);
-	    printf("Warning - Can't remove link to lockfile: %s\n", lkflfn);
-	}
-	*lkflfn = '\0';
+        errno = 0;
+        x = unlink(lkflfn);             /* Remove link to lockfile */
+        debug(F111,"ttunlck AIX link unlink",lkflfn,x);
+        if (x < 0) {
+            if (errno && !quiet)
+              perror(ttnmsv);
+            printf("Warning - Can't remove link to lockfile: %s\n", lkflfn);
+        }
+        *lkflfn = '\0';
 #else
-	if (lock2[0]) {			/* If there is a second lockfile, */
-	    errno = 0;
-	    x = unlink(lock2);		/*  remove it too. */
-	    debug(F111,"ttunlck lock2 unlink",lock2,x);
-	    if (x < 0) {
-		if (errno && !quiet)
-		  perror(ttnmsv);
-		printf("Warning - Can't remove secondary lockfile: %s\n",
-		       lock2
-		       );
-	    }
-	    lock2[0] = '\0';		/* Forget its name. */
-	}
+        if (lock2[0]) {                 /* If there is a second lockfile, */
+            errno = 0;
+            x = unlink(lock2);          /*  remove it too. */
+            debug(F111,"ttunlck lock2 unlink",lock2,x);
+            if (x < 0) {
+                if (errno && !quiet)
+                  perror(ttnmsv);
+                printf("Warning - Can't remove secondary lockfile: %s\n",
+                       lock2
+                       );
+            }
+            lock2[0] = '\0';            /* Forget its name. */
+        }
 #endif /* RTAIX */
 
-	priv_chk();			/* Turn privileges off. */
+        priv_chk();                     /* Turn privileges off. */
     }
 #endif /* USETTYLOCK */
 #endif /* !NOUUCP */
@@ -5701,7 +5709,7 @@ acucntrl(flag,ttname) char *flag, *ttname; {
     char x[DEVNAMLEN+32], *device, *devname;
 
     if (strcmp(ttname,CTTNAM) == 0 || xlocal == 0) /* If not local, */
-      return;				/* just return. */
+      return;                           /* just return. */
     device = ((devname = xxlast(ttname,'/')) != NULL ? devname+1 : ttname);
     if (strncmp(device,"LCK..",4) == 0) device += 5;
     ckmakmsg(x,DEVNAMLEN+32,"/usr/lib/uucp/acucntrl ",flag," ",device);
@@ -5770,9 +5778,9 @@ acucntrl(flag,ttname) char *flag, *ttname; {
 static int
 #ifdef CK_ANSIC
 tthflow(int flow, int status,
-#ifdef BSD44ORPOSIX			/* POSIX or BSD44 */
+#ifdef BSD44ORPOSIX                     /* POSIX or BSD44 */
     struct termios *attrs
-#else					/* System V */
+#else                                   /* System V */
 #ifdef ATTSV
 #ifdef ATT7300
 #ifdef UNIX351M
@@ -5782,19 +5790,19 @@ tthflow(int flow, int status,
 #endif /* ATT7300 */
 #endif /* UNIX351M */
     struct termio *attrs
-#else					/* BSD, V7, etc */
-    struct sgttyb *attrs		/* sgtty info... */
+#else                                   /* BSD, V7, etc */
+    struct sgttyb *attrs                /* sgtty info... */
 #endif /* ATTSV */
 #endif /* BSD44ORPOSIX */
         )
 #else
 tthflow(flow, status, attrs)
-    int flow,				/* Type of flow control (ckcdeb.h) */
-    status;				/* Nonzero = turn it on */
-					/* Zero = turn it off */
-#ifdef BSD44ORPOSIX			/* POSIX or BSD44 */
+    int flow,                           /* Type of flow control (ckcdeb.h) */
+    status;                             /* Nonzero = turn it on */
+                                        /* Zero = turn it off */
+#ifdef BSD44ORPOSIX                     /* POSIX or BSD44 */
     struct termios *attrs;
-#else					/* System V */
+#else                                   /* System V */
 #ifdef ATTSV
 #ifdef ATT7300
 #ifdef UNIX351M
@@ -5804,19 +5812,19 @@ tthflow(flow, status, attrs)
 #endif /* ATT7300 */
 #endif /* UNIX351M */
     struct termio *attrs;
-#else					/* BSD, V7, etc */
-    struct sgttyb *attrs;		/* sgtty info... */
+#else                                   /* BSD, V7, etc */
+    struct sgttyb *attrs;               /* sgtty info... */
 #endif /* ATTSV */
 #endif /* BSD44ORPOSIX */
 #endif /* CK_ANSIC */
 {
-    int x = 0;				/* tthflow() return code */
+    int x = 0;                          /* tthflow() return code */
 
 #ifdef Plan9
     return p9tthflow(flow, status);
 #else
 
-#ifndef OXOS				/* NOT Olivetti X/OS... */
+#ifndef OXOS                            /* NOT Olivetti X/OS... */
 /*
   For SunOS 4.0 and later in the BSD environment ...
 
@@ -5834,16 +5842,16 @@ tthflow(flow, status, attrs)
   the POSIX forms work for both.  But the POSIX calls are not available in
   SunOS 4.0.
 */
-#define CRTSCTS 0x80000000		/* RTS/CTS flow control */
-#define TCSANOW 0			/* Do it now */
+#define CRTSCTS 0x80000000              /* RTS/CTS flow control */
+#define TCSANOW 0                       /* Do it now */
 
     struct termios {
-	unsigned long c_iflag;		/* Input modes */
-	unsigned long c_oflag;		/* Output modes */
-	unsigned long c_cflag;		/* Control modes */
-	unsigned long c_lflag;		/* Line discipline modes */
-	char c_line;
-	CHAR c_cc[17];
+        unsigned long c_iflag;          /* Input modes */
+        unsigned long c_oflag;          /* Output modes */
+        unsigned long c_cflag;          /* Control modes */
+        unsigned long c_lflag;          /* Line discipline modes */
+        char c_line;
+        CHAR c_cc[17];
     };
     struct termios temp;
 
@@ -5855,7 +5863,7 @@ _PROTOTYP( int tcsetattr, (int, int, struct termios *) );
   since we don't need RTS/CTS during dialing, and after dialing is complete,
   we should have CD.  If not, we still communicate, but without RTS/CTS.
 */
-    int mflags;				/* Modem signal flags */
+    int mflags;                         /* Modem signal flags */
 
 #ifdef NETCMD
     if (ttpipe) return(0);
@@ -5865,25 +5873,25 @@ _PROTOTYP( int tcsetattr, (int, int, struct termios *) );
 #endif /* NETPTY */
 
     debug(F101,"tthflow SUNOS41 entry status","",status);
-    if (!status) {			/* Turn hard flow off */
-	if (tcgetattr(ttyfd, &temp) > -1 && /* Get device attributes */
-	    (temp.c_cflag & CRTSCTS)) { /* Check for RTS/CTS */
-	    temp.c_cflag &= ~CRTSCTS;	/* It's there, remove it */
-	    x = tcsetattr(ttyfd,TCSANOW,&temp);
-	}
-    } else {				/* Turn hard flow on */
-	if (ioctl(ttyfd,TIOCMGET,&mflags) > -1 && /* Get modem signals */
-	    (mflags & TIOCM_CAR)) {		/* Check for CD */
-	    debug(F100,"tthflow SunOS has CD","",0);
-	    if (tcgetattr(ttyfd, &temp) > -1 && /* Get device attributes */
-		!(temp.c_cflag & CRTSCTS)) { /* Check for RTS/CTS */
-		temp.c_cflag |= CRTSCTS;	/* Not there, add it */
-		x = tcsetattr(ttyfd,TCSANOW,&temp);
-	    }
-	} else {
-	    x = -1;
-	    debug(F100,"tthflow SunOS no CD","",0);
-	}
+    if (!status) {                      /* Turn hard flow off */
+        if (tcgetattr(ttyfd, &temp) > -1 && /* Get device attributes */
+            (temp.c_cflag & CRTSCTS)) { /* Check for RTS/CTS */
+            temp.c_cflag &= ~CRTSCTS;   /* It's there, remove it */
+            x = tcsetattr(ttyfd,TCSANOW,&temp);
+        }
+    } else {                            /* Turn hard flow on */
+        if (ioctl(ttyfd,TIOCMGET,&mflags) > -1 && /* Get modem signals */
+            (mflags & TIOCM_CAR)) {             /* Check for CD */
+            debug(F100,"tthflow SunOS has CD","",0);
+            if (tcgetattr(ttyfd, &temp) > -1 && /* Get device attributes */
+                !(temp.c_cflag & CRTSCTS)) { /* Check for RTS/CTS */
+                temp.c_cflag |= CRTSCTS;        /* Not there, add it */
+                x = tcsetattr(ttyfd,TCSANOW,&temp);
+            }
+        } else {
+            x = -1;
+            debug(F100,"tthflow SunOS no CD","",0);
+        }
     }
 #else
 #ifdef QNX
@@ -5895,26 +5903,26 @@ _PROTOTYP( int tcsetattr, (int, int, struct termios *) );
     if (ttpty) return(0);
 #endif /* NETPTY */
     debug(F101,"tthflow QNX entry status","",status);
-    if (tcgetattr(ttyfd, &temp) > -1) {	/* Get device attributes */
-	if (!status) {			/* Turn hard flow off */
-	    if ((temp.c_cflag & (IHFLOW|OHFLOW)) == (IHFLOW|OHFLOW)) {
-		temp.c_cflag &= ~(IHFLOW|OHFLOW); /* It's there, remove it */
-		attrs->c_cflag &= ~(IHFLOW|OHFLOW);
-		x = tcsetattr(ttyfd,TCSANOW,&temp);
-	    }
-	} else {			/* Turn hard flow on */
-	    if ((temp.c_cflag & (IHFLOW|OHFLOW)) != (IHFLOW|OHFLOW)) {
-		temp.c_cflag |= (IHFLOW|OHFLOW); /* Not there, add it */
-		temp.c_iflag &= ~(IXON|IXOFF);   /* Bye to IXON/IXOFF */
-		ttraw.c_lflag |= IEXTEN;         /* Must be on */
-		x = tcsetattr(ttyfd,TCSANOW,&temp);
-		attrs->c_cflag |= (IHFLOW|OHFLOW);
-		attrs->c_iflag &= ~(IXON|IXOFF);
-	    }
-	}
+    if (tcgetattr(ttyfd, &temp) > -1) { /* Get device attributes */
+        if (!status) {                  /* Turn hard flow off */
+            if ((temp.c_cflag & (IHFLOW|OHFLOW)) == (IHFLOW|OHFLOW)) {
+                temp.c_cflag &= ~(IHFLOW|OHFLOW); /* It's there, remove it */
+                attrs->c_cflag &= ~(IHFLOW|OHFLOW);
+                x = tcsetattr(ttyfd,TCSANOW,&temp);
+            }
+        } else {                        /* Turn hard flow on */
+            if ((temp.c_cflag & (IHFLOW|OHFLOW)) != (IHFLOW|OHFLOW)) {
+                temp.c_cflag |= (IHFLOW|OHFLOW); /* Not there, add it */
+                temp.c_iflag &= ~(IXON|IXOFF);   /* Bye to IXON/IXOFF */
+                ttraw.c_lflag |= IEXTEN;         /* Must be on */
+                x = tcsetattr(ttyfd,TCSANOW,&temp);
+                attrs->c_cflag |= (IHFLOW|OHFLOW);
+                attrs->c_iflag &= ~(IXON|IXOFF);
+            }
+        }
     } else {
-	x = -1;
-	debug(F100, "tthflow QNX getattr fails", "", 0);
+        x = -1;
+        debug(F100, "tthflow QNX getattr fails", "", 0);
     }
 #else
 #ifdef POSIX_CRTSCTS
@@ -5935,43 +5943,43 @@ _PROTOTYP( int tcsetattr, (int, int, struct termios *) );
     debug(F111,"tthflow POSIX_CRTSCTS tcgetattr",ckitoa(x),errno);
     errno = 0;
     if (x < 0) {
-	x = -1;
+        x = -1;
     } else {
-	if (!status) {			/* Turn hard flow off */
-	    if (
-		(temp.c_cflag & CRTSCTS) != 0
-		) {
-		temp.c_cflag &= ~CRTSCTS; /* It's there, remove it */
-		attrs->c_cflag &= ~CRTSCTS;
-		x = tcsetattr(ttyfd,TCSANOW,&temp);
-		debug(F111,"tthflow POSIX_CRTSCTS OFF tcsetattr",
-		      ckitoa(x),errno);
-	    } else {			/* John Dunlap 2010-01-26 */
-		debug(F001,
-		      "tthflow before forcing off attrs CRTSCTS",
-		      "",
-		      attrs->c_cflag&CRTSCTS
-		      );
-		attrs->c_cflag &= ~CRTSCTS; /* force it off if !status */
-		debug(F001,
-		      "tthflow after forcing off attrs CRTSCTS",
-		      "",
-		      attrs->c_cflag&CRTSCTS
-		      );
-		}
-	} else {			/* Turn hard flow on */
-	    if (
-		(temp.c_cflag & CRTSCTS) == 0
-		) {
-		temp.c_cflag |= CRTSCTS; /* Not there, add it */
-		temp.c_iflag &= ~(IXON|IXOFF|IXANY); /* Bye to IXON/IXOFF */
-		x = tcsetattr(ttyfd,TCSANOW,&temp);
-		debug(F111,"tthflow POSIX_CRTSCTS ON tcsetattr",
-		      ckitoa(x),errno);
-		attrs->c_cflag |= CRTSCTS;
-		attrs->c_iflag &= ~(IXON|IXOFF|IXANY);
-	    }
-	}
+        if (!status) {                  /* Turn hard flow off */
+            if (
+                (temp.c_cflag & CRTSCTS) != 0
+                ) {
+                temp.c_cflag &= ~CRTSCTS; /* It's there, remove it */
+                attrs->c_cflag &= ~CRTSCTS;
+                x = tcsetattr(ttyfd,TCSANOW,&temp);
+                debug(F111,"tthflow POSIX_CRTSCTS OFF tcsetattr",
+                      ckitoa(x),errno);
+            } else {                    /* John Dunlap 2010-01-26 */
+                debug(F001,
+                      "tthflow before forcing off attrs CRTSCTS",
+                      "",
+                      attrs->c_cflag&CRTSCTS
+                      );
+                attrs->c_cflag &= ~CRTSCTS; /* force it off if !status */
+                debug(F001,
+                      "tthflow after forcing off attrs CRTSCTS",
+                      "",
+                      attrs->c_cflag&CRTSCTS
+                      );
+                }
+        } else {                        /* Turn hard flow on */
+            if (
+                (temp.c_cflag & CRTSCTS) == 0
+                ) {
+                temp.c_cflag |= CRTSCTS; /* Not there, add it */
+                temp.c_iflag &= ~(IXON|IXOFF|IXANY); /* Bye to IXON/IXOFF */
+                x = tcsetattr(ttyfd,TCSANOW,&temp);
+                debug(F111,"tthflow POSIX_CRTSCTS ON tcsetattr",
+                      ckitoa(x),errno);
+                attrs->c_cflag |= CRTSCTS;
+                attrs->c_iflag &= ~(IXON|IXOFF|IXANY);
+            }
+        }
     }
 #else
 #ifdef SUNOS4
@@ -5983,15 +5991,15 @@ _PROTOTYP( int tcsetattr, (int, int, struct termios *) );
 */
 #define TCGETS _IOR(T, 8, struct termios) /* Get modes into termios struct */
 #define TCSETS _IOW(T, 9, struct termios) /* Set modes from termios struct */
-#define CRTSCTS 0x80000000		  /* RTS/CTS flow control */
+#define CRTSCTS 0x80000000                /* RTS/CTS flow control */
 
     struct termios {
-	unsigned long c_iflag;		/* Input modes */
-	unsigned long c_oflag;		/* Output modes */
-	unsigned long c_cflag;		/* Control modes */
-	unsigned long c_lflag;		/* Line discipline modes */
-	char c_line;
-	CHAR c_cc[17];
+        unsigned long c_iflag;          /* Input modes */
+        unsigned long c_oflag;          /* Output modes */
+        unsigned long c_cflag;          /* Control modes */
+        unsigned long c_lflag;          /* Line discipline modes */
+        char c_line;
+        CHAR c_cc[17];
     };
     struct termios temp;
 #ifdef NETCMD
@@ -6002,19 +6010,19 @@ _PROTOTYP( int tcsetattr, (int, int, struct termios *) );
 #endif /* NETPTY */
     debug(F101,"tthflow entry status","",status);
     if (ioctl(ttyfd,TCGETS,&temp) > -1) { /* Get terminal modes. */
-	if (status) {			/* Turn hard flow on */
-	    temp.c_cflag |= CRTSCTS;	/* Add RTS/CTS to them. */
-	    x = ioctl(ttyfd,TCSETS,&temp); /* Set them again. */
-	    attrs->c_cflag |= CRTSCTS;	/* Add to global info. */
-	} else {			/* Turn hard flow off */
-	    temp.c_cflag &= ~CRTSCTS;
-	    x = ioctl(ttyfd,TCSETS,&temp);
-	    attrs->c_cflag &= ~CRTSCTS;
-	}
+        if (status) {                   /* Turn hard flow on */
+            temp.c_cflag |= CRTSCTS;    /* Add RTS/CTS to them. */
+            x = ioctl(ttyfd,TCSETS,&temp); /* Set them again. */
+            attrs->c_cflag |= CRTSCTS;  /* Add to global info. */
+        } else {                        /* Turn hard flow off */
+            temp.c_cflag &= ~CRTSCTS;
+            x = ioctl(ttyfd,TCSETS,&temp);
+            attrs->c_cflag &= ~CRTSCTS;
+        }
     }
-#else					/* Not SunOS 4.0 or later */
-#ifdef AIXRS				/* IBM AIX RS/6000 */
-#ifndef AIX41				/* But only pre-4.x == SVR4 */
+#else                                   /* Not SunOS 4.0 or later */
+#ifdef AIXRS                            /* IBM AIX RS/6000 */
+#ifndef AIX41                           /* But only pre-4.x == SVR4 */
 #ifdef NETCMD
     if (ttpipe) return(0);
 #endif /* NETCMD */
@@ -6022,28 +6030,28 @@ _PROTOTYP( int tcsetattr, (int, int, struct termios *) );
     if (ttpty) return(0);
 #endif /* NETPTY */
     if (status) {
-	if ((x = ioctl(ttyfd, TXADDCD, "rts")) < 0 && errno != EBUSY)
-	  debug(F100,"hardflow TXADDCD (rts) error", "", 0);
+        if ((x = ioctl(ttyfd, TXADDCD, "rts")) < 0 && errno != EBUSY)
+          debug(F100,"hardflow TXADDCD (rts) error", "", 0);
     } else {
-	if ((x = ioctl(ttyfd, TXDELCD, "rts")) < 0 && errno != EINVAL)
-	  debug(F100,"hardflow TXDELCD (rts) error", "", 0);
+        if ((x = ioctl(ttyfd, TXDELCD, "rts")) < 0 && errno != EINVAL)
+          debug(F100,"hardflow TXDELCD (rts) error", "", 0);
     }
 #endif /* AIX41 */
-#else					/* Not AIX RS/6000 */
+#else                                   /* Not AIX RS/6000 */
 
-#ifdef ATTSV				/* System V... */
+#ifdef ATTSV                            /* System V... */
 
-#ifdef CK_SCOV5				/* SCO Open Server 5.0 */
+#ifdef CK_SCOV5                         /* SCO Open Server 5.0 */
 #define CK_SCOUNIX
 #else
-#ifdef M_UNIX				/* SCO UNIX 3.2v4.x or earlier */
+#ifdef M_UNIX                           /* SCO UNIX 3.2v4.x or earlier */
 #define CK_SCOUNIX
 #endif /* M_UNIX */
 #endif /* CK_SCOV5 */
 
 #ifdef SCO_FORCE_RTSXOFF
-#ifdef CK_SCOUNIX			/* But not SCO OpenServer 5.0.4 */
-#ifdef SCO_OSR504			/* or later... */
+#ifdef CK_SCOUNIX                       /* But not SCO OpenServer 5.0.4 */
+#ifdef SCO_OSR504                       /* or later... */
 #undef CK_SCOUNIX
 #endif /* SCO_OSR504 */
 #endif /* CK_SCOUNIX */
@@ -6100,30 +6108,30 @@ _PROTOTYP( int tcsetattr, (int, int, struct termios *) );
 #endif /* ORTSFL */
 
     if (x != -1) {
-	if (status) {			/* Turn it ON */
-	    temp.c_cflag |= RTSFLOW|CTSFLOW;
-	    attrs->c_cflag |= RTSFLOW|CTSFLOW;
+        if (status) {                   /* Turn it ON */
+            temp.c_cflag |= RTSFLOW|CTSFLOW;
+            attrs->c_cflag |= RTSFLOW|CTSFLOW;
 #ifdef ORTSFL
-	    temp.c_cflag &= ~ORTSFL;
-	    attrs->c_cflag &= ~ORTSFL;
+            temp.c_cflag &= ~ORTSFL;
+            attrs->c_cflag &= ~ORTSFL;
 #endif /* ORTSFL */
-	    temp.c_iflag &= ~(IXON|IXOFF|IXANY);
-	    attrs->c_iflag &= ~(IXON|IXOFF|IXANY);
-	} else {			/* Turn it OFF */
+            temp.c_iflag &= ~(IXON|IXOFF|IXANY);
+            attrs->c_iflag &= ~(IXON|IXOFF|IXANY);
+        } else {                        /* Turn it OFF */
 #ifdef ORTSFL
-	    temp.c_cflag &= ~(RTSFLOW|CTSFLOW|ORTSFL);
-	    attrs->c_cflag &= ~(RTSFLOW|CTSFLOW|ORTSFL);
+            temp.c_cflag &= ~(RTSFLOW|CTSFLOW|ORTSFL);
+            attrs->c_cflag &= ~(RTSFLOW|CTSFLOW|ORTSFL);
 #else  /* ORTSFL */
-	    temp.c_cflag &= ~(RTSFLOW|CTSFLOW);
-	    attrs->c_cflag &= ~(RTSFLOW|CTSFLOW);
+            temp.c_cflag &= ~(RTSFLOW|CTSFLOW);
+            attrs->c_cflag &= ~(RTSFLOW|CTSFLOW);
 #endif /* ORTSFL */
-	}
+        }
 #ifdef POSIX
-	x = tcsetattr(ttyfd, TCSADRAIN, &temp);
+        x = tcsetattr(ttyfd, TCSADRAIN, &temp);
 #else
-	x = ioctl(ttyfd, TCSETA, &temp);
+        x = ioctl(ttyfd, TCSETA, &temp);
 #endif /* POSIX */
-	debug(F101,"tthflow SCO set modes","",x);
+        debug(F101,"tthflow SCO set modes","",x);
     }
 #else /* Not SCO UNIX */
 #ifdef NETCMD
@@ -6132,62 +6140,62 @@ _PROTOTYP( int tcsetattr, (int, int, struct termios *) );
 #ifdef NETPTY
     if (ttpty) return(0);
 #endif /* NETPTY */
-    if (!status) {			/* Turn it OFF */
+    if (!status) {                      /* Turn it OFF */
 #ifdef RTSXOFF
-	debug(F100,"tthflow ATTSV RTS/CTS OFF","",0);
-	rctsx.x_hflag &= ~(RTSXOFF|CTSXON);
+        debug(F100,"tthflow ATTSV RTS/CTS OFF","",0);
+        rctsx.x_hflag &= ~(RTSXOFF|CTSXON);
 #ifdef TCSETX
-	x = ioctl(ttyfd,TCSETX,&rctsx);
-	debug(F101,"tthflow ATTSV TCSETX OFF","",x);
+        x = ioctl(ttyfd,TCSETX,&rctsx);
+        debug(F101,"tthflow ATTSV TCSETX OFF","",x);
 #else
-	x = -1
-	debug(F100,"tthflow TCSETX not defined","",0);
+        x = -1
+        debug(F100,"tthflow TCSETX not defined","",0);
 #endif /* TCSETX */
 #else
-	debug(F100,"tthflow ATTSV RTSXOFF not defined","",0);
+        debug(F100,"tthflow ATTSV RTSXOFF not defined","",0);
 #endif /* RTSXOFF */
 #ifdef DTRXOFF
-	debug(F100,"tthflow ATTSV DTR/CD OFF","",0);
-	rctsx.x_hflag &= ~(DTRXOFF|CDXON);
-	x = ioctl(ttyfd,TCSETX,&rctsx);
-	debug(F101,"tthflow ATTSV DTRXOFF OFF","",x);
+        debug(F100,"tthflow ATTSV DTR/CD OFF","",0);
+        rctsx.x_hflag &= ~(DTRXOFF|CDXON);
+        x = ioctl(ttyfd,TCSETX,&rctsx);
+        debug(F101,"tthflow ATTSV DTRXOFF OFF","",x);
 #else
-	debug(F100,"tthflow ATTSV DTRXOFF not defined","",0);
+        debug(F100,"tthflow ATTSV DTRXOFF not defined","",0);
 #endif /* DTRXOFF */
-    } else {				/* Turn it ON. */
-	if (flow == FLO_RTSC) {	/* RTS/CTS Flow control... */
-	    debug(F100,"tthflow ATTSV RTS/CTS ON","",0);
+    } else {                            /* Turn it ON. */
+        if (flow == FLO_RTSC) { /* RTS/CTS Flow control... */
+            debug(F100,"tthflow ATTSV RTS/CTS ON","",0);
 #ifdef RTSXOFF
-	    /* This is the preferred way, according to SVID3 */
+            /* This is the preferred way, according to SVID3 */
 #ifdef TCGETX
-	    x = ioctl(ttyfd,TCGETX,&rctsx);
-	    debug(F101,"tthflow TCGETX","",x);
-	    if (x > -1) {
-		rctsx.x_hflag |= RTSXOFF | CTSXON;
-		x = ioctl(ttyfd,TCSETX,&rctsx);
-		debug(F100,"tthflow ATTSV ioctl","",x);
-	    }
+            x = ioctl(ttyfd,TCGETX,&rctsx);
+            debug(F101,"tthflow TCGETX","",x);
+            if (x > -1) {
+                rctsx.x_hflag |= RTSXOFF | CTSXON;
+                x = ioctl(ttyfd,TCSETX,&rctsx);
+                debug(F100,"tthflow ATTSV ioctl","",x);
+            }
 #else
-	    debug(F100,"tthflow TCGETX not defined","",0);
-	    x = -1
+            debug(F100,"tthflow TCGETX not defined","",0);
+            x = -1
 #endif /* TCGETX */
 #else
-	    debug(F100,"tthflow RTSXOFF not defined","",0);
-	    x = -1;
+            debug(F100,"tthflow RTSXOFF not defined","",0);
+            x = -1;
 #endif /* RTSXOFF */
-	} else if (flow == FLO_DTRC) {	/* DTR/CD Flow control... */
-	    debug(F100,"tthflow ATTSV DTR/CD ON","",0);
+        } else if (flow == FLO_DTRC) {  /* DTR/CD Flow control... */
+            debug(F100,"tthflow ATTSV DTR/CD ON","",0);
 #ifdef DTRXOFF
-	    /* This is straight out of SVID R4 */
-	    if (ioctl(ttyfd,TCGETX,&rctsx) > -1) {
-		rctsx.x_hflag &= ~(DTRXOFF|CDXON);
-		x = ioctl(ttyfd,TCSETX,&rctsx);
-	    }
+            /* This is straight out of SVID R4 */
+            if (ioctl(ttyfd,TCGETX,&rctsx) > -1) {
+                rctsx.x_hflag &= ~(DTRXOFF|CDXON);
+                x = ioctl(ttyfd,TCSETX,&rctsx);
+            }
 #else
-	    debug(F100,"tthflow ATTSV DTRXOFF not defined","",0);
-	    x = -1;
+            debug(F100,"tthflow ATTSV DTRXOFF not defined","",0);
+            x = -1;
 #endif /* DTRXOFF */
-	}
+        }
     }
 #endif /* CK_SCOUNIX */
 
@@ -6202,27 +6210,27 @@ _PROTOTYP( int tcsetattr, (int, int, struct termios *) );
 #ifdef NETPTY
     if (ttpty) return(0);
 #endif /* NETPTY */
-    x = LDODTR | LDOCTS;		/* Found only on UTEK? */
-    if (flow == FLO_DTRT && status) {	/* Use hardware flow control */
-	if (lmodef) {
-	    x = ioctl(ttyfd,TIOCLBIS,&x);
-	    if (x < 0) {
-	        debug(F100,"hardflow TIOCLBIS error","",0);
-	    } else {
-		lmodef++;
-		debug(F100,"hardflow TIOCLBIS ok","",0);
-	    }
-	}
+    x = LDODTR | LDOCTS;                /* Found only on UTEK? */
+    if (flow == FLO_DTRT && status) {   /* Use hardware flow control */
+        if (lmodef) {
+            x = ioctl(ttyfd,TIOCLBIS,&x);
+            if (x < 0) {
+                debug(F100,"hardflow TIOCLBIS error","",0);
+            } else {
+                lmodef++;
+                debug(F100,"hardflow TIOCLBIS ok","",0);
+            }
+        }
     } else {
-	if (lmodef) {
-	    x = ioctl(ttyfd,TIOCLBIC,&x);
-	    if (x < 0) {
-	        debug(F100,"hardflow TIOCLBIC error","",0);
-	    } else {
-		lmodef++;
-		debug(F100,"hardflow TIOCLBIC ok","",0);
-	    }
-	}
+        if (lmodef) {
+            x = ioctl(ttyfd,TIOCLBIC,&x);
+            if (x < 0) {
+                debug(F100,"hardflow TIOCLBIC error","",0);
+            } else {
+                lmodef++;
+                debug(F100,"hardflow TIOCLBIC ok","",0);
+            }
+        }
     }
 #endif /* LDODTR */
 #endif /* LDOCTS */
@@ -6236,7 +6244,7 @@ _PROTOTYP( int tcsetattr, (int, int, struct termios *) );
 
 #else /* OXOS */
 
-    struct termios temp;		/* Olivetti X/OS ... */
+    struct termios temp;                /* Olivetti X/OS ... */
 
 #ifdef NETCMD
     if (ttpipe) return(0);
@@ -6246,16 +6254,16 @@ _PROTOTYP( int tcsetattr, (int, int, struct termios *) );
 #endif /* NETPTY */
     x = ioctl(ttyfd,TCGETS,&temp);
     if (x == 0) {
-	temp.c_cflag &= ~(CRTSCTS|CDTRCTS|CBRKFLOW|CDTRDSR|CRTSDSR);
-	if (status) {
-	    switch (flow) {
-	      case FLO_RTSC: temp.c_cflag |= CRTSCTS; /* RTS/CTS (hard) */
-		break;
-	      case FLO_DTRT: temp.c_cflag |= CDTRCTS; /* DTR/CTS (hard) */
-		break;
-	    }
-	}
-	x = ioctl(ttyfd,TCSETS,&temp);
+        temp.c_cflag &= ~(CRTSCTS|CDTRCTS|CBRKFLOW|CDTRDSR|CRTSDSR);
+        if (status) {
+            switch (flow) {
+              case FLO_RTSC: temp.c_cflag |= CRTSCTS; /* RTS/CTS (hard) */
+                break;
+              case FLO_DTRT: temp.c_cflag |= CDTRCTS; /* DTR/CTS (hard) */
+                break;
+            }
+        }
+        x = ioctl(ttyfd,TCSETS,&temp);
     }
 #endif /* OXOS */
     return(x);
@@ -6288,7 +6296,7 @@ ttpkt(speed,xflow,parity) long speed; int xflow, parity;
     int s = -1;
 #endif /* NOLOCAL */
     int x;
-    extern int flow;			/* REAL flow-control setting */
+    extern int flow;                    /* REAL flow-control setting */
 
     if (ttyfd < 0) return(-1);          /* Not open. */
 
@@ -6297,10 +6305,10 @@ ttpkt(speed,xflow,parity) long speed; int xflow, parity;
     debug(F101,"ttpkt speed","",(int) speed);
 
     ttprty = parity;                    /* Let other tt functions see these. */
-    ttspeed = speed;			/* Make global copy for this module */
-    ttpmsk = ttprty ? 0177 : 0377;	/* Parity stripping mask */
+    ttspeed = speed;                    /* Make global copy for this module */
+    ttpmsk = ttprty ? 0177 : 0377;      /* Parity stripping mask */
 #ifdef PARSENSE
-    needpchk = ttprty ? 0 : 1;		/* Parity check needed? */
+    needpchk = ttprty ? 0 : 1;          /* Parity check needed? */
 #else
     needpchk = 0;
 #endif /* PARSENSE */
@@ -6308,11 +6316,11 @@ ttpkt(speed,xflow,parity) long speed; int xflow, parity;
     debug(F101,"ttpkt ttpmsk","",ttpmsk);
     debug(F101,"ttpkt netconn","",netconn);
 
-#ifdef NETCONN				/* No mode-changing for telnet */
+#ifdef NETCONN                          /* No mode-changing for telnet */
     if (netconn) {
 #ifdef TCPSOCKET
 #ifdef TCP_NODELAY
-        if (ttnet == NET_TCPB) {	/* But turn off Nagle */
+        if (ttnet == NET_TCPB) {        /* But turn off Nagle */
             extern int tcp_nodelay;
             nodelay_sav = tcp_nodelay;
             no_delay(ttyfd,1);
@@ -6324,46 +6332,46 @@ ttpkt(speed,xflow,parity) long speed; int xflow, parity;
             if (tvtflg == 0 && speed == ttspeed && flow == ttflow
                  /* && ttcarr == curcarr */ ) {
                 debug(F100,"ttpkt modes already set, skipping...","",0);
-                return(0);		/* Already been called. */
+                return(0);              /* Already been called. */
             }
             if (flow != ttflow) {
                 if ((rc = tnsetflow(flow)) < 0)
-		  return(rc);
+                  return(rc);
                 ttflow = flow;
             }
             if (speed != ttspeed) {
                 if (speed <= 0)
-		  speed = tnc_get_baud();
+                  speed = tnc_get_baud();
                 else if ((rc = tnc_set_baud(speed)) < 0)
-		  return(rc);
+                  return(rc);
                 ttspeed = speed;
             }
             tnc_set_datasize(8);
-	    tnc_set_stopsize(stopbits);
+            tnc_set_stopsize(stopbits);
 
 #ifdef HWPARITY
             if (hwparity) {
                 switch (hwparity) {
-		  case 'e':			/* Even */
+                  case 'e':                     /* Even */
                     debug(F100,"ttres 8 bits + even parity","",0);
                     tnc_set_parity(3);
                     break;
-		  case 'o':			/* Odd */
+                  case 'o':                     /* Odd */
                     debug(F100,"ttres 8 bits + odd parity","",0);
                     tnc_set_parity(2);
                     break;
-		  case 'm':			/* Mark */
+                  case 'm':                     /* Mark */
                     debug(F100,"ttres 8 bits + invalid parity: mark","",0);
                     tnc_set_parity(4);
                     break;
-		  case 's':			/* Space */
+                  case 's':                     /* Space */
                     debug(F100,"ttres 8 bits + invalid parity: space","",0);
                     tnc_set_parity(5);
                     break;
                 }
             } else
 #endif /* HWPARITY */
-	    {
+            {
                 tnc_set_parity(1);              /* None */
             }
             tvtflg = 0;
@@ -6390,7 +6398,7 @@ ttpkt(speed,xflow,parity) long speed; int xflow, parity;
 #define SVORPOSIX
 #endif /* COHERENT */
 
-#ifndef SVORPOSIX			/* Berkeley, V7, etc. */
+#ifndef SVORPOSIX                       /* Berkeley, V7, etc. */
 #ifdef LPASS8
 /*
  For some reason, with BSD terminal drivers, you can't set FLOW to XON/XOFF
@@ -6398,30 +6406,30 @@ ttpkt(speed,xflow,parity) long speed; int xflow, parity;
  device.  Unless there's something I overlooked below...
 */
     if (ttflow == FLO_NONE && flow == FLO_XONX && xlocal == 0) {
-	debug(F101,"ttpkt executing horrible flow kludge","",0);
-	ttclos(0);			/* Close it */
-	x = 0;
-	ttopen(ttnmsv,&x,ttmdm,0);	/* Open it again */
+        debug(F101,"ttpkt executing horrible flow kludge","",0);
+        ttclos(0);                      /* Close it */
+        x = 0;
+        ttopen(ttnmsv,&x,ttmdm,0);      /* Open it again */
     }
 #endif /* LPASS8 */
 #endif /* SVORPOSIX */
 
-#ifdef COHERENT				/* This must be vestigial since we */
-#undef SVORPOSIX			/* reverse it a few lines below... */
+#ifdef COHERENT                         /* This must be vestigial since we */
+#undef SVORPOSIX                        /* reverse it a few lines below... */
 #endif /* COHERENT */
 
     if (xflow != FLO_DIAL && xflow != FLO_DIAX)
-      ttflow = xflow;			/* Now make this available too. */
+      ttflow = xflow;                   /* Now make this available too. */
 
 #ifndef NOLOCAL
     if (xlocal) {
-	s2 = (int) (speed / 10L);	/* Convert bps to cps */
-	debug(F101,"ttpkt calling ttsspd","",s2);
-	s = ttsspd(s2);			/* Check and set the speed */
-	debug(F101,"ttpkt ttsspd result","",s);
- 	carrctl(&ttraw, xflow != FLO_DIAL /* Carrier control */
-		&& (ttcarr == CAR_ON || (ttcarr == CAR_AUT && ttmdm != 0)));
-	tvtflg = 0;			/* So ttvt() will work next time */
+        s2 = (int) (speed / 10L);       /* Convert bps to cps */
+        debug(F101,"ttpkt calling ttsspd","",s2);
+        s = ttsspd(s2);                 /* Check and set the speed */
+        debug(F101,"ttpkt ttsspd result","",s);
+        carrctl(&ttraw, xflow != FLO_DIAL /* Carrier control */
+                && (ttcarr == CAR_ON || (ttcarr == CAR_AUT && ttmdm != 0)));
+        tvtflg = 0;                     /* So ttvt() will work next time */
     }
 #endif /* NOLOCAL */
 
@@ -6429,85 +6437,85 @@ ttpkt(speed,xflow,parity) long speed; int xflow, parity;
 #define SVORPOSIX
 #endif /* COHERENT */
 
-#ifndef SVORPOSIX			/* BSD section */
-    if (flow == FLO_RTSC ||		/* Hardware flow control */
-	flow == FLO_DTRC ||
-	flow == FLO_DTRT) {
-	tthflow(flow, 1, &ttraw);
-	debug(F100,"ttpkt hard flow, TANDEM off, RAW on","",0);
-	ttraw.sg_flags &= ~TANDEM;	/* Turn off software flow control */
-	ttraw.sg_flags |= RAW;		/* Enter raw mode */
-    } else if (flow == FLO_NONE) {	/* No flow control */
-	debug(F100,"ttpkt no flow, TANDEM off, RAW on","",0);
-	ttraw.sg_flags &= ~TANDEM;	/* Turn off software flow control */
-	tthflow(flow, 0, &ttraw);	/* Turn off any hardware f/c too */
-	ttraw.sg_flags |= RAW;		/* Enter raw mode */
-    } else if (flow == FLO_KEEP) {	/* Keep device's original setting */
-	debug(F100,"ttpkt keeping original TANDEM","",0);
-	ttraw.sg_flags &= ~TANDEM;
-	ttraw.sg_flags |= (ttold.sg_flags & TANDEM);
-	/* NOTE: We should also handle hardware flow control here! */
+#ifndef SVORPOSIX                       /* BSD section */
+    if (flow == FLO_RTSC ||             /* Hardware flow control */
+        flow == FLO_DTRC ||
+        flow == FLO_DTRT) {
+        tthflow(flow, 1, &ttraw);
+        debug(F100,"ttpkt hard flow, TANDEM off, RAW on","",0);
+        ttraw.sg_flags &= ~TANDEM;      /* Turn off software flow control */
+        ttraw.sg_flags |= RAW;          /* Enter raw mode */
+    } else if (flow == FLO_NONE) {      /* No flow control */
+        debug(F100,"ttpkt no flow, TANDEM off, RAW on","",0);
+        ttraw.sg_flags &= ~TANDEM;      /* Turn off software flow control */
+        tthflow(flow, 0, &ttraw);       /* Turn off any hardware f/c too */
+        ttraw.sg_flags |= RAW;          /* Enter raw mode */
+    } else if (flow == FLO_KEEP) {      /* Keep device's original setting */
+        debug(F100,"ttpkt keeping original TANDEM","",0);
+        ttraw.sg_flags &= ~TANDEM;
+        ttraw.sg_flags |= (ttold.sg_flags & TANDEM);
+        /* NOTE: We should also handle hardware flow control here! */
     }
 
 /* SET FLOW XON/XOFF is in effect, or SET FLOW KEEP resulted in Xon/Xoff */
 
     if ((flow == FLO_XONX) || (ttraw.sg_flags & TANDEM)) {
-	debug(F100,"ttpkt turning on TANDEM","",0);
-	ttraw.sg_flags |= TANDEM;	/* So ask for it. */
+        debug(F100,"ttpkt turning on TANDEM","",0);
+        ttraw.sg_flags |= TANDEM;       /* So ask for it. */
 
-#ifdef LPASS8				/* Can pass 8-bit data through? */
+#ifdef LPASS8                           /* Can pass 8-bit data through? */
 /* If the LPASS8 local mode is available, then flow control can always  */
 /* be used, even if parity is none and we are transferring 8-bit data.  */
 /* But we only need to do all this if Xon/Xoff is requested. */
 /* BUT... this tends not to work through IP or LAT connections, terminal */
 /* servers, telnet, rlogin, etc, so it is currently disabled. */
-	x = LPASS8;			/* If LPASS8 defined, then */
-	debug(F100,"ttpkt executing LPASS8 code","",0);
-	if (lmodef) {			/* TIOCLBIS must be too. */
-	    x = ioctl(ttyfd,TIOCLBIS,&x); /* Try to set LPASS8. */
-	    if (x < 0) {
-		debug(F100,"ttpkt TIOCLBIS error","",0);
-	    } else {
-		lmodef++;
-		debug(F100,"ttpkt TIOCLBIS ok","",0);
-	    }
-	}
+        x = LPASS8;                     /* If LPASS8 defined, then */
+        debug(F100,"ttpkt executing LPASS8 code","",0);
+        if (lmodef) {                   /* TIOCLBIS must be too. */
+            x = ioctl(ttyfd,TIOCLBIS,&x); /* Try to set LPASS8. */
+            if (x < 0) {
+                debug(F100,"ttpkt TIOCLBIS error","",0);
+            } else {
+                lmodef++;
+                debug(F100,"ttpkt TIOCLBIS ok","",0);
+            }
+        }
 /*
  But if we use LPASS8 mode, we must explicitly turn off
  terminal interrupts of all kinds.
 */
-#ifdef TIOCGETC				/* Not rawmode, */
-	if (tcharf && (xlocal == 0)) {	/* must turn off */
-	    tchnoi.t_intrc = -1;	/* interrupt character */
-	    tchnoi.t_quitc = -1;	/* and quit character. */
-	    tchnoi.t_startc = 17;	/* Make sure xon */
-	    tchnoi.t_stopc = 19;	/* and xoff not ignored. */
+#ifdef TIOCGETC                         /* Not rawmode, */
+        if (tcharf && (xlocal == 0)) {  /* must turn off */
+            tchnoi.t_intrc = -1;        /* interrupt character */
+            tchnoi.t_quitc = -1;        /* and quit character. */
+            tchnoi.t_startc = 17;       /* Make sure xon */
+            tchnoi.t_stopc = 19;        /* and xoff not ignored. */
 #ifndef NOBRKC
-	    tchnoi.t_eofc = -1;		/* eof character. */
-	    tchnoi.t_brkc = -1;		/* brk character. */
+            tchnoi.t_eofc = -1;         /* eof character. */
+            tchnoi.t_brkc = -1;         /* brk character. */
 #endif /* NOBRKC */
-	    if (ioctl(ttyfd,TIOCSETC,&tchnoi) < 0) {
-		debug(F100,"ttpkt TIOCSETC failed","",0);
-	    } else {
-		tcharf = 1;
-		debug(F100,"ttpkt TIOCSETC ok","",0);
-	    }
-	}
-	ttraw.sg_flags |= CBREAK;	/* Needed for unknown reason */
+            if (ioctl(ttyfd,TIOCSETC,&tchnoi) < 0) {
+                debug(F100,"ttpkt TIOCSETC failed","",0);
+            } else {
+                tcharf = 1;
+                debug(F100,"ttpkt TIOCSETC ok","",0);
+            }
+        }
+        ttraw.sg_flags |= CBREAK;       /* Needed for unknown reason */
 #endif /* TIOCGETC */
 
 /* Prevent suspend during packet mode */
-#ifdef TIOCGLTC				/* Not rawmode, */
-	if (ltcharf && (xlocal == 0)) {	/* must turn off */
-	    ltchnoi.t_suspc = -1;	/* suspend character */
-	    ltchnoi.t_dsuspc = -1;	/* and delayed suspend character */
-	    if (ioctl(ttyfd,TIOCSLTC,&tchnoi) < 0) {
-		debug(F100,"ttpkt TIOCSLTC failed","",0);
-	    } else {
-		ltcharf = 1;
-		debug(F100,"ttpkt TIOCSLTC ok","",0);
-	    }
-	}
+#ifdef TIOCGLTC                         /* Not rawmode, */
+        if (ltcharf && (xlocal == 0)) { /* must turn off */
+            ltchnoi.t_suspc = -1;       /* suspend character */
+            ltchnoi.t_dsuspc = -1;      /* and delayed suspend character */
+            if (ioctl(ttyfd,TIOCSLTC,&tchnoi) < 0) {
+                debug(F100,"ttpkt TIOCSLTC failed","",0);
+            } else {
+                ltcharf = 1;
+                debug(F100,"ttpkt TIOCSLTC ok","",0);
+            }
+        }
 #endif /* TIOCGLTC */
 
 #else /* LPASS8 not defined */
@@ -6517,45 +6525,45 @@ ttpkt(speed,xflow,parity) long speed; int xflow, parity;
 /* This allows the flow control requested above to actually work, but only */
 /* if the user asks for parity (which also means they get 8th-bit quoting). */
 
-	if (parity) {			/* If parity, */
-	    ttraw.sg_flags &= ~RAW;	/* use cooked mode */
-	      ttraw.sg_flags |= CBREAK;
-	    debug(F101,"ttpkt cooked, cbreak, parity","",parity);
-#ifdef TIOCGETC				/* Not rawmode, */
-	    if (tcharf && (xlocal == 0)) { /* must turn off */
-		tchnoi.t_intrc = -1;	/* interrupt character */
-		tchnoi.t_quitc = -1;	/* and quit character. */
-		tchnoi.t_startc = 17;	/* Make sure xon */
-		tchnoi.t_stopc = 19;	/* and xoff not ignored. */
+        if (parity) {                   /* If parity, */
+            ttraw.sg_flags &= ~RAW;     /* use cooked mode */
+              ttraw.sg_flags |= CBREAK;
+            debug(F101,"ttpkt cooked, cbreak, parity","",parity);
+#ifdef TIOCGETC                         /* Not rawmode, */
+            if (tcharf && (xlocal == 0)) { /* must turn off */
+                tchnoi.t_intrc = -1;    /* interrupt character */
+                tchnoi.t_quitc = -1;    /* and quit character. */
+                tchnoi.t_startc = 17;   /* Make sure xon */
+                tchnoi.t_stopc = 19;    /* and xoff not ignored. */
 #ifndef NOBRKC
-		tchnoi.t_eofc = -1;	/* eof character. */
-		tchnoi.t_brkc = -1;	/* brk character. */
+                tchnoi.t_eofc = -1;     /* eof character. */
+                tchnoi.t_brkc = -1;     /* brk character. */
 #endif /* NOBRKC */
-		if (ioctl(ttyfd,TIOCSETC,&tchnoi) < 0) {
-		    debug(F100,"ttpkt TIOCSETC failed","",0);
-		} else {
-		    tcharf = 1;
-		    debug(F100,"ttpkt TIOCSETC ok","",0);
-		}
-	    }
+                if (ioctl(ttyfd,TIOCSETC,&tchnoi) < 0) {
+                    debug(F100,"ttpkt TIOCSETC failed","",0);
+                } else {
+                    tcharf = 1;
+                    debug(F100,"ttpkt TIOCSETC ok","",0);
+                }
+            }
 #endif /* TIOCGETC */
-#ifdef TIOCGLTC				/* Not rawmode, */
+#ifdef TIOCGLTC                         /* Not rawmode, */
 /* Prevent suspend during packet mode */
-	    if (ltcharf && (xlocal == 0)) { /* must turn off */
-		ltchnoi.t_suspc = -1;	/* suspend character */
-		ltchnoi.t_dsuspc = -1;	/* and delayed suspend character */
-		if (ioctl(ttyfd,TIOCSLTC,&tchnoi) < 0) {
-		    debug(F100,"ttpkt TIOCSLTC failed","",0);
-		} else {
-		    ltcharf = 1;
-		    debug(F100,"ttpkt TIOCSLTC ok","",0);
-		}
-	    }
+            if (ltcharf && (xlocal == 0)) { /* must turn off */
+                ltchnoi.t_suspc = -1;   /* suspend character */
+                ltchnoi.t_dsuspc = -1;  /* and delayed suspend character */
+                if (ioctl(ttyfd,TIOCSLTC,&tchnoi) < 0) {
+                    debug(F100,"ttpkt TIOCSLTC failed","",0);
+                } else {
+                    ltcharf = 1;
+                    debug(F100,"ttpkt TIOCSLTC ok","",0);
+                }
+            }
 #endif /* TIOCGLTC */
-	} else {			/* If no parity, */
-	    ttraw.sg_flags |= RAW;	/* must use 8-bit raw mode. */
-	    debug(F101,"ttpkt setting rawmode, parity","",parity);
-	}
+        } else {                        /* If no parity, */
+            ttraw.sg_flags |= RAW;      /* must use 8-bit raw mode. */
+            debug(F101,"ttpkt setting rawmode, parity","",parity);
+        }
 #endif /* LPASS8 */
     } /* End of Xon/Xoff section */
 
@@ -6583,24 +6591,24 @@ ttpkt(speed,xflow,parity) long speed; int xflow, parity;
     debug(F100,"ttpkt stty ok","",0);
 
 #ifdef sony_news
-    x = xlocal ? km_ext : km_con;	/* Put line in ASCII mode. */
-    if (x != -1) {			/* Make sure we know original modes. */
-	x &= ~KM_TTYPE;
-	x |= KM_ASCII;
-	if (ioctl(ttyfd,TIOCKSET, &x) < 0) {
-	    perror("ttpkt can't set ASCII mode");
-	    debug(F101,"ttpkt error setting ASCII mode","",x);
-	    return(-1);
-	}
+    x = xlocal ? km_ext : km_con;       /* Put line in ASCII mode. */
+    if (x != -1) {                      /* Make sure we know original modes. */
+        x &= ~KM_TTYPE;
+        x |= KM_ASCII;
+        if (ioctl(ttyfd,TIOCKSET, &x) < 0) {
+            perror("ttpkt can't set ASCII mode");
+            debug(F101,"ttpkt error setting ASCII mode","",x);
+            return(-1);
+        }
     }
     debug(F100,"ttpkt set ASCII mode ok","",0);
 #endif /* sony_news */
 
-    if (xlocal == 0) {			/* Turn this off so we can read */
-	signal(SIGINT,SIG_IGN);		/* Ctrl-C chars typed at console */
-	sigint_ign = 1;
+    if (xlocal == 0) {                  /* Turn this off so we can read */
+        signal(SIGINT,SIG_IGN);         /* Ctrl-C chars typed at console */
+        sigint_ign = 1;
     }
-    tvtflg = 0;				/* So ttvt() will work next time */
+    tvtflg = 0;                         /* So ttvt() will work next time */
     debug(F100,"ttpkt success","",0);
     return(0);
 
@@ -6613,43 +6621,43 @@ ttpkt(speed,xflow,parity) long speed; int xflow, parity;
 #endif /* COHERENT */
 
 #ifdef SVORPOSIX
-    if (flow == FLO_XONX) {		/* Xon/Xoff */
-	ttraw.c_iflag |= (IXON|IXOFF);
-	tthflow(flow, 0, &ttraw);
-    } else if (flow == FLO_NONE) {	/* None */
-	/* NOTE: We should also turn off hardware flow control here! */
-	ttraw.c_iflag &= ~(IXON|IXOFF);
-	tthflow(flow, 0, &ttraw);
-    } else if (flow == FLO_KEEP) {	/* Keep */
-	ttraw.c_iflag &= ~(IXON|IXOFF);	/* Turn off Xon/Xoff flags */
-	ttraw.c_iflag |= (ttold.c_iflag & (IXON|IXOFF)); /* OR in old ones */
-	/* NOTE: We should also handle hardware flow control here! */
+    if (flow == FLO_XONX) {             /* Xon/Xoff */
+        ttraw.c_iflag |= (IXON|IXOFF);
+        tthflow(flow, 0, &ttraw);
+    } else if (flow == FLO_NONE) {      /* None */
+        /* NOTE: We should also turn off hardware flow control here! */
+        ttraw.c_iflag &= ~(IXON|IXOFF);
+        tthflow(flow, 0, &ttraw);
+    } else if (flow == FLO_KEEP) {      /* Keep */
+        ttraw.c_iflag &= ~(IXON|IXOFF); /* Turn off Xon/Xoff flags */
+        ttraw.c_iflag |= (ttold.c_iflag & (IXON|IXOFF)); /* OR in old ones */
+        /* NOTE: We should also handle hardware flow control here! */
 #ifdef POSIX_CRTSCTS
 /* In Linux case, we do this, which is unlikely to be portable */
-        ttraw.c_cflag &= ~CRTSCTS;	/* Turn off RTS/CTS flag */
+        ttraw.c_cflag &= ~CRTSCTS;      /* Turn off RTS/CTS flag */
         ttraw.c_cflag |= (ttold.c_cflag & CRTSCTS); /* OR in old one */
 #endif /* POSIX_CRTSCTS */
-    } else if (flow == FLO_RTSC ||	/* Hardware */
-	       flow == FLO_DTRC ||
-	       flow == FLO_DTRT) {
-	ttraw.c_iflag &= ~(IXON|IXOFF);	/* (190) */
-	tthflow(flow, 1, &ttraw);
+    } else if (flow == FLO_RTSC ||      /* Hardware */
+               flow == FLO_DTRC ||
+               flow == FLO_DTRT) {
+        ttraw.c_iflag &= ~(IXON|IXOFF); /* (190) */
+        tthflow(flow, 1, &ttraw);
     }
     ttraw.c_lflag &= ~(ICANON|ECHO);
-    ttraw.c_lflag &= ~ISIG;		/* Do NOT check for interrupt chars */
+    ttraw.c_lflag &= ~ISIG;             /* Do NOT check for interrupt chars */
 
 #ifndef OXOS
 #ifdef QNX
     if (flow != FLO_RTSC && flow != FLO_DTRC && flow != FLO_DTRT)
 #endif /* QNX */
 #ifndef COHERENT
-      ttraw.c_lflag &= ~IEXTEN;		/* Turn off ^O/^V processing */
+      ttraw.c_lflag &= ~IEXTEN;         /* Turn off ^O/^V processing */
 #endif /* COHERENT */
 #else /* OXOS */
     ttraw.c_cc[VDISCARD] = ttraw.c_cc[VLNEXT] = CDISABLE;
 #endif /* OXOS */
-    ttraw.c_lflag |= NOFLSH;		/* Don't flush */
-    ttraw.c_iflag |= IGNPAR;		/* Ignore parity errors */
+    ttraw.c_lflag |= NOFLSH;            /* Don't flush */
+    ttraw.c_iflag |= IGNPAR;            /* Ignore parity errors */
 #ifdef ATTSV
 #ifdef BSD44
     ttraw.c_iflag &= ~(IGNBRK|INLCR|IGNCR|ICRNL|INPCK|ISTRIP|IXANY);
@@ -6665,42 +6673,42 @@ ttpkt(speed,xflow,parity) long speed; int xflow, parity;
 
 #ifdef CSTOPB
     if (xlocal) {
-	if (stopbits == 2) {
-	    ttraw.c_cflag |= CSTOPB;	/* 2 stop bits */
-	    debug(F100,"ttpkt 2 stopbits","",0);
-	} else if (stopbits == 1) {
-	    ttraw.c_cflag &= ~(CSTOPB);	/* 1 stop bit */
-	    debug(F100,"ttpkt 1 stopbit","",0);
-	}
+        if (stopbits == 2) {
+            ttraw.c_cflag |= CSTOPB;    /* 2 stop bits */
+            debug(F100,"ttpkt 2 stopbits","",0);
+        } else if (stopbits == 1) {
+            ttraw.c_cflag &= ~(CSTOPB); /* 1 stop bit */
+            debug(F100,"ttpkt 1 stopbit","",0);
+        }
     }
 #endif /* CSTOPB */
 
 #ifdef HWPARITY
-    if (hwparity && xlocal) {		/* Hardware parity */
-	ttraw.c_cflag |= PARENB;	/* Enable parity */
+    if (hwparity && xlocal) {           /* Hardware parity */
+        ttraw.c_cflag |= PARENB;        /* Enable parity */
 #ifdef IGNPAR
-	ttraw.c_iflag |= IGNPAR;	/* Don't discard incoming bytes */
-	debug(F100,"ttpkt IGNPAR","",0); /* that have parity errors */
+        ttraw.c_iflag |= IGNPAR;        /* Don't discard incoming bytes */
+        debug(F100,"ttpkt IGNPAR","",0); /* that have parity errors */
 #endif /* IGNPAR */
-	switch (hwparity) {
-	  case 'e':			/* Even */
-	    ttraw.c_cflag &= ~(PARODD);
-	    debug(F100,"ttpkt 8 bits + even parity","",0);
-	    break;
-	  case 'o':			/* Odd */
-	    ttraw.c_cflag |= PARODD;
-	    debug(F100,"ttpkt 8 bits + odd parity","",0);
-	    break;
-	  case 'm':			/* Mark */
-	  case 's':			/* Space */
-	    /* PAREXT is mentioned in SVID but the details are not given. */
-	    /* PAREXT is not included in POSIX ISO/IEC 9945-1. */
-	    debug(F100,"ttpkt 8 bits + invalid parity","",0);
-	    break;
-	}
-    } else {				/* We handle parity ourselves */
+        switch (hwparity) {
+          case 'e':                     /* Even */
+            ttraw.c_cflag &= ~(PARODD);
+            debug(F100,"ttpkt 8 bits + even parity","",0);
+            break;
+          case 'o':                     /* Odd */
+            ttraw.c_cflag |= PARODD;
+            debug(F100,"ttpkt 8 bits + odd parity","",0);
+            break;
+          case 'm':                     /* Mark */
+          case 's':                     /* Space */
+            /* PAREXT is mentioned in SVID but the details are not given. */
+            /* PAREXT is not included in POSIX ISO/IEC 9945-1. */
+            debug(F100,"ttpkt 8 bits + invalid parity","",0);
+            break;
+        }
+    } else {                            /* We handle parity ourselves */
 #endif /* HWPARITY */
-	ttraw.c_cflag &= ~(PARENB);	/* Don't enable parity */
+        ttraw.c_cflag &= ~(PARENB);     /* Don't enable parity */
 #ifdef HWPARITY
     }
 #endif /* HWPARITY */
@@ -6709,7 +6717,7 @@ ttpkt(speed,xflow,parity) long speed; int xflow, parity;
     ttraw.c_cc[4] = 48;  /* So Series/1 doesn't interrupt on every char */
     ttraw.c_cc[5] = 1;
 #else
-#ifndef VEOF				/* for DGUX this is VEOF, not VMIN */
+#ifndef VEOF                            /* for DGUX this is VEOF, not VMIN */
     ttraw.c_cc[4] = 1;   /* [VMIN]  return max of this many characters or */
 #else
 #ifndef OXOS
@@ -6720,8 +6728,8 @@ ttpkt(speed,xflow,parity) long speed; int xflow, parity;
     ttraw.c_min = 1;
 #endif /* OXOS */
 #endif /* VEOF */
-#ifndef VEOL				/* for DGUX this is VEOL, not VTIME */
-    ttraw.c_cc[5] = 0;	 /* [VTIME] when this many secs/10 expire w/no input */
+#ifndef VEOL                            /* for DGUX this is VEOL, not VTIME */
+    ttraw.c_cc[5] = 0;   /* [VTIME] when this many secs/10 expire w/no input */
 #else
 #ifndef OXOS
 #ifdef VTIME
@@ -6733,91 +6741,91 @@ ttpkt(speed,xflow,parity) long speed; int xflow, parity;
 #endif /* VEOL */
 #endif /* IX370 */
 
-#ifdef VINTR				/* Turn off interrupt character */
-    if (xlocal == 0)			/* so ^C^C can break us out of */
-      ttraw.c_cc[VINTR] = 0;		/* packet mode. */
+#ifdef VINTR                            /* Turn off interrupt character */
+    if (xlocal == 0)                    /* so ^C^C can break us out of */
+      ttraw.c_cc[VINTR] = 0;            /* packet mode. */
 #endif /* VINTR */
 
 #ifdef Plan9
     if (p9ttyparity('n') < 0)
-	return -1;
+        return -1;
 #else
 #ifdef BSD44ORPOSIX
     errno = 0;
 #ifdef BEOSORBEBOX
-    ttraw.c_cc[VMIN] = 0;		/* DR7 can only poll. */
+    ttraw.c_cc[VMIN] = 0;               /* DR7 can only poll. */
 #endif /* BEOSORBEBOX */
 
 #define TESTING234
 #ifdef TESTING234
     if (1) {
-	debug(F100,"ttpkt TESTING234 rawmode","",0);
+        debug(F100,"ttpkt TESTING234 rawmode","",0);
 
-	/* iflags */
-	ttraw.c_iflag &= ~(PARMRK|ISTRIP|BRKINT|INLCR|IGNCR|ICRNL);
-	ttraw.c_iflag &= ~(INPCK|IGNPAR|IXON|IXOFF);
-	ttraw.c_iflag |= IGNBRK;
+        /* iflags */
+        ttraw.c_iflag &= ~(PARMRK|ISTRIP|BRKINT|INLCR|IGNCR|ICRNL);
+        ttraw.c_iflag &= ~(INPCK|IGNPAR|IXON|IXOFF);
+        ttraw.c_iflag |= IGNBRK;
 #ifdef IMAXBEL
-	ttraw.c_iflag &= ~IMAXBEL;
-#endif	/* IMAXBEL */
+        ttraw.c_iflag &= ~IMAXBEL;
+#endif  /* IMAXBEL */
 #ifdef IXANY
-	ttraw.c_iflag &= ~IXANY;
-#endif	/* IXANY */
+        ttraw.c_iflag &= ~IXANY;
+#endif  /* IXANY */
 #ifdef IUCLC
-	ttraw.c_iflag &= ~IUCLC;
+        ttraw.c_iflag &= ~IUCLC;
 #endif /* IUCLC */
 
-	/* oflags */
-	ttraw.c_oflag &= ~OPOST;
+        /* oflags */
+        ttraw.c_oflag &= ~OPOST;
 #ifdef OXTABS
-	ttraw.c_oflag &= ~OXTABS;
+        ttraw.c_oflag &= ~OXTABS;
 #endif /* OXTABS */
 #ifdef ONOCR
-	ttraw.c_oflag &= ~ONOCR;
+        ttraw.c_oflag &= ~ONOCR;
 #endif /* ONOCR */
 #ifdef ONLRET
-	ttraw.c_oflag &= ~ONLRET;
+        ttraw.c_oflag &= ~ONLRET;
 #endif /* ONLRET */
 #ifdef ONLCR
-	ttraw.c_oflag &= ~ONLCR;
+        ttraw.c_oflag &= ~ONLCR;
 #endif /* ONLCR */
 
-	/* lflags */
-	ttraw.c_lflag &= ~ECHO;
+        /* lflags */
+        ttraw.c_lflag &= ~ECHO;
 #ifdef ECHOE
-	ttraw.c_lflag &= ~ECHOE;
+        ttraw.c_lflag &= ~ECHOE;
 #endif /* ECHOE */
 #ifdef ECHONL
-	ttraw.c_lflag &= ~ECHONL;
+        ttraw.c_lflag &= ~ECHONL;
 #endif /* ECHONL */
 #ifdef ECHOPRT
-	ttraw.c_lflag &= ~ECHOPRT;
+        ttraw.c_lflag &= ~ECHOPRT;
 #endif /* ECHOPRT */
 #ifdef ECHOKE
-	ttraw.c_lflag &= ~ECHOKE;
+        ttraw.c_lflag &= ~ECHOKE;
 #endif /* ECHOKE */
 #ifdef ECHOCTL
-	ttraw.c_lflag &= ~ECHOCTL;
+        ttraw.c_lflag &= ~ECHOCTL;
 #endif /* ECHOCTL */
 #ifdef ALTWERASE
-	ttraw.c_lflag &= ~ALTWERASE;
+        ttraw.c_lflag &= ~ALTWERASE;
 #endif /* ALTWERASE */
 #ifdef EXTPROC
-	ttraw.c_lflag &= ~EXTPROC;
+        ttraw.c_lflag &= ~EXTPROC;
 #endif /* EXTPROC */
-	ttraw.c_lflag &= ~(ICANON|ISIG|IEXTEN|TOSTOP|FLUSHO|PENDIN);
+        ttraw.c_lflag &= ~(ICANON|ISIG|IEXTEN|TOSTOP|FLUSHO|PENDIN);
 #ifdef NOKERNINFO
-	ttraw.c_lflag |= NOKERNINFO;
-#endif	/* NOKERNINFO */
-	/* ttraw.c_lflag |= NOFLSH; */
-	ttraw.c_lflag &= ~NOFLSH;
+        ttraw.c_lflag |= NOKERNINFO;
+#endif  /* NOKERNINFO */
+        /* ttraw.c_lflag |= NOFLSH; */
+        ttraw.c_lflag &= ~NOFLSH;
 
-	/* cflags */
-	ttraw.c_cflag &= ~(CSIZE|PARENB|PARODD);
-	ttraw.c_cflag |= CS8|CREAD;
+        /* cflags */
+        ttraw.c_cflag &= ~(CSIZE|PARENB|PARODD);
+        ttraw.c_cflag |= CS8|CREAD;
 #ifdef VMIN
-	ttraw.c_cc[VMIN] = 1;		/* Supposedly needed for AIX */
-#endif	/* VMIN */
+        ttraw.c_cc[VMIN] = 1;           /* Supposedly needed for AIX */
+#endif  /* VMIN */
 
     }
 #endif /* TESTING234 */
@@ -6826,14 +6834,14 @@ ttpkt(speed,xflow,parity) long speed; int xflow, parity;
     x = tcsetattr(ttyfd,TCSADRAIN,&ttraw);
     debug(F101,"ttpkt BSD44ORPOSIX tcsetattr","",x);
     if (x < 0) {
-	debug(F101,"ttpkt BSD44ORPOSIX tcsetattr errno","",errno);
+        debug(F101,"ttpkt BSD44ORPOSIX tcsetattr errno","",errno);
         return(-1);
     }
 #else /* BSD44ORPOSIX */
     x = ioctl(ttyfd,TCSETAW,&ttraw);
     debug(F101,"ttpkt ATTSV ioctl TCSETAW","",x);
     if (x < 0) {  /* set new modes . */
-	debug(F101,"ttpkt ATTSV ioctl TCSETAW errno","",errno);
+        debug(F101,"ttpkt ATTSV ioctl TCSETAW errno","",errno);
         return(-1);
     }
 #endif /* BSD44ORPOSIX */
@@ -6862,15 +6870,15 @@ ttsetflow( int flow )
 ttsetflow(flow) int flow;
 #endif /* CK_ANSIC */
 {
-    if (ttyfd < 0)			/* A channel must be open */
+    if (ttyfd < 0)                      /* A channel must be open */
       return(-1);
 
     debug(F101,"ttsetflow flow","",flow);
 
 #ifdef TN_COMPORT
     if (netconn && istncomport()) {
-	debug(F101,"ttsetflow net modem","",ttmdm);
-	return(tnsetflow(flow));
+        debug(F101,"ttsetflow net modem","",ttmdm);
+        return(tnsetflow(flow));
     }
 #endif /* TN_COMPORT */
 #ifdef NETCMD
@@ -6880,38 +6888,38 @@ ttsetflow(flow) int flow;
     if (ttpty) return(0);
 #endif /* NETPTY */
 
-    if (flow == FLO_RTSC ||		/* Hardware flow control... */
-	flow == FLO_DTRC ||
-	flow == FLO_DTRT) {
-	tthflow(flow, 1, &ttraw);
+    if (flow == FLO_RTSC ||             /* Hardware flow control... */
+        flow == FLO_DTRC ||
+        flow == FLO_DTRT) {
+        tthflow(flow, 1, &ttraw);
 #ifndef SVORPOSIX
-	ttraw.sg_flags &= ~TANDEM;	/* Turn off software flow control */
+        ttraw.sg_flags &= ~TANDEM;      /* Turn off software flow control */
 #else
-	ttraw.c_iflag &= ~(IXON|IXOFF);
+        ttraw.c_iflag &= ~(IXON|IXOFF);
 #endif /* SVORPOSIX */
 
-    } else if (flow == FLO_XONX) {	/* Xon/Xoff... */
+    } else if (flow == FLO_XONX) {      /* Xon/Xoff... */
 
 #ifndef SVORPOSIX
-	ttraw.sg_flags |= TANDEM;
+        ttraw.sg_flags |= TANDEM;
 #else
-	ttraw.c_iflag |= (IXON|IXOFF);
+        ttraw.c_iflag |= (IXON|IXOFF);
 #endif /* SVORPOSIX */
-	tthflow(FLO_RTSC, 0, &ttraw);	/* Turn off hardware flow control */
+        tthflow(FLO_RTSC, 0, &ttraw);   /* Turn off hardware flow control */
 
-    } else if (flow == FLO_NONE) {	/* No flow control */
+    } else if (flow == FLO_NONE) {      /* No flow control */
 
 #ifndef SVORPOSIX
-	ttraw.sg_flags &= ~TANDEM;	/* Turn off software flow control */
+        ttraw.sg_flags &= ~TANDEM;      /* Turn off software flow control */
 #else
-	ttraw.c_iflag &= ~(IXON|IXOFF);
+        ttraw.c_iflag &= ~(IXON|IXOFF);
 #endif /* SVORPOSIX */
-	tthflow(FLO_RTSC, 0, &ttraw);	/* Turn off any hardware f/c too */
+        tthflow(FLO_RTSC, 0, &ttraw);   /* Turn off any hardware f/c too */
     }
 
 /* Set the new modes... */
 
-#ifndef SVORPOSIX			/* BSD and friends */
+#ifndef SVORPOSIX                       /* BSD and friends */
 #ifdef BELLV10
     if (ioctl(ttyfd,TIOCSETP,&ttraw) < 0)
       return(-1);
@@ -6922,10 +6930,10 @@ ttsetflow(flow) int flow;
 #endif /* MINIX2 */
 #endif /* BELLV10 */
 #else
-#ifdef BSD44ORPOSIX			/* POSIX */
+#ifdef BSD44ORPOSIX                     /* POSIX */
     if (tcsetattr(ttyfd,TCSADRAIN,&ttraw) < 0)
       return(-1);
-#else					/* System V */
+#else                                   /* System V */
     if (ioctl(ttyfd,TCSETAW,&ttraw) < 0)
       return(-1);
 #endif /* BSD44ORPOSIX */
@@ -6960,11 +6968,11 @@ ttvt(speed,flow) long speed; int flow;
 #ifdef NOLOCAL
     return(conbin((char)escchr));
 #else
-    if (ttyfd < 0) {			/* Not open. */
-	if (ttchk() < 0)
-	  return(-1);
-	else				/* But maybe something buffered. */
-	  return(0);
+    if (ttyfd < 0) {                    /* Not open. */
+        if (ttchk() < 0)
+          return(-1);
+        else                            /* But maybe something buffered. */
+          return(0);
     }
 #ifdef NETCMD
     if (ttpipe) return(0);
@@ -6977,13 +6985,13 @@ ttvt(speed,flow) long speed; int flow;
 #ifdef TCPSOCKET
 #ifdef TCP_NODELAY
         {
-	    extern int tcp_nodelay;
-	    if (ttnet == NET_TCPB) {
-		if (nodelay_sav > -1) {
-		    no_delay(ttyfd,nodelay_sav);
-		    nodelay_sav = -1;
-		}
-	    }
+            extern int tcp_nodelay;
+            if (ttnet == NET_TCPB) {
+                if (nodelay_sav > -1) {
+                    no_delay(ttyfd,nodelay_sav);
+                    nodelay_sav = -1;
+                }
+            }
         }
 #endif /* TCP_NODELAY */
 #ifdef TN_COMPORT
@@ -6992,39 +7000,39 @@ ttvt(speed,flow) long speed; int flow;
             if (tvtflg != 0 && speed == ttspeed && flow == ttflow
                  /* && ttcarr == curcarr */ ) {
                 debug(F100,"ttvt modes already set, skipping...","",0);
-                return(0);			/* Already been called. */
+                return(0);                      /* Already been called. */
             }
             if (flow != ttflow) {
                 if ((rc = tnsetflow(flow)) < 0)
-		  return(rc);
+                  return(rc);
                 ttflow = flow;
             }
             if (speed != ttspeed) {
                 if (speed <= 0)
-		  speed = tnc_get_baud();
+                  speed = tnc_get_baud();
                 else if ((rc = tnc_set_baud(speed)) < 0)
-		  return(rc);
+                  return(rc);
                 ttspeed = speed;
             }
             tnc_set_datasize(8);
-	    tnc_set_stopsize(stopbits);
+            tnc_set_stopsize(stopbits);
 
 #ifdef HWPARITY
             if (hwparity) {
                 switch (hwparity) {
-		  case 'e':		/* Even */
+                  case 'e':             /* Even */
                     debug(F100,"ttres 8 bits + even parity","",0);
                     tnc_set_parity(3);
                     break;
-		  case 'o':		/* Odd */
+                  case 'o':             /* Odd */
                     debug(F100,"ttres 8 bits + odd parity","",0);
                     tnc_set_parity(2);
                     break;
-		  case 'm':		/* Mark */
+                  case 'm':             /* Mark */
                     debug(F100,"ttres 8 bits + invalid parity: mark","",0);
                     tnc_set_parity(4);
                     break;
-		  case 's':		/* Space */
+                  case 's':             /* Space */
                     debug(F100,"ttres 8 bits + invalid parity: space","",0);
                     tnc_set_parity(5);
                     break;
@@ -7032,42 +7040,42 @@ ttvt(speed,flow) long speed; int flow;
             } else
 #endif /* HWPARITY */
             {
-                tnc_set_parity(1);	/* None */
+                tnc_set_parity(1);      /* None */
             }
             tvtflg = 1;
             return(0);
         }
 #endif /* TN_COMPORT */
 #endif /* TCPSOCKET */
-	tvtflg = 1;			/* Network connections... */
-	debug(F100,"ttvt network connection, skipping...","",0);
-	return(0);			/* ... require no special setup */
+        tvtflg = 1;                     /* Network connections... */
+        debug(F100,"ttvt network connection, skipping...","",0);
+        return(0);                      /* ... require no special setup */
     }
 #endif /* NETCONN */
 
     if (tvtflg != 0 && speed == ttspeed && flow == ttflow
-	/* && ttcarr == curcarr */ )
+        /* && ttcarr == curcarr */ )
       {
-	  debug(F100,"ttvt modes already set, skipping...","",0);
-	  return(0);			/* Already been called. */
+          debug(F100,"ttvt modes already set, skipping...","",0);
+          return(0);                    /* Already been called. */
       }
 
     if (ttfdflg
 #ifndef Plan9
-	&& !isatty(ttyfd)
+        && !isatty(ttyfd)
 #endif /* Plan9 */
-	) {
-	debug(F100,"ttvt using external fd, skipping...","",0);
-	return(0);
+        ) {
+        debug(F100,"ttvt using external fd, skipping...","",0);
+        return(0);
     }
 
     debug(F100,"ttvt setting modes...","",0);
 
-    if (xlocal) {			/* For external lines... */
-	s2 = (int) (speed / 10L);
-	s = ttsspd(s2);			/* Check/set the speed */
-	carrctl(&tttvt, flow != FLO_DIAL /* Do carrier control */
-		&& (ttcarr == CAR_ON || (ttcarr == CAR_AUT && ttmdm != 0)));
+    if (xlocal) {                       /* For external lines... */
+        s2 = (int) (speed / 10L);
+        s = ttsspd(s2);                 /* Check/set the speed */
+        carrctl(&tttvt, flow != FLO_DIAL /* Do carrier control */
+                && (ttcarr == CAR_ON || (ttcarr == CAR_AUT && ttmdm != 0)));
     } else
       s = s2 = -1;
 
@@ -7077,26 +7085,26 @@ ttvt(speed,flow) long speed; int flow;
 
 #ifndef SVORPOSIX
     /* Berkeley, V7, etc */
-    if (flow == FLO_RTSC ||		/* Hardware flow control */
-	flow == FLO_DTRC ||
-	flow == FLO_DTRT) {
-	tthflow(flow, 1, &tttvt);
-	debug(F100,"ttvt hard flow, TANDEM off","",0);
-	tttvt.sg_flags &= ~TANDEM;	/* Turn off software flow control */
-    } else if (flow == FLO_XONX) {	/* Xon/Xoff flow control */
-	debug(F100,"ttvt TANDEM on","",0);
-	tttvt.sg_flags |= TANDEM;	/* Ask for it. */
-	tthflow(flow, 0, &tttvt);	/* Turn off hardware f/c */
+    if (flow == FLO_RTSC ||             /* Hardware flow control */
+        flow == FLO_DTRC ||
+        flow == FLO_DTRT) {
+        tthflow(flow, 1, &tttvt);
+        debug(F100,"ttvt hard flow, TANDEM off","",0);
+        tttvt.sg_flags &= ~TANDEM;      /* Turn off software flow control */
+    } else if (flow == FLO_XONX) {      /* Xon/Xoff flow control */
+        debug(F100,"ttvt TANDEM on","",0);
+        tttvt.sg_flags |= TANDEM;       /* Ask for it. */
+        tthflow(flow, 0, &tttvt);       /* Turn off hardware f/c */
     } else if (flow == FLO_NONE) {
-	debug(F100,"ttvt no flow, TANDEM off, RAW on","",0);
-	tttvt.sg_flags &= ~TANDEM;	/* Turn off software flow control */
-	tthflow(flow, 0, &tttvt);	/* Turn off any hardware f/c too */
-	tttvt.sg_flags |= RAW;		/* Enter raw mode */
-    } else if (flow == FLO_KEEP) {	/* Keep device's original setting */
-	debug(F100,"ttvt keeping original TANDEM","",0);
-	tttvt.sg_flags &= ~TANDEM;
-	tttvt.sg_flags |= (ttold.sg_flags & TANDEM);
-	/* NOTE: We should also handle hardware flow control here! */
+        debug(F100,"ttvt no flow, TANDEM off, RAW on","",0);
+        tttvt.sg_flags &= ~TANDEM;      /* Turn off software flow control */
+        tthflow(flow, 0, &tttvt);       /* Turn off any hardware f/c too */
+        tttvt.sg_flags |= RAW;          /* Enter raw mode */
+    } else if (flow == FLO_KEEP) {      /* Keep device's original setting */
+        debug(F100,"ttvt keeping original TANDEM","",0);
+        tttvt.sg_flags &= ~TANDEM;
+        tttvt.sg_flags |= (ttold.sg_flags & TANDEM);
+        /* NOTE: We should also handle hardware flow control here! */
     }
     tttvt.sg_flags |= RAW;              /* Raw mode in all cases */
 #ifdef TOWER1
@@ -7109,34 +7117,34 @@ ttvt(speed,flow) long speed; int flow;
     if (ioctl(ttyfd,TIOCSETP,&tttvt) < 0) /* Set the new modes */
       return(-1);
 #else
-    if (stty(ttyfd,&tttvt) < 0)		/* Set the new modes */
+    if (stty(ttyfd,&tttvt) < 0)         /* Set the new modes */
       return(-1);
 #endif /* BELLV10 */
 
 #else /* It is ATTSV or POSIX */
 
-    if (flow == FLO_XONX) {		/* Software flow control */
-	tttvt.c_iflag |= (IXON|IXOFF);	/* On if requested. */
-	tthflow(flow, 0, &tttvt);	/* Turn off hardware f/c */
-	debug(F100,"ttvt SVORPOSIX flow XON/XOFF","",0);
-    } else if (flow == FLO_NONE) {	/* NONE */
-	tttvt.c_iflag &= ~(IXON|IXOFF);	/* Turn off Xon/Xoff */
-	tthflow(flow, 0, &tttvt);	/* Turn off hardware f/c */
-	debug(F100,"ttvt SVORPOSIX flow NONE","",0);
+    if (flow == FLO_XONX) {             /* Software flow control */
+        tttvt.c_iflag |= (IXON|IXOFF);  /* On if requested. */
+        tthflow(flow, 0, &tttvt);       /* Turn off hardware f/c */
+        debug(F100,"ttvt SVORPOSIX flow XON/XOFF","",0);
+    } else if (flow == FLO_NONE) {      /* NONE */
+        tttvt.c_iflag &= ~(IXON|IXOFF); /* Turn off Xon/Xoff */
+        tthflow(flow, 0, &tttvt);       /* Turn off hardware f/c */
+        debug(F100,"ttvt SVORPOSIX flow NONE","",0);
     } else if (flow == FLO_KEEP) {
-	tttvt.c_iflag &= ~(IXON|IXOFF);	/* Turn off Xon/Xoff flags */
-	tttvt.c_iflag |= (ttold.c_iflag & (IXON|IXOFF)); /* OR in old ones */
+        tttvt.c_iflag &= ~(IXON|IXOFF); /* Turn off Xon/Xoff flags */
+        tttvt.c_iflag |= (ttold.c_iflag & (IXON|IXOFF)); /* OR in old ones */
 #ifdef POSIX_CRTSCTS
-        tttvt.c_cflag &= ~CRTSCTS;	/* Turn off RTS/CTS flag */
+        tttvt.c_cflag &= ~CRTSCTS;      /* Turn off RTS/CTS flag */
         tttvt.c_cflag |= (ttold.c_cflag & CRTSCTS); /* OR in old one */
 #endif /* POSIX_CRTSCTS */
-	debug(F100,"ttvt SVORPOSIX flow KEEP","",0);
-    } else if (flow == FLO_RTSC ||	/* Hardware flow control */
-	       flow == FLO_DTRC ||
-	       flow == FLO_DTRT) {
-	tttvt.c_iflag &= ~(IXON|IXOFF);	/* (196) */
-	tthflow(flow, 1, &tttvt);
-	debug(F100,"ttvt SVORPOSIX flow HARD","",0);
+        debug(F100,"ttvt SVORPOSIX flow KEEP","",0);
+    } else if (flow == FLO_RTSC ||      /* Hardware flow control */
+               flow == FLO_DTRC ||
+               flow == FLO_DTRT) {
+        tttvt.c_iflag &= ~(IXON|IXOFF); /* (196) */
+        tthflow(flow, 1, &tttvt);
+        debug(F100,"ttvt SVORPOSIX flow HARD","",0);
     }
 #ifndef OXOS
 #ifdef COHERENT
@@ -7160,45 +7168,45 @@ ttvt(speed,flow) long speed; int flow;
 
 #ifdef CSTOPB
     if (xlocal) {
-	if (stopbits == 2) {
-	    tttvt.c_cflag |= CSTOPB;	/* 2 stop bits */
-	    debug(F100,"ttvt 2 stopbits","",0);
-	} else if (stopbits == 1) {
-	    tttvt.c_cflag &= ~(CSTOPB);	/* 1 stop bit */
-	    debug(F100,"ttvt 1 stopbit","",0);
-	}
+        if (stopbits == 2) {
+            tttvt.c_cflag |= CSTOPB;    /* 2 stop bits */
+            debug(F100,"ttvt 2 stopbits","",0);
+        } else if (stopbits == 1) {
+            tttvt.c_cflag &= ~(CSTOPB); /* 1 stop bit */
+            debug(F100,"ttvt 1 stopbit","",0);
+        }
     }
 #endif /* CSTOPB */
 
 /* Parity */
 
 #ifdef HWPARITY
-    if (hwparity && xlocal) {		/* Hardware parity */
+    if (hwparity && xlocal) {           /* Hardware parity */
 #ifdef IGNPAR
-	debug(F101,"ttvt hwparity IGNPAR","",IGNPAR);
-	tttvt.c_iflag |= IGNPAR;	/* Don't discard incoming bytes */
+        debug(F101,"ttvt hwparity IGNPAR","",IGNPAR);
+        tttvt.c_iflag |= IGNPAR;        /* Don't discard incoming bytes */
 #endif /* IGNPAR */
-	tttvt.c_cflag |= PARENB;	/* Enable parity */
+        tttvt.c_cflag |= PARENB;        /* Enable parity */
 
-	switch (hwparity) {
-	  case 'e':			/* Even */
-	    tttvt.c_cflag &= ~(PARODD);
-	    debug(F100,"ttvt 8 bits + even parity","",0);
-	    break;
-	  case 'o':			/* Odd */
-	    tttvt.c_cflag |= PARODD;
-	    debug(F100,"ttvt 8 bits + odd parity","",0);
-	    break;
-	  case 'm':			/* Mark */
-	  case 's':			/* Space */
-	    /* PAREXT is mentioned in SVID but the details are not given. */
-	    /* PAREXT is not included in POSIX ISO/IEC 9945-1. */
-	    debug(F100,"ttvt 8 bits + invalid parity","",0);
-	    break;
-	}
-    } else {				/* We handle parity ourselves */
+        switch (hwparity) {
+          case 'e':                     /* Even */
+            tttvt.c_cflag &= ~(PARODD);
+            debug(F100,"ttvt 8 bits + even parity","",0);
+            break;
+          case 'o':                     /* Odd */
+            tttvt.c_cflag |= PARODD;
+            debug(F100,"ttvt 8 bits + odd parity","",0);
+            break;
+          case 'm':                     /* Mark */
+          case 's':                     /* Space */
+            /* PAREXT is mentioned in SVID but the details are not given. */
+            /* PAREXT is not included in POSIX ISO/IEC 9945-1. */
+            debug(F100,"ttvt 8 bits + invalid parity","",0);
+            break;
+        }
+    } else {                            /* We handle parity ourselves */
 #endif /* HWPARITY */
-	tttvt.c_cflag &= ~(PARENB);	/* Don't enable parity */
+        tttvt.c_cflag &= ~(PARENB);     /* Don't enable parity */
 #ifdef HWPARITY
     }
 #endif /* HWPARITY */
@@ -7213,9 +7221,9 @@ ttvt(speed,flow) long speed; int flow;
 #else /* POSIX */
     tttvt.c_iflag &= ~(INLCR|IGNCR|ICRNL|INPCK|ISTRIP);
 #endif /* ATTSV */
-    tttvt.c_cflag &= ~(CSIZE);		/* Zero out the char size field */
-    tttvt.c_cflag |= (CS8|CREAD|HUPCL);	/* Char size 8, enable receiver, hup */
-    tttvt.c_oflag &= ~OPOST;		/* Don't postprocess output */
+    tttvt.c_cflag &= ~(CSIZE);          /* Zero out the char size field */
+    tttvt.c_cflag |= (CS8|CREAD|HUPCL); /* Char size 8, enable receiver, hup */
+    tttvt.c_oflag &= ~OPOST;            /* Don't postprocess output */
 #ifndef VEOF /* DGUX termio has VEOF at entry 4, see comment above */
     tttvt.c_cc[4] = 1;
 #else
@@ -7227,7 +7235,7 @@ ttvt(speed,flow) long speed; int flow;
     tttvt.c_min = 1;
 #endif /* OXOS */
 #endif /* VEOF */
-#ifndef VEOL	/* DGUX termio has VEOL at entry 5, see comment above */
+#ifndef VEOL    /* DGUX termio has VEOL at entry 5, see comment above */
     tttvt.c_cc[5] = 0;
 #else
 #ifndef OXOS
@@ -7246,44 +7254,44 @@ ttvt(speed,flow) long speed; int flow;
 #ifdef BSD44ORPOSIX
     errno = 0;
 #ifdef BEOSORBEBOX
-    tttvt.c_cc[VMIN] = 0;		/* DR7 can only poll. */
+    tttvt.c_cc[VMIN] = 0;               /* DR7 can only poll. */
 #endif /* BEOSORBEBOX */
 
 #ifdef MACOSHISPEED
     if (speed >= MACOSHISPEED_START) {
-	/* Set baudrate to standart one so tcsetattr() will not fail */
-	cfsetospeed(&tttvt,B9600);
-	cfsetispeed(&tttvt,B9600);
+        /* Set baudrate to standart one so tcsetattr() will not fail */
+        cfsetospeed(&tttvt,B9600);
+        cfsetispeed(&tttvt,B9600);
     }
 #endif /* MACOSHISPEED */
 
     x = tcsetattr(ttyfd,TCSADRAIN,&tttvt);
     debug(F101,"ttvt BSD44ORPOSIX tcsetattr","",x);
     if (x < 0) {
-	debug(F101,"ttvt BSD44ORPOSIX tcsetattr errno","",errno);
-	return(-1);
+        debug(F101,"ttvt BSD44ORPOSIX tcsetattr errno","",errno);
+        return(-1);
     }
 #ifdef MACOSHISPEED
     if (speed >= MACOSHISPEED_START) {
-	x = ioctl(ttyfd, IOSSIOSPEED, &speed);
-	debug(F101,"ttvt IOSSIOSPEED","",x);
-	if (x < 0) return(-1);
+        x = ioctl(ttyfd, IOSSIOSPEED, &speed);
+        debug(F101,"ttvt IOSSIOSPEED","",x);
+        if (x < 0) return(-1);
     }
 #endif /* MACOSHISPEED */
 #else /* ATTSV */
     x = ioctl(ttyfd,TCSETAW,&tttvt);
     debug(F101,"ttvt ATTSV ioctl TCSETAW","",x);
-    if (x < 0) {			/* set new modes . */
-	debug(F101,"ttvt ATTSV ioctl TCSETAW errno","",errno);
-	return(-1);
+    if (x < 0) {                        /* set new modes . */
+        debug(F101,"ttvt ATTSV ioctl TCSETAW errno","",errno);
+        return(-1);
     }
 #endif /* BSD44ORPOSIX */
 #endif /* Plan9 */
 #endif /* ATTSV */
 
-    ttspeed = speed;			/* Done, remember how we were */
-    ttflow = flow;			/* called, so we can decide how to */
-    tvtflg = 1;				/* respond next time. */
+    ttspeed = speed;                    /* Done, remember how we were */
+    ttflow = flow;                      /* called, so we can decide how to */
+    tvtflg = 1;                         /* respond next time. */
     debug(F100,"ttvt ok","",0);
     return(0);
 
@@ -7309,25 +7317,25 @@ ttvt(speed,flow) long speed; int flow;
 */
 #ifdef CK_SCOV5
 #ifndef B38400
-#define	B38400	0000017
+#define B38400  0000017
 #endif /* B38400 */
 #ifndef B57600
-#define	B57600	0000021
+#define B57600  0000021
 #endif /* B57600 */
 #ifndef B76800
-#define	B76800	0000022
+#define B76800  0000022
 #endif /* B76800 */
 #ifndef B115200
-#define	B115200	0000023
+#define B115200 0000023
 #endif /* B115200 */
 #ifndef B230400
-#define	B230400	0000024
+#define B230400 0000024
 #endif /* B230400 */
 #ifndef B460800
-#define	B460800	0000025
+#define B460800 0000025
 #endif /* B460800 */
 #ifndef B921600
-#define	B921600	0000026
+#define B921600 0000026
 #endif /* B921600 */
 #endif /* CK_SCOV5 */
 /*
@@ -7441,7 +7449,7 @@ ttsspd(cps) int cps;
     int
 #endif /* POSIX */
       s, s2;
-    int ok = 1;				/* Speed check result, assume ok */
+    int ok = 1;                         /* Speed check result, assume ok */
 
 #ifdef OLINUXHISPEED
     unsigned int spd_flags = 0;
@@ -7452,19 +7460,19 @@ ttsspd(cps) int cps;
     debug(F101,"ttsspd ttyfd","",ttyfd);
     debug(F101,"ttsspd xlocal","",xlocal);
 
-    if (ttyfd < 0 || xlocal == 0)	/* Don't set speed on console */
+    if (ttyfd < 0 || xlocal == 0)       /* Don't set speed on console */
       return(0);
 
-#ifdef	NETCONN
+#ifdef  NETCONN
     if (netconn) {
 #ifdef TN_COMPORT
         if (istncomport())
-	  return(tnc_set_baud(cps * 10));
+          return(tnc_set_baud(cps * 10));
         else
 #endif /* TN_COMPORT */
-	return(0);
+        return(0);
   }
-#endif	/* NETCONN */
+#endif  /* NETCONN */
 #ifdef NETCMD
     if (ttpipe) return(0);
 #endif /* NETCMD */
@@ -7473,41 +7481,41 @@ ttsspd(cps) int cps;
 #endif /* NETPTY */
 
     if (cps < 0) return(-1);
-    s = s2 = 0;				/* NB: s and s2 might be unsigned */
+    s = s2 = 0;                         /* NB: s and s2 might be unsigned */
 
 #ifdef USETCSETSPEED
 
     s = cps * 10L;
 
-    x = tcgetattr(ttyfd,&ttcur);	/* Get current speed */
+    x = tcgetattr(ttyfd,&ttcur);        /* Get current speed */
     debug(F101,"ttsspd tcgetattr","",x);
     if (x < 0)
       return(-1);
     debug(F101,"ttsspd TCSETSPEED speed","",s);
 
     errno = 0;
-    if (s == 8880L) {			/* 75/1200 split speed requested */
-	tcsetspeed(TCS_IN, &ttcur, 1200L);
-	tcsetspeed(TCS_OUT, &ttcur, 75L);
+    if (s == 8880L) {                   /* 75/1200 split speed requested */
+        tcsetspeed(TCS_IN, &ttcur, 1200L);
+        tcsetspeed(TCS_OUT, &ttcur, 75L);
     } else
-      tcsetspeed(TCS_ALL, &ttcur, s);	/* Put new speed in structs */
+      tcsetspeed(TCS_ALL, &ttcur, s);   /* Put new speed in structs */
 #ifdef DEBUG
     if (errno & deblog) {
-	debug(F101,"ttsspd TCSETSPEED errno","",errno);
+        debug(F101,"ttsspd TCSETSPEED errno","",errno);
     }
 #endif /* DEBUG */
 
-    if (s == 8880L) {			/* 75/1200 split speed requested */
-	tcsetspeed(TCS_IN, &ttraw, 1200L);
-	tcsetspeed(TCS_OUT, &ttraw, 75L);
-	tcsetspeed(TCS_IN, &tttvt, 1200L);
-	tcsetspeed(TCS_OUT, &tttvt, 75L);
-	tcsetspeed(TCS_IN, &ttold, 1200L);
-	tcsetspeed(TCS_OUT, &ttold, 75L);
+    if (s == 8880L) {                   /* 75/1200 split speed requested */
+        tcsetspeed(TCS_IN, &ttraw, 1200L);
+        tcsetspeed(TCS_OUT, &ttraw, 75L);
+        tcsetspeed(TCS_IN, &tttvt, 1200L);
+        tcsetspeed(TCS_OUT, &tttvt, 75L);
+        tcsetspeed(TCS_IN, &ttold, 1200L);
+        tcsetspeed(TCS_OUT, &ttold, 75L);
     } else {
-	tcsetspeed(TCS_ALL, &ttraw, s);
-	tcsetspeed(TCS_ALL, &tttvt, s);
-	tcsetspeed(TCS_ALL, &ttold, s);
+        tcsetspeed(TCS_ALL, &ttraw, s);
+        tcsetspeed(TCS_ALL, &tttvt, s);
+        tcsetspeed(TCS_ALL, &ttold, s);
     }
 
     x = tcsetattr(ttyfd,TCSADRAIN,&ttcur); /* Set the speed */
@@ -7566,9 +7574,9 @@ ttsspd(cps) int cps;
 #ifdef B38400
       case 3840: s = B38400;
 #ifdef OLINUXHISPEED
-        spd_flags = ~ASYNC_SPD_MASK;	/* Nonzero, but zero flags */
+        spd_flags = ~ASYNC_SPD_MASK;    /* Nonzero, but zero flags */
 #endif /* OLINUXHISPEED */
-	break;
+        break;
 #else /* B38400 not defined... */
 #ifdef EXTB
       case 3840: s = EXTB; break;
@@ -7655,113 +7663,113 @@ ttsspd(cps) int cps;
 #endif /* B4000000 */
 #endif /* HPUX */
       default:
-	ok = 0;				/* Good speed not found, so not ok */
-	break;
+        ok = 0;                         /* Good speed not found, so not ok */
+        break;
     }
     debug(F101,"ttsspd ok","",ok);
     debug(F101,"ttsspd s","",s);
 
     if (!ok) {
-	debug(F100,"ttsspd fails","",0);
-	return(-1);
+        debug(F100,"ttsspd fails","",0);
+        return(-1);
     } else {
-	if (!s2) s2 = s;		/* Set input speed */
+        if (!s2) s2 = s;                /* Set input speed */
 #ifdef Plan9
-	if (p9ttsspd(cps) < 0)
-	  return(-1);
+        if (p9ttsspd(cps) < 0)
+          return(-1);
 #else
 #ifdef BSD44ORPOSIX
-	x = tcgetattr(ttyfd,&ttcur);	/* Get current speed */
-	debug(F101,"ttsspd tcgetattr","",x);
-	if (x < 0)
-	  return(-1);
+        x = tcgetattr(ttyfd,&ttcur);    /* Get current speed */
+        debug(F101,"ttsspd tcgetattr","",x);
+        if (x < 0)
+          return(-1);
 #ifdef OLINUXHISPEED
-	debug(F101,"ttsspd spd_flags","",spd_flags);
-	if (spd_flags && spd_flags != ASYNC_SPD_CUST) {
-	    if (ioctl(ttyfd, TIOCGSERIAL, &serinfo) < 0) {
-		debug(F100,"ttsspd: TIOCGSERIAL failed","",0);
-		return(-1);
-	    } else debug(F100,"ttsspd: TIOCGSERIAL ok","",0);
-	    serinfo.flags &= ~ASYNC_SPD_MASK;
-	    serinfo.flags |= (spd_flags & ASYNC_SPD_MASK);
-	    if (ioctl(ttyfd, TIOCSSERIAL, &serinfo) < 0)
-	      return(-1);
-	}
+        debug(F101,"ttsspd spd_flags","",spd_flags);
+        if (spd_flags && spd_flags != ASYNC_SPD_CUST) {
+            if (ioctl(ttyfd, TIOCGSERIAL, &serinfo) < 0) {
+                debug(F100,"ttsspd: TIOCGSERIAL failed","",0);
+                return(-1);
+            } else debug(F100,"ttsspd: TIOCGSERIAL ok","",0);
+            serinfo.flags &= ~ASYNC_SPD_MASK;
+            serinfo.flags |= (spd_flags & ASYNC_SPD_MASK);
+            if (ioctl(ttyfd, TIOCSSERIAL, &serinfo) < 0)
+              return(-1);
+        }
 #endif /* OLINUXHISPEED */
-	cfsetospeed(&ttcur,s);
-	cfsetispeed(&ttcur,s2);
-	cfsetospeed(&ttraw,s);
-	cfsetispeed(&ttraw,s2);
-	cfsetospeed(&tttvt,s);
-	cfsetispeed(&tttvt,s2);
-	cfsetospeed(&ttold,s);
-	cfsetispeed(&ttold,s2);
+        cfsetospeed(&ttcur,s);
+        cfsetispeed(&ttcur,s2);
+        cfsetospeed(&ttraw,s);
+        cfsetispeed(&ttraw,s2);
+        cfsetospeed(&tttvt,s);
+        cfsetispeed(&tttvt,s2);
+        cfsetospeed(&ttold,s);
+        cfsetispeed(&ttold,s2);
 #ifdef MACOSHISPEED
-	if (s >= MACOSHISPEED_START) {
-	    /* Set baudrate to standart one so tcsetattr() will not fail */
-	    cfsetospeed(&ttcur,B9600);
-	    cfsetispeed(&ttcur,B9600);
-	}
+        if (s >= MACOSHISPEED_START) {
+            /* Set baudrate to standart one so tcsetattr() will not fail */
+            cfsetospeed(&ttcur,B9600);
+            cfsetispeed(&ttcur,B9600);
+        }
 #endif /* MACOSHISPEED */
-	x = tcsetattr(ttyfd,TCSADRAIN,&ttcur);
-	debug(F101,"ttsspd tcsetattr","",x);
-	if (x < 0) return(-1);
+        x = tcsetattr(ttyfd,TCSADRAIN,&ttcur);
+        debug(F101,"ttsspd tcsetattr","",x);
+        if (x < 0) return(-1);
 #ifdef MACOSHISPEED
-	if (s >= MACOSHISPEED_START) {
-	    x = ioctl(ttyfd, IOSSIOSPEED, &s);
-	    debug(F101,"ttsspd IOSSIOSPEED","",x);
-	    if (x < 0) return(-1);
-	}
+        if (s >= MACOSHISPEED_START) {
+            x = ioctl(ttyfd, IOSSIOSPEED, &s);
+            debug(F101,"ttsspd IOSSIOSPEED","",x);
+            if (x < 0) return(-1);
+        }
 #endif /* MACOSHISPEED */
 #else
 #ifdef ATTSV
-	if (cps == 888) return(-1);	/* No split speeds, sorry. */
-	x = ioctl(ttyfd,TCGETA,&ttcur);
-	debug(F101,"ttsspd TCGETA ioctl","",x);
-	if (x < 0) return(-1);
-	ttcur.c_cflag &= ~CBAUD;
-	ttcur.c_cflag |= s;
-	tttvt.c_cflag &= ~CBAUD;
-	tttvt.c_cflag |= s;
-	ttraw.c_cflag &= ~CBAUD;
-	ttraw.c_cflag |= s;
-	ttold.c_cflag &= ~CBAUD;
-	ttold.c_cflag |= s;
-	x = ioctl(ttyfd,TCSETAW,&ttcur);
-	debug(F101,"ttsspd TCSETAW ioctl","",x);
-	if (x < 0) return(-1);
+        if (cps == 888) return(-1);     /* No split speeds, sorry. */
+        x = ioctl(ttyfd,TCGETA,&ttcur);
+        debug(F101,"ttsspd TCGETA ioctl","",x);
+        if (x < 0) return(-1);
+        ttcur.c_cflag &= ~CBAUD;
+        ttcur.c_cflag |= s;
+        tttvt.c_cflag &= ~CBAUD;
+        tttvt.c_cflag |= s;
+        ttraw.c_cflag &= ~CBAUD;
+        ttraw.c_cflag |= s;
+        ttold.c_cflag &= ~CBAUD;
+        ttold.c_cflag |= s;
+        x = ioctl(ttyfd,TCSETAW,&ttcur);
+        debug(F101,"ttsspd TCSETAW ioctl","",x);
+        if (x < 0) return(-1);
 #else
 #ifdef BELLV10
-	x = ioctl(ttyfd,TIOCGDEV,&tdcur);
-	debug(F101,"ttsspd TIOCGDEV ioctl","",x);
-	if (x < 0) return(-1);
-	tdcur.ispeed = s2;
-	tdcur.ospeed = s;
-	errno = 0;
-	ok = ioctl(ttyfd,TIOCSDEV,&tdcur);
-	debug(F101,"ttsspd BELLV10 ioctl","",ok);
-	if (ok < 0) {
-	    perror(ttnmsv);
-	    debug(F101,"ttsspd BELLV10 errno","",ok);
-	    return(-1);
-	}
+        x = ioctl(ttyfd,TIOCGDEV,&tdcur);
+        debug(F101,"ttsspd TIOCGDEV ioctl","",x);
+        if (x < 0) return(-1);
+        tdcur.ispeed = s2;
+        tdcur.ospeed = s;
+        errno = 0;
+        ok = ioctl(ttyfd,TIOCSDEV,&tdcur);
+        debug(F101,"ttsspd BELLV10 ioctl","",ok);
+        if (ok < 0) {
+            perror(ttnmsv);
+            debug(F101,"ttsspd BELLV10 errno","",ok);
+            return(-1);
+        }
 #else
-	x = gtty(ttyfd,&ttcur);
-	debug(F101,"ttsspd gtty","",x);
-	if (x < 0) return(-1);
-	ttcur.sg_ospeed = s; ttcur.sg_ispeed = s2;
-	tttvt.sg_ospeed = s; tttvt.sg_ispeed = s2;
-	ttraw.sg_ospeed = s; ttraw.sg_ispeed = s2;
-	ttold.sg_ospeed = s; ttold.sg_ispeed = s2;
-	x = stty(ttyfd,&ttcur);
-	debug(F101,"ttsspd stty","",x);
-	if (x < 0) return(-1);
+        x = gtty(ttyfd,&ttcur);
+        debug(F101,"ttsspd gtty","",x);
+        if (x < 0) return(-1);
+        ttcur.sg_ospeed = s; ttcur.sg_ispeed = s2;
+        tttvt.sg_ospeed = s; tttvt.sg_ispeed = s2;
+        ttraw.sg_ospeed = s; ttraw.sg_ispeed = s2;
+        ttold.sg_ospeed = s; ttold.sg_ispeed = s2;
+        x = stty(ttyfd,&ttcur);
+        debug(F101,"ttsspd stty","",x);
+        if (x < 0) return(-1);
 #endif /* BELLV10 */
 #endif /* ATTSV */
 #endif /* BSD44ORPOSIX */
 #endif /* Plan9 */
     }
-    return(1);				/* Return 1 = success. */
+    return(1);                          /* Return 1 = success. */
 #endif /* USETCSETSPEED */
 }
 
@@ -7810,13 +7818,13 @@ ttspdlist()
 #endif /* CK_ANSIC */
 {
     int i;
-    for (i = 0; i < NSPDLIST; i++)	/* Initialize the list */
+    for (i = 0; i < NSPDLIST; i++)      /* Initialize the list */
       spdlist[i] = -1L;
     i = 1;
 
 /* USETCSETSPEED is only for SCO UNIXWARE 7 */
 
-#ifdef USETCSETSPEED			/* No way to find out what's legal */
+#ifdef USETCSETSPEED                    /* No way to find out what's legal */
     debug(F100,"ttspdlist USETCSETSPEED","",0);
     spdlist[i++] = 50L;
 #ifndef UW7
@@ -8019,7 +8027,7 @@ ttspdlist()
 #endif /* B4000000 */
 #endif /* USETCSETSPEED */
 
-    spdlist[0] = i - 1;			/* Return count in 0th element */
+    spdlist[0] = i - 1;                 /* Return count in 0th element */
     debug(F111,"ttspdlist spdlist","0",spdlist[0]);
     return((long *)spdlist);
 }
@@ -8033,14 +8041,14 @@ ttspdlist()
   not notice.
 */
 long
-ttgspd() {				/* Get current serial device speed */
+ttgspd() {                              /* Get current serial device speed */
 #ifdef NOLOCAL
     return(-1L);
 #else
 #ifdef POSIX
-    speed_t				/* Should be unsigned */
+    speed_t                             /* Should be unsigned */
 #else
-    int					/* Isn't unsigned */
+    int                                 /* Isn't unsigned */
 #endif /* POSIX */
       s;
     int x;
@@ -8053,11 +8061,11 @@ ttgspd() {				/* Get current serial device speed */
 #ifdef NETCONN
     if (netconn) {
 #ifdef TN_COMPORT
-	if (istncomport())
-	  return(tnc_get_baud());
-	else
+        if (istncomport())
+          return(tnc_get_baud());
+        else
 #endif /* TN_COMPORT */
-	  return(-1);			/* -1 if network connection */
+          return(-1);                   /* -1 if network connection */
     }
 #endif /* NETCONN */
 #ifdef NETCMD
@@ -8071,7 +8079,7 @@ ttgspd() {				/* Get current serial device speed */
 
 #ifdef USETCSETSPEED
 
-    x = tcgetattr(ttyfd,&ttcur);	/* Get current speed */
+    x = tcgetattr(ttyfd,&ttcur);        /* Get current speed */
     debug(F101,"ttgspd tcgetattr","",x);
     if (x < 0)
       return(-1);
@@ -8079,15 +8087,15 @@ ttgspd() {				/* Get current serial device speed */
     s = tcgetspeed(TCS_ALL, &ttcur);
     debug(F101,"ttsspd TCGETSPEED speed","",s);
     if (s == 0) {
-	long s1, s2;
-	s1 = tcgetspeed(TCS_IN, &ttcur);
-	s2 = tcgetspeed(TCS_OUT, &ttcur);
-	if (s1 == 1200L && s2 == 75L)
-	  return(8880L);
+        long s1, s2;
+        s1 = tcgetspeed(TCS_IN, &ttcur);
+        s2 = tcgetspeed(TCS_OUT, &ttcur);
+        if (s1 == 1200L && s2 == 75L)
+          return(8880L);
     }
 #ifdef DEBUG
     if (errno & deblog) {
-	debug(F101,"ttsspd TCGETSPEED errno","",errno);
+        debug(F101,"ttsspd TCGETSPEED errno","",errno);
     }
 #endif /* DEBUG */
     return(s);
@@ -8106,50 +8114,50 @@ ttgspd() {				/* Get current serial device speed */
 
     if (ttyfd < 0) {
 #ifdef BSD44ORPOSIX
-	s = cfgetospeed(&ccold);
-	debug(F101,"ttgspd cfgetospeed 1 POSIX","",s);
+        s = cfgetospeed(&ccold);
+        debug(F101,"ttgspd cfgetospeed 1 POSIX","",s);
 #else
 #ifdef ATTSV
-	s = ccold.c_cflag & CBAUD;
-	debug(F101,"ttgspd c_cflag CBAUD 1 ATTSV","",s);
+        s = ccold.c_cflag & CBAUD;
+        debug(F101,"ttgspd c_cflag CBAUD 1 ATTSV","",s);
 #else
-	s = ccold.sg_ospeed;		/* (obtained by congm()) */
-	debug(F101,"ttgspd sg_ospeed 1","",s);
+        s = ccold.sg_ospeed;            /* (obtained by congm()) */
+        debug(F101,"ttgspd sg_ospeed 1","",s);
 #endif /* ATTSV */
 #endif /* BSD44POSIX */
 
     } else {
 #ifdef BSD44ORPOSIX
-	if (tcgetattr(ttyfd,&ttcur) < 0) return(-1);
-	s = cfgetospeed(&ttcur);
-	debug(F101,"ttgspd cfgetospeed 2 BSDORPOSIX","",s);
+        if (tcgetattr(ttyfd,&ttcur) < 0) return(-1);
+        s = cfgetospeed(&ttcur);
+        debug(F101,"ttgspd cfgetospeed 2 BSDORPOSIX","",s);
 #ifdef OLINUXHISPEED
-	if (ioctl(ttyfd,TIOCGSERIAL,&serinfo) > -1)
-	  spd_flags = serinfo.flags & ASYNC_SPD_MASK;
-	debug(F101,"ttgspd spd_flags","",spd_flags);
+        if (ioctl(ttyfd,TIOCGSERIAL,&serinfo) > -1)
+          spd_flags = serinfo.flags & ASYNC_SPD_MASK;
+        debug(F101,"ttgspd spd_flags","",spd_flags);
 #endif /* OLINUXHISPEED */
 #else
 #ifdef ATTSV
-	x = ioctl(ttyfd,TCGETA,&ttcur);
-	debug(F101,"ttgspd ioctl 2 ATTSV x","",x);
-	debug(F101,"ttgspd ioctl 2 ATTSV errno","",errno);
-	if (x < 0) return(-1);
-	s = ttcur.c_cflag & CBAUD;
-	debug(F101,"ttgspd ioctl 2 ATTSV speed","",s);
+        x = ioctl(ttyfd,TCGETA,&ttcur);
+        debug(F101,"ttgspd ioctl 2 ATTSV x","",x);
+        debug(F101,"ttgspd ioctl 2 ATTSV errno","",errno);
+        if (x < 0) return(-1);
+        s = ttcur.c_cflag & CBAUD;
+        debug(F101,"ttgspd ioctl 2 ATTSV speed","",s);
 #else
 #ifdef BELLV10
-	x = ioctl(ttyfd,TIOCGDEV,&tdcur);
-	debug(F101,"ttgspd ioctl 2 BELLV10 x","",x);
-	if (x < 0) return(-1);
-	s = tdcur.ospeed;
-	debug(F101,"ttgspd ioctl 2 BELLV10 speed","",s);
+        x = ioctl(ttyfd,TIOCGDEV,&tdcur);
+        debug(F101,"ttgspd ioctl 2 BELLV10 x","",x);
+        if (x < 0) return(-1);
+        s = tdcur.ospeed;
+        debug(F101,"ttgspd ioctl 2 BELLV10 speed","",s);
 #else
-	x = gtty(ttyfd,&ttcur);
-	debug(F101,"ttgspd gtty 2 x","",x);
-	debug(F101,"ttgspd gtty 2 errno","",errno);
-	if (x < 0) return(-1);
-	s = ttcur.sg_ospeed;
-	debug(F101,"ttgspd gtty 2 speed","",s);
+        x = gtty(ttyfd,&ttcur);
+        debug(F101,"ttgspd gtty 2 x","",x);
+        debug(F101,"ttgspd gtty 2 errno","",errno);
+        if (x < 0) return(-1);
+        s = ttcur.sg_ospeed;
+        debug(F101,"ttgspd gtty 2 speed","",s);
 #endif /* BELLV10 */
 #endif /* ATTSV */
 #endif /* BSD44ORPOSIX */
@@ -8241,7 +8249,7 @@ ttgspd() {				/* Get current serial device speed */
         switch(spd_flags) {
           case ASYNC_SPD_HI:  ss =  57600L; break;
           case ASYNC_SPD_VHI: ss = 115200L; break;
-	}
+        }
 #endif /* OLINUXHISPEED */
         break;
 #else
@@ -8311,7 +8319,7 @@ ttgspd() {				/* Get current serial device speed */
 #endif /* B4000000 */
 
       default:
-	ss = -1; break;
+        ss = -1; break;
     }
 #endif /* Plan9 */
     debug(F101,"ttgspd speed","",ss);
@@ -8320,7 +8328,7 @@ ttgspd() {				/* Get current serial device speed */
 #endif /* USETCSETSPEED */
 #endif /* NOLOCAL */
 }
-#ifdef MINIX2				/* Another hack alert */
+#ifdef MINIX2                           /* Another hack alert */
 #define MINIX
 #endif /* MINIX2 */
 
@@ -8341,10 +8349,10 @@ ttgspd() {				/* Get current serial device speed */
 /* #define PEEKTYPE int */
 #else  /* Not COHERENT... */
 
-#ifdef OSF32				/* Digital UNIX 3.2 or higher */
+#ifdef OSF32                            /* Digital UNIX 3.2 or higher */
 #define PEEKTYPE int
 #else
-#define PEEKTYPE long			/* Elsewhere (see notes above) */
+#define PEEKTYPE long                   /* Elsewhere (see notes above) */
 #endif /* OSF32 */
 #endif /* COHERENT */
 
@@ -8378,14 +8386,14 @@ ttgspd() {				/* Get current serial device speed */
 /*
   On X.25 connections, there is an extra control byte at the beginning.
 */
-static CHAR x25buf[MYBUFLEN+1];		/* Communication device input buffer */
+static CHAR x25buf[MYBUFLEN+1];         /* Communication device input buffer */
 static CHAR  *mybuf = x25buf+1;
 #else
 static CHAR mybuf[MYBUFLEN];
 #endif /* ANYX25 */
 
-static int my_count = 0;		/* Number of chars still in mybuf */
-static int my_item = -1;		/* Last index read from mybuf[]   */
+static int my_count = 0;                /* Number of chars still in mybuf */
+static int my_item = -1;                /* Last index read from mybuf[]   */
 
 /*  T T P E E K  --  Peek into our internal communications input buffers. */
 
@@ -8465,11 +8473,11 @@ VOID
 myunrd(CHAR ch)
 #else
 myunrd(ch) CHAR ch;
-#endif	/* CK_ANSIC */
+#endif  /* CK_ANSIC */
 {
     if (my_item >= 0) {
-	mybuf[my_item--] = ch;
-	++my_count;
+        mybuf[my_item--] = ch;
+        ++my_count;
     }
 }
 
@@ -8490,10 +8498,10 @@ ttpushback(s,n) CHAR * s; int n;
       return(-1);
     debug(F101,"ttpushback my_count","",my_count);
     if (my_count > 0) {
-	if (!(pushbuf = (CHAR *)malloc(n+1)))
-	  return(-1);
-	memcpy(pushbuf,mybuf,my_count);
-	/* pushed = my_count; */ /* (set but never used) */
+        if (!(pushbuf = (CHAR *)malloc(n+1)))
+          return(-1);
+        memcpy(pushbuf,mybuf,my_count);
+        /* pushed = my_count; */ /* (set but never used) */
     }
     memcpy(mybuf,s,n);
     my_count = n;
@@ -8509,9 +8517,9 @@ ttpushback(s,n) CHAR * s; int n;
  * the first character just as myread() would have done.  This function also
  * is responsible for all error conditions that myread() can indicate.
  *
- * Returns: When OK	=> a positive character, 0 or greater.
- *	    When EOF	=> -2.
- *	    When error	=> -3, error code in errno.
+ * Returns: When OK     => a positive character, 0 or greater.
+ *          When EOF    => -2.
+ *          When error  => -3, error code in errno.
  *
  * Older myread()s additionally returned -1 to indicate that there was nothing
  * to read, upon which the caller would call myread() again until it got
@@ -8549,11 +8557,11 @@ mygetbuf() {
 #endif /* DEBUG */
     x = my_count;
     if (my_count <= 0) {
-	my_count = 0;
-	my_item = -1;
-	debug(F101,"mygetbuf errno","",errno);
+        my_count = 0;
+        my_item = -1;
+        debug(F101,"mygetbuf errno","",errno);
 #ifdef TCPSOCKET
-	if (netconn && ttnet == NET_TCPB) {
+        if (netconn && ttnet == NET_TCPB) {
 /*
   A myfillbuf() failure here means its read() returned 0 (EOF)
   or <0 (error).
@@ -8570,21 +8578,21 @@ mygetbuf() {
   for dozens of seconds, until something else noticed the
   connection was gone.
 */
-	    if (errno != EINTR) {
-		debug(F101,"mygetbuf TCP error","",errno);
-		ttclos(0);		/* Close the connection. */
-	    }
-	    return(-3);
-	}
+            if (errno != EINTR) {
+                debug(F101,"mygetbuf TCP error","",errno);
+                ttclos(0);              /* Close the connection. */
+            }
+            return(-3);
+        }
 #endif /* TCPSOCKET */
-	if (!netconn && xlocal && errno) {
-	    if (errno != EINTR) {
-		debug(F101,"mygetbuf SERIAL error","",errno);
-		x = -3;
-		ttclos(0);		/* Close the connection. */
-	    }
-	}
-	return((x < 0) ? -3 : -2);
+        if (!netconn && xlocal && errno) {
+            if (errno != EINTR) {
+                debug(F101,"mygetbuf SERIAL error","",errno);
+                x = -3;
+                ttclos(0);              /* Close the connection. */
+            }
+        }
+        return((x < 0) ? -3 : -2);
     }
     --my_count;
     return((unsigned)(0xff & mybuf[my_item = 0]));
@@ -8622,13 +8630,13 @@ mygetbuf() {
  */
 
 #ifdef SVORPOSIX
-	/* This is for System III/V with VMIN>0, VTIME=0 and O_NDELAY off,
-	 * and CLOCAL set any way you like.  This way, read() will do exactly
-	 * what is required by myfillbuf(): If there is data in the buffers
-	 * of the O.S., all available data is read into mybuf, up to the size
-	 * of mybuf.  If there is none, the first character to arrive is
-	 * awaited and returned.
-	 */
+        /* This is for System III/V with VMIN>0, VTIME=0 and O_NDELAY off,
+         * and CLOCAL set any way you like.  This way, read() will do exactly
+         * what is required by myfillbuf(): If there is data in the buffers
+         * of the O.S., all available data is read into mybuf, up to the size
+         * of mybuf.  If there is none, the first character to arrive is
+         * awaited and returned.
+         */
 int
 myfillbuf() {
     int fd, n;
@@ -8650,13 +8658,13 @@ myfillbuf() {
         if (netconn) {
             n = netxin(sizeof(mybuf), (char *)mybuf);
             debug(F101,"BEBOX SVORPOSIX network myfillbuf","",n);
-	}
+        }
         else
 #endif /* NETCONN */
-	  n = read(fd, mybuf, sizeof(mybuf));
-	debug(F101,"BEBOX SVORPOSIX notnet myfillbuf","",n);
+          n = read(fd, mybuf, sizeof(mybuf));
+        debug(F101,"BEBOX SVORPOSIX notnet myfillbuf","",n);
         if (n > 0)
-	  return(n);
+          return(n);
         snooze(1000.0);
     }
 #else /* BEOSORBEBOX */
@@ -8664,42 +8672,43 @@ myfillbuf() {
     /* debug(F101,"SVORPOSIX myfillbuf calling read() fd","",fd); */
 #ifdef IBMX25
     if (netconn && (nettype == NET_IX25)) {
-	/* can't use sizeof because mybuf is a pointer, and not an array! */
-	n = x25xin( MYBUFLEN, mybuf );
+        /* can't use sizeof because mybuf is a pointer, and not an array! */
+        n = x25xin( MYBUFLEN, mybuf );
     } else
 #endif /* IBMX25 */
 
 #ifdef CK_SSL
       if (ssl_active_flag || tls_active_flag) {
-	  int error, n = 0;
-	  debug(F100,"myfillbuf calling SSL_read() fd","",0);
-	  while (n == 0) {
-	      if (ssl_active_flag)
+          int error, n = 0;
+          debug(F100,"myfillbuf calling SSL_read() fd","",0);
+          while (n == 0) {
+              if (ssl_active_flag)
                 n = SSL_read(ssl_con, (char *)mybuf, sizeof(mybuf));
-	      else if (tls_active_flag)
+              else if (tls_active_flag)
                 n = SSL_read(tls_con, (char *)mybuf, sizeof(mybuf));
               else
-		break;
-	      switch (SSL_get_error(ssl_active_flag?ssl_con:tls_con,n)) {
-		case SSL_ERROR_NONE:
-		  if (n > 0)
+                break;
+              switch (SSL_get_error(ssl_active_flag?ssl_con:tls_con,n)) {
+                case SSL_ERROR_NONE:
+                  if (n > 0)
                     return(n);
-		  if (n < 0)
+                  if (n < 0)
                     return(-2);
-		  msleep(50);
-		  break;
-		case SSL_ERROR_WANT_WRITE:
-		case SSL_ERROR_WANT_READ:
-		  return(-1);
-		case SSL_ERROR_SYSCALL:
-		  if (n != 0)
-		    return(-1);
-		case SSL_ERROR_WANT_X509_LOOKUP:
-		case SSL_ERROR_SSL:
-		case SSL_ERROR_ZERO_RETURN:
-		default:
-		  ttclos(0);
-		  return(-3);
+                  msleep(50);
+                  break;
+                case SSL_ERROR_WANT_WRITE:
+                case SSL_ERROR_WANT_READ:
+                  return(-1);
+                case SSL_ERROR_SYSCALL:
+                  if (n != 0)
+                    return(-1);
+                  /* Fall through */
+                case SSL_ERROR_WANT_X509_LOOKUP:
+                case SSL_ERROR_SSL:
+                case SSL_ERROR_ZERO_RETURN:
+                default:
+                  ttclos(0);
+                  return(-3);
             }
         }
     }
@@ -8708,31 +8717,31 @@ myfillbuf() {
 #ifdef KRB4
 #ifdef RLOGCODE
     if (ttnproto == NP_EK4LOGIN) {
-	debug(F101,"myfillbuf calling krb4_des_read() fd","",ttyfd);
+        debug(F101,"myfillbuf calling krb4_des_read() fd","",ttyfd);
         if ((n = krb4_des_read(ttyfd,(char *)mybuf,sizeof(mybuf))) < 0)
-	  return(-3);
+          return(-3);
         else
-	  return(n);
+          return(n);
     }
 #endif /* RLOGCODE */
 #endif /* KRB4 */
 #ifdef KRB5
 #ifdef RLOGCODE
     if (ttnproto == NP_EK5LOGIN) {
-	debug(F101,"myfillbuf calling krb5_des_read() fd","",ttyfd);
+        debug(F101,"myfillbuf calling krb5_des_read() fd","",ttyfd);
         if ((n = krb5_des_read(ttyfd,(char *)mybuf,sizeof(mybuf),0)) < 0)
-	  return(-3);
+          return(-3);
         else
-	  return(n);
+          return(n);
     }
 #endif /* RLOGCODE */
 #ifdef KRB5_U2U
     if (ttnproto == NP_K5U2U) {
-	debug(F101,"myfillbuf calling krb5_u2u_read() fd","",ttyfd);
+        debug(F101,"myfillbuf calling krb5_u2u_read() fd","",ttyfd);
         if ((n = krb5_u2u_read(ttyfd,(char *)mybuf,sizeof(mybuf))) < 0)
-	  return(-3);
+          return(-3);
         else
-	  return(n);
+          return(n);
     }
 #endif /* KRB5_U2U */
 #endif /* KRB5 */
@@ -8743,7 +8752,7 @@ myfillbuf() {
     /* Special handling for HP-UX pty i/o */
   ptyread:
     if (ttpty && pty_trap_pending(ttyfd) > 0) {
-	debug(F101,"myfillbuf calling pty_trap_handler() fd","",ttyfd);
+        debug(F101,"myfillbuf calling pty_trap_handler() fd","",ttyfd);
         if (pty_trap_handler(ttyfd) > 0) {
             ttclos(0);
             return(-3);
@@ -8779,12 +8788,12 @@ myfillbuf() {
       return(-3);
     {
         /*
-	  select() is never automatically restarted after a caught signal on
-	  Linux, regardless of SA_RESTART, unlike most other blocking calls.  A
-	  harmless signal such as SIGWINCH from a terminal resize makes
-	  select() return EINTR, which fell through to the same -3 (I/O error)
-	  return as a real failure, closing the connection. So retry on EINTR
-	  instead of failing.
+          select() is never automatically restarted after a caught signal on
+          Linux, regardless of SA_RESTART, unlike most other blocking calls.  A
+          harmless signal such as SIGWINCH from a terminal resize makes
+          select() return EINTR, which fell through to the same -3 (I/O error)
+          return as a real failure, closing the connection. So retry on EINTR
+          instead of failing.
         */
         fd_set rfd;
         int rc;
@@ -8839,10 +8848,10 @@ myfillbuf() {
 #else /* not AT&T or POSIX */
 
 #ifdef aegis
-	/* This is quoted from the old myread().  The semantics seem to be
-	 * alright, but maybe errno would not need to be set even when
-	 * there is no error?  I don't know aegis.
-	 */
+        /* This is quoted from the old myread().  The semantics seem to be
+         * alright, but maybe errno would not need to be set even when
+         * there is no error?  I don't know aegis.
+         */
 int
 myfillbuf() {
     int count;
@@ -8860,18 +8869,18 @@ myfillbuf() {
     if (st.all == ios_$end_of_file)
       return(-3);
     else if (st.all != status_$ok) {
-	errno = EIO;
-	return(-1);
+        errno = EIO;
+        return(-1);
     }
     return(count > 0 ? count : -3);
 }
 #else /* !aegis */
 
 #ifdef FIONREAD
-	/* This is for systems with FIONREAD.  FIONREAD returns the number
-	 * of characters available for reading. If none are available, wait
-	 * until something arrives, otherwise return all there is.
-	 */
+        /* This is for systems with FIONREAD.  FIONREAD returns the number
+         * of characters available for reading. If none are available, wait
+         * until something arrives, otherwise return all there is.
+         */
 int
 myfillbuf() {
     PEEKTYPE avail = 0;
@@ -8896,8 +8905,8 @@ myfillbuf() {
 */
     extern int nettype;
     if (netconn && nettype == NET_SX25) {
-	while ((x = x25xin(sizeof(x25buf), x25buf)) < 1) ;
-	return(x - 1);	        /* "-1" compensates for extra status byte */
+        while ((x = x25xin(sizeof(x25buf), x25buf)) < 1) ;
+        return(x - 1);          /* "-1" compensates for extra status byte */
     }
 #endif /* SUNX25 */
 
@@ -8906,27 +8915,27 @@ myfillbuf() {
         int error, n = 0;
         while (n == 0) {
             if (ssl_active_flag)
-	      n = SSL_read(ssl_con, (char *)mybuf, sizeof(mybuf));
+              n = SSL_read(ssl_con, (char *)mybuf, sizeof(mybuf));
             else
-	      n = SSL_read(tls_con, (char *)mybuf, sizeof(mybuf));
+              n = SSL_read(tls_con, (char *)mybuf, sizeof(mybuf));
             switch (SSL_get_error(ssl_active_flag?ssl_con:tls_con,n)) {
-	      case SSL_ERROR_NONE:
+              case SSL_ERROR_NONE:
                 if (n > 0)
-		  return(n);
+                  return(n);
                 if (n < 0)
-		  return(-2);
+                  return(-2);
                 msleep(50);
                 break;
-	      case SSL_ERROR_WANT_WRITE:
-	      case SSL_ERROR_WANT_READ:
+              case SSL_ERROR_WANT_WRITE:
+              case SSL_ERROR_WANT_READ:
                 return(-1);
-	      case SSL_ERROR_SYSCALL:
-		if (n != 0)
-		  return(-1);
-	      case SSL_ERROR_WANT_X509_LOOKUP:
-	      case SSL_ERROR_SSL:
-	      case SSL_ERROR_ZERO_RETURN:
-	      default:
+              case SSL_ERROR_SYSCALL:
+                if (n != 0)
+                  return(-1);
+              case SSL_ERROR_WANT_X509_LOOKUP:
+              case SSL_ERROR_SSL:
+              case SSL_ERROR_ZERO_RETURN:
+              default:
                 ttclos(0);
                 return(-2);
             }
@@ -8938,9 +8947,9 @@ myfillbuf() {
 #ifdef RLOGCODE
     if (ttnproto == NP_EK4LOGIN) {
         if ((x = krb4_des_read(ttyfd,mybuf,sizeof(mybuf))) < 0)
-	  return(-1);
+          return(-1);
         else
-	  return(x);
+          return(x);
     }
 #endif /* RLOGCODE */
 #endif /* KRB4 */
@@ -8948,17 +8957,17 @@ myfillbuf() {
 #ifdef RLOGCODE
     if (ttnproto == NP_EK5LOGIN) {
         if ((x = krb5_des_read(ttyfd,mybuf,sizeof(mybuf),0)) < 0)
-	  return(-1);
+          return(-1);
         else
-	  return(x);
+          return(x);
     }
 #endif /* RLOGCODE */
 #ifdef KRB5_U2U
     if (ttnproto == NP_K5U2U) {
         if ((x = krb5_u2u_read(ttyfd,mybuf,sizeof(mybuf))) < 0)
-	  return(-1);
+          return(-1);
         else
-	  return(x);
+          return(x);
     }
 #endif /* KRB5_U2U */
 #endif /* KRB5 */
@@ -8969,9 +8978,9 @@ myfillbuf() {
     x = ioctl(fd, FIONREAD, &avail);
 #ifdef DEBUG
     if (deblog) {
-	debug(F101,"myfillbuf FIONREAD","",x);
-	debug(F101,"myfillbuf FIONREAD avail","",avail);
-	debug(F101,"myfillbuf FIONREAD errno","",errno);
+        debug(F101,"myfillbuf FIONREAD","",x);
+        debug(F101,"myfillbuf FIONREAD avail","",avail);
+        debug(F101,"myfillbuf FIONREAD errno","",errno);
     }
 #endif /* DEBUG */
     if (x < 0 || avail == 0)
@@ -8985,14 +8994,14 @@ myfillbuf() {
     x = read(fd, mybuf, (int) avail);
 #ifdef DEBUG
     if (deblog) {
-	debug(F101,"myfillbuf avail","",avail);
-	debug(F101,"myfillbuf read","",x);
-	debug(F101,"myfillbuf read errno","",errno);
+        debug(F101,"myfillbuf avail","",avail);
+        debug(F101,"myfillbuf read","",x);
+        debug(F101,"myfillbuf read errno","",errno);
         if (x > 0)
-	  ckhexdump("myfillbuf mybuf",mybuf,x);
+          ckhexdump("myfillbuf mybuf",mybuf,x);
     }
 #endif /* DEBUG */
-    if (x < 1) x = -3;			/* read 0 == connection loss */
+    if (x < 1) x = -3;                  /* read 0 == connection loss */
     return(x);
 }
 
@@ -9008,27 +9017,27 @@ myfillbuf() {
         int error, n = 0;
         while (n == 0) {
             if (ssl_active_flag)
-	      n = SSL_read(ssl_con, (char *)mybuf, sizeof(mybuf));
+              n = SSL_read(ssl_con, (char *)mybuf, sizeof(mybuf));
             else
-	      count = SSL_read(tls_con, (char *)mybuf, sizeof(mybuf));
+              count = SSL_read(tls_con, (char *)mybuf, sizeof(mybuf));
             switch (SSL_get_error(ssl_active_flag?ssl_con:tls_con,n)) {
-	      case SSL_ERROR_NONE:
+              case SSL_ERROR_NONE:
                 if (n > 0)
-		  return(n);
+                  return(n);
                 if (n < 0)
-		  return(-2);
+                  return(-2);
                 msleep(50);
                 break;
-	      case SSL_ERROR_WANT_WRITE:
-	      case SSL_ERROR_WANT_READ:
+              case SSL_ERROR_WANT_WRITE:
+              case SSL_ERROR_WANT_READ:
                 return(-1);
-	      case SSL_ERROR_SYSCALL:
-		if (n != 0)
-		  return(-1);
-	      case SSL_ERROR_WANT_X509_LOOKUP:
-	      case SSL_ERROR_SSL:
-	      case SSL_ERROR_ZERO_RETURN:
-	      default:
+              case SSL_ERROR_SYSCALL:
+                if (n != 0)
+                  return(-1);
+              case SSL_ERROR_WANT_X509_LOOKUP:
+              case SSL_ERROR_SSL:
+              case SSL_ERROR_ZERO_RETURN:
+              default:
                 ttclos(0);
                 return(-2);
             }
@@ -9040,9 +9049,9 @@ myfillbuf() {
 #ifdef RLOGCODE
     if (ttnproto == NP_EK4LOGIN) {
         if ((len = krb4_des_read(ttyfd,mybuf,sizeof(mybuf))) < 0)
-	  return(-1);
+          return(-1);
         else
-	  return(len);
+          return(len);
     }
 #endif /* RLOGCODE */
 #endif /* KRB4 */
@@ -9050,17 +9059,17 @@ myfillbuf() {
 #ifdef RLOGCODE
     if (ttnproto == NP_EK5LOGIN) {
         if ((len = krb5_des_read(ttyfd,mybuf,sizeof(mybuf),0)) < 0)
-	  return(-1);
+          return(-1);
         else
-	  return(len);
+          return(len);
     }
 #endif /* RLOGCODE */
 #ifdef KRB5_U2U
     if (ttnproto == NP_K5U2U) {
         if ((len = krb5_u2u_read(ttyfd,mybuf,sizeof(mybuf))) < 0)
-	  return(-1);
+          return(-1);
         else
-	  return(len);
+          return(len);
     }
 #endif /* KRB5_U2U */
 #endif /* KRB5 */
@@ -9096,77 +9105,77 @@ myfillbuf() {
 #ifdef TCPSOCKET
 static int
 #ifdef CK_ANSIC
-tt_tnopt( int n )			/* Handle Telnet options */
+tt_tnopt( int n )                       /* Handle Telnet options */
 #else
 tt_tnopt(n) int n;
 #endif /* CK_ANSIC */
 {
     /* In case caller did not already check these conditions...  */
     if (n == IAC &&
-	((xlocal && netconn && IS_TELNET()) ||
-	 (!xlocal && sstelnet))) {
-	extern int server;
-	int tx = 0;
-	debug(F100,"ttinl calling tn_doop()","",0);
-	tx = tn_doop((CHAR)(n & 0xff),duplex,ttinc);
-	debug(F111,"ttinl tn_doop() returned","tx",tx);
-	switch (tx) {
-	  case 0:
-	    return(0);
-	  case -1:			/* I/O error */
-	    ttimoff();			/* Turn off timer */
-	    return(-3);
-          case -2:			/* Connection failed. */
+        ((xlocal && netconn && IS_TELNET()) ||
+         (!xlocal && sstelnet))) {
+        extern int server;
+        int tx = 0;
+        debug(F100,"ttinl calling tn_doop()","",0);
+        tx = tn_doop((CHAR)(n & 0xff),duplex,ttinc);
+        debug(F111,"ttinl tn_doop() returned","tx",tx);
+        switch (tx) {
+          case 0:
+            return(0);
+          case -1:                      /* I/O error */
+            ttimoff();                  /* Turn off timer */
+            return(-3);
+          case -2:                      /* Connection failed. */
           case -3:
-	    ttimoff();			/* Turn off timer */
-	    ttclos(0);
-	    return(-3);
-	  case 1:			/* ECHO change */
-	    duplex = 1;
-	    return(0);
-	  case 2:			/* ECHO change */
-	    duplex = 0;
-	    return(0);
-	  case 3:			/* Quoted IAC */
-	    n = 255;
-	    return((unsigned)255);
+            ttimoff();                  /* Turn off timer */
+            ttclos(0);
+            return(-3);
+          case 1:                       /* ECHO change */
+            duplex = 1;
+            return(0);
+          case 2:                       /* ECHO change */
+            duplex = 0;
+            return(0);
+          case 3:                       /* Quoted IAC */
+            n = 255;
+            return((unsigned)255);
 #ifdef IKS_OPTION
-	  case 4: {
-	      if (TELOPT_SB(TELOPT_KERMIT).kermit.u_start && server
+          case 4: {
+              if (TELOPT_SB(TELOPT_KERMIT).kermit.u_start && server
 #ifdef IKSD
-		  && !inserver
+                  && !inserver
 #endif /* IKSD */
-		  ) {			/* Remote in Server mode */
-		  ttimoff();		/* Turn off timer */
-		  debug(F100,"u_start and !inserver","",0);
-		  return(-2);		/* End server mode */
-	      } else if (!TELOPT_SB(TELOPT_KERMIT).kermit.me_start &&
-			 server
-			 ) {		/* I'm no longer in Server Mode */
-		  debug(F100,"me_start and server","",0);
-		  ttimoff();
-		  return(-2);
-	      }
-	      return(0);
-	  }
-	  case 5: {			/* Start character change */
-	      /* extern CHAR stchr; */
-	      /* start = stchr; */
-	      return(1);
-	  }
+                  ) {                   /* Remote in Server mode */
+                  ttimoff();            /* Turn off timer */
+                  debug(F100,"u_start and !inserver","",0);
+                  return(-2);           /* End server mode */
+              } else if (!TELOPT_SB(TELOPT_KERMIT).kermit.me_start &&
+                         server
+                         ) {            /* I'm no longer in Server Mode */
+                  debug(F100,"me_start and server","",0);
+                  ttimoff();
+                  return(-2);
+              }
+              return(0);
+          }
+          case 5: {                     /* Start character change */
+              /* extern CHAR stchr; */
+              /* start = stchr; */
+              return(1);
+          }
 #endif /* IKS_OPTION */
-	  case 6:			/* Remote Logout */
-	    ttimoff();
-	    ttclos(0);
+          case 6:                       /* Remote Logout */
+            ttimoff();
+            ttclos(0);
 #ifdef IKSD
-	    if (inserver && !local)
-	      doexit(GOOD_EXIT,0);
-	    else
+            if (inserver && !local)
+              doexit(GOOD_EXIT,0);
+            else
 #endif /* IKSD */
-	      return(-2);
-	  default:
-	    return(0);
-	}
+              return(-2);
+          default:
+            return(0);
+        }
     } else
       return(0);
 }
@@ -9175,7 +9184,7 @@ tt_tnopt(n) int n;
 /*  T T F L U I  --  Flush tty input buffer */
 
 void
-ttflux() {				/* But first... */
+ttflux() {                              /* But first... */
 #ifdef MYREAD
 /*
   Flush internal MYREAD buffer.
@@ -9183,25 +9192,25 @@ ttflux() {				/* But first... */
 #ifdef TCPSOCKET
     int dotnopts, x;
     dotnopts = (((xlocal && netconn && IS_TELNET()) ||
-		 (!xlocal && sstelnet)));
+                 (!xlocal && sstelnet)));
 #endif /* TCPSOCKET */
     debug(F101,"ttflux my_count","",my_count);
 #ifdef TCPSOCKET
     if (dotnopts) {
-	CHAR ch = '\0';
+        CHAR ch = '\0';
         while (my_count > 0) {
-	    ch = myread();
+            ch = myread();
 #ifdef CK_ENCRYPTION
             if (TELOPT_U(TELOPT_ENCRYPTION))
-	      ck_tn_decrypt((char *)&ch,1);
+              ck_tn_decrypt((char *)&ch,1);
 #endif /* CK_ENCRYPTION */
             if (ch == IAC)
-	      x = tt_tnopt(ch);
+              x = tt_tnopt(ch);
         }
     } else
 #endif /* TCPSOCKET */
-    my_count = 0;			/* Reset count to zero */
-    my_item = -1;			/* And buffer index to -1 */
+    my_count = 0;                       /* Reset count to zero */
+    my_item = -1;                       /* And buffer index to -1 */
 #endif /* MYREAD */
 }
 
@@ -9211,7 +9220,7 @@ ttflui() {
 #ifdef TCPSOCKET
     int dotnopts;
     dotnopts = (((xlocal && netconn && IS_TELNET()) ||
-		 (!xlocal && sstelnet)));
+                 (!xlocal && sstelnet)));
 #endif /* TCPSOCKET */
 
 #ifdef NETCMD
@@ -9222,10 +9231,10 @@ ttflui() {
       fd = ttyfd;
 
 #ifdef TTLEBUF
-    ttpush = -1;			/* Clear the peek-ahead char */
+    ttpush = -1;                        /* Clear the peek-ahead char */
     while (le_data && (le_inbuf() > 0)) {
         CHAR ch = '\0';
-        if (le_getchar(&ch) > 0) {	/* Clear any more... */
+        if (le_getchar(&ch) > 0) {      /* Clear any more... */
             debug(F101,"ttflui le_inbuf ch","",ch);
         }
     }
@@ -9242,11 +9251,11 @@ ttflui() {
 #ifdef NETCONN
 /* Network flush is done specially, in the network support module. */
     if ((netconn || sstelnet) && !ttpipe && !ttpty) {
-	debug(F100,"ttflui netflui","",0);
+        debug(F100,"ttflui netflui","",0);
 #ifndef NOTCPIP
-	return(netflui());
+        return(netflui());
 #else
-	return(-1);
+        return(-1);
 #endif  /* NOTCPIP */
     }
 #endif /* NETCONN */
@@ -9258,10 +9267,10 @@ ttflui() {
 #ifdef aegis
     sio_$control((short)yfd, sio_$flush_in, true, st);
     if (st.all != status_$ok) {
-	fprintf(stderr, "flush failed: "); error_$print(st);
+        fprintf(stderr, "flush failed: "); error_$print(st);
     } else {      /* sometimes the flush doesn't work */
         for (;;) {
-	    char buf[256];
+            char buf[256];
             /* eat all the characters that shouldn't be available */
             ios_$get((short)fd, ios_$cond_opt, buf, 256L, st); /* (void) */
             if (st.all == ios_$get_conditional_failed) break;
@@ -9269,34 +9278,34 @@ ttflui() {
         }
     }
 #else
-#ifdef BSD44				/* 4.4 BSD */
+#ifdef BSD44                            /* 4.4 BSD */
     n = FREAD;                          /* Specify read queue */
     debug(F100,"ttflui BSD44","",0);
     ioctl(fd,TIOCFLUSH,&n);
 #else
 #ifdef Plan9
-#undef POSIX				/* Uh oh... */
+#undef POSIX                            /* Uh oh... */
 #endif /* Plan9 */
-#ifdef POSIX				/* POSIX */
+#ifdef POSIX                            /* POSIX */
     debug(F100,"ttflui POSIX","",0);
     tcflush(fd,TCIFLUSH);
 #else
-#ifdef ATTSV				/* System V */
+#ifdef ATTSV                            /* System V */
 #ifndef VXVE
     debug(F100,"ttflui ATTSV","",0);
     ioctl(fd,TCFLSH,0);
 #endif /* VXVE */
-#else					/* Not BSD44, POSIX, or Sys V */
-#ifdef TIOCFLUSH			/* Those with TIOCFLUSH defined */
-#ifdef ANYBSD				/* Berkeley */
+#else                                   /* Not BSD44, POSIX, or Sys V */
+#ifdef TIOCFLUSH                        /* Those with TIOCFLUSH defined */
+#ifdef ANYBSD                           /* Berkeley */
     n = FREAD;                          /* Specify read queue */
     debug(F100,"ttflui TIOCFLUSH ANYBSD","",0);
     ioctl(fd,TIOCFLUSH,&n);
-#else					/* Others (V7, etc) */
+#else                                   /* Others (V7, etc) */
     debug(F100,"ttflui TIOCFLUSH","",0);
     ioctl(fd,TIOCFLUSH,0);
 #endif /* ANYBSD */
-#else					/* All others... */
+#else                                   /* All others... */
 /*
   No system call (that we know about) for input buffer flushing.
   So see how many there are and read them in a loop, using ttinc().
@@ -9304,8 +9313,8 @@ ttflui() {
   per character, just a function call.
 */
     if ((n = ttchk()) > 0) {
-	debug(F101,"ttflui read loop","",n);
-	while ((n--) && ttinc(0) > 0) ;
+        debug(F101,"ttflui read loop","",n);
+        while ((n--) && ttinc(0) > 0) ;
     }
 #endif /* TIOCFLUSH */
 #endif /* ATTSV */
@@ -9319,7 +9328,7 @@ ttflui() {
 }
 
 int
-ttfluo() {				/* Flush output buffer */
+ttfluo() {                              /* Flush output buffer */
     int fd;
 #ifdef NETCMD
     if (ttpipe)
@@ -9337,7 +9346,7 @@ ttfluo() {				/* Flush output buffer */
 #ifdef OXOS
     return(ioctl(fd,TCFLSH,1));
 #else
-    return(0);				/* All others, nothing */
+    return(0);                          /* All others, nothing */
 #endif /* OXOS */
 #endif /* POSIX */
 #endif /* Plan9 */
@@ -9347,15 +9356,15 @@ ttfluo() {				/* Flush output buffer */
 
 /* Set up terminal interrupts on console terminal */
 
-#ifndef FIONREAD			/* We don't need esctrp() */
-#ifndef SELECT				/* if we have any of these... */
+#ifndef FIONREAD                        /* We don't need esctrp() */
+#ifndef SELECT                          /* if we have any of these... */
 #ifndef CK_POLL
 #ifndef RDCHK
 
 #ifndef OXOS
 #ifdef SVORPOSIX
 SIGTYP
-esctrp(foo) int foo; {			/* trap console escapes (^\) */
+esctrp(foo) int foo; {                  /* trap console escapes (^\) */
     signal(SIGQUIT,SIG_IGN);            /* ignore until trapped */
     conesc = 1;
     debug(F101,"esctrp caught SIGQUIT","",conesc);
@@ -9366,7 +9375,7 @@ esctrp(foo) int foo; {			/* trap console escapes (^\) */
 #ifdef V7
 #ifndef MINIX2
 SIGTYP
-esctrp(foo) int foo; {			/* trap console escapes (^\) */
+esctrp(foo) int foo; {                  /* trap console escapes (^\) */
     signal(SIGQUIT,SIG_IGN);            /* ignore until trapped */
     conesc = 1;
     debug(F101,"esctrp caught SIGQUIT","",conesc);
@@ -9376,7 +9385,7 @@ esctrp(foo) int foo; {			/* trap console escapes (^\) */
 
 #ifdef C70
 SIGTYP
-esctrp(foo) int foo; {			/* trap console escapes (^\) */
+esctrp(foo) int foo; {                  /* trap console escapes (^\) */
     conesc = 1;
     signal(SIGQUIT,SIG_IGN);            /* ignore until trapped */
 }
@@ -9389,7 +9398,7 @@ esctrp(foo) int foo; {			/* trap console escapes (^\) */
 
 /*  C O N B G T  --  Background Test  */
 
-static int jc = 0;			/* 0 = no job control */
+static int jc = 0;                      /* 0 = no job control */
 
 /*
   Call with flag == 1 to prevent signal test, which can not be expected
@@ -9413,8 +9422,8 @@ conbgt( int flag )
 conbgt(flag) int flag;
 #endif /* CK_ANSIC */
 {
-    int x = -1,				/* process group or SIGINT test */
-        y = 0;				/* isatty() test */
+    int x = -1,                         /* process group or SIGINT test */
+        y = 0;                          /* isatty() test */
 /*
   Check for background operation, even if not running on real tty, so that
   background flag can be set correctly.  If background status is detected,
@@ -9424,29 +9433,29 @@ conbgt(flag) int flag;
 
 /* Use process-group test if possible. */
 
-#ifdef POSIX				/* We can do it in POSIX */
+#ifdef POSIX                            /* We can do it in POSIX */
 #define PGROUP_T
 #else
-#ifdef BSD4				/* and in BSD 4.x. */
+#ifdef BSD4                             /* and in BSD 4.x. */
 #define PGROUP_T
 #else
-#ifdef HPUXJOBCTL			/* and in most HP-UX's */
+#ifdef HPUXJOBCTL                       /* and in most HP-UX's */
 #define PGROUP_T
 #else
-#ifdef TIOCGPGRP			/* and anyplace that has this ioctl. */
+#ifdef TIOCGPGRP                        /* and anyplace that has this ioctl. */
 #define PGROUP_T
 #endif /* TIOCGPGRP */
 #endif /* HPUXJOBCTL */
 #endif /* BSD4 */
 #endif /* POSIX */
 
-#ifdef MIPS				/* Except if it doesn't work... */
+#ifdef MIPS                             /* Except if it doesn't work... */
 #undef PGROUP_T
 #endif /* MIPS */
 
 #ifdef MINIX
 #undef PGROUP_T
-#endif	/* MINIX */
+#endif  /* MINIX */
 
 #ifdef PGROUP_T
 /*
@@ -9454,8 +9463,8 @@ conbgt(flag) int flag;
   the same as the controlling terminal's process group.  This works if the
   getpgrp() call doesn't lie (as it does in the SUNOS System V environment).
 */
-    PID_T mypgrp = (PID_T)0;		/* Kermit's process group */
-    PID_T ctpgrp = (PID_T)0;		/* The terminal's process group */
+    PID_T mypgrp = (PID_T)0;            /* Kermit's process group */
+    PID_T ctpgrp = (PID_T)0;            /* The terminal's process group */
 #ifndef _POSIX_SOURCE
 /*
   The getpgrp() prototype is obtained from system header files for POSIX
@@ -9491,7 +9500,7 @@ conbgt(flag) int flag;
     mypgrp = getpgrp();
     /* debug(F101,"QNX conbgt process group","",(int) mypgrp); */
 #else
-#ifdef OSF32				/* (was OSF40) */
+#ifdef OSF32                            /* (was OSF40) */
     mypgrp = getpgrp();
     /* debug(F101,"Digital UNIX conbgt process group","",(int) mypgrp); */
 #else /* BSD, V7, etc */
@@ -9515,30 +9524,30 @@ conbgt(flag) int flag;
 
 /* Now get controlling tty's process group */
 #ifdef BSD44ORPOSIX
-    ctpgrp = tcgetpgrp(1);		/* The POSIX way */
+    ctpgrp = tcgetpgrp(1);              /* The POSIX way */
     /* debug(F101,"POSIX conbgt terminal process group","",(int) ctpgrp); */
 #else
-    ioctl(1, TIOCGPGRP, &ctpgrp);	/* Or the BSD way */
+    ioctl(1, TIOCGPGRP, &ctpgrp);       /* Or the BSD way */
    /* debug(F101,"non-POSIX conbgt terminal process group","",(int) ctpgrp); */
 #endif /* BSD44ORPOSIX */
 
     if ((mypgrp > (PID_T) 0) && (ctpgrp > (PID_T) 0))
-      x = (mypgrp == ctpgrp) ? 0 : 1;	/* If they differ, then background. */
-    else x = -1;			/* If error, remember. */
+      x = (mypgrp == ctpgrp) ? 0 : 1;   /* If they differ, then background. */
+    else x = -1;                        /* If error, remember. */
     debug(F101,"conbgt process group test","",x);
 #endif /* PGROUP_T */
-#endif	/* MINIX */
+#endif  /* MINIX */
 
 /* Try to see if job control is available */
 
-#ifdef NOJC				/* User override */
-    jc = 0;				/* No job control allowed */
+#ifdef NOJC                             /* User override */
+    jc = 0;                             /* No job control allowed */
     debug(F111,"NOJC","jc",jc);
 #else
 #ifdef BSD44
     jc = 1;
 #else
-#ifdef SVR4ORPOSIX			/* POSIX actually tells us */
+#ifdef SVR4ORPOSIX                      /* POSIX actually tells us */
     debug(F100,"SVR4ORPOSIX jc test...","",0);
 #ifdef _SC_JOB_CONTROL
 #ifdef __bsdi__
@@ -9547,45 +9556,45 @@ conbgt(flag) int flag;
 #ifdef __386BSD__
     jc = 1;
 #else
-    jc = sysconf(_SC_JOB_CONTROL);	/* Whatever system says */
+    jc = sysconf(_SC_JOB_CONTROL);      /* Whatever system says */
     if (jc < 0) {
-	debug(F101,"sysconf fails, jcshell","",jcshell);
-	jc = (jchdlr == SIG_DFL) ? 1 : 0;
+        debug(F101,"sysconf fails, jcshell","",jcshell);
+        jc = (jchdlr == SIG_DFL) ? 1 : 0;
     } else
       debug(F111,"sysconf(_SC_JOB_CONTROL)","jc",jc);
 #endif /* __386BSD__ */
 #endif /* __bsdi__ */
 #else
 #ifdef _POSIX_JOB_CONTROL
-    jc = 1;				/* By definition */
+    jc = 1;                             /* By definition */
     debug(F111,"_POSIX_JOB_CONTROL is defined","jc",jc);
 #else
-    jc = 0;				/* Assume job control not allowed */
+    jc = 0;                             /* Assume job control not allowed */
     debug(F111,"SVR4ORPOSIX _SC/POSIX_JOB_CONTROL not defined","jc",jc);
 #endif /* _POSIX_JOB_CONTROL */
 #endif /* _SC_JOB_CONTROL */
 #else
 #ifdef BSD4
-    jc = 1;				/* Job control allowed */
+    jc = 1;                             /* Job control allowed */
     debug(F111,"BSD job control","jc",jc);
 #else
 #ifdef SVR3JC
-    jc = 1;				/* JC allowed */
+    jc = 1;                             /* JC allowed */
     debug(F111,"SVR3 job control","jc",jc);
 #else
 #ifdef OXOS
-    jc = 1;				/* JC allowed */
+    jc = 1;                             /* JC allowed */
     debug(F111,"X/OS job control","jc",jc);
 #else
 #ifdef HPUX9
-    jc = 1;				/* JC allowed */
+    jc = 1;                             /* JC allowed */
     debug(F111,"HP-UX 9.0 job control","jc",jc);
 #else
 #ifdef HPUX10
-    jc = 1;				/* JC allowed */
+    jc = 1;                             /* JC allowed */
     debug(F111,"HP-UX 10.0 job control","jc",jc);
 #else
-    jc = 0;				/* JC not allowed */
+    jc = 0;                             /* JC not allowed */
     debug(F111,"job control catch-all","jc",jc);
 #endif /* HPUX10 */
 #endif /* HPUX9 */
@@ -9620,13 +9629,13 @@ conbgt(flag) int flag;
 */
     if (x < 0 && !flag && !sigint_ign) { /* Didn't get good results above... */
 
-	sig_t osigint;
+        sig_t osigint;
 
-	osigint = signal(SIGINT,SIG_IGN);	/* What is SIGINT set to? */
-	sigint_ign = 1;
-	x = (osigint == SIG_IGN) ? 1 : 0;	/* SIG_IGN? */
-	/* debug(F101,"conbgt osigint","",osigint); */
-	/* debug(F101,"conbgt signal test","",x); */
+        osigint = signal(SIGINT,SIG_IGN);       /* What is SIGINT set to? */
+        sigint_ign = 1;
+        x = (osigint == SIG_IGN) ? 1 : 0;       /* SIG_IGN? */
+        /* debug(F101,"conbgt osigint","",osigint); */
+        /* debug(F101,"conbgt signal test","",x); */
     }
 
 /* Also check to see if we're running with redirected stdio. */
@@ -9634,9 +9643,9 @@ conbgt(flag) int flag;
 /* it were. */
 
 #ifdef IKSD
-    if (inserver) {			/* Internet Kermit Server */
-	backgrd = 0;			/* is not in the background */
-	return;
+    if (inserver) {                     /* Internet Kermit Server */
+        backgrd = 0;                    /* is not in the background */
+        return;
     }
 #endif /* IKSD */
 
@@ -9673,7 +9682,7 @@ conbgt(flag) int flag;
   Second arg is pointer to function to handle SIGTSTP (suspend).
 */
 
-VOID					/* Set terminal interrupt traps. */
+VOID                                    /* Set terminal interrupt traps. */
 #ifdef CK_ANSIC
 #ifdef apollo
 conint(f,s) SIGTYP (*f)(), (*s)();
@@ -9687,7 +9696,7 @@ conint(f,s) SIGTYP (*f)(), (*s)();
 
     debug(F101,"conint conistate","",conistate);
 
-    conbgt(0);				/* Do background test. */
+    conbgt(0);                          /* Do background test. */
 
 /* Set the desired handlers for hangup and software termination. */
 
@@ -9709,36 +9718,36 @@ conint(f,s) SIGTYP (*f)(), (*s)();
     debug(F101,"conint backgrd","",backgrd);
     debug(F101,"conint jc","",jc);
 
-    if (backgrd && !jc) {		/* In background, ignore signals */
-	debug(F101,"conint background ignoring signals, jc","",jc);
+    if (backgrd && !jc) {               /* In background, ignore signals */
+        debug(F101,"conint background ignoring signals, jc","",jc);
 #ifdef SIGTSTP
         signal(SIGTSTP,SIG_IGN);        /* Keyboard stop */
 #endif /* SIGTSTP */
         signal(SIGQUIT,SIG_IGN);        /* Keyboard quit */
         signal(SIGINT,SIG_IGN);         /* Keyboard interrupt */
-	sigint_ign = 1;
-	conistate = CONI_NOI;
-    } else {				/* Else in foreground or suspended */
-	debug(F101,"conint foreground catching signals, jc","",jc);
+        sigint_ign = 1;
+        conistate = CONI_NOI;
+    } else {                            /* Else in foreground or suspended */
+        debug(F101,"conint foreground catching signals, jc","",jc);
         signal(SIGINT,f);               /* Catch terminal interrupt */
-	sigint_ign = (f == SIG_IGN) ? 1 : 0;
+        sigint_ign = (f == SIG_IGN) ? 1 : 0;
 
-#ifdef SIGTSTP				/* Keyboard stop (suspend) */
-	/* debug(F101,"conint SIGSTSTP","",s); */
-	if (s == NULL) s = SIG_DFL;
-#ifdef NOJC				/* No job control allowed. */
-	signal(SIGTSTP,SIG_IGN);
-#else					/* Job control allowed */
-	if (jc)				/* if available. */
-	  signal(SIGTSTP,s);
-	else
-	  signal(SIGTSTP,SIG_IGN);
+#ifdef SIGTSTP                          /* Keyboard stop (suspend) */
+        /* debug(F101,"conint SIGSTSTP","",s); */
+        if (s == NULL) s = SIG_DFL;
+#ifdef NOJC                             /* No job control allowed. */
+        signal(SIGTSTP,SIG_IGN);
+#else                                   /* Job control allowed */
+        if (jc)                         /* if available. */
+          signal(SIGTSTP,s);
+        else
+          signal(SIGTSTP,SIG_IGN);
 #endif /* NOJC */
 #endif /* SIGTSTP */
 
 #ifndef OXOS
 #ifdef SVORPOSIX
-#ifndef FIONREAD			/* Watch out, we don't know this... */
+#ifndef FIONREAD                        /* Watch out, we don't know this... */
 #ifndef SELECT
 #ifndef CK_POLL
 #ifndef RDCHK
@@ -9761,7 +9770,7 @@ conint(f,s) SIGTYP (*f)(), (*s)();
 #endif /* V7 */
 #endif /* SVORPOSIX */
 #endif /* OXOS */
-	conistate = CONI_INT;
+        conistate = CONI_INT;
     }
 }
 
@@ -9773,15 +9782,15 @@ connoi() {                              /* Console-no-interrupts */
 
     debug(F101,"connoi conistate","",conistate);
 #ifdef SIGTSTP
-    signal(SIGTSTP,SIG_IGN);		/* Suspend */
+    signal(SIGTSTP,SIG_IGN);            /* Suspend */
 #endif /* SIGTSTP */
-    conint(SIG_IGN,SIG_IGN);		/* Interrupt */
-    sigint_ign = 1;			/* Remember we did this ourselves */
+    conint(SIG_IGN,SIG_IGN);            /* Interrupt */
+    sigint_ign = 1;                     /* Remember we did this ourselves */
 #ifdef SIGQUIT
-    signal(SIGQUIT,SIG_IGN);		/* Quit */
+    signal(SIGQUIT,SIG_IGN);            /* Quit */
 #endif /* SIGQUIT */
 #ifdef SIGTERM
-    signal(SIGTERM,SIG_IGN);		/* Term */
+    signal(SIGTERM,SIG_IGN);            /* Term */
 #endif /* SIGTERM */
     conistate = CONI_NOI;
 }
@@ -9871,7 +9880,7 @@ initrawq(tty) int tty; {
 
     if(setjmp(jjbuf) == 0) {
         while(1)
-	  read(tty, &c, 1);
+          read(tty, &c, 1);
     }
     signal(SIGALRM, SIG_DFL);
 
@@ -10004,17 +10013,17 @@ in_chk( int channel, int fd )
 in_chk(channel, fd) int channel, fd;
 #endif /* CK_ANSIC */
 {
-    int x, n = 0;			/* Workers, n = return value */
-    extern int clsondisc;		/* Close on disconnect */
+    int x, n = 0;                       /* Workers, n = return value */
+    extern int clsondisc;               /* Close on disconnect */
 /*
   The first section checks to make sure we have a connection,
   but only if we're in local mode.
 */
 #ifdef DEBUG
     if (deblog) {
-	debug(F111,"in_chk entry",ckitoa(fd),channel);
-	debug(F101,"in_chk ttyfd","",ttyfd);
-	debug(F101,"in_chk ttpty","",ttpty);
+        debug(F111,"in_chk entry",ckitoa(fd),channel);
+        debug(F101,"in_chk ttyfd","",ttyfd);
+        debug(F101,"in_chk ttpty","",ttpty);
     }
 #endif /* DEBUG */
 /*
@@ -10023,11 +10032,11 @@ in_chk(channel, fd) int channel, fd;
 #ifdef TTLEBUF
     debug(F101,"in_chk ttpush","",ttpush);
     if (channel == 1) {
-	if (ttpush >= 0)
-	  n++;
-	n += le_inbuf();
-	if (n > 0)
-	  return(n);
+        if (ttpush >= 0)
+          n++;
+        n += le_inbuf();
+        if (n > 0)
+          return(n);
     }
 #endif /* TTLEBUF */
 
@@ -10043,44 +10052,44 @@ in_chk(channel, fd) int channel, fd;
 #endif /* HAVE_PTYTRAP */
 #endif /* NETPTY */
 
-    if (channel) {			/* Checking communications channel */
-	if (ttyfd < 0) {		/* No connection */
-	  return(-2);			/* That's what this means */
-	} else if (xlocal &&		/* In local mode */
-		   (!netconn		/* Serial connection or */
+    if (channel) {                      /* Checking communications channel */
+        if (ttyfd < 0) {                /* No connection */
+          return(-2);                   /* That's what this means */
+        } else if (xlocal &&            /* In local mode */
+                   (!netconn            /* Serial connection or */
 #ifdef TN_COMPORT
-		    || istncomport()    /* Telnet Com Port */
+                    || istncomport()    /* Telnet Com Port */
 #endif /* TN_COMPORT */
-		   ) && ttcarr != CAR_OFF /* with CARRIER WATCH ON (or AUTO) */
-		   ) {
-	    int x;
-	    x = ttgmdm();		/* So get modem signals */
-	    debug(F101,"in_chk close-on-disconnect","",clsondisc);
-	    if (x > -1) {		/* Check for carrier */
-		if (!(x & BM_DCD)) {	/* No carrier */
-		    debug(F101,"in_chk carrier lost","",x);
-		    if (clsondisc)	/* If "close-on-disconnect" */
-		      ttclos(0);	/* close device & release lock. */
-		    return(-2);		/* This means "disconnected" */
-		}
-	    /* In case I/O to device after CD dropped always fails */
-	    /* as in Debian Linux 2.1 and Unixware 2.1... */
-	    } else {
-	        debug(F101,"in_chk ttgmdm I/O error","",errno);
-	        debug(F101,"in_chk ttgmdm gotsigs","",gotsigs);
-	        if (gotsigs) {		/* If we got signals before... */
-		    if (errno == 5 || errno == 6) { /* I/O error etc */
-		        if (clsondisc)	/* like when modem hangs up */
-			  ttclos(0);
-			return(-2);
-		    }
-		}
-		/* If we never got modem signals successfully on this */
-		/* connection before, we can't conclude that THIS failure */
-		/* means the connection was lost. */
-		return(0);
-	    }
-	}
+                   ) && ttcarr != CAR_OFF /* with CARRIER WATCH ON (or AUTO) */
+                   ) {
+            int x;
+            x = ttgmdm();               /* So get modem signals */
+            debug(F101,"in_chk close-on-disconnect","",clsondisc);
+            if (x > -1) {               /* Check for carrier */
+                if (!(x & BM_DCD)) {    /* No carrier */
+                    debug(F101,"in_chk carrier lost","",x);
+                    if (clsondisc)      /* If "close-on-disconnect" */
+                      ttclos(0);        /* close device & release lock. */
+                    return(-2);         /* This means "disconnected" */
+                }
+            /* In case I/O to device after CD dropped always fails */
+            /* as in Debian Linux 2.1 and Unixware 2.1... */
+            } else {
+                debug(F101,"in_chk ttgmdm I/O error","",errno);
+                debug(F101,"in_chk ttgmdm gotsigs","",gotsigs);
+                if (gotsigs) {          /* If we got signals before... */
+                    if (errno == 5 || errno == 6) { /* I/O error etc */
+                        if (clsondisc)  /* like when modem hangs up */
+                          ttclos(0);
+                        return(-2);
+                    }
+                }
+                /* If we never got modem signals successfully on this */
+                /* connection before, we can't conclude that THIS failure */
+                /* means the connection was lost. */
+                return(0);
+            }
+        }
     }
 
 /* We seem to have a connection so now see if any bytes are waiting on it */
@@ -10104,8 +10113,8 @@ in_chk(channel, fd) int channel, fd;
          * those bytes as "available" causes callers such as
          * ttflui()'s supposedly non-blocking input flush to call
          * SSL_read(), which then blocks in the underlying read()
-	 * waiting for the next TLS record that may not arrive
-	 * anytime soon.
+         * waiting for the next TLS record that may not arrive
+         * anytime soon.
          *_
          * SSL_pending() only counts bytes still inside OpenSSL's buffer, not
          * yet pulled out by an SSL_read() call.  It says nothing about mybuf.
@@ -10147,22 +10156,22 @@ in_chk(channel, fd) int channel, fd;
         }
 #endif /* KRB5_U2U */
 #endif /* KRB5 */
-        if (n < 0)			/* Is this right? */
-	  return(-1);
+        if (n < 0)                      /* Is this right? */
+          return(-1);
         else
-	  return(n);
+          return(n);
     }
 #endif /* CK_KERBEROS */
 #endif /* RLOGCODE */
 
-    errno = 0;				/* Reset this so we log good info */
+    errno = 0;                          /* Reset this so we log good info */
 #ifdef FIONREAD
-    x = ioctl(fd, FIONREAD, &n);	/* BSD and lots of others */
-#ifdef DEBUG				/* (the more the better) */
+    x = ioctl(fd, FIONREAD, &n);        /* BSD and lots of others */
+#ifdef DEBUG                            /* (the more the better) */
     if (deblog) {
-	debug(F101,"in_chk FIONREAD return code","",x);
-	debug(F101,"in_chk FIONREAD count","",n);
-	debug(F101,"in_chk FIONREAD errno","",errno);
+        debug(F101,"in_chk FIONREAD return code","",x);
+        debug(F101,"in_chk FIONREAD count","",n);
+        debug(F101,"in_chk FIONREAD errno","",errno);
     }
 #endif /* DEBUG */
 #else /* FIONREAD not defined */
@@ -10176,9 +10185,9 @@ in_chk(channel, fd) int channel, fd;
   only other known method of asking the OS for the *number* of characters
   available for reading.
 */
-#ifdef V7				/* UNIX V7: look in kernel memory */
+#ifdef V7                               /* UNIX V7: look in kernel memory */
 #ifdef MINIX
-    n = 0;				/* But not in MINIX */
+    n = 0;                              /* But not in MINIX */
 #else
 #ifdef MINIX2
     n = 0;
@@ -10191,8 +10200,8 @@ in_chk(channel, fd) int channel, fd;
 #endif /* MINIX */
 #else /* Not V7 */
 #ifdef PROVX1
-    x = ioctl(fd, TIOCQCNT, &ttbuf);	/* DEC Pro/3xx Venix V.1 */
-    n = ttbuf.sg_ispeed & 0377;		/* Circa 1984 */
+    x = ioctl(fd, TIOCQCNT, &ttbuf);    /* DEC Pro/3xx Venix V.1 */
+    n = ttbuf.sg_ispeed & 0377;         /* Circa 1984 */
     if (x < 0) n = 0;
 #else
 #ifdef MYREAD
@@ -10203,9 +10212,9 @@ in_chk(channel, fd) int channel, fd;
   FIONREAD or MYREAD are defined, which is increasingly rare these days.
 */
     if (channel != 0 && my_count > 0) {
-	debug(F101,"in_chk buf my_count","",my_count);
-	n = my_count;			/* n was 0 before we got here */
-	return(n);
+        debug(F101,"in_chk buf my_count","",my_count);
+        n = my_count;                   /* n was 0 before we got here */
+        return(n);
     }
 #endif /* MYREAD */
 /*
@@ -10213,7 +10222,7 @@ in_chk(channel, fd) int channel, fd;
   not how much, so these should be used only as a final resort.  Especially
   since these calls tend to add a lot overhead.
 */
-#ifdef RDCHK				/* This mostly SCO-specific */
+#ifdef RDCHK                            /* This mostly SCO-specific */
     n = rdchk(fd);
     debug(F101,"in_chk rdchk","",n);
 #else /* No RDCHK */
@@ -10223,60 +10232,60 @@ in_chk(channel, fd) int channel, fd;
     if (channel == 0)
 #endif /* Plan9 */
       {
-	fd_set rfds;			/* Read file descriptors */
+        fd_set rfds;                    /* Read file descriptors */
 #ifdef BELLV10
-	FD_ZERO(rfds);			/* Initialize them */
-	FD_SET(fd,rfds);		/* We want to look at this fd */
+        FD_ZERO(rfds);                  /* Initialize them */
+        FD_SET(fd,rfds);                /* We want to look at this fd */
 #else
-	FD_ZERO(&rfds);			/* Initialize them */
-	FD_SET(fd,&rfds);		/* We want to look at this fd */
-	tv.tv_sec = tv.tv_usec = 0L;	/* A 0-valued timeval structure */
+        FD_ZERO(&rfds);                 /* Initialize them */
+        FD_SET(fd,&rfds);               /* We want to look at this fd */
+        tv.tv_sec = tv.tv_usec = 0L;    /* A 0-valued timeval structure */
 #endif /* BELLV10 */
 #ifdef Plan9
-	n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
-	debug(F101,"in_chk Plan 9 select","",n);
+        n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
+        debug(F101,"in_chk Plan 9 select","",n);
 #else
 #ifdef BELLV10
-	n = select( 128, rfds, (fd_set *)0, (fd_set *)0, 0 );
-	debug(F101,"in_chk BELLV10 select","",n);
+        n = select( 128, rfds, (fd_set *)0, (fd_set *)0, 0 );
+        debug(F101,"in_chk BELLV10 select","",n);
 #else
 #ifdef BSD44
-	n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
-	debug(F101,"in_chk BSD44 select","",n);
+        n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
+        debug(F101,"in_chk BSD44 select","",n);
 #else
 #ifdef BSD43
-	n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
-	debug(F101,"in_chk BSD43 select","",n);
+        n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
+        debug(F101,"in_chk BSD43 select","",n);
 #else
 #ifdef SOLARIS
-	n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
-	debug(F101,"in_chk SOLARIS select","",n);
+        n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
+        debug(F101,"in_chk SOLARIS select","",n);
 #else
 #ifdef QNX6
-	n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
-	debug(F101,"in_chk QNX6 select","",n);
+        n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
+        debug(F101,"in_chk QNX6 select","",n);
 #else
 #ifdef QNX
-	n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
-	debug(F101,"in_chk QNX select","",n);
+        n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
+        debug(F101,"in_chk QNX select","",n);
 #else
 #ifdef COHERENT
-	n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
-	debug(F101,"in_chk COHERENT select","",n);
+        n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
+        debug(F101,"in_chk COHERENT select","",n);
 #else
 #ifdef SVR4
-	n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
-	debug(F101,"in_chk SVR4 select","",n);
+        n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
+        debug(F101,"in_chk SVR4 select","",n);
 #else
 #ifdef __linux__
-	n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
-	debug(F101,"in_chk LINUX select","",n);
+        n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
+        debug(F101,"in_chk LINUX select","",n);
 #ifdef OSF
-	n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
-	debug(F101,"in_chk OSF select","",n);
+        n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
+        debug(F101,"in_chk OSF select","",n);
 #else
-	n = select( FD_SETSIZE, &rfds, (int *)0, (int *)0, &tv );
-	debug(F101,"in_chk catchall select","",n);
+        n = select( FD_SETSIZE, &rfds, (int *)0, (int *)0, &tv );
+        debug(F101,"in_chk catchall select","",n);
 #endif /* OSF */
 #endif /* __linux__ */
 #endif /* SVR4 */
@@ -10300,7 +10309,7 @@ in_chk(channel, fd) int channel, fd;
       n = poll(&pfd, 1, 0);
       debug(F101,"in_chk poll","",n);
       if ((n > 0) && (pfd.revents & POLLIN))
-	n = 1;
+        n = 1;
     }
 #endif /* CK_POLL */
 #endif /* SELECT */
@@ -10311,7 +10320,7 @@ in_chk(channel, fd) int channel, fd;
 
 /* From here down, treat console and communication device differently... */
 
-    if (channel == 0) {			/* Console */
+    if (channel == 0) {                 /* Console */
 
 #ifdef SVORPOSIX
 #ifndef FIONREAD
@@ -10324,22 +10333,22 @@ in_chk(channel, fd) int channel, fd;
   CONNECT-mode escape character is attached to SIGQUIT.  Used, obviously,
   only on the console.
 */
-	if (conesc) {			/* Escape character typed == SIGQUIT */
-	    debug(F100,"in_chk conesc","",conesc);
-	    conesc = 0;
-	    signal(SIGQUIT,esctrp);	/* Restore signal */
-	    n += 1;
-	}
+        if (conesc) {                   /* Escape character typed == SIGQUIT */
+            debug(F100,"in_chk conesc","",conesc);
+            conesc = 0;
+            signal(SIGQUIT,esctrp);     /* Restore signal */
+            n += 1;
+        }
 #endif /* RDCHK */
 #endif /* CK_POLL */
 #endif /* SELECT */
 #endif /* FIONREAD */
 #endif /* SVORPOSIX */
 
-	return(n);			/* Done with console */
+        return(n);                      /* Done with console */
     }
 
-    if (channel != 0) {			/* Communications connection */
+    if (channel != 0) {                 /* Communications connection */
 
 #ifdef MYREAD
 #ifndef FIONREAD
@@ -10352,28 +10361,28 @@ in_chk(channel, fd) int channel, fd;
   waiting for any more.  Controlled tests on Solaris and Unixware (with
   FIONREAD deliberately undefined) show this to be true.
 */
-	debug(F101,"in_chk read my_count","",my_count);
-	debug(F101,"in_chk read n","",n);
-	if (n > 0 && my_count == 0) {
-	    /* This also catches disconnects etc */
-	    /* Do what mygetbuf does except don't grab a character */
-	    my_count = myfillbuf();
-	    my_item = -1;		/* ^^^ */
-	    debug(F101,"in_chk myfillbuf my_count","",my_count);
-	    if (my_count < 0)
-	      return(-1);
-	    else
-	      n = 0;			/* NB: n is replaced by my_count */
-	}
+        debug(F101,"in_chk read my_count","",my_count);
+        debug(F101,"in_chk read n","",n);
+        if (n > 0 && my_count == 0) {
+            /* This also catches disconnects etc */
+            /* Do what mygetbuf does except don't grab a character */
+            my_count = myfillbuf();
+            my_item = -1;               /* ^^^ */
+            debug(F101,"in_chk myfillbuf my_count","",my_count);
+            if (my_count < 0)
+              return(-1);
+            else
+              n = 0;                    /* NB: n is replaced by my_count */
+        }
 #endif /* FIONREAD */
 /*
   Here we add whatever we think is unread to what is still in our
   our internal buffer.  Thus the importance of setting n to 0 just above.
 */
-	debug(F101,"in_chk my_count","",my_count);
-	debug(F101,"in_chk n","",n);
-	if (my_count > 0)
-	  n += my_count;
+        debug(F101,"in_chk my_count","",my_count);
+        debug(F101,"in_chk n","",n);
+        if (my_count > 0)
+          n += my_count;
 #endif /* MYREAD */
     }
     debug(F101,"in_chk result","",n);
@@ -10418,29 +10427,29 @@ ttxin(n,buf) int n; CHAR *buf;
 #endif /* TTLEBUF */
     int fd;
 
-    if (n < 1)				/* Nothing to do */
+    if (n < 1)                          /* Nothing to do */
       return(0);
 
 #ifdef TTLEBUF
     if (ttpush >= 0) {
-        buf[0] = ttpush;		/* Put pushed char in buffer*/
-        ttpush = -1;			/* Clear the push buffer */
+        buf[0] = ttpush;                /* Put pushed char in buffer*/
+        ttpush = -1;                    /* Clear the push buffer */
         if (ttchk() > 0)
-	  return(ttxin(n-1, &buf[1]) + 1);
+          return(ttxin(n-1, &buf[1]) + 1);
         else
-	  return(1);
+          return(1);
     }
     if (le_data) {
         while (le_inbuf() > 0) {
-	    if (le_getchar(&buf[i])) {
+            if (le_getchar(&buf[i])) {
                 i++;
                 n--;
             }
         }
         if (ttchk() > 0)
-	  return(ttxin(n,&buf[i])+i);
+          return(ttxin(n,&buf[i])+i);
         else
-	  return(i);
+          return(i);
     }
 #endif /* TTLEBUF */
 
@@ -10452,29 +10461,29 @@ ttxin(n,buf) int n; CHAR *buf;
       fd = ttyfd;
 
 #ifdef SUNX25
-    if (netconn && (ttnet == NET_SX25))	/* X.25 connection */
+    if (netconn && (ttnet == NET_SX25)) /* X.25 connection */
       return(x25xin(n,buf));
 #endif /* SUNX25 */
 
 #ifdef IBMX25
     /* riehm: possibly not needed. Test worked with normal reads and writes */
-    if (netconn && (ttnet == NET_IX25))	{ /* X.25 connection */
-	x = x25xin(n,buf);
-	if (x > 0) buf[x] = '\0';
-	return(x);
+    if (netconn && (ttnet == NET_IX25)) { /* X.25 connection */
+        x = x25xin(n,buf);
+        if (x > 0) buf[x] = '\0';
+        return(x);
     }
 #endif /* IBMX25 */
 
 #ifdef MYREAD
     debug(F101,"ttxin MYREAD","",n);
     while (x < n) {
-	c = myread();
-	if (c < 0) {
-	    debug(F101,"ttxin myread returns","",c);
-	    if (c == -3) x = -1;
-	    break;
+        c = myread();
+        if (c < 0) {
+            debug(F101,"ttxin myread returns","",c);
+            if (c == -3) x = -1;
+            break;
         }
-	buf[x++] = c & ttpmsk;
+        buf[x++] = c & ttpmsk;
 #ifdef RLOGCODE
 #ifdef CK_KERBEROS
         /* It is impossible to know how many characters are waiting */
@@ -10483,24 +10492,24 @@ ttxin(n,buf) int n; CHAR *buf;
         /* can be greater or less than the number of bytes on the   */
         /* wire which is what ttchk() returns.                      */
         if (netconn && (ttnproto == NP_EK4LOGIN || ttnproto == NP_EK5LOGIN))
-	  if (ttchk() <= 0)
-	    break;
+          if (ttchk() <= 0)
+            break;
 #endif /* CK_KERBEROS */
 #endif /* RLOGCODE */
 #ifdef CK_SSL
         if (ssl_active_flag || tls_active_flag)
-	  if (ttchk() <= 0)
-	    break;
+          if (ttchk() <= 0)
+            break;
 #endif /* CK_SSL */
     }
 #else
     debug(F101,"ttxin READ","",n);
     x = read(fd,buf,n);
-    for (c = 0; c < n; c++)		/* Strip any parity */
+    for (c = 0; c < n; c++)             /* Strip any parity */
       buf[c] &= ttpmsk;
 #endif /* MYREAD */
 
-    debug(F101,"ttxin x","",x);		/* Done */
+    debug(F101,"ttxin x","",x);         /* Done */
     if (x > 0) buf[x] = '\0';
     if (x < 0) x = -1;
     return(x);
@@ -10518,8 +10527,8 @@ int nxpacket = 0;
 #endif /* CK_ENCRYPTION */
 
 #define TTOLMAXT 5
-#define TTOLWAITMS 10			/* Per-try wait, same budget as */
-					/* the msleep(10) it replaces.  */
+#define TTOLWAITMS 10                   /* Per-try wait, same budget as */
+                                        /* the msleep(10) it replaces.  */
 
 #ifdef SELECT
 /*
@@ -10563,18 +10572,18 @@ ttol(s,n) int n; CHAR *s;
 {
     int x, len, tries, fd;
 #ifdef CKXXCHAR
-    extern int dblflag;			/* For SET SEND DOUBLE-CHARACTER */
+    extern int dblflag;                 /* For SET SEND DOUBLE-CHARACTER */
     extern short dblt[];
     CHAR *p = NULL, *p2, *s2, c;
     int n2 = 0;
 #endif /* CKXXCHAR */
 
-    if (ttyfd < 0)			/* Not open? */
+    if (ttyfd < 0)                      /* Not open? */
       return(-3);
 #ifdef DEBUG
     if (deblog) {
-	/* debug(F101,"ttol ttyfd","",ttyfd); */
-	ckhexdump("ttol s",s,n);
+        /* debug(F101,"ttol ttyfd","",ttyfd); */
+        ckhexdump("ttol s",s,n);
     }
 #endif /* DEBUG */
 
@@ -10589,32 +10598,32 @@ ttol(s,n) int n; CHAR *s;
 /*  Double any characters that must be doubled.  */
     debug(F101,"ttol dblflag","",dblflag);
     if (dblflag) {
-	p = (CHAR *) malloc(n + n + 1);
-	if (p) {
-	    s2 = s;
-	    p2 = p;
-	    n2 = 0;
-	    while (*s2) {
-		c = *s2++;
-		*p2++ = c;
-		n2++;
-		if (dblt[(unsigned) c] & 2) {
-		    *p2++ = c;
-		    n2++;
-		}
-	    }
-	    s = p;
-	    n = n2;
-	    s[n] = '\0';
-	}
+        p = (CHAR *) malloc(n + n + 1);
+        if (p) {
+            s2 = s;
+            p2 = p;
+            n2 = 0;
+            while (*s2) {
+                c = *s2++;
+                *p2++ = c;
+                n2++;
+                if (dblt[(unsigned) c] & 2) {
+                    *p2++ = c;
+                    n2++;
+                }
+            }
+            s = p;
+            n = n2;
+            s[n] = '\0';
+        }
 #ifdef DEBUG
         ckhexdump("ttol doubled s",s,n);
 #endif /* DEBUG */
     }
 #endif /* CKXXCHAR */
 
-    tries = TTOLMAXT;			/* Allow up to this many tries */
-    len = n;				/* Remember original length */
+    tries = TTOLMAXT;                   /* Allow up to this many tries */
+    len = n;                            /* Remember original length */
 
 #ifdef CK_ENCRYPTION
 /*
@@ -10624,95 +10633,96 @@ ttol(s,n) int n; CHAR *s;
   fault.
 */
     if (TELOPT_ME(TELOPT_ENCRYPTION)) {
-	int x;
-	if (nxpacket < n) {
-	    if (xpacket) {
-		free(xpacket);
-		xpacket = NULL;
-		nxpacket = 0;
-	    }
-	    x = n > 10240 ? n : 10240;
-	    xpacket = (CHAR *)malloc(x);
-	    if (!xpacket) {
-		fprintf(stderr,"ttol malloc failure\n");
-		return(-1);
-	    } else
-	      nxpacket = x;
-	}
-	memcpy((char *)xpacket,(char *)s,n);
-	s = xpacket;
-	ck_tn_encrypt((char *)s,n);
+        int x;
+        if (nxpacket < n) {
+            if (xpacket) {
+                free(xpacket);
+                xpacket = NULL;
+                nxpacket = 0;
+            }
+            x = n > 10240 ? n : 10240;
+            xpacket = (CHAR *)malloc(x);
+            if (!xpacket) {
+                fprintf(stderr,"ttol malloc failure\n");
+                return(-1);
+            } else
+              nxpacket = x;
+        }
+        memcpy((char *)xpacket,(char *)s,n);
+        s = xpacket;
+        ck_tn_encrypt((char *)s,n);
     }
 #endif /* CK_ENCRYPTION */
 
     while (n > 0 &&
-	   (tries-- > 0
+           (tries-- > 0
 #ifdef CK_ENCRYPTION
-	    /* keep trying if we are encrypting */
-	    || TELOPT_ME(TELOPT_ENCRYPTION)
+            /* keep trying if we are encrypting */
+            || TELOPT_ME(TELOPT_ENCRYPTION)
 #endif /* CK_ENCRYPTION */
-            )) {			/* Be persistent */
-	debug(F101,"ttol try","",TTOLMAXT - tries);
+            )) {                        /* Be persistent */
+        debug(F101,"ttol try","",TTOLMAXT - tries);
 #ifdef BEOSORBEBOX
         if (netconn && !ttpipe && !ttpty)
-	  x = nettol((char *)s,n);	/* Write string to device */
+          x = nettol((char *)s,n);      /* Write string to device */
         else
 #endif /* BEOSORBEBOX */
 #ifdef IBMX25
-	  if (ttnet == NET_IX25)
-	    /*
-	     * this is a more controlled way of writing to X25
-	     * STREAMS, however write should also work!
-	     */
-	    x = x25write(ttyfd, s, n);
-	  else
+          if (ttnet == NET_IX25)
+            /*
+             * this is a more controlled way of writing to X25
+             * STREAMS, however write should also work!
+             */
+            x = x25write(ttyfd, s, n);
+          else
 #endif /* IBMX25 */
 #ifdef CK_SSL
-	    if (ssl_active_flag || tls_active_flag) {
-		int error;
-		/* Write using SSL */
+            if (ssl_active_flag || tls_active_flag) {
+                int error;
+                /* Write using SSL */
                 ssl_retry:
-		if (ssl_active_flag)
+                if (ssl_active_flag)
                   x = SSL_write(ssl_con, s, n);
-		else
+                else
                   x = SSL_write(tls_con, s, n);
-		switch (SSL_get_error(ssl_active_flag?ssl_con:tls_con,x)) {
+                switch (SSL_get_error(ssl_active_flag?ssl_con:tls_con,x)) {
                 case SSL_ERROR_NONE:
                     if (x == n)
-		      return(len);
+                      return(len);
                     s += x;
                     n -= x;
                     goto ssl_retry;
-		  case SSL_ERROR_WANT_WRITE:
+                  case SSL_ERROR_WANT_WRITE:
 #ifdef SELECT
-		    ttolwait(fd,0,TTOLWAITMS);
+                    ttolwait(fd,0,TTOLWAITMS);
 #endif /* SELECT */
-		    x = 0;
-		    break;
-		  case SSL_ERROR_WANT_READ:
+                    x = 0;
+                    break;
+                  case SSL_ERROR_WANT_READ:
 #ifdef SELECT
-		    ttolwait(fd,1,TTOLWAITMS);
+                    ttolwait(fd,1,TTOLWAITMS);
 #endif /* SELECT */
-		    x = 0;
-		    break;
-		  case SSL_ERROR_SYSCALL:
+                    x = 0;
+                    break;
+                  case SSL_ERROR_SYSCALL:
                     if (x != 0)
-		      return(-1);
-		  case SSL_ERROR_WANT_X509_LOOKUP:
-		  case SSL_ERROR_SSL:
-		  case SSL_ERROR_ZERO_RETURN:
-		  default:
-		    ttclos(0);
-		    return(-3);
-		}
-	    } else
+                      return(-1);
+                    /* Fall through */
+                  case SSL_ERROR_WANT_X509_LOOKUP:
+                  case SSL_ERROR_SSL:
+                  case SSL_ERROR_ZERO_RETURN:
+                  default:
+                    ttclos(0);
+                    return(-3);
+                }
+            } else
 #endif /* CK_SSL */
 #ifdef CK_KERBEROS
 #ifdef KRB4
 #ifdef RLOGCODE
-	    if (ttnproto == NP_EK4LOGIN) {
-		return(krb4_des_write(ttyfd,s,n));
-	    } else
+            if (ttnproto == NP_EK4LOGIN) {
+                return(krb4_des_write(ttyfd,s,n));
+            } else
 #endif /* RLOGCODE */
 #endif /* KRB4 */
 #ifdef KRB5
@@ -10728,18 +10738,18 @@ ttol(s,n) int n; CHAR *s;
 #endif /* KRB5_U2U */
 #endif /* KRB5 */
 #endif /* CK_KERBEROS */
-	      x = write(fd,s,n);	/* Write string to device */
+              x = write(fd,s,n);        /* Write string to device */
 
-	if (x == n) {			/* Worked? */
-	    debug(F101,"ttol ok","",x);	/* OK */
+        if (x == n) {                   /* Worked? */
+            debug(F101,"ttol ok","",x); /* OK */
 #ifdef CKXXCHAR
-	    if (p) free(p);
+            if (p) free(p);
 #endif /* CKXXCHAR */
-	    return(len);		/* Done */
-	} else if (x < 0) {		/* No, got error? */
-	    debug(F101,"ttol write error","",errno);
+            return(len);                /* Done */
+        } else if (x < 0) {             /* No, got error? */
+            debug(F101,"ttol write error","",errno);
 #ifdef EINTR
-	    if (errno == EINTR) {
+            if (errno == EINTR) {
                 /*
                 A signal interrupted write() before it transferred any data.
                 Like ttinl()'s read side, EINTR says nothing about the
@@ -10750,48 +10760,48 @@ ttol(s,n) int n; CHAR *s;
                 any of the limited (TTOLMAXT) retry budget real write failures
                 get.
                 */
-		tries++;
-		continue;
-	    }
+                tries++;
+                continue;
+            }
 #endif /* EINTR */
 #ifdef EWOULDBLOCK
-	    if (errno == EWOULDBLOCK) {
+            if (errno == EWOULDBLOCK) {
 #ifdef SELECT
-		ttolwait(fd,0,TTOLWAITMS);
+                ttolwait(fd,0,TTOLWAITMS);
 #else /* SELECT */
-		msleep(10);
+                msleep(10);
 #endif /* SELECT */
-		continue;
-	    } else
+                continue;
+            } else
 #endif /* EWOULDBLOCK */
 #ifdef TCPSOCKET
-	    if (netconn && ttnet == NET_TCPB) {
-		debug(F101,"ttol TCP error","",errno);
-		ttclos(0);		/* Close the connection. */
-		x = -3;
-	    }
+            if (netconn && ttnet == NET_TCPB) {
+                debug(F101,"ttol TCP error","",errno);
+                ttclos(0);              /* Close the connection. */
+                x = -3;
+            }
 #endif /* TCPSOCKET */
 #ifdef CKXXCHAR
-	    if (p) free(p);
+            if (p) free(p);
 #endif /* CKXXCHAR */
-	    return(x);
-	} else {			/* No error, so partial success */
-	    debug(F101,"ttol partial","",x); /* This never happens */
-	    s += x;			/* Point to part not written yet */
-	    n -= x;			/* Adjust length */
-	    if (x > 0) {
+            return(x);
+        } else {                        /* No error, so partial success */
+            debug(F101,"ttol partial","",x); /* This never happens */
+            s += x;                     /* Point to part not written yet */
+            n -= x;                     /* Adjust length */
+            if (x > 0) {
 #ifdef SELECT
-		ttolwait(fd,0,TTOLWAITMS);
+                ttolwait(fd,0,TTOLWAITMS);
 #else /* SELECT */
-		msleep(10);
+                msleep(10);
 #endif /* SELECT */
-	    }
-	}				/* Go back and try again */
+            }
+        }                               /* Go back and try again */
     }
 #ifdef CKXXCHAR
     if (p) free(p);
 #endif /* CKXXCHAR */
-    return(n < 1 ? len : -1);		/* Return the results */
+    return(n < 1 ? len : -1);           /* Return the results */
 }
 
 /*  T T O C  --  Output a character to the communication line  */
@@ -10808,118 +10818,119 @@ ttoc(char c)
 ttoc(c) char c;
 #endif /* CK_ANSIC */
 /* ttoc */ {
-#define TTOC_TMO 15			/* Timeout in case we get stuck */
-    int xx, fd;
+#define TTOC_TMO 15                     /* Timeout in case we get stuck */
+    int xx;
 
-    if (ttyfd < 0)			/* Check for not open. */
+    if (ttyfd < 0)                      /* Check for not open. */
       return(-1);
-
-#ifdef NETCMD
-    if (ttpipe)
-      fd = fdout;
-    else
-#endif /* NETCMD */
-      fd = ttyfd;
 
     c &= 0xff;
     /* debug(F101,"ttoc","",(CHAR) c); */
-    saval = signal(SIGALRM,timerh);	/* Enable timer interrupt */
-    xx = alarm(TTOC_TMO);		/* for this many seconds. */
-    if (xx < 0) xx = 0;			/* Save old alarm value. */
+    saval = signal(SIGALRM,timerh);     /* Enable timer interrupt */
+    xx = alarm(TTOC_TMO);               /* for this many seconds. */
+    if (xx < 0) xx = 0;                 /* Save old alarm value. */
     /* debug(F101,"ttoc alarm","",xx); */
     if (
 #ifdef CK_POSIX_SIG
-	sigsetjmp(sjbuf,1)
+        sigsetjmp(sjbuf,1)
 #else
-	setjmp(sjbuf)
+        setjmp(sjbuf)
 #endif /* CK_POSIX_SIG */
-	) {		/* Timer went off? */
-	ttimoff();			/* Yes, cancel this alarm. */
-	if (xx - TTOC_TMO > 0) alarm(xx - TTOC_TMO); /* Restore previous one */
+        ) {             /* Timer went off? */
+        ttimoff();                      /* Yes, cancel this alarm. */
+        if (xx - TTOC_TMO > 0) alarm(xx - TTOC_TMO); /* Restore previous one */
         /* debug(F100,"ttoc timeout","",0); */
 #ifdef NETCONN
-	if (!netconn) {
+        if (!netconn) {
 #endif /* NETCONN */
-	    debug(F101,"ttoc timeout","",c);
-	    if (ttflow == FLO_XONX) {
-		debug(F101,"ttoc flow","",ttflow); /* Maybe we're xoff'd */
+            debug(F101,"ttoc timeout","",c);
+            if (ttflow == FLO_XONX) {
+                debug(F101,"ttoc flow","",ttflow); /* Maybe we're xoff'd */
 #ifndef Plan9
 #ifdef POSIX
-		/* POSIX way to unstick. */
-		debug(F100,"ttoc tcflow","",tcflow(ttyfd,TCOON));
+                /* POSIX way to unstick. */
+                debug(F100,"ttoc tcflow","",tcflow(ttyfd,TCOON));
 #else
-#ifdef BSD4				/* Berkeley way to do it. */
+#ifdef BSD4                             /* Berkeley way to do it. */
 #ifdef TIOCSTART
 /* .... Used to be "ioctl(ttyfd, TIOCSTART, 0);".  Who knows? */
-		{
-		  int x = 0;
-		  debug(F101,"ttoc TIOCSTART","",ioctl(ttyfd, TIOCSTART, &x));
-		}
+                {
+                  int x = 0;
+                  debug(F101,"ttoc TIOCSTART","",ioctl(ttyfd, TIOCSTART, &x));
+                }
 #endif /* TIOCSTART */
 #endif /* BSD4 */
-					/* Is there a Sys V way to do this? */
+                                        /* Is there a Sys V way to do this? */
 #endif /* POSIX */
 #endif /* Plan9 */
-	    }
+            }
 #ifdef NETCONN
         }
 #endif /* NETCONN */
-	return(-1);			/* Return failure code. */
+        return(-1);                     /* Return failure code. */
     } else {
         int rc;
+        int fd;                        /* Only needed by the plain write() */
+#ifdef NETCMD                          /* fallback below */
+        if (ttpipe)
+          fd = fdout;
+        else
+#endif /* NETCMD */
+          fd = ttyfd;
 #ifdef BEOSORBEBOX
 #ifdef NETCONN
         if (netconn && !ttpipe && !ttpty)
-	  rc = nettoc(c);
+          rc = nettoc(c);
         else
 #endif /*  BEOSORBEBOX */
 #endif /* NETCONN */
 #ifdef CK_ENCRYPTION
-	  if (TELOPT_ME(TELOPT_ENCRYPTION))
-	    ck_tn_encrypt(&c,1);
+          if (TELOPT_ME(TELOPT_ENCRYPTION))
+            ck_tn_encrypt(&c,1);
 #endif /* CK_ENCRYPTION */
 #ifdef IBMX25
-	/* riehm: maybe this isn't necessary after all. Test program
-	 * worked fine with data being sent and retrieved with normal
-	 * read's and writes!
-	 */
-	if (ttnet == NET_IX25)
-	  rc = x25write(ttyfd,&c,1); /* as above for X25 streams */
-	else
+        /* riehm: maybe this isn't necessary after all. Test program
+         * worked fine with data being sent and retrieved with normal
+         * read's and writes!
+         */
+        if (ttnet == NET_IX25)
+          rc = x25write(ttyfd,&c,1); /* as above for X25 streams */
+        else
 #endif /* IBMX25 */
 #ifdef CK_SSL
-	  if (ssl_active_flag || tls_active_flag) {
-	      int error;
-	      /* Write using SSL */
-	      if (ssl_active_flag)
+          if (ssl_active_flag || tls_active_flag) {
+              int error;
+              /* Write using SSL */
+              if (ssl_active_flag)
                 rc = SSL_write(ssl_con, &c, 1);
-	      else
+              else
                 rc = SSL_write(tls_con, &c, 1);
-	      switch (SSL_get_error(ssl_active_flag?ssl_con:tls_con,rc)){
-		case SSL_ERROR_NONE:
-		  break;
-		case SSL_ERROR_WANT_WRITE:
-		case SSL_ERROR_WANT_READ:
-		  rc = 0;
-		  break;
-		case SSL_ERROR_SYSCALL:
-		  if (rc != 0)
-		    return(-1);
-		case SSL_ERROR_WANT_X509_LOOKUP:
-		case SSL_ERROR_SSL:
-		case SSL_ERROR_ZERO_RETURN:
-		default:
-		  ttclos(0);
-		  return(-1);
-	      }
-	  } else
+              switch (SSL_get_error(ssl_active_flag?ssl_con:tls_con,rc)){
+                case SSL_ERROR_NONE:
+                  break;
+                case SSL_ERROR_WANT_WRITE:
+                case SSL_ERROR_WANT_READ:
+                  rc = 0;
+                  break;
+                case SSL_ERROR_SYSCALL:
+                  if (rc != 0)
+                    return(-1);
+                  /* Fall through */
+                case SSL_ERROR_WANT_X509_LOOKUP:
+                case SSL_ERROR_SSL:
+                case SSL_ERROR_ZERO_RETURN:
+                default:
+                  ttclos(0);
+                  return(-1);
+              }
+          } else
 #endif /* CK_SSL */
 #ifdef CK_KERBEROS
 #ifdef KRB4
 #ifdef RLOGCODE
-	  if (ttnproto == NP_EK4LOGIN) {
-	      rc = (krb4_des_write(ttyfd,(char *)&c,1) == 1);
-	  } else
+          if (ttnproto == NP_EK4LOGIN) {
+              rc = (krb4_des_write(ttyfd,(char *)&c,1) == 1);
+          } else
 #endif /* RLOGCODE */
 #endif /* KRB4 */
 #ifdef KRB5
@@ -10935,17 +10946,17 @@ ttoc(c) char c;
 #endif /* KRB5_U2U */
 #endif /* KRB5 */
 #endif /* CK_KERBEROS */
-	    rc = write(fd,&c,1);	/* Try to write the character. */
-	if (rc < 1) {			/* Failed */
-	    ttimoff();			/* Turn off the alarm. */
-	    alarm(xx);			/* Restore previous alarm. */
-	    debug(F101,"ttoc errno","",errno); /* Log the error, */
-	    return(-1);			/* and return the error code. */
-	}
+            rc = write(fd,&c,1);        /* Try to write the character. */
+        if (rc < 1) {                   /* Failed */
+            ttimoff();                  /* Turn off the alarm. */
+            alarm(xx);                  /* Restore previous alarm. */
+            debug(F101,"ttoc errno","",errno); /* Log the error, */
+            return(-1);                 /* and return the error code. */
+        }
     }
-    ttimoff();				/* Success, turn off the alarm. */
-    alarm(xx);				/* Restore previous alarm. */
-    return(0);				/* Return good code. */
+    ttimoff();                          /* Success, turn off the alarm. */
+    alarm(xx);                          /* Restore previous alarm. */
+    return(0);                          /* Return good code. */
 }
 
 /*  T T I N L  --  Read a record (up to break character) from comm line.  */
@@ -10998,13 +11009,14 @@ static int pushedback = 0;
 int
 #ifdef PARSENSE
 #ifdef CK_ANSIC
-ttinl(CHAR *dest, int max,int timo, CHAR eol, CHAR start, int turn)
+ttinl(CHAR *dest, int max, volatile int timo, CHAR eol, volatile CHAR start,
+      int turn)
 #else
 ttinl(dest,max,timo,eol,start,turn) int max,timo,turn; CHAR *dest, eol, start;
 #endif /* CK_ANSIC */
 #else /* not PARSENSE */
 #ifdef CK_ANSIC
-ttinl(CHAR *dest, int max,int timo, CHAR eol)
+ttinl(CHAR *dest, int max, volatile int timo, CHAR eol)
 #else
 ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
 #endif /* CK_ANSIC */
@@ -11020,9 +11032,9 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
     int havelen = 0;
 #endif /* PARSENSE */
     int fd;
-    int sopmask = 0xff;			/* Start-Of-Packet mask */
+    int sopmask = 0xff;                 /* Start-Of-Packet mask */
 #ifdef CKXXCHAR
-    extern short dblt[];		/* Ignore-character table */
+    extern short dblt[];                /* Ignore-character table */
     extern int ignflag;
 #endif /* CKXXCHAR */
 #ifdef TCPSOCKET
@@ -11057,37 +11069,37 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
       fd = ttyfd;
 
     *dest = '\0';                       /* Clear destination buffer */
-    if (timo < 0) timo = 0;		/* Safety */
-    if (timo) {				/* Don't time out if timo == 0 */
-	int xx;
-	saval = signal(SIGALRM,timerh);	/* Enable timer interrupt */
-	xx = alarm(timo);		/* Set it. */
-	debug(F101,"ttinl alarm","",xx);
+    if (timo < 0) timo = 0;             /* Safety */
+    if (timo) {                         /* Don't time out if timo == 0 */
+        int xx;
+        saval = signal(SIGALRM,timerh); /* Enable timer interrupt */
+        xx = alarm(timo);               /* Set it. */
+        debug(F101,"ttinl alarm","",xx);
     }
     if (
 #ifdef CK_POSIX_SIG
-	sigsetjmp(sjbuf,1)
+        sigsetjmp(sjbuf,1)
 #else
-	setjmp(sjbuf)
+        setjmp(sjbuf)
 #endif /* CK_POSIX_SIG */
-	) {				/* Timer went off? */
-	debug(F100,"ttinl timout","",0); /* Get here on timeout. */
-	/* debug(F110," with",(char *) dest,0); */
-	ttimoff();			/* Turn off timer */
-	return(-1);			/* and return error code. */
+        ) {                             /* Timer went off? */
+        debug(F100,"ttinl timout","",0); /* Get here on timeout. */
+        /* debug(F110," with",(char *) dest,0); */
+        ttimoff();                      /* Turn off timer */
+        return(-1);                     /* and return error code. */
     } else {
-	register int i, n = -1;		/* local variables */
-	int ccn = 0;
+        register int i, n = -1;         /* local variables */
+        int ccn = 0;
 #ifdef VICTOR9K
-	int v9k_bulk_ok;		/* Edit 18: is the bulk arm allowed? */
+        int v9k_bulk_ok;                /* Edit 18: is the bulk arm allowed? */
 #endif /* VICTOR9K */
 #ifdef PARSENSE
-	register int flag = 0;
-	debug(F000,"ttinl start","",start);
+        register int flag = 0;
+        debug(F000,"ttinl start","",start);
 #endif /* PARSENSE */
 
-	ttpmsk = ttprty ? 0177 : 0377;	/* Set parity stripping mask. */
-	sopmask = needpchk ? 0177 : ttpmsk; /* And SOP matching mask. */
+        ttpmsk = ttprty ? 0177 : 0377;  /* Set parity stripping mask. */
+        sopmask = needpchk ? 0177 : ttpmsk; /* And SOP matching mask. */
 
 #ifdef VICTOR9K
 /*
@@ -11095,107 +11107,105 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
   and v9k/proofs/vttinl.c for the equivalence argument.  The gate is read
   once here because neither term can change while the loop runs.
 */
-	v9k_bulk_ok = v9k_bulkin && (ttpmsk == 0377) && !(!xlocal && xfrcan);
+        v9k_bulk_ok = v9k_bulkin && (ttpmsk == 0377) && !(!xlocal && xfrcan);
 #endif /* VICTOR9K */
 
 /* Now read into destination, stripping parity and looking for the */
 /* the packet terminator, and also for several Ctrl-C's typed in a row. */
 
-	i = 0;				/* Destination index */
-	debug(F101,"ttinl eol","",eol);
+        i = 0;                          /* Destination index */
+        debug(F101,"ttinl eol","",eol);
 
-	while (i < max-1) {
+        while (i < max-1) {
 #ifdef MYREAD
-	    errno = 0;
-	    /* On encrypted connections myread returns encrypted bytes */
-	    n = myread();
-	    debug(F000,"TTINL myread char","",n);
-	    if (n < 0) {	/* Timeout or i/o error? */
+            errno = 0;
+            /* On encrypted connections myread returns encrypted bytes */
+            n = myread();
+            if (n < 0) {        /* Timeout or i/o error? */
 #ifdef DEBUG
-		if (deblog) {
-		    debug(F101,"ttinl myread failure, n","",n);
-		    debug(F101,"ttinl myread errno","",errno);
-		}
+                if (deblog) {
+                    debug(F101,"ttinl myread failure, n","",n);
+                    debug(F101,"ttinl myread errno","",errno);
+                }
 #endif /* DEBUG */
-		/*
-		  EINTR means a signal interrupted the blocking read.  It says
-		  nothing about the connection's health, so we must retry the
-		  read.
+                /*
+                  EINTR means a signal interrupted the blocking read.  It says
+                  nothing about the connection's health, so we must retry the
+                  read.
 
-		  The outer alarm set above this loop still bounds how long
-		  these retries can go on for, so a dead connection times out
-		  instead of retrying forever.
-		*/
-		if (n == -3) {
-		    if (errno == EINTR) {
-			debug(F111,"ttinl EINTR myread i","continuing",i);
-			continue;
-		    } else {
-			debug(F110,"ttinl non-EINTR -3","closing",0);
-			wasclosed = 1;
-			ttimoff();	/* Turn off timer */
-			ttclos(0);
-			return(n);
-		    }
-		} else if (n == -2 && netconn /* && timo == 0 */ ) {
-		    /* Here we try to catch broken network connections */
-		    /* even when ioctl() and read() do not catch them */
-		    debug(F111,"ttinl network myread failure","closing",n);
-		    wasclosed = 1;
-		    ttimoff();
-		    ttclos(0);
-		    return(-3);
-		}
+                  The outer alarm set above this loop still bounds how long
+                  these retries can go on for, so a dead connection times out
+                  instead of retrying forever.
+                */
+                if (n == -3) {
+                    if (errno == EINTR) {
+                        debug(F111,"ttinl EINTR myread i","continuing",i);
+                        continue;
+                    } else {
+                        debug(F110,"ttinl non-EINTR -3","closing",0);
+                        wasclosed = 1;
+                        ttimoff();      /* Turn off timer */
+                        ttclos(0);
+                        return(n);
+                    }
+                } else if (n == -2 && netconn /* && timo == 0 */ ) {
+                    /* Here we try to catch broken network connections */
+                    /* even when ioctl() and read() do not catch them */
+                    debug(F111,"ttinl network myread failure","closing",n);
+                    wasclosed = 1;
+                    ttimoff();
+                    ttclos(0);
+                    return(-3);
+                }
 #ifdef STREAMING
-		/* Streaming and no data to read */
-		else if (n == 0 && streaming && sndtyp == 'D')
-		  return(0);
+                /* Streaming and no data to read */
+                else if (n == 0 && streaming && sndtyp == 'D')
+                  return(0);
 #endif /* STREAMING */
-		break;			/* Break out of while loop */
-	    }
+                break;                  /* Break out of while loop */
+            }
 
 #else /* not MYREAD (is this code used anywhere any more?) */
 /*
   The non-MYREAD code dates from the 1980s and was needed on certain platforms
   where there were no nonblocking reads.  -fdc, 2007/02/22.
 */
-	    if ((n = read(fd, &n, 1)) < 1)
-	      break;			/* Error - break out of while loop */
+            if ((n = read(fd, &n, 1)) < 1)
+              break;                    /* Error - break out of while loop */
 
 #endif /* MYREAD */
 
-	    /* Get here with char in n */
+            /* Get here with char in n */
 
 #ifdef CK_ENCRYPTION
-	    if (TELOPT_U(TELOPT_ENCRYPTION) && !pushedback) {
-		CHAR ch = n;
-		ck_tn_decrypt((char *)&ch,1);
-		n = ch;
-		debug(F000,"TTINL decryp char","",n);
-	    }
-	    pushedback = 0;
+            if (TELOPT_U(TELOPT_ENCRYPTION) && !pushedback) {
+                CHAR ch = n;
+                ck_tn_decrypt((char *)&ch,1);
+                n = ch;
+            }
+            pushedback = 0;
 #endif /* CK_ENCRYPTION */
 
 #ifdef TCPSOCKET
-	    if (n == IAC &&		/* Handle Telnet options */
-		((xlocal && netconn && IS_TELNET()) ||
-		(!xlocal && sstelnet))) {
-		n = tt_tnopt(n);
-		if (n < 0)
-		  return(n);
+            if (n == IAC &&             /* Handle Telnet options */
+                ((xlocal && netconn && IS_TELNET()) ||
+                (!xlocal && sstelnet))) {
+                n = tt_tnopt(n);
+                if (n < 0)
+                  return(n);
 #ifndef NOPARSEN
-		else if (n == 1)
-		  start = stchr;
+                else if (n == 1)
+                  start = stchr;
 #endif /* NOPARSEN */
-		if (n != 255)		/* No data - go back for next char */
-		  continue;
-	    }				/* Quoted IAC - keep going */
+                if (n != 255)           /* No data - go back for next char */
+                  continue;
+            }                           /* Quoted IAC - keep going */
 #endif /* TCPSOCKET */
 
 #ifdef CKXXCHAR
-	    if (ignflag)
-	      if (dblt[(unsigned) n] & 1) /* Character to ignore? */
-		continue;
+            if (ignflag)
+              if (dblt[(unsigned) n] & 1) /* Character to ignore? */
+                continue;
 #endif /* CKXXCHAR */
 /*
   Use parity mask, rather than always stripping parity, to check for
@@ -11203,38 +11213,38 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
   the transfer when parity is NONE.  (Note that \x03\x03\x03 is extremely
   unlikely due to run-length encoding.)
 */
-	    /* Check cancellation */
-	    if (!xlocal && xfrcan && ((n & ttpmsk) == xfrchr)) {
-		if (++ccn >= xfrnum) {	/* If xfrnum in a row, bail out. */
-		    if (timo) {		/* Clear timer. */
-			ttimoff();
-		    }
-		    if (xfrchr < 32)
-		      printf("^%c...\r\n",(char)(xfrchr+64));
-		    else
-		      printf("Canceled...\r\n");
-		    return(-2);
-		}
-	    } else ccn = 0;		/* No cancellation, reset counter, */
+            /* Check cancellation */
+            if (!xlocal && xfrcan && ((n & ttpmsk) == xfrchr)) {
+                if (++ccn >= xfrnum) {  /* If xfrnum in a row, bail out. */
+                    if (timo) {         /* Clear timer. */
+                        ttimoff();
+                    }
+                    if (xfrchr < 32)
+                      printf("^%c...\r\n",(char)(xfrchr+64));
+                    else
+                      printf("Canceled...\r\n");
+                    return(-2);
+                }
+            } else ccn = 0;             /* No cancellation, reset counter, */
 
 #ifdef PARSENSE
 /*
   Restructured code allows for a new packet to appear somewhere in the
   middle of a previous one.  -fdc, 24 Feb 2007.
 */
-	    if ((n & sopmask) == start) { /* Start of Packet */
-		debug(F101,"ttinl SOP i","",i);
-		flag = 1;		/* Flag that we are in a packet */
-		havelen = 0;		/* Invalidate previous length */
-		pktlen = -1;		/* (if any) in case we were */
-		lplen = 0;		/* alread processand a packet */
-		i = 0;			/* and reset the dest buffer pointer */
-	    }
-	    if (flag == 0) {		/* No SOP yet... */
-		debug(F000,"ttinl skipping","",n);
-		continue;
-	    }
-	    dest[i++] = n & ttpmsk;
+            if ((n & sopmask) == start) { /* Start of Packet */
+                debug(F101,"ttinl SOP i","",i);
+                flag = 1;               /* Flag that we are in a packet */
+                havelen = 0;            /* Invalidate previous length */
+                pktlen = -1;            /* (if any) in case we were */
+                lplen = 0;              /* alread processand a packet */
+                i = 0;                  /* and reset the dest buffer pointer */
+            }
+            if (flag == 0) {            /* No SOP yet... */
+                debug(F000,"ttinl skipping","",n);
+                continue;
+            }
+            dest[i++] = n & ttpmsk;
 /*
   If we have not been instructed to wait for a turnaround character, we can go
   by the packet length field.  If turn != 0, we must wait for the end of line
@@ -11243,25 +11253,25 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
   by the length field but also look for the eol in case it arrives early,
   e.g. if the length field was corrupted upwards.)
 */
-	    if (!havelen) {
-		if (i == 2) {
-		    if ((dest[1] & 0x7f) < 32) /* Garbage in length field */
-		      return(-1);	/* fdc - 13 Apr 2010 */
-		    pktlen = xunchar(dest[1] & 0x7f);
-                    if (pktlen > 94)	/* Rubout in length field */
-		      return(-1);	/* fdc - 13 Apr 2010 */
-		    if (pktlen > 1) {
-			havelen = 1;
-			debug(F101,"ttinl pktlen value","",pktlen);
-		    }
-		} else if (i == 5 && pktlen == 0) {
-		    lplen = xunchar(dest[4] & 0x7f);
-		} else if (i == 6 && pktlen == 0) {
-		    pktlen = lplen * 95 + xunchar(dest[5] & 0x7f) + 5;
-		    havelen = 1;
-		    debug(F101,"ttinl extended length","",pktlen);
-		}
-	    }
+            if (!havelen) {
+                if (i == 2) {
+                    if ((dest[1] & 0x7f) < 32) /* Garbage in length field */
+                      return(-1);       /* fdc - 13 Apr 2010 */
+                    pktlen = xunchar(dest[1] & 0x7f);
+                    if (pktlen > 94)    /* Rubout in length field */
+                      return(-1);       /* fdc - 13 Apr 2010 */
+                    if (pktlen > 1) {
+                        havelen = 1;
+                        debug(F101,"ttinl pktlen value","",pktlen);
+                    }
+                } else if (i == 5 && pktlen == 0) {
+                    lplen = xunchar(dest[4] & 0x7f);
+                } else if (i == 6 && pktlen == 0) {
+                    pktlen = lplen * 95 + xunchar(dest[5] & 0x7f) + 5;
+                    havelen = 1;
+                    debug(F101,"ttinl extended length","",pktlen);
+                }
+            }
 
 /*
   Suppose we looked at the sequence number here and found it was out of
@@ -11289,55 +11299,55 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
       do it that way...  But note that we must ignore the parity bit
       in case this is the first packet and we have not yet run parchk().
 */
-	    if (i == 3) {		/* Peek at sequence number */
-		x = xunchar((dest[i-1] & 0x7f)); /* If it's not in range... */
-		if (x < 0 || x > 63) {
-		    debug(F111,"ttinl bad seq",dest,x);
-		    if (timo) ttimoff();
-		    return(-1);		/* return a nonfatal error */
-		}
-	    }
+            if (i == 3) {               /* Peek at sequence number */
+                x = xunchar((dest[i-1] & 0x7f)); /* If it's not in range... */
+                if (x < 0 || x > 63) {
+                    debug(F111,"ttinl bad seq",dest,x);
+                    if (timo) ttimoff();
+                    return(-1);         /* return a nonfatal error */
+                }
+            }
 
 #else /* PARSENSE */
-	    dest[i++] = n & ttpmsk;
+            dest[i++] = n & ttpmsk;
 #endif /* PARSENSE */
 
     /* Check for end of packet */
 
-	    if (
-		((n & ttpmsk) == eol)	/* Always break on the eol char */
+            if (
+                ((n & ttpmsk) == eol)   /* Always break on the eol char */
 #ifdef PARSENSE
-		 ||			/* fdc - see notes of 13 Apr 2010 */
+                 ||                     /* fdc - see notes of 13 Apr 2010 */
 /*
   Purely length-driven if SET HANDSHAKE NONE (i.e. turn == 0).
   This allows packet terminators and handshake characters to appear
   literally inside a packet data field.
 */
-		(havelen && (i > pktlen+1) &&
-		 (!turn || (turn && (n & 0x7f) == turn))) /* (turn, not eol) */
+                (havelen && (i > pktlen+1) &&
+                 (!turn || (turn && (n & 0x7f) == turn))) /* (turn, not eol) */
 
 #endif /* PARSENSE */
-		) {
+                ) {
 /*
   Here we have either read the last byte of the packet based on its length
   field, or else we have read the packet terminator (eol) or the half-duplex
   line-turnaround char (turn).
 */
 #ifndef PARSENSE
-		debug(F101,"ttinl got eol","",eol); /* (or turn) */
-		dest[i] = '\0';		/* Yes, terminate the string, */
-		/* debug(F101,"ttinl i","",i); */
+                debug(F101,"ttinl got eol","",eol); /* (or turn) */
+                dest[i] = '\0';         /* Yes, terminate the string, */
+                /* debug(F101,"ttinl i","",i); */
 
 #else  /* PARSENSE */
 
 #ifdef DEBUG
-		if (deblog) {
-		    if ((n & ttpmsk) != eol) {
-			debug(F101,"ttinl EOP length","",pktlen);
-			debug(F000,"ttinl EOP current char","",n);
-			debug(F101,"ttinl EOP packet buf index","",i);
-		    } else debug(F101,"ttinl got eol","",eol);
-		}
+                if (deblog) {
+                    if ((n & ttpmsk) != eol) {
+                        debug(F101,"ttinl EOP length","",pktlen);
+                        debug(F000,"ttinl EOP current char","",n);
+                        debug(F101,"ttinl EOP packet buf index","",i);
+                    } else debug(F101,"ttinl got eol","",eol);
+                }
 #endif /* DEBUG */
 
 #ifdef MYREAD
@@ -11352,66 +11362,66 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
   and (b) actually work.  -fdc, 2007/02/22.  And again 2007/08/12-13 to also
   work on encrypted connections.
 */
-		debug(F101,"TTINL my_count","",my_count);
-		if ((n & ttpmsk) != eol) { /* Not the packet terminator */
-		    int x;
-		    while (my_count > 0) {
-			x = myread();	   /* (was ttinc(0) */
-			debug(F000,"TTINL lkread char","",x);
+                debug(F101,"TTINL my_count","",my_count);
+                if ((n & ttpmsk) != eol) { /* Not the packet terminator */
+                    int x;
+                    while (my_count > 0) {
+                        x = myread();      /* (was ttinc(0) */
+                        debug(F000,"TTINL lkread char","",x);
 #ifdef CK_ENCRYPTION
-			if (TELOPT_U(TELOPT_ENCRYPTION)) {
-			    CHAR ch = x;
-			    ck_tn_decrypt((char *)&ch,1);
-			    x = ch;
-			    debug(F000,"TTINL lkdecr char","",x);
-			}
-#endif	/* CK_ENCRYPTION */
-			/*
-			  Note: while it might seem more elegant to simply
-			  push back the encrypted byte, that desynchronizes
-			  the decryption stream; the flag is necessary so we
-			  don't try to decrypt the same byte twice.
-			*/
-			if ((x & ttpmsk) == start) { /* Start of next packet */
-			    myunrd(x);	/* Push back the decrypted byte */
-			    pushedback = 1; /* And set flag */
-			    debug(F000,"TTINL lkpush char","",x);
-			    break;
-			}
-		    }
-		}
+                        if (TELOPT_U(TELOPT_ENCRYPTION)) {
+                            CHAR ch = x;
+                            ck_tn_decrypt((char *)&ch,1);
+                            x = ch;
+                            debug(F000,"TTINL lkdecr char","",x);
+                        }
+#endif  /* CK_ENCRYPTION */
+                        /*
+                          Note: while it might seem more elegant to simply
+                          push back the encrypted byte, that desynchronizes
+                          the decryption stream; the flag is necessary so we
+                          don't try to decrypt the same byte twice.
+                        */
+                        if ((x & ttpmsk) == start) { /* Start of next packet */
+                            myunrd(x);  /* Push back the decrypted byte */
+                            pushedback = 1; /* And set flag */
+                            debug(F000,"TTINL lkpush char","",x);
+                            break;
+                        }
+                    }
+                }
 #endif /* MYREAD */
 
-		dest[i] = '\0';		/* Terminate the string, */
-	        if (needpchk) {		/* Parity checked yet? */
-		    if (ttprty == 0) {	/* No, check. */
-			if ((ttprty = parchk(dest,start,i)) > 0) {
-			    int j;
-			    debug(F101,"ttinl senses parity","",ttprty);
-			    debug(F110,"ttinl packet before",dest,0);
-			    ttpmsk = 0x7f;
-			    for (j = 0; j < i; j++)
-			      dest[j] &= 0x7f;	/* Strip parity from packet */
-			    debug(F110,"ttinl packet after ",dest,0);
-			} else ttprty = 0; /* Restore if parchk error */
-		    }
-		    sopmask = ttpmsk;
-		    needpchk = 0;
-		}
+                dest[i] = '\0';         /* Terminate the string, */
+                if (needpchk) {         /* Parity checked yet? */
+                    if (ttprty == 0) {  /* No, check. */
+                        if ((ttprty = parchk(dest,start,i)) > 0) {
+                            int j;
+                            debug(F101,"ttinl senses parity","",ttprty);
+                            debug(F110,"ttinl packet before",dest,0);
+                            ttpmsk = 0x7f;
+                            for (j = 0; j < i; j++)
+                              dest[j] &= 0x7f;  /* Strip parity from packet */
+                            debug(F110,"ttinl packet after ",dest,0);
+                        } else ttprty = 0; /* Restore if parchk error */
+                    }
+                    sopmask = ttpmsk;
+                    needpchk = 0;
+                }
 #endif /* PARSENSE */
 
-		if (timo)		/* Turn off timer if it was on */
-		  ttimoff();
+                if (timo)               /* Turn off timer if it was on */
+                  ttimoff();
                 ckhexdump("ttinl got",dest,i);
 
 #ifdef STREAMING
-		/* ttinl() was called because there was non-packet */
-		/* data sitting in the back channel.  Ignore it.   */
-		if (streaming && sndtyp == 'D')
-		  return(-1);
+                /* ttinl() was called because there was non-packet */
+                /* data sitting in the back channel.  Ignore it.   */
+                if (streaming && sndtyp == 'D')
+                  return(-1);
 #endif /* STREAMING */
-		return(i);
-	    }
+                return(i);
+            }
 
 #ifdef VICTOR9K
 /*
@@ -11447,42 +11457,42 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
     - the run has to be clamped to the room left in dest[], not just to
       my_count, or a long buffered run overruns the caller's packet buffer.
 */
-	    if (v9k_bulk_ok) {
-		while (my_count > 0 && i < max-1) {
-		    CHAR * bsrc = mybuf + my_item + 1;
-		    CHAR * bp;
-		    int room = (max-1) - i;
-		    int bk = (my_count < room) ? my_count : room;
-		    int blen;
+            if (v9k_bulk_ok) {
+                while (my_count > 0 && i < max-1) {
+                    CHAR * bsrc = mybuf + my_item + 1;
+                    CHAR * bp;
+                    int room = (max-1) - i;
+                    int bk = (my_count < room) ? my_count : room;
+                    int blen;
 
-		    bp = (CHAR *)memchr(bsrc,eol,(size_t)bk);
-		    blen = bp ? (int)(bp - bsrc) + 1 : bk;
+                    bp = (CHAR *)memchr(bsrc,eol,(size_t)bk);
+                    blen = bp ? (int)(bp - bsrc) + 1 : bk;
 
-		    memcpy(dest+i,bsrc,(size_t)blen);
-		    i += blen;
-		    my_item += blen;
-		    my_count -= blen;
-		    v9k_bulkn++;	/* So a control leg can prove it ran */
+                    memcpy(dest+i,bsrc,(size_t)blen);
+                    i += blen;
+                    my_item += blen;
+                    my_count -= blen;
+                    v9k_bulkn++;        /* So a control leg can prove it ran */
 
-		    if (bp) {		/* Terminator: same exit as above */
-			dest[i] = '\0';
-			if (timo)
-			  ttimoff();
-			ckhexdump("ttinl got",dest,i);
+                    if (bp) {           /* Terminator: same exit as above */
+                        dest[i] = '\0';
+                        if (timo)
+                          ttimoff();
+                        ckhexdump("ttinl got",dest,i);
 #ifdef STREAMING
-			if (streaming && sndtyp == 'D')
-			  return(-1);
+                        if (streaming && sndtyp == 'D')
+                          return(-1);
 #endif /* STREAMING */
-			return(i);
-		    }
-		    n = dest[i-1];	/* See the note above */
-		}
-	    }
+                        return(i);
+                    }
+                    n = dest[i-1];      /* See the note above */
+                }
+            }
 #endif /* VICTOR9K */
 
-	} /* End of while() */
-	ttimoff();
-	return(n);
+        } /* End of while() */
+        ttimoff();
+        return(n);
     }
 }
 #endif /* NOXFER */
@@ -11498,7 +11508,7 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
  upon timeout, but we need it.  So for this we have a global variable,
  ttinctimo.
 */
-static int ttinctimo = 0;		/* Yuk */
+static int ttinctimo = 0;               /* Yuk */
 
 int
 #ifdef CK_ANSIC
@@ -11516,7 +11526,7 @@ ttinc(timo) int timo;
     if (ttyfd < 0) return(-2);          /* Not open. */
 
     is_tn = (xlocal && netconn && IS_TELNET()) ||
-	    (!xlocal && sstelnet);
+            (!xlocal && sstelnet);
 
 #ifdef TTLEBUF
     if (ttpush >= 0) {
@@ -11540,38 +11550,38 @@ ttinc(timo) int timo;
 #endif /* NETCMD */
       fd = ttyfd;
 
-    if ((timo <= 0)			/* Untimed. */
+    if ((timo <= 0)                     /* Untimed. */
 #ifdef MYREAD
-	|| (my_count > 0)		/* Buffered char already waiting. */
+        || (my_count > 0)               /* Buffered char already waiting. */
 #endif /* MYREAD */
-	) {
+        ) {
 #ifdef MYREAD
         /* Comm line failure returns -1 thru myread, so no &= 0377 */
-	n = myread();			/* Wait for a character... */
-	/* debug(F000,"ttinc MYREAD n","",n); */
+        n = myread();                   /* Wait for a character... */
+        /* debug(F000,"ttinc MYREAD n","",n); */
 #ifdef CK_ENCRYPTION
-	/* debug(F101,"ttinc u_encrypt","",TELOPT_U(TELOPT_ENCRYPTION)); */
-	if (TELOPT_U(TELOPT_ENCRYPTION) && n >= 0) {
-	    ch = n;
-	    ck_tn_decrypt((char *)&ch,1);
-	    n = ch;
-	}
+        /* debug(F101,"ttinc u_encrypt","",TELOPT_U(TELOPT_ENCRYPTION)); */
+        if (TELOPT_U(TELOPT_ENCRYPTION) && n >= 0) {
+            ch = n;
+            ck_tn_decrypt((char *)&ch,1);
+            n = ch;
+        }
 #endif /* CK_ENCRYPTION */
 
 #ifdef NETPTY
-	if (ttpty && n < 0) {
-	    debug(F101,"ttinc error on pty","",n);
-	    ttclos(0);
-	    return(n);
-	}
+        if (ttpty && n < 0) {
+            debug(F101,"ttinc error on pty","",n);
+            ttclos(0);
+            return(n);
+        }
 #endif /* NETPTY */
 
 #ifdef TNCODE
-	if ((n > -1) && is_tn)
-	  return((unsigned)(n & 0xff));
-	else
+        if ((n > -1) && is_tn)
+          return((unsigned)(n & 0xff));
+        else
 #endif /* TNCODE */
-	  return(n < 0 ? n : (unsigned)(n & ttpmsk));
+          return(n < 0 ? n : (unsigned)(n & ttpmsk));
 
 #else  /* MYREAD */
 
@@ -11580,93 +11590,93 @@ ttinc(timo) int timo;
 debug(F110,"XXX netclos in ifdef NETCONN...","B",0);
 #ifdef NETCONN
 debug(F110,"XXX netclos in ifdef NETCONN...OK","B",0);
-	  if (netconn) {		/* Special handling for net */
-	      netclos();		/* If read() returns 0 it means */
-	      netconn = 0;		/* the connection has dropped. */
-	      errno = ENOTCONN;
-	      return(-2);
-	  }
+          if (netconn) {                /* Special handling for net */
+              netclos();                /* If read() returns 0 it means */
+              netconn = 0;              /* the connection has dropped. */
+              errno = ENOTCONN;
+              return(-2);
+          }
 #endif /* NETCONN */
-	  ;
-	/* debug(F101,"ttinc","",ch); */
+          ;
+        /* debug(F101,"ttinc","",ch); */
 #ifdef TNCODE
-	if ((n > 0) && is_tn) {
+        if ((n > 0) && is_tn) {
 #ifdef CK_ENCRYPTION
-	    if (TELOPT_U(TELOPT_ENCRYPTION)) {
-		ck_tn_decrypt(&ch,1);
-		n = ch;
-	    }
+            if (TELOPT_U(TELOPT_ENCRYPTION)) {
+                ck_tn_decrypt(&ch,1);
+                n = ch;
+            }
 #endif /* CK_ENCRYPTION */
-	    return((unsigned)(ch & 0xff));
-	} else
+            return((unsigned)(ch & 0xff));
+        } else
 #endif /* TNCODE */
         return((n < 0) ? -4 : ((n == 0) ? -1 : (unsigned)(ch & ttpmsk)));
 #endif /* MYREAD */
 
-    } else {				/* Timed read */
+    } else {                            /* Timed read */
 
-	int oldalarm;
-	saval = signal(SIGALRM,timerh);	/* Set up handler, save old one. */
-	oldalarm = alarm(timo);		/* Set alarm, save old one. */
-	if (
+        int oldalarm;
+        saval = signal(SIGALRM,timerh); /* Set up handler, save old one. */
+        oldalarm = alarm(timo);         /* Set alarm, save old one. */
+        if (
 #ifdef CK_POSIX_SIG
-	    sigsetjmp(sjbuf,1)
+            sigsetjmp(sjbuf,1)
 #else
-	    setjmp(sjbuf)
+            setjmp(sjbuf)
 #endif /* CK_POSIX_SIG */
-	    ) {				/* Timer expired */
-	    ttinctimo = 1;
-	    n = -1;			/* set flag */
-	} else {
+            ) {                         /* Timer expired */
+            ttinctimo = 1;
+            n = -1;                     /* set flag */
+        } else {
 #ifdef MYREAD
-	    n = myread();		/* If managing own buffer... */
-	    debug(F101,"ttinc myread","",n);
-	    ch = n;
+            n = myread();               /* If managing own buffer... */
+            debug(F101,"ttinc myread","",n);
+            ch = n;
 #else
-	    n = read(fd,&ch,1);		/* Otherwise call the system. */
-	    if (n == 0) n = -1;
-	    debug(F101,"ttinc read","",n);
+            n = read(fd,&ch,1);         /* Otherwise call the system. */
+            if (n == 0) n = -1;
+            debug(F101,"ttinc read","",n);
 #endif /* MYREAD */
 
 #ifdef CK_ENCRYPTION
-	    if (TELOPT_U(TELOPT_ENCRYPTION) && n >= 0) {
-		ck_tn_decrypt((char *)&ch,1);
-	    }
+            if (TELOPT_U(TELOPT_ENCRYPTION) && n >= 0) {
+                ck_tn_decrypt((char *)&ch,1);
+            }
 #endif /* CK_ENCRYPTION */
-	    if (n >= 0)
-	      n = (unsigned) (ch & 0xff);
-	    else
-	      n = (n < 0) ? -4 : -2;	/* Special return codes. */
-	}
-	ttimoff();			/* Turn off the timer */
-	if (oldalarm > 0) {
-	    if (n == -1)		/* and restore any previous alarm */
-	      oldalarm -= timo;
-	    if (oldalarm < 0)		/* adjusted by our timeout interval */
-	      oldalarm = 0;
-	    if (oldalarm) {
-	        debug(F101,"ttinc restoring oldalarm","",oldalarm);
-		alarm(oldalarm);
-	    }
-	}
+            if (n >= 0)
+              n = (unsigned) (ch & 0xff);
+            else
+              n = (n < 0) ? -4 : -2;    /* Special return codes. */
+        }
+        ttimoff();                      /* Turn off the timer */
+        if (oldalarm > 0) {
+            if (n == -1)                /* and restore any previous alarm */
+              oldalarm -= timo;
+            if (oldalarm < 0)           /* adjusted by our timeout interval */
+              oldalarm = 0;
+            if (oldalarm) {
+                debug(F101,"ttinc restoring oldalarm","",oldalarm);
+                alarm(oldalarm);
+            }
+        }
 debug(F110,"XXX netclos in ifdef NETCONN...","C",0);
 #ifdef NETCONN
 debug(F110,"XXX netclos in ifdef NETCONN...","C",0);
-	if (netconn) {
-	    if (n == -2) {		/* read() returns 0 */
-		netclos();		/* on network read failure */
-		netconn = 0;
-		errno = ENOTCONN;
-	    }
-	}
-#endif	/* NETCONN */
+        if (netconn) {
+            if (n == -2) {              /* read() returns 0 */
+                netclos();              /* on network read failure */
+                netconn = 0;
+                errno = ENOTCONN;
+            }
+        }
+#endif  /* NETCONN */
 #ifdef TNCODE
-	if ((n > -1) && is_tn)
-	  return((unsigned)(n & 0xff));
-	else
+        if ((n > -1) && is_tn)
+          return((unsigned)(n & 0xff));
+        else
 #endif /* TNCODE */
-	  /* Return masked char or neg. */
-	  return( (n < 0) ? n : (unsigned)(n & ttpmsk) );
+          /* Return masked char or neg. */
+          return( (n < 0) ? n : (unsigned)(n & ttpmsk) );
     }
 }
 
@@ -11674,7 +11684,7 @@ debug(F110,"XXX netclos in ifdef NETCONN...","C",0);
 
 static int
 #ifdef CK_ANSIC
-sndbrk(int msec) {			/* Argument is milliseconds */
+sndbrk(int msec) {                      /* Argument is milliseconds */
 #else
 sndbrk(msec) int msec; {
 #endif /* CK_ANSIC */
@@ -11718,27 +11728,27 @@ sndbrk(msec) int msec; {
 #else
 #ifdef NETCONN
 #ifdef NETCMD
-    if (ttpipe)				/* Pipe */
+    if (ttpipe)                         /* Pipe */
       return(ttoc('\0'));
 #endif /* NETCMD */
 #ifdef NETPTY
     if (ttpty)
       return(ttoc('\0'));
 #endif /* NETPTY */
-    if (netconn) 			/* Send network BREAK */
+    if (netconn)                        /* Send network BREAK */
       return(netbreak());
 #endif /* NETCONN */
 
     if (msec < 1 || msec > 5000) return(-1); /* Bad argument */
 
-#ifdef POSIX				/* Easy in POSIX */
+#ifdef POSIX                            /* Easy in POSIX */
     {
-	int x;
-	debug(F111,"sndbrk POSIX",ckitoa(msec),(msec/375));
-	errno = 0;
-	x = tcsendbreak(ttyfd,msec / 375);
-	debug(F111,"sndbrk tcsendbreak",ckitoa(errno),x);
-	return(x);
+        int x;
+        debug(F111,"sndbrk POSIX",ckitoa(msec),(msec/375));
+        errno = 0;
+        x = tcsendbreak(ttyfd,msec / 375);
+        debug(F111,"sndbrk tcsendbreak",ckitoa(errno),x);
+        return(x);
     }
 #else
 #ifdef PROVX1
@@ -11746,7 +11756,7 @@ sndbrk(msec) int msec; {
     spd = ttbuf.sg_ospeed;              /* Save speed */
     ttbuf.sg_ospeed = B50;              /* Change to 50 baud */
     stty(ttyfd,&ttbuf);                 /*  ... */
-    n = (int)strlen(brnuls);		/* Send the right number of nulls */
+    n = (int)strlen(brnuls);            /* Send the right number of nulls */
     x = msec / 91;
     if (x > n) x = n;
     write(ttyfd,brnuls,n);
@@ -11770,7 +11780,7 @@ sndbrk(msec) int msec; {
     x = msleep(msec);                    /* Sleep for so many milliseconds */
     if (ioctl(ttyfd,TIOCCBRK,(char *)0) < 0) {  /* Turn off BREAK */
         perror("BREAK stuck!!!");
-        doexit(BAD_EXIT,-1);		/* Get out, closing the line. */
+        doexit(BAD_EXIT,-1);            /* Get out, closing the line. */
                                         /*   with bad exit status */
     }
     return(x);
@@ -11784,18 +11794,18 @@ sndbrk(msec) int msec; {
     debug(F101,"sndbrk ATTSV","",msec);
     x = msec / 275;
     for (n = 0; n < x; n++) {
-	/* Reportedly the cast breaks this function on some systems */
-	/* But then why was it here in the first place? */
-	if (ioctl(ttyfd,TCSBRK, /* (char *) */ 0) < 0) {
-	    perror("Can't send BREAK");
-	    return(-1);
-	}
+        /* Reportedly the cast breaks this function on some systems */
+        /* But then why was it here in the first place? */
+        if (ioctl(ttyfd,TCSBRK, /* (char *) */ 0) < 0) {
+            perror("Can't send BREAK");
+            return(-1);
+        }
     }
     return(0);
 #else
 #ifdef  V7
     debug(F101,"sndbrk V7","",msec);
-    return(genbrk(ttyfd,250));		/* Simulate a BREAK */
+    return(genbrk(ttyfd,250));          /* Simulate a BREAK */
 #else
     debug(F101,"sndbrk catchall","",msec);
     ttoc(0);ttoc(0);ttoc(0);ttoc(0);
@@ -11843,13 +11853,13 @@ ttsndlb() {
 */
 
 /* Define MSLFTIME for systems that must use an ftime() loop. */
-#ifdef ANYBSD				/* For pre-4.2 BSD versions */
+#ifdef ANYBSD                           /* For pre-4.2 BSD versions */
 #ifndef BSD4
 #define MSLFTIME
 #endif /* BSD4 */
 #endif /* ANYBSD */
 
-#ifdef TOWER1				/* NCR Tower OS 1.0 */
+#ifdef TOWER1                           /* NCR Tower OS 1.0 */
 #define MSLFTIME
 #endif /* TOWER1 */
 
@@ -11876,21 +11886,21 @@ ttwait(fd, secs) int fd, secs;
     errno = 0;
     if ((x = select(FD_SETSIZE,
 #ifdef HPUX9
-		    (int *)
+                    (int *)
 #else
 #ifdef HPUX1000
-		    (int *)
+                    (int *)
 #endif /* HPUX1000 */
 #endif /* HPUX9 */
-		    &rfds,
-		    0, 0, &tv)) < 0) {
-	debug(F101,"ttwait select errno","",errno);
-	return(0);
+                    &rfds,
+                    0, 0, &tv)) < 0) {
+        debug(F101,"ttwait select errno","",errno);
+        return(0);
     } else {
-	debug(F101,"ttwait OK","",errno);
-	x = FD_ISSET(fd, &rfds);
-	debug(F101,"ttwait select x","",x);
-	return(x ? 1 : 0);
+        debug(F101,"ttwait OK","",errno);
+        x = FD_ISSET(fd, &rfds);
+        debug(F101,"ttwait select x","",x);
+        return(x ? 1 : 0);
     }
 }
 #endif /* SELECT */
@@ -11917,10 +11927,10 @@ msleep(m) int m;
     int t1, x;
     debug(F101,"msleep SELECT 1","",m);
     if (m <= 0) return(0);
-    if (m >= 1000) {			/* Catch big arguments. */
-	sleep(m/1000);
-	m = m % 1000;
-	if (m < 10) return(0);
+    if (m >= 1000) {                    /* Catch big arguments. */
+        sleep(m/1000);
+        m = m % 1000;
+        if (m < 10) return(0);
     }
     debug(F101,"msleep SELECT 2","",m);
 #ifdef BELLV10
@@ -11939,7 +11949,7 @@ msleep(m) int m;
     if (gettimeofday(&tv,NULL) < 0)
 #else
 #ifdef NOTIMEZONE
-    if (gettimeofday(&tv, NULL) < 0)	/* wonder what this does... */
+    if (gettimeofday(&tv, NULL) < 0)    /* wonder what this does... */
 #else
     if (gettimeofday(&tv, &tz) < 0)
 #endif /* NOTIMEZONE */
@@ -11975,7 +11985,7 @@ msleep(m) int m;
     x = select( 0, (fd_set *)0, (fd_set *)0, (fd_set *)0, &tv );
     debug(F101,"msleep COHERENT select","",x);
 #else /* COHERENT */
-#ifdef HPUX1000				/* 10.00 only, not 10.10 or later */
+#ifdef HPUX1000                         /* 10.00 only, not 10.10 or later */
     x = select( 0, (int *)0, (int *)0, (int *)0, &tv );
     debug(F101,"msleep HP-UX 10.00 select","",x);
 #else /* HPUX1000 */
@@ -12006,14 +12016,14 @@ msleep(m) int m;
 #endif /* BELLV10 */
     return(0);
 
-#else					/* Not SELECT */
-#ifdef CK_POLL				/* We have poll() */
-    struct pollfd pfd;			/* Supply a valid address for poll() */
+#else                                   /* Not SELECT */
+#ifdef CK_POLL                          /* We have poll() */
+    struct pollfd pfd;                  /* Supply a valid address for poll() */
 
-#ifdef ODT30				/* But in SCO ODT 3.0 */
-#ifdef NAP				/* we should use nap() instead */
+#ifdef ODT30                            /* But in SCO ODT 3.0 */
+#ifdef NAP                              /* we should use nap() instead */
     debug(F101,"msleep ODT 3.0 NAP","",m); /* because using poll() here */
-    nap((long)m);			   /* seems to break dialing. */
+    nap((long)m);                          /* seems to break dialing. */
     return(0);
 #else
     debug(F101,"msleep ODT 3.0 POLL","",m);
@@ -12032,7 +12042,7 @@ msleep(m) int m;
   whether that would break something else.
 */
 
-#else					/* Not POLL */
+#else                                   /* Not POLL */
 #ifdef USLEEP
 /*
   "This routine is implemented using setitimer(2); it requires eight
@@ -12040,10 +12050,10 @@ msleep(m) int m;
   10 milliseconds...
 */
     debug(F101,"msleep USLEEP","",m);
-    if (m >= 1000) {			/* Catch big arguments. */
-	sleep(m/1000);
-	m = m % 1000;
-	if (m < 10) return(0);
+    if (m >= 1000) {                    /* Catch big arguments. */
+        sleep(m/1000);
+        m = m % 1000;
+        if (m < 10) return(0);
     }
     usleep((unsigned int)(m * 1000));
     return(0);
@@ -12069,7 +12079,7 @@ msleep(m) int m;
 #else
 #ifdef ATTSV
 #ifndef BSD44
-    extern long times();		/* Or #include <times.h> ? */
+    extern long times();                /* Or #include <times.h> ? */
 #endif /* BSD44 */
     long t1, t2, tarray[4];
     int t3;
@@ -12079,30 +12089,30 @@ msleep(m) int m;
 
     if (cp && (hertz = atoi(cp))) {
         CLOCK_TICK  = 1000 / hertz;
-    } else {				/* probably single user mode */
+    } else {                            /* probably single user mode */
 #ifdef HZ
         CLOCK_TICK  = 1000 / HZ;
 #else
-	static warned = 0;
-	/* HZ always exists in, for instance, SCO Xenix, so you don't have to
-	 * make special #ifdefs for XENIX here, like in ver 4F. Also, if you
-	 * have Xenix, you have should have nap(), so the best is to use -DNAP
-	 * in the makefile. Most systems have HZ.
-	 */
-	CLOCK_TICK = 17;		/* 1/60 sec */
-	if (!warned) {
+        static warned = 0;
+        /* HZ always exists in, for instance, SCO Xenix, so you don't have to
+         * make special #ifdefs for XENIX here, like in ver 4F. Also, if you
+         * have Xenix, you have should have nap(), so the best is to use -DNAP
+         * in the makefile. Most systems have HZ.
+         */
+        CLOCK_TICK = 17;                /* 1/60 sec */
+        if (!warned) {
           printf("warning: environment variable HZ bad... using HZ=%d\r\n",
-		 1000 / CLOCK_TICK);
+                 1000 / CLOCK_TICK);
           warned = 1;
-	}
+        }
 #endif /* !HZ */
     }
     debug(F101,"msleep ATTSV","",m);
     if (m <= 0) return(0);
-    if (m >= 1000) {			/* Catch big arguments. */
-	sleep(m/1000);
-	m = m % 1000;
-	if (m < 10) return(0);
+    if (m >= 1000) {                    /* Catch big arguments. */
+        sleep(m/1000);
+        m = m % 1000;
+        if (m < 10) return(0);
     }
     if ((t1 = times(tarray)) < 0) return(-1);
     while (1) {
@@ -12111,35 +12121,35 @@ msleep(m) int m;
         if (t3 > m) return(t3);
     }
 #else /* Not ATTSV */
-#ifdef MSLFTIME				/* Use ftime() loop... */
+#ifdef MSLFTIME                         /* Use ftime() loop... */
     int t1, t3 = 0;
     debug(F101,"msleep MSLFTIME","",m);
     if (m <= 0) return(0);
-    if (m >= 1000) {			/* Catch big arguments. */
-	sleep(m/1000);
-	m = m % 1000;
-	if (m < 10) return(0);
+    if (m >= 1000) {                    /* Catch big arguments. */
+        sleep(m/1000);
+        m = m % 1000;
+        if (m < 10) return(0);
     }
 #ifdef QNX
-    ftime(&ftp);			/* void ftime() in QNX */
+    ftime(&ftp);                        /* void ftime() in QNX */
 #else
-    if (ftime(&ftp) < 0) return(-1);	/* Get base time. */
+    if (ftime(&ftp) < 0) return(-1);    /* Get base time. */
 #endif /* QNX */
     t1 = ((ftp.time & 0xff) * 1000) + ftp.millitm;
     while (1) {
-        ftime(&ftp);			/* Get current time and compare. */
+        ftime(&ftp);                    /* Get current time and compare. */
         t3 = (((ftp.time & 0xff) * 1000) + ftp.millitm) - t1;
         if (t3 > m) return(0);
     }
 #else
 /* This includes true POSIX, which has no way to do this. */
     debug(F101,"msleep busy loop","",m);
-    if (m >= 1000) {			/* Catch big arguments. */
-	sleep(m/1000);
-	m = m % 1000;
-	if (m < 10) return(0);
+    if (m >= 1000) {                    /* Catch big arguments. */
+        sleep(m/1000);
+        m = m % 1000;
+        if (m < 10) return(0);
     }
-    if (m > 0) while (m > 0) m--;	/* Just a dumb busy loop */
+    if (m > 0) while (m > 0) m--;       /* Just a dumb busy loop */
     return(0);
 #endif /* MSLFTIME */
 #endif /* ATTSV */
@@ -12180,7 +12190,7 @@ static struct timeval tzero;
 
 VOID
 rftimer() {
-#ifdef GTODONEARG			/* Account for Mot's definition */
+#ifdef GTODONEARG                       /* Account for Mot's definition */
     (VOID) gettimeofday(&tzero);
 #else
     (VOID) gettimeofday(&tzero, (struct timezone *)0);
@@ -12194,7 +12204,7 @@ gftimer() {
 #ifdef DEBUG
     char fpbuf[64];
 #endif /* DEBUG */
-#ifdef GTODONEARG			/* Account for Mot's definition */
+#ifdef GTODONEARG                       /* Account for Mot's definition */
     (VOID) gettimeofday(&tnow);
 #else
     (VOID) gettimeofday(&tnow, (struct timezone *)0);
@@ -12204,16 +12214,16 @@ gftimer() {
     tdelta.tv_usec = tnow.tv_usec - tzero.tv_usec;
 
     if (tdelta.tv_usec < 0) {
-	tdelta.tv_sec--;
-	tdelta.tv_usec += 1000000;
+        tdelta.tv_sec--;
+        tdelta.tv_usec += 1000000;
     }
     s = (CKFLOAT) tdelta.tv_sec + ((CKFLOAT) tdelta.tv_usec / 1000000.0);
     if (s < GFMINTIME)
       s = GFMINTIME;
 #ifdef DEBUG
     if (deblog) {
-	sprintf(fpbuf,"%f",s);
-	debug(F110,"gftimer",fpbuf,0);
+        sprintf(fpbuf,"%f",s);
+        debug(F110,"gftimer",fpbuf,0);
     }
 #endif /* DEBUG */
     return(s);
@@ -12260,58 +12270,58 @@ ztime(s) char **s;
     if (gettimeofday(&tv,NULL) > -1)
 #else
 #ifdef NOTIMEZONE
-    if (gettimeofday(&tv, NULL) > -1)	/* wonder what this does... */
+    if (gettimeofday(&tv, NULL) > -1)   /* wonder what this does... */
 #else
     if (gettimeofday(&tv, &tz) > -1)
 #endif /* NOTIMEZONE */
 #endif /* PTX */
 #endif /* COHERENT */
 #endif /* GTODONEARG */
-      {					/* Fill in tm struct */
-	ztusec = tv.tv_usec;		/* Microseconds */
-	ztmsec = ztusec / 1000L;	/* Milliseconds */
+      {                                 /* Fill in tm struct */
+        ztusec = tv.tv_usec;            /* Microseconds */
+        ztmsec = ztusec / 1000L;        /* Milliseconds */
 #ifdef HPUX9
-	{
-	    time_t zz;
-	    zz = tv.tv_sec;
-	    tp = localtime(&zz);	/* Convert to local time */
-	}
+        {
+            time_t zz;
+            zz = tv.tv_sec;
+            tp = localtime(&zz);        /* Convert to local time */
+        }
 #else
 #ifdef HPUX1000
-	{
-	    time_t zz;
-	    zz = tv.tv_sec;
-	    tp = localtime(&zz);
-	}
+        {
+            time_t zz;
+            zz = tv.tv_sec;
+            tp = localtime(&zz);
+        }
 #else
 #ifdef LINUX
-	{   /* avoid unaligned access trap on 64-bit platforms */
-	    time_t zz;
-	    zz = tv.tv_sec;
-	    tp = localtime(&zz);
-	}
+        {   /* avoid unaligned access trap on 64-bit platforms */
+            time_t zz;
+            zz = tv.tv_sec;
+            tp = localtime(&zz);
+        }
 #else
 #ifdef MACOSX
-	tp = localtime((time_t *)&tv.tv_sec); /* Convert to local time */
+        tp = localtime((time_t *)&tv.tv_sec); /* Convert to local time */
 #else
-	tp = localtime(&tv.tv_sec);
+        tp = localtime(&tv.tv_sec);
 #endif /* MACOSX */
 #endif /* LINUX */
 #endif /* HPUX1000 */
 #endif /* HPUX9 */
-	if (s) {
-	    char * s2;
-	    s2 = asctime(tp);		/* Convert result to ASCII string */
-	    asctmbuf[0] = '\0';
-	    if (s2) ckstrncpy(asctmbuf,s2,64);
-	    *s = asctmbuf;
-	    debug(F111,"ztime GFTIMER gettimeofday",*s,ztusec);
-	}
+        if (s) {
+            char * s2;
+            s2 = asctime(tp);           /* Convert result to ASCII string */
+            asctmbuf[0] = '\0';
+            if (s2) ckstrncpy(asctmbuf,s2,64);
+            *s = asctmbuf;
+            debug(F111,"ztime GFTIMER gettimeofday",*s,ztusec);
+        }
     }
 #else  /* Not GFTIMER */
 
-#undef ZTIMEV7				/* Which systems need to use */
-#ifdef COHERENT				/* old UNIX Version 7 way... */
+#undef ZTIMEV7                          /* Which systems need to use */
+#ifdef COHERENT                         /* old UNIX Version 7 way... */
 #define ZTIMEV7
 #endif /* COHERENT */
 #ifdef TOWER1
@@ -12338,39 +12348,39 @@ ztime(s) char **s;
     time_t clock_storage;
     clock_storage = time((void *) 0);
     if (s) {
-	*s = ctime(&clock_storage);
-	debug(F110,"ztime: HPUX 10.20",*s,0);
+        *s = ctime(&clock_storage);
+        debug(F110,"ztime: HPUX 10.20",*s,0);
     }
 #else
-#ifdef ATTSV				/* AT&T way */
-/*  extern long time(); */		/* Theoretically these should */
-    char *ctime();			/* already been dcl'd in <time.h> */
+#ifdef ATTSV                            /* AT&T way */
+/*  extern long time(); */              /* Theoretically these should */
+    char *ctime();                      /* already been dcl'd in <time.h> */
     time_t clock_storage;
     clock_storage = time(
 #ifdef IRIX60
-			 (time_t *)
+                         (time_t *)
 #else
 #ifdef BSD44
-			 (time_t *)
+                         (time_t *)
 #else
-			 (long *)
+                         (long *)
 #endif /* BSD44 */
 #endif /* IRIX60 */
-			 0 );
+                         0 );
     if (s) {
-	*s = ctime( &clock_storage );
-	debug(F110,"ztime: ATTSV",*s,0);
+        *s = ctime( &clock_storage );
+        debug(F110,"ztime: ATTSV",*s,0);
     }
 #else
-#ifdef PROVX1				/* Venix 1.0 way */
+#ifdef PROVX1                           /* Venix 1.0 way */
     int utime[2];
     time(utime);
     if (s) {
-	*s = ctime(utime);
-	debug(F110,"ztime: PROVX1",*s,0);
+        *s = ctime(utime);
+        debug(F110,"ztime: PROVX1",*s,0);
     }
 #else
-#ifdef BSD42				/* 4.2BSD way */
+#ifdef BSD42                            /* 4.2BSD way */
     char *asctime();
     struct tm *localtime();
     struct tm *tp;
@@ -12379,33 +12389,33 @@ ztime(s) char **s;
     ztmsec = tv.tv_usec / 1000L;
     tp = localtime(&tv.tv_sec);
     if (s) {
-	*s = asctime(tp);
-	debug(F111,"ztime: BSD42",*s,ztusec);
+        *s = asctime(tp);
+        debug(F111,"ztime: BSD42",*s,ztusec);
     }
 #else
-#ifdef MINIX				/* MINIX way */
+#ifdef MINIX                            /* MINIX way */
     time_t utime[2];
     time(utime);
     if (s) {
-	*s = ctime(utime);
-	debug(F110,"ztime: MINIX",*s,0);
+        *s = ctime(utime);
+        debug(F110,"ztime: MINIX",*s,0);
     }
 #else
-#ifdef ZTIMEV7				/* The regular way */
+#ifdef ZTIMEV7                          /* The regular way */
     char *asctime();
     struct tm *localtime();
     struct tm *tp;
-    long xclock;			/* or unsigned long for BeBox? */
+    long xclock;                        /* or unsigned long for BeBox? */
     time(&xclock);
     tp = localtime(&xclock);
     if (s) {
-	*s = asctime(tp);
-	debug(F110,"ztime: ZTIMEV7",*s,0);
+        *s = asctime(tp);
+        debug(F110,"ztime: ZTIMEV7",*s,0);
     }
-#else					/* Catch-all for others... */
+#else                                   /* Catch-all for others... */
     if (s) {
-	*s = "Day Mon 00 00:00:00 0000\n"; /* Dummy in asctime() format */
-	debug(F110,"ztime: catch-all",*s,0);
+        *s = "Day Mon 00 00:00:00 0000\n"; /* Dummy in asctime() format */
+        debug(F110,"ztime: catch-all",*s,0);
     }
 #endif /* ZTIMEV7 */
 #endif /* MINIX */
@@ -12428,25 +12438,25 @@ ztime(s) char **s;
 int
 congm() {
     int fd;
-    if (backgrd || !isatty(0)) {	/* If in background. */
-	cgmf = -1;			/* Don't bother, modes are garbage. */
-	return(-1);
+    if (backgrd || !isatty(0)) {        /* If in background. */
+        cgmf = -1;                      /* Don't bother, modes are garbage. */
+        return(-1);
     }
-    if (cgmf > 0) return(0);		/* Already did this. */
+    if (cgmf > 0) return(0);            /* Already did this. */
     debug(F100,"congm getting modes","",0); /* Need to do it. */
 #ifdef aegis
     ios_$inq_type_uid(ios_$stdin, conuid, st);
     if (st.all != status_$ok) {
-	fprintf(stderr, "problem getting stdin objtype: ");
-	error_$print(st);
+        fprintf(stderr, "problem getting stdin objtype: ");
+        error_$print(st);
     }
     concrp = (conuid == mbx_$uid);
     conbufn = 0;
 #endif /* aegis */
 
 #ifndef BEBOX
-    if ((fd = open(CTTNAM,2)) < 0) {	/* Open controlling terminal */
-	fd = 0;
+    if ((fd = open(CTTNAM,2)) < 0) {    /* Open controlling terminal */
+        fd = 0;
     }
 #else
     fd = 0;
@@ -12461,9 +12471,9 @@ congm() {
     if (ioctl(fd,TCGETA,&cccbrk) < 0) return(-1);
     if (ioctl(fd,TCGETA,&ccraw)  < 0) return(-1);
 #ifdef VXVE
-    cccbrk.c_line = 0;			/* STTY line 0 for CDC VX/VE */
+    cccbrk.c_line = 0;                  /* STTY line 0 for CDC VX/VE */
     if (ioctl(fd,TCSETA,&cccbrk) < 0) return(-1);
-    ccraw.c_line = 0;			/* STTY line 0 for CDC VX/VE */
+    ccraw.c_line = 0;                   /* STTY line 0 for CDC VX/VE */
     if (ioctl(fd,TCSETA,&ccraw) < 0) return(-1);
 #endif /* VXVE */
 #else
@@ -12479,17 +12489,17 @@ congm() {
 #endif /* BELLV10 */
 #endif /* ATTSV */
 #endif /* BSD44ORPOSIX */
-#ifdef sony_news			/* Sony NEWS */
+#ifdef sony_news                        /* Sony NEWS */
     if (ioctl(fd,TIOCKGET,&km_con) < 0) { /* Get console Kanji mode */
-	perror("congm error getting Kanji mode");
-	debug(F101,"congm error getting Kanji mode","",0);
-	km_con = -1;			/* Make sure this stays undefined. */
-	return(-1);
+        perror("congm error getting Kanji mode");
+        debug(F101,"congm error getting Kanji mode","",0);
+        km_con = -1;                    /* Make sure this stays undefined. */
+        return(-1);
     }
 #endif /* sony_news */
     if (fd > 0)
       close(fd);
-    cgmf = 1;				/* Flag that we got them. */
+    cgmf = 1;                           /* Flag that we got them. */
     return(1);
 }
 
@@ -12502,10 +12512,10 @@ congetbuf(x) int x;
 #endif /* CK_ANSIC */
 {
     int n;
-    n = CONBUFSIZ - (conbufp - conbuf);	/* How much room left in buffer? */
+    n = CONBUFSIZ - (conbufp - conbuf); /* How much room left in buffer? */
     if (x > n) {
-	debug(F101,"congetbuf char loss","",x-n);
-	x = n;
+        debug(F101,"congetbuf char loss","",x-n);
+        x = n;
     }
     x = read(0,conbufp,x);
     conbufn += x;
@@ -12532,18 +12542,18 @@ concb(esc) char esc;
     if (constate == CON_CB)
       return(0);
 
-    if (cgmf < 1)			/* Did we get console modes yet? */
-      if (!backgrd)			/* No, in background? */
-	congm();			/* No, try to get them now. */
-    if (cgmf < 1)			/* Still don't have them? */
-      return(0);			/* Give up. */
+    if (cgmf < 1)                       /* Did we get console modes yet? */
+      if (!backgrd)                     /* No, in background? */
+        congm();                        /* No, try to get them now. */
+    if (cgmf < 1)                       /* Still don't have them? */
+      return(0);                        /* Give up. */
     debug(F101,"concb ttyfd","",ttyfd);
     debug(F101,"concb ttfdflg","",ttfdflg);
     x = isatty(0);
     debug(F101,"concb isatty","",x);
-    if (!x) return(0);			/* Only when running on real ttys */
+    if (!x) return(0);                  /* Only when running on real ttys */
     debug(F101,"concb xsuspend","",xsuspend);
-    if (backgrd)			/* Do nothing if in background. */
+    if (backgrd)                        /* Do nothing if in background. */
       return(0);
     escchr = esc;                       /* Make this available to other fns */
     ckxech = 1;                         /* Program can echo characters */
@@ -12560,10 +12570,10 @@ concb(esc) char esc;
 #ifdef Plan9
     x = p9concb();
 #else
-#ifndef SVORPOSIX			/* BSD, V7, etc */
+#ifndef SVORPOSIX                       /* BSD, V7, etc */
     debug(F101,"cccbrk.sg_flags concb 1","", cccbrk.sg_flags);
     debug(F101,"concb stty CBREAK","",0);
-    cccbrk.sg_flags |= (CBREAK|CRMOD);	/* Set to character wakeup, */
+    cccbrk.sg_flags |= (CBREAK|CRMOD);  /* Set to character wakeup, */
     cccbrk.sg_flags &= ~ECHO;           /* no echo. */
     debug(F101,"cccbrk.sg_flags concb 2","", cccbrk.sg_flags);
     errno = 0;
@@ -12581,7 +12591,7 @@ concb(esc) char esc;
     x = stty(0,&cccbrk);
     debug(F101,"cccbrk.sg_flags concb x","", x);
 #endif /* BELLV10 */
-#else					/* Sys V and POSIX */
+#else                                   /* Sys V and POSIX */
 #ifndef OXOS
     debug(F101,"concb cccbrk.c_flag","",cccbrk.c_lflag);
 #ifdef QNX
@@ -12594,8 +12604,8 @@ concb(esc) char esc;
     cccbrk.c_lflag &= ~(ICANON|ECHO|IEXTEN);
 #endif /* COHERENT */
 #endif /* QNX */
-    cccbrk.c_lflag |= ISIG;		/* Allow signals in command mode. */
-    cccbrk.c_iflag |= IGNBRK;		/* But ignore BREAK signal */
+    cccbrk.c_lflag |= ISIG;             /* Allow signals in command mode. */
+    cccbrk.c_iflag |= IGNBRK;           /* But ignore BREAK signal */
     cccbrk.c_iflag &= ~BRKINT;
 
 #else /* OXOS */
@@ -12642,10 +12652,10 @@ concb(esc) char esc;
 #endif /* VEOL */
 #endif /* ZILOG */
     errno = 0;
-#ifdef BSD44ORPOSIX			/* Set new modes */
+#ifdef BSD44ORPOSIX                     /* Set new modes */
     x = tcsetattr(0,TCSADRAIN,&cccbrk);
-#else /* ATTSV */      			/* or the POSIX way */
-    x = ioctl(0,TCSETAW,&cccbrk);	/* the Sys V way */
+#else /* ATTSV */                       /* or the POSIX way */
+    x = ioctl(0,TCSETAW,&cccbrk);       /* the Sys V way */
 #endif /* BSD44ORPOSIX */
 #endif /* SVORPOSIX */
 
@@ -12697,7 +12707,7 @@ conbin(esc) char esc;
       return(0);
 
     if (!isatty(0)) return(0);          /* only for real ttys */
-    congm();				/* Get modes if necessary. */
+    congm();                            /* Get modes if necessary. */
     debug(F100,"conbin","",0);
     escchr = esc;                       /* Make this available to other fns */
     ckxech = 1;                         /* Program can echo characters */
@@ -12705,8 +12715,8 @@ conbin(esc) char esc;
     conbufn = 0;
     if (concrp) return(write(1, "\035\002", 2));
     if (conuid == input_pad_$uid) {
-	pad_$raw(ios_$stdin, st);
-	return(0);
+        pad_$raw(ios_$stdin, st);
+        return(0);
       }
 #endif /* aegis */
 
@@ -12765,12 +12775,12 @@ conbin(esc) char esc;
  *** Sys III/V sites that have trouble with this can restore these lines.
  ***/
 #ifndef VINTR
-    ccraw.c_cc[0] = 003;		/* Interrupt char is Ctrl-C */
+    ccraw.c_cc[0] = 003;                /* Interrupt char is Ctrl-C */
 #else
     ccraw.c_cc[VINTR] = 003;
 #endif /* VINTR */
 #ifndef VQUIT
-    ccraw.c_cc[1] = escchr;		/* Escape during packet mode */
+    ccraw.c_cc[1] = escchr;             /* Escape during packet mode */
 #else
     ccraw.c_cc[VQUIT] = escchr;
 #endif /* VQUIT */
@@ -12803,12 +12813,12 @@ conbin(esc) char esc;
 #endif /* ZILOG */
 
 #ifdef BSD44ORPOSIX
-    x = tcsetattr(0,TCSADRAIN,&ccraw);	/* Set new modes. */
+    x = tcsetattr(0,TCSADRAIN,&ccraw);  /* Set new modes. */
 #else
     x = ioctl(0,TCSETAW,&ccraw);
 #endif /* BSD44ORPOSIX */
 #else /* Berkeley, etc. */
-    x = conchk();			/* Because stty() is destructive */
+    x = conchk();                       /* Because stty() is destructive */
     if (x > 0)
       congetbuf(x);
     ccraw.sg_flags |= (RAW|TANDEM);     /* Set rawmode, XON/XOFF (ha) */
@@ -12842,7 +12852,7 @@ conres() {
     debug(F101,"conres cgmf","",cgmf);
     debug(F101,"conres constate","",constate);
 
-    if (cgmf < 1)			/* Do nothing if modes unchanged */
+    if (cgmf < 1)                       /* Do nothing if modes unchanged */
       return(0);
     if (constate == CON_RES)
       return(0);
@@ -12855,9 +12865,9 @@ conres() {
     conbufn = 0;
     if (concrp) return(write(1, "\035\001", 2));
     if (conuid == input_pad_$uid) {
-	pad_$cooked(ios_$stdin, st);
-	constate = CON_RES;
-	return(0);
+        pad_$cooked(ios_$stdin, st);
+        constate = CON_RES;
+        return(0);
     }
 #endif /* aegis */
 
@@ -12872,13 +12882,13 @@ conres() {
     debug(F100,"conres restoring ioctl","",0);
     x = ioctl(0,TCSETAW,&ccold);
 #else /* BSD, V7, and friends */
-#ifdef sony_news			/* Sony NEWS */
+#ifdef sony_news                        /* Sony NEWS */
     if (km_con != -1)
-      ioctl(0,TIOCKSET,&km_con);	/* Restore console Kanji mode */
+      ioctl(0,TIOCKSET,&km_con);        /* Restore console Kanji mode */
 #endif /* sony_news */
     msleep(100);
     debug(F100,"conres restoring stty","",0);
-    x = conchk();			/* Because stty() is destructive */
+    x = conchk();                       /* Because stty() is destructive */
     if (x > 0)
       congetbuf(x);
 #ifdef BELLV10
@@ -12959,7 +12969,7 @@ conol(s) char *s;
 #endif /* CK_ANSIC */
 {
     int len;
-    if (!s) s = "";			/* Always do this! */
+    if (!s) s = "";                     /* Always do this! */
     len = strlen(s);
     if (len == 0)
       return(0);
@@ -12970,23 +12980,23 @@ conol(s) char *s;
 
 #ifdef CK_ENCRYPTION
     if (inserver && TELOPT_ME(TELOPT_ENCRYPTION)) {
-	if (nxpacket < len) {
-	    if (xpacket) {
-		free(xpacket);
-		xpacket = NULL;
-		nxpacket = 0;
-	    }
-	    len = len > 10240 ? len : 10240;
-	    xpacket = (CHAR *)malloc(len);
-	    if (!xpacket) {
-		fprintf(stderr,"ttol malloc failure\n");
-		return(-1);
-	    } else
-	      nxpacket = len;
-	}
-	memcpy(xpacket,s,len);
-	s = (char *)xpacket;
-	ck_tn_encrypt(s,len);
+        if (nxpacket < len) {
+            if (xpacket) {
+                free(xpacket);
+                xpacket = NULL;
+                nxpacket = 0;
+            }
+            len = len > 10240 ? len : 10240;
+            xpacket = (CHAR *)malloc(len);
+            if (!xpacket) {
+                fprintf(stderr,"ttol malloc failure\n");
+                return(-1);
+            } else
+              nxpacket = len;
+        }
+        memcpy(xpacket,s,len);
+        s = (char *)xpacket;
+        ck_tn_encrypt(s,len);
     }
 #endif /* CK_ENCRYPTION */
 #endif /* IKSD */
@@ -13012,18 +13022,18 @@ conola(s) char *s[];
 
     if (!s) return(0);
     for (i = 0; ; i++) {
-	p = s[i];
-	if (!p) p = "";			/* Let's not dump core shall we? */
-	if (!*p)
-	  break;
+        p = s[i];
+        if (!p) p = "";                 /* Let's not dump core shall we? */
+        if (!*p)
+          break;
 #ifdef IKSD
-	if (inserver && !local)
-	  x = ttol((CHAR *)p,(int)strlen(p));
-	else
+        if (inserver && !local)
+          x = ttol((CHAR *)p,(int)strlen(p));
+        else
 #endif /* IKSD */
-	  x = conol(p);
-	if (x < 0)
-	  return(-1);
+          x = conol(p);
+        if (x < 0)
+          return(-1);
     }
     return(0);
 }
@@ -13045,8 +13055,8 @@ conoll(s) char *s;
 
 #ifdef IKSD
     if (inserver && !local) {
-	if (*s) ttol((CHAR *)s,(int)strlen(s));
-	return(ttol(buf,2));
+        if (*s) ttol((CHAR *)s,(int)strlen(s));
+        return(ttol(buf,2));
     }
 #endif /* IKSD */
 
@@ -13072,10 +13082,10 @@ conoll(s) char *s;
 */
 int
 conchk() {
-    static int contyp = 0;		/* +1 for isatty, -1 otherwise */
+    static int contyp = 0;              /* +1 for isatty, -1 otherwise */
 
-    if (contyp == 0)			/* This prevents unnecessary */
-      contyp = (isatty(0) ? 1 : -1);	/* duplicated calls to isatty() */
+    if (contyp == 0)                    /* This prevents unnecessary */
+      contyp = (isatty(0) ? 1 : -1);    /* duplicated calls to isatty() */
     debug(F101,"conchk contyp","",contyp);
     if (backgrd || (contyp < 0))
       return(0);
@@ -13115,71 +13125,71 @@ coninc(timo) int timo;
     int n = 0; CHAR ch;
     int xx;
 
-    if (conbufn > 0) {			/* If something already buffered */
-	--conbufn;
-	return((unsigned)(*conbufp++ & 0xff));
+    if (conbufn > 0) {                  /* If something already buffered */
+        --conbufn;
+        return((unsigned)(*conbufp++ & 0xff));
     }
 
-    errno = 0;				/* Clear this */
+    errno = 0;                          /* Clear this */
 #ifdef IKSD
     if (inserver && !local) {
-	xx = ttinc(timo);
-	if (xx < 0)
-	  return(ttinctimo ? -2 : -1);
-	else
-	  return(xx);
+        xx = ttinc(timo);
+        if (xx < 0)
+          return(ttinctimo ? -2 : -1);
+        else
+          return(xx);
     }
 #endif /* IKSD */
 
-#ifdef aegis				/* Apollo Aegis only... */
+#ifdef aegis                            /* Apollo Aegis only... */
     debug(F101,"coninc timo","",timo);
     fflush(stdout);
     if (conchk() > 0) {
-	--conbufn;
-	return((unsigned)(*conbufp++ & 0xff));
+        --conbufn;
+        return((unsigned)(*conbufp++ & 0xff));
     }
 #endif /* aegis */
 
 #ifdef TTLEBUF
     if (
 #ifdef IKSD
-	inserver &&
+        inserver &&
 #endif /* IKSD */
-	!xlocal
-	) {
-	if (ttpush >= 0) {
-	    debug(F111,"ttinc","ttpush",ttpush);
-	    ch = ttpush;
-	    ttpush = -1;
-	    return(ch);
-	}
-	if (le_data) {
-	    if (le_getchar(&ch) > 0) {
-		debug(F111,"ttinc LocalEchoInBuf","ch",ch);
-		return(ch);
-	    }
-	}
+        !xlocal
+        ) {
+        if (ttpush >= 0) {
+            debug(F111,"ttinc","ttpush",ttpush);
+            ch = ttpush;
+            ttpush = -1;
+            return(ch);
+        }
+        if (le_data) {
+            if (le_getchar(&ch) > 0) {
+                debug(F111,"ttinc LocalEchoInBuf","ch",ch);
+                return(ch);
+            }
+        }
     }
 #endif /* TTLEBUF */
 
-    if (timo <= 0) {			/* Untimed, blocking read. */
-	while (1) {			/* Keep trying till we get one. */
-	    n = read(0, &ch, 1);	/* Read a character. */
-	    if (n == 0) continue;	/* Shouldn't happen. */
-	    if (n > 0) {		/* If read was successful, */
+    if (timo <= 0) {                    /* Untimed, blocking read. */
+        while (1) {                     /* Keep trying till we get one. */
+            n = read(0, &ch, 1);        /* Read a character. */
+            if (n == 0) continue;       /* Shouldn't happen. */
+            if (n > 0) {                /* If read was successful, */
 #ifdef IKSD
 #ifdef CK_ENCRYPTION
                 debug(F100,"coninc decrypt 1","",0);
                 if (inserver && !local && TELOPT_U(TELOPT_ENCRYPTION))
-		  ck_tn_decrypt((char *)&ch,1);
+                  ck_tn_decrypt((char *)&ch,1);
 #endif /* CK_ENCRYPTION */
 #endif /* IKSD */
-		return((unsigned)(ch & 0xff)); /* return the character. */
+                return((unsigned)(ch & 0xff)); /* return the character. */
             }
 
 /* Come here if read() returned an error. */
 
-	    debug(F101, "coninc(0) errno","",errno); /* Log the error. */
+            debug(F101, "coninc(0) errno","",errno); /* Log the error. */
 #ifndef OXOS
 #ifdef SVORPOSIX
 #ifdef CIE                             /* CIE Regulus has no EINTR symbol? */
@@ -13206,12 +13216,12 @@ coninc(timo) int timo;
   When this happens, we have to post the read() again.  This is apparently not
   a problem in BSD-based UNIX versions.
 */
-	    if (errno == EINTR) {       /* Read interrupted. */
-                if (conesc)  {		/* If by SIGQUIT, */
-                    conesc = 0;		/* the conesc variable is set, */
-                    return(escchr);	/* so return the escape character. */
+            if (errno == EINTR) {       /* Read interrupted. */
+                if (conesc)  {          /* If by SIGQUIT, */
+                    conesc = 0;         /* the conesc variable is set, */
+                    return(escchr);     /* so return the escape character. */
                 } else {
-                  continue;		/* By other signal, try again. */
+                  continue;             /* By other signal, try again. */
                 }
             }
 #else
@@ -13220,48 +13230,48 @@ coninc(timo) int timo;
   since at least one SunOS 4.1.2 user complains of immediate disconnections
   upon first making a TELNET connection.
 */
-	    if (errno == EINTR)		/* Read interrupted. */
-	      continue;
+            if (errno == EINTR)         /* Read interrupted. */
+              continue;
 #endif /* SVORPOSIX */
 #else /* OXOS */
-	    if (errno == EINTR)		/* Read interrupted. */
-	      continue;
+            if (errno == EINTR)         /* Read interrupted. */
+              continue;
 #endif /* OXOS */
-	    return(-1);			/* Error */
-	}
+            return(-1);                 /* Error */
+        }
     }
 #ifdef DEBUG
     if (deblog && timo <= 0) {
-	debug(F100,"coninc timeout logic error","",0);
-	timo = 1;
+        debug(F100,"coninc timeout logic error","",0);
+        timo = 1;
     }
 #endif /* DEBUG */
 
 /* Timed read... */
 
-    saval = signal(SIGALRM,timerh);	/* Set up timeout handler. */
-    xx = alarm(timo);			/* Set the alarm. */
+    saval = signal(SIGALRM,timerh);     /* Set up timeout handler. */
+    xx = alarm(timo);                   /* Set the alarm. */
     debug(F101,"coninc alarm set","",timo);
     if (
 #ifdef CK_POSIX_SIG
-	sigsetjmp(sjbuf,1)
+        sigsetjmp(sjbuf,1)
 #else
-	setjmp(sjbuf)
+        setjmp(sjbuf)
 #endif /* CK_POSIX_SIG */
-	)				/* The read() timed out. */
-      n = -2;				/* Code for timeout. */
+        )                               /* The read() timed out. */
+      n = -2;                           /* Code for timeout. */
     else
       n = read(0, &ch, 1);
-    ttimoff();				/* Turn off timer */
-    if (n > 0) {			/* Got character OK. */
+    ttimoff();                          /* Turn off timer */
+    if (n > 0) {                        /* Got character OK. */
 #ifdef IKSD
 #ifdef CK_ENCRYPTION
         debug(F100,"coninc decrypt 2","",0);
         if (inserver && !local && TELOPT_U(TELOPT_ENCRYPTION))
-	  ck_tn_decrypt((char *)&ch,1);
+          ck_tn_decrypt((char *)&ch,1);
 #endif /* CK_ENCRYPTION */
 #endif /* IKSD */
-	return((unsigned)(ch & 0xff));	/* Return it. */
+        return((unsigned)(ch & 0xff));  /* Return it. */
     }
 /*
   read() returned an error.  Same deal as above, but without the loop.
@@ -13271,12 +13281,12 @@ coninc(timo) int timo;
 #ifndef OXOS
 #ifdef SVORPOSIX
     if (n == -1 && errno == EINTR && conesc != 0) {
-	conesc = 0;
-	return(escchr);			/* User entered escape character. */
+        conesc = 0;
+        return(escchr);                 /* User entered escape character. */
     }
 #endif /* SVORPOSIX */
-    if (n == 0 && errno > 0) {		/* It's an error */
-	return(-1);
+    if (n == 0 && errno > 0) {          /* It's an error */
+        return(-1);
     }
 #endif /* ! OXOS */
     return(n);
@@ -13326,15 +13336,15 @@ attdial(ttname,speed,telnbr) char *ttname,*telnbr; long speed; {
     }
     ioctl(ttyfd,PIOCGETP,&dialer);      /* get phone dialer parameters */
 
-    if (dialer.c_lineparam & VOICE) {	/* phone must be in DATA mode */
+    if (dialer.c_lineparam & VOICE) {   /* phone must be in DATA mode */
         printf(" Should not dial with modem in VOICE mode.\n");
         printf(" Exit Kermit, switch to DATA and retry call.\n");
         ttclos(0);
         return (-2);
     }
-#ifdef ATTTONED				/* Old way, tone dialing only. */
-    dialer.c_lineparam = DATA | DTMF;	/* Dial with tones, */
-    dialer.c_lineparam &= ~PULSE;	/* not with pulses. */
+#ifdef ATTTONED                         /* Old way, tone dialing only. */
+    dialer.c_lineparam = DATA | DTMF;   /* Dial with tones, */
+    dialer.c_lineparam &= ~PULSE;       /* not with pulses. */
 #else
     /* Leave current pulse/tone state alone. */
     /* But what about DATA?  Add it back if you have trouble. */
@@ -13350,7 +13360,7 @@ attdial(ttname,speed,telnbr) char *ttname,*telnbr; long speed; {
         ttclos(0);
         return (-2);
     }
-    ioctl(ttyfd,PIOCRECONN,0);		/* Turns on speaker for pulse */
+    ioctl(ttyfd,PIOCRECONN,0);          /* Turns on speaker for pulse */
 
     attmodem |= ISMODEM;                        /* modem is now in-use */
     sleep(1);
@@ -13358,47 +13368,47 @@ attdial(ttname,speed,telnbr) char *ttname,*telnbr; long speed; {
 #ifdef ATTTONED
       /* Tone dialing only */
       if (ioctl(ttyfd,PIOCDIAL,telnum) != 0) {
-	  perror("Error in dialing");
-	  ttclos(0);
-	  return(-2);
+          perror("Error in dialing");
+          ttclos(0);
+          return(-2);
       }
 #else /* Allow Pulse or Tone dialing */
     switch (*telnum) {
-      case 't': case 'T': case '%':	/* Tone dialing requested */
-	dialer.c_lineparam |= DTMF;
-	dialer.c_lineparam &= ~PULSE;
-	if (ioctl(ttyfd,PIOCSETP,&dialer) == -1) {
-	    printf("Cannot set modem to tone dialing\n");
-	    ttclos(0);
-	    return(-2);
-	}
-	break;
+      case 't': case 'T': case '%':     /* Tone dialing requested */
+        dialer.c_lineparam |= DTMF;
+        dialer.c_lineparam &= ~PULSE;
+        if (ioctl(ttyfd,PIOCSETP,&dialer) == -1) {
+            printf("Cannot set modem to tone dialing\n");
+            ttclos(0);
+            return(-2);
+        }
+        break;
       case 'd': case 'D': case 'p': case 'P': case '^':
-	dialer.c_lineparam |= PULSE;
-	dialer.c_lineparam &= ~DTMF;
-	if (ioctl(ttyfd,PIOCSETP,&dialer) == -1) {
-	    printf("Cannot set modem to pulse dialing\n");
-	    ttclos(0);
-	    return(-2);
-	}
-	break;
+        dialer.c_lineparam |= PULSE;
+        dialer.c_lineparam &= ~DTMF;
+        if (ioctl(ttyfd,PIOCSETP,&dialer) == -1) {
+            printf("Cannot set modem to pulse dialing\n");
+            ttclos(0);
+            return(-2);
+        }
+        break;
       default:
         if (ioctl(ttyfd,PIOCDIAL,telnum) != 0) {
-	    perror("Dialing error");
-	    ttclos(0);
-	    return(-2);
-	}
-	break;
+            perror("Dialing error");
+            ttclos(0);
+            return(-2);
+        }
+        break;
     }
 #endif
 
-    ioctl(ttyfd,PIOCDIAL,"@");		/* terminator for data call */
-    do {				/* wait for modems to Connect */
-        if (ioctl(ttyfd,PIOCGETP,&dialer) != 0)	{ /* get params */
-	    perror("Cannot get modems to connect");
-	    ttclos(0);
-	    return(-2);
-	}
+    ioctl(ttyfd,PIOCDIAL,"@");          /* terminator for data call */
+    do {                                /* wait for modems to Connect */
+        if (ioctl(ttyfd,PIOCGETP,&dialer) != 0) { /* get params */
+            perror("Cannot get modems to connect");
+            ttclos(0);
+            return(-2);
+        }
     } while ((dialer.c_linestatus & MODEMCONNECTED) == 0);
     /* Turn off O_NDELAY flag now. */
     fcntl(ttyfd, F_SETFL, fcntl(ttyfd, F_GETFL, 0) & ~O_NDELAY);
@@ -13511,9 +13521,9 @@ carrctl( struct termio *ttpar, int carrier )
 #endif /* BSD44ORPOSIX */
 #else /* CK_ANSIC */
 #ifdef BSD44ORPOSIX
-carrctl(ttpar, carrier)	struct termios *ttpar; int carrier;
+carrctl(ttpar, carrier) struct termios *ttpar; int carrier;
 #else
-carrctl(ttpar, carrier)	struct termio *ttpar; int carrier;
+carrctl(ttpar, carrier) struct termio *ttpar; int carrier;
 #endif /* BSD44ORPOSIX */
 #endif /* CK_ANSIC */
 {
@@ -13536,10 +13546,10 @@ carrctl(ttpar, carrier) struct sgttyb *ttpar; int carrier; {
   New code from Jamie Watson that, he says, eliminates the problems.
 */
     if (carrier) {
-	ioctl(ttyfd, TIOCCAR);
-	ioctl(ttyfd, TIOCHPCL);
+        ioctl(ttyfd, TIOCCAR);
+        ioctl(ttyfd, TIOCHPCL);
     } else {
-	ioctl(ttyfd, TIOCNCAR);
+        ioctl(ttyfd, TIOCNCAR);
     }
 #endif /* ultrix */
     return(0);
@@ -13589,14 +13599,14 @@ carrctl(ttpar, carrier) struct sgttyb *ttpar; int carrier; {
 #ifdef CK_SCOV5
 /* Because POSIX strictness in <sys/termio.h> won't let us see these. */
 #ifndef TIOCM_DTR
-#define TIOCM_DTR	0x0002		/* data terminal ready */
-#define TIOCM_RTS	0x0004		/* request to send */
-#define TIOCM_CTS	0x0020		/* clear to send */
-#define TIOCM_CAR	0x0040		/* carrier detect */
-#define TIOCM_RNG	0x0080		/* ring */
-#define TIOCM_DSR	0x0100		/* data set ready */
-#define TIOCM_CD	TIOCM_CAR
-#define TIOCM_RI	TIOCM_RNG
+#define TIOCM_DTR       0x0002          /* data terminal ready */
+#define TIOCM_RTS       0x0004          /* request to send */
+#define TIOCM_CTS       0x0020          /* clear to send */
+#define TIOCM_CAR       0x0040          /* carrier detect */
+#define TIOCM_RNG       0x0080          /* ring */
+#define TIOCM_DSR       0x0100          /* data set ready */
+#define TIOCM_CD        TIOCM_CAR
+#define TIOCM_RI        TIOCM_RNG
 #endif /* TIOCM_DTR */
 #endif /* CK_SCOV5 */
 
@@ -13624,14 +13634,14 @@ ttgmdm() {
       return(-1);
 
 #ifdef NETCONN
-    if (netconn) {			/* Network connection */
+    if (netconn) {                      /* Network connection */
 #ifdef TN_COMPORT
         if (istncomport()) {
-	    gotsigs = 1;
-	    return(tngmdm());
-	} else
+            gotsigs = 1;
+            return(tngmdm());
+        } else
 #endif /* TN_COMPORT */
-	  return(-2);			/* No modem signals */
+          return(-2);                   /* No modem signals */
     }
 #endif /* NETCONN */
 
@@ -13662,26 +13672,26 @@ ttgmdm() {
     debug(F101,"ttgmdm qnx_ioctl","",x);
     debug(F101,"ttgmdm qnx_ioctl errno","",errno);
     if (!x) {
-	debug(F101,"ttgmdm qnx_ioctl mdmbits[0]","",mdmbits[0]);
-	debug(F101,"ttgmdm qnx_ioctl mdmbits[1]","",mdmbits[1]);
-	y = mdmbits[0];
-	if (y & 0x000001L) z |= BM_DTR;	/* Bit  0 */
-	if (y & 0x000002L) z |= BM_RTS;	/* Bit  1 */
-	if (y & 0x100000L) z |= BM_CTS;	/* Bit 20 */
-	if (y & 0x200000L) z |= BM_DSR;	/* Bit 21 */
-	if (y & 0x400000L) z |= BM_RNG;	/* Bit 22 */
-	if (y & 0x800000L) z |= BM_DCD;	/* Bit 23 */
-	debug(F101,"ttgmdm qnx result","",z);
-	debug(F110,"ttgmdm qnx CD = ",(z & BM_DCD) ? "On" : "Off", 0);
-	gotsigs = 1;
-	return(z);
+        debug(F101,"ttgmdm qnx_ioctl mdmbits[0]","",mdmbits[0]);
+        debug(F101,"ttgmdm qnx_ioctl mdmbits[1]","",mdmbits[1]);
+        y = mdmbits[0];
+        if (y & 0x000001L) z |= BM_DTR; /* Bit  0 */
+        if (y & 0x000002L) z |= BM_RTS; /* Bit  1 */
+        if (y & 0x100000L) z |= BM_CTS; /* Bit 20 */
+        if (y & 0x200000L) z |= BM_DSR; /* Bit 21 */
+        if (y & 0x400000L) z |= BM_RNG; /* Bit 22 */
+        if (y & 0x800000L) z |= BM_DCD; /* Bit 23 */
+        debug(F101,"ttgmdm qnx result","",z);
+        debug(F110,"ttgmdm qnx CD = ",(z & BM_DCD) ? "On" : "Off", 0);
+        gotsigs = 1;
+        return(z);
     } else return(-1);
 #else /* QNX */
-#ifdef HPUX				/* HPUX has its own way */
+#ifdef HPUX                             /* HPUX has its own way */
     int x, z;
 
-#ifdef HPUX10				/* Modem flag word */
-    mflag y;				/* mflag typedef'd in <sys/modem.h> */
+#ifdef HPUX10                           /* Modem flag word */
+    mflag y;                            /* mflag typedef'd in <sys/modem.h> */
 #else
 #ifdef HPUX9
     mflag y;
@@ -13689,7 +13699,7 @@ ttgmdm() {
 #ifdef HPUX8
     mflag y;
 #else
-    unsigned long y;			/* Not sure about pre-8.0... */
+    unsigned long y;                    /* Not sure about pre-8.0... */
 #endif /* HPUX8 */
 #endif /* HPUX9 */
 #endif /* HPUX10 */
@@ -13698,14 +13708,14 @@ ttgmdm() {
       return(-1);
 
 #ifdef NETCONN
-    if (netconn) {			/* Network connection */
+    if (netconn) {                      /* Network connection */
 #ifdef TN_COMPORT
         if (istncomport()) {
-	    gotsigs = 1;
-	    return(tngmdm());
-	} else
+            gotsigs = 1;
+            return(tngmdm());
+        } else
 #endif /* TN_COMPORT */
-	  return(-2);			/* No modem signals */
+          return(-2);                   /* No modem signals */
     }
 #endif /* NETCONN */
 
@@ -13716,14 +13726,14 @@ ttgmdm() {
     if (ttpty) return(-2);
 #endif /* NETPTY */
 
-    if (xlocal)				/* Get modem signals */
+    if (xlocal)                         /* Get modem signals */
       x = ioctl(ttyfd,MCGETA,&y);
     else
       x = ioctl(0,MCGETA,&y);
     if (x < 0) return(-1);
     debug(F101,"ttgmdm","",y);
 
-    z = 0;				/* Initialize return value */
+    z = 0;                              /* Initialize return value */
 
 /* Now set bits for each modem signal that is reported to be on. */
 
@@ -13777,14 +13787,14 @@ ttgmdm() {
     debug(F100,"ttgmdm K_MDMCTL defined","",0);
 
 #ifdef NETCONN
-    if (netconn) {			/* Network connection */
+    if (netconn) {                      /* Network connection */
 #ifdef TN_COMPORT
         if (istncomport()) {
-	    gotsigs = 1;
-	    return(tngmdm());
-	} else
+            gotsigs = 1;
+            return(tngmdm());
+        } else
 #endif /* TN_COMPORT */
-	  return(-2);			/* No modem signals */
+          return(-2);                   /* No modem signals */
     }
 #endif /* NETCONN */
 
@@ -13799,17 +13809,17 @@ ttgmdm() {
       return(-1);
 
     if (xlocal)
-      x = ioctl(ttyfd,TIOCMGET,&y);	/* Get modem signals. */
+      x = ioctl(ttyfd,TIOCMGET,&y);     /* Get modem signals. */
     else
       x = ioctl(0,TIOCMGET,&y);
     debug(F101,"ttgmdm TIOCMGET ioctl","",x);
     if (x < 0) {
-	debug(F101,"ttgmdm errno","",errno);
-	return(-1);
+        debug(F101,"ttgmdm errno","",errno);
+        return(-1);
     }
     debug(F101,"ttgmdm bits","",y);
 
-    z = 0;				/* Initialize return value. */
+    z = 0;                              /* Initialize return value. */
 #ifdef TIOCM_CTS
     /* Clear To Send */
     if (y & TIOCM_CTS) z |= BM_CTS;
@@ -13870,14 +13880,14 @@ ttgmdm() {
 #endif /* _SVID3 */
 
 #ifdef NETCONN
-    if (netconn) {			/* Network connection */
+    if (netconn) {                      /* Network connection */
 #ifdef TN_COMPORT
         if (istncomport()) {
-	    gotsigs = 1;
-	    return(tngmdm());
-	} else
+            gotsigs = 1;
+            return(tngmdm());
+        } else
 #endif /* TN_COMPORT */
-	  return(-2);			/* No modem signals */
+          return(-2);                   /* No modem signals */
     }
 #endif /* NETCONN */
 
@@ -13888,7 +13898,7 @@ ttgmdm() {
     if (ttpty) return(-2);
 #endif /* NETPTY */
 
-    return(-3);				/* Sorry, I don't know how... */
+    return(-3);                         /* Sorry, I don't know how... */
 
 #endif /* K_MDMCTL */
 #endif /* HPUX */
@@ -13932,12 +13942,12 @@ psuspend(flag) int flag;
     if (kill(0,SIGSTOP) < 0
 #ifdef MIPS
 /* Let's try this for MIPS too. */
-	&& kill(getpid(),SIGSTOP) < 0
+        && kill(getpid(),SIGSTOP) < 0
 #endif /* MIPS */
-	) {				/* If job control, suspend the job */
-	perror("suspend");
-	debug(F101,"psuspend error","",errno);
-	return(-1);
+        ) {                             /* If job control, suspend the job */
+        perror("suspend");
+        debug(F101,"psuspend error","",errno);
+        return(-1);
     }
     debug(F100,"psuspend ok","",0);
     return(0);
@@ -14006,7 +14016,7 @@ This works on System V and POSIX.  In BSD, it depends on the
 "saved-set-user-id" feature.
 */
 
-#define UID_ROOT 0			/* Root user and group ids */
+#define UID_ROOT 0                      /* Root user and group ids */
 #define GID_ROOT 0
 
 /*
@@ -14035,7 +14045,7 @@ This works on System V and POSIX.  In BSD, it depends on the
   automatic definition of SETREUID if -DNOSETREU is included on the cc
   command line (or otherwise defined).
 */
-#ifdef FT18				/* None of this for Fortune. */
+#ifdef FT18                             /* None of this for Fortune. */
 #define NOSETREU
 #endif /* FT18 */
 
@@ -14135,7 +14145,7 @@ priv_ini()
      * is not provided for at all in the switching functions.
      */
     if (realuid == privuid)
-	privuid = (UID_T) -1;		/* Not running set-user-id. */
+        privuid = (UID_T) -1;           /* Not running set-user-id. */
 
     /* If running set-gid, go down to real gid, otherwise remember that
      * no privileged gid is available.
@@ -14158,19 +14168,19 @@ priv_ini()
     fprintf(stderr,"privuid=%d\n",privuid);
 #endif /* SUIDDEBUG */
 
-    if (realgid == privgid)		/* If not running set-user-id, */
-      privgid = (GID_T) -1;		/*  remember it this way. */
+    if (realgid == privgid)             /* If not running set-user-id, */
+      privgid = (GID_T) -1;             /*  remember it this way. */
 
-    err = priv_off();			/* Turn off setuid privilege. */
+    err = priv_off();                   /* Turn off setuid privilege. */
 
-    if (privuid == UID_ROOT)		/* If setuid to root, */
-      err |= 4;				/* return this error. */
+    if (privuid == UID_ROOT)            /* If setuid to root, */
+      err |= 4;                         /* return this error. */
 
-    if (realuid == UID_ROOT) {		/* If real id is root, */
-	privuid = (UID_T) -1;		/* stay root at all times. */
+    if (realuid == UID_ROOT) {          /* If real id is root, */
+        privuid = (UID_T) -1;           /* stay root at all times. */
 #ifdef ATT7300
-	/* If Kermit installed SUID uucp and user is running as root */
-	err &= ~1;			/* System V R0 does not save UID */
+        /* If Kermit installed SUID uucp and user is running as root */
+        err &= ~1;                      /* System V R0 does not save UID */
 #endif /* ATT7300 */
     }
 #endif /* HAVE_LOCKDEV */
@@ -14205,8 +14215,8 @@ priv_ini()
  * in the real UID.  The kernel only allows switching to either the current
  * real or the effective UID, unless you're "root".
  */
-#define switchuid(hidden,active)	setreuid(hidden,active)
-#define switchgid(hidden,active)	setregid(hidden,active)
+#define switchuid(hidden,active)        setreuid(hidden,active)
+#define switchgid(hidden,active)        setregid(hidden,active)
 #endif
 
 #else /* !SETREUID, !SAVEDUID */
@@ -14217,8 +14227,8 @@ priv_ini()
   seteXid() instead of setXid() to change effective IDs.  In addition, the
   seteXid() functions work the same for "root" as for other users.
 */
-#define switchuid(hidden,active)	seteuid(active)
-#define switchgid(hidden,active)	setegid(active)
+#define switchuid(hidden,active)        seteuid(active)
+#define switchgid(hidden,active)        setegid(active)
 
 #else /* !SETEUID */
 
@@ -14234,8 +14244,8 @@ priv_ini()
  * set-UID.
  */
 
-#define switchuid(hidden,active)	setuid(active)
-#define switchgid(hidden,active)	setgid(active)
+#define switchuid(hidden,active)        setuid(active)
+#define switchgid(hidden,active)        setgid(active)
 
 #endif /* SETEUID */
 #endif /* SETREUID */
@@ -14258,10 +14268,10 @@ priv_on() {
 
     if (privuid != (UID_T) -1)
       if (switchuid(realuid,privuid)) {
-	  if (privgid != (GID_T) -1)
-	    if (switchgid(privgid,realgid))
+          if (privgid != (GID_T) -1)
+            if (switchgid(privgid,realgid))
               return(2);
-	  return(1);
+          return(1);
       }
 #endif /* HAVE_LOCKDEV */
     return(0);
@@ -14282,11 +14292,11 @@ priv_off() {
 #ifndef HAVE_LOCKDEV
     if (privuid != (UID_T) -1)
        if (switchuid(privuid,realuid))
-	  err |= 1;
+          err |= 1;
 
     if (privgid != (GID_T) -1)
        if (switchgid(privgid,realgid))
-	err |= 2;
+        err |= 2;
 #endif /* HAVE_LOCKDEV */
     return(err);
 }
@@ -14308,11 +14318,11 @@ priv_can() {
     int err = 0;
     if (privuid != (UID_T) -1)
        if (setreuid(realuid,realuid))
-	  err |= 1;
+          err |= 1;
 
     if (privgid != (GID_T) -1)
         if (setregid(realgid,realgid))
- 	  err |= 2;
+          err |= 2;
 
     return(err);
 
@@ -14320,20 +14330,20 @@ priv_can() {
 #ifdef SETEUID
     int err = 0;
     if (privuid != (UID_T) -1)
-	if (setuid(realuid)) {
-	    debug(F101,"setuid failed","",errno);
-	    err |= 1;
-	    debug(F101,"ruid","",getuid());
-	    debug(F101,"euid","",geteuid());
-	}
+        if (setuid(realuid)) {
+            debug(F101,"setuid failed","",errno);
+            err |= 1;
+            debug(F101,"ruid","",getuid());
+            debug(F101,"euid","",geteuid());
+        }
     debug(F101,"setuid","",realuid);
     if (privgid != (GID_T) -1)
         if (setgid(realgid)) {
-	    debug(F101,"setgid failed","",errno);
-	    err |= 2;
-	    debug(F101,"rgid","",getgid());
-	    debug(F101,"egid","",getegid());
-	}
+            debug(F101,"setgid failed","",errno);
+            err |= 2;
+            debug(F101,"rgid","",getgid());
+            debug(F101,"egid","",getegid());
+        }
     debug(F101,"setgid","",realgid);
     return(err);
 #else
@@ -14356,14 +14366,14 @@ priv_opn(name, modes) char *name; int modes;
 #endif /* CK_ANSIC */
 {
     int x;
-    priv_on();				/* Turn privileges on */
+    priv_on();                          /* Turn privileges on */
     debug(F111,"priv_opn",name,modes);
     errno = 0;
-    x = open(name, modes);		/* Try to open the device */
+    x = open(name, modes);              /* Try to open the device */
     debug(F101,"priv_opn result","",x);
     debug(F101,"priv_opn errno","",errno);
-    priv_chk();				/* Turn privileges off */
-    return(x);				/* Return open's return code */
+    priv_chk();                         /* Turn privileges off */
+    return(x);                          /* Return open's return code */
 }
 
 /*  P R I V _ C H K  --  Check privileges.  */
@@ -14373,7 +14383,7 @@ priv_opn(name, modes) char *name; int modes;
 int
 priv_chk() {
     int x, y = 0;
-    x = priv_off();			/* Turn off privs. */
+    x = priv_off();                     /* Turn off privs. */
     if (x != 0 || getuid() == privuid || geteuid() == privuid)
       y = priv_can();
     if (x != 0 || getgid() == privgid || getegid() == privgid)
@@ -14387,7 +14397,7 @@ real_uid() {
 }
 
 VOID
-ttimoff() {				/* Turn off any timer interrupts */
+ttimoff() {                             /* Turn off any timer interrupts */
     /* int xx; */
 /*
   As of 5A(183), we set SIGALRM to SIG_IGN (to ignore alarms) rather than to
@@ -14399,41 +14409,41 @@ ttimoff() {				/* Turn off any timer interrupts */
 */
     /* xx = */ alarm(0);
     /* debug(F101,"ttimoff alarm","",xx); */
-    if (saval) {			/* Restore any previous */
-	signal(SIGALRM,saval);		/* alarm handler. */
-	/* debug(F101,"ttimoff alarm restoring saval","",saval); */
-	saval = NULL;
+    if (saval) {                        /* Restore any previous */
+        signal(SIGALRM,saval);          /* alarm handler. */
+        /* debug(F101,"ttimoff alarm restoring saval","",saval); */
+        saval = NULL;
     } else {
-	signal(SIGALRM,SIG_IGN);	/* Used to be SIG_DFL */
-	/* debug(F100,"ttimoff alarm SIG_IGN","",0); */
+        signal(SIGALRM,SIG_IGN);        /* Used to be SIG_DFL */
+        /* debug(F100,"ttimoff alarm SIG_IGN","",0); */
     }
 }
 
 
 int
-tt_is_secure() {	  /* Tells whether the current connection is secure */
+tt_is_secure() {          /* Tells whether the current connection is secure */
 
     if (ttyfd == -1)
       return(0);
 
     if (0
 #ifdef SSHBUILTIN
-	|| IS_SSH()
+        || IS_SSH()
 #endif /* SSHBUILTIN */
 #ifdef CK_ENCRYPTION
-	|| ck_tn_encrypting() && ck_tn_decrypting()
+        || (ck_tn_encrypting() && ck_tn_decrypting())
 #endif /* CK_ENCRYPTION */
 #ifdef CK_SSL
-	|| tls_active_flag || ssl_active_flag
+        || tls_active_flag || ssl_active_flag
 #endif /* CK_SSL */
 #ifdef RLOGCODE
 #ifdef CK_KERBEROS
 #ifdef CK_ENCRYPTION
-	|| ttnproto == NP_EK4LOGIN || ttnproto == NP_EK5LOGIN
+        || ttnproto == NP_EK4LOGIN || ttnproto == NP_EK5LOGIN
 #endif /* CK_ENCRYPTION */
 #endif /* CK_KERBEROS */
 #endif /* RLOGCODE */
-	)
+        )
       return(1);
     return(0);
 }
@@ -14448,27 +14458,27 @@ extern int exp_handler, exp_stderr, exp_timo;
 
 /* The right size is 24576 */
 
-#ifndef PTY_PBUF_SIZE			/* Size of buffer to read from pty */
-#define PTY_PBUF_SIZE 24576		/* and write to net. */
-#endif	/* PTY_PBUF_SIZE */
+#ifndef PTY_PBUF_SIZE                   /* Size of buffer to read from pty */
+#define PTY_PBUF_SIZE 24576             /* and write to net. */
+#endif  /* PTY_PBUF_SIZE */
 
-#ifndef PTY_TBUF_SIZE			/* Size of buffer to read from net */
-#define PTY_TBUF_SIZE 24576		/* and write to pty. */
-#endif	/* PTY_TBUF_SIZE */
+#ifndef PTY_TBUF_SIZE                   /* Size of buffer to read from net */
+#define PTY_TBUF_SIZE 24576             /* and write to pty. */
+#endif  /* PTY_TBUF_SIZE */
 
 #ifndef PTY_NET_ERR_GRACE_SECS
-#define PTY_NET_ERR_GRACE_SECS 5	/* How long to wait after the net */
-#endif	/* PTY_NET_ERR_GRACE_SECS */	/* side dies for a still-running */
-					/* external protocol child to finish */
-					/* on its own before killing it. */
+#define PTY_NET_ERR_GRACE_SECS 5        /* How long to wait after the net */
+#endif  /* PTY_NET_ERR_GRACE_SECS */    /* side dies for a still-running */
+                                        /* external protocol child to finish */
+                                        /* on its own before killing it. */
 
-#ifdef O_NDELAY				/* Whether to use nonblocking */
-#ifndef PTY_NO_NDELAY			/* reads on the pseudoterminal */
+#ifdef O_NDELAY                         /* Whether to use nonblocking */
+#ifndef PTY_NO_NDELAY                   /* reads on the pseudoterminal */
 #ifndef PTY_USE_NDELAY
 #define PTY_USE_NDELAY
-#endif	/* PTY_USE_NDELAY */
-#endif	/* PTY_NO_NDELAY */
-#endif	/* O_NDELAY */
+#endif  /* PTY_USE_NDELAY */
+#endif  /* PTY_NO_NDELAY */
+#endif  /* O_NDELAY */
 
 #ifndef HAVE_OPENPTY
 #ifndef USE_CKUPTY_C
@@ -14485,28 +14495,28 @@ pty_make_raw(fd) int fd;
 {
     int x = -23, i;
 
-#ifdef BSD44ORPOSIX			/* POSIX */
+#ifdef BSD44ORPOSIX                     /* POSIX */
     struct termios tp;
 #else
-#ifdef ATTSV				/* AT&T UNIX */
+#ifdef ATTSV                            /* AT&T UNIX */
 #ifdef CK_ANSIC
     struct termio tp = {0};
 #else
     struct termio tp;
-#endif	/* CK_ANSIC */
+#endif  /* CK_ANSIC */
 #else
-    struct sgttyb tp;			/* Traditional */
+    struct sgttyb tp;                   /* Traditional */
 #endif /* ATTSV */
 #endif /* BSD44ORPOSIX */
 
     debug(F101,"pty_make_raw fd","",fd);
     errno = 0;
 
-#ifdef BSD44ORPOSIX			/* POSIX */
+#ifdef BSD44ORPOSIX                     /* POSIX */
     x = tcgetattr(fd,&tp);
     debug(F101,"pty_make_raw tcgetattr","",x);
 #else
-#ifdef ATTSV				/* AT&T UNIX */
+#ifdef ATTSV                            /* AT&T UNIX */
     x = ioctl(fd,TCGETA,&tp);
     debug(F101,"pty_make_raw TCGETA ioctl","",x);
 #else
@@ -14613,11 +14623,11 @@ pty_make_raw(fd) int fd;
     tp.c_lflag &= ~(ICANON|ISIG|IEXTEN|TOSTOP|FLUSHO|PENDIN|EXTPROC);
 #else
     tp.c_lflag &= ~(ICANON|ISIG|IEXTEN|TOSTOP|FLUSHO|PENDIN);
-#endif	/* EXTPROC */
+#endif  /* EXTPROC */
 #ifdef NOKERNINFO
     tp.c_lflag |= NOKERNINFO;
-#endif	/* NOKERNINFO */
-    tp.c_lflag &= ~NOFLSH;		/* TRY IT THE OTHER WAY? */
+#endif  /* NOKERNINFO */
+    tp.c_lflag &= ~NOFLSH;              /* TRY IT THE OTHER WAY? */
 
     /* cflags */
     tp.c_cflag &= ~(CSIZE|PARENB|PARODD);
@@ -14627,7 +14637,7 @@ pty_make_raw(fd) int fd;
     tp.c_cflag &= ~(MDMBUF);
 #else
 #ifdef CCAR_OFLOW
-    tp.c_cflag &= ~(CCAR_OFLOW);	/* two names for the same thing */
+    tp.c_cflag &= ~(CCAR_OFLOW);        /* two names for the same thing */
 #endif /* CCAR_OFLOW */
 #endif /* MDMBUF */
 
@@ -14659,12 +14669,12 @@ pty_make_raw(fd) int fd;
     tp.c_cflag &= ~(HUPCL);
 #endif /* HUPCL */
 
-    for (i = 0; i < NCCS; i++) {	/* No special characters */
-	tp.c_cc[i] = 0;
+    for (i = 0; i < NCCS; i++) {        /* No special characters */
+        tp.c_cc[i] = 0;
     }
 #ifdef VMIN
-    tp.c_cc[VMIN] = 1;			/* But always wait for input */
-#endif	/* VMIN */
+    tp.c_cc[VMIN] = 1;                  /* But always wait for input */
+#endif  /* VMIN */
     debug(F101,"pty_make_raw 3 c_cc[] NCCS","",NCCS);
     debug(F101,"pty_make_raw 3 iflags","",tp.c_iflag);
     debug(F101,"pty_make_raw 3 oflags","",tp.c_oflag);
@@ -14672,15 +14682,15 @@ pty_make_raw(fd) int fd;
     debug(F101,"pty_make_raw 3 cflags","",tp.c_cflag);
 
     errno = 0;
-#ifdef BSD44ORPOSIX			/* POSIX */
+#ifdef BSD44ORPOSIX                     /* POSIX */
     x = tcsetattr(fd,TCSANOW,&tp);
     debug(F101,"pty_make_raw tcsetattr","",x);
 #else
-#ifdef ATTSV				/* AT&T UNIX */
+#ifdef ATTSV                            /* AT&T UNIX */
     x = ioctl(fd,TCSETA,&tp);
     debug(F101,"pty_make_raw ioctl","",x);
 #else
-    x = stty(fd,&tp);			/* Traditional */
+    x = stty(fd,&tp);                   /* Traditional */
     debug(F101,"pty_make_raw stty","",x);
 #endif /* ATTSV */
 #endif /* BSD44ORPOSIX */
@@ -14699,12 +14709,12 @@ pty_chk(fd) int fd;
     int x, n = 0;
     errno = 0;
 #ifdef FIONREAD
-    x = ioctl(fd, FIONREAD, &n);	/* BSD and most others */
+    x = ioctl(fd, FIONREAD, &n);        /* BSD and most others */
     ckmakmsg(msgbuf,500,
-	     "pty_chk ioctl FIONREAD errno=",
-	     ckitoa(errno),
-	     " count=",
-	     ckitoa(n));
+             "pty_chk ioctl FIONREAD errno=",
+             ckitoa(errno),
+             " count=",
+             ckitoa(n));
     debug(F100,msgbuf,"",0);
 #else
 #ifdef RDCHK
@@ -14712,8 +14722,8 @@ pty_chk(fd) int fd;
     debug(F101,"pty_chk rdchk","",n);
 #else
     n = 1;
-#endif	/* RDCHK */
-#endif	/* FIONREAD */
+#endif  /* RDCHK */
+#endif  /* FIONREAD */
     return((n > -1) ? n : 0);
 }
 
@@ -14737,24 +14747,24 @@ pty_get_status(fd,pid) int fd; PID_T pid;
     x = waitpid(pty_fork_pid,&status,WNOHANG);
     debug(F111,"pty_get_status waitpid",ckitoa(errno),x);
     if (x <= 0 && errno == 0) {
-	debug(F101,"pty_get_status waitpid return","",-1);
-	return(-1);
+        debug(F101,"pty_get_status waitpid return","",-1);
+        return(-1);
     }
     if (x > 0) {
-	if (x != pty_fork_pid)
-	  debug(F101,
-		"pty_get_status waitpid pid doesn't match","",pty_fork_pid);
-	debug(F101,"pty_get_status waitpid status","",status);
-	debug(F101,"pty_get_status waitpid errno","",errno);
-	if (WIFEXITED(status)) {
-	    debug(F100,"pty_get_status WIFEXITED","",0);
-	    status = WEXITSTATUS(status);
-	    debug(F101,"pty_get_status fork exit status","",status);
-	    close(fd);
-	    pexitstat = status;
-	} else {
-	    debug(F100,"pty_get_status waitpid unexpected status","",0);
-	}
+        if (x != pty_fork_pid)
+          debug(F101,
+                "pty_get_status waitpid pid doesn't match","",pty_fork_pid);
+        debug(F101,"pty_get_status waitpid status","",status);
+        debug(F101,"pty_get_status waitpid errno","",errno);
+        if (WIFEXITED(status)) {
+            debug(F100,"pty_get_status WIFEXITED","",0);
+            status = WEXITSTATUS(status);
+            debug(F101,"pty_get_status fork exit status","",status);
+            close(fd);
+            pexitstat = status;
+        } else {
+            debug(F100,"pty_get_status waitpid unexpected status","",0);
+        }
     }
     debug(F101,"pty_get_status return status","",status);
     return(status);
@@ -14808,9 +14818,9 @@ pty_get_status(fd,pid) int fd; PID_T pid;
     touch ckutio.c
     make platformname KFLAGS=-DPTY_NO_NODELAY
 */
-static int have_pty = 0;		/* Do we have a pty? */
+static int have_pty = 0;                /* Do we have a pty? */
 
-static sig_t save_sigchld;	/* For catching SIGCHLD */
+static sig_t save_sigchld;      /* For catching SIGCHLD */
 
 static VOID
 #ifdef CK_ANSIC
@@ -14819,18 +14829,18 @@ sigchld_handler( int sig )
 sigchld_handler(sig) int sig;
 #endif /* CK_ANSIC */
 {
-    have_pty = 0;			/* We don't have a pty */
+    have_pty = 0;                       /* We don't have a pty */
 #ifdef DEBUG
     if (save_sigchld) {
-	(VOID) signal(SIGCHLD,save_sigchld);
-	save_sigchld = NULL;
+        (VOID) signal(SIGCHLD,save_sigchld);
+        save_sigchld = NULL;
     }
     if (deblog) {
-	debug(F100,"**************","",0);
-	debug(F100,"SIGCHLD caught","",0);
-	debug(F100,"**************","",0);
+        debug(F100,"**************","",0);
+        debug(F100,"SIGCHLD caught","",0);
+        debug(F100,"**************","",0);
     }
-#endif	/* DEBUG */
+#endif  /* DEBUG */
 }
 #define HAVE_IAC 1
 #define HAVE_CR  2
@@ -14842,46 +14852,46 @@ ttptycmd( char *s )
 ttptycmd(s) char *s;
 #endif /* CK_ANSIC */
 {
-    CHAR tbuf[PTY_TBUF_SIZE];		/* Read from net, write to pty */
-    int tbuf_avail = 0;			/* Pointers for tbuf */
+    CHAR tbuf[PTY_TBUF_SIZE];           /* Read from net, write to pty */
+    int tbuf_avail = 0;                 /* Pointers for tbuf */
     int tbuf_written = 0;
-    static int in_state = 0;		/* For TELNET IAC and NVT in */
-    static int out_prev = 0;		/* Simpler scheme for out */
+    static int in_state = 0;            /* For TELNET IAC and NVT in */
+    static int out_prev = 0;            /* Simpler scheme for out */
 
-    CHAR pbuf[PTY_PBUF_SIZE];		/* Read from pty, write to net */
+    CHAR pbuf[PTY_PBUF_SIZE];           /* Read from pty, write to net */
     CHAR dbuf[PTY_PBUF_SIZE + PTY_PBUF_SIZE + 1]; /* Double-size buffer */
-    int pbuf_avail = 0;			/* Pointers for pbuf */
+    int pbuf_avail = 0;                 /* Pointers for pbuf */
     int pbuf_written = 0;
 
-    int ptyfd = -1;			/* Pty file descriptor */
-    int have_net = 0;			/* We have a network connection */
-    int pty_err = 0;			/* Got error on pty */
-    int net_err = 0;			/* Got error on net */
+    int ptyfd = -1;                     /* Pty file descriptor */
+    int have_net = 0;                   /* We have a network connection */
+    int pty_err = 0;                    /* Got error on pty */
+    int net_err = 0;                    /* Got error on net */
     time_t net_err_deadline = (time_t)0; /* Grace deadline, set once net */
-					/* dies but the pty child hasn't */
-    int status = -1;			/* Pty process exit status */
-    int rc = 0;				/* Our return code */
+                                        /* dies but the pty child hasn't */
+    int status = -1;                    /* Pty process exit status */
+    int rc = 0;                         /* Our return code */
 
-    int x1 = 0, x2 = 0;			/* Workers... */
-    int c, n, m, t, x;			/* Workers */
+    int x1 = 0, x2 = 0;                 /* Workers... */
+    int c, n, m, t, x;                  /* Workers */
 
-    long seconds_to_wait = 0L;		/* select() timeout */
-    struct timeval tv, *tv2;		/* For select() */
+    long seconds_to_wait = 0L;          /* select() timeout */
+    struct timeval tv, *tv2;            /* For select() */
 #ifdef INTSELECT
-    int in, out, err;			/* For select() */
+    int in, out, err;                   /* For select() */
 #else
     fd_set in, out, err;
 #endif /* INTSELECT */
-    int nfds = 0;			/* For select() */
+    int nfds = 0;                       /* For select() */
 
     int pset = 0, tset = 0, pnotset = 0, tnotset = 0; /* stats/debuggin only */
-    int read_net_bytes = 0;		/* Stats */
-    int write_net_bytes = 0;		/* Stats */
-    int read_pty_bytes = 0;		/* Stats */
-    int write_pty_bytes = 0;		/* Stats */
-    int is_tn = 0;			/* TELNET protocol is active */
-    int ttyfd_oflags = -1;		/* Saved ttyfd fcntl flags, if in */
-					/* O_NDELAY mode */
+    int read_net_bytes = 0;             /* Stats */
+    int write_net_bytes = 0;            /* Stats */
+    int read_pty_bytes = 0;             /* Stats */
+    int write_pty_bytes = 0;            /* Stats */
+    int is_tn = 0;                      /* TELNET protocol is active */
+    int ttyfd_oflags = -1;              /* Saved ttyfd fcntl flags, if in */
+                                        /* O_NDELAY mode */
 
     int masterfd = -1;
     int slavefd = -1;
@@ -14892,19 +14902,19 @@ ttptycmd(s) char *s;
     char ** args = NULL;
 #endif /* USE_CKUPTY_C */
 
-    in_state = 0;			/* No previous character yet */
+    in_state = 0;                       /* No previous character yet */
 
     if (ttyfd == -1) {
-	printf("?Sorry, communication channel is not open\n");
-	return(0);
+        printf("?Sorry, communication channel is not open\n");
+        return(0);
     } else {
-	have_net = 1;
+        have_net = 1;
     }
     if (nopush) {
-	debug(F100,"ttptycmd fail: nopush","",0);
-	return(0);
+        debug(F100,"ttptycmd fail: nopush","",0);
+        return(0);
     }
-    if (!s) s = "";			/* Defense de bogus arguments */
+    if (!s) s = "";                     /* Defense de bogus arguments */
     if (!*s) return(0);
 
     if (ttnet == NET_PTY) {
@@ -14921,27 +14931,27 @@ ttptycmd(s) char *s;
   Now, read()'s own return value or EGAIN differentiates data from none
   in a more conventional and efficient way.
 */
-	errno = 0;
-	ttyfd_oflags = fcntl(ttyfd,F_GETFL,0);
-	if (ttyfd_oflags > -1) {
-	    x = fcntl(ttyfd,F_SETFL,ttyfd_oflags|O_NDELAY);
-	    ckmakmsg(msgbuf,500,
-		     "ttptycmd set ttyfd O_NDELAY errno=",
-		     ckitoa(errno),
-		     " fcntl=",
-		     ckitoa(x));
-	    debug(F100,msgbuf,"",0);
-	    if (x < 0)
-	      ttyfd_oflags = -1;	/* Didn't take; nothing to restore */
-	}
+        errno = 0;
+        ttyfd_oflags = fcntl(ttyfd,F_GETFL,0);
+        if (ttyfd_oflags > -1) {
+            x = fcntl(ttyfd,F_SETFL,ttyfd_oflags|O_NDELAY);
+            ckmakmsg(msgbuf,500,
+                     "ttptycmd set ttyfd O_NDELAY errno=",
+                     ckitoa(errno),
+                     " fcntl=",
+                     ckitoa(x));
+            debug(F100,msgbuf,"",0);
+            if (x < 0)
+              ttyfd_oflags = -1;        /* Didn't take; nothing to restore */
+        }
 #endif /* O_NDELAY */
     }
 
-    pexitstat = -1;			/* Fork process exit status */
+    pexitstat = -1;                     /* Fork process exit status */
 
 #ifdef TNCODE
     is_tn = (xlocal && netconn && IS_TELNET()) || /* Telnet protocol active */
-	    (!xlocal && sstelnet);
+            (!xlocal && sstelnet);
 #endif /* TNCODE */
 
     debug(F110,"ttptycmd command",s,0);
@@ -14953,9 +14963,9 @@ ttptycmd(s) char *s;
     /* Call ckupty.c module to get and set up the pty fork */
     /* fc 1 == "run an external protocol" */
     debug(F100,"ttptycmd using ckupty.c","",0);
-    if (do_pty(&ptyfd,s,1) < 0) {	/* Start the command on a pty */
-	debug(F100,"ttptycmd do_pty fails","",0);
-	return(0);
+    if (do_pty(&ptyfd,s,1) < 0) {       /* Start the command on a pty */
+        debug(F100,"ttptycmd do_pty fails","",0);
+        return(0);
     }
     masterfd = ptyfd;
     pty_master_fd = ptyfd;
@@ -14971,7 +14981,7 @@ ttptycmd(s) char *s;
 
     debug(F100,"ttptycmd OPENPTY","",0);
     debug(F100,"ttptycmd OPENPTY","",0);
-    if (tcgetattr(0, &term) == -1) {	/* Get controlling terminal's modes */
+    if (tcgetattr(0, &term) == -1) {    /* Get controlling terminal's modes */
         if (tcgetattr(1, &term) == -1 && tcgetattr(2, &term) == -1) {
             memset((char *)&term, 0, sizeof(struct termios));
             term.c_iflag = ICRNL | IXON;
@@ -14988,9 +14998,9 @@ ttptycmd(s) char *s;
         }
     }
     if (openpty(&masterfd, &slavefd, NULL, NULL, NULL) == -1) {
-	debug(F101,"ttptycmd openpty failed errno","",errno);
-	perror("opentpy");
-	return(0);
+        debug(F101,"ttptycmd openpty failed errno","",errno);
+        perror("opentpy");
+        return(0);
     }
     debug(F101,"ttptycmd openpty masterfd","",masterfd);
     debug(F101,"ttptycmd openpty slavefd","",slavefd);
@@ -15001,75 +15011,75 @@ ttptycmd(s) char *s;
     /* Put pty master in raw mode but let forked app control the slave */
     pty_make_raw(masterfd);
 
-    have_pty = 1;			/* We have an open pty */
+    have_pty = 1;                       /* We have an open pty */
     save_sigchld = signal(SIGCHLD, sigchld_handler); /* Catch fork quit */
 
-    pty_fork_pid = fork();		/* Make fork for external protocol */
+    pty_fork_pid = fork();              /* Make fork for external protocol */
     debug(F101,"ttptycmd pty_fork_pid","",pty_fork_pid);
     if (pty_fork_pid == -1) {
-	perror("fork");
-	return(0);
-    } else if (pty_fork_pid == 0) {	/* In new fork */
-	int x;
-	debug(F101,"ttptycmd new fork pid","",getpid());
-	close(masterfd);		/* Slave quarters no masters allowed */
+        perror("fork");
+        return(0);
+    } else if (pty_fork_pid == 0) {     /* In new fork */
+        int x;
+        debug(F101,"ttptycmd new fork pid","",getpid());
+        close(masterfd);                /* Slave quarters no masters allowed */
 /*
   If a connection to a different pty-based host was already open
   when we were forked, we inherited that fd, so close it here.
 */
-	if (ttyfd > 2 && ttyfd != masterfd && ttyfd != slavefd)
-	  close(ttyfd);
-	x = setsid();
-	debug(F101,"ttptycmd new fork setsid","",x);
-	if (x == -1) {
-	    perror("ttptycmd setsid");
-	    exit(1);
-	}
-	signal(SIGINT,SIG_IGN);		/* Let upper fork catch this */
+        if (ttyfd > 2 && ttyfd != masterfd && ttyfd != slavefd)
+          close(ttyfd);
+        x = setsid();
+        debug(F101,"ttptycmd new fork setsid","",x);
+        if (x == -1) {
+            perror("ttptycmd setsid");
+            exit(1);
+        }
+        signal(SIGINT,SIG_IGN);         /* Let upper fork catch this */
 
-	/* Initialize slave pty modes and size to those of our terminal */
-	if (tcsetattr(slavefd, TCSANOW, &term) == -1) {
-	    perror("ttptycmd tcsetattr");
-	    exit(1);
-	}
-	if (ioctl(slavefd, TIOCSWINSZ, &twin) == -1) {
-	    perror("ttptycmd ioctl");
-	    exit(1);
-	}
+        /* Initialize slave pty modes and size to those of our terminal */
+        if (tcsetattr(slavefd, TCSANOW, &term) == -1) {
+            perror("ttptycmd tcsetattr");
+            exit(1);
+        }
+        if (ioctl(slavefd, TIOCSWINSZ, &twin) == -1) {
+            perror("ttptycmd ioctl");
+            exit(1);
+        }
 
-	pty_make_raw(slavefd);		/* Put it in rawmode */
+        pty_make_raw(slavefd);          /* Put it in rawmode */
 
-	errno = 0;
-	if (dup2(slavefd, STDIN_FILENO) != STDIN_FILENO ||
-	    dup2(slavefd, STDOUT_FILENO) != STDOUT_FILENO) {
-	    debug(F101,"ttptycmd new fork dup2 error","",errno);
-	    perror("ttptycmd dup2");
-	    exit(1);
-	}
-	debug(F100,"ttptycmd new fork dup2 ok","",0);
+        errno = 0;
+        if (dup2(slavefd, STDIN_FILENO) != STDIN_FILENO ||
+            dup2(slavefd, STDOUT_FILENO) != STDOUT_FILENO) {
+            debug(F101,"ttptycmd new fork dup2 error","",errno);
+            perror("ttptycmd dup2");
+            exit(1);
+        }
+        debug(F100,"ttptycmd new fork dup2 ok","",0);
 
-	/* Parse external protocol command line */
-	q = cksplit(1,0,s,NULL,"\\%[]&$+-/=*^_@!{}/<>|.#~'`:;?",7,0,0,0);
-	if (!q) {
-	    debug(F100,"ttptycmd cksplit failed","",0);
-	    exit(1);
-	} else {
-	    int i, n;
-	    debug(F100,"ttptycmd cksplit ok","",0);
-	    n = q->a_size;
-	    args = q->a_head + 1;
-	    for (i = 0; i <= n; i++) {
-		if (!args[i]) {
-		    break;
-		} else {
-		    /* sometimes cksplit() doesn't terminate the list */
-		    if ((i == n) && args[i]) {
-			if ((int)strlen(args[i]) == 0)
-			  makestr(&(args[i]),NULL);
-		    }
-		}
-	    }
-	}
+        /* Parse external protocol command line */
+        q = cksplit(1,0,s,NULL,"\\%[]&$+-/=*^_@!{}/<>|.#~'`:;?",7,0,0,0);
+        if (!q) {
+            debug(F100,"ttptycmd cksplit failed","",0);
+            exit(1);
+        } else {
+            int i, n;
+            debug(F100,"ttptycmd cksplit ok","",0);
+            n = q->a_size;
+            args = q->a_head + 1;
+            for (i = 0; i <= n; i++) {
+                if (!args[i]) {
+                    break;
+                } else {
+                    /* sometimes cksplit() doesn't terminate the list */
+                    if ((i == n) && args[i]) {
+                        if ((int)strlen(args[i]) == 0)
+                          makestr(&(args[i]),NULL);
+                    }
+                }
+            }
+        }
 #ifdef COMMENT
 /*
   Putting the slave pty in rawmode should not be necessary because the
@@ -15077,29 +15087,29 @@ ttptycmd(s) char *s;
   here cuts down on Zmodem binary-file transmission errors by 30-50% but
   still doesn't eliminate them.
 */
-	pty_make_raw(STDIN_FILENO);
-	pty_make_raw(STDOUT_FILENO);
+        pty_make_raw(STDIN_FILENO);
+        pty_make_raw(STDOUT_FILENO);
 #endif /* COMMENT */
 
-	debug(F100,"ttptycmd execvp'ing external protocol","",0);
-	execvp(args[0],args);
-	perror("execvp failed");
-	debug(F101,"ttptycmd execvp failed","",errno);
-	close(slavefd);
-	exit(1);
+        debug(F100,"ttptycmd execvp'ing external protocol","",0);
+        execvp(args[0],args);
+        perror("execvp failed");
+        debug(F101,"ttptycmd execvp failed","",errno);
+        close(slavefd);
+        exit(1);
     }
     /* (there are better ways to do this...) */
-    msleep(1000);		  /* Make parent wait for child to be ready */
-    ptyfd = masterfd;			/* We talk to the master */
+    msleep(1000);                 /* Make parent wait for child to be ready */
+    ptyfd = masterfd;                   /* We talk to the master */
 
 #endif /* USE_CKUPTY_C */
 
     debug(F101,"ttptycmd ptyfd","",ptyfd);
     if (ptyfd < 0) {
-	printf("?Failure to get pty\n");
-	return(-9);
+        printf("?Failure to get pty\n");
+        return(-9);
     }
-    have_pty = 1;	      /* We have an open pty or we wouldn't he here */
+    have_pty = 1;             /* We have an open pty or we wouldn't he here */
 
     debug(F101,"ttptycmd PTY_PBUF_SIZE","",PTY_PBUF_SIZE);
     debug(F101,"ttptycmd PTY_TBUF_SIZE","",PTY_TBUF_SIZE);
@@ -15113,10 +15123,10 @@ ttptycmd(s) char *s;
     errno = 0;
     x = fcntl(ptyfd,F_SETFL,fcntl(ptyfd,F_GETFL, 0)|O_NDELAY);
     ckmakmsg(msgbuf,500,
-	     "ttptycmd set O_NDELAY errno=",
-	     ckitoa(errno),
-	     " fcntl=",
-	     ckitoa(x));
+             "ttptycmd set O_NDELAY errno=",
+             ckitoa(errno),
+             " fcntl=",
+             ckitoa(x));
     debug(F100,msgbuf,"",0);
 #endif /* PTY_USE_NDELAY */
 
@@ -15130,13 +15140,13 @@ ttptycmd(s) char *s;
     debug(F101,"ttptycmd entering loop - seconds_to_wait","",seconds_to_wait);
 
     while (have_pty || have_net) {
-	FD_ZERO(&in);			/* Initialize select() structs */
-	FD_ZERO(&out);
-	FD_ZERO(&err);			/* (not used because useless) */
-	nfds = -1;
+        FD_ZERO(&in);                   /* Initialize select() structs */
+        FD_ZERO(&out);
+        FD_ZERO(&err);                  /* (not used because useless) */
+        nfds = -1;
 
-	debug(F101,"ttptycmd loop top have_pty","",have_pty);
-	debug(F101,"ttptycmd loop top have_net","",have_net);
+        debug(F101,"ttptycmd loop top have_pty","",have_pty);
+        debug(F101,"ttptycmd loop top have_net","",have_net);
 
         /*
           ttyfd is a global, and ttclos() (called elsewhere, such as from
@@ -15147,9 +15157,9 @@ ttptycmd(s) char *s;
           a potential problem since FD_SET's bitwise arithmetic might act on the
           bogus value.  Treat it exactly like any other net error.
         */
-	if (have_net && ttyfd == -1) {
-	    net_err++;
-	    have_net = 0;
+        if (have_net && ttyfd == -1) {
+            net_err++;
+            have_net = 0;
             /*
               The network side just died (maybe the peer closed the connection),
               but the external protocol's child doesn't know that.  With nothing
@@ -15160,59 +15170,59 @@ ttptycmd(s) char *s;
               (after the child has exited). A child that was about to exit just
               gets a redundant, and harmless, signal.
             */
-	    if (have_pty && pty_fork_pid > 0)
-	      kill(pty_fork_pid, SIGHUP);
-	}
+            if (have_pty && pty_fork_pid > 0)
+              kill(pty_fork_pid, SIGHUP);
+        }
 
-	/* Pty is open and we have room to read from it? */
-	if (have_pty && pbuf_avail < PTY_PBUF_SIZE) {
-	    debug(F100,"ttptycmd FD_SET ptyfd in","",0);
+        /* Pty is open and we have room to read from it? */
+        if (have_pty && pbuf_avail < PTY_PBUF_SIZE) {
+            debug(F100,"ttptycmd FD_SET ptyfd in","",0);
             FD_SET(ptyfd, &in);
-	    nfds = ptyfd;
+            nfds = ptyfd;
         }
-	/* Network is open and we have room to read from it? */
+        /* Network is open and we have room to read from it? */
         if (have_net && have_pty && tbuf_avail < PTY_TBUF_SIZE) {
-	    debug(F100,"ttptycmd FD_SET ttyfd in","",0);
+            debug(F100,"ttptycmd FD_SET ttyfd in","",0);
             FD_SET(ttyfd, &in);
-	    if (ttyfd > nfds) nfds = ttyfd;
+            if (ttyfd > nfds) nfds = ttyfd;
         }
-	/* Pty is open and we have stuff to write to it? */
+        /* Pty is open and we have stuff to write to it? */
         if (have_pty && tbuf_avail - tbuf_written > 0) {
-	    debug(F100,"ttptycmd FD_SET ptyfd out","",0);
+            debug(F100,"ttptycmd FD_SET ptyfd out","",0);
             FD_SET (ptyfd, &out);
-	    if (ptyfd > nfds) nfds = ptyfd;
+            if (ptyfd > nfds) nfds = ptyfd;
         }
-	/* Net is open and we have stuff to write to it? */
-	debug(F101,"ttptycmd pbuf_avail-pbuf_written","",
-	      pbuf_avail - pbuf_written);
+        /* Net is open and we have stuff to write to it? */
+        debug(F101,"ttptycmd pbuf_avail-pbuf_written","",
+              pbuf_avail - pbuf_written);
         if (have_net && pbuf_avail - pbuf_written > 0) {
-	    debug(F100,"ttptycmd FD_SET ttyfd out","",0);
+            debug(F100,"ttptycmd FD_SET ttyfd out","",0);
             FD_SET (ttyfd, &out);
-	    if (ttyfd > nfds) nfds = ttyfd;
+            if (ttyfd > nfds) nfds = ttyfd;
         }
-	/* We don't use err because it's not really for errors, */
-	/* but for out of band data on the TCP socket, which, if it is */
-	/* to be handled at all, is handled in the tt*() routines */
+        /* We don't use err because it's not really for errors, */
+        /* but for out of band data on the TCP socket, which, if it is */
+        /* to be handled at all, is handled in the tt*() routines */
 
-	nfds++;				/* 0-based to 1-based */
-	debug(F101,"ttptycmd nfds","",nfds);
-	if (!nfds) {
-	    debug(F100,"ttptycmd NO FDs set for select","",0);
-	    if (have_pty) {
-		/* This is not right -- sleeping won't accomplish anything */
-		debug(F101,"ttptycmd msleep","",100);
-		msleep(100);
-	    } else {
-		debug(F100,"ttptycmd no pty - quitting loop","",0);
-		break;
-	    }
-	}
-	errno = 0;
+        nfds++;                         /* 0-based to 1-based */
+        debug(F101,"ttptycmd nfds","",nfds);
+        if (!nfds) {
+            debug(F100,"ttptycmd NO FDs set for select","",0);
+            if (have_pty) {
+                /* This is not right -- sleeping won't accomplish anything */
+                debug(F101,"ttptycmd msleep","",100);
+                msleep(100);
+            } else {
+                debug(F100,"ttptycmd no pty - quitting loop","",0);
+                break;
+            }
+        }
+        errno = 0;
 
-	if (seconds_to_wait > 0L) {	/* Timeout in case nothing happens */
-	    tv.tv_sec = seconds_to_wait; /* for a long time */
-	    tv.tv_usec = 0L;
-	    tv2 = &tv;
+        if (seconds_to_wait > 0L) {     /* Timeout in case nothing happens */
+            tv.tv_sec = seconds_to_wait; /* for a long time */
+            tv.tv_usec = 0L;
+            tv2 = &tv;
         } else {
             /*
             Always enforce a timeout on select().
@@ -15238,21 +15248,21 @@ ttptycmd(s) char *s;
             value is a direct floor on how long each undetected frame waits, so
             don't set it too high.
             */
-	    tv.tv_sec = 0L;
-	    tv.tv_usec = 100000L;
-	    tv2 = &tv;
-	}
-	x = select(nfds, &in, &out, NULL, tv2);
-	debug(F101,"ttptycmd select","",x);
-	if (x < 0) {
-	    if (errno == EINTR)
-	      continue;
-	    debug(F101,"ttptycmd select error","",errno);
-	    break;
-	}
-	if (x == 0) {
-	    debug(F101,"ttptycmd +++ select timeout","",seconds_to_wait);
-	    if (seconds_to_wait <= 0L) {
+            tv.tv_sec = 0L;
+            tv.tv_usec = 100000L;
+            tv2 = &tv;
+        }
+        x = select(nfds, &in, &out, NULL, tv2);
+        debug(F101,"ttptycmd select","",x);
+        if (x < 0) {
+            if (errno == EINTR)
+              continue;
+            debug(F101,"ttptycmd select error","",errno);
+            break;
+        }
+        if (x == 0) {
+            debug(F101,"ttptycmd +++ select timeout","",seconds_to_wait);
+            if (seconds_to_wait <= 0L) {
                 /*
 
                   This case represents our select() timeout, not a
@@ -15287,62 +15297,62 @@ ttptycmd(s) char *s;
                   handles safely.
 
                 */
-		if (have_net && ttyfd == -1) {
-		    net_err++;
-		    have_net = 0;
-		    /* See the identical have_net && ttyfd check and comment
-		       at the top of this loop: nudge a still-running
-		       external-protocol child now that the network is
-		       confirmed gone, rather than waiting on the child's
-		       own protocol timeout. */
-		    if (have_pty && pty_fork_pid > 0)
-		      kill(pty_fork_pid, SIGHUP);
-		}
-		FD_ZERO(&in);
-		FD_ZERO(&out);
-		if (have_pty && pbuf_avail < PTY_PBUF_SIZE)
-		  FD_SET(ptyfd, &in);
-		if (have_net && have_pty && tbuf_avail < PTY_TBUF_SIZE
+                if (have_net && ttyfd == -1) {
+                    net_err++;
+                    have_net = 0;
+                    /* See the identical have_net && ttyfd check and comment
+                       at the top of this loop: nudge a still-running
+                       external-protocol child now that the network is
+                       confirmed gone, rather than waiting on the child's
+                       own protocol timeout. */
+                    if (have_pty && pty_fork_pid > 0)
+                      kill(pty_fork_pid, SIGHUP);
+                }
+                FD_ZERO(&in);
+                FD_ZERO(&out);
+                if (have_pty && pbuf_avail < PTY_PBUF_SIZE)
+                  FD_SET(ptyfd, &in);
+                if (have_net && have_pty && tbuf_avail < PTY_TBUF_SIZE
 #ifdef CK_SSL
-		    && !((ssl_active_flag || tls_active_flag) &&
-			 ttyfd_oflags == -1)
+                    && !((ssl_active_flag || tls_active_flag) &&
+                         ttyfd_oflags == -1)
 #endif /* CK_SSL */
-		    )
-		  FD_SET(ttyfd, &in);
-		if (have_pty && tbuf_avail - tbuf_written > 0)
-		  FD_SET(ptyfd, &out);
-		if (have_net && pbuf_avail - pbuf_written > 0)
-		  FD_SET(ttyfd, &out);
-		goto ttptycmd_do_io;
-	    }
-	    if (have_pty) {
-		status = pty_get_status(ptyfd,pty_fork_pid);
-		debug(F101,"ttptycmd pty_get_status A","",status);
-		if (status > -1) pexitstat = status;
-		have_pty = 0;
-	    }
-	    break;
-	}
-	/* We want to handle any pending writes first to make room */
-	/* for new incoming. */
+                    )
+                  FD_SET(ttyfd, &in);
+                if (have_pty && tbuf_avail - tbuf_written > 0)
+                  FD_SET(ptyfd, &out);
+                if (have_net && pbuf_avail - pbuf_written > 0)
+                  FD_SET(ttyfd, &out);
+                goto ttptycmd_do_io;
+            }
+            if (have_pty) {
+                status = pty_get_status(ptyfd,pty_fork_pid);
+                debug(F101,"ttptycmd pty_get_status A","",status);
+                if (status > -1) pexitstat = status;
+                have_pty = 0;
+            }
+            break;
+        }
+        /* We want to handle any pending writes first to make room */
+        /* for new incoming. */
 
       ttptycmd_do_io:
-	if (ttyfd >= 0 && FD_ISSET(ttyfd, &out)) { /* Can write to net? */
-	    CHAR * s;
-	    s = pbuf + pbuf_written;	/* Current spot for sending */
+        if (ttyfd >= 0 && FD_ISSET(ttyfd, &out)) { /* Can write to net? */
+            CHAR * s;
+            s = pbuf + pbuf_written;    /* Current spot for sending */
 #ifdef TNCODE
-	    if (is_tn) {		/* ttol() doesn't double IACs */
-		CHAR c;			/* Rewrite string with IACs doubled */
-		int i;
-		s = pbuf + pbuf_written; /* Source */
-		x = 0;		 	 /* Count */
-		for (i = 0; i < pbuf_avail - pbuf_written; i++) {
-		    c = s[i];		/* Next character */
-		    if (c == IAC) {	/* If it's IAC */
-			dbuf[x++] = c;	/* put another one */
-			debug(F000,">>> QUOTED IAC","",c);
-		    } else if (c != 0x0a && out_prev == 0x0d) {	/* Bare CR */
-			if (!TELOPT_ME(TELOPT_BINARY)) { /* NVT rule */
+            if (is_tn) {                /* ttol() doesn't double IACs */
+                CHAR c;                 /* Rewrite string with IACs doubled */
+                int i;
+                s = pbuf + pbuf_written; /* Source */
+                x = 0;                   /* Count */
+                for (i = 0; i < pbuf_avail - pbuf_written; i++) {
+                    c = s[i];           /* Next character */
+                    if (c == IAC) {     /* If it's IAC */
+                        dbuf[x++] = c;  /* put another one */
+                        debug(F000,">>> QUOTED IAC","",c);
+                    } else if (c != 0x0a && out_prev == 0x0d) { /* Bare CR */
+                        if (!TELOPT_ME(TELOPT_BINARY)) { /* NVT rule */
                             /*
                               Insert the NUL directly into dbuf rather than
                               through "c".  c holds the real byte that follows
@@ -15350,21 +15360,21 @@ ttptycmd(s) char *s;
                               a few lines down is what's supposed to copy it
                               out.
                             */
-			    dbuf[x++] = 0x00;
-			    debug(F000,">>> CR-NUL","",0);
-			}
-		    }
-		    dbuf[x++] = c;	/* Copy and count it */
-		    debug(F000,">>> char",ckitoa(in_state),c);
-		    out_prev = c;
-		}
-		s = dbuf;		/* New source */
-	    } else
+                            dbuf[x++] = 0x00;
+                            debug(F000,">>> CR-NUL","",0);
+                        }
+                    }
+                    dbuf[x++] = c;      /* Copy and count it */
+                    out_prev = c;
+                }
+                s = dbuf;               /* New source */
+                ckhexdump("ttptycmd >>> net (telnet)",dbuf,x);
+            } else
 #endif /* TNCODE */
-	      x = pbuf_avail - pbuf_written; /* How much to send */
+              x = pbuf_avail - pbuf_written; /* How much to send */
 
-	    debug(F101,"ttptycmd bytes to send","",x);
-	    if (ttyfd_oflags > -1) {
+            debug(F101,"ttptycmd bytes to send","",x);
+            if (ttyfd_oflags > -1) {
 /*
   ttyfd is non-blocking with NET_PTY. ttol() is written for a blocking fd.
   When write() returns short, its partial success path (marked "This never
@@ -15382,40 +15392,40 @@ ttptycmd(s) char *s;
 
   This significantly reduces CPU usage.
 */
-		errno = 0;
-		x = write(ttyfd, s, x);
-		debug(F111,"ttptycmd ttyfd write",ckitoa(errno),x);
-		if (x < 0) {
-		    if (errno != EAGAIN
+                errno = 0;
+                x = write(ttyfd, s, x);
+                debug(F111,"ttptycmd ttyfd write",ckitoa(errno),x);
+                if (x < 0) {
+                    if (errno != EAGAIN
 #ifdef EWOULDBLOCK
-			&& errno != EWOULDBLOCK
+                        && errno != EWOULDBLOCK
 #endif /* EWOULDBLOCK */
-			) {
-			net_err++;
-			debug(F111,"ttptycmd ttyfd write error",
-			      ckitoa(x),errno);
-		    }
-		    x = 0;
-		}
-	    } else {
-		x = ttol(s, x);
-		debug(F101,">>> ttol","",x);
-		if (x < 0) {
-		    net_err++;
-		    debug(F111,"ttptycmd ttol error",ckitoa(x),errno);
-		    x = 0;
-		}
-	    }
-	    write_net_bytes += x;
-	    if (is_tn) {
+                        ) {
+                        net_err++;
+                        debug(F111,"ttptycmd ttyfd write error",
+                              ckitoa(x),errno);
+                    }
+                    x = 0;
+                }
+            } else {
+                x = ttol(s, x);
+                debug(F101,">>> ttol","",x);
+                if (x < 0) {
+                    net_err++;
+                    debug(F111,"ttptycmd ttol error",ckitoa(x),errno);
+                    x = 0;
+                }
+            }
+            write_net_bytes += x;
+            if (is_tn) {
 /*
   13 October 2021: Bug fix by Ao Huang (Oscar).  pbuf_written is the position
   in the source string.  But x is the number of bytes written to the
   destination string, which is not the same if there was any byte stuffing,
   e.g. doubling of IACs.  The error caused the next source byte to be skipped.
 */
-		pbuf_written += pbuf_avail - pbuf_written;
-	    } else {
+                pbuf_written += pbuf_avail - pbuf_written;
+            } else {
 /*
   No byte stuffing here, so x (ttol()'s return, already forced to 0 on
   error above) is directly the number of source bytes it confirmed
@@ -15423,22 +15433,22 @@ ttptycmd(s) char *s;
   a short or failed ttol() retries the undelivered remainder on a
   later pass instead of silently dropping it.
 */
-		pbuf_written += x;
-	    }
-	}
-	if (FD_ISSET(ptyfd, &out)) {	/* Can write to pty? */
-	    debug(F100,"ttptycmd FD_ISSET ptyfd out","",0);
-	    errno = 0;
-	    x = write(ptyfd,tbuf + tbuf_written,tbuf_avail - tbuf_written);
-	    debug(F111,"ttptycmd ptyfd write",ckitoa(errno),x);
-	    if (x > 0) {
-		tbuf_written += x;
-		write_pty_bytes += x;
-	    } else if (x < 0 && (errno == EAGAIN
+                pbuf_written += x;
+            }
+        }
+        if (FD_ISSET(ptyfd, &out)) {    /* Can write to pty? */
+            debug(F100,"ttptycmd FD_ISSET ptyfd out","",0);
+            errno = 0;
+            x = write(ptyfd,tbuf + tbuf_written,tbuf_avail - tbuf_written);
+            debug(F111,"ttptycmd ptyfd write",ckitoa(errno),x);
+            if (x > 0) {
+                tbuf_written += x;
+                write_pty_bytes += x;
+            } else if (x < 0 && (errno == EAGAIN
 #ifdef EWOULDBLOCK
-		 || errno == EWOULDBLOCK
+                 || errno == EWOULDBLOCK
 #endif /* EWOULDBLOCK */
-		 )) {
+                 )) {
 /*
   ptyfd is non-blocking, so a write can return -1/EAGAIN whenever the external
   protocol child hasn't yet consumed data.  That is expected, ordinary
@@ -15448,23 +15458,23 @@ ttptycmd(s) char *s;
   This approach matches the identical EAGAIN exemption already given to the
   analogous ttyfd write a few lines above.
 */
-		x = 0;
-	    } else {
-		x = 0;
-		pty_err++;
-		if (pexitstat < 0) {
-		    status = pty_get_status(ptyfd,pty_fork_pid);
-		    debug(F101,"ttptycmd pty_get_status B","",status);
-		    if (status > -1) pexitstat = status;
-		    have_pty = 0;
-		}
-		debug(F100,"ttptycmd +++ ptyfd write error","",0);
-	    }
-	}
-	if (ttyfd >= 0 && FD_ISSET(ttyfd, &in)) { /* Can read from net? */
-	    tset++;
-	    debug(F100,"ttptycmd FD_ISSET ttyfd in","",0);
-	    if (ttyfd_oflags > -1) {
+                x = 0;
+            } else {
+                x = 0;
+                pty_err++;
+                if (pexitstat < 0) {
+                    status = pty_get_status(ptyfd,pty_fork_pid);
+                    debug(F101,"ttptycmd pty_get_status B","",status);
+                    if (status > -1) pexitstat = status;
+                    have_pty = 0;
+                }
+                debug(F100,"ttptycmd +++ ptyfd write error","",0);
+            }
+        }
+        if (ttyfd >= 0 && FD_ISSET(ttyfd, &in)) { /* Can read from net? */
+            tset++;
+            debug(F100,"ttptycmd FD_ISSET ttyfd in","",0);
+            if (ttyfd_oflags > -1) {
 /*
   ttyfd is non-blocking here per the O_NDELY setup above in the NET_PTY case.
 
@@ -15473,16 +15483,16 @@ ttptycmd(s) char *s;
   remaining buffer and let the loop below stop on whatever ttinc() itself
   reports, the same way the ptyfd side already does under PTY_USE_NDELAY.
 */
-		n = PTY_TBUF_SIZE - tbuf_avail;
-	    } else {
-		n = in_chk(1,ttyfd);
-		debug(F101,"ttptycmd in_chk(ttyfd)","",n);
-	    }
-	    if (n < 0 || ttyfd == -1) {
-		debug(F101,"ttptycmd +++ ttyfd errno","",errno);
-		net_err++;
-	    } else {
-		if (ttyfd_oflags == -1) {
+                n = PTY_TBUF_SIZE - tbuf_avail;
+            } else {
+                n = in_chk(1,ttyfd);
+                debug(F101,"ttptycmd in_chk(ttyfd)","",n);
+            }
+            if (n < 0 || ttyfd == -1) {
+                debug(F101,"ttptycmd +++ ttyfd errno","",errno);
+                net_err++;
+            } else {
+                if (ttyfd_oflags == -1) {
                     /*
                       select() indicated that ttyfd will yield at least a byte
                       or EOF without blocking.  in_chk()'s FIONREAD count is
@@ -15514,19 +15524,19 @@ ttptycmd(s) char *s;
                       normal bounded wait and the loop's per-byte break on a
                       negative return stops it there.
                     */
-		    if (n == 0) {
+                    if (n == 0) {
 #ifdef CK_SSL
-			if (ssl_active_flag || tls_active_flag)
-			  n = PTY_TBUF_SIZE - tbuf_avail;
-			else
+                        if (ssl_active_flag || tls_active_flag)
+                          n = PTY_TBUF_SIZE - tbuf_avail;
+                        else
 #endif /* CK_SSL */
-			  n = 1;
-		    }
-		    if (n > PTY_TBUF_SIZE - tbuf_avail)
-		      n = PTY_TBUF_SIZE - tbuf_avail;
-		}
-		debug(F101,"ttptycmd net read size adjusted","",n);
-		if (ttyfd_oflags > -1) {
+                          n = 1;
+                    }
+                    if (n > PTY_TBUF_SIZE - tbuf_avail)
+                      n = PTY_TBUF_SIZE - tbuf_avail;
+                }
+                debug(F101,"ttptycmd net read size adjusted","",n);
+                if (ttyfd_oflags > -1) {
 /*
   We're in NET_PTY, so is_tn is unconditionally false here (IS_TELNET()
   requires nettype to be NET_TCPB) and CK_ENCRYPTION's
@@ -15541,31 +15551,31 @@ ttptycmd(s) char *s;
 
  EAGAIN just means nothing more is available yet.
 */
-		    errno = 0;
-		    x = read(ttyfd, tbuf+tbuf_avail, n);
-		    debug(F111,"ttptycmd ttyfd bulk read",ckitoa(errno),x);
-		    if (x < 0) {
-			if (errno == EAGAIN
+                    errno = 0;
+                    x = read(ttyfd, tbuf+tbuf_avail, n);
+                    debug(F111,"ttptycmd ttyfd bulk read",ckitoa(errno),x);
+                    if (x < 0) {
+                        if (errno == EAGAIN
 #ifdef EWOULDBLOCK
-			    || errno == EWOULDBLOCK
+                            || errno == EWOULDBLOCK
 #endif /* EWOULDBLOCK */
-			    )
-			  x = 0;
-			else
-			  debug(F101,"ttptycmd read net error","",x);
-		    }
-		} else if (xlocal && netconn) {
-		    /*
-		      We have to use a byte loop here because ttxin()
-		      does not decrypt or, for that matter, handle Telnet.
-		    */
-		    int c;
-		    CHAR * p;
-		    CHAR * p0;
-		    p = tbuf + tbuf_avail;
-		    p0 = p;
-		    for (x = 0; x < n; x++) {
-			if (ttnet == NET_PTY) {
+                            )
+                          x = 0;
+                        else
+                          debug(F101,"ttptycmd read net error","",x);
+                    }
+                } else if (xlocal && netconn) {
+                    /*
+                      We have to use a byte loop here because ttxin()
+                      does not decrypt or, for that matter, handle Telnet.
+                    */
+                    int c;
+                    CHAR * p;
+                    CHAR * p0;
+                    p = tbuf + tbuf_avail;
+                    p0 = p;
+                    for (x = 0; x < n; x++) {
+                        if (ttnet == NET_PTY) {
 /*
   n came from in_chk()'s FIONREAD count, which on MacOS ptys is not reliable.
   Re-check availability before every byte instead of trusting the original
@@ -15584,9 +15594,9 @@ ttptycmd(s) char *s;
   once per byte instead of once per read.
 
 */
-			    if (x > 0 && in_chk(1,ttyfd) <= 0)
-			      break;
-			}
+                            if (x > 0 && in_chk(1,ttyfd) <= 0)
+                              break;
+                        }
 /*
   Even byte x==0, "guaranteed safe" by select() above, is not actually safe to
   read with an unbounded ttinc(0): the same FIONREAD unreliability responsible
@@ -15600,68 +15610,63 @@ ttptycmd(s) char *s;
   select()", which is the fallback we need.  When ttyfd is non-blocking, this
   timeout is harmless with no change in behavior.
 */
-			if ((c = ttinc(2)) < 0)
-			  break;
-			if (!is_tn) {	/* Not Telnet - keep all bytes */
-			    *p++ = (CHAR)c;
-			    debug(F000,"<<< char","",c);
+                        if ((c = ttinc(2)) < 0)
+                          break;
+                        if (!is_tn) {   /* Not Telnet - keep all bytes */
+                            *p++ = (CHAR)c;
 #ifdef TNCODE
-			} else {	/* Telnet - must handle IAC and NVT */
-			    debug(F000,"<<< char",ckitoa(in_state),c);
-			    switch (c) {
-			      case 0x00: /* NUL */
-				if (in_state == HAVE_CR) {
-				    debug(F000,"<<< SKIP","",c);
-				} else {
-				    *p++ = c;
-				    debug(F000,"<<< Keep","",c);
-				}
-				in_state = 0;
-				break;
-			      case 0x0d: /* CR */
-				if (!TELOPT_U(TELOPT_BINARY))
-				  in_state = HAVE_CR;
-				*p++ = c;
-				debug(F000,"<<< Keep","",c);
-				break;
-			      case 0xff: /* IAC */
-				if (in_state == HAVE_IAC) {
-				    debug(F000,"<<< KEEP","",c);
-				    *p++ = c;
-				    in_state = 0;
-				} else {
-				    debug(F000,"<<< SKIP","",c);
-				    in_state = HAVE_IAC;
-				}
-				break;
-			      default:	/* All others */
-				if (in_state == HAVE_IAC) {
-#ifdef COMMENT
+                        } else {        /* Telnet - must handle IAC and NVT */
+                            switch (c) {
+                              case 0x00: /* NUL */
+                                if (in_state == HAVE_CR) {
+                                    debug(F000,"<<< SKIP","",c);
+                                } else {
+                                    *p++ = c;
+                                }
+                                in_state = 0;
+                                break;
+                              case 0x0d: /* CR */
+                                if (!TELOPT_U(TELOPT_BINARY))
+                                  in_state = HAVE_CR;
+                                *p++ = c;
+                                break;
+                              case 0xff: /* IAC */
+                                if (in_state == HAVE_IAC) {
+                                    *p++ = c;
+                                    in_state = 0;
+                                } else {
+                                    debug(F000,"<<< SKIP","",c);
+                                    in_state = HAVE_IAC;
+                                }
+                                break;
+                              default:  /* All others */
+                                if (in_state == HAVE_IAC) {
 /*
-  tn_doop() will consume an unknown number of bytes and we'll overshoot
-  the for-loop.  The only Telnet command I've ever seen arrive here is
-  a Data Mark, which comes when the remote protocol exits and the remote
-  job returns to its shell prompt.  On the assumption it's a 1-byte command,
-  we don't write out the IAC or the command, and we clear the state.  If
-  we called tn_doop() we'd have no way of knowing how many bytes it took
-  from the input stream.
+  c is the Telnet command byte (WILL/WONT/DO/DONT/SB) following IAC.
+  tn_doop() expects IAC as its argument and reads the command byte
+  via the ttinc() callback. Push c into ttpush so tn_doop() reads c
+  first.
+
+  tn_doop() reads any remaining bytes for the command through ttinc()
+  and transmits the response.
+
+  These reads are not reflected in this loop's byte budget, so later
+  iterations may retry ttinc(2) against bytes tn_doop() already
+  consumed. Each retry is bounded by ttinc()'s 2-second timeout.
 */
-				    int xx;
-				    xx = tn_doop((CHAR)c,duplex,ttinc);
-				    debug(F111,"<<< DOOP",ckctoa(c),xx);
-#else
-				    debug(F101,"<<< DOOP","",c);
-#endif	/* COMMENT */
-				    in_state = 0;
-				} else {
-				    *p++ = c;
-				    debug(F000,"<<< keep","",c);
-				    in_state = 0;
-				}
-			    }
-#endif	/* TNCODE */
-			}
-		    }
+                                    int xx;
+                                    ttpush = c;
+                                    xx = tn_doop((CHAR)IAC,duplex,ttinc);
+                                    debug(F111,"<<< DOOP",ckctoa(c),xx);
+                                    in_state = 0;
+                                } else {
+                                    *p++ = c;
+                                    in_state = 0;
+                                }
+                            }
+#endif  /* TNCODE */
+                        }
+                    }
 /*
   x is this loop's iteration count, which is how many bytes it consumed from
   ttinc(), not how many it kept: Telnet CR-NUL and IAC-escape handling can
@@ -15671,47 +15676,48 @@ ttptycmd(s) char *s;
   ahead of the real data and every later read lands past the end of what's
   valid, corrupting the stream.
 */
-		    x = (int)(p - p0);
-		    ckmakmsg(msgbuf,500,
-			     "ttptycmd read net [ttinc loop] errno=",
-			     ckitoa(errno),
-			     " count=",
-			     ckitoa(x));
-		    debug(F100,msgbuf,"",0);
-		} else {
-		    x = ttxin(n,tbuf+tbuf_avail);
-		    debug(F101,"ttptycmd ttxin x","",x);
-		}
+                    x = (int)(p - p0);
+                    ckmakmsg(msgbuf,500,
+                             "ttptycmd read net [ttinc loop] errno=",
+                             ckitoa(errno),
+                             " count=",
+                             ckitoa(x));
+                    debug(F100,msgbuf,"",0);
+                    ckhexdump("ttptycmd <<< net (telnet)",p0,x);
+                } else {
+                    x = ttxin(n,tbuf+tbuf_avail);
+                    debug(F101,"ttptycmd ttxin x","",x);
+                }
 
-		if (x < 0) {
-		    debug(F101,"ttptycmd read net error","",x);
-		    net_err++;
-		}
-		tbuf_avail += x;
-		read_net_bytes += x;
-	    }
+                if (x < 0) {
+                    debug(F101,"ttptycmd read net error","",x);
+                    net_err++;
+                }
+                tbuf_avail += x;
+                read_net_bytes += x;
+            }
 
-	} else
-	  tnotset++;
+        } else
+          tnotset++;
 
-	if (FD_ISSET(ptyfd, &in)) {	/* Read from pty? */
-	    pset++;
-	    debug(F100,"ttptycmd FD_ISSET ptyfd in","",0);
+        if (FD_ISSET(ptyfd, &in)) {     /* Read from pty? */
+            pset++;
+            debug(F100,"ttptycmd FD_ISSET ptyfd in","",0);
 #ifdef PTY_USE_NDELAY
-	    n = PTY_PBUF_SIZE;
+            n = PTY_PBUF_SIZE;
 #else
-	    /*
-	      This does not work on nonblocking channels
-	      on certain platforms such as NetBSD.
-	    */
-	    n = pty_chk(ptyfd);
+            /*
+              This does not work on nonblocking channels
+              on certain platforms such as NetBSD.
+            */
+            n = pty_chk(ptyfd);
 #endif /* PTY_USE_NDELAY */
-	    debug(F101,"ttptycmd pty_chk() n","",n);
+            debug(F101,"ttptycmd pty_chk() n","",n);
 
-	    if (n < 0)
-	      n = 0;
-	    {
-		int x_was_eagain = 0;
+            if (n < 0)
+              n = 0;
+            {
+                int x_was_eagain = 0;
 /*
   Same reasoning as the ttyfd side above: select() already established that
   ptyfd will yield data or EOF without blocking.  pty_chk()'s FIONREAD count is
@@ -15719,12 +15725,12 @@ ttptycmd(s) char *s;
   read entirely, or a persistently-optimistic FIONREAD leaves this byte
   undrained forever: a busy spin, not a hang.
 */
-		if (n == 0)
-		  n = 1;
-		if (n > PTY_PBUF_SIZE - pbuf_avail)
-		  n = PTY_PBUF_SIZE - pbuf_avail;
-		debug(F101,"ttptycmd pty read size adjusted","",n);
-		errno = 0;
+                if (n == 0)
+                  n = 1;
+                if (n > PTY_PBUF_SIZE - pbuf_avail)
+                  n = PTY_PBUF_SIZE - pbuf_avail;
+                debug(F101,"ttptycmd pty read size adjusted","",n);
+                errno = 0;
 #ifdef PTY_USE_NDELAY
 /*
   ptyfd has been O_NDELAY since the top of this function.  The alarm and
@@ -15734,7 +15740,7 @@ ttptycmd(s) char *s;
 
   So, skip the expensive signal/alarm setup and teardown when we won't need it.
 */
-		x = read(ptyfd,pbuf+pbuf_avail,n);
+                x = read(ptyfd,pbuf+pbuf_avail,n);
 #else
 /*
   As before, read() may still block forever despite pty_chk() saying ptyfd has
@@ -15744,52 +15750,52 @@ ttptycmd(s) char *s;
   like a 0-byte, non-error read, falling through to the "nothing to
   add here currently" handling below rather than being fatal.
 */
-		{
-		    int oldalarm;
-		    saval = signal(SIGALRM,timerh);
-		    oldalarm = alarm(2);
-		    if (
+                {
+                    int oldalarm;
+                    saval = signal(SIGALRM,timerh);
+                    oldalarm = alarm(2);
+                    if (
 #ifdef CK_POSIX_SIG
-			sigsetjmp(sjbuf,1)
+                        sigsetjmp(sjbuf,1)
 #else
-			setjmp(sjbuf)
+                        setjmp(sjbuf)
 #endif /* CK_POSIX_SIG */
-			) {
-			x = 0;
-		    } else {
-			x = read(ptyfd,pbuf+pbuf_avail,n);
-		    }
-		    ttimoff();
-		    if (oldalarm > 0) alarm(oldalarm);
-		}
+                        ) {
+                        x = 0;
+                    } else {
+                        x = read(ptyfd,pbuf+pbuf_avail,n);
+                    }
+                    ttimoff();
+                    if (oldalarm > 0) alarm(oldalarm);
+                }
 #endif /* PTY_USE_NDELAY */
 #ifdef DEBUG
-		if (deblog) {
-		    ckmakmsg(msgbuf,500,
-			     "ttptycmd read pty errno=",
-			     ckitoa(errno),
-			     " count=",
-			     ckitoa(x));
-		    debug(F100,msgbuf,"",0);
-		}
-#endif	/* DEBUG */
+                if (deblog) {
+                    ckmakmsg(msgbuf,500,
+                             "ttptycmd read pty errno=",
+                             ckitoa(errno),
+                             " count=",
+                             ckitoa(x));
+                    debug(F100,msgbuf,"",0);
+                }
+#endif  /* DEBUG */
 
-		x_was_eagain = (x < 0 && errno == EAGAIN);
-		if (x_was_eagain)
-		  x = 0;
+                x_was_eagain = (x < 0 && errno == EAGAIN);
+                if (x_was_eagain)
+                  x = 0;
 
-		if (x < 0) {		/* This works on Solaris and Linux */
-		    pty_err++;		/* but not NetBSD */
-		    debug(F100,"TERMINATION TEST A","",0);
-		    if (pexitstat < 0) {
-			status = pty_get_status(ptyfd,pty_fork_pid);
-			debug(F101,"ttptycmd pty_get_status C","",status);
-			if (status > -1) pexitstat = status;
-		    }
-		    have_pty = 0;
-		    x = 0;
-		}
-		if (x == 0 && !pty_err && !x_was_eagain) {
+                if (x < 0) {            /* This works on Solaris and Linux */
+                    pty_err++;          /* but not NetBSD */
+                    debug(F100,"TERMINATION TEST A","",0);
+                    if (pexitstat < 0) {
+                        status = pty_get_status(ptyfd,pty_fork_pid);
+                        debug(F101,"ttptycmd pty_get_status C","",status);
+                        if (status > -1) pexitstat = status;
+                    }
+                    have_pty = 0;
+                    x = 0;
+                }
+                if (x == 0 && !pty_err && !x_was_eagain) {
 /*
   This check is for a read returning 0 (EOF).
 
@@ -15804,71 +15810,71 @@ ttptycmd(s) char *s;
   Treating it otherwise meant an unconditional 100ms sleep ("Select() lied"),
   a performance drain.
 */
-		    debug(F100,"TERMINATION TEST B","",0);
-		    status = pexitstat > -1 ? pexitstat :
-			pty_get_status(ptyfd,pty_fork_pid);
-		    debug(F101,"ttptycmd pty_get_status D","",status);
-		    if (status > -1) {
-			pexitstat = status;
-			pty_err++;
-			have_pty = 0;
-		    } else {		/* Select() lied */
-			pty_err = 0;	/* pty still there but has nothing */
-			msleep(100);	/* sleep a bit */
-		    }
-		    x = 0;
-		}
-		/* Hopefully the next two are no longer needed... */
-		if (!pty_err && (
+                    debug(F100,"TERMINATION TEST B","",0);
+                    status = pexitstat > -1 ? pexitstat :
+                        pty_get_status(ptyfd,pty_fork_pid);
+                    debug(F101,"ttptycmd pty_get_status D","",status);
+                    if (status > -1) {
+                        pexitstat = status;
+                        pty_err++;
+                        have_pty = 0;
+                    } else {            /* Select() lied */
+                        pty_err = 0;    /* pty still there but has nothing */
+                        msleep(100);    /* sleep a bit */
+                    }
+                    x = 0;
+                }
+                /* Hopefully the next two are no longer needed... */
+                if (!pty_err && (
 #ifndef PTY_USE_NDELAY
-		    x < 1 || errno
+                    x < 1 || errno
 #else
-		    errno != 0 && errno != EAGAIN
+                    errno != 0 && errno != EAGAIN
 #endif /* PTY_USE_NDELAY */
-		    )) {
-		    debug(F100,"TERMINATION TEST C","",0);
-		    pty_err++;
-		    debug(F101,"ttptycmd SET pty_err","",pty_err);
-		    if (errno == EIO)	/* errno == EIO is like EOF */
-		      rc = 1;
-		    if (x < 0)
-		      x = 0;
-		}
-		pbuf_avail += x;
-		read_pty_bytes += x;
-	    }
-	} else
-	  pnotset++;
+                    )) {
+                    debug(F100,"TERMINATION TEST C","",0);
+                    pty_err++;
+                    debug(F101,"ttptycmd SET pty_err","",pty_err);
+                    if (errno == EIO)   /* errno == EIO is like EOF */
+                      rc = 1;
+                    if (x < 0)
+                      x = 0;
+                }
+                pbuf_avail += x;
+                read_pty_bytes += x;
+            }
+        } else
+          pnotset++;
 
-	/* If writes have caught up to reads, reset the buffers */
+        /* If writes have caught up to reads, reset the buffers */
 
-	if (pbuf_written == pbuf_avail)
-	  pbuf_written = pbuf_avail = 0;
-	if (tbuf_written == tbuf_avail)
-	  tbuf_written = tbuf_avail = 0;
+        if (pbuf_written == pbuf_avail)
+          pbuf_written = pbuf_avail = 0;
+        if (tbuf_written == tbuf_avail)
+          tbuf_written = tbuf_avail = 0;
 
-	/* See if we can exit */
+        /* See if we can exit */
 
-	x1 = pbuf_avail - pbuf_written;
-	x2 = tbuf_avail - tbuf_written;
+        x1 = pbuf_avail - pbuf_written;
+        x2 = tbuf_avail - tbuf_written;
 
-	debug(F101,"ttptycmd pty_err LOOP EXIT TEST pty_err","",pty_err);
-	debug(F101,"ttptycmd pty_err LOOP EXIT TEST x1 [write to net]","",x1);
-	debug(F101,"ttptycmd pty_err LOOP EXIT TEST x2 [write to pty]","",x2);
-	debug(F101,"ttptycmd pty_err LOOP EXIT TEST rc","",rc);
-	debug(F101,"ttptycmd pty_err LOOP EXIT TEST status","",status);
-	debug(F101,"ttptycmd pty_err LOOP EXIT TEST pexitstat","",pexitstat);
+        debug(F101,"ttptycmd pty_err LOOP EXIT TEST pty_err","",pty_err);
+        debug(F101,"ttptycmd pty_err LOOP EXIT TEST x1 [write to net]","",x1);
+        debug(F101,"ttptycmd pty_err LOOP EXIT TEST x2 [write to pty]","",x2);
+        debug(F101,"ttptycmd pty_err LOOP EXIT TEST rc","",rc);
+        debug(F101,"ttptycmd pty_err LOOP EXIT TEST status","",status);
+        debug(F101,"ttptycmd pty_err LOOP EXIT TEST pexitstat","",pexitstat);
 
-	if (net_err) {			/* Net error? */
-	    debug(F101,"ttptycmd net_err LOOP EXIT TEST net_err","",net_err);
-	    if (have_net) {
-		if (local) {
-		    ttclos(0);
-		    printf("?Connection closed\n");
-		}
-		have_net = 0;
-	    }
-	    debug(F101,"ttptycmd net_err LOOP EXIT TEST x1","",x1);
+        if (net_err) {                  /* Net error? */
+            debug(F101,"ttptycmd net_err LOOP EXIT TEST net_err","",net_err);
+            if (have_net) {
+                if (local) {
+                    ttclos(0);
+                    printf("?Connection closed\n");
+                }
+                have_net = 0;
+            }
+            debug(F101,"ttptycmd net_err LOOP EXIT TEST x1","",x1);
 /*
   x2 (tbuf) holds bytes already read from the network but not yet written to the
   external protocol child's pty.  Exiting here as soon as x1 (pbuf, the opposite
@@ -15891,76 +15897,76 @@ ttptycmd(s) char *s;
   spot.  If have_pty is already false, there is no child left to wait for, so
   break immediately.
 */
-	    if (x1 == 0 && (x2 == 0 || !have_pty)) {
-		if (!have_pty) {
-		    break;
-		} else if (!net_err_deadline) {
-		    net_err_deadline =
-		      time((time_t *)0) + PTY_NET_ERR_GRACE_SECS;
-		} else if (time((time_t *)0) >= net_err_deadline) {
-		    break;
-		}
-	    }
-	}
-	if (pty_err) {			/* Pty error? */
-	    if (have_pty) {
-		if (pexitstat < 0) {
-		    status = pty_get_status(ptyfd,pty_fork_pid);
-		    debug(F101,"ttptycmd pty_get_status E","",status);
-		    if (status > -1) pexitstat = status;
-		}
-		have_pty = 0;
-	    }
-	    if (x1 == 0 && x2 == 0) {	/* If buffers are caught up */
-		rc = 1;			/* set preliminary return to success */
-		debug(F101,"ttptycmd pty_err LOOP EXIT TEST rc 2","",rc);
-		break;			/* and exit the loop */
-	    }
-	}
+            if (x1 == 0 && (x2 == 0 || !have_pty)) {
+                if (!have_pty) {
+                    break;
+                } else if (!net_err_deadline) {
+                    net_err_deadline =
+                      time((time_t *)0) + PTY_NET_ERR_GRACE_SECS;
+                } else if (time((time_t *)0) >= net_err_deadline) {
+                    break;
+                }
+            }
+        }
+        if (pty_err) {                  /* Pty error? */
+            if (have_pty) {
+                if (pexitstat < 0) {
+                    status = pty_get_status(ptyfd,pty_fork_pid);
+                    debug(F101,"ttptycmd pty_get_status E","",status);
+                    if (status > -1) pexitstat = status;
+                }
+                have_pty = 0;
+            }
+            if (x1 == 0 && x2 == 0) {   /* If buffers are caught up */
+                rc = 1;                 /* set preliminary return to success */
+                debug(F101,"ttptycmd pty_err LOOP EXIT TEST rc 2","",rc);
+                break;                  /* and exit the loop */
+            }
+        }
     }
 #ifdef O_NDELAY
-    if (ttyfd_oflags > -1) {		/* Restore ttyfd's original mode: */
-	fcntl(ttyfd,F_SETFL,ttyfd_oflags); /* it's shared with the rest of */
-	ttyfd_oflags = -1;		/* this program once we return.   */
+    if (ttyfd_oflags > -1) {            /* Restore ttyfd's original mode: */
+        fcntl(ttyfd,F_SETFL,ttyfd_oflags); /* it's shared with the rest of */
+        ttyfd_oflags = -1;              /* this program once we return.   */
     }
 #endif /* O_NDELAY */
     debug(F101,"ttptycmd +++ have_pty","",have_pty);
-    if (have_pty) {			/* In case select() failed */
+    if (have_pty) {                     /* In case select() failed */
 #ifdef USE_CKUPTY_C
-	end_pty();
-	close(ptyfd);
+        end_pty();
+        close(ptyfd);
 #else
-	close(slavefd);
-	close(masterfd);
+        close(slavefd);
+        close(masterfd);
 #endif /* USE_CKUPTY_C */
     }
     pty_master_fd = -1;
     debug(F101,"ttptycmd +++ pexitstat","",pexitstat);
-    if (pexitstat < 0) {		/* Try one last time to get status */
-	status = pty_get_status(ptyfd,pty_fork_pid);
-	debug(F101,"ttptycmd pty_get_status F","",status);
-	if (status > -1) pexitstat = status;
+    if (pexitstat < 0) {                /* Try one last time to get status */
+        status = pty_get_status(ptyfd,pty_fork_pid);
+        debug(F101,"ttptycmd pty_get_status F","",status);
+        if (status > -1) pexitstat = status;
     }
     debug(F101,"ttptycmd +++ final pexitstat","",pexitstat);
-    if (deblog) {			/* Stats for debug log */
-	debug(F101,"ttptycmd +++ pset	","",pset);
-	debug(F101,"ttptycmd +++ pnotset","",pnotset);
-	debug(F101,"ttptycmd +++ tset	","",tset);
-	debug(F101,"ttptycmd +++ tnotset","",tnotset);
+    if (deblog) {                       /* Stats for debug log */
+        debug(F101,"ttptycmd +++ pset   ","",pset);
+        debug(F101,"ttptycmd +++ pnotset","",pnotset);
+        debug(F101,"ttptycmd +++ tset   ","",tset);
+        debug(F101,"ttptycmd +++ tnotset","",tnotset);
 
-	debug(F101,"ttptycmd +++  read_pty_bytes","",read_pty_bytes);
-	debug(F101,"ttptycmd +++ write_net_bytes","",write_net_bytes);
-	debug(F101,"ttptycmd +++  read_net_bytes","",read_net_bytes);
-	debug(F101,"ttptycmd +++ write_pty_bytes","",write_pty_bytes);
+        debug(F101,"ttptycmd +++  read_pty_bytes","",read_pty_bytes);
+        debug(F101,"ttptycmd +++ write_net_bytes","",write_net_bytes);
+        debug(F101,"ttptycmd +++  read_net_bytes","",read_net_bytes);
+        debug(F101,"ttptycmd +++ write_pty_bytes","",write_pty_bytes);
     }
 /*
   If we got the external protocol's exit status from waitpid(), we use that
   to set our return code.  If not, we fall back on whatever rc was previously
   set to, namely 1 (success) if the pty fork seemed to terminate, 0 otherwise.
 */
-    if (save_sigchld) {			/* Restore this if we changed it */
-	(VOID) signal(SIGCHLD,save_sigchld);
-	save_sigchld = NULL;
+    if (save_sigchld) {                 /* Restore this if we changed it */
+        (VOID) signal(SIGCHLD,save_sigchld);
+        save_sigchld = NULL;
     }
     msleep(500);
     /*
@@ -15981,14 +15987,14 @@ ttptycmd(s) char *s;
     if (pexitstat > -1)
       rc = (pexitstat == 0 ? 1 : 0);
     debug(F101,"ttptycmd +++ rc","",rc);
-    if (!local) {			/* If in remote mode */
-	conres();			/* restore console to CBREAK mode */
-	concb((char)escchr);
+    if (!local) {                       /* If in remote mode */
+        conres();                       /* restore console to CBREAK mode */
+        concb((char)escchr);
     }
     return(rc);
 }
-#endif	/* NETPTY */
-#endif	/* SELECT */
+#endif  /* NETPTY */
+#endif  /* SELECT */
 
 /* T T R U N C M D  --  Redirect an external command over the connection. */
 
@@ -16006,18 +16012,18 @@ ttruncmd( char *s )
 ttruncmd(s) char *s;
 #endif /* CK_ANSIC */
 {
-    PID_T pid;				/* pid of lower fork */
-    int wstat;				/* for wait() */
+    PID_T pid;                          /* pid of lower fork */
+    int wstat;                          /* for wait() */
     int x;
     int statusp;
 
     if (ttyfd == -1) {
-	printf("?Sorry, device is not open\n");
-	return(0);
+        printf("?Sorry, device is not open\n");
+        return(0);
     }
     if (nopush) {
-	debug(F100,"ttruncmd fail: nopush","",0);
-	return(0);
+        debug(F100,"ttruncmd fail: nopush","",0);
+        return(0);
     }
 
 #ifdef NETPTY
@@ -16042,48 +16048,48 @@ ttruncmd(s) char *s;
 /***************/
 #else  /* NETPTY */
     if (tt_is_secure()) {
-	printf("?Sorry, \
+        printf("?Sorry, \
 external protocols over secure connections not supported in this OS.\n"
               );
         return(0);
     }
-#endif	/* NETPTY */
+#endif  /* NETPTY */
 
-    conres();				/* Make console normal  */
+    conres();                           /* Make console normal  */
     pexitstat = -4;
-    if ((pid = fork()) == 0) {		/* Make a child fork */
-	if (priv_can())			/* Child: turn off privs. */
-	  exit(1);
-	dup2(ttyfd, 0);			/* Give stdin/out to the line */
-	dup2(ttyfd, 1);
-	x = system(s);
-	debug(F101,"ttruncmd system",s,x);
-	_exit(x ? BAD_EXIT : 0);
+    if ((pid = fork()) == 0) {          /* Make a child fork */
+        if (priv_can())                 /* Child: turn off privs. */
+          exit(1);
+        dup2(ttyfd, 0);                 /* Give stdin/out to the line */
+        dup2(ttyfd, 1);
+        x = system(s);
+        debug(F101,"ttruncmd system",s,x);
+        _exit(x ? BAD_EXIT : 0);
     } else {
-	sig_t istat;
-	sig_t qstat;
-	if (pid == (PID_T) -1)		/* fork() failed? */
-	  return(0);
-	istat = signal(SIGINT,SIG_IGN); /* Let the fork handle keyboard */
-	qstat = signal(SIGQUIT,SIG_IGN); /* interrupts itself... */
+        sig_t istat;
+        sig_t qstat;
+        if (pid == (PID_T) -1)          /* fork() failed? */
+          return(0);
+        istat = signal(SIGINT,SIG_IGN); /* Let the fork handle keyboard */
+        qstat = signal(SIGQUIT,SIG_IGN); /* interrupts itself... */
 
-    	while (1) {
-	    wstat = wait(&statusp);
-	    debug(F101,"ttruncmd wait","",wstat);
-	    if (wstat == pid || wstat == -1)
-	      break;
-	}
+        while (1) {
+            wstat = wait(&statusp);
+            debug(F101,"ttruncmd wait","",wstat);
+            if (wstat == pid || wstat == -1)
+              break;
+        }
 
-	pexitstat = (statusp & 0xff) ? statusp : statusp >> 8;
-	debug(F101,"ttruncmd wait statusp","",statusp);
-	debug(F101,"ttruncmd wait pexitstat","",pexitstat);
-	signal(SIGINT,istat);		/* Restore interrupts */
-	signal(SIGQUIT,qstat);
+        pexitstat = (statusp & 0xff) ? statusp : statusp >> 8;
+        debug(F101,"ttruncmd wait statusp","",statusp);
+        debug(F101,"ttruncmd wait pexitstat","",pexitstat);
+        signal(SIGINT,istat);           /* Restore interrupts */
+        signal(SIGQUIT,qstat);
     }
-    concb((char)escchr);		/* Restore console to CBREAK mode */
+    concb((char)escchr);                /* Restore console to CBREAK mode */
     return(statusp == 0 ? 1 : 0);
 }
-#endif	/* CK_REDIR */
+#endif  /* CK_REDIR */
 
 struct tm *
 #ifdef CK_ANSIC
@@ -16097,9 +16103,9 @@ cmdate2tm(date,gmt) char * date; int gmt;
     time_t now;
 
     if (strlen(date) != 17 ||
-	date[8] != ' ' ||
-	date[11] != ':' ||
-	date[14] != ':')
+        date[8] != ' ' ||
+        date[11] != ':' ||
+        date[14] != ':')
       return(NULL);
 
     time(&now);
@@ -16149,7 +16155,7 @@ locale_dayname(day,fc) int day, fc;
 
     if (day < 0 || day > 6) return(NULL);
     n = day + 1;
-    if (n > 6) n = 0;			/* 2013-10-15 */
+    if (n > 6) n = 0;                   /* 2013-10-15 */
     if (fc) x = ABDAY_1;
     ckstrncpy(daynameresult,nl_langinfo(((nl_item)(n+x))),DAYNAMERESULT);
     return((char *)daynameresult);
@@ -16175,7 +16181,7 @@ locale_monthname(month,fc) int month, fc;
     char mbuf[4];
 
     if (month < 0 || month > 11) return(NULL);
-    n = month;				/* 0-based calendar month number */
+    n = month;                          /* 0-based calendar month number */
     if (fc) x = ABMON_1;
     ckstrncpy(monthnameresult,nl_langinfo(((nl_item)(n+x))),MONTHNAMERESULT);
     return((char *)monthnameresult);
@@ -16189,13 +16195,13 @@ locale_monthname(month,fc) int month, fc;
 #ifdef OXOS
 int
 priv_kill(pid, sig) int pid, sig; {
-    int	i;
+    int i;
 
     if (priv_on())
-	debug(F100,"priv_kill priv_on failed","",0);
+        debug(F100,"priv_kill priv_on failed","",0);
     i = kill(pid, sig);
     if (priv_off())
-	debug(F100,"priv_kill priv_off failed","",0);
+        debug(F100,"priv_kill priv_off failed","",0);
     return(i);
 }
 #endif /* OXOS */
@@ -16220,7 +16226,7 @@ alarm(unsigned int seconds) {
     if (alarm_thread != -1) {
         /* We'll be generous and count partial seconds as whole seconds. */
         time_left = alarm_struct.time -
-	  ((system_time() - time_started) / 1000000.0);
+          ((system_time() - time_started) / 1000000.0);
 
         /* Kill the alarm thread */
         kill_thread (alarm_thread);
@@ -16241,7 +16247,7 @@ alarm(unsigned int seconds) {
                                      "alarm_thread",
                                      B_NORMAL_PRIORITY,
                                      (void *) &alarm_struct
-				     );
+                                     );
         resume_thread (alarm_thread);
     }
 
@@ -16298,13 +16304,13 @@ p9ttyctl(char letter, int num, int param) {
     if (num)
       len = sprintf(cmd + 1, "%d", param) + 1;
     else {
-	cmd[1] = param;
-	len = 2;
+        cmd[1] = param;
+        len = 2;
     }
     if (write(ttyctlfd, cmd, len) == len) {
-	cmd[len] = 0;
-	/* fprintf(stdout, "wrote '%s'\n", cmd); */
-	return 0;
+        cmd[len] = 0;
+        /* fprintf(stdout, "wrote '%s'\n", cmd); */
+        return 0;
     }
     return -1;
 }
@@ -16332,9 +16338,9 @@ p9openttyctl(char *ttname) {
     char name[100];
 
     if (ttyctlfd >= 0) {
-	close(ttyctlfd);
-	ttyctlfd = -1;
-	ttylastspeed = -1;
+        close(ttyctlfd);
+        ttyctlfd = -1;
+        ttylastspeed = -1;
     }
     sprintf(name, "%sctl", ttname);
     ttyctlfd = open(name, 1);
@@ -16344,8 +16350,8 @@ p9openttyctl(char *ttname) {
 int
 p9concb() {
     if (consctlfd >= 0) {
-	if (write(consctlfd, "rawon", 5) == 5)
-	  return 0;
+        if (write(consctlfd, "rawon", 5) == 5)
+          return 0;
     }
     return -1;
 }
@@ -16358,8 +16364,8 @@ p9conbin() {
 int
 p9conres() {
     if (consctlfd >= 0) {
-	if (write(consctlfd, "rawoff", 6) == 6)
-	  return 0;
+        if (write(consctlfd, "rawoff", 6) == 6)
+          return 0;
     }
     return -1;
 }
@@ -16367,10 +16373,10 @@ p9conres() {
 int
 p9sndbrk(int msec) {
     if (ttyctlfd >= 0) {
-	char cmd[20];
-	int i = sprintf(cmd, "k%d", msec);
-	if (write(ttyctlfd, cmd, i) == i)
-	  return 0;
+        char cmd[20];
+        int i = sprintf(cmd, "k%d", msec);
+        if (write(ttyctlfd, cmd, i) == i)
+          return 0;
     }
     return -1;
 }
@@ -16382,59 +16388,59 @@ conwrite(char *buf, int n) {
     static int holdingcr = 0;
     int normal = 0;
     for (x = 0; x < n; x++) {
-	char c = buf[x];
-	if (c == 007) {
-	    if (normal) {
-		write(1, buf + (x - normal), normal);
-		length += normal;
-		normal = 0;
-	    }
-	    /* write(noisefd, "1000 300", 8); */
-	    holdingcr = 0;
-	} else if (c == '\r') {
-	    if (normal) {
-		write(1, buf + (x - normal), normal);
-		length += normal;
-		normal = 0;
-	    }
-	    holdingcr = 1;
-	} else if (c == '\n') {
-	    write(1, buf + (x - normal), normal + 1);
-	    normal = 0;
-	    length = 0;
-	    holdingcr = 0;
-	} else if (c == '\b') {
-	    if (normal) {
-		write(1, buf + (x - normal), normal);
-		length += normal;
-		normal = 0;
-	    }
-	    if (length) {
-		write(1, &c, 1);
-		length--;
-	    }
-	    holdingcr = 0;
-	} else {
-	    if (holdingcr) {
-		char b = '\b';
-		while (length-- > 0)
-		  write(1, &b, 1);
-		length = 0;	/* compiler bug */
-	    }
-	    holdingcr = 0;
-	    normal++;
-	}
+        char c = buf[x];
+        if (c == 007) {
+            if (normal) {
+                write(1, buf + (x - normal), normal);
+                length += normal;
+                normal = 0;
+            }
+            /* write(noisefd, "1000 300", 8); */
+            holdingcr = 0;
+        } else if (c == '\r') {
+            if (normal) {
+                write(1, buf + (x - normal), normal);
+                length += normal;
+                normal = 0;
+            }
+            holdingcr = 1;
+        } else if (c == '\n') {
+            write(1, buf + (x - normal), normal + 1);
+            normal = 0;
+            length = 0;
+            holdingcr = 0;
+        } else if (c == '\b') {
+            if (normal) {
+                write(1, buf + (x - normal), normal);
+                length += normal;
+                normal = 0;
+            }
+            if (length) {
+                write(1, &c, 1);
+                length--;
+            }
+            holdingcr = 0;
+        } else {
+            if (holdingcr) {
+                char b = '\b';
+                while (length-- > 0)
+                  write(1, &b, 1);
+                length = 0;     /* compiler bug */
+            }
+            holdingcr = 0;
+            normal++;
+        }
     }
     if (normal) {
-	write(1, buf + (x - normal), normal);
-	length += normal;
+        write(1, buf + (x - normal), normal);
+        length += normal;
     }
     return n;
 }
 
 void
 conprint(char *fmt, ...) {
-    static char buf[1000];		/* not safe if on the stack */
+    static char buf[1000];              /* not safe if on the stack */
 
     va_list ap;
     int i;
@@ -16442,7 +16448,7 @@ conprint(char *fmt, ...) {
     va_start(ap, fmt);
     i = vsnprintf(buf, sizeof(buf), fmt, ap);
     if (i < 0)
-        i = 0;		/* Encoding error; buf may not be terminated. */
+        i = 0;          /* Encoding error; buf may not be terminated. */
     else if (i >= (int)sizeof(buf))
         i = strlen(buf);
     conwrite(buf, i);
@@ -16461,7 +16467,7 @@ conprint(char *fmt, ...) {
 #include <stdarg.h>
 #else
 #include <varargs.h>
-#endif	/* __GNUC__ */
+#endif  /* __GNUC__ */
 #endif /* CK_ANSIC */
 #ifdef fprintf
 #undef fprintf
@@ -16491,9 +16497,9 @@ ckxfprintf(va_alist) va_dcl
 
 
     if (!inserver || (file != stdout && file != stderr && file != stdin)) {
-	rc = vfprintf(file,format,args);
+        rc = vfprintf(file,format,args);
     } else {
-	unsigned int c;
+        unsigned int c;
         rc = vsnprintf(str1, sizeof(str1), format, args);
         if (rc < 0 || rc >= (int)sizeof(str1)) {
             debug(F101,"ckxfprintf() buffer overflow","",rc);
@@ -16501,43 +16507,43 @@ ckxfprintf(va_alist) va_dcl
         }
         len = rc;
         for (i = 0, j = 0, got_cr = 0;
-	     i < len && j < sizeof(str1)-2;
-	     i++, j++ ) {
-	    /* We can't use 255 as a case label because of signed chars */
-	    c = (unsigned)(str1[i] & 0xff);
+             i < len && j < sizeof(str1)-2;
+             i++, j++ ) {
+            /* We can't use 255 as a case label because of signed chars */
+            c = (unsigned)(str1[i] & 0xff);
 #ifdef TNCODE
-	    if (c == 255) {
-		if (got_cr && !TELOPT_ME(TELOPT_BINARY))
-		  str2[j++] = '\0';
-		str2[j++] = IAC;
-		str2[j] = IAC;
-		got_cr = 0;
-	    } else
+            if (c == 255) {
+                if (got_cr && !TELOPT_ME(TELOPT_BINARY))
+                  str2[j++] = '\0';
+                str2[j++] = IAC;
+                str2[j] = IAC;
+                got_cr = 0;
+            } else
 #endif /* TNCODE */
-	    switch (c) {
-	      case '\r':
+            switch (c) {
+              case '\r':
                 if (got_cr
 #ifdef TNCODE
-		    && !TELOPT_ME(TELOPT_BINARY)
+                    && !TELOPT_ME(TELOPT_BINARY)
 #endif /* TNCODE */
-		    )
-		  str2[j++] = '\0';
+                    )
+                  str2[j++] = '\0';
                 str2[j] = str1[i];
                 got_cr = 1;
                 break;
-	      case '\n':
+              case '\n':
                 if (!got_cr)
-		  str2[j++] = '\r';
+                  str2[j++] = '\r';
                 str2[j] = str1[i];
                 got_cr = 0;
                 break;
-	      default:
+              default:
                 if (got_cr
 #ifdef TNCODE
-		    && !TELOPT_ME(TELOPT_BINARY)
+                    && !TELOPT_ME(TELOPT_BINARY)
 #endif /* TNCODE */
-		    )
-		  str2[j++] = '\0';
+                    )
+                  str2[j++] = '\0';
                 str2[j] = str1[i];
                 got_cr = 0;
             }
@@ -16551,38 +16557,39 @@ ckxfprintf(va_alist) va_dcl
 #ifdef CK_ENCRYPTION
 #ifdef TNCODE
         if (TELOPT_ME(TELOPT_ENCRYPTION))
-	  ck_tn_encrypt(str2,j);
+          ck_tn_encrypt(str2,j);
 #endif /* TNCODE */
 #endif /* CK_ENCRYPTION */
 #ifdef CK_SSL
-	if (inserver && (ssl_active_flag || tls_active_flag)) {
-	    /* Write using SSL */
+        if (inserver && (ssl_active_flag || tls_active_flag)) {
+            /* Write using SSL */
             char * p = str2;
           ssl_retry:
             if (ssl_active_flag)
-	      rc = SSL_write(ssl_con, p, j);
+              rc = SSL_write(ssl_con, p, j);
             else
-	      rc = SSL_write(tls_con, p, j);
-	    debug(F111,"ckxfprintf","SSL_write",rc);
+              rc = SSL_write(tls_con, p, j);
+            debug(F111,"ckxfprintf","SSL_write",rc);
             switch (SSL_get_error(ssl_active_flag?ssl_con:tls_con,rc)) {
-	      case SSL_ERROR_NONE:
+              case SSL_ERROR_NONE:
                 if (rc == j)
-		  break;
+                  break;
                 p += rc;
                 j -= rc;
                 goto ssl_retry;
-	      case SSL_ERROR_WANT_WRITE:
-	      case SSL_ERROR_WANT_READ:
-	      case SSL_ERROR_SYSCALL:
+              case SSL_ERROR_WANT_WRITE:
+              case SSL_ERROR_WANT_READ:
+              case SSL_ERROR_SYSCALL:
                 if (rc != 0)
-		  return(-1);
-	      case SSL_ERROR_WANT_X509_LOOKUP:
-	      case SSL_ERROR_SSL:
-	      case SSL_ERROR_ZERO_RETURN:
-	      default:
+                  return(-1);
+                /* Fall through */
+              case SSL_ERROR_WANT_X509_LOOKUP:
+              case SSL_ERROR_SSL:
+              case SSL_ERROR_ZERO_RETURN:
+              default:
                 rc = 0;
             }
-	} else
+        } else
 #endif /* CK_SSL */
         fwrite(str2,sizeof(char),j,stdout);
     }
@@ -16615,56 +16622,56 @@ ckxprintf(va_alist) va_dcl
 #endif /* CK_ANSIC */
 
     if (!inserver) {
-	rc = vprintf(format, args);
+        rc = vprintf(format, args);
     } else {
-	unsigned int c;
-        rc = vsprintf(str1, format, args);
-        len = strlen(str1);
-        if (len >= sizeof(str1)) {
-            debug(F101,"ckxprintf() buffer overflow","",len);
+        unsigned int c;
+        rc = vsnprintf(str1, sizeof(str1), format, args);
+        if (rc < 0 || rc >= (int)sizeof(str1)) {
+            debug(F101,"ckxprintf() buffer overflow","",rc);
             doexit(BAD_EXIT,1);
         }
+        len = rc;
         for (i = 0, j = 0, got_cr=0;
-	     i < len && j < sizeof(str1)-2;
-	     i++, j++ ) {
-	    c = (unsigned)(str1[i] & 0xff);
+             i < len && j < sizeof(str1)-2;
+             i++, j++ ) {
+            c = (unsigned)(str1[i] & 0xff);
 #ifdef TNCODE
-	    if (c == 255) {
-		if (got_cr && !TELOPT_ME(TELOPT_BINARY))
-		  str2[j++] = '\0';
-		str2[j++] = IAC;
-		str2[j] = IAC;
-		got_cr = 0;
-	    } else
+            if (c == 255) {
+                if (got_cr && !TELOPT_ME(TELOPT_BINARY))
+                  str2[j++] = '\0';
+                str2[j++] = IAC;
+                str2[j] = IAC;
+                got_cr = 0;
+            } else
 #endif /* TNCODE */
-	    switch (c) {
-	      case '\r':
+            switch (c) {
+              case '\r':
                 if (got_cr
 #ifdef TNCODE
-		    && !TELOPT_ME(TELOPT_BINARY)
+                    && !TELOPT_ME(TELOPT_BINARY)
 #endif /* TNCODE */
-		    )
-		  str2[j++] = '\0';
+                    )
+                  str2[j++] = '\0';
                 str2[j] = str1[i];
                 got_cr = 1;
                 break;
-	      case '\n':
+              case '\n':
                 if (!got_cr)
-		  str2[j++] = '\r';
+                  str2[j++] = '\r';
                 str2[j] = str1[i];
                 got_cr = 0;
                 break;
-	      default:
+              default:
                 if (got_cr
 #ifdef TNCODE
-		    && !TELOPT_ME(TELOPT_BINARY)
+                    && !TELOPT_ME(TELOPT_BINARY)
 #endif /* TNCODE */
-		    )
-		  str2[j++] = '\0';
+                    )
+                  str2[j++] = '\0';
                 str2[j] = str1[i];
                 got_cr = 0;
                 break;
-	    }
+            }
         }
         if (got_cr
 #ifdef TNCODE
@@ -16675,40 +16682,41 @@ ckxprintf(va_alist) va_dcl
 #ifdef CK_ENCRYPTION
 #ifdef TNCODE
         if (TELOPT_ME(TELOPT_ENCRYPTION))
-	  ck_tn_encrypt(str2,j);
+          ck_tn_encrypt(str2,j);
 #endif /* TNCODE */
 #endif /* CK_ENCRYPTION */
 #ifdef CK_SSL
-	if (inserver && (ssl_active_flag || tls_active_flag)) {
+        if (inserver && (ssl_active_flag || tls_active_flag)) {
             char * p = str2;
-	    /* Write using SSL */
+            /* Write using SSL */
           ssl_retry:
             if (ssl_active_flag)
-	      rc = SSL_write(ssl_con, p, j);
+              rc = SSL_write(ssl_con, p, j);
             else
-	      rc = SSL_write(tls_con, p, j);
-	    debug(F111,"ckxprintf","SSL_write",rc);
+              rc = SSL_write(tls_con, p, j);
+            debug(F111,"ckxprintf","SSL_write",rc);
             switch (SSL_get_error(ssl_active_flag?ssl_con:tls_con,rc)) {
-	      case SSL_ERROR_NONE:
+              case SSL_ERROR_NONE:
                 if (rc == j)
-		  break;
+                  break;
                 p += rc;
                 j -= rc;
                 goto ssl_retry;
-	      case SSL_ERROR_WANT_WRITE:
-	      case SSL_ERROR_WANT_READ:
-	      case SSL_ERROR_SYSCALL:
+              case SSL_ERROR_WANT_WRITE:
+              case SSL_ERROR_WANT_READ:
+              case SSL_ERROR_SYSCALL:
                 if (rc != 0)
-		  return(-1);
-	      case SSL_ERROR_WANT_X509_LOOKUP:
-	      case SSL_ERROR_SSL:
-	      case SSL_ERROR_ZERO_RETURN:
-	      default:
+                  return(-1);
+                /* Fall through */
+              case SSL_ERROR_WANT_X509_LOOKUP:
+              case SSL_ERROR_SSL:
+              case SSL_ERROR_ZERO_RETURN:
+              default:
                 rc = 0;
             }
-	} else
+        } else
 #endif /* CK_SSL */
-	  rc = fwrite(str2,sizeof(char),j,stdout);
+          rc = fwrite(str2,sizeof(char),j,stdout);
     }
     va_end(args);
     return(rc);
@@ -16755,12 +16763,12 @@ ckxperror(str) char * str;
 #ifndef MINIX3
 int
 gettimeofday(struct timeval *tp, struct timezone *tzp) {
-    tp->tv_usec = 0L;			/* Close enough for horseshoes */
+    tp->tv_usec = 0L;                   /* Close enough for horseshoes */
     if(time(&(tp->tv_sec))==-1)
       return(-1);
     return(0);
 }
-#endif	/* MINIX3 */
+#endif  /* MINIX3 */
 
 #ifndef MINIX3
 int
@@ -16768,6 +16776,6 @@ readlink(const char *path, void *buf, size_t bufsiz) {
     errno = ENOSYS;
     return(-1);
 }
-#endif	/* MINIX3 */
+#endif  /* MINIX3 */
 
 #endif /* MINIX2 */

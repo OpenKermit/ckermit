@@ -2,7 +2,7 @@
   NOTE: DEC C on OpenVMS AXP does not like an empty header file,
   so we include the following header file unconditionally.
 */
-#include "ckcdeb.h"			/* Kermit universals */
+#include "ckcdeb.h"                     /* Kermit universals */
 
 #ifdef DEC_TCPIP
 #ifdef VMS
@@ -10,9 +10,9 @@
   ioctl() similation for DEC TCP/IP, based on DEC example.
   Used only for DEC TCP/IP (nee UCX).
 */
-#include "ckvioc.h"			/* IOCTL-specific definitions */
+#include "ckvioc.h"                     /* IOCTL-specific definitions */
 
-#define ISOK(s) (s & 01)		/* For checking $QIOW return value */
+#define ISOK(s) (s & 01)                /* For checking $QIOW return value */
 /*
   Select proper library function for getting socket device channel.
 */
@@ -45,22 +45,22 @@ ioctl(d, request, argp)
     *argp;
 {
 
-    int eflagnum;			/* Event Flag Number */
-    int sdc;				/* Socket Device Channel */
-    int status;				/* QIOW return code */
-    unsigned short fn;			/* QIOW function code  */
-    unsigned short iosb[4];		/* IO Status Block */
+    int eflagnum;                       /* Event Flag Number */
+    int sdc;                            /* Socket Device Channel */
+    int status;                         /* QIOW return code */
+    unsigned short fn;                  /* QIOW function code  */
+    unsigned short iosb[4];             /* IO Status Block */
 
     struct comm {
-	int command;
-	char *addr;
-    } ioctl_comm;			/* QIOW ioctl commands. */
+        int command;
+        char *addr;
+    } ioctl_comm;                       /* QIOW ioctl commands. */
 
     struct it2 {
-	unsigned short len;
-	unsigned short opt;
-	struct comm *addr;
-    } ioctl_desc;			/* QIOW IOCTL commands descriptor */
+        unsigned short len;
+        unsigned short opt;
+        struct comm *addr;
+    } ioctl_desc;                       /* QIOW IOCTL commands descriptor */
 
 #ifdef CK_GETEFN
 /*
@@ -71,19 +71,19 @@ ioctl(d, request, argp)
     (c) we are not threaded
     (d) both the $QIOW return status and the IOSB status are checked
 */
-    status = lib$get_ef(&eflagnum);	/* Get an event flag number. */
-    if (!ISOK(status))			/* Did we? */
-      eflagnum = 0;			/* No event flag available, use 0. */
+    status = lib$get_ef(&eflagnum);     /* Get an event flag number. */
+    if (!ISOK(status))                  /* Did we? */
+      eflagnum = 0;                     /* No event flag available, use 0. */
 #else
-    eflagnum = 0;			/* Use event flag number 0 */
+    eflagnum = 0;                       /* Use event flag number 0 */
 #endif /* CK_GETEFN */
 
-    sdc = GET_SDC(d);			/* Get socket device channel number. */
+    sdc = GET_SDC(d);                   /* Get socket device channel number. */
     if (sdc == 0) {
-	errno = EBADF;			/* Not an open socket descriptor. */
-	return -1;
+        errno = EBADF;                  /* Not an open socket descriptor. */
+        return -1;
     }
-    ioctl_desc.opt = UCX$C_IOCTL;	/*  Fill in ioctl descriptor. */
+    ioctl_desc.opt = UCX$C_IOCTL;       /*  Fill in ioctl descriptor. */
     ioctl_desc.len = sizeof(struct comm);
     ioctl_desc.addr = &ioctl_comm;
 
@@ -92,28 +92,28 @@ ioctl(d, request, argp)
     ioctl_comm.command = request;
     ioctl_comm.addr = argp;
     if (request & IOC_OUT) {
-	fn = IO$_SENSEMODE;
-	status = sys$qiow(eflagnum,
-			  sdc, fn, iosb, 0, 0, 0, 0, 0, 0, 0, &ioctl_desc);
+        fn = IO$_SENSEMODE;
+        status = sys$qiow(eflagnum,
+                          sdc, fn, iosb, 0, 0, 0, 0, 0, 0, 0, &ioctl_desc);
     } else {
-	fn = IO$_SETMODE;
-	status = sys$qiow(eflagnum,
-			  sdc, fn, iosb, 0, 0, 0, 0, 0, 0, &ioctl_desc, 0);
+        fn = IO$_SETMODE;
+        status = sys$qiow(eflagnum,
+                          sdc, fn, iosb, 0, 0, 0, 0, 0, 0, &ioctl_desc, 0);
     }
     if (!ISOK(status)) {
-	debug(F101,"ioctl failed: status","",status);
-	errno = status;
-	return -1;
+        debug(F101,"ioctl failed: status","",status);
+        errno = status;
+        return -1;
     }
     if (!ISOK(iosb[0])) {
 #ifdef DEBUG
-	char tmpbuf[80];
-	sprintf(tmpbuf,"ioctl failed: status = %x, %x, %x%x\n",
-		iosb[0], iosb[1], iosb[3], iosb[2]);
-	debug(F100,(char *)tmpbuf,"",0);
+        char tmpbuf[80];
+        sprintf(tmpbuf,"ioctl failed: status = %x, %x, %x%x\n",
+                iosb[0], iosb[1], iosb[3], iosb[2]);
+        debug(F100,(char *)tmpbuf,"",0);
 #endif /* DEBUG */
-	errno = (long int) iosb[0];
-	return -1;
+        errno = (long int) iosb[0];
+        return -1;
     }
 #ifdef CK_GETEFN
     status = lib$free_ef(&eflagnum);

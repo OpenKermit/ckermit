@@ -133,7 +133,7 @@ _PROTOTYP(int SendSSLAuthSB, (int, void *, int));
 /* and in some installations it can't be found so now by default */
 /* we don't use it. */
 #define NO_KRB5_INIT_ETS
-#endif	/* KRB5_INIT_ETS */
+#endif  /* KRB5_INIT_ETS */
 
 #define KRB_DEFTIM 600                  /* Default lifetime (minutes) */
 

@@ -461,8 +461,8 @@ typedef struct {
 #ifndef VMS64BIT
 #ifndef MULTINET
     time_t time();
-#endif	/* MULTINET */
-#endif	/* VMS64BIT */
+#endif  /* MULTINET */
+#endif  /* VMS64BIT */
     char *ctime();                      /* Convert to asctime() string */
 
     void dcl_exit_h();                  /* Exit handler */
@@ -482,7 +482,7 @@ typedef struct {
 
 /* Note: another approach might be to get JPI$_TERMINAL from SYS$GETJPI */
 
-#ifdef VMSV60				/* i.e. VMS 6.0 or later */
+#ifdef VMSV60                           /* i.e. VMS 6.0 or later */
 /*
   The #ifdef was added in 8.0.201 (Feb 2002).  The aforementioned change seems
   to work fine in later VMS versions, but in 5.5 (and presumably other pre-6.0
@@ -1148,7 +1148,7 @@ ttinl(dest,max,timo,eol,start,turn) int max,timo,turn; CHAR *dest,eol,start;
 #endif /* NOXFER */
 #endif /* TTXBUF */
 
-sig_t saval;               /* For saving alarm handler */
+SIGTYP (*saval)() = NULL;               /* For saving alarm handler */
 
 VOID
 ttimoff() {                             /* Turn off any timer interrupts */
@@ -2207,7 +2207,7 @@ ttsspd(cps) int cps; {
 
 /*  C O N I N T  --  Console Interrupt setter  */
 
-static sig_t cctrap;
+static SIGTYP (*cctrap)();
 
 VOID
 #ifdef CK_ANSIC
@@ -2581,9 +2581,28 @@ gtimer() {
 }
 
 #ifdef GFTIMER
-#ifdef VMSI64
-/* The native VMS code is broken in VMS/IA64 8.1. */
-/* Luckily, in VMS 8.1 we can use the Unix code. */
+
+/* 2024-05-16 SMS.  Original code using sys$gettim() used
+ * lib$cvtf_from_internal_time() to get to floating-point (FP), which
+ * produced VAX FP values.  This failed when IEEE FP was used, which
+ * became the default beginning with IA64 hardware.  Old/unnatural
+ * work-around:
+ *
+ *    #ifdef VMSI64
+ */   /*  The native VMS code is broken in VMS/IA64 8.1. */   /*
+ */   /* Luckily, in VMS 8.1 we can use the Unix code. */     /*
+ *
+ * This condition fails on x86_64, or with CC/FLOAT=IEEE_FLOAT (on
+ * Alpha, for example), because the condition of interest is the FP
+ * style in use, not the hardware architecture.
+ *
+ * Modified code uses sys$gettim() everyplace, and tests the FP style,
+ * not the hardware architecture (using lib$cvts_from_internal_time()
+ * for IEEE FP).  Define GFTIMER_UNIX to get the (still available)
+ * alternate (gettimeofday(), et al.) scheme.
+ */
+
+#ifdef GFTIMER_UNIX  /* Alternate scheme using gettimeofday(), et al. */
 
 static struct timeval tzero;
 
@@ -2595,7 +2614,7 @@ rftimer() {
 CKFLOAT
 gftimer() {
     struct timeval tnow, tdelta;
-    CKFLOAT s;
+    CKFLOAT fp_time;
 #ifdef DEBUG
     char fpbuf[64];
 #endif /* DEBUG */
@@ -2605,23 +2624,32 @@ gftimer() {
     tdelta.tv_usec = tnow.tv_usec - tzero.tv_usec;
 
     if (tdelta.tv_usec < 0) {
-	tdelta.tv_sec--;
-	tdelta.tv_usec += 1000000;
+        tdelta.tv_sec--;
+        tdelta.tv_usec += 1000000;
     }
-    s = (CKFLOAT) tdelta.tv_sec + ((CKFLOAT) tdelta.tv_usec / 1000000.0);
-    if (s < GFMINTIME)
-      s = GFMINTIME;
+    fp_time = (CKFLOAT) tdelta.tv_sec + ((CKFLOAT) tdelta.tv_usec / 1000000.0);
+    if (fp_time < GFMINTIME)
+      fp_time = GFMINTIME;
 #ifdef DEBUG
     if (deblog) {
-	sprintf(fpbuf,"%f",s);
-	debug(F110,"gftimer",fpbuf,0);
+        sprintf(fpbuf,"%f",fp_time);
+        debug(F110,"gftimer",fpbuf,0);
     }
 #endif /* DEBUG */
-    return(s);
+    return(fp_time);
 }
 
+#else /* def GFTIMER_UNIX */ /* Original scheme using sys$gettim(), et al. */
 
+#if __IEEE_FLOAT
+#define CVTS
+#endif /* __IEEE_FLOAT */
+
+#ifdef CVTS
+#define LIB_CVTX_FROM_INTERNAL_TIME lib$cvts_from_internal_time /* IEEE */
 #else
+#define LIB_CVTX_FROM_INTERNAL_TIME lib$cvtf_from_internal_time /* VAX */
+#endif /* def CVTS */
 
 static QUAD tzero;
 
@@ -2637,32 +2665,33 @@ rftimer() {
 
 CKFLOAT
 gftimer() {
-    float s;                            /* gcc gawks at CKFLOAT */
+    float fp_time;                      /* gcc gawks at CKFLOAT */
     QUAD tnow, diff;                    /* 64-bit times */
     int status;
-    unsigned long lkd = LIB$K_DELTA_SECONDS_F;
+    unsigned int lkd = LIB$K_DELTA_SECONDS_F;   /* "_F": Fractional. */
 #ifdef DEBUG
     char fpbuf[64];
 #endif /* DEBUG */
     status = sys$gettim(&tnow);
     if (!(status & 1)) vms_lasterr = status;
     debug(F101,"gftimer status 1","",status);
-    status = lib$sub_times(&tnow, &tzero, &diff );
+    status = lib$sub_times(&tnow, &tzero, &diff );  /* (Delta_time < 0.) */
     if (!(status & 1)) vms_lasterr = status;
     debug(F101,"gftimer status 2","",status);
-    status = lib$cvtf_from_internal_time(&lkd,&s,&diff);
+    status = LIB_CVTX_FROM_INTERNAL_TIME(&lkd,&fp_time,&diff);
     if (!(status & 1)) vms_lasterr = status;
     debug(F101,"gftimer status 3","",status);
 #ifdef DEBUG
     if (deblog) {
-        sprintf(fpbuf,"%f",s);
-        debug(F110,"gftimer s",fpbuf,0);
+        sprintf(fpbuf,"%f",fp_time);
+        debug(F110,"gftimer fp_time",fpbuf,0);
     }
 #endif /* DEBUG */
-    return(s > 0.0 ? (CKFLOAT) s : (CKFLOAT) 0.000001);
+    return(fp_time > 0.0 ? (CKFLOAT) fp_time : (CKFLOAT) 0.000001);
 }
-#endif	/* VMSI64 */
+#endif  /* def GFTIMER_UNIX [else] */
 #endif /* GFTIMER */
+
 
 /*  Z T I M E  --  Return date/time string  */
 
@@ -3252,19 +3281,19 @@ ssl_contti(c, src) int *c, *src; {
      */
     if (!netcon_queued) {
 #ifdef CMU_TCPIP
-	cmu_stdin_read(IO$_READVBLK, &concc, 1, 0, 0);
+        cmu_stdin_read(IO$_READVBLK, &concc, 1, 0, 0);
 #else
-	debug(F100,"ssl_contti: sys$qio conchn 1","",0);
-	if (!CHECK_ERR("ssl_contti: console sys$qio",
-			sys$qio(CON_EFN, conchn, IO$_READVBLK,
-				 &con_iosb, 0, 0, &concc,
-				 1, 0, 0, 0, 0))) {
-	    debug(F100,"ssl_contti: sys$qio conchn 1 fails","",0);
-	    return(*c = -1);
-	}
-	debug(F100,"ssl_contti: sys$qio conchn 2","",0);
+        debug(F100,"ssl_contti: sys$qio conchn 1","",0);
+        if (!CHECK_ERR("ssl_contti: console sys$qio",
+                        sys$qio(CON_EFN, conchn, IO$_READVBLK,
+                                 &con_iosb, 0, 0, &concc,
+                                 1, 0, 0, 0, 0))) {
+            debug(F100,"ssl_contti: sys$qio conchn 1 fails","",0);
+            return(*c = -1);
+        }
+        debug(F100,"ssl_contti: sys$qio conchn 2","",0);
 #endif /* CMU_TCPIP */
-	netcon_queued = 1;
+        netcon_queued = 1;
     }
 
     /* Console char ready? */
@@ -3275,43 +3304,43 @@ ssl_contti(c, src) int *c, *src; {
     FD_SET(0,&readfds);
 #ifdef CMU_TCPIP_BOGUS_SELECT
     if (select(1, &readfds, 0, &exceptfds, &timeout) == 1)
-	if (FD_ISSET(0,&exceptfds))
-	    return(*c = -1);
+        if (FD_ISSET(0,&exceptfds))
+            return(*c = -1);
     netcon_queued = 0;
     *c   = (unsigned)(concc & 0xff);
     *src = 0;
     return(1);
 #else   /* CMU_TCPIP_BOGUS_SELECT (wjm 02-feb-1997) */
-	/* non-blocking select() - zero timeout */
+        /* non-blocking select() - zero timeout */
     switch(select(1, &readfds, 0, &exceptfds, &timeout)) {
     case 1:       /* console ready */
-	netcon_queued = 0;                  /* QIO completed */
-	*src = 0;
-	if (!(FD_ISSET(0,&exceptfds))) {    /* o.k. */
-	    *c = (unsigned)(concc & 0xff);
-	    return(1);
-	} else                              /* I/O error */
-	    return(*c = -1);
+        netcon_queued = 0;                  /* QIO completed */
+        *src = 0;
+        if (!(FD_ISSET(0,&exceptfds))) {    /* o.k. */
+            *c = (unsigned)(concc & 0xff);
+            return(1);
+        } else                              /* I/O error */
+            return(*c = -1);
 
     case 0:       /* timeout (no console input) */
-	break;
+        break;
 
     default:      /* select() error */
-	return(*c = -1);            /* shouldn't get here */
+        return(*c = -1);            /* shouldn't get here */
     }
 #endif /* CMU_TCPIP_BOGUS_SELECT (wjm 02-feb-1997) */
 #else /* CMU_TCPIP */
     (void) sys$readef(CON_EFN, &mask);
     if (mask & (1 << CON_EFN)) {
-	netcon_queued = 0;
-	if (!CHECK_ERR("ssl_contti: con_iosb.status",
-			con_iosb.status)) {
-	    debug(F100,"ssl_contti: con_iosb.status fails","",0);
-	    return(*c = -1);
-	}
-	*c = (unsigned)(concc & 0xff);
-	*src = 0;
-	return(1);
+        netcon_queued = 0;
+        if (!CHECK_ERR("ssl_contti: con_iosb.status",
+                        con_iosb.status)) {
+            debug(F100,"ssl_contti: con_iosb.status fails","",0);
+            return(*c = -1);
+        }
+        *c = (unsigned)(concc & 0xff);
+        *src = 0;
+        return(1);
     }
 #endif /* CMU_TCPIP */
     /*
@@ -3321,10 +3350,10 @@ ssl_contti(c, src) int *c, *src; {
     avail = nettchk();
     debug(F101,"ssl_contti: nettchk","",avail);
     if (avail > 0) {
-	*c = netinc(0);              /* See ttbufr() in ckcnet.c */
-	return(*src = (*c > -1) ? 1 : 0);
+        *c = netinc(0);              /* See ttbufr() in ckcnet.c */
+        return(*src = (*c > -1) ? 1 : 0);
     } else if (avail < 0) {
-	return(*src = -1);
+        return(*src = -1);
     }
     /* all clear up to here - jaltman */
 
@@ -3354,47 +3383,47 @@ ssl_contti(c, src) int *c, *src; {
  *
  */
 #ifdef DEC_TCPIP
-	{
-	    static int last_ttyfd = -1;
-	    static short int net_chan = -1;
+        {
+            static int last_ttyfd = -1;
+            static short int net_chan = -1;
 
-	    if (ttyfd != last_ttyfd) {
-		last_ttyfd = ttyfd;
-		net_chan = GET_SDC(last_ttyfd);
-	    }
-	    if (!CHECK_ERR("ssl_contti: network sys$qio",
-			    sys$qio(NET_EFN, net_chan, IO$_READVBLK,
-				     &net_iosb, 0, 0,
-				     &netcc, 1, 0, INET$C_MSG_PEEK, 0, 0))) {
-		debug(F100,"ssl_contti: network sys$qio net_chan fails","",0);
-		return(*c = -1);
-	    }
-	}
+            if (ttyfd != last_ttyfd) {
+                last_ttyfd = ttyfd;
+                net_chan = GET_SDC(last_ttyfd);
+            }
+            if (!CHECK_ERR("ssl_contti: network sys$qio",
+                            sys$qio(NET_EFN, net_chan, IO$_READVBLK,
+                                     &net_iosb, 0, 0,
+                                     &netcc, 1, 0, INET$C_MSG_PEEK, 0, 0))) {
+                debug(F100,"ssl_contti: network sys$qio net_chan fails","",0);
+                return(*c = -1);
+            }
+        }
 #else /* Not DEC_TCPIP */
-	if (!CHECK_ERR("ssl_contti: network sys$qio",
-			sys$qio(NET_EFN, ttyfd, IO$_READVBLK, &net_iosb,
-				 0, 0, &netcc, 0, 0, INET$C_MSG_PEEK, 0, 0))) {
-	    debug(F100,"ssl_contti: network sys$qio ttyfd fails","",0);
-	    return(*c = -1);
-	}
+        if (!CHECK_ERR("ssl_contti: network sys$qio",
+                        sys$qio(NET_EFN, ttyfd, IO$_READVBLK, &net_iosb,
+                                 0, 0, &netcc, 0, 0, INET$C_MSG_PEEK, 0, 0))) {
+            debug(F100,"ssl_contti: network sys$qio ttyfd fails","",0);
+            return(*c = -1);
+        }
 #endif /* DEC_TCPIP */
 #endif /* CMU_TCPIP */
-	nettty_queued = 1;
+        nettty_queued = 1;
     }
 
     debug(F101,"ssl_contti: netcon_queued","",netcon_queued);
     if (!netcon_queued) {
 #ifdef CMU_TCPIP
-	cmu_stdin_read(IO$_READVBLK, &concc, 1, 0, 0);
+        cmu_stdin_read(IO$_READVBLK, &concc, 1, 0, 0);
 #else
-	if (!CHECK_ERR("ssl_contti: console sys$qio",
-			sys$qio(CON_EFN, conchn, IO$_READVBLK, &con_iosb,
-				 0, 0, &concc, 1, 0, 0, 0, 0))) {
-	    debug(F100,"ssl_contti: console sys$qio fails","",0);
-	    return(*c = -1);
-	}
+        if (!CHECK_ERR("ssl_contti: console sys$qio",
+                        sys$qio(CON_EFN, conchn, IO$_READVBLK, &con_iosb,
+                                 0, 0, &concc, 1, 0, 0, 0, 0))) {
+            debug(F100,"ssl_contti: console sys$qio fails","",0);
+            return(*c = -1);
+        }
 #endif /* CMU_TCPIP */
-	netcon_queued = 1;
+        netcon_queued = 1;
     }
     /*
      * Wait for a character
@@ -3409,72 +3438,72 @@ ssl_contti(c, src) int *c, *src; {
     FD_SET(ttyfd,&readfds);
     s = select(ttyfd+1, &readfds, 0, &exceptfds, 0); /*a blocking select*/
     if (s <= 0)
-	return(-1);
+        return(-1);
 
     if (FD_ISSET(0,&exceptfds))
-	return(-1);
+        return(-1);
 
     if (FD_ISSET(ttyfd,&exceptfds))
-	return(-1);
+        return(-1);
 
     if (FD_ISSET(0,&readfds)) {
-	*c            = (unsigned)(concc & 0xff);
-	*src          = 0;
-	netcon_queued = 0;
+        *c            = (unsigned)(concc & 0xff);
+        *src          = 0;
+        netcon_queued = 0;
     } else {
-	if (FD_ISSET(ttyfd,&readfds)) {
-	    *c = netinc(0);
-	    if (*c < 0)
-		return(-1);
-	    *src      = 1;
-	    nettty_queued = 0;
-	    return(1);
-	}
+        if (FD_ISSET(ttyfd,&readfds)) {
+            *c = netinc(0);
+            if (*c < 0)
+                return(-1);
+            *src      = 1;
+            nettty_queued = 0;
+            return(1);
+        }
     }
 #else /* CMU_TCPIP */
     debug(F100,"not CMU_TCPIP","",0);
     mask = (1 << CON_EFN) | (1 << NET_EFN);
 
     if (!CHECK_ERR("ssl_contti: sys$wflor", sys$wflor(CON_EFN, mask))) {
-	debug(F100,"ssl_contti: sys$wflor fails", "", 0);
-	return(*c = -1);
+        debug(F100,"ssl_contti: sys$wflor fails", "", 0);
+        return(*c = -1);
     }
     if (!CHECK_ERR("ssl_contti: sys$readef",sys$readef(CON_EFN, &mask))) {
-	debug(F100,"ssl_contti: sys$readef fails", "", 0);
-	return(*c = -1);
+        debug(F100,"ssl_contti: sys$readef fails", "", 0);
+        return(*c = -1);
     }
     if (mask & (1 << CON_EFN)) {    /* Console */
-	if (!CHECK_ERR("ssl_contti: con_iosb.status", con_iosb.status)) {
-	    debug(F100,"ssl_contti: con_iosb.status fails","",0);
-	    return(-1);
-	}
-	*c = (unsigned)(concc & 0xff);
-	*src = 0;
-	netcon_queued = 0;
+        if (!CHECK_ERR("ssl_contti: con_iosb.status", con_iosb.status)) {
+            debug(F100,"ssl_contti: con_iosb.status fails","",0);
+            return(-1);
+        }
+        *c = (unsigned)(concc & 0xff);
+        *src = 0;
+        netcon_queued = 0;
     }
     else if (mask & (1 << NET_EFN)) { /* Network */
-	if (!(net_iosb.status & 1)) { /* Read error */
+        if (!(net_iosb.status & 1)) { /* Read error */
 #ifdef WINTCP
 #ifdef OLD_TWG
-	    perror("ssl_contti: net_iosb.status");
+            perror("ssl_contti: net_iosb.status");
 #else
-	    _$set_vaxc_error(SS$_NORMAL, net_iosb.status);
-	    win$perror("ssl_contti: net_iosb.status");
+            _$set_vaxc_error(SS$_NORMAL, net_iosb.status);
+            win$perror("ssl_contti: net_iosb.status");
 #endif /* OLD_TWG */
 #endif /* WINTCP */
-	    debug(F100,"ssl_contti: network read error", "", 0);
-	    return(*c = -1);
-	}
-	debug(F101,"ssl_contti: net_iosb.size","",net_iosb.size);
-	if (net_iosb.size == 0) {   /* Handle reset from remote */
-	    debug(F100,"ssl_contti: network reset from remote", "", 0);
-	    return(*c = -1);
-	}
-	/* We ignore the character we peeked at and call the net code */
-	debug(F100,"ssl_contti: calling netinc(0)","",0);
-	*c = netinc(0);
-	*src = 1;
-	nettty_queued = 0;
+            debug(F100,"ssl_contti: network read error", "", 0);
+            return(*c = -1);
+        }
+        debug(F101,"ssl_contti: net_iosb.size","",net_iosb.size);
+        if (net_iosb.size == 0) {   /* Handle reset from remote */
+            debug(F100,"ssl_contti: network reset from remote", "", 0);
+            return(*c = -1);
+        }
+        /* We ignore the character we peeked at and call the net code */
+        debug(F100,"ssl_contti: calling netinc(0)","",0);
+        *c = netinc(0);
+        *src = 1;
+        nettty_queued = 0;
     }
 #endif /* CMU_TCPIP */
 
@@ -4122,7 +4151,7 @@ ttgmdm() {
     }
 #endif /* DT$_LAT */
 
-#ifndef VMS64BIT			/* This works only on VAX */
+#ifndef VMS64BIT                        /* This works only on VAX */
 /*
   It was suggested that we test for TT$M_MODEM here, but if it failed
   that does not necessarily mean we can't read modem signals.  As of
@@ -4289,9 +4318,9 @@ cmdate2tm(date,gmt) char * date; int gmt;
     time_t now;
 
     if (strlen(date) != 17 ||
-	date[8] != ' ' ||
-	date[11] != ':' ||
-	date[14] != ':')
+        date[8] != ' ' ||
+        date[11] != ':' ||
+        date[14] != ':')
       return(NULL);
 
     time(&now);

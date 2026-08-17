@@ -5,10 +5,10 @@
 /* DEC/CMS REPLACEMENT HISTORY, Element CKVVMS.H */
 /*
  * 006 22-Aug-1993 fdc     Add prototype for print_msg().
- * 005 26-Aug-1992 tmk	   Remove unused CKVRMS32 stuff
- * 004 01-Dec-1989 mab	   Add RMS support
- * 002 01-Aug-1989 mab	   Add partial buffer definition
- * 002 08-Jul-1989 mab	   Add ^C/^Y code to server mode
+ * 005 26-Aug-1992 tmk     Remove unused CKVRMS32 stuff
+ * 004 01-Dec-1989 mab     Add RMS support
+ * 002 01-Aug-1989 mab     Add partial buffer definition
+ * 002 08-Jul-1989 mab     Add ^C/^Y code to server mode
  * 001 05-Mar-1989 mab     Put some common pieces in one place
  */
 /*
@@ -41,31 +41,31 @@ struct itmlst {
 };
 
 struct sysatr {
-    unsigned long int retval;	/* Address or value returned */
-    unsigned long int len;	/* length of item */
+    unsigned long int retval;   /* Address or value returned */
+    unsigned long int len;      /* length of item */
     unsigned long int type;
-    char *bpnt;			/* Buffer pointer */
-    unsigned long int bcnt;	/* Buffer count */
-    char *tbuf_adr;		/* Starting address of tmp buffer */
-    char *tbuf_pnt;		/* Address within buffer */
+    char *bpnt;                 /* Buffer pointer */
+    unsigned long int bcnt;     /* Buffer count */
+    char *tbuf_adr;             /* Starting address of tmp buffer */
+    char *tbuf_pnt;             /* Address within buffer */
     unsigned long int tbuf_len; /* Length of buffer */
     unsigned long int tbuf_cnt;
 };
 
-struct trmmbx_message {			/* jah - for edit 031 in ckvtio.c */
-    unsigned short type;		/* Mailbox message type */
-    unsigned short unit;		/* TTY unit number */
-    unsigned char ctlname_size;		/* TTY controller name length */
-    char ctlname[15];			/* TTY controller name */
+struct trmmbx_message {                 /* jah - for edit 031 in ckvtio.c */
+    unsigned short type;                /* Mailbox message type */
+    unsigned short unit;                /* TTY unit number */
+    unsigned char ctlname_size;         /* TTY controller name length */
+    char ctlname[15];                   /* TTY controller name */
     /* Add broadcast message stuff here if/when needed */
 };
 
-struct trmmbx_struct {			/* jah - for edit 031 in ckvtio.c */
-    unsigned short channel;		/* Mailbox channel */
-    unsigned short efn;			/* EFN we set for unsolicited input */
-    unsigned long status;		/* Completion status set by AST code */
-    struct iosb_struct iosb;		/* I/O status block for mailbox read */
-    struct trmmbx_message message;	/* A short mailbox message buffer */
+struct trmmbx_struct {                  /* jah - for edit 031 in ckvtio.c */
+    unsigned short channel;             /* Mailbox channel */
+    unsigned short efn;                 /* EFN we set for unsolicited input */
+    unsigned long status;               /* Completion status set by AST code */
+    struct iosb_struct iosb;            /* I/O status block for mailbox read */
+    struct trmmbx_message message;      /* A short mailbox message buffer */
 };
 
 /*  Event flags used for I/O completion testing  */
@@ -82,7 +82,7 @@ int print_msg();
 #define CHECK_ERR(s,x) (SUCCESS(x) ? 1 : print_msg(s))
 /*
  * Module CKVTIO
- * Routine print_msg(sts) 	! Print VMS error message.
+ * Routine print_msg(sts)       ! Print VMS error message.
  * define buffer sizes that are malloced at routine first call.
  */
 #define PMSG_BUF_SIZE 255
@@ -103,15 +103,15 @@ int print_msg();
  * The following macro was borrowed from a posting on USENET - Thank you.
  */
 
-#define IDENT(arg) arg	/* Handy macro expands to its arguments */
+#define IDENT(arg) arg  /* Handy macro expands to its arguments */
 
-#define VSTRING(name, maxlen, init)	\
-    struct IDENT(name)_vs {		\
-	struct dsc$descriptor_s dsc;	\
-	unsigned short int curlen;	\
-	char body[maxlen];		\
+#define VSTRING(name, maxlen, init)     \
+    struct IDENT(name)_vs {             \
+        struct dsc$descriptor_s dsc;    \
+        unsigned short int curlen;      \
+        char body[maxlen];              \
     } name = {{maxlen, DSC$K_DTYPE_VT, DSC$K_CLASS_VS, &name.curlen}, \
-	sizeof(init)-1, init}
+        sizeof(init)-1, init}
 
 /*
  * Example of using VSTRING:
@@ -134,12 +134,12 @@ int print_msg();
  * Used by parsedir as the flags argument
  */
 
-#define PARSE_NODE	0x001
-#define PARSE_DEVICE	0x002
-#define PARSE_DIRECTORY	0x004
-#define PARSE_NAME	0x008
-#define PARSE_TYPE	0x010
-#define PARSE_VERSION	0x020
+#define PARSE_NODE      0x001
+#define PARSE_DEVICE    0x002
+#define PARSE_DIRECTORY 0x004
+#define PARSE_NAME      0x008
+#define PARSE_TYPE      0x010
+#define PARSE_VERSION   0x020
 
 /*
  *

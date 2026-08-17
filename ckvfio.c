@@ -83,18 +83,18 @@ char *ckzsys = CKVFIO_OS_ARCH_STRING;
  * 009 (???)
  * 010 24-Jan-88 fdc Add zgtdir() function, even tho it doesn't work...
  * 011 14-Feb-89 mab Make zgtdir() work in V2/V3 C envirements,
- *		     Make zkself work using delprc() using Will Wood's changes.
+ *                   Make zkself work using delprc() using Will Wood's changes.
  * 012 26-Feb-89 mab Add function that searches for kermit.ini file in various
  *                   ways
  * 013 05-Mar-89 mab Add Barry Archers enhancements/fixes.
  * 014 15-Mar-89 mab Check for non-null data, not array of pointers in
  *                   zkermini
  * 015 04-Apr-89 mab Add latent support for attribute packet.  Clean up
- *		     file name translation code.
+ *                   file name translation code.
  * 016 05-Apr-89 mab Add PWP code to optimize packetizing.
  * 017 16-Apr-89 mab PWP changes broke REMOTE command.  Fixed.
  * 018 18-Apr-89 mab #ifdef chkfn.  This removes a lot of overhead.
- *		     Add code to gtdir() for V4.x.
+ *                   Add code to gtdir() for V4.x.
  * 019 12-Jun-89 mab Add PWP's encode logic
  * 020 09-Jul-89 mab Add logic to check for system() availability
  * 021 10-Jul-89 mab Fix SHOW USER USERNAME.  Added space after 'SHOW USER'.
@@ -118,10 +118,10 @@ char *ckzsys = CKVFIO_OS_ARCH_STRING;
  * 039 13-Aug-90 tmk Finished first cut of full RMS support for output files
  * 040 29-Sep-90 tmk Add iswild() from FDC for C-Kermit 5A edit 157
  * 041 06-Oct-90 tmk Add filetype IMAGE support for outbound transfers. Note
- *		     that this doesn't currently work as the receiver overrides
- *		     it (must talk to fdc).
+ *                   that this doesn't currently work as the receiver overrides
+ *                   it (must talk to fdc).
  * 042 06-Oct-90 tmk Make logfiles MRS=80. Being able to edit them outweighs
- *		     any use for un-split lines.
+ *                   any use for un-split lines.
  * 043 17-Oct-90 wb  Make zclosf() remove delete mailboxes & deassign channels
  *                   used to talk to the subprocess, so quotas are not used
  *                   up after repeated mailbox use (installed by fdc).
@@ -133,26 +133,26 @@ char *ckzsys = CKVFIO_OS_ARCH_STRING;
  *                   exit() when "line too long for buffer", and increased
  *                   line output buffer from 1K to 4K.
  * 045 01-Nov-90 tmk Corrected behavior of error check on $create call so a
- *		     file supersede would work properly.
+ *                   file supersede would work properly.
  * 046 01-Nov-90 tmk Clone binary flag to ofile_bmode so we have a consistent
- *		     view of this flag during file operations - the binary flag
- *		     tends to toggle when we don't want/expect it to.
+ *                   view of this flag during file operations - the binary flag
+ *                   tends to toggle when we don't want/expect it to.
  * 047 01-Nov-90 tmk Make IMAGE mode work. Note that image mode is only used
- *		     when VMS is sending a file, and includes all record
- *		     control characters not normally sent. Only useful in
- *		     unusual circumstances.
+ *                   when VMS is sending a file, and includes all record
+ *                   control characters not normally sent. Only useful in
+ *                   unusual circumstances.
  * 048 01-Nov-90 tmk Remove spurious \n from zsoutl() which caused debug logs
- *		     to have spurious <CR>'s when viewed with editors.
+ *                   to have spurious <CR>'s when viewed with editors.
  * 049 02-Nov-90 fdc Adapt to dynamic allocation of file i/o buffers.  Changes
  *                   are within #ifdef DYNAMIC..#else..#endif brackets.
  * 050 02-Nov-90 fdc Make zsyscmd() close inferior process.
  * 051 ??-???-?? ??? Add ckermit_init logical, return 0 on wildcard operations.
  * 052 24-Dec-90 tmk Fix performance problems after 32Kb w/ ASCII receives, fix
-		     2-nulls-per-32Kb in binary mode bug (actually in ckcker.h,
-		     this is a placeholder).
+                     2-nulls-per-32Kb in binary mode bug (actually in ckcker.h,
+                     this is a placeholder).
  * 053 13-Jan-91 tmk Add support for SET FILE RECORD-LENGTH.
  * 054 14-Jan-91 tmk Fix cases of /x/CR/LF/y/ and /x/CR/LF/y/CR/LF/ in ASCII
- *		     file receives.
+ *                   file receives.
  * 055 16-Jan-91 tmk Log requested file type to debug log when receiving.
  * 056 16-Jan-91 tmk Add support for all zstime() functions.
  * 057 17-Jan-91 tmk Add support for zchkspa() function.
@@ -160,43 +160,43 @@ char *ckzsys = CKVFIO_OS_ARCH_STRING;
  * 059 18-Jan-91 tmk Support remote (DECnet) file accesses.
  * 060 18-Jan-91 tmk Fix READ command.
  * 061 30-Jan-91 tmk Support creation of UNDEFINED file types for brain-dead
- *		     BASIC implementation.
+ *                   BASIC implementation.
  * 062 30-Jan-91 tmk Fix REMOTE commands when VERIFY is set.
  * 063 29-Mar-91 tmk Add padding factor for received text files to accomodate
- *		     space taken up by record delimiters (per fdc).
+ *                   space taken up by record delimiters (per fdc).
  * 064 29-Mar-91 gm  Remove unnecessary mem-mem moves during ASCII receives.
- *		     (Installed by tmk. To back out, #define OLD_WAY).
+ *                   (Installed by tmk. To back out, #define OLD_WAY).
  * 065 30-Mar-91 tmk First pass at implementing LABELED. Send only, dummy
- *		     data records.
+ *                   data records.
  * 066 02-Apr-91 tmk Finish first pass at LABELED. Send VMS filename, attri-
- *		     butes. Still need ACL's, "hidden" char. longword, recep-
- *		     tion.
+ *                   butes. Still need ACL's, "hidden" char. longword, recep-
+ *                   tion.
  * 067 09-Apr-91 tmk LABELED bugfixes - VMSFILE is 70 bytes, not 74, use the
- *		     xab$w_lrl field instead of rab$w_rsz, fab$w_deq instead
- *		     of xab$w_rsz, fab$b_bks instead of xab$b_bkz, always pro-
- *		     cess an even multiple of 512 bytes when LABELED.
+ *                   xab$w_lrl field instead of rab$w_rsz, fab$w_deq instead
+ *                   of xab$w_rsz, fab$b_bks instead of xab$b_bkz, always pro-
+ *                   cess an even multiple of 512 bytes when LABELED.
  * 068 14-Apr-91 tmk Don't use C definition of fab$b_journal as it doesn't ex-
- *		     ist before C V3.1. Compute it ourselves instead.
+ *                   ist before C V3.1. Compute it ourselves instead.
  * 069 15-Apr-91 tmk Initial work on retrieving ACL information for LABELED.
  * 070 16-Apr-91 tmk Make edits 066-069 compatible with DECnet.
  * 071 21-May-91 tmk Address R. Weiner QAR item 2 (filesize).
  * 072 21-Jun-91 tmk Check (and prohibit) spawns from captive accounts.
  * 073 21-Jun-91 tmk Fix session logging (for Charlie Luce/DECUServe).
  * 074 21-Jun-91 tmk Rework 071 to only apply to SPAWN/PUSH and not to the
- *		     pseudo-builtins like DEL, SPACE, WHO, PWD, etc.
+ *                   pseudo-builtins like DEL, SPACE, WHO, PWD, etc.
  * 075 21-Jun-91 tmk Fix possible endless loop when flushing output file in
- *		     zclosf() after zoutdump() error.
+ *                   zclosf() after zoutdump() error.
  * 076 21-Jun-91 tmk First pass on handling inbound LABELED files.
  * 077 14-Nov-91 tmk Fix zprint(), zmail() (need to use system() for these).
  *                   This is a partial backout of 044.
  * 078 14-Nov-91 tmk Various cleanups.  Delete files after successful mailing
- *		     or printing, remove dead code inside #ifdef COMMENT and
+ *                   or printing, remove dead code inside #ifdef COMMENT and
  *                   #ifdef OLD_WAY, fix typo in spawning message, make sure
  *                   all source lines < 80 chars.
  * 079 22-Nov-91 fdc Change zmail(), zprint() error return values to improve
- *		     error reporting.
+ *                   error reporting.
  * 080 18-Jan-92 tmk Fix REMOTE so output from a remote command correctly dis-
- *		     plays on terminal. This has been broken since 040 or so.
+ *                   plays on terminal. This has been broken since 040 or so.
  * 081 10-Jun-92 tmk Add William Bader's fix for fixed-length files which have
  *                   record attributes.
  * 082 03-Jul-92 tmk Fix really bad bug introduced in 081 (which made *all*
@@ -205,17 +205,17 @@ char *ckzsys = CKVFIO_OS_ARCH_STRING;
  * 084 03-Aug-92 fdc Remove current directory from init file search.
  * 085 26-Aug-92 tmk Add Bernd Onasch's fix for fgen().
  * 086 28-Aug-92 tmk Fix bug reported by Bill Hoelzer where C-K would execute
- *		     a file named "." as a C-K initialization file.
+ *                   a file named "." as a C-K initialization file.
  * 087 04-Sep-92 tmk Fix bug reported by Chuck McMichael where C-K would not
- *		     set the FFB properly when receiving a labeled file which
- *		     did not have the FFB on a record boundary.
+ *                   set the FFB properly when receiving a labeled file which
+ *                   did not have the FFB on a record boundary.
  * 088 09-Sep-92 tmk Fix Hunter Goatley's problem with SPAWN command ignoring
- *		     Ctrl-C.
+ *                   Ctrl-C.
  * 089 11-Sep-92  js Fixed malloc() in zmail().
  * 090 28-Oct-92 tmk Fix null-byte error introduced by 087. Gee, this looked
- *		     so simple when I designed it.
+ *                   so simple when I designed it.
  * 091 02-Nov-92 tmk Start work on fixing spawn/push/remote commands, due to
- *		     popular whining.
+ *                   popular whining.
  * 092 03-Nov-92 tmk Finish up initial 091 work. Vote for Kermit!
  * 093 03-Nov-92 fdc Change zkermini() to work with "-y" command-line option.
  * 094 04-Nov-92 tmk Make zxpand() not return all files if given null string.
@@ -223,7 +223,7 @@ char *ckzsys = CKVFIO_OS_ARCH_STRING;
  * 096 17-Feb-93 fdc prevent zopeno from calling zstime if date struct is NULL,
  *                   and add support for ZMFILE (misc output file).
  * 097 08-Apr-93 tmk Correctly handle "international VMS" which uses <> instead
- *		     of [] for directory delimiters.
+ *                   of [] for directory delimiters.
  * 098 16-May-93 fdc ANSIfication for GNU CC, from James Sturdevant, plus
  *                   add FAB$M_PRN to list of text-file types, for VMS batch
  *                   logs.
@@ -380,17 +380,17 @@ char *ckzsys = CKVFIO_OS_ARCH_STRING;
 
 /* Definitions of some VMS system commands */
 
-char *DIRCMD = "directory ";		/* For directory listing */
-char *DIRCM2 = "directory ";		/* For directory listing, no args */
-char *DELCMD = "delete ";		/* For file deletion */
-char *TYPCMD = "type ";			/* For typing a file */
-char *SPACMD = "show quota "; 		/* Space/quota of current directory */
-char *SPACM2 = "show quota "; 		/* Space/quota of specified dir */
-char *WHOCMD = "show users ";		/* For seeing who's logged in */
-char *PWDCMD = "show default ";		/* For seeing current directory */
+char *DIRCMD = "directory ";            /* For directory listing */
+char *DIRCM2 = "directory ";            /* For directory listing, no args */
+char *DELCMD = "delete ";               /* For file deletion */
+char *TYPCMD = "type ";                 /* For typing a file */
+char *SPACMD = "show quota ";           /* Space/quota of current directory */
+char *SPACM2 = "show quota ";           /* Space/quota of specified dir */
+char *WHOCMD = "show users ";           /* For seeing who's logged in */
+char *PWDCMD = "show default ";         /* For seeing current directory */
 
 /*
-  Functions (n is one of the predefined file numbers from ckermi.h):
+  Functions (n is one of the predefined file numbers from ckcker.h):
 
    zopeni(n,name)   -- Opens an existing file for input.
    zopeno(n,name)   -- Opens a new file for output.
@@ -457,7 +457,7 @@ char *PWDCMD = "show default ";		/* For seeing current directory */
 /* ifndefs below prevent multiple declaration of FAB and NAM structs */
 
 #ifndef FAB$C_BID
-#include <fab.h>			/* These are needed for isdir() */
+#include <fab.h>                        /* These are needed for isdir() */
 #endif /* FAB$C_BID */
 
 #ifndef NAM$C_BID
@@ -472,8 +472,11 @@ char *PWDCMD = "show default ";		/* For seeing current directory */
 #include <lnmdef.h>
 #include <rmsdef.h>
 
+#include "ckcnet.h"                     /* for struct sockaddr */
+#include "ckcfnp.h"                     /* Prototypes (must be last) */
+
 #ifndef MAXWLD
-#define MAXWLD 102400			/* Maximum wildcard filenames */
+#define MAXWLD 102400                   /* Maximum wildcard filenames */
 #endif /* MAXWLD */
 
 /* external def. of things used in buffered file input and output */
@@ -495,30 +498,30 @@ extern long vernum;
 
 /* Declarations */
 
-FILE *fp[ZNFILS] = { 			/* File pointers */
+FILE *fp[ZNFILS] = {                    /* File pointers */
     NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL
 };
 
 #define VMSVERSIONS
 
-int vmssversions = 0;			/* Include version number w/filename */
-int vmsrversions = 0;			/* Send and Receive.... */
+int vmssversions = 0;                   /* Include version number w/filename */
+int vmsrversions = 0;                   /* Send and Receive.... */
 
 /* Flags for each file indicating whether it is a mailbox */
 int ispipe[ZNFILS] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-static CK_OFF_T iflen = (CK_OFF_T)-1;	/* Input file length */
+static CK_OFF_T iflen = (CK_OFF_T)-1;   /* Input file length */
 static long rflen = -1;
-static long oflen = -1;			/* Output file length */
-static int fcount = 0;			/* Number of files in wild group */
-static int nxpand = 0;			/* Copy of fcount */
-static char nambuf[ CKMAXPATH];		/* maximum size of a file spec */
+static long oflen = -1;                 /* Output file length */
+static int fcount = 0;                  /* Number of files in wild group */
+static int nxpand = 0;                  /* Copy of fcount */
+static char nambuf[ CKMAXPATH];         /* maximum size of a file spec */
 static char cwdbuf[ NAMX_C_MAXRSS];
-static struct iosb_struct tmpiosb;	/* For QIOW */
+static struct iosb_struct tmpiosb;      /* For QIOW */
 
-extern unsigned int vms_status;		/* Used by CHECK_ERR */
+extern unsigned int vms_status;         /* Used by CHECK_ERR */
 extern unsigned int vms_lasterr;
-static int cflag;			/* Flag indicating console in use */
+static int cflag;                       /* Flag indicating console in use */
 
 int check_spawn(void);
 int do_label_recv(void);
@@ -547,22 +550,22 @@ char *getenv(), *strcpy();
 #include <starlet.h>
 #endif /* __DECC */
 
-int pexitstat = -2;			/* Process exit status */
-unsigned long pexitlong = -2L;		/* ULONG version of same */
+int pexitstat = -2;                     /* Process exit status */
+unsigned long pexitlong = -2L;          /* ULONG version of same */
 
 #ifdef COMMENT
-/* static */				/* Not static any more! */
-char *mtchs[MAXWLD],			/* Matches found for filename */
-  **mtchptr;				/* Pointer to current match */
+/* static */                            /* Not static any more! */
+char *mtchs[MAXWLD],                    /* Matches found for filename */
+  **mtchptr;                            /* Pointer to current match */
 #else /* def COMMENT */
 char **mtchs = NULL, **mtchptr = NULL;
 #endif /* def COMMENT [else] */
-static unsigned short mbx_chan;		/* Mailbox chan for REMOTE commands */
+static unsigned short mbx_chan;         /* Mailbox chan for REMOTE commands */
 static int subprocess_input = 0, sub_count;
 static char *sub_ptr, sub_buf[SUB_BUF_SIZE];
 
-#define PIPETIMEOUT			/* For timing out subprocess reads */
-#define	SUPERSAFE			/* For safe subprocesses */
+#define PIPETIMEOUT                     /* For timing out subprocess reads */
+#define SUPERSAFE                       /* For safe subprocesses */
 
 static unsigned long sub_pid;
 
@@ -570,64 +573,64 @@ static unsigned long sub_pid;
  * Structures for input (SEND) file
  */
 
-static	struct FAB fab_ifile;		/* For SEND file */
-static	struct NAMX nam_ifile;
-static	struct RAB rab_ifile;
-static	struct XABDAT xabdat_ifile;
-static	struct XABFHC xabfhc_ifile;
-static	struct XABPRO xabpro_ifile;
-static	struct XABALL xaball_ifile;
+static  struct FAB fab_ifile;           /* For SEND file */
+static  struct NAMX_STRUCT nam_ifile;
+static  struct RAB rab_ifile;
+static  struct XABDAT xabdat_ifile;
+static  struct XABFHC xabfhc_ifile;
+static  struct XABPRO xabpro_ifile;
+static  struct XABALL xaball_ifile;
 
-static	int ifile_bmode;		/* For SEND file */
-static	int ifile_bcount;
-static	char aclbuf[512];
-static	unsigned long xuchar = 0;
+static  int ifile_bmode;                /* For SEND file */
+static  int ifile_bcount;
+static  char aclbuf[512];
+static  unsigned long xuchar = 0;
 
-static	struct FAB fab_rfile;		/* For OPEN READ file */
-static	struct NAMX nam_rfile;
-static	struct RAB rab_rfile;
+static  struct FAB fab_rfile;           /* For OPEN READ file */
+static  struct NAMX_STRUCT nam_rfile;
+static  struct RAB rab_rfile;
 
-static	struct XABDAT xabdat_rfile;
-static	struct XABFHC xabfhc_rfile;
-static	struct XABPRO xabpro_rfile;
-static	struct XABALL xaball_rfile;
+static  struct XABDAT xabdat_rfile;
+static  struct XABFHC xabfhc_rfile;
+static  struct XABPRO xabpro_rfile;
+static  struct XABALL xaball_rfile;
 
-static	int rfile_bmode;		/* For READ file */
-static	int rfile_bcount;
-static	char raclbuf[512];
+static  int rfile_bmode;                /* For READ file */
+static  int rfile_bcount;
+static  char raclbuf[512];
 
 /*
  * Structures for output (RECEIVE) file
  */
 
-static	struct FAB fab_ofile;
-static	struct NAMX nam_ofile;
-static	struct RAB rab_ofile;
-static	struct XABDAT xabdat_ofile;
-static	struct XABFHC xabfhc_ofile;
-static	struct XABPRO xabpro_ofile;
-static	struct XABALL xaball_ofile;
-static	struct XABRDT xabrdt_ofile;
-static	int ofile_dump;
-static	int ofile_bmode;
-static	int ofile_lblopts;
-static	int ofile_lblproc = 0;
-static	char revdat[8];
-static	unsigned short revnum;
+static  struct FAB fab_ofile;
+static  struct NAMX_STRUCT nam_ofile;
+static  struct RAB rab_ofile;
+static  struct XABDAT xabdat_ofile;
+static  struct XABFHC xabfhc_ofile;
+static  struct XABPRO xabpro_ofile;
+static  struct XABALL xaball_ofile;
+static  struct XABRDT xabrdt_ofile;
+static  int ofile_dump;
+static  int ofile_bmode;
+static  int ofile_lblopts;
+static  int ofile_lblproc = 0;
+static  char revdat[8];
+static  unsigned short revnum;
 
-static	char ofile_vmsname[CKMAXPATH+1];
-static	char ofile_vmsacl[512];
-static	int ofile_acllen;
-static	short ofile_ffb;
+static  char ofile_vmsname[CKMAXPATH+1];
+static  char ofile_vmsacl[512];
+static  int ofile_acllen;
+static  short ofile_ffb;
 
 /*
  * Structures for miscellaneous is*() functions.
  */
 
-static	struct FAB path_fab;
-static	struct NAMX path_nam;
-static	char path_exp_name[ NAMX_C_MAXRSS];
-static	char path_res_name[ NAMX_C_MAXRSS];
+static  struct FAB path_fab;
+static  struct NAMX_STRUCT path_nam;
+static  char path_exp_name[ NAMX_C_MAXRSS];
+static  char path_res_name[ NAMX_C_MAXRSS];
 
 char startupdir[NAMX_C_MAXRSS+1];
 
@@ -789,7 +792,7 @@ int get_rms_defaults()
  *
  * 2010-03-22 SMS.
  * This would seem to be a somewhat fuzzy concept on VMS.  For example,
- * is "SYS$DISK:[]" not as relative as "[]"?  We say it's absolute.
+ * is "SYS$DISK:[]" not as relative as "[]"?  We say it's absolute. 
  * What about some other device, like, say, "DUA0:[]"?  We say it's
  * absolute.  Perhaps a check for a real logical name (with a directory
  * spec?) would be more realistic.
@@ -846,6 +849,45 @@ isabsolute(path) char * path; {
     return rc;
 }
 
+/* For the record, old VMS isabsolute() code from ckcmai.c. */
+#ifdef COMMENT
+
+/* Tell if a pathname is absolute (versus relative) */
+/* This should be parceled out to each of the ck*fio.c modules... */
+int
+isabsolute(path) char * path; {
+    int rc = 0;
+    int x;
+    if (!path)
+      return(0);
+    if (!*path)
+      return(0);
+    x = (int) strlen(path);
+    debug(F111,"isabsolute",path,x);
+#ifdef VMS
+    rc = 0;
+    x = ckindex("[",path,0,0,0);        /* 1-based */
+    if (!x)
+       x = ckindex("<",path,0,0,0);
+    debug(F111,"isabsolute left bracket",path,x);
+    if (!x) {
+        x = ckindex(":",path,-1,1,1);
+        if (x)
+          debug(F111,"isabsolute logical",path,x);
+    }
+    if (x > 0)
+      if (path[x] != '.')               /* 0-based */
+        rc = 1;
+#else
+[...]
+#endif /* VMS */
+    debug(F101,"isabsolute rc","",rc);
+    return(rc);
+}
+
+#endif /* def COMMENT */
+
+
 #ifdef CK_TMPDIR
 
 /*  I S D I R  --  Tells if string pointer s is the name of a directory. */
@@ -877,10 +919,7 @@ isdir(path) char *path; {
     path_fab.FAB_L_NAMX = &path_nam;            /* Point FAB to NAM[L]. */
 
     /* Install the path argument in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    path_fab.fab$l_dna = (char *) -1;   /* Using NAML for default name. */
-    path_fab.fab$l_fna = (char *) -1;   /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( path_fab)
     FAB_OR_NAML( path_fab, path_nam).FAB_OR_NAML_FNA = path;
     FAB_OR_NAML( path_fab, path_nam).FAB_OR_NAML_FNS = strlen( path);
 
@@ -896,7 +935,7 @@ isdir(path) char *path; {
 
 /* PARSE the string */
     status = sys$parse(&path_fab,0,0);
-    if (!(status & 1)) {		  /* any $PARSE errors are fatal */
+    if (!(status & 1)) {                  /* any $PARSE errors are fatal */
         debug(F111,"isdir $PARSE", path, status);
         vms_lasterr = status;
         return (0);
@@ -922,7 +961,7 @@ isdir(path) char *path; {
 
     if (path_nam.NAMX_B_NAME == 0) {
         if (path_nam.NAMX_B_TYPE != 1)
-	  return(0);
+          return(0);
 
 /* Parse returns a file name of ".;" if no filename is given.  However,
  * that is a valid filename.  Testing gets complicated; the following
@@ -930,10 +969,10 @@ isdir(path) char *path; {
  * but will otherwise return(0) when given a file name as "." or ";"
  */
         if (*path_nam.NAMX_L_DIR == '[' )
-	  ch = ']';
+          ch = ']';
         else
-	  ch = '>';
-        if (strchr(path,ch)) {		/* directory in path */
+          ch = '>';
+        if (strchr(path,ch)) {          /* directory in path */
             if (*(strchr(path,ch)+1) == '.' ||
                 *(strchr(path,ch)+1) == ';'    ) {
                 debug(F111,"isdir file w/ zero length name" ,path, 0);
@@ -949,63 +988,63 @@ isdir(path) char *path; {
 /* If a filename was in the path, a directory will only be something.dir */
 /* Check to see if a directory was specified as a filename.
    This is done as follows:
-	a) The result of the parse has been returned in a string pointed
-	   to by path_nam.nam$l_esa in the form of device:[dir.dir]name.type;
-	   nam$l_dev ==> start of device
-	   nam$l_dir ==> first [
-	   nam$l_name ==> first char after closing ]
-	   nam$l_type ==> period between name and type
-	   nam$l_ver ==> the semicolon
-	b) NUL-terminate the TYPE by replacing the ; with a NUL
-	c) Make sure TYPE is .DIR
-	d) replace the closing ] with a .
-	e) replace the . that starts the file TYPE with a ]
-	f) reparse
+        a) The result of the parse has been returned in a string pointed
+           to by path_nam.nam$l_esa in the form of device:[dir.dir]name.type;
+           nam$l_dev ==> start of device
+           nam$l_dir ==> first [
+           nam$l_name ==> first char after closing ]
+           nam$l_type ==> period between name and type
+           nam$l_ver ==> the semicolon
+        b) NUL-terminate the TYPE by replacing the ; with a NUL
+        c) Make sure TYPE is .DIR
+        d) replace the closing ] with a .
+        e) replace the . that starts the file TYPE with a ]
+        f) reparse
 */
-        *path_nam.NAMX_L_VER = '\0';	/* zero terminate file TYPE */
-	if ((!strcmp(path_nam.NAMX_L_TYPE, directory_type_u)) ||
-	 (!strcmp(path_nam.NAMX_L_TYPE, directory_type_l))) {
-	    *path_nam.NAMX_L_TYPE = *(path_nam.NAMX_L_NAME-1); /* copy the ] */
-	    *(path_nam.NAMX_L_NAME-1) = '.';		/* then change to . */
+        *path_nam.NAMX_L_VER = '\0';    /* zero terminate file TYPE */
+        if ((!strcmp(path_nam.NAMX_L_TYPE, directory_type_u)) ||
+         (!strcmp(path_nam.NAMX_L_TYPE, directory_type_l))) {
+            *path_nam.NAMX_L_TYPE = *(path_nam.NAMX_L_NAME-1); /* copy the ] */
+            *(path_nam.NAMX_L_NAME-1) = '.';            /* then change to . */
             /* Point FAB_OR_NAML to result. */
             FAB_OR_NAML( path_fab, path_nam).FAB_OR_NAML_FNA =
              path_nam.NAMX_L_NODE;
             FAB_OR_NAML( path_fab, path_nam).FAB_OR_NAML_FNS =
              path_nam.NAMX_L_TYPE+ 1- path_nam.NAMX_L_NODE;
 
-	    status = sys$parse(&path_fab,0,0);		/* parse new string */
+            status = sys$parse(&path_fab,0,0);          /* parse new string */
             if (!(status & 1)) {
                 debug(F111,"isdir second $PARSE", path, status);
                 vms_lasterr = status;
                 return (0);
             }
-	    retval = 2;
+            retval = 2;
         } else
-	  return(0);			/* non-directory filename specified */
+          return(0);                    /* non-directory filename specified */
     }
 
 /* Access the directory */
 
     status = sys$search(&path_fab,0,0);
     if (!((status == RMS$_FNF) || (status & 1))) {
-	switch (status) {
-	  case RMS$_DNF:
-	    debug(F100,"isdir SEARCH RMS$_DNF", "", 0);
-	    break;
-	  case RMS$_FND:
-	    if (path_fab.fab$l_stv == SS$_BADIRECTORY) {
-		debug(F100,"isdir .DIR file not a directory", "" ,0);
-		break;
-	    } else {
-		debug(F101,"isdir directory access RMS$_FND stv","",
-		      path_fab.fab$l_stv);
-		vms_lasterr = status;
-		break;
-	    }
-	  default:
-	    retval = 0;
-	    debug(F101,"isdir $SEARCH status","", status);
-	    vms_lasterr = status;
+        switch (status) {
+          case RMS$_DNF:
+            debug(F100,"isdir SEARCH RMS$_DNF", "", 0);
+            break;
+          case RMS$_FND:
+            if (path_fab.fab$l_stv == SS$_BADIRECTORY) {
+                debug(F100,"isdir .DIR file not a directory", "" ,0);
+                break;
+            } else {
+                debug(F101,"isdir directory access RMS$_FND stv","",
+                      path_fab.fab$l_stv);
+                vms_lasterr = status;
+                break;
+            }
+          default:
+            retval = 0;
+            debug(F101,"isdir $SEARCH status","", status);
+            vms_lasterr = status;
         }
         return(0);
     }
@@ -1032,10 +1071,7 @@ iswild(path) char *path; {
     path_fab.FAB_L_NAMX = &path_nam;            /* Point FAB to NAM[L]. */
 
     /* Install the path argument in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    path_fab.fab$l_dna = (char *) -1;   /* Using NAML for default name. */
-    path_fab.fab$l_fna = (char *) -1;   /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( path_fab)
     FAB_OR_NAML( path_fab, path_nam).FAB_OR_NAML_FNA = path;
     FAB_OR_NAML( path_fab, path_nam).FAB_OR_NAML_FNS = strlen( path);
 
@@ -1046,7 +1082,7 @@ iswild(path) char *path; {
 
     path_nam.NAMX_V_SYNCHK = 1;            /* SYNTAX_ONLY. */
     status = sys$parse( &path_fab);
-    if (!(status & 1)) {		  /* any $PARSE errors are fatal */
+    if (!(status & 1)) {                  /* any $PARSE errors are fatal */
         debug(F111,"iswild $PARSE", path, status);
         vms_lasterr = status;
         return 0;
@@ -1088,12 +1124,12 @@ zkself() {
   whole job.    It also does not hang up LAT terminal sessions.
 */
     for (i = 0; i < 10; i++) {
-	rms_s = sys$delprc(0,0);	/* Maybe some output is still */
-	if (!(rms_s & 1)) vms_lasterr = rms_s;
-	debug(F101,"zkself rms_s","",rms_s);
-	if (rms_s == SS$_NORMAL)	/* queued; try a few times... */
-	  exit(1);
-	sleep(1);
+        rms_s = sys$delprc(0,0);        /* Maybe some output is still */
+        if (!(rms_s & 1)) vms_lasterr = rms_s;
+        debug(F101,"zkself rms_s","",rms_s);
+        if (rms_s == SS$_NORMAL)        /* queued; try a few times... */
+          exit(1);
+        sleep(1);
     }
     exit(rms_s == SS$_NORMAL);
     return(0); /* dummy - required as this is called in a non-void context */
@@ -1107,21 +1143,21 @@ zopeni(n,name) int n; char *name; {
     debug(F101,"zopeni fp","",(int) fp[n]);
     if (chkfn(n)) return(0);
     ispipe[n] = 0;
-    if (n == ZSYSFN) {			/* Input from a system function? */
-	debug(F110,"zopeni called with ZSYSFN, failing!",name,0);
-	*nambuf = '\0';			/* No filename. */
-	return(0);			/* fail. */
+    if (n == ZSYSFN) {                  /* Input from a system function? */
+        debug(F110,"zopeni called with ZSYSFN, failing!",name,0);
+        *nambuf = '\0';                 /* No filename. */
+        return(0);                      /* fail. */
     }
-    zincnt = 0;				/* Initializing these couldn't hurt */
+    zincnt = 0;                         /* Initializing these couldn't hurt */
     zinptr = zinbuffer;
-    if (n == ZSTDIO) {			/* Standard input? */
-	if (isatty(0)) {
-	    ermsg("?Terminal input not allowed\n");
-	    debug(F110,"zopeni attempted input from unredirected stdin","",0);
-	    return(0);
-	}
-	fp[ZIFILE] = stdin;
-	return(1);
+    if (n == ZSTDIO) {                  /* Standard input? */
+        if (isatty(0)) {
+            ermsg("?Terminal input not allowed\n");
+            debug(F110,"zopeni attempted input from unredirected stdin","",0);
+            return(0);
+        }
+        fp[ZIFILE] = stdin;
+        return(1);
     }
 /*
  * We open the file but waffle on the access mode we're going to use. We then
@@ -1133,198 +1169,192 @@ zopeni(n,name) int n; char *name; {
  * internally.
  */
     if (n == ZIFILE) {
-	ifile_bmode = 0;		/* 0 = not binary */
-	ifile_bcount = 0;
-	fab_ifile = cc$rms_fab;                 /* Initialize FAB. */
-	nam_ifile = CC_RMS_NAMX;                /* Initialize NAM[L]. */
-	fab_ifile.FAB_L_NAMX = &nam_ifile;      /* Point FAB to NAM[L]. */
-	fab_ifile.fab$b_fac = FAB$M_BRO | FAB$M_GET;
+        ifile_bmode = 0;                /* 0 = not binary */
+        ifile_bcount = 0;
+        fab_ifile = cc$rms_fab;                 /* Initialize FAB. */
+        nam_ifile = CC_RMS_NAMX;                /* Initialize NAM[L]. */
+        fab_ifile.FAB_L_NAMX = &nam_ifile;      /* Point FAB to NAM[L]. */
+        fab_ifile.fab$b_fac = FAB$M_BRO | FAB$M_GET;
 /*
  * Some non-VMS DECnet implementations don't allow switching modes, so set
  * block-I/O only mode if the user said SET FILE TYPE IMAGE or LABELED.
  */
-	if (binary == XYFT_I || binary == XYFT_L)
-	  fab_ifile.fab$b_fac = FAB$M_BIO | FAB$M_GET;
+        if (binary == XYFT_I || binary == XYFT_L)
+          fab_ifile.fab$b_fac = FAB$M_BIO | FAB$M_GET;
 
-	/* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-	fab_ifile.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-	fab_ifile.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
-	FAB_OR_NAML( fab_ifile, nam_ifile).FAB_OR_NAML_FNA = name;
-	FAB_OR_NAML( fab_ifile, nam_ifile).FAB_OR_NAML_FNS = strlen( name);
+        /* Install the path name in the FAB or NAML. */
+        NAMX_DNA_FNA_SET( fab_ifile)
+        FAB_OR_NAML( fab_ifile, nam_ifile).FAB_OR_NAML_FNA = name;
+        FAB_OR_NAML( fab_ifile, nam_ifile).FAB_OR_NAML_FNS = strlen( name);
 
-	fab_ifile.fab$l_xab = (char *)&xabdat_ifile;
-	rab_ifile = cc$rms_rab;
-	rab_ifile.rab$l_fab = &fab_ifile;
-	xabdat_ifile = cc$rms_xabdat;
-	xabdat_ifile.xab$l_nxt = (char *)&xabfhc_ifile;
-	xabfhc_ifile = cc$rms_xabfhc;
-	xabfhc_ifile.xab$l_nxt = (char *)&xabpro_ifile;
-	xabpro_ifile = cc$rms_xabpro;
-	memset(&aclbuf, 0, sizeof(aclbuf));
-	xabpro_ifile.xab$l_aclsts = SS$_NORMAL;		/* Oh Joy! DECnet */
-	xabpro_ifile.xab$l_aclbuf = (char *)&aclbuf;
-	xabpro_ifile.xab$w_aclsiz = sizeof(aclbuf);
-	xabpro_ifile.xab$l_aclctx = 0;
-	xabpro_ifile.xab$l_nxt = (char *)&xaball_ifile;
-	xaball_ifile = cc$rms_xaball;
+        fab_ifile.fab$l_xab = (char *)&xabdat_ifile;
+        rab_ifile = cc$rms_rab;
+        rab_ifile.rab$l_fab = &fab_ifile;
+        xabdat_ifile = cc$rms_xabdat;
+        xabdat_ifile.xab$l_nxt = (char *)&xabfhc_ifile;
+        xabfhc_ifile = cc$rms_xabfhc;
+        xabfhc_ifile.xab$l_nxt = (char *)&xabpro_ifile;
+        xabpro_ifile = cc$rms_xabpro;
+        memset(&aclbuf, 0, sizeof(aclbuf));
+        xabpro_ifile.xab$l_aclsts = SS$_NORMAL;         /* Oh Joy! DECnet */
+        xabpro_ifile.xab$l_aclbuf = (char *)&aclbuf;
+        xabpro_ifile.xab$w_aclsiz = sizeof(aclbuf);
+        xabpro_ifile.xab$l_aclctx = 0;
+        xabpro_ifile.xab$l_nxt = (char *)&xaball_ifile;
+        xaball_ifile = cc$rms_xaball;
 
-	rms_sts = sys$open(&fab_ifile);
-	if (!(rms_sts & 1)) vms_lasterr = rms_sts;
-	if (rms_sts != RMS$_NORMAL) {
-	    debug(F101,"zopeni $open failed, status","",rms_sts);
-	    debug(F101,"zopeni $open failed, stv","",fab_ifile.fab$l_stv);
-	    return(0);
-	}
-	if (!(xabpro_ifile.xab$l_aclsts & 1)) {
-	    if (xabpro_ifile.xab$l_aclsts != SS$_ACLEMPTY) {
-		debug(F101,"zopeni $open ACL failed, status","",
-		  xabpro_ifile.xab$l_aclsts);
-		return(0);
-	    }
-	}
+        rms_sts = sys$open(&fab_ifile);
+        if (!(rms_sts & 1)) vms_lasterr = rms_sts;
+        if (rms_sts != RMS$_NORMAL) {
+            debug(F101,"zopeni $open failed, status","",rms_sts);
+            debug(F101,"zopeni $open failed, stv","",fab_ifile.fab$l_stv);
+            return(0);
+        }
+        if (!(xabpro_ifile.xab$l_aclsts & 1)) {
+            if (xabpro_ifile.xab$l_aclsts != SS$_ACLEMPTY) {
+                debug(F101,"zopeni $open ACL failed, status","",
+                  xabpro_ifile.xab$l_aclsts);
+                return(0);
+            }
+        }
 
 /* We have the file opened. See if it's fixed or undefined format... */
 
-	iflen = ((xabfhc_ifile.xab$l_ebk-1)*512)+xabfhc_ifile.xab$w_ffb;
-	if (fab_ifile.fab$b_rfm == FAB$C_UDF) {
-	    debug(F100,"zopeni undefined file format - using blk I/O","",0);
-	    ifile_bmode = 1;
-	}
-	if (fab_ifile.fab$b_rfm == FAB$C_FIX) {
-	    if ((fab_ifile.fab$b_rat & (FAB$M_FTN | FAB$M_CR | FAB$M_PRN))
-		== 0) {
+        iflen = ((xabfhc_ifile.xab$l_ebk-1)*512)+xabfhc_ifile.xab$w_ffb;
+        if (fab_ifile.fab$b_rfm == FAB$C_UDF) {
+            debug(F100,"zopeni undefined file format - using blk I/O","",0);
+            ifile_bmode = 1;
+        }
+        if (fab_ifile.fab$b_rfm == FAB$C_FIX) {
+            if ((fab_ifile.fab$b_rat & (FAB$M_FTN | FAB$M_CR | FAB$M_PRN))
+                == 0) {
 /* But it may be changed later, for BINARY mode and odd record length */
-		debug(F100,"zopeni fixed file format - using blk I/O","",0);
-		ifile_bmode = 1;
-	    }
-	}
-	debug(F101,"zopeni binary flag at open","",binary);
-	if (binary == XYFT_I) {
-	    debug(F100,"zopeni using IMAGE mode by user request","",0);
-	    ifile_bmode = 1;
-	}
-	if (binary == XYFT_L) {
-	    debug(F100,"zopeni using LABELED mode by user request","",0);
-	    ifile_bmode = 2;
-	}
-	debug(F101,"zopeni ifile_bmode","",ifile_bmode);
-	debug(F101,"zopeni binary","",binary);
-	if (ifile_bmode == 1 && binary == XYFT_T) {
-	    debug(F100,"zopeni autoswitch from TEXT to BINARY","",0);
-	    binary = XYFT_B;
-	} else if (ifile_bmode == 0 && binary == XYFT_B) {
-	    debug(F100,"zopeni autoswitch from BINARY to TEXT","",0);
-	    binary = XYFT_T;
-	}
+                debug(F100,"zopeni fixed file format - using blk I/O","",0);
+                ifile_bmode = 1;
+            }
+        }
+        debug(F101,"zopeni binary flag at open","",binary);
+        if (binary == XYFT_I) {
+            debug(F100,"zopeni using IMAGE mode by user request","",0);
+            ifile_bmode = 1;
+        }
+        if (binary == XYFT_L) {
+            debug(F100,"zopeni using LABELED mode by user request","",0);
+            ifile_bmode = 2;
+        }
+        debug(F101,"zopeni ifile_bmode","",ifile_bmode);
+        debug(F101,"zopeni binary","",binary);
+        if (ifile_bmode == 1 && binary == XYFT_T) {
+            debug(F100,"zopeni autoswitch from TEXT to BINARY","",0);
+            binary = XYFT_B;
+        } else if (ifile_bmode == 0 && binary == XYFT_B) {
+            debug(F100,"zopeni autoswitch from BINARY to TEXT","",0);
+            binary = XYFT_T;
+        }
 /*
  * In BINARY mode, for the case of fixed record length format with odd
  * length records, use record i/o to suppress the RMS NUL pad ala Kermit-32
  */
-	if ((fab_ifile.fab$b_rfm == FAB$C_FIX) &&
-	    (fab_ifile.fab$w_mrs & 1) && /* was "(...mrs | 1)" oops! */
-	    (binary == XYFT_B)) {
-	    ifile_bmode = 0;
+        if ((fab_ifile.fab$b_rfm == FAB$C_FIX) &&
+            (fab_ifile.fab$w_mrs & 1) && /* was "(...mrs | 1)" oops! */
+            (binary == XYFT_B)) {
+            ifile_bmode = 0;
 
-	    /* WARNING: setting ifile_bmode = 0 here can break RESEND */
-	    /* (but only for odd-record length fixed-block files) */
+            /* WARNING: setting ifile_bmode = 0 here can break RESEND */
+            /* (but only for odd-record length fixed-block files) */
 
-	    debug(F100,"zopeni record i/o for BINARY, Odd Fixed RL","",0);
-	}
-	rab_ifile.rab$l_rop = 0;
-	rms_sts = sys$connect(&rab_ifile);
-	if (!(rms_sts & 1)) vms_lasterr = rms_sts;
-	if (rms_sts != RMS$_NORMAL) {
-	    debug(F101,"zopeni $connect failed, status","",rms_sts);
-	    return(0);
-	}
-	debug(F100,"zopeni RMS operations completed ok","",0);
-	fp[n] = fopen("NLA0:","r");	/* it wants a fp, give it one */
-	zincnt = 0;			/* reset input buffer */
-	if (binary == XYFT_L)
-	    do_label_send(name);	/* make a file label */
-	return(1);
-    } else if (n == ZRFILE) {		/* READ file */
-	rfile_bmode = 0;
-	rfile_bcount = 0;
-	fab_rfile = cc$rms_fab;                 /* Initialize FAB. */
-	nam_rfile = CC_RMS_NAMX;                /* Initialize NAM[L]. */
-	fab_rfile.FAB_L_NAMX = &nam_rfile;      /* Point FAB to NAM[L]. */
+            debug(F100,"zopeni record i/o for BINARY, Odd Fixed RL","",0);
+        }
+        rab_ifile.rab$l_rop = 0;
+        rms_sts = sys$connect(&rab_ifile);
+        if (!(rms_sts & 1)) vms_lasterr = rms_sts;
+        if (rms_sts != RMS$_NORMAL) {
+            debug(F101,"zopeni $connect failed, status","",rms_sts);
+            return(0);
+        }
+        debug(F100,"zopeni RMS operations completed ok","",0);
+        fp[n] = fopen("NLA0:","r");     /* it wants a fp, give it one */
+        zincnt = 0;                     /* reset input buffer */
+        if (binary == XYFT_L)
+            do_label_send(name);        /* make a file label */
+        return(1);
+    } else if (n == ZRFILE) {           /* READ file */
+        rfile_bmode = 0;
+        rfile_bcount = 0;
+        fab_rfile = cc$rms_fab;                 /* Initialize FAB. */
+        nam_rfile = CC_RMS_NAMX;                /* Initialize NAM[L]. */
+        fab_rfile.FAB_L_NAMX = &nam_rfile;      /* Point FAB to NAM[L]. */
 
         /* Always READ in text mode */
-	fab_rfile.fab$b_fac = FAB$M_BRO | FAB$M_GET;
+        fab_rfile.fab$b_fac = FAB$M_BRO | FAB$M_GET;
 
-	/* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-	fab_rfile.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-	fab_rfile.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
-	FAB_OR_NAML( fab_rfile, nam_rfile).FAB_OR_NAML_FNA = name;
-	FAB_OR_NAML( fab_rfile, nam_rfile).FAB_OR_NAML_FNS = strlen( name);
+        /* Install the path name in the FAB or NAML. */
+        NAMX_DNA_FNA_SET( fab_rfile)
+        FAB_OR_NAML( fab_rfile, nam_rfile).FAB_OR_NAML_FNA = name;
+        FAB_OR_NAML( fab_rfile, nam_rfile).FAB_OR_NAML_FNS = strlen( name);
 
-	fab_rfile.fab$l_xab = (char *)&xabdat_rfile;
-	rab_rfile = cc$rms_rab;
-	rab_rfile.rab$l_fab = &fab_rfile;
-	xabdat_rfile = cc$rms_xabdat;
-	xabdat_rfile.xab$l_nxt = (char *)&xabfhc_rfile;
-	xabfhc_rfile = cc$rms_xabfhc;
-	xabfhc_rfile.xab$l_nxt = (char *)&xabpro_rfile;
-	xabpro_rfile = cc$rms_xabpro;
-	memset(&raclbuf, 0, sizeof(raclbuf)); /* Do we need this for READ? */
-	xabpro_rfile.xab$l_aclsts = SS$_NORMAL; /* Oh Joy! DECnet */
-	xabpro_rfile.xab$l_aclbuf = (char *)&raclbuf;
-	xabpro_rfile.xab$w_aclsiz = sizeof(raclbuf);
-	xabpro_rfile.xab$l_aclctx = 0;
-	xabpro_rfile.xab$l_nxt = (char *)&xaball_rfile;
-	xaball_rfile = cc$rms_xaball;
+        fab_rfile.fab$l_xab = (char *)&xabdat_rfile;
+        rab_rfile = cc$rms_rab;
+        rab_rfile.rab$l_fab = &fab_rfile;
+        xabdat_rfile = cc$rms_xabdat;
+        xabdat_rfile.xab$l_nxt = (char *)&xabfhc_rfile;
+        xabfhc_rfile = cc$rms_xabfhc;
+        xabfhc_rfile.xab$l_nxt = (char *)&xabpro_rfile;
+        xabpro_rfile = cc$rms_xabpro;
+        memset(&raclbuf, 0, sizeof(raclbuf)); /* Do we need this for READ? */
+        xabpro_rfile.xab$l_aclsts = SS$_NORMAL; /* Oh Joy! DECnet */
+        xabpro_rfile.xab$l_aclbuf = (char *)&raclbuf;
+        xabpro_rfile.xab$w_aclsiz = sizeof(raclbuf);
+        xabpro_rfile.xab$l_aclctx = 0;
+        xabpro_rfile.xab$l_nxt = (char *)&xaball_rfile;
+        xaball_rfile = cc$rms_xaball;
 
-	rms_sts = sys$open(&fab_rfile);
-	if (!(rms_sts & 1)) vms_lasterr = rms_sts;
-	if (rms_sts != RMS$_NORMAL) {
-	    debug(F101,"zopeni $open ZRFILE failed, status","",rms_sts);
-	    debug(F101,"zopeni $open ZRFILE failed, stv","",
-		  fab_rfile.fab$l_stv);
-	    return(0);
-	}
-#ifdef COMMENT				/* who needs it */
-	if (!(xabpro_rfile.xab$l_aclsts & 1)) {
-	    if (xabpro_rfile.xab$l_aclsts != SS$_ACLEMPTY) {
-		debug(F101,"zopeni $open ACL failed, status","",
-		  xabpro_rfile.xab$l_aclsts);
-		return(0);
-	    }
-	}
+        rms_sts = sys$open(&fab_rfile);
+        if (!(rms_sts & 1)) vms_lasterr = rms_sts;
+        if (rms_sts != RMS$_NORMAL) {
+            debug(F101,"zopeni $open ZRFILE failed, status","",rms_sts);
+            debug(F101,"zopeni $open ZRFILE failed, stv","",
+                  fab_rfile.fab$l_stv);
+            return(0);
+        }
+#ifdef COMMENT                          /* who needs it */
+        if (!(xabpro_rfile.xab$l_aclsts & 1)) {
+            if (xabpro_rfile.xab$l_aclsts != SS$_ACLEMPTY) {
+                debug(F101,"zopeni $open ACL failed, status","",
+                  xabpro_rfile.xab$l_aclsts);
+                return(0);
+            }
+        }
 #endif /* COMMENT */
 
 /* We have the file opened. See if it's fixed or undefined format... */
 
-	rflen = ((xabfhc_rfile.xab$l_ebk-1)*512)+xabfhc_rfile.xab$w_ffb;
-	if (fab_rfile.fab$b_rfm == FAB$C_UDF) {
-	    debug(F100,"zopeni ZRFILE undefined file format - fail","",0);
-	    return(0);
-	}
-	if (fab_rfile.fab$b_rfm == FAB$C_FIX) {
-	    if ((fab_rfile.fab$b_rat & (FAB$M_FTN | FAB$M_CR | FAB$M_PRN))
-		== 0) {
-		debug(F100,"zopeni ZRFILE fixed file format - fail","",0);
-		return(0);
-	    }
-	}
-	rab_rfile.rab$l_rop = 0;
-	rms_sts = sys$connect(&rab_rfile);
-	if (!(rms_sts & 1)) vms_lasterr = rms_sts;
-	if (rms_sts != RMS$_NORMAL) {
-	    debug(F101,"zopeni $connect failed, status","",rms_sts);
-	    return(0);
-	}
-	debug(F100,"zopeni RFILE RMS operations completed ok","",0);
-	fp[n] = fopen("NLA0:","r");	/* it wants a fp, give it one */
-	rincnt = 0;			/* reset input buffer */
-	return(1);
+        rflen = ((xabfhc_rfile.xab$l_ebk-1)*512)+xabfhc_rfile.xab$w_ffb;
+        if (fab_rfile.fab$b_rfm == FAB$C_UDF) {
+            debug(F100,"zopeni ZRFILE undefined file format - fail","",0);
+            return(0);
+        }
+        if (fab_rfile.fab$b_rfm == FAB$C_FIX) {
+            if ((fab_rfile.fab$b_rat & (FAB$M_FTN | FAB$M_CR | FAB$M_PRN))
+                == 0) {
+                debug(F100,"zopeni ZRFILE fixed file format - fail","",0);
+                return(0);
+            }
+        }
+        rab_rfile.rab$l_rop = 0;
+        rms_sts = sys$connect(&rab_rfile);
+        if (!(rms_sts & 1)) vms_lasterr = rms_sts;
+        if (rms_sts != RMS$_NORMAL) {
+            debug(F101,"zopeni $connect failed, status","",rms_sts);
+            return(0);
+        }
+        debug(F100,"zopeni RFILE RMS operations completed ok","",0);
+        fp[n] = fopen("NLA0:","r");     /* it wants a fp, give it one */
+        rincnt = 0;                     /* reset input buffer */
+        return(1);
     }
-    zincnt = 0;				/* Reset input buffer */
-    fp[n] = fopen(name,"r");		/* Real file. */
+    zincnt = 0;                         /* Reset input buffer */
+    fp[n] = fopen(name,"r");            /* Real file. */
     debug(F111,"zopeni", name, (int) fp[n]);
     if (fp[n] == NULL) perror("zopeni");
     return((fp[n] != NULL) ? 1 : 0);
@@ -1353,18 +1383,18 @@ zopeno(n,name,zz,fcb)
     if (x != 0)
       return(0);
     ispipe[n] = 0;
-    zoutcnt = 0;			/* Reset output buffer */
+    zoutcnt = 0;                        /* Reset output buffer */
     zoutptr = zoutbuffer;
-    cflag = 0;				/* Default to not using console */
+    cflag = 0;                          /* Default to not using console */
     ofile_lblproc = 0;
 
     /* Open terminal or STDIO */
 
     if ((n == ZCTERM) || (n == ZSTDIO)) {
-	fp[ZOFILE] = stdout;
-	cflag = 1;			/* Say using console */
-	debug(F101,"zopeno fp[]=stdout", "", (int) fp[n]);
-	return(1);
+        fp[ZOFILE] = stdout;
+        cflag = 1;                      /* Say using console */
+        debug(F101,"zopeno fp[]=stdout", "", (int) fp[n]);
+        return(1);
     }
 /*
   Open Debug, Transaction, Packet, Session logfile, or a Write file.
@@ -1372,49 +1402,60 @@ zopeno(n,name,zz,fcb)
 */
 #ifdef DEBUG
     if (deblog) {
-	if (fcb)
-	  debug(F101,"zopeno fcb disposition", "", fcb->dsp);
-	if (zz)
-	  debug(F111,"zopeno zz disposition",zz->disp.val,zz->disp.len);
+        if (fcb)
+          debug(F101,"zopeno fcb disposition", "", fcb->dsp);
+        if (zz)
+          debug(F111,"zopeno zz disposition",zz->disp.val,zz->disp.len);
     }
 #endif /* DEBUG */
     if (n != ZOFILE) {
-	strcpy(p,"w");				/* Assume write/create mode */
-	if (fcb) {				/* If called with an FCB... */
-	    if (fcb->dsp == XYFZ_A)		/* Does it say Append? */
-	    strcpy(p,"a");			/* Yes. */
-	}
+        strcpy(p,"w");                          /* Assume write/create mode */
+        if (fcb) {                              /* If called with an FCB... */
+            if (fcb->dsp == XYFZ_A)             /* Does it say Append? */
+            strcpy(p,"a");                      /* Yes. */
+        }
 
 /* Note: don't add "ctx=rec", "shr=get" here - it slows writes to a crawl */
+/* 2024-04-23 SMS.  Get text-file record format from SET VMS_TEXT. */
 
-	if (n != ZSFILE) {
-	    /* was mrs = 80; 254 is max record size for EDT */
-	    fp[n] = fopen(name, p, "rat=cr", "rfm=var", "mrs=254");
-	} else {			/* Session Log */
-	    extern int sessft;		/* Type */
-	    if (sessft == XYFT_T) {	/* Text */
-		fp[n] = fopen(name, p, "ctx=stm", "rat=cr", "rfm=stmlf");
-	    } else {			/* Binary */
-		fp[n] = fopen(name, p, "ctx=bin", "rat=none",
-			               "rfm=fix", "mrs=512");
-	    }
-	}
-	if (fp[n] == NULL) {		/* Failed */
+        extern int vms_text;        /* VMS record format for text files. */
+        if (n == ZSFILE) {              /* Session Log */
+            extern int sessft;          /* Type (binary/text) */
+
+            if (sessft == XYFT_T) {     /* Text */
+                if (vms_text == VMSTFV) { /* Variable-length. */
+                    fp[n] = fopen(name, p, "rat=cr", "rfm=var");
+                } else {                  /* Stream_LF (default). */
+                    fp[n] = fopen(name, p, "ctx=stm", "rat=cr", "rfm=stmlf");
+                }
+            } else {                    /* Binary */
+                fp[n] = fopen(name, p, "ctx=bin", "rat=none",
+                                       "rfm=fix", "mrs=512");
+            }
+        } else {                        /* Not session Log. */
+            if (vms_text == VMSTFV) {     /* Variable-length. */
+                /* was mrs = 80; 254 is max record size for EDT */
+                fp[n] = fopen(name, p, "rat=cr", "rfm=var", "mrs=254");
+            } else {                      /* Stream_LF (default). */
+                fp[n] = fopen(name, p, "ctx=stm", "rat=cr", "rfm=stmlf");
+            }
+        }
+        if (fp[n] == NULL) {            /* Failed */
             if (errno == EVMSERR) {
-	        debug(F111,"zopeno fopen failed vaxc$errno",name,vaxc$errno);
+                debug(F111,"zopeno fopen failed vaxc$errno",name,vaxc$errno);
                 if (vaxc$errno == RMS$_SYN)
-                  printf("?fopen file name syntax error : %s\n", name);
+                    printf("?fopen file name syntax error : %s\n", name);
                 else
-                  printf("?fopen failed %s : %s\n",name,
-                         ckvmserrstr(vaxc$errno));
+                    printf("?fopen failed %s : %s\n",name,
+                    ckvmserrstr(vaxc$errno));
             } else {
-	        debug(F111,"zopeno fopen failed errno",name,errno);
+                debug(F111,"zopeno fopen failed errno",name,errno);
                 perror(name);
             }
-	} else {			/* Didn't fail */
-	    debug(F100,"zopeno fopen ok", "", 0);
-	}
-	return((fp[n] != NULL) ? 1 : 0);
+        } else {                        /* Didn't fail */
+            debug(F100,"zopeno fopen ok", "", 0);
+        }
+        return((fp[n] != NULL) ? 1 : 0);
     }
 
 /* Open a file to store data being RECEIVEd */
@@ -1422,47 +1463,44 @@ zopeno(n,name,zz,fcb)
     if (n == ZOFILE) {
 
 /* SMSd. */
-	fp[ n] = NULL;
+        fp[ n] = NULL;
 
 #ifdef DEBUG
-	if (deblog)
-	  switch (binary) {
-	    case XYFT_T:
-		debug(F100,"zopeno receiving TEXT file","",0);
-		break;
-	    case XYFT_B:
-		debug(F100,"zopeno receiving BINARY file","",0);
-		break;
-	    case XYFT_I:
-		debug(F100,"zopeno receiving IMAGE file-program bug!","",0);
-		break;
-	    case XYFT_L:
-		debug(F100,"zopeno receiving LABELED file","",0);
-		break;
-	    case XYFT_U:
-		debug(F100,"zopeno receiving UNDEFINED file","",0);
-		break;
-	    default:
-		debug(F101,"zopeno unknown file type","",binary);
-	}
+        if (deblog)
+          switch (binary) {
+            case XYFT_T:
+                debug(F100,"zopeno receiving TEXT file","",0);
+                break;
+            case XYFT_B:
+                debug(F100,"zopeno receiving BINARY file","",0);
+                break;
+            case XYFT_I:
+                debug(F100,"zopeno receiving IMAGE file-program bug!","",0);
+                break;
+            case XYFT_L:
+                debug(F100,"zopeno receiving LABELED file","",0);
+                break;
+            case XYFT_U:
+                debug(F100,"zopeno receiving UNDEFINED file","",0);
+                break;
+            default:
+                debug(F101,"zopeno unknown file type","",binary);
+        }
 #endif /* DEBUG */
-	ofile_bmode = binary;
-	ofile_dump = 0;
-	ofile_ffb = -1;
-	fab_ofile = cc$rms_fab;                 /* Initialize FAB. */
-	nam_ofile = CC_RMS_NAMX;                /* Initialize NAM[L]. */
-	fab_ofile.FAB_L_NAMX = &nam_ofile;      /* Point FAB to NAM[L]. */
+        ofile_bmode = binary;
+        ofile_dump = 0;
+        ofile_ffb = -1;
+        fab_ofile = cc$rms_fab;                 /* Initialize FAB. */
+        nam_ofile = CC_RMS_NAMX;                /* Initialize NAM[L]. */
+        fab_ofile.FAB_L_NAMX = &nam_ofile;      /* Point FAB to NAM[L]. */
 
-	/* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-	fab_ofile.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-	fab_ofile.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
-	FAB_OR_NAML( fab_ofile, nam_ofile).FAB_OR_NAML_FNA = name;
-	FAB_OR_NAML( fab_ofile, nam_ofile).FAB_OR_NAML_FNS = strlen( name);
+        /* Install the path name in the FAB or NAML. */
+        NAMX_DNA_FNA_SET( fab_ofile)
+        FAB_OR_NAML( fab_ofile, nam_ofile).FAB_OR_NAML_FNA = name;
+        FAB_OR_NAML( fab_ofile, nam_ofile).FAB_OR_NAML_FNS = strlen( name);
 
-	fab_ofile.fab$l_fop = FAB$M_MXV;
-	fab_ofile.fab$b_fac = FAB$M_PUT;
+        fab_ofile.fab$l_fop = FAB$M_MXV;
+        fab_ofile.fab$b_fac = FAB$M_PUT;
 /*
   Note that we could actually implement a true overwrite (step on existing
   file version) operation here by testing for a new XYFZ_* type as well in
@@ -1471,26 +1509,26 @@ zopeno(n,name,zz,fcb)
   so we aren't left with a large number of "leftover" blocks if the new file
   is smaller than the old one.
 */
-	if (fcb) {
-	    if (fcb->dsp == XYFZ_A) {
-		fab_ofile.fab$l_fop = FAB$M_CIF;
+        if (fcb) {
+            if (fcb->dsp == XYFZ_A) {
+                fab_ofile.fab$l_fop = FAB$M_CIF;
 /*
   This is for RESEND.  If the output mode is APPEND and the incoming
   attributes structure (zz) says "Resend", then we know this file is
   being resent.
 */
-		if (*(zz->disp.val) == 'R' && ofile_bmode)
-		  writeover = 1;
-		debug(F101,"zopeno APPENDing, writeover","",writeover);
-		if (writeover)
-		  debug(F101,"zopeno RESEND, rs_len","",rs_len);
+                if (*(zz->disp.val) == 'R' && ofile_bmode)
+                  writeover = 1;
+                debug(F101,"zopeno APPENDing, writeover","",writeover);
+                if (writeover)
+                  debug(F101,"zopeno RESEND, rs_len","",rs_len);
 /*
   So if writeover != 0, we can take rs_len to be the length of the existing
   file to keep, and to write over the rest, which normally should be the final
   block.
 */
-	    }
-	}
+            }
+        }
 
 #ifdef __DECC
         /* Revise some RMS parameters, if available. */
@@ -1511,95 +1549,95 @@ zopeno(n,name,zz,fcb)
         }
 #endif /* def __DECC */
 
-	if (ofile_bmode) {
+        if (ofile_bmode) {
 
 #ifdef CKBSLF
 
-	    /* Stream_LF. */
+            /* Stream_LF. */
 
-	    if (ofile_bmode == XYFT_U)
-	    {
-	      debug(F101,"zopeno using record size (s)","",frecl);
-	      fab_ofile.fab$w_mrs = frecl;
-	      fab_ofile.fab$b_fac = FAB$M_BIO;
-	      fab_ofile.fab$b_rfm = FAB$C_UDF;
-	    }
-	    else
-	    {
-	      debug(F100,"zopeno using Stream_LF (s)","",0);
-	      fab_ofile.fab$b_rfm = FAB$C_STMLF;
-	      fab_ofile.fab$b_rat = FAB$M_CR;
-	    }
+            if (ofile_bmode == XYFT_U)
+            {
+              debug(F101,"zopeno using record size (s)","",frecl);
+              fab_ofile.fab$w_mrs = frecl;
+              fab_ofile.fab$b_fac = FAB$M_BIO;
+              fab_ofile.fab$b_rfm = FAB$C_UDF;
+            }
+            else
+            {
+              debug(F100,"zopeno using Stream_LF (s)","",0);
+              fab_ofile.fab$b_rfm = FAB$C_STMLF;
+              fab_ofile.fab$b_rat = FAB$M_CR;
+            }
 
 #else /* def CKBSLF */
 
-	    /* Fixed-512. */
-	    fab_ofile.fab$b_fac = FAB$M_BIO;
-	    debug(F101,"zopeno using record size","",frecl);
-	    fab_ofile.fab$w_mrs = frecl;
-	    if (ofile_bmode == XYFT_U)
-	      fab_ofile.fab$b_rfm = FAB$C_UDF;
-	    else
-	      fab_ofile.fab$b_rfm = FAB$C_FIX;
+            /* Fixed-512. */
+            fab_ofile.fab$b_fac = FAB$M_BIO;
+            debug(F101,"zopeno using record size","",frecl);
+            fab_ofile.fab$w_mrs = frecl;
+            if (ofile_bmode == XYFT_U)
+              fab_ofile.fab$b_rfm = FAB$C_UDF;
+            else
+              fab_ofile.fab$b_rfm = FAB$C_FIX;
 
 #endif /* def CKBSLF [else] */
 
-	} else {
-	    fab_ofile.fab$b_rat = FAB$M_CR;
-	    fab_ofile.fab$b_rfm = FAB$C_VAR;
-	}
-	fab_ofile.fab$b_shr = FAB$M_NIL;
-	fab_ofile.fab$l_xab = (char *)&xabdat_ofile;
-	rab_ofile = cc$rms_rab;
-	rab_ofile.rab$l_fab = &fab_ofile;
-	if (fcb)
-	    if ((fcb->dsp == XYFZ_A) && (writeover == 0))
-		rab_ofile.rab$l_rop = RAB$M_EOF;
-	xabdat_ofile = cc$rms_xabdat;
-	xabdat_ofile.xab$l_nxt = (char *)&xabfhc_ofile;
-	xabfhc_ofile = cc$rms_xabfhc;
+        } else {
+            fab_ofile.fab$b_rat = FAB$M_CR;
+            fab_ofile.fab$b_rfm = FAB$C_VAR;
+        }
+        fab_ofile.fab$b_shr = FAB$M_NIL;
+        fab_ofile.fab$l_xab = (char *)&xabdat_ofile;
+        rab_ofile = cc$rms_rab;
+        rab_ofile.rab$l_fab = &fab_ofile;
+        if (fcb)
+            if ((fcb->dsp == XYFZ_A) && (writeover == 0))
+                rab_ofile.rab$l_rop = RAB$M_EOF;
+        xabdat_ofile = cc$rms_xabdat;
+        xabdat_ofile.xab$l_nxt = (char *)&xabfhc_ofile;
+        xabfhc_ofile = cc$rms_xabfhc;
 #ifndef THIS_IS_WRONG
-	xabfhc_ofile.xab$l_nxt = (char *)&xabpro_ofile;
-	xabpro_ofile = cc$rms_xabpro;
+        xabfhc_ofile.xab$l_nxt = (char *)&xabpro_ofile;
+        xabpro_ofile = cc$rms_xabpro;
 #endif /* THIS_IS_WRONG */
-	if (zz)
-	  zstime(name, zz, 2);		/* Set creation date from A packet */
-	if (ofile_bmode == XYFT_L) {	/* DEFER OPEN IF LABELED <-- NOTE  */
-	    ofile_lblproc = 0;		/* (Haven't processed labels yet.) */
-	    ofile_lblopts = fcb->lblopts;
-	    debug(F101,"zopeno lblopts","",ofile_lblopts);
-	    debug(F100,"zopeno RMS operations deferred","",0);
-	} else {
-	    rms_sts = sys$create(&fab_ofile);
-	    if (!(rms_sts & 1)) {
-		vms_lasterr = rms_sts;
-		debug(F101,"zopeno $create failed, status","",rms_sts);
-		return(0);
-	    }
-	    rms_sts = sys$connect(&rab_ofile);
-	    if (!(rms_sts & 1)) vms_lasterr = rms_sts;
-	    if (rms_sts != RMS$_NORMAL) {
-		debug(F101,"zopeno $connect failed, status","",rms_sts);
-		return(0);
-	    }
-	    if (writeover == 1) {		/* if resend ... */
-		rab_ofile.rab$l_bkt = (unsigned long) rs_len >> 9;
-		rms_sts = sys$space(&rab_ofile);/* space forward to last */
-		if (!(rms_sts & 1)) vms_lasterr = rms_sts;
-		rab_ofile.rab$l_bkt = 0;	/* complete block */
-		if (rms_sts != RMS$_NORMAL) {
-		    debug(F101,"zopeno $space failed, status","",rms_sts);
-		    return(0);
-		}
-	    }
-	    debug(F100,"zopeno RMS operations completed ok","",0);
-	}
-	fp[n] = fopen("NLA0:","r");	/* CK wants a fp, give it one */
+        if (zz)
+          zstime(name, zz, 2);          /* Set creation date from A packet */
+        if (ofile_bmode == XYFT_L) {    /* DEFER OPEN IF LABELED <-- NOTE  */
+            ofile_lblproc = 0;          /* (Haven't processed labels yet.) */
+            ofile_lblopts = fcb->lblopts;
+            debug(F101,"zopeno lblopts","",ofile_lblopts);
+            debug(F100,"zopeno RMS operations deferred","",0);
+        } else {
+            rms_sts = sys$create(&fab_ofile);
+            if (!(rms_sts & 1)) {
+                vms_lasterr = rms_sts;
+                debug(F101,"zopeno $create failed, status","",rms_sts);
+                return(0);
+            }
+            rms_sts = sys$connect(&rab_ofile);
+            if (!(rms_sts & 1)) vms_lasterr = rms_sts;
+            if (rms_sts != RMS$_NORMAL) {
+                debug(F101,"zopeno $connect failed, status","",rms_sts);
+                return(0);
+            }
+            if (writeover == 1) {               /* if resend ... */
+                rab_ofile.rab$l_bkt = (unsigned long) rs_len >> 9;
+                rms_sts = sys$space(&rab_ofile);/* space forward to last */
+                if (!(rms_sts & 1)) vms_lasterr = rms_sts;
+                rab_ofile.rab$l_bkt = 0;        /* complete block */
+                if (rms_sts != RMS$_NORMAL) {
+                    debug(F101,"zopeno $space failed, status","",rms_sts);
+                    return(0);
+                }
+            }
+            debug(F100,"zopeno RMS operations completed ok","",0);
+        }
+        fp[n] = fopen("NLA0:","r");     /* CK wants a fp, give it one */
 
 /* SMSd. */
-	debug(F101,"zopeno fp[n]","", (int)fp[n]); /* SMSd. */
+        debug(F101,"zopeno fp[n]","", (int)fp[n]); /* SMSd. */
 
-	return(1);
+        return(1);
     }
 }
 
@@ -1619,93 +1657,93 @@ zclose(n) int n; {
 
     if ((n == ZIFILE || (n == ZRFILE)) && (subprocess_input != 0)) {
         debug(F100, "zclose calling zclosf", "", 0);
-	return (zclosf(n));
+        return (zclosf(n));
     }
-    if (n == ZIFILE) {			/* Input (e.g. SEND) file */
-	rms_sts = sys$close(&fab_ifile);
-	if (!(rms_sts & 1)) vms_lasterr = rms_sts;
-	if (rms_sts != RMS$_NORMAL) {
-	    debug(F101,"zclose ZIFILE $close failed, status","",rms_sts);
-	    return(-1);
-	}
-	debug(F100,"zclose ZIFILE RMS operations completed ok","",0);
-	x = fclose(fp[n]);		/* Close the dummy C library file */
-	fp[n] = NULL;			/* Mark it closed */
-	iflen = -1;			/* Invalidate length */
-	return(1);
-    } else if (n == ZRFILE) {		/* READ file */
-	rms_sts = sys$close(&fab_rfile); /* Close it */
-	if (!(rms_sts & 1)) vms_lasterr = rms_sts;
-	if (rms_sts != RMS$_NORMAL) {	/* Check status */
-	    debug(F101,"zclose ZRFILE $close failed, status","",rms_sts);
-	    return(-1);
-	}
-	debug(F100,"zclose ZRFILE RMS operations completed ok","",0);
-	x = fclose(fp[n]);		/* Close the dummy C-Library file */
-	fp[n] = NULL;			/* and mark it closed */
-	rflen = -1;			/* invalidate its length */
-	return(1);
+    if (n == ZIFILE) {                  /* Input (e.g. SEND) file */
+        rms_sts = sys$close(&fab_ifile);
+        if (!(rms_sts & 1)) vms_lasterr = rms_sts;
+        if (rms_sts != RMS$_NORMAL) {
+            debug(F101,"zclose ZIFILE $close failed, status","",rms_sts);
+            return(-1);
+        }
+        debug(F100,"zclose ZIFILE RMS operations completed ok","",0);
+        x = fclose(fp[n]);              /* Close the dummy C library file */
+        fp[n] = NULL;                   /* Mark it closed */
+        iflen = -1;                     /* Invalidate length */
+        return(1);
+    } else if (n == ZRFILE) {           /* READ file */
+        rms_sts = sys$close(&fab_rfile); /* Close it */
+        if (!(rms_sts & 1)) vms_lasterr = rms_sts;
+        if (rms_sts != RMS$_NORMAL) {   /* Check status */
+            debug(F101,"zclose ZRFILE $close failed, status","",rms_sts);
+            return(-1);
+        }
+        debug(F100,"zclose ZRFILE RMS operations completed ok","",0);
+        x = fclose(fp[n]);              /* Close the dummy C-Library file */
+        fp[n] = NULL;                   /* and mark it closed */
+        rflen = -1;                     /* invalidate its length */
+        return(1);
     }
-    if (n == ZOFILE) {			/* Output (e.g. RECEIVE) file */
-	ofile_dump = 1;			/* Force complete dump */
-	while (zoutcnt != 0) {
-	    rms_sts = zoutdump();	/* Flush buffers to disk */
-	    if (rms_sts != 0) {
-		x = fclose(fp[n]);	/* Close the associated dummy file */
-		fp[n] = NULL;		/* Mark it closed */
-		iflen = -1;		/* Invalidate length */
-		return(-1);
-	    }
-	}
-	if (ofile_bmode == XYFT_L) {	/* Update revisions if labeled */
-#ifdef BUGFILL7				/* We should use a separate symbol.. */
-	    int i;
-	    char * s1, * s2;
-	    s1 = (char *)&xabrdt_ofile.xab$q_rdt;
-	    s2 = (char *)revdat;
-	    for (i = 0; i < 8; i++)
-	      *s1++ = *s2++;
-	    s1 = (char *)&xabrdt_ofile.xab$w_rvn;
-	    s2 = (char *)revnum;
-	    for (i = 0; i < 2; i++)
-	      *s1++ = *s2++;
+    if (n == ZOFILE) {                  /* Output (e.g. RECEIVE) file */
+        ofile_dump = 1;                 /* Force complete dump */
+        while (zoutcnt != 0) {
+            rms_sts = zoutdump();       /* Flush buffers to disk */
+            if (rms_sts != 0) {
+                x = fclose(fp[n]);      /* Close the associated dummy file */
+                fp[n] = NULL;           /* Mark it closed */
+                iflen = -1;             /* Invalidate length */
+                return(-1);
+            }
+        }
+        if (ofile_bmode == XYFT_L) {    /* Update revisions if labeled */
+#ifdef BUGFILL7                         /* We should use a separate symbol.. */
+            int i;
+            char * s1, * s2;
+            s1 = (char *)&xabrdt_ofile.xab$q_rdt;
+            s2 = (char *)revdat;
+            for (i = 0; i < 8; i++)
+              *s1++ = *s2++;
+            s1 = (char *)&xabrdt_ofile.xab$w_rvn;
+            s2 = (char *)revnum;
+            for (i = 0; i < 2; i++)
+              *s1++ = *s2++;
 #else
-	    memmove(&xabrdt_ofile.xab$q_rdt, revdat, 8);
-	    memmove(&xabrdt_ofile.xab$w_rvn, &revnum, 2);
+            memmove(&xabrdt_ofile.xab$q_rdt, revdat, 8);
+            memmove(&xabrdt_ofile.xab$w_rvn, &revnum, 2);
 #endif /* BUGFILL7 */
-	    debug(F100,"zclose ZOFILE updated labeled revision count","",0);
-	}
-	if (cflag != 1) {		/* Not console */
-	    rms_sts = sys$close(&fab_ofile); /* So close */
-	    if (!(rms_sts & 1)) vms_lasterr = rms_sts;
-	    if (rms_sts != RMS$_NORMAL) {
-		debug(F101,"zclose ZOFILE $close failed, status","",rms_sts);
-		return(-1);
-	    }
-	    x = fclose(fp[n]);		/* Close the associated dummy file */
-	} else				/* Console */
-	  cflag = 0;			/* So not console any more */
+            debug(F100,"zclose ZOFILE updated labeled revision count","",0);
+        }
+        if (cflag != 1) {               /* Not console */
+            rms_sts = sys$close(&fab_ofile); /* So close */
+            if (!(rms_sts & 1)) vms_lasterr = rms_sts;
+            if (rms_sts != RMS$_NORMAL) {
+                debug(F101,"zclose ZOFILE $close failed, status","",rms_sts);
+                return(-1);
+            }
+            x = fclose(fp[n]);          /* Close the associated dummy file */
+        } else                          /* Console */
+          cflag = 0;                    /* So not console any more */
 
-	ofile_lblproc = 0;		/* Done with this file's labels */
-	debug(F100,"zclose ZOFILE RMS operations completed ok","",0);
-	fp[n] = NULL;			/* Mark it closed */
-	iflen = -1;			/* Invalidate length */
-	return(1);
+        ofile_lblproc = 0;              /* Done with this file's labels */
+        debug(F100,"zclose ZOFILE RMS operations completed ok","",0);
+        fp[n] = NULL;                   /* Mark it closed */
+        iflen = -1;                     /* Invalidate length */
+        return(1);
     }
     if ((fp[n] != stdout) && (fp[n] != stdin)) { /* Other kind of file */
-        x = fclose(fp[n]);		/* C-Library close */
-        if (x == EOF) {			/* If we got a close error */
+        x = fclose(fp[n]);              /* C-Library close */
+        if (x == EOF) {                 /* If we got a close error */
             debug(F101,"zclose failed errno","",errno);
             perror("zclose");
         }
     }
     debug(F101,"zclose OTHER ","",fp[n]);
-    fp[n] = NULL;			/* Mark it closed */
-    iflen = -1; 			/* Invalidate file length */
-    if (x == EOF) 			/* If we got a close error */
-      return (-1);			/* fail */
-    else 				/* otherwise */
-      return (1);			/* succeed */
+    fp[n] = NULL;                       /* Mark it closed */
+    iflen = -1;                         /* Invalidate file length */
+    if (x == EOF)                       /* If we got a close error */
+      return (-1);                      /* fail */
+    else                                /* otherwise */
+      return (1);                       /* succeed */
 }
 
 int
@@ -1724,18 +1762,18 @@ get_subprc_line() {
  * exists before every read from the mailbox. This will slow things down a bit,
  * but should stop the "C-Kermit just dies" reports.
  */
-#ifdef	SUPERSAFE
+#ifdef  SUPERSAFE
     unsigned short pid;
 
     struct itmlstdef {
-	short int buflen;
-	short int itmcod;
-	char *bufaddr;
-	long int *retlen;
+        short int buflen;
+        short int itmcod;
+        char *bufaddr;
+        long int *retlen;
     };
     struct itmlstdef itmlst[] = {
-	4, JPI$_PID, NULL, 0,
-	0, 0, 0, 0
+        4, JPI$_PID, NULL, 0,
+        0, 0, 0, 0
     };
     itmlst[0].bufaddr = (char *)&pid;
 
@@ -1745,52 +1783,52 @@ get_subprc_line() {
     debug(F101,"get_subprc_line sys$getjpiw status", "", sts);
     if (sts == SS$_NONEXPR)
       return(-1);
-#endif	/* SUPERSAFE */
+#endif  /* SUPERSAFE */
 
 #ifndef PIPETIMEOUT
     sts = sys$qiow(QIOW_EFN, mbx_chan, IO$_READVBLK, &subiosb, 0, 0, sub_buf,
-		   sizeof(sub_buf), 0, 0, 0, 0);
+                   sizeof(sub_buf), 0, 0, 0, 0);
 #else
     if (kactive && srvping)  {
-	unsigned long wait_sts, reqidt = 0L;
-	unsigned long int mask = (1 << QIOW_EFN) | (1 << TIM_EFN);
-	struct { int hi, lo; } qtime;
-	qtime.hi = -10*1000*1000;	/* One second delta-time */
-	qtime.lo = -1;
+        unsigned long wait_sts, reqidt = 0L;
+        unsigned long int mask = (1 << QIOW_EFN) | (1 << TIM_EFN);
+        struct { int hi, lo; } qtime;
+        qtime.hi = -10*1000*1000;       /* One second delta-time */
+        qtime.lo = -1;
 
-	sts = sys$setimr(TIM_EFN, &qtime, 0, reqidt, 0);
-	if (sts != SS$_NORMAL) {
-	    debug(F101,"get_subprc_line sys$setimr", "", sts);
-	    vms_lasterr = sts;
-	    return(-1);
-	}
-	sts = sys$qio(QIOW_EFN, mbx_chan, IO$_READVBLK,
-		      &subiosb, 0, 0, sub_buf, sizeof(sub_buf), 0, 0, 0, 0);
+        sts = sys$setimr(TIM_EFN, &qtime, 0, reqidt, 0);
+        if (sts != SS$_NORMAL) {
+            debug(F101,"get_subprc_line sys$setimr", "", sts);
+            vms_lasterr = sts;
+            return(-1);
+        }
+        sts = sys$qio(QIOW_EFN, mbx_chan, IO$_READVBLK,
+                      &subiosb, 0, 0, sub_buf, sizeof(sub_buf), 0, 0, 0, 0);
 
-	wait_sts = sys$wflor(TIM_EFN,mask);
-	if (wait_sts != SS$_NORMAL) {
-	    debug(F101,"get_subprc_line sys$wflor status", "", wait_sts);
-	    vms_lasterr = wait_sts;
-	    return(-1);
-	}
-	wait_sts = sys$readef(TIM_EFN, &mask);
-	if (wait_sts != SS$_WASCLR && wait_sts != SS$_WASSET) {
-	    vms_lasterr = wait_sts;
-	    return(-1);
-	}
-	if (wait_sts == SS$_WASSET) {
-	    sys$clref(TIM_EFN);
-	    debug(F100,"get_subprc_line TIM_EFN timedout", "",0);
-	    timedout = 1;
-	} else {
-	    wait_sts = sys$cantim(reqidt,0);
-	    debug(F100,"get_subprc_line TIM_EFN was clear", "",0);
-	    sys$synch(QIOW_EFN,&subiosb); /* Check QIO completion */
-	    debug(F100,"get_subprc_line $synch(QIO) complete","",0);
-	}
+        wait_sts = sys$wflor(TIM_EFN,mask);
+        if (wait_sts != SS$_NORMAL) {
+            debug(F101,"get_subprc_line sys$wflor status", "", wait_sts);
+            vms_lasterr = wait_sts;
+            return(-1);
+        }
+        wait_sts = sys$readef(TIM_EFN, &mask);
+        if (wait_sts != SS$_WASCLR && wait_sts != SS$_WASSET) {
+            vms_lasterr = wait_sts;
+            return(-1);
+        }
+        if (wait_sts == SS$_WASSET) {
+            sys$clref(TIM_EFN);
+            debug(F100,"get_subprc_line TIM_EFN timedout", "",0);
+            timedout = 1;
+        } else {
+            wait_sts = sys$cantim(reqidt,0);
+            debug(F100,"get_subprc_line TIM_EFN was clear", "",0);
+            sys$synch(QIOW_EFN,&subiosb); /* Check QIO completion */
+            debug(F100,"get_subprc_line $synch(QIO) complete","",0);
+        }
     } else
       sts = sys$qiow(QIOW_EFN, mbx_chan, IO$_READVBLK,
-		     &subiosb, 0, 0, sub_buf, sizeof(sub_buf), 0, 0, 0, 0);
+                     &subiosb, 0, 0, sub_buf, sizeof(sub_buf), 0, 0, 0, 0);
 #endif /* PIPETIMEOUT */
 
     debug(F101,"get_subprc_line sys$qio{w} status", "", sts);
@@ -1833,16 +1871,16 @@ zchin(n,c) int n, *c; {
 #endif /* DEBUG */
 
     if (n == ZIFILE) {
-	if (subprocess_input) {
-	    if (--sub_count < 0)
-	      if (get_subprc_line()) return(-1);
-	    a = *sub_ptr++;
-	} else {
-	    a = zminchar();
-	}
+        if (subprocess_input) {
+            if (--sub_count < 0)
+              if (get_subprc_line()) return(-1);
+            a = *sub_ptr++;
+        } else {
+            a = zminchar();
+        }
     } else if (n == ZRFILE) {
-	a = ((--rincnt)>=0) ? ((int)(*rinptr++) & 0377) : rinfill();
-	/* debug(F101,"zchin a","",a); */
+        a = ((--rincnt)>=0) ? ((int)(*rinptr++) & 0377) : rinfill();
+        /* debug(F101,"zchin a","",a); */
     }
     if (a == -1)
       return(-1);
@@ -1866,35 +1904,35 @@ zsinl(n,s,x) int n, x; char *s; {
     int old;
 
     debug(F101,"zsinl","",n); /* SMSd. */
-    if (!s || chkfn(n) < 1)		/* Make sure file is open etc */
+    if (!s || chkfn(n) < 1)             /* Make sure file is open etc */
       return(-1);
-    s[0] = '\0';			/* Clear buffer */
+    s[0] = '\0';                        /* Clear buffer */
     a = -1;
     while (x--) {
-	old = a;			/* Previous character */
-	z = zchin(n,&a);
-	/* debug(F101,"zsinl z","",z); */
-	if (z < 0) {			/* Read a character from the file */
-	    if (count == 0)
-	      return(-1);		/* Signal EOF if problem */
-	    else			/* Or if we have something */
-	      return(0);		/* save failure till next time */
-	} else
-	  count++;
-	a = a & 0377;
+        old = a;                        /* Previous character */
+        z = zchin(n,&a);
+        /* debug(F101,"zsinl z","",z); */
+        if (z < 0) {                    /* Read a character from the file */
+            if (count == 0)
+              return(-1);               /* Signal EOF if problem */
+            else                        /* Or if we have something */
+              return(0);                /* save failure till next time */
+        } else
+          count++;
+        a = a & 0377;
 #ifdef NLCHAR
-	if (a == (char) NLCHAR) break;	/* Single-character line terminator */
+        if (a == (char) NLCHAR) break;  /* Single-character line terminator */
 #else
-	if (a == '\r') {
-	    continue;
-	}
-	if (old == '\r') {
-	    if (a == '\n') break;
-	    else *s++ = '\r';
-	}
+        if (a == '\r') {
+            continue;
+        }
+        if (old == '\r') {
+            if (a == '\n') break;
+            else *s++ = '\r';
+        }
 #endif /* NLCHAR */
-	*s = a;
-	s++;
+        *s = a;
+        s++;
     }
     *s = '\0';
     return(z);
@@ -1935,36 +1973,36 @@ int
 zinfill() {
     char cchar;
     int x, linelen;
-    unsigned char vfcbuf[255];	/* 2 is default for PRN, but 255 is max */
+    unsigned char vfcbuf[255];  /* 2 is default for PRN, but 255 is max */
 
     debug(F101,"zinfill rab_ifile.rab$l_bkt 1","",rab_ifile.rab$l_bkt);
     debug(F101,"zinfill ifile_bmode","",ifile_bmode);
 
     if (subprocess_input) {
-	x = get_subprc_line();
-	debug(F101,"zinfill get_subprc_line","",x);
-	if (x == -3)
-	  return(-3);
-	if (x != 0)
-	  return(-1);
+        x = get_subprc_line();
+        debug(F101,"zinfill get_subprc_line","",x);
+        if (x == -3)
+          return(-3);
+        if (x != 0)
+          return(-1);
 /*
  * The size problem should never happen.  sub_buf of a size greater than
  * 1k is highly unlikely to be needed.
  */
-	if (INBUFSIZE < SUB_BUF_SIZE) {
-	    fprintf(stderr,"zinfill: sub_buf too large for zinbuffer");
-	    exit(BAD_EXIT);
-	}
-	zinptr = (CHAR *)sub_buf;
-	zincnt = sub_count;
+        if (INBUFSIZE < SUB_BUF_SIZE) {
+            fprintf(stderr,"zinfill: sub_buf too large for zinbuffer");
+            exit(BAD_EXIT);
+        }
+        zinptr = (CHAR *)sub_buf;
+        zincnt = sub_count;
     } else {
-	if (ifile_bmode != 0) {
-	    rab_ifile.rab$l_rop = RAB$M_BIO;	/* block mode I/O */
+        if (ifile_bmode != 0) {
+            rab_ifile.rab$l_rop = RAB$M_BIO;    /* block mode I/O */
 #ifdef DYNAMIC
-	    rab_ifile.rab$l_ubf = (char *)zinbuffer;
+            rab_ifile.rab$l_ubf = (char *)zinbuffer;
 #else
 /* NOTE: Might need "(char *)&zinbuffer" here */
-	    rab_ifile.rab$l_ubf = &zinbuffer;
+            rab_ifile.rab$l_ubf = &zinbuffer;
 #endif /* DYNAMIC */
 /*
   There is a serious flaw here, namely that reading blocks rather than
@@ -1973,128 +2011,128 @@ zinfill() {
   Kermit-32 did it right, sigh.  So we need a total rewrite to allow for
   odd-length records.  Hmmm.. I wonder what the impact on RESEND is...
 */
-	    rab_ifile.rab$w_usz = 512;
-	    rms_sts = sys$read(&rab_ifile);
-	    if (!(rms_sts & 1)) {
-		debug(F101,"zinfill sys$read failed, status","",rms_sts);
-		vms_lasterr = rms_sts;
-	    }
-	    if (rms_sts == RMS$_EOF)
-	      return(-1);		/* End of file */
-	    if (rms_sts != RMS$_NORMAL)
-	      return(-1);		/* Fatal */
+            rab_ifile.rab$w_usz = 512;
+            rms_sts = sys$read(&rab_ifile);
+            if (!(rms_sts & 1)) {
+                debug(F101,"zinfill sys$read failed, status","",rms_sts);
+                vms_lasterr = rms_sts;
+            }
+            if (rms_sts == RMS$_EOF)
+              return(-1);               /* End of file */
+            if (rms_sts != RMS$_NORMAL)
+              return(-1);               /* Fatal */
 
-	    ifile_bcount++;		/* No error, say another block read */
-	    debug(F101,"zinfill sys$read ok, ifile_bcount","",ifile_bcount);
-	    zincnt = 512;
-	    zinptr = zinbuffer;
-	    if (rab_ifile.rab$l_bkt != 0) { /* If just a file position... */
-		debug(F101,"zinfill updating block counter","",0);
-		ifile_bcount = rab_ifile.rab$l_bkt; /* update block counter */
-	    }
-	    if (ifile_bcount == xabfhc_ifile.xab$l_ebk) {
-		if (ifile_bmode == 1)	/* BINARY but not LABELED */
-		    zincnt = xabfhc_ifile.xab$w_ffb;
-	    }
-	    debug(F101,"zinfill rab_ifile.rab$l_bkt 2","",rab_ifile.rab$l_bkt);
-	    if (rab_ifile.rab$l_bkt != 0) { /* If just a file position... */
-		return(0);		    /*...then done                */
-	    }
-	    zincnt--;			/* one less char in buffer */
-	    return((int)(*zinptr++) & 0377); /* because we return the first */
-	}
+            ifile_bcount++;             /* No error, say another block read */
+            debug(F101,"zinfill sys$read ok, ifile_bcount","",ifile_bcount);
+            zincnt = 512;
+            zinptr = zinbuffer;
+            if (rab_ifile.rab$l_bkt != 0) { /* If just a file position... */
+                debug(F101,"zinfill updating block counter","",0);
+                ifile_bcount = rab_ifile.rab$l_bkt; /* update block counter */
+            }
+            if (ifile_bcount == xabfhc_ifile.xab$l_ebk) {
+                if (ifile_bmode == 1)   /* BINARY but not LABELED */
+                    zincnt = xabfhc_ifile.xab$w_ffb;
+            }
+            debug(F101,"zinfill rab_ifile.rab$l_bkt 2","",rab_ifile.rab$l_bkt);
+            if (rab_ifile.rab$l_bkt != 0) { /* If just a file position... */
+                return(0);                  /*...then done                */
+            }
+            zincnt--;                   /* one less char in buffer */
+            return((int)(*zinptr++) & 0377); /* because we return the first */
+        }
 
 /* if we reached this point, we want to do record IO; first initialize RAB */
 
-	if (fab_ifile.fab$b_rat & FAB$M_FTN) {
+        if (fab_ifile.fab$b_rat & FAB$M_FTN) {
 #ifdef DYNAMIC
-	    rab_ifile.rab$l_ubf = (char *)zinbuffer+2;
+            rab_ifile.rab$l_ubf = (char *)zinbuffer+2;
 #else
 /* NOTE: Might need "(char *)&zinbuffer+2" here */
-	    rab_ifile.rab$l_ubf = &zinbuffer+2;
+            rab_ifile.rab$l_ubf = &zinbuffer+2;
 #endif /* DYNAMIC */
-	    rab_ifile.rab$w_usz = INBUFSIZE-4; /* Space for carriage control */
-	} else {
+            rab_ifile.rab$w_usz = INBUFSIZE-4; /* Space for carriage control */
+        } else {
 #ifdef DYNAMIC
-	    rab_ifile.rab$l_ubf = (char *)zinbuffer;
+            rab_ifile.rab$l_ubf = (char *)zinbuffer;
 #else
 /* NOTE: Might need "(char *)&zinbuffer" here */
-	    rab_ifile.rab$l_ubf = &zinbuffer;
+            rab_ifile.rab$l_ubf = &zinbuffer;
 #endif /* DYNAMIC */
-	    rab_ifile.rab$w_usz = INBUFSIZE-2; /* Space for possible CR/LF */
-	}
-	if (fab_ifile.fab$b_rat & FAB$M_PRN) { /* A fixed control area */
-	    rab_ifile.rab$l_rhb = (char *)&vfcbuf;
-	    rab_ifile.rab$w_usz = INBUFSIZE-255; /* Max fixed size*/
+            rab_ifile.rab$w_usz = INBUFSIZE-2; /* Space for possible CR/LF */
         }
-	rab_ifile.rab$l_rop = 0;	/* Now do the record I/O */
-	rms_sts = sys$get(&rab_ifile);
-	if (!(rms_sts & 1)) {
-	    debug(F101,"zinfill sys$get failed, status","",rms_sts);
-	    vms_lasterr = rms_sts;
-	}
-	if (rms_sts == RMS$_EOF)
-	  return(-1);			/* End of file */
-	if (rms_sts != RMS$_NORMAL)
-	  return(-1);			/* Fatal */
+        if (fab_ifile.fab$b_rat & FAB$M_PRN) { /* A fixed control area */
+            rab_ifile.rab$l_rhb = (char *)&vfcbuf;
+            rab_ifile.rab$w_usz = INBUFSIZE-255; /* Max fixed size*/
+        }
+        rab_ifile.rab$l_rop = 0;        /* Now do the record I/O */
+        rms_sts = sys$get(&rab_ifile);
+        if (!(rms_sts & 1)) {
+            debug(F101,"zinfill sys$get failed, status","",rms_sts);
+            vms_lasterr = rms_sts;
+        }
+        if (rms_sts == RMS$_EOF)
+          return(-1);                   /* End of file */
+        if (rms_sts != RMS$_NORMAL)
+          return(-1);                   /* Fatal */
 /*
  * Do assorted contortions with Fortran carriage control to make it formatted
  * ASCII instead, since many systems don't know about Fortran format in files.
  */
-	if (fab_ifile.fab$b_rat & FAB$M_FTN) {
+        if (fab_ifile.fab$b_rat & FAB$M_FTN) {
             linelen = rab_ifile.rab$w_rsz;
             if (linelen > 0) {
-	        linelen --;		/* sans control code */
-	        cchar = zinbuffer[2];	/* control code */
-            } else {			/* zero length record */
-                cchar = ' ';		/* space to give <LF><CR> */
+                linelen --;             /* sans control code */
+                cchar = zinbuffer[2];   /* control code */
+            } else {                    /* zero length record */
+                cchar = ' ';            /* space to give <LF><CR> */
             }
-	    switch (cchar) {
-	      case '\0':		/* data */
-		zinptr = zinbuffer+3;
-		zincnt = linelen;
-		break;
-	      case '+':				/* data<CR> */
-		zinbuffer[linelen+3] = '\r';	/* insert return */
-		zinptr = zinbuffer+3;
-		zincnt = linelen+1;		/* count it */
-		break;
-	      case '$':				/* <LF>data */
-		zinbuffer[2] = '\n';		/*  insert newline */
-		zinptr = zinbuffer+2;
-		zincnt = linelen+1;		/* count it */
-		break;
-	      case ' ':				/* <LF>data<CR> */
-		zinbuffer[2] = '\n';		/*  insert newline */
-		zinbuffer[linelen+3] = '\r';	/*  insert return */
-		zinptr = zinbuffer+2;
-		zincnt = linelen+2;		/*  count 'em */
-		break;
-	      case '0':				/* <LF><CR><LF>data<CR> */
-		zinbuffer[0] = '\n';		/*  insert 1st newline */
-		zinbuffer[1] = '\r';		/*  insert 1st return */
-		zinbuffer[2] = '\n';		/*  insert 2nd newline */
-		zinbuffer[linelen+3] = '\r';	/*  insert 2nd return */
-		zinptr = zinbuffer;
-		zincnt = linelen+4;		/*  count 'em */
-		break;
-	      case '1':				/* <FF>data<CR> */
-		zinbuffer[2] = '\f';		/*  insert formfeed */
-		zinbuffer[linelen+3] = '\r';	/*  insert return */
-		zinptr = zinbuffer+2;
-		zincnt = linelen+2;		/*  count 'em */
-		break;
-	      default:				/* <LF>data<CR> */
-		zinbuffer[2] = '\n';		/*  insert newline */
-		zinbuffer[linelen+3] = '\r';	/*  insert return */
-		zinptr = zinbuffer+2;
-		zincnt = linelen+2;		/*  count 'em */
-		break;
-	    }
-	} else {
-	    zincnt = rab_ifile.rab$w_rsz;
-	    zinptr = zinbuffer;			/* reset pointer */
-	}
+            switch (cchar) {
+              case '\0':                /* data */
+                zinptr = zinbuffer+3;
+                zincnt = linelen;
+                break;
+              case '+':                         /* data<CR> */
+                zinbuffer[linelen+3] = '\r';    /* insert return */
+                zinptr = zinbuffer+3;
+                zincnt = linelen+1;             /* count it */
+                break;
+              case '$':                         /* <LF>data */
+                zinbuffer[2] = '\n';            /*  insert newline */
+                zinptr = zinbuffer+2;
+                zincnt = linelen+1;             /* count it */
+                break;
+              case ' ':                         /* <LF>data<CR> */
+                zinbuffer[2] = '\n';            /*  insert newline */
+                zinbuffer[linelen+3] = '\r';    /*  insert return */
+                zinptr = zinbuffer+2;
+                zincnt = linelen+2;             /*  count 'em */
+                break;
+              case '0':                         /* <LF><CR><LF>data<CR> */
+                zinbuffer[0] = '\n';            /*  insert 1st newline */
+                zinbuffer[1] = '\r';            /*  insert 1st return */
+                zinbuffer[2] = '\n';            /*  insert 2nd newline */
+                zinbuffer[linelen+3] = '\r';    /*  insert 2nd return */
+                zinptr = zinbuffer;
+                zincnt = linelen+4;             /*  count 'em */
+                break;
+              case '1':                         /* <FF>data<CR> */
+                zinbuffer[2] = '\f';            /*  insert formfeed */
+                zinbuffer[linelen+3] = '\r';    /*  insert return */
+                zinptr = zinbuffer+2;
+                zincnt = linelen+2;             /*  count 'em */
+                break;
+              default:                          /* <LF>data<CR> */
+                zinbuffer[2] = '\n';            /*  insert newline */
+                zinbuffer[linelen+3] = '\r';    /*  insert return */
+                zinptr = zinbuffer+2;
+                zincnt = linelen+2;             /*  count 'em */
+                break;
+            }
+        } else {
+            zincnt = rab_ifile.rab$w_rsz;
+            zinptr = zinbuffer;                 /* reset pointer */
+        }
 /*
  * Here we see if we need to insert CR/LF pairs at the record boundary. For
  * the moment, we will add them if the file has "carriage return carriage
@@ -2102,113 +2140,113 @@ zinfill() {
  * this for "print file carriage control" files. I'm open to comments de-
  * scribing cases where this doesn't work...
  */
-	if (fab_ifile.fab$b_rat & FAB$M_CR) {
-	    zinbuffer[zincnt] = '\r';
-	    zinbuffer[zincnt + 1] = '\n';
-	    zincnt += 2;
-	}
+        if (fab_ifile.fab$b_rat & FAB$M_CR) {
+            zinbuffer[zincnt] = '\r';
+            zinbuffer[zincnt + 1] = '\n';
+            zincnt += 2;
+        }
 
 /* that worked for the default PRN format of batch log files etc., but
  * ignored any user format specification (v. RMS FAB$B_RAT docs).
  */
-	if (fab_ifile.fab$b_rat & FAB$M_PRN) {
+        if (fab_ifile.fab$b_rat & FAB$M_PRN) {
 
             int i, ifcv, ipcnt, iscnt;
-            unsigned char ipchr, ischr;	/* Eight bit ASCII control code */
+            unsigned char ipchr, ischr; /* Eight bit ASCII control code */
 
-	    if (vfcbuf[0] == 0x01 && vfcbuf[1] == 0x8D) {
-	        zinbuffer[zincnt] = '\r'; /* Do batch log files the old way */
-	        zinbuffer[zincnt + 1] = '\n';
-	        zincnt += 2;
-	    } else {			/* Decode the control area */
-		ipcnt = 0;		/* First, the prefix byte */
-		ipchr = '\0';
+            if (vfcbuf[0] == 0x01 && vfcbuf[1] == 0x8D) {
+                zinbuffer[zincnt] = '\r'; /* Do batch log files the old way */
+                zinbuffer[zincnt + 1] = '\n';
+                zincnt += 2;
+            } else {                    /* Decode the control area */
+                ipcnt = 0;              /* First, the prefix byte */
+                ipchr = '\0';
                 if (vfcbuf[0] != '\0') {
                     ifcv =  (vfcbuf[0] & 0xe0) >> 5; /* The control bits */
                     switch (ifcv) {
-		      case 0: ipcnt = (int) vfcbuf[0];
-			break;
-		      case 4: ipchr = vfcbuf[0] & 0x1f;
-			break;
-		      case 6: ipchr = (vfcbuf[0] & 0x1f) + 128;
-			break;
-		      case 7:
-			debug(F101,
-			      "zinfill illegal PRN code, byte 0 :",
-			      "",
-			      vfcbuf[0]
-			      );
-			ipcnt = 1;	/* Ignore code, apply CRLF */
-			break;
-		      default:
-			debug(F101,
-			      "zinfill unknown PRN code, byte 0 :",
-			      "",
-			      vfcbuf[0]
-			      );
-			ipcnt = 1;
-			break;
-		    }
-		}
-		iscnt = 0;		/* Now, the suffix byte */
-		ischr = '\0';
+                      case 0: ipcnt = (int) vfcbuf[0];
+                        break;
+                      case 4: ipchr = vfcbuf[0] & 0x1f;
+                        break;
+                      case 6: ipchr = (vfcbuf[0] & 0x1f) + 128;
+                        break;
+                      case 7:
+                        debug(F101,
+                              "zinfill illegal PRN code, byte 0 :",
+                              "",
+                              vfcbuf[0]
+                              );
+                        ipcnt = 1;      /* Ignore code, apply CRLF */
+                        break;
+                      default:
+                        debug(F101,
+                              "zinfill unknown PRN code, byte 0 :",
+                              "",
+                              vfcbuf[0]
+                              );
+                        ipcnt = 1;
+                        break;
+                    }
+                }
+                iscnt = 0;              /* Now, the suffix byte */
+                ischr = '\0';
                 if (vfcbuf[1] != '\0') {
                     ifcv =  (vfcbuf[1] & 0xe0) >> 5; /* The control bits */
                     switch (ifcv) {
-		      case 0: iscnt = (int) vfcbuf[1];
-			break;
-		      case 4: ischr = vfcbuf[1] & 0x1f;
-			break;
-		      case 6: ischr = (vfcbuf[1] & 0x1f) + 128;
-			break;
-		      case 7:
-			debug(F101,
-			      "zinfill illegal PRN code, byte 1 :",
-			      "",
-			      vfcbuf[1]
-			      );
-			iscnt = 1;	/* Ignore code,  apply CRLF */
-			break;
-		      default :
-			debug(F101,
-			      "zinfill unknown PRN code, byte 1 :",
-			      "",
-			      vfcbuf[1]
-			      );
-			iscnt = 1;
-			break;
-		    }
-		}
-		if (ipcnt != 0 || ipchr != '\0') { /* Insert */
-		    if (ipcnt > 0) {		   /* CR & n LF's */
-			memmove(zinbuffer+ipcnt+1, zinbuffer, zincnt);
-			zincnt += ipcnt + 1;
-			zinbuffer[0] = '\r';
-			for (i = 1; i <= ipcnt; i++)
-			  zinbuffer[i] = '\n';
-		    } else {		/* Or an ASCII control code */
-			memmove(zinbuffer+1, zinbuffer, zincnt);
-			zincnt ++;
-			zinbuffer[0] = ipchr;
-		    }
-		}
-		if (iscnt != 0 || ischr != '\0') { /* Append */
-		    if (iscnt > 0) {
-			zinbuffer[zincnt++]='\r';
-			for (i = 1; i <= iscnt; i++)
-			  zinbuffer[zincnt++]='\n';
-		    } else {
-			zinbuffer[zincnt++] = ischr;
-		    }
-		}
-	    }
+                      case 0: iscnt = (int) vfcbuf[1];
+                        break;
+                      case 4: ischr = vfcbuf[1] & 0x1f;
+                        break;
+                      case 6: ischr = (vfcbuf[1] & 0x1f) + 128;
+                        break;
+                      case 7:
+                        debug(F101,
+                              "zinfill illegal PRN code, byte 1 :",
+                              "",
+                              vfcbuf[1]
+                              );
+                        iscnt = 1;      /* Ignore code,  apply CRLF */
+                        break;
+                      default :
+                        debug(F101,
+                              "zinfill unknown PRN code, byte 1 :",
+                              "",
+                              vfcbuf[1]
+                              );
+                        iscnt = 1;
+                        break;
+                    }
+                }
+                if (ipcnt != 0 || ipchr != '\0') { /* Insert */
+                    if (ipcnt > 0) {               /* CR & n LF's */
+                        memmove(zinbuffer+ipcnt+1, zinbuffer, zincnt);
+                        zincnt += ipcnt + 1;
+                        zinbuffer[0] = '\r';
+                        for (i = 1; i <= ipcnt; i++)
+                          zinbuffer[i] = '\n';
+                    } else {            /* Or an ASCII control code */
+                        memmove(zinbuffer+1, zinbuffer, zincnt);
+                        zincnt ++;
+                        zinbuffer[0] = ipchr;
+                    }
+                }
+                if (iscnt != 0 || ischr != '\0') { /* Append */
+                    if (iscnt > 0) {
+                        zinbuffer[zincnt++]='\r';
+                        for (i = 1; i <= iscnt; i++)
+                          zinbuffer[zincnt++]='\n';
+                    } else {
+                        zinbuffer[zincnt++] = ischr;
+                    }
+                }
+            }
         }
     }
 /*
  * And finally return the record
  */
-    zincnt--;				/* one less char in buffer */
-    return((int)(*zinptr++) & 0377);	/* because we return the first */
+    zincnt--;                           /* one less char in buffer */
+    return((int)(*zinptr++) & 0377);    /* because we return the first */
 }
 
 static int
@@ -2216,129 +2254,129 @@ rinfill() {
     char cchar;
     int linelen;
 
-    if (ispipe[ZRFILE]) {		/* OPEN !READ file */
-	int x;
-	x = get_subprc_line();
-	debug(F101,"rinfill get_subprc_line","",x);
-	if (x < 0) return(x);
-	rinptr = (CHAR *)sub_buf;
-	rincnt = sub_count - 1;
-	debug(F101,"rinfill rincount","",rincnt);
-	return((int)(*rinptr++) & 0377);
+    if (ispipe[ZRFILE]) {               /* OPEN !READ file */
+        int x;
+        x = get_subprc_line();
+        debug(F101,"rinfill get_subprc_line","",x);
+        if (x < 0) return(x);
+        rinptr = (CHAR *)sub_buf;
+        rincnt = sub_count - 1;
+        debug(F101,"rinfill rincount","",rincnt);
+        return((int)(*rinptr++) & 0377);
     }
     /* Regular file... */
 
     debug(F101,"rinfill rfile_bmode","",rfile_bmode);
     if (rfile_bmode != 0) {
-	rab_rfile.rab$l_rop = RAB$M_BIO; /* Block mode I/O */
+        rab_rfile.rab$l_rop = RAB$M_BIO; /* Block mode I/O */
 #ifdef DYNAMIC
-	rab_rfile.rab$l_ubf = (char *)rinbuffer;
+        rab_rfile.rab$l_ubf = (char *)rinbuffer;
 #else
 /* NOTE: Might need "(char *)&rinbuffer" here */
-	rab_rfile.rab$l_ubf = &rinbuffer;
+        rab_rfile.rab$l_ubf = &rinbuffer;
 #endif /* DYNAMIC */
-	rab_rfile.rab$w_usz = 512;
-	rms_sts = sys$read(&rab_rfile);
-	if (!(rms_sts & 1)) {
-	    debug(F101,"rinfill sys$read failed, status","",rms_sts);
-	    vms_lasterr = rms_sts;
-	}
-	if (rms_sts == RMS$_EOF)
-	  return(-1);			/* End of file */
-	if (rms_sts != RMS$_NORMAL)
-	  return(-1);			/* Fatal */
-	rfile_bcount++;			/* Say another block read */
-	debug(F101,"rinfill sys$read ok, rfile_bcount","",rfile_bcount);
-	rincnt = 512;
-	rinptr = rinbuffer;
+        rab_rfile.rab$w_usz = 512;
+        rms_sts = sys$read(&rab_rfile);
+        if (!(rms_sts & 1)) {
+            debug(F101,"rinfill sys$read failed, status","",rms_sts);
+            vms_lasterr = rms_sts;
+        }
+        if (rms_sts == RMS$_EOF)
+          return(-1);                   /* End of file */
+        if (rms_sts != RMS$_NORMAL)
+          return(-1);                   /* Fatal */
+        rfile_bcount++;                 /* Say another block read */
+        debug(F101,"rinfill sys$read ok, rfile_bcount","",rfile_bcount);
+        rincnt = 512;
+        rinptr = rinbuffer;
 
-	if (rab_rfile.rab$l_bkt != 0) { /* If just a file position... */
-	    rfile_bcount = rab_rfile.rab$l_bkt; /* update block counter */
-	}
-	if (rfile_bcount == xabfhc_rfile.xab$l_ebk) {
-	    if (rfile_bmode == 1)	/* BINARY but not LABELED */
-	      rincnt = xabfhc_rfile.xab$w_ffb;
-	}
-	if (rab_rfile.rab$l_bkt != 0) { /* If just a file position... */
-	    return(0);			/*...then done                */
-	}
-	rincnt--;			/* one less char in buffer */
-	return((int)(*rinptr++) & 0377); /* because we return the first */
+        if (rab_rfile.rab$l_bkt != 0) { /* If just a file position... */
+            rfile_bcount = rab_rfile.rab$l_bkt; /* update block counter */
+        }
+        if (rfile_bcount == xabfhc_rfile.xab$l_ebk) {
+            if (rfile_bmode == 1)       /* BINARY but not LABELED */
+              rincnt = xabfhc_rfile.xab$w_ffb;
+        }
+        if (rab_rfile.rab$l_bkt != 0) { /* If just a file position... */
+            return(0);                  /*...then done                */
+        }
+        rincnt--;                       /* one less char in buffer */
+        return((int)(*rinptr++) & 0377); /* because we return the first */
     }
     if (fab_rfile.fab$b_rat & FAB$M_FTN) {
-	debug(F100,"rinfill FAB$M_FTN","",0);
+        debug(F100,"rinfill FAB$M_FTN","",0);
 #ifdef DYNAMIC
-	rab_rfile.rab$l_ubf = (char *)rinbuffer+2;
+        rab_rfile.rab$l_ubf = (char *)rinbuffer+2;
 #else
 /* NOTE: Might need "(char *)&rinbuffer" here */
-	rab_rfile.rab$l_ubf = &rinbuffer+2;
+        rab_rfile.rab$l_ubf = &rinbuffer+2;
 #endif /* DYNAMIC */
-	rab_rfile.rab$w_usz = INBUFSIZE-4; /* space for carriage ctl */
+        rab_rfile.rab$w_usz = INBUFSIZE-4; /* space for carriage ctl */
     } else {
-	debug(F100,"rinfill not FAB$M_FTN","",0);
+        debug(F100,"rinfill not FAB$M_FTN","",0);
 #ifdef DYNAMIC
-	rab_rfile.rab$l_ubf = (char *)rinbuffer;
+        rab_rfile.rab$l_ubf = (char *)rinbuffer;
 #else
 /* NOTE: Might need "(char *)&rinbuffer" here */
-	rab_rfile.rab$l_ubf = &rinbuffer;
+        rab_rfile.rab$l_ubf = &rinbuffer;
 #endif /* DYNAMIC */
-	rab_rfile.rab$w_usz = INBUFSIZE-2; /* space for possible CR/LF */
+        rab_rfile.rab$w_usz = INBUFSIZE-2; /* space for possible CR/LF */
     }
-    rab_rfile.rab$l_rop = 0;		/* doing record I/O */
+    rab_rfile.rab$l_rop = 0;            /* doing record I/O */
     rms_sts = sys$get(&rab_rfile);
     if (!(rms_sts & 1)) {
-	debug(F101,"rinfill sys$get failed, status","",rms_sts);
-	vms_lasterr = rms_sts;
+        debug(F101,"rinfill sys$get failed, status","",rms_sts);
+        vms_lasterr = rms_sts;
     }
     if (rms_sts == RMS$_EOF)
-      return(-1);			/* End of file */
+      return(-1);                       /* End of file */
     if (rms_sts != RMS$_NORMAL)
-      return(-1);			/* Fatal */
+      return(-1);                       /* Fatal */
 /*
  * Do assorted contortions with Fortran carriage control to make it formatted
  * ASCII instead, since many systems don't know about Fortran format in files.
  */
     if (fab_rfile.fab$b_rat & FAB$M_FTN) {
-	linelen = rab_rfile.rab$w_rsz-1; /* sans control code */
-	cchar = rinbuffer[2];		/* control code */
-	switch (cchar) {
-	  case '\0':			/* data<CR> */
-	  case '+':
-	    rinbuffer[linelen+3] = '\r';/*  insert return */
-	    rinptr = rinbuffer+3;
-	    rincnt = linelen+1;		/* count it */
-	    break;
-	  case '$':			/* <LF>data<CR> */
-	  case ' ':
-	    rinbuffer[2] = '\n';	/*  insert newline */
-	    rinbuffer[linelen+3] = '\r';/*  insert return */
-	    rinptr = rinbuffer+2;
-	    rincnt = linelen+2;		/*  count 'em */
-	    break;
-	  case '0':			/* <LF><CR><LF>data<CR> */
-	    rinbuffer[0] = '\n';	/*  insert 1st newline */
-	    rinbuffer[1] = '\r';	/*  insert 1st return */
-	    rinbuffer[2] = '\n';	/*  insert 2nd newline */
-	    rinbuffer[linelen+3] = '\r';/*  insert 2nd return */
-	    rinptr = rinbuffer;
-	    rincnt = linelen+4;		/*  count 'em */
-	    break;
-	  case '1':			/* <FF>data<CR> */
-	    rinbuffer[2] = '\f';	/*  insert formfeed */
-	    rinbuffer[linelen+3] = '\r';/*  insert return */
-	    rinptr = rinbuffer+2;
-	    rincnt = linelen+2;		/*  count 'em */
-	    break;
-	  default:			/* <LF>data<CR> */
-	    rinbuffer[2] = '\n';	/*  insert newline */
-	    rinbuffer[linelen+3] = '\r';/*  insert return */
-	    rinptr = rinbuffer+2;
-	    rincnt = linelen+2;		/*  count 'em */
-	    break;
-	}
+        linelen = rab_rfile.rab$w_rsz-1; /* sans control code */
+        cchar = rinbuffer[2];           /* control code */
+        switch (cchar) {
+          case '\0':                    /* data<CR> */
+          case '+':
+            rinbuffer[linelen+3] = '\r';/*  insert return */
+            rinptr = rinbuffer+3;
+            rincnt = linelen+1;         /* count it */
+            break;
+          case '$':                     /* <LF>data<CR> */
+          case ' ':
+            rinbuffer[2] = '\n';        /*  insert newline */
+            rinbuffer[linelen+3] = '\r';/*  insert return */
+            rinptr = rinbuffer+2;
+            rincnt = linelen+2;         /*  count 'em */
+            break;
+          case '0':                     /* <LF><CR><LF>data<CR> */
+            rinbuffer[0] = '\n';        /*  insert 1st newline */
+            rinbuffer[1] = '\r';        /*  insert 1st return */
+            rinbuffer[2] = '\n';        /*  insert 2nd newline */
+            rinbuffer[linelen+3] = '\r';/*  insert 2nd return */
+            rinptr = rinbuffer;
+            rincnt = linelen+4;         /*  count 'em */
+            break;
+          case '1':                     /* <FF>data<CR> */
+            rinbuffer[2] = '\f';        /*  insert formfeed */
+            rinbuffer[linelen+3] = '\r';/*  insert return */
+            rinptr = rinbuffer+2;
+            rincnt = linelen+2;         /*  count 'em */
+            break;
+          default:                      /* <LF>data<CR> */
+            rinbuffer[2] = '\n';        /*  insert newline */
+            rinbuffer[linelen+3] = '\r';/*  insert return */
+            rinptr = rinbuffer+2;
+            rincnt = linelen+2;         /*  count 'em */
+            break;
+        }
     } else {
-	rincnt = rab_rfile.rab$w_rsz;
-	rinptr = rinbuffer;		/* reset pointer */
+        rincnt = rab_rfile.rab$w_rsz;
+        rinptr = rinbuffer;             /* reset pointer */
     }
 /*
  * Here we see if we need to insert CR/LF pairs at the record boundary. For
@@ -2348,11 +2386,11 @@ rinfill() {
  * scribing cases where this doesn't work...
  */
     if (fab_rfile.fab$b_rat & (FAB$M_CR | FAB$M_PRN)) {
-	rinbuffer[rincnt] = '\r';
-	rinbuffer[rincnt + 1] = '\n';
-	rincnt += 2;
+        rinbuffer[rincnt] = '\r';
+        rinbuffer[rincnt + 1] = '\n';
+        rincnt += 2;
     }
-    rincnt--;			/* one less char in buffer */
+    rincnt--;                   /* one less char in buffer */
     return((int)(*rinptr++) & 0377); /* because we return the first */
 }
 
@@ -2368,23 +2406,23 @@ zfseek(CK_OFF_T pos) {
     debug(F101,"zfseek pos","",pos);
     rab_ifile.rab$l_bkt = (unsigned long) pos >> 9; /* Get block number */
     debug(F101,"zfseek rab_ifile.rab$l_bkt","",rab_ifile.rab$l_bkt);
-    rab_ifile.rab$l_bkt++;		/* VBN's are 1-based */
-    offset = (unsigned long) pos & 511;	/* Get offset with block */
+    rab_ifile.rab$l_bkt++;              /* VBN's are 1-based */
+    offset = (unsigned long) pos & 511; /* Get offset with block */
     debug(F101,"zfseek offset","",offset);
-    errtmp = vms_lasterr;		/* Make sure we get the real error */
-    vms_lasterr = 0;			/* ... */
-    x = zinfill();			/* Read in the block */
+    errtmp = vms_lasterr;               /* Make sure we get the real error */
+    vms_lasterr = 0;                    /* ... */
+    x = zinfill();                      /* Read in the block */
     debug(F101,"zfseek zinfill","",x);
-    if (x != 0) {			/* Handle any errors */
-	rab_ifile.rab$l_bkt = 0;	/* Sequentially from now on */
-	debug(F101,"zfseek failed","",vms_lasterr);
-	return(-1);
+    if (x != 0) {                       /* Handle any errors */
+        rab_ifile.rab$l_bkt = 0;        /* Sequentially from now on */
+        debug(F101,"zfseek failed","",vms_lasterr);
+        return(-1);
     }
     vms_lasterr = errtmp;
-    rab_ifile.rab$l_bkt = 0;		/* Sequentially from now on */
-    if (offset != 0) {			/* if not block boundary... */
-	zincnt = zincnt - offset;	/* ...adjust count and pointer */
-	zinptr = zinptr + offset;
+    rab_ifile.rab$l_bkt = 0;            /* Sequentially from now on */
+    if (offset != 0) {                  /* if not block boundary... */
+        zincnt = zincnt - offset;       /* ...adjust count and pointer */
+        zinptr = zinptr + offset;
     }
     return(0);
 }
@@ -2397,7 +2435,7 @@ zsout(n,s) int n; char *s; {
     debug(F101,"zsout","",n); /* SMSd. */
     if (chkfn(n) < 1) return(-1);
 #endif
-    fputs(s, fp[n]);			/* Don't use fprintf here MM */
+    fputs(s, fp[n]);                    /* Don't use fprintf here MM */
     return(0);
 }
 
@@ -2444,12 +2482,12 @@ zchout(n,c) register int n; char c;
     if (chkfn(n) < 1) return(-1);
 #endif
     if (n == ZSFILE) {
-	return(write(fileno(fp[n]),&c,1)); /* Use unbuffered for session log */
+        return(write(fileno(fp[n]),&c,1)); /* Use unbuffered for session log */
     } else {
-	if (putc(c,fp[n]) == EOF)	/* If true, maybe there was an error */
-	  return(ferror(fp[n]) ? -1 : 0); /* Check to make sure */
-	else				/* Otherwise... */
-	  return(0);			/* There was no error. */
+        if (putc(c,fp[n]) == EOF)       /* If true, maybe there was an error */
+          return(ferror(fp[n]) ? -1 : 0); /* Check to make sure */
+        else                            /* Otherwise... */
+          return(0);                    /* There was no error. */
     }
 }
 
@@ -2476,96 +2514,96 @@ zoutdump() {
   Well, this could be to the console. If it is, chop it into itty-bitty parts
   (the VMS CRTL can't handle a %s spec bigger than 512 bytes) and print it.
 */
-    if (cflag == 1) {			/* If we're dumping to console */
-	endptr = zoutbuffer + zoutcnt;
-	for (optr = zoutbuffer; optr < endptr; optr += 511) {
-	    if (optr+511 < endptr) {	/* More than 511, break up */
-		csave = *(optr+511);
-		*(optr+511) = '\0';
-		printf("%s", optr);
-		*(optr+511) = csave;
-	    } else {
-		*endptr = '\0';		/* Make sure null-terminated */
-		printf("%s", optr);
-	    }
-	}
-	zoutcnt = 0;
-	zoutptr = zoutbuffer;
-	return(0);
+    if (cflag == 1) {                   /* If we're dumping to console */
+        endptr = zoutbuffer + zoutcnt;
+        for (optr = zoutbuffer; optr < endptr; optr += 511) {
+            if (optr+511 < endptr) {    /* More than 511, break up */
+                csave = *(optr+511);
+                *(optr+511) = '\0';
+                printf("%s", optr);
+                *(optr+511) = csave;
+            } else {
+                *endptr = '\0';         /* Make sure null-terminated */
+                printf("%s", optr);
+            }
+        }
+        zoutcnt = 0;
+        zoutptr = zoutbuffer;
+        return(0);
     }
 
 /* Do we need to processed TYPE LABELED contortions? */
 
-    if (ofile_bmode == XYFT_L) {	/* Is it labeled? */
-	int x;
-	if (ofile_lblproc == 0)	{	/* I've never gone this way before? */
-	    x = do_label_recv();	/* Beyond revolving rainbow door... */
-	    if (x == -1)
-	      return(-1);		/* Got a hard error in label proc. */
-	    if (x == 1 && ofile_dump != 1)
-	      return(0);		/* Exit so we can fill up the buffer */
-	}
+    if (ofile_bmode == XYFT_L) {        /* Is it labeled? */
+        int x;
+        if (ofile_lblproc == 0) {       /* I've never gone this way before? */
+            x = do_label_recv();        /* Beyond revolving rainbow door... */
+            if (x == -1)
+              return(-1);               /* Got a hard error in label proc. */
+            if (x == 1 && ofile_dump != 1)
+              return(0);                /* Exit so we can fill up the buffer */
+        }
     }
 /*
  * Well, we could be lucky...
  */
     if (zoutcnt == 0)
-	return(0);
+        return(0);
 /*
  * Oh well. See if doing binary - that's easy...
  */
     if (ofile_bmode) {
-	if (zoutcnt == OBUFSIZE) {
+        if (zoutcnt == OBUFSIZE) {
 #ifdef DYNAMIC
-	    rab_ofile.rab$l_rbf = (char *)zoutbuffer;
+            rab_ofile.rab$l_rbf = (char *)zoutbuffer;
 #else
 /* NOTE: Might need "(char *)&zoutbuffer" here */
-	    rab_ofile.rab$l_rbf = &zoutbuffer;
+            rab_ofile.rab$l_rbf = &zoutbuffer;
 #endif /* DYNAMIC */
-	    rab_ofile.rab$w_rsz = OBUFSIZE;
-	    if (ofile_ffb != -1 && ofile_dump == 1) {
-		/*
-		 * Only do this when doing _last_ file segment.
-		 */
-		xabfhc_ofile.xab$w_ffb = ofile_ffb;
-		if (ofile_ffb)
-		    rab_ofile.rab$w_rsz -= (512 - ofile_ffb);
-		debug(F101,"zoutdump ofile_ffb","",(int)ofile_ffb);
-		debug(F101,"zoutdump rab$w_rsz","",rab_ofile.rab$w_rsz);
-	    }
-	    rms_sts = sys$write(&rab_ofile);
-	    if (!(rms_sts & 1)) vms_lasterr = rms_sts;
-	    if (rms_sts != RMS$_NORMAL) {
-		debug(F101,"zoutdump $write failed, status","",rms_sts);
-		return(-1);
-	    }
-	} else {
+            rab_ofile.rab$w_rsz = OBUFSIZE;
+            if (ofile_ffb != -1 && ofile_dump == 1) {
+                /*
+                 * Only do this when doing _last_ file segment.
+                 */
+                xabfhc_ofile.xab$w_ffb = ofile_ffb;
+                if (ofile_ffb)
+                    rab_ofile.rab$w_rsz -= (512 - ofile_ffb);
+                debug(F101,"zoutdump ofile_ffb","",(int)ofile_ffb);
+                debug(F101,"zoutdump rab$w_rsz","",rab_ofile.rab$w_rsz);
+            }
+            rms_sts = sys$write(&rab_ofile);
+            if (!(rms_sts & 1)) vms_lasterr = rms_sts;
+            if (rms_sts != RMS$_NORMAL) {
+                debug(F101,"zoutdump $write failed, status","",rms_sts);
+                return(-1);
+            }
+        } else {
 #ifdef DYNAMIC
-	    rab_ofile.rab$l_rbf = (char *)zoutbuffer;
+            rab_ofile.rab$l_rbf = (char *)zoutbuffer;
 #else
 /* NOTE: Might need "(char *)&zoutbuffer" here */
-	    rab_ofile.rab$l_rbf = &zoutbuffer;
+            rab_ofile.rab$l_rbf = &zoutbuffer;
 #endif
-	    rab_ofile.rab$w_rsz = zoutcnt;
-	    xabfhc_ofile.xab$w_ffb = (zoutcnt & 511)+1;
-	    if (ofile_ffb != -1) {
-		xabfhc_ofile.xab$w_ffb = ofile_ffb;
-		if (ofile_ffb)
-		    rab_ofile.rab$w_rsz -= (512 - ofile_ffb);
-		debug(F101,"zoutdump ofile_ffb","",(int)ofile_ffb);
-		debug(F101,"zoutdump rab$w_rsz","",rab_ofile.rab$w_rsz);
-	    }
-	    rms_sts = sys$write(&rab_ofile);
-	    if (!(rms_sts & 1)) vms_lasterr = rms_sts;
-	    if (rms_sts != RMS$_NORMAL) {
-		debug(F101,"zoutdump $write failed, status","",rms_sts);
-		return(-1);
-	    }
-	}
-	debug(F100,"zoutdump RMS operations completed ok","",0);
-	zoutcnt = 0;
-	zoutptr = zoutbuffer;
-	return(0);
+            rab_ofile.rab$w_rsz = zoutcnt;
+            xabfhc_ofile.xab$w_ffb = (zoutcnt & 511)+1;
+            if (ofile_ffb != -1) {
+                xabfhc_ofile.xab$w_ffb = ofile_ffb;
+                if (ofile_ffb)
+                    rab_ofile.rab$w_rsz -= (512 - ofile_ffb);
+                debug(F101,"zoutdump ofile_ffb","",(int)ofile_ffb);
+                debug(F101,"zoutdump rab$w_rsz","",rab_ofile.rab$w_rsz);
+            }
+            rms_sts = sys$write(&rab_ofile);
+            if (!(rms_sts & 1)) vms_lasterr = rms_sts;
+            if (rms_sts != RMS$_NORMAL) {
+                debug(F101,"zoutdump $write failed, status","",rms_sts);
+                return(-1);
+            }
+        }
+        debug(F100,"zoutdump RMS operations completed ok","",0);
+        zoutcnt = 0;
+        zoutptr = zoutbuffer;
+        return(0);
     }
 
 /*
@@ -2593,45 +2631,45 @@ zoutdump_ascii:
     /*  2) If there is one char left in the buffer, we have the case of*/
     /*     a line with the CR but no LF present. So... do the same     */
     /*     because the LF will be coming next time.                    */
-    if (optr+2 > endptr) {			/* drat! ran off the end */
-	if (ofile_dump && (srcptr == endptr)) {
+    if (optr+2 > endptr) {                      /* drat! ran off the end */
+        if (ofile_dump && (srcptr == endptr)) {
         /* If the beginning and end ptrs are the same, then there the  */
         /* is empty. Good news, 'cause we're clsoing up.               */
-	    zoutcnt = 0;        /* No looping, please. */
-	    zoutptr = zoutbuffer;
-	}
-	else if (ofile_dump) {		/* but it's cool, we're closing up */
+            zoutcnt = 0;        /* No looping, please. */
+            zoutptr = zoutbuffer;
+        }
+        else if (ofile_dump) {          /* but it's cool, we're closing up */
         /* Oops, we've got a line with no LF and maybe no CR. Well     */
         /* write it out and exit abnormally.                           */
-	    rab_ofile.rab$l_rbf = (char *)srcptr;
-	    rab_ofile.rab$w_rsz = optr-srcptr;
-	    rms_sts = sys$put(&rab_ofile);
-	    if (!(rms_sts & 1)) vms_lasterr = rms_sts;
-	    zoutcnt = 0;
-	    zoutptr = zoutbuffer;
-	    if (rms_sts != RMS$_NORMAL) {
-		debug(F101, "zoutdump $put failed, status","",rms_sts);
-		return(-1);
-	    }
-	} else if (wrote_one_line) {	/* it's still cool, we did one... */
-	    zoutcnt = optr - srcptr;	/* number of chars left */
-	    if (optr < endptr) zoutcnt++; /*[jah083] including CR if present */
-		if (zoutcnt) memmove(zoutbuffer, srcptr, zoutcnt);
-	        /* Move'em to front of buffer*/
-	    zoutptr = zoutbuffer+zoutcnt;
-	} else {			/* WRONG!!! */
+            rab_ofile.rab$l_rbf = (char *)srcptr;
+            rab_ofile.rab$w_rsz = optr-srcptr;
+            rms_sts = sys$put(&rab_ofile);
+            if (!(rms_sts & 1)) vms_lasterr = rms_sts;
+            zoutcnt = 0;
+            zoutptr = zoutbuffer;
+            if (rms_sts != RMS$_NORMAL) {
+                debug(F101, "zoutdump $put failed, status","",rms_sts);
+                return(-1);
+            }
+        } else if (wrote_one_line) {    /* it's still cool, we did one... */
+            zoutcnt = optr - srcptr;    /* number of chars left */
+            if (optr < endptr) zoutcnt++; /*[jah083] including CR if present */
+                if (zoutcnt) memmove(zoutbuffer, srcptr, zoutcnt);
+                /* Move'em to front of buffer*/
+            zoutptr = zoutbuffer+zoutcnt;
+        } else {                        /* WRONG!!! */
         /* We've got a buffer full of chars with no LF (it may or may  */
         /* not have a terminating CR. In either case its just plain too*/
         /* long. I suppose we could check here for the optr+1 == endptr*/
         /* which indicates that there was a CR but no LF so we could   */
         /* issue a "line barely too long", but, is it useful?          */
-	    debug(F100, "zoutdump: line too long","",0);
-	    zoutcnt = 0;		/* No looping, please. */
-	    zoutptr = zoutbuffer;
-	    return(-1);
-	}
-	debug(F101, "zoutdump exiting, zoutcnt","",zoutcnt);
-	return(0);
+            debug(F100, "zoutdump: line too long","",0);
+            zoutcnt = 0;                /* No looping, please. */
+            zoutptr = zoutbuffer;
+            return(-1);
+        }
+        debug(F101, "zoutdump exiting, zoutcnt","",zoutcnt);
+        return(0);
     }
 
     /* We now have a line that we can write, so... */
@@ -2641,10 +2679,10 @@ zoutdump_ascii:
     rms_sts = sys$put(&rab_ofile);
     if (!(rms_sts & 1)) vms_lasterr = rms_sts;
     if (rms_sts != RMS$_NORMAL) {
-	debug(F101, "zoutdump $put failed, status","",rms_sts);
-	return(-1);
+        debug(F101, "zoutdump $put failed, status","",rms_sts);
+        return(-1);
     }
-	srcptr = optr + 2;		/* Account for CR, LF */
+        srcptr = optr + 2;              /* Account for CR, LF */
     wrote_one_line = 1;
     goto zoutdump_ascii;
 }
@@ -2671,20 +2709,20 @@ chkfn(n) int n; {
       case ZTFILE:
       case ZPFILE:
       case ZSFILE:
-	break;
-      case ZSYSFN:			/* System functions */
-	return(0);
-      case ZRFILE:			/* READ and WRITE files */
+        break;
+      case ZSYSFN:                      /* System functions */
+        return(0);
+      case ZRFILE:                      /* READ and WRITE files */
       case ZWFILE:
       case ZMFILE:
       case ZDIFIL:
-	break;
+        break;
       default:
-	if (n >= ZNFILS) {
-	    debug(F101,"chkfn: file number out of range","",n);
-	    fprintf(stderr,"?File number out of range - %d\n",n);
-	    return(-1);
-	}
+        if (n >= ZNFILS) {
+            debug(F101,"chkfn: file number out of range","",n);
+            fprintf(stderr,"?File number out of range - %d\n",n);
+            return(-1);
+        }
     }
     x = (fp[n] == NULL) ? 0 : 1;
     if (n != ZDFILE)
@@ -2696,7 +2734,7 @@ static int zgetfs_active = 0;
 static CK_OFF_T zgfs_size = -1L;
 int zgfs_dir = -1;
 int zgfs_link = 0;
-char linkname[2] = { '\0', '\0' };	/* No symlinks in VMS */
+char linkname[2] = { '\0', '\0' };      /* No symlinks in VMS */
 
 CK_OFF_T
 zgetfs(name) char *name; {
@@ -2732,7 +2770,7 @@ zchki(name) char *name; {
     extern int zchkid;
     int x;
     struct FAB fab_chki;
-    struct NAMX nam_chki;
+    struct NAMX_STRUCT nam_chki;
     struct XABFHC xabfhc_chki;
     CK_OFF_T iflen = (CK_OFF_T)-1;
 
@@ -2744,29 +2782,26 @@ zchki(name) char *name; {
 
     if (zgetfs_active) {
         if (stat(name,&statbuf) == 0) {
-	    zgfs_link = 0;
+            zgfs_link = 0;
 #ifdef S_ISDIR
-	    zgfs_dir = (S_ISDIR(statbuf.st_mode)) ? 1 : 0;
-	    debug(F110,"zgetfs S_ISDIR",name,zgfs_dir);
+            zgfs_dir = (S_ISDIR(statbuf.st_mode)) ? 1 : 0;
+            debug(F110,"zgetfs S_ISDIR",name,zgfs_dir);
 #else
-	    zgfs_dir = isdir(name);
-	    debug(F110,"zgetfs isdir",name,zgfs_dir);
+            zgfs_dir = isdir(name);
+            debug(F110,"zgetfs isdir",name,zgfs_dir);
 #endif /* S_ISDIR */
-	    zgfs_size = statbuf.st_size;
-	    debug(F110,"zgetfs size",name,zgfs_size);
-	    return(zgfs_size);
-	}
-	/* If stat() failed try RMS... */
+            zgfs_size = statbuf.st_size;
+            debug(F110,"zgetfs size",name,zgfs_size);
+            return(zgfs_size);
+        }
+        /* If stat() failed try RMS... */
     }
     fab_chki = cc$rms_fab;                      /* Initialize FAB. */
     nam_chki = CC_RMS_NAMX;                     /* Initialize NAM[L]. */
     fab_chki.FAB_L_NAMX = &nam_chki;            /* Point FAB to NAM[L]. */
 
     /* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    fab_chki.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-    fab_chki.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( fab_chki)
     FAB_OR_NAML( fab_chki, nam_chki).FAB_OR_NAML_FNA = name;
     FAB_OR_NAML( fab_chki, nam_chki).FAB_OR_NAML_FNS = strlen( name);
 
@@ -2775,21 +2810,21 @@ zchki(name) char *name; {
     xabfhc_chki = cc$rms_xabfhc;
     rms_sts = sys$open(&fab_chki);
     if (!(rms_sts & 1)) vms_lasterr = rms_sts;
-    if (rms_sts == RMS$_PRV)			/* No privs */
+    if (rms_sts == RMS$_PRV)                    /* No privs */
       return(-3);
     if (rms_sts != RMS$_NORMAL) {
-	debug(F101,"zchki $open failed, status","",rms_sts);
-	return(-1);
+        debug(F101,"zchki $open failed, status","",rms_sts);
+        return(-1);
     }
     iflen = (((CK_OFF_T)xabfhc_chki.xab$l_ebk-1)*512)+xabfhc_chki.xab$w_ffb;
 
     rms_sts = sys$close(&fab_chki);
     if (!(rms_sts & 1)) vms_lasterr = rms_sts;
     if (rms_sts != RMS$_NORMAL) {
-	debug(F101,"zchki $close failed, status","",rms_sts);
-	return(-1);
+        debug(F101,"zchki $close failed, status","",rms_sts);
+        return(-1);
     }
-    ckstrncpy(nambuf,name,CKMAXPATH);	/* Keep local copy of name */
+    ckstrncpy(nambuf,name,CKMAXPATH);   /* Keep local copy of name */
     debug(F111,"zchki access ok:",name,(int) iflen);
     return( (iflen > -1) ? iflen : 0 );
 }
@@ -2805,8 +2840,8 @@ int
 zchko(name) char *name; {
     extern int zchkod;                  /* Used by IF WRITEABLE */
 
-    struct FAB fab;			/* let RMS do the work */
-    struct NAMX nam;
+    struct FAB fab;                     /* let RMS do the work */
+    struct NAMX_STRUCT nam;
     char expanded_str[NAMX_C_MAXRSS+ 1];
 
     if (!name) return(-1);              /* Watch out for null pointer. */
@@ -2817,23 +2852,20 @@ zchko(name) char *name; {
     fab.FAB_L_NAMX = &nam;              /* Point FAB to NAM[L]. */
 
     /* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    fab.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-    fab.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( fab)
     FAB_OR_NAML( fab, nam).FAB_OR_NAML_FNA = name;
     FAB_OR_NAML( fab, nam).FAB_OR_NAML_FNS = strlen( name);
 
-    fab.fab$l_alq = 1;	       	    /* zero length file may not be writeable */
-    fab.fab$b_fac = FAB$M_BIO | FAB$M_PUT;	 /* block i/o setup faster ? */
-    fab.fab$l_fop = FAB$M_DLT;	   /* TMD does not check directory file perm */
+    fab.fab$l_alq = 1;              /* zero length file may not be writeable */
+    fab.fab$b_fac = FAB$M_BIO | FAB$M_PUT;       /* block i/o setup faster ? */
+    fab.fab$l_fop = FAB$M_DLT;     /* TMD does not check directory file perm */
 
     nam.NAMX_L_ESA = expanded_str;
     nam.NAMX_B_ESS = sizeof( expanded_str)- 1;
 
-    rms_sts = sys$parse(&fab); 			/* check the file spec */
+    rms_sts = sys$parse(&fab);                  /* check the file spec */
     if (!(rms_sts & 1)) {
-        if (rms_sts == RMS$_SYN) {		/* nzrtol may fix */
+        if (rms_sts == RMS$_SYN) {              /* nzrtol may fix */
             debug(F110,"zchko syntax error",name,0);
             return(0);
         } else {
@@ -2841,11 +2873,11 @@ zchko(name) char *name; {
             debug(F111,"zchko parse error",name,rms_sts);
             return(-1);
         }
-    }						/* file oriented device */
+    }                                           /* file oriented device */
     if ((fab.fab$l_dev & DEV$M_NET) || (fab.fab$l_dev & DEV$M_FOD)) {
         *(nam.NAMX_L_VER+ nam.NAMX_B_VER) = '\0';
         debug(F110,"zchko create",expanded_str,0);
-        rms_sts = sys$create(&fab);		/* test write capability */
+        rms_sts = sys$create(&fab);             /* test write capability */
         if (rms_sts & 1) {
             rms_sts = sys$close(&fab);
             return(0);
@@ -2856,9 +2888,9 @@ zchko(name) char *name; {
         }
      } else {
         *(nam.NAMX_L_DIR) = '\0';
-        if (fab.fab$l_dev & DEV$M_REC) { 	/* record-oriented device */
+        if (fab.fab$l_dev & DEV$M_REC) {        /* record-oriented device */
             debug(F110,"zchko non-fod",expanded_str,0);
-            return(0);				/* omit access test */
+            return(0);                          /* omit access test */
         } else {
             debug(F111,"zchko invalid device",expanded_str,fab.fab$l_dev);
             return(-1);
@@ -2891,30 +2923,30 @@ zchkspa(f,n) char *f; CK_OFF_T n; {
     char   *zgtdir();
 
     struct itmlstdef {
-	short int buflen;
-	short int itmcod;
-	char *bufaddr;
-	long int *retlen;
+        short int buflen;
+        short int itmcod;
+        char *bufaddr;
+        long int *retlen;
     };
 
     static char device[64];
 
     struct dsc$descriptor_s
-	dev_desc = {sizeof(device), DSC$K_DTYPE_T, DSC$K_CLASS_S,
-		      (char *)&device};
+        dev_desc = {sizeof(device), DSC$K_DTYPE_T, DSC$K_CLASS_S,
+                      (char *)&device};
     unsigned long freeblocks, devclass, fileblocks;
     long freelength, classlength;
 
     struct itmlstdef itmlst[] =
-	{4,DVI$_FREEBLOCKS,0,0,4,DVI$_DEVCLASS,0,0,0,0,0,0};
+        {4,DVI$_FREEBLOCKS,0,0,4,DVI$_DEVCLASS,0,0,0,0,0,0};
 
     int rms_sts;
 
 /* First, figure out the device we're interested in */
 
-    ckstrncpy(device,zgtdir(),64);	/* Handles default or CWD */
+    ckstrncpy(device,zgtdir(),64);      /* Handles default or CWD */
 
-    if (strchr(f, ':'))			/* If user specified path */
+    if (strchr(f, ':'))                 /* If user specified path */
       ckstrncpy(device, f, 64);
 
     debug(F110,"zchkspa target device is ",device,0);
@@ -2931,10 +2963,10 @@ zchkspa(f,n) char *f; CK_OFF_T n; {
     debug(F101,"zchkspa $getdvi returned rms_sts","",rms_sts);
 
     if (devclass != DC$_DISK)
-      return(1);				/* assume space if not disk */
+      return(1);                                /* assume space if not disk */
 
     if (rms_sts != SS$_NORMAL)
-      return(1);				/* assume free space if err */
+      return(1);                                /* assume free space if err */
 
     debug(F101,"zchkspa $getdvi returned freeblocks","",freeblocks);
 
@@ -2943,12 +2975,12 @@ zchkspa(f,n) char *f; CK_OFF_T n; {
     if (ofile_bmode == XYFT_T)
       n += (n/40) * 3;
 
-    fileblocks = n / 512 + 1;			/* compute file size in blks */
-						/* we may want some fuzz */
+    fileblocks = n / 512 + 1;                   /* compute file size in blks */
+                                                /* we may want some fuzz */
     if (fileblocks >= freeblocks)
-      return(0);				/* Won't fit */
+      return(0);                                /* Won't fit */
     else
-      return(1);				/* Will fit */
+      return(1);                                /* Will fit */
 }
 
 /*  Z D E L E T  --  Delete the named file.  */
@@ -2987,252 +3019,252 @@ nzrtol(name,name2,fncnv,fnrpath,max)
     start = 0;
     tmp = tmpbuf+start;
     {
-	/* Autodetection of path format */
-	int lb = 0, rb = 0, sl = 0, bl = 0;
-	char *p = name;
-	while (*p) {
-	    if (*p == '[' || *p == '<' ) lb++;
-	    if (*p == ']' || *p == '>' ) rb++;
-	    if (*p == ':') colon++;
-	    if (*p == '/') sl++;
-	    if (*p == '\\') bl++;
-	    p++;
-	}
-	if (lb == 1 && rb == 1 && !sl) { /* VMS detected */
-	    fncnv = 0;
-	    debug(F100,"nzrtol VMS brackets detected","",0);
-	} else if (colon == 1 && !sl) { /* VMS detected */
-	    fncnv = 0;
-	    debug(F100,"nzrtol VMS colon detected","",0);
-	} else if (!lb && !rb && sl > 0) { /* UNIX detected */
-	    fncnv = 1;
-	    debug(F101,"nzrtol UNIX slashes detected","",sl);
-	}
+        /* Autodetection of path format */
+        int lb = 0, rb = 0, sl = 0, bl = 0;
+        char *p = name;
+        while (*p) {
+            if (*p == '[' || *p == '<' ) lb++;
+            if (*p == ']' || *p == '>' ) rb++;
+            if (*p == ':') colon++;
+            if (*p == '/') sl++;
+            if (*p == '\\') bl++;
+            p++;
+        }
+        if (lb == 1 && rb == 1 && !sl) { /* VMS detected */
+            fncnv = 0;
+            debug(F100,"nzrtol VMS brackets detected","",0);
+        } else if (colon == 1 && !sl) { /* VMS detected */
+            fncnv = 0;
+            debug(F100,"nzrtol VMS colon detected","",0);
+        } else if (!lb && !rb && sl > 0) { /* UNIX detected */
+            fncnv = 1;
+            debug(F101,"nzrtol UNIX slashes detected","",sl);
+        }
     }
     debug(F101,"nzrtol fncnv","",fncnv);
 
     /* If converting pathnames, convert to VMS format */
 
-    if (fncnv) {			/* Converting, so assume UNIX format */
-	np = name;			/* Set name pointer */
-	*tmp++ = '[';			/* Insert opening VMS bracket */
-	if (*np == '/') {		/* It's an absolute pathname */
-	    np++;			/* Skip past leading slash */
-	} else {			/* Relative pathname */
-	    *tmp++ = '.';		/* Insert '.' here */
-	}
-	while (*np) {			/* Convert to VMS format */
-	    if (*np == '/') {		/* Have directory separator */
-		*tmp = '.';		/* So use this notation in VMS */
-		ls = tmp;		/* Remember position of last slash */
-	    } else {
-		*tmp = *np;
-	    }
-	    np++;
-	    tmp++;
-	}
-	*tmp = NUL;
-	if (ls) {			/* Replace last slash by */
-	    *ls = ']';			/* closing directory bracket */
-	} else {			/* No slashes */
-	    start += 2;			/* So skip past opening "[." */
-	}
-    } else {				/* Assume VMS format already */
+    if (fncnv) {                        /* Converting, so assume UNIX format */
+        np = name;                      /* Set name pointer */
+        *tmp++ = '[';                   /* Insert opening VMS bracket */
+        if (*np == '/') {               /* It's an absolute pathname */
+            np++;                       /* Skip past leading slash */
+        } else {                        /* Relative pathname */
+            *tmp++ = '.';               /* Insert '.' here */
+        }
+        while (*np) {                   /* Convert to VMS format */
+            if (*np == '/') {           /* Have directory separator */
+                *tmp = '.';             /* So use this notation in VMS */
+                ls = tmp;               /* Remember position of last slash */
+            } else {
+                *tmp = *np;
+            }
+            np++;
+            tmp++;
+        }
+        *tmp = NUL;
+        if (ls) {                       /* Replace last slash by */
+            *ls = ']';                  /* closing directory bracket */
+        } else {                        /* No slashes */
+            start += 2;                 /* So skip past opening "[." */
+        }
+    } else {                            /* Assume VMS format already */
 #ifdef COMMENT
 /* No, this would ruin any as-name the sender gave */
 /* "Be conservative in what you send, liberal in what you receive" */
-	int flag = 0;			/* Copy */
-	np = name;			/* But strip node and device */
-	while (*np) {
-	    if (*np == '[')
-	      flag = 1;
-	    if (flag)
-	      *tmp++ = *np;
-	    np++;
-	}
-	if (!flag)
+        int flag = 0;                   /* Copy */
+        np = name;                      /* But strip node and device */
+        while (*np) {
+            if (*np == '[')
+              flag = 1;
+            if (flag)
+              *tmp++ = *np;
+            np++;
+        }
+        if (!flag)
 #endif /* COMMENT */
-	  ckstrncpy(tmp, name, NAMX_C_MAXRSS); /* Just copy */
+          ckstrncpy(tmp, name, NAMX_C_MAXRSS); /* Just copy */
     }
-    tmpbuf[ NAMX_C_MAXRSS] = NUL;	/* Make sure buffer is terminated */
-    tmp = tmpbuf + start;		/* Reset pointer */
-    name = tmp;				/* Treat new string as original arg */
+    tmpbuf[ NAMX_C_MAXRSS] = NUL;       /* Make sure buffer is terminated */
+    tmp = tmpbuf + start;               /* Reset pointer */
+    name = tmp;                         /* Treat new string as original arg */
     debug(F110,"nzrtol tmp 1",tmp,0);
 
     /* Now we have VMS path format in tmpbuf */
 
-    if (fnrpath == PATH_OFF) {		/* RECEIVE PATHNAMES OFF */
-	zstrip(name,&np);
-	ckstrncpy(tmpbuf, np, NAMX_C_MAXRSS);
-	tmp = tmpbuf;
-	debug(F110,"nzrtol PATH_OFF",tmp,0);
-    } else if (fnrpath == PATH_ABS) {	/* RECEIVE PATHNAMES ABSOLUTE */
-	/* Nothing to do */
-	debug(F110,"nzrtol PATH_ABS",tmp,0);
-    } else if (isabsolute(name)) {	/* RECEIVE PATHNAMES RELATIVE */
-	int x;
-	char * bb = NULL;
-	x = strlen(name);
-	debug(F111,"nzrtol converting absolute to relative tmp",tmp,x);
+    if (fnrpath == PATH_OFF) {          /* RECEIVE PATHNAMES OFF */
+        zstrip(name,&np);
+        ckstrncpy(tmpbuf, np, NAMX_C_MAXRSS);
+        tmp = tmpbuf;
+        debug(F110,"nzrtol PATH_OFF",tmp,0);
+    } else if (fnrpath == PATH_ABS) {   /* RECEIVE PATHNAMES ABSOLUTE */
+        /* Nothing to do */
+        debug(F110,"nzrtol PATH_ABS",tmp,0);
+    } else if (isabsolute(name)) {      /* RECEIVE PATHNAMES RELATIVE */
+        int x;
+        char * bb = NULL;
+        x = strlen(name);
+        debug(F111,"nzrtol converting absolute to relative tmp",tmp,x);
 #ifdef COMMENT
-	if (bb = malloc(x+x+1)) {	/* Be safe */
-	    char * b = bb;
-	    np = name;
-	    while (*np) {
-		*b++ = *np;
-		if (*np == '[' && *(np+1) != '.')
-		  *b++ = '.';
-		np++;
-	    }
-	    *b = NUL;
-	    ckstrncpy(tmpbuf, bb, NAMX_C_MAXRSS);
-	    tmp = tmpbuf;
-	    free(bb);
-	}
+        if (bb = malloc(x+x+1)) {       /* Be safe */
+            char * b = bb;
+            np = name;
+            while (*np) {
+                *b++ = *np;
+                if (*np == '[' && *(np+1) != '.')
+                  *b++ = '.';
+                np++;
+            }
+            *b = NUL;
+            ckstrncpy(tmpbuf, bb, NAMX_C_MAXRSS);
+            tmp = tmpbuf;
+            free(bb);
+        }
 #else  /* Not COMMENT - From Lucas Hart, Oct 1999 */
        /* strip any node or device and move in place */
         start = ckindex(":",name,-1,1,1);
-        np = name + start;		/* ptr to name in tmpbuf */
-        bb = tmpbuf;			/* destination */
-	if (tmpbuf[0] == '[') {		/* [179] If it starts with a bracket */
-	    *bb++ = *np++;
-	    if (*np != '.')
-	      *bb++ = '.';		/* make relative */
-	}
+        np = name + start;              /* ptr to name in tmpbuf */
+        bb = tmpbuf;                    /* destination */
+        if (tmpbuf[0] == '[') {         /* [179] If it starts with a bracket */
+            *bb++ = *np++;              
+            if (*np != '.')
+              *bb++ = '.';              /* make relative */
+        }
         memmove(bb,np,strlen(np)+1);    /* safe: tmpbuf[NAMX_C_MAXRSS] = NUL */
         tmp = tmpbuf;
 #endif  /* COMMENT */
-	debug(F110,"nzrtol PATH_REL 1",tmp,0);
-    } else {				/* Ditto */
-	/* Nothing to do - it's already done */
-	debug(F110,"nzrtol PATH_REL 2",tmp,0);
+        debug(F110,"nzrtol PATH_REL 1",tmp,0);
+    } else {                            /* Ditto */
+        /* Nothing to do - it's already done */
+        debug(F110,"nzrtol PATH_REL 2",tmp,0);
     }
     tmpbuf[ NAMX_C_MAXRSS] = NUL;
     debug(F110,"nzrtol tmp 2",tmp,0);
 
-#ifdef COMMENT				/* Not needed for Edit 166 zmkdir */
+#ifdef COMMENT                          /* Not needed for Edit 166 zmkdir */
     /* But wait, there's more... */
     /* Convert relative name to absolute or else zmkdir won't work */
     {
-	char buf2[ NAMX_C_MAXRSS+ 2], *p, *b;
-	int n = 0, flag = 0;
-	np = tmp;			/* Source pointer */
-	b = buf2;			/* Where to put new name */
-	while (*np && n < NAMX_C_MAXRSS) { /* And substitute it; */
-	    *b++ = *np;
-	    n++;
-	    if (*np == '[' && *(np+1) == '.') {
-		p = zgtdir();		/* Get current directory */
-		while (*p && *p != '[')	/* The part inside the brackets */
-		  p++;
-		if (*p = '[') {		/* Substitute it in */
-		    p++;
-		    while (*p && *p != ']') {
-			*b++ = *p++;
-			if (n++ >= NAMX_C_MAXRSS)
-			  break;
-		    }
-		}
-	    }
-	    np++;
-	}
-	*b = NUL;
-	tmp = buf2;
-	debug(F110,"nzrtol tmp 3",tmp,0);
+        char buf2[ NAMX_C_MAXRSS+ 2], *p, *b;
+        int n = 0, flag = 0;
+        np = tmp;                       /* Source pointer */
+        b = buf2;                       /* Where to put new name */
+        while (*np && n < NAMX_C_MAXRSS) { /* And substitute it; */
+            *b++ = *np;
+            n++;
+            if (*np == '[' && *(np+1) == '.') {
+                p = zgtdir();           /* Get current directory */
+                while (*p && *p != '[') /* The part inside the brackets */
+                  p++;
+                if (*p = '[') {         /* Substitute it in */
+                    p++;
+                    while (*p && *p != ']') {
+                        *b++ = *p++;
+                        if (n++ >= NAMX_C_MAXRSS)
+                          break;
+                    }
+                }
+            }
+            np++;
+        }
+        *b = NUL;
+        tmp = buf2;
+        debug(F110,"nzrtol tmp 3",tmp,0);
     }
 #endif /* COMMENT */
-    fncnv = sfncnv;			/* Restore original value of this */
-    if (!fncnv) {			/* Now check it; if not converting */
-	ckstrncpy(name2,tmp,max);	/* We're done. */
-	debug(F110,"nzrtol name2",name2,0);
-	return;
+    fncnv = sfncnv;                     /* Restore original value of this */
+    if (!fncnv) {                       /* Now check it; if not converting */
+        ckstrncpy(name2,tmp,max);       /* We're done. */
+        debug(F110,"nzrtol name2",name2,0);
+        return;
     }
     /* Now convert the characters themselves */
 
     name = tmp;
     for (np = name2; c = *name; name++) {
-	if (islower(c))
-	  c = toupper(c);
-	else if (c == '~' || c == SP)
-	  c = '_';
-	else if (!isalnum(c) && !strchr(spcl_set,c))
-	  c = '$';
-	*np++ = c;
+        if (islower(c))
+          c = toupper(c);
+        else if (c == '~' || c == SP)
+          c = '_';
+        else if (!isalnum(c) && !strchr(spcl_set,c))
+          c = '$';
+        *np++ = c;
     }
-    *np = NUL;				/* End of name */
-    {					/* Now take care of periods. */
-	int x;
-	int ndots = 0;
-	char * ld = NULL;		/* Last dot */
-	char * nld = NULL;		/* Next to last dot */
-	x = strlen(name2) - 1;
-	for (; x >= 0; x--) {		/* Keep only the last one. */
-	    if (name2[x] == ']' ||	/* But only do this */
-		name2[x] == ':' ||	/* in the filename part */
-		name2[x] == '>'
-		)
-	      break;
-	    if (name2[x] == '.') {	/* Turn prior ones to underscore. */
-		ndots++;
-		if (ndots == 1)
-		  ld = name2+x;
-		else if (ndots == 2)
-		  nld = name2+x;
-		else if (ndots > 2)
-		  name2[x] = '_';
-	    }
-	}
+    *np = NUL;                          /* End of name */
+    {                                   /* Now take care of periods. */
+        int x;
+        int ndots = 0;
+        char * ld = NULL;               /* Last dot */
+        char * nld = NULL;              /* Next to last dot */
+        x = strlen(name2) - 1;
+        for (; x >= 0; x--) {           /* Keep only the last one. */
+            if (name2[x] == ']' ||      /* But only do this */
+                name2[x] == ':' ||      /* in the filename part */
+                name2[x] == '>'
+                )
+              break;
+            if (name2[x] == '.') {      /* Turn prior ones to underscore. */
+                ndots++;
+                if (ndots == 1)
+                  ld = name2+x;
+                else if (ndots == 2)
+                  nld = name2+x;
+                else if (ndots > 2)
+                  name2[x] = '_';
+            }
+        }
 /*
   Finally we check to see if the final dot was really a version-number
   introducer; if so, we turn it into a semicolon and keep the next-to-last
   dot, otherwise we replace the next-to-last dot with an underscore.  Then we
   have exactly one dot in the name.
 */
-	if (nld && ld) {		/* We have two dots left */
-	    char *sld = ld;		/* Save position of last one */
-	    ld++;			/* Point past it */
-	    while (*ld <= '9' && *ld >= '0') /* See if only digits follow */
-	      ld++;
-	    if (*ld) {			/* No */
-		*nld = '_';		/* replace previous '.' by '_' */
-	    } else {			/* yes */
-		*sld = ';';		/* replace '.' by ';' */
-	    }
-	}
+        if (nld && ld) {                /* We have two dots left */
+            char *sld = ld;             /* Save position of last one */
+            ld++;                       /* Point past it */
+            while (*ld <= '9' && *ld >= '0') /* See if only digits follow */
+              ld++;
+            if (*ld) {                  /* No */
+                *nld = '_';             /* replace previous '.' by '_' */
+            } else {                    /* yes */
+                *sld = ';';             /* replace '.' by ';' */
+            }
+        }
     }
     debug(F110,"nzrtol name2 1",name2,0);
 
     /* But wait, there's more -- each dotted segment must be <= 39 chars  */
 
     {
-	char buf3[ NAMX_C_MAXRSS+ 2], *p, *b;
-	int n = 0;
-	for (b = buf3, p = name2; *p; p++) {
-	    if (*p == ';'
+        char buf3[ NAMX_C_MAXRSS+ 2], *p, *b;
+        int n = 0;
+        for (b = buf3, p = name2; *p; p++) {
+            if (*p == ';'
 #ifdef VMSVERSIONS
-		&& !vmsrversions
+                && !vmsrversions
 #endif /* VMSVERSIONS */
-		) {			/* Discard version number */
-		if (rdigits(p+1)) {
-		    *b++ = '\0';
-		    break;
-		}
-	    }
-	    if (*p == '.' ||		/* Check for segment boundary */
-		*p == '[' ||
-		*p == ']' ||
-		*p == ':' ||
-		*p == '<' ||
-		*p == '>' ||
-		*p == ';')
-	      n = 0;
-	    if (n < 39) {		/* In segment copy up to 39 chars */
-		*b++ = *p;
-		n++;
-	    }
-	}
-	*b = '\0';
-	ckstrncpy(name2,buf3,max);
+                ) {                     /* Discard version number */
+                if (rdigits(p+1)) {
+                    *b++ = '\0';
+                    break;
+                }
+            }
+            if (*p == '.' ||            /* Check for segment boundary */
+                *p == '[' ||
+                *p == ']' ||
+                *p == ':' ||
+                *p == '<' ||
+                *p == '>' ||
+                *p == ';')
+              n = 0;
+            if (n < 39) {               /* In segment copy up to 39 chars */
+                *b++ = *p;
+                n++;
+            }
+        }
+        *b = '\0';
+        ckstrncpy(name2,buf3,max);
     }
     debug(F110,"nzrtol name2 2",name2,0);
 }
@@ -3251,7 +3283,7 @@ nzltor(name,name2,fncnv,fnspath,cp_len)
     char *cp, *pp;
     int flag;
     struct FAB fab;
-    struct NAMX nam;
+    struct NAMX_STRUCT nam;
     char expanded_name[ NAMX_C_MAXRSS];
     char dirbuf[ NAMX_C_MAXRSS], *p, *q, *q2, *r, *s, *s2;
     int long rms_status;
@@ -3272,10 +3304,7 @@ nzltor(name,name2,fncnv,fnspath,cp_len)
     fab.FAB_L_NAMX = &nam;              /* Point FAB to NAM[L]. */
 
     /* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    fab.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-    fab.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( fab)
     FAB_OR_NAML( fab, nam).FAB_OR_NAML_FNA = name;
     FAB_OR_NAML( fab, nam).FAB_OR_NAML_FNS = strlen( name);
 
@@ -3290,56 +3319,56 @@ nzltor(name,name2,fncnv,fnspath,cp_len)
     if (!CHECK_ERR("%%CKERMIT-W-ZLTOR",sys$parse(&fab)))
       return;
 
-    cp = name2;				/* Point to result */
-    *cp = '\0';				/* Initialize it to empty */
+    cp = name2;                         /* Point to result */
+    *cp = '\0';                         /* Initialize it to empty */
 
     if ((PARSE_NODE & flag) && nam.NAMX_B_NODE && /* DECnet node:: */
-	cur_len+ nam.NAMX_B_NODE < cp_len) {
-	cur_len += nam.NAMX_B_NODE;
-	strncat(cp, nam.NAMX_L_NODE, nam.NAMX_B_NODE);
+        cur_len+ nam.NAMX_B_NODE < cp_len) {
+        cur_len += nam.NAMX_B_NODE;
+        strncat(cp, nam.NAMX_L_NODE, nam.NAMX_B_NODE);
     }
     if ((PARSE_DEVICE & flag) && nam.NAMX_B_DEV && /* Device: */
-		cur_len+ nam.NAMX_B_DEV < cp_len) {
-	cur_len += nam.NAMX_B_DEV;
-	strncat(cp, nam.NAMX_L_DEV, nam.NAMX_B_DEV);
+                cur_len+ nam.NAMX_B_DEV < cp_len) {
+        cur_len += nam.NAMX_B_DEV;
+        strncat(cp, nam.NAMX_L_DEV, nam.NAMX_B_DEV);
     }
 
     /* Directory Name [] */
 
     if ((PARSE_DIRECTORY & flag) && nam.NAMX_B_DIR &&
-		cur_len+ nam.NAMX_B_DIR < cp_len) {
-	int i; char * tmp;
-        q = nam.NAMX_L_DIR;		/* The directory name from RMS */
-	i = nam.NAMX_B_DIR;		/* Length; string not NUL-terminated */
-	debug(F111,"zltor nam$_dir",q,i);
-	if (!q) q = "[]";
-	if (!*q) q = "[]";
-	if (i < 0) i = 0;
-	tmp = NULL;
-	if (i > 0) {			/* Copy directory part */
-	    if (tmp = malloc(i+1)) {
-		p = tmp;
-		for (; i > 0 ; i--)
-		  *p++ = *q++;
-		*p = NUL;
-	    }
-	}
-	q = tmp;
-	debug(F111,"zltor directory part",q,i);
+                cur_len+ nam.NAMX_B_DIR < cp_len) {
+        int i; char * tmp;
+        q = nam.NAMX_L_DIR;             /* The directory name from RMS */
+        i = nam.NAMX_B_DIR;             /* Length; string not NUL-terminated */
+        debug(F111,"zltor nam$_dir",q,i);
+        if (!q) q = "[]";
+        if (!*q) q = "[]";
+        if (i < 0) i = 0;
+        tmp = NULL;
+        if (i > 0) {                    /* Copy directory part */
+            if (tmp = malloc(i+1)) {
+                p = tmp;
+                for (; i > 0 ; i--)
+                  *p++ = *q++;
+                *p = NUL;
+            }
+        }
+        q = tmp;
+        debug(F111,"zltor directory part",q,i);
 
-	s = zgtdir();			/* Get current directory */
-	debug(F110,"zltor zgtdir",s,0);
-	if (!s) s = "[]";
-	if (!*s) s = "[]";
-	s2 = "";
-	while (*s && *s != '[')
-	  s++;
-	if (*s) {
-	    s2 = s+1;
-	    while (*s2 && *s2 != ']') s2++; /* Closing bracket */
-	}
-	if (*s2) if (!*(s2+1)) *(s2+1) = NUL;
-	debug(F110,"zltor current dir",s,0);
+        s = zgtdir();                   /* Get current directory */
+        debug(F110,"zltor zgtdir",s,0);
+        if (!s) s = "[]";
+        if (!*s) s = "[]";
+        s2 = "";
+        while (*s && *s != '[')
+          s++;
+        if (*s) {
+            s2 = s+1;
+            while (*s2 && *s2 != ']') s2++; /* Closing bracket */
+        }
+        if (*s2) if (!*(s2+1)) *(s2+1) = NUL;
+        debug(F110,"zltor current dir",s,0);
 
 /* First change the VMS pathname to relative format if fnspath == PATH_REL */
 
@@ -3347,78 +3376,78 @@ nzltor(name,name2,fncnv,fnspath,cp_len)
  * differ in case from the actual directory spec from sys$parse(), so a
  * case-insensitive comparison is needed here (between *s and *q).
  */
-	p = dirbuf;			/* Result */
-	*p++ = *q++;			/* Copy left bracket and... */
+        p = dirbuf;                     /* Result */
+        *p++ = *q++;                    /* Copy left bracket and... */
 
-	s++;				/* Point past it */
-	q2 = q;				/* Remember this place */
-	if (fnspath == PATH_REL) {	/* Compare this and current dir */
-	    while (((islower( *s) ? toupper( *s) : *s) ==
-	     (islower( *q) ? toupper( *q) : *q)) &&
-	     *s && *q && *s != ']') {
-		s++;
-		q++;
-	    }
-	}
-	if ( (*s != ']' && *q != ']' && *q != '.') ||
+        s++;                            /* Point past it */
+        q2 = q;                         /* Remember this place */
+        if (fnspath == PATH_REL) {      /* Compare this and current dir */
+            while (((islower( *s) ? toupper( *s) : *s) ==
+             (islower( *q) ? toupper( *q) : *q)) &&
+             *s && *q && *s != ']') {
+                s++;
+                q++;
+            }
+        }
+        if ( (*s != ']' && *q != ']' && *q != '.') ||
              (*q == ']' && *s != ']') ) {               /* No match */
-	    p-- ;			/* So rewind source pointer */
-	} else if (*q == ']' && *s == ']') { /* Current directory */
-	    p = dirbuf;			/* So make directory part blank */
-	} else {			/* Not current directory */
-	    while (*q) *p++ = *q++;	/* so copy the rest */
-	}
-	*p = NUL;
-	debug(F110,"zltor result 1",dirbuf,0);
+            p-- ;                       /* So rewind source pointer */
+        } else if (*q == ']' && *s == ']') { /* Current directory */
+            p = dirbuf;                 /* So make directory part blank */
+        } else {                        /* Not current directory */
+            while (*q) *p++ = *q++;     /* so copy the rest */
+        }
+        *p = NUL;
+        debug(F110,"zltor result 1",dirbuf,0);
 /*
    VMS directory name is now in dirbuf in either absolute or relative format.
    Now change it to standard (UNIX) format if desired.
 */
-	p = dirbuf;			/* Working pointer */
-	r = dirbuf;			/* Result pointer */
-	if (dirbuf[0]) {
-	    extern char whoareu[], * cksysid;
-	    /* Converting directory format */
-	    debug(F110,"zltor whoareu",whoareu,0);
-	    debug(F110,"zltor cksysid",cksysid,0);
-	    if (fncnv || (whoareu[0] && strcmp((char *)whoareu,cksysid))) {
-		int xflag = 0;
-		if (p[1] == '.') {	/* Directory name is relative */
-		    r += 2;		/* Point past the leading dot */
-		    p += 2;
-		}
-		while (*p) {		/* Now convert the rest */
-		    if (*p == '.' || *p == '[' || *p == ']') {
-			if (!xflag) *p = '/';
-			if (*p == ']')
-			  xflag = 1;
-		    }
-		    p++;
-		}
-	    }
-	}
-	debug(F110,"zltor result 2",r,0);
-	if (tmp) free(tmp);
-	i = strlen(r);
-	if (i > 0) {
-	    strncat(cp,r,cp_len);
-	    cur_len += i;
-	}
+        p = dirbuf;                     /* Working pointer */
+        r = dirbuf;                     /* Result pointer */
+        if (dirbuf[0]) {
+            extern char whoareu[], * cksysid;
+            /* Converting directory format */
+            debug(F110,"zltor whoareu",whoareu,0);
+            debug(F110,"zltor cksysid",cksysid,0);
+            if (fncnv || (whoareu[0] && strcmp((char *)whoareu,cksysid))) {
+                int xflag = 0;
+                if (p[1] == '.') {      /* Directory name is relative */
+                    r += 2;             /* Point past the leading dot */
+                    p += 2;
+                }
+                while (*p) {            /* Now convert the rest */
+                    if (*p == '.' || *p == '[' || *p == ']') {
+                        if (!xflag) *p = '/';
+                        if (*p == ']')
+                          xflag = 1;
+                    }
+                    p++;
+                }
+            }
+        }
+        debug(F110,"zltor result 2",r,0);
+        if (tmp) free(tmp);
+        i = strlen(r);
+        if (i > 0) {
+            strncat(cp,r,cp_len);
+            cur_len += i;
+        }
     }
     if ((PARSE_NAME & flag) && nam.NAMX_B_NAME &&
-		cur_len+ nam.NAMX_B_NAME < cp_len) {
-	cur_len += nam.NAMX_B_NAME;
-	strncat(cp, nam.NAMX_L_NAME, nam.NAMX_B_NAME);
+                cur_len+ nam.NAMX_B_NAME < cp_len) {
+        cur_len += nam.NAMX_B_NAME;
+        strncat(cp, nam.NAMX_L_NAME, nam.NAMX_B_NAME);
     }
     if ((PARSE_TYPE & flag) && nam.NAMX_B_TYPE &&
-		cur_len+ nam.NAMX_B_TYPE < cp_len) {
-	cur_len += nam.NAMX_B_TYPE;
-	strncat(cp, nam.NAMX_L_TYPE, nam.NAMX_B_TYPE);
+                cur_len+ nam.NAMX_B_TYPE < cp_len) {
+        cur_len += nam.NAMX_B_TYPE;
+        strncat(cp, nam.NAMX_L_TYPE, nam.NAMX_B_TYPE);
     }
     if ((PARSE_VERSION & flag) && nam.NAMX_B_VER &&
-		cur_len+ nam.NAMX_B_VER < cp_len) {
-	cur_len += nam.NAMX_B_VER;
-	strncat(cp, nam.NAMX_L_VER, nam.NAMX_B_VER);
+                cur_len+ nam.NAMX_B_VER < cp_len) {
+        cur_len += nam.NAMX_B_VER;
+        strncat(cp, nam.NAMX_L_VER, nam.NAMX_B_VER);
     }
     if (fncnv && name2[cur_len] == NUL && name2[cur_len-1] == '.')
       name2[cur_len-1] = NUL;
@@ -3442,11 +3471,11 @@ int
 cvtdir(s,s2,len) char * s, * s2; int len; {
     int i, n;
     char dirbuf[ NAMX_C_MAXRSS+ 1];
-    char * p = NULL;			/* Pointer to period */
-    char * o = NULL;			/* Pointer to left bracket */
-    char * r = NULL;			/* Pointer to right bracket */
-    char * v = NULL;			/* Pointer to version */
-    char * c = NULL;			/* Pointer to colon */
+    char * p = NULL;                    /* Pointer to period */
+    char * o = NULL;                    /* Pointer to left bracket */
+    char * r = NULL;                    /* Pointer to right bracket */
+    char * v = NULL;                    /* Pointer to version */
+    char * c = NULL;                    /* Pointer to colon */
     char * q = NULL;
     char * t;
     int xx = NAMX_C_MAXRSS+ 1;
@@ -3482,25 +3511,25 @@ cvtdir(s,s2,len) char * s, * s2; int len; {
             i--;
             continue;
         }
-	if (s[i] == ';')
-	{
-	    if (v == NULL)
-	      v = s+i;                          /* Rightmost semicolon. */
-	}
-	else if (s[i] == '.')
-	{
+        if (s[i] == ';')
+        {
+            if (v == NULL)
+              v = s+i;                          /* Rightmost semicolon. */
+        }
+        else if (s[i] == '.')
+        {
           if (p == NULL)
-	    p = s+i;                            /* Rightmost dot. */
-	}
-	else if (s[i] == ':')
-	  c = s+i;                              /* Leftmost colon. */
-	else if (s[i] == ']' || s[i] == '>')
-	{
-	  if (r == NULL)
-	    r = s+i;                            /* Rightmost dir bracket. */
-	}
-	else if (s[i] == '[' || s[i] == '<')
-	  o = s+i;                              /* Leftmost dir bracket. */
+            p = s+i;                            /* Rightmost dot. */
+        }
+        else if (s[i] == ':')
+          c = s+i;                              /* Leftmost colon. */
+        else if (s[i] == ']' || s[i] == '>')
+        {
+          if (r == NULL)
+            r = s+i;                            /* Rightmost dir bracket. */
+        }
+        else if (s[i] == '[' || s[i] == '<')
+          o = s+i;                              /* Leftmost dir bracket. */
     }
     debug(F110,"cvtdir c",c,0);
     debug(F110,"cvtdir r",r,0);
@@ -3510,22 +3539,22 @@ cvtdir(s,s2,len) char * s, * s2; int len; {
 
     dirbuf[0] = NUL;
 
-    if (c) {				/* Have colon? */
-	*c = NUL;
-	ckstrncat(dirbuf,s,xx);
-	ckstrncat(dirbuf,":",xx);
-	s = c+1;
+    if (c) {                            /* Have colon? */
+        *c = NUL;
+        ckstrncat(dirbuf,s,xx);
+        ckstrncat(dirbuf,":",xx);
+        s = c+1;
     }
     debug(F110,"cvtdir 3",dirbuf,0);
 
-    if (o) {				/* Have opening bracket? */
-	if (r) {
-	    *r = NUL;
-	    s = r+1;
-	    ckstrncat(dirbuf,"[",xx);
-	    ckstrncat(dirbuf,o+1,xx);
-	} else
-	  return(-1);
+    if (o) {                            /* Have opening bracket? */
+        if (r) {
+            *r = NUL;
+            s = r+1;
+            ckstrncat(dirbuf,"[",xx);
+            ckstrncat(dirbuf,o+1,xx);
+        } else
+          return(-1);
     } else
       ckstrncat(dirbuf,"[",xx);
     debug(F110,"cvtdir 4",dirbuf,0);
@@ -3535,15 +3564,15 @@ cvtdir(s,s2,len) char * s, * s2; int len; {
      * bewilder the whole dot search?)
      */
     if (p) {
-	if (((*(p+1) == 'D') || (*(p+1) == 'd')) &&
-	    ((*(p+2) == 'I') || (*(p+2) == 'i')) &&
-	    ((*(p+3) == 'R') || (*(p+3) == 'r')) &&
-	    (*(p+4) == ';' || *(p+4) == '.' || *(p+4) == NUL))
-	  *p = NUL;
-	else
-	  return(-1);
-	ckstrncat(dirbuf,".",xx);
-	ckstrncat(dirbuf,s,xx);
+        if (((*(p+1) == 'D') || (*(p+1) == 'd')) &&
+            ((*(p+2) == 'I') || (*(p+2) == 'i')) &&
+            ((*(p+3) == 'R') || (*(p+3) == 'r')) &&
+            (*(p+4) == ';' || *(p+4) == '.' || *(p+4) == NUL))
+          *p = NUL;
+        else
+          return(-1);
+        ckstrncat(dirbuf,".",xx);
+        ckstrncat(dirbuf,s,xx);
     }
     ckstrncat(dirbuf,"]",xx);
     xx = ckstrncpy(s2,dirbuf,len);
@@ -3552,19 +3581,19 @@ cvtdir(s,s2,len) char * s, * s2; int len; {
 
 #ifdef COMMENT
     if (r && p && v) {
-	if (*(p+1) == 'D' &&
-	    *(p+2) == 'I' &&
-	    *(p+3) == 'R' &&
-	    *(p+4) == ';') {
-	    *r = NUL;
-	    strcpy(q,s);
-	    strcat(q,".");
-	    *p = NUL;
-	    strcat(q,p);
-	    strcat(q,"]");
-	}
-	debug(F110,"cvtdir result",q,0);
-	return(1);
+        if (*(p+1) == 'D' &&
+            *(p+2) == 'I' &&
+            *(p+3) == 'R' &&
+            *(p+4) == ';') {
+            *r = NUL;
+            strcpy(q,s);
+            strcat(q,".");
+            *p = NUL;
+            strcat(q,p);
+            strcat(q,"]");
+        }
+        debug(F110,"cvtdir result",q,0);
+        return(1);
     }
     return(0);
 #endif /* COMMENT */
@@ -3604,50 +3633,50 @@ zchdir(dirnam) char *dirnam; {
     int status;
     struct dsc$descriptor_s indesc;
 
-    if (!dirnam)			/* Watch out for null pointers */
+    if (!dirnam)                        /* Watch out for null pointers */
       dirnam = "";
     debug(F110,"zchdir",dirnam,0);
 
-    if (!*dirnam) {			/* No arg so back to home directory */
+    if (!*dirnam) {                     /* No arg so back to home directory */
 #ifdef COMMENT
-	ckstrcpy(dirbuf, getenv("HOME"), NAMX_C_MAXRSS);
-	dirnam = (char *) dirbuf;
-	debug(F110,"zchdir home","",0);
-	if (!isdir(dirnam))
-	  return(0);
+        ckstrcpy(dirbuf, getenv("HOME"), NAMX_C_MAXRSS);
+        dirnam = (char *) dirbuf;
+        debug(F110,"zchdir home","",0);
+        if (!isdir(dirnam))
+          return(0);
 #else /* def COMMENT */
-	dirnam = "SYS$LOGIN";		/* Supply default */
+        dirnam = "SYS$LOGIN";           /* Supply default */
 #endif /* def COMMENT [else] */
     }
 
-#ifdef COMMENT				/* Why is this commented out? */
+#ifdef COMMENT                          /* Why is this commented out? */
 /* We now assume that dirnam is a valid directory name */
-    status = isdir(dirnam);		/* Preverify to prevent C lib traps */
+    status = isdir(dirnam);             /* Preverify to prevent C lib traps */
     debug(F111,"zchdir isdir 1",dirnam,status);
     x = strlen(dirnam);
-    if (!status) {			/* Not a directory */
-	if (dirnam[0] == '[')
-	  return(0);
-	if (x > 0 && (dirnam[x-1] == ']' || dirnam[x-1] == ':'))
-	  return(0);
-	if (*dirnam == '.')		/* Be nice - is it a subdirectory */
-	  sprintf(dirbuf,"[%s]",dirnam); /* of the current directory? */
-	else
-	  sprintf(dirbuf,"[.%s]",dirnam);
-	status = isdir(dirbuf);
-	debug(F111,"zchdir isdir 2",dirnam,status);
-	if (!status)
-	  return(0);			/* Nope */
-	dirnam = dirbuf;		/* Ayup */
+    if (!status) {                      /* Not a directory */
+        if (dirnam[0] == '[')
+          return(0);
+        if (x > 0 && (dirnam[x-1] == ']' || dirnam[x-1] == ':'))
+          return(0);
+        if (*dirnam == '.')             /* Be nice - is it a subdirectory */
+          sprintf(dirbuf,"[%s]",dirnam); /* of the current directory? */
+        else
+          sprintf(dirbuf,"[.%s]",dirnam);
+        status = isdir(dirbuf);
+        debug(F111,"zchdir isdir 2",dirnam,status);
+        if (!status)
+          return(0);                    /* Nope */
+        dirnam = dirbuf;                /* Ayup */
     } /* ( We should really save "ayup" comments for the Maine program :-) */
 
-    if (status == 2) {			/* It's [FOO]BAR.DIR;1 */
-	/* Must convert to [FOO.BAR] */
-	debug(F111,"zchdir malloc",dirnam,x);
-	if (cvtdir(dirnam, dirbuf, NAMX_C_MAXRSS+ 1) > 0) {
-	    debug(F110,"zchdir cvtdir",dirbuf,0);
-	    dirnam = dirbuf;
-	}
+    if (status == 2) {                  /* It's [FOO]BAR.DIR;1 */
+        /* Must convert to [FOO.BAR] */
+        debug(F111,"zchdir malloc",dirnam,x);
+        if (cvtdir(dirnam, dirbuf, NAMX_C_MAXRSS+ 1) > 0) {
+            debug(F110,"zchdir cvtdir",dirbuf,0);
+            dirnam = dirbuf;
+        }
     }
 #endif /* def COMMENT */
 /*
@@ -3666,36 +3695,36 @@ zchdir(dirnam) char *dirnam; {
   side effect of changing the default directory for the whole job, not just
   C-Kermit and below.
 */
-    if (status == 0) {			/* chdir() worked */
-	return(1);
-    } else {				/* chdir() failed */
-	indesc.dsc$w_length = (int) strlen(dirnam);
-	indesc.dsc$a_pointer = dirnam;
-	indesc.dsc$b_class = DSC$K_CLASS_S;
-	indesc.dsc$b_dtype = DSC$K_DTYPE_T;
-	status = sys$setddir(&indesc, 0, 0);
-	if (!(status & 1)) vms_lasterr = status;
-	debug(F111,"zchdir sys$setddir",dirnam,status);
-	if (status == RMS$_NORMAL) {
-	    setddir = 1;		/* Set this if setddir() ever used */
+    if (status == 0) {                  /* chdir() worked */
+        return(1);
+    } else {                            /* chdir() failed */
+        indesc.dsc$w_length = (int) strlen(dirnam);
+        indesc.dsc$a_pointer = dirnam;
+        indesc.dsc$b_class = DSC$K_CLASS_S;
+        indesc.dsc$b_dtype = DSC$K_DTYPE_T;
+        status = sys$setddir(&indesc, 0, 0);
+        if (!(status & 1)) vms_lasterr = status;
+        debug(F111,"zchdir sys$setddir",dirnam,status);
+        if (status == RMS$_NORMAL) {
+            setddir = 1;                /* Set this if setddir() ever used */
 #ifndef NOSPL
-            if (nmac) {			/* Any macros defined? */
-                int k;			/* Yes */
+            if (nmac) {                 /* Any macros defined? */
+                int k;                  /* Yes */
                 static on_cd = 0;
                 if (!on_cd) {
                     on_cd = 1;
                     k = mlook(mactab,"on_cd",nmac);  /* Look this up */
                     if (k >= 0) {                    /* If found, */
                         if (dodo(k,zgtdir(),0) > -1) /* set it up, */
-			  parser(1);	             /* and execute it */
+                          parser(1);                 /* and execute it */
                     }
                     on_cd = 0;
                 }
             }
 #endif /* NOSPL */
-	    return(1);
-	} else
-	  return(0);
+            return(1);
+        } else
+          return(0);
     }
 }
 
@@ -3741,77 +3770,77 @@ static char relnambuf[CKMAXPATH];
 
 char *
 zrelname(filespec, dir) char *filespec, *dir; {
-    char * xs = filespec;		/* Should be a complete filespec, */
-    char * s = filespec;		/* like DEV:[DIR]NAME.EXT;n. */
-    char * p = dir;			/* Should be complete DEV:[DIR] */
+    char * xs = filespec;               /* Should be a complete filespec, */
+    char * s = filespec;                /* like DEV:[DIR]NAME.EXT;n. */
+    char * p = dir;                     /* Should be complete DEV:[DIR] */
     char * xp = NULL;
     char indir = NUL;
 
     debug(F110,"zrelname filespec",filespec,0);
     debug(F110,"zrelname dir",dir,0);
 
-    for (; *s; s++,p++) {		/* Compare */
-	if (*s == *p) {
-	    if (*s == ':') {		/* End of device portion */
-		xs = s;
-	    } else if (*s == '[') {	/* Begin directory portion */
-		indir = ']';
-	    } else if (*s == '<') {	/* Ditto */
-		indir = '>';
-	    } else if (*s == '.' && indir) { /* End of directory segment */
-		xs = s;			/* Remember it */
-		xp = p;
-	    } else if (*s == indir) {	/* End of directory portion */
-		xs = s;
-		break;
-	    } else if (*p == indir) {
-		xp = p;
-		break;
-	    }
-	    continue;
-	} else if (*s == '.' && indir && *p == indir) {
-	    xp = NULL;
-	    xs = s;
-	} else if (*p == '.' && indir && *s == indir) {
-	    xp = p;
-	    xs = s;
-	}
-	break;
+    for (; *s; s++,p++) {               /* Compare */
+        if (*s == *p) {
+            if (*s == ':') {            /* End of device portion */
+                xs = s;
+            } else if (*s == '[') {     /* Begin directory portion */
+                indir = ']';
+            } else if (*s == '<') {     /* Ditto */
+                indir = '>';
+            } else if (*s == '.' && indir) { /* End of directory segment */
+                xs = s;                 /* Remember it */
+                xp = p;
+            } else if (*s == indir) {   /* End of directory portion */
+                xs = s;
+                break;
+            } else if (*p == indir) {
+                xp = p;
+                break;
+            }
+            continue;
+        } else if (*s == '.' && indir && *p == indir) {
+            xp = NULL;
+            xs = s;
+        } else if (*p == '.' && indir && *s == indir) {
+            xp = p;
+            xs = s;
+        }
+        break;
     }
 
     debug(F110,"zrelname xs",xs,0);
     debug(F110,"zrelname xp",xp,0);
 
-    if (xs == filespec || !*xs) {	/* Nothing to strip */
-	ckstrncpy(relnambuf,filespec,CKMAXPATH);
+    if (xs == filespec || !*xs) {       /* Nothing to strip */
+        ckstrncpy(relnambuf,filespec,CKMAXPATH);
     } else if (xp && (*s != indir || *p != indir)) { /* File is above here */
-	int i, m = 0;
-	char c, * s2 = xp;
-	while (c = *s2++) {
-	    if (c == '.')		/* Count the levels */
-	      m++;
-	    else if (c == indir)
-	      break;
-	}
-	relnambuf[0] = (indir == ']') ? '[' : '<'; /* Emit opening bracket */
-	for (i = 1; i <= m; i++)	/* then the right number of dashes */
-	  relnambuf[i] = '-';
-	ckstrncpy(relnambuf+i,xs,CKMAXPATH-i); /* then the rest. */
-	debug(F110,"zrelnam result 1",relnambuf,0);
-    } else {				/* File is in a subdirectory */
-	switch (*xs) {			/* so we can strip some parts */
-	  case ':':
-	  case ']':
-	  case '>':
-	    ckstrncpy(relnambuf,xs+1,CKMAXPATH);
-	    break;
-	  case '.':
-	    sprintf(relnambuf,"%c%s",(indir == ']') ? '[' : '<',xs);
-	    break;
-	  default:
-	    ckstrncpy(relnambuf,filespec,CKMAXPATH);
-	}
-	debug(F110,"zrelnam result 2",relnambuf,0);
+        int i, m = 0;
+        char c, * s2 = xp;
+        while (c = *s2++) {
+            if (c == '.')               /* Count the levels */
+              m++;
+            else if (c == indir)
+              break;
+        }
+        relnambuf[0] = (indir == ']') ? '[' : '<'; /* Emit opening bracket */
+        for (i = 1; i <= m; i++)        /* then the right number of dashes */
+          relnambuf[i] = '-';
+        ckstrncpy(relnambuf+i,xs,CKMAXPATH-i); /* then the rest. */
+        debug(F110,"zrelnam result 1",relnambuf,0);
+    } else {                            /* File is in a subdirectory */
+        switch (*xs) {                  /* so we can strip some parts */
+          case ':':
+          case ']':
+          case '>':
+            ckstrncpy(relnambuf,xs+1,CKMAXPATH);
+            break;
+          case '.':
+            sprintf(relnambuf,"%c%s",(indir == ']') ? '[' : '<',xs);
+            break;
+          default:
+            ckstrncpy(relnambuf,filespec,CKMAXPATH);
+        }
+        debug(F110,"zrelnam result 2",relnambuf,0);
     }
     return((char *)relnambuf);
 }
@@ -3828,8 +3857,8 @@ zgtdir() {
     static char sysdisk[] = "SYS$DISK";
     char tmp_buf[ NAMX_C_MAXRSS+ 1];
     struct dsc$descriptor_s
-	tmp_buf_dsc = {sizeof(tmp_buf),DSC$K_DTYPE_T,DSC$K_CLASS_S,&tmp_buf},
-	sysdisk_dsc = {sizeof(sysdisk)-1,DSC$K_DTYPE_T,DSC$K_CLASS_S,&sysdisk};
+        tmp_buf_dsc = {sizeof(tmp_buf),DSC$K_DTYPE_T,DSC$K_CLASS_S,&tmp_buf},
+        sysdisk_dsc = {sizeof(sysdisk)-1,DSC$K_DTYPE_T,DSC$K_CLASS_S,&sysdisk};
     unsigned short int buf_len;
 /*
  * Allocate buffer dynamically, first time through.  This makes the image
@@ -3840,24 +3869,24 @@ zgtdir() {
  * Translate device name.
  */
     lib$sys_trnlog(     &sysdisk_dsc,
-			&buf_len,
-			&tmp_buf_dsc,
-			0,
-			0,
-			0);
+                        &buf_len,
+                        &tmp_buf_dsc,
+                        0,
+                        0,
+                        0);
     tmp_buf[buf_len] = '\0';
     ckstrncpy(gtdir_buf, tmp_buf, NAMX_C_MAXRSS);
 /*
  * Get directory name.
  */
-    sys$setddir(	0,	  /* New dir addr */
-			&buf_len, /* length addr */
-			&tmp_buf_dsc);
+    sys$setddir(        0,        /* New dir addr */
+                        &buf_len, /* length addr */
+                        &tmp_buf_dsc);
     tmp_buf[buf_len] = '\0';
     strcat(gtdir_buf,tmp_buf);
 
     return(gtdir_buf);  /* Can't seem to make LINK find getcwd()... */
-			/* (wbader: removed &) */
+                        /* (wbader: removed &) */
 #else /* def OLD_VMS */
     char *getcwd();
     char *buf;
@@ -3873,17 +3902,17 @@ long
 zgpid() {
     unsigned long sts, pid;
     struct itmlstdef {
-	short int buflen;
-	short int itmcod;
-	char *bufaddr;
-	long int *retlen;
+        short int buflen;
+        short int itmcod;
+        char *bufaddr;
+        long int *retlen;
     };
 
 /* Should maybe this be JPI$_PROC_INDEX instead? */
 
     struct itmlstdef itmlst[] = {
-	4, JPI$_PID, NULL, 0,
-	0, 0, 0, 0
+        4, JPI$_PID, NULL, 0,
+        0, 0, 0, 0
     };
     itmlst[0].bufaddr = (char *)&pid;
     sts = sys$getjpiw(0, 0, 0, &itmlst, 0, 0, 0);
@@ -3904,25 +3933,25 @@ zxcmd(filnum, comand) int filnum; char *comand; {
     int one=1;
 
     struct dsc$descriptor_s
-	mbx_desc = {0, DSC$K_DTYPE_T, DSC$K_CLASS_S, 0},
-	cmd_line = {0, DSC$K_DTYPE_T, DSC$K_CLASS_S, 0},
-	inp_desc = {0, DSC$K_DTYPE_T, DSC$K_CLASS_S, 0};
+        mbx_desc = {0, DSC$K_DTYPE_T, DSC$K_CLASS_S, 0},
+        cmd_line = {0, DSC$K_DTYPE_T, DSC$K_CLASS_S, 0},
+        inp_desc = {0, DSC$K_DTYPE_T, DSC$K_CLASS_S, 0};
 
     struct itmlstdef {
-	short int buflen;
-	short int itmcod;
-	char *bufaddr;
-	long int *retlen;
+        short int buflen;
+        short int itmcod;
+        char *bufaddr;
+        long int *retlen;
     };
     struct itmlstdef itmlst[] = {
-	4, JPI$_PID, NULL, 0,
-	0, 0, 0, 0
+        4, JPI$_PID, NULL, 0,
+        0, 0, 0, 0
     };
     itmlst[0].bufaddr = (char *)&pid;
 
     if (nopush) {
-	debug(F100,"zxcmd fails: nopush","",0);
-	return(-1);
+        debug(F100,"zxcmd fails: nopush","",0);
+        return(-1);
     }
     debug(F111,"zxcmd filnum", comand, filnum);
     if (filnum != ZIFILE && filnum != ZRFILE)
@@ -3934,7 +3963,7 @@ zxcmd(filnum, comand) int filnum; char *comand; {
     if (sts != SS$_NORMAL)
       return(0);
 
-    sprintf(mbxnam,"KERMIT$MBX_%08X", (unsigned int)pid);
+    sprintf(mbxnam,"KERMIT$MBX_%08X", pid);
     debug(F110,"zxcmd mailbox logical", mbxnam, 0);
     mbx_desc.dsc$w_length = strlen(mbxnam);
     mbx_desc.dsc$a_pointer = mbxnam;
@@ -3956,7 +3985,7 @@ zxcmd(filnum, comand) int filnum; char *comand; {
     inp_desc.dsc$a_pointer = inpchan;
 
     sts = lib$spawn(&cmd_line, &inp_desc, &mbx_desc, &one, 0, &sub_pid,
-		    &pexitlong, 0, 0, &mbx_chan);
+                    &pexitlong, 0, 0, &mbx_chan);
     if (!(sts & 1)) vms_lasterr = sts;
 
     debug(F101,"zxcmd lib$spawn status", "", sts);
@@ -3964,12 +3993,12 @@ zxcmd(filnum, comand) int filnum; char *comand; {
       return(0);
 
     subprocess_input = 1;
-    ispipe[filnum] = 1;			/* Remember this file is a "pipe" */
+    ispipe[filnum] = 1;                 /* Remember this file is a "pipe" */
 
     sub_count = 0;
-    fp[filnum] = fopen("NLA0:","r");	/* It wants a fp, give it one */
+    fp[filnum] = fopen("NLA0:","r");    /* It wants a fp, give it one */
     debug(F101,"zxcmd fp[filnum]", "", fp[filnum]);
-    fp[ZSYSFN] = fp[filnum];		/* Set ZSYSFN too, so we remember */
+    fp[ZSYSFN] = fp[filnum];            /* Set ZSYSFN too, so we remember */
     return(1);
 }
 
@@ -3980,25 +4009,25 @@ zclosf(filnum) int filnum; {
     unsigned long sts;
 
     if (subprocess_input != 0) {
-	sts = sys$delprc(&sub_pid, 0);
-	if (!(sts & 1)) vms_lasterr = sts;
-	debug(F101,"zclosf sys$delprc status", "", sts);
-	sts = sys$delmbx(mbx_chan);
-	if (!(sts & 1)) vms_lasterr = sts;
-	debug(F101,"zclosf sys$delmbx status", "", sts);
-	sts = sys$dassgn(mbx_chan);
-	if (!(sts & 1)) vms_lasterr = sts;
-	debug(F101,"zclosf sys$dassgn status", "", sts);
-	sub_ptr = sub_buf;		/* flush remaining data */
-	sub_count = 1;
-	*sub_buf = '\0';
-	zincnt = 0;
-	fclose(fp[filnum]);		/* Close the place-holders */
-	fp[filnum] = fp[ZSYSFN] = NULL;
+        sts = sys$delprc(&sub_pid, 0);
+        if (!(sts & 1)) vms_lasterr = sts;
+        debug(F101,"zclosf sys$delprc status", "", sts);
+        sts = sys$delmbx(mbx_chan);
+        if (!(sts & 1)) vms_lasterr = sts;
+        debug(F101,"zclosf sys$delmbx status", "", sts);
+        sts = sys$dassgn(mbx_chan);
+        if (!(sts & 1)) vms_lasterr = sts;
+        debug(F101,"zclosf sys$dassgn status", "", sts);
+        sub_ptr = sub_buf;              /* flush remaining data */
+        sub_count = 1;
+        *sub_buf = '\0';
+        zincnt = 0;
+        fclose(fp[filnum]);             /* Close the place-holders */
+        fp[filnum] = fp[ZSYSFN] = NULL;
     }
     debug(F101,"zxcmd pexitlong","",pexitlong);
-    subprocess_input = 0;		/* Say we're done */
-    pexitstat = (pexitlong & 0x7fff);	/* Set status */
+    subprocess_input = 0;               /* Say we're done */
+    pexitstat = (pexitlong & 0x7fff);   /* Set status */
     return(pexitstat & 1 ? 1 : -1);
 }
 
@@ -4021,15 +4050,15 @@ zxpand(s) char * s; {
     if (!s) s = "";
     x = strlen(s);
     debug(F111,"zxpand",s,x);
-    if (x <= 0)				/* Nothing asked for, */
-      return(0);			/* nothing returned. */
-    fcount = (mtchs == NULL &&	/* Kermit */
-	      (mtchs = (char **)malloc(MAXWLD * sizeof(*mtchs))) == NULL)
+    if (x <= 0)                         /* Nothing asked for, */
+      return(0);                        /* nothing returned. */
+    fcount = (mtchs == NULL &&  /* Kermit */
+              (mtchs = (char **)malloc(MAXWLD * sizeof(*mtchs))) == NULL)
       ? 0
-	: fgen(s,mtchs,MAXWLD);		/* Look up the file. */
+        : fgen(s,mtchs,MAXWLD);         /* Look up the file. */
     if (fcount > 0) {
-	mtchptr = mtchs;		/* Save pointer for next. */
-	debug(F111,"zxpand fcount",mtchs[0],fcount);
+        mtchptr = mtchs;                /* Save pointer for next. */
+        debug(F111,"zxpand fcount",mtchs[0],fcount);
     }
     nxpand = fcount;
     return(fcount);
@@ -4044,8 +4073,8 @@ nzxpand(s,flags) char * s; int flags; {
     xdironly = (x == ZX_DIRONLY);
     xfilonly = (x == ZX_FILONLY);
     if (xdironly && xfilonly) {
-	xdironly = 0;
-	xfilonly = 0;
+        xdironly = 0;
+        xfilonly = 0;
     }
     xrecursive = (flags & ZX_RECURSE);
     xnobackup  = (flags & ZX_NOBACKUP);
@@ -4102,13 +4131,13 @@ znewn(fn,s) char *fn, **s; {
     x = strlen(fn) - 1;
     ckstrncpy(buf, fn, NAMX_C_MAXRSS);
     while (x >= 0) {
-	if (buf[x] == ';') {
-	    v = atol(buf+x+1);
-	    sprintf(buf+x+1,"%ld",v+1);
-	    flag = 1;
-	    break;
-	}
-	x--;
+        if (buf[x] == ';') {
+            v = atol(buf+x+1);
+            sprintf(buf+x+1,"%ld",v+1);
+            flag = 1;
+            break;
+        }
+        x--;
     }
     if (!flag) strcat(buf,";0");
     *s = buf;
@@ -4125,9 +4154,9 @@ getvnum(fn) char * fn; {
     int rc = -1;
     char * p;
     struct dsc$descriptor_s
-	file_spec = {0,DSC$K_DTYPE_T,DSC$K_CLASS_S,0},
-	result = {0,DSC$K_DTYPE_T,DSC$K_CLASS_D,0},
-	deflt = {0,DSC$K_DTYPE_T,DSC$K_CLASS_S,0};
+        file_spec = {0,DSC$K_DTYPE_T,DSC$K_CLASS_S,0},
+        result = {0,DSC$K_DTYPE_T,DSC$K_CLASS_D,0},
+        deflt = {0,DSC$K_DTYPE_T,DSC$K_CLASS_S,0};
     unsigned long context = 0, status;
 
     file_spec.dsc$w_length  = strlen(fn);
@@ -4135,23 +4164,23 @@ getvnum(fn) char * fn; {
 
     status = lib$find_file(&file_spec, &result, &context, &deflt);
     if (status == RMS$_NORMAL) {
-	if (!(status & 1)) {
-	    vms_lasterr = status;
-	    debug(F101,"getvnum error", fn, status);
-	} else if (result.dsc$a_pointer) {
-	    debug(F111,"getvnum", result.dsc$a_pointer, result.dsc$w_length);
-	    p = strchr(result.dsc$a_pointer,';');
-	    if (p) {
-		if (*(p+1)) {
-		    if (rdigits(p+1)) {
-			rc = atoi(p+1);
-		    }
-		}
-	    }
-	}
+        if (!(status & 1)) {
+            vms_lasterr = status;
+            debug(F101,"getvnum error", fn, status);
+        } else if (result.dsc$a_pointer) {
+            debug(F111,"getvnum", result.dsc$a_pointer, result.dsc$w_length);
+            p = strchr(result.dsc$a_pointer,';');
+            if (p) {
+                if (*(p+1)) {
+                    if (rdigits(p+1)) {
+                        rc = atoi(p+1);
+                    }
+                }
+            }
+        }
     }
 #ifdef DVI$_ALT_HOST_TYPE
-    lib$find_file_end(&context);	/* Only on VMS V4 and later */
+    lib$find_file_end(&context);        /* Only on VMS V4 and later */
 #endif /* DVI$_ALT_HOST_TYPE */
     return(rc);
 }
@@ -4170,7 +4199,7 @@ zfnqfp(fn, buflen, buf)  char * fn; int buflen; char * buf; {
     static struct zfnfp fnfp;
 
     struct FAB fab;
-    struct NAMX nam;
+    struct NAMX_STRUCT nam;
     char expanded_name[NAMX_C_MAXRSS];
     char tmpnam[NAMX_C_MAXRSS+ 16];
     int long rms_status;
@@ -4186,13 +4215,13 @@ zfnqfp(fn, buflen, buf)  char * fn; int buflen; char * buf; {
 #ifdef COMMENT
     /* This works but it messes up LOG commands, etc. */
     if (!strchr(cp,';')) {
-	int v;
-	v = getvnum(cp);
-	if (v > 0) {
-	    sprintf(tmpnam,"%s;%d",cp,v);
-	    cp = tmpnam;
-	    debug(F111,"zfnqfp getvnum",cp,v);
-	}
+        int v;
+        v = getvnum(cp);
+        if (v > 0) {
+            sprintf(tmpnam,"%s;%d",cp,v);
+            cp = tmpnam;
+            debug(F111,"zfnqfp getvnum",cp,v);
+        }
     }
 #endif /* COMMENT */
 
@@ -4207,10 +4236,7 @@ zfnqfp(fn, buflen, buf)  char * fn; int buflen; char * buf; {
     fab.FAB_L_NAMX = &nam;              /* Point the FAB to the NAM[L]. */
 
     /* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    fab.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-    fab.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( fab)
     FAB_OR_NAML( fab, nam).FAB_OR_NAML_FNA = cp;
     FAB_OR_NAML( fab, nam).FAB_OR_NAML_FNS = strlen( cp);
 
@@ -4232,7 +4258,7 @@ zfnqfp(fn, buflen, buf)  char * fn; int buflen; char * buf; {
         return(NULL);
     }
     cp = buf;
-    *cp = '\0';			/* Make a zero length string */
+    *cp = '\0';                 /* Make a zero length string */
     fnfp.fpath = cp;
     if (nam.NAMX_B_NODE && nam.NAMX_B_NODE < cp_len) /* Node */
       cur_len = nam.NAMX_B_NODE;
@@ -4241,8 +4267,8 @@ zfnqfp(fn, buflen, buf)  char * fn; int buflen; char * buf; {
     if (nam.NAMX_B_DIR && cur_len+ nam.NAMX_B_DIR < cp_len) /* Directory */
       cur_len += nam.NAMX_B_DIR;
     if (nam.NAMX_B_NAME && cur_len+nam.NAMX_B_NAME < cp_len) { /* Name */
-	fnfp.fname = buf + cur_len;
-	cur_len += nam.NAMX_B_NAME;
+        fnfp.fname = buf + cur_len;
+        cur_len += nam.NAMX_B_NAME;
     }
     if (nam.NAMX_B_TYPE && cur_len+ nam.NAMX_B_TYPE < cp_len) /* Extension */
       cur_len += nam.NAMX_B_TYPE;
@@ -4251,10 +4277,10 @@ zfnqfp(fn, buflen, buf)  char * fn; int buflen; char * buf; {
     strncat(cp, nam.NAMX_L_NODE, cur_len);
     debug(F111,"zfnqfp 2",buf,cur_len);
     if (cur_len > 1) {
-	if (buf[cur_len-1] == ';' && buf[cur_len-2] == '.') {
-	    buf[cur_len-2] = NUL;
-	    cur_len -= 2;
-	}
+        if (buf[cur_len-1] == ';' && buf[cur_len-2] == '.') {
+            buf[cur_len-2] = NUL;
+            cur_len -= 2;
+        }
     }
     fnfp.len = cur_len;
     debug(F111,"zfnqfp 3",buf,cur_len);
@@ -4277,16 +4303,16 @@ zfnqfp(fn, buflen, buf)  char * fn; int buflen; char * buf; {
  *        length of the array.
  * Returns: the number of matches.  The array is filled with filenames
  *          that matched the pattern.  If there wasn't enough room in the
- *	    array, -1 is returned.
+ *          array, -1 is returned.
  */
 int
 fgen(pat,resarry,len) char *pat, *resarry[]; int len; {
     char * p, * f;
     int i, x, y;
     struct dsc$descriptor_s
-	file_spec = {0,DSC$K_DTYPE_T,DSC$K_CLASS_S,0},
-	result = {0,DSC$K_DTYPE_T,DSC$K_CLASS_D,0},
-	deflt = {0,DSC$K_DTYPE_T,DSC$K_CLASS_S,0};
+        file_spec = {0,DSC$K_DTYPE_T,DSC$K_CLASS_S,0},
+        result = {0,DSC$K_DTYPE_T,DSC$K_CLASS_D,0},
+        deflt = {0,DSC$K_DTYPE_T,DSC$K_CLASS_S,0};
     unsigned long context = 0, status;
     int count = 0;
     char *def_str = "*.*";
@@ -4296,17 +4322,17 @@ fgen(pat,resarry,len) char *pat, *resarry[]; int len; {
 
     debug(F101,"fgen len","",len);
 
-    if (!mtchsinit) {			/* Initialize filename array */
-	mtchsinit = 1;
-	for (i = 0; i < MAXWLD; i++)
-	  mtchs[i] = NULL;
+    if (!mtchsinit) {                   /* Initialize filename array */
+        mtchsinit = 1;
+        for (i = 0; i < MAXWLD; i++)
+          mtchs[i] = NULL;
     } else {
-	for (i = 0; i < lastcount; i++) { /* Free previous filenames */
-	    if (resarry[i]) {
-		free(resarry[i]);
-		resarry[i] = NULL;
-	    }
-	}
+        for (i = 0; i < lastcount; i++) { /* Free previous filenames */
+            if (resarry[i]) {
+                free(resarry[i]);
+                resarry[i] = NULL;
+            }
+        }
     }
     debug(F111,"fgen pat",pat,xrecursive);
     debug(F101,"fgen xdironly","",xdironly);
@@ -4316,77 +4342,77 @@ fgen(pat,resarry,len) char *pat, *resarry[]; int len; {
     /* If recursive search requested stuff "..." into the directory name */
 
     if (xrecursive && !ckindex("...",pat,0,0,1)) {
-	if (zfnqfp(pat, NAMX_C_MAXRSS, patbuf)) {
-	    int x;
-	    char * p;
-	    x = strlen(patbuf);
-	    debug(F110,"fgen patbuf 1",patbuf,x);
-	    if (x > 0) {
-		p = patbuf + x - 1;
-		*(p+4) = '\0';
-		while (*p) {
-		    *(p+3) = *p;
-		    if (*p == ']' || *p == '>') {
-			*(p+2) = '.';
-			*(p+1) = '.';
-			*p = '.';
-			break;
-		    }
-		    p--;
-		}
-		debug(F110,"fgen patbuf 2",patbuf,x);
-		pat = patbuf;
-	    }
-	}
+        if (zfnqfp(pat, NAMX_C_MAXRSS, patbuf)) {
+            int x;
+            char * p;
+            x = strlen(patbuf);
+            debug(F110,"fgen patbuf 1",patbuf,x);
+            if (x > 0) {
+                p = patbuf + x - 1;
+                *(p+4) = '\0';
+                while (*p) {
+                    *(p+3) = *p;
+                    if (*p == ']' || *p == '>') {
+                        *(p+2) = '.';
+                        *(p+1) = '.';
+                        *p = '.';
+                        break;
+                    }
+                    p--;
+                }
+                debug(F110,"fgen patbuf 2",patbuf,x);
+                pat = patbuf;
+            }
+        }
     }
     file_spec.dsc$w_length  = strlen(pat);
     file_spec.dsc$a_pointer = pat;
 
-    x = file_spec.dsc$w_length -1;	/* kludge to keep zero length name */
-    p = def_str;				/* "[foo]"  -> "[foo]*.*" */
+    x = file_spec.dsc$w_length -1;      /* kludge to keep zero length name */
+    p = def_str;                                /* "[foo]"  -> "[foo]*.*" */
     if (pat[x] != ']' && pat[x] != '>')
-      p++;					/* "[foo]." -> "[foo].*"  */
+      p++;                                      /* "[foo]." -> "[foo].*"  */
     deflt.dsc$w_length  = strlen(p);
     deflt.dsc$a_pointer = p;
 
     while (count < len
-	   && (status = lib$find_file(&file_spec, &result, &context, &deflt))
-		== RMS$_NORMAL) {
-	if (!(status & 1)) vms_lasterr = status;
-	f = tmpbuf;
-	strncpy(f, result.dsc$a_pointer, result.dsc$w_length);
-	tmpbuf[result.dsc$w_length] = '\0';
-	x = isdir(tmpbuf);
-	debug(F111,"fgen isdir",f,x);
-	if (x != 0 && xfilonly)		/* Want files only and not a file */
-	  continue;
-	if (x == 0 && xdironly)		/* Want dirs only but not a dir */
-	  continue;
-	if (xdironly) {
-	    if (x == 2) {
-		y = cvtdir(tmpbuf, (char *)dirbuf, NAMX_C_MAXRSS+ 1);
-		if (y > 0) f = dirbuf;
-	    }
-	}
-	resarry[count] = malloc((int) strlen(f) + 1);
-	if (resarry[count]) {
-	    strcpy(resarry[count], f);
-	    count++;
-	    lastcount = count;
-	} else {
-	    debug(F100,"fgen malloc failure","",0);
-	    return(-1);
-	}
+           && (status = lib$find_file(&file_spec, &result, &context, &deflt))
+                == RMS$_NORMAL) {
+        if (!(status & 1)) vms_lasterr = status;
+        f = tmpbuf;
+        strncpy(f, result.dsc$a_pointer, result.dsc$w_length);
+        tmpbuf[result.dsc$w_length] = '\0';
+        x = isdir(tmpbuf);
+        debug(F111,"fgen isdir",f,x);
+        if (x != 0 && xfilonly)         /* Want files only and not a file */
+          continue;
+        if (x == 0 && xdironly)         /* Want dirs only but not a dir */
+          continue;
+        if (xdironly) {
+            if (x == 2) {
+                y = cvtdir(tmpbuf, (char *)dirbuf, NAMX_C_MAXRSS+ 1);
+                if (y > 0) f = dirbuf;
+            }
+        }
+        resarry[count] = malloc((int) strlen(f) + 1);
+        if (resarry[count]) {
+            strcpy(resarry[count], f);
+            count++;
+            lastcount = count;
+        } else {
+            debug(F100,"fgen malloc failure","",0);
+            return(-1);
+        }
     }
 #ifdef DVI$_ALT_HOST_TYPE
-    lib$find_file_end(&context);	/* Only on VMS V4 and later */
+    lib$find_file_end(&context);        /* Only on VMS V4 and later */
 #endif /* DVI$_ALT_HOST_TYPE */
 
     lib$sfree1_dd(&result);
 
-    if (status == RMS$_FNF)		/* File Not Found */
+    if (status == RMS$_FNF)             /* File Not Found */
       return((count <= len) ? 0 : -1);
-    if (status == RMS$_NMF)		/* No More Found */
+    if (status == RMS$_NMF)             /* No More Found */
       return(count);
     /* Bernd Onasch says that VMS sometimes returns RMS$_NORMAL here, so... */
     if (status == RMS$_NORMAL)
@@ -4446,7 +4472,7 @@ zcopy(source,destination) char *source, *destination; {
     int  rc, n;
     unsigned long int sts;
     unsigned long int options[] = {2,1,1}; /* CONV$ options CREATE SHARE */
-    char *p, buf[ NAMX_C_MAXRSS+ 1];	/* File name buffer */
+    char *p, buf[ NAMX_C_MAXRSS+ 1];    /* File name buffer */
 
 
     struct dsc$descriptor_s  ifd = {0,DSC$K_DTYPE_T,DSC$K_CLASS_S,0};
@@ -4461,39 +4487,39 @@ zcopy(source,destination) char *source, *destination; {
 #endif /* CK_LOGIN */
 
     switch (zchki(src)) {
-        case -1 : return(-3);	/* not found or not accessible */
-        case -2 : return(-2);	/* a directory file */
-        case -3 : return(-4);	/* no read permission */
+        case -1 : return(-3);   /* not found or not accessible */
+        case -2 : return(-2);   /* a directory file */
+        case -3 : return(-4);   /* no read permission */
     }
 
 /* If destination is a directory name, append the source file name */
 
     switch (isdir(dst)) {
       case 0:
-	debug(F100,"zcopy destination is not a directory","",0);
-	break;
+        debug(F100,"zcopy destination is not a directory","",0);
+        break;
       case 2:
-	debug(F100,"zcopy destination is a directory file","",0);
-	return(-7);
+        debug(F100,"zcopy destination is a directory file","",0);
+        return(-7);
       case 1: {
-	  char *q = NULL;
-	  debug(F100,"zcopy destination is a directory spec","",0);
-	  zstrip(src,&q);
-	  n = strlen(dst);
-	  if (strlen(q) + n < sizeof(buf)) {
-	      ckstrncpy(buf, dst, NAMX_C_MAXRSS); /* dst dir */
-	      p = buf + n - 1;
-	      if (*p != ']' && *p != '>' && *p != ':' )
-		*(++p) = ':';		/* logical w/o ":" */
-	      strcpy(++p,q);		/* nam from src */
-	      dst = buf;
-	      debug(F110,"zcopy dst result",dst,0);
-	      strcpy(destination,dst);
-	      break;
-	  } else {
-	      debug(F100,"zcopy dir+name overflow","",0);
-	      return(-7);
-	  }
+          char *q = NULL;
+          debug(F100,"zcopy destination is a directory spec","",0);
+          zstrip(src,&q);
+          n = strlen(dst);
+          if (strlen(q) + n < sizeof(buf)) {
+              ckstrncpy(buf, dst, NAMX_C_MAXRSS); /* dst dir */
+              p = buf + n - 1;
+              if (*p != ']' && *p != '>' && *p != ':' )
+                *(++p) = ':';           /* logical w/o ":" */
+              strcpy(++p,q);            /* nam from src */
+              dst = buf;
+              debug(F110,"zcopy dst result",dst,0);
+              strcpy(destination,dst);
+              break;
+          } else {
+              debug(F100,"zcopy dir+name overflow","",0);
+              return(-7);
+          }
       }
     }
     ifd.dsc$a_pointer = src;
@@ -4503,8 +4529,8 @@ zcopy(source,destination) char *source, *destination; {
 
     sts = conv$pass_files(&ifd, &ofd);
     if (sts != SS$_NORMAL) {
-	debug(F101,"zcopy conv$pass_files error","", sts);
-	return(-1);
+        debug(F101,"zcopy conv$pass_files error","", sts);
+        return(-1);
     }
 /*
   CONV option CREATE limits zcopy dst to a new file; to overwrite
@@ -4522,27 +4548,27 @@ zcopy(source,destination) char *source, *destination; {
     if (sts != SS$_NORMAL) {
         debug(F101,"zcopy conv$convert error","", sts);
         switch (sts & STS$M_CODE) {
-	  case SHR$_OPENOUT:
-	    rc = -7;
-	    break;
-	  case SHR$_OPENIN:
-	    rc = -4;
-	    break;
-	  case SHR$_READERR || SHR$_WRITEERR:
-	    rc = -6;
-	    break;
-	  default : rc = -1;
-	}
+          case SHR$_OPENOUT:
+            rc = -7;
+            break;
+          case SHR$_OPENIN:
+            rc = -4;
+            break;
+          case SHR$_READERR || SHR$_WRITEERR:
+            rc = -6;
+            break;
+          default : rc = -1;
+        }
     } else
       rc = 0;
     debug(F101,"zcopy status","",rc);
 
 #ifdef CKSYSLOG
     if (rc > -1 && ckxsyslog >= SYSLG_FC && ckxlogging) {
-	if (rc)
-	  syslog(LOG_INFO,"file[] %s: copy to %s failed (%u)", src, dst, sts);
-	else
-	  syslog(LOG_INFO,"file[] %s: copy to %s ok", src, dst);
+        if (rc)
+          syslog(LOG_INFO,"file[] %s: copy to %s failed (%u)", src, dst, sts);
+        else
+          syslog(LOG_INFO,"file[] %s: copy to %s ok", src, dst);
     }
 #endif /* CKSYSLOG */
 
@@ -4597,7 +4623,7 @@ zfcdat(name) char *name; {
         *name &&
         stat(name,&statbuf) != -1 &&
 #ifdef COMMENT
-	/* Modification date/time */
+        /* Modification date/time */
         (tm = localtime((const time_t *)&statbuf.st_mtime)))
 #else
         /* Creation date/time */
@@ -4635,219 +4661,214 @@ int
 zstime(f,yy,x) char *f; struct zattr *yy; int x; {
     int rms_sts;
     unsigned short attr_pro = 0;
-    static char cdate[24];	      /* File date yyyy-mm-dd hh:mm:ss.00 */
+    static char cdate[24];            /* File date yyyy-mm-dd hh:mm:ss.00 */
     static char mnum[2];
     struct dsc$descriptor_s
-	bintim_desc = {sizeof(cdate) - 1, DSC$K_DTYPE_T, DSC$K_CLASS_S,
-			 (char *)&cdate};
+        bintim_desc = {sizeof(cdate) - 1, DSC$K_DTYPE_T, DSC$K_CLASS_S,
+                         (char *)&cdate};
     unsigned long file_date[2], attr_date[2];
     char *dptr;
     int setperms = 0;
     int setdate = 0;
 #ifdef DEBUG
-    char xbuf[24];			/* Hex buffer for debugging only */
+    char xbuf[24];                      /* Hex buffer for debugging only */
 #endif /* DEBUG */
 
     debug(F111,"zstime entry",f,x);
-    if (yy->date.len == 0) {		/* No date in struct */
-	if (yy->lprotect.len != 0) {	/* So go do permissions */
-	    goto zsperms;
-	} else {
-	    debug(F100,"zstime: nothing to do","",0);
-	    return(0);
-	}
+    if (yy->date.len == 0) {            /* No date in struct */
+        if (yy->lprotect.len != 0) {    /* So go do permissions */
+            goto zsperms;
+        } else {
+            debug(F100,"zstime: nothing to do","",0);
+            return(0);
+        }
     }
 
 /* First, make a system quadword date from our attribute struct parameter */
 
     dptr = yy->date.val;
     strncpy(cdate,"dd-mmm-yyyy 00:00:00.00",24);
-    attr_date[0]=0;			/* Clear time in case of error */
+    attr_date[0]=0;                     /* Clear time in case of error */
     attr_date[1]=0;
-    strncpy(cdate+7, dptr, 4);		/* yyyy */
+    strncpy(cdate+7, dptr, 4);          /* yyyy */
     dptr += 4;
     strncpy(mnum, dptr, 2);
     strncpy(cdate+3, mth[atoi(mnum)-1], 3); /* mm */
     dptr += 2;
-    strncpy(cdate, dptr, 2);		/* dd */
+    strncpy(cdate, dptr, 2);            /* dd */
     dptr += 3;
-    strncpy(cdate+12, dptr, 8);		/* hhmmss */
-    cdate[23] = '\0';			/* terminate */
+    strncpy(cdate+12, dptr, 8);         /* hhmmss */
+    cdate[23] = '\0';                   /* terminate */
     rms_sts = sys$bintim(&bintim_desc, &attr_date); /* Convert to internal */
     if (!(rms_sts & 1)) vms_lasterr = rms_sts;
-    if (rms_sts != SS$_NORMAL) {		    /* time format */
-	debug(F111,"zstime - $bintim returns",cdate,rms_sts);
-	return(-1);
+    if (rms_sts != SS$_NORMAL) {                    /* time format */
+        debug(F111,"zstime - $bintim returns",cdate,rms_sts);
+        return(-1);
     }
     debug(F110,"zstime built",cdate,0);
-    sprintf(cdate, "%08X%08X",
-	    (unsigned int)attr_date[1], (unsigned int)attr_date[0]);
+    sprintf(cdate, "%08X%08X", attr_date[1], attr_date[0]);
     debug(F110,"zstime $bintim attr_date", cdate, 0);
     setdate = 1;
 
-  zsperms:				/* File protection */
-    if (x != 1) {			/* We're not just comparing dates... */
-	int i, xx, flag = 0;
-	char * s;
+  zsperms:                              /* File protection */
+    if (x != 1) {                       /* We're not just comparing dates... */
+        int i, xx, flag = 0;
+        char * s;
 #ifdef DEBUG
-	if (deblog) {
-	    debug(F111,"zstime lperms",yy->lprotect.val,yy->lprotect.len);
-	    debug(F111,"zstime gperms",yy->gprotect.val,yy->gprotect.len);
-	    debug(F110,"zstime system id",yy->systemid.val,0);
-	    sprintf(xbuf,"%X",xabpro_ofile.xab$w_pro);
-	    debug(F110,"zstime xabpro_ofile.xab$w_pro 1",xbuf,0);
-	}
+        if (deblog) {
+            debug(F111,"zstime lperms",yy->lprotect.val,yy->lprotect.len);
+            debug(F111,"zstime gperms",yy->gprotect.val,yy->gprotect.len);
+            debug(F110,"zstime system id",yy->systemid.val,0);
+            sprintf(xbuf,"%X",xabpro_ofile.xab$w_pro);
+            debug(F110,"zstime xabpro_ofile.xab$w_pro 1",xbuf,0);
+        }
 #endif /* DEBUG */
-	if ((yy->lprotect.len > 0 &&	/* Have sys-dependent permissions */
-	     yy->systemid.len > 0 &&	/* from A-packet... */
-	     !strcmp(yy->systemid.val,"D7"))) { /* AND you are VMS like me */
-	    attr_pro = 0;
-	    flag = 1;
-	    s = yy->lprotect.val;	/* VMS protections */
-	    xx = yy->lprotect.len;
-	    if (xx < 0)			/* Length < 0 means inheritance */
-	      xx = 0 - xx;		/* (ignored in VMS) */
-	    if (xx > 4) {		/* Bad format - must be 4 bytes */
-		flag = 0;
-	    } else {
-		for (i = 0; i < xx; i++) {	/* Decode hex string */
-		    if (*s <= '9' && *s >= '0') {
-			attr_pro = 16 * attr_pro + (int)(*s) - '0';
-		    } else if ((*s <= 'F' && *s >= 'A')) {
-			attr_pro = 16 * attr_pro + 10 + (int)(*s) - 'A';
-		    } else if ((*s <= 'f' && *s >= 'a')) {
-			attr_pro = 16 * attr_pro + 10 + (int)(*s) - 'a';
-		    } else {
-			flag = 0;
-			break;
-		    }
-		    s++;
-		}
-	    }
+        if ((yy->lprotect.len > 0 &&    /* Have sys-dependent permissions */
+             yy->systemid.len > 0 &&    /* from A-packet... */
+             !strcmp(yy->systemid.val,"D7"))) { /* AND you are VMS like me */
+            attr_pro = 0;
+            flag = 1;
+            s = yy->lprotect.val;       /* VMS protections */
+            xx = yy->lprotect.len;
+            if (xx < 0)                 /* Length < 0 means inheritance */
+              xx = 0 - xx;              /* (ignored in VMS) */
+            if (xx > 4) {               /* Bad format - must be 4 bytes */
+                flag = 0;
+            } else {
+                for (i = 0; i < xx; i++) {      /* Decode hex string */
+                    if (*s <= '9' && *s >= '0') {
+                        attr_pro = 16 * attr_pro + (int)(*s) - '0';
+                    } else if ((*s <= 'F' && *s >= 'A')) {
+                        attr_pro = 16 * attr_pro + 10 + (int)(*s) - 'A';
+                    } else if ((*s <= 'f' && *s >= 'a')) {
+                        attr_pro = 16 * attr_pro + 10 + (int)(*s) - 'a';
+                    } else {
+                        flag = 0;
+                        break;
+                    }
+                    s++;
+                }
+            }
 #ifdef DEBUG
-	    if (deblog) {
-		debug(F101,"zstime VMS local protection flag","",flag);
-		sprintf(xbuf,"%X",attr_pro);
-		debug(F111,"zstime VMS local protection",xbuf,attr_pro);
-	    }
+            if (deblog) {
+                debug(F101,"zstime VMS local protection flag","",flag);
+                sprintf(xbuf,"%X",attr_pro);
+                debug(F111,"zstime VMS local protection",xbuf,attr_pro);
+            }
 #endif /* DEBUG */
-	} else if (!flag && yy->gprotect.len > 0) { /* Systems differ */
-	    int g;			            /* Use the generic one */
-	    unsigned long dfpro = 0L, mask = 0L;
-	    unsigned short tmp;
-	    tmp = xabpro_ofile.xab$w_pro;
-	    rms_sts = sys$setdfprot(0,&dfpro); /* Get default protection */
-	    if (!(rms_sts & 1)) vms_lasterr = rms_sts;
+        } else if (!flag && yy->gprotect.len > 0) { /* Systems differ */
+            int g;                                  /* Use the generic one */
+            unsigned long dfpro = 0L, mask = 0L;
+            unsigned short tmp;
+            tmp = xabpro_ofile.xab$w_pro;
+            rms_sts = sys$setdfprot(0,&dfpro); /* Get default protection */
+            if (!(rms_sts & 1)) vms_lasterr = rms_sts;
 #ifdef DEBUG
-	    if (deblog) {
-		sprintf(xbuf,"%X",(unsigned int)dfpro);
-		debug(F111,"zstime sys$setdfprot",xbuf,rms_sts);
-	    }
+            if (deblog) {
+                sprintf(xbuf,"%X",dfpro);
+                debug(F111,"zstime sys$setdfprot",xbuf,rms_sts);
+            }
 #endif /* DEBUG */
-	    if (rms_sts & 1)		/* Succeeded so use it */
-	      tmp = dfpro;
-	    tmp &= 0xff0f;		/* But remove Owner field */
+            if (rms_sts & 1)            /* Succeeded so use it */
+              tmp = dfpro;
+            tmp &= 0xff0f;              /* But remove Owner field */
 
 /* Convert generic protection to number and translate to internal VMS form */
 
-	    g = xunchar(*(yy->gprotect.val));
-	    attr_pro = 0x0F;	 	  /* 1111 Initial value = No access */
-	    if (g &  1)			  /* 1=Read */
-	      attr_pro &= ~XAB$M_NOREAD;  /* 0001 */
-	    if (g &  2)			  /* 2=Write */
-	      attr_pro &= ~XAB$M_NOWRITE; /* 0010 */
-	    if (g &  4)			  /* 4=Execute */
-	      attr_pro &= ~XAB$M_NOEXE;   /* 0100 */
-	    if (g &  8)			  /* 8=Append */
-	      attr_pro &= ~XAB$M_NOWRITE; /* 0010 */
-	    if (g & 16)			  /* 16=Delete */
-	      attr_pro &= ~XAB$M_NODEL;   /* 1000 */
-	    mask = attr_pro    |	  /* Don't give S,G,W any */
-	      (attr_pro <<  4) |	  /* more access than Owner... */
-	      (attr_pro <<  8) |
-	      (attr_pro << 12);
-	    attr_pro = attr_pro << 4;	/* Shift to owner field */
-	    tmp |= attr_pro;		/* OR in Owner protection */
-	    attr_pro = tmp | mask;	/* Mask off any higher permissions */
-	    flag = 1;			/* Flag we have the protection value */
+            g = xunchar(*(yy->gprotect.val));
+            attr_pro = 0x0F;              /* 1111 Initial value = No access */
+            if (g &  1)                   /* 1=Read */
+              attr_pro &= ~XAB$M_NOREAD;  /* 0001 */
+            if (g &  2)                   /* 2=Write */
+              attr_pro &= ~XAB$M_NOWRITE; /* 0010 */
+            if (g &  4)                   /* 4=Execute */
+              attr_pro &= ~XAB$M_NOEXE;   /* 0100 */
+            if (g &  8)                   /* 8=Append */
+              attr_pro &= ~XAB$M_NOWRITE; /* 0010 */
+            if (g & 16)                   /* 16=Delete */
+              attr_pro &= ~XAB$M_NODEL;   /* 1000 */
+            mask = attr_pro    |          /* Don't give S,G,W any */
+              (attr_pro <<  4) |          /* more access than Owner... */
+              (attr_pro <<  8) |
+              (attr_pro << 12);
+            attr_pro = attr_pro << 4;   /* Shift to owner field */
+            tmp |= attr_pro;            /* OR in Owner protection */
+            attr_pro = tmp | mask;      /* Mask off any higher permissions */
+            flag = 1;                   /* Flag we have the protection value */
 #ifdef DEBUG
-	    if (deblog) {
-		debug(F101,"zstime g attr_pro 4","",attr_pro);
-		sprintf(xbuf,"%X",attr_pro);
-		debug(F111,"zstime generic protections",xbuf,attr_pro);
-	    }
+            if (deblog) {
+                debug(F101,"zstime g attr_pro 4","",attr_pro);
+                sprintf(xbuf,"%X",attr_pro);
+                debug(F111,"zstime generic protections",xbuf,attr_pro);
+            }
 #endif /* DEBUG */
-	}
-	if (flag)
-	  setperms = 1;
+        }
+        if (flag)
+          setperms = 1;
     }
     debug(F101,"zstime setperms","",setperms);
     debug(F101,"zstime setdate","",setdate);
 
     switch (x) {
-      case 1:				/* Function code 1, compare dates */
-	if (!setdate)			/* Do we have a date? */
-	  return(-1);			/* Nothing to do */
-	fab_ifile = cc$rms_fab;         /* Initialize the FAB. */
-	nam_ifile = CC_RMS_NAMX;        /* Initialize the NAM[L]. */
-	fab_ifile.FAB_L_NAMX = &nam_ifile;  /* Point the FAB to the NAM[L]. */
+      case 1:                           /* Function code 1, compare dates */
+        if (!setdate)                   /* Do we have a date? */
+          return(-1);                   /* Nothing to do */
+        fab_ifile = cc$rms_fab;         /* Initialize the FAB. */
+        nam_ifile = CC_RMS_NAMX;        /* Initialize the NAM[L]. */
+        fab_ifile.FAB_L_NAMX = &nam_ifile;  /* Point the FAB to the NAM[L]. */
 
-	/* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-	fab_ifile.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-	fab_ifile.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
-	FAB_OR_NAML( fab_ifile, nam_ifile).FAB_OR_NAML_FNA = f;
-	FAB_OR_NAML( fab_ifile, nam_ifile).FAB_OR_NAML_FNS = strlen( f);
+        /* Install the path name in the FAB or NAML. */
+        NAMX_DNA_FNA_SET( fab_ifile)
+        FAB_OR_NAML( fab_ifile, nam_ifile).FAB_OR_NAML_FNA = f;
+        FAB_OR_NAML( fab_ifile, nam_ifile).FAB_OR_NAML_FNS = strlen( f);
 
-	fab_ifile.fab$b_fac = FAB$M_BIO | FAB$M_GET;
-	fab_ifile.fab$l_xab = (char *)&xabdat_ifile;
-	rab_ifile = cc$rms_rab;
-	rab_ifile.rab$l_fab = &fab_ifile;
-	xabdat_ifile = cc$rms_xabdat;
-	rms_sts = sys$open(&fab_ifile);
-	if (!(rms_sts & 1)) vms_lasterr = rms_sts;
-	if (rms_sts != RMS$_NORMAL) {
-	    debug(F101,"zstime $open failed, status","",rms_sts);
-	    return(-1);
-	}
-	memcpy(file_date, &xabdat_ifile.xab$q_cdt, 8);
-	sprintf(cdate, "%08x%08x",
-		(unsigned int)file_date[1], (unsigned int)file_date[0]);
-	debug(F110,"zstime $bintim file_date", cdate, 0);
-	rms_sts = sys$close(&fab_ifile);
-	if (!(rms_sts & 1)) vms_lasterr = rms_sts;
-	if (rms_sts != RMS$_NORMAL) {
-	    debug(F101,"zstime $close failed, status","",rms_sts);
-	    return(-1);
-	}
-	if (attr_date[1] < file_date[1]) {
-	    debug(F100,"zstime incoming file is older","",0);
-	    return(1);
-	}
-	if (attr_date[1] == file_date[1]) {
-	    if (attr_date[0] <= file_date[0]) {
-		debug(F100,"zstime incoming file is older, not by much","",0);
-		return(1);
-	    }
-	    debug(F100,"zstime incoming file is newer","",0);
-	    return(0);
-	}
-	break;
+        fab_ifile.fab$b_fac = FAB$M_BIO | FAB$M_GET;
+        fab_ifile.fab$l_xab = (char *)&xabdat_ifile;
+        rab_ifile = cc$rms_rab;
+        rab_ifile.rab$l_fab = &fab_ifile;
+        xabdat_ifile = cc$rms_xabdat;
+        rms_sts = sys$open(&fab_ifile);
+        if (!(rms_sts & 1)) vms_lasterr = rms_sts;
+        if (rms_sts != RMS$_NORMAL) {
+            debug(F101,"zstime $open failed, status","",rms_sts);
+            return(-1);
+        }
+        memcpy(file_date, &xabdat_ifile.xab$q_cdt, 8);
+        sprintf(cdate, "%08x%08x", file_date[1], file_date[0]);
+        debug(F110,"zstime $bintim file_date", cdate, 0);
+        rms_sts = sys$close(&fab_ifile);
+        if (!(rms_sts & 1)) vms_lasterr = rms_sts;
+        if (rms_sts != RMS$_NORMAL) {
+            debug(F101,"zstime $close failed, status","",rms_sts);
+            return(-1);
+        }
+        if (attr_date[1] < file_date[1]) {
+            debug(F100,"zstime incoming file is older","",0);
+            return(1);
+        }
+        if (attr_date[1] == file_date[1]) {
+            if (attr_date[0] <= file_date[0]) {
+                debug(F100,"zstime incoming file is older, not by much","",0);
+                return(1);
+            }
+            debug(F100,"zstime incoming file is newer","",0);
+            return(0);
+        }
+        break;
 
-      case 0:				/* Function code 0, set attributes */
-	return(0);			/* Say we did (see comments above) */
+      case 0:                           /* Function code 0, set attributes */
+        return(0);                      /* Say we did (see comments above) */
 
-      case 2:				/* Function code 2, really set them */
-	if (setdate) {			/* Do we have a date? */
-	    debug(F100,"zstime setting date","",0);
-	    memcpy(&xabdat_ofile.xab$q_cdt, attr_date, 8); /* File date */
-	}
-	if (setperms) {			/* File protection... */
-	    debug(F100,"zstime setting protection","",0);
-	    xabpro_ofile.xab$w_pro = attr_pro;
-	}
-	return(0);
+      case 2:                           /* Function code 2, really set them */
+        if (setdate) {                  /* Do we have a date? */
+            debug(F100,"zstime setting date","",0);
+            memcpy(&xabdat_ofile.xab$q_cdt, attr_date, 8); /* File date */
+        }
+        if (setperms) {                 /* File protection... */
+            debug(F100,"zstime setting protection","",0);
+            xabpro_ofile.xab$w_pro = attr_pro;
+        }
+        return(0);
     }
     return(-1);
 }
@@ -4863,80 +4884,234 @@ int
 zkermini(s, s_len, def) char *s; int s_len; char *def; {
     FILE fd;
     struct dsc$descriptor_s
-		dsc_in = {0,DSC$K_DTYPE_T,DSC$K_CLASS_S,0},
-		dsc_out = {0,DSC$K_DTYPE_T,DSC$K_CLASS_D,0},
-		dsc_def = {0,DSC$K_DTYPE_T,DSC$K_CLASS_S,0};
+                dsc_in = {0,DSC$K_DTYPE_T,DSC$K_CLASS_S,0},
+                dsc_out = {0,DSC$K_DTYPE_T,DSC$K_CLASS_D,0},
+                dsc_def = {0,DSC$K_DTYPE_T,DSC$K_CLASS_S,0};
     int max_len;
     long unsigned int rms_s;
     unsigned long find_file_context = 0;
 
     struct TRNLIST {
-	char *name;			/* ASCII file or logical name */
-	unsigned char flag;		/* Zero to use default filename */
+        char *name;                     /* ASCII file or logical name */
+        unsigned char flag;             /* Zero to use default filename */
     } *p;
 
     static struct TRNLIST slist[] = {
-	{"", 0},			/* Dummy first entry points to file */
-	{"ckermit_ini:", 0},		/* CKERMIT_INI: points to directory */
-	{"ckermit_init", 1},		/* CKERMIT_INIT points to file      */
-	{"sys$login:",   0},		/* CKERMIT.INI in login directory   */
-	{"", 0}
+        {"", 0},                        /* Dummy first entry points to file */
+        {"ckermit_ini:", 0},            /* CKERMIT_INI: points to directory */
+        {"ckermit_init", 1},            /* CKERMIT_INIT points to file      */
+        {"sys$login:",   0},            /* CKERMIT.INI in login directory   */
+        {"", 0}
     };
-    p = slist;				/* Point to list */
-    if (rcflag) {			/* Name given on command line? */
-	slist[0].name = def;		/* Yes, stuff its name into slist */
-	slist[1].name = "";
-    } else {				/* No, */
-	*p++;				/* skip past dummy entry. */
+    p = slist;                          /* Point to list */
+    if (rcflag) {                       /* Name given on command line? */
+        slist[0].name = def;            /* Yes, stuff its name into slist */
+        slist[1].name = "";
+    } else {                            /* No, */
+        *p++;                           /* skip past dummy entry. */
     }
-    while(*(p->name)) {			/* Search the list top to bottom */
+    while(*(p->name)) {                 /* Search the list top to bottom */
 
-	dsc_in.dsc$w_length = strlen(p->name); /* Length of work area */
-	dsc_in.dsc$a_pointer = p->name; /* Address of string */
+        dsc_in.dsc$w_length = strlen(p->name); /* Length of work area */
+        dsc_in.dsc$a_pointer = p->name; /* Address of string */
 
-	if (!(p->flag)) {
-	    dsc_def.dsc$w_length = strlen(def); /* Length of work area */
-	    dsc_def.dsc$a_pointer = def; /* Address of string */
-	} else {
-	    dsc_def.dsc$w_length = 0;	/* Length of work area */
-	    dsc_def.dsc$a_pointer = 0;	/* Address of string */
-	}
-	rms_s = lib$find_file(
-				&dsc_in,	/* File spec */
-				&dsc_out,	/* Result file spec */
-				&find_file_context, /* Context */
-				&dsc_def,	/* Default file spec */
-				0,		/* Related spec */
-				0,		/* STV error */
-				0);		/* Flags */
+        if (!(p->flag)) {
+            dsc_def.dsc$w_length = strlen(def); /* Length of work area */
+            dsc_def.dsc$a_pointer = def; /* Address of string */
+        } else {
+            dsc_def.dsc$w_length = 0;   /* Length of work area */
+            dsc_def.dsc$a_pointer = 0;  /* Address of string */
+        }
+        rms_s = lib$find_file(
+                                &dsc_in,        /* File spec */
+                                &dsc_out,       /* Result file spec */
+                                &find_file_context, /* Context */
+                                &dsc_def,       /* Default file spec */
+                                0,              /* Related spec */
+                                0,              /* STV error */
+                                0);             /* Flags */
 
-	if (!(rms_s & 1)) vms_lasterr = rms_s;
-	if (rms_s == RMS$_NORMAL) {
-	    max_len = ((unsigned short int) dsc_out.dsc$w_length < s_len ?
-		       (unsigned short int) dsc_out.dsc$w_length : 0);
-	    if (!max_len) {
-		fprintf(stderr,
-		"%%ZKERMINI out string not long enough, ignoring .ini file\n");
-	    } else {
-		strncpy(s,dsc_out.dsc$a_pointer,max_len);
-		s[max_len] = '\0';
-	    }
-	    lib$find_file_end(&find_file_context);
-	    lib$sfree1_dd(&dsc_out);    /* Return dyno memory */
-	    return(1);
-	}
-	p++;
-	lib$find_file_end(&find_file_context);
+        if (!(rms_s & 1)) vms_lasterr = rms_s;
+        if (rms_s == RMS$_NORMAL) {
+            max_len = ((unsigned short int) dsc_out.dsc$w_length < s_len ?
+                       (unsigned short int) dsc_out.dsc$w_length : 0);
+            if (!max_len) {
+                fprintf(stderr,
+                "%%ZKERMINI out string not long enough, ignoring .ini file\n");
+            } else {
+                strncpy(s,dsc_out.dsc$a_pointer,max_len);
+                s[max_len] = '\0';
+            }
+            lib$find_file_end(&find_file_context);
+            lib$sfree1_dd(&dsc_out);    /* Return dyno memory */
+            return(1);
+        }
+        p++;
+        lib$find_file_end(&find_file_context);
     }
 /*
  * No initialization file found.  We can't return the null string because the
  * runtime library will successfully open it if the file ".;" exists in the
  * user's directory.  Instead we return the name of the null device.
  */
-    strcpy(s, "NLA0:");				/* Return null init file */
+    strcpy(s, "NLA0:");                         /* Return null init file */
     lib$sfree1_dd(&dsc_out);
     return(0);
 }
+
+#ifdef COMMENT
+static int
+parse_fname(cp, cp_len, defnam, flag, fncnv, fnspath)
+char *cp;               /* Pointer to file spec to parse */
+int cp_len;             /* Length of cp field */
+char *defnam;           /* Default file spec */
+int flag;               /* Flag word PARSE_xxx */
+int fncnv;              /* Filename conversion */
+int fnspath;            /* Pathname handling */
+{
+    struct FAB fab;
+    struct NAM nam;
+    char expanded_name[ NAMX_C_MAXRSS];
+    char dirbuf[ NAMX_C_MAXRSS], *p, *q, *q2, *r, *s, *s2;
+    int long rms_status;
+    int cur_len = 0;
+
+    debug(F110,"zltor entry",defnam,0);
+
+    fab = cc$rms_fab;
+    fab.fab$l_nam = &nam;
+    fab.fab$l_fna = cp;
+    fab.fab$b_fns = strlen(cp);
+    if (defnam) {
+        fab.fab$b_dns = strlen(defnam);
+        fab.fab$l_dna = defnam;
+    } else
+      fab.fab$l_dna = 0;
+
+    nam = cc$rms_nam;
+    nam.nam$l_esa = (char *)&expanded_name;
+    nam.nam$b_ess = sizeof(expanded_name);
+
+    if (!CHECK_ERR("%%CKERMIT-W-PARSE, ",
+                sys$parse(&fab)))
+        return(-1);
+
+    *cp = '\0';                         /* Start with an empty result */
+
+    if ((PARSE_NODE & flag) && nam.nam$b_node && /* DECnet node:: */
+                cur_len+nam.nam$b_node < cp_len) {
+        cur_len += nam.nam$b_node;
+        strncat(cp, nam.nam$l_node, (int)nam.nam$b_node);
+    }
+    if ((PARSE_DEVICE & flag) && nam.nam$b_dev && /* Device: */
+                cur_len+nam.nam$b_dev < cp_len) {
+        cur_len += nam.nam$b_dev;
+        strncat(cp, nam.nam$l_dev, (int)nam.nam$b_dev);
+    }
+
+    /* Directory Name [] */
+
+    if ((PARSE_DIRECTORY & flag) && nam.nam$b_dir &&
+                cur_len+nam.nam$b_dir < cp_len) {
+        int i; char * tmp;
+        q = nam.nam$l_dir;              /* The directory name from RMS */
+        i = nam.nam$b_dir;              /* Length; string not nul-terminated */
+        debug(F111,"zltor nam$_dir",q,i);
+        if (!q) q = "[]";
+        if (!*q) q = "[]";
+        if (i < 0) i = 0;
+        tmp = NULL;
+        if (i > 0) {                    /* Copy directory part */
+            if (tmp = malloc(i+1)) {
+                p = tmp;
+                for ( ; i > 0 ; i--)
+                  *p++ = *q++;
+                *p = NUL;
+            }
+        }
+        q = tmp;
+        debug(F111,"zltor directory part",q,i);
+
+        s = zgtdir();                   /* Get current directory */
+        debug(F110,"zltor zgtdir",s,0);
+        if (!s) s = "[]";
+        if (!*s) s = "[]";
+        s2 = "";
+        while (*s && *s != '[')
+          s++;
+        if (*s) {
+            s2 = s+1;
+            while (*s2 && *s2 != ']') s2++; /* Closing bracket */
+        }
+        if (!*s)
+          s = "[]";
+        else
+          if (*s2) if (!*(s2+1)) *(s2+1) = NUL;
+        debug(F110,"zltor current dir",s,0);
+
+/* First change the VMS pathname to relative format if fnspath == PATH_REL */
+
+        p = dirbuf;                     /* Result */
+        *p++ = *q++;                    /* Copy left bracket and... */
+
+        s++;                            /* Point past it */
+        q2 = q;                         /* Remember this place */
+        if (fnspath == PATH_REL) {      /* Compare this and current dir */
+            while (*s == *q && *s && *q && *s != ']') {
+                s++;
+                q++;
+            }
+        }
+        if (*s != ']' && *q != ']' && *q != '.') /* No match */
+          q = q2;                       /* So rewind source pointer */
+
+        while (*q) *p++ = *q++;         /* Now copy the rest */
+        *p = NUL;
+        debug(F110,"zltor result 1",dirbuf,0);
+/*
+   VMS directory name is now in dirbuf in either absolute or relative format.
+   Now change it to standard (UNIX) format if desired.
+*/
+        p = dirbuf;                     /* Working pointer */
+        r = dirbuf;                     /* Result pointer */
+        if (fncnv) {                    /* Converting directory format */
+            int flag = 0;
+            if (p[1] == '.') {          /* Directory name is relative */
+                r += 2;                 /* Point past the leading dot */
+                p += 2;
+            }
+            while (*p) {                /* Now convert the rest */
+                if (*p == '.' || *p == '[' || *p == ']') {
+                    if (!flag) *p = '/';
+                    if (*p == ']')
+                      flag = 1;
+                }
+                p++;
+            }
+        }
+        debug(F110,"zltor result 2",r,0);
+        if (tmp) free(tmp);
+        strncat(cp, r, (int)nam.nam$b_dir);
+        cur_len += strlen(r);
+    }
+    if ((PARSE_NAME & flag) && nam.nam$b_name &&
+                cur_len+nam.nam$b_name < cp_len) {
+        cur_len += nam.nam$b_name;
+        strncat(cp, nam.nam$l_name, (int)nam.nam$b_name);
+    }
+    if ((PARSE_TYPE & flag) && nam.nam$b_type &&
+                cur_len+nam.nam$b_type < cp_len) {
+        cur_len += nam.nam$b_type;
+        strncat(cp, nam.nam$l_type, (int)nam.nam$b_type);
+    }
+    if ((PARSE_VERSION & flag) && nam.nam$b_ver &&
+                cur_len+nam.nam$b_ver < cp_len) {
+        cur_len += nam.nam$b_ver;
+        strncat(cp, nam.nam$l_ver, (int)nam.nam$b_ver);
+    }
+    return(cur_len);
+}
+#endif /* COMMENT */
 
 /* Z G P E R M  --  Returns the permissions (protection) of the given file. */
 
@@ -4946,7 +5121,7 @@ char *
 zgperm(f) char *f; {
     int x, x1, x2, x3, x4;
     struct FAB fab_perm;
-    struct NAMX nam_perm;
+    struct NAMX_STRUCT nam_perm;
     struct XABFHC xabfhc_perm;
     struct XABPRO xabpro_perm;
     struct XABDAT xabdat_perm;
@@ -4957,10 +5132,7 @@ zgperm(f) char *f; {
     fab_perm.FAB_L_NAMX = &nam_perm;    /* Point the FAB to the NAM[L]. */
 
     /* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    fab_perm.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-    fab_perm.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( fab_perm)
     FAB_OR_NAML( fab_perm, nam_perm).FAB_OR_NAML_FNA = f;
     FAB_OR_NAML( fab_perm, nam_perm).FAB_OR_NAML_FNS = strlen( f);
 
@@ -4976,14 +5148,14 @@ zgperm(f) char *f; {
     if (rms_sts == RMS$_PRV)
       return(NULL);
     if (rms_sts != RMS$_NORMAL) {
-	debug(F111,"zperm $open failed, status",f,rms_sts);
-	return(NULL);
+        debug(F111,"zperm $open failed, status",f,rms_sts);
+        return(NULL);
     }
     rms_sts = sys$close(&fab_perm);
     if (!(rms_sts & 1)) vms_lasterr = rms_sts;
     if (rms_sts != RMS$_NORMAL) {
-	debug(F101,"zgperm $close failed, status","",rms_sts);
-	return(NULL);
+        debug(F101,"zgperm $close failed, status","",rms_sts);
+        return(NULL);
     }
     debug(F111,"zgperm xabpro_perm.xab$w_pro",f,xabpro_perm.xab$w_pro);
     sprintf(zgpbuf,"%04X",xabpro_perm.xab$w_pro); /* Convert to hex string */
@@ -5007,23 +5179,23 @@ ziperm(f) char * f; {
     p = zgibuf;
     *p = '\0';
     for (i = 3; i >= 0; i--) {
-	c = pbuf[i];
-	if (i < 3)
-	  *p++ = ',';
-	else
-	  *p++ = '(';
-	if (c >= '0' && c <= '9')
-	  x = c - '0';
-	else if (c >= 'A' && c <= 'F')
-	  x = c - 'A' + 10;
-	else if (c >= 'a' && c <= 'f')
-	  x = c - 'a' + 10;
-	else
-	  return(NULL);
-	if (!(x & XAB$M_NOREAD))  *p++ = 'R';
-	if (!(x & XAB$M_NOWRITE)) *p++ = 'W';
-	if (!(x & XAB$M_NOEXE))   *p++ = 'E';
-	if (!(x & XAB$M_NODEL))   *p++ = 'D';
+        c = pbuf[i];
+        if (i < 3)
+          *p++ = ',';
+        else
+          *p++ = '(';
+        if (c >= '0' && c <= '9')
+          x = c - '0';
+        else if (c >= 'A' && c <= 'F')
+          x = c - 'A' + 10;
+        else if (c >= 'a' && c <= 'f')
+          x = c - 'a' + 10;
+        else
+          return(NULL);
+        if (!(x & XAB$M_NOREAD))  *p++ = 'R';
+        if (!(x & XAB$M_NOWRITE)) *p++ = 'W';
+        if (!(x & XAB$M_NOEXE))   *p++ = 'E';
+        if (!(x & XAB$M_NODEL))   *p++ = 'D';
     }
     *p++ = ')';
     *p = '\0';
@@ -5044,23 +5216,23 @@ zsattr(xx) struct zattr *xx; {
     CK_OFF_T k;
     int x;
     static char mth[13][4] = {
-	"JAN","FEB","MAR","APR",
-	"MAY","JUN","JUL","AUG",
-	"SEP","OCT","NOV","DEC",
-	""
+        "JAN","FEB","MAR","APR",
+        "MAY","JUN","JUL","AUG",
+        "SEP","OCT","NOV","DEC",
+        ""
     };
-    static char recfm[15];	    /* Record format */
+    static char recfm[15];          /* Record format */
     static char cdate[20];          /* Creation date [yy]yymmdd[hh:mm[:ss]] */
-    static char creater_id[31];	    /* Creator ID string */
+    static char creater_id[31];     /* Creator ID string */
     static char genprot;            /* Generic protection */
-    static char gpbuf[2];	    /* String representation thereof */
+    static char gpbuf[2];           /* String representation thereof */
     static unsigned short lclprot;  /* Local protection */
-    static char lpbuf[32];	    /* String representation thereof */
+    static char lpbuf[32];          /* String representation thereof */
     static long sysparam_size=0;    /* Length of system paramater buffer */
     static char *sysparam_adr=0;    /* Address of system paramater buffer */
-    char type;			    /* File type */
+    char type;                      /* File type */
     short int asctim_retlen;
-    char asctim_buf[24];	    /* Work buffer for ASCTIM() */
+    char asctim_buf[24];            /* Work buffer for ASCTIM() */
     struct dsc$descriptor_s
       asctim_dsc = {sizeof(asctim_buf),DSC$K_DTYPE_T,DSC$K_CLASS_S,NULL};
 /*  static long int i;  */
@@ -5075,7 +5247,7 @@ zsattr(xx) struct zattr *xx; {
     cdate[0] = '\0';
     creater_id[0] = '\0';
     id_len = 0;
-    genprot = 0;			/* Blank protections by default */
+    genprot = 0;                        /* Blank protections by default */
     gpbuf[0] = '\0';
     lclprot = 0;
     lpbuf[0] = '\0';
@@ -5084,55 +5256,55 @@ zsattr(xx) struct zattr *xx; {
 /* See if we are sending "attributes" from a REMOTE command response */
 
     if (*nambuf == '\0') {
-	xx->lengthk = 1;		/* Number of 1K blocks rounded up */
-	xx->type.len = 0;		/* File type can't be filled in here */
-	xx->type.val = "";
-	xx->date.len = strlen(cdate);	/* File creation date */
-	xx->date.val = (char *)&cdate;
-	xx->creator.len = strlen(creater_id); /* File creator */
-	xx->creator.val = (char *)&creater_id;
-	xx->account.len = 0;		/* File account */
-	xx->account.val = "";
-	xx->area.len = 0;		/* File area */
-	xx->area.val = "";
-	xx->password.len = 0;		/* Area password */
-	xx->password.val = "";
-	xx->blksize = -1L;		/* File blocksize */
-	xx->xaccess.len = 0;		/* File access */
-	xx->xaccess.val = "";
-	xx->encoding.len = 1;		/* Transfer syntax */
-	xx->encoding.val = "A";		/* ASCII */
-	xx->disp.len = 0;		/* Disposition upon arrival */
-	xx->disp.val = "";
-	xx->lprotect.len = strlen(lpbuf); /* Local protection */
-	xx->lprotect.val = (char *)lpbuf;
-	xx->gprotect.len = strlen(gpbuf); /* Generic protection */
-	xx->gprotect.val = (char *)gpbuf;
-	xx->systemid.len = 2;		/* System ID for DEC VMS */
-	xx->systemid.val = "D7";
-	xx->recfm.len = strlen(recfm);	/* Record format */
-	xx->recfm.val = (char *)&recfm;
-	xx->sysparam.len = sysparam_size; /* System-dependent parameters */
-	xx->sysparam.val = sysparam_adr;
-	xx->length = 1;			/* Length */
-	return(0);			/* mumble sweet nothings at it */
+        xx->lengthk = 1;                /* Number of 1K blocks rounded up */
+        xx->type.len = 0;               /* File type can't be filled in here */
+        xx->type.val = "";
+        xx->date.len = strlen(cdate);   /* File creation date */
+        xx->date.val = (char *)&cdate;
+        xx->creator.len = strlen(creater_id); /* File creator */
+        xx->creator.val = (char *)&creater_id;
+        xx->account.len = 0;            /* File account */
+        xx->account.val = "";
+        xx->area.len = 0;               /* File area */
+        xx->area.val = "";
+        xx->password.len = 0;           /* Area password */
+        xx->password.val = "";
+        xx->blksize = -1L;              /* File blocksize */
+        xx->xaccess.len = 0;            /* File access */
+        xx->xaccess.val = "";
+        xx->encoding.len = 1;           /* Transfer syntax */
+        xx->encoding.val = "A";         /* ASCII */
+        xx->disp.len = 0;               /* Disposition upon arrival */
+        xx->disp.val = "";
+        xx->lprotect.len = strlen(lpbuf); /* Local protection */
+        xx->lprotect.val = (char *)lpbuf;
+        xx->gprotect.len = strlen(gpbuf); /* Generic protection */
+        xx->gprotect.val = (char *)gpbuf;
+        xx->systemid.len = 2;           /* System ID for DEC VMS */
+        xx->systemid.val = "D7";
+        xx->recfm.len = strlen(recfm);  /* Record format */
+        xx->recfm.val = (char *)&recfm;
+        xx->sysparam.len = sysparam_size; /* System-dependent parameters */
+        xx->sysparam.val = sysparam_adr;
+        xx->length = 1;                 /* Length */
+        return(0);                      /* mumble sweet nothings at it */
     }
 
 /* Load the generic protection */
 
 #ifdef COMMENT
-    x = xabpro_ifile.xab$w_pro >> XAB$V_WLD;	/* World protection */
+    x = xabpro_ifile.xab$w_pro >> XAB$V_WLD;    /* World protection */
 #else
-    x = (xabpro_ifile.xab$w_pro >> 4) & 0xFF;	/* Owner protection */
+    x = (xabpro_ifile.xab$w_pro >> 4) & 0xFF;   /* Owner protection */
 #endif /* COMMENT */
-    if (!(x & XAB$M_NOREAD))  genprot |= 1;	/* Read */
-    if (!(x & XAB$M_NOWRITE)) genprot |= 2+8;	/* Write (and append) */
-    if (!(x & XAB$M_NOEXE))   genprot |= 4;	/* Execute */
-    if (!(x & XAB$M_NODEL))   genprot |= 16;	/* Delete */
-    gpbuf[0] = tochar(genprot);		        /* Generic prot as string */
+    if (!(x & XAB$M_NOREAD))  genprot |= 1;     /* Read */
+    if (!(x & XAB$M_NOWRITE)) genprot |= 2+8;   /* Write (and append) */
+    if (!(x & XAB$M_NOEXE))   genprot |= 4;     /* Execute */
+    if (!(x & XAB$M_NODEL))   genprot |= 16;    /* Delete */
+    gpbuf[0] = tochar(genprot);                 /* Generic prot as string */
     gpbuf[1] = '\0';
-    lclprot = xabpro_ifile.xab$w_pro;		/* Local-format protection */
-    sprintf(lpbuf,"%04X",lclprot);		/* Convert to hex string */
+    lclprot = xabpro_ifile.xab$w_pro;           /* Local-format protection */
+    sprintf(lpbuf,"%04X",lclprot);              /* Convert to hex string */
 
 /* Convert creation date from an internal value to common ascii string */
 
@@ -5141,12 +5313,12 @@ zsattr(xx) struct zattr *xx; {
     debug(F110,"zsattr asctim_buf",asctim_buf,0);
     for (x = 0; strncmp(mth[x], asctim_buf+3,3); x++) /* Find month */
       ;
-    strncpy(cdate,asctim_buf+7,4);	/* 'yyyy' */
-    sprintf(cdate+4,"%02d",x+1);	/* 'mm' */
-    strncpy(cdate+6,asctim_buf+0,2);	/* 'dd' */
-    strncpy(cdate+8,asctim_buf+11,9);	/* ' hh:mm:ss' */
+    strncpy(cdate,asctim_buf+7,4);      /* 'yyyy' */
+    sprintf(cdate+4,"%02d",x+1);        /* 'mm' */
+    strncpy(cdate+6,asctim_buf+0,2);    /* 'dd' */
+    strncpy(cdate+8,asctim_buf+11,9);   /* ' hh:mm:ss' */
     if (cdate[6] == ' ')
-	cdate[6] = '0';
+        cdate[6] = '0';
     debug(F110,"zsattr cdate",cdate,0);
 
 /* Convert the owner UIC into an alpha name */
@@ -5154,64 +5326,64 @@ zsattr(xx) struct zattr *xx; {
     creater_id[0] = '\0';
     rms_sts = sys$idtoasc(xabpro_ifile.xab$l_uic,&id_len,&id_str,0,0,0);
     if (!(rms_sts & 1)) vms_lasterr = rms_sts;
-    creater_id[id_len] = '\0';			/* terminating null, please */
+    creater_id[id_len] = '\0';                  /* terminating null, please */
     debug(F111,"zsattr $idtoasc owner",creater_id,strlen(creater_id));
     if (rms_sts == SS$_NOSUCHID ||
-#ifdef SS$_NORIGHTSDB	/* only vms 5 and higher */
-	rms_sts == SS$_NORIGHTSDB ||
+#ifdef SS$_NORIGHTSDB   /* only vms 5 and higher */
+        rms_sts == SS$_NORIGHTSDB ||
 #endif /* SS$_NORIGHTSDB */
-	rms_sts == SS$_IVIDENT) {
-	creater_id[0] = '\0';
-	rms_sts = SS$_NORMAL;			/* if unknown, null it out */
+        rms_sts == SS$_IVIDENT) {
+        creater_id[0] = '\0';
+        rms_sts = SS$_NORMAL;                   /* if unknown, null it out */
     }
     if (!(rms_sts & 1)) {
-	debug(F101,"zsattr $idtoasc failed, status","",rms_sts);
-	return(-1);				/* fatal */
+        debug(F101,"zsattr $idtoasc failed, status","",rms_sts);
+        return(-1);                             /* fatal */
     }
 
 /* Fill in the record format blockette */
 
     if (fab_ifile.fab$b_rat & (FAB$M_CR | FAB$M_FTN | FAB$M_PRN)) {
-	strcpy(recfm,"AMJ");
+        strcpy(recfm,"AMJ");
     } else {
-	strcpy(recfm,"F");
-	sprintf(recfm+1,"%05d",xabfhc_ifile.xab$w_lrl);
+        strcpy(recfm,"F");
+        sprintf(recfm+1,"%05d",xabfhc_ifile.xab$w_lrl);
     }
     debug(F111,"zsattr recfm",recfm,strlen(recfm));
 
 /* Fill in the returned data structure */
 
-    xx->lengthk = (iflen/1024)+1;	/* Number of 1K blocks rounded up */
-    xx->type.len = 0;			/* File type can't be filled in here */
+    xx->lengthk = (iflen/1024)+1;       /* Number of 1K blocks rounded up */
+    xx->type.len = 0;                   /* File type can't be filled in here */
     xx->type.val = "";
-    xx->date.len = strlen(cdate);	/* File creation date */
+    xx->date.len = strlen(cdate);       /* File creation date */
     xx->date.val = (char *)&cdate;
     xx->creator.len = strlen(creater_id); /* File creator */
     xx->creator.val = (char *)&creater_id;
-    xx->account.len = 0;		/* File account */
+    xx->account.len = 0;                /* File account */
     xx->account.val = "";
-    xx->area.len = 0;			/* File area */
+    xx->area.len = 0;                   /* File area */
     xx->area.val = "";
-    xx->password.len = 0;		/* Area password */
+    xx->password.len = 0;               /* Area password */
     xx->password.val = "";
-    xx->blksize = -1L;			/* File blocksize */
-    xx->xaccess.len = 0;		/* File access */
+    xx->blksize = -1L;                  /* File blocksize */
+    xx->xaccess.len = 0;                /* File access */
     xx->xaccess.val = "";
-    xx->encoding.len = 1;		/* Transfer syntax */
-    xx->encoding.val = "A";		/* ASCII */
-    xx->disp.len = 0;			/* Disposition upon arrival */
+    xx->encoding.len = 1;               /* Transfer syntax */
+    xx->encoding.val = "A";             /* ASCII */
+    xx->disp.len = 0;                   /* Disposition upon arrival */
     xx->disp.val = "";
-    xx->lprotect.len = strlen(lpbuf);	/* Local protection */
+    xx->lprotect.len = strlen(lpbuf);   /* Local protection */
     xx->lprotect.val = (char *)lpbuf;
-    xx->gprotect.len = strlen(gpbuf);	/* Generic protection */
+    xx->gprotect.len = strlen(gpbuf);   /* Generic protection */
     xx->gprotect.val = (char *)gpbuf;
-    xx->systemid.len = 2;		/* System ID for (Open)VMS */
+    xx->systemid.len = 2;               /* System ID for (Open)VMS */
     xx->systemid.val = "D7";
-    xx->recfm.len = strlen(recfm);	/* Record format */
+    xx->recfm.len = strlen(recfm);      /* Record format */
     xx->recfm.val = (char *)&recfm;
-    xx->sysparam.len = sysparam_size;	/* System-dependent parameters */
+    xx->sysparam.len = sysparam_size;   /* System-dependent parameters */
     xx->sysparam.val = sysparam_adr;
-    xx->length = iflen;			/* Length */
+    xx->length = iflen;                 /* Length */
     debug(F111,"zsattr lengthk","",xx->lengthk);
     debug(F111,"zsattr length","",xx->length);
     return(0);
@@ -5234,7 +5406,7 @@ zsattr(xx) struct zattr *xx; {
 int
 zmkdir(path) char *path; {
     struct FAB dir_fab;
-    struct NAMX dir_nam;
+    struct NAMX_STRUCT dir_nam;
     struct dsc$descriptor_s expanded_filename;
 
     char expanded_name[ NAMX_C_MAXRSS];
@@ -5244,10 +5416,7 @@ zmkdir(path) char *path; {
     dir_fab.FAB_L_NAMX = &dir_nam;      /* Point the FAB to the NAM[L]. */
 
     /* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    dir_fab.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-    dir_fab.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( dir_fab)
     FAB_OR_NAML( dir_fab, dir_nam).FAB_OR_NAML_FNA = path;
     FAB_OR_NAML( dir_fab, dir_nam).FAB_OR_NAML_FNS = strlen( path);
 
@@ -5258,20 +5427,20 @@ zmkdir(path) char *path; {
     if (!(rms_sts & 1)) vms_lasterr = rms_sts;
     switch (rms_sts) {
         case RMS$_NORMAL :
-	    debug(F110,"zmkdir path already exists",path,0);
-	    return 0;
+            debug(F110,"zmkdir path already exists",path,0);
+            return 0;
 
-        case RMS$_FNM :			/* E.g. too long... (99628) */
-	    debug(F110,"zmkdir bad filename",path,0);
-	    return 0;			/* Let zrtol() handle it. */
+        case RMS$_FNM :                 /* E.g. too long... (99628) */
+            debug(F110,"zmkdir bad filename",path,0);
+            return 0;                   /* Let zrtol() handle it. */
 
-        case RMS$_DNF :			/* Directory Not Found, create it */
+        case RMS$_DNF :                 /* Directory Not Found, create it */
             debug(F110,"zmkdir RMS$_DNF",path,0);
             break;
 
-        default :			/*  Any other result is fatal. */
+        default :                       /*  Any other result is fatal. */
             debug(F111,"zmkdir status",path,rms_sts);
-	    return -1;
+            return -1;
     }
 
 /*  The parse succeeded but said the directory didn't exist, so create it. */
@@ -5306,7 +5475,7 @@ zrmdir(path) char *path; {
     char *dir_end;
     char *dot_last;
     struct FAB fab_dir;
-    struct NAMX nam_dir;
+    struct NAMX_STRUCT nam_dir;
     char exp_name[ NAMX_C_MAXRSS];
     char dir_name[ NAMX_C_MAXRSS];
 
@@ -5367,16 +5536,16 @@ zrmdir(path) char *path; {
             cp++;
             continue;
         }
-	if (*cp == '[')                 /* Count left brackets. */
+        if (*cp == '[')                 /* Count left brackets. */
             lb++;
-	else if (*cp == ']')            /* Count right brackets. */
+        else if (*cp == ']')            /* Count right brackets. */
             rb++;
     }
 
     /* If bare "name", then construct (relative) VMS dir spec, "[.name]". */
     if (lb != 1 && rb != 1 && cp > path && *(cp- 1) != ':')
     {
-	sprintf( dir_name, "[.%s]", path);
+        sprintf( dir_name, "[.%s]", path);
         path = dir_name;
     }
     debug(F110, "zrmdir path 2", path, 0);
@@ -5386,10 +5555,7 @@ zrmdir(path) char *path; {
     fab_dir.FAB_L_NAMX = &nam_dir;      /* Point the FAB to the NAM[L]. */
 
     /* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    fab_dir.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-    fab_dir.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( fab_dir)
     FAB_OR_NAML( fab_dir, nam_dir).FAB_OR_NAML_FNA = path;
     FAB_OR_NAML( fab_dir, nam_dir).FAB_OR_NAML_FNS = strlen( path);
 
@@ -5399,7 +5565,7 @@ zrmdir(path) char *path; {
 
     status = sys$parse( &fab_dir);
     if (!(status& 1)) vms_lasterr = status;
-    if (status != RMS$_NORMAL)		/* Does not exist */
+    if (status != RMS$_NORMAL)          /* Does not exist */
         return(-1);
     debug(F100, "zrmdir directory exists", exp_name, 0);
 
@@ -5467,20 +5633,20 @@ zrmdir(path) char *path; {
          * scheme on local files, and delete() on everything.
          * (Who says that "delete() won't do it"?)
          */
-	sprintf( exp_name, "set protection=owner:RWED %s", dir_name);
-	status = system( exp_name);
-	debug(F111, "zrmdir system() status ", exp_name, status);
+        sprintf( exp_name, "set protection=owner:RWED %s", dir_name);
+        status = system( exp_name);
+        debug(F111, "zrmdir system() status ", exp_name, status);
 #ifdef COMMENT
 /* If this failed it doesn't necessarily mean there is no Delete access */
-	if ((status& 1) != 1)
-	  return(-1);
+        if ((status& 1) != 1)
+          return(-1);
 #endif /* COMMENT */
-	sprintf( exp_name, "delete %s", dir_name); /* delete() won't do it. */
-	status = system( exp_name);
-	debug(F111, "zrmdir system() status ", exp_name, status);
-	if ((status& 1) != 1)
-	  return(-1);
-	return(0);
+        sprintf( exp_name, "delete %s", dir_name); /* delete() won't do it. */
+        status = system( exp_name);
+        debug(F111, "zrmdir system() status ", exp_name, status);
+        if ((status& 1) != 1)
+          return(-1);
+        return(0);
     }
     else
     {
@@ -5490,10 +5656,8 @@ zrmdir(path) char *path; {
         fab_dir.FAB_L_NAMX = &nam_dir;  /* Point the FAB to the NAM[L]. */
 
         /* Install the path name in the FAB or NAML. */
+        NAMX_DNA_FNA_SET( fab_dir)
 #ifdef NAML$C_MAXRSS
-        fab_dir.fab$l_dna = (char *) -1;    /* Using NAML for default name. */
-        fab_dir.fab$l_fna = (char *) -1;    /* Using NAML for file name. */
-
         /* Special ODS5-QIO-compatible name storage. */
         nam_dir.naml$l_filesys_name = sys_name;
         nam_dir.naml$l_filesys_name_alloc = sizeof( sys_name);
@@ -5644,8 +5808,8 @@ zmail(p,f) char *p; char *f; {
     debug(F111,"zmail: system returns status ",zmbuf,sts);
     free(zmbuf);
     if ((sts&1) != 1) {
-	debug(F101,"zmail: returning","",-2);
-	return(-2);
+        debug(F101,"zmail: returning","",-2);
+        return(-2);
     }
     zmbuf = malloc(strlen(f)+sizeof(spbuf2));
     sprintf(zmbuf,spbuf2, f);
@@ -5686,8 +5850,8 @@ zprint(p,f) char *p; char *f; {
 int
 zsyscmd(s) char *s; {
     if (nopush) {
-	debug(F100,"zsyscmd fails: nopush","",0);
-	return(-1);
+        debug(F100,"zsyscmd fails: nopush","",0);
+        return(-1);
     }
     return(zshcmd(s));
 }
@@ -5707,9 +5871,9 @@ sig_dum() {
  * and DEC doesn't document how to write any other alternate CLIs, use DCL.
  */
 
-#ifndef	SS$_EXPRCLM		/* VMS doesn't return this yet, but let's */
-#define SS$_EXPRCLM 10804	/* be forward-thinking and anticpate VMS */
-#endif /* SS$_EXPRCLM */	/* V6.0, which will return it. */
+#ifndef SS$_EXPRCLM             /* VMS doesn't return this yet, but let's */
+#define SS$_EXPRCLM 10804       /* be forward-thinking and anticpate VMS */
+#endif /* SS$_EXPRCLM */        /* V6.0, which will return it. */
 
 int
 zshcmd(s) char *s; {
@@ -5722,26 +5886,26 @@ zshcmd(s) char *s; {
 
     pexitstat = -1;
     if (nopush) {
-	debug(F100,"zshcmd fails: nopush","",0);
-	return(-1);
+        debug(F100,"zshcmd fails: nopush","",0);
+        return(-1);
     }
     if (!s) s = "";
     debug(F110,"zshcmd",s,0);
     if (check_spawn() != 0) {
-	debug(F100,"zshcmd: spawning prohibited by UAF flags","",0);
-	return(0);
+        debug(F100,"zshcmd: spawning prohibited by UAF flags","",0);
+        return(0);
     }
 
     i = strstr(zgtdir(),"::");
     if (i != NULL) {
         debug(F100,"zshcmd: spawn prohibited on remote node","",0);
         printf("Cannot SPAWN with remote node as default directory\n");
-	if (*s)
-	  printf("therefore, cannot execute the DCL command \"%s\"\n", s);
+        if (*s)
+          printf("therefore, cannot execute the DCL command \"%s\"\n", s);
         return(0);
     }
 
-    cct = signal(SIGINT,sig_dum_ptr);	/* Let inferior process catch ^C */
+    cct = signal(SIGINT,sig_dum_ptr);   /* Let inferior process catch ^C */
 
     cmd_line.dsc$w_length = strlen(s);
     cmd_line.dsc$a_pointer = s;
@@ -5753,23 +5917,23 @@ zshcmd(s) char *s; {
     signal(SIGINT,cct);
 /*
  * Note: We can't check for this beforehand as doing a getjpi for prclm will
- *	 only return the UAF value, not the available value. So we try it and
- *	 print this message if it didn't work.
+ *       only return the UAF value, not the available value. So we try it and
+ *       print this message if it didn't work.
  */
     if ((sts == SS$_EXQUOTA) || (sts == SS$_EXPRCLM)) {
-	printf(
+        printf(
 "Your account does not have sufficient quotas to use this command.\n");
-	printf(
+        printf(
 "Please ask your system manager to increase your UAF PRCLM quota.\n");
     }
     debug(F101,"zshcmd lib$spawn sts", "", sts);
     debug(F101,"zshcmd lib$spawn cc ", "", cc);
     debug(F101,"zshcmd lib$spawn SS$_NORMAL", "", SS$_NORMAL);
     if (sts == SS$_NORMAL) {
-	pexitstat = cc;
-	return((cc & 1) ? 1 : 0);	/* Success */
+        pexitstat = cc;
+        return((cc & 1) ? 1 : 0);       /* Success */
     } else {
-	return(0);			/* Failure */
+        return(0);                      /* Failure */
     }
 }
 
@@ -5777,7 +5941,7 @@ zshcmd(s) char *s; {
 
 /*  Strip pathname from filename "name", return pointer to result in name2 */
 
-static char work[1100];	/* buffer for use by zstrip and zltor */
+static char work[1100]; /* buffer for use by zstrip and zltor */
 
 VOID
 zstrip(name,name2) char *name, **name2; {
@@ -5785,7 +5949,7 @@ zstrip(name,name2) char *name, **name2; {
     char last;
     int len;
     debug(F110,"zstrip entry",name,0);
-    pp = work;				/* Default return is empty string */
+    pp = work;                          /* Default return is empty string */
     *name2 = work;
     *pp = '\0';
     if (!name)
@@ -5796,15 +5960,15 @@ zstrip(name,name2) char *name, **name2; {
 /*  NODE::DEV:[DIR] terminates on on final ':', '>' or ']'.  */
 
     for (cp = name; *cp; cp++) {
-	last = *cp;
-	if (*cp == '/' || *cp == ':' || *cp == '>' || *cp == ']') /* slash? */
-	  pp = work;
-	else if (*cp == ';')		/* Chop off any version number */
-	  break;
-	else				/* Part of filename */
-	  *pp++ = *cp;
+        last = *cp;
+        if (*cp == '/' || *cp == ':' || *cp == '>' || *cp == ']') /* slash? */
+          pp = work;
+        else if (*cp == ';')            /* Chop off any version number */
+          break;
+        else                            /* Part of filename */
+          *pp++ = *cp;
     }
-    *pp = '\0';				/* Terminate the string */
+    *pp = '\0';                         /* Terminate the string */
     debug(F000,"zstrip 2",work,last);
 #ifdef COMMENT
 /*
@@ -5812,35 +5976,35 @@ zstrip(name,name2) char *name, **name2; {
   again, but zstrip() isn't designed to call itself.
 */
     if (work[0] == '\0' && last == ':') { /* Result is empty? */
-	char * q;			/* Maybe it's a logical name */
-	q = (char *)malloc(1100);
-	if (q) {
-	    ckstrncpy(q,name,1100);
-	    len = strlen(q);
-	    if (len > 0) {
-		if (q[len-1] == ':') {
-		    char *t = q;
-		    q[len-1] = '\0';
-		    while (*t) { if (islower(*t)) *t = toupper(*t); t++; }
-		    debug(F110,"zstrip checking",q,0);
-		    pp = getenv(q);
-		    if (!pp) pp = "";
-		    ckstrncpy(work,pp,1100);
-		    debug(F110,"zstrip getenv",work,0);
-		}
-	    }
-	    free(q);
-	}
+        char * q;                       /* Maybe it's a logical name */
+        q = (char *)malloc(1100);
+        if (q) {
+            ckstrncpy(q,name,1100);
+            len = strlen(q);
+            if (len > 0) {
+                if (q[len-1] == ':') {
+                    char *t = q;
+                    q[len-1] = '\0';
+                    while (*t) { if (islower(*t)) *t = toupper(*t); t++; }
+                    debug(F110,"zstrip checking",q,0);
+                    pp = getenv(q);
+                    if (!pp) pp = "";
+                    ckstrncpy(work,pp,1100);
+                    debug(F110,"zstrip getenv",work,0);
+                }
+            }
+            free(q);
+        }
     }
     debug(F110,"zstrip 3",work,0);
 #endif /* COMMENT */
 
 /* The following should allow us to receive files to LPT:, LTA1:, etc. */
 
-    if (work[0] == '\0') {		/* Still empty? */
-	debug(F000,"zstrip last",name,last); /* If it's a device name */
-	if (last == ':')		/* put it back */
-	  ckstrncpy(work,name,1100);
+    if (work[0] == '\0') {              /* Still empty? */
+        debug(F000,"zstrip last",name,last); /* If it's a device name */
+        if (last == ':')                /* put it back */
+          ckstrncpy(work,name,1100);
     }
     debug(F110,"zstrip result",*name2,0);
 }
@@ -5859,48 +6023,48 @@ zchkpath(s) char *s; {
   NODE::DEV:[DIR].
 */
     char *p;
-    p = zgtdir();			/* Get current dir. */
+    p = zgtdir();                       /* Get current dir. */
     debug(F110,"zchkpath file",s,0);
     debug(F110,"zchkpath current dir",p,0);
-    return(strncmp(p,s,strlen(p)));	/* Compare it. */
+    return(strncmp(p,s,strlen(p)));     /* Compare it. */
 #else /* def COMMENT */
 /*
     The purpose of this routine is to determine whether the file specified
     by *s would be in the current default directory or not.
 
     Inputs:
-	*s = filename to check, can be just a filename or full path
+        *s = filename to check, can be just a filename or full path
 
     Outputs:
-	0 = in the current default directory
+        0 = in the current default directory
         nonzero = not in the current directory
 
     Algorithm:
-	Uses SYS$PARSE.  As long as the current default directory is not
-	on a remote DECnet node, SYS$PARSE will return the Directory ID
-	of the directory where the parsed filename would be found.  This
-	means all we need do is parse both the default directory and the
-	filename passed to us and compare DIDs (as well as make sure the
-	two DIDs reference the same disk).  If so, it doesn't matter how
-	convoluted the filename passed to us is, or what logical names
-	may be involved, SYS$PARSE will tell us with certainty if it
-	resolves to the current directory or not.
+        Uses SYS$PARSE.  As long as the current default directory is not
+        on a remote DECnet node, SYS$PARSE will return the Directory ID
+        of the directory where the parsed filename would be found.  This
+        means all we need do is parse both the default directory and the
+        filename passed to us and compare DIDs (as well as make sure the
+        two DIDs reference the same disk).  If so, it doesn't matter how
+        convoluted the filename passed to us is, or what logical names
+        may be involved, SYS$PARSE will tell us with certainty if it
+        resolves to the current directory or not.
 
-	However, if the current default directory is on a remote DECnet
-	node, this information is not available (since SYS$PARSE executes
-	locally, not remotely).  In this case, SYS$PARSE will still expand
-	the filename as much as possible and then we can simply compare
-	the default directory with the directory reference returned by the
-	parse of the filename in *s using a simple string compare.  Since
-	we cannot evaluate remote logical names, this may cause a false
-	negative to occur if the user is playing games with the filename,
-	but it guarantees that we do not get a false positive.
+        However, if the current default directory is on a remote DECnet
+        node, this information is not available (since SYS$PARSE executes
+        locally, not remotely).  In this case, SYS$PARSE will still expand
+        the filename as much as possible and then we can simply compare
+        the default directory with the directory reference returned by the
+        parse of the filename in *s using a simple string compare.  Since
+        we cannot evaluate remote logical names, this may cause a false
+        negative to occur if the user is playing games with the filename,
+        but it guarantees that we do not get a false positive.
  */
     unsigned int dd_len, status;
     struct FAB my_fab;
-    struct NAMX dd_nam, s_nam;
-    const char *default_dir = "dummy.name";	/* guaranteed to resolve to */
-						/* the current default dir. */
+    struct NAMX_STRUCT dd_nam, s_nam;
+    const char *default_dir = "dummy.name";     /* guaranteed to resolve to */
+                                                /* the current default dir. */
     char dd_expanded_name[ NAMX_C_MAXRSS];
     char s_expanded_name[ NAMX_C_MAXRSS];
 
@@ -5909,10 +6073,7 @@ zchkpath(s) char *s; {
     my_fab.FAB_L_NAMX = &dd_nam;        /* Point the FAB to the NAM[L]. */
 
     /* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    my_fab.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-    my_fab.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( my_fab)
     FAB_OR_NAML( my_fab, dd_nam).FAB_OR_NAML_FNA = (char *)default_dir;
     FAB_OR_NAML( my_fab, dd_nam).FAB_OR_NAML_FNS = strlen( default_dir);
 
@@ -5932,10 +6093,7 @@ zchkpath(s) char *s; {
     my_fab.FAB_L_NAMX = &s_nam;
 
     /* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-    my_fab.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-    my_fab.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
+    NAMX_DNA_FNA_SET( my_fab)
     FAB_OR_NAML( my_fab, s_nam).FAB_OR_NAML_FNA = s;
     FAB_OR_NAML( my_fab, s_nam).FAB_OR_NAML_FNS = strlen( s);
 
@@ -5945,25 +6103,25 @@ zchkpath(s) char *s; {
         return (status);
     }
 
-   if (dd_nam.NAMX_B_NODE == 0) {	/* default dir is not via DECnet */
-	if (dd_nam.NAMX_T_DVI[0] != s_nam.NAMX_T_DVI[0])
-		return (1);		/* disk name sizes do not match*/
-	if (strncmp( &dd_nam.NAMX_T_DVI[1], &s_nam.NAMX_T_DVI[1],
-			dd_nam.NAMX_T_DVI[0] ))
-		return (1);		/* disk names do not match */
+   if (dd_nam.NAMX_B_NODE == 0) {       /* default dir is not via DECnet */
+        if (dd_nam.NAMX_T_DVI[0] != s_nam.NAMX_T_DVI[0])
+                return (1);             /* disk name sizes do not match*/
+        if (strncmp( &dd_nam.NAMX_T_DVI[1], &s_nam.NAMX_T_DVI[1],
+                        dd_nam.NAMX_T_DVI[0] ))
+                return (1);             /* disk names do not match */
 
-/*	At this point it is known that the current default directory is
-	a local directory and that the device portion of the default
-	directory and that of the filename passed to us are identical.
-	Now compare the major and minor number of the DID (but not the RVN,
-	we do not care if the result is on another disk of a bound volumset)
-	of the two parse results.  If they are the same, the filename passed
-	to us is definitely a reference to the default directory.
+/*      At this point it is known that the current default directory is
+        a local directory and that the device portion of the default
+        directory and that of the filename passed to us are identical.
+        Now compare the major and minor number of the DID (but not the RVN,
+        we do not care if the result is on another disk of a bound volumset)
+        of the two parse results.  If they are the same, the filename passed
+        to us is definitely a reference to the default directory.
  */
-	if ( (dd_nam.NAMX_W_DID_NUM == s_nam.NAMX_W_DID_NUM) &&
-	     (dd_nam.NAMX_W_DID_SEQ == s_nam.NAMX_W_DID_SEQ) )
-	     return (0);		/* in the same dir */
-	return (1);			/* not the same dir */
+        if ( (dd_nam.NAMX_W_DID_NUM == s_nam.NAMX_W_DID_NUM) &&
+             (dd_nam.NAMX_W_DID_SEQ == s_nam.NAMX_W_DID_SEQ) )
+             return (0);                /* in the same dir */
+        return (1);                     /* not the same dir */
    }
 
 /*
@@ -5978,9 +6136,9 @@ zchkpath(s) char *s; {
    This still has the benefit of no longer requiring that a full path name
    be passed to this routine.
  */
-   dd_len =				/* only want node::dev:[dir] */
+   dd_len =                             /* only want node::dev:[dir] */
        dd_nam.NAMX_L_NAME - dd_nam.NAMX_L_NODE;
-   dd_expanded_name[ dd_len ] = '\0';	/* terminate after the ] */
+   dd_expanded_name[ dd_len ] = '\0';   /* terminate after the ] */
    s_expanded_name[ s_nam.NAMX_L_NAME - s_nam.NAMX_L_NODE ] = '\0';
    return (strncmp (dd_expanded_name, s_expanded_name, dd_len) );
 #endif /* def COMMENT [else] */
@@ -5991,10 +6149,10 @@ zchkpath(s) char *s; {
 
 static VOID
 descname(desc,name) struct dsc$descriptor_s *desc; char *name; {
-    desc->dsc$w_length = strlen(name);	/* Length of name */
-    desc->dsc$a_pointer = name;		/* Address */
-    desc->dsc$b_class = DSC$K_CLASS_S;	/* String descriptor class */
-    desc->dsc$b_dtype = DSC$K_DTYPE_T;	/* ASCII string data type */
+    desc->dsc$w_length = strlen(name);  /* Length of name */
+    desc->dsc$a_pointer = name;         /* Address */
+    desc->dsc$b_class = DSC$K_CLASS_S;  /* String descriptor class */
+    desc->dsc$b_dtype = DSC$K_DTYPE_T;  /* ASCII string data type */
 }
 
 /* VMS version of RENAME */
@@ -6021,14 +6179,14 @@ rename(oldname, newname) char oldname[], newname[]; {
 int
 check_spawn() {
     struct itmlstdef {
-	short int buflen;
-	short int itmcod;
-	char *bufaddr;
-	long int *retlen;
+        short int buflen;
+        short int itmcod;
+        char *bufaddr;
+        long int *retlen;
     };
 
     struct itmlstdef itmlst[] =
-	{4,JPI$_UAF_FLAGS,0,0,0,0,0,0};
+        {4,JPI$_UAF_FLAGS,0,0,0,0,0,0};
 
     long uaf_flags_size;
     unsigned long uaf_flags;
@@ -6040,22 +6198,22 @@ check_spawn() {
     vms_status = sys$getjpiw(0, 0, 0, &itmlst, 0, 0, 0);
     if (!(vms_status & 1)) vms_lasterr = vms_status;
     if ((vms_status) != SS$_NORMAL)
-      return(-1);				/* Assume the worst... */
+      return(-1);                               /* Assume the worst... */
 
 #ifdef UAI$M_CAPTIVE
     if (uaf_flags & UAI$M_CAPTIVE) {
-	printf(
+        printf(
 "\nThis command cannot be executed. Your account is CAPTIVE.\n\n");
-	return(-1);
+        return(-1);
     }
 #endif  /* UAI$M_CAPTIVE */
-#ifdef	UAI$M_RESTRICTED			/* for pre-V5.2 systems */
+#ifdef  UAI$M_RESTRICTED                        /* for pre-V5.2 systems */
     if (uaf_flags & UAI$M_RESTRICTED) {
-	printf(
+        printf(
 "\nThis command cannot be executed. Your account is CAPTIVE.\n\n");
-	return(-1);
+        return(-1);
     }
-#endif	/* uai$v_restricted */
+#endif  /* uai$v_restricted */
     return(0);
 }
 
@@ -6067,11 +6225,11 @@ get_vms_vers() {
     static char sysver[9];
     int len;
     struct itmlst {
-		  short int buflen;
-		  short int code;
-		  char *bufadr;
-		  int *retlen;
-		  } vms_sysver[2];
+                  short int buflen;
+                  short int code;
+                  char *bufadr;
+                  int *retlen;
+                  } vms_sysver[2];
 
     vms_sysver[0].buflen = 8;
     vms_sysver[0].code = SYI$_VERSION;
@@ -6083,8 +6241,8 @@ get_vms_vers() {
     sysver[8]='\0';
     len = 7;
     while (sysver[len] == ' ') {
-	sysver[len] = '\0';
-	len--;
+        sysver[len] = '\0';
+        len--;
     }
     return(sysver);
 }
@@ -6120,8 +6278,8 @@ do_label_send(name) char *name; {
     int pad_size;
     int rel_dspec;
     extern int fnspath;
-    char * zp;				/* To shut up compilers whining */
-					/* about signed vs unsigned chars */
+    char * zp;                          /* To shut up compilers whining */
+                                        /* about signed vs unsigned chars */
     zp = (char *)zinptr;
     zp += sprintf(zp,"KERMIT LABELED FILE:02D704VERS");
     zp += sprintf(zp,"%08d%s", strlen(get_vms_vers()), get_vms_vers());
@@ -6129,7 +6287,7 @@ do_label_send(name) char *name; {
     if (fnspath == PATH_REL) {
         rel_dspec = fnd_rel(name);
         debug(F101," do_label_send: rel dir at char","", rel_dspec);
-        zp += sprintf(zp,"07REL_DIR00000008%08ld", (long)rel_dspec);
+        zp += sprintf(zp,"07REL_DIR00000008%08ld", rel_dspec);
     }
     zp += sprintf(zp,"07VMSNAME%08d", strlen(name));
     zp += sprintf(zp,"%s", name);
@@ -6144,7 +6302,7 @@ do_label_send(name) char *name; {
     zp += 1;
     memmove(zp, &fab_ifile.fab$b_rat, 1);
     zp += 1;
-    memmove(zp, &xuchar, 4);	/* Dummy for file chars. */
+    memmove(zp, &xuchar, 4);    /* Dummy for file chars. */
     zp += 4;
     memmove(zp, &fab_ifile.fab$b_fsz, 1);
     zp += 1;
@@ -6166,7 +6324,7 @@ do_label_send(name) char *name; {
     zp += 2;
     memmove(zp, &xabfhc_ifile.xab$w_verlimit, 2);
     zp += 2;
-    memmove(zp, &fab_ifile.fab$b_rfm+1, 1);	/* This is fab$b_journal */
+    memmove(zp, &fab_ifile.fab$b_rfm+1, 1);     /* This is fab$b_journal */
     zp += 1;
     memmove(zp, &xabdat_ifile.xab$q_cdt, 8);
     zp += 8;
@@ -6180,13 +6338,13 @@ do_label_send(name) char *name; {
     zp += 8;
     if (xabpro_ifile.xab$w_acllen != 0) {
         debug(F101, "do_label_send: acllen", "", xabpro_ifile.xab$w_acllen);
-	zp += sprintf(zp,"06VMSACL%08d", xabpro_ifile.xab$w_acllen);
-	memmove(zp, &aclbuf, xabpro_ifile.xab$w_acllen);
-	zp += xabpro_ifile.xab$w_acllen;
+        zp += sprintf(zp,"06VMSACL%08d", xabpro_ifile.xab$w_acllen);
+        memmove(zp, &aclbuf, xabpro_ifile.xab$w_acllen);
+        zp += xabpro_ifile.xab$w_acllen;
     }
     zp += sprintf(zp,"04DATA00000000");
-    zincnt = (zp - (char *)zinbuffer);	/* How big */
-    zinptr = zinbuffer;			/* Reset pointer for readout */
+    zincnt = (zp - (char *)zinbuffer);  /* How big */
+    zinptr = zinbuffer;                 /* Reset pointer for readout */
     return(1);
 }
 
@@ -6203,7 +6361,7 @@ do_label_send(name) char *name; {
 int
 do_label_recv() {
 
-    extern int fnrpath;			/* (look at this later...) */
+    extern int fnrpath;                 /* (look at this later...) */
 
     char *recv_ptr;
     char buffer[CK_LBLBUFLEN+1];
@@ -6215,20 +6373,20 @@ do_label_recv() {
     unsigned short jnlflg;
 
     debug(F101,"do_label_recv: options","",ofile_lblopts);
-    ofile_lblproc = 1;			/* Don't come here again */
+    ofile_lblproc = 1;                  /* Don't come here again */
 
     if (strncmp((char *)zoutbuffer,"KERMIT LABELED FILE:02D704VERS",30) != 0)
-      return(0);			/* Just continue if unlabeled */
+      return(0);                        /* Just continue if unlabeled */
 
-    recv_ptr = (char *)zoutbuffer+30;	/* start at front of buffer */
+    recv_ptr = (char *)zoutbuffer+30;   /* start at front of buffer */
 
     memcpy(buffer, recv_ptr, 8);
     recv_ptr += 8;
     buffer[8] = '\0';
     lblen = atoi(buffer);
     if (lblen > CK_LBLBUFLEN) {
-	debug(F101,"do_label_recv: lblen too long 1","",lblen);
-	return(-1);
+        debug(F101,"do_label_recv: lblen too long 1","",lblen);
+        return(-1);
     }
     memcpy(buffer, recv_ptr, lblen);
     recv_ptr += lblen;
@@ -6238,16 +6396,16 @@ do_label_recv() {
     memcpy(buffer, recv_ptr, 7);
     recv_ptr += 7;
     if (strncmp(buffer, "05KVERS", 7) != 0) {
-	debug(F100,"do_label_recv: lost sync at KVERS","",0);
-	return(-1);
+        debug(F100,"do_label_recv: lost sync at KVERS","",0);
+        return(-1);
     }
     memcpy(buffer, recv_ptr, 8);
     recv_ptr += 8;
     buffer[8] = '\0';
     lblen = atoi(buffer);
     if (lblen > CK_LBLBUFLEN) {
-	debug(F101,"do_label_recv: lblen too long 2","",lblen);
-	return(-1);
+        debug(F101,"do_label_recv: lblen too long 2","",lblen);
+        return(-1);
     }
     memcpy(buffer, recv_ptr, lblen);
     recv_ptr += lblen;
@@ -6260,34 +6418,34 @@ do_label_recv() {
     buffer[2] = '\0';
     lblen = atoi(buffer);
     if (lblen == 0) {
-	debug(F100,"do_label_recv: lost sync at next_label: ","",0);
-	return(-1);
+        debug(F100,"do_label_recv: lost sync at next_label: ","",0);
+        return(-1);
     } else if (lblen > CK_LBLBUFLEN) {
-	debug(F101,"do_label_recv: lblen too long 3","",lblen);
-	return(-1);
+        debug(F101,"do_label_recv: lblen too long 3","",lblen);
+        return(-1);
     }
     memcpy(buffer, recv_ptr, lblen);
     recv_ptr += lblen;
     buffer[lblen] = '\0';
     debug(F110,"do_label_recv: found tag: ",buffer,0);
     if (strcmp(buffer, "VMSNAME") == 0) {
-	memcpy(buffer, recv_ptr, 8);
+        memcpy(buffer, recv_ptr, 8);
         recv_ptr += 8;
-	buffer[8] = '\0';
-	lblen = atoi(buffer);
-	if (lblen > CKMAXPATH) {	/* fdc 23 Jun 96 */
-	    debug(F101,"do_label_recv: lblen too long 4","",lblen);
-	    return(-1);
-	}
-	memcpy(ofile_vmsname, recv_ptr, lblen);
+        buffer[8] = '\0';
+        lblen = atoi(buffer);
+        if (lblen > CKMAXPATH) {        /* fdc 23 Jun 96 */
+            debug(F101,"do_label_recv: lblen too long 4","",lblen);
+            return(-1);
+        }
+        memcpy(ofile_vmsname, recv_ptr, lblen);
         recv_ptr += lblen;
-	ofile_vmsname[lblen] = '\0';
-	gotname++;
-	debug(F110,"do_label_recv: loaded file name block as: ",
-	      ofile_vmsname,
-	      0
-	      );
-	debug(F110,"do_label_recv: ofile_vmsname 2",ofile_vmsname,0);
+        ofile_vmsname[lblen] = '\0';
+        gotname++;
+        debug(F110,"do_label_recv: loaded file name block as: ",
+              ofile_vmsname,
+              0
+              );
+        debug(F110,"do_label_recv: ofile_vmsname 2",ofile_vmsname,0);
         if ((ofile_lblopts & LBL_PTH) == 0) {
             if ( (fnrpath == PATH_REL) && (gotrel > 0) ) {
                 i = strrchr(ofile_vmsname, '[');
@@ -6297,133 +6455,130 @@ do_label_recv() {
                     ofile_vmsname[0] = '<';
                 }
                 ckstrncpy(&ofile_vmsname[1],
-			  &ofile_vmsname[gotrel],
-			  CKMAXPATH
-			  );
+                          &ofile_vmsname[gotrel],
+                          CKMAXPATH
+                          );
             } else {
                 i = strstr(ofile_vmsname, "::");
-		if (i != NULL) {
-		    i += 2;
-		    memmove(ofile_vmsname, i, strlen(ofile_vmsname));
+                if (i != NULL) {
+                    i += 2;
+                    memmove(ofile_vmsname, i, strlen(ofile_vmsname));
                 }
-	        i = strrchr(ofile_vmsname, ':');
-	        j = strrchr(ofile_vmsname, ']');
-	        if (j == NULL)
-		j = strrchr(ofile_vmsname, '>');
-	        if (j > i)
-		  i = j;
-	        if (i) {			/* fdc 6-12-96 */
-		    i++;
-		    memmove(ofile_vmsname, i, strlen(ofile_vmsname));
-	        }
+                i = strrchr(ofile_vmsname, ':');
+                j = strrchr(ofile_vmsname, ']');
+                if (j == NULL)
+                j = strrchr(ofile_vmsname, '>');
+                if (j > i)
+                  i = j;
+                if (i) {                        /* fdc 6-12-96 */
+                    i++;
+                    memmove(ofile_vmsname, i, strlen(ofile_vmsname));
+                }
             }
         } else {
             i = strstr(ofile_vmsname, "::");
-	    if (i != NULL) {
-	        i += 2;
-	        memmove(ofile_vmsname, i, strlen(ofile_vmsname));
-	    }
-	}
-	debug(F110,"do_label_recv: ofile_vmsname 3",ofile_vmsname,0);
-	if (strchr(ofile_vmsname, ';') != NULL) {
-	    for (alen = strlen(ofile_vmsname);
-		 ofile_vmsname[alen] != ';' && alen > 0;
-		 alen--)
-	      ;
-	    ofile_vmsname[alen] = '\0';
-	}
-	debug(F110,"do_label_recv: resultant filespec: ",ofile_vmsname,0);
-	goto next_label;
+            if (i != NULL) {
+                i += 2;
+                memmove(ofile_vmsname, i, strlen(ofile_vmsname));
+            }
+        }
+        debug(F110,"do_label_recv: ofile_vmsname 3",ofile_vmsname,0);
+        if (strchr(ofile_vmsname, ';') != NULL) {
+            for (alen = strlen(ofile_vmsname);
+                 ofile_vmsname[alen] != ';' && alen > 0;
+                 alen--)
+              ;
+            ofile_vmsname[alen] = '\0';
+        }
+        debug(F110,"do_label_recv: resultant filespec: ",ofile_vmsname,0);
+        goto next_label;
     } else if (strcmp(buffer, "REL_DIR") == 0) {
-	memcpy(buffer, recv_ptr, 8);
-	recv_ptr += 8;
-	buffer[8] = '\0';
-	lblen = atoi(buffer);
-	if (lblen > CK_LBLBUFLEN) {
-	    debug(F101,"do_label_recv: lblen too long 5","",lblen);
-	    return(-1);
-	}
+        memcpy(buffer, recv_ptr, 8);
+        recv_ptr += 8;
+        buffer[8] = '\0';
+        lblen = atoi(buffer);
+        if (lblen > CK_LBLBUFLEN) {
+            debug(F101,"do_label_recv: lblen too long 5","",lblen);
+            return(-1);
+        }
         memcpy(buffer, recv_ptr, lblen);
         recv_ptr += lblen;
         buffer[lblen] = '\0';
         gotrel = atoi(buffer);
-	if ( (gotrel < 3) || (gotrel > NAMX_C_MAXRSS) ) {
-	    debug(F101,
-		  "do_label_recv: rel dir head position wrong",
-		  "",
-		  gotrel
-		  );
-	    return(-1);
-	}
-	debug(F101,"do_label_recv: relative directory position","", gotrel);
-	goto next_label;
+        if ( (gotrel < 3) || (gotrel > NAMX_C_MAXRSS) ) {
+            debug(F101,
+                  "do_label_recv: rel dir head position wrong",
+                  "",
+                  gotrel
+                  );
+            return(-1);
+        }
+        debug(F101,"do_label_recv: relative directory position","", gotrel);
+        goto next_label;
     } else if (strcmp(buffer, "VMSFILE") == 0) {
-	memcpy(buffer, recv_ptr, 8);
-	recv_ptr += 8;
-	buffer[8] = '\0';
-	lblen = atoi(buffer);
-	if (lblen > CK_VMSFILELEN) {
-	    debug(F101,"do_label_recv: lblen too long 5","",lblen);
-	    return(-1);
-	}
-	memcpy(vmsfile, recv_ptr, lblen);
-	recv_ptr += lblen;
-	vmsfile[lblen] = '\0';
-	gotfile++;
-	debug(F100,"do_label_recv: loaded file attribute block","",0);
-	goto next_label;
+        memcpy(buffer, recv_ptr, 8);
+        recv_ptr += 8;
+        buffer[8] = '\0';
+        lblen = atoi(buffer);
+        if (lblen > CK_VMSFILELEN) {
+            debug(F101,"do_label_recv: lblen too long 5","",lblen);
+            return(-1);
+        }
+        memcpy(vmsfile, recv_ptr, lblen);
+        recv_ptr += lblen;
+        vmsfile[lblen] = '\0';
+        gotfile++;
+        debug(F100,"do_label_recv: loaded file attribute block","",0);
+        goto next_label;
     } else if (strcmp(buffer, "VMSACL") == 0) {
-	memcpy(buffer, recv_ptr, 8);
-	recv_ptr += 8;
-	buffer[8] = '\0';
-	ofile_acllen = atoi(buffer);
-	if (ofile_acllen > sizeof(ofile_vmsacl) ) {
-	    debug(F101,"do_label_recv: ofile_acllen too long","",ofile_acllen);
-	    return(-1);
-	}
-	memcpy(ofile_vmsacl, recv_ptr, ofile_acllen);
-	recv_ptr += ofile_acllen;
-/*	ofile_vmsacl[ofile_acllen] = '\0'; */	/* ACL buffer is binary */
-	gotacl++;
-	debug(F100,"do_label_recv: loaded file ACL block","",0);
-	goto next_label;
+        memcpy(buffer, recv_ptr, 8);
+        recv_ptr += 8;
+        buffer[8] = '\0';
+        ofile_acllen = atoi(buffer);
+        if (ofile_acllen > sizeof(ofile_vmsacl) ) {
+            debug(F101,"do_label_recv: ofile_acllen too long","",ofile_acllen);
+            return(-1);
+        }
+        memcpy(ofile_vmsacl, recv_ptr, ofile_acllen);
+        recv_ptr += ofile_acllen;
+/*      ofile_vmsacl[ofile_acllen] = '\0'; */   /* ACL buffer is binary */
+        gotacl++;
+        debug(F100,"do_label_recv: loaded file ACL block","",0);
+        goto next_label;
     } else if (strcmp(buffer, "DATA") == 0) {
-	memcpy(buffer, recv_ptr, 8);
-	recv_ptr += 8;
-	buffer[8] = '\0';
-	lblen = atoi(buffer);
-	if (lblen != 0) {
-	    debug(F101,"do_label_recv: length of DATA tag not zero","",lblen);
-	    return(-1);
-	}
-	debug(F100,"do_label_recv: positioned at start of file data","",0);
-	goto all_set;
+        memcpy(buffer, recv_ptr, 8);
+        recv_ptr += 8;
+        buffer[8] = '\0';
+        lblen = atoi(buffer);
+        if (lblen != 0) {
+            debug(F101,"do_label_recv: length of DATA tag not zero","",lblen);
+            return(-1);
+        }
+        debug(F100,"do_label_recv: positioned at start of file data","",0);
+        goto all_set;
     } else {
-	debug(F110,"do_label_recv: unrecognized label: ",buffer,0);
-	memcpy(buffer, recv_ptr, 8);
-	recv_ptr += 8;
-	buffer[8] = '\0';
-	lblen = atoi(buffer);
-	recv_ptr += lblen;
-	goto next_label;
+        debug(F110,"do_label_recv: unrecognized label: ",buffer,0);
+        memcpy(buffer, recv_ptr, 8);
+        recv_ptr += 8;
+        buffer[8] = '\0';
+        lblen = atoi(buffer);
+        recv_ptr += lblen;
+        goto next_label;
     }
   all_set:
     if (gotfile != 1 || gotname != 1) {
-	debug(F100,"do_label_recv: missing one or more required labels","",0);
-	return(-1);
+        debug(F100,"do_label_recv: missing one or more required labels","",0);
+        return(-1);
     }
 
 /* Prep the characteristics */
 
     if ((ofile_lblopts & LBL_NAM) != 0) {
-	/* Install the path name in the FAB or NAML. */
-#ifdef NAML$C_MAXRSS
-	fab_ofile.fab$l_dna = (char *) -1;  /* Using NAML for default name. */
-	fab_ofile.fab$l_fna = (char *) -1;  /* Using NAML for file name. */
-#endif /* def NAML$C_MAXRSS */
-	FAB_OR_NAML( fab_ofile, nam_ofile).FAB_OR_NAML_FNA = ofile_vmsname;
-	FAB_OR_NAML( fab_ofile, nam_ofile).FAB_OR_NAML_FNS =
-	 strlen( ofile_vmsname);
+        /* Install the path name in the FAB or NAML. */
+        NAMX_DNA_FNA_SET( fab_ofile)
+        FAB_OR_NAML( fab_ofile, nam_ofile).FAB_OR_NAML_FNA = ofile_vmsname;
+        FAB_OR_NAML( fab_ofile, nam_ofile).FAB_OR_NAML_FNS =
+         strlen( ofile_vmsname);
     }
     fab_ofile.fab$b_fac = FAB$M_BIO | FAB$M_PUT;
     fab_ofile.fab$l_fop = FAB$M_MXV;
@@ -6453,7 +6608,7 @@ do_label_recv() {
     filptr += 1;
     memmove(&fab_ofile.fab$b_rat, filptr, 1);
     filptr += 1;
-    filptr += 4;			/* reserved */
+    filptr += 4;                        /* reserved */
     memmove(&fab_ofile.fab$b_fsz, filptr, 1);
     filptr += 1;
     memmove(&xabfhc_ofile.xab$w_lrl, filptr, 2);
@@ -6480,10 +6635,10 @@ do_label_recv() {
     memmove((char *)&xaball_ofile.xaballdef$$_fill_7, (char *)filptr, 1);
 #else
     {
-	char * s1, * s2;
-	s1 = (char *)&xaball_ofile.xaballdef$$_fill_7;
-	s2 = (char *)filptr;
-	*s1 = *s2;
+        char * s1, * s2;
+        s1 = (char *)&xaball_ofile.xaballdef$$_fill_7;
+        s2 = (char *)filptr;
+        *s1 = *s2;
     }
 #endif /* COMMENT */
 #else
@@ -6508,14 +6663,14 @@ do_label_recv() {
     memmove(&xabdat_ofile.xab$q_edt, filptr, 8);
     filptr += 8;
     if ((ofile_lblopts & LBL_BCK) != 0)
-	memmove(&xabdat_ofile.xab$q_bdt, filptr, 8);
+        memmove(&xabdat_ofile.xab$q_bdt, filptr, 8);
     filptr += 8;
 
 /* ACL's? */
 
     if ((ofile_lblopts & LBL_ACL) != 0 && gotacl != 0) {
-	xabpro_ofile.xab$l_aclbuf = (char *)&ofile_vmsacl;
-	xabpro_ofile.xab$w_aclsiz = ofile_acllen;
+        xabpro_ofile.xab$l_aclbuf = (char *)&ofile_vmsacl;
+        xabpro_ofile.xab$w_aclsiz = ofile_acllen;
     }
 
 /* Try to create the file */
@@ -6523,23 +6678,23 @@ do_label_recv() {
     rms_sts = sys$create(&fab_ofile);
     if (!(rms_sts & 1)) vms_lasterr = rms_sts;
     if (!(rms_sts & 1)) {
-	debug(F101,"do_label_recv: $create failed, status","",rms_sts);
-	return(-1);
+        debug(F101,"do_label_recv: $create failed, status","",rms_sts);
+        return(-1);
     }
     if ((ofile_lblopts & LBL_ACL) != 0 && gotacl != 0) {
-	if (!(xabpro_ofile.xab$l_aclsts & 1)) {
-	    debug(F101,"do_label_recv: ACL chain failed, status",
-		  "",
-		  xabpro_ofile.xab$l_aclsts
-		  );
-	    return(-1);
-	}
+        if (!(xabpro_ofile.xab$l_aclsts & 1)) {
+            debug(F101,"do_label_recv: ACL chain failed, status",
+                  "",
+                  xabpro_ofile.xab$l_aclsts
+                  );
+            return(-1);
+        }
     }
     rms_sts = sys$connect(&rab_ofile);
     if (!(rms_sts & 1)) vms_lasterr = rms_sts;
     if (!(rms_sts & 1)) {
-	debug(F101,"do_label_recv: $connect failed, status","",rms_sts);
-	return(-1);
+        debug(F101,"do_label_recv: $connect failed, status","",rms_sts);
+        return(-1);
     }
 /*
   Slide the remainder of the data to the head of the buffer and adjust the
@@ -6550,7 +6705,7 @@ do_label_recv() {
     debug(F101,"do_label_recv: zoutcnt","",zoutcnt);
     memcpy(zoutbuffer, recv_ptr, zoutcnt);
     zoutptr = zoutbuffer + zoutcnt;
-    return(1);				/* Go fill some more */
+    return(1);                          /* Go fill some more */
 }
 
 static char xxvmsmsg[PMSG_MSG_SIZE];
@@ -6559,10 +6714,10 @@ char *
 ckvmserrstr(x) unsigned long x; {
     long int n = 0;
     struct dsc$descriptor_s b = {
-	PMSG_BUF_SIZE - 1,
-	DSC$K_DTYPE_T,
-	DSC$K_CLASS_S,
-	NULL
+        PMSG_BUF_SIZE - 1,
+        DSC$K_DTYPE_T,
+        DSC$K_CLASS_S,
+        NULL
     };
     if (x < 1) x = vms_lasterr;
     b.dsc$a_pointer = (char *)&xxvmsmsg;
@@ -6572,13 +6727,71 @@ ckvmserrstr(x) unsigned long x; {
     return((char *)xxvmsmsg);
 }
 
+/*----------------------------------------------------------------------
+ *
+ *       getexedir()
+ *
+ *   Extract the directory spec for the Kermit executable from xarg0
+ *   (copy of argv[ 0]).
+ *
+ * As of 2023-06-26, no header file provides the prototype for
+ * getexedir().  (Or a declaration for exedir or xarg0).
+ *
+/*--------------------------------------------------------------------*/
+
+_PROTOTYP( VOID getexedir, (void) );
+
+VOID
+getexedir( void)
+{
+  extern char *xarg0;
+  extern char *exedir;
+
+  int sts;
+
+/* RMS structures, buffers used for file parsing. */
+
+  struct FAB fab_exe;                   /* File Access Block. */
+  struct NAMX_STRUCT exe_nam;           /* [Long] Name Block. */
+  char exp_nam[ NAMX_C_MAXRSS+ 1];      /* Expanded String Area. */
+
+  /* Initialize the FAB and NAM[L], and link the NAM[L] to the FAB. */
+  fab_exe = cc$rms_fab;
+  exe_nam = CC_RMS_NAMX;
+  fab_exe.FAB_L_NAMX = &exe_nam;
+
+  /* Point the FAB/NAM[L] fields to the actual file spec. */
+
+  NAMX_DNA_FNA_SET( fab_exe)
+  FAB_OR_NAML( fab_exe, exe_nam).FAB_OR_NAML_FNA = xarg0;
+  FAB_OR_NAML( fab_exe, exe_nam).FAB_OR_NAML_FNS = strlen( xarg0);
+
+  exe_nam.NAMX_L_ESA = exp_nam;
+  exe_nam.NAMX_B_ESL = 0;
+  exe_nam.NAMX_B_ESS = sizeof( exp_nam)- 1;
+
+/* Parse the file specification. */
+
+  sts = sys$parse( &fab_exe, 0, 0);     /* Can't fail? */
+
+  /* NUL-terminate at the beginning of the name (end-of-dir+ 1). */
+  *exe_nam.NAMX_L_NAME = '\0';
+
+  if ((sts& STS$M_SEVERITY) == STS$K_SUCCESS)
+  {
+    makestr( &exedir, exp_nam);         /* Save the result. */
+  }
+}
+
+/*--------------------------------------------------------------------*/
+
 /* End of CKVFIO.C */
 
 
 /* DEAD CODE follows... */
 
 #ifdef CK_TMPDIR
-#ifdef COMMENT /* FDC */		/* Frank's version */
+#ifdef COMMENT /* FDC */                /* Frank's version */
 int
 isdir(s) char *s; {
     int x;
@@ -6589,8 +6802,8 @@ isdir(s) char *s; {
     static char dot_dir[] = ".dir";
     static char zero_dir[] = "[000000]";
 
-    char name_buf[255];			/* Was 512 but that's too big */
-    char tmpbuf[255];			/* for unsigned char... */
+    char name_buf[255];                 /* Was 512 but that's too big */
+    char tmpbuf[255];                   /* for unsigned char... */
 
     struct FAB fab;
     struct NAM nam;
@@ -6600,11 +6813,11 @@ isdir(s) char *s; {
     int new_len;
     int serial_num;
     struct {
-	short length;
-	short code;
-	char *address;
-	int *len;
-	int term;
+        short length;
+        short code;
+        char *address;
+        int *len;
+        int term;
     } itemlist;
 
     if (!s) return(0);
@@ -6623,43 +6836,43 @@ isdir(s) char *s; {
   Bad idea.  No, the user really has to include the colon, otherwise the
   intention is ambiguous.
 */
-	p = tmpbuf;			/* No, maybe it's a logical name */
-	ckstrncpy(tmpbuf,getenv(s),255);
-	if (*p) {
-	    s = p;
-	    s_len = strlen(s);
-	    if (s < 1)			/* No definition */
-	      return(0);
+        p = tmpbuf;                     /* No, maybe it's a logical name */
+        ckstrncpy(tmpbuf,getenv(s),255);
+        if (*p) {
+            s = p;
+            s_len = strlen(s);
+            if (s < 1)                  /* No definition */
+              return(0);
 
-	    /* It is a logical name, but does it look like a dir name? */
-	    if (s[s_len-1] != ':' && s[s_len-1] != ']' && s[s_len-1] != '>')
-	      return(0);		/* No, it doesn't */
-	}
+            /* It is a logical name, but does it look like a dir name? */
+            if (s[s_len-1] != ':' && s[s_len-1] != ']' && s[s_len-1] != '>')
+              return(0);                /* No, it doesn't */
+        }
 #else /* def COMMENT */
 
 /*  Check for "DEV:[FOO]BLAH.DIR;1"... */
 
-	if (zchki(s) == -2) {		/* It's a directory */
-	    int i;
-	    char * p = NULL;		/* Pointer to period */
-	    debug(F111,"isdir zchki",s,-2);
-	    /* Note: This does not handle "FOO.DIR.1"... */
-	    for (i = s_len; i > 0; i--) {
-		if (s[i] == '.')
-		  p = s+i;
-		else if (s[i] == ']' || s[i] == '>')
-		  break;
-	    }
-	    debug(F110,"isdir p",p,0);
-	    if (p) {
-		if ((*(p+1) == 'D' || *(p+1) == 'd') &&
-		    (*(p+2) == 'I' || *(p+2) == 'i') &&
-		    (*(p+3) == 'R' || *(p+3) == 'r') &&
-		    (*(p+4) == ';' || *(p+4) == NUL || *(p+4) == SP))
-		  return(2);
-	    }
-	}
-	return(0);
+        if (zchki(s) == -2) {           /* It's a directory */
+            int i;
+            char * p = NULL;            /* Pointer to period */
+            debug(F111,"isdir zchki",s,-2);
+            /* Note: This does not handle "FOO.DIR.1"... */
+            for (i = s_len; i > 0; i--) {
+                if (s[i] == '.')
+                  p = s+i;
+                else if (s[i] == ']' || s[i] == '>')
+                  break;
+            }
+            debug(F110,"isdir p",p,0);
+            if (p) {
+                if ((*(p+1) == 'D' || *(p+1) == 'd') &&
+                    (*(p+2) == 'I' || *(p+2) == 'i') &&
+                    (*(p+3) == 'R' || *(p+3) == 'r') &&
+                    (*(p+4) == ';' || *(p+4) == NUL || *(p+4) == SP))
+                  return(2);
+            }
+        }
+        return(0);
 #endif /* def COMMENT [else] */
     }
     /* Check that the directory part is valid... */
@@ -6687,10 +6900,10 @@ isdir(s) char *s; {
         nam.nam$l_fnb = 0;
 
         i = sys$parse(&fab, 0, 0);
-	if (!(i & 1)) vms_lasterr = i;
+        if (!(i & 1)) vms_lasterr = i;
 #ifdef COMMENT
-	printf("parse returned %d 0x%x, nam fnb is %d 0x%x\n",
-	       i, i, nam.nam$l_fnb, nam.nam$l_fnb);
+        printf("parse returned %d 0x%x, nam fnb is %d 0x%x\n",
+               i, i, nam.nam$l_fnb, nam.nam$l_fnb);
 #endif /* def COMMENT */
         if ((i & 1) == 0) return(0);
     }
@@ -6701,77 +6914,77 @@ isdir(s) char *s; {
     while (i >= 0 && s[i] != ':') i--;
 
     if (i >= 0 && s[i] == ':') {
-	if (i == 0) return(0);		/* Single colon (:) */
-	if (s[i-1] == ':') {
-	    if (i > 1) return(1);	/* DECnet node name (blah::) */
-	    else return(0);		/* or :: alone. */
-	}
-	s_len = i;
-	full_name = malloc(s_len + 1);
-	if (!full_name) return(0);
-	/* Logicals must be upper case */
-	for (i = 0; i < s_len; i++) {
-	    full_name[i] = s[i];
-	    if (full_name[i] >= 'a' && full_name[i] <= 'z')
-	      full_name[i] -= ('a' - 'A');
-	}
-	indesc.dsc$w_length = s_len;
-	indesc.dsc$a_pointer = full_name;
-	indesc.dsc$b_class = DSC$K_CLASS_S;
-	indesc.dsc$b_dtype = DSC$K_DTYPE_T;
+        if (i == 0) return(0);          /* Single colon (:) */
+        if (s[i-1] == ':') {
+            if (i > 1) return(1);       /* DECnet node name (blah::) */
+            else return(0);             /* or :: alone. */
+        }
+        s_len = i;
+        full_name = malloc(s_len + 1);
+        if (!full_name) return(0);
+        /* Logicals must be upper case */
+        for (i = 0; i < s_len; i++) {
+            full_name[i] = s[i];
+            if (full_name[i] >= 'a' && full_name[i] <= 'z')
+              full_name[i] -= ('a' - 'A');
+        }
+        indesc.dsc$w_length = s_len;
+        indesc.dsc$a_pointer = full_name;
+        indesc.dsc$b_class = DSC$K_CLASS_S;
+        indesc.dsc$b_dtype = DSC$K_DTYPE_T;
 
-	itemlist.length = new_len = sizeof(name_buf);
-	itemlist.code = LNM$_STRING;
-	itemlist.address = name_buf;
-	itemlist.len = &new_len;
-	itemlist.term = 0;
+        itemlist.length = new_len = sizeof(name_buf);
+        itemlist.code = LNM$_STRING;
+        itemlist.address = name_buf;
+        itemlist.len = &new_len;
+        itemlist.term = 0;
 
-	i = sys$trnlnm(0, &lnmtable, &indesc, 0, &itemlist);
-	if (!(i & 1)) vms_lasterr = i;
-	if (i != SS$_NORMAL || new_len < 0) new_len = 0;
-	if (new_len >= sizeof(name_buf)) new_len = sizeof(name_buf) - 1;
-	name_buf[new_len] = '\0';
+        i = sys$trnlnm(0, &lnmtable, &indesc, 0, &itemlist);
+        if (!(i & 1)) vms_lasterr = i;
+        if (i != SS$_NORMAL || new_len < 0) new_len = 0;
+        if (new_len >= sizeof(name_buf)) new_len = sizeof(name_buf) - 1;
+        name_buf[new_len] = '\0';
 
 #ifdef COMMENT
-	printf("trnlnm result %d 0x%x, '%.*s'\n", i, i, new_len, name_buf);
+        printf("trnlnm result %d 0x%x, '%.*s'\n", i, i, new_len, name_buf);
 #endif /* def COMMENT */
 
-	if (new_len == 0) {
-	    /* Could still be a device name. */
-	    /* Only disks have serial numbers... */
-	    serial_num = 0;
-	    itemlist.length = new_len = sizeof(serial_num);
-	    itemlist.code = DVI$_SERIALNUM;
-	    itemlist.address = (char *) &serial_num;
-	    itemlist.len = &new_len;
-	    itemlist.term = 0;
-	    i = sys$getdvi(0, 0, &indesc, &itemlist, 0, 0, 0, 0);
-	    if (!(i & 1)) vms_lasterr = i;
+        if (new_len == 0) {
+            /* Could still be a device name. */
+            /* Only disks have serial numbers... */
+            serial_num = 0;
+            itemlist.length = new_len = sizeof(serial_num);
+            itemlist.code = DVI$_SERIALNUM;
+            itemlist.address = (char *) &serial_num;
+            itemlist.len = &new_len;
+            itemlist.term = 0;
+            i = sys$getdvi(0, 0, &indesc, &itemlist, 0, 0, 0, 0);
+            if (!(i & 1)) vms_lasterr = i;
 #ifdef COMMENT
-	    printf("getdvi ret %d 0x%x, serial %d len %d\n",
-		   i, i, serial_num, new_len);
+            printf("getdvi ret %d 0x%x, serial %d len %d\n",
+                   i, i, serial_num, new_len);
 #endif /* def COMMENT */
-	    free(full_name);
-	    return(((i & 1) == 1 && new_len > 0) ? 1: 0);
+            free(full_name);
+            return(((i & 1) == 1 && new_len > 0) ? 1: 0);
 
-	} else if (name_buf[new_len-1] == ':' ||
-			name_buf[new_len-1] == ']' ||
-			name_buf[new_len-1] == '>') {
-	    /* Check returned value */
-	    if (new_len > 2 &&
-	        (name_buf[new_len-1] == ']' || name_buf[new_len-1] == '>') &&
-	        name_buf[new_len-2] == '.') {
-		/* Remove trailing dot in directory of logical name */
-		name_buf[new_len-2] = name_buf[new_len-1];
-		name_buf[new_len-1] = '\0';
-	    }
-	    free(full_name);
-	    return( isdir(name_buf) );
-	} else {
-	    /* Logical name is just a random string signifying nothing */
-	    free(full_name);
-	    return(0);
-	}
+        } else if (name_buf[new_len-1] == ':' ||
+                        name_buf[new_len-1] == ']' ||
+                        name_buf[new_len-1] == '>') {
+            /* Check returned value */
+            if (new_len > 2 &&
+                (name_buf[new_len-1] == ']' || name_buf[new_len-1] == '>') &&
+                name_buf[new_len-2] == '.') {
+                /* Remove trailing dot in directory of logical name */
+                name_buf[new_len-2] = name_buf[new_len-1];
+                name_buf[new_len-1] = '\0';
+            }
+            free(full_name);
+            return( isdir(name_buf) );
+        } else {
+            /* Logical name is just a random string signifying nothing */
+            free(full_name);
+            return(0);
+        }
     }
     return(1);
 }

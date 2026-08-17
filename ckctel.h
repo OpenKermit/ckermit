@@ -102,70 +102,70 @@
 #define IAC 0xff
 #endif /* IAC */
 #ifndef DONT
-#define DONT 0xfe			/* 254 */
+#define DONT 0xfe                       /* 254 */
 #endif /* DONT */
 #ifndef DO
-#define DO 0xfd				/* 253 */
+#define DO 0xfd                         /* 253 */
 #endif /* DO */
 #ifndef WONT
-#define WONT 0xfc			/* 252 */
+#define WONT 0xfc                       /* 252 */
 #endif /* WONT */
 #ifndef WILL
-#define WILL 0xfb			/* 251 */
+#define WILL 0xfb                       /* 251 */
 #endif /* WILL */
 #ifndef SB
-#define SB 0xfa				/* 250 */
+#define SB 0xfa                         /* 250 */
 #endif /* SB */
 #ifndef TN_GA
-#define TN_GA 0xf9			/* 249 */
+#define TN_GA 0xf9                      /* 249 */
 #endif /* TN_GA */
 #ifndef TN_EL
-#define TN_EL 0xf8			/* 248 */
+#define TN_EL 0xf8                      /* 248 */
 #endif /* TN_EL */
 #ifndef TN_EC
-#define TN_EC 0xf7			/* 247 */
+#define TN_EC 0xf7                      /* 247 */
 #endif /* TN_EC */
 #ifndef TN_AYT
-#define TN_AYT 0xf6			/* 246 */
+#define TN_AYT 0xf6                     /* 246 */
 #endif /* TN_AYT */
 #ifndef TN_AO
-#define TN_AO 0xf5			/* 245 */
+#define TN_AO 0xf5                      /* 245 */
 #endif /* TN_AO */
 #ifndef TN_IP
-#define TN_IP 0xf4			/* 244 */
+#define TN_IP 0xf4                      /* 244 */
 #endif /* TN_IP */
 #ifndef BREAK
-#define BREAK 0xf3			/* 243 */
+#define BREAK 0xf3                      /* 243 */
 #endif /* BREAK */
 #ifndef TN_DM
-#define TN_DM 0xf2			/* 242 */
+#define TN_DM 0xf2                      /* 242 */
 #endif /* TN_DM */
 #ifndef TN_NOP
-#define TN_NOP 0xf1			/* 241 */
+#define TN_NOP 0xf1                     /* 241 */
 #endif /* TN_NOP */
 #ifndef SE
-#define SE 0xf0				/* 240 */
+#define SE 0xf0                         /* 240 */
 #endif /* SE */
 #ifndef TN_EOR
-#define TN_EOR 0xef			/* 239 */
+#define TN_EOR 0xef                     /* 239 */
 #endif /* TN_EOR */
 #ifndef TN_ABORT
-#define TN_ABORT 0xee			/* 238 */
+#define TN_ABORT 0xee                   /* 238 */
 #endif /* TN_ABORT */
 #ifndef TN_SUSP
-#define TN_SUSP 0xed			/* 237 */
+#define TN_SUSP 0xed                    /* 237 */
 #endif /* TN_SUSP */
 #ifndef TN_EOF
-#define TN_EOF 0xec			/* 236 */
+#define TN_EOF 0xec                     /* 236 */
 #endif /* TN_EOF */
 #ifndef LAST_TN_CMD
-#define LAST_TN_CMD 0xec		/* 236 */
+#define LAST_TN_CMD 0xec                /* 236 */
 
-#define TN_SAK 0xc8			/* 200 - IBM Secure Attention Key */
+#define TN_SAK 0xc8                     /* 200 - IBM Secure Attention Key */
 #endif /* LAST_TN_CMD */
-#define SYNCH 0xf2			/* 242 - for telfunc calls */
+#define SYNCH 0xf2                      /* 242 - for telfunc calls */
 
-#endif	/* COMMENT */
+#endif  /* COMMENT */
 
 _PROTOTYP(char * tel_unk, (int));       /* "UNKNOWN-%u" string. */
 
@@ -181,8 +181,8 @@ extern char *telcmds[];
 
 #define TELCMD_FIRST    TN_EOF
 #define TELCMD_LAST     IAC
-#define TELCMD_OK(x)    ((unsigned int)(x) <= TELCMD_LAST && \
-                         (unsigned int)(x) >= TELCMD_FIRST || \
+#define TELCMD_OK(x)    (((unsigned int)(x) <= TELCMD_LAST && \
+                         (unsigned int)(x) >= TELCMD_FIRST) || \
                           (unsigned int)(x) == TN_SAK)
 #define TELCMD(x)       (TELCMD_OK(x)? ((x) == TN_SAK?"SAK": \
                          telcmds[(x)-TELCMD_FIRST]):tel_unk(x))

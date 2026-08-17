@@ -75,8 +75,8 @@ large window fills the pipe and packets start arriving in bursts.
 
 ### `SET RETRY`
 
-Maximum retries per packet, 0 to 999.c:11843). A value of 0 means unlimited. Set
-this generously, or to 0, so a transient loss does not abort the whole transfer.
+Maximum retries per packet, 0 to 999. A value of 0 means unlimited. Set this
+generously, or to 0, so a transient loss does not abort the whole transfer.
 
 ### `SET WINDOW` and `SET PACKET-LENGTH`
 
@@ -107,26 +107,25 @@ Both RELIABLE and STREAMING [default to AUTO](help-reference.md#set-streaming).
 This means streaming may already be active by default for a TCP-based path with
 no configuration required.
 
-If the long-latency path is serial  rather than TCP, streaming does not activate
+If the long-latency path is serial rather than TCP, streaming doesn't activate
 automatically. Enabling it there requires an explicit `SET RELIABLE ON`, and
-should only be done if the link is trusted not to silently corrupt data.  HF
-radio type links generally do not meet that bar, and should rely on tuned `SEND
-TIMEOUT` / `RETRY` / `WINDOW` values instead.
+should only be done if the link is trusted not to corrupt data.  HF radio links
+generally do not meet that bar, and should rely on tuned `SEND TIMEOUT` /
+`RETRY` / `WINDOW` values instead.
 
 ## Wire protocol limit
 
 `SET RECEIVE TIMEOUT`, the value one Kermit asks its peer to wait for packets
 before resending, is capped at 0-94 seconds. This is because the value is
-encoded as a single printable ASCII character in the Send-Init packet, per the
-original Kermit protocol specification. This ceiling cannot be raised without
-breaking wire compatibility.
+encoded as a single printable ASCII character in the Send-Init packet. This
+ceiling cannot be raised without breaking wire compatibility.
 
 It doesn't matter in practice since `SET SEND TIMEOUT` on each side takes
 priority over whatever the peer requested.  So as long as both ends configure
 `SET SEND TIMEOUT` locally, the 94-second field becomes irrelevant.
 
 If you like to configure C-Kermit remotely, note that `SET SEND TIMEOUT` is a
-local decision and cannot be pushed to a server-mode peer via `REMOTE SET`
+local decision and can't be pushed to a server-mode peer via `REMOTE SET`
 beyond the 94-second field. `SET RETRY`, by contrast, can be pushed to a remote
 server via `REMOTE SET RETRY`, since it is a generic server parameter rather
 than a Send-Init field.
