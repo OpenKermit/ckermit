@@ -1976,7 +1976,7 @@ fwdx_create_fake_xauth(name, name_len, data_len)
     for (n = 0; n < sizeof(stackdata); n++)
         c += stackdata[n];
     srand((unsigned int)c);
-    for (c = 0; c < data_len; c++)
+    for (c = 0; c < (unsigned int)data_len; c++)
         fake_xauth.data[c] = (unsigned char)rand();
     return 0;
 }

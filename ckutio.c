@@ -11501,7 +11501,7 @@ ttinc(timo) int timo;
           return((unsigned)(n & 0xff));
         else
 #endif /* TNCODE */
-          return(n < 0 ? n : (unsigned)(n & ttpmsk));
+          return(n < 0 ? n : (n & ttpmsk));
 
 #else  /* MYREAD */
 
@@ -11596,7 +11596,7 @@ debug(F110,"XXX netclos in ifdef NETCONN...","C",0);
         else
 #endif /* TNCODE */
           /* Return masked char or neg. */
-          return( (n < 0) ? n : (unsigned)(n & ttpmsk) );
+          return( (n < 0) ? n : (n & ttpmsk) );
     }
 }
 
@@ -16427,7 +16427,7 @@ ckxfprintf(va_alist) va_dcl
         }
         len = rc;
         for (i = 0, j = 0, got_cr = 0;
-             i < len && j < sizeof(str1)-2;
+             i < len && (size_t)j < sizeof(str1)-2;
              i++, j++ ) {
             /* We can't use 255 as a case label because of signed chars */
             c = (unsigned)(str1[i] & 0xff);
@@ -16552,7 +16552,7 @@ ckxprintf(va_alist) va_dcl
         }
         len = rc;
         for (i = 0, j = 0, got_cr=0;
-             i < len && j < sizeof(str1)-2;
+             i < len && (size_t)j < sizeof(str1)-2;
              i++, j++ ) {
             c = (unsigned)(str1[i] & 0xff);
 #ifdef TNCODE

@@ -10322,7 +10322,7 @@ getslot() {                             /* Find a free slot for us */
     /* Trim stale records from end */
 
 #ifndef NOFTRUNCATE
-    if (i > dblastused+DB_RECL) {
+    if ((unsigned long)i > dblastused+DB_RECL) {
         debug(F101,"getslot truncating at","",DB_HDRL+dblastused+DB_RECL);
 #ifdef COHERENT
         x = chsize(fileno(dbfp),DB_HDRL+dblastused+DB_RECL);

@@ -8143,15 +8143,17 @@ isinternalmacro(x) int x;
         internal = ckindex(m,"|_while|_forx|_forz|_xif|_switx|",0,0,0);
         debug(F111," internal macro","A",internal);
         if (!internal) {
-            int i, n, len = 0;
+            int n, len = 0;
+            unsigned int i;
             n = -1;
-            for (i = 0; i < sizeof(* tags); i++) {
+            for (i = 0; i < sizeof(tags) / sizeof(tags[0]); i++) {
                 if (ckindex(tags[i],m,0,0,0)) {
                     n = i;
                     break;
                 }
             }
-            debug(F111," tags index",tags[n],n);
+            if (n > -1)
+              debug(F111," tags index",tags[n],n);
             if (n > -1) {
                 char * tag = tags[i];
                 len = (int)strlen(tag);

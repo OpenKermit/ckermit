@@ -2171,7 +2171,7 @@ ssl_tn_init(mode) int mode;
             */
             n = snprintf(cert_filepath, sizeof(cert_filepath), "%s/%s",
                 defdir, "telnetd-rsa.pem");
-            if (n < 0 || n >= sizeof(cert_filepath)) {
+            if (n < 0 || (size_t)n >= sizeof(cert_filepath)) {
                 debug(F110, "ssl_tn_init", "cert_filepath truncation", 0);
                 last_ssl_mode = -1;
                 return(0);
@@ -2186,7 +2186,7 @@ ssl_tn_init(mode) int mode;
             */
             n = snprintf(cert_filepath, sizeof(cert_filepath), "%s/%s",
                 defdir, "telnetd-rsa-key.pem");
-            if (n < 0 || n >= sizeof(cert_filepath)) {
+            if (n < 0 || (size_t)n >= sizeof(cert_filepath)) {
                 debug(F110, "ssl_tn_init", "cert_filepath truncation", 0);
                 last_ssl_mode = -1;
                 return(0);
@@ -2201,7 +2201,7 @@ ssl_tn_init(mode) int mode;
             */
             n = snprintf(cert_filepath, sizeof(cert_filepath), "%s/%s",
                 defdir, "telnetd-dsa.pem");
-            if (n < 0 || n >= sizeof(cert_filepath)) {
+            if (n < 0 || (size_t)n >= sizeof(cert_filepath)) {
                 debug(F110, "ssl_tn_init", "cert_filepath truncation", 0);
                 last_ssl_mode = -1;
                 return(0);
@@ -2216,7 +2216,7 @@ ssl_tn_init(mode) int mode;
             */
             n = snprintf(cert_filepath, sizeof(cert_filepath), "%s/%s",
                 defdir, "telnetd-dsa-key.pem");
-            if (n < 0 || n >= sizeof(cert_filepath)) {
+            if (n < 0 || (size_t)n >= sizeof(cert_filepath)) {
                 debug(F110, "ssl_tn_init", "cert_filepath truncation", 0);
                 last_ssl_mode = -1;
                 return(0);
@@ -2231,7 +2231,7 @@ ssl_tn_init(mode) int mode;
             */
             n = snprintf(cert_filepath, sizeof(cert_filepath), "%s/crl",
                 defdir);
-            if (n < 0 || n >= sizeof(cert_filepath)) {
+            if (n < 0 || (size_t)n >= sizeof(cert_filepath)) {
                 debug(F110, "ssl_tn_init", "cert_filepath truncation", 0);
                 last_ssl_mode = -1;
                 return(0);
@@ -3024,7 +3024,7 @@ ssl_get_dNSName(ssl) SSL * ssl;
                 if (!gen->d.ia5 || !CK_ASN1_STRING_LEN(gen->d.ia5))
                   break;
                 if (strlen((char *)CK_ASN1_STRING_DATA(gen->d.ia5)) !=
-                    CK_ASN1_STRING_LEN(gen->d.ia5)) {
+                    (size_t)CK_ASN1_STRING_LEN(gen->d.ia5)) {
                     /* Ignoring IA5String containing null character */
                     continue;
                 }
@@ -3075,7 +3075,7 @@ ssl_get_commonName(ssl) SSL * ssl;
     if (name_text_len <= 0) {
         /* Common Name was empty or not retrieved */
         err = 0;
-    } else if (strlen(name) != name_text_len) {
+    } else if (strlen(name) != (size_t)name_text_len) {
         /* Ignoring Common Name containing null character */
         err = 0;
     } else {
@@ -3408,7 +3408,7 @@ tls_get_SAN_objs(SSL * ssl, int type)
                 if (!gen->d.ia5 || !CK_ASN1_STRING_LEN(gen->d.ia5))
                   break;
                 if (strlen((char *)CK_ASN1_STRING_DATA(gen->d.ia5)) !=
-                    CK_ASN1_STRING_LEN(gen->d.ia5)) {
+                    (size_t)CK_ASN1_STRING_LEN(gen->d.ia5)) {
                     /* Ignoring IA5String containing null character */
                     continue;
                 }
@@ -3987,7 +3987,7 @@ ssl_is(data,cnt) unsigned char *data; int cnt;
                 n = snprintf(errbuf, sizeof(errbuf),
                     "[SSL - SSL_accept error: %s",
                     ERR_error_string(ERR_get_error(), NULL));
-                if (n < 0 || n >= sizeof(errbuf)) {
+                if (n < 0 || (size_t)n >= sizeof(errbuf)) {
                     debug(F110, "ssl_is", "errbuf truncation", 0);
                 }
 
@@ -4106,7 +4106,7 @@ ck_tn_tls_negotiate(VOID)
                 n = snprintf(errbuf, sizeof(errbuf),
                     "[TLS - SSL_accept error: %s",
                     ERR_error_string(ERR_get_error(), NULL));
-                if (n < 0 || n >= sizeof(errbuf)) {
+                if (n < 0 || (size_t)n >= sizeof(errbuf)) {
                     debug(F110, "ck_tn_tls_negotiate", "errbuf truncation", 0);
                 }
 
@@ -4407,7 +4407,7 @@ ck_ssl_incoming(fd) int fd;
             n = snprintf(errbuf, sizeof(errbuf),
                 "[TLS - SSL_accept error: %s",
                 ERR_error_string(ERR_get_error(), NULL));
-            if (n < 0 || n >= sizeof(errbuf)) {
+            if (n < 0 || (size_t)n >= sizeof(errbuf)) {
                 debug(F110, "ck_ssl_incoming", "errbuf truncation", 0);
             }
 
@@ -4446,7 +4446,7 @@ ck_ssl_incoming(fd) int fd;
             n = snprintf(errbuf, sizeof(errbuf),
                 "[SSL - SSL_accept error: %s",
                 ERR_error_string(ERR_get_error(), NULL));
-            if (n < 0 || n >= sizeof(errbuf)) {
+            if (n < 0 || (size_t)n >= sizeof(errbuf)) {
                 debug(F110, "ck_ssl_incoming", "errbuf truncation", 0);
             }
 
@@ -4588,7 +4588,7 @@ ck_ssl_outgoing(fd) int fd;
             n = snprintf(errbuf, sizeof(errbuf),
                 "[TLS - SSL_connect error: %s",
                 ERR_error_string(ERR_get_error(), NULL));
-            if (n < 0 || n >= sizeof(errbuf)) {
+            if (n < 0 || (size_t)n >= sizeof(errbuf)) {
                 debug(F110, "ck_ssl_outgoing", "errbuf truncation", 0);
             }
 
@@ -4675,7 +4675,7 @@ ck_ssl_outgoing(fd) int fd;
                 n = snprintf(errbuf, sizeof(errbuf),
                     "[SSL - SSL_connect error: %s",
                     ERR_error_string(ERR_get_error(), NULL));
-                if (n < 0 || n >= sizeof(errbuf)) {
+                if (n < 0 || (size_t)n >= sizeof(errbuf)) {
                     debug(F110, "ck_ssl_outgoing", "errbuf truncation", 0);
                 }
                 printf("%s\r\n",errbuf);
@@ -4779,7 +4779,7 @@ ck_ssl_http_client(fd, hostname) int fd; char * hostname;
             n = snprintf(errbuf, sizeof(errbuf),
                 "[TLS - SSL_connect error: %s",
                 ERR_error_string(ERR_get_error(), NULL));
-            if (n < 0 || n >= sizeof(errbuf)) {
+            if (n < 0 || (size_t)n >= sizeof(errbuf)) {
                 debug(F110, "ck_ssl_http_client", "errbuf truncation", 0);
             }
 

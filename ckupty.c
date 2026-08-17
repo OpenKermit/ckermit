@@ -501,7 +501,7 @@ copy_termbuf( char *cp, int len )
 copy_termbuf(cp, len) char *cp; int len;
 #endif /* CK_ANSIC */
 {
-    if (len > sizeof(termbuf))
+    if ((size_t)len > sizeof(termbuf))
       len = sizeof(termbuf);
     memcpy((char *)&termbuf, cp, len);
     termbuf2 = termbuf;

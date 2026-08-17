@@ -3967,7 +3967,7 @@ static int
 cast_fb64_start(struct cast_fb *fbp, int dir, int server)
 {
     Block b;
-    int x;
+    unsigned int x;
     unsigned char *p;
     int state;
 
@@ -4263,7 +4263,7 @@ cast_fb64_session(Session_Key *key, int server, struct cast_fb *fbp, int fs)
     }
 
     /* Stuff leftovers into the feed */
-    if(key->length >= 2 * klen + sizeof(Block))
+    if((size_t)key->length >= 2 * klen + sizeof(Block))
         memcpy(fbp->temp_feed, key->data + 2 * klen, sizeof(Block));
     else {
         memset(fbp->temp_feed, 0, sizeof(Block));

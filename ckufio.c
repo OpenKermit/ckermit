@@ -6715,7 +6715,7 @@ whoami() {
         ckstrncpy(envname, c, 255);
         debug(F110,"whoami envname",envname,0);
         if ((p = getpwnam(envname)) != NULL) {
-            if (p->pw_uid == ruid) {    /* get passwd entry for envname */
+            if (p->pw_uid == (uid_t)ruid) { /* get passwd entry for envname */
                 ckstrncpy(realname, envname, UIDBUFLEN); /* uid's are same */
                 debug(F110,"whoami realname",realname,0);
                 return(realname);
@@ -6729,7 +6729,7 @@ whoami() {
         ckstrncpy (loginname, c, UIDBUFLEN);
         debug(F110,"whoami loginname",loginname,0);
         if ((p = getpwnam(loginname)) != NULL) /* get passwd entry */
-          if (p->pw_uid == ruid)        /* for loginname */
+          if (p->pw_uid == (uid_t)ruid) /* for loginname */
             ckstrncpy(realname, envname, UIDBUFLEN); /* if uid's are same */
     }
 
