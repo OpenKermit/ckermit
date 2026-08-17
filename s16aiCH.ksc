@@ -1,0 +1,45 @@
+; Leg CH -- the host SENDS.  The Victor RECEIVES on the KEEP_ICP build.
+;
+; NO TRANSFER HAS EVER BEEN RUN WITH THE PARSER BUILD.  That is the whole
+; content of this leg.  Edit 14 widened what main() compiles -- it moved a
+; mis-nested #endif in ckcmai.c, which is the one edit in this port that is
+; not a no-op elsewhere -- so the parser binary is not the binary any
+; throughput figure in this project was measured on.  dofast() is inside the
+; widened region and is guarded out on purpose (SS8 item 14), because it
+; sets wslotr = RBSIZ/MAXSP = 2 and would have opened the window to two,
+; unmeasured, on a port with no flow control and a 105-byte ring margin.
+;
+; So this leg asks one question: did the wire protocol move?  A byte-exact
+; md5 with rxlost=0 rxfull=0 says no.
+;
+; PRECONDITION, and it is a trap rather than an inconvenience.  CKICP.EXE on
+; the image must be the 9 August rebuild (435,154 bytes, md5 f5456cae).  The
+; copies staged on 8 August predate upstream edits 16 and 17.  Without edit
+; 17, chk3() computes the CRC in long through two long[16] tables, which at
+; 38400 with block check 3 pinned rxpeak at 4,095 of 4,096 and lost 556-649
+; bytes on three legs of four (SS16af).  Run this against a stale binary and
+; you reproduce that ring defect and read it as "the parser build breaks
+; transfers" -- a wrong conclusion that would look thoroughly convincing,
+; because rxfull would be non-zero and the resends real.
+;
+; The Victor side is RXEA.KSC, already on the image and already CRLF:
+; set line /dev/seriala, set speed 38400, set receive timeout 20, receive,
+; statistics, exit.  It takes the filename from this end's F packet, so the
+; Victor writes RCVCH.DAT -- a name that is not on the image, because SET
+; FILE COLLISION is BACKUP and BACKUP cannot work on FAT.
+
+set speed 38400
+set receive timeout 20
+; The Victor reads its own binary off SASI before it can answer an S
+; packet: about 40 s for the 205 KB shipping build and about 85 s for
+; the 435 KB parser build.  MAXTRY is 10 (ckcker.h:472), which is not
+; always enough patience, and a host that gives up looks exactly like a
+; Victor that failed.  Start the Victor FIRST and wait for it -- this is
+; the belt to that braces.
+set retry 30
+set parity none
+set prefixing cautious
+set block 3
+log packets s16aiCH.pkt
+send rcvch.dat
+statistics

@@ -1,0 +1,24 @@
+; Leg DA -- the host SENDS.  The Victor RECEIVES with --noflow.
+;
+; THE CONTROL half of the decisive pair.  CKFCLO is the shipping tree with
+; V9K_RXHIGH=256 and V9K_RXLOW=64 and nothing else -- the same 206,758
+; bytes, two immediate constants apart, so SS16w's code-size sensitivity has
+; nothing to act on.  It has already run byte-exact under MAME (SS16aj leg
+; FH), which is what makes a bench failure attributable to the cable.
+;
+; RUN DA AND DB BACK TO BACK.  SS16aj's MAME legs drifted 12-15 s across one
+; sitting; nothing here is comparable across a gap.
+;
+; PASS:  rxpeak 2,4xx-2,6xx, held=0 rel=0, byte-exact, rxlost=0 rxfull=0.
+;        This is the number DB is measured against.
+
+set speed 38400
+set receive timeout 20
+set retry 30
+set parity none
+set flow none
+set prefixing cautious
+set block 3
+log packets s16ajDA.pkt
+send rcvda.dat
+statistics

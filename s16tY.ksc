@@ -1,0 +1,5 @@
+set speed 38400
+set receive timeout 20
+log packets s16tY.pkt
+send rcvy.dat
+statistics

@@ -3202,9 +3202,19 @@ struct keytab shotab[] = {
 #ifndef NOSPL
     { "variables",     SHBUI, 0 },
 #endif /* NOSPL */
-#ifndef NOFRILLS
+/*
+  SHOW VERSIONS is grouped with NOFRILLS, but shover() itself is compiled
+  whenever NOSHOW is undefined (ckuus5.c), so on a build that has the
+  command parser but not the frills the routine is linked and only the
+  keyword and its dispatch are missing.  The Victor 9000 port needs it to
+  identify a build on the machine, where there is no other way to ask.
+  Adds one keyword table entry and changes nothing on any other platform.
+  PORTING.md section 8, guarded upstream edit 12; the other half is the
+  case in ckuus5.c.
+*/
+#if !defined(NOFRILLS) || defined(VICTOR9K)
     { "versions",      SHVER, 0 },
-#endif /* NOFRILLS */
+#endif /* !NOFRILLS || VICTOR9K */
 #ifdef VMS
     { "vms_text",      SHOVMSTXT, 0},
 #endif /* VMS */

@@ -1,0 +1,21 @@
+; Leg GQ -- the host SENDS.  CKERMITW (shipping, WITH section 1f)
+; RECEIVES 32 KB at 38400.  RUN IMMEDIATELY AFTER GP.
+;
+; GQ minus GP is the cost of section 1f: four instructions per byte in the
+; ISR, about five on the polled transmit path, +1,530 bytes of image and
+; +32 of DGROUP.  SS16w says code size is execution time on an 8088, so the
+; size is part of the cost and not a confound.
+;
+; If GQ - GP is near zero, SS16ak's +11% was two sittings and not a change,
+; and the figure should be withdrawn.  If it is near 3 s, section 1f costs
+; 11% of a 38400 receive and that is a fact the port has to decide about.
+set speed 38400
+set receive timeout 20
+set retry 30
+set parity none
+set flow none
+set prefixing cautious
+set block 3
+log packets s16alGQ.pkt
+send rcvgq.dat
+statistics

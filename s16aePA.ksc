@@ -1,0 +1,36 @@
+; Leg PA -- BASELINE.  Host prefixes everything, block check 3.
+;
+; This is the 2x2's origin: prefixing ALL x block 3.  The other three legs
+; each change one thing.
+;
+;   leg   host prefixing   host block
+;   PA    all              3            <- this file
+;   PC    cautious         3
+;   BK    all              1
+;   BX    cautious         1
+;
+; "set prefixing all" is stated rather than assumed.  The first round left
+; it at whatever the Mac's default is and the whole comparison then rested
+; on an unknown -- which is how the first round produced a 13% prediction
+; for a change that could not do anything.  Pin it.
+;
+; PREFIXING IS A SENDER-SIDE DECISION and this is the sending end, which is
+; the correction the first round earned: ctlp[] is read only in bgetpkt()
+; (ckcfns.c:1798) and getpkt() (2904), both packet BUILDERS.  Nothing in
+; decode()/bdecode() consults it, because a bare control character decodes
+; as itself.  So on a Victor RECEIVE the Victor's own setting cannot
+; matter, and round 1's measured proof is that leg BK (Victor PX_CAU, zero
+; resends) put 37,534 bytes on the wire against SS16v leg CA's 37,536.
+;
+; All four legs run the shipping CKERMITW.EXE for the same reason -- there
+; is nothing left for a Victor-side control build to control.
+
+set line /dev/tty.usbserial-ABBFKXM1
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing all
+set block 3
+log packets s16aePA.pkt
+send rcvpa.dat
+statistics

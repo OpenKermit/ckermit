@@ -1,0 +1,11 @@
+set line /tmp/v9000
+set speed 9600
+set parity none
+set carrier-watch off
+set flow none
+set receive timeout 20
+set retry 10
+log packets s16bNU.pkt
+remote directory RCVN*.DAT
+finish
+statistics

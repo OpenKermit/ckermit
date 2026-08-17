@@ -1,0 +1,26 @@
+; Leg DX -- the host RECEIVES.  The Victor SENDS TRANS.DAT with --xonxoff.
+; START THIS FIRST: the Victor is the initiator.
+;
+; THE VICTOR OBEYING A REAL XOFF, which no leg in this project has ever
+; done.  The host runs "set flow xon/xoff", so its tty sends XOFF when its
+; input buffer fills; the Victor's ISR takes it out of the stream, sets
+; v9k_txheld, and v9k_ser_put() stops until the XON.
+;
+; PASS:  byte-exact, stuck=0, cps in leg CC's band.
+; READ:  xoff>0 means we obeyed one.  xoff=0 means the host never needed to
+;        send one -- a NULL, not a failure, and the leg still shows the
+;        interception path did not corrupt anything.
+; WATCH: stuck>0 means a hold-off outlasted V9K_FCSPIN (seconds).  With
+;        xoff>xon that is a lost XON, which is exactly what tcflow(TCOON)
+;        would have recovered if upstream's only call to it were not inside
+;        a debug() argument that NODEBUG deletes.
+
+set speed 38400
+set receive timeout 20
+set parity none
+set flow xon/xoff
+set prefixing cautious
+set block 3
+log packets s16ajDX.pkt
+receive gotdx.dat
+statistics

@@ -21,3 +21,38 @@ tests/unit/bin/
 .ci-cache/
 .buildcc.cache
 .buildflags.cache
+
+# Victor 9000 port build products
+ckermit.exe
+ckermit.exe.map
+
+# Victor 9000 port, Open Watcom build (victorow.mak)
+*.obj
+ckermitw.exe
+ckermitw.exe.map
+
+# v9k/ build outputs; every .c and .py under it is kept.  See v9k/README.
+v9k/probes/*.exe
+v9k/probes/*.o
+v9k/probes/*.obj
+v9k/probes/macspeed
+v9k/probes/vasm
+v9k/proofs/*.bin
+v9k/proofs/vburst
+v9k/proofs/vcrc16
+
+# Emulator harness scratch (PORTING.md 16a)
+mame.log
+kermit.log
+socat.log
+
+#testing artifacts
+*.dat
+*.pkt
+*.out
+# ...except the leg artefacts.  A leg's .OUT is the ONLY place the v9k:
+# counters are recorded -- rxlost/rxfull/rxpeak, the SS1f flow counters and
+# elapsed= -- and it is one of the three files a leg has to produce.  See
+# v9k/legs/README.md.
+!v9k/legs/*.OUT
+*.host

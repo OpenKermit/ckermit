@@ -1,0 +1,10 @@
+set line /tmp/v9000
+set speed 9600
+set parity none
+set carrier-watch off
+set flow none
+set retry 30
+set receive timeout 20
+log packets s16aoND.pkt
+send rcvnd.dat
+statistics

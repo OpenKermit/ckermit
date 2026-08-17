@@ -1,0 +1,41 @@
+; Leg BF -- PORTING.md SS16ag's errno question, treatment (CKFERR, -dV9K_FAST_ERRNO) arm, run 2 of 2.
+;
+; Treatment repeated, for the same reason as BD.
+;
+; The A/B is CKERMITW (as shipped, 205,256 bytes, errno through the library's
+; far call) against CKFERR (-dV9K_FAST_ERRNO, 204,888, errno through
+; v9k_errnop).  Both binaries are byte-identical to the ones SS16ag's MAME
+; legs measured -- CKERMITW to legs AP/AQ, CKFERR to legs AL/AN -- so this is
+; a continuation of that experiment at a rate MAME cannot reach, not a fresh
+; one.  Under MAME at 9600 the treatment was 98 ms SLOWER.
+;
+; WHY 38400 CAN SETTLE WHAT 9600 COULD NOT, and it is structural rather than
+; a matter of precision: at 9600 the byte time is 1,040 us against ~485 us of
+; foreground, so there are 555 us of SLACK per byte for a per-byte saving to
+; hide in.  At 38400 the byte time is 260 us and the foreground is BEHIND
+; which is exactly why rxpeak sits at 2,581 there and at 299 at 9600.
+;
+; TWO LEGS PER ARM, and that is not caution for its own sake: SS16ag's
+; control arm put two runs of ONE binary 321 ms apart while its other two
+; arms held to 1 ms and 5 ms, with no explanation found.  One pair does not
+; establish this harness's resolution.
+;
+; THE COMPARISON IS ONLY VALID IF THE ARMS ARE PROTOCOL-IDENTICAL: rxbytes
+; equal, same packet count, same retransmissions.  A leg that retransmits
+; differently is not comparable and is re-run, not adjusted.  SS16ag leg AM
+; is the worked example of excluding one.
+;
+; DECISION RULE, STATED IN ADVANCE so it is not fitted afterwards.  If the
+; treatment arm is faster by more than the within-arm spread, make
+; V9K_FAST_ERRNO the default and say so in PORTING.md SS16ag.  If it is not,
+; the change has failed on both instruments and should come OUT of the tree
+; rather than stay as a permanent maybe.
+
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+log packets s16ahBF.pkt
+send rcvbf.dat
+statistics

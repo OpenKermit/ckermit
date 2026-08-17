@@ -1,0 +1,15 @@
+; Leg GA -- the host SENDS.  CKFCMID (marks 1024/896) RECEIVES with
+; --noflow.  The control half of the efficacy pair.
+;
+; PASS: rxpeak 2,7xx-3,1xx (SS16ak measured 2,780 / 2,990 / 3,137 on three
+; legs of this fixture), held=0, hi=65535, byte-exact, clean.
+set speed 38400
+set receive timeout 20
+set retry 30
+set parity none
+set flow none
+set prefixing cautious
+set block 3
+log packets s16alGA.pkt
+send rcvga.dat
+statistics

@@ -481,14 +481,47 @@ struct ssh_pf {				/* SSH port forwarding */
 
 #define MYEOL	    CK_CR               /* Incoming packet terminator. */
 
+/*
+  The three #ifndefs below are the only change to this block, and they make
+  these symbols behave the way SBSIZ, RBSIZ, MAXSP and MAXRP already do a few
+  lines down -- a compile-time default a platform may override.  No other
+  build defines any of them, so nothing changes anywhere else.
+
+  They matter more than they look.  These are the initializers for urpsiz
+  (RECEIVE PACKET-LENGTH) and wslotr (WINDOW), and on most platforms nobody
+  needs to override them because dofast() recomputes both from SBSIZ/RBSIZ
+  and MAXSP/MAXRP at startup.  But the call to dofast() in ckcmai.c is inside
+  the #ifndef NOTCPIP that opens at ckcmai.c:3390 -- the #endif comments at
+  3574 and 3644 are misattributed by one level -- so a serial-only build
+  never reaches it, and these values are the ONLY thing that reaches the
+  wire.  Measured on the Victor: the port negotiated MAXL=90, WINDO=1,
+  MAXLX=90 for its whole history until this guard existed (PORTING.md SS16j).
+
+  NEWDEFAULTS is not a usable lever for that, because it is reachable only
+  through BIGBUFOK and it sets WINDOW to 30 -- and makebuf() divides the
+  buffer pool by the slot count, so 30 slots would quietly turn an 8,192-byte
+  pool into 273-byte packets.
+*/
 #ifdef NEWDEFAULTS
+#ifndef DRPSIZ
 #define DRPSIZ	  4095			/* Default incoming packet size. */
+#endif /* DRPSIZ */
+#ifndef DFWSIZ
 #define DFWSIZ      30			/* Default window size */
+#endif /* DFWSIZ */
+#ifndef DFBCT
 #define DFBCT        3			/* Default block-check type */
+#endif /* DFBCT */
 #else
+#ifndef DRPSIZ
 #define DRPSIZ	    90			/* Default incoming packet size. */
+#endif /* DRPSIZ */
+#ifndef DFWSIZ
 #define DFWSIZ       1			/* Default window size */
+#endif /* DFWSIZ */
+#ifndef DFBCT
 #define DFBCT        3			/* Default block-check type */
+#endif /* DFBCT */
 #endif /* NEWDEFAULTS */
 
 /* The HP-UX 5 and 6 Telnet servers can only swallow 513 bytes at once */
@@ -1045,7 +1078,15 @@ struct pktinfo {			/* Packet information structure */
 #define FT_UCS2 3			/* UCS2 */
 #define FT_TEXT 4			/* Unknown text */
 #define FT_BIN  5			/* Binary */
+/*
+  scanfile() allocates SCANFILEBUF bytes as an automatic (stack) array.
+  48K is fine on flat-memory hosts but is fatal on 16-bit segmented targets
+  where the whole stack lives in a 64K DGROUP, so allow it to be overridden
+  from the compiler command line, e.g. -DSCANFILEBUF=2048.
+*/
+#ifndef SCANFILEBUF
 #define SCANFILEBUF 49152		/* Size of file scan (48K) */
+#endif /* SCANFILEBUF */
 
 /* Connection closed reasons */
 

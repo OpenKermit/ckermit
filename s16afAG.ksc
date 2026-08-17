@@ -1,0 +1,50 @@
+; Leg AG -- edit 17 (the 16-bit chk3), cautious x block 3.  THE HEADLINE LEG.
+;
+; This is the one the whole change exists for.  SS16ae established that the
+; block check is what pushes the foreground past what the receive ring can
+; absorb during a 4,000-byte packet at 38400: three of its four block-3 legs
+; pinned rxpeak at 4,095 of 4,096 and LOST BYTES (556, 640, 649), while all
+; three block-1 legs sat at 2,6xx with rxfull = 0 and a spread of 38.
+;
+; Edit 17 keeps CRC-16 and makes it cheap.  Under MAME at 9600 (SS16af) it
+; was byte-exact on a protocol-identical run and saved 54 us per wire byte.
+; MAME cannot reach the defect: the uPD7201 does not overrun below 38400
+; (SS16q) and the emulator cannot drive above 9600 (SS16n).  So this leg is
+; the first and only test of the thing the edit was made for.
+;
+; READ IN THIS ORDER.  The order matters because the protocol HIDES the
+; defect -- all seven of SS16ae's legs were byte-exact, including the ones
+; that lost 649 bytes, because the block check caught the damage and the
+; host resent.  Byte-exactness is necessary and proves nothing on its own.
+;
+;   1. cmp RCVAG.DAT rcvag.dat.  Byte-exact or the leg is void.  This is a
+;      change to the block check itself, so the failure mode to fear is a
+;      packet WRONGLY ACCEPTED, which shows up here and nowhere else.
+;   2. rxfull in STEPAG.OUT.  THIS IS THE RESULT.  SS16ae leg PC read 640.
+;      Zero means the edit did what it was made for.  Anything nonzero
+;      means the foreground is still too slow for the ring and the ring
+;      sizing argument (SS16k, void since SS16t) has to be redone.
+;   3. rxpeak.  PC pinned at 4,095, which is the ceiling and therefore not
+;      a measurement -- a pinned peak means "at least this much".  A number
+;      near BX's 2,611 says the foreground now keeps up the way block 1
+;      does.  A number near 4,095 says it does not, whatever rxfull says.
+;   4. rxbytes.  PC needed 44,720 wire bytes to move 32,768 because the
+;      lost bytes were resent.  Near 37,5xx means the resends are gone,
+;      and that is worth more than the CPU saving: it is 16% fewer bytes.
+;   5. elapsed= and the host statistics, LAST.  cps is the least
+;      informative number here and the one most likely to be quoted alone.
+;
+; Prediction, so this is falsifiable: rxfull = 0, rxpeak 2,6xx-3,2xx,
+; rxbytes 37,4xx-37,6xx, Victor elapsed 2,700-3,000 cs against PC's 3,800.
+; If rxfull is 0 but elapsed has not moved, the edit fixed the ring and not
+; the clock, which is still the more valuable half.
+
+set line /dev/tty.usbserial-ABBFKXM1
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+log packets s16afAG.pkt
+send rcvag.dat
+statistics

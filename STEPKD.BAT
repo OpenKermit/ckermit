@@ -1,0 +1,3 @@
+IF EXIST RCVKD.DAT DEL RCVKD.DAT
+IF EXIST STEPKD.OUT DEL STEPKD.OUT
+CKBULK --nobulk --nodisplay -l /dev/seriala -b 38400 -r > STEPKD.OUT

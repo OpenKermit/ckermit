@@ -1,0 +1,24 @@
+; Leg BB -- PORTING.md SS16af leg AH repeated, FOR THE HOST CLOCK.
+;
+; Block check 1.  The floor, and the other half of the calibration: the
+; quantity being calibrated is AG-minus-AH, which SS16af could only say was
+; "one clock quantum".  BB is what makes BA's number a difference rather
+; than an absolute.
+;
+; Targets to reproduce, from SS16af leg AH (Victor clock):
+;     rxfull 0, rxpeak 2,585, rxbytes 37,534, 18 packets, 0 resends,
+;     elapsed 2,700 cs.
+;
+; A NULL RESULT AGAINST AH IS THE PASS.  Nothing has changed on the block-1
+; path since AH ran, so a leg that comes back materially different is
+; measuring the harness and not the port -- and would invalidate BA too,
+; since BA-minus-BB is the whole deliverable.
+
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 1
+log packets s16ahBB.pkt
+send rcvbb.dat
+statistics

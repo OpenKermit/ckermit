@@ -1,0 +1,2 @@
+IF EXIST STEPKS.OUT DEL STEPKS.OUT
+CKBULK --nodisplay -l /dev/seriala -b 38400 -s FIXTURE.DAT > STEPKS.OUT

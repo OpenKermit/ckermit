@@ -1,0 +1,28 @@
+; Leg BX -- both levers.  Cautious x block 1, the corner PA/PC/BK bound.
+;
+; If the two compose, this is the configuration that would ship, and it is
+; the only leg that measures the combination rather than inferring it.
+; Round 1 could not: its BK already carried an inert PX_CAU, so nothing in
+; that round ever had host-side unprefixing on at all.
+;
+; The two changes pull rxpeak in OPPOSITE directions, which is the reason
+; this corner cannot be predicted from the other three:
+;
+;   block 1     removes ~130us per wire byte of foreground CRC, so the
+;               ring drains faster and rxpeak should FALL (BK: 2,630)
+;   cautious    raises file bytes produced per wire byte, so the foreground
+;               does more per byte drained and rxpeak should RISE
+;
+; So read rxfull first here, not cps.  If BX overflows the ring while BK
+; does not, the pair is not shippable as a pair no matter what the cps
+; says, and the ring is the thing to fix before either lever lands.
+
+set line /dev/tty.usbserial-ABBFKXM1
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 1
+log packets s16aeBX.pkt
+send rcvbx.dat
+statistics

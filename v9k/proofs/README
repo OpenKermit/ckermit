@@ -1,0 +1,44 @@
+v9k/proofs/ -- host programs that PORTING.md SS8 cites as the correctness
+argument for a shipped change.
+
+    make            build and run all of them; nonzero exit if any fails
+    make clean
+
+These run on the HOST (the Mac), not on the Victor, and they are not built
+by victorow.mak.  They exist because the two things they check cannot be
+checked where they actually run:
+
+  vcrc16.c   The VICTOR9K arm of chk3() (upstream edit 17) must compute
+             the same CRC as upstream's, on every input, because the far
+             end is a stock C-Kermit.  A block check that is fast and
+             WRONG fails silently -- the transfer still completes, the
+             file is still byte-exact, and the damage is that a corrupt
+             packet would be accepted.  Nothing in a transfer test can
+             see that.  So the table identity is checked exhaustively
+             over all 256 entries and the loop over 20,500
+             length-and-fill combinations.  PORTING.md SS16af.
+
+  vburst.c   The ISR's burst detector only runs when the uPD7201
+             overruns.  The chip does not overrun below 38400 (SS16q) and
+             MAME cannot drive this machine above 9600 (SS16n), so there
+             is no emulator run that reaches the code -- and a bench
+             sitting is expensive.  The arithmetic is transcribed here
+             and replayed against loss patterns whose answers are known.
+             PORTING.md SS16q.
+
+
+KNOWN LIMITATION, and it applies to both.
+
+Each of these carries a TRANSCRIPTION of the upstream code it checks
+against -- vcrc16.c has its own copy of upstream's chk3() and of
+crcta[]/crctb[], vburst.c its own copy of the ISR counter update.  So they
+prove the port's version agrees with WHAT WAS TRANSCRIBED, not with what
+ckcfn2.c and ckvisr.asm contain today.  If upstream's chk3() ever changes,
+or the ISR's counters are reworked, these will keep passing and mean less
+than they say.
+
+That is the same drift ckvictor.c guards against for the ring size, where
+a build-time check fails the compile if ckvisr.asm and the C side disagree.
+There is no equivalent here because these are host programs that never see
+the target's headers.  The cheap mitigation is the file:line citations in
+each transcription's comment -- re-read them when the cited code moves.

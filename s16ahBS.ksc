@@ -1,0 +1,43 @@
+; Leg BS -- the host RECEIVES.  The Victor sends RCVAG.DAT by name.
+;
+; NOTE THE DIRECTION.  This is the only leg in the sheet where the host is
+; the receiver, so START THIS BEFORE typing STEPBS on the Victor -- the
+; Victor is the initiator here and will give up if nothing answers its S
+; packets.
+;
+; TWO RESULTS FOR ONE LEG:
+;
+;   1. It closes upstream edit 16, which shipped unverified.  A 16-bit rc at
+;      ckuusy.c:3690 threw away zchki()'s return, which on success is the
+;      FILE SIZE, so "-s <name>" refused any file of 32,768 through 65,535
+;      bytes, periodically, every 64K.  The fixture is exactly 32,768
+;      inside the broken range -- so a pass is meaningful and a failure is
+;      diagnostic.  THE TELL for the old bug is "kermit -s NAME:" with an
+;      EMPTY message after the colon: nothing set errno, because nothing
+;      failed.  zchki() had succeeded and the caller threw the answer away.
+;
+;   2. It is the port's first send-direction measurement of any kind.
+;      V9K_PREFIXING and ckvictor.c's prefixing initializer govern
+;      Victor->host only (SS16ae: ctlp[] is read by the packet BUILDERS),
+;      and no leg has ever exercised them.
+;
+; READING IT, and both of these are traps:
+;   - "wire=" in the Victor's .OUT divides rxbytes, so on a send leg it
+;     reports the ACK STREAM over the whole elapsed time.  It is not the
+;     send rate.  The host's statistics is the send rate.
+;   - pktstat.py MISREADS send logs: its "longest packet" reads the one-byte
+;     LEN field, which is 0 for long packets, and its S- count is the HOST
+;     retransmitting.  Read s16ahBS.pkt by hand.
+;
+; If it fails, the workaround is a wildcard -- "-s RCVAG.*" reaches
+; nzxpand() and routes around the bug entirely.  That is a diagnostic, not a
+; fix: a wildcard passing while the name fails IS the confirmation.
+
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+log packets s16ahBS.pkt
+receive gotbs.dat
+statistics

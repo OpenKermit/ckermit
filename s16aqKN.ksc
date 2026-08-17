@@ -1,0 +1,53 @@
+; Leg KN -- HW_TEST_16aq Part 3, THE BAD LINE.  Arm B: the Victor runs
+; "CKBULK --nodisplay".  Bulk arm ON, on a noisy line.
+;
+; THIS IS THE LEG THE 10-FOOT CABLE WRAPPED AROUND MAINS WIRING IS FOR, and
+; the framing changed once the preprocessor was consulted, so read this
+; before running it.
+;
+; THERE IS NO LENGTH FIELD IN PLAY.  ckvictor.h defines NOPARSEN, which
+; suppresses PARSENSE, which is what would have given length-driven packet
+; reading -- so this build reads a packet by scanning for eol and nothing
+; else.  The arm's memchr(src, eol, n) therefore looks for EXACTLY the byte
+; the byte loop looks for, on exactly the same stream.
+;
+; SO THE PREDICTION IS THAT CORRUPTION MAKES NO DIFFERENCE BETWEEN THE ARMS.
+; A mangled or lost terminator makes BOTH run to max-1 or to the alarm,
+; identically, because neither is reading a length.  There is no fast-resync
+; path in one arm and not the other; that only existed in the PARSENSE
+; version of ttinl(), which this build does not compile.
+;
+; A NULL RESULT HERE IS A REAL RESULT.  It closes the one thing
+; v9k/proofs/vttinl.c cannot reach -- real corruption, arriving at real
+; timing, through the real chip -- and it should be written up as a finding,
+; not as "nothing happened".
+;
+; WHAT WOULD FALSIFY IT: KN taking materially more TIMEOUTS than its pair,
+; or KN not byte-exact where its pair is.  Either means the arm's recovery
+; differs from the byte loop's, and the proof's equivalence claim needs
+; re-examining against whatever the line actually did.
+;
+; RUN KN AND KP BACK TO BACK UNDER THE SAME NOISE -- same cable routing, same
+; appliances running -- and WRITE DOWN WHAT THE NOISE ACTUALLY WAS.  Noise is
+; not reproducible between sittings, so ONLY the KN/KP comparison means
+; anything.  NEITHER LEG IS COMPARABLE TO KA-KD, and neither belongs in the
+; cost figures.
+;
+; READ, PER LEG: md5, rxlost, rxfull, host timeouts, host retransmissions,
+; the <crunched:...> lines in the packet log, and bulk n.  Note that rxlost
+; counts INTERRUPTS THAT FOUND THE OVERRUN BIT, not bytes (SS16q), so one
+; hold-off losing fifty bytes raises it by one.
+;
+; Decision rule 1 still applies: check "v9k: bulk sel= n=" in STEPKN.OUT
+; first.  This arm must show sel=1 and n > 0.
+;
+; The binary is CKBULK.EXE, 226,330 bytes, md5 a9fa6b5c...
+
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+log packets s16aqKN.pkt
+send rcvkn.dat
+statistics

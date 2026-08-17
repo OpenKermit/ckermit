@@ -1,0 +1,26 @@
+; Leg DE -- the host SENDS.  The Victor RECEIVES with --rtscts at the
+; SHIPPING water marks.
+;
+; THE LEG THAT LICENSES THE DEFAULT.  DB proves the mechanism reaches the
+; far end; this proves that turning it on changes nothing when it is not
+; needed, which is the actual shipping configuration.  Only run it if DB
+; passed.
+;
+; PASS:  held=0 rel=0 -- the 3,072 mark is above every occupancy this port
+;        has recorded (rxpeak 2,581, SS16af) -- byte-exact, rxlost=0
+;        rxfull=0, and the whole leg indistinguishable from DN.
+;
+; A held>0 here would be interesting rather than wrong: it would mean this
+; cable or this sitting drives the ring deeper than any before it, and the
+; rxpeak on DN is the number to read it against.
+
+set speed 38400
+set receive timeout 20
+set retry 30
+set parity none
+set flow rts/cts
+set prefixing cautious
+set block 3
+log packets s16ajDE.pkt
+send rcvde.dat
+statistics

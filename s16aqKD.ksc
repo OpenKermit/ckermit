@@ -1,0 +1,39 @@
+; Leg KD -- HW_TEST_16aq, upstream edit 18 (the bulk-read arm in ttinl()).
+;
+; ARM A: the Victor runs "CKBULK --nobulk --nodisplay".  Bulk arm OFF, run 2 of 2.
+;
+; READ "v9k: bulk sel= n=" IN STEPKD.OUT BEFORE THE CLOCK.  Decision rule 1:
+; a leg whose sel/n disagrees with what the .BAT asked for is VOID, not a null
+; result.  This arm must show sel=0 and n = 0.  The reason the counter exists at all is
+; that an equivalence test CANNOT see a switch that silently failed -- a
+; correct arm returns the byte loop's answer either way -- so "the numbers
+; came out the same" is exactly what a broken control looks like.
+;
+; ALSO RECORD MEAN RUN LENGTH = rxbytes / (bulk n).  That is the mechanism
+; variable, not decoration.  Under MAME at 9600 it was 11.9 bytes, because
+; rxpeak was 303 of 4,096 and myfillbuf() kept handing back tiny chunks; at
+; 38400 rxpeak sits near 2,581 and a refill should return hundreds.  If the
+; run length here is not much larger than 11.9, the arm cannot be doing much
+; and the result is explained before anyone argues about it.
+;
+; The second control.  |KB - KD| is the other half of the noise floor.
+;
+; THE COMPARISON IS ONLY VALID IF THE ARMS ARE PROTOCOL-IDENTICAL: rxbytes
+; equal, same packet count, same retransmissions.  A leg that retransmits
+; differently is not comparable and is re-run, not adjusted (SS16ag leg AM).
+; If it goes off-shape anyway, compare NON-LINE COST -- host clock minus
+; (wire bytes x 260 us) -- which is what made SS16al leg GP usable.
+;
+; The binary is CKBULK.EXE, 226,330 bytes, md5 a9fa6b5c...  NOT CKERMITW.EXE,
+; which is still the 225,822-byte pre-edit build and would answer "Extended
+; options not configured" -- the same string the unknown-option control is
+; supposed to produce.
+
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+log packets s16aqKD.pkt
+send rcvkd.dat
+statistics

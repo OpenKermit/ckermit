@@ -1,0 +1,32 @@
+; Leg DC -- the host SENDS.  The Victor RECEIVES with --xonxoff.
+;
+; The same reading as DB, on the other mechanism, and it is the one that
+; matters for interoperability rather than for this cable: the far end's
+; wiring is not something this port can assume, and XON/XOFF needs three
+; wires.
+;
+;     rxpeak ~256-600   the host stopped.  xoff/xon may also be non-zero,
+;                       which is the host's OWN tty flow control arriving.
+;     rxpeak ~2,4xx     we sent XOFF and nothing happened.
+;
+; BYTE-EXACTNESS IS LOAD-BEARING HERE in a way it is not for RTS/CTS,
+; because this mechanism is in band.  PX_CAU keeps DC1 and DC3 prefixed
+; (ckcmai.c:2699), and setprefix() re-prefixes them unconditionally when
+; flow is FLO_XONX (2705), so a raw DC1/DC3 on the wire is always a command
+; -- but that is an argument, and cmp is a measurement.  cmp FIRST.
+;
+; Note the Victor removes intercepted XON/XOFF from the stream and does NOT
+; count them in rxbytes, on purpose (they are not in the host's packet log).
+; The pktstat reconciliation should therefore still be -11.  Under MAME with
+; five intercepted characters it was exactly that (SS16aj leg FH).
+
+set speed 38400
+set receive timeout 20
+set retry 30
+set parity none
+set flow xon/xoff
+set prefixing cautious
+set block 3
+log packets s16ajDC.pkt
+send rcvdc.dat
+statistics

@@ -1,0 +1,5 @@
+set speed 19200
+set receive timeout 20
+log packets s16sS.pkt
+send rcvs.dat
+statistics

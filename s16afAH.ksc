@@ -1,0 +1,46 @@
+; Leg AH -- edit 17, cautious x block 1.  THE FLOOR, and a null result is
+; the one this leg is trying to produce.
+;
+; Edit 17 does not touch chk1().  It adds crctab16[] and rewrites chk3()'s
+; body inside #ifdef VICTOR9K; nothing on the block-1 path changed, and the
+; only shared cost is 512 bytes of DGROUP that a block-1 transfer never
+; reads.  So this leg must REPRODUCE SS16ae leg BX:
+;
+;     26.50 s elapsed, rxpeak 2,611, rxfull 0, 37,523 wire bytes, 1,236 cps
+;
+; If it does, two things follow, and they are the reason to spend a leg on
+; a result that is supposed to be nothing:
+;
+;   1. AG's improvement is attributable to chk3() and not to a rebuild.
+;      Any binary differs from any other in layout, and SS16w already
+;      showed this machine is sensitive to code SIZE in a way most are not
+;      (-ot grew far code 9.2% and cost 13% of rxpeak).  A block-1 leg that
+;      moved would mean the rebuild itself changed something, and AG's
+;      delta would then be unattributable.
+;   2. It gives AG a target.  The whole argument for edit 17 is that it
+;      buys most of block 1's speed while KEEPING CRC-16.  How much of it
+;      is exactly AG-versus-AH, measured today, on one binary.
+;
+; Read, in this order:
+;
+;   1. cmp RCVAH.DAT rcvah.dat -- byte-exact.
+;   2. rxfull -- must be 0.  BX was 0 and block 1 has never overflowed.
+;   3. rxpeak against BX's 2,611.  The three block-1 legs in SS16ae spread
+;      only 38 counts (2,630 / 2,592 / 2,611), so this is a tight
+;      instrument and a large move here is a real signal.
+;   4. elapsed= against BX's 2,650 cs.
+;
+; Prediction: everything within SS16ae's block-1 spread.  A NULL RESULT IS
+; THE PASS.  If this leg comes back faster than BX, do not celebrate --
+; investigate, because edit 17 has no mechanism to speed up block 1 and an
+; unexplained gain means the comparison is measuring something else.
+
+set line /dev/tty.usbserial-ABBFKXM1
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 1
+log packets s16afAH.pkt
+send rcvah.dat
+statistics

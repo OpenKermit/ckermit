@@ -3366,7 +3366,15 @@ hasdotdot(s) char *s;
   determine whether to prompt.
 */
 
+/*
+  rq_tok is RQ_MAXTOK * (CKMAXPATH+1) bytes of static storage, which is the
+  single largest static object in the program.  On 16-bit segmented targets
+  that is a large fraction of the 64K data group, so allow it to be reduced
+  from the compiler command line, e.g. -DRQ_MAXTOK=16.
+*/
+#ifndef RQ_MAXTOK
 #define RQ_MAXTOK 64
+#endif /* RQ_MAXTOK */
 
 static char rq_tok[RQ_MAXTOK][CKMAXPATH+1]; /* Precise (non-wildcard) names */
 static int rq_ntok = 0;
@@ -7136,6 +7144,54 @@ snddel(spec) char * spec;
     return(0);
 #endif /* NOSERVER */
 }
+
+#ifdef VICTOR9K
+/*
+  UPSTREAM EDIT 20 -- PORTING.md SS8 item 20, SS16ax.  Purely additive:
+  no line below this block changes, and nothing here compiles on any
+  other platform.
+
+  REMOTE SPACE is answered everywhere else in the UNIX build by running
+  df(1) through syscmd(), and NOPUSH compiles syscmd()'s body away to
+  "return(0)", so a Victor server could only ever reply "Can't check
+  space" -- measured on the wire in SS16ax before this existed.  The
+  answer is one INT 21h call (AH=36h), which ckvictor.c makes; this is
+  the OS/2 arm's shape, using memstr/memptr rather than the funcptr
+  streamer because the report is one line.
+
+  The drive argument is ignored on purpose.  ckcpro.w's caller passes
+  either 0 or toupper(srvcmd[2]), and with no argument on the command
+  srvcmd[2] is past the terminating NUL, so honouring it would report on
+  whatever letter the previous command left in the buffer.  DOS's
+  default drive is the one the server is serving from, which is the
+  question REMOTE SPACE is asking.
+*/
+int
+sndspace(drive) int drive; {
+#ifndef NOSERVER
+    static char spctext[64];
+    long space;
+    extern long v9k_dskspace();
+
+    space = v9k_dskspace(0);            /* 0 = DOS's default drive */
+    if (space < 0L)
+      sprintf(spctext, " Free space: unknown%s", endline);
+    else
+      sprintf(spctext, " Free space: %ldK%s", space / 1024L, endline);
+
+    nfils = 0;				/* No files, no lists. */
+    xflg = 1;				/* Flag we must send X packet. */
+    ckstrncpy(cmdstr,"free space",CMDSTRL); /* Data for X packet. */
+    first = 1;				/* Init getchx lookahead */
+    memstr = 1;				/* Just set the flag. */
+    memptr = spctext;			/* And the pointer. */
+    binary = XYFT_T;			/* Text mode for this. */
+    return(sinit());
+#else
+    return(0);
+#endif /* NOSERVER */
+}
+#endif /* VICTOR9K */
 
 #ifdef OS2
 /*  S N D S P A C E -- send disk space message  */

@@ -1,0 +1,30 @@
+set line /tmp/v9000
+set speed 9600
+set parity none
+set carrier-watch off
+set flow none
+set receive timeout 10
+set retry 10
+set take error off
+set file collision rename
+log packets s16axSF.pkt
+echo === SF01 remote rmdir SRVTM leftover from leg SE, must now succeed
+remote rmdir SRVTM > s16axSF-rmd1.txt
+echo === SF02 remote mkdir SRVTN
+remote mkdir SRVTN > s16axSF-mkd.txt
+echo === SF03 remote rmdir SRVTN round trip
+remote rmdir SRVTN > s16axSF-rmd2.txt
+echo === SF04 remote rmdir SRVTN again, expect a clean failure
+remote rmdir SRVTN > s16axSF-rmd3.txt
+echo === SF05 remote directory SRV*.TXT, date must not read 1970
+remote directory SRV*.TXT
+echo === SF06 remote space, must now report free space
+remote space
+echo === SF07 get SRVA.TXT, attribute date must not read 1970
+get SRVA.TXT
+echo === SF08 remote help
+remote help > s16axSF-help.txt
+echo === SF09 remote exit
+remote exit > s16axSF-exit.txt
+echo === SF done
+statistics

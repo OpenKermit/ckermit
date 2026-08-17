@@ -1,0 +1,3 @@
+IF EXIST RCVJB.DAT DEL RCVJB.DAT
+IF EXIST STEPJB.OUT DEL STEPJB.OUT
+CKBULK --nobulk --nodisplay -l /dev/seriala -b 9600 -r > STEPJB.OUT

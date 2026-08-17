@@ -1,0 +1,6 @@
+set speed 38400
+set retry 30
+set receive timeout 20
+log packets s16aoHA.pkt
+send rcvha.dat
+statistics

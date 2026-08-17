@@ -1,0 +1,37 @@
+; Leg GB -- the host SENDS.  CKFCMID RECEIVES with --rtscts.  THE LEG.
+;
+; WHY THE MARKS MOVED.  SS16ak ran this at 256/64 and the leg went
+; off-shape: a timeout and three retransmissions inside the first 7,680
+; bytes, and rxpeak latched fourteen bytes into a RESEND, which is the one
+; place SS16m and SS16ag say rxpeak means nothing.  A 64-byte release point
+; means each hold-off lasts until 192 bytes have drained, ~93 ms, over and
+; over -- enough to disturb C-Kermit's round-trip estimator during slow
+; start.
+;
+; 1024/896 is a NARROW BAND instead of a low mark: each pause is 128 bytes
+; of drain, about 62 ms, and the assert fires often.  Short pauses, same
+; mechanism.
+;
+; AND THE READING IS NOW A CAP, NOT A COMPARISON, which is why a
+; retransmission cannot void this leg the way it voided DB:
+;
+;     rxpeak ~1,0xx-1,4xx   occupancy PINNED at the mark.  The far end
+;                           stopped when we asked.  RTS IS WIRED OUTBOUND.
+;     rxpeak ~2,8xx-3,1xx   occupancy followed GA's curve.  We asserted
+;                           (held>0) and nothing happened.
+;
+; ALWAYS run mapoffset.py on peakat before believing rxpeak:
+;     python3 v9k/tools/mapoffset.py s16alGB.pkt --rxbytes <n> <peakat>
+; A peak inside a resend is not a measurement of anything.
+;
+; held/rel say WE asserted and must END EQUAL.  rxpeak says THEY listened.
+set speed 38400
+set receive timeout 20
+set retry 30
+set parity none
+set flow rts/cts
+set prefixing cautious
+set block 3
+log packets s16alGB.pkt
+send rcvgb.dat
+statistics

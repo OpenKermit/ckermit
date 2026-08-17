@@ -1,0 +1,3 @@
+IF EXIST RCVKP.DAT DEL RCVKP.DAT
+IF EXIST STEPKP.OUT DEL STEPKP.OUT
+CKBULK --nobulk --nodisplay -l /dev/seriala -b 38400 -r > STEPKP.OUT

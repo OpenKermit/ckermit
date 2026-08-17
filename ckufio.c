@@ -783,7 +783,24 @@ static int maxnames = MAXWLD;
 
 /* Define the size of the string space for filename expansion. */
 
+/*
+  The #ifndef SSPACE below is the only change to this block, and it makes
+  the symbol behave the way SBSIZ, RBSIZ, MAXSP and MAXRP already do in
+  ckcker.h -- a compile-time default a platform may override.  No other
+  build defines SSPACE, so nothing changes anywhere else.
+
+  It exists because initspace() below is deliberately greedy: it asks for
+  SSPACE and, if malloc refuses, halves the request and tries again,
+  keeping whatever it finally gets.  On a platform whose heap is the
+  leftover corner of one 64K data group that is exactly the wrong
+  behaviour -- 10,000 bytes takes the whole remaining heap and every
+  allocation after it fails, including the 2,000-byte buffer ckuusy.c
+  wants for the error message that would have explained why.  Measured on
+  Victor MS-DOS 3.1: 212 bytes free at the low-water mark, and a wildcard
+  that matched nothing.  See PORTING.md SS16f.
+*/
 #ifndef DYNAMIC
+#ifndef SSPACE
 #ifdef PROVX1
 #define SSPACE 500
 #else
@@ -805,8 +822,10 @@ static int maxnames = MAXWLD;
 #endif /* pdp11 */
 #endif /* BSD29 */
 #endif /* PROVX1 */
+#endif /* SSPACE */
 static char sspace[SSPACE];             /* Buffer for generating filenames */
 #else /* is DYNAMIC */
+#ifndef SSPACE
 #ifdef CK_64BIT
 #define SSPACE 2000000000		/* Two billion bytes */
 #else
@@ -816,6 +835,7 @@ static char sspace[SSPACE];             /* Buffer for generating filenames */
 #define SSPACE 10000			/* Ten thousand */
 #endif /* BIGBUFOK */
 #endif	/* CK_64BIT */
+#endif /* SSPACE */
 char *sspace = (char *)0;
 #endif /* DYNAMIC */
 static int ssplen = SSPACE;		/* Length of string space buffer */
@@ -4760,7 +4780,26 @@ zfcdat(name) char *name;
 #ifdef TIMESTAMP
     struct stat buffer;
     extern int diractive;
+#ifdef VICTOR9K
+/*
+  UPSTREAM EDIT 19 -- PORTING.md SS8 item 19, SS16ax.
+
+  This holds st_mtime, which is a time_t.  On a target where int is 16
+  bits the assignment below truncates it mod 65536, and zdtstr() then
+  renders whatever is left as a date in 1970: every entry in a REMOTE
+  DIRECTORY listing, and the date attribute of every file the server
+  sends, since ckufio.c:4635 gets it from here too.  Measured on the wire
+  -- a file copied on the Victor at 1980-01-01 00:02 was listed as
+  1970-01-01 11:50:50, and a GET of it landed on the client dated 1970.
+
+  Guarded rather than simply widened.  It is a no-op wherever int is 32
+  bits, so edits 15 and 16 would say to leave it unguarded; it is here
+  under a #ifdef because that was the call made when it was agreed.
+*/
+    time_t mtime;
+#else
     unsigned int mtime;
+#endif /* VICTOR9K */
     int x;
     char * s;
 
@@ -6368,7 +6407,11 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
 #ifdef Plan9
                          1
 #else
+#ifdef VICTOR9K
+                         1	/* FAT/MS-DOS dirent has no inode field */
+#else
                          dirbuf->d_ino != 0
+#endif /* VICTOR9K */
 #endif /* Plan9 */
 #endif /* ultrix */
 #endif /* __FreeBSD__ */
@@ -7467,7 +7510,24 @@ zfnqfp(fname, buflen, buf)  char * fname; int buflen; char * buf;
           break;
     }
     if (!*s) return(NULL);
+/*
+  The other half of guarded upstream edit 13 (PORTING.md section 8), and it
+  is not optional: isabsolute() alone changes who calls findinpath(), while
+  this is what stops the current directory being prepended to a name that
+  already has a drive letter on it.  "A:\FOO" would otherwise qualify to
+  "A:/A:\FOO".
+
+  isabsolute() is this module's own idea of the question -- ckufio.c already
+  calls it twice, at the RECEIVE PATHNAMES test and in zxpand() -- so on
+  every other platform this is the same test spelled differently: its UNIX
+  arm is exactly "*path == '/'", plus the '~' that DTILDE adds and that a
+  pathname reaching here has already been through zzstring() to remove.
+*/
+#ifdef VICTOR9K
+    if (isabsolute(s)) {                /* Pathname is absolute */
+#else
     if (*s == '/') {                    /* Pathname is absolute */
+#endif /* VICTOR9K */
         ckstrncpy(buf,s,len);
         x = strlen(buf);
         y = 0;

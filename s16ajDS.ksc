@@ -1,0 +1,27 @@
+; Leg DS -- the host RECEIVES.  The Victor SENDS TRANS.DAT at 38400 with
+; --rtscts.  START THIS FIRST: the Victor is the initiator.
+;
+; THE CTS GATE.  --rtscts makes v9k_ser_put() require RR0 CTS before every
+; byte it writes.  SS16v read cts=1 on this cable in both legs with the host
+; holding RTS asserted, so this should transfer -- and this leg is here
+; because if it does not, the failure is TOTAL SILENCE rather than a slow
+; or corrupt transfer, and that is the failure the FLO_NONE default exists
+; to avoid.  Run it early so a wedge is diagnosed before the sitting is
+; spent, and do not debug it at the bench: record it and stop this arm.
+;
+; The host runs "set flow rts/cts" here, which means it may drop ITS RTS --
+; so this also tests that we notice and resume, not just that we start.
+;
+; PASS:  byte-exact, stuck=0, cps in leg CC's band (~1,4xx).
+; FAIL:  no packets at all in s16ajDS.pkt -> CTS is not asserted here, and
+;        SS16v's reading was of something else.
+
+set speed 38400
+set receive timeout 20
+set parity none
+set flow rts/cts
+set prefixing cautious
+set block 3
+log packets s16ajDS.pkt
+receive gotds.dat
+statistics

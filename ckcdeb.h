@@ -1797,6 +1797,12 @@ _PROTOTYP(int ckxfprintf,(FILE *, const char *, ...));
 #define SIGRETURN return(0)
 #endif /* SIGRETURN */
 
+/*
+  Some C libraries (e.g. newlib, and BSD/macOS <sys/signal.h>) already
+  provide a sig_t typedef.  Building with -DCK_NO_SIG_T suppresses ours
+  so the library's definition is used instead.  No effect unless defined.
+*/
+#ifndef CK_NO_SIG_T
 #ifdef CK_ANSIC
 #ifdef OS2
 #ifdef NT
@@ -1810,6 +1816,7 @@ typedef SIGTYP (*sig_t)(int);
 #else /* !CK_ANSIC */
 typedef SIGTYP (*sig_t)();
 #endif /* CK_ANSIC */
+#endif /* CK_NO_SIG_T */
 
 /* We want all characters to be unsigned if the compiler supports it */
 
@@ -4711,6 +4718,10 @@ _PROTOTYP( int ttsetflow, (int) );
 #undef NLCHAR
 #endif /* OS2 */
 
+#ifdef VICTOR9K				/* Victor 9000 / Sirius 1, MS-DOS */
+#undef NLCHAR
+#endif /* VICTOR9K */
+
 #ifdef GEMDOS				/* Atari ST */
 #undef NLCHAR
 #endif /* GEMDOS */
@@ -5003,6 +5014,18 @@ extern int errno;
 #endif /* UIDBUFLEN */
 
 #ifdef UNIX
+/*
+  The #ifndef MAXWLD is the only change here, and it lets a platform set
+  its own ceiling the way ckcker.h already allows for SBSIZ, RBSIZ, MAXSP
+  and MAXRP.  No other build defines MAXWLD, so nothing changes elsewhere.
+
+  zxpand() in ckufio.c allocates maxnames pointers up front, so this is
+  not a limit that costs nothing until it is reached: at 1024 it is a
+  2,048-byte malloc before a single directory entry has been read, on a
+  platform whose entire heap is the 12K left over inside one 64K data
+  group.  See PORTING.md SS16f.
+*/
+#ifndef MAXWLD
 #ifdef PROVX1
 #define MAXWLD 50
 #else
@@ -5016,6 +5039,7 @@ extern int errno;
 #endif /* BIGBUFOK */
 #endif /* pdp11 */
 #endif /* PROVX1 */
+#endif /* MAXWLD */
 #else
 #ifdef VMS
 #define MAXWLD 102400			/* Maximum wildcard filenames */

@@ -1,0 +1,38 @@
+set line /tmp/v9000
+set speed 9600
+set parity none
+set carrier-watch off
+set flow none
+set receive timeout 10
+set retry 10
+set take error off
+set file collision rename
+log packets s16axSC.pkt
+echo === SC01 remote directory SRVA.TXT expect refusal
+remote directory SRVA.TXT
+echo === SC02 remote delete SRVA.TXT expect refusal
+remote delete SRVA.TXT
+echo === SC03 remote cd SRVTMP expect refusal
+remote cd SRVTMP
+echo === SC04 remote mkdir SRVX expect refusal
+remote mkdir SRVX
+echo === SC05 remote type SRVA.TXT expect refusal
+remote type SRVA.TXT
+echo === SC06 get SRVA.TXT must work
+get SRVA.TXT
+echo === SC07 remote exit expect refusal
+remote exit > s16axSC-exit.txt
+echo === SC08 finish
+finish
+echo === SC done, waiting for the second server to load
+pause 75
+echo === SD01 remote print PRTTEST.TXT
+remote print PRTTEST.TXT
+echo === SD02 mail MAILTEST.TXT nobody@example.com
+mail MAILTEST.TXT nobody@example.com
+echo === SD03 retrieve SRVA.TXT
+retrieve SRVA.TXT
+echo === SD04 remote exit
+remote exit > s16axSC-exit2.txt
+echo === SD done
+statistics

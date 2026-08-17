@@ -1,0 +1,47 @@
+; Leg CS -- server mode on real hardware.  HW_TESTING leg 0.7, untouched
+; since it was written.
+;
+; The Victor runs CKERMITW -x and waits.  Everything below is driven from
+; this end.  Server mode has run under MAME (SS16i, milestone step 6) and
+; never on the machine.
+;
+; WHY IT NEEDED A DECISION RATHER THAN A FIX, which is worth knowing before
+; reading a failure here.  C-Kermit 11 initialises every en_* capability to
+; "remote mode only", and a Victor that owns its serial line is by
+; definition LOCAL, so a -x server ACKs the negotiation and then refuses
+; every command with a well-formed E packet.  NOICP removes the prompt where
+; you would type ENABLE GET.  ckvictor.c therefore settles the capability
+; set from a priority-0 XI initializer.  So an E packet in reply to a
+; well-formed command is the signature of that initializer not running, and
+; is a different failure from the transfer itself going wrong.
+;
+; NOT INCLUDED, deliberately: REMOTE DIRECTORY streams its listing and never
+; terminates it (SS16i, and it is still open).  Do not add it to this leg --
+; it will hang and take the leg with it.
+;
+; BYE is also not sent.  It has never been sent in this port's life, and a
+; leg that ends by shutting the far end down cannot be retried without a
+; power cycle.  FINISH leaves the Victor at the DOS prompt with its exit
+; report written, which is the whole point of running it.
+
+set speed 38400
+set receive timeout 20
+; The Victor reads its own binary off SASI before it can answer an S
+; packet: about 40 s for the 205 KB shipping build and about 85 s for
+; the 435 KB parser build.  MAXTRY is 10 (ckcker.h:472), which is not
+; always enough patience, and a host that gives up looks exactly like a
+; Victor that failed.  Start the Victor FIRST and wait for it -- this is
+; the belt to that braces.
+set retry 30
+set parity none
+set prefixing cautious
+set block 3
+log packets s16aiCS.pkt
+echo === CS 1: SEND to the server (host -> Victor)
+send rcvcs.dat
+statistics
+echo === CS 2: GET from the server (Victor -> host)
+get RCVCS.DAT gotcs.dat
+statistics
+echo === CS 3: FINISH -- the server exits, DOS prompt returns
+finish

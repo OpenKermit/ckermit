@@ -1,0 +1,8 @@
+set line /dev/seriala
+set speed 38400
+set receive timeout 20
+set receive confirm off
+set exit warning off
+receive
+statistics
+exit

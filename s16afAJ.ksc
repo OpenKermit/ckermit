@@ -1,0 +1,42 @@
+; Leg AJ -- the BASELINE build (sixteen edits), cautious x block 3.
+; THE CONTROL, and it runs CKBASE.EXE rather than CKERMITW.EXE.
+;
+; SS16ae leg PC is the number leg AG is being compared against, and it was
+; measured in a DIFFERENT SESSION -- different day, cable re-seated, host
+; possibly rebooted.  SS16ae's own closing lesson was that a control which
+; is not stated is not a control; a control which is not CONTEMPORANEOUS is
+; only a little better.  This leg removes that objection by reproducing PC
+; on the same cable, the same afternoon, against the same fixture.
+;
+; It is also the only thing that can tell two different failures apart.  If
+; AG comes back unchanged from PC, that means one of:
+;
+;   (a) edit 17 does not help at 38400, or
+;   (b) something about today's bench differs from SS16ae's.
+;
+; Without AJ those are indistinguishable and the session produces an
+; ambiguous result at the cost of a whole bench sitting.  With AJ:
+;
+;   AJ ~= PC (3,800 cs, rxfull 640)  ->  the bench reproduces, so AG is
+;                                        a clean read either way
+;   AJ != PC                         ->  something moved that is not the
+;                                        edit; AG is uninterpretable and
+;                                        the difference AJ-vs-AG is still
+;                                        the honest measurement to quote
+;
+; Read exactly what AG's file says to read, in the same order, so the two
+; are compared like with like.
+;
+; Run this leg IMMEDIATELY BEFORE OR AFTER AG, not at the other end of the
+; session.  It is a control for drift, and a control taken an hour away
+; from the thing it controls has drift of its own.
+
+set line /dev/tty.usbserial-ABBFKXM1
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+log packets s16afAJ.pkt
+send rcvaj.dat
+statistics

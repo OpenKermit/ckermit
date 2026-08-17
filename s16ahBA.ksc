@@ -1,0 +1,33 @@
+; Leg BA -- PORTING.md SS16af leg AG repeated, FOR THE HOST CLOCK.
+;
+; No code change and no new question about the port.  The one thing this leg
+; adds to AG is the file it is redirected into: the host's "statistics" has
+; millisecond resolution and the Victor's clock advances in 50 cs steps, and
+; AG was run without the redirect.  SS16af and SS16ae both lost this figure.
+;
+; WHAT IT IS FOR.  SS16af's cleanest result is that CRC-16 now costs ONE
+; CLOCK QUANTUM over a 6-bit checksum -- 100 +/- 50 cs, i.e. 13 to 40 us per
+; wire byte.  Against the 60-90 8088 cycles that separate the two block
+; checks, that band admits an effective clock anywhere from 1.5 to 7 MHz, so
+; the model cannot be calibrated from it.  BA and BB together replace the
+; band with a number, and every per-item estimate in this port is quoted
+; against that number afterwards.
+;
+; Targets to reproduce, from SS16af leg AG (Victor clock):
+;     rxfull 0, rxpeak 2,581, rxbytes 37,568, 18 packets, 0 resends,
+;     elapsed 2,800 cs.  Host figure predicted near 26.3 s and ~1,245 cps.
+;
+; Read in this order: cmp RCVBA.DAT rcvba.dat (byte-exact or void), then
+; rxfull, then rxbytes, then the host elapsed time -- which is the point.
+;
+; set line and the adapter come from ~/.kermrc.  CHECK IT MATCHES the
+; adapter actually plugged in: SS16v used BG022B8M and SS16af ABBFKXM1.
+
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+log packets s16ahBA.pkt
+send rcvba.dat
+statistics
