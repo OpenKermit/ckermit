@@ -263,7 +263,7 @@ jobs:
             make -j4 ${{ inputs.upload-artifact && 'freebsd' ||
               'freebsd+ssl' }}
             make check
-            pytest -rs --log-level=INFO -n 8
+            pytest -rs --log-level=INFO -n auto
 
       - name: Upload binary
         if: inputs.upload-artifact
@@ -321,7 +321,7 @@ jobs:
             make -j4 ${{ inputs.upload-artifact && 'netbsd' ||
               'netbsd+ssl-des' }}
             make check
-            pytest -rs --log-level=INFO -n 8
+            pytest -rs --log-level=INFO -n auto
 
       - name: Upload binary
         if: inputs.upload-artifact
@@ -365,7 +365,7 @@ jobs:
             make -j4 ${{ inputs.upload-artifact && 'openbsd' ||
               'openbsd+ssl' }}
             make check
-            pytest -rs --log-level=INFO -n 8
+            pytest -rs --log-level=INFO -n auto
 
       - name: Upload binary
         if: inputs.upload-artifact

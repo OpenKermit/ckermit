@@ -76,9 +76,14 @@ def test_ftp_upload_download(ftp_server, run_wermit, tmp_path):
     local_file.write_bytes(content)
 
     # 1. Upload file using FTP put
+    #
+    # The default run_wermit timeout (10s) is too tight for loaded CI
+    # runners (notably the nested-virtualization FreeBSD/NetBSD/OpenBSD
+    # VMs), where scheduling delay alone can exceed it even though the
+    # transfer itself takes a fraction of a second.
     server_file_name = "server_file.dat"
     result = run_wermit(ftp_session(
-        port, f"ftp put {local_file} {server_file_name}"))
+        port, f"ftp put {local_file} {server_file_name}"), timeout=30)
     assert_ok(result, "Upload failed")
 
     # Verify the file was created on the server
@@ -89,7 +94,7 @@ def test_ftp_upload_download(ftp_server, run_wermit, tmp_path):
     # 2. Download file using FTP get
     download_file = local_dir / "download.dat"
     result = run_wermit(ftp_session(
-        port, f"ftp get {server_file_name} {download_file}"))
+        port, f"ftp get {server_file_name} {download_file}"), timeout=30)
     assert_ok(result, "Download failed")
 
     # Verify the downloaded file matches
