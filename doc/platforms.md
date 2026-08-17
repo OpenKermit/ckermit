@@ -22,6 +22,8 @@ While the statically-linked version does have ncurses built in, C-Kermit
 degrades gracefully if you lack a terminfo database.  Therefore, it is a truly
 standalone binary.
 
+C-Kermit on Linux supports [vsock](vsock.md) for communicating with guest VMs.
+
 ## macOS
 
 Official binaries for this release are built on macOS 26 and are built without
@@ -63,3 +65,15 @@ in `/etc/sysctl.conf`; a comment in that file implies this issue is known
 already as it is required for other system components as well. 
 
 - John Goerzen, July 2026
+
+## OpenVMS
+
+Builds for OpenVMS are done manually and contributed by Tony Nicholson.  They
+will be posted after a general release is made, and may not be made for every
+release.  Tony's builds are built under VSI OpenVMS V9.2-3 for x86_64.  Please
+consult the links below for the releases that have an OpenVMS build:
+
+- [11.0.508](https://github.com/OpenKermit/ckermit/releases/tag/v11.0.508)
+- [11.0.507](https://github.com/OpenKermit/ckermit/releases/tag/v11.0.507)
+- [11.0.506](https://github.com/OpenKermit/ckermit/releases/tag/v11.0.506)
+

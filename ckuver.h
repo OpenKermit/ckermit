@@ -160,9 +160,9 @@
 #define HERALD " BSDI BSD/OS 3.0"
 #else
 #ifdef BSDI2
-#define HERALD " BSDI BSD/OS 2.0"	/* 1.1++ name... */
+#define HERALD " BSDI BSD/OS 2.0"       /* 1.1++ name... */
 #else
-#define HERALD " BSDI BSD/386"		/* Original 1.0 name */
+#define HERALD " BSDI BSD/386"          /* Original 1.0 name */
 #endif /* BSDI2 */
 #endif /* BSDI3 */
 #endif /* BSDI4 */
@@ -512,14 +512,14 @@
 #ifndef MINIX
 #ifdef MINIX315
 #define MINIX
-#endif	/* MINIX315 */
-#endif	/* MINIX */
+#endif  /* MINIX315 */
+#endif  /* MINIX */
 
 #ifndef MINIX
 #ifdef MINIX3
 #define MINIX
-#endif	/* MINIX3 */
-#endif	/* MINIX */
+#endif  /* MINIX3 */
+#endif  /* MINIX */
 
 #ifdef MINIX
 #ifdef MINIX340
@@ -535,15 +535,15 @@
 #define HERALD " Minix 3.1.5"
 #ifndef MINIX3
 #define MINIX3
-#endif	/* MINIX3 */
-#endif	/* MINIX315 */
+#endif  /* MINIX3 */
+#endif  /* MINIX315 */
 #ifdef MINIX3
 #ifndef MINIX2
 #define MINIX2
-#endif	/* MINIX2 */
+#endif  /* MINIX2 */
 #ifndef HERALD
 #define HERALD " Minix 3.0"
-#endif	/* HERALD */
+#endif  /* HERALD */
 #else
 #ifdef MINIX2
 #define HERALD " Minix 2.0"
@@ -750,7 +750,7 @@
 #define HERALD " DYNIX/ptx"
 #endif /* PTX4 */
 #else  /* PTX */
-#ifndef OSF		/* Let OSF -DPOSIX keep previously defined HERALD */
+#ifndef OSF             /* Let OSF -DPOSIX keep previously defined HERALD */
 #ifdef HERALD
 #undef HERALD
 #endif /* HERALD */
@@ -805,10 +805,10 @@
 #endif /* RH90 */
 #endif /* ZSL5500 */
 #else  /* __linux__ */
-#ifdef _386BSD				/* 386BSD Jolix */
+#ifdef _386BSD                          /* 386BSD Jolix */
 #define HERALD " 386BSD"
 #else
-#ifdef LYNXOS				/* Lynx OS 2.2 */
+#ifdef LYNXOS                           /* Lynx OS 2.2 */
 #define HERALD " Lynx OS"
 #else
 #ifdef Plan9
@@ -1015,31 +1015,31 @@
 
 /* Hardware type */
 
-#ifdef vax				/* DEC VAX */
+#ifdef vax                              /* DEC VAX */
 #ifndef CKCPU
 #define CKCPU "vax"
 #endif /* CKCPU */
 #endif /*  vax */
-#ifdef pdp11				/* DEC PDP-11 */
+#ifdef pdp11                            /* DEC PDP-11 */
 #ifndef CKCPU
 #define CKCPU "pdp11"
 #endif /* CKCPU */
 #endif /* pdp11 */
 
-#ifdef __ALPHA				/* DEC Alpha */
+#ifdef __ALPHA                          /* DEC Alpha */
 #ifndef CKCPU
 #define CKCPU "Alpha"
 #endif /* CKCPU */
 #endif /* __ALPHA */
 
-#ifdef __alpha				/* OSF/1 uses lowercase... */
+#ifdef __alpha                          /* OSF/1 uses lowercase... */
 #ifndef CKCPU
 #define CKCPU "Alpha"
 #endif /* CKCPU */
 #endif /* __alpha */
 
-#ifdef DGUX				/* Override Motorola 88k assumption */
-#ifndef CKCPU				/* New AViiONs are Intel based... */
+#ifdef DGUX                             /* Override Motorola 88k assumption */
+#ifndef CKCPU                           /* New AViiONs are Intel based... */
 #ifdef i586
 #define CKCPU "i586"
 #else
@@ -1092,141 +1092,141 @@
 #endif /* CKCPU */
 #endif /* __hp9000s200 */
 
-#ifdef m88000				/* Motorola 88000 */
+#ifdef m88000                           /* Motorola 88000 */
 #ifndef CKCPU
 #define CKCPU "mc88000"
 #endif /* CKCPU */
 #endif /* m88000 */
-#ifdef __using_M88KBCS			/* DG symbol for Motorola 88000 */
+#ifdef __using_M88KBCS                  /* DG symbol for Motorola 88000 */
 #ifndef CKCPU
 #define CKCPU "mc88000"
 #endif /* CKCPU */
 #endif /* __using_M88KBCS */
-#ifdef m88k				/* Motorola symbol for 88000 */
+#ifdef m88k                             /* Motorola symbol for 88000 */
 #ifndef CKCPU
 #define CKCPU "mc88000"
 #endif /* CKCPU */
 #endif /* m88k */
-#ifdef mc68040				/* Motorola 68040 */
+#ifdef mc68040                          /* Motorola 68040 */
 #ifndef CKCPU
 #define CKCPU "mc68040"
 #endif /* CKCPU */
 #endif /* mc68040 */
-#ifdef mc68030				/* Motorola 68030 */
+#ifdef mc68030                          /* Motorola 68030 */
 #ifndef CKCPU
 #define CKCPU "mc68030"
 #endif /* CKCPU */
 #endif /* mc68030 */
-#ifdef mc68020				/* Motorola 68020 */
+#ifdef mc68020                          /* Motorola 68020 */
 #ifndef CKCPU
 #define CKCPU "mc68020"
 #endif /* CKCPU */
 #endif /* mc68020 */
-#ifdef mc68010				/* Motorola 68010 */
+#ifdef mc68010                          /* Motorola 68010 */
 #ifndef CKCPU
 #define CKCPU "mc68010"
 #endif /* CKCPU */
 #endif /* mc68010 */
-#ifdef mc68000				/* Motorola 68000 */
+#ifdef mc68000                          /* Motorola 68000 */
 #ifndef CKCPU
 #define CKCPU "mc68000"
 #endif /* CKCPU */
 #endif /* mc68000 */
-#ifdef mc68k				/* Ditto (used by DIAB DS90) */
+#ifdef mc68k                            /* Ditto (used by DIAB DS90) */
 #ifndef CKCPU
 #define CKCPU "mc68000"
 #endif /* CKCPU */
 #endif /* mc68k */
-#ifdef m68				/* Ditto */
+#ifdef m68                              /* Ditto */
 #ifndef CKCPU
 #define CKCPU "mc68000"
 #endif /* CKCPU */
 #endif /* m68 */
-#ifdef m68k				/* Ditto */
+#ifdef m68k                             /* Ditto */
 #ifndef CKCPU
 #define CKCPU "mc68000"
 #endif /* CKCPU */
 #endif /* m68k */
 
-#ifdef ia64				/* IA64 / Itanium */
+#ifdef ia64                             /* IA64 / Itanium */
 #ifndef CKCPU
 #define CKCPU "ia64"
 #endif /* CKCPU */
 #endif /* i686 */
 
-#ifdef i686				/* Intel 80686 */
+#ifdef i686                             /* Intel 80686 */
 #ifndef CKCPU
 #define CKCPU "i686"
 #endif /* CKCPU */
 #endif /* i686 */
 
-#ifdef i586				/* Intel 80586 */
+#ifdef i586                             /* Intel 80586 */
 #ifndef CKCPU
 #define CKCPU "i586"
 #endif /* CKCPU */
 #endif /* i586 */
 
-#ifdef i486				/* Intel 80486 */
+#ifdef i486                             /* Intel 80486 */
 #ifndef CKCPU
 #define CKCPU "i486"
 #endif /* CKCPU */
 #endif /* i80486 */
-#ifdef i386				/* Intel 80386 */
+#ifdef i386                             /* Intel 80386 */
 #ifndef CKCPU
 #define CKCPU "i386"
 #endif /* CKCPU */
 #endif /* i80386 */
-#ifdef i286				/* Intel 80286 */
+#ifdef i286                             /* Intel 80286 */
 #ifndef CKCPU
 #define CKCPU "i286"
 #endif /* CKCPU */
 #endif /* i286 */
-#ifdef i186				/* Intel 80186 */
+#ifdef i186                             /* Intel 80186 */
 #ifndef CKCPU
 #define CKCPU "i186"
 #endif /* CKCPU */
 #endif /* i186 */
-#ifdef M_I586				/* Intel 80586 */
+#ifdef M_I586                           /* Intel 80586 */
 #ifndef CKCPU
 #define CKCPU "i586"
 #endif /* CKCPU */
 #endif /* M_I586 */
-#ifdef M_I486				/* Intel 80486 */
+#ifdef M_I486                           /* Intel 80486 */
 #ifndef CKCPU
 #define CKCPU "i486"
 #endif /* CKCPU */
 #endif /* M_I486 */
-#ifdef _M_I386				/* Intel 80386 */
+#ifdef _M_I386                          /* Intel 80386 */
 #ifndef CKCPU
 #define CKCPU "i386"
 #endif /* CKCPU */
 #endif /* _M_I386 */
-#ifdef M_I286				/* Intel 80286 */
+#ifdef M_I286                           /* Intel 80286 */
 #ifndef CKCPU
 #define CKCPU "i286"
 #endif /* CKCPU */
 #endif /* M_I286 */
-#ifdef M_I86				/* Intel 80x86 */
+#ifdef M_I86                            /* Intel 80x86 */
 #ifndef CKCPU
 #define CKCPU "ix86"
 #endif /* CKCPU */
 #endif /* M_I86 */
-#ifdef sparc				/* SUN SPARC */
+#ifdef sparc                            /* SUN SPARC */
 #ifndef CKCPU
 #define CKCPU "sparc"
 #endif /* CKCPU */
 #endif /* sparc */
-#ifdef mips				/* MIPS RISC processor */
+#ifdef mips                             /* MIPS RISC processor */
 #ifndef CKCPU
 #define CKCPU "mips"
 #endif /* CKCPU */
 #endif /* mips */
-#ifdef _IBMR2				/* IBM RS/6000 */
-#ifndef CKCPU				/* (what do they call the chip?) */
+#ifdef _IBMR2                           /* IBM RS/6000 */
+#ifndef CKCPU                           /* (what do they call the chip?) */
 #define CKCPU "rs6000"
 #endif /* CKCPU */
 #endif /* rs6000 */
-#ifdef u3b5				/* WE32000 MAC-32, AT&T 3Bx */
+#ifdef u3b5                             /* WE32000 MAC-32, AT&T 3Bx */
 #ifndef CKCPU
 #define CKCPU "u3b5"
 #endif /* CKCPU */
@@ -1241,17 +1241,17 @@
 #define CKCPU "u3b"
 #endif /* CKCPU */
 #endif /* u3b */
-#ifdef n16				/* Encore Multimax */
+#ifdef n16                              /* Encore Multimax */
 #ifndef CKCPU
 #define CKCPU "n16"
 #endif /* CKCPU */
 #endif /* n16 */
-#ifdef u370				/* IBM 370 */
+#ifdef u370                             /* IBM 370 */
 #ifndef CKCPU
 #define CKCPU "u370"
 #endif /* CKCPU */
 #endif /* u370 */
-#ifdef MAC				/* Macintosh catch-all */
+#ifdef MAC                              /* Macintosh catch-all */
 #ifndef CKCPU
 #define CKCPU "mc68000"
 #endif /* CKCPU */
@@ -1272,7 +1272,7 @@
 #endif /* STRATUS */
 
 #ifdef COMMENT
-#ifndef CKCPU				/* All others */
+#ifndef CKCPU                           /* All others */
 #define CKCPU "unknown"
 #endif /* CKCPU */
 #endif /* COMMENT */

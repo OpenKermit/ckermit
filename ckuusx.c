@@ -120,7 +120,7 @@ _PROTOTYP(int getlocalipaddr, (void));
 _PROTOTYP(int istncomport, (void));
 #ifndef NOCKGETFQHOST
 _PROTOTYP( char * ckgetfqhostname,(char *));
-#endif	/* NOCKGETFQHOST */
+#endif  /* NOCKGETFQHOST */
 #ifndef NETCONN
 /*
   We should just pull in ckcnet.h here, but it causes a conflict with curses.h.
@@ -258,7 +258,7 @@ APIRET IsVscrnDirty( int vmode );
 int tt_crd = 0;                         /* Carriage return display */
 int tt_lfd = 0;                         /* Linefeed display */
 int interrupted = 0;                    /* Interrupted from keyboard flag */
-int fxd_inited = 0;			/* Fullscreen stuff initialized */
+int fxd_inited = 0;                     /* Fullscreen stuff initialized */
 
 #ifdef DEBUG
 char debfil[CKMAXPATH+1];               /* Debugging log file name */
@@ -297,29 +297,29 @@ int fspeclen = CKMAXPATH;
 
 _PROTOTYP( int getslot, () );
 
-char * rfspec = NULL;			/* Received filespec: local */
-char * prfspec = NULL;			/* Preliminary rfspec */
-char * sfspec = NULL;			/* Sent filespec: local */
-char * psfspec = NULL;			/* Preliminary sfspec */
-char * srfspec = NULL;			/* Received filespec: remote */
-char * psrfspec = NULL;			/* Preliminary srfspec */
-char * rrfspec = NULL;			/* Sent filespec: remote */
-char * prrfspec = NULL;			/* Preliminary rrfspec */
+char * rfspec = NULL;                   /* Received filespec: local */
+char * prfspec = NULL;                  /* Preliminary rfspec */
+char * sfspec = NULL;                   /* Sent filespec: local */
+char * psfspec = NULL;                  /* Preliminary sfspec */
+char * srfspec = NULL;                  /* Received filespec: remote */
+char * psrfspec = NULL;                 /* Preliminary srfspec */
+char * rrfspec = NULL;                  /* Sent filespec: remote */
+char * prrfspec = NULL;                 /* Preliminary rrfspec */
 
 int success = 1,                        /* Command success/failure flag */
     cmdlvl = 0,                         /* Command level */
-    action = 0,				/* Action selected on command line */
-    slogts = 0,				/* Session-log timestamps on/off */
-    slognul = 0,			/* Session-log null-terminated lines */
+    action = 0,                         /* Action selected on command line */
+    slogts = 0,                         /* Session-log timestamps on/off */
+    slognul = 0,                        /* Session-log null-terminated lines */
 #ifdef UNIX
     sessft = XYFT_T,                    /* Session log file type */
 #else
-    sessft = XYFT_B,			/* (text for UNIX binary for others) */
+    sessft = XYFT_B,                    /* (text for UNIX binary for others) */
 #endif /* UNIX */
     pflag = 1,                          /* Print prompt */
     msgflg = 1;                         /* Print informational messages */
 
-extern int xaskmore, saveask;		/* More-prompting */
+extern int xaskmore, saveask;           /* More-prompting */
 
 #ifdef CK_APC
 extern int apcactive;
@@ -343,8 +343,8 @@ extern int con_reads_mt, conint_ch, conint_avl;
 #endif /* datageneral */
 
 #ifdef UNIX
-#include <fcntl.h>			/* For creat() */
-#endif	/* UNIX */
+#include <fcntl.h>                      /* For creat() */
+#endif  /* UNIX */
 
 #include "ckcnet.h"                    /* for struct sockaddr */
 /*
@@ -393,7 +393,7 @@ extern int streaming, streamok;
 
 #ifdef KUI
 _PROTOTYP( VOID screeng, (int, char, long, char *) );
-#endif	/* KUI */
+#endif  /* KUI */
 _PROTOTYP( VOID screenc, (int, char, CK_OFF_T, char *) );
 
 
@@ -414,21 +414,21 @@ static int ft_win = 0;  /* Fullscreen file transfer display window is active */
 /* Variables declared here */
 
 static char * skreason[] = {
-    "",					/* 0 */
-    "Remote file not older",		/* SKP_DAT */
-    "Identical modification times",	/* SKP_EQU */
-    "Type",				/* SKP_TYP */
-    "Size",				/* SKP_SIZ */
-    "Name collision",			/* SKP_NAM */
-    "Exception List",			/* SKP_EXL */
-    "Dot file",				/* SKP_DOT */
-    "Backup file",			/* SKP_BKU */
-    "Recovery not needed",		/* SKP_RES */
-    "Access denied",			/* SKP_ACC */
-    "Not a regular file",		/* SKP_NRF */
-    "Simulated",			/* SKP_SIM */
-    "Simulated - Remote file older",	/* SKP_XUP */
-    "Simulated - No remote file",	/* SKP_XNX */
+    "",                                 /* 0 */
+    "Remote file not older",            /* SKP_DAT */
+    "Identical modification times",     /* SKP_EQU */
+    "Type",                             /* SKP_TYP */
+    "Size",                             /* SKP_SIZ */
+    "Name collision",                   /* SKP_NAM */
+    "Exception List",                   /* SKP_EXL */
+    "Dot file",                         /* SKP_DOT */
+    "Backup file",                      /* SKP_BKU */
+    "Recovery not needed",              /* SKP_RES */
+    "Access denied",                    /* SKP_ACC */
+    "Not a regular file",               /* SKP_NRF */
+    "Simulated",                        /* SKP_SIM */
+    "Simulated - Remote file older",    /* SKP_XUP */
+    "Simulated - No remote file",       /* SKP_XNX */
 };
 static int nskreason = (sizeof(skreason) / sizeof(char *));
 
@@ -559,20 +559,20 @@ shoesc( int escape )
 shoesc(escape) int escape;
 #endif /* CK_ANSIC */
 {
-    extern char * ccntab[];		/* C0 control character name table */
+    extern char * ccntab[];             /* C0 control character name table */
     extern int tt_escape;
     if ((escape > 0 && escape < 32) || (escape == 127)) {
-	printf(" Escape character: Ctrl-%c (ASCII %d, %s): %s\r\n",
-	       ctl(escape),
-	       escape,
-	       (escape == 127 ? "DEL" : ccntab[escape]),
-	       tt_escape ? "enabled" : "disabled"
-	       );
+        printf(" Escape character: Ctrl-%c (ASCII %d, %s): %s\r\n",
+               ctl(escape),
+               escape,
+               (escape == 127 ? "DEL" : ccntab[escape]),
+               tt_escape ? "enabled" : "disabled"
+               );
     } else {
-	printf(" Escape character: Code %d",escape);
-	if (escape > 160 && escape < 256)
-	  printf(" (%c)",escape);
-	printf(": %s\r\n", tt_escape ? "enabled" : "disabled");
+        printf(" Escape character: Code %d",escape);
+        if (escape > 160 && escape < 256)
+          printf(" (%c)",escape);
+        printf(": %s\r\n", tt_escape ? "enabled" : "disabled");
     }
     return(0);
 }
@@ -584,7 +584,7 @@ extern int recursive;
 
 #ifdef PATTERNS
 int patterns = SET_AUTO;                /* Whether to use filename patterns */
-extern int g_patterns;			/* For saving and restoring */
+extern int g_patterns;                  /* For saving and restoring */
 #else
 int patterns = SET_OFF;
 #endif /* PATTERNS */
@@ -670,7 +670,7 @@ ftreset() {
     opath = -1;                         /* O-Packet Pathname Options */
 
 #ifdef CK_RESEND
-    rs_len = 0L;			/* REGET position */
+    rs_len = 0L;                        /* REGET position */
 #endif /* CK_RESEND */
 
 #ifdef COMMENT
@@ -684,16 +684,16 @@ ftreset() {
 #endif /* COMMENT */
 
 #ifdef CK_TMPDIR
-    if (f_tmpdir) {			/* If we changed to download dir */
-	zchdir((char *) savdir);	/* Go back where we came from */
-	f_tmpdir = 0;
+    if (f_tmpdir) {                     /* If we changed to download dir */
+        zchdir((char *) savdir);        /* Go back where we came from */
+        f_tmpdir = 0;
     }
 #endif /* CK_TMPDIR */
 
     calibrate = 0L;                     /* Calibration run */
     if (xreliable > -1) {
-	reliable = xreliable;
-	debug(F101,"ftreset reliable","",reliable);
+        reliable = xreliable;
+        debug(F101,"ftreset reliable","",reliable);
     }
     urclear = 0;
 
@@ -730,8 +730,8 @@ ftreset() {
         fcs_save = -1;
     }
     if (g_xfrxla > -1) {
-	xfrxla = g_xfrxla;
-	g_xfrxla = -1;
+        xfrxla = g_xfrxla;
+        g_xfrxla = -1;
     }
     setxlatype(tcharset,fcharset);      /* Translation type */
 #endif /* NOCSETS */
@@ -832,7 +832,7 @@ ftreset() {
         skipbup = g_skipbup;
         g_skipbup = -1;
     }
-    nolinks = 2;			/* /FOLLOWLINKS is never global */
+    nolinks = 2;                        /* /FOLLOWLINKS is never global */
     recursive = 0;                      /* /RECURSIVE can never be global */
     xfiletype = -1;
 
@@ -889,7 +889,7 @@ ftreset() {
 #endif /* NOXFER */
 
 char *
-ttgtpn() {				/* Get typical port name */
+ttgtpn() {                              /* Get typical port name */
 /*
   Ideally this routine would be implemented in each of the cku?io.* modules,
   but that requires changing the API definition.
@@ -1004,7 +1004,7 @@ ttgtpn() {				/* Get typical port name */
 #endif /* SOLARIS */
 #endif /* VMS */
 #endif /* OS2 */
-	   );
+           );
 }
 
 /*  C K _ E R R S T R  --  Return message from most recent system error */
@@ -1151,9 +1151,9 @@ char *binpatterns[FTPATTERNS+1] = { NULL, NULL };
 */
 static char *txtp[SYS_MAX][FTPATTERNS] = {
     /* UNKNOWN */ {
-	NULL, NULL
+        NULL, NULL
     },
-    {					/* UNIX */
+    {                                   /* UNIX */
     "*.txt","*.c","*.h","*.r","*.w","*.cpp","*.cc","*.ksc","*.bwr","*.upd",
     "*.html","*.htm","*.mss","*.tex","*.nr","[Mm]akefile", "*.hex", "*.hqx",
     "*.for","*.f77","*.f","*.F","*.s","*.pas","*.java","*.el","*.lisp","*.sh",
@@ -1163,7 +1163,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
-    {					/* WIN32 */
+    {                                   /* WIN32 */
     "*.txt","*.ksc","*.htm","*.html","*.bat","*.cmd","*.jav","*.asm", "*.hex",
     "*.hqx", "*.c", "*.h", "*.cpp", "*.hpp", "*.cxx", "*.w",
     "*.java", "*.bwr", "*.upd", "*.mak", "read.me", "*.map", "makefile",
@@ -1172,7 +1172,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
-    {					/* VMS */
+    {                                   /* VMS */
     "*.com","*.txt","*.c",  "*.for","*.pas","*.rno","*.rnh","*.mar","*.bli",
     "*.hlp","*.mss","*.doc","*.bwr","*.cld","*.hex","*.bas","*.ini","*.log",
     "*.mms","*.opt","*.ksc","*.perl","*.pl","*.pod","*.pm","*.sno","*.spt",
@@ -1181,7 +1181,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
-    {					/* OS2 */
+    {                                   /* OS2 */
     "*.txt","*.ksc","*.htm","*.html","*.bat","*.cmd","*.jav","*.asm", "*.hex",
     "*.hqx", "*.c", "*.h", "*.cpp", "*.hpp", "*.cxx", "*.w",
     "*.java", "*.bwr", "*.upd", "*.mak", "read.me", "*.map", "makefile",
@@ -1189,7 +1189,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
-    {					/* DOS */
+    {                                   /* DOS */
     "*.txt","*.ksc","*.htm","*.bat","*.cmd","*.jav","*.asm", "*.hex",
     "*.hqx", "*.c", "*.h", "*.cpp", "*.hpp", "*.cxx", "*.w",
     "*.bwr", "*.upd", "*.mak", "read.me", "*.map", "makefile",
@@ -1197,7 +1197,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
-    {					/* TOPS-10 */
+    {                                   /* TOPS-10 */
     "*.cmd","*.hlp","*.doc","*.ini","*.txt","*.mac","*.for","*.sai","*.bli",
     "*.pas","*.sno","*.spt","*.pcl","*.mss","*.rno","*.b36","*.tex","*.pub",
     "*.req","*.r36","*.mem","*.bwr","*.ccl","*.ctl","*.rnh","*.ksc",
@@ -1205,7 +1205,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
-    {					/* TOPS-20 */
+    {                                   /* TOPS-20 */
     "*.cmd","*.hlp","*.doc","*.ini","*.txt","*.mac","*.for","*.sai","*.bli",
     "*.pas","*.sno","*.spt","*.pcl","*.mss","*.rno","*.b36","*.tex","*.pub",
     "*.req","*.r36","*.mem","*.bwr","*.ccl","*.ctl","*.rnh","*.ksc",
@@ -1213,7 +1213,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
-    {					/* STRATUS VOS */
+    {                                   /* STRATUS VOS */
     "*.txt","*.ksc","*.htm","*.html","*.bat", "*.cmd","*.jav","*.asm","*.hex",
     "*.hqx","*.c",  "*.h",  "*.w",   "*.java","*.bwr","*.upd","*.ttp","*.cm",
     "*.pl1","*.emacs", "read.me", "*.pl", "makefile",
@@ -1221,18 +1221,18 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
-    {					/* DG AOS/VS */
+    {                                   /* DG AOS/VS */
     "*.txt", "*.c", "*.h", "*.w", "*.er", "*.bwr", "*.upd", "read.me",
     "*.cli", "*.ksc",
     "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
-    {					/* OSK */
+    {                                   /* OSK */
     "*.c","*.cpp","*.h","*.a","*akefile", /* program sources */
     "*.for","*.f77","*.f","*.F","*.s","*.pas","*.java","*.el","*.lisp",
     "*.sh","*.perl","*.awk","*.sno","*.spt","*.sed",
-    "*.txt","*.w",			/* general text */
+    "*.txt","*.w",                      /* general text */
     "*.ksc","*.bwr","*.upd",
     "*.html","*.htm","*.mss","*.tex","*.nr","*.hex", "*.hqx",
     "*.TXT", "*read.me", "*READ.ME", ".*", "*/.*",
@@ -1245,10 +1245,10 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
 /* Note: .DOC added to (some) binary patterns June 1998... Microsoft wins. */
 
 static char *binp[SYS_MAX][FTPATTERNS] = {
-    {					/* UNKNOWN */
+    {                                   /* UNKNOWN */
     NULL, NULL
     },
-    {					/* UNIX */
+    {                                   /* UNIX */
     "*.gz","*.Z","*.tgz","*.gif", "*.tar","*.zip","*.o","*.so","*.a","*.out",
     "*.exe", "*.jpg", "*.jpeg", "*.tif","*.tiff", "*.pdf", "*.so.*", "*.class",
     "*.rpm", "*.bmp", "*.bz2", "*.BMP", "*.dll", "*.doc", "*.vxd", "*.dcx",
@@ -1259,7 +1259,7 @@ static char *binp[SYS_MAX][FTPATTERNS] = {
     "*.xz","*.deb","*.dmg","*.iso","*.pkg","*.wasm","*.zst","*.zstd",
     NULL
     },
-    {					/* WIN32 */
+    {                                   /* WIN32 */
     "*.exe", "*.zip", "*.obj", "*.com", "*.gif", "*.jpg", "*.wav", "*.ram",
     "*.class","*.cla","*.dll", "*.drv", "*.ocx", "*.vbx", "*.lib", "*.ico",
     "*.bmp", "*.tif", "*.tar", "*.gz",  "*.tgz", "*.xl*", "*.doc", "*.vxd",
@@ -1270,7 +1270,7 @@ static char *binp[SYS_MAX][FTPATTERNS] = {
     "*.dmg","*.iso","*.pkg","*.wasm","*.zst","*.zstd",
     NULL
     },
-    {					/* VMS */
+    {                                   /* VMS */
     "*.exe","*.obj","*.bak","*.bin","*.adf","*.stb","*.mai","*.sys","*.dmp",
     "*.ps", "*.dat","*.par",
     "*.mp4","*.mkv","*.avi","*.mov","*.webm","*.mp3","*.wav","*.flac","*.ogg",
@@ -1278,7 +1278,7 @@ static char *binp[SYS_MAX][FTPATTERNS] = {
     "*.xz","*.deb","*.dmg","*.iso","*.pkg","*.wasm","*.zst","*.zstd",
     NULL
     },
-    {					/* OS2 */
+    {                                   /* OS2 */
     "*.exe", "*.zip", "*.obj", "*.com", "*.gif", "*.jpg", "*.wav", "*.ram",
     "*.class", "*.cla", "*.dll", "*.drv", "*.ocx", "*.vbx", "*.lib", "*.ico",
     "*.bmp", "*.tif", "*.tar", "*.gz", "*.tgz", "*.xl*", "*.doc", "*.vxd",
@@ -1288,7 +1288,7 @@ static char *binp[SYS_MAX][FTPATTERNS] = {
     "*.dmg","*.iso","*.pkg","*.wasm","*.zst","*.zstd",
     NULL
     },
-    {					/* DOS */
+    {                                   /* DOS */
     "*.exe", "*.zip", "*.obj", "*.com", "*.gif", "*.jpg", "*.wav", "*.ram",
     "*.cla", "*.dll", "*.drv", "*.ocx", "*.vbx", "*.lib", "*.ico",
     "*.bmp", "*.tif", "*.tar", "*.gz", "*.tgz", "*.xl*", "*.doc", "*.vxd",
@@ -1298,7 +1298,7 @@ static char *binp[SYS_MAX][FTPATTERNS] = {
     "*.dmg","*.iso","*.pkg","*.wasm","*.zst","*.zstd",
     NULL
     },
-    {					/* TOPS10 */
+    {                                   /* TOPS10 */
     "*.exe","*.sav","*.bin","*.rim","*.rel","*.unv","*.lib","*.tap","*.dvi",
     "*.ps",
     "*.mp4","*.mkv","*.avi","*.mov","*.webm","*.mp3","*.wav","*.flac","*.ogg",
@@ -1306,7 +1306,7 @@ static char *binp[SYS_MAX][FTPATTERNS] = {
     "*.xz","*.deb","*.dmg","*.iso","*.pkg","*.wasm","*.zst","*.zstd",
     NULL
     },
-    {					/* TOPS20 */
+    {                                   /* TOPS20 */
     "*.exe","*.sav","*.bin","*.rim","*.rel","*.unv","*.lib","*.tap","*.dvi",
     "*.ps",
     "*.mp4","*.mkv","*.avi","*.mov","*.webm","*.mp3","*.wav","*.flac","*.ogg",
@@ -1314,7 +1314,7 @@ static char *binp[SYS_MAX][FTPATTERNS] = {
     "*.xz","*.deb","*.dmg","*.iso","*.pkg","*.wasm","*.zst","*.zstd",
     NULL
     },
-    {					/* STRATUS VOS */
+    {                                   /* STRATUS VOS */
     "*.exe", "*.zip", "*.obj", "*.com", "*.gif", "*.jpg", "*.wav", "*.ram",
     "*.class", "*.cla", "*.dll", "*.drv", "*.ocx", "*.vbx", "*.lib", "*.ico",
     "*.bmp", "*.tif", "*.tar", "*.gz", "*.tgz", "*.xl*", "*.doc", "*.vxd",
@@ -1324,7 +1324,7 @@ static char *binp[SYS_MAX][FTPATTERNS] = {
     "*.dmg","*.iso","*.pkg","*.wasm","*.zst","*.zstd",
     NULL
     },
-    {					/* DG */
+    {                                   /* DG */
     "*.ob", "*.pr", "*.dmp", "*.ps",
     "*.mp4","*.mkv","*.avi","*.mov","*.webm","*.mp3","*.wav","*.flac","*.ogg",
     "*.png","*.webp","*.ico","*.docx","*.xlsx","*.pptx","*.epub","*.7z","*.rar",
@@ -1332,7 +1332,7 @@ static char *binp[SYS_MAX][FTPATTERNS] = {
     NULL
     },
     { /* OSK */
-    "*.gz","*.Z","*.z","*.tgz","*.lhz","*.tar",	/* archivers */
+    "*.gz","*.Z","*.z","*.tgz","*.lhz","*.tar", /* archivers */
     "*.zip","*.ar","*.zoo","*.rpm","*.lzh",
     /* object files, libraries, executables */
     "*.r","*.l","*.exe", "*.dll", "*.so.*", "*.class",
@@ -1353,74 +1353,77 @@ static char *binp[SYS_MAX][FTPATTERNS] = {
 VOID
 initpat() {
     int i;
+    char *p;
     for (i = 0; i < FTPATTERNS; i++) {
         txtpatterns[i] = NULL;
         binpatterns[i] = NULL;
     }
     for (i = 0; i < FTPATTERNS; i++) {
 #ifdef UNIX
-        makestr(&(txtpatterns[i]),txtp[SYS_UNIX][i]);
+        p = txtp[SYS_UNIX][i];
 #else /* UNIX */
 #ifdef OS2
 #ifdef NT
-        makestr(&(txtpatterns[i]),txtp[SYS_WIN32][i]);
+        p = txtp[SYS_WIN32][i];
 #else /* NT */
-        makestr(&(txtpatterns[i]),txtp[SYS_OS2][i]);
+        p = txtp[SYS_OS2][i];
 #endif /* NT */
 #else /* OS2 */
 #ifdef VMS
-        makestr(&(txtpatterns[i]),txtp[SYS_VMS][i]);
+        p = txtp[SYS_VMS][i];
 #else /* VMS */
 #ifdef STRATUS
-        makestr(&(txtpatterns[i]),txtp[SYS_VOS][i]);
+        p = txtp[SYS_VOS][i];
 #else /* STRATUS */
 #ifdef datageneral
-        makestr(&(txtpatterns[i]),txtp[SYS_DG][i]);
+        p = txtp[SYS_DG][i];
 #else /* datageneral */
 #ifdef OSK
-        makestr(&(txtpatterns[i]),txtp[SYS_OSK][i]);
+        p = txtp[SYS_OSK][i];
 #else /* OSK */
-        makestr(&(txtpatterns[i]),txtp[SYS_UNK][i]);
+        p = txtp[SYS_UNK][i];
 #endif /* OSK */
 #endif /* datageneral */
 #endif /* STRATUS */
 #endif /* VMS */
 #endif /* OS2 */
 #endif /* UNIX */
-        if (!txtp[i])
+        makestr(&(txtpatterns[i]),p);
+        if (!p)
           break;
     }
     for (i = 0; i < FTPATTERNS; i++) {
 #ifdef UNIX
-        makestr(&(binpatterns[i]),binp[SYS_UNIX][i]);
+        p = binp[SYS_UNIX][i];
 #else /* UNIX */
 #ifdef OS2
 #ifdef NT
-        makestr(&(binpatterns[i]),binp[SYS_WIN32][i]);
+        p = binp[SYS_WIN32][i];
 #else /* NT */
-        makestr(&(binpatterns[i]),binp[SYS_OS2][i]);
+        p = binp[SYS_OS2][i];
 #endif /* NT */
 #else /* OS2 */
 #ifdef VMS
-        makestr(&(binpatterns[i]),binp[SYS_VMS][i]);
+        p = binp[SYS_VMS][i];
 #else /* VMS */
 #ifdef STRATUS
-        makestr(&(binpatterns[i]),binp[SYS_VOS][i]);
+        p = binp[SYS_VOS][i];
 #else /* STRATUS */
 #ifdef datageneral
-        makestr(&(binpatterns[i]),binp[SYS_DG][i]);
+        p = binp[SYS_DG][i];
 #else /* datageneral */
 #ifdef OSK
-        makestr(&(binpatterns[i]),binp[SYS_OSK][i]);
+        p = binp[SYS_OSK][i];
 #else /* OSK */
-        makestr(&(binpatterns[i]),binp[SYS_UNK][i]);
+        p = binp[SYS_UNK][i];
 #endif /* OSK */
 #endif /* datageneral */
 #endif /* STRATUS */
 #endif /* VMS */
 #endif /* OS2 */
 #endif /* UNIX */
-        if (!binp[i])
+        makestr(&(binpatterns[i]),p);
+        if (!p)
           break;
     }
 }
@@ -1441,34 +1444,34 @@ matchname( char * filename, int local, int os )
 matchname(filename, local, os) char * filename; int local; int os;
 #endif /* CK_ANSIC */
 {
-    int rc = -1;			/* Return code */
+    int rc = -1;                        /* Return code */
     char * name, * p;
 #ifdef OS2ORUNIX
     char tmpbuf[CKMAXPATH+1];
 #endif /* OS2ORUNIX */
 
-    name = filename ? filename : "";	/* Copy of original arg */
-    if (patterns && *name) {		/* If PATTERNS ON... */
-	int i;
+    name = filename ? filename : "";    /* Copy of original arg */
+    if (patterns && *name) {            /* If PATTERNS ON... */
+        int i;
 
 #ifdef OS2ORUNIX
-	if (ckmatch("*.~[1-9]*~",name,1,1)) { /* Name has backup suffix? */
-	    int k;
-	    k = ckstrncpy(tmpbuf,name,CKMAXPATH+1); /* Yes, copy and strip */
-	    for (i = k - 3; i > 4; i--) {
-		if (tmpbuf[i] == '~' && tmpbuf[i-1] == '.') {
-		    tmpbuf[i-1] = NUL;
-		    break;
-		}
-	    }
-	    name = tmpbuf;		/* And point to stripped copy */
-	}
+        if (ckmatch("*.~[1-9]*~",name,1,1)) { /* Name has backup suffix? */
+            int k;
+            k = ckstrncpy(tmpbuf,name,CKMAXPATH+1); /* Yes, copy and strip */
+            for (i = k - 3; i > 4; i--) {
+                if (tmpbuf[i] == '~' && tmpbuf[i-1] == '.') {
+                    tmpbuf[i-1] = NUL;
+                    break;
+                }
+            }
+            name = tmpbuf;              /* And point to stripped copy */
+        }
 #endif /* OS2ORUNIX */
-	zstrip(name,&p);		/* Strip pathname too */
-	name = p;
+        zstrip(name,&p);                /* Strip pathname too */
+        name = p;
 
         if (local) {
-            if (txtpatterns[0]) {	/* Search text patterns */
+            if (txtpatterns[0]) {       /* Search text patterns */
                 for (i = 0; i < FTPATTERNS && txtpatterns[i]; i++) {
                     if (ckmatch(txtpatterns[i],name,filecase,1)) {
                         rc = 0;
@@ -1476,7 +1479,7 @@ matchname(filename, local, os) char * filename; int local; int os;
                     }
                 }
             }
-            if (binpatterns[0]) {	/* And search binary patterns */
+            if (binpatterns[0]) {       /* And search binary patterns */
                 for (i = 0; i < FTPATTERNS && binpatterns[i]; i++) {
                     if (ckmatch(binpatterns[i],name,filecase,1)) {
                         rc = (rc > -1) ? -2 : 1;
@@ -1484,25 +1487,25 @@ matchname(filename, local, os) char * filename; int local; int os;
                     }
                 }
             }
-	} else {
+        } else {
             if (os >= 0 && os < SYS_MAX) {
-		if (txtp[os][0]) {
-		    for (i = 0; i < FTPATTERNS && txtp[os][i]; i++) {
-			if (ckmatch(txtp[os][i],name,filecase,1)) {
-			    rc = 0;
-			    break;
-			}
-		    }
-		}
-		if (binp[os][0]) {
-		    for (i = 0; i < FTPATTERNS && binp[os][i]; i++) {
-			if (ckmatch(binp[os][i],name,filecase,1)) {
-			    rc = (rc > -1) ? -2 : 1;
-			    break;
-			}
-		    }
-		}
-	    }
+                if (txtp[os][0]) {
+                    for (i = 0; i < FTPATTERNS && txtp[os][i]; i++) {
+                        if (ckmatch(txtp[os][i],name,filecase,1)) {
+                            rc = 0;
+                            break;
+                        }
+                    }
+                }
+                if (binp[os][0]) {
+                    for (i = 0; i < FTPATTERNS && binp[os][i]; i++) {
+                        if (ckmatch(binp[os][i],name,filecase,1)) {
+                            rc = (rc > -1) ? -2 : 1;
+                            break;
+                        }
+                    }
+                }
+            }
         }
     }
     debug(F111,"matchname",name,rc);
@@ -1584,40 +1587,40 @@ scanfile( char * name, int * flag, int nscanfile )
 scanfile(name,flag,nscanfile) char * name; int * flag, nscanfile;
 #endif /* CK_ANSIC */
 {
-    FILE * fp;				/* File pointer */
-    unsigned char buf[SCANFILEBUF];	/* File data buffer for analysis */
-    int x, val = -1, count = 0;		/* Workers */
-    int rc = -1;			/* Return code */
-    int pv = -1;			/* Pattern-match value */
-    int eof = 0;			/* Flag for file EOF encountered */
-    int bytes = 0;			/* Total byte count */
+    FILE * fp;                          /* File pointer */
+    unsigned char buf[SCANFILEBUF];     /* File data buffer for analysis */
+    int x, val = -1, count = 0;         /* Workers */
+    int rc = -1;                        /* Return code */
+    int pv = -1;                        /* Pattern-match value */
+    int eof = 0;                        /* Flag for file EOF encountered */
+    int bytes = 0;                      /* Total byte count */
 #ifdef UNICODE
-    unsigned int c0, c1;		/* First 2 file bytes (for BOM) */
+    unsigned int c0, c1;                /* First 2 file bytes (for BOM) */
 #endif /* UNICODE */
     extern int pipesend, filepeek;
 
-    register int i;			/* Loop control */
-    int readsize = 0;			/* How much to read */
-    int eightbit = 0;			/* Number of bytes with 8th bit on */
-    int c0controls = 0;			/* C0 non-text control-char counter */
-    int c0noniso = 0;			/* C0 non-ISO control-char counter */
-    int c1controls = 0;			/* C1 control-character counter */
-    unsigned int c;			/* Current character */
-    int runmax = 0;			/* Longest run of 0 bytes */
-    int runzero = 0;			/* Run of 0 bytes */
-    int pctzero = 0;			/* Percentage of 0 bytes */
+    register int i;                     /* Loop control */
+    int readsize = 0;                   /* How much to read */
+    int eightbit = 0;                   /* Number of bytes with 8th bit on */
+    int c0controls = 0;                 /* C0 non-text control-char counter */
+    int c0noniso = 0;                   /* C0 non-ISO control-char counter */
+    int c1controls = 0;                 /* C1 control-character counter */
+    unsigned int c;                     /* Current character */
+    int runmax = 0;                     /* Longest run of 0 bytes */
+    int runzero = 0;                    /* Run of 0 bytes */
+    int pctzero = 0;                    /* Percentage of 0 bytes */
     int txtcz = 0;
 #ifdef CK_CTRLZ
     extern int eofmethod;
 #endif /* CK_CTRLZ */
 
 #ifdef UNICODE
-    int notutf8 = 0;			/* Nonzero if definitely not UTF-8 */
-    int utf8state = 0;			/* UTF-8 recognizer state */
-    int oddzero = 0;			/* Number of 0 bytes in odd postions */
-    int evenzero = 0;			/* and in even positions */
-    int lfnul = 0;			/* Number of <LF><NUL> sequences */
-    int crlf = 0;			/* Number of <CRLF> sequences */
+    int notutf8 = 0;                    /* Nonzero if definitely not UTF-8 */
+    int utf8state = 0;                  /* UTF-8 recognizer state */
+    int oddzero = 0;                    /* Number of 0 bytes in odd postions */
+    int evenzero = 0;                   /* and in even positions */
+    int lfnul = 0;                      /* Number of <LF><NUL> sequences */
+    int crlf = 0;                       /* Number of <CRLF> sequences */
 #else
     int notutf8 = 1;
 #endif /* UNICODE */
@@ -1636,13 +1639,13 @@ scanfile(name,flag,nscanfile) char * name; int * flag, nscanfile;
     debug(F111,"scanfile",name,nscanfile);
 #ifdef PATTERNS
     if (!filepeek) {
-	pv = matchname(name,1,-1);
-	if (pv < 0)
-	  rc = -1;
-	else
-	  rc = (pv == 1) ? FT_BIN : FT_TEXT;
-	debug(F111,"scanfile !filepeek result",name,rc);
-	return(rc);
+        pv = matchname(name,1,-1);
+        if (pv < 0)
+          rc = -1;
+        else
+          rc = (pv == 1) ? FT_BIN : FT_TEXT;
+        debug(F111,"scanfile !filepeek result",name,rc);
+        return(rc);
     }
 #endif /* PATTERNS */
 
@@ -1651,326 +1654,326 @@ scanfile(name,flag,nscanfile) char * name; int * flag, nscanfile;
 /* which record headers contain seemingly non-text bytes.  So the best   */
 /* we can do in VMS is tell whether the file is text or binary, period.  */
     {
-	int b, x;
-	b = binary;			/* Save current binary setting */
-	if (zopeni(ZIFILE,name) > 0) {	/* In VMS this sets binary */
-	    x = binary;			/* Get result */
-	    zclose(ZIFILE);		/* Close the file */
-	    binary = b;			/* Restore previous binary setting */
-	    rc = x ? FT_BIN : FT_TEXT;
-	    val = 0;
-	    goto xscanfile;
-	}
+        int b, x;
+        b = binary;                     /* Save current binary setting */
+        if (zopeni(ZIFILE,name) > 0) {  /* In VMS this sets binary */
+            x = binary;                 /* Get result */
+            zclose(ZIFILE);             /* Close the file */
+            binary = b;                 /* Restore previous binary setting */
+            rc = x ? FT_BIN : FT_TEXT;
+            val = 0;
+            goto xscanfile;
+        }
     }
 #endif /* VMS */
 
-    eof = 0;				/* End-of-file reached indicator */
+    eof = 0;                            /* End-of-file reached indicator */
 #ifdef OS2
-    fp = fopen(name, "rb");		/* Open the file in binary mode */
+    fp = fopen(name, "rb");             /* Open the file in binary mode */
 #else
     fp = fopen(name, "r");
 #endif /* OS2 */
 
-    if (!fp)				/* Failed? */
+    if (!fp)                            /* Failed? */
       return(-1);
 
-    while (1) {				/* One or more gulps from file */
-	if (eof) {			/* EOF from last time? */
-	    debug(F111,"scanfile at EOF",name,bytes);
-	    if (runzero > runmax)
-	      runmax = runzero;
-	    break;
-	}
-	if (nscanfile < 0) {		/* Reading whole file */
-	    readsize = SCANFILEBUF;
-	} else {			/* Reading first nscanfilee bytes */
-	    readsize = nscanfile - bytes;
-	    if (readsize < 1)
-	      break;
-	    if (readsize > SCANFILEBUF)
-	      readsize = SCANFILEBUF;
-	}
-	debug(F101,"scanfile readsize","",readsize);
-	count = fread(buf,1,readsize,fp); /* Read a buffer */
-	if (count == EOF || count == 0) {
-	    debug(F111,"scanfile EOF",name,count);
-	    break;
-	}
-	debug(F111,"scanfile buffer ok",name,count);
+    while (1) {                         /* One or more gulps from file */
+        if (eof) {                      /* EOF from last time? */
+            debug(F111,"scanfile at EOF",name,bytes);
+            if (runzero > runmax)
+              runmax = runzero;
+            break;
+        }
+        if (nscanfile < 0) {            /* Reading whole file */
+            readsize = SCANFILEBUF;
+        } else {                        /* Reading first nscanfilee bytes */
+            readsize = nscanfile - bytes;
+            if (readsize < 1)
+              break;
+            if (readsize > SCANFILEBUF)
+              readsize = SCANFILEBUF;
+        }
+        debug(F101,"scanfile readsize","",readsize);
+        count = fread(buf,1,readsize,fp); /* Read a buffer */
+        if (count == EOF || count == 0) {
+            debug(F111,"scanfile EOF",name,count);
+            break;
+        }
+        debug(F111,"scanfile buffer ok",name,count);
 
-	if (bytes == 0 && count > 8) {
-	    /* PDF files can look like text in the beginning. */
-	    if (!ckstrcmp((char *)buf,"%PDF-1.",7,1)) {
-		if (isdigit(buf[7])) {
-		    if (buf[8] == '\015' ||
-			count > 9 && buf[8] == SP && buf[9] == '\015') {
+        if (bytes == 0 && count > 8) {
+            /* PDF files can look like text in the beginning. */
+            if (!ckstrcmp((char *)buf,"%PDF-1.",7,1)) {
+                if (isdigit(buf[7])) {
+                    if (buf[8] == '\015' ||
+                        (count > 9 && buf[8] == SP && buf[9] == '\015')) {
 #ifdef DEBUG
-			buf[8] = NUL;
-			debug(F110,"scanfile PDF",buf,0);
+                        buf[8] = NUL;
+                        debug(F110,"scanfile PDF",buf,0);
 #endif /* DEBUG */
-			binary = 1;	/* But they are binary. */
-			break;
-		    }
-		}
-	    } else if (!ckstrcmp((char *)buf,"%!PS-Ado",8,1)) {
-		/* Ditto for PostScript */
+                        binary = 1;     /* But they are binary. */
+                        break;
+                    }
+                }
+            } else if (!ckstrcmp((char *)buf,"%!PS-Ado",8,1)) {
+                /* Ditto for PostScript */
 #ifdef DEBUG
-		int i;
-		for (i = 8; i < count; i++) {
-		    if (buf[i] < '!') {
-			buf[i] = NUL;
-			break;
-		    }
-		}
-		debug(F110,"scanfile PostScript",buf,0);
+                int i;
+                for (i = 8; i < count; i++) {
+                    if (buf[i] < '!') {
+                        buf[i] = NUL;
+                        break;
+                    }
+                }
+                debug(F110,"scanfile PostScript",buf,0);
 #endif /* DEBUG */
-		binary = 1;
-		break;
+                binary = 1;
+                break;
 #ifndef NOPCLSCAN
-	    } else if (!ckstrcmp((char *)buf,") HP-PCL",8,1)) {
-		/* HP PCL printer language */
+            } else if (!ckstrcmp((char *)buf,") HP-PCL",8,1)) {
+                /* HP PCL printer language */
 #ifdef DEBUG
-		int i;
-		for (i = 8; i < count; i++) {
-		    if (buf[i] < '!') {
-			buf[i] = NUL;
-			break;
-		    }
-		}
-		debug(F110,"scanfile PCL",buf,0);
+                int i;
+                for (i = 8; i < count; i++) {
+                    if (buf[i] < '!') {
+                        buf[i] = NUL;
+                        break;
+                    }
+                }
+                debug(F110,"scanfile PCL",buf,0);
 #endif /* DEBUG */
-		binary = 1;
-		break;
-	    }
+                binary = 1;
+                break;
+            }
 #endif /* NOPCLSCAN */
 #ifndef NOPJLSCAN
-	      else if (buf[0] == '\033' && (buf[1] == 'E' || buf[1] == '%')) {
-		/* Ditto for PJL Job printer header */
+              else if (buf[0] == '\033' && (buf[1] == 'E' || buf[1] == '%')) {
+                /* Ditto for PJL Job printer header */
 #ifdef DEBUG
-		int i;
-		for (i = 2; i < count; i++) {
-		    if (buf[i] < '!') {
-			buf[i] = NUL;
-			break;
-		    }
-		}
-		debug(F110,"scanfile PJL Job printer header",buf,0);
+                int i;
+                for (i = 2; i < count; i++) {
+                    if (buf[i] < '!') {
+                        buf[i] = NUL;
+                        break;
+                    }
+                }
+                debug(F110,"scanfile PJL Job printer header",buf,0);
 #endif /* DEBUG */
-		binary = 1;
-		break;
+                binary = 1;
+                break;
 #endif /* NOPJLSCAN */
-	    }
-	}
+            }
+        }
 
 #ifdef UNICODE
-	if (bytes == 0 && count > 1) {
-	    int incl_cnt = 0;
+        if (bytes == 0 && count > 1) {
+            int incl_cnt = 0;
 
-	    /* First look for BOM */
+            /* First look for BOM */
 
-	    c0 = (unsigned)((unsigned)buf[0]&0xFF); /* First file byte */
-	    c1 = (unsigned)((unsigned)buf[1]&0xFF); /* Second byte */
+            c0 = (unsigned)((unsigned)buf[0]&0xFF); /* First file byte */
+            c1 = (unsigned)((unsigned)buf[1]&0xFF); /* Second byte */
 
-	    if (c0 == 0xFE && c1 == 0xFF) {	/* UCS-2 BE */
-		rc = FT_UCS2;
-		val = 0;
-		debug(F111,"scanfile UCS2 BOM BE",ckitoa(val),rc);
-		incl_cnt++;
-	    } else if (c0 == 0xFF && c1 == 0xFE) { /* UCS-2 LE */
-		rc = FT_UCS2;
-		val = 1;
-		debug(F111,"scanfile UCS2 BOM LE",ckitoa(val),rc);
-		incl_cnt++;
-	    } else if (count > 2) if (c0 == 0xEF && c1 == 0xBB &&
-		       (unsigned)((unsigned)buf[2]&0xFF) == 0xBF) {
-		rc = FT_UTF8;
-		debug(F111,"scanfile UTF8 BOM",ckitoa(val),rc);
-		incl_cnt++;
-	    }
-	    if (incl_cnt) {		/* Have BOM */
-		bytes += count;
-		goto xscanfile;
-	    }
-	}
+            if (c0 == 0xFE && c1 == 0xFF) {     /* UCS-2 BE */
+                rc = FT_UCS2;
+                val = 0;
+                debug(F111,"scanfile UCS2 BOM BE",ckitoa(val),rc);
+                incl_cnt++;
+            } else if (c0 == 0xFF && c1 == 0xFE) { /* UCS-2 LE */
+                rc = FT_UCS2;
+                val = 1;
+                debug(F111,"scanfile UCS2 BOM LE",ckitoa(val),rc);
+                incl_cnt++;
+            } else if (count > 2) if (c0 == 0xEF && c1 == 0xBB &&
+                       (unsigned)((unsigned)buf[2]&0xFF) == 0xBF) {
+                rc = FT_UTF8;
+                debug(F111,"scanfile UTF8 BOM",ckitoa(val),rc);
+                incl_cnt++;
+            }
+            if (incl_cnt) {             /* Have BOM */
+                bytes += count;
+                goto xscanfile;
+            }
+        }
 #endif /* UNICODE */
 
-	bytes += count;			/* Count bytes read */
-	eof = feof(fp);			/* Flag for at EOF  */
+        bytes += count;                 /* Count bytes read */
+        eof = feof(fp);                 /* Flag for at EOF  */
 
-	for (i = 0; i < count; i++) {	/* For each byte... */
-	    c = (unsigned)buf[i];	/* For ease of reference */
-	    if (!c) {			/* Zero byte? */
+        for (i = 0; i < count; i++) {   /* For each byte... */
+            c = (unsigned)buf[i];       /* For ease of reference */
+            if (!c) {                   /* Zero byte? */
 #ifdef EVENMAX
-		if (i&1)		/* In odd position */
-		  oddzero++;
-		else
-		  evenzero++;		/* In even position */
+                if (i&1)                /* In odd position */
+                  oddzero++;
+                else
+                  evenzero++;           /* In even position */
 #endif /* EVENMAX */
-		runzero++;
-	    } else {			/* Not a zero byte */
-		if (runzero > runmax)
-		  runmax = runzero;
-		if (runmax > 2)		/* That's all we need to be certain */
-		  break;		/* it's a binary file. */
-		runzero = 0;
-	    }
+                runzero++;
+            } else {                    /* Not a zero byte */
+                if (runzero > runmax)
+                  runmax = runzero;
+                if (runmax > 2)         /* That's all we need to be certain */
+                  break;                /* it's a binary file. */
+                runzero = 0;
+            }
 
 #ifdef COMMENT
 #ifdef EVENMAX
 
 /* This is to catch UCS-2 with a non-ASCII, non-Latin-1 repertoire  */
 
-	    if (i > 1) {	      /* Look for runs of alternating chars */
-		if (i&1) {
-		    if (c == buf[i-2]) { /* In odd positions */
-			oddrun++;
-			oddbyte = c;
-		    } else {
-			oddmax = oddrun;
-			oddmaxbyte = oddbyte;
-		    }
-		} else {		/* and even positions */
-		    if (c == buf[i-2]) {
-			evenrun++;
-			evenbyte = c;
-		    } else {
-			evenmax = evenrun;
-			evenmaxbyte = evenbyte;
-		    }
-		}
-	    }
+            if (i > 1) {              /* Look for runs of alternating chars */
+                if (i&1) {
+                    if (c == buf[i-2]) { /* In odd positions */
+                        oddrun++;
+                        oddbyte = c;
+                    } else {
+                        oddmax = oddrun;
+                        oddmaxbyte = oddbyte;
+                    }
+                } else {                /* and even positions */
+                    if (c == buf[i-2]) {
+                        evenrun++;
+                        evenbyte = c;
+                    } else {
+                        evenmax = evenrun;
+                        evenmaxbyte = evenbyte;
+                    }
+                }
+            }
 #endif /* EVENMAX */
 #endif /* COMMENT */
 
-	    if ((c & 0x80) == 0) {	/* We have a 7-bit byte */
+            if ((c & 0x80) == 0) {      /* We have a 7-bit byte */
 #ifdef UNICODE
-		if (i > 0 && c == 10) { /* Linefeed */
-		    if (buf[i-1] == 0) lfnul++; /* Preceded by NUL */
-		    else if (buf[i-1] == 13) crlf++; /* or by CR... */
-		}
+                if (i > 0 && c == 10) { /* Linefeed */
+                    if (buf[i-1] == 0) lfnul++; /* Preceded by NUL */
+                    else if (buf[i-1] == 13) crlf++; /* or by CR... */
+                }
 #endif /* UNICODE */
-		if (c < ' ') {		/* Check for CO controls */
-		    if (c != LF && c != CK_CR && c != HT && c != FF) {
-			c0controls++;
-			if (c != ESC && c != SO && c != SI)
-			  c0noniso++;
-		    }
-		    if (c == '\032'	/* Ctrl-Z */
+                if (c < ' ') {          /* Check for CO controls */
+                    if (c != LF && c != CK_CR && c != HT && c != FF) {
+                        c0controls++;
+                        if (c != ESC && c != SO && c != SI)
+                          c0noniso++;
+                    }
+                    if (c == '\032'     /* Ctrl-Z */
 #ifdef COMMENT
-			&& eof && (i >= count - 2)
+                        && eof && (i >= count - 2)
 #endif /* COMMENT */
-			) {
-			c0controls--;
-			c0noniso--;
+                        ) {
+                        c0controls--;
+                        c0noniso--;
 #ifdef CK_CTRLZ
-			if (eofmethod == XYEOF_Z && txtcz == 0) {
-			    if (c0controls == 0) /* All text prior to Ctrl-Z */
-			      txtcz = 1;
-			}
+                        if (eofmethod == XYEOF_Z && txtcz == 0) {
+                            if (c0controls == 0) /* All text prior to Ctrl-Z */
+                              txtcz = 1;
+                        }
 #endif /* CK_CTRLZ */
-		    }
-		}
+                    }
+                }
 #ifdef UNICODE
-		if (!notutf8 && utf8state) { /* In UTF-8 sequence? */
-		    utf8state = 0;
-		    debug(F000,"scanfile","7-bit byte in UTF8 sequence",c);
-		    notutf8++;		/* Then it's not UTF-8 */
-		    continue;
-		}
+                if (!notutf8 && utf8state) { /* In UTF-8 sequence? */
+                    utf8state = 0;
+                    debug(F000,"scanfile","7-bit byte in UTF8 sequence",c);
+                    notutf8++;          /* Then it's not UTF-8 */
+                    continue;
+                }
 #endif /* UNICODE */
-	    } else {			/* We have an 8-bit byte */
-		eightbit++;		/* Count it */
-		if (c >= 0x80 && c < 0xA0) /* Check for C1 controls */
-		  c1controls++;
+            } else {                    /* We have an 8-bit byte */
+                eightbit++;             /* Count it */
+                if (c >= 0x80 && c < 0xA0) /* Check for C1 controls */
+                  c1controls++;
 #ifdef UNICODE
-		if (!notutf8) {		/* If it might still be UTF8... */
-		    switch (utf8state) { /* Enter the UTF-8 state machine */
-		      case 0:		 /* First byte... */
-			if ((c & 0xE0) == 0xC0) { /* Tells number of */
-			    utf8state = 1;        /* subsequent bytes */
-			} else if ((c & 0xF0) == 0xE0) {
-			    utf8state = 2;
-			} else if ((c & 0xF8) == 0xF0) {
-			    utf8state = 3;
-			} else {
-			    notutf8++;
-			}
-			break;
-		      case 1:		/* Subsequent byte */
-		      case 2:
-		      case 3:
-			if ((c & 0xC0) != 0x80) { /* Must start with 10 */
-			    debug(F000,"scanfile",
-				  "bad byte in UTF8 sequence",c);
-			    notutf8++;
-			    break;
-			}
-			utf8state--;	/* Good, one less in this sequence */
-			break;
-		      default:		/* Shouldn't happen */
-			debug(F111,"scanfile","bad UTF8 state",utf8state);
-			notutf8++;
-		    }
-		}
+                if (!notutf8) {         /* If it might still be UTF8... */
+                    switch (utf8state) { /* Enter the UTF-8 state machine */
+                      case 0:            /* First byte... */
+                        if ((c & 0xE0) == 0xC0) { /* Tells number of */
+                            utf8state = 1;        /* subsequent bytes */
+                        } else if ((c & 0xF0) == 0xE0) {
+                            utf8state = 2;
+                        } else if ((c & 0xF8) == 0xF0) {
+                            utf8state = 3;
+                        } else {
+                            notutf8++;
+                        }
+                        break;
+                      case 1:           /* Subsequent byte */
+                      case 2:
+                      case 3:
+                        if ((c & 0xC0) != 0x80) { /* Must start with 10 */
+                            debug(F000,"scanfile",
+                                  "bad byte in UTF8 sequence",c);
+                            notutf8++;
+                            break;
+                        }
+                        utf8state--;    /* Good, one less in this sequence */
+                        break;
+                      default:          /* Shouldn't happen */
+                        debug(F111,"scanfile","bad UTF8 state",utf8state);
+                        notutf8++;
+                    }
+                }
 #endif /* UNICODE */
-	    }
-	}
+            }
+        }
     }
-    fclose(fp);				/* Close the file */
+    fclose(fp);                         /* Close the file */
     debug(F101,"scanfile bytes","",bytes);
 
-    if (bytes == 0)			/* If nothing was read */
-      return(-1);			/* we're done. */
+    if (bytes == 0)                     /* If nothing was read */
+      return(-1);                       /* we're done. */
 
 #ifdef EVENMAX
     /* In case we had a run that never broke... */
 #ifdef COMMENT
     if (oddmax == 0) {
-	oddmax = oddrun;
-	oddmaxbyte = oddbyte;
+        oddmax = oddrun;
+        oddmaxbyte = oddbyte;
     }
     if (evenmax == 0) {
-	evenmax = evenrun;
-	evenmaxbyte = evenbyte;
+        evenmax = evenrun;
+        evenmaxbyte = evenbyte;
     }
 #endif /* COMMENT */
     if (runmax == 0) {
-	runmax = runzero;
+        runmax = runzero;
     }
 #endif /* EVENMAX */
 
 #ifdef UNICODE
-    if (bytes > 100)			/* Bytes is not 0 */
+    if (bytes > 100)                    /* Bytes is not 0 */
       pctzero = (evenzero + oddzero) / (bytes / 100);
     else
       pctzero = ((evenzero + oddzero) * 100) / bytes;
 #endif /* UNICODE */
 
 #ifdef DEBUG
-    if (deblog) {			/* If debugging, dump statistics */
-	debug(F101,"scanfile c0controls ","",c0controls);
-	debug(F101,"scanfile c0noniso   ","",c0noniso);
-	debug(F101,"scanfile c1controls ","",c1controls);
-	debug(F101,"scanfile eightbit   ","",eightbit);
+    if (deblog) {                       /* If debugging, dump statistics */
+        debug(F101,"scanfile c0controls ","",c0controls);
+        debug(F101,"scanfile c0noniso   ","",c0noniso);
+        debug(F101,"scanfile c1controls ","",c1controls);
+        debug(F101,"scanfile eightbit   ","",eightbit);
 #ifdef UNICODE
-	debug(F101,"scanfile crlf       ","",crlf);
-	debug(F101,"scanfile lfnul      ","",lfnul);
-	debug(F101,"scanfile notutf8    ","",notutf8);
-	debug(F101,"scanfile evenzero   ","",evenzero);
-	debug(F101,"scanfile oddzero    ","",oddzero);
-	debug(F101,"scanfile even/odd   ","",(evenzero / (oddzero + 1)));
-	debug(F101,"scanfile odd/even   ","",(oddzero / (evenzero + 1)));
-	debug(F101,"scanfile pctzero    ","",pctzero);
+        debug(F101,"scanfile crlf       ","",crlf);
+        debug(F101,"scanfile lfnul      ","",lfnul);
+        debug(F101,"scanfile notutf8    ","",notutf8);
+        debug(F101,"scanfile evenzero   ","",evenzero);
+        debug(F101,"scanfile oddzero    ","",oddzero);
+        debug(F101,"scanfile even/odd   ","",(evenzero / (oddzero + 1)));
+        debug(F101,"scanfile odd/even   ","",(oddzero / (evenzero + 1)));
+        debug(F101,"scanfile pctzero    ","",pctzero);
 #endif /* UNICODE */
 #ifdef COMMENT
 #ifdef EVENMAX
-	debug(F101,"scanfile oddmax     ","",oddmax);
-	debug(F101,"scanfile oddmaxbyte ","",oddmaxbyte);
-	debug(F101,"scanfile evenmax    ","",evenmax);
-	debug(F101,"scanfile evenmaxbyte","",evenmaxbyte);
+        debug(F101,"scanfile oddmax     ","",oddmax);
+        debug(F101,"scanfile oddmaxbyte ","",oddmaxbyte);
+        debug(F101,"scanfile evenmax    ","",evenmax);
+        debug(F101,"scanfile evenmaxbyte","",evenmaxbyte);
 #endif /* EVENMAX */
 #endif /* COMMENT */
-	debug(F101,"scanfile runmax     ","",runmax);
+        debug(F101,"scanfile runmax     ","",runmax);
     }
 #endif /* DEBUG */
 
@@ -1979,23 +1982,23 @@ scanfile(name,flag,nscanfile) char * name; int * flag, nscanfile;
     if (x < 2) x = 2;
 
 
-    if (runmax > 2) {			/* File has run of more than 2 NULs */
-	debug(F100,"scanfile BIN runmax","",0);
-	rc = FT_BIN;			/* so it can't be any kind of text. */
-	goto xscanfile;
+    if (runmax > 2) {                   /* File has run of more than 2 NULs */
+        debug(F100,"scanfile BIN runmax","",0);
+        rc = FT_BIN;                    /* so it can't be any kind of text. */
+        goto xscanfile;
 
     } else if (rc == FT_UCS2 || (rc == FT_UTF8 && runmax == 0)) {
-	goto xscanfile;			/* File starts with a BOM */
+        goto xscanfile;                 /* File starts with a BOM */
 
     } else if (eightbit > 0 && !notutf8) { /* File has 8-bit data */
-	if (runmax > 0) {		   /* and runs of NULs */
-	    debug(F100,"scanfile BIN (nnUTF8) runmax","",0);
-	    rc = FT_BIN;		   /* UTF-8 doesn't have NULs */
-	} else {			   /* No NULs */
-	    debug(F100,"scanfile UTF8 (nnUTF8 + runmax == 0)","",0);
-	    rc = FT_UTF8;		   /* and not not UTF-8, so is UTF-8 */
-	}
-	goto xscanfile;
+        if (runmax > 0) {                  /* and runs of NULs */
+            debug(F100,"scanfile BIN (nnUTF8) runmax","",0);
+            rc = FT_BIN;                   /* UTF-8 doesn't have NULs */
+        } else {                           /* No NULs */
+            debug(F100,"scanfile UTF8 (nnUTF8 + runmax == 0)","",0);
+            rc = FT_UTF8;                  /* and not not UTF-8, so is UTF-8 */
+        }
+        goto xscanfile;
     }
 /*
   For UCS-2 detection, see if the text contains lines delimited by
@@ -2005,21 +2008,21 @@ scanfile(name,flag,nscanfile) char * name; int * flag, nscanfile;
   in even (odd) positions as in odd (even) positions.
 */
     if ((evenzero >= x && oddzero == 0) ||
-	((((evenzero / (oddzero + 1)) > 6) && (pctzero > 20)) &&
-	(crlf == 0) &&
-	(lfnul > 1))
-	) {
-	    debug(F100,"scanfile UCS2 noBOM BE (even/oddzero)","",0);
-	rc = FT_UCS2;
-	val = 0;
+        ((((evenzero / (oddzero + 1)) > 6) && (pctzero > 20)) &&
+        (crlf == 0) &&
+        (lfnul > 1))
+        ) {
+            debug(F100,"scanfile UCS2 noBOM BE (even/oddzero)","",0);
+        rc = FT_UCS2;
+        val = 0;
     } else if ((evenzero == 0 && oddzero >= x) ||
-	       ((((oddzero / (evenzero + 1)) > 6) && (pctzero > 20)) &&
-	       (crlf == 0) &&
-	       (lfnul > 1))
-	       ) {
-	debug(F100,"scanfile UCS2 noBOM LE (even/oddzero)","",0);
-	rc = FT_UCS2;
-	val = 1;
+               ((((oddzero / (evenzero + 1)) > 6) && (pctzero > 20)) &&
+               (crlf == 0) &&
+               (lfnul > 1))
+               ) {
+        debug(F100,"scanfile UCS2 noBOM LE (even/oddzero)","",0);
+        rc = FT_UCS2;
+        val = 1;
 
 #ifdef COMMENT
 #ifdef EVENMAX
@@ -2031,13 +2034,13 @@ scanfile(name,flag,nscanfile) char * name; int * flag, nscanfile;
   first occurrence of EVENMAX).
 */
     } else if (c0noniso && evenmax > bytes / 4) {
-	debug(F100,"scanfile UCS2 BE (evenmax)","",0);
-	rc = FT_UCS2;
-	val = 0;
+        debug(F100,"scanfile UCS2 BE (evenmax)","",0);
+        rc = FT_UCS2;
+        val = 0;
     } else if (c0noniso && oddmax > bytes / 4) {
-	debug(F100,"scanfile UCS2 LE (evenmax)","",0);
-	rc = FT_UCS2;
-	val = 1;
+        debug(F100,"scanfile UCS2 LE (evenmax)","",0);
+        rc = FT_UCS2;
+        val = 1;
 #endif /* EVENMAX */
 #endif /* COMMENT */
 
@@ -2048,70 +2051,70 @@ scanfile(name,flag,nscanfile) char * name; int * flag, nscanfile;
   be a compressed file.  In this case we decide based on the name.
 */
     if (rc == FT_UCS2) {
-	if (eightbit > 0) {
-	    int j, k;
-	    j = (c1controls * 100) / (c0controls + 1);
-	    debug(F101,"scanfile c1/c0      ","",j);
-	    k = (bytes * 100) / eightbit;
-	    debug(F101,"scanfile pct 8bit   ","",k);
-	    if (k > 40 && k < 60 && j > 60) {
-		if (ckmatch("{*.Z,*.gz,*.zip,*.ZIP}",name,1,1)) {
-		    debug(F110,"scanfile 8-bit BIN compressed",name,0);
-		    rc = FT_BIN;
-		    goto xscanfile;
-		}
-	    }
-	}
-	/* Small file - not enough evidence unless ... */
+        if (eightbit > 0) {
+            int j, k;
+            j = (c1controls * 100) / (c0controls + 1);
+            debug(F101,"scanfile c1/c0      ","",j);
+            k = (bytes * 100) / eightbit;
+            debug(F101,"scanfile pct 8bit   ","",k);
+            if (k > 40 && k < 60 && j > 60) {
+                if (ckmatch("{*.Z,*.gz,*.zip,*.ZIP}",name,1,1)) {
+                    debug(F110,"scanfile 8-bit BIN compressed",name,0);
+                    rc = FT_BIN;
+                    goto xscanfile;
+                }
+            }
+        }
+        /* Small file - not enough evidence unless ... */
 
-	if (bytes < 100) {
-	    if (oddzero != 0 && evenzero != 0) {
-		debug(F100,"scanfile small UCS2 doubtful","",0);
-		rc = FT_BIN;
-		goto xscanfile;
-	    } else if (oddzero == 0 && evenzero == 0) {
-		rc = eightbit ? FT_8BIT : FT_7BIT;
-	    }
-	}
-	goto xscanfile;			/* Seems to be UCS-2 */
+        if (bytes < 100) {
+            if (oddzero != 0 && evenzero != 0) {
+                debug(F100,"scanfile small UCS2 doubtful","",0);
+                rc = FT_BIN;
+                goto xscanfile;
+            } else if (oddzero == 0 && evenzero == 0) {
+                rc = eightbit ? FT_8BIT : FT_7BIT;
+            }
+        }
+        goto xscanfile;                 /* Seems to be UCS-2 */
     }
 
 /* If none of the above, it's probably not Unicode.  */
 
-    if (!eightbit) {			/* It's 7-bit */
-	if (c0controls) {		/* This would be strange */
-	    if ((c0noniso > 0) && (txtcz == 0)) {
-		debug(F100,"scanfile 7-bit BIN (c0coniso)","",0);
-		rc = FT_BIN;
-	    } else {
-		debug(F100,"scanfile 7-bit ISO2022 TEXT (no c0noniso)","",0);
-		rc = FT_7BIT;
-	    }
-	} else {			/* 7-bit text */
-	    debug(F100,"scanfile 7-bit TEXT (no c0controls)","",0);
-	    rc = FT_7BIT;
-	}
-    } else if (!c0noniso || txtcz) {	/* 8-bit text */
-	debug(F100,"scanfile 8-bit TEXT (no c0noniso)","",0);
-	rc = FT_8BIT;
-	val = c1controls ? 1 : 0;
-    } else {				/* 8-bit binary */
-	debug(F100,"scanfile 8-bit BIN (c0noniso)","",0);
-	rc = FT_BIN;
+    if (!eightbit) {                    /* It's 7-bit */
+        if (c0controls) {               /* This would be strange */
+            if ((c0noniso > 0) && (txtcz == 0)) {
+                debug(F100,"scanfile 7-bit BIN (c0coniso)","",0);
+                rc = FT_BIN;
+            } else {
+                debug(F100,"scanfile 7-bit ISO2022 TEXT (no c0noniso)","",0);
+                rc = FT_7BIT;
+            }
+        } else {                        /* 7-bit text */
+            debug(F100,"scanfile 7-bit TEXT (no c0controls)","",0);
+            rc = FT_7BIT;
+        }
+    } else if (!c0noniso || txtcz) {    /* 8-bit text */
+        debug(F100,"scanfile 8-bit TEXT (no c0noniso)","",0);
+        rc = FT_8BIT;
+        val = c1controls ? 1 : 0;
+    } else {                            /* 8-bit binary */
+        debug(F100,"scanfile 8-bit BIN (c0noniso)","",0);
+        rc = FT_BIN;
     }
 
 #else  /* !UNICODE */
 
     if (c0noniso) {
-	debug(F100,"scanfile 8-bit BIN (c0noniso)","",0);
-	rc = FT_BIN;
+        debug(F100,"scanfile 8-bit BIN (c0noniso)","",0);
+        rc = FT_BIN;
     } else if (eightbit) {
-	debug(F100,"scanfile 8-bit TEXT (no c0noniso)","",0);
-	rc = FT_8BIT;
-	val = c1controls ? 1 : 0;
+        debug(F100,"scanfile 8-bit TEXT (no c0noniso)","",0);
+        rc = FT_8BIT;
+        val = c1controls ? 1 : 0;
     } else {
-	debug(F100,"scanfile 7-bit TEXT (no c0noniso)","",0);
-	rc = FT_7BIT;
+        debug(F100,"scanfile 7-bit TEXT (no c0noniso)","",0);
+        rc = FT_7BIT;
     }
 
 #endif /* UNICODE */
@@ -2133,31 +2136,31 @@ scanstring( char * s )
 scanstring(s) char * s;
 #endif /* CK_ANSIC */
 {
-    int x, val = -1, count = 0;		/* Workers */
-    int rc = -1;			/* Return code */
-    int bytes = 0;			/* Total byte count */
+    int x, val = -1, count = 0;         /* Workers */
+    int rc = -1;                        /* Return code */
+    int bytes = 0;                      /* Total byte count */
 #ifdef UNICODE
-    unsigned int c0, c1;		/* First 2 file bytes (for BOM) */
+    unsigned int c0, c1;                /* First 2 file bytes (for BOM) */
 #endif /* UNICODE */
     extern int pipesend, filepeek;
 
-    register int i;			/* Loop control */
-    int eightbit = 0;			/* Number of bytes with 8th bit on */
-    int c0controls = 0;			/* C0 non-text control-char counter */
-    int c0noniso = 0;			/* C0 non-ISO control-char counter */
-    int c1controls = 0;			/* C1 control-character counter */
-    unsigned int c;			/* Current character */
-    int runmax = 0;			/* Longest run of 0 bytes */
-    int pctzero = 0;			/* Percentage of 0 bytes */
+    register int i;                     /* Loop control */
+    int eightbit = 0;                   /* Number of bytes with 8th bit on */
+    int c0controls = 0;                 /* C0 non-text control-char counter */
+    int c0noniso = 0;                   /* C0 non-ISO control-char counter */
+    int c1controls = 0;                 /* C1 control-character counter */
+    unsigned int c;                     /* Current character */
+    int runmax = 0;                     /* Longest run of 0 bytes */
+    int pctzero = 0;                    /* Percentage of 0 bytes */
     int txtcz = 0;
 
 #ifdef UNICODE
-    int notutf8 = 0;			/* Nonzero if definitely not UTF-8 */
-    int utf8state = 0;			/* UTF-8 recognizer state */
-    int oddzero = 0;			/* Number of 0 bytes in odd postions */
-    int evenzero = 0;			/* and in even positions */
-    int lfnul = 0;			/* Number of <LF><NUL> sequences */
-    int crlf = 0;			/* Number of <CRLF> sequences */
+    int notutf8 = 0;                    /* Nonzero if definitely not UTF-8 */
+    int utf8state = 0;                  /* UTF-8 recognizer state */
+    int oddzero = 0;                    /* Number of 0 bytes in odd postions */
+    int evenzero = 0;                   /* and in even positions */
+    int lfnul = 0;                      /* Number of <LF><NUL> sequences */
+    int crlf = 0;                       /* Number of <CRLF> sequences */
 #else
     int notutf8 = 1;
 #endif /* UNICODE */
@@ -2168,111 +2171,111 @@ scanstring(s) char * s;
 
 #ifdef UNICODE
     if (bytes == 0 && count > 1) {
-	int incl_cnt = 0;
+        int incl_cnt = 0;
 
-	/* First look for BOM */
+        /* First look for BOM */
 
-	c0 = (unsigned)((unsigned)buf[0]&0xFF); /* First file byte */
-	c1 = (unsigned)((unsigned)buf[1]&0xFF); /* Second byte */
+        c0 = (unsigned)((unsigned)buf[0]&0xFF); /* First file byte */
+        c1 = (unsigned)((unsigned)buf[1]&0xFF); /* Second byte */
 
-	if (c0 == 0xFE && c1 == 0xFF) {	/* UCS-2 BE */
-	    rc = FT_UCS2;
-	    val = 0;
-	    debug(F111,"scanstring UCS2 BOM BE",ckitoa(val),rc);
-	    incl_cnt++;
-	} else if (c0 == 0xFF && c1 == 0xFE) { /* UCS-2 LE */
-	    rc = FT_UCS2;
-	    val = 1;
-	    debug(F111,"scanstring UCS2 BOM LE",ckitoa(val),rc);
-	    incl_cnt++;
-	} else if (count > 2) if (c0 == 0xEF && c1 == 0xBB &&
-		   (unsigned)((unsigned)buf[2]&0xFF) == 0xBF) {
-	    rc = FT_UTF8;
-	    debug(F111,"scanstring UTF8 BOM",ckitoa(val),rc);
-	    incl_cnt++;
-	}
-	if (incl_cnt) {		/* Have BOM */
-	    bytes += count;
-	    goto xscanstring;
-	}
+        if (c0 == 0xFE && c1 == 0xFF) { /* UCS-2 BE */
+            rc = FT_UCS2;
+            val = 0;
+            debug(F111,"scanstring UCS2 BOM BE",ckitoa(val),rc);
+            incl_cnt++;
+        } else if (c0 == 0xFF && c1 == 0xFE) { /* UCS-2 LE */
+            rc = FT_UCS2;
+            val = 1;
+            debug(F111,"scanstring UCS2 BOM LE",ckitoa(val),rc);
+            incl_cnt++;
+        } else if (count > 2) if (c0 == 0xEF && c1 == 0xBB &&
+                   (unsigned)((unsigned)buf[2]&0xFF) == 0xBF) {
+            rc = FT_UTF8;
+            debug(F111,"scanstring UTF8 BOM",ckitoa(val),rc);
+            incl_cnt++;
+        }
+        if (incl_cnt) {         /* Have BOM */
+            bytes += count;
+            goto xscanstring;
+        }
     }
 #endif /* UNICODE */
 
-    bytes += count;			/* Count bytes read */
+    bytes += count;                     /* Count bytes read */
 
-    for (i = 0; i < count; i++) {	/* For each byte... */
-	c = (unsigned)buf[i];	/* For ease of reference */
-	if (!c) {			/* Zero byte? */
-	    goto xscanstring;	/* Null terminated string */
-	}
-	if ((c & 0x80) == 0) {	/* We have a 7-bit byte */
+    for (i = 0; i < count; i++) {       /* For each byte... */
+        c = (unsigned)buf[i];   /* For ease of reference */
+        if (!c) {                       /* Zero byte? */
+            goto xscanstring;   /* Null terminated string */
+        }
+        if ((c & 0x80) == 0) {  /* We have a 7-bit byte */
 #ifdef UNICODE
-	    if (i > 0 && c == 10) { /* Linefeed */
-		if (buf[i-1] == 0) lfnul++; /* Preceded by NUL */
-		else if (buf[i-1] == 13) crlf++; /* or by CR... */
-	    }
+            if (i > 0 && c == 10) { /* Linefeed */
+                if (buf[i-1] == 0) lfnul++; /* Preceded by NUL */
+                else if (buf[i-1] == 13) crlf++; /* or by CR... */
+            }
 #endif /* UNICODE */
-	    if (c < ' ') {		/* Check for CO controls */
-		if (c != LF && c != CK_CR && c != HT && c != FF) {
-		    c0controls++;
-		    if (c != ESC && c != SO && c != SI)
-		      c0noniso++;
-		}
-		if (c == '\032') {	/* Ctrl-Z */
-		    c0controls--;
-		    c0noniso--;
-		}
-	    }
+            if (c < ' ') {              /* Check for CO controls */
+                if (c != LF && c != CK_CR && c != HT && c != FF) {
+                    c0controls++;
+                    if (c != ESC && c != SO && c != SI)
+                      c0noniso++;
+                }
+                if (c == '\032') {      /* Ctrl-Z */
+                    c0controls--;
+                    c0noniso--;
+                }
+            }
 #ifdef UNICODE
-	    if (!notutf8 && utf8state) { /* In UTF-8 sequence? */
-		utf8state = 0;
-		debug(F000,"scanstring","7-bit byte in UTF8 sequence",c);
-		notutf8++;		/* Then it's not UTF-8 */
-		continue;
-	    }
+            if (!notutf8 && utf8state) { /* In UTF-8 sequence? */
+                utf8state = 0;
+                debug(F000,"scanstring","7-bit byte in UTF8 sequence",c);
+                notutf8++;              /* Then it's not UTF-8 */
+                continue;
+            }
 #endif /* UNICODE */
-	} else {			/* We have an 8-bit byte */
-	    eightbit++;		/* Count it */
-	    if (c >= 0x80 && c < 0xA0) /* Check for C1 controls */
-	      c1controls++;
+        } else {                        /* We have an 8-bit byte */
+            eightbit++;         /* Count it */
+            if (c >= 0x80 && c < 0xA0) /* Check for C1 controls */
+              c1controls++;
 #ifdef UNICODE
-	    if (!notutf8) {		/* If it might still be UTF8... */
-		switch (utf8state) { /* Enter the UTF-8 state machine */
-		  case 0:		 /* First byte... */
-		    if ((c & 0xE0) == 0xC0) { /* Tells number of */
-			utf8state = 1;        /* subsequent bytes */
-		    } else if ((c & 0xF0) == 0xE0) {
-			utf8state = 2;
-		    } else if ((c & 0xF8) == 0xF0) {
-			utf8state = 3;
-		    } else {
-			notutf8++;
-		    }
-		    break;
-		  case 1:		/* Subsequent byte */
-		  case 2:
-		  case 3:
-		    if ((c & 0xC0) != 0x80) { /* Must start with 10 */
-			debug(F000,"scanstring",
-			      "bad byte in UTF8 sequence",c);
-			notutf8++;
-			break;
-		    }
-		    utf8state--;	/* Good, one less in this sequence */
-		    break;
-		  default:		/* Shouldn't happen */
-		    debug(F111,"scanstring","bad UTF8 state",utf8state);
-		    notutf8++;
-		}
-	    }
+            if (!notutf8) {             /* If it might still be UTF8... */
+                switch (utf8state) { /* Enter the UTF-8 state machine */
+                  case 0:                /* First byte... */
+                    if ((c & 0xE0) == 0xC0) { /* Tells number of */
+                        utf8state = 1;        /* subsequent bytes */
+                    } else if ((c & 0xF0) == 0xE0) {
+                        utf8state = 2;
+                    } else if ((c & 0xF8) == 0xF0) {
+                        utf8state = 3;
+                    } else {
+                        notutf8++;
+                    }
+                    break;
+                  case 1:               /* Subsequent byte */
+                  case 2:
+                  case 3:
+                    if ((c & 0xC0) != 0x80) { /* Must start with 10 */
+                        debug(F000,"scanstring",
+                              "bad byte in UTF8 sequence",c);
+                        notutf8++;
+                        break;
+                    }
+                    utf8state--;        /* Good, one less in this sequence */
+                    break;
+                  default:              /* Shouldn't happen */
+                    debug(F111,"scanstring","bad UTF8 state",utf8state);
+                    notutf8++;
+                }
+            }
 #endif /* UNICODE */
-	}
+        }
     }
-    if (bytes == 0)			/* If nothing was read */
-      return(-1);			/* we're done. */
+    if (bytes == 0)                     /* If nothing was read */
+      return(-1);                       /* we're done. */
 
 #ifdef UNICODE
-    if (bytes > 100)			/* Bytes is not 0 */
+    if (bytes > 100)                    /* Bytes is not 0 */
       pctzero = (evenzero + oddzero) / (bytes / 100);
     else
       pctzero = ((evenzero + oddzero) * 100) / bytes;
@@ -2281,23 +2284,23 @@ scanstring(s) char * s;
 #ifdef UNICODE
     x = eightbit ? bytes / 20 : bytes / 4; /* For UCS-2... */
 
-    if (runmax > 2) {			/* File has run of more than 2 NULs */
-	debug(F100,"scanstring BIN runmax","",0);
-	rc = FT_BIN;			/* so it can't be any kind of text. */
-	goto xscanstring;
+    if (runmax > 2) {                   /* File has run of more than 2 NULs */
+        debug(F100,"scanstring BIN runmax","",0);
+        rc = FT_BIN;                    /* so it can't be any kind of text. */
+        goto xscanstring;
 
     } else if (rc == FT_UCS2 || (rc == FT_UTF8 && runmax == 0)) {
-	goto xscanstring;			/* File starts with a BOM */
+        goto xscanstring;                       /* File starts with a BOM */
 
     } else if (eightbit > 0 && !notutf8) { /* File has 8-bit data */
-	if (runmax > 0) {		   /* and runs of NULs */
-	    debug(F100,"scanstring BIN (nnUTF8) runmax","",0);
-	    rc = FT_BIN;		   /* UTF-8 doesn't have NULs */
-	} else {			   /* No NULs */
-	    debug(F100,"scanstring UTF8 (nnUTF8 + runmax == 0)","",0);
-	    rc = FT_UTF8;		   /* and not not UTF-8, so is UTF-8 */
-	}
-	goto xscanstring;
+        if (runmax > 0) {                  /* and runs of NULs */
+            debug(F100,"scanstring BIN (nnUTF8) runmax","",0);
+            rc = FT_BIN;                   /* UTF-8 doesn't have NULs */
+        } else {                           /* No NULs */
+            debug(F100,"scanstring UTF8 (nnUTF8 + runmax == 0)","",0);
+            rc = FT_UTF8;                  /* and not not UTF-8, so is UTF-8 */
+        }
+        goto xscanstring;
     }
 /*
   It seems to be UCS-2 but let's be more certain since there is no BOM...
@@ -2305,54 +2308,54 @@ scanstring(s) char * s;
   be a compressed file.  In this case we decide based on the name.
 */
     if (rc == FT_UCS2) {
-	if (bytes < 100) {
-	    if (oddzero != 0 && evenzero != 0) {
-		debug(F100,"scanstring small UCS2 doubtful","",0);
-		rc = FT_BIN;
-		goto xscanstring;
-	    } else if (oddzero == 0 && evenzero == 0) {
-		rc = eightbit ? FT_8BIT : FT_7BIT;
-	    }
-	}
-	goto xscanstring;			/* Seems to be UCS-2 */
+        if (bytes < 100) {
+            if (oddzero != 0 && evenzero != 0) {
+                debug(F100,"scanstring small UCS2 doubtful","",0);
+                rc = FT_BIN;
+                goto xscanstring;
+            } else if (oddzero == 0 && evenzero == 0) {
+                rc = eightbit ? FT_8BIT : FT_7BIT;
+            }
+        }
+        goto xscanstring;                       /* Seems to be UCS-2 */
     }
 
 /* If none of the above, it's probably not Unicode.  */
 
-    if (!eightbit) {			/* It's 7-bit */
-	if (c0controls) {		/* This would be strange */
-	    if ((c0noniso > 0) && (txtcz == 0)) {
-		debug(F100,"scanstring 7-bit BIN (c0coniso)","",0);
-		rc = FT_BIN;
-	    } else {
-		debug(F100,"scanstring 7-bit ISO2022 TEXT (no c0noniso)","",0);
-		rc = FT_7BIT;
-	    }
-	} else {			/* 7-bit text */
-	    debug(F100,"scanstring 7-bit TEXT (no c0controls)","",0);
-	    rc = FT_7BIT;
-	}
-    } else if (!c0noniso || txtcz) {	/* 8-bit text */
-	debug(F100,"scanstring 8-bit TEXT (no c0noniso)","",0);
-	rc = FT_8BIT;
-	val = c1controls ? 1 : 0;
-    } else {				/* 8-bit binary */
-	debug(F100,"scanstring 8-bit BIN (c0noniso)","",0);
-	rc = FT_BIN;
+    if (!eightbit) {                    /* It's 7-bit */
+        if (c0controls) {               /* This would be strange */
+            if ((c0noniso > 0) && (txtcz == 0)) {
+                debug(F100,"scanstring 7-bit BIN (c0coniso)","",0);
+                rc = FT_BIN;
+            } else {
+                debug(F100,"scanstring 7-bit ISO2022 TEXT (no c0noniso)","",0);
+                rc = FT_7BIT;
+            }
+        } else {                        /* 7-bit text */
+            debug(F100,"scanstring 7-bit TEXT (no c0controls)","",0);
+            rc = FT_7BIT;
+        }
+    } else if (!c0noniso || txtcz) {    /* 8-bit text */
+        debug(F100,"scanstring 8-bit TEXT (no c0noniso)","",0);
+        rc = FT_8BIT;
+        val = c1controls ? 1 : 0;
+    } else {                            /* 8-bit binary */
+        debug(F100,"scanstring 8-bit BIN (c0noniso)","",0);
+        rc = FT_BIN;
     }
 
 #else  /* !UNICODE */
 
     if (c0noniso) {
-	debug(F100,"scanstring 8-bit BIN (c0noniso)","",0);
-	rc = FT_BIN;
+        debug(F100,"scanstring 8-bit BIN (c0noniso)","",0);
+        rc = FT_BIN;
     } else if (eightbit) {
-	debug(F100,"scanstring 8-bit TEXT (no c0noniso)","",0);
-	rc = FT_8BIT;
-	val = c1controls ? 1 : 0;
+        debug(F100,"scanstring 8-bit TEXT (no c0noniso)","",0);
+        rc = FT_8BIT;
+        val = c1controls ? 1 : 0;
     } else {
-	debug(F100,"scanstring 7-bit TEXT (no c0noniso)","",0);
-	rc = FT_7BIT;
+        debug(F100,"scanstring 7-bit TEXT (no c0noniso)","",0);
+        rc = FT_7BIT;
     }
 
 #endif /* UNICODE */
@@ -2397,14 +2400,14 @@ fileselect(f,sa,sb,sna,snb,minsiz,maxsiz,nbu,nxlist,xlist)
 #ifndef NOICP
 #ifndef NOXFER
     if (nolinks) {
-	CK_OFF_T zz;
-	zz = zgetfs(f);
-	debug(F111,"fileselect NOLINKS zgetfs",f,zz);
-	if (zz < (CK_OFF_T)0)
-	  return(0);
-	debug(F111,"fileselect NOLINKS zgfs_link",f,zgfs_link);
-	if (zgfs_link)
-	  return(0);
+        CK_OFF_T zz;
+        zz = zgetfs(f);
+        debug(F111,"fileselect NOLINKS zgetfs",f,zz);
+        if (zz < (CK_OFF_T)0)
+          return(0);
+        debug(F111,"fileselect NOLINKS zgfs_link",f,zgfs_link);
+        if (zgfs_link)
+          return(0);
     }
 #endif /* NOXFER */
 #endif /* NOICP */
@@ -2412,86 +2415,86 @@ fileselect(f,sa,sb,sna,snb,minsiz,maxsiz,nbu,nxlist,xlist)
 
     debug(F110,"fileselect",f,0);
     if (*sa || *sb || *sna || *snb) {
-	fdate = zfcdat(f);		/* Date/time of this file */
-	if (!fdate) fdate = "";
-	n = strlen(fdate);
-	debug(F111,"fileselect fdate",fdate,n);
-	if (n != 17)			/* Failed to get it */
-	  return(1);
-	/* /AFTER: */
-	if (sa[0] && (strcmp(fdate,(char *)sa) <= 0)) {
-	    debug(F110,"fileselect sa",sa,0);
-	    /* tlog(F110,"Skipping (too old)",f,0); */
-	    return(0);
-	}
-	/* /BEFORE: */
-	if (sb[0] && (strcmp(fdate,(char *)sb) >= 0)) {
-	    debug(F110,"fileselect sb",sb,0);
-	    /* tlog(F110,"Skipping (too new)",f,0); */
-	    return(0);
-	}
-	/* /NOT-AFTER: */
-	if (sna[0] && (strcmp(fdate,(char *)sna) > 0)) {
-	    debug(F110,"fileselect sna",sna,0);
-	    /* tlog(F110,"Skipping (too new)",f,0); */
-	    return(0);
-	}
-	/* /NOT-BEFORE: */
-	if (snb[0] && (strcmp(fdate,(char *)snb) < 0)) {
-	    debug(F110,"fileselect snb",snb,0);
-	    /* tlog(F110,"Skipping (too old)",f,0); */
-	    return(0);
-	}
+        fdate = zfcdat(f);              /* Date/time of this file */
+        if (!fdate) fdate = "";
+        n = strlen(fdate);
+        debug(F111,"fileselect fdate",fdate,n);
+        if (n != 17)                    /* Failed to get it */
+          return(1);
+        /* /AFTER: */
+        if (sa[0] && (strcmp(fdate,(char *)sa) <= 0)) {
+            debug(F110,"fileselect sa",sa,0);
+            /* tlog(F110,"Skipping (too old)",f,0); */
+            return(0);
+        }
+        /* /BEFORE: */
+        if (sb[0] && (strcmp(fdate,(char *)sb) >= 0)) {
+            debug(F110,"fileselect sb",sb,0);
+            /* tlog(F110,"Skipping (too new)",f,0); */
+            return(0);
+        }
+        /* /NOT-AFTER: */
+        if (sna[0] && (strcmp(fdate,(char *)sna) > 0)) {
+            debug(F110,"fileselect sna",sna,0);
+            /* tlog(F110,"Skipping (too new)",f,0); */
+            return(0);
+        }
+        /* /NOT-BEFORE: */
+        if (snb[0] && (strcmp(fdate,(char *)snb) < 0)) {
+            debug(F110,"fileselect snb",snb,0);
+            /* tlog(F110,"Skipping (too old)",f,0); */
+            return(0);
+        }
     }
     /* Smaller or larger */
     if (minsiz > (CK_OFF_T)-1 || maxsiz > (CK_OFF_T)-1) {
-	z = zchki(f);			/* Get size */
-	debug(F101,"fileselect filesize","",z);
-	if (z < (CK_OFF_T)0)
-	  return(1);
-	if ((minsiz > (CK_OFF_T)-1) && (z >= minsiz)) {
-	    debug(F111,"fileselect minsiz skipping",f,minsiz);
-	    /* tlog(F111,"Skipping (too big)",f,z); */
-	    return(0);
-	}
-	if ((maxsiz > (CK_OFF_T)-1) && (z <= maxsiz)) {
-	    debug(F111,"fileselect maxsiz skipping",f,maxsiz);
-	    /* tlog(F110,"Skipping (too small)",f,0); */
-	    return(0);
-	}
+        z = zchki(f);                   /* Get size */
+        debug(F101,"fileselect filesize","",z);
+        if (z < (CK_OFF_T)0)
+          return(1);
+        if ((minsiz > (CK_OFF_T)-1) && (z >= minsiz)) {
+            debug(F111,"fileselect minsiz skipping",f,minsiz);
+            /* tlog(F111,"Skipping (too big)",f,z); */
+            return(0);
+        }
+        if ((maxsiz > (CK_OFF_T)-1) && (z <= maxsiz)) {
+            debug(F111,"fileselect maxsiz skipping",f,maxsiz);
+            /* tlog(F110,"Skipping (too small)",f,0); */
+            return(0);
+        }
     }
-    if (nbu) {				/* Skipping backup files? */
-	if (ckmatch(
+    if (nbu) {                          /* Skipping backup files? */
+        if (ckmatch(
 #ifdef CKREGEX
-		    "*.~[0-9]*~"	/* Not perfect but close enough. */
+                    "*.~[0-9]*~"        /* Not perfect but close enough. */
 #else
-		    "*.~*~"		/* Less close. */
+                    "*.~*~"             /* Less close. */
 #endif /* CKREGEX */
-		    ,f,filecase,1)) {
-	    debug(F110,"fileselect skipping backup",f,0);
-	    return(0);
-	}
+                    ,f,filecase,1)) {
+            debug(F110,"fileselect skipping backup",f,0);
+            return(0);
+        }
     }
     for (n = 0; xlist && n < nxlist; n++) {
-	if (!xlist[n]) {
-	    debug(F101,"fileselect xlist empty",0,n);
-	    break;
-	}
-	if (ckmatch(xlist[n],f,filecase,1)) {
-	    debug(F111,"fileselect xlist",xlist[n],n);
-	    debug(F110,"fileselect skipping",f,0);
-	    return(0);
-	}
+        if (!xlist[n]) {
+            debug(F101,"fileselect xlist empty",0,n);
+            break;
+        }
+        if (ckmatch(xlist[n],f,filecase,1)) {
+            debug(F111,"fileselect xlist",xlist[n],n);
+            debug(F110,"fileselect skipping",f,0);
+            return(0);
+        }
     }
     if (xfiletype > -1) {
-	n = scanfile(f,NULL,nscanfile);
-	if (n < 0) {
-	    n = binary ? 1 : 0;
-	} else {
-	    n = (n == FT_BIN) ? 1 : 0;
-	}
-	if (n != xfiletype)
-	  return(0);
+        n = scanfile(f,NULL,nscanfile);
+        if (n < 0) {
+            n = binary ? 1 : 0;
+        } else {
+            n = (n == FT_BIN) ? 1 : 0;
+        }
+        if (n != xfiletype)
+          return(0);
     }
     debug(F110,"fileselect selecting",f,0);
     return(1);
@@ -2529,7 +2532,7 @@ setflow() {
 
 #ifdef TN_COMPORT
     if (network && istncomport()) {
-	flow = cxflow[CXT_MODEM];
+        flow = cxflow[CXT_MODEM];
         debug(F101,"setflow TN_COMPORT flow","",flow);
         return;
     }
@@ -2761,11 +2764,11 @@ fatal(msg) char *msg;
     if (!msg) msg = "";
     debug(F111,"fatal",msg,initflg);
 
-    if (!initflg) {			/* If called from prescan */
-	if (initing)			/* or called from sysinit() */
+    if (!initflg) {                     /* If called from prescan */
+        if (initing)                    /* or called from sysinit() */
           exit(253);
-	initing = 1;
-	sysinit();
+        initing = 1;
+        sysinit();
     }
 
     debug(F111,"fatal",msg,xitsta);
@@ -2806,7 +2809,7 @@ bldlen(str,dest) char *str, *dest;
       *dest = SP;
     else
       *dest = (char) tochar(len);
-    strcpy(dest+1,str);			/* Checked below in setgen() */
+    strcpy(dest+1,str);                 /* Checked below in setgen() */
     return(dest+len+1);
 }
 
@@ -2839,16 +2842,16 @@ setgen(type,arg1,arg2,arg3) char type, *arg1, *arg2, *arg3;
     if (!arg2) arg2 = "";
     if (!arg3) arg3 = "";
     if (((int)strlen(arg1)+(int)strlen(arg2)+(int)strlen(arg3)+4) < MAXSP) {
-	if (*arg1 != NUL) {
-	    upstr = bldlen(arg1,cp);
-	    if (*arg2 != NUL) {
-		upstr = bldlen(arg2,upstr);
-		if (*arg3 != NUL) bldlen(arg3,upstr);
-	    }
-	}
-	cmarg = cmdstr;
-	debug(F110,"setgen",cmarg,0);
-	return('g');
+        if (*arg1 != NUL) {
+            upstr = bldlen(arg1,cp);
+            if (*arg2 != NUL) {
+                upstr = bldlen(arg2,upstr);
+                if (*arg3 != NUL) bldlen(arg3,upstr);
+            }
+        }
+        cmarg = cmdstr;
+        debug(F110,"setgen",cmarg,0);
+        return('g');
     }
     return('E');
 }
@@ -3225,17 +3228,17 @@ ckhost(vvbuf,vvlen) char * vvbuf; int vvlen;
     if (uname(&hname) > -1) ckstrncpy(vvbuf,hname.nodename,vvlen);
 #else
     if (uname(&hname) > -1) {
-	char * p;
-	p = hname.nodename;
+        char * p;
+        p = hname.nodename;
 #ifdef TCPSOCKET
 #ifndef NOCKGETFQHOST
-	if (!ckstrchr(p,'.'))
-	  p = (char *)ckgetfqhostname(p);
+        if (!ckstrchr(p,'.'))
+          p = (char *)ckgetfqhostname(p);
 #endif /* NOCKGETFQHOST */
 #endif /* TCPSOCKET */
-	if (!p) p = "";
-	if (!*p) p = "(unknown)";
-	ckstrncpy(vvbuf,p,vvlen);
+        if (!p) p = "";
+        if (!*p) p = "(unknown)";
+        ckstrncpy(vvbuf,p,vvlen);
     }
 #endif /* __ia64__ */
 #endif /* QNX */
@@ -3358,40 +3361,40 @@ askmore() {
             if (cx < -1 && timelimit) {
                 printf("\n?IKS idle timeout - Goodbye.\n");
                 doexit(GOOD_EXIT,0);
-            } else if (cx == -1) {	/* Connection lost */
+            } else if (cx == -1) {      /* Connection lost */
                 doexit(BAD_EXIT,0);
             }
             c = (char) cx;
         } else {
 #endif /* IKSD */
 #ifdef VMS
-	    conbin((char)escape);	/* Protect against Ctrl-Z */
-	    cx = coninc(0);
-	    concb((char)escape);
+            conbin((char)escape);       /* Protect against Ctrl-Z */
+            cx = coninc(0);
+            concb((char)escape);
 #else
-	    cx = cmdgetc(0);
+            cx = cmdgetc(0);
 #endif /* VMS */
-	    debug(F101,"askmore cmdgetc","",cx);
-	    if (cx == EOF) {
-		debug(F100,"askmore EOF","",0);
+            debug(F101,"askmore cmdgetc","",cx);
+            if (cx == EOF) {
+                debug(F100,"askmore EOF","",0);
 #ifdef VMS
-		c = '\032';
+                c = '\032';
 #else
-		c = 'n';
+                c = 'n';
 #endif /* VMS */
-	    } else {
-		c = (char)cx;
-	    }
-	    debug(F101,"askmore c","",c);
+            } else {
+                c = (char)cx;
+            }
+            debug(F101,"askmore c","",c);
 
 #ifdef IKSD
-	}
+        }
 #endif /* IKSD */
         switch (c) {
           /* Yes */
-	  case 'p': case 'P': case 'g': case 'G': /* Proceed or Go */
-	    xaskmore = 0;
-	    /* fall thru on purpose */
+          case 'p': case 'P': case 'g': case 'G': /* Proceed or Go */
+            xaskmore = 0;
+            /* Fall through */
 
           case SP: case 'y': case 'Y': case 012:  case 015:
 #ifdef OSK
@@ -3410,16 +3413,16 @@ askmore() {
 #endif /* OSK */
             rv = 0;
             break;
-	  case '\003':
-	  case '\004':
-	  case '\032':
+          case '\003':
+          case '\004':
+          case '\032':
 #ifdef OSK
-	    printf("^%c...\n", (c + 0100));
+            printf("^%c...\n", (c + 0100));
 #else
-	    printf("^%c...\015\012", (c + 0100));
+            printf("^%c...\015\012", (c + 0100));
 #endif /* OSK */
-	    rv = 0;
-	    break;
+            rv = 0;
+            break;
           /* Invalid answer */
           default:
             debug(F111,"askmore","invalid answer",c);
@@ -3480,12 +3483,12 @@ trap(sig) int sig;
 
 #ifdef DEBUG
     if (deblog) {
-	debug(F100,"*********************","",0);
-	if (sig == SIGINT)
-	  debug(F101,"trap caught SIGINT","",sig);
-	else
-	  debug(F101,"trap caught signal","",sig);
-	debug(F100,"*********************","",0);
+        debug(F100,"*********************","",0);
+        if (sig == SIGINT)
+          debug(F101,"trap caught SIGINT","",sig);
+        else
+          debug(F101,"trap caught signal","",sig);
+        debug(F100,"*********************","",0);
     }
 #endif /* DEBUG */
 
@@ -3499,14 +3502,14 @@ trap(sig) int sig;
 #ifndef NOICP
     timelimit = 0;                      /* In case timed ASK interrupted */
 #ifndef NOSPL
-    unkmacro = 0;			/* Or ON_UNKNOWN_MACRO interrupted.. */
+    unkmacro = 0;                       /* Or ON_UNKNOWN_MACRO interrupted.. */
 #endif /* NOSPL */
 #endif /* NOICP */
     zchkod = 0;                         /* Or file expansion interrupted... */
     zchkid = 0;
     interrupted = 1;
 
-    if (what & W_CONNECT) {		/* Are we in CONNECT mode? */
+    if (what & W_CONNECT) {             /* Are we in CONNECT mode? */
 /*
   The HP workstation Reset key sends some kind of ueber-SIGINT that can not
   be SIG_IGNored, so we wind up here somehow (even though this is *not* the
@@ -3536,13 +3539,13 @@ trap(sig) int sig;
     cmdsquo(cmd_quoting);               /* If command quoting was turned off */
 #ifdef CKLEARN
     {
-	extern FILE * learnfp;
-	extern int learning;
-	if (learnfp) {
-	    fclose(learnfp);
-	    learnfp = NULL;
-	    learning = 0;
-	}
+        extern FILE * learnfp;
+        extern int learning;
+        if (learnfp) {
+            fclose(learnfp);
+            learnfp = NULL;
+            learning = 0;
+        }
     }
 #endif /* CKLEARN */
 #endif /* NOICP */
@@ -3578,7 +3581,7 @@ trap(sig) int sig;
 #ifndef NOXFER
     if (ft_win) {                       /* If curses window open, */
         debug(F100,"^C trap() curses","",0);
-        xxscreen(SCR_CW,0,0L,"");	/* close it. */
+        xxscreen(SCR_CW,0,0L,"");       /* close it. */
         printf("^C...");                /* Echo ^C to standard output */
     } else {
 #endif /* NOXFER */
@@ -3640,51 +3643,64 @@ trap(sig) int sig;
      * elsewhere in this function.
      * */
 #else
-    /* Clean up Ctrl-C out of REDIRECT or external protocol */
+    /*
+      Clean up Ctrl-C out of REDIRECT or external protocol.
+
+      pty_fork_pid, pty_master_fd, and pty_slave_fd are shared between
+      transient REDIRECT or external protocol children (pty_fc == 1) and
+      persistent connections opened by SET HOST to a PTY (pty_fc == 0).
+
+      Only transient children are torn down here. Persistent connections
+      remain open across interrupted file transfers.
+    */
     {
-	extern PID_T pty_fork_pid;
-	extern int pty_master_fd, pty_slave_fd;
-	int x;
+        extern PID_T pty_fork_pid;
+        extern int pty_master_fd, pty_slave_fd, pty_fc;
+        int x;
 
-	signal(SIGCHLD,SIG_IGN);	/* We don't want this any more */
+        debug(F101,"trap pty_fc","",pty_fc);
+        if (pty_fc == 1) {
+            signal(SIGCHLD,SIG_IGN);    /* We don't want this any more */
 
-	debug(F101,"trap pty_master_fd","",pty_master_fd);
-	if (pty_master_fd > 2) {
-	    x = close(pty_master_fd);
-	    debug(F101,"trap pty_master_fd close","",x);
-	}
-	pty_master_fd = -1;
-	debug(F101,"trap pty_slave_fd","",pty_slave_fd);
-	if (pty_slave_fd > 2) {
-	    x = close(pty_slave_fd);
-	    debug(F101,"trap pty_slave_fd close","",x);
-	}
-	pty_slave_fd = -1;
-	debug(F101,"trap pty_fork_pid","",pty_fork_pid);
-	if (pty_fork_pid > 0) {
-	    x = kill(pty_fork_pid,0);	/* See if the fork is really there */
-	    debug(F111,"trap pty_fork_pid kill 0 errno",ckitoa(x),errno);
-	    if (x == 0) {		/* Seems to be active */
-		x = kill(pty_fork_pid,SIGHUP); /* Ask it to clean up & exit */
-		debug(F101,"trap pty_fork_pid kill SIGHUP","",x);
-		msleep(100);
-		errno = 0;
-		x = kill(pty_fork_pid,0); /* Is it still there? */
-		if (x == 0
+            debug(F101,"trap pty_master_fd","",pty_master_fd);
+            if (pty_master_fd > 2) {
+                x = close(pty_master_fd);
+                debug(F101,"trap pty_master_fd close","",x);
+            }
+            pty_master_fd = -1;
+            debug(F101,"trap pty_slave_fd","",pty_slave_fd);
+            if (pty_slave_fd > 2) {
+                x = close(pty_slave_fd);
+                debug(F101,"trap pty_slave_fd close","",x);
+            }
+            pty_slave_fd = -1;
+            debug(F101,"trap pty_fork_pid","",pty_fork_pid);
+            if (pty_fork_pid > 0) {
+                x = kill(pty_fork_pid,0); /* See if the fork is really there */
+                debug(F111,"trap pty_fork_pid kill 0 errno",ckitoa(x),errno);
+                if (x == 0) {           /* Seems to be active */
+                    x = kill(pty_fork_pid,SIGHUP); /* Ask it to clean up */
+                    debug(F101,"trap pty_fork_pid kill SIGHUP","",x);
+                    msleep(100);
+                    errno = 0;
+                    x = kill(pty_fork_pid,0); /* Is it still there? */
+                    if (x == 0
 #ifdef ESRCH
-		    /* This module is not always exposed to <errno.h> */
-		    || errno != ESRCH
-#endif	/* ESRCH */
-		    ) {
-		    x = kill(pty_fork_pid,SIGKILL);
-		    debug(F101,"trap pty_fork_pid kill SIGKILL","",x);
-		}
-	    }
-	    pty_fork_pid = -1;
-	}
+                        /* This module is not always exposed to <errno.h> */
+                        || errno != ESRCH
+#endif  /* ESRCH */
+                        ) {
+                        x = kill(pty_fork_pid,SIGKILL);
+                        debug(F101,"trap pty_fork_pid kill SIGKILL","",x);
+                    }
+                }
+                pty_fork_pid = -1;
+            }
+            pty_fc = -1;        /* Mark PTY child inactive */
+        }
     }
 #endif /* NT */
-#endif	/* NETPTY */
+#endif  /* NETPTY */
 
 #ifdef OSK
     sigmask(-1);
@@ -3764,7 +3780,7 @@ stptrap(sig) int sig;
     if (!xsuspend) {
         printf("\r\nsuspend disabled\r\n");
 #ifndef NOICP
-        if (what & W_COMMAND) {		/* If we were parsing commands */
+        if (what & W_COMMAND) {         /* If we were parsing commands */
             prompt(xxstring);           /* reissue the prompt and partial */
             if (!cmflgs)                /* command (if any) */
               printf("%s",cmdbuf);
@@ -3777,7 +3793,7 @@ stptrap(sig) int sig;
         /* in the background, which could make us block */
         fflush(stdout);
 
-        x = psuspend(xsuspend);		/* Try to suspend. */
+        x = psuspend(xsuspend);         /* Try to suspend. */
         if (x < 0)
 #endif /* OS2 */
           printf("Job control not supported\r\n");
@@ -3839,7 +3855,7 @@ dotlog(f,s1,s2,n) int f; CK_OFF_T n; char *s1, *s2;
         if ((int)strlen(s1) + (int)strlen(s2) + 15 > TBUFL)
           sprintf(sp,"?T-Log string too long");
         else
-	  sprintf(sp,"%s %s %s",s1,ckfstoa(n),s2);
+          sprintf(sp,"%s %s %s",s1,ckfstoa(n),s2);
         if (zsoutl(ZTFILE,s) < 0) tralog = 0;
         break;
       case F001:                        /* 1, " n" */
@@ -3877,7 +3893,7 @@ dotlog(f,s1,s2,n) int f; CK_OFF_T n; char *s1, *s2;
         if ((int)strlen(s1) + x + 4 > TBUFL)
           sprintf(sp,"?String too long");
         else
-	  sprintf(sp,"%s%s%s",s1,((*s2 == ':') ? "" : " "),s2);
+          sprintf(sp,"%s%s%s",s1,((*s2 == ':') ? "" : " "),s2);
         if (zsoutl(ZTFILE,s) < 0) tralog = 0;
         break;
       case F111:                        /* 7, "s1 s2: n" */
@@ -3886,7 +3902,7 @@ dotlog(f,s1,s2,n) int f; CK_OFF_T n; char *s1, *s2;
         if ((int)strlen(s1) + x + 15 > TBUFL)
           sprintf(sp,"?String too long");
         else
-	  sprintf(sp,"%s%s%s: %s",s1,((*s2 == ':') ? "" : " "),s2,ckfstoa(n));
+          sprintf(sp,"%s%s%s: %s",s1,((*s2 == ':') ? "" : " "),s2,ckfstoa(n));
         if (zsoutl(ZTFILE,s) < 0) tralog = 0;
         break;
       default:
@@ -3955,13 +3971,13 @@ doxlog(x, fn, fs, fm, status, msg)
     debug(F111,"XXX doxlog left 3",buf,left);
 
     if (ftp) {
-	if (!(x & (W_SEND|W_RECV)))
-	  return;
-	s =  (x & W_SEND) ? "PUT" : "GET";
-	k = 3;
+        if (!(x & (W_SEND|W_RECV)))
+          return;
+        s =  (x & W_SEND) ? "PUT" : "GET";
+        k = 3;
     } else {
-	s =  (x & W_SEND) ? "SEND" : "RECV";
-	k = 4;
+        s =  (x & W_SEND) ? "SEND" : "RECV";
+        k = 4;
     }
     ckmakmsg(bufp,left,sep,s,sep,NULL);
     bufp += k + 2;
@@ -3969,10 +3985,10 @@ doxlog(x, fn, fs, fm, status, msg)
     debug(F111,"XXX doxlog left 4",buf,left);
 
     s = "";
-    if (ckstrchr(fn,sep[0]))		/* Filename */
+    if (ckstrchr(fn,sep[0]))            /* Filename */
       s = "\"";
     ckmakmsg(bufp,left,s,fn,s,sep);
-    sprintf(tmpbuf,"%s",ckfstoa(fs));	/* Size */
+    sprintf(tmpbuf,"%s",ckfstoa(fs));   /* Size */
     ckstrncat(buf,tmpbuf,CKMAXPATH);
     ckstrncat(buf,sep,CKMAXPATH);
     debug(F110,"doxlog 4",buf,0);
@@ -4004,7 +4020,7 @@ doxlog(x, fn, fs, fm, status, msg)
     if (status == 0 && left > 32) {
         long cps = 0L;
 #ifdef GFTIMER
-	debug(F101,"DOXLOG fpxfsecs","",(long)(fpxfsecs * 1000));
+        debug(F101,"DOXLOG fpxfsecs","",(long)(fpxfsecs * 1000));
         if (fpxfsecs) cps = (long)((CKFLOAT) fs / fpxfsecs);
         sprintf(s,"%s\"%0.3fsec %ldcps\"",sep,fpxfsecs,cps);
 #else
@@ -4211,47 +4227,47 @@ chkint() {
 #endif /* CK_CURSES */
 
       case 'T':
-      case 't':				/* Turn on debug-log timestamps */
+      case 't':                         /* Turn on debug-log timestamps */
 #ifdef DEBUG
-	{
-	    extern int debtim;
-	    if (ch == 'T') {
-		debtim = 1;
-		xxscreen(SCR_ST,ST_MSG,0l,
-			 "Debug timestamps On... ");
-	    } else {
-		debtim = 1;
-		xxscreen(SCR_ST,ST_MSG,0l,
-			 "Debug timestamps Off... ");
-	    }
-	}
+        {
+            extern int debtim;
+            if (ch == 'T') {
+                debtim = 1;
+                xxscreen(SCR_ST,ST_MSG,0l,
+                         "Debug timestamps On... ");
+            } else {
+                debtim = 1;
+                xxscreen(SCR_ST,ST_MSG,0l,
+                         "Debug timestamps Off... ");
+            }
+        }
 #endif /* DEBUG */
-	return(0);
+        return(0);
 
       case 'D':
 #ifdef DEBUG
-	if (!deblog) {
-	    debopn("debug.log",0);
-	    if (deblog) {
-		xxscreen(SCR_ST,ST_MSG,0l,"debug.log open... ");
-	    } else {
-		xxscreen(SCR_ST,ST_MSG,0l,"debug.log open FAILED... ");
-	    }
-	} else {
-	    xxscreen(SCR_ST,ST_MSG,0l,"Debug log On... ");
-	}
-	if (deblog)
-	  debok = 1;
+        if (!deblog) {
+            debopn("debug.log",0);
+            if (deblog) {
+                xxscreen(SCR_ST,ST_MSG,0l,"debug.log open... ");
+            } else {
+                xxscreen(SCR_ST,ST_MSG,0l,"debug.log open FAILED... ");
+            }
+        } else {
+            xxscreen(SCR_ST,ST_MSG,0l,"Debug log On... ");
+        }
+        if (deblog)
+          debok = 1;
 #endif /* DEBUG */
-	return(0);
+        return(0);
 
-      case 'd':				/* Turn off debugging */
+      case 'd':                         /* Turn off debugging */
 #ifdef DEBUG
-	if (deblog)
-	  xxscreen(SCR_ST,ST_MSG,0l,"Debug log Off... ");
-	debok = 0;
+        if (deblog)
+          xxscreen(SCR_ST,ST_MSG,0l,"Debug log Off... ");
+        debok = 0;
 #endif /* DEBUG */
-	return(0);
+        return(0);
 
       default:                          /* Anything else, print message */
         intmsg(1L);
@@ -4291,13 +4307,13 @@ intmsg(n) long n;
 
 #ifdef CK_NEED_SIG
         if (xfrint) {
-	    ckmakmsg(buf,
-		     80,
-		     "Type escape character (",
-		     dbchr(escape),
-		     ") followed by:",
-		     NULL
-		     );
+            ckmakmsg(buf,
+                     80,
+                     "Type escape character (",
+                     dbchr(escape),
+                     ") followed by:",
+                     NULL
+                     );
             xxscreen(SCR_TN,0,0l,buf);
         }
 #endif /* CK_NEED_SIG */
@@ -4326,9 +4342,9 @@ static CK_OFF_T oldffc = 0L;
 static CK_OFF_T dots = 0L;
 static int hpos = 0;
 #ifdef GFTIMER
-static CKFLOAT lastshown = -2.0;	/* Time of last CRT status update */
+static CKFLOAT lastshown = -2.0;        /* Time of last CRT status update */
 #else
-static long lastshown = -2L;		/* Time of last CRT status update */
+static long lastshown = -2L;            /* Time of last CRT status update */
 #endif /* GFTIMER */
 
 static VOID                             /* Initialize Serial or CRT display */
@@ -4337,13 +4353,13 @@ dpyinit() {
     char * s = "";
 
     newdpy = 0;                         /*  Don't do this again */
-    oldffc = (CK_OFF_T)0;		/*  Reset this */
-    dots = (CK_OFF_T)0;			/*  and this.. */
+    oldffc = (CK_OFF_T)0;               /*  Reset this */
+    dots = (CK_OFF_T)0;                 /*  and this.. */
     oldcps = cps = 0L;
-    lastshown = -2;			/* Show the new file immediately */
+    lastshown = -2;                     /* Show the new file immediately */
 
-    conoll("");				/* New line */
-    if (what & W_SEND) s = "Sending: ";	/* Action */
+    conoll("");                         /* New line */
+    if (what & W_SEND) s = "Sending: "; /* Action */
     else if (what & W_RECV) s = "Receiving: ";
     n = (int)strlen(s) + (int)strlen(fbuf);
     conol(fbuf);
@@ -4369,11 +4385,11 @@ dpyinit() {
     }
     *fbuf = NUL; *abuf = NUL; *a2buf = NUL;
     conoll("");
-    if (fsize > (CK_OFF_T)-1) {		/* Size */
+    if (fsize > (CK_OFF_T)-1) {         /* Size */
         sprintf(fbuf,"Size: %s, Type: ",ckfstoa(fsize)); /* SAFE (80) */
         conol(fbuf); *fbuf = NUL;
     } else conol("Size: unknown, Type: ");
-    if (binary) {			/* Type */
+    if (binary) {                       /* Type */
         switch(binary) {
               case XYFT_L: conol("labeled"); break;
               case XYFT_I: conol("image"); break;
@@ -4444,11 +4460,11 @@ showpkt(c) char c;
 #ifndef GFTIMER
     long et;                            /* Elapsed time, entire batch  */
 #endif /* GFTIMER */
-    CK_OFF_T howfar;			/* How far into file */
+    CK_OFF_T howfar;                    /* How far into file */
     long pd;                            /* Percent done, this file     */
     long tp;                            /* Transfer rate, entire batch */
     long ps;                            /* Packet size, current packet */
-    CK_OFF_T mytfc;			/* Local copy of byte counter  */
+    CK_OFF_T mytfc;                     /* Local copy of byte counter  */
 
 #ifdef GFTIMER
     CKFLOAT tnow;
@@ -4466,14 +4482,14 @@ showpkt(c) char c;
     tnow = gftimer();                   /* Time since we started */
     ps = (what & W_RECV) ? rpktl : spktl; /* Packet size */
 #ifdef CK_RESEND
-    if (what & W_SEND)			/* In case we didn't start at */
+    if (what & W_SEND)                  /* In case we didn't start at */
       howfar += sendstart;              /*  the beginning... */
     else if (what & W_RECV)
       howfar += rs_len;
 #endif /* CK_RESEND */
     pd = -1;                            /* Percent done. */
     if (c == NUL) {                     /* Still going, figure % done */
-        if (!fsize) return;		/* Empty file, don't bother */
+        if (!fsize) return;             /* Empty file, don't bother */
         pd = (fsize > 99) ? (howfar / (fsize / (CK_OFF_T)100)) : 0;
         if (pd > 100) pd = 100;         /* Expansion */
     }
@@ -4489,7 +4505,7 @@ showpkt(c) char c;
     cps = tp;                           /* Set global variable */
     if (cps > peakcps &&                /* Peak transfer rate */
          ((what & W_SEND && spackets > wslots + 4) ||
-	  (!(what & W_SEND) && spackets > 10))) {
+          (!(what & W_SEND) && spackets > 10))) {
         peakcps = cps;
     }
 
@@ -4498,7 +4514,7 @@ showpkt(c) char c;
     et = gtimer();                      /* Elapsed time  */
     ps = (what & W_RECV) ? rpktl : spktl; /* Packet length */
 #ifdef CK_RESEND
-    if (what & W_SEND)			/* And if we didn't start at */
+    if (what & W_SEND)                  /* And if we didn't start at */
       howfar += sendstart;              /*  the beginning... */
     else if (what & W_RECV)
       howfar += rs_len;
@@ -4525,14 +4541,14 @@ showpkt(c) char c;
 
 #ifdef CK_CPS
     mytfc = (pd < 100) ? tfc + ffc : tfc;
-    tp = (et > 0) ? mytfc / et : 0;	/* Transfer rate */
-    if (c && (tp == 0))			/* Watch out for subsecond times */
+    tp = (et > 0) ? mytfc / et : 0;     /* Transfer rate */
+    if (c && (tp == 0))                 /* Watch out for subsecond times */
         tp = ffc;
 
-    cps = tp;				/* Set global variable */
+    cps = tp;                           /* Set global variable */
     if (cps > peakcps &&                /* Peak transfer rate */
          ((what & W_SEND && spackets > wslots + 4) ||
-	  (!(what & W_SEND) && spackets > 10))) {
+          (!(what & W_SEND) && spackets > 10))) {
         peakcps = cps;
     }
 #endif /* CK_CPS */
@@ -4542,11 +4558,11 @@ showpkt(c) char c;
     if (fdispla == XYFD_S) {            /* CRT display */
         char buffer[160];
 
-	/*
-	  Redraw at most once a second while a transfer is in progress
-	  (c == NUL), to avoid flooding the terminal on fast transfers.
-	  The final update for a file (c != NUL) always goes through.
-	*/
+        /*
+          Redraw at most once a second while a transfer is in progress
+          (c == NUL), to avoid flooding the terminal on fast transfers.
+          The final update for a file (c != NUL) always goes through.
+        */
 #ifdef GFTIMER
         if (c == NUL && (tnow - lastshown) < (CKFLOAT)1.0)
           return;
@@ -4618,9 +4634,9 @@ _PROTOTYP( VOID conbgt, (int) );
 #endif /* UNIX */
     int ftp = 0;
 
-    ftp = (what & W_FTP) ? 1 : 0;	/* FTP or Kermit? */
+    ftp = (what & W_FTP) ? 1 : 0;       /* FTP or Kermit? */
 
-    if (!local && !ftp)			/* In remote mode - don't do this */
+    if (!local && !ftp)                 /* In remote mode - don't do this */
       return;
 
     if (!s) s = "";
@@ -4686,11 +4702,11 @@ _PROTOTYP( VOID conbgt, (int) );
       case SCR_FN:                      /* Filename */
         if (fdispla == XYFD_B) {
 #ifdef NEWFTP
-	    if (ftp)
-	      printf(" %s %s", what & W_SEND ? "PUT" : "GET", s);
-	    else
+            if (ftp)
+              printf(" %s %s", what & W_SEND ? "PUT" : "GET", s);
+            else
 #endif /* NEWFTP */
-	      printf(" %s %s", what & W_SEND ? "SEND" : "RECV", s);
+              printf(" %s %s", what & W_SEND ? "SEND" : "RECV", s);
 #ifdef UNIX
             fflush(stdout);
 #endif /* UNIX */
@@ -4761,14 +4777,14 @@ _PROTOTYP( VOID conbgt, (int) );
             showpkt('Z');               /* Update numbers one last time */
             if (fdispla == XYFD_B) {
 #ifdef GFTIMER
-		if (fpxfsecs)
-		  printf(": OK (%0.3f sec, %ld cps)",fpxfsecs,
-			 (long)((CKFLOAT)ffc / fpxfsecs));
+                if (fpxfsecs)
+                  printf(": OK (%0.3f sec, %ld cps)",fpxfsecs,
+                         (long)((CKFLOAT)ffc / fpxfsecs));
 #else
-		if (xfsecs)
-		  printf(": OK (%ld sec, %ld cps)",xfsecs,ffc/xfsecs);
+                if (xfsecs)
+                  printf(": OK (%ld sec, %ld cps)",xfsecs,ffc/xfsecs);
 #endif /* GFTIMER */
-		printf("\n");
+                printf("\n");
                 return;
             }
             if ((hpos += 5) > 78) conoll(""); /* Wrap screen line. */
@@ -4797,18 +4813,18 @@ _PROTOTYP( VOID conbgt, (int) );
             conoll(" [interrupted]"); hpos = 0;
             return;
 
-	  case ST_SIM:
+          case ST_SIM:
             if (fdispla == XYFD_B) {
-		if (n == SKP_XNX)
-		  printf(": WOULD BE TRANSFERRED (New file)\n");
-		else if (n == SKP_XUP)
-		  printf(": WOULD BE TRANSFERRED (Remote file older)\n");
-		else if (n == SKP_SIM)
-		  printf(": WOULD BE TRANSFERRED\n");
-		else if (n > 0 && n < nskreason)
-		  printf(": SKIPPED (%s)\n",skreason[n]);
-		else
-		  printf(": SKIPPED\n");
+                if (n == SKP_XNX)
+                  printf(": WOULD BE TRANSFERRED (New file)\n");
+                else if (n == SKP_XUP)
+                  printf(": WOULD BE TRANSFERRED (Remote file older)\n");
+                else if (n == SKP_SIM)
+                  printf(": WOULD BE TRANSFERRED\n");
+                else if (n > 0 && n < nskreason)
+                  printf(": SKIPPED (%s)\n",skreason[n]);
+                else
+                  printf(": SKIPPED\n");
                 return;
             } else if (fdispla == XYFD_S) {
                 if (fdispla == XYFD_S && fbuf[0]) { /* CRT display */
@@ -4829,16 +4845,16 @@ _PROTOTYP( VOID conbgt, (int) );
 
           case ST_SKIP:                 /*  Skipped */
             if (fdispla == XYFD_B) {
-		if (n == SKP_XNX)
-		  printf(": WOULD BE TRANSFERRED (New file)\n");
-		else if (n == SKP_XUP)
-		  printf(": WOULD BE TRANSFERRED (Remote file older)\n");
-		else if (n == SKP_SIM)
-		  printf(": WOULD BE TRANSFERRED\n");
-		else if (n > 0 && n < nskreason)
-		  printf(": SKIPPED (%s)\n",skreason[n]);
-		else
-		  printf(": SKIPPED\n");
+                if (n == SKP_XNX)
+                  printf(": WOULD BE TRANSFERRED (New file)\n");
+                else if (n == SKP_XUP)
+                  printf(": WOULD BE TRANSFERRED (Remote file older)\n");
+                else if (n == SKP_SIM)
+                  printf(": WOULD BE TRANSFERRED\n");
+                else if (n > 0 && n < nskreason)
+                  printf(": SKIPPED (%s)\n",skreason[n]);
+                else
+                  printf(": SKIPPED\n");
                 return;
             } else if (fdispla == XYFD_S) {
                 if (fdispla == XYFD_S && fbuf[0]) { /* CRT display */
@@ -4854,7 +4870,7 @@ _PROTOTYP( VOID conbgt, (int) );
                 return;
             }
             if ((hpos += 10) > 78) conoll("");
-	    conol(" "); conol(fbuf);
+            conol(" "); conol(fbuf);
             conoll(" [skipped]"); hpos = 0;
             return;
 
@@ -4871,7 +4887,7 @@ _PROTOTYP( VOID conbgt, (int) );
 #ifdef NEWFTP
             if (fdispla == XYFD_B) {
                 if (ftp && ftp_deb)
-		  printf(": MESSAGE: %s\n",s);
+                  printf(": MESSAGE: %s\n",s);
                 return;
             }
 #endif /* NEWFTP */
@@ -4923,7 +4939,7 @@ _PROTOTYP( VOID conbgt, (int) );
         if (fdispla == XYFD_B) {
             return;
         }
-	ckmakmsg(buf,80,s,": ",ckltoa(n),NULL);
+        ckmakmsg(buf,80,s,": ",ckltoa(n),NULL);
         conol(buf); hpos += (int)strlen(buf); return;
 #endif /* MAC */
 
@@ -5014,7 +5030,7 @@ _PROTOTYP( VOID conbgt, (int) );
       case SCR_QE:                      /* Quantity equals */
         if (fdispla == XYFD_B)
           return;
-	ckmakmsg(buf,80,s,": ",ckltoa(n),NULL);
+        ckmakmsg(buf,80,s,": ",ckltoa(n),NULL);
         conoll(buf); hpos = 0; return;
 
       case SCR_CW:                      /* Close fullscreen window */
@@ -5109,7 +5125,7 @@ doclean(fc) int fc;
     dologend();                         /* End current log record if any */
 #ifdef COMMENT
     if (dialog) {                       /* If connection log open */
-	dialog = 0;
+        dialog = 0;
         *diafil = '\0';                 /* close it. */
         zclose(ZDIFIL);
     }
@@ -5121,14 +5137,14 @@ doclean(fc) int fc;
     zclose(ZWFILE);
 #ifndef NOXFER
     zclose(ZIFILE);                     /* And other files too */
-    x = chkfn(ZOFILE);			/* Download in progress? */
+    x = chkfn(ZOFILE);                  /* Download in progress? */
     debug(F111,"doclean chkfn ZOFILE",filnam,x);
     debug(F111,"doclean keep","",keep);
-    zclose(ZOFILE);			/* Close output file */
-    if (x > 0 && !keep) {		/* If it was being downloaded */
-	if (filnam[0])
-	  x = zdelet(filnam);		/* Delete if INCOMPLETE = DISCARD */
-	debug(F111,"doclean download filename",filnam,x);
+    zclose(ZOFILE);                     /* Close output file */
+    if (x > 0 && !keep) {               /* If it was being downloaded */
+        if (filnam[0])
+          x = zdelet(filnam);           /* Delete if INCOMPLETE = DISCARD */
+        debug(F111,"doclean download filename",filnam,x);
     }
 #endif /* NOXFER */
     zclose(ZSYSFN);
@@ -5149,14 +5165,14 @@ doclean(fc) int fc;
 
 #ifndef NOLOCAL
     debug(F101,"doclean exithangup","",exithangup);
-    if (local && exithangup) {		/* Close communication connection */
+    if (local && exithangup) {          /* Close communication connection */
         extern int haslock;
-	int x;
+        int x;
 
-	x = ttchk();
-	debug(F101,"doclean ttchk()","",x);
+        x = ttchk();
+        debug(F101,"doclean ttchk()","",x);
 #ifdef OS2ORUNIX
-	debug(F101,"doclean ttyfd","",ttyfd);
+        debug(F101,"doclean ttyfd","",ttyfd);
 #endif /* OS2ORUNIX */
         if (x >= 0
 #ifdef OS2
@@ -5169,7 +5185,7 @@ doclean(fc) int fc;
 #endif /* OS2 */
             ) {
             extern int wasclosed, whyclosed;
-	    debug(F100,"doclean hanging up and closing","",0);
+            debug(F100,"doclean hanging up and closing","",0);
             if (msgflg) {
 #ifdef UNIX
                 fflush(stdout);
@@ -5213,12 +5229,12 @@ doclean(fc) int fc;
 #endif /* NOLOCAL */
 
 #ifdef NEWFTP
-    ftpbye();				/* If FTP connection open, close it */
+    ftpbye();                           /* If FTP connection open, close it */
 #endif /* NEWFTP */
 
 #ifdef IKSD
     if (inserver)
-      ttclos(0);			/* If IKSD, close socket */
+      ttclos(0);                        /* If IKSD, close socket */
 #endif /* IKSD */
 
 #ifndef NOSPL
@@ -5234,12 +5250,12 @@ doclean(fc) int fc;
         k = mlook(mactab,cmd,nmac);     /* Look up "on_exit" */
         if (k >= 0) {                   /* If found, */
 #ifdef COMMENT
-	    /* This makes a mess if ON_EXIT itself executes macros */
+            /* This makes a mess if ON_EXIT itself executes macros */
             *(mactab[k].kwd) = NUL;     /* poke its name from the table, */
 #else
-	    /* Replace the keyword with something that doesn't wreck the */
-	    /* order of the keyword table */
-	    ckstrncpy(mactab[k].kwd,"on_exxx",8);
+            /* Replace the keyword with something that doesn't wreck the */
+            /* order of the keyword table */
+            ckstrncpy(mactab[k].kwd,"on_exxx",8);
 #endif /* COMMENT */
             if (dodo(k,"",0) > -1)      /* set it up, */
               parser(1);                /* and execute it */
@@ -5320,7 +5336,7 @@ doexit(exitstat,code) int exitstat, code;
     if ( !SysInited ) {
         static int initing = 0;
         if ( initing )
-	  exit(253);
+          exit(253);
         initing = 1;
         sysinit();
     }
@@ -5328,21 +5344,21 @@ doexit(exitstat,code) int exitstat, code;
 
     if (deblog) {
 #ifdef USE_LUCACHE
-	debug(F101,"lookup cache size","",lusize);
-	debug(F101,"lookup calls ....","",lucalls);
-	debug(F101,"lookup cache hits","",luhits);
-	debug(F101,"lookup start hits","",xxhits);
-	debug(F101,"lookup loop iterations","",luloop);
+        debug(F101,"lookup cache size","",lusize);
+        debug(F101,"lookup calls ....","",lucalls);
+        debug(F101,"lookup cache hits","",luhits);
+        debug(F101,"lookup start hits","",xxhits);
+        debug(F101,"lookup loop iterations","",luloop);
 #endif /* USE_LUCACHE */
 #ifndef NOSPL
-	for (i = 0; i < 256; i++) {
-	    if (cmdstats[i])
-	      debug(F111,"CMSTATS",ckitoa(i),cmdstats[i]);
-	}
+        for (i = 0; i < 256; i++) {
+            if (cmdstats[i])
+              debug(F111,"CMSTATS",ckitoa(i),cmdstats[i]);
+        }
 #endif /* NOSPL */
-	debug(F101,"doexit exitstat","",exitstat);
-	debug(F101,"doexit code","",code);
-	debug(F101,"doexit xitsta","",xitsta);
+        debug(F101,"doexit exitstat","",exitstat);
+        debug(F101,"doexit code","",code);
+        debug(F101,"doexit xitsta","",xitsta);
     }
 #endif /* DEBUG */
 
@@ -5418,18 +5434,18 @@ doexit(exitstat,code) int exitstat, code;
   would cause much recursion and would prevent the program from ever actually
   EXITing.
 */
-	if (nmac) {			/* Any macros defined? */
-	    int k;			/* Yes */
-	    char * cmd = "on_logout";	/* MSVC 2.x compiler error */
-	    k = mlook(mactab,cmd,nmac);	/* Look up "on_logout" */
-	    if (k >= 0) {		/* If found, */
-		*(mactab[k].kwd) = NUL;	/* poke its name from the table, */
-		if (dodo(k,"",0) > -1)	/* set it up, */
-		  parser(1);		/* and execute it */
-	    }
-	}
+        if (nmac) {                     /* Any macros defined? */
+            int k;                      /* Yes */
+            char * cmd = "on_logout";   /* MSVC 2.x compiler error */
+            k = mlook(mactab,cmd,nmac); /* Look up "on_logout" */
+            if (k >= 0) {               /* If found, */
+                *(mactab[k].kwd) = NUL; /* poke its name from the table, */
+                if (dodo(k,"",0) > -1)  /* set it up, */
+                  parser(1);            /* and execute it */
+            }
+        }
 #endif /* NOSPL */
-	zvlogout();
+        zvlogout();
     }
 #endif /* CK_LOGIN */
 #endif /* IKSD */
@@ -5586,7 +5602,7 @@ dodebug(f,s1,s2,n) int f; char *s1, *s2; CK_OFF_T n;
 
 #ifdef COMMENT
     /* expensive... */
-    if (!chkfn(ZDFILE))			/* Debug log not open, don't. */
+    if (!chkfn(ZDFILE))                 /* Debug log not open, don't. */
       return(0);
 #endif /* COMMENT */
     if (!dbptr) {                       /* Allocate memory buffer */
@@ -5604,8 +5620,8 @@ dodebug(f,s1,s2,n) int f; char *s1, *s2; CK_OFF_T n;
 */
 #ifdef OS2
     if (SysInited) {
-	if (RequestDebugMutex(30000))
-	    goto xdebug;
+        if (RequestDebugMutex(30000))
+            goto xdebug;
     }
 #else /* OS2 */
     deblog = 0;                         /* Prevent infinite recursion */
@@ -5616,12 +5632,12 @@ dodebug(f,s1,s2,n) int f; char *s1, *s2; CK_OFF_T n;
         ztime(&tb);
         ckstrncpy(tsbuf,tb,32);
         if (ztmsec > -1L) {
-	    sprintf(tsbuf+19,".%03ld ",ztmsec); /* SAFE */
-	} else {
-	    tsbuf[19] = ':';
-	    tsbuf[20] = SP;
-	    tsbuf[21] = NUL;
-	}
+            sprintf(tsbuf+19,".%03ld ",ztmsec); /* SAFE */
+        } else {
+            tsbuf[19] = ':';
+            tsbuf[20] = SP;
+            tsbuf[21] = NUL;
+        }
         zsout(ZDFILE,tsbuf+11);
     }
     if (!s1) s1="(NULL)";
@@ -5727,15 +5743,15 @@ dodebug(f,s1,s2,n) int f; char *s1, *s2; CK_OFF_T n;
         sprintf(sp,"=%s\n",ckfstoa(n));
 #else
         /* Like F111, but shows number n in hex */
-	ckmakxmsg(sp,DBUFL,
-		  s1,
-		  (*s1 ? ":" : ""),
-		  s2,
-		  (*s2 ? ":" : ""),
-		  ckltox(n),
-		  "\n",
-		  NULL,NULL,NULL,NULL,NULL,NULL
-		  );
+        ckmakxmsg(sp,DBUFL,
+                  s1,
+                  (*s1 ? ":" : ""),
+                  s2,
+                  (*s2 ? ":" : ""),
+                  ckltox(n),
+                  "\n",
+                  NULL,NULL,NULL,NULL,NULL,NULL
+                  );
 #endif /* COMMENT */
         if (zsout(ZDFILE,dbptr) < 0) {
             deblog = 0;
@@ -5753,97 +5769,98 @@ dodebug(f,s1,s2,n) int f; char *s1, *s2; CK_OFF_T n;
   except in this case we treat s2 as NUL terminated.
 */
       case F010:
-	n = -debxlen;
+        n = -debxlen;
+        /* Fall through */
 /*
   This one treats n as the length of the string s2, which may contain NULs.
   It's good for logging NUL-bearing data in the debug log.
 */
       case F011: {
-	  int i, j, contd = 0;
-	  char * p = s2, *pbuf = NULL;	/* p = source pointer */
-	  int m;			/* pbuf = destination pointer */
+          int i, j, contd = 0;
+          char * p = s2, *pbuf = NULL;  /* p = source pointer */
+          int m;                        /* pbuf = destination pointer */
 
-	  if (f == F011) {
-	      if (n < 0) {		/* n = size of source */
-		  n = 0 - n;		/* Negative means to add "..." */
-		  contd = 1;
-	      }
-	  } else {
-	      int x, flag = 0;
-	      x = strlen(s2);
-	      if (n < 0) {
-		  flag = 1;
-		  n = 0 - n;
-	      }
-	      if (x < n)
-		n = x;
-	  }
-	  if (n == 0)			/* 0 means do nothing */
-	    goto xdebug;
-	  m = DBUFL - 8;		/* Get size for interpreted part */
-	  if (n > m)			/* Ensure requested size not too big */
-	    n = m;
-	  pbuf = dbptr;			/* Construction pointer */
-	  i = 0;
-	  pbuf[i++] = '[';		/* Interpret the string into it */
-	  for (j = 0; j < n && i < m-4; p++,j++) { /* char by char... */
-	      if (*p == LF) {
-		  if (i >= m-4)
-		    break;
-		  pbuf[i++] = '<';
-		  pbuf[i++] = 'L';
-		  pbuf[i++] = 'F';
-		  pbuf[i++] = '>';
-		  continue;
-	      } else if (*p == CK_CR) {
-		  if (i >= m-4)
-		    break;
-		  pbuf[i++] = '<';
-		  pbuf[i++] = 'C';
-		  pbuf[i++] = 'R';
-		  pbuf[i++] = '>';
-		  continue;
-	      } else if (*p == HT) {
-		  if (i >= m-5)
-		    break;
-		  pbuf[i++] = '<';
-		  pbuf[i++] = 'T';
-		  pbuf[i++] = 'A';
-		  pbuf[i++] = 'B';
-		  pbuf[i++] = '>';
-		  continue;
-	      } else if (*p) {
-		  pbuf[i++] = *p;
-		  continue;
-	      } else {
-		  if (i >= m-5)
-		    break;
-		  pbuf[i++] = '<';
-		  pbuf[i++] = 'N';
-		  pbuf[i++] = 'U';
-		  pbuf[i++] = 'L';
-		  pbuf[i++] = '>';
-		  continue;
-	      }
-	  }
-	  if (i < m-2 && (*p || contd)) {
-	      pbuf[i++] = '.';
-	      pbuf[i++] = '.';
-	  }
-	  pbuf[i++] = ']';
-	  pbuf[i] = NUL;
-	  if (zsout(ZDFILE,s1) < 0) {
-	      deblog = 0;
-	      zclose(ZDFILE);
-	  }
-	  if (zsoutl(ZDFILE,pbuf) < 0) {
-	      deblog = 0;
-	      zclose(ZDFILE);
-	  }
+          if (f == F011) {
+              if (n < 0) {              /* n = size of source */
+                  n = 0 - n;            /* Negative means to add "..." */
+                  contd = 1;
+              }
+          } else {
+              int x, flag = 0;
+              x = strlen(s2);
+              if (n < 0) {
+                  flag = 1;
+                  n = 0 - n;
+              }
+              if (x < n)
+                n = x;
+          }
+          if (n == 0)                   /* 0 means do nothing */
+            goto xdebug;
+          m = DBUFL - 8;                /* Get size for interpreted part */
+          if (n > m)                    /* Ensure requested size not too big */
+            n = m;
+          pbuf = dbptr;                 /* Construction pointer */
+          i = 0;
+          pbuf[i++] = '[';              /* Interpret the string into it */
+          for (j = 0; j < n && i < m-4; p++,j++) { /* char by char... */
+              if (*p == LF) {
+                  if (i >= m-4)
+                    break;
+                  pbuf[i++] = '<';
+                  pbuf[i++] = 'L';
+                  pbuf[i++] = 'F';
+                  pbuf[i++] = '>';
+                  continue;
+              } else if (*p == CK_CR) {
+                  if (i >= m-4)
+                    break;
+                  pbuf[i++] = '<';
+                  pbuf[i++] = 'C';
+                  pbuf[i++] = 'R';
+                  pbuf[i++] = '>';
+                  continue;
+              } else if (*p == HT) {
+                  if (i >= m-5)
+                    break;
+                  pbuf[i++] = '<';
+                  pbuf[i++] = 'T';
+                  pbuf[i++] = 'A';
+                  pbuf[i++] = 'B';
+                  pbuf[i++] = '>';
+                  continue;
+              } else if (*p) {
+                  pbuf[i++] = *p;
+                  continue;
+              } else {
+                  if (i >= m-5)
+                    break;
+                  pbuf[i++] = '<';
+                  pbuf[i++] = 'N';
+                  pbuf[i++] = 'U';
+                  pbuf[i++] = 'L';
+                  pbuf[i++] = '>';
+                  continue;
+              }
+          }
+          if (i < m-2 && (*p || contd)) {
+              pbuf[i++] = '.';
+              pbuf[i++] = '.';
+          }
+          pbuf[i++] = ']';
+          pbuf[i] = NUL;
+          if (zsout(ZDFILE,s1) < 0) {
+              deblog = 0;
+              zclose(ZDFILE);
+          }
+          if (zsoutl(ZDFILE,pbuf) < 0) {
+              deblog = 0;
+              zclose(ZDFILE);
+          }
 #ifdef CKSYSLOG
-	  if (ckxsyslog >= SYSLG_DB && ckxlogging) {
-	      cksyslog(SYSLG_DB,1,"debug",s1,pbuf);
-	  }
+          if (ckxsyslog >= SYSLG_DB && ckxlogging) {
+              cksyslog(SYSLG_DB,1,"debug",s1,pbuf);
+          }
 #endif /* CKSYSLOG */
         }
         break;
@@ -5911,7 +5928,7 @@ dodebug(f,s1,s2,n) int f; char *s1, *s2; CK_OFF_T n;
   xdebug:                               /* Common exit point */
 #ifdef OS2
     if (SysInited)
-	ReleaseDebugMutex();
+        ReleaseDebugMutex();
 #else /* OS2 */
     deblog = 1;                         /* Restore this */
 #endif /* OS2 */
@@ -5931,7 +5948,7 @@ dohexdump(msg,st,cnt) CHAR *msg; CHAR *st; int cnt;
     extern int SysInited;
 #endif /* OS2 */
 
-    if (!deblog) return(0);		/* If no debug log, don't. */
+    if (!deblog) return(0);             /* If no debug log, don't. */
     if (!dbptr) {                       /* Allocate memory buffer */
         dbptr = malloc(DBUFL+1);        /* This only happens once */
         if (!dbptr) {
@@ -5943,57 +5960,57 @@ dohexdump(msg,st,cnt) CHAR *msg; CHAR *st; int cnt;
 
 #ifdef OS2
     if (SysInited) {
-	if (RequestDebugMutex(30000))
-	    goto xdebug;
+        if (RequestDebugMutex(30000))
+            goto xdebug;
     }
 #else /* OS2 */
     deblog = 0;                         /* Prevent infinite recursion */
 #endif /* OS2 */
 
     if (msg != NULL) {
-	ckmakxmsg(dbptr,
-		  DBUFL,
-		  "HEXDUMP: ",
-		  (char *)msg,
-		  " (",
-		  ckitoa(cnt),
-		  " bytes)\n",
-		  NULL,NULL,NULL,NULL,NULL,NULL,NULL
-		 );
+        ckmakxmsg(dbptr,
+                  DBUFL,
+                  "HEXDUMP: ",
+                  (char *)msg,
+                  " (",
+                  ckitoa(cnt),
+                  " bytes)\n",
+                  NULL,NULL,NULL,NULL,NULL,NULL,NULL
+                 );
         if (zsout(ZDFILE,dbptr) < 0) {
             deblog = 0;
             zclose(ZDFILE);
-	    goto xdebug;
+            goto xdebug;
         }
     } else {
-	ckmakmsg(dbptr,
-		 DBUFL,
-		 "HEXDUMP: (",
-		 ckitoa(cnt),
-		 " bytes)\n",
-		 NULL
-		 );
+        ckmakmsg(dbptr,
+                 DBUFL,
+                 "HEXDUMP: (",
+                 ckitoa(cnt),
+                 " bytes)\n",
+                 NULL
+                 );
         zsout(ZDFILE,dbptr);
         if (zsout(ZDFILE,dbptr) < 0) {
             deblog = 0;
             zclose(ZDFILE);
-	    goto xdebug;
+            goto xdebug;
         }
     }
     for (i = 0; i < cnt; i++) {
         dbptr[0] = '\0';
         for (j = 0 ; (j < 16); j++) {
             if ((i + j) < cnt)
-	      sprintf(tmp,
-		      "%s%02x ",
-		      (j == 8 ? "| " : ""),
-		      (CHAR) st[i + j]
-		      );
+              sprintf(tmp,
+                      "%s%02x ",
+                      (j == 8 ? "| " : ""),
+                      (CHAR) st[i + j]
+                      );
             else
-	      sprintf(tmp,
-		      "%s   ",
-		      (j == 8 ? "| " : "")
-		      );
+              sprintf(tmp,
+                      "%s   ",
+                      (j == 8 ? "| " : "")
+                      );
             ckstrncat(dbptr,tmp,DBUFL+1);
         }
         ckstrncat(dbptr," ",DBUFL+1);
@@ -6010,7 +6027,7 @@ dohexdump(msg,st,cnt) CHAR *msg; CHAR *st; int cnt;
         if (zsout(ZDFILE,dbptr) < 0) {
             deblog = 0;
             zclose(ZDFILE);
-	    goto xdebug;
+            goto xdebug;
         }
     } /* end for */
 
@@ -6049,64 +6066,64 @@ logchar(c) char c;
 
     if ((sessft != XYFT_T) || (
 #ifdef UNIX
-	 c != '\r' &&
+         c != '\r' &&
 #else
 #ifdef datageneral
-	 c != '\r' &&
+         c != '\r' &&
 #else
 #ifdef STRATUS
-	 c != '\r' &&
+         c != '\r' &&
 #else
 #ifdef AMIGA
-	 c != '\r' &&
+         c != '\r' &&
 #else
 #ifdef GEMDOS
-	 c != '\r' &&
+         c != '\r' &&
 #endif /* GEMDOS */
 #endif /* AMIGA */
 #endif /* STRATUS */
 #endif /* datageneral */
 #endif /* UNIX */
 #ifdef OSK
-	 c != '\n' &&
+         c != '\n' &&
 #else
 #ifdef MAC
-	 c != '\n' &&
+         c != '\n' &&
 #endif /* MAC */
 #endif /* OSK */
-	 c != XON &&
-	 c != XOFF))
+         c != XON &&
+         c != XOFF))
       oktolog = 1;
-    if (c == '\0' && !sessft)		/* NUL in text mode */
-      if (slognul) oktolog = 1;		/* only if padding (2009/10/22) */
+    if (c == '\0' && !sessft)           /* NUL in text mode */
+      if (slognul) oktolog = 1;         /* only if padding (2009/10/22) */
     if (!oktolog)
       return;
-    if (slogts) {			/* Log is timestamped */
-	if (tsstate == 0) {		/* State = between-lines */
-	    char * p;			/* zstime() pointer */
-	    char ts[48];		/* timestamp buffer */
-	    ztime(&p);			/* Get asctime() string */
-	    ckstrncpy(ts,p,32);		/* Make safe copy */
-	    if (ztmsec > -1L) {		/* Add msecs if we have them */
-		sprintf(&ts[19],".%03ld: ",ztmsec); /* SAFE */
-	    } else {
-		ts[19] = ':';
-		ts[20] = SP;
-		ts[21] = NUL;
-	    }
-	    if (zsout(ZSFILE,&ts[11]) < 0)
-	      goto xlogchar;
-	}
+    if (slogts) {                       /* Log is timestamped */
+        if (tsstate == 0) {             /* State = between-lines */
+            char * p;                   /* zstime() pointer */
+            char ts[48];                /* timestamp buffer */
+            ztime(&p);                  /* Get asctime() string */
+            ckstrncpy(ts,p,32);         /* Make safe copy */
+            if (ztmsec > -1L) {         /* Add msecs if we have them */
+                sprintf(&ts[19],".%03ld: ",ztmsec); /* SAFE */
+            } else {
+                ts[19] = ':';
+                ts[20] = SP;
+                ts[21] = NUL;
+            }
+            if (zsout(ZSFILE,&ts[11]) < 0)
+              goto xlogchar;
+        }
     }
-    if (c == '\n')			/* At end of line? */
-      tsstate = 0;			/* yes */
+    if (c == '\n')                      /* At end of line? */
+      tsstate = 0;                      /* yes */
     else
-      tsstate = 1;			/* no */
+      tsstate = 1;                      /* no */
     if (zchout(ZSFILE,(CHAR)(c & 0xFF)) < 0) /* Log the character */
       goto xlogchar;
-    if (tsstate == 0 && slognul != 0) {	/* Null-terminating lines? */
-	if (zchout(ZSFILE,(CHAR)0) < 0)	/* Add a NUL */
-	  goto xlogchar;
+    if (tsstate == 0 && slognul != 0) { /* Null-terminating lines? */
+        if (zchout(ZSFILE,(CHAR)0) < 0) /* Add a NUL */
+          goto xlogchar;
     }
     return;
 
@@ -6218,7 +6235,7 @@ _PROTOTYP(int tgetent,(char *, char *));
 #undef SO
 #ifdef US
 #undef US
-#endif	/* US */
+#endif  /* US */
 #undef SP                               /* Used in ncurses */
 #define CHR_SP 32                       /* Use this instead */
 
@@ -6257,7 +6274,7 @@ extern int isvt52;                      /* From CKVTIO.C */
 #ifdef CKXPRINTF                        /* Our printf macro conflicts with */
 #undef printf                           /* use of "printf" in curses.h */
 #endif /* CKXPRINTF */
-#ifdef M_XENIX				/* SCO XENIX... */
+#ifdef M_XENIX                          /* SCO XENIX... */
 #ifdef M_TERMCAP
 #undef M_TERMCAP
 #endif /* M_TERMCAP */
@@ -6266,7 +6283,7 @@ extern int isvt52;                      /* From CKVTIO.C */
 #endif /* M_TERMINFO */
 #endif /* M_XENIX */
 #ifdef RTAIX
-#undef NLS				/* Avoid 'redeclaration of free'. */
+#undef NLS                              /* Avoid 'redeclaration of free'. */
 #endif /* RTAIX */
 #include <curses.h>
 #ifdef CKXPRINTF
@@ -6332,10 +6349,10 @@ fxdinit(xdispla) int xdispla;
 #endif /* IKSD */
 
     if (xdispla == XYFD_R || xdispla == XYFD_S || xdispla == XYFD_B) {
-	if (xfrmsg) {
-	    printf("%s\n",xfrmsg);
-	    makestr(&xfrmsg,NULL);
-	}
+        if (xfrmsg) {
+            printf("%s\n",xfrmsg);
+            makestr(&xfrmsg,NULL);
+        }
     }
 
 #ifdef CK_CURSES
@@ -6389,7 +6406,7 @@ fxdinit(xdispla) int xdispla;
             ) {
             printf("Warning: terminal type unknown: \"%s\"\n",s);
 #ifdef COMMENT
-	    /* Confusing - nobody knows what this means */
+            /* Confusing - nobody knows what this means */
             printf("SCREEN command will use ANSI sequences.\n");
 #endif /* COMMENT */
             if (local)
@@ -6503,10 +6520,10 @@ initscr() {
     }
     debug(F101,"VMS initscr smg_pasteboard_id B","",smg_pasteboard_id);
     if (smg_pasteboard_id == -1) {
-	printf("?Error initializing fullscreen display\n");
-	fdispla = XYFD_S;
-	dpyinit();
-	return(0);
+        printf("?Error initializing fullscreen display\n");
+        fdispla = XYFD_S;
+        dpyinit();
+        return(0);
     }
     debug(F101,"VMS initscr smg_display_id","",smg_display_id);
     if (smg_display_id == -1) {         /* Create a display window */
@@ -6541,7 +6558,7 @@ initscr() {
         CHECK_ERR("initscr: smg$begin_pasteboard_update",
                   smg$begin_pasteboard_update(&smg_pasteboard_id));
 #endif /* COMMENT */
-	debug(F101,"VMS initscr smg$begin_pasteboard_update","",vms_status);
+        debug(F101,"VMS initscr smg$begin_pasteboard_update","",vms_status);
     }
     debug(F101,"VMS initscr smg_open B","",smg_open);
     smg_inited = 1;
@@ -7175,7 +7192,7 @@ updpct(old, new) long old, new;
 #endif /* COMMENT */
 }
 
-static CK_OFF_T old_tr = (CK_OFF_T)-1;	/* Time remaining previously */
+static CK_OFF_T old_tr = (CK_OFF_T)-1;  /* Time remaining previously */
 
 static CK_OFF_T
 #ifdef CK_ANSIC
@@ -7184,7 +7201,7 @@ shoetl(CK_OFF_T old_tr, long cps, CK_OFF_T fsiz, CK_OFF_T howfar)
     shoetl(old_tr, cps, fsiz, howfar) long cps; CK_OFF_T old_tr, fsiz, howfar;
 #endif /* CK_ANSIC */
 /* shoetl */ {                          /* Estimated time left in transfer */
-    CK_OFF_T tr;			/* Time remaining, seconds */
+    CK_OFF_T tr;                        /* Time remaining, seconds */
 
 #ifdef GFTIMER
     if (fsiz > 0L && cps > 0L)
@@ -7320,7 +7337,7 @@ shocps(pct, fsiz, howfar) int pct; CK_OFF_T fsiz, howfar;
 #ifdef COMMENT
 #ifdef DEBUG
     if (deblog) {
-	debug(F100,"SHOCPS: NOT WEIGHTED","",0);
+        debug(F100,"SHOCPS: NOT WEIGHTED","",0);
         debug(F101,"SHOCPS: pct    ","",pct);
         debug(F101,"SHOCPS: gtv    ","",gtv);
         debug(F101,"SHOCPS: oldgtv ","",oldgtv);
@@ -7370,7 +7387,7 @@ shocps(pct, fsiz, howfar) int pct; CK_OFF_T fsiz, howfar;
 
     if (cps > peakcps &&                /* Peak transfer rate */
         ((what & W_SEND && spackets > wslots + 4) ||
-	 (!(what & W_SEND) && spackets > 10))) {
+         (!(what & W_SEND) && spackets > 10))) {
         peakcps = cps;
     }
     old_tr = shoetl(old_tr, cps, fsiz, howfar);
@@ -7402,10 +7419,10 @@ scrft() {                               /* Display file type */
           case XYFT_U:
             ckstrncpy(xferstr,"BINARY UNDEFINED",256);
             break;
-	  case XYFT_M:
+          case XYFT_M:
             ckstrncpy(xferstr,"MACBINARY",256);
             break;
-	  case XYFT_X:
+          case XYFT_X:
             ckstrncpy(xferstr,"TENEX",256);
             break;
           default:
@@ -7430,22 +7447,22 @@ scrft() {                               /* Display file type */
         ckstrncpy(xferstr,"TEXT",256);
 #ifdef NEWFTP
 #ifndef NOUNICODE
-	if (what & W_FTP) {
-	    if (ftp_csx < 0)
-	      ckstrncat(xferstr," (no translation)", 256);
-	    else
-	      ckmakxmsg(&xferstr[4],252,
-		       " (",
-		       fcsinfo[(what & W_SEND) ? ftp_csl : ftp_csx].keyword,
-		       " => ",
-		       fcsinfo[(what & W_SEND) ? ftp_csx : ftp_csl].keyword,
-		       ")",
-		       NULL,NULL,NULL,NULL,NULL,NULL,NULL
-		       );
-	} else
+        if (what & W_FTP) {
+            if (ftp_csx < 0)
+              ckstrncat(xferstr," (no translation)", 256);
+            else
+              ckmakxmsg(&xferstr[4],252,
+                       " (",
+                       fcsinfo[(what & W_SEND) ? ftp_csl : ftp_csx].keyword,
+                       " => ",
+                       fcsinfo[(what & W_SEND) ? ftp_csx : ftp_csl].keyword,
+                       ")",
+                       NULL,NULL,NULL,NULL,NULL,NULL,NULL
+                       );
+        } else
 #endif /* NOUNICODE */
 #endif /* NEWFTP */
-	  if (tcharset == TC_TRANSP) {
+          if (tcharset == TC_TRANSP) {
             ckstrncat(xferstr, " (no translation)", 256);
         } else {
             if (what & W_SEND) {
@@ -7453,7 +7470,7 @@ scrft() {                               /* Display file type */
                         " (%s => %s)",
                         fcsinfo[fcharset].keyword, /* built-in keywords */
                         tcsinfo[tcharset].keyword  /* lengths are controlled */
-			);
+                        );
             } else {
                 sprintf( &xferstr[strlen(xferstr)], /* safe */
                         " (%s => %s)",
@@ -7484,27 +7501,27 @@ static int oldtyp = 0, oldwin = -1, oldtry = -1, oldlen = -1, oldtim = -1;
 
 #ifdef NETCONN
 static char *netname[] = {
-    "none",				/* 00 */
-    "TCP/IP",				/* 01 TCP (Sockets) */
-    "TCP/IP",				/* 02 TCP (Streams) */
-    "X.25",				/* 03 SunLink X.24  */
-    "DECnet",				/* 04 DECnet  */
-    "VAX PSI",				/* 05 VAX PSI */
-    "Named Pipes",			/* 06 LAN Manager Named Pipe */
-    "X.25",				/* 07 Stratus VOS X.25 */
-    "NetBIOS",				/* 08 IBM NETBIOS */
-    "SuperLAT",				/* 07 Meridian SuperLAT */
-    "File",				/* 10 File */
-    "Command",				/* 11 Subprocess (pipe) */
-    "DLL",				/* 12 DLL does i/o */
-    "X.25",				/* 13 IBM AIXLink X.25 */
-    "X.25",				/* 14 HP-UX X.25 */
-    "PTY",				/* 15 Pseudoterminal */
-    "SSH",				/* 16 SSH */
-    "<ERROR>",				/* 17 In case new types are added */
-    "<ERROR>",				/* 18 but nobody remembers to update */
-    "<ERROR>",				/* 19 this table ... */
-    NULL				/* 20 */
+    "none",                             /* 00 */
+    "TCP/IP",                           /* 01 TCP (Sockets) */
+    "TCP/IP",                           /* 02 TCP (Streams) */
+    "X.25",                             /* 03 SunLink X.24  */
+    "DECnet",                           /* 04 DECnet  */
+    "VAX PSI",                          /* 05 VAX PSI */
+    "Named Pipes",                      /* 06 LAN Manager Named Pipe */
+    "X.25",                             /* 07 Stratus VOS X.25 */
+    "NetBIOS",                          /* 08 IBM NETBIOS */
+    "SuperLAT",                         /* 07 Meridian SuperLAT */
+    "File",                             /* 10 File */
+    "Command",                          /* 11 Subprocess (pipe) */
+    "DLL",                              /* 12 DLL does i/o */
+    "X.25",                             /* 13 IBM AIXLink X.25 */
+    "X.25",                             /* 14 HP-UX X.25 */
+    "PTY",                              /* 15 Pseudoterminal */
+    "SSH",                              /* 16 SSH */
+    "<ERROR>",                          /* 17 In case new types are added */
+    "<ERROR>",                          /* 18 but nobody remembers to update */
+    "<ERROR>",                          /* 19 this table ... */
+    NULL                                /* 20 */
 };
 static int nnetname = (sizeof(netname) / sizeof(char *));
 
@@ -7529,7 +7546,7 @@ char *s;        /* a string */
     extern int ttnproto;
 #endif /* RLOGCODE */
     static int q = 0;
-    static long fcnt = 0L;		/* Number of files transferred */
+    static long fcnt = 0L;              /* Number of files transferred */
     static CK_OFF_T fsiz = (CK_OFF_T)-1; /* Copy of file size */
     static CK_OFF_T fbyt = 0L; /* Total file bytes of all files transferred */
     static CK_OFF_T howfar = 0L; /* How much of current file has been xfer'd */
@@ -7593,9 +7610,9 @@ char *s;        /* a string */
         return;
     }
 
-    ftp = (what & W_FTP) ? 1 : 0;	/* FTP or Kermit */
+    ftp = (what & W_FTP) ? 1 : 0;       /* FTP or Kermit */
     net = network || ftp;
-    xnet = ftp ? 1 : nettype;		/* NET_TCPB == 1 */
+    xnet = ftp ? 1 : nettype;           /* NET_TCPB == 1 */
 
     if (cinit == 0 || cendw > 0) {      /* Handle borderline cases... */
         if (f == SCR_CW) {              /* Close window, but it's not open */
@@ -7609,23 +7626,23 @@ char *s;        /* a string */
         }
     }
     if (cinit == 0) {                   /* Only call initscr() once */
-	char * s;
-	/* Check these now -- if they are defined but not numeric */
-	/* they can crash curses */
-	s = getenv("LINES");
-	if (s) if (!rdigits(s)) {
-	    printf("?LINES variable not numeric: \"%s\".\n",s);
-	    printf("(Fullscreen display disabled)\n");
-	    fdispla = XYFD_S;
-	    return;
-	}
-	s = getenv("COLUMNS");
-	if (s) if (!rdigits(s)) {
-	    printf("?COLUMNS variable not numeric: \"%s\".\n",s);
-	    printf("(Fullscreen display disabled)\n");
-	    fdispla = XYFD_S;
-	    return;
-	}
+        char * s;
+        /* Check these now -- if they are defined but not numeric */
+        /* they can crash curses */
+        s = getenv("LINES");
+        if (s) if (!rdigits(s)) {
+            printf("?LINES variable not numeric: \"%s\".\n",s);
+            printf("(Fullscreen display disabled)\n");
+            fdispla = XYFD_S;
+            return;
+        }
+        s = getenv("COLUMNS");
+        if (s) if (!rdigits(s)) {
+            printf("?COLUMNS variable not numeric: \"%s\".\n",s);
+            printf("(Fullscreen display disabled)\n");
+            fdispla = XYFD_S;
+            return;
+        }
         cendw = 1;                      /* New window needs repainting */
 #ifdef COMMENT
         if (!initscr()) {               /* Oops, can't initialize window? */
@@ -7799,10 +7816,10 @@ char *s;        /* a string */
             move(CW_LIN,8);
             printw("Network Host: %s",
 #ifdef NEWFTP
-		   ftp ? (ftp_host ? ftp_host : "(unknown)") :
+                   ftp ? (ftp_host ? ftp_host : "(unknown)") :
 #endif /* NEWFTP */
-		   ttname
-		   );
+                   ttname
+                   );
         } else {
             move(CW_LIN,0);
             printw("Communication Device: %s",ttname);
@@ -7823,24 +7840,24 @@ char *s;        /* a string */
         move(CW_SPD,22);                /* Serial speed or network type */
         if (net) {
 #ifdef NETCONN
-	    int secure = 0;
-	    char * xname;
-	    if (xnet > nnetname)
-	      xname = "[ERROR]";
-	    else
-	      xname = netname[xnet];
+            int secure = 0;
+            char * xname;
+            if (xnet > nnetname)
+              xname = "[ERROR]";
+            else
+              xname = netname[xnet];
 #ifdef NEWFTP
             if (ftp) {
-		if (ftpissecure())
-		  secure = 1;
-	    } else
+                if (ftpissecure())
+                  secure = 1;
+            } else
 #endif /* NEWFTP */
-	      if (0
+              if (0
 #ifdef SSHBUILTIN
                 || IS_SSH()
 #endif /* SSHBUILTIN */
 #ifdef CK_ENCRYPTION
-                || ck_tn_encrypting() && ck_tn_decrypting()
+                || (ck_tn_encrypting() && ck_tn_decrypting())
 #endif /* CK_ENCRYPTION */
 #ifdef CK_SSL
                 || tls_active_flag || ssl_active_flag
@@ -7855,9 +7872,9 @@ char *s;        /* a string */
                  ) {
             /* You may get an "unreachable code" warning in builds with no SSL,
              * Kerberos or SSH support. This is OK. */
-		    secure = 1;
-	    }
-	    if (secure) {
+                    secure = 1;
+            }
+            if (secure) {
 #ifdef KUI
 #ifndef K95G
                 char buf[30];
@@ -7971,7 +7988,7 @@ char *s;        /* a string */
                                 );
         move(CW_PT,  9); printw("Packet Type:");
         if (ftp || protocol != PROTO_K) {
-	    move(CW_PT,22);
+            move(CW_PT,22);
             printw("%s", "N/A");
             move(CW_PC,  11); printw("I/O Count:");
             move(CW_PL,  10); printw("I/O Length:");
@@ -7989,10 +8006,10 @@ char *s;        /* a string */
 #endif /* COMMENT */
         move(CW_ERR,10); printw("Last Error:");
         move(CW_MSG, 8); printw("Last Message:");
-	if (xfrmsg) {
-	    move(CW_MSG, 22); printw("%s",xfrmsg);
-	    makestr(&xfrmsg,NULL);
-	}
+        if (xfrmsg) {
+            move(CW_MSG, 22); printw("%s",xfrmsg);
+            makestr(&xfrmsg,NULL);
+        }
         move(CW_INT, 0);
         if (!xfrint) {
             printw("(Transfer interruption is disabled)");
@@ -8059,7 +8076,7 @@ char *s;        /* a string */
         /* oldgtv = -1L; */
 #endif /* GFTIMER */
         oldwin = -1;
-        fsiz = (CK_OFF_T)-1;		/* Invalidate previous file size */
+        fsiz = (CK_OFF_T)-1;            /* Invalidate previous file size */
         move(CW_PCD,22);                /* Erase percent done from last time */
 #ifdef KUI
 #ifndef K95G
@@ -8095,15 +8112,15 @@ char *s;        /* a string */
 #endif /* STREAMING */
 #endif /* COMMENT */
 
-        if (what & W_SEND) {		/* If we're sending... */
+        if (what & W_SEND) {            /* If we're sending... */
 #ifdef NEWFTP
-	    if (what & W_FTP) {		/* FTP */
+            if (what & W_FTP) {         /* FTP */
                 move(CW_NAM,10);
                 printw("   FTP PUT:");
-	    } else
+            } else
 #endif /* NEWFTP */
 #ifdef CK_RESEND
-            switch (sendmode) {		/* Kermit */
+            switch (sendmode) {         /* Kermit */
               case SM_RESEND:
                 move(CW_NAM,10);
                 printw(" RESENDING:");
@@ -8118,20 +8135,20 @@ char *s;        /* a string */
             printw("   SENDING:");
 #endif /* CK_RESEND */
 
-        } else if (what & W_RECV) {	/* If we're receiving... */
+        } else if (what & W_RECV) {     /* If we're receiving... */
 #ifdef NEWFTP
-	    if (what & W_FTP) {		/* FTP */
+            if (what & W_FTP) {         /* FTP */
                 move(CW_NAM,10);
                 printw("   FTP GET:");
-	    } else {
+            } else {
 #endif /* NEWFTP */
-		move(CW_NAM,10);
-		printw(" RECEIVING:");
+                move(CW_NAM,10);
+                printw(" RECEIVING:");
 #ifdef NEWFTP
-	    }
+            }
         } else if (what == (W_FTP|W_FT_DELE)) {
-		move(CW_NAM,10);
-		printw("FTP DELETE:");
+                move(CW_NAM,10);
+                printw("FTP DELETE:");
 #endif /* NEWFTP */
         } else {                        /* If we don't know... */
             move(CW_NAM,10);            /* (should never see this) */
@@ -8197,27 +8214,27 @@ char *s;        /* a string */
 #endif /* KUI */
             printw("%s",ckfstoa(n));
         }
-	if (fsiz == -2L) {
-	    printw("POSSIBLY EXCEEDS LOCAL FILE SIZE LIMIT");
-	}
+        if (fsiz == -2L) {
+            printw("POSSIBLY EXCEEDS LOCAL FILE SIZE LIMIT");
+        }
         clrtoeol();
 #ifdef COMMENT
         move(CW_PCD, 8);
-        if (fsiz > (CK_OFF_T)-1) {	/* Put up percent label */
+        if (fsiz > (CK_OFF_T)-1) {      /* Put up percent label */
             pctlbl = 1;
-	    clrtoeol();
+            clrtoeol();
             printw("Percent Done:");
         }
 #else
-	move(CW_PCD, 8);
-	clrtoeol();
-        if (fsiz > (CK_OFF_T)-1) {	/* Put up percent label */
+        move(CW_PCD, 8);
+        clrtoeol();
+        if (fsiz > (CK_OFF_T)-1) {      /* Put up percent label */
             pctlbl = 1;
             printw("Percent Done:");
         } else {
             pctlbl = 0;
             printw("Bytes So Far:");
-	}
+        }
 #endif /* COMMENT */
         clrtoeol();
         scrft();                        /* File type */
@@ -8253,29 +8270,29 @@ char *s;        /* a string */
 #endif /* COMMENT */
             if (
 #ifdef NEWFTP
-		(ftp && (spackets == 1 || rpackets == 1)) ||
+                (ftp && (spackets == 1 || rpackets == 1)) ||
 #endif /* NEWFTP */
-		spackets == 4
-		) {
+                spackets == 4
+                ) {
                 move(CW_LIN,8);
                 if (
 #ifdef NEWFTP
-		    ftp ||
+                    ftp ||
 #endif /* NEWFTP */
-		    ((protocol == PROTO_K) && (sysindex > -1))
-		    ) {
+                    ((protocol == PROTO_K) && (sysindex > -1))
+                    ) {
                     if (net) {
                         move(CW_LIN,8);
                         printw("Network Host: %s (%s)",
 #ifdef NEWFTP
-			       ftp ? (ftp_host ? ftp_host : "") :
+                               ftp ? (ftp_host ? ftp_host : "") :
 #endif /* NEWFTP */
-			       ttname,
+                               ttname,
 #ifdef NEWFTP
-			       ftp ? ftp_srvtyp :
+                               ftp ? ftp_srvtyp :
 #endif /* NEWFTP */
-			       sysidlist[sysindex].sid_name
-			       );
+                               sysidlist[sysindex].sid_name
+                               );
                     } else {
                         move(CW_LIN,0);
                         printw("Communication Device: %s (remote host is %s)",
@@ -8378,7 +8395,7 @@ char *s;        /* a string */
             clrtoeol();
             oldtry = errors;
         }
-	/* Sender's packet type */
+        /* Sender's packet type */
         if (!ftp && (c != oldtyp && c != 'Y' && c != 'N')) {
             char type[2];
             sprintf(type, "%c",c);
@@ -8407,12 +8424,13 @@ char *s;        /* a string */
             debug(F101,"screenc SCR_PT Z pktnum","",n);
             debug(F101,"screenc SCR_PT Z oldpct","",oldpct);
             debug(F101,"screenc SCR_PT Z pct","",pct);
+            /* Fall through */
           case 'D':                     /* Data packet */
             if (fsiz > 0L) {            /* Show percent done if known */
                 oldpct = pct;           /* Remember previous percent */
                 howfar = ffc;
 #ifdef CK_RESEND
-                if (what & W_SEND)	/* Account for PSEND or RESEND */
+                if (what & W_SEND)      /* Account for PSEND or RESEND */
                   howfar += sendstart;
                 else if (what & W_RECV)
                   howfar += rs_len;
@@ -8502,7 +8520,7 @@ char *s;        /* a string */
             break;
           case 'q':                     /* Ctrl-C or connection lost */
             move(CW_MSG,22);
-	    clrtoeol();
+            clrtoeol();
             if (!s) s = "";
 /*
   30092021: fails to compile on Debian with "-Wformat -Werror=format-security"
@@ -8586,10 +8604,10 @@ char *s;        /* a string */
         if (c == ST_OK) {               /* OK, print 100 % */
             move(CW_PCD,22);            /* Update percent done */
             if (pctlbl) {
-		if (oldpct == 0)	/* Switching from "bytes so far" */
-		  clrtoeol();		/* to "percent done"... */
-		updpct(oldpct,100);
-	    } else
+                if (oldpct == 0)        /* Switching from "bytes so far" */
+                  clrtoeol();           /* to "percent done"... */
+                updpct(oldpct,100);
+            } else
               printw("%s", ckfstoa(ffc));
 #ifdef KUI
 #ifndef K95G
@@ -8626,16 +8644,16 @@ char *s;        /* a string */
         switch (c) {                    /* Print new status message */
           case ST_OK:                   /* Transfer OK */
             fcnt++;                     /* Count this file */
-	    if (what == (W_FTP|W_FT_DELE)) {
-		move(CW_MSG,22);
-		clrtoeol();
-		printw("Delete OK");
-	    } else {
-		fbyt += ffc;
-		move(CW_MSG,22);
-		clrtoeol();
-		printw("Transfer OK");
-	    }
+            if (what == (W_FTP|W_FT_DELE)) {
+                move(CW_MSG,22);
+                clrtoeol();
+                printw("Delete OK");
+            } else {
+                fbyt += ffc;
+                move(CW_MSG,22);
+                clrtoeol();
+                printw("Transfer OK");
+            }
 #ifdef KUI
 #ifndef K95G
             KuiSetProperty(KUI_FILE_TRANSFER,
@@ -8683,10 +8701,10 @@ char *s;        /* a string */
 
           case ST_SKIP:                 /* Skipped */
             move(CW_ERR,22);
-	    if (n > 0 && n < nskreason)
-	      printw("File skipped (%s)",skreason[n]);
-	    else
-	      printw("File skipped");
+            if (n > 0 && n < nskreason)
+              printw("File skipped (%s)",skreason[n]);
+            else
+              printw("File skipped");
 #ifdef KUI
 #ifndef K95G
             KuiSetProperty(KUI_FILE_TRANSFER,
@@ -8844,7 +8862,7 @@ char *s;        /* a string */
 #endif /* GFTIMER */
 
 #ifndef VMSCURSE
-	  debug(F100,"screenc endwin A","",0);
+          debug(F100,"screenc endwin A","",0);
           endwin();
 #ifdef COMMENT
 /*
@@ -8890,9 +8908,9 @@ char *s;        /* a string */
       case SCR_TZ:                      /* Text delimited at end */
         return;                         /* (ignored in fullscreen display) */
 
-      case SCR_MS:			/* Message from Kermit partner */
+      case SCR_MS:                      /* Message from Kermit partner */
         move(CW_MSG,22);
-	printw("%s",s);
+        printw("%s",s);
         clrtoeol(); refresh(); return;
 
       case SCR_XD:                      /* X-packet data */
@@ -8916,7 +8934,7 @@ char *s;        /* a string */
         oldtim = -1;
 
 #ifndef VMSCURSE
-	debug(F100,"screenc endwin B","",0);
+        debug(F100,"screenc endwin B","",0);
         endwin();
 #endif /* VMSCURSE */
         ft_win = 0;                     /* Flag that window is closed. */
@@ -8992,9 +9010,9 @@ char *s;        /* a string */
 
     if (!s) s = "";                     /* Always do this. */
 
-    ftp = (what & W_FTP) ? 1 : 0;	/* FTP or Kermit */
+    ftp = (what & W_FTP) ? 1 : 0;       /* FTP or Kermit */
     net = network || ftp;
-    xnet = ftp ? 1 : nettype;		/* NET_TCPB == 1 */
+    xnet = ftp ? 1 : nettype;           /* NET_TCPB == 1 */
 
     if (cinit == 0 || cendw > 0) {      /* Handle borderline cases... */
         if (f == SCR_CW) {              /* Close window, but it's not open */
@@ -9008,8 +9026,8 @@ char *s;        /* a string */
         }
     }
     if (cinit == 0) {                   /* Only call initscr() once */
-	/* Check these now -- if they are defined but not numeric */
-	/* they can crash curses */
+        /* Check these now -- if they are defined but not numeric */
+        /* they can crash curses */
         cendw = 1;                      /* New window needs repainting */
         debug(F100,"screeng calling initscr","",0);
         initscr();                      /* Initialize curses. */
@@ -9050,24 +9068,24 @@ char *s;        /* a string */
 
         if (net) {
 #ifdef NETCONN
-	    int secure = 0;
-	    char * xname;
-	    if (xnet > nnetname)
-	      xname = "[ERROR]";
-	    else
-	      xname = netname[xnet];
+            int secure = 0;
+            char * xname;
+            if (xnet > nnetname)
+              xname = "[ERROR]";
+            else
+              xname = netname[xnet];
 #ifdef NEWFTP
             if (ftp) {
-		if (ftpissecure())
-		  secure = 1;
-	    } else
+                if (ftpissecure())
+                  secure = 1;
+            } else
 #endif /* NEWFTP */
-	      if (0
+              if (0
 #ifdef SSHBUILTIN
                 || IS_SSH()
 #endif /* SSHBUILTIN */
 #ifdef CK_ENCRYPTION
-                || ck_tn_encrypting() && ck_tn_decrypting()
+                || (ck_tn_encrypting() && ck_tn_decrypting())
 #endif /* CK_ENCRYPTION */
 #ifdef CK_SSL
                 || tls_active_flag || ssl_active_flag
@@ -9082,9 +9100,9 @@ char *s;        /* a string */
                  ) {
             /* You may get an "unreachable code" warning in builds with no SSL,
              * Kerberos or SSH support. This is OK. */
-		    secure = 1;
-	    }
-	    if (secure) {
+                    secure = 1;
+            }
+            if (secure) {
                 char buf[30];
                 sprintf(buf,"%s (SECURE)",xname);
                 KuiSetProperty(KUI_FILE_TRANSFER,
@@ -9150,7 +9168,7 @@ char *s;        /* a string */
         /* oldgtv = -1L; */
 #endif /* GFTIMER */
         oldwin = -1;
-        fsiz = (CK_OFF_T)-1L;		/* Invalidate previous file size */
+        fsiz = (CK_OFF_T)-1L;           /* Invalidate previous file size */
         KuiSetProperty( KUI_FILE_TRANSFER, (intptr_t) CW_PCD, (intptr_t) 0 );
         KuiSetProperty( KUI_FILE_TRANSFER, (intptr_t) CW_FFC, (intptr_t) 0 );
         KuiSetProperty( KUI_FILE_TRANSFER, (intptr_t) CW_SIZ, (intptr_t) 0 );
@@ -9176,11 +9194,11 @@ char *s;        /* a string */
         if (fsiz > (CK_OFF_T)-1) {
             KuiSetProperty( KUI_FILE_TRANSFER, (intptr_t) CW_SIZ, (intptr_t) n );
         }
-        if (fsiz > (CK_OFF_T)-1) {	/* Put up percent label */
+        if (fsiz > (CK_OFF_T)-1) {      /* Put up percent label */
             pctlbl = 1;
         } else {
             pctlbl = 0;
-	}
+        }
         scrft();                        /* File type */
 #ifdef OS2
         SaveCmdMode(0, 0);
@@ -9198,39 +9216,39 @@ char *s;        /* a string */
                            );
             if (
 #ifdef NEWFTP
-		(ftp && (spackets == 1 || rpackets == 1)) ||
+                (ftp && (spackets == 1 || rpackets == 1)) ||
 #endif /* NEWFTP */
-		spackets == 4
-		) {
+                spackets == 4
+                ) {
                 if (
 #ifdef NEWFTP
-		    ftp ||
+                    ftp ||
 #endif /* NEWFTP */
-		    ((protocol == PROTO_K) && (sysindex > -1))
-		    ) {
+                    ((protocol == PROTO_K) && (sysindex > -1))
+                    ) {
                     char msgbuf[128];
                     if (net) {
                         sprintf(msgbuf,"Network Host: %s (%s)",
 #ifdef NEWFTP
-			       ftp ? (ftp_host ? ftp_host : "") :
+                               ftp ? (ftp_host ? ftp_host : "") :
 #endif /* NEWFTP */
-			       ttname,
+                               ttname,
 #ifdef NEWFTP
-			       ftp ? ftp_srvtyp :
+                               ftp ? ftp_srvtyp :
 #endif /* NEWFTP */
-			       sysidlist[sysindex].sid_name
-			       );
+                               sysidlist[sysindex].sid_name
+                               );
                     } else {
                         sprintf(msgbuf,
-				"Communication Device: %s (remote host is %s)",
-				ttname,
-				sysidlist[sysindex].sid_name
-				);
+                                "Communication Device: %s (remote host is %s)",
+                                ttname,
+                                sysidlist[sysindex].sid_name
+                                );
                     }
                     KuiSetProperty( KUI_FILE_TRANSFER,
-				    (intptr_t) CW_LIN,
-				    (intptr_t) msgbuf
-				    );
+                                    (intptr_t) CW_LIN,
+                                    (intptr_t) msgbuf
+                                    );
                 }
             }
         }
@@ -9247,18 +9265,18 @@ char *s;        /* a string */
                 char msgbuf[64];
                 sprintf(msgbuf,"00 / 00");
                 KuiSetProperty( KUI_FILE_TRANSFER,
-				(intptr_t) CW_TMO,
-				(intptr_t) msgbuf
-				);
+                                (intptr_t) CW_TMO,
+                                (intptr_t) msgbuf
+                                );
             } else {
                 xx = (rttdelay + 500) / 1000;
                 if (xx != oldrtt || rcvtimo != oldtim) {
                     char msgbuf[64];
                     sprintf(msgbuf,"%02ld / %02d", xx, rcvtimo);
                     KuiSetProperty( KUI_FILE_TRANSFER,
-				    (intptr_t) CW_TMO,
-				    (intptr_t) msgbuf
-				    );
+                                    (intptr_t) CW_TMO,
+                                    (intptr_t) msgbuf
+                                    );
                     oldrtt = xx;
                     oldtim = rcvtimo;
                     clrtoeol();
@@ -9303,7 +9321,7 @@ char *s;        /* a string */
             KuiSetProperty( KUI_FILE_TRANSFER, (intptr_t) CW_PR, (intptr_t) errors );
             oldtry = errors;
         }
-	/* Sender's packet type */
+        /* Sender's packet type */
         if (!ftp && (c != oldtyp && c != 'Y' && c != 'N')) {
             char type[2];
             sprintf(type, "%c",c);
@@ -9330,7 +9348,7 @@ char *s;        /* a string */
                 oldpct = pct;           /* Remember previous percent */
                 howfar = ffc;
 #ifdef CK_RESEND
-                if (what & W_SEND)	/* Account for PSEND or RESEND */
+                if (what & W_SEND)      /* Account for PSEND or RESEND */
                   howfar += sendstart;
                 else if (what & W_RECV)
                   howfar += rs_len;
@@ -9361,7 +9379,7 @@ char *s;        /* a string */
             if (errors != oldtry) {     /* Error count, if changed */
                 KuiSetProperty(KUI_FILE_TRANSFER,
                                (intptr_t) CW_PR,
-			       (intptr_t) errors
+                               (intptr_t) errors
                                );
                 }
                 oldtry = errors;
@@ -9437,8 +9455,8 @@ char *s;        /* a string */
 #else
         if (c == ST_OK) {               /* OK, print 100 % */
             if (pctlbl) {
-		updpct(oldpct,100);
-	    } else
+                updpct(oldpct,100);
+            } else
                 KuiSetProperty(KUI_FILE_TRANSFER, (intptr_t) CW_FFC, (intptr_t) ffc);
 #ifdef COMMENT
             pct = 100;
@@ -9452,18 +9470,18 @@ char *s;        /* a string */
         switch (c) {                    /* Print new status message */
           case ST_OK:                   /* Transfer OK */
             fcnt++;                     /* Count this file */
-	    if (what == (W_FTP|W_FT_DELE)) {
+            if (what == (W_FTP|W_FT_DELE)) {
                 KuiSetProperty(KUI_FILE_TRANSFER,
                                 (intptr_t) CW_MSG,
                                 (intptr_t) "Delete OK"
                                 );
-	    } else {
-		fbyt += ffc;
+            } else {
+                fbyt += ffc;
                 KuiSetProperty(KUI_FILE_TRANSFER,
                                 (intptr_t) CW_MSG,
                                 (intptr_t) "Transfer OK"
                                 );
-	    }
+            }
             return;
 
           case ST_DISC:                 /* Discarded */
@@ -9488,9 +9506,9 @@ char *s;        /* a string */
 
         case ST_SKIP: {                /* Skipped */
             char errbuf[64] ;
-	    if (n > 0 && n < nskreason)
+            if (n > 0 && n < nskreason)
                 sprintf( errbuf, "File skipped, (%s)", skreason[n] ) ;
-	    else
+            else
                 sprintf( errbuf, "File skipped" ) ;
             KuiSetProperty(KUI_FILE_TRANSFER,
                            (intptr_t) CW_ERR,
@@ -9719,7 +9737,7 @@ dbinit() {
         }
         if (!p) p = "C:/";
         dbdir = malloc(strlen(p)+2);
-        strcpy(dbdir,p);		/* safe */
+        strcpy(dbdir,p);                /* safe */
         p = dbdir;
         while (*p) {
             if (*p == '\\')
@@ -9808,7 +9826,7 @@ updslot(n) int n;
     }
     /* debug(F111,"updslot dbfile",dbfile,dbfp); */
     position = DB_HDRL + (CK_OFF_T)n * DB_RECL; /* Records follow header */
-    if (CKFSEEK(dbfp,position,0) < 0) {	/* Seek to desired slot */
+    if (CKFSEEK(dbfp,position,0) < 0) { /* Seek to desired slot */
         debug(F111,"updslot fseek failed",dbfile,mydbseek);
         ikdbopen = 0;
         rc = -1;
@@ -9926,16 +9944,18 @@ initslot(n) int n;
     k = dbfld[db_START].len;
     strncpy(&dbrec[dbfld[db_START].off],ckdate(),k);
 
+    /* These are fixed-width raw fields in a packed record, not */
+    /* NUL-terminated strings, so memcpy() is used, not strncpy(). */
     k = dbfld[db_ULEN].len;
-    strncpy(&dbrec[dbfld[db_ULEN].off],"0000",4);
+    memcpy(&dbrec[dbfld[db_ULEN].off],"0000",4);
 
     k = dbfld[db_DLEN].len;
-    strncpy(&dbrec[dbfld[db_DLEN].off],"0000",4);
+    memcpy(&dbrec[dbfld[db_DLEN].off],"0000",4);
 
     k = dbfld[db_ILEN].len;
-    strncpy(&dbrec[dbfld[db_ILEN].off],"0000",4);
+    memcpy(&dbrec[dbfld[db_ILEN].off],"0000",4);
 
-    strncpy(&dbrec[dbfld[db_INFO].off],"INIT",4);
+    memcpy(&dbrec[dbfld[db_INFO].off],"INIT",4);
     return(updslot(n));
 }
 
@@ -10115,7 +10135,7 @@ getslot() {                             /* Find a free slot for us */
 
     /* Make a temporary file */
 
-    lockfd = creat(tmplck, 0600);	/* BUT THIS ISN'T PORTABLE */
+    lockfd = creat(tmplck, 0600);       /* BUT THIS ISN'T PORTABLE */
     if (lockfd < 0) {
         debug(F111,"getslock temp lockfile create failure", tmplck, errno);
         return(-1);

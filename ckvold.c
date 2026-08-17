@@ -17,16 +17,16 @@ char *strstr(a, b)
 const char *a;
 const char *b;
 {
-	int len;
+        int len;
 
-	if (!a || !b) return((char *)0);
-	if (!*b) return(a);
-	len = strlen(b);
-	while (*a) {
-		if (!strncmp(a, b, len)) return(a);
-		a++;
-	}
-	return((char *)0);
+        if (!a || !b) return((char *)0);
+        if (!*b) return(a);
+        len = strlen(b);
+        while (*a) {
+                if (!strncmp(a, b, len)) return(a);
+                a++;
+        }
+        return((char *)0);
 }
 
 #ifndef VMS_V46
@@ -36,7 +36,7 @@ register int n;
 {
     register char *ss = (char *)s, *dd = (char *)d;
     while (n-- > 0)
-	*dd++ = *ss++;
+        *dd++ = *ss++;
     return d;
 }
 
@@ -47,13 +47,13 @@ register int n;
 {
     register char *dd = (char *)d, *ss = (char *)s;
     if (dd < ss || dd - ss >= n) {
-	while (n-- > 0)
-	    *dd++ = *ss++;
+        while (n-- > 0)
+            *dd++ = *ss++;
     } else if (n > 0) {
-	dd += n;
-	ss += n;
-	while (n-- > 0)
-	    *--dd = *--ss;
+        dd += n;
+        ss += n;
+        while (n-- > 0)
+            *--dd = *--ss;
     }
     return d;
 }
@@ -65,29 +65,29 @@ register int n;
 {
     register char *dd = (char *)d;
     while (n-- > 0)
-	*dd++ = c;
+        *dd++ = c;
     return d;
 }
 
 int system(s)
 char *s;
 {
-	while (*s == ' ' || *s == '$') s++;
-	zsyscmd(s);
-	return(1);
+        while (*s == ' ' || *s == '$') s++;
+        zsyscmd(s);
+        return(1);
 }
 
 double fmod(x, y)
 double x, y;
 {
-	int a;
-	if (x == 0 || y == 0) {
-		a = x;
-	} else if ((x > 0 && y > 0) || (x < 0 && y < 0)) {
-		a = x - y*floor(x/y);
-	} else {
-		a = x - y*ceil(x/y);
-	}
-	return a;
+        int a;
+        if (x == 0 || y == 0) {
+                a = x;
+        } else if ((x > 0 && y > 0) || (x < 0 && y < 0)) {
+                a = x - y*floor(x/y);
+        } else {
+                a = x - y*ceil(x/y);
+        }
+        return a;
 }
 #endif /* ! VMS_V46 */

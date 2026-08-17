@@ -112,12 +112,84 @@ START_TEST(test_port_v4)
 }
 END_TEST
 
+START_TEST(test_port_v4_overflow)
+{
+    struct sockaddr_in sin;
+
+    memset(&sin, 0, sizeof(sin));
+    sin.sin_family = AF_INET;
+
+    /* sin_port is 16 bits: the top of its range must round-trip... */
+    ck_setport((struct sockaddr *)&sin, 65535);
+    ck_assert_uint_eq(ck_getport((struct sockaddr *)&sin), 65535);
+
+    /* ...and a port that doesn't fit truncates to the low 16 bits
+       rather than erroring, since ck_setport() has no error return.
+       70000 = 65536 + 4464, so only 4464 survives. */
+    ck_setport((struct sockaddr *)&sin, 70000);
+    ck_assert_uint_eq(ck_getport((struct sockaddr *)&sin), 4464);
+}
+END_TEST
+
 START_TEST(test_port_null)
 {
     ck_assert_uint_eq(ck_getport(NULL), 0);
     ck_setport(NULL, 23);              /* must not crash */
 }
 END_TEST
+
+#ifdef CK_VSOCK
+START_TEST(test_straddr_vsock)
+{
+    struct sockaddr_vm svm;
+    char buf[64];
+
+    memset(&svm, 0, sizeof(svm));
+    svm.svm_family = AF_VSOCK;
+    svm.svm_cid = 1;
+    svm.svm_port = 9600;
+
+    ck_assert_int_eq(
+        ck_straddr((struct sockaddr *)&svm, sizeof(svm), buf, sizeof(buf)),
+        0);
+    ck_assert_str_eq(buf, "1:9600");
+}
+END_TEST
+
+START_TEST(test_straddr_vsock_buffer_too_small)
+{
+    struct sockaddr_vm svm;
+    char buf[4];                       /* not enough room for "1:9600" */
+
+    memset(&svm, 0, sizeof(svm));
+    svm.svm_family = AF_VSOCK;
+    svm.svm_cid = 1;
+    svm.svm_port = 9600;
+
+    ck_assert_int_eq(
+        ck_straddr((struct sockaddr *)&svm, sizeof(svm), buf, sizeof(buf)),
+        -1);
+}
+END_TEST
+
+START_TEST(test_port_vsock)
+{
+    struct sockaddr_vm svm;
+
+    memset(&svm, 0, sizeof(svm));
+    svm.svm_family = AF_VSOCK;
+    svm.svm_port = 9600;
+
+    /* Unlike TCP/IPv6, VSOCK ports are not byte-swapped. */
+    ck_assert_uint_eq(ck_getport((struct sockaddr *)&svm), 9600);
+
+    /* Verify a 32-bit VSOCK port above 65535 is preserved. */
+    ck_setport((struct sockaddr *)&svm, 4294967295U);
+    ck_assert_uint_eq(ck_getport((struct sockaddr *)&svm), 4294967295U);
+    ck_assert_uint_eq(svm.svm_port, 4294967295U);
+}
+END_TEST
+#endif /* CK_VSOCK */
 
 #ifdef CK_IPV6
 START_TEST(test_straddr_v6)
@@ -150,6 +222,22 @@ START_TEST(test_port_v6)
     ck_setport((struct sockaddr *)&sin6, 2000);
     ck_assert_uint_eq(ck_getport((struct sockaddr *)&sin6), 2000);
     ck_assert_uint_eq(ntohs(sin6.sin6_port), 2000);
+}
+END_TEST
+
+START_TEST(test_port_v6_overflow)
+{
+    struct sockaddr_in6 sin6;
+
+    memset(&sin6, 0, sizeof(sin6));
+    sin6.sin6_family = AF_INET6;
+
+    /* sin6_port is 16 bits, same as sin_port; see test_port_v4_overflow. */
+    ck_setport((struct sockaddr *)&sin6, 65535);
+    ck_assert_uint_eq(ck_getport((struct sockaddr *)&sin6), 65535);
+
+    ck_setport((struct sockaddr *)&sin6, 70000);
+    ck_assert_uint_eq(ck_getport((struct sockaddr *)&sin6), 4464);
 }
 END_TEST
 
@@ -538,6 +626,124 @@ START_TEST(test_bracketaddr_bad_args)
 }
 END_TEST
 
+#ifdef CK_VSOCK
+START_TEST(test_vsock_addr_numeric)
+{
+    unsigned int cid = 999, port = 999;
+
+    ck_assert_int_eq(ck_parse_vsock_addr("1:9600", &cid, &port), 0);
+    ck_assert_uint_eq(cid, 1);
+    ck_assert_uint_eq(port, 9600);
+}
+END_TEST
+
+START_TEST(test_vsock_addr_symbolic_cid)
+{
+    unsigned int cid, port;
+
+    ck_assert_int_eq(ck_parse_vsock_addr("local:9600", &cid, &port), 0);
+    ck_assert_uint_eq(cid, VMADDR_CID_LOCAL);
+    ck_assert_uint_eq(port, 9600);
+
+    ck_assert_int_eq(ck_parse_vsock_addr("HOST:1649", &cid, &port), 0);
+    ck_assert_uint_eq(cid, VMADDR_CID_HOST);
+    ck_assert_uint_eq(port, 1649);
+
+    ck_assert_int_eq(ck_parse_vsock_addr("Hypervisor:1", &cid, &port), 0);
+    ck_assert_uint_eq(cid, VMADDR_CID_HYPERVISOR);
+    ck_assert_uint_eq(port, 1);
+
+    ck_assert_int_eq(ck_parse_vsock_addr("any:1", &cid, &port), 0);
+    ck_assert_uint_eq(cid, (unsigned int)VMADDR_CID_ANY);
+    ck_assert_uint_eq(port, 1);
+}
+END_TEST
+
+START_TEST(test_vsock_addr_extreme_values)
+{
+    unsigned int cid, port;
+
+    ck_assert_int_eq(ck_parse_vsock_addr("0:0", &cid, &port), 0);
+    ck_assert_uint_eq(cid, 0);
+    ck_assert_uint_eq(port, 0);
+
+    ck_assert_int_eq(
+        ck_parse_vsock_addr("4294967295:4294967295", &cid, &port), 0);
+    ck_assert_uint_eq(cid, 4294967295U);
+    ck_assert_uint_eq(port, 4294967295U);
+}
+END_TEST
+
+START_TEST(test_vsock_addr_overflow)
+{
+    unsigned int cid, port;
+
+    /* One past UINT_MAX must be rejected, not silently wrap. */
+    ck_assert_int_eq(
+        ck_parse_vsock_addr("4294967296:1", &cid, &port), -1);
+    ck_assert_int_eq(
+        ck_parse_vsock_addr("1:4294967296", &cid, &port), -1);
+}
+END_TEST
+
+START_TEST(test_vsock_addr_missing_colon)
+{
+    unsigned int cid, port;
+
+    ck_assert_int_eq(ck_parse_vsock_addr("1", &cid, &port), -1);
+    ck_assert_int_eq(ck_parse_vsock_addr("", &cid, &port), -1);
+}
+END_TEST
+
+START_TEST(test_vsock_addr_extra_colon)
+{
+    unsigned int cid, port;
+
+    ck_assert_int_eq(ck_parse_vsock_addr("1:9600:1", &cid, &port), -1);
+    ck_assert_int_eq(ck_parse_vsock_addr("1:2:3:4", &cid, &port), -1);
+}
+END_TEST
+
+START_TEST(test_vsock_addr_empty_field)
+{
+    unsigned int cid, port;
+
+    ck_assert_int_eq(ck_parse_vsock_addr(":9600", &cid, &port), -1);
+    ck_assert_int_eq(ck_parse_vsock_addr("1:", &cid, &port), -1);
+    ck_assert_int_eq(ck_parse_vsock_addr(":", &cid, &port), -1);
+}
+END_TEST
+
+START_TEST(test_vsock_addr_non_numeric)
+{
+    unsigned int cid, port;
+
+    ck_assert_int_eq(ck_parse_vsock_addr("abc:9600", &cid, &port), -1);
+    ck_assert_int_eq(ck_parse_vsock_addr("1:abc", &cid, &port), -1);
+    /* Not a recognized symbolic name, and not numeric either. */
+    ck_assert_int_eq(ck_parse_vsock_addr("bogus:9600", &cid, &port), -1);
+    /* Leading/trailing junk on an otherwise-numeric field. */
+    ck_assert_int_eq(ck_parse_vsock_addr("1x:9600", &cid, &port), -1);
+    ck_assert_int_eq(ck_parse_vsock_addr("1:9600x", &cid, &port), -1);
+    ck_assert_int_eq(ck_parse_vsock_addr("-1:9600", &cid, &port), -1);
+    ck_assert_int_eq(ck_parse_vsock_addr("1: 9600", &cid, &port), -1);
+}
+END_TEST
+
+START_TEST(test_vsock_addr_bad_args)
+{
+    unsigned int cid = 111, port = 222;
+
+    ck_assert_int_eq(ck_parse_vsock_addr(NULL, &cid, &port), -1);
+    ck_assert_int_eq(ck_parse_vsock_addr("1:9600", NULL, &port), -1);
+    ck_assert_int_eq(ck_parse_vsock_addr("1:9600", &cid, NULL), -1);
+    /* Failure must not touch the output arguments. */
+    ck_assert_uint_eq(cid, 111);
+    ck_assert_uint_eq(port, 222);
+}
+END_TEST
+#endif /* CK_VSOCK */
+
 /*
   ckgetfqhostname() does forward-then-reverse DNS resolution, so this
   relies on loopback names being set up the ordinary way (::1 and
@@ -598,10 +804,17 @@ main(int argc, char ** argv)
     tcase_add_test(tc, test_straddr_v4);
     tcase_add_test(tc, test_straddr_bad_args);
     tcase_add_test(tc, test_port_v4);
+    tcase_add_test(tc, test_port_v4_overflow);
     tcase_add_test(tc, test_port_null);
+#ifdef CK_VSOCK
+    tcase_add_test(tc, test_straddr_vsock);
+    tcase_add_test(tc, test_straddr_vsock_buffer_too_small);
+    tcase_add_test(tc, test_port_vsock);
+#endif /* CK_VSOCK */
 #ifdef CK_IPV6
     tcase_add_test(tc, test_straddr_v6);
     tcase_add_test(tc, test_port_v6);
+    tcase_add_test(tc, test_port_v6_overflow);
     tcase_add_test(tc, test_scopeaddr6_no_zone);
     tcase_add_test(tc, test_scopeaddr6_named_zone);
     tcase_add_test(tc, test_scopeaddr6_numeric_zone);
@@ -633,6 +846,17 @@ main(int argc, char ** argv)
     tcase_add_test(tc, test_bracketaddr_already_bracketed_untouched);
     tcase_add_test(tc, test_bracketaddr_too_long_untouched);
     tcase_add_test(tc, test_bracketaddr_bad_args);
+#ifdef CK_VSOCK
+    tcase_add_test(tc, test_vsock_addr_numeric);
+    tcase_add_test(tc, test_vsock_addr_symbolic_cid);
+    tcase_add_test(tc, test_vsock_addr_extreme_values);
+    tcase_add_test(tc, test_vsock_addr_overflow);
+    tcase_add_test(tc, test_vsock_addr_missing_colon);
+    tcase_add_test(tc, test_vsock_addr_extra_colon);
+    tcase_add_test(tc, test_vsock_addr_empty_field);
+    tcase_add_test(tc, test_vsock_addr_non_numeric);
+    tcase_add_test(tc, test_vsock_addr_bad_args);
+#endif /* CK_VSOCK */
     tcase_add_test(tc, test_getfqhostname_v4_literal);
 #ifdef CK_IPV6
     tcase_add_test(tc, test_getfqhostname_v6_literal);

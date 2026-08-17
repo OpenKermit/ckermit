@@ -98,9 +98,9 @@ char * ckctox(CHAR c, int flag);
 int dquote( char * fn, int len, int flag );
 void makestr(char **p, const char *s);
 void xmakestr(char **p, const char *s);
-#ifdef CKFLOAT				/* ckclib.c guards the definition of */
+#ifdef CKFLOAT                          /* ckclib.c guards the definition of */
 CKFLOAT ckround( CKFLOAT, int, char *, int ); /* this the same way, so under */
-#endif /* CKFLOAT */			/* NOFLOAT the type does not exist   */
+#endif /* CKFLOAT */                    /* NOFLOAT the type does not exist   */
 int chknum( char * );
 int rdigits( char * s );
 char * parnam( char c );
@@ -138,8 +138,8 @@ char * dbchr( int );
 char * dosexp( char * );
 char * evala( char * );
 char * evalx( char * );
-#ifdef CKFLOAT				/* Ditto -- ckuus4.c's definition is */
-char * fpformat( CKFLOAT, int, int );	/* inside #ifdef CKFLOAT already     */
+#ifdef CKFLOAT                          /* Ditto -- ckuus4.c's definition is */
+char * fpformat( CKFLOAT, int, int );   /* inside #ifdef CKFLOAT already     */
 #endif /* CKFLOAT */
 char * getbasename( char * );
 char * getdnum( int );
@@ -511,9 +511,9 @@ void fatal2( char *, char * );
 void freelocal( int );
 void freerpkt( int );
 #ifndef NOLOCAL
-#ifndef NODISPLAY			/* ckcker.h makes this a macro when */
-void fxdinit( int );			/* NODISPLAY is set, and then this  */
-#endif /* NODISPLAY */			/* line declares "void ;"           */
+#ifndef NODISPLAY                       /* ckcker.h makes this a macro when */
+void fxdinit( int );                    /* NODISPLAY is set, and then this  */
+#endif /* NODISPLAY */                  /* line declares "void ;"           */
 #endif /* NOLOCAL */
 void init_termbuf( int );
 void initial( FILE *, FILE * );

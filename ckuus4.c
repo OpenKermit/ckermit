@@ -8,13 +8,15 @@
       The Kermit Project, New York City
     Jeffrey E Altman <jaltman@secure-endpoints.com>
       Secure Endpoints Inc., New York City
+    John goerzen <jgoerzen@complete.org>
+      Open Kermit Project, Kansas
 
   Copyright (C) 1985, 2023,
     Trustees of Columbia University in the City of New York.
+  Copyright (C) 2025-2026, John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
-    Last update:
-    Tue May  2 19:09:58 2023
+    Last update: 13 August 2026 (jgoerzen)
 */
 
 /*
@@ -121,7 +123,7 @@ extern int tlevel;
 #endif /* FNFLOAT */
 
 int fp_rounding = 0;                  /* Nonzero if printf("%f") rounds */
-int fp_digits = 0;		      /* Digits of floating point precision */
+int fp_digits = 0;                    /* Digits of floating point precision */
 
 extern int quiet, network, xitsta, escape, nopush, xferstat,
   exitonclose, tn_exit, ttnproto, autodl, flow, byteorder, what, lastxfer;
@@ -227,19 +229,19 @@ extern char diafil[];
 #endif /* MAC */
 #endif /* AMIGA */
 
-#ifdef SV68				/* July 2006 believe it or not */
+#ifdef SV68                             /* July 2006 believe it or not */
 #ifndef SEEK_CUR
 #include <unistd.h>
-#endif	/* SEEK_CUR */
-#endif	/* SV68 */
+#endif  /* SEEK_CUR */
+#endif  /* SV68 */
 
-#ifdef SCO32				/* June 2011 believe it or not... */
+#ifdef SCO32                            /* June 2011 believe it or not... */
 #ifdef XENIX
 #ifndef SEEK_CUR
 #include <unistd.h>
-#endif	/* SEEK_CUR */
-#endif	/* XENIX */
-#endif	/* SCO32 */
+#endif  /* SEEK_CUR */
+#endif  /* XENIX */
+#endif  /* SCO32 */
 
 #include "ckcfnp.h"                     /* Prototypes (must be last) */
 
@@ -353,7 +355,7 @@ static int ckcindex( char, char * );
 extern char * floname[];
 
 #ifndef NOSPL
-extern int vareval;			/* Variable evaluation method */
+extern int vareval;                     /* Variable evaluation method */
 extern int fndiags;                     /* Function diagnostics on/off */
 extern int divbyzero;
 int itsapattern = 0;
@@ -532,7 +534,7 @@ extern int a_dim[];
 static char * inpmatch = NULL;
 #ifdef CKFLOAT
 char * inpscale = NULL;
-#endif	/* CKFLOAT */
+#endif  /* CKFLOAT */
 extern char * inpbuf, inchar[];         /* Buffers for INPUT and REINPUT */
 extern char *inpbp;                     /* And pointer to same */
 static char *r3 = (char *)0;
@@ -690,7 +692,7 @@ struct keytab vartab[] = {
 #endif /* NT */
 #ifndef NODIAL
     { "dialcount", VN_DRTR,  0},        /* 195 */
-    { "dialmessage",VN_DMSG, 0},	/* 212 */
+    { "dialmessage",VN_DMSG, 0},        /* 212 */
     { "dialnumber",VN_DNUM,  0},        /* 192 */
     { "dialresult",VN_MDMSG, 0},        /* 192 */
     { "dialstatus",VN_DIAL,  0},        /* 190 */
@@ -757,8 +759,8 @@ struct keytab vartab[] = {
     { "ftype",        VN_MODE,  0},     /* 190 */
     { "fullversion",  VN_FULLVER, 0},   /* 400 */
 #ifdef KUI
-    { "gui_fontname", VN_GUI_FNM, 0},	/* 205 */
-    { "gui_fontsize", VN_GUI_FSZ, 0},	/* 205 */
+    { "gui_fontname", VN_GUI_FNM, 0},   /* 205 */
+    { "gui_fontsize", VN_GUI_FSZ, 0},   /* 205 */
     { "gui_runmode", VN_GUI_RUN, 0},    /* 205 */
     { "gui_xpos",    VN_GUI_XP,  0},    /* 205 */
     { "gui_xres",    VN_GUI_XR,  0},    /* 205 */
@@ -809,17 +811,17 @@ struct keytab vartab[] = {
     { "krb5realm",     VN_K5RLM, 0},
     { "krb5service",   VN_K5SRV, 0},
 #endif /* CK_KERBEROS */
-    { "lastcommand",   VN_PREVCMD, 0},	/* 299 */
+    { "lastcommand",   VN_PREVCMD, 0},  /* 299 */
 #ifndef NOLASTFILE
-    { "lastfilespec",  VN_LASTFIL, 0},	/* 212 */
-#endif	/* NOLASTFILE */
+    { "lastfilespec",  VN_LASTFIL, 0},  /* 212 */
+#endif  /* NOLASTFILE */
     { "lastkeywordvalue",  VN_LASTKWV, 0}, /* 212 */
     { "lastkwvalue",   VN_LASTKWV, CM_ABR|CM_INV}, /* 212 */
     { "line",          VN_LINE,  0},
     { "local",         VN_LCL,   0},
 #ifdef UNIX
-    { "lockdir",       VN_LCKDIR,0},	/* 195 */
-    { "lockpid",       VN_LCKPID,0},	/* 195 */
+    { "lockdir",       VN_LCKDIR,0},    /* 195 */
+    { "lockpid",       VN_LCKPID,0},    /* 195 */
 #endif /* UNIX */
     { "log_connection", VN_LOG_CON, 0}, /* 206 */
     { "log_debug", VN_LOG_DEB, 0},      /* 206 */
@@ -836,7 +838,7 @@ struct keytab vartab[] = {
     { "minput",    VN_MINP,  0},        /* 192 */
     { "model",     VN_MODL,  0},        /* 193 */
     { "modem",     VN_MDM,   0},
-    { "month",     VN_MONTH, 0},	/* 304 */
+    { "month",     VN_MONTH, 0},        /* 304 */
 #ifndef NOLOCAL
 #ifdef OS2
     { "mousecurx", VN_MOU_X, 0},        /* K95 1.1.14 */
@@ -870,7 +872,7 @@ struct keytab vartab[] = {
     { "ndate",     VN_NDAT,  0},
     { "nday",      VN_NDAY,  0},
     { "newline",   VN_NEWL,  0},
-    { "nmonth",    VN_NMONTH,0},	/* 304 */
+    { "nmonth",    VN_NMONTH,0},        /* 304 */
     { "ntime",     VN_NTIM,  0},
     { "osname",    VN_OSNAM, 0},        /* 193 */
     { "osrelease", VN_OSREL, 0},        /* 193 */
@@ -900,7 +902,7 @@ struct keytab vartab[] = {
     { "p_rpt",     VN_P_RPT, 0},        /* 193 */
     { "query",     VN_QUE,   0},        /* 190 */
 #endif /* NOXFER */
-    { "remoteip",  VN_HOSTIP,0},	/* 212 */
+    { "remoteip",  VN_HOSTIP,0},        /* 212 */
     { "return",    VN_RET,   0},
 #ifdef CK_REXX
     { "rexx",      VN_REXX,  0},        /* 190 */
@@ -974,7 +976,7 @@ struct keytab vartab[] = {
     { "url",       VN_URL,   CM_INV},   /* 193 */
 #endif /* BROWSER */
     { "userid",    VN_UID,   0},        /* 192 */
-    { "vareval",   VN_VAREVAL, 0},	/* 212 */
+    { "vareval",   VN_VAREVAL, 0},      /* 212 */
     { "version",   VN_VERS,  0},
 #ifndef NOXFER
     { "window",    VN_WINDO, 0},        /* 192 */
@@ -996,7 +998,7 @@ struct keytab vartab[] = {
 #endif /* NOXFER */
     { "xprogram",  VN_XPROG, 0},        /* 193 */
     { "xversion",  VN_XVNUM, 0},        /* 192 */
-    { "year",      VN_YEAR, 0}		/* 304 */
+    { "year",      VN_YEAR, 0}          /* 304 */
 };
 int nvars = (sizeof(vartab) / sizeof(struct keytab));
 #endif /* NOSPL */
@@ -1051,7 +1053,7 @@ struct keytab fnctab[] = {              /* Function names */
 #ifdef OS2
     { "crypt",      FN_CRY, CM_INV},
 #endif /* OS2 */
-    { "cvtcset",    FN_XLATE, 0},	/* Convert character set */
+    { "cvtcset",    FN_XLATE, 0},       /* Convert character set */
     { "cvtdate",    FN_DTIM, 0},        /* Convert free date/time to std */
 #ifdef ZFCDAT
     { "date",       FN_FD,   0},        /* File modification/creation date */
@@ -1059,7 +1061,7 @@ struct keytab fnctab[] = {              /* Function names */
     { "day",        FN_DAY,    0},      /* Day of week */
     { "dayname",    FN_DAYNAME,0},      /* Name of day of week */
     { "dayofyear",  FN_JDATE,  0},      /* Date to Day of Year */
-    { "decodehex",  FN_UNPCT,  0},	/* Decode string with hex escapes */
+    { "decodehex",  FN_UNPCT,  0},      /* Decode string with hex escapes */
     { "definition", FN_DEF,    0},      /* Return definition of given macro */
     { "delta2secs", FN_DELSEC, 0},      /* Delta time to seconds */
     { "deltatosecs", FN_DELSEC, CM_INV}, /* Delta time to seconds */
@@ -1075,21 +1077,21 @@ struct keytab fnctab[] = {              /* Function names */
     { "directo",    FN_DIR,  CM_INV|CM_ABR}, /* Abbreviation for direct.. */
     { "director",   FN_DIR,  CM_INV|CM_ABR}, /* Abbreviation for direct.. */
     { "directories",FN_DIR,  0},        /* List of directories */
-    { "directory",  FN_DIR,  CM_INV},	/* List of directories */
+    { "directory",  FN_DIR,  CM_INV},   /* List of directories */
     { "dirname",    FN_DNAM, 0},        /* Directory part of filename */
     { "dos2unixpath",FN_PC_DU, CM_INV}, /* DOS to UNIX path */
     { "dostounixpath",FN_PC_DU, 0},     /* DOS to UNIX path */
     { "doy",        FN_JDATE,CM_INV},   /* Date to Day of Year */
     { "doy2date",   FN_DATEJ,0},        /* Day of Year to date */
     { "doytodate",  FN_DATEJ,CM_INV},   /* Day of Year to date */
-    { "emailaddress",FN_EMAIL, 0},	/* Email address */
+    { "emailaddress",FN_EMAIL, 0},      /* Email address */
 #ifdef FN_ERRMSG
     { "errstring",  FN_ERRMSG,0},       /* Error code to message */
 #endif /* FN_ERRMSG */
     { "evaluate",   FN_EVA,  0},        /* Evaluate given arith expression */
     { "execute",    FN_EXE,  0},        /* Execute given macro */
-    { "filecompare",FN_FILECMP, 0},	/* File compare */
-    { "fileinfo",   FN_FILEINF, 0},	/* File information */
+    { "filecompare",FN_FILECMP, 0},     /* File compare */
+    { "fileinfo",   FN_FILEINF, 0},     /* File information */
     { "files",      FN_FC,   0},        /* File count */
 #ifdef FNFLOAT
     { "fpabsolute", FN_FPABS, 0},       /* Floating-point absolute value */
@@ -1131,12 +1133,12 @@ struct keytab fnctab[] = {              /* Function names */
     { "krbtickets",    FN_KRB_TK, 0},
     { "krbtimeleft",   FN_KRB_TT, 0},
 #endif /* CK_KERBEROS */
-    { "kwvalue",    FN_KWVAL, CM_INV},	/* Keyword=Value */
+    { "kwvalue",    FN_KWVAL, CM_INV},  /* Keyword=Value */
     { "left",       FN_LEF,  0},        /* Leftmost n characters of string */
     { "length",     FN_LEN,  0},        /* Return length of argument */
     { "literal",    FN_LIT,  0},        /* Return argument literally */
 #ifdef NT
-    { "longpathname",FN_LNAME,0},	/* GetLongPathName() */
+    { "longpathname",FN_LNAME,0},       /* GetLongPathName() */
 #else
     { "longpathname",FN_FFN,CM_INV},
 #endif /* NT */
@@ -1148,8 +1150,8 @@ struct keytab fnctab[] = {              /* Function names */
     { "maximum",    FN_MAX,  0},        /* Return maximum of two arguments */
     { "minimum",    FN_MIN,  0},        /* Return minimum of two arguments */
     { "mjd",        FN_MJD,  0},        /* Date to Modified Julian Date */
-    { "mjd2date",   FN_MJD2, CM_INV},	/* MJD to Date */
-    { "mjdtodate",  FN_MJD2, 0},	/* MJD to Date */
+    { "mjd2date",   FN_MJD2, CM_INV},   /* MJD to Date */
+    { "mjdtodate",  FN_MJD2, 0},        /* MJD to Date */
     { "modulus",    FN_MOD,  0},        /* Return modulus of two arguments */
     { "monthname",  FN_MONNAME,0},      /* Name of month of year */
 #ifdef COMMENT
@@ -1177,10 +1179,10 @@ struct keytab fnctab[] = {              /* Function names */
     { "permissions",FN_PERM, CM_INV},   /* Permissions of file */
 #endif /* CK_PERMS */
 #ifdef SEEK_CUR
-    { "pictureinfo",FN_PICTURE, 0 },	/* Picture orientation/dimensions */
-#endif	/* SEEK_CUR */
+    { "pictureinfo",FN_PICTURE, 0 },    /* Picture orientation/dimensions */
+#endif  /* SEEK_CUR */
     { "pidinfo",    FN_PID, 0  },       /* Get PID info */
-    { "radix",      FN_RADIX, 0 },	/* Radix conversion */
+    { "radix",      FN_RADIX, 0 },      /* Radix conversion */
 #ifndef NORANDOM
     { "random",     FN_RAND, 0},        /* Random number */
 #endif /* NORANDOM */
@@ -1190,7 +1192,7 @@ struct keytab fnctab[] = {              /* Function names */
 #ifdef RECURSIVE
     { "rdirectories", FN_RDIR, 0},      /* Recursive directory list */
 #endif /* RECURSIVE */
-    { "recurse",    FN_RECURSE, 0},	/* Recursive variable evaluation */
+    { "recurse",    FN_RECURSE, 0},     /* Recursive variable evaluation */
 #ifdef RECURSIVE
     { "rfiles",       FN_RFIL, 0},      /* Recursive file list */
 #endif /* RECURSIVE */
@@ -1212,7 +1214,7 @@ struct keytab fnctab[] = {              /* Function names */
     { "sexpression",FN_SEXP, 0},        /* S-Expression */
 #endif /* NOSEXP */
 #ifdef NT
-    { "shortpathname",FN_SNAME,0},	/* GetShortPathName() */
+    { "shortpathname",FN_SNAME,0},      /* GetShortPathName() */
 #else
     { "shortpathname",FN_FFN,CM_INV},
 #endif /* NT */
@@ -1222,9 +1224,9 @@ struct keytab fnctab[] = {              /* Function names */
 #endif /* COMMENT */
     { "span",       FN_SPN,  0},        /* Span - like Snobol */
     { "split",      FN_SPLIT,0},        /* Split string into words */
-    { "squeeze",    FN_SQUEEZE,0},	/* Squeeze whitespace in string */
-    { "strcmp",     FN_STRCMP,0},	/* String comparison */
-    { "stringtype", FN_STRINGT,0},	/* String type (7-bit, 8-bit, UTF-8) */
+    { "squeeze",    FN_SQUEEZE,0},      /* Squeeze whitespace in string */
+    { "strcmp",     FN_STRCMP,0},       /* String comparison */
+    { "stringtype", FN_STRINGT,0},      /* String type (7-bit, 8-bit, UTF-8) */
     { "stripb",     FN_STB,  0},        /* Strip enclosing braces/brackets */
     { "stripn",     FN_STN,  0},        /* Strip n chars */
     { "stripx",     FN_STX,  0},        /* Strip suffix */
@@ -1489,7 +1491,7 @@ getexedir() {
                   p = line;
             }
             xx = zchki(p);
-            if (xx > -1) {		/* Is the result an existing file? */
+            if (xx > -1) {              /* Is the result an existing file? */
                 k = strlen(p);
                 for (i = k-1; i > 0; i--) { /* Yes, strip name part */
                     if (p[i] == '/') {
@@ -1499,7 +1501,7 @@ getexedir() {
                     }
                 }
             }
-	    makestr(&exedir,p);		/* Save the result */
+            makestr(&exedir,p);         /* Save the result */
         }
     }
     if (!exedir && xarg0) {             /* Not found? */
@@ -1654,8 +1656,8 @@ prescan(dummy) int dummy;
                         while (x) {
                             switch (x) {
 #ifndef NOICP
-			      case '+':
-			      case '-':
+                              case '+':
+                              case '-':
                                 if (doxarg(yargv,1) < 0) {
                                     fatal("Extended argument error");
                                 }
@@ -1728,11 +1730,11 @@ prescan(dummy) int dummy;
         }
         /* after this point non-Kermit personalities must return */
         switch (howcalled) {
-	  case I_AM_KERMIT:
-	  case I_AM_IKSD:
-	  case I_AM_SSHSUB:
+          case I_AM_KERMIT:
+          case I_AM_IKSD:
+          case I_AM_SSHSUB:
             break;
-	  default:
+          default:
             return;
         }
 #endif /* NOURL */
@@ -1763,8 +1765,8 @@ prescan(dummy) int dummy;
                 while (x) {
                     switch (x) {
 #ifndef NOICP
-		      case '+':
-		      case '-':
+                      case '+':
+                      case '-':
                         if (doxarg(yargv,1) < 0) {
                             fatal("Extended argument error");
                         }
@@ -1880,8 +1882,8 @@ prescan(dummy) int dummy;
                     if (doxarg(yargv,1) < 0) {
                         fatal("Extended argument error");
                     }
-#ifndef COMMENT				/* Jeff 28 Apr 2003 */
-                    yp = NULL;		/* (not "") */
+#ifndef COMMENT                         /* Jeff 28 Apr 2003 */
+                    yp = NULL;          /* (not "") */
 #else
                     yargv++, yargc--;
                     yp = *yargv;
@@ -2269,7 +2271,7 @@ doconect(q,async) int q, async;
     }
 #else /* CK_AUTODL */
     if (is_tn && TELOPT_ME(TELOPT_KERMIT) &&
-	TELOPT_SB(TELOPT_KERMIT).kermit.me_start)
+        TELOPT_SB(TELOPT_KERMIT).kermit.me_start)
         tn_siks(KERMIT_STOP);
 #endif /* CK_AUTODL */
 #endif /* IKS_OPTION */
@@ -2462,7 +2464,7 @@ doconect(q,async) int q, async;
             /* Set up the macro and return */
             /* Do not clear the keymac flag */
 #ifdef OS2
-	    term_io = term_io_save;
+            term_io = term_io_save;
 #endif /* OS2 */
             return(dodo(keymacx,NULL,CF_KMAC|cmdstk[cmdlvl].ccflgs));
         }
@@ -2607,7 +2609,7 @@ static int outxcount = 0;               /* and count */
     int xlate:  nonzero = charset translation for text-mode xfer, 0 = skip.
     int binary: nonzero = transmit in binary mode, 0 = in text mode.
 */
-#define XBBUFSIZ 508			/* For binary blasting */
+#define XBBUFSIZ 508                    /* For binary blasting */
 static CHAR xbbuf[XBBUFSIZ+4];
 
 int
@@ -3753,7 +3755,7 @@ homepath() {
 #else
 #ifdef STRATUS
     if (strlen(h) < CKMAXPATH)
-      sprintf(hompthbuf,"%s>",h);	/* SAFE */
+      sprintf(hompthbuf,"%s>",h);       /* SAFE */
     return(hompthbuf);
 #else
     return(h);
@@ -4536,10 +4538,11 @@ shoparc() {
 #endif /* IKSD */
          ) {
         printf(" Network Host: %s%s",ttname,
-               (reliable == SET_ON || (reliable == SET_AUTO && !local)
+               (reliable == SET_ON || ((reliable == SET_AUTO && !local)
 #ifdef TN_COMPORT
                && !istncomport()
 #endif /* TN_COMPORT */
+               )
 #ifdef IKSD
                || inserver
 #endif /* IKSD */
@@ -4616,7 +4619,7 @@ shoparc() {
               default:
                 stopsize = "(unknown)";
             }
-	    signature = (char *)tnc_get_signature();
+            signature = (char *)tnc_get_signature();
             printf("\n  Signature            : %s\n",signature?signature:"");
             if (baud <= 0)
               printf("  Speed                : (unknown)\n");
@@ -4748,7 +4751,7 @@ shoparc() {
            printf(", telnet protocol");
            if (0
 #ifdef CK_ENCRYPTION
-               || ck_tn_encrypting() && ck_tn_decrypting()
+               || (ck_tn_encrypting() && ck_tn_decrypting())
 #endif /* CK_ENCRYPTION */
 #ifdef CK_SSL
                || tls_active_flag || ssl_active_flag
@@ -4858,7 +4861,7 @@ shoparc() {
     if (!local) {
         printf(" Typical port device name: %s\n",ttgtpn());
     }
-#endif	/* MACOSX */
+#endif  /* MACOSX */
     if (local) {
         int i;
         i = parity ? 7 : 8;
@@ -5458,6 +5461,11 @@ shonet() {
     if (++n > cmd_rows - 3) { if (!askmore()) return(0); else n = 0; }
 #endif /* SUPERLAT */
 
+#ifdef CK_VSOCK
+    printf(" KVM/Linux VSOCK (AF_VSOCK)\n");
+    if (++n > cmd_rows - 3) { if (!askmore()) return(0); else n = 0; }
+#endif /* CK_VSOCK */
+
 #ifdef TCPSOCKET
     if (
 #ifdef OS2
@@ -5551,6 +5559,10 @@ shonet() {
       printf("NetBIOS\n");
     else if (nettype == NET_SLAT)
       printf("SuperLAT\n");
+#ifdef CK_VSOCK
+    else if (nettype == NET_VSOCK)
+      printf("VSOCK\n");
+#endif /* CK_VSOCK */
 
 #ifdef NETFILE
     else if ( nettype == NET_FILE )
@@ -5889,10 +5901,10 @@ doshodial() {
     if (++n > cmd_rows - 3) { if (!askmore()) return(0); else n = 0; }
 
     printf(
-	" Dial toll-free-prefix:        %s\n",
-	dialtfp ? dialtfp :
-	(dialldp ? dialldp : "(none)")
-	);
+        " Dial toll-free-prefix:        %s\n",
+        dialtfp ? dialtfp :
+        (dialldp ? dialldp : "(none)")
+        );
     if (++n > cmd_rows - 3) { if (!askmore()) return(0); else n = 0; }
     printf(" Dial pbx-exchange:            ");
     if (ndialpxx == 0)
@@ -6015,7 +6027,7 @@ shofil() {
     n++;
 #ifdef UNIX
     printf(" Wildcard-expansion:      %s (%s)\n", showoff(wildena),
-	   wildxpand ? "shell" : "kermit");
+           wildxpand ? "shell" : "kermit");
     n++;
 #endif /* UNIX */
 #endif /* UNIXOROSK */
@@ -6375,7 +6387,7 @@ shoparp() {                             /* Protocol */
 #else
 #ifndef NOPUSH
     if (protocol != PROTO_K) {
-	_PROTOTYP( VOID shoextern, (void) );
+        _PROTOTYP( VOID shoextern, (void) );
         printf("\nExecuted by external commands:\n\n");
         s = ptab[protocol].p_b_scmd;
         if (!s) s = "";
@@ -6395,7 +6407,7 @@ shoparp() {                             /* Protocol */
         s = ptab[protocol].h_t_init;
         if (!s) s = "";
         printf(" Autoreceive command (text):   %s\n", *s ? s : "(none)");
-	(VOID) shoextern();
+        (VOID) shoextern();
     }
 #endif /* NOPUSH */
 #endif /* XYZ_INTERNAL */
@@ -6808,7 +6820,7 @@ static int burst = 0;                      /* Chars remaining in input burst */
 */
 #ifndef ES_NORMAL
 #define ES_NORMAL 0
-#endif	/* ES_NORMAL */
+#endif  /* ES_NORMAL */
 extern int inesc[], oldesc[];
 
 int
@@ -6845,7 +6857,7 @@ doinput(timo,ms,mp,flags,count)
     static int cr = 0;
 #endif /* TNCODE */
     int is_tn = 0;
-    int noescseq = 0;			/* Filter escape sequences */
+    int noescseq = 0;                   /* Filter escape sequences */
 #ifdef SSHBUILTIN
     const char* ssh_cmd;
 #endif
@@ -6862,7 +6874,7 @@ doinput(timo,ms,mp,flags,count)
 
 /***** CHANGE THIS TO A SET INPUT PARAMETER *****/
 
-    noescseq = (sessft == XYFT_T);	/* Filter escape sequences */
+    noescseq = (sessft == XYFT_T);      /* Filter escape sequences */
 
     imask = cmask;
     if (parity) imask = 0x7f;
@@ -6870,9 +6882,9 @@ doinput(timo,ms,mp,flags,count)
 
     /* Options from command switches */
 
-    nowrap = flags & INPSW_NOW;		/* 4 = /NOWRAP */
-    nomatch = flags & INPSW_NOM;	/* 1 = /NOMATCH */
-    clearfirst = flags & INPSW_CLR;	/* 2 = /CLEAR */
+    nowrap = flags & INPSW_NOW;         /* 4 = /NOWRAP */
+    nomatch = flags & INPSW_NOM;        /* 1 = /NOMATCH */
+    clearfirst = flags & INPSW_CLR;     /* 2 = /CLEAR */
     savecount = count;
 
     makestr(&inpmatch,NULL);
@@ -6888,12 +6900,12 @@ doinput(timo,ms,mp,flags,count)
     if (nowrap && instatus == INP_BF)
       clearfirst = 1;
 
-    if (clearfirst) {			/* INPUT /CLEAR */
-	int i;
-	myflsh();			/* Flush screen and log buffers */
-	for (i = 0; i < inbufsize; i++)
-	  inpbuf[i] = NUL;
-	inpbp = inpbuf;
+    if (clearfirst) {                   /* INPUT /CLEAR */
+        int i;
+        myflsh();                       /* Flush screen and log buffers */
+        for (i = 0; i < inbufsize; i++)
+          inpbuf[i] = NUL;
+        inpbp = inpbuf;
     }
     is_tn =
 #ifdef TNCODE
@@ -6905,7 +6917,7 @@ doinput(timo,ms,mp,flags,count)
 
 #ifdef CK_SSL
     if (is_tn) if (ssl_raw_flag || tls_raw_flag) is_tn = 0;
-#endif	/* CK_SSL */
+#endif  /* CK_SSL */
 
     instatus = INP_IE;                  /* 3 = internal error */
     kbchar = 0;
@@ -6922,19 +6934,19 @@ doinput(timo,ms,mp,flags,count)
 #ifndef NOLOCAL
     if (local) {                        /* In local mode... */
         if ((waiting = ttchk()) < 0) {  /* check that connection is open */
-	    if (!quiet) {
-		if ((!network
+            if (!quiet) {
+                if ((!network
 #ifdef TN_COMPORT
-		      || istncomport()
+                      || istncomport()
 #endif /* TN_COMPORT */
-		      ) && carrier != CAR_OFF)
-		    printf("?Carrier detect failure on %s.\n", ttname);
-		else
-		    printf("?Connection %s %s is not open.\n",
-		       network ? "to" : "on",
-		       ttname
-		       );
-	    }
+                      ) && carrier != CAR_OFF)
+                    printf("?Carrier detect failure on %s.\n", ttname);
+                else
+                    printf("?Connection %s %s is not open.\n",
+                       network ? "to" : "on",
+                       ttname
+                       );
+            }
             instatus = INP_IO;
             return(0);
         }
@@ -6953,7 +6965,7 @@ doinput(timo,ms,mp,flags,count)
     if ( network && nettype == NET_SSH && ssh_get_iparam(SSH_IPARAM_CAS) &&
         ssh_cmd && !(strcmp(ssh_cmd,"kermit") && strcmp(ssh_cmd,"sftp"))) {
         if (!quiet)
-	  printf("?SSH Subsystem active: %s\n", ssh_cmd);
+          printf("?SSH Subsystem active: %s\n", ssh_cmd);
         instatus = INP_IKS;
         return(0);
     }
@@ -6962,10 +6974,10 @@ doinput(timo,ms,mp,flags,count)
     debug(F111,"doinput ms[0]",ms[0],waiting);
 
     if (!ms[0] || isemptystring(ms[0])) { /* No search string was given nor */
-	if (count < 2)			  /* a /COUNT: switch so we just */
-	  anychar = 1;			  /* wait for the first character */
+        if (count < 2)                    /* a /COUNT: switch so we just */
+          anychar = 1;                    /* wait for the first character */
     }
-    if (nomatch) anychar = 0;		/* Don't match anything */
+    if (nomatch) anychar = 0;           /* Don't match anything */
 
     if (!anychar && waiting == 0 && timo == 0)
       return(0);
@@ -6978,7 +6990,7 @@ doinput(timo,ms,mp,flags,count)
         debug(F101,"doinput echo","",inecho);
 #ifdef CK_BURST
         debug(F101,"doinput burst","",burst);
-#endif	/* CK_BURST */
+#endif  /* CK_BURST */
         y = -1;
         while (ms[++y]) {
             sprintf(xbuf,"doinput string %2d",y); /* SAFE (24) */
@@ -6999,7 +7011,7 @@ doinput(timo,ms,mp,flags,count)
         /* If we are processing packets during INPUT and we have not */
         /* sent a START message, do so now.                          */
         if (inautodl && TELOPT_ME(TELOPT_KERMIT) &&
-			!TELOPT_SB(TELOPT_KERMIT).kermit.me_start) {
+                        !TELOPT_SB(TELOPT_KERMIT).kermit.me_start) {
             tn_siks(KERMIT_START);      /* Send Kermit-Server Start */
         }
 #endif /* CK_AUTODL */
@@ -7008,12 +7020,12 @@ doinput(timo,ms,mp,flags,count)
     x = 0;                              /* Return code, assume failure */
     instatus = INP_TO;                  /* Status, assume timeout */
 
-    for (y = 0; y < MINPMAX; y++)	/* Initialize... */
+    for (y = 0; y < MINPMAX; y++)       /* Initialize... */
       mi[y] = 0;                        /*  ..string pattern match position */
 
     if (!inpcas[cmdlvl]) {              /* INPUT CASE = IGNORE?  */
         y = -1;
-        while ((xp = ms[++y])) {	/* Convert each target to lowercase */
+        while ((xp = ms[++y])) {        /* Convert each target to lowercase */
             while (*xp) {
                 if (isupper(*xp)) *xp = (char) tolower(*xp);
                 xp++;
@@ -7146,13 +7158,14 @@ doinput(timo,ms,mp,flags,count)
                         continue;
 #endif /* IKS_OPTION */
                       case 6:           /* TELNET DO LOGOUT received */
-			continue;
-		      case 7:
-		      case 3:		/* A quoted IAC */
-			break;
+                        continue;
+                      case 7:
+                      case 3:           /* A quoted IAC */
+                        break;
                       default:
-			continue;
+                        continue;
                     }
+                    /* Fall through */
                   case CK_CR:
                     cr = 1;
                     break;
@@ -7191,7 +7204,7 @@ doinput(timo,ms,mp,flags,count)
                     tx = scriptwrtbuf((USHORT)y);
                     if (tx == 4) {
                         if (TELOPT_U(TELOPT_KERMIT) &&
-			    TELOPT_SB(TELOPT_KERMIT).kermit.u_start &&
+                            TELOPT_SB(TELOPT_KERMIT).kermit.u_start &&
                             !tcp_incoming
                             ) {
                             instatus = INP_IKS;
@@ -7265,22 +7278,22 @@ doinput(timo,ms,mp,flags,count)
             if (c == '\0') {            /* NUL, we can't use it */
                 if (anychar) {          /* Except if any character will do? */
                     x = 1;              /* Yes, done. */
-		    instatus = INP_OK;
+                    instatus = INP_OK;
                     incount = 1;        /* This must be the first and only. */
                     break;
-                } else goto refill;	/* Otherwise continue INPUTting */
+                } else goto refill;     /* Otherwise continue INPUTting */
             }
             *inpbp++ = c;               /* Store char in circular buffer */
             incount++;                  /* Count it for \v(incount) */
 
-	    if (flags & INPSW_COU) {	/* INPUT /COUNT */
-		if (--count < 1) {
-		    x = 1;
-		    instatus = INP_OK;
+            if (flags & INPSW_COU) {    /* INPUT /COUNT */
+                if (--count < 1) {
+                    x = 1;
+                    instatus = INP_OK;
                     incount = savecount;
                     break;
-		}
-	    }
+                }
+            }
             if (matchbuf) {
                 if (matchindex < MATCHBUFSIZ) {
                     matchbuf[matchindex++] = c;
@@ -7303,33 +7316,33 @@ doinput(timo,ms,mp,flags,count)
 #endif /* MAC */
 #ifndef OS2
             if (seslog) {
-		int dummy = 0, skip = 0;
+                int dummy = 0, skip = 0;
 #ifndef NOLOCAL
-		if (noescseq) {
-		    dummy = chkaes(c,0);
-		    if (inesc[0] != ES_NORMAL || oldesc[0] != ES_NORMAL)
-		      skip = 1;
-		}
-#endif	/* NOLOCAL */
+                if (noescseq) {
+                    dummy = chkaes(c,0);
+                    if (inesc[0] != ES_NORMAL || oldesc[0] != ES_NORMAL)
+                      skip = 1;
+                }
+#endif  /* NOLOCAL */
 #ifdef UNIXOROSK
-		if (sessft == XYFT_T) {
+                if (sessft == XYFT_T) {
 #ifdef UNIX
-		    if (c == '\r')
+                    if (c == '\r')
 #else
 #ifdef OSK
-		    if (c == '\012')
+                    if (c == '\012')
 #endif /* OSK */
 #endif /* UNIX */
-		      skip = 1;
-		}
-#endif	/* UNIXOROSK */
-		if (!skip)
+                      skip = 1;
+                }
+#endif  /* UNIXOROSK */
+                if (!skip)
                   sesbuf[sescnt++] = c; /* Buffer session log output */
             }
 #endif /* OS2 */
             if (anychar) {              /* Any character will do? */
                 x = 1;
-		instatus = INP_OK;
+                instatus = INP_OK;
                 break;
             }
             if (!inpcas[cmdlvl]) {      /* Ignore alphabetic case? */
@@ -7341,7 +7354,7 @@ doinput(timo,ms,mp,flags,count)
             /* Here is the matching section */
 
             y = -1;                     /* Loop thru search strings */
-            while (!nomatch && (s = ms[++y])) {	/* ...as many as we have. */
+            while (!nomatch && (s = ms[++y])) { /* ...as many as we have. */
                 if (mp[y]) {            /* Pattern match? */
 #ifdef COMMENT
                     int j;
@@ -7352,7 +7365,7 @@ doinput(timo,ms,mp,flags,count)
                     for (j = 0; j < matchindex; j++) {
                         if (ckmatch(s,&matchbuf[j],1,1)) {
                             matchindex = j;
-			    instatus = INP_OK;
+                            instatus = INP_OK;
                             x = 1;
                             break;
                         }
@@ -7362,11 +7375,11 @@ doinput(timo,ms,mp,flags,count)
 #else
                     /* July 2001 - ckmatch() returns match position. */
                     /* It works and it's not gross. */
-		    /* (4 = floating pattern) */
+                    /* (4 = floating pattern) */
                     x = ckmatch(s,matchbuf,inpcas[cmdlvl],1+4);
                     if (x > 0) {
                         matchindex = x - 1;
-			instatus = INP_OK;
+                        instatus = INP_OK;
                         x = 1;
                         break;
                     }
@@ -7393,23 +7406,23 @@ doinput(timo,ms,mp,flags,count)
                 if ((CHAR) s[i] == (CHAR) '\0') { /* Matched to end? */
                     ckstrncpy(matchbuf,ms[y],MATCHBUFSIZ);
                     matchindex = 0;
-		    instatus = INP_OK;  /* Yes, */
+                    instatus = INP_OK;  /* Yes, */
                     x = 1;
                     break;              /* done. */
                 }
                 mi[y] = i;              /* No, remember match-position */
             }
             if (x == 1) {               /* Set \v(minput) result */
-		instatus = INP_OK;
+                instatus = INP_OK;
                 m_found = y + 1;
                 break;
             }
             if (inpbp >= inpbuf + inbufsize) { /* Reached end of buffer? */
-		if (nowrap) {		/* If /NOWRAP...*/
-		    instatus = INP_BF;	/* ...return indicating buffer full. */
-		    *inpbp = NUL;
-		    goto xinput;
-		}
+                if (nowrap) {           /* If /NOWRAP...*/
+                    instatus = INP_BF;  /* ...return indicating buffer full. */
+                    *inpbp = NUL;
+                    goto xinput;
+                }
                 *inpbp = NUL;           /* Make it null-terminated */
                 inpbp = inpbuf;         /* Yes. */
             }
@@ -7433,22 +7446,22 @@ doinput(timo,ms,mp,flags,count)
 #endif /* OS2 */
 #endif /* NOLOCAL */
 
-		    if ((!network
+                    if ((!network
 #ifdef TN_COMPORT
-		         || istncomport()
+                         || istncomport()
 #endif /* TN_COMPORT */
-			 ) && carrier != CAR_OFF) {
-	/* The test is written this way because the Microsoft compiler
-	 * is producing bad code if written:
-	 *
-	 *  if (network && (!istncomport() || carrier == CAR_OFF) )
-	 */
-			break;
+                         ) && carrier != CAR_OFF) {
+        /* The test is written this way because the Microsoft compiler
+         * is producing bad code if written:
+         *
+         *  if (network && (!istncomport() || carrier == CAR_OFF) )
+         */
+                        break;
                      } else {
-			 printf("Fatal error - disconnected.\n");
-			 ttclos(1);
-			 break;
-		     }
+                         printf("Fatal error - disconnected.\n");
+                         ttclos(1);
+                         break;
+                     }
                 }
                 if (inintr) {
                     if ((icn = conchk()) > 0) { /* Interrupt from keyboard? */
@@ -7492,12 +7505,12 @@ doinput(timo,ms,mp,flags,count)
     }                                   /* Still have time left, continue. */
   xinput:
     myflsh();                           /* Flush buffered output */
-    if (instatus == INP_BF) {		/* Buffer full and /NOWAIT */
-	x = 0;				/* Must not succeed */
-    } else {				/* Buffer full and /NOWAIT */
-	if (nomatch) x = 1;		/* Succeed if nomatch and timed out */
-	if (x > 0 && !nomatch)
-	  instatus = 0;
+    if (instatus == INP_BF) {           /* Buffer full and /NOWAIT */
+        x = 0;                          /* Must not succeed */
+    } else {                            /* Buffer full and /NOWAIT */
+        if (nomatch) x = 1;             /* Succeed if nomatch and timed out */
+        if (x > 0 && !nomatch)
+          instatus = 0;
     }
 #ifndef NOLOCAL
 #ifdef OS2
@@ -8057,7 +8070,12 @@ fpformat(fpresult,places,round) CKFLOAT fpresult; int places, round;
         (places > 0 ||                  /* round result to decimal places. */
          (places == 0 && round)))
       fpresult += (0.5 / pow(10.0,(CKFLOAT)places));
-    y = (ftmp == 0.0) ? 1 : (int)log10(ftmp);
+    if (ftmp == 0.0) {
+        y = 1;
+    } else {
+        double logtmp = log10(ftmp);
+        y = (int)logtmp;
+    }
     size = y + x + 3;                   /* Estimated length of result */
     if (fpresult < 0.0) size++;
 #else
@@ -8165,7 +8183,7 @@ ckcindex(c,s) char c, *s;
     int rc;
     if (!c || !s) return(0);
     for (rc = 0; s[rc]; rc++) {
-	if (c == s[rc]) return(rc+1);
+        if (c == s[rc]) return(rc+1);
     }
     return(0);
 }
@@ -8178,7 +8196,7 @@ dokwval(s,sep) char * s, * sep;
 #endif /* CK_ANSIC */
 {
     char c = '\0', * p, * kw = NULL, * vp = NULL;
-    char * rc = "0";			/* Return code */
+    char * rc = "0";                    /* Return code */
     int x = 0;
     if (!s) return(rc);
     if (!*s) return(rc);
@@ -8191,17 +8209,17 @@ dokwval(s,sep) char * s, * sep;
     while (*s < '!' && *s > '\0')       /* Get first nonblank */
       s++;
     if (!*s) goto xdokwval;
-    if (ckcindex(*s,sep))		/* Separator but no keyword */
+    if (ckcindex(*s,sep))               /* Separator but no keyword */
       goto xdokwval;
     kw = s;                             /* Keyword */
     while (*s > ' ') {
-	if (ckcindex(*s,sep)) {		/* keyword=... */
+        if (ckcindex(*s,sep)) {         /* keyword=... */
             c = *s;
             break;
         }
         s++;
     }
-    if (*kw) rc = "1";			/* Have keyword, promote return code */
+    if (*kw) rc = "1";                  /* Have keyword, promote return code */
     *s++ = NUL;                         /* Terminate keyword */
     while (*s < '!' && *s > '\0')       /* Skip blanks */
       s++;
@@ -8212,12 +8230,12 @@ dokwval(s,sep) char * s, * sep;
     }
     if (c) {
         vp = s;
-	if (*vp) rc = "2";		/* Have value, another promotion */
+        if (*vp) rc = "2";              /* Have value, another promotion */
 #ifdef COMMENT
         while (*s > ' ')                /* Skip to end */
           s++;
         *s = NUL;                       /* Terminate value */
-#endif	/* COMMENT */
+#endif  /* COMMENT */
     }
     debug(F110,"kwval c",ckctoa(c),0);
     debug(F110,"kwval keyword",kw,0);
@@ -8243,15 +8261,15 @@ isaarray(s) char * s;
     CHAR c;
     if (!s) return(0);
     while ((c = *s++)) {
-	if (!isprint(c)) {
-	    return(0);
-	} else if (c == '<') {
-	    if (state != 0)
-	      return(0);
-	    state = 1;
-	} else if (c == '>') {
-	    return((state != 1 || *s) ? 0 : 1);
-	}
+        if (!isprint(c)) {
+            return(0);
+        } else if (c == '<') {
+            if (state != 0)
+              return(0);
+            state = 1;
+        } else if (c == '>') {
+            return((state != 1 || *s) ? 0 : 1);
+        }
     }
     return(0);
 }
@@ -8271,7 +8289,7 @@ isaarray(s) char * s;
 #define JPGMIN   5
 #define JPGSEC   6
 
-#define JPGDATEBUF 8192	   /* Should be more than enough bytes to find date */
+#define JPGDATEBUF 8192    /* Should be more than enough bytes to find date */
 
 static char *
 #ifdef CK_ANSIC
@@ -8303,102 +8321,102 @@ jpgdate(fp) FILE * fp;
 
     count = fread(buf,1,JPGDATEBUF,fp); /* Read a buffer */
     if (count == EOF || count == 0) {
-	return("");
+        return("");
     }
     p = (CHAR *) buf;
     z = p + JPGDATEBUF;
 
     while (p < z) {
-	c = *p++;
-	n++;
-	if (c != ' ' && c != ':' && !isdigit(c)) {
-	    state = 0;
-	    k = 0;
-	    continue;
-	}
-	switch (state) {
-	  case 0:
-	    if (c == '1' && *p == '9') state = JPGYEAR;
-	    else if (c == '2' && *p == '0') state = JPGYEAR;
-	    if (state == JPGYEAR) {
-		k = 0;
-		tmpbuf[k++] = c;
-	    }
-	    continue;
+        c = *p++;
+        n++;
+        if (c != ' ' && c != ':' && !isdigit(c)) {
+            state = 0;
+            k = 0;
+            continue;
+        }
+        switch (state) {
+          case 0:
+            if (c == '1' && *p == '9') state = JPGYEAR;
+            else if (c == '2' && *p == '0') state = JPGYEAR;
+            if (state == JPGYEAR) {
+                k = 0;
+                tmpbuf[k++] = c;
+            }
+            continue;
 
-	  case JPGYEAR:
-	    if (c == ':' && k == 4) {
-		tmpbuf[k++] = c;
-		state = JPGMONTH;
-		continue;
-	    }
-	    if (k > 3 || !isdigit(c))
-	      state = k = 0;
-	    else
-	      tmpbuf[k++] = c;
-	    continue;
+          case JPGYEAR:
+            if (c == ':' && k == 4) {
+                tmpbuf[k++] = c;
+                state = JPGMONTH;
+                continue;
+            }
+            if (k > 3 || !isdigit(c))
+              state = k = 0;
+            else
+              tmpbuf[k++] = c;
+            continue;
 
-	  case JPGMONTH:
-	    if (c == ':' && k == 7) {
-		tmpbuf[k++] = c;
-		state = JPGDAY;
-		continue;
-	    }
-	    if (k > 6 || !isdigit(c))
-	      state = k = 0;
-	    else
-	      tmpbuf[k++] = c;
-	    continue;
+          case JPGMONTH:
+            if (c == ':' && k == 7) {
+                tmpbuf[k++] = c;
+                state = JPGDAY;
+                continue;
+            }
+            if (k > 6 || !isdigit(c))
+              state = k = 0;
+            else
+              tmpbuf[k++] = c;
+            continue;
 
-	  case JPGDAY:
-	    if (c == ' ' && k == 10) {
-		tmpbuf[k++] = c;
-		state = JPGHOUR;
-		continue;
-	    }
-	    if (k > 9 || !isdigit(c))
-	      state = k = 0;
-	    else
-	      tmpbuf[k++] = c;
-	    continue;
+          case JPGDAY:
+            if (c == ' ' && k == 10) {
+                tmpbuf[k++] = c;
+                state = JPGHOUR;
+                continue;
+            }
+            if (k > 9 || !isdigit(c))
+              state = k = 0;
+            else
+              tmpbuf[k++] = c;
+            continue;
 
-	  case JPGHOUR:
-	    if (c == ':' && k == 13) {
-		tmpbuf[k++] = c;
-		state = JPGMIN;
-		continue;
-	    }
-	    if (k > 12 || !isdigit(c))
-	      state = k = 0;
-	    else
-	      tmpbuf[k++] = c;
-	    continue;
+          case JPGHOUR:
+            if (c == ':' && k == 13) {
+                tmpbuf[k++] = c;
+                state = JPGMIN;
+                continue;
+            }
+            if (k > 12 || !isdigit(c))
+              state = k = 0;
+            else
+              tmpbuf[k++] = c;
+            continue;
 
-	  case JPGMIN:
-	    if (c == ':' && k == 16) {
-		tmpbuf[k++] = c;
-		state = JPGSEC;
-		continue;
-	    }
-	    if (k > 15 || !isdigit(c))
-	      state = k = 0;
-	    else
-	      tmpbuf[k++] = c;
-	    continue;
+          case JPGMIN:
+            if (c == ':' && k == 16) {
+                tmpbuf[k++] = c;
+                state = JPGSEC;
+                continue;
+            }
+            if (k > 15 || !isdigit(c))
+              state = k = 0;
+            else
+              tmpbuf[k++] = c;
+            continue;
 
-	  case JPGSEC:
-	    if (!isdigit(c) || !isdigit(*p)) {
-		state = k = 0;
-		continue;
-	    }
-	    tmpbuf[k++] = c;
-	    tmpbuf[k++] = *p;
-	    tmpbuf[k] = NUL;
-	}
-        if (!datebuf[0]) {		/* First date */
-	    strncpy(datebuf,tmpbuf,19);
+          case JPGSEC:
+            if (!isdigit(c) || !isdigit(*p)) {
+                state = k = 0;
+                continue;
+            }
+            tmpbuf[k++] = c;
+            tmpbuf[k++] = *p;
+            tmpbuf[k] = NUL;
+        }
+        if (!datebuf[0]) {              /* First date */
+            ckstrncpy(datebuf,tmpbuf,sizeof(datebuf)); /* Always NUL-term. */
         } else if (strncmp(tmpbuf,datebuf,19) < 0) { /* Earlier date */
-	    strncpy(datebuf,tmpbuf,19);
+            ckstrncpy(datebuf,tmpbuf,sizeof(datebuf)); /* Always NUL-term. */
         }
     }
     return((char *) datebuf);
@@ -8565,7 +8583,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
     if (deblog) {
         int j;
         for (j = 0; j < argn; j++)
-	  debug(F111,"fneval arg",argp[j],j);
+          debug(F111,"fneval arg",argp[j],j);
     }
 #endif /* DEBUG */
     for (j = argn-1; j >= 0; j--) {     /* Uncount empty trailing args */
@@ -8613,7 +8631,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             }
             if (c >= '0' && c <= '9') { /* Digit for macro arg */
                 if (maclvl < 0)         /* Digit variables are global */
-                  p = g_var[c];         /* if no macro is active */
+                  p = g_var[(unsigned char)c]; /* if no macro is active */
                 else                    /* otherwise */
                   p = m_arg[maclvl][c - '0']; /* they're on the stack */
             } else if (c == '*') {
@@ -8634,12 +8652,13 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                     p = fnval;
                     if (fndiags)
                       sprintf(fnval,"<ERROR:OVERFLOW:\\fcontents()>");
-		    debug(F110,"zzstring fcontents(\\%*)",p,0);
+                    debug(F110,"zzstring fcontents(\\%*)",p,0);
                 }
 #endif /* COMMENT */
             } else {
                 if (isupper(c)) c -= ('a'-'A');
-                p = g_var[c];           /* Letter for global variable */
+                if (c >= 33 && (unsigned int)c <= GVARS)
+                  p = g_var[(unsigned char)c]; /* Letter for global var */
             }
             if (!p) p = "";
             goto fnend;
@@ -8652,20 +8671,20 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                   sprintf(fnval,"<ERROR:ARG_BAD_ARRAY:\\fcontents()>");
                 goto fnend;
             }
-	    subscript = chkarray(vbi,d); /* Check the array */
-            if (subscript >= 0) {	/* Array is declared? */
+            subscript = chkarray(vbi,d); /* Check the array */
+            if (subscript >= 0) {       /* Array is declared? */
                 vbi -= ARRAYBASE;       /* Convert name to index */
                 if (a_dim[vbi] >= d) {  /* If subscript in range */
                     char **ap;
                     ap = a_ptr[vbi];    /* get data pointer */
                     if (ap) {           /* and if there is one */
-                        p = ap[d];	/* return it */
+                        p = ap[d];      /* return it */
                         goto fnend;
                     }
                 }
-            } else {			/* Array not declared or element */
-                fnval[0] = NUL;		/* out of range - return null string */
-                p = fnval;		/* fdc 2010-12-30 */
+            } else {                    /* Array not declared or element */
+                fnval[0] = NUL;         /* out of range - return null string */
+                p = fnval;              /* fdc 2010-12-30 */
                 goto fnend;
             }
         } else {
@@ -8745,24 +8764,24 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
     }
 #endif /* DEBUG */
     {
-	/* Adjust argn for empty trailing arguments. */
-	/* For example when an arg is a variable name but the */
-	/* variable has no value.   July 2006. */
-	int j, old; char *p;
-	old = argn;
-	for (j = argn - 1; j >= 0; j--) {
-	    p = bp[j];
-	    if (!p)
-	      argn--;
-	    else if (!*p)
-	      argn--;
-	    else
-	      break;
-	}
+        /* Adjust argn for empty trailing arguments. */
+        /* For example when an arg is a variable name but the */
+        /* variable has no value.   July 2006. */
+        int j, old; char *p;
+        old = argn;
+        for (j = argn - 1; j >= 0; j--) {
+            p = bp[j];
+            if (!p)
+              argn--;
+            else if (!*p)
+              argn--;
+            else
+              break;
+        }
 #ifdef DEBUG
-	if (argn != old)
-	  debug(F101,"fneval adjusted argn","",argn);
-#endif	/* DEBUG */
+        if (argn != old)
+          debug(F101,"fneval adjusted argn","",argn);
+#endif  /* DEBUG */
     }
 
 /*
@@ -8842,8 +8861,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           case FN_SNAME:
           case FN_LNAME:
 #endif /* NT */
-	  case FN_FILEINF:
-	  case FN_FILECMP:
+          case FN_FILEINF:
+          case FN_FILECMP:
             failed = 1;
             p = fnval;
             if (fndiags)
@@ -8866,8 +8885,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 
       case FN_DEF:                      /* \fdefinition(arg1) */
         k = isaarray(bp[0]) ?
-	    mxxlook(mactab,bp[0],nmac) :
-		mxlook(mactab,bp[0],nmac);
+            mxxlook(mactab,bp[0],nmac) :
+                mxlook(mactab,bp[0],nmac);
         p = (k > -1) ? mactab[k].mval : "";
         goto fnend;
 
@@ -8981,13 +9000,13 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
               goto fnend;
           }
           if (cx == FN_DIR || cx == FN_RDIR) { /* Only list directories */
-	      debug(F100,"FN_DIR or FN_RDIR","",0);
+              debug(F100,"FN_DIR or FN_RDIR","",0);
               xflags |= ZX_DIRONLY;
 #ifdef OS2
               zxpn = 1;                 /* Use the alternate list */
 #endif /* OS2 */
           } else {                      /* List only files */
-	      debug(F100,"Not FN_DIR or FN_RDIR","",0);
+              debug(F100,"Not FN_DIR or FN_RDIR","",0);
               xflags |= ZX_FILONLY;
 #ifdef OS2
               zxpn = 1;                 /* Use the alternate list */
@@ -9099,7 +9118,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 #else
         if (flist)                      /* Others, use our own list. */
           if (flist[flistn])
-	    p = flist[flistn++];
+            p = flist[flistn++];
 #endif /* OS2 */
         goto fnend;
 
@@ -9109,13 +9128,13 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
       case FN_IND:                      /* \findex(s1,s2,start,occurrence) */
       case FN_RIX:                      /* \frindex(s1,s2,start,occurrence) */
       case FN_SEARCH:                   /* \fsearch(pat,string,start,occ) */
-      case FN_RSEARCH:			/* \frsearch(pat,string,start,occ) */
-      case FN_COUNT: {			/* \fcount(s1,s2,start) */
-	int i = 0, right = 0, search = 0, count = 0;
-	int desired = 1;
+      case FN_RSEARCH:                  /* \frsearch(pat,string,start,occ) */
+      case FN_COUNT: {                  /* \fcount(s1,s2,start) */
+        int i = 0, right = 0, search = 0, count = 0;
+        int desired = 1;
         right = (cx == FN_RIX || cx == FN_RSEARCH);
         search = (cx == FN_SEARCH || cx == FN_RSEARCH);
-	count = (cx == FN_COUNT);
+        count = (cx == FN_COUNT);
         p = "0";
         if (argn > 1) {                 /* Only works if we have 2 or 3 args */
             int start = 0;
@@ -9127,11 +9146,11 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             start = right ? -1 : 0;     /* Default starting position */
             if (argn > 2) {
                 val1 = *(bp[2]) ? evalx(bp[2]) : "1";
-		if (argn > 3) {         /* Occurrence */
-		    val2 = *(bp[3]) ? evalx(bp[3]) : "1";
-		    if (chknum(val2)) desired = atoi(val2);
-		    if (desired * len1 > len2) goto fnend;
-		}
+                if (argn > 3) {         /* Occurrence */
+                    val2 = *(bp[3]) ? evalx(bp[3]) : "1";
+                    if (chknum(val2)) desired = atoi(val2);
+                    if (desired * len1 > len2) goto fnend;
+                }
                 if (chknum(val1)) {
                     int t;
                     t = atoi(val1);
@@ -9165,66 +9184,66 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                     goto fnend;
                 }
             }
-	    if (count) {		/* \fcount() */
-		int j;
-		for (i = 0; start < len2; i++) {
-		    j = ckindex(pat,bp[1],start,0,inpcas[cmdlvl]);
-		    if (j == 0) break;
-		    start = j;
-		}
+            if (count) {                /* \fcount() */
+                int j;
+                for (i = 0; start < len2; i++) {
+                    j = ckindex(pat,bp[1],start,0,inpcas[cmdlvl]);
+                    if (j == 0) break;
+                    start = j;
+                }
 
-	    } else if (search) {	/* \fsearch() or \frsearch() */
+            } else if (search) {        /* \fsearch() or \frsearch() */
 
                 if (right && pat[0] == '^') {
                     right = 0;
                     start = 0;
                 }
-                if (right) {		/* From right */
-		    int k, j = 1;
+                if (right) {            /* From right */
+                    int k, j = 1;
                     if (start < 0)
-		      start = len2 - 1;
-		    i = 0;
-		    while (start >= 0 && j <= desired) {
-			for (i = start;
-			     (i >= 0) &&
-				 !(k = ckmatch(pat,s+i,inpcas[cmdlvl],1+4));
-			     i--) ;
-			if (k < 1) {	/* No match */
-			    i = 0;
-			    break;
-			}
-			if (j == desired) { /* The match we want? */
-			    i += k;	/* Yes, return string index */
-			    break;
-			}
-			j++;		/* No, count this match */
-			s[i] = NUL;	/* null it out */
-			start = i-1;	/* move left and look again */
-		    }
+                      start = len2 - 1;
+                    i = 0;
+                    while (start >= 0 && j <= desired) {
+                        for (i = start;
+                             (i >= 0) &&
+                                 !(k = ckmatch(pat,s+i,inpcas[cmdlvl],1+4));
+                             i--) ;
+                        if (k < 1) {    /* No match */
+                            i = 0;
+                            break;
+                        }
+                        if (j == desired) { /* The match we want? */
+                            i += k;     /* Yes, return string index */
+                            break;
+                        }
+                        j++;            /* No, count this match */
+                        s[i] = NUL;     /* null it out */
+                        start = i-1;    /* move left and look again */
+                    }
 
-                } else {		/* From left */
-		    int j;
-		    i = 0;
-		    for (j = 1; j <= desired && start < len2; j++) {
-			i = ckmatch(pat,&s[start],inpcas[cmdlvl],1+4);
-			if (i == 0 || j == desired) break;
-			start += i + 1;
-		    }
-		    if (j == desired && i != 0)
-		      i += start;
-		    else
-		      i = 0;
+                } else {                /* From left */
+                    int j;
+                    i = 0;
+                    for (j = 1; j <= desired && start < len2; j++) {
+                        i = ckmatch(pat,&s[start],inpcas[cmdlvl],1+4);
+                        if (i == 0 || j == desired) break;
+                        start += i + 1;
+                    }
+                    if (j == desired && i != 0)
+                      i += start;
+                    else
+                      i = 0;
                 }
-            } else {			/* index or rindex */
-		int j = 0;
-		i = 0;
-		for (j = 1; j <= desired && start < len2; j++) {
-		    i = ckindex(pat,bp[1],start,right,inpcas[cmdlvl]);
-		    if (i == 0 || j == desired) break;
-		    start = (right) ? len2 - i + 1 : i;
-		}
-		if (j != desired)
-		  i = 0;
+            } else {                    /* index or rindex */
+                int j = 0;
+                i = 0;
+                for (j = 1; j <= desired && start < len2; j++) {
+                    i = ckindex(pat,bp[1],start,right,inpcas[cmdlvl]);
+                    if (i == 0 || j == desired) break;
+                    start = (right) ? len2 - i + 1 : i;
+                }
+                if (j != desired)
+                  i = 0;
             }
             sprintf(fnval,"%d",i);      /* SAFE */
             p = fnval;
@@ -9290,7 +9309,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
               ragain:
                 s = bp[0];           /* Point to beginning of source string */
 
-                xx = 0;       		/* Match counter */
+                xx = 0;                 /* Match counter */
                 while (*s) {            /* For each character in it...*/
                     /* Compare current segment with target string */
                     if (!ckstrcmp(bp[1],s,len2,inpcas[cmdlvl])) {
@@ -9548,7 +9567,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         }
         goto fnend;
 
-      case FN_UPP:			/* \fupper(arg1) */
+      case FN_UPP:                      /* \fupper(arg1) */
         s = bp[0] ? bp[0] : "";
         p = fnval;
         while (*s) {
@@ -9682,39 +9701,39 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
     } /* Break up big switch... */
 
     switch (y) {
-      case FN_FS: {			/* \fsize(filename) */
-	  CK_OFF_T z;
-	  p = fnval;
-	  z = zchki(bp[0]);
-	  if (z < (CK_OFF_T)0) {
-	      failed = 1;
-	      if (fndiags) {
-		  if (z == (CK_OFF_T)-1)
-		    ckmakmsg(fnval,FNVALL,
-			     "<ERROR:FILE_NOT_FOUND:\\f",fn,"()>",NULL);
-		  else if (z == (CK_OFF_T)-2)
-		    ckmakmsg(fnval,FNVALL,
-			     "<ERROR:FILE_NOT_READABLE:\\f",fn,"()>",NULL);
-		  else if (z == (CK_OFF_T)-3)
-		    ckmakmsg(fnval,FNVALL,
-			     "<ERROR:FILE_NOT_ACCESSIBLE:\\f",fn,"()>",NULL);
-		  else
-		    ckmakmsg(fnval,FNVALL,
-			     "<ERROR:FILE_ERROR:\\f",fn,"()>",NULL);
-	      }
-	      goto fnend;
-	  }
-	  ckstrncpy(fnval,ckfstoa(z),FNVALL);
-	  goto fnend;
+      case FN_FS: {                     /* \fsize(filename) */
+          CK_OFF_T z;
+          p = fnval;
+          z = zchki(bp[0]);
+          if (z < (CK_OFF_T)0) {
+              failed = 1;
+              if (fndiags) {
+                  if (z == (CK_OFF_T)-1)
+                    ckmakmsg(fnval,FNVALL,
+                             "<ERROR:FILE_NOT_FOUND:\\f",fn,"()>",NULL);
+                  else if (z == (CK_OFF_T)-2)
+                    ckmakmsg(fnval,FNVALL,
+                             "<ERROR:FILE_NOT_READABLE:\\f",fn,"()>",NULL);
+                  else if (z == (CK_OFF_T)-3)
+                    ckmakmsg(fnval,FNVALL,
+                             "<ERROR:FILE_NOT_ACCESSIBLE:\\f",fn,"()>",NULL);
+                  else
+                    ckmakmsg(fnval,FNVALL,
+                             "<ERROR:FILE_ERROR:\\f",fn,"()>",NULL);
+              }
+              goto fnend;
+          }
+          ckstrncpy(fnval,ckfstoa(z),FNVALL);
+          goto fnend;
       }
       case FN_VER:                      /* \fverify() */
-	p = "-1";
-	if (argn == 1)			/* No second arg */
-	  goto fnend;
-	else if (!bp[1])		/* Or second arg null */
-	  goto fnend;
-	else if (!*(bp[1]))		/* or empty. */
-	  goto fnend;
+        p = "-1";
+        if (argn == 1)                  /* No second arg */
+          goto fnend;
+        else if (!bp[1])                /* Or second arg null */
+          goto fnend;
+        else if (!*(bp[1]))             /* or empty. */
+          goto fnend;
         p = "0";
         if (argn > 1) {                 /* Only works if we have 2 or 3 args */
             int start;
@@ -9810,20 +9829,24 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         }
         goto fnend;
 
-      case FN_UNTAB:			/* \funtab(arg1) */
-	if (argn < 1)
-	  goto fnend;
-	if ((int)strlen(bp[0]) < (FNVALL * 2)) {
-	    s = bp[0];
-	    p = fnval;
-	    if (untabify(bp[0],p,FNVALL) < 0) {
-		failed = 1;
-		if (fndiags)
-		  ckmakmsg(fnval,FNVALL,
-			   "<ERROR:OVERFLOW:\\f",fn,"()>",NULL);
-	    }
-	    goto fnend;
-	}
+      case FN_UNTAB:                    /* \funtab(arg1) */
+        if (argn < 1)
+          goto fnend;
+        if ((int)strlen(bp[0]) < (FNVALL * 2)) {
+            s = bp[0];
+            p = fnval;
+            if (untabify(bp[0],p,FNVALL) < 0) {
+                failed = 1;
+                if (fndiags)
+                  ckmakmsg(fnval,FNVALL,
+                           "<ERROR:OVERFLOW:\\f",fn,"()>",NULL);
+            }
+            goto fnend;
+        }
+        failed = 1;
+        if (fndiags)
+          ckmakmsg(fnval,FNVALL,"<ERROR:OVERFLOW:\\f",fn,"()>",NULL);
+        goto fnend;
 
       case FN_UNH: {                    /* \funhex(arg1) */
           int c[2], i;
@@ -10222,56 +10245,56 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         goto fnend;
 
       case FN_STL:                      /* \flop(string,c) */
-      case FN_LOPX: {			/* \flopx(string,c) */
-	  int n = 1;
-	  if (!(s = bp[0]))		/* Make sure there is a string */
-	    goto fnend;
-	  c = '.';			/* Character to strip to */
-	  if (argn > 1) if (*bp[1]) c = *bp[1];
-	  if (argn > 2) if (*bp[2]) {
+      case FN_LOPX: {                   /* \flopx(string,c) */
+          int n = 1;
+          if (!(s = bp[0]))             /* Make sure there is a string */
+            goto fnend;
+          c = '.';                      /* Character to strip to */
+          if (argn > 1) if (*bp[1]) c = *bp[1];
+          if (argn > 2) if (*bp[2]) {
 #ifndef NOFLOAT
-	      n = 0;
-	      if (isfloat(bp[2],0)) {
-		  n = (int)floatval;
-		  if (n < 0) n = 0;
-	      } else
-#endif	/* NOFLOAT */
-		n = atoi(bp[2]);
-	  }
-	  x = 0;
-	  if (cx == FN_LOPX) {		/* Lopx (from right) */
-	      if (n == 0)
-		goto fnend;
-	      s += strlen(s) - 1;	/* We already know it's > 0 */
-	      while (s-- >= bp[0]) {
-		  if (*s == c) {
-		      n--;
-		      if (n == 0) {
-			  s++;
-			  x = 1;
-			  break;
-		      }
-		  }
-	      }
-	      if (!x) s = "";
-	  } else {			/* Lop (from left) */
-	      if (n == 0) {
-		  p = bp[0];
-		  goto fnend;
-	      }
-	      while (*s++) {
-		  if (*(s-1) == c) {
-		      if (--n == 0) {
-			  x = 1;
-			  break;
-		      }
-		  }
-	      }
-	      if (!x) s = bp[0];
-	  }
-	  ckstrncpy(fnval,s,FNVALL);
-	  p = fnval;
-	  goto fnend;
+              n = 0;
+              if (isfloat(bp[2],0)) {
+                  n = (int)floatval;
+                  if (n < 0) n = 0;
+              } else
+#endif  /* NOFLOAT */
+                n = atoi(bp[2]);
+          }
+          x = 0;
+          if (cx == FN_LOPX) {          /* Lopx (from right) */
+              if (n == 0)
+                goto fnend;
+              s += strlen(s) - 1;       /* We already know it's > 0 */
+              while (s-- >= bp[0]) {
+                  if (*s == c) {
+                      n--;
+                      if (n == 0) {
+                          s++;
+                          x = 1;
+                          break;
+                      }
+                  }
+              }
+              if (!x) s = "";
+          } else {                      /* Lop (from left) */
+              if (n == 0) {
+                  p = bp[0];
+                  goto fnend;
+              }
+              while (*s++) {
+                  if (*(s-1) == c) {
+                      if (--n == 0) {
+                          x = 1;
+                          break;
+                      }
+                  }
+              }
+              if (!x) s = bp[0];
+          }
+          ckstrncpy(fnval,s,FNVALL);
+          p = fnval;
+          goto fnend;
       }
       case FN_STN:                      /* \fstripn(string,n) */
         if (argn < 1)                   /* Remove n chars from right */
@@ -10328,7 +10351,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                   }
               }
           }
-	  c = !bp[1] ? 0 : *bp[1];
+          c = !bp[1] ? 0 : *bp[1];
           if (!c) c = s[0];
           if (argn > 2) if (*bp[2]) c2 = *bp[2];
           if (*s == c) {
@@ -10450,7 +10473,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           struct stringarray * q = NULL;
 
           splitting = (cx == FN_SPLIT); /* Our job */
-	  debug(F101,"FN_SPLIT splitting","",splitting);
+          debug(F101,"FN_SPLIT splitting","",splitting);
 
           fnval[0] = splitting ? '0' : NUL; /* Initial return value */
           fnval[1] = NUL;
@@ -10758,7 +10781,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           if (s[1] >= 64 && s[1] < 91)  /* Convert upper to lower */
             s[1] += 32;
           if (s[1] < 95 || s[1] > 122) { /* Check for a-z */
-              goto fnend;	 	 /* Bad */
+              goto fnend;                /* Bad */
           }
           if ((max = chkarray(s[1],1)) < 1) /* (second arg was 1) */
             max = 0;
@@ -10766,126 +10789,126 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           sprintf(fnval,"%d",max);      /* SAFE */
           goto fnend;
       }
-      case FN_FILEINF: {		/* File information */
+      case FN_FILEINF: {                /* File information */
 #ifdef UNIX
-	  /* from zgetfs in ckufio.c */
-	  extern int zgfs_dir, zgfs_link;
+          /* from zgetfs in ckufio.c */
+          extern int zgfs_dir, zgfs_link;
           extern char linkname[];
-	  char * tx;			/* For tilde expansion */
+          char * tx;                    /* For tilde expansion */
 #endif /* UNIX */
           char abuf[16], *s;
           char ** ap = NULL;
-	  char workbuf[CKMAXPATH];
-	  int attrs = 9;		/* Number of attributes defined */
-	  int k = 0;			/* current attribute index */
-	  int i,j,n;
-          int m;			/* For scanfile() */
-	  int dir = -1;			/* 1 = arg is a directory file */
-	  CK_OFF_T z;                   /* For file size */
+          char workbuf[CKMAXPATH];
+          int attrs = 9;                /* Number of attributes defined */
+          int k = 0;                    /* current attribute index */
+          int i,j,n;
+          int m;                        /* For scanfile() */
+          int dir = -1;                 /* 1 = arg is a directory file */
+          CK_OFF_T z;                   /* For file size */
 #ifdef UNIX
           CK_OFF_T z2;                  /* Also for file size */
 #endif /* UNIX */
 
           workbuf[0] = NUL;
           workbuf[1] = NUL;
-	  if (argn < 2) {		/* An array designator is required */
-	     if (fndiags)
-	      ckmakmsg(fnval,FNVALL,"<ERROR:ARRAY_REQUIRED:\\f",fn,"()>",NULL);
-	     goto fnend;
-	  }
+          if (argn < 2) {               /* An array designator is required */
+             if (fndiags)
+              ckmakmsg(fnval,FNVALL,"<ERROR:ARRAY_REQUIRED:\\f",fn,"()>",NULL);
+             goto fnend;
+          }
 #ifdef UNIX
-	  if (*(bp[0]) == '~') {	/* Expand any tildes in filenames. */
-	      tx = tilde_expand(bp[0]);	/* We recycle bp[0] */
-	      if (tx) if (*tx) {	/* this way so they will be freed */
-		  free(bp[0]);		/* automatically later. */
-		  bp[0] = NULL;
-		  makestr(&(bp[0]),tx);
-	      }
-	  }
+          if (*(bp[0]) == '~') {        /* Expand any tildes in filenames. */
+              tx = tilde_expand(bp[0]); /* We recycle bp[0] */
+              if (tx) if (*tx) {        /* this way so they will be freed */
+                  free(bp[0]);          /* automatically later. */
+                  bp[0] = NULL;
+                  makestr(&(bp[0]),tx);
+              }
+          }
 #endif /* UNIX */
 
-	  j = ckstrncpy(workbuf,bp[0],CKMAXPATH); /* Strip any trailing '/' */
-	  if (workbuf[j-1] == '/') {
-	      workbuf[j-1] = NUL;
-	      makestr(&(bp[0]),workbuf);
-	  }
-	  z = zchki(bp[0]);		/* Check accessibility */
-	  if (z == -1L || z == -3L) {   /* Access denied or whatever */
-	      p = "0";
-	      goto fnend;
-	      /* Note: z > 0 is the file size but only of regular files */
-	      /* Thus the zgetfs call just below */
-	  }
+          j = ckstrncpy(workbuf,bp[0],CKMAXPATH); /* Strip any trailing '/' */
+          if (workbuf[j-1] == '/') {
+              workbuf[j-1] = NUL;
+              makestr(&(bp[0]),workbuf);
+          }
+          z = zchki(bp[0]);             /* Check accessibility */
+          if (z == -1L || z == -3L) {   /* Access denied or whatever */
+              p = "0";
+              goto fnend;
+              /* Note: z > 0 is the file size but only of regular files */
+              /* Thus the zgetfs call just below */
+          }
 #ifdef UNIX
-	  if ((z2 = zgetfs(bp[0])) > 0) { /* Get size and some attributes */
-	      z = z2;			/* Have size */
-	      dir = zgfs_dir;		/* File is/isn't a directory */
-	  }
+          if ((z2 = zgetfs(bp[0])) > 0) { /* Get size and some attributes */
+              z = z2;                   /* Have size */
+              dir = zgfs_dir;           /* File is/isn't a directory */
+          }
 #endif /* UNIX */
-	  if (dir < 0)			/* Check if file is a a directory */
-	    dir = isdir(bp[0]);		/* if previous clause didn't already */
+          if (dir < 0)                  /* Check if file is a a directory */
+            dir = isdir(bp[0]);         /* if previous clause didn't already */
 
-	  fnval[0] = NUL;		/* Initial return value */
-	  ckstrncpy(abuf,bp[1],16);	/* Get array reference */
-	  s = abuf;
-	  if (*s == CMDQ) s++;
-	  failed = 1;			/* Assume it's bad */
-	  p = fnval;			/* Point to result */
-	  if (fndiags)			/* Default is this error message */
-	    ckmakmsg(fnval,FNVALL,
-		     "<ERROR:ARG_BAD_ARRAY:\\f",fn,"()>",NULL);
-	  if (s[0] != '&')		/* "Address" of array */
-	    goto fnend;
-	  if (s[2])
-	    if (s[2] != '[' || s[3] != ']')
-	      goto fnend;
-	  if (s[1] >= 64 && s[1] < 91) /* Convert upper to lower */
-	    s[1] += 32;
-	  if ((x = dclarray(s[1],attrs)) < 0) /* One element per attribute */
-	    goto fnend;
-	  failed = 0;			/* Unset failure flag */
-	  ap = a_ptr[x];		/* Point to array we just declared */
-	  sprintf(fnval,"%d",k);	/* SAFE */
+          fnval[0] = NUL;               /* Initial return value */
+          ckstrncpy(abuf,bp[1],16);     /* Get array reference */
+          s = abuf;
+          if (*s == CMDQ) s++;
+          failed = 1;                   /* Assume it's bad */
+          p = fnval;                    /* Point to result */
+          if (fndiags)                  /* Default is this error message */
+            ckmakmsg(fnval,FNVALL,
+                     "<ERROR:ARG_BAD_ARRAY:\\f",fn,"()>",NULL);
+          if (s[0] != '&')              /* "Address" of array */
+            goto fnend;
+          if (s[2])
+            if (s[2] != '[' || s[3] != ']')
+              goto fnend;
+          if (s[1] >= 64 && s[1] < 91) /* Convert upper to lower */
+            s[1] += 32;
+          if ((x = dclarray(s[1],attrs)) < 0) /* One element per attribute */
+            goto fnend;
+          failed = 0;                   /* Unset failure flag */
+          ap = a_ptr[x];                /* Point to array we just declared */
+          sprintf(fnval,"%d",k);        /* SAFE */
 
-	  /* Element 1 = filename */
+          /* Element 1 = filename */
 
-	  s = bp[0];			/* Argument (might include path) */
-	  n = strlen(s);
-	  for (i = n; i > 0; i--) {	/* Get filename without path */
-	      if (ISDIRSEP(s[i-1])) {	/* Platform independent way */
-		  s += i;
-		  break;
-	      }
-	  }
-	  a_ptr[x][1] = NULL;		/* Filename */
-	  makestr(&(a_ptr[x][1]),s);
+          s = bp[0];                    /* Argument (might include path) */
+          n = strlen(s);
+          for (i = n; i > 0; i--) {     /* Get filename without path */
+              if (ISDIRSEP(s[i-1])) {   /* Platform independent way */
+                  s += i;
+                  break;
+              }
+          }
+          a_ptr[x][1] = NULL;           /* Filename */
+          makestr(&(a_ptr[x][1]),s);
 
-	  /* Element 2 - Full pathname */
+          /* Element 2 - Full pathname */
 
-	  s = workbuf;
-	  zfnqfp(bp[0],FNVALL,s);
-	  n = strlen(s);
-	  for (i = n; i > 0; i--) {	/* Get filename without path */
-	      if (ISDIRSEP(s[i-1])) {	/* Platform independent way */
-		  s[i] = NUL;
-		  break;
-	      }
-	  }
-	  a_ptr[x][2] = NULL;
-	  makestr(&(a_ptr[x][2]),s);
+          s = workbuf;
+          zfnqfp(bp[0],FNVALL,s);
+          n = strlen(s);
+          for (i = n; i > 0; i--) {     /* Get filename without path */
+              if (ISDIRSEP(s[i-1])) {   /* Platform independent way */
+                  s[i] = NUL;
+                  break;
+              }
+          }
+          a_ptr[x][2] = NULL;
+          makestr(&(a_ptr[x][2]),s);
 
-	  /* Element 3 - Modification date-time */
+          /* Element 3 - Modification date-time */
 
-	  s = zfcdat(bp[0]);
-	  a_ptr[x][3] = NULL;
-	  makestr(&(a_ptr[x][3]),s);
+          s = zfcdat(bp[0]);
+          a_ptr[x][3] = NULL;
+          makestr(&(a_ptr[x][3]),s);
 
-	  /* Element 4 - Permissions string */
+          /* Element 4 - Permissions string */
 
 #ifdef UNIX
-	  if (zgfs_link)
-	    s = "lrwxrwxrwx";
-	  else
+          if (zgfs_link)
+            s = "lrwxrwxrwx";
+          else
 #endif /* UNIX */
 
 /* [jt] 2013/11/21:
@@ -10894,174 +10917,174 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
  * any side effects of commenting this out.
  */
 #ifdef CK_PERMS
-	    s = ziperm(bp[0]);
-	  a_ptr[x][4] = NULL;
-	  makestr(&(a_ptr[x][4]),s);
-	  ckstrncpy(workbuf,s,32);	/* Save for later */
+            s = ziperm(bp[0]);
+          a_ptr[x][4] = NULL;
+          makestr(&(a_ptr[x][4]),s);
+          ckstrncpy(workbuf,s,32);      /* Save for later */
 #endif /* CK_PERMS */
 
-	  /* Element 5 - Permissions numeric code */
+          /* Element 5 - Permissions numeric code */
 
-	  s = zgperm(bp[0]);
-	  a_ptr[x][5] = NULL;
-	  makestr(&(a_ptr[x][5]),s);
+          s = zgperm(bp[0]);
+          a_ptr[x][5] = NULL;
+          makestr(&(a_ptr[x][5]),s);
 
-	  /* Element 6 - Size in bytes */
+          /* Element 6 - Size in bytes */
 
 #ifdef UNIX /* [fdc] 2021-09-14 only Unix has file links */
-	  s = zgfs_link ? ckitoa((int)strlen((char *)linkname)) : ckfstoa(z);
+          s = zgfs_link ? ckitoa((int)strlen((char *)linkname)) : ckfstoa(z);
 #else
-	  s = ckfstoa(z);
+          s = ckfstoa(z);
 #endif /* UNIX */
-	  a_ptr[x][6] = NULL;
-	  makestr(&(a_ptr[x][6]),s);
+          a_ptr[x][6] = NULL;
+          makestr(&(a_ptr[x][6]),s);
 
-	  /* Element 7 - File type */
+          /* Element 7 - File type */
 
-	  j = 0;
-	  if (dir) j = 3;
+          j = 0;
+          if (dir) j = 3;
 #ifdef UNIX
-	  else if (zgfs_link) j = 4;
-	  else if (ckindex("x",(char *)workbuf,0,0,1)) j = 2;
-	  else if (workbuf[1] != '-') j = 1;
+          else if (zgfs_link) j = 4;
+          else if (ckindex("x",(char *)workbuf,0,0,1)) j = 2;
+          else if (workbuf[1] != '-') j = 1;
 #else
 #ifdef VMS
-	  else if (ckindex("E",(char *)workbuf,0,0,1)) j = 2;
-	  else j = 1;
+          else if (ckindex("E",(char *)workbuf,0,0,1)) j = 2;
+          else j = 1;
 #endif /* VMS */
 #endif /* UNIX */
-	  a_ptr[x][7] = NULL;
-	  switch (j) {
-	    case 0: s = "unknown"; break;
-	    case 1: s = "regular"; break;
-	    case 2: s = "executable"; break;
-	    case 3: s = "directory"; break;
-	    case 4: s = "link"; break;
-	    default: s = "unknown";
-	  }
-	  makestr(&(a_ptr[x][7]),s);
-	  k = 7;
+          a_ptr[x][7] = NULL;
+          switch (j) {
+            case 0: s = "unknown"; break;
+            case 1: s = "regular"; break;
+            case 2: s = "executable"; break;
+            case 3: s = "directory"; break;
+            case 4: s = "link"; break;
+            default: s = "unknown";
+          }
+          makestr(&(a_ptr[x][7]),s);
+          k = 7;
 
-	  /* Element 8 - Name of linked-to file (if link) */
+          /* Element 8 - Name of linked-to file (if link) */
 
-	  a_ptr[x][8] = NULL;
+          a_ptr[x][8] = NULL;
 #ifdef UNIX
-	  if (zgfs_link) {
-	      makestr(&(a_ptr[x][8]),(char *)linkname);
-	      k++;
-	  }
+          if (zgfs_link) {
+              makestr(&(a_ptr[x][8]),(char *)linkname);
+              k++;
+          }
 #endif /* UNIX */
 
-	  /* Element 9 - File scan result */
+          /* Element 9 - File scan result */
 
-	  if (j == 1 || j == 2) {	/* Regular file */
-	      m = scanfile(bp[0],NULL,nscanfile);
-	      if (m > -1) {
-		  if (k < 8) k = 8;	/* Insert empty element for link */
-		  makestr(&(a_ptr[x][8]),"");
-		  k++;
-		  switch (m) {
-		    case FT_7BIT: s = "text:7bit"; break;
-		    case FT_UTF8: s = "text:utf8"; break;
-		    case FT_UCS2: s = "text:ucs2"; break;
-		    case FT_8BIT: s = "text:8bit"; break;
-		    case FT_TEXT: s = "text:unknown"; break;
-		    case FT_BIN:  s = "binary"; break;
-		    default: s = "unknown";
-		  }
-		  a_ptr[x][9] = NULL;
-		  makestr(&(a_ptr[x][9]),s);
-	      }
-	  }
-	  /* If adding another change attrs declaration to match */
+          if (j == 1 || j == 2) {       /* Regular file */
+              m = scanfile(bp[0],NULL,nscanfile);
+              if (m > -1) {
+                  if (k < 8) k = 8;     /* Insert empty element for link */
+                  makestr(&(a_ptr[x][8]),"");
+                  k++;
+                  switch (m) {
+                    case FT_7BIT: s = "text:7bit"; break;
+                    case FT_UTF8: s = "text:utf8"; break;
+                    case FT_UCS2: s = "text:ucs2"; break;
+                    case FT_8BIT: s = "text:8bit"; break;
+                    case FT_TEXT: s = "text:unknown"; break;
+                    case FT_BIN:  s = "binary"; break;
+                    default: s = "unknown";
+                  }
+                  a_ptr[x][9] = NULL;
+                  makestr(&(a_ptr[x][9]),s);
+              }
+          }
+          /* If adding another change attrs declaration to match */
 
-	  /* Element 0 = array size */
+          /* Element 0 = array size */
 
-	  p = ckitoa(k);		/* Number of elements */
+          p = ckitoa(k);                /* Number of elements */
 
-	  a_ptr[x][0] = NULL;		/* Put number of elements in [0] */
-	  makestr(&(a_ptr[x][0]),p);
-	  debug(F101,"FILEINF","",attrs);
+          a_ptr[x][0] = NULL;           /* Put number of elements in [0] */
+          makestr(&(a_ptr[x][0]),p);
+          debug(F101,"FILEINF","",attrs);
           goto fnend;
       }
-      case FN_FILECMP: {		/* File comparison */
-	FILE *fp1 = NULL;
-	FILE *fp2 = NULL;
+      case FN_FILECMP: {                /* File comparison */
+        FILE *fp1 = NULL;
+        FILE *fp2 = NULL;
         char * s1 = NULL, * s2 = NULL;
 #ifdef UNIX
-	char * tx;			/* For tilde expansion */
+        char * tx;                      /* For tilde expansion */
 #endif /* UNIX */
-	int c1, c2;
+        int c1, c2;
         int eof1 = 0, eof2 = 0;
 
-	failed = 1;			/* Assume files differ */
-	p[0] = '1';			/* Default return value = differ */
-	p[1] = NUL;
-	if (argn != 2) {		/* Need two args */
-	    if (fndiags)
-	      ckmakmsg(fnval,FNVALL,"<ERROR:ARG_COUNT:\\f",fn,"()>",NULL);
-	    goto fnend;
-	}
-	s1 = bp[0];
-	s2 = bp[1];
+        failed = 1;                     /* Assume files differ */
+        p[0] = '1';                     /* Default return value = differ */
+        p[1] = NUL;
+        if (argn != 2) {                /* Need two args */
+            if (fndiags)
+              ckmakmsg(fnval,FNVALL,"<ERROR:ARG_COUNT:\\f",fn,"()>",NULL);
+            goto fnend;
+        }
+        s1 = bp[0];
+        s2 = bp[1];
 #ifdef UNIX
-	if (*s1 == '~') {		/* Expand any tildes in filenames. */
-	    tx = tilde_expand(bp[0]);	/* We recycle bp[0] and bp[1] */
-	    if (tx) if (*tx) {		/* this way so they will be freed */
-		free(bp[0]);		/* automatically later. */
-		bp[0] = NULL;
-		makestr(&(bp[0]),tx);
-	    }
-	    s1 = bp[0];
-	}
-	if (*s2 == '~') {
-	    tx = tilde_expand(bp[1]);
-	    if (tx) if (*tx) {
-		free(bp[1]);
-		bp[1] = NULL;
-		makestr(&(bp[1]),tx);
-	    }
-	    s2 = bp[1];
-	}
+        if (*s1 == '~') {               /* Expand any tildes in filenames. */
+            tx = tilde_expand(bp[0]);   /* We recycle bp[0] and bp[1] */
+            if (tx) if (*tx) {          /* this way so they will be freed */
+                free(bp[0]);            /* automatically later. */
+                bp[0] = NULL;
+                makestr(&(bp[0]),tx);
+            }
+            s1 = bp[0];
+        }
+        if (*s2 == '~') {
+            tx = tilde_expand(bp[1]);
+            if (tx) if (*tx) {
+                free(bp[1]);
+                bp[1] = NULL;
+                makestr(&(bp[1]),tx);
+            }
+            s2 = bp[1];
+        }
 #endif /* UNIX */
-	fp1 = fopen(s1, "r");		/* Open it first file*/
-	fp2 = fopen(s2, "r");		/* Open it first file*/
-	failed = 0;			/* No failure from here down */
-	if (fp1 == NULL || fp2 == NULL) { /* Open failure */
-	    p[0] = '-';
-	    p[1] = '1';
-	    p[2] = NUL;			/* Return -1 */
-	    if (fp1) fclose(fp1);
-	    if (fp1) fclose(fp2);
-	    goto fnend;
-	}
-	while (1) {
-	    if (!eof1) {
-		c1 = getc(fp1);
-		if (c1 == (unsigned int)EOF) {
-		    eof1++;
-		    fclose(fp1);
-		}
-	    }
-	    if (!eof2) {
-		c2 = getc(fp2);
-		if (c2 == (unsigned int)EOF) {
-		    eof2++;
-		    fclose(fp2);
-		}
-	    }
-	    if (eof1 && eof2) {
-		p[0] = '0';		/* Success */
-		p[1] = NUL;
-		failed = 0;
-		goto fnend;
-	    }
-	    if (eof1 || eof2 || (c1 != c2)) {
-		if (!eof1) fclose(fp1);
-		if (!eof2) fclose(fp2);
-		goto fnend;
-	    }
-	}
+        fp1 = fopen(s1, "r");           /* Open it first file*/
+        fp2 = fopen(s2, "r");           /* Open it first file*/
+        failed = 0;                     /* No failure from here down */
+        if (fp1 == NULL || fp2 == NULL) { /* Open failure */
+            p[0] = '-';
+            p[1] = '1';
+            p[2] = NUL;                 /* Return -1 */
+            if (fp1) fclose(fp1);
+            if (fp1) fclose(fp2);
+            goto fnend;
+        }
+        while (1) {
+            if (!eof1) {
+                c1 = getc(fp1);
+                if (c1 == (unsigned int)EOF) {
+                    eof1++;
+                    fclose(fp1);
+                }
+            }
+            if (!eof2) {
+                c2 = getc(fp2);
+                if (c2 == (unsigned int)EOF) {
+                    eof2++;
+                    fclose(fp2);
+                }
+            }
+            if (eof1 && eof2) {
+                p[0] = '0';             /* Success */
+                p[1] = NUL;
+                failed = 0;
+                goto fnend;
+            }
+            if (eof1 || eof2 || (c1 != c2)) {
+                if (!eof1) fclose(fp1);
+                if (!eof2) fclose(fp2);
+                goto fnend;
+            }
+        }
       }
 
     } /* Break up big switch... */
@@ -11103,18 +11126,18 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           p = ckdate();                 /* None, get today's date */
         else                            /* Some */
           p = bp[0];                    /* Use first */
-	{
-	    char * s;
-	    s = p;
-	    while (*s) {                /* Strip leading spaces/ctrls */
-		if (*s < 32) {
-		    *s = NUL;
-		    break;
-		}
-		s++;
-	    }
-	    /* do { if (*s < '!') *s = NUL; break; } while (*s++); */
-	}
+        {
+            char * s;
+            s = p;
+            while (*s) {                /* Strip leading spaces/ctrls */
+                if (*s < 32) {
+                    *s = NUL;
+                    break;
+                }
+                s++;
+            }
+            /* do { if (*s < '!') *s = NUL; break; } while (*s++); */
+        }
         p = ckcvtdate(p,2);             /* Convert to standard form */
         if (*p == '<') {
             failed = 1;
@@ -11124,7 +11147,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             p = fnval;
             goto fnend;
         }
-        if (argn > 1) {			/* Format code */
+        if (argn > 1) {                 /* Format code */
             s = evalx(bp[1]);
             if (!s) s = "";
             if (!*s) s = "0";
@@ -11226,7 +11249,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             z = 0 - z;
             k = 6 - ((int)z + 3) % 7;
         } else {
-            k = ((int)z + 3) % 7;	/* Day of week */
+            k = ((int)z + 3) % 7;       /* Day of week */
         }
         p = fnval;                      /* Point to result */
         if (cx == FN_NDAY)
@@ -11883,14 +11906,14 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             goto fnend;
         }
         if (argn < 1) {                 /* All file functions need channel */
-	    if (cx == FN_FSTAT) {	/* Except f_status(), e.g. when */
-		fnval[0] = '0';		/* called with a variable that */
-		fnval[1] = NUL;		/* hasn't been defined yet. */
-		failed = 0;
-	    } else {
-		if (fndiags)
-		 ckmakmsg(fnval,FNVALL,"<ERROR:MISSING_ARG:\\f",fn,"()>",NULL);
-	    }
+            if (cx == FN_FSTAT) {       /* Except f_status(), e.g. when */
+                fnval[0] = '0';         /* called with a variable that */
+                fnval[1] = NUL;         /* hasn't been defined yet. */
+                failed = 0;
+            } else {
+                if (fndiags)
+                 ckmakmsg(fnval,FNVALL,"<ERROR:MISSING_ARG:\\f",fn,"()>",NULL);
+            }
             goto fnend;
         }
         if (rdigits(bp[0])) {           /* Channel must be numeric */
@@ -11925,12 +11948,12 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         }
         switch (y) {                    /* Do the requested function */
           case FN_FPOS:                 /* Get position */
-            z = z_getpos(channel);	/* FIX THIS */
+            z = z_getpos(channel);      /* FIX THIS */
             sprintf(fnval,"%ld",z);     /* SAFE */
             goto fnend;
 
           case FN_NLINE:                /* Get line number */
-            z = z_getline(channel);	/* FIX THIS */
+            z = z_getline(channel);     /* FIX THIS */
             sprintf(fnval,"%ld",z);     /* SAFE */
             goto fnend;
 
@@ -11961,6 +11984,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                            "<ERROR:ARG_NOT_NUMERIC:\\f",fn,"()>",NULL);
                 goto fnend;
             }
+            /* Fall through */
           case FN_FGCHAR:               /* Read or write character or line */
           case FN_FPCHAR:
           case FN_FGLINE:
@@ -11994,36 +12018,36 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
     }
 #endif /* CKCHANNELIO */
 
-    if (cx == FN_SQUEEZE) {		/* String function \fsqueeze() */
-	/* Squeeze out whitespace */
-	/* Add options later for whether to trim leading and trailing blanks */
+    if (cx == FN_SQUEEZE) {             /* String function \fsqueeze() */
+        /* Squeeze out whitespace */
+        /* Add options later for whether to trim leading and trailing blanks */
         /* and what to do about control characters, 8-bit whitespace, etc */
-	int started = 0;		/* Flag for first non-whitespace */
-	int n = 0;			/* Blank/Tab counter */
+        int started = 0;                /* Flag for first non-whitespace */
+        int n = 0;                      /* Blank/Tab counter */
         s = bp[0] ? bp[0] : "";
-        p = fnval;			/* Result buffer */
-	while (*s) {			/* While there is input */
-	    if (!started && (*s == ' ' || *s == '\011')) {
-		s++;			/* Skip past leading whitespace */
-		continue;
-	    }
-	    started++;			/* Leading whitespace was skipped */
-	    if (*s != ' ' && *s != '\011') { /* Have a nonspace char */
-		n = 0;			/* reset space counter */
-		*p++ = *s++;		/* copy char to destination */
-		continue;
-	    }
-	    if (n++ > 0) {		/* Have blank or tab */
-		s++;			/* don't copy more than one */
-		continue;
-	    }
-	    *p++ = ' ';			/* Deposit one space */
-	    s++;			/* and go to next source char */
-	}
-	if (*(p-1) == ' ') p--;		/* Remove trailing space */
-        *p = NUL;			/* Terminate string */
-        p = fnval;			/* point to beginning */
-        goto fnend;			/* Done. */
+        p = fnval;                      /* Result buffer */
+        while (*s) {                    /* While there is input */
+            if (!started && (*s == ' ' || *s == '\011')) {
+                s++;                    /* Skip past leading whitespace */
+                continue;
+            }
+            started++;                  /* Leading whitespace was skipped */
+            if (*s != ' ' && *s != '\011') { /* Have a nonspace char */
+                n = 0;                  /* reset space counter */
+                *p++ = *s++;            /* copy char to destination */
+                continue;
+            }
+            if (n++ > 0) {              /* Have blank or tab */
+                s++;                    /* don't copy more than one */
+                continue;
+            }
+            *p++ = ' ';                 /* Deposit one space */
+            s++;                        /* and go to next source char */
+        }
+        if (*(p-1) == ' ') p--;         /* Remove trailing space */
+        *p = NUL;                       /* Terminate string */
+        p = fnval;                      /* point to beginning */
+        goto fnend;                     /* Done. */
     }
     if (cx == FN_PATTERN) {             /* \fpattern() for INPUT */
         itsapattern = 1;
@@ -12143,9 +12167,9 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         char * gr_opn = "\"{'([<";      /* Group open brackets */
         char * gr_cls = "\"}')]>";      /* Group close brackets */
         char lb[2], rb[2];              /* Selected left and right brackets */
-	int csv = 0, tsv = 0;		/* Function flags */
-	char specialchar = 0;		/* Field char that triggers grouping */
-	char *s2 = NULL;		/* Address of malloc'd storage */
+        int csv = 0, tsv = 0;           /* Function flags */
+        char specialchar = 0;           /* Field char that triggers grouping */
+        char *s2 = NULL;                /* Address of malloc'd storage */
 
         failed = 1;                     /* Assume failure */
         fnval[0] = NUL;
@@ -12163,53 +12187,53 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         if (lo < 0) lo = 1;             /* Use given range if any */
         if (lo > max) lo = max;
 #ifdef COMMENT
-	hi = max;
+        hi = max;
 #else
 /*
   This is a workaround for the problem in which the dimension of the \&_[]
   array (but not its contents) grows upon entry to a SWITCH block.  But this
   code prevents the dimension from growing.  Go figure.
 */
-        if (hi < 0) {			/* Bounds not given */
-            if (x)			/* Regular array */
-	      hi = max;
-	    else			/* Argument vector array */
-	      for (hi = max; hi >= lo; hi--) { /* ignore any trailing */
-		  if (!a_ptr[x][hi]) continue; /* empty elements */
-		  if (!*(a_ptr[x][hi])) continue;
-		  break;
-	      }
-	}
+        if (hi < 0) {                   /* Bounds not given */
+            if (x)                      /* Regular array */
+              hi = max;
+            else                        /* Argument vector array */
+              for (hi = max; hi >= lo; hi--) { /* ignore any trailing */
+                  if (!a_ptr[x][hi]) continue; /* empty elements */
+                  if (!*(a_ptr[x][hi])) continue;
+                  break;
+              }
+        }
 #endif /* COMMENT */
         if (hi > max) hi = max;
         failed = 0;                     /* Unset failure flag */
         if (max < 1)
           goto fnend;
         sep = " ";                      /* Separator */
-        lb[0] = NUL;			/* Group start char (as string) */
+        lb[0] = NUL;                    /* Group start char (as string) */
         rb[0] = NUL;
-        lb[1] = NUL;			/* Group end char as string */
+        lb[1] = NUL;                    /* Group end char as string */
         rb[1] = NUL;
 
         if (argn > 1) {
-	    if (bp[1]) if (*bp[1]) {	/* If arg1 given and not empty */
-		if (!strcmp(bp[1],"CSV")) { /* Special "CSV" symbolic arg */
-		    csv++;		/* Make a comma separated list */
-		    sep = ",";		/* Comma */
-		    specialchar = *sep;	/* Separator is special character */
-		    grouping = 1;	/* Group with doublequotes */
-		    lb[0] = '"';	/* and here */
-		    rb[0] = '"';	/* they are */
-		} else if (!strcmp(bp[1],"TSV")) { /* "TSV" symbolic arg */
-		    tsv++;		/* Make a Tab separated list */
-		    sep = "\011";	/* Tab */
-		    specialchar = *sep;
-		    grouping = 0;	/* No grouping */
-		} else			/* Normal case */
-		  sep = bp[1];		/* use the separator char specified */
-	    }
-	}
-        if (argn > 2 && !csv && !tsv) {	/* Grouping? */
+            if (bp[1]) if (*bp[1]) {    /* If arg1 given and not empty */
+                if (!strcmp(bp[1],"CSV")) { /* Special "CSV" symbolic arg */
+                    csv++;              /* Make a comma separated list */
+                    sep = ",";          /* Comma */
+                    specialchar = *sep; /* Separator is special character */
+                    grouping = 1;       /* Group with doublequotes */
+                    lb[0] = '"';        /* and here */
+                    rb[0] = '"';        /* they are */
+                } else if (!strcmp(bp[1],"TSV")) { /* "TSV" symbolic arg */
+                    tsv++;              /* Make a Tab separated list */
+                    sep = "\011";       /* Tab */
+                    specialchar = *sep;
+                    grouping = 0;       /* No grouping */
+                } else                  /* Normal case */
+                  sep = bp[1];          /* use the separator char specified */
+            }
+        }
+        if (argn > 2 && !csv && !tsv) { /* Grouping? */
             char * bp2 = bp[2];
             if (!bp2) bp2 = "0";
             if (!*bp2) bp2 = "0";
@@ -12236,65 +12260,66 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                 }
             }
         }
-	if (!csv && !tsv) {		/* Normal case, not CSV or TSV */
-	    specialchar = SP;		/* Special character is space */
-	    if (argn > 3)		/* Nonzero 4th arg for no separator */
-	      if (chknum(bp[3]))
-		if (atoi(bp[3]) > 0)
-		  sep = NULL;
-	    if (!sep) {
-		sep = "";
-		seplen = 0;
-	    } else
-	      seplen = strlen(sep);
-	}
+        if (!csv && !tsv) {             /* Normal case, not CSV or TSV */
+            specialchar = SP;           /* Special character is space */
+            if (argn > 3)               /* Nonzero 4th arg for no separator */
+              if (chknum(bp[3]))
+                if (atoi(bp[3]) > 0)
+                  sep = NULL;
+            if (!sep) {
+                sep = "";
+                seplen = 0;
+            } else
+              seplen = strlen(sep);
+        } else                          /* CSV/TSV: sep is "," or tab, */
+          seplen = strlen(sep); /* set unconditionally above. */
         for (i = lo; i <= hi; i++) {    /* Loop thru selected array elements */
             s = a_ptr[x][i];            /* Get next element */
             if (!s)
               s = "";
             flag = 0;                   /* Flag to indicate grouping needed */
-	    flag2 = 0;			/* Flag for internal doublequotes */
+            flag2 = 0;                  /* Flag for internal doublequotes */
             if (grouping) {             /* Does this element need quoting? */
                 q = s;                  /* Look for special character */
-                while ((c = *q++)) {	/* If found */
-		    if (c == specialchar) /* grouping is required */
-		      flag++;
-		    if (csv && (c == '"')) /* Character that needs doubling */
-		      flag2++;		   /* in comma-separated list */
-		    if (flag && !csv)	/* Exit early if no more to do */
-		      break;
-		}
+                while ((c = *q++)) {    /* If found */
+                    if (c == specialchar) /* grouping is required */
+                      flag++;
+                    if (csv && (c == '"')) /* Character that needs doubling */
+                      flag2++;             /* in comma-separated list */
+                    if (flag && !csv)   /* Exit early if no more to do */
+                      break;
+                }
             }
             y = strlen(s);              /* Get length of this element */
-	    if ((y > 0) && csv && !flag) { /* CSV item needs grouping */
-		if (s[0] == SP || s[y-1] == SP || /* if it has leading */
-		    s[0] == HT || s[y-1] == HT)	/* or trailing whitespace */
-		  flag++;		/* then it needs grouping */
-	    }
-	    if (flag || flag2) {	/* String needs grouping or quoting */
-		char *ss = s;
+            if ((y > 0) && csv && !flag) { /* CSV item needs grouping */
+                if (s[0] == SP || s[y-1] == SP || /* if it has leading */
+                    s[0] == HT || s[y-1] == HT) /* or trailing whitespace */
+                  flag++;               /* then it needs grouping */
+            }
+            if (flag || flag2) {        /* String needs grouping or quoting */
+                char *ss = s;
                 q = (char *)malloc(y + flag2 + 3); /* Make new buffer */
-		if (q) {
-		    s2 = q;		/* and this is what to free */
-		    if (flag)		/* If grouping */
-		      *q++ = lb[0];	/* put opening group quote */
-		    while (*ss) {	/* Loop through string */
-			if (flag2 && (*ss == '"')) /* If CSV and this a '"' */
-			  *q++ = *ss;	           /* double it. */
-			*q++ = *ss++;	/* Copy the character */
-		    }
-		    if (flag)		/* If grouping */
-		      *q++ = rb[0];	/* add closing group quote */
-		    *q = NUL;		/* terminate the result. */
-		    s = s2;
-		    y = strlen(s);
-		}
-	    }
+                if (q) {
+                    s2 = q;             /* and this is what to free */
+                    if (flag)           /* If grouping */
+                      *q++ = lb[0];     /* put opening group quote */
+                    while (*ss) {       /* Loop through string */
+                        if (flag2 && (*ss == '"')) /* If CSV and this a '"' */
+                          *q++ = *ss;              /* double it. */
+                        *q++ = *ss++;   /* Copy the character */
+                    }
+                    if (flag)           /* If grouping */
+                      *q++ = rb[0];     /* add closing group quote */
+                    *q = NUL;           /* terminate the result. */
+                    s = s2;
+                    y = strlen(s);
+                }
+            }
             z = 0;                      /* Number of chars copied */
             flag = 0;                   /* flag is now buffer-overrun flag */
             if (y > 0)                  /* If this string is not empty */
               z = ckstrncat(fnval,s,FNVALL); /* copy it. */
-	    if (s2) free(s2);		/* Free temp storage */
+            if (s2) free(s2);           /* Free temp storage */
             if (z < y)                  /* Now check for buffer overrun. */
               flag++;
             if (!flag && *sep && i < hi) { /* If buffer still has room */
@@ -12310,7 +12335,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                 goto fnend;
             }
         }
-	isjoin = 1;
+        isjoin = 1;
         goto fnend;
     }
     if (cx == FN_SUBST) {               /* \fsubstitute() */
@@ -12663,145 +12688,145 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 */
     if (cx == FN_EMAIL) {
         char * s = bp[0], * s2, * s3, * ap = "";
-	int k;
+        int k;
 #ifdef COMMENT
     char c;
-	int quote = 0, state = 0, infield = 0 , pc = 0;	/* For nested comments */
+        int quote = 0, state = 0, infield = 0 , pc = 0; /* For nested comments */
 #endif /* COMMENT */
         if (!s) s = "";
-	if (!*s) goto xemail;
+        if (!*s) goto xemail;
 
-	if (ckindex("From: ",s,0,0,0) == 1) s += 5;
-	if (ckindex("Sender: ",s,0,0,0) == 1) s += 7;
+        if (ckindex("From: ",s,0,0,0) == 1) s += 5;
+        if (ckindex("Sender: ",s,0,0,0) == 1) s += 7;
 
-	k = strlen(s);			/* Strip junk from end */
-	if (k < 1) goto xemail;
-	k--;
-	while (k >= 0 && s[k] == CK_CR || s[k] == LF)
-	  s[k--] = NUL;
-	while (k >= 0 && s[k] == SP || s[k] == HT)
-	  s[k--] = NUL;
-	if (k == 0)
-	  goto xemail;
+        k = strlen(s);                  /* Strip junk from end */
+        if (k < 1) goto xemail;
+        k--;
+        while (k >= 0 && (s[k] == CK_CR || s[k] == LF))
+          s[k--] = NUL;
+        while (k >= 0 && (s[k] == SP || s[k] == HT))
+          s[k--] = NUL;
+        if (k == 0)
+          goto xemail;
 
-#ifndef COMMENT			     /* Simple method if not 100% foolproof */
-	k = 0;
-	for (s2 = s; *s2; s2++) {	/* Find at-sign */
-	    if (*s2 == '@') {
-		k++;			/* If more than one use rightmost */
-		s3 = s2;
-	    }
-	}
-	if (k < 1)			/* No at-sign */
-	  goto xemail;
+#ifndef COMMENT                      /* Simple method if not 100% foolproof */
+        k = 0;
+        for (s2 = s; *s2; s2++) {       /* Find at-sign */
+            if (*s2 == '@') {
+                k++;                    /* If more than one use rightmost */
+                s3 = s2;
+            }
+        }
+        if (k < 1)                      /* No at-sign */
+          goto xemail;
 
-	for (ap = s3-1; ap >= s; ap--) { /* Back up to beginning of address */
-	    if (isspace(*ap) || *ap == '<') {
-		ap++;
- 		break;
-	    }
-	    if (ap == s)
-	      break;
-	}
-	for (s2 = s3+1; *s2; s2++) {	/* Find end of address */
-	    if (isspace(*s2) || *s2 == '>')
-	      break;
-	}
-	*s2-- = NUL;
-	if (*ap == '[' && *s2 == ']') {	/* Handle [blah@blah.blah] */
-	    ap++;
-	    *s2 = NUL;
-	}
-	if (!ckstrcmp(ap,"mailto:",7,0)) /* Handle mailto: URLs */
-	  ap += 7;
+        for (ap = s3-1; ap >= s; ap--) { /* Back up to beginning of address */
+            if (isspace(*ap) || *ap == '<') {
+                ap++;
+                break;
+            }
+            if (ap == s)
+              break;
+        }
+        for (s2 = s3+1; *s2; s2++) {    /* Find end of address */
+            if (isspace(*s2) || *s2 == '>')
+              break;
+        }
+        *s2-- = NUL;
+        if (*ap == '[' && *s2 == ']') { /* Handle [blah@blah.blah] */
+            ap++;
+            *s2 = NUL;
+        }
+        if (!ckstrcmp(ap,"mailto:",7,0)) /* Handle mailto: URLs */
+          ap += 7;
 
 #else  /* Too complicated and error-prone */
 
-	k = 0;
-	for (s2 = s; *s2; s2++) {	/* Strip leading whitespace */
-	    if (*s2 == SP || *s2 == HT) {
-		k = 1;
-		break;
-	    }
-	}
-	if (!k) {			/* Simple address */
-	    ap = s;
-	    goto xemail;
-	}
-	do {				/* Not simple, have to extract it */
-	    if (quote) {
-		quote = 0;
-		continue;
-	    } else if (*s == '\\') {
-		quote = 1;
-		continue;
-	    }
-	    switch (state) {
-	      case 0:
-		if (!infield && *s == '"') { /* Quoted string */
-		    infield = 1;
-		    c = '"';
-		    state = 1;
-		} else if (!infield && *s == '(') { /* Comment in parens */
-		    pc++;
-		    infield = 1;
-		    c = ')';
-		    if (*ap) *s = NUL;
-		    state = 1;
-		} else if (!infield && *s == '<') { /* Address */
-		    infield = 1;
-		    c = '>';
-		    ap = s+1;
-		    state = 2;
-		} else if (infield && (*s == SP || *s == HT)) {
-		    infield = 0;
-		} else {		/* One or more bare words */
-		    infield = 1;	/* Could be an address */
-		    if (!*ap) ap = s;	/* Could be comments */
-		}
-		continue;
-	      case 1:			/* In Quoted string or Comment */
-		if (infield && *s == c) { /* Look for end */
-		    infield = 0;
-		    *s++ = NUL;
-		    while (*s == SP || *s == HT) s++;
-		    if (!*ap)
-		      ap = s;
-		    state = 0;
-		}
-		continue;
-	      case 2:			/* In address */
-		if (infield && *s == c) { /* Looking for end */
-		    infield = 0;
-		    *s = NUL;
-		    break;
-		}
-	    }
-	} while (*s++);
+        k = 0;
+        for (s2 = s; *s2; s2++) {       /* Strip leading whitespace */
+            if (*s2 == SP || *s2 == HT) {
+                k = 1;
+                break;
+            }
+        }
+        if (!k) {                       /* Simple address */
+            ap = s;
+            goto xemail;
+        }
+        do {                            /* Not simple, have to extract it */
+            if (quote) {
+                quote = 0;
+                continue;
+            } else if (*s == '\\') {
+                quote = 1;
+                continue;
+            }
+            switch (state) {
+              case 0:
+                if (!infield && *s == '"') { /* Quoted string */
+                    infield = 1;
+                    c = '"';
+                    state = 1;
+                } else if (!infield && *s == '(') { /* Comment in parens */
+                    pc++;
+                    infield = 1;
+                    c = ')';
+                    if (*ap) *s = NUL;
+                    state = 1;
+                } else if (!infield && *s == '<') { /* Address */
+                    infield = 1;
+                    c = '>';
+                    ap = s+1;
+                    state = 2;
+                } else if (infield && (*s == SP || *s == HT)) {
+                    infield = 0;
+                } else {                /* One or more bare words */
+                    infield = 1;        /* Could be an address */
+                    if (!*ap) ap = s;   /* Could be comments */
+                }
+                continue;
+              case 1:                   /* In Quoted string or Comment */
+                if (infield && *s == c) { /* Look for end */
+                    infield = 0;
+                    *s++ = NUL;
+                    while (*s == SP || *s == HT) s++;
+                    if (!*ap)
+                      ap = s;
+                    state = 0;
+                }
+                continue;
+              case 2:                   /* In address */
+                if (infield && *s == c) { /* Looking for end */
+                    infield = 0;
+                    *s = NUL;
+                    break;
+                }
+            }
+        } while (*s++);
 
       xemail:
-	if (*ap) {
-	    while (*ap == SP || *ap == HT) ap++;
-	}
-	k = strlen(ap) - 1;
-	while (k >= 0 && (ap[k] == SP || ap[k] == HT))
-	  ap[k--] = NUL;
-	if (*ap) {
-	    failed = 0;
-	    if (*ap == '<') {
-		k = strlen(ap);
-		if (*(ap+k-1) == '>') {
-		    ap[k-1] = NUL;
-		    ap++;
-		}
-	    }
-	} else
-	  failed = 1;
-	/* Here we might also want check against "*@*.*" */
-#endif	/* COMMENt */
+        if (*ap) {
+            while (*ap == SP || *ap == HT) ap++;
+        }
+        k = strlen(ap) - 1;
+        while (k >= 0 && (ap[k] == SP || ap[k] == HT))
+          ap[k--] = NUL;
+        if (*ap) {
+            failed = 0;
+            if (*ap == '<') {
+                k = strlen(ap);
+                if (*(ap+k-1) == '>') {
+                    ap[k-1] = NUL;
+                    ap++;
+                }
+            }
+        } else
+          failed = 1;
+        /* Here we might also want check against "*@*.*" */
+#endif  /* COMMENt */
       xemail:
-	ckstrncpy(fnval,ap,FNVALL);
-	goto fnend;
+        ckstrncpy(fnval,ap,FNVALL);
+        goto fnend;
     }
 
 #ifdef SEEK_CUR
@@ -12813,496 +12838,496 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
     Exif parser is probably not possible.
 */
     if (cx == FN_PICTURE) {
-	FILE *fp = NULL;
-	int c, x, w = 0, h = 0, eof = 0;
-	unsigned int j, k;
-	unsigned char buf[1024];
-	char abuf[16], * p, * s;
-	char ** ap = NULL;
+        FILE *fp = NULL;
+        int c, x, w = 0, h = 0, eof = 0;
+        unsigned int j, k;
+        unsigned char buf[1024];
+        char abuf[16], * p, * s;
+        char ** ap = NULL;
 #ifdef UNIX
-	char * tx;
+        char * tx;
 #endif /* UNIX */
 
-	p = fnval;			/* Point to result */
-	failed = 1;			/* Assume failure */
-	s = bp[0];
+        p = fnval;                      /* Point to result */
+        failed = 1;                     /* Assume failure */
+        s = bp[0];
 #ifdef UNIX
-	if (*s == '~') {
-	    tx = tilde_expand(bp[0]);
-	    if (tx) if (*tx) {
-		free(bp[0]);
-		bp[0] = NULL;
-		makestr(&(bp[0]),tx);
-	    }
-	    s = bp[0];
-	}
+        if (*s == '~') {
+            tx = tilde_expand(bp[0]);
+            if (tx) if (*tx) {
+                free(bp[0]);
+                bp[0] = NULL;
+                makestr(&(bp[0]),tx);
+            }
+            s = bp[0];
+        }
 #endif /* UNIX */
 
-	if (argn > 1) {
-	    int xi;
-	    ckstrncpy(abuf,bp[1],16);	/* Get array reference */
-	    s = abuf;
-	    if (*s == CMDQ) s++;
-	    if (fndiags)		/* Default is this error message */
-	      ckmakmsg(fnval,FNVALL,
-		       "<ERROR:ARG_BAD_ARRAY:\\f",fn,"()>",NULL);
-	    if (s[0] != '&')		/* "Address" of array */
-	      goto fnend;
-	    if (s[2])
-	      if (s[2] != '[' || s[3] != ']')
-		goto fnend;
-	    if (s[1] >= 64 && s[1] < 91) /* Convert upper to lower */
-	      s[1] += 32;
-	    if ((xi = dclarray(s[1],3)) < 0) /* three elements */
-	      goto fnend;
-	    ap = a_ptr[xi];		/* Point to array we just declared */
-	}
-	s = bp[0];			/* Filename */
-	failed = 0;			/* From here on we don't fail */
-	p[0] = '0';			/* Default return value */
-	p[1] = NUL;
+        if (argn > 1) {
+            int xi;
+            ckstrncpy(abuf,bp[1],16);   /* Get array reference */
+            s = abuf;
+            if (*s == CMDQ) s++;
+            if (fndiags)                /* Default is this error message */
+              ckmakmsg(fnval,FNVALL,
+                       "<ERROR:ARG_BAD_ARRAY:\\f",fn,"()>",NULL);
+            if (s[0] != '&')            /* "Address" of array */
+              goto fnend;
+            if (s[2])
+              if (s[2] != '[' || s[3] != ']')
+                goto fnend;
+            if (s[1] >= 64 && s[1] < 91) /* Convert upper to lower */
+              s[1] += 32;
+            if ((xi = dclarray(s[1],3)) < 0) /* three elements */
+              goto fnend;
+            ap = a_ptr[xi];             /* Point to array we just declared */
+        }
+        s = bp[0];                      /* Filename */
+        failed = 0;                     /* From here on we don't fail */
+        p[0] = '0';                     /* Default return value */
+        p[1] = NUL;
 
-	/* Tail anchor removed 2013-10-15 -fdc */
-	if (!ckmatch("*.{jpg,jpeg,gif}",s,0,1)) /* Appropriate name? */
-	  goto fnend;			/* No, fail */
+        /* Tail anchor removed 2013-10-15 -fdc */
+        if (!ckmatch("*.{jpg,jpeg,gif}",s,0,1)) /* Appropriate name? */
+          goto fnend;                   /* No, fail */
 
-	fp = fopen(s, "r");		/* Open it */
-	if (fp == NULL) {		/* Can't, fail */
-	    p[0] = '-';
-	    p[1] = '1';
-	    p[2] = NUL;			/* Return -1 */
-	    goto fnend;
-	}
-	k = strlen(s);
-	if (!ckstrcmp(&s[k-4],".gif",4,0)) { /* GIF file */
-	    if (fread(buf,1,10,fp) != 10) {
-		fclose(fp);
-		goto fnend;
-	    }
-	    /* Check signature */
-	    if (ckstrcmp((char *)buf,"GIF87a",6,0) &&
-		ckstrcmp((char *)buf,"GIF89a",6,0)) {
-		fclose(fp);
-		goto fnend;
-	    }
-	    w = buf[6] + 256 * buf[7];
-	    h = buf[8] + 256 * buf[9];
-	    goto picend;
-	} else if (!ckstrcmp(&s[k-4],".jpg",4,0) || /* JPEG file */
-		   !ckstrcmp(&s[k-5],".jpeg",5,0)) { /* (according to name) */
-	    if (fread(buf,1,2,fp) != 2) {            /* Read 1st bytes */
-		fclose(fp);
-		goto fnend;
-	    }
-	    if (buf[0] != 0xff || buf[1] != 0xd8) { /* Check signature */
-		fclose(fp);                         /* Should be FFD8 */
-		goto fnend;
-	    }
-	    eof = 0;
-	    while (!eof) {		/* Loop for each marker */
-		while (!eof) {		/* Find next marker */
-		    c = getc(fp);
-		    if (c == (unsigned int)EOF) {
-			eof++;
-			break;
-		    }
-		    if (c == 0xff) {
-			buf[0] = c;
-			c = getc(fp);
-			if (c == (unsigned int)EOF) {
-			    eof++;
-			    break;
-			}
-			buf[1] = c;
-			if (c == 0xd9)  /* FFD9 means End of Image */
-			  eof++;
-			if (c >= 0xc0 && c <= 0xfe)
-			  break;
-		    }
-		}
-		if (eof) break;
-		x = buf[1];
-		if (x == 0xc0 || x == 0xc1 || x == 0xc2 || x == 0xc3 ||
-		    x == 0xc9 || x == 0xca || x == 0xcb) {
-		    if (fread(buf,1,7,fp) != 7) {
-			fclose(fp);
-			goto fnend;
-		    }
-		    h = buf[3] * 256 + buf[4];
-		    w = buf[5] * 256 + buf[6];
-		    goto picend;
-		} else {		/* Not a desired field */
-		    if (feof(fp)) {
-			eof++;
-			break;
-		    }
-		    if (fread(buf,1,2,fp) != 2) { /* Length of this field */
-			fclose(fp);
-			goto fnend;
-		    }
-		    j = 256 * buf[0] + buf[1] - 2; /* Skip next field */
-		    if (CKFSEEK(fp,(CK_OFF_T)j,SEEK_CUR) != 0) {
-			fclose(fp);
-			goto fnend;
-		    }
-		}
-	    }
-	}
+        fp = fopen(s, "r");             /* Open it */
+        if (fp == NULL) {               /* Can't, fail */
+            p[0] = '-';
+            p[1] = '1';
+            p[2] = NUL;                 /* Return -1 */
+            goto fnend;
+        }
+        k = strlen(s);
+        if (!ckstrcmp(&s[k-4],".gif",4,0)) { /* GIF file */
+            if (fread(buf,1,10,fp) != 10) {
+                fclose(fp);
+                goto fnend;
+            }
+            /* Check signature */
+            if (ckstrcmp((char *)buf,"GIF87a",6,0) &&
+                ckstrcmp((char *)buf,"GIF89a",6,0)) {
+                fclose(fp);
+                goto fnend;
+            }
+            w = buf[6] + 256 * buf[7];
+            h = buf[8] + 256 * buf[9];
+            goto picend;
+        } else if (!ckstrcmp(&s[k-4],".jpg",4,0) || /* JPEG file */
+                   !ckstrcmp(&s[k-5],".jpeg",5,0)) { /* (according to name) */
+            if (fread(buf,1,2,fp) != 2) {            /* Read 1st bytes */
+                fclose(fp);
+                goto fnend;
+            }
+            if (buf[0] != 0xff || buf[1] != 0xd8) { /* Check signature */
+                fclose(fp);                         /* Should be FFD8 */
+                goto fnend;
+            }
+            eof = 0;
+            while (!eof) {              /* Loop for each marker */
+                while (!eof) {          /* Find next marker */
+                    c = getc(fp);
+                    if (c == (unsigned int)EOF) {
+                        eof++;
+                        break;
+                    }
+                    if (c == 0xff) {
+                        buf[0] = c;
+                        c = getc(fp);
+                        if (c == (unsigned int)EOF) {
+                            eof++;
+                            break;
+                        }
+                        buf[1] = c;
+                        if (c == 0xd9)  /* FFD9 means End of Image */
+                          eof++;
+                        if (c >= 0xc0 && c <= 0xfe)
+                          break;
+                    }
+                }
+                if (eof) break;
+                x = buf[1];
+                if (x == 0xc0 || x == 0xc1 || x == 0xc2 || x == 0xc3 ||
+                    x == 0xc9 || x == 0xca || x == 0xcb) {
+                    if (fread(buf,1,7,fp) != 7) {
+                        fclose(fp);
+                        goto fnend;
+                    }
+                    h = buf[3] * 256 + buf[4];
+                    w = buf[5] * 256 + buf[6];
+                    goto picend;
+                } else {                /* Not a desired field */
+                    if (feof(fp)) {
+                        eof++;
+                        break;
+                    }
+                    if (fread(buf,1,2,fp) != 2) { /* Length of this field */
+                        fclose(fp);
+                        goto fnend;
+                    }
+                    j = 256 * buf[0] + buf[1] - 2; /* Skip next field */
+                    if (CKFSEEK(fp,(CK_OFF_T)j,SEEK_CUR) != 0) {
+                        fclose(fp);
+                        goto fnend;
+                    }
+                }
+            }
+        }
       picend:
 
-	if (ap) {
-	    char * s;
-	    makestr(&(ap[0]),"2");
-	    makestr(&(ap[1]),ckitoa(w));
-	    makestr(&(ap[2]),ckitoa(h));
-	    s = jpgdate(fp);
-	    debug(F110,"jpgdate",s,0);
-	    if (s) if (*s) makestr(&(ap[3]),s);
-	}
-	fclose(fp);
-	if (w > 0 && h > 0) {
-	    if (w > h) p[0] = '1';	/* Landscape */
-	    else if (h > w) p[0] = '2';	/* Portrait */
-	    else p[0] = '3';		/* Square - 2013-10-05 */
-	}
-	goto fnend;
+        if (ap) {
+            char * s;
+            makestr(&(ap[0]),"2");
+            makestr(&(ap[1]),ckitoa(w));
+            makestr(&(ap[2]),ckitoa(h));
+            s = jpgdate(fp);
+            debug(F110,"jpgdate",s,0);
+            if (s) if (*s) makestr(&(ap[3]),s);
+        }
+        fclose(fp);
+        if (w > 0 && h > 0) {
+            if (w > h) p[0] = '1';      /* Landscape */
+            else if (h > w) p[0] = '2'; /* Portrait */
+            else p[0] = '3';            /* Square - 2013-10-05 */
+        }
+        goto fnend;
     }
-#endif	/* SEEK_CUR */
+#endif  /* SEEK_CUR */
 
     if (cx == FN_PID) {
-	int x = -1;
-	if (chknum(bp[0])) {		/* Need numeric argument */
-	    int pid;
-	    pid = atoi(bp[0]);		/* Convert to int */
+        int x = -1;
+        if (chknum(bp[0])) {            /* Need numeric argument */
+            int pid;
+            pid = atoi(bp[0]);          /* Convert to int */
 #ifdef UNIX
-	    if (kill(pid,0) < 0) {	/* Test it */
-		if (errno ==
+            if (kill(pid,0) < 0) {      /* Test it */
+                if (errno ==
 #ifdef ESRCH
-		    ESRCH		/* No such process */
+                    ESRCH               /* No such process */
 #else
-		    3
-#endif	/* ESRCH */
-		    )
-		  x = 0;
-	    } else			/* Process exists */
-	      x = 1;
-#endif	/* UNIX */
-	}
-	sprintf(fnval,"%d",x);		/* SAFE */
-	goto fnend;
+                    3
+#endif  /* ESRCH */
+                    )
+                  x = 0;
+            } else                      /* Process exists */
+              x = 1;
+#endif  /* UNIX */
+        }
+        sprintf(fnval,"%d",x);          /* SAFE */
+        goto fnend;
     }
 
     if (cx == FN_FUNC) {
-	char * s = bp[0];
-	p = "0";
+        char * s = bp[0];
+        p = "0";
         debug(F111,"ffunc",s,argn);
-	if (argn > 0) {
-	    int x, y;
-	    for (p = s; *p; p++) {	/* Chop off trailing parens if any */
-		if (*p == '(') {
-		    *p = NUL;
-		    break;
-		}
-	    }
-	    /* Chop off leading "\\f" or "\f" or "f" */
-	    p = s;
-	    if (*p == CMDQ)		/* Allow for \\f... */
-	      p++;
-	    if (*p == CMDQ && (*(p+1) == 'f' || *(p+1) == 'F')) { /* or \f */
-		p += 2;
-	    } else if (*p == 'f' || *p == 'F') { /* or just f */
-		p++;
-	    }
-	    y = lookup(fnctab,p,nfuncs,&x); /* Look up the result */
-	    debug(F111,"ffunc",p,y);
-	    p = (y > -1) ? "1" : "0";
-	}
-	goto fnend;
+        if (argn > 0) {
+            int x, y;
+            for (p = s; *p; p++) {      /* Chop off trailing parens if any */
+                if (*p == '(') {
+                    *p = NUL;
+                    break;
+                }
+            }
+            /* Chop off leading "\\f" or "\f" or "f" */
+            p = s;
+            if (*p == CMDQ)             /* Allow for \\f... */
+              p++;
+            if (*p == CMDQ && (*(p+1) == 'f' || *(p+1) == 'F')) { /* or \f */
+                p += 2;
+            } else if (*p == 'f' || *p == 'F') { /* or just f */
+                p++;
+            }
+            y = lookup(fnctab,p,nfuncs,&x); /* Look up the result */
+            debug(F111,"ffunc",p,y);
+            p = (y > -1) ? "1" : "0";
+        }
+        goto fnend;
     }
     if (cx == FN_RECURSE) {
-	int n;
-	char * s;
-	fnval[0] = NUL;			/* Default result is empty string */
-	s = bp[0];			/* Check for null argument */
-	if (!s) s = "";			/* or empty argument */
-	if (!*s) goto fnend;		/* in which case return empty string */
-        n = FNVALL;			/* Not empty, max size for result */
-        s = fnval;			/* Location of result */
-	{
-	    /* Force VARIABLE-EVALUATION SIMPLE RECURSIVE */
-	    /* NOTE: This is vulnerable to SIGINT and whatnot... */
-	    int tmp = vareval;		/* Save VARIABLE-EVALUATION setting */
-	    vareval = 1;		/* Force it to RECURSIVE */
-	    zzstring(bp[0],&s,&n);	/* Expand arg into result space */
-	    vareval = tmp;		/* Restore VARIABLE-EVALUATION */
-	}
-	goto fnend;
+        int n;
+        char * s;
+        fnval[0] = NUL;                 /* Default result is empty string */
+        s = bp[0];                      /* Check for null argument */
+        if (!s) s = "";                 /* or empty argument */
+        if (!*s) goto fnend;            /* in which case return empty string */
+        n = FNVALL;                     /* Not empty, max size for result */
+        s = fnval;                      /* Location of result */
+        {
+            /* Force VARIABLE-EVALUATION SIMPLE RECURSIVE */
+            /* NOTE: This is vulnerable to SIGINT and whatnot... */
+            int tmp = vareval;          /* Save VARIABLE-EVALUATION setting */
+            vareval = 1;                /* Force it to RECURSIVE */
+            zzstring(bp[0],&s,&n);      /* Expand arg into result space */
+            vareval = tmp;              /* Restore VARIABLE-EVALUATION */
+        }
+        goto fnend;
     }
 
-    if (cx == FN_XLATE) {		/* f_cvtcset() */
+    if (cx == FN_XLATE) {               /* f_cvtcset() */
 #ifdef NOFRILLS
-	ckstrncpy(fnval,bp[0],FNVALL);
+        ckstrncpy(fnval,bp[0],FNVALL);
 #else
 #ifndef NOUNICODE
-	_PROTOTYP( char * cvtstring, (char *, int, int) );
+        _PROTOTYP( char * cvtstring, (char *, int, int) );
         char * string, * cset1, * cset2;
-	int id1, id2;
-#endif	/* NOUNICODE */
+        int id1, id2;
+#endif  /* NOUNICODE */
         fnval[0] = NUL;
 #ifdef NOUNICODE
-	ckstrncpy(fnval,bp[0],FNVALL);
+        ckstrncpy(fnval,bp[0],FNVALL);
 #else
-        string = bp[0] ? bp[0] : "";	/* String to convert */
-	if (!*string) goto fnend;	/* It's empty */
+        string = bp[0] ? bp[0] : "";    /* String to convert */
+        if (!*string) goto fnend;       /* It's empty */
 
         cset1 = bp[1] ? bp[1] : "ascii"; /* Current charset of string */
         cset2 = bp[2] ? bp[2] : "ascii"; /* Charset to convert to */
 
-	id1 = lookup(fcstab,cset1,nfilc,NULL); /* Lookup 'from' set */
-	if (id1 < 0) {
+        id1 = lookup(fcstab,cset1,nfilc,NULL); /* Lookup 'from' set */
+        if (id1 < 0) {
             failed = 1;
-	    ckmakmsg(fnval,FNVALL,"<ERROR:UNKNOWN_CHARSET:\\f",fn,"()>",NULL);
-	    goto fnend;
+            ckmakmsg(fnval,FNVALL,"<ERROR:UNKNOWN_CHARSET:\\f",fn,"()>",NULL);
+            goto fnend;
         }
-	id2 = lookup(fcstab,cset2,nfilc,NULL); /* Lookup 'to' set */
-	if (id2 < 0) {
+        id2 = lookup(fcstab,cset2,nfilc,NULL); /* Lookup 'to' set */
+        if (id2 < 0) {
             failed = 1;
-	    ckmakmsg(fnval,FNVALL,"<ERROR:UNKNOWN_CHARSET:\\f",fn,"()>",NULL);
-	    goto fnend;
+            ckmakmsg(fnval,FNVALL,"<ERROR:UNKNOWN_CHARSET:\\f",fn,"()>",NULL);
+            goto fnend;
         }
-	string = cvtstring(string,id1,id2);
-	ckstrncpy(fnval,string,FNVALL);
-#endif	/* NOUNICODE */
-#endif	/* NOFRILLS */
-	goto fnend;
+        string = cvtstring(string,id1,id2);
+        ckstrncpy(fnval,string,FNVALL);
+#endif  /* NOUNICODE */
+#endif  /* NOFRILLS */
+        goto fnend;
     }
 
 /* Decode strings containing hex escapes */
 
-    if (cx == FN_UNPCT) {		/* \fdecodehex() */
+    if (cx == FN_UNPCT) {               /* \fdecodehex() */
         char *s1;
-	char *prefix;			/* Can be 1 or 2 chars */
-	char buf[3];
-	int n = 0, k;
+        char *prefix;                   /* Can be 1 or 2 chars */
+        char buf[3];
+        int n = 0, k;
 
-	p = fnval;
-	*p = NUL;
-        if (argn < 1) goto fnend;	/* Empty string */
+        p = fnval;
+        *p = NUL;
+        if (argn < 1) goto fnend;       /* Empty string */
 
-	s1 = bp[0] ? bp[0] : "";	/* Original string */
-	prefix = bp[1] ? bp[1] : "%%";	/* Hex byte prefix */
-	n = (int)strlen(prefix);	/* Length of prefix */
-	if (n < 1 || n > 2) {		/* must be 1 or 2 */
-	    ckmakmsg(fnval,FNVALL,
-		       "<ERROR:INVALID_HEX_PREFIX:\\f",fn,"()>",NULL);
-	    goto xunpct;
-	}
-        while (*s1) {
-	    if (!ckstrcmp(s1,prefix,n,0)) { /* Case-independent */
-		if (!*(s1+n)) {
-		    ckmakmsg(fnval,FNVALL,
-			     "<ERROR:INCOMPLETE_SEQUENCE:\\f",fn,"()>",NULL);
-		    goto xunpct;
-		}
-		buf[0] = *(s1+n);	/* First hex character */
-		buf[1] = *(s1+n+1);	/* Second hex character */
-		buf[2] = NUL;
-		if ((k = ckhexbytetoint((char *)buf)) > -1) {
-		    *p++ = (char) k;	/* Deposit decoded result */
-		    s1 += 2+n;		/* and advance the source pointer */
-		} else {		/* Fail on conversion error */
-		    ckmakmsg(fnval,FNVALL,
-			     "<ERROR:NON_HEX_CHARS:\\f",fn,"()>",NULL);
-		    goto xunpct;
-		}
-	    } else {			/* Not a hex escape sequence */
-		*p++ = *s1++;		/* Just copy the character */
-	    }
+        s1 = bp[0] ? bp[0] : "";        /* Original string */
+        prefix = bp[1] ? bp[1] : "%%";  /* Hex byte prefix */
+        n = (int)strlen(prefix);        /* Length of prefix */
+        if (n < 1 || n > 2) {           /* must be 1 or 2 */
+            ckmakmsg(fnval,FNVALL,
+                       "<ERROR:INVALID_HEX_PREFIX:\\f",fn,"()>",NULL);
+            goto xunpct;
         }
-	*p = NUL;			/* Terminate the result string */
-        failed = 0;			/* Say we didn't fail */
-        p = fnval;			/* Set up result pointer */
-        goto fnend;			/* and finish */
+        while (*s1) {
+            if (!ckstrcmp(s1,prefix,n,0)) { /* Case-independent */
+                if (!*(s1+n)) {
+                    ckmakmsg(fnval,FNVALL,
+                             "<ERROR:INCOMPLETE_SEQUENCE:\\f",fn,"()>",NULL);
+                    goto xunpct;
+                }
+                buf[0] = *(s1+n);       /* First hex character */
+                buf[1] = *(s1+n+1);     /* Second hex character */
+                buf[2] = NUL;
+                if ((k = ckhexbytetoint((char *)buf)) > -1) {
+                    *p++ = (char) k;    /* Deposit decoded result */
+                    s1 += 2+n;          /* and advance the source pointer */
+                } else {                /* Fail on conversion error */
+                    ckmakmsg(fnval,FNVALL,
+                             "<ERROR:NON_HEX_CHARS:\\f",fn,"()>",NULL);
+                    goto xunpct;
+                }
+            } else {                    /* Not a hex escape sequence */
+                *p++ = *s1++;           /* Just copy the character */
+            }
+        }
+        *p = NUL;                       /* Terminate the result string */
+        failed = 0;                     /* Say we didn't fail */
+        p = fnval;                      /* Set up result pointer */
+        goto fnend;                     /* and finish */
 
-      xunpct:				/* Error exit */
-	p = fnval;
-	failed = 1;
-	goto fnend;
+      xunpct:                           /* Error exit */
+        p = fnval;
+        failed = 1;
+        goto fnend;
     }
 
 /* Check a string for encoding family */
 
-    if (cx == FN_STRINGT) {		/* \fstringtype() */
-	p = "UNK";
-	switch (scanstring(bp[0])) {
-	  case FT_7BIT: p = "7BIT"; break;
-	  case FT_8BIT: p = "8BIT"; break;
-	  case FT_UTF8: p = "UTF8"; break;
-	  case FT_UCS2: p = "UCS2"; break;
-	  case FT_TEXT: p = "TEXT"; break;
-	  case FT_BIN:  p = "BINARY"; break;
-	}
-	ckstrncpy(fnval,p,FNVALL);
-	p = fnval;
-	goto fnend;
+    if (cx == FN_STRINGT) {             /* \fstringtype() */
+        p = "UNK";
+        switch (scanstring(bp[0])) {
+          case FT_7BIT: p = "7BIT"; break;
+          case FT_8BIT: p = "8BIT"; break;
+          case FT_UTF8: p = "UTF8"; break;
+          case FT_UCS2: p = "UCS2"; break;
+          case FT_TEXT: p = "TEXT"; break;
+          case FT_BIN:  p = "BINARY"; break;
+        }
+        ckstrncpy(fnval,p,FNVALL);
+        p = fnval;
+        goto fnend;
     }
 
 /* String compare s1, s2, [ case ], [ start ] , [ len ] */
 
     if (cx == FN_STRCMP) {
-        int docase = 0;			/* Case matters or not */
-        int start = 0;			/* Start of substring */
-	int len = -1;			/* Length of substring to compare */
-	int x; char * s1, * s2;		/* workers */
+        int docase = 0;                 /* Case matters or not */
+        int start = 0;                  /* Start of substring */
+        int len = -1;                   /* Length of substring to compare */
+        int x; char * s1, * s2;         /* workers */
 
-        p = "0";			/* Return value */
-        if (argn == 0) {		/* Two null strings are equal */
-	    ckstrncpy(fnval,p,FNVALL);
-	    p = fnval;
-	    goto fnend;
-	}
-        if (argn == 1) {		/* Non-null string > null string */
-	    p = "1";
-	    ckstrncpy(fnval,p,FNVALL);
-	    p = fnval;
-	    goto fnend;
-	}
-	if (argn > 2) {
-	    s = *(bp[2]) ? evalx(bp[2]) : "0"; /* 0 = caseless */
-	    if (chknum(s)) docase = atoi(s);
-	    if (argn > 3) {
-		s = *(bp[3]) ? evalx(bp[3]) : "1"; /* start is 1-based */
-		if (chknum(s)) start = atoi(s);
-		if (argn > 4) {
-		    s = *(bp[4]) ? evalx(bp[4]) : "-1";	/* -1 = whole thing */
-		    if (chknum(s)) len = atoi(s);
-		}
-	    }
-	}
-	if (start > 0) start--; 	/* start is 0-based internally */
-	s1 = bp[0];			/* Get length of first arg */
-	x = (int)strlen(s1);
-	if (x > start)			/* Point to start position of s1 */
-	  s1 += start;
-	else
-	  s1 = "";
-	s2 = bp[1];			/* Get length of second arg */
-	x = (int)strlen(s2);
-	if (x > start)			/* Point to start position of s2 */
-	  s2 += start;
-	else
-	  s2 = "";
-	x = ckstrcmp(s,s2,len,docase);
-	p = ckitoa(x);
-	ckstrncpy(fnval,p,FNVALL);
-	p = fnval;
-	goto fnend;
+        p = "0";                        /* Return value */
+        if (argn == 0) {                /* Two null strings are equal */
+            ckstrncpy(fnval,p,FNVALL);
+            p = fnval;
+            goto fnend;
+        }
+        if (argn == 1) {                /* Non-null string > null string */
+            p = "1";
+            ckstrncpy(fnval,p,FNVALL);
+            p = fnval;
+            goto fnend;
+        }
+        if (argn > 2) {
+            s = *(bp[2]) ? evalx(bp[2]) : "0"; /* 0 = caseless */
+            if (chknum(s)) docase = atoi(s);
+            if (argn > 3) {
+                s = *(bp[3]) ? evalx(bp[3]) : "1"; /* start is 1-based */
+                if (chknum(s)) start = atoi(s);
+                if (argn > 4) {
+                    s = *(bp[4]) ? evalx(bp[4]) : "-1"; /* -1 = whole thing */
+                    if (chknum(s)) len = atoi(s);
+                }
+            }
+        }
+        if (start > 0) start--;         /* start is 0-based internally */
+        s1 = bp[0];                     /* Get length of first arg */
+        x = (int)strlen(s1);
+        if (x > start)                  /* Point to start position of s1 */
+          s1 += start;
+        else
+          s1 = "";
+        s2 = bp[1];                     /* Get length of second arg */
+        x = (int)strlen(s2);
+        if (x > start)                  /* Point to start position of s2 */
+          s2 += start;
+        else
+          s2 = "";
+        x = ckstrcmp(s,s2,len,docase);
+        p = ckitoa(x);
+        ckstrncpy(fnval,p,FNVALL);
+        p = fnval;
+        goto fnend;
     }
 #ifdef HAVE_LOCALE
 /*  \fdayname() - Returns locale-dependent day name string - 2013/07/23 */
 
     if (cx == FN_DAYNAME) {
-	_PROTOTYP( char * locale_dayname, (int, int) );
+        _PROTOTYP( char * locale_dayname, (int, int) );
         char *s1, *s2;
-	char buf[3];
-	int fc = 0, day = 999;
+        char buf[3];
+        int fc = 0, day = 999;
 
-	s1 = bp[0];
-	s2 = bp[1];
-	p = fnval;
-	*p = NUL;
+        s1 = bp[0];
+        s2 = bp[1];
+        p = fnval;
+        *p = NUL;
 
-	if (!s1) s1 = "";
-	if (!*s1) {
-	    s1 = ckdate();
-	} else if (rdigits(s1) && (int)strlen(s1) < 8) {
-	    day = atoi(s1);
-	    if (day == 0) day = 7;	/* In case \v(nday) used as arg */
-	    if (day < 1 || day > 7) {
-		ckmakmsg(fnval,FNVALL,"<ERROR:BAD_DAYNUM\\f",fn,"()>",NULL);
-		goto fnend;
-	    }
-	    day--;			/* Adjust to zero-based */
-	} else if (!(s1 = cmcvtdate(s1,1))) {
-	    ckmakmsg(fnval,FNVALL,"<ERROR:BAD_DATE\\f",fn,"()>",NULL);
-	    goto fnend;
-	}
-	if (!s2) s2 = "";		/* Parse function code */
-	if (!*s2) {
-	    fc = 0;
-	} else if (rdigits(s2)) {
-	    fc = atoi(s2);
-	} else {
+        if (!s1) s1 = "";
+        if (!*s1) {
+            s1 = ckdate();
+        } else if (rdigits(s1) && (int)strlen(s1) < 8) {
+            day = atoi(s1);
+            if (day == 0) day = 7;      /* In case \v(nday) used as arg */
+            if (day < 1 || day > 7) {
+                ckmakmsg(fnval,FNVALL,"<ERROR:BAD_DAYNUM\\f",fn,"()>",NULL);
+                goto fnend;
+            }
+            day--;                      /* Adjust to zero-based */
+        } else if (!(s1 = cmcvtdate(s1,1))) {
+            ckmakmsg(fnval,FNVALL,"<ERROR:BAD_DATE\\f",fn,"()>",NULL);
+            goto fnend;
+        }
+        if (!s2) s2 = "";               /* Parse function code */
+        if (!*s2) {
+            fc = 0;
+        } else if (rdigits(s2)) {
+            fc = atoi(s2);
+        } else {
             failed = 1;
-	    ckmakmsg(fnval,FNVALL,"<ERROR:FUNCTION_CODE:\\f",fn,"()>",NULL);
-	    goto fnend;
-	}
-	if (day > 6) {			/* Day number was not given */
-	    day = (mjd(s1) % 7) + 2;	/* Get day number */
-	    if (day > 6) day -= 7;	/* Adjust to 0=Sunday */
-	}
-	s1 = locale_dayname(day,fc);	/* Get locale-based day name */
-	if (!s1) {
+            ckmakmsg(fnval,FNVALL,"<ERROR:FUNCTION_CODE:\\f",fn,"()>",NULL);
+            goto fnend;
+        }
+        if (day > 6) {                  /* Day number was not given */
+            day = (mjd(s1) % 7) + 2;    /* Get day number */
+            if (day > 6) day -= 7;      /* Adjust to 0=Sunday */
+        }
+        s1 = locale_dayname(day,fc);    /* Get locale-based day name */
+        if (!s1) {
             failed = 1;
-	    ckmakmsg(fnval,FNVALL,"<ERROR:NO_RESULT:\\f",fn,"()>",NULL);
-	    goto fnend;
-	}
-	ckstrncpy(fnval,s1,FNVALL);
-	goto fnend;
+            ckmakmsg(fnval,FNVALL,"<ERROR:NO_RESULT:\\f",fn,"()>",NULL);
+            goto fnend;
+        }
+        ckstrncpy(fnval,s1,FNVALL);
+        goto fnend;
     }
     /* \fmonthname() - Returns locale-dependent month name string 2013/07/24 */
 
     if (cx == FN_MONNAME) {
-	_PROTOTYP( char * locale_monthname, (int, int) );
+        _PROTOTYP( char * locale_monthname, (int, int) );
         char *s1, *s2;
-	char buf[3];
-	int fc = 0, month = 999;
+        char buf[3];
+        int fc = 0, month = 999;
 
-	s1 = bp[0];
-	s2 = bp[1];
-	p = fnval;
-	*p = NUL;
+        s1 = bp[0];
+        s2 = bp[1];
+        p = fnval;
+        *p = NUL;
 
-	if (!s1) s1 = "";
-	if (!*s1) {
-	    s1 = ckdate();
-	} else if (rdigits(s1) && (int)strlen(s1) < 8) {
-	    month = atoi(s1);
+        if (!s1) s1 = "";
+        if (!*s1) {
+            s1 = ckdate();
+        } else if (rdigits(s1) && (int)strlen(s1) < 8) {
+            month = atoi(s1);
             if (month == 0) month = 12;
-	    if (month < 1 || month > 12) {
-		ckmakmsg(fnval,FNVALL,"<ERROR:BAD_MONTHNUM:\\f",fn,"()>",NULL);
-		goto fnend;
-	    }
-	    month--;			/* Adjust to zero-based */
-	} else if (!(s1 = cmcvtdate(s1,1))) {
-	    ckmakmsg(fnval,FNVALL,"<ERROR:BAD_DATE\\f",fn,"()>",NULL);
-	    goto fnend;
-	}
-	if (month > 12) {
-	    char mn[3];
-	    mn[0] = s1[4];
-	    mn[1] = s1[5];
-	    mn[2] = NUL;
-	    month = atoi((char *)mn) - 1;
-	}
-	if (!s2) s2 = "";		/* Parse function code */
-	if (!*s2) {
-	    fc = 0;
-	} else if (rdigits(s2)) {
-	    fc = atoi(s2);
-	} else {
+            if (month < 1 || month > 12) {
+                ckmakmsg(fnval,FNVALL,"<ERROR:BAD_MONTHNUM:\\f",fn,"()>",NULL);
+                goto fnend;
+            }
+            month--;                    /* Adjust to zero-based */
+        } else if (!(s1 = cmcvtdate(s1,1))) {
+            ckmakmsg(fnval,FNVALL,"<ERROR:BAD_DATE\\f",fn,"()>",NULL);
+            goto fnend;
+        }
+        if (month > 12) {
+            char mn[3];
+            mn[0] = s1[4];
+            mn[1] = s1[5];
+            mn[2] = NUL;
+            month = atoi((char *)mn) - 1;
+        }
+        if (!s2) s2 = "";               /* Parse function code */
+        if (!*s2) {
+            fc = 0;
+        } else if (rdigits(s2)) {
+            fc = atoi(s2);
+        } else {
             failed = 1;
-	    ckmakmsg(fnval,FNVALL,"<ERROR:FUNCTION_CODE:\\f",fn,"()>",NULL);
-	    goto fnend;
-	}
-	s1 = locale_monthname(month,fc); /* Get locale-based month name */
-	if (!s1) {
+            ckmakmsg(fnval,FNVALL,"<ERROR:FUNCTION_CODE:\\f",fn,"()>",NULL);
+            goto fnend;
+        }
+        s1 = locale_monthname(month,fc); /* Get locale-based month name */
+        if (!s1) {
             failed = 1;
-	    ckmakmsg(fnval,FNVALL,"<ERROR:NO_RESULT:\\f",fn,"()>",NULL);
-	    goto fnend;
-	}
-	ckstrncpy(fnval,s1,FNVALL);
-	goto fnend;
+            ckmakmsg(fnval,FNVALL,"<ERROR:NO_RESULT:\\f",fn,"()>",NULL);
+            goto fnend;
+        }
+        ckstrncpy(fnval,s1,FNVALL);
+        goto fnend;
     }
 #endif /* HAVE_LOCALE */
 
@@ -13712,8 +13737,8 @@ char *                                  /* Evaluate builtin variable */
             return((char *)unm_mch);
         }
 #else
-        p = getenv("HOSTTYPE");		/* 20091116 */
-	if (p) if (*p) return(p);
+        p = getenv("HOSTTYPE");         /* 20091116 */
+        if (p) if (*p) return(p);
         return("unknown");
 #endif /* CK_UTSNAME */
 #endif /* CKCPU */
@@ -13724,7 +13749,7 @@ char *                                  /* Evaluate builtin variable */
         return(vvbuf);
 
       case VN_DAY:                      /* Current day of the week */
-        ztime(&p);			/* three-letter abbreviation */
+        ztime(&p);                      /* three-letter abbreviation */
         if (p != NULL && *p != NUL)     /* ztime() succeeded. */
           ckstrncpy(vvbuf,p,4);
         else
@@ -13739,31 +13764,31 @@ char *                                  /* Evaluate builtin variable */
           return(vvbuf);
 
       case VN_MONTH:
-        ztime(&p);			/* three-letter abbreviation */
+        ztime(&p);                      /* three-letter abbreviation */
         if (p != NULL && *p != NUL)     /* ztime() succeeded. */
           ckstrncpy(vvbuf,p+4,5);
         else
           vvbuf[0] = NUL;               /* ztime() failed. */
         return(vvbuf);                  /* Return what we got. */
 
-      case VN_NMONTH: {			/* Numeric month (1-12) */
-	  int x;
-	  ztime(&p);			/* asctime three-letter abbreviation */
-	  for (x = 0; x < 12; x++)
-	    if (!strncmp(p+4,months[x],3)) break;
-	  if (x == 12) {
-	      vvbuf[0] = '?';
-	      vvbuf[1] = '?';
-	  } else {
-	      x++;
-	      vvbuf[0] = (char) ((x < 10) ? '0' : '1');
-	      vvbuf[1] = (char) ((x % 10) + 48);
-	  }
-	  vvbuf[2] = NUL;
-	  return(vvbuf);		/* Return what we got. */
+      case VN_NMONTH: {                 /* Numeric month (1-12) */
+          int x;
+          ztime(&p);                    /* asctime three-letter abbreviation */
+          for (x = 0; x < 12; x++)
+            if (!strncmp(p+4,months[x],3)) break;
+          if (x == 12) {
+              vvbuf[0] = '?';
+              vvbuf[1] = '?';
+          } else {
+              x++;
+              vvbuf[0] = (char) ((x < 10) ? '0' : '1');
+              vvbuf[1] = (char) ((x % 10) + 48);
+          }
+          vvbuf[2] = NUL;
+          return(vvbuf);                /* Return what we got. */
       }
 
-      case VN_YEAR:			/* Current year */
+      case VN_YEAR:                     /* Current year */
         ztime(&p);
         if (p != NULL && *p != NUL)     /* ztime() succeeded. */
           ckstrncpy(vvbuf,p+20,5);
@@ -13842,12 +13867,12 @@ char *                                  /* Evaluate builtin variable */
 #ifndef NODIAL
       case VN_DMSG:
 #ifdef BIGBUFOK
-	ckstrncpy(vvbuf,
+        ckstrncpy(vvbuf,
               ((dialsta < 0) ? "(none)" : dialmsg[dialsta]),
               VVBUFL); /* Safe if src == NULL.. mdw 20140213 */
-#endif	/* BIGBUFOK */
-	return((char *)vvbuf);
-#endif	/* NODIAL */
+#endif  /* BIGBUFOK */
+        return((char *)vvbuf);
+#endif  /* NODIAL */
 
 #ifdef OS2
       case VN_KEYB:
@@ -14710,7 +14735,7 @@ char *                                  /* Evaluate builtin variable */
             || IS_SSH()
 #endif /* SSHBUILTIN */
 #ifdef CK_ENCRYPTION
-            || ck_tn_encrypting() && ck_tn_decrypting()
+            || (ck_tn_encrypting() && ck_tn_decrypting())
 #endif /* CK_ENCRYPTION */
 #ifdef CK_SSL
             || tls_active_flag || ssl_active_flag
@@ -14753,11 +14778,11 @@ char *                                  /* Evaluate builtin variable */
 #ifdef CK_AUTHENTICATION
 #ifdef CK_SSL
         if ((ssl_active_flag || tls_active_flag) &&
-            ck_tn_auth_valid() == AUTH_VALID &&
-            (sstelnet ? (!TELOPT_U(TELOPT_AUTHENTICATION)) :
-                        (!TELOPT_ME(TELOPT_AUTHENTICATION))) ||
+            (((ck_tn_auth_valid() == AUTH_VALID) &&
+              (sstelnet ? (!TELOPT_U(TELOPT_AUTHENTICATION)) :
+                          (!TELOPT_ME(TELOPT_AUTHENTICATION)))) ||
              ck_tn_authenticated() == AUTHTYPE_NULL ||
-             ck_tn_authenticated() == AUTHTYPE_AUTO)
+             ck_tn_authenticated() == AUTHTYPE_AUTO))
           return("X_509_CERTIFICATE");
         else
 #endif /* CK_SSL */
@@ -15122,10 +15147,10 @@ char *                                  /* Evaluate builtin variable */
     switch(y) {
 #ifndef NOLASTFILE
       case VN_LASTFIL: {
-	  extern char * lastfile;
-	  return(lastfile ? lastfile : "");
+          extern char * lastfile;
+          return(lastfile ? lastfile : "");
       }
-#endif	/* NOLASTFILE */
+#endif  /* NOLASTFILE */
 #ifndef NOXFER
       case VN_XF_BC:
         sprintf(vvbuf,"%d",crunched);   /* SAFE */
@@ -15173,9 +15198,9 @@ char *                                  /* Evaluate builtin variable */
         return(inpmatch ? inpmatch : "");
 
 #ifdef CKFLOAT
-      case VN_ISCALE:			/* INPUT SCALE-FACTOR */
+      case VN_ISCALE:                   /* INPUT SCALE-FACTOR */
         return(inpscale ? inpscale : "1.0");
-#endif	/* CKFLOAT */
+#endif  /* CKFLOAT */
 
       case VN_SLMSG: {                  /* SET LINE / HOST message */
           extern char * slmsg;
@@ -15377,39 +15402,39 @@ char *                                  /* Evaluate builtin variable */
         vvbuf[2] = NUL;
         return(vvbuf);                  /* and return it */
 
-      case VN_BITS:			/* Bits (16, 32, 64) */
-	if (sizeof(long) > 4)
-	  return(ckitoa(8*sizeof(long)));
-	else
-	  return(ckitoa(8*sizeof(int)));
+      case VN_BITS:                     /* Bits (16, 32, 64) */
+        if (sizeof(long) > 4)
+          return(ckitoa(8*sizeof(long)));
+        else
+          return(ckitoa(8*sizeof(int)));
 
-      case VN_LASTKWV:			/* 212 */
-	return(lastkwval ? lastkwval : "");
+      case VN_LASTKWV:                  /* 212 */
+        return(lastkwval ? lastkwval : "");
 
-      case VN_HOSTIP: {			/* 212 */
+      case VN_HOSTIP: {                 /* 212 */
 #ifdef TCPSOCKET
-	  extern char hostipaddr[];
-	  return((char *)hostipaddr);
+          extern char hostipaddr[];
+          return((char *)hostipaddr);
 #else
-	  return("");
-#endif	/* TCPSOCKET */
+          return("");
+#endif  /* TCPSOCKET */
       }
       case VN_INPMSG:
-	switch (instatus) {
-	  case INP_OK:  return("SUCCESS");
-	  case INP_TO:  return("Timed out");
-	  case INP_UI:  return("Keyboard interrupt");
-	  case INP_IE:  return("Internal error");
-	  case INP_IO:  return("I/O error or connection lost");
-	  case INP_IKS: return("INPUT disabled");
-	  case INP_BF:  return("Buffer filled and /NOWRAP set");
-	  default:      return("Unknown");
-	}
+        switch (instatus) {
+          case INP_OK:  return("SUCCESS");
+          case INP_TO:  return("Timed out");
+          case INP_UI:  return("Keyboard interrupt");
+          case INP_IE:  return("Internal error");
+          case INP_IO:  return("I/O error or connection lost");
+          case INP_IKS: return("INPUT disabled");
+          case INP_BF:  return("Buffer filled and /NOWRAP set");
+          default:      return("Unknown");
+        }
 
-      case VN_VAREVAL:			/* 212 */
-	return(vareval ? "recursive" : "simple");
+      case VN_VAREVAL:                  /* 212 */
+        return(vareval ? "recursive" : "simple");
 
-      case VN_LOG_CON:			/* \v(...) for log files */
+      case VN_LOG_CON:                  /* \v(...) for log files */
 #ifdef CKLOGDIAL
         return(diafil);
 #else
@@ -15440,8 +15465,8 @@ char *                                  /* Evaluate builtin variable */
         return("");
 #endif
       case VN_PREVCMD: {
-	  extern char * prevcmd;
-	  return(prevcmd ?  prevcmd : "");
+          extern char * prevcmd;
+          return(prevcmd ?  prevcmd : "");
       }
     }
 
@@ -15517,12 +15542,12 @@ char *                                  /* Evaluate builtin variable */
 #ifdef KUI
     switch (y) {
       case VN_GUI_RUN: {
-	  extern HWND getHwndKUI();
-	  if ( IsIconic(getHwndKUI()) )
+          extern HWND getHwndKUI();
+          if ( IsIconic(getHwndKUI()) )
             return("minimized");
-	  if ( IsZoomed(getHwndKUI()) )
+          if ( IsZoomed(getHwndKUI()) )
             return("maximized");
-	  return("restored");
+          return("restored");
       }
       case VN_GUI_XP:
         sprintf(vvbuf,"%d",get_gui_window_pos_x());  /* SAFE */
@@ -15610,12 +15635,12 @@ getbasename(s) char *s;
   But that's no reason use malloc() in Unix or VMS, which don't have
   this kind of restriction.
 */
-#ifdef DVNAMBUF				/* Dynamic vnambuf[] */
-#undef DVNAMBUF				/* Clean slate */
+#ifdef DVNAMBUF                         /* Dynamic vnambuf[] */
+#undef DVNAMBUF                         /* Clean slate */
 #endif /* DVNAMBUF */
 
-#ifndef NOSPL				/* Only if SPL included */
-#ifdef OS2				/* Only for K95 */
+#ifndef NOSPL                           /* Only if SPL included */
+#ifdef OS2                              /* Only for K95 */
 #define DVNAMBUF
 #endif /* OS2 */
 #endif /* NOSPL */
@@ -15638,7 +15663,7 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
         vbi,                            /* Variable id (integer form) */
         argl,                           /* String argument length */
         nx,                             /* Save original length */
-	quoting = 0;			/* 299 */
+        quoting = 0;                    /* 299 */
 
     char vb,                            /* Variable id (char form) */
         *vp,                            /* Pointer to variable definition */
@@ -15647,7 +15672,8 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
         *old,                           /* Save original target pointer */
 #endif /* COMMENT */
         *p,                             /* Worker */
-        *q,                             /* Worker */
+        *q = NULL,                      /* Worker; NULL until case 'f' */
+                                         /* allocates vnambuf's copy */
         *s3;                            /* Worker */
     int  x3;                            /* Worker */
     char *r  = (char *)0;               /* For holding function args */
@@ -15672,13 +15698,13 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
     /* This is always 32K in BIGBUFOK builds */
     if (depth == 0)
       debug(F101,"zzstring top-level n","",n2);
-#endif	/* COMMENT */
+#endif  /* COMMENT */
 
     new = *s2;                          /* for one less level of indirection */
 
 #ifndef NOSPL
-    itsapattern = 0;			/* For \fpattern() */
-    isjoin = 0;				/* For \fjoin() */
+    itsapattern = 0;                    /* For \fpattern() */
+    isjoin = 0;                         /* For \fjoin() */
 #endif /* NOSPL */
     depth++;                            /* Sink to a new depth */
     if (depth > XXDEPLIM) {             /* Too deep? */
@@ -15757,7 +15783,7 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
             vp = NULL;                  /* Assume definition is empty */
             if (vb >= '0' && vb <= '9') { /* Digit for macro arg */
                 if (maclvl < 0)         /* Digit variables are global */
-                  vp = g_var[vb];       /* if no macro is active */
+                  vp = g_var[(unsigned char)vb]; /* if no macro is active */
                 else                    /* otherwise */
                   vp = m_arg[maclvl][vb - '0']; /* they're on the stack */
             } else if (vb == '*') {     /* Macro args string */
@@ -15766,47 +15792,48 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
                 vp = (maclvl >= 0) ? m_line[maclvl] : topline;
                 if (!vp) vp = "";
 #else
-		char * ss = new;
+                char * ss = new;
                 if (zzstring("\\fjoin(&_[],,1)",&new,&n2) < 0) {
 #ifdef DVNAMBUF
-		    if (vnambuf) free(vnambuf);
+                    if (vnambuf) free(vnambuf);
 #endif /* DVNAMBUF */
-		    return(-1);
-		}
-		debug(F110,"zzstring \\%*",ss,0);
+                    return(-1);
+                }
+                debug(F110,"zzstring \\%*",ss,0);
                 break;
 #endif /* COMMENT */
             } else {
                 if (isupper(vb)) vb += ('a'-'A');
-                vp = g_var[vb];         /* Letter for global variable */
+                if (vb >= 33 && (unsigned int)vb <= GVARS)
+                  vp = g_var[(unsigned char)vb]; /* Letter, global var */
             }
             if (!vp) vp = "";
 #ifdef COMMENT
             if (vp) {                   /* If definition not empty */
 #endif /* COMMENT */
-		if (vareval) {
-		    debug(F010,"zzstring %n vp",vp,0);
-		    /* call self to evaluate it */
-		    if (zzstring(vp,&new,&n2) < 0) {
-			debug(F101,"zzstring fail 6","",depth);
+                if (vareval) {
+                    debug(F010,"zzstring %n vp",vp,0);
+                    /* call self to evaluate it */
+                    if (zzstring(vp,&new,&n2) < 0) {
+                        debug(F101,"zzstring fail 6","",depth);
 #ifdef DVNAMBUF
-			if (vnambuf) free(vnambuf);
+                        if (vnambuf) free(vnambuf);
 #endif /* DVNAMBUF */
-			return(-1);	/* Pass along failure */
-		    }
-		} else {
-		    while ((*new++ = *vp++)) /* copy it to output string. */
-		      if (--n2 < 0) {
-			  if (q) free(q);
-			  debug(F101,"zzstring overflow 4.5","",depth);
+                        return(-1);     /* Pass along failure */
+                    }
+                } else {
+                    while ((*new++ = *vp++)) /* copy it to output string. */
+                      if (--n2 < 0) {
+                          if (q) free(q);
+                          debug(F101,"zzstring overflow 4.5","",depth);
 #ifdef DVNAMBUF
-			  if (vnambuf) free(vnambuf);
+                          if (vnambuf) free(vnambuf);
 #endif /* DVNAMBUF */
-			  return(-1);
-		      }
-		    new--;		/* Back up over terminating null */
-		    n2++;		/* to allow for further deposits. */
-		}
+                          return(-1);
+                      }
+                    new--;              /* Back up over terminating null */
+                    n2++;               /* to allow for further deposits. */
+                }
 #ifdef COMMENT
             } else {
                 debug(F110,"zzstring %n vp","(NULL)",0);
@@ -15847,36 +15874,36 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
                     if (ap) {           /* and if there is one */
                         if (ap[d]) {    /* If definition not empty */
                             debug(F111,"zzstring ap[d]",ap[d],d);
-			    if (vareval) {
-				if (zzstring(ap[d],&new,&n2) < 0) {
-				    debug(F101,"zzstring fail 8","",depth);
+                            if (vareval) {
+                                if (zzstring(ap[d],&new,&n2) < 0) {
+                                    debug(F101,"zzstring fail 8","",depth);
 #ifdef DVNAMBUF
-				    if (vnambuf) free(vnambuf);
+                                    if (vnambuf) free(vnambuf);
 #endif /* DVNAMBUF */
-				    return(-1); /* Pass along failure */
-				}
-			    } else {
-				vp = ap[d];
-				while ((*new++ = *vp++)) /* copy to result */
-				  if (--n2 < 0) {
-				      if (q) free(q);
-				      debug(F101,
-					    "zzstring overflow 8.5","",depth);
+                                    return(-1); /* Pass along failure */
+                                }
+                            } else {
+                                vp = ap[d];
+                                while ((*new++ = *vp++)) /* copy to result */
+                                  if (--n2 < 0) {
+                                      if (q) free(q);
+                                      debug(F101,
+                                            "zzstring overflow 8.5","",depth);
 #ifdef DVNAMBUF
-				      if (vnambuf) free(vnambuf);
+                                      if (vnambuf) free(vnambuf);
 #endif /* DVNAMBUF */
-				      return(-1);
-				  }
-				new--;	/* Back up over terminating null */
-				n2++;	/* to allow for further deposits. */
-			    }
-			}
+                                      return(-1);
+                                  }
+                                new--;  /* Back up over terminating null */
+                                n2++;   /* to allow for further deposits. */
+                            }
+                        }
 
                     } else {
                         n2 = nx;
                     }
                 }
-	    }
+            }
             break;
 
           case 'f':                     /* A builtin function */
@@ -15974,12 +16001,12 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
                 }
             }
 #endif /* DEBUG */
-	    {
-	     /* In case the function name itself is constructed */
-		char buf[64]; char * p = buf; int n = 64;
-		if (zzstring(vnambuf,&p,&n) > -1)
-		  ckstrncpy(vnambuf,buf,64);
-	    }
+            {
+             /* In case the function name itself is constructed */
+                char buf[64]; char * p = buf; int n = 64;
+                if (zzstring(vnambuf,&p,&n) > -1)
+                  ckstrncpy(vnambuf,buf,64);
+            }
             vp = fneval(vnambuf,argp,argn,r3); /* Evaluate the function. */
             if (vp) {                      /* If definition not empty */
                 while ((*new++ = *vp++)) { /* copy it to output string */
@@ -15999,8 +16026,9 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
             if (r2) { free(r2); r2 = NULL; }
             if (r3) { free(r3); r3 = NULL; }
             break;
-	  case 'q':			/* 299 String to be take literally */
-	    quoting = 1;		/* 299 */
+          case 'q':                     /* 299 String to be take literally */
+            quoting = 1;                /* 299 */
+            /* Fall through */
           case '$':                     /* An environment variable */
           case 'v':                     /* Or a named builtin variable. */
           case 'm':                     /* Or a macro /long variable */
@@ -16023,14 +16051,14 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
             p++;                        /* Point to 1st char of name */
             q = vnambuf;                /* Copy the name */
             y = 0;                      /* into a separate buffer */
-	    debug(F110,">>>> \\q(ARG)",p,0);
+            debug(F110,">>>> \\q(ARG)",p,0);
             while (y++ < VNAML) {       /* Watch out for name too long */
                 if (*p == '(') {        /* Parens can be nested... */
-		    if (*(p-1) != CMDQ)	/* 299 */
-		      pp++;
+                    if (*(p-1) != CMDQ) /* 299 */
+                      pp++;
                 } else if (*p == ')') { /* Name properly terminated with ')' */
-		    if (*(p-1) != CMDQ)	/* 299 */
-		      pp--;
+                    if (*(p-1) != CMDQ) /* 299 */
+                      pp--;
                     if (pp == 0) {
                         p++;            /* Move source pointer past ')' */
                         break;
@@ -16056,7 +16084,7 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
 /* The following is in case the macro name itself contains variables */
 
             p = malloc(x3 + 1);         /* Make temporary space */
-            if (p && !quoting) {	/* If we got the space */
+            if (p && !quoting) {        /* If we got the space */
                 vp = vnambuf;           /* Point to original */
                 strcpy(p,vp);           /* (safe) Make a copy of it */
                 y = VNAML;              /* Length of name buffer */
@@ -16068,49 +16096,49 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
 
             debug(F110,"zzstring macro name",vnambuf,0);
             q = NULL;
-	    if (x == 'q') {		/* 299 Quoting this string */
-		vp = vnambuf;		/* 299 */
-		debug(F110,">>> VP",vp,0);
-	    } else if (x == '$') {	/* Look up its value */
+            if (x == 'q') {             /* 299 Quoting this string */
+                vp = vnambuf;           /* 299 */
+                debug(F110,">>> VP",vp,0);
+            } else if (x == '$') {      /* Look up its value */
                 vp = getenv(vnambuf);   /* This way for environment variable */
             } else if (x == 'm' || x == 's' || x == ':') { /* Macro / substr */
                 int k, x1 = -1, x2 = -1;
-		char c = NUL;
+                char c = NUL;
                 k = strlen(vnambuf);
                 /* \s(name[n:m]) -- Compact substring notation */
                 if ((x == 's' || x == ':') && (k > 1)) { /* Substring wanted */
-		    int bprc;
+                    int bprc;
                     if (vnambuf[k-1] == ']') {
                         int i;
                         for (i = 0; i < k-1; i++) {
                             if (vnambuf[i] == '[') {
-				bprc = boundspair(vnambuf,":_.",&x1,&x2,&c);
-				debug(F111,"zzstring boundspair",vnambuf,bprc);
-				debug(F000,"zzstring boundspair c","",c);
-				if (bprc > -1) {
-				    vnambuf[i] = NUL;
-				    if (x1 < 1)
-				      x1 = 1;
-				    x1--;	/* Adjust to 0-base */
-				}
-				break;
+                                bprc = boundspair(vnambuf,":_.",&x1,&x2,&c);
+                                debug(F111,"zzstring boundspair",vnambuf,bprc);
+                                debug(F000,"zzstring boundspair c","",c);
+                                if (bprc > -1) {
+                                    vnambuf[i] = NUL;
+                                    if (x1 < 1)
+                                      x1 = 1;
+                                    x1--;       /* Adjust to 0-base */
+                                }
+                                break;
                             }
                         }
-		    }
+                    }
                 }
-                if (x == ':') {		/* Variable type (s or :) */
+                if (x == ':') {         /* Variable type (s or :) */
                     vp = vnambuf;
                 } else {                /* Regular macro or associative array*/
-		    y = isaarray(vnambuf) ?
-			mxxlook(mactab,vnambuf,nmac) : /* Assoc Array */
-			mxlook(mactab,vnambuf,nmac);   /* Macro */
-                    if (y > -1) {	/* Got definition */
+                    y = isaarray(vnambuf) ?
+                        mxxlook(mactab,vnambuf,nmac) : /* Assoc Array */
+                        mxlook(mactab,vnambuf,nmac);   /* Macro */
+                    if (y > -1) {       /* Got definition */
                         vp = mactab[y].mval;
                     } else {
                         vp = NULL;
                     }
                 }
-		debug(F111,"zzstring vp",vp,(vp==NULL)?0:strlen(vp));
+                debug(F111,"zzstring vp",vp,(vp==NULL)?0:strlen(vp));
 
                 if (vp) {
                     if ((x == 's' || x == ':') && (k > 1)) {
@@ -16119,47 +16147,47 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
                             vp = NULL;
                         } else if (x1 > -1) { /* Start */
                             k = strlen(vp);
-			    debug(F101,">>> k","",k);
-			    /* If it's off the end, result is empty */
+                            debug(F101,">>> k","",k);
+                            /* If it's off the end, result is empty */
                             if (x1 > k) {
                                 vp = NULL;
                             } else if (k > 0) {
-				/* Stay in bounds */
-				if (c == '_' && x2 > k)	/* startpos_endpos */
-				  x2 = k;
-				if (c == ':' && x1 + x2 > k) /* start:length */
-				  x2 = -1;
-				debug(F101,">>> x2","",x2);
-				debug(F000,">>> c","",c);
+                                /* Stay in bounds */
+                                if (c == '_' && x2 > k) /* startpos_endpos */
+                                  x2 = k;
+                                if (c == ':' && x1 + x2 > k) /* start:length */
+                                  x2 = -1;
+                                debug(F101,">>> x2","",x2);
+                                debug(F000,">>> c","",c);
                                 if ((q = malloc(k+1))) {
                                     strcpy(q,vp); /* safe */
-				    if (c == '.') {
-					q[x1+1] = NUL;
-					debug(F000,"XXX. q",q,c);
-				    }
-				    if (c == ':') { /* start:length */
-					if ((x2 > -1) && ((x1 + x2) <= k)) {
-					    q[x1+x2] = NUL;
-					}
-					debug(F000,"XXX: q",q,c);
-				    } else if (c == '_') { /* start_endpos */
-					if (x1 >= x2) {
-					    q[x1 = 0] = NUL;
-					} else if (x2 < k && x2 > -1) {
-					    q[x2] = NUL;
-					}
-					debug(F000,"XXX_ q",q,c);
-				    }
-				    vp = q+x1;
+                                    if (c == '.') {
+                                        q[x1+1] = NUL;
+                                        debug(F000,"XXX. q",q,c);
+                                    }
+                                    if (c == ':') { /* start:length */
+                                        if ((x2 > -1) && ((x1 + x2) <= k)) {
+                                            q[x1+x2] = NUL;
+                                        }
+                                        debug(F000,"XXX: q",q,c);
+                                    } else if (c == '_') { /* start_endpos */
+                                        if (x1 >= x2) {
+                                            q[x1 = 0] = NUL;
+                                        } else if (x2 < k && x2 > -1) {
+                                            q[x2] = NUL;
+                                        }
+                                        debug(F000,"XXX_ q",q,c);
+                                    }
+                                    vp = q+x1;
                                 } else vp = NULL;
                             } else vp = NULL;
                         }
 
-			debug(F110,"XXX vnambuf",vnambuf,0);
-			debug(F000,"XXX c","",c);
-			debug(F101,"XXX x1","",x1);
-			debug(F101,"XXX x2","",x2);
-			debug(F110,"XXX result",vp,0);
+                        debug(F110,"XXX vnambuf",vnambuf,0);
+                        debug(F000,"XXX c","",c);
+                        debug(F101,"XXX x1","",x1);
+                        debug(F101,"XXX x2","",x2);
+                        debug(F110,"XXX result",vp,0);
 #ifdef DEBUG
                         if (deblog) {
                             if (!vp) {

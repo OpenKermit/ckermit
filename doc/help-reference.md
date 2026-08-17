@@ -2261,7 +2261,7 @@ Syntax: HEAD [ switches ] filename
 Synonyms: H, HE
 
 ```
-C-Kermit 11.0.505, 2026/07/28, Copyright (C) 2025-2026,
+C-Kermit 11.0.508, 2026/08/09, Copyright (C) 2025-2026,
   John Goerzen.
 Copyright (C) 1985, 2025,
   Trustees of Columbia University in the City of New York.
@@ -6031,6 +6031,34 @@ Synonym for [SET COMMAND](#set-command).
 
 Synonym for [SET COMMAND](#set-command).
 
+### SET COMPATIBILITY
+
+```
+Syntax: SET COMPATIBILITY { 9, 10, 11, DEFAULT }
+ 
+Reconfigures a fixed set of other SET and ENABLE settings to match
+the defaults of an earlier C-Kermit release, or restores the current
+C-Kermit 11 defaults.  This changes settings only; it adds no new
+behavior beyond what those settings already control.  Since those
+versions didn't support IPv6, settings for 9 and 10 also disable IPv6.
+ 
+  9        Match C-Kermit 9.0.302 (2011).
+  10       Match C-Kermit 10.0 Beta.12 (2025).
+  11       Restore the C-Kermit 11 (current) defaults.  DEFAULT is
+           a synonym for this.
+ 
+Settings affected: SET FILE COLLISION, SET TRANSFER MODE, SET
+TERMINAL AUTODOWNLOAD ERROR, SET RECEIVE CONFIRM, SET TCP
+ADDRESS-FAMILY, SET RECEIVE PATHNAMES. Also, ENABLE/DISABLE for CD,
+COPY, DIRECTORY, ENABLE, FINISH, GET, MKDIR, RENAME, SEND, SET,
+SPACE, TYPE, WHO, ASSIGN, QUERY, MAIL, and PRINT.
+ 
+SET COMPATIBILITY 9 and SET COMPATIBILITY 10 weaken settings that
+C-Kermit 11 tightened for security.  Use them only when
+interoperating with old scripts or expectations that require this,
+not routinely, and not on a connection to an untrusted peer.
+```
+
 ### SET CONTROL-CHARACTER
 
 Synonym: CON
@@ -6892,6 +6920,18 @@ SET HOST [ switches ] hostname-or-address [ service ] [ protocol-switch ]
   "[fe80::1%eth0]:23". Connecting to a link-local address without a zone
   fails.
  
+  For KVM/Linux VSOCK connections (SET NETWORK TYPE VSOCK, or
+  SET HOST /NETWORK-TYPE:VSOCK), the host argument is "CID:PORT", e.g.
+  "1:9600".  There is no name resolution, so the CID and port are always
+  given directly.  The CID may also be one of the symbolic names ANY,
+  HYPERVISOR, LOCAL, or HOST in place of a number.  CID 1 (LOCAL) is the
+  VSOCK loopback address, analogous to IPv4's 127.0.0.1.  SSL/TLS and
+  Telnet negotiation are never used over a VSOCK connection.
+ 
+  SET HOST * (or SET HOST /SERVER) listens for an incoming VSOCK
+  connection.  An optional ":PORT" selects the port to listen on,
+  e.g. "SET HOST *:9600"; the default is port 1649.
+ 
   The first set of switches can be:
  
  /NETWORK-TYPE:name
@@ -7469,6 +7509,7 @@ Select the type of network to be used with SET HOST connections:
  
   SET NETWORK TYPE COMMAND   ; Make a connection through an external command
   SET NETWORK TYPE TCP/IP    ; Internet: Telnet, Rlogin, etc.
+  SET NETWORK TYPE VSOCK     ; KVM/Linux VSOCK (AF_VSOCK) connections.
  
 If only one network type is listed above, that is the default network for
 SET HOST commands.  Also see SET HOST, TELNET, RLOGIN.
@@ -7497,6 +7538,7 @@ Network directory: (none)
 SSH COMMAND: ssh -e none
 
 Supported networks:
+ KVM/Linux VSOCK (AF_VSOCK)
  TCP/IP
 
 SET TCP parameters:

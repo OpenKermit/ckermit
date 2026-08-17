@@ -1,5 +1,82 @@
 # OpenKermit C-Kermit Changelog
 
+# C-Kermit 11.0.509 (not yet released)
+
+- Fixed a bug in statements like `\fcvtdate(..., -4)` where there was no space
+  between the day and the year, producing outputs like `Sat Nov 262005` instead
+  of `Sat Nov 26 2005`.
+
+- Fixed an out-of-bounds month lookup in shuffledate() for month values
+  outside 1-12, and corrected off-by-one whitespace stripping in date
+  parsing.  Added unit tests for these date-handling functions.
+
+- Fixed an issue where SIGWINCH window-resize signals were not forwarded to
+  child processes after running an external protocol such as Zmodem.
+
+- Fixed pty cleanup after external protocol execution, preventing a
+  transfer-interrupting Ctrl-C from terminating PTY connections.
+
+- Fixed a bug in the telnet buffer processing loop that could cause individual
+  or repeated 1-second stalls in certain circumstances
+
+- Enable SET DEBUG TIMESTAMPS during tests to help pinpoint timeouts and
+  performance problems
+
+- Save off localtime() results in zdtstr()/zstrdt() to prevent mtime skew when
+  SET DEBUG TIMESTAMPS is ON.
+
+- Converted tabs to spaces in the source.  Inconsistent use of tabs vs. spaces
+  was causing confusion, for humans and also possibly for gcc with
+  -Wmisleading-indentation.  This was done using the expand(1) command.
+
+- Ran with various warning-enable options, cleaning up warnings along the way.
+
+- Fixed bugs identified during the warning sweep:
+  - Corrected operator precedence grouping in `\femail()`.
+  - Fixed array indexing with signed `char`.
+  - Fixed uninitialized seek offsets in `FILE SEEK`.
+  - Fixed an uninitialized buffer read during DNS TXT record lookups.
+  - Fixed a comment-parsing defect in `cmcvtdate()`.
+  - Replaced an unbounded `vsprintf()` in `ckxprintf()` with `vsnprintf()` and
+    added GCC format attributes to printf wrappers.
+  - Fixed a potential buffer overflow in UNIX domain socket path handling in
+    `ckcnet.c`.
+  - `SET DIAL TIMEOUT` reset `DIAL ESCAPE-CHARACTER` to 43.  Also, 
+    an unexpected `DIAL STRING` parameter caused control to pass to `DIAL
+    FLOW-CONTROL`.  These bugs introduced in C-Kermit 6.0.192 of 1996, commit
+    4b5eddeab4bc511701864c151fb0bebb067278d5.
+  - `REPEAT` and `CD` switch value handling could fall into handler for
+    different commands.
+  - `\funtab()` with a parameter over the maximum length would fall into
+    `\funhex()`.
+  - `FILE SEEK /FIND` without an argument corrupted `rsize`.
+
+# C-Kermit 11.0.508
+
+August 9, 2026
+
+- Added support for [VSOCK](vsock.md) sockets on Linux.  These are used as a
+  lightweight way to communicate between a host and a guest VM.
+
+- Made a number of improvements to the test suites such that they are less flaky
+  on the BSD VMs they run within in CI.
+  
+- Added documentation for the OpenVMS support that was updated in 11.0.507.
+
+# C-Kermit 11.0.507
+
+August 5, 2026
+
+- Fixed a bug (in commit 70ac526a7) where a pty didn't have IXON forced off,
+  which manifested itself when doing an unprefixed send to gkermit.  The bug
+  had existed since the introduction of the pty code in commit d0f8b1da7 in
+  2000.
+
+- Applied fixes for compilation under OpenVMS x86_64.  Thank you Tony
+  Nicholson for this submission.
+
+- List IPv6 support in `SHOW FEATURES`.
+
 # C-Kermit 11.0 wide announcement (11.0.506)
 
 August 3, 2026

@@ -1,6 +1,6 @@
 #include "ckcsym.h"
 
-#include "ckcdeb.h"			/* Includes... */
+#include "ckcdeb.h"                     /* Includes... */
 #include "ckcker.h"
 #include "ckucmd.h"
 #include "ckcxla.h"
@@ -41,75 +41,75 @@ char *xlav = "Character Set Translation 10.0.045, 15 Apr 2023";
 
 /* Character set translation data and functions */
 
-extern int zincnt;			/* File i/o macros and variables */
+extern int zincnt;                      /* File i/o macros and variables */
 extern char *zinptr;
 extern int zoutcnt;
 extern char *zoutptr;
 extern int byteorder;
 extern int xfrxla;
 
-int tslevel  = TS_L0;			/* Transfer syntax level (0,1,2) */
-int tcharset = TC_TRANSP;		/* Transfer syntax character set */
-int tcs_save = -1;			/* For save/restore term charset */
-int tcs_transp = 0;			/* Term charset is TRANSPARENT flag */
+int tslevel  = TS_L0;                   /* Transfer syntax level (0,1,2) */
+int tcharset = TC_TRANSP;               /* Transfer syntax character set */
+int tcs_save = -1;                      /* For save/restore term charset */
+int tcs_transp = 0;                     /* Term charset is TRANSPARENT flag */
 
 #ifdef CKOUNI
-int tcsr     = TX_8859_1;		/* Remote terminal character set */
+int tcsr     = TX_8859_1;               /* Remote terminal character set */
 #else /* CKOUNI */
 int tcsr     = FC_USASCII;
 #endif /* CKOUNI */
-int language = L_USASCII;		/* Language */
+int language = L_USASCII;               /* Language */
 
 #ifdef UNICODE
-int ucsbom = 1;				/* Add BOM to new UCS files? */
-int ucsorder = -1;			/* Default byte order for UCS files */
-int fileorder = -1;			/* Byte order of current file */
-					/* 0 = BE, 1 = LE */
+int ucsbom = 1;                         /* Add BOM to new UCS files? */
+int ucsorder = -1;                      /* Default byte order for UCS files */
+int fileorder = -1;                     /* Byte order of current file */
+                                        /* 0 = BE, 1 = LE */
 #endif /* UNICODE */
 /*
   Default local file and terminal character set.
   Normally ASCII, but for some systems we know otherwise.
 */
 int fcs_save = -1;
-#ifdef datageneral			/* Data General AOS/VS */
-int fcharset = FC_DGMCS;		/* uses the DG International set */
+#ifdef datageneral                      /* Data General AOS/VS */
+int fcharset = FC_DGMCS;                /* uses the DG International set */
 int dcset8   = FC_DGMCS;
 int dcset7   = FC_USASCII;
 int tcsl     = FC_DGMCS;
 #else
-#ifdef NEXT				/* The NeXT workstation */
-int fcharset = FC_NEXT;			/* uses its own 8-bit set */
+#ifdef NEXT                             /* The NeXT workstation */
+int fcharset = FC_NEXT;                 /* uses its own 8-bit set */
 int dcset8   = FC_NEXT;
 int dcset7   = FC_USASCII;
 int tcsl     = FC_NEXT;
 #else
-#ifdef MAC				/* The Macintosh */
-int fcharset = FC_APPQD;		/* uses an extended version of */
+#ifdef MAC                              /* The Macintosh */
+int fcharset = FC_APPQD;                /* uses an extended version of */
 int dcset8   = FC_APPQD;
 int dcset7   = FC_USASCII;
-int tcsl     = FC_APPQD;		/* Apple Quickdraw */
+int tcsl     = FC_APPQD;                /* Apple Quickdraw */
 #else
 #ifdef AUX
-int fcharset = FC_APPQD;		/* Ditto for Apple A/UX */
+int fcharset = FC_APPQD;                /* Ditto for Apple A/UX */
 int dcset8   = FC_APPQD;
 int dcset7   = FC_USASCII;
 int tcsl     = FC_APPQD;
 #else
-#ifdef AMIGA				/* The Commodore Amiga */
-int fcharset = FC_1LATIN;		/* uses Latin-1 */
+#ifdef AMIGA                            /* The Commodore Amiga */
+int fcharset = FC_1LATIN;               /* uses Latin-1 */
 int dcset8   = FC_1LATIN;
 int dcset7   = FC_USASCII;
 int tcsl     = FC_1LATIN;
-#else					/* All others */
-#ifdef CKOUNI 				/* OS/2 Unicode */
+#else                                   /* All others */
+#ifdef CKOUNI                           /* OS/2 Unicode */
 int fcharset = FC_1LATIN;
 int dcset8   = FC_1LATIN;
 int dcset7   = FC_USASCII;
 int tcsl     = TX_8859_1;
 int prncs    = TX_CP437;
-#else					/* All others */
-int fcharset = FC_USASCII;		/* use ASCII by default */
-int dcset8   = FC_1LATIN;		/* But default 8-bit set is Latin-1 */
+#else                                   /* All others */
+int fcharset = FC_USASCII;              /* use ASCII by default */
+int dcset8   = FC_1LATIN;               /* But default 8-bit set is Latin-1 */
 int dcset7   = FC_USASCII;
 int tcsl     = FC_USASCII;
 int prncs    = FC_CP437;
@@ -120,11 +120,11 @@ int prncs    = FC_CP437;
 #endif /* NEXT */
 #endif /* datageneral */
 
-int s_cset = XMODE_A;			/* SEND charset selection = AUTO */
-int r_cset = XMODE_A;			/* RECV charset selection = AUTO */
-int afcset[MAXFCSETS+1];		/* Character-set associations */
+int s_cset = XMODE_A;                   /* SEND charset selection = AUTO */
+int r_cset = XMODE_A;                   /* RECV charset selection = AUTO */
+int afcset[MAXFCSETS+1];                /* Character-set associations */
 int axcset[MAXTCSETS+1];
-int xlatype = XLA_NONE;			/* Translation type */
+int xlatype = XLA_NONE;                 /* Translation type */
 
 #ifdef UNICODE
 #ifdef CK_ANSIC
@@ -142,30 +142,30 @@ extern USHORT (*xl_fcu[MAXFCSETS+1])();
 
 /* Bureaucracy section */
 
-_PROTOTYP( CHAR xnel1, (CHAR c) );	/* NeXT to Latin-1 */
-_PROTOTYP( CHAR xl143, (CHAR c) );	/* Latin-1 to IBM CP437 */
-_PROTOTYP( CHAR xl1as, (CHAR c) );	/* Latin-1 to US ASCII */
-_PROTOTYP( CHAR zl1as, (CHAR c) );	/* Latin-1 to US ASCII */
+_PROTOTYP( CHAR xnel1, (CHAR c) );      /* NeXT to Latin-1 */
+_PROTOTYP( CHAR xl143, (CHAR c) );      /* Latin-1 to IBM CP437 */
+_PROTOTYP( CHAR xl1as, (CHAR c) );      /* Latin-1 to US ASCII */
+_PROTOTYP( CHAR zl1as, (CHAR c) );      /* Latin-1 to US ASCII */
 
 #ifdef CYRILLIC
-_PROTOTYP( CHAR xassk, (CHAR c) );	/* ASCII to Short KOI */
-_PROTOTYP( CHAR xskcy, (CHAR c) );	/* Short KOI to Latin/Cyrillic */
+_PROTOTYP( CHAR xassk, (CHAR c) );      /* ASCII to Short KOI */
+_PROTOTYP( CHAR xskcy, (CHAR c) );      /* Short KOI to Latin/Cyrillic */
 #endif /* CYRILLIC */
 
 #ifdef LATIN2
-_PROTOTYP( CHAR xnel2, (CHAR c) );	/* NeXT to Latin-2 */
-_PROTOTYP( CHAR xl243, (CHAR c) );	/* Latin-2 to IBM CP437 */
-_PROTOTYP( CHAR xl2as, (CHAR c) );	/* Latin-2 to US ASCII */
-_PROTOTYP( CHAR zl2as, (CHAR c) );	/* Latin-2 to US ASCII */
-_PROTOTYP( CHAR xl2r8, (CHAR c) );	/* Latin-2 to HP */
-_PROTOTYP( CHAR xl2l9, (CHAR c) );	/* Latin-2 to Latin-9 */
-_PROTOTYP( CHAR xl9l2, (CHAR c) );	/* Latin-9 to Latin-2 */
-_PROTOTYP( CHAR xl2mz, (CHAR c) );	/* Latin-2 to Mazovia */
-_PROTOTYP( CHAR xmzl2, (CHAR c) );	/* Mazovia to Latin-2 */
-_PROTOTYP( CHAR xl1mz, (CHAR c) );	/* Latin-1 to Mazovia */
-_PROTOTYP( CHAR xmzl1, (CHAR c) );	/* Mazovia to Latin-1 */
-_PROTOTYP( CHAR xmzl9, (CHAR c) );	/* Latin-9 to Mazovia */
-_PROTOTYP( CHAR xl9mz, (CHAR c) );	/* Mazovia to Latin-9 */
+_PROTOTYP( CHAR xnel2, (CHAR c) );      /* NeXT to Latin-2 */
+_PROTOTYP( CHAR xl243, (CHAR c) );      /* Latin-2 to IBM CP437 */
+_PROTOTYP( CHAR xl2as, (CHAR c) );      /* Latin-2 to US ASCII */
+_PROTOTYP( CHAR zl2as, (CHAR c) );      /* Latin-2 to US ASCII */
+_PROTOTYP( CHAR xl2r8, (CHAR c) );      /* Latin-2 to HP */
+_PROTOTYP( CHAR xl2l9, (CHAR c) );      /* Latin-2 to Latin-9 */
+_PROTOTYP( CHAR xl9l2, (CHAR c) );      /* Latin-9 to Latin-2 */
+_PROTOTYP( CHAR xl2mz, (CHAR c) );      /* Latin-2 to Mazovia */
+_PROTOTYP( CHAR xmzl2, (CHAR c) );      /* Mazovia to Latin-2 */
+_PROTOTYP( CHAR xl1mz, (CHAR c) );      /* Latin-1 to Mazovia */
+_PROTOTYP( CHAR xmzl1, (CHAR c) );      /* Mazovia to Latin-1 */
+_PROTOTYP( CHAR xmzl9, (CHAR c) );      /* Latin-9 to Mazovia */
+_PROTOTYP( CHAR xl9mz, (CHAR c) );      /* Mazovia to Latin-9 */
 #endif /* LATIN2 */
 
 /* Transfer character-set info */
@@ -199,8 +199,8 @@ struct csinfo tcsinfo[] = {
 };
 int ntcsets = (sizeof(tcsinfo) / sizeof(struct csinfo)) - 1;
 
-struct keytab tcstab[] = {		/* Keyword table for */
-    "ascii",         TC_USASCII, 0,	/* SET TRANSFER CHARACTER-SET */
+struct keytab tcstab[] = {              /* Keyword table for */
+    "ascii",         TC_USASCII, 0,     /* SET TRANSFER CHARACTER-SET */
 #ifdef CYRILLIC
     "cyrillic-iso",  TC_CYRILL,  0,
 #endif /* CYRILLIC */
@@ -291,13 +291,13 @@ struct csinfo fcsinfo[] = { /* File character set information... */
   "Data General International",256,FC_DGMCS,NULL,AL_ROMAN,"dg-international",
   "Hewlett Packard Roman8",    256, FC_HPR8,    NULL, AL_ROMAN, "hp-roman8",
   "ISO 8859-5 Latin/Cyrillic", 256, FC_CYRILL,  NULL, AL_CYRIL,"cyrillic-iso",
-  "CP866 Cyrillic",	       256, FC_CP866,   NULL, AL_CYRIL,"cp866",
+  "CP866 Cyrillic",            256, FC_CP866,   NULL, AL_CYRIL,"cp866",
   "Short KOI",                 128, FC_KOI7,    NULL, AL_CYRIL,"short-koi",
   "Old KOI-8 Cyrillic",        256, FC_KOI8,    NULL, AL_CYRIL,"koi8-cyrillic",
-  "Japanese JIS7",	  16384, FC_JIS7,    NULL, AL_JAPAN, "jis7-kanji",
-  "Japanese Shift JIS",	  16384, FC_SHJIS,   NULL, AL_JAPAN, "shift-jis-kanji",
-  "Japanese EUC",	  16384, FC_JEUC,    NULL, AL_JAPAN, "euc-jp",
-  "Japanese DEC Kanji",	  16384, FC_JDEC,    NULL, AL_JAPAN, "dec-kanji",
+  "Japanese JIS7",        16384, FC_JIS7,    NULL, AL_JAPAN, "jis7-kanji",
+  "Japanese Shift JIS",   16384, FC_SHJIS,   NULL, AL_JAPAN, "shift-jis-kanji",
+  "Japanese EUC",         16384, FC_JEUC,    NULL, AL_JAPAN, "euc-jp",
+  "Japanese DEC Kanji",   16384, FC_JDEC,    NULL, AL_JAPAN, "dec-kanji",
   "Hebrew-7 DEC",           128, FC_HE7,     NULL, AL_HEBREW, "hebrew-7",
   "ISO 8859-8 Latin/Hebrew",256, FC_HEBREW,  NULL, AL_HEBREW, "hebrew-iso",
   "CP862 Hebrew",           256, FC_CP862,   NULL, AL_HEBREW, "cp862-hebrew",
@@ -699,18 +699,18 @@ int ntermc = (sizeof(ttcstab) / sizeof(struct keytab)) - 1;
 /* Ditto if another TCS is added. */
 
 int
-cseqtab[MAXTCSETS+1] = {		/* TCS/FCS equivalency table */
-    -1,					/*  0 = Transparent */
-    FC_USASCII,				/*  1 = ASCII */
-    FC_1LATIN,				/*  2 = Latin-1 */
-    FC_2LATIN,				/*  3 = Latin-2 */
-    FC_CYRILL,				/*  4 = Latin/Cyrillic */
-    FC_JEUC,				/*  5 = Japanese EUC */
-    FC_HEBREW,				/*  6 = Latin/Hebrew */
-    FC_GREEK,				/*  7 = Latin/Greek */
-    FC_9LATIN,				/*  8 = Latin-9 */
-    FC_UCS2,				/*  9 = UCS-2 */
-    FC_UTF8				/* 10 = UTF-8 */
+cseqtab[MAXTCSETS+1] = {                /* TCS/FCS equivalency table */
+    -1,                                 /*  0 = Transparent */
+    FC_USASCII,                         /*  1 = ASCII */
+    FC_1LATIN,                          /*  2 = Latin-1 */
+    FC_2LATIN,                          /*  3 = Latin-2 */
+    FC_CYRILL,                          /*  4 = Latin/Cyrillic */
+    FC_JEUC,                            /*  5 = Japanese EUC */
+    FC_HEBREW,                          /*  6 = Latin/Hebrew */
+    FC_GREEK,                           /*  7 = Latin/Greek */
+    FC_9LATIN,                          /*  8 = Latin-9 */
+    FC_UCS2,                            /*  9 = UCS-2 */
+    FC_UTF8                             /* 10 = UTF-8 */
 };
 
 /*
@@ -2090,7 +2090,7 @@ CONST CHAR yskcy[] = {  /* Short KOI to Latin/Cyrillic */
 /* Latin-2 tables */
 
 CONST CHAR
-yl252[] = {				/* Latin-2 to Code Page 852 */
+yl252[] = {                             /* Latin-2 to Code Page 852 */
   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,
  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,
@@ -2110,7 +2110,7 @@ yl252[] = {				/* Latin-2 to Code Page 852 */
 };
 
 CONST CHAR
-y52l2[] = {				/* Code Page 852 to Latin-2 */
+y52l2[] = {                             /* Code Page 852 to Latin-2 */
   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,
  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,
@@ -2130,7 +2130,7 @@ y52l2[] = {				/* Code Page 852 to Latin-2 */
 };
 
 CONST CHAR
-yl21250[] = {				/* Latin-2 to Code Page 1250 */
+yl21250[] = {                           /* Latin-2 to Code Page 1250 */
   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,
  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,
@@ -2150,7 +2150,7 @@ yl21250[] = {				/* Latin-2 to Code Page 1250 */
 };
 
 CONST CHAR
-y1250l2[] = {				/* Code Page 1250 to Latin-2 */
+y1250l2[] = {                           /* Code Page 1250 to Latin-2 */
   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,
  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,
@@ -2170,7 +2170,7 @@ y1250l2[] = {				/* Code Page 1250 to Latin-2 */
 };
 
 CONST CHAR
-yl2mz[] = {			     /* Latin-2 to Mazovia (NOT invertible) */
+yl2mz[] = {                          /* Latin-2 to Mazovia (NOT invertible) */
   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,
  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,
@@ -2190,7 +2190,7 @@ yl2mz[] = {			     /* Latin-2 to Mazovia (NOT invertible) */
 };
 
 CONST CHAR
-ymzl2[] = {			     /* Mazovia to Latin-2 (NOT INVERTIBLE) */
+ymzl2[] = {                          /* Mazovia to Latin-2 (NOT INVERTIBLE) */
   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,
  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,
@@ -2210,7 +2210,7 @@ UNK, UNK, UNK, UNK, UNK, UNK, 247, UNK, 176, 255, 215, UNK, UNK, UNK, UNK, 160
 };
 
 CONST CHAR
-yl2l1[] = {				/* Latin-2 to Latin-1 */
+yl2l1[] = {                             /* Latin-2 to Latin-1 */
   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,
  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,
@@ -2230,7 +2230,7 @@ yl2l1[] = {				/* Latin-2 to Latin-1 */
 };
 
 CONST CHAR
-yl1l2[] = {				/* Latin-1 to Latin-2 */
+yl1l2[] = {                             /* Latin-1 to Latin-2 */
   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,
  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,
@@ -2250,7 +2250,7 @@ yl1l2[] = {				/* Latin-1 to Latin-2 */
 };
 
 CONST CHAR
-yl2as[] = {				/* Latin-2 to ASCII */
+yl2as[] = {                             /* Latin-2 to ASCII */
   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,
  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,
@@ -2507,16 +2507,16 @@ UNK,  97,  98,  99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111,
 
 /* Translation functions ... */
 
-CHAR					/* The identity function... */
+CHAR                                    /* The identity function... */
 #ifdef CK_ANSIC
-ident(CHAR c)				/* (no longer used) */
+ident(CHAR c)                           /* (no longer used) */
 #else
 ident(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* ident */
-    return(c);				/* Instead, enter NULL in the  */
-}					/* table of functions to avoid */
-					/* needless function calls.    */
+    return(c);                          /* Instead, enter NULL in the  */
+}                                       /* table of functions to avoid */
+                                        /* needless function calls.    */
 
 CHAR
 #ifdef CK_ANSIC
@@ -2545,164 +2545,164 @@ xl1as(CHAR c)
 #else
 xl1as(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1as */ 				/* Latin-1 to US ASCII... */
+{ /* xl1as */                           /* Latin-1 to US ASCII... */
     switch(langs[language].id) {
 
       case L_DUTCH:
-	if (c == 255) {			/* Dutch umlaut-y */
-	    zmstuff('j');		/* becomes ij */
-	    return('i');
-	} else return(yl1as[c]);	/* all others by the book */
+        if (c == 255) {                 /* Dutch umlaut-y */
+            zmstuff('j');               /* becomes ij */
+            return('i');
+        } else return(yl1as[c]);        /* all others by the book */
 
       case L_GERMAN:
-	switch (c) {			/* German, special rules. */
-	  case 196:			/* umlaut-A -> Ae */
-	    zmstuff('e');
-	    return('A');
-	  case 214:			/* umlaut-O -> Oe */
-	    zmstuff('e');
-	    return('O');
-	  case 220:			/* umlaut-U -> Ue */
-	    zmstuff('e');
-	    return('U');
-	  case 228:			/* umlaut-a -> ae */
-	    zmstuff('e');
-	    return('a');
-	  case 246:			/* umlaut-o -> oe */
-	    zmstuff('e');
-	    return('o');
-	  case 252:			/* umlaut-u -> ue */
-	    zmstuff('e');
-	    return('u');
-	  case 223:			/* ess-zet -> ss */
-	    zmstuff('s');
-	    return('s');
-	  default: return(yl1as[c]);	/* all others by the book */
-	}
+        switch (c) {                    /* German, special rules. */
+          case 196:                     /* umlaut-A -> Ae */
+            zmstuff('e');
+            return('A');
+          case 214:                     /* umlaut-O -> Oe */
+            zmstuff('e');
+            return('O');
+          case 220:                     /* umlaut-U -> Ue */
+            zmstuff('e');
+            return('U');
+          case 228:                     /* umlaut-a -> ae */
+            zmstuff('e');
+            return('a');
+          case 246:                     /* umlaut-o -> oe */
+            zmstuff('e');
+            return('o');
+          case 252:                     /* umlaut-u -> ue */
+            zmstuff('e');
+            return('u');
+          case 223:                     /* ess-zet -> ss */
+            zmstuff('s');
+            return('s');
+          default: return(yl1as[c]);    /* all others by the book */
+        }
       case L_DANISH:
       case L_FINNISH:
       case L_NORWEGIAN:
       case L_SWEDISH:
-	switch (c) {			/* Scandanavian languages. */
-	  case 196:			/* umlaut-A -> Ae */
-          case 198:			/* AE ligature also -> Ae */
-	    zmstuff('e');
-	    return('A');
-	  case 214:			/* umlaut-O -> Oe */
-	  case 216:			/* O-slash -> Oe */
-	    zmstuff('e');
-	    return('O');
-	  case 220:			/* umlaut-U -> Ue */
-	  /*  return('Y'); replaced by "Ue" by popular demand. */
+        switch (c) {                    /* Scandanavian languages. */
+          case 196:                     /* umlaut-A -> Ae */
+          case 198:                     /* AE ligature also -> Ae */
+            zmstuff('e');
+            return('A');
+          case 214:                     /* umlaut-O -> Oe */
+          case 216:                     /* O-slash -> Oe */
+            zmstuff('e');
+            return('O');
+          case 220:                     /* umlaut-U -> Ue */
+          /*  return('Y'); replaced by "Ue" by popular demand. */
           /*  Y for Umlaut-U is only used in German names. */
-	    zmstuff('e');
-	    return('U');
-	  case 228:			/* umlaut-a -> ae */
-          case 230:			/* ditto for ae ligature */
-	    zmstuff('e');
-	    return('a');
-	  case 246:			/* umlaut-o -> oe */
-	  case 248:			/* o-slash -> oe */
-	    zmstuff('e');
-	    return('o');
-	  case 252:			/* umlaut-u -> ue */
-	  /*  return('y'); replaced by "ue" by popular demand. */
-	    zmstuff('e');
-	    return('u');
-	  case 197:			/* A-ring -> Aa */
-	    zmstuff('a');
-	    return('A');
-          case 229:			/* a-ring -> aa */
-	    zmstuff('a');
-	    return('a');
-	  default: return(yl1as[c]);	/* All others by the book */
-	}
-      case L_ICELANDIC:			/* Icelandic. */
-	switch (c) {
-	  case 198:			/* uppercase AE -> AE */
-	    zmstuff('e');
-	    return('A');
-	  case 208:			/* uppercase Eth -> D */
-	    return('D');
-	  case 214:			/* uppercase O-diaeresis -> Oe */
-	    zmstuff('e');
-	    return('O');
-	  case 222:			/* uppercase Thorn -> Th */
-	    zmstuff('h');
-	    return('T');
-	  case 230:			/* lowercase ae -> ae */
-	    zmstuff('e');
-	    return('a');
-	  case 240:			/* lowercase Eth -> d */
-	    return('d');
-	  case 246:			/* lowercase O-diaeresis -> oe */
-	    zmstuff('e');
-	    return('o');
-	  case 254:			/* lowercase Thorn -> th */
-	    zmstuff('h');
-	    return('t');
-	  default: return(yl1as[c]);	/* All others by the book */
-	}
+            zmstuff('e');
+            return('U');
+          case 228:                     /* umlaut-a -> ae */
+          case 230:                     /* ditto for ae ligature */
+            zmstuff('e');
+            return('a');
+          case 246:                     /* umlaut-o -> oe */
+          case 248:                     /* o-slash -> oe */
+            zmstuff('e');
+            return('o');
+          case 252:                     /* umlaut-u -> ue */
+          /*  return('y'); replaced by "ue" by popular demand. */
+            zmstuff('e');
+            return('u');
+          case 197:                     /* A-ring -> Aa */
+            zmstuff('a');
+            return('A');
+          case 229:                     /* a-ring -> aa */
+            zmstuff('a');
+            return('a');
+          default: return(yl1as[c]);    /* All others by the book */
+        }
+      case L_ICELANDIC:                 /* Icelandic. */
+        switch (c) {
+          case 198:                     /* uppercase AE -> AE */
+            zmstuff('e');
+            return('A');
+          case 208:                     /* uppercase Eth -> D */
+            return('D');
+          case 214:                     /* uppercase O-diaeresis -> Oe */
+            zmstuff('e');
+            return('O');
+          case 222:                     /* uppercase Thorn -> Th */
+            zmstuff('h');
+            return('T');
+          case 230:                     /* lowercase ae -> ae */
+            zmstuff('e');
+            return('a');
+          case 240:                     /* lowercase Eth -> d */
+            return('d');
+          case 246:                     /* lowercase O-diaeresis -> oe */
+            zmstuff('e');
+            return('o');
+          case 254:                     /* lowercase Thorn -> th */
+            zmstuff('h');
+            return('t');
+          default: return(yl1as[c]);    /* All others by the book */
+        }
       default:
-	return(yl1as[c]);		/* None of the above, by the table. */
+        return(yl1as[c]);               /* None of the above, by the table. */
     }
 }
 
-CHAR					/* CP1252 to ASCII */
+CHAR                                    /* CP1252 to ASCII */
 #ifdef CK_ANSIC
 xw1as(CHAR c)
 #else
 xw1as(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xw1as */
-    switch(c) {				/* Microsoft name... */
-      case 0x80: return('?');		/* Euro Sign */
-      case 0x82: return('\047');	/* Single Low-9 Quotation Mark */
-      case 0x83: return('f');		/* Latin Small Letter f with Hook */
-      case 0x84: return('"');		/* Double low-9 Quotation Mark */
-      case 0x85: return('-');		/* Horizontal Ellipsis */
-      case 0x86: return('+');		/* Dagger */
-      case 0x87: return('+');		/* Double Dagger */
-      case 0x88: return('^');		/* Modifier Letter Circumflex Accent */
-      case 0x89: return('?');		/* Per Mille Sign */
-      case 0x8A: return('S');		/* Latin Capital Letter S with Caron */
-      case 0x8B: return('<');		/* Single Left Angle Quotation Mark */
-      case 0x8C: return('O');		/* Latin Capital Ligature OE */
-      case 0x8E: return('Z');		/* Latin Capital Letter Z with Caron */
-      case 0x91: return('\047');	/* Left Single Quotation Mark */
-      case 0x92: return('\047');	/* Right Single Quotation Mark */
-      case 0x93: return('"');		/* Left Double Quotation Mark */
-      case 0x94: return('"');		/* Right Double Quotation Mark */
-      case 0x95: return('.');		/* Bullet */
-      case 0x96: return('-');		/* En Dash */
-      case 0x97: return('-');		/* Em Dash */
-      case 0x98: return('~');		/* Small Tilde */
-      case 0x99: return('T');		/* Trade Mark Sign */
-      case 0x9A: return('s');		/* Latin Small Letter s with Caron */
-      case 0x9B: return('>');		/* Single Right Angle Quotation Mark */
-      case 0x9C: return('o');		/* Latin Small Ligature OE */
-      case 0x9E: return('z');		/* Latin Small Letter z with Caron */
-      case 0x9F: return('Y');		/* Latin Capital Letter Y Diaeresis */
+    switch(c) {                         /* Microsoft name... */
+      case 0x80: return('?');           /* Euro Sign */
+      case 0x82: return('\047');        /* Single Low-9 Quotation Mark */
+      case 0x83: return('f');           /* Latin Small Letter f with Hook */
+      case 0x84: return('"');           /* Double low-9 Quotation Mark */
+      case 0x85: return('-');           /* Horizontal Ellipsis */
+      case 0x86: return('+');           /* Dagger */
+      case 0x87: return('+');           /* Double Dagger */
+      case 0x88: return('^');           /* Modifier Letter Circumflex Accent */
+      case 0x89: return('?');           /* Per Mille Sign */
+      case 0x8A: return('S');           /* Latin Capital Letter S with Caron */
+      case 0x8B: return('<');           /* Single Left Angle Quotation Mark */
+      case 0x8C: return('O');           /* Latin Capital Ligature OE */
+      case 0x8E: return('Z');           /* Latin Capital Letter Z with Caron */
+      case 0x91: return('\047');        /* Left Single Quotation Mark */
+      case 0x92: return('\047');        /* Right Single Quotation Mark */
+      case 0x93: return('"');           /* Left Double Quotation Mark */
+      case 0x94: return('"');           /* Right Double Quotation Mark */
+      case 0x95: return('.');           /* Bullet */
+      case 0x96: return('-');           /* En Dash */
+      case 0x97: return('-');           /* Em Dash */
+      case 0x98: return('~');           /* Small Tilde */
+      case 0x99: return('T');           /* Trade Mark Sign */
+      case 0x9A: return('s');           /* Latin Small Letter s with Caron */
+      case 0x9B: return('>');           /* Single Right Angle Quotation Mark */
+      case 0x9C: return('o');           /* Latin Small Ligature OE */
+      case 0x9E: return('z');           /* Latin Small Letter z with Caron */
+      case 0x9F: return('Y');           /* Latin Capital Letter Y Diaeresis */
       default:
-	if (c > 0x80 && c < 0xa0)
-	  return('?');
-	else
-	  return(yl1as[c]);
+        if (c > 0x80 && c < 0xa0)
+          return('?');
+        else
+          return(yl1as[c]);
     }
 }
 
-CHAR					/* CP1252 to Latin-1 */
+CHAR                                    /* CP1252 to Latin-1 */
 #ifdef CK_ANSIC
 xw1l1(CHAR c)
 #else
 xw1l1(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xw1l1 */
-    if (c == 0x95) return(0xb7);	/* Middle dot */
+    if (c == 0x95) return(0xb7);        /* Middle dot */
     return((c < 160) ? xw1as(c) : c);
 }
 
-CHAR					/* Latin-1 to German */
+CHAR                                    /* Latin-1 to German */
 #ifdef CK_ANSIC
 xl1ge(CHAR c)
 #else
@@ -2712,7 +2712,7 @@ xl1ge(c) CHAR c;
     return(yl1ge[c]);
 }
 
-CHAR					/* German to Latin-1 */
+CHAR                                    /* German to Latin-1 */
 #ifdef CK_ANSIC
 xgel1(CHAR c)
 #else
@@ -2730,32 +2730,32 @@ xgeas(CHAR c)
 #else
 xgeas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xgeas */				/* German ISO 646 to ASCII */
+{ /* xgeas */                           /* German ISO 646 to ASCII */
     if (c & 0x80)
       return(UNK);
     switch (c) {
-      case 91:				/* umlaut-A -> Ae */
-	zmstuff('e');
-	return('A');
-      case 92:				/* umlaut-O -> Oe */
-	zmstuff('e');
-	return('O');
-      case 93:				/* umlaut-U -> Ue */
-	zmstuff('e');
-	return('U');
-      case 123:				/* umlaut-a -> ae */
-	zmstuff('e');
-	return('a');
-      case 124:				/* umlaut-o -> oe */
-	zmstuff('e');
-	return('o');
-      case 125:				/* umlaut-u -> ue */
-	zmstuff('e');
-	return('u');
-      case 126:				/* ess-zet -> ss */
-	zmstuff('s');
-	return('s');
-      default:  return(c);		/* all others stay the same */
+      case 91:                          /* umlaut-A -> Ae */
+        zmstuff('e');
+        return('A');
+      case 92:                          /* umlaut-O -> Oe */
+        zmstuff('e');
+        return('O');
+      case 93:                          /* umlaut-U -> Ue */
+        zmstuff('e');
+        return('U');
+      case 123:                         /* umlaut-a -> ae */
+        zmstuff('e');
+        return('a');
+      case 124:                         /* umlaut-o -> oe */
+        zmstuff('e');
+        return('o');
+      case 125:                         /* umlaut-u -> ue */
+        zmstuff('e');
+        return('u');
+      case 126:                         /* ess-zet -> ss */
+        zmstuff('s');
+        return('s');
+      default:  return(c);              /* all others stay the same */
     }
 }
 
@@ -2765,7 +2765,7 @@ xl1w1(CHAR c)
 #else
 xl1w1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1w1 */				/* Latin-1 to CP1252 (Windows L1) */
+{ /* xl1w1 */                           /* Latin-1 to CP1252 (Windows L1) */
     if (c > 127 && c < 160)
       return(UNK);
     else
@@ -2778,20 +2778,20 @@ xduas(CHAR c)
 #else
 xduas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xduas */				/* Dutch ISO 646 to US ASCII */
+{ /* xduas */                           /* Dutch ISO 646 to US ASCII */
     if (c & 0x80)
       return(UNK);
     switch (c) {
-      case 64:  return(UNK);		/* 3/4 */
-      case 91:				/* y-diaeresis */
-	zmstuff('j');
-	return('i');
-      case 92:  return(UNK);		/* 1/2 */
-      case 93:  return(124);		/* vertical bar */
-      case 123: return(34);		/* diaeresis */
-      case 124: return(UNK);		/* Florin */
-      case 125: return(UNK);		/* 1/4 */
-      case 126: return(39);		/* Apostrophe */
+      case 64:  return(UNK);            /* 3/4 */
+      case 91:                          /* y-diaeresis */
+        zmstuff('j');
+        return('i');
+      case 92:  return(UNK);            /* 1/2 */
+      case 93:  return(124);            /* vertical bar */
+      case 123: return(34);             /* diaeresis */
+      case 124: return(UNK);            /* Florin */
+      case 125: return(UNK);            /* 1/4 */
+      case 126: return(39);             /* Apostrophe */
       default:  return(c);
     }
 }
@@ -2802,40 +2802,40 @@ xfias(CHAR c)
 #else
 xfias(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xfias */				/* Finnish ISO 646 to US ASCII */
+{ /* xfias */                           /* Finnish ISO 646 to US ASCII */
     if (c & 0x80)
       return(UNK);
     switch (c) {
-      case 91:				/* A-diaeresis */
-	zmstuff('e');
-	return('A');
-      case 92:				/* O-diaeresis */
-	zmstuff('e');
-	return('O');
-      case 93:				/* A-ring */
-	zmstuff('a');
-	return('A');
-      case 94:				/* U-diaeresis */
-	/* return('Y'); */
-	zmstuff('e');
-	return('U');
-      case 96:				/* e-acute */
-	return('e');
-      case 123:				/* a-diaeresis */
-	zmstuff('e');
-	return('a');
-      case 124:				/* o-diaeresis */
-	zmstuff('e');
-	return('o');
-      case 125:				/* a-ring */
-	zmstuff('a');
-	return('a');
-      case 126:				/* u-diaeresis */
-	/* return('y'); */
-	zmstuff('e');
-	return('U');
+      case 91:                          /* A-diaeresis */
+        zmstuff('e');
+        return('A');
+      case 92:                          /* O-diaeresis */
+        zmstuff('e');
+        return('O');
+      case 93:                          /* A-ring */
+        zmstuff('a');
+        return('A');
+      case 94:                          /* U-diaeresis */
+        /* return('Y'); */
+        zmstuff('e');
+        return('U');
+      case 96:                          /* e-acute */
+        return('e');
+      case 123:                         /* a-diaeresis */
+        zmstuff('e');
+        return('a');
+      case 124:                         /* o-diaeresis */
+        zmstuff('e');
+        return('o');
+      case 125:                         /* a-ring */
+        zmstuff('a');
+        return('a');
+      case 126:                         /* u-diaeresis */
+        /* return('y'); */
+        zmstuff('e');
+        return('U');
       default:
-	return(c);
+        return(c);
     }
 }
 
@@ -2845,18 +2845,18 @@ xfras(CHAR c)
 #else
 xfras(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xfras */				/* French ISO 646 to US ASCII */
+{ /* xfras */                           /* French ISO 646 to US ASCII */
     if (c & 0x80)
       return(UNK);
     switch (c) {
-      case 64:  return(97);		/* a grave */
-      case 91:  return(UNK);		/* degree sign */
-      case 92:  return(99);		/* c cedilla */
-      case 93:  return(UNK);		/* paragraph sign */
-      case 123: return(101);		/* e acute */
-      case 124: return(117);		/* u grave */
-      case 125: return(101);		/* e grave */
-      case 126: return(34);		/* diaeresis */
+      case 64:  return(97);             /* a grave */
+      case 91:  return(UNK);            /* degree sign */
+      case 92:  return(99);             /* c cedilla */
+      case 93:  return(UNK);            /* paragraph sign */
+      case 123: return(101);            /* e acute */
+      case 124: return(117);            /* u grave */
+      case 125: return(101);            /* e grave */
+      case 126: return(34);             /* diaeresis */
       default:  return(c);
     }
 }
@@ -2867,20 +2867,20 @@ xfcas(CHAR c)
 #else
 xfcas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xfcas */				/* French Canadian ISO 646 to ASCII */
+{ /* xfcas */                           /* French Canadian ISO 646 to ASCII */
     if (c & 0x80)
       return(UNK);
     switch (c) {
-      case 64:  return('a');		/* a grave */
-      case 91:  return('a');		/* a circumflex */
-      case 92:  return('c');		/* c cedilla */
-      case 93:  return('e');		/* e circumflex */
-      case 94:  return('i');		/* i circumflex */
-      case 96:  return('o');		/* o circumflex */
-      case 123: return('e');		/* e acute */
-      case 124: return('u');		/* u grave */
-      case 125: return('e');		/* e grave */
-      case 126: return('u');		/* u circumflex */
+      case 64:  return('a');            /* a grave */
+      case 91:  return('a');            /* a circumflex */
+      case 92:  return('c');            /* c cedilla */
+      case 93:  return('e');            /* e circumflex */
+      case 94:  return('i');            /* i circumflex */
+      case 96:  return('o');            /* o circumflex */
+      case 123: return('e');            /* e acute */
+      case 124: return('u');            /* u grave */
+      case 125: return('e');            /* e grave */
+      case 126: return('u');            /* u circumflex */
       default:  return(c);
     }
 }
@@ -2891,18 +2891,18 @@ xitas(CHAR c)
 #else
 xitas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xitas */				/* Italian ISO 646 to ASCII */
+{ /* xitas */                           /* Italian ISO 646 to ASCII */
     if (c & 0x80)
       return(UNK);
     switch (c) {
-      case 91:  return(UNK);		/* degree */
-      case 92:  return('c');		/* c cedilla */
-      case 93:  return('e');		/* e acute */
-      case 96:  return('u');		/* u grave */
-      case 123: return('a');		/* a grave */
-      case 124: return('o');		/* o grave */
-      case 125: return('e');		/* e grave */
-      case 126: return('i');		/* i grave */
+      case 91:  return(UNK);            /* degree */
+      case 92:  return('c');            /* c cedilla */
+      case 93:  return('e');            /* e acute */
+      case 96:  return('u');            /* u grave */
+      case 123: return('a');            /* a grave */
+      case 124: return('o');            /* o grave */
+      case 125: return('e');            /* e grave */
+      case 126: return('i');            /* i grave */
       default:  return(c);
     }
 }
@@ -2913,18 +2913,18 @@ xneas(CHAR c)
 #else
 xneas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xneas */				/* NeXT to ASCII */
+{ /* xneas */                           /* NeXT to ASCII */
     if (langs[language].id == L_FRENCH) { /* If SET LANGUAGE FRENCH */
-	if (c == 234) {			/* handle OE digraph. */
-	    zmstuff('E');
-	    return('O');
-	} else if (c == 250) {		/* Also lowercase oe. */
-	    zmstuff('e');
-	    return('o');
-	}
+        if (c == 234) {                 /* handle OE digraph. */
+            zmstuff('E');
+            return('O');
+        } else if (c == 250) {          /* Also lowercase oe. */
+            zmstuff('e');
+            return('o');
+        }
     }
-    c = xnel1(c);			/* Convert to Latin-1 */
-    return(yl1as[c]);			/* Convert Latin-1 to ASCII */
+    c = xnel1(c);                       /* Convert to Latin-1 */
+    return(yl1as[c]);                   /* Convert Latin-1 to ASCII */
 }
 
 CHAR
@@ -2933,24 +2933,24 @@ xnoas(CHAR c)
 #else
 xnoas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xnoas */				/* Norge/Danish ISO 646 to ASCII */
+{ /* xnoas */                           /* Norge/Danish ISO 646 to ASCII */
     if (c & 0x80)
       return(UNK);
     switch (c) {
       case 91:
-	zmstuff('E');			/* AE digraph */
-	return('A');
-      case 92: return('O');		/* O slash */
-      case 93:				/* A ring */
-	zmstuff('a');
-	return('A');
-      case 123:				/* ae digraph */
-	zmstuff('e');
-	return('a');
-      case 124: return('o');		/* o slash */
-      case 125:				/* a ring */
-	zmstuff('a');
-	return('a');
+        zmstuff('E');                   /* AE digraph */
+        return('A');
+      case 92: return('O');             /* O slash */
+      case 93:                          /* A ring */
+        zmstuff('a');
+        return('A');
+      case 123:                         /* ae digraph */
+        zmstuff('e');
+        return('a');
+      case 124: return('o');            /* o slash */
+      case 125:                         /* a ring */
+        zmstuff('a');
+        return('a');
       default:  return(c);
     }
 }
@@ -2961,16 +2961,16 @@ xpoas(CHAR c)
 #else
 xpoas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xpoas */				/* Portuguese ISO 646 to ASCII */
+{ /* xpoas */                           /* Portuguese ISO 646 to ASCII */
     if (c & 0x80)
       return(UNK);
     switch (c) {
-      case 91:  return('A');		/* A tilde */
-      case 92:  return('C');		/* C cedilla */
-      case 93:  return('O');		/* O tilde */
-      case 123: return('a');		/* a tilde */
-      case 124: return('c');		/* c cedilla */
-      case 125: return('o');		/* o tilde */
+      case 91:  return('A');            /* A tilde */
+      case 92:  return('C');            /* C cedilla */
+      case 93:  return('O');            /* O tilde */
+      case 123: return('a');            /* a tilde */
+      case 124: return('c');            /* c cedilla */
+      case 125: return('o');            /* o tilde */
       default:  return(c);
     }
 }
@@ -2981,16 +2981,16 @@ xspas(CHAR c)
 #else
 xspas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xspas */				/* Spanish ISO 646 to ASCII */
+{ /* xspas */                           /* Spanish ISO 646 to ASCII */
     if (c & 0x80)
       return(UNK);
     switch (c) {
-      case 91:  return(33);		/* Inverted exclamation */
-      case 92:  return('N');		/* N tilde */
-      case 93:  return(63);		/* Inverted question mark */
-      case 123: return(UNK);		/* degree */
-      case 124: return('n');		/* n tilde */
-      case 125: return('c');		/* c cedilla */
+      case 91:  return(33);             /* Inverted exclamation */
+      case 92:  return('N');            /* N tilde */
+      case 93:  return(63);             /* Inverted question mark */
+      case 123: return(UNK);            /* degree */
+      case 124: return('n');            /* n tilde */
+      case 125: return('c');            /* c cedilla */
       default:  return(c);
     }
 }
@@ -3001,38 +3001,38 @@ xswas(CHAR c)
 #else
 xswas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xswas */				/* Swedish ISO 646 to ASCII */
+{ /* xswas */                           /* Swedish ISO 646 to ASCII */
     if (c & 0x80)
       return(UNK);
     switch (c) {
-      case 64:  return('E');		/* E acute */
-      case 91:				/* A diaeresis */
-	zmstuff('e');
-	return('A');
-      case 92:				/* O diaeresis */
-	zmstuff('e');
-	return('O');
-      case 93:				/* A ring */
-	zmstuff('a');
-	return('A');
-      case 94:				/* U diaeresis */
-	/* return('Y'); */
-	zmstuff('e');
-	return('U');
-      case 96:  return('e');		/* e acute */
-      case 123:				/* a diaeresis */
-	zmstuff('e');
-	return('a');
-      case 124:				/* o diaeresis */
-	zmstuff('e');
-	return('o');
-      case 125:				/* a ring */
-	zmstuff('a');
-	return('a');
-      case 126:				/* u diaeresis */
-	/* return('y'); */
-	zmstuff('e');
-	return('u');
+      case 64:  return('E');            /* E acute */
+      case 91:                          /* A diaeresis */
+        zmstuff('e');
+        return('A');
+      case 92:                          /* O diaeresis */
+        zmstuff('e');
+        return('O');
+      case 93:                          /* A ring */
+        zmstuff('a');
+        return('A');
+      case 94:                          /* U diaeresis */
+        /* return('Y'); */
+        zmstuff('e');
+        return('U');
+      case 96:  return('e');            /* e acute */
+      case 123:                         /* a diaeresis */
+        zmstuff('e');
+        return('a');
+      case 124:                         /* o diaeresis */
+        zmstuff('e');
+        return('o');
+      case 125:                         /* a ring */
+        zmstuff('a');
+        return('a');
+      case 126:                         /* u diaeresis */
+        /* return('y'); */
+        zmstuff('e');
+        return('u');
       default:  return(c);
     }
 }
@@ -3043,28 +3043,28 @@ xchas(CHAR c)
 #else
 xchas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xchas */				/* Swiss ISO 646 to ASCII */
+{ /* xchas */                           /* Swiss ISO 646 to ASCII */
     if (c & 0x80)
       return(UNK);
     switch (c) {
-      case 35:  return('u');		/* u grave */
-      case 64:  return('a');		/* a grave */
-      case 91:  return('e');		/* e acute */
-      case 92:  return('c');		/* c cedilla */
-      case 93:  return('e');		/* e circumflex */
-      case 94:  return('i');		/* i circumflex */
-      case 95:  return('e');		/* e grave */
-      case 96:  return('o');		/* o circumflex */
-      case 123:				/* a diaeresis */
-	zmstuff('e');
-	return('a');
-      case 124:				/* o diaeresis */
-	zmstuff('e');
-	return('o');
-      case 125:				/* u diaeresis */
-	zmstuff('e');
-	return('u');
-      case 126: return('u');		/* u circumflex */
+      case 35:  return('u');            /* u grave */
+      case 64:  return('a');            /* a grave */
+      case 91:  return('e');            /* e acute */
+      case 92:  return('c');            /* c cedilla */
+      case 93:  return('e');            /* e circumflex */
+      case 94:  return('i');            /* i circumflex */
+      case 95:  return('e');            /* e grave */
+      case 96:  return('o');            /* o circumflex */
+      case 123:                         /* a diaeresis */
+        zmstuff('e');
+        return('a');
+      case 124:                         /* o diaeresis */
+        zmstuff('e');
+        return('o');
+      case 125:                         /* u diaeresis */
+        zmstuff('e');
+        return('u');
+      case 126: return('u');            /* u circumflex */
       default:  return(c);
     }
 }
@@ -3075,19 +3075,19 @@ xhuas(CHAR c)
 #else
 xhuas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xhuas */				/* Hungarian ISO 646 to ASCII */
+{ /* xhuas */                           /* Hungarian ISO 646 to ASCII */
     if (c & 0x80)
       return(UNK);
     switch (c) {
-      case 64:  return('A');		/* A acute */
-      case 91:  return('E');		/* E acute */
-      case 92:  return('O');		/* O diaeresis */
-      case 93:  return('U');		/* U diaeresis */
-      case 96:  return('a');		/* a acute */
-      case 123: return('e');		/* e acute */
-      case 124: return('o');		/* o acute */
-      case 125: return('u');		/* u acute */
-      case 126: return(34);		/* double acute accent */
+      case 64:  return('A');            /* A acute */
+      case 91:  return('E');            /* E acute */
+      case 92:  return('O');            /* O diaeresis */
+      case 93:  return('U');            /* U diaeresis */
+      case 96:  return('a');            /* a acute */
+      case 123: return('e');            /* e acute */
+      case 124: return('o');            /* o acute */
+      case 125: return('u');            /* u acute */
+      case 126: return(34);             /* double acute accent */
       default:  return(c);
     }
 }
@@ -3098,17 +3098,17 @@ xdmas(CHAR c)
 #else
 xdmas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xdmas */				/* DEC MCS to ASCII */
+{ /* xdmas */                           /* DEC MCS to ASCII */
     if (langs[language].id == L_FRENCH) { /* If SET LANGUAGE FRENCH */
-	if (c == 215) {			/* handle OE digraph. */
-	    zmstuff('E');
-	    return('O');
-	} else if (c == 247) {		/* Also lowercase oe. */
-	    zmstuff('e');
-	    return('o');
-	}
+        if (c == 215) {                 /* handle OE digraph. */
+            zmstuff('E');
+            return('O');
+        } else if (c == 247) {          /* Also lowercase oe. */
+            zmstuff('e');
+            return('o');
+        }
     }
-    return(yl1as[c]);			/* Otherwise treat like Latin-1 */
+    return(yl1as[c]);                   /* Otherwise treat like Latin-1 */
 }
 
 CHAR
@@ -3117,28 +3117,28 @@ xdgas(CHAR c)
 #else
 xdgas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /*  xdgas */				/* Data General to ASCII */
+{ /*  xdgas */                          /* Data General to ASCII */
     switch(c) {
-      case 180: return('f');		/* Florin */
-      case 183: return('<');		/* Less-equal */
-      case 184: return('>');		/* Greater-equal */
-      case 186: return(96);		/* Grave accent */
-      case 191: return('^');		/* Uparrow */
+      case 180: return('f');            /* Florin */
+      case 183: return('<');            /* Less-equal */
+      case 184: return('>');            /* Greater-equal */
+      case 186: return(96);             /* Grave accent */
+      case 191: return('^');            /* Uparrow */
       case 215:
-	if (langs[language].id == L_FRENCH) { /* OE digraph */
-	    zmstuff('E');
-	    return('O');
-	} else return('O');
+        if (langs[language].id == L_FRENCH) { /* OE digraph */
+            zmstuff('E');
+            return('O');
+        } else return('O');
       case 247:
-	if (langs[language].id == L_FRENCH) { /* oe digraph */
-	    zmstuff('e');
-	    return('o');
-	} else return('o');
+        if (langs[language].id == L_FRENCH) { /* oe digraph */
+            zmstuff('e');
+            return('o');
+        } else return('o');
       case 175: case 179: case 220: case 222:
       case 223: case 254: case 255:
-	return(UNK);
-      default:				/* The rest, convert to Latin-1 */
-	return(yl1as[ydgl1[c]]);	/* and from there to ASCII */
+        return(UNK);
+      default:                          /* The rest, convert to Latin-1 */
+        return(yl1as[ydgl1[c]]);        /* and from there to ASCII */
     }
 }
 
@@ -3148,16 +3148,16 @@ xr8as(CHAR c)
 #else
 xr8as(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /*  xr8as */				/* Hewlett Packard Roman8 to ASCII */
+{ /*  xr8as */                          /* Hewlett Packard Roman8 to ASCII */
     switch(c) {
-      case 175: return('L');		/* Lira */
-      case 190: return('f');		/* Florin */
-      case 235: return('S');		/* S caron */
-      case 236: return('s');		/* s caron */
-      case 246: return('-');		/* Horizontal bar */
-      case 252: return('*');		/* Solid box */
-      default:				/* The rest, convert to Latin-1 */
-	return(yl1as[yr8l1[c]]);	/* and from there to ASCII */
+      case 175: return('L');            /* Lira */
+      case 190: return('f');            /* Florin */
+      case 235: return('S');            /* S caron */
+      case 236: return('s');            /* s caron */
+      case 246: return('-');            /* Horizontal bar */
+      case 252: return('*');            /* Solid box */
+      default:                          /* The rest, convert to Latin-1 */
+        return(yl1as[yr8l1[c]]);        /* and from there to ASCII */
     }
 }
 
@@ -3167,7 +3167,7 @@ xukl1(CHAR c)
 #else
 xukl1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xukl1 */				/* UK ASCII to Latin-1 */
+{ /* xukl1 */                           /* UK ASCII to Latin-1 */
     if (c & 0x80)
       return(UNK);
     if (c == 35)
@@ -3181,13 +3181,13 @@ xl1uk(CHAR c)
 #else
 xl1uk(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1uk */				/* Latin-1 to UK ASCII */
+{ /* xl1uk */                           /* Latin-1 to UK ASCII */
     if (c == 163)
       return(35);
     else return(yl1as[c]);
 }
 
-CHAR					/* Latin-1 to French ISO 646 */
+CHAR                                    /* Latin-1 to French ISO 646 */
 #ifdef CK_ANSIC
 xl1fr(CHAR c)
 #else
@@ -3198,7 +3198,7 @@ xl1fr(c) CHAR c;
 }
 
 
-CHAR					/* French ISO 646 to Latin-1 */
+CHAR                                    /* French ISO 646 to Latin-1 */
 #ifdef CK_ANSIC
 xfrl1(CHAR c)
 #else
@@ -3210,7 +3210,7 @@ xfrl1(c) CHAR c;
     return(yfrl1[c]);
 }
 
-CHAR					/* Latin-1 to Dutch ASCII */
+CHAR                                    /* Latin-1 to Dutch ASCII */
 #ifdef CK_ANSIC
 xl1du(CHAR c)
 #else
@@ -3226,7 +3226,7 @@ xdul1(CHAR c)
 #else
 xdul1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xdul1 */				/* Dutch ISO 646 to Latin-1 */
+{ /* xdul1 */                           /* Dutch ISO 646 to Latin-1 */
     if (c & 0x80)
       return(UNK);
     return(ydul1[c]);
@@ -3238,7 +3238,7 @@ xfil1(CHAR c)
 #else
 xfil1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xfil1 */				/* Finnish ISO 646 to Latin-1 */
+{ /* xfil1 */                           /* Finnish ISO 646 to Latin-1 */
     if (c & 0x80)
       return(UNK);
     return(yfil1[c]);
@@ -3250,7 +3250,7 @@ xl1fi(CHAR c)
 #else
 xl1fi(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1fi */				/* Latin-1 to Finnish ISO 646 */
+{ /* xl1fi */                           /* Latin-1 to Finnish ISO 646 */
     return(yl1fi[c]);
 }
 
@@ -3260,7 +3260,7 @@ xfcl1(CHAR c)
 #else
 xfcl1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xfcl1 */				/* French Canadian ISO646 to Latin-1 */
+{ /* xfcl1 */                           /* French Canadian ISO646 to Latin-1 */
     if (c & 0x80)
       return(UNK);
     return(yfcl1[c]);
@@ -3272,7 +3272,7 @@ xl1fc(CHAR c)
 #else
 xl1fc(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1fc */				/* Latin-1 to French Canadian ISO646 */
+{ /* xl1fc */                           /* Latin-1 to French Canadian ISO646 */
     return(yl1fc[c]);
 }
 
@@ -3282,7 +3282,7 @@ xitl1(CHAR c)
 #else
 xitl1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xitl1 */				/* Italian ISO 646 to Latin-1 */
+{ /* xitl1 */                           /* Italian ISO 646 to Latin-1 */
     if (c & 0x80)
       return(UNK);
     return(yitl1[c]);
@@ -3294,7 +3294,7 @@ xl1it(CHAR c)
 #else
 xl1it(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1it */				/* Latin-1 to Italian ISO 646 */
+{ /* xl1it */                           /* Latin-1 to Italian ISO 646 */
     return(yl1it[c]);
 }
 
@@ -3304,15 +3304,15 @@ xnel1(CHAR c)
 #else
 xnel1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xnel1 */		 		/* NeXT to Latin-1 */
+{ /* xnel1 */                           /* NeXT to Latin-1 */
     if (langs[language].id == L_FRENCH) { /* If SET LANGUAGE FRENCH */
-	if (c == 234) {			/* handle OE digraph. */
-	    zmstuff('E');
-	    return('O');
-	} else if (c == 250) {		/* Also lowercase oe. */
-	    zmstuff('e');
-	    return('o');
-	}
+        if (c == 234) {                 /* handle OE digraph. */
+            zmstuff('E');
+            return('O');
+        } else if (c == 250) {          /* Also lowercase oe. */
+            zmstuff('e');
+            return('o');
+        }
     }
     return(ynel1[c]);
 }
@@ -3323,14 +3323,14 @@ xnel9(CHAR c)
 #else
 xnel9(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xnel9 */		 		/* NeXT to Latin-9 */
+{ /* xnel9 */                           /* NeXT to Latin-9 */
     switch (c) {
-      case 234: return(188);		/* OE */
-      case 250: return(189);		/* oe */
-      case 188: return(234);		/* keep it invertible... */
-      case 189: return(250);		/* oe */
+      case 234: return(188);            /* OE */
+      case 250: return(189);            /* oe */
+      case 188: return(234);            /* keep it invertible... */
+      case 189: return(250);            /* oe */
       default:
-	return(ynel1[c]);
+        return(ynel1[c]);
     }
 }
 
@@ -3340,7 +3340,7 @@ xl1ne(CHAR c)
 #else
 xl1ne(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1ne */		 		/* Latin-1 to NeXT */
+{ /* xl1ne */                           /* Latin-1 to NeXT */
     return(yl1ne[c]);
 }
 
@@ -3350,14 +3350,14 @@ xl9ne(CHAR c)
 #else
 xl9ne(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl9ne */		 		/* Latin-9 to NeXT */
+{ /* xl9ne */                           /* Latin-9 to NeXT */
     switch (c) {
-      case 188: return(234);		/* OE */
-      case 189: return(250);		/* oe */
-      case 234: return(188);		/* OE */
-      case 250: return(189);		/* oe */
+      case 188: return(234);            /* OE */
+      case 189: return(250);            /* oe */
+      case 234: return(188);            /* OE */
+      case 250: return(189);            /* oe */
       default:
-	return(yl1ne[c]);
+        return(yl1ne[c]);
     }
 }
 
@@ -3367,7 +3367,7 @@ xnol1(CHAR c)
 #else
 xnol1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xnol1 */		 		/* Norway/Denmark ISO 646 to Latin-1 */
+{ /* xnol1 */                           /* Norway/Denmark ISO 646 to Latin-1 */
     if (c & 0x80)
       return(UNK);
     return(ynol1[c]);
@@ -3379,7 +3379,7 @@ xl1no(CHAR c)
 #else
 xl1no(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1no */		 		/* Latin-1 to Norway/Denmark ISO 646 */
+{ /* xl1no */                           /* Latin-1 to Norway/Denmark ISO 646 */
     return(yl1no[c]);
 }
 
@@ -3389,7 +3389,7 @@ xpol1(CHAR c)
 #else
 xpol1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xpol1 */				/* Portuguese ISO 646 to Latin-1 */
+{ /* xpol1 */                           /* Portuguese ISO 646 to Latin-1 */
     if (c & 0x80)
       return(UNK);
     return(ypol1[c]);
@@ -3401,7 +3401,7 @@ xl1po(CHAR c)
 #else
 xl1po(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1po */				/* Latin-1 to Portuguese ISO 646 */
+{ /* xl1po */                           /* Latin-1 to Portuguese ISO 646 */
     return(yl1po[c]);
 }
 
@@ -3411,7 +3411,7 @@ xspl1(CHAR c)
 #else
 xspl1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xspl1 */				/* Spanish ISO 646 to Latin-1 */
+{ /* xspl1 */                           /* Spanish ISO 646 to Latin-1 */
     if (c & 0x80)
       return(UNK);
     return(yspl1[c]);
@@ -3423,7 +3423,7 @@ xl1sp(CHAR c)
 #else
 xl1sp(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1sp */				/* Latin-1 to Spanish ISO 646 */
+{ /* xl1sp */                           /* Latin-1 to Spanish ISO 646 */
     return(yl1sp[c]);
 }
 
@@ -3433,7 +3433,7 @@ xswl1(CHAR c)
 #else
 xswl1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xswl1 */				/* Swedish ISO 646 to Latin-1 */
+{ /* xswl1 */                           /* Swedish ISO 646 to Latin-1 */
     if (c & 0x80)
       return(UNK);
     return(yswl1[c]);
@@ -3445,7 +3445,7 @@ xl1sw(CHAR c)
 #else
 xl1sw(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1sw */				/* Latin-1 to Swedish ISO 646 */
+{ /* xl1sw */                           /* Latin-1 to Swedish ISO 646 */
     return(yl1sw[c]);
 }
 
@@ -3455,7 +3455,7 @@ xchl1(CHAR c)
 #else
 xchl1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xchl1 */				/* Swiss ISO 646 to Latin-1 */
+{ /* xchl1 */                           /* Swiss ISO 646 to Latin-1 */
     if (c & 0x80)
       return(UNK);
     return(ychl1[c]);
@@ -3467,7 +3467,7 @@ xl1ch(CHAR c)
 #else
 xl1ch(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1ch */				/* Latin-1 to Swiss ISO 646 */
+{ /* xl1ch */                           /* Latin-1 to Swiss ISO 646 */
     return(yl1ch[c]);
 }
 
@@ -3477,7 +3477,7 @@ xhul1(CHAR c)
 #else
 xhul1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xhul1 */				/* Hungarian ISO 646 to Latin-1 */
+{ /* xhul1 */                           /* Hungarian ISO 646 to Latin-1 */
     if (c & 0x80)
       return(UNK);
     return(yhul1[c]);
@@ -3489,7 +3489,7 @@ xl1hu(CHAR c)
 #else
 xl1hu(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1hu */				/* Latin-1 to Hungarian ISO 646 */
+{ /* xl1hu */                           /* Latin-1 to Hungarian ISO 646 */
     return(yl1hu[c]);
 }
 
@@ -3499,7 +3499,7 @@ xl1dm(CHAR c)
 #else
 xl1dm(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1dm */				/* Latin-1 to DEC MCS */
+{ /* xl1dm */                           /* Latin-1 to DEC MCS */
     return(yl1dm[c]);
 }
 
@@ -3509,14 +3509,14 @@ xl9dm(CHAR c)
 #else
 xl9dm(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl9dm */				/* Latin-9 to DEC MCS */
+{ /* xl9dm */                           /* Latin-9 to DEC MCS */
     switch (c) {
       case 188: return(215);
       case 189: return(247);
       case 215: return(188);
       case 247: return(189);
       default:
-	return(yl1dm[c]);
+        return(yl1dm[c]);
     }
 }
 
@@ -3526,22 +3526,22 @@ xl9w1(CHAR c)
 #else
 xl9w1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl9w1 */				/* Latin-9 to CP1252 */
+{ /* xl9w1 */                           /* Latin-9 to CP1252 */
     if (c < 128)
       return(c);
     else if (c < 160)
       return('?');
     switch (c) {
-      case 0xa4: return(0x80);		/* Euro */
-      case 0xa6: return(0x8a);		/* S-caron */
-      case 0xa8: return(0x9a);		/* s-caron */
-      case 0xb4: return(0x8e);		/* Z-caron */
-      case 0xb8: return(0x9e);		/* z-caron */
-      case 0xbc: return(0x8c);		/* OE */
-      case 0xbd: return(0x9c);		/* oe */
-      case 0xbe: return(0x9f);		/* Y-diaeresis */
+      case 0xa4: return(0x80);          /* Euro */
+      case 0xa6: return(0x8a);          /* S-caron */
+      case 0xa8: return(0x9a);          /* s-caron */
+      case 0xb4: return(0x8e);          /* Z-caron */
+      case 0xb8: return(0x9e);          /* z-caron */
+      case 0xbc: return(0x8c);          /* OE */
+      case 0xbd: return(0x9c);          /* oe */
+      case 0xbe: return(0x9f);          /* Y-diaeresis */
       default:
-	return(c);
+        return(c);
     }
 }
 
@@ -3551,7 +3551,7 @@ xl1dg(CHAR c)
 #else
 xl1dg(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1dg */				/* Latin-1 to DG ICS */
+{ /* xl1dg */                           /* Latin-1 to DG ICS */
     return(yl1dg[c]);
 }
 
@@ -3561,15 +3561,15 @@ xdml1(CHAR c)
 #else
 xdml1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xdml1 */				/* DEC MCS to Latin-1 */
+{ /* xdml1 */                           /* DEC MCS to Latin-1 */
     if (langs[language].id == L_FRENCH) { /* If SET LANGUAGE FRENCH */
-	if (c == 215) {			/* handle OE digraph. */
-	    zmstuff('E');
-	    return('O');
-	} else if (c == 247) {		/* Also lowercase oe. */
-	    zmstuff('e');
-	    return('o');
-	}
+        if (c == 215) {                 /* handle OE digraph. */
+            zmstuff('E');
+            return('O');
+        } else if (c == 247) {          /* Also lowercase oe. */
+            zmstuff('e');
+            return('o');
+        }
     }
     return(ydml1[c]);
 }
@@ -3580,14 +3580,14 @@ xdml9(CHAR c)
 #else
 xdml9(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xdml9 */				/* DEC MCS to Latin-9 */
+{ /* xdml9 */                           /* DEC MCS to Latin-9 */
     switch (c) {
-      case 215: return(188);		/* OE */
-      case 247: return(189);		/* oe */
-      case 188: return(215);		/* and swap the other two... */
-      case 189: return(247);		/* (1/4 and 1/2) */
-      default:				/* to keep it invertible */
-	return(ydml1[c]);
+      case 215: return(188);            /* OE */
+      case 247: return(189);            /* oe */
+      case 188: return(215);            /* and swap the other two... */
+      case 189: return(247);            /* (1/4 and 1/2) */
+      default:                          /* to keep it invertible */
+        return(ydml1[c]);
     }
 }
 
@@ -3597,15 +3597,15 @@ xdgl1(CHAR c)
 #else
 xdgl1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xdgl1 */				/* DG International CS to Latin-1 */
+{ /* xdgl1 */                           /* DG International CS to Latin-1 */
     if (langs[language].id == L_FRENCH) { /* If SET LANGUAGE FRENCH */
-	if (c == 215) {			/* handle OE digraph. */
-	    zmstuff('E');
-	    return('O');
-	} else if (c == 247) {		/* Also lowercase oe. */
-	    zmstuff('e');
-	    return('o');
-	}
+        if (c == 215) {                 /* handle OE digraph. */
+            zmstuff('E');
+            return('O');
+        } else if (c == 247) {          /* Also lowercase oe. */
+            zmstuff('e');
+            return('o');
+        }
     }
     return(ydgl1[c]);
 }
@@ -3616,7 +3616,7 @@ xr8l1(CHAR c)
 #else
 xr8l1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xr8l1 */				/* Hewlett Packard Roman8 to Latin-1 */
+{ /* xr8l1 */                           /* Hewlett Packard Roman8 to Latin-1 */
     return(yr8l1[c]);
 }
 
@@ -3626,7 +3626,7 @@ xl1r8(CHAR c)
 #else
 xl1r8(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1r8 */				/* Latin-1 to Hewlett Packard Roman8 */
+{ /* xl1r8 */                           /* Latin-1 to Hewlett Packard Roman8 */
     return(yl1r8[c]);
 }
 
@@ -3642,77 +3642,77 @@ zl1as(c) CHAR c;
     switch(langs[language].id) {
 
       case L_DUTCH:
-	if (c == 255) {			/* Dutch umlaut-y */
-	    zdstuff('j');		/* becomes ij */
-	    return('i');
-	} else return(yl1as[c]);	/* all others by the book */
+        if (c == 255) {                 /* Dutch umlaut-y */
+            zdstuff('j');               /* becomes ij */
+            return('i');
+        } else return(yl1as[c]);        /* all others by the book */
 
       case L_GERMAN:
-	switch (c) {			/* German, special rules. */
-	  case 196:			/* umlaut-A -> Ae */
-	    zdstuff('e');
-	    return('A');
-	  case 214:			/* umlaut-O -> Oe */
-	    zdstuff('e');
-	    return('O');
-	  case 220:			/* umlaut-U -> Ue */
-	    zdstuff('e');
-	    return('U');
-	  case 228:			/* umlaut-a -> ae */
-	    zdstuff('e');
-	    return('a');
-	  case 246:			/* umlaut-o -> oe */
-	    zdstuff('e');
-	    return('o');
-	  case 252:			/* umlaut-u -> ue */
-	    zdstuff('e');
-	    return('u');
-	  case 223:			/* ess-zet -> ss */
-	    zdstuff('s');
-	    return('s');
-	  default: return(yl1as[c]);	/* all others by the book */
-	}
+        switch (c) {                    /* German, special rules. */
+          case 196:                     /* umlaut-A -> Ae */
+            zdstuff('e');
+            return('A');
+          case 214:                     /* umlaut-O -> Oe */
+            zdstuff('e');
+            return('O');
+          case 220:                     /* umlaut-U -> Ue */
+            zdstuff('e');
+            return('U');
+          case 228:                     /* umlaut-a -> ae */
+            zdstuff('e');
+            return('a');
+          case 246:                     /* umlaut-o -> oe */
+            zdstuff('e');
+            return('o');
+          case 252:                     /* umlaut-u -> ue */
+            zdstuff('e');
+            return('u');
+          case 223:                     /* ess-zet -> ss */
+            zdstuff('s');
+            return('s');
+          default: return(yl1as[c]);    /* all others by the book */
+        }
       case L_DANISH:
       case L_FINNISH:
       case L_NORWEGIAN:
       case L_SWEDISH:
-	switch (c) {			/* Scandanavian languages. */
-	  case 196:			/* umlaut-A -> Ae */
-	    zdstuff('e');
-	    return('A');
-	  case 214:			/* umlaut-O -> Oe */
-	  case 216:			/* O-slash -> Oe */
-	    zdstuff('e');
-	    return('O');
-	  case 220:			/* umlaut-U -> Y */
-	    /* return('Y'); */
-	    zdstuff('e');
-	    return('U');
-	  case 228:			/* umlaut-a -> ae */
-	    zdstuff('e');
-	    return('a');
-	  case 246:			/* umlaut-o -> oe */
-	  case 248:			/* o-slash -> oe */
-	    zdstuff('e');
-	    return('o');
-	  case 252:			/* umlaut-u -> y */
-	    /* return('y'); */
-	    zdstuff('e');
-	    return('u');
-	  case 197:			/* A-ring -> Aa */
-	    zdstuff('a');
-	    return('A');
-          case 229:			/* a-ring -> aa */
-	    zdstuff('a');
-	    return('a');
-	  default: return(yl1as[c]);	/* All others by the book */
-	}
+        switch (c) {                    /* Scandanavian languages. */
+          case 196:                     /* umlaut-A -> Ae */
+            zdstuff('e');
+            return('A');
+          case 214:                     /* umlaut-O -> Oe */
+          case 216:                     /* O-slash -> Oe */
+            zdstuff('e');
+            return('O');
+          case 220:                     /* umlaut-U -> Y */
+            /* return('Y'); */
+            zdstuff('e');
+            return('U');
+          case 228:                     /* umlaut-a -> ae */
+            zdstuff('e');
+            return('a');
+          case 246:                     /* umlaut-o -> oe */
+          case 248:                     /* o-slash -> oe */
+            zdstuff('e');
+            return('o');
+          case 252:                     /* umlaut-u -> y */
+            /* return('y'); */
+            zdstuff('e');
+            return('u');
+          case 197:                     /* A-ring -> Aa */
+            zdstuff('a');
+            return('A');
+          case 229:                     /* a-ring -> aa */
+            zdstuff('a');
+            return('a');
+          default: return(yl1as[c]);    /* All others by the book */
+        }
       default:
-	return(yl1as[c]);		/* No language, go by the table. */
+        return(yl1as[c]);               /* No language, go by the table. */
     }
 }
 
-CHAR					/* IBM CP437 to Latin-1 */
+CHAR                                    /* IBM CP437 to Latin-1 */
 #ifdef CK_ANSIC
 x43l1(CHAR c)
 #else
@@ -3722,7 +3722,7 @@ x43l1(c) CHAR c;
     return(y43l1[c]);
 }
 
-CHAR					/* IBM CP850 to Latin-1 */
+CHAR                                    /* IBM CP850 to Latin-1 */
 #ifdef CK_ANSIC
 x85l1(CHAR c)
 #else
@@ -3732,7 +3732,7 @@ x85l1(c) CHAR c;
     return(y85l1[c]);
 }
 
-CHAR					/* Latin-1 to IBM CP437 */
+CHAR                                    /* Latin-1 to IBM CP437 */
 #ifdef CK_ANSIC
 xl143(CHAR c)
 #else
@@ -3742,7 +3742,7 @@ xl143(c) CHAR c;
     return(yl143[c]);
 }
 
-CHAR					/* Latin-1 to CP850 */
+CHAR                                    /* Latin-1 to CP850 */
 #ifdef CK_ANSIC
 xl185(CHAR c)
 #else
@@ -3758,9 +3758,9 @@ x43as(CHAR c)
 #else
 x43as(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* x43as */				/* CP437 to ASCII */
-    c = y43l1[c];			/* Translate to Latin-1 */
-    return(xl143(c));			/* and from Latin-1 to ASCII. */
+{ /* x43as */                           /* CP437 to ASCII */
+    c = y43l1[c];                       /* Translate to Latin-1 */
+    return(xl143(c));                   /* and from Latin-1 to ASCII. */
 }
 
 CHAR
@@ -3769,12 +3769,12 @@ x85as(CHAR c)
 #else
 x85as(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* x85as */				/* CP850 to ASCII */
-    c = y85l1[c];			/* Translate to Latin-1 */
-    return(xl1as(c));			/* and from Latin-1 to ASCII. */
+{ /* x85as */                           /* CP850 to ASCII */
+    c = y85l1[c];                       /* Translate to Latin-1 */
+    return(xl1as(c));                   /* and from Latin-1 to ASCII. */
 }
 
-CHAR					/* Macintosh Latin to Latin-1 */
+CHAR                                    /* Macintosh Latin to Latin-1 */
 #ifdef CK_ANSIC
 xaql1(CHAR c)
 #else
@@ -3782,18 +3782,18 @@ xaql1(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xaql1 */
     if (langs[language].id == L_FRENCH) { /* If SET LANGUAGE FRENCH */
-	if (c == 206) {			/* handle OE digraph. */
-	    zmstuff('E');
-	    return('O');
-	} else if (c == 207) {		/* Also lowercase oe. */
-	    zmstuff('e');
-	    return('o');
-	}
+        if (c == 206) {                 /* handle OE digraph. */
+            zmstuff('E');
+            return('O');
+        } else if (c == 207) {          /* Also lowercase oe. */
+            zmstuff('e');
+            return('o');
+        }
     }
     return(yaql1[c]);
 }
 
-CHAR					/* Macintosh Latin to ASCII */
+CHAR                                    /* Macintosh Latin to ASCII */
 #ifdef CK_ANSIC
 xaqas(CHAR c)
 #else
@@ -3801,19 +3801,19 @@ xaqas(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xaqas */
     if (langs[language].id == L_FRENCH) { /* If SET LANGUAGE FRENCH */
-	if (c == 206) {			/* handle OE digraph. */
-	    zmstuff('E');
-	    return('O');
-	} else if (c == 207) {		/* Also lowercase oe. */
-	    zmstuff('e');
-	    return('o');
-	}
+        if (c == 206) {                 /* handle OE digraph. */
+            zmstuff('E');
+            return('O');
+        } else if (c == 207) {          /* Also lowercase oe. */
+            zmstuff('e');
+            return('o');
+        }
     }
-    c = yaql1[c];			/* Translate to Latin-1 */
-    return(xl1as(c));			/* then to ASCII. */
+    c = yaql1[c];                       /* Translate to Latin-1 */
+    return(xl1as(c));                   /* then to ASCII. */
 }
 
-CHAR					/* Latin-1 to Macintosh Latin */
+CHAR                                    /* Latin-1 to Macintosh Latin */
 #ifdef CK_ANSIC
 xl1aq(CHAR c)
 #else
@@ -3827,7 +3827,7 @@ xl1aq(c) CHAR c;
 
 /* Translation functions for Latin Alphabet 2 */
 
-CHAR					/* Latin-2 to Latin-1 */
+CHAR                                    /* Latin-2 to Latin-1 */
 #ifdef CK_ANSIC
 xl2l1(CHAR c)
 #else
@@ -3843,14 +3843,14 @@ xl2w1(CHAR c)
 #else
 xl2w1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl2w1 */				/* Latin-2 to CP1252 (Windows L1) */
+{ /* xl2w1 */                           /* Latin-2 to CP1252 (Windows L1) */
     if (c > 127 && c < 160)
       return(UNK);
     else
       return(yl2l1[c]);
 }
 
-CHAR					/* Latin-1 to Latin-2 */
+CHAR                                    /* Latin-1 to Latin-2 */
 #ifdef CK_ANSIC
 xl1l2(CHAR c)
 #else
@@ -3860,7 +3860,7 @@ xl1l2(c) CHAR c;
     return(yl1l2[c]);
 }
 
-CHAR					/* CP1252 to Latin-1 */
+CHAR                                    /* CP1252 to Latin-1 */
 #ifdef CK_ANSIC
 xw1l2(CHAR c)
 #else
@@ -3868,17 +3868,17 @@ xw1l2(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xw1l2 */
     switch (c) {
-      case 0x8a: return(0xa9);		/* S caron */
-      case 0x8e: return(0xae);		/* Z caron */
-      case 0x9a: return(0xb9);		/* s caron */
-      case 0x9e: return(0xbe);		/* z caron */
+      case 0x8a: return(0xa9);          /* S caron */
+      case 0x8e: return(0xae);          /* Z caron */
+      case 0x9a: return(0xb9);          /* s caron */
+      case 0x9e: return(0xbe);          /* z caron */
       default:
-	return((c < 160) ? xw1as(c) : xl1l2(c));
+        return((c < 160) ? xw1as(c) : xl1l2(c));
     }
 }
 
 
-CHAR					/* Latin-2 to ASCII */
+CHAR                                    /* Latin-2 to ASCII */
 #ifdef CK_ANSIC
 xl2as(CHAR c)
 #else
@@ -3888,7 +3888,7 @@ xl2as(c) CHAR c;
     return(yl2as[c]);
 }
 
-CHAR					/* Latin-2 to CP852 */
+CHAR                                    /* Latin-2 to CP852 */
 #ifdef CK_ANSIC
 xl252(CHAR c)
 #else
@@ -3898,7 +3898,7 @@ xl252(c) CHAR c;
     return(yl252[c]);
 }
 
-CHAR					/* Latin-2 to Mazovia */
+CHAR                                    /* Latin-2 to Mazovia */
 #ifdef CK_ANSIC
 xl2mz(CHAR c)
 #else
@@ -3908,7 +3908,7 @@ xl2mz(c) CHAR c;
     return(yl2mz[c]);
 }
 
-CHAR					/* Latin-1 to Mazovia */
+CHAR                                    /* Latin-1 to Mazovia */
 #ifdef CK_ANSIC
 xl1mz(CHAR c)
 #else
@@ -3918,7 +3918,7 @@ xl1mz(c) CHAR c;
     return(yl2mz[yl1l2[c]]);
 }
 
-CHAR					/* Mazovia to Latin-1 */
+CHAR                                    /* Mazovia to Latin-1 */
 #ifdef CK_ANSIC
 xmzl1(CHAR c)
 #else
@@ -3928,7 +3928,7 @@ xmzl1(c) CHAR c;
     return(yl2l1[ymzl2[c]]);
 }
 
-CHAR					/* Mazovia to Latin-9 */
+CHAR                                    /* Mazovia to Latin-9 */
 #ifdef CK_ANSIC
 xmzl9(CHAR c)
 #else
@@ -3938,7 +3938,7 @@ xmzl9(c) CHAR c;
     return(xl2l9(ymzl2[c]));
 }
 
-CHAR					/* CP852 to Latin-2 */
+CHAR                                    /* CP852 to Latin-2 */
 #ifdef CK_ANSIC
 x52l2(CHAR c)
 #else
@@ -3948,7 +3948,7 @@ x52l2(c) CHAR c;
     return(y52l2[c]);
 }
 
-CHAR					/* Mazovia to Latin-2 */
+CHAR                                    /* Mazovia to Latin-2 */
 #ifdef CK_ANSIC
 xmzl2(CHAR c)
 #else
@@ -3958,7 +3958,7 @@ xmzl2(c) CHAR c;
     return(ymzl2[c]);
 }
 
-CHAR					/* Latin-2 to CP1250 */
+CHAR                                    /* Latin-2 to CP1250 */
 #ifdef CK_ANSIC
 xl21250(CHAR c)
 #else
@@ -3968,7 +3968,7 @@ xl21250(c) CHAR c;
     return(yl21250[c]);
 }
 
-CHAR					/* CP1250 to Latin-2 */
+CHAR                                    /* CP1250 to Latin-2 */
 #ifdef CK_ANSIC
 x1250l2(CHAR c)
 #else
@@ -3978,114 +3978,114 @@ x1250l2(c) CHAR c;
     return(y1250l2[c]);
 }
 
-CHAR					/* CP852 to ASCII */
+CHAR                                    /* CP852 to ASCII */
 #ifdef CK_ANSIC
 x52as(CHAR c)
 #else
 x52as(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xl52as */
-    return(yl2as[y52l2[c]]);		/* CP852 -> Latin-2 -> ASCII */
+    return(yl2as[y52l2[c]]);            /* CP852 -> Latin-2 -> ASCII */
 }
 
-CHAR					/* CP1250 to ASCII */
+CHAR                                    /* CP1250 to ASCII */
 #ifdef CK_ANSIC
 x1250as(CHAR c)
 #else
 x1250as(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xl1250as */
-    return(yl2as[y1250l2[c]]);		/* CP81250 -> Latin-2 -> ASCII */
+    return(yl2as[y1250l2[c]]);          /* CP81250 -> Latin-2 -> ASCII */
 }
 
 
-CHAR					/* CP852 to Latin-1 */
+CHAR                                    /* CP852 to Latin-1 */
 #ifdef CK_ANSIC
 x52l1(CHAR c)
 #else
 x52l1(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xl52l1 */
-    return(yl2l1[y52l2[c]]);		/* CP852 -> Latin-2 -> Latin-1 */
+    return(yl2l1[y52l2[c]]);            /* CP852 -> Latin-2 -> Latin-1 */
 }
 
-CHAR					/* CP1250 to Latin-1 */
+CHAR                                    /* CP1250 to Latin-1 */
 #ifdef CK_ANSIC
 x1250l1(CHAR c)
 #else
 x1250l1(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xl1250l1 */
-    return(yl2l1[y1250l2[c]]);		/* CP1250 -> Latin-2 -> Latin-1 */
+    return(yl2l1[y1250l2[c]]);          /* CP1250 -> Latin-2 -> Latin-1 */
 }
 
-CHAR					/* CP1250 to Latin-9 */
+CHAR                                    /* CP1250 to Latin-9 */
 #ifdef CK_ANSIC
 x1250l9(CHAR c)
 #else
 x1250l9(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* x1250l9 */
-    if (c == (CHAR)128)			/* Euro */
+    if (c == (CHAR)128)                 /* Euro */
       return((CHAR)164);
     else
-      return(xl2l9(y1250l2[c]));	/* CP1250 -> Latin-2 -> Latin-9 */
+      return(xl2l9(y1250l2[c]));        /* CP1250 -> Latin-2 -> Latin-9 */
 }
 
-CHAR					/* Latin-1 to CP852 */
+CHAR                                    /* Latin-1 to CP852 */
 #ifdef CK_ANSIC
 xl152(CHAR c)
 #else
 xl152(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xll152 */
-    return(yl252[yl1l2[c]]);		/* Latin-1 -> Latin-2 -> CP852 */
+    return(yl252[yl1l2[c]]);            /* Latin-1 -> Latin-2 -> CP852 */
 }
 
-CHAR					/* Latin-1 to CP1250 */
+CHAR                                    /* Latin-1 to CP1250 */
 #ifdef CK_ANSIC
 xl11250(CHAR c)
 #else
 xl11250(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xll11250 */
-    return(yl21250[yl1l2[c]]);		/* Latin-1 -> Latin-2 -> CP1250 */
+    return(yl21250[yl1l2[c]]);          /* Latin-1 -> Latin-2 -> CP1250 */
 }
 
-CHAR					/* Latin-9 to CP1250 */
+CHAR                                    /* Latin-9 to CP1250 */
 #ifdef CK_ANSIC
 xl91250(CHAR c)
 #else
 xl91250(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xll91250 */
-    if (c == (CHAR)164)			/* Euro */
+    if (c == (CHAR)164)                 /* Euro */
       return((CHAR)128);
     else
-      return(yl21250[xl9l2(c)]);	/* Latin-9 -> Latin-2 -> CP1250 */
+      return(yl21250[xl9l2(c)]);        /* Latin-9 -> Latin-2 -> CP1250 */
 }
 
-CHAR					/* Latin-9 to Mazovia */
+CHAR                                    /* Latin-9 to Mazovia */
 #ifdef CK_ANSIC
 xl9mz(CHAR c)
 #else
 xl9mz(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xll9mz */
-    return(yl2mz[xl9l2(c)]);		/* Latin-9 -> Latin-2 -> Mazovia */
+    return(yl2mz[xl9l2(c)]);            /* Latin-9 -> Latin-2 -> Mazovia */
 }
 
-CHAR					/* Latin-9 to Mazovia */
+CHAR                                    /* Latin-9 to Mazovia */
 #ifdef CK_ANSIC
 xmzas(CHAR c)
 #else
 xmzas(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xmzas */
-    return(yl2as[xmzl2(c)]);		/* Mazovia -> Latin-2 -> ASCII */
+    return(yl2as[xmzl2(c)]);            /* Mazovia -> Latin-2 -> ASCII */
 }
 
-CHAR					/* Latin-2 to NeXT */
+CHAR                                    /* Latin-2 to NeXT */
 #ifdef CK_ANSIC
 xl2ne(CHAR c)
 #else
@@ -4093,20 +4093,20 @@ xl2ne(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xll2ne */
     switch(c) {
-      case 162: return(198);		/* Breve */
-      case 163: return(232);		/* L with stroke */
-      case 178: return(206);		/* Ogonek */
-      case 179: return(248);		/* l with stroke */
-      case 183: return(207);		/* Caron */
-      case 189: return(205);		/* Double acute */
-      case 208: return(144);		/* D stroke = Eth */
-      case 240: return(230);		/* d stroke = eth */
-      case 255: return(199);		/* Dot above */
+      case 162: return(198);            /* Breve */
+      case 163: return(232);            /* L with stroke */
+      case 178: return(206);            /* Ogonek */
+      case 179: return(248);            /* l with stroke */
+      case 183: return(207);            /* Caron */
+      case 189: return(205);            /* Double acute */
+      case 208: return(144);            /* D stroke = Eth */
+      case 240: return(230);            /* d stroke = eth */
+      case 255: return(199);            /* Dot above */
       default:  return(yl1ne[yl2l1[c]]);
     }
 }
 
-CHAR					/* Latin-2 to CP437 */
+CHAR                                    /* Latin-2 to CP437 */
 #ifdef CK_ANSIC
 xl243(CHAR c)
 #else
@@ -4116,7 +4116,7 @@ xl243(c) CHAR c;
     return(yl1l2[y43l1[c]]);
 }
 
-CHAR					/* Latin-2 to CP850 */
+CHAR                                    /* Latin-2 to CP850 */
 #ifdef CK_ANSIC
 xl285(CHAR c)
 #else
@@ -4126,17 +4126,17 @@ xl285(c) CHAR c;
     return(yl1l2[y85l1[c]]);
 }
 
-CHAR					/* Latin-2 to Apple */
+CHAR                                    /* Latin-2 to Apple */
 #ifdef CK_ANSIC
 xl2aq(CHAR c)
 #else
 xl2aq(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xl2aq */
-    return(yl1aq[yl2l1[c]]);		/* Could do more... */
+    return(yl1aq[yl2l1[c]]);            /* Could do more... */
 }
 
-CHAR					/* Latin-2 to DGI */
+CHAR                                    /* Latin-2 to DGI */
 #ifdef CK_ANSIC
 xl2dg(CHAR c)
 #else
@@ -4146,7 +4146,7 @@ xl2dg(c) CHAR c;
     return(ydgl1[yl1l2[c]]);
 }
 
-CHAR					/* Latin-2 to Short KOI */
+CHAR                                    /* Latin-2 to Short KOI */
 #ifdef CK_ANSIC
 xl2sk(CHAR c)
 #else
@@ -4156,7 +4156,7 @@ xl2sk(c) CHAR c;
     return(islower(c) ? toupper(c) : c);
 }
 
-CHAR					/* NeXT to Latin-2 */
+CHAR                                    /* NeXT to Latin-2 */
 #ifdef CK_ANSIC
 xnel2(CHAR c)
 #else
@@ -4164,20 +4164,20 @@ xnel2(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xnel2 */
     switch (c) {
-      case 144: return(208);		/* D stroke = Eth */
-      case 198: return(162);		/* Breve */
-      case 199: return(255);		/* Dot above */
-      case 205: return(189);		/* Double acute */
-      case 206: return(178);		/* Ogonek */
-      case 207: return(183);		/* Caron */
-      case 230: return(240);		/* d stroke = eth */
-      case 232: return(163);		/* L with stroke */
-      case 248: return(179);		/* l with stroke */
+      case 144: return(208);            /* D stroke = Eth */
+      case 198: return(162);            /* Breve */
+      case 199: return(255);            /* Dot above */
+      case 205: return(189);            /* Double acute */
+      case 206: return(178);            /* Ogonek */
+      case 207: return(183);            /* Caron */
+      case 230: return(240);            /* d stroke = eth */
+      case 232: return(163);            /* L with stroke */
+      case 248: return(179);            /* l with stroke */
       default:  return(yl1l2[ynel1[c]]); /* Others, go thru Latin-1 */
     }
 }
 
-CHAR					/* CP437 to Latin-2 */
+CHAR                                    /* CP437 to Latin-2 */
 #ifdef CK_ANSIC
 x43l2(CHAR c)
 #else
@@ -4187,7 +4187,7 @@ x43l2(c) CHAR c;
     return(yl1l2[y43l1[c]]);
 }
 
-CHAR					/* CP850 to Latin-2 */
+CHAR                                    /* CP850 to Latin-2 */
 #ifdef CK_ANSIC
 x85l2(CHAR c)
 #else
@@ -4197,7 +4197,7 @@ x85l2(c) CHAR c;
     return(yl1l2[y85l1[c]]);
 }
 
-CHAR					/* Apple to Latin-2 */
+CHAR                                    /* Apple to Latin-2 */
 #ifdef CK_ANSIC
 xaql2(CHAR c)
 #else
@@ -4205,24 +4205,24 @@ xaql2(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xlaql2 */
     switch (c) {
-      case 249: return(162);		/* Breve accent */
-      case 250: return(255);		/* Dot accent */
-      case 253: return(189);		/* Double acute */
+      case 249: return(162);            /* Breve accent */
+      case 250: return(255);            /* Dot accent */
+      case 253: return(189);            /* Double acute */
       default: return(yl1l2[yaql1[c]]);
     }
 }
 
-CHAR					/* DGI to Latin-2 */
+CHAR                                    /* DGI to Latin-2 */
 #ifdef CK_ANSIC
 xdgl2(CHAR c)
 #else
 xdgl2(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xldgl2 */
-    return(yl1l2[ydgl1[c]]);		/* (for now) */
+    return(yl1l2[ydgl1[c]]);            /* (for now) */
 }
 
-CHAR					/* Short KOI to Latin-2 */
+CHAR                                    /* Short KOI to Latin-2 */
 #ifdef CK_ANSIC
 xskl2(CHAR c)
 #else
@@ -4232,7 +4232,7 @@ xskl2(c) CHAR c;
     return(islower(c) ? toupper(c) : c);
 }
 
-CHAR					/* Latin-2 to German */
+CHAR                                    /* Latin-2 to German */
 #ifdef CK_ANSIC
 xl2ge(CHAR c)
 #else
@@ -4240,19 +4240,19 @@ xl2ge(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xll2ge */
     switch(c) {
-      case 167: return(64);		/* Paragraph sign */
-      case 196: return(91);		/* A-diaeresis */
-      case 214: return(92);		/* O-diaeresis */
-      case 220: return(93);		/* U-diaeresis */
-      case 223: return(126);		/* double-s */
-      case 228: return(123);		/* a-diaeresis */
-      case 246: return(124);		/* o-diaeresis */
-      case 252: return(125);		/* u-diaeresis */
-      default:  return(yl2as[c]);	/* Others */
+      case 167: return(64);             /* Paragraph sign */
+      case 196: return(91);             /* A-diaeresis */
+      case 214: return(92);             /* O-diaeresis */
+      case 220: return(93);             /* U-diaeresis */
+      case 223: return(126);            /* double-s */
+      case 228: return(123);            /* a-diaeresis */
+      case 246: return(124);            /* o-diaeresis */
+      case 252: return(125);            /* u-diaeresis */
+      default:  return(yl2as[c]);       /* Others */
     }
 }
 
-CHAR					/* German to Latin-2 */
+CHAR                                    /* German to Latin-2 */
 #ifdef CK_ANSIC
 xgel2(CHAR c)
 #else
@@ -4262,19 +4262,19 @@ xgel2(c) CHAR c;
     if (c & 0x80)
       return(UNK);
     switch(c) {
-      case 64:  return(167);		/* Paragraph sign */
-      case 91:  return(196);		/* A-diaeresis */
-      case 92:  return(214);		/* O-diaeresis */
-      case 93:  return(220);		/* U-diaeresis */
-      case 123: return(228);		/* a-diaeresis */
-      case 126: return(223);		/* double-s */
-      case 124: return(246);		/* o-diaeresis */
-      case 125: return(252);		/* u-diaeresis */
-      default:  return(c);		/* Others */
+      case 64:  return(167);            /* Paragraph sign */
+      case 91:  return(196);            /* A-diaeresis */
+      case 92:  return(214);            /* O-diaeresis */
+      case 93:  return(220);            /* U-diaeresis */
+      case 123: return(228);            /* a-diaeresis */
+      case 126: return(223);            /* double-s */
+      case 124: return(246);            /* o-diaeresis */
+      case 125: return(252);            /* u-diaeresis */
+      default:  return(c);              /* Others */
     }
 }
 
-CHAR					/* Latin-2 to Hungarian */
+CHAR                                    /* Latin-2 to Hungarian */
 #ifdef CK_ANSIC
 xl2hu(CHAR c)
 #else
@@ -4282,21 +4282,21 @@ xl2hu(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xll2hu */
     switch(c) {
-      case 164: return(36);		/* Currency symbol */
-      case 189: return(126);		/* Double acute accent */
-      case 193: return(64);		/* A-acute */
-      case 201: return(91);		/* E-acute */
-      case 214: return(92);		/* O-diaeresis */
-      case 220: return(93);		/* U-diaeresis */
-      case 225: return(96);		/* a-acute */
-      case 233: return(123);		/* e-acute */
-      case 246: return(124);		/* o-diaeresis */
-      case 252: return(125);		/* u-diaeresis */
-      default:  return(yl2as[c]);	/* Others */
+      case 164: return(36);             /* Currency symbol */
+      case 189: return(126);            /* Double acute accent */
+      case 193: return(64);             /* A-acute */
+      case 201: return(91);             /* E-acute */
+      case 214: return(92);             /* O-diaeresis */
+      case 220: return(93);             /* U-diaeresis */
+      case 225: return(96);             /* a-acute */
+      case 233: return(123);            /* e-acute */
+      case 246: return(124);            /* o-diaeresis */
+      case 252: return(125);            /* u-diaeresis */
+      default:  return(yl2as[c]);       /* Others */
     }
 }
 
-CHAR					/* Hungarian to Latin-2 */
+CHAR                                    /* Hungarian to Latin-2 */
 #ifdef CK_ANSIC
 xhul2(CHAR c)
 #else
@@ -4306,17 +4306,17 @@ xhul2(c) CHAR c;
     if (c & 0x80)
       return(UNK);
     switch(c) {
-      case 36:  return(164);		/* Currency symbol */
-      case 64:  return(193);		/* A-acute */
-      case 91:  return(201);		/* E-acute */
-      case 92:  return(214);		/* O-diaeresis */
-      case 93:  return(220);		/* U-diaeresis */
-      case 96:  return(225);		/* a-acute */
-      case 123: return(233);		/* e-acute */
-      case 124: return(246);		/* o-diaeresis */
-      case 125: return(252);		/* u-diaeresis */
-      case 126: return(189);		/* Double acute accent */
-      default:  return(c);		/* Others */
+      case 36:  return(164);            /* Currency symbol */
+      case 64:  return(193);            /* A-acute */
+      case 91:  return(201);            /* E-acute */
+      case 92:  return(214);            /* O-diaeresis */
+      case 93:  return(220);            /* U-diaeresis */
+      case 96:  return(225);            /* a-acute */
+      case 123: return(233);            /* e-acute */
+      case 124: return(246);            /* o-diaeresis */
+      case 125: return(252);            /* u-diaeresis */
+      case 126: return(189);            /* Double acute accent */
+      default:  return(c);              /* Others */
     }
 }
 
@@ -4328,8 +4328,8 @@ xr8l2(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xr8l2 */ /* Hewlett Packard Roman8 to Latin-2 */
     switch (c) {
-      case 235: return(169);		/* S caron */
-      case 236: return(185);		/* s caron */
+      case 235: return(169);            /* S caron */
+      case 236: return(185);            /* s caron */
       default:  return(yl1l2[yr8l1[c]]);
     }
 }
@@ -4342,8 +4342,8 @@ xl2r8(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xl2r8 */ /* Latin-2 to Hewlett Packard Roman8 Character Set */
     switch (c) {
-      case 169: return(235);		/* S caron */
-      case 185: return(236);		/* s caron */
+      case 169: return(235);            /* S caron */
+      case 185: return(236);            /* s caron */
       default:  return(yr8l1[yl1l2[c]]);
     }
 }
@@ -4405,56 +4405,56 @@ xassk(CHAR c)
 #else
 xassk(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xassk */				/* ASCII to Short KOI */
+{ /* xassk */                           /* ASCII to Short KOI */
     if (c & 0x80)
       return(UNK);
-    return((c > 95) ? (c - 32) : c);	/* Fold columns 6-7 to 4-5 */
+    return((c > 95) ? (c - 32) : c);    /* Fold columns 6-7 to 4-5 */
 }
 
 #ifdef CYRILLIC
 /* Translation functions for Cyrillic character sets */
 
-CHAR					/* Latin/Cyrillic to CP866 */
+CHAR                                    /* Latin/Cyrillic to CP866 */
 #ifdef CK_ANSIC
 xlcac(CHAR c)
 #else
 xlcac(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xlcac */				/* PC Code Page 866 */
+{ /* xlcac */                           /* PC Code Page 866 */
     return(ylcac[c]);
 }
 
-CHAR					/* Latin/Cyrillic to */
+CHAR                                    /* Latin/Cyrillic to */
 #ifdef CK_ANSIC
 xlc55(CHAR c)
 #else
 xlc55(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xlc55 */				/* PC Code Page 855 */
+{ /* xlc55 */                           /* PC Code Page 855 */
     return(ylc55[c]);
 }
 
-CHAR					/* Latin/Cyrillic to */
+CHAR                                    /* Latin/Cyrillic to */
 #ifdef CK_ANSIC
 xlc1251(CHAR c)
 #else
 xlc1251(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xlc1251 */				/* PC Code Page 1251 */
+{ /* xlc1251 */                         /* PC Code Page 1251 */
     return(ylc1251[c]);
 }
 
-CHAR					/* Latin/Cyrillic to... */
+CHAR                                    /* Latin/Cyrillic to... */
 #ifdef CK_ANSIC
 xlcbu(CHAR c)
 #else
 xlcbu(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xlcbu */				/* Bulgarian PC Code Page */
+{ /* xlcbu */                           /* Bulgarian PC Code Page */
     return(ylcbu[c]);
 }
 
-CHAR					/* Latin/Cyrillic to Old KOI-8 */
+CHAR                                    /* Latin/Cyrillic to Old KOI-8 */
 #ifdef CK_ANSIC
 xlck8(CHAR c)
 #else
@@ -4464,7 +4464,7 @@ xlck8(c) CHAR c;
     return(ylck8[c]);
 }
 
-CHAR					/* Latin/Cyrillic to KOI8-R */
+CHAR                                    /* Latin/Cyrillic to KOI8-R */
 #ifdef CK_ANSIC
 xlckr(CHAR c)
 #else
@@ -4472,16 +4472,16 @@ xlckr(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xlckr */
     switch(c) {
-      case 0xa1: return(0xb3);		/* Io */
-      case 0xf1: return(0xa3);		/* io */
+      case 0xa1: return(0xb3);          /* Io */
+      case 0xf1: return(0xa3);          /* io */
       default:
-	if (c > 0x7f && c < 0xc0)
-	  return(UNK);
-	return(ylck8[c]);
+        if (c > 0x7f && c < 0xc0)
+          return(UNK);
+        return(ylck8[c]);
     }
 }
 
-CHAR					/* Latin/Cyrillic to  KOI8-U */
+CHAR                                    /* Latin/Cyrillic to  KOI8-U */
 #ifdef CK_ANSIC
 xlcku(CHAR c)
 #else
@@ -4489,20 +4489,20 @@ xlcku(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xlcku */
     switch(c) {
-      case 0xa1: return(0xb3);		/* Io */
-      case 0xf1: return(0xa3);		/* io */
-      case 0xf4: return(0xa4);		/* Ukrainian ie */
-      case 0xf6: return(0xa6);		/* Ukrainian i */
-      case 0xf7: return(0xa7);		/* Ukrainian yi */
-      case 0xf3: return(0xad);		/* Ukrainian ghe with upturn */
-      case 0xa4: return(0xb4);		/* Ukrainian Ie */
-      case 0xa6: return(0xb6);		/* Ukrainian I */
-      case 0xa7: return(0xb7);		/* Ukrainian Yi */
-      case 0xa3: return(0xbd);		/* Ukrainian Ghe with upturn */
+      case 0xa1: return(0xb3);          /* Io */
+      case 0xf1: return(0xa3);          /* io */
+      case 0xf4: return(0xa4);          /* Ukrainian ie */
+      case 0xf6: return(0xa6);          /* Ukrainian i */
+      case 0xf7: return(0xa7);          /* Ukrainian yi */
+      case 0xf3: return(0xad);          /* Ukrainian ghe with upturn */
+      case 0xa4: return(0xb4);          /* Ukrainian Ie */
+      case 0xa6: return(0xb6);          /* Ukrainian I */
+      case 0xa7: return(0xb7);          /* Ukrainian Yi */
+      case 0xa3: return(0xbd);          /* Ukrainian Ghe with upturn */
       default:
-	if (c > 0x7f && c < 0xc0)
-	  return(UNK);
-	return(ylck8[c]);
+        if (c > 0x7f && c < 0xc0)
+          return(UNK);
+        return(ylck8[c]);
     }
 }
 
@@ -4512,7 +4512,7 @@ xlcsk(CHAR c)
 #else
 xlcsk(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xlcsk */				/* Latin/Cyrillic to Short KOI */
+{ /* xlcsk */                           /* Latin/Cyrillic to Short KOI */
     return(ylcsk[c]);
 }
 
@@ -4522,54 +4522,54 @@ xlcas(CHAR c)
 #else
 xlcas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xlcas */				/* Latin/Cyrillic to ASCII */
+{ /* xlcas */                           /* Latin/Cyrillic to ASCII */
     if (langs[language].id == L_RUSSIAN)
       return(ylcsk[c]);
     else
       return((c > 127) ? '?' : c);
 }
 
-CHAR					/* CP866 */
+CHAR                                    /* CP866 */
 #ifdef CK_ANSIC
 xaclc(CHAR c)
 #else
 xaclc(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xaclc */				/* to Latin/Cyrillic */
+{ /* xaclc */                           /* to Latin/Cyrillic */
     return(yaclc[c]);
 }
 
-CHAR					/* CP855 */
+CHAR                                    /* CP855 */
 #ifdef CK_ANSIC
 x55lc(CHAR c)
 #else
 x55lc(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* x55lc */				/* to Latin/Cyrillic */
+{ /* x55lc */                           /* to Latin/Cyrillic */
     return(y55lc[c]);
 }
 
-CHAR					/* Bulgarian PC Code Page ... */
+CHAR                                    /* Bulgarian PC Code Page ... */
 #ifdef CK_ANSIC
 xbulc(CHAR c)
 #else
 xbulc(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xbulc */				/* to Latin/Cyrillic */
+{ /* xbulc */                           /* to Latin/Cyrillic */
     return(ybulc[c]);
 }
 
-CHAR					/* CP1251 */
+CHAR                                    /* CP1251 */
 #ifdef CK_ANSIC
 x1251lc(CHAR c)
 #else
 x1251lc(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* x1251lc */				/* to Latin/Cyrillic */
+{ /* x1251lc */                         /* to Latin/Cyrillic */
     return(y1251lc[c]);
 }
 
-CHAR					/* Old KOI-8 to Latin/Cyrillic */
+CHAR                                    /* Old KOI-8 to Latin/Cyrillic */
 #ifdef CK_ANSIC
 xk8lc(CHAR c)
 #else
@@ -4579,7 +4579,7 @@ xk8lc(c) CHAR c;
     return(yk8lc[c]);
 }
 
-CHAR					/* KOI8-R to Latin/Cyrillic */
+CHAR                                    /* KOI8-R to Latin/Cyrillic */
 #ifdef CK_ANSIC
 xkrlc(CHAR c)
 #else
@@ -4593,7 +4593,7 @@ xkrlc(c) CHAR c;
     return(yk8lc[c]);
 }
 
-CHAR					/* KOI8-U to Latin/Cyrillic */
+CHAR                                    /* KOI8-U to Latin/Cyrillic */
 #ifdef CK_ANSIC
 xkulc(CHAR c)
 #else
@@ -4601,21 +4601,21 @@ xkulc(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xkulc */
     switch (c) {
-      case 0xb3: return(0xa1);		/* Io */
-      case 0xa3: return(0xf1);		/* io */
-      case 0xa4: return(0xf4);		/* Ukrainian ie */
-      case 0xa6: return(0xf6);		/* Ukrainian i */
-      case 0xa7: return(0xf7);		/* Ukrainian yi */
-      case 0xad: return(0xf3);		/* Ukrainian ghe with upturn */
-      case 0xb4: return(0xa4);		/* Ukrainian Ie */
-      case 0xb6: return(0xa6);		/* Ukrainian I */
-      case 0xb7: return(0xa7);		/* Ukrainian Yi */
-      case 0xbd: return(0xa3);		/* Ukrainian Ghe with upturn */
+      case 0xb3: return(0xa1);          /* Io */
+      case 0xa3: return(0xf1);          /* io */
+      case 0xa4: return(0xf4);          /* Ukrainian ie */
+      case 0xa6: return(0xf6);          /* Ukrainian i */
+      case 0xa7: return(0xf7);          /* Ukrainian yi */
+      case 0xad: return(0xf3);          /* Ukrainian ghe with upturn */
+      case 0xb4: return(0xa4);          /* Ukrainian Ie */
+      case 0xb6: return(0xa6);          /* Ukrainian I */
+      case 0xb7: return(0xa7);          /* Ukrainian Yi */
+      case 0xbd: return(0xa3);          /* Ukrainian Ghe with upturn */
       /* Note substitution of Gje for Ghe-Upturn, which is not in 8859-5 */
       default:
-	if (c > 0x7f && c < 0xc0)
-	  return(UNK);
-	return(yk8lc[c]);
+        if (c > 0x7f && c < 0xc0)
+          return(UNK);
+        return(yk8lc[c]);
     }
 }
 
@@ -4625,7 +4625,7 @@ xskcy(CHAR c)
 #else
 xskcy(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xskcy */			/* Short KOI to Latin/Cyrillic */
+{ /* xskcy */                   /* Short KOI to Latin/Cyrillic */
     return(yskcy[c & 0x7f]);
 }
 
@@ -4635,9 +4635,9 @@ xascy(CHAR c)
 #else
 xascy(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xascy */			/* ASCII to Latin/Cyrillic */
+{ /* xascy */                   /* ASCII to Latin/Cyrillic */
     if (langs[language].id == L_RUSSIAN) { /* If LANGUAGE == RUSSIAN  */
-	return(yskcy[c & 0x7f]);	/* treat ASCII as Short KOI */
+        return(yskcy[c & 0x7f]);        /* treat ASCII as Short KOI */
     } else return((c > 127) ? '?' : c);
 }
 
@@ -4647,10 +4647,10 @@ xacas(CHAR c)
 #else
 xacas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xacas */			/* CP866 to ASCII */
+{ /* xacas */                   /* CP866 to ASCII */
     if (langs[language].id == L_RUSSIAN) {
-	c = yaclc[c];			/* First to Latin/Cyrillic */
-	return(ylcsk[c]);		/* Then to Short KOI */
+        c = yaclc[c];                   /* First to Latin/Cyrillic */
+        return(ylcsk[c]);               /* Then to Short KOI */
     } else return((c > 127) ? '?' : c);
 }
 
@@ -4660,10 +4660,10 @@ x55as(CHAR c)
 #else
 x55as(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* x55as */			/* CP855 to ASCII */
+{ /* x55as */                   /* CP855 to ASCII */
     if (langs[language].id == L_RUSSIAN) {
-	c = y55lc[c];			/* First to Latin/Cyrillic */
-	return(ylcsk[c]);		/* Then to Short KOI */
+        c = y55lc[c];                   /* First to Latin/Cyrillic */
+        return(ylcsk[c]);               /* Then to Short KOI */
     } else return((c > 127) ? '?' : c);
 }
 
@@ -4673,10 +4673,10 @@ x1251as(CHAR c)
 #else
 x1251as(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* x1251as */			/* CP81251 to ASCII */
+{ /* x1251as */                 /* CP81251 to ASCII */
     if (langs[language].id == L_RUSSIAN) {
-	c = y1251lc[c];			/* First to Latin/Cyrillic */
-	return(ylcsk[c]);		/* Then to Short KOI */
+        c = y1251lc[c];                 /* First to Latin/Cyrillic */
+        return(ylcsk[c]);               /* Then to Short KOI */
     } else return((c > 127) ? '?' : c);
 }
 
@@ -4686,7 +4686,7 @@ xskas(CHAR c)
 #else
 xskas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xskas */				/* Short KOI to ASCII */
+{ /* xskas */                           /* Short KOI to ASCII */
     return((c > 95) ? '?' : c);
 }
 
@@ -4696,10 +4696,10 @@ xk8as(CHAR c)
 #else
 xk8as(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xk8as */				/* Old KOI-8 Cyrillic to ASCII */
+{ /* xk8as */                           /* Old KOI-8 Cyrillic to ASCII */
     if (langs[language].id == L_RUSSIAN) {
-	c = yk8lc[c];			/* First to Latin/Cyrillic */
-	return(ylcsk[c]);		/* Then to Short KOI */
+        c = yk8lc[c];                   /* First to Latin/Cyrillic */
+        return(ylcsk[c]);               /* Then to Short KOI */
     } else return((c > 127) ? '?' : c);
 }
 
@@ -4709,9 +4709,9 @@ xl1sk(CHAR c)
 #else
 xl1sk(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1sk */				/* Latin-1 to Short KOI */
-    c = zl1as(c);			/* Convert to ASCII */
-    return(c = xassk(c));		/* Convert ASCII to Short KOI */
+{ /* xl1sk */                           /* Latin-1 to Short KOI */
+    c = zl1as(c);                       /* Convert to ASCII */
+    return(c = xassk(c));               /* Convert ASCII to Short KOI */
 }
 
 CHAR
@@ -4720,7 +4720,7 @@ xw1lc(CHAR c)
 #else
 xw1lc(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xw1lc */				/* CP1252 to Latin/Cyrillic */
+{ /* xw1lc */                           /* CP1252 to Latin/Cyrillic */
     return((c < 160) ? xw1as(c) : zl1as(c));
 }
 
@@ -4730,7 +4730,7 @@ xaslc(CHAR c)
 #else
 xaslc(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xaslc */			/* ASCII to Latin/Cyrillic */
+{ /* xaslc */                   /* ASCII to Latin/Cyrillic */
     if (langs[language].id == L_RUSSIAN)
       return(yskcy[c & 0x7f]);
     else return(c & 0x7f);
@@ -4742,12 +4742,12 @@ xasac(CHAR c)
 #else
 xasac(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xasac */			/* ASCII to CP866 */
+{ /* xasac */                   /* ASCII to CP866 */
     if (c & 0x80)
       return(UNK);
     if (langs[language].id == L_RUSSIAN) { /* Use Short KOI */
-	c = xskcy(c);			/* Translate to Latin/Cyrillic */
-	return(ylcac[c]);		/* Then to CP866 */
+        c = xskcy(c);                   /* Translate to Latin/Cyrillic */
+        return(ylcac[c]);               /* Then to CP866 */
     } else return(c & 0x7f);
 }
 
@@ -4757,12 +4757,12 @@ xas55(CHAR c)
 #else
 xas55(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xas55 */			/* ASCII to CP855 */
+{ /* xas55 */                   /* ASCII to CP855 */
     if (c & 0x80)
       return(UNK);
     if (langs[language].id == L_RUSSIAN) { /* Use Short KOI */
-	c = xskcy(c);			/* Translate to Latin/Cyrillic */
-	return(ylc55[c]);		/* Then to CP866 */
+        c = xskcy(c);                   /* Translate to Latin/Cyrillic */
+        return(ylc55[c]);               /* Then to CP866 */
     } else return(c & 0x7f);
 }
 
@@ -4772,12 +4772,12 @@ xas1251(CHAR c)
 #else
 xas1251(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xas1251 */			/* ASCII to CP81251 */
+{ /* xas1251 */                 /* ASCII to CP81251 */
     if (c & 0x80)
       return(UNK);
     if (langs[language].id == L_RUSSIAN) { /* Use Short KOI */
-	c = xskcy(c);			/* Translate to Latin/Cyrillic */
-	return(ylc1251[c]);		/* Then to CP866 */
+        c = xskcy(c);                   /* Translate to Latin/Cyrillic */
+        return(ylc1251[c]);             /* Then to CP866 */
     } else return(c & 0x7f);
 }
 
@@ -4787,12 +4787,12 @@ xask8(CHAR c)
 #else
 xask8(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xask8 */			/* ASCII to KOI-8 */
+{ /* xask8 */                   /* ASCII to KOI-8 */
     if (c & 0x80)
       return(UNK);
     if (langs[language].id == L_RUSSIAN) { /* Use Short KOI */
-	c = xskcy(c);			/* Translate to Latin/Cyrillic */
-	return(ylck8[c]);		/* Then to KOI-8 */
+        c = xskcy(c);                   /* Translate to Latin/Cyrillic */
+        return(ylck8[c]);               /* Then to KOI-8 */
     } else return(c & 0x7f);
 }
 #else /* No Cyrillic */
@@ -4840,7 +4840,7 @@ xash7(CHAR c)
 #else
 xash7(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xash7 */			/* ASCII to Hebrew-7 */
+{ /* xash7 */                   /* ASCII to Hebrew-7 */
     if (c & 0x80)
       return(UNK);
     if (c == 96) return('?');
@@ -4854,7 +4854,7 @@ xl1h7(CHAR c)
 #else
 xl1h7(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1h7 */			/* Latin-1 to Hebrew-7 */
+{ /* xl1h7 */                   /* Latin-1 to Hebrew-7 */
     return(xash7(xl1as(c)));
 }
 
@@ -4864,12 +4864,12 @@ xl1lh(CHAR c)
 #else
 xl1lh(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1lh */				/* Latin-1 to Latin/Hebrew */
+{ /* xl1lh */                           /* Latin-1 to Latin/Hebrew */
     switch(c) {
-      case 170: return('a');		/* Feminine ordinal */
-      case 186: return('o');		/* Masculine ordinal */
-      case 215: return(170);		/* Times */
-      case 247: return(186);		/* Divide */
+      case 170: return('a');            /* Feminine ordinal */
+      case 186: return('o');            /* Masculine ordinal */
+      case 215: return(170);            /* Times */
+      case 247: return(186);            /* Divide */
       default:  return( (c > 190) ? xl1as(c) : c );
     }
 }
@@ -4880,17 +4880,17 @@ xw1lh(CHAR c)
 #else
 xw1lh(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xw1lh */				/* CP1252 to Latin/Hebrew */
+{ /* xw1lh */                           /* CP1252 to Latin/Hebrew */
     switch(c) {
-      case 170: return('a');		/* Feminine ordinal */
-      case 186: return('o');		/* Masculine ordinal */
-      case 215: return(170);		/* Times */
-      case 247: return(186);		/* Divide */
+      case 170: return('a');            /* Feminine ordinal */
+      case 186: return('o');            /* Masculine ordinal */
+      case 215: return(170);            /* Times */
+      case 247: return(186);            /* Divide */
       default:
-	if (c < 160)
-	  return(xw1as(c));
-	else
-	  return((c > 190) ? xl1as(c) : c);
+        if (c < 160)
+          return(xw1as(c));
+        else
+          return((c > 190) ? xl1as(c) : c);
     }
 }
 
@@ -4901,7 +4901,7 @@ xl2h7(CHAR c)
 #else
 xl2h7(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl2h7 */				/* Latin-2 to Hebrew-7 */
+{ /* xl2h7 */                           /* Latin-2 to Hebrew-7 */
     return(xash7(xl2as(c)));
 }
 #else
@@ -4915,7 +4915,7 @@ xlch7(CHAR c)
 #else
 xlch7(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xlch7 */				/* Latin/Cyrillic to Hebrew-7 */
+{ /* xlch7 */                           /* Latin/Cyrillic to Hebrew-7 */
     return(xash7(xlcas(c)));
 }
 #endif /* NOCYRIL */
@@ -4926,7 +4926,7 @@ xlhas(CHAR c)
 #else
 xlhas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xlhas */			/* Latin/Hebrew to ASCII */
+{ /* xlhas */                   /* Latin/Hebrew to ASCII */
     return( (c > 127) ? '?' : c );
 }
 
@@ -4936,7 +4936,7 @@ xlhl1(CHAR c)
 #else
 xlhl1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xlhl1 */			/* Latin/Hebrew to Latin-1 */
+{ /* xlhl1 */                   /* Latin/Hebrew to Latin-1 */
     switch (c) {
       case 170: return(215);
       case 186: return(247);
@@ -4950,7 +4950,7 @@ xlhw1(CHAR c)
 #else
 xlhw1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xlhw1 */			/* Latin/Hebrew to CP1252 */
+{ /* xlhw1 */                   /* Latin/Hebrew to CP1252 */
     if (c > 127 && c < 160)
       return('?');
     switch (c) {
@@ -4966,7 +4966,7 @@ xlh62(CHAR c)
 #else
 xlh62(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xlh62 */			/* Latin/Hebrew to CP862 */
+{ /* xlh62 */                   /* Latin/Hebrew to CP862 */
     return(ylh62[c]);
 }
 
@@ -4976,8 +4976,8 @@ xl162(CHAR c)
 #else
 xl162(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl162 */			/* Latin-1 to CP862 */
-    return(xlh62(xl1lh(c)));	/* Via Latin/Hebrew */
+{ /* xl162 */                   /* Latin-1 to CP862 */
+    return(xlh62(xl1lh(c)));    /* Via Latin/Hebrew */
 }
 
 CHAR
@@ -4986,7 +4986,7 @@ xlhh7(CHAR c)
 #else
 xlhh7(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xlhh7 */			/* Latin/Hebrew to Hebrew-7 */
+{ /* xlhh7 */                   /* Latin/Hebrew to Hebrew-7 */
     return(ylhh7[c]);
 }
 
@@ -4996,7 +4996,7 @@ xh7as(CHAR c)
 #else
 xh7as(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xh7as */			/* Hebrew-7 to ASCII */
+{ /* xh7as */                   /* Hebrew-7 to ASCII */
     if (c & 0x80)
       return(UNK);
     return( (c > 95 && c < 123) ? '?' : c );
@@ -5008,7 +5008,7 @@ x62lh(CHAR c)
 #else
 x62lh(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* x62lh */			/* CP862 to Latin/Hebrew */
+{ /* x62lh */                   /* CP862 to Latin/Hebrew */
     return(y62lh[c]);
 }
 
@@ -5018,7 +5018,7 @@ x62as(CHAR c)
 #else
 x62as(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* x62as */			/* CP862 to ASCII */
+{ /* x62as */                   /* CP862 to ASCII */
     return( xlhas(x62lh(c)) );
 }
 
@@ -5028,7 +5028,7 @@ x62l1(CHAR c)
 #else
 x62l1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* x62l1 */			/* CP862 to Latin-1 */
+{ /* x62l1 */                   /* CP862 to Latin-1 */
     return( xlhl1(x62lh(c)) );
 }
 
@@ -5038,7 +5038,7 @@ xh7lh(CHAR c)
 #else
 xh7lh(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xh7lh */			/* Hebrew-7 to Latin/Hebrew */
+{ /* xh7lh */                   /* Hebrew-7 to Latin/Hebrew */
     if (c & 0x80)
       return(UNK);
     return(yh7lh[c]);
@@ -5076,7 +5076,7 @@ xaseg(CHAR c)
 #else
 xaseg(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xaseg */			/* ASCII to ELOT 927 */
+{ /* xaseg */                   /* ASCII to ELOT 927 */
     if (c & 0x80)
       return(UNK);
     if (c > 96 && c < 123) return(c - 32);
@@ -5089,7 +5089,7 @@ xl1eg(CHAR c)
 #else
 xl1eg(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1ge */			/* Latin-1 to ELOT 927 */
+{ /* xl1ge */                   /* Latin-1 to ELOT 927 */
     return(xaseg(xl1as(c)));
 }
 
@@ -5099,7 +5099,7 @@ xl2lg(CHAR c)
 #else
 xl2lg(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl2lg */			/* Latin-1 to Latin/Greek */
+{ /* xl2lg */                   /* Latin-1 to Latin/Greek */
     if (c < 160) return(c);
     else if (c == 160 || c == 168 || c == 173 || c == 174)
       return(c);
@@ -5112,10 +5112,10 @@ xl1lg(CHAR c)
 #else
 xl1lg(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl1lg */			/* Latin-1 to Latin/Greek */
+{ /* xl1lg */                   /* Latin-1 to Latin/Greek */
     if (c < 160) return(c);
     switch(c) {
-      case 160:				/* Themselves */
+      case 160:                         /* Themselves */
       case 164:
       case 166:
       case 167:
@@ -5131,11 +5131,11 @@ xl1lg(c) CHAR c;
       case 180:
       case 187:
       case 189:
-	return(c);
-      case 181:				/* Lowercase mu */
-	return(236);
+        return(c);
+      case 181:                         /* Lowercase mu */
+        return(236);
       default:
-	return(UNK);
+        return(UNK);
     }
 }
 
@@ -5145,7 +5145,7 @@ xw1lg(CHAR c)
 #else
 xw1lg(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xw1lg */				/* CP1252 to Latin/Greek */
+{ /* xw1lg */                           /* CP1252 to Latin/Greek */
     return((c < 160) ? xw1as(c) : xl1lg(c));
 }
 
@@ -5157,7 +5157,7 @@ xl2eg(CHAR c)
 #else
 xl2eg(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl2eg */				/* Latin-2 to ELOT 927 */
+{ /* xl2eg */                           /* Latin-2 to ELOT 927 */
     return(xaseg(xl2as(c)));
 }
 #else
@@ -5171,7 +5171,7 @@ xlceg(CHAR c)
 #else
 xlceg(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xlceg */			/* Latin/Cyrillic to ELOT 927 */
+{ /* xlceg */                   /* Latin/Cyrillic to ELOT 927 */
     return(xaseg(xlcas(c)));
 }
 #endif /* NOCYRIL */
@@ -5182,7 +5182,7 @@ xlgas(CHAR c)
 #else
 xlgas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xlgas */			/* Latin/Greek to ASCII */
+{ /* xlgas */                   /* Latin/Greek to ASCII */
     return( (c > 127) ? '?' : c );
 }
 
@@ -5192,7 +5192,7 @@ xlgl1(CHAR c)
 #else
 xlgl1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xlgl1 */			/* Latin/Greek to Latin-1 */
+{ /* xlgl1 */                   /* Latin/Greek to Latin-1 */
     if (c == 236)
       return(181);
     else
@@ -5205,7 +5205,7 @@ xlgw1(CHAR c)
 #else
 xlgw1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xlgw1 */			/* Latin/Greek to Latin-1 */
+{ /* xlgw1 */                   /* Latin/Greek to Latin-1 */
     if (c > 127 && c < 160)
       return('?');
     return(xlgl1(c));
@@ -5217,7 +5217,7 @@ xlg69(CHAR c)
 #else
 xlg69(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xlg69 */			/* Latin/Greek to CP869 */
+{ /* xlg69 */                   /* Latin/Greek to CP869 */
     return(ylg69[c]);
 }
 
@@ -5227,8 +5227,8 @@ xl169(CHAR c)
 #else
 xl169(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl169 */			/* Latin-1 to CP869 */
-    return(xlg69(xl1lg(c)));	/* Via Latin/Greek */
+{ /* xl169 */                   /* Latin-1 to CP869 */
+    return(xlg69(xl1lg(c)));    /* Via Latin/Greek */
 }
 
 CHAR
@@ -5237,7 +5237,7 @@ xlgeg(CHAR c)
 #else
 xlgeg(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xlgeg */			/* Latin/Greek to ELOT 927 */
+{ /* xlgeg */                   /* Latin/Greek to ELOT 927 */
     return(ylgeg[c]);
 }
 
@@ -5247,7 +5247,7 @@ xegas(CHAR c)
 #else
 xegas(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xegas */			/* ELOT 927 to ASCII */
+{ /* xegas */                   /* ELOT 927 to ASCII */
     if (c & 0x80)
       return(UNK);
     return( (c > 96 && c < 123) ? '?' : c );
@@ -5259,7 +5259,7 @@ x69lg(CHAR c)
 #else
 x69lg(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* x69lg */			/* CP869 to Latin/Greek */
+{ /* x69lg */                   /* CP869 to Latin/Greek */
     return(y69lg[c]);
 }
 
@@ -5269,7 +5269,7 @@ x69as(CHAR c)
 #else
 x69as(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* x69as */			/* CP869 to ASCII */
+{ /* x69as */                   /* CP869 to ASCII */
     return( xlgas(x69lg(c)) );
 }
 
@@ -5279,7 +5279,7 @@ x69l1(CHAR c)
 #else
 x69l1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* x69l1 */			/* CP869 to Latin-1 */
+{ /* x69l1 */                   /* CP869 to Latin-1 */
     return( xlgl1(x69lg(c)) );
 }
 
@@ -5289,7 +5289,7 @@ xeglg(CHAR c)
 #else
 xeglg(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xeglg */			/* ELOT 927 to Latin/Greek */
+{ /* xeglg */                   /* ELOT 927 to Latin/Greek */
     return(yeglg[c]);
 }
 
@@ -5342,8 +5342,8 @@ _PROTOTYP(static int jpnxkt, (int, int[]) );
 _PROTOTYP(static int jpnxkn, (int[], int[]) );
 #endif  /* COMMENT */
 
-static int jpncnt;			/* Byte count for Japanese */
-static int jpnlst;			/* Last status (for JIS7) */
+static int jpncnt;                      /* Byte count for Japanese */
+static int jpnlst;                      /* Last status (for JIS7) */
 
 static int
 #ifdef CK_ANSIC
@@ -5356,27 +5356,27 @@ jpnxas( int a, int obuf[] )   /* Translate ASCII to local file code */
 
     r = 0;
     if (fcharset == FC_JIS7) {
-	switch (jpnlst) {
-	  case 1:
-	    obuf[0] = 0x0f;
-	    obuf[1] = a;
-	    r = 2;
-	    break;
-	  case 2:
-	    obuf[0] = 0x1b;
-	    obuf[1] = 0x28;
-	    obuf[2] = 0x4a;
-	    obuf[3] = a;
-	    r = 4;
-	    break;
-	  default:
-	    obuf[0] = a;
-	    r = 1;
-	    break;
-	}
+        switch (jpnlst) {
+          case 1:
+            obuf[0] = 0x0f;
+            obuf[1] = a;
+            r = 2;
+            break;
+          case 2:
+            obuf[0] = 0x1b;
+            obuf[1] = 0x28;
+            obuf[2] = 0x4a;
+            obuf[3] = a;
+            r = 4;
+            break;
+          default:
+            obuf[0] = a;
+            r = 1;
+            break;
+        }
     } else {
-	obuf[0] = a;
-	r = 1;
+        obuf[0] = a;
+        r = 1;
     }
     return(r);
 }
@@ -5394,21 +5394,23 @@ jpnxkt(a, obuf) int a; int obuf[];
 
     r = 0;
     if (fcharset == FC_JIS7) {
-	switch (jpnlst) {
-	  case 2:				/* from Kanji */
-	    obuf[r++] = 0x1b;
-	    obuf[r++] = 0x28;
-	    obuf[r++] = 0x4a;
-	  case 0:				/* from Roman */
-	    obuf[r++] = 0x0e;
-	  default:
-	    obuf[r++] = (a & 0x7f);
-	  break;
-	}
+        switch (jpnlst) {
+          case 2:                               /* from Kanji */
+            obuf[r++] = 0x1b;
+            obuf[r++] = 0x28;
+            obuf[r++] = 0x4a;
+            /* Fall through */
+          case 0:                               /* from Roman */
+            obuf[r++] = 0x0e;
+            /* Fall through */
+          default:
+            obuf[r++] = (a & 0x7f);
+          break;
+        }
     } else {
-	if (fcharset == FC_JEUC)
-	  obuf[r++] = 0x8e;
-	obuf[r++] = (a | 0x80);
+        if (fcharset == FC_JEUC)
+          obuf[r++] = 0x8e;
+        obuf[r++] = (a | 0x80);
     }
     return(r);
 }
@@ -5428,10 +5430,10 @@ jpnxkn(ibuf, obuf) int ibuf[], obuf[];
     c2 = ibuf[1] & 0x7f;
 
     if (fcharset == FC_SHJIS) {
-	if (c1 & 1)
-	  c2 += 0x1f;
-	else
-	  c2 += 0x7d;
+        if (c1 & 1)
+          c2 += 0x1f;
+        else
+          c2 += 0x7d;
 
         if (c2 >= 0x7f) c2++;
 
@@ -5444,17 +5446,19 @@ jpnxkn(ibuf, obuf) int ibuf[], obuf[];
     } else if (fcharset == FC_JIS7) {
         r = 0;
         switch (jpnlst) {
-  	  case 1:
-	    obuf[r++] = 0x0f; /* From Katakana */
-  	  case 0:
-	    obuf[r++] = 0x1b;
-	    obuf[r++] = 0x24;
-	    obuf[r++] = 0x42;
-	  default:
-	    obuf[r++] = c1;
-	    obuf[r++] = c2;
-	    break;
-	}
+          case 1:
+            obuf[r++] = 0x0f; /* From Katakana */
+            /* Fall through */
+          case 0:
+            obuf[r++] = 0x1b;
+            obuf[r++] = 0x24;
+            obuf[r++] = 0x42;
+            /* Fall through */
+          default:
+            obuf[r++] = c1;
+            obuf[r++] = c2;
+            break;
+        }
     } else {
         obuf[0] = (c1 | 0x80);
         obuf[1] = (c2 | 0x80);
@@ -5487,13 +5491,13 @@ xkanjz(fn) int (*fn)();
     int r, i, c;
 
     if (fcharset == FC_JIS7) {
-        c = 'A';			/* Dummy Roman character */
-        r = jpnxas(c, obuf) - 1;	/* -1 removes Dummy character */
+        c = 'A';                        /* Dummy Roman character */
+        r = jpnxas(c, obuf) - 1;        /* -1 removes Dummy character */
         if (r > 0) {
-	    for (i = 0; i < r; i++)
-	      if (((*fn)((char) obuf[i])) < 0)
-		return(-1);
-	}
+            for (i = 0; i < r; i++)
+              if (((*fn)((char) obuf[i])) < 0)
+                return(-1);
+        }
     }
     return(0);
 }
@@ -5514,38 +5518,38 @@ xkanji(a, fn) int a; int (*fn)();
 
     r = 0;
     if (jpncnt == 0) {
-	/* 1st byte */
-	if ((a & 0x80) == 0) {
-	    /* 8th bit is 0, i.e., single-byte code */
-	    r = jpnxas(a, obuf);
-	    state = 0;
-	} else {
-	    /* 8th bit is 1, check the range */
-	    c7 = a & 0x7f;
-	    if (((c7 > 0x20) && (c7 < 0x7f)) || (c7 == 0x0e)) {
-	        /* double byte code */
-	        xbuf[jpncnt++] = a;
-	    } else {
-	        /* single byte code */
-	        r = jpnxas(a, obuf);
-	        state = 0;
-	    }
-	}
+        /* 1st byte */
+        if ((a & 0x80) == 0) {
+            /* 8th bit is 0, i.e., single-byte code */
+            r = jpnxas(a, obuf);
+            state = 0;
+        } else {
+            /* 8th bit is 1, check the range */
+            c7 = a & 0x7f;
+            if (((c7 > 0x20) && (c7 < 0x7f)) || (c7 == 0x0e)) {
+                /* double byte code */
+                xbuf[jpncnt++] = a;
+            } else {
+                /* single byte code */
+                r = jpnxas(a, obuf);
+                state = 0;
+            }
+        }
     } else {
-	/* not the 1st byte */
-	xbuf[jpncnt++] = a;
-	if (xbuf[0] == 0x8e) {
-	    r = jpnxkt(xbuf[1], obuf);
-	    state = 1;
-	} else {
-	    r = jpnxkn(xbuf, obuf);
-	    state = 2;
-	}
+        /* not the 1st byte */
+        xbuf[jpncnt++] = a;
+        if (xbuf[0] == 0x8e) {
+            r = jpnxkt(xbuf[1], obuf);
+            state = 1;
+        } else {
+            r = jpnxkn(xbuf, obuf);
+            state = 2;
+        }
     }
     if (r > 0) {
         for (i = 0; i < r; i++ )
-	  if (((*fn)((char) obuf[i])) < 0)
-	    return(-1);
+          if (((*fn)((char) obuf[i])) < 0)
+            return(-1);
         jpnlst = state;
         jpncnt = 0;
     }
@@ -5559,88 +5563,88 @@ xkanji(a, fn) int a; int (*fn)();
 */
 
 /* zkanji */
-static int jpnstz;			/* status for JIS-7 */
-static int jpnpnd;			/* number of pending bytes */
-static int jpnpnt;			/* pending buffer index */
-static int jpnpbf[8];			/* pending buffer */
+static int jpnstz;                      /* status for JIS-7 */
+static int jpnpnd;                      /* number of pending bytes */
+static int jpnpnt;                      /* pending buffer index */
+static int jpnpbf[8];                   /* pending buffer */
 
 /* There is some duplication here between the old and new JIS-7 parsers */
 /* to be cleaned up later... */
 
 VOID
-j7init() {				/* Initialize JIS-7 parser */
+j7init() {                              /* Initialize JIS-7 parser */
     jpnstz = 0;
     jpnpnd = 0;
     jpnpnt = 0;
 }
 
 int
-getj7() {				/* Reads JIS-7 returns next EUC byte */
+getj7() {                               /* Reads JIS-7 returns next EUC byte */
     int x;
 
-    if (jpnpnd > 0) {			/* If something is pending */
-	x = (unsigned) jpnpbf[jpnpnt++]; /* Get it */
-	jpnpnd--;
-	if (jpnpnd < 0) jpnpnd = 0;
-	return((unsigned)x);
+    if (jpnpnd > 0) {                   /* If something is pending */
+        x = (unsigned) jpnpbf[jpnpnt++]; /* Get it */
+        jpnpnd--;
+        if (jpnpnd < 0) jpnpnd = 0;
+        return((unsigned)x);
     }
     jpnpnt = 0;
 
     if ((x = zminchar()) < 0) return(x);
-    while (jpnpnd == 0) {		/* While something is pending... */
-	if ((x > 0x20) && (x < 0x7f)) {	/* 7-bit graphic character */
-	    switch (jpnstz) {
-	      case 1:			 /* Katakana */
+    while (jpnpnd == 0) {               /* While something is pending... */
+        if ((x > 0x20) && (x < 0x7f)) { /* 7-bit graphic character */
+            switch (jpnstz) {
+              case 1:                    /* Katakana */
 #ifdef COMMENT
-		/* This can't be right... */
-		jpnpbf[jpnpnd++] = 0x80; /* Insert flag (NOT SS2???) */
+                /* This can't be right... */
+                jpnpbf[jpnpnd++] = 0x80; /* Insert flag (NOT SS2???) */
 #else
-		jpnpbf[jpnpnd++] = 0x8e; /* Insert SS2 */
+                jpnpbf[jpnpnd++] = 0x8e; /* Insert SS2 */
 #endif /* COMMENT */
-		jpnpbf[jpnpnd++] = (x | 0x80); /* Insert Kana + 8th bit */
-		break;
-	      case 2:			/* Kanji */
-		jpnpbf[jpnpnd++] = (x | 0x80); /* Get another byte */
-		if ((x = zminchar()) < 0) return(x);
-		jpnpbf[jpnpnd++] = (x | 0x80);
-		break;
-	      default:			/* ASCII / JIS Roman */
-		jpnpbf[jpnpnd++] = x;
-		break;
-	    }
-	} else if (x == 0x0e) {		/* ^N = SO */
-	    jpnstz = 1;			/* Katakana */
-	    if ((x = zminchar()) < 0) return(x);
-	} else if (x == 0x0f) {		/* ^O = SI */
-	    jpnstz = 0;			/* ASCII / JIS Roman */
-	    if ((x = zminchar()) < 0) return(x);
-	} else if (x == 0x1b) {		/* Escape */
-	    jpnpbf[jpnpnd++] = x;	/* Save in buffer */
-	    if ((x = zminchar()) < 0) return(x);
-	    jpnpbf[jpnpnd++] = x;	/* Save in buffer */
-	    if (x == '$') {		/* <ESC>$ */
-		if ((x = zminchar()) < 0) return(x);
-		jpnpbf[jpnpnd++] = x;
-		if ((x == '@') || (x == 'B')) {	/* Kanji */
-		    jpnstz = 2;
-		    jpnpnt = jpnpnd = 0;
-		    if ((x = zminchar()) < 0) return(x);
-		}
-	    } else if (x == '(') {	/* <ESC>( == 94-byte single-byte set */
-		if ((x = zminchar()) < 0) return(x);
-		jpnpbf[jpnpnd++] = x;
-		if ((x == 'B') || (x == 'J')) {	/* ASCII or JIS Roman */
-		    jpnstz = 0;		        /* Set state */
-		    jpnpnt = jpnpnd = 0;        /* Reset pointers */
-		    if ((x = zminchar()) < 0) return(x);
-		}
-	    } else if (x == 0x1b) {	/* <ESC><ESC> */
-		jpnpnt = jpnpnd = 0;	/* Reset pointers, stay in state */
-		if ((x = zminchar()) < 0) return(x);
-	    }
-	} else {			/* Not <ESC> - just save it */
-	    jpnpbf[jpnpnd++] = x;
-	}
+                jpnpbf[jpnpnd++] = (x | 0x80); /* Insert Kana + 8th bit */
+                break;
+              case 2:                   /* Kanji */
+                jpnpbf[jpnpnd++] = (x | 0x80); /* Get another byte */
+                if ((x = zminchar()) < 0) return(x);
+                jpnpbf[jpnpnd++] = (x | 0x80);
+                break;
+              default:                  /* ASCII / JIS Roman */
+                jpnpbf[jpnpnd++] = x;
+                break;
+            }
+        } else if (x == 0x0e) {         /* ^N = SO */
+            jpnstz = 1;                 /* Katakana */
+            if ((x = zminchar()) < 0) return(x);
+        } else if (x == 0x0f) {         /* ^O = SI */
+            jpnstz = 0;                 /* ASCII / JIS Roman */
+            if ((x = zminchar()) < 0) return(x);
+        } else if (x == 0x1b) {         /* Escape */
+            jpnpbf[jpnpnd++] = x;       /* Save in buffer */
+            if ((x = zminchar()) < 0) return(x);
+            jpnpbf[jpnpnd++] = x;       /* Save in buffer */
+            if (x == '$') {             /* <ESC>$ */
+                if ((x = zminchar()) < 0) return(x);
+                jpnpbf[jpnpnd++] = x;
+                if ((x == '@') || (x == 'B')) { /* Kanji */
+                    jpnstz = 2;
+                    jpnpnt = jpnpnd = 0;
+                    if ((x = zminchar()) < 0) return(x);
+                }
+            } else if (x == '(') {      /* <ESC>( == 94-byte single-byte set */
+                if ((x = zminchar()) < 0) return(x);
+                jpnpbf[jpnpnd++] = x;
+                if ((x == 'B') || (x == 'J')) { /* ASCII or JIS Roman */
+                    jpnstz = 0;                 /* Set state */
+                    jpnpnt = jpnpnd = 0;        /* Reset pointers */
+                    if ((x = zminchar()) < 0) return(x);
+                }
+            } else if (x == 0x1b) {     /* <ESC><ESC> */
+                jpnpnt = jpnpnd = 0;    /* Reset pointers, stay in state */
+                if ((x = zminchar()) < 0) return(x);
+            }
+        } else {                        /* Not <ESC> - just save it */
+            jpnpbf[jpnpnd++] = x;
+        }
     }
     jpnpnt = 0;
     x = (unsigned)jpnpbf[jpnpnt++];
@@ -5650,7 +5654,7 @@ getj7() {				/* Reads JIS-7 returns next EUC byte */
 
 USHORT
 #ifdef CK_ANSIC
-eu_to_sj(USHORT eu)			/* EUC-JP to Shift-JIS */
+eu_to_sj(USHORT eu)                     /* EUC-JP to Shift-JIS */
 #else
 eu_to_sj(eu) USHORT eu;
 #endif /* CK_ANSIC */
@@ -5680,7 +5684,7 @@ eu_to_sj(eu) USHORT eu;
 
 USHORT
 #ifdef CK_ANSIC
-sj_to_eu(USHORT sj)			/* Shift-JIS to EUC-JP */
+sj_to_eu(USHORT sj)                     /* Shift-JIS to EUC-JP */
 #else
 sj_to_eu(sj) USHORT sj;
 #endif /* CK_ANSIC */
@@ -5689,42 +5693,42 @@ sj_to_eu(sj) USHORT sj;
     int c0, c1;
 
     scode.x_short = sj;
-    c0 = scode.x_char[byteorder];	/* Left (hi order) byte */
-    c1 = scode.x_char[1-byteorder];	/* Right (lo order) byte */
+    c0 = scode.x_char[byteorder];       /* Left (hi order) byte */
+    c1 = scode.x_char[1-byteorder];     /* Right (lo order) byte */
 
     if (((c0 >= 0x81) && (c0 <= 0x9f)) || /* High order byte has 8th bit set */
         ((c0 >= 0xe0) && (c0 <= 0xfc))) { /* Kanji */
-	if (c0 <= 0x9f)			  /* Two bytes in */
-	  c0 -= 0x71;			  /* Do the shifting... */
-	else
-	  c0 -= 0xb1;
-	c0 = c0 * 2 + 1;
-	if (c1 > 0x7f) c1 -= 1;
-	if (c1 >= 0x9e) {
-	    c1 -= 0x7d;
-	    c0 += 1;
-	} else {
-	    c1 -= 0x1f;
-	}
-	jcode.x_char[byteorder] = (c0 | 0x80); /* Two bytes out */
-	jcode.x_char[1-byteorder] = (c1 | 0x80);
+        if (c0 <= 0x9f)                   /* Two bytes in */
+          c0 -= 0x71;                     /* Do the shifting... */
+        else
+          c0 -= 0xb1;
+        c0 = c0 * 2 + 1;
+        if (c1 > 0x7f) c1 -= 1;
+        if (c1 >= 0x9e) {
+            c1 -= 0x7d;
+            c0 += 1;
+        } else {
+            c1 -= 0x1f;
+        }
+        jcode.x_char[byteorder] = (c0 | 0x80); /* Two bytes out */
+        jcode.x_char[1-byteorder] = (c1 | 0x80);
 
-    } else if (c0 == 0) {		/* Single byte */
-	if (c1 >= 0xa1 && c1 <= 0xdf) {	/* Katakana */
-	    jcode.x_char[byteorder] = 0x8e; /* SS2 */
-	    jcode.x_char[1-byteorder] = c1; /* Kana code */
-	} else {			/* ASCII or C0 */
-	    jcode.x_short = c1;
-	}
-    } else {				/* Something bad */
-	debug(F001,"sj_to_eu bad sj","",sj);
-	jcode.x_short = 0xffff;
+    } else if (c0 == 0) {               /* Single byte */
+        if (c1 >= 0xa1 && c1 <= 0xdf) { /* Katakana */
+            jcode.x_char[byteorder] = 0x8e; /* SS2 */
+            jcode.x_char[1-byteorder] = c1; /* Kana code */
+        } else {                        /* ASCII or C0 */
+            jcode.x_short = c1;
+        }
+    } else {                            /* Something bad */
+        debug(F001,"sj_to_eu bad sj","",sj);
+        jcode.x_short = 0xffff;
     }
     return(jcode.x_short);
 }
 
 int
-zkanjf() {				/* Initialize */
+zkanjf() {                              /* Initialize */
     jpnstz = jpnpnd = jpnpnt = 0;
     return(0);
 }
@@ -5746,105 +5750,105 @@ zkanji(fn) int (*fn)();
     int sc[3];
 
     /* No pending characters */
-    if (fcharset == FC_SHJIS) {		/* Translating from Shift-JIS */
+    if (fcharset == FC_SHJIS) {         /* Translating from Shift-JIS */
         if (jpnpnd) {
             jpnpnd--;
             return(jpnpbf[jpnpnt++]);
         }
         a = (*fn)();
-	jpnpnd = jpnpnt = 0;
-	if (((a >= 0x81) && (a <= 0x9f)) ||
-	    ((a >= 0xe0) && (a <= 0xfc))) { /* 2-byte Kanji code */
-	    sc[0] = a;
-	    if ((sc[1] = (*fn)()) < 0)	/* Get second byte */
-	      return(sc[1]);
-	    if (sc[0] <= 0x9f)
-	      sc[0] -= 0x71;
-	    else
-	      sc[0] -= 0xb1;
-	    sc[0] = sc[0] * 2 + 1;
-	    if (sc[1] > 0x7f)
-	      sc[1]--;
-	    if (sc[1] >= 0x9e) {
-	        sc[1] -= 0x7d;
-	        sc[0]++;
-	    } else {
-	        sc[1] -= 0x1f;
-	    }
-	    a = (sc[0] | 0x80);
-	    jpnpbf[0] = (sc[1] | 0x80);
-	    jpnpnd = 1;
-	    jpnpnt = 0;
-	} else if ((a >= 0xa1) && (a <= 0xdf)) { /* Katakana */
-	    jpnpbf[0] = a;
-	    jpnpnd = 1;
-	    jpnpnt = 0;
-	    a = 0x8e;
-	}
-	return(a);
-    } else if (fcharset == FC_JIS7 ) {	/* 7-bit JIS X 0208 */
+        jpnpnd = jpnpnt = 0;
+        if (((a >= 0x81) && (a <= 0x9f)) ||
+            ((a >= 0xe0) && (a <= 0xfc))) { /* 2-byte Kanji code */
+            sc[0] = a;
+            if ((sc[1] = (*fn)()) < 0)  /* Get second byte */
+              return(sc[1]);
+            if (sc[0] <= 0x9f)
+              sc[0] -= 0x71;
+            else
+              sc[0] -= 0xb1;
+            sc[0] = sc[0] * 2 + 1;
+            if (sc[1] > 0x7f)
+              sc[1]--;
+            if (sc[1] >= 0x9e) {
+                sc[1] -= 0x7d;
+                sc[0]++;
+            } else {
+                sc[1] -= 0x1f;
+            }
+            a = (sc[0] | 0x80);
+            jpnpbf[0] = (sc[1] | 0x80);
+            jpnpnd = 1;
+            jpnpnt = 0;
+        } else if ((a >= 0xa1) && (a <= 0xdf)) { /* Katakana */
+            jpnpbf[0] = a;
+            jpnpnd = 1;
+            jpnpnt = 0;
+            a = 0x8e;
+        }
+        return(a);
+    } else if (fcharset == FC_JIS7 ) {  /* 7-bit JIS X 0208 */
         if (jpnpnd) {
             a = jpnpbf[jpnpnt++];
-	    jpnpnd--;
+            jpnpnd--;
             return(a);
         }
         jpnpnt = 0;
         if ((a = (*fn)()) < 0)
-	  return(a);
+          return(a);
         while (jpnpnd == 0) {
             if ((a > 0x20) && (a < 0x7f)) {
                 switch (jpnstz) {
-		  case 1:
-		    jpnpbf[jpnpnd++] = 0x80; /* Katakana */
-		    jpnpbf[jpnpnd++] = (a | 0x80);
-		    break;
-		  case 2:
-		    jpnpbf[jpnpnd++] = (a | 0x80); /* Kanji */
-		    if ((a = (*fn)()) < 0)
-		      return(a);
-		    jpnpbf[jpnpnd++] = (a | 0x80);
-		    break;
-		  default:
-		    jpnpbf[jpnpnd++] = a; /* Single byte */
-		    break;
+                  case 1:
+                    jpnpbf[jpnpnd++] = 0x80; /* Katakana */
+                    jpnpbf[jpnpnd++] = (a | 0x80);
+                    break;
+                  case 2:
+                    jpnpbf[jpnpnd++] = (a | 0x80); /* Kanji */
+                    if ((a = (*fn)()) < 0)
+                      return(a);
+                    jpnpbf[jpnpnd++] = (a | 0x80);
+                    break;
+                  default:
+                    jpnpbf[jpnpnd++] = a; /* Single byte */
+                    break;
                 }
             } else if (a == 0x0e) {
                 jpnstz = 1;
                 if ((a = (*fn)()) < 0)
-		  return(a);
+                  return(a);
             } else if (a == 0x0f) {
                 jpnstz = 0;
                 if ((a = (*fn)()) < 0)
-		  return(a);
+                  return(a);
             } else if (a == 0x1b) {
-                jpnpbf[jpnpnd++] = a;	/* Escape */
+                jpnpbf[jpnpnd++] = a;   /* Escape */
                 if ((a = (*fn)()) < 0)
-		  return(a);
+                  return(a);
                 jpnpbf[jpnpnd++] = a;
                 if (a == '$') {
                     if ((a = (*fn)()) < 0)
-		      return(a);
+                      return(a);
                     jpnpbf[jpnpnd++] = a;
                     if ((a == '@') || (a == 'B')) {
                         jpnstz = 2;
-			jpnpnt = jpnpnd = 0;
+                        jpnpnt = jpnpnd = 0;
                         if ((a = (*fn)()) < 0)
-			  return(a);
+                          return(a);
                     }
                 } else if (a == '(') {
                     if ((a = (*fn)()) < 0)
-		      return(a);
+                      return(a);
                     jpnpbf[jpnpnd++] = a;
                     if ((a == 'B') || (a == 'J')) {
                         jpnstz = 0;
-			jpnpnt = jpnpnd = 0;
+                        jpnpnt = jpnpnd = 0;
                         if ((a = (*fn)()) < 0)
-			  return(a);
+                          return(a);
                     }
                 } else if (a == 0x1b) {
                     jpnpnt = jpnpnd = 0;
                     if ((a = (*fn)()) < 0)
-		      return(a);
+                      return(a);
                 }
             } else {
                 jpnpbf[jpnpnd++] = a;
@@ -5852,7 +5856,7 @@ zkanji(fn) int (*fn)();
         }
         jpnpnt = 0;
         a = jpnpbf[jpnpnt++];
-	jpnpnd--;
+        jpnpnd--;
         return(a);
     } else {
         a = (*fn)();
@@ -5870,14 +5874,14 @@ xl2l9(CHAR c)
 #else
 xl2l9(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl2l9 */ 				/* Latin-2 to Latin-9... */
+{ /* xl2l9 */                           /* Latin-2 to Latin-9... */
     switch (c) {
-      case 169: return((CHAR)166);	/* S caron */
-      case 185: return((CHAR)168);	/* s caron */
-      case 174: return((CHAR)180);	/* Z caron */
-      case 190: return((CHAR)184);	/* z caron */
+      case 169: return((CHAR)166);      /* S caron */
+      case 185: return((CHAR)168);      /* s caron */
+      case 174: return((CHAR)180);      /* Z caron */
+      case 190: return((CHAR)184);      /* z caron */
       default:
-	return(yl2l1[c]);
+        return(yl2l1[c]);
     }
 
 }
@@ -5889,7 +5893,7 @@ xl258(CHAR c)
 #else
 xl258(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl258 */ 				/* Latin-2 to CP858... */
+{ /* xl258 */                           /* Latin-2 to CP858... */
     return(c);
 }
 #else
@@ -5903,17 +5907,17 @@ zl9as(CHAR c)
 #else
 zl9as(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* zl9as */ 				/* Latin-9 to US ASCII... */
-    if (c < (CHAR)0x80) return(c);	/* Save a function call */
+{ /* zl9as */                           /* Latin-9 to US ASCII... */
+    if (c < (CHAR)0x80) return(c);      /* Save a function call */
     switch (c) {
-      case 0xa4: return(UNK);		/* Euro */
-      case 0xa6: return('S');		/* S Caron */
-      case 0xa8: return('s');		/* s Caron */
-      case 0xb4: return('Z');		/* Z Caron */
-      case 0xbc: return('O');		/* OE digraph */
-      case 0xbd: return('o');		/* oe digraph */
-      case 0xbe: return('Y');		/* Y diaeresis */
-      default:   return(zl1as(c));	/* The rest is like Latin-1 */
+      case 0xa4: return(UNK);           /* Euro */
+      case 0xa6: return('S');           /* S Caron */
+      case 0xa8: return('s');           /* s Caron */
+      case 0xb4: return('Z');           /* Z Caron */
+      case 0xbc: return('O');           /* OE digraph */
+      case 0xbd: return('o');           /* oe digraph */
+      case 0xbe: return('Y');           /* Y diaeresis */
+      default:   return(zl1as(c));      /* The rest is like Latin-1 */
     }
 }
 
@@ -5924,22 +5928,22 @@ xl9as(CHAR c)
 #else
 xl9as(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl9as */ 				/* Latin-9 to US ASCII... */
-    if (c < (CHAR)0x80) return(c);	/* Save a function call */
+{ /* xl9as */                           /* Latin-9 to US ASCII... */
+    if (c < (CHAR)0x80) return(c);      /* Save a function call */
     switch (c) {
-      case 0xa4: return(UNK);		/* Euro */
-      case 0xa6: return('S');		/* S Caron */
-      case 0xa8: return('s');		/* s Caron */
-      case 0xb4: return('Z');		/* Z Caron */
-      case 0xb8: return('z');		/* z Caron */
-      case 0xbc: return('O');		/* OE digraph */
-      case 0xbd: return('o');		/* oe digraph */
-      case 0xbe: return('Y');		/* Y diaeresis */
-      default:   return(xl1as(c));	/* The rest is like Latin-1 */
+      case 0xa4: return(UNK);           /* Euro */
+      case 0xa6: return('S');           /* S Caron */
+      case 0xa8: return('s');           /* s Caron */
+      case 0xb4: return('Z');           /* Z Caron */
+      case 0xb8: return('z');           /* z Caron */
+      case 0xbc: return('O');           /* OE digraph */
+      case 0xbd: return('o');           /* oe digraph */
+      case 0xbe: return('Y');           /* Y diaeresis */
+      default:   return(xl1as(c));      /* The rest is like Latin-1 */
     }
 }
 
-CHAR					/* CP1252 to Latin-9 */
+CHAR                                    /* CP1252 to Latin-9 */
 #ifdef CK_ANSIC
 xw1l9(CHAR c)
 #else
@@ -5947,22 +5951,22 @@ xw1l9(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xw1l9 */
     switch (c) {
-      case 0x80: return(0xa4);		/* Euro sign */
-      case 0x8a: return(0xa6);		/* S caron */
-      case 0x8c: return(0xbc);		/* OE */
-      case 0x8e: return(0xb4);		/* Z caron */
-      case 0x9a: return(0xa8);		/* s caron */
-      case 0x9c: return(0xbd);		/* oe */
-      case 0x9e: return(0xb8);		/* z caron */
-      case 0x9f: return(0xbe);		/* Y diaeresis */
-      case 0xa4:			/* Currency sign */
-      case 0xa6:			/* Broken vertical bar */
-      case 0xa8:			/* Diaeresis */
-      case 0xb4:			/* Acute accent */
-      case 0xb8:			/* Cedilla */
-      case 0xbc:			/* 1/4 */
-      case 0xbd:			/* 1/2 */
-      case 0xbe: return('?');		/* 3/4 */
+      case 0x80: return(0xa4);          /* Euro sign */
+      case 0x8a: return(0xa6);          /* S caron */
+      case 0x8c: return(0xbc);          /* OE */
+      case 0x8e: return(0xb4);          /* Z caron */
+      case 0x9a: return(0xa8);          /* s caron */
+      case 0x9c: return(0xbd);          /* oe */
+      case 0x9e: return(0xb8);          /* z caron */
+      case 0x9f: return(0xbe);          /* Y diaeresis */
+      case 0xa4:                        /* Currency sign */
+      case 0xa6:                        /* Broken vertical bar */
+      case 0xa8:                        /* Diaeresis */
+      case 0xb4:                        /* Acute accent */
+      case 0xb8:                        /* Cedilla */
+      case 0xbc:                        /* 1/4 */
+      case 0xbd:                        /* 1/2 */
+      case 0xbe: return('?');           /* 3/4 */
       default: return((c < 160) ? xw1as(c) : c);
     }
 }
@@ -5974,18 +5978,18 @@ xl9l2(CHAR c)
 #else
 xl9l2(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl9l2 */ 				/* Latin-9 to Latin-2... */
-    if (c < (CHAR)0x80) return(c);	/* Save a function call */
+{ /* xl9l2 */                           /* Latin-9 to Latin-2... */
+    if (c < (CHAR)0x80) return(c);      /* Save a function call */
     switch (c) {
-      case 0xa4: return(UNK);		/* Euro */
-      case 0xa6: return((CHAR)0xa9);	/* S Caron */
-      case 0xa8: return((CHAR)0xb9);	/* s Caron */
-      case 0xb4: return((CHAR)0xae);	/* Z Caron */
-      case 0xb8: return((CHAR)0xaf);	/* z Caron */
-      case 0xbc: return('O');		/* OE digraph */
-      case 0xbd: return('o');		/* oe digraph */
-      case 0xbe: return('Y');		/* Y diaeresis */
-      default:   return(xl1l2(c));	/* The rest is like Latin-1 */
+      case 0xa4: return(UNK);           /* Euro */
+      case 0xa6: return((CHAR)0xa9);    /* S Caron */
+      case 0xa8: return((CHAR)0xb9);    /* s Caron */
+      case 0xb4: return((CHAR)0xae);    /* Z Caron */
+      case 0xb8: return((CHAR)0xaf);    /* z Caron */
+      case 0xbc: return('O');           /* OE digraph */
+      case 0xbd: return('o');           /* oe digraph */
+      case 0xbe: return('Y');           /* Y diaeresis */
+      default:   return(xl1l2(c));      /* The rest is like Latin-1 */
     }
 }
 #else
@@ -5998,10 +6002,10 @@ xl958(CHAR c)
 #else
 xl958(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* xl958 */ 				/* Latin-9 to CP858... */
-    if (c == 0xa4)			/* Euro Symbol */
+{ /* xl958 */                           /* Latin-9 to CP858... */
+    if (c == 0xa4)                      /* Euro Symbol */
       return((CHAR)0xd5);
-    else if (c == 0x9e)			/* This was currency symbol */
+    else if (c == 0x9e)                 /* This was currency symbol */
       return((CHAR)0xcf);
     c = yl185[c];
     return(c);
@@ -6013,11 +6017,11 @@ x58as(CHAR c)
 #else
 x58as(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* x58as */ 				/* CP858 to US ASCII... */
-    if (c == 0xd5)			/* Euro rather than dotless i */
+{ /* x58as */                           /* CP858 to US ASCII... */
+    if (c == 0xd5)                      /* Euro rather than dotless i */
       return(UNK);
     else
-      return(x85as(c));			/* The rest is like CP850 */
+      return(x85as(c));                 /* The rest is like CP850 */
 }
 
 CHAR
@@ -6026,10 +6030,10 @@ x58l1(CHAR c)
 #else
 x58l1(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* x58l1 */ 				/* CP858 to Latin-1... */
-    if (c == 0xd5)			/* Euro rather than dotless i */
-      return((CHAR)0xa4);		/* Return currency symbol */
-    else if (c == 0xcf)			/* This keeps it invertible */
+{ /* x58l1 */                           /* CP858 to Latin-1... */
+    if (c == 0xd5)                      /* Euro rather than dotless i */
+      return((CHAR)0xa4);               /* Return currency symbol */
+    else if (c == 0xcf)                 /* This keeps it invertible */
       return((CHAR)0x9e);
     else
       return(x85l1(c));
@@ -6042,12 +6046,12 @@ x58l2(CHAR c)
 #else
 x58l2(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* x58l2 */ 				/* CP858 to Latin-2... */
-    if (c == 0xd5)			/* Euro rather than dotless i */
-      return((CHAR)0xa4);		/* Return currency symbol */
-    else if (c == 0xcf)			/* This keeps it invertible */
-      return((CHAR)0x9e);		/* (if it ever was...) */
-    else				/* Otherwise like CP850 */
+{ /* x58l2 */                           /* CP858 to Latin-2... */
+    if (c == 0xd5)                      /* Euro rather than dotless i */
+      return((CHAR)0xa4);               /* Return currency symbol */
+    else if (c == 0xcf)                 /* This keeps it invertible */
+      return((CHAR)0x9e);               /* (if it ever was...) */
+    else                                /* Otherwise like CP850 */
       return(x85l2(c));
 }
 #else
@@ -6060,13 +6064,13 @@ x58l9(CHAR c)
 #else
 x58l9(c) CHAR c;
 #endif /* CK_ANSIC */
-{ /* x58l9 */ 				/* CP-858 to Latin-9... */
-    if (c == 0xd5)			/* Euro rather than dotless i */
-      return((CHAR)0xa4);		/* Return currency symbol */
-    else if (c == 0xcf)			/* This keeps it invertible */
-      return((CHAR)0x9e);		/* (if it ever was...) */
-    else				/* Otherwise like CP850 */
-      return(x85l1(c));			/* to Latin-1 */
+{ /* x58l9 */                           /* CP-858 to Latin-9... */
+    if (c == 0xd5)                      /* Euro rather than dotless i */
+      return((CHAR)0xa4);               /* Return currency symbol */
+    else if (c == 0xcf)                 /* This keeps it invertible */
+      return((CHAR)0x9e);               /* (if it ever was...) */
+    else                                /* Otherwise like CP850 */
+      return(x85l1(c));                 /* to Latin-1 */
 }
 
 /* End Euro functions */
@@ -6091,10 +6095,10 @@ _PROTOTYP( CHAR (*rx), (CHAR) );
 _PROTOTYP( CHAR (*sx), (CHAR) );
 
 #ifdef UNICODE
-_PROTOTYP( int (*xut), (USHORT) );	/* Translation function UCS to TCS */
-_PROTOTYP( int (*xuf), (USHORT) );	/* Translation function UCS to FCS */
-_PROTOTYP( USHORT (*xtu), (CHAR) );	/* Translation function TCS to UCS */
-_PROTOTYP( USHORT (*xfu), (CHAR) );	/* Translation function FCS to UCS */
+_PROTOTYP( int (*xut), (USHORT) );      /* Translation function UCS to TCS */
+_PROTOTYP( int (*xuf), (USHORT) );      /* Translation function UCS to FCS */
+_PROTOTYP( USHORT (*xtu), (CHAR) );     /* Translation function TCS to UCS */
+_PROTOTYP( USHORT (*xfu), (CHAR) );     /* Translation function FCS to UCS */
 #endif /* UNICODE */
 
 #ifdef CK_ANSIC
@@ -6103,556 +6107,556 @@ CHAR (*xlr[MAXTCSETS+1][MAXFCSETS+1])(CHAR) =
 CHAR (*xlr[MAXTCSETS+1][MAXFCSETS+1])() =
 #endif /* CK_ANSIC */
 {
-    NULL,			/* 0,0 transparent to us ascii */
-    NULL,			/* 0,1 transparent to uk ascii */
-    NULL,			/* 0,2 transparent to dutch nrc */
-    NULL,			/* 0,3 transparent to finnish nrc */
-    NULL,			/* 0,4 transparent to french nrc */
-    NULL,			/* 0,5 transparent to fr-canadian nrc */
-    NULL,			/* 0,6 transparent to german nrc */
-    NULL,			/* 0,7 transparent to hungarian nrc */
-    NULL,			/* 0,8 transparent to italian nrc */
-    NULL,			/* 0,9 transparent to norge/danish nrc */
-    NULL,			/* 0,10 transparent to portuguese nrc */
-    NULL,			/* 0,11 transparent to spanish nrc */
-    NULL,			/* 0,12 transparent to swedish nrc */
-    NULL,			/* 0,13 transparent to swiss nrc */
-    NULL,			/* 0,14 transparent to latin-1 */
-    NULL,			/* 0,15 transparent to latin-2 */
-    NULL,			/* 0,16 transparent to DEC MCS */
-    NULL,			/* 0,17 transparent to NeXT */
-    NULL,			/* 0,18 transparent to CP437 */
-    NULL,			/* 0,19 transparent to CP850 */
-    NULL,			/* 0,20 transparent to CP852 */
-    NULL,			/* 0,21 transparent to Macintosh Latin */
-    NULL,			/* 0,22 transparent to DGI */
-    NULL,			/* 0,23 transparent to HP */
-    NULL,			/* 0,24 transparent to Latin/Cyrillic */
+    NULL,                       /* 0,0 transparent to us ascii */
+    NULL,                       /* 0,1 transparent to uk ascii */
+    NULL,                       /* 0,2 transparent to dutch nrc */
+    NULL,                       /* 0,3 transparent to finnish nrc */
+    NULL,                       /* 0,4 transparent to french nrc */
+    NULL,                       /* 0,5 transparent to fr-canadian nrc */
+    NULL,                       /* 0,6 transparent to german nrc */
+    NULL,                       /* 0,7 transparent to hungarian nrc */
+    NULL,                       /* 0,8 transparent to italian nrc */
+    NULL,                       /* 0,9 transparent to norge/danish nrc */
+    NULL,                       /* 0,10 transparent to portuguese nrc */
+    NULL,                       /* 0,11 transparent to spanish nrc */
+    NULL,                       /* 0,12 transparent to swedish nrc */
+    NULL,                       /* 0,13 transparent to swiss nrc */
+    NULL,                       /* 0,14 transparent to latin-1 */
+    NULL,                       /* 0,15 transparent to latin-2 */
+    NULL,                       /* 0,16 transparent to DEC MCS */
+    NULL,                       /* 0,17 transparent to NeXT */
+    NULL,                       /* 0,18 transparent to CP437 */
+    NULL,                       /* 0,19 transparent to CP850 */
+    NULL,                       /* 0,20 transparent to CP852 */
+    NULL,                       /* 0,21 transparent to Macintosh Latin */
+    NULL,                       /* 0,22 transparent to DGI */
+    NULL,                       /* 0,23 transparent to HP */
+    NULL,                       /* 0,24 transparent to Latin/Cyrillic */
     NULL,                       /* 0,25 transparent to CP866 */
-    NULL,			/* 0,26 transparent to Short KOI-7 */
+    NULL,                       /* 0,26 transparent to Short KOI-7 */
     NULL,                       /* 0,27 transparent to Old KOI-8 Cyrillic */
-    NULL,			/* 0,28 transparent to JIS-7 */
-    NULL,			/* 0,29 transparent to Shift-JIS */
-    NULL,			/* 0,30 transparent to J-EUC */
-    NULL,			/* 0,31 transparent to DEC Kanji */
-    NULL,			/* 0,32 transparent to Hebrew-7 */
-    NULL,			/* 0,33 transparent to Latin/Hebrew */
-    NULL,			/* 0,34 transparent to CP862 Hebrew */
-    NULL,			/* 0,35 transparent to ELOT 927 Greek */
-    NULL,			/* 0,36 transparent to Latin/Greek */
-    NULL,			/* 0,37 transparent to CP869 */
-    NULL,			/* 0,38 transparent to Latin-9 */
-    NULL,			/* 0,39 transparent to CP858 */
-    NULL,			/* 0,40 transparent to CP855 */
-    NULL,			/* 0,41 transparent to CP1251 */
-    NULL,			/* 0,42 transparent to Bulgarian */
-    NULL,			/* 0,43 transparent to CP1250 */
-    NULL,			/* 0,44 transparent to Mazovia */
-    NULL,			/* 0,45 transparent to UCS-2 */
-    NULL,			/* 0,46 transparent to UTF-8 */
-    NULL,			/* 0,47 transparent to KOI8R */
-    NULL,			/* 0,48 transparent to KOI8U */
-    NULL,			/* 0,49 transparent to CP1252 */
-    NULL,			/* 1,0 ascii to us ascii */
-    NULL,			/* 1,1 ascii to uk ascii */
-    NULL,			/* 1,2 ascii to dutch nrc */
-    NULL,			/* 1,3 ascii to finnish nrc */
-    NULL,			/* 1,4 ascii to french nrc */
-    NULL,			/* 1,5 ascii to fr-canadian nrc */
-    NULL,			/* 1,6 ascii to german nrc */
-    NULL,			/* 1,7 ascii to hungarian nrc */
-    NULL,			/* 1,8 ascii to italian nrc */
-    NULL,			/* 1,9 ascii to norge/danish nrc */
-    NULL,			/* 1,10 ascii to portuguese nrc */
-    NULL,			/* 1,11 ascii to spanish nrc */
-    NULL,			/* 1,12 ascii to swedish nrc */
-    NULL,			/* 1,13 ascii to swiss nrc */
-    NULL,			/* 1,14 ascii to latin-1 */
-    NULL,			/* 1,15 ascii to latin-2 */
-    NULL,			/* 1,16 ascii to DEC MCS */
-    NULL,			/* 1,17 ascii to NeXT */
-    NULL,			/* 1,18 ascii to CP437 */
-    NULL,			/* 1,19 ascii to CP850 */
-    NULL,			/* 1,20 ascii to CP852 */
-    NULL,			/* 1,21 ascii to Macintosh Latin */
-    NULL,			/* 1,22 ascii to DGI */
-    NULL,			/* 1,23 ascii to HP */
+    NULL,                       /* 0,28 transparent to JIS-7 */
+    NULL,                       /* 0,29 transparent to Shift-JIS */
+    NULL,                       /* 0,30 transparent to J-EUC */
+    NULL,                       /* 0,31 transparent to DEC Kanji */
+    NULL,                       /* 0,32 transparent to Hebrew-7 */
+    NULL,                       /* 0,33 transparent to Latin/Hebrew */
+    NULL,                       /* 0,34 transparent to CP862 Hebrew */
+    NULL,                       /* 0,35 transparent to ELOT 927 Greek */
+    NULL,                       /* 0,36 transparent to Latin/Greek */
+    NULL,                       /* 0,37 transparent to CP869 */
+    NULL,                       /* 0,38 transparent to Latin-9 */
+    NULL,                       /* 0,39 transparent to CP858 */
+    NULL,                       /* 0,40 transparent to CP855 */
+    NULL,                       /* 0,41 transparent to CP1251 */
+    NULL,                       /* 0,42 transparent to Bulgarian */
+    NULL,                       /* 0,43 transparent to CP1250 */
+    NULL,                       /* 0,44 transparent to Mazovia */
+    NULL,                       /* 0,45 transparent to UCS-2 */
+    NULL,                       /* 0,46 transparent to UTF-8 */
+    NULL,                       /* 0,47 transparent to KOI8R */
+    NULL,                       /* 0,48 transparent to KOI8U */
+    NULL,                       /* 0,49 transparent to CP1252 */
+    NULL,                       /* 1,0 ascii to us ascii */
+    NULL,                       /* 1,1 ascii to uk ascii */
+    NULL,                       /* 1,2 ascii to dutch nrc */
+    NULL,                       /* 1,3 ascii to finnish nrc */
+    NULL,                       /* 1,4 ascii to french nrc */
+    NULL,                       /* 1,5 ascii to fr-canadian nrc */
+    NULL,                       /* 1,6 ascii to german nrc */
+    NULL,                       /* 1,7 ascii to hungarian nrc */
+    NULL,                       /* 1,8 ascii to italian nrc */
+    NULL,                       /* 1,9 ascii to norge/danish nrc */
+    NULL,                       /* 1,10 ascii to portuguese nrc */
+    NULL,                       /* 1,11 ascii to spanish nrc */
+    NULL,                       /* 1,12 ascii to swedish nrc */
+    NULL,                       /* 1,13 ascii to swiss nrc */
+    NULL,                       /* 1,14 ascii to latin-1 */
+    NULL,                       /* 1,15 ascii to latin-2 */
+    NULL,                       /* 1,16 ascii to DEC MCS */
+    NULL,                       /* 1,17 ascii to NeXT */
+    NULL,                       /* 1,18 ascii to CP437 */
+    NULL,                       /* 1,19 ascii to CP850 */
+    NULL,                       /* 1,20 ascii to CP852 */
+    NULL,                       /* 1,21 ascii to Macintosh Latin */
+    NULL,                       /* 1,22 ascii to DGI */
+    NULL,                       /* 1,23 ascii to HP */
     xaslc,                      /* 1,24 ascii to Latin/Cyrillic */
     xasac,                      /* 1,25 ascii to CP866 */
     xassk,                      /* 1,26 ascii to Short KOI */
     xask8,                      /* 1,27 ascii to Old KOI-8 Cyrillic */
-    NULL,			/* 1,28 ascii to JIS-7 */
-    NULL,			/* 1,29 ascii to Shift-JIS */
-    NULL,			/* 1,30 ascii to J-EUC */
-    NULL,			/* 1,31 ascii to DEC Kanji */
-    xash7,			/* 1,32 ascii to Hebrew-7 */
-    NULL,			/* 1,33 ascii to Latin/Hebrew */
-    NULL,			/* 1,34 ascii to CP862 Hebrew */
-    xaseg,			/* 1,35 ascii to ELOT 927 Greek */
-    NULL,			/* 1,36 ascii to Latin/Greek */
-    NULL,			/* 1,37 ascii to CP869 */
-    NULL,			/* 1,38 ascii to Latin-9 */
-    NULL,			/* 1,39 ascii to CP858 */
-    xas55,			/* 1,40 ascii to CP855 */
-    xas1251,			/* 1,41 ascii to CP1251 */
-    xleft128,			/* 1,42 ascii to bulgarian */
-    xleft128,			/* 1,43 ascii to CP1250 */
-    xleft128,			/* 1,44 ascii to Mazovia */
-    NULL,			/* 1,45 ascii to UCS-2 */
-    NULL,			/* 1,46 ascii to UTF-8 */
-    NULL,			/* 1,47 ascii to KOI8-R */
-    NULL,			/* 1,48 ascii to KOI8-U */
-    NULL,			/* 1,49 ascii to CP1252 */
-    zl1as,			/* 2,0 latin-1 to us ascii */
-    xl1uk,			/* 2,1 latin-1 to uk ascii */
-    xl1du,			/* 2,2 latin-1 to dutch nrc */
-    xl1fi,			/* 2,3 latin-1 to finnish nrc */
-    xl1fr,			/* 2,4 latin-1 to french nrc */
-    xl1fc,			/* 2,5 latin-1 to fr-canadian nrc */
-    xl1ge,			/* 2,6 latin-1 to german nrc */
-    xl1it,			/* 2,7 latin-1 to italian nrc */
-    xl1hu,			/* 2,8 latin-1 to hungarian nrc */
-    xl1no,			/* 2,9 latin-1 to norge/danish nrc */
-    xl1po,			/* 2,10 latin-1 to portuguese nrc */
-    xl1sp,			/* 2,11 latin-1 to spanish nrc */
-    xl1sw,			/* 2,12 latin-1 to swedish nrc */
-    xl1ch,			/* 2,13 latin-1 to swiss nrc */
-    NULL,			/* 2,14 latin-1 to latin-1 */
-    xl1l2,			/* 2,15 latin-1 to latin-2 */
-    xl1dm,			/* 2,16 latin-1 to DEC MCS */
-    xl1ne,			/* 2,17 latin-1 to NeXT */
-    xl143,			/* 2,18 latin-1 to CP437 */
-    xl185,			/* 2,19 latin-1 to CP850 */
-    xl152,			/* 2,20 latin-1 to CP852 */
-    xl1aq,			/* 2,21 latin-1 to Macintosh Latin */
-    xl1dg,			/* 2,22 latin-1 to DGI */
-    xl1r8,			/* 2,23 latin-1 to HP Roman8 */
-    zl1as,			/* 2,24 latin-1 to Latin/Cyrillic */
+    NULL,                       /* 1,28 ascii to JIS-7 */
+    NULL,                       /* 1,29 ascii to Shift-JIS */
+    NULL,                       /* 1,30 ascii to J-EUC */
+    NULL,                       /* 1,31 ascii to DEC Kanji */
+    xash7,                      /* 1,32 ascii to Hebrew-7 */
+    NULL,                       /* 1,33 ascii to Latin/Hebrew */
+    NULL,                       /* 1,34 ascii to CP862 Hebrew */
+    xaseg,                      /* 1,35 ascii to ELOT 927 Greek */
+    NULL,                       /* 1,36 ascii to Latin/Greek */
+    NULL,                       /* 1,37 ascii to CP869 */
+    NULL,                       /* 1,38 ascii to Latin-9 */
+    NULL,                       /* 1,39 ascii to CP858 */
+    xas55,                      /* 1,40 ascii to CP855 */
+    xas1251,                    /* 1,41 ascii to CP1251 */
+    xleft128,                   /* 1,42 ascii to bulgarian */
+    xleft128,                   /* 1,43 ascii to CP1250 */
+    xleft128,                   /* 1,44 ascii to Mazovia */
+    NULL,                       /* 1,45 ascii to UCS-2 */
+    NULL,                       /* 1,46 ascii to UTF-8 */
+    NULL,                       /* 1,47 ascii to KOI8-R */
+    NULL,                       /* 1,48 ascii to KOI8-U */
+    NULL,                       /* 1,49 ascii to CP1252 */
+    zl1as,                      /* 2,0 latin-1 to us ascii */
+    xl1uk,                      /* 2,1 latin-1 to uk ascii */
+    xl1du,                      /* 2,2 latin-1 to dutch nrc */
+    xl1fi,                      /* 2,3 latin-1 to finnish nrc */
+    xl1fr,                      /* 2,4 latin-1 to french nrc */
+    xl1fc,                      /* 2,5 latin-1 to fr-canadian nrc */
+    xl1ge,                      /* 2,6 latin-1 to german nrc */
+    xl1it,                      /* 2,7 latin-1 to italian nrc */
+    xl1hu,                      /* 2,8 latin-1 to hungarian nrc */
+    xl1no,                      /* 2,9 latin-1 to norge/danish nrc */
+    xl1po,                      /* 2,10 latin-1 to portuguese nrc */
+    xl1sp,                      /* 2,11 latin-1 to spanish nrc */
+    xl1sw,                      /* 2,12 latin-1 to swedish nrc */
+    xl1ch,                      /* 2,13 latin-1 to swiss nrc */
+    NULL,                       /* 2,14 latin-1 to latin-1 */
+    xl1l2,                      /* 2,15 latin-1 to latin-2 */
+    xl1dm,                      /* 2,16 latin-1 to DEC MCS */
+    xl1ne,                      /* 2,17 latin-1 to NeXT */
+    xl143,                      /* 2,18 latin-1 to CP437 */
+    xl185,                      /* 2,19 latin-1 to CP850 */
+    xl152,                      /* 2,20 latin-1 to CP852 */
+    xl1aq,                      /* 2,21 latin-1 to Macintosh Latin */
+    xl1dg,                      /* 2,22 latin-1 to DGI */
+    xl1r8,                      /* 2,23 latin-1 to HP Roman8 */
+    zl1as,                      /* 2,24 latin-1 to Latin/Cyrillic */
     zl1as,                      /* 2,25 latin-1 to CP866 */
     xl1sk,                      /* 2,26 latin-1 to Short KOI */
-    zl1as,		       	/* 2,27 latin-1 to Old KOI-8 Cyrillic */
-    NULL,			/* 2,28 latin-1 to JIS-7 */
-    NULL,			/* 2,29 latin-1 to Shift-JIS */
-    NULL,			/* 2,30 latin-1 to J-EUC */
-    NULL,			/* 2,31 latin-1 to DEC Kanji */
-    xl1h7,			/* 2,32 latin-1 to Hebrew-7 */
-    xl1lh,			/* 2,33 latin-1 to Latin/Hebrew */
-    xl162,			/* 2,34 latin-1 to CP862 Hebrew */
-    xl1eg,			/* 2,35 latin-1 to ELOT 927 Greek */
-    xl1lg,			/* 2,36 latin-1 to Latin/Greek */
-    xl169,			/* 2,37 latin-1 to CP869 */
-    NULL,			/* 2,38 latin-1 to Latin9 */
-    xl185,			/* 2,39 latin-1 to CP858 */
-    zl1as,			/* 2,40 latin-1 to CP855 */
-    zl1as,			/* 2,41 latin-1 to CP1251 */
-    zl1as,			/* 2,42 latin-1 to Bulgarian */
-    xl11250,			/* 2,43 latin-1 to CP1250 */
-    xl1mz,			/* 2,44 latin-1 to Mazovia */
-    NULL,			/* 2,45 latin-1 to UCS-2 */
-    NULL,			/* 2,46 latin-1 to UTF-8 */
-    zl1as,			/* 2,47 latin-1 to KOI8R */
-    zl1as,			/* 2,48 latin-1 to KOI8U */
-    xl1w1,			/* 2,49 latin-1 to CP1252 */
-    xl2as,			/* 3,0 latin-2 to us ascii */
-    xl2as,			/* 3,1 latin-2 to uk ascii */
-    xl2as,			/* 3,2 latin-2 to dutch nrc */
-    xl2as,			/* 3,3 latin-2 to finnish nrc */
-    xl2as,			/* 3,4 latin-2 to french nrc */
-    xl2as,			/* 3,5 latin-2 to fr-canadian nrc */
-    xl2as,			/* 3,6 latin-2 to german nrc */
-    xl2as,			/* 3,7 latin-2 to italian nrc */
-    xl2as,			/* 3,8 latin-2 to hungarian nrc */
-    xl2as,			/* 3,9 latin-2 to norge/danish nrc */
-    xl2as,			/* 3,10 latin-2 to portuguese nrc */
-    xl2as,			/* 3,11 latin-2 to spanish nrc */
-    xl2as,			/* 3,12 latin-2 to swedish nrc */
-    xl2as,			/* 3,13 latin-2 to swiss nrc */
-    xl2l1,			/* 3,14 latin-2 to latin-1 */
-    NULL,			/* 3,15 latin-2 to latin-2 */
-    xl2l1,			/* 3,16 latin-2 to DEC MCS */
-    xl2ne,			/* 3,17 latin-2 to NeXT */
-    xl243,			/* 3,18 latin-2 to CP437 */
-    xl285,			/* 3,19 latin-2 to CP850 */
-    xl252,			/* 3,20 latin-2 to CP852 */
-    xl2aq,			/* 3,21 latin-2 to Macintosh Latin */
-    xl2dg,			/* 3,22 latin-2 to DGI */
-    xl2r8,			/* 3,23 latin-2 to HP */
-    xl2as,			/* 3,24 latin-2 to Latin/Cyrillic */
+    zl1as,                      /* 2,27 latin-1 to Old KOI-8 Cyrillic */
+    NULL,                       /* 2,28 latin-1 to JIS-7 */
+    NULL,                       /* 2,29 latin-1 to Shift-JIS */
+    NULL,                       /* 2,30 latin-1 to J-EUC */
+    NULL,                       /* 2,31 latin-1 to DEC Kanji */
+    xl1h7,                      /* 2,32 latin-1 to Hebrew-7 */
+    xl1lh,                      /* 2,33 latin-1 to Latin/Hebrew */
+    xl162,                      /* 2,34 latin-1 to CP862 Hebrew */
+    xl1eg,                      /* 2,35 latin-1 to ELOT 927 Greek */
+    xl1lg,                      /* 2,36 latin-1 to Latin/Greek */
+    xl169,                      /* 2,37 latin-1 to CP869 */
+    NULL,                       /* 2,38 latin-1 to Latin9 */
+    xl185,                      /* 2,39 latin-1 to CP858 */
+    zl1as,                      /* 2,40 latin-1 to CP855 */
+    zl1as,                      /* 2,41 latin-1 to CP1251 */
+    zl1as,                      /* 2,42 latin-1 to Bulgarian */
+    xl11250,                    /* 2,43 latin-1 to CP1250 */
+    xl1mz,                      /* 2,44 latin-1 to Mazovia */
+    NULL,                       /* 2,45 latin-1 to UCS-2 */
+    NULL,                       /* 2,46 latin-1 to UTF-8 */
+    zl1as,                      /* 2,47 latin-1 to KOI8R */
+    zl1as,                      /* 2,48 latin-1 to KOI8U */
+    xl1w1,                      /* 2,49 latin-1 to CP1252 */
+    xl2as,                      /* 3,0 latin-2 to us ascii */
+    xl2as,                      /* 3,1 latin-2 to uk ascii */
+    xl2as,                      /* 3,2 latin-2 to dutch nrc */
+    xl2as,                      /* 3,3 latin-2 to finnish nrc */
+    xl2as,                      /* 3,4 latin-2 to french nrc */
+    xl2as,                      /* 3,5 latin-2 to fr-canadian nrc */
+    xl2as,                      /* 3,6 latin-2 to german nrc */
+    xl2as,                      /* 3,7 latin-2 to italian nrc */
+    xl2as,                      /* 3,8 latin-2 to hungarian nrc */
+    xl2as,                      /* 3,9 latin-2 to norge/danish nrc */
+    xl2as,                      /* 3,10 latin-2 to portuguese nrc */
+    xl2as,                      /* 3,11 latin-2 to spanish nrc */
+    xl2as,                      /* 3,12 latin-2 to swedish nrc */
+    xl2as,                      /* 3,13 latin-2 to swiss nrc */
+    xl2l1,                      /* 3,14 latin-2 to latin-1 */
+    NULL,                       /* 3,15 latin-2 to latin-2 */
+    xl2l1,                      /* 3,16 latin-2 to DEC MCS */
+    xl2ne,                      /* 3,17 latin-2 to NeXT */
+    xl243,                      /* 3,18 latin-2 to CP437 */
+    xl285,                      /* 3,19 latin-2 to CP850 */
+    xl252,                      /* 3,20 latin-2 to CP852 */
+    xl2aq,                      /* 3,21 latin-2 to Macintosh Latin */
+    xl2dg,                      /* 3,22 latin-2 to DGI */
+    xl2r8,                      /* 3,23 latin-2 to HP */
+    xl2as,                      /* 3,24 latin-2 to Latin/Cyrillic */
     xl2as,                      /* 3,25 latin-2 to CP866 */
     xl2sk,                      /* 3,26 latin-2 to Short KOI */
-    xl2as,		       	/* 3,27 latin-2 to Old KOI-8 Cyrillic */
-    NULL,			/* 3,28 latin-2 to JIS-7 */
-    NULL,			/* 3,29 latin-2 to Shift-JIS */
-    NULL,			/* 3,30 latin-2 to J-EUC */
-    NULL,			/* 3,31 latin-2 to DEC Kanji */
-    xl2h7,			/* 3,32 latin-2 to Hebrew-7 */
-    xl2as,			/* 3,33 latin-2 to Latin/Hebrew */
-    xl2as,			/* 3,34 latin-2 to CP862 Hebrew */
-    xassk,			/* 3,35 latin-2 to ELOT 927 Greek */
-    xl2as,			/* 3,36 latin-2 to Latin/Greek */
-    xl2as,			/* 3,37 latin-2 to CP869 */
-    xl2l9,			/* 3,38 latin-2 to Latin-9 */
-    xl258,			/* 3,39 latin-2 to CP858 */
-    xl2as,			/* 3,40 latin-2 to CP855 */
-    xl2as,			/* 3,41 latin-2 to CP1251 */
-    xl2as,			/* 3,42 latin-2 to Bulgarian */
-    xl21250,			/* 3,43 latin-2 to CP1250 */
-    xl2mz,			/* 3,44 latin-2 to Mazovia */
-    NULL,			/* 3,45 latin-2 to UCS-2 */
-    NULL,			/* 3,46 latin-2 to UTF-8 */
-    xl2as,			/* 3,47 latin-2 to KOI8R */
-    xl2as,			/* 3,48 latin-2 to KOI8U */
-    xl2w1,			/* 3,49 latin-2 to CP1252 */
-    xlcas,			/* 4,0 latin/cyrillic to us ascii */
-    xlcas,			/* 4,1 latin/cyrillic to uk ascii */
-    xlcas, 		        /* 4,2 latin/cyrillic to dutch nrc */
-    xlcas,			/* 4,3 latin/cyrillic to finnish ascii */
-    xlcas,			/* 4,4 latin/cyrillic to french nrc */
-    xlcas,			/* 4,5 latin/cyrillic to fr-canadian nrc */
-    xlcas,			/* 4,6 latin/cyrillic to german nrc */
-    xlcas,			/* 4,7 latin/cyrillic to italian nrc */
-    xlcas,			/* 4,8 latin/cyrillic to hungarian nrc */
-    xlcas,			/* 4,9 latin/cyrillic to norge/danish nrc */
-    xlcas,			/* 4,10 latin/cyrillic to portuguese nrc */
-    xlcas,			/* 4,11 latin/cyrillic to spanish nrc */
-    xlcas,			/* 4,12 latin/cyrillic to swedish nrc */
-    xlcas,			/* 4,13 latin/cyrillic to swiss nrc */
-    xlcas,			/* 4,14 latin/cyrillic to latin-1 */
-    xlcas,			/* 4,15 latin/cyrillic to latin-2 */
-    xlcas,			/* 4,16 latin/cyrillic to DEC MCS */
-    xlcas,			/* 4,17 latin/cyrillic to NeXT */
-    xlcas,			/* 4,18 latin/cyrillic to CP437 */
-    xlcas,			/* 4,19 latin/cyrillic to CP850 */
-    xlcas,			/* 4,20 latin/cyrillic to CP852 */
-    xlcas,			/* 4,21 latin/cyrillic to Macintosh Latin */
-    xlcas,			/* 4,22 latin/cyrillic to DGI */
-    xlcas,			/* 4,23 latin/cyrillic to HP */
+    xl2as,                      /* 3,27 latin-2 to Old KOI-8 Cyrillic */
+    NULL,                       /* 3,28 latin-2 to JIS-7 */
+    NULL,                       /* 3,29 latin-2 to Shift-JIS */
+    NULL,                       /* 3,30 latin-2 to J-EUC */
+    NULL,                       /* 3,31 latin-2 to DEC Kanji */
+    xl2h7,                      /* 3,32 latin-2 to Hebrew-7 */
+    xl2as,                      /* 3,33 latin-2 to Latin/Hebrew */
+    xl2as,                      /* 3,34 latin-2 to CP862 Hebrew */
+    xassk,                      /* 3,35 latin-2 to ELOT 927 Greek */
+    xl2as,                      /* 3,36 latin-2 to Latin/Greek */
+    xl2as,                      /* 3,37 latin-2 to CP869 */
+    xl2l9,                      /* 3,38 latin-2 to Latin-9 */
+    xl258,                      /* 3,39 latin-2 to CP858 */
+    xl2as,                      /* 3,40 latin-2 to CP855 */
+    xl2as,                      /* 3,41 latin-2 to CP1251 */
+    xl2as,                      /* 3,42 latin-2 to Bulgarian */
+    xl21250,                    /* 3,43 latin-2 to CP1250 */
+    xl2mz,                      /* 3,44 latin-2 to Mazovia */
+    NULL,                       /* 3,45 latin-2 to UCS-2 */
+    NULL,                       /* 3,46 latin-2 to UTF-8 */
+    xl2as,                      /* 3,47 latin-2 to KOI8R */
+    xl2as,                      /* 3,48 latin-2 to KOI8U */
+    xl2w1,                      /* 3,49 latin-2 to CP1252 */
+    xlcas,                      /* 4,0 latin/cyrillic to us ascii */
+    xlcas,                      /* 4,1 latin/cyrillic to uk ascii */
+    xlcas,                      /* 4,2 latin/cyrillic to dutch nrc */
+    xlcas,                      /* 4,3 latin/cyrillic to finnish ascii */
+    xlcas,                      /* 4,4 latin/cyrillic to french nrc */
+    xlcas,                      /* 4,5 latin/cyrillic to fr-canadian nrc */
+    xlcas,                      /* 4,6 latin/cyrillic to german nrc */
+    xlcas,                      /* 4,7 latin/cyrillic to italian nrc */
+    xlcas,                      /* 4,8 latin/cyrillic to hungarian nrc */
+    xlcas,                      /* 4,9 latin/cyrillic to norge/danish nrc */
+    xlcas,                      /* 4,10 latin/cyrillic to portuguese nrc */
+    xlcas,                      /* 4,11 latin/cyrillic to spanish nrc */
+    xlcas,                      /* 4,12 latin/cyrillic to swedish nrc */
+    xlcas,                      /* 4,13 latin/cyrillic to swiss nrc */
+    xlcas,                      /* 4,14 latin/cyrillic to latin-1 */
+    xlcas,                      /* 4,15 latin/cyrillic to latin-2 */
+    xlcas,                      /* 4,16 latin/cyrillic to DEC MCS */
+    xlcas,                      /* 4,17 latin/cyrillic to NeXT */
+    xlcas,                      /* 4,18 latin/cyrillic to CP437 */
+    xlcas,                      /* 4,19 latin/cyrillic to CP850 */
+    xlcas,                      /* 4,20 latin/cyrillic to CP852 */
+    xlcas,                      /* 4,21 latin/cyrillic to Macintosh Latin */
+    xlcas,                      /* 4,22 latin/cyrillic to DGI */
+    xlcas,                      /* 4,23 latin/cyrillic to HP */
     NULL,                       /* 4,24 latin/cyrillic to Latin/Cyrillic */
     xlcac,                      /* 4,25 latin/cyrillic to CP866 */
     xlcsk,                      /* 4,26 latin/cyrillic to Short KOI */
-    xlck8,		       	/* 4,27 latin/cyrillic to Old KOI-8 Cyrillic */
-    NULL,			/* 4,28 latin/cyril to JIS-7 */
-    NULL,			/* 4,29 latin/cyril to Shift-JIS */
-    NULL,			/* 4,30 latin/cyril to J-EUC */
-    NULL,			/* 4,31 latin/cyril to DEC Kanji */
-    xlch7,			/* 4,32 latin/cyril to Hebrew-7 */
-    xlcas,			/* 4,33 latin/cyril to Latin/Hebrew */
-    xlcas,			/* 4,34 latin/cyril to CP862 Hebrew */
-    xassk,			/* 4,35 latin/cyril to ELOT 927 Greek */
-    xleft160,			/* 4,36 latin/cyril to Latin/Greek */
-    xleft128,			/* 4,37 latin/cyril to CP869 */
-    xlcas,			/* 4,38 latin/cyril to latin-9 */
-    xlcas,			/* 4,39 latin/cyril to CP858 */
-    xlc55,			/* 4,40 latin/cyril to CP855 */
-    xlc1251,			/* 4,41 latin/cyril to CP1251 */
-    xlcbu,			/* 4,42 latin/cyril to Bulgarian */
-    xlcas,			/* 4,43 latin/cyril to CP1250 */
-    xlcas,			/* 4,44 latin/cyril to Mazovia */
-    NULL,			/* 4,45 latin/cyril to UCS-2 */
-    NULL,			/* 4,46 latin/cyril to UTF-8 */
-    xlckr,			/* 4,47 latin/cyril to KOI8R */
-    xlcku,			/* 4,48 latin/cyril to KOI8U */
-    xlcas,			/* 4,49 latin/cyril to CP1252 */
-    NULL,			/* 5,00 */
-    NULL,			/* 5,01 */
-    NULL,			/* 5,02 */
-    NULL,			/* 5,03 */
-    NULL,			/* 5,04 */
-    NULL,			/* 5,05 */
-    NULL,			/* 5,06 */
-    NULL,			/* 5,07 */
-    NULL,			/* 5,08 */
-    NULL,			/* 5,09 */
-    NULL,			/* 5,10 */
-    NULL,			/* 5,11 */
-    NULL,			/* 5,12 */
-    NULL,			/* 5,13 */
-    NULL,			/* 5,14 */
-    NULL,			/* 5,15 */
-    NULL,			/* 5,16 */
-    NULL,			/* 5,17 */
-    NULL,			/* 5,18 */
-    NULL,			/* 5,19 */
-    NULL,			/* 5,20 */
-    NULL,			/* 5,21 */
-    NULL,			/* 5,22 */
-    NULL,			/* 5,23 */
-    NULL,			/* 5,24 */
-    NULL,			/* 5,25 */
-    NULL,			/* 5,26 */
-    NULL,			/* 5,27 */
-    NULL,			/* 5,28 */
-    NULL,			/* 5,29 */
-    NULL,			/* 5,30 */
-    NULL,			/* 5,31 */
-    NULL,			/* 5,32 */
-    NULL,			/* 5,33 */
-    NULL,			/* 5,34 */
-    NULL,			/* 5,35 */
-    NULL,			/* 5,36 */
-    NULL,			/* 5,37 */
-    NULL,			/* 5,38 */
-    NULL,			/* 5,39 */
-    NULL,			/* 5,40 */
-    NULL,			/* 5,41 */
-    NULL,			/* 5,42 */
-    NULL,			/* 5,43 */
-    NULL,			/* 5,44 */
-    NULL,			/* 5,45 */
-    NULL,			/* 5,46 */
-    NULL,			/* 5,47 */
-    NULL,			/* 5,48 */
-    NULL,			/* 5,49 */
-    xlhas,			/* 6,0 latin/hebrew to us ascii */
-    xlhas,			/* 6,1 latin/hebrew to uk ascii */
-    xlhas, 		        /* 6,2 latin/hebrew to dutch nrc */
-    xlhas,			/* 6,3 latin/hebrew to finnish ascii */
-    xlhas,			/* 6,4 latin/hebrew to french nrc */
-    xlhas,			/* 6,5 latin/hebrew to fr-canadian nrc */
-    xlhas,			/* 6,6 latin/hebrew to german nrc */
-    xlhas,			/* 6,7 latin/hebrew to italian nrc */
-    xlhas,			/* 6,8 latin/hebrew to hungarian nrc */
-    xlhas,			/* 6,9 latin/hebrew to norge/danish nrc */
-    xlhas,			/* 6,10 latin/hebrew to portuguese nrc */
-    xlhas,			/* 6,11 latin/hebrew to spanish nrc */
-    xlhas,			/* 6,12 latin/hebrew to swedish nrc */
-    xlhas,			/* 6,13 latin/hebrew to swiss nrc */
-    xlhl1,			/* 6,14 latin/hebrew to latin-1 */
-    xlhas,			/* 6,15 latin/hebrew to latin-2 */
-    xlhl1,			/* 6,16 latin/hebrew to DEC MCS */
-    xlhas,			/* 6,17 latin/hebrew to NeXT */
-    xlhas,			/* 6,18 latin/hebrew to CP437 */
-    xlhas,			/* 6,19 latin/hebrew to CP850 */
-    xlhas,			/* 6,20 latin/hebrew to CP852 */
-    xlhas,			/* 6,21 latin/hebrew to Macintosh Latin */
-    xlhas,			/* 6,22 latin/hebrew to DGI */
+    xlck8,                      /* 4,27 latin/cyrillic to Old KOI-8 Cyrillic */
+    NULL,                       /* 4,28 latin/cyril to JIS-7 */
+    NULL,                       /* 4,29 latin/cyril to Shift-JIS */
+    NULL,                       /* 4,30 latin/cyril to J-EUC */
+    NULL,                       /* 4,31 latin/cyril to DEC Kanji */
+    xlch7,                      /* 4,32 latin/cyril to Hebrew-7 */
+    xlcas,                      /* 4,33 latin/cyril to Latin/Hebrew */
+    xlcas,                      /* 4,34 latin/cyril to CP862 Hebrew */
+    xassk,                      /* 4,35 latin/cyril to ELOT 927 Greek */
+    xleft160,                   /* 4,36 latin/cyril to Latin/Greek */
+    xleft128,                   /* 4,37 latin/cyril to CP869 */
+    xlcas,                      /* 4,38 latin/cyril to latin-9 */
+    xlcas,                      /* 4,39 latin/cyril to CP858 */
+    xlc55,                      /* 4,40 latin/cyril to CP855 */
+    xlc1251,                    /* 4,41 latin/cyril to CP1251 */
+    xlcbu,                      /* 4,42 latin/cyril to Bulgarian */
+    xlcas,                      /* 4,43 latin/cyril to CP1250 */
+    xlcas,                      /* 4,44 latin/cyril to Mazovia */
+    NULL,                       /* 4,45 latin/cyril to UCS-2 */
+    NULL,                       /* 4,46 latin/cyril to UTF-8 */
+    xlckr,                      /* 4,47 latin/cyril to KOI8R */
+    xlcku,                      /* 4,48 latin/cyril to KOI8U */
+    xlcas,                      /* 4,49 latin/cyril to CP1252 */
+    NULL,                       /* 5,00 */
+    NULL,                       /* 5,01 */
+    NULL,                       /* 5,02 */
+    NULL,                       /* 5,03 */
+    NULL,                       /* 5,04 */
+    NULL,                       /* 5,05 */
+    NULL,                       /* 5,06 */
+    NULL,                       /* 5,07 */
+    NULL,                       /* 5,08 */
+    NULL,                       /* 5,09 */
+    NULL,                       /* 5,10 */
+    NULL,                       /* 5,11 */
+    NULL,                       /* 5,12 */
+    NULL,                       /* 5,13 */
+    NULL,                       /* 5,14 */
+    NULL,                       /* 5,15 */
+    NULL,                       /* 5,16 */
+    NULL,                       /* 5,17 */
+    NULL,                       /* 5,18 */
+    NULL,                       /* 5,19 */
+    NULL,                       /* 5,20 */
+    NULL,                       /* 5,21 */
+    NULL,                       /* 5,22 */
+    NULL,                       /* 5,23 */
+    NULL,                       /* 5,24 */
+    NULL,                       /* 5,25 */
+    NULL,                       /* 5,26 */
+    NULL,                       /* 5,27 */
+    NULL,                       /* 5,28 */
+    NULL,                       /* 5,29 */
+    NULL,                       /* 5,30 */
+    NULL,                       /* 5,31 */
+    NULL,                       /* 5,32 */
+    NULL,                       /* 5,33 */
+    NULL,                       /* 5,34 */
+    NULL,                       /* 5,35 */
+    NULL,                       /* 5,36 */
+    NULL,                       /* 5,37 */
+    NULL,                       /* 5,38 */
+    NULL,                       /* 5,39 */
+    NULL,                       /* 5,40 */
+    NULL,                       /* 5,41 */
+    NULL,                       /* 5,42 */
+    NULL,                       /* 5,43 */
+    NULL,                       /* 5,44 */
+    NULL,                       /* 5,45 */
+    NULL,                       /* 5,46 */
+    NULL,                       /* 5,47 */
+    NULL,                       /* 5,48 */
+    NULL,                       /* 5,49 */
+    xlhas,                      /* 6,0 latin/hebrew to us ascii */
+    xlhas,                      /* 6,1 latin/hebrew to uk ascii */
+    xlhas,                      /* 6,2 latin/hebrew to dutch nrc */
+    xlhas,                      /* 6,3 latin/hebrew to finnish ascii */
+    xlhas,                      /* 6,4 latin/hebrew to french nrc */
+    xlhas,                      /* 6,5 latin/hebrew to fr-canadian nrc */
+    xlhas,                      /* 6,6 latin/hebrew to german nrc */
+    xlhas,                      /* 6,7 latin/hebrew to italian nrc */
+    xlhas,                      /* 6,8 latin/hebrew to hungarian nrc */
+    xlhas,                      /* 6,9 latin/hebrew to norge/danish nrc */
+    xlhas,                      /* 6,10 latin/hebrew to portuguese nrc */
+    xlhas,                      /* 6,11 latin/hebrew to spanish nrc */
+    xlhas,                      /* 6,12 latin/hebrew to swedish nrc */
+    xlhas,                      /* 6,13 latin/hebrew to swiss nrc */
+    xlhl1,                      /* 6,14 latin/hebrew to latin-1 */
+    xlhas,                      /* 6,15 latin/hebrew to latin-2 */
+    xlhl1,                      /* 6,16 latin/hebrew to DEC MCS */
+    xlhas,                      /* 6,17 latin/hebrew to NeXT */
+    xlhas,                      /* 6,18 latin/hebrew to CP437 */
+    xlhas,                      /* 6,19 latin/hebrew to CP850 */
+    xlhas,                      /* 6,20 latin/hebrew to CP852 */
+    xlhas,                      /* 6,21 latin/hebrew to Macintosh Latin */
+    xlhas,                      /* 6,22 latin/hebrew to DGI */
     xlhas,                      /* 6,23 latin/hebrew to HP */
     xlhas,                      /* 6,24 latin/hebrew to Latin/Cyrillic */
     xlhas,                      /* 6,25 latin/hebrew to CP866 */
     NULL,                       /* 6,26 latin/hebrew to Short KOI */
-    xlhas,		       	/* 6,27 latin/hebrew to Old KOI-8 Cyrillic */
-    NULL,			/* 6,28 latin/hebrew to JIS-7 */
-    NULL,			/* 6,29 latin/hebrew to Shift-JIS */
-    NULL,			/* 6,30 latin/hebrew to J-EUC */
-    NULL,			/* 6,31 latin/hebrew to DEC Kanji */
-    xlhh7,			/* 6,32 latin/hebrew to Hebrew-7 */
-    NULL,			/* 6,33 latin/hebrew to Latin/Hebrew */
-    xlh62,			/* 6,34 latin/hebrew to CP862 Hebrew */
-    NULL,			/* 6,35 latin/hebrew to ELOT 927 Greek */
-    xlhas,			/* 6,36 latin/hebrew to Latin/Greek */
-    xlhas,			/* 6,37 latin/hebrew to CP869 */
-    xlhas,			/* 6,38 latin/hebrew to Latin-9 */
-    xlhas,			/* 6,39 latin/hebrew to CP858 */
-    xlhas,			/* 6,40 latin/hebrew to CP855 */
-    xlhas,			/* 6,41 latin/hebrew to CP1251 */
-    xlhas,			/* 6,42 latin/hebrew to Bulgarian */
-    xlhas,			/* 6,43 latin/hebrew to CP1250 */
-    xlhas,			/* 6,44 latin/hebrew to Mazovia */
-    NULL,			/* 6,45 latin/hebrew to UCS-2 */
-    NULL,			/* 6,46 latin/hebrew to UTF-8 */
-    NULL,			/* 6,47 latin/hebrew to KOI8R */
-    NULL,			/* 6,48 latin/hebrew to KOI8U */
-    xlhw1,			/* 6,49 latin/hebrew to CP1252 */
-    xlgas,			/* 7,0 latin/greek to us ascii */
-    xlgas,			/* 7,1 latin/greek to uk ascii */
-    xlgas, 		        /* 7,2 latin/greek to dutch nrc */
-    xlgas,			/* 7,3 latin/greek to finnish ascii */
-    xlgas,			/* 7,4 latin/greek to french nrc */
-    xlgas,			/* 7,5 latin/greek to fr-canadian nrc */
-    xlgas,			/* 7,6 latin/greek to german nrc */
-    xlgas,			/* 7,7 latin/greek to italian nrc */
-    xlgas,			/* 7,8 latin/greek to hungarian nrc */
-    xlgas,			/* 7,9 latin/greek to norge/danish nrc */
-    xlgas,			/* 7,10 latin/greek to portuguese nrc */
-    xlgas,			/* 7,11 latin/greek to spanish nrc */
-    xlgas,			/* 7,12 latin/greek to swedish nrc */
-    xlgas,			/* 7,13 latin/greek to swiss nrc */
-    xlgas,			/* 7,14 latin/greek to latin-1 */
-    xlgas,			/* 7,15 latin/greek to latin-2 */
-    xlgas,			/* 7,16 latin/greek to DEC MCS */
-    xlgas,			/* 7,17 latin/greek to NeXT */
-    xlgas,			/* 7,18 latin/greek to CP437 */
-    xlgas,			/* 7,19 latin/greek to CP850 */
-    xlgas,			/* 7,20 latin/greek to CP852 */
-    xlgas,			/* 7,21 latin/greek to Macintosh Latin */
-    xlgas,			/* 7,22 latin/greek to DGI */
-    xlgas,			/* 7,23 latin/greek to HP */
+    xlhas,                      /* 6,27 latin/hebrew to Old KOI-8 Cyrillic */
+    NULL,                       /* 6,28 latin/hebrew to JIS-7 */
+    NULL,                       /* 6,29 latin/hebrew to Shift-JIS */
+    NULL,                       /* 6,30 latin/hebrew to J-EUC */
+    NULL,                       /* 6,31 latin/hebrew to DEC Kanji */
+    xlhh7,                      /* 6,32 latin/hebrew to Hebrew-7 */
+    NULL,                       /* 6,33 latin/hebrew to Latin/Hebrew */
+    xlh62,                      /* 6,34 latin/hebrew to CP862 Hebrew */
+    NULL,                       /* 6,35 latin/hebrew to ELOT 927 Greek */
+    xlhas,                      /* 6,36 latin/hebrew to Latin/Greek */
+    xlhas,                      /* 6,37 latin/hebrew to CP869 */
+    xlhas,                      /* 6,38 latin/hebrew to Latin-9 */
+    xlhas,                      /* 6,39 latin/hebrew to CP858 */
+    xlhas,                      /* 6,40 latin/hebrew to CP855 */
+    xlhas,                      /* 6,41 latin/hebrew to CP1251 */
+    xlhas,                      /* 6,42 latin/hebrew to Bulgarian */
+    xlhas,                      /* 6,43 latin/hebrew to CP1250 */
+    xlhas,                      /* 6,44 latin/hebrew to Mazovia */
+    NULL,                       /* 6,45 latin/hebrew to UCS-2 */
+    NULL,                       /* 6,46 latin/hebrew to UTF-8 */
+    NULL,                       /* 6,47 latin/hebrew to KOI8R */
+    NULL,                       /* 6,48 latin/hebrew to KOI8U */
+    xlhw1,                      /* 6,49 latin/hebrew to CP1252 */
+    xlgas,                      /* 7,0 latin/greek to us ascii */
+    xlgas,                      /* 7,1 latin/greek to uk ascii */
+    xlgas,                      /* 7,2 latin/greek to dutch nrc */
+    xlgas,                      /* 7,3 latin/greek to finnish ascii */
+    xlgas,                      /* 7,4 latin/greek to french nrc */
+    xlgas,                      /* 7,5 latin/greek to fr-canadian nrc */
+    xlgas,                      /* 7,6 latin/greek to german nrc */
+    xlgas,                      /* 7,7 latin/greek to italian nrc */
+    xlgas,                      /* 7,8 latin/greek to hungarian nrc */
+    xlgas,                      /* 7,9 latin/greek to norge/danish nrc */
+    xlgas,                      /* 7,10 latin/greek to portuguese nrc */
+    xlgas,                      /* 7,11 latin/greek to spanish nrc */
+    xlgas,                      /* 7,12 latin/greek to swedish nrc */
+    xlgas,                      /* 7,13 latin/greek to swiss nrc */
+    xlgas,                      /* 7,14 latin/greek to latin-1 */
+    xlgas,                      /* 7,15 latin/greek to latin-2 */
+    xlgas,                      /* 7,16 latin/greek to DEC MCS */
+    xlgas,                      /* 7,17 latin/greek to NeXT */
+    xlgas,                      /* 7,18 latin/greek to CP437 */
+    xlgas,                      /* 7,19 latin/greek to CP850 */
+    xlgas,                      /* 7,20 latin/greek to CP852 */
+    xlgas,                      /* 7,21 latin/greek to Macintosh Latin */
+    xlgas,                      /* 7,22 latin/greek to DGI */
+    xlgas,                      /* 7,23 latin/greek to HP */
     xleft160,                   /* 7,24 latin/greek to Latin/Cyrillic */
     xleft128,                   /* 7,25 latin/greek to CP866 */
     xassk,                      /* 7,26 latin/greek to Short KOI */
-    xleft160,		       	/* 7,27 latin/greek to Old KOI-8 Greek */
-    NULL,			/* 7,28 latin/greek to JIS-7 */
-    NULL,			/* 7,29 latin/greek to Shift-JIS */
-    NULL,			/* 7,30 latin/greek to J-EUC */
-    NULL,			/* 7,31 latin/greek to DEC Kanji */
-    NULL,			/* 7,32 latin/greek to Hebrew-7 */
-    xlgas,			/* 7,33 latin/greek to Latin/Hebrew */
-    xlgas,			/* 7,34 latin/greek to CP862 Hebrew */
-    xlgeg,			/* 7,35 latin/greek to ELOT 927 Greek */
-    NULL,			/* 7,36 latin/greek to Latin/Greek */
-    xlg69,			/* 7,37 latin/greek to CP869 */
-    xlgas,			/* 7,38 latin/greek to Latin-9 */
-    xlgas,			/* 7,39 latin/greek to CP858 */
-    xleft128,			/* 7,40 latin/greek to CP855 */
-    xleft128,			/* 7,41 latin/greek to CP1251 */
-    xleft128,			/* 7,42 latin/greek to Bulgarian */
-    xleft128,			/* 7,43 latin/greek to CP1250 */
-    xleft128,			/* 7,44 latin/greek to Mazovia */
-    NULL,			/* 7,45 latin/greek to UCS-2 */
-    NULL,			/* 7,46 latin/greek to UTF-8 */
-    NULL,			/* 7,47 latin/greek to KOI8R */
-    NULL,			/* 7,48 latin/greek to KOI8U */
-    xlgw1,			/* 7,49 latin/greek to CP1252 */
-    zl9as,			/* 8,0 latin-9 to us ascii */
-    xl1uk,			/* 8,1 latin-9 to uk ascii */
-    xl1du,			/* 8,2 latin-9 to dutch nrc */
-    xl1fi,			/* 8,3 latin-9 to finnish nrc */
-    xl1fr,			/* 8,4 latin-9 to french nrc */
-    xl1fc,			/* 8,5 latin-9 to fr-canadian nrc */
-    xl1ge,			/* 8,6 latin-9 to german nrc */
-    xl1it,			/* 8,7 latin-9 to italian nrc */
-    xl1hu,			/* 8,8 latin-9 to hungarian nrc */
-    xl1no,			/* 8,9 latin-9 to norge/danish nrc */
-    xl1po,			/* 8,10 latin-9 to portuguese nrc */
-    xl1sp,			/* 8,11 latin-9 to spanish nrc */
-    xl1sw,			/* 8,12 latin-9 to swedish nrc */
-    xl1ch,			/* 8,13 latin-9 to swiss nrc */
-    NULL,			/* 8,14 latin-9 to latin-1 */
-    xl1l2,			/* 8,15 latin-9 to latin-2 */
-    xl9dm,			/* 8,16 latin-9 to DEC MCS */
-    xl9ne,			/* 8,17 latin-9 to NeXT */
-    xl143,			/* 8,18 latin-9 to CP437 */
-    xl185,			/* 8,19 latin-9 to CP850 */
-    xl152,			/* 8,20 latin-9 to CP852 */
-    xl1aq,			/* 8,21 latin-9 to Macintosh Latin */
-    xl1dg,			/* 8,22 latin-9 to DGI */
-    xl1r8,			/* 8,23 latin-9 to HP Roman8 */
-    zl1as,			/* 8,24 latin-9 to Latin/Cyrillic */
+    xleft160,                   /* 7,27 latin/greek to Old KOI-8 Greek */
+    NULL,                       /* 7,28 latin/greek to JIS-7 */
+    NULL,                       /* 7,29 latin/greek to Shift-JIS */
+    NULL,                       /* 7,30 latin/greek to J-EUC */
+    NULL,                       /* 7,31 latin/greek to DEC Kanji */
+    NULL,                       /* 7,32 latin/greek to Hebrew-7 */
+    xlgas,                      /* 7,33 latin/greek to Latin/Hebrew */
+    xlgas,                      /* 7,34 latin/greek to CP862 Hebrew */
+    xlgeg,                      /* 7,35 latin/greek to ELOT 927 Greek */
+    NULL,                       /* 7,36 latin/greek to Latin/Greek */
+    xlg69,                      /* 7,37 latin/greek to CP869 */
+    xlgas,                      /* 7,38 latin/greek to Latin-9 */
+    xlgas,                      /* 7,39 latin/greek to CP858 */
+    xleft128,                   /* 7,40 latin/greek to CP855 */
+    xleft128,                   /* 7,41 latin/greek to CP1251 */
+    xleft128,                   /* 7,42 latin/greek to Bulgarian */
+    xleft128,                   /* 7,43 latin/greek to CP1250 */
+    xleft128,                   /* 7,44 latin/greek to Mazovia */
+    NULL,                       /* 7,45 latin/greek to UCS-2 */
+    NULL,                       /* 7,46 latin/greek to UTF-8 */
+    NULL,                       /* 7,47 latin/greek to KOI8R */
+    NULL,                       /* 7,48 latin/greek to KOI8U */
+    xlgw1,                      /* 7,49 latin/greek to CP1252 */
+    zl9as,                      /* 8,0 latin-9 to us ascii */
+    xl1uk,                      /* 8,1 latin-9 to uk ascii */
+    xl1du,                      /* 8,2 latin-9 to dutch nrc */
+    xl1fi,                      /* 8,3 latin-9 to finnish nrc */
+    xl1fr,                      /* 8,4 latin-9 to french nrc */
+    xl1fc,                      /* 8,5 latin-9 to fr-canadian nrc */
+    xl1ge,                      /* 8,6 latin-9 to german nrc */
+    xl1it,                      /* 8,7 latin-9 to italian nrc */
+    xl1hu,                      /* 8,8 latin-9 to hungarian nrc */
+    xl1no,                      /* 8,9 latin-9 to norge/danish nrc */
+    xl1po,                      /* 8,10 latin-9 to portuguese nrc */
+    xl1sp,                      /* 8,11 latin-9 to spanish nrc */
+    xl1sw,                      /* 8,12 latin-9 to swedish nrc */
+    xl1ch,                      /* 8,13 latin-9 to swiss nrc */
+    NULL,                       /* 8,14 latin-9 to latin-1 */
+    xl1l2,                      /* 8,15 latin-9 to latin-2 */
+    xl9dm,                      /* 8,16 latin-9 to DEC MCS */
+    xl9ne,                      /* 8,17 latin-9 to NeXT */
+    xl143,                      /* 8,18 latin-9 to CP437 */
+    xl185,                      /* 8,19 latin-9 to CP850 */
+    xl152,                      /* 8,20 latin-9 to CP852 */
+    xl1aq,                      /* 8,21 latin-9 to Macintosh Latin */
+    xl1dg,                      /* 8,22 latin-9 to DGI */
+    xl1r8,                      /* 8,23 latin-9 to HP Roman8 */
+    zl1as,                      /* 8,24 latin-9 to Latin/Cyrillic */
     zl1as,                      /* 8,25 latin-9 to CP866 */
     xl1sk,                      /* 8,26 latin-9 to Short KOI */
-    zl1as,		       	/* 8,27 latin-9 to Old KOI-8 Cyrillic */
-    NULL,			/* 8,28 latin-9 to JIS-7 */
-    NULL,			/* 8,29 latin-9 to Shift-JIS */
-    NULL,			/* 8,30 latin-9 to J-EUC */
-    NULL,			/* 8,31 latin-9 to DEC Kanji */
-    xl1h7,			/* 8,32 latin-9 to Hebrew-7 */
-    xl1lh,			/* 8,33 latin-9 to Latin/Hebrew */
-    xl162,			/* 8,34 latin-9 to CP862 Hebrew */
-    xl1eg,			/* 8,35 latin-9 to ELOT 927 Greek */
-    xl1lg,			/* 8,36 latin-9 to Latin/Greek */
-    xl169,			/* 8,37 latin-9 to CP869 */
-    NULL,			/* 8,38 latin-9 to Latin9 */
-    xl958,			/* 8,39 latin-9 to CP858 */
-    zl1as,			/* 8,40 latin-9 to CP855 */
-    zl1as,			/* 8,41 latin-9 to CP1251 */
-    xl1as,			/* 8,42 latin-9 to Bulgarian */
-    xl91250,			/* 8,43 latin-9 to CP1250 */
-    xl9mz,			/* 8,44 latin-9 to Mazovia */
-    NULL,			/* 8,45 latin-9 to UCS-2 */
-    NULL,			/* 8,46 latin-9 to UTF-8 */
-    zl1as,			/* 8,47 latin-9 to KOI8-R */
-    zl1as,			/* 8,48 latin-9 to KOI8-U */
-    xl9w1,			/* 8,49 latin-9 to CP1252 */
-    NULL,			/* 9,00 Unicode... */
-    NULL,			/* 9,01 */
-    NULL,			/* 9,02 */
-    NULL,			/* 9,03 */
-    NULL,			/* 9,04 */
-    NULL,			/* 9,05 */
-    NULL,			/* 9,06 */
-    NULL,			/* 9,07 */
-    NULL,			/* 9,08 */
-    NULL,			/* 9,09 */
-    NULL,			/* 9,10 */
-    NULL,			/* 9,11 */
-    NULL,			/* 9,12 */
-    NULL,			/* 9,13 */
-    NULL,			/* 9,14 */
-    NULL,			/* 9,15 */
-    NULL,			/* 9,16 */
-    NULL,			/* 9,17 */
-    NULL,			/* 9,18 */
-    NULL,			/* 9,19 */
-    NULL,			/* 9,20 */
-    NULL,			/* 9,21 */
-    NULL,			/* 9,22 */
-    NULL,			/* 9,23 */
-    NULL,			/* 9,24 */
-    NULL,			/* 9,25 */
-    NULL,			/* 9,26 */
-    NULL,			/* 9,27 */
-    NULL,			/* 9,28 */
-    NULL,			/* 9,29 */
-    NULL,			/* 9,30 */
-    NULL,			/* 9,31 */
-    NULL,			/* 9,32 */
-    NULL,			/* 9,33 */
-    NULL,			/* 9,34 */
-    NULL,			/* 9,35 */
-    NULL,			/* 9,36 */
-    NULL,			/* 9,37 */
-    NULL,			/* 9,38 */
-    NULL,			/* 9,39 */
-    NULL,			/* 9,40 */
-    NULL,			/* 9,41 */
-    NULL,			/* 9,42 */
-    NULL,			/* 9,43 */
-    NULL,			/* 9,44 */
-    NULL,			/* 9,45 */
-    NULL,			/* 9,46 */
-    NULL,			/* 9,47 */
-    NULL,			/* 9,48 */
-    NULL,			/* 9,49 */
-    NULL,			/* 10,00 */
-    NULL,			/* 10,01 */
-    NULL,			/* 10,02 */
-    NULL,			/* 10,03 */
-    NULL,			/* 10,04 */
-    NULL,			/* 10,05 */
-    NULL,			/* 10,06 */
-    NULL,			/* 10,07 */
-    NULL,			/* 10,08 */
-    NULL,			/* 10,09 */
-    NULL,			/* 10,10 */
-    NULL,			/* 10,11 */
-    NULL,			/* 10,12 */
-    NULL,			/* 10,13 */
-    NULL,			/* 10,14 */
-    NULL,			/* 10,15 */
-    NULL,			/* 10,16 */
-    NULL,			/* 10,17 */
-    NULL,			/* 10,18 */
-    NULL,			/* 10,19 */
-    NULL,			/* 10,20 */
-    NULL,			/* 10,21 */
-    NULL,			/* 10,22 */
-    NULL,			/* 10,23 */
-    NULL,			/* 10,24 */
-    NULL,			/* 10,25 */
-    NULL,			/* 10,26 */
-    NULL,			/* 10,27 */
-    NULL,			/* 10,28 */
-    NULL,			/* 10,29 */
-    NULL,			/* 10,30 */
-    NULL,			/* 10,31 */
-    NULL,			/* 10,32 */
-    NULL,			/* 10,33 */
-    NULL,			/* 10,34 */
-    NULL,			/* 10,35 */
-    NULL,			/* 10,36 */
-    NULL,			/* 10,37 */
-    NULL,			/* 10,38 */
-    NULL,			/* 10,39 */
-    NULL,			/* 10,40 */
-    NULL,			/* 10,41 */
-    NULL,			/* 10,42 */
-    NULL,			/* 10,43 */
-    NULL,			/* 10,44 */
-    NULL,			/* 10,45 */
-    NULL,			/* 10,46 */
-    NULL,			/* 10,47 */
-    NULL,			/* 10,48 */
-    NULL			/* 10,49 */
+    zl1as,                      /* 8,27 latin-9 to Old KOI-8 Cyrillic */
+    NULL,                       /* 8,28 latin-9 to JIS-7 */
+    NULL,                       /* 8,29 latin-9 to Shift-JIS */
+    NULL,                       /* 8,30 latin-9 to J-EUC */
+    NULL,                       /* 8,31 latin-9 to DEC Kanji */
+    xl1h7,                      /* 8,32 latin-9 to Hebrew-7 */
+    xl1lh,                      /* 8,33 latin-9 to Latin/Hebrew */
+    xl162,                      /* 8,34 latin-9 to CP862 Hebrew */
+    xl1eg,                      /* 8,35 latin-9 to ELOT 927 Greek */
+    xl1lg,                      /* 8,36 latin-9 to Latin/Greek */
+    xl169,                      /* 8,37 latin-9 to CP869 */
+    NULL,                       /* 8,38 latin-9 to Latin9 */
+    xl958,                      /* 8,39 latin-9 to CP858 */
+    zl1as,                      /* 8,40 latin-9 to CP855 */
+    zl1as,                      /* 8,41 latin-9 to CP1251 */
+    xl1as,                      /* 8,42 latin-9 to Bulgarian */
+    xl91250,                    /* 8,43 latin-9 to CP1250 */
+    xl9mz,                      /* 8,44 latin-9 to Mazovia */
+    NULL,                       /* 8,45 latin-9 to UCS-2 */
+    NULL,                       /* 8,46 latin-9 to UTF-8 */
+    zl1as,                      /* 8,47 latin-9 to KOI8-R */
+    zl1as,                      /* 8,48 latin-9 to KOI8-U */
+    xl9w1,                      /* 8,49 latin-9 to CP1252 */
+    NULL,                       /* 9,00 Unicode... */
+    NULL,                       /* 9,01 */
+    NULL,                       /* 9,02 */
+    NULL,                       /* 9,03 */
+    NULL,                       /* 9,04 */
+    NULL,                       /* 9,05 */
+    NULL,                       /* 9,06 */
+    NULL,                       /* 9,07 */
+    NULL,                       /* 9,08 */
+    NULL,                       /* 9,09 */
+    NULL,                       /* 9,10 */
+    NULL,                       /* 9,11 */
+    NULL,                       /* 9,12 */
+    NULL,                       /* 9,13 */
+    NULL,                       /* 9,14 */
+    NULL,                       /* 9,15 */
+    NULL,                       /* 9,16 */
+    NULL,                       /* 9,17 */
+    NULL,                       /* 9,18 */
+    NULL,                       /* 9,19 */
+    NULL,                       /* 9,20 */
+    NULL,                       /* 9,21 */
+    NULL,                       /* 9,22 */
+    NULL,                       /* 9,23 */
+    NULL,                       /* 9,24 */
+    NULL,                       /* 9,25 */
+    NULL,                       /* 9,26 */
+    NULL,                       /* 9,27 */
+    NULL,                       /* 9,28 */
+    NULL,                       /* 9,29 */
+    NULL,                       /* 9,30 */
+    NULL,                       /* 9,31 */
+    NULL,                       /* 9,32 */
+    NULL,                       /* 9,33 */
+    NULL,                       /* 9,34 */
+    NULL,                       /* 9,35 */
+    NULL,                       /* 9,36 */
+    NULL,                       /* 9,37 */
+    NULL,                       /* 9,38 */
+    NULL,                       /* 9,39 */
+    NULL,                       /* 9,40 */
+    NULL,                       /* 9,41 */
+    NULL,                       /* 9,42 */
+    NULL,                       /* 9,43 */
+    NULL,                       /* 9,44 */
+    NULL,                       /* 9,45 */
+    NULL,                       /* 9,46 */
+    NULL,                       /* 9,47 */
+    NULL,                       /* 9,48 */
+    NULL,                       /* 9,49 */
+    NULL,                       /* 10,00 */
+    NULL,                       /* 10,01 */
+    NULL,                       /* 10,02 */
+    NULL,                       /* 10,03 */
+    NULL,                       /* 10,04 */
+    NULL,                       /* 10,05 */
+    NULL,                       /* 10,06 */
+    NULL,                       /* 10,07 */
+    NULL,                       /* 10,08 */
+    NULL,                       /* 10,09 */
+    NULL,                       /* 10,10 */
+    NULL,                       /* 10,11 */
+    NULL,                       /* 10,12 */
+    NULL,                       /* 10,13 */
+    NULL,                       /* 10,14 */
+    NULL,                       /* 10,15 */
+    NULL,                       /* 10,16 */
+    NULL,                       /* 10,17 */
+    NULL,                       /* 10,18 */
+    NULL,                       /* 10,19 */
+    NULL,                       /* 10,20 */
+    NULL,                       /* 10,21 */
+    NULL,                       /* 10,22 */
+    NULL,                       /* 10,23 */
+    NULL,                       /* 10,24 */
+    NULL,                       /* 10,25 */
+    NULL,                       /* 10,26 */
+    NULL,                       /* 10,27 */
+    NULL,                       /* 10,28 */
+    NULL,                       /* 10,29 */
+    NULL,                       /* 10,30 */
+    NULL,                       /* 10,31 */
+    NULL,                       /* 10,32 */
+    NULL,                       /* 10,33 */
+    NULL,                       /* 10,34 */
+    NULL,                       /* 10,35 */
+    NULL,                       /* 10,36 */
+    NULL,                       /* 10,37 */
+    NULL,                       /* 10,38 */
+    NULL,                       /* 10,39 */
+    NULL,                       /* 10,40 */
+    NULL,                       /* 10,41 */
+    NULL,                       /* 10,42 */
+    NULL,                       /* 10,43 */
+    NULL,                       /* 10,44 */
+    NULL,                       /* 10,45 */
+    NULL,                       /* 10,46 */
+    NULL,                       /* 10,47 */
+    NULL,                       /* 10,48 */
+    NULL                        /* 10,49 */
 };
 int nxlr = (sizeof(xlr) / sizeof(CHAR *));
 
@@ -6668,123 +6672,123 @@ CHAR (*xls[MAXTCSETS+1][MAXFCSETS+1])(CHAR) =
 CHAR (*xls[MAXTCSETS+1][MAXFCSETS+1])() =
 #endif /* CK_ANSIC */
 {
-    NULL,			/* 0,0 us ascii to transparent */
-    NULL,			/* 0,1 uk ascii to transparent */
-    NULL,			/* 0,2 dutch nrc to transparent */
-    NULL,			/* 0,3 finnish nrc to transparent */
-    NULL,			/* 0,4 french nrc to transparent */
-    NULL,			/* 0,5 fr-canadian nrc to transparent */
-    NULL,			/* 0,6 german nrc to transparent */
-    NULL,			/* 0,7 hungarian nrc to transparent */
-    NULL,			/* 0,8 italian nrc to transparent */
-    NULL,			/* 0,9 norge/danish nrc to transparent */
-    NULL,			/* 0,10 portuguese nrc to transparent */
-    NULL,			/* 0,11 spanish nrc to transparent */
-    NULL,			/* 0,12 swedish nrc to transparent */
-    NULL,			/* 0,13 swiss nrc to transparent */
-    NULL,			/* 0,14 latin-1 to transparent */
-    NULL,			/* 0,15 latin-2 to transparent */
-    NULL,			/* 0,16 DEC MCS to transparent */
-    NULL,			/* 0,17 NeXT to transparent */
-    NULL,			/* 0,18 CP437 to transparent */
-    NULL,			/* 0,19 CP850 to transparent */
-    NULL,			/* 0,20 CP852 to transparent */
-    NULL,			/* 0,21 Macintosh Latin to transparent */
-    NULL,			/* 0,22 DGI to transparent */
-    NULL,			/* 0,23 HP to transparent */
-    NULL,			/* 0,24 Latin/Cyrillic to transparent */
+    NULL,                       /* 0,0 us ascii to transparent */
+    NULL,                       /* 0,1 uk ascii to transparent */
+    NULL,                       /* 0,2 dutch nrc to transparent */
+    NULL,                       /* 0,3 finnish nrc to transparent */
+    NULL,                       /* 0,4 french nrc to transparent */
+    NULL,                       /* 0,5 fr-canadian nrc to transparent */
+    NULL,                       /* 0,6 german nrc to transparent */
+    NULL,                       /* 0,7 hungarian nrc to transparent */
+    NULL,                       /* 0,8 italian nrc to transparent */
+    NULL,                       /* 0,9 norge/danish nrc to transparent */
+    NULL,                       /* 0,10 portuguese nrc to transparent */
+    NULL,                       /* 0,11 spanish nrc to transparent */
+    NULL,                       /* 0,12 swedish nrc to transparent */
+    NULL,                       /* 0,13 swiss nrc to transparent */
+    NULL,                       /* 0,14 latin-1 to transparent */
+    NULL,                       /* 0,15 latin-2 to transparent */
+    NULL,                       /* 0,16 DEC MCS to transparent */
+    NULL,                       /* 0,17 NeXT to transparent */
+    NULL,                       /* 0,18 CP437 to transparent */
+    NULL,                       /* 0,19 CP850 to transparent */
+    NULL,                       /* 0,20 CP852 to transparent */
+    NULL,                       /* 0,21 Macintosh Latin to transparent */
+    NULL,                       /* 0,22 DGI to transparent */
+    NULL,                       /* 0,23 HP to transparent */
+    NULL,                       /* 0,24 Latin/Cyrillic to transparent */
     NULL,                       /* 0,25 CP866 to transparent */
     NULL,                       /* 0,26 Short KOI to transparent */
     NULL,                       /* 0,27 Old KOI-8 to transparent */
-    NULL,			/* 0,28 JIS-7 to transparent */
-    NULL,			/* 0,29 Shift JIS to transparent */
-    NULL,			/* 0,30 Japanese EUC to transparent */
-    NULL,			/* 0,31 DEC Kanji to transparent */
-    NULL,			/* 0,32 Hebrew-7 to transparent */
-    NULL,			/* 0,33 Latin/Hebrew to transparent */
-    NULL,			/* 0,34 CP862 Hebrew to transparent */
-    NULL,			/* 0,35 ELOT 927 Greek to transparent */
-    NULL,			/* 0,36 Latin/Greek to transparent */
-    NULL,			/* 0,37 CP869 to transparent */
-    NULL,			/* 0,38 Latin-9 to transparent */
-    NULL,			/* 0,39 CP858 to transparent */
-    NULL,			/* 0,40 CP855 to transparent */
-    NULL,			/* 0,41 CP1251 to transparent */
-    NULL,			/* 0,42 Bulgarian to transparent */
-    NULL,			/* 0,43 CP1250 to transparent */
-    NULL,			/* 0,44 Mazovia to transparent */
-    NULL,			/* 0,45 UCS-2 to transparent */
-    NULL,			/* 0,46 UTF-8 to transparent */
-    NULL,			/* 0,47 KOI8R to transparent */
-    NULL,			/* 0,48 KOI8U to transparent */
-    NULL,			/* 0,49 CP1252 to transparent */
-    NULL,			/* 1,0 us ascii to ascii */
-    NULL,			/* 1,1 uk ascii to ascii */
-    xduas,			/* 1,2 dutch nrc to ascii */
-    xfias,			/* 1,3 finnish nrc to ascii */
-    xfras,			/* 1,4 french nrc to ascii */
-    xfcas,			/* 1,5 french canadian nrc to ascii */
-    xgeas,			/* 1,6 german nrc to ascii */
-    xhuas,			/* 1,7 hungarian nrc to ascii */
-    xitas,			/* 1,8 italian nrc to ascii */
-    xnoas,			/* 1,9 norwegian/danish nrc to ascii */
-    xpoas,			/* 1,10 portuguese nrc to ascii */
-    xspas,			/* 1,11 spanish nrc to ascii */
-    xswas,			/* 1,12 swedish nrc to ascii */
-    xchas,			/* 1,13 swiss nrc to ascii */
-    xl1as,			/* 1,14 latin-1 to ascii */
-    xl2as,			/* 1,15 latin-2 to ascii */
-    xdmas,			/* 1,16 dec mcs to ascii */
-    xneas,			/* 1,17 NeXT to ascii */
-    x43as,			/* 1,18 CP437 to ascii */
-    x85as,			/* 1,19 CP850 to ascii */
-    x52as,			/* 1,20 CP850 to ascii */
-    xaqas,			/* 1,21 Macintosh Latin to ascii */
-    xdgas,			/* 1,22 DGI to ascii */
-    xr8as,			/* 1,23 HP to ASCII */
-    xlcas,			/* 1,24 Latin/Cyrillic to ASCII */
+    NULL,                       /* 0,28 JIS-7 to transparent */
+    NULL,                       /* 0,29 Shift JIS to transparent */
+    NULL,                       /* 0,30 Japanese EUC to transparent */
+    NULL,                       /* 0,31 DEC Kanji to transparent */
+    NULL,                       /* 0,32 Hebrew-7 to transparent */
+    NULL,                       /* 0,33 Latin/Hebrew to transparent */
+    NULL,                       /* 0,34 CP862 Hebrew to transparent */
+    NULL,                       /* 0,35 ELOT 927 Greek to transparent */
+    NULL,                       /* 0,36 Latin/Greek to transparent */
+    NULL,                       /* 0,37 CP869 to transparent */
+    NULL,                       /* 0,38 Latin-9 to transparent */
+    NULL,                       /* 0,39 CP858 to transparent */
+    NULL,                       /* 0,40 CP855 to transparent */
+    NULL,                       /* 0,41 CP1251 to transparent */
+    NULL,                       /* 0,42 Bulgarian to transparent */
+    NULL,                       /* 0,43 CP1250 to transparent */
+    NULL,                       /* 0,44 Mazovia to transparent */
+    NULL,                       /* 0,45 UCS-2 to transparent */
+    NULL,                       /* 0,46 UTF-8 to transparent */
+    NULL,                       /* 0,47 KOI8R to transparent */
+    NULL,                       /* 0,48 KOI8U to transparent */
+    NULL,                       /* 0,49 CP1252 to transparent */
+    NULL,                       /* 1,0 us ascii to ascii */
+    NULL,                       /* 1,1 uk ascii to ascii */
+    xduas,                      /* 1,2 dutch nrc to ascii */
+    xfias,                      /* 1,3 finnish nrc to ascii */
+    xfras,                      /* 1,4 french nrc to ascii */
+    xfcas,                      /* 1,5 french canadian nrc to ascii */
+    xgeas,                      /* 1,6 german nrc to ascii */
+    xhuas,                      /* 1,7 hungarian nrc to ascii */
+    xitas,                      /* 1,8 italian nrc to ascii */
+    xnoas,                      /* 1,9 norwegian/danish nrc to ascii */
+    xpoas,                      /* 1,10 portuguese nrc to ascii */
+    xspas,                      /* 1,11 spanish nrc to ascii */
+    xswas,                      /* 1,12 swedish nrc to ascii */
+    xchas,                      /* 1,13 swiss nrc to ascii */
+    xl1as,                      /* 1,14 latin-1 to ascii */
+    xl2as,                      /* 1,15 latin-2 to ascii */
+    xdmas,                      /* 1,16 dec mcs to ascii */
+    xneas,                      /* 1,17 NeXT to ascii */
+    x43as,                      /* 1,18 CP437 to ascii */
+    x85as,                      /* 1,19 CP850 to ascii */
+    x52as,                      /* 1,20 CP850 to ascii */
+    xaqas,                      /* 1,21 Macintosh Latin to ascii */
+    xdgas,                      /* 1,22 DGI to ascii */
+    xr8as,                      /* 1,23 HP to ASCII */
+    xlcas,                      /* 1,24 Latin/Cyrillic to ASCII */
     xacas,                      /* 1,25 CP866 to ASCII */
-    xskas,			/* 1,26 Short KOI to ASCII */
+    xskas,                      /* 1,26 Short KOI to ASCII */
     xk8as,                      /* 1,27 Old KOI-8 Cyrillic to ASCII */
-    NULL,			/* 1,28 */
-    NULL,			/* 1,29 */
-    NULL,			/* 1,30 */
-    NULL,			/* 1,31 */
-    xh7as,			/* 1,32 Hebrew-7 to ASCII */
-    xlhas,			/* 1,33 Latin/Hebrew to ASCII */
-    x62as,			/* 1,34 CP862 Hebrew to ASCII */
-    xegas,			/* 1,35 ELOT 927 Greek to ASCII */
-    xlgas,			/* 1,36 Latin/Greek to ASCII */
-    x69as,			/* 1,37 CP869 to ASCII */
-    xl9as,			/* 1,38 Latin-9 to ASCII */
-    x58as,			/* 1,39 CP858 to ASCII */
-    x55as,			/* 1,40 CP855 to ASCII */
-    x1251as,			/* 1,41 CP1251 to ASCII */
-    xleft128,			/* 1,42 Bulgarian to ASCII */
-    x1250as,			/* 1,43 CP1250 to ASCII */
-    xmzas,			/* 1,44 Mazovia to ASCII */
-    NULL,			/* 1,45 UCS-2 to ASCII */
-    NULL,			/* 1,46 UTF-8 to ASCII */
-    xk8as,			/* 1,47 KOI8R to ASCII */
-    xk8as,			/* 1,48 KOI8U to ASCII */
-    xw1as,			/* 1,49 CP1252 to ASCII */
-    NULL,			/* 2,0 us ascii to latin-1 */
-    xukl1,			/* 2,1 uk ascii to latin-1 */
-    xdul1,			/* 2,2 dutch nrc to latin-1 */
-    xfil1,			/* 2,3 finnish nrc to latin-1 */
-    xfrl1,			/* 2,4 french nrc to latin-1 */
-    xfcl1,			/* 2,5 french canadian nrc to latin-1 */
-    xgel1,			/* 2,6 german nrc to latin-1 */
-    xhul1,			/* 2,7 hungarian nrc to latin-1 */
-    xitl1,			/* 2,8 italian nrc to latin-1 */
-    xnol1,			/* 2,9 norwegian/danish nrc to latin-1 */
-    xpol1,			/* 2,10 portuguese nrc to latin-1 */
-    xspl1,			/* 2,11 spanish nrc to latin-1 */
-    xswl1,			/* 2,12 swedish nrc to latin-1 */
-    xchl1,			/* 2,13 swiss nrc to latin-1 */
-    NULL,			/* 2,14 latin-1 to latin-1 */
-    xl2l1,			/* 2,15 latin-2 to latin-1 */
-    xdml1,			/* 2,16 dec mcs to latin-1 */
+    NULL,                       /* 1,28 */
+    NULL,                       /* 1,29 */
+    NULL,                       /* 1,30 */
+    NULL,                       /* 1,31 */
+    xh7as,                      /* 1,32 Hebrew-7 to ASCII */
+    xlhas,                      /* 1,33 Latin/Hebrew to ASCII */
+    x62as,                      /* 1,34 CP862 Hebrew to ASCII */
+    xegas,                      /* 1,35 ELOT 927 Greek to ASCII */
+    xlgas,                      /* 1,36 Latin/Greek to ASCII */
+    x69as,                      /* 1,37 CP869 to ASCII */
+    xl9as,                      /* 1,38 Latin-9 to ASCII */
+    x58as,                      /* 1,39 CP858 to ASCII */
+    x55as,                      /* 1,40 CP855 to ASCII */
+    x1251as,                    /* 1,41 CP1251 to ASCII */
+    xleft128,                   /* 1,42 Bulgarian to ASCII */
+    x1250as,                    /* 1,43 CP1250 to ASCII */
+    xmzas,                      /* 1,44 Mazovia to ASCII */
+    NULL,                       /* 1,45 UCS-2 to ASCII */
+    NULL,                       /* 1,46 UTF-8 to ASCII */
+    xk8as,                      /* 1,47 KOI8R to ASCII */
+    xk8as,                      /* 1,48 KOI8U to ASCII */
+    xw1as,                      /* 1,49 CP1252 to ASCII */
+    NULL,                       /* 2,0 us ascii to latin-1 */
+    xukl1,                      /* 2,1 uk ascii to latin-1 */
+    xdul1,                      /* 2,2 dutch nrc to latin-1 */
+    xfil1,                      /* 2,3 finnish nrc to latin-1 */
+    xfrl1,                      /* 2,4 french nrc to latin-1 */
+    xfcl1,                      /* 2,5 french canadian nrc to latin-1 */
+    xgel1,                      /* 2,6 german nrc to latin-1 */
+    xhul1,                      /* 2,7 hungarian nrc to latin-1 */
+    xitl1,                      /* 2,8 italian nrc to latin-1 */
+    xnol1,                      /* 2,9 norwegian/danish nrc to latin-1 */
+    xpol1,                      /* 2,10 portuguese nrc to latin-1 */
+    xspl1,                      /* 2,11 spanish nrc to latin-1 */
+    xswl1,                      /* 2,12 swedish nrc to latin-1 */
+    xchl1,                      /* 2,13 swiss nrc to latin-1 */
+    NULL,                       /* 2,14 latin-1 to latin-1 */
+    xl2l1,                      /* 2,15 latin-2 to latin-1 */
+    xdml1,                      /* 2,16 dec mcs to latin-1 */
     xnel1,                      /* 2,17 NeXT to Latin-1 */
     x43l1,                      /* 2,18 CP437 to Latin-1 */
     x85l1,                      /* 2,19 CP850 to Latin-1 */
@@ -6796,45 +6800,45 @@ CHAR (*xls[MAXTCSETS+1][MAXFCSETS+1])() =
     xacas,                      /* 2,25 CP866 to Latin-1 */
     xskas,                      /* 2,26 Short KOI to Latin-1 */
     xk8as,                      /* 2,27 Old KOI-8 Cyrillic to Latin-1 */
-    NULL,			/* 2,28 Kanji ... */
-    NULL,			/* 2,29 */
-    NULL,			/* 2,30 */
-    NULL,			/* 2,31 */
-    xh7as,			/* 2,32 Hebrew-7 to Latin-1 */
-    xlhl1,			/* 2,33 Latin/Hebrew to Latin-1 */
-    x62l1,			/* 2,34 CP862 Hebrew to Latin-1 */
-    xegas,			/* 2,35 ELOT 927 Greek to Latin-1 */
-    xlgl1,			/* 2,36 Latin/Greek to Latin-1 */
-    NULL,			/* 2,37 CP869 to Latin-1 */
-    NULL,			/* 2,38 Latin-9 to Latin-1 */
-    x58l1,			/* 2,39 CP858 to Latin-1 */
-    x55as,			/* 2,40 CP855 to Latin-1 */
-    x1251as,			/* 2,41 CP1251 to Latin-1 */
-    xleft128,			/* 2,42 Bulgarian to Latin-1 */
-    x1250l1,			/* 2,43 CP1250 to Latin-1 */
-    xmzl1,			/* 2,44 Mazovia to Latin-1 */
-    NULL,			/* 2,45 UCS-2 to Latin-1 */
-    NULL,			/* 2,46 UTF-8 to Latin-1 */
-    xk8as,			/* 2,47 KOI8R to Latin-1 */
-    xk8as,			/* 2,48 KOI8U to Latin-1 */
-    xw1l1,			/* 2,49 CP1252 to Latin-1 */
-    NULL,			/* 3,0 us ascii to latin-2 */
-    NULL,			/* 3,1 uk ascii to latin-2 */
-    xduas,			/* 3,2 dutch nrc to latin-2 */
-    xfias,			/* 3,3 finnish nrc to latin-2 */
-    xfras,			/* 3,4 french nrc to latin-2 */
-    xfcas,			/* 3,5 french canadian nrc to latin-2 */
-    xgel2,			/* 3,6 german nrc to latin-2 */
-    xhul2,			/* 3,7 hungarian nrc to latin-2 */
-    xitas,			/* 3,8 italian nrc to latin-2 */
-    xnoas,			/* 3,9 norwegian/danish nrc to latin-2 */
-    xpoas,			/* 3,10 portuguese nrc to latin-2 */
-    xspas,			/* 3,11 spanish nrc to latin-2 */
-    xswas,			/* 3,12 swedish nrc to latin-2 */
-    xchas,			/* 3,13 swiss nrc to latin-2 */
-    xl1l2,			/* 3,14 latin-1 to latin-2 */
-    NULL,			/* 3,15 latin-2 to latin-2 */
-    xl1l2,			/* 3,16 dec mcs to latin-2 */
+    NULL,                       /* 2,28 Kanji ... */
+    NULL,                       /* 2,29 */
+    NULL,                       /* 2,30 */
+    NULL,                       /* 2,31 */
+    xh7as,                      /* 2,32 Hebrew-7 to Latin-1 */
+    xlhl1,                      /* 2,33 Latin/Hebrew to Latin-1 */
+    x62l1,                      /* 2,34 CP862 Hebrew to Latin-1 */
+    xegas,                      /* 2,35 ELOT 927 Greek to Latin-1 */
+    xlgl1,                      /* 2,36 Latin/Greek to Latin-1 */
+    NULL,                       /* 2,37 CP869 to Latin-1 */
+    NULL,                       /* 2,38 Latin-9 to Latin-1 */
+    x58l1,                      /* 2,39 CP858 to Latin-1 */
+    x55as,                      /* 2,40 CP855 to Latin-1 */
+    x1251as,                    /* 2,41 CP1251 to Latin-1 */
+    xleft128,                   /* 2,42 Bulgarian to Latin-1 */
+    x1250l1,                    /* 2,43 CP1250 to Latin-1 */
+    xmzl1,                      /* 2,44 Mazovia to Latin-1 */
+    NULL,                       /* 2,45 UCS-2 to Latin-1 */
+    NULL,                       /* 2,46 UTF-8 to Latin-1 */
+    xk8as,                      /* 2,47 KOI8R to Latin-1 */
+    xk8as,                      /* 2,48 KOI8U to Latin-1 */
+    xw1l1,                      /* 2,49 CP1252 to Latin-1 */
+    NULL,                       /* 3,0 us ascii to latin-2 */
+    NULL,                       /* 3,1 uk ascii to latin-2 */
+    xduas,                      /* 3,2 dutch nrc to latin-2 */
+    xfias,                      /* 3,3 finnish nrc to latin-2 */
+    xfras,                      /* 3,4 french nrc to latin-2 */
+    xfcas,                      /* 3,5 french canadian nrc to latin-2 */
+    xgel2,                      /* 3,6 german nrc to latin-2 */
+    xhul2,                      /* 3,7 hungarian nrc to latin-2 */
+    xitas,                      /* 3,8 italian nrc to latin-2 */
+    xnoas,                      /* 3,9 norwegian/danish nrc to latin-2 */
+    xpoas,                      /* 3,10 portuguese nrc to latin-2 */
+    xspas,                      /* 3,11 spanish nrc to latin-2 */
+    xswas,                      /* 3,12 swedish nrc to latin-2 */
+    xchas,                      /* 3,13 swiss nrc to latin-2 */
+    xl1l2,                      /* 3,14 latin-1 to latin-2 */
+    NULL,                       /* 3,15 latin-2 to latin-2 */
+    xl1l2,                      /* 3,16 dec mcs to latin-2 */
     xnel2,                      /* 3,17 NeXT to Latin-2 */
     x43l2,                      /* 3,18 CP437 to Latin-2 */
     x85l2,                      /* 3,19 CP850 to Latin-2 */
@@ -6846,245 +6850,245 @@ CHAR (*xls[MAXTCSETS+1][MAXFCSETS+1])() =
     xacas,                      /* 3,25 CP866 to Latin-2 */
     xskas,                      /* 3,26 Short KOI to Latin-2 */
     xk8as,                      /* 3,27 Old KOI-8 Cyrillic to Latin-2 */
-    NULL,			/* 3,28 Kanji ... */
-    NULL,			/* 3,29 */
-    NULL,			/* 3,30 */
-    NULL,			/* 3,31 */
-    xh7as,			/* 3,32 Hebrew-7 to Latin-2 */
-    xlhas,			/* 3,33 Latin/Hebrew to Latin-2 */
-    x62as,			/* 3,34 CP862 Hebrew to Latin-2 */
-    xegas,			/* 3,35 ELOT 927 Greek to Latin-2 */
-    xl2lg,			/* 3,36 Latin/Greek to Latin-2 */
-    xleft128,			/* 3,37 CP869 to Latin-2 */
-    xl9l2,			/* 3,38 Latin-9 to Latin-2 */
-    x58l2,			/* 3,39 CP858 to Latin-2 */
-    x55as,			/* 3,40 CP855 to Latin-2 */
-    x1251as,			/* 3,41 CP1251 to Latin-2 */
-    xleft128,			/* 3,42 Bulgarian to Latin-2 */
-    x1250l2,			/* 3,43 CP1250 to Latin-2 */
-    xmzl2,			/* 3,44 Mazovia to Latin-2 */
-    NULL,			/* 3,45 UCS-2 to Latin-2 */
-    NULL,			/* 3,46 UTF-8 to Latin-2 */
-    xk8as,			/* 3,47 KOI8R to Latin-2 */
-    xk8as,			/* 3,48 KOI8U to Latin-2 */
-    xw1l2,			/* 3,49 CP1252 to latin-2 */
-    xaslc,			/* 4,0 us ascii to latin/cyrillic */
-    xaslc,			/* 4,1 uk ascii to latin/cyrillic */
-    xduas,			/* 4,2 dutch nrc to latin/cyrillic */
-    xfias,			/* 4,3 finnish nrc to latin/cyrillic */
-    xfras,			/* 4,4 french nrc to latin/cyrillic */
-    xfcas,			/* 4,5 french canadian nrc to latin/cyrillic */
-    xgeas,			/* 4,6 german nrc to latin/cyrillic */
-    xhuas,			/* 4,7 hungarian nrc to latin/cyrillic */
-    xitas,			/* 4,8 italian nrc to latin/cyrillic */
-    xnoas,			/* 4,9 norge/danish nrc to latin/cyrillic */
-    xpoas,			/* 4,10 portuguese nrc to latin/cyrillic */
-    xspas,			/* 4,11 spanish nrc to latin/cyrillic */
-    xswas,			/* 4,12 swedish nrc to latin/cyrillic */
-    xchas,			/* 4,13 swiss nrc to latin/cyrillic */
-    xl1as,			/* 4,14 latin-1 to latin/cyrillic */
-    xl2as,			/* 4,15 latin-2 to latin/cyrillic */
-    xdmas,			/* 4,16 dec mcs to latin/cyrillic */
-    xneas,			/* 4,17 NeXT to latin/cyrillic */
-    x43as,			/* 4,18 CP437 to latin/cyrillic */
-    x85as,			/* 4,19 CP850 to latin/cyrillic */
-    x52as,			/* 4,20 CP852 to latin/cyrillic */
-    xaqas,			/* 4,21 Macintosh Latin to latin/cyrillic */
-    xdgas,			/* 4,22 DGI to Latin/Cyrillic */
-    xr8as,			/* 4,23 HP to Latin/Cyrillic */
+    NULL,                       /* 3,28 Kanji ... */
+    NULL,                       /* 3,29 */
+    NULL,                       /* 3,30 */
+    NULL,                       /* 3,31 */
+    xh7as,                      /* 3,32 Hebrew-7 to Latin-2 */
+    xlhas,                      /* 3,33 Latin/Hebrew to Latin-2 */
+    x62as,                      /* 3,34 CP862 Hebrew to Latin-2 */
+    xegas,                      /* 3,35 ELOT 927 Greek to Latin-2 */
+    xl2lg,                      /* 3,36 Latin/Greek to Latin-2 */
+    xleft128,                   /* 3,37 CP869 to Latin-2 */
+    xl9l2,                      /* 3,38 Latin-9 to Latin-2 */
+    x58l2,                      /* 3,39 CP858 to Latin-2 */
+    x55as,                      /* 3,40 CP855 to Latin-2 */
+    x1251as,                    /* 3,41 CP1251 to Latin-2 */
+    xleft128,                   /* 3,42 Bulgarian to Latin-2 */
+    x1250l2,                    /* 3,43 CP1250 to Latin-2 */
+    xmzl2,                      /* 3,44 Mazovia to Latin-2 */
+    NULL,                       /* 3,45 UCS-2 to Latin-2 */
+    NULL,                       /* 3,46 UTF-8 to Latin-2 */
+    xk8as,                      /* 3,47 KOI8R to Latin-2 */
+    xk8as,                      /* 3,48 KOI8U to Latin-2 */
+    xw1l2,                      /* 3,49 CP1252 to latin-2 */
+    xaslc,                      /* 4,0 us ascii to latin/cyrillic */
+    xaslc,                      /* 4,1 uk ascii to latin/cyrillic */
+    xduas,                      /* 4,2 dutch nrc to latin/cyrillic */
+    xfias,                      /* 4,3 finnish nrc to latin/cyrillic */
+    xfras,                      /* 4,4 french nrc to latin/cyrillic */
+    xfcas,                      /* 4,5 french canadian nrc to latin/cyrillic */
+    xgeas,                      /* 4,6 german nrc to latin/cyrillic */
+    xhuas,                      /* 4,7 hungarian nrc to latin/cyrillic */
+    xitas,                      /* 4,8 italian nrc to latin/cyrillic */
+    xnoas,                      /* 4,9 norge/danish nrc to latin/cyrillic */
+    xpoas,                      /* 4,10 portuguese nrc to latin/cyrillic */
+    xspas,                      /* 4,11 spanish nrc to latin/cyrillic */
+    xswas,                      /* 4,12 swedish nrc to latin/cyrillic */
+    xchas,                      /* 4,13 swiss nrc to latin/cyrillic */
+    xl1as,                      /* 4,14 latin-1 to latin/cyrillic */
+    xl2as,                      /* 4,15 latin-2 to latin/cyrillic */
+    xdmas,                      /* 4,16 dec mcs to latin/cyrillic */
+    xneas,                      /* 4,17 NeXT to latin/cyrillic */
+    x43as,                      /* 4,18 CP437 to latin/cyrillic */
+    x85as,                      /* 4,19 CP850 to latin/cyrillic */
+    x52as,                      /* 4,20 CP852 to latin/cyrillic */
+    xaqas,                      /* 4,21 Macintosh Latin to latin/cyrillic */
+    xdgas,                      /* 4,22 DGI to Latin/Cyrillic */
+    xr8as,                      /* 4,23 HP to Latin/Cyrillic */
     NULL,                       /* 4,24 Latin/Cyrillic to Latin/Cyrillic */
     xaclc,                      /* 4,25 CP866 to Latin/Cyrillic */
     xskcy,                      /* 4,26 Short KOI to Latin/Cyrillic */
     xk8lc,                      /* 4,27 Old KOI-8 Cyrillic to Latin/Cyrillic */
-    NULL,			/* 4,28 Kanji... */
-    NULL,			/* 4,29 */
-    NULL,			/* 4,30 */
-    NULL,			/* 4,31 */
-    xh7as,			/* 4,32 Hebrew-7 to Latin/Cyrillic */
-    xlhas,			/* 4,33 Latin/Hebrew to Latin/Cyrillic */
-    x62as,			/* 4,34 CP862 Hebrew to Latin/Cyrillic */
-    xegas,			/* 4,35 ELOT 927 Greek to Latin/Cyrillic */
-    xleft160,			/* 4,36 Latin/Greek to Latin/Cyrillic */
-    xleft128,			/* 4,37 CP869 to Latin/Cyrillic */
-    xl1as,			/* 4,38 latin-9 to latin/cyrillic */
-    xleft128,			/* 4,39 CP858 to Latin/Cyrillic */
-    x55lc,			/* 4,40 CP855 to Latin/Cyrillic */
-    x1251lc,			/* 4,41 CP1251 to Latin/Cyrillic */
-    xbulc,			/* 4,42 Bulgarian to Latin/Cyrillic */
-    x1250as,			/* 4,43 CP1250 to Latin/Cyrillic */
-    xmzas,			/* 4,44 Mazovia to Latin/Cyrillic */
-    NULL,			/* 4,45 UCS-2 to Latin/Cyrillic */
-    NULL,			/* 4,46 UTF-8 to Latin/Cyrillic */
-    xkrlc,			/* 4,47 KOI8R to Latin/Cyrillic */
-    xkulc,			/* 4,48 KOI8U to Latin/Cyrillic */
-    xw1lc,			/* 4,49 CP1252 to Latin/Cyrillic */
-    NULL,			/* 5,00 */
-    NULL,			/* 5,01 */
-    NULL,			/* 5,02 */
-    NULL,			/* 5,03 */
-    NULL,			/* 5,04 */
-    NULL,			/* 5,05 */
-    NULL,			/* 5,06 */
-    NULL,			/* 4.07 */
-    NULL,			/* 5,08 */
-    NULL,			/* 5,09 */
-    NULL,			/* 5,10 */
-    NULL,			/* 5,11 */
-    NULL,			/* 5,12 */
-    NULL,			/* 5,13 */
-    NULL,			/* 5,14 */
-    NULL,			/* 5,15 */
-    NULL,			/* 5,16 */
-    NULL,			/* 5,17 */
-    NULL,			/* 5,18 */
-    NULL,			/* 5,19 */
-    NULL,			/* 5,20 */
-    NULL,			/* 5,21 */
-    NULL,			/* 5,22 */
-    NULL,			/* 5,23 */
-    NULL,			/* 5,24 */
-    NULL,			/* 5,25 */
-    NULL,			/* 5,26 */
-    NULL,			/* 5,27 */
-    NULL,			/* 5,28 */
-    NULL,			/* 5,29 */
-    NULL,			/* 5,30 */
-    NULL,			/* 5,31 */
-    NULL,			/* 5,32 */
-    NULL,			/* 5,33 */
-    NULL,			/* 5,34 */
-    NULL,			/* 5,35 */
-    NULL,			/* 5,36 */
-    NULL,			/* 5,37 */
-    NULL,			/* 5,38 */
-    NULL,			/* 5,39 */
-    NULL,			/* 5,40 */
-    NULL,			/* 5,41 */
-    NULL,			/* 5,42 */
-    NULL,			/* 5,43 */
-    NULL,			/* 5,44 */
-    NULL,			/* 5,45 */
-    NULL,			/* 5,46 */
-    NULL,			/* 5,47 */
-    NULL,			/* 5,48 */
-    NULL,			/* 5,49 */
-    NULL,			/* 6,0 us ascii to Latin/Hebrew */
-    NULL,			/* 6,1 uk ascii to Latin/Hebrew */
-    xduas,			/* 6,2 dutch nrc to Latin/Hebrew */
-    xfias,			/* 6,3 finnish nrc to Latin/Hebrew */
-    xfras,			/* 6,4 french nrc to Latin/Hebrew */
-    xfcas,			/* 6,5 french canadian nrc to Latin/Hebrew */
-    xgeas,			/* 6,6 german nrc to Latin/Hebrew */
-    xhuas,			/* 6,7 hungarian nrc to Latin/Hebrew */
-    xitas,			/* 6,8 italian nrc to Latin/Hebrew */
-    xnoas,			/* 6,9 norge/danish nrc to Latin/Hebrew */
-    xpoas,			/* 6,10 portuguese nrc to Latin/Hebrew */
-    xspas,			/* 6,11 spanish nrc to Latin/Hebrew */
-    xswas,			/* 6,12 swedish nrc to Latin/Hebrew */
-    xchas,			/* 6,13 swiss nrc to Latin/Hebrew */
-    xl1lh,			/* 6,14 latin-1 to Latin/Hebrew */
-    xl2as,			/* 6,15 latin-2 to Latin/Hebrew */
-    xdmas,			/* 6,16 dec mcs to Latin/Hebrew */
-    xneas,			/* 6,17 NeXT to Latin/Hebrew */
-    x43as,			/* 6,18 CP437 to Latin/Hebrew */
-    x85as,			/* 6,19 CP850 to Latin/Hebrew */
-    x52as,			/* 6,20 CP852 to Latin/Hebrew */
-    xaqas,			/* 6,21 Macintosh Latin to Latin/Hebrew */
-    xdgas,			/* 6,22 DGI to Latin/Hebrew */
-    xr8as,			/* 6,23 HP to Latin/Hebrew */
+    NULL,                       /* 4,28 Kanji... */
+    NULL,                       /* 4,29 */
+    NULL,                       /* 4,30 */
+    NULL,                       /* 4,31 */
+    xh7as,                      /* 4,32 Hebrew-7 to Latin/Cyrillic */
+    xlhas,                      /* 4,33 Latin/Hebrew to Latin/Cyrillic */
+    x62as,                      /* 4,34 CP862 Hebrew to Latin/Cyrillic */
+    xegas,                      /* 4,35 ELOT 927 Greek to Latin/Cyrillic */
+    xleft160,                   /* 4,36 Latin/Greek to Latin/Cyrillic */
+    xleft128,                   /* 4,37 CP869 to Latin/Cyrillic */
+    xl1as,                      /* 4,38 latin-9 to latin/cyrillic */
+    xleft128,                   /* 4,39 CP858 to Latin/Cyrillic */
+    x55lc,                      /* 4,40 CP855 to Latin/Cyrillic */
+    x1251lc,                    /* 4,41 CP1251 to Latin/Cyrillic */
+    xbulc,                      /* 4,42 Bulgarian to Latin/Cyrillic */
+    x1250as,                    /* 4,43 CP1250 to Latin/Cyrillic */
+    xmzas,                      /* 4,44 Mazovia to Latin/Cyrillic */
+    NULL,                       /* 4,45 UCS-2 to Latin/Cyrillic */
+    NULL,                       /* 4,46 UTF-8 to Latin/Cyrillic */
+    xkrlc,                      /* 4,47 KOI8R to Latin/Cyrillic */
+    xkulc,                      /* 4,48 KOI8U to Latin/Cyrillic */
+    xw1lc,                      /* 4,49 CP1252 to Latin/Cyrillic */
+    NULL,                       /* 5,00 */
+    NULL,                       /* 5,01 */
+    NULL,                       /* 5,02 */
+    NULL,                       /* 5,03 */
+    NULL,                       /* 5,04 */
+    NULL,                       /* 5,05 */
+    NULL,                       /* 5,06 */
+    NULL,                       /* 4.07 */
+    NULL,                       /* 5,08 */
+    NULL,                       /* 5,09 */
+    NULL,                       /* 5,10 */
+    NULL,                       /* 5,11 */
+    NULL,                       /* 5,12 */
+    NULL,                       /* 5,13 */
+    NULL,                       /* 5,14 */
+    NULL,                       /* 5,15 */
+    NULL,                       /* 5,16 */
+    NULL,                       /* 5,17 */
+    NULL,                       /* 5,18 */
+    NULL,                       /* 5,19 */
+    NULL,                       /* 5,20 */
+    NULL,                       /* 5,21 */
+    NULL,                       /* 5,22 */
+    NULL,                       /* 5,23 */
+    NULL,                       /* 5,24 */
+    NULL,                       /* 5,25 */
+    NULL,                       /* 5,26 */
+    NULL,                       /* 5,27 */
+    NULL,                       /* 5,28 */
+    NULL,                       /* 5,29 */
+    NULL,                       /* 5,30 */
+    NULL,                       /* 5,31 */
+    NULL,                       /* 5,32 */
+    NULL,                       /* 5,33 */
+    NULL,                       /* 5,34 */
+    NULL,                       /* 5,35 */
+    NULL,                       /* 5,36 */
+    NULL,                       /* 5,37 */
+    NULL,                       /* 5,38 */
+    NULL,                       /* 5,39 */
+    NULL,                       /* 5,40 */
+    NULL,                       /* 5,41 */
+    NULL,                       /* 5,42 */
+    NULL,                       /* 5,43 */
+    NULL,                       /* 5,44 */
+    NULL,                       /* 5,45 */
+    NULL,                       /* 5,46 */
+    NULL,                       /* 5,47 */
+    NULL,                       /* 5,48 */
+    NULL,                       /* 5,49 */
+    NULL,                       /* 6,0 us ascii to Latin/Hebrew */
+    NULL,                       /* 6,1 uk ascii to Latin/Hebrew */
+    xduas,                      /* 6,2 dutch nrc to Latin/Hebrew */
+    xfias,                      /* 6,3 finnish nrc to Latin/Hebrew */
+    xfras,                      /* 6,4 french nrc to Latin/Hebrew */
+    xfcas,                      /* 6,5 french canadian nrc to Latin/Hebrew */
+    xgeas,                      /* 6,6 german nrc to Latin/Hebrew */
+    xhuas,                      /* 6,7 hungarian nrc to Latin/Hebrew */
+    xitas,                      /* 6,8 italian nrc to Latin/Hebrew */
+    xnoas,                      /* 6,9 norge/danish nrc to Latin/Hebrew */
+    xpoas,                      /* 6,10 portuguese nrc to Latin/Hebrew */
+    xspas,                      /* 6,11 spanish nrc to Latin/Hebrew */
+    xswas,                      /* 6,12 swedish nrc to Latin/Hebrew */
+    xchas,                      /* 6,13 swiss nrc to Latin/Hebrew */
+    xl1lh,                      /* 6,14 latin-1 to Latin/Hebrew */
+    xl2as,                      /* 6,15 latin-2 to Latin/Hebrew */
+    xdmas,                      /* 6,16 dec mcs to Latin/Hebrew */
+    xneas,                      /* 6,17 NeXT to Latin/Hebrew */
+    x43as,                      /* 6,18 CP437 to Latin/Hebrew */
+    x85as,                      /* 6,19 CP850 to Latin/Hebrew */
+    x52as,                      /* 6,20 CP852 to Latin/Hebrew */
+    xaqas,                      /* 6,21 Macintosh Latin to Latin/Hebrew */
+    xdgas,                      /* 6,22 DGI to Latin/Hebrew */
+    xr8as,                      /* 6,23 HP to Latin/Hebrew */
     xlcas,                      /* 6,24 Latin/Cyrillic to Latin/Hebrew */
     xacas,                      /* 6,25 CP866 to Latin/Hebrew */
     xskas,                      /* 6,26 Short KOI to Latin/Hebrew */
     xk8as,                      /* 6,27 Old KOI-8 Cyrillic to Latin/Hebrew */
-    NULL,			/* 6,28 Kanji... */
-    NULL,			/* 6,29 */
-    NULL,			/* 6,30 */
-    NULL,			/* 6,31 */
-    xh7lh,			/* 6,32 Hebrew-7 to Latin/Hebrew */
-    NULL,			/* 6,33 Latin/Hebrew to Latin/Hebrew */
-    x62lh,			/* 6,34 CP862 Hebrew to Latin/Hebrew */
-    xegas,			/* 6,35 ELOT 927 Greek to Latin/Hebrew */
-    xlgas,			/* 6,36 Latin/Greek to Latin/Hebrew */
-    x69as,			/* 6,37 CP869 to Latin/Hebrew */
-    xl1as,			/* 6,38 latin-9 to Latin/Hebrew */
-    x58as,			/* 6,39 CP858 to Latin/Hebrew */
-    x55as,			/* 6,40 CP855 to Latin/Hebrew */
-    x1251as,			/* 6,41 CP1251 to Latin/Hebrew */
-    xleft128,			/* 6,42 Bulgarian to Latin/Hebrew */
-    x1250as,			/* 6,43 CP1250 to Latin/Hebrew */
-    xmzas,			/* 6,44 Mazovia to Latin/Hebrew */
-    NULL,			/* 6,45 UCS-2 to Latin/Hebrew */
-    NULL,			/* 6,46 UTF-8 to Latin/Hebrew */
-    NULL,			/* 6,47 KOI8R to Latin/Hebrew */
-    NULL,			/* 6,48 KOI8U to Latin/Hebrew */
-    xw1lh,			/* 6,49 CP1252 to Latin/Hebrew */
-    NULL,			/* 7,0 us ascii to Latin/Greek */
-    NULL,			/* 7,1 uk ascii to Latin/Greek */
-    xduas,			/* 7,2 dutch nrc to Latin/Greek */
-    xfias,			/* 7,3 finnish nrc to Latin/Greek */
-    xfras,			/* 7,4 french nrc to Latin/Greek */
-    xfcas,			/* 7,5 french canadian nrc to Latin/Greek */
-    xgeas,			/* 7,6 german nrc to Latin/Greek */
-    xhuas,			/* 7,7 hungarian nrc to Latin/Greek */
-    xitas,			/* 7,8 italian nrc to Latin/Greek */
-    xnoas,			/* 7,9 norge/danish nrc to Latin/Greek */
-    xpoas,			/* 7,10 portuguese nrc to Latin/Greek */
-    xspas,			/* 7,11 spanish nrc to Latin/Greek */
-    xswas,			/* 7,12 swedish nrc to Latin/Greek */
-    xchas,			/* 7,13 swiss nrc to Latin/Greek */
-    xl1lg,			/* 7,14 latin-1 to Latin/Greek */
-    xl2lg,			/* 7,15 latin-2 to Latin/Greek */
-    xl1lg,			/* 7,16 dec mcs to Latin/Greek */
-    xneas,			/* 7,17 NeXT to Latin/Greek */
-    xleft128,			/* 7,18 CP437 to Latin/Greek */
-    x85as,			/* 7,19 CP850 to Latin/Greek */
-    x52as,			/* 7,20 CP852 to Latin/Greek */
-    xaqas,			/* 7,21 Macintosh Latin to Latin/Greek */
-    xdgas,			/* 7,22 DGI to Latin/Greek */
-    xr8as,			/* 7,23 HP to Latin/Greek */
+    NULL,                       /* 6,28 Kanji... */
+    NULL,                       /* 6,29 */
+    NULL,                       /* 6,30 */
+    NULL,                       /* 6,31 */
+    xh7lh,                      /* 6,32 Hebrew-7 to Latin/Hebrew */
+    NULL,                       /* 6,33 Latin/Hebrew to Latin/Hebrew */
+    x62lh,                      /* 6,34 CP862 Hebrew to Latin/Hebrew */
+    xegas,                      /* 6,35 ELOT 927 Greek to Latin/Hebrew */
+    xlgas,                      /* 6,36 Latin/Greek to Latin/Hebrew */
+    x69as,                      /* 6,37 CP869 to Latin/Hebrew */
+    xl1as,                      /* 6,38 latin-9 to Latin/Hebrew */
+    x58as,                      /* 6,39 CP858 to Latin/Hebrew */
+    x55as,                      /* 6,40 CP855 to Latin/Hebrew */
+    x1251as,                    /* 6,41 CP1251 to Latin/Hebrew */
+    xleft128,                   /* 6,42 Bulgarian to Latin/Hebrew */
+    x1250as,                    /* 6,43 CP1250 to Latin/Hebrew */
+    xmzas,                      /* 6,44 Mazovia to Latin/Hebrew */
+    NULL,                       /* 6,45 UCS-2 to Latin/Hebrew */
+    NULL,                       /* 6,46 UTF-8 to Latin/Hebrew */
+    NULL,                       /* 6,47 KOI8R to Latin/Hebrew */
+    NULL,                       /* 6,48 KOI8U to Latin/Hebrew */
+    xw1lh,                      /* 6,49 CP1252 to Latin/Hebrew */
+    NULL,                       /* 7,0 us ascii to Latin/Greek */
+    NULL,                       /* 7,1 uk ascii to Latin/Greek */
+    xduas,                      /* 7,2 dutch nrc to Latin/Greek */
+    xfias,                      /* 7,3 finnish nrc to Latin/Greek */
+    xfras,                      /* 7,4 french nrc to Latin/Greek */
+    xfcas,                      /* 7,5 french canadian nrc to Latin/Greek */
+    xgeas,                      /* 7,6 german nrc to Latin/Greek */
+    xhuas,                      /* 7,7 hungarian nrc to Latin/Greek */
+    xitas,                      /* 7,8 italian nrc to Latin/Greek */
+    xnoas,                      /* 7,9 norge/danish nrc to Latin/Greek */
+    xpoas,                      /* 7,10 portuguese nrc to Latin/Greek */
+    xspas,                      /* 7,11 spanish nrc to Latin/Greek */
+    xswas,                      /* 7,12 swedish nrc to Latin/Greek */
+    xchas,                      /* 7,13 swiss nrc to Latin/Greek */
+    xl1lg,                      /* 7,14 latin-1 to Latin/Greek */
+    xl2lg,                      /* 7,15 latin-2 to Latin/Greek */
+    xl1lg,                      /* 7,16 dec mcs to Latin/Greek */
+    xneas,                      /* 7,17 NeXT to Latin/Greek */
+    xleft128,                   /* 7,18 CP437 to Latin/Greek */
+    x85as,                      /* 7,19 CP850 to Latin/Greek */
+    x52as,                      /* 7,20 CP852 to Latin/Greek */
+    xaqas,                      /* 7,21 Macintosh Latin to Latin/Greek */
+    xdgas,                      /* 7,22 DGI to Latin/Greek */
+    xr8as,                      /* 7,23 HP to Latin/Greek */
     xleft160,                   /* 7,24 Latin/Cyrillic to Latin/Greek */
     xleft128,                   /* 7,25 CP866 to Latin/Greek */
     xskas,                      /* 7,26 Short KOI to Latin/Greek */
     xk8as,                      /* 7,27 Old KOI-8 Cyrillic to Latin/Greek */
-    NULL,			/* 7,28 Kanji... */
-    NULL,			/* 7,29 */
-    NULL,			/* 7,30 */
-    NULL,			/* 7,31 */
-    xh7as,			/* 7,32 Hebrew-7 to Latin/Greek */
-    NULL,			/* 7,33 Latin/Hebrew to Latin/Greek */
-    x62as,			/* 7,34 CP862 Hebrew to Latin/Greek */
-    xeglg,			/* 7,35 ELOT 927 Greek to Latin/Greek */
-    NULL,			/* 7,36 Latin/Greek to Latin/Greek */
-    x69lg,			/* 7,37 CP869 to Latin/Greek */
-    xl1as,			/* 7,38 latin-9 to Latin/Greek */
-    xl1as,			/* 7,39 latin-9 to Latin/Hebrew*/
-    xleft128,			/* 7,40 CP855 to Latin/Greek */
-    xleft128,			/* 7,41 CP1251 to Latin/Greek */
-    xleft128,			/* 7,42 Bulgarian to Latin/Greek */
-    x1250as,			/* 7,43 CP1250 to Latin/Greek */
-    xmzas,			/* 7,44 Mazovia to Latin/Greek */
-    NULL,			/* 7,45 UCS-2 to Latin/Greek */
-    NULL,			/* 7,46 UTF-8 to Latin/Greek */
-    NULL,			/* 7,47 KOI8R to Latin/Greek */
-    NULL,			/* 7,48 KOI8U to Latin/Greek */
-    xw1lg,			/* 7,49 CP1252 to Latin/Greek */
-    NULL,			/* 8,0 us ascii to latin-9 */
-    xukl1,			/* 8,1 uk ascii to latin-9 */
-    xdul1,			/* 8,2 dutch nrc to latin-9 */
-    xfil1,			/* 8,3 finnish nrc to latin-9 */
-    xfrl1,			/* 8,4 french nrc to latin-9 */
-    xfcl1,			/* 8,5 french canadian nrc to latin-9 */
-    xgel1,			/* 8,6 german nrc to latin-9 */
-    xhul1,			/* 8,7 hungarian nrc to latin-9 */
-    xitl1,			/* 8,8 italian nrc to latin-9 */
-    xnol1,			/* 8,9 norwegian/danish nrc to latin-9 */
-    xpol1,			/* 8,10 portuguese nrc to latin-9 */
-    xspl1,			/* 8,11 spanish nrc to latin-9 */
-    xswl1,			/* 8,12 swedish nrc to latin-9 */
-    xchl1,			/* 8,13 swiss nrc to latin-9 */
-    NULL,			/* 8,14 latin-1 to latin-9 */
-    xl2l9,			/* 8,15 latin-2 to latin-9 */
-    xdml9,			/* 8,16 dec mcs to latin-9 */
+    NULL,                       /* 7,28 Kanji... */
+    NULL,                       /* 7,29 */
+    NULL,                       /* 7,30 */
+    NULL,                       /* 7,31 */
+    xh7as,                      /* 7,32 Hebrew-7 to Latin/Greek */
+    NULL,                       /* 7,33 Latin/Hebrew to Latin/Greek */
+    x62as,                      /* 7,34 CP862 Hebrew to Latin/Greek */
+    xeglg,                      /* 7,35 ELOT 927 Greek to Latin/Greek */
+    NULL,                       /* 7,36 Latin/Greek to Latin/Greek */
+    x69lg,                      /* 7,37 CP869 to Latin/Greek */
+    xl1as,                      /* 7,38 latin-9 to Latin/Greek */
+    xl1as,                      /* 7,39 latin-9 to Latin/Hebrew*/
+    xleft128,                   /* 7,40 CP855 to Latin/Greek */
+    xleft128,                   /* 7,41 CP1251 to Latin/Greek */
+    xleft128,                   /* 7,42 Bulgarian to Latin/Greek */
+    x1250as,                    /* 7,43 CP1250 to Latin/Greek */
+    xmzas,                      /* 7,44 Mazovia to Latin/Greek */
+    NULL,                       /* 7,45 UCS-2 to Latin/Greek */
+    NULL,                       /* 7,46 UTF-8 to Latin/Greek */
+    NULL,                       /* 7,47 KOI8R to Latin/Greek */
+    NULL,                       /* 7,48 KOI8U to Latin/Greek */
+    xw1lg,                      /* 7,49 CP1252 to Latin/Greek */
+    NULL,                       /* 8,0 us ascii to latin-9 */
+    xukl1,                      /* 8,1 uk ascii to latin-9 */
+    xdul1,                      /* 8,2 dutch nrc to latin-9 */
+    xfil1,                      /* 8,3 finnish nrc to latin-9 */
+    xfrl1,                      /* 8,4 french nrc to latin-9 */
+    xfcl1,                      /* 8,5 french canadian nrc to latin-9 */
+    xgel1,                      /* 8,6 german nrc to latin-9 */
+    xhul1,                      /* 8,7 hungarian nrc to latin-9 */
+    xitl1,                      /* 8,8 italian nrc to latin-9 */
+    xnol1,                      /* 8,9 norwegian/danish nrc to latin-9 */
+    xpol1,                      /* 8,10 portuguese nrc to latin-9 */
+    xspl1,                      /* 8,11 spanish nrc to latin-9 */
+    xswl1,                      /* 8,12 swedish nrc to latin-9 */
+    xchl1,                      /* 8,13 swiss nrc to latin-9 */
+    NULL,                       /* 8,14 latin-1 to latin-9 */
+    xl2l9,                      /* 8,15 latin-2 to latin-9 */
+    xdml9,                      /* 8,16 dec mcs to latin-9 */
     xnel9,                      /* 8,17 NeXT To Latin-9 */
     x43l1,                      /* 8,18 CP437 To Latin-9 */
     x85l1,                      /* 8,19 CP850 To Latin-9 */
@@ -7096,128 +7100,128 @@ CHAR (*xls[MAXTCSETS+1][MAXFCSETS+1])() =
     xacas,                      /* 8,25 CP866 To Latin-9 */
     xskas,                      /* 8,26 Short KOI To Latin-9 */
     xk8as,                      /* 8,27 Old KOI-8 Cyrillic To Latin-9 */
-    NULL,			/* 8,28 Kanji ... */
-    NULL,			/* 8,29 */
-    NULL,			/* 8,30 */
-    NULL,			/* 8,31 */
-    xh7as,			/* 8,32 Hebrew-7 To Latin-9 */
-    xlhl1,			/* 8,33 Latin/Hebrew To Latin-9 */
-    x62l1,			/* 8,34 CP862 Hebrew To Latin-9 */
-    xegas,			/* 8,35 ELOT 927 Greek To Latin-9 */
-    xlgl1,			/* 8,36 Latin/Greek To Latin-9 */
-    xl169,			/* 8,37 CP869 To Latin-9 */
-    NULL,			/* 8,38 Latin-9 To Latin-9 */
-    x58l9,			/* 8,39 cp858 To Latin-9 */
-    x55as,			/* 8,40 cp855 To Latin-9 */
-    x55as,			/* 8,41 cp1251 To Latin-9 */
-    xleft128,			/* 8,42 Bulgarian To Latin-9 */
-    x1250l9,			/* 8,43 CP1250 To Latin-9 */
-    xmzl9,			/* 8,44 Mazovia To Latin-9 */
-    NULL,			/* 8,45 UCS-2 to Latin-9 */
-    NULL,			/* 8,46 UTF-8 to Latin-9 */
-    NULL,			/* 8,47 KOI8R to Latin-9 */
-    NULL,			/* 8,48 KOI8U to Latin-9 */
-    xw1l9,			/* 8,49 CP1252 to Latin-9 */
-    NULL,			/* 9,00 Unicode... */
-    NULL,			/* 9,01 */
-    NULL,			/* 9,02 */
-    NULL,			/* 9,03 */
-    NULL,			/* 9,04 */
-    NULL,			/* 9,05 */
-    NULL,			/* 9,06 */
-    NULL,			/* 9,07 */
-    NULL,			/* 9,08 */
-    NULL,			/* 9,09 */
-    NULL,			/* 9,10 */
-    NULL,			/* 9,11 */
-    NULL,			/* 9,12 */
-    NULL,			/* 9,13 */
-    NULL,			/* 9,14 */
-    NULL,			/* 9,15 */
-    NULL,			/* 9,16 */
-    NULL,			/* 9,17 */
-    NULL,			/* 9,18 */
-    NULL,			/* 9,19 */
-    NULL,			/* 9,20 */
-    NULL,			/* 9,21 */
-    NULL,			/* 9,22 */
-    NULL,			/* 9,23 */
-    NULL,			/* 9,24 */
-    NULL,			/* 9,25 */
-    NULL,			/* 9,26 */
-    NULL,			/* 9,27 */
-    NULL,			/* 9,28 */
-    NULL,			/* 9,29 */
-    NULL,			/* 9,30 */
-    NULL,			/* 9,31 */
-    NULL,			/* 9,32 */
-    NULL,			/* 9,33 */
-    NULL,			/* 9,34 */
-    NULL,			/* 9,35 */
-    NULL,			/* 9,36 */
-    NULL,			/* 9,37 */
-    NULL,			/* 9,38 */
-    NULL,			/* 9,39 */
-    NULL,			/* 9,40 */
-    NULL,			/* 9,41 */
-    NULL,			/* 9,42 */
-    NULL,			/* 9,43 */
-    NULL,			/* 9,44 */
-    NULL,			/* 9,45 */
-    NULL,			/* 9,46 */
-    NULL,			/* 9,47 */
-    NULL,			/* 9,48 */
-    NULL,			/* 9,49 */
-    NULL,			/* 10,00 */
-    NULL,			/* 10,01 */
-    NULL,			/* 10,02 */
-    NULL,			/* 10,03 */
-    NULL,			/* 10,04 */
-    NULL,			/* 10,05 */
-    NULL,			/* 10,06 */
-    NULL,			/* 10,07 */
-    NULL,			/* 10,08 */
-    NULL,			/* 10,09 */
-    NULL,			/* 10,10 */
-    NULL,			/* 10,11 */
-    NULL,			/* 10,12 */
-    NULL,			/* 10,13 */
-    NULL,			/* 10,14 */
-    NULL,			/* 10,15 */
-    NULL,			/* 10,16 */
-    NULL,			/* 10,17 */
-    NULL,			/* 10,18 */
-    NULL,			/* 10,19 */
-    NULL,			/* 10,20 */
-    NULL,			/* 10,21 */
-    NULL,			/* 10,22 */
-    NULL,			/* 10,23 */
-    NULL,			/* 10,24 */
-    NULL,			/* 10,25 */
-    NULL,			/* 10,26 */
-    NULL,			/* 10,27 */
-    NULL,			/* 10,28 */
-    NULL,			/* 10,29 */
-    NULL,			/* 10,30 */
-    NULL,			/* 10,31 */
-    NULL,			/* 10,32 */
-    NULL,			/* 10,33 */
-    NULL,			/* 10,34 */
-    NULL,			/* 10,35 */
-    NULL,			/* 10,36 */
-    NULL,			/* 10,37 */
-    NULL,			/* 10,38 */
-    NULL,			/* 10,39 */
-    NULL,			/* 10,40 */
-    NULL,			/* 10,41 */
-    NULL,			/* 10,42 */
-    NULL,			/* 10,43 */
-    NULL,			/* 10,44 */
-    NULL,			/* 10,45 */
-    NULL,			/* 10,46 */
-    NULL,			/* 10,47 */
-    NULL,			/* 10,48 */
-    NULL			/* 10,49 */
+    NULL,                       /* 8,28 Kanji ... */
+    NULL,                       /* 8,29 */
+    NULL,                       /* 8,30 */
+    NULL,                       /* 8,31 */
+    xh7as,                      /* 8,32 Hebrew-7 To Latin-9 */
+    xlhl1,                      /* 8,33 Latin/Hebrew To Latin-9 */
+    x62l1,                      /* 8,34 CP862 Hebrew To Latin-9 */
+    xegas,                      /* 8,35 ELOT 927 Greek To Latin-9 */
+    xlgl1,                      /* 8,36 Latin/Greek To Latin-9 */
+    xl169,                      /* 8,37 CP869 To Latin-9 */
+    NULL,                       /* 8,38 Latin-9 To Latin-9 */
+    x58l9,                      /* 8,39 cp858 To Latin-9 */
+    x55as,                      /* 8,40 cp855 To Latin-9 */
+    x55as,                      /* 8,41 cp1251 To Latin-9 */
+    xleft128,                   /* 8,42 Bulgarian To Latin-9 */
+    x1250l9,                    /* 8,43 CP1250 To Latin-9 */
+    xmzl9,                      /* 8,44 Mazovia To Latin-9 */
+    NULL,                       /* 8,45 UCS-2 to Latin-9 */
+    NULL,                       /* 8,46 UTF-8 to Latin-9 */
+    NULL,                       /* 8,47 KOI8R to Latin-9 */
+    NULL,                       /* 8,48 KOI8U to Latin-9 */
+    xw1l9,                      /* 8,49 CP1252 to Latin-9 */
+    NULL,                       /* 9,00 Unicode... */
+    NULL,                       /* 9,01 */
+    NULL,                       /* 9,02 */
+    NULL,                       /* 9,03 */
+    NULL,                       /* 9,04 */
+    NULL,                       /* 9,05 */
+    NULL,                       /* 9,06 */
+    NULL,                       /* 9,07 */
+    NULL,                       /* 9,08 */
+    NULL,                       /* 9,09 */
+    NULL,                       /* 9,10 */
+    NULL,                       /* 9,11 */
+    NULL,                       /* 9,12 */
+    NULL,                       /* 9,13 */
+    NULL,                       /* 9,14 */
+    NULL,                       /* 9,15 */
+    NULL,                       /* 9,16 */
+    NULL,                       /* 9,17 */
+    NULL,                       /* 9,18 */
+    NULL,                       /* 9,19 */
+    NULL,                       /* 9,20 */
+    NULL,                       /* 9,21 */
+    NULL,                       /* 9,22 */
+    NULL,                       /* 9,23 */
+    NULL,                       /* 9,24 */
+    NULL,                       /* 9,25 */
+    NULL,                       /* 9,26 */
+    NULL,                       /* 9,27 */
+    NULL,                       /* 9,28 */
+    NULL,                       /* 9,29 */
+    NULL,                       /* 9,30 */
+    NULL,                       /* 9,31 */
+    NULL,                       /* 9,32 */
+    NULL,                       /* 9,33 */
+    NULL,                       /* 9,34 */
+    NULL,                       /* 9,35 */
+    NULL,                       /* 9,36 */
+    NULL,                       /* 9,37 */
+    NULL,                       /* 9,38 */
+    NULL,                       /* 9,39 */
+    NULL,                       /* 9,40 */
+    NULL,                       /* 9,41 */
+    NULL,                       /* 9,42 */
+    NULL,                       /* 9,43 */
+    NULL,                       /* 9,44 */
+    NULL,                       /* 9,45 */
+    NULL,                       /* 9,46 */
+    NULL,                       /* 9,47 */
+    NULL,                       /* 9,48 */
+    NULL,                       /* 9,49 */
+    NULL,                       /* 10,00 */
+    NULL,                       /* 10,01 */
+    NULL,                       /* 10,02 */
+    NULL,                       /* 10,03 */
+    NULL,                       /* 10,04 */
+    NULL,                       /* 10,05 */
+    NULL,                       /* 10,06 */
+    NULL,                       /* 10,07 */
+    NULL,                       /* 10,08 */
+    NULL,                       /* 10,09 */
+    NULL,                       /* 10,10 */
+    NULL,                       /* 10,11 */
+    NULL,                       /* 10,12 */
+    NULL,                       /* 10,13 */
+    NULL,                       /* 10,14 */
+    NULL,                       /* 10,15 */
+    NULL,                       /* 10,16 */
+    NULL,                       /* 10,17 */
+    NULL,                       /* 10,18 */
+    NULL,                       /* 10,19 */
+    NULL,                       /* 10,20 */
+    NULL,                       /* 10,21 */
+    NULL,                       /* 10,22 */
+    NULL,                       /* 10,23 */
+    NULL,                       /* 10,24 */
+    NULL,                       /* 10,25 */
+    NULL,                       /* 10,26 */
+    NULL,                       /* 10,27 */
+    NULL,                       /* 10,28 */
+    NULL,                       /* 10,29 */
+    NULL,                       /* 10,30 */
+    NULL,                       /* 10,31 */
+    NULL,                       /* 10,32 */
+    NULL,                       /* 10,33 */
+    NULL,                       /* 10,34 */
+    NULL,                       /* 10,35 */
+    NULL,                       /* 10,36 */
+    NULL,                       /* 10,37 */
+    NULL,                       /* 10,38 */
+    NULL,                       /* 10,39 */
+    NULL,                       /* 10,40 */
+    NULL,                       /* 10,41 */
+    NULL,                       /* 10,42 */
+    NULL,                       /* 10,43 */
+    NULL,                       /* 10,44 */
+    NULL,                       /* 10,45 */
+    NULL,                       /* 10,46 */
+    NULL,                       /* 10,47 */
+    NULL,                       /* 10,48 */
+    NULL                        /* 10,49 */
 };
 int nxls = (sizeof(xls) / sizeof(CHAR *));
 
@@ -7268,26 +7272,26 @@ cs_is_std(x) int x;
 #endif /* CK_ANSIC */
 {
 #ifdef UNICODE
-    if (!txrinfo[x])			/* Even more safety */
+    if (!txrinfo[x])                    /* Even more safety */
       return(0);
-    else if (txrinfo[x]->size == 128)	/* Just for safety */
+    else if (txrinfo[x]->size == 128)   /* Just for safety */
       return(0);
     else
       return(txrinfo[x]->flags & X2U_STD); /* Only this should be needed */
 #else
     switch (x) {
-      case FC_CP437:			/* Code pages use C1 graphics */
+      case FC_CP437:                    /* Code pages use C1 graphics */
       case FC_CP850:
       case FC_CP852:
       case FC_CP862:
       case FC_CP866:
       case FC_CP869:
       case FC_CP858:
-      case FC_APPQD:			/* So do Apple and NeXTSTEP */
+      case FC_APPQD:                    /* So do Apple and NeXTSTEP */
       case FC_NEXT:
-	return(0);
-      default:				/* Others behave */
-	return(1);
+        return(0);
+      default:                          /* Others behave */
+        return(1);
     }
 #endif /* CKOUINI */
 }
@@ -7322,7 +7326,7 @@ cs_size(x) int x;
       case FC_KOI7:
       case FC_HE7:
       case FC_ELOT:
-	return(94);
+        return(94);
 
       case FC_1LATIN:
       case FC_2LATIN:
@@ -7334,7 +7338,7 @@ cs_size(x) int x;
       case FC_HEBREW:
       case FC_GREEK:
       case FC_9LATIN:
-	return(96);
+        return(96);
 
       case FC_NEXT:
       case FC_CP437:
@@ -7345,19 +7349,19 @@ cs_size(x) int x;
       case FC_CP866:
       case FC_CP1251:
       case FC_APPQD:
-	return(128);
+        return(128);
 #ifdef KANJI
       case FC_JIS7:
-	return(-94);
+        return(-94);
       case FC_SHJIS:
-	return(-128);
+        return(-128);
       case FC_JEUC:
       case FC_JDEC:
-	return(-96);
+        return(-96);
 #endif /* KANJI */
       case FC_CP858:
       default:
-	return(-1);
+        return(-1);
     }
 #endif /* UNICODE */
 }
@@ -7396,7 +7400,7 @@ setxlatype(tcs, fcs) int tcs, fcs;
 #endif /* CK_ANSIC */
 {
 #ifdef UNICODE
-    xfu = NULL;				/* Unicode <-> TCS/FCS functions */
+    xfu = NULL;                         /* Unicode <-> TCS/FCS functions */
     xtu = NULL;
     xuf = NULL;
     xut = NULL;
@@ -7406,52 +7410,52 @@ setxlatype(tcs, fcs) int tcs, fcs;
     debug(F101,"setxlatype tcs","",tcs);
 
     if (tcs < 0 || tcs > MAXTCSETS) {
-	debug(F101,"setxlatype bad tcs","",tcs);
-	return;
+        debug(F101,"setxlatype bad tcs","",tcs);
+        return;
     }
     if (fcs < 0 || fcs > MAXFCSETS) {
-	debug(F101,"setxlatype bad fcs","",fcs);
-	return;
+        debug(F101,"setxlatype bad fcs","",fcs);
+        return;
     }
     if (tcs == TC_TRANSP || xfrxla == 0) { /* Transfer charset TRANSPARENT */
-	debug(F101,"setxlatype transparent because TCS==Transparent","",tcs);
-	xlatype = XLA_NONE;		/* Translation type is None */
+        debug(F101,"setxlatype transparent because TCS==Transparent","",tcs);
+        xlatype = XLA_NONE;             /* Translation type is None */
 #ifdef UNICODE
     /* If any of our charsets is Unicode we use Unicode functions */
     /* even if TCS and FCS are the same because of BOM and byte swapping */
     } else if (tcs == TC_UCS2 || tcs == TC_UTF8 ||
-	       fcs == FC_UCS2 || fcs == FC_UTF8) {
-	debug(F101,"setxlatype Unicode tcs","",tcs);
-	debug(F101,"setxlatype Unicode fcs","",fcs);
-	/* Unicode <-> TCS/FCS functions */
-	xfu = xl_fcu[fcs];		/* FCS -> UCS */
-	xtu = xl_tcu[tcs];		/* TCS -> UCS */
-	xuf = xl_ufc[fcs];		/* UCS -> FCS */
-	xut = xl_utc[tcs];		/* UCS -> TCS */
-        xlatype = XLA_UNICODE;		/* Translation type is Unicode */
+               fcs == FC_UCS2 || fcs == FC_UTF8) {
+        debug(F101,"setxlatype Unicode tcs","",tcs);
+        debug(F101,"setxlatype Unicode fcs","",fcs);
+        /* Unicode <-> TCS/FCS functions */
+        xfu = xl_fcu[fcs];              /* FCS -> UCS */
+        xtu = xl_tcu[tcs];              /* TCS -> UCS */
+        xuf = xl_ufc[fcs];              /* UCS -> FCS */
+        xut = xl_utc[tcs];              /* UCS -> TCS */
+        xlatype = XLA_UNICODE;          /* Translation type is Unicode */
 #ifdef COMMENT
-	/* These make trouble in 64-bit land */
-	debug(F001,"setxlatype Unicode xfu","",(unsigned)xfu);
-	debug(F001,"setxlatype Unicode xuf","",(unsigned)xuf);
+        /* These make trouble in 64-bit land */
+        debug(F001,"setxlatype Unicode xfu","",(unsigned)xfu);
+        debug(F001,"setxlatype Unicode xuf","",(unsigned)xuf);
 #endif /* COMMENT */
 #endif /* UNICODE */
-    } else if (cseqtab[tcs] == fcs) {	/* Or if TCS == FCS */
-	debug(F101,"setxlatype transparent because TCS==FCS","",tcs);
-	xlatype = XLA_NONE;		/* translation type is also None */
+    } else if (cseqtab[tcs] == fcs) {   /* Or if TCS == FCS */
+        debug(F101,"setxlatype transparent because TCS==FCS","",tcs);
+        xlatype = XLA_NONE;             /* translation type is also None */
 #ifdef KANJI
     /* Otherwise if any of them is Japanese, we use Kanji functions */
     } else if (tcs == TC_JEUC || fcsinfo[fcs].alphabet == AL_JAPAN) {
-	debug(F101,"setxlatype Japanese tcs","",tcs);
-	debug(F101,"setxlatype Japanese fcs","",fcs);
-        xlatype = XLA_JAPAN;		/* Translation type is Japanese */
+        debug(F101,"setxlatype Japanese tcs","",tcs);
+        debug(F101,"setxlatype Japanese fcs","",fcs);
+        xlatype = XLA_JAPAN;            /* Translation type is Japanese */
 #endif /* KANJI */
     /* Otherwise we use byte functions */
-    } else {				/* Otherwise... */
-	rx = xlr[tcs][fcs];		/* Input translation function */
-	sx = xls[tcs][fcs];		/* Output translation function */
-	debug(F101,"setxlatype Byte tcs","",tcs);
-	debug(F101,"setxlatype Byte fcs","",fcs);
-        xlatype = XLA_BYTE;		/* Translation type is Byte */
+    } else {                            /* Otherwise... */
+        rx = xlr[tcs][fcs];             /* Input translation function */
+        sx = xls[tcs][fcs];             /* Output translation function */
+        debug(F101,"setxlatype Byte tcs","",tcs);
+        debug(F101,"setxlatype Byte fcs","",fcs);
+        xlatype = XLA_BYTE;             /* Translation type is Byte */
     }
     debug(F101,"setxlatype xlatype","",xlatype);
 }
@@ -7475,21 +7479,21 @@ initxlate(csin, csout) int csin, csout;
     debug(F101,"initxlate csout","",csout);
 
     if (csin < 0 || csin > MAXFCSETS) {
-	debug(F101,"initxlate bad csin","",csin);
-	return;
+        debug(F101,"initxlate bad csin","",csin);
+        return;
     }
     if (csout < 0 || csout > MAXFCSETS) {
-	debug(F101,"initxlate bad csout","",csout);
-	return;
+        debug(F101,"initxlate bad csout","",csout);
+        return;
     }
     if (csin == csout && csin != FC_UCS2) {
-	xlatype = XLA_NONE;		/* Translation type is None */
-	return;
+        xlatype = XLA_NONE;             /* Translation type is None */
+        return;
     }
-    xlatype = XLA_UNICODE;		/* Translation type is Unicode */
-    xfu = xl_fcu[csin];			/* FCS -> UCS */
-    xuf = xl_ufc[csout];		/* UCS -> FCS */
-    xpnbyte(-1,0,0,NULL);		/* Reset UCS-2 */
+    xlatype = XLA_UNICODE;              /* Translation type is Unicode */
+    xfu = xl_fcu[csin];                 /* FCS -> UCS */
+    xuf = xl_ufc[csout];                /* UCS -> FCS */
+    xpnbyte(-1,0,0,NULL);               /* Reset UCS-2 */
 #ifdef COMMENT
     debug(F001,"initxlate Unicode xfu","",(unsigned)xfu);
     debug(F001,"initxlate Unicode xuf","",(unsigned)xuf);
@@ -7501,15 +7505,15 @@ initxlate(csin, csout) int csin, csout;
 int csetsinited = 0;
 
 VOID
-initcsets() {				/* Routine to reset or initialize */
-    int i;				/* character-set associations. */
+initcsets() {                           /* Routine to reset or initialize */
+    int i;                              /* character-set associations. */
 
 #ifdef UNICODE
-    if (ucsorder < 0)			/* For creating UCS-2 files. */
+    if (ucsorder < 0)                   /* For creating UCS-2 files. */
       ucsorder = byteorder;
     if (ucsorder < 0)
       ucsorder = 0;
-    if (fileorder < 0)			/* For reading UCS-2 files. */
+    if (fileorder < 0)                  /* For reading UCS-2 files. */
       fileorder = ucsorder;
 #endif /* UNICODE */
 
@@ -7519,7 +7523,7 @@ initcsets() {				/* Routine to reset or initialize */
     debug(F101,"initcsets TERM LOCAL CSET","",tcsl);
     debug(F101,"initcsets TERM REMOTE CSET","",tcsr);
 
-    for (i = 0; i <= MAXFCSETS; i++)	/* First clear them all... */
+    for (i = 0; i <= MAXFCSETS; i++)    /* First clear them all... */
       afcset[i] = -1;
     for (i = 0; i <= MAXTCSETS; i++)
       axcset[i] = -1;
@@ -7537,10 +7541,10 @@ initcsets() {				/* Routine to reset or initialize */
       case FC_CP858:
       case FC_CP437:
       case FC_1LATIN:
-	axcset[TC_1LATIN]  = fcharset;
-	break;
+        axcset[TC_1LATIN]  = fcharset;
+        break;
       default:
-	axcset[TC_1LATIN]  = FC_CP850;
+        axcset[TC_1LATIN]  = FC_CP850;
     }
 #else
 #ifdef HPUX

@@ -45,6 +45,7 @@ Here you can find specific C-Kermit information:
   - [C-Kermit Scripting](scripting.md)
   - [Local/Remote mode, ENABLE/DISABLE, and RECEIVE PATHNAMES](permissions.md)
   - [Filenames with spaces, wildcards, and escaping](spaces-wildcards.md)
+  - [Use with KVM vsock for communicating to VMs](vsock.md)
 - [Information for C-Kermit Developers](dev/README.md)
 
 For more information, see the wider [Open Kermit project](https://www.openkermit.org/).  Take particular note of these pages there:

@@ -1,8 +1,8 @@
 /* ckcmai.c - Main program for C-Kermit plus some miscellaneous functions */
 
-#define EDITDATE  "2026/08/03"       /* Last edit date ISO format */
+#define EDITDATE  "2026/08/09"       /* Last edit date ISO format */
 
-#define EDITNDATE "20260803"          /* Keep them in sync */
+#define EDITNDATE "20260809"          /* Keep them in sync */
 /*
   As of 27 September 2022 BETATEST is defined in ckcdeb.h, not here,
   because it's also used in other modules.
@@ -40,7 +40,7 @@ If the version number has changed, also:
 */
 #include "ckcdeb.h"                     /* Debug & other symbols */
 
-char * ck_cryear = "2026"; 		/* C-Kermit copyright year */
+char * ck_cryear = "2026";              /* C-Kermit copyright year */
 /*
   Note: initialize ck_s_test to "" if this is not a test version.
   Use (*ck_s_test != '\0') to decide whether to print test-related messages.
@@ -69,17 +69,17 @@ char *ck_s_test = "Beta"; /* "Dev","Alpha","pre-Beta","Beta","RC", or "" */
 char *ck_s_tver = "12";                 /* Test version number */
 #endif /* OS2 */
 #else /* BETATEST */
-char *ck_s_test = "";			/* Not development */
+char *ck_s_test = "";                   /* Not development */
 char *ck_s_tver = "";
 #endif /* BETATEST */
 
 #ifdef BETADATE                         /* Date of this version or edit */
 char *ck_s_date = __DATE__;             /* Compilation date */
 #else
-char *ck_s_date = EDITDATE;		/* See top */
+char *ck_s_date = EDITDATE;             /* See top */
 
 #endif /* BETADATE */
-char *buildid = EDITNDATE;		/* See top */
+char *buildid = EDITNDATE;              /* See top */
 
 #ifdef UNIX
 static char sccsid[] = "@(#)C-Kermit 11.0";
@@ -110,9 +110,9 @@ int offtsize = 0;                       /* Size of OFF_T */
   C-Kermit for each platform (except the original Mac) and Kermit 95.
 */
 char *ck_s_ver = "11.0";                /* C-Kermit version string */
-char *ck_s_edit = "506";                /* Edit number (for Debian package) */
-char *ck_s_xver = "11.0.506";           /* eXtended version string */
-long  ck_l_ver = 1100506L;              /* C-Kermit version number */
+char *ck_s_edit = "508";                /* Edit number (for Debian package) */
+char *ck_s_xver = "11.0.508";           /* eXtended version string */
+long  ck_l_ver = 1100508L;              /* C-Kermit version number */
 char *ck_s_name = "C-Kermit";           /* Name of this program */
 char *ck_s_who = "";                    /* Where customized, "" = not. */
 char *ck_patch = "";                    /* Patch info, if any. */
@@ -149,7 +149,7 @@ char * exedir = NULL;                   /* Directory I was executed from */
 #endif /* OS2 */
 
 char homedirpath[CKMAXPATH+1] = { NUL, NUL }; /* Home directory path */
-char * myhome = NULL;			/* Home directory override string */
+char * myhome = NULL;                   /* Home directory override string */
 
 #ifdef HAVE_LOCALE
 int nolocale = 0;                       /* Use Locale */
@@ -675,7 +675,7 @@ char *srvtxt = "";
 int initflg = 0;                        /* sysinit() has executed... */
 int howcalled = I_AM_KERMIT;            /* How I was called */
 int hmtopline = 0;
-int quitting = 0;			/* I'm in the act of quitting */
+int quitting = 0;                       /* I'm in the act of quitting */
 
 #ifdef IKSDCONF
 char * iksdconf = IKSDCONF;             /* IKSD configuration file */
@@ -805,7 +805,7 @@ int spsiz = DSPSIZ,                     /* Current packet size to send */
     bctr = DFBCT,                       /* Block check type requested */
     bctu = 1,                           /* Block check type used */
     bctl = 1,                           /* Block check length */
-    bctf = 0,				/* Block check type 3 forced on all */
+    bctf = 0,                           /* Block check type 3 forced on all */
     c_save = -1,                        /* Block check saving and restoring */
     ss_save = -1,                       /* Slow-start saving and restoring */
     ebq =  MYEBQ,                       /* 8th bit prefix */
@@ -831,7 +831,7 @@ int xfrxla = 0;                         /* Character-set translation */
 int xfrxla = 1;                         /* enabled or disabled */
 #endif /* NOCSETS */
 
-int havelfs = 0;			/* Large file support available */
+int havelfs = 0;                        /* Large file support available */
 
 #ifndef NOXFER
 int epktflg = 0;                        /* E-PACKET command active */
@@ -1083,18 +1083,18 @@ extern VOID zsyslog();
 extern int ckxlogging, ckxsyslog;
 #endif /* CKSYSLOG */
 
-CK_OFF_T fsize = (CK_OFF_T)0,		/* Size of current file */
- sendstart = (CK_OFF_T)0,		/* SEND start position */
- calibrate = (CK_OFF_T)0;		/* Nonzero if calibration run */
+CK_OFF_T fsize = (CK_OFF_T)0,           /* Size of current file */
+ sendstart = (CK_OFF_T)0,               /* SEND start position */
+ calibrate = (CK_OFF_T)0;               /* Nonzero if calibration run */
 
 int nzxopts = 0;                        /* Options for nzxpand() */
 int nfils = 0;                          /* Number of files in file group */
-int wildena = 1;			/* Wildcard expansion enabled */
+int wildena = 1;                        /* Wildcard expansion enabled */
 #ifdef UNIX
 int wildxpand = 0;                      /* Who expands wildcards, 0=Kermit.. */
 #else /* UNIX */
 #ifdef STRATUS
-int wildxpand = 1;			/* 1=Shell. */
+int wildxpand = 1;                      /* 1=Shell. */
 #endif /* STRATUS */
 #endif /* UNIX */
 #ifdef UNIXOROSK
@@ -1102,7 +1102,7 @@ int matchdot = 0;                       /* Whether to match dot files */
 #else
 int matchdot = 1;
 #endif /* UNIXOROSK */
-int matchfifo = 0;			/* Whether to match FIFO "files" */
+int matchfifo = 0;                      /* Whether to match FIFO "files" */
 int clfils = 0;                         /* Flag for command-line files */
 int stayflg = 0;                        /* Flag for "stay", i.e. "-S" */
 int xfinish = 0;                        /* Flag for FINISH = EXIT */
@@ -1335,7 +1335,7 @@ int bgset = -1;                         /* BACKGROUND mode set explicitly */
 
 int cmdint = 1;                         /* Interrupts are allowed */
 #ifdef UNIX
-int xsuspend = DFSUSP;			/* Whether SUSPEND command, etc, */
+int xsuspend = DFSUSP;                  /* Whether SUSPEND command, etc, */
 #else                                   /* is to be allowed. */
 int xsuspend = 0;
 #endif /* UNIX */
@@ -1558,9 +1558,9 @@ int autodl = 0;                         /* (or if not implemented). */
 #endif /* CK_AUTODL */
 int adl_err = 0;                        /* 1 = stop on error, 0 = continue */
 #ifdef KUI
-int adl_ask = 1;			/* 1 = file dialog on autodownload */
+int adl_ask = 1;                        /* 1 = file dialog on autodownload */
 #else
-int adl_ask = 0;			/* 0 = no file dialog */
+int adl_ask = 0;                        /* 0 = no file dialog */
 #endif /* KUI */
 #ifdef OS2                              /* AUTODOWNLOAD parameters */
 int adl_kmode = ADL_PACK,               /* Match Packet to signal download */
@@ -1897,8 +1897,8 @@ initxlist()
     extern char * sndexcept[], * rcvexcept[];
     int i;
     for (i = 0; i < NSNDEXCEPT; i++) {
-	sndexcept[i] = NULL;
-	rcvexcept[i] = NULL;
+        sndexcept[i] = NULL;
+        rcvexcept[i] = NULL;
     }
 }
 #endif /* NOXFER */
@@ -2626,8 +2626,8 @@ docmdfile(threadinfo) VOID * threadinfo;
 #ifndef NOSPL
     addmac("\\%0",cmdfil);
 #endif /* NOSPL */
-    dotake(cmdfil);			/* Set up the command file */
-    if (tlevel > -1)			/* Remember we did this */
+    dotake(cmdfil);                     /* Set up the command file */
+    if (tlevel > -1)                    /* Remember we did this */
       cfilef = 1;
     while (tlevel > -1) {               /* Execute it until it runs out. */
         sstate = parser(1);             /* Loop getting commands. */
@@ -2655,9 +2655,9 @@ failcmdfile(threadinfo) VOID * threadinfo;
 #endif /* GEMDOS */
     fixcmd();
     if (!cfilef) {
-	conoll("Interrupted during initialization or \
+        conoll("Interrupted during initialization or \
 command-line processing.");
-	conoll("C-Kermit quitting...");
+        conoll("C-Kermit quitting...");
     }
     doexit(BAD_EXIT,-1);                /* Exit with bad status. */
 }
@@ -2846,14 +2846,14 @@ makever ( )
 #ifdef CK_AUTHENTICATION
 #ifdef CK_SSL
     ssl = "+SSL";
-#endif	/* CK_SSL */
+#endif  /* CK_SSL */
 #ifdef KRB4
     krb4 = "+KRB4";
-#endif	/* KRB4 */
+#endif  /* KRB4 */
 #ifdef KRB5
     krb5 = "+KRB5";
-#endif	/* KRB5 */
-#endif	/* CK_AUTHENTICATION */
+#endif  /* KRB5 */
+#endif  /* CK_AUTHENTICATION */
 #endif /* OS2 */
 
     if (x == 0) {
@@ -2875,7 +2875,7 @@ int bigendian = 1;
 
 #ifndef NOSPL
 #define SCRIPTLEN 10240
-#endif	/* NOSPL */
+#endif  /* NOSPL */
 
 #ifdef NETCONN
 #ifndef NOTCPIP
@@ -2957,15 +2957,15 @@ dourl()
 #ifdef NOSPL
         cflg = 1;
 #else
-	{
+        {
             char * script = NULL;
             if (!(script = (char *)malloc(SCRIPTLEN)))
               fatal("dourl: out of memory");
             if (!g_url.pth) {           /* Write the appropriate script */
-		cflg = 1;
+                cflg = 1;
                 ckmakxmsg(script,SCRIPTLEN,
-			  "if not eq {\\v(authstate)} {user} ",
-			  "if not eq {\\v(authstate)} {valid} { ",
+                          "if not eq {\\v(authstate)} {user} ",
+                          "if not eq {\\v(authstate)} {valid} { ",
                           "remote login ", /* No path */
                           g_url.usr,       /* Just log in and CONNECT */
                           " ",
@@ -2973,48 +2973,48 @@ dourl()
                           ", if fail exit 1 {IKSD login failed} }",
                           ", connect",
                           NULL,NULL,NULL,NULL);
-		/* printf("CLCMDS 1: %s\n",script); */
+                /* printf("CLCMDS 1: %s\n",script); */
             } else {
                 /* does the path specify a file or a directory? */
                 int len = strlen(g_url.pth);
                 if (ISDIRSEP(g_url.pth[len-1])) {
-		    ckmakxmsg(script,SCRIPTLEN, /* Directory name given */
-			      "if not eq {\\v(authstate)} {user} \
+                    ckmakxmsg(script,SCRIPTLEN, /* Directory name given */
+                              "if not eq {\\v(authstate)} {user} \
 if not eq {\\v(authstate)} {valid} { remote login ",
-			      g_url.usr,
-			      " ",
-			      g_url.psw,
-			      ", if fail exit 1 {IKSD login failed} }",
-			      ", set macro error on",
-			      ", set xfer displ brief",
-			      ", set xfer bell off",
-			      ", remote cd ",
-			      g_url.pth,
-			      ", lineout directory",
-			      ", connect"
-			      );
-		    /* printf("CLCMDS 2: %s\n",script); */
-		} else {
-		    ckmakxmsg(script,SCRIPTLEN, /* Path given, try to GET */
-			      "if not eq {\\v(authstate)} {user} \
+                              g_url.usr,
+                              " ",
+                              g_url.psw,
+                              ", if fail exit 1 {IKSD login failed} }",
+                              ", set macro error on",
+                              ", set xfer displ brief",
+                              ", set xfer bell off",
+                              ", remote cd ",
+                              g_url.pth,
+                              ", lineout directory",
+                              ", connect"
+                              );
+                    /* printf("CLCMDS 2: %s\n",script); */
+                } else {
+                    ckmakxmsg(script,SCRIPTLEN, /* Path given, try to GET */
+                              "if not eq {\\v(authstate)} {user} \
 if not eq {\\v(authstate)} {valid} { remote login ",
-			      g_url.usr,
-			      " ",
-			      g_url.psw,
-			      ", if fail exit 1 {IKSD login failed} }",
-			      ", set xfer displ brief",
-			      ", set xfer bell off",
-			      ", get ",
-			      g_url.pth,
-			      ", .rc := \\v(status)",
-			      ", if open connection bye",
-			      ", exit \\m(rc)"
-			      );
-		    /* printf("CLCMDS 2: %s\n",script); */
-		}
+                              g_url.usr,
+                              " ",
+                              g_url.psw,
+                              ", if fail exit 1 {IKSD login failed} }",
+                              ", set xfer displ brief",
+                              ", set xfer bell off",
+                              ", get ",
+                              g_url.pth,
+                              ", .rc := \\v(status)",
+                              ", if open connection bye",
+                              ", exit \\m(rc)"
+                              );
+                    /* printf("CLCMDS 2: %s\n",script); */
+                }
             }
-            clcmds = script;		/* Make this our -C cmdline macro */
-	    /* printf("HAVEURL=%d\n",haveurl); */
+            clcmds = script;            /* Make this our -C cmdline macro */
+            /* printf("HAVEURL=%d\n",haveurl); */
         }
 #endif /* NOSPL */
     } else {
@@ -3067,30 +3067,30 @@ MAINNAME( argc, argv ) int argc; char **argv;
 #endif /* datageneral */
 
 #ifdef UNIX
-    int unbuf = 0;			/* nonzero for unbuffered stdout */
+    int unbuf = 0;                      /* nonzero for unbuffered stdout */
 
 /* setbuf has to be called on the file descriptor before it is used */
 
-#ifdef NONOSETBUF			/* Unbuffered console i/o */
-    unbuf++;				/* as a compile-time option */
-#endif	/* NONOSETBUF */
-    if (!unbuf) {			/* Or as a command-line selection */
-	int i, n;			/* We have to pre-pre-scan for */
-	char * s;			/* this one. */
-	for (i = 1; i < argc; i++) {
-	    s = argv[i];
-	    if (!s) n = 0; else n = (int)strlen(s);
-	    if (n > 4) {
-		if (!ckstrcmp("--unbuffered",s,n,0)) {
-		    unbuf++;
-		    break;
-		}
-	    }
-	}
+#ifdef NONOSETBUF                       /* Unbuffered console i/o */
+    unbuf++;                            /* as a compile-time option */
+#endif  /* NONOSETBUF */
+    if (!unbuf) {                       /* Or as a command-line selection */
+        int i, n;                       /* We have to pre-pre-scan for */
+        char * s;                       /* this one. */
+        for (i = 1; i < argc; i++) {
+            s = argv[i];
+            if (!s) n = 0; else n = (int)strlen(s);
+            if (n > 4) {
+                if (!ckstrcmp("--unbuffered",s,n,0)) {
+                    unbuf++;
+                    break;
+                }
+            }
+        }
     }
     if (unbuf)
       setbuf(stdout,NULL);
-#endif	/* UNIX */
+#endif  /* UNIX */
 
     {                      /* Get OFF_T size for printf - fdc 06 Jan 2024 */
         extern int offtsize; /* MUST be executed, which is why it's here */
@@ -3197,7 +3197,7 @@ MAINNAME( argc, argv ) int argc; char **argv;
         byteorder = 0;                  /* Big Endian */
         bigendian = 1;
     }
-    if (sizeof(CK_OFF_T) == 8)		/* Large files and ints? */
+    if (sizeof(CK_OFF_T) == 8)          /* Large files and ints? */
       havelfs = 1;
 
     if (sysinit() < 0)                  /* System-dependent initialization. */
@@ -3210,11 +3210,11 @@ MAINNAME( argc, argv ) int argc; char **argv;
 #endif /* HAVE_LOCALE */
 
     debug(F111,"ckcmai myname",myname,howcalled);
-    {					/* Get home directory path */
-	char *h;
+    {                                   /* Get home directory path */
+        char *h;
         _PROTOTYP( char * homedir, (void) );
-	h = homepath();
-	if (h) ckstrncpy(homedirpath,h,CKMAXPATH);
+        h = homepath();
+        if (h) ckstrncpy(homedirpath,h,CKMAXPATH);
     }
 #ifdef GETEXEDIR
     getexedir();                        /* Compute exedir variable */
@@ -3275,7 +3275,7 @@ MAINNAME( argc, argv ) int argc; char **argv;
 #endif /* NOSPL */
 
 #ifndef NOXFER
-    initxlist();			/* Init exception lists */
+    initxlist();                        /* Init exception lists */
 
 #ifdef CK_XYZ                           /* Initialize protocols...  */
 
@@ -3367,9 +3367,9 @@ MAINNAME( argc, argv ) int argc; char **argv;
         /* try to make a random unsigned int to feed srand() */
         c = time(NULL);                 /* Get current time */
         c *= getpid();                  /* multiply it by our PID */
-	/* Referenced before set... DELIBERATELY */
+        /* Referenced before set... DELIBERATELY */
         for (n = 0; n < sizeof(stackdata); n++) /* IGNORE WARNING */
-	  c += stackdata[n];		/* DELIBERATELY USED BEFORE SET */
+          c += stackdata[n];            /* DELIBERATELY USED BEFORE SET */
         srand((unsigned int)c);
     }
 #endif /* NORANDOM */
@@ -3558,12 +3558,12 @@ MAINNAME( argc, argv ) int argc; char **argv;
                     ERR_print_errors_fp(stderr);
                 }
                 switch (ttnproto) {
-		  case NP_SSL:
-		  case NP_TLS:
-  		  case NP_SSL_RAW:
-		  case NP_TLS_RAW:
-		  case NP_SSL_TELNET:
-		  case NP_TLS_TELNET:
+                  case NP_SSL:
+                  case NP_TLS:
+                  case NP_SSL_RAW:
+                  case NP_TLS_RAW:
+                  case NP_SSL_TELNET:
+                  case NP_TLS_TELNET:
                     doexit(BAD_EXIT,1);
                 }
                 /* otherwise we will continue to accept the connection   */
@@ -3682,17 +3682,17 @@ MAINNAME( argc, argv ) int argc; char **argv;
 #endif /* NOCMDL */
 
     if (howcalled == I_AM_SSHSUB) {
-        reliable = 1;			/* We say the connection is reliable */
-        xreliable = 1;			/* And that we said it was */
-        setreliable = 1;		/* And pretend the "user" did too */
-        xfinish = 1;			/* For REMOTE HELP response */
-        mdmtyp = 0;			/* For ttopen() */
+        reliable = 1;                   /* We say the connection is reliable */
+        xreliable = 1;                  /* And that we said it was */
+        setreliable = 1;                /* And pretend the "user" did too */
+        xfinish = 1;                    /* For REMOTE HELP response */
+        mdmtyp = 0;                     /* For ttopen() */
         ckstrncpy(ttname,"0",TTNAMLEN+1);  /* Use file descriptor 0 */
         local = 0;                         /* And force remote mode */
         ttopen(ttname,&local,mdmtyp,0); /* Open the "connection" */
-        sstate = 'x';			/* Initial state is Server */
-        proto();			/* Enter protocol */
-        doexit(GOOD_EXIT,xitsta);	/* Exit when done */
+        sstate = 'x';                   /* Initial state is Server */
+        proto();                        /* Enter protocol */
+        doexit(GOOD_EXIT,xitsta);       /* Exit when done */
     }
     debug(F111,"howcalled",myname,howcalled);
 
@@ -3742,9 +3742,9 @@ MAINNAME( argc, argv ) int argc; char **argv;
 
 #ifdef NETCONN
 #ifdef HAVE_LOCALE
-	if (nolocale) {                 /* --nolocale option on command line */
+        if (nolocale) {                 /* --nolocale option on command line */
             setlocale(LC_ALL, "C");     /* Restore our locale to default */
-	}
+        }
 #endif /* HAVE_LOCALE */
 
 #ifndef NOTCPIP
@@ -3821,23 +3821,23 @@ MAINNAME( argc, argv ) int argc; char **argv;
 #else                                   /* Neither one! */
     sstate = 'x';
     justone = 0;
-    proto();				/* So go into server mode */
-    doexit(GOOD_EXIT,xitsta);		/* exit with good status */
+    proto();                            /* So go into server mode */
+    doexit(GOOD_EXIT,xitsta);           /* exit with good status */
 
 #endif /* NOCMDL */
 #else /* not NOICP */
 #ifdef HAVE_LOCALE
     if (!nolocale) {
-	/* Can also disable locale processing by setting K_NOLOCALE=1 */
-	char *s = getenv("K_NOLOCALE");	/* environment variable */
-	if (s)
-	  if (rdigits(s))
-	    if (atoi(s) != 0) {
-		nolocale = 1;
-	    }
-	if (!nolocale) {		/* Locale not disabled */
-	    setlocale(LC_ALL, "");	/* Enable using non-C locales */
-	}
+        /* Can also disable locale processing by setting K_NOLOCALE=1 */
+        char *s = getenv("K_NOLOCALE"); /* environment variable */
+        if (s)
+          if (rdigits(s))
+            if (atoi(s) != 0) {
+                nolocale = 1;
+            }
+        if (!nolocale) {                /* Locale not disabled */
+            setlocale(LC_ALL, "");      /* Enable using non-C locales */
+        }
     }
 #endif /* HAVE_LOCALE */
 

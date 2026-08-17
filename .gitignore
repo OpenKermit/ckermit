@@ -56,3 +56,8 @@ socat.log
 # v9k/legs/README.md.
 !v9k/legs/*.OUT
 *.host
+
+# For compatibility testing
+ckermit-old-9.0.302
+gkermit
+eksw
