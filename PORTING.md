@@ -12002,3 +12002,165 @@ exists for — but it is the first upstream merge to move a machine class, and
 the margin left inside DGROUP is now 5,904 bytes. **Watch it on the next
 merge**; the lever if it ever matters is `-zt`, and §16y's warning about
 `-zt` and the receive ring (`__near`) is still the thing to read first.
+
+## 16az. FreeDOS for Victor: the second DOS runs, and it runs on the second channel
+
+**18 August 2026, no Victor in reach.** Six MAME legs at 9600 on **FreeDOS
+for Victor** — the DOS this port has claimed since §16a and had never once
+been run on. Run sheet `HW_TEST_16az.md`; legs FDB, FDC, FDE, FDF, FDG plus
+one capture that is not a leg; Victor counters `v9k/legs/FD*.OUT` and the
+capture at `v9k/legs/FDBOOT-chanA-trace.txt`. **No code change of any kind:
+the binary is §16ay's, md5 `d76c10b2…`, bit for bit. No upstream edit —
+still twenty.**
+
+### The headline is one line of a counter report
+
+```
+v9k: dos oem=fd ver=622 irq1=09
+```
+
+`AH=30h` returned BH = 0xFD, `v9k_dosid()` took the FreeDOS arm, and IRQ1
+was hooked on **INT 09h** instead of MS-DOS 3.1's 41h. **§16av built that
+branch and recorded that neither of its two FreeDOS arms had ever
+executed**; this is the first one running. Underneath it, three more things
+ran for the first time on this DOS and all worked: `COM1`/`COM2` open as
+FreeDOS character devices, **§1b's direct chip-programming fallback**
+(FreeDOS's COM device carries attribute `0x8000` with no IOCTL bit, so
+`AX=4402h` fails and the §11a IOCTL path is simply not available), and then
+the whole §1e data path — assembly ISR, receive ring, polled transmitter —
+on INT 09h.
+
+**Both directions are byte-exact.** Leg FDE received 32,768 bytes at **685
+cps with 0 damaged packets, 0 timeouts and 0 retransmissions**; leg FDF sent
+32,768 bytes **by name** at 646 cps, 0/0, which is the **third** end-to-end
+confirmation of upstream edit 16 (§16ah leg BS on the bench, §16ay leg UB
+under MAME on MS-DOS) and the first on FreeDOS. `rxlost = 0 rxfull = 0` and
+`deb = 0` on every leg; `wfile n = 4` reproduces §16n, `rxbytes = 37,569`
+reproduces §16af, `coll = 1` §16av, `neg = 1` §16ar, and `bulk sel = 1` with
+n = 11,469 on the receive and **20 on the send** is §16aq's counter showing
+edit 18's arm live on the direction it exists for and inert on the other.
+
+### Channel A is not a Kermit wire on this kernel, and a capture is what said so
+
+Leg FDC ran the receive on **channel A** and came back byte-exact — but with
+**5 damaged packets, 1 timeout and 6 retransmissions**, all in the S/F
+handshake, and `rxbytes = 39,834` against the clean leg's 37,569.
+
+The cause is not ours. Booted with `AUTOEXEC.BAT` cut to `ECHO OFF` and
+**nothing of this port running at all**, channel A produced **2,861 bytes in
+150 seconds**. It is the myfreedos kernel's own trace, and it is **live
+rather than boot-only**: `kernel/entry.asm:280` busy-waits on TBE and writes
+an `H` to the µPD7201 channel A data register at `E000:0040` **on every INT
+21h call**, with `I42`/`DRWS`/`DWU_ent` from the SASI and disk paths on top
+and a `W` from `victor_int13.asm:804`. The guard is `%ifdef VICTOR9000`,
+always on for this target: **there is no runtime switch.** Since hard rule 6
+puts every console write and every file write of this port through INT 21h,
+a Victor transferring a file on that kernel is a Victor generating trace
+bytes the whole time.
+
+**The fix cost nothing, because the tracer is hardwired to `E000:0040`/`0042`
+and channel B is `0041`/`0043`.** This port already selects channel B from a
+device name ending in `B` or `2` (`v9k_ser_selchan()`), FreeDOS exposes
+`COM2` on the same INT 14h driver, and MAME has `-rs232b`. Leg FDE is leg FDC
+one channel over — same binary, same fixture, same rate, same harness — and
+every damaged packet and every retransmission disappears. **That is what
+confirms the diagnosis rather than merely asserting it.** The alternative,
+rebuilding the myfreedos kernel with those trace sites guarded, is worth
+proposing to that project on its own merits — the busy-wait sits inside every
+INT 21h call and costs every program on the machine — but this port does not
+need it.
+
+**`-bitb` is ambiguous when two null_modems are attached.** FDE's first
+attempt asked for a socket on `-rs232b` and a bitbanger file on `-rs232a`,
+and the socket bound to the wrong slot: no `/tmp/v9000`, host FAILURE,
+0.000 sec. Capture channel A in a run of its own.
+
+### `rxpeak = 19` is §16m confirmed from a new direction
+
+The clean leg's ring peak was **19 of 4,096**, against 306 on §16ay's MS-DOS
+receive. That is not a new property of FreeDOS. §16m established that the
+peak measures the ring filling during the **host's retransmission**, which
+with a window of one is the only moment the host transmits without waiting
+for our ACK; this leg had zero retransmissions, and `peakat = 76` puts the
+peak 76 bytes into the stream. **A leg with no resends has no peak to
+measure, and that is the same finding §16ag reached by absence.**
+
+`norx = 0 othrx = 0` answers the shared-IRQ1 question **by half**: channel A
+was being written throughout and produced no spurious interrupts on IRQ1 —
+but the tracer is a *polled transmitter*, so this covers the transmit half of
+the shared-channel case and not the receive half. Do not quote it as more.
+
+### Two things this sitting could not settle, and one retraction
+
+**The console arm is still unverified.** Leg FDA's screen carried a fragment
+reading `FRKJ 0002` and the first reading of it was "our VT52/ANSI console
+arm is printing garbage on FreeDOS". **That is retracted**: `victor_trace.c`
+writes the *kernel's* debug region to screen rows 12–24, which is where the
+fragment was, and nothing in this sitting tells our output from the kernel's.
+Leg FDG was spent trying to settle it and **failed to engage the display at
+all** — C-Kermit draws the fullscreen display during a transfer, and a FINISH
+with no host never starts one, so a clean screen is not evidence. The leg
+that settles it is FDE re-run without `--nodisplay`, snapshotted during the
+data phase.
+
+**And §16ay's ~27 second stall did not happen here.** Every MS-DOS MAME
+receive in this tree back to §16aj spends ~27 s between the F packet and its
+ACK — §16ay located it inside `rcvfil()` and called it the obvious next MAME
+question. FreeDOS shows none of it. **That is a lever on the question and not
+an answer to it**: this is a cross-sitting comparison of two operating
+systems on two filesystems and two disk images with **no adjacent control**,
+which is exactly the arrangement §16al identified as the one that does not
+work and the reason its "+11%" was withdrawn. One pair of legs, one per DOS,
+same day, would make it a measurement. Nothing here separates the DOS from
+the FAT geometry from the disk image.
+
+One counter to watch on this DOS: **`nap per=` read 682, 819, 682 and 819
+across the four legs that reported it**, where §16ay's five MS-DOS legs all
+read **409**. §16av's busy loop calibrates against the 500 ms DOS clock at
+run time, so a 20% swing inside one sitting says the calibration does not
+repeat here. No leg depended on it — `msleep()` backs `tthang()` and
+`tcsendbreak()`, and nothing exercised either — but anything that comes to
+rely on `nap()` timing on FreeDOS should measure it first.
+
+### Getting a file onto the image: `v9k/tools/hybridfat.py`
+
+The image is the **Victor 9000 hybrid** format
+(`~/projects/myfreedos/docs/victor/VICTOR_HYBRID_DISK_STRUCTURE.md`): Victor
+drive label at sector 0 for the ROM's IPL vector, stage-1 loader in sectors
+1–128, and an **IBM-style FAT16 BPB at sector 129** whose `hidden_sectors`
+field is 129 and is the bridge. **Neither mtools nor `vtg_image_util` can
+read it** — the first looks for a BPB at sector 0 or an MBR partition table,
+the second for Victor virtual volumes — and neither should be pointed at it.
+`copy_to_victor_dos.py` in the myfreedos tree cannot do it either and should
+not be adapted: it hardcodes a *Victor MS-DOS* geometry (volume at sector 2,
+4 sectors/cluster, 38-sector FATs) that matches nothing in this image.
+
+`hybridfat.py` does `info`/`list`/`put`/`get`/`del`. The design point worth
+keeping is that **it does not assume 129**: the BPB lives at `hidden_sectors`
+and `hidden_sectors` is a field *inside* the BPB, so it tries 129 then 0 and
+accepts a candidate only when the sector it was found at agrees with the
+field it read. The same tool then works on a plain floppy image, and a wrong
+guess fails loudly instead of quietly reading the middle of a FAT. **The
+reader was verified before the writer was trusted** — two files already on
+the image round-tripped md5-identical, one of them multi-cluster so the chain
+walk was exercised — and then `CKERMITW.EXE` in and back out, also identical.
+
+The volume is FAT16, 512 B/sector, **16 sectors/cluster (8 KB)**, 2 FATs of
+127 sectors, root at 384 (512 entries), data at 416, 32,274 clusters.
+**One unexplained caution:** the file is 506,848 sectors and the BPB declares
+516,800 — **9,952 sectors short**. Everything here landed in low clusters and
+nothing touched the gap, but a tool that allocates high on this image will
+write past the end of the file.
+
+### The method lesson is §16an's, for the third time
+
+Every reading before the capture was a counter inside one of the two
+programs, and both were right about what they had done: the Victor said
+`rxlost = 0`, the host said five damaged packets, and the first hypothesis on
+the table was our own console code. **The question was about a wire and it
+was settled in 150 seconds by putting a capture on the wire with nothing of
+ours running.** §16an wrote that rule about RTS and §16am wrote the
+neighbouring one — measure that the far end can do what your experiment
+assumes. This is a third face of it: **before running a leg on a machine you
+have not run on before, capture what that machine puts on the wire when your
+program is not there.**
