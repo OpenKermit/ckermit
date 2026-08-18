@@ -3,8 +3,43 @@
 Handoff for the Victor 9000 port, written 9 August 2026, revised after
 §16ah and then again at the desk the same day, again on 10 August after
 §16ao, and again on 11 August after §16aq and then §16ar, and again on
-15 August after §16av, and again on 17 August after §16ax. **No live
-defect in the receive path.** §16af closed the last one.
+15 August after §16av, and again on 17 August after §16ax and then §16ay.
+**No live defect in the receive path.** §16af closed the last one.
+
+---
+
+## §16ay: upstream 11.0.508 is merged, and the port is unmoved by it
+
+**17 August 2026, no Victor in reach.** PR #3 (77 upstream commits) merged;
+five MAME legs at 9600 regression it — `HW_TEST_16ay.md`, PORTING.md §16ay,
+counters in `v9k/legs/STEPU*.OUT`. **All five pass, `rxlost = 0 rxfull = 0`
+throughout, every transfer byte-exact. No upstream edit — still twenty**,
+and all twenty were verified present by diffing HEAD against the merge's
+upstream parent (`616e369^2`) before any leg ran, which is exact where a
+`VICTOR9K` grep is not. DGROUP 48,896 (74%), image 230,756, needs 242,852
+(237K), **smallest Victor 384K, unchanged**, warnings 18, `ckvictor.c` 0.
+Proofs (vcrc16, vburst, vttinl, vwindow) all pass.
+
+**Coverage:** UA/UE 32 KB receive (edits 11, 17, 18), UB a 32,768-byte send
+**by name** (edit 16's exact range — second confirmation ever, first under
+MAME, 663 cps and zero resends), UC the server sweep (edit 19's dates and
+edit 20's `Free space: 536K`, plus a 162-file root listing), UD the parser
+build running `SPDTEST.KSC` by absolute path (edits 12, 13, 14, 15).
+
+**Two things for the next session.**
+
+1. **The `KEEP_ICP` build changed machine class**: 429,890 (419K, 512K
+   Victor) → **453,602 (442K, 640K Victor)**, DGROUP 59,632 of 65,536
+   (90%), 5,904 bytes left. Nothing ships from it, but no previous merge
+   has moved a class, and the next one has less room to do it in.
+2. **The ~27 s stall between the F packet and its ACK is unexplained and
+   is not the merge's.** Three timeouts at 8, 16 and 24 s on every 9600
+   receive, before a data phase that then runs clean at ~609 cps; §16aj FA
+   and §16ar WD have it from before the merge. Leg UE was spent refuting
+   the obvious explanation (it is not a start-order race — starting the
+   host 40 s later reproduced UA to 56 ms). The Victor is inside
+   `rcvfil()`. **It is the cheapest open question in the tree** and it
+   makes every whole-run cps figure at 9600 under MAME ~35% low.
 
 ---
 

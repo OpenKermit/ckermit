@@ -1,0 +1,18 @@
+; Leg UB -- the HOST RECEIVES.  The Victor sends SNDUB.DAT (exactly 32,768
+; bytes) BY NAME, which is upstream edit 16's range.  Start this BEFORE the
+; Victor reaches its send, so the receiver is already waiting; retry 30 at a
+; 20 s timeout gives it ten minutes of patience.
+; Reading traps (16ah): the Victor's "wire=" divides rxbytes, so on a send
+; leg it reports the ACK stream, not the send rate -- the host's statistics
+; is the send rate; and pktstat.py misreads send logs.
+set line /tmp/v9000
+set speed 9600
+set parity none
+set carrier-watch off
+set flow none
+set receive timeout 20
+set retry 30
+set file collision rename
+log packets s16ayUB.pkt
+receive gotub.dat
+statistics

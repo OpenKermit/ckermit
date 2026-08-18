@@ -11911,3 +11911,94 @@ Victor's (0.124 s per `write()` is very slow for a real drive). **These
 numbers should not be quoted as the cost of a server command on a Victor**
 until a bench sitting has them; what they do establish is that the
 commands complete and that the protocol rides out a slow server correctly.
+
+## 16ay. Post-merge regression: upstream 11.0.508 lands, and nothing in the port moved
+
+**17 August 2026, no Victor in reach.** PR #3 merged 77 upstream commits —
+C-Kermit 11.0.508 plus the unreleased 11.0.509 work — onto the port branch.
+This section is the regression that says the port still works. Run sheet
+`HW_TEST_16ay.md`; five MAME legs at 9600 (UA, UB, UC, UD, UE); take-files
+`s16ayU*.ksc`; Victor counters `v9k/legs/STEPU*.OUT`. **No upstream edit —
+still twenty.** Warnings **18**, `ckvictor.c` and `ckvisr.asm` **0**.
+DGROUP **48,896 (74%)**, image **230,756**, needs **242,852 (237K)**,
+**smallest Victor 384K, unchanged**. md5 `d76c10b2…`.
+
+### The edits were verified before the legs, and by diff rather than by grep
+
+The merge commit claims all twenty edits are intact. That claim is checkable
+exactly, because the merge has an upstream parent: `git diff 616e369^2 HEAD`
+over the thirteen files the port touches is, by construction, **the port's
+edits and nothing else** — 539 inserted lines, 15 deleted, every one of the
+twenty accounted for by reading. That is a stronger check than counting
+`VICTOR9K` occurrences, which is what a first pass reached for and which
+cannot see an edit that survived as text while losing its guard.
+
+**The other half is the same diff with `-w`**, which is what makes an
+upstream sweep this large readable at all: 88 files and 59,006 insertions
+collapse to 252 substantive lines across twelve files, because the bulk of
+11.0.509 is `expand(1)` converting tabs to spaces. Two of those lines look
+like behaviour changes on this port's receive path and are **not**:
+`rcvfil()`'s new parentheses and `spar()`'s streaming test both group what
+`&&` already bound tighter than `||`. `ckcfn3.c:1427` is a genuine fix on
+the error-reason path (`reason[(CHAR) c]`, a signed-char index).
+`zdtstr()`/`zstrdt()` now copy `localtime()`'s static result into an
+automatic `struct tm` before reading it — adjacent to upstream edit 19, and
+leg UC's dates cover it.
+
+### Five legs
+
+| leg | what | result |
+|---|---|---|
+| UA | 32 KB receive, host at t+110 | byte-exact, `rxpeak 306`, 80.768 s, 405 cps |
+| UB | 32,768-byte send **by name** | byte-exact, **0 timeouts, 0 resends**, 49.354 s, **663 cps** |
+| UC | server sweep: HELP, PWD, SPACE, DIRECTORY, TYPE, GET, full-root DIRECTORY, FINISH | all answered, 0 timeouts, 0 resends |
+| UD | parser build, `SPDTEST.KSC` by absolute path | all four of its edits pass |
+| UE | UA with the host at t+150 | **identical to UA within 56 ms** |
+
+`rxlost = 0 rxfull = 0` on all five, `deb = 0` on all five (§16aw's guard),
+`nap per = 409` on all five (§16av's), `coll = 1`, `neg = 1`, `bulk sel = 1`
+with n = 14,022 / 14,009 on the two receives and 18 on the send — so edit
+18's arm ran on the direction it exists for and is inert on the other, which
+is §16aq's counter doing its job.
+
+**Leg UB is the second end-to-end confirmation of upstream edit 16** and the
+first under MAME: `-s SNDUB.DAT` on a file of exactly 32,768 bytes, inside
+the range the 16-bit `rc` used to refuse, transferred byte-exact with no
+error line. **Leg UC confirms both of §16ax's edits after the merge** —
+`REMOTE SPACE` answers `Free space: 536K` from INT 21h `AH=36h` (edit 20),
+and neither the directory listing nor the file-date attribute of a `GET`
+reads 1970 (edit 19; the received file is md5-identical to §16ax's and
+carries `Aug 16 22:02`). The full-root listing is 162 files and 8,312,507
+bytes with a summary line and a clean exit, which is §16aw's leg RA at
+slightly larger scale and the standing evidence for §16av's `MAXWLD` 256 /
+`SSPACE` 4096.
+
+### The one thing worth carrying forward is a stall nobody has costed
+
+UA and UE both spent **~27 seconds between the F packet and its ACK** —
+three timeouts at 8, 16 and 24 s — and then ran the whole data phase clean.
+UA's first reading of that was "the host got there before the Victor was
+listening"; **leg UE was spent to test it and refuted it**, because starting
+the host 40 s later reproduced UA to 56 ms. The Victor answers the S packet
+at t = 0 and is inside `rcvfil()` for the next 26 s.
+
+**It is not the merge**: §16aj leg FA (3 timeouts, 6 resends, 75.906 s) and
+§16ar leg WD (4 timeouts, 7 resends, 83.013 s) have the same shape from
+before it, and leg WD — the closest control this tree holds — is **2.2 s
+slower** than UA and UE, not faster. Take the stall out and the data phase
+is 32,768 bytes in 53.8 s = **609 cps**, which is §16n's 633 and §16u's 632.
+**So a whole-run cps at 9600 under MAME is ~405 and a data-phase cps is
+~610, and a session quoting either should say which it has.** The stall
+itself is an old, unlooked-at cost on the receive-file-open path and is the
+obvious next MAME question.
+
+### What the merge did move: the parser build changed machine class
+
+The shipping build grew 66 bytes and stayed on a 384K Victor. The `KEEP_ICP`
+build grew about 25 KB: **429,890 (419K, smallest Victor 512K) at §16ax,
+453,602 (442K, smallest Victor 640K) now**, DGROUP 59,024 → **59,632 (90%)**
+of 65,536. Nothing ships from that build — it is the regression build §16y
+exists for — but it is the first upstream merge to move a machine class, and
+the margin left inside DGROUP is now 5,904 bytes. **Watch it on the next
+merge**; the lever if it ever matters is `-zt`, and §16y's warning about
+`-zt` and the receive ring (`__near`) is still the thing to read first.

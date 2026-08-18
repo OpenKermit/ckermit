@@ -16,6 +16,7 @@ are recorded at all.
 | `STEPD*.OUT` | §16ak, seven bench legs at 38400 |
 | `STEPG*.OUT` | §16al, four bench legs — two of them 0 bytes, which is the full-disk failure and is kept as the evidence for it |
 | `STEPR*.OUT` | §16aw, five MAME legs — `REMOTE DIRECTORY` and the `deb=` latch |
+| `STEPU*.OUT` | §16ay, five MAME legs — the post-merge regression of upstream 11.0.508. UA/UE receive, UB send by name, UC the server sweep, UD the parser build (no wire, so `rxpeak = 0` is the expected reading there) |
 | `STEPS*.OUT` | §16ax, six MAME legs — the server capability sweep. `STEPSA.OUT` is 0 bytes and is kept for the same reason `STEPG*` are: leg SA's terminating `REMOTE EXIT` failed in the **host's** parser, so the server never exited and MAME was killed under it |
 
 **The received files are not here and that is deliberate.** Every one was

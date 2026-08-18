@@ -1,0 +1,33 @@
+; Leg UC -- server capability sweep against the merged build.  REMOTE HELP
+; first (16ax's rule: it prints the whole en_* set in one round trip).
+; SPACE is upstream edit 20; the DIRECTORY dates are upstream edit 19.
+; The 9.0.302 client's remcfm() falls off an empty argument, so every
+; argument-less REMOTE goes through "> file".
+set line /tmp/v9000
+set speed 9600
+set parity none
+set carrier-watch off
+set flow none
+set receive timeout 10
+set retry 10
+set take error off
+set file collision rename
+log packets s16ayUC.pkt
+echo === UC01 remote help
+remote help > s16ayUC-help.txt
+echo === UC02 remote pwd
+remote pwd > s16ayUC-pwd.txt
+echo === UC03 remote space (edit 20)
+remote space
+echo === UC04 remote directory SRVA.TXT (edit 19 -- date must not be 1970)
+remote directory SRVA.TXT
+echo === UC05 remote type SRVA.TXT
+remote type SRVA.TXT
+echo === UC06 get SRVA.TXT (attribute date must not be 1970)
+get SRVA.TXT
+echo === UC07 remote directory, full root
+remote directory > s16ayUC-dir.txt
+echo === UC08 finish
+finish
+echo === UC done
+statistics

@@ -51,7 +51,8 @@ onto upstream's `ZTIMEV7` branch, whose K&R redeclarations of `localtime()`
 and `time()` produce two more sign mismatches at `ckutio.c:12399-12400`
 (they moved 80 lines when edit 18 went in).
 DGROUP is 48,896 of 65,536 (74%) after the linker adds libc; `ckermitw.exe`
-is 230,690 bytes and **needs 242,786 (237K) at load**. Quote that figure —
+is 230,756 bytes and **needs 242,852 (237K) at load** (§16ay, after the
+11.0.508 merge; it was 230,690 / 242,786 through §16ax). Quote that figure —
 it is the port's cost and it is the same on every machine. **The 396,224
 that appears in older sections is not a RAM size, and §16x retracts it as a
 figure for this DOS too**; Victor MS-DOS 3.1 hands out **824,784 at 896K**.
@@ -595,6 +596,9 @@ DOS" rested on the 387K figure §16x retracted. **§16y builds it**
 — `XFLAGS=-dKEEP_ICP ZT=-zt2048` links, loads on the Victor and prints a
 parser's help text, needing **429,890 (419K)** — **smallest Victor 512K** —
 against the shipping build's
+(**superseded by §16ay: the 11.0.508 merge took it to 453,602 (442K),
+DGROUP 59,632 of 65,536 (90%), and that is a 640K Victor — the first
+upstream merge to move a machine class**)
 219,452. Three fixes got it there and none was an upstream edit: `isfloat()`
 in `ckvictor.c` §2b (`NOFLOAT` removes `CKFLOAT`, which removes upstream's),
 `__near` on the receive ring (`-zt` would otherwise move it out of the group
@@ -708,6 +712,31 @@ and the model is `free = installed RAM − 92,720` — this DOS loads high,
 11,584 below the program and 81,136 above, both constant. `v9k/probes/vmem.c`
 asks a running machine; `mzsize.py` reports the smallest Victor that can
 load a build. **Quote the requirement, not the spare.**
+
+**§16ay is the post-merge regression, and the port came through upstream
+11.0.508 unmoved.** Five MAME legs at 9600, all byte-exact, `rxlost = 0
+rxfull = 0` and `deb = 0` throughout: a 32 KB receive, a **32,768-byte send
+BY NAME** (edit 16's exact range — second confirmation ever, 663 cps, zero
+resends), the server sweep (edit 19's dates, edit 20's `Free space: 536K`,
+a 162-file root listing) and the parser build running `SPDTEST.KSC` by
+absolute path (edits 12–15). **All twenty edits were verified before the
+legs by diffing HEAD against the merge's UPSTREAM PARENT** (`616e369^2`) —
+539 inserted lines over thirteen files, which is exactly the port's edits
+and nothing else. That is the method to reuse: **a merge with an upstream
+parent makes "are my edits intact" an exact question, where a `VICTOR9K`
+grep cannot see an edit that kept its text and lost its guard.** The same
+diff with **`-w` collapses 59,006 upstream insertions to 252 substantive
+lines**, because most of 11.0.509 is `expand(1)`; the two that look like
+receive-path behaviour changes (`rcvfil()`, `spar()`) are precedence
+no-ops. **Two things to carry:** the `KEEP_ICP` build **changed machine
+class** (419K/512K → 442K/**640K**, DGROUP 90%), the first merge ever to do
+that; and **a ~27 s stall between the F packet and its ACK** sits on every
+9600 MAME receive — three timeouts at 8, 16, 24 s, then a clean data phase
+at ~609 cps. **Leg UE was spent on the obvious explanation and refuted it**
+(starting the host 40 s later reproduced leg UA to **56 ms**), and §16aj and
+§16ar have the same shape from before the merge, so it is an old unlooked-at
+cost inside `rcvfil()` — and it makes a whole-run 9600 cps figure (~405) and
+a data-phase one (~609) differ by 35%. **Say which one you are quoting.**
 
 **§16ax put the whole server capability set on the wire — the item §16i
 opened the day server mode was built — and it cost upstream edits 19 and
@@ -1062,7 +1091,7 @@ socket is single-use, so start `socat` first and never probe the port.
    and the **stack** — 48,896 of 65,536 (74%) after the link, 16,640 free.
    The **heap is outside it**: `malloc()` is `_fmalloc` in the large model,
    so the packet buffers do not compete for the segment at all. What bounds
-   them is real-mode RAM: **the image needs 242,786 (237K) at load**, and
+   them is real-mode RAM: **the image needs 242,852 (237K) at load**, and
    the far heap then takes about 25K of packet buffers on top. **The receive
    ring is the exception**: at 4,096 bytes it is `.bss` and comes straight
    out of the 64K (§16k).
