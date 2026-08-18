@@ -738,6 +738,52 @@ at ~609 cps. **Leg UE was spent on the obvious explanation and refuted it**
 cost inside `rcvfil()` — and it makes a whole-run 9600 cps figure (~405) and
 a data-phase one (~609) differ by 35%. **Say which one you are quoting.**
 
+**§16az is the first time this port has run on FreeDOS for Victor, and it
+runs — on channel B.** Six MAME legs at 9600, **no code change and no
+rebuild**: the binary is §16ay's, md5 `d76c10b2…`, bit for bit. The
+headline is one counter line, **`v9k: dos oem=fd ver=622 irq1=09`** —
+`AH=30h` returned BH = 0xFD, so IRQ1 was hooked on **INT 09h** and not
+MS-DOS 3.1's 41h. **§16av built that branch and recorded that neither of its
+two FreeDOS arms had ever executed**; this is the first one running, and
+under it §1b's **direct chip-programming fallback** ran too, because
+FreeDOS's COM device carries attribute `0x8000` with no IOCTL bit and
+`AX=4402h` simply fails. Both directions byte-exact: **685 cps receiving
+with 0 damaged packets, 0 timeouts and 0 resends**, 646 cps sending 32,768
+bytes **by name** (edit 16's third end-to-end confirmation, first on this
+DOS). **`CHANNEL A IS NOT A KERMIT WIRE ON THIS KERNEL`**: the myfreedos
+kernel's `entry.asm:280` busy-waits on TBE and writes an `H` to the 7201 at
+`E000:0040` **on every INT 21h call**, guarded by `%ifdef VICTOR9000` with
+**no runtime switch**, plus `I42`/`DRWS` from the disk paths — and hard rule
+6 puts every console and file write of this port through INT 21h. Leg FDC on
+channel A was still byte-exact but took 5 damaged packets and 6 resends;
+**leg FDE is the same leg one channel over and every one of them
+disappears**, which is what confirms the diagnosis rather than asserting it.
+The tracer is hardwired to `E000:0040`/`0042`, channel B is `0041`/`0043`,
+`v9k_ser_selchan()` already picks B from a name ending in `B` or `2`, and
+MAME has `-rs232b` — so **use `COM2`**. Getting the binary there needed a new
+tool: the image is the **Victor hybrid** format and **neither mtools nor
+`vtg_image_util` can read it** (nor can myfreedos's `copy_to_victor_dos.py`,
+which hardcodes a *Victor MS-DOS* geometry matching nothing in it), so
+`v9k/tools/hybridfat.py` does the FAT16 by hand and **takes the volume base
+from the BPB's own `hidden_sectors` instead of assuming 129**. Three
+readings to carry. **`rxpeak` was 19 of 4,096 against §16ay's 306, and that
+is §16m confirmed, not a FreeDOS property** — the peak measures the ring
+filling during the host's *retransmission*, and this leg had none.
+**§16ay's ~27 s `rcvfil()` stall did not happen here**, which is a lever on
+that question and **not an answer**: two DOSes, two filesystems, two images,
+different days, **no adjacent control**, which is exactly §16al's withdrawn
+"+11%". And **the console ANSI arm is still unverified** — leg FDA's screen
+garbage was first read as ours and is **retracted** (`victor_trace.c` writes
+the *kernel's* debug region to screen rows 12–24), while leg FDG failed to
+engage the display at all, because C-Kermit only draws it during a transfer
+and a FINISH with no host never starts one. **The method lesson is §16an's
+for the third time**: every reading before the capture was a counter inside
+one of the two programs and both were right about what they did, and the
+thing that settled it in 150 seconds was putting a capture on the wire with
+nothing of ours running. **Before running a leg on a machine you have not
+run on before, capture what that machine puts on the wire when your program
+is not there.**
+
 **§16ax put the whole server capability set on the wire — the item §16i
 opened the day server mode was built — and it cost upstream edits 19 and
 20.** Six MAME legs at 9600. **`BYE` works**: ACKed, `doclean()`,
@@ -1137,7 +1183,7 @@ socket is single-use, so start `socat` first and never probe the port.
 | `victor/sys/ioctl.h` | `FIONREAD` and `TIOCMGET`; without the first `conchk()`/`ttchk()` are hard-wired to 0, and without the second `ttchk()` never reaches `FIONREAD` |
 | `victorow.mak` | the build: Open Watcom `wcc`/`wlink` + `sizes` target |
 | `victorow/` | headers filling gaps in Open Watcom's DOS libc (`pwd.h`, `sys/utsname.h`, `sys/time.h`, `termios.h`, `ckowsys.h`), reached via `-i=victorow`. **`curses.h` is different in kind**: not a gap in libc but the declaration half of the fullscreen transfer display, whose implementation is `ckvictor.c` §1g. Read its header comment before touching the display — it carries the evidence that this console is VT52/Z19 and not ANSI (§16ao) |
-| `v9k/tools/` | standing instruments, not disposable: `mzsize.py` (**hard rule 4 requires it**), `pktstat.py`, `mapoffset.py`, `ctswatch.py` (host-side `TIOCMGET`, §16am — the modem lines read without Kermit in the path), `wirenoise.py` (§16av — a drop-in replacement for the harness `socat` line that corrupts the wire on purpose, keyed on byte offset so two arms of an A/B meet the same noise) |
+| `v9k/tools/` | standing instruments, not disposable: `mzsize.py` (**hard rule 4 requires it**), `pktstat.py`, `mapoffset.py`, `ctswatch.py` (host-side `TIOCMGET`, §16am — the modem lines read without Kermit in the path), `wirenoise.py` (§16av — a drop-in replacement for the harness `socat` line that corrupts the wire on purpose, keyed on byte offset so two arms of an A/B meet the same noise), `hybridfat.py` (§16az — `info`/`list`/`put`/`get`/`del` on the FAT16 volume of a **Victor 9000 hybrid FreeDOS image**, which neither mtools nor `vtg_image_util` can read; it takes the volume base from the BPB's own `hidden_sectors` rather than assuming 129) |
 | `v9k/proofs/` | host programs §8 cites as the correctness argument for a shipped edit — `vcrc16.c` (edit 17), `vttinl.c` (edit 18) and `vburst.c` (the ISR burst detector). `make -C v9k/proofs` builds *and runs* them |
 | `v9k/probes/` | genuine one-shots, kept so the answer stays checkable; build line at the top of each |
 | `ckutio.c` | serial, console, timers — **stock upstream except upstream edit 18**, the `VICTOR9K` bulk-read arm at the bottom of `ttinl()`'s per-byte loop (§16aq). Purely additive; `--nobulk` disables it at run time and `v9k: bulk sel= n=` says which arm ran |

@@ -17,6 +17,7 @@ are recorded at all.
 | `STEPG*.OUT` | §16al, four bench legs — two of them 0 bytes, which is the full-disk failure and is kept as the evidence for it |
 | `STEPR*.OUT` | §16aw, five MAME legs — `REMOTE DIRECTORY` and the `deb=` latch |
 | `STEPU*.OUT` | §16ay, five MAME legs — the post-merge regression of upstream 11.0.508. UA/UE receive, UB send by name, UC the server sweep, UD the parser build (no wire, so `rxpeak = 0` is the expected reading there) |
+| `FD*.OUT` | §16az, six MAME legs at 9600 on **FreeDOS for Victor** — the first runs of this port on that DOS. FDB is the `dos oem=fd ver=622 irq1=09` identity oracle (no wire, so `rxpeak = 0` is expected); FDC is the channel-A receive the kernel's own serial trace corrupted; FDE and FDF are the clean channel-B receive and send; FDG is the console leg that failed to engage the display. `FDBOOT-chanA-trace.txt` is not a leg — it is 150 s of channel A with **nothing of ours running**, and it is the evidence that `entry.asm:280` writes an `H` to the 7201 on every INT 21h call |
 | `STEPS*.OUT` | §16ax, six MAME legs — the server capability sweep. `STEPSA.OUT` is 0 bytes and is kept for the same reason `STEPG*` are: leg SA's terminating `REMOTE EXIT` failed in the **host's** parser, so the server never exited and MAME was killed under it |
 
 **The received files are not here and that is deliberate.** Every one was
