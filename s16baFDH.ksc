@@ -1,0 +1,12 @@
+; Leg FDH -- the HOST SENDS.  Victor receives 32,768 bytes at 9600 as
+; RCVFDH.DAT.  PORTING.md SS16ba.
+set line /tmp/v9000
+set speed 9600
+set parity none
+set carrier-watch off
+set flow none
+set receive timeout 20
+set retry 30
+log packets s16baFDH.pkt
+send rcvfdh.dat
+statistics
