@@ -638,7 +638,7 @@ bdecode(buf,fn) register CHAR *buf; register int (*fn)();
         a = *xdbuf++ & 0xff;            /* Get next character */
         len--;
         rpt = 0;                        /* Initialize repeat count. */
-        if (a == rptq && rptflg) {      /* Got a repeat prefix? */
+        if (a == (unsigned int)rptq && rptflg) { /* Repeat prefix? */
             rpt = xunchar(*xdbuf++ & 0xFF); /* Yes, get the repeat count, */
             rptn += rpt;
             a = *xdbuf++ & 0xFF;        /* and get the prefixed character. */
@@ -1373,14 +1373,14 @@ decode(buf,fn,xlate) register CHAR *buf; register int (*fn)(); int xlate;
     while (len > 0) {                   /* Loop for each byte */
         a = *xdbuf++ & 0xff;            /* Get next character */
         len--;
-        if (a == rptq && rptflg) {      /* Got a repeat prefix? */
+        if (a == (unsigned int)rptq && rptflg) { /* Repeat prefix? */
             rpt = xunchar(*xdbuf++ & 0xFF); /* Yes, get the repeat count, */
             rptn += rpt;
             a = *xdbuf++ & 0xFF;        /* and get the prefixed character. */
             len -= 2;
         }
         b8 = lsstate ? 0200 : 0;        /* 8th-bit value from SHIFT-STATE */
-        if (ebqflg && a == ebq) {       /* Have 8th-bit prefix? */
+        if (ebqflg && a == (unsigned int)ebq) { /* 8th-bit prefix? */
             b8 ^= 0200;                 /* Yes, invert the 8th bit's value, */
             ssflg = 1;                  /* remember we did this, */
             a = *xdbuf++ & 0xFF;        /* and get the prefixed character. */

@@ -789,7 +789,7 @@ static char *fncnam[] = {
 
 /* Used to speed up text-mode PUTs */
 #define zzout(fd,c) \
-((fd<0)?(-1):((nout>=ucbufsiz)?(zzsend(fd,c)):(ucbuf[nout++]=c)))
+((fd<0)?(-1):((nout>=(unsigned int)ucbufsiz)?(zzsend(fd,c)):(ucbuf[nout++]=c)))
 
 #define CHECKCONN() if(!connected){printf("%s\n",nocx);return(-9);}
 
@@ -15862,8 +15862,9 @@ secure_write(fd, buf, nbyte)
         }
         return(send(fd,(SENDARG2TYPE)buf,nbyte,0));
     } else {
-        int ucbuflen = (maxbuf ? maxbuf : actualbuf) - FUDGE_FACTOR;
-        int bsent = 0;
+        unsigned int ucbuflen = (maxbuf ? maxbuf : actualbuf) -
+            FUDGE_FACTOR;
+        unsigned int bsent = 0;
 
         while (bsent < nbyte) {
             int b2cp = ((nbyte - bsent) > (ucbuflen - nout) ?
@@ -16198,7 +16199,8 @@ secure_getbyte(fd,fc) int fd,fc;
                                );
                   return(ERR);
               }
-              if ((kerror = looping_read(fd,(char *)ucbuf,length)) != length) {
+              if ((unsigned int)(kerror =
+                  looping_read(fd,(char *)ucbuf,length)) != length) {
                   secure_error("Couldn't read %u byte PROT buffer: %s",
                                length,
                                kerror == -1 ? ck_errstr() : "premature EOF"

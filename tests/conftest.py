@@ -163,7 +163,7 @@ def debug_log_command(debug_log):
     gz_path = compressed_debug_log_path(debug_log)
     return (
         "set debug timestamps on, "
-        f"log debug {{|trap '' HUP; exec gzip -c > {gz_path}}}"
+        f"log debug {{|trap '' HUP; exec gzip -1 -c > {gz_path}}}"
     )
 
 
@@ -455,7 +455,13 @@ def run_wermit(wermit_path):
     Synchronously runs a wermit command or script, returning a CompletedProcess.
     Can accept a list of arguments or a string command (executed via -C).
     """
-    def _run(args, input_data=None, timeout=10):
+    def _run(args, input_data=None, timeout=10, pre_timeout_callback=None):
+        """Run wermit and return a CompletedProcess.
+
+        If pre_timeout_callback is specified, invoke it 2 seconds before
+        the hard timeout (or immediately if timeout <= 2) to capture live
+        state before termination.
+        """
         if isinstance(args, str):
             # Automatically skip init file, suppress banner, run inline
             # command with more-prompting off, and append exit to prevent
@@ -470,13 +476,36 @@ def run_wermit(wermit_path):
 
         logger.info("run_wermit: Launching process: %s", " ".join(cmd))
         t_start = time.perf_counter()
-        result = subprocess.run(
-            cmd,
-            input=input_data,
-            capture_output=True,
-            text=True,
-            timeout=timeout
-        )
+        if pre_timeout_callback is None:
+            result = subprocess.run(
+                cmd,
+                input=input_data,
+                capture_output=True,
+                text=True,
+                timeout=timeout
+            )
+        else:
+            proc = subprocess.Popen(
+                cmd, stdin=subprocess.PIPE if input_data else None,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            snapshot_at = max(timeout - 2, 0)
+            try:
+                stdout, stderr = proc.communicate(
+                    input=input_data, timeout=snapshot_at)
+                result = subprocess.CompletedProcess(
+                    cmd, proc.returncode, stdout, stderr)
+            except subprocess.TimeoutExpired:
+                pre_timeout_callback()
+                try:
+                    stdout, stderr = proc.communicate(
+                        timeout=timeout - snapshot_at)
+                    result = subprocess.CompletedProcess(
+                        cmd, proc.returncode, stdout, stderr)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    stdout, stderr = proc.communicate()
+                    raise subprocess.TimeoutExpired(
+                        cmd, timeout, output=stdout, stderr=stderr)
         logger.info("run_wermit: Process completed with exit code %d in %.4f seconds",
                     result.returncode, time.perf_counter() - t_start)
         return result
@@ -645,7 +674,10 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
                 try:
                     result = run_wermit(
                         full_client_cmd,
-                        timeout=timeout + TCP_TIMEOUT_MARGIN)
+                        timeout=timeout + TCP_TIMEOUT_MARGIN,
+                        pre_timeout_callback=lambda: _log_socket_snapshot(
+                            "wermit_loopback: client about to time out",
+                            port))
                 except subprocess.TimeoutExpired:
                     # If some other process's  connection lands on this
                     # listener's single accept() before the client in this test
@@ -1042,6 +1074,32 @@ def _log_process_snapshot(label):
     except Exception as e:
         logger.warning(
             "%s: failed to capture process snapshot: %s", label, e)
+
+
+def _log_socket_snapshot(label, port):
+    """Log socket and process state for port.
+
+    Runs netstat to record whether the TCP connection reached ESTABLISHED
+    or remained in SYN_SENT.
+
+    Also invokes _log_process_snapshot to record running processes.
+    """
+    try:
+        ns = subprocess.run(
+            ["netstat", "-an"], capture_output=True, text=True, timeout=5)
+        # BSD netstat uses '.' as port delimiter (127.0.0.1.41000); Linux
+        # uses ':' (127.0.0.1:41000). Match either delimiter and require a
+        # trailing non-digit or end-of-line to avoid prefix matches.
+        port_re = re.compile(rf"[.:]{port}(\D|$)")
+        relevant = "\n".join(
+            line for line in ns.stdout.splitlines() if port_re.search(line)
+        )
+        logger.info(
+            "%s: socket snapshot for port %d:\n%s", label, port, relevant)
+    except Exception as e:
+        logger.warning(
+            "%s: failed to capture socket snapshot: %s", label, e)
+    _log_process_snapshot(label)
 
 
 def _make_controlling_tty():

@@ -3058,7 +3058,7 @@ rpack() {
         break;
       case 2:                           /* Type 2, 12-bit checksum */
         x = xunchar(*pbc) << 6 | xunchar(pbc[1]);
-        if (x != chk2(recpkt+lp,j-lp)) { /* No match */
+        if ((unsigned int)x != chk2(recpkt+lp,j-lp)) { /* No match */
             if (type == 'E') {          /* Allow E packets to have type 1 */
                 recpkt[j++] = pbc[0];
                 recpkt[j] = '\0';
@@ -3109,7 +3109,7 @@ rpack() {
       case 4:                           /* Type 4 = Type 2, no blanks. */
         x = (unsigned)((xunchar(*pbc) - 1) << 6) |
           (unsigned)(xunchar(pbc[1]) - 1);
-        if (x != chk2(recpkt+lp,j-lp)) {
+        if ((unsigned int)x != chk2(recpkt+lp,j-lp)) {
             if (type == 'E') {  /* Allow E packets to have type 1 */
                 recpkt[j++] = pbc[0];
                 recpkt[j] = '\0';

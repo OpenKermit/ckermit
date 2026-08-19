@@ -1295,7 +1295,7 @@ initfloat() {
         y = i - 1;
         debug(F111,"initfloat 4.0/9.0",buf,y);
         fp_digits = (x < y) ? x : y;
-        if (fp_digits < sizeof(math_pi) - 1) {
+        if ((size_t)fp_digits < sizeof(math_pi) - 1) {
             math_pi[fp_digits+1] = NUL;
             math_e[fp_digits+1] = NUL;
         }
@@ -11061,14 +11061,14 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         while (1) {
             if (!eof1) {
                 c1 = getc(fp1);
-                if (c1 == (unsigned int)EOF) {
+                if (c1 == EOF) {
                     eof1++;
                     fclose(fp1);
                 }
             }
             if (!eof2) {
                 c2 = getc(fp2);
-                if (c2 == (unsigned int)EOF) {
+                if (c2 == EOF) {
                     eof2++;
                     fclose(fp2);
                 }
@@ -12927,14 +12927,14 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             while (!eof) {              /* Loop for each marker */
                 while (!eof) {          /* Find next marker */
                     c = getc(fp);
-                    if (c == (unsigned int)EOF) {
+                    if (c == EOF) {
                         eof++;
                         break;
                     }
                     if (c == 0xff) {
                         buf[0] = c;
                         c = getc(fp);
-                        if (c == (unsigned int)EOF) {
+                        if (c == EOF) {
                             eof++;
                             break;
                         }
@@ -13610,7 +13610,7 @@ char *                                  /* Evaluate builtin variable */
       case VN_FULLVER:                  /* Full version number (edit 400) */
       {
           extern char *ck_s_ver, *ck_s_edit, *ck_s_test, *ck_s_tver;
-          if (x > strlen(ck_s_test)) {
+          if ((size_t)x > strlen(ck_s_test)) {
               sprintf(vvbuf,"%s.%s %s.%s",
                       ck_s_ver, ck_s_edit, ck_s_test, ck_s_tver); /* SAFE */
           } else {

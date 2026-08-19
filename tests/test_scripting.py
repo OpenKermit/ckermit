@@ -70,3 +70,25 @@ def test_script_control(run_wermit):
     assert "TEST_CONTROL: GOTO loop 3" in result.stdout
     assert "TEST_CONTROL: GOTO loop 4" not in result.stdout
     assert "TEST_CONTROL: GOTO verified" in result.stdout
+
+
+def test_underscore_macro_name_not_internal(run_wermit):
+    """
+    Invoking a user-defined macro whose name starts with "_" but isn't one of
+    the macro names _while, _forx, _forz, _xif, _switx.
+
+    Regression test for isinternalmacro().  It looped
+    "i < sizeof(* tags)", the size of one array element (a char *),
+    instead of the array's element count. tags[] has 4 real entries;
+    sizeof(char *) is 4 on a 32-bit build, so the loop happened to be
+    correct there, but incorrect on 64-bit.
+    """
+    result = run_wermit("define _mytest1 echo hi, do _mytest1")
+
+    assert result.returncode >= 0, (
+        "wermit crashed (signal "
+        f"{-result.returncode}) invoking a user macro named "
+        f"_mytest1: stdout={result.stdout!r} stderr={result.stderr!r}"
+    )
+    assert_ok(result)
+    assert "hi" in result.stdout

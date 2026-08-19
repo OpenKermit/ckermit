@@ -2383,7 +2383,7 @@ auth_send(parsedat,end_sub) unsigned char *parsedat; int end_sub;
 {
     static unsigned char buf[4096];
     unsigned char *pname;
-    int plen;
+    unsigned int plen;
     int i;
     int mode;
 #ifdef MIT_CURRENT
@@ -3618,7 +3618,7 @@ auth_name(parsedat,end_sub) unsigned char *parsedat; int end_sub;
 #endif
 {
     int len = (end_sub-2) > 63 ? 63 : (end_sub-2);
-    if ( len > 0 && (len + 1) < sizeof(szUserNameRequested)) {
+    if ( len > 0 && (size_t)(len + 1) < sizeof(szUserNameRequested)) {
         memcpy(szUserNameRequested,&parsedat[2],len);           /* safe */
         szUserNameRequested[len] = '\0';
     } else

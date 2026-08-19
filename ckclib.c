@@ -2540,7 +2540,7 @@ b64tob8( s, n, out, len ) char * s; int n; char * out; int len;
         r = 0;
         return(0);
     }
-    x = (n < 0) ? strlen(s) : n;        /* Source length */
+    x = (n < 0) ? (int)strlen(s) : n;   /* Source length */
 
     n = ((x + 3) / 4) * 3;              /* Compute destination length */
     if (x > 0 && s[x-1] == '=') n--;    /* Account for padding */
@@ -2814,7 +2814,7 @@ hextoulong(s,n) char *s; int n;
         } else {
             return(-1L);
         }
-        if (++count > (sizeof(long) * 2))
+        if ((size_t)(++count) > sizeof(long) * 2)
           return(-1L);
         result = (result << 4) | (d & 0x0f);
     }
