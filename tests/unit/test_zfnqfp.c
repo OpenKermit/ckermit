@@ -34,7 +34,7 @@
   resolved.
 */
 int deblog = 0;
-int dodebug(int a, char *b, char *c, CK_OFF_T d) {
+int dodebug(int a, const char *b, const char *c, CK_OFF_T d) {
     return 0;
 }
 int inserver = 0;

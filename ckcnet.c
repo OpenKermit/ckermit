@@ -1815,7 +1815,7 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
     gai = getaddrinfo(host, svc, &hints, &results);
     if (gai != 0 || !results) {
         debug(F110,"ck_tcp_connect getaddrinfo error",
-              (char *)gai_strerror(gai),0);
+              gai_strerror(gai),0);
         errno = 0;
         return(-1);
     }
@@ -11587,12 +11587,11 @@ http_security()
         return("NULL");
 #ifdef CK_SSL
     if (tls_http_active_flag) {
-        SSL_CIPHER * cipher;
+        const SSL_CIPHER * cipher;
         const char *cipher_list;
         static char buf[128];
         buf[0] = NUL;
-        /* cast added by fdc 26 September 2022 */
-        cipher = (SSL_CIPHER *)SSL_get_current_cipher(tls_http_con);
+        cipher = SSL_get_current_cipher(tls_http_con);
         cipher_list = SSL_CIPHER_get_name(cipher);
         SSL_CIPHER_description(cipher,buf,sizeof(buf));
         return(buf);

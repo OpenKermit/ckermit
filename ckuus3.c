@@ -73,8 +73,8 @@ int settitle();          /* ckuus7.c */
 int setdialer();         /* ckuus7.c */
 void os2debugoff();      /* ckoco3.c */
 int msktock(int);        /* ckokey.c */
-int popup_readpass(int,char*,char*,char*,int,int);  /* ckocon.c */
-int popup_readtext(int,char*,char*,char*,int,int);  /* ckocon.c */
+int popup_readpass(int,char*,const char*,char*,int,int); /* ckocon.c */
+int popup_readtext(int,char*,const char*,char*,int,int); /* ckocon.c */
 #ifdef NETDLL
 int netdll_load(char *); /* ckonet.c */
 #endif /* NETDLL */
@@ -13980,7 +13980,7 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
                           ssl_ctx = (SSL_CTX *)
 /* Changed in 9.0.305 Alpha.03 from NetBSD 'rhialto' */
 /* from: SSL_CTX_new((SSL_METHOD *)TLSv1_method()); to:...*/
-                            SSL_CTX_new((SSL_METHOD *)SSLv23_method());
+                            SSL_CTX_new(SSLv23_method());
                           if (ssl_ctx != NULL)
                             ssl_con= (SSL *) SSL_new(ssl_ctx);
                       }

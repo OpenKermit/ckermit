@@ -5472,22 +5472,22 @@ _PROTOTYP(VOID doxlog,(int, char *, CK_OFF_T, int, int, char *));
 #define ckhexdump(a,b,c)
 /* Now define the debug() macro. */
 #else /* DEBUG */
-_PROTOTYP(int dodebug,(int,char *,char *,CK_OFF_T));
+_PROTOTYP(int dodebug,(int,const char *,const char *,CK_OFF_T));
 _PROTOTYP(int dohexdump,(CHAR *,CHAR *,int));
 #ifdef IFDEBUG
 /* Use this form to avoid function calls: */
 #ifdef CK_ANSIC
 #define debug(a,b,c,d) \
-((void)(deblog?dodebug(a,b,(char *)(c),(CK_OFF_T)(d)):0))
+((void)(deblog?dodebug(a,b,(const char *)(c),(CK_OFF_T)(d)):0))
 #define ckhexdump(a,b,c) \
 ((void)(deblog?dohexdump((CHAR *)(a),(CHAR *)(b),c):0))
 #else
-#define debug(a,b,c,d) (deblog?dodebug(a,b,(char *)(c),(CK_OFF_T)(d)):0)
+#define debug(a,b,c,d) (deblog?dodebug(a,b,(const char *)(c),(CK_OFF_T)(d)):0)
 #define ckhexdump(a,b,c) (deblog?dohexdump((CHAR *)(a),(CHAR *)(b),c):0)
 #endif /* CK_ANSIC */
 #else /* IFDEBUG */
 /* Use this form to save space: */
-#define debug(a,b,c,d) dodebug(a,b,(char *)(c),(CK_OFF_T)(d))
+#define debug(a,b,c,d) dodebug(a,b,(const char *)(c),(CK_OFF_T)(d))
 #define ckhexdump(a,b,c) dohexdump((CHAR *)(a),(CHAR *)(b),c)
 #endif /* IFDEBUG */
 #endif /* DEBUG */
@@ -5674,8 +5674,8 @@ _PROTOTYP( int zchin, (int, int *) );
 _PROTOTYP( int zxin, (int, char *, int) );
 _PROTOTYP( int zsinl, (int, char *, int) );
 _PROTOTYP( int zinfill, (void) );
-_PROTOTYP( int zsout, (int, char*) );
-_PROTOTYP( int zsoutl, (int, char*) );
+_PROTOTYP( int zsout, (int, const char*) );
+_PROTOTYP( int zsoutl, (int, const char*) );
 _PROTOTYP( int zsoutx, (int, char*, int) );
 _PROTOTYP( int zchout, (int, char) );
 _PROTOTYP( int zoutdump, (void) );
@@ -6941,7 +6941,7 @@ _PROTOTYP( char * zlocaltime, (char *) );
 #define SYSLGMAX 9                      /* Highest level */
 #define SYSLG_DF SYSLG_FA               /* Default level */
 /* Logging function */
-_PROTOTYP(VOID cksyslog,(int, int, char *, char *, char *));
+_PROTOTYP(VOID cksyslog,(int, int, const char *, const char *, const char *));
 #endif /* CKSYSLOG */
 #ifndef CKCMAI
 extern int ckxlogging, ckxsyslog, ikdbopen;
@@ -7146,8 +7146,8 @@ _PROTOTYP( int ftpissecure, (void));
 #endif  /* NETCONN */
 #endif /* NOTCPIP */
 
-_PROTOTYP( int readpass, (char *, char *, int));
-_PROTOTYP( int readtext, (char *, char *, int));
+_PROTOTYP( int readpass, (const char *, char *, int));
+_PROTOTYP( int readtext, (const char *, char *, int));
 
 #ifdef OS2
 _PROTOTYP(int ck_auth_loaddll, (VOID));

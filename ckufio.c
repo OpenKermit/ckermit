@@ -616,10 +616,10 @@ pam_cb(num_msg, msg, resp, appdata_ptr)
             if (pam_pw) {
                 ckstrncpy(message,pam_pw,PAM_MAX_MSG_SIZE);
             } else
-                readpass((char *)msg[i]->msg,message,PAM_MAX_MSG_SIZE);
+                readpass(msg[i]->msg,message,PAM_MAX_MSG_SIZE);
         } else if (msg[i]->msg_style == PAM_PROMPT_ECHO_ON) {
             debug(F111,"pam_cb","Reading response, with echo",0);
-            readtext((char *)msg[i]->msg,message,PAM_MAX_MSG_SIZE);
+            readtext(msg[i]->msg,message,PAM_MAX_MSG_SIZE);
         } else {
             debug(F111,"pam_cb","unknown style",0);
             return(0);
@@ -1160,7 +1160,8 @@ logwtmp(line, name, host) char *line, *name, *host;
     s1, s2, s3: strings.
 */
 VOID
-cksyslog(n, m, s1, s2, s3) int n, m; char * s1, * s2, * s3; {
+cksyslog(n, m, s1, s2, s3)
+    int n, m; const char * s1, * s2, * s3; {
     int level;
 
     if (!ckxlogging)                    /* syslogging */
@@ -2003,7 +2004,7 @@ zinfill() {
 
 int
 #ifdef CK_ANSIC
-zsout( int n, char *s )
+zsout( int n, const char *s )
 #else
 zsout(n,s) int n; char *s;
 #endif /* CK_ANSIC */
@@ -2044,7 +2045,7 @@ zsout(n,s) int n; char *s;
 
 int
 #ifdef CK_ANSIC
-zsoutl( int n, char *s )
+zsoutl( int n, const char *s )
 #else
 zsoutl(n,s) int n; char *s;
 #endif /* CK_ANSIC */

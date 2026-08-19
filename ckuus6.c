@@ -107,8 +107,8 @@ extern int k95stdout;
 int zlink(char *,char *);               /* ckofio.c */
 int ttgcwsz();                          /* ckocon.c */
 
-int popup_readpass(int,char*,char*,char*,int,int);       /* ckocon.c */
-int popup_readtext(int,char*,char*,char*,int,int);       /* ckocon.c */
+int popup_readpass(int,char*,const char*,char*,int,int); /* ckocon.c */
+int popup_readtext(int,char*,const char*,char*,int,int); /* ckocon.c */
 
 #ifdef KUI
 int gui_txt_dialog(char*,char*,int,char*,int,char*,int); /* cknwin.c */

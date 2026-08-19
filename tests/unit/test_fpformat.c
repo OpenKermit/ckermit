@@ -12,7 +12,7 @@
 /* debug() macro support: deblog=0 means dodebug() is never actually
    called, but the symbol must still exist for the linker. */
 int deblog = 0;
-int dodebug(int f, char *s1, char *s2, CK_OFF_T n) { return 0; }
+int dodebug(int f, const char *s1, const char *s2, CK_OFF_T n) { return 0; }
 
 START_TEST(test_fpformat_simple)
 {

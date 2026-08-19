@@ -74,8 +74,8 @@
 #endif /* putchar */
 #define putchar(x) conoc(x)
 
-int popup_readpass(int,char*,char*,char*,int,int);  /* ckocon.c */
-int popup_readtext(int,char*,char*,char*,int,int);  /* ckocon.c */
+int popup_readpass(int,char*,const char*,char*,int,int); /* ckocon.c */
+int popup_readtext(int,char*,const char*,char*,int,int); /* ckocon.c */
 int cktomsk(int);                                   /* ckokey.c */
 int msktock(int);                                   /* ckokey.c */
 int os2settitle(char *, int);                       /* ckotio.c */
@@ -14396,7 +14396,7 @@ dosave(xx) int xx;
 */
 int
 #ifdef CK_ANSIC
-readtext( char * prmpt, char * buffer, int bufsiz )
+readtext( const char * prmpt, char * buffer, int bufsiz )
 #else
 readtext(prmpt, buffer, bufsiz) char * prmpt; char * buffer; int bufsiz;
 #endif /* CK_ANSIC */
@@ -14463,7 +14463,7 @@ readtext(prmpt, buffer, bufsiz) char * prmpt; char * buffer; int bufsiz;
 
 int
 #ifdef CK_ANSIC
-readpass( char * prmpt, char * buffer, int bufsiz )
+readpass( const char * prmpt, char * buffer, int bufsiz )
 #else
 readpass(prmpt, buffer, bufsiz) char * prmpt; char * buffer; int bufsiz;
 #endif /* CK_ANSIC */
@@ -15081,16 +15081,16 @@ sho_auth(cx) int cx;
                 SSL_library_init();
                 ssl_ctx = (SSL_CTX *)
 /* old...         SSL_CTX_new((SSL_METHOD *)TLSv1_method());  new below: */
-                  SSL_CTX_new((SSL_METHOD *)SSLv23_method());
+                  SSL_CTX_new(SSLv23_method());
                 if (ssl_ctx != NULL)
                   ssl_con= (SSL *) SSL_new(ssl_ctx);
             }
             if (ssl_con != NULL) {
-                CHAR * p = NULL;
+                CONST CHAR * p = NULL;
                 int i;
 
                 for (i = 0; ; i++) {
-                    p = (CHAR *) SSL_get_cipher_list(ssl_con,i);
+                    p = (CONST CHAR *) SSL_get_cipher_list(ssl_con,i);
                     if (p == NULL)
                       break;
                     printf("    %s\n",p);

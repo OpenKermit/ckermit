@@ -4550,7 +4550,8 @@ shoparc() {
 #ifdef TN_COMPORT
         if (istncomport()) {
             int modemstate;
-            char * oflow, * iflow = "", * parity, * stopsize, * signature;
+            char * oflow, * iflow = "", * parity, * stopsize;
+            CONST char * signature;
             int baud = tnc_get_baud();
 
             switch (tnc_get_oflow()) {
@@ -4619,7 +4620,7 @@ shoparc() {
               default:
                 stopsize = "(unknown)";
             }
-            signature = (char *)tnc_get_signature();
+            signature = tnc_get_signature();
             printf("\n  Signature            : %s\n",signature?signature:"");
             if (baud <= 0)
               printf("  Speed                : (unknown)\n");
@@ -15532,8 +15533,8 @@ char *                                  /* Evaluate builtin variable */
 #ifdef TN_COMPORT
     switch (y) {
       case VN_TNC_SIG: {
-        p = (char *) tnc_get_signature();
-        ckstrncpy(vvbuf,p ? p : "",VVBUFL);
+        CONST char * sig = tnc_get_signature();
+        ckstrncpy(vvbuf,sig ? sig : "",VVBUFL);
         return(vvbuf);
       }
     }

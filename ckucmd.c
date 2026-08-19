@@ -858,7 +858,7 @@ cmsetup() {
 
 VOID
 #ifdef CK_ANSIC
-cmsetp( char * s )
+cmsetp( const char * s )
 #else
 cmsetp(s) char *s;
 #endif /* CK_ANSIC */

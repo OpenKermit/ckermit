@@ -24,10 +24,13 @@ _PROTOTYP( int ckstrncpy, (char *, char *, int) );
 _PROTOTYP( int ckstrncat, (char *, char *, int) );
 #endif /* CK_ANSIC */
 
-_PROTOTYP( int ckmakmsg,  (char *, int, char *, char *, char *, char *) );
+_PROTOTYP( int ckmakmsg,  (char *, int, const char *, const char *,
+                           const char *, const char *) );
 _PROTOTYP( int ckmakxmsg, (char *, int,
-                           char *, char *, char *, char *, char *, char *,
-                           char *, char *, char *, char *, char *, char *) );
+                           const char *, const char *, const char *,
+                           const char *, const char *, const char *,
+                           const char *, const char *, const char *,
+                           const char *, const char *, const char *) );
 
 _PROTOTYP( char * ckstrpbrk, (char *, char *) );
 _PROTOTYP( char * ckstrstr, (char *, char *) );
