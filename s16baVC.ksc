@@ -1,0 +1,12 @@
+; Leg VC -- the HOST SENDS.  Victor receives 32,768 bytes at 9600 as
+; RCVVC.DAT on Victor MS-DOS 3.1.  PORTING.md SS16ba.
+set line /tmp/v9000
+set speed 9600
+set parity none
+set carrier-watch off
+set flow none
+set receive timeout 20
+set retry 30
+log packets s16baVC.pkt
+send rcvvc.dat
+statistics

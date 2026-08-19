@@ -12164,3 +12164,155 @@ neighbouring one — measure that the far end can do what your experiment
 assumes. This is a third face of it: **before running a leg on a machine you
 have not run on before, capture what that machine puts on the wire when your
 program is not there.**
+
+## 16ba. The FreeDOS console arm works, and the `rcvfil()` stall is a directory
+
+**19 August 2026, no Victor in reach.** Ten MAME runs at 9600 — one capture,
+eight legs and one leg run twice — across **both** DOSes. Run sheet
+`HW_TEST_16ba.md`, **written before any leg ran**, which is the thing §16az's
+own closing paragraph asked for. Victor counters `v9k/legs/STEPV*.OUT` and
+`FDJ.OUT`; the two display legs have no `.OUT` and their counters are in
+`v9k/legs/*-counters.png`. **No code change, no rebuild, no upstream edit —
+still twenty.** Every leg ran md5 `d76c10b2401d3685f8dd2f2304f717d1`,
+verified identical in the tree and on both images before the sitting.
+
+**Eight of eight completed transfers byte-exact**, `rxlost = 0 rxfull = 0`
+and `deb = 0` throughout.
+
+### The precondition, and it is now a measurement
+
+150 s of FreeDOS with `AUTOEXEC.BAT` reduced to a REM and both channels on
+bitbangers. **Channel B: 0 bytes.** Channel A: **2,861 bytes, md5-identical
+to §16az's `FDBOOT-chanA-trace.txt`** — the kernel's `entry.asm:280` trace
+reproduced to the byte by an independent run. So the wire every leg used is
+measured empty and §16az's channel-A finding is confirmed rather than
+inherited. Both files are kept; the empty one is the artefact.
+
+### The FreeDOS console arm works — §16ao's item closes
+
+Leg FDHS, snapshot taken 140 s in with the transfer at **42 per cent**, draws
+the whole C-Kermit fullscreen display on FreeDOS for Victor: header, every
+field label, `RECEIVING: rcvfdhs.dat => rcvfdhs.dat`, the percent bar against
+its `...10...20...` scale, the `^\X to cancel file` legend on the bottom two
+rows. **The screen is addressed, not scrolled**, which is the claim — a
+console that ignored the escape sequences would scroll. With §16az's
+`irq1=09` this is the **second and last of the two FreeDOS branches §16av
+shipped having never executed**.
+
+**The first attempt came back a completely black screen and the cause was the
+run sheet's own `.BAT`**, which redirected stdout to capture the counters.
+§16u recorded that the transfer display goes away under exactly that
+redirect. So **a leg that has to show you a screen cannot have a redirect on
+it**, and the counters and the picture need two runs. **§16az's leg FDG had
+the same redirect**, so it could not have engaged the display for a second
+reason on top of the one §16az gave. Leg FDH then ran it to completion —
+byte-exact, 54.185 s, 604 cps — with its counters read off the end-of-run
+snapshot, which works because the block is 20 lines and the screen is 25.
+
+### The `rcvfil()` stall is `A:\`, and five candidate causes are dead
+
+The F packet is sent and then either ACKed at once or timed out at 8, 16 and
+24 s and ACKed at ~26. That shape is on every 9600 MS-DOS MAME receive in
+this tree back to §16aj. §16az's FreeDOS leg did not have it and §16az was
+explicit that this was an observation and not a measurement.
+
+| leg | DOS | destination | entries | free | display | F ACKed | T/R | host | cps |
+|---|---|---|---:|---:|---|---:|---|---:|---:|
+| VA | MS-DOS 3.1 | `A:\` | 167 | 4.8% | off | **t+26 s** | 3/6 | 78.939 | 415 |
+| VB | MS-DOS 3.1 | `A:\` | ~174 | ~3.9% | **on** | **t+27 s** | 3/6 | 91.507 | 358 |
+| VC | MS-DOS 3.1 | `D:\` | 3 | 99.9% | off | t+0 | 0/0 | 46.148 | 710 |
+| VD | MS-DOS 3.1 | `D:\` | **167** | 86.3% | off | t+1 | 0/0 | 46.496 | 704 |
+| VE | MS-DOS 3.1 | `E:\` | 10 | **5.3%** | off | t+0 | 0/0 | 46.647 | 702 |
+| VF | MS-DOS 3.1 | `A:\VESUB` | 0 | 3.5% | off | t+2 | 1/1 | 49.270 | 665 |
+| FDJ | FreeDOS | `A:\` | 56 | 99.5% | off | t+1 | 1/1 | 50.004 | 655 |
+| FDH | FreeDOS | `A:\` | 58 | 99.5% | **on** | t+2 | 1/1 | 54.185 | 604 |
+
+Same binary, same rate, same host, inside one hour.
+
+1. **Not the display.** VA ran `--nodisplay` and stalled exactly as §16ay UA
+   did with it on. `xxscreen(SCR_FN,...)` sits on `rcvfil()`'s own path two
+   lines after the suspect and was the best a priori candidate.
+2. **Not the DOS.** VC, VD and VE are MS-DOS 3.1 legs with no stall at all.
+3. **Not the root-entry count.** VD is VC with `D:\` padded to **167 entries,
+   the same as `A:\`**, and lands 348 ms from VC.
+4. **Not free-space scarcity.** VE filled the untouched third volume to
+   **5.3% free** against `A:`'s 4.8% and lands 499 ms from VC.
+5. **Not the volume.** VF received into a **subdirectory of the volume VA
+   stalled on** — same drive, same fragmentation, same 3.5% free — and was
+   ACKed at t+2.
+
+**What is left is that one root directory**, and no mechanism is claimed.
+`rcvfil()` calls `zchko()` (`ckufio.c:2496`), which creates the incoming file,
+`isatty()`s it, deletes it again and only then asks `access(".",W_OK)` —
+three DOS directory operations on the suspect directory before a byte of data
+moves. Candidates that survive: the root's *capacity*, its population of
+deleted (0xE5) slots, the fragmentation of the entries themselves. **The next
+leg is one `-d` run into `A:\`** — §16aw forbids combining `-d` with a
+throughput claim and this is not one, because the stall is a single discrete
+26-second event and a debug log names calls.
+
+**The practical consequence is immediate.** `A:\` is where every measurement
+this port has ever taken was taken, so the stall is inside the whole-run cps
+of §16aj FA, §16ar WD and §16ay UA/UE. It is not and never was a port defect.
+**On the same machine, the same DOS and the same binary, a clean 9600 receive
+is 46.1–46.6 s and 702–710 cps**, where `A:\` gives 78.9 s and 415.
+
+**And it retracts an instrument verdict.** §16ar reported that `dec` *"cannot
+tell a decode from a silence — all four legs read `max = 3250 cs`"*. `dec
+max` reads **3250 on VA and 3350 on VB, and 100, 100, 150, 150 on the four
+clean legs, every one at decode #3, which is the F packet.** The counter was
+not failing to discriminate; it was reporting this stall in every leg §16ar
+had, and §16ar had no leg without it. **A counter that reads the same number
+on every leg of a sitting is an artefact only if a leg exists that should
+have moved it.**
+
+### What the display costs, on matched wire
+
+`rxbytes` is **identical inside each pair**, so the two legs put the same
+bytes on the wire and differ only in what the foreground did with them.
+
+| | wire | host clock | Victor `elapsed` | `wcon` |
+|---|---:|---:|---:|---:|
+| FDJ / FDH (FreeDOS) | 39,576 / **39,576** | +4.181 s | **+6.05 s** | **+5.90 s** |
+| VA / VB (MS-DOS) | 37,787 / **37,787** | +12.568 s | +6.50 s | +4.00 s |
+
+On FreeDOS the three routes agree — **quote ~6 s, about 12% of a 32 KB
+receive at 9600.** On MS-DOS the host clock disagrees with both Victor
+counters and is not resolved here: **both legs carry the `A:\` stall**, whose
+length is set by the host's own 8/16/24 s retry ladder and moved a second
+between them, so a VA/VB host clock measures the stall as well as the
+display. Use the FreeDOS pair for the cost and the MS-DOS pair only for the
+counters.
+
+**A by-product: FreeDOS's console is slower per write than MS-DOS 3.1's** —
+601 cs over 423 writes against 400 over 462, 14.2 ms against 8.7. §16az has
+the candidate: `entry.asm:280` busy-waits on TBE and writes an `H` **on every
+INT 21h call**, and a console write is one. That is a hypothesis with an
+obvious test — a kernel built with the trace off — and **not** a measurement;
+one `wcon` tick is not one INT 21h call.
+
+### The half-second clock quantum is Victor MS-DOS 3.1's
+
+§16n found every timing figure to be a multiple of 50 hundredths and called
+it "this machine's DOS clock"; §16o confirmed on hardware that it is the
+Victor's and not MAME's. **Both stand; this adds the third term.** On the
+same emulated machine in the same hour, **every MS-DOS figure is a multiple
+of 50 and not one FreeDOS figure is** — `wfile max=` 28 and 16, `wcon max=`
+11 and 6, `dec max=` 126 and 176, `nap tot=` 71, against MS-DOS's 0/50/100
+and 3250/3350. FreeDOS's INT 21h `AH=2Ch` resolves finer than half a second.
+So **"quote `tot=`, never `max=`" is an MS-DOS 3.1 rule** and a `max=` from a
+FreeDOS leg cannot be compared with one from an MS-DOS leg at all. §16az's
+unexplained `nap per=` swing (682/819 against MS-DOS's steady 409) is the
+same fact from the calibration side.
+
+### The method note
+
+The strong result came from **refusing the cross-sitting pair**. The obvious
+repair to §16az's observation — one leg per DOS on the same day — would have
+produced a tighter version of the same wrong answer, because two DOSes still
+differ in a dozen ways at once. **What made it a measurement was moving the
+experiment inside one DOS**: VC, VD, VE and VF are all MS-DOS 3.1 and each
+differs from VA in exactly one property of the destination. The cross-DOS
+pair is in the table and is the least informative row in it. **When a
+comparison has too many variables, do not run it more carefully — run a
+different one.**

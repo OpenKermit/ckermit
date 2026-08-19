@@ -713,6 +713,57 @@ and the model is `free = installed RAM − 92,720` — this DOS loads high,
 asks a running machine; `mzsize.py` reports the smallest Victor that can
 load a build. **Quote the requirement, not the spare.**
 
+**§16ba closed the FreeDOS console arm and turned the `rcvfil()` stall into
+a measurement, and the stall is a DIRECTORY.** Ten MAME runs at 9600 across
+both DOSes, run sheet written **before** any leg ran (§16az's own closing
+asked for that); no code change, no rebuild, **no upstream edit — still
+twenty** — every leg md5 `d76c10b2…`, and eight of eight completed transfers
+byte-exact with `rxlost = 0 rxfull = 0 deb = 0`. **The FreeDOS console arm
+works**: leg FDHS's snapshot at 42% shows C-Kermit's whole fullscreen display
+drawn by cursor addressing on FreeDOS for Victor — the second and last of the
+two FreeDOS branches §16av shipped unexecuted, and §16ao's item. **The first
+attempt was a black screen and the cause was the sheet's own `.BAT`**: §16u
+says the display goes away under the redirect that records the counters, so
+**a leg that has to show you a screen cannot have a redirect on it** and the
+picture and the counters need two runs — **§16az's leg FDG had the same
+defect** and it went unnoticed because it had a second reason to fail.
+**Then: the ~27 s F-packet stall on every 9600 MS-DOS MAME receive since
+§16aj is `A:\` and nothing else.** Five arms, each one variable from its
+control, killed five candidates — **not the display** (VA stalled under
+`--nodisplay`), **not the DOS** (VC/VD/VE are MS-DOS legs with no stall),
+**not the root-entry count** (VD padded `D:\` to `A:`'s 167 entries: 348 ms
+from VC), **not free-space scarcity** (VE filled `E:` to 5.3% against `A:`'s
+4.8%: 499 ms from VC), **not the volume** (VF received into a SUBDIRECTORY of
+the volume VA stalled on and was ACKed at t+2). **A clean 9600 receive on
+this machine is 46.1–46.6 s and 702–710 cps where `A:\` gives 78.9 and 415**,
+so the stall is inside every whole-run 9600 figure this tree has published
+and it is not a port defect. **The mechanism is NOT established** — what
+survives is something about that root directory itself (capacity, deleted
+0xE5 slots, entry fragmentation), and `zchko()` does three DOS directory
+operations on it before a data byte moves; **the next leg is one `-d` run
+into `A:\`**, which §16aw permits because the stall is a discrete 26-second
+event and not a throughput claim. **§16ar's `dec` verdict is retracted**:
+`max` reads 3250/3350 on the two stalled legs and 100–150 on the four clean
+ones, all at decode #3 — the counter was reporting this stall, and §16ar
+simply had no leg without it. **A counter that reads the same on every leg is
+an artefact only if a leg exists that should have moved it.** Two more
+results. **The transfer display costs ~6 s on a 32 KB 9600 receive (~12%)** —
+FreeDOS pair FDJ/FDH, `rxbytes` **identical** at 39,576, and `wcon` (+5.90 s),
+`elapsed` (+6.05) and the host clock (+4.18) agree; the MS-DOS pair's host
+clock (+12.57) does **not** agree with its own counters because both its legs
+carry the stall, so use the FreeDOS pair for the cost. **And the half-second
+clock quantum is Victor MS-DOS 3.1's, not the machine's** — §16n and §16o
+stand and this adds the third term: in the same hour on the same emulated
+machine every MS-DOS figure is a multiple of 50 and **not one FreeDOS figure
+is**, so "quote `tot=`, never `max=`" is an MS-DOS rule and a `max=` cannot
+be compared across the two DOSes (which half-explains §16az's `nap per=`
+swing). **The method point is the durable one: the obvious repair to §16az's
+cross-sitting observation — one leg per DOS, same day — would have produced a
+tighter version of the same wrong answer. What made it a measurement was
+moving the experiment INSIDE one DOS. When a comparison has too many
+variables, do not run it more carefully; run a different one.**
+
+
 **§16ay is the post-merge regression, and the port came through upstream
 11.0.508 unmoved.** Five MAME legs at 9600, all byte-exact, `rxlost = 0
 rxfull = 0` and `deb = 0` throughout: a 32 KB receive, a **32,768-byte send
