@@ -978,7 +978,7 @@ static int getfile( char *, char *, int, int, char *, int, int, int );
 static int getreply( int, int, int, int, int );
 static int ispathsep( int );
 static int looping_read(int, register char *, register int );
-static int looping_write( int, register CONST char *, int );
+static int looping_write( int, register char *, int );
 static int openftp( char *, int );
 static int putfile( int, char *, char *, int, int, char *, char *,
  char *, int, int, int, int, int, int, int );
@@ -15740,9 +15740,9 @@ remote_files(new_query, arg, pattern, proxy_switch)
 #define ftp_uint32 unsigned int
 static int
 #ifdef CK_ANSIC
-looping_write( int fd, register CONST char *buf,  int len )
+looping_write( int fd, register char *buf,  int len )
 #else
-looping_write(fd, buf, len) int fd; register CONST char *buf;  int len;
+looping_write(fd, buf, len) int fd; register char *buf;  int len;
 #endif /* CK_ANSIC */
 {
     int cc;

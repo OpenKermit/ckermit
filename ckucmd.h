@@ -244,7 +244,7 @@ extern struct OFDB cmresult;
 
 _PROTOTYP( int xxesc, (char **) );
 _PROTOTYP( int cmrini, (int) );
-_PROTOTYP( VOID cmsetp, (char *) );
+_PROTOTYP( VOID cmsetp, (const char *) );
 _PROTOTYP( VOID cmsavp, (char [], int) );
 _PROTOTYP( char * cmgetp, (void) );
 _PROTOTYP( VOID prompt, (xx_strp) );

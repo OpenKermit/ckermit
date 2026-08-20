@@ -5585,7 +5585,7 @@ static char *dbptr = (char *)0;
 
 int
 #ifdef CK_ANSIC
-dodebug(int f, char *s1, char *s2, CK_OFF_T n)
+dodebug(int f, const char *s1, const char *s2, CK_OFF_T n)
 #else
 dodebug(f,s1,s2,n) int f; char *s1, *s2; CK_OFF_T n;
 #endif /* CK_ANSIC */
@@ -5777,7 +5777,8 @@ dodebug(f,s1,s2,n) int f; char *s1, *s2; CK_OFF_T n;
 */
       case F011: {
           int i, j, contd = 0;
-          char * p = s2, *pbuf = NULL;  /* p = source pointer */
+          const char * p = s2;          /* p = source pointer */
+          char *pbuf = NULL;
           int m;                        /* pbuf = destination pointer */
 
           if (f == F011) {

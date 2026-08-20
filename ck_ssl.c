@@ -169,7 +169,7 @@ X509_STORE *crl_store = NULL;
 #endif
 
 static char *
-x509_name_oneline_alloc(const X509_NAME *name)
+x509_name_oneline_alloc(X509_NAME *name)
 {
     BIO *bio = BIO_new(BIO_s_mem());
     char *ret = NULL;
@@ -179,7 +179,7 @@ x509_name_oneline_alloc(const X509_NAME *name)
         return NULL;
 
     /* Use RFC2253 style by default when available */
-    if (X509_NAME_print_ex(bio, (X509_NAME *)name, 0, XN_FLAG_RFC2253) < 0) {
+    if (X509_NAME_print_ex(bio, name, 0, XN_FLAG_RFC2253) < 0) {
         BIO_free(bio);
         return NULL;
     }
@@ -197,7 +197,7 @@ x509_name_oneline_alloc(const X509_NAME *name)
 }
 
 static int
-x509_name_oneline_buf(const X509_NAME *name, char *buf, int sz)
+x509_name_oneline_buf(X509_NAME *name, char *buf, int sz)
 {
     char *s = x509_name_oneline_alloc(name);
     int len = 0;
@@ -369,8 +369,8 @@ X509_STORE_CTX *ctx;
             if (ckxsyslog >= SYSLG_LI && ckxlogging) {
                 cksyslog(SYSLG_LI, 0,
                           "X.509 Certificate verify failure",
-                          (char *) subject,
-                          (char *)X509_verify_cert_error_string(error)
+                          subject,
+                          X509_verify_cert_error_string(error)
                           );
             }
 #endif /* CKSYSLOG */
@@ -574,7 +574,7 @@ X509_STORE_CTX *ctx;
                  */
                 ckmakxmsg(prefix,1024,
                            "Error: ",
-                           (char *)X509_verify_cert_error_string(error),
+                           X509_verify_cert_error_string(error),
                            "\nCertificate Issuer=\n",issuer,
                            NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
                 uq_ok(prefix, "Rejecting Connection", 1, NULL, 0);
@@ -592,7 +592,7 @@ X509_STORE_CTX *ctx;
             } else if (ssl_verify_flag != SSL_VERIFY_NONE) {
                 ckmakxmsg(prefix,1024,
                            "Warning: ",
-                           (char *)X509_verify_cert_error_string(error),
+                           X509_verify_cert_error_string(error),
                            "\nCertificate Issuer=\n",issuer,
                            NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
                 ok = uq_ok(prefix, "Continue (Y/N)", 3, NULL, 0);
@@ -612,7 +612,7 @@ X509_STORE_CTX *ctx;
                 ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
                 ckmakxmsg(prefix,1024,
                            "Error: ",
-                           (char *)X509_verify_cert_error_string(error),
+                           X509_verify_cert_error_string(error),
                            "\nCertificate Subject=\n",subject,
                            "\nnotBefore=",ssl_err,
                            NULL,NULL,NULL,NULL,NULL,NULL);
@@ -634,7 +634,7 @@ X509_STORE_CTX *ctx;
                 ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
                 ckmakxmsg(prefix,1024,
                            "Warning: ",
-                           (char *)X509_verify_cert_error_string(error),
+                           X509_verify_cert_error_string(error),
                            "\nCertificate Subject=\n",subject,
                            "\n    notBefore=",ssl_err,
                            NULL,NULL,NULL,NULL,NULL,NULL);
@@ -655,7 +655,7 @@ X509_STORE_CTX *ctx;
 
                 ckmakxmsg(prefix,1024,
                            "Error: ",
-                           (char *)X509_verify_cert_error_string(error),
+                           X509_verify_cert_error_string(error),
                            "\nCertificate Subject=\n",subject,
                            "\n    notAfter=",ssl_err,
                            NULL,NULL,NULL,NULL,NULL,NULL);
@@ -678,7 +678,7 @@ X509_STORE_CTX *ctx;
                 ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
                 ckmakxmsg(prefix,1024,
                            "Warning: ",
-                           (char *)X509_verify_cert_error_string(error),
+                           X509_verify_cert_error_string(error),
                            "\nCertificate Subject=\n",subject,
                            "\n    notAfter=",ssl_err,
                            NULL,NULL,NULL,NULL,NULL,NULL);
@@ -707,7 +707,7 @@ X509_STORE_CTX *ctx;
                  */
                 ckmakxmsg(prefix,1024,
                            "Error: ",
-                           (char *)X509_verify_cert_error_string(error),
+                           X509_verify_cert_error_string(error),
                            "\nCertificate Issuer=\n",issuer,
                            NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
                 uq_ok(prefix, "Rejecting Connection", 1, NULL, 0);
@@ -724,7 +724,7 @@ X509_STORE_CTX *ctx;
             } else if (ssl_verify_flag != SSL_VERIFY_NONE) {
                 ckmakxmsg(prefix,1024,
                            "Warning: ",
-                           (char *)X509_verify_cert_error_string(error),
+                           X509_verify_cert_error_string(error),
                            "\nCertificate Issuer=\n",issuer,
                            NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
                 ok = uq_ok(prefix, "Continue (Y/N)", 3, NULL, 0);
@@ -766,7 +766,7 @@ X509_STORE_CTX *ctx;
                  */
                 ckmakxmsg(prefix,1024,
                            "Error: ",
-                           (char *)X509_verify_cert_error_string(error),
+                           X509_verify_cert_error_string(error),
                            "\nCertificate Subject=\n",subject,
                            NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
                 uq_ok(prefix, "Rejecting Connection", 1, NULL, 0);
@@ -784,7 +784,7 @@ X509_STORE_CTX *ctx;
             } else if (ssl_verify_flag != SSL_VERIFY_NONE) {
                 ckmakxmsg(prefix,1024,
                            "Warning: ",
-                           (char *)X509_verify_cert_error_string(error),
+                           X509_verify_cert_error_string(error),
                            "\nCertificate Subject=\n",subject,
                            NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
                 ok = uq_ok(prefix, "Continue (Y/N)", 3, NULL, 0);
@@ -817,28 +817,28 @@ int ret;
     switch ( where ) {
     case SSL_CB_CONNECT_LOOP:
         printf("SSL_connect:%s %s\r\n",
-                SSL_state_string((SSL *)s),SSL_state_string_long((SSL *)s));
+                SSL_state_string(s),SSL_state_string_long(s));
         break;
     case SSL_CB_CONNECT_EXIT:
         if (ret == 0) {
             printf("SSL_connect:failed in %s %s\r\n",
-                    SSL_state_string((SSL *)s),SSL_state_string_long((SSL *)s));
+                    SSL_state_string(s),SSL_state_string_long(s));
         } else if (ret < 0) {
             printf("SSL_connect:error in %s %s\r\n",
-                    SSL_state_string((SSL *)s),SSL_state_string_long((SSL *)s));
+                    SSL_state_string(s),SSL_state_string_long(s));
         }
         break;
     case SSL_CB_ACCEPT_LOOP:
         printf("SSL_accept:%s %s\r\n",
-                SSL_state_string((SSL *)s),SSL_state_string_long((SSL *)s));
+                SSL_state_string(s),SSL_state_string_long(s));
         break;
     case SSL_CB_ACCEPT_EXIT:
         if (ret == 0) {
             printf("SSL_accept:failed in %s %s\r\n",
-                    SSL_state_string((SSL *)s),SSL_state_string_long((SSL *)s));
+                    SSL_state_string(s),SSL_state_string_long(s));
         } else if (ret < 0) {
             printf("SSL_accept:error in %s %s\r\n",
-                    SSL_state_string((SSL *)s),SSL_state_string_long((SSL *)s));
+                    SSL_state_string(s),SSL_state_string_long(s));
         }
         break;
     case SSL_CB_READ_ALERT:
@@ -849,11 +849,11 @@ int ret;
         break;
     case SSL_CB_HANDSHAKE_START:
         printf("SSL_handshake:%s %s\r\n",
-                SSL_state_string((SSL *)s),SSL_state_string_long((SSL *)s));
+                SSL_state_string(s),SSL_state_string_long(s));
         break;
     case SSL_CB_HANDSHAKE_DONE:
         printf("SSL_handshake:%s %s\r\n",
-                SSL_state_string((SSL *)s),SSL_state_string_long((SSL *)s));
+                SSL_state_string(s),SSL_state_string_long(s));
         break;
     }
 }
@@ -930,8 +930,8 @@ evp_generate_rsa_key(int bits)
  * EVP_PKEY_fromdata and for older OpenSSL by creating a DH and wrapping it in EVP_PKEY.
  */
 static EVP_PKEY *
-evp_pkey_from_dh_bytes(const unsigned char *pbytes, int plen,
-                       const unsigned char *gbytes, int glen)
+evp_pkey_from_dh_bytes(unsigned char *pbytes, int plen,
+                       unsigned char *gbytes, int glen)
 {
     EVP_PKEY *pkey = NULL;
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
@@ -949,9 +949,9 @@ evp_pkey_from_dh_bytes(const unsigned char *pbytes, int plen,
         return NULL;
     }
     params[0] = OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_FFC_P,
-                                                  (void *)pbytes, (size_t)plen);
+                                                  pbytes, (size_t)plen);
     params[1] = OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_FFC_G,
-                                                  (void *)gbytes, (size_t)glen);
+                                                  gbytes, (size_t)glen);
     params[2] = OSSL_PARAM_construct_end();
     if (EVP_PKEY_fromdata(pctx, &pkey, 0, params) <= 0 || pkey == NULL) {
         EVP_PKEY_CTX_free(pctx);
@@ -1198,8 +1198,8 @@ static unsigned char dh2048_g[]={
 
 #if OPENSSL_VERSION_NUMBER < 0x30000000L
 static DH *
-dh_from_pg(const unsigned char *pbytes, int plen,
-           const unsigned char *gbytes, int glen)
+dh_from_pg(unsigned char *pbytes, int plen,
+           unsigned char *gbytes, int glen)
 {
     DH *dh = NULL;
     BIGNUM *p = NULL, *g = NULL;
@@ -1242,8 +1242,8 @@ dh_from_pg(const unsigned char *pbytes, int plen,
 }
 #else /* OpenSSL > 3.0.0 */
 static DH *
-dh_from_pg(const unsigned char *pbytes, int plen,
-           const unsigned char *gbytes, int glen)
+dh_from_pg(unsigned char *pbytes, int plen,
+           unsigned char *gbytes, int glen)
 {
     EVP_PKEY *pkey = NULL;
     EVP_PKEY_CTX *pctx = NULL;
@@ -3023,7 +3023,7 @@ ssl_get_dNSName(ssl) SSL * ssl;
             if (gen->type == GEN_DNS) {
                 if (!gen->d.ia5 || !CK_ASN1_STRING_LEN(gen->d.ia5))
                   break;
-                if (strlen((char *)CK_ASN1_STRING_DATA(gen->d.ia5)) !=
+                if (strlen((const char *)CK_ASN1_STRING_DATA(gen->d.ia5)) !=
                     (size_t)CK_ASN1_STRING_LEN(gen->d.ia5)) {
                     /* Ignoring IA5String containing null character */
                     continue;
@@ -3407,7 +3407,7 @@ tls_get_SAN_objs(SSL * ssl, int type)
             if ((gen->type | V_ASN1_CONTEXT_SPECIFIC) == (type | V_ASN1_CONTEXT_SPECIFIC)) {
                 if (!gen->d.ia5 || !CK_ASN1_STRING_LEN(gen->d.ia5))
                   break;
-                if (strlen((char *)CK_ASN1_STRING_DATA(gen->d.ia5)) !=
+                if (strlen((const char *)CK_ASN1_STRING_DATA(gen->d.ia5)) !=
                     (size_t)CK_ASN1_STRING_LEN(gen->d.ia5)) {
                     /* Ignoring IA5String containing null character */
                     continue;
@@ -3443,19 +3443,20 @@ dNSName_cmp(const char *host, const char *dNSName)
 {
     int c1 = 1, c2 = 1, num_comp, rv = -1;
     char *p, *p1, *p2, *host_copy=NULL, *dNSName_copy=NULL;
+    const char *p0;
 
     /* first we count the number of domain name components in both parameters.
      * they should be equal many, or it's not a match
      */
-    p = (char *) host;
-    while ((p = strstr(p, "."))) {
+    p0 = host;
+    while ((p0 = strstr(p0, "."))) {
         c1++;
-        p++;
+        p0++;
     }
-    p = (char *) dNSName;
-    while ((p = strstr(p, "."))) {
+    p0 = dNSName;
+    while ((p0 = strstr(p0, "."))) {
         c2++;
-        p++;
+        p0++;
     }
     if (c1 != c2)
         return -1;
@@ -4961,8 +4962,8 @@ X509_to_user(X509 *peer_cert, char *userid, int len)
         if (gen->type == GEN_DNS) {
             if (!gen->d.ia5 || !CK_ASN1_STRING_LEN(gen->d.ia5))
               break;
-            if (strlen((char *)CK_ASN1_STRING_DATA(gen->d.ia5)) !=
-                CK_ASN1_STRING_LEN(gen->d.ia5)) {
+            if (strlen((const char *)CK_ASN1_STRING_DATA(gen->d.ia5)) !=
+                (size_t)CK_ASN1_STRING_LEN(gen->d.ia5)) {
                 /* Ignoring IA5String containing null character */
                 continue;
             }

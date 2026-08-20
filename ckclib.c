@@ -238,14 +238,15 @@ ckstrncat(dest,src,len) char * dest, * src; int len;
 */
 int
 #ifdef CK_ANSIC
-ckmakmsg(char * buf, int len, char *s1, char *s2, char *s3, char *s4)
+ckmakmsg(char * buf, int len, const char *s1, const char *s2,
+         const char *s3, const char *s4)
 #else /* CK_ANSIC */
 ckmakmsg(buf,len,s1,s2,s3,s4) char *buf, *s1, *s2, *s3, *s4; int len;
 #endif /* CK_ANSIC */
 {
     int i, n = 0, m = 0;
     char *s;
-    char *p, *a[4];
+    const char *p, *a[4];
 
     if (!buf) return(n);                /* No destination */
     if (len < 1) return(n);             /* No size */
@@ -274,8 +275,10 @@ ckmakmsg(buf,len,s1,s2,s3,s4) char *buf, *s1, *s2, *s3, *s4; int len;
 int
 #ifdef CK_ANSIC
 ckmakxmsg(char * buf, int len,
-          char *s1, char *s2, char *s3, char  *s4, char  *s5, char *s6,
-          char *s7, char *s8, char *s9, char *s10, char *s11, char *s12)
+          const char *s1, const char *s2, const char *s3, const char *s4,
+          const char *s5, const char *s6, const char *s7, const char *s8,
+          const char *s9, const char *s10, const char *s11,
+          const char *s12)
 #else /* CK_ANSIC */
 ckmakxmsg(buf,len,s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12)
   char *buf, *s1, *s2, *s3, *s4, *s5, *s6, *s7, *s8, *s9, *s10, *s11, *s12;
@@ -284,7 +287,7 @@ ckmakxmsg(buf,len,s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12)
 {
     int i, n = 0, m = 0;
     char *s;
-    char *p, *a[12];
+    const char *p, *a[12];
 
 
     if (!buf) return(n);                /* No destination */

@@ -12,7 +12,7 @@
 /* debug() macro support: deblog=0 ensures dodebug() is not called,
    but the symbol must exist for the linker. */
 int deblog = 0;
-int dodebug(int f, char *s1, char *s2, CK_OFF_T n) { return 0; }
+int dodebug(int f, const char *s1, const char *s2, CK_OFF_T n) { return 0; }
 
 /* printf() is defined to ckxprintf(); lookup() references it for
    out-of-order table checks under DEBUG. */

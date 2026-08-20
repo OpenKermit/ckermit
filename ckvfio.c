@@ -2430,7 +2430,7 @@ zfseek(CK_OFF_T pos) {
 /*  Z S O U T  --  Write a string to the given file, buffered.  */
 
 int
-zsout(n,s) int n; char *s; {
+zsout(n,s) int n; const char *s; {
 #ifdef DEBUG
     debug(F101,"zsout","",n); /* SMSd. */
     if (chkfn(n) < 1) return(-1);
@@ -2443,7 +2443,7 @@ zsout(n,s) int n; char *s; {
 /*  Z S O U T L  --  Write string to file, with line terminator, buffered.  */
 
 int
-zsoutl(n,s) int n; char *s; {
+zsoutl(n,s) int n; const char *s; {
 #ifdef DEBUG
     debug(F101,"zsoutl","",n); /* SMSd. */
     if (chkfn(n) < 1) return(-1);
