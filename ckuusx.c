@@ -4832,8 +4832,10 @@ _PROTOTYP( VOID conbgt, (int) );
                     if (what & W_SEND) conol("Would Send: "); /* Action */
                     else if (what & W_RECV) conol("Would Receive: ");
                     conol(fbuf);
-                    if (*abuf) conol(" => "); conol(abuf); /* Names */
-                    if (*a2buf) conol(" => "); conol(a2buf); /* Names */
+                    if (*abuf) conol(" => ");
+                    conol(abuf);              /* Names */
+                    if (*a2buf) conol(" => ");
+                    conol(a2buf);              /* Names */
                     *fbuf = NUL; *abuf = NUL; *a2buf = NUL;
                 }
                 conoll(" [simulated]");
@@ -4862,8 +4864,10 @@ _PROTOTYP( VOID conbgt, (int) );
                     if (what & W_SEND) conol("Sending: "); /* Action */
                     else if (what & W_RECV) conol("Receiving: ");
                     conol(fbuf);
-                    if (*abuf) conol(" => "); conol(abuf); /* Names */
-                    if (*a2buf) conol(" => "); conol(a2buf); /* Names */
+                    if (*abuf) conol(" => ");
+                    conol(abuf);              /* Names */
+                    if (*a2buf) conol(" => ");
+                    conol(a2buf);              /* Names */
                     *fbuf = NUL; *abuf = NUL; *a2buf = NUL;
                 }
                 conoll(" [skipped]");
@@ -4907,8 +4911,10 @@ _PROTOTYP( VOID conbgt, (int) );
                     if (what & W_SEND) conol("Sending: "); /* Action */
                     else if (what & W_RECV) conol("Receiving: ");
                     conol(fbuf);
-                    if (*abuf) conol(" => "); conol(abuf);      /* Names */
-                    if (*a2buf) conol(" => "); conol(a2buf);    /* Names */
+                    if (*abuf) conol(" => ");
+                    conol(abuf);              /* Names */
+                    if (*a2buf) conol(" => ");
+                    conol(a2buf);              /* Names */
                     *fbuf = NUL; *abuf = NUL; *a2buf = NUL;
                     conoll("");
                 }
