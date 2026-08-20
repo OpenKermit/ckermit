@@ -1,0 +1,22 @@
+set line /tmp/v9000
+set speed 9600
+set parity none
+set carrier-watch off
+set flow none
+set receive timeout 20
+set retry 30
+log packets s16bbMB.pkt
+send rcvbb1.dat rcvmb.dat
+if success echo MB-SEND1-OK
+if fail echo MB-SEND1-FAIL
+send rcvbb2.dat rcvmb.dat
+if success echo MB-SEND2-OK
+if fail echo MB-SEND2-FAIL
+send rcvbb1.dat mb.d
+if success echo MB-SEND3-OK
+if fail echo MB-SEND3-FAIL
+send rcvbb2.dat mb.d
+if success echo MB-SEND4-OK
+if fail echo MB-SEND4-FAIL
+finish
+statistics

@@ -316,7 +316,7 @@ Streaming is **not** network-coupled — it is negotiated protocol behaviour in
 
 ## 8. Upstream changes made
 
-Twenty edits, seventeen of them small, guarded and invisible to every
+Twenty-two edits, nineteen of them small, guarded and invisible to every
 other platform. **Edits 14, 15 and 16 are the exceptions and are flagged as
 such**: 14 repairs a mis-nested `#endif` in `ckcmai.c`, and a preprocessor
 conditional cannot itself be made conditional; 15 and 16 fix a 16-bit
@@ -325,7 +325,11 @@ guarding them would mean knowingly shipping the broken form everywhere else.
 **Edit 19 is a third 16-bit truncation and is guarded anyway** — the same
 argument as 15 and 16 applies to it and was heard and declined; that was
 the call made when it was agreed, and it is recorded here so the
-inconsistency is visible rather than mysterious.
+inconsistency is visible rather than mysterious. **Edit 22 is the same shape and
+the same call**: removing an `#ifndef NOFRILLS` that should never have
+been there is a no-op wherever `NOFRILLS` is not defined, and it is
+guarded anyway because it would otherwise change what every other
+`NOFRILLS` build does and none of them is measured here.
 
 **Two further upstream defects are FOUND AND NOT FIXED**, both in
 `ckutio.c` and both discovered by §16aj while building flow control. They
@@ -827,7 +831,78 @@ does instead; §16ao has the same for the display three.
     (`spctext[64]`) and 288 bytes of image, and it moves the load
     requirement from 236K to **237K** — still 384K of Victor.
 
-Items 2, 3, 6, 7, 8, 10, 11, 13, 14, 15, 16 and 19 are worth offering upstream
+21. **`ckufio.c`** — a `VICTOR9K` arm at the top of `znewn()`, calling
+    `v9k_backupname()` in `ckvictor.c`. **Purely additive: no upstream line
+    changes**, and the arm compiles nowhere else.
+
+    `znewn()` makes a unique name by APPENDING `".~<n>~"` to the fully
+    qualified name, so `A:\RCVDA.DAT` becomes `A:\RCVDA.DAT.~1~` — two
+    dots and a seven-character extension, which FAT cannot hold. Both
+    collision actions that call it, **BACKUP and RENAME**, were therefore
+    unavailable on this machine, and RENAME is not a preference:
+    `ckcpro.c:503` forces `fncact` to `XYFX_R` for the whole session on
+    any server whose DELETE is disabled — **which is every
+    `--safe-server`.**
+
+    **§16bb leg NA measured what that actually did, and it is worse than
+    "it fails".** `CKMAXNAM` is 16 here, so the branch is chosen by the
+    length of the target name, and the two branches fail differently:
+
+    | target | branch | what the control did |
+    |---|---|---|
+    | `NA.D` (4) | A | name became `D:\NA.D.~1~`; the open failed and the server sent an **E packet with empty text** before any data. The existing file survived. |
+    | `RCVNA.DAT` (9) | B | branch B's `sprintf` lands **past the string's own terminator**, so the name came back UNCHANGED and the server **silently overwrote** the existing file — the exact outcome the forced RENAME exists to prevent. |
+
+    The Victor arm replaces the extension instead of appending to the name
+    (`RCVNB.DAT` → `RCVNB.001`) and finds the number by **probing** rather
+    than by expanding a wildcard, because the pattern upstream expands
+    (`NAME.EXT.~*~`) describes a name no FAT directory can contain and so
+    matches nothing on every call. Numbers run 1..999, fixed width, so the
+    extension is always exactly three characters and the names sort. On
+    failure it returns 0 and upstream's code runs unchanged, which is the
+    pre-edit behaviour rather than a new one; the name is built in a local
+    and copied back only on success, so a caller that gets 0 still holds
+    what it passed in.
+
+    **Correctness argument: `v9k/proofs/vznewn.c`**, 6,013 cases —
+    legality (one dot, 1-8 base, exactly 3 extension), lowest-free-number,
+    the failure contract, and a sweep of all 999 numbers across six name
+    shapes. **It does not transcribe the function**: the Makefile extracts
+    `v9k_backupname()` out of `ckvictor.c` at build time, which is the
+    first of these proofs that cannot drift from what ships.
+
+    DGROUP does not move (the name is built in a stack frame `znewn()`
+    already pays for on the branch this arm returns before reaching); the
+    image grows 416 bytes and the load requirement stays at 237K, still a
+    384K Victor.
+
+22. **`ckcfn3.c`** — `gattr()`'s `case 'M'`, guarded
+    `#if !defined(NOFRILLS) || defined(VICTOR9K)` instead of
+    `#ifndef NOFRILLS`.
+
+    `case 'P'` eight lines below is not guarded and this one was, so a
+    build defining `NOFRILLS` **accepts a MAIL disposition it has no way
+    to honour**: `en_mai` is read on no path the build compiles, `dispos`
+    stays `'M'`, the A packet is ACKed, and the failure lands in
+    `ckcpro.w`'s `rcv_firstdata` instead — `openc()` on `MAILCMD`, which
+    `NOPUSH` has already emptied out. §16ax saw it from the far end and
+    named it: PRINT is refused in the A-packet ACK, MAIL "is the same case
+    handled worse".
+
+    **Guarded rather than unguarded, and that is a decision rather than an
+    argument.** Removing the `#ifndef NOFRILLS` outright is the smaller
+    change and is what the defect deserves — it is a no-op wherever
+    `NOFRILLS` is not defined — but it changes what every *other*
+    `NOFRILLS` build does and none of them is measured here. Same call as
+    edit 19, recorded for the same reason.
+
+    It costs one warning: `wcc` reports `W111 Meaningless use of an
+    expression` at the newly-live `tlog()`, which is the tenth-and-first
+    instance of the shape already there ten times over — a logging macro
+    that compiles to an empty statement. **18 warnings become 19 and all
+    nineteen are that species or upstream's.**
+
+Items 2, 3, 6, 7, 8, 10, 11, 13, 14, 15, 16, 19 and 22 are worth offering upstream
 regardless of this port, and **14 and 15 are the ones to send first**: it is a plain
 defect, it is ~40 years old, and it disables two documented features in any
 configuration that turns TCP/IP off.
@@ -12316,3 +12391,209 @@ differs from VA in exactly one property of the destination. The cross-DOS
 pair is in the table and is the least informative row in it. **When a
 comparison has too many variables, do not run it more carefully — run a
 different one.**
+
+## 16bb. Collision on FAT, the MAIL disposition, and the first text-mode transfers
+
+**19 August 2026, no Victor in reach. MAME sitting, 9600, Victor MS-DOS 3.1,
+channel A, everything on `D:`.** Run sheet `HW_TEST_16bb.md`, **written
+before any leg ran**; counters in `v9k/legs/STEPM*.OUT`; host side
+`s16bbM*.ksc`, `.host` and `.pkt` in the tree.
+
+**Two upstream edits, both agreed before being written — the count is now
+twenty-two.** 21 makes `znewn()` produce a name FAT can hold; 22 makes
+`gattr()`'s `case 'M'` live under `NOFRILLS`. DGROUP **48,896 of 65,536
+(74%), unchanged**; image 230,756 → **231,172**; needs **243,236 (237K)**,
+**smallest Victor 384K, unchanged**; warnings 18 → **19**, and the extra one
+is the newly-live `tlog()` in edit 22 — `W111`, the same shape as the ten
+already there. `ckvictor.c` still compiles with none. The `KEEP_ICP` build
+still links: DGROUP **59,632 (90%), unchanged**, needing 453,986 (443K),
+still a 640K Victor.
+
+**The control binary is HEAD before the edits and is bit-identical to the
+one §16ay and §16ba ran** — md5 `d76c10b2401d3685f8dd2f2304f717d1` — which
+is a stronger control than this project usually gets: not merely "before the
+change" but *the binary already characterised by two previous sittings*.
+
+### The defect edit 21 fixes is worse than the note describing it
+
+`ckufio.c`'s `znewn()` makes a unique name by APPENDING `".~<n>~"` to a name
+that already has an extension, so `RCVMA.DAT` becomes `RCVMA.DAT.~1~` — two
+dots, which FAT cannot hold. Both collision actions that call it, BACKUP and
+RENAME, were dead here in consequence, and **RENAME is not a preference**:
+`ckcpro.c:503` forces `fncact` to `XYFX_R` for the whole session on any
+server whose DELETE is disabled, which is **every `--safe-server`**.
+
+The inherited note said the two actions "cannot work on FAT", which reads as
+*they fail*. **Leg MA measured it and only one of them fails.** `CKMAXNAM` is
+16 here, so `znewn()`'s branch is chosen by the length of the target name:
+
+| target | branch | what the control did |
+|---|---|---|
+| `MA.D` (4 chars) | A | name became `D:\MA.D.~1~`; DOS refused it and the server sent an **E packet with empty text before any data**. The existing file survived. |
+| `RCVMA.DAT` (9) | B | branch B's `sprintf` lands **past the string's own terminator**, so the name came back UNCHANGED and the server **silently overwrote** the existing file. |
+
+**The second one is the finding.** A `--safe-server` exists so that a peer
+cannot modify existing files; the peer modified an existing file, and nothing
+— no counter, no log line, no protocol message — said so. Which of the two
+outcomes you get is decided by how long the filename is.
+
+**Leg MB is the same leg with edit 21 and both failures are gone**: four
+sends OK, no E packet anywhere, `RCVMB.DAT` and `MB.D` still holding the
+first fixture and `RCVMB.001`/`MB.001` holding the second.
+
+**And a reading that MB corrected in MA, which is worth more than either
+leg.** The first pass read MA's **F-packet ACK** as the decisive
+observable — the server ACKs the file header with the name it has chosen,
+so an ACK carrying the original name looks like proof that no rename
+happened. It is not: `ckcpro.w:1546` sends `fspec`, and `rcvfil()` fills
+`fspec` from the incoming name *before* the collision switch runs. **MB
+proves it directly** — its ACKs say `rcvmb.dat` and `mb.d` while the files
+on disk are `RCVMB.001` and `MB.001`. What settles MA is the **disk**.
+For a collision leg the ACK is not evidence, and the treatment leg is what
+found that out about the control.
+
+### What edit 21 does instead, and why it probes rather than globs
+
+`ckvictor.c`'s `v9k_backupname()` replaces the extension rather than
+appending to the name — `RCVMB.DAT` → `RCVMB.001` — and finds the number by
+**probing with `access()`**, 1 through 999, fixed width. Probing is not a
+shortcut: the pattern upstream expands is `NAME.EXT.~*~`, which describes a
+name no FAT directory can ever contain, so `nzxpand()` matches nothing on
+every call and the number would always come back 1. **The defect one level
+down makes upstream's own uniqueness scan blind, and a fix that kept the
+scan would have produced a legal name that collides with the previous
+backup.**
+
+Failure is defined and tested: 999 taken, a name with no filename part, a
+buffer too small — return 0, leave the caller's buffer untouched, and let
+`znewn()` run the code that was there before. The name is built in a local
+and copied back only on success, and that costs nothing on hard rule 7's
+budget because it is a frame `znewn()` already pays for on the branch this
+arm returns before reaching.
+
+**The proof is the part worth copying.** `v9k/proofs/vznewn.c` checks two
+claims that are not the same claim — every returned name is a legal FAT 8.3
+name, and it is the LOWEST free number — over 6,013 cases including a sweep
+of all 999 numbers across six starting shapes. And **it does not transcribe
+the function**: the Makefile extracts `v9k_backupname()` out of
+`ckvictor.c` at build time, failing loudly if the extraction comes back
+empty. That is the first of these proofs that cannot drift from what ships,
+and it retires half of the standing complaint in `v9k/proofs/README`. The
+general shape is **fake the environment, extract the code**: `access()` is
+supplied by hand because the real one is INT 21h and the test wants to
+choose what the directory contains.
+
+### What the seven legs said
+
+All eight legs (MA-MH) `rxlost=0 rxfull=0 deb=0 nospc=0`.
+
+| leg | binary | asks | answer |
+|---|---|---|---|
+| MA | control | second receive of one name, forced RENAME | **9-char name silently overwritten; 4-char name refused with an empty E packet** |
+| MB | edit 21 | the same | four sends OK, **originals untouched**, `RCVMB.001` and `MB.001` written |
+| MC | `-dV9K_COLLISION=XYFX_B` | BACKUP | the other way round — `RCVMC.001` is the OLD file, `RCVMC.DAT` the new one |
+| MD | control | MAIL disposition | A packet **ACKed**, then `E Can't open file` |
+| ME | edit 22 | the same | A-packet ACK carries the refusal code `N`, **no data packets**, clean Z/B |
+| MF | edit 21+22 | text mode (as designed) | **void as a text test** — its A packet says `B8`, binary |
+| MH | edit 21+22 | text mode (rewritten) | **2,240 bytes, CR 40 / LF 40 on the Victor's disk** |
+| MG | edit 21+22 | `REMOTE STATUS` | **it answers** — first time in this port's life |
+
+### Text mode is correct, and the reason is not the obvious one
+
+Nothing in this port had ever run a text-mode transfer: `binary` is
+`XYFT_B` by default and every fixture in five months of legs was binary.
+§16h's `#undef NLCHAR` + `_fmode = O_BINARY` pair — "only correct
+together" — had never been exercised in the mode it exists for.
+
+**MH sends a 2,200-byte LF-only Unix file in text mode and it lands as a
+2,240-byte DOS file, CR 40 / LF 40.** MF, the same file in binary, lands
+as 2,200 bytes LF-only. Both are right, and the mechanism is worth stating
+because it is easy to get backwards: **the Victor converts nothing in
+either direction.** `feol` is 0, so the LF→CRLF arm at `ckcfns.c:2829`
+and the CRLF→LF arm at `:1428` are both dead. It gets a correct DOS text
+file because **CRLF is both the Kermit wire format and the DOS file
+format** — the sending Unix end does the only conversion needed and raw
+pass-through is exactly right. A receiver that converted would break it.
+
+**The one non-conformance is in the other direction and was predicted:**
+server-generated text goes out with bare LF. Leg MG's `REMOTE STATUS` and
+`REMOTE HELP` stream carries **38 `#J` and zero `#M`**, because those
+strings are built with `\n` in C and the conversion that would fix them is
+the `feol` arm that is dead here. Invisible against a Unix client, which
+maps a bare LF onto its own terminator. **This is a property of the
+platform pair — OS/2 undefines `NLCHAR` too — and not of either edit**, so
+it is recorded rather than fixed.
+
+### The first text leg tested nothing, and that is the reusable part
+
+**MF's A packet carries `B8` — binary.** The host's `set file type text`
+never took, because this Mac runs `transfer mode automatic`, which decides
+per file and decided binary. The leg was read as a result before its own
+precondition was checked. §16am's rule from a third direction: *before
+running an experiment that depends on a setting, measure that the setting
+took* — and here the measurement is free, because **the A packet carries
+the file-type attribute and the packet log already records it.**
+
+MF had a second flaw that would have hidden the first even if the mode had
+taken. It read the answer out of a **GET round trip**, and for a GET the
+**sender** decides the mode, so text-out/text-back is lossless whatever
+either end does to line endings. The observable that cannot lie is the
+file on the image, read with `vtg_image_util` and no protocol in the path.
+MH does that, and it is one send instead of two.
+
+### `REMOTE STATUS` answers, and four of its fields are empty
+
+`<generic>Q` and `sndstatus()` have been compiled in since the port began
+and nothing had ever sent one, because the bench Mac's C-Kermit **9.0.302
+has no `REMOTE STATUS`** — the command dates from 2023. A **C-Kermit
+11.0.508 client built from this tree** (`make macosx`, in scratch, not the
+repo) asked for one:
+
+```
+    SERVER: C-Kermit 11.0.508, 2026/08/09, Victor 9000 / Sirius 1
+    Filename length limit: 16
+    Pathname length limit: 128
+```
+
+`16` and `128` are `CKMAXNAM` and `CKMAXPATH` and are right. **Hostname,
+Server hardware, OS family and `Current directory on server` all come back
+empty**, and the last is the odd one: `REMOTE PWD` in the same leg answers
+`D:`. So the two commands do not read the directory the same way. New open
+item, small, and only visible now that a client which can ask exists.
+
+**That client is a harness upgrade with a bigger consequence than this
+sitting.** It carries the 2014 `remcfm()` fix §16ax lost five commands to,
+and `SHOW FEATURES` reports **`POSIX_CRTSCTS`** — which is exactly the
+thing §16am identified as blocking every flow-control measurement in
+§16ak/§16al/§16an. That question is now a bench item rather than a blocked
+one.
+
+### A void leg, and a rule about when a leg ends
+
+The first attempt at MB was **void**: four failed sends, a **0-byte packet
+log**, and `/tmp/v9000: No such file or directory` on the host. I had
+started it as soon as leg MA's *host* output appeared — but **the host
+`kermit` finishes long before MAME does**, and MAME holds the single-use
+`-bitb` socket for the whole of `-seconds_to_run`. Two emulators were
+briefly connected to one `socat` listener; the second took the
+`/tmp/v9000` symlink, died 104 s in, and left the link pointing at a dead
+pty.
+
+**A leg ends when MAME exits, not when the host does**, and `socat`'s own
+log is the instrument: one `PTY is` line and one `exiting` line per leg,
+and the gap between them is that leg's real duration. Same species as
+§16ax leg SA and §16av leg NF — *ask what the leg's own machinery is doing
+to the channel it reports through* — except that here the channel was the
+wire itself.
+
+**And a second harness error, which is the one worth copying the fix
+from.** This sitting's legs were first written as NA–NG, and **§16av had
+already used NA, NB, NC, ND and NF**; three of its `.BAT` files are tracked
+in git and were silently overwritten. They are restored, and this
+sitting's are the **M series**. Nothing was lost — `git status` caught it
+because the files were tracked — and that is the whole lesson: **the leg
+files that are in git are the ones a mistake cannot destroy quietly.**
+`git ls-files | grep STEP` is a one-second check that belongs beside
+`vtg_image_util info` in every run sheet's §0, and the M-series files in
+the tree use fresh target names throughout, which §16al's rule required
+anyway.

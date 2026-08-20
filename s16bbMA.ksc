@@ -1,0 +1,14 @@
+set line /tmp/v9000
+set speed 9600
+set parity none
+set carrier-watch off
+set flow none
+set receive timeout 20
+set retry 30
+log packets s16bbMA.pkt
+send rcvbb1.dat rcvma.dat
+send rcvbb2.dat rcvma.dat
+send rcvbb1.dat ma.d
+send rcvbb2.dat ma.d
+finish
+statistics

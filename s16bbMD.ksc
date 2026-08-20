@@ -1,0 +1,13 @@
+set line /tmp/v9000
+set speed 9600
+set parity none
+set carrier-watch off
+set flow none
+set receive timeout 20
+set retry 30
+log packets s16bbMD.pkt
+mail rcvbb1.dat nobody@example.com
+if success echo MD-MAIL-OK
+if fail echo MD-MAIL-FAIL
+finish
+statistics

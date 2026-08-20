@@ -1765,7 +1765,24 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                 dispos = d;
                 debug(F000,"gattr dispos","",dispos);
                 switch (d) {
-#ifndef NOFRILLS
+/*
+  Victor 9000 / MS-DOS: upstream edit 22, PORTING.md SS8 item 22, SS16bb.
+
+  case 'P' below is not guarded and this one is, so a build that defines
+  NOFRILLS accepts a MAIL disposition it has no way to honour.  dispos
+  stays 'M', the A packet is ACKed, and the failure lands eight lines into
+  ckcpro.w's rcv_firstdata instead -- openc() on MAILCMD, which NOPUSH has
+  already emptied out -- so the client is told "Can't open file" about a
+  file it never named, after the transfer has started.  PRINT, the same
+  case in every other respect, refuses cleanly in the ACK.
+
+  Guarded rather than simply unguarded, which would be the smaller change
+  and is what the defect deserves: an unguarded #ifndef NOFRILLS removal
+  is a no-op wherever NOFRILLS is not defined, but it changes what every
+  OTHER NOFRILLS build does, and none of them is measured here.  Reported
+  upstream with edits 14-17 (NEXT_SESSION.md item 8).
+*/
+#if !defined(NOFRILLS) || defined(VICTOR9K)
                   case 'M':
                     if (!en_mai) {
                         retcode = -1;
@@ -1774,7 +1791,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                         dispos = 0;
                     }
                     break;
-#endif /* NOFRILLS */
+#endif /* !NOFRILLS || VICTOR9K */
                   case 'P':
                     if (!en_pri) {
                         retcode = -1;
