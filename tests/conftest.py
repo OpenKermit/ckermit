@@ -163,7 +163,7 @@ def debug_log_command(debug_log):
     gz_path = compressed_debug_log_path(debug_log)
     return (
         "set debug timestamps on, "
-        f"log debug {{|trap '' HUP; exec gzip -c > {gz_path}}}"
+        f"log debug {{|trap '' HUP; exec gzip -1 -c > {gz_path}}}"
     )
 
 
