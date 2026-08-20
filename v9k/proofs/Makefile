@@ -11,7 +11,7 @@
 CC      = cc
 CFLAGS  = -O2 -Wall
 
-PROOFS  = vcrc16 vburst vttinl vwindow
+PROOFS  = vcrc16 vburst vttinl vwindow vznewn
 
 .PHONY: all clean $(PROOFS)
 
@@ -28,5 +28,23 @@ $(PROOFS): %: %.bin
 %.bin: %.c
 	$(CC) $(CFLAGS) -o $@ $<
 
+# vznewn checks a function that SHIPS, so it must not hold its own copy of
+# it -- the standing complaint in README and NEXT_SESSION.md is that these
+# proofs transcribe what they check and then keep passing after it moves.
+# This extracts v9k_backupname() out of ckvictor.c at build time, so the
+# thing under test is the thing that ships, by construction.  The rule
+# fails loudly rather than emitting an empty header: a proof compiled
+# against nothing passes.
+vznewn.bin: vznewn_gen.h
+
+vznewn_gen.h: ../../ckvictor.c
+	@echo "/* GENERATED from ckvictor.c by v9k/proofs/Makefile -- do not edit. */" > $@
+	@awk '{L[NR]=$$0} \
+	      /^v9k_backupname\(char \* buf, int size\)$$/{s=NR-2} \
+	      END{ if(!s){print "EXTRACT FAILED" > "/dev/stderr"; exit 1} \
+	           for(i=s;i<=NR;i++){print L[i]; if(L[i]=="}") exit} }' $< >> $@
+	@grep -q "v9k_backupname" $@ || (echo "vznewn_gen.h: extraction failed" && rm -f $@ && false)
+	@grep -c . $@ | xargs printf "vznewn_gen.h: %s lines extracted from ckvictor.c\n"
+
 clean:
-	rm -f $(PROOFS:=.bin) $(PROOFS)
+	rm -f $(PROOFS:=.bin) $(PROOFS) vznewn_gen.h

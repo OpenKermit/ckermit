@@ -1,0 +1,18 @@
+set line /tmp/v9000
+set speed 9600
+set parity none
+set carrier-watch off
+set flow none
+set receive timeout 20
+set retry 30
+log packets s16bbMF.pkt
+set file type text
+send textlf.txt textmf.txt
+if success echo MF-SENDTEXT-OK
+if fail echo MF-SENDTEXT-FAIL
+set file type binary
+get textmf.txt
+if success echo MF-GETBIN-OK
+if fail echo MF-GETBIN-FAIL
+finish
+statistics

@@ -8,6 +8,108 @@ Handoff for the Victor 9000 port, written 9 August 2026, revised after
 
 ---
 
+## §16bb: file collision on FAT, the MAIL disposition, and text mode
+
+**19 August 2026, no Victor in reach.** Seven MAME legs at 9600 on
+MS-DOS 3.1, everything on `D:` (`HW_TEST_16bb.md`, written before any leg
+ran; counters in `v9k/legs/STEPM*.OUT`). **Upstream edits 21 and 22, both
+agreed before being written — the count is twenty-two.** DGROUP **48,896
+(74%), unchanged**; image 231,172; **needs 243,236 (237K), smallest Victor
+384K, unchanged**; warnings 18 → 19 (the new one is the `tlog()` edit 22
+makes live, `W111`, same shape as the ten already there); `ckvictor.c`
+still 0. `KEEP_ICP` still links, DGROUP 59,632 (90%) unchanged, 443K.
+Proofs 5 of 5. Control binary md5 `d76c10b2…`, **bit-identical to the one
+§16ay and §16ba ran**.
+
+**1. `--safe-server` was not safe, and the way it failed is the finding.**
+`ckcpro.c:503` forces FILE COLLISION to RENAME on any server with DELETE
+disabled; RENAME goes through `znewn()`, which appends `".~<n>~"` to a name
+that already has an extension. Leg MA measured what that did, and the two
+`znewn()` branches — chosen by the LENGTH of the target name, because
+`CKMAXNAM` is 16 here — fail differently:
+
+- **4-char target** → `D:\MA.D.~1~`, DOS refuses it, **E packet with empty
+  text before any data**, existing file survives.
+- **9-char target** → branch B's `sprintf` lands past the string's own
+  terminator, the name comes back UNCHANGED, and the server **silently
+  overwrites the existing file** — the exact thing the forced RENAME
+  exists to prevent, with no counter, log line or packet saying so.
+
+**Edit 21** hands the job to `v9k_backupname()` (`RCVMB.DAT` →
+`RCVMB.001`), which probes for the first free number rather than expanding
+a wildcard — the pattern upstream expands describes a name FAT cannot
+contain, so its own uniqueness scan was blind and a fix that kept it would
+have collided with the previous backup. Leg MB: all four sends OK, no E
+packet, **originals untouched, both new files renamed**. Leg MC is BACKUP
+(`coll=2`) and comes out **the other way round**, which is the point of
+running both: `RCVMC.001` holds the OLD file and `RCVMC.DAT` the new one.
+
+**And `REMOTE STATUS` ran for the first time** (leg MG, the 11.0.508
+client): it answers, `16`/`128` are `CKMAXNAM`/`CKMAXPATH`, and **four
+fields come back empty** — Hostname, Server hardware, OS family, and
+`Current directory on server`, which is blank while `REMOTE PWD` in the
+same leg answers `D:`. Small new open item, only visible now that a client
+that can ask exists.
+
+**2. `NOFRILLS` compiled out the MAIL refusal and left the acceptance.**
+`gattr()`'s `case 'M'` was guarded and `case 'P'`, eight lines below, was
+not — §16ax saw it from the far end. **Edit 22**, guarded with `VICTOR9K`
+by decision (same call as 19).
+
+**3. Text mode ran for the first time in this port's life, and it is
+correct.** Leg MH: a Unix LF file sent in text mode lands on the Victor as
+**2,240 bytes, CR 40 / LF 40** — a proper DOS text file — and the binary
+arm (MF) preserves the 2,200 LF-only bytes exactly. So `#undef NLCHAR` +
+`_fmode = O_BINARY` is the right pair, measured rather than argued. The
+mechanism is not the obvious one: **the Victor converts nothing in either
+direction.** It gets a correct DOS file because CRLF is *both* the Kermit
+wire format and the DOS file format, so the sender's conversion is the
+only one needed and raw pass-through is exactly right.
+
+**The first attempt tested nothing and the failure is the reusable part.**
+MF's A packet carries `B8` — **binary** — because this Mac runs `transfer
+mode automatic`, which overrode `set file type text`. Its own precondition
+was never checked. **The A packet carries the file-type attribute and the
+packet log already records it: read it before believing a text-mode
+claim.** MF's second flaw would have hidden the first anyway — it compared
+a GET round trip, and **for a GET the sender decides the mode**, so
+text-out/text-back is lossless whatever either end does. The observable
+that does not lie is the file on the image, read with `vtg_image_util`.
+
+**One non-conformance, predicted in advance and confirmed**:
+server-generated text (`REMOTE STATUS`, `REMOTE HELP`, listings) goes out
+with **bare LF** — leg MG's stream is 38 `#J` and zero `#M` — because those
+strings are built with `\n` in C and the LF→CRLF conversion at
+`ckcfns.c:2829` is gated on `feol`. Invisible against a Unix client;
+a property of the platform pair (OS/2 undefines `NLCHAR` too), not of
+either edit. Left alone.
+
+**4. The harness produced two lessons and one of them cost a leg.** A leg
+ends **when MAME exits, not when the host does** — MAME holds the
+single-use `-bitb` socket for the whole of `-seconds_to_run`, and starting
+the next leg on the host's completion put two emulators on one listener
+and voided the first MB. And this sitting's legs were first written as
+NA–NG, which **collided with §16av's**; three tracked `.BAT` files were
+overwritten and restored from git. **`git ls-files | grep STEP` belongs in
+every run sheet's §0** beside `vtg_image_util info`.
+
+**5. A reading corrected mid-sitting.** The F-packet ACK does **not**
+report the name the server chose — `ckcpro.w:1546` sends `fspec`, which
+`rcvfil()` fills from the incoming name *before* the collision switch. Leg
+MB proves it directly: its ACKs say `rcvmb.dat` while the file on disk is
+`RCVMB.001`. **The disk is the observable for a collision leg; the ACK is
+not.** The treatment leg corrected the control leg's reading, which is an
+argument for running both even when the control's answer looks obvious.
+
+**6. The bench Mac now has a C-Kermit 11.0.508 client**, built from this
+tree with `make macosx` (in the session scratch, not the repo). It has
+`REMOTE STATUS`, which 9.0.302 does not, and the 2014 `remcfm()` fix
+§16ax lost five commands to — **and it reports `POSIX_CRTSCTS`**, which is
+exactly what §16am said the flow-control question was waiting for. That is
+a bench item now, not a blocked one.
+
+---
+
 ## §16ay: upstream 11.0.508 is merged, and the port is unmoved by it
 
 **17 August 2026, no Victor in reach.** PR #3 (77 upstream commits) merged;

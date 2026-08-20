@@ -1,0 +1,4 @@
+D:
+IF EXIST STEPMG.OUT DEL STEPMG.OUT
+CKBB.EXE -l /dev/seriala -b 9600 -x > STEPMG.OUT
+A:

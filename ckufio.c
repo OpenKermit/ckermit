@@ -3996,6 +3996,41 @@ znewn(fn,s) char *fn, **s;
     buflen = fnfp->len;                 /* Length of fully qualified name */
     debug(F111,"znewn len",buf,buflen);
 
+#ifdef VICTOR9K
+/*
+  Victor 9000 / MS-DOS: upstream edit 21, PORTING.md SS8 item 21, SS16bb.
+
+  The name built below is the qualified name with ".~<n>~" APPENDED --
+  "A:\RCVDA.DAT" becomes "A:\RCVDA.DAT.~1~".  A FAT 8.3 name holds one
+  dot and a three-character extension, so MS-DOS cannot create that, and
+  BACKUP and RENAME -- the two collision actions that reach this function
+  -- were unavailable on this platform in consequence.  RENAME is not
+  optional here: ckcpro.c forces it for the whole session on any server
+  whose DELETE is disabled (:503), which is every --safe-server, so a safe
+  server could receive a given filename exactly once.
+
+  The Victor arm replaces the extension instead of appending to the name
+  ("A:\RCVDA.001") and finds the number by probing rather than by
+  expanding a wildcard, because the pattern the code below expands is one
+  no FAT directory can hold.  ckvictor.c has the mechanism and
+  v9k/proofs/vznewn.c the correctness argument.  If it cannot make a name
+  it returns 0 and this falls through to the code that was here before.
+*/
+    {
+        extern int v9k_backupname();
+        int v9kn;
+
+        if ((v9kn = v9k_backupname(buf,ZNEWNBL+12)) > 0) {
+            debug(F111,"znewn VICTOR9K",buf,v9kn);
+            *s = buf;                   /* Point to new name */
+            ck_znewn = v9kn;            /* Also make it available globally */
+            if (dname) free(dname);
+            return;
+        }
+        debug(F110,"znewn VICTOR9K no name",buf,0);
+    }
+#endif /* VICTOR9K */
+
     if (k + MAXBUDIGITS + 3 < max) {    /* Backup name fits - no overflow */
         /* Make pattern for backup names */
         ckstrncpy(buf+buflen,".~*~",ZNEWNBL+12-buflen);

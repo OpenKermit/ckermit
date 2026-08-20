@@ -18,6 +18,17 @@ checked where they actually run:
              over all 256 entries and the loop over 20,500
              length-and-fill combinations.  PORTING.md SS16af.
 
+  vznewn.c   Upstream edit 21's FAT-safe unique name.  Two claims that
+             are NOT the same: every name it returns must be a legal FAT
+             8.3 name (one dot, 1-8 before it, exactly 3 after), and it
+             must be the LOWEST free number -- a name that is unique but
+             unusable is no better than the ".~1~" it replaced, and one
+             that is legal but skips a free slot loses backups silently.
+             Plus the failure contract: return 0 AND leave the caller's
+             buffer alone, because znewn() then runs upstream's code over
+             that same buffer.  6,013 cases, including a sweep of all 999
+             numbers over six starting name shapes.  PORTING.md SS16bb.
+
   vburst.c   The ISR's burst detector only runs when the uPD7201
              overruns.  The chip does not overrun below 38400 (SS16q) and
              MAME cannot drive this machine above 9600 (SS16n), so there
@@ -27,9 +38,22 @@ checked where they actually run:
              PORTING.md SS16q.
 
 
-KNOWN LIMITATION, and it applies to both.
+vznewn.c DOES NOT HAVE THE LIMITATION BELOW, AND IT IS THE ONE TO COPY.
 
-Each of these carries a TRANSCRIPTION of the upstream code it checks
+Its Makefile rule EXTRACTS v9k_backupname() out of ckvictor.c at build
+time into vznewn_gen.h, so the function under test is the function that
+ships, by construction rather than by anyone remembering.  The rule fails
+loudly if the extraction comes back empty -- a proof compiled against
+nothing passes.  What it still supplies by hand is access(), which is the
+right thing to fake: the real one is INT 21h, and the test wants to choose
+what the directory contains.
+
+The general shape: fake the ENVIRONMENT, extract the CODE.
+
+
+KNOWN LIMITATION, and it applies to the other two.
+
+vcrc16.c and vburst.c each carry a TRANSCRIPTION of the code they check
 against -- vcrc16.c has its own copy of upstream's chk3() and of
 crcta[]/crctb[], vburst.c its own copy of the ISR counter update.  So they
 prove the port's version agrees with WHAT WAS TRANSCRIBED, not with what

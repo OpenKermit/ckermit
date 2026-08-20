@@ -1153,8 +1153,8 @@ socket is single-use, so start `socat` first and never probe the port.
 ## Hard rules
 
 1. **Do not modify upstream C-Kermit files.** The port's value is that the
-   protocol engine is untouched. There are exactly twenty upstream
-   edits (listed in `PORTING.md` §8); sixteen are wrapped in `#ifndef` or
+   protocol engine is untouched. There are exactly twenty-two upstream
+   edits (listed in `PORTING.md` §8); eighteen are wrapped in `#ifndef` or
    `#ifdef VICTOR9K` and change nothing on any other platform. **14, 15 and
    16 are not, and all three are flagged as such**: 14 moves a mis-nested
    `#endif` (an `#endif` cannot be placed conditionally), 15 fixes a cast
@@ -1166,9 +1166,18 @@ socket is single-use, so start `socat` first and never probe the port.
    edit that ADDS a capability**: a `VICTOR9K` arm in `ckcpro.w` and
    `ckcfns.c` that answers `REMOTE SPACE` from INT 21h `AH=36h` instead of
    from `df` through a `syscmd()` that `NOPUSH` has emptied out.
-   If you think you need a twenty-first, say so
-   explicitly rather than doing it quietly — the seventh through twentieth
-   were all agreed that way. Say it again if
+   **21 makes RENAME and BACKUP work on FAT** — a `VICTOR9K` arm in
+   `znewn()` that replaces the extension (`NAME.001`) instead of appending
+   `.~1~` to a name that already has one, because `ckcpro.c:503` forces
+   RENAME on every `--safe-server` and §16bb leg NA measured what that did
+   without it: a four-character target failed cleanly and a nine-character
+   one **silently overwrote the existing file.** **22 is guarded by
+   decision, like 19**: `gattr()`'s `case 'M'` sat inside an
+   `#ifndef NOFRILLS` while `case 'P'` did not, so a `NOFRILLS` build
+   accepted a MAIL disposition it could only fail on later.
+   If you think you need a twenty-third, say so
+   explicitly rather than doing it quietly — the seventh through
+   twenty-second were all agreed that way. Say it again if
    the edit turns out to need a second file: 12 and 13 both did, and 13's
    second half was the one that made the first half do anything.
    **18 is the model for how to add one**: purely additive (no upstream line
@@ -1235,11 +1244,11 @@ socket is single-use, so start `socat` first and never probe the port.
 | `victorow.mak` | the build: Open Watcom `wcc`/`wlink` + `sizes` target |
 | `victorow/` | headers filling gaps in Open Watcom's DOS libc (`pwd.h`, `sys/utsname.h`, `sys/time.h`, `termios.h`, `ckowsys.h`), reached via `-i=victorow`. **`curses.h` is different in kind**: not a gap in libc but the declaration half of the fullscreen transfer display, whose implementation is `ckvictor.c` §1g. Read its header comment before touching the display — it carries the evidence that this console is VT52/Z19 and not ANSI (§16ao) |
 | `v9k/tools/` | standing instruments, not disposable: `mzsize.py` (**hard rule 4 requires it**), `pktstat.py`, `mapoffset.py`, `ctswatch.py` (host-side `TIOCMGET`, §16am — the modem lines read without Kermit in the path), `wirenoise.py` (§16av — a drop-in replacement for the harness `socat` line that corrupts the wire on purpose, keyed on byte offset so two arms of an A/B meet the same noise), `hybridfat.py` (§16az — `info`/`list`/`put`/`get`/`del` on the FAT16 volume of a **Victor 9000 hybrid FreeDOS image**, which neither mtools nor `vtg_image_util` can read; it takes the volume base from the BPB's own `hidden_sectors` rather than assuming 129) |
-| `v9k/proofs/` | host programs §8 cites as the correctness argument for a shipped edit — `vcrc16.c` (edit 17), `vttinl.c` (edit 18) and `vburst.c` (the ISR burst detector). `make -C v9k/proofs` builds *and runs* them |
+| `v9k/proofs/` | host programs §8 cites as the correctness argument for a shipped edit — `vcrc16.c` (edit 17), `vttinl.c` (edit 18), `vznewn.c` (edit 21) and `vburst.c` (the ISR burst detector). `make -C v9k/proofs` builds *and runs* them. **`vznewn.c` is the one to copy**: its Makefile rule EXTRACTS `v9k_backupname()` out of `ckvictor.c` at build time instead of transcribing it, so it is the only one of these that cannot drift from what ships |
 | `v9k/probes/` | genuine one-shots, kept so the answer stays checkable; build line at the top of each |
 | `ckutio.c` | serial, console, timers — **stock upstream except upstream edit 18**, the `VICTOR9K` bulk-read arm at the bottom of `ttinl()`'s per-byte loop (§16aq). Purely additive; `--nobulk` disables it at run time and `v9k: bulk sel= n=` says which arm ran |
-| `ckufio.c` | file system — **stock upstream except upstream edit 19**, one declaration in `zfcdat()`: `unsigned int mtime` was truncating a `time_t` and dating the whole volume to 1970 (§16ax) |
-| `ckc*.c` | protocol core — do not touch. **The exceptions are edits 17, 18 and 20**, and 20 is the only one that adds a capability: a `VICTOR9K` `sndspace()` in `ckcfns.c` and the arm in `ckcpro.w` that calls it, so `REMOTE SPACE` is answered from INT 21h rather than from a `df` that `NOPUSH` deleted (§16ax) |
+| `ckufio.c` | file system — **stock upstream except upstream edits 19 and 21**. 19 is one declaration in `zfcdat()`: `unsigned int mtime` was truncating a `time_t` and dating the whole volume to 1970 (§16ax). 21 is a purely additive `VICTOR9K` arm at the top of `znewn()` calling `v9k_backupname()`, so BACKUP and RENAME produce a name FAT can hold (§16bb) |
+| `ckc*.c` | protocol core — do not touch. **The exceptions are edits 17, 18, 20 and 22** — 22 is one guard in `ckcfn3.c`'s `gattr()`, making `case 'M'` live so a MAIL disposition is refused in the A-packet ACK the way PRINT already is (§16bb) — and 20 is the only one that adds a capability: a `VICTOR9K` `sndspace()` in `ckcfns.c` and the arm in `ckcpro.w` that calls it, so `REMOTE SPACE` is answered from INT 21h rather than from a `df` that `NOPUSH` deleted (§16ax) |
 
 ## Code style
 

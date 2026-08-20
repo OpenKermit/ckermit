@@ -4414,6 +4414,109 @@ v9k_rmdir(path) const char * path;
 }
 
 /*
+  v9k_backupname() -- the Victor half of upstream edit 21.
+
+  ckufio.c's znewn() makes a unique name by APPENDING ".~<n>~" to the
+  fully qualified name it already has, so "A:\RCVDA.DAT" becomes
+  "A:\RCVDA.DAT.~1~".  That is two dots and a seven-character extension,
+  and MS-DOS cannot create it: FAT holds eight characters, one dot and
+  three.  Both of the collision actions that call znewn() -- BACKUP and
+  RENAME -- were therefore unavailable on this platform, which is what
+  the FILE COLLISION comment further down this file says.
+
+  RENAME is the one that matters, and it is not a preference.  ckcpro.c's
+  server-startup code (:503) forces fncact to XYFX_R for the whole session
+  whenever DELETE is disabled, "to undo any file collision action that
+  could result in deletion or modification of existing files" -- and
+  --safe-server disables DELETE.  So every safe server on this machine
+  could receive a given filename exactly once, and the second attempt
+  failed on a name FAT would not take.  The operator sees an error about
+  the FILE, not about the name, which is what makes it worth a fix rather
+  than a note.
+
+  What it does instead: replace the extension rather than append to the
+  name.  "A:\RCVDA.DAT" -> "A:\RCVDA.001".  The number is found by
+  PROBING, not by expanding a wildcard the way upstream does, and the
+  reason is the same defect one level down: nzxpand() would be asked to
+  match "A:\RCVDA.DAT.~*~", a pattern no FAT directory can ever contain,
+  so it would return nothing and the number would always come back 1.
+  Probing asks the only question that has an answer here -- does
+  "A:\RCVDA.001" exist -- and asks it of access(), which is this file's
+  own (see its comment: on DOS the entry either resolves or it does not).
+
+  Numbers run 1..999 and the format is fixed-width, so the extension is
+  always exactly three characters and the names sort.  999 backups of one
+  name returns 0, and znewn() then falls through to upstream's code and
+  produces the name it always did -- which is the pre-edit behaviour, not
+  a new failure.
+
+  The name is built in a local and copied back only on success, so a
+  caller that gets 0 still holds the name it passed in.  That costs a
+  CKMAXPATH-sized frame on a path that upstream already spends one on
+  (znewn()'s own buf2[ZNEWNBL+12], which this arm returns before
+  reaching), so hard rule 7's budget does not move.
+
+  PORTING.md SS16bb.  Correctness argument: v9k/proofs/vznewn.c.
+*/
+
+int
+#ifdef CK_ANSIC
+v9k_backupname(char * buf, int size)
+#else
+v9k_backupname(buf,size) char * buf; int size;
+#endif /* CK_ANSIC */
+{
+    char work[CKMAXPATH+16];
+    char * name;                        /* Start of the filename part   */
+    char * dot;                         /* Its last '.', if any         */
+    char * p;
+    int len, base, n;
+
+    if (!buf || !*buf)
+      return(0);
+    len = (int)strlen(buf);
+    if (len < 1 || len > CKMAXPATH || size < len + 5)
+      return(0);
+    memcpy(work,buf,len+1);
+
+    name = work;                        /* Find the filename part */
+    for (p = work; *p; p++)
+      if (*p == '/' || *p == '\\' || *p == ':')
+        name = p + 1;
+    if (!*name)                         /* Name ends in a separator */
+      return(0);
+
+    dot = NULL;                         /* Find its extension */
+    for (p = name; *p; p++)
+      if (*p == '.')
+        dot = p;
+    if (dot && dot > name)              /* Drop it; a name that BEGINS  */
+      *dot = '\0';                      /* with a dot has no extension  */
+
+    base = (int)strlen(name);
+    if (base < 1)
+      return(0);
+    if (base > 8) {                     /* Cannot happen on a name that */
+        name[8] = '\0';                 /* came out of a FAT directory, */
+        base = 8;                       /* and is cheap to be sure of   */
+    }
+    len = (int)strlen(work);
+
+    for (n = 1; n < 1000; n++) {
+        work[len] = '.';
+        work[len+1] = (char)('0' + (n / 100));
+        work[len+2] = (char)('0' + ((n / 10) % 10));
+        work[len+3] = (char)('0' + (n % 10));
+        work[len+4] = '\0';
+        if (access(work,0) != 0) {      /* Does not exist: take it */
+            memcpy(buf,work,len+5);
+            return(n);
+        }
+    }
+    return(0);                          /* 999 of them already */
+}
+
+/*
   nap() -- the sub-second delay upstream's msleep() could not make here.
 
   ckutio.c's msleep() has arms for select(), poll(), usleep(), nap(),
@@ -4699,6 +4802,35 @@ static struct v9k_rt_init __based(__segname("XI")) v9k_fmode_rec =
   commands a file transfer needs and nothing that manipulates the Victor's
   file system.  Note the asymmetry -- en_ena stays at its default under
   --safe-server, so a peer cannot ENABLE its way back out of it.
+
+  TWO OF THESE VARIABLES HAVE NO READER AT ALL AND IT IS WORTH SAYING SO,
+  because a capability gate that is set and never consulted looks like
+  protection and is not.  Neither is a port defect and only one is a
+  defect at all:
+
+    en_ena  is read at ckuus6.c:7227, where the ENABLE command guards
+            itself, and printed by SHOW at ckuus5.c:7273.  Both are
+            #ifndef NOICP, so it is simply inert in a shipping build --
+            there is no prompt to type ENABLE at.  Setting it costs
+            nothing and keeps a KEEP_ICP build honest.
+
+    en_ret  is UPSTREAM'S, and it is a defect: ckuus6.c:7115 assigns it
+            from ENABLE/DISABLE RETRIEVE, and nothing anywhere reads it.
+            RETRIEVE is gated by en_del instead (ckcpro.w:645 and :690),
+            and ckcfns.c:6186 has en_ret COMMENTED OUT of REMOTE HELP's
+            extern list, so the command does not even advertise it.
+            DISABLE RETRIEVE therefore succeeds and does nothing on every
+            platform.  Reported upstream with edits 14-17; nothing to fix
+            here, and the port's own safety does not rest on it, because
+            --safe-server leaves en_del off and en_del is the gate that
+            is actually consulted.
+
+  MAIL and PRINT are the other side of the same coin and they are the one
+  place this table now MEANS what it says: both are 0 (ckcmai.c:1613 and
+  :1614) and this initializer never touches them, but until upstream edit
+  22 the MAIL half of that was decorative -- gattr()'s case 'M' sat inside
+  an #ifndef NOFRILLS while case 'P' did not, so en_mai was read on no
+  path this build compiles.  PORTING.md SS16bb.
 
   These variables are read only by the server-command handlers in
   ckcpro.w, so a -s, -r or -g run never consults them; setting them here
