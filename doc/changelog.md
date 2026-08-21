@@ -4,6 +4,9 @@
 
 - Refactor to reduce use of siglongjmp(), eliminating races
 
+- Added `SET TCP CONNECT-TIMEOUT` to provide a new timeout for establishing a
+  TCP connection, defaulting to 30 seconds.  The current timeout is unbounded.
+  This can be useful for scripts and tests.
 
 # C-Kermit 11.0.509
 
