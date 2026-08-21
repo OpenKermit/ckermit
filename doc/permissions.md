@@ -302,7 +302,39 @@ components:
 - `SET RECEIVE PATHNAMES` controls where files are put after being accepted
 
 
+## SET RECEIVE CONFIRM: Unexpected Filenames
+
+The pathname and collision settings described above prevent incoming files from
+escaping target directories or overwriting local files. However, they do not
+prevent a remote server from sending an unexpected filename. For example, a
+server asked to send `report.pdf` could send `.bashrc` instead, and the other
+path checks would permit it.
+
+`SET RECEIVE CONFIRM { OFF, ON, ALL }` (default `ON`) addresses this by
+prompting to confirm the filename before writing it to disk.  This helps guard
+against a malicious remote server.
+
+Under `ON`, Kermit skips the confirmation prompt when the incoming filename
+matches an explicit name requested via `GET` or `MGET`, or when it resides
+under the directory specified in a recursive `GET`. `ALL` prompts for every
+file, even when explicitly requested.
+
+A standalone `RECEIVE`, or an incoming transfer initiated by a remote `SEND`,
+always prompts under `ON` and `ALL` because no expected filename was
+specified in advance.
+
+Prompting only occurs in an attended, local-mode session. An unattended
+server (such as `SERVER` mode or IKSD) never prompts, regardless of the
+setting. See `HELP SET RECEIVE CONFIRM` for command syntax.
+
+`ON` is not a complete substitute for `SET FILE COLLISION REJECT` during
+recursive transfers. Because containment within the target directory satisfies
+`ON`, files arriving inside that directory tree do not trigger a receive
+confirmation prompt. Use `ALL` to confirm every file in a recursive transfer
+before it can overwrite or collide with existing files on disk.
+
 ## See also
 
-- `HELP SET RECEIVE PATHNAMES`, `HELP ENABLE`, `HELP GET`, `HELP SEND`
+- `HELP SET RECEIVE PATHNAMES`, `HELP SET RECEIVE CONFIRM`,
+  `HELP ENABLE`, `HELP GET`, `HELP SEND`
 - `HELP SET SERVER`, `SHOW SERVER`
