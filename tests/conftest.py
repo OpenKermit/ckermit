@@ -8,7 +8,6 @@ import shutil
 import socket
 import subprocess
 import termios
-import zlib
 import pytest
 from pathlib import Path
 import logging
@@ -138,85 +137,70 @@ def truncated(label, text):
     )
 
 
-def compressed_debug_log_path(debug_log):
-    """Return the .gz path written on disk for a logical debug_log path.
+# Maximum size in bytes for a live debug log capture. Only the trailing
+# characters are read by tail_text(); 2MB provides sufficient margin
+# while bounding disk usage across parallel test runs.
+DEBUG_LOG_CAPTURE_BYTES = 2 * 1024 * 1024
 
-    Debug traces are compressed with gzip during execution. Callers
-    inspect this compressed path instead of the logical path.
+
+def debug_log_capture_path(debug_log):
+    """Return the .tail path written on disk for a logical debug_log path.
+
+    Debug traces are captured through a size-bounded tail during
+    execution. Callers inspect this capture path instead of the logical
+    path.
     """
-    return Path(str(debug_log) + ".gz")
+    return Path(str(debug_log) + ".tail")
+
+
+def _debug_log_tmp_path(capture_path):
+    """Return the in-progress path debug_log_command() writes to before
+    renaming it to its final capture_path."""
+    return Path(str(capture_path) + ".partial")
+
+
+def _track_debug_log_files(created_files, log_path):
+    """Register log_path's capture file and in-progress temporary file
+    with created_files for cleanup."""
+    capture_path = debug_log_capture_path(log_path)
+    for path in (capture_path, _debug_log_tmp_path(capture_path)):
+        if path not in created_files:
+            created_files.append(path)
 
 
 def debug_log_command(debug_log):
     """Return Kermit commands to start a timestamped debug log piped
-    through gzip.
+    through a size-bounded tail.
 
     Uses Kermit's "log debug |command" syntax. Enclosing braces prevent
     filename truncation on spaces.
 
-    Traps SIGHUP so gzip flushes output on PTY process group termination,
-    and uses exec to replace the shell process.
+    tail buffers input until EOF, then writes trailing bytes to a
+    temporary path before renaming it to the final capture path. The
+    atomic rename allows consumers to check for file existence rather
+    than polling file size.
+
+    Traps SIGHUP so tail is unaffected by PTY process group
+    termination. Does not exec, since the shell must survive tail to
+    execute the rename.
 
     Prefixes with "set debug timestamps on" so each line carries a
     millisecond timestamp.
     """
-    gz_path = compressed_debug_log_path(debug_log)
+    capture_path = debug_log_capture_path(debug_log)
+    tmp_path = _debug_log_tmp_path(capture_path)
     return (
         "set debug timestamps on, "
-        f"log debug {{|trap '' HUP; exec gzip -1 -c > {gz_path}}}"
+        f"log debug {{|trap '' HUP; "
+        f"tail -c {DEBUG_LOG_CAPTURE_BYTES} > {tmp_path} && "
+        f"mv {tmp_path} {capture_path}}}"
     )
 
 
-def _tail_gz_bytes(path, max_bytes, read_chunk=65536):
-    """Decompress gzip file at path, returning at most max_bytes from tail.
-
-    Maintains a bounded window during decompression to limit memory usage.
-
-    Uses raw zlib to handle incomplete or truncated streams without raising.
-    """
-    decompressor = zlib.decompressobj(zlib.MAX_WBITS | 16)
-    tail = b""
-    pending = b""
-    with path.open("rb") as f:
-        while True:
-            if not pending:
-                pending = f.read(read_chunk)
-                if not pending:
-                    break
-            try:
-                out = decompressor.decompress(pending, max_bytes)
-            except zlib.error:
-                break
-            pending = decompressor.unconsumed_tail
-            if out:
-                tail = (tail + out)[-max_bytes:]
-    try:
-        tail = (tail + decompressor.flush())[-max_bytes:]
-    except zlib.error:
-        pass
-    return tail
-
-
 def tail_text(path, label, max_chars=MAX_LOGGED_CHARS):
-    """Return at most the last max_chars characters of a file.
-
-    For uncompressed files, seeks near the end of the file.
-
-    For gzip files, streams through the file and retains trailing output
-    via _tail_gz_bytes().
-    """
+    """Return at most the last max_chars characters of a file, seeking
+    near the end of the file rather than reading it in full."""
     path = Path(path)
-    if path.suffix == ".gz":
-        max_bytes = max_chars * 4
-        tail = _tail_gz_bytes(path, max_bytes)
-        text = tail.decode("utf-8", errors="replace")
-        if len(text) <= max_chars:
-            return text
-        text = text[-max_chars:]
-        return (
-            f"[{label}: compressed log, showing last "
-            f"{len(text)} chars]\n{text}"
-        )
     size = path.stat().st_size
     # Read a generous byte margin per character: a UTF-8 character can
     # take up to 4 bytes, and the file may also contain raw invalid
@@ -574,13 +558,9 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         if server_ksc not in created_files:
             created_files.append(server_ksc)
         if debug_server:
-            gz_path = compressed_debug_log_path(server_log)
-            if gz_path not in created_files:
-                created_files.append(gz_path)
+            _track_debug_log_files(created_files, server_log)
         if DEBUG_LOOPBACK:
-            gz_path = compressed_debug_log_path(client_log)
-            if gz_path not in created_files:
-                created_files.append(gz_path)
+            _track_debug_log_files(created_files, client_log)
 
         full_client_cmd = [
             "-H", "-Y", "-Q", "-C",
@@ -622,13 +602,9 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         if server_stdout_log not in created_files:
             created_files.append(server_stdout_log)
         if debug_server:
-            gz_path = compressed_debug_log_path(server_log)
-            if gz_path not in created_files:
-                created_files.append(gz_path)
+            _track_debug_log_files(created_files, server_log)
         if DEBUG_LOOPBACK:
-            gz_path = compressed_debug_log_path(client_log)
-            if gz_path not in created_files:
-                created_files.append(gz_path)
+            _track_debug_log_files(created_files, client_log)
 
         server_cmd_str = ", ".join(setup_lines)
         for attempt in range(PORT_COLLISION_RETRIES):
@@ -730,10 +706,12 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         # during connection setup.
         debug_server = DEBUG_LOOPBACK or server_debug_log
 
-        # Build the far end's command sequence.
+        # Build the far end's command sequence. Split debug_log_command()
+        # into separate commands for TAKE file compatibility in
+        # pseudoterminal mode.
         setup_lines = []
         if debug_server:
-            setup_lines.append(debug_log_command(server_log))
+            setup_lines.extend(take_file_lines(debug_log_command(server_log)))
         setup_lines.append("set command more-prompting off")
         setup_lines.append("set delay 0")
         if transport != "pseudoterminal":
@@ -777,19 +755,22 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
             if failed and debug_server:
                 logs.append(("Server", server_log))
             for label, log_path in logs:
-                gz_path = compressed_debug_log_path(log_path)
-                if gz_path.exists():
-                    try:
-                        _wait_for_gz_stable(gz_path)
+                capture_path = debug_log_capture_path(log_path)
+                try:
+                    if _wait_for_debug_log_ready(capture_path):
                         logger.info(
                             "wermit_loopback: %s process debug "
                             "log:\n%s",
                             label,
-                            tail_text(gz_path, f"{label} debug log"))
-                    except Exception as e:
+                            tail_text(capture_path, f"{label} debug log"))
+                    else:
                         logger.warning(
-                            "wermit_loopback: Failed to read %s "
-                            "log %s: %s", label, gz_path, e)
+                            "wermit_loopback: %s debug log %s "
+                            "never appeared", label, capture_path)
+                except Exception as e:
+                    logger.warning(
+                        "wermit_loopback: Failed to read %s "
+                        "log %s: %s", label, capture_path, e)
 
         return result
 
@@ -1020,31 +1001,28 @@ def wermit_tcp_loopback(spawn_wermit, run_wermit, get_free_port):
 # wermit-under-test must be started (as a TCP listener) before its
 # remote peer is spawned, and only collected afterwards.
 
-def _wait_for_gz_stable(path, timeout=2.0, poll=0.05):
-    """Wait for a .gz debug log file to stop growing.
+def _wait_for_debug_log_ready(path, timeout=2.0, poll=0.05):
+    """Wait for a debug log capture file to appear at path.
 
-    The gzip writer runs in a child process spawned via popen(), so the
-    test harness cannot wait on it directly. Polling prevents reading
-    incomplete log files after Kermit exits.
+    Returns True if the file appears before timeout, False otherwise.
+
+    The tail writer runs in a background process spawned by Kermit.
+    Because debug_log_command() atomically renames the temporary output
+    file to path once complete, existence indicates that the capture is
+    finished.
     """
     deadline = time.time() + timeout
-    last_size = -1
     while time.time() < deadline:
-        try:
-            size = path.stat().st_size
-        except OSError:
-            size = -1
-        if size > 0 and size == last_size:
-            return
-        last_size = size
+        if path.exists():
+            return True
         time.sleep(poll)
+    return path.exists()
 
 
 def _log_debug_file(label, path):
-    path = compressed_debug_log_path(path)
-    if not path.exists():
+    path = debug_log_capture_path(path)
+    if not _wait_for_debug_log_ready(path):
         return
-    _wait_for_gz_stable(path)
     try:
         logger.info(
             "%s: wermit debug log:\n%s",
@@ -1203,16 +1181,19 @@ def finish_wermit_pty(proc, master, timeout=45, debug_log=None):
         os.close(master)
         proc.wait()
 
-        # Decompress and log the debug trace on failure.
+        # Log the debug trace on failure.
         if debug_log and proc.returncode != 0:
             _log_debug_file("finish_wermit_pty", debug_log)
 
         return (proc.returncode,
                 b"".join(output).decode('utf-8', errors='replace'))
     finally:
-        # Remove the compressed debug log on exit.
+        # Remove the debug log capture and any incomplete temporary file
+        # on exit.
         if debug_log:
-            compressed_debug_log_path(debug_log).unlink(missing_ok=True)
+            capture_path = debug_log_capture_path(debug_log)
+            capture_path.unlink(missing_ok=True)
+            _debug_log_tmp_path(capture_path).unlink(missing_ok=True)
 
 
 def finish_wermit_pty_pair(proc_a, master_a, proc_b, master_b, timeout=45):
