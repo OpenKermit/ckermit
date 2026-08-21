@@ -1,0 +1,24 @@
+; Leg HM -- the 32 KB transfer half of the parser leg, driven from the
+; C-Kermit> prompt on the Victor.  Host SENDS.
+;
+; WHY THIS EXISTS: edit 14 widened what main() compiles, so this binary is
+; not the one measured at 1,170 cps.  rxlost=0 rxfull=0 and a byte-exact md5
+; is what says the wire protocol did not move.  The parser build is 443K and
+; a 640K-class build -- the first upstream merge ever to move a class -- and
+; SS16ab is the last time a parser build ran on hardware, pre-merge.
+;
+; At the Victor's C-Kermit> prompt, before starting this:
+;     set line /dev/seriala
+;     set speed 38400
+;     receive
+; SET LINE must report LOCAL and SET SPEED must READ BACK (edit 15).
+
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+set retry 30
+log packets s16bcHM.pkt
+send rcvhm.dat
+statistics

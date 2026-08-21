@@ -1,0 +1,34 @@
+; Leg HN -- the rcvfil() stall pair -- receive into D:\ at 9600.
+;
+; BENCH take-file: there is no "set line" here.  ~/.kermrc names the adapter.
+; CHECK THAT IT NAMES THE ONE THAT IS PLUGGED IN.
+;
+; Run HL immediately after this one.  ONE VARIABLE: the volume.
+;
+; SS16ba killed five candidates for the ~27 s F-packet stall and left one --
+; something about the ROOT DIRECTORY ITSELF (capacity, deleted 0xE5 slots,
+; entry fragmentation), with zchko() doing three DOS directory operations on
+; it before a data byte moves.  Under MAME a clean 9600 receive is 46.1-46.6 s
+; and 702-710 cps where A:\ gives 78.9 and 415.
+;
+; THIS IS THE ONE LEG IN THE SITTING THAT RUNS -d ON PURPOSE, and SS16aw
+; permits it because the stall is a discrete 26-second event and not a
+; throughput claim.  Expect deb=1.  DO NOT QUOTE A CPS FIGURE OFF EITHER LEG.
+;
+; The observable is the gap between the F packet and its ACK in the packet
+; log, and three timeouts at 8, 16 and 24 s if it is there.
+;
+; READ IT WITH:
+;     python3 v9k/tools/pktstat.py --rxbytes <from STEPHN.OUT> s16bcHN.pkt
+; Residual -11 clean, +28 with a startup timeout.
+; cmp FIRST, then the counters.  A leg that is fast and wrong is the failure.
+
+set speed 9600
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+set retry 30
+log packets s16bcHN.pkt
+send rcvhn.dat
+statistics

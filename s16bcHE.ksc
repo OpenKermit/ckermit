@@ -1,0 +1,26 @@
+; Leg HE -- the other half (--xonxoff).  Only if HC/HD are clean.
+;
+; BENCH take-file: there is no "set line" here.  ~/.kermrc names the adapter.
+; CHECK THAT IT NAMES THE ONE THAT IS PLUGGED IN.
+;
+; SS16ak measured 19 bytes lost in 11 bursts under XON/XOFF where RTS/CTS at
+; the same marks lost none -- the first non-zero rxlost since SS16t, cause
+; never established, and NOTHING COUNTS THE ISR'S FAILED XOFF ATTEMPTS.
+; Watch xoff / xon / stuck and rxlost.  stuck > 0 with xoff > xon is a lost
+; XON and the reason V9K_FCSPIN exists.
+;
+; READ IT WITH:
+;     python3 v9k/tools/pktstat.py --rxbytes <from STEPHE.OUT> s16bcHE.pkt
+; Residual -11 clean, +28 with a startup timeout.
+; cmp FIRST, then the counters.  A leg that is fast and wrong is the failure.
+
+set flow xon/xoff
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+set retry 30
+log packets s16bcHE.pkt
+send rcvhe.dat
+statistics

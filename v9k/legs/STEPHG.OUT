@@ -1,0 +1,22 @@
+
+Closing COM2...OK
+v9k: isr=asm deb=0
+v9k: dos oem=fd ver=622 irq1=09
+v9k: rxlost=0 rxfull=0 rxpeak=557 of 4096
+v9k: peaktag=6 fd=5 stall256=520
+v9k: rxbytes=37557 peakat=16216 stallat=601
+v9k: norx=0 othrx=0 rr0=00 oth=00
+v9k: bulk sel=1 n=65
+v9k: lost evt=0 max=0 tag=0 fd=0
+v9k: lostat=0 lostend=0
+v9k: lean (no burst table)
+v9k: flow in=0 out=0 hi=65535 lo=1024 held=0 rel=0 xoff=0 xon=0 stuck=0
+v9k: wfile n=4 max=11 at #2 of 8192 tot=32 cs nospc=0
+v9k: wcon n=1 max=6 tot=6 cs
+v9k: txgap n=17 max=11 at #4 tot=114 cs
+v9k: nap per=409 n=1 req=500 ms tot=61 cs cc=0
+v9k: coll=1
+v9k: dec n=18 max=143 at #2 tot=1103 cs to=0
+v9k: window ask=0 use=0 neg=1 pool=2 ring=1
+v9k: elapsed=2032 cs wire=1848 B/s
+v9k: mdm cts=1 dsr=1 (dcd=1 rts=1 dtr=1, see comment)

@@ -1,0 +1,24 @@
+Entering server mode on /dev/seriala
+Type Ctrl-C to quit.
+
+Closing /dev/seriala...OK
+v9k: isr=asm
+v9k: dos oem=ff ver=310 irq1=41
+v9k: rxlost=0 rxfull=0 rxpeak=154 of 4096
+v9k: peaktag=4 fd=1 stall256=0
+v9k: rxbytes=2809 peakat=281 stallat=0
+v9k: norx=0 othrx=0 rr0=00 oth=00
+v9k: bulk sel=1 n=877
+v9k: lost evt=0 max=0 tag=0 fd=0
+v9k: lostat=0 lostend=0
+v9k: lean (no burst table)
+v9k: flow in=0 out=0 hi=65535 lo=1024 held=0 rel=0 xoff=0 xon=0 stuck=0
+v9k: wfile n=1 max=50 at #1 of 2048 tot=50 cs nospc=0
+v9k: wcon n=6 max=50 tot=50 cs
+v9k: txgap n=16 max=50 at #5 tot=50 cs
+v9k: nap per=409 n=1 req=500 ms tot=50 cs cc=0
+v9k: coll=0
+v9k: dec n=17 max=3250 at #3 tot=4300 cs to=0
+v9k: window ask=0 use=0 neg=1 pool=2 ring=1
+v9k: elapsed=5000 cs wire=56 B/s
+v9k: mdm cts=1 dsr=1 (dcd=1 rts=1 dtr=1, see comment)

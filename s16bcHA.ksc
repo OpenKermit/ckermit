@@ -1,0 +1,33 @@
+; Leg HA -- THE REGRESSION LEG.  Host SENDS; the Victor receives.
+;
+; BENCH take-file: there is no "set line" here.  ~/.kermrc names the adapter.
+; CHECK THAT IT NAMES THE ONE THAT IS PLUGGED IN.
+;
+; CONTROL: SS16aq legs KA/KC/KN_2, three legs with a 16 ms spread --
+;     25.652 / 25.659 / 25.668 s, 1,277 cps, 37,557 wire bytes,
+;     18 packets, 0 timeouts, 0 resends, rxpeak 409-488.
+; The Victor's binary has not been at 38400 since SS16au: since then it took
+; upstream 11.0.508, edits 19-22 and SS16av's six fixes, all measured at 9600
+; under MAME only.  SS16w says code size is execution time on this machine and
+; ~950 bytes moved, so a floor that has SHIFTED is what this leg can see.
+;
+; START THE VICTOR FIRST.  It takes about 40 s to load; wait for the drive
+; to go quiet, then start this.
+;
+; Check "bulk sel=1" on the .OUT BEFORE reading the clock -- an equivalence
+; test cannot see a switch that silently failed (SS16aq).
+;
+; READ IT WITH:
+;     python3 v9k/tools/pktstat.py --rxbytes <from STEPHA.OUT> s16bcHA.pkt
+; Residual -11 clean, +28 with a startup timeout.
+; cmp FIRST, then the counters.  A leg that is fast and wrong is the failure.
+
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+set retry 30
+log packets s16bcHP.pkt
+send rcvhp.dat
+statistics

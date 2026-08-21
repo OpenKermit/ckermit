@@ -1,0 +1,1724 @@
+Debug Log []
+ Victor 9000 / Sirius 1
+Tue Jan  1 00:01:42 1980
+
+byteorder=0
+prescan *yargv[-r]
+prescan arg=r
+MAIN feol=0
+makever Kermit version[C-Kermit 11.0.508, 2026/08/09]
+conbgt process group test=0
+NOJC[jc]=0
+conbgt jc=0
+conbgt isatty test=0
+conbgt backgrd=1
+sysinit ttyname(0)[CON:]
+sysinit CTTNAM[/dev/tty]
+sysinit cttnam[CON:]
+xttgwsiz LINES[(NULL)]
+v9k srvcaps safe=0
+v9k flowsel=0
+v9k nodisplay=1
+v9k bulkin=1
+sysinit uname machine[Victor]
+sysinit uname sysname[MS-DOS]
+sysinit uname release[]
+sysinit uname version[]
+zgtdir SVORPOSIX CWDBL=128
+v9k_getcwd[A:]
+sysinit startupdir[A:/]
+ckcmai myname[A:\CKHPDBG.EXE]=0
+STAT=5
+zchki stat return code[A:\CKHPDBG.EXE]=0
+zchki stat errmsg[]
+zchki stat ok:[A:\CKHPDBG.EXE]=0
+v9k fmode witness=1
+v9k _fmode=512
+zchki access ok:[A:\CKHPDBG.EXE]=314168
+zgtdir SVORPOSIX CWDBL=128
+v9k_getcwd[A:]
+xttgwsiz LINES[(NULL)]
+initflow=0
+initproto spsiz=90
+connoi conistate=0
+conint conistate=0
+conbgt process group test=0
+NOJC[jc]=0
+conbgt jc=0
+conbgt isatty test=0
+conbgt backgrd=1
+conint backgrd=1
+conint jc=0
+conint background ignoring signals, jc=0
+zoutbuffer malloc=8192
+getiobs ok
+main ckhost[victor]
+setflow autoflow=1
+setflow local=0
+setflow network=0
+setflow cxtype=0
+setflow flow=0
+ttgspd ttyfd=-1
+ttgspd cfgetospeed 1 POSIX=0
+ttgspd code=0
+ttgspd speed=0
+inibufs s=8192
+inibufs r=8192
+inibufs size 1=16424
+inibufs size z=16424
+inibufs size 2=16424
+inibufs bigsbsiz=8205
+inibufs bigrbsiz=8209
+setprefix=1
+main argc after prescan()=7
+howcalled[A:\CKHPDBG.EXE]=0
+main 2 cfilef[]=0
+main argc=7
+cmdlin xargv[-l]=6
+cmdlin args 1[-l]=6
+doarg entry[l]=6
+doarg arg=l
+ttopen telnetfd=0
+ttopen ttname[/dev/seriala]
+ttopen ttnmsv[]
+ttopen modem=0
+ttopen netconn=0
+ttopen ttyfd=-1
+ttopen *lcl=1
+ttopen ttmdm=0
+ttopen ttnet=0
+XXX netopen in ifdef NETCONN...[A]
+ttopen MAXNAMLEN defined
+ttopen BSD4 *NOT* defined
+ttopen BSD42 *NOT* defined
+ttopen MYREAD defined
+ttopen fdflag=1
+ttopen xlocal[A]=1
+zfnqfp fname[/dev/seriala]=129
+zfnqfp while *s[/dev/seriala]
+isabsolute[/dev/seriala]=12
+isabsolute rc=1
+zfnqfp len=12
+isdir entry[/dev/seriala]
+isdir stat[/dev/seriala]=0
+isdir islink=0
+isdir statbuf.st_mode=8630
+zfnqfp path[/dev/seriala]=12
+zfnqfp name[seriala]
+ttopen fnam[/dev/seriala]
+ttopen xlocal[B]=1
+ttlock NOUUCP
+ttopen ttlock=0
+ttopen lkf=1
+ttopen timo=0
+priv_opn[/dev/seriala]=2
+priv_opn result=6
+priv_opn errno=0
+ttopen untimed ttyfd[/dev/seriala]=6
+ttopen tcgetattr ttold.c_lflag=0
+ttopen tcgetattr ttraw.c_lflag=0
+ttopen tcgetattr tttvt.c_lflag=0
+ttopen calling carrctl
+carrctl=0
+ttopen carrctl ok
+tcsetattr line fd[6]=13
+tcsetattr read-back cr1/cr2a[0]=16
+tcsetattr read-back cr4/cr5[72]=234
+tcsetattr read-back baudr=65
+tcsetattr divisor=8
+v9k_ser_setflow flow/in[0]=0
+v9k_ser_setflow crtscts/ixon[0]=0
+v9k_dosid oem=255
+v9k_dosid irq1=65
+v9k_ser_install channel=0
+v9k_ser_install old IRQ1 mask=179
+v9k_ser_install old vector seg=0
+ttopen tcsetattr=0
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+ttopen ttspeed=9600
+ttopen ttyfd=6
+ttopen *lcl=1
+ttopen lock file[NOLOCK]=1
+doarg speed=0
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+setflow autoflow=1
+setflow local=1
+setflow network=0
+setflow cxtype=1
+setflow flow=0
+cmdlin doarg=0
+cmdlin args 2[/dev/seriala]=5
+cmdlin xargv[-b]=4
+cmdlin args 1[-b]=4
+doarg entry[b]=4
+doarg arg=b
+ttsspd cps=960
+ttsspd ttyfd=6
+ttsspd xlocal=1
+ttsspd ok=1
+ttsspd s=13
+ttsspd tcgetattr=0
+tcsetattr line fd[6]=13
+tcsetattr read-back cr1/cr2a[0]=16
+tcsetattr read-back cr4/cr5[68]=234
+tcsetattr read-back baudr=8
+tcsetattr divisor=8
+v9k_ser_setflow flow/in[0]=0
+v9k_ser_setflow crtscts/ixon[0]=0
+v9k_ser rxlost/rxfull[0]=0
+v9k_ser rxpeak=0
+ttsspd tcsetattr=0
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+cmdlin doarg=0
+cmdlin args 2[9600]=3
+cmdlin xargv[-d]=2
+cmdlin args 1[-d]=2
+doarg entry[d]=2
+doarg arg=d
+cmdlin doarg=0
+cmdlin args 2[-d]=2
+cmdlin xargv[-r]=1
+cmdlin args 1[-r]=1
+doarg entry[r]=1
+doarg arg=r
+cmdlin doarg=0
+cmdlin args 2[-r]=1
+cmdlin action=118
+cmdlin stdouf=0
+cmdlin returns action=v
+main zstate=118
+concb constate=0
+concb cgmf=-1
+concb backgrd=1
+xxproto entry justone=0
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=102
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=0
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=0
+in_chk result=0
+ttopen telnetfd=0
+ttopen ttname[/dev/seriala]
+ttopen ttnmsv[/dev/seriala]
+ttopen modem=0
+ttopen netconn=0
+ttopen ttyfd=6
+ttopen *lcl=-1
+ttopen ttmdm=0
+ttopen ttnet=0
+proto ttopen local[/dev/seriala]=1
+ttpkt parity=0
+ttpkt xflow=0
+ttpkt speed=9600
+ttpkt ttpmsk=255
+ttpkt netconn=0
+ttpkt calling ttsspd=960
+ttsspd cps=960
+ttsspd ttyfd=6
+ttsspd xlocal=1
+ttsspd ok=1
+ttsspd s=13
+ttsspd tcgetattr=0
+tcsetattr line fd[6]=13
+tcsetattr read-back cr1/cr2a[0]=16
+tcsetattr read-back cr4/cr5[68]=234
+tcsetattr read-back baudr=8
+tcsetattr divisor=8
+v9k_ser_setflow flow/in[0]=0
+v9k_ser_setflow crtscts/ixon[0]=0
+v9k_ser rxlost/rxfull[0]=0
+v9k_ser rxpeak=0
+ttsspd tcsetattr=0
+ttpkt ttsspd result=1
+carrctl=0
+tthflow POSIX_CRTSCTS entry status=0
+tthflow POSIX_CRTSCTS tcgetattr[0]=0
+tthflow before forcing off attrs CRTSCTS:0x00
+tthflow after forcing off attrs CRTSCTS:0x00
+ttpkt TESTING234 rawmode
+ttpkt calling tcsetattr(TCSETAW)
+tcsetattr line fd[6]=13
+tcsetattr read-back cr1/cr2a[0]=16
+tcsetattr read-back cr4/cr5[68]=234
+tcsetattr read-back baudr=8
+tcsetattr divisor=8
+v9k_ser_setflow flow/in[0]=0
+v9k_ser_setflow crtscts/ixon[0]=0
+v9k_ser rxlost/rxfull[0]=0
+v9k_ser rxpeak=0
+ttpkt BSD44ORPOSIX tcsetattr=0
+ttpkt ok
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=102
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+resetc fsize=-1
+proto calling wart, justone=0
+input sstate=v
+input nakstate=0
+input sndtyp=^@
+input xitsta=0
+input what=0
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=102
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=0
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=0
+in_chk result=0
+PROTO input[0]=v
+tinit flag=1
+tinit spsiz=90
+chktimo streaming=0
+chktimo timo=8
+chktimo flag=0
+chktimo spmax=90
+chktimo urpsiz=4000
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+chktimo plen=4000
+tinit timint=8
+tinit winlo=0
+makebuf=1
+makebuf bufsiz=8205
+makebuf MAXWS=32
+mksbuf makebuf return=8205
+getsbuf packet=0
+getsbuf p=0
+tinit getsbuf=0
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24354 8205     0        0     0
+[(null pointer)]
+free: 0, winlo: 0
+makebuf=1
+makebuf bufsiz=8209
+makebuf MAXWS=32
+mkrbuf makebuf return=8209
+input sstate=^@
+input nakstate=1
+input sndtyp=^@
+input xitsta=0
+input what=1
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=102
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=0
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=0
+in_chk result=0
+rpack pktnum=0
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=8
+rpack rcvtimo=8
+rpack streaming=0
+ttinl max=8208
+ttinl timo=8
+v9k alarm secs/at[8]=-4924
+ttinl alarm=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=5
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (5 bytes)
+6b 65 72 6d 69          |                          kermi
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=6
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (6 bytes)
+74 20 2d 69 72 0d       |                          t -ir.
+v9k alarm secs/at[0]=-4924
+HEXDUMP: ttinl got (11 bytes)
+6b 65 72 6d 69 74 20 2d | 69 72 0d                 kermit - ir.
+rpack ttinl len=11
+freerbuf packet=-1
+freerbuf rbufnum=1
+input rpack=84
+input type[kermit -ir]=T
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+free: 1, winlo: 0
+input receive-state timeout, winlo=0
+input sending NAK for winlo=0
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=28
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=28
+in_chk result=28
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=28
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=28
+in_chk result=28
+rpack pktnum=0
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=8
+rpack rcvtimo=9
+rpack streaming=0
+ttinl max=8208
+ttinl timo=9
+v9k alarm secs/at[9]=-4915
+ttinl alarm=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=28
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (28 bytes)
+01 39 20 53 7e 34 20 40 | 2d 23 59 33 7e 5e 3e 4a  .9 S~4 @ -#Y3~^>J
+29 30 5f 5f 5f 46 22 55 | 31 41 45 0d              )0___F"U 1AE.
+v9k alarm secs/at[0]=-4915
+HEXDUMP: ttinl got (28 bytes)
+01 39 20 53 7e 34 20 40 | 2d 23 59 33 7e 5e 3e 4a  .9 S~4 @ -#Y3~^>J
+29 30 5f 5f 5f 46 22 55 | 31 41 45 0d              )0___F"U 1AE.
+rpack ttinl len=28
+rpack bctl=1
+rpack chklen=1
+chk1[1-byte block check encoded code]=37
+rpack block check OK=0
+gtimer=9
+input rpack=83
+input type[~4 @-#Y3~^>J)0___F"U1A]=S
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32564 8209    22   S    0     0
+[9 S~4 @-#Y3~^>J)0___F"U1A]
+free: 0, winlo: 0
+input rsn=winlo=0
+input about to flush
+ttflui ttpipe=0
+ttflux my_count=0
+ttflui ttyfd=6
+ttflui POSIX
+input winlo=0
+input rsn=0
+input returning type=S
+PROTO input[13]=S
+ztime: ZTIMEV7[Tue Jan  1 00:01:55 1980
+]
+rinit fncact=1
+spar biggest 1=22
+spar rprmlen=-1
+rpar biggest 2=22
+spar packet[~4 @-#Y3~^>J)0___F"U1A]
+chktimo streaming=0
+chktimo timo=20
+chktimo flag=0
+chktimo spmax=94
+chktimo urpsiz=4000
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+chktimo plen=4000
+spar 8bq rq=Y
+spar 8bq sq=Y
+spar 8bq ebq=&
+spar 8bq rqf=1
+spar capas=62
+spar lscapu=0
+spar lscapr=1
+spar ebqflg=0
+spar swcapr=1
+spar swcapu=1
+spar lscapu=0
+spar y=10
+>>> spar spsizf=0
+>>> spar urpsiz=4000
+>>> spar biggest=22
+>>> spar lpcapu=1
+>>> spar lpspsiz=94
+>>> spar extended packet max length=3999
+>>> spar previous with safety margin=3997
+>>> spar adjusted according to spsizf=3997
+spar slow-start spsiz=244
+spar lp spmax=3997
+chktimo streaming=0
+chktimo timo=20
+chktimo flag=0
+chktimo spmax=3997
+chktimo urpsiz=4000
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+chktimo plen=4000
+spar window=30
+spar window after adjustment=30
+spar biggest=22
+spar whatru=38
+spar streamok=0
+spar clearrq=2
+spar urclear=0
+spar sysindex x=2
+spar sysindex y=21
+spar sysindex biggest=22
+spar whoareyou[U1]=85
+spar sysindex=16
+spar whatru2=33
+whoarewe xfermode=1
+whoarewe remote sysid[U1]
+whoarewe wearealike=1
+whoarewe setting fncnv=0
+proto whoareu[U1]=16
+spar: data[~4 @-#Y3~^>J)0___F"U1A]=22
+ spsiz =244
+ timint=20
+ npad  =0
+ padch =0
+ seol  =13
+ ctlq  =35
+ ebq   =38
+ ebqflg=0
+ bctr  =3
+ rptq  =126
+ rptflg=1
+ lscapu=0
+ atcapu=1
+ lpcapu=1
+ swcapu=1
+ wslotn=1
+ whatru=38
+rpar rpsiz=4000
+rpar max 1=94
+rpar sprmlen=-1
+rpar max 2=94
+chktimo streaming=0
+chktimo timo=15
+chktimo flag=0
+chktimo spmax=3997
+chktimo urpsiz=4000
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+chktimo plen=4000
+rpar 8bq sq=Y
+rpar 8bq ebq=&
+rpar xfermode=1
+rpar whatami2=33
+rpar[~/ @-#Y3~^!J)0___B"U1A]
+rpar: data[~/ @-#Y3~^!J)0___B"U1A]=22
+ rpsiz =94
+ rtimo =8
+ mypadn=0
+ mypadc=0
+ eol   =13
+ ctlq  =35
+ sq    =89
+ ebq   =38
+ ebqflg=0
+ bctr  =3
+ rptq  =126
+ rptflg=1
+ capas =9
+ bits  =94
+ lscapu=0
+ atcapu=1
+ lpcapu=1
+ swcapu=1
+ wslotr=1
+ rpsiz(extended)=3999
+ack1[~/ @-#Y3~^!J)0___B"U1A]
+ackns[~/ @-#Y3~^!J)0___B"U1A]=0
+ackns k=0
+freesbuf=0
+getsbuf packet=0
+getsbuf p=0
+SPACK n=0
+SPACK data len=22
+SPACK copy=1
+SPACK LP decision lpcapu=1
+SPACK LP decision len=22
+SPACK LP decision bctl=1
+SPACK LP decision len+bctl=23
+SPACK LP decision longpkt=0
+SPACK len=22
+SPACK bctl=1
+SPACK j=23
+SPACK longpkt=0
+SPACK j+2=25
+SPACK j+2 encoded=57
+chk1[1-byte block check encoded code]=5
+gtimer=11
+HEXDUMP: ttol s (28 bytes)
+01 39 20 59 7e 2f 20 40 | 2d 23 59 33 7e 5e 21 4a  .9 Y~/ @ -#Y3~^!J
+29 30 5f 5f 5f 42 22 55 | 31 41 25 0d              )0___B"U 1A%.
+ttol try=1
+ttol ok=28
+SPACK spktl=28
+SPACK ttol returns=28
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24354 8205    28   Y    0     0
+[9 Y~/ @-#Y3~^!J)0___B"U1A%]
+free: 0, winlo: 0
+SPACK calling screen, mydata=[9 Y~/ @-#Y3~^!J)0___B"U1A%]=0
+ackns winlo=0
+ackns n=0
+freerbuf packet=0
+freerbuf rbufnum=1
+freesbuf=0
+resetc fsize=-1
+rcv_s_pkt=-1
+input sstate=^@
+input nakstate=1
+input sndtyp=Y
+input xitsta=0
+input what=4
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=17
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=17
+in_chk result=17
+rpack pktnum=0
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=20
+rpack rcvtimo=8
+rpack streaming=0
+ttinl max=8208
+ttinl timo=8
+v9k alarm secs/at[8]=-4913
+ttinl alarm=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=17
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (17 bytes)
+01 2e 21 46 72 63 76 68 | 70 2e 64 61 74 2f 21 2e  ..!Frcvh p.dat/!.
+0d                      |                          .
+v9k alarm secs/at[0]=-4913
+HEXDUMP: ttinl got (17 bytes)
+01 2e 21 46 72 63 76 68 | 70 2e 64 61 74 2f 21 2e  ..!Frcvh p.dat/!.
+0d                      |                          .
+rpack ttinl len=17
+rpack bctl=3
+rpack chklen=3
+chk3=61518
+rpack block check OK=1
+gtimer=1
+input rpack=70
+input type[rcvhp.dat]=F
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32564 8209     9   F    1     0
+[.!Frcvhp.dat]
+free: 0, winlo: 1
+input rsn=winlo=1
+input about to flush
+ttflui ttpipe=0
+ttflux my_count=0
+ttflui ttyfd=6
+ttflui POSIX
+input winlo=1
+input rsn=1
+input returning type=F
+PROTO input[2]=F
+<rfile>F winlo 1=1
+rcvfil rdatap[rcvhp.dat]
+DECODE
+rcvfil cmarg2[]
+rcvfil srvcmd 2[rcvhp.dat]
+zchko entry[rcvhp.dat]
+zchko len[rcvhp.dat]=9
+zchko zchkod[rcvhp.dat]=0
+isdir entry[rcvhp.dat]
+isdir stat[rcvhp.dat]=-1
+isdir errno=1
+zchko attempting to open[rcvhp.dat]
+zchko open mode[rcvhp.dat]=0
+zchko open[rcvhp.dat]=7
+zchko isatty[rcvhp.dat]=0
+zdelet[rcvhp.dat]=0
+zchko delete ok[rcvhp.dat]
+zchko i=0
+zchko itsadir=0
+zchko access[.]
+zchko access ok:[.]=0
+rcvfil srvcmd 1[rcvhp.dat]
+rcvfil pipesend[rcvhp.dat]=0
+nzrtol name[rcvhp.dat]=0
+isabsolute[rcvhp.dat]=9
+isabsolute rc=0
+nzrtol fullname[rcvhp.dat]
+nzrtol sizing CKMAXNAM=16
+nzrtol sizing[rcvhp.dat]=9
+rcvfil as[rcvhp.dat]
+rcvfil dirflg=0
+STAT=5
+zchki stat return code[rcvhp.dat]=-1
+zchki stat errmsg[]
+zchki stat fails[rcvhp.dat]=1
+rcvfil ofn1len[rcvhp.dat]=-1
+rcvfil ofn1[rcvhp.dat]
+rcvfil ofn2[(NULL)]
+rcvfil ofperms[]
+rcvfil calling zmkdir[rcvhp.dat]
+zmkdir[rcvhp.dat]=9
+zmkdir tp after tilde_expansion[rcvhp.dat]
+zfnqfp fname[rcvhp.dat]=128
+zfnqfp while *s[rcvhp.dat]
+isabsolute[rcvhp.dat]=9
+isabsolute rc=0
+zgtdir SVORPOSIX CWDBL=128
+v9k_getcwd[A:]
+zfnqfp zgtdir[A:]
+zfnqfp buf 1[A:/hp.dat]
+zfnqfp buf 2[A:/rcvhp.dat]
+zfnqfp len=12
+isdir entry[A:/rcvhp.dat]
+isdir stat[A:/rcvhp.dat]=-1
+isdir errno=1
+zfnqfp path[A:/rcvhp.dat]=12
+zfnqfp name[rcvhp.dat]
+rcvfil fspec[A:/rcvhp.dat]
+rcvfilx: n[rcvhp.dat]
+rcvfilx: ofn1[rcvhp.dat]
+gtimer=6
+conchk contyp=1
+<rfile>F winlo 2[A:/rcvhp.dat]=1
+encstr[A:/rcvhp.dat]=12
+encstr pktnum=0
+encstr spsiz=244
+encstr rpsiz=3999
+encstr urpsiz=4000
+maxdata spsiz 1=244
+maxdata spsiz 2=244
+maxdata len 1=233
+maxdata len 2=233
+getpkt first uflag=0
+getpkt first rt=0
+getpkt nleft=0
+getpkt eof/eot[A:/rcvhp.dat]=12
+encstr getpkt rc=12
+encstr getpkt rc=12
+ack1[A:/rcvhp.dat]
+ackns[A:/rcvhp.dat]=1
+ackns k=0
+freesbuf=1
+ sseqtbl[n]=-1
+getsbuf packet=1
+getsbuf p=0
+SPACK n=1
+SPACK data len=12
+SPACK copy=0
+SPACK LP decision lpcapu=1
+SPACK LP decision len=12
+SPACK LP decision bctl=3
+SPACK LP decision len+bctl=15
+SPACK LP decision longpkt=0
+SPACK len=12
+SPACK bctl=3
+SPACK j=15
+SPACK longpkt=0
+SPACK j+2=17
+SPACK j+2 encoded=49
+chk3=57968
+gtimer=7
+HEXDUMP: ttol s (20 bytes)
+01 31 21 59 41 3a 2f 72 | 63 76 68 70 2e 64 61 74  .1!YA:/r cvhp.dat
+2e 29 50 0d             |                          .)P.
+ttol try=1
+ttol ok=20
+SPACK spktl=20
+SPACK ttol returns=20
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24354 8205    20   Y    1     0
+[1!YA:/rcvhp.dat.)P]
+free: 0, winlo: 1
+SPACK calling screen, mydata=[1!YA:/rcvhp.dat.)P]=1
+ackns winlo=1
+ackns n=1
+freerbuf packet=1
+freerbuf rbufnum=1
+freesbuf=1
+initattr ofperms[]
+window=1
+makebuf=1
+makebuf bufsiz=8205
+makebuf MAXWS=32
+mksbuf makebuf return=8205
+makebuf=1
+makebuf bufsiz=8209
+makebuf MAXWS=32
+mkrbuf makebuf return=8209
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+free: 1, winlo: 2
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+free: 1, winlo: 2
+input sstate=^@
+input nakstate=1
+input sndtyp=Y
+input xitsta=0
+input what=4
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=53
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=53
+in_chk result=53
+rpack pktnum=0
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=20
+rpack rcvtimo=20
+rpack streaming=0
+ttinl max=8208
+ttinl timo=20
+v9k alarm secs/at[20]=-4893
+ttinl alarm=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=53
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (53 bytes)
+01 52 22 41 2e 22 55 31 | 22 22 42 38 23 31 32 30  .R"A."U1 ""B8#120
+32 36 30 38 32 31 20 31 | 30 3a 30 35 3a 33 32 21  260821 1 0:05:32!
+21 31 31 23 35 31 32 2c | 23 36 34 34 2d 21 33 40  !11#512, #644-!3@
+20 23 2a 2a 0d          |                           #**.
+v9k alarm secs/at[0]=-4893
+HEXDUMP: ttinl got (53 bytes)
+01 52 22 41 2e 22 55 31 | 22 22 42 38 23 31 32 30  .R"A."U1 ""B8#120
+32 36 30 38 32 31 20 31 | 30 3a 30 35 3a 33 32 21  260821 1 0:05:32!
+21 31 31 23 35 31 32 2c | 23 36 34 34 2d 21 33 40  !11#512, #644-!3@
+20 23 2a 2a 0d          |                           #**.
+rpack ttinl len=53
+rpack bctl=3
+rpack chklen=3
+chk3=12938
+rpack block check OK=2
+gtimer=9
+input rpack=65
+input type[."U1""B8#120260821 10:05:32!!11#512,#644-!3@ ]=A
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32564 8209    45   A    2     0
+[R"A."U1""B8#120260821 10:05:32!!11#512,#644-!3@ ]
+free: 0, winlo: 2
+input rsn=winlo=2
+input about to flush
+ttflui ttpipe=0
+ttflux my_count=0
+ttflui ttyfd=6
+ttflui POSIX
+input winlo=2
+input rsn=2
+input returning type=A
+PROTO input[3]=A
+gattr file type[B8]=2
+gattr binary 1=1
+gattr binary 3=1
+gattr lengthk[1]=1
+gattr lengthk=1
+gattr length[512]=512
+gattr length=512
+gattr fsize[512]
+gattr return[]=0
+ack1[]
+ackns[]=2
+ackns k=0
+freesbuf=2
+ sseqtbl[n]=-1
+getsbuf packet=2
+getsbuf p=0
+SPACK n=2
+SPACK data len=0
+SPACK copy=1
+SPACK LP decision lpcapu=1
+SPACK LP decision len=0
+SPACK LP decision bctl=3
+SPACK LP decision len+bctl=3
+SPACK LP decision longpkt=0
+SPACK len=0
+SPACK bctl=3
+SPACK j=3
+SPACK longpkt=0
+SPACK j+2=5
+SPACK j+2 encoded=37
+chk3=58689
+gtimer=10
+HEXDUMP: ttol s (8 bytes)
+01 25 22 59 2e 35 21 0d |                          .%"Y.5!.
+ttol try=1
+ttol ok=8
+SPACK spktl=8
+SPACK ttol returns=8
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24354 8205     8   Y    2     0
+[%"Y.5!]
+free: 0, winlo: 2
+SPACK calling screen, mydata=[%"Y.5!]=2
+ackns winlo=2
+ackns n=2
+freerbuf packet=2
+freerbuf rbufnum=1
+freesbuf=2
+input sstate=^@
+input nakstate=1
+input sndtyp=Y
+input xitsta=0
+input what=4
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=244
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=244
+in_chk result=244
+rpack pktnum=0
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=20
+rpack rcvtimo=20
+rpack streaming=0
+ttinl max=8208
+ttinl timo=20
+v9k alarm secs/at[20]=-4890
+ttinl alarm=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=244
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (244 bytes)
+01 20 23 44 22 4e 5a 07 | 23 4a 23 4d 23 50 23 53  . #D"NZ. #J#M#P#S
+16 23 59 23 5c 1f 22 25 | 28 2b 2e 31 34 37 3a 3d  .#Y#\."% (+.147:=
+40 43 46 49 4c 4f 52 55 | 58 5b 5e 61 64 67 6a 6d  @CFILORU X[^adgjm
+70 73 76 79 7c 7f 82 85 | 88 8b 8e 23 d1 94 97 23  psvy|... ...#...#
+da 23 dd a0 23 a3 a6 a9 | ac af b2 b5 b8 bb be c1  .#..#... ........
+c4 c7 ca cd d0 d3 d6 d9 | dc df e2 e5 e8 eb ee f1  ........ ........
+f4 f7 fa fd 23 40 23 43 | 06 09 0c 23 4f 12 23 55  ....#@#C ...#O.#U
+23 58 1b 23 5e 21 24 27 | 2a 2d 30 33 36 39 3c 3f  #X.#^!$' *-0369<?
+42 45 48 4b 4e 51 54 57 | 5a 5d 60 63 66 69 6c 6f  BEHKNQTW Z]`cfilo
+72 75 78 7b 23 7e 23 c1 | 23 c4 87 23 ca 23 cd 23  rux{#~#. #..#.#.#
+d0 23 d3 96 99 23 dc 9f | a2 a5 a8 ab ae b1 b4 b7  .#...#.. ........
+ba bd c0 c3 c6 c9 cc cf | d2 d5 d8 db de e1 e4 e7  ........ ........
+ea ed f0 f3 f6 f9 fc 23 | bf 02 05 08 0b 23 4e 23  .......# .....#N#
+51 14 17 23 5a 23 5d 20 | 23 23 26 29 2c 2f 32 35  Q..#Z#]  ##&),/25
+38 3b 3e 41 44 47 4a 4d | 50 53 56 59 5c 5f 62 65  8;>ADGJM PSVY\_be
+2a 33 46 0d             |                          *3F.
+v9k alarm secs/at[0]=-4890
+HEXDUMP: ttinl got (244 bytes)
+01 20 23 44 22 4e 5a 07 | 23 4a 23 4d 23 50 23 53  . #D"NZ. #J#M#P#S
+16 23 59 23 5c 1f 22 25 | 28 2b 2e 31 34 37 3a 3d  .#Y#\."% (+.147:=
+40 43 46 49 4c 4f 52 55 | 58 5b 5e 61 64 67 6a 6d  @CFILORU X[^adgjm
+70 73 76 79 7c 7f 82 85 | 88 8b 8e 23 d1 94 97 23  psvy|... ...#...#
+da 23 dd a0 23 a3 a6 a9 | ac af b2 b5 b8 bb be c1  .#..#... ........
+c4 c7 ca cd d0 d3 d6 d9 | dc df e2 e5 e8 eb ee f1  ........ ........
+f4 f7 fa fd 23 40 23 43 | 06 09 0c 23 4f 12 23 55  ....#@#C ...#O.#U
+23 58 1b 23 5e 21 24 27 | 2a 2d 30 33 36 39 3c 3f  #X.#^!$' *-0369<?
+42 45 48 4b 4e 51 54 57 | 5a 5d 60 63 66 69 6c 6f  BEHKNQTW Z]`cfilo
+72 75 78 7b 23 7e 23 c1 | 23 c4 87 23 ca 23 cd 23  rux{#~#. #..#.#.#
+d0 23 d3 96 99 23 dc 9f | a2 a5 a8 ab ae b1 b4 b7  .#...#.. ........
+ba bd c0 c3 c6 c9 cc cf | d2 d5 d8 db de e1 e4 e7  ........ ........
+ea ed f0 f3 f6 f9 fc 23 | bf 02 05 08 0b 23 4e 23  .......# .....#N#
+51 14 17 23 5a 23 5d 20 | 23 23 26 29 2c 2f 32 35  Q..#Z#]  ##&),/25
+38 3b 3e 41 44 47 4a 4d | 50 53 56 59 5c 5f 62 65  8;>ADGJM PSVY\_be
+2a 33 46 0d             |                          *3F.
+rpack ttinl len=244
+rpack bctl=3
+rpack chklen=3
+chk3=42214
+rpack block check OK=3
+gtimer=14
+input rpack=68
+input type D=[#J#M#P#S#Y#\"%(+.147:=@CFILORUX[^adg..]
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32564 8209   233   D    3     0
+[ #D"NZ#J#M#P#S#Y#\"%(+.147:=@CFILORUX[^adgjmpsvy|ÇÖàãé#—îó#⁄#›†#£¶©...]
+free: 0, winlo: 3
+input rsn=winlo=3
+input about to flush
+ttflui ttpipe=0
+ttflux my_count=0
+ttflui ttyfd=6
+ttflui POSIX
+input winlo=3
+input rsn=3
+input returning type=D
+PROTO input[3]=D
+<rattr> D firstdata
+rcv_firstdata=0
+opena f[rcvhp.dat]
+opena discard=0
+Attributes for incoming file [rcvhp.dat]
+ length in K=1
+ file type[B8]=2
+ creation date[20260821 10:05:32]=17
+ creator[]=0
+ account[]=0
+ area[]=0
+ password[]=0
+ blksize=-1
+ access[]=0
+ encoding[]=0
+ disposition[]=0
+ lprotection[644]=3
+ gprotection[3]=1
+ systemid[U1]=2
+ recfm[]=0
+ sysparam[]=0
+ length=512
+ reply[]
+opena xflg=0
+opena remfile=0
+opena remappd=0
+opena disp=0
+opena dispos=0
+opena [file]=mode: [rcvhp.dat]=0
+openo: name[rcvhp.dat]
+zopeno[rcvhp.dat]=3
+zopeno fcb disp=0
+zopeno fcb type=1
+zopeno fcb char=0
+zopeno attempting to open[rcvhp.dat]
+zopeno open flags[rcvhp.dat]=0
+zopeno open[rcvhp.dat]=-1
+zopeno istty[rcvhp.dat]=0
+zopeno fopen arg[w]
+zopeno zobufsize=8192
+zopeno ok
+openo ok, name[rcvhp.dat]
+zfnqfp fname[rcvhp.dat]=128
+zfnqfp while *s[rcvhp.dat]
+isabsolute[rcvhp.dat]=9
+isabsolute rc=0
+zgtdir SVORPOSIX CWDBL=128
+v9k_getcwd[A:]
+zfnqfp zgtdir[A:]
+zfnqfp buf 1[A:/hp.dat]
+zfnqfp buf 2[A:/rcvhp.dat]
+zfnqfp len=12
+isdir entry[A:/rcvhp.dat]
+isdir stat[A:/rcvhp.dat]=0
+isdir islink=0
+isdir statbuf.st_mode=33206
+zfnqfp path[A:/rcvhp.dat]=12
+zfnqfp name[rcvhp.dat]
+opena binary=1
+BDECODE
+ackns[]=3
+ackns k=0
+freesbuf=3
+ sseqtbl[n]=-1
+getsbuf packet=3
+getsbuf p=0
+SPACK n=3
+SPACK data len=0
+SPACK copy=1
+SPACK LP decision lpcapu=1
+SPACK LP decision len=0
+SPACK LP decision bctl=3
+SPACK LP decision len+bctl=3
+SPACK LP decision longpkt=0
+SPACK len=0
+SPACK bctl=3
+SPACK j=3
+SPACK longpkt=0
+SPACK j+2=5
+SPACK j+2 encoded=37
+chk3=64665
+gtimer=17
+HEXDUMP: ttol s (8 bytes)
+01 25 23 59 2f 52 39 0d |                          .%#Y/R9.
+ttol try=1
+ttol ok=8
+SPACK spktl=8
+SPACK ttol returns=8
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24354 8205     8   Y    3     0
+[%#Y/R9]
+free: 0, winlo: 3
+SPACK calling screen, mydata=[%#Y/R9]=3
+ackns winlo=3
+ackns n=3
+freerbuf packet=3
+freerbuf rbufnum=1
+freesbuf=3
+rcv_firstdata rc=-1
+input sstate=^@
+input nakstate=1
+input sndtyp=Y
+input xitsta=0
+input what=4
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=362
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=362
+in_chk result=362
+rpack pktnum=0
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=20
+rpack rcvtimo=20
+rpack streaming=0
+ttinl max=8208
+ttinl timo=20
+v9k alarm secs/at[20]=-4883
+ttinl alarm=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=362
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (362 bytes)
+01 20 24 44 23 65 30 68 | 6b 6e 71 74 77 7a 7d 80  . $D#e0h knqtwz}.
+23 c3 86 89 8c 8f 92 23 | d5 98 9b 23 de a1 a4 a7  #......# ...#....
+aa ad b0 b3 b6 b9 bc bf | c2 c5 c8 cb ce d1 d4 d7  ........ ........
+da dd e0 e3 e6 e9 ec ef | f2 f5 f8 fb 23 fe 23 41  ........ ....#.#A
+23 44 07 23 4a 23 4d 23 | 50 23 53 16 23 59 23 5c  #D.#J#M# P#S.#Y#\
+1f 22 25 28 2b 2e 31 34 | 37 3a 3d 40 43 46 49 4c  ."%(+.14 7:=@CFIL
+4f 52 55 58 5b 5e 61 64 | 67 6a 6d 70 73 76 79 7c  ORUX[^ad gjmpsvy|
+7f 82 85 88 8b 8e 23 d1 | 94 97 23 da 23 dd a0 23  ......#. ..#.#..#
+a3 a6 a9 ac af b2 b5 b8 | bb be c1 c4 c7 ca cd d0  ........ ........
+d3 d6 d9 dc df e2 e5 e8 | eb ee f1 f4 f7 fa fd 23  ........ .......#
+40 23 43 06 09 0c 23 4f | 12 23 55 23 58 1b 23 5e  @#C...#O .#U#X.#^
+21 24 27 2a 2d 30 33 36 | 39 3c 3f 42 45 48 4b 4e  !$'*-036 9<?BEHKN
+51 54 57 5a 5d 60 63 66 | 69 6c 6f 72 75 78 7b 23  QTWZ]`cf ilorux{#
+7e 23 c1 23 c4 87 23 ca | 23 cd 23 d0 23 d3 96 99  ~#.#..#. #.#.#...
+23 dc 9f a2 a5 a8 ab ae | b1 b4 b7 ba bd c0 c3 c6  #....... ........
+c9 cc cf d2 d5 d8 db de | e1 e4 e7 ea ed f0 f3 f6  ........ ........
+f9 fc 23 bf 02 05 08 0b | 23 4e 23 51 14 17 23 5a  ..#..... #N#Q..#Z
+23 5d 20 23 23 26 29 2c | 2f 32 35 38 3b 3e 41 44  #] ##&), /258;>AD
+47 4a 4d 50 53 56 59 5c | 5f 62 65 68 6b 6e 71 74  GJMPSVY\ _behknqt
+77 7a 7d 80 23 c3 86 89 | 8c 8f 92 23 d5 98 9b 23  wz}.#... ...#...#
+de a1 a4 a7 aa ad b0 b3 | b6 b9 bc bf c2 c5 c8 cb  ........ ........
+ce d1 d4 d7 da dd e0 e3 | e6 e9 ec ef f2 f5 f8 fb  ........ ........
+23 fe 23 41 23 44 2f 2f | 31 0d                    #.#A#D// 1.
+v9k alarm secs/at[0]=-4883
+HEXDUMP: ttinl got (362 bytes)
+01 20 24 44 23 65 30 68 | 6b 6e 71 74 77 7a 7d 80  . $D#e0h knqtwz}.
+23 c3 86 89 8c 8f 92 23 | d5 98 9b 23 de a1 a4 a7  #......# ...#....
+aa ad b0 b3 b6 b9 bc bf | c2 c5 c8 cb ce d1 d4 d7  ........ ........
+da dd e0 e3 e6 e9 ec ef | f2 f5 f8 fb 23 fe 23 41  ........ ....#.#A
+23 44 07 23 4a 23 4d 23 | 50 23 53 16 23 59 23 5c  #D.#J#M# P#S.#Y#\
+1f 22 25 28 2b 2e 31 34 | 37 3a 3d 40 43 46 49 4c  ."%(+.14 7:=@CFIL
+4f 52 55 58 5b 5e 61 64 | 67 6a 6d 70 73 76 79 7c  ORUX[^ad gjmpsvy|
+7f 82 85 88 8b 8e 23 d1 | 94 97 23 da 23 dd a0 23  ......#. ..#.#..#
+a3 a6 a9 ac af b2 b5 b8 | bb be c1 c4 c7 ca cd d0  ........ ........
+d3 d6 d9 dc df e2 e5 e8 | eb ee f1 f4 f7 fa fd 23  ........ .......#
+40 23 43 06 09 0c 23 4f | 12 23 55 23 58 1b 23 5e  @#C...#O .#U#X.#^
+21 24 27 2a 2d 30 33 36 | 39 3c 3f 42 45 48 4b 4e  !$'*-036 9<?BEHKN
+51 54 57 5a 5d 60 63 66 | 69 6c 6f 72 75 78 7b 23  QTWZ]`cf ilorux{#
+7e 23 c1 23 c4 87 23 ca | 23 cd 23 d0 23 d3 96 99  ~#.#..#. #.#.#...
+23 dc 9f a2 a5 a8 ab ae | b1 b4 b7 ba bd c0 c3 c6  #....... ........
+c9 cc cf d2 d5 d8 db de | e1 e4 e7 ea ed f0 f3 f6  ........ ........
+f9 fc 23 bf 02 05 08 0b | 23 4e 23 51 14 17 23 5a  ..#..... #N#Q..#Z
+23 5d 20 23 23 26 29 2c | 2f 32 35 38 3b 3e 41 44  #] ##&), /258;>AD
+47 4a 4d 50 53 56 59 5c | 5f 62 65 68 6b 6e 71 74  GJMPSVY\ _behknqt
+77 7a 7d 80 23 c3 86 89 | 8c 8f 92 23 d5 98 9b 23  wz}.#... ...#...#
+de a1 a4 a7 aa ad b0 b3 | b6 b9 bc bf c2 c5 c8 cb  ........ ........
+ce d1 d4 d7 da dd e0 e3 | e6 e9 ec ef f2 f5 f8 fb  ........ ........
+23 fe 23 41 23 44 2f 2f | 31 0d                    #.#A#D// 1.
+rpack ttinl len=362
+rpack bctl=3
+rpack chklen=3
+chk3=62417
+rpack block check OK=4
+gtimer=23
+input rpack=68
+input type D=[hknqtwz}Ä#√Üâåèí#’òõ#ﬁ°§ß™≠∞≥∂πºø¬≈»ÀŒ—..]
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32564 8209   351   D    4     0
+[ $D#e0hknqtwz}Ä#√Üâåèí#’òõ#ﬁ°§ß™≠∞≥∂πºø¬≈»ÀŒ—‘◊⁄›‡„ÊÈÏÔÚı¯˚#˛#A#D#J#M#...]
+free: 0, winlo: 4
+input rsn=winlo=4
+input about to flush
+ttflui ttpipe=0
+ttflux my_count=0
+ttflui ttyfd=6
+ttflui POSIX
+input winlo=4
+input rsn=4
+input returning type=D
+PROTO input[4]=D
+<rdpkt>D cxseen=0
+<rdpkt>D czseen=0
+BDECODE
+ackns[]=4
+ackns k=0
+freesbuf=4
+ sseqtbl[n]=-1
+getsbuf packet=4
+getsbuf p=0
+SPACK n=4
+SPACK data len=0
+SPACK copy=1
+SPACK LP decision lpcapu=1
+SPACK LP decision len=0
+SPACK LP decision bctl=3
+SPACK LP decision len+bctl=3
+SPACK LP decision longpkt=0
+SPACK len=0
+SPACK bctl=3
+SPACK j=3
+SPACK longpkt=0
+SPACK j+2=5
+SPACK j+2 encoded=37
+chk3=45457
+gtimer=24
+HEXDUMP: ttol s (8 bytes)
+01 25 24 59 2b 26 31 0d |                          .%$Y+&1.
+ttol try=1
+ttol ok=8
+SPACK spktl=8
+SPACK ttol returns=8
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24354 8205     8   Y    4     0
+[%$Y+&1]
+free: 0, winlo: 4
+SPACK calling screen, mydata=[%$Y+&1]=4
+ackns winlo=4
+ackns n=4
+freerbuf packet=4
+freerbuf rbufnum=1
+freesbuf=4
+input sstate=^@
+input nakstate=1
+input sndtyp=Y
+input xitsta=0
+input what=4
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=8
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=8
+in_chk result=8
+rpack pktnum=0
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=20
+rpack rcvtimo=20
+rpack streaming=0
+ttinl max=8208
+ttinl timo=20
+v9k alarm secs/at[20]=-4877
+ttinl alarm=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=8
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (8 bytes)
+01 25 25 5a 29 4b 32 0d |                          .%%Z)K2.
+v9k alarm secs/at[0]=-4877
+HEXDUMP: ttinl got (8 bytes)
+01 25 25 5a 29 4b 32 0d |                          .%%Z)K2.
+rpack ttinl len=8
+rpack bctl=3
+rpack chklen=3
+chk3=39634
+rpack block check OK=5
+gtimer=25
+input rpack=90
+input type=Z
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32564 8209     0   Z    5     0
+[%%Z]
+free: 0, winlo: 5
+RTT RECV=3
+RTT z scaled=3000
+RTT rcvtimo (int)=6
+RTT final rcvtimo=3
+input rsn=winlo=5
+input about to flush
+ttflui ttpipe=0
+ttflux my_count=0
+ttflui ttyfd=6
+ttflui POSIX
+input winlo=5
+input rsn=5
+input returning type=Z
+PROTO input[4]=Z
+reof fncact[rcvhp.dat]=1
+reof discard=0
+reof cxseen=0
+reof czseen=0
+reof rdatap[]
+reof o_isopen=1
+reof lastchar=4
+gtimer=25
+clsof disp=0
+clsof cxseen=0
+clsof success=1
+clsof o_isopen=1
+zclose file number=3
+zoutdump zoutcnt=512
+zoutdump wrote=512
+zclose returns=1
+clsof OK[(NULL)]
+fstats tfc=512
+fstats what=4
+fstats epktmsg[]
+reof closf=1
+zstrdt[20260821 10:05:32]=17
+zstrdt date check 1[20260821 10:05:32]=17
+zstrdt date check 2[20260821 10:05:32]=17
+zstrdt date check 3[20260821 10:05:32]=17
+zstrdt so far so good
+zstrdt year[2026]=2026
+zstrdt tmx 1=1787306732
+zstrdt tmx 3 (DST)=1787303132
+zstime: tm=1787303132
+zstime: A-pkt date ok [20260821 10:05:32]=17
+STAT=15
+zstime octal lperm[644]
+zstime flag=1
+zstime S_IFMT x=420
+zstime file perms after[100644]=1
+zstime: sb.st_atime=315550942
+zstime: SYSUTIMEH modtime
+zstime setperms=1
+zstime chmod=0
+zstime 0: modtime set for file[rcvhp.dat]
+reof success=1
+reof returns=1
+ackns[]=5
+ackns k=0
+freesbuf=5
+ sseqtbl[n]=-1
+getsbuf packet=5
+getsbuf p=0
+SPACK n=5
+SPACK data len=0
+SPACK copy=1
+SPACK LP decision lpcapu=1
+SPACK LP decision len=0
+SPACK LP decision bctl=3
+SPACK LP decision len+bctl=3
+SPACK LP decision longpkt=0
+SPACK len=0
+SPACK bctl=3
+SPACK j=3
+SPACK longpkt=0
+SPACK j+2=5
+SPACK j+2 encoded=37
+chk3=43081
+gtimer=27
+HEXDUMP: ttol s (8 bytes)
+01 25 25 59 2a 41 29 0d |                          .%%Y*A).
+ttol try=1
+ttol ok=8
+SPACK spktl=8
+SPACK ttol returns=8
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24354 8205     8   Y    5     0
+[%%Y*A)]
+free: 0, winlo: 5
+SPACK calling screen, mydata=[%%Y*A)]=5
+ackns winlo=5
+ackns n=5
+freerbuf packet=5
+freerbuf rbufnum=1
+freesbuf=5
+input sstate=^@
+input nakstate=1
+input sndtyp=Y
+input xitsta=0
+input what=4
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=8
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=8
+in_chk result=8
+rpack pktnum=0
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=20
+rpack rcvtimo=3
+rpack streaming=0
+ttinl max=8208
+ttinl timo=3
+v9k alarm secs/at[3]=-4891
+ttinl alarm=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=8
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (8 bytes)
+01 25 26 42 22 51 53 0d |                          .%&B"QS.
+v9k alarm secs/at[0]=-4891
+HEXDUMP: ttinl got (8 bytes)
+01 25 26 42 22 51 53 0d |                          .%&B"QS.
+rpack ttinl len=8
+rpack bctl=3
+rpack chklen=3
+chk3=11379
+rpack block check OK=6
+gtimer=28
+input rpack=66
+input type=B
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32564 8209     0   B    6     0
+[%&B]
+free: 0, winlo: 6
+RTT RECV=4
+RTT z scaled=4000
+RTT rcvtimo (int)=11
+RTT final rcvtimo=3
+input rsn=winlo=6
+input about to flush
+ttflui ttpipe=0
+ttflux my_count=0
+ttflui ttyfd=6
+ttflui POSIX
+input winlo=6
+input rsn=6
+input returning type=B
+PROTO input[2]=B
+ackns[]=6
+ackns k=0
+freesbuf=6
+ sseqtbl[n]=-1
+getsbuf packet=6
+getsbuf p=0
+SPACK n=6
+SPACK data len=0
+SPACK copy=1
+SPACK LP decision lpcapu=1
+SPACK LP decision len=0
+SPACK LP decision bctl=3
+SPACK LP decision len+bctl=3
+SPACK LP decision longpkt=0
+SPACK len=0
+SPACK bctl=3
+SPACK j=3
+SPACK longpkt=0
+SPACK j+2=5
+SPACK j+2 encoded=37
+chk3=33313
+gtimer=28
+HEXDUMP: ttol s (8 bytes)
+01 25 26 59 28 28 41 0d |                          .%&Y((A.
+ttol try=1
+ttol ok=8
+SPACK spktl=8
+SPACK ttol returns=8
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24354 8205     8   Y    6     0
+[%&Y((A]
+free: 0, winlo: 6
+SPACK calling screen, mydata=[%&Y((A]=6
+ackns winlo=6
+ackns n=6
+freerbuf packet=6
+freerbuf rbufnum=1
+freesbuf=6
+tstats xfsecs=19
+tstats filcnt=1
+tstats tsecs=19
+ztime: ZTIMEV7[Tue Jan  1 00:02:27 1980
+]
+RESUME[server=0]=0
+wheremsg n=1
+wheremsg prfspec[A:/rcvhp.dat]
+wheremsg rfspec[A:/rcvhp.dat]
+wheremsg psfspec[(NULL)]
+wheremsg sfspec[(NULL)]
+wheremsg prrfspec[rcvhp.dat]
+wheremsg rrfspec[rcvhp.dat]
+wheremsg psrfspec[(NULL)]
+wheremsg srfspec[(NULL)]
+gtimer=29
+clsif i_isopen=0
+gtimer=29
+clsof disp=1
+clsof cxseen=0
+clsof success=1
+clsof o_isopen=0
+proto xferstat[]=1
+doexit exitstat=0
+doexit code=0
+doexit xitsta=0
+doexit about to doclean
+doclean calling dologend
+doclean exithangup=1
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=102
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=0
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=0
+in_chk result=0
+doclean ttchk()=0
+doclean ttyfd=6
+doclean hanging up and closing
+ttclos ttyfd=6
+ttclos netconn=0
+ttclos xlocal=1
+XXX netclos in ifdef NETCONN...[A]
+v9k alarm secs/at[8]=-4884
+ttclos alarm=0
+ttclos A[0]=0
+ttclos exithangup=1
+v9k alarm secs/at[8]=-4884
+ttclos calling tthang()=0
+tthang BSD44ORPOSIX B0
+tthang BSD44ORPOSIX tcgetattr[0]=0
+tthang BSD44ORPOSIX cfgetospeed[0]=13
+tthang BSD44ORPOSIX cfgetispeed[0]=13
+tthang BSD44ORPOSIX cfsetospeed[0]=0
+tthang BSD44ORPOSIX cfsetispeed[0]=0
+tcsetattr line fd[6]=0
+tcsetattr read-back cr1/cr2a[0]=16
+tcsetattr read-back cr4/cr5[68]=234
+tcsetattr read-back baudr=8
+tcsetattr divisor=8
+v9k_ser_setflow flow/in[0]=0
+v9k_ser_setflow crtscts/ixon[0]=0
+v9k_ser rxlost/rxfull[0]=0
+v9k_ser rxpeak=362
+tthang BSD44ORPOSIX tcsetattr B0[0]=0
+msleep NAP=500
+tthang BSD44ORPOSIX restore output speed=13
+tthang BSD44ORPOSIX cfsetospeed prev[0]=0
+tthang BSD44ORPOSIX restore input speed=13
+tthang BSD44ORPOSIX cfsetispeed prev[0]=0
+tcsetattr line fd[6]=13
+tcsetattr read-back cr1/cr2a[0]=16
+tcsetattr read-back cr4/cr5[68]=104
+tcsetattr read-back baudr=8
+tcsetattr divisor=8
+v9k_ser_setflow flow/in[0]=0
+v9k_ser_setflow crtscts/ixon[0]=0
+v9k_ser rxlost/rxfull[0]=0
+v9k_ser rxpeak=362
+tthang BSD44ORPOSIX tcsetattr restore[0]=0
+ttclos tthang()=1
+ttclos B[1]=1
+ttclos calling ttres()=1
+v9k alarm secs/at[8]=-4882
+ttres BSD44ORPOSIX
+tcsetattr line fd[6]=13
+tcsetattr read-back cr1/cr2a[0]=16
+tcsetattr read-back cr4/cr5[68]=234
+tcsetattr read-back baudr=8
+tcsetattr divisor=8
+v9k_ser_setflow flow/in[0]=0
+v9k_ser_setflow crtscts/ixon[0]=0
+v9k_ser rxlost/rxfull[0]=0
+v9k_ser rxpeak=362
+ttres result=0
+ttres return code=0
+ttclos ttres()=0
+v9k alarm secs/at[0]=-4882
+ttclos C=2
+ttclos calling close=0
+v9k alarm secs/at[8]=-4881
+ttclos close()=0
+ttclos D=3
+v9k alarm secs/at[0]=-4881
+ttclos about to call ttunlck
+ttclos done
+conres cgmf=-1
+conres constate=0
+C-Kermit EXIT status=0

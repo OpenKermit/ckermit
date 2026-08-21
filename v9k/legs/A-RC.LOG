@@ -1,0 +1,6466 @@
+Debug Log []
+ Victor 9000 / Sirius 1
+Tue Jan  1 00:03:47 1980
+
+byteorder=0
+prescan *yargv[-l]
+prescan arg=l
+prescan *yargv[/dev/seriala]
+prescan *yargv[-b]
+prescan arg=b
+prescan *yargv[9600]
+prescan *yargv[-x]
+prescan arg=x
+MAIN feol=0
+makever Kermit version[C-Kermit 11.0.506, 2026/08/03]
+conbgt process group test=0
+NOJC[jc]=0
+conbgt jc=0
+conbgt isatty test=0
+conbgt backgrd=1
+sysinit ttyname(0)[CON:]
+sysinit CTTNAM[/dev/tty]
+sysinit cttnam[CON:]
+xttgwsiz LINES[(NULL)]
+v9k srvcaps safe=0
+v9k flowsel=0
+v9k nodisplay=0
+v9k bulkin=1
+sysinit uname machine[Victor]
+sysinit uname sysname[MS-DOS]
+sysinit uname release[]
+sysinit uname version[]
+zgtdir SVORPOSIX CWDBL=128
+v9k_getcwd[A:]
+sysinit startupdir[A:/]
+ckcmai myname[A:\CKRDBG.EXE]=0
+STAT=5
+zchki stat return code[A:\CKRDBG.EXE]=0
+zchki stat errmsg[]
+zchki stat ok:[A:\CKRDBG.EXE]=0
+v9k fmode witness=1
+v9k _fmode=512
+zchki access ok:[A:\CKRDBG.EXE]=312740
+zgtdir SVORPOSIX CWDBL=128
+v9k_getcwd[A:]
+xttgwsiz LINES[(NULL)]
+initflow=0
+initproto spsiz=90
+connoi conistate=0
+conint conistate=0
+conbgt process group test=0
+NOJC[jc]=0
+conbgt jc=0
+conbgt isatty test=0
+conbgt backgrd=1
+conint backgrd=1
+conint jc=0
+conint background ignoring signals, jc=0
+zoutbuffer malloc=8192
+getiobs ok
+main ckhost[victor]
+setflow autoflow=1
+setflow local=0
+setflow network=0
+setflow cxtype=0
+setflow flow=0
+ttgspd ttyfd=-1
+ttgspd cfgetospeed 1 POSIX=0
+ttgspd code=0
+ttgspd speed=0
+inibufs s=8192
+inibufs r=8192
+inibufs size 1=16424
+inibufs size z=16424
+inibufs size 2=16424
+inibufs bigsbsiz=8205
+inibufs bigrbsiz=8209
+setprefix=1
+main argc after prescan()=7
+howcalled[A:\CKRDBG.EXE]=0
+main 2 cfilef[]=0
+main argc=7
+cmdlin xargv[-d]=6
+cmdlin args 1[-d]=6
+doarg entry[d]=6
+doarg arg=d
+cmdlin doarg=0
+cmdlin args 2[-d]=6
+cmdlin xargv[-l]=5
+cmdlin args 1[-l]=5
+doarg entry[l]=5
+doarg arg=l
+ttopen telnetfd=0
+ttopen ttname[/dev/seriala]
+ttopen ttnmsv[]
+ttopen modem=0
+ttopen netconn=0
+ttopen ttyfd=-1
+ttopen *lcl=1
+ttopen ttmdm=0
+ttopen ttnet=0
+XXX netopen in ifdef NETCONN...[A]
+ttopen MAXNAMLEN defined
+ttopen BSD4 *NOT* defined
+ttopen BSD42 *NOT* defined
+ttopen MYREAD defined
+ttopen fdflag=1
+ttopen xlocal[A]=1
+zfnqfp fname[/dev/seriala]=129
+zfnqfp while *s[/dev/seriala]
+isabsolute[/dev/seriala]=12
+isabsolute rc=1
+zfnqfp len=12
+isdir entry[/dev/seriala]
+isdir stat[/dev/seriala]=0
+isdir islink=0
+isdir statbuf.st_mode=8630
+zfnqfp path[/dev/seriala]=12
+zfnqfp name[seriala]
+ttopen fnam[/dev/seriala]
+ttopen xlocal[B]=1
+ttlock NOUUCP
+ttopen ttlock=0
+ttopen lkf=1
+ttopen timo=0
+priv_opn[/dev/seriala]=2
+priv_opn result=6
+priv_opn errno=0
+ttopen untimed ttyfd[/dev/seriala]=6
+ttopen tcgetattr ttold.c_lflag=0
+ttopen tcgetattr ttraw.c_lflag=0
+ttopen tcgetattr tttvt.c_lflag=0
+ttopen calling carrctl
+carrctl=0
+ttopen carrctl ok
+tcsetattr line fd[6]=13
+tcsetattr read-back cr1/cr2a[0]=16
+tcsetattr read-back cr4/cr5[68]=234
+tcsetattr read-back baudr=8
+tcsetattr divisor=8
+v9k_ser_setflow flow/in[0]=0
+v9k_ser_setflow crtscts/ixon[0]=0
+v9k_dosid oem=255
+v9k_dosid irq1=65
+v9k_ser_install channel=0
+v9k_ser_install old IRQ1 mask=179
+v9k_ser_install old vector seg=0
+ttopen tcsetattr=0
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+ttopen ttspeed=9600
+ttopen ttyfd=6
+ttopen *lcl=1
+ttopen lock file[NOLOCK]=1
+doarg speed=0
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+setflow autoflow=1
+setflow local=1
+setflow network=0
+setflow cxtype=1
+setflow flow=0
+cmdlin doarg=0
+cmdlin args 2[/dev/seriala]=4
+cmdlin xargv[-b]=3
+cmdlin args 1[-b]=3
+doarg entry[b]=3
+doarg arg=b
+ttsspd cps=960
+ttsspd ttyfd=6
+ttsspd xlocal=1
+ttsspd ok=1
+ttsspd s=13
+ttsspd tcgetattr=0
+tcsetattr line fd[6]=13
+tcsetattr read-back cr1/cr2a[0]=16
+tcsetattr read-back cr4/cr5[68]=234
+tcsetattr read-back baudr=8
+tcsetattr divisor=8
+v9k_ser_setflow flow/in[0]=0
+v9k_ser_setflow crtscts/ixon[0]=0
+v9k_ser rxlost/rxfull[0]=0
+v9k_ser rxpeak=0
+ttsspd tcsetattr=0
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+cmdlin doarg=0
+cmdlin args 2[9600]=2
+cmdlin xargv[-x]=1
+cmdlin args 1[-x]=1
+doarg entry[x]=1
+doarg arg=x
+cmdlin doarg=0
+cmdlin args 2[-x]=1
+cmdlin action=120
+cmdlin stdouf=0
+cmdlin returns action=x
+main zstate=120
+concb constate=0
+concb cgmf=-1
+concb backgrd=1
+xxproto entry justone=0
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=0
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=0
+in_chk result=0
+ttopen telnetfd=0
+ttopen ttname[/dev/seriala]
+ttopen ttnmsv[/dev/seriala]
+ttopen modem=0
+ttopen netconn=0
+ttopen ttyfd=6
+ttopen *lcl=-1
+ttopen ttmdm=0
+ttopen ttnet=0
+proto ttopen local[/dev/seriala]=1
+ttpkt parity=0
+ttpkt xflow=0
+ttpkt speed=9600
+ttpkt ttpmsk=255
+ttpkt netconn=0
+ttpkt calling ttsspd=960
+ttsspd cps=960
+ttsspd ttyfd=6
+ttsspd xlocal=1
+ttsspd ok=1
+ttsspd s=13
+ttsspd tcgetattr=0
+tcsetattr line fd[6]=13
+tcsetattr read-back cr1/cr2a[0]=16
+tcsetattr read-back cr4/cr5[68]=234
+tcsetattr read-back baudr=8
+tcsetattr divisor=8
+v9k_ser_setflow flow/in[0]=0
+v9k_ser_setflow crtscts/ixon[0]=0
+v9k_ser rxlost/rxfull[0]=0
+v9k_ser rxpeak=0
+ttsspd tcsetattr=0
+ttpkt ttsspd result=1
+carrctl=0
+tthflow POSIX_CRTSCTS entry status=0
+tthflow POSIX_CRTSCTS tcgetattr[0]=0
+tthflow before forcing off attrs CRTSCTS:0x00
+tthflow after forcing off attrs CRTSCTS:0x00
+ttpkt TESTING234 rawmode
+ttpkt calling tcsetattr(TCSETAW)
+tcsetattr line fd[6]=13
+tcsetattr read-back cr1/cr2a[0]=16
+tcsetattr read-back cr4/cr5[68]=234
+tcsetattr read-back baudr=8
+tcsetattr divisor=8
+v9k_ser_setflow flow/in[0]=0
+v9k_ser_setflow crtscts/ixon[0]=0
+v9k_ser rxlost/rxfull[0]=0
+v9k_ser rxpeak=0
+ttpkt BSD44ORPOSIX tcsetattr=0
+ttpkt ok
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+server backgrd=1
+server quiet=0
+SHOULD NOT SEE THIS IF IN BACKGROUND!
+conchk contyp=1
+resetc fsize=-1
+proto calling wart, justone=0
+input sstate=x
+input nakstate=0
+input sndtyp=^@
+input xitsta=0
+input what=0
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=0
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=0
+in_chk result=0
+PROTO input[0]=x
+tinit flag=1
+tinit spsiz=90
+tinit timint=0
+tinit winlo=0
+makebuf=1
+makebuf bufsiz=8205
+makebuf MAXWS=32
+mksbuf makebuf return=8205
+getsbuf packet=0
+getsbuf p=0
+tinit getsbuf=0
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24352 8205     0        0     0
+[(null pointer)]
+free: 0, winlo: 0
+makebuf=1
+makebuf bufsiz=8209
+makebuf MAXWS=32
+mkrbuf makebuf return=8209
+resetc fsize=-1
+input sstate=^@
+input nakstate=1
+input sndtyp=^@
+input xitsta=0
+input what=0
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=0
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=0
+in_chk result=0
+rpack pktnum=0
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=0
+rpack rcvtimo=0
+rpack streaming=0
+ttinl max=8208
+ttinl timo=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=1
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (1 bytes)
+6b                      |                          k
+TTINL myread char=k
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=9
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (9 bytes)
+65 72 6d 69 74 20 2d 78 | 0d                       ermit -x .
+TTINL myread char=e
+HEXDUMP: ttinl got (10 bytes)
+6b 65 72 6d 69 74 20 2d | 78 0d                    kermit - x.
+rpack ttinl len=10
+freerbuf packet=-1
+freerbuf rbufnum=1
+input rpack=84
+input type[kermit -x]=T
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+free: 1, winlo: 0
+input receive-state timeout, winlo=0
+input sending NAK for winlo=0
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=28
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=28
+in_chk result=28
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=28
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=28
+in_chk result=28
+rpack pktnum=0
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=0
+rpack rcvtimo=1
+rpack streaming=0
+rpack timint 0 || streaming but rcvtimo=1
+ttinl max=8208
+ttinl timo=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=28
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (28 bytes)
+01 39 20 49 7e 34 20 40 | 2d 23 59 33 7e 5e 3e 4a  .9 I~4 @ -#Y3~^>J
+29 30 5f 5f 5f 46 22 55 | 31 40 3a 0d              )0___F"U 1@:.
+TTINL myread char=^A
+HEXDUMP: ttinl got (28 bytes)
+01 39 20 49 7e 34 20 40 | 2d 23 59 33 7e 5e 3e 4a  .9 I~4 @ -#Y3~^>J
+29 30 5f 5f 5f 46 22 55 | 31 40 3a 0d              )0___F"U 1@:.
+rpack ttinl len=28
+rpack bctl=1
+rpack chklen=1
+chk1[1-byte block check encoded code]=26
+rpack block check OK=0
+input rpack=73
+input type[~4 @-#Y3~^>J)0___F"U1@]=I
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32562 8209    22   I    0     0
+[9 I~4 @-#Y3~^>J)0___F"U1@]
+free: 0, winlo: 0
+input rsn=winlo=0
+input about to flush
+ttflui ttpipe=0
+ttflux my_count=0
+ttflui ttyfd=6
+ttflui POSIX
+input winlo=0
+input rsn=0
+input returning type=I
+PROTO input[11]=I
+spar biggest 1=22
+spar rprmlen=-1
+rpar biggest 2=22
+spar packet[~4 @-#Y3~^>J)0___F"U1@]
+chktimo streaming=0
+chktimo timo=20
+chktimo flag=0
+chktimo spmax=94
+chktimo urpsiz=4000
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+chktimo plen=4000
+spar 8bq rq=Y
+spar 8bq sq=Y
+spar 8bq ebq=&
+spar 8bq rqf=1
+spar capas=62
+spar lscapu=0
+spar lscapr=1
+spar ebqflg=0
+spar swcapr=1
+spar swcapu=1
+spar lscapu=0
+spar y=10
+>>> spar spsizf=0
+>>> spar urpsiz=4000
+>>> spar biggest=22
+>>> spar lpcapu=1
+>>> spar lpspsiz=94
+>>> spar extended packet max length=3999
+>>> spar previous with safety margin=3997
+>>> spar adjusted according to spsizf=3997
+spar slow-start spsiz=244
+spar lp spmax=3997
+chktimo streaming=0
+chktimo timo=20
+chktimo flag=0
+chktimo spmax=3997
+chktimo urpsiz=4000
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+chktimo plen=4000
+spar window=30
+spar window after adjustment=30
+spar biggest=22
+spar whatru=38
+spar streamok=0
+spar clearrq=2
+spar urclear=0
+spar sysindex x=2
+spar sysindex y=21
+spar sysindex biggest=22
+spar whoareyou[U1]=85
+spar sysindex=16
+spar whatru2=32
+spar whatru2 xfermode=0
+whoarewe xfermode=0
+whoarewe remote sysid[U1]
+whoarewe wearealike=1
+whoarewe setting fncnv=0
+whoarewe setting binary=1
+proto whoareu[U1]=16
+spar: data[~4 @-#Y3~^>J)0___F"U1@]=22
+ spsiz =244
+ timint=20
+ npad  =0
+ padch =0
+ seol  =13
+ ctlq  =35
+ ebq   =38
+ ebqflg=0
+ bctr  =3
+ rptq  =126
+ rptflg=1
+ lscapu=0
+ atcapu=1
+ lpcapu=1
+ swcapu=1
+ wslotn=1
+ whatru=38
+rpar rpsiz=4000
+rpar max 1=94
+rpar sprmlen=-1
+rpar max 2=94
+chktimo streaming=0
+chktimo timo=15
+chktimo flag=0
+chktimo spmax=3997
+chktimo urpsiz=4000
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+chktimo plen=4000
+rpar 8bq sq=Y
+rpar 8bq ebq=&
+rpar xfermode=0
+rpar whatami2=32
+rpar[~/ @-#Y3~^!J)0___C"U1@]
+rpar: data[~/ @-#Y3~^!J)0___C"U1@]=22
+ rpsiz =94
+ rtimo =8
+ mypadn=0
+ mypadc=0
+ eol   =13
+ ctlq  =35
+ sq    =89
+ ebq   =38
+ ebqflg=0
+ bctr  =3
+ rptq  =126
+ rptflg=1
+ capas =9
+ bits  =94
+ lscapu=0
+ atcapu=1
+ lpcapu=1
+ swcapu=1
+ wslotr=1
+ rpsiz(extended)=3999
+ack1[~/ @-#Y3~^!J)0___C"U1@]
+ackns[~/ @-#Y3~^!J)0___C"U1@]=0
+ackns k=0
+freesbuf=0
+getsbuf packet=0
+getsbuf p=0
+SPACK n=0
+SPACK data len=22
+SPACK copy=1
+SPACK LP decision lpcapu=1
+SPACK LP decision len=22
+SPACK LP decision bctl=1
+SPACK LP decision len+bctl=23
+SPACK LP decision longpkt=0
+SPACK len=22
+SPACK bctl=1
+SPACK j=23
+SPACK longpkt=0
+SPACK j+2=25
+SPACK j+2 encoded=57
+chk1[1-byte block check encoded code]=5
+gtimer=84
+HEXDUMP: ttol s (28 bytes)
+01 39 20 59 7e 2f 20 40 | 2d 23 59 33 7e 5e 21 4a  .9 Y~/ @ -#Y3~^!J
+29 30 5f 5f 5f 43 22 55 | 31 40 25 0d              )0___C"U 1@%.
+ttol try=1
+ttol ok=28
+SPACK spktl=28
+SPACK ttol returns=28
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24352 8205    28   Y    0     0
+[9 Y~/ @-#Y3~^!J)0___C"U1@%]
+free: 0, winlo: 0
+SPACK calling screen, mydata=[9 Y~/ @-#Y3~^!J)0___C"U1@%]=0
+ackns winlo=0
+ackns n=0
+freerbuf packet=0
+freerbuf rbufnum=1
+freesbuf=0
+tinit flag=0
+tinit timint=0
+tinit winlo=0
+makebuf=1
+makebuf bufsiz=8205
+makebuf MAXWS=32
+mksbuf makebuf return=8205
+getsbuf packet=0
+getsbuf p=0
+tinit getsbuf=0
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24352 8205     0        0     0
+[9 Y~/ @-#Y3~^!J)0___C"U1@%]
+free: 0, winlo: 0
+makebuf=1
+makebuf bufsiz=8209
+makebuf MAXWS=32
+mkrbuf makebuf return=8209
+input sstate=^@
+input nakstate=0
+input sndtyp=^@
+input xitsta=0
+input what=0
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=16
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=16
+in_chk result=16
+rpack pktnum=0
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=0
+rpack rcvtimo=0
+rpack streaming=0
+ttinl max=8208
+ttinl timo=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=16
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (16 bytes)
+01 2d 20 47 44 28 43 4b | 57 2a 2e 45 58 45 3f 0d  .- GD(CK W*.EXE?.
+TTINL myread char=^A
+HEXDUMP: ttinl got (16 bytes)
+01 2d 20 47 44 28 43 4b | 57 2a 2e 45 58 45 3f 0d  .- GD(CK W*.EXE?.
+rpack ttinl len=16
+rpack bctl=1
+rpack chklen=1
+chk1[1-byte block check encoded code]=31
+rpack block check OK=0
+input send[D(CKW*.EXE]=71
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32562 8209    10   G    0     0
+[- GD(CKW*.EXE]
+free: 0, winlo: 0
+chkwin packet=0
+chkwin winlo=0
+chkwin slots=1
+input send rsn=0
+input send winlo=0
+input send chkwin=0
+input about to flush
+ttflui ttpipe=0
+ttflux my_count=0
+ttflui ttyfd=6
+ttflui POSIX
+input winlo=0
+input rsn=0
+input returning type=G
+PROTO input[11]=G
+DECODE
+chktimo streaming=0
+chktimo timo=8
+chktimo flag=0
+chktimo spmax=3997
+chktimo urpsiz=4000
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+chktimo plen=4000
+input sstate=D
+input nakstate=0
+input sndtyp=^@
+input xitsta=0
+input what=8
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=0
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=0
+in_chk result=0
+PROTO input[12]=D
+snddir matchdot[CKW*.EXE]=0
+snddir sd_dot[CKW*.EXE]=0
+snddir name[CKW*.EXE]
+snddir name 1[CKW*.EXE]
+zfnqfp fname[CKW*.EXE]=128
+zfnqfp while *s[CKW*.EXE]
+isabsolute[CKW*.EXE]=8
+isabsolute rc=0
+zgtdir SVORPOSIX CWDBL=128
+v9k_getcwd[A:]
+zfnqfp zgtdir[A:]
+zfnqfp buf 1[A:/*.EXE]
+zfnqfp buf 2[A:/CKW*.EXE]
+zfnqfp len=11
+isdir entry[A:/CKW*.EXE]
+isdir stat[A:/CKW*.EXE]=-1
+isdir errno=1
+zfnqfp path[A:/CKW*.EXE]=11
+zfnqfp name[CKW*.EXE]
+snddir name 2[CKW*.EXE]
+iswild[CKW*.EXE]=1
+snddir sd_dot[CKW*.EXE]=0
+snddir nzxopts[CKW*.EXE]=0
+nzxpand[CKW*.EXE]=0
+nzxpand xmatchdot 1[CKW*.EXE]=0
+nzxpand xmatchdot 3[CKW*.EXE]=0
+nzxpand xdironly=0
+nzxpand xfilonly=0
+nzxpand xmatchdot=0
+nzxpand xrecursive=0
+nzxpand xnobackup=0
+nzxpand xnolinks=0
+zxpand entry[CKW*.EXE]
+zxpand xdironly=0
+zxpand xfilonly=0
+zxpand fn 1[CKW*.EXE]
+zxpand fn 2[CKW*.EXE]
+isdir entry[CKW*.EXE]
+isdir stat[CKW*.EXE]=-1
+isdir errno=1
+zxpand isdir 1[CKW*.EXE]=0
+zxpand fn 3 haveonedir[CKW*.EXE]=0
+zxpand fn 3 diractive[CKW*.EXE]=1
+fgen pat[CKW*.EXE]=256
+zgtdir SVORPOSIX CWDBL=128
+v9k_getcwd[A:]
+fgen current directory[A:]
+fgen stathack=1
+splitpath[CKW*.EXE]=0
+splitpath xpatlast[CKW*.EXE]
+SPLITPATH[CKW*.EXE]=0
+fgen scratch[./]
+fgen xpatslash=0
+fgen string space=4096
+initspace ssplen=4096
+iswild[CKW*.EXE]=1
+isabsolute[CKW*.EXE]=8
+isabsolute rc=0
+iswild[CKW*.EXE]=1
+fgen xpat[CKW*.EXE]=1
+fgen xpatlast[CKW*.EXE]=1
+fgen xpatabsolute=0
+STAT=16
+traverse entry sofar[./]=1
+traverse entry xpat[CKW*.EXE]=0
+traverse entry xpatlast[CKW*.EXE]=0
+traverse entry pl -> npart[CKW*.EXE]
+traverse sofar 2[./]=0
+iswild[CKW*.EXE]=1
+traverse segisdir[./]=0
+traverse itswild [CKW*.EXE]=1
+traverse sofar 3[./]=0
+traverse opening directory[./]
+traverse opendir()[./]
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./MSDOS.SYS]=0
+traverse mresult sofar itsadir[./MSDOS.SYS]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[MSDOS.SYS]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=MSDOS.SYS[MSDOS.SYS]
+traverse mresult depth[./MSDOS.SYS]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[MSDOS.SYS]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./COMMAND.COM]=0
+traverse mresult sofar itsadir[./COMMAND.COM]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[COMMAND.COM]=0
+CKMATCH cs=cp[OMMAND.COM]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=KW*.EXE string=OMMAND.COM[OMMAND.COM]
+traverse mresult depth[./COMMAND.COM]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[COMMAND.COM]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CONFIG.SYS]=0
+traverse mresult sofar itsadir[./CONFIG.SYS]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CONFIG.SYS]=0
+CKMATCH cs=cp[ONFIG.SYS]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=KW*.EXE string=ONFIG.SYS[ONFIG.SYS]
+traverse mresult depth[./CONFIG.SYS]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CONFIG.SYS]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CONFIG.BAT]=0
+traverse mresult sofar itsadir[./CONFIG.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CONFIG.BAT]=0
+CKMATCH cs=cp[ONFIG.BAT]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=KW*.EXE string=ONFIG.BAT[ONFIG.BAT]
+traverse mresult depth[./CONFIG.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CONFIG.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./PORTA.EXE]=0
+traverse mresult sofar itsadir[./PORTA.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[PORTA.EXE]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=PORTA.EXE[PORTA.EXE]
+traverse mresult depth[./PORTA.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[PORTA.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./PORTB.EXE]=0
+traverse mresult sofar itsadir[./PORTB.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[PORTB.EXE]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=PORTB.EXE[PORTB.EXE]
+traverse mresult depth[./PORTB.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[PORTB.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./PPORT.EXE]=0
+traverse mresult sofar itsadir[./PPORT.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[PPORT.EXE]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=PPORT.EXE[PPORT.EXE]
+traverse mresult depth[./PPORT.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[PPORT.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./PORTSET.COM]=0
+traverse mresult sofar itsadir[./PORTSET.COM]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[PORTSET.COM]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=PORTSET.COM[PORTSET.COM]
+traverse mresult depth[./PORTSET.COM]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[PORTSET.COM]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKERMITW.EXE]=0
+traverse mresult sofar itsadir[./CKERMITW.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKERMITW.EXE]=0
+CKMATCH cs=cp[KERMITW.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=ERMITW.EXE[ERMITW.EXE]
+traverse mresult depth[./CKERMITW.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKERMITW.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./UKDOSFL.SYS]=0
+traverse mresult sofar itsadir[./UKDOSFL.SYS]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[UKDOSFL.SYS]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=UKDOSFL.SYS[UKDOSFL.SYS]
+traverse mresult depth[./UKDOSFL.SYS]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[UKDOSFL.SYS]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./SYS.EXE]=0
+traverse mresult sofar itsadir[./SYS.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[SYS.EXE]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=SYS.EXE[SYS.EXE]
+traverse mresult depth[./SYS.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[SYS.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./TEST]=0
+traverse mresult sofar itsadir[./TEST]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[TEST]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=TEST[TEST]
+traverse mresult depth[./TEST]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[TEST]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPLT.BAT]=0
+traverse mresult sofar itsadir[./STEPLT.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPLT.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPLT.BAT[STEPLT.BAT]
+traverse mresult depth[./STEPLT.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPLT.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./TESTFILE.TXT]=0
+traverse mresult sofar itsadir[./TESTFILE.TXT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[TESTFILE.TXT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=TESTFILE.TXT[TESTFILE.TXT]
+traverse mresult depth[./TESTFILE.TXT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[TESTFILE.TXT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVHB.DAT]=0
+traverse mresult sofar itsadir[./RCVHB.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVHB.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVHB.DAT[RCVHB.DAT]
+traverse mresult depth[./RCVHB.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVHB.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKERMITG.EXE]=0
+traverse mresult sofar itsadir[./CKERMITG.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKERMITG.EXE]=0
+CKMATCH cs=cp[KERMITG.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=ERMITG.EXE[ERMITG.EXE]
+traverse mresult depth[./CKERMITG.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKERMITG.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./VWILD.EXE]=0
+traverse mresult sofar itsadir[./VWILD.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[VWILD.EXE]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=VWILD.EXE[VWILD.EXE]
+traverse mresult depth[./VWILD.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[VWILD.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKBULK.EXE]=0
+traverse mresult sofar itsadir[./CKBULK.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKBULK.EXE]=0
+CKMATCH cs=cp[KBULK.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=BULK.EXE[BULK.EXE]
+traverse mresult depth[./CKBULK.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKBULK.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPJA.BAT]=0
+traverse mresult sofar itsadir[./STEPJA.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPJA.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPJA.BAT[STEPJA.BAT]
+traverse mresult depth[./STEPJA.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPJA.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPJB.BAT]=0
+traverse mresult sofar itsadir[./STEPJB.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPJB.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPJB.BAT[STEPJB.BAT]
+traverse mresult depth[./STEPJB.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPJB.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPJC.BAT]=0
+traverse mresult sofar itsadir[./STEPJC.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPJC.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPJC.BAT[STEPJC.BAT]
+traverse mresult depth[./STEPJC.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPJC.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPJA.OUT]=0
+traverse mresult sofar itsadir[./STEPJA.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPJA.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPJA.OUT[STEPJA.OUT]
+traverse mresult depth[./STEPJA.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPJA.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVJA.DAT]=0
+traverse mresult sofar itsadir[./RCVJA.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVJA.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVJA.DAT[RCVJA.DAT]
+traverse mresult depth[./RCVJA.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVJA.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPJB.OUT]=0
+traverse mresult sofar itsadir[./STEPJB.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPJB.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPJB.OUT[STEPJB.OUT]
+traverse mresult depth[./STEPJB.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPJB.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./VMATCH.EXE]=0
+traverse mresult sofar itsadir[./VMATCH.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[VMATCH.EXE]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=VMATCH.EXE[VMATCH.EXE]
+traverse mresult depth[./VMATCH.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[VMATCH.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVJB.DAT]=0
+traverse mresult sofar itsadir[./RCVJB.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVJB.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVJB.DAT[RCVJB.DAT]
+traverse mresult depth[./RCVJB.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVJB.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./ALPHA.TXT]=0
+traverse mresult sofar itsadir[./ALPHA.TXT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[ALPHA.TXT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=ALPHA.TXT[ALPHA.TXT]
+traverse mresult depth[./ALPHA.TXT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[ALPHA.TXT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./BETA.TXT]=0
+traverse mresult sofar itsadir[./BETA.TXT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[BETA.TXT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=BETA.TXT[BETA.TXT]
+traverse mresult depth[./BETA.TXT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[BETA.TXT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./VACCESS.EXE]=0
+traverse mresult sofar itsadir[./VACCESS.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[VACCESS.EXE]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=VACCESS.EXE[VACCESS.EXE]
+traverse mresult depth[./VACCESS.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[VACCESS.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPJC.OUT]=0
+traverse mresult sofar itsadir[./STEPJC.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPJC.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPJC.OUT[STEPJC.OUT]
+traverse mresult depth[./STEPJC.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPJC.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPKA.BAT]=0
+traverse mresult sofar itsadir[./STEPKA.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPKA.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPKA.BAT[STEPKA.BAT]
+traverse mresult depth[./STEPKA.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPKA.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPKB.BAT]=0
+traverse mresult sofar itsadir[./STEPKB.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPKB.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPKB.BAT[STEPKB.BAT]
+traverse mresult depth[./STEPKB.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPKB.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./VFMODEA.EXE]=0
+traverse mresult sofar itsadir[./VFMODEA.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[VFMODEA.EXE]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=VFMODEA.EXE[VFMODEA.EXE]
+traverse mresult depth[./VFMODEA.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[VFMODEA.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./VFMODEB.EXE]=0
+traverse mresult sofar itsadir[./VFMODEB.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[VFMODEB.EXE]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=VFMODEB.EXE[VFMODEB.EXE]
+traverse mresult depth[./VFMODEB.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[VFMODEB.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./VFMODEC.EXE]=0
+traverse mresult sofar itsadir[./VFMODEC.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[VFMODEC.EXE]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=VFMODEC.EXE[VFMODEC.EXE]
+traverse mresult depth[./VFMODEC.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[VFMODEC.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPKC.BAT]=0
+traverse mresult sofar itsadir[./STEPKC.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPKC.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPKC.BAT[STEPKC.BAT]
+traverse mresult depth[./STEPKC.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPKC.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPKD.BAT]=0
+traverse mresult sofar itsadir[./STEPKD.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPKD.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPKD.BAT[STEPKD.BAT]
+traverse mresult depth[./STEPKD.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPKD.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPKN.BAT]=0
+traverse mresult sofar itsadir[./STEPKN.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPKN.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPKN.BAT[STEPKN.BAT]
+traverse mresult depth[./STEPKN.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPKN.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPKP.BAT]=0
+traverse mresult sofar itsadir[./STEPKP.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPKP.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPKP.BAT[STEPKP.BAT]
+traverse mresult depth[./STEPKP.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPKP.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./VFMODEF.EXE]=0
+traverse mresult sofar itsadir[./VFMODEF.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[VFMODEF.EXE]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=VFMODEF.EXE[VFMODEF.EXE]
+traverse mresult depth[./VFMODEF.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[VFMODEF.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./VFMODEG.EXE]=0
+traverse mresult sofar itsadir[./VFMODEG.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[VFMODEG.EXE]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=VFMODEG.EXE[VFMODEG.EXE]
+traverse mresult depth[./VFMODEG.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[VFMODEG.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPKS.BAT]=0
+traverse mresult sofar itsadir[./STEPKS.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPKS.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPKS.BAT[STEPKS.BAT]
+traverse mresult depth[./STEPKS.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPKS.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPKA.OUT]=0
+traverse mresult sofar itsadir[./STEPKA.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPKA.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPKA.OUT[STEPKA.OUT]
+traverse mresult depth[./STEPKA.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPKA.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVKA.DAT]=0
+traverse mresult sofar itsadir[./RCVKA.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVKA.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVKA.DAT[RCVKA.DAT]
+traverse mresult depth[./RCVKA.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVKA.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPKB.OUT]=0
+traverse mresult sofar itsadir[./STEPKB.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPKB.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPKB.OUT[STEPKB.OUT]
+traverse mresult depth[./STEPKB.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPKB.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVKB.DAT]=0
+traverse mresult sofar itsadir[./RCVKB.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVKB.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVKB.DAT[RCVKB.DAT]
+traverse mresult depth[./RCVKB.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVKB.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPKC.OUT]=0
+traverse mresult sofar itsadir[./STEPKC.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPKC.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPKC.OUT[STEPKC.OUT]
+traverse mresult depth[./STEPKC.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPKC.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVKC.DAT]=0
+traverse mresult sofar itsadir[./RCVKC.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVKC.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVKC.DAT[RCVKC.DAT]
+traverse mresult depth[./RCVKC.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVKC.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPKD.OUT]=0
+traverse mresult sofar itsadir[./STEPKD.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPKD.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPKD.OUT[STEPKD.OUT]
+traverse mresult depth[./STEPKD.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPKD.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVKD.DAT]=0
+traverse mresult sofar itsadir[./RCVKD.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVKD.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVKD.DAT[RCVKD.DAT]
+traverse mresult depth[./RCVKD.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVKD.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPKN1.OUT]=0
+traverse mresult sofar itsadir[./STEPKN1.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPKN1.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPKN1.OUT[STEPKN1.OUT]
+traverse mresult depth[./STEPKN1.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPKN1.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPKN.OUT]=0
+traverse mresult sofar itsadir[./STEPKN.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPKN.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPKN.OUT[STEPKN.OUT]
+traverse mresult depth[./STEPKN.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPKN.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPKP1.OUT]=0
+traverse mresult sofar itsadir[./STEPKP1.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPKP1.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPKP1.OUT[STEPKP1.OUT]
+traverse mresult depth[./STEPKP1.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPKP1.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPKP.OUT]=0
+traverse mresult sofar itsadir[./STEPKP.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPKP.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPKP.OUT[STEPKP.OUT]
+traverse mresult depth[./STEPKP.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPKP.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPKS.OUT]=0
+traverse mresult sofar itsadir[./STEPKS.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPKS.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPKS.OUT[STEPKS.OUT]
+traverse mresult depth[./STEPKS.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPKS.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVKN.DAT]=0
+traverse mresult sofar itsadir[./RCVKN.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVKN.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVKN.DAT[RCVKN.DAT]
+traverse mresult depth[./RCVKN.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVKN.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVKP.DAT]=0
+traverse mresult sofar itsadir[./RCVKP.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVKP.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVKP.DAT[RCVKP.DAT]
+traverse mresult depth[./RCVKP.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVKP.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPXA.OUT]=0
+traverse mresult sofar itsadir[./STEPXA.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPXA.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPXA.OUT[STEPXA.OUT]
+traverse mresult depth[./STEPXA.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPXA.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVXA.DAT]=0
+traverse mresult sofar itsadir[./RCVXA.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVXA.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVXA.DAT[RCVXA.DAT]
+traverse mresult depth[./RCVXA.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVXA.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPXB.OUT]=0
+traverse mresult sofar itsadir[./STEPXB.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPXB.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPXB.OUT[STEPXB.OUT]
+traverse mresult depth[./STEPXB.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPXB.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPWC.BAT]=0
+traverse mresult sofar itsadir[./STEPWC.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPWC.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPWC.BAT[STEPWC.BAT]
+traverse mresult depth[./STEPWC.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPWC.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPWA.OUT]=0
+traverse mresult sofar itsadir[./STEPWA.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPWA.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPWA.OUT[STEPWA.OUT]
+traverse mresult depth[./STEPWA.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPWA.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVWA.DAT]=0
+traverse mresult sofar itsadir[./RCVWA.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVWA.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVWA.DAT[RCVWA.DAT]
+traverse mresult depth[./RCVWA.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVWA.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPWB.OUT]=0
+traverse mresult sofar itsadir[./STEPWB.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPWB.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPWB.OUT[STEPWB.OUT]
+traverse mresult depth[./STEPWB.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPWB.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVWB.DAT]=0
+traverse mresult sofar itsadir[./RCVWB.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVWB.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVWB.DAT[RCVWB.DAT]
+traverse mresult depth[./RCVWB.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVWB.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKWINB.EXE]=0
+traverse mresult sofar itsadir[./CKWINB.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKWINB.EXE]=0
+CKMATCH cs=cp[KWINB.EXE]=1
+CKMATCH * [INB.EXE]=1
+CKMATCH * n string[INB.EXE]=4
+CKMATCH * n pattrn[.EXE]=4
+CKMATCH * n p[]=4
+CKMATCH * Rindex()[INB.EXE]=4
+CKMATCH * Rindex() pattrn[.EXE]
+CKMATCH * Rindex() result=4
+CKMATCH * stringpos matchpos[3]=1
+CKMATCH * new string[]=10
+CKMATCH * new pattrn[]
+CKMATCH RETURN[2] matchpos=1 matchdepth=0 pat= string=[]
+traverse mresult depth[./CKWINB.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKWINB.EXE]=1
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse add: match && !itsadir[./CKWINB.EXE]
+addresult[./CKWINB.EXE]=0
+addresult len[CKWINB.EXE]=10
+addresult ADD[CKWINB.EXE]=1
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPWD.BAT]=0
+traverse mresult sofar itsadir[./STEPWD.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPWD.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPWD.BAT[STEPWD.BAT]
+traverse mresult depth[./STEPWD.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPWD.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPWE.BAT]=0
+traverse mresult sofar itsadir[./STEPWE.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPWE.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPWE.BAT[STEPWE.BAT]
+traverse mresult depth[./STEPWE.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPWE.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPWD.OUT]=0
+traverse mresult sofar itsadir[./STEPWD.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPWD.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPWD.OUT[STEPWD.OUT]
+traverse mresult depth[./STEPWD.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPWD.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVWD.DAT]=0
+traverse mresult sofar itsadir[./RCVWD.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVWD.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVWD.DAT[RCVWD.DAT]
+traverse mresult depth[./RCVWD.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVWD.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPWE.OUT]=0
+traverse mresult sofar itsadir[./STEPWE.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPWE.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPWE.OUT[STEPWE.OUT]
+traverse mresult depth[./STEPWE.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPWE.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVWE.DAT]=0
+traverse mresult sofar itsadir[./RCVWE.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVWE.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVWE.DAT[RCVWE.DAT]
+traverse mresult depth[./RCVWE.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVWE.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPWC.OUT]=0
+traverse mresult sofar itsadir[./STEPWC.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPWC.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPWC.OUT[STEPWC.OUT]
+traverse mresult depth[./STEPWC.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPWC.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPXA.BAT]=0
+traverse mresult sofar itsadir[./STEPXA.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPXA.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPXA.BAT[STEPXA.BAT]
+traverse mresult depth[./STEPXA.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPXA.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPXB.BAT]=0
+traverse mresult sofar itsadir[./STEPXB.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPXB.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPXB.BAT[STEPXB.BAT]
+traverse mresult depth[./STEPXB.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPXB.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPXD.BAT]=0
+traverse mresult sofar itsadir[./STEPXD.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPXD.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPXD.BAT[STEPXD.BAT]
+traverse mresult depth[./STEPXD.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPXD.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPXE.BAT]=0
+traverse mresult sofar itsadir[./STEPXE.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPXE.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPXE.BAT[STEPXE.BAT]
+traverse mresult depth[./STEPXE.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPXE.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPXF.BAT]=0
+traverse mresult sofar itsadir[./STEPXF.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPXF.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPXF.BAT[STEPXF.BAT]
+traverse mresult depth[./STEPXF.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPXF.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVXB.DAT]=0
+traverse mresult sofar itsadir[./RCVXB.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVXB.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVXB.DAT[RCVXB.DAT]
+traverse mresult depth[./RCVXB.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVXB.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPXD.OUT]=0
+traverse mresult sofar itsadir[./STEPXD.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPXD.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPXD.OUT[STEPXD.OUT]
+traverse mresult depth[./STEPXD.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPXD.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVXD.DAT]=0
+traverse mresult sofar itsadir[./RCVXD.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVXD.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVXD.DAT[RCVXD.DAT]
+traverse mresult depth[./RCVXD.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVXD.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPXE.OUT]=0
+traverse mresult sofar itsadir[./STEPXE.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPXE.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPXE.OUT[STEPXE.OUT]
+traverse mresult depth[./STEPXE.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPXE.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVXE.DAT]=0
+traverse mresult sofar itsadir[./RCVXE.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVXE.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVXE.DAT[RCVXE.DAT]
+traverse mresult depth[./RCVXE.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVXE.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPXF.OUT]=0
+traverse mresult sofar itsadir[./STEPXF.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPXF.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPXF.OUT[STEPXF.OUT]
+traverse mresult depth[./STEPXF.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPXF.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVXF.DAT]=0
+traverse mresult sofar itsadir[./RCVXF.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVXF.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVXF.DAT[RCVXF.DAT]
+traverse mresult depth[./RCVXF.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVXF.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKWIN18.EXE]=0
+traverse mresult sofar itsadir[./CKWIN18.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKWIN18.EXE]=0
+CKMATCH cs=cp[KWIN18.EXE]=1
+CKMATCH * [IN18.EXE]=1
+CKMATCH * n string[IN18.EXE]=4
+CKMATCH * n pattrn[.EXE]=4
+CKMATCH * n p[]=4
+CKMATCH * Rindex()[IN18.EXE]=5
+CKMATCH * Rindex() pattrn[.EXE]
+CKMATCH * Rindex() result=5
+CKMATCH * stringpos matchpos[3]=1
+CKMATCH * new string[]=11
+CKMATCH * new pattrn[]
+CKMATCH RETURN[2] matchpos=1 matchdepth=0 pat= string=[]
+traverse mresult depth[./CKWIN18.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKWIN18.EXE]=1
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse add: match && !itsadir[./CKWIN18.EXE]
+addresult[./CKWIN18.EXE]=0
+addresult len[CKWIN18.EXE]=11
+addresult ADD[CKWIN18.EXE]=2
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPYA.BAT]=0
+traverse mresult sofar itsadir[./STEPYA.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPYA.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPYA.BAT[STEPYA.BAT]
+traverse mresult depth[./STEPYA.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPYA.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPYB.BAT]=0
+traverse mresult sofar itsadir[./STEPYB.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPYB.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPYB.BAT[STEPYB.BAT]
+traverse mresult depth[./STEPYB.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPYB.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPYA.OUT]=0
+traverse mresult sofar itsadir[./STEPYA.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPYA.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPYA.OUT[STEPYA.OUT]
+traverse mresult depth[./STEPYA.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPYA.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVYA.DAT]=0
+traverse mresult sofar itsadir[./RCVYA.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVYA.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVYA.DAT[RCVYA.DAT]
+traverse mresult depth[./RCVYA.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVYA.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPYB.OUT]=0
+traverse mresult sofar itsadir[./STEPYB.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPYB.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPYB.OUT[STEPYB.OUT]
+traverse mresult depth[./STEPYB.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPYB.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVYB.DAT]=0
+traverse mresult sofar itsadir[./RCVYB.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVYB.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVYB.DAT[RCVYB.DAT]
+traverse mresult depth[./RCVYB.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVYB.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPZA.BAT]=0
+traverse mresult sofar itsadir[./STEPZA.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPZA.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPZA.BAT[STEPZA.BAT]
+traverse mresult depth[./STEPZA.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPZA.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPZB.BAT]=0
+traverse mresult sofar itsadir[./STEPZB.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPZB.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPZB.BAT[STEPZB.BAT]
+traverse mresult depth[./STEPZB.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPZB.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPZD.BAT]=0
+traverse mresult sofar itsadir[./STEPZD.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPZD.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPZD.BAT[STEPZD.BAT]
+traverse mresult depth[./STEPZD.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPZD.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPZE.BAT]=0
+traverse mresult sofar itsadir[./STEPZE.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPZE.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPZE.BAT[STEPZE.BAT]
+traverse mresult depth[./STEPZE.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPZE.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKERM1K.EXE]=0
+traverse mresult sofar itsadir[./CKERM1K.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKERM1K.EXE]=0
+CKMATCH cs=cp[KERM1K.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=ERM1K.EXE[ERM1K.EXE]
+traverse mresult depth[./CKERM1K.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKERM1K.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKWIN8K.EXE]=0
+traverse mresult sofar itsadir[./CKWIN8K.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKWIN8K.EXE]=0
+CKMATCH cs=cp[KWIN8K.EXE]=1
+CKMATCH * [IN8K.EXE]=1
+CKMATCH * n string[IN8K.EXE]=4
+CKMATCH * n pattrn[.EXE]=4
+CKMATCH * n p[]=4
+CKMATCH * Rindex()[IN8K.EXE]=5
+CKMATCH * Rindex() pattrn[.EXE]
+CKMATCH * Rindex() result=5
+CKMATCH * stringpos matchpos[3]=1
+CKMATCH * new string[]=11
+CKMATCH * new pattrn[]
+CKMATCH RETURN[2] matchpos=1 matchdepth=0 pat= string=[]
+traverse mresult depth[./CKWIN8K.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKWIN8K.EXE]=1
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse add: match && !itsadir[./CKWIN8K.EXE]
+addresult[./CKWIN8K.EXE]=0
+addresult len[CKWIN8K.EXE]=11
+addresult ADD[CKWIN8K.EXE]=3
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKWINBAD.EXE]=0
+traverse mresult sofar itsadir[./CKWINBAD.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKWINBAD.EXE]=0
+CKMATCH cs=cp[KWINBAD.EXE]=1
+CKMATCH * [INBAD.EXE]=1
+CKMATCH * n string[INBAD.EXE]=4
+CKMATCH * n pattrn[.EXE]=4
+CKMATCH * n p[]=4
+CKMATCH * Rindex()[INBAD.EXE]=6
+CKMATCH * Rindex() pattrn[.EXE]
+CKMATCH * Rindex() result=6
+CKMATCH * stringpos matchpos[3]=1
+CKMATCH * new string[]=12
+CKMATCH * new pattrn[]
+CKMATCH RETURN[2] matchpos=1 matchdepth=0 pat= string=[]
+traverse mresult depth[./CKWINBAD.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKWINBAD.EXE]=1
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse add: match && !itsadir[./CKWINBAD.EXE]
+addresult[./CKWINBAD.EXE]=0
+addresult len[CKWINBAD.EXE]=12
+addresult ADD[CKWINBAD.EXE]=4
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPWM.BAT]=0
+traverse mresult sofar itsadir[./STEPWM.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPWM.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPWM.BAT[STEPWM.BAT]
+traverse mresult depth[./STEPWM.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPWM.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPWN.BAT]=0
+traverse mresult sofar itsadir[./STEPWN.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPWN.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPWN.BAT[STEPWN.BAT]
+traverse mresult depth[./STEPWN.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPWN.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPWM.OUT]=0
+traverse mresult sofar itsadir[./STEPWM.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPWM.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPWM.OUT[STEPWM.OUT]
+traverse mresult depth[./STEPWM.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPWM.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPWN.OUT]=0
+traverse mresult sofar itsadir[./STEPWN.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPWN.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPWN.OUT[STEPWN.OUT]
+traverse mresult depth[./STEPWN.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPWN.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVWN.DAT]=0
+traverse mresult sofar itsadir[./RCVWN.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVWN.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVWN.DAT[RCVWN.DAT]
+traverse mresult depth[./RCVWN.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVWN.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPBA.BAT]=0
+traverse mresult sofar itsadir[./STEPBA.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPBA.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPBA.BAT[STEPBA.BAT]
+traverse mresult depth[./STEPBA.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPBA.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPBB.BAT]=0
+traverse mresult sofar itsadir[./STEPBB.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPBB.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPBB.BAT[STEPBB.BAT]
+traverse mresult depth[./STEPBB.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPBB.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPBD.BAT]=0
+traverse mresult sofar itsadir[./STEPBD.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPBD.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPBD.BAT[STEPBD.BAT]
+traverse mresult depth[./STEPBD.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPBD.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPBE.BAT]=0
+traverse mresult sofar itsadir[./STEPBE.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPBE.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPBE.BAT[STEPBE.BAT]
+traverse mresult depth[./STEPBE.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPBE.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPZA.OUT]=0
+traverse mresult sofar itsadir[./STEPZA.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPZA.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPZA.OUT[STEPZA.OUT]
+traverse mresult depth[./STEPZA.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPZA.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVZA.DAT]=0
+traverse mresult sofar itsadir[./RCVZA.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVZA.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVZA.DAT[RCVZA.DAT]
+traverse mresult depth[./RCVZA.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVZA.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPZB.OUT]=0
+traverse mresult sofar itsadir[./STEPZB.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPZB.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPZB.OUT[STEPZB.OUT]
+traverse mresult depth[./STEPZB.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPZB.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVZB.DAT]=0
+traverse mresult sofar itsadir[./RCVZB.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVZB.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVZB.DAT[RCVZB.DAT]
+traverse mresult depth[./RCVZB.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVZB.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPBA.OUT]=0
+traverse mresult sofar itsadir[./STEPBA.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPBA.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPBA.OUT[STEPBA.OUT]
+traverse mresult depth[./STEPBA.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPBA.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVBA.DAT]=0
+traverse mresult sofar itsadir[./RCVBA.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVBA.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVBA.DAT[RCVBA.DAT]
+traverse mresult depth[./RCVBA.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVBA.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPBB.OUT]=0
+traverse mresult sofar itsadir[./STEPBB.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPBB.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPBB.OUT[STEPBB.OUT]
+traverse mresult depth[./STEPBB.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPBB.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVBB.DAT]=0
+traverse mresult sofar itsadir[./RCVBB.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVBB.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVBB.DAT[RCVBB.DAT]
+traverse mresult depth[./RCVBB.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVBB.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPZD.OUT]=0
+traverse mresult sofar itsadir[./STEPZD.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPZD.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPZD.OUT[STEPZD.OUT]
+traverse mresult depth[./STEPZD.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPZD.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVZD.DAT]=0
+traverse mresult sofar itsadir[./RCVZD.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVZD.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVZD.DAT[RCVZD.DAT]
+traverse mresult depth[./RCVZD.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVZD.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPZE.OUT]=0
+traverse mresult sofar itsadir[./STEPZE.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPZE.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPZE.OUT[STEPZE.OUT]
+traverse mresult depth[./STEPZE.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPZE.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVZE.DAT]=0
+traverse mresult sofar itsadir[./RCVZE.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVZE.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVZE.DAT[RCVZE.DAT]
+traverse mresult depth[./RCVZE.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVZE.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPBD.OUT]=0
+traverse mresult sofar itsadir[./STEPBD.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPBD.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPBD.OUT[STEPBD.OUT]
+traverse mresult depth[./STEPBD.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPBD.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVBD.DAT]=0
+traverse mresult sofar itsadir[./RCVBD.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVBD.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVBD.DAT[RCVBD.DAT]
+traverse mresult depth[./RCVBD.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVBD.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPBE.OUT]=0
+traverse mresult sofar itsadir[./STEPBE.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPBE.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPBE.OUT[STEPBE.OUT]
+traverse mresult depth[./STEPBE.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPBE.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVBE.DAT]=0
+traverse mresult sofar itsadir[./RCVBE.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVBE.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVBE.DAT[RCVBE.DAT]
+traverse mresult depth[./RCVBE.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVBE.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKNAP.EXE]=0
+traverse mresult sofar itsadir[./CKNAP.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKNAP.EXE]=0
+CKMATCH cs=cp[KNAP.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=NAP.EXE[NAP.EXE]
+traverse mresult depth[./CKNAP.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKNAP.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPNA.BAT]=0
+traverse mresult sofar itsadir[./STEPNA.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPNA.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPNA.BAT[STEPNA.BAT]
+traverse mresult depth[./STEPNA.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPNA.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPNA.OUT]=0
+traverse mresult sofar itsadir[./STEPNA.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPNA.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPNA.OUT[STEPNA.OUT]
+traverse mresult depth[./STEPNA.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPNA.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVNA.DAT]=0
+traverse mresult sofar itsadir[./RCVNA.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVNA.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVNA.DAT[RCVNA.DAT]
+traverse mresult depth[./RCVNA.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVNA.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPNB.OUT]=0
+traverse mresult sofar itsadir[./STEPNB.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPNB.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPNB.OUT[STEPNB.OUT]
+traverse mresult depth[./STEPNB.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPNB.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKNAP2.EXE]=0
+traverse mresult sofar itsadir[./CKNAP2.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKNAP2.EXE]=0
+CKMATCH cs=cp[KNAP2.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=NAP2.EXE[NAP2.EXE]
+traverse mresult depth[./CKNAP2.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKNAP2.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPNC.BAT]=0
+traverse mresult sofar itsadir[./STEPNC.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPNC.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPNC.BAT[STEPNC.BAT]
+traverse mresult depth[./STEPNC.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPNC.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPNC.OUT]=0
+traverse mresult sofar itsadir[./STEPNC.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPNC.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPNC.OUT[STEPNC.OUT]
+traverse mresult depth[./STEPNC.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPNC.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKLEAN.EXE]=0
+traverse mresult sofar itsadir[./CKLEAN.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKLEAN.EXE]=0
+CKMATCH cs=cp[KLEAN.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=LEAN.EXE[LEAN.EXE]
+traverse mresult depth[./CKLEAN.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKLEAN.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVNC.DAT]=0
+traverse mresult sofar itsadir[./RCVNC.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVNC.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVNC.DAT[RCVNC.DAT]
+traverse mresult depth[./RCVNC.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVNC.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPND.OUT]=0
+traverse mresult sofar itsadir[./STEPND.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPND.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPND.OUT[STEPND.OUT]
+traverse mresult depth[./STEPND.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPND.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPNX.OUT]=0
+traverse mresult sofar itsadir[./STEPNX.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPNX.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPNX.OUT[STEPNX.OUT]
+traverse mresult depth[./STEPNX.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPNX.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPNS.OUT]=0
+traverse mresult sofar itsadir[./STEPNS.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPNS.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPNS.OUT[STEPNS.OUT]
+traverse mresult depth[./STEPNS.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPNS.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RCVNS.DAT]=0
+traverse mresult sofar itsadir[./RCVNS.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RCVNS.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RCVNS.DAT[RCVNS.DAT]
+traverse mresult depth[./RCVNS.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RCVNS.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKRDIR.EXE]=0
+traverse mresult sofar itsadir[./CKRDIR.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKRDIR.EXE]=0
+CKMATCH cs=cp[KRDIR.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=RDIR.EXE[RDIR.EXE]
+traverse mresult depth[./CKRDIR.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKRDIR.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPRA.BAT]=0
+traverse mresult sofar itsadir[./STEPRA.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPRA.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPRA.BAT[STEPRA.BAT]
+traverse mresult depth[./STEPRA.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPRA.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPRA.OUT]=0
+traverse mresult sofar itsadir[./STEPRA.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPRA.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPRA.OUT[STEPRA.OUT]
+traverse mresult depth[./STEPRA.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPRA.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKRDBG.EXE]=0
+traverse mresult sofar itsadir[./CKRDBG.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKRDBG.EXE]=0
+CKMATCH cs=cp[KRDBG.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=RDBG.EXE[RDBG.EXE]
+traverse mresult depth[./CKRDBG.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKRDBG.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPRD.BAT]=0
+traverse mresult sofar itsadir[./STEPRD.BAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPRD.BAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPRD.BAT[STEPRD.BAT]
+traverse mresult depth[./STEPRD.BAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPRD.BAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPRB.OUT]=0
+traverse mresult sofar itsadir[./STEPRB.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPRB.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPRB.OUT[STEPRB.OUT]
+traverse mresult depth[./STEPRB.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPRB.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEPRC.OUT]=0
+traverse mresult sofar itsadir[./STEPRC.OUT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEPRC.OUT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEPRC.OUT[STEPRC.OUT]
+traverse mresult depth[./STEPRC.OUT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEPRC.OUT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./DEBUG.LOG]=0
+traverse mresult sofar itsadir[./DEBUG.LOG]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[DEBUG.LOG]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=DEBUG.LOG[DEBUG.LOG]
+traverse mresult depth[./DEBUG.LOG]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[DEBUG.LOG]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKICP.EXE]=0
+traverse mresult sofar itsadir[./CKICP.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKICP.EXE]=0
+CKMATCH cs=cp[KICP.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=ICP.EXE[ICP.EXE]
+traverse mresult depth[./CKICP.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKICP.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./PTEST.KSC]=0
+traverse mresult sofar itsadir[./PTEST.KSC]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[PTEST.KSC]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=PTEST.KSC[PTEST.KSC]
+traverse mresult depth[./PTEST.KSC]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[PTEST.KSC]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./RXEA.KSC]=0
+traverse mresult sofar itsadir[./RXEA.KSC]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[RXEA.KSC]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=RXEA.KSC[RXEA.KSC]
+traverse mresult depth[./RXEA.KSC]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[RXEA.KSC]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKICPD.EXE]=0
+traverse mresult sofar itsadir[./CKICPD.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKICPD.EXE]=0
+CKMATCH cs=cp[KICPD.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=ICPD.EXE[ICPD.EXE]
+traverse mresult depth[./CKICPD.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKICPD.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./SPDTEST.KSC]=0
+traverse mresult sofar itsadir[./SPDTEST.KSC]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[SPDTEST.KSC]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=SPDTEST.KSC[SPDTEST.KSC]
+traverse mresult depth[./SPDTEST.KSC]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[SPDTEST.KSC]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./STEVIE.EXE]=0
+traverse mresult sofar itsadir[./STEVIE.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[STEVIE.EXE]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=STEVIE.EXE[STEVIE.EXE]
+traverse mresult depth[./STEVIE.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[STEVIE.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./FIXTURE.DAT]=0
+traverse mresult sofar itsadir[./FIXTURE.DAT]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[FIXTURE.DAT]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=FIXTURE.DAT[FIXTURE.DAT]
+traverse mresult depth[./FIXTURE.DAT]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[FIXTURE.DAT]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKBASE.EXE]=0
+traverse mresult sofar itsadir[./CKBASE.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKBASE.EXE]=0
+CKMATCH cs=cp[KBASE.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=BASE.EXE[BASE.EXE]
+traverse mresult depth[./CKBASE.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKBASE.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKAL.EXE]=0
+traverse mresult sofar itsadir[./CKAL.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKAL.EXE]=0
+CKMATCH cs=cp[KAL.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=AL.EXE[AL.EXE]
+traverse mresult depth[./CKAL.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKAL.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKAP.EXE]=0
+traverse mresult sofar itsadir[./CKAP.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKAP.EXE]=0
+CKMATCH cs=cp[KAP.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=AP.EXE[AP.EXE]
+traverse mresult depth[./CKAP.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKAP.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKAK.EXE]=0
+traverse mresult sofar itsadir[./CKAK.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKAK.EXE]=0
+CKMATCH cs=cp[KAK.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=AK.EXE[AK.EXE]
+traverse mresult depth[./CKAK.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKAK.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKFERR.EXE]=0
+traverse mresult sofar itsadir[./CKFERR.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKFERR.EXE]=0
+CKMATCH cs=cp[KFERR.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=FERR.EXE[FERR.EXE]
+traverse mresult depth[./CKFERR.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKFERR.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKPXALL.EXE]=0
+traverse mresult sofar itsadir[./CKPXALL.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKPXALL.EXE]=0
+CKMATCH cs=cp[KPXALL.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=PXALL.EXE[PXALL.EXE]
+traverse mresult depth[./CKPXALL.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKPXALL.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./LTEST.KSC]=0
+traverse mresult sofar itsadir[./LTEST.KSC]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[LTEST.KSC]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=LTEST.KSC[LTEST.KSC]
+traverse mresult depth[./LTEST.KSC]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[LTEST.KSC]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./MSVV90.EXE]=0
+traverse mresult sofar itsadir[./MSVV90.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[MSVV90.EXE]=0
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=CKW*.EXE string=MSVV90.EXE[MSVV90.EXE]
+traverse mresult depth[./MSVV90.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[MSVV90.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKPRE.EXE]=0
+traverse mresult sofar itsadir[./CKPRE.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKPRE.EXE]=0
+CKMATCH cs=cp[KPRE.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=PRE.EXE[PRE.EXE]
+traverse mresult depth[./CKPRE.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKPRE.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+traverse mresult xpat[CKW*.EXE]=0
+traverse mresult pl -> npart[CKW*.EXE]=0
+traverse mresult sofar segisdir[./CKFCMID.EXE]=0
+traverse mresult sofar itsadir[./CKFCMID.EXE]=0
+traverse mresult xmatchdot=0
+CKMATCH ENTRY pat opt[CKW*.EXE]=2
+CKMATCH ENTRY str dep[CKFCMID.EXE]=0
+CKMATCH cs=cp[KFCMID.EXE]=1
+CKMATCH RETURN[13] matchpos=0 matchdepth=0 pat=W*.EXE string=FCMID.EXE[FCMID.EXE]
+traverse mresult depth[./CKFCMID.EXE]=0
+traverse mresult xpatslash=0
+traverse mresult nambuf[CKFCMID.EXE]=0
+traverse mresult itswild[CKW*.EXE]=1
+traverse mresult segisdir[CKW*.EXE]=0
+fgen=4
+zxpand ok[CKWINB.EXE]=4
+snddir nzxpand nxpnd=4
+fnlist nfils=0
+fnlist cmarg[]
+fnlist cmarg2[]
+sinit xp[stdin]
+gnfile sndsrc=0
+gnfile filcnt=0
+gnfile what=8
+gnfile recursive=0
+gnfile dodirstoo=0
+sinit gnfile[0]=1
+sinit gnfil=1
+sinit nfils=0
+sinit filnam[stdin]
+freerbuf packet=0
+freerbuf rbufnum=1
+sipkt pktnum=0
+ttflui ttpipe=0
+ttflux my_count=0
+ttflui ttyfd=6
+ttflui POSIX
+rpar rpsiz=3999
+rpar max 1=94
+rpar sprmlen=-1
+rpar max 2=94
+chktimo streaming=0
+chktimo timo=15
+chktimo flag=0
+chktimo spmax=3997
+chktimo urpsiz=4000
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+chktimo plen=4000
+rpar 8bq sq=Y
+rpar 8bq ebq=&
+rpar xfermode=0
+rpar whatami2=32
+rpar[~/ @-#Y3~^!J)0___E"U1@]
+rpar: data[~/ @-#Y3~^!J)0___E"U1@]=22
+ rpsiz =94
+ rtimo =8
+ mypadn=0
+ mypadc=0
+ eol   =13
+ ctlq  =35
+ sq    =89
+ ebq   =38
+ ebqflg=0
+ bctr  =3
+ rptq  =126
+ rptflg=1
+ capas =9
+ bits  =94
+ lscapu=0
+ atcapu=1
+ lpcapu=1
+ swcapu=1
+ wslotr=1
+ rpsiz(extended)=3999
+sipkt rp[~/ @-#Y3~^!J)0___E"U1@]
+SPACK n=0
+SPACK data len=22
+SPACK copy=1
+SPACK LP decision lpcapu=1
+SPACK LP decision len=22
+SPACK LP decision bctl=1
+SPACK LP decision len+bctl=23
+SPACK LP decision longpkt=0
+SPACK len=22
+SPACK bctl=1
+SPACK j=23
+SPACK longpkt=0
+SPACK j+2=25
+SPACK j+2 encoded=57
+chk1[1-byte block check encoded code]=0
+gtimer=145
+HEXDUMP: ttol s (28 bytes)
+01 39 20 53 7e 2f 20 40 | 2d 23 59 33 7e 5e 21 4a  .9 S~/ @ -#Y3~^!J
+29 30 5f 5f 5f 45 22 55 | 31 40 20 0d              )0___E"U 1@ .
+ttol try=1
+ttol ok=28
+SPACK spktl=28
+SPACK ttol returns=28
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24352 8205    28   S    0     0
+[9 S~/ @-#Y3~^!J)0___E"U1@ ]
+free: 0, winlo: 0
+SPACK calling screen, mydata=[9 S~/ @-#Y3~^!J)0___E"U1@ ]=0
+ztime: ZTIMEV7[Tue Jan  1 00:06:19 1980
+]
+sinit ok[stdin]=0
+snddir[sinit()]=1
+input sstate=^@
+input nakstate=0
+input sndtyp=S
+input xitsta=0
+input what=8
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=28
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=28
+in_chk result=28
+rpack pktnum=0
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=8
+rpack rcvtimo=0
+rpack streaming=0
+ttinl max=8208
+ttinl timo=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=28
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (28 bytes)
+01 39 20 59 7e 34 20 40 | 2d 23 59 33 7e 5e 3e 4a  .9 Y~4 @ -#Y3~^>J
+29 30 5f 5f 5f 42 22 55 | 31 40 46 0d              )0___B"U 1@F.
+TTINL myread char=^A
+HEXDUMP: ttinl got (28 bytes)
+01 39 20 59 7e 34 20 40 | 2d 23 59 33 7e 5e 3e 4a  .9 Y~4 @ -#Y3~^>J
+29 30 5f 5f 5f 42 22 55 | 31 40 46 0d              )0___B"U 1@F.
+rpack ttinl len=28
+rpack bctl=1
+rpack chklen=1
+chk1[1-byte block check encoded code]=38
+rpack block check OK=0
+gtimer=147
+input send[~4 @-#Y3~^>J)0___B"U1@]=89
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32562 8209    22   Y    0     0
+[9 Y~4 @-#Y3~^>J)0___B"U1@]
+free: 0, winlo: 0
+chkwin packet=0
+chkwin winlo=0
+chkwin slots=1
+input send rsn=0
+input send winlo=0
+input send chkwin=0
+bestlen ack x=0
+bestlen ack type=S
+freerpkt seq=0
+freerbuf packet=0
+freerbuf rbufnum=1
+freesbuf=0
+input send rotated send window=1
+input about to flush
+ttflui ttpipe=0
+ttflux my_count=0
+ttflui ttyfd=6
+ttflui POSIX
+input winlo=1
+input rsn=0
+input returning type=Y
+PROTO input[5]=Y
+spar biggest 1=22
+spar rprmlen=-1
+rpar biggest 2=22
+spar packet[~4 @-#Y3~^>J)0___B"U1@]
+chktimo streaming=0
+chktimo timo=20
+chktimo flag=0
+chktimo spmax=94
+chktimo urpsiz=4000
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+chktimo plen=4000
+spar 8bq rq=Y
+spar 8bq sq=Y
+spar 8bq ebq=&
+spar 8bq rqf=1
+spar capas=62
+spar lscapu=0
+spar lscapr=1
+spar ebqflg=0
+spar swcapr=1
+spar swcapu=1
+spar lscapu=0
+spar y=10
+>>> spar spsizf=0
+>>> spar urpsiz=4000
+>>> spar biggest=22
+>>> spar lpcapu=1
+>>> spar lpspsiz=94
+>>> spar extended packet max length=3999
+>>> spar previous with safety margin=3997
+>>> spar adjusted according to spsizf=3997
+spar slow-start spsiz=244
+spar lp spmax=3997
+chktimo streaming=0
+chktimo timo=20
+chktimo flag=0
+chktimo spmax=3997
+chktimo urpsiz=4000
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+chktimo plen=4000
+spar window=30
+spar window after adjustment=30
+spar biggest=22
+spar whatru=34
+spar streamok=0
+spar clearrq=2
+spar urclear=0
+spar sysindex x=2
+spar sysindex y=21
+spar sysindex biggest=22
+spar whoareyou[U1]=85
+spar sysindex=16
+spar whatru2=32
+spar whatru2 xfermode=0
+whoarewe xfermode=0
+whoarewe remote sysid[U1]
+whoarewe wearealike=1
+whoarewe setting fncnv=0
+whoarewe setting binary=1
+proto whoareu[U1]=16
+spar: data[~4 @-#Y3~^>J)0___B"U1@]=22
+ spsiz =244
+ timint=20
+ npad  =0
+ padch =0
+ seol  =13
+ ctlq  =35
+ ebq   =38
+ ebqflg=0
+ bctr  =3
+ rptq  =126
+ rptflg=1
+ lscapu=0
+ atcapu=1
+ lpcapu=1
+ swcapu=1
+ wslotn=1
+ whatru=34
+sfile x=1
+sfile notafile=1
+sfile X packet[DIRECTORY CKW*.EXE]
+sfile binary=0
+encstr[DIRECTORY CKW*.EXE]=18
+encstr pktnum=0
+encstr spsiz=244
+encstr rpsiz=3999
+encstr urpsiz=4000
+maxdata spsiz 1=244
+maxdata spsiz 2=244
+maxdata len 1=233
+maxdata len 2=233
+getpkt first uflag=0
+getpkt first rt=0
+getpkt nleft=0
+getpkt eof/eot[DIRECTORY CKW*.EXE]=18
+encstr getpkt rc=18
+encstr getpkt rc=18
+nxtpkt pktnum=0
+nxtpkt winlo =1
+nxtpkt n=1
+chkwin packet=1
+chkwin winlo=1
+chkwin slots=1
+nxtpkt chkwin=0
+getsbuf packet=1
+getsbuf p=0
+SPACK n=1
+SPACK data len=18
+SPACK copy=0
+SPACK LP decision lpcapu=1
+SPACK LP decision len=18
+SPACK LP decision bctl=3
+SPACK LP decision len+bctl=21
+SPACK LP decision longpkt=0
+SPACK len=18
+SPACK bctl=3
+SPACK j=21
+SPACK longpkt=0
+SPACK j+2=23
+SPACK j+2 encoded=55
+chk3=39345
+gtimer=149
+HEXDUMP: ttol s (26 bytes)
+01 37 21 58 44 49 52 45 | 43 54 4f 52 59 20 43 4b  .7!XDIRE CTORY CK
+57 2a 2e 45 58 45 29 46 | 51 0d                    W*.EXE)F Q.
+ttol try=1
+ttol ok=26
+SPACK spktl=26
+SPACK ttol returns=26
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24352 8205    26   X    1     0
+[7!XDIRECTORY CKW*.EXE)FQ]
+free: 0, winlo: 1
+SPACK calling screen, mydata=[7!XDIRECTORY CKW*.EXE)FQ]=1
+gtimer=149
+SFILE fsecs=149
+resetc fsize=-1
+input sstate=^@
+input nakstate=0
+input sndtyp=X
+input xitsta=0
+input what=2
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=8
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=8
+in_chk result=8
+rpack pktnum=1
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=20
+rpack rcvtimo=8
+rpack streaming=0
+ttinl max=8208
+ttinl timo=8
+v9k alarm secs/at[8]=-4648
+ttinl alarm=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=8
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (8 bytes)
+01 25 21 59 2c 5c 49 0d |                          .%!Y,\I.
+TTINL myread char=^A
+v9k alarm secs/at[0]=-4648
+HEXDUMP: ttinl got (8 bytes)
+01 25 21 59 2c 5c 49 0d |                          .%!Y,\I.
+rpack ttinl len=8
+rpack bctl=3
+rpack chklen=3
+chk3=53033
+rpack block check OK=1
+gtimer=1
+input send[]=89
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32562 8209     0   Y    1     0
+[%!Y]
+free: 0, winlo: 1
+chkwin packet=1
+chkwin winlo=1
+chkwin slots=1
+input send rsn=1
+input send winlo=1
+input send chkwin=0
+bestlen ack x=0
+bestlen ack type=X
+freerpkt seq=1
+freerbuf packet=1
+freerbuf rbufnum=1
+freesbuf=1
+input send rotated send window=2
+input about to flush
+ttflui ttpipe=0
+ttflux my_count=0
+ttflui ttyfd=6
+ttflui POSIX
+input winlo=2
+input rsn=1
+input returning type=Y
+PROTO input[6]=Y
+DECODE
+<ssfile>Y cxseen=0
+sattr flag=1
+initattr ofperms[]
+ztime: ZTIMEV7[Tue Jan  1 00:06:23 1980
+]
+zzndate return[19800101]
+ztime: ZTIMEV7[Tue Jan  1 00:06:24 1980
+]
+sattr notafile date[19800101 00:06:24]=17
+nxtpkt pktnum=1
+nxtpkt winlo =2
+nxtpkt n=2
+chkwin packet=2
+chkwin winlo=2
+chkwin slots=1
+nxtpkt chkwin=0
+getsbuf packet=2
+getsbuf p=0
+sattr[@]=31
+sattr numset=4
+sattr left=0
+sattr sending[."U1"#AMJ*!A#119800101 00:06:24@ ]=0
+SPACK n=2
+SPACK data len=33
+SPACK copy=0
+SPACK LP decision lpcapu=1
+SPACK LP decision len=33
+SPACK LP decision bctl=3
+SPACK LP decision len+bctl=36
+SPACK LP decision longpkt=0
+SPACK len=33
+SPACK bctl=3
+SPACK j=36
+SPACK longpkt=0
+SPACK j+2=38
+SPACK j+2 encoded=70
+chk3=39956
+gtimer=2
+HEXDUMP: ttol s (41 bytes)
+01 46 22 41 2e 22 55 31 | 22 23 41 4d 4a 2a 21 41  .F"A."U1 "#AMJ*!A
+23 31 31 39 38 30 30 31 | 30 31 20 30 30 3a 30 36  #1198001 01 00:06
+3a 32 34 40 20 29 50 34 | 0d                       :24@ )P4 .
+ttol try=1
+ttol ok=41
+SPACK spktl=41
+SPACK ttol returns=41
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24352 8205    41   A    2     0
+[F"A."U1"#AMJ*!A#119800101 00:06:24@ )P4]
+free: 0, winlo: 2
+SPACK calling screen, mydata=[F"A."U1"#AMJ*!A#119800101 00:06:24@ )P4]=2
+input sstate=^@
+input nakstate=0
+input sndtyp=A
+input xitsta=0
+input what=2
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=8
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=8
+in_chk result=8
+rpack pktnum=2
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=20
+rpack rcvtimo=20
+rpack streaming=0
+ttinl max=8208
+ttinl timo=20
+v9k alarm secs/at[20]=-4634
+ttinl alarm=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=8
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (8 bytes)
+01 25 22 59 2e 35 21 0d |                          .%"Y.5!.
+TTINL myread char=^A
+v9k alarm secs/at[0]=-4634
+HEXDUMP: ttinl got (8 bytes)
+01 25 22 59 2e 35 21 0d |                          .%"Y.5!.
+rpack ttinl len=8
+rpack bctl=3
+rpack chklen=3
+chk3=58689
+rpack block check OK=2
+gtimer=3
+input send[]=89
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32562 8209     0   Y    2     0
+[%"Y]
+free: 0, winlo: 2
+chkwin packet=2
+chkwin winlo=2
+chkwin slots=1
+input send rsn=2
+input send winlo=2
+input send chkwin=0
+bestlen ack x=0
+bestlen ack type=A
+freerpkt seq=2
+freerbuf packet=2
+freerbuf rbufnum=1
+freesbuf=2
+input send rotated send window=3
+input about to flush
+ttflui ttpipe=0
+ttflux my_count=0
+ttflui ttyfd=6
+ttflui POSIX
+input winlo=3
+input rsn=2
+input returning type=Y
+PROTO input[7]=Y
+<ssattr>Y cxseen=0
+rsattr[]=0
+sattr flag=0
+window=1
+makebuf=1
+makebuf bufsiz=8205
+makebuf MAXWS=32
+mksbuf makebuf return=8205
+makebuf=1
+makebuf bufsiz=8209
+makebuf MAXWS=32
+mkrbuf makebuf return=8209
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+free: 1, winlo: 3
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+free: 1, winlo: 3
+sdata entry, first=1
+sdata drain=0
+sdata sbufnum=1
+sdata countdown=1
+nxtpkt pktnum=2
+nxtpkt winlo =3
+nxtpkt n=3
+chkwin packet=3
+chkwin winlo=3
+chkwin slots=1
+nxtpkt chkwin=0
+getsbuf packet=3
+getsbuf p=0
+sdata nxtpkt pktnum=3
+sdata packet=3
+conchk contyp=1
+conchk=0
+sdata spsiz=244
+sdata binary=0
+sdata parity=0
+maxdata spsiz 1=244
+maxdata spsiz 2=244
+maxdata len 1=233
+maxdata len 2=233
+getpkt first uflag=0
+getpkt first rt=0
+nxtdir funcnxt=0
+nxtdir funclen=28
+nxtdir funcbuf[Listing files: A:/CKW*.EXE
+
+]
+nxtdir return 1=L
+getpkt funcstr=L
+getpkt nleft=0
+nxtdir funcnxt=1
+nxtdir funclen=28
+nxtdir funcbuf[isting files: A:/CKW*.EXE
+
+]
+nxtdir return 1=i
+nxtdir funcnxt=2
+nxtdir funclen=28
+nxtdir funcbuf[sting files: A:/CKW*.EXE
+
+]
+nxtdir return 1=s
+nxtdir funcnxt=3
+nxtdir funclen=28
+nxtdir funcbuf[ting files: A:/CKW*.EXE
+
+]
+nxtdir return 1=t
+nxtdir funcnxt=4
+nxtdir funclen=28
+nxtdir funcbuf[ing files: A:/CKW*.EXE
+
+]
+nxtdir return 1=i
+nxtdir funcnxt=5
+nxtdir funclen=28
+nxtdir funcbuf[ng files: A:/CKW*.EXE
+
+]
+nxtdir return 1=n
+nxtdir funcnxt=6
+nxtdir funclen=28
+nxtdir funcbuf[g files: A:/CKW*.EXE
+
+]
+nxtdir return 1=g
+nxtdir funcnxt=7
+nxtdir funclen=28
+nxtdir funcbuf[ files: A:/CKW*.EXE
+
+]
+nxtdir return 1= 
+nxtdir funcnxt=8
+nxtdir funclen=28
+nxtdir funcbuf[files: A:/CKW*.EXE
+
+]
+nxtdir return 1=f
+nxtdir funcnxt=9
+nxtdir funclen=28
+nxtdir funcbuf[iles: A:/CKW*.EXE
+
+]
+nxtdir return 1=i
+nxtdir funcnxt=10
+nxtdir funclen=28
+nxtdir funcbuf[les: A:/CKW*.EXE
+
+]
+nxtdir return 1=l
+nxtdir funcnxt=11
+nxtdir funclen=28
+nxtdir funcbuf[es: A:/CKW*.EXE
+
+]
+nxtdir return 1=e
+nxtdir funcnxt=12
+nxtdir funclen=28
+nxtdir funcbuf[s: A:/CKW*.EXE
+
+]
+nxtdir return 1=s
+nxtdir funcnxt=13
+nxtdir funclen=28
+nxtdir funcbuf[: A:/CKW*.EXE
+
+]
+nxtdir return 1=:
+nxtdir funcnxt=14
+nxtdir funclen=28
+nxtdir funcbuf[ A:/CKW*.EXE
+
+]
+nxtdir return 1= 
+nxtdir funcnxt=15
+nxtdir funclen=28
+nxtdir funcbuf[A:/CKW*.EXE
+
+]
+nxtdir return 1=A
+nxtdir funcnxt=16
+nxtdir funclen=28
+nxtdir funcbuf[:/CKW*.EXE
+
+]
+nxtdir return 1=:
+nxtdir funcnxt=17
+nxtdir funclen=28
+nxtdir funcbuf[/CKW*.EXE
+
+]
+nxtdir return 1=/
+nxtdir funcnxt=18
+nxtdir funclen=28
+nxtdir funcbuf[CKW*.EXE
+
+]
+nxtdir return 1=C
+nxtdir funcnxt=19
+nxtdir funclen=28
+nxtdir funcbuf[KW*.EXE
+
+]
+nxtdir return 1=K
+nxtdir funcnxt=20
+nxtdir funclen=28
+nxtdir funcbuf[W*.EXE
+
+]
+nxtdir return 1=W
+nxtdir funcnxt=21
+nxtdir funclen=28
+nxtdir funcbuf[*.EXE
+
+]
+nxtdir return 1=*
+nxtdir funcnxt=22
+nxtdir funclen=28
+nxtdir funcbuf[.EXE
+
+]
+nxtdir return 1=.
+nxtdir funcnxt=23
+nxtdir funclen=28
+nxtdir funcbuf[EXE
+
+]
+nxtdir return 1=E
+nxtdir funcnxt=24
+nxtdir funclen=28
+nxtdir funcbuf[XE
+
+]
+nxtdir return 1=X
+nxtdir funcnxt=25
+nxtdir funclen=28
+nxtdir funcbuf[E
+
+]
+nxtdir return 1=E
+nxtdir funcnxt=26
+nxtdir funclen=28
+nxtdir funcbuf[
+
+]
+nxtdir return 1=^J
+nxtdir funcnxt=27
+nxtdir funclen=28
+nxtdir funcbuf[
+]
+nxtdir return 1=^J
+nxtdir funcnxt=28
+nxtdir funclen=28
+nxtdir funcbuf[]
+znext[CKWIN18.EXE]=4
+zgetfs fnam[CKWIN18.EXE]=11
+STAT=3
+zgetfs _IFLNK needrlink=0
+zgetfs size[CKWIN18.EXE]=-1
+zgetfs st_size[CKWIN18.EXE]=227166
+nxtdir zgetfs[CKWIN18.EXE]=227166
+zfcdat[CKWIN18.EXE]=1
+zdtstr timearg=20840
+zdtstr tm_year=70
+zdatstr year=1970
+zdatstr[19700101 00:47:20]=17
+nxtdir zcfdat[19700101 00:47:20]=0
+ziperm[CKWIN18.EXE]
+ziperm[-rwxrwxrwx]
+domydir perms[-rwxrwxrwx]
+nxtdir linkname[]=0
+nxtdir funclen=55
+nxtdir return 2=-
+nxtdir funcnxt=1
+nxtdir funclen=55
+nxtdir funcbuf[rwxrwxrwx    227166  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=r
+nxtdir funcnxt=2
+nxtdir funclen=55
+nxtdir funcbuf[wxrwxrwx    227166  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=w
+nxtdir funcnxt=3
+nxtdir funclen=55
+nxtdir funcbuf[xrwxrwx    227166  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=x
+nxtdir funcnxt=4
+nxtdir funclen=55
+nxtdir funcbuf[rwxrwx    227166  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=r
+nxtdir funcnxt=5
+nxtdir funclen=55
+nxtdir funcbuf[wxrwx    227166  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=w
+nxtdir funcnxt=6
+nxtdir funclen=55
+nxtdir funcbuf[xrwx    227166  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=x
+nxtdir funcnxt=7
+nxtdir funclen=55
+nxtdir funcbuf[rwx    227166  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=r
+nxtdir funcnxt=8
+nxtdir funclen=55
+nxtdir funcbuf[wx    227166  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=w
+nxtdir funcnxt=9
+nxtdir funclen=55
+nxtdir funcbuf[x    227166  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=x
+nxtdir funcnxt=10
+nxtdir funclen=55
+nxtdir funcbuf[    227166  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=11
+nxtdir funclen=55
+nxtdir funcbuf[   227166  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=12
+nxtdir funclen=55
+nxtdir funcbuf[  227166  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=13
+nxtdir funclen=55
+nxtdir funcbuf[ 227166  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=14
+nxtdir funclen=55
+nxtdir funcbuf[227166  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=2
+nxtdir funcnxt=15
+nxtdir funclen=55
+nxtdir funcbuf[27166  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=2
+nxtdir funcnxt=16
+nxtdir funclen=55
+nxtdir funcbuf[7166  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=7
+nxtdir funcnxt=17
+nxtdir funclen=55
+nxtdir funcbuf[166  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=1
+nxtdir funcnxt=18
+nxtdir funclen=55
+nxtdir funcbuf[66  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=6
+nxtdir funcnxt=19
+nxtdir funclen=55
+nxtdir funcbuf[6  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=6
+nxtdir funcnxt=20
+nxtdir funclen=55
+nxtdir funcbuf[  1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=21
+nxtdir funclen=55
+nxtdir funcbuf[ 1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=22
+nxtdir funclen=55
+nxtdir funcbuf[1970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=1
+nxtdir funcnxt=23
+nxtdir funclen=55
+nxtdir funcbuf[970-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=9
+nxtdir funcnxt=24
+nxtdir funclen=55
+nxtdir funcbuf[70-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=7
+nxtdir funcnxt=25
+nxtdir funclen=55
+nxtdir funcbuf[0-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=26
+nxtdir funclen=55
+nxtdir funcbuf[-01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=-
+nxtdir funcnxt=27
+nxtdir funclen=55
+nxtdir funcbuf[01-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=28
+nxtdir funclen=55
+nxtdir funcbuf[1-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=1
+nxtdir funcnxt=29
+nxtdir funclen=55
+nxtdir funcbuf[-01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=-
+nxtdir funcnxt=30
+nxtdir funclen=55
+nxtdir funcbuf[01 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=31
+nxtdir funclen=55
+nxtdir funcbuf[1 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=1
+nxtdir funcnxt=32
+nxtdir funclen=55
+nxtdir funcbuf[ 00:47:20  CKWIN18.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=33
+nxtdir funclen=55
+nxtdir funcbuf[00:47:20  CKWIN18.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=34
+nxtdir funclen=55
+nxtdir funcbuf[0:47:20  CKWIN18.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=35
+nxtdir funclen=55
+nxtdir funcbuf[:47:20  CKWIN18.EXE
+]
+nxtdir return 1=:
+nxtdir funcnxt=36
+nxtdir funclen=55
+nxtdir funcbuf[47:20  CKWIN18.EXE
+]
+nxtdir return 1=4
+nxtdir funcnxt=37
+nxtdir funclen=55
+nxtdir funcbuf[7:20  CKWIN18.EXE
+]
+nxtdir return 1=7
+nxtdir funcnxt=38
+nxtdir funclen=55
+nxtdir funcbuf[:20  CKWIN18.EXE
+]
+nxtdir return 1=:
+nxtdir funcnxt=39
+nxtdir funclen=55
+nxtdir funcbuf[20  CKWIN18.EXE
+]
+nxtdir return 1=2
+nxtdir funcnxt=40
+nxtdir funclen=55
+nxtdir funcbuf[0  CKWIN18.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=41
+nxtdir funclen=55
+nxtdir funcbuf[  CKWIN18.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=42
+nxtdir funclen=55
+nxtdir funcbuf[ CKWIN18.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=43
+nxtdir funclen=55
+nxtdir funcbuf[CKWIN18.EXE
+]
+nxtdir return 1=C
+nxtdir funcnxt=44
+nxtdir funclen=55
+nxtdir funcbuf[KWIN18.EXE
+]
+nxtdir return 1=K
+nxtdir funcnxt=45
+nxtdir funclen=55
+nxtdir funcbuf[WIN18.EXE
+]
+nxtdir return 1=W
+nxtdir funcnxt=46
+nxtdir funclen=55
+nxtdir funcbuf[IN18.EXE
+]
+nxtdir return 1=I
+nxtdir funcnxt=47
+nxtdir funclen=55
+nxtdir funcbuf[N18.EXE
+]
+nxtdir return 1=N
+nxtdir funcnxt=48
+nxtdir funclen=55
+nxtdir funcbuf[18.EXE
+]
+nxtdir return 1=1
+nxtdir funcnxt=49
+nxtdir funclen=55
+nxtdir funcbuf[8.EXE
+]
+nxtdir return 1=8
+nxtdir funcnxt=50
+nxtdir funclen=55
+nxtdir funcbuf[.EXE
+]
+nxtdir return 1=.
+nxtdir funcnxt=51
+nxtdir funclen=55
+nxtdir funcbuf[EXE
+]
+nxtdir return 1=E
+nxtdir funcnxt=52
+nxtdir funclen=55
+nxtdir funcbuf[XE
+]
+nxtdir return 1=X
+nxtdir funcnxt=53
+nxtdir funclen=55
+nxtdir funcbuf[E
+]
+nxtdir return 1=E
+nxtdir funcnxt=54
+nxtdir funclen=55
+nxtdir funcbuf[
+]
+nxtdir return 1=^J
+nxtdir funcnxt=55
+nxtdir funclen=55
+nxtdir funcbuf[]
+znext[CKWIN8K.EXE]=3
+zgetfs fnam[CKWIN8K.EXE]=11
+STAT=3
+zgetfs _IFLNK needrlink=0
+zgetfs size[CKWIN8K.EXE]=-1
+zgetfs st_size[CKWIN8K.EXE]=227166
+nxtdir zgetfs[CKWIN8K.EXE]=227166
+zfcdat[CKWIN8K.EXE]=1
+zdtstr timearg=20312
+zdtstr tm_year=70
+zdatstr year=1970
+zdatstr[19700101 00:38:32]=17
+nxtdir zcfdat[19700101 00:38:32]=0
+ziperm[CKWIN8K.EXE]
+ziperm[-rwxrwxrwx]
+domydir perms[-rwxrwxrwx]
+nxtdir linkname[]=0
+nxtdir funclen=55
+nxtdir return 2=-
+nxtdir funcnxt=1
+nxtdir funclen=55
+nxtdir funcbuf[rwxrwxrwx    227166  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=r
+nxtdir funcnxt=2
+nxtdir funclen=55
+nxtdir funcbuf[wxrwxrwx    227166  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=w
+nxtdir funcnxt=3
+nxtdir funclen=55
+nxtdir funcbuf[xrwxrwx    227166  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=x
+nxtdir funcnxt=4
+nxtdir funclen=55
+nxtdir funcbuf[rwxrwx    227166  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=r
+nxtdir funcnxt=5
+nxtdir funclen=55
+nxtdir funcbuf[wxrwx    227166  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=w
+nxtdir funcnxt=6
+nxtdir funclen=55
+nxtdir funcbuf[xrwx    227166  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=x
+nxtdir funcnxt=7
+nxtdir funclen=55
+nxtdir funcbuf[rwx    227166  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=r
+nxtdir funcnxt=8
+nxtdir funclen=55
+nxtdir funcbuf[wx    227166  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=w
+nxtdir funcnxt=9
+nxtdir funclen=55
+nxtdir funcbuf[x    227166  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=x
+nxtdir funcnxt=10
+nxtdir funclen=55
+nxtdir funcbuf[    227166  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=11
+nxtdir funclen=55
+nxtdir funcbuf[   227166  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=12
+nxtdir funclen=55
+nxtdir funcbuf[  227166  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=13
+nxtdir funclen=55
+nxtdir funcbuf[ 227166  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=14
+nxtdir funclen=55
+nxtdir funcbuf[227166  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=2
+nxtdir funcnxt=15
+nxtdir funclen=55
+nxtdir funcbuf[27166  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=2
+nxtdir funcnxt=16
+nxtdir funclen=55
+nxtdir funcbuf[7166  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=7
+nxtdir funcnxt=17
+nxtdir funclen=55
+nxtdir funcbuf[166  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=1
+nxtdir funcnxt=18
+nxtdir funclen=55
+nxtdir funcbuf[66  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=6
+nxtdir funcnxt=19
+nxtdir funclen=55
+nxtdir funcbuf[6  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=6
+nxtdir funcnxt=20
+nxtdir funclen=55
+nxtdir funcbuf[  1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=21
+nxtdir funclen=55
+nxtdir funcbuf[ 1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=22
+nxtdir funclen=55
+nxtdir funcbuf[1970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=1
+nxtdir funcnxt=23
+nxtdir funclen=55
+nxtdir funcbuf[970-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=9
+nxtdir funcnxt=24
+nxtdir funclen=55
+nxtdir funcbuf[70-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=7
+nxtdir funcnxt=25
+nxtdir funclen=55
+nxtdir funcbuf[0-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=26
+nxtdir funclen=55
+nxtdir funcbuf[-01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=-
+nxtdir funcnxt=27
+nxtdir funclen=55
+nxtdir funcbuf[01-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=28
+nxtdir funclen=55
+nxtdir funcbuf[1-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=1
+nxtdir funcnxt=29
+nxtdir funclen=55
+nxtdir funcbuf[-01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=-
+nxtdir funcnxt=30
+nxtdir funclen=55
+nxtdir funcbuf[01 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=31
+nxtdir funclen=55
+nxtdir funcbuf[1 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=1
+nxtdir funcnxt=32
+nxtdir funclen=55
+nxtdir funcbuf[ 00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=33
+nxtdir funclen=55
+nxtdir funcbuf[00:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=34
+nxtdir funclen=55
+nxtdir funcbuf[0:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=35
+nxtdir funclen=55
+nxtdir funcbuf[:38:32  CKWIN8K.EXE
+]
+nxtdir return 1=:
+nxtdir funcnxt=36
+nxtdir funclen=55
+nxtdir funcbuf[38:32  CKWIN8K.EXE
+]
+nxtdir return 1=3
+nxtdir funcnxt=37
+nxtdir funclen=55
+nxtdir funcbuf[8:32  CKWIN8K.EXE
+]
+nxtdir return 1=8
+nxtdir funcnxt=38
+nxtdir funclen=55
+nxtdir funcbuf[:32  CKWIN8K.EXE
+]
+nxtdir return 1=:
+nxtdir funcnxt=39
+nxtdir funclen=55
+nxtdir funcbuf[32  CKWIN8K.EXE
+]
+nxtdir return 1=3
+nxtdir funcnxt=40
+nxtdir funclen=55
+nxtdir funcbuf[2  CKWIN8K.EXE
+]
+nxtdir return 1=2
+nxtdir funcnxt=41
+nxtdir funclen=55
+nxtdir funcbuf[  CKWIN8K.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=42
+nxtdir funclen=55
+nxtdir funcbuf[ CKWIN8K.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=43
+nxtdir funclen=55
+nxtdir funcbuf[CKWIN8K.EXE
+]
+nxtdir return 1=C
+nxtdir funcnxt=44
+nxtdir funclen=55
+nxtdir funcbuf[KWIN8K.EXE
+]
+nxtdir return 1=K
+nxtdir funcnxt=45
+nxtdir funclen=55
+nxtdir funcbuf[WIN8K.EXE
+]
+nxtdir return 1=W
+nxtdir funcnxt=46
+nxtdir funclen=55
+nxtdir funcbuf[IN8K.EXE
+]
+nxtdir return 1=I
+nxtdir funcnxt=47
+nxtdir funclen=55
+nxtdir funcbuf[N8K.EXE
+]
+nxtdir return 1=N
+nxtdir funcnxt=48
+nxtdir funclen=55
+nxtdir funcbuf[8K.EXE
+]
+nxtdir return 1=8
+nxtdir funcnxt=49
+nxtdir funclen=55
+nxtdir funcbuf[K.EXE
+]
+nxtdir return 1=K
+nxtdir funcnxt=50
+nxtdir funclen=55
+nxtdir funcbuf[.EXE
+]
+nxtdir return 1=.
+nxtdir funcnxt=51
+nxtdir funclen=55
+nxtdir funcbuf[EXE
+]
+nxtdir return 1=E
+nxtdir funcnxt=52
+nxtdir funclen=55
+nxtdir funcbuf[XE
+]
+nxtdir return 1=X
+nxtdir funcnxt=53
+nxtdir funclen=55
+nxtdir funcbuf[E
+]
+nxtdir return 1=E
+nxtdir funcnxt=54
+nxtdir funclen=55
+nxtdir funcbuf[
+]
+nxtdir return 1=^J
+nxtdir funcnxt=55
+nxtdir funclen=55
+nxtdir funcbuf[]
+znext[CKWINB.EXE]=2
+zgetfs fnam[CKWINB.EXE]=10
+STAT=3
+zgetfs _IFLNK needrlink=0
+zgetfs size[CKWINB.EXE]=-1
+zgetfs st_size[CKWINB.EXE]=226936
+nxtdir zgetfs[CKWINB.EXE]=226936
+zfcdat[CKWINB.EXE]=1
+zdtstr timearg=42784
+zdtstr tm_year=70
+zdatstr year=1970
+zdatstr[19700101 06:53:04]=17
+nxtdir zcfdat[19700101 06:53:04]=0
+ziperm[CKWINB.EXE]
+ziperm[-rwxrwxrwx]
+domydir perms[-rwxrwxrwx]
+nxtdir linkname[]=0
+nxtdir funclen=54
+nxtdir return 2=-
+nxtdir funcnxt=1
+nxtdir funclen=54
+nxtdir funcbuf[rwxrwxrwx    226936  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=r
+nxtdir funcnxt=2
+nxtdir funclen=54
+nxtdir funcbuf[wxrwxrwx    226936  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=w
+nxtdir funcnxt=3
+nxtdir funclen=54
+nxtdir funcbuf[xrwxrwx    226936  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=x
+nxtdir funcnxt=4
+nxtdir funclen=54
+nxtdir funcbuf[rwxrwx    226936  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=r
+nxtdir funcnxt=5
+nxtdir funclen=54
+nxtdir funcbuf[wxrwx    226936  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=w
+nxtdir funcnxt=6
+nxtdir funclen=54
+nxtdir funcbuf[xrwx    226936  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=x
+nxtdir funcnxt=7
+nxtdir funclen=54
+nxtdir funcbuf[rwx    226936  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=r
+nxtdir funcnxt=8
+nxtdir funclen=54
+nxtdir funcbuf[wx    226936  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=w
+nxtdir funcnxt=9
+nxtdir funclen=54
+nxtdir funcbuf[x    226936  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=x
+nxtdir funcnxt=10
+nxtdir funclen=54
+nxtdir funcbuf[    226936  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=11
+nxtdir funclen=54
+nxtdir funcbuf[   226936  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=12
+nxtdir funclen=54
+nxtdir funcbuf[  226936  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=13
+nxtdir funclen=54
+nxtdir funcbuf[ 226936  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=14
+nxtdir funclen=54
+nxtdir funcbuf[226936  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=2
+nxtdir funcnxt=15
+nxtdir funclen=54
+nxtdir funcbuf[26936  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=2
+nxtdir funcnxt=16
+nxtdir funclen=54
+nxtdir funcbuf[6936  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=6
+nxtdir funcnxt=17
+nxtdir funclen=54
+nxtdir funcbuf[936  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=9
+nxtdir funcnxt=18
+nxtdir funclen=54
+nxtdir funcbuf[36  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=3
+nxtdir funcnxt=19
+nxtdir funclen=54
+nxtdir funcbuf[6  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=6
+nxtdir funcnxt=20
+nxtdir funclen=54
+nxtdir funcbuf[  1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=21
+nxtdir funclen=54
+nxtdir funcbuf[ 1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=22
+nxtdir funclen=54
+nxtdir funcbuf[1970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=1
+nxtdir funcnxt=23
+nxtdir funclen=54
+nxtdir funcbuf[970-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=9
+nxtdir funcnxt=24
+nxtdir funclen=54
+nxtdir funcbuf[70-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=7
+nxtdir funcnxt=25
+nxtdir funclen=54
+nxtdir funcbuf[0-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=26
+nxtdir funclen=54
+nxtdir funcbuf[-01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=-
+nxtdir funcnxt=27
+nxtdir funclen=54
+nxtdir funcbuf[01-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=28
+nxtdir funclen=54
+nxtdir funcbuf[1-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=1
+nxtdir funcnxt=29
+nxtdir funclen=54
+nxtdir funcbuf[-01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=-
+nxtdir funcnxt=30
+nxtdir funclen=54
+nxtdir funcbuf[01 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=31
+nxtdir funclen=54
+nxtdir funcbuf[1 06:53:04  CKWINB.EXE
+]
+nxtdir return 1=1
+nxtdir funcnxt=32
+nxtdir funclen=54
+nxtdir funcbuf[ 06:53:04  CKWINB.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=33
+nxtdir funclen=54
+nxtdir funcbuf[06:53:04  CKWINB.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=34
+nxtdir funclen=54
+nxtdir funcbuf[6:53:04  CKWINB.EXE
+]
+nxtdir return 1=6
+nxtdir funcnxt=35
+nxtdir funclen=54
+nxtdir funcbuf[:53:04  CKWINB.EXE
+]
+nxtdir return 1=:
+nxtdir funcnxt=36
+nxtdir funclen=54
+nxtdir funcbuf[53:04  CKWINB.EXE
+]
+nxtdir return 1=5
+nxtdir funcnxt=37
+nxtdir funclen=54
+nxtdir funcbuf[3:04  CKWINB.EXE
+]
+nxtdir return 1=3
+nxtdir funcnxt=38
+nxtdir funclen=54
+nxtdir funcbuf[:04  CKWINB.EXE
+]
+nxtdir return 1=:
+nxtdir funcnxt=39
+nxtdir funclen=54
+nxtdir funcbuf[04  CKWINB.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=40
+nxtdir funclen=54
+nxtdir funcbuf[4  CKWINB.EXE
+]
+nxtdir return 1=4
+nxtdir funcnxt=41
+nxtdir funclen=54
+nxtdir funcbuf[  CKWINB.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=42
+nxtdir funclen=54
+nxtdir funcbuf[ CKWINB.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=43
+nxtdir funclen=54
+nxtdir funcbuf[CKWINB.EXE
+]
+nxtdir return 1=C
+nxtdir funcnxt=44
+nxtdir funclen=54
+nxtdir funcbuf[KWINB.EXE
+]
+nxtdir return 1=K
+nxtdir funcnxt=45
+nxtdir funclen=54
+nxtdir funcbuf[WINB.EXE
+]
+nxtdir return 1=W
+nxtdir funcnxt=46
+nxtdir funclen=54
+nxtdir funcbuf[INB.EXE
+]
+nxtdir return 1=I
+nxtdir funcnxt=47
+nxtdir funclen=54
+nxtdir funcbuf[NB.EXE
+]
+nxtdir return 1=N
+nxtdir funcnxt=48
+nxtdir funclen=54
+nxtdir funcbuf[B.EXE
+]
+nxtdir return 1=B
+nxtdir funcnxt=49
+nxtdir funclen=54
+nxtdir funcbuf[.EXE
+]
+nxtdir return 1=.
+nxtdir funcnxt=50
+nxtdir funclen=54
+nxtdir funcbuf[EXE
+]
+nxtdir return 1=E
+nxtdir funcnxt=51
+nxtdir funclen=54
+nxtdir funcbuf[XE
+]
+nxtdir return 1=X
+nxtdir funcnxt=52
+nxtdir funclen=54
+nxtdir funcbuf[E
+]
+nxtdir return 1=E
+nxtdir funcnxt=53
+nxtdir funclen=54
+nxtdir funcbuf[
+]
+nxtdir return 1=^J
+nxtdir funcnxt=54
+nxtdir funclen=54
+nxtdir funcbuf[]
+znext[CKWINBAD.EXE]=1
+zgetfs fnam[CKWINBAD.EXE]=12
+STAT=3
+zgetfs _IFLNK needrlink=0
+zgetfs size[CKWINBAD.EXE]=-1
+zgetfs st_size[CKWINBAD.EXE]=227166
+nxtdir zgetfs[CKWINBAD.EXE]=227166
+zfcdat[CKWINBAD.EXE]=1
+zdtstr timearg=20312
+zdtstr tm_year=70
+zdatstr year=1970
+zdatstr[19700101 00:38:32]=17
+nxtdir zcfdat[19700101 00:38:32]=0
+ziperm[CKWINBAD.EXE]
+ziperm[-rwxrwxrwx]
+domydir perms[-rwxrwxrwx]
+nxtdir linkname[]=0
+nxtdir funclen=56
+nxtdir return 2=-
+nxtdir funcnxt=1
+nxtdir funclen=56
+nxtdir funcbuf[rwxrwxrwx    227166  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=r
+nxtdir funcnxt=2
+nxtdir funclen=56
+nxtdir funcbuf[wxrwxrwx    227166  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=w
+nxtdir funcnxt=3
+nxtdir funclen=56
+nxtdir funcbuf[xrwxrwx    227166  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=x
+nxtdir funcnxt=4
+nxtdir funclen=56
+nxtdir funcbuf[rwxrwx    227166  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=r
+nxtdir funcnxt=5
+nxtdir funclen=56
+nxtdir funcbuf[wxrwx    227166  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=w
+nxtdir funcnxt=6
+nxtdir funclen=56
+nxtdir funcbuf[xrwx    227166  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=x
+nxtdir funcnxt=7
+nxtdir funclen=56
+nxtdir funcbuf[rwx    227166  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=r
+nxtdir funcnxt=8
+nxtdir funclen=56
+nxtdir funcbuf[wx    227166  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=w
+nxtdir funcnxt=9
+nxtdir funclen=56
+nxtdir funcbuf[x    227166  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=x
+nxtdir funcnxt=10
+nxtdir funclen=56
+nxtdir funcbuf[    227166  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=11
+nxtdir funclen=56
+nxtdir funcbuf[   227166  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=12
+nxtdir funclen=56
+nxtdir funcbuf[  227166  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=13
+nxtdir funclen=56
+nxtdir funcbuf[ 227166  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=14
+nxtdir funclen=56
+nxtdir funcbuf[227166  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=2
+nxtdir funcnxt=15
+nxtdir funclen=56
+nxtdir funcbuf[27166  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=2
+nxtdir funcnxt=16
+nxtdir funclen=56
+nxtdir funcbuf[7166  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=7
+nxtdir funcnxt=17
+nxtdir funclen=56
+nxtdir funcbuf[166  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=1
+nxtdir funcnxt=18
+nxtdir funclen=56
+nxtdir funcbuf[66  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=6
+nxtdir funcnxt=19
+nxtdir funclen=56
+nxtdir funcbuf[6  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=6
+nxtdir funcnxt=20
+nxtdir funclen=56
+nxtdir funcbuf[  1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=21
+nxtdir funclen=56
+nxtdir funcbuf[ 1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=22
+nxtdir funclen=56
+nxtdir funcbuf[1970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=1
+nxtdir funcnxt=23
+nxtdir funclen=56
+nxtdir funcbuf[970-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=9
+nxtdir funcnxt=24
+nxtdir funclen=56
+nxtdir funcbuf[70-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=7
+nxtdir funcnxt=25
+nxtdir funclen=56
+nxtdir funcbuf[0-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=26
+nxtdir funclen=56
+nxtdir funcbuf[-01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=-
+nxtdir funcnxt=27
+nxtdir funclen=56
+nxtdir funcbuf[01-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=28
+nxtdir funclen=56
+nxtdir funcbuf[1-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=1
+nxtdir funcnxt=29
+nxtdir funclen=56
+nxtdir funcbuf[-01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=-
+nxtdir funcnxt=30
+nxtdir funclen=56
+nxtdir funcbuf[01 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=31
+nxtdir funclen=56
+nxtdir funcbuf[1 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=1
+nxtdir funcnxt=32
+nxtdir funclen=56
+nxtdir funcbuf[ 00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=33
+nxtdir funclen=56
+nxtdir funcbuf[00:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=34
+nxtdir funclen=56
+nxtdir funcbuf[0:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=0
+nxtdir funcnxt=35
+nxtdir funclen=56
+nxtdir funcbuf[:38:32  CKWINBAD.EXE
+]
+nxtdir return 1=:
+nxtdir funcnxt=36
+nxtdir funclen=56
+nxtdir funcbuf[38:32  CKWINBAD.EXE
+]
+nxtdir return 1=3
+nxtdir funcnxt=37
+nxtdir funclen=56
+nxtdir funcbuf[8:32  CKWINBAD.EXE
+]
+nxtdir return 1=8
+nxtdir funcnxt=38
+nxtdir funclen=56
+nxtdir funcbuf[:32  CKWINBAD.EXE
+]
+nxtdir return 1=:
+nxtdir funcnxt=39
+nxtdir funclen=56
+nxtdir funcbuf[32  CKWINBAD.EXE
+]
+nxtdir return 1=3
+nxtdir funcnxt=40
+nxtdir funclen=56
+nxtdir funcbuf[2  CKWINBAD.EXE
+]
+nxtdir return 1=2
+getpkt EOP=2
+sdata pktnum=3
+sdata len=233
+sdata data[Listing files: A:/CKW*.EXE#J#J-rwxrwxrwx~$ 227166  1..]
+SPACK n=3
+SPACK data len=233
+SPACK copy=0
+SPACK LP decision lpcapu=1
+SPACK LP decision len=233
+SPACK LP decision bctl=3
+SPACK LP decision len+bctl=236
+SPACK LP decision longpkt=1
+SPACK len=233
+SPACK bctl=3
+SPACK j=236
+SPACK longpkt=1
+SPACK doing long packet
+chk3=8728
+gtimer=21
+HEXDUMP: ttol s (244 bytes)
+01 20 23 44 22 4e 5a 4c | 69 73 74 69 6e 67 20 66  . #D"NZL isting f
+69 6c 65 73 3a 20 41 3a | 2f 43 4b 57 2a 2e 45 58  iles: A: /CKW*.EX
+45 23 4a 23 4a 2d 72 77 | 78 72 77 78 72 77 78 7e  E#J#J-rw xrwxrwx~
+24 20 32 32 37 31 36 36 | 20 20 31 39 37 30 2d 30  $ 227166   1970-0
+31 2d 30 31 20 30 30 3a | 34 37 3a 32 30 20 20 43  1-01 00: 47:20  C
+4b 57 49 4e 31 38 2e 45 | 58 45 23 4a 2d 72 77 78  KWIN18.E XE#J-rwx
+72 77 78 72 77 78 7e 24 | 20 32 32 37 31 36 36 20  rwxrwx~$  227166 
+20 31 39 37 30 2d 30 31 | 2d 30 31 20 30 30 3a 33   1970-01 -01 00:3
+38 3a 33 32 20 20 43 4b | 57 49 4e 38 4b 2e 45 58  8:32  CK WIN8K.EX
+45 23 4a 2d 72 77 78 72 | 77 78 72 77 78 7e 24 20  E#J-rwxr wxrwx~$ 
+32 32 36 39 33 36 20 20 | 31 39 37 30 2d 30 31 2d  226936   1970-01-
+30 31 20 30 36 3a 35 33 | 3a 30 34 20 20 43 4b 57  01 06:53 :04  CKW
+49 4e 42 2e 45 58 45 23 | 4a 2d 72 77 78 72 77 78  INB.EXE# J-rwxrwx
+72 77 78 7e 24 20 32 32 | 37 31 36 36 20 20 31 39  rwx~$ 22 7166  19
+37 30 2d 30 31 2d 30 31 | 20 30 30 3a 33 38 3a 33  70-01-01  00:38:3
+22 28 38 0d             |                          "(8.
+ttol try=1
+ttol ok=244
+SPACK spktl=244
+SPACK ttol returns=244
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24352 8205   244   D    3     0
+[ #D"NZListing files: A:/CKW*.EXE#J#J-rwxrwxrwx~$ 227166  1970-01-01 00:...]
+free: 0, winlo: 3
+SPACK calling screen, mydata=[ #D"NZListing files: A:/CKW*.EXE#J#J-rwxrwxrwx~$ 227166  1970-01-01 00:47:20  CKWIN18.EXE#J-rwxrwxrwx~$ 227166  1970-01-01 00:38:32  CKWIN8K.EXE#J-rwxrwxrwx~$ 226936  1970-01-01 06:53:04  CKWINB.EXE#J-rwxrwxrwx~$ 227166  1970-01-01 00:38:3"(8]=3
+sdata spack=244
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=16
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=16
+in_chk result=16
+sdata ttchk=16
+input sstate=^@
+input nakstate=0
+input sndtyp=D
+input xitsta=0
+input what=2
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=16
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=16
+in_chk result=16
+rpack pktnum=3
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=20
+rpack rcvtimo=20
+rpack streaming=0
+ttinl max=8208
+ttinl timo=20
+v9k alarm secs/at[20]=-4613
+ttinl alarm=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=16
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (16 bytes)
+01 25 23 4e 29 42 47 0d | 01 25 23 59 2f 52 39 0d  .%#N)BG. .%#Y/R9.
+TTINL myread char=^A
+v9k alarm secs/at[0]=-4613
+HEXDUMP: ttinl got (8 bytes)
+01 25 23 4e 29 42 47 0d |                          .%#N)BG.
+rpack ttinl len=8
+rpack bctl=3
+rpack chklen=3
+chk3=39079
+rpack block check OK=3
+gtimer=25
+input send[]=78
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32562 8209     0   N    3     0
+[%#N]
+free: 0, winlo: 3
+chkwin packet=3
+chkwin winlo=3
+chkwin slots=1
+input send rsn=3
+input send winlo=3
+input send chkwin=0
+input send NAK=3
+input N cut packet length=126
+freerpkt seq=3
+freerbuf packet=3
+freerbuf rbufnum=1
+ in window
+resend seq=3
+chkwin packet=3
+chkwin winlo=3
+chkwin slots=1
+resend pktinfo index=0
+resend retry=1
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24352 8205   244   D    3     1
+[ #D"NZListing files: A:/CKW*.EXE#J#J-rwxrwxrwx~$ 227166  1970-01-01 00:...]
+free: 0, winlo: 3
+gtimer=25
+HEXDUMP: ttol s (244 bytes)
+01 20 23 44 22 4e 5a 4c | 69 73 74 69 6e 67 20 66  . #D"NZL isting f
+69 6c 65 73 3a 20 41 3a | 2f 43 4b 57 2a 2e 45 58  iles: A: /CKW*.EX
+45 23 4a 23 4a 2d 72 77 | 78 72 77 78 72 77 78 7e  E#J#J-rw xrwxrwx~
+24 20 32 32 37 31 36 36 | 20 20 31 39 37 30 2d 30  $ 227166   1970-0
+31 2d 30 31 20 30 30 3a | 34 37 3a 32 30 20 20 43  1-01 00: 47:20  C
+4b 57 49 4e 31 38 2e 45 | 58 45 23 4a 2d 72 77 78  KWIN18.E XE#J-rwx
+72 77 78 72 77 78 7e 24 | 20 32 32 37 31 36 36 20  rwxrwx~$  227166 
+20 31 39 37 30 2d 30 31 | 2d 30 31 20 30 30 3a 33   1970-01 -01 00:3
+38 3a 33 32 20 20 43 4b | 57 49 4e 38 4b 2e 45 58  8:32  CK WIN8K.EX
+45 23 4a 2d 72 77 78 72 | 77 78 72 77 78 7e 24 20  E#J-rwxr wxrwx~$ 
+32 32 36 39 33 36 20 20 | 31 39 37 30 2d 30 31 2d  226936   1970-01-
+30 31 20 30 36 3a 35 33 | 3a 30 34 20 20 43 4b 57  01 06:53 :04  CKW
+49 4e 42 2e 45 58 45 23 | 4a 2d 72 77 78 72 77 78  INB.EXE# J-rwxrwx
+72 77 78 7e 24 20 32 32 | 37 31 36 36 20 20 31 39  rwx~$ 22 7166  19
+37 30 2d 30 31 2d 30 31 | 20 30 30 3a 33 38 3a 33  70-01-01  00:38:3
+22 28 38 0d             |                          "(8.
+ttol try=1
+ttol ok=244
+resend ttol returns=244
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=8
+in_chk FIONREAD errno=0
+in_chk my_count=8
+in_chk n=8
+in_chk result=16
+rpack pktnum=3
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=20
+rpack rcvtimo=20
+rpack streaming=0
+ttinl max=8208
+ttinl timo=20
+v9k alarm secs/at[20]=-4609
+ttinl alarm=0
+ttinl eol=13
+TTINL myread char=^A
+v9k alarm secs/at[0]=-4609
+HEXDUMP: ttinl got (8 bytes)
+01 25 23 59 2f 52 39 0d |                          .%#Y/R9.
+rpack ttinl len=8
+rpack bctl=3
+rpack chklen=3
+chk3=64665
+rpack block check OK=3
+gtimer=28
+input send[]=89
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32562 8209     0   Y    3     0
+[%#Y]
+free: 0, winlo: 3
+chkwin packet=3
+chkwin winlo=3
+chkwin slots=1
+input send rsn=3
+input send winlo=3
+input send chkwin=0
+bestlen ack x=0
+bestlen ack type=D
+bestlen B=126
+bestlen retry=1
+bestlen len=244
+bestlen spackets=2
+bestlen wslots=1
+bestlen maxsend=244
+bestlen spsiz A=252
+freerpkt seq=3
+freerbuf packet=3
+freerbuf rbufnum=1
+freesbuf=3
+input send rotated send window=4
+input about to flush
+ttflui ttpipe=0
+ttflux my_count=0
+ttflui ttyfd=6
+ttflui POSIX
+input winlo=4
+input rsn=3
+input returning type=Y
+PROTO input[8]=Y
+canned: cxseen=0
+ czseen=0
+<ssdata>Y cxseen[]=0
+<ssdata>Y czseen[]=0
+sdata entry, first=0
+sdata drain=0
+sdata sbufnum=1
+sdata countdown=1
+nxtpkt pktnum=3
+nxtpkt winlo =4
+nxtpkt n=4
+chkwin packet=4
+chkwin winlo=4
+chkwin slots=1
+nxtpkt chkwin=0
+getsbuf packet=4
+getsbuf p=0
+sdata nxtpkt pktnum=4
+sdata packet=4
+conchk contyp=1
+conchk=0
+sdata spsiz=252
+sdata binary=0
+sdata parity=0
+maxdata spsiz 1=252
+maxdata spsiz 2=252
+maxdata len 1=241
+maxdata len 2=241
+getpkt nleft=0
+nxtdir funcnxt=41
+nxtdir funclen=56
+nxtdir funcbuf[  CKWINBAD.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=42
+nxtdir funclen=56
+nxtdir funcbuf[ CKWINBAD.EXE
+]
+nxtdir return 1= 
+nxtdir funcnxt=43
+nxtdir funclen=56
+nxtdir funcbuf[CKWINBAD.EXE
+]
+nxtdir return 1=C
+nxtdir funcnxt=44
+nxtdir funclen=56
+nxtdir funcbuf[KWINBAD.EXE
+]
+nxtdir return 1=K
+nxtdir funcnxt=45
+nxtdir funclen=56
+nxtdir funcbuf[WINBAD.EXE
+]
+nxtdir return 1=W
+nxtdir funcnxt=46
+nxtdir funclen=56
+nxtdir funcbuf[INBAD.EXE
+]
+nxtdir return 1=I
+nxtdir funcnxt=47
+nxtdir funclen=56
+nxtdir funcbuf[NBAD.EXE
+]
+nxtdir return 1=N
+nxtdir funcnxt=48
+nxtdir funclen=56
+nxtdir funcbuf[BAD.EXE
+]
+nxtdir return 1=B
+nxtdir funcnxt=49
+nxtdir funclen=56
+nxtdir funcbuf[AD.EXE
+]
+nxtdir return 1=A
+nxtdir funcnxt=50
+nxtdir funclen=56
+nxtdir funcbuf[D.EXE
+]
+nxtdir return 1=D
+nxtdir funcnxt=51
+nxtdir funclen=56
+nxtdir funcbuf[.EXE
+]
+nxtdir return 1=.
+nxtdir funcnxt=52
+nxtdir funclen=56
+nxtdir funcbuf[EXE
+]
+nxtdir return 1=E
+nxtdir funcnxt=53
+nxtdir funclen=56
+nxtdir funcbuf[XE
+]
+nxtdir return 1=X
+nxtdir funcnxt=54
+nxtdir funclen=56
+nxtdir funcbuf[E
+]
+nxtdir return 1=E
+nxtdir funcnxt=55
+nxtdir funclen=56
+nxtdir funcbuf[
+]
+nxtdir return 1=^J
+nxtdir funcnxt=56
+nxtdir funclen=56
+nxtdir funcbuf[]
+nxtdir funclen=47
+nxtdir return 2=^J
+nxtdir funcnxt=1
+nxtdir funclen=47
+nxtdir funcbuf[Summary: 0 directories, 4 files, 908434 bytes
+]
+nxtdir return 1=S
+nxtdir funcnxt=2
+nxtdir funclen=47
+nxtdir funcbuf[ummary: 0 directories, 4 files, 908434 bytes
+]
+nxtdir return 1=u
+nxtdir funcnxt=3
+nxtdir funclen=47
+nxtdir funcbuf[mmary: 0 directories, 4 files, 908434 bytes
+]
+nxtdir return 1=m
+nxtdir funcnxt=4
+nxtdir funclen=47
+nxtdir funcbuf[mary: 0 directories, 4 files, 908434 bytes
+]
+nxtdir return 1=m
+nxtdir funcnxt=5
+nxtdir funclen=47
+nxtdir funcbuf[ary: 0 directories, 4 files, 908434 bytes
+]
+nxtdir return 1=a
+nxtdir funcnxt=6
+nxtdir funclen=47
+nxtdir funcbuf[ry: 0 directories, 4 files, 908434 bytes
+]
+nxtdir return 1=r
+nxtdir funcnxt=7
+nxtdir funclen=47
+nxtdir funcbuf[y: 0 directories, 4 files, 908434 bytes
+]
+nxtdir return 1=y
+nxtdir funcnxt=8
+nxtdir funclen=47
+nxtdir funcbuf[: 0 directories, 4 files, 908434 bytes
+]
+nxtdir return 1=:
+nxtdir funcnxt=9
+nxtdir funclen=47
+nxtdir funcbuf[ 0 directories, 4 files, 908434 bytes
+]
+nxtdir return 1= 
+nxtdir funcnxt=10
+nxtdir funclen=47
+nxtdir funcbuf[0 directories, 4 files, 908434 bytes
+]
+nxtdir return 1=0
+nxtdir funcnxt=11
+nxtdir funclen=47
+nxtdir funcbuf[ directories, 4 files, 908434 bytes
+]
+nxtdir return 1= 
+nxtdir funcnxt=12
+nxtdir funclen=47
+nxtdir funcbuf[directories, 4 files, 908434 bytes
+]
+nxtdir return 1=d
+nxtdir funcnxt=13
+nxtdir funclen=47
+nxtdir funcbuf[irectories, 4 files, 908434 bytes
+]
+nxtdir return 1=i
+nxtdir funcnxt=14
+nxtdir funclen=47
+nxtdir funcbuf[rectories, 4 files, 908434 bytes
+]
+nxtdir return 1=r
+nxtdir funcnxt=15
+nxtdir funclen=47
+nxtdir funcbuf[ectories, 4 files, 908434 bytes
+]
+nxtdir return 1=e
+nxtdir funcnxt=16
+nxtdir funclen=47
+nxtdir funcbuf[ctories, 4 files, 908434 bytes
+]
+nxtdir return 1=c
+nxtdir funcnxt=17
+nxtdir funclen=47
+nxtdir funcbuf[tories, 4 files, 908434 bytes
+]
+nxtdir return 1=t
+nxtdir funcnxt=18
+nxtdir funclen=47
+nxtdir funcbuf[ories, 4 files, 908434 bytes
+]
+nxtdir return 1=o
+nxtdir funcnxt=19
+nxtdir funclen=47
+nxtdir funcbuf[ries, 4 files, 908434 bytes
+]
+nxtdir return 1=r
+nxtdir funcnxt=20
+nxtdir funclen=47
+nxtdir funcbuf[ies, 4 files, 908434 bytes
+]
+nxtdir return 1=i
+nxtdir funcnxt=21
+nxtdir funclen=47
+nxtdir funcbuf[es, 4 files, 908434 bytes
+]
+nxtdir return 1=e
+nxtdir funcnxt=22
+nxtdir funclen=47
+nxtdir funcbuf[s, 4 files, 908434 bytes
+]
+nxtdir return 1=s
+nxtdir funcnxt=23
+nxtdir funclen=47
+nxtdir funcbuf[, 4 files, 908434 bytes
+]
+nxtdir return 1=,
+nxtdir funcnxt=24
+nxtdir funclen=47
+nxtdir funcbuf[ 4 files, 908434 bytes
+]
+nxtdir return 1= 
+nxtdir funcnxt=25
+nxtdir funclen=47
+nxtdir funcbuf[4 files, 908434 bytes
+]
+nxtdir return 1=4
+nxtdir funcnxt=26
+nxtdir funclen=47
+nxtdir funcbuf[ files, 908434 bytes
+]
+nxtdir return 1= 
+nxtdir funcnxt=27
+nxtdir funclen=47
+nxtdir funcbuf[files, 908434 bytes
+]
+nxtdir return 1=f
+nxtdir funcnxt=28
+nxtdir funclen=47
+nxtdir funcbuf[iles, 908434 bytes
+]
+nxtdir return 1=i
+nxtdir funcnxt=29
+nxtdir funclen=47
+nxtdir funcbuf[les, 908434 bytes
+]
+nxtdir return 1=l
+nxtdir funcnxt=30
+nxtdir funclen=47
+nxtdir funcbuf[es, 908434 bytes
+]
+nxtdir return 1=e
+nxtdir funcnxt=31
+nxtdir funclen=47
+nxtdir funcbuf[s, 908434 bytes
+]
+nxtdir return 1=s
+nxtdir funcnxt=32
+nxtdir funclen=47
+nxtdir funcbuf[, 908434 bytes
+]
+nxtdir return 1=,
+nxtdir funcnxt=33
+nxtdir funclen=47
+nxtdir funcbuf[ 908434 bytes
+]
+nxtdir return 1= 
+nxtdir funcnxt=34
+nxtdir funclen=47
+nxtdir funcbuf[908434 bytes
+]
+nxtdir return 1=9
+nxtdir funcnxt=35
+nxtdir funclen=47
+nxtdir funcbuf[08434 bytes
+]
+nxtdir return 1=0
+nxtdir funcnxt=36
+nxtdir funclen=47
+nxtdir funcbuf[8434 bytes
+]
+nxtdir return 1=8
+nxtdir funcnxt=37
+nxtdir funclen=47
+nxtdir funcbuf[434 bytes
+]
+nxtdir return 1=4
+nxtdir funcnxt=38
+nxtdir funclen=47
+nxtdir funcbuf[34 bytes
+]
+nxtdir return 1=3
+nxtdir funcnxt=39
+nxtdir funclen=47
+nxtdir funcbuf[4 bytes
+]
+nxtdir return 1=4
+nxtdir funcnxt=40
+nxtdir funclen=47
+nxtdir funcbuf[ bytes
+]
+nxtdir return 1= 
+nxtdir funcnxt=41
+nxtdir funclen=47
+nxtdir funcbuf[bytes
+]
+nxtdir return 1=b
+nxtdir funcnxt=42
+nxtdir funclen=47
+nxtdir funcbuf[ytes
+]
+nxtdir return 1=y
+nxtdir funcnxt=43
+nxtdir funclen=47
+nxtdir funcbuf[tes
+]
+nxtdir return 1=t
+nxtdir funcnxt=44
+nxtdir funclen=47
+nxtdir funcbuf[es
+]
+nxtdir return 1=e
+nxtdir funcnxt=45
+nxtdir funclen=47
+nxtdir funcbuf[s
+]
+nxtdir return 1=s
+nxtdir funcnxt=46
+nxtdir funclen=47
+nxtdir funcbuf[
+]
+nxtdir return 1=^J
+nxtdir funcnxt=47
+nxtdir funclen=47
+nxtdir funcbuf[]
+nxtdir funclen=0
+getpkt eof/eot[2  CKWINBAD.EXE#J#JSummary: 0 directories, 4 files, 908434 bytes#J]=66
+sdata pktnum=4
+sdata len=66
+sdata data[2  CKWINBAD.EXE#J#JSummary: 0 directories, 4 files, ..]
+SPACK n=4
+SPACK data len=66
+SPACK copy=0
+SPACK LP decision lpcapu=1
+SPACK LP decision len=66
+SPACK LP decision bctl=3
+SPACK LP decision len+bctl=69
+SPACK LP decision longpkt=0
+SPACK len=66
+SPACK bctl=3
+SPACK j=69
+SPACK longpkt=0
+SPACK j+2=71
+SPACK j+2 encoded=103
+chk3=32924
+gtimer=33
+HEXDUMP: ttol s (74 bytes)
+01 67 24 44 32 20 20 43 | 4b 57 49 4e 42 41 44 2e  .g$D2  C KWINBAD.
+45 58 45 23 4a 23 4a 53 | 75 6d 6d 61 72 79 3a 20  EXE#J#JS ummary: 
+30 20 64 69 72 65 63 74 | 6f 72 69 65 73 2c 20 34  0 direct ories, 4
+20 66 69 6c 65 73 2c 20 | 39 30 38 34 33 34 20 62   files,  908434 b
+79 74 65 73 23 4a 28 22 | 3c 0d                    ytes#J(" <.
+ttol try=1
+ttol ok=74
+SPACK spktl=74
+SPACK ttol returns=74
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24352 8205    74   D    4     0
+[g$D2  CKWINBAD.EXE#J#JSummary: 0 directories, 4 files, 908434 bytes#J("...]
+free: 0, winlo: 4
+SPACK calling screen, mydata=[g$D2  CKWINBAD.EXE#J#JSummary: 0 directories, 4 files, 908434 bytes#J("<]=4
+sdata spack=74
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=8
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=8
+in_chk result=8
+sdata ttchk=8
+input sstate=^@
+input nakstate=0
+input sndtyp=D
+input xitsta=0
+input what=2
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=8
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=8
+in_chk result=8
+rpack pktnum=4
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=20
+rpack rcvtimo=20
+rpack streaming=0
+ttinl max=8208
+ttinl timo=20
+v9k alarm secs/at[20]=-4602
+ttinl alarm=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=8
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (8 bytes)
+01 25 24 59 2b 26 31 0d |                          .%$Y+&1.
+TTINL myread char=^A
+v9k alarm secs/at[0]=-4602
+HEXDUMP: ttinl got (8 bytes)
+01 25 24 59 2b 26 31 0d |                          .%$Y+&1.
+rpack ttinl len=8
+rpack bctl=3
+rpack chklen=3
+chk3=45457
+rpack block check OK=4
+gtimer=35
+input send[]=89
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32562 8209     0   Y    4     0
+[%$Y]
+free: 0, winlo: 4
+chkwin packet=4
+chkwin winlo=4
+chkwin slots=1
+input send rsn=4
+input send winlo=4
+input send chkwin=0
+bestlen ack x=0
+bestlen ack type=D
+bestlen B=252
+bestlen retry=0
+bestlen len=74
+bestlen spackets=3
+bestlen wslots=1
+bestlen maxsend=244
+bestlen spsiz A=504
+freerpkt seq=4
+freerbuf packet=4
+freerbuf rbufnum=1
+freesbuf=4
+input send rotated send window=5
+input about to flush
+ttflui ttpipe=0
+ttflux my_count=0
+ttflui ttyfd=6
+ttflui POSIX
+input winlo=5
+input rsn=4
+input returning type=Y
+PROTO input[8]=Y
+canned: cxseen=0
+ czseen=0
+<ssdata>Y cxseen[]=0
+<ssdata>Y czseen[]=0
+sdata entry, first=-1
+sdata drain=0
+sdata sbufnum=1
+sdata countdown=1
+nxtpkt pktnum=4
+nxtpkt winlo =5
+nxtpkt n=5
+chkwin packet=5
+chkwin winlo=5
+chkwin slots=1
+nxtpkt chkwin=0
+getsbuf packet=5
+getsbuf p=0
+sdata nxtpkt pktnum=5
+sdata packet=5
+conchk contyp=1
+conchk=0
+sdata spsiz=504
+sdata binary=0
+sdata parity=0
+maxdata spsiz 1=504
+maxdata spsiz 2=504
+maxdata len 1=493
+maxdata len 2=493
+getpkt eof crc16=0
+getpkt eof ffc=1
+<ssdata>Y cxseen=0
+window=1
+makebuf=1
+makebuf bufsiz=8205
+makebuf MAXWS=32
+mksbuf makebuf return=8205
+makebuf=1
+makebuf bufsiz=8209
+makebuf MAXWS=32
+mkrbuf makebuf return=8209
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+free: 1, winlo: 5
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+free: 1, winlo: 5
+gtimer=36
+clsif i_isopen=0
+<ssdata>Y CALLING SEOF()=0
+seof[]=5
+getsbuf packet=5
+getsbuf p=0
+szeof[]=5
+SPACK n=5
+SPACK data len=0
+SPACK copy=1
+SPACK LP decision lpcapu=1
+SPACK LP decision len=0
+SPACK LP decision bctl=3
+SPACK LP decision len+bctl=3
+SPACK LP decision longpkt=0
+SPACK len=0
+SPACK bctl=3
+SPACK j=3
+SPACK longpkt=0
+SPACK j+2=5
+SPACK j+2 encoded=37
+chk3=39634
+gtimer=36
+HEXDUMP: ttol s (8 bytes)
+01 25 25 5a 29 4b 32 0d |                          .%%Z)K2.
+ttol try=1
+ttol ok=8
+SPACK spktl=8
+SPACK ttol returns=8
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24352 8205     8   Z    5     0
+[%%Z)K2]
+free: 0, winlo: 5
+SPACK calling screen, mydata=[%%Z)K2]=5
+input sstate=^@
+input nakstate=0
+input sndtyp=Z
+input xitsta=0
+input what=2
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=8
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=8
+in_chk result=8
+rpack pktnum=5
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=20
+rpack rcvtimo=20
+rpack streaming=0
+ttinl max=8208
+ttinl timo=20
+v9k alarm secs/at[20]=-4600
+ttinl alarm=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=8
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (8 bytes)
+01 25 25 59 2a 41 29 0d |                          .%%Y*A).
+TTINL myread char=^A
+v9k alarm secs/at[0]=-4600
+HEXDUMP: ttinl got (8 bytes)
+01 25 25 59 2a 41 29 0d |                          .%%Y*A).
+rpack ttinl len=8
+rpack bctl=3
+rpack chklen=3
+chk3=43081
+rpack block check OK=5
+gtimer=37
+input send[]=89
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32562 8209     0   Y    5     0
+[%%Y]
+free: 0, winlo: 5
+chkwin packet=5
+chkwin winlo=5
+chkwin slots=1
+input send rsn=5
+input send winlo=5
+input send chkwin=0
+bestlen ack x=0
+bestlen ack type=Z
+RTT SEND=2
+RTT z scaled=2000
+RTT rcvtimo (int)=4
+RTT final rcvtimo=3
+freerpkt seq=5
+freerbuf packet=5
+freerbuf rbufnum=1
+freesbuf=5
+input send rotated send window=6
+input about to flush
+ttflui ttpipe=0
+ttflux my_count=0
+ttflui ttyfd=6
+ttflui POSIX
+input winlo=6
+input rsn=5
+input returning type=Y
+PROTO input[9]=Y
+canned: cxseen=0
+ czseen=0
+<sseof>Y cxseen[]=0
+<sseof>Y czseen[]=0
+<sseof>Y discard[]=0
+<sseof>Y success=1
+gnfile sndsrc=0
+gnfile filcnt=1
+gnfile what=2
+gnfile recursive=0
+gnfile dodirstoo=0
+gnfile binary = gnf_binary=1
+<sseof>Y gnfile[stdin]=0
+<sseof>Y no more files=0
+gtimer=38
+nxtpkt pktnum=5
+nxtpkt winlo =6
+nxtpkt n=6
+chkwin packet=6
+chkwin winlo=6
+chkwin slots=1
+nxtpkt chkwin=0
+getsbuf packet=6
+getsbuf p=0
+seot nxtpkt=0
+SPACK n=6
+SPACK data len=0
+SPACK copy=1
+SPACK LP decision lpcapu=1
+SPACK LP decision len=0
+SPACK LP decision bctl=3
+SPACK LP decision len+bctl=3
+SPACK LP decision longpkt=0
+SPACK len=0
+SPACK bctl=3
+SPACK j=3
+SPACK longpkt=0
+SPACK j+2=5
+SPACK j+2 encoded=37
+chk3=11379
+gtimer=38
+HEXDUMP: ttol s (8 bytes)
+01 25 26 42 22 51 53 0d |                          .%&B"QS.
+ttol try=1
+ttol ok=8
+SPACK spktl=8
+SPACK ttol returns=8
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24352 8205     8   B    6     0
+[%&B"QS]
+free: 0, winlo: 6
+SPACK calling screen, mydata=[%&B"QS]=6
+tstats xfsecs=36
+tstats filcnt=1
+tstats tsecs=36
+ztime: ZTIMEV7[Tue Jan  1 00:07:01 1980
+]
+input sstate=^@
+input nakstate=0
+input sndtyp=B
+input xitsta=0
+input what=2
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=46
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=46
+in_chk result=46
+rpack pktnum=6
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=20
+rpack rcvtimo=3
+rpack streaming=0
+ttinl max=8208
+ttinl timo=3
+v9k alarm secs/at[3]=-4615
+ttinl alarm=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=46
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (46 bytes)
+01 25 26 59 28 28 41 0d | 6b 65 72 6d 69 74 20 2d  .%&Y((A. kermit -
+78 0d 01 39 20 49 7e 34 | 20 40 2d 23 59 33 7e 5e  x..9 I~4  @-#Y3~^
+3e 4a 29 30 5f 5f 5f 46 | 22 55 31 40 3a 0d        >J)0___F "U1@:.
+TTINL myread char=^A
+v9k alarm secs/at[0]=-4615
+HEXDUMP: ttinl got (8 bytes)
+01 25 26 59 28 28 41 0d |                          .%&Y((A.
+rpack ttinl len=8
+rpack bctl=3
+rpack chklen=3
+chk3=33313
+rpack block check OK=6
+gtimer=40
+input send[]=89
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32562 8209     0   Y    6     0
+[%&Y]
+free: 0, winlo: 6
+chkwin packet=6
+chkwin winlo=6
+chkwin slots=1
+input send rsn=6
+input send winlo=6
+input send chkwin=0
+bestlen ack x=0
+bestlen ack type=B
+RTT SEND=3
+RTT z scaled=3000
+RTT rcvtimo (int)=8
+RTT final rcvtimo=6
+freerpkt seq=6
+freerbuf packet=6
+freerbuf rbufnum=1
+freesbuf=6
+input send rotated send window=7
+input about to flush
+ttflui ttpipe=0
+ttflux my_count=38
+ttflui ttyfd=6
+ttflui POSIX
+input winlo=7
+input rsn=6
+input returning type=Y
+PROTO input[10]=Y
+sseot justone=0
+RESUME[server=1]=0
+tinit flag=1
+tinit spsiz=90
+tinit timint=0
+tinit winlo=0
+makebuf=1
+makebuf bufsiz=8205
+makebuf MAXWS=32
+mksbuf makebuf return=8205
+getsbuf packet=0
+getsbuf p=0
+tinit getsbuf=0
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24352 8205     0        0     0
+[%&B"QS]
+free: 0, winlo: 0
+makebuf=1
+makebuf bufsiz=8209
+makebuf MAXWS=32
+mkrbuf makebuf return=8209
+resetc fsize=-1
+input sstate=^@
+input nakstate=1
+input sndtyp=^@
+input xitsta=0
+input what=0
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=0
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=0
+in_chk result=0
+rpack pktnum=0
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=0
+rpack rcvtimo=0
+rpack streaming=0
+ttinl max=8208
+ttinl timo=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=1
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (1 bytes)
+01                      |                          .
+TTINL myread char=^A
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=27
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (27 bytes)
+39 20 49 7e 34 20 40 2d | 23 59 33 7e 5e 3e 4a 29  9 I~4 @- #Y3~^>J)
+30 5f 5f 5f 46 22 55 31 | 40 3a 0d                 0___F"U1 @:.
+TTINL myread char=9
+HEXDUMP: ttinl got (28 bytes)
+01 39 20 49 7e 34 20 40 | 2d 23 59 33 7e 5e 3e 4a  .9 I~4 @ -#Y3~^>J
+29 30 5f 5f 5f 46 22 55 | 31 40 3a 0d              )0___F"U 1@:.
+rpack ttinl len=28
+rpack bctl=1
+rpack chklen=1
+chk1[1-byte block check encoded code]=26
+rpack block check OK=0
+input rpack=73
+input type[~4 @-#Y3~^>J)0___F"U1@]=I
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32562 8209    22   I    0     0
+[9 I~4 @-#Y3~^>J)0___F"U1@]
+free: 0, winlo: 0
+input rsn=winlo=0
+input about to flush
+ttflui ttpipe=0
+ttflux my_count=0
+ttflui ttyfd=6
+ttflui POSIX
+input winlo=0
+input rsn=0
+input returning type=I
+PROTO input[11]=I
+spar biggest 1=22
+spar rprmlen=-1
+rpar biggest 2=22
+spar packet[~4 @-#Y3~^>J)0___F"U1@]
+chktimo streaming=0
+chktimo timo=20
+chktimo flag=0
+chktimo spmax=94
+chktimo urpsiz=4000
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+chktimo plen=4000
+spar 8bq rq=Y
+spar 8bq sq=Y
+spar 8bq ebq=&
+spar 8bq rqf=1
+spar capas=62
+spar lscapu=0
+spar lscapr=1
+spar ebqflg=0
+spar swcapr=1
+spar swcapu=1
+spar lscapu=0
+spar y=10
+>>> spar spsizf=0
+>>> spar urpsiz=4000
+>>> spar biggest=22
+>>> spar lpcapu=1
+>>> spar lpspsiz=94
+>>> spar extended packet max length=3999
+>>> spar previous with safety margin=3997
+>>> spar adjusted according to spsizf=3997
+spar slow-start spsiz=244
+spar lp spmax=3997
+chktimo streaming=0
+chktimo timo=20
+chktimo flag=0
+chktimo spmax=3997
+chktimo urpsiz=4000
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+chktimo plen=4000
+spar window=30
+spar window after adjustment=30
+spar biggest=22
+spar whatru=38
+spar streamok=0
+spar clearrq=2
+spar urclear=0
+spar sysindex x=2
+spar sysindex y=21
+spar sysindex biggest=22
+spar whoareyou[U1]=85
+spar sysindex=16
+spar whatru2=32
+spar whatru2 xfermode=0
+whoarewe xfermode=0
+whoarewe remote sysid[U1]
+whoarewe wearealike=1
+whoarewe setting fncnv=0
+whoarewe setting binary=1
+proto whoareu[U1]=16
+spar: data[~4 @-#Y3~^>J)0___F"U1@]=22
+ spsiz =244
+ timint=20
+ npad  =0
+ padch =0
+ seol  =13
+ ctlq  =35
+ ebq   =38
+ ebqflg=0
+ bctr  =3
+ rptq  =126
+ rptflg=1
+ lscapu=0
+ atcapu=1
+ lpcapu=1
+ swcapu=1
+ wslotn=1
+ whatru=38
+rpar rpsiz=3999
+rpar max 1=94
+rpar sprmlen=-1
+rpar max 2=94
+chktimo streaming=0
+chktimo timo=15
+chktimo flag=0
+chktimo spmax=3997
+chktimo urpsiz=4000
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+chktimo plen=4000
+rpar 8bq sq=Y
+rpar 8bq ebq=&
+rpar xfermode=0
+rpar whatami2=32
+rpar[~/ @-#Y3~^!J)0___C"U1@]
+rpar: data[~/ @-#Y3~^!J)0___C"U1@]=22
+ rpsiz =94
+ rtimo =8
+ mypadn=0
+ mypadc=0
+ eol   =13
+ ctlq  =35
+ sq    =89
+ ebq   =38
+ ebqflg=0
+ bctr  =3
+ rptq  =126
+ rptflg=1
+ capas =9
+ bits  =94
+ lscapu=0
+ atcapu=1
+ lpcapu=1
+ swcapu=1
+ wslotr=1
+ rpsiz(extended)=3999
+ack1[~/ @-#Y3~^!J)0___C"U1@]
+ackns[~/ @-#Y3~^!J)0___C"U1@]=0
+ackns k=0
+freesbuf=0
+getsbuf packet=0
+getsbuf p=0
+SPACK n=0
+SPACK data len=22
+SPACK copy=1
+SPACK LP decision lpcapu=1
+SPACK LP decision len=22
+SPACK LP decision bctl=1
+SPACK LP decision len+bctl=23
+SPACK LP decision longpkt=0
+SPACK len=22
+SPACK bctl=1
+SPACK j=23
+SPACK longpkt=0
+SPACK j+2=25
+SPACK j+2 encoded=57
+chk1[1-byte block check encoded code]=5
+gtimer=52
+HEXDUMP: ttol s (28 bytes)
+01 39 20 59 7e 2f 20 40 | 2d 23 59 33 7e 5e 21 4a  .9 Y~/ @ -#Y3~^!J
+29 30 5f 5f 5f 43 22 55 | 31 40 25 0d              )0___C"U 1@%.
+ttol try=1
+ttol ok=28
+SPACK spktl=28
+SPACK ttol returns=28
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24352 8205    28   Y    0     0
+[9 Y~/ @-#Y3~^!J)0___C"U1@%]
+free: 0, winlo: 0
+SPACK calling screen, mydata=[9 Y~/ @-#Y3~^!J)0___C"U1@%]=0
+ackns winlo=0
+ackns n=0
+freerbuf packet=0
+freerbuf rbufnum=1
+freesbuf=0
+tinit flag=0
+tinit timint=0
+tinit winlo=0
+makebuf=1
+makebuf bufsiz=8205
+makebuf MAXWS=32
+mksbuf makebuf return=8205
+getsbuf packet=0
+getsbuf p=0
+tinit getsbuf=0
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24352 8205     0        0     0
+[9 Y~/ @-#Y3~^!J)0___C"U1@%]
+free: 0, winlo: 0
+makebuf=1
+makebuf bufsiz=8209
+makebuf MAXWS=32
+mkrbuf makebuf return=8209
+input sstate=^@
+input nakstate=0
+input sndtyp=^@
+input xitsta=0
+input what=0
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=7
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=7
+in_chk result=7
+rpack pktnum=0
+conchk contyp=1
+conchk=0
+getrbuf new rbufnum=0
+rpack getrbuf=0
+rpack timint=0
+rpack rcvtimo=0
+rpack streaming=0
+ttinl max=8208
+ttinl timo=0
+ttinl eol=13
+myfillbuf calling read() fd=6
+SVORPOSIX myfillbuf read=7
+SVORPOSIX myfillbuf errno=0
+SVORPOSIX myfillbuf ttcarr=2
+HEXDUMP: mygetbuf read (7 bytes)
+01 24 20 47 46 34 0d    |                          .$ GF4.
+TTINL myread char=^A
+HEXDUMP: ttinl got (7 bytes)
+01 24 20 47 46 34 0d    |                          .$ GF4.
+rpack ttinl len=7
+rpack bctl=1
+rpack chklen=1
+chk1[1-byte block check encoded code]=20
+rpack block check OK=0
+input send[F]=71
+RECEIVE BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     32562 8209     1   G    0     0
+[$ GF]
+free: 0, winlo: 0
+chkwin packet=0
+chkwin winlo=0
+chkwin slots=1
+input send rsn=0
+input send winlo=0
+input send chkwin=0
+input about to flush
+ttflui ttpipe=0
+ttflux my_count=0
+ttflui ttyfd=6
+ttflui POSIX
+input winlo=0
+input rsn=0
+input returning type=G
+PROTO input[11]=G
+DECODE
+chktimo streaming=0
+chktimo timo=8
+chktimo flag=0
+chktimo spmax=3997
+chktimo urpsiz=4000
+ttgspd ttyfd=6
+ttgspd cfgetospeed 2 BSDORPOSIX=13
+ttgspd code=13
+ttgspd speed=9600
+chktimo plen=4000
+input sstate=F
+input nakstate=0
+input sndtyp=^@
+input xitsta=0
+input what=8
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=0
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=0
+in_chk result=0
+PROTO input[12]=F
+ackns[]=0
+ackns k=0
+freesbuf=0
+getsbuf packet=0
+getsbuf p=0
+SPACK n=0
+SPACK data len=0
+SPACK copy=1
+SPACK LP decision lpcapu=1
+SPACK LP decision len=0
+SPACK LP decision bctl=1
+SPACK LP decision len+bctl=1
+SPACK LP decision longpkt=0
+SPACK len=0
+SPACK bctl=1
+SPACK j=1
+SPACK longpkt=0
+SPACK j+2=3
+SPACK j+2 encoded=35
+chk1[1-byte block check encoded code]=30
+gtimer=54
+HEXDUMP: ttol s (6 bytes)
+01 23 20 59 3e 0d       |                          .# Y>.
+ttol try=1
+ttol ok=6
+SPACK spktl=6
+SPACK ttol returns=6
+SEND BUFFERS:
+buffer inuse address length data type seq flag retries
+   0     1     24352 8205     6   Y    0     0
+[# Y>]
+free: 0, winlo: 0
+SPACK calling screen, mydata=[# Y>]=0
+ackns winlo=0
+ackns n=0
+freerbuf packet=0
+freerbuf rbufnum=1
+freesbuf=0
+gtimer=55
+clsif i_isopen=0
+gtimer=55
+clsof disp=1
+clsof cxseen=0
+clsof success=1
+clsof o_isopen=0
+proto xferstat[]=1
+doexit exitstat=0
+doexit code=0
+doexit xitsta=0
+doexit about to doclean
+doclean calling dologend
+doclean exithangup=1
+in_chk entry[6]=1
+in_chk ttyfd=6
+in_chk ttpty=0
+ttgmdm K_MDMCTL defined
+ttgmdm TIOCMGET ioctl=0
+ttgmdm bits=358
+ttgmdm TIOCM_CTS defined=32
+ttgmdm TIOCM_DSR defined=256
+ttgmdm TIOCM_CAR defined=64
+ttgmdm TIOCM_RNG defined=128
+ttgmdm TIOCM_DTR defined=2
+ttgmdm TIOCM_RTS defined=4
+in_chk close-on-disconnect=0
+in_chk FIONREAD return code=0
+in_chk FIONREAD count=0
+in_chk FIONREAD errno=0
+in_chk my_count=0
+in_chk n=0
+in_chk result=0
+doclean ttchk()=0
+doclean ttyfd=6
+doclean hanging up and closing
+ttclos ttyfd=6
+ttclos netconn=0
+ttclos xlocal=1
+XXX netclos in ifdef NETCONN...[A]
+v9k alarm secs/at[8]=-4594
+ttclos alarm=0
+ttclos A[0]=0
+ttclos exithangup=1
+v9k alarm secs/at[8]=-4594
+ttclos calling tthang()=0
+tthang BSD44ORPOSIX B0
+tthang BSD44ORPOSIX tcgetattr[0]=0
+tthang BSD44ORPOSIX cfgetospeed[0]=13
+tthang BSD44ORPOSIX cfgetispeed[0]=13
+tthang BSD44ORPOSIX cfsetospeed[0]=0
+tthang BSD44ORPOSIX cfsetispeed[0]=0
+tcsetattr line fd[6]=0
+tcsetattr read-back cr1/cr2a[0]=16
+tcsetattr read-back cr4/cr5[68]=234
+tcsetattr read-back baudr=8
+tcsetattr divisor=8
+v9k_ser_setflow flow/in[0]=0
+v9k_ser_setflow crtscts/ixon[0]=0
+v9k_ser rxlost/rxfull[0]=0
+v9k_ser rxpeak=46
+tthang BSD44ORPOSIX tcsetattr B0[0]=0
+msleep NAP=500
+tthang BSD44ORPOSIX restore output speed=13
+tthang BSD44ORPOSIX cfsetospeed prev[0]=0
+tthang BSD44ORPOSIX restore input speed=13
+tthang BSD44ORPOSIX cfsetispeed prev[0]=0
+tcsetattr line fd[6]=13
+tcsetattr read-back cr1/cr2a[0]=16
+tcsetattr read-back cr4/cr5[68]=104
+tcsetattr read-back baudr=8
+tcsetattr divisor=8
+v9k_ser_setflow flow/in[0]=0
+v9k_ser_setflow crtscts/ixon[0]=0
+v9k_ser rxlost/rxfull[0]=0
+v9k_ser rxpeak=46
+tthang BSD44ORPOSIX tcsetattr restore[0]=0
+ttclos tthang()=1
+ttclos B[1]=1
+ttclos calling ttres()=1
+v9k alarm secs/at[8]=-4592
+ttres BSD44ORPOSIX
+tcsetattr line fd[6]=13
+tcsetattr read-back cr1/cr2a[0]=16
+tcsetattr read-back cr4/cr5[68]=234
+tcsetattr read-back baudr=8
+tcsetattr divisor=8
+v9k_ser_setflow flow/in[0]=0
+v9k_ser_setflow crtscts/ixon[0]=0
+v9k_ser rxlost/rxfull[0]=0
+v9k_ser rxpeak=46
+ttres result=0
+ttres return code=0
+ttclos ttres()=0
+v9k alarm secs/at[0]=-4592
+ttclos C=2
+ttclos calling close=0
+v9k alarm secs/at[8]=-4591
+ttclos close()=0
+ttclos D=3
+v9k alarm secs/at[0]=-4591
+ttclos about to call ttunlck
+ttclos done
+conres cgmf=-1
+conres constate=0
+C-Kermit EXIT status=0

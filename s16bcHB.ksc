@@ -1,0 +1,36 @@
+; Leg HB -- the Victor SENDS 32,768 bytes BY NAME.  Edit 16 range.
+;
+; BENCH take-file: there is no "set line" here.  ~/.kermrc names the adapter.
+; CHECK THAT IT NAMES THE ONE THAT IS PLUGGED IN.
+;
+; NOTE THE DIRECTION.  The host RECEIVES, so START THIS FIRST -- the Victor
+; is the initiator and gives up if nothing answers its S packets.
+;
+; CONTROL: SS16ai leg CC -- PX_CAU exactly (32 values), 4,512 prefixes,
+; 37,557 wire bytes, 18 packets, 22.207 s, 1,475 cps.
+;
+; THIS IS A COUNTING LEG.  Quote the wire-byte count as the result and the
+; cps as an illustration: CC and CD were 1.397 s apart against a bench floor
+; of ~1.3 s.  Read the "prefixing policy" line out of pktstat.py.
+;
+; AND IT MUST BE BYTE-EXACT.  PX_CAU puts control characters on the wire raw
+; -- the whole point of it and the only way it can go wrong.
+;
+; Edit 16's failure signature is an error line with an EMPTY ck_errstr().
+; SS16ah leg BS produced no error line at all.  This is the edit's fourth
+; end-to-end confirmation and its second on hardware.
+;
+; READ IT WITH:
+;     python3 v9k/tools/pktstat.py --rxbytes <from STEPHB.OUT> s16bcHB.pkt
+; Residual -11 clean, +28 with a startup timeout.
+; cmp FIRST, then the counters.  A leg that is fast and wrong is the failure.
+
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+set retry 30
+log packets s16bcHB.pkt
+receive gothb.dat
+statistics

@@ -1,0 +1,36 @@
+; Leg HK -- edit 21 on the wire.  --safe-server forces FILE COLLISION to
+; RENAME for the whole session (ckcpro.c:503), so this path is NOT optional.
+;
+; TWO TARGET NAME LENGTHS, because znewn() picks its branch by LENGTH and the
+; control failed differently in each:
+;     4 chars  -> D:\HK.D.~1~, DOS refuses it, E PACKET WITH EMPTY TEXT
+;                 before any data.  The existing file survives.
+;     9 chars  -> branch B's sprintf lands past the string's own terminator,
+;                 the name comes back UNCHANGED, and the server SILENTLY
+;                 OVERWRITES the existing file.
+;
+; EACH NAME IS SENT TWICE.  The second send is the one under test.
+;
+; THE DISK IS THE OBSERVABLE AND THE F-PACKET ACK IS NOT.  ckcpro.w:1546
+; sends fspec, which rcvfil() fills from the incoming name BEFORE the
+; collision switch runs -- SS16bb leg MB's ACKs said rcvmb.dat while the file
+; on disk was RCVMB.001.  Read the answer with:
+;     vtg_image_util list <img>:1:
+;
+; PASS: RCVHK.DAT and HK.D still hold the FIRST fixture, RCVHK.001 and
+; HK.001 hold the second, no E packet anywhere, coll=1 on the .OUT.
+
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+set retry 30
+set carrier-watch off
+log packets s16bcHK.pkt
+send rcvhk1.dat rcvhk.dat
+send rcvhk1.dat hk.d
+send rcvhk2.dat rcvhk.dat
+send rcvhk2.dat hk.d
+finish
+statistics

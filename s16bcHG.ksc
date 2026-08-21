@@ -1,0 +1,24 @@
+; Leg HG -- FreeDOS at 38400, COM2.  NO CONTROL EXISTS; this is discovery.
+;
+; BENCH take-file: there is no "set line" here.  ~/.kermrc names the adapter.
+; CHECK THAT IT NAMES THE ONE THAT IS PLUGGED IN.
+;
+; MAME cannot drive this machine above about 9600, so nothing anywhere has
+; ever run this DOS at this rate.  The readings that matter are rxlost and
+; rxfull, not cps.  If it is dirty, HF at 9600 is the fallback position and
+; the finding is the rate, not the DOS.
+;
+; READ IT WITH:
+;     python3 v9k/tools/pktstat.py --rxbytes <from STEPHG.OUT> s16bcHG.pkt
+; Residual -11 clean, +28 with a startup timeout.
+; cmp FIRST, then the counters.  A leg that is fast and wrong is the failure.
+
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+set retry 30
+log packets s16bcHG.pkt
+send rcvhg.dat
+statistics

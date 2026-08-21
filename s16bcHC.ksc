@@ -1,0 +1,32 @@
+; Leg HC -- flow-control CONTROL leg (--noflow).  Host SENDS.
+;
+; BENCH take-file: there is no "set line" here.  ~/.kermrc names the adapter.
+; CHECK THAT IT NAMES THE ONE THAT IS PLUGGED IN.
+;
+; Run HD IMMEDIATELY after this.  Adjacent pairs only: the same CKPRE binary
+; gave 18.29 s non-line in SS16ah and 21.43 s in SS16al with the wire held
+; constant.  The spread is the HOST.
+;
+; PRECONDITION, AND IT IS NOT OPTIONAL (SS16am):
+;     kermit -C "show versions, exit"                    -> 11.0.508
+;     kermit -C "show features, exit" | grep -i crtscts  -> POSIX_CRTSCTS
+;     stty -f <port> crtscts -hupcl                      -> and read it back
+; CK_RTSCTS alone only makes the COMMAND legal.  If the client here is still
+; 9.0.302, STOP AND REBUILD IT -- running the pair without POSIX_CRTSCTS
+; reproduces SS16al leg GB, which looked like a clean positive result and was
+; retracted one section later.
+;
+; READ IT WITH:
+;     python3 v9k/tools/pktstat.py --rxbytes <from STEPHC.OUT> s16bcHC.pkt
+; Residual -11 clean, +28 with a startup timeout.
+; cmp FIRST, then the counters.  A leg that is fast and wrong is the failure.
+
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+set retry 30
+log packets s16bcHC.pkt
+send rcvhc.dat
+statistics

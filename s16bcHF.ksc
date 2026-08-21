@@ -1,0 +1,36 @@
+; Leg HF -- FreeDOS for Victor on REAL hardware, COM2, 9600.
+;
+; BENCH take-file: there is no "set line" here.  ~/.kermrc names the adapter.
+; CHECK THAT IT NAMES THE ONE THAT IS PLUGGED IN.
+;
+; FIRST TIME ON REAL SILICON.  SS16az and SS16ba are MAME only.
+;
+; BEFORE THIS LEG, CAPTURE WHAT THE MACHINE PUTS ON THE WIRE WITH NOTHING OF
+; OURS RUNNING (SS16az's method lesson -- it settled the channel question in
+; 150 seconds where four counter readings had not).
+;
+; CONTROL: SS16az leg FDE -- 685 cps, 0 damaged packets, 0 timeouts,
+; 0 resends, rxpeak 19 of 4096, rxbytes 37,569.
+; Expect  v9k: dos oem=fd ver=622 irq1=09  and SS1b's direct chip-programming
+; fallback, because FreeDOS's COM device carries attribute 0x8000 with no
+; IOCTL bit and AX=4402h simply fails.
+;
+; ALSO FREE ON THIS DOS: nap per= and every tot=.  SS16ba established the
+; half-second clock quantum is Victor MS-DOS 3.1's and NOT the machine's --
+; not one FreeDOS figure was a multiple of 50 -- so a max= cannot be compared
+; across the two DOSes.
+;
+; READ IT WITH:
+;     python3 v9k/tools/pktstat.py --rxbytes <from STEPHF.OUT> s16bcHF.pkt
+; Residual -11 clean, +28 with a startup timeout.
+; cmp FIRST, then the counters.  A leg that is fast and wrong is the failure.
+
+set speed 9600
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+set retry 30
+log packets s16bcHF.pkt
+send rcvhf.dat
+statistics

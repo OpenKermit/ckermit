@@ -1,0 +1,36 @@
+; Leg HP -- the -d MECHANISM run into A:\ at 9600.  Host SENDS.
+;
+; THIS FILE DID NOT EXIST FOR PASS 2 AND THAT IS WHY THE LEG HAD TO BE
+; KLUDGED BY HAND.  Pass 2 wrote STEPHP.BAT and never wrote the host half
+; or the fixture.  Both exist now.
+;
+; WHAT THIS LEG IS FOR.  Legs HL/HN measured the A:\ cost at 4.4 s and
+; localised it to one decode interval (dec max=450 at #3 on A:, 100 on D:),
+; and leg HP itself has since read 450 a THIRD time.  What none of them can
+; say is WHAT those directory operations are.  zchko() does three DOS
+; directory operations on the target before a data byte moves; the debug log
+; is the only instrument in this tree that names them.
+;
+; READ THE LOG, NOT THE CLOCK.  -d costs ~25 ms per received byte (SS16k),
+; so elapsed=, cps and wire= are all meaningless here.  What to grep for in
+; HP.LOG, in order: zchko, rcvfil, znewn, zopeno, and the timestamps
+; between the F packet arriving and the ACK going out.
+;
+; THE FIXTURE IS 512 BYTES ON PURPOSE.  The stall is in rcvfil(), BEFORE a
+; data byte moves -- that is the whole finding -- so file SIZE is irrelevant
+; to it, and a 32 KB fixture would only buy 13 minutes of -d at ~25 ms per
+; received byte (SS16k) and a debug log too big for a volume with 536 KB
+; free.  Small fixture, same question, and the log stays readable.
+;
+; The binary is CKHPDBG.EXE (-dKEEP_DEBUG, 314,168 bytes).  CKBB.EXE is
+; NODEBUG and REJECTS -d, which is how pass 2 lost this leg.
+
+set speed 9600
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+set retry 30
+log packets s16bcHP.pkt
+send rcvhp.dat
+statistics

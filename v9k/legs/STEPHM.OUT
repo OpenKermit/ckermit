@@ -1,0 +1,98 @@
+=== SPDTEST-BEGIN
+
+Versions:
+ C-Kermit 11.0.508, 2026/08/09
+ Numeric: 1100508
+ Built for:  Victor 9000 / Sirius 1
+ Running on: MS-DOS   Victor
+ Patches: (none)
+ UNIX Communications support, 11.0.500, 22 Jul 2026 for Victor 9000 / Sirius 1
+ UNIX File support, 11.0.500, 22 Jul 2026 for Victor 9000 / Sirius 1
+ C-Kermit library, 11.0.500, 22 Jul 2026
+ C-Kermit Protocol Module 11.0.500, 22 Jul 2026
+ C-Kermit functions, 11.0.506, 03 Aug 2026
+ Command package 11.0.500, 22 July 2026
+ User Interface 10.0.332, 02 May 2023
+ CONNECT Command for Victor 9000: not implemented
+
+=== 1 before set line
+
+Communications Parameters:
+ Line: /dev/tty, speed: unknown, mode: remote, modem: none
+ Parity: none, duplex: full, flow: none, handshake: none
+ Carrier-watch: auto, close-on-disconnect: off
+ Lockfile directory: (none)
+ Typical port device name: /dev/cua, /dev/acu, /dev/tty0, etc
+
+Modem signals unavailable
+
+=== 2 after set line
+
+Communications Parameters:
+ Line: /dev/seriala, speed: 9600, mode: local, modem: none
+ Parity: none, stop-bits: (default) (8N1)
+ Duplex: full, flow: none, handshake: none
+ Carrier-watch: auto, close-on-disconnect: off
+
+ Terminal bytesize: 8, escape character: 28 (^\)
+
+ Carrier Detect      (CD):  On
+ Dataset Ready       (DSR): On
+ Clear To Send       (CTS): On
+ Ring Indicator      (RI):  Off
+ Data Terminal Ready (DTR): On
+ Request To Send     (RTS): On
+
+=== 3 after set speed 38400
+
+Communications Parameters:
+ Line: /dev/seriala, speed: 38400, mode: local, modem: none
+ Parity: none, stop-bits: (default) (8N1)
+ Duplex: full, flow: none, handshake: none
+ Carrier-watch: auto, close-on-disconnect: off
+
+ Terminal bytesize: 8, escape character: 28 (^\)
+
+ Carrier Detect      (CD):  On
+ Dataset Ready       (DSR): On
+ Clear To Send       (CTS): On
+ Ring Indicator      (RI):  Off
+ Data Terminal Ready (DTR): On
+ Request To Send     (RTS): On
+
+=== 4 after set speed 19200
+
+Communications Parameters:
+ Line: /dev/seriala, speed: 19200, mode: local, modem: none
+ Parity: none, stop-bits: (default) (8N1)
+ Duplex: full, flow: none, handshake: none
+ Carrier-watch: auto, close-on-disconnect: off
+
+ Terminal bytesize: 8, escape character: 28 (^\)
+
+ Carrier Detect      (CD):  On
+ Dataset Ready       (DSR): On
+ Clear To Send       (CTS): On
+ Ring Indicator      (RI):  Off
+ Data Terminal Ready (DTR): On
+ Request To Send     (RTS): On
+
+=== SPDTEST-END
+v9k: isr=asm deb=0
+v9k: dos oem=ff ver=310 irq1=41
+v9k: rxlost=0 rxfull=0 rxpeak=12 of 4096
+v9k: peaktag=15 fd=0 stall256=0
+v9k: rxbytes=12 peakat=12 stallat=0
+v9k: norx=0 othrx=0 rr0=00 oth=00
+v9k: bulk sel=1 n=0
+v9k: lost evt=0 max=0 tag=0 fd=0
+v9k: lostat=0 lostend=0
+v9k: lean (no burst table)
+v9k: flow in=0 out=0 hi=65535 lo=1024 held=0 rel=0 xoff=0 xon=0 stuck=0
+v9k: wfile n=0 max=0 at #0 of 0 tot=0 cs nospc=0
+v9k: wcon n=0 max=0 tot=0 cs
+v9k: txgap n=0 max=0 at #0 tot=0 cs
+v9k: nap per=286 n=1 req=500 ms tot=50 cs cc=0
+v9k: coll=1
+v9k: dec n=0 max=0 at #0 tot=0 cs to=0
+v9k: window ask=0 use=0 neg=1 pool=2 ring=1

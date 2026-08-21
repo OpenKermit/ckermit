@@ -12562,11 +12562,16 @@ empty**, and the last is the odd one: `REMOTE PWD` in the same leg answers
 item, small, and only visible now that a client which can ask exists.
 
 **That client is a harness upgrade with a bigger consequence than this
-sitting.** It carries the 2014 `remcfm()` fix §16ax lost five commands to,
-and `SHOW FEATURES` reports **`POSIX_CRTSCTS`** — which is exactly the
-thing §16am identified as blocking every flow-control measurement in
-§16ak/§16al/§16an. That question is now a bench item rather than a blocked
-one.
+sitting.** It carries the 2014 `remcfm()` fix §16ax lost five commands to.
+
+**The `POSIX_CRTSCTS` half of this paragraph was WRONG and §16bc retracts
+it.** A plain `make macosx` reports **`CK_RTSCTS` only** — `ckcdeb.h:4583`
+hands `POSIX_CRTSCTS` out per platform and **Darwin is not in the list**,
+although macOS has defined `CRTSCTS` as `CCTS_OFLOW|CRTS_IFLOW` in
+`<sys/termios.h>` for years. So the flow-control question was **still
+blocked** through §16bc's bench sitting, and §16bc leg HD was void twice
+over. `make macosx KFLAGS=-DPOSIX_CRTSCTS` builds it in; §16bc has the
+verification.
 
 ### A void leg, and a rule about when a leg ends
 
@@ -12597,3 +12602,233 @@ files that are in git are the ones a mistake cannot destroy quietly.**
 `vtg_image_util info` in every run sheet's §0, and the M-series files in
 the tree use fresh target names throughout, which §16al's rule required
 anyway.
+
+## 16bc. Six MAME-only sittings meet the machine: the port is unmoved, the display is not, and the `A:\` stall is a writability probe
+
+**20–21 August 2026, on the real Victor 9000.** Run sheet
+`HW_TEST_16bc.md`, **written before any leg ran**; thirteen legs in the H
+series across three passes; counters in `v9k/legs/STEPH*.OUT`,
+`v9k/legs/HP.LOG`, screen captures in `screenshots/stephh IMG_203[2-5].png`.
+**No code change and no upstream edit — still twenty-two.** Two binaries
+built from HEAD for the sitting: `CKICP.EXE` (`-dKEEP_ICP`, 460,466 bytes,
+needs **453,986 / 443K**, DGROUP 59,632 of 65,536 (90%), smallest Victor
+**640K**) and `CKHPDBG.EXE` (`-dKEEP_DEBUG`, 314,168, needs **320,920 /
+313K**, smallest Victor **512K**). The shipping build reproduced
+`c42c3598…` from HEAD three times across the sitting.
+
+**The headline is a null and it is the one that was wanted.** The machine
+had not seen this port since §16au on 12 August, and in between it took
+**upstream 11.0.508, edits 19–22 and §16av's six fixes**, every one of them
+measured at 9600 under MAME. **38400 is a hardware-only path**, so nothing
+in the shipping binary had ever run at the rate the port ships. Leg HA:
+byte-exact, `rxlost=0 rxfull=0 rxpeak=559`, 18 packets, 0 timeouts, 0
+retransmissions, **26.200 s and 1,250 cps against §16aq's 25.652 / 25.659 /
+25.668 and 1,277 — +0.54 s, inside this bench's own 0.4–1.3 s spread.**
+Leg HB sent 32,768 bytes **by name** at **1,467 cps against §16ai leg CC's
+1,475, 117 ms apart**. §16w's code-size worry did not materialise over the
+~950 bytes the image grew.
+
+**Nine transfers byte-exact across the sitting**, `d94d2bed…` every one.
+
+**Five confirmations that had only ever run under MAME.** Edit 19: the
+server listed `CKICP.EXE 460466 2026-08-20 17:38:02`, the minute it was
+staged, and not `Jan 1 1970`. Edit 20: `REMOTE SPACE` answered out of INT
+21h `AH=36h`. Edit 22: the `mail` A packet was ACKed with data beginning
+**`N`** and the host's next packet was `Z` — **no data packets**, exactly
+the PRINT behaviour it was written to give MAIL. **Edit 21 on hardware,
+both branches**: `--safe-server` forced RENAME, each name sent twice, and
+`RCVHK.DAT` and `HK.D` still hold the first fixture while `RCVHK.001` and
+`HK.001` hold the second — **no E packet and no silent overwrite**, which
+are the control's two failure modes. And **edit 15 at last**: the 443K
+parser build read `SET SPEED 38400` back as 38400 and 19200 as 19200, on
+the machine, on the exact rate whose `(int) ss[i] / 10` cast produced
+−2713 — plus edits 12, 13 and 14 in the same leg, and `mode: local`.
+
+### Flow control: the null is structural, and it is now measured with every precondition met
+
+**§16am's blocker had to be removed first, and removing it retracted a
+§16bb claim.** That section said a `make macosx` client from this tree
+reports `POSIX_CRTSCTS`; **it does not.** `ckcdeb.h:4583` hands the symbol
+out per platform — BSDI, Linux, NetBSD, OpenBSD, BeBOX, IRIX52 — and
+**Darwin is not in the list**, though macOS has defined `CRTSCTS` as
+`CCTS_OFLOW|CRTS_IFLOW` for years. A plain build reports `CK_RTSCTS`
+alone, which only makes `SET FLOW RTS/CTS` a legal command. **So the
+flow-control question was still blocked through pass 1**, and leg HD was
+void twice over. `make macosx KFLAGS=-DPOSIX_CRTSCTS` fixes it, verified
+two ways: `SHOW FEATURES` lists the symbol, and **`strings wermit` finds
+`tthflow POSIX_CRTSCTS tcsetattr`, which lives inside the `#ifdef` in
+`ckutio.c` and proves the arm that drives the port compiled** — where
+`SHOW FEATURES` only proves the symbol was defined while `ckuus5.c`
+compiled. **§16aj's rule turned on the host: a symbol in `SHOW FEATURES`
+is a claim about one file; the binary is the evidence.**
+
+**With that far end, leg HD still reports `held=0 rel=0`.** `hi=3072
+lo=1024`, `rxpeak` **2,635** against a high mark of 3,072 — **the mark was
+never crossed and RTS was never asserted.** Its control HC is 16 ms away at
+`rxpeak` 2,810. **So the null was never the host.** At 38400 with a window
+of 1 the ring cannot reach three-quarters, because the far end stops to
+wait for an ACK first — §16au's regime fact arriving from a third
+direction. **A flow-control leg at the shipping water marks cannot engage
+flow control**, and that is now established rather than suspected.
+`V9K_FLOW` stays `FLO_NONE`. Leg HE has the sitting's one live flow
+counter — **`xon=2`**, two host START characters intercepted by the ISR —
+and cost nothing: 27.803 s against HC's 27.746.
+
+### FreeDOS for Victor runs on real silicon, and at 38400 it is the fastest this port has been
+
+**`v9k: dos oem=fd ver=622 irq1=09`** — §16av's FreeDOS IRQ1 branch,
+written in August and never executed on hardware until now. Channel B, for
+the reason §16az established. Leg HG at **38400**, a rate no harness has
+ever reached on this DOS: byte-exact, `rxlost=0 rxfull=0 rxpeak=394`, **0
+damaged packets, 0 timeouts, 0 retransmissions, 23.194 s and 1,412 cps**,
+reproduced across two passes (22.781 / 1,438 and 23.194 / 1,412).
+**That is 13–15% faster than MS-DOS 3.1 on the same machine in the same
+hour**, and `dec tot` is 1063 cs against MS-DOS's 1750. Part of the gap is
+the `A:\` cost below, and how much is not separated.
+
+### The display cannot be used at 38400 on FreeDOS, and the instrument names why
+
+**Leg HH failed twice, against a control that was clean twice.** The Victor
+NAKs a long data packet repeatedly until the host gives up — packet 05 in
+pass 1, 06 in pass 2 — while **the host records 0 damaged packets**, so the
+corruption is entirely in the Victor's receiver.
+
+**The sheet removed HH's redirect so the screen could be photographed and
+said in the same breath that there would therefore be no counters. That was
+wrong: the exit report prints to the console too**, and
+`screenshots/stephh IMG_2035.png` has all of it:
+
+```
+rxlost=38 rxfull=0 rxpeak=1951 of 4096
+peaktag=1 fd=1 stall256=14
+lost evt=23 max=2 tag=1 fd=1
+wcon n=342 max=22 tot=706 cs
+elapsed=1999 cs
+```
+
+**`tag=1` is `V9K_TAG_WRITE` and `fd=1` is the console.** §16m's foreground
+location tag and §16q's first-loss latch both point at the same place: the
+foreground was **inside a write to the screen** when the ring overran, on
+the first loss and at the peak. **`wcon` prices it: 342 console writes
+totalling 7.06 s inside a 19.99 s run — 35% of the leg.** And `rxpeak=1951`
+equals the `Packet Length: 1951` on the screen, so the ring peaked at
+exactly one packet: the receiver never got ahead, it lost bytes *inside*
+each long packet, which is why the failure is CRC errors and not timeouts.
+
+**This is the first time in this tree that the foreground tag has named a
+defect on its own** rather than corroborating one. Keep the attribution
+honest: HG and HH differ in the display **and** the redirect, so what is
+measured is *console output*; and no MS-DOS 38400 display leg exists, so
+FreeDOS-specificity is untested. The mechanism is available — hard rule 6
+puts every console write through INT 21h, §16az established that the
+myfreedos kernel busy-waits on TBE and writes a character to the 7201 on
+**every** INT 21h call, and §16ag established that at 38400 the foreground
+has no slack per byte.
+
+**The same photographs close §16ao's console item.** §1g's ANSI arm draws
+correctly on FreeDOS for Victor — header, aligned label column, percent
+scale, live counters, the two-line key help — which §16az and §16ba both
+failed to capture. The three in-flight frames also show the failure
+developing in a way no `.OUT` could: `Error Count` 2 → 7 → 12, CPS 245 →
+147 → 105, `RTT/Timeout` 01/06 → 01/11 → 01/15, `Last Error: CRC error`
+throughout.
+
+### The `A:\` stall is `zchko()` creating and deleting a file, and it is upstream's
+
+§16ba localised a stall to the volume and could not say what it was. **Legs
+HL and HN are the cleanest pair this bench has produced** — identical wire
+bytes (39,564), identical longest packet (3,584), identical retransmission
+shape, both byte-exact, **one variable, the volume**:
+
+| | HL (`A:\`) | HN (`D:\`) | Δ |
+|---|---:|---:|---:|
+| host clock | 57.006 s | 52.602 s | **4.404 s** |
+| Victor `elapsed=` | 5,950 cs | 5,500 cs | **4.50 s** |
+| `dec max=` | **450 at #3** | **100 at #3** | 3.50 s in one decode |
+
+**Two independent clocks agree to a tenth of a second**, and `dec max`
+localises it to a single decode interval. `dec max` reads **450 on `A:` at
+9600 and at 38400 and on a third leg**, and 100 on `D:` — **fixed and
+rate-independent.** But the magnitude is **4.4 s, not the ~27 s MAME
+showed**; that figure was a property of the emulator's image.
+
+**Leg HP, with `-d`, says what it is.** `gtimer=` jumps **+5 s between the
+F packet being decoded and its ACK going out**, and the log shows what is
+in that span:
+
+```
+zchko entry[rcvhp.dat]
+  isdir stat[rcvhp.dat]=-1        <- stat
+  zchko open[rcvhp.dat]=7         <- CREATES THE FILE
+  zchko isatty[rcvhp.dat]=0
+  zdelet[rcvhp.dat]=0             <- AND DELETES IT AGAIN
+  zchko access[.]=0
+zchki stat fails[rcvhp.dat]=1     <- stat
+rcvfil calling zmkdir[rcvhp.dat]
+  zfnqfp -> zgtdir -> v9k_getcwd[A:]
+  isdir stat[A:/rcvhp.dat]=-1     <- stat
+```
+
+**Per received file, before one data byte moves: four stats, one file
+CREATE and one file DELETE, all in the destination directory.**
+`ckufio.c`'s `zchko()` opens the file `O_WRONLY|O_CREAT` **purely so it can
+call `isatty()` on the descriptor**, then deletes it again if it did not
+pre-exist; `ckvictor.h:1222` defines `NOUUCP`, which is the arm that does
+it. The function's own header comment opens **"NOTE: The design is
+flawed."** On POSIX that probe is cheap. On a **FAT12 root** it is a
+free-slot scan plus a directory write, and then a second directory write to
+remove it.
+
+`A:`'s root holds **156 files** and `D:` about 25, and HN ran the identical
+code path for `dec max=100`. **The cost tracks directory occupancy, which
+points at the two writing operations rather than the four stats.** The
+limit of the evidence, stated: `HP.LOG` has no per-line timestamps, so the
+5 s is attributed to the block and not split within it; deleted `0xE5`
+slots remain §16ba's untested candidate.
+
+**Nothing to fix in the port** — it is a cost upstream pays once per
+received file and FAT makes expensive. It goes to the report-upstream list
+beside the other `ckufio.c`/`ckcfns.c` findings, with the observation that
+a writability probe which creates and deletes a real file is doing an
+expensive and slightly dangerous thing: **that same function already
+carries a 2022 fix and a long comment about not destroying a pre-existing
+file**, which is the failure mode the design invites. Practically:
+receiving into a heavily-populated FAT root costs seconds per file, and a
+subdirectory does not — §16ba leg VF saw that from the other side.
+
+### Four harness lessons, and three of them cost legs
+
+**1. A leg with no redirect is not a leg with no counters — it is a leg
+whose counters must be read with a camera.** §16u, §16az leg FDG and §16ba
+all treated "the display cannot be captured under a redirect" as the end of
+the matter and spent legs on it. **The display and the exit report were
+always both on the same screen**, and one photograph turned HH from an
+argument by elimination into a measurement with a named location.
+
+**2. A `-d` flag with no binary behind it is a suggestion — and this sheet
+quoted that rule while breaking it.** `STEPHP.BAT` passed `-d` to
+`CKBB.EXE`, which is `NODEBUG` and rejects it; §0's own `-d` guard row
+still named leg HL, written before `-d` moved to HP. `s16bcHP.ksc` and
+`rcvhp.dat` were never created at all, so the operator built the leg by
+hand. **The fixture would have been wrong even then**: 32,768 bytes at
+~25 ms per received byte is ~13 minutes and a log with no room on a volume
+at 536 KB free, and the size buys nothing — **the stall is before any data
+byte moves**, so 512 bytes asks the identical question and produced a
+40,859-byte log that could be read.
+
+**3. A conclusion drawn from absent files is not a measurement.** Pass 1
+lost every `D:` write and three legs to "file not found", all on the far
+side of an image swap; this was written up as `D:` being unreliable, and
+**pass 2 wrote to `D:` without trouble.** The observation was real, the
+generalisation was not, and no leg ever isolated the volume from the swap.
+What survives is the cheap half — **§0 should round-trip a write as well
+as a read**, since every §0 since §16al proves only that the *host* can
+write to the image.
+
+**4. Within-sitting is tight and cross-sitting is worthless, again.** All
+four 38400 receives in pass 2 took **the identical 1 timeout and 2
+retransmissions** and landed at 27.763 / 27.746 / 27.730 / 27.803 — a
+**73 ms** spread — about 1.5 s above pass 1's clean legs. §16al's rule,
+seen from the good side: the pass-2 trio is the best-matched comparison
+this bench has produced, and comparing either pass against the other would
+have been meaningless.

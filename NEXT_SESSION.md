@@ -3,8 +3,87 @@
 Handoff for the Victor 9000 port, written 9 August 2026, revised after
 §16ah and then again at the desk the same day, again on 10 August after
 §16ao, and again on 11 August after §16aq and then §16ar, and again on
-15 August after §16av, and again on 17 August after §16ax and then §16ay.
+15 August after §16av, and again on 17 August after §16ax and then §16ay,
+and again on **21 August after §16bc, the first bench sitting since 12
+August**.
 **No live defect in the receive path.** §16af closed the last one.
+**One live defect elsewhere: the transfer display cannot be used at 38400
+on FreeDOS for Victor — §16bc, item 17.**
+
+---
+
+## §16bc: the machine sees six MAME-only sittings, and the port is unmoved
+
+**20–21 August 2026, on the real Victor 9000.** Thirteen H-series legs over
+three passes (`HW_TEST_16bc.md`, written before any leg ran; counters in
+`v9k/legs/STEPH*.OUT` and `v9k/legs/HP.LOG`; photographs in
+`screenshots/stephh IMG_203[2-5].png`). **No code change, no upstream edit
+— still twenty-two.** Nine transfers byte-exact.
+
+**1. The regression passed and that was the point.** The machine had not
+seen this port since §16au; in between it took upstream 11.0.508, edits
+19–22 and §16av's six fixes, all measured at 9600 under MAME only, and
+**38400 is hardware-only**. Leg HA: **26.200 s / 1,250 cps against §16aq's
+25.65x / 1,277**, `rxlost=0 rxfull=0`, 0/0/0 — **+0.54 s, inside the
+bench's 0.4–1.3 s spread.** Leg HB sent 32 KB by name at **1,467 cps
+against leg CC's 1,475, 117 ms apart.**
+
+**2. Five edits confirmed on hardware for the first time.** 19 (dates: the
+server listed a file at the minute it was staged), 20 (`REMOTE SPACE` from
+INT 21h), 22 (`mail` A packet ACKed with refusal code `N`, no data
+packets), **21 (both `znewn()` branches: originals untouched,
+`RCVHK.001`/`HK.001` written, no E packet, no silent overwrite)**, and
+**15** — the 443K parser build read `SET SPEED 38400` back as 38400 on the
+machine, with 12, 13, 14 and `mode: local` in the same leg. **Item 7 is
+closed.**
+
+**3. Flow control: the null is STRUCTURAL and is now properly measured.**
+Leg HD, with a far end that can genuinely stop, still reports **`held=0
+rel=0`** — `rxpeak` 2,635 against a high mark of 3,072, **the mark was
+never crossed.** At 38400 with a window of 1 the ring cannot reach 3/4
+because the far end stops for an ACK first (§16au's regime fact, third
+direction). **`V9K_FLOW` stays `FLO_NONE`.** See item 11 for what is left.
+
+**4. §16bb's `POSIX_CRTSCTS` claim was WRONG and is retracted.** A plain
+`make macosx` reports `CK_RTSCTS` only; `ckcdeb.h:4583` hands the symbol
+out per platform and **Darwin is not in the list**, though macOS has had
+`CRTSCTS` for years. **`make macosx KFLAGS=-DPOSIX_CRTSCTS`**, and verify
+it with **`strings wermit | grep "tthflow POSIX_CRTSCTS tcsetattr"`** —
+`SHOW FEATURES` only proves the symbol was defined while `ckuus5.c`
+compiled. The client lives in **`~/projects/ckermit-host`** (copy
+`*.c *.h makefile` **and `ckcpro.w`**).
+
+**5. FreeDOS for Victor runs on real silicon and is the fastest this port
+has been.** `dos oem=fd ver=622 irq1=09` — §16av's branch, first execution
+on hardware. Leg HG at **38400 on channel B: 1,412–1,438 cps over two
+passes, 0 damaged / 0 timeouts / 0 resends**, 13–15% faster than MS-DOS 3.1
+on the same machine in the same hour. **Item 14 is closed.**
+
+**6. The `A:\` stall is `zchko()` creating and deleting a file.** Legs
+HL/HN — identical wire bytes, one variable — put it at **4.404 s (host)
+and 4.50 s (Victor)**, with `dec max` **450 on `A:` at both 9600 and 38400
+and on a third leg, against 100 on `D:`**. Leg HP's debug log shows
+`gtimer` jumping **+5 s between the F packet and its ACK**, and inside it:
+**four stats, one file CREATE and one file DELETE**, per received file,
+before a data byte moves. `ckufio.c`'s `zchko()` opens the file
+`O_WRONLY|O_CREAT` purely to call `isatty()` on it, then deletes it —
+**its own comment opens "NOTE: The design is flawed."** Cheap on POSIX,
+expensive on a 156-entry FAT root. **Not a port defect; report-upstream,
+item 8.** §16ba's ~27 s was the emulator's image, not the machine.
+
+**7. Four harness lessons, three of which cost legs.** A leg with no
+redirect is **not** a leg with no counters — the exit report is on the
+screen too, and one photograph turned HH into a measurement (§16u, §16az
+FDG and §16ba all lost legs to the opposite assumption). A `-d` flag with
+no binary behind it is a suggestion, **and this sheet quoted that rule
+while breaking it** — `STEPHP.BAT` passed `-d` to a `NODEBUG` binary and
+HP's host files were never written at all. **A conclusion drawn from absent
+files is not a measurement**: pass 1's "`D:` does not persist writes" was
+retracted by pass 2 writing to `D:` without trouble — the common factor was
+the image swap and no leg ever separated them; what survives is that **§0
+should round-trip a WRITE, not only a read.** And within-sitting is tight
+where cross-sitting is worthless: pass 2's four 38400 receives took the
+identical 1 timeout / 2 resends and spread **73 ms**.
 
 ---
 
@@ -101,12 +180,27 @@ MB proves it directly: its ACKs say `rcvmb.dat` while the file on disk is
 not.** The treatment leg corrected the control leg's reading, which is an
 argument for running both even when the control's answer looks obvious.
 
-**6. The bench Mac now has a C-Kermit 11.0.508 client**, built from this
-tree with `make macosx` (in the session scratch, not the repo). It has
-`REMOTE STATUS`, which 9.0.302 does not, and the 2014 `remcfm()` fix
-§16ax lost five commands to — **and it reports `POSIX_CRTSCTS`**, which is
-exactly what §16am said the flow-control question was waiting for. That is
-a bench item now, not a blocked one.
+**6. The bench Mac now has a C-Kermit 11.0.508 client** — built 21 August
+in **`~/projects/ckermit-host`**, a sibling directory outside the repo,
+because `make macosx` drops `wermit` and ~100 `.o` into the working
+directory alongside `ckermitw.exe`. Copy `*.c *.h makefile` **and
+`ckcpro.w`** (the makefile regenerates `ckcpro.c` with `wart` and stops
+without it). It has `REMOTE STATUS`, which 9.0.302 does not, and the 2014
+`remcfm()` fix §16ax lost five commands to.
+
+**CORRECTION, 21 August: `make macosx` does NOT report `POSIX_CRTSCTS`,
+and the §16bb claim that it does is WRONG.** `ckcdeb.h:4583` hands that
+symbol out per platform — BSDI, Linux, NetBSD, OpenBSD, BeBOX, IRIX52 —
+and **Darwin is not on the list**, though macOS's `<sys/termios.h>:218`
+defines `CRTSCTS` as `CCTS_OFLOW|CRTS_IFLOW` and has for years. A plain
+build reports `CK_RTSCTS` alone, which is §16am's exact trap: it only makes
+`SET FLOW RTS/CTS` a legal command. **`make macosx KFLAGS=-DPOSIX_CRTSCTS`
+is the fix**, and it is verified two ways — `SHOW FEATURES` lists the
+symbol, and `strings wermit` finds `tthflow POSIX_CRTSCTS tcsetattr`, which
+is inside the `#ifdef` in `ckutio.c` and proves the arm compiled rather
+than just the feature list. **That is `wcc -pl`'s rule turned on the host:
+a symbol in `SHOW FEATURES` is a claim about one file; the binary is the
+evidence.** Report the missing Darwin arm upstream — item 8.
 
 ---
 
@@ -1043,7 +1137,14 @@ on this machine is 1.72% fast** and no integer count fixes it, which is what
 the x16 control's six errors in 32 KB were showing; and x1's envelope is
 `P(packet) = (1 - 9 x rate_error)^L`.
 
-**7. Run the hardware leg for the parser. Verified under MAME.**
+**7. ~~Run the hardware leg for the parser.~~ CLOSED — §16bc leg HM.**
+The post-merge `KEEP_ICP` build (460,466 bytes, needs 453,986 / 443K,
+DGROUP 90%, **640K class**) ran `A:\SPDTEST.KSC` by absolute path on the
+machine: `SHOW VERSIONS` named the build (edit 12), `SET LINE` reported
+**local**, and **`SET SPEED 38400` and 19200 both read back** — edit 15 on
+hardware at last, on the rate whose cast produced −2713. Edits 12, 13, 14
+and 15 are now all confirmed on the machine. The text below is kept for the
+staging method and the stale-binary trap it describes.
 
 **7.0 — ~~PRECONDITION: rebuild and re-stage.~~ DONE 9 August 2026.** Both
 binaries are rebuilt from HEAD, re-measured, staged and round-trip verified:
@@ -1145,6 +1246,20 @@ this port:
   recovery from a lost XON, is the argument of a `debug()` call, so
   `NODEBUG` discards it. It is the only caller of `tcflow()` in the
   module. `ckvictor.c`'s `V9K_FCSPIN` is the port's own backstop for it.
+- **`ckufio.c`'s `zchko()`** — the writability probe **creates a file and
+  deletes it again**, on every received file, before any data moves, purely
+  so it can call `isatty()` on the descriptor (the `NOUUCP` arm, which this
+  port takes). The function's own header comment opens **"NOTE: The design
+  is flawed."** Cheap on POSIX; on a FAT12 root with 156 entries it is a
+  free-slot scan plus two directory writes and **§16bc measured it at
+  ~4.4 s per file**, fixed and rate-independent. Worth reporting for the
+  danger as much as the cost: the same function already carries a 2022 fix
+  and a long comment about **not** destroying a pre-existing file, which is
+  exactly the failure mode "test writability by creating the file" invites.
+  A stat of the parent directory answers the question the probe is asking.
+  **Not fixed here** — it is upstream's design decision, and this port has
+  no reason to be the one to change it. §16bc.
+
 - **`ckcfns.c:6914`** — `snddir()` has an `if` with no body:
 
   ```c
@@ -1375,6 +1490,22 @@ Note this bounds *observed* occupancy, not the safe bound — the worst case
 is still "the foreground drains nothing for a whole packet", which is the
 packet length, and it is **item 11** that turns on it. (This used to say
 "item 3", from a numbering two revisions old.)
+
+**11a. §16bc SETTLES WHY EVERY RTS/CTS LEG HAS BEEN NULL, AND IT IS NOT
+THE HOST.** With a client carrying a verified `POSIX_CRTSCTS` (see lead
+item 4), leg HD reports **`held=0 rel=0`**: `rxpeak` reached 2,635 against
+a high mark of 3,072, so **the water mark was never crossed and RTS was
+never asserted.** At 38400 with a window of 1 the ring cannot fill to
+three-quarters, because the far end stops to wait for an ACK long before
+that — §16au's regime fact from a third direction. **A flow-control leg at
+the shipping marks cannot engage flow control.** `V9K_FLOW` stays
+`FLO_NONE`. **What is left is one narrow question**: whether lowering the
+marks buys anything a window of 1 has not already bought — and §16ak showed
+low marks (256/64) void the leg the other way by putting `rxpeak` inside a
+resend. If it is ever run again, it needs a *narrow band* high up, a staged
+binary carrying the `-d` flags, and an adjacent control. Leg HE is the one
+positive: **`xon=2`**, two host START characters intercepted by the ISR,
+costing nothing (27.803 s against its control's 27.746).
 
 **11. ~~Flow control.~~ BUILT, SHIPPED OFF, AND NOW MEASURED ON THE
 MACHINE — PORTING.md §16aj (build), §16ak (seven legs), §16al (four legs).**
@@ -1698,7 +1829,19 @@ What is left of it: `REMOTE DIRECTORY` and `BYE` were
 excluded deliberately — the first never terminates its listing (§16i, item
 15) and the second cannot be retried without a power cycle.
 
-**14. FreeDOS for Victor** — `HW_TESTING.md` Tier 4. **The two things
+**14. ~~FreeDOS for Victor.~~ CLOSED — §16bc legs HF, HG, HH.** It runs on
+real hardware: **`v9k: dos oem=fd ver=622 irq1=09`**, §16av's IRQ1 branch
+executing for the first time, with §1b's direct chip-programming fallback
+under it. Channel B, for §16az's reason. **Leg HG at 38400 is the fastest
+receive this port has ever done — 1,412–1,438 cps over two passes, 0
+damaged, 0 timeouts, 0 resends** — 13–15% faster than MS-DOS 3.1 on the
+same machine in the same hour. **And §16ao's console item is closed too**:
+`screenshots/stephh IMG_2032.png` shows §1g's ANSI arm drawing the
+fullscreen display correctly, which §16az and §16ba both failed to capture.
+**What came OUT of it is new item 17.** The text below is kept because it
+is what the branches were built from.
+
+**Was: The two things
 that would have broken it are now handled, from FreeDOS's own sources, and
 NEITHER BRANCH HAS EVER EXECUTED.** §16av part 5.
 
@@ -1822,6 +1965,63 @@ for the port's whole life. Do it when something needs a break or a hangup —
 or when `msleep()` turns up in a third place.
 
 ---
+
+---
+
+**17. THE TRANSFER DISPLAY BREAKS A 38400 RECEIVE ON FREEDOS FOR VICTOR.
+NEW, §16bc, and the only live defect on the list.**
+
+**Two failures against a control that is clean twice.** Leg HH: the Victor
+NAKs a long data packet repeatedly until the host quits — packet 05 in pass
+1, 06 in pass 2 — while the **host records 0 damaged packets**, so the
+corruption is entirely in the Victor's receiver. Leg HG is the same leg
+with `--nodisplay` and is byte-exact at 1,412–1,438 cps both times.
+
+**The instrument names the location, which is why this is not an argument
+by elimination.** From `screenshots/stephh IMG_2035.png`:
+
+```
+rxlost=38 rxfull=0 rxpeak=1951 of 4096
+peaktag=1 fd=1
+lost evt=23 max=2 tag=1 fd=1
+wcon n=342 max=22 tot=706 cs      elapsed=1999 cs
+```
+
+**`tag=1` is `V9K_TAG_WRITE` and `fd=1` is the console.** §16m's foreground
+tag and §16q's first-loss latch agree: the foreground was **inside a write
+to the screen** both at the first loss and at the peak. **`wcon` prices it:
+342 console writes totalling 7.06 s in a 19.99 s run — 35%.** And
+`rxpeak=1951` equals the screen's `Packet Length: 1951`, so the ring peaked
+at exactly one packet — **the receiver never got ahead, it lost bytes
+inside each long packet**, which is why it is CRC errors and not timeouts.
+**First time in this tree the foreground tag has named a defect on its
+own.**
+
+**Mechanism, available and not proven:** hard rule 6 puts every console
+write through INT 21h; §16az established that the myfreedos kernel
+busy-waits on TBE and writes a character to the 7201 on **every** INT 21h
+call; §16ag established that at 38400 the foreground has no slack per byte.
+
+**Two things the evidence does NOT support, so do not write them down as
+if it did.** HG and HH differ in the display **and** the redirect, so what
+is measured is *console output*, not specifically §1g's cursor addressing.
+And **no MS-DOS 38400 display leg exists**, so FreeDOS-specificity is
+untested — §16ba measured the display at ~6 s (~12%) on a 9600 MS-DOS
+receive, which was survivable; here it is fatal.
+
+**The cheap next legs, in order:**
+
+1. **One MS-DOS leg at 38400 with the display on.** Settles whether this is
+   FreeDOS or is simply 38400. Costs one leg and needs no new binary.
+2. **One FreeDOS leg at 38400, display on, WITH the redirect** — that
+   separates the display from the redirect, which HH could not.
+3. **9600 on FreeDOS with the display on**, for whether it is rate or DOS.
+
+**Do not fix it before measuring which it is.** If it is console cost in
+general, the lever is `wcon`: 342 writes for one transfer is a lot, and
+§1g repaints far more than it needs to. If it is FreeDOS's INT 21h tracer,
+it is not this port's to fix and the answer is documentation —
+**`--nodisplay` at 38400 on that DOS.**
 
 ## 2. The two builds
 

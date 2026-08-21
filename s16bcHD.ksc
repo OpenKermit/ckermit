@@ -1,0 +1,42 @@
+; Leg HD -- THE FLOW-CONTROL LEG (--rtscts).  Host SENDS and can now STOP.
+;
+; BENCH take-file: there is no "set line" here.  ~/.kermrc names the adapter.
+; CHECK THAT IT NAMES THE ONE THAT IS PLUGGED IN.
+;
+; SET FLOW RTS/CTS ON THIS END.  It is meaningless without POSIX_CRTSCTS in
+; SHOW FEATURES -- check before, not after.
+;
+; PUT THE ANALYZER ON THIS LEG.  Probe /RTS and /DTR on the TTL side (same
+; WR5 byte, bit 7 and bit 1, so DTR is a free second channel); the connector
+; is +/-12 V, do not probe there.  Add CTS if a channel is free -- SS16v's
+; cts = 1 is on the retraction line because a floating MC1489 input can read
+; active.  SS16an saw eight pauses of 785 ms-1 s with data STILL ARRIVING for
+; hundreds of ms after each drop; that is the signature to compare against.
+;
+; THE RESULT IS rxpeak, and only if HD is otherwise identical to HC on the
+; wire: rxbytes equal, same packet count, same retransmissions.  A leg that
+; retransmits differently is re-run, not adjusted (SS16ag leg AM).
+;
+; THEN ASK WHERE THE PEAK IS BEFORE READING IT (SS16ak leg DE):
+;     python3 v9k/tools/mapoffset.py s16bcHD.pkt \
+;            --rxbytes <rxbytes= from the .OUT> <peakat= from the .OUT>
+; A peak at a packet boundary is where the CONTROL legs peak too.
+;
+; V9K_FLOW stays FLO_NONE out of this sitting whatever this says.  Harmless
+; and effective are different claims and only the second licenses a default.
+;
+; READ IT WITH:
+;     python3 v9k/tools/pktstat.py --rxbytes <from STEPHD.OUT> s16bcHD.pkt
+; Residual -11 clean, +28 with a startup timeout.
+; cmp FIRST, then the counters.  A leg that is fast and wrong is the failure.
+
+set flow rts/cts
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+set retry 30
+log packets s16bcHD.pkt
+send rcvhd.dat
+statistics

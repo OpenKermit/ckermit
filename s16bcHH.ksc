@@ -1,0 +1,38 @@
+; Leg HH -- the FreeDOS console arm.  The Victor leg has NO REDIRECT.
+;
+; BENCH take-file: there is no "set line" here.  ~/.kermrc names the adapter.
+; CHECK THAT IT NAMES THE ONE THAT IS PLUGGED IN.
+;
+; THE VICTOR SIDE OF THIS LEG HAS NO REDIRECT AND NO --nodisplay, AND THAT IS
+; THE POINT.  SS16u: the transfer display goes away under the redirect that
+; records the counters, so a leg that has to SHOW you a screen cannot have
+; one.  SS16ba's first attempt and SS16az leg FDG both died of this.
+;
+; THERE ARE THEREFORE NO COUNTERS FROM THIS LEG.  HG is the run with the
+; counters; this is the run with the picture.  PHOTOGRAPH THE SCREEN
+; MID-TRANSFER.
+;
+; What is being verified: SS1g's ANSI arm, chosen by the same INT 21h AH=30h
+; probe that picks the IRQ1 vector.  victor_ansi.asm:154 passes anything that
+; is not ESC [ straight to the screen, so a VT52 display would PRINT a Y and
+; two coordinate bytes 55 times a repaint.
+;
+; SS16az leg FDA's screen garbage was read as ours and is RETRACTED:
+; victor_trace.c writes the KERNEL's debug region to screen rows 12-24.
+; Nothing distinguishes our output from the kernel's on rows 12-24.  Read
+; the top of the screen.
+;
+; READ IT WITH:
+;     python3 v9k/tools/pktstat.py --rxbytes <from STEPHH.OUT> s16bcHH.pkt
+; Residual -11 clean, +28 with a startup timeout.
+; cmp FIRST, then the counters.  A leg that is fast and wrong is the failure.
+
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+set retry 30
+log packets s16bcHH.pkt
+send rcvhh.dat
+statistics

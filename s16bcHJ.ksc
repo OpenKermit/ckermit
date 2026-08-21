@@ -1,0 +1,47 @@
+; Leg HJ -- server capability sweep at 38400.  Edits 19, 20 and 22.
+;
+; REMOTE HELP IS FIRST AND THAT IS SS16ax'S RULE: it prints the capability
+; table out of the en_* variables, and it is what caught SPACE and WHO
+; claiming "Enabled" while both could only fail.
+;
+; WHAT EACH COMMAND IS FOR:
+;   remote help      the capability table.  Read it before believing anything
+;   remote pwd       via a file: 9.0.302's remcfm() falls off an empty
+;                    argument.  This client is 11.0.508 and has the 2014 fix,
+;                    but the redirect costs nothing and proves the client
+;   remote space     EDIT 20 -- answered from INT 21h AH=36h, not from a df
+;                    that NOPUSH deleted
+;   remote directory EDIT 19 -- every date must be NOW, not Jan 1 1970
+;   get              EDIT 19 again: the file DATE ATTRIBUTE, not just the
+;                    listing.  ls -l the result on this end
+;   remote status    four fields came back empty under MAME (Hostname,
+;                    Server hardware, OS family, and Current directory on
+;                    server, which is blank while REMOTE PWD answers).
+;                    CONFIRM, DO NOT CHASE
+;   mail             EDIT 22 -- expect refusal code N in the A-PACKET ACK
+;                    with NO DATA PACKETS, the way PRINT already behaves.
+;                    The control behaviour is E Can't open file after the
+;                    first data packet
+;   finish           LAST.  Ask what a leg's final command does to the
+;                    channel the leg reports through -- SS16ax leg SA came
+;                    back 0 bytes because its REMOTE EXIT failed on the host
+;                    and the server never exited.  BYE is not used here
+;                    because it cannot be retried without a power cycle.
+
+set speed 38400
+set receive timeout 20
+set parity none
+set prefixing cautious
+set block 3
+set retry 30
+set carrier-watch off
+log packets s16bcHJ.pkt
+remote help > srvhj-help.txt
+remote pwd > srvhj-pwd.txt
+remote space > srvhj-space.txt
+remote directory > srvhj-dir.txt
+remote status > srvhj-status.txt
+get trans.dat gothj.dat
+mail rcvhj.dat nobody@example.com
+finish
+statistics
