@@ -1,6 +1,6 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.0.509 (not yet released)
+# C-Kermit 11.0.509
 
 - Fixed a bug in statements like `\fcvtdate(..., -4)` where there was no space
   between the day and the year, producing outputs like `Sat Nov 262005` instead

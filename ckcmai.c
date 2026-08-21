@@ -1,8 +1,8 @@
 /* ckcmai.c - Main program for C-Kermit plus some miscellaneous functions */
 
-#define EDITDATE  "2026/08/09"       /* Last edit date ISO format */
+#define EDITDATE  "2026/08/20"       /* Last edit date ISO format */
 
-#define EDITNDATE "20260809"          /* Keep them in sync */
+#define EDITNDATE "20260820"          /* Keep them in sync */
 /*
   As of 27 September 2022 BETATEST is defined in ckcdeb.h, not here,
   because it's also used in other modules.
@@ -110,9 +110,9 @@ int offtsize = 0;                       /* Size of OFF_T */
   C-Kermit for each platform (except the original Mac) and Kermit 95.
 */
 char *ck_s_ver = "11.0";                /* C-Kermit version string */
-char *ck_s_edit = "508";                /* Edit number (for Debian package) */
-char *ck_s_xver = "11.0.508";           /* eXtended version string */
-long  ck_l_ver = 1100508L;              /* C-Kermit version number */
+char *ck_s_edit = "509";                /* Edit number (for Debian package) */
+char *ck_s_xver = "11.0.509";           /* eXtended version string */
+long  ck_l_ver = 1100509L;              /* C-Kermit version number */
 char *ck_s_name = "C-Kermit";           /* Name of this program */
 char *ck_s_who = "";                    /* Where customized, "" = not. */
 char *ck_patch = "";                    /* Patch info, if any. */
