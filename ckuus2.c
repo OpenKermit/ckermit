@@ -9510,6 +9510,12 @@ static char *hxytcp[] = {
 "  interface. Specify <ipv6-address> with a %interface (e.g. fe80::1%eth0)",
 "  or %index (e.g. fe80::1%2) suffix.",
 " ",
+"SET TCP CONNECT-TIMEOUT <seconds>",
+"  Sets how long a single connect() attempt waits before timing out,",
+"  default 30.  When a hostname resolves to multiple addresses, each",
+"  address is tried in turn, bounding total connection time by this",
+"  value times the number of addresses tried.  Must be at least 1.",
+" ",
 #endif /* CK_IPV6 */
 "SET TCP KEEPALIVE { ON, OFF }",
 "  Setting this ON might help to detect broken connections more quickly.",

@@ -1640,6 +1640,7 @@ struct stringint {                      /* String and (wide) integer */
 #ifdef CK_IPV6
 #define  XYTCP_AF        15 /* Address family: IPv4, IPv6, or auto */
 #define  XYTCP_ADDRESS6  16 /* Set preferred IPv6 Address */
+#define  XYTCP_CONNECT_TIMEOUT 17 /* connect() timeout, seconds */
 #endif /* CK_IPV6 */
 #endif /* TCPSOCKET */
 

@@ -10535,6 +10535,19 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n");
               tcp_af = z;
               return(success = 1);
           }
+          case XYTCP_CONNECT_TIMEOUT: {
+              extern int tcp_connect_timeout;
+              x = cmnum("connect() timeout, seconds",
+                         ckitoa(tcp_connect_timeout),10,&z,xxstring);
+              if (x < 0) return(x);
+              if ((x = cmcfm()) < 0) return(x);
+              if (z < 1) {
+                  printf("?Timeout must be at least 1 second\n");
+                  return(success = 0);
+              }
+              tcp_connect_timeout = z;
+              return(success = 1);
+          }
 #endif /* CK_IPV6 */
 
           default:

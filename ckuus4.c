@@ -301,6 +301,7 @@ extern int tcp_af;
 extern char * tcp_address;
 #ifdef CK_IPV6
 extern char * tcp_address6;
+extern int tcp_connect_timeout;
 #endif /* CK_IPV6 */
 #ifndef NOHTTP
 extern char * tcp_http_proxy;
@@ -4945,6 +4946,8 @@ shotcp(n) int n;
         if (++n > cmd_rows - 3) { if (!askmore()) { return(-1);} else {n = 0;}}
 #ifdef CK_IPV6
         printf(" address6: %s\n",tcp_address6 ? tcp_address6 : "(none)");
+        if (++n > cmd_rows - 3) { if (!askmore()) { return(-1);} else {n = 0;}}
+        printf(" connect-timeout: %d\n",tcp_connect_timeout);
         if (++n > cmd_rows - 3) { if (!askmore()) { return(-1);} else {n = 0;}}
 #endif /* CK_IPV6 */
 #ifndef NOHTTP

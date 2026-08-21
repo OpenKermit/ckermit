@@ -459,6 +459,11 @@ unsigned long myxipaddr = 0L;           /* Ditto as a number */
 char *tcp_address = NULL;               /* Preferred IPv4 Address */
 #ifdef CK_IPV6
 char *tcp_address6 = NULL;              /* Preferred IPv6 Address */
+
+/* Default timeout in seconds for SET TCP CONNECT-TIMEOUT.
+   Bounds a single connect() attempt. */
+#define CK_TCP_CONNECT_TIMEOUT_DEFAULT 30
+int tcp_connect_timeout = CK_TCP_CONNECT_TIMEOUT_DEFAULT;
 #endif /* CK_IPV6 */
 extern char uidbuf[];                   /* User ID buffer */
 extern char pwbuf[];                    /* Password buffer */
@@ -1754,6 +1759,83 @@ ck_scopeaddr6(in,addr,scopeid)
 #endif /* CK_IPV6 */
 
 #ifdef CK_IPV6
+#include <fcntl.h>
+
+/*
+  Non-blocking connect() with a bounded timeout (tcp_connect_timeout).
+
+  Uses select() to wait for socket writability. Adjusts the remaining
+  deadline if select() is interrupted by EINTR.
+
+  Returns 0 on success, or -1 with errno set (including ETIMEDOUT) on
+  failure. Restores the original blocking mode of fd before returning.
+*/
+static int
+#ifdef CK_ANSIC
+ck_tcp_connect1( int fd, struct addrinfo * rp )
+#else /* CK_ANSIC */
+ck_tcp_connect1(fd,rp) int fd; struct addrinfo * rp;
+#endif /* CK_ANSIC */
+{
+    int flags, rc, err;
+
+    flags = fcntl(fd,F_GETFL,0);
+    if (flags != -1)
+      fcntl(fd,F_SETFL,flags|O_NONBLOCK);
+
+    do {
+        rc = connect(fd,rp->ai_addr,rp->ai_addrlen);
+    } while (rc < 0 && errno == EINTR);
+
+    if (rc == 0 || errno != EINPROGRESS) {
+        err = errno;
+    } else {
+        fd_set wfds;
+        struct timeval tv;
+        time_t deadline;
+
+        debug(F101,"ck_tcp_connect1 waiting, secs","",tcp_connect_timeout);
+        deadline = time(NULL) + (time_t)tcp_connect_timeout;
+        while (1) {
+            time_t remaining = deadline - time(NULL);
+            if (remaining <= 0) {
+                rc = -1;
+                err = ETIMEDOUT;
+                debug(F100,"ck_tcp_connect1 timed out","",0);
+                break;
+            }
+            FD_ZERO(&wfds);
+            FD_SET(fd,&wfds);
+            tv.tv_sec = remaining;
+            tv.tv_usec = 0;
+            rc = select(fd+1,NULL,&wfds,NULL,&tv);
+            if (rc > 0)
+              break;                    /* Writable: check SO_ERROR below */
+            if (rc == 0) {
+                rc = -1;
+                err = ETIMEDOUT;
+                debug(F100,"ck_tcp_connect1 timed out","",0);
+                break;
+            }
+            if (errno == EINTR)
+              continue;                 /* Interrupted; re-arm wait */
+            err = errno;
+            break;
+        }
+        if (rc > 0) {
+            SOCKOPT_T optlen = sizeof(err);
+            err = 0;
+            if (getsockopt(fd,SOL_SOCKET,SO_ERROR,(char *)&err,&optlen) < 0)
+              err = errno;
+            rc = err ? -1 : 0;
+        }
+    }
+    if (flags != -1)
+      fcntl(fd,F_SETFL,flags);
+    errno = err;
+    return(rc);
+}
+
 /*
   ck_tcp_connect() implements the telnet-style IPv6 DNS resolution and
   connection policy: try to connect to every candidate in resolver order,
@@ -1911,7 +1993,7 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
             }
         }
 
-        if (connect(fd,rp->ai_addr,rp->ai_addrlen) == 0) {
+        if (ck_tcp_connect1(fd,rp) == 0) {
             debug(F110,"ck_tcp_connect connected",tbuf,fd);
             /* getaddrinfo() never returns an address larger than
                sockaddr_storage for any family the local resolver
