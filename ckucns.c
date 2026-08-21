@@ -820,9 +820,9 @@ ckcgetc(dummy) int dummy;
         if ((n = ttchk()) > 0) {        /* Any more waiting? */
             if (n > (IBUFL - ibc))      /* Get them all at once. */
               n = IBUFL - ibc;          /* Don't overflow buffer */
-              if ((n = ttxin(n,(CHAR *)ibp)) > 0) {
-                  ibc += n;             /* Advance counter */
-              }
+            if ((n = ttxin(n,(CHAR *)ibp)) > 0) {
+                ibc += n;               /* Advance counter */
+            }
         } else if (n < 0) {             /* Error? */
             return(n);                  /* Return the error code */
         }

@@ -5043,8 +5043,10 @@ dialfail(x) int x;
     }
 
 #ifdef DYNAMIC
-    if (rbuf) free(rbuf); rbuf = NULL;
-    if (fbuf) free(fbuf); fbuf = NULL;
+    if (rbuf) free(rbuf);
+    rbuf = NULL;
+    if (fbuf) free(fbuf);
+    fbuf = NULL;
 #endif /* DYNAMIC */
 
     if (dialsta < 0) dialsta = DIA_UERR; /* Set failure code */
@@ -5092,8 +5094,10 @@ _dodial(threadinfo) VOID * threadinfo;
         printf("DIAL command + phone number too long!\n");
         dreset();
 #ifdef DYNAMIC
-        if (rbuf) free(rbuf); rbuf = NULL;
-        if (fbuf) free(fbuf); fbuf = NULL;
+        if (rbuf) free(rbuf);
+        rbuf = NULL;
+        if (fbuf) free(fbuf);
+        fbuf = NULL;
 #endif /* DYNAMIC */
 #ifdef NTSIG
         ckThreadEnd(threadinfo);
@@ -5156,8 +5160,10 @@ _dodial(threadinfo) VOID * threadinfo;
                     printf("Try 'set line %s' again.\n",ttname);
                     dialsta = DIA_HANG;
 #ifdef DYNAMIC
-                    if (rbuf) free(rbuf); rbuf = NULL;
-                    if (fbuf) free(fbuf); fbuf = NULL;
+                    if (rbuf) free(rbuf);
+                    rbuf = NULL;
+                    if (fbuf) free(fbuf);
+                    fbuf = NULL;
 #endif /* DYNAMIC */
                     dreset();
 #ifdef NTSIG
@@ -5212,8 +5218,10 @@ _dodial(threadinfo) VOID * threadinfo;
             printf(" Call failed.\r\n");
             dialhup();                  /* Hangup the call */
 #ifdef DYNAMIC
-            if (rbuf) free(rbuf); rbuf = NULL;
-            if (fbuf) free(fbuf); fbuf = NULL;
+            if (rbuf) free(rbuf);
+            rbuf = NULL;
+            if (fbuf) free(fbuf);
+            fbuf = NULL;
 #endif /* DYNAMIC */
             dialsta = DIA_UERR;
 #ifdef NTSIG
@@ -5238,8 +5246,10 @@ _dodial(threadinfo) VOID * threadinfo;
 
         dialsta = DIA_OK;
 #ifdef DYNAMIC
-        if (rbuf) free(rbuf); rbuf = NULL;
-        if (fbuf) free(fbuf); fbuf = NULL;
+        if (rbuf) free(rbuf);
+        rbuf = NULL;
+        if (fbuf) free(fbuf);
+        fbuf = NULL;
 #endif /* DYNAMIC */
 #ifdef NTSIG
         ckThreadEnd(threadinfo);
@@ -5345,8 +5355,10 @@ _dodial(threadinfo) VOID * threadinfo;
                       printf(".\r\n");
                       dialsta = DIA_NRSP;
 #ifdef DYNAMIC
-                      if (rbuf) free(rbuf); rbuf = NULL;
-                      if (fbuf) free(fbuf); fbuf = NULL;
+                      if (rbuf) free(rbuf);
+                      rbuf = NULL;
+                      if (fbuf) free(fbuf);
+                      fbuf = NULL;
 #endif /* DYNAMIC */
 #ifdef NTSIG
                       ckThreadEnd(threadinfo);
@@ -5872,8 +5884,10 @@ _dodial(threadinfo) VOID * threadinfo;
 #endif /* NTSIG */
                     dialsta = DIA_IO;   /* Call it an I/O error */
 #ifdef DYNAMIC
-                    if (rbuf) free(rbuf); rbuf = NULL;
-                    if (fbuf) free(fbuf); fbuf = NULL;
+                    if (rbuf) free(rbuf);
+                    rbuf = NULL;
+                    if (fbuf) free(fbuf);
+                    fbuf = NULL;
 #endif /* DYNAMIC */
                     SIGRETURN;
                 }
@@ -6383,8 +6397,10 @@ _dodial(threadinfo) VOID * threadinfo;
 #endif /* CKLOGDIAL */
 
 #ifdef DYNAMIC
-    if (rbuf) free(rbuf); rbuf = NULL;
-    if (fbuf) free(fbuf); fbuf = NULL;
+    if (rbuf) free(rbuf);
+    rbuf = NULL;
+    if (fbuf) free(fbuf);
+    fbuf = NULL;
 #endif /* DYNAMIC */
     dialsta = (mdmstat == D_PARTIAL) ? DIA_PART : DIA_OK;
 #ifdef NTSIG
@@ -6559,7 +6575,8 @@ ckdial(nbr, x1, x2, fc, redial) char *nbr; int x1, x2, fc, redial;
     if (!(fbuf = malloc(FULLNUML+1))) {    /* Allocate input line buffer */
         printf("%s", mmsg);
         dialsta = DIA_IE;
-        if (rbuf) free(rbuf); rbuf = NULL;
+        if (rbuf) free(rbuf);
+        rbuf = NULL;
         return 0;
     }
     debug(F101,"DIAL fbuf malloc ok","",FULLNUML+1);
@@ -6576,8 +6593,10 @@ ckdial(nbr, x1, x2, fc, redial) char *nbr; int x1, x2, fc, redial;
         perror(errmsg);
         dialsta = DIA_OPEN;
 #ifdef DYNAMIC
-        if (rbuf) free(rbuf); rbuf = NULL;
-        if (fbuf) free(fbuf); fbuf = NULL;
+        if (rbuf) free(rbuf);
+        rbuf = NULL;
+        if (fbuf) free(fbuf);
+        fbuf = NULL;
 #endif /* DYNAMIC */
         return 0;
     }
@@ -6599,8 +6618,10 @@ ckdial(nbr, x1, x2, fc, redial) char *nbr; int x1, x2, fc, redial;
             perror(errmsg);
             dialsta = DIA_OPEN;
 #ifdef DYNAMIC
-            if (rbuf) free(rbuf); rbuf = NULL;
-            if (fbuf) free(fbuf); fbuf = NULL;
+            if (rbuf) free(rbuf);
+            rbuf = NULL;
+            if (fbuf) free(fbuf);
+            fbuf = NULL;
 #endif /* DYNAMIC */
             return 0;
         }                               /* And try again. */
@@ -6620,8 +6641,10 @@ ckdial(nbr, x1, x2, fc, redial) char *nbr; int x1, x2, fc, redial;
             printf("Try 'set line %s' again\n",ttname);
             dialsta = DIA_OPEN;
 #ifdef DYNAMIC
-            if (rbuf) free(rbuf); rbuf = NULL;
-            if (fbuf) free(fbuf); fbuf = NULL;
+            if (rbuf) free(rbuf);
+            rbuf = NULL;
+            if (fbuf) free(fbuf);
+            fbuf = NULL;
 #endif /* DYNAMIC */
             return 0;
         }
