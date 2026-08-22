@@ -5442,7 +5442,7 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x;
   zsperms:
 #ifdef CK_PERMS
     {
-        int i, x = 0, xx, flag = 0;
+        int i, px = 0, xx, flag = 0;
         char * s;
         char obuf[24];
 
@@ -5472,7 +5472,7 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x;
               xx = 0 - xx;
             for (i = 0; i < xx; i++) {  /* Decode octal string */
                 if (*s <= '7' && *s >= '0') {
-                    x = 8 * x + (int)(*s) - '0';
+                    px = 8 * px + (int)(*s) - '0';
                 } else {
                     flag = 0;
                     break;
@@ -5480,7 +5480,7 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x;
                 s++;
             }
 #ifdef DEBUG
-            sprintf(obuf,"%o",x);
+            sprintf(obuf,"%o",px);
             debug(F110,"zstime octal lperm",obuf,0);
 #endif /* DEBUG */
         } else if (!flag && yy->gprotect.len > 0) {
@@ -5506,37 +5506,37 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x;
             debug(F101,"zstime gprotect","",g);
 #ifdef S_IRUSR
             debug(F100,"zstime S_IRUSR","",0);
-            if (g & 1) x |= S_IRUSR;    /* Read permission */
+            if (g & 1) px |= S_IRUSR;   /* Read permission */
             flag = 1;
 #endif /* S_IRUSR */
 #ifdef S_IWUSR
             debug(F100,"zstime S_IWUSR","",0);
-            if (g & 2) x |= S_IWUSR;    /* Write permission */
-            if (g & 16) x |= S_IWUSR;   /* Delete permission */
+            if (g & 2) px |= S_IWUSR;   /* Write permission */
+            if (g & 16) px |= S_IWUSR;  /* Delete permission */
             flag = 1;
 #endif /* S_IWUSR */
 #ifdef S_IXUSR
             debug(F100,"zstime S_IXUSR","",0);
             if (g & 4)                  /* Has execute permission bit */
-              x |= S_IXUSR;
+              px |= S_IXUSR;
             else                        /* Doesn't have it */
               mask &= 0666;             /* so also clear it out of mask */
             flag = 1;
 #endif /* S_IXUSR */
-            debug(F101,"zstime mask x","",x);
-            x |= mask;
-            debug(F101,"zstime mask x|mask","",x);
+            debug(F101,"zstime mask x","",px);
+            px |= mask;
+            debug(F101,"zstime mask x|mask","",px);
         }
         debug(F101,"zstime flag","",flag);
         if (flag) {
 #ifdef S_IFMT
-            debug(F101,"zstime S_IFMT x","",x);
-            sb.st_mode = (sb.st_mode & S_IFMT) | x;
+            debug(F101,"zstime S_IFMT x","",px);
+            sb.st_mode = (sb.st_mode & S_IFMT) | px;
             setperms = 1;
 #else
 #ifdef _IFMT
-            debug(F101,"zstime _IFMT x","",x);
-            sb.st_mode = (sb.st_mode & _IFMT) | x;
+            debug(F101,"zstime _IFMT x","",px);
+            sb.st_mode = (sb.st_mode & _IFMT) | px;
             setperms = 1;
 #endif /* _IFMT */
 #endif /* S_IFMT */
@@ -5589,7 +5589,7 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x;
   time.
 */
         {
-            int x;
+            int rc;
             debug(F101,"zstime setperms","",setperms);
             if (S_ISDIR(sb.st_mode)) {
                 debug(F101,"zstime DIRECTORY bit on","",sb.st_mode);
@@ -5597,11 +5597,11 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x;
                 debug(F101,"zstime DIRECTORY bit off","",sb.st_mode);
             }
             if (setperms) {
-                x = chmod(f,sb.st_mode);
-                debug(F101,"zstime chmod","",x);
+                rc = chmod(f,sb.st_mode);
+                debug(F101,"zstime chmod","",rc);
+                if (rc < 0) return(-1);
             }
         }
-        if (x < 0) return(-1);
 #endif /* CK_PERMS */
 
         if (!setdate)                   /* We don't have a date */

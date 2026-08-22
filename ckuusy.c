@@ -2762,12 +2762,12 @@ doxarg(s,pre) char ** s; int pre;
           extern int dbenabled;
           struct zfnfp * zz;
           if ((zz = zfnqfp(p,CKMAXPATH,tmpbuf))) {
-              char *s, *s2 = NULL;
+              char *dp, *s2 = NULL;
               makestr(&dbdir,zz->fpath);
               makestr(&dbfile,zz->fpath);
-              for (s = dbdir; *s; s++) {
-                  if (ISDIRSEP(*s))
-                    s2 = s+1;
+              for (dp = dbdir; *dp; dp++) {
+                  if (ISDIRSEP(*dp))
+                    s2 = dp+1;
               }
               if (s2) *s2 = NUL;
               debug(F110,"XA_DBFI dbdir",dbdir,0);

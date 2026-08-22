@@ -3153,16 +3153,16 @@ cksplit(fc,n1,s1,s2,s3,n2,n3,n4,n5)
         }
         if (cquote && c == CMDQ) {      /* Quoted CMDQ is special */
             if (state != ST_BW) {       /* because it can still separate */
-                char * s2 = s-1;
-                while (s2 > p) { *s2 = *(s2-1); s2--; }
+                char * sp = s-1;
+                while (sp > p) { *sp = *(sp-1); sp--; }
                 p++;
             }
             cquote = 0;
         }
         if (cquote) {                   /* Other quoted character */
             if (state != ST_BW) {       /* can't separate or group */
-                char * s2 = s-1;
-                while (s2 > p) { *s2 = *(s2-1); s2--; }
+                char * sp = s-1;
+                while (sp > p) { *sp = *(sp-1); sp--; }
                 p++;
             }
             class = CL_DAT;             /* so treat it as data */
@@ -3253,19 +3253,19 @@ cksplit(fc,n1,s1,s2,s3,n2,n3,n4,n5)
             if (class & CL_SEP) {       /* Ends on any kind of separator */
                 *s = NUL;               /* Terminate this word */
                 if (csv) {              /* If comma-separated list */
-                    char * s2 = s;      /* discard surrounding spaces */
-                    while (s2 > splitbuf) { /* first backwards... */
-                        s2--;
-                        if (*s2 == SP || *s2 == HT)
-                          *s2 = NUL;
+                    char * sp = s;      /* discard surrounding spaces */
+                    while (sp > splitbuf) { /* first backwards... */
+                        sp--;
+                        if (*sp == SP || *sp == HT)
+                          *sp = NUL;
                         else
                           break;
                     }
-                    s2 = s+1;           /* Then forwards... */
-                    while (*s2 && (*s2 == SP || *s2 == HT)) {
-                      s2++;
+                    sp = s+1;           /* Then forwards... */
+                    while (*sp && (*sp == SP || *sp == HT)) {
+                      sp++;
                     }
-                    s = s2-1;
+                    s = sp-1;
                 }
                 if (!csv || prevstate != ST_IG) {
                     wordnum++;                /* Count it */
@@ -3296,8 +3296,8 @@ cksplit(fc,n1,s1,s2,s3,n2,n3,n4,n5)
             if (class & CL_CLS) {       /* Have group closer? */
                 if (csv) {
                     if (*(s+1) == c) {
-                        char *s2 = s;
-                        while ((*s2 = *(s2+1))) s2++;
+                        char *sp = s;
+                        while ((*sp = *(sp+1))) sp++;
                         s++;
                         c = *s;
                     }
