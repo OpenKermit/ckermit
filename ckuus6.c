@@ -4330,33 +4330,33 @@ dotype(file, paging, first, head, pat, width, prefix, incs, outcs, outfile, z)
         }
         if (width > 0 && width <= TYPBUFL) { /* Truncate at given width. */
             char * obuf = line;         /* But to do that first we must */
-            int i,k,z;                  /* expand tabs; assume every 8 cols. */
+            int oi,bk,tw;               /* expand tabs; assume every 8 cols. */
             line[0] = NUL;
-            for (i = 0, k = 0; i < width; k++) { /* Character loop... */
-                if (!buf[k])            /* No more chars in this line, done. */
+            for (oi = 0, bk = 0; oi < width; bk++) { /* Character loop... */
+                if (!buf[bk])           /* No more chars in this line, done. */
                   break;
-                if (buf[k] != '\t') {   /* If it's not a tab */
-                    if (i >= LINBUFSIZ) /* Check for overflow */
+                if (buf[bk] != '\t') {  /* If it's not a tab */
+                    if (oi >= LINBUFSIZ) /* Check for overflow */
                       break;
-                    obuf[i++] = buf[k]; /* and then deposit it. */
-                    obuf[i] = NUL;      /* Keep it null-terminated */
+                    obuf[oi++] = buf[bk]; /* and then deposit it. */
+                    obuf[oi] = NUL;     /* Keep it null-terminated */
                     continue;
                 }
-                z = 8 - (i % 8);        /* It's a tab, expand it. */
-                if (z == 0) z = 8;
-                for (j = 0; j < z && i < LINBUFSIZ; j++) {
+                tw = 8 - (oi % 8);      /* It's a tab, expand it. */
+                if (tw == 0) tw = 8;
+                for (j = 0; j < tw && oi < LINBUFSIZ; j++) {
 #ifdef UNICODE
                     if (ucs2 && !ucsorder)
-                      obuf[i++] = NUL;
+                      obuf[oi++] = NUL;
 #endif /* UNICODE */
-                    obuf[i++] = ' ';
+                    obuf[oi++] = ' ';
 #ifdef UNICODE
                     if (ucs2 && ucsorder)
-                      obuf[i++] = NUL;
+                      obuf[oi++] = NUL;
 #endif /* UNICODE */
                 }
-                obuf[i++] = NUL;
-                obuf[i] = NUL;
+                obuf[oi++] = NUL;
+                obuf[oi] = NUL;
             }
             obuf[width] = NUL;          /* Now truncate at given width. */
 #ifdef COMMENT

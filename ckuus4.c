@@ -4163,11 +4163,11 @@ debopn(s,disp) char *s; int disp;
         }
 #ifdef KTARGET
         {
-            char * s;                   /* Makefile target */
-            s = KTARGET;
-            if (!s) s = "";
-            if (!*s) s = "(unknown)";
-            debug(F110,"build target",s,0);
+            char * tgt;                 /* Makefile target */
+            tgt = KTARGET;
+            if (!tgt) tgt = "";
+            if (!*tgt) tgt = "(unknown)";
+            debug(F110,"build target",tgt,0);
         }
 #endif /* KTARGET */
         deblog = 0;
@@ -15381,13 +15381,13 @@ char *                                  /* Evaluate builtin variable */
       }
       case VN_FTP_G: {                  /* FTP GET-PUT-REMOTE */
           extern int ftpget;
-          char * s = "";
+          char * val = "";
           switch (ftpget) {
-            case 0: s = "kermit"; break;
-            case 1: s = "ftp"; break;
-            case 2: s = "auto"; break;
+            case 0: val = "kermit"; break;
+            case 1: val = "ftp"; break;
+            case 2: val = "auto"; break;
           }
-          return(s);
+          return(val);
       }
 #endif /* NEWFTP */
 
@@ -16010,8 +16010,8 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
 #endif /* DEBUG */
             {
              /* In case the function name itself is constructed */
-                char buf[64]; char * p = buf; int n = 64;
-                if (zzstring(vnambuf,&p,&n) > -1)
+                char buf[64]; char * p = buf; int n3 = 64;
+                if (zzstring(vnambuf,&p,&n3) > -1)
                   ckstrncpy(vnambuf,buf,64);
             }
             vp = fneval(vnambuf,argp,argn,r3); /* Evaluate the function. */
