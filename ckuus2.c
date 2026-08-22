@@ -9514,7 +9514,8 @@ static char *hxytcp[] = {
 "  Sets how long a single connect() attempt waits before timing out,",
 "  default 30.  When a hostname resolves to multiple addresses, each",
 "  address is tried in turn, bounding total connection time by this",
-"  value times the number of addresses tried.  Must be at least 1.",
+"  value times the number of addresses tried.  Specify 0 to wait",
+"  indefinitely.",
 " ",
 #endif /* CK_IPV6 */
 "SET TCP KEEPALIVE { ON, OFF }",

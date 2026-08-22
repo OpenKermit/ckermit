@@ -4947,7 +4947,10 @@ shotcp(n) int n;
 #ifdef CK_IPV6
         printf(" address6: %s\n",tcp_address6 ? tcp_address6 : "(none)");
         if (++n > cmd_rows - 3) { if (!askmore()) { return(-1);} else {n = 0;}}
-        printf(" connect-timeout: %d\n",tcp_connect_timeout);
+        if (tcp_connect_timeout > 0)
+          printf(" connect-timeout: %d\n",tcp_connect_timeout);
+        else
+          printf(" connect-timeout: 0 (unlimited)\n");
         if (++n > cmd_rows - 3) { if (!askmore()) { return(-1);} else {n = 0;}}
 #endif /* CK_IPV6 */
 #ifndef NOHTTP

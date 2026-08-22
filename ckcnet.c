@@ -1792,23 +1792,36 @@ ck_tcp_connect1(fd,rp) int fd; struct addrinfo * rp;
     } else {
         fd_set wfds;
         struct timeval tv;
-        time_t deadline;
+        struct timeval *tvp;
+        time_t deadline = 0;
 
-        debug(F101,"ck_tcp_connect1 waiting, secs","",tcp_connect_timeout);
-        deadline = time(NULL) + (time_t)tcp_connect_timeout;
+        /* A timeout of 0 disables the deadline, waiting indefinitely
+           in select() for the connection to complete or fail. */
+        if (tcp_connect_timeout > 0) {
+            debug(F101,"ck_tcp_connect1 waiting, secs","",
+                  tcp_connect_timeout);
+            deadline = time(NULL) + (time_t)tcp_connect_timeout;
+        } else {
+            debug(F100,"ck_tcp_connect1 waiting, no timeout","",0);
+        }
         while (1) {
-            time_t remaining = deadline - time(NULL);
-            if (remaining <= 0) {
-                rc = -1;
-                err = ETIMEDOUT;
-                debug(F100,"ck_tcp_connect1 timed out","",0);
-                break;
+            if (tcp_connect_timeout > 0) {
+                time_t remaining = deadline - time(NULL);
+                if (remaining <= 0) {
+                    rc = -1;
+                    err = ETIMEDOUT;
+                    debug(F100,"ck_tcp_connect1 timed out","",0);
+                    break;
+                }
+                tv.tv_sec = remaining;
+                tv.tv_usec = 0;
+                tvp = &tv;
+            } else {
+                tvp = NULL;              /* No deadline: wait indefinitely */
             }
             FD_ZERO(&wfds);
             FD_SET(fd,&wfds);
-            tv.tv_sec = remaining;
-            tv.tv_usec = 0;
-            rc = select(fd+1,NULL,&wfds,NULL,&tv);
+            rc = select(fd+1,NULL,&wfds,NULL,tvp);
             if (rc > 0)
               break;                    /* Writable: check SO_ERROR below */
             if (rc == 0) {

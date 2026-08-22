@@ -10537,12 +10537,12 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n");
           }
           case XYTCP_CONNECT_TIMEOUT: {
               extern int tcp_connect_timeout;
-              x = cmnum("connect() timeout, seconds",
+              x = cmnum("connect() timeout, seconds, or 0 for unlimited",
                          ckitoa(tcp_connect_timeout),10,&z,xxstring);
               if (x < 0) return(x);
               if ((x = cmcfm()) < 0) return(x);
-              if (z < 1) {
-                  printf("?Timeout must be at least 1 second\n");
+              if (z < 0) {
+                  printf("?Timeout may not be negative\n");
                   return(success = 0);
               }
               tcp_connect_timeout = z;
