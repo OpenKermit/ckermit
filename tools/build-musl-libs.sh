@@ -26,9 +26,9 @@ ZLIB_URL="https://github.com/madler/zlib/releases/download/\
 v$ZLIB_VERSION/zlib-$ZLIB_VERSION.tar.gz"
 ZLIB_SHA256=bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16
 
-OPENSSL_VERSION=3.5.7
+OPENSSL_VERSION=3.5.8
 OPENSSL_URL="https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz"
-OPENSSL_SHA256=a8c0d28a529ca480f9f36cf5792e2cd21984552a3c8e4aa11a24aa31aeac98e8
+OPENSSL_SHA256=a8f84a39918ec6415ce765d9b429d313ba97b8143169c172e734b9514464f5b2
 
 NCURSES_VERSION=6.6
 NCURSES_URL="https://ftp.gnu.org/gnu/ncurses/ncurses-$NCURSES_VERSION.tar.gz"
