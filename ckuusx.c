@@ -7633,19 +7633,19 @@ char *s;        /* a string */
         }
     }
     if (cinit == 0) {                   /* Only call initscr() once */
-        char * s;
+        char * ev;
         /* Check these now -- if they are defined but not numeric */
         /* they can crash curses */
-        s = getenv("LINES");
-        if (s) if (!rdigits(s)) {
-            printf("?LINES variable not numeric: \"%s\".\n",s);
+        ev = getenv("LINES");
+        if (ev) if (!rdigits(ev)) {
+            printf("?LINES variable not numeric: \"%s\".\n",ev);
             printf("(Fullscreen display disabled)\n");
             fdispla = XYFD_S;
             return;
         }
-        s = getenv("COLUMNS");
-        if (s) if (!rdigits(s)) {
-            printf("?COLUMNS variable not numeric: \"%s\".\n",s);
+        ev = getenv("COLUMNS");
+        if (ev) if (!rdigits(ev)) {
+            printf("?COLUMNS variable not numeric: \"%s\".\n",ev);
             printf("(Fullscreen display disabled)\n");
             fdispla = XYFD_S;
             return;
@@ -7678,7 +7678,7 @@ char *s;        /* a string */
            have the copy.  The original remains unaltered.  Unfortunately,
            newterm() seems to be particular to System V.
         */
-        s = getenv("TERM");
+        ev = getenv("TERM");
         if (ck_fd < 0) {
             ck_fd = dup(fileno(stdout));
             ck_stdout = (ck_fd >= 0) ? (FILE *)fdopen(ck_fd, "w") : NULL;
@@ -7690,9 +7690,9 @@ char *s;        /* a string */
 /* problem by restoring the buffering of stdin before the final release. */
 /* (But T.E. Dickey says stdin is not buffered?) */
 
-        if (ck_stdout == NULL || newterm(s, ck_stdout, stdin) == 0) {
+        if (ck_stdout == NULL || newterm(ev, ck_stdout, stdin) == 0) {
             fprintf(stderr,
-              "Fullscreen display not supported for terminal type: %s\r\n",s);
+              "Fullscreen display not supported for terminal type: %s\r\n",ev);
             fdispla = XYFD_S;           /* Use CRT instead */
             return;
         }

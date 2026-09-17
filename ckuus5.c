@@ -2573,32 +2573,32 @@ getnct(s,n,f,flag) char *s; int n; FILE *f; int flag;
     }
 #endif /* DEBUG */
     {
-        int i = 0; char *s = s2; char prev = '\0'; char c = '\0';
+        int li = 0; char *cp = s2; char pc = '\0'; char lc = '\0';
         /*
           Next line from Jeff Johnson, to fix garbled message when iksd.conf
           has an invalide line that is shorter than a previous line that is
           valid - 16 May 2023
         */
         memset(lasttakeline, '\0', sizeof(char)*TMPBUFSIZ+1);
-        while (*s) {   /* Save beginning of this command for error messages */
-            c = *s++;
-            if (c == '\n' || c == '\r') c = SP;
-            if (c == SP && prev == SP) /* Squeeze spaces */
+        while (*cp) {  /* Save beginning of this command for error messages */
+            lc = *cp++;
+            if (lc == '\n' || lc == '\r') lc = SP;
+            if (lc == SP && pc == SP) /* Squeeze spaces */
               continue;
-            lasttakeline[i++] = c;
-            prev = c;
-            if (i > TMPBUFSIZ-5) {
-                lasttakeline[i++] = '.';
-                lasttakeline[i++] = '.';
-                lasttakeline[i++] = '.';
-                lasttakeline[i++] = NUL;
+            lasttakeline[li++] = lc;
+            pc = lc;
+            if (li > TMPBUFSIZ-5) {
+                lasttakeline[li++] = '.';
+                lasttakeline[li++] = '.';
+                lasttakeline[li++] = '.';
+                lasttakeline[li++] = NUL;
                 break;
             }
         }
-        i = (int)strlen((char *)lasttakeline) - 1;
-        while (i > 0 && lasttakeline[i] == SP) { /* Trim treailing spaces */
-            lasttakeline[i] = NUL;
-            i--;
+        li = (int)strlen((char *)lasttakeline) - 1;
+        while (li > 0 && lasttakeline[li] == SP) { /* Trim treailing spaces */
+            lasttakeline[li] = NUL;
+            li--;
         }    }
     free(lpx);                          /* Free temporary storage */
     return(0);                          /* Return success */

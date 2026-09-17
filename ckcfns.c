@@ -1100,26 +1100,24 @@ xpnbyte(a,tcs,fcs,fn) int a, tcs, fcs; int (*fn)();
                         return(1);
                     } else {            /* Good */
                         int i;
-                        /* Use another name - 'a' hides parameter */
-                        /* It's OK as is but causes compiler warnings */
-                        char a = eu.x_char[1-byteorder]; /* Low byte */
+                        char lb = eu.x_char[1-byteorder]; /* Low byte */
                         debug(F001,"xpnbyte eu","",eu.x_short);
                         if (eu.x_char[byteorder] == 0) { /* Roman */
                             switch (jstate) {
                               case 1:   /* Current state is Katakana */
                                 jbuf[0] = 0x0f; /* SI */
-                                jbuf[1] = a;
+                                jbuf[1] = lb;
                                 jx = 2;
                                 break;
                               case 2:   /* Current state is Kanji */
                                 jbuf[0] = 0x1b; /* ESC */
                                 jbuf[1] = 0x28; /* ( */
                                 jbuf[2] = 0x4a; /* J */
-                                jbuf[3] = a;
+                                jbuf[3] = lb;
                                 jx = 4;
                                 break;
                               default:  /* Current state is Roman */
-                                jbuf[0] = a;
+                                jbuf[0] = lb;
                                 jx = 1;
                                 break;
                             }
@@ -1136,7 +1134,7 @@ xpnbyte(a,tcs,fcs,fn) int a, tcs, fcs; int (*fn)();
                                 jbuf[jx++] = 0x0e; /* SO */
                                 /* Fall through */
                               default:             /* State is already Kana*/
-                                jbuf[jx++] = (a & 0x7f); /* and the char */
+                                jbuf[jx++] = (lb & 0x7f); /* and the char */
                                 break;
                             }
                             jstate = 1; /* New state is Katakana */
@@ -4510,8 +4508,8 @@ sfile(x) int x;
                 fileorder = -1;         /* File byte order */
 #endif /* UNICODE */
                 if (filepeek && !notafile) { /* Real file, FILE SCAN is ON */
-                    int k, x;
-                    k = scanfile(filnam,&x,nscanfile); /* Scan the file */
+                    int k, bo;
+                    k = scanfile(filnam,&bo,nscanfile); /* Scan the file */
                     debug(F101,"sfile scanfile","",k);
                     switch (k) {
                       case FT_TEXT:     /* Unspecified text */
@@ -4577,8 +4575,8 @@ sfile(x) int x;
                             fcs_save = fcharset;
                             tcs_save = tcharset;
                             fcharset = (k == FT_UCS2) ? FC_UCS2 : FC_UTF8;
-                            if (k == FT_UCS2 && x > -1)
-                              fileorder = x;
+                            if (k == FT_UCS2 && bo > -1)
+                              fileorder = bo;
                         }
                         /* Switch to associated transfer charset if any */
                         if (afcset[fcharset] > -1 &&

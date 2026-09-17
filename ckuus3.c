@@ -4055,9 +4055,9 @@ dosexp(s) char *s;
                     char buf[32];
                     if (c == CMDQ) {    /* A backslash variable */
                         int n = 32;
-                        char * s = buf;
+                        char * bp = buf;
                         buf[0] = NUL;
-                        if (zzstring(s3,&s,&n) < 0 || !buf[0])
+                        if (zzstring(s3,&bp,&n) < 0 || !buf[0])
                           ok = 0;
                         s2 = buf;
                     } else {            /* A macro */
@@ -14248,8 +14248,8 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
               sexpecho = x;
               break;
             case 1: {
-                int i, xx;
-                xx = sexpmaxdep;
+                int i, omax;
+                omax = sexpmaxdep;
                 if ((y = cmnum("Maximum recursion depth",
                                "1000",10,&x,xxstring)) < 0)
                   return(y);
@@ -14257,7 +14257,7 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
                 if (z < 0)
                   return(z);
                 if (sxresult) {         /* Free old stack if allocated */
-                    for (i = 0; i < xx; i++)
+                    for (i = 0; i < omax; i++)
                       if (sxresult[i]) free(sxresult[i]);
                     free((char *)sxresult);
                     if (sxrlen) free((char *)sxrlen);

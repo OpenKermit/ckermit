@@ -9,6 +9,12 @@
   tests.  The previous default was no timeout enforced by C-Kermit; setting
   this value to 0 will restore that behvior.
 
+- Continued the warning sweep begun with 11.0.509.  Along the way, fixed these
+  bugs:
+  - A chmod failure was ignored when `SET ATTRIBUTE PROTECTION` is on.  Fixed
+    in commit 4ddb464e1.  Bug dates back to C-Kermit 7.0.197 of 2000,
+    commit d0f8b1da, when this code was introduced.
+
 # C-Kermit 11.0.509
 
 August 20, 2026

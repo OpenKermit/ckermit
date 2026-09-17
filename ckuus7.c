@@ -9311,15 +9311,15 @@ cx_net(net, protocol, xhost, svc,
               case NET_TCPB: {          /* TCP/IP TELNET,RLOGIN,... */
 #ifdef TCPSOCKET
                   char qbuf[LINBUFSIZ], hbuf[LINBUFSIZ];
-                  int flag;
+                  int sf;
 
                   /* Extract service from host string. */
                   debug(F110,"cx_net service 1",line,0);
-                  flag = ck_splithostport(line,hbuf,sizeof(hbuf),
+                  sf = ck_splithostport(line,hbuf,sizeof(hbuf),
                                            qbuf,sizeof(qbuf));
-                  if (flag < 0) flag = 0;
+                  if (sf < 0) sf = 0;
                   ckstrncpy(line,hbuf,LINBUFSIZ);
-                  debug(F111,"cx_net service 2",line,flag);
+                  debug(F111,"cx_net service 2",line,sf);
 
                   /* Get service, if any, from directory entry */
 
@@ -9328,7 +9328,7 @@ cx_net(net, protocol, xhost, svc,
                           ckstrncpy(srvbuf,nh_px[0][i],SRVBUFSIZ);
                           debug(F110,"cx_net service 3",srvbuf,0);
                       }
-                      if (flag) {
+                      if (sf) {
                           ckstrncpy(srvbuf,qbuf,SRVBUFSIZ);
                           debug(F110,"cx_net service 4",srvbuf,0);
                       }

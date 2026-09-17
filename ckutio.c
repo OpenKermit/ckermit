@@ -15658,16 +15658,16 @@ ttptycmd(s) char *s;
 
       ttptycmd_do_io:
         if (ttyfd >= 0 && FD_ISSET(ttyfd, &out)) { /* Can write to net? */
-            CHAR * s;
-            s = pbuf + pbuf_written;    /* Current spot for sending */
+            CHAR * sp;
+            sp = pbuf + pbuf_written;   /* Current spot for sending */
 #ifdef TNCODE
             if (is_tn) {                /* ttol() doesn't double IACs */
                 CHAR c;                 /* Rewrite string with IACs doubled */
                 int i;
-                s = pbuf + pbuf_written; /* Source */
+                sp = pbuf + pbuf_written; /* Source */
                 x = 0;                   /* Count */
                 for (i = 0; i < pbuf_avail - pbuf_written; i++) {
-                    c = s[i];           /* Next character */
+                    c = sp[i];          /* Next character */
                     if (c == IAC) {     /* If it's IAC */
                         dbuf[x++] = c;  /* put another one */
                         debug(F000,">>> QUOTED IAC","",c);
@@ -15687,7 +15687,7 @@ ttptycmd(s) char *s;
                     dbuf[x++] = c;      /* Copy and count it */
                     out_prev = c;
                 }
-                s = dbuf;               /* New source */
+                sp = dbuf;              /* New source */
                 ckhexdump("ttptycmd >>> net (telnet)",dbuf,x);
             } else
 #endif /* TNCODE */
@@ -15713,7 +15713,7 @@ ttptycmd(s) char *s;
   This significantly reduces CPU usage.
 */
                 errno = 0;
-                x = write(ttyfd, s, x);
+                x = write(ttyfd, sp, x);
                 debug(F111,"ttptycmd ttyfd write",ckitoa(errno),x);
                 if (x < 0) {
                     if (errno != EAGAIN
@@ -15728,7 +15728,7 @@ ttptycmd(s) char *s;
                     x = 0;
                 }
             } else {
-                x = ttol(s, x);
+                x = ttol(sp, x);
                 debug(F101,">>> ttol","",x);
                 if (x < 0) {
                     net_err++;
