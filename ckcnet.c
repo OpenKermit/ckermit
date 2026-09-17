@@ -1760,7 +1760,6 @@ ck_scopeaddr6(in,addr,scopeid)
 
 #ifdef CK_IPV6
 #include <fcntl.h>
-#include <time.h>
 
 /*
   Non-blocking connect() with a bounded timeout (tcp_connect_timeout).
