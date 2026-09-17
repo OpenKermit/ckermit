@@ -238,6 +238,66 @@ struct timezone {
 #endif /* DCLTIMEVAL */
 #endif /* NODCLTIMEVAL */
 
+/*
+  Which time.h files to include... See ckcdeb.h for defaults.
+  Note that 0, 1, 2, or all 3 of these can be included according to
+  the symbol definitions.
+*/
+#ifndef NOTIMEH
+#ifdef TIMEH
+#include <time.h>
+#endif /* TIMEH */
+#endif /* NOTIMEH */
+
+#ifndef NOSYSTIMEH
+#ifdef SYSTIMEH
+#include <sys/time.h>
+#endif /* SYSTIMEH */
+#endif /* NOSYSTIMEH */
+
+#ifndef NOSYSTIMEBH
+#ifdef SYSTIMEBH
+#include <sys/timeb.h>
+#endif /* SYSTIMEBH */
+#endif /* NOSYSTIMEBH */
+
+#ifndef TIMEH
+#ifndef SYSTIMEH
+#ifndef SYSTIMEBH
+#ifdef Plan9
+#include <sys/time.h>
+#else
+#ifdef AIX41
+#include <time.h>
+#else
+#ifdef SUNOS4
+#include <sys/time.h>
+#else
+#ifdef SYSTIMEH
+#include <sys/time.h>
+#else
+#ifdef POSIX
+#include <posix/time.h>
+#else
+#ifdef CLIX
+#include <sys/time.h>
+#else
+#ifdef OS2
+#include <time.h>
+#else
+#include <time.h>
+/* #include <utime.h> */
+#endif /* OS2 */
+#endif /* CLIX */
+#endif /* POSIX */
+#endif /* SYSTIMEH */
+#endif /* SUNOS4 */
+#endif /* AIX41 */
+#endif /* Plan9 */
+#endif
+#endif
+#endif
+
 #ifdef WINTCP
 
 #include <setjmp.h>
@@ -11339,66 +11399,6 @@ x25dump_prim(primitive)    N_npi_ctl_t *primitive; {
 #endif /* IBMX25 */
 
 #ifndef NOHTTP
-/*
-  Which time.h files to include... See ckcdeb.h for defaults.
-  Note that 0, 1, 2, or all 3 of these can be included according to
-  the symbol definitions.
-*/
-#ifndef NOTIMEH
-#ifdef TIMEH
-#include <time.h>
-#endif /* TIMEH */
-#endif /* NOTIMEH */
-
-#ifndef NOSYSTIMEH
-#ifdef SYSTIMEH
-#include <sys/time.h>
-#endif /* SYSTIMEH */
-#endif /* NOSYSTIMEH */
-
-#ifndef NOSYSTIMEBH
-#ifdef SYSTIMEBH
-#include <sys/timeb.h>
-#endif /* SYSTIMEBH */
-#endif /* NOSYSTIMEBH */
-
-#ifndef TIMEH
-#ifndef SYSTIMEH
-#ifndef SYSTIMEBH
-#ifdef Plan9
-#include <sys/time.h>
-#else
-#ifdef AIX41
-#include <time.h>
-#else
-#ifdef SUNOS4
-#include <sys/time.h>
-#else
-#ifdef SYSTIMEH
-#include <sys/time.h>
-#else
-#ifdef POSIX
-#include <posix/time.h>
-#else
-#ifdef CLIX
-#include <sys/time.h>
-#else
-#ifdef OS2
-#include <time.h>
-#else
-#include <time.h>
-/* #include <utime.h> */
-#endif /* OS2 */
-#endif /* CLIX */
-#endif /* POSIX */
-#endif /* SYSTIMEH */
-#endif /* SUNOS4 */
-#endif /* AIX41 */
-#endif /* Plan9 */
-#endif
-#endif
-#endif
-
 #ifdef OS2
 #include <sys/utime.h>
 #ifdef NT
