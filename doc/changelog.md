@@ -5,7 +5,8 @@
 - Continued the warning sweep begun with 11.0.509.  Addressed numerous -Wshadow
   warnings.
 
-- CI: Allowed retrying of certain timing-dependent tests due to flakiness on Mac.
+- CI: Allowed retrying of certain timing-dependent tests due to flakiness on
+  Mac and OpenBSD.
 
 # C-Kermit 11.0.510
 
