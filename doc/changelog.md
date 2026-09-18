@@ -15,6 +15,8 @@
     in commit 4ddb464e1.  Bug dates back to C-Kermit 7.0.197 of 2000,
     commit d0f8b1da, when this code was introduced.
 
+- Include time.h earlier in ckcnet.c to address compilation issue on Gentoo
+
 # C-Kermit 11.0.509
 
 August 20, 2026
