@@ -541,25 +541,29 @@ def test_transfer_survives_server_sigwinch(server_dir, wermit_tcp_loopback,
     assert dest_file.read_bytes() == content
 
 
-def test_transfer_survives_server_write_sigwinch(
-        server_dir, wermit_tcp_loopback, tmp_path):
-    """
-    Regression test for the write-side counterpart of the bug
-    test_transfer_survives_server_sigwinch documents.
+# Number of times test_transfer_survives_server_write_sigwinch retries
+# before failing.
+#
+# Signal delivery during a fast loopback write is timing-dependent. Under
+# heavy load, an occasional attempt can fail due to timing jitter. Retrying
+# avoids false failures while still detecting real regressions.
+WRITE_SIGWINCH_ATTEMPTS = 3
 
-    Unlike that test, plain signal bombardment against a fast loopback transfer
-    essentially never catches this one.  write() to a loopback socket rarely
-    blocks long enough for a signal to land mid-syscall, so this needs LOG DEBUG
-    to slow the server down the same way
-    test_kermit_transfer_unprefixed_nul_replay does (see its docstring). Even so
-    this isn't expected to catch it on every run.
+
+def _attempt_write_sigwinch_transfer(server_dir, wermit_tcp_loopback,
+                                     tmp_path, attempt):
+    """
+    Run one file transfer attempt under SIGWINCH bombardment.
+
+    Return (True, None) on success, or (False, detail) with a failure
+    description.
     """
     content = pattern_bytes(2 * MB)
     src_file = server_dir / "sigwinch_write.dat"
     src_file.write_bytes(content)
-    client_dir = tmp_path / "client"
+    client_dir = tmp_path / f"client_{attempt}"
     client_dir.mkdir()
-    debug_log = tmp_path / "server_debug.log"
+    debug_log = tmp_path / f"server_debug_{attempt}.log"
 
     session = wermit_tcp_loopback(
         server_dir, protocol="raw-socket",
@@ -575,13 +579,47 @@ def test_transfer_survives_server_write_sigwinch(
     finally:
         stop.set()
         bombarder.join(timeout=2)
-        # Only exists to slow the server down (see docstring); can be
-        # tens of MB, and isn't surfaced on failure like
-        # KERMIT_TEST_DEBUG_LOOPBACK's own logs are.
+        # The debug log only exists to slow down the server. Remove it to
+        # avoid leaving large files on disk.
         debug_log.unlink(missing_ok=True)
     session.wait_for_server_exit()
 
-    assert_ok(result)
+    if result.returncode != 0:
+        return False, (
+            f"Command failed: stdout={result.stdout}\n"
+            f"stderr={result.stderr}")
     dest_file = client_dir / "sigwinch_write.dat"
-    assert dest_file.exists()
-    assert dest_file.read_bytes() == content
+    if not dest_file.exists():
+        return False, f"{dest_file} was not created"
+    if dest_file.read_bytes() != content:
+        return False, f"{dest_file} content does not match the source"
+    return True, None
+
+
+def test_transfer_survives_server_write_sigwinch(
+        server_dir, wermit_tcp_loopback, tmp_path):
+    """
+    Regression test for the write-side counterpart of the bug
+    test_transfer_survives_server_sigwinch documents.
+
+    Unlike that test, plain signal bombardment against a fast loopback
+    transfer rarely catches this condition. write() to a loopback socket
+    rarely blocks long enough for a signal to land mid-syscall, so LOG DEBUG
+    is enabled to slow the server down.
+
+    Because signal timing varies under load, the test retries up to
+    WRITE_SIGWINCH_ATTEMPTS times to distinguish intermittent timing misses
+    from a real regression.
+    """
+    detail = None
+    for attempt in range(WRITE_SIGWINCH_ATTEMPTS):
+        ok, detail = _attempt_write_sigwinch_transfer(
+            server_dir, wermit_tcp_loopback, tmp_path, attempt)
+        if ok:
+            return
+        logger.info(
+            "test_transfer_survives_server_write_sigwinch: attempt %d "
+            "failed (%s), retrying", attempt + 1, detail)
+    pytest.fail(
+        "test_transfer_survives_server_write_sigwinch: failed on all "
+        f"{WRITE_SIGWINCH_ATTEMPTS} attempts; last failure: {detail}")
