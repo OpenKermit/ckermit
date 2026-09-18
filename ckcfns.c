@@ -622,7 +622,7 @@ bdecode(buf,fn) register CHAR *buf; register int (*fn)();
 /* bdecode */ {
     register unsigned int a, a7;        /* Various copies of current char */
     int ccpflg;                         /* For Ctrl-unprefixing stats */
-    int t;                              /* Int version of character */
+    int bt;                              /* Int version of character */
     int len;
     long z;                             /* For CRC calculation */
     CHAR c;                             /* Current character */
@@ -670,13 +670,13 @@ bdecode(buf,fn) register CHAR *buf; register int (*fn)();
             if (xflg && !remfile) {             /* Write to virtual screen */
                 char _a;
                 _a = a & fmask;
-                t = conoc(_a);
-                if (t < 1)
-                    t = -1;
+                bt = conoc(_a);
+                if (bt < 1)
+                    bt = -1;
             } else
 #endif /* OS2 */
-              t = zmchout(a & fmask);   /* zmchout is a macro */
-            if (t < 0) {
+              bt = zmchout(a & fmask);   /* zmchout is a macro */
+            if (bt < 0) {
                 debug(F101,"bdecode write error - errno","",errno);
                 return(-1);
             }
@@ -1348,7 +1348,7 @@ decode(buf,fn,xlate) register CHAR *buf; register int (*fn)(); int xlate;
 #endif /* CK_ANSIC */
 /* decode */ {
     register unsigned int a, a7, a8, b8; /* Various copies of current char */
-    int t;                              /* Int version of character */
+    int dt;                              /* Int version of character */
     int ssflg;                          /* Character was single-shifted */
     int ccpflg;                         /* For Ctrl-unprefixing stats */
     int len;
@@ -1447,7 +1447,7 @@ decode(buf,fn,xlate) register CHAR *buf; register int (*fn)(); int xlate;
 
 #ifdef UNICODE
                 if (!binary && xlatype == XLA_UNICODE)
-                  t = xpnbyte((unsigned)((unsigned)a & 0xff),
+                  dt = xpnbyte((unsigned)((unsigned)a & 0xff),
                               tcharset,
                               fcharset,
                               fn
@@ -1460,7 +1460,7 @@ decode(buf,fn,xlate) register CHAR *buf; register int (*fn)(); int xlate;
                     if (!ffc) xkanjf();
                     if (xkanji(a,fn) < 0)  /* to something else? */
                       return(-1);
-                    else t = 1;
+                    else dt = 1;
                 } else
 #endif /* KANJI */
                 {
@@ -1468,14 +1468,14 @@ decode(buf,fn,xlate) register CHAR *buf; register int (*fn)(); int xlate;
                       if (xflg && !remfile) { /* Write to virtual screen */
                           char _a;
                           _a = a & fmask;
-                          t = conoc(_a);
-                          if (t < 1)
-                            t = -1;
+                          dt = conoc(_a);
+                          if (dt < 1)
+                            dt = -1;
                       } else
 #endif /* OS2 */
-                        t = zmchout(a & fmask); /* zmchout is a macro */
+                        dt = zmchout(a & fmask); /* zmchout is a macro */
                 }
-                if (t < 0) {
+                if (dt < 0) {
                     debug(F101,"decode write errno","",errno);
                     return(-1);
                 }
@@ -2131,27 +2131,27 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
         else
 #endif /* UNICODE */
           if (fcsinfo[fcs].alphabet == AL_JAPAN) { /* Japanese source file */
-            int c7, x, y;
+            int c7, jax, y;
             if (fcs == FC_JIS7) {       /* If file charset is JIS-7 */
                 if (!ffc)               /* If first byte of file */
                   j7init();             /* Initialize JIS-7 parser */
-                x = getj7();            /* Get a JIS-7 byte */
+                jax = getj7();            /* Get a JIS-7 byte */
             } else                      /* Otherwise */
-              x = fn ? (*fn)() : zminchar(); /* Just get byte */
-            if (x < 0) {                /* Propogate EOF or error */
+              jax = fn ? (*fn)() : zminchar(); /* Just get byte */
+            if (jax < 0) {                /* Propogate EOF or error */
                 debug(F100,"XGNBYTE EOF","",0);
-                return(x);
+                return(jax);
             }
-            debug(F001,"XGNBYTE x","",x);
+            debug(F001,"XGNBYTE x","",jax);
             ffc++;                      /* Count */
 #ifndef NOXFER
-            if (docrc && (what & W_SEND)) dofilcrc(x); /* Do CRC */
+            if (docrc && (what & W_SEND)) dofilcrc(jax); /* Do CRC */
 #endif /* NOXFER */
             switch (fcs) {              /* What next depends on charset */
               case FC_SHJIS:            /* Shift-JIS */
-                if ((x <= 0x80) ||      /* Any 7-bit char... */
-                    (x >= 0xa0 && x <= 0xdf)) { /* or halfwidth Katakana */
-                    sj.x_short = (USHORT) x;    /* we read one byte. */
+                if ((jax <= 0x80) ||      /* Any 7-bit char... */
+                    (jax >= 0xa0 && jax <= 0xdf)) { /* or halfwidth Katakana */
+                    sj.x_short = (USHORT) jax;    /* we read one byte. */
                 } else {                /* Anything else */
                     if ((y = fn ? (*fn)() : zminchar()) < 0) /* get another */
                       return(y);
@@ -2159,7 +2159,7 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
                     if (docrc && (what & W_SEND)) dofilcrc(y);
 #endif /* NOXFER */
                     ffc++;
-                    sj.x_char[byteorder] = (CHAR) x;
+                    sj.x_char[byteorder] = (CHAR) jax;
                     sj.x_char[1-byteorder] = (CHAR) y;
                 }
                 break;
@@ -2167,12 +2167,12 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
               case FC_JIS7:             /* JIS-7 */
               case FC_JDEC:             /* DEC Kanji */
               case FC_JEUC:             /* EUC-JP */
-                if ((x & 0x80) == 0) {  /* Convert to Shift-JIS */
-                    sj.x_short = (USHORT) x; /* C0 or G0: one byte */
-                    eu.x_short = (USHORT) x;
+                if ((jax & 0x80) == 0) {  /* Convert to Shift-JIS */
+                    sj.x_short = (USHORT) jax; /* C0 or G0: one byte */
+                    eu.x_short = (USHORT) jax;
                     haveeu = 1;
                 } else {
-                    c7 = x & 0x7f;
+                    c7 = jax & 0x7f;
                     if (c7 > 0x20 && c7 < 0x7f) { /* Kanji: two bytes */
                         if ((y = (fcs == FC_JEUC) ?
                              (fn ? (*fn)() : zminchar()) :
@@ -2183,11 +2183,11 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
 #ifndef NOXFER
                         if (docrc && (what & W_SEND)) dofilcrc(y);
 #endif /* NOXFER */
-                        eu.x_char[byteorder] = (CHAR) x;
+                        eu.x_char[byteorder] = (CHAR) jax;
                         eu.x_char[1-byteorder] = (CHAR) y;
                         sj.x_short = eu_to_sj(eu.x_short);
                         haveeu = 1;
-                    } else if (x == 0x8e) { /* SS2 Katakana prefix: 2 bytes */
+                    } else if (jax == 0x8e) { /* SS2 Katakana prefix */
                         if ((y = (fcs == FC_JIS7) ?
                              getj7() :  /* ^^^ */
                              (fn ? (*fn)() : zminchar())
@@ -2308,13 +2308,13 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
               }
 #ifdef KANJI
               if (tcs == FC_JEUC) {     /* Translating to EUC-JP */
-                  USHORT sj = 0;
-                  union ck_short eu;
+                  USHORT usj = 0;
+                  union ck_short ueu;
                   debug(F001,"xgnbyte UCS->EUC UCS","",uc.x_short);
                   if (!havesj)          /* If we don't already have it */
-                    sj = un_to_sj(uc.x_short); /* convert to Shift-JIS */
-                  eu.x_short = sj_to_eu(sj);
-                  debug(F001,"xgnbyte UCS->EUC EUC","",eu.x_short);
+                    usj = un_to_sj(uc.x_short); /* convert to Shift-JIS */
+                  ueu.x_short = sj_to_eu(usj);
+                  debug(F001,"xgnbyte UCS->EUC EUC","",ueu.x_short);
                   xlaptr = 0;
                   xlacount = 0;
                   if (eolflag) {
@@ -2325,12 +2325,12 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
                           return(feol);
                       }
                   }
-                  if (eu.x_char[byteorder]) {   /* Two bytes */
-                      rc = eu.x_char[byteorder];
-                      xlabuf[xlacount++] = eu.x_char[1-byteorder];
+                  if (ueu.x_char[byteorder]) {   /* Two bytes */
+                      rc = ueu.x_char[byteorder];
+                      xlabuf[xlacount++] = ueu.x_char[1-byteorder];
                       debug(F001,"xgnbyte UCS->EUC xlabuf[0]","",xlabuf[0]);
                   } else {              /* One byte */
-                      rc = eu.x_char[1-byteorder];
+                      rc = ueu.x_char[1-byteorder];
                   }
                   debug(F101,"xgnbyte UCS->EUC xlacount","",xlacount);
                   debug(F001,"xgnbyte UCS->EUC rc","",rc);
@@ -2379,7 +2379,7 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
           if (tcs == FC_UTF8) {         /* Now convert to UTF-8 */
               USHORT c;                 /* NOTE: this is FC_UTF8 on purpose! */
               CHAR * buf = NULL;
-              int i, k = 0, x;
+              int i, k = 0, ux;
 
               xlaptr = 0;
               if (utferror) {
@@ -2394,17 +2394,17 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
                   }
               }
               c = xc;
-              if ((x = ucs2_to_utf8(c,&buf)) < 1) {
+              if ((ux = ucs2_to_utf8(c,&buf)) < 1) {
                   debug(F101,"xgnbyte ucs2_to_utf8 error","",c);
                   return(-2);
               }
               debug(F101,"xgnbyte UTF8 buf[0]","",buf[0]);
-              for (i = 1; i < x; i++) {
+              for (i = 1; i < ux; i++) {
                   xlabuf[k+i-1] = buf[i];
                   debug(F111,"xgnbyte UTF8 xlabuf",ckitoa(i-1),buf[i]);
               }
               xlaptr = 0;
-              xlacount = x - 1;
+              xlacount = ux - 1;
               debug(F101,"xgnbyte UTF8 xlacount","",xlacount);
               return((unsigned int)buf[0]);
           } else {                      /* Or keep it as UCS-2 */
@@ -4327,12 +4327,12 @@ reof(f,yy) char *f; struct zattr *yy;
             !pipesend &&
             !calibrate && c != 'M' && c != 'P') {
             if (rcv_move) {             /* If /MOVE-TO was given... */
-                char * p = rcv_move;
+                char * mvp = rcv_move;
 /*
   Here we could create the directory if it didn't exist (and it was relative)
   but there would have to be a user-settable option to say whether to do this.
 */
-                rc = zrename(filnam,p);
+                rc = zrename(filnam,mvp);
                 debug(F111,"reof MOVE zrename",rcv_move,rc);
                 if (rc > -1) {
                     tlog(F110," moving received file to",rcv_move,0);
@@ -4601,13 +4601,13 @@ sfile(x) int x;
             debug(F101,"sfile sendmode","",sendmode);
         }
         if (*cmarg2) {                  /* If we have a send-as name... */
-            int y; char *s;
+            int y; char *ans;
 #ifndef NOSPL                           /* and a script programming language */
             extern int cmd_quoting;
             if (cmd_quoting) {          /* and it's not turned off */
                 y = PKTNL;              /* pass as-name thru the evaluator */
-                s = pktnam;
-                zzstring(cmarg2,&s,&y);
+                ans = pktnam;
+                zzstring(cmarg2,&ans,&y);
             } else
 #endif /* NOSPL */
               ckstrncpy(pktnam,cmarg2,PKTNL); /* copy it literally, */
@@ -5434,19 +5434,19 @@ spar(s) CHAR *s;
 
     rptflg = 0;                         /* Assume no repeat-counts */
     if (biggest >= 9) {                 /* Is there a repeat-count field? */
-        char t;                         /* Yes. */
-        t = s[9];                       /* Get its contents. */
+        char rqt;                         /* Yes. */
+        rqt = s[9];                       /* Get its contents. */
 /*
   If I'm sending files, then I'm reading these parameters from an ACK, and so
   this character must agree with what I sent.
 */
         if (rptena) {                   /* If enabled ... */
             if ((char) rcvtyp == 'Y') { /* Sending files, reading ACK. */
-                if (t == myrptq) rptflg = 1;
+                if (rqt == myrptq) rptflg = 1;
             } else {                    /* I'm receiving files */
-                if ((t > 32 && t < 63) || (t > 95 && t < 127)) {
+                if ((rqt > 32 && rqt < 63) || (rqt > 95 && rqt < 127)) {
                     rptflg = 1;
-                    rptq = t;
+                    rptq = rqt;
                 }
             }
         } else rptflg = 0;
@@ -5631,16 +5631,16 @@ spar(s) CHAR *s;
 #endif /* WHATAMI */
 
     if (biggest > y+8) {                /* Get WHOAREYOU info if any */
-        int x, z;
-        x = xunchar(s[y+9]);            /* Length of it */
+        int wax, z;
+        wax = xunchar(s[y+9]);            /* Length of it */
         z = y;
-        y += (9 + x);
-        debug(F101,"spar sysindex x","",x);
+        y += (9 + wax);
+        debug(F101,"spar sysindex x","",wax);
         debug(F101,"spar sysindex y","",y);
         debug(F101,"spar sysindex biggest","",biggest);
 
-        if (x > 0 && x < 16 && biggest >= y) {
-            strncpy(whoareu,(char *)s+z+10,x); /* Other Kermit's system ID */
+        if (wax > 0 && wax < 16 && biggest >= y) {
+            strncpy(whoareu,(char *)s+z+10,wax); /* Other Kermit's system ID */
             debug(F111,"spar whoareyou",whoareu,whoareu[0]);
             if (whoareu[0]) {           /* Got one? */
                 sysindex = getsysix((char *)whoareu);

@@ -602,14 +602,14 @@ X509_STORE_CTX *ctx;
         case X509_V_ERR_CERT_NOT_YET_VALID:
         case X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
             if (ssl_verify_flag & SSL_VERIFY_FAIL_IF_NO_PEER_CERT) {
-                int len;
+                int len1;
                 /* make 100% sure that in secure more we drop the
                  * connection if the server does not have a
                  * real certificate!
                  */
                 ASN1_TIME_print(bio_err,X509_get_notBefore(xs));
-                len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+                len1 = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
+                ssl_err[len1 < SSL_ERR_BFSZ ? len1 : SSL_ERR_BFSZ] = '\0';
                 ckmakxmsg(prefix,1024,
                            "Error: ",
                            X509_verify_cert_error_string(error),
@@ -628,10 +628,10 @@ X509_STORE_CTX *ctx;
                 }
                 goto return_time;
             } else if (ssl_verify_flag != SSL_VERIFY_NONE) {
-                int len;
+                int len2;
                 ASN1_TIME_print(bio_err,X509_get_notBefore(xs));
-                len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+                len2 = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
+                ssl_err[len2 < SSL_ERR_BFSZ ? len2 : SSL_ERR_BFSZ] = '\0';
                 ckmakxmsg(prefix,1024,
                            "Warning: ",
                            X509_verify_cert_error_string(error),
@@ -644,14 +644,14 @@ X509_STORE_CTX *ctx;
         case X509_V_ERR_CERT_HAS_EXPIRED:
         case X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
             if (ssl_verify_flag & SSL_VERIFY_FAIL_IF_NO_PEER_CERT) {
-                int len;
+                int len3;
                 /* make 100% sure that in secure more we drop the
                  * connection if the server does not have a
                  * real certificate!
                  */
                 ASN1_TIME_print(bio_err,X509_get_notAfter(xs));
-                len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+                len3 = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
+                ssl_err[len3 < SSL_ERR_BFSZ ? len3 : SSL_ERR_BFSZ] = '\0';
 
                 ckmakxmsg(prefix,1024,
                            "Error: ",
@@ -672,10 +672,10 @@ X509_STORE_CTX *ctx;
                 }
                 goto return_time;
             } else if (ssl_verify_flag != SSL_VERIFY_NONE) {
-                int len;
+                int len4;
                 ASN1_TIME_print(bio_err,X509_get_notAfter(xs));
-                len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+                len4 = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
+                ssl_err[len4 < SSL_ERR_BFSZ ? len4 : SSL_ERR_BFSZ] = '\0';
                 ckmakxmsg(prefix,1024,
                            "Warning: ",
                            X509_verify_cert_error_string(error),
@@ -1382,10 +1382,10 @@ ssl_display_comp(SSL * ssl)
 
 int
 #ifdef CK_ANSIC
-ssl_display_connect_details(SSL * ssl_con, int server, int verbose)
+ssl_display_connect_details(SSL * sslc, int server, int verbose)
 #else /* CK_ANSIC */
-ssl_display_connect_details(ssl_con,server,verbose)
-SSL *ssl_con;
+ssl_display_connect_details(sslc,server,verbose)
+SSL *sslc;
 int server;
 int verbose;
 #endif /* CK_ANSIC */
@@ -1405,23 +1405,23 @@ int verbose;
         return(0);
 
     /* the cipher list *can* be NULL ... useless but it happens! */
-    cipher = SSL_get_current_cipher(ssl_con);
+    cipher = SSL_get_current_cipher(sslc);
     cipher_list = SSL_CIPHER_get_name(cipher);
     SSL_CIPHER_description(cipher,buf,sizeof(buf));
     if (cipher_list==NULL)
         cipher_list="<NULL>";
     printf("[TLS - %s",buf);
-    ssl_display_comp(ssl_con);
+    ssl_display_comp(sslc);
 
     if ( server ) {
-        cipher_list=SSL_get_shared_ciphers(ssl_con,buf,512);
+        cipher_list=SSL_get_shared_ciphers(sslc,buf,512);
         if (cipher_list==NULL)
             cipher_list="<NULL>";
         printf("[TLS - shared ciphers=%s]\r\n",
                 cipher_list);
         }
     if ( server || tn_deb ) {
-        peer=SSL_get_peer_certificate(ssl_con);
+        peer=SSL_get_peer_certificate(sslc);
         if (peer != NULL) {
             x509_name_oneline_buf(X509_get_subject_name(peer), buf, 512);
             printf("[TLS - subject=%s]\r\n",buf);
@@ -1819,11 +1819,11 @@ versions agree.\r\n",s);
 
 #ifdef KTARGET
         {
-            char * s;
-            s = KTARGET;
-            if (!s) s = "";
-            if (!*s) s = "(unknown)";
-            printf("  C-Kermit makefile target: %s\r\n",s);
+            char * kts;
+            kts = KTARGET;
+            if (!kts) kts = "";
+            if (!*kts) kts = "(unknown)";
+            printf("  C-Kermit makefile target: %s\r\n",kts);
         }
 #endif  /* KTARGET */
         printf("  Or if that is what you did then try to find out why\r\n");
@@ -3611,12 +3611,12 @@ ssl_check_server_name(SSL * ssl, char * hostname)
         if ((ipAddress = tls_get_SAN_objs(ssl,GEN_IPADD))) {
             int i = 0;
             char *server_ip;
-            struct in_addr ia;
+            struct in_addr lia;
 
             for (i = 0; ipAddress[i]; i++) {
                 if (ipAddress[i]) {
-                    ia.s_addr = *(unsigned long *)ipAddress[i];
-                    server_ip = inet_ntoa(ia);
+                    lia.s_addr = *(unsigned long *)ipAddress[i];
+                    server_ip = inet_ntoa(lia);
                     printf("Certificate[0] altSubjectName IPAddr=%s\r\n",server_ip);
                 }
                 free(ipAddress[i]);
@@ -4236,7 +4236,7 @@ ck_tn_tls_negotiate(VOID)
             }
         }
     } else {
-        char * str=NULL;
+        char * hsstr=NULL;
 
         if (tn_deb || debses)
             tn_debug("[TLS - handshake starting]");

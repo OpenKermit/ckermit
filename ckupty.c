@@ -540,16 +540,16 @@ set_termbuf(fd) int fd;
     debug(F101,"set_termbuf !USE_TERMIO memcmp","",x);
     x = 1;                              /* Force this */
     if (x) {
-        int x;
+        int sax;
         errno = 0;
 #ifdef INIT_SPTY
         debug(F100,"set_termbuf INIT_SPTY","",0);
-        x = tcsetattr(spty, TCSANOW, &termbuf);
-        debug(F111,"set_termbuf tcsetattr(spty)",ckitoa(x),errno);
+        sax = tcsetattr(spty, TCSANOW, &termbuf);
+        debug(F111,"set_termbuf tcsetattr(spty)",ckitoa(sax),errno);
 #else
         debug(F100,"set_termbuf !INIT_SPTY","",0);
-        x = tcsetattr(ttyfd, TCSANOW, &termbuf);
-        debug(F111,"set_termbuf tcsetattr(ttyfd)",ckitoa(x),errno);
+        sax = tcsetattr(ttyfd, TCSANOW, &termbuf);
+        debug(F111,"set_termbuf tcsetattr(ttyfd)",ckitoa(sax),errno);
 #endif /* INIT_SPTY */
     }
 #endif /* USE_TERMIO */

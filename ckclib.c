@@ -1593,7 +1593,7 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
             continue;
 #ifdef CKREGEX
         } else if (cp == '[') {         /* Have bracket */
-            int q = 0;                  /* My own private q */
+            int bq = 0;                  /* My own private q */
             char * psave = NULL;        /* and backup pointer */
             CHAR clist[256];            /* Character list from brackets */
             CHAR c, c1, c2;
@@ -1605,8 +1605,8 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
             for (flag = 0; !flag; pattern++) { /* Loop thru pattern */
                 c = (CHAR)*pattern;     /* Current char */
                 debug(F000,">>> pattern char","",c);
-                if (q) {                /* Quote within brackets */
-                    q = 0;
+                if (bq) {                /* Quote within brackets */
+                    bq = 0;
                     clist[c] = 1;
                     continue;
                 }
@@ -1617,7 +1617,7 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
                   case NUL:             /* End of string */
                     MATCHRETURN(4,0);   /* No matching ']' so fail */
                   case CMDQ:            /* Next char is quoted */
-                    q = 1;              /* Set flag */
+                    bq = 1;              /* Set flag */
                     continue;           /* and continue. */
                   case '-':             /* A range is specified */
                     c1 = (pattern > psave) ? (CHAR)*(pattern-1) : NUL;
@@ -1699,7 +1699,7 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
             if (bc != 0) {              /* Braces don't match */
                 MATCHRETURN(6,0);       /* Fail */
             } else {                    /* Braces do match */
-                int q = 0, done = 0;
+                int sq = 0, done = 0;
                 len = *p ? strlen(p+1) : 0; /* Length of rest of pattern */
                 if (len)
                   bronly = 0;
@@ -1708,7 +1708,7 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
                 n = p - pattern;            /* Size of list in braces */
                 if ((buf = (char *)malloc(n+1))) { /* Copy so we can poke it */
                     char * tp = NULL;
-                    int k, sofar;
+                    int sk, sofar;
                     ckstrncpy(buf,pattern,n+1);
                     sofar = string - ostring - matchpos + 1;
                     if (sofar < 0) sofar = 0;
@@ -1717,14 +1717,14 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
                     n = 0;
                     for (s = s2 = buf; 1; s++) { /* Loop through segments */
                         n++;
-                        if (q) {        /* This char is quoted */
-                            q = 0;
+                        if (sq) {        /* This char is quoted */
+                            sq = 0;
                             if (!*s)
                               done = 1;
                             continue;
                         }
-                        if (*s == CMDQ && !q) { /* Quote next char */
-                            q = 1;
+                        if (*s == CMDQ && !sq) { /* Quote next char */
+                            sq = 1;
                             continue;
                         }
                         if (!*s || *s == ',') { /* End of this segment */
@@ -1735,7 +1735,7 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
                             debug(F111,"CKMATCH {} segment",s2,done);
                             tplen = n + len + sofar + 2;
                             if (!*s2) { /* Empty segment, no advancement */
-                                k = 0;
+                                sk = 0;
                             } else if ((tp = (char *)malloc(tplen))) {
                                 int savpos, opts2;
                                 char * pp;
@@ -1775,29 +1775,29 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
                                 opts2 = opts;
                                 if (*s2 == '.') opts2 |= 1;
                                 debug(F111,"CKMATCH {} recursing",s2,opts2);
-                                k = ckmatch(tp,
+                                sk = ckmatch(tp,
                                             (string > ostring) ?
                                             &ostring[savpos-1] : string,
                                             icase,opts2);
 #ifdef DEBUG
                                 if (deblog) {
-                                    debug(F101,"CKMATCH {} k","",k);
+                                    debug(F101,"CKMATCH {} k","",sk);
                                     debug(F101,"CKMATCH {} savpos","",savpos);
                                 }
 #endif /* DEBUG */
                                 free(tp);
                                 tp = NULL;
                                 if (xxflag) MATCHRETURN(0,0);
-                                if (k == 0) {
+                                if (sk == 0) {
                                     matchpos = savpos;
                                 }
-                                if (k > 0) { /* If it matched we're done */
-                                    MATCHRETURN(7,k);
+                                if (sk > 0) { /* If it matched we're done */
+                                    MATCHRETURN(7,sk);
                                 }
                             } else {    /* Malloc failure */
                                 MATCHRETURN(14,0);
                             }
-                            if (k) {    /* Successful comparison */
+                            if (sk) {    /* Successful comparison */
                                 if (!matchpos) {
                                     matchpos = stringpos;
                                     debug(F111,"CKMATCH {} match",
@@ -1820,7 +1820,7 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
         } else if (cp == '*') {         /* Pattern char is asterisk */
             char * psave;
             char * p, * s = NULL;       /* meaning match anything */
-            int k, n, q = 0;
+            int sk2, n, sq2 = 0;
             havestar++;                 /* The rest can float */
             while (*pattern == '*')     /* Collapse successive asterisks */
               pattern++;
@@ -1828,7 +1828,7 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
             lastpat = pattern - 1;      /* Ditto, global */
             debug(F111,"CKMATCH * ",string,matchpos);
             for (n = 0, p = psave; *p; p++,n++) { /* Find next meta char */
-                if (!q) {
+                if (!sq2) {
                     if (*p == '?' || *p == '*' || *p == CMDQ
 #ifdef CKREGEX
                         || *p == '[' || *p == '{'
@@ -1867,28 +1867,28 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
                 if (s) {
                     ckstrncpy(s,psave,n+1); /* Copy cuz no poking original */
                     if (*p) {
-                        k = ckindex(s,string,0,0,icase); /* 1-based index() */
+                        sk2 = ckindex(s,string,0,0,icase); /* 1-based index */
                         debug(F110,"CKMATCH * Index() string",string,0);
                         debug(F110,"CKMATCH * Index() pattrn",s,0);
-                        debug(F101,"CKMATCH * Index() result","",k);
+                        debug(F101,"CKMATCH * Index() result","",sk2);
                     } else {            /* String is right-anchored */
-                        k = ckindex(s,string,-1,1,icase); /* rindex() */
-                        debug(F111,"CKMATCH * Rindex()",string,k);
+                        sk2 = ckindex(s,string,-1,1,icase); /* rindex() */
+                        debug(F111,"CKMATCH * Rindex()",string,sk2);
                         debug(F110,"CKMATCH * Rindex() pattrn",s,0);
-                        debug(F101,"CKMATCH * Rindex() result","",k);
+                        debug(F101,"CKMATCH * Rindex() result","",sk2);
                     }
                     free(s);
-                    if (k < 1) {
+                    if (sk2 < 1) {
                         MATCHRETURN(8,0);
                     }
                     debug(F111,"CKMATCH * stringpos matchpos",
                           ckitoa(stringpos), matchpos);
                     if (!matchpos) {
-                        matchpos = string - ostring + k;
+                        matchpos = string - ostring + sk2;
                         debug(F111,"CKMATCH * new match ", string, matchpos);
                     }
-                    string += k + n - 1;
-                    stringpos += k + n - 1;
+                    string += sk2 + n - 1;
+                    stringpos += sk2 + n - 1;
                     pattern += n;
                     debug(F111,"CKMATCH * new string", string, stringpos);
                     debug(F110,"CKMATCH * new pattrn", pattern, 0);
@@ -1952,23 +1952,23 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
             } else {                    /* A meta char follows asterisk */
                 if (!*string)
                   MATCHRETURN(17, matchpos = 0);
-                while (*string && ((k = ckmatch(p,string,icase,opts)) < 1)) {
+                while (*string && ((sk2 = ckmatch(p,string,icase,opts)) < 1)) {
                     if (xxflag) MATCHRETURN(0,0);
                     string++;
                     stringpos++;
                 }
-                if (!*string && k < 1) {
+                if (!*string && sk2 < 1) {
 /*
   Definitely no match so we set a global flag to inibit further backing up
   and retrying by previous incarnations, since they don't see that the string
   and/or pattern, which are on the stack, have been exhausted at this level.
 */
                     xxflag++;
-                    debug(F111,"CKMATCH DEFINITELY NO MATCH",p,k);
+                    debug(F111,"CKMATCH DEFINITELY NO MATCH",p,sk2);
                     MATCHRETURN(91,0);
                 }
-                debug(F111,"CKMATCH *<meta> k",string, k);
-                if (!matchpos && k > 0) {
+                debug(F111,"CKMATCH *<meta> k",string, sk2);
+                if (!matchpos && sk2 > 0) {
                     matchpos = stringpos;
                     debug(F111,"CKMATCH *<meta> matchpos",string, matchpos);
                 }
@@ -3074,9 +3074,9 @@ cksplit(fc,n1,s1,s2,s3,n2,n3,n4,n5)
     } else if ((all = !ckstrcmp(notsep,"ALL",3,1)) ||
                (csv = !ckstrcmp(notsep,"CSV",3,1)) ||
                (tsv = !ckstrcmp(notsep,"TSV",3,1))) {
-        int i, flag; CHAR c;
-        int n = 0;
-        char * ss = sep;
+        int ai, flag; CHAR ac;
+        int an = 0;
+        char * ass = sep;
         if (!all && (csv || tsv)) {
             all = 1;
             collapse = 0;
@@ -3084,18 +3084,18 @@ cksplit(fc,n1,s1,s2,s3,n2,n3,n4,n5)
         debug(F101,"cksplit csv","",csv);
         debug(F101,"cksplit tsv","",tsv);
         debug(F101,"cksplit all","",all);
-        debug(F110,"cksplit ss sep",ss,0);
-        for (i = 1; i < 256; i++) {
+        debug(F110,"cksplit ss sep",ass,0);
+        for (ai = 1; ai < 256; ai++) {
             flag = 0;
-            ss = sep;
-            while ((c = *ss++) && !flag) {
-                if (c == (CHAR)i) flag++;
+            ass = sep;
+            while ((ac = *ass++) && !flag) {
+                if (ac == (CHAR)ai) flag++;
             }
             if (!flag) {
-                notsepbuf[n++] = (CHAR)i;
+                notsepbuf[an++] = (CHAR)ai;
             }
         }
-        notsepbuf[n] = NUL;
+        notsepbuf[an] = NUL;
         notsep = (char *)notsepbuf;
         debug(F110,"CKMATCH SEPBUF ALL",sep,0);
         debug(F110,"CKMATCH NOTSEPBUF ALL",notsep,0);
@@ -3134,9 +3134,9 @@ cksplit(fc,n1,s1,s2,s3,n2,n3,n4,n5)
                     ck_sval.a_size = 1;
                     return(&ck_sval);
                 } else  if (n < 0 && (wordnum + n > -1)) { /* or from right */
-                    char * s = wordarray[wordnum + n + 1];
-                    if (!s) s = "";
-                    setword(1,s,strlen(s));
+                    char * rs = wordarray[wordnum + n + 1];
+                    if (!rs) rs = "";
+                    setword(1,rs,strlen(rs));
                     ck_sval.a_size = 1;
                     return(&ck_sval);
                 }
@@ -3356,18 +3356,18 @@ cksplit(fc,n1,s1,s2,s3,n2,n3,n4,n5)
             ck_sval.a_size = 1;
             return(&ck_sval);
         } else  if (n < 0 && (wordnum + n > -1)) { /* Counting from right */
-            char * s = wordarray[wordnum + n + 1];
-            if (!s) s = "";
-            setword(1,s,strlen(s));
+            char * rs2 = wordarray[wordnum + n + 1];
+            if (!rs2) rs2 = "";
+            setword(1,rs2,strlen(rs2));
             ck_sval.a_size = 1;
             return(&ck_sval);
         }
     }
     if (!splitting) {                   /* Fword... */
         if (n < 0 && (wordnum + n > -1)) { /* Counting from right */
-            char * s = wordarray[wordnum + n + 1];
-            if (!s) s = "";
-            setword(1,s,strlen(s));
+            char * rs3 = wordarray[wordnum + n + 1];
+            if (!rs3) rs3 = "";
+            setword(1,rs3,strlen(rs3));
             ck_sval.a_size = 1;
             return(&ck_sval);
         }

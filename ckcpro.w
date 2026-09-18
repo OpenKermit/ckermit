@@ -320,8 +320,8 @@ extern int protostartup;                /* SET PROTOCOL STARTUP-STRING */
   static int retrieve = 0;              /* Flag for executing RETRIEVE */
   static int opkt = 0;                  /* Send Extended GET packet */
 
-  static int x;                         /* General-purpose integer */
-  static char *s;                       /* General-purpose string pointer */
+  static int wx;                        /* General-purpose integer */
+  static char *ws;                      /* General-purpose string pointer */
 
 /* Macros - Note, BEGIN is predefined by Wart (and Lex) as "state = ", */
 /* BEGIN is NOT a GOTO! */
@@ -333,10 +333,10 @@ debug(F100,"SERVE waiting for next command","",0); BEGIN serve; }
 if (justone) { justone=0; wheremsg(); return(0); } else { SERVE; } }
 
 #ifdef GFTIMER
-#define QUIT x=quiet; quiet=1; clsif(); clsof(1); tsecs=gtimer(); \
- fptsecs=gftimer(); quiet=x; return(success)
+#define QUIT wx=quiet; quiet=1; clsif(); clsof(1); tsecs=gtimer(); \
+ fptsecs=gftimer(); quiet=wx; return(success)
 #else
-#define QUIT x=quiet; quiet=1; clsif(); clsof(1); tsecs=gtimer(); quiet=x; \
+#define QUIT wx=quiet; quiet=1; clsif(); clsof(1); tsecs=gtimer(); quiet=wx; \
  return(success)
 #endif /* GFTIMER */
 
@@ -349,7 +349,7 @@ if (justone) { justone=0; wheremsg(); return(0); } else { SERVE; } }
   corresponding case, but with return(-1) added in appropriate places; see
   instructions after the state table switcher.
 */
-static int rc;                          /* Return code for these routines */
+static int wrc;                         /* Return code for these routines */
 static int rcv_s_pkt();                 /* Received an S packet */
 static int rcv_firstdata();             /* Received first Data packet */
 static int rcv_shortreply();            /* Short reply to a REMOTE command  */
@@ -506,10 +506,10 @@ a {
 */
 
 <rgen,get,serve,ropkt>S {               /* Receive Send-Init packet. */
-    rc = rcv_s_pkt();
+    wrc = rcv_s_pkt();
     cancel = 0;                         /* Reset cancellation counter */
-    debug(F101,"rcv_s_pkt","",rc);
-    if (rc > -1) return(rc);            /* (see below) */
+    debug(F101,"rcv_s_pkt","",wrc);
+    if (wrc > -1) return(wrc);            /* (see below) */
 }
 
 /* States in which we get replies back from commands sent to a server. */
@@ -560,13 +560,13 @@ a {
 
 <ssopkt>Y {                             /* Got ACK to O-Packet */
     debug(F100,"CPCPRO <ssopkt>Y","",0);
-    x = sopkt();
-    debug(F101,"CPCPRO <ssopkt>Y x","",x);
-    if (x < 0) {                        /* If error */
+    wx = sopkt();
+    debug(F101,"CPCPRO <ssopkt>Y x","",wx);
+    if (wx < 0) {                        /* If error */
         errpkt((CHAR *)srimsg);         /* cancel both sides. */
         success = 0;
         RESUME;
-    } else if (x == 0) {                /* This was the last O-Packet */
+    } else if (wx == 0) {                /* This was the last O-Packet */
         rtimer();                       /* Reset the elapsed seconds timer. */
 #ifdef GFTIMER
         rftimer();
@@ -576,7 +576,7 @@ a {
         nakstate = 1;                   /* Can send NAKs from here. */
         BEGIN vstate;                   /* Switch to desired state */
     }
-    debug(F101,"CPCPRO <ssopkt>Y not changing state","",x);
+    debug(F101,"CPCPRO <ssopkt>Y not changing state","",wx);
 }
 
 <ipkt>E {                               /* Ignore Error reply to I packet */
@@ -725,18 +725,18 @@ a {
     if (x_login && !x_logged) {         /* (any combination of options) */
         errpkt((CHAR *)"Login required");
         SERVE;
-    } else if ((x = sgetinit(0,1)) < 0) {
-        debug(F101,"CKCPRO <serve>O sgetinit fail","",x);
+    } else if ((wx = sgetinit(0,1)) < 0) {
+        debug(F101,"CKCPRO <serve>O sgetinit fail","",wx);
         RESUME;
-    } else if (x == 0) {
-        debug(F101,"CKCPRO <serve>O sgetinit done","",x);
+    } else if (wx == 0) {
+        debug(F101,"CKCPRO <serve>O sgetinit done","",wx);
 #ifdef CKSYSLOG
         if (ckxsyslog >= SYSLG_PR && ckxlogging)
           cksyslog(SYSLG_PR, 1, "server", "EXTENDED GET", (char *)srvcmd);
 #endif /* CKSYSLOG */
         BEGIN ssinit;
     } else {                            /* Otherwise stay in this state */
-        debug(F101,"CKCPRO <serve>O sgetinit TBC","",x);
+        debug(F101,"CKCPRO <serve>O sgetinit TBC","",wx);
         ack();
         BEGIN ropkt;
     }
@@ -748,18 +748,18 @@ a {
     if (x_login && !x_logged) {         /* (any combination of options) */
         errpkt((CHAR *)"Login required");
         SERVE;
-    } else if ((x = sgetinit(0,1)) < 0) {
-        debug(F101,"CKCPRO <ropkt>O sgetinit fail","",x);
+    } else if ((wx = sgetinit(0,1)) < 0) {
+        debug(F101,"CKCPRO <ropkt>O sgetinit fail","",wx);
         RESUME;
-    } else if (x == 0) {
-        debug(F101,"CKCPRO <ropkt>O sgetinit done","",x);
+    } else if (wx == 0) {
+        debug(F101,"CKCPRO <ropkt>O sgetinit done","",wx);
 #ifdef CKSYSLOG
         if (ckxsyslog >= SYSLG_PR && ckxlogging)
           cksyslog(SYSLG_PR, 1, "server", "EXTENDED GET", (char *)srvcmd);
 #endif /* CKSYSLOG */
         BEGIN ssinit;
     } else {                            /* Otherwise stay in this state */
-        debug(F101,"CKCPRO <ropkt>O sgetinit TBC","",x);
+        debug(F101,"CKCPRO <ropkt>O sgetinit TBC","",wx);
         ack();
     }
 #endif /* NOSERVER */
@@ -834,9 +834,9 @@ a {
 }
 
 <serve>q {                              /* Interrupted or connection lost */
-    rc = srv_timeout();
-    debug(F101,"srv_timeout","",rc);
-    if (rc > -1) return(rc);            /* (see below) */
+    wrc = srv_timeout();
+    debug(F101,"srv_timeout","",wrc);
+    if (wrc > -1) return(wrc);            /* (see below) */
 }
 
 <serve>N {                              /* Server got a NAK in command-wait */
@@ -858,9 +858,9 @@ a {
 }
 
 <generic>I {                            /* Login/Out */
-    rc = srv_login();
-    debug(F101,"<generic>I srv_login","",rc);
-    if (rc > -1) return(rc);            /* (see below) */
+    wrc = srv_login();
+    debug(F101,"<generic>I srv_login","",wrc);
+    if (wrc > -1) return(wrc);            /* (see below) */
 }
 
 <generic>C {                            /* Got REMOTE CD command */
@@ -874,14 +874,14 @@ a {
         RESUME;
     } else {
         char * p = NULL;
-        x = cwd((char *)(srvcmd+1));    /* Try to change directory */
+        wx = cwd((char *)(srvcmd+1));    /* Try to change directory */
 #ifdef IKSDB
         if (ikdbopen) slotstate(what,"REMOTE CD", (char *)(srvcmd+2), "");
 #endif /* IKSDB */
-        if (!x) {                       /* Failed */
+        if (!wx) {                       /* Failed */
             errpkt((CHAR *)"Can't change directory");
             RESUME;                     /* Back to server command wait */
-        } else if (x == 2) {            /* User wants message */
+        } else if (wx == 2) {            /* User wants message */
             if (!ENABLED(en_typ)) {     /* Messages (REMOTE TYPE) disabled? */
                 errpkt((CHAR *)"REMOTE TYPE disabled");
                 RESUME;
@@ -937,14 +937,14 @@ a {
         s = "..";
 #endif /* datageneral */
 #endif /* VMS */
-        x = cwd(s);                     /* Try to change directory */
+        wx = cwd(s);                     /* Try to change directory */
 #ifdef IKSDB
         if (ikdbopen) slotstate(what,"REMOTE CD", (char *)(srvcmd+2), "");
 #endif /* IKSDB */
-        if (!x) {                       /* Failed */
+        if (!wx) {                       /* Failed */
             errpkt((CHAR *)"Can't change directory");
             RESUME;                     /* Back to server command wait */
-        } else if (x == 2) {            /* User wants message */
+        } else if (wx == 2) {            /* User wants message */
             if (!ENABLED(en_typ)) {     /* Messages (REMOTE TYPE) disabled? */
                 errpkt((CHAR *)"REMOTE TYPE disabled");
                 RESUME;
@@ -1201,15 +1201,15 @@ a {
 }
 
 <generic>R {                            /* REMOTE RENAME */
-    rc = srv_rename();
-    debug(F101,"srv_rename","",rc);
-    if (rc > -1) return(rc);            /* (see below) */
+    wrc = srv_rename();
+    debug(F101,"srv_rename","",wrc);
+    if (wrc > -1) return(wrc);            /* (see below) */
 }
 
 <generic>K {                            /* REMOTE COPY */
-    rc = srv_copy();
-    debug(F101,"srv_copy","",rc);
-    if (rc > -1) return(rc);            /* (see below) */
+    wrc = srv_copy();
+    debug(F101,"srv_copy","",wrc);
+    if (wrc > -1) return(wrc);            /* (see below) */
 }
 
 <generic>S {                            /* REMOTE SET */
@@ -1290,9 +1290,9 @@ a {
     }
     if (state == generic) {             /* OK to go ahead. */
         char *p = NULL;
-        x = ckmkdir(0,(char *)(srvcmd+2),&p,0,1); /* Make the directory */
+        wx = ckmkdir(0,(char *)(srvcmd+2),&p,0,1); /* Make the directory */
         if (!p) p = "";
-        if (x > -1) {
+        if (wx > -1) {
             encstr((CHAR *)p);          /* OK - encode the name */
             ack1(data);                 /* Send short-form response */
             success = 1;
@@ -1329,9 +1329,9 @@ a {
     }
     if (state == generic) {             /* OK to go ahead. */
         char *p = NULL;
-        x = ckmkdir(1,(char *)(srvcmd+2),&p,0,1);
+        wx = ckmkdir(1,(char *)(srvcmd+2),&p,0,1);
         if (!p) p = "";
-        if (x > -1) {
+        if (wx > -1) {
             encstr((CHAR *)p);          /* OK - encode the name */
             ack1(data);                 /* Send short-form response */
             success = 1;
@@ -1359,26 +1359,26 @@ a {
         errpkt((CHAR *)"REMOTE SPACE disabled");
         RESUME;
     } else {
-        x = srvcmd[1];                  /* Get area to check */
-        x = ((x == NUL) || (x == SP)
+        wx = srvcmd[1];                  /* Get area to check */
+        wx = ((wx == NUL) || (wx == SP)
 #ifdef OS2
-             || (x == '!') || (srvcmd[3] == ':')
+             || (wx == '!') || (srvcmd[3] == ':')
 #endif /* OS2 */
              );
 #ifdef IKSDB
         if (ikdbopen) slotstate(what,
                               "REMOTE SPACE",
-                              (x ? "" : (char *)srvcmd),
+                              (wx ? "" : (char *)srvcmd),
                               ""
                               );
 #endif /* IKSDB */
-        if (!x && !ENABLED(en_cwd)) {   /* CWD disabled */
+        if (!wx && !ENABLED(en_cwd)) {   /* CWD disabled */
             errpkt((CHAR *)"Access denied"); /* and non-default area given, */
             RESUME;                     /* refuse. */
         } else {
 #ifdef OS2
 _PROTOTYP(int sndspace,(int));
-            if (sndspace(x ? toupper(srvcmd[2]) : 0)) {
+            if (sndspace(wx ? toupper(srvcmd[2]) : 0)) {
                 BEGIN ssinit;           /* send the report. */
             } else {                    /* If not ok, */
                 errpkt((CHAR *)"Can't send space"); /* send error message */
@@ -1386,10 +1386,11 @@ _PROTOTYP(int sndspace,(int));
             }
 #else
             if (nopush)
-              x = 0;
+              wx = 0;
             else
-              x = (x ? syscmd(SPACMD,"") : syscmd(SPACM2,(char *)(srvcmd+2)));
-            if (x) {                    /* If we got the info */
+              wx = (wx ? syscmd(SPACMD,"") :
+                    syscmd(SPACM2,(char *)(srvcmd+2)));
+            if (wx) {                    /* If we got the info */
                 BEGIN ssinit;           /* send it */
             } else {                    /* otherwise */
                 errpkt((CHAR *)"Can't check space"); /* send error message */
@@ -1435,9 +1436,9 @@ _PROTOTYP(int sndwho,(char *));
 }
 
 <generic>V {                            /* Variable query or set */
-    rc = srv_query();
-    debug(F101,"srv_query","",rc);
-    if (rc > -1) return(rc);
+    wrc = srv_query();
+    debug(F101,"srv_query","",wrc);
+    if (wrc > -1) return(wrc);
 }
 
 <generic>M {                            /* REMOTE MESSAGE command */
@@ -1499,9 +1500,9 @@ _PROTOTYP(int sndwho,(char *));
 }
 
 <rgen>Y {                               /* Short-Form reply */
-    rc = rcv_shortreply();
-    debug(F101,"<rgen>Y rcv_shortreply","",rc);
-    if (rc > -1) return(rc);
+    wrc = rcv_shortreply();
+    debug(F101,"<rgen>Y rcv_shortreply","",wrc);
+    if (wrc > -1) return(wrc);
 }
 
 <rgen,rfile>F {                         /* File header */
@@ -1650,9 +1651,9 @@ _PROTOTYP(int sndwho,(char *));
 
 <rattr>D {                              /* First data packet */
     debug(F100,"<rattr> D firstdata","",0);
-    rc = rcv_firstdata();
-    debug(F101,"rcv_firstdata rc","",rc);
-    if (rc > -1) return(rc);            /* (see below) */
+    wrc = rcv_firstdata();
+    debug(F101,"rcv_firstdata rc","",wrc);
+    if (wrc > -1) return(wrc);            /* (see below) */
 }
 
 <rfile>B {                              /* EOT, no more files */
@@ -1722,32 +1723,32 @@ _PROTOTYP(int sndwho,(char *));
     rf_err = "Can't create file";
     timint = s_timint;
     if (discard) {                      /* Discarding a real file... */
-        x = 1;
+        wx = 1;
     } else if (xflg) {                  /* If screen data */
         if (remfile) {                  /* redirected to file */
             if (rempipe)                /* or pipe */
-              x = openc(ZOFILE,remdest); /* Pipe: start command */
+              wx = openc(ZOFILE,remdest); /* Pipe: start command */
             else
-              x = opena(remdest,&iattr); /* File: open with attributes */
+              wx = opena(remdest,&iattr); /* File: open with attributes */
         } else {                        /* otherwise */
-            x = opent(&iattr);          /* "open" the screen */
+            wx = opent(&iattr);          /* "open" the screen */
         }
 #ifdef CALIBRATE
     } else if (calibrate) {             /* If calibration run */
-        x = ckopenx(&iattr);            /* do this */
+        wx = ckopenx(&iattr);            /* do this */
 #endif /* CALIBRATE */
     } else {                            /* otherwise */
-        x = opena(filnam,&iattr);       /* open the file, with attributes */
-        if (x == -17) {                 /* REGET skipped because same size */
+        wx = opena(filnam,&iattr);       /* open the file, with attributes */
+        if (wx == -17) {                 /* REGET skipped because same size */
             discard = 1;
             rejection = 1;
         }
     }
-    if (!x || reof(filnam, &iattr) < 0) { /* Close output file */
+    if (!wx || reof(filnam, &iattr) < 0) { /* Close output file */
         errpkt((CHAR *) rf_err);        /* If problem, send error msg */
         RESUME;                         /* and quit */
     } else {                            /* otherwise */
-        if (x == -17)
+        if (wx == -17)
           xxscreen(SCR_ST,ST_SKIP,SKP_RES,"");
         ack();                          /* acknowledge the EOF packet */
         BEGIN rfile;                    /* and await another file */
@@ -1758,15 +1759,15 @@ _PROTOTYP(int sndwho,(char *));
     timint = s_timint;
     window(1);                          /* Set window size back to 1... */
     cxseen = 1;
-    x = clsof(1);                       /* Close file */
+    wx = clsof(1);                       /* Close file */
     return(success = 0);                /* Failed */
 }
 
 <rdpkt>Z {                              /* End Of File (EOF) Packet */
 /*  wslots = 1; */                      /* (don't set) Window size back to 1 */
 #ifndef COHERENT /* Coherent compiler blows up on this switch() statement. */
-    x = reof(filnam, &iattr);           /* Handle the EOF packet */
-    switch (x) {                        /* reof() sets the success flag */
+    wx = reof(filnam, &iattr);           /* Handle the EOF packet */
+    switch (wx) {                        /* reof() sets the success flag */
       case -5:                          /* Handle problems */
         errpkt((CHAR *)"RENAME failed"); /* Fatal */
         RESUME;
@@ -1789,7 +1790,7 @@ _PROTOTYP(int sndwho,(char *));
         RESUME;
         break;
       default:
-        if (x < 0) {                    /* Fatal */
+        if (wx < 0) {                    /* Fatal */
             errpkt((CHAR *)"Can't close file");
             RESUME;
         } else {                        /* Success */
@@ -1839,9 +1840,9 @@ _PROTOTYP(int sndwho,(char *));
 #endif /* CK_RESEND */
         what = W_SEND;                  /* Remember we're sending */
         lastxfer = W_SEND;
-        x = sfile(xflg);                /* Send X or F header packet */
+        wx = sfile(xflg);                /* Send X or F header packet */
         cancel = 0;                     /* Reset cancellation counter */
-        if (x) {                        /* If the packet was sent OK */
+        if (wx) {                        /* If the packet was sent OK */
             if (!xflg && filcnt == 1)   /* and it's a real file */
               crc16 = 0L;               /* Clear the file CRC */
             resetc();                   /* reset per-transaction counters */
@@ -1859,9 +1860,9 @@ _PROTOTYP(int sndwho,(char *));
 #endif /* IKSDB */
             BEGIN ssfile;               /* and switch to receive-file state */
         } else {                        /* otherwise send error msg & quit */
-            s = xflg ? "Can't execute command" : (char *)epktmsg;
-            if (!*s) s = "Can't open file";
-            errpkt((CHAR *)s);
+            ws = xflg ? "Can't execute command" : (char *)epktmsg;
+            if (!*ws) ws = "Can't open file";
+            errpkt((CHAR *)ws);
             RESUME;
         }
 #ifdef CK_RESEND
@@ -1905,7 +1906,7 @@ _PROTOTYP(int sndwho,(char *));
     }
     if (cxseen||czseen) {               /* Interrupted? */
         debug(F101,"<ssfile>Y canceling","",0);
-        x = clsif();                    /* Close input file */
+        wx = clsif();                    /* Close input file */
         sxeof(1);                       /* Send EOF(D) */
         BEGIN sseof;                    /* and switch to EOF state. */
     } else if (atcapu) {                /* If attributes are to be used */
@@ -1917,20 +1918,20 @@ _PROTOTYP(int sndwho,(char *));
         if (window(wslotn) < 0) {       /* Open window */
             errpkt((CHAR *)"Can't open window");
             RESUME;
-        } else if ((x = sdata()) == -2) { /* Send first data packet data */
+        } else if ((wx = sdata()) == -2) { /* Send first data packet data */
             window(1);                  /* Connection lost, reset window */
-            x = clsif();                /* Close input file */
+            wx = clsif();                /* Close input file */
             return(success = 0);        /* Return failure */
-        } else if (x == -9) {           /* User interrupted */
+        } else if (wx == -9) {           /* User interrupted */
             errpkt((CHAR *)"User cancelled"); /* Send Error packet */
             window(1);                  /* Set window size back to 1... */
             timint = s_timint;          /* Restore timeout */
             return(success = 0);        /* Failed */
-        } else if (x < 0) {             /* EOF (empty file) or interrupted */
+        } else if (wx < 0) {             /* EOF (empty file) or interrupted */
             window(1);                  /* put window size back to 1, */
             debug(F101,"<ssfile>Y cxseen","",cxseen);
-            x = clsif();                /* If not ok, close input file, */
-            if (x < 0)                  /* treating failure as interruption */
+            wx = clsif();                /* If not ok, close input file, */
+            if (wx < 0)                  /* treating failure as interruption */
               cxseen = 1;               /* Send EOF packet */
             seof(cxseen||czseen);
             BEGIN sseof;                /* and switch to EOF state. */
@@ -1945,7 +1946,7 @@ _PROTOTYP(int sndwho,(char *));
     debug(F101,"<ssattr>Y cxseen","",cxseen);
     if (cxseen||czseen) {               /* Interrupted? */
         debug(F101,"<sattr>Y canceling","",0);
-        x = clsif();                    /* Close input file */
+        wx = clsif();                    /* Close input file */
         sxeof(1);                       /* Send EOF(D) */
         BEGIN sseof;                    /* and switch to EOF state. */
     } else if (rsattr(rdatap) < 0) {    /* Was the file refused? */
@@ -1953,24 +1954,24 @@ _PROTOTYP(int sndwho,(char *));
         clsif();                        /* Close the file */
         sxeof(1);                       /* send EOF with "discard" code */
         BEGIN sseof;                    /* switch to send-EOF state */
-    } else if ((x = sattr(xflg | stdinf, 0)) < 0) { /* Send more? */
+    } else if ((wx = sattr(xflg | stdinf, 0)) < 0) { /* Send more? */
         errpkt((CHAR *)"Can't send attributes"); /* Trouble... */
         RESUME;
-    } else if (x == 0) {                /* No more to send so now the data */
+    } else if (wx == 0) {                /* No more to send so now the data */
         if (window(wslotn) < 0) {       /* Allocate negotiated window slots */
             errpkt((CHAR *)"Can't open window");
             RESUME;
         }
-        if ((x = sdata()) == -2) {      /* File accepted, send first data */
+        if ((wx = sdata()) == -2) {      /* File accepted, send first data */
             window(1);                  /* Connection broken */
-            x = clsif();                /* Close file */
+            wx = clsif();                /* Close file */
             return(success = 0);        /* Return failure */
-        } else if (x == -9) {           /* User interrupted */
+        } else if (wx == -9) {           /* User interrupted */
             errpkt((CHAR *)"User cancelled"); /* Send Error packet */
             window(1);                  /* Set window size back to 1... */
             timint = s_timint;          /* Restore timeout */
             return(success = 0);        /* Failed */
-        } else if (x < 0) {             /* If data was not sent */
+        } else if (wx < 0) {             /* If data was not sent */
             window(1);                  /* put window size back to 1, */
             debug(F101,"<ssattr>Y cxseen","",cxseen);
             if (clsif() < 0)            /* Close input file */
@@ -1986,7 +1987,7 @@ _PROTOTYP(int sndwho,(char *));
 <ssdata>q {                             /* Ctrl-C or connection loss. */
     window(1);                          /* Set window size back to 1... */
     cxseen = 1;                         /* To indicate interruption */
-    x = clsif();                        /* Close file */
+    wx = clsif();                        /* Close file */
     return(success = 0);                /* Failed */
 }
 
@@ -1994,16 +1995,16 @@ _PROTOTYP(int sndwho,(char *));
     canned(rdatap);                     /* Check if file transfer cancelled */
     debug(F111,"<ssdata>Y cxseen",rdatap,cxseen);
     debug(F111,"<ssdata>Y czseen",rdatap,czseen);
-    if ((x = sdata()) == -2) {          /* Try to send next data */
+    if ((wx = sdata()) == -2) {          /* Try to send next data */
         window(1);                      /* Connection lost, reset window */
-        x = clsif();                    /* Close file */
+        wx = clsif();                    /* Close file */
         return(success = 0);            /* Failed */
-    } else if (x == -9) {               /* User interrupted */
+    } else if (wx == -9) {               /* User interrupted */
         errpkt((CHAR *)"User cancelled"); /* Send Error packet */
         window(1);                      /* Set window size back to 1... */
         timint = s_timint;              /* Restore original timeout */
         return(success = 0);            /* Failed */
-    } else if (x < 0) {                 /* EOF - finished sending data */
+    } else if (wx < 0) {                 /* EOF - finished sending data */
         debug(F101,"<ssdata>Y cxseen","",cxseen);
         window(1);                      /* Set window size back to 1... */
         if (clsif() < 0)                /* Close input file */
@@ -2037,10 +2038,10 @@ _PROTOTYP(int sndwho,(char *));
             makestr(&srfspec,psrfspec);
         }
         if (moving) {                   /* If MOVE'ing */
-            x = zdelet(filnam);         /* Try to delete the source file */
+            wx = zdelet(filnam);         /* Try to delete the source file */
 #ifdef TLOG
             if (tralog) {
-                if (x > -1) {
+                if (wx > -1) {
                     tlog(F110," deleted",filnam,0);
                 } else {
                     tlog(F110," delete failed:",ck_errstr(),0);
@@ -2136,12 +2137,12 @@ E {                                     /* Got Error packet, in any state */
     success = 0;                        /* Transfer failed */
     xferstat = success;                 /* Remember transfer status */
     if (!epktsent) {
-        x = quiet; quiet = 1;           /* Close files silently, */
+        wx = quiet; quiet = 1;           /* Close files silently, */
         epktrcvd = 1;                   /* Prevent messages from clsof() */
         clsif();
         clsof(1);                       /* discarding any output file. */
         ermsg(s);                       /* Issue the message (calls screen). */
-        quiet = x;                      /* Restore quiet state */
+        quiet = wx;                      /* Restore quiet state */
     }
     tstats();                           /* Get stats */
 /*
@@ -2273,16 +2274,16 @@ rcv_firstdata() {
         if (xflg) {                     /* If screen data */
             if (remfile) {              /* redirected to file */
                 if (rempipe)            /* or pipe */
-                  x = openc(ZOFILE,remdest); /* Pipe: start command */
+                  wx = openc(ZOFILE,remdest); /* Pipe: start command */
                 else
-                  x = opena(remdest,&iattr); /* File: open with attributes */
+                  wx = opena(remdest,&iattr); /* File: open with attributes */
             } else {                    /* otherwise */
-                x = opent(&iattr);      /* "open" the screen */
+                wx = opent(&iattr);      /* "open" the screen */
             }
         } else {                        /* otherwise */
 #ifdef CALIBRATE
             if (calibrate) {            /* If calibration run */
-                x = ckopenx(&iattr);    /* open nothing */
+                wx = ckopenx(&iattr);    /* open nothing */
 #ifdef STREAMING
                 if (streaming)          /* Streaming */
                   fastack();            /* ACK without ACKing. */
@@ -2316,7 +2317,7 @@ rcv_firstdata() {
                 subj = mpsafe(ofilnam,1) ? ofilnam : "Kermit";
                 if (!mpsafe(s,1)) {
                     debug(F110,"rcv_firstdata mail refused address",s,0);
-                    x = 0;
+                    wx = 0;
                 } else {
                     n = (int)strlen(MAILCMD) +    /* Mail command */
                       (int)strlen(s) +        /* address */
@@ -2326,10 +2327,10 @@ rcv_firstdata() {
                                   MAILCMD," -s \"",subj,"\" ",s,
                                   NULL,NULL,NULL,NULL,NULL,NULL,NULL);
                         debug(F111,"rcv_firsdata mail",tmp,(int)strlen(tmp));
-                        x = openc(ZOFILE,(char *)tmp);
+                        wx = openc(ZOFILE,(char *)tmp);
                         free(tmp);
                     } else
-                      x = 0;
+                      wx = 0;
                 }
             } else if (dispos == 'P') { /* Ditto for print */
                 char * tmp = NULL;
@@ -2338,23 +2339,23 @@ rcv_firstdata() {
                 if (!mpsafe(iattr.disp.val+1,0)) {
                     debug(F110,"rcv_firstdata print refused options",
                           iattr.disp.val+1,0);
-                    x = 0;
+                    wx = 0;
                 } else {
                     n = (int)strlen(PRINTCMD) +
                       (int)strlen(iattr.disp.val+1) + 4;
                     if ((tmp = (char *)malloc(n))) {
                         sprintf(tmp,    /* safe (prechecked) */
                                 "%s %s", PRINTCMD, iattr.disp.val + 1);
-                        x = openc(ZOFILE,(char *)tmp);
+                        wx = openc(ZOFILE,(char *)tmp);
                         free(tmp);
                     } else
-                      x = 0;
+                      wx = 0;
                 }
             } else
 #endif /* UNIX */
-              x = opena(filnam,&iattr); /* open the file, with attributes */
+              wx = opena(filnam,&iattr); /* open the file, with attributes */
         }
-        if (x) {                        /* If file was opened ok */
+        if (wx) {                        /* If file was opened ok */
             int rc, qf;
 #ifndef NOSPL
             qf = query;
@@ -2397,10 +2398,10 @@ rcv_shortreply() {
     debug(F111,"rcv_shortreply",rdatap,ipktlen);
     if (ipktack[0] && !strncmp(ipktack,(char *)rdatap,ipktlen)) {
         /* No it's the ACK to the I packet again */
-        x = scmd(vcmd,(CHAR *)cmarg);   /* So send the REMOTE command again */
+        wx = scmd(vcmd,(CHAR *)cmarg);   /* So send the REMOTE command again */
         /* Maybe this should be resend() */
-        debug(F110,"IPKTZEROHACK",ipktack,x);
-        if (x < 0) {
+        debug(F110,"IPKTZEROHACK",ipktack,wx);
+        if (wx < 0) {
             errpkt((CHAR *)srimsg);
             RESUME;
             return(-1);
@@ -2417,11 +2418,11 @@ rcv_shortreply() {
             querybuf[0] = NUL;
         }
 #endif /* NOSPL */
-        x = 1;
+        wx = 1;
         if (remfile) {                  /* Response redirected to file */
             rf_err = "Can't open file";
             if (rempipe)                /* or pipe */
-              x =
+              wx =
 #ifndef NOPUSH
                 zxcmd(ZOFILE,remdest)   /* Pipe: Start command */
 #else
@@ -2429,12 +2430,12 @@ rcv_shortreply() {
 #endif /* NOPUSH */
                 ;
             else
-              x = opena(remdest,&iattr); /* File: Open with attributes */
-            debug(F111,"rcv_shortreply remfile",remdest,x);
+              wx = opena(remdest,&iattr); /* File: Open with attributes */
+            debug(F111,"rcv_shortreply remfile",remdest,wx);
         } else {
-            x = opent(&iattr);          /* "open" the screen */
+            wx = opent(&iattr);          /* "open" the screen */
         }
-        if (x) {                        /* If file was opened ok */
+        if (wx) {                        /* If file was opened ok */
             if (decode(rdatap,
 #ifndef NOSPL
                        (query || !remfile) ? puttrm :
@@ -2915,11 +2916,11 @@ rcv_s_pkt() {
 #ifdef CK_TMPDIR
         if (dldir && !f_tmpdir) {       /* If they have a download directory */
             debug(F110,"receive download dir",dldir,0);
-            if ((s = zgtdir())) {               /* Get current directory */
-                debug(F110,"receive current dir",s,0);
+            if ((ws = zgtdir())) {               /* Get current directory */
+                debug(F110,"receive current dir",ws,0);
                 if (zchdir(dldir)) {    /* Change to download directory */
                     debug(F100,"receive zchdir ok","",0);
-                    ckstrncpy(savdir,s,TMPDIRLEN);
+                    ckstrncpy(savdir,ws,TMPDIRLEN);
                     f_tmpdir = 1;       /* Remember that we did this */
                 } else
                   debug(F100,"receive zchdir failed","",0);
@@ -3291,10 +3292,10 @@ _PROTOTYP( int pxyz, (int) );
         return;
     }
     if (local && !network && carrier != CAR_OFF) {
-        int x;                          /* Serial connection */
-        x = ttgmdm();                   /* with carrier checking */
-        if (x > -1) {
-            if (!(x & BM_DCD)) {
+        int prx;                          /* Serial connection */
+        prx = ttgmdm();                   /* with carrier checking */
+        if (prx > -1) {
+            if (!(prx & BM_DCD)) {
                 debug(F101,"proto ttgmdm","",0);
                 xxscreen(SCR_EM,0,0L,"Carrier required but not detected");
                 return;
@@ -3438,14 +3439,14 @@ _PROTOTYP( int pxyz, (int) );
         if (*s) {
             if (sstate == 's') {        /* Sending */
                 extern int xfermode;
-                int k = 0, x = 0, b = binary;
+                int k = 0, sfx = 0, b = binary;
                 /*
                   If just one file we can scan it to set the xfer mode.
                   Otherwise it's up to the external protocol program.
                 */
                 if (patterns && xfermode == XMODE_A && !iswild(fspec)) {
                     extern int nscanfile;
-                    k = scanfile(fspec,&x,nscanfile);
+                    k = scanfile(fspec,&sfx,nscanfile);
                     if (k > -1) {
                         b = (k == FT_BIN) ? XYFT_B : XYFT_T;
                         s = b ?
@@ -3613,9 +3614,9 @@ _PROTOTYP( int pxyz, (int) );
 */
 static int
 #ifdef CK_ANSIC
-sgetinit(int reget, int xget)
+sgetinit(int rg, int xget)
 #else
-sgetinit(reget,xget) int reget, xget;
+sgetinit(rg,xget) int rg, xget;
 #endif /* CK_ANSIC */
 {       /* Server end of GET command */
     char * fs = NULL;                   /* Pointer to filespec */
@@ -3695,7 +3696,7 @@ sgetinit(reget,xget) int reget, xget;
                 val = atoi(p);          /* Convert to int */
                 debug(F101,"sgetinit O val","",val);
                 if (val & GOPT_DEL) moving = 1;
-                if (val & GOPT_RES) reget = 1;
+                if (val & GOPT_RES) rg = 1;
                 if (val & GOPT_REC) {
                     recursive = 1;
                     nolinks = 2;
@@ -3795,7 +3796,7 @@ sgetinit(reget,xget) int reget, xget;
     winlo = 0;                          /* Back to packet 0 again. */
     debug(F101,"sgetinit winlo","",winlo);
     nakstate = 0;                       /* Now I'm the sender! */
-    if (reget) sendmode = SM_RESEND;
+    if (rg) sendmode = SM_RESEND;
     if (sinit() > 0) {                  /* Send Send-Init */
 #ifdef STREAMING
         if (!streaming)

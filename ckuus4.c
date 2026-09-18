@@ -2615,16 +2615,16 @@ static CHAR xbbuf[XBBUFSIZ+4];
 
 int
 #ifdef CK_ANSIC
-transmit(char * s, char t, int xlate, int binary, int xxecho)
+transmit(char * s, char t, int xlate, int xbinary, int xxecho)
 #else
-transmit(s,t,xlate,binary,xxecho) char *s; char t; int xlate, binary, xxecho;
+transmit(s,t,xlate,xbinary,xxecho) char *s; char t; int xlate, xbinary, xxecho;
 #endif /* CK_ANSIC */
 /* transmit */ {
 #ifdef MAC
     extern char sstate;
-    int count = 100;
+    int tcount = 100;
 #else
-    int count = 0;
+    int tcount = 0;
 #ifdef OS2
     SIGTYP (* oldsig)(int);             /* For saving old interrupt trap. */
 #else /* OS2 */
@@ -2632,7 +2632,7 @@ transmit(s,t,xlate,binary,xxecho) char *s; char t; int xlate, binary, xxecho;
 #endif /* OS2 */
 #endif /* MAC */
     int eof = 0;                        /* End of File flag */
-    int eol = 0;                        /* End of Line flag */
+    int teol = 0;                        /* End of Line flag */
     int rc = 1;                         /* Return code. 0=fail, 1=succeed. */
     int myflow;                         /* Local copy of global flow... */
     int is_tn = 0;                      /* Do Telnet negotiations */
@@ -2683,7 +2683,7 @@ transmit(s,t,xlate,binary,xxecho) char *s; char t; int xlate, binary, xxecho;
 
     debug(F101,"xmit t","",t);
     debug(F101,"xmit xlate","",xlate);
-    debug(F101,"xmit binary","",binary);
+    debug(F101,"xmit binary","",xbinary);
 
 #ifdef PIPESEND
     if (pipesend) {
@@ -2704,7 +2704,7 @@ transmit(s,t,xlate,binary,xxecho) char *s; char t; int xlate, binary, xxecho;
         return(0);
     }
     zz = x ? speed : -1L;
-    if (binary) {                       /* Binary file transmission */
+    if (xbinary) {                       /* Binary file transmission */
         myflow = (flow == FLO_XONX) ? FLO_NONE : flow;
 
         if (ttvt(zz,myflow) < 0) {      /* So no Xon/Xoff! */
@@ -2732,7 +2732,7 @@ transmit(s,t,xlate,binary,xxecho) char *s; char t; int xlate, binary, xxecho;
     sxo = rxo = NULL;                   /* Initialize byte-to-byte functions */
     sxi = rxi = NULL;
     unicode = 0;                        /* Assume Unicode won't be involved */
-    if (!binary && xlate) {             /* Set up charset translations */
+    if (!xbinary && xlate) {             /* Set up charset translations */
 /*
   In the SENDING direction, we are converting from the local file's
   character-set (fcharset) to the remote terminal charset (tcsr).  In the
@@ -2822,14 +2822,14 @@ transmit(s,t,xlate,binary,xxecho) char *s; char t; int xlate, binary, xxecho;
 
     c = 0;                              /* Initial condition */
     while (c > -1 && !eof) {            /* Loop for all characters in file */
-        eol = 0;
+        teol = 0;
 #ifdef MAC
         /*
          * It is expensive to run the miniparser so don't do it for
          * every character.
          */
-        if (--count < 0) {
-            count = 100;
+        if (--tcount < 0) {
+            tcount = 100;
             miniparser(1);
             if (sstate == 'a') {
                 sstate = '\0';
@@ -2864,17 +2864,17 @@ transmit(s,t,xlate,binary,xxecho) char *s; char t; int xlate, binary, xxecho;
             eof = 1;
             debug(F101,"XMIT eof","",eof);
         }
-        if (binary) {                   /* Binary... */
+        if (xbinary) {                   /* Binary... */
             if (c == -1) {              /* If EOF */
                 rc = 1;                 /* Success */
                 eof = 1;
                 goto xmitexit;          /* Done */
             }
             if (!xmitw && !xxecho) {    /* Special "blast" mode */
-                if (count == XBBUFSIZ) { /* File input buffer full... */
-                    while (count > 0) {
+                if (tcount == XBBUFSIZ) { /* File input buffer full... */
+                    while (tcount > 0) {
                         errno = 0;
-                        y = ttol(xbbuf,count);
+                        y = ttol(xbbuf,tcount);
                         if (y < 0) {    /* try to send it. */
                             printf("?TRANSMIT output error: %s\n",
                                    ck_errstr());
@@ -2884,14 +2884,14 @@ transmit(s,t,xlate,binary,xxecho) char *s; char t; int xlate, binary, xxecho;
                             break;
                         }
                         if (y < 0) break;
-                        count -= y;
+                        tcount -= y;
                     }
-                    count = 0;
+                    tcount = 0;
                 }
-                xbbuf[count++] = c;
+                xbbuf[tcount++] = c;
 #ifdef TNCODE
                 if (c == IAC && is_tn)  /* Telnet IAC */
-                  xbbuf[count++] = IAC; /* must be doubled */
+                  xbbuf[tcount++] = IAC; /* must be doubled */
 #endif /* TNCODE */
                 continue;
             }
@@ -2918,13 +2918,13 @@ transmit(s,t,xlate,binary,xxecho) char *s; char t; int xlate, binary, xxecho;
                     if (conoc((char)(c & cmdmsk)) < 0) /* echo locally. */
                       goto xmitfail;
                 } else {                /* For full duplex, */
-                    int i, n;           /* display whatever is there. */
+                    int i9, n;           /* display whatever is there. */
                     n = ttchk();        /* See how many chars are waiting */
                     if (n < 0) {        /* Connection dropped? */
                         printf("?Connection lost\n");
                         goto xmitfail;
                     }
-                    for (i = 0; i < n; i++) { /* Read and echo that many. */
+                    for (i9 = 0; i9 < n; i9++) { /* Read and echo that many. */
                         x = ttinc(xmitt); /* Timed read just in case. */
                         if (x > -1) {   /* If no timeout */
                             if (parity) x &= 0x7f; /* display the char, */
@@ -2983,17 +2983,17 @@ transmit(s,t,xlate,binary,xxecho) char *s; char t; int xlate, binary, xxecho;
                 debug(F111,"XMIT UCS2",xbuf,uc.x_short);
                 if (nbytes & 1)         /* Special eol test for UCS-2 */
                   if (uc.x_short == '\n')
-                    eol = 1;
+                    teol = 1;
 #ifdef COMMENT
                 if (uc.x_short == 0x2028 || uc.x_short == 0x2029)
-                    eol = 1;
+                    teol = 1;
 #endif /* COMMENT */
             } else
 #endif /* UNICODE */
               if (c == '\n') {          /* Normal eol test otherwise */
-                  eol = 1;
+                  teol = 1;
             }
-            if (eol) {                  /* End of line? */
+            if (teol) {                  /* End of line? */
                 int stuff = -1;
                 debug(F101,"XMIT eol length","",i);
                 if (i == 0) {           /* Blank line? */
@@ -3016,7 +3016,7 @@ transmit(s,t,xlate,binary,xxecho) char *s; char t; int xlate, binary, xxecho;
                 debug(F111,"XMIT eol line",line,i);
 
             } else if (c != -1) {       /* Not a newline, regular character */
-                int k, x;
+                int k, x9;
                 outxbuf[0] = c;         /* In case of no translation */
                 outxcount = 1;          /* Assume result is one byte */
 #ifndef NOCSETS
@@ -3042,18 +3042,18 @@ transmit(s,t,xlate,binary,xxecho) char *s; char t; int xlate, binary, xxecho;
                   case 4:               /* Local UTF-8 to remote byte */
                   case 5:
                     xuf = xl_ufc[tcsr];
-                    x = u_to_b((CHAR)c); /* Convert to byte */
-                    if (x == -1) {      /* If more input bytes needed */
+                    x9 = u_to_b((CHAR)c); /* Convert to byte */
+                    if (x9 == -1) {      /* If more input bytes needed */
                         continue;       /* go back and get them */
-                    } else if (x == -2) { /* LS or PS (shouldn't happen) */
+                    } else if (x9 == -2) { /* LS or PS (shouldn't happen) */
                         outxbuf[0] = CK_CR;
-                    } else if (x == -9) { /* UTF-8 error */
+                    } else if (x9 == -9) { /* UTF-8 error */
                         outxbuf[0] = '?'; /* Insert error char */
                         outxbuf[1] = u_to_b2(); /* Insert next char */
                         outxcount = 2;
                     } else {
                         outxbuf[0] =    /* Otherwise store result */
-                          (unsigned)(x & 0xff);
+                          (unsigned)(x9 & 0xff);
                     }
                     break;
                   case 6:               /* UTF-8 to UTF-8 */
@@ -3068,15 +3068,15 @@ transmit(s,t,xlate,binary,xxecho) char *s; char t; int xlate, binary, xxecho;
                   case 11: {            /* UCS-2 to UTF-8 */
                       int j;
                       CHAR * buf = NULL;
-                      x = ucs2_to_utf8(uc.x_short,&buf);
-                      if (x < 0) {
+                      x9 = ucs2_to_utf8(uc.x_short,&buf);
+                      if (x9 < 0) {
                           outxbuf[0] = 0xff; /* (= U+FFFD) */
                           outxbuf[1] = 0xbd;
-                          x = 2;
+                          x9 = 2;
                       }
-                      for (j = 0; j < x; j++)
+                      for (j = 0; j < x9; j++)
                         outxbuf[j] = buf[j];
-                      outxcount = x;
+                      outxcount = x9;
                       break;
                   }
 #endif /* UNICODE */
@@ -3110,7 +3110,7 @@ transmit(s,t,xlate,binary,xxecho) char *s; char t; int xlate, binary, xxecho;
   (End of line only if echoing, waiting for a prompt, or pausing.)
 */
             debug(F000,"XMIT c",ckitoa(i),c);
-            if (i >= xbufsiz || eof || (eol && (xxecho || xmitw || t))) {
+            if (i >= xbufsiz || eof || (teol && (xxecho || xmitw || t))) {
                 p = line;
                 line[i] = '\0';
                 debug(F111,"transmit buf",p,i);
@@ -3151,7 +3151,7 @@ transmit(s,t,xlate,binary,xxecho) char *s; char t; int xlate, binary, xxecho;
                   msleep(xmitw);
 
                 control = 0;            /* Readback loop control */
-                if (t != 0 && eol)      /* TRANSMIT PROMPT given and at EOL */
+                if (t != 0 && teol)      /* TRANSMIT PROMPT given and at EOL */
                   control |= 1;
                 if (xxecho && !duplex)   /* Echo desired and is remote */
                   control |= 2;
@@ -3247,10 +3247,10 @@ transmit(s,t,xlate,binary,xxecho) char *s; char t; int xlate, binary, xxecho;
 
   xmitexit:                             /* General exit point */
     if (rc > 0) {
-        if (binary && !xmitw && !xxecho) { /* "blasting"? */
-            while (count > 0) {            /* Partial buffer still to go? */
+        if (xbinary && !xmitw && !xxecho) { /* "blasting"? */
+            while (tcount > 0) {            /* Partial buffer still to go? */
                 errno = 0;
-                y = ttol(xbbuf,count);
+                y = ttol(xbbuf,tcount);
                 if (y < 0) {
                     printf("?TRANSMIT output error: %s\n",
                            ck_errstr());
@@ -3259,9 +3259,9 @@ transmit(s,t,xlate,binary,xxecho) char *s; char t; int xlate, binary, xxecho;
                     rc = 0;
                     break;
                 }
-                count -= y;
+                tcount -= y;
             }
-        } else if (!binary && *xmitbuf) { /* Anything to send at EOF? */
+        } else if (!xbinary && *xmitbuf) { /* Anything to send at EOF? */
             p = xmitbuf;                /* Yes, point to string. */
             while (*p)                  /* Send it. */
               ttoc(dopar(*p++));        /* Don't worry about echo here. */
@@ -4551,7 +4551,7 @@ shoparc() {
 #ifdef TN_COMPORT
         if (istncomport()) {
             int modemstate;
-            char * oflow, * iflow = "", * parity, * stopsize;
+            char * oflow, * iflow = "", * tparity, * stopsize;
             CONST char * signature;
             int baud = tnc_get_baud();
 
@@ -4591,22 +4591,22 @@ shoparc() {
             }
             switch (tnc_get_parity()) {
               case TNC_PAR_NONE:
-                parity = "none";
+                tparity = "none";
                 break;
               case TNC_PAR_ODD:
-                parity = "odd";
+                tparity = "odd";
                 break;
               case TNC_PAR_EVEN:
-                parity = "even";
+                tparity = "even";
                 break;
               case TNC_PAR_MARK:
-                parity = "mark";
+                tparity = "mark";
                 break;
               case TNC_PAR_SPACE:
-                parity = "space";
+                tparity = "space";
                 break;
               default:
-                parity = "(unknown)";
+                tparity = "(unknown)";
             }
             switch (tnc_get_stopsize()) {
               case TNC_SB_1:
@@ -4629,7 +4629,7 @@ shoparc() {
               printf("  Speed                : %d\n", baud);
             printf("  Outbound Flow Control: %s\n", oflow);
             printf("  Inbound Flow Control : %s\n", iflow);
-            printf("  Parity               : %s\n", parity);
+            printf("  Parity               : %s\n", tparity);
             printf("  Data Size            : %d\n", tnc_get_datasize());
             printf("  Stop Bits            : %s\n", stopsize);
             printf("  DTR Signal           : %d\n", tnc_get_dtr_state());
@@ -4853,10 +4853,10 @@ shoparc() {
 #endif /* NOUUCP */
         printf("\n");
     } else {
-        char * s;
-        s = ttglckdir();
-        if (!s) s = "";
-        printf(" Lockfile directory: %s\n", *s ? s : "(none)");
+        char * ls;
+        ls = ttglckdir();
+        if (!ls) ls = "";
+        printf(" Lockfile directory: %s\n", *ls ? ls : "(none)");
     }
 #endif /* UNIX */
 #ifndef MACOSX
@@ -5108,14 +5108,14 @@ shotel(n) int n;
 #endif /* CK_AUTHENTICATION */
 #ifdef CK_ENCRYPTION
     {
-        int i,x;
+        int i,zx;
         int e_type = ck_tn_encrypting();
         int d_type = ck_tn_decrypting();
         char * e_str = NULL, * d_str = NULL;
         static struct keytab * tnetbl = NULL;
         static int ntnetbl = 0;
 
-        x = ck_get_crypt_table(&tnetbl,&ntnetbl);
+        zx = ck_get_crypt_table(&tnetbl,&ntnetbl);
 
         for (i = 0; i < ntnetbl; i++) {
             if (e_type == tnetbl[i].kwval)
@@ -5481,9 +5481,9 @@ shonet() {
         1
 #endif /* OS2 */
         ) {
-        char ipaddr[16];
+        char lipaddr[16];
 
-        if (getlocalipaddrs(ipaddr,16,0) < 0) {
+        if (getlocalipaddrs(lipaddr,16,0) < 0) {
 #ifdef OS2ONLY
             printf(" TCP/IP via %s\n", tcpname);
 #else
@@ -5493,14 +5493,14 @@ shonet() {
         } else {
             int i = 1;
 #ifdef OS2ONLY
-          printf(" TCP/IP [%16s] via %s\n", ipaddr, tcpname);
+          printf(" TCP/IP [%16s] via %s\n", lipaddr, tcpname);
 #else
-          printf(" TCP/IP [%16s]\n",ipaddr);
+          printf(" TCP/IP [%16s]\n",lipaddr);
 #endif /* OS2ONLY */
             if (++n > cmd_rows - 3) { if (!askmore()) return(0); else n = 0; }
 
-            while (getlocalipaddrs(ipaddr,16,i++) >= 0) {
-                printf("        [%16s]\n",ipaddr);
+            while (getlocalipaddrs(lipaddr,16,i++) >= 0) {
+                printf("        [%16s]\n",lipaddr);
                 if (++n > cmd_rows - 3) { if (!askmore()) return(0); else n = 0; }
             }
         }
@@ -5784,10 +5784,10 @@ doshodial() {
     if (ndialdir <= 1) {
         printf("\n Dial directory: %s\n",dialdir[0] ? dialdir[0] : "(none)");
     } else {
-        int i;
+        int zi;
         printf("\n Dial directories:\n");
-        for (i = 0; i < ndialdir; i++)
-          printf("%2d. %s\n",i+1,dialdir[i]);
+        for (zi = 0; zi < ndialdir; zi++)
+          printf("%2d. %s\n",zi+1,dialdir[zi]);
         n += ndialdir;
     }
     printf(" Dial method:  ");
@@ -6832,10 +6832,10 @@ extern int inesc[], oldesc[];
 
 int
 #ifdef CK_ANSIC
-doinput(int timo, char *ms[], int mp[], int flags, int count )
+doinput(int timo, char *ms[], int mp[], int flags, int icount )
 #else
-doinput(timo,ms,mp,flags,count)
-    int timo; char *ms[]; int mp[]; int flags; int count;
+doinput(timo,ms,mp,flags,icount)
+    int timo; char *ms[]; int mp[]; int flags; int icount;
 #endif /* CK_ANSIC */
 {
     extern int inintr;
@@ -6869,7 +6869,7 @@ doinput(timo,ms,mp,flags,count)
     const char* ssh_cmd;
 #endif
 
-    debug(F101,"input count","",count);
+    debug(F101,"input count","",icount);
     debug(F101,"input flags","",flags);
 
 /*
@@ -6892,7 +6892,7 @@ doinput(timo,ms,mp,flags,count)
     nowrap = flags & INPSW_NOW;         /* 4 = /NOWRAP */
     nomatch = flags & INPSW_NOM;        /* 1 = /NOMATCH */
     clearfirst = flags & INPSW_CLR;     /* 2 = /CLEAR */
-    savecount = count;
+    savecount = icount;
 
     makestr(&inpmatch,NULL);
     if (!matchbuf) {
@@ -6908,10 +6908,10 @@ doinput(timo,ms,mp,flags,count)
       clearfirst = 1;
 
     if (clearfirst) {                   /* INPUT /CLEAR */
-        int i;
+        int zi;
         myflsh();                       /* Flush screen and log buffers */
-        for (i = 0; i < inbufsize; i++)
-          inpbuf[i] = NUL;
+        for (zi = 0; zi < inbufsize; zi++)
+          inpbuf[zi] = NUL;
         inpbp = inpbuf;
     }
     is_tn =
@@ -6981,7 +6981,7 @@ doinput(timo,ms,mp,flags,count)
     debug(F111,"doinput ms[0]",ms[0],waiting);
 
     if (!ms[0] || isemptystring(ms[0])) { /* No search string was given nor */
-        if (count < 2)                    /* a /COUNT: switch so we just */
+        if (icount < 2)                    /* a /COUNT: switch so we just */
           anychar = 1;                    /* wait for the first character */
     }
     if (nomatch) anychar = 0;           /* Don't match anything */
@@ -7294,7 +7294,7 @@ doinput(timo,ms,mp,flags,count)
             incount++;                  /* Count it for \v(incount) */
 
             if (flags & INPSW_COU) {    /* INPUT /COUNT */
-                if (--count < 1) {
+                if (--icount < 1) {
                     x = 1;
                     instatus = INP_OK;
                     incount = savecount;
@@ -8306,7 +8306,7 @@ jpgdate(fp) FILE * fp;
 #endif /* CK_ANSIC */
 {
     static char datebuf[20];
-    char tmpbuf[20];
+    char jtmpbuf[20];
     CHAR buf[JPGDATEBUF+1];
     CHAR * p;
     CHAR * z;
@@ -8314,20 +8314,20 @@ jpgdate(fp) FILE * fp;
     int i;
     int k = 0;
     int n = 0;
-    int count = 0;
+    int jcount = 0;
     int state = 0;
 
     if (fp == NULL)
       return("");
     rewind(fp);
 
-    for (i = 0; i < 20; i++) { datebuf[i] = NUL; tmpbuf[i] = NUL; }
+    for (i = 0; i < 20; i++) { datebuf[i] = NUL; jtmpbuf[i] = NUL; }
 
     datebuf[0] = NUL;
-    tmpbuf[0] = NUL;
+    jtmpbuf[0] = NUL;
 
-    count = fread(buf,1,JPGDATEBUF,fp); /* Read a buffer */
-    if (count == EOF || count == 0) {
+    jcount = fread(buf,1,JPGDATEBUF,fp); /* Read a buffer */
+    if (jcount == EOF || jcount == 0) {
         return("");
     }
     p = (CHAR *) buf;
@@ -8347,68 +8347,68 @@ jpgdate(fp) FILE * fp;
             else if (c == '2' && *p == '0') state = JPGYEAR;
             if (state == JPGYEAR) {
                 k = 0;
-                tmpbuf[k++] = c;
+                jtmpbuf[k++] = c;
             }
             continue;
 
           case JPGYEAR:
             if (c == ':' && k == 4) {
-                tmpbuf[k++] = c;
+                jtmpbuf[k++] = c;
                 state = JPGMONTH;
                 continue;
             }
             if (k > 3 || !isdigit(c))
               state = k = 0;
             else
-              tmpbuf[k++] = c;
+              jtmpbuf[k++] = c;
             continue;
 
           case JPGMONTH:
             if (c == ':' && k == 7) {
-                tmpbuf[k++] = c;
+                jtmpbuf[k++] = c;
                 state = JPGDAY;
                 continue;
             }
             if (k > 6 || !isdigit(c))
               state = k = 0;
             else
-              tmpbuf[k++] = c;
+              jtmpbuf[k++] = c;
             continue;
 
           case JPGDAY:
             if (c == ' ' && k == 10) {
-                tmpbuf[k++] = c;
+                jtmpbuf[k++] = c;
                 state = JPGHOUR;
                 continue;
             }
             if (k > 9 || !isdigit(c))
               state = k = 0;
             else
-              tmpbuf[k++] = c;
+              jtmpbuf[k++] = c;
             continue;
 
           case JPGHOUR:
             if (c == ':' && k == 13) {
-                tmpbuf[k++] = c;
+                jtmpbuf[k++] = c;
                 state = JPGMIN;
                 continue;
             }
             if (k > 12 || !isdigit(c))
               state = k = 0;
             else
-              tmpbuf[k++] = c;
+              jtmpbuf[k++] = c;
             continue;
 
           case JPGMIN:
             if (c == ':' && k == 16) {
-                tmpbuf[k++] = c;
+                jtmpbuf[k++] = c;
                 state = JPGSEC;
                 continue;
             }
             if (k > 15 || !isdigit(c))
               state = k = 0;
             else
-              tmpbuf[k++] = c;
+              jtmpbuf[k++] = c;
             continue;
 
           case JPGSEC:
@@ -8416,14 +8416,14 @@ jpgdate(fp) FILE * fp;
                 state = k = 0;
                 continue;
             }
-            tmpbuf[k++] = c;
-            tmpbuf[k++] = *p;
-            tmpbuf[k] = NUL;
+            jtmpbuf[k++] = c;
+            jtmpbuf[k++] = *p;
+            jtmpbuf[k] = NUL;
         }
         if (!datebuf[0]) {              /* First date */
-            ckstrncpy(datebuf,tmpbuf,sizeof(datebuf)); /* Always NUL-term. */
-        } else if (strncmp(tmpbuf,datebuf,19) < 0) { /* Earlier date */
-            ckstrncpy(datebuf,tmpbuf,sizeof(datebuf)); /* Always NUL-term. */
+            ckstrncpy(datebuf,jtmpbuf,sizeof(datebuf)); /* Always NUL-term. */
+        } else if (strncmp(jtmpbuf,datebuf,19) < 0) { /* Earlier date */
+            ckstrncpy(datebuf,jtmpbuf,sizeof(datebuf)); /* Always NUL-term. */
         }
     }
     return((char *) datebuf);
@@ -8542,18 +8542,18 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
     if (cx < 0) {                        /* Not found */
         failed = 1;
         if (fndiags) {                  /* FUNCTION DIAGNOSTIC ON */
-            int x;
-            x = strlen(fn);
+            int x9;
+            x9 = strlen(fn);
             /* The following sprintf's are safe */
             switch (cx) {
               case -1:
-                if (x + 32 < FNVALL)
+                if (x9 + 32 < FNVALL)
                   sprintf(fnval,"<ERROR:NO_SUCH_FUNCTION:\\f%s()>",fn);
                 else
                   sprintf(fnval,"<ERROR:NO_SUCH_FUNCTION>");
                 break;
               case -2:
-                if (x + 26 < FNVALL)
+                if (x9 + 26 < FNVALL)
                   sprintf(fnval,"<ERROR:NAME_AMBIGUOUS:\\f%s()>",fn);
                 else
                   sprintf(fnval,"<ERROR:NAME_AMBIGUOUS>");
@@ -8562,7 +8562,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                 sprintf(fnval,"<ERROR:FUNCTION_NAME_MISSING:\\f()>");
                 break;
               default:
-                if (x + 26 < FNVALL)
+                if (x9 + 26 < FNVALL)
                   sprintf(fnval,"<ERROR:LOOKUP_FAILURE:\\f%s()>",fn);
                 else
                   sprintf(fnval,"<ERROR:LOOKUP_FAILURE>");
@@ -8588,9 +8588,9 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 
 #ifdef DEBUG
     if (deblog) {
-        int j;
-        for (j = 0; j < argn; j++)
-          debug(F111,"fneval arg",argp[j],j);
+        int j9;
+        for (j9 = 0; j9 < argn; j9++)
+          debug(F111,"fneval arg",argp[j9],j9);
     }
 #endif /* DEBUG */
     for (j = argn-1; j >= 0; j--) {     /* Uncount empty trailing args */
@@ -8615,7 +8615,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
     }
 #endif /* COMMENT */
     if (cx == FN_CON) {                 /* Contents of variable, unexpanded. */
-        char c;
+        char c9;
         int subscript = 0;
         if (!(p = argp[0]) || !*p) {
             failed = 1;
@@ -8626,22 +8626,22 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         }
         p = brstrip(p);
         if (*p == CMDQ) p++;
-        if ((c = *p) == '%') {          /* Scalar variable. */
-            c = *++p;                   /* Get ID character. */
+        if ((c9 = *p) == '%') {          /* Scalar variable. */
+            c9 = *++p;                   /* Get ID character. */
             p = "";                     /* Assume definition is empty */
-            if (!c) {                   /* Double paranoia */
+            if (!c9) {                   /* Double paranoia */
                 failed = 1;
                 p = fnval;
                 if (fndiags)
                   sprintf(fnval,"<ERROR:ARG_BAD_VARIABLE:\\fcontents()>");
                 goto fnend;
             }
-            if (c >= '0' && c <= '9') { /* Digit for macro arg */
+            if (c9 >= '0' && c9 <= '9') { /* Digit for macro arg */
                 if (maclvl < 0)         /* Digit variables are global */
-                  p = g_var[(unsigned char)c]; /* if no macro is active */
+                  p = g_var[(unsigned char)c9]; /* if no macro is active */
                 else                    /* otherwise */
-                  p = m_arg[maclvl][c - '0']; /* they're on the stack */
-            } else if (c == '*') {
+                  p = m_arg[maclvl][c9 - '0']; /* they're on the stack */
+            } else if (c9 == '*') {
 #ifdef COMMENT
                 p = (maclvl > -1) ? m_line[maclvl] : topline;
                 if (!p) p = "";
@@ -8663,13 +8663,13 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                 }
 #endif /* COMMENT */
             } else {
-                if (isupper(c)) c -= ('a'-'A');
-                if (c >= 33 && (unsigned int)c <= GVARS)
-                  p = g_var[(unsigned char)c]; /* Letter for global var */
+                if (isupper(c9)) c9 -= ('a'-'A');
+                if (c9 >= 33 && (unsigned int)c9 <= GVARS)
+                  p = g_var[(unsigned char)c9]; /* Letter for global var */
             }
             if (!p) p = "";
             goto fnend;
-        } else if (c == '&') {          /* Array reference. */
+        } else if (c9 == '&') {          /* Array reference. */
             int vbi, d;
             if (arraynam(p,&vbi,&d) < 0) { /* Get name and subscript */
                 failed = 1;
@@ -8723,18 +8723,18 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 
 */
         {
-            int x, j;
-            x = strlen(p);
-            j = x - 1;                  /* Trim trailing whitespace */
-            while (j > 0 && (*(p + j) == SP || *(p + j) == HT))
-              *(p + j--) = NUL;
+            int x9, j9;
+            x9 = strlen(p);
+            j9 = x9 - 1;                  /* Trim trailing whitespace */
+            while (j9 > 0 && (*(p + j9) == SP || *(p + j9) == HT))
+              *(p + j9--) = NUL;
             while (*p == SP || *p == HT) /* Strip leading whitespace */
               p++;
-            x = strlen(p);
-            if (*p == '{' && *(p+x-1) == '}') { /* NOW strip braces */
-                p[x-1] = NUL;
+            x9 = strlen(p);
+            if (*p == '{' && *(p+x9-1) == '}') { /* NOW strip braces */
+                p[x9-1] = NUL;
                 p++;
-                x -= 2;
+                x9 -= 2;
             }
         }
 
@@ -8762,11 +8762,11 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 
 #ifdef DEBUG
     if (deblog) {
-        int j;
+        int j9;
         debug(F110,"fneval",fn,0);
-        for (j = 0; j < argn; j++) {
-            debug(F111,"fneval arg post eval",argp[j],j);
-            debug(F111,"fneval evaluated arg",bp[j],j);
+        for (j9 = 0; j9 < argn; j9++) {
+            debug(F111,"fneval arg post eval",argp[j9],j9);
+            debug(F111,"fneval evaluated arg",bp[j9],j9);
         }
     }
 #endif /* DEBUG */
@@ -8774,13 +8774,13 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         /* Adjust argn for empty trailing arguments. */
         /* For example when an arg is a variable name but the */
         /* variable has no value.   July 2006. */
-        int j, old; char *p;
+        int j9, old; char *p9;
         old = argn;
-        for (j = argn - 1; j >= 0; j--) {
-            p = bp[j];
-            if (!p)
+        for (j9 = argn - 1; j9 >= 0; j9--) {
+            p9 = bp[j9];
+            if (!p9)
               argn--;
-            else if (!*p)
+            else if (!*p9)
               argn--;
             else
               break;
@@ -8947,12 +8947,12 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
   tons more buffers.
 */
             if (argn > 1) {             /* Commas used instead of spaces */
-                int i;
-                char *p = bp[0];        /* Reuse this space */
-                *p = NUL;               /* Make into dodo() arg list */
-                for (i = 1; i < argn; i++) {
-                    ckstrncat(p,bp[i],MAXARGLEN);
-                    ckstrncat(p," ",MAXARGLEN);
+                int i9;
+                char *p9 = bp[0];        /* Reuse this space */
+                *p9 = NUL;               /* Make into dodo() arg list */
+                for (i9 = 1; i9 < argn; i9++) {
+                    ckstrncat(p9,bp[i9],MAXARGLEN);
+                    ckstrncat(p9," ",MAXARGLEN);
                 }
                 s = bp[0];              /* Point to new list */
             }
@@ -8989,9 +8989,9 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 #endif /* RECURSIVE */
       case FN_FC:                       /* \ffiles() - File count. */
       case FN_DIR: {                    /* \ffdir.() - Directory count. */
-          char abuf[16], *s;
+          char abuf[16], *s9;
           char ** ap = NULL;
-          int x, xflags = 0;
+          int x9, xflags = 0;
           if (matchdot)
             xflags |= ZX_MATCHDOT;
           if (cx == FN_RDIR || cx == FN_RFIL) {
@@ -9030,24 +9030,24 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           if (argn > 1) {               /* Assign list to array */
               fnval[0] = NUL;           /* Initial return value */
               ckstrncpy(abuf,bp[1],16); /* Get array reference */
-              s = abuf;
-              if (*s == CMDQ) s++;
+              s9 = abuf;
+              if (*s9 == CMDQ) s9++;
               failed = 1;               /* Assume it's bad */
               p = fnval;                /* Point to result */
               if (fndiags)              /* Default is this error message */
                 ckmakmsg(fnval,FNVALL,
                          "<ERROR:ARG_BAD_ARRAY:\\f",fn,"()>",NULL);
-              if (s[0] != '&')          /* "Address" of array */
+              if (s9[0] != '&')          /* "Address" of array */
                 goto fnend;
-              if (s[2])
-                if (s[2] != '[' || s[3] != ']')
+              if (s9[2])
+                if (s9[2] != '[' || s9[3] != ']')
                   goto fnend;
-              if (s[1] >= 64 && s[1] < 91) /* Convert upper to lower */
-                s[1] += 32;
-              if ((x = dclarray(s[1],k)) < 0) /* File list plus count */
+              if (s9[1] >= 64 && s9[1] < 91) /* Convert upper to lower */
+                s9[1] += 32;
+              if ((x9 = dclarray(s9[1],k)) < 0) /* File list plus count */
                 goto fnend;
               failed = 0;               /* Unset failure flag */
-              ap = a_ptr[x];            /* Point to array we just declared */
+              ap = a_ptr[x9];            /* Point to array we just declared */
               sprintf(fnval,"%d",k);    /* SAFE */
           }
 #ifdef OS2
@@ -9075,30 +9075,30 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           }
 #else /* OS2 */
           {                             /* Make copies of the list */
-              int i; char tmp[16];
+              int i9; char tmp[16];
               if (flist) {              /* Free old file list, if any */
-                  for (i = 0; flist[i]; i++) { /* and each string */
-                      free(flist[i]);
-                      flist[i] = NULL;
+                  for (i9 = 0; flist[i9]; i9++) { /* and each string */
+                      free(flist[i9]);
+                      flist[i9] = NULL;
                   }
                   free((char *)flist);
               }
               ckstrncpy(tmp,fnval,16);  /* Save our return value */
               flist = (char **) malloc((k+1) * sizeof(char *)); /* New array */
               if (flist) {
-                  for (i = 0; i <= k; i++) { /* Fill it */
-                      flist[i] = NULL;
+                  for (i9 = 0; i9 <= k; i9++) { /* Fill it */
+                      flist[i9] = NULL;
                       znext(fnval);     /* Next filename */
                       if (!*fnval)      /* No more, done */
                         break;
-                      makestr(&(flist[i]),fnval);
+                      makestr(&(flist[i9]),fnval);
                   }
                   if (ap) {             /* If array pointer given */
                       ap[0] = NULL;
                       makestr(&(ap[0]),ckitoa(k));
-                      for (i = 0; i < k; i++) { /* Copy file list to array */
-                          ap[i+1] = NULL;
-                          makestr(&(ap[i+1]),flist[i]);
+                      for (i9 = 0; i9 < k; i9++) { /* Copy files to array */
+                          ap[i9+1] = NULL;
+                          makestr(&(ap[i9+1]),flist[i9]);
                       }
                   }
               }
@@ -9137,11 +9137,11 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
       case FN_SEARCH:                   /* \fsearch(pat,string,start,occ) */
       case FN_RSEARCH:                  /* \frsearch(pat,string,start,occ) */
       case FN_COUNT: {                  /* \fcount(s1,s2,start) */
-        int i = 0, right = 0, search = 0, count = 0;
+        int i9 = 0, right = 0, search = 0, count9 = 0;
         int desired = 1;
         right = (cx == FN_RIX || cx == FN_RSEARCH);
         search = (cx == FN_SEARCH || cx == FN_RSEARCH);
-        count = (cx == FN_COUNT);
+        count9 = (cx == FN_COUNT);
         p = "0";
         if (argn > 1) {                 /* Only works if we have 2 or 3 args */
             int start = 0;
@@ -9159,26 +9159,26 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                     if (desired * len1 > len2) goto fnend;
                 }
                 if (chknum(val1)) {
-                    int t;
-                    t = atoi(val1);
+                    int t9;
+                    t9 = atoi(val1);
                     if (!search) {      /* Index or Rindex */
                         j = len2 - len1; /* Length difference */
-                        t--;             /* Convert position to 0-based */
-                        if (t < 0) t = 0;
-                        start = t;
+                        t9--;             /* Convert position to 0-based */
+                        if (t9 < 0) t9 = 0;
+                        start = t9;
                         if (!right && start < 0) start = 0;
                     } else {            /* Search or Rsearch */
-                        int x;
-                        if (t < 0) t = 0;
+                        int x9;
+                        if (t9 < 0) t9 = 0;
                         if (right) {    /* Right to left */
-                            if (t > len2) t = len2;
-                            start = len2 - t - 1;
+                            if (t9 > len2) t9 = len2;
+                            start = len2 - t9 - 1;
                             if (start < 0)
                               goto fnend;
-                            x = len2 - t;
-                            s[x] = NUL;
+                            x9 = len2 - t9;
+                            s[x9] = NUL;
                         } else {        /* Left to right */
-                            start = t - 1;
+                            start = t9 - 1;
                             if (start < 0) start = 0;
                             if (start >= len2)
                               goto fnend;
@@ -9191,12 +9191,12 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                     goto fnend;
                 }
             }
-            if (count) {                /* \fcount() */
-                int j;
-                for (i = 0; start < len2; i++) {
-                    j = ckindex(pat,bp[1],start,0,inpcas[cmdlvl]);
-                    if (j == 0) break;
-                    start = j;
+            if (count9) {                /* \fcount() */
+                int j9;
+                for (i9 = 0; start < len2; i9++) {
+                    j9 = ckindex(pat,bp[1],start,0,inpcas[cmdlvl]);
+                    if (j9 == 0) break;
+                    start = j9;
                 }
 
             } else if (search) {        /* \fsearch() or \frsearch() */
@@ -9206,53 +9206,53 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                     start = 0;
                 }
                 if (right) {            /* From right */
-                    int k, j = 1;
+                    int k9, j9 = 1;
                     if (start < 0)
                       start = len2 - 1;
-                    i = 0;
-                    while (start >= 0 && j <= desired) {
-                        for (i = start;
-                             (i >= 0) &&
-                                 !(k = ckmatch(pat,s+i,inpcas[cmdlvl],1+4));
-                             i--) ;
-                        if (k < 1) {    /* No match */
-                            i = 0;
+                    i9 = 0;
+                    while (start >= 0 && j9 <= desired) {
+                        for (i9 = start;
+                             (i9 >= 0) &&
+                                 !(k9 = ckmatch(pat,s+i9,inpcas[cmdlvl],1+4));
+                             i9--) ;
+                        if (k9 < 1) {    /* No match */
+                            i9 = 0;
                             break;
                         }
-                        if (j == desired) { /* The match we want? */
-                            i += k;     /* Yes, return string index */
+                        if (j9 == desired) { /* The match we want? */
+                            i9 += k9;     /* Yes, return string index */
                             break;
                         }
-                        j++;            /* No, count this match */
-                        s[i] = NUL;     /* null it out */
-                        start = i-1;    /* move left and look again */
+                        j9++;            /* No, count this match */
+                        s[i9] = NUL;     /* null it out */
+                        start = i9-1;    /* move left and look again */
                     }
 
                 } else {                /* From left */
-                    int j;
-                    i = 0;
-                    for (j = 1; j <= desired && start < len2; j++) {
-                        i = ckmatch(pat,&s[start],inpcas[cmdlvl],1+4);
-                        if (i == 0 || j == desired) break;
-                        start += i + 1;
+                    int j9;
+                    i9 = 0;
+                    for (j9 = 1; j9 <= desired && start < len2; j9++) {
+                        i9 = ckmatch(pat,&s[start],inpcas[cmdlvl],1+4);
+                        if (i9 == 0 || j9 == desired) break;
+                        start += i9 + 1;
                     }
-                    if (j == desired && i != 0)
-                      i += start;
+                    if (j9 == desired && i9 != 0)
+                      i9 += start;
                     else
-                      i = 0;
+                      i9 = 0;
                 }
             } else {                    /* index or rindex */
-                int j = 0;
-                i = 0;
-                for (j = 1; j <= desired && start < len2; j++) {
-                    i = ckindex(pat,bp[1],start,right,inpcas[cmdlvl]);
-                    if (i == 0 || j == desired) break;
-                    start = (right) ? len2 - i + 1 : i;
+                int j9 = 0;
+                i9 = 0;
+                for (j9 = 1; j9 <= desired && start < len2; j9++) {
+                    i9 = ckindex(pat,bp[1],start,right,inpcas[cmdlvl]);
+                    if (i9 == 0 || j9 == desired) break;
+                    start = (right) ? len2 - i9 + 1 : i9;
                 }
-                if (j != desired)
-                  i = 0;
+                if (j9 != desired)
+                  i9 = 0;
             }
-            sprintf(fnval,"%d",i);      /* SAFE */
+            sprintf(fnval,"%d",i9);      /* SAFE */
             p = fnval;
         }
         goto fnend;
@@ -9323,48 +9323,48 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                         ok = 1;         /* Assume OK to replace */
 #ifdef RPLWORDMODE
                         if (context) {  /* New 2017-10-05 */
-                            CHAR c;
+                            CHAR c9;
                             left = 0;
                             right = 0;
                             ok = 0;   /* Mustcheck context before replacing */
                             if (!strncmp(bp[1],"...",len2)) {
                                 /* Special case for ellipsis */
                                 if (s > bp[0]) { /* Can't begin a line */
-                                    c = *(s-1);   /* Check preceding char */
-                                    if (c != 32 && c != '.')
+                                    c9 = *(s-1);   /* Check preceding char */
+                                    if (c9 != 32 && c9 != '.')
                                       left = 1;
                                 }
-                                c = *(s+len2); /* Check following char */
-                                if (c != '.' && (c == SP || c == '\0'))
+                                c9 = *(s+len2); /* Check following char */
+                                if (c9 != '.' && (c9 == SP || c9 == '\0'))
                                   right = 1;
                             } else if (isalphanum(bp[1])) {
                                 /* Target string is alphanumeric... */
                                 if (s == bp[0]) { /* At beginning of string */
                                     left = 1;     /* So left boundary ok */
                                 } else {          /* Otherwise */
-                                    c = *(s-1);   /* Check preceding char */
-                                    if (cnonalphanum(c)) /* If not alphamum */
+                                    c9 = *(s-1);   /* Check preceding char */
+                                    if (cnonalphanum(c9)) /* If not alphamum */
                                       left = 2;  /* left boundary ok */
                                 }
-                                c = *(s+len2); /* Check following character */
-                                if (c == '\0') /* If end of string */
+                                c9 = *(s+len2); /* Check following character */
+                                if (c9 == '\0') /* If end of string */
                                   right = 1;   /* Right boundary OK */
-                                else if (cnonalphanum(c))
+                                else if (cnonalphanum(c9))
                                   right = 2; /* Right boundary OK */
                             } else if (nonalphanum(bp[1])) {
                                 /* Target is non-salphanumeric */
                                 if (s == bp[0]) { /* At beginning of line */
                                     left = 1;     /* Left OK */
                                 } else {          /* Otherwise */
-                                    c = *(s-1);   /* Check preceding char */
-                                    if (cisalphanum(c) || c == SP)
+                                    c9 = *(s-1);   /* Check preceding char */
+                                    if (cisalphanum(c9) || c9 == SP)
                                       left = 2; /* Left OK */
                                 }
-                                c = *(s+len2); /* Check char after target */
-                                if (c == '\0') { /* At end of string */
+                                c9 = *(s+len2); /* Check char after target */
+                                if (c9 == '\0') { /* At end of string */
                                     right = 1;   /* Right OK */
                                 } else {         /* Otherwise */
-                                    if (cisalphanum(c) || c <= SP)
+                                    if (cisalphanum(c9) || c9 <= SP)
                                       right = 2; /* Right ok */
                                 }
                             }
@@ -9709,19 +9709,19 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 
     switch (y) {
       case FN_FS: {                     /* \fsize(filename) */
-          CK_OFF_T z;
+          CK_OFF_T z9;
           p = fnval;
-          z = zchki(bp[0]);
-          if (z < (CK_OFF_T)0) {
+          z9 = zchki(bp[0]);
+          if (z9 < (CK_OFF_T)0) {
               failed = 1;
               if (fndiags) {
-                  if (z == (CK_OFF_T)-1)
+                  if (z9 == (CK_OFF_T)-1)
                     ckmakmsg(fnval,FNVALL,
                              "<ERROR:FILE_NOT_FOUND:\\f",fn,"()>",NULL);
-                  else if (z == (CK_OFF_T)-2)
+                  else if (z9 == (CK_OFF_T)-2)
                     ckmakmsg(fnval,FNVALL,
                              "<ERROR:FILE_NOT_READABLE:\\f",fn,"()>",NULL);
-                  else if (z == (CK_OFF_T)-3)
+                  else if (z9 == (CK_OFF_T)-3)
                     ckmakmsg(fnval,FNVALL,
                              "<ERROR:FILE_NOT_ACCESSIBLE:\\f",fn,"()>",NULL);
                   else
@@ -9730,7 +9730,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
               }
               goto fnend;
           }
-          ckstrncpy(fnval,ckfstoa(z),FNVALL);
+          ckstrncpy(fnval,ckfstoa(z9),FNVALL);
           goto fnend;
       }
       case FN_VER:                      /* \fverify() */
@@ -9856,21 +9856,21 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         goto fnend;
 
       case FN_UNH: {                    /* \funhex(arg1) */
-          int c[2], i;
+          int c9[2], i9;
           if (argn < 1)
             goto fnend;
           if ((int)strlen(bp[0]) < (FNVALL * 2)) {
               s = bp[0];
               p = fnval;
               while (*s) {
-                  for (i = 0; i < 2; i++) {
-                      c[i] = *s++;
-                      if (!c[i]) { p = ""; goto unhexfin; }
-                      if (islower(c[i])) c[i] = toupper(c[i]);
-                      if (c[i] >= '0' && c[i] <= '9') {
-                          c[i] -= 0x30;
-                      } else if (c[i] >= 'A' && c[i] <= 'F') {
-                          c[i] -= 0x37;
+                  for (i9 = 0; i9 < 2; i9++) {
+                      c9[i9] = *s++;
+                      if (!c9[i9]) { p = ""; goto unhexfin; }
+                      if (islower(c9[i9])) c9[i9] = toupper(c9[i9]);
+                      if (c9[i9] >= '0' && c9[i9] <= '9') {
+                          c9[i9] -= 0x30;
+                      } else if (c9[i9] >= 'A' && c9[i9] <= 'F') {
+                          c9[i9] -= 0x37;
                       } else {
                           failed = 1;
                           if (fndiags)
@@ -9884,7 +9884,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                           goto fnend;
                       }
                   }
-                  *p++ = ((c[0] << 4) & 0xf0) | (c[1] & 0x0f);
+                  *p++ = ((c9[0] << 4) & 0xf0) | (c9[1] & 0x0f);
               }
               *p = NUL;
               p = fnval;
@@ -9894,7 +9894,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
       }
 
       case FN_BRK: {                    /* \fbreak() */
-          char * c;                     /* Characters to break on */
+          char * c9;                     /* Characters to break on */
           char c2, s2;
           int start = 0;
           int done = 0;
@@ -9920,15 +9920,15 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           while (*s && !done) {
               s2 = *s;
               if (!inpcas[cmdlvl] && islower(s2)) s2 = toupper(s2);
-              c = bp[1] ? bp[1] : "";   /* Character to break on */
-              while (*c) {
-                  c2 = *c;
+              c9 = bp[1] ? bp[1] : "";   /* Character to break on */
+              while (*c9) {
+                  c2 = *c9;
                   if (!inpcas[cmdlvl] && islower(c2)) c2 = toupper(c2);
                   if (c2 == s2) {
                       done = 1;
                       break;
                   }
-                  c++;
+                  c9++;
               }
               if (done) break;
               *p++ = *s++;
@@ -10199,16 +10199,16 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 #ifndef NOPUSH
       case FN_RAW:                      /* \frawcommand() */
       case FN_CMD: {                    /* \fcommand() */
-          int x, c, n = FNVALL;
-          x = 0;                        /* Completion flag */
+          int x9, c9, n9 = FNVALL;
+          x9 = 0;                        /* Completion flag */
 /*
   ZIFILE can be safely used because we can't possibly be transferring a file
   while executing this function.
 */
           if (!nopush && zxcmd(ZIFILE,bp[0]) > 0) { /* Open the command */
-              while (n-- > -1) {        /* Read from it */
-                  if ((c = zminchar()) < 0) {
-                      x = 1;             /* EOF - set completion flag */
+              while (n9-- > -1) {        /* Read from it */
+                  if ((c9 = zminchar()) < 0) {
+                      x9 = 1;             /* EOF - set completion flag */
                       if (cx == FN_CMD) { /* If not "rawcommand" */
                           p--;           /* remove trailing newlines */
                           while (*p == CK_CR || *p == LF)
@@ -10218,13 +10218,13 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                       *p = NUL;         /* Terminate the string */
                       break;
                   } else                /* Command still running */
-                    *p++ = c;           /* Copy the bytes */
+                    *p++ = c9;           /* Copy the bytes */
               }
               zclose(ZIFILE);           /* Close the command */
           }
           /* Return null string if command's output was too long. */
           p = fnval;
-          if (!x) {
+          if (!x9) {
               failed = 1;
               if (fndiags)
                 ckmakmsg(fnval,FNVALL,
@@ -10253,30 +10253,30 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 
       case FN_STL:                      /* \flop(string,c) */
       case FN_LOPX: {                   /* \flopx(string,c) */
-          int n = 1;
+          int n9 = 1;
           if (!(s = bp[0]))             /* Make sure there is a string */
             goto fnend;
           c = '.';                      /* Character to strip to */
           if (argn > 1) if (*bp[1]) c = *bp[1];
           if (argn > 2) if (*bp[2]) {
 #ifndef NOFLOAT
-              n = 0;
+              n9 = 0;
               if (isfloat(bp[2],0)) {
-                  n = (int)floatval;
-                  if (n < 0) n = 0;
+                  n9 = (int)floatval;
+                  if (n9 < 0) n9 = 0;
               } else
 #endif  /* NOFLOAT */
-                n = atoi(bp[2]);
+                n9 = atoi(bp[2]);
           }
           x = 0;
           if (cx == FN_LOPX) {          /* Lopx (from right) */
-              if (n == 0)
+              if (n9 == 0)
                 goto fnend;
               s += strlen(s) - 1;       /* We already know it's > 0 */
               while (s-- >= bp[0]) {
                   if (*s == c) {
-                      n--;
-                      if (n == 0) {
+                      n9--;
+                      if (n9 == 0) {
                           s++;
                           x = 1;
                           break;
@@ -10285,13 +10285,13 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
               }
               if (!x) s = "";
           } else {                      /* Lop (from left) */
-              if (n == 0) {
+              if (n9 == 0) {
                   p = bp[0];
                   goto fnend;
               }
               while (*s++) {
                   if (*(s-1) == c) {
-                      if (--n == 0) {
+                      if (--n9 == 0) {
                           x = 1;
                           break;
                       }
@@ -10328,7 +10328,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 
       case FN_STB: {                    /* \fstripb(string,c) */
           char c2 = NUL;
-          int i, k = 0;
+          int i9, k9 = 0;
           char * gr_opn = "\"{'([<";    /* Group open brackets */
           char * gr_cls = "\"}')]>";    /* Group close brackets */
 
@@ -10342,11 +10342,11 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           if (argn > 1) {
               if (*bp[1]) {
                   if (chknum(bp[1])) {
-                      k = atoi(bp[1]);
-                      if (k < 0) k = 63;
-                      for (i = 0; i < 6; i++) {
-                          if (k & (1<<i)) {
-                              if (s[0] == gr_opn[i] && s[x-1] == gr_cls[i]) {
+                      k9 = atoi(bp[1]);
+                      if (k9 < 0) k9 = 63;
+                      for (i9 = 0; i9 < 6; i9++) {
+                          if (k9 & (1<<i9)) {
+                              if (s[0] == gr_opn[i9] && s[x-1] == gr_cls[i9]) {
                                   ckstrncpy(fnval,s+1,FNVALL);
                                   fnval[x-2] = NUL;
                                   goto fnend;
@@ -10407,12 +10407,12 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         goto fnend;
 
       case FN_DNAM: {                   /* Directory part of file name */
-          char *s;
+          char *s9;
           zfnqfp(bp[0],FNVALL,p);       /* Get full name */
           if (!isdir(p)) {              /* Is it already a directory? */
-              zstrip(p,&s);             /* No get basename */
-              if (*s) {
-                  x = ckindex(s,p,0,0,0); /* Pos of latter in former */
+              zstrip(p,&s9);             /* No get basename */
+              if (*s9) {
+                  x = ckindex(s9,p,0,0,0); /* Pos of latter in former */
                   if (x > 0) p[x-1] = NUL;
               }
           }
@@ -10468,7 +10468,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
       case FN_WORD: {                   /* \fword(s1,n,s2,s3,mask) */
           int wordnum = 0;
           int splitting = 0;
-          int x;
+          int x9;
           int array = 0;
           int grouping = 0;
           int nocollapse = 0;
@@ -10501,8 +10501,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                            "<ERROR:ARG_NOT_NUMERIC:\\f",fn,"()>",NULL);
                   goto fnend;
               }
-              x = atoi(bp[5]);
-              nocollapse = x;
+              x9 = atoi(bp[5]);
+              nocollapse = x9;
           }
           if (!splitting) {             /* \fword(): n = desired word number */
               val1 = "1";               /* Default is first word */
@@ -10587,25 +10587,25 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           if (splitting) {              /* \fsplit() result */
               ckstrncpy(fnval,ckitoa(wordnum),FNVALL);
               if (array) {              /* Array was not declared. */
-                  int i;
-                  if ((x = dclarray(abuf[1],wordnum)) < 0) { /* Declare it. */
+                  int i9;
+                  if ((x9 = dclarray(abuf[1],wordnum)) < 0) { /* Declare it. */
                       failed = 1;
                       if (fndiags)
                         ckmakmsg(fnval,FNVALL,
                                  "<ERROR:MALLOC_FAILURE:\\f",fn,"()>",NULL);
                       goto fnend;
                   }
-                  for (i = 1; i <= wordnum; i++) { /* Copy results */
-                      makestr(&(a_ptr[x][i]),q->a_head[i]);
+                  for (i9 = 1; i9 <= wordnum; i9++) { /* Copy results */
+                      makestr(&(a_ptr[x9][i9]),q->a_head[i9]);
                   }
-                  a_ptr[x][0] = NULL;   /* Array is 1-based */
-                  makestr(&(a_ptr[x][0]),fnval); /* Element = size */
+                  a_ptr[x9][0] = NULL;   /* Array is 1-based */
+                  makestr(&(a_ptr[x9][0]),fnval); /* Element = size */
               }
           } else {                      /* \fword() result */
-              char * s;
-              s = q->a_head[1];
-              if (!s) s = "";
-              ckstrncpy(fnval,s,FNVALL);
+              char * s9;
+              s9 = q->a_head[1];
+              if (!s9) s9 = "";
+              ckstrncpy(fnval,s9,FNVALL);
           }
           goto fnend;                   /* Done */
       }
@@ -10768,29 +10768,29 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 
       case FN_DIM: {
           int max;
-          char abuf[16], *s;
+          char abuf[16], *s9;
           fnval[0] = NUL;               /* Initial return value */
           ckstrncpy(abuf,bp[0],16);     /* Get array reference */
-          s = abuf;
-          if (*s == CMDQ) s++;
+          s9 = abuf;
+          if (*s9 == CMDQ) s9++;
           failed = 1;                   /* Assume it's bad */
           p = fnval;                    /* Point to result */
           if (fndiags)                  /* Default is this error message */
             ckmakmsg(fnval,FNVALL,"<ERROR:ARG_BAD_ARRAY:\\f",fn,"()>",NULL);
-          if (s[0] != '&') {            /* "Address" of array */
+          if (s9[0] != '&') {            /* "Address" of array */
               goto fnend;
           }
-          if (s[2]) {
-              if (s[2] != '[' || s[3] != ']') {
+          if (s9[2]) {
+              if (s9[2] != '[' || s9[3] != ']') {
                   goto fnend;
               }
           }
-          if (s[1] >= 64 && s[1] < 91)  /* Convert upper to lower */
-            s[1] += 32;
-          if (s[1] < 95 || s[1] > 122) { /* Check for a-z */
+          if (s9[1] >= 64 && s9[1] < 91)  /* Convert upper to lower */
+            s9[1] += 32;
+          if (s9[1] < 95 || s9[1] > 122) { /* Check for a-z */
               goto fnend;                /* Bad */
           }
-          if ((max = chkarray(s[1],1)) < 1) /* (second arg was 1) */
+          if ((max = chkarray(s9[1],1)) < 1) /* (second arg was 1) */
             max = 0;
           failed = 0;                   /* Unset failure flag */
           sprintf(fnval,"%d",max);      /* SAFE */
@@ -10803,15 +10803,15 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           extern char linkname[];
           char * tx;                    /* For tilde expansion */
 #endif /* UNIX */
-          char abuf[16], *s;
+          char abuf[16], *s9;
           char ** ap = NULL;
           char workbuf[CKMAXPATH];
           int attrs = 9;                /* Number of attributes defined */
-          int k = 0;                    /* current attribute index */
-          int i,j,n;
+          int k9 = 0;                    /* current attribute index */
+          int i9,j9,n9;
           int m;                        /* For scanfile() */
           int dir = -1;                 /* 1 = arg is a directory file */
-          CK_OFF_T z;                   /* For file size */
+          CK_OFF_T z9;                   /* For file size */
 #ifdef UNIX
           CK_OFF_T z2;                  /* Also for file size */
 #endif /* UNIX */
@@ -10834,13 +10834,13 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           }
 #endif /* UNIX */
 
-          j = ckstrncpy(workbuf,bp[0],CKMAXPATH); /* Strip any trailing '/' */
-          if (workbuf[j-1] == '/') {
-              workbuf[j-1] = NUL;
+          j9 = ckstrncpy(workbuf,bp[0],CKMAXPATH); /* Strip any trailing '/' */
+          if (workbuf[j9-1] == '/') {
+              workbuf[j9-1] = NUL;
               makestr(&(bp[0]),workbuf);
           }
-          z = zchki(bp[0]);             /* Check accessibility */
-          if (z == -1L || z == -3L) {   /* Access denied or whatever */
+          z9 = zchki(bp[0]);             /* Check accessibility */
+          if (z9 == -1L || z9 == -3L) {   /* Access denied or whatever */
               p = "0";
               goto fnend;
               /* Note: z > 0 is the file size but only of regular files */
@@ -10848,7 +10848,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           }
 #ifdef UNIX
           if ((z2 = zgetfs(bp[0])) > 0) { /* Get size and some attributes */
-              z = z2;                   /* Have size */
+              z9 = z2;                   /* Have size */
               dir = zgfs_dir;           /* File is/isn't a directory */
           }
 #endif /* UNIX */
@@ -10857,64 +10857,64 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 
           fnval[0] = NUL;               /* Initial return value */
           ckstrncpy(abuf,bp[1],16);     /* Get array reference */
-          s = abuf;
-          if (*s == CMDQ) s++;
+          s9 = abuf;
+          if (*s9 == CMDQ) s9++;
           failed = 1;                   /* Assume it's bad */
           p = fnval;                    /* Point to result */
           if (fndiags)                  /* Default is this error message */
             ckmakmsg(fnval,FNVALL,
                      "<ERROR:ARG_BAD_ARRAY:\\f",fn,"()>",NULL);
-          if (s[0] != '&')              /* "Address" of array */
+          if (s9[0] != '&')              /* "Address" of array */
             goto fnend;
-          if (s[2])
-            if (s[2] != '[' || s[3] != ']')
+          if (s9[2])
+            if (s9[2] != '[' || s9[3] != ']')
               goto fnend;
-          if (s[1] >= 64 && s[1] < 91) /* Convert upper to lower */
-            s[1] += 32;
-          if ((x = dclarray(s[1],attrs)) < 0) /* One element per attribute */
+          if (s9[1] >= 64 && s9[1] < 91) /* Convert upper to lower */
+            s9[1] += 32;
+          if ((x = dclarray(s9[1],attrs)) < 0) /* One element per attribute */
             goto fnend;
           failed = 0;                   /* Unset failure flag */
           ap = a_ptr[x];                /* Point to array we just declared */
-          sprintf(fnval,"%d",k);        /* SAFE */
+          sprintf(fnval,"%d",k9);        /* SAFE */
 
           /* Element 1 = filename */
 
-          s = bp[0];                    /* Argument (might include path) */
-          n = strlen(s);
-          for (i = n; i > 0; i--) {     /* Get filename without path */
-              if (ISDIRSEP(s[i-1])) {   /* Platform independent way */
-                  s += i;
+          s9 = bp[0];                    /* Argument (might include path) */
+          n9 = strlen(s9);
+          for (i9 = n9; i9 > 0; i9--) {     /* Get filename without path */
+              if (ISDIRSEP(s9[i9-1])) {   /* Platform independent way */
+                  s9 += i9;
                   break;
               }
           }
           a_ptr[x][1] = NULL;           /* Filename */
-          makestr(&(a_ptr[x][1]),s);
+          makestr(&(a_ptr[x][1]),s9);
 
           /* Element 2 - Full pathname */
 
-          s = workbuf;
-          zfnqfp(bp[0],FNVALL,s);
-          n = strlen(s);
-          for (i = n; i > 0; i--) {     /* Get filename without path */
-              if (ISDIRSEP(s[i-1])) {   /* Platform independent way */
-                  s[i] = NUL;
+          s9 = workbuf;
+          zfnqfp(bp[0],FNVALL,s9);
+          n9 = strlen(s9);
+          for (i9 = n9; i9 > 0; i9--) {     /* Get filename without path */
+              if (ISDIRSEP(s9[i9-1])) {   /* Platform independent way */
+                  s9[i9] = NUL;
                   break;
               }
           }
           a_ptr[x][2] = NULL;
-          makestr(&(a_ptr[x][2]),s);
+          makestr(&(a_ptr[x][2]),s9);
 
           /* Element 3 - Modification date-time */
 
-          s = zfcdat(bp[0]);
+          s9 = zfcdat(bp[0]);
           a_ptr[x][3] = NULL;
-          makestr(&(a_ptr[x][3]),s);
+          makestr(&(a_ptr[x][3]),s9);
 
           /* Element 4 - Permissions string */
 
 #ifdef UNIX
           if (zgfs_link)
-            s = "lrwxrwxrwx";
+            s9 = "lrwxrwxrwx";
           else
 #endif /* UNIX */
 
@@ -10924,53 +10924,53 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
  * any side effects of commenting this out.
  */
 #ifdef CK_PERMS
-            s = ziperm(bp[0]);
+            s9 = ziperm(bp[0]);
           a_ptr[x][4] = NULL;
-          makestr(&(a_ptr[x][4]),s);
-          ckstrncpy(workbuf,s,32);      /* Save for later */
+          makestr(&(a_ptr[x][4]),s9);
+          ckstrncpy(workbuf,s9,32);      /* Save for later */
 #endif /* CK_PERMS */
 
           /* Element 5 - Permissions numeric code */
 
-          s = zgperm(bp[0]);
+          s9 = zgperm(bp[0]);
           a_ptr[x][5] = NULL;
-          makestr(&(a_ptr[x][5]),s);
+          makestr(&(a_ptr[x][5]),s9);
 
           /* Element 6 - Size in bytes */
 
 #ifdef UNIX /* [fdc] 2021-09-14 only Unix has file links */
-          s = zgfs_link ? ckitoa((int)strlen((char *)linkname)) : ckfstoa(z);
+          s9 = zgfs_link ? ckitoa((int)strlen((char *)linkname)) : ckfstoa(z9);
 #else
-          s = ckfstoa(z);
+          s9 = ckfstoa(z9);
 #endif /* UNIX */
           a_ptr[x][6] = NULL;
-          makestr(&(a_ptr[x][6]),s);
+          makestr(&(a_ptr[x][6]),s9);
 
           /* Element 7 - File type */
 
-          j = 0;
-          if (dir) j = 3;
+          j9 = 0;
+          if (dir) j9 = 3;
 #ifdef UNIX
-          else if (zgfs_link) j = 4;
-          else if (ckindex("x",(char *)workbuf,0,0,1)) j = 2;
-          else if (workbuf[1] != '-') j = 1;
+          else if (zgfs_link) j9 = 4;
+          else if (ckindex("x",(char *)workbuf,0,0,1)) j9 = 2;
+          else if (workbuf[1] != '-') j9 = 1;
 #else
 #ifdef VMS
-          else if (ckindex("E",(char *)workbuf,0,0,1)) j = 2;
-          else j = 1;
+          else if (ckindex("E",(char *)workbuf,0,0,1)) j9 = 2;
+          else j9 = 1;
 #endif /* VMS */
 #endif /* UNIX */
           a_ptr[x][7] = NULL;
-          switch (j) {
-            case 0: s = "unknown"; break;
-            case 1: s = "regular"; break;
-            case 2: s = "executable"; break;
-            case 3: s = "directory"; break;
-            case 4: s = "link"; break;
-            default: s = "unknown";
+          switch (j9) {
+            case 0: s9 = "unknown"; break;
+            case 1: s9 = "regular"; break;
+            case 2: s9 = "executable"; break;
+            case 3: s9 = "directory"; break;
+            case 4: s9 = "link"; break;
+            default: s9 = "unknown";
           }
-          makestr(&(a_ptr[x][7]),s);
-          k = 7;
+          makestr(&(a_ptr[x][7]),s9);
+          k9 = 7;
 
           /* Element 8 - Name of linked-to file (if link) */
 
@@ -10978,36 +10978,36 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 #ifdef UNIX
           if (zgfs_link) {
               makestr(&(a_ptr[x][8]),(char *)linkname);
-              k++;
+              k9++;
           }
 #endif /* UNIX */
 
           /* Element 9 - File scan result */
 
-          if (j == 1 || j == 2) {       /* Regular file */
+          if (j9 == 1 || j9 == 2) {       /* Regular file */
               m = scanfile(bp[0],NULL,nscanfile);
               if (m > -1) {
-                  if (k < 8) k = 8;     /* Insert empty element for link */
+                  if (k9 < 8) k9 = 8;     /* Insert empty element for link */
                   makestr(&(a_ptr[x][8]),"");
-                  k++;
+                  k9++;
                   switch (m) {
-                    case FT_7BIT: s = "text:7bit"; break;
-                    case FT_UTF8: s = "text:utf8"; break;
-                    case FT_UCS2: s = "text:ucs2"; break;
-                    case FT_8BIT: s = "text:8bit"; break;
-                    case FT_TEXT: s = "text:unknown"; break;
-                    case FT_BIN:  s = "binary"; break;
-                    default: s = "unknown";
+                    case FT_7BIT: s9 = "text:7bit"; break;
+                    case FT_UTF8: s9 = "text:utf8"; break;
+                    case FT_UCS2: s9 = "text:ucs2"; break;
+                    case FT_8BIT: s9 = "text:8bit"; break;
+                    case FT_TEXT: s9 = "text:unknown"; break;
+                    case FT_BIN:  s9 = "binary"; break;
+                    default: s9 = "unknown";
                   }
                   a_ptr[x][9] = NULL;
-                  makestr(&(a_ptr[x][9]),s);
+                  makestr(&(a_ptr[x][9]),s9);
               }
           }
           /* If adding another change attrs declaration to match */
 
           /* Element 0 = array size */
 
-          p = ckitoa(k);                /* Number of elements */
+          p = ckitoa(k9);                /* Number of elements */
 
           a_ptr[x][0] = NULL;           /* Put number of elements in [0] */
           makestr(&(a_ptr[x][0]),p);
@@ -11134,14 +11134,14 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         else                            /* Some */
           p = bp[0];                    /* Use first */
         {
-            char * s;
-            s = p;
-            while (*s) {                /* Strip leading spaces/ctrls */
-                if (*s < 32) {
-                    *s = NUL;
+            char * s9;
+            s9 = p;
+            while (*s9) {                /* Strip leading spaces/ctrls */
+                if (*s9 < 32) {
+                    *s9 = NUL;
                     break;
                 }
-                s++;
+                s9++;
             }
             /* do { if (*s < '!') *s = NUL; break; } while (*s++); */
         }
@@ -11199,12 +11199,12 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         goto fnend;
 
       case FN_MJD2: {
-          long k = 0L;
-          int n = 0;
+          long k9 = 0L;
+          int n9 = 0;
           p = evalx(bp[0]);
           if (*p == '-') {
               p++;
-              n = 1;
+              n9 = 1;
           }
           if (!rdigits(p)) {
               failed = 1;
@@ -11212,10 +11212,10 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
               p = fnval;
               goto fnend;
           } else {
-              k = atol(p);
-              if (n) k = -k;
+              k9 = atol(p);
+              if (n9) k9 = -k9;
           }
-          ckstrncpy(fnval,mjd2date(k),FNVALL); /* Convert to Date */
+          ckstrncpy(fnval,mjd2date(k9),FNVALL); /* Convert to Date */
           p = fnval;                    /* Point to result */
           failed = 0;
           goto fnend;
@@ -11266,15 +11266,15 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         goto fnend;
 
       case FN_N2TIM: {                  /* Sec since midnight to hh:mm:ss */
-          long k = 0L;
-          int n = 0, hh, mm, ss;
-          char * s = bp[0];
+          long k9 = 0L;
+          int n9 = 0, hh, mm, ss;
+          char * s9 = bp[0];
           if (argn < 1)                 /* If no arg substitute 0 */
-            s = "0";
-          p = evalx(s);                 /* Evaluate expression silently */
+            s9 = "0";
+          p = evalx(s9);                 /* Evaluate expression silently */
           if (*p == '-') {              /* Check result for minus sign */
               p++;
-              n = 1;
+              n9 = 1;
           }
           if (!rdigits(p)) { /* Check for numeric */
               failed = 1;
@@ -11283,10 +11283,10 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
               p = fnval;
               goto fnend;
           } else {
-              k = atol(p);
-              if (n) k = -k;
+              k9 = atol(p);
+              if (n9) k9 = -k9;
           }
-          if (k < 0) {                  /* Check for negative */
+          if (k9 < 0) {                  /* Check for negative */
               failed = 1;
               if (fndiags)
                 ckmakmsg(fnval,FNVALL,
@@ -11294,9 +11294,9 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
               p = fnval;
               goto fnend;
           }
-          hh = k / 3600L;               /* Have positive number */
-          mm = (k % 3600L) / 60L;       /* break it down... */
-          ss = ((k % 3600L) % 60L);
+          hh = k9 / 3600L;               /* Have positive number */
+          mm = (k9 % 3600L) / 60L;       /* break it down... */
+          ss = ((k9 % 3600L) % 60L);
 
           sprintf(fnval,"%02d:%02d:%02d",hh,mm,ss); /* SAFE */
           p = fnval;
@@ -11334,8 +11334,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
       }
       case FN_TLOOK:                    /* tablelook() */
       case FN_ALOOK: {                  /* arraylook() */
-          int i, x, hi, lo, max, cmdlen;
-          char abuf[16], *s, *pat;
+          int i9, x9, hi, lo, max, cmdlen;
+          char abuf[16], *s9, *pat;
           char kwbuf[256];
           char delim = ':';
           failed = 1;                   /* Assume failure */
@@ -11351,14 +11351,14 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           ckstrncpy(abuf,bp[1],16);     /* Get array reference */
           if (argn > 2)
             delim = *(bp[2]);
-          s = abuf;
-          if ((x = arraybounds(s,&lo,&hi)) < 0) { /* Get index and bounds */
+          s9 = abuf;
+          if ((x9 = arraybounds(s9,&lo,&hi)) < 0) { /* Get index and bounds */
               if (fndiags)
                ckmakmsg(fnval,FNVALL,"<ERROR:ARG_BAD_ARRAY:\\f",fn,"()>",NULL);
               goto fnend;
           }
           p = fnval;                    /* Point to result */
-          max = a_dim[x];               /* Size of array */
+          max = a_dim[x9];               /* Size of array */
           if (lo < 0) lo = 0;           /* Use given range if any */
           if (lo > max) lo = max;
           if (hi < 0) hi = max;
@@ -11367,33 +11367,33 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           if (max < 1)
             goto fnend;
           kwbuf[255] = NUL;
-          for (i = lo; i <= hi; i++) {
-              if (!a_ptr[x][i])
+          for (i9 = lo; i9 <= hi; i9++) {
+              if (!a_ptr[x9][i9])
                 continue;
               if (cx == FN_ALOOK) {
-                  if (ckmatch(pat,a_ptr[x][i],inpcas[cmdlvl],1+4)) {
-                      sprintf(fnval,"%d",i); /* SAFE */
+                  if (ckmatch(pat,a_ptr[x9][i9],inpcas[cmdlvl],1+4)) {
+                      sprintf(fnval,"%d",i9); /* SAFE */
                       goto fnend;
                   }
               } else if (cx == FN_TLOOK) {
                   char * aa;
-                  int j = 0, v = 0, len;
-                  if (i == hi)
+                  int j9 = 0, v = 0, len;
+                  if (i9 == hi)
                     break;
-                  aa = a_ptr[x][i];     /* Point to this array element */
+                  aa = a_ptr[x9][i9];     /* Point to this array element */
                   if (!aa) aa = "";
-                  while (j < 254 && *aa) { /* Isolate keyword */
+                  while (j9 < 254 && *aa) { /* Isolate keyword */
                       if (*aa == delim)
                         break;
-                      kwbuf[j++] = *aa++;
+                      kwbuf[j9++] = *aa++;
                   }
-                  kwbuf[j] = NUL;
-                  len = j;
+                  kwbuf[j9] = NUL;
+                  len = j9;
                   v = 0;
                   if ((len == cmdlen && !ckstrcmp(kwbuf,pat,len,0)) ||
                       ((v = !ckstrcmp(kwbuf,pat,cmdlen,0)) &&
-                       ckstrcmp(a_ptr[x][i+1],pat,cmdlen,0))) {
-                      sprintf(fnval,"%d",i); /* SAFE */
+                       ckstrcmp(a_ptr[x9][i9+1],pat,cmdlen,0))) {
+                      sprintf(fnval,"%d",i9); /* SAFE */
                       goto fnend;
                   }
                   if (v) {              /* Ambiguous */
@@ -11404,7 +11404,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           }
           if (cx == FN_TLOOK) {         /* tablelook() last element */
               ckstrncpy(fnval,"-1",FNVALL);
-              if (!ckstrcmp(a_ptr[x][hi],pat,cmdlen,0))
+              if (!ckstrcmp(a_ptr[x9][hi],pat,cmdlen,0))
                 sprintf(fnval,"%d",hi); /* SAFE */
           }
           goto fnend;
@@ -11444,24 +11444,24 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         goto fnend;
 
       case FN_ABS: {
-          char * s;
-          s = bp[0];
-          if (*s == '-' || *s == '+')
-            s++;
-          if (!rdigits(s)) {
+          char * s9;
+          s9 = bp[0];
+          if (*s9 == '-' || *s9 == '+')
+            s9++;
+          if (!rdigits(s9)) {
               if (fndiags)
                 ckmakmsg(fnval,FNVALL,
                          "<ERROR:ARG_NOT_NUMERIC:\\f",fn,"()>",NULL);
               goto fnend;
           }
-          ckstrncpy(fnval,s,FNVALL);
+          ckstrncpy(fnval,s9,FNVALL);
           goto fnend;
       }
 
       case FN_AADUMP: {
-          char abuf[16], *s = NULL, **ap = NULL, **vp = NULL;
+          char abuf[16], *s9 = NULL, **ap = NULL, **vp = NULL;
           char pattern[VNAML];
-          int slen, i, j, k, first = -1;
+          int slen, i9, j9, k9, first = -1;
           p = fnval;
           if (argn < 2) {
               if (fndiags)
@@ -11469,58 +11469,58 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
               goto fnend;
           }
           debug(F101,"aaconvert argn","",argn);
-          s = bp[0];
-          slen = strlen(s);
+          s9 = bp[0];
+          slen = strlen(s9);
 
           /* Count elements so we can create the array */
 
-          ckmakmsg(pattern,VNAML,s,"<*>",NULL,NULL);
-          for (k = 0, i = 0; i < nmac; i++) {
-              if (ckmatch(pattern,mactab[i].kwd,0,1)) {
+          ckmakmsg(pattern,VNAML,s9,"<*>",NULL,NULL);
+          for (k9 = 0, i9 = 0; i9 < nmac; i9++) {
+              if (ckmatch(pattern,mactab[i9].kwd,0,1)) {
                   if (first < 0)        /* Remember location of first match */
-                    first = i;
-                  k++;
+                    first = i9;
+                  k9++;
               }
           }
-          debug(F101,"aaconvert matches","",k);
+          debug(F101,"aaconvert matches","",k9);
           debug(F101,"aaconvert first","",first);
           fnval[0] = NUL;               /* Initial return value */
           ckstrncpy(abuf,bp[1],16);     /* Get array reference */
-          s = abuf;
-          if (*s == CMDQ) s++;
+          s9 = abuf;
+          if (*s9 == CMDQ) s9++;
           p = fnval;                    /* Point to result */
           if (fndiags)                  /* Default is this error message */
             ckmakmsg(fnval,FNVALL,"<ERROR:ARG_BAD_ARRAY:\\f",fn,"()>",NULL);
-          if (s[0] != '&')              /* Address of array */
+          if (s9[0] != '&')              /* Address of array */
             goto fnend;
-          if (s[2])
-            if (s[2] != '[' || s[3] != ']')
+          if (s9[2])
+            if (s9[2] != '[' || s9[3] != ']')
               goto fnend;
-          if (s[1] >= 64 && s[1] < 91)  /* Convert upper to lower */
-            s[1] += 32;
-          if ((x = dclarray(s[1],k)) < 0) /* Declare array to size */
+          if (s9[1] >= 64 && s9[1] < 91)  /* Convert upper to lower */
+            s9[1] += 32;
+          if ((x = dclarray(s9[1],k9)) < 0) /* Declare array to size */
             goto fnend;
           ap = a_ptr[x];                /* Point to array we just declared */
           /* debug(F111,"aaconvert array 1",abuf,ap); */
           abuf[0] = NUL;
           if (argn > 2) {
               ckstrncpy(abuf,bp[2],16); /* Get value array reference */
-              s = abuf;
-              if (*s == CMDQ) s++;
-              if (s[0] != '&')          /* Address of array */
+              s9 = abuf;
+              if (*s9 == CMDQ) s9++;
+              if (s9[0] != '&')          /* Address of array */
                 goto fnend;
-              if (s[2])
-                if (s[2] != '[' || s[3] != ']')
+              if (s9[2])
+                if (s9[2] != '[' || s9[3] != ']')
                   goto fnend;
-              if (s[1] >= 64 && s[1] < 91) /* Convert upper to lower */
-                s[1] += 32;
-              if ((x = dclarray(s[1],k)) < 0)
+              if (s9[1] >= 64 && s9[1] < 91) /* Convert upper to lower */
+                s9[1] += 32;
+              if ((x = dclarray(s9[1],k9)) < 0)
                 goto fnend;
               vp = a_ptr[x];            /* Point to array we just declared */
           }
           /* debug(F111,"aaconvert array 2",abuf,vp); */
-          makestr(&ap[0],ckitoa(k));
-          if (vp) makestr(&vp[0],ckitoa(k));
+          makestr(&ap[0],ckitoa(k9));
+          if (vp) makestr(&vp[0],ckitoa(k9));
           if (fndiags)
            ckmakmsg(fnval,FNVALL,"<ERROR:ASSOCIATIVE_ARRAY:\\f",fn,"()>",NULL);
 
@@ -11530,31 +11530,31 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           /* then it would be harder to create the array and anyway this */
           /* function is plenty fast as it is. */
 
-          for (i = 1; i <= k; ) {
+          for (i9 = 1; i9 <= k9; ) {
               if (!ckmatch(pattern,mactab[first].kwd,0,1)) {
                   debug(F111,"aaconvert oddball",mactab[first].kwd,first);
                   first++;
                   continue;
               }
               ckstrncpy(tmpbuf,mactab[first].kwd,TMPBUFSIZ); /* Macro name */
-              s = tmpbuf;                       /* Make writeable copy */
-              s += slen;                        /* Isolate "index" */
-              j = strlen(s) - 1;
-              if (*s != '<' || *(s+j) != '>') { /* Check syntax */
+              s9 = tmpbuf;                       /* Make writeable copy */
+              s9 += slen;                        /* Isolate "index" */
+              j9 = strlen(s9) - 1;
+              if (*s9 != '<' || *(s9+j9) != '>') { /* Check syntax */
                   /* This shouldn't happen */
                   debug(F111,"aaconvert ERROR",mactab[first].kwd,first);
                   goto fnend;
               }
-              *(s+j) = NUL;             /* Remove final '>' */
-              debug(F111,"aaconvert",s+1,i);
-              makestr(&(ap[i]),s+1);    /* Set first array to index */
+              *(s9+j9) = NUL;             /* Remove final '>' */
+              debug(F111,"aaconvert",s9+1,i9);
+              makestr(&(ap[i9]),s9+1);    /* Set first array to index */
               if (vp)
-                makestr(&(vp[i]),mactab[first].mval); /* 2nd to value */
+                makestr(&(vp[i9]),mactab[first].mval); /* 2nd to value */
               if (xdelmac(first) < 0)
                 goto fnend;
-              i++;
+              i9++;
           }
-          sprintf(fnval,"%d",k);        /* SAFE */
+          sprintf(fnval,"%d",k9);        /* SAFE */
           p = fnval;                    /* Return size of array */
           debug(F110,"aaconvert return",p,0);
           failed = 0;                   /* Unset failure flag */
@@ -11594,7 +11594,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         char fpbuf[64], * bp0;
         double dummy;
         /* int sign = 0; */
-        int i, places = 0;
+        int i9, places = 0;
         int argcount = 1;
 #ifdef COMMENT
         int j;
@@ -11622,9 +11622,9 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         if (cx == FN_FPINT) {           /* Float to int */
             failed = 0;
             ckstrncpy(fnval,bp0,FNVALL);
-            for (i = 0; fnval[i]; i++) {
-                if (fnval[i] == '.') {
-                    fnval[i] = NUL;
+            for (i9 = 0; fnval[i9]; i9++) {
+                if (fnval[i9] == '.') {
+                    fnval[i9] = NUL;
                     break;
                 }
             }
@@ -11644,26 +11644,26 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         /* Missing arguments are supplied as 0.0 */
 
         debug(F111,fn,"argcount",argcount);
-        for (i = 0; i < argcount; i++) { /* Get floating-point args */
+        for (i9 = 0; i9 < argcount; i9++) { /* Get floating-point args */
 #ifdef DEBUG
             if (deblog) {
                 ckmakmsg(fpbuf,
                          64,
                          "bp[",
-                         ckitoa(i),
-                         bp[i] ? bp[i] : "(null)",
+                         ckitoa(i9),
+                         bp[i9] ? bp[i9] : "(null)",
                          "]"
                          );
                 debug(F100,fpbuf,"",0);
             }
 #endif /* DEBUG */
-            if (!bp[i]) {
-                farg[i] = 0.0;
-            } else if (!*(bp[i])) {
-                farg[i] = 0.0;
-            } else if (!isfloat(bp[i],0)) {
+            if (!bp[i9]) {
+                farg[i9] = 0.0;
+            } else if (!*(bp[i9])) {
+                farg[i9] = 0.0;
+            } else if (!isfloat(bp[i9],0)) {
                 char * tmp;
-                k = mxlook(mactab,bp[i],nmac);
+                k = mxlook(mactab,bp[i9],nmac);
                 tmp = (k > -1) ? mactab[k].mval : NULL;
                 if (tmp) {
                     if (!isfloat(tmp,0)) {
@@ -11674,27 +11674,27 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                     }
                 }
             }
-            farg[i] = floatval;
+            farg[i9] = floatval;
 
 #ifdef DEBUG
             if (deblog) {
-                sprintf(fpbuf,"farg[%d]=%f",i,farg[i]); /* SAFE */
+                sprintf(fpbuf,"farg[%d]=%f",i9,farg[i9]); /* SAFE */
                 debug(F100,fpbuf,"",0);
             }
 #endif /* DEBUG */
         }
         if (bp[argcount]) {             /* Get decimal places */
-            char * s;
-            s = bp[argcount];
-            if (!s) s = "";
-            if (!*s) s = "0";
-            s = evalx(s);
-            if (!s) s = "";
-            if (!*s) {
+            char * s9;
+            s9 = bp[argcount];
+            if (!s9) s9 = "";
+            if (!*s9) s9 = "0";
+            s9 = evalx(s9);
+            if (!s9) s9 = "";
+            if (!*s9) {
                 evalerr(fn);
                 goto fnend;
             }
-            places = atoi(s);
+            places = atoi(s9);
         }
         errno = 0;
         failed = 0;
@@ -11818,8 +11818,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                 int sign = 0, m = 0;
                 sprintf(fnval,"%f",fpresult);
                 if (fnval[0] == '-') sign = 1;
-                for (i = sign; i < FNVALL; i++) {
-                    if (isdigit(fnval[i]))
+                for (i9 = sign; i9 < FNVALL; i9++) {
+                    if (isdigit(fnval[i9]))
                       m++;
                     else
                       break;
@@ -11842,28 +11842,28 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             if (fnval[0] == '-') sign = 1;
         }
         debug(F111,"fpresult 1",fnval,errno); /* Check for over/underflow */
-        for (i = sign; fnval[i]; i++) { /* Give requested decimal places */
-            if (fnval[i] == '.')        /* First find the decimal point */
+        for (i9 = sign; fnval[i9]; i9++) { /* Give requested decimal places */
+            if (fnval[i9] == '.')        /* First find the decimal point */
               break;
-            else if (i > fp_digits + sign - 1) /* replacing garbage */
-              fnval[i] = '0';           /* digits with 0... */
+            else if (i9 > fp_digits + sign - 1) /* replacing garbage */
+              fnval[i9] = '0';           /* digits with 0... */
         }
-        if (fnval[i] == '.') {          /* Have decimal point */
+        if (fnval[i9] == '.') {          /* Have decimal point */
             int gotend = 0;
             /* d < 0 so truncate fraction */
             if (places < 0 || (places == 0 && cx == FN_FPROU)) {
-                fnval[i] = NUL;
+                fnval[i9] = NUL;
             } else if (places > 0) {    /* d > 0 so this many decimal places */
-                i++;                           /* First digit after decimal */
+                i9++;                           /* First digit after decimal */
                 for (j = 0; j < places; j++) { /* Truncate after d decimal */
-                    if (!fnval[j+i])           /* places or extend to d  */
+                    if (!fnval[j+i9])           /* places or extend to d  */
                       gotend = 1;              /* decimal places. */
-                    if (gotend || j+i+sign > fp_digits)
-                      fnval[j+i] = '0';
+                    if (gotend || j+i9+sign > fp_digits)
+                      fnval[j+i9] = '0';
                 }
-                fnval[j+i] = NUL;
+                fnval[j+i9] = NUL;
             } else {                    /* d == 0 so Do The Right Thing */
-                for (j = (int)strlen(fnval) - 1; j > i+1; j--) {
+                for (j = (int)strlen(fnval) - 1; j > i9+1; j--) {
                     if ((j - sign) > fp_digits)
                       fnval[j] = '0';
                     if (fnval[j] == '0')
@@ -11893,8 +11893,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         cx == FN_NLINE  ||
         cx == FN_FERMSG ||
         cx == FN_FILNO) {
-        int x = 0, t = 0, channel;
-        long z;
+        int x9 = 0, t9 = 0, channel;
+        long z9;
         extern int z_maxchan;
 
         failed = 1;                     /* Assume failure */
@@ -11902,14 +11902,14 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         if (cx == FN_FERMSG) {
             extern int z_error;
             if (argn < 1) {
-                x = z_error;
+                x9 = z_error;
             } else if (chknum(bp[0])) {
-                x = atoi(bp[0]);
+                x9 = atoi(bp[0]);
             } else if (fndiags)
               ckmakmsg(fnval,FNVALL,
                        "<ERROR:ARG_NOT_NUMERIC:\\f",fn,"()>",NULL);
             failed = 0;
-            ckstrncpy(fnval,ckferror(x),FNVALL);
+            ckstrncpy(fnval,ckferror(x9),FNVALL);
             goto fnend;
         }
         if (argn < 1) {                 /* All file functions need channel */
@@ -11937,17 +11937,17 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                        "<ERROR:ARG_OUT_OF_RANGE:\\f",fn,"()>",NULL);
             goto fnend;
         }
-        x = z_getmode(channel);         /* Find out about the channel */
+        x9 = z_getmode(channel);         /* Find out about the channel */
 
         failed = 0;                     /* Assume success from here down */
         if (cx == FN_FSTAT) {           /* Status / modes of channel */
-            if (x > -1)
-              x &= FM_RWB;              /* Mask out irrelevant bits */
+            if (x9 > -1)
+              x9 &= FM_RWB;              /* Mask out irrelevant bits */
             else                        /* In this case not open is OK */
-              x = 0;                    /* 0 if not open, 1-7 if open */
-            sprintf(fnval,"%d",x);      /* SAFE */
+              x9 = 0;                    /* 0 if not open, 1-7 if open */
+            sprintf(fnval,"%d",x9);      /* SAFE */
             goto fnend;
-        } else if (x < 1) {             /* Not \f_status() so must be open */
+        } else if (x9 < 1) {             /* Not \f_status() so must be open */
             failed = 1;
             if (fndiags)
               ckmakmsg(fnval,FNVALL,"<ERROR:FILE_NOT_OPEN:\\f",fn,"()>",NULL);
@@ -11955,24 +11955,24 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         }
         switch (y) {                    /* Do the requested function */
           case FN_FPOS:                 /* Get position */
-            z = z_getpos(channel);      /* FIX THIS */
-            sprintf(fnval,"%ld",z);     /* SAFE */
+            z9 = z_getpos(channel);      /* FIX THIS */
+            sprintf(fnval,"%ld",z9);     /* SAFE */
             goto fnend;
 
           case FN_NLINE:                /* Get line number */
-            z = z_getline(channel);     /* FIX THIS */
-            sprintf(fnval,"%ld",z);     /* SAFE */
+            z9 = z_getline(channel);     /* FIX THIS */
+            sprintf(fnval,"%ld",z9);     /* SAFE */
             goto fnend;
 
           case FN_FEOF:                 /* Check EOF */
-            t = 0;
-            if (x & FM_EOF) t = 1;
-            sprintf(fnval,"%d",t);      /* SAFE */
+            t9 = 0;
+            if (x9 & FM_EOF) t9 = 1;
+            sprintf(fnval,"%d",t9);      /* SAFE */
             goto fnend;
 
           case FN_FILNO:                /* Get file handle */
-            x = z_getfnum(channel);
-            sprintf(fnval,"%d",x);      /* SAFE */
+            x9 = z_getfnum(channel);
+            sprintf(fnval,"%d",x9);      /* SAFE */
             goto fnend;
 
           case FN_FPBLK:                /* Read or write block */
@@ -11984,7 +11984,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                 goto fnend;
             }
             if (rdigits(bp[1])) {
-                t = atoi(bp[1]);
+                t9 = atoi(bp[1]);
             } else {
                 if (fndiags)
                   ckmakmsg(fnval,FNVALL,
@@ -11998,19 +11998,21 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           case FN_FPLINE:
             fnval[0] = NUL;
             switch (y) {
-              case FN_FGCHAR: t = z_in(channel,fnval,FNVALL,1,1); break;
-              case FN_FGLINE: t = z_in(channel,fnval,FNVALL,FNVALL-1,0); break;
-              case FN_FGBLK:
-                if (t >= FNVALL) t = FNVALL - 1;
-                t = z_in(channel,fnval,FNVALL,t,1);
+              case FN_FGCHAR: t9 = z_in(channel,fnval,FNVALL,1,1); break;
+              case FN_FGLINE:
+                t9 = z_in(channel,fnval,FNVALL,FNVALL-1,0);
                 break;
-              case FN_FPCHAR: t = z_out(channel,bp[1],1,1);  break;
-              case FN_FPLINE: t = z_out(channel,bp[1],-1,0); break;
-              case FN_FPBLK:  t = z_out(channel,bp[1],-1,1); break;
+              case FN_FGBLK:
+                if (t9 >= FNVALL) t9 = FNVALL - 1;
+                t9 = z_in(channel,fnval,FNVALL,t9,1);
+                break;
+              case FN_FPCHAR: t9 = z_out(channel,bp[1],1,1);  break;
+              case FN_FPLINE: t9 = z_out(channel,bp[1],-1,0); break;
+              case FN_FPBLK:  t9 = z_out(channel,bp[1],-1,1); break;
             }
-            if (t < 0) {                /* Handle read/write error */
+            if (t9 < 0) {                /* Handle read/write error */
                 failed = 1;
-                if (fndiags && t != FX_EOF)
+                if (fndiags && t9 != FX_EOF)
                   ckmakmsg(fnval,FNVALL,
                            "<ERROR:FILE_ERROR_%d:\\f",fn,"()>",NULL);
                 goto fnend;
@@ -12019,7 +12021,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
               fnval[1] = NUL;
             /* Write (put) functions return numeric status code */
             if (cx == FN_FPCHAR || cx == FN_FPLINE || cx == FN_FPBLK)
-              sprintf(fnval,"%d",t);    /* SAFE */
+              sprintf(fnval,"%d",t9);    /* SAFE */
             goto fnend;
         }
     }
@@ -12030,7 +12032,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         /* Add options later for whether to trim leading and trailing blanks */
         /* and what to do about control characters, 8-bit whitespace, etc */
         int started = 0;                /* Flag for first non-whitespace */
-        int n = 0;                      /* Blank/Tab counter */
+        int n9 = 0;                      /* Blank/Tab counter */
         s = bp[0] ? bp[0] : "";
         p = fnval;                      /* Result buffer */
         while (*s) {                    /* While there is input */
@@ -12040,11 +12042,11 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             }
             started++;                  /* Leading whitespace was skipped */
             if (*s != ' ' && *s != '\011') { /* Have a nonspace char */
-                n = 0;                  /* reset space counter */
+                n9 = 0;                  /* reset space counter */
                 *p++ = *s++;            /* copy char to destination */
                 continue;
             }
-            if (n++ > 0) {              /* Have blank or tab */
+            if (n9++ > 0) {              /* Have blank or tab */
                 s++;                    /* don't copy more than one */
                 continue;
             }
@@ -12082,7 +12084,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
     }
 
     if (cx == FN_HEX2IP) {
-        int c[2], ip[4], i, k;
+        int c9[2], ip[4], i9, k9;
         p = "0";
         if (argn < 1)
           goto fnend;
@@ -12095,14 +12097,14 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             goto fnend;
         }
         p = fnval;
-        for (k = 0; k < 8; k += 2) {
-            for (i = 0; i < 2; i++) {
-                c[i] = *s++;
-                if (islower(c[i])) c[i] = toupper(c[i]);
-                if (c[i] >= '0' && c[i] <= '9') {
-                    c[i] -= 0x30;
-                } else if (c[i] >= 'A' && c[i] <= 'F') {
-                    c[i] -= 0x37;
+        for (k9 = 0; k9 < 8; k9 += 2) {
+            for (i9 = 0; i9 < 2; i9++) {
+                c9[i9] = *s++;
+                if (islower(c9[i9])) c9[i9] = toupper(c9[i9]);
+                if (c9[i9] >= '0' && c9[i9] <= '9') {
+                    c9[i9] -= 0x30;
+                } else if (c9[i9] >= 'A' && c9[i9] <= 'F') {
+                    c9[i9] -= 0x37;
                 } else {
                     failed = 1;
                     if (fndiags)
@@ -12110,25 +12112,25 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                                "<ERROR:ARG_OUT_OF_RANGE:\\f",fn,"()>",NULL);
                     goto fnend;
                 }
-                ip[k/2] = c[0] << 4 | c[1];
+                ip[k9/2] = c9[0] << 4 | c9[1];
             }
             sprintf(p,"%d.%d.%d.%d",ip[0],ip[1],ip[2],ip[3]); /* SAFE */
         }
         goto fnend;
     }
     if (cx == FN_IP2HEX) {
-        int ip[4], i;
+        int ip[4], i9;
         char * q;
         p = "00000000";
         if (argn < 1)
           goto fnend;
         s = bp[0];
         p = fnval;
-        for (i = 0; i < 3; i++) {
+        for (i9 = 0; i9 < 3; i9++) {
             q = ckstrchr(s,'.');
             if (q) {
                 *q++ = NUL;
-                ip[i] = atoi(s);
+                ip[i9] = atoi(s);
                 s = q;
             } else {
                 failed = 1;
@@ -12169,8 +12171,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         goto fnend;
     }
     if (cx == FN_JOIN) {
-        int i, x, y, z, flag, flag2, hi, lo, max, seplen, grouping = 0;
-        char abuf[16], c, *s, *q, *sep = NULL;
+        int i9, x9, y9, z9, flag, flag2, hi, lo, max, seplen, grouping = 0;
+        char abuf[16], c9, *s9, *q, *sep = NULL;
         char * gr_opn = "\"{'([<";      /* Group open brackets */
         char * gr_cls = "\"}')]>";      /* Group close brackets */
         char lb[2], rb[2];              /* Selected left and right brackets */
@@ -12183,14 +12185,14 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         debug(F101,"FNJOIN ARGN","",argn);
 
         ckstrncpy(abuf,bp[0],16);       /* Get array reference */
-        s = abuf;
-        if ((x = arraybounds(s,&lo,&hi)) < 0) {  /* Get index and bounds */
+        s9 = abuf;
+        if ((x9 = arraybounds(s9,&lo,&hi)) < 0) {  /* Get index and bounds */
             if (fndiags)
               ckmakmsg(fnval,FNVALL,"<ERROR:ARG_BAD_ARRAY:\\f",fn,"()>",NULL);
             goto fnend;
         }
         p = fnval;                      /* Point to result */
-        max = a_dim[x];                 /* Size of array */
+        max = a_dim[x9];                 /* Size of array */
         if (lo < 0) lo = 1;             /* Use given range if any */
         if (lo > max) lo = max;
 #ifdef COMMENT
@@ -12202,12 +12204,12 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
   code prevents the dimension from growing.  Go figure.
 */
         if (hi < 0) {                   /* Bounds not given */
-            if (x)                      /* Regular array */
+            if (x9)                      /* Regular array */
               hi = max;
             else                        /* Argument vector array */
               for (hi = max; hi >= lo; hi--) { /* ignore any trailing */
-                  if (!a_ptr[x][hi]) continue; /* empty elements */
-                  if (!*(a_ptr[x][hi])) continue;
+                  if (!a_ptr[x9][hi]) continue; /* empty elements */
+                  if (!*(a_ptr[x9][hi])) continue;
                   break;
               }
         }
@@ -12256,12 +12258,12 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                 goto fnend;
             }
             if (grouping) {             /* Take lowest-order one */
-                int j, k;               /* and set the others to 0 */
-                for (k = 0; k < 6; k++) {
-                    j = 1 << k;
-                    if (grouping & j) {
-                        lb[0] = gr_opn[k];
-                        rb[0] = gr_cls[k];
+                int j9, k9;               /* and set the others to 0 */
+                for (k9 = 0; k9 < 6; k9++) {
+                    j9 = 1 << k9;
+                    if (grouping & j9) {
+                        lb[0] = gr_opn[k9];
+                        rb[0] = gr_cls[k9];
                         break;
                     }
                 }
@@ -12280,32 +12282,32 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
               seplen = strlen(sep);
         } else                          /* CSV/TSV: sep is "," or tab, */
           seplen = strlen(sep); /* set unconditionally above. */
-        for (i = lo; i <= hi; i++) {    /* Loop thru selected array elements */
-            s = a_ptr[x][i];            /* Get next element */
-            if (!s)
-              s = "";
+        for (i9 = lo; i9 <= hi; i9++) {  /* Loop thru selected elements */
+            s9 = a_ptr[x9][i9];            /* Get next element */
+            if (!s9)
+              s9 = "";
             flag = 0;                   /* Flag to indicate grouping needed */
             flag2 = 0;                  /* Flag for internal doublequotes */
             if (grouping) {             /* Does this element need quoting? */
-                q = s;                  /* Look for special character */
-                while ((c = *q++)) {    /* If found */
-                    if (c == specialchar) /* grouping is required */
+                q = s9;                  /* Look for special character */
+                while ((c9 = *q++)) {    /* If found */
+                    if (c9 == specialchar) /* grouping is required */
                       flag++;
-                    if (csv && (c == '"')) /* Character that needs doubling */
+                    if (csv && (c9 == '"')) /* Character that needs doubling */
                       flag2++;             /* in comma-separated list */
                     if (flag && !csv)   /* Exit early if no more to do */
                       break;
                 }
             }
-            y = strlen(s);              /* Get length of this element */
-            if ((y > 0) && csv && !flag) { /* CSV item needs grouping */
-                if (s[0] == SP || s[y-1] == SP || /* if it has leading */
-                    s[0] == HT || s[y-1] == HT) /* or trailing whitespace */
+            y9 = strlen(s9);              /* Get length of this element */
+            if ((y9 > 0) && csv && !flag) { /* CSV item needs grouping */
+                if (s9[0] == SP || s9[y9-1] == SP || /* if it has leading */
+                    s9[0] == HT || s9[y9-1] == HT) /* or trailing whitespace */
                   flag++;               /* then it needs grouping */
             }
             if (flag || flag2) {        /* String needs grouping or quoting */
-                char *ss = s;
-                q = (char *)malloc(y + flag2 + 3); /* Make new buffer */
+                char *ss = s9;
+                q = (char *)malloc(y9 + flag2 + 3); /* Make new buffer */
                 if (q) {
                     s2 = q;             /* and this is what to free */
                     if (flag)           /* If grouping */
@@ -12318,20 +12320,20 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                     if (flag)           /* If grouping */
                       *q++ = rb[0];     /* add closing group quote */
                     *q = NUL;           /* terminate the result. */
-                    s = s2;
-                    y = strlen(s);
+                    s9 = s2;
+                    y9 = strlen(s9);
                 }
             }
-            z = 0;                      /* Number of chars copied */
+            z9 = 0;                      /* Number of chars copied */
             flag = 0;                   /* flag is now buffer-overrun flag */
-            if (y > 0)                  /* If this string is not empty */
-              z = ckstrncat(fnval,s,FNVALL); /* copy it. */
+            if (y9 > 0)                  /* If this string is not empty */
+              z9 = ckstrncat(fnval,s9,FNVALL); /* copy it. */
             if (s2) free(s2);           /* Free temp storage */
-            if (z < y)                  /* Now check for buffer overrun. */
+            if (z9 < y9)                  /* Now check for buffer overrun. */
               flag++;
-            if (!flag && *sep && i < hi) { /* If buffer still has room */
-                z = ckstrncat(fnval,sep,FNVALL); /* copy delimiter */
-                if (z < seplen)
+            if (!flag && *sep && i9 < hi) { /* If buffer still has room */
+                z9 = ckstrncat(fnval,sep,FNVALL); /* copy delimiter */
+                if (z9 < seplen)
                   flag++;
             }
             if (flag) {
@@ -12346,8 +12348,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         goto fnend;
     }
     if (cx == FN_SUBST) {               /* \fsubstitute() */
-        CHAR c, * s, * r, * tp[2], buf1[256], buf2[256], buf3[256];
-        int len, i, j, state = 0, lo = 0, hi = 0;
+        CHAR c9, * s9, * r, * tp[2], buf1[256], buf2[256], buf3[256];
+        int len, i9, j9, state = 0, lo = 0, hi = 0;
 
         failed = 0;
         p = fnval;                      /* Result pointer */
@@ -12372,23 +12374,23 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         tp[0] = buf1;                   /* For s2-s3 interpretation loop */
         tp[1] = buf2;
 
-        for (i = 0; i < 256; i++) {     /* Initialize working buffers */
-            buf1[i] = 0;                /* s2 expansion buffer */
-            buf2[i] = 0;                /* s3 expansion buffer */
-            buf3[i] = i;                /* Translation table */
+        for (i9 = 0; i9 < 256; i9++) {     /* Initialize working buffers */
+            buf1[i9] = 0;                /* s2 expansion buffer */
+            buf2[i9] = 0;                /* s3 expansion buffer */
+            buf3[i9] = i9;                /* Translation table */
         }
-        for (i = 0; i < 2; i++) {       /* Interpret s2 and s3 */
-            s = (CHAR *)bp[i+1];        /* Arg pointer */
-            if (!s) s = (CHAR *)"";
-            r = tp[i];                  /* To construct interpreted arg */
-            j = 0;                      /* Output buf pointer */
+        for (i9 = 0; i9 < 2; i9++) {       /* Interpret s2 and s3 */
+            s9 = (CHAR *)bp[i9+1];        /* Arg pointer */
+            if (!s9) s9 = (CHAR *)"";
+            r = tp[i9];                  /* To construct interpreted arg */
+            j9 = 0;                      /* Output buf pointer */
             state = 0;                  /* Initial state */
-            while ((c = *s++)) {          /* Loop thru arg chars */
-                if (j > 255)            /* Output buf full */
+            while ((c9 = *s9++)) {          /* Loop thru arg chars */
+                if (j9 > 255)            /* Output buf full */
                   break;
                 switch (state) {
                   case 0:               /* Normal state */
-                    switch (c) {
+                    switch (c9) {
                       case '\\':        /* Have quote */
                         state = 1;
                         break;
@@ -12396,20 +12398,20 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                         state = 2;
                         break;
                       default:          /* Anything else */
-                        r[j++] = c;
+                        r[j9++] = c9;
                         break;
                     }
                     continue;
                   case 1:               /* Quoted char */
-                    r[j++] = c;
+                    r[j9++] = c9;
                     state = 0;
                     continue;
                   case 2:               /* Range bottom */
-                    lo = c;
+                    lo = c9;
                     state++;
                     continue;
                   case 3:               /* Range separater */
-                    if (c != '-') {
+                    if (c9 != '-') {
                         failed = 1;
                         if (fndiags)
                           ckmakmsg(fnval,FNVALL,
@@ -12419,32 +12421,32 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                     state++;
                     continue;
                   case 4:               /* Range top */
-                    hi = c;
+                    hi = c9;
                     state++;
                     continue;
                   case 5:               /* Range end */
-                    if (c != ']') {
+                    if (c9 != ']') {
                         failed = 1;
                         if (fndiags)
                           ckmakmsg(fnval,FNVALL,
                                    "<ERROR:BAD_RANGE:\\f",fn,"()>",NULL);
                         goto fnend;
                     }
-                    for (k = lo; k <= hi && j < 255; k++) /* Fill in */
-                      r[j++] = k;
+                    for (k = lo; k <= hi && j9 < 255; k++) /* Fill in */
+                      r[j9++] = k;
                     lo = 0; hi = 0;     /* Reset */
                     state = 0;
                     continue;
                 }
             }
         }
-        for (i = 0; i < 256 && buf1[i]; i++) {  /* Create translation table */
-            k = (unsigned)buf1[i];
-            buf3[k] = buf2[i];
+        for (i9 = 0; i9 < 256 && buf1[i9]; i9++) { /* Translation table */
+            k = (unsigned)buf1[i9];
+            buf3[k] = buf2[i9];
         }
-        s = (CHAR *)bp[0];              /* Point to source string */
-        for (i = 0; i < len; i++) {     /* Translation loop */
-            k = (unsigned)s[i];         /* Get next char */
+        s9 = (CHAR *)bp[0];              /* Point to source string */
+        for (i9 = 0; i9 < len; i9++) {     /* Translation loop */
+            k = (unsigned)s9[i9];         /* Get next char */
             if (!buf3[k])               /* Remove this char */
               continue;
             *p++ = buf3[k];             /* Substitute this char */
@@ -12468,8 +12470,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 #endif /* NOSEXP */
 
     if (cx == FN_CMDSTK) {              /* \fcmdstack(n1,n2) */
-        int i, j, k;
-        char * s;
+        int i9, j9, k9;
+        char * s9;
 
         if (bp[0])
           val1 = *(bp[0]) ? evalx(bp[0]) : ckitoa(cmdlvl);
@@ -12496,9 +12498,9 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             val1 = ckitoa(cmdlvl);
             val2 = "0";
         }
-        i = atoi(val1);                 /* Level */
-        j = atoi(val2);                 /* Flags */
-        if (i < 0 || i > cmdlvl) {
+        i9 = atoi(val1);                 /* Level */
+        j9 = atoi(val2);                 /* Flags */
+        if (i9 < 0 || i9 > cmdlvl) {
             if (fndiags)
               ckmakmsg(fnval,FNVALL,
                        "<ERROR:ARG_OUT_OF_RANGE:\\f",fn,"()>",NULL);
@@ -12506,22 +12508,22 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         }
         failed = 0;
         p = fnval;
-        k = cmdstk[i].src;              /* What (prompt, file, macro) */
-        if (j) {
-            ckstrncpy(fnval,ckitoa(k),FNVALL);
+        k9 = cmdstk[i9].src;              /* What (prompt, file, macro) */
+        if (j9) {
+            ckstrncpy(fnval,ckitoa(k9),FNVALL);
             goto fnend;
         }
-        switch (k) {
+        switch (k9) {
           case CMD_KB:
             ckstrncpy(fnval,"(prompt)",FNVALL);
             break;
           case CMD_TF:
-            s = tfnam[cmdstk[i].lvl];
-            if (!zfnqfp(s,FNVALL,fnval))
-              ckstrncpy(fnval,s,FNVALL);
+            s9 = tfnam[cmdstk[i9].lvl];
+            if (!zfnqfp(s9,FNVALL,fnval))
+              ckstrncpy(fnval,s9,FNVALL);
             break;
           case CMD_MD:
-            ckstrncpy(fnval,m_arg[cmdstk[i].lvl][0],FNVALL);
+            ckstrncpy(fnval,m_arg[cmdstk[i9].lvl][0],FNVALL);
             break;
         }
         goto fnend;
@@ -12543,7 +12545,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
     }
 #endif /* CKFLOAT */
     if (cx == FN_CMPDATE) {             /* \fcmddates(d1,d2) */
-        int x = 0;
+        int x9 = 0;
         char d1[18], d2[18], * dp;
         failed = 0;
         d1[0] = NUL;
@@ -12554,20 +12556,20 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             ckstrncpy(d1,dp,18);
             if ((dp = cmcvtdate(bp[1],1))) {
                 ckstrncpy(d2,dp,18);
-                x = 1;
+                x9 = 1;
             }
         }
-        if (x == 0) {
+        if (x9 == 0) {
             failed = 1;
             if (fndiags)
               ckmakmsg(fnval,FNVALL,"<ERROR:BAD_DATE:\\f",fn,"()>",NULL);
         } else {
-            x = strcmp(d1,d2);
-            if (x > 0)
-              x = 1;
-            else if (x < 0)
-              x = -1;
-            sprintf(fnval,"%d",x);
+            x9 = strcmp(d1,d2);
+            if (x9 > 0)
+              x9 = 1;
+            else if (x9 < 0)
+              x9 = -1;
+            sprintf(fnval,"%d",x9);
         }
         goto fnend;
     }
@@ -12616,17 +12618,17 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         goto fnend;
     }
     if (cx == FN_PC_DU) {
-        char c, * s = bp[0];
-        if (!s) s = "";
+        char c9, * s9 = bp[0];
+        if (!s9) s9 = "";
         p = fnval;
-        while ((c = *s++)) {
-            if (c == ':') {
-                if (*s != '\\')
+        while ((c9 = *s9++)) {
+            if (c9 == ':') {
+                if (*s9 != '\\')
                   *p++ = '/';
-            } else if (c == '\\') {
+            } else if (c9 == '\\') {
                 *p++ = '/';
             } else {
-                *p++ = c;
+                *p++ = c9;
             }
         }
         *p = NUL;
@@ -12634,16 +12636,16 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         goto fnend;
     }
     if (cx == FN_PC_UD) {               /* Unix to DOS path */
-        char c, * s = bp[0];
-        if (!s) s = "";
-        if (*s == '~') {                /* Skip leading tilde */
-            s++;
-            if (*s == '/')
-              s++;
+        char c9, * s9 = bp[0];
+        if (!s9) s9 = "";
+        if (*s9 == '~') {                /* Skip leading tilde */
+            s9++;
+            if (*s9 == '/')
+              s9++;
         }
         p = fnval;
-        while ((c = *s++))
-          *p ++ = (c == '/') ? '\\' : c;
+        while ((c9 = *s9++))
+          *p ++ = (c9 == '/') ? '\\' : c9;
         *p = NUL;
         p = fnval;
         goto fnend;
@@ -12694,45 +12696,45 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
   Works with or without the "From: " or "Sender: " tag.
 */
     if (cx == FN_EMAIL) {
-        char * s = bp[0], * s2, * s3, * ap = "";
-        int k;
+        char * s9 = bp[0], * s2, * s3, * ap = "";
+        int k9;
 #ifdef COMMENT
     char c;
         int quote = 0, state = 0, infield = 0 , pc = 0; /* For nested comments */
 #endif /* COMMENT */
-        if (!s) s = "";
-        if (!*s) goto xemail;
+        if (!s9) s9 = "";
+        if (!*s9) goto xemail;
 
-        if (ckindex("From: ",s,0,0,0) == 1) s += 5;
-        if (ckindex("Sender: ",s,0,0,0) == 1) s += 7;
+        if (ckindex("From: ",s9,0,0,0) == 1) s9 += 5;
+        if (ckindex("Sender: ",s9,0,0,0) == 1) s9 += 7;
 
-        k = strlen(s);                  /* Strip junk from end */
-        if (k < 1) goto xemail;
-        k--;
-        while (k >= 0 && (s[k] == CK_CR || s[k] == LF))
-          s[k--] = NUL;
-        while (k >= 0 && (s[k] == SP || s[k] == HT))
-          s[k--] = NUL;
-        if (k == 0)
+        k9 = strlen(s9);                  /* Strip junk from end */
+        if (k9 < 1) goto xemail;
+        k9--;
+        while (k9 >= 0 && (s9[k9] == CK_CR || s9[k9] == LF))
+          s9[k9--] = NUL;
+        while (k9 >= 0 && (s9[k9] == SP || s9[k9] == HT))
+          s9[k9--] = NUL;
+        if (k9 == 0)
           goto xemail;
 
 #ifndef COMMENT                      /* Simple method if not 100% foolproof */
-        k = 0;
-        for (s2 = s; *s2; s2++) {       /* Find at-sign */
+        k9 = 0;
+        for (s2 = s9; *s2; s2++) {       /* Find at-sign */
             if (*s2 == '@') {
-                k++;                    /* If more than one use rightmost */
+                k9++;                    /* If more than one use rightmost */
                 s3 = s2;
             }
         }
-        if (k < 1)                      /* No at-sign */
+        if (k9 < 1)                      /* No at-sign */
           goto xemail;
 
-        for (ap = s3-1; ap >= s; ap--) { /* Back up to beginning of address */
+        for (ap = s3-1; ap >= s9; ap--) { /* Back up to beginning of address */
             if (isspace(*ap) || *ap == '<') {
                 ap++;
                 break;
             }
-            if (ap == s)
+            if (ap == s9)
               break;
         }
         for (s2 = s3+1; *s2; s2++) {    /* Find end of address */
@@ -12749,81 +12751,81 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 
 #else  /* Too complicated and error-prone */
 
-        k = 0;
-        for (s2 = s; *s2; s2++) {       /* Strip leading whitespace */
+        k9 = 0;
+        for (s2 = s9; *s2; s2++) {       /* Strip leading whitespace */
             if (*s2 == SP || *s2 == HT) {
-                k = 1;
+                k9 = 1;
                 break;
             }
         }
-        if (!k) {                       /* Simple address */
-            ap = s;
+        if (!k9) {                       /* Simple address */
+            ap = s9;
             goto xemail;
         }
         do {                            /* Not simple, have to extract it */
             if (quote) {
                 quote = 0;
                 continue;
-            } else if (*s == '\\') {
+            } else if (*s9 == '\\') {
                 quote = 1;
                 continue;
             }
             switch (state) {
               case 0:
-                if (!infield && *s == '"') { /* Quoted string */
+                if (!infield && *s9 == '"') { /* Quoted string */
                     infield = 1;
                     c = '"';
                     state = 1;
-                } else if (!infield && *s == '(') { /* Comment in parens */
+                } else if (!infield && *s9 == '(') { /* Comment in parens */
                     pc++;
                     infield = 1;
                     c = ')';
-                    if (*ap) *s = NUL;
+                    if (*ap) *s9 = NUL;
                     state = 1;
-                } else if (!infield && *s == '<') { /* Address */
+                } else if (!infield && *s9 == '<') { /* Address */
                     infield = 1;
                     c = '>';
-                    ap = s+1;
+                    ap = s9+1;
                     state = 2;
-                } else if (infield && (*s == SP || *s == HT)) {
+                } else if (infield && (*s9 == SP || *s9 == HT)) {
                     infield = 0;
                 } else {                /* One or more bare words */
                     infield = 1;        /* Could be an address */
-                    if (!*ap) ap = s;   /* Could be comments */
+                    if (!*ap) ap = s9;   /* Could be comments */
                 }
                 continue;
               case 1:                   /* In Quoted string or Comment */
-                if (infield && *s == c) { /* Look for end */
+                if (infield && *s9 == c) { /* Look for end */
                     infield = 0;
-                    *s++ = NUL;
-                    while (*s == SP || *s == HT) s++;
+                    *s9++ = NUL;
+                    while (*s9 == SP || *s9 == HT) s9++;
                     if (!*ap)
-                      ap = s;
+                      ap = s9;
                     state = 0;
                 }
                 continue;
               case 2:                   /* In address */
-                if (infield && *s == c) { /* Looking for end */
+                if (infield && *s9 == c) { /* Looking for end */
                     infield = 0;
-                    *s = NUL;
+                    *s9 = NUL;
                     break;
                 }
             }
-        } while (*s++);
+        } while (*s9++);
 
       xemail:
         if (*ap) {
             while (*ap == SP || *ap == HT) ap++;
         }
-        k = strlen(ap) - 1;
-        while (k >= 0 && (ap[k] == SP || ap[k] == HT))
-          ap[k--] = NUL;
+        k9 = strlen(ap) - 1;
+        while (k9 >= 0 && (ap[k9] == SP || ap[k9] == HT))
+          ap[k9--] = NUL;
         if (*ap) {
             failed = 0;
             if (*ap == '<') {
-                k = strlen(ap);
-                if (*(ap+k-1) == '>') {
-                    ap[k-1] = NUL;
+                k9 = strlen(ap);
+                if (*(ap+k9-1) == '>') {
+                    ap[k9-1] = NUL;
                     ap++;
                 }
             }
@@ -12846,10 +12848,10 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 */
     if (cx == FN_PICTURE) {
         FILE *fp = NULL;
-        int c, x, w = 0, h = 0, eof = 0;
-        unsigned int j, k;
+        int c9, x9, w = 0, h = 0, eof = 0;
+        unsigned int j9, k9;
         unsigned char buf[1024];
-        char abuf[16], * p, * s;
+        char abuf[16], * s9;
         char ** ap = NULL;
 #ifdef UNIX
         char * tx;
@@ -12857,56 +12859,56 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 
         p = fnval;                      /* Point to result */
         failed = 1;                     /* Assume failure */
-        s = bp[0];
+        s9 = bp[0];
 #ifdef UNIX
-        if (*s == '~') {
+        if (*s9 == '~') {
             tx = tilde_expand(bp[0]);
             if (tx) if (*tx) {
                 free(bp[0]);
                 bp[0] = NULL;
                 makestr(&(bp[0]),tx);
             }
-            s = bp[0];
+            s9 = bp[0];
         }
 #endif /* UNIX */
 
         if (argn > 1) {
             int xi;
             ckstrncpy(abuf,bp[1],16);   /* Get array reference */
-            s = abuf;
-            if (*s == CMDQ) s++;
+            s9 = abuf;
+            if (*s9 == CMDQ) s9++;
             if (fndiags)                /* Default is this error message */
               ckmakmsg(fnval,FNVALL,
                        "<ERROR:ARG_BAD_ARRAY:\\f",fn,"()>",NULL);
-            if (s[0] != '&')            /* "Address" of array */
+            if (s9[0] != '&')            /* "Address" of array */
               goto fnend;
-            if (s[2])
-              if (s[2] != '[' || s[3] != ']')
+            if (s9[2])
+              if (s9[2] != '[' || s9[3] != ']')
                 goto fnend;
-            if (s[1] >= 64 && s[1] < 91) /* Convert upper to lower */
-              s[1] += 32;
-            if ((xi = dclarray(s[1],3)) < 0) /* three elements */
+            if (s9[1] >= 64 && s9[1] < 91) /* Convert upper to lower */
+              s9[1] += 32;
+            if ((xi = dclarray(s9[1],3)) < 0) /* three elements */
               goto fnend;
             ap = a_ptr[xi];             /* Point to array we just declared */
         }
-        s = bp[0];                      /* Filename */
+        s9 = bp[0];                      /* Filename */
         failed = 0;                     /* From here on we don't fail */
         p[0] = '0';                     /* Default return value */
         p[1] = NUL;
 
         /* Tail anchor removed 2013-10-15 -fdc */
-        if (!ckmatch("*.{jpg,jpeg,gif}",s,0,1)) /* Appropriate name? */
+        if (!ckmatch("*.{jpg,jpeg,gif}",s9,0,1)) /* Appropriate name? */
           goto fnend;                   /* No, fail */
 
-        fp = fopen(s, "r");             /* Open it */
+        fp = fopen(s9, "r");             /* Open it */
         if (fp == NULL) {               /* Can't, fail */
             p[0] = '-';
             p[1] = '1';
             p[2] = NUL;                 /* Return -1 */
             goto fnend;
         }
-        k = strlen(s);
-        if (!ckstrcmp(&s[k-4],".gif",4,0)) { /* GIF file */
+        k9 = strlen(s9);
+        if (!ckstrcmp(&s9[k9-4],".gif",4,0)) { /* GIF file */
             if (fread(buf,1,10,fp) != 10) {
                 fclose(fp);
                 goto fnend;
@@ -12920,8 +12922,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             w = buf[6] + 256 * buf[7];
             h = buf[8] + 256 * buf[9];
             goto picend;
-        } else if (!ckstrcmp(&s[k-4],".jpg",4,0) || /* JPEG file */
-                   !ckstrcmp(&s[k-5],".jpeg",5,0)) { /* (according to name) */
+        } else if (!ckstrcmp(&s9[k9-4],".jpg",4,0) || /* JPEG file */
+                   !ckstrcmp(&s9[k9-5],".jpeg",5,0)) { /* (by name) */
             if (fread(buf,1,2,fp) != 2) {            /* Read 1st bytes */
                 fclose(fp);
                 goto fnend;
@@ -12933,29 +12935,29 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             eof = 0;
             while (!eof) {              /* Loop for each marker */
                 while (!eof) {          /* Find next marker */
-                    c = getc(fp);
-                    if (c == EOF) {
+                    c9 = getc(fp);
+                    if (c9 == EOF) {
                         eof++;
                         break;
                     }
-                    if (c == 0xff) {
-                        buf[0] = c;
-                        c = getc(fp);
-                        if (c == EOF) {
+                    if (c9 == 0xff) {
+                        buf[0] = c9;
+                        c9 = getc(fp);
+                        if (c9 == EOF) {
                             eof++;
                             break;
                         }
-                        buf[1] = c;
-                        if (c == 0xd9)  /* FFD9 means End of Image */
+                        buf[1] = c9;
+                        if (c9 == 0xd9)  /* FFD9 means End of Image */
                           eof++;
-                        if (c >= 0xc0 && c <= 0xfe)
+                        if (c9 >= 0xc0 && c9 <= 0xfe)
                           break;
                     }
                 }
                 if (eof) break;
-                x = buf[1];
-                if (x == 0xc0 || x == 0xc1 || x == 0xc2 || x == 0xc3 ||
-                    x == 0xc9 || x == 0xca || x == 0xcb) {
+                x9 = buf[1];
+                if (x9 == 0xc0 || x9 == 0xc1 || x9 == 0xc2 || x9 == 0xc3 ||
+                    x9 == 0xc9 || x9 == 0xca || x9 == 0xcb) {
                     if (fread(buf,1,7,fp) != 7) {
                         fclose(fp);
                         goto fnend;
@@ -12972,8 +12974,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                         fclose(fp);
                         goto fnend;
                     }
-                    j = 256 * buf[0] + buf[1] - 2; /* Skip next field */
-                    if (CKFSEEK(fp,(CK_OFF_T)j,SEEK_CUR) != 0) {
+                    j9 = 256 * buf[0] + buf[1] - 2; /* Skip next field */
+                    if (CKFSEEK(fp,(CK_OFF_T)j9,SEEK_CUR) != 0) {
                         fclose(fp);
                         goto fnend;
                     }
@@ -12983,13 +12985,13 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
       picend:
 
         if (ap) {
-            char * s;
+            char * s8;
             makestr(&(ap[0]),"2");
             makestr(&(ap[1]),ckitoa(w));
             makestr(&(ap[2]),ckitoa(h));
-            s = jpgdate(fp);
-            debug(F110,"jpgdate",s,0);
-            if (s) if (*s) makestr(&(ap[3]),s);
+            s8 = jpgdate(fp);
+            debug(F110,"jpgdate",s8,0);
+            if (s8) if (*s8) makestr(&(ap[3]),s8);
         }
         fclose(fp);
         if (w > 0 && h > 0) {
@@ -13002,7 +13004,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 #endif  /* SEEK_CUR */
 
     if (cx == FN_PID) {
-        int x = -1;
+        int x9 = -1;
         if (chknum(bp[0])) {            /* Need numeric argument */
             int pid;
             pid = atoi(bp[0]);          /* Convert to int */
@@ -13015,29 +13017,29 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                     3
 #endif  /* ESRCH */
                     )
-                  x = 0;
+                  x9 = 0;
             } else                      /* Process exists */
-              x = 1;
+              x9 = 1;
 #endif  /* UNIX */
         }
-        sprintf(fnval,"%d",x);          /* SAFE */
+        sprintf(fnval,"%d",x9);          /* SAFE */
         goto fnend;
     }
 
     if (cx == FN_FUNC) {
-        char * s = bp[0];
+        char * s9 = bp[0];
         p = "0";
-        debug(F111,"ffunc",s,argn);
+        debug(F111,"ffunc",s9,argn);
         if (argn > 0) {
-            int x, y;
-            for (p = s; *p; p++) {      /* Chop off trailing parens if any */
+            int x9, y9;
+            for (p = s9; *p; p++) {      /* Chop off trailing parens if any */
                 if (*p == '(') {
                     *p = NUL;
                     break;
                 }
             }
             /* Chop off leading "\\f" or "\f" or "f" */
-            p = s;
+            p = s9;
             if (*p == CMDQ)             /* Allow for \\f... */
               p++;
             if (*p == CMDQ && (*(p+1) == 'f' || *(p+1) == 'F')) { /* or \f */
@@ -13045,27 +13047,27 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             } else if (*p == 'f' || *p == 'F') { /* or just f */
                 p++;
             }
-            y = lookup(fnctab,p,nfuncs,&x); /* Look up the result */
-            debug(F111,"ffunc",p,y);
-            p = (y > -1) ? "1" : "0";
+            y9 = lookup(fnctab,p,nfuncs,&x9); /* Look up the result */
+            debug(F111,"ffunc",p,y9);
+            p = (y9 > -1) ? "1" : "0";
         }
         goto fnend;
     }
     if (cx == FN_RECURSE) {
-        int n;
-        char * s;
+        int n9;
+        char * s9;
         fnval[0] = NUL;                 /* Default result is empty string */
-        s = bp[0];                      /* Check for null argument */
-        if (!s) s = "";                 /* or empty argument */
-        if (!*s) goto fnend;            /* in which case return empty string */
-        n = FNVALL;                     /* Not empty, max size for result */
-        s = fnval;                      /* Location of result */
+        s9 = bp[0];                      /* Check for null argument */
+        if (!s9) s9 = "";                 /* or empty argument */
+        if (!*s9) goto fnend;            /* then return empty string */
+        n9 = FNVALL;                     /* Not empty, max size for result */
+        s9 = fnval;                      /* Location of result */
         {
             /* Force VARIABLE-EVALUATION SIMPLE RECURSIVE */
             /* NOTE: This is vulnerable to SIGINT and whatnot... */
             int tmp = vareval;          /* Save VARIABLE-EVALUATION setting */
             vareval = 1;                /* Force it to RECURSIVE */
-            zzstring(bp[0],&s,&n);      /* Expand arg into result space */
+            zzstring(bp[0],&s9,&n9);      /* Expand arg into result space */
             vareval = tmp;              /* Restore VARIABLE-EVALUATION */
         }
         goto fnend;
@@ -13115,7 +13117,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         char *s1;
         char *prefix;                   /* Can be 1 or 2 chars */
         char buf[3];
-        int n = 0, k;
+        int n9 = 0, k9;
 
         p = fnval;
         *p = NUL;
@@ -13123,25 +13125,25 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 
         s1 = bp[0] ? bp[0] : "";        /* Original string */
         prefix = bp[1] ? bp[1] : "%%";  /* Hex byte prefix */
-        n = (int)strlen(prefix);        /* Length of prefix */
-        if (n < 1 || n > 2) {           /* must be 1 or 2 */
+        n9 = (int)strlen(prefix);        /* Length of prefix */
+        if (n9 < 1 || n9 > 2) {           /* must be 1 or 2 */
             ckmakmsg(fnval,FNVALL,
                        "<ERROR:INVALID_HEX_PREFIX:\\f",fn,"()>",NULL);
             goto xunpct;
         }
         while (*s1) {
-            if (!ckstrcmp(s1,prefix,n,0)) { /* Case-independent */
-                if (!*(s1+n)) {
+            if (!ckstrcmp(s1,prefix,n9,0)) { /* Case-independent */
+                if (!*(s1+n9)) {
                     ckmakmsg(fnval,FNVALL,
                              "<ERROR:INCOMPLETE_SEQUENCE:\\f",fn,"()>",NULL);
                     goto xunpct;
                 }
-                buf[0] = *(s1+n);       /* First hex character */
-                buf[1] = *(s1+n+1);     /* Second hex character */
+                buf[0] = *(s1+n9);       /* First hex character */
+                buf[1] = *(s1+n9+1);     /* Second hex character */
                 buf[2] = NUL;
-                if ((k = ckhexbytetoint((char *)buf)) > -1) {
-                    *p++ = (char) k;    /* Deposit decoded result */
-                    s1 += 2+n;          /* and advance the source pointer */
+                if ((k9 = ckhexbytetoint((char *)buf)) > -1) {
+                    *p++ = (char) k9;    /* Deposit decoded result */
+                    s1 += 2+n9;          /* and advance the source pointer */
                 } else {                /* Fail on conversion error */
                     ckmakmsg(fnval,FNVALL,
                              "<ERROR:NON_HEX_CHARS:\\f",fn,"()>",NULL);
@@ -13185,7 +13187,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         int docase = 0;                 /* Case matters or not */
         int start = 0;                  /* Start of substring */
         int len = -1;                   /* Length of substring to compare */
-        int x; char * s1, * s2;         /* workers */
+        int x9; char * s1, * s2;         /* workers */
 
         p = "0";                        /* Return value */
         if (argn == 0) {                /* Two null strings are equal */
@@ -13213,19 +13215,19 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         }
         if (start > 0) start--;         /* start is 0-based internally */
         s1 = bp[0];                     /* Get length of first arg */
-        x = (int)strlen(s1);
-        if (x > start)                  /* Point to start position of s1 */
+        x9 = (int)strlen(s1);
+        if (x9 > start)                  /* Point to start position of s1 */
           s1 += start;
         else
           s1 = "";
         s2 = bp[1];                     /* Get length of second arg */
-        x = (int)strlen(s2);
-        if (x > start)                  /* Point to start position of s2 */
+        x9 = (int)strlen(s2);
+        if (x9 > start)                  /* Point to start position of s2 */
           s2 += start;
         else
           s2 = "";
-        x = ckstrcmp(s,s2,len,docase);
-        p = ckitoa(x);
+        x9 = ckstrcmp(s,s2,len,docase);
+        p = ckitoa(x9);
         ckstrncpy(fnval,p,FNVALL);
         p = fnval;
         goto fnend;
@@ -13779,17 +13781,17 @@ char *                                  /* Evaluate builtin variable */
         return(vvbuf);                  /* Return what we got. */
 
       case VN_NMONTH: {                 /* Numeric month (1-12) */
-          int x;
+          int mx;
           ztime(&p);                    /* asctime three-letter abbreviation */
-          for (x = 0; x < 12; x++)
-            if (!strncmp(p+4,months[x],3)) break;
-          if (x == 12) {
+          for (mx = 0; mx < 12; mx++)
+            if (!strncmp(p+4,months[mx],3)) break;
+          if (mx == 12) {
               vvbuf[0] = '?';
               vvbuf[1] = '?';
           } else {
-              x++;
-              vvbuf[0] = (char) ((x < 10) ? '0' : '1');
-              vvbuf[1] = (char) ((x % 10) + 48);
+              mx++;
+              vvbuf[0] = (char) ((mx < 10) ? '0' : '1');
+              vvbuf[1] = (char) ((mx % 10) + 48);
           }
           vvbuf[2] = NUL;
           return(vvbuf);                /* Return what we got. */
@@ -15178,27 +15180,27 @@ char *                                  /* Evaluate builtin variable */
       case VN_MS_DTR:
       case VN_MS_RI:
       case VN_MS_RTS: {
-          int x, z = -1;
-          x = ttgmdm();                 /* Try to get them */
-          if (x > -1) {
+          int mx, mz = -1;
+          mx = ttgmdm();                 /* Try to get them */
+          if (mx > -1) {
               switch (y) {
-                case VN_MS_CD:  z = (x & BM_DCD) ? 1 : 0; break;
-                case VN_MS_DSR: z = (x & BM_DSR) ? 1 : 0; break;
-                case VN_MS_CTS: z = (x & BM_CTS) ? 1 : 0; break;
+                case VN_MS_CD:  mz = (mx & BM_DCD) ? 1 : 0; break;
+                case VN_MS_DSR: mz = (mx & BM_DSR) ? 1 : 0; break;
+                case VN_MS_CTS: mz = (mx & BM_CTS) ? 1 : 0; break;
 #ifdef MAC
-                case VN_MS_DTR: z = (x & BM_DTR) ? 1 : 0; break;
+                case VN_MS_DTR: mz = (mx & BM_DTR) ? 1 : 0; break;
 #else
 #ifndef STRATUS
-                case VN_MS_RI:  z = (x & BM_RNG) ? 1 : 0; break;
+                case VN_MS_RI:  mz = (mx & BM_RNG) ? 1 : 0; break;
 #ifndef NT
-                case VN_MS_DTR: z = (x & BM_DTR) ? 1 : 0; break;
-                case VN_MS_RTS: z = (x & BM_RTS) ? 1 : 0; break;
+                case VN_MS_DTR: mz = (mx & BM_DTR) ? 1 : 0; break;
+                case VN_MS_RTS: mz = (mx & BM_RTS) ? 1 : 0; break;
 #endif /* NT */
 #endif /* STRATUS */
 #endif /* MAC */
               }
           }
-          sprintf(vvbuf,"%d",z);        /* SAFE */
+          sprintf(vvbuf,"%d",mz);        /* SAFE */
           return((char *)vvbuf);
       }
       case VN_MATCH:                    /* INPUT MATCH */
@@ -16010,8 +16012,8 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
 #endif /* DEBUG */
             {
              /* In case the function name itself is constructed */
-                char buf[64]; char * p = buf; int n3 = 64;
-                if (zzstring(vnambuf,&p,&n3) > -1)
+                char buf[64]; char * qp = buf; int n3 = 64;
+                if (zzstring(vnambuf,&qp,&n3) > -1)
                   ckstrncpy(vnambuf,buf,64);
             }
             vp = fneval(vnambuf,argp,argn,r3); /* Evaluate the function. */

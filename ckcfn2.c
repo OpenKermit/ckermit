@@ -361,9 +361,9 @@ rttinit() {                             /* Initialize round-trip timing */
 */
 int
 #ifdef CK_ANSIC
-getrtt( int nakstate, int n )
+getrtt( int rttns, int n )
 #else
-getrtt(nakstate, n) int nakstate, n;
+getrtt(rttns, n) int rttns, n;
 #endif /* CK_ANSIC */
 {
     extern int mintime, maxtime;
@@ -392,7 +392,7 @@ getrtt(nakstate, n) int nakstate, n;
     /* Timeouts are based on the packet arrival rate. */
 
     if (spackets > 3) {                 /* Don't start till 4th packet */
-        if (nakstate) {                 /* File receiver */
+        if (rttns) {                 /* File receiver */
             x = rrttbl[n];                   /* Time when I got packet n */
             y = rrttbl[n > 0 ? n - 1 : 63];  /* Time when I got packet n-1 */
             yy = srttbl[n > 0 ? n - 1 : 63]; /* Time when I sent ACK(n-1) */
@@ -433,9 +433,9 @@ getrtt(nakstate, n) int nakstate, n;
         rttdelay = zz;                  /* Round trip time of this packet */
 #ifdef CKFLOAT
         {
-            CKFLOAT x;
-            x = (CKFLOAT)(prevz + z + z) / 3.0;
-            rcvtimo = (int)((((CKFLOAT)x * 2.66) / RTT_SCALE) + 0.5);
+            CKFLOAT fx;
+            fx = (CKFLOAT)(prevz + z + z) / 3.0;
+            rcvtimo = (int)((((CKFLOAT)fx * 2.66) / RTT_SCALE) + 0.5);
             debug(F101,"RTT rcvtimo (float)","",rcvtimo);
         }
 #else
@@ -1356,14 +1356,14 @@ spack(pkttyp,n,len,d) char pkttyp; int n, len; CHAR *d;
     debug(F101,"SPACK j","",j);
     debug(F101,"SPACK longpkt","",longpkt);
     if (longpkt) {                      /* Long packet? */
-        int x;                          /* Yes, work around SCO Xenix/286 */
+        int lpx;                          /* Yes, work around SCO Xenix/286 */
 #ifdef CKTUNING
         unsigned int chk;
 #endif /* CKTUNING */
         debug(F100,"SPACK doing long packet","",0);
-        x = j / 95;                     /* compiler bug... */
+        lpx = j / 95;                     /* compiler bug... */
         mydata[lp] = tochar(0);         /* Set LEN to zero */
-        mydata[i++] = tochar(x);        /* Extended length, high byte */
+        mydata[i++] = tochar(lpx);        /* Extended length, high byte */
         mydata[i++] = tochar(j % 95);   /* Extended length, low byte */
 #ifdef CKTUNING
         /* Header checksum - skip the function calls and loops */
@@ -1571,10 +1571,10 @@ spack(pkttyp,n,len,d) char pkttyp; int n, len; CHAR *d;
     }
 #endif /* STREAMING */
     if (local) {
-        int x = 0;
-        if (fdispla != XYFD_N) x = 1;
-        if ((fdispla == XYFD_B) && (pkttyp == 'D' || pkttyp == 'Y')) x = 0;
-        if (x)
+        int dsx = 0;
+        if (fdispla != XYFD_N) dsx = 1;
+        if ((fdispla == XYFD_B) && (pkttyp == 'D' || pkttyp == 'Y')) dsx = 0;
+        if (dsx)
           xxscreen(SCR_PT,pkttyp,(long)n,(char *)mydata); /* Update screen */
     }
     return(spktl);                      /* Return length */
@@ -2773,7 +2773,7 @@ rpack() {
 #ifdef CK_AUTODL
     debug(F110,"rpack ksbuf",ksbuf,0);
     if (ksbuf[0]) {                     /* Kermit packet already */
-        int x;                          /* collected for us in CONNECT mode */
+        int adx;                        /* collected for us in CONNECT mode */
         CHAR *s1 = recpkt, *s2 = ksbuf;
         j = 0;
         while (*s2) {                   /* Copy and get length */
@@ -2782,12 +2782,12 @@ rpack() {
         }
         *s1 = NUL;
 #ifdef PARSENSE
-        x = parchk(recpkt, stchr, j);   /* Check parity */
+        adx = parchk(recpkt, stchr, j);   /* Check parity */
         debug(F000,"autodownload parity","",parity);
-        debug(F000,"autodownload parchk","",x);
-        if (x > 0 && parity != x) {
+        debug(F000,"autodownload parchk","",adx);
+        if (adx > 0 && parity != adx) {
             autopar = 1;
-            parity = x;
+            parity = adx;
         }
 #endif /* PARSENSE */
         ksbuf[0] = NUL;                 /* Don't do this next time! */
@@ -3160,10 +3160,10 @@ rpack() {
     r_pkt[k].pk_adr = rdatap;           /* pointer to data buffer */
     r_pkt[k].pk_len = rln;              /* and its length, for later replay */
     if (local) {                        /* Save a function call! */
-        int x = 0;
-        if (fdispla != XYFD_N) x = 1;
-        if (fdispla == XYFD_B && (type == 'D' || sndtyp == 'D')) x = 0;
-        if (x)                          /* Update screen */
+        int rdx = 0;
+        if (fdispla != XYFD_N) rdx = 1;
+        if (fdispla == XYFD_B && (type == 'D' || sndtyp == 'D')) rdx = 0;
+        if (rdx)                          /* Update screen */
           xxscreen(SCR_PT,(char)type,(long)rsn,(char *)sohp);
     }
     return(type);                       /* Return packet type */

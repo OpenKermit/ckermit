@@ -554,24 +554,24 @@ extern int xfiletype, nscanfile;
 
 int
 #ifdef CK_ANSIC
-shoesc( int escape )
+shoesc( int esc )
 #else
-shoesc(escape) int escape;
+shoesc(esc) int esc;
 #endif /* CK_ANSIC */
 {
     extern char * ccntab[];             /* C0 control character name table */
     extern int tt_escape;
-    if ((escape > 0 && escape < 32) || (escape == 127)) {
+    if ((esc > 0 && esc < 32) || (esc == 127)) {
         printf(" Escape character: Ctrl-%c (ASCII %d, %s): %s\r\n",
-               ctl(escape),
-               escape,
-               (escape == 127 ? "DEL" : ccntab[escape]),
+               ctl(esc),
+               esc,
+               (esc == 127 ? "DEL" : ccntab[esc]),
                tt_escape ? "enabled" : "disabled"
                );
     } else {
-        printf(" Escape character: Code %d",escape);
-        if (escape > 160 && escape < 256)
-          printf(" (%c)",escape);
+        printf(" Escape character: Code %d",esc);
+        if (esc > 160 && esc < 256)
+          printf(" (%c)",esc);
         printf(": %s\r\n", tt_escape ? "enabled" : "disabled");
     }
     return(0);
@@ -1439,9 +1439,9 @@ initpat() {
 */
 int
 #ifdef CK_ANSIC
-matchname( char * filename, int local, int os )
+matchname( char * filename, int isloc, int os )
 #else
-matchname(filename, local, os) char * filename; int local; int os;
+matchname(filename, isloc, os) char * filename; int isloc; int os;
 #endif /* CK_ANSIC */
 {
     int rc = -1;                        /* Return code */
@@ -1470,7 +1470,7 @@ matchname(filename, local, os) char * filename; int local; int os;
         zstrip(name,&p);                /* Strip pathname too */
         name = p;
 
-        if (local) {
+        if (isloc) {
             if (txtpatterns[0]) {       /* Search text patterns */
                 for (i = 0; i < FTPATTERNS && txtpatterns[i]; i++) {
                     if (ckmatch(txtpatterns[i],name,filecase,1)) {
@@ -1582,9 +1582,9 @@ matchname(filename, local, os) char * filename; int local; int os;
 */
 int
 #ifdef CK_ANSIC
-scanfile( char * name, int * flag, int nscanfile )
+scanfile( char * name, int * flag, int sfmax )
 #else
-scanfile(name,flag,nscanfile) char * name; int * flag, nscanfile;
+scanfile(name,flag,sfmax) char * name; int * flag, sfmax;
 #endif /* CK_ANSIC */
 {
     FILE * fp;                          /* File pointer */
@@ -1636,7 +1636,7 @@ scanfile(name,flag,nscanfile) char * name; int * flag, nscanfile;
     if (pipesend || calibrate || sndarray) /* Only for real files */
       return(-1);
 #endif /* NOXFER */
-    debug(F111,"scanfile",name,nscanfile);
+    debug(F111,"scanfile",name,sfmax);
 #ifdef PATTERNS
     if (!filepeek) {
         pv = matchname(name,1,-1);
@@ -1684,10 +1684,10 @@ scanfile(name,flag,nscanfile) char * name; int * flag, nscanfile;
               runmax = runzero;
             break;
         }
-        if (nscanfile < 0) {            /* Reading whole file */
+        if (sfmax < 0) {            /* Reading whole file */
             readsize = SCANFILEBUF;
         } else {                        /* Reading first nscanfilee bytes */
-            readsize = nscanfile - bytes;
+            readsize = sfmax - bytes;
             if (readsize < 1)
               break;
             if (readsize > SCANFILEBUF)
@@ -1718,10 +1718,10 @@ scanfile(name,flag,nscanfile) char * name; int * flag, nscanfile;
             } else if (!ckstrcmp((char *)buf,"%!PS-Ado",8,1)) {
                 /* Ditto for PostScript */
 #ifdef DEBUG
-                int i;
-                for (i = 8; i < count; i++) {
-                    if (buf[i] < '!') {
-                        buf[i] = NUL;
+                int pi1;
+                for (pi1 = 8; pi1 < count; pi1++) {
+                    if (buf[pi1] < '!') {
+                        buf[pi1] = NUL;
                         break;
                     }
                 }
@@ -1733,10 +1733,10 @@ scanfile(name,flag,nscanfile) char * name; int * flag, nscanfile;
             } else if (!ckstrcmp((char *)buf,") HP-PCL",8,1)) {
                 /* HP PCL printer language */
 #ifdef DEBUG
-                int i;
-                for (i = 8; i < count; i++) {
-                    if (buf[i] < '!') {
-                        buf[i] = NUL;
+                int pi2;
+                for (pi2 = 8; pi2 < count; pi2++) {
+                    if (buf[pi2] < '!') {
+                        buf[pi2] = NUL;
                         break;
                     }
                 }
@@ -1750,10 +1750,10 @@ scanfile(name,flag,nscanfile) char * name; int * flag, nscanfile;
               else if (buf[0] == '\033' && (buf[1] == 'E' || buf[1] == '%')) {
                 /* Ditto for PJL Job printer header */
 #ifdef DEBUG
-                int i;
-                for (i = 2; i < count; i++) {
-                    if (buf[i] < '!') {
-                        buf[i] = NUL;
+                int pi3;
+                for (pi3 = 2; pi3 < count; pi3++) {
+                    if (buf[pi3] < '!') {
+                        buf[pi3] = NUL;
                         break;
                     }
                 }
@@ -2798,19 +2798,19 @@ fatal(msg) char *msg;
 
 char *
 #ifdef CK_ANSIC
-bldlen( char * str, char * dest )
+bldlen( char * str, char * sdst )
 #else
-bldlen(str,dest) char *str, *dest;
+bldlen(str,sdst) char *str, *sdst;
 #endif /* CK_ANSIC */
 {
     int len;
     len = (int)strlen(str);
     if (len > 94)
-      *dest = SP;
+      *sdst = SP;
     else
-      *dest = (char) tochar(len);
-    strcpy(dest+1,str);                 /* Checked below in setgen() */
-    return(dest+len+1);
+      *sdst = (char) tochar(len);
+    strcpy(sdst+1,str);                 /* Checked below in setgen() */
+    return(sdst+len+1);
 }
 
 
@@ -4018,14 +4018,14 @@ doxlog(x, fn, fs, fm, status, msg)
     debug(F110,"doxlog buf 1", buf, len);
     s = buf + len;
     if (status == 0 && left > 32) {
-        long cps = 0L;
+        long xcps = 0L;
 #ifdef GFTIMER
         debug(F101,"DOXLOG fpxfsecs","",(long)(fpxfsecs * 1000));
-        if (fpxfsecs) cps = (long)((CKFLOAT) fs / fpxfsecs);
-        sprintf(s,"%s\"%0.3fsec %ldcps\"",sep,fpxfsecs,cps);
+        if (fpxfsecs) xcps = (long)((CKFLOAT) fs / fpxfsecs);
+        sprintf(s,"%s\"%0.3fsec %ldcps\"",sep,fpxfsecs,xcps);
 #else
-        if (xfsecs) cps = fs / xfsecs;
-        sprintf(s,"%s\"%ldsec %ldcps\"",sep,xfsecs,cps);
+        if (xfsecs) xcps = fs / xfsecs;
+        sprintf(s,"%s\"%ldsec %ldcps\"",sep,xfsecs,xcps);
 #endif /* GFTIMER */
     } else if ((int)strlen(msg) + 4 < left) {
         sprintf(s,"%s\"%s\"",sep,msg);
@@ -5173,14 +5173,14 @@ doclean(fc) int fc;
     debug(F101,"doclean exithangup","",exithangup);
     if (local && exithangup) {          /* Close communication connection */
         extern int haslock;
-        int x;
+        int hx;
 
-        x = ttchk();
-        debug(F101,"doclean ttchk()","",x);
+        hx = ttchk();
+        debug(F101,"doclean ttchk()","",hx);
 #ifdef OS2ORUNIX
         debug(F101,"doclean ttyfd","",ttyfd);
 #endif /* OS2ORUNIX */
-        if (x >= 0
+        if (hx >= 0
 #ifdef OS2
             || ttyfd != -1
 #else
@@ -7203,26 +7203,26 @@ static CK_OFF_T old_tr = (CK_OFF_T)-1;  /* Time remaining previously */
 
 static CK_OFF_T
 #ifdef CK_ANSIC
-shoetl(CK_OFF_T old_tr, long cps, CK_OFF_T fsiz, CK_OFF_T howfar)
+shoetl(CK_OFF_T potr, long pcps, CK_OFF_T fsiz, CK_OFF_T howfar)
 #else
-    shoetl(old_tr, cps, fsiz, howfar) long cps; CK_OFF_T old_tr, fsiz, howfar;
+    shoetl(potr, pcps, fsiz, howfar) long pcps; CK_OFF_T potr, fsiz, howfar;
 #endif /* CK_ANSIC */
 /* shoetl */ {                          /* Estimated time left in transfer */
     CK_OFF_T tr;                        /* Time remaining, seconds */
 
 #ifdef GFTIMER
-    if (fsiz > 0L && cps > 0L)
-      tr = (CK_OFF_T)((CKFLOAT)(fsiz - howfar) / (CKFLOAT)cps);
+    if (fsiz > 0L && pcps > 0L)
+      tr = (CK_OFF_T)((CKFLOAT)(fsiz - howfar) / (CKFLOAT)pcps);
     else
       tr = (CK_OFF_T)-1;
 #else
-    tr = (fsiz > 0L && cps > 0L) ?
-      ((fsiz - howfar) / cps) :
+    tr = (fsiz > 0L && pcps > 0L) ?
+      ((fsiz - howfar) / pcps) :
         (CK_OFF_T)-1;
 #endif /* GFTIMER */
     move(CW_TR,22);
     if (tr > (CK_OFF_T)-1) {
-        if (tr != old_tr) {
+        if (tr != potr) {
             printw("%s",hhmmss(tr));
 #ifdef KUI
 #ifndef K95G
@@ -7558,7 +7558,7 @@ char *s;        /* a string */
     static CK_OFF_T fbyt = 0L; /* Total file bytes of all files transferred */
     static CK_OFF_T howfar = 0L; /* How much of current file has been xfer'd */
     static int  pctlbl = 0L;  /* Percent done vs Bytes so far */
-    long cps = 0L;
+    long scps = 0L;
 
     int net = 0;
     int xnet = 0;
@@ -8461,12 +8461,12 @@ char *s;        /* a string */
             KuiSetProperty(KUI_FILE_TRANSFER, (intptr_t) CW_FFC, (intptr_t) howfar);
 #endif /* K95G */
 #endif /* KUI */
-            cps = shocps((int) pct, fsiz, howfar);
+            scps = shocps((int) pct, fsiz, howfar);
             /* old_tr = shoetl(old_tr, cps, fsiz, howfar); */
             break;
 
           case '%':                     /* Timeouts, retransmissions */
-            cps = shocps((int) pct, fsiz, howfar);
+            scps = shocps((int) pct, fsiz, howfar);
             /* old_tr = shoetl(old_tr, cps, fsiz, howfar); */
 
             errors = retrans + crunched + timeouts;
@@ -8511,7 +8511,7 @@ char *s;        /* a string */
             fcnt = fbyt = 0L;           /* So no bytes for this file */
             break;
           case 'Q':                     /* Crunched packet */
-            cps = shocps((int) pct, fsiz, howfar);
+            scps = shocps((int) pct, fsiz, howfar);
             /* old_tr = shoetl(old_tr, cps, fsiz, howfar); */
             move(CW_ERR,22);
             printw("Damaged Packet");
@@ -8544,7 +8544,7 @@ char *s;        /* a string */
 #endif /* KUI */
             break;
           case 'T':                     /* Timeout */
-            cps = shocps((int) pct, fsiz, howfar);
+            scps = shocps((int) pct, fsiz, howfar);
             /* old_tr = shoetl(old_tr, cps, fsiz, howfar); */
             move(CW_ERR,22);
             printw("Timeout %d sec",rcvtimo);

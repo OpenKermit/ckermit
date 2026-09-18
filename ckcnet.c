@@ -5231,7 +5231,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
       if (nett == NET_VSOCK) {
         unsigned int vcid, vport;
         struct sockaddr_vm svm;
-        int i;
+        int vi;
 
         netclos();                      /* Close any previous connection. */
         ttnproto = NP_NONE;              /* No protocol layered on top. */
@@ -5251,11 +5251,11 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
         }
 
         if ((ttyfd = socket(AF_VSOCK,SOCK_STREAM,0)) < 0) {
-            i = errno;
-            debug(F101,"netopen vsock socket error","",i);
+            vi = errno;
+            debug(F101,"netopen vsock socket error","",vi);
             perror("VSOCK socket error");
             netclos();
-            errno = i;
+            errno = vi;
             return(-1);
         }
 
@@ -5265,15 +5265,15 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
         svm.svm_port = vport;
 
         if (connect(ttyfd,(struct sockaddr *)&svm,sizeof(svm)) < 0) {
-            i = errno;
-            debug(F101,"netopen vsock connect errno","",i);
+            vi = errno;
+            debug(F101,"netopen vsock connect errno","",vi);
             if (!quiet)
               printf("Failed\n");
             netclos();
             ttyfd = -1;
             wasclosed = 1;
             ttnproto = NP_NONE;
-            errno = i;
+            errno = vi;
             return(-1);
         }
         if (!quiet)
@@ -11734,7 +11734,7 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
     char * agent;
 #endif /* CK_ANSIC */
 {
-    char namecopy[NAMECPYL];
+    char honc[NAMECPYL];
     char *p;
 #ifndef CK_IPV6
     int i, dns = 0;
@@ -11785,7 +11785,7 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
         rdns_len = 0;
 
     *http_ip = '\0';                     /* Initialize IP address string */
-    namecopy[0] = '\0';
+    honc[0] = '\0';
 
 #ifdef DEBUG
     if (deblog) {
@@ -11828,18 +11828,18 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
 
         ckmakmsg(proxycopy,sizeof(proxycopy),hostname,":",
                  ckuitoa(ntohs(service->s_port)),NULL);
-        ckstrncpy(namecopy,tcp_http_proxy,NAMECPYL);
+        ckstrncpy(honc,tcp_http_proxy,NAMECPYL);
 
-        p = namecopy;                       /* Was a service requested? */
+        p = honc;                       /* Was a service requested? */
         while (*p != '\0' && *p != ':') p++; /* Look for colon */
         if (*p == ':') {                    /* Have a colon */
-            debug(F110,"http_open name has colon",namecopy,0);
+            debug(F110,"http_open name has colon",honc,0);
             *p++ = '\0';                    /* Get service name or number */
         } else {
             strcpy(++p,"http");
         }
 
-        service = ckgetservice(namecopy,p,http_ip,CK_IPADDRLEN);
+        service = ckgetservice(honc,p,http_ip,CK_IPADDRLEN);
         if (!service) {
             fprintf(stderr, "Can't find port for service %s\n", p);
 #ifdef TGVORWIN
@@ -11854,13 +11854,13 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
         /* copy the proxyname and remove the service if any so we can use
          * it as the hostname
          */
-        ckstrncpy(namecopy,tcp_http_proxy,NAMECPYL);
-        p = namecopy;                       /* Was a service requested? */
+        ckstrncpy(honc,tcp_http_proxy,NAMECPYL);
+        p = honc;                       /* Was a service requested? */
         while (*p != '\0' && *p != ':') p++; /* Look for colon */
         if (*p == ':') {                    /* Have a colon */
             *p = '\0';                      /* terminate string */
         }
-        hostname = namecopy;                /* use proxy as hostname */
+        hostname = honc;                /* use proxy as hostname */
     }
 
     /* Set up socket structure and get host address */
@@ -11874,11 +11874,11 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
     {
         struct sockaddr_storage cn_addr;
         GSOCKNAME_T cn_len = sizeof(cn_addr);
-        char svcbuf[16];
+        char hpsvc[16];
         int got_addr = 0;
 
-        ckstrncpy(svcbuf,ckuitoa(ntohs(service->s_port)),sizeof(svcbuf));
-        httpfd = ck_tcp_connect(http_ip[0] ? http_ip : hostname, svcbuf,
+        ckstrncpy(hpsvc,ckuitoa(ntohs(service->s_port)),sizeof(hpsvc));
+        httpfd = ck_tcp_connect(http_ip[0] ? http_ip : hostname, hpsvc,
                                 quiet, &got_addr, &cn_addr, &cn_len, 0);
         if (httpfd < 0) {
             if (!got_addr)
@@ -15537,25 +15537,25 @@ fwdx_open_client_channel(channel) int channel;
 #endif /* INADDR_NONE */
              )
         {
-            struct hostent *host;
-            host = gethostbyname(buf);
-            if ( host == NULL )
+            struct hostent *hent;
+            hent = gethostbyname(buf);
+            if ( hent == NULL )
                 return(-1);
-            host = ck_copyhostent(host);
+            hent = ck_copyhostent(hent);
 #ifdef HADDRLIST
 #ifdef h_addr
             /* This is for trying multiple IP addresses - see <netdb.h> */
-            if (!(host->h_addr_list))
+            if (!(hent->h_addr_list))
                 return(-1);
-            bcopy(host->h_addr_list[0],
+            bcopy(hent->h_addr_list[0],
                    (caddr_t)&saddr.sin_addr,
-                   host->h_length
+                   hent->h_length
                    );
 #else
-            bcopy(host->h_addr, (caddr_t)&saddr.sin_addr, host->h_length);
+            bcopy(hent->h_addr, (caddr_t)&saddr.sin_addr, hent->h_length);
 #endif /* h_addr */
 #else  /* HADDRLIST */
-            bcopy(host->h_addr, (caddr_t)&saddr.sin_addr, host->h_length);
+            bcopy(hent->h_addr, (caddr_t)&saddr.sin_addr, hent->h_length);
 #endif /* HADDRLIST */
         }
 
@@ -15672,28 +15672,28 @@ fwdx_server_avail() {
 #endif /* INADDR_NONE */
          )
     {
-        struct hostent *host;
-        host = gethostbyname(buf);
-        if ( host == NULL ) {
+        struct hostent *hent2;
+        hent2 = gethostbyname(buf);
+        if ( hent2 == NULL ) {
             debug(F110,"fwdx_server_avail() gethostbyname() failed",
                    myipaddr,0);
             return(-1);
         }
-        host = ck_copyhostent(host);
+        hent2 = ck_copyhostent(hent2);
 #ifdef HADDRLIST
 #ifdef h_addr
         /* This is for trying multiple IP addresses - see <netdb.h> */
-        if (!(host->h_addr_list))
+        if (!(hent2->h_addr_list))
             return(-1);
-        bcopy(host->h_addr_list[0],
+        bcopy(hent2->h_addr_list[0],
                (caddr_t)&saddr.sin_addr,
-               host->h_length
+               hent2->h_length
                );
 #else
-        bcopy(host->h_addr, (caddr_t)&saddr.sin_addr, host->h_length);
+        bcopy(hent2->h_addr, (caddr_t)&saddr.sin_addr, hent2->h_length);
 #endif /* h_addr */
 #else  /* HADDRLIST */
-        bcopy(host->h_addr, (caddr_t)&saddr.sin_addr, host->h_length);
+        bcopy(hent2->h_addr, (caddr_t)&saddr.sin_addr, hent2->h_length);
 #endif /* HADDRLIST */
     }
 

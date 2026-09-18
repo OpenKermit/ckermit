@@ -3048,10 +3048,10 @@ MAINNAME( argc, argv ) int argc; char **argv;
     unbuf++;                            /* as a compile-time option */
 #endif  /* NONOSETBUF */
     if (!unbuf) {                       /* Or as a command-line selection */
-        int i, n;                       /* We have to pre-pre-scan for */
+        int ui, n;                       /* We have to pre-pre-scan for */
         char * s;                       /* this one. */
-        for (i = 1; i < argc; i++) {
-            s = argv[i];
+        for (ui = 1; ui < argc; ui++) {
+            s = argv[ui];
             if (!s) n = 0; else n = (int)strlen(s);
             if (n > 4) {
                 if (!ckstrcmp("--unbuffered",s,n,0)) {

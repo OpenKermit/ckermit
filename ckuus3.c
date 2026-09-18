@@ -3587,7 +3587,7 @@ dosexp(s) char *s;
     extern int makestrlen;              /* (see makestr()) */
     struct stringarray * q = NULL;      /* cksplit() return type */
     char * p[SEXPMAX+1], ** p2;         /* List items (must be on stack) */
-    char * line = NULL;                 /* For building macro argument list */
+    char * sxline = NULL;                /* For building macro arg list */
     int nosplit = 0;
     int linelen = 0;
     int linepos = 0;
@@ -3598,7 +3598,7 @@ dosexp(s) char *s;
     int fpflag = 0, quit = 0, macro = 0;
     CK_OFF_T result = 0, i, j, k, n = 0;
     CKFLOAT fpj, fpresult = 0.0;        /* Floating-point results */
-    int pflag = 0;                      /* Have predicate */
+    int sxpflag = 0;                      /* Have predicate */
     int presult = 0;                    /* Predicate result */
     int mustfree = 0;                   /* If we malloc'd we must free */
 
@@ -3702,10 +3702,10 @@ dosexp(s) char *s;
             goto xdosexp;
         }
         if (n == 1 && s[0] == '\047') { /* One but it's a string constant */
-            int x = (int) strlen(s);
+            int x9 = (int) strlen(s);
             s2 = s;
-            if (s2[1] == '(' && s2[x-1] == ')') { /* '(string) */
-                s2[x-1] = NUL;
+            if (s2[1] == '(' && s2[x9-1] == ')') { /* '(string) */
+                s2[x9-1] = NUL;
                 s2 += 2;
             }
             goto xdosexp;
@@ -3721,9 +3721,9 @@ dosexp(s) char *s;
         if (s[0] == '(') {              /* Operator is an S-Expression */
             s2 = dosexp(p[1]);          /* Replace it by its value */
             if (s2[0] == '\047') {      /* LISP string literal */
-                int x = (int) strlen(s2);
-                if (s2[1] == '(' && s2[x-1] == ')') { /* '(string) */
-                    s2[x-1] = NUL;
+                int x8 = (int) strlen(s2);
+                if (s2[1] == '(' && s2[x8-1] == ')') { /* '(string) */
+                    s2[x8-1] = NUL;
                     s2 += 2;
                     printf("XXX s2.2=[%s]\n",s2);
                 }
@@ -3963,7 +3963,7 @@ dosexp(s) char *s;
                     sexprc++;
                     goto xdosexp;
                 }
-                pflag = 1;
+                sxpflag = 1;
                 presult = 1;
             }
             if (kwflags & SXF_FLO)      /* Operator requires floating point */
@@ -4054,10 +4054,10 @@ dosexp(s) char *s;
                     int ok = 1;
                     char buf[32];
                     if (c == CMDQ) {    /* A backslash variable */
-                        int n = 32;
+                        int n9 = 32;
                         char * bp = buf;
                         buf[0] = NUL;
-                        if (zzstring(s3,&bp,&n) < 0 || !buf[0])
+                        if (zzstring(s3,&bp,&n9) < 0 || !buf[0])
                           ok = 0;
                         s2 = buf;
                     } else {            /* A macro */
@@ -4203,7 +4203,7 @@ dosexp(s) char *s;
             n++;
             goto xdosexp;
         } else if (x == SX_UNQ) {       /* UNQUOTE */
-            int k, xx = 0;
+            int k9, xx = 0;
             s2 = p[2];
             if (!s2) s2 = "";
             xx = strlen(s2);
@@ -4219,8 +4219,8 @@ dosexp(s) char *s;
                 s2 = dosexp(s2);
             } else if (s2[0] != '\047') {
             /* Case 3 - Variable */
-                if ((k = mxlook(mactab,p[2],nmac)) >= 0) {
-                    s2 = mactab[k].mval;
+                if ((k9 = mxlook(mactab,p[2],nmac)) >= 0) {
+                    s2 = mactab[k9].mval;
                 } else {
                     s2 = "";
                 }
@@ -4249,9 +4249,9 @@ dosexp(s) char *s;
 
     quit = 0;                           /* Short-circuit flag. */
     if (macro && n > 1) {               /* If operator is a macro */
-        if (!line) {                    /* allocate local buffer for */
-            line = (char *)malloc(SXMLEN); /* the evaluated argument list. */
-            if (!line) {
+        if (!sxline) {                    /* allocate local buffer for */
+            sxline = (char *)malloc(SXMLEN); /* the evaluated argument list. */
+            if (!sxline) {
                 printf("?Memory allocation failure - \"%s\"\n",p[1]);
                 sexprc++;
                 goto xdosexp;
@@ -4260,7 +4260,7 @@ dosexp(s) char *s;
             /* debug(F101,"dosexp macro arg buffer","",linelen); */
         }
         linepos = 0;
-        line[linepos] = NUL;
+        sxline[linepos] = NUL;
     }
     for (i = 1; ((i < n) && !sexprc && !quit); i++) { /* Loop thru operands */
         quote = 0;
@@ -4338,29 +4338,29 @@ dosexp(s) char *s;
                 register char c4, * s4 = s2;
                 while ((c4 = *s4++)) if (c4 == SP) { quote++; break; }
             }
-            if (quote) line[linepos++] = '{';
-            while ((line[linepos++] = *s2++)) {
+            if (quote) sxline[linepos++] = '{';
+            while ((sxline[linepos++] = *s2++)) {
                 if (linepos > linelen - 3) {
                     char * tmp = NULL;
-                    line[linepos] = NUL;
+                    sxline[linepos] = NUL;
                     linelen += SXMLEN;
                     tmp = (char *) malloc(linelen);
                     if (!tmp) {
                         printf("?Memory re-allocation failure - \"%s...\"\n",
-                               line);
+                               sxline);
                         sexprc++;
                         goto xdosexp;
                     }
-                    strcpy(tmp,line);
-                    free(line);
-                    line = tmp;
+                    strcpy(tmp,sxline);
+                    free(sxline);
+                    sxline = tmp;
                 }
             }
             linepos--;                  /* Back up over NUL */
             if (quote)
-              line[linepos++] = '}';    /* End quote group */
-            line[linepos++] = SP;       /* add a space */
-            line[linepos] = NUL;        /* and a NUL */
+              sxline[linepos++] = '}';    /* End quote group */
+            sxline[linepos++] = SP;       /* add a space */
+            sxline[linepos] = NUL;        /* and a NUL */
             continue;
         }
         if (!quote) {                   /* Built-in operator... */
@@ -4729,7 +4729,7 @@ dosexp(s) char *s;
             sexprc++;
         }
     }
-    if (!pflag)                         /* Not a predicate */
+    if (!sxpflag)                         /* Not a predicate */
       sexppv = -1;                      /* So unset this */
 
   /* domacro: */
@@ -4755,12 +4755,12 @@ dosexp(s) char *s;
         if (fsexpflag) {                /* If embedded in a function call */
             if (cmpush() > -1) {        /* get a new copy of the parsing */
                 extern int ifc;         /* environment, */
-                int k, ifcsav = ifc;    /* save the IF state */
-                dodo(mx,line,0);        /* Set up the macro */
-                k = parser(1);          /* Call the parser to execute it */
+                int k9, ifcsav = ifc;    /* save the IF state */
+                dodo(mx,sxline,0);        /* Set up the macro */
+                k9 = parser(1);          /* Call the parser to execute it */
                 cmpop();                /* Pop back to previous level */
                 ifc = ifcsav;           /* restore IF state */
-                if (k == 0)             /* If no error */
+                if (k9 == 0)             /* If no error */
                   s2 = mrval[maclvl+1]; /* get return value, if any */
                 if (!s2) s2 = "";
                 debug(F110,sexpdebug("macro return"),s2,0);
@@ -4769,13 +4769,13 @@ dosexp(s) char *s;
                 sexprc++;
             }
         } else {                        /* Not embedded in a function call */
-            dodo(mx,line,0);            /* As above but without cmpush/pop() */
+            dodo(mx,sxline,0);           /* As above but without cmpush/pop */
             k = parser(1);
             if (k == 0)
               s2 = mrval[maclvl+1];
             if (!s2) s2 = "";
         }
-    } else if (pflag) {                 /* Predicate */
+    } else if (sxpflag) {                 /* Predicate */
         if (not) presult = presult ? 0 : 1;
         sexppv = presult;               /* So set predicate value (0 or 1) */
         s2 = presult ? "1" : "0";
@@ -4806,13 +4806,13 @@ dosexp(s) char *s;
         } else
           xx = 0;
         if (xx > sxrlen[sexpdep] || !sxresult[sexpdep]) {
-            int k;
-            k = xx + xx / 4;
-            if (k < 32) k = 32;
+            int k8;
+            k8 = xx + xx / 4;
+            if (k8 < 32) k8 = 32;
             if (sxresult[sexpdep])
               free(sxresult[sexpdep]);
-            if ((sxresult[sexpdep] = (char *)malloc(k))) {
-                sxrlen[sexpdep] = k;
+            if ((sxresult[sexpdep] = (char *)malloc(k8))) {
+                sxrlen[sexpdep] = k8;
             } else {
                 printf("?Memory allocation failure - \"%s\"\n",s2);
                 sexprc++;
@@ -4834,8 +4834,8 @@ dosexp(s) char *s;
         }
     }
   /*xxdosexp:*/
-    if (line)                           /* If macro arg buffer allocated */
-      free(line);                       /* free it. */
+    if (sxline)                           /* If macro arg buffer allocated */
+      free(sxline);                       /* free it. */
     if (mustfree) {                     /* And free local copy of split list */
         for (i = 1; i <= n; i++) {
             if (p[i]) free(p[i]);
@@ -5955,10 +5955,10 @@ setdial(y) int y;
           return(dialstr(&dialpxi,
                        "Internal-call prefix of PBX you are calling from"));
 #else
-          int x;
-          if ((x = cmtxt("Internal-call prefix of PBX you are calling from",
+          int x9;
+          if ((x9 = cmtxt("Internal-call prefix of PBX you are calling from",
                          "",&s,NULL)) < 0) /* Don't evaluate */
-            return(x);
+            return(x9);
 #ifndef NOSPL
           if (*s) {
               char c, * p = tmpbuf;
@@ -5969,8 +5969,8 @@ setdial(y) int y;
                       ckstrcmp(s,"\\v(d$px)",8,0) &&
                       ckstrcmp(s,"\\v(d$pxx)",9,0) &&
                       ckstrcmp(s,"\\v(d$p)",7,0)) {
-                      x = TMPBUFSIZ;
-                      zzstring(s,&p,&x);
+                      x9 = TMPBUFSIZ;
+                      zzstring(s,&p,&x9);
                       s = tmpbuf;
                   }
               }
@@ -6018,12 +6018,12 @@ setdial(y) int y;
               } else break;
           }
           if (x == -3) {                /* Command was successful */
-              int m;
-              m = (y == XYDTFC) ? ntollfree : ndialpxx;
+              int m9;
+              m9 = (y == XYDTFC) ? ntollfree : ndialpxx;
               if ((x = cmcfm()) < 0)
                 return(x);
               x = 1;
-              for (i = 0; i < m; i++) { /* Remove old list, if any */
+              for (i = 0; i < m9; i++) { /* Remove old list, if any */
                   if  (y == XYDTFC)
                     makestr(&(dialtfc[i]),NULL);
                   else
@@ -6162,12 +6162,12 @@ setdial(y) int y;
               } else break;
           }
           if (x == -3) {                /* Command was successful */
-              int m;
-              m = (y == XYDPUCC) ? ndialpucc : ndialtocc;
+              int m8;
+              m8 = (y == XYDPUCC) ? ndialpucc : ndialtocc;
               if ((x = cmcfm()) < 0)
                 return(x);
               x = 1;
-              for (i = 0; i < m; i++) { /* Remove old list, if any */
+              for (i = 0; i < m8; i++) { /* Remove old list, if any */
                   if (y == XYDPUCC)
                     makestr(&(dialpucc[i]),NULL);
                   else
@@ -7117,15 +7117,15 @@ protofield(char * current, char * help, char * px )
 protofield(current, help, px) char * current, * help, * px;
 #endif /* CK_ANSIC */
 {
-    char *s, tmpbuf[XPCMDLEN+1];
+    char *s, pftmpbuf[XPCMDLEN+1];
     int x;
 
     if (current)                        /* Put braces around default */
-      ckmakmsg(tmpbuf,TMPBUFSIZ,"{",current,"}",NULL);
+      ckmakmsg(pftmpbuf,TMPBUFSIZ,"{",current,"}",NULL);
     else
-      tmpbuf[0] = NUL;
+      pftmpbuf[0] = NUL;
 
-    if ((x = cmfld(help, (char *)tmpbuf, &s, xxstring)) < 0)
+    if ((x = cmfld(help, (char *)pftmpbuf, &s, xxstring)) < 0)
       return(x);
     if ((int)strlen(s) > XPCMDLEN) {
         printf("?Sorry - maximum length is %d\n", XPCMDLEN);
@@ -10149,7 +10149,7 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n");
 #ifndef NOHTTP
           case XYTCP_HTTP_PROXY: {
               struct FDB sw, tx;
-              int n, x;
+              int n, x9;
               char ubuf[LOGINLEN+1], pbuf[LOGINLEN+1], abuf[256];
               ubuf[0] = pbuf[0] = abuf[0] = 0;
 
@@ -10176,12 +10176,12 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n");
                      NULL
                      );
               while (1) {
-                  if ((x = cmfdb(&sw)) < 0) {
-                      if (x == -3) {
-                          x = -9;
+                  if ((x9 = cmfdb(&sw)) < 0) {
+                      if (x9 == -3) {
+                          x9 = -9;
                           printf("?Hostname required\n");
                       }
-                      return(x);
+                      return(x9);
                   }
                   if (cmresult.fcode != _CMKEY)
                     break;
@@ -10190,12 +10190,12 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n");
                     case UPW_USER:
                     case UPW_PASS:
                     case UPW_AGENT:
-                      if ((x = cmfld((n == UPW_USER) ?
+                      if ((x9 = cmfld((n == UPW_USER) ?
                                      "Username" :
                                      ((n == UPW_PASS) ? "Password" : "Agent"),
                                      "", &s, xxstring)) < 0) {
-                          if (x != -3)
-                            return(x);
+                          if (x9 != -3)
+                            return(x9);
                       }
                       ckstrncpy((n == UPW_USER) ? ubuf :
                         ((n == UPW_PASS) ? pbuf : abuf), s,
@@ -11134,41 +11134,41 @@ case XYCARR:                            /* CARRIER-WATCH */
                 extern int auth_type_user[];
                 extern int sl_auth_type_user[];
                 extern int sl_auth_saved;
-                int i, j, atypes[AUTHTYPLSTSZ];
+                int i9, j, atypes[AUTHTYPLSTSZ];
 
-                for (i = 0; i < AUTHTYPLSTSZ; i++) {
+                for (i9 = 0; i9 < AUTHTYPLSTSZ; i9++) {
                     if ((y = cmkey(autyptab,nautyp,"",
-                                   i == 0 ? "automatic" : "" ,
+                                   i9 == 0 ? "automatic" : "" ,
                                    xxstring)) < 0) {
                         if (y == -3)
                           break;
                         return(y);
                     }
-                    if (i > 0 && (y == AUTHTYPE_AUTO || y == AUTHTYPE_NULL)) {
+                    if (i9 > 0 && (y == AUTHTYPE_AUTO || y == AUTHTYPE_NULL)) {
                         printf(
                         "\r\n?Choice may only be used in first position.\r\n");
                         return(-9);
                     }
-                    for (j = 0; j < i; j++) {
+                    for (j = 0; j < i9; j++) {
                         if (atypes[j] == y) {
                             printf("\r\n?Choice has already been used.\r\n");
                             return(-9);
                         }
                     }
-                    atypes[i] = y;
+                    atypes[i9] = y;
                     if (y == AUTHTYPE_NULL || y == AUTHTYPE_AUTO) {
-                        i++;
+                        i9++;
                         break;
                     }
                 }
-                if (i < AUTHTYPLSTSZ)
-                  atypes[i] = AUTHTYPE_NULL;
+                if (i9 < AUTHTYPLSTSZ)
+                  atypes[i9] = AUTHTYPE_NULL;
                 if ((z = cmcfm()) < 0)
                   return(z);
                 sl_auth_saved = 0;
-                for (i = 0; i < AUTHTYPLSTSZ; i++) {
-                    auth_type_user[i] = atypes[i];
-                    sl_auth_type_user[i] = 0;
+                for (i9 = 0; i9 < AUTHTYPLSTSZ; i9++) {
+                    auth_type_user[i9] = atypes[i9];
+                    sl_auth_type_user[i9] = 0;
                 }
             } else if (x == TN_AU_HOW) {
                 if ((y = cmkey(auhowtab,nauhow,"","any",xxstring)) < 0)
@@ -11473,19 +11473,19 @@ case XYCARR:                            /* CARRIER-WATCH */
             return(success = 1);
 
           case CK_TN_PUID: {            /* PROMPT-FOR-USERID */
-              int i,len;
+              int i8,len;
               if ((y = cmtxt("Prompt string","",&s,xxstring)) < 0)
                 return(y);
               s = brstrip(s);
               /* we must check to make sure there are no % fields */
               len = strlen(s);
-              for (i = 0; i < len; i++) {
-                  if (s[i] == '%') {
-                      if (s[i+1] != '%') {
+              for (i8 = 0; i8 < len; i8++) {
+                  if (s[i8] == '%') {
+                      if (s[i8+1] != '%') {
                           printf("%% fields are not used in this command.\n");
                           return(-9);
                       }
-                      i++;
+                      i8++;
                   }
               }
               makestr(&tn_pr_uid,s);
@@ -12711,7 +12711,7 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
 #ifdef CK_SPEED
       case XYQCTL: {
           short *p;
-          int zz;
+          int zz9;
           if ((z = cmkey(ctltab,2, "control-character prefixing option",""
                          ,xxstring)) < 0)
             return(z);
@@ -12770,12 +12770,12 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
                   x_ifnum = 0;
 #endif /* NOSPL */
 #ifdef UNPREFIXZERO
-                  zz = 0;
+                  zz9 = 0;
 #else
 #ifndef OS2
-                  zz = 1 - z;
+                  zz9 = 1 - z;
 #else
-                  zz = 0;               /* Allow 0 (but only for Zmodem) */
+                  zz9 = 0;               /* Allow 0 (but only for Zmodem) */
 #endif /* OS2 */
 #endif /* UNPREFIXZERO */
 
@@ -12783,9 +12783,9 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
 
                   if ((y >  31 && y < 127) || /* A specific numeric value */
                       (y > 159 && y < 255) || /* Check that it is a valid */
-                      (y < zz) ||       /* control code. */
+                      (y < zz9) ||       /* control code. */
                       (y > 255)) {
-                      printf("?Values allowed are: %d-31, 127-159, 255\n",zz);
+                      printf("?Values allowed are: %d-31, 127-159, 255\n",zz9);
                       if (p) free((char *)p);
                       return(-9);
                   }
@@ -12863,8 +12863,8 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
       case XYALRM: {
 #ifndef COMMENT
           int yy;
-          long zz;
-          zz = -1L;
+          long zz8;
+          zz8 = -1L;
           yy = x_ifnum;
           x_ifnum = 1;                  /* Turn off internal complaints */
           y = cmnum("Seconds from now, or time of day as hh:mm:ss",
@@ -12872,8 +12872,8 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
           x_ifnum = yy;
           if (y < 0) {
               if (y == -2) {            /* Invalid number or expression */
-                  zz = tod2sec(atmbuf); /* Convert to secs since midnight */
-                  if (zz < 0L) {
+                  zz8 = tod2sec(atmbuf); /* Convert to secs since midnight */
+                  if (zz8 < 0L) {
                       printf("?Number, expression, or time of day required\n");
                       return(-9);
                   } else {
@@ -12884,9 +12884,9 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
                       ztime(&p);
                       tnow = atol(p+11) * 3600L +
                         atol(p+14) * 60L + atol(p+17);
-                      if (zz < tnow)    /* User's time before now */
-                        zz += 86400L;   /* So make it tomorrow */
-                      zz -= tnow;       /* Seconds from now. */
+                      if (zz8 < tnow)    /* User's time before now */
+                        zz8 += 86400L;   /* So make it tomorrow */
+                      zz8 -= tnow;       /* Seconds from now. */
                   }
               } else
                 return(y);
@@ -12896,9 +12896,9 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
               return(-9);
           }
           if ((y = cmcfm()) < 0) return(y);
-          if (zz > -1L) {               /* Time of day given? */
-              x = zz;
-              if (zz != (long) x) {
+          if (zz8 > -1L) {               /* Time of day given? */
+              x = zz8;
+              if (zz8 != (long) x) {
                   printf(
 "Sorry, arithmetic overflow - hh:mm:ss not usable on this platform.\n"
                          );
@@ -13028,11 +13028,11 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
             extern int zchkod;
             char tmpname[CKMAXPATH+1];
             char * p = tmpname;
-            int x;
+            int x9;
             zchkod = 1;                 /* Hack for asking zchko() if */
-            x = zchko(tmpbuf);          /* a directory is writeable */
+            x9 = zchko(tmpbuf);          /* a directory is writeable */
             zchkod = 0;
-            if (x < 0)
+            if (x9 < 0)
               printf("WARNING: %s does not appear to be writable\n",tmpbuf);
             zfnqfp(tmpbuf,CKMAXPATH,p); /* Get and store full pathname */
             makestr(&tempdir,tmpname);
@@ -14248,7 +14248,7 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
               sexpecho = x;
               break;
             case 1: {
-                int i, omax;
+                int i9, omax;
                 omax = sexpmaxdep;
                 if ((y = cmnum("Maximum recursion depth",
                                "1000",10,&x,xxstring)) < 0)
@@ -14257,8 +14257,8 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
                 if (z < 0)
                   return(z);
                 if (sxresult) {         /* Free old stack if allocated */
-                    for (i = 0; i < omax; i++)
-                      if (sxresult[i]) free(sxresult[i]);
+                    for (i9 = 0; i9 < omax; i9++)
+                      if (sxresult[i9]) free(sxresult[i9]);
                     free((char *)sxresult);
                     if (sxrlen) free((char *)sxrlen);
                     sxresult = NULL;

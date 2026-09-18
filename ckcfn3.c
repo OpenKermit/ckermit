@@ -1060,7 +1060,7 @@ sattr(xp, flag) int xp, flag;
         if (notafile || xp == 1) {      /* Is it not a real file? */
             extern char * zzndate();
             char * p;
-            int i;
+            int di;
 #ifdef CALIBRATE
             if (calibrate) {            /* Calibration run... */
                 x.lengthk = calibrate / 1024L; /* We know the length */
@@ -1072,8 +1072,8 @@ sattr(xp, flag) int xp, flag;
             ckstrncpy(xdate,zzndate(),24);
             xdate[8] = SP;
             ztime(&p);
-            for (i = 11; i < 19; i++)   /* copy hh:mm:ss */
-              xdate[i - 2] = p[i];      /* to xdate */
+            for (di = 11; di < 19; di++)   /* copy hh:mm:ss */
+              xdate[di - 2] = p[di];      /* to xdate */
             xdate[17] = NUL;            /* terminate */
             x.date.val = xdate;
             x.date.len = 17;
@@ -2104,7 +2104,7 @@ opena( char *f, struct zattr *zz )
 opena(f,zz) char *f; struct zattr *zz;
 #endif /* CK_ANSIC */
 {
-    int x, dispos = 0;
+    int x, opdp = 0;
     static struct filinfo fcb;          /* Must be static! */
 
     debug(F110,"opena f",f,0);
@@ -2149,14 +2149,14 @@ opena(f,zz) char *f; struct zattr *zz;
 
     if (zz->disp.len > 0) {             /* Incoming file has a disposition? */
         debug(F111,"open disposition",zz->disp.val,zz->disp.len);
-        dispos = (int) (*(zz->disp.val));
+        opdp = (int) (*(zz->disp.val));
     }
-    if (!dispos && xflg && remfile && remappd) /* REMOTE redirect append ? */
-      dispos = fcb.dsp;
+    if (!opdp && xflg && remfile && remappd) /* REMOTE redirect append ? */
+      opdp = fcb.dsp;
 
-    debug(F101,"opena dispos","",dispos);
+    debug(F101,"opena dispos","",opdp);
 
-    if (!dispos) {                               /* No special disposition? */
+    if (!opdp) {                               /* No special disposition? */
         if (fncact == XYFX_B && ofn1x && ofn2) { /* File collision = BACKUP? */
             if (zrename(ofn1,ofn2) < 0) {        /* Rename existing file. */
                 debug(F110,"opena rename fails",ofn1,0);
@@ -2164,7 +2164,7 @@ opena(f,zz) char *f; struct zattr *zz;
                 return(0);
             } else debug(F110,"opena rename ok",ofn2,0);
         }
-    } else if (dispos == 'R') {         /* Receiving a RESEND */
+    } else if (opdp == 'R') {         /* Receiving a RESEND */
         debug(F101,"opena remote len","",zz->length);
         debug(F101,"opena local len","",rs_len);
         if (ofn1[0])
@@ -2331,16 +2331,16 @@ openi(name) char *name;
 #ifdef PIPESEND
     debug(F101,"openi pipesend","",pipesend);
     if (pipesend) {
-        int x;
+        int pipx;
 #ifndef NOPUSH
-        x = zxcmd(ZIFILE,name);
+        pipx = zxcmd(ZIFILE,name);
 #else
-        x = 0;
+        pipx = 0;
 #endif /* NOPUSH */
-        i_isopen = (x > 0) ? 1 : 0;
+        i_isopen = (pipx > 0) ? 1 : 0;
         if (!i_isopen)
           ckstrncpy((char *)epktmsg,"Command or pipe failure",PKTMSGLEN);
-        debug(F111,"openi pipesend zxcmd",name,x);
+        debug(F111,"openi pipesend zxcmd",name,pipx);
         return(i_isopen);
     }
 #endif /* PIPESEND */
@@ -2417,15 +2417,15 @@ openo(name,zz,fcb) char *name; struct zattr *zz; struct filinfo *fcb;
 #ifdef PIPESEND
     debug(F101,"openo pipesend","",pipesend);
     if (pipesend) {
-        int x;
+        int pipx2;
 #ifndef NOPUSH
-        x = zxcmd(ZOFILE,(char *)srvcmd);
+        pipx2 = zxcmd(ZOFILE,(char *)srvcmd);
 #else
-        x = 0;
+        pipx2 = 0;
 #endif /* NOPUSH */
-        o_isopen = x > 0;
-        debug(F101,"openo zxcmd","",x);
-        return(x);
+        o_isopen = pipx2 > 0;
+        debug(F101,"openo zxcmd","",pipx2);
+        return(pipx2);
     }
 #endif /* PIPESEND */
 

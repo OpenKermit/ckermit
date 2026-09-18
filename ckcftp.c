@@ -1071,7 +1071,7 @@ static char * havemdtm = NULL;
 static int mgetmethod = 0;              /* NLST or MLSD */
 static int mgetforced = 0;
 
-static int i, /* j, k, */ x, y, z;      /* Volatile temporaries */
+static int wi, /* j, k, */ wx, wy, wz;  /* Volatile temporaries */
 static int c0, c1;                      /* Temp variables for characters */
 
 static char putpath[CKMAXPATH+1] = { NUL, NUL };
@@ -2424,9 +2424,9 @@ doftparg(c) char c;
               char * p = NULL, * q = NULL;
               int x, z;
               makestr(&p,*xargv);
-              y = ckindex("=",p,0,0,1);
-              if (y > 0)
-                p[y-1] = '\0';
+              wy = ckindex("=",p,0,0,1);
+              if (wy > 0)
+                p[wy-1] = '\0';
               x = lookup(ftpztab,p,nftpztab,&z);
               if (x < 0) {
                   printf("?Invalid security option: \"%s\"\n",p);
@@ -2434,9 +2434,9 @@ doftparg(c) char c;
                   if (ftp_deb)
                     printf("Security option: \"%s",p);
                   if (ftpztab[z].flgs & CM_ARG) {
-                      if (y <= 0)
+                      if (wy <= 0)
                         fatal("?Missing required value");
-                      q = &p[y];
+                      q = &p[wy];
                       if (!*q)
                         fatal("?Missing required value");
                       if (ftp_deb)
@@ -2447,11 +2447,11 @@ doftparg(c) char c;
 #ifdef FTP_GSSAPI
                       for (z = 0; z < FTPATYPS && ftp_auth_type[z]; z++) {
                           if (ftp_auth_type[z] == FTA_GK5) {
-                              for (y = z;
-                                   y < (FTPATYPS-1) && ftp_auth_type[y];
-                                   y++
+                              for (wy = z;
+                                   wy < (FTPATYPS-1) && ftp_auth_type[wy];
+                                   wy++
                                    )
-                                ftp_auth_type[y] = ftp_auth_type[y+1];
+                                ftp_auth_type[wy] = ftp_auth_type[wy+1];
                               ftp_auth_type[FTPATYPS-1] = 0;
                               break;
                           }
@@ -2462,11 +2462,11 @@ doftparg(c) char c;
 #ifdef FTP_KRB4
                       for (z = 0; z < FTPATYPS && ftp_auth_type[z]; z++) {
                           if (ftp_auth_type[z] == FTA_K4) {
-                              for (y = z;
-                                   y < (FTPATYPS-1) && ftp_auth_type[y];
-                                   y++
+                              for (wy = z;
+                                   wy < (FTPATYPS-1) && ftp_auth_type[wy];
+                                   wy++
                                    )
-                                ftp_auth_type[y] = ftp_auth_type[y+1];
+                                ftp_auth_type[wy] = ftp_auth_type[wy+1];
                               ftp_auth_type[FTPATYPS-1] = 0;
                               break;
                           }
@@ -2477,11 +2477,11 @@ doftparg(c) char c;
 #ifdef FTP_SRP
                       for (z = 0; z < FTPATYPS && ftp_auth_type[z]; z++) {
                           if (ftp_auth_type[z] == FTA_SRP) {
-                              for (y = z;
-                                   y < (FTPATYPS-1) && ftp_auth_type[y];
-                                   y++
+                              for (wy = z;
+                                   wy < (FTPATYPS-1) && ftp_auth_type[wy];
+                                   wy++
                                    )
-                                ftp_auth_type[y] = ftp_auth_type[y+1];
+                                ftp_auth_type[wy] = ftp_auth_type[wy+1];
                               ftp_auth_type[FTPATYPS-1] = 0;
                               break;
                           }
@@ -2492,11 +2492,11 @@ doftparg(c) char c;
 #ifdef CK_SSL
                       for (z = 0; z < FTPATYPS && ftp_auth_type[z]; z++) {
                           if (ftp_auth_type[z] == FTA_SSL) {
-                              for (y = z;
-                                   y < (FTPATYPS-1) && ftp_auth_type[y];
-                                   y++
+                              for (wy = z;
+                                   wy < (FTPATYPS-1) && ftp_auth_type[wy];
+                                   wy++
                                    )
-                                ftp_auth_type[y] = ftp_auth_type[y+1];
+                                ftp_auth_type[wy] = ftp_auth_type[wy+1];
                               ftp_auth_type[FTPATYPS-1] = 0;
                               break;
                           }
@@ -2507,11 +2507,11 @@ doftparg(c) char c;
 #ifdef CK_SSL
                       for (z = 0; z < FTPATYPS && ftp_auth_type[z]; z++) {
                           if (ftp_auth_type[z] == FTA_TLS) {
-                              for (y = z;
-                                   y < (FTPATYPS-1) && ftp_auth_type[y];
-                                   y++
+                              for (wy = z;
+                                   wy < (FTPATYPS-1) && ftp_auth_type[wy];
+                                   wy++
                                    )
-                                ftp_auth_type[y] = ftp_auth_type[y+1];
+                                ftp_auth_type[wy] = ftp_auth_type[wy+1];
                               ftp_auth_type[FTPATYPS-1] = 0;
                               break;
                           }
@@ -2634,19 +2634,19 @@ dosetftp() {
     switch (cx) {
 
       case FTS_FNC:                     /* Filename collision action */
-        if ((x = cmkey(ftpcolxtab,nftpcolx,"","",xxstring)) < 0)
-          return(x);
-        if ((y = cmcfm()) < 0)
-          return(y);
-        ftp_fnc = x;
+        if ((wx = cmkey(ftpcolxtab,nftpcolx,"","",xxstring)) < 0)
+          return(wx);
+        if ((wy = cmcfm()) < 0)
+          return(wy);
+        ftp_fnc = wx;
         return(1);
 
       case FTS_CNV:                     /* Filename conversion */
-        if ((x = cmkey(fntab,nfntab,"","automatic",xxstring)) < 0)
-          return(x);
-        if ((y = cmcfm()) < 0)
-          return(y);
-        ftp_cnv = x;
+        if ((wx = cmkey(fntab,nfntab,"","automatic",xxstring)) < 0)
+          return(wx);
+        if ((wy = cmcfm()) < 0)
+          return(wy);
+        ftp_cnv = wx;
         return(1);
 
       case FTS_DBG:                     /* Debug messages */
@@ -2659,16 +2659,16 @@ dosetftp() {
         return(dosetftppsv());
 
       case FTS_SPC:                     /* Send port commands */
-        x = seton(&ftp_spc);
-        if (x > 0) sendport = ftp_spc;
-        return(x);
+        wx = seton(&ftp_spc);
+        if (wx > 0) sendport = ftp_spc;
+        return(wx);
 
       case FTS_TYP:                     /* Type */
-        if ((x = cmkey(ftptyp,nftptyp,"","",xxstring)) < 0)
-          return(x);
-        if ((y = cmcfm()) < 0) return(y);
-        ftp_typ = x;
-        g_ftp_typ = x;
+        if ((wx = cmkey(ftptyp,nftptyp,"","",xxstring)) < 0)
+          return(wx);
+        if ((wy = cmcfm()) < 0) return(wy);
+        ftp_typ = wx;
+        g_ftp_typ = wx;
         tenex = (ftp_typ == FTT_TEN);
         return(1);
 
@@ -2676,10 +2676,10 @@ dosetftp() {
         return(seton(&ftp_usn));
 
       case FTS_VBM:                     /* Verbose mode */
-        if ((x = seton(&ftp_vbm)) < 0)  /* Per-command copy */
-          return(x);
+        if ((wx = seton(&ftp_vbm)) < 0)  /* Per-command copy */
+          return(wx);
         ftp_vbx = ftp_vbm;              /* Global sticky copy */
-        return(x);
+        return(wx);
 
       case FTS_TST:                     /* "if (testing)" messages */
         return(seton(&testing));
@@ -2691,11 +2691,11 @@ dosetftp() {
         return(seton(&ftp_aut));
 
       case FTS_ERR:                     /* Error action */
-        if ((x = cmkey(qorp,2,"","",xxstring)) < 0)
-          return(x);
-        if ((y = cmcfm()) < 0)
-          return(y);
-        ftp_err = x;
+        if ((wx = cmkey(qorp,2,"","",xxstring)) < 0)
+          return(wx);
+        if ((wy = cmcfm()) < 0)
+          return(wy);
+        ftp_err = wx;
         return(success = 1);
 
 #ifndef NOCSETS
@@ -2703,11 +2703,11 @@ dosetftp() {
         return(seton(&ftp_xla));
 
       case FTS_CSR:                     /* Server charset */
-        if ((x = cmkey(fcstab,nfilc,"character-set","utf8",xxstring)) < 0)
-          return(x);
-        if ((y = cmcfm()) < 0)
-          return(y);
-        ftp_csr = x;
+        if ((wx = cmkey(fcstab,nfilc,"character-set","utf8",xxstring)) < 0)
+          return(wx);
+        if ((wy = cmcfm()) < 0)
+          return(wy);
+        ftp_csr = wx;
         ftp_xla = 1;                    /* Also enable translation */
         return(success = 1);
 #endif /* NOCSETS */
@@ -2720,46 +2720,46 @@ dosetftp() {
 
 #ifdef FTP_TIMEOUT
       case FTS_TMO:                     /* Timeout */
-        if ((x = cmnum("Number of seconds","0",10,&z,xxstring)) < 0)
-          return(x);
-        if ((y = cmcfm()) < 0)
-          return(y);
-        ftp_timeout = z;
+        if ((wx = cmnum("Number of seconds","0",10,&wz,xxstring)) < 0)
+          return(wx);
+        if ((wy = cmcfm()) < 0)
+          return(wy);
+        ftp_timeout = wz;
         return(success = 1);
 #endif  /* FTP_TIMEOUT */
 
       case FTS_STO: {                   /* Server time offset */
           char * s, * p = NULL;
           long k;
-          if ((x = cmfld("[+-]hh[:mm[:ss]]","+0",&s,xxstring)) < 0)
-            return(x);
+          if ((wx = cmfld("[+-]hh[:mm[:ss]]","+0",&s,xxstring)) < 0)
+            return(wx);
           if (!strcmp(s,"+0")) {
               s = NULL;
-          } else if ((x = delta2sec(s,&k)) < 0) { /* Check format */
+          } else if ((wx = delta2sec(s,&k)) < 0) { /* Check format */
               printf("?Invalid time offset\n");
               return(-9);
           }
           makestr(&p,s);                /* Make a safe copy the string */
-          if ((x = cmcfm()) < 0) {      /* Get confirmation */
+          if ((wx = cmcfm()) < 0) {      /* Get confirmation */
               if (p)
                 makestr(&p,NULL);
-              return(x);
+              return(wx);
           }
           fts_sto = p;                  /* Confirmed - set the string. */
           return(success = 1);
       }
       case FTS_APW: {
           char * s;
-          if ((x = cmtxt("Text", "", &s, xxstring)) < 0)
-            return(x);
+          if ((wx = cmtxt("Text", "", &s, xxstring)) < 0)
+            return(wx);
           makestr(&ftp_apw, *s ? s : NULL);
           return(success = 1);
       }
 
       case FTS_BUG: {
-          if ((x = cmkey(ftpbugtab,nftpbug,"","",xxstring)) < 0)
-            return(x);
-          switch (x) {
+          if ((wx = cmkey(ftpbugtab,nftpbug,"","",xxstring)) < 0)
+            return(wx);
+          switch (wx) {
 #ifdef CK_SSL
           case FTB_SV2:
             return seton(&ftp_bug_use_ssl_v2);
@@ -2779,48 +2779,48 @@ dosetftp() {
         return(seton(&ftp_cfw));
 
       case FTS_CPL:                     /* Command protection level */
-        if ((x = cmkey(ftppro,nftppro,"","",xxstring)) < 0) return(x);
-        if ((y = cmcfm()) < 0) return(y);
-        success = fts_cpl(x);
+        if ((wx = cmkey(ftppro,nftppro,"","",xxstring)) < 0) return(wx);
+        if ((wy = cmcfm()) < 0) return(wy);
+        success = fts_cpl(wx);
         return(success);
 
       case FTS_DPL:                     /* Data protection level */
-        if ((x = cmkey(ftppro,nftppro,"","",xxstring)) < 0) return(x);
-        if ((y = cmcfm()) < 0) return(y);
-          success = fts_dpl(x);
+        if ((wx = cmkey(ftppro,nftppro,"","",xxstring)) < 0) return(wx);
+        if ((wy = cmcfm()) < 0) return(wy);
+          success = fts_dpl(wx);
           return(success);
 
       case FTS_ATP: {                   /* FTP Auth Type */
           int i, j, atypes[8];
 
           for (i = 0; i < 8; i++) {
-              if ((y = cmkey(ftpauth,nftpauth,"",
+              if ((wy = cmkey(ftpauth,nftpauth,"",
                              (i == 0) ? "automatic" : "",
                              xxstring)) < 0) {
-                  if (y == -3)
+                  if (wy == -3)
                     break;
-                  return(y);
+                  return(wy);
               }
-              if (i > 0 && (y == FTA_AUTO)) {
+              if (i > 0 && (wy == FTA_AUTO)) {
                   printf("?Choice may only be used in first position.\r\n");
                   return(-9);
               }
               for (j = 0; j < i; j++) {
-                  if (atypes[j] == y) {
+                  if (atypes[j] == wy) {
                       printf("\r\n?Choice has already been used.\r\n");
                       return(-9);
                   }
               }
-              atypes[i] = y;
-              if (y == FTA_AUTO) {
+              atypes[i] = wy;
+              if (wy == FTA_AUTO) {
                   i++;
                   break;
               }
           }
           if (i < 8)
             atypes[i] = 0;
-          if ((z = cmcfm()) < 0)
-            return(z);
+          if ((wz = cmcfm()) < 0)
+            return(wz);
           if (atypes[0] == FTA_AUTO) {
               i = 0;
 #ifdef FTP_GSSAPI
@@ -2846,31 +2846,31 @@ dosetftp() {
 
       case FTS_SRP:
 #ifdef FTP_SRP
-        if ((x = cmkey(ftpsrp,nftpsrp,"","",xxstring)) < 0)
-          return(x);
-        switch (x) {
+        if ((wx = cmkey(ftpsrp,nftpsrp,"","",xxstring)) < 0)
+          return(wx);
+        switch (wx) {
           case SRP_CIPHER:
-            if ((x = cmkey(ciphertab,nciphertab,"","",xxstring)) < 0)
-              return(x);
-            if ((z = cmcfm()) < 0)
-              return(z);
-            success = !srp_selcipher(ciphertab[x].kwd);
+            if ((wx = cmkey(ciphertab,nciphertab,"","",xxstring)) < 0)
+              return(wx);
+            if ((wz = cmcfm()) < 0)
+              return(wz);
+            success = !srp_selcipher(ciphertab[wx].kwd);
             return(success);
           case SRP_HASH:
-            if ((x = cmkey(hashtab,nhashtab,"","",xxstring)) < 0)
-              return(x);
-            if ((z = cmcfm()) < 0)
-              return(z);
-            success = !srp_selhash(hashtab[x].kwd);
+            if ((wx = cmkey(hashtab,nhashtab,"","",xxstring)) < 0)
+              return(wx);
+            if ((wz = cmcfm()) < 0)
+              return(wz);
+            success = !srp_selhash(hashtab[wx].kwd);
             return(success = 1);
           default:
-            if ((z = cmcfm()) < 0)
-              return(z);
+            if ((wz = cmcfm()) < 0)
+              return(wz);
             return(-2);
         }
 #else /* FTP_SRP */
-        if ((z = cmcfm()) < 0)
-          return(z);
+        if ((wz = cmcfm()) < 0)
+          return(wz);
         return(-2);
 #endif /* FTP_SRP */
 #endif /* FTP_SECURITY */
@@ -3538,21 +3538,21 @@ static int cdlevel = 0, cdsimlvl = 0;   /* Tree-level trackers */
 
 static int
 #ifdef CK_ANSIC
-syncdir( char * local, int sim )
+syncdir( char * lfile, int sim )
 #else
-syncdir(local,sim) char * local; int sim;
+syncdir(lfile,sim) char * lfile; int sim;
 #endif /* CK_ANSIC */
 {
     char buf[CKMAXPATH+1];
     char tmp[CKMAXPATH+1];
     char msgbuf[CKMAXPATH+64];
-    char c, * p = local, * s = buf, * q = buf, * psep, * ssep;
+    char c, * p = lfile, * s = buf, * q = buf, * psep, * ssep;
     int i, k = 0, done = 0, itsadir = 0, saveq;
 
-    debug(F110,"ftp syncdir local (new)",local,0);
+    debug(F110,"ftp syncdir local (new)",lfile,0);
     debug(F110,"ftp syncdir putpath (old)",putpath,0);
 
-    itsadir = isdir(local);             /* Is the local file a directory? */
+    itsadir = isdir(lfile);             /* Is the local file a directory? */
     saveq = quiet;
 
     while ((*s = *p)) {                 /* Copy the argument filename */
@@ -3569,26 +3569,26 @@ syncdir(local,sim) char * local; int sim;
     debug(F110,"ftp syncdir buf",buf,0);
     if (!strcmp(buf,putpath)) {         /* Same path as previous file? */
         if (itsadir) {                  /* This file is a directory? */
-            if (doftpcwd(local,0)) {    /* Try to CD to it */
+            if (doftpcwd(lfile,0)) {    /* Try to CD to it */
                 doftpcdup();            /* Worked - CD back up */
             } else if (sim) {           /* Simulating... */
                 if (fdispla == XYFD_B) {
-                    printf("WOULD CREATE DIRECTORY %s\n",local);
+                    printf("WOULD CREATE DIRECTORY %s\n",lfile);
                 } else if (fdispla) {
                     ckmakmsg(msgbuf,CKMAXPATH,
-                             "WOULD CREATE DIRECTORY",local,NULL,NULL);
+                             "WOULD CREATE DIRECTORY",lfile,NULL,NULL);
                     ftscreen(SCR_ST,ST_MSG,(CK_OFF_T)0,msgbuf);
                 }
                 /* See note above */
                 return(0);
-            } else if (!doftpxmkd(local,0)) { /* Can't CD - try to create */
+            } else if (!doftpxmkd(lfile,0)) { /* Can't CD - try to create */
                 return(0);
             } else {                    /* Remote directory created OK */
                 if (fdispla == XYFD_B) {
-                    printf("CREATED DIRECTORY %s\n",local);
+                    printf("CREATED DIRECTORY %s\n",lfile);
                 } else if (fdispla) {
                     ckmakmsg(msgbuf,CKMAXPATH+64,
-                             "CREATED DIRECTORY ",local,NULL,NULL);
+                             "CREATED DIRECTORY ",lfile,NULL,NULL);
                     ftscreen(SCR_ST,ST_MSG,(CK_OFF_T)0,msgbuf);
                 }
             }
@@ -3664,11 +3664,11 @@ syncdir(local,sim) char * local; int sim;
                 if (!doftpcwd(p,0)) {   /* Try to CD to it */
                     if (sim) {
                         if (fdispla == XYFD_B) {
-                            printf(" WOULD CREATE DIRECTORY %s\n",local);
+                            printf(" WOULD CREATE DIRECTORY %s\n",lfile);
                         } else if (fdispla) {
                             ckmakmsg(msgbuf,CKMAXPATH,
                                      "WOULD CREATE DIRECTORY",
-                                     local,NULL,NULL);
+                                     lfile,NULL,NULL);
                             ftscreen(SCR_ST,ST_MSG,(CK_OFF_T)0,msgbuf);
                         }
                         cdsimlvl++;
@@ -3973,9 +3973,9 @@ setmodtime(f,t) char * f; time_t t;
 */
 static int
 #ifdef CK_ANSIC
-chkmodtime( char * local, char * remote, int fc )
+chkmodtime( char * lfile, char * remote, int fc )
 #else
-chkmodtime(local,remote,fc) char * local, * remote; int fc;
+chkmodtime(lfile,remote,fc) char * lfile, * remote; int fc;
 #endif /* CK_ANSIC */
 {
 #ifdef NT
@@ -3988,7 +3988,7 @@ chkmodtime(local,remote,fc) char * local, * remote; int fc;
     int rc = 0, havedate = 0, lcs = -1, rcs = -1, flag = 0;
     char * s, timebuf[64];
 
-    debug(F111,"chkmodtime",local,mdtmok);
+    debug(F111,"chkmodtime",lfile,mdtmok);
     if (!mdtmok)                        /* Server supports MDTM? */
       return(-1);                       /* No don't bother. */
 
@@ -4002,13 +4002,13 @@ chkmodtime(local,remote,fc) char * local, * remote; int fc;
 #endif /* NOCSETS */
 
     if (fc == 0) {
-        rc = stat(local,&statbuf);
+        rc = stat(lfile,&statbuf);
         if (rc == 0) {                  /* Get local file's mod time */
             /* Convert to struct tm */
             tmlocal = gmtime((time_t *)&statbuf.st_mtime);
 #ifdef DEBUG
             if (tmlocal) {
-                dbtime(local,tmlocal);
+                dbtime(lfile,tmlocal);
             }
 #endif /* DEBUG */
         }
@@ -4111,7 +4111,7 @@ chkmodtime(local,remote,fc) char * local, * remote; int fc;
         utc = mkutime(&tmremote);
         debug(F111,"ftp chkmodtime mkutime",remote,utc);
         if (utc != (time_t)-1)
-          return(setmodtime(local,utc));
+          return(setmodtime(lfile,utc));
     }
     return(-1);
 }
@@ -4120,11 +4120,11 @@ chkmodtime(local,remote,fc) char * local, * remote; int fc;
 
 static int
 #ifdef CK_ANSIC
-getfile( char * remote, char * local, int recover, int append,
+getfile( char * remote, char * lfile, int recover, int append,
  char * pipename, int xlate, int fcs, int rcs )
 #else
-getfile(remote,local,recover,append,pipename,xlate,fcs,rcs)
-  char * local, * remote, * pipename; int recover, append, xlate, fcs, rcs;
+getfile(remote,lfile,recover,append,pipename,xlate,fcs,rcs)
+  char * lfile, * remote, * pipename; int recover, append, xlate, fcs, rcs;
 #endif /* CK_ANSIC */
 {
     int rc = -1;
@@ -4138,7 +4138,7 @@ getfile(remote,local,recover,append,pipename,xlate,fcs,rcs)
     char fullname[CKMAXPATH+1];
 
     debug(F110,"ftp getfile remote A",remote,0);
-    debug(F110,"ftp getfile local A",local,0);
+    debug(F110,"ftp getfile local A",lfile,0);
     debug(F110,"ftp getfile pipename",pipename,0);
     if (!remote) remote = "";
 
@@ -4175,19 +4175,19 @@ getfile(remote,local,recover,append,pipename,xlate,fcs,rcs)
       xlate = 0;
 #endif /* NOCSETS */
 
-    if (!local) local = "";
-    if (!pipename && !*local)
-      local = remote;
+    if (!lfile) lfile = "";
+    if (!pipename && !*lfile)
+      lfile = remote;
 
-    out2screen = !strcmp(local,"-");
+    out2screen = !strcmp(lfile,"-");
 
     fullname[0] = NUL;
     if (pipename) {
         ckstrncpy(fullname,pipename,CKMAXPATH+1);
     } else {
-        zfnqfp(local,CKMAXPATH,fullname);
+        zfnqfp(lfile,CKMAXPATH,fullname);
         if (!fullname[0])
-          ckstrncpy(fullname,local,CKMAXPATH+1);
+          ckstrncpy(fullname,lfile,CKMAXPATH+1);
     }
     if (!out2screen && displa && fdispla) { /* Screen */
         ftscreen(SCR_FN,'F',(CK_OFF_T)pktnum,remote);
@@ -4197,14 +4197,14 @@ getfile(remote,local,recover,append,pipename,xlate,fcs,rcs)
     tlog(F110,ftp_typ ? "ftp get BINARY:" : "ftp get TEXT:", remote, 0);
     tlog(F110," as",fullname,0);
     debug(F111,"ftp getfile size",remote,fsize);
-    debug(F111,"ftp getfile local",local,out2screen);
+    debug(F111,"ftp getfile local",lfile,out2screen);
 
-    ckstrncpy(filnam, pipename ? remote : local, CKMAXPATH);
+    ckstrncpy(filnam, pipename ? remote : lfile, CKMAXPATH);
 
     t0 = gmstimer();                    /* Start time */
     debug(F111,"ftp getfile t0",remote,t0); /* ^^^ */
     rc = recvrequest("RETR",
-                     local,
+                     lfile,
                      remote,
                      append ? "ab" : "wb",
                      0,
@@ -4266,9 +4266,9 @@ getfile(remote,local,recover,append,pipename,xlate,fcs,rcs)
           if (!pipename && !out2screen) /* and it's a real file */
             if (rc < 1 && rc != -3)     /* and it wasn't skipped */
               if (connected)            /* and we still have a connection */
-                if (zchki(local) > -1) { /* and the file wasn't discarded */
-                    chkmodtime(local,remote,1); /* set local file date */
-                    debug(F110,"ftp get set date",local,0);
+                if (zchki(lfile) > -1) { /* and the file wasn't discarded */
+                    chkmodtime(lfile,remote,1); /* set local file date */
+                    debug(F110,"ftp get set date",lfile,0);
                 }
         filcnt++;                       /* Used by \v(filenum) */
     }
@@ -4288,7 +4288,7 @@ getfile(remote,local,recover,append,pipename,xlate,fcs,rcs)
             tlog(F110," failed:",ftp_reply_str,0);
         }
         if (!tlogfmt)
-          doxlog(what,local,fsize,ftp_typ,rc,"");
+          doxlog(what,lfile,fsize,ftp_typ,rc,"");
     }
 #endif /* TLOG */
     return(rc);
@@ -4300,10 +4300,10 @@ getfile(remote,local,recover,append,pipename,xlate,fcs,rcs)
 static int
 #ifdef CK_ANSIC
 putfile(int cx,
-        char * local,
+        char * lfile,
         char * remote,
         int force,
-        int moving,
+        int lmoving,
         char * mvto,
         char * rnto,
         char * srvrn,
@@ -4316,8 +4316,8 @@ putfile(int cx,
         int flg )
 #else
 putfile(cx,
- local,remote,force,moving,mvto,rnto,srvrn,x_cnv,x_usn,xft,prm,fcs,rcs,flg)
- char * local, * remote, * mvto, *rnto, *srvrn; int cx, force, moving, x_cnv,
+ lfile,remote,force,lmoving,mvto,rnto,srvrn,x_cnv,x_usn,xft,prm,fcs,rcs,flg)
+ char * lfile, * remote, * mvto, *rnto, *srvrn; int cx, force, lmoving, x_cnv,
  x_usn, xft, fcs, rcs, flg, prm;
 #endif /* CK_ANSIC */
 {
@@ -4334,7 +4334,7 @@ putfile(cx,
 #else
     int sec = 0;
 #endif /* GFTIMER */
-    debug(F111,"ftp putfile flg",local,flg);
+    debug(F111,"ftp putfile flg",lfile,flg);
     debug(F110,"ftp putfile srv_renam",srvrn,0);
     debug(F101,"ftp putfile fcs","",fcs);
     debug(F101,"ftp putfile rcs","",rcs);
@@ -4364,18 +4364,18 @@ putfile(cx,
 
     /* If Transfer Mode is Automatic, determine file type */
     if (ftp_xfermode == XMODE_A && filepeek && !pipesend) {
-        if (isdir(local)) {             /* If it's a directory */
+        if (isdir(lfile)) {             /* If it's a directory */
             k = FT_BIN;                 /* skip the file scan */
         } else {
-            debug(F110,"FTP PUT calling scanfile",local,0);
-            k = scanfile(local,&o,nscanfile); /* Scan the file */
+            debug(F110,"FTP PUT calling scanfile",lfile,0);
+            k = scanfile(lfile,&o,nscanfile); /* Scan the file */
         }
-        debug(F111,"FTP PUT scanfile",local,k);
+        debug(F111,"FTP PUT scanfile",lfile,k);
         if (k > -1 && !forcetype) {
             ftp_typ = (k == FT_BIN) ? 1 : 0;
             if (xft > -1 && ftp_typ != xft) {
                 if (flg & PUT_SIM)
-                  tlog(F110,"ftp put SKIP (Type):", local, 0);
+                  tlog(F110,"ftp put SKIP (Type):", lfile, 0);
                 return(SKP_TYP);
             }
             if (ftp_typ == 1 && tenex)  /* User said TENEX? */
@@ -4431,9 +4431,9 @@ putfile(cx,
     asname[0] = NUL;
 
     if (recursive) {                    /* If sending recursively, */
-        if (!syncdir(local,flg & PUT_SIM)) /* synchronize directories. */
+        if (!syncdir(lfile,flg & PUT_SIM)) /* synchronize directories. */
           return(-1);                   /* Don't PUT if it fails. */
-        else if (isdir(local))          /* It's a directory */
+        else if (isdir(lfile))          /* It's a directory */
           return(0);                    /* Don't send it! */
     }
     if (*remote) {                      /* If an as-name template was given */
@@ -4446,18 +4446,18 @@ putfile(cx,
 #endif /* NOSPL */
           ckstrncpy(asname,remote,CKMAXPATH);   /* (or take it literally) */
     } else {                                    /* No as-name */
-        nzltor(local,asname,nc,0,CKMAXPATH);    /* use local name strip path */
+        nzltor(lfile,asname,nc,0,CKMAXPATH);    /* use local name strip path */
         debug(F110,"FTP PUT nzltor",asname,0);
     }
     /* Preliminary messages and log entries */
 
     fullname[0] = NUL;
-    zfnqfp(local,CKMAXPATH,fullname);
-    if (!fullname[0]) ckstrncpy(fullname,local,CKMAXPATH+1);
+    zfnqfp(lfile,CKMAXPATH,fullname);
+    if (!fullname[0]) ckstrncpy(fullname,lfile,CKMAXPATH+1);
     fullname[CKMAXPATH] = NUL;
 
     if (displa && fdispla) {            /* Screen */
-        ftscreen(SCR_FN,'F',(CK_OFF_T)pktnum,local);
+        ftscreen(SCR_FN,'F',(CK_OFF_T)pktnum,lfile);
         ftscreen(SCR_AN,0,(CK_OFF_T)0,asname);
         ftscreen(SCR_FS,0,fsize,"");
     }
@@ -4515,7 +4515,7 @@ putfile(cx,
             rc = SKP_SIM;               /* "Would be sent", period. */
         }
     } else {
-        rc = sendrequest(cmd,local,asname,xlate,fcs,rcs,restart);
+        rc = sendrequest(cmd,lfile,asname,xlate,fcs,rcs,restart);
     }
     t1 = gmstimer();                    /* End time */
     filcnt++;                           /* File number */
@@ -4528,21 +4528,21 @@ putfile(cx,
     xfsecs = (int)sec;
 #endif /* GFTIMER */
 
-    debug(F111,"ftp sendrequest rc",local,rc);
+    debug(F111,"ftp sendrequest rc",lfile,rc);
 
     if (cancelfile || cancelgroup) {
         debug(F111,"ftp put canceled",ckitoa(cancelfile),cancelgroup);
         ftscreen(SCR_ST,ST_INT,(CK_OFF_T)0,"");
     } else if (rc > 0) {
-        debug(F101,"ftp put skipped",local,rc);
+        debug(F101,"ftp put skipped",lfile,rc);
         ftscreen(SCR_ST,ST_SKIP,(CK_OFF_T)rc,fullname);
     } else if (rc < 0) {
-        debug(F111,"ftp put error",local,ftpcode);
+        debug(F111,"ftp put error",lfile,ftpcode);
         ftscreen(SCR_ST,ST_MSG,(CK_OFF_T)0,&ftp_reply_str[4]);
     } else {
         debug(F111,"ftp put not canceled",ckitoa(displa),fdispla);
         ftscreen(SCR_PT,'Z',(CK_OFF_T)0,"");
-        debug(F111,"ftp put ST_OK",local,rc);
+        debug(F111,"ftp put ST_OK",lfile,rc);
         ftscreen(SCR_ST,ST_OK,(CK_OFF_T)0,"");
         debug(F110,"ftp put old sfspec",sfspec,0);
         makestr(&sfspec,fullname);      /* For WHERE command */
@@ -4578,7 +4578,7 @@ putfile(cx,
             tlog(F110," failed:",ftp_reply_str,0);
         }
         if (!tlogfmt)
-          doxlog(what,local,fsize,ftp_typ,rc,"");
+          doxlog(what,lfile,fsize,ftp_typ,rc,"");
     }
 #endif /* TLOG */
 
@@ -4592,7 +4592,7 @@ putfile(cx,
     /* Set permissions too? */
 
     if (prm) {                          /* Change permissions? */
-        s = zgperm(local);              /* Get perms of local file */
+        s = zgperm(lfile);              /* Get perms of local file */
         if (!s) s = "";
         x = strlen(s);
         if (x > 3) s += (x - 3);
@@ -4612,17 +4612,17 @@ putfile(cx,
 
     /* Disposition of source file */
 
-    if (moving) {
-        x = zdelet(local);
+    if (lmoving) {
+        x = zdelet(lfile);
         tlog(F110, (x > -1) ?
              " deleted" : " failed to delete",
-             local,
+             lfile,
              0
              );
         if (x < 0)
           return(-1);
     } else if (mvto) {
-        x = zrename(local,mvto);
+        x = zrename(lfile,mvto);
         tlog(F110, (x > -1) ?
              " moved source to" : " failed to move source to",
              mvto,
@@ -4633,27 +4633,27 @@ putfile(cx,
         /* ftscreen(SCR_ST,ST_MSG,(CK_OFF_T)0,mvto); */
 
     } else if (rnto) {
-        char * s = rnto;
+        char * s9 = rnto;
 #ifndef NOSPL
-        int y;                          /* Pass it thru the evaluator */
+        int y9;                          /* Pass it thru the evaluator */
         extern int cmd_quoting;         /* for \v(filename) */
         if (cmd_quoting) {              /* But only if cmd_quoting is on */
-            y = CKMAXPATH;
-            s = (char *)asname;
-            zzstring(rnto,&s,&y);
-            s = (char *)asname;
+            y9 = CKMAXPATH;
+            s9 = (char *)asname;
+            zzstring(rnto,&s9,&y9);
+            s9 = (char *)asname;
         }
 #endif /* NOSPL */
-        if (s) if (*s) {
-            int x;
-            x = zrename(local,s);
-            tlog(F110, (x > -1) ?
+        if (s9) if (*s9) {
+            int x9;
+            x9 = zrename(lfile,s9);
+            tlog(F110, (x9 > -1) ?
                  " renamed source file to" :
                  " failed to rename source file to",
-                 s,
+                 s9,
                  0
                  );
-            if (x < 0)
+            if (x9 < 0)
               return(-1);
             /* ftscreen(SCR_ST,ST_MSG,(CK_OFF_T)0,s); */
         }
@@ -4662,31 +4662,31 @@ putfile(cx,
     /* Disposition of destination file */
 
     if (srvrn) {                        /* /SERVER-RENAME: */
-        char * s = srvrn;
+        char * s8 = srvrn;
 #ifndef NOSPL
-        int y;                          /* Pass it thru the evaluator */
+        int y8;                          /* Pass it thru the evaluator */
         extern int cmd_quoting; /* for \v(filename) */
-        debug(F111,"ftp putfile srvrn",s,1);
+        debug(F111,"ftp putfile srvrn",s8,1);
 
         if (cmd_quoting) {              /* But only if cmd_quoting is on */
-            y = CKMAXPATH;
-            s = (char *)fullname;       /* We can recycle this buffer now */
-            zzstring(srvrn,&s,&y);
-            s = (char *)fullname;
+            y8 = CKMAXPATH;
+            s8 = (char *)fullname;       /* We can recycle this buffer now */
+            zzstring(srvrn,&s8,&y8);
+            s8 = (char *)fullname;
         }
 #endif /* NOSPL */
-        debug(F111,"ftp putfile srvrn",s,2);
-        if (s) if (*s) {
-            int x;
-            x = ftp_rename(asname,s);
-            debug(F111,"ftp putfile ftp_rename",asname,x);
-            tlog(F110, (x > 0) ?
+        debug(F111,"ftp putfile srvrn",s8,2);
+        if (s8) if (*s8) {
+            int x8;
+            x8 = ftp_rename(asname,s8);
+            debug(F111,"ftp putfile ftp_rename",asname,x8);
+            tlog(F110, (x8 > 0) ?
                  " renamed destination file to" :
                  " failed to rename destination file to",
-                 s,
+                 s8,
                  0
                  );
-            if (x < 1)
+            if (x8 < 1)
               return(-1);
         }
     }
@@ -5107,10 +5107,10 @@ doftpput(cx,who) int cx, who;
         ftp_typ = g_ftp_typ;
         /* g_ftp_typ = -1; */
     }
-    for (i = 0; i <= SND_MAX; i++) {    /* Initialize switch values */
-        pv[i].sval = NULL;              /* to null pointers */
-        pv[i].ival = -1;                /* and -1 int values */
-        pv[i].wval = (CK_OFF_T)-1;      /* and -1 wide values */
+    for (wi = 0; wi <= SND_MAX; wi++) {    /* Initialize switch values */
+        pv[wi].sval = NULL;              /* to null pointers */
+        pv[wi].ival = -1;                /* and -1 int values */
+        pv[wi].wval = (CK_OFF_T)-1;      /* and -1 wide values */
     }
     if (who == 0) {                     /* Called with unprefixed command */
         switch (cx) {
@@ -5175,10 +5175,10 @@ doftpput(cx,who) int cx, who;
            );
 
     while (1) {                         /* Parse zero or more switches */
-        x = cmfdb(&sw);                 /* Parse something */
-        debug(F101,"ftp put cmfdb A","",x);
+        wx = cmfdb(&sw);                 /* Parse something */
+        debug(F101,"ftp put cmfdb A","",wx);
         debug(F101,"ftp put fcode A","",cmresult.fcode);
-        if (x < 0)                      /* Error */
+        if (wx < 0)                      /* Error */
           goto xputx;                   /* or reparse needed */
         if (cmresult.fcode != _CMKEY)   /* Break out of loop if not a switch */
           break;
@@ -5186,12 +5186,12 @@ doftpput(cx,who) int cx, who;
         getval = (c == ':' || c == '='); /* to see how they ended the switch */
         if (getval && !(cmresult.kflags & CM_ARG)) {
             printf("?This switch does not take arguments\n");
-            x = -9;
+            wx = -9;
             goto xputx;
         }
         if (!getval && (cmgkwflgs() & CM_ARG)) {
             printf("?This switch requires an argument\n");
-            x = -9;
+            wx = -9;
             goto xputx;
         }
         n = cmresult.nresult;           /* Numeric result = switch value */
@@ -5203,10 +5203,10 @@ doftpput(cx,who) int cx, who;
           case SND_NAF:                 /* Send /NOT-AFTER:date-time */
           case SND_NBE:                 /* Send /NOT-BEFORE:date-time */
             if (!getval) break;
-            if ((x = cmdate("File date-time","",&s,0,xxstring)) < 0) {
-                if (x == -3) {
+            if ((wx = cmdate("File date-time","",&s,0,xxstring)) < 0) {
+                if (wx == -3) {
                     printf("?Date-time required\n");
-                    x = -9;
+                    wx = -9;
                 }
                 goto xputx;
             }
@@ -5217,10 +5217,10 @@ doftpput(cx,who) int cx, who;
           case SND_ASN:                 /* /AS-NAME: */
             debug(F101,"ftp put /as-name getval","",getval);
             if (!getval) break;
-            if ((x = cmfld("Name to send under","",&s,NULL)) < 0) {
-                if (x == -3) {
+            if ((wx = cmfld("Name to send under","",&s,NULL)) < 0) {
+                if (wx == -3) {
                     printf("?name required\n");
-                    x = -9;
+                    wx = -9;
                 }
                 goto xputx;
             }
@@ -5233,21 +5233,21 @@ doftpput(cx,who) int cx, who;
           case SND_ARR:                 /* /ARRAY */
             if (!getval) break;
             ap = NULL;
-            if ((x = cmfld("Array name (a single letter will do)",
+            if ((wx = cmfld("Array name (a single letter will do)",
                            "",
                            &s,
                            NULL
                            )) < 0) {
-                if (x == -3)
+                if (wx == -3)
                   break;
                 else
-                  return(x);
+                  return(wx);
             }
-            if ((x = arraybounds(s,&(range[0]),&(range[1]))) < 0) {
+            if ((wx = arraybounds(s,&(range[0]),&(range[1]))) < 0) {
                 printf("?Bad array: %s\n",s);
                 return(-9);
             }
-            if (!(ap = a_ptr[x])) {
+            if (!(ap = a_ptr[wx])) {
                 printf("?No such array: %s\n",s);
                 return(-9);
             }
@@ -5255,7 +5255,7 @@ doftpput(cx,who) int cx, who;
             pv[SND_CMD].ival = 0;       /* Undo any conflicting ones... */
             pv[SND_RES].ival = 0;
             pv[SND_FIL].ival = 0;
-            arrayx = x;
+            arrayx = wx;
             break;
 #endif /* PUTARRAY */
 
@@ -5272,13 +5272,13 @@ doftpput(cx,who) int cx, who;
           case SND_CMD:                 /* These take no args */
             if (nopush) {
                 printf("?Sorry, system command access is disabled\n");
-                x = -9;
+                wx = -9;
                 goto xputx;
             }
 #ifdef PIPESEND
             else if (sndfilter) {
                 printf("?Sorry, no PUT /COMMAND when SEND FILTER selected\n");
-                x = -9;
+                wx = -9;
                 goto xputx;
             }
 #endif /* PIPESEND */
@@ -5328,17 +5328,17 @@ doftpput(cx,who) int cx, who;
 #endif /* UNIXOROSK */
 
           case SND_ERR:                 /* /ERROR-ACTION */
-            if ((x = cmkey(qorp,2,"","",xxstring)) < 0)
+            if ((wx = cmkey(qorp,2,"","",xxstring)) < 0)
               goto xputx;
-            pv[n].ival = x;
+            pv[n].ival = wx;
             break;
 
           case SND_EXC:                 /* Excludes */
             if (!getval) break;
-            if ((x = cmfld("Pattern","",&s,xxstring)) < 0) {
-                if (x == -3) {
+            if ((wx = cmfld("Pattern","",&s,xxstring)) < 0) {
+                if (wx == -3) {
                     printf("?Pattern required\n");
-                    x = -9;
+                    wx = -9;
                 }
                 goto xputx;
             }
@@ -5350,33 +5350,35 @@ doftpput(cx,who) int cx, who;
 
           case SND_PRM:                 /* /PERMISSIONS */
             if (!getval)
-              x = 1;
-            else if ((x = cmkey(onoff,2,"","on",xxstring)) < 0)
+              wx = 1;
+            else if ((wx = cmkey(onoff,2,"","on",xxstring)) < 0)
               goto xputx;
-            pv[SND_PRM].ival = x;
+            pv[SND_PRM].ival = wx;
             break;
 
 #ifdef PIPESEND
           case SND_FLT:                 /* /FILTER */
             debug(F101,"ftp put /filter getval","",getval);
             if (!getval) break;
-            if ((x = cmfld("Filter program to send through","",&s,NULL)) < 0) {
-                if (x == -3)
+            if ((wx = cmfld("Filter program to send through","",
+                          &s,NULL)) < 0) {
+                if (wx == -3)
                   s = "";
                 else
                   goto xputx;
             }
             if (*s) s = brstrip(s);
-            y = strlen(s);
-            for (x = 0; x < y; x++) {   /* Make sure they included "\v(...)" */
-                if (s[x] != '\\') continue;
-                if (s[x+1] == 'v') break;
+            wy = strlen(s);
+            /* Make sure they included "\v(...)" */
+            for (wx = 0; wx < wy; wx++) {
+                if (s[wx] != '\\') continue;
+                if (s[wx+1] == 'v') break;
             }
-            if (x == y) {
+            if (wx == wy) {
                 printf(
                 "?Filter must contain a replacement variable for filename.\n"
                        );
-                x = -9;
+                wx = -9;
                 goto xputx;
             }
             if (s) if (!*s) s = NULL;
@@ -5388,33 +5390,33 @@ doftpput(cx,who) int cx, who;
 
           case SND_NAM:                 /* /FILENAMES */
             if (!getval) break;
-            if ((x = cmkey(fntab,nfntab,"","automatic",xxstring)) < 0)
+            if ((wx = cmkey(fntab,nfntab,"","automatic",xxstring)) < 0)
               goto xputx;
-            debug(F101,"ftp put /filenames","",x);
-            pv[n].ival = x;
+            debug(F101,"ftp put /filenames","",wx);
+            pv[n].ival = wx;
             break;
 
           case SND_SMA:                 /* Smaller / larger than */
           case SND_LAR: {
-              CK_OFF_T y;
+              CK_OFF_T szy;
               if (!getval) break;
-              if ((x = cmnumw("Size in bytes","0",10,&y,xxstring)) < 0)
+              if ((wx = cmnumw("Size in bytes","0",10,&szy,xxstring)) < 0)
                 goto xputx;
-              pv[n].wval = y;
+              pv[n].wval = szy;
               break;
           }
           case SND_FIL:                 /* Name of file containing filenames */
             if (!getval) break;
-            if ((x = cmifi("Name of file containing list of filenames",
-                               "",&s,&y,xxstring)) < 0) {
-                if (x == -3) {
+            if ((wx = cmifi("Name of file containing list of filenames",
+                               "",&s,&wy,xxstring)) < 0) {
+                if (wx == -3) {
                     printf("?Filename required\n");
-                    x = -9;
+                    wx = -9;
                 }
                 goto xputx;
-            } else if (y && iswild(s)) {
+            } else if (wy && iswild(s)) {
                 printf("?Wildcards not allowed\n");
-                x = -9;
+                wx = -9;
                 goto xputx;
             }
             if (s) if (!*s) s = NULL;
@@ -5444,13 +5446,14 @@ doftpput(cx,who) int cx, who;
                   break;
               }
               if (!getval) break;
-              if ((x = cmfld(m, "", &s, n == SND_MOV ? xxstring : NULL)) < 0) {
-                  if (x == -3) {
+              if ((wx = cmfld(m, "", &s,
+                            n == SND_MOV ? xxstring : NULL)) < 0) {
+                  if (wx == -3) {
                       printf("%s\n", n == SND_MOV ?
                              "?Destination required" :
                              "?New name required"
                              );
-                      x = -9;
+                      wx = -9;
                   }
                   goto xputx;
               }
@@ -5461,28 +5464,28 @@ doftpput(cx,who) int cx, who;
           }
           case SND_STA:                 /* Starting position (= PSEND) */
             if (!getval) break;
-            if ((x = cmnum("0-based position","0",10,&y,xxstring)) < 0)
+            if ((wx = cmnum("0-based position","0",10,&wy,xxstring)) < 0)
               goto xputx;
-            pv[n].ival = y;
+            pv[n].ival = wy;
             break;
 
           case SND_TYP:                 /* /TYPE */
             if (!getval) break;
-            if ((x = cmkey(txtbin,3,"","all",xxstring)) < 0)
+            if ((wx = cmkey(txtbin,3,"","all",xxstring)) < 0)
               goto xputx;
-            pv[n].ival = (x == 2) ? -1 : x;
+            pv[n].ival = (wx == 2) ? -1 : wx;
             break;
 
 #ifndef NOCSETS
           case SND_CSL:                 /* Local character set */
           case SND_CSR:                 /* Remote (server) charset */
-            if ((x = cmkey(fcstab,nfilc,"","",xxstring)) < 0) {
-                return((x == -3) ? -2 : x);
+            if ((wx = cmkey(fcstab,nfilc,"","",xxstring)) < 0) {
+                return((wx == -3) ? -2 : wx);
             }
             if (n == SND_CSL)
-              x_csl = x;
+              x_csl = wx;
             else
-              x_csr = x;
+              x_csr = wx;
             x_xla = 1;                  /* Overrides global OFF setting */
             break;
 
@@ -5498,7 +5501,7 @@ doftpput(cx,who) int cx, who;
     if (pv[SND_RES].ival > 0) { /* /RECOVER */
         if (sndfilter || pv[SND_FLT].ival > 0) {
             printf("?Sorry, no /RECOVER or /START if SEND FILTER selected\n");
-            x = -9;
+            wx = -9;
             goto xputx;
         }
         if (sfttab[0] > 0 && sfttab[SFT_REST] == 0)
@@ -5516,7 +5519,7 @@ doftpput(cx,who) int cx, who;
       case _CMIFI:                      /* Input filename */
         if (pv[SND_FIL].ival > 0) {
             printf("?You may not give a PUT filespec and a /LISTFILE\n");
-            x = -9;
+            wx = -9;
             goto xputx;
         }
         ckstrncpy(line,cmresult.sresult,LINBUFSIZ); /* Name */
@@ -5532,7 +5535,7 @@ doftpput(cx,who) int cx, who;
         /* Only allowed with /COMMAND and /ARRAY */
         if (pv[SND_FIL].ival > 0) {
             printf("?You may not give a PUT filespec and a /LISTFILE\n");
-            x = -9;
+            wx = -9;
             goto xputx;
         }
         /* For MPUT it's OK to have filespecs that don't match any files */
@@ -5549,7 +5552,7 @@ doftpput(cx,who) int cx, who;
                    "No files match" : "File not found",
                    cmresult.sresult
                    );
-            x = -9;
+            wx = -9;
             goto xputx;
         }
         ckstrncpy(line,cmresult.sresult,LINBUFSIZ);
@@ -5561,7 +5564,7 @@ doftpput(cx,who) int cx, who;
         break;
       default:
         printf("?Unexpected function code: %d\n",cmresult.fcode);
-        x = -9;
+        wx = -9;
         goto xputx;
     }
     debug(F110,"ftp put string",s,0);
@@ -5606,7 +5609,7 @@ doftpput(cx,who) int cx, who;
         debug(F110,"PUT /COMMAND after stripping",s,0);
         if (!*s) {
             printf("?Sorry, a command to send from is required\n");
-            x = -9;
+            wx = -9;
             goto xputx;
         }
         cmarg = s;
@@ -5618,100 +5621,100 @@ doftpput(cx,who) int cx, who;
     if (pv[SND_DEL].ival > 0 &&
         (pv[SND_MOV].ival > 0 || pv[SND_REN].ival > 0)) {
         printf("?Sorry, /DELETE conflicts with /MOVE or /RENAME\n");
-        x = -9;
+        wx = -9;
         goto xputx;
     }
 #ifdef CK_TMPDIR
     if (pv[SND_MOV].ival > 0) {
         int len;
-        char * p = pv[SND_MOV].sval;
-        len = strlen(p);
-        if (!isdir(p)) {                /* Check directory */
+        char * p9 = pv[SND_MOV].sval;
+        len = strlen(p9);
+        if (!isdir(p9)) {                /* Check directory */
 #ifdef CK_MKDIR
-            char * s = NULL;
-            s = (char *)malloc(len + 4);
-            if (s) {
-                strcpy(s,p);            /* safe */
+            char * s9 = NULL;
+            s9 = (char *)malloc(len + 4);
+            if (s9) {
+                strcpy(s9,p9);            /* safe */
 #ifdef datageneral
-                if (s[len-1] != ':') { s[len++] = ':'; s[len] = NUL; }
+                if (s9[len-1] != ':') { s9[len++] = ':'; s9[len] = NUL; }
 #else
-                if (s[len-1] != '/') { s[len++] = '/'; s[len] = NUL; }
+                if (s9[len-1] != '/') { s9[len++] = '/'; s9[len] = NUL; }
 #endif /* datageneral */
-                s[len++] = 'X';
-                s[len] = NUL;
+                s9[len++] = 'X';
+                s9[len] = NUL;
 #ifdef NOMKDIR
-                x = -1;
+                wx = -1;
 #else
-                x = zmkdir(s);
+                wx = zmkdir(s9);
 #endif /* NOMKDIR */
-                free(s);
-                if (x < 0) {
-                    printf("?Can't create \"%s\"\n",p);
-                    x = -9;
+                free(s9);
+                if (wx < 0) {
+                    printf("?Can't create \"%s\"\n",p9);
+                    wx = -9;
                     goto xputx;
                 }
             }
 #else
-            printf("?Directory \"%s\" not found\n",p);
-            x = -9;
+            printf("?Directory \"%s\" not found\n",p9);
+            wx = -9;
             goto xputx;
 #endif /* CK_MKDIR */
         }
-        makestr(&snd_move,p);
+        makestr(&snd_move,p9);
     }
 #endif /* CK_TMPDIR */
 
     if (pv[SND_REN].ival > 0) {         /* /RENAME */
-        char * p = pv[SND_REN].sval;
-        if (!p) p = "";
-        if (!*p) {
+        char * p8 = pv[SND_REN].sval;
+        if (!p8) p8 = "";
+        if (!*p8) {
             printf("?New name required for /RENAME\n");
-            x = -9;
+            wx = -9;
             goto xputx;
         }
-        p = brstrip(p);
+        p8 = brstrip(p8);
 #ifndef NOSPL
     /* If name given is wild, rename string must contain variables */
         if (wild) {
-            char * s = tmpbuf;
-            x = TMPBUFSIZ;
-            zzstring(p,&s,&x);
-            if (!strcmp(tmpbuf,p)) {
+            char * s8 = tmpbuf;
+            wx = TMPBUFSIZ;
+            zzstring(p8,&s8,&wx);
+            if (!strcmp(tmpbuf,p8)) {
                 printf(
     "?/RENAME for file group must contain variables such as \\v(filename)\n"
                        );
-                x = -9;
+                wx = -9;
                 goto xputx;
             }
         }
 #endif /* NOSPL */
-        makestr(&snd_rename,p);
+        makestr(&snd_rename,p8);
         debug(F110,"FTP snd_rename",snd_rename,0);
     }
     if (pv[SND_SRN].ival > 0) {         /* /SERVER-RENAME */
-        char * p = pv[SND_SRN].sval;
-        if (!p) p = "";
-        if (!*p) {
+        char * p7 = pv[SND_SRN].sval;
+        if (!p7) p7 = "";
+        if (!*p7) {
             printf("?New name required for /SERVER-RENAME\n");
-            x = -9;
+            wx = -9;
             goto xputx;
         }
-        p = brstrip(p);
+        p7 = brstrip(p7);
 #ifndef NOSPL
         if (wild) {
-            char * s = tmpbuf;
-            x = TMPBUFSIZ;
-            zzstring(p,&s,&x);
-            if (!strcmp(tmpbuf,p)) {
+            char * s7 = tmpbuf;
+            wx = TMPBUFSIZ;
+            zzstring(p7,&s7,&wx);
+            if (!strcmp(tmpbuf,p7)) {
                 printf(
 "?/SERVER-RENAME for file group must contain variables such as \\v(filename)\n"
                        );
-                x = -9;
+                wx = -9;
                 goto xputx;
             }
         }
 #endif /* NOSPL */
-        makestr(&srv_renam,p);
+        makestr(&srv_renam,p7);
         debug(F110,"ftp put srv_renam",srv_renam,0);
     }
     if (!confirmed) {                   /* CR not typed yet, get more fields */
@@ -5769,10 +5772,10 @@ doftpput(cx,who) int cx, who;
                    );
 
             while (!confirmed) {        /* Get more filenames */
-                x = cmfdb(&sf);         /* Parse something */
-                debug(F101,"ftp put cmfdb B","",x);
+                wx = cmfdb(&sf);         /* Parse something */
+                debug(F101,"ftp put cmfdb B","",wx);
                 debug(F101,"ftp put fcode B","",cmresult.fcode);
-                if (x < 0)              /* Error */
+                if (wx < 0)              /* Error */
                   goto xputx;           /* or reparse needed */
                 switch (cmresult.fcode) {
                   case _CMCFM:          /* End of command */
@@ -5780,7 +5783,7 @@ doftpput(cx,who) int cx, who;
                     if (nfils < 1) {
                         debug(F100,"ftp put mput no files match","",0);
                         printf("?No files match MPUT list\n");
-                        x = -9;
+                        wx = -9;
                         goto xputx;
                     }
                     break;
@@ -5795,7 +5798,7 @@ doftpput(cx,who) int cx, who;
                       if (lp > (line + LINBUFSIZ)) { /* Avoid memory leak */
                           printf("?MPUT list too long\n");
                           line[0] = NUL;
-                          x = -9;
+                          wx = -9;
                           goto xputx;
                       }
                     debug(F111,"ftp put mput adding",msfiles[nfils-1],nfils-1);
@@ -5816,7 +5819,7 @@ doftpput(cx,who) int cx, who;
 #endif /* NOMSEND */
         } else {                        /* Regular PUT */
             nfils = -1;
-            if ((x = cmtxt(wild ?
+            if ((wx = cmtxt(wild ?
 "\nOptional as-name template containing replacement variables \
 like \\v(filename)" :
                            "Optional name to send it with",
@@ -5838,9 +5841,9 @@ like \\v(filename)" :
 
     CHECKCONN();
     if (pv[SND_ASN].ival > 0 && pv[SND_ASN].sval && !asnambuf[0]) {
-        char * p;
-        p = brstrip(pv[SND_ASN].sval);
-        ckstrncpy(asnambuf,p,CKMAXPATH+1);
+        char * p9;
+        p9 = brstrip(pv[SND_ASN].sval);
+        ckstrncpy(asnambuf,p9,CKMAXPATH+1);
     }
     debug(F110,"ftp put asnambuf",asnambuf,0);
 
@@ -5849,7 +5852,7 @@ like \\v(filename)" :
             if (zopeni(ZMFILE,pv[SND_FIL].sval) < 1) {
                 debug(F110,"ftp put can't open",pv[SND_FIL].sval,0);
                 printf("?Failure to open %s\n",pv[SND_FIL].sval);
-                x = -9;
+                wx = -9;
                 goto xputx;
             }
             makestr(&filefile,pv[SND_FIL].sval); /* Open, remember name */
@@ -5868,7 +5871,7 @@ like \\v(filename)" :
         }
 #endif /* NOMSEND */
         printf("?Filename required but not given\n");
-        x = -9;
+        wx = -9;
         goto xputx;
     }
 #ifndef NOMSEND
@@ -5895,7 +5898,7 @@ like \\v(filename)" :
         if (!wild) {
             if (zchki(s) < 0) {
                 printf("?Read access denied - \"%s\"\n", s);
-                x = -9;
+                wx = -9;
                 goto xputx;
             }
         }
@@ -5918,7 +5921,7 @@ like \\v(filename)" :
         debug(F101,"ftp put /COMMAND pipesend","",pipesend);
         if (pipesend && filefile) {
             printf("?Invalid switch combination\n");
-            x = -9;
+            wx = -9;
             goto xputx;
         }
 #endif /* PIPESEND */
@@ -5926,14 +5929,14 @@ like \\v(filename)" :
 #ifndef NOSPL
     /* If as-name given and filespec is wild, as-name must contain variables */
         if ((wild || mput) && asnambuf[0]) {
-            char * s = tmpbuf;
-            x = TMPBUFSIZ;
-            zzstring(asnambuf,&s,&x);
+            char * s9 = tmpbuf;
+            wx = TMPBUFSIZ;
+            zzstring(asnambuf,&s9,&wx);
             if (!strcmp(tmpbuf,asnambuf)) {
                 printf(
     "?As-name for file group must contain variables such as \\v(filename)\n"
                        );
-                x = -9;
+                wx = -9;
                 goto xputx;
             }
         }
@@ -5953,7 +5956,7 @@ like \\v(filename)" :
 
 #ifdef PUTARRAY                         /* SEND /ARRAY... */
     if (pv[SND_ARR].ival > 0) {
-        if (!ap) { x = -2; goto xputx; } /* (shouldn't happen) */
+        if (!ap) { wx = -2; goto xputx; } /* (shouldn't happen) */
         if (range[0] == -1)             /* If low end of range not specified */
           range[0] = 1;                 /* default to 1 */
         if (range[1] == -1)             /* If high not specified */
@@ -5963,7 +5966,7 @@ like \\v(filename)" :
             (range[1] < range[0]) ||
             (range[1] > a_dim[arrayx])) {
             printf("?Bad array range - [%d:%d]\n",range[0],range[1]);
-            x = -9;
+            wx = -9;
             goto xputx;
         }
         sndarray = ap;                  /* Array pointer */
@@ -6007,7 +6010,7 @@ like \\v(filename)" :
         if (pv[SND_UPD].ival > 0) {
             if (x_usn) {
                 printf("?Conflicting switches: /UPDATE /UNIQUE\n");
-                x = -9;
+                wx = -9;
                 goto xputx;
             }
             putflags |= PUT_UPD;
@@ -6022,7 +6025,7 @@ like \\v(filename)" :
 #ifdef UNIX
             if (x_usn) {
                 printf("?Conflicting switches: /PERMISSIONS /UNIQUE\n");
-                x = -9;
+                wx = -9;
                 goto xputx;
             }
             x_prm = pv[SND_PRM].ival;
@@ -6034,7 +6037,7 @@ like \\v(filename)" :
         if (pv[SND_RES].ival > 0) {
             if (!sizeok) {
                 printf("?PUT /RESTART can't be used because SIZE disabled.\n");
-                x = -9;
+                wx = -9;
                 goto xputx;
             }
             if (x_usn || putflags) {
@@ -6042,7 +6045,7 @@ like \\v(filename)" :
                        x_usn && putflags ? "/UNIQUE /UPDATE" :
                        (x_usn ? "/UNIQUE" : "/UPDATE")
                        );
-                x = -9;
+                wx = -9;
                 goto xputx;
             }
 #ifndef NOCSETS
@@ -6052,7 +6055,7 @@ like \\v(filename)" :
                  x_csr == FC_UCS2 ||
                  x_csr == FC_UTF8)) {
                 printf("?/RECOVER can not be used with Unicode translation\n");
-                x = -9;
+                wx = -9;
                 goto xputx;
             }
 #endif /* NOCSETS */
@@ -6097,22 +6100,22 @@ like \\v(filename)" :
                                         /* or until canceled. */
 
         cancelfile = 0;
-        x = gnfile();                   /* Get next file from list(s) */
+        wx = gnfile();                   /* Get next file from list(s) */
 
-        if (x == 0)                     /* (see gnfile() comments...) */
-          x = gnferror;
-        debug(F111,"FTP PUT gnfile",filnam,x);
+        if (wx == 0)                     /* (see gnfile() comments...) */
+          wx = gnferror;
+        debug(F111,"FTP PUT gnfile",filnam,wx);
         debug(F111,"FTP PUT binary",filnam,binary);
 
-        switch (x) {
+        switch (wx) {
           case 1:                       /* File to send */
             s2 = asnambuf;
 #ifndef NOSPL
             if (asnambuf[0]) {          /* As-name */
-                int n; char *p;         /* to be evaluated... */
-                n = TMPBUFSIZ;
-                p = tmpbuf;
-                zzstring(asnambuf,&p,&n);
+                int n9; char *p9;         /* to be evaluated... */
+                n9 = TMPBUFSIZ;
+                p9 = tmpbuf;
+                zzstring(asnambuf,&p9,&n9);
                 s2 = tmpbuf;
                 debug(F110,"ftp put asname",s2,0);
             }
@@ -6212,10 +6215,10 @@ like \\v(filename)" :
           status = 0;
     }
     success = status;
-    x = success;
+    wx = success;
 
   xputx:
-    if (x > -1) {
+    if (wx > -1) {
 #ifdef GFTIMER
         t1 = gmstimer();                /* End time */
         sec = (CKFLOAT)((CKFLOAT)(t1 - t0) / 1000.0); /* Stats */
@@ -6232,13 +6235,13 @@ like \\v(filename)" :
         if (dpyactive)
           ftscreen(status > 0 ? SCR_TC : SCR_CW, 0, (CK_OFF_T)0, "");
     }
-    for (i = 0; i <= SND_MAX; i++) {    /* Free malloc'd memory */
-        if (pv[i].sval)
-          free(pv[i].sval);
+    for (wi = 0; wi <= SND_MAX; wi++) {    /* Free malloc'd memory */
+        if (pv[wi].sval)
+          free(pv[wi].sval);
     }
     ftreset();                          /* Undo switch effects */
     dpyactive = 0;
-    return(x);
+    return(wx);
 }
 
 
@@ -6380,18 +6383,18 @@ cmdlinget(stay) int stay;
               case XYFX_R:              /* Rename */
               case XYFX_B: {            /* Backup */
                   char * p = NULL;
-                  int x = -1;
+                  int x9 = -1;
                   znewn(s2,&p);         /* Make unique name */
                   debug(F110,"ftp cmdlinget znewn",p,0);
                   if (ftp_fnc == XYFX_B) { /* Backup existing file */
-                      x = zrename(s2,p);
-                      debug(F111,"ftp cmdlinget backup zrename",p,x);
+                      x9 = zrename(s2,p);
+                      debug(F111,"ftp cmdlinget backup zrename",p,x9);
                   } else {              /* Rename incoming file */
-                      x = ckstrncpy(tmpbuf,p,CKMAXPATH+1);
+                      x9 = ckstrncpy(tmpbuf,p,CKMAXPATH+1);
                       s2 = tmpbuf;
-                      debug(F111,"ftp cmdlinget rename incoming",p,x);
+                      debug(F111,"ftp cmdlinget rename incoming",p,x9);
                   }
-                  if (x < 0) {
+                  if (x9 < 0) {
                       printf("?Backup/Rename failed\n");
                       return(success = 0);
                   }
@@ -6532,18 +6535,18 @@ cmdlinget(stay) int stay;
               case XYFX_R:              /* Rename */
               case XYFX_B: {            /* Backup */
                   char * p = NULL;
-                  int x = -1;
+                  int x9 = -1;
                   znewn(s2,&p);         /* Make unique name */
                   debug(F110,"ftp cmdlinget znewn",p,0);
                   if (ftp_fnc == XYFX_B) { /* Backup existing file */
-                      x = zrename(s2,p);
-                      debug(F111,"ftp cmdlinget backup zrename",p,x);
+                      x9 = zrename(s2,p);
+                      debug(F111,"ftp cmdlinget backup zrename",p,x9);
                   } else {              /* Rename incoming file */
-                      x = ckstrncpy(tmpbuf,p,CKMAXPATH+1);
+                      x9 = ckstrncpy(tmpbuf,p,CKMAXPATH+1);
                       s2 = tmpbuf;
-                      debug(F111,"ftp cmdlinget rename incoming",p,x);
+                      debug(F111,"ftp cmdlinget rename incoming",p,x9);
                   }
-                  if (x < 0) {
+                  if (x9 < 0) {
                       printf("?Backup/Rename failed\n");
                       return(success = 0);
                   }
@@ -6647,12 +6650,12 @@ doftpget(cx,who) int cx, who;
     int x_cnv = 0, x_prm = 0, restart = 0, status = 0, good = 0;
     int x_fnc = 0, first = 0, skipthis = 0, append = 0, selected = 0;
     int renaming = 0, mdel = 0, listfile = 0, updating = 0, getone = 0;
-    int moving = 0, deleting = 0, toscreen = 0, haspath = 0;
+    int gmoving = 0, deleting = 0, toscreen = 0, haspath = 0;
     int gotsize = 0;
     CK_OFF_T getlarger = (CK_OFF_T)-1;
     CK_OFF_T getsmaller = (CK_OFF_T)-1;
     char * msg, * s, * s2, * nam, * pipename = NULL, * pn = NULL;
-    char * src = "", * local = "";
+    char * src = "", * glfile = "";
 
     int x_csl = -1, x_csr = -1;         /* Local and remote charsets */
     int x_xla = 0;
@@ -6801,9 +6804,9 @@ doftpget(cx,who) int cx, who;
            );
 
     while (1) {                         /* Parse 0 or more switches */
-        x = cmfdb(&sw);                 /* Parse something */
-        debug(F101,"ftp get cmfdb","",x);
-        if (x < 0)                      /* Error */
+        wx = cmfdb(&sw);                 /* Parse something */
+        debug(F101,"ftp get cmfdb","",wx);
+        if (wx < 0)                      /* Error */
           goto xgetx;                   /* or reparse needed */
         if (cmresult.fcode != _CMKEY)   /* Break out of loop if not a switch */
           break;
@@ -6811,7 +6814,7 @@ doftpget(cx,who) int cx, who;
         getval = (c == ':' || c == '='); /* to see how they ended the switch */
         if (getval && !(cmresult.kflags & CM_ARG)) {
             printf("?This switch does not take arguments\n");
-            x = -9;
+            wx = -9;
             goto xgetx;
         }
         n = cmresult.nresult;           /* Numeric result = switch value */
@@ -6819,17 +6822,17 @@ doftpget(cx,who) int cx, who;
 
         if (!getval && (cmgkwflgs() & CM_ARG)) {
             printf("?This switch requires an argument\n");
-            x = -9;
+            wx = -9;
             goto xgetx;
         }
         switch (n) {                    /* Process the switch */
           case SND_ASN:                 /* /AS-NAME: */
             debug(F101,"ftp get /as-name getval","",getval);
             if (!getval) break;
-            if ((x = cmfld("Name to store it under","",&s,NULL)) < 0) {
-                if (x == -3) {
+            if ((wx = cmfld("Name to store it under","",&s,NULL)) < 0) {
+                if (wx == -3) {
                     printf("?name required\n");
-                    x = -9;
+                    wx = -9;
                 }
                 goto xgetx;
             }
@@ -6852,13 +6855,13 @@ doftpget(cx,who) int cx, who;
           case SND_CMD:                 /* These take no args */
             if (nopush) {
                 printf("?Sorry, system command access is disabled\n");
-                x = -9;
+                wx = -9;
                 goto xgetx;
             }
 #ifdef PIPESEND
             else if (rcvfilter) {
                 printf("?Sorry, no PUT /COMMAND when SEND FILTER selected\n");
-                x = -9;
+                wx = -9;
                 goto xgetx;
             }
 #endif /* PIPESEND */
@@ -6886,25 +6889,25 @@ doftpget(cx,who) int cx, who;
             break;
 
           case SND_COL:                 /* /COLLISION: */
-            if ((x = cmkey(ftpcolxtab,nftpcolx,"","",xxstring)) < 0)
+            if ((wx = cmkey(ftpcolxtab,nftpcolx,"","",xxstring)) < 0)
               goto xgetx;
-            if (x == XYFX_M)
+            if (wx == XYFX_M)
               pv[SND_DIF].ival = 1;     /* (phase this out) */
-            pv[n].ival = x;             /* this should be sufficient */
+            pv[n].ival = wx;             /* this should be sufficient */
             break;
 
           case SND_ERR:                 /* /ERROR-ACTION */
-            if ((x = cmkey(qorp,2,"","",xxstring)) < 0)
+            if ((wx = cmkey(qorp,2,"","",xxstring)) < 0)
               goto xgetx;
-            pv[n].ival = x;
+            pv[n].ival = wx;
             break;
 
           case SND_EXC:                 /* Exception list */
             if (!getval) break;
-            if ((x = cmfld("Pattern","",&s,xxstring)) < 0) {
-                if (x == -3) {
+            if ((wx = cmfld("Pattern","",&s,xxstring)) < 0) {
+                if (wx == -3) {
                     printf("?Pattern required\n");
-                    x = -9;
+                    wx = -9;
                 }
                 goto xgetx;
             }
@@ -6918,25 +6921,26 @@ doftpget(cx,who) int cx, who;
           case SND_FLT:
             debug(F101,"ftp get /filter getval","",getval);
             if (!getval) break;
-            if ((x = cmfld("Filter program to send through","",&s,NULL)) < 0) {
-                if (x == -3)
+            if ((wx = cmfld("Filter program to send through","",
+                          &s,NULL)) < 0) {
+                if (wx == -3)
                   s = "";
                 else
                   goto xgetx;
             }
             s = brstrip(s);
             if (pv[SND_MAI].ival < 1) {
-                y = strlen(s);
+                wy = strlen(s);
                 /* Make sure they included "\v(...)" */
-                for (x = 0; x < y; x++) {
-                    if (s[x] != '\\') continue;
-                    if (s[x+1] == 'v') break;
+                for (wx = 0; wx < wy; wx++) {
+                    if (s[wx] != '\\') continue;
+                    if (s[wx+1] == 'v') break;
                 }
-                if (x == y) {
+                if (wx == wy) {
                     printf(
                 "?Filter must contain a replacement variable for filename.\n"
                            );
-                    x = -9;
+                    wx = -9;
                     goto xgetx;
                 }
             }
@@ -6952,33 +6956,33 @@ doftpget(cx,who) int cx, who;
 
           case SND_NAM:
             if (!getval) break;
-            if ((x = cmkey(fntab,nfntab,"","automatic",xxstring)) < 0)
+            if ((wx = cmkey(fntab,nfntab,"","automatic",xxstring)) < 0)
               goto xgetx;
-            debug(F101,"ftp get /filenames","",x);
-            pv[n].ival = x;
+            debug(F101,"ftp get /filenames","",wx);
+            pv[n].ival = wx;
             break;
 
           case SND_SMA:                 /* Smaller / larger than */
           case SND_LAR: {
               CK_OFF_T y;
               if (!getval) break;
-              if ((x = cmnumw("Size in bytes","0",10,&y,xxstring)) < 0)
+              if ((wx = cmnumw("Size in bytes","0",10,&y,xxstring)) < 0)
                 goto xgetx;
               pv[n].wval = y;
               break;
           }
           case SND_FIL:                 /* Name of file containing filnames */
             if (!getval) break;
-            if ((x = cmifi("Name of file containing list of filenames",
-                               "",&s,&y,xxstring)) < 0) {
-                if (x == -3) {
+            if ((wx = cmifi("Name of file containing list of filenames",
+                               "",&s,&wy,xxstring)) < 0) {
+                if (wx == -3) {
                     printf("?Filename required\n");
-                    x = -9;
+                    wx = -9;
                 }
                 goto xgetx;
-            } else if (y && iswild(s)) {
+            } else if (wy && iswild(s)) {
                 printf("?Wildcards not allowed BBB\n");
-                x = -9;
+                wx = -9;
                 goto xgetx;
             }
             if (s) if (!*s) s = NULL;
@@ -7004,13 +7008,14 @@ doftpget(cx,who) int cx, who;
                   break;
               }
               if (!getval) break;
-              if ((x = cmfld(m, "", &s, n == SND_MOV ? xxstring : NULL)) < 0) {
-                  if (x == -3) {
+              if ((wx = cmfld(m, "", &s,
+                            n == SND_MOV ? xxstring : NULL)) < 0) {
+                  if (wx == -3) {
                       printf("%s\n", n == SND_MOV ?
                              "?Destination required" :
                              "?New name required"
                              );
-                      x = -9;
+                      wx = -9;
                   }
                   goto xgetx;
               }
@@ -7021,12 +7026,12 @@ doftpget(cx,who) int cx, who;
 #ifndef NOCSETS
           case SND_CSL:                 /* Local character set */
           case SND_CSR:                 /* Remote (server) charset */
-            if ((x = cmkey(fcstab,nfilc,"","",xxstring)) < 0)
-              return((x == -3) ? -2 : x);
+            if ((wx = cmkey(fcstab,nfilc,"","",xxstring)) < 0)
+              return((wx == -3) ? -2 : wx);
             if (n == SND_CSL)
-              x_csl = x;
+              x_csl = wx;
             else
-              x_csr = x;
+              x_csr = wx;
             x_xla = 1;                  /* Overrides global OFF setting */
             break;
 
@@ -7038,14 +7043,14 @@ doftpget(cx,who) int cx, who;
 #endif /* NOCSETS */
 
           case SND_NML:
-            if ((x = cmofi("Local filename","-",&s,xxstring)) < 0)
+            if ((wx = cmofi("Local filename","-",&s,xxstring)) < 0)
               goto xgetx;
             makestr(&ftp_nml,s);
             break;
 
           case SND_PAT:                 /* /PATTERN: */
             if (!getval) break;
-            if ((x = cmfld("Pattern","*", &s, xxstring)) < 0)
+            if ((wx = cmfld("Pattern","*", &s, xxstring)) < 0)
               goto xgetx;
             makestr(&(pv[n].sval),*s ? brstrip(s) : NULL);
             pv[n].ival = (pv[n].sval) ? 1 : 0;
@@ -7063,7 +7068,7 @@ doftpget(cx,who) int cx, who;
 
           default:                      /* /AFTER, /PERMISSIONS, etc... */
             printf("?Sorry, \"%s\" works only with [M]PUT\n",atmbuf);
-            x = -9;
+            wx = -9;
             goto xgetx;
         }
     }
@@ -7081,8 +7086,8 @@ doftpget(cx,who) int cx, who;
         if (!getone) {
             s = brstrip(cmresult.sresult);
             makestr(&(mgetlist[mgetn++]),s);
-            while ((x = cmfld("Remote filename","",&s,xxstring)) != -3) {
-                if (x < 0)
+            while ((wx = cmfld("Remote filename","",&s,xxstring)) != -3) {
+                if (wx < 0)
                   goto xgetx;
                 makestr(&(mgetlist[mgetn++]),brstrip(s));
                 if (mgetn >= MGETMAX) {
@@ -7090,17 +7095,17 @@ doftpget(cx,who) int cx, who;
                     goto xgetx;
                 }
             }
-            if ((x = cmcfm()) < 0)
+            if ((wx = cmcfm()) < 0)
               goto xgetx;
         } else {
             s = brstrip(cmresult.sresult);
             ckstrncpy(line,s,LINBUFSIZ);
-            if ((x = cmfld("Name to store it under","",&s,xxstring)) < 0)
-              if (x != -3)
+            if ((wx = cmfld("Name to store it under","",&s,xxstring)) < 0)
+              if (wx != -3)
                 goto xgetx;
             s = brstrip(s);
             ckstrncpy(asnambuf,s,CKMAXPATH+1);
-            if ((x = cmcfm()) < 0)
+            if ((wx = cmcfm()) < 0)
               goto xgetx;
         }
         break;
@@ -7108,7 +7113,7 @@ doftpget(cx,who) int cx, who;
         break;
       default:
         printf("?Unexpected function code: %d\n",cmresult.fcode);
-        x = -9;
+        wx = -9;
         goto xgetx;
     }
     if (pv[SND_REC].ival > 0)           /* /RECURSIVE */
@@ -7144,7 +7149,7 @@ doftpget(cx,who) int cx, who;
         debug(F110,"GET /COMMAND after stripping",p,0);
         if (!*p) {
             printf("?Sorry, a command to write to is required\n");
-            x = -9;
+            wx = -9;
             goto xgetx;
         }
         pipename = p;
@@ -7161,37 +7166,37 @@ doftpget(cx,who) int cx, who;
         len = strlen(p);
         if (!isdir(p)) {                /* Check directory */
 #ifdef CK_MKDIR
-            char * s = NULL;
-            s = (char *)malloc(len + 4);
-            if (s) {
-                strcpy(s,p);            /* safe */
+            char * s9 = NULL;
+            s9 = (char *)malloc(len + 4);
+            if (s9) {
+                strcpy(s9,p);            /* safe */
 #ifdef datageneral
-                if (s[len-1] != ':') { s[len++] = ':'; s[len] = NUL; }
+                if (s9[len-1] != ':') { s9[len++] = ':'; s9[len] = NUL; }
 #else
-                if (s[len-1] != '/') { s[len++] = '/'; s[len] = NUL; }
+                if (s9[len-1] != '/') { s9[len++] = '/'; s9[len] = NUL; }
 #endif /* datageneral */
-                s[len++] = 'X';
-                s[len] = NUL;
+                s9[len++] = 'X';
+                s9[len] = NUL;
 #ifdef NOMKDIR
-                x = -1;
+                wx = -1;
 #else
-                x = zmkdir(s);
+                wx = zmkdir(s9);
 #endif /* NOMKDIR */
-                free(s);
-                if (x < 0) {
+                free(s9);
+                if (wx < 0) {
                     printf("?Can't create \"%s\"\n",p);
-                    x = -9;
+                    wx = -9;
                     goto xgetx;
                 }
             }
 #else
             printf("?Directory \"%s\" not found\n",p);
-            x = -9;
+            wx = -9;
             goto xgetx;
 #endif /* CK_MKDIR */
         }
         makestr(&rcv_move,p);
-        moving = 1;
+        gmoving = 1;
     }
 #endif /* CK_TMPDIR */
 
@@ -7200,21 +7205,21 @@ doftpget(cx,who) int cx, who;
         if (!p) p = "";
         if (!*p) {
             printf("?New name required for /RENAME\n");
-            x = -9;
+            wx = -9;
             goto xgetx;
         }
         p = brstrip(p);
 #ifndef NOSPL
     /* If name given is wild, rename string must contain variables */
         if (mget && !getone) {
-            char * s = tmpbuf;
-            x = TMPBUFSIZ;
-            zzstring(p,&s,&x);
+            char * s8 = tmpbuf;
+            wx = TMPBUFSIZ;
+            zzstring(p,&s8,&wx);
             if (!strcmp(tmpbuf,p)) {
                 printf(
     "?/RENAME for file group must contain variables such as \\v(filename)\n"
                        );
-                x = -9;
+                wx = -9;
                 goto xgetx;
             }
         }
@@ -7225,11 +7230,11 @@ doftpget(cx,who) int cx, who;
     }
     if (!cmarg[0] && mgetn == 0 && getone && pv[SND_FIL].ival < 1) {
         printf("?Filename required but not given\n");
-        x = -9;
+        wx = -9;
         goto xgetx;
     } else if ((cmarg[0] || mgetn > 0) && pv[SND_FIL].ival > 0) {
         printf("?You can't give both /LISTFILE and a remote filename\n");
-        x = -9;
+        wx = -9;
         goto xgetx;
     }
     CHECKCONN();                        /* Check connection */
@@ -7240,14 +7245,14 @@ doftpget(cx,who) int cx, who;
 #ifndef NOSPL
     /* If as-name given for MGET, as-name must contain variables */
     if (mget && !getone && asnambuf[0] && x_fnc != XYFX_A) {
-        char * s = tmpbuf;
-        x = TMPBUFSIZ;
-        zzstring(asnambuf,&s,&x);
+        char * s7 = tmpbuf;
+        wx = TMPBUFSIZ;
+        zzstring(asnambuf,&s7,&wx);
         if (!strcmp(tmpbuf,asnambuf)) {
             printf(
     "?As-name for MGET must contain variables such as \\v(filename)\n"
                    );
-            x = -9;
+            wx = -9;
             goto xgetx;
         }
     }
@@ -7290,7 +7295,7 @@ doftpget(cx,who) int cx, who;
     if (pv[SND_RES].ival > 0) {
         if (!ftp_typ) {
             printf("?Sorry, GET /RECOVER requires binary mode\n");
-            x = -9;
+            wx = -9;
             goto xgetx;
         }
         restart = 1;
@@ -7301,7 +7306,7 @@ doftpget(cx,who) int cx, who;
     if (pv[SND_FLT].ival > 0) {         /* Have SEND FILTER? */
         if (pipesend) {
             printf("?Switch conflict: /FILTER and /COMMAND\n");
-            x = -9;
+            wx = -9;
             goto xgetx;
         }
         makestr(&rcvfilter,pv[SND_FLT].sval);
@@ -7311,14 +7316,14 @@ doftpget(cx,who) int cx, who;
 #ifdef FTP_RESTART
         if (restart) {                  /* with pipes or filters */
             printf("?Switch conflict: /FILTER or /COMMAND and /RECOVER\n");
-            x = -9;
+            wx = -9;
             goto xgetx;
         }
 #endif /* FTP_RESTART */
         if (pv[SND_UPD].ival > 0 || x_fnc == XYFX_M || x_fnc == XYFX_U) {
             printf(
                 "?Switch conflict: /FILTER or /COMMAND and Date Checking\n");
-            x = -9;
+            wx = -9;
             goto xgetx;
         }
     }
@@ -7333,14 +7338,14 @@ doftpget(cx,who) int cx, who;
         if (zopeni(ZMFILE,pv[SND_FIL].sval) < 1) {
             debug(F111,"ftp get can't open listfile",pv[SND_FIL].sval,errno);
             printf("?Failure to open listfile - \"%s\"\n",pv[SND_FIL].sval);
-            x = -9;
+            wx = -9;
             goto xgetx;
         }
         if (zsinl(ZMFILE,tmpbuf,CKMAXPATH) < 0) { /* Read a line */
             zclose(ZMFILE);                       /* Failed */
             debug(F110,"ftp get listfile EOF",pv[SND_FIL].sval,0);
             printf("?Empty listfile - \"%s\"\n",pv[SND_FIL].sval);
-            x = -9;
+            wx = -9;
             goto xgetx;
         }
         listfile = 1;
@@ -7499,10 +7504,10 @@ doftpget(cx,who) int cx, who;
         s2 = "";
 
         if (!getone && !skipthis) {     /* For MGET and MDELETE... */
-            char c, * p = s;
+            char c9, * p = s;
             int srvpath = 0;
             int usrpath = 0;
-            int i, k = 0;
+            int i9, k = 0;
 
             debug(F111,"ftp mget havetype",s,havetype);
             if (havetype > 0 && havetype != FTYP_FILE) {
@@ -7522,9 +7527,9 @@ doftpget(cx,who) int cx, who;
 */
             src = mgetlist[mgetx];      /* In case it moved! */
             if (src) {
-                for (i = 0; src[i]; i++) { /* Find rightmost path separator */
-                    if (ispathsep(src[i])) /* in user's pathname */
-                      k = i + 1;
+                for (i9 = 0; src[i9]; i9++) { /* Find rightmost pathsep */
+                    if (ispathsep(src[i9])) /* in user's pathname */
+                      k = i9 + 1;
                 }
             } else {
                 src = "";
@@ -7533,8 +7538,8 @@ doftpget(cx,who) int cx, who;
             debug(F111,"ftp get usrpath",src,usrpath);
 
             p = s;                      /* Server filename */
-            while ((c = *p++)) {        /* Look for path in server filename */
-                if (ispathsep(c)) {
+            while ((c9 = *p++)) {        /* Look for path in server filename */
+                if (ispathsep(c9)) {
                     /* haspath++; */
                     nam = p;            /* Pathless name (for ckmatch) */
                     srvpath = p - s;    /* Server path segment length */
@@ -7583,11 +7588,11 @@ doftpget(cx,who) int cx, who;
             }
             {                           /* Count path segments instead */
                 int x1 = 0, x2 = 0;
-                char *p;
-                for (p = s; *p; p++)
-                  if (ispathsep(*p)) x1++;
-                for (p = src; *p; p++) {
-                    if (ispathsep(*p)) x2++;
+                char *p9;
+                for (p9 = s; *p9; p9++)
+                  if (ispathsep(*p9)) x1++;
+                for (p9 = src; *p9; p9++) {
+                    if (ispathsep(*p9)) x2++;
                 }
                 haspath = recursive ? x1 || x2 : x1 > x2;
                 debug(F111,"ftp get server path segments",s,x1);
@@ -7678,24 +7683,24 @@ doftpget(cx,who) int cx, who;
 #ifndef NOSPL
             /* Do this here so we can decide whether to skip */
             if (cmd_quoting && !skipthis && asnambuf[0]) {
-                int n; char *p;
-                n = TMPBUFSIZ;
+                int n9; char *p;
+                n9 = TMPBUFSIZ;
                 p = tmpbuf;
-                zzstring(asnambuf,&p,&n);
+                zzstring(asnambuf,&p,&n9);
                 s2 = tmpbuf;
                 debug(F111,"ftp get asname B",s2,updating);
             }
 #endif /* NOSPL */
 
-            local = *s2 ? s2 : s;
+            glfile = *s2 ? s2 : s;
 
             if (!skipthis && x_fnc == XYFX_D) { /* File Collision = Discard */
                 CK_OFF_T x;
-                x = zchki(local);
-                debug(F111,"ftp get DISCARD zchki",local,x);
+                x = zchki(glfile);
+                debug(F111,"ftp get DISCARD zchki",glfile,x);
                 if (x > -1) {
                     skipthis++;
-                    debug(F110,"ftp get skip name",local,0);
+                    debug(F110,"ftp get skip name",glfile,0);
                     tlog(F100," refused: name","",0);
                     msg = "Refused: Name";
                 }
@@ -7703,22 +7708,23 @@ doftpget(cx,who) int cx, who;
 
 #ifdef DOUPDATE
             if (!skipthis && updating) { /* If updating and not yet skipping */
-                if (zchki(local) > -1) {
-                    x = chkmodtime(local,s,0);
+                if (zchki(glfile) > -1) {
+                    wx = chkmodtime(glfile,s,0);
 #ifdef DEBUG
                     if (deblog) {
                         if (updating == 2)
-                          debug(F111,"ftp get /dates-diff chkmodtime",local,x);
+                          debug(F111,"ftp get /dates-diff chkmodtime",
+                                glfile,wx);
                         else
-                          debug(F111,"ftp get /update chkmodtime",local,x);
+                          debug(F111,"ftp get /update chkmodtime",glfile,wx);
                     }
 #endif /* DEBUG */
-                    if ((updating == 1 && x > 0) ||  /* /UPDATE */
-                        (updating == 2 && x == 1)) { /* /DATES-DIFFER */
+                    if ((updating == 1 && wx > 0) ||  /* /UPDATE */
+                        (updating == 2 && wx == 1)) { /* /DATES-DIFFER */
                         skipthis++;
                         tlog(F100," refused: date","",0);
                         msg = "Refused: Date";
-                        debug(F110,"ftp get skip date",local,0);
+                        debug(F110,"ftp get skip date",glfile,0);
                     }
                 }
             }
@@ -7751,8 +7757,8 @@ doftpget(cx,who) int cx, who;
                 changetype(ftp_typ,0);  /* Change to requested type */
                 fsize = (CK_OFF_T)-1;
                 if (sizeok) {
-                    x = ftpcmd("SIZE",s,x_csl,x_csr,ftp_vbm);
-                    if (x == REPLY_COMPLETE) {
+                    wx = ftpcmd("SIZE",s,x_csl,x_csr,ftp_vbm);
+                    if (wx == REPLY_COMPLETE) {
                         fsize = ckatofs(&ftp_reply_str[4]);
                         gotsize = 1;
                     }
@@ -7818,8 +7824,8 @@ doftpget(cx,who) int cx, who;
             } else {                    /* No - must ask server */
                 fsize = (CK_OFF_T)-1;
                 if (sizeok) {
-                    x = ftpcmd("SIZE",s,x_csl,x_csr,ftp_vbm);
-                    if (x == REPLY_COMPLETE) {
+                    wx = ftpcmd("SIZE",s,x_csl,x_csr,ftp_vbm);
+                    if (wx == REPLY_COMPLETE) {
                         fsize = ckatofs(&ftp_reply_str[4]);
                         gotsize = 1;
                     }
@@ -7843,24 +7849,24 @@ doftpget(cx,who) int cx, who;
 #ifndef NOSPL
 #ifdef PIPESEND
         } else if (rcvfilter) {         /* [M]GET with filter */
-            int n; char * p;
-            n = CKMAXPATH;
+            int n9; char * p;
+            n9 = CKMAXPATH;
             p = tmpbuf;                 /* Safe - no asname with filter */
-            zzstring(rcvfilter,&p,&n);
-            if (n > -1)
+            zzstring(rcvfilter,&p,&n9);
+            if (n9 > -1)
               pn = tmpbuf;
-            debug(F111,"ftp get rcvfilter",pn,n);
+            debug(F111,"ftp get rcvfilter",pn,n9);
 #endif /* PIPESEND */
 #endif /* NOSPL */
             if (toscreen) s2 = "-";
         } else if (pipesend) {          /* [M]GET /COMMAND */
-            int n; char * p;
-            n = CKMAXPATH;
+            int n8; char * p;
+            n8 = CKMAXPATH;
             p = tmpbuf;                 /* Safe - no asname with filter */
-            zzstring(pipename,&p,&n);
-            if (n > -1)
+            zzstring(pipename,&p,&n8);
+            if (n8 > -1)
               pn = tmpbuf;
-            debug(F111,"ftp get pipename",pipename,n);
+            debug(F111,"ftp get pipename",pipename,n8);
             if (toscreen) s2 = "-";
         } else {                        /* [M]GET with no pipes or filters */
             debug(F111,"ftp get s2 A",s2,x_cnv);
@@ -7889,7 +7895,7 @@ doftpget(cx,who) int cx, who;
                 debug(F111,"ftp get x_fnc",s2,x_fnc);
 
                 if (x > (CK_OFF_T)-1 && !restart) {
-                    int x = -1;
+                    int x9 = -1;
                     char * newname = NULL;
 
                     switch (x_fnc) {
@@ -7901,17 +7907,17 @@ doftpget(cx,who) int cx, who;
                         znewn(s2,&newname); /* Make unique name */
                         debug(F110,"ftp get znewn",newname,0);
                         if (x_fnc == XYFX_B) { /* Backup existing file */
-                            x = zrename(s2,newname);
-                            debug(F111,"ftp get backup zrename",newname,x);
+                            x9 = zrename(s2,newname);
+                            debug(F111,"ftp get backup zrename",newname,x9);
                         } else {      /* Rename incoming file */
-                            x = ckstrncpy(tmpbuf,newname,CKMAXPATH+1);
+                            x9 = ckstrncpy(tmpbuf,newname,CKMAXPATH+1);
                             s2 = tmpbuf;
-                            debug(F111,"ftp get rename incoming",newname,x);
+                            debug(F111,"ftp get rename incoming",newname,x9);
                         }
-                        if (x < 0) {
+                        if (x9 < 0) {
                             ftscreen(SCR_EM,0,(CK_OFF_T)0,
                                      "Backup/Rename failed");
-                            x = 0;
+                            wx = 0;
                             goto xgetx;
                         }
                         break;
@@ -7948,7 +7954,7 @@ doftpget(cx,who) int cx, who;
                 debug(F111,"ftp get cancelfile",s,cancelfile);
                 debug(F111,"ftp get cancelgroup",s,cancelgroup);
                 debug(F111,"ftp get renaming",s,renaming);
-                debug(F111,"ftp get moving",s,moving);
+                debug(F111,"ftp get moving",s,gmoving);
             }
 #endif /* DEBUG */
         }
@@ -7966,14 +7972,14 @@ doftpget(cx,who) int cx, who;
                 if (renaming && rcv_rename && !toscreen) {
                     char *p;            /* Rename downloaded file */
 #ifndef NOSPL
-                    char tmpbuf[CKMAXPATH+1];
-                    int n;
-                    n = CKMAXPATH;
-                    p = tmpbuf;
+                    char tmpbuf9[CKMAXPATH+1];
+                    int n9;
+                    n9 = CKMAXPATH;
+                    p = tmpbuf9;
                     debug(F111,"ftp get /rename",rcv_rename,0);
-                    zzstring(rcv_rename,&p,&n);
+                    zzstring(rcv_rename,&p,&n9);
                     debug(F111,"ftp get /rename",rcv_rename,0);
-                    p = tmpbuf;
+                    p = tmpbuf9;
 #else
                     p = rcv_rename;
 #endif /* NOSPL */
@@ -7985,16 +7991,16 @@ doftpget(cx,who) int cx, who;
                          p,
                          0
                          );
-                } else if (moving && rcv_move && !toscreen) {
+                } else if (gmoving && rcv_move && !toscreen) {
                     char *p;            /* Move downloaded file */
 #ifndef NOSPL
-                    char tmpbuf[CKMAXPATH+1];
-                    int n;
-                    n = TMPBUFSIZ;
-                    p = tmpbuf;
+                    char tmpbuf8[CKMAXPATH+1];
+                    int n8;
+                    n8 = TMPBUFSIZ;
+                    p = tmpbuf8;
                     debug(F111,"ftp get /move-to",rcv_move,0);
-                    zzstring(rcv_move,&p,&n);
-                    p = tmpbuf;
+                    zzstring(rcv_move,&p,&n8);
+                    p = tmpbuf8;
 #else
                     p = rcv_move;
 #endif /* NOSPL */
@@ -8005,30 +8011,30 @@ doftpget(cx,who) int cx, who;
                          " moved to" : " failed to move to", p, 0);
                 }
                 if (pv[SND_SRN].ival > 0 && pv[SND_SRN].sval) {
-                    char * s = pv[SND_SRN].sval;
+                    char * s9 = pv[SND_SRN].sval;
                     char * srvrn = pv[SND_SRN].sval;
-                    char tmpbuf[CKMAXPATH+1];
+                    char tmpbuf7[CKMAXPATH+1];
 #ifndef NOSPL
                     int y;              /* Pass it thru the evaluator */
                     extern int cmd_quoting; /* for \v(filename) */
-                    debug(F111,"ftp get srv_renam",s,1);
+                    debug(F111,"ftp get srv_renam",s9,1);
 
                     if (cmd_quoting) {
                         y = CKMAXPATH;
-                        s = (char *)tmpbuf;
-                        zzstring(srvrn,&s,&y);
-                        s = (char *)tmpbuf;
+                        s9 = (char *)tmpbuf7;
+                        zzstring(srvrn,&s9,&y);
+                        s9 = (char *)tmpbuf7;
                     }
 #endif /* NOSPL */
-                    debug(F111,"ftp get srv_renam",s,1);
-                    if (s) if (*s) {
+                    debug(F111,"ftp get srv_renam",s9,1);
+                    if (s9) if (*s9) {
                         int x;
-                        x = ftp_rename(s2,s);
+                        x = ftp_rename(s2,s9);
                         debug(F111,"ftp get ftp_rename",s2,x);
                         tlog(F110, (x > 0) ?
                              " renamed source file to" :
                              " failed to rename source file to",
-                             s,
+                             s9,
                              0
                              );
                         if (x < 1)
@@ -8074,7 +8080,7 @@ doftpget(cx,who) int cx, who;
           status = 0;                   /* MGET failed if it got no files */
     }
     success = status;
-    x = success;
+    wx = success;
     debug(F101,"ftp get success","",success);
 
   xgetx:
@@ -8122,7 +8128,7 @@ doftpget(cx,who) int cx, who;
 
     ftreset();                          /* Undo switch effects */
     dpyactive = 0;
-    return(x);
+    return(wx);
 }
 
 static struct keytab ftprmt[] = {
@@ -8159,8 +8165,8 @@ doftpsite() {                           /* Send a SITE command */
         if (rcs < 0) rcs = ftp_csr;
     }
 #endif /* NOCSETS */
-    if ((x = cmtxt("Command", "", &s, xxstring)) < 0)
-      return(x);
+    if ((wx = cmtxt("Command", "", &s, xxstring)) < 0)
+      return(wx);
     CHECKCONN();
     ckstrncpy(line,s,LINBUFSIZ);
     if (testing) printf(" ftp site \"%s\"...\n",line);
@@ -8178,9 +8184,9 @@ doftpsite() {                           /* Send a SITE command */
 
 int
 dosetftppsv() {                         /* Passive mode */
-    x = seton(&ftp_psv);
-    if (x > 0) passivemode = ftp_psv;
-    return(x);
+    wx = seton(&ftp_psv);
+    if (wx > 0) passivemode = ftp_psv;
+    return(wx);
 }
 
 /*  d o f t p r m t  --  Parse and execute REMOTE commands  */
@@ -8200,18 +8206,18 @@ doftprmt(cx,who) int cx, who;
       return(0);
 
     if (cx == 0) {
-        if ((x = cmkey(ftprmt,nftprmt,"","",xxstring)) < 0)
-          return(x);
-        cx = x;
+        if ((wx = cmkey(ftprmt,nftprmt,"","",xxstring)) < 0)
+          return(wx);
+        cx = wx;
     }
     switch (cx) {
       case XZCDU:                       /* CDUP */
-        if ((x = cmcfm()) < 0) return(x);
+        if ((wx = cmcfm()) < 0) return(wx);
         return(doftpcdup());
 
       case XZCWD:                       /* RCD */
-        if ((x = cmtxt("Remote directory", "", &s, xxstring)) < 0)
-          return(x);
+        if ((wx = cmtxt("Remote directory", "", &s, xxstring)) < 0)
+          return(wx);
         ckstrncpy(line,s,LINBUFSIZ);
         s = brstrip(line);
         return(doftpcwd(s,1));
@@ -8305,13 +8311,13 @@ doxftp() {                              /* Command parser for built-in FTP */
            NULL,
            NULL
            );
-    x = cmfdb(&kw);                     /* Parse a hostname or a keyword */
-    if (x == -3) {
+    wx = cmfdb(&kw);                     /* Parse a hostname or a keyword */
+    if (wx == -3) {
         printf("?ftp what? \"help ftp\" for hints\n");
         return(-9);
     }
-    if (x < 0)
-      return(x);
+    if (wx < 0)
+      return(wx);
     if (cmresult.fcode == _CMFLD) {     /* If hostname */
         return(openftp(cmresult.sresult,0)); /* go open the connection */
     } else {
@@ -8319,8 +8325,8 @@ doxftp() {                              /* Command parser for built-in FTP */
     }
     switch (cx) {
       case FTP_ACC:                     /* ACCOUNT */
-        if ((x = cmtxt("Remote account", "", &s, xxstring)) < 0)
-          return(x);
+        if ((wx = cmtxt("Remote account", "", &s, xxstring)) < 0)
+          return(wx);
         CHECKCONN();
         makestr(&ftp_acc,s);
         if (testing)
@@ -8329,14 +8335,14 @@ doxftp() {                              /* Command parser for built-in FTP */
         return(success);
 
       case FTP_GUP:                     /* Go UP */
-        if ((x = cmcfm()) < 0) return(x);
+        if ((wx = cmcfm()) < 0) return(wx);
         CHECKCONN();
         if (testing) printf(" ftp cd: \"(up)\"\n");
         return(success = doftpcdup());
 
       case FTP_CWD:                     /* CD */
-        if ((x = cmtxt("Remote directory", "", &s, xxstring)) < 0)
-          return(x);
+        if ((wx = cmtxt("Remote directory", "", &s, xxstring)) < 0)
+          return(wx);
         CHECKCONN();
         ckstrncpy(line,s,LINBUFSIZ);
         if (testing)
@@ -8344,11 +8350,11 @@ doxftp() {                              /* Command parser for built-in FTP */
         return(success = doftpcwd(line,1));
 
       case FTP_CHM:                     /* CHMOD */
-        if ((x = cmfld("Permissions or protection code","",&s,xxstring)) < 0)
-          return(x);
+        if ((wx = cmfld("Permissions or protection code","",&s,xxstring)) < 0)
+          return(wx);
         ckstrncpy(tmpbuf,s,TMPBUFSIZ);
-        if ((x = cmtxt("Remote filename", "", &s, xxstring)) < 0)
-          return(x);
+        if ((wx = cmtxt("Remote filename", "", &s, xxstring)) < 0)
+          return(wx);
         CHECKCONN();
         ckmakmsg(ftpcmdbuf,FTP_BUFSIZ,tmpbuf," ",s,NULL);
         if (testing)
@@ -8358,8 +8364,8 @@ doxftp() {                              /* Command parser for built-in FTP */
         return(success);
 
       case FTP_CLS:                     /* CLOSE FTP connection */
-        if ((y = cmcfm()) < 0)
-          return(y);
+        if ((wy = cmcfm()) < 0)
+          return(wy);
         CHECKCONN();
         if (testing)
           printf(" ftp closing...\n");
@@ -8377,20 +8383,20 @@ doxftp() {                              /* Command parser for built-in FTP */
         return(doftpget(cx,1));
 
       case FTP_IDL:                     /* IDLE */
-        if ((x = cmnum("Number of seconds","-1",10,&z,xxstring)) < 0)
-          return(x);
-        if ((y = cmcfm()) < 0)
-          return(y);
+        if ((wx = cmnum("Number of seconds","-1",10,&wz,xxstring)) < 0)
+          return(wx);
+        if ((wy = cmcfm()) < 0)
+          return(wy);
         CHECKCONN();
-        if (z < 0)  {                   /* Display idle timeout */
+        if (wz < 0)  {                   /* Display idle timeout */
             if (testing)
               printf(" ftp query idle timeout...\n");
             success = (ftpcmd("SITE IDLE",NULL,0,0,1) == REPLY_COMPLETE);
         } else {                        /* Set idle timeout */
             if (testing)
-              printf(" ftp idle timeout set: %d...\n",z);
+              printf(" ftp idle timeout set: %d...\n",wz);
             success =
-              (ftpcmd("SITE IDLE",ckitoa(z),0,0,1) == REPLY_COMPLETE);
+              (ftpcmd("SITE IDLE",ckitoa(wz),0,0,1) == REPLY_COMPLETE);
         }
         return(success);
 
@@ -8398,8 +8404,8 @@ doxftp() {                              /* Command parser for built-in FTP */
         return(doftpmkd());
 
       case FTP_MOD:                     /* MODTIME */
-        if ((x = cmtxt("Remote filename", "", &s, xxstring)) < 0)
-          return(x);
+        if ((wx = cmtxt("Remote filename", "", &s, xxstring)) < 0)
+          return(wx);
         CHECKCONN();
         ckstrncpy(line,s,LINBUFSIZ);
         if (testing)
@@ -8410,19 +8416,19 @@ doxftp() {                              /* Command parser for built-in FTP */
             mdtmok = 1;
             if (!quiet) {
                 int flag = 0;
-                char c, * s;
+                char c, * s9;
                 struct tm tmremote;
 
                 bzero((char *)&tmremote, sizeof(struct tm));
-                s = ftp_reply_str;
-                while ((c = *s++)) {
+                s9 = ftp_reply_str;
+                while ((c = *s9++)) {
                     if (c == SP) {
                         flag++;
                         break;
                     }
                 }
                 if (flag) {
-                    if (sscanf(s, "%04d%02d%02d%02d%02d%02d",
+                    if (sscanf(s9, "%04d%02d%02d%02d%02d%02d",
                                &tmremote.tm_year,
                                &tmremote.tm_mon,
                                &tmremote.tm_mday,
@@ -8462,7 +8468,7 @@ doxftp() {                              /* Command parser for built-in FTP */
             for (p = name; *p; p++)     /* Remove ":service" from end. */
               if (*p == ':') { *p = '\0'; break; }
 #ifndef USETLSTAB
-            x = cmfld("IP hostname or address",name,&s,xxstring);
+            wx = cmfld("IP hostname or address",name,&s,xxstring);
 #else
             cmfdbi(&kw,                 /* First FDB - commands */
                    _CMKEY,              /* fcode */
@@ -8488,12 +8494,12 @@ doxftp() {                              /* Command parser for built-in FTP */
                    );
 
             for (n = 0;; n++) {
-                x = cmfdb(&kw);         /* Parse a hostname or a keyword */
-                if (x == -3) {
+                wx = cmfdb(&kw);         /* Parse a hostname or a keyword */
+                if (wx == -3) {
                   printf("?ftp open what? \"help ftp\" for hints\n");
                   return(-9);
                 }
-                if (x < 0)
+                if (wx < 0)
                   break;
                 if (cmresult.fcode == _CMFLD) { /* Hostname */
                     s = cmresult.sresult;
@@ -8503,9 +8509,9 @@ doxftp() {                              /* Command parser for built-in FTP */
                 }
             }
 #endif /* USETLSTAB */
-            if (x < 0) {
+            if (wx < 0) {
                 success = 0;
-                return(x);
+                return(wx);
             }
             ckstrncpy(line,s,LINBUFSIZ);
             s = line;
@@ -8519,9 +8525,9 @@ doxftp() {                              /* Command parser for built-in FTP */
         return(doftpput(cx,1));
 
       case FTP_PWD:                     /* PWD */
-        x = doftppwd();
-        if (x > -1) success = x;
-        return(x);
+        wx = doftppwd();
+        if (wx > -1) success = wx;
+        return(wx);
 
       case FTP_REN:                     /* RENAME */
         return(doftpren());
@@ -8536,8 +8542,8 @@ doxftp() {                              /* Command parser for built-in FTP */
         return(doftprmd());
 
       case FTP_STA:                     /* STATUS */
-        if ((x = cmtxt("Command", "", &s, xxstring)) < 0)
-          return(x);
+        if ((wx = cmtxt("Command", "", &s, xxstring)) < 0)
+          return(wx);
         CHECKCONN();
         ckstrncpy(line,s,LINBUFSIZ);
         if (testing) printf(" ftp status \"%s\"...\n",line);
@@ -8549,8 +8555,8 @@ doxftp() {                              /* Command parser for built-in FTP */
       }
 
       case FTP_SIZ:                     /* (ask for) SIZE */
-        if ((x = cmtxt("Remote filename", "", &s, xxstring)) < 0)
-          return(x);
+        if ((wx = cmtxt("Remote filename", "", &s, xxstring)) < 0)
+          return(wx);
         CHECKCONN();
         ckstrncpy(line,s,LINBUFSIZ);
         if (testing)
@@ -8561,7 +8567,7 @@ doxftp() {                              /* Command parser for built-in FTP */
         return(success);
 
       case FTP_SYS:                     /* Ask for server's SYSTEM type */
-        if ((x = cmcfm()) < 0) return(x);
+        if ((wx = cmcfm()) < 0) return(wx);
         CHECKCONN();
         if (testing)
           printf(" ftp system...\n");
@@ -8569,11 +8575,12 @@ doxftp() {                              /* Command parser for built-in FTP */
         return(success);
 
       case FTP_UMA:                     /* Set/query UMASK */
-        if ((x = cmfld("Umask to set or nothing to query","",&s,xxstring)) < 0)
-          if (x != -3)
-            return(x);
+        if ((wx = cmfld("Umask to set or nothing to query",
+                        "",&s,xxstring)) < 0)
+          if (wx != -3)
+            return(wx);
         ckstrncpy(tmpbuf,s,TMPBUFSIZ);
-        if ((x = cmcfm()) < 0) return(x);
+        if ((wx = cmcfm()) < 0) return(wx);
         CHECKCONN();
         if (testing) {
             if (tmpbuf[0])
@@ -8588,33 +8595,33 @@ doxftp() {                              /* Command parser for built-in FTP */
         return(doftpusr());
 
       case FTP_QUO:
-        if ((x = cmtxt("FTP protocol command", "", &s, xxstring)) < 0)
-          return(x);
+        if ((wx = cmtxt("FTP protocol command", "", &s, xxstring)) < 0)
+          return(wx);
         CHECKCONN();
         success = (ftpcmd(s,NULL,0,0,ftp_vbm) == REPLY_COMPLETE);
         return(success);
 
       case FTP_TYP:                     /* Type */
-        if ((x = cmkey(ftptyp,nftptyp,"","",xxstring)) < 0)
-          return(x);
-        if ((y = cmcfm()) < 0) return(y);
+        if ((wx = cmkey(ftptyp,nftptyp,"","",xxstring)) < 0)
+          return(wx);
+        if ((wy = cmcfm()) < 0) return(wy);
         CHECKCONN();
-        ftp_typ = x;
-        g_ftp_typ = x;
+        ftp_typ = wx;
+        g_ftp_typ = wx;
         tenex = (ftp_typ == FTT_TEN);
         changetype(ftp_typ,ftp_vbm);
         return(1);
 
       case FTP_CHK:                     /* Check if remote file(s) exist(s) */
-        if ((x = cmtxt("remote filename", "", &s, xxstring)) < 0)
-          return(x);
+        if ((wx = cmtxt("remote filename", "", &s, xxstring)) < 0)
+          return(wx);
         CHECKCONN();
         success = remote_files(1,(CHAR *)s,(CHAR *)s,0) ? 1 : 0;
         return(success);
 
       case FTP_FEA:                     /* RFC2389 */
-        if ((y = cmcfm()) < 0)
-          return(y);
+        if ((wy = cmcfm()) < 0)
+          return(wy);
         CHECKCONN();
         success = (ftpcmd("FEAT",NULL,0,0,1) == REPLY_COMPLETE);
         if (success) {
@@ -8629,21 +8636,21 @@ doxftp() {                              /* Command parser for built-in FTP */
 
       case FTP_OPT:                     /* RFC2389 */
         /* Perhaps this should be a keyword list... */
-        if ((x = cmfld("FTP command","",&s,xxstring)) < 0)
-          return(x);
+        if ((wx = cmfld("FTP command","",&s,xxstring)) < 0)
+          return(wx);
         CHECKCONN();
         ckstrncpy(line,s,LINBUFSIZ);
-        if ((x = cmtxt("Options for this command", "", &s, xxstring)) < 0)
-          return(x);
+        if ((wx = cmtxt("Options for this command", "", &s, xxstring)) < 0)
+          return(wx);
         success = (ftpcmd("OPTS",line,lcs,rcs,ftp_vbm) == REPLY_COMPLETE);
         return(success);
 
       case FTP_ENA:                     /* FTP ENABLE */
       case FTP_DIS:                     /* FTP DISABLE */
-        if ((x = cmkey(ftpenatab,nftpena,"","",xxstring)) < 0)
-          return(x);
-        if ((y = cmcfm()) < 0) return(y);
-        switch (x) {
+        if ((wx = cmkey(ftpenatab,nftpena,"","",xxstring)) < 0)
+          return(wx);
+        if ((wy = cmcfm()) < 0) return(wy);
+        switch (wx) {
           case ENA_AUTH:                /* OK to use autoauthentication */
             ftp_aut = (cx == FTP_ENA) ? 1 : 0;
             sfttab[SFT_AUTH] = ftp_aut;
@@ -9403,8 +9410,8 @@ doftphlp() {
     if ((cx = cmkey(ftpcmdtab,nftpcmd,"","",xxstring)) < 0)
       if (cx != -3)
         return(cx);
-    if ((x = cmcfm()) < 0)
-      return(x);
+    if ((wx = cmcfm()) < 0)
+      return(wx);
 
 #ifdef NOHELP
     printf("Sorry, no help available\n");
@@ -9502,8 +9509,8 @@ dosetftphlp() {
         return(cx);
     if (cx != -3)
       ckstrncpy(tmpbuf,atmbuf,TMPBUFSIZ);
-    if ((x = cmcfm()) < 0)
-      return(x);
+    if ((wx = cmcfm()) < 0)
+      return(wx);
 
 #ifdef NOHELP
     printf("Sorry, no help available\n");
@@ -9777,23 +9784,23 @@ static struct   sockaddr_storage hisdataaddr;
 static struct   sockaddr_storage data_addr;
 static struct   sockaddr_storage myctladdr;
 
-#define FTP_SIN(x) ((struct sockaddr_in *)&(x))
-#define FTP_FAMILY(x) ((x).ss_family)
+#define FTP_SIN(wx) ((struct sockaddr_in *)&(wx))
+#define FTP_FAMILY(wx) ((wx).ss_family)
 /*
   The exact address length for connect() or bind() rather than sizeof(struct
   sockaddr_storage).  Some kernels reject an oversized length for the address
   family actually in use.
 */
-#define FTP_SALEN(x) (FTP_FAMILY(x) == AF_INET6 ? \
+#define FTP_SALEN(wx) (FTP_FAMILY(wx) == AF_INET6 ? \
                       sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in))
 #else /* CK_IPV6 */
 static struct   sockaddr_in hisctladdr;
 static struct   sockaddr_in hisdataaddr;
 static struct   sockaddr_in data_addr;
 static struct   sockaddr_in myctladdr;
-#define FTP_SIN(x) (&(x))
-#define FTP_FAMILY(x) ((x).sin_family)
-#define FTP_SALEN(x) sizeof(struct sockaddr_in)
+#define FTP_SIN(wx) (&(wx))
+#define FTP_FAMILY(wx) ((wx).sin_family)
+#define FTP_SALEN(wx) sizeof(struct sockaddr_in)
 #endif /* CK_IPV6 */
 static int      data = -1;
 
@@ -10489,9 +10496,9 @@ ssl_auth() {
     if (ssl_cipher_list) {
         SSL_set_cipher_list(ssl_ftp_con,ssl_cipher_list);
     } else {
-        char * p;
-        if ((p = getenv("SSL_CIPHER"))) {
-            SSL_set_cipher_list(ssl_ftp_con,p);
+        char * p9;
+        if ((p9 = getenv("SSL_CIPHER"))) {
+            SSL_set_cipher_list(ssl_ftp_con,p9);
         } else {
             SSL_set_cipher_list(ssl_ftp_con,DEFAULT_CIPHER_LIST);
         }
@@ -10704,9 +10711,9 @@ scommand(s) char * s;
                         );
         send(csocket,(SENDARG2TYPE)out,len2,0);
     } else {
-        char out[FTP_BUFSIZ];
-        int len = ckmakmsg(out,FTP_BUFSIZ,s,"\r\n",NULL,NULL);
-        send(csocket,(SENDARG2TYPE)out,len,0);
+        char out9[FTP_BUFSIZ];
+        int len = ckmakmsg(out9,FTP_BUFSIZ,s,"\r\n",NULL,NULL);
+        send(csocket,(SENDARG2TYPE)out9,len,0);
     }
     return(1);
 }
@@ -10779,7 +10786,7 @@ xlatec(fc,c,incs,outcs) int fc, c, incs, outcs;
 #else
     static char buf[128];
     static int cx;
-    int c0;
+    int xc0;
 
     if (fc == 1) {                      /* Initialize */
         cx = 0;                         /* Catch-up buffer write index */
@@ -10799,8 +10806,8 @@ xlatec(fc,c,incs,outcs) int fc, c, incs, outcs;
     buf[cx++] = c;
     buf[cx] = NUL;
 
-    while ((c0 = xgnbyte(FC_UCS2,incs,strgetc)) > -1) {
-        if (xpnbyte(c0,TC_UCS2,outcs,NULL) < 0) /* (NULL was xprintc) */
+    while ((xc0 = xgnbyte(FC_UCS2,incs,strgetc)) > -1) {
+        if (xpnbyte(xc0,TC_UCS2,outcs,NULL) < 0) /* (NULL was xprintc) */
           return(-1);
     }
     /* If we're caught up, reinitialize the buffer */
@@ -11264,10 +11271,10 @@ getreply(expecteof,lcs,rcs,vbm,fc) int expecteof, lcs, rcs, vbm, fc;
 
         if (fc == GRF_FEAT) {           /* Parsing FEAT command response? */
             if (count == 0 && n == '2') {
-                int i;                  /* (Re)-init server FEATure table */
+                int i9;                  /* (Re)-init server FEATure table */
                 debug(F100,"ftp getreply clearing feature table","",0);
-                for (i = 0; i < 16; i++)
-                  sfttab[i] = 0;
+                for (i9 = 0; i9 < 16; i9++)
+                  sfttab[i9] = 0;
             } else {
                 parsefeat((char *)ftp_reply_str);
             }
@@ -11478,12 +11485,12 @@ empty(mask, sec) fd_set * mask; int sec;
     t.tv_usec = 0L;
     debug(F100,"ftp empty calling select...","",0);
 #ifdef INTSELECT
-    x = select(32, (int *)mask, NULL, NULL, &t);
+    wx = select(32, (int *)mask, NULL, NULL, &t);
 #else
-    x = select(32, mask, (fd_set *) 0, (fd_set *) 0, &t);
+    wx = select(32, mask, (fd_set *) 0, (fd_set *) 0, &t);
 #endif /* INTSELECT */
-    debug(F101,"ftp empty select","",x);
-    return(x);
+    debug(F101,"ftp empty select","",wx);
+    return(wx);
 }
 #else /* BSDSELECT */
 #ifdef IBMSELECT
@@ -12140,21 +12147,21 @@ doftpsend2(threadinfo) VOID * threadinfo;
 
 static int
 #ifdef CK_ANSIC
-sendrequest( char *cmd, char *local, char *remote,
+sendrequest( char *cmd, char *srlocal, char *remote,
              int xlate, int incs, int outcs, int restart )
 #else
-sendrequest( cmd, local, remote, xlate, incs, outcs, restart )
-             char *cmd, *local, *remote; int xlate, incs, outcs, restart;
+sendrequest( cmd, srlocal, remote, xlate, incs, outcs, restart )
+             char *cmd, *srlocal, *remote; int xlate, incs, outcs, restart;
 #endif /* CK_ANSIC */
 {
     if (!remote) remote = "";           /* Check args */
-    if (!*remote) remote = local;
-    if (!local) local = "";
-    if (!*local) return(-1);
+    if (!*remote) remote = srlocal;
+    if (!srlocal) srlocal = "";
+    if (!*srlocal) return(-1);
     if (!cmd) cmd = "";
     if (!*cmd) cmd = "STOR";
 
-    debug(F111,"ftp sendrequest restart",local,restart);
+    debug(F111,"ftp sendrequest restart",srlocal,restart);
 
     nout = 0;                           /* Init output buffer count */
     ftpsnd.bytes = 0;                   /* File input byte count */
@@ -12187,7 +12194,7 @@ sendrequest( cmd, local, remote, xlate, incs, outcs, restart )
             }
             ckstrncpy(filnam,q,CKMAXPATH+1);
             free(q);
-            local = filnam;
+            srlocal = filnam;
         }
 #endif /* NOSPL */
     }
@@ -12201,7 +12208,7 @@ sendrequest( cmd, local, remote, xlate, incs, outcs, restart )
     debug(F101,"XXX before openi ftp_typ","",ftp_typ);
 #endif  /* VMS */
 
-    if (openi(local) == 0)              /* Try to open the input file */
+    if (openi(srlocal) == 0)              /* Try to open the input file */
       return(-1);
 
 #ifdef VMS
@@ -12215,7 +12222,7 @@ sendrequest( cmd, local, remote, xlate, incs, outcs, restart )
 
             /* **** */
             if (displa && fdispla) {    /* Update file type display */
-                ftscreen(SCR_FN,'F',(CK_OFF_T)0,local);
+                ftscreen(SCR_FN,'F',(CK_OFF_T)0,srlocal);
             }
         }
     }
@@ -12224,7 +12231,7 @@ sendrequest( cmd, local, remote, xlate, incs, outcs, restart )
     ftpsnd.incs = incs;
     ftpsnd.outcs = outcs;
     ftpsnd.cmd = cmd;
-    ftpsnd.local = local;
+    ftpsnd.local = srlocal;
     ftpsnd.remote = remote;
     ftpsnd.oldintr = signal(SIGINT, cancelsend);
     havesigint = 0;
@@ -12397,9 +12404,9 @@ doftprecv(threadinfo) VOID * threadinfo;
 
     if (!out2screen && !ftprecv.pipename) {
        int x;
-       char * local;
-       local = ftprecv.local;
-       x = zchko(local);
+       char * dlocal;
+       dlocal = ftprecv.local;
+       x = zchko(dlocal);
         if (x < 0) {
             if ((!dpyactive || ftp_deb))
               fprintf(stderr,
@@ -12590,9 +12597,9 @@ doftprecv2(threadinfo) VOID * threadinfo;
 #endif /* CK_LOGIN */
 
     if (ftprecv.recover) {                      /* Initiate recovery */
-        x = ftpcmd("REST",ckfstoa(ftprecv.localsize),-1,-1,ftp_vbm);
-        debug(F111,"ftp reply","REST",x);
-        if (x == REPLY_CONTINUE) {
+        wx = ftpcmd("REST",ckfstoa(ftprecv.localsize),-1,-1,ftp_vbm);
+        debug(F111,"ftp reply","REST",wx);
+        if (wx == REPLY_CONTINUE) {
             ftprecv.lmode = "ab";
             rs_len = ftprecv.localsize;
         } else {
@@ -12649,20 +12656,20 @@ Please confirm output file specification or supply an alternative:";
         }
     }
 #endif /* CK_URL */
-    x = 1;                              /* Output file open OK? */
+    wx = 1;                              /* Output file open OK? */
     if (ftprecv.pipename) {             /* Command */
-        x = zxcmd(ZOFILE,ftprecv.pipename);
-        debug(F111,"ftp recvrequest zxcmd",ftprecv.pipename,x);
+        wx = zxcmd(ZOFILE,ftprecv.pipename);
+        debug(F111,"ftp recvrequest zxcmd",ftprecv.pipename,wx);
     } else if (!out2screen) {           /* File */
         struct filinfo xx;
         xx.bs = 0; xx.cs = 0; xx.rl = 0; xx.org = 0; xx.cc = 0;
         xx.typ = 0; xx.os_specific = ""; xx.lblopts = 0;
         /* Append or New */
         xx.dsp = !strcmp(ftprecv.lmode,"ab") ? XYFZ_A : XYFZ_N;
-        x = zopeno(ZOFILE,ftprecv.local,NULL,&xx);
-        debug(F111,"ftp recvrequest zopeno",ftprecv.local,x);
+        wx = zopeno(ZOFILE,ftprecv.local,NULL,&xx);
+        debug(F111,"ftp recvrequest zopeno",ftprecv.local,wx);
     }
-    if (x < 1) {                        /* Failure to open output file */
+    if (wx < 1) {                        /* Failure to open output file */
         if ((!dpyactive || ftp_deb))
           fprintf(stderr, "local(2): %s: %s\n", ftprecv.local, ck_errstr());
         ftprecvret = -1;
@@ -12845,8 +12852,8 @@ Please confirm output file specification or supply an alternative:";
                 } else
 #endif /* OS2 */
                 {
-                    if ((x = xpnbyte(c0,TC_UCS2,ftprecv.fcs,fn)) < 0) break;
-                    if ((x = xpnbyte(c1,TC_UCS2,ftprecv.fcs,fn)) < 0) break;
+                    if ((wx = xpnbyte(c0,TC_UCS2,ftprecv.fcs,fn)) < 0) break;
+                    if ((wx = xpnbyte(c1,TC_UCS2,ftprecv.fcs,fn)) < 0) break;
                 }
             }
         } else {
@@ -12976,7 +12983,7 @@ static int
 #ifdef CK_ANSIC
 recvrequest(
     char * cmd,
-    char * local,
+    char * rrlocal,
     char * remote,
     char * lmode,
     int printnames,
@@ -12986,8 +12993,8 @@ recvrequest(
     int fcs,
     int rcs)
 #else
-recvrequest(cmd,local,remote,lmode,printnames,recover,pipename,xlate,fcs,rcs)
- char *cmd, *local, *remote, *lmode, *pipename; int printnames, recover,
+recvrequest(cmd,rrlocal,remote,lmode,printnames,recover,pipename,xlate,fcs,rcs)
+ char *cmd, *rrlocal, *remote, *lmode, *pipename; int printnames, recover,
  xlate, fcs, rcs;
 #endif /* CK_ANSIC */
 {
@@ -13000,7 +13007,7 @@ recvrequest(cmd,local,remote,lmode,printnames,recover,pipename,xlate,fcs,rcs)
 #ifdef DEBUG
     if (deblog) {
         debug(F111,"ftp recvrequest cmd",cmd,recover);
-        debug(F110,"ftp recvrequest local ",local,0);
+        debug(F110,"ftp recvrequest local ",rrlocal,0);
         debug(F111,"ftp recvrequest remote",remote,ftp_typ);
         debug(F110,"ftp recvrequest pipename ",pipename,0);
         debug(F101,"ftp recvrequest xlate","",xlate);
@@ -13015,7 +13022,7 @@ recvrequest(cmd,local,remote,lmode,printnames,recover,pipename,xlate,fcs,rcs)
         if (rempipe) {
             pipename = remdest;
         } else {
-            local = remdest;
+            rrlocal = remdest;
             if (remappd) lmode = "ab";
         }
     }
@@ -13026,12 +13033,12 @@ recvrequest(cmd,local,remote,lmode,printnames,recover,pipename,xlate,fcs,rcs)
 
     if (pipename) {                     /* No recovery for pipes. */
         recover = 0;
-        if (!local)
-          local = pipename;
+        if (!rrlocal)
+          rrlocal = pipename;
     } else {
-        if (!local)                     /* Output to screen? */
-          local = "-";
-        out2screen = !strcmp(local,"-");
+        if (!rrlocal)                     /* Output to screen? */
+          rrlocal = "-";
+        out2screen = !strcmp(rrlocal,"-");
     }
     debug(F101,"ftp recvrequest out2screen","",out2screen);
 
@@ -13054,7 +13061,7 @@ recvrequest(cmd,local,remote,lmode,printnames,recover,pipename,xlate,fcs,rcs)
 
     debug(F101,"ftp recvrequest recover","",recover);
     if (recover) {                      /* Recovering... */
-        if (stat(local, &stbuf) < 0) {  /* Can't stat local file */
+        if (stat(rrlocal, &stbuf) < 0) {  /* Can't stat local file */
             debug(F101,"ftp recvrequest recover stat failed","",errno);
             recover = 0;                /* So cancel recovery */
         } else {                        /* Have local file info */
@@ -13080,7 +13087,7 @@ recvrequest(cmd,local,remote,lmode,printnames,recover,pipename,xlate,fcs,rcs)
     ftprecv.recover = recover;
     ftprecv.xlate = xlate;
     ftprecv.cmd = cmd;
-    ftprecv.local = local;
+    ftprecv.local = rrlocal;
     ftprecv.remote = remote;
     ftprecv.lmode = lmode;
     ftprecv.pipename = pipename;
@@ -13216,7 +13223,7 @@ initconn() {
 #endif /* OS2 */
             register struct hostent *hp = 0;
             struct servent *destsp;
-            char host[512], *p, *q;
+            char host[512], *p9, *q;
 #ifdef IP_TOS
 #ifdef IPTOS_THROUGHPUT
             int tos;
@@ -13234,8 +13241,9 @@ initconn() {
                       NULL,NULL,NULL
                       );
             memset((char *)&hisctladdr, 0, sizeof (hisctladdr));
-            for (p = tcp_http_proxy, q=host; *p != '\0' && *p != ':'; p++, q++)
-              *q = *p;
+            for (p9 = tcp_http_proxy, q=host;
+                 *p9 != '\0' && *p9 != ':'; p9++, q++)
+              *q = *p9;
             *q = '\0';
 
             FTP_SIN(hisctladdr)->sin_addr.s_addr = inet_addr(host);
@@ -13278,16 +13286,16 @@ initconn() {
 #endif /* DEBUG */
                 return(0);
             }
-            if (*p == ':')
-              p++;
+            if (*p9 == ':')
+              p9++;
             else
-              p = "http";
+              p9 = "http";
 
-            destsp = getservbyname(p,"tcp");
+            destsp = getservbyname(p9,"tcp");
             if (destsp)
               FTP_SIN(hisctladdr)->sin_port = destsp->s_port;
-            else if (p)
-              FTP_SIN(hisctladdr)->sin_port = htons(atoi(p));
+            else if (p9)
+              FTP_SIN(hisctladdr)->sin_port = htons(atoi(p9));
             else
               FTP_SIN(hisctladdr)->sin_port = htons(80);
             errno = 0;
@@ -13722,11 +13730,11 @@ ftp_auth() {
     ULONG cksum;
     ULONG checksum = (ULONG) getpid();
     CHAR out_buf[FTP_BUFSIZ];
-    int i;
+    int wi;
 #else /* FTP_KRB4 */
 #ifdef FTP_GSSAPI
     CHAR out_buf[FTP_BUFSIZ];
-    int i;
+    int wi;
 #endif /* FTP_GSSAPI */
 #endif /* FTP_KRB4 */
 
@@ -13905,7 +13913,7 @@ ftp_auth() {
                                 }
                             }
                             len = FTP_BUFSIZ;
-                            kerror = radix_encode(reply_parse,out_buf,i,&len,
+                            kerror = radix_encode(reply_parse,out_buf,wi,&len,
                                                   RADIX_DECODE);
                             if (kerror) {
                                 fprintf(stderr,
@@ -14016,15 +14024,15 @@ ftp_auth() {
                               "DES Key Schedule not set by credentials",0);
                     }
                     reply_parse = "ADAT=";
-                    i = FTP_BUFSIZ;
+                    wi = FTP_BUFSIZ;
                     kerror = radix_encode(ftp_tkt.dat, out_buf, ftp_tkt.length,
-                                          &i, RADIX_ENCODE);
+                                          &wi, RADIX_ENCODE);
                     if (kerror) {
                         fprintf(stderr, "Base 64 encoding failed: %s\n",
                                 radix_error(kerror));
                         goto krb4_err;
                     }
-                    if (i > FTP_BUFSIZ - 6)
+                    if (wi > FTP_BUFSIZ - 6)
                       printf("?ADAT data too long\n");
                     if (ftpcmd("ADAT",out_buf,-1,-1,0) !=
                         REPLY_COMPLETE) {
@@ -14036,15 +14044,15 @@ ftp_auth() {
                              "No authentication data received from server\n");
                         goto krb4_err;
                     }
-                    i = sizeof(out_buf);
+                    wi = sizeof(out_buf);
                     kerror =
-                      radix_encode(reply_parse, out_buf, 0, &i, RADIX_DECODE);
+                      radix_encode(reply_parse, out_buf, 0, &wi, RADIX_DECODE);
                     if (kerror) {
                         fprintf(stderr, "Base 64 decoding failed: %s\n",
                                 radix_error(kerror));
                         goto krb4_err;
                     }
-                    kerror = krb_rd_safe(out_buf, i,
+                    kerror = krb_rd_safe(out_buf, wi,
 #ifdef KRB524
                                          ftp_cred.session,
 #else /* KRB524 */
@@ -14437,9 +14445,9 @@ fts_dpl(x) int x;
         if (setpbsz(DEFAULT_PBSZ) < 0)
           return(0);
     }
-    y = ftpcmd(x == FPL_CLR ? "PROT C" :
+    wy = ftpcmd(x == FPL_CLR ? "PROT C" :
                (x == FPL_SAF ? "PROT S" : "PROT P"), NULL, 0, 0,ftp_vbm);
-    if (y == REPLY_COMPLETE) {
+    if (wy == REPLY_COMPLETE) {
         ftp_dpl = x;
         return(1);
     }
@@ -14470,8 +14478,8 @@ fts_cpl(x) int x;
         return(1);
     }
     if (x == FPL_CLR) {
-        y = ftpcmd("CCC",NULL,0,0,ftp_vbm);
-        if (y == REPLY_COMPLETE) {
+        wy = ftpcmd("CCC",NULL,0,0,ftp_vbm);
+        if (wy == REPLY_COMPLETE) {
             ftp_cpl = x;
             return(1);
         }
@@ -14954,13 +14962,13 @@ ftp_init() {
             if (n == REPLY_COMPLETE) {
                 debug(F101,"ftp_init FEAT","",sfttab[0]);
                 if (deblog || ftp_deb) {
-                    int i;
-                    for (i = 1; i < 16 && i < nfeattab; i++) {
-                        debug(F111,"ftp_init FEAT",feattab[i].kwd,sfttab[i]);
+                    int i9;
+                    for (i9 = 1; i9 < 16 && i9 < nfeattab; i9++) {
+                        debug(F111,"ftp_init FEAT",feattab[i9].kwd,sfttab[i9]);
                         if (ftp_deb)
                           printf("  Server %s %s\n",
-                                 sfttab[i] ? "supports" : "does not support",
-                                 feattab[i].kwd
+                                 sfttab[i9] ? "supports" : "does not support",
+                                 feattab[i9].kwd
                                  );
                     }
                     /* Deal with disabled MLST opts here if necessary */
@@ -15404,58 +15412,58 @@ remote_files(new_query, arg, pattern, proxy_switch)
     }
     if (tmpfilptr[mlsdepth] == NULL) {
         extern char * tempdir;
-        char * p;
+        char * p9;
         debug(F110,"ftp remote_files tempdir",tempdir,0);
         if (tempdir) {
-            p = tempdir;
+            p9 = tempdir;
         } else {
 #ifdef OS2
 #ifdef NT
-            p = getenv("K95TMP");
+            p9 = getenv("K95TMP");
 #else
-            p = getenv("K2TMP");
+            p9 = getenv("K2TMP");
 #endif /* NT */
-            if (!p)
+            if (!p9)
 #endif /* OS2 */
-              p = getenv("CK_TMP");
-            if (!p)
-              p = getenv("TMPDIR");
-            if (!p) p = getenv("TEMP");
-            if (!p) p = getenv("TMP");
+              p9 = getenv("CK_TMP");
+            if (!p9)
+              p9 = getenv("TMPDIR");
+            if (!p9) p9 = getenv("TEMP");
+            if (!p9) p9 = getenv("TMP");
 #ifdef OS2ORUNIX
-            if (p) {
-                int len = strlen(p);
-                if (p[len-1] != '/'
+            if (p9) {
+                int len = strlen(p9);
+                if (p9[len-1] != '/'
 #ifdef OS2
-                    && p[len-1] != '\\'
+                    && p9[len-1] != '\\'
 #endif /* OS2 */
                      ) {
                     static char foo[CKMAXPATH];
-                    ckstrncpy(foo,p,CKMAXPATH);
+                    ckstrncpy(foo,p9,CKMAXPATH);
                     ckstrncat(foo,"/",CKMAXPATH);
-                    p = foo;
+                    p9 = foo;
                 }
             } else
 #else /* OS2ORUNIX */
-            if (!p)
+            if (!p9)
 #endif /* OS2ORUNIX */
 #ifdef UNIX                             /* Systems that have a standard */
-                p = "/tmp/";            /* temporary directory... */
+                p9 = "/tmp/";            /* temporary directory... */
 #else
 #ifdef datageneral
-            p = ":TMP:";
+            p9 = ":TMP:";
 #else
-            p = "";
+            p9 = "";
 #endif /* datageneral */
 #endif /* UNIX */
         }
-        debug(F110,"ftp remote_files p",p,0);
+        debug(F110,"ftp remote_files p",p9,0);
 
         /* Get temp file */
 
         if ((tmpfilnam[mlsdepth] = (char *)malloc(CKMAXPATH+1))) {
             ckmakmsg((char *)tmpfilnam[mlsdepth],
-                     CKMAXPATH+1,p,"ckXXXXXX",NULL,NULL);
+                     CKMAXPATH+1,p9,"ckXXXXXX",NULL,NULL);
         } else {
             printf("?Malloc failure: remote_files()\n");
             return(NULL);
@@ -15680,7 +15688,7 @@ remote_files(new_query, arg, pattern, proxy_switch)
                 mlsdepth++;
                 printf("RECURSING [%s](%d)...\n",p,mlsdepth);
                 if (doftpcwd(p,0) > 0) {
-                    int x;
+                    int x9;
                     if (!ckstrchr(p,'/')) {
                         /* zmkdir() needs dirsep */
                         if ((p2 = (char *)malloc((int)strlen(p) + 2))) {
@@ -15690,11 +15698,11 @@ remote_files(new_query, arg, pattern, proxy_switch)
                         }
                     }
 #ifdef NOMKDIR
-                    x = -1;
+                    x9 = -1;
 #else
-                    x = zmkdir(p);
+                    x9 = zmkdir(p);
 #endif /* NOMKDIR */
-                    if (x > -1) {
+                    if (x9 > -1) {
                         zchdir(p);
                         p = (char *)remote_files(1,arg,pattern,0);
                         if (p2) free(p2);
@@ -16106,7 +16114,7 @@ secure_getbyte(fd,fc) int fd,fc;
 {
     /* number of chars in ucbuf, pointer into ucbuf */
     static unsigned int nin = 0, bufp = 0;
-    int kerror;
+    int lkerror;
     ftp_uint32 length;
 
     if (fc) {
@@ -16179,11 +16187,11 @@ secure_getbyte(fd,fc) int fd,fc;
         } else
 #endif /* CK_SSL */
           {
-              kerror = looping_read(fd, (char *)&length, sizeof(length));
-              if (kerror != sizeof(length)) {
+              lkerror = looping_read(fd, (char *)&length, sizeof(length));
+              if (lkerror != sizeof(length)) {
                   secure_error("Couldn't read PROT buffer length: %d/%s",
-                               kerror,
-                               kerror == -1 ? ck_errstr()
+                               lkerror,
+                               lkerror == -1 ? ck_errstr()
                                : "premature EOF"
                                );
                   return(ERR);
@@ -16199,11 +16207,11 @@ secure_getbyte(fd,fc) int fd,fc;
                                );
                   return(ERR);
               }
-              if ((unsigned int)(kerror =
+              if ((unsigned int)(lkerror =
                   looping_read(fd,(char *)ucbuf,length)) != length) {
                   secure_error("Couldn't read %u byte PROT buffer: %s",
                                length,
-                               kerror == -1 ? ck_errstr() : "premature EOF"
+                               lkerror == -1 ? ck_errstr() : "premature EOF"
                                );
                   return(ERR);
               }
@@ -16246,7 +16254,7 @@ secure_getbyte(fd,fc) int fd,fc;
                       return(ERR);
                   }
                   if (ftp_dpl) {
-                      kerror = krb_rd_priv(ucbuf, length, ftp_sched,
+                      lkerror = krb_rd_priv(ucbuf, length, ftp_sched,
 #ifdef KRB524
                                            ftp_cred.session,
 #else /* KRB524 */
@@ -16254,7 +16262,7 @@ secure_getbyte(fd,fc) int fd,fc;
 #endif /* KRB524 */
                                            &hisaddr, &myaddr, &ftp_msg_data);
                   } else {
-                      kerror = krb_rd_safe(ucbuf, length,
+                      lkerror = krb_rd_safe(ucbuf, length,
 #ifdef KRB524
                                            ftp_cred.session,
 #else /* KRB524 */
@@ -16262,10 +16270,10 @@ secure_getbyte(fd,fc) int fd,fc;
 #endif /* KRB524 */
                                            &hisaddr, &myaddr, &ftp_msg_data);
                   }
-                  if (kerror) {
+                  if (lkerror) {
                       secure_error("krb_rd_%s failed for KERBEROS_V4 (%s)",
                                    ftp_dpl == FPL_PRV ? "priv" : "safe",
-                                   krb_get_err_text(kerror));
+                                   krb_get_err_text(lkerror));
                       return(ERR);
                   }
                   memcpy(ucbuf,ftp_msg_data.app_data,ftp_msg_data.app_length);

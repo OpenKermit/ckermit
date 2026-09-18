@@ -966,14 +966,14 @@ cmdlin() {
                         case 'z': {
                             /* *xargv contains a value of the form tag=value */
                             /* we need to lookup the tag and save the value  */
-                            int x,y,z;
+                            int sox,y,z;
                             char * p, * q = NULL;
                             makestr(&p,*xargv);
                             y = ckindex("=",p,0,0,1);
                             if (y > 0)
                               p[y-1] = '\0';
-                            x = lookup(httpztab,p,nhttpztab,&z);
-                            if (x < 0) {
+                            sox = lookup(httpztab,p,nhttpztab,&z);
+                            if (sox < 0) {
                                 printf("?Invalid security option: \"%s\"\n",p);
                             } else {
                                 printf("Security option: \"%s",p);

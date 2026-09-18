@@ -2738,7 +2738,7 @@ nzrtol(name,name2,fncnv,fnrpath,max) char *name,*name2;int fncnv,fnrpath,max;
 { /* nzrtol */
     char *s, *p;
     int flag = 0, n = 0;
-    char fullname[CKMAXPATH+1];
+    char nrfn[CKMAXPATH+1];
     int devnull = 0;
     int acase = 0;
     if (!name2) return;
@@ -2758,21 +2758,21 @@ nzrtol(name,name2,fncnv,fnrpath,max) char *name,*name2;int fncnv,fnrpath,max;
     /* Handle the path -- we don't have to convert its format, since */
     /* the standard path format and our (UNIX) format are the same. */
 
-    fullname[0] = NUL;
+    nrfn[0] = NUL;
     devnull = !strcmp(name,"/dev/null");
 
     if (!devnull && fnrpath == PATH_OFF) { /* RECEIVE PATHNAMES OFF */
         zstrip(name,&p);
-        strncpy(fullname,p,CKMAXPATH);
+        strncpy(nrfn,p,CKMAXPATH);
     } else if (!devnull && fnrpath == PATH_ABS) { /* REC PATHNAMES ABSOLUTE */
-        strncpy(fullname,name,CKMAXPATH);
+        strncpy(nrfn,name,CKMAXPATH);
     } else if (!devnull && isabsolute(name)) { /* RECEIVE PATHNAMES RELATIVE */
-        ckmakmsg(fullname,CKMAXPATH,".",name,NULL,NULL);
+        ckmakmsg(nrfn,CKMAXPATH,".",name,NULL,NULL);
     } else {                            /* Ditto */
-        ckstrncpy(fullname,name,CKMAXPATH);
+        ckstrncpy(nrfn,name,CKMAXPATH);
     }
-    fullname[CKMAXPATH] = NUL;
-    debug(F110,"nzrtol fullname",fullname,0);
+    nrfn[CKMAXPATH] = NUL;
+    debug(F110,"nzrtol fullname",nrfn,0);
 
 #ifndef NOTRUNCATE
 /*
@@ -2785,32 +2785,32 @@ nzrtol(name,name2,fncnv,fnrpath,max) char *name,*name2;int fncnv,fnrpath,max;
 */
     {
         char buf[CKMAXPATH+1];          /* New temporary buffer on stack */
-        char *p = fullname;             /* Source and  */
-        char *s = buf;                  /* destination pointers */
-        int i = 0, n = 0;
+        char *np = nrfn;             /* Source and  */
+        char *ns = buf;                  /* destination pointers */
+        int i = 0, nn = 0;
         debug(F101,"nzrtol sizing CKMAXNAM","",CKMAXNAM);
-        while (*p && n < CKMAXPATH) {   /* Copy name to new buffer */
+        while (*np && nn < CKMAXPATH) {   /* Copy name to new buffer */
             if (++i > CKMAXNAM) {      /* If this segment too long */
-                while (*p && *p != '/') /* skip past the rest... */
-                  p++;
+                while (*np && *np != '/') /* skip past the rest... */
+                  np++;
                 i = 0;                  /* and reset counter. */
-            } else if (*p == '/') {     /* End of this segment. */
+            } else if (*np == '/') {     /* End of this segment. */
                 i = 0;                  /* Reset counter. */
             }
-            *s++ = *p++;                /* Copy this character. */
-            n++;
+            *ns++ = *np++;                /* Copy this character. */
+            nn++;
         }
-        *s = NUL;
-        ckstrncpy(fullname,buf,CKMAXPATH); /* Copy back to original buffer. */
-        debug(F111,"nzrtol sizing",fullname,n);
+        *ns = NUL;
+        ckstrncpy(nrfn,buf,CKMAXPATH); /* Copy back to original buffer. */
+        debug(F111,"nzrtol sizing",nrfn,nn);
     }
 #endif /* NOTRUNCATE */
 
     if (!fncnv || devnull) {            /* Not converting */
-        ckstrncpy(name2,fullname,max);  /* We're done. */
+        ckstrncpy(name2,nrfn,max);  /* We're done. */
         return;
     }
-    name = fullname;                    /* Converting */
+    name = nrfn;                    /* Converting */
 
     p = name2;
     for (; *name != '\0' && n < CKMAXNAM; name++) {
@@ -2916,7 +2916,7 @@ nzltor(name,name2,fncnv,fnspath,max) char *name,*name2;int fncnv,fnspath,max;
     int n = 0;
     char *dotp = NULL;
     char *dirp = NULL;
-    char fullname[CKMAXPATH+1];
+    char lrfn[CKMAXPATH+1];
     char *p;
     CHAR c;
 
@@ -2938,36 +2938,36 @@ nzltor(name,name2,fncnv,fnspath,max) char *name,*name2;int fncnv,fnspath,max;
 
     /* Handle pathname */
 
-    fullname[0] = NUL;
+    lrfn[0] = NUL;
     if (fnspath == PATH_OFF) {          /* PATHNAMES OFF */
         zstrip(name,&p);
-        ckstrncpy(fullname,p,CKMAXPATH);
+        ckstrncpy(lrfn,p,CKMAXPATH);
     } else {                            /* PATHNAMES RELATIVE or ABSOLUTE */
-        char * p = name;
+        char * rp = name;
         while (1) {
-            if (!strncmp(p,"../",3))
-              p += 3;
-            else if (!strncmp(p,"./",2))
-              p += 2;
+            if (!strncmp(rp,"../",3))
+              rp += 3;
+            else if (!strncmp(rp,"./",2))
+              rp += 2;
             else
               break;
         }
         if (fnspath == PATH_ABS) {      /* ABSOLUTE */
-            zfnqfp(p,CKMAXPATH,fullname);
+            zfnqfp(rp,CKMAXPATH,lrfn);
         } else {                        /* RELATIVE */
-            ckstrncpy(fullname,p,CKMAXPATH);
+            ckstrncpy(lrfn,rp,CKMAXPATH);
         }
     }
-    debug(F110,"nzltor fullname",fullname,0);
+    debug(F110,"nzltor fullname",lrfn,0);
 
     if (!fncnv) {                       /* Not converting */
-        ckstrncpy(name2,fullname,max);  /* We're done. */
+        ckstrncpy(name2,lrfn,max);  /* We're done. */
 #ifndef NOCSETS
         langsv = language;
 #endif /* NOCSETS */
         return;
     }
-    name = fullname;                    /* Converting */
+    name = lrfn;                    /* Converting */
 
 #ifdef aegis
     char *namechars;
@@ -6170,7 +6170,7 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
     int mopts = 0;                      /* ckmatch() opts */
     int depth = 0;                      /* Directory tree depth */
 
-    char nambuf[CKMAXNAM+4];           /* Buffer for a filename */
+    char tvnb[CKMAXNAM+4];           /* Buffer for a filename */
     int itsadir = 0, segisdir = 0, itswild = 0, mresult, n, x /* , y */ ;
     struct stat statbuf;                /* For file info. */
 
@@ -6198,11 +6198,11 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
 #ifdef CKSYMLINK                        /* We're doing symlinks? */
 #ifdef USE_LSTAT                        /* OK to use lstat()? */
     if (itsadir && xnolinks) {          /* If not following symlinks */
-        int x;
+        int lx;
         struct stat buf;
-        x = lstat(sofar,&buf);
-        debug(F111,"traverse lstat 1",sofar,x);
-        if (x > -1 &&
+        lx = lstat(sofar,&buf);
+        debug(F111,"traverse lstat 1",sofar,lx);
+        if (lx > -1 &&
 #ifdef S_ISLNK
             S_ISLNK(buf.st_mode)
 #else
@@ -6403,17 +6403,17 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
           if (!exists)
             continue;
 
-          ckstrncpy(nambuf,             /* Copy the name */
+          ckstrncpy(tvnb,             /* Copy the name */
                   dirbuf->d_name,
                   CKMAXNAM
                   );
-          if (nambuf[0] == '.') {
-              if (!nambuf[1] || (nambuf[1] == '.' && !nambuf[2])) {
-                  debug(F110,"traverse skipping",nambuf,0);
+          if (tvnb[0] == '.') {
+              if (!tvnb[1] || (tvnb[1] == '.' && !tvnb[2])) {
+                  debug(F110,"traverse skipping",tvnb,0);
                   continue;             /* skip "." and ".." */
               }
           }
-          s = nambuf;                   /* Copy name to end of sofar */
+          s = tvnb;                   /* Copy name to end of sofar */
           eos = endcur;
           while ((*eos = *s)) {
               s++;
@@ -6428,7 +6428,7 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
   the name only.
 */
           /* Do this first to save pointless function calls */
-          if (nambuf[0] == '.' && !xmatchdot) /* Dir name starts with '.' */
+          if (tvnb[0] == '.' && !xmatchdot) /* Dir name starts with '.' */
             continue;
           if (stathack) {
               if (xrecursive || xfilonly || xdironly || xpatslash) {
@@ -6445,11 +6445,11 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
 #ifdef CKSYMLINK
 #ifdef USE_LSTAT
           if (itsadir && xnolinks) {            /* If not following symlinks */
-              int x;
+              int lx2;
               struct stat buf;
-              x = lstat(sofar,&buf);
-              debug(F111,"traverse lstat 2",sofar,x);
-              if (x > -1 &&
+              lx2 = lstat(sofar,&buf);
+              debug(F111,"traverse lstat 2",sofar,lx2);
+              if (lx2 > -1 &&
 #ifdef S_ISLNK
                   S_ISLNK(buf.st_mode)
 #else
@@ -6509,7 +6509,7 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
 #endif /* COMMENT */
 
               if (xrecursive && xpatslash == 0)
-                s2 = nambuf;
+                s2 = tvnb;
               while ((s1[0] == '.') && (s1[1] == '/')) /* Strip "./" */
                 s1 += 2;
               while ((s2[0] == '.') && (s2[1] == '/')) /* Ditto */
@@ -6533,7 +6533,7 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
           if (deblog) {
               debug(F111,"traverse mresult depth",sofar,depth);
               debug(F101,"traverse mresult xpatslash","",xpatslash);
-              debug(F111,"traverse mresult nambuf",nambuf,mresult);
+              debug(F111,"traverse mresult nambuf",tvnb,mresult);
               debug(F111,"traverse mresult itswild",pl -> npart,itswild);
               debug(F111,"traverse mresult segisdir",pl -> npart,segisdir);
           }
@@ -6943,7 +6943,7 @@ zshcmd( char *s )
 zshcmd(s) char *s;
 #endif /* CK_ANSIC */
 {
-    PID_T pid;
+    PID_T cpid;
 
 #ifdef NOPUSH
     return(0);
@@ -6955,14 +6955,14 @@ zshcmd(s) char *s;
     debug(F110,"zshcmd command",s,0);
 
 #ifdef aegis
-    if ((pid = vfork()) == 0) {         /* Make child quickly */
+    if ((cpid = vfork()) == 0) {         /* Make child quickly */
         char *shpath, *shname, *shptr;  /* For finding desired shell */
 
         if (priv_can()) exit(1);        /* Turn off privs. */
         if ((shpath = getenv("SHELL")) == NULL) shpath = "/com/sh";
 
 #else                                   /* All Unix systems */
-    if ((pid = fork()) == 0) {          /* Make child */
+    if ((cpid = fork()) == 0) {          /* Make child */
         char *shpath, *shname, *shptr;  /* For finding desired shell */
         struct passwd *p;
 #ifdef HPUX10                           /* Default */
@@ -7025,16 +7025,16 @@ zshcmd(s) char *s;
         sig_t istat;
         sig_t qstat;
 
-        if (pid == (PID_T) -1) return(-1); /* fork() failed? */
+        if (cpid == (PID_T) -1) return(-1); /* fork() failed? */
 
         istat = signal(SIGINT,SIG_IGN); /* Let the fork handle keyboard */
         qstat = signal(SIGQUIT,SIG_IGN); /* interrupts itself... */
 
         debug(F110,"zshcmd parent waiting for child",s,0);
 #ifdef CK_CHILD
-        while (((wstat = wait(&child)) != pid) && (wstat != -1))
+        while (((wstat = wait(&child)) != cpid) && (wstat != -1))
 #else
-        while (((wstat = wait((WAIT_T *)0)) != pid) && (wstat != -1))
+        while (((wstat = wait((WAIT_T *)0)) != cpid) && (wstat != -1))
 #endif /* CK_CHILD */
           ;                             /* Wait for fork */
         signal(SIGINT,istat);           /* Restore interrupts */
@@ -7597,7 +7597,7 @@ zcmpfn(s1,s2) char * s1, * s2;
     char buf2[CKMAXPATH+1];
 
 #ifdef USE_LSTAT
-    char linkname[CKMAXPATH+1];
+    char clnkn[CKMAXPATH+1];
     struct stat buf;
 #endif /* USE_LSTAT */
     int x, rc = 0;
@@ -7618,11 +7618,11 @@ zcmpfn(s1,s2) char * s1, * s2;
 #endif /* _IFLNK */
 #endif /* S_ISLNK */
         ) {
-        linkname[0] = '\0';             /* Get the name */
-        x = readlink(s1,linkname,CKMAXPATH);
+        clnkn[0] = '\0';             /* Get the name */
+        x = readlink(s1,clnkn,CKMAXPATH);
         if (x > -1 && x < CKMAXPATH) {  /* It's a link */
-            linkname[x] = '\0';
-            s1 = linkname;
+            clnkn[x] = '\0';
+            s1 = clnkn;
         }
     }
 #endif /* USE_LSTAT */
@@ -7642,11 +7642,11 @@ zcmpfn(s1,s2) char * s1, * s2;
 #endif /* _IFLNK */
 #endif /* S_ISLNK */
             ) {
-            linkname[0] = '\0';
-            x = readlink(s2,linkname,CKMAXPATH);
+            clnkn[0] = '\0';
+            x = readlink(s2,clnkn,CKMAXPATH);
             if (x > -1 && x < CKMAXPATH) {
-                linkname[x] = '\0';
-                s2 = linkname;
+                clnkn[x] = '\0';
+                s2 = clnkn;
             }
         }
 #endif /* USE_LSTAT */
