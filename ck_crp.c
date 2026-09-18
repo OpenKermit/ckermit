@@ -1588,7 +1588,7 @@ encrypt_start_output(type) int type;
         *p++ = SE;
 
         if (deblog || tn_deb || debses) {
-            int i;
+            int li1;
             sprintf(tn_msg,"TELNET SENT SB %s START ",
                      TELOPT(TELOPT_ENCRYPTION));                /* safe */
             tn_hex((CHAR *)tn_msg,TN_MSG_LEN,&str_start[4],p-str_start-2-4);
@@ -1711,7 +1711,7 @@ encrypt_send_request_start()
     *p++ = SE;
 
     if (deblog || tn_deb || debses) {
-        int i;
+        int li2;
         sprintf(tn_msg,"TELNET SENT SB %s REQUEST-START ",
                  TELOPT(TELOPT_ENCRYPTION));                    /* safe */
         tn_hex((CHAR *)tn_msg,TN_MSG_LEN,&str_start[4],p-str_start-2-4);

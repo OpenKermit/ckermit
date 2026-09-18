@@ -1253,10 +1253,10 @@ conect() {
 
     if (ttyfd < 0) {                    /* If communication device not open */
 #ifdef TTLEBUF
-        int n = le_inbuf();
-        debug(F111,"CONNECT le_inbuf()","ttyfd < 0",n);
-        if (n > 0) {
-            while (n--) {
+        int ln1 = le_inbuf();
+        debug(F111,"CONNECT le_inbuf()","ttyfd < 0",ln1);
+        if (ln1 > 0) {
+            while (ln1--) {
                 CHAR ch;
                 le_getchar(&ch);
                 conoc(ch);
@@ -1393,14 +1393,14 @@ conect() {
         || istncomport()
 #endif /* TN_COMPORT */
         ) && (carrier != CAR_OFF)) {
-        int x;
-        x = ttgmdm();
-        debug(F100,"CONNECT ttgmdm","",x);
-        if ((x > -1) && !(x & BM_DCD)) {
+        int cwx;
+        cwx = ttgmdm();
+        debug(F100,"CONNECT ttgmdm","",cwx);
+        if ((cwx > -1) && !(cwx & BM_DCD)) {
 #ifndef NOHINTS
             extern int hints;
 #endif /* NOHINTS */
-            debug(F100,"CONNECT ttgmdm CD test fails","",x);
+            debug(F100,"CONNECT ttgmdm CD test fails","",cwx);
             conres();
             printf("?Carrier required but not detected.\n");
 #ifndef NOHINTS
@@ -1601,11 +1601,11 @@ conect() {
                     debug(F101,"CONNECT select() timeout","",tt_idleact);
                     switch (tt_idleact) {
                       case IDLE_HANG: { /* Hang up */
-                          int x = 0;
+                          int hux = 0;
 #ifndef NODIAL
                           if (dialmhu)
-                            x = mdmhup();
-                          if (x < 1)
+                            hux = mdmhup();
+                          if (hux < 1)
 #endif /* NODIAL */
                             tthang();
                       }
@@ -1796,16 +1796,16 @@ conect() {
             if (inesc[1] == ES_NORMAL) { /* If not inside escape seq.. */
                 /* Translate character sets */
 #ifdef UNICODE
-                int x;
+                int ux2;
                 if (unicode == 1) {     /* Remote is UTF-8 */
                     outxcount = b_to_u((CHAR)c,outxbuf,OUTXBUFSIZ,tcssize);
                     outxbuf[outxcount] = NUL;
                 } else if (unicode == 2) { /* Local is UTF-8 */
 
-                    x = u_to_b((CHAR)c);
-                    if (x < 0)
+                    ux2 = u_to_b((CHAR)c);
+                    if (ux2 < 0)
                       continue;
-                    outxbuf[0] = (unsigned)(x & 0xff);
+                    outxbuf[0] = (unsigned)(ux2 & 0xff);
                     outxcount = 1;
                     outxbuf[outxcount] = NUL;
                 } else {
@@ -2136,14 +2136,14 @@ conect() {
                             /* Damage the packet so that it doesn't trigger */
                             /* autodownload detection downstream. */
                             if (k == PROTO_K) {
-                                int i, len = strlen((char *)ksbuf);
-                                for (i = 0; i < len; i++)
+                                int ki, len = strlen((char *)ksbuf);
+                                for (ki = 0; ki < len; ki++)
                                   ckcputc(BS);
                             }
 #ifdef CK_XYZ
                             else {
-                                int i;
-                                for (i = 0; i < 3; i++)
+                                int zi;
+                                for (zi = 0; zi < 3; zi++)
                                   ckcputc(CAN);
                             }
 #endif /* CK_XYZ */
@@ -2200,21 +2200,21 @@ conect() {
                     && !printing        /* and not in transparent print */
                     ) {                 /* Translate character sets */
 #ifdef UNICODE
-                    int x;
+                    int ux3;
                     if (unicode == 1) { /* Remote is UTF-8 */
-                        x = u_to_b((CHAR)c);
-                        if (x == -1)
+                        ux3 = u_to_b((CHAR)c);
+                        if (ux3 == -1)
                           continue;
-                        else if (x == -2) { /* LS or PS */
+                        else if (ux3 == -2) { /* LS or PS */
                             inxbuf[0] = CK_CR;
                             inxbuf[1] = LF;
                             inxcount = 2;
-                        } else if (x == -9) { /* UTF-8 error */
+                        } else if (ux3 == -9) { /* UTF-8 error */
                             inxbuf[0] = '?';
                             inxbuf[1] = u_to_b2();
                             inxcount = 2;
                         } else {
-                            inxbuf[0] = (unsigned)(x & 0xff);
+                            inxbuf[0] = (unsigned)(ux3 & 0xff);
                         }
                         c = inxbuf[0];
                     } else if (unicode == 2) { /* Local is UTF-8 */
@@ -2309,9 +2309,9 @@ conect() {
 #ifdef CK_TRIGGER
                     /* Check for trigger string */
                     if (tt_trigger[0]) {
-                        int i;
-                        if ((i = autoexitchk((CHAR)c)) > -1) {
-                            makestr(&triggerval,tt_trigger[i]);
+                        int tri;
+                        if ((tri = autoexitchk((CHAR)c)) > -1) {
+                            makestr(&triggerval,tt_trigger[tri]);
                             ckcputf();  /* Force screen update */
 #ifdef NOSETBUF
                             fflush(stdout); /* I mean really force it */

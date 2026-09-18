@@ -4763,7 +4763,7 @@ getdm( int x )                          /* Return dial modifier */
 getdm(x) int x;
 #endif /* CK_ANSIC */
 {
-    MDMINF * mp;
+    MDMINF * dmp;
     int m;
     int ishayes = 0;
     m = mdmtyp;
@@ -4776,8 +4776,8 @@ getdm(x) int x;
     if (m == n_TAPI)
       m = n_HAYES;
 #endif /* MINIDIAL */
-    mp = modemp[m];
-    ishayes = (dialcapas ? dialcapas : mp->capas) & CKD_AT;
+    dmp = modemp[m];
+    ishayes = (dialcapas ? dialcapas : dmp->capas) & CKD_AT;
     switch (x) {
       case VN_DM_LP:
         return(ishayes ? "," : "");
@@ -4827,20 +4827,20 @@ getdialmth() {
 
 VOID                            /* Get dialing defaults from environment */
 getdialenv() {
-    char *p = NULL;
+    char *gdp = NULL;
     int i, x;
 
-    makestr(&p,getenv("K_DIAL_DIRECTORY"));
-    if (p) {
-        int i;
-        xwords(p,(MAXDDIR - 2),dialdir,0);
-        for (i = 0; i < (MAXDDIR - 1); i++) {
-            if (!dialdir[i+1])
+    makestr(&gdp,getenv("K_DIAL_DIRECTORY"));
+    if (gdp) {
+        int di;
+        xwords(gdp,(MAXDDIR - 2),dialdir,0);
+        for (di = 0; di < (MAXDDIR - 1); di++) {
+            if (!dialdir[di+1])
               break;
             else
-              dialdir[i] = dialdir[i+1];
+              dialdir[di] = dialdir[di+1];
         }
-        ndialdir = i;
+        ndialdir = di;
     }
     xmakestr(&diallcc,getenv("K_COUNTRYCODE")); /* My country code */
     xmakestr(&dialixp,getenv("K_LD_PREFIX"));   /* My long-distance prefix */
@@ -4848,11 +4848,11 @@ getdialenv() {
     xmakestr(&dialldp,getenv("K_TF_PREFIX"));   /* Ny Toll-free prefix */
 
 #ifndef NOICP
-    p = getenv("K_DIAL_METHOD");        /* Local dial method */
-    if (p) if (*p) {
+    gdp = getenv("K_DIAL_METHOD");        /* Local dial method */
+    if (gdp) if (*gdp) {
         extern struct keytab dial_m[];
         extern int ndial_m;
-        i = lookup(dial_m,p,ndial_m,&x);
+        i = lookup(dial_m,gdp,ndial_m,&x);
         if (i > -1) {
             if (i == XYDM_A) {
                 dialmauto = 1;
@@ -4865,19 +4865,19 @@ getdialenv() {
     }
 #endif /* NOICP */
 
-    p = NULL;
-    xmakestr(&p,getenv("K_TF_AREACODE")); /* Toll-free areacodes */
-    if (p) {
-        int i;
-        xwords(p,7,dialtfc,0);
-        for (i = 0; i < 8; i++) {
-            if (!dialtfc[i+1])
+    gdp = NULL;
+    xmakestr(&gdp,getenv("K_TF_AREACODE")); /* Toll-free areacodes */
+    if (gdp) {
+        int ti;
+        xwords(gdp,7,dialtfc,0);
+        for (ti = 0; ti < 8; ti++) {
+            if (!dialtfc[ti+1])
               break;
             else
-              dialtfc[i] = dialtfc[i+1];
+              dialtfc[ti] = dialtfc[ti+1];
         }
-        ntollfree = i;
-        free(p);
+        ntollfree = ti;
+        free(gdp);
     }
     for (i = 0; i < MAXTPCC; i++) {     /* Clear Tone/Pulse country lists */
         dialtocc[i] = NULL;
@@ -4941,14 +4941,14 @@ getdialenv() {
     xmakestr(&diallac,getenv("K_AREACODE"));
     xmakestr(&dialpxo,getenv("K_PBX_OCP"));
     xmakestr(&dialpxi,getenv("K_PBX_ICP"));
-    p = getenv("K_PBX_XCH");
+    gdp = getenv("K_PBX_XCH");
 #ifdef COMMENT
-    xmakestr(&dialpxx,p);
+    xmakestr(&dialpxx,gdp);
 #else
-    if (p) if (*p) {
+    if (gdp) if (*gdp) {
         char * s = NULL;
         char * pp[MAXPBXEXCH+2];
-        makestr(&s,p);                  /* Make a copy for poking */
+        makestr(&s,gdp);                  /* Make a copy for poking */
         if (s) {
             xwords(s,MAXPBXEXCH+1,pp,0); /* Note: pp[] is 1-based. */
             for (i = 0; i <= MAXPBXEXCH; i++) {
@@ -5114,7 +5114,7 @@ _dodial(threadinfo) VOID * threadinfo;
         (mdmcapas & CKD_AT) &&          /* AT command set only */
         ((dialmth == XYDM_T && !dialtone) || /* and using default */
          (dialmth == XYDM_P && !dialpulse))) { /* modem commands... */
-        char c;
+        char ac;
         debug(F110,"dial atdt xnum 1",xnum,0);
         s = dcmd;
         debug(F110,"dial atdt s",s,0);
@@ -5128,11 +5128,11 @@ _dodial(threadinfo) VOID * threadinfo;
             s[3] != 't' &&
             s[3] != 'p') {
             char xbuf[200];
-            c = (dialmth == XYDM_T) ? 'T' : 'P';
+            ac = (dialmth == XYDM_T) ? 'T' : 'P';
             if (islower(s[0]))
-              c = tolower(c);
+              ac = tolower(ac);
             if ((int)strlen(telnbr) < 199) {
-                sprintf(xbuf,"%c%s",c,telnbr);
+                sprintf(xbuf,"%c%s",ac,telnbr);
                 makestr(&xnum,xbuf);
             }
         }
@@ -5720,30 +5720,30 @@ _dodial(threadinfo) VOID * threadinfo;
 #endif /* CK_ATDT */
 
     if (dialidt) {                      /* Ignore dialtone? */
-        char *s = "";
-        s = dialx3 ? dialx3 : mp->ignoredt;
-        if (s) if (*s) {
-            ttslow(s, wr);
+        char *ds1 = "";
+        ds1 = dialx3 ? dialx3 : mp->ignoredt;
+        if (ds1) if (*ds1) {
+            ttslow(ds1, wr);
             if (xx_ok)                  /* Get modem's response */
               (*xx_ok)(5,1);            /* (but ignore it...) */
         }
     }
     {
-        char *s = "";                   /* Last-minute init string? */
-        s = dialini2 ? dialini2 : mp->ini2;
-        if (s) if (*s) {
-            ttslow(s, wr);
+        char *ds2 = "";                   /* Last-minute init string? */
+        ds2 = dialini2 ? dialini2 : mp->ini2;
+        if (ds2) if (*ds2) {
+            ttslow(ds2, wr);
             if (xx_ok)                  /* Get modem's response */
               (*xx_ok)(5,1);            /* (but ignore it...) */
         }
     }
     if (func_code == 1) {               /* ANSWER (not DIAL) */
-        char *s;
-        s = dialaaon ? dialaaon : mp->aa_on_str;
-        if (!s) s = "";
-        if (*s) {
+        char *ds3;
+        ds3 = dialaaon ? dialaaon : mp->aa_on_str;
+        if (!ds3) ds3 = "";
+        if (*ds3) {
             /* Here we would handle caller ID */
-            ttslow(s, (dialpace > -1) ? wr : mp->dial_rate);
+            ttslow(ds3, (dialpace > -1) ? wr : mp->dial_rate);
             if (xx_ok)                  /* Get modem's response */
               (*xx_ok)(5,1);            /* (but ignore it...) */
         } else {
@@ -5758,9 +5758,9 @@ _dodial(threadinfo) VOID * threadinfo;
 
         if (dialsta != DIA_PART) {      /* Last dial was not partial */
 
-            char *s = "";
-            if (s) if (*s) {
-                ttslow(s, (dialpace > -1) ? wr : mp->dial_rate);
+            char *ds4 = "";
+            if (ds4) if (*ds4) {
+                ttslow(ds4, (dialpace > -1) ? wr : mp->dial_rate);
                 if (xx_ok)              /* Get modem's response */
                   (*xx_ok)(5,1);        /* (but ignore it...) */
             }
@@ -5787,12 +5787,12 @@ _dodial(threadinfo) VOID * threadinfo;
               mdmwait = 255;            /* make it maximum. */
             if (dialesc > 0 &&          /* Modem escape character is set */
                 dialmhu > 0) {          /* Hangup method is modem command */
-                int x = dialesc;
+                int dx1 = dialesc;
                 if (dialesc < 0 || dialesc > 127)
-                  x = 128;
+                  dx1 = 128;
                 sprintf(lbuf,
                         "ATS2=%dS7=%d\015",
-                        dialesc ? x : mp->esc_char, mdmwait); /* safe */
+                        dialesc ? dx1 : mp->esc_char, mdmwait); /* safe */
             } else
               sprintf(lbuf,"ATS7=%d%c",mdmwait,13); /* safe */
             ttslow(lbuf,wr);            /* Set it. */
@@ -5865,19 +5865,19 @@ _dodial(threadinfo) VOID * threadinfo;
             continue;
 
         } else if (mymdmtyp == n_UNKNOWN) { /* Unknown modem type */
-            int x, y = waitct;
+            int ux1, y = waitct;
             mdmstat = D_FAILED;         /* Assume failure. */
             while (y-- > -1) {
-                x = ttchk();
-                if (x > 0) {
-                    if (x > LBUFL) x = LBUFL;
-                    x = ttxin(x,(CHAR *)lbuf);
-                    if ((x > 0) && dialdpy) conol(lbuf);
+                ux1 = ttchk();
+                if (ux1 > 0) {
+                    if (ux1 > LBUFL) ux1 = LBUFL;
+                    ux1 = ttxin(ux1,(CHAR *)lbuf);
+                    if ((ux1 > 0) && dialdpy) conol(lbuf);
                 } else if (network
 #ifdef TN_COMPORT
                            && !istncomport()
 #endif /* TN_COMPORT */
-                           && x < 0) { /* Connection dropped */
+                           && ux1 < 0) { /* Connection dropped */
                     inited = 0;
 #ifdef NTSIG
                     ckThreadEnd(threadinfo);
@@ -5891,9 +5891,9 @@ _dodial(threadinfo) VOID * threadinfo;
 #endif /* DYNAMIC */
                     SIGRETURN;
                 }
-                x = ttgmdm();           /* Try to read modem signals */
-                if (x < 0) break;       /* Can't, fail. */
-                if (x & BM_DCD) {       /* Got signals OK.  Carrier present? */
+                ux1 = ttgmdm();           /* Try to read modem signals */
+                if (ux1 < 0) break;       /* Can't, fail. */
+                if (ux1 & BM_DCD) {       /* Got signals OK.  Carrier there? */
                     mdmstat = CONNECTED; /* Yes, done. */
                     break;
                 }                       /* No, keep waiting. */
@@ -5939,14 +5939,14 @@ _dodial(threadinfo) VOID * threadinfo;
         ckstrncpy(modemmsg,lbuf,LBUFL); /* Call result message */
         lbuf[79] = NUL;
         {
-            int x;                      /* Strip junk from end */
-            x = (int)strlen(modemmsg) - 1;
-            while (x > -1) {
-                if (modemmsg[x] < (char) 33)
-                  modemmsg[x] = NUL;
+            int ux2;                      /* Strip junk from end */
+            ux2 = (int)strlen(modemmsg) - 1;
+            while (ux2 > -1) {
+                if (modemmsg[ux2] < (char) 33)
+                  modemmsg[ux2] = NUL;
                 else
                   break;
-                x--;
+                ux2--;
             }
         }
 #endif /* NOSPL */
@@ -5966,12 +5966,12 @@ _dodial(threadinfo) VOID * threadinfo;
 #ifndef MINIDIAL
 /* Digitel doesn't give an explicit connect confirmation message */
                 else {
-                    int n;
-                    for (n = -1; n < LBUFL-1; ) {
-                        lbuf[++n] = c2 = (char) (ddinc(0) & 0177);
-                        dialoc(lbuf[n]);
-                        if (((lbuf[n] == CK_CR) && (lbuf[n-1] == LF)) ||
-                            ((lbuf[n] == LF) && (lbuf[n-1] == CK_CR)))
+                    int dn1;
+                    for (dn1 = -1; dn1 < LBUFL-1; ) {
+                        lbuf[++dn1] = c2 = (char) (ddinc(0) & 0177);
+                        dialoc(lbuf[dn1]);
+                        if (((lbuf[dn1] == CK_CR) && (lbuf[dn1-1] == LF)) ||
+                            ((lbuf[dn1] == LF) && (lbuf[dn1-1] == CK_CR)))
                           break;
                     }
                     mdmstat = CONNECTED; /* Assume we're connected */
@@ -6333,7 +6333,7 @@ _dodial(threadinfo) VOID * threadinfo;
         msleep(500);
         debug(F100,"dial partial","",0);
     } else {                            /* Call was completed */
-        int x;
+        int ux3;
         msleep(700);                    /* In case modem signals blink  */
         debug(F100,"dial succeeded","",0);
         if (
@@ -6352,21 +6352,21 @@ _dodial(threadinfo) VOID * threadinfo;
   from ttpkt()...
 */
         if (carrier != CAR_OFF) {
-            if ((x = ttgmdm()) >= 0) {
+            if ((ux3 = ttgmdm()) >= 0) {
 #ifdef TN_COMPORT
-                if (istncomport() && !(x & BM_DCD)) {
+                if (istncomport() && !(ux3 & BM_DCD)) {
                     int i;
                     for (i = 0; i < 5; i++) {
                         msleep(500);
                         tnc_wait((CHAR *)"_dodial waiting for DCD",1);
-                        if ((x = ttgmdm()) >= 0) {
-                            if ((x & BM_DCD))
+                        if ((ux3 = ttgmdm()) >= 0) {
+                            if ((ux3 & BM_DCD))
                                 break;
                         }
                     }
                 }
 #endif /* TN_COMPORT */
-                if (!(x & BM_DCD))
+                if (!(ux3 & BM_DCD))
                   printf("WARNING: Carrier seems to have dropped...\n");
             }
         }
@@ -6926,7 +6926,7 @@ dook(void * threadinfo)
 dook(threadinfo) VOID * threadinfo ;
 #endif /* CK_ANSIC */
 /* dook */ {
-    CHAR c;
+    CHAR dc;
 
     int i, x;
 #ifdef IKSD
@@ -6979,14 +6979,14 @@ dook(threadinfo) VOID * threadinfo ;
 #endif /* NTSIG */
                 SIGRETURN;
             }
-            c = (char) (x & 0x7f);      /* Get low order 7 bits */
-            if (!c)                     /* Don't deposit NULs */
+            dc = (char) (x & 0x7f);      /* Get low order 7 bits */
+            if (!dc)                     /* Don't deposit NULs */
               continue;                 /* or else didweget() won't work */
-            if (dialdpy) conoc((char)c); /* Echo it if requested */
+            if (dialdpy) conoc((char)dc); /* Echo it if requested */
             for (i = 0; i < RBUFL-1; i++) /* Rotate buffer */
               rbuf[i] = rbuf[i+1];
-            rbuf[RBUFL-1] = c;          /* Deposit character at end */
-            switch (c) {                /* Interpret it. */
+            rbuf[RBUFL-1] = dc;          /* Deposit character at end */
+            switch (dc) {                /* Interpret it. */
               case CK_CR:               /* Got a carriage return. */
                 switch(rbuf[RBUFL-2]) { /* Look at character before it. */
                   case '0':             /* 0 = OK numeric response */
@@ -7112,7 +7112,7 @@ getok(n, strict) int n, strict;
 
 static VOID
 gethrn() {
-    char c;
+    char gc;
     int x;
 /*
   Hayes numeric result codes (Hayes 1200 and higher):
@@ -7171,30 +7171,30 @@ gethrn() {
     debug(F101,"RESPONSE mdmecho","",mdmecho);
     if (mdmecho) {                      /* Sponge up dialing string echo. */
         while (1) {
-            c = (char) (ddinc(0) & 0x7f);
-            debug(F000,"SPONGE","",c);
-            dialoc(c);
-            if (c == CK_CR) break;
+            gc = (char) (ddinc(0) & 0x7f);
+            debug(F000,"SPONGE","",gc);
+            dialoc(gc);
+            if (gc == CK_CR) break;
         }
     }
     while (mdmstat == 0) {              /* Read response */
         for (i = 0; i < NBUFL; i++)     /* Clear the buffer */
           nbuf[i] = '\0';
         i = 0;                          /* Reset the buffer pointer. */
-        c = (char) (ddinc(0) & 0177);   /* Get first digit of response. */
+        gc = (char) (ddinc(0) & 0177);   /* Get first digit of response. */
                                         /* using an untimed, blocking read. */
-        debug(F000,"RESPONSE-A","",c);
-        dialoc(c);                      /* Echo it if requested. */
-        if (!isdigit(c))                /* If not a digit, keep looking. */
+        debug(F000,"RESPONSE-A","",gc);
+        dialoc(gc);                      /* Echo it if requested. */
+        if (!isdigit(gc))                /* If not a digit, keep looking. */
           continue;
-        nbuf[i++] = c;                  /* Got first digit, save it. */
-        while (c != CK_CR && i < 8) {   /* Read chars up to CR */
+        nbuf[i++] = gc;                  /* Got first digit, save it. */
+        while (gc != CK_CR && i < 8) {   /* Read chars up to CR */
             x = ddinc(0) & 0177;        /* Get a character. */
-            c = (char) x;               /* Got it OK. */
-            debug(F000,"RESPONSE-C","",c);
-            if (c != CK_CR)             /* If it's not a carriage return, */
-              nbuf[i++] = c;            /*  save it. */
-            dialoc(c);                  /* Echo it. */
+            gc = (char) x;               /* Got it OK. */
+            debug(F000,"RESPONSE-C","",gc);
+            if (gc != CK_CR)             /* If it's not a carriage return, */
+              nbuf[i++] = gc;            /*  save it. */
+            dialoc(gc);                  /* Echo it. */
         }
         nbuf[i] = '\0';                 /* Done, terminate the buffer. */
         debug(F110,"dial hayesnv lbuf",lbuf,0);
@@ -8055,8 +8055,8 @@ mdmhup() {
     int xparity;
     int savcarr;
     extern int ttcarr;
-    char *s, c;
-    MDMINF * mp = NULL;
+    char *s, hc;
+    MDMINF * hmp = NULL;
 
     debug(F101,"mdmhup dialmhu","",dialmhu); /* MODEM-HANGUP METHOD */
     debug(F101,"mdmhup local","",local);
@@ -8116,15 +8116,15 @@ mdmhup() {
     if (mymdmtyp < 1)                   /* Not using a modem */
       return(0);
     if (mymdmtyp > 0)                   /* An actual modem... */
-      mp = modemp[mymdmtyp];
-    if (!mp) {                          /* Get pointer to its MDMINF struct */
+      hmp = modemp[mymdmtyp];
+    if (!hmp) {                          /* Get pointer to its MDMINF struct */
         debug(F100,"mdmhup no MDMINF","",0);
         return(0);
     }
-    mdmcapas = dialcapas ? dialcapas : mp->capas;
-    xx_ok = mp->ok_fn;                  /* Pointer to response reader */
+    mdmcapas = dialcapas ? dialcapas : hmp->capas;
+    xx_ok = hmp->ok_fn;                  /* Pointer to response reader */
 
-    s = dialhcmd ? dialhcmd : mp->hup_str; /* Get hangup command */
+    s = dialhcmd ? dialhcmd : hmp->hup_str; /* Get hangup command */
     if (!s) s = "";
     debug(F110,"mdmhup hup_str",s,0);
     if (!*s) return(0);                 /* If none, fail. */
@@ -8138,24 +8138,24 @@ mdmhup() {
     /* In case they gave a SET MODEM ESCAPE command recently... */
 
     if (dialesc < 0 || dialesc > 127)
-      c = NUL;
+      hc = NUL;
     else
-      c = (char) (dialesc ? dialesc : mp->esc_char);
+      hc = (char) (dialesc ? dialesc : hmp->esc_char);
 
     if (mdmcapas & CKD_AT) {            /* Hayes compatible */
-        escbuf[0] = c;
-        escbuf[1] = c;
-        escbuf[2] = c;
+        escbuf[0] = hc;
+        escbuf[1] = hc;
+        escbuf[2] = hc;
         escbuf[3] = NUL;
     } else {                            /* Other */
-        escbuf[0] = c;
+        escbuf[0] = hc;
         escbuf[1] = NUL;
     }
     debug(F110,"mdmhup escbuf",escbuf,0);
     if (escbuf[0]) {                    /* Have escape sequence? */
-        debug(F101,"mdmhup esc_time",0,mp->esc_time);
-        if (mp->esc_time)               /* If we have a guard time */
-          msleep(mp->esc_time);         /* Pause for guard time */
+        debug(F101,"mdmhup esc_time",0,hmp->esc_time);
+        if (hmp->esc_time)               /* If we have a guard time */
+          msleep(hmp->esc_time);         /* Pause for guard time */
         debug(F100,"mdmhup pause 1 OK","",0);
 
 #ifdef NETCONN                          /* Send modem's escape sequence */
@@ -8173,8 +8173,8 @@ mdmhup() {
         }
 #endif /* NETCONN */
 
-        if (mp->esc_time)               /* Pause for guard time again */
-          msleep(mp->esc_time);
+        if (hmp->esc_time)               /* Pause for guard time again */
+          msleep(hmp->esc_time);
         else
           msleep(500);                  /* Wait half a sec for echoes. */
         debug(F100,"mdmhup pause 1 OK","",0);

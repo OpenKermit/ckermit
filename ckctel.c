@@ -1341,9 +1341,9 @@ fwdx_parse_displayname (displayname, familyp, hostp, dpynump, scrnump, restp)
 
 int
 #ifdef CK_ANSIC
-fwdx_tn_sb( unsigned char * sb, int n )
+fwdx_tn_sb( unsigned char * fxsb, int n )
 #else
-fwdx_tn_sb( sb, n ) unsigned char * sb; int n;
+fwdx_tn_sb( fxsb, n ) unsigned char * fxsb; int n;
 #endif /* CK_ANSIC */
 {
     unsigned short hchannel, nchannel;
@@ -1364,18 +1364,18 @@ fwdx_tn_sb( sb, n ) unsigned char * sb; int n;
     }
 #endif /* CK_SSL */
 
-    switch (sb[0]) {
+    switch (fxsb[0]) {
     case FWDX_SCREEN:
         if (sstelnet && n == 4)
-            rc = fwdx_create_listen_socket(sb[1]);
+            rc = fwdx_create_listen_socket(fxsb[1]);
         break;
     case FWDX_OPEN:
         if ( !sstelnet && n >= 5 ) {
             p = (unsigned char *) &nchannel;
             i = 1;
             /* IAC quoting has been stripped in tn_sb() */
-            p[0] = sb[i++];
-            p[1] = sb[i++];
+            p[0] = fxsb[i++];
+            p[1] = fxsb[i++];
             hchannel = ntohs(nchannel);
             rc = fwdx_open_client_channel(hchannel);
             if ( rc < 0 ) {
@@ -1395,8 +1395,8 @@ fwdx_tn_sb( sb, n ) unsigned char * sb; int n;
         p = (unsigned char *) &nchannel;
         i = 1;
         /* IAC quoting has been stripped in tn_sb() */
-        p[0] = sb[i++];
-        p[1] = sb[i++];
+        p[0] = fxsb[i++];
+        p[1] = fxsb[i++];
         hchannel = ntohs(nchannel);
         fwdx_close_channel(hchannel);
         rc = 0; /* no errors when closing */
@@ -1405,12 +1405,13 @@ fwdx_tn_sb( sb, n ) unsigned char * sb; int n;
         p = (unsigned char *) &nchannel;
         i = 1;
         /* IAC quoting has been stripped in tn_sb() */
-        p[0] = sb[i++];
-        p[1] = sb[i++];
+        p[0] = fxsb[i++];
+        p[1] = fxsb[i++];
         hchannel = ntohs(nchannel);
-        rc = fwdx_send_xauth_to_xserver(hchannel,(CHAR *)&sb[3],n-5);
+        rc = fwdx_send_xauth_to_xserver(hchannel,(CHAR *)&fxsb[3],n-5);
         if ( rc >= 0 && n-5-rc > 0) {
-            rc = fwdx_write_data_to_channel(hchannel,(char *)&sb[3+rc],n-5-rc);
+            rc = fwdx_write_data_to_channel(hchannel,
+                                             (char *)&fxsb[3+rc],n-5-rc);
             if ( rc < 0 ) {
                 /* Failed; Send CLOSE channel */
                 rc = fwdx_send_close(hchannel);
@@ -1421,14 +1422,14 @@ fwdx_tn_sb( sb, n ) unsigned char * sb; int n;
         if ( sstelnet ) {
             rc = 0;
         } else {
-            rc = fwdx_client_reply_options((char *)&sb[2],n-3);
+            rc = fwdx_client_reply_options((char *)&fxsb[2],n-3);
             if ( rc >= 0 ) {
                 rc = tn_sndfwdx();
             }
         }
         break;
     case FWDX_OPT_DATA:
-        switch ( sb[1] ) {
+        switch ( fxsb[1] ) {
         default:
             rc = 0;             /* we don't recognize, not an error */
         }
@@ -1440,11 +1441,11 @@ fwdx_tn_sb( sb, n ) unsigned char * sb; int n;
             p = (unsigned char *) &nchannel;
             i = 1;
             /* IAC quoting has been stripped in tn_sb() */
-            p[0] = sb[i++];
-            p[1] = sb[i++];
+            p[0] = fxsb[i++];
+            p[1] = fxsb[i++];
             hchannel = ntohs(nchannel);
             TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[hchannel].suspend =
-                (sb[0] == FWDX_XOFF);
+                (fxsb[0] == FWDX_XOFF);
             rc = 0;
         }
         break;
@@ -1996,9 +1997,9 @@ fwdx_create_fake_xauth(name, name_len, data_len)
 */
 int
 #ifdef CK_ANSIC
-iks_wait(int sb, int flushok)
+iks_wait(int iwst, int flushok)
 #else /* CK_ANSIC */
-iks_wait(sb,flushok) int sb; int flushok;
+iks_wait(iwst,flushok) int iwst; int flushok;
 #endif /* CK_ANSIC */
 {
     int tn_wait_save = tn_wait_flg;
@@ -2021,7 +2022,7 @@ iks_wait(sb,flushok) int sb; int flushok;
     printf("*** TELOPT_U(TELOPT_KERMIT)=%d\n",TELOPT_U(TELOPT_KERMIT));
 */
     if (tn_wait_flg && TELOPT_U(TELOPT_KERMIT)) {
-        switch (sb) {
+        switch (iwst) {
           case KERMIT_REQ_START:
             debug(F111,
                   "iks_wait KERMIT_REQ_START",
@@ -2110,9 +2111,9 @@ iks_wait(sb,flushok) int sb; int flushok;
 
 int
 #ifdef CK_ANSIC
-iks_tn_sb(CHAR * sb, int n)
+iks_tn_sb(CHAR * iksb, int n)
 #else
-iks_tn_sb(sb, n) CHAR * sb; int n;
+iks_tn_sb(iksb, n) CHAR * iksb; int n;
 #endif /* CK_ANSIC */
 {
     extern int server;
@@ -2125,7 +2126,7 @@ iks_tn_sb(sb, n) CHAR * sb; int n;
     extern int autodl, inautodl, cmdadl;
 #endif /* CK_AUTODL */
 #endif /* NOICP */
-    switch (sb[0]) {
+    switch (iksb[0]) {
       case KERMIT_START:                /* START */
         TELOPT_SB(TELOPT_KERMIT).kermit.u_start = 1;
         return(4);
@@ -2213,7 +2214,7 @@ iks_tn_sb(sb, n) CHAR * sb; int n;
       case KERMIT_SOP: {                /* SOP */
 #ifndef NOXFER
           extern CHAR stchr;            /* Incoming SOP character */
-          stchr = sb[1];
+          stchr = iksb[1];
 #endif /* NOXFER */
           TELOPT_SB(TELOPT_KERMIT).kermit.sop = 1;
           return(4);
@@ -4026,10 +4027,10 @@ tn_sb( opt, len, fn ) int opt; int * len; int (*fn)();
         ckmakxmsg(tn_msg,TN_MSG_LEN,"TELNET RCVD SB ",TELOPT(opt)," ",
                   NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
         {
-            int i;
-            for (i = 0; i < 16; i++) {
-                if (s[i][0]) {
-                    ckstrncat(tn_msg,s[i],TN_MSG_LEN);
+            int mi;
+            for (mi = 0; mi < 16; mi++) {
+                if (s[mi][0]) {
+                    ckstrncat(tn_msg,s[mi],TN_MSG_LEN);
                     ckstrncat(tn_msg," ",TN_MSG_LEN);
                 }
             }
@@ -4945,7 +4946,7 @@ tn_xdoop(z, echo, fn) CHAR z; int echo; int (*fn)();
                   /* we failed.  disconnect and if we are the client */
                   /* then reconnect and try without START_TLS.       */
                   extern char * line;
-                  int x = -1;
+                  int tlx = -1;
                   extern int mdmtyp;
 
                   if (sstelnet) {
@@ -4983,7 +4984,7 @@ tn_xdoop(z, echo, fn) CHAR z; int echo; int (*fn)();
                           ttnproto = NP_TELNET;
                           printf("Reconnecting without TLS.\n");
                           sleep(2);
-                          if (ttopen(ttname,&x,mdmtyp,0)<0)
+                          if (ttopen(ttname,&tlx,mdmtyp,0)<0)
                               rc = -3;
                       } else {
                           TELOPT_DEF_C_U_MODE(TELOPT_START_TLS) =
@@ -5436,9 +5437,9 @@ tn_doop(z, echo, fn) CHAR z; int echo; int (*fn)();
 
 int
 #ifdef CK_ANSIC
-tn_rnenv(CHAR * sb, int len)
+tn_rnenv(CHAR * rnsb, int len)
 #else
-tn_rnenv(sb, len) CHAR * sb; int len;
+tn_rnenv(rnsb, len) CHAR * rnsb; int len;
 #endif /* CK_ANSIC */
 /* tn_rnenv */ {                        /* Receive new environment */
     char varname[17];
@@ -5449,7 +5450,7 @@ tn_rnenv(sb, len) CHAR * sb; int len;
 
     if (ttnet != NET_TCPB) return(0);
     if (ttnproto != NP_TELNET) return(0);
-    if (sb == NULL) return(-1);
+    if (rnsb == NULL) return(-1);
 
     if (len == 0) return(1);
 
@@ -5458,7 +5459,7 @@ tn_rnenv(sb, len) CHAR * sb; int len;
     follow here until done...
     */
     for (i = 0, j = 0, k = 0, type = 0, varname[0]= '\0'; i <= len; i++) {
-        switch (sb[i]) {
+        switch (rnsb[i]) {
         case TEL_ENV_VAR:               /* VAR */
         case TEL_ENV_USERVAR:           /* USERVAR */
         case IAC:                       /* End of the list */
@@ -5466,7 +5467,7 @@ tn_rnenv(sb, len) CHAR * sb; int len;
               case 0:                   /* Nothing in progress */
                 /* If we get IAC only, then that means there were */
                 /* no environment variables to send.  we are done */
-                if (j == 0 && sb[i] == IAC)
+                if (j == 0 && rnsb[i] == IAC)
                     return(1);
                 /* Fall through */
               case 1:                   /* VAR in progress */
@@ -5565,8 +5566,8 @@ tn_rnenv(sb, len) CHAR * sb; int len;
             value[0] = '\0';
             j = 0;
             k = 0;
-            type = (sb[i] == TEL_ENV_USERVAR ? 2 :      /* USERVAR */
-                    sb[i] == TEL_ENV_VAR ? 1 :  /* VAR */
+            type = (rnsb[i] == TEL_ENV_USERVAR ? 2 :      /* USERVAR */
+                    rnsb[i] == TEL_ENV_VAR ? 1 :  /* VAR */
                      0
                      );
             break;
@@ -5585,11 +5586,11 @@ tn_rnenv(sb, len) CHAR * sb; int len;
             case 1:     /* VAR in progress */
             case 2:     /* USERVAR in progress */
                 if ( j < 16 )
-                    varname[j++] = sb[i];
+                    varname[j++] = rnsb[i];
                 break;
             case 3:
                 if ( k < 64 )
-                    value[k++] = sb[i];
+                    value[k++] = rnsb[i];
                 break;
             }
         }
@@ -5609,9 +5610,9 @@ tn_rnenv(sb, len) CHAR * sb; int len;
 
 int
 #ifdef CK_ANSIC
-tn_snenv(CHAR * sb, int len)
+tn_snenv(CHAR * snsb, int len)
 #else
-tn_snenv(sb, len) CHAR * sb; int len;
+tn_snenv(snsb, len) CHAR * snsb; int len;
 #endif /* CK_ANSIC */
 /* tn_snenv */ {                        /* Send new environment */
     char varname[16];
@@ -5626,7 +5627,7 @@ tn_snenv(sb, len) CHAR * sb; int len;
     localuidbuf[0] = '\0';
     if (ttnet != NET_TCPB) return(0);
     if (ttnproto != NP_TELNET) return(0);
-    if (!sb) return(-1);
+    if (!snsb) return(-1);
 
 #ifdef CK_SSL
     if (TELOPT_SB(TELOPT_START_TLS).start_tls.me_follows) {
@@ -5647,7 +5648,7 @@ tn_snenv(sb, len) CHAR * sb; int len;
         uu = localuidbuf;
     }
 
-    ckhexdump((CHAR *)"tn_snenv sb[]",sb,len);
+    ckhexdump((CHAR *)"tn_snenv sb[]",snsb,len);
     debug(F110,"tn_snenv uidbuf",uidbuf,0);
     debug(F110,"tn_snenv localuidbuf",localuidbuf,0);
     debug(F110,"tn_snenv tn_env_sys",tn_env_sys,0);
@@ -5656,7 +5657,7 @@ tn_snenv(sb, len) CHAR * sb; int len;
 
     /* First determine the size of the buffer we will need */
     for (i = 0, j = 0, n = 0, type = 0, varname[0]= '\0'; i <= len; i++) {
-        switch (sb[i]) {
+        switch (snsb[i]) {
           case TEL_ENV_VAR:             /* VAR */
           case TEL_ENV_USERVAR:         /* USERVAR */
         case IAC:                     /* End of the list */
@@ -5664,7 +5665,7 @@ tn_snenv(sb, len) CHAR * sb; int len;
             case 0:                   /* Nothing in progress */
                 /* If we get IAC only, then that means send all */
                 /* VAR and USERVAR.                             */
-                if (!(j == 0 && sb[i] == IAC))
+                if (!(j == 0 && snsb[i] == IAC))
                   break;
                 /* Fall through */
             case 1:                   /* VAR in progress */
@@ -5696,7 +5697,7 @@ tn_snenv(sb, len) CHAR * sb; int len;
                   n += strlen(disp) + 7 + 2;
                 /* If we get IAC only, then that means send all */
                 /* VAR and USERVAR.                             */
-                  if (!(j == 0 && sb[i] == IAC))
+                  if (!(j == 0 && snsb[i] == IAC))
                       break;
                   /* Fall through */
             case 2:                   /* USERVAR in progress */
@@ -5742,8 +5743,8 @@ tn_snenv(sb, len) CHAR * sb; int len;
             }
             varname[0] = '\0';
             j = 0;
-            type = (sb[i] == TEL_ENV_USERVAR ? 2 :      /* USERVAR */
-                    sb[i] == TEL_ENV_VAR ? 1 :          /* VAR */
+            type = (snsb[i] == TEL_ENV_USERVAR ? 2 :      /* USERVAR */
+                    snsb[i] == TEL_ENV_VAR ? 1 :          /* VAR */
                     0
                    );
             break;
@@ -5760,7 +5761,7 @@ tn_snenv(sb, len) CHAR * sb; int len;
             /* Fall through */
           default:
             if (j < 16 )
-              varname[j++] = sb[i];
+              varname[j++] = snsb[i];
         }
     }
     reply = malloc(n + 16);              /* Leave room for IAC stuff */
@@ -5784,7 +5785,7 @@ tn_snenv(sb, len) CHAR * sb; int len;
   follow here until done...
 */
     for (i = 0, j = 0, type = 0, varname[0]= '\0'; i <= len; i++) {
-        switch (sb[i]) {
+        switch (snsb[i]) {
           case TEL_ENV_VAR:             /* VAR */
           case TEL_ENV_USERVAR:         /* USERVAR */
           case IAC:                     /* End of the list */
@@ -5792,7 +5793,7 @@ tn_snenv(sb, len) CHAR * sb; int len;
               case 0:                   /* Nothing in progress */
                 /* If we get IAC only, then that means send all */
                 /* VAR and USERVAR.                             */
-                if (!(j == 0 && sb[i] == IAC))
+                if (!(j == 0 && snsb[i] == IAC))
                   break;
                 /* Fall through */
               case 1:                   /* VAR in progress */
@@ -5880,7 +5881,7 @@ tn_snenv(sb, len) CHAR * sb; int len;
                 }
                   /* If we get IAC only, then that means send all */
                   /* VAR and USERVAR.                             */
-                  if (!(j == 0 && sb[i] == IAC))
+                  if (!(j == 0 && snsb[i] == IAC))
                       break;
                   /* Fall through */
             case 2:     /* USERVAR in progress */
@@ -5961,8 +5962,8 @@ tn_snenv(sb, len) CHAR * sb; int len;
             }
             varname[0] = '\0';
             j = 0;
-            type = (sb[i] == TEL_ENV_USERVAR ? 2 :      /* USERVAR */
-                    sb[i] == TEL_ENV_VAR ? 1 :  /* VAR */
+            type = (snsb[i] == TEL_ENV_USERVAR ? 2 :      /* USERVAR */
+                    snsb[i] == TEL_ENV_VAR ? 1 :  /* VAR */
                     0
                    );
             break;
@@ -5977,7 +5978,7 @@ tn_snenv(sb, len) CHAR * sb; int len;
             /* Not sure what this for.  Quote next character? */
             break;
           default:
-            varname[j++] = sb[i];
+            varname[j++] = snsb[i];
         }
     }
     if (tn_ssbopt(TELOPT_NEWENVIRON,TELQUAL_IS,(CHAR *)reply,n) < 0) {
@@ -6311,7 +6312,7 @@ tn_sndloc() {                           /* Send location. */
 int
 tn_snaws() {                    /*  Send terminal width and height, RFC 1073 */
 #ifndef NOLOCAL
-    CHAR sb_out[24];            /*  multiple threads */
+    CHAR nawsb[24];            /*  multiple threads */
     int i = 0,rc;
 #ifdef OS2
     int x = VscrnGetWidth(VTERM),
@@ -6339,23 +6340,23 @@ tn_snaws() {                    /*  Send terminal width and height, RFC 1073 */
     TELOPT_SB(TELOPT_NAWS).naws.x = x;  /* Remember the size     */
     TELOPT_SB(TELOPT_NAWS).naws.y = y;
 
-    sb_out[i++] = (CHAR) IAC;               /* Send the subnegotiation */
-    sb_out[i++] = (CHAR) SB;
-    sb_out[i++] = TELOPT_NAWS;
-    sb_out[i++] = (CHAR) (x >> 8) & 0xff;
-    if ((CHAR) sb_out[i-1] == (CHAR) IAC)   /* IAC in data must be doubled */
-      sb_out[i++] = (CHAR) IAC;
-    sb_out[i++] = (CHAR) (x & 0xff);
-    if ((CHAR) sb_out[i-1] == (CHAR) IAC)
-      sb_out[i++] = (CHAR) IAC;
-    sb_out[i++] = (CHAR) (y >> 8) & 0xff;
-    if ((CHAR) sb_out[i-1] == (CHAR) IAC)
-      sb_out[i++] = (CHAR) IAC;
-    sb_out[i++] = (CHAR) (y & 0xff);
-    if ((CHAR) sb_out[i-1] == (CHAR) IAC)
-      sb_out[i++] = (CHAR) IAC;
-    sb_out[i++] = (CHAR) IAC;
-    sb_out[i++] = (CHAR) SE;
+    nawsb[i++] = (CHAR) IAC;               /* Send the subnegotiation */
+    nawsb[i++] = (CHAR) SB;
+    nawsb[i++] = TELOPT_NAWS;
+    nawsb[i++] = (CHAR) (x >> 8) & 0xff;
+    if ((CHAR) nawsb[i-1] == (CHAR) IAC)   /* IAC in data must be doubled */
+      nawsb[i++] = (CHAR) IAC;
+    nawsb[i++] = (CHAR) (x & 0xff);
+    if ((CHAR) nawsb[i-1] == (CHAR) IAC)
+      nawsb[i++] = (CHAR) IAC;
+    nawsb[i++] = (CHAR) (y >> 8) & 0xff;
+    if ((CHAR) nawsb[i-1] == (CHAR) IAC)
+      nawsb[i++] = (CHAR) IAC;
+    nawsb[i++] = (CHAR) (y & 0xff);
+    if ((CHAR) nawsb[i-1] == (CHAR) IAC)
+      nawsb[i++] = (CHAR) IAC;
+    nawsb[i++] = (CHAR) IAC;
+    nawsb[i++] = (CHAR) SE;
 #ifdef DEBUG
     if (deblog || tn_deb || debses) {
         ckmakxmsg(tn_msg_out,TN_MSG_LEN,"TELNET SENT SB NAWS ",
@@ -6370,7 +6371,7 @@ tn_snaws() {                    /*  Send terminal width and height, RFC 1073 */
     debug(F100,tn_msg_out,"",0);
     if (tn_deb || debses) tn_debug(tn_msg_out);
 #endif /* DEBUG */
-    rc = (ttol((CHAR *)sb_out,i) < 0);      /* Send it. */
+    rc = (ttol((CHAR *)nawsb,i) < 0);      /* Send it. */
 #ifdef OS2
     ReleaseTelnetMutex();
 #endif
@@ -6486,16 +6487,16 @@ tnc_wait(msg, ms) CHAR * msg; int ms;
 
 int
 #ifdef CK_ANSIC
-tnc_tn_sb(CHAR * sb, int len)
+tnc_tn_sb(CHAR * ccsb, int len)
 #else
-tnc_tn_sb(sb, len) CHAR * sb; int len;
+tnc_tn_sb(ccsb, len) CHAR * ccsb; int len;
 #endif /* CK_ANSIC */
 /* tnc_tn_sb */ {
     if (ttnet != NET_TCPB) return(0);
     if (ttnproto != NP_TELNET) return(0);
     if (!TELOPT_ME(TELOPT_COMPORT)) return(0);
 
-    if (!sb) return(-1);
+    if (!ccsb) return(-1);
 
 #ifdef CK_SSL
     if (TELOPT_SB(TELOPT_START_TLS).start_tls.me_follows) {
@@ -6503,10 +6504,10 @@ tnc_tn_sb(sb, len) CHAR * sb; int len;
     }
 #endif /* CK_SSL */
 
-    debug(F111,"tnc_tn_sb","sb[0]",sb[0]);
+    debug(F111,"tnc_tn_sb","sb[0]",ccsb[0]);
     debug(F111,"tnc_tn_sb","len",len);
 
-    switch (sb[0]) {
+    switch (ccsb[0]) {
       case TNC_C2S_SIGNATURE:
       case TNC_S2C_SIGNATURE:
         debug(F111,"tnc_tn_sb","signature",len);
@@ -6518,7 +6519,7 @@ tnc_tn_sb(sb, len) CHAR * sb; int len;
               free(tnc_signature);
             tnc_signature = malloc(len);
             if (tnc_signature) {
-                memcpy(tnc_signature,&sb[1],len-1);
+                memcpy(tnc_signature,&ccsb[1],len-1);
                 tnc_signature[len-1] = '\0';
             }
         }
@@ -6531,9 +6532,9 @@ tnc_tn_sb(sb, len) CHAR * sb; int len;
           TELOPT_SB(TELOPT_COMPORT).comport.wait_for_sb = 0;
           if (len == 2) {
             /* Actual behavior of the Access Server... */
-            debug(F111,"tnc_tn_sb","baudrate index",sb[1]);
+            debug(F111,"tnc_tn_sb","baudrate index",ccsb[1]);
             tnc_bps_index = 1;
-            switch (sb[1]) {
+            switch (ccsb[1]) {
             case TNC_BPS_300:
               tnc_bps = 300;
               break;
@@ -6582,10 +6583,10 @@ tnc_tn_sb(sb, len) CHAR * sb; int len;
           } else if (len == 5) {
             /* This section attempts to follow RFC 2217 */
               tnc_bps_index = 0;
-              br[0] = sb[1];
-              br[1] = sb[2];
-              br[2] = sb[3];
-              br[3] = sb[4];
+              br[0] = ccsb[1];
+              br[1] = ccsb[2];
+              br[2] = ccsb[3];
+              br[3] = ccsb[4];
 #ifdef datageneral
               /* AOS/VS doesn't have ntohl() but MV's are big-endian */
               tnc_bps = baudrate;
@@ -6604,8 +6605,8 @@ tnc_tn_sb(sb, len) CHAR * sb; int len;
         TELOPT_SB(TELOPT_COMPORT).comport.wait_for_sb = 0;
         if (len < 2)
           return(-1);
-        tnc_datasize = sb[1];
-        debug(F111,"tnc_tn_sb","datasize",sb[1]);
+        tnc_datasize = ccsb[1];
+        debug(F111,"tnc_tn_sb","datasize",ccsb[1]);
         break;
 
       case TNC_C2S_SET_PARITY:
@@ -6613,8 +6614,8 @@ tnc_tn_sb(sb, len) CHAR * sb; int len;
         TELOPT_SB(TELOPT_COMPORT).comport.wait_for_sb = 0;
         if (len < 2)
           return(-1);
-        tnc_parity = sb[1];
-        debug(F111,"tnc_tn_sb","parity",sb[1]);
+        tnc_parity = ccsb[1];
+        debug(F111,"tnc_tn_sb","parity",ccsb[1]);
         break;
 
       case TNC_C2S_SET_STOPSIZE:
@@ -6622,8 +6623,8 @@ tnc_tn_sb(sb, len) CHAR * sb; int len;
         TELOPT_SB(TELOPT_COMPORT).comport.wait_for_sb = 0;
         if (len < 2)
           return(-1);
-        tnc_stopbit = sb[1];
-        debug(F111,"tnc_tn_sb","stopsize",sb[1]);
+        tnc_stopbit = ccsb[1];
+        debug(F111,"tnc_tn_sb","stopsize",ccsb[1]);
         break;
 
       case TNC_C2S_SET_CONTROL:
@@ -6633,7 +6634,7 @@ tnc_tn_sb(sb, len) CHAR * sb; int len;
             return(-1);
         }
 
-        switch ( sb[1] ) {
+        switch ( ccsb[1] ) {
           case TNC_CTL_OFLOW_REQUEST:
             /* determine local outbound flow control and send to peer */
             /* Cisco IOS returns 0 (TNC_CTL_OFLOW_REQUEST) when attempting */
@@ -6649,8 +6650,8 @@ tnc_tn_sb(sb, len) CHAR * sb; int len;
           case TNC_CTL_OFLOW_DCD:
           case TNC_CTL_OFLOW_DSR:
             TELOPT_SB(TELOPT_COMPORT).comport.wait_for_sb = 0;
-            tnc_oflow = sb[1];
-            debug(F111,"tnc_tn_sb","oflow",sb[1]);
+            tnc_oflow = ccsb[1];
+            debug(F111,"tnc_tn_sb","oflow",ccsb[1]);
             break;
           case TNC_CTL_BREAK_REQUEST:
             /* determine local break state and send to peer */
@@ -6712,8 +6713,8 @@ tnc_tn_sb(sb, len) CHAR * sb; int len;
           case TNC_CTL_IFLOW_RTS_CTS:
           case TNC_CTL_IFLOW_DTR:
             TELOPT_SB(TELOPT_COMPORT).comport.wait_for_sb = 0;
-            tnc_iflow = sb[1];
-            debug(F111,"tnc_tn_sb","iflow",sb[1]);
+            tnc_iflow = ccsb[1];
+            debug(F111,"tnc_tn_sb","iflow",ccsb[1]);
             break;
           default:
             return(-1);
@@ -6724,8 +6725,8 @@ tnc_tn_sb(sb, len) CHAR * sb; int len;
       case TNC_S2C_SEND_LS:
         if (len < 2)
           return(-1);
-        tnc_ls = sb[1];
-        debug(F111,"tnc_tn_sb","linestate",sb[1]);
+        tnc_ls = ccsb[1];
+        debug(F111,"tnc_tn_sb","linestate",ccsb[1]);
         if (tn_deb || debses) {
             if (tnc_ls & TNC_MS_DATA_READY )
               tn_debug("  ComPort Linestate Data Ready");
@@ -6751,8 +6752,8 @@ tnc_tn_sb(sb, len) CHAR * sb; int len;
         TELOPT_SB(TELOPT_COMPORT).comport.wait_for_ms = 0;
         if (len < 2)
           return(-1);
-        tnc_ms = sb[1];
-        debug(F111,"tnc_tn_sb","modemstate",sb[1]);
+        tnc_ms = ccsb[1];
+        debug(F111,"tnc_tn_sb","modemstate",ccsb[1]);
         if (tn_deb || debses) {
             if (tnc_ms & TNC_MS_CTS_DELTA )
               tn_debug("  ComPort Modemstate CTS State Change");
@@ -6800,8 +6801,8 @@ tnc_tn_sb(sb, len) CHAR * sb; int len;
           TELOPT_SB(TELOPT_COMPORT).comport.wait_for_sb = 0;
           if (len < 2)
           return(-1);
-        debug(F111,"tnc_tn_sb","linestate mask",sb[1]);
-        tnc_ls_mask = sb[1];
+        debug(F111,"tnc_tn_sb","linestate mask",ccsb[1]);
+        tnc_ls_mask = ccsb[1];
         break;
 
       case TNC_C2S_SET_MS_MASK:
@@ -6809,16 +6810,16 @@ tnc_tn_sb(sb, len) CHAR * sb; int len;
           TELOPT_SB(TELOPT_COMPORT).comport.wait_for_sb = 0;
           if (len < 2)
           return(-1);
-        debug(F111,"tnc_tn_sb","modemstate mask",sb[1]);
-        tnc_ls_mask = sb[1];
+        debug(F111,"tnc_tn_sb","modemstate mask",ccsb[1]);
+        tnc_ls_mask = ccsb[1];
         break;
 
       case TNC_C2S_PURGE:
       case TNC_S2C_PURGE:
         if (len < 2)
           return(-1);
-        debug(F111,"tnc_tn_sb","purge",sb[1]);
-        switch ( sb[1] ) {
+        debug(F111,"tnc_tn_sb","purge",ccsb[1]);
+        switch ( ccsb[1] ) {
           case TNC_PURGE_RECEIVE:
           case TNC_PURGE_TRANSMIT:
           case TNC_PURGE_BOTH:
