@@ -264,7 +264,7 @@ def take_file_lines(cmds):
 # heavy parallel test load another process can grab that same port before this
 # listener's SET HOST gets to bind it.  Each retry calls get_free_port() again,
 # so it isn't the same losing port a second time.
-PORT_COLLISION_RETRIES = 3
+PORT_COLLISION_RETRIES = 8
 
 # ckermit's message when SET HOST's bind() fails, checked in a spawned
 # listener's captured output to distinguish a port race failure
