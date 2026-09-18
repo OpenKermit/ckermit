@@ -77,10 +77,6 @@ def test_ftp_upload_download(ftp_server, run_wermit, tmp_path):
 
     # 1. Upload file using FTP put
     #
-    # The default run_wermit timeout (10s) is too tight for loaded CI
-    # runners (notably the nested-virtualization FreeBSD/NetBSD/OpenBSD
-    # VMs), where scheduling delay alone can exceed it even though the
-    # transfer itself takes a fraction of a second.
     server_file_name = "server_file.dat"
     result = run_wermit(ftp_session(
         port, f"ftp put {local_file} {server_file_name}"), timeout=30)
@@ -110,11 +106,12 @@ def test_ftp_rename_delete(ftp_server, run_wermit, tmp_path):
     server_file.write_text("Hello FTP")
 
     # Rename and delete via FTP client commands
+    #
     result = run_wermit(ftp_session(
         port,
         "ftp rename temp.dat renamed_temp.dat",
         "ftp delete renamed_temp.dat",
-    ))
+    ), timeout=30)
     assert_ok(result, "FTP commands failed")
 
     # Verify the file is deleted on the server
@@ -141,10 +138,12 @@ def test_ftp_default_transfer_mode_manual(ftp_server, run_wermit, tmp_path):
 
     # 1. Upload using default transfer mode settings (manual/binary default)
     # The file should be transferred in binary mode (TYPE I).
+    #
     server_file_name_default = "default_crlf.txt"
     result = run_wermit(
         "set ftp debug on, " +
-        ftp_session(port, f"ftp put {local_file} {server_file_name_default}")
+        ftp_session(port, f"ftp put {local_file} {server_file_name_default}"),
+        timeout=30
     )
     assert_ok(result, "Default FTP upload failed")
 
@@ -162,7 +161,8 @@ def test_ftp_default_transfer_mode_manual(ftp_server, run_wermit, tmp_path):
     server_file_name_auto = "auto_lf.txt"
     result = run_wermit(
         "set transfer mode automatic, set ftp debug on, "
-        + ftp_session(port, f"ftp put {local_file} {server_file_name_auto}")
+        + ftp_session(port, f"ftp put {local_file} {server_file_name_auto}"),
+        timeout=30
     )
     assert_ok(result, "Auto FTP upload failed")
 
@@ -190,13 +190,15 @@ def test_ftp_preserves_mtime(ftp_server, run_wermit, tmp_path):
     assert int(set_mtime) == 1700000000
 
     # 3. Download the file using FTP get
+    #
     local_dir = tmp_path / "local"
     local_dir.mkdir(exist_ok=True)
     download_file = local_dir / "download.dat"
 
     result = run_wermit(
         "set ftp dates on, " +
-        ftp_session(port, f"ftp get {server_file_name} {download_file}")
+        ftp_session(port, f"ftp get {server_file_name} {download_file}"),
+        timeout=30
     )
     assert_ok(result, "Download failed")
 
