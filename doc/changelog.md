@@ -1,6 +1,8 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.0.510 (not yet released)
+# C-Kermit 11.0.510
+
+September 17, 2026
 
 - Refactor to reduce use of siglongjmp(), eliminating races
 
