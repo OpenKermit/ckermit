@@ -90,8 +90,15 @@ def test_set_host_bracket_without_port_parses(run_wermit, tmp_path):
 
 
 def test_set_host_bracket_v6_literal_with_port_parses(run_wermit, tmp_path):
+    """2001:db8::1 is the RFC3849 documentation prefix (RFC 3849, like RFC1918
+    for IPv4).  We don't need, nor expect, a successful connection; we're
+    looking for evidence of attempting to connect to the correct IP in the
+    debug log.  We set a timeout to 2 seconds because some networks may
+    blackhole packets rather than return an immediate error.  A timeout here is
+    just as fine as any other error."""
     content = _netopen_debug_lines(
-        run_wermit, tmp_path, "set host [2001:db8::1]:23, exit")
+        run_wermit, tmp_path,
+        "set tcp connect-timeout 2, set host [2001:db8::1]:23, exit")
     assert "netopen host[2001:db8::1]" in content
     assert "netopen service requested[23]" in content
 
@@ -175,9 +182,12 @@ def test_set_host_url_scheme_with_bracket_and_port_parses(run_wermit, tmp_path):
 
 
 def test_set_host_url_scheme_with_bracket_no_port_parses(run_wermit, tmp_path):
+    """See test_set_host_bracket_v6_literal_with_port_parses for why
+    the connect-timeout is needed here."""
     content = _netopen_debug_lines(
         run_wermit, tmp_path,
-        "set host telnet://[2001:db8::1]/, exit")
+        "set tcp connect-timeout 2, set host telnet://[2001:db8::1]/, "
+        "exit")
     assert "netopen host[2001:db8::1]" in content
     assert "netopen service requested[telnet]" in content
 
