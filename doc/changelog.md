@@ -1,12 +1,16 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.0.511 (NOT YET RELEASED)
+# C-Kermit 11.0.511
+
+September 19, 2026
 
 - Continued the warning sweep begun with 11.0.509.  Addressed numerous -Wshadow
   warnings.
 
 - CI: Allowed retrying of certain timing-dependent tests due to flakiness on
   Mac and OpenBSD.
+
+- Tests: Set a 2-second timeout on IPv6 tests expected to fail.
 
 # C-Kermit 11.0.510
 
