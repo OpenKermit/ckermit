@@ -285,6 +285,11 @@ def test_kermit_transfer_protocol_options(
         "test_kermit_transfer_protocol_options: direction=%s %s",
         direction, protocol_cmds)
     for size in (pkt_len - 1, pkt_len, pkt_len + 1):
+        # The default 10s timeout has been observed to be too tight
+        # for the pseudoterminal transport on a loaded CI runner: the
+        # transfer itself is well under a second, but forking and
+        # negotiating with the server subprocess can stall under
+        # contention.
         run_transfer_helper(
             tmp_path,
             wermit_loopback,
@@ -294,6 +299,7 @@ def test_kermit_transfer_protocol_options(
             file_content=pattern_bytes(size),
             is_text=False,
             protocol_cmds=protocol_cmds,
+            timeout=30,
         )
 
 
