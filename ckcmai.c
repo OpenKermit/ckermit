@@ -187,12 +187,6 @@ COPYRIGHT NOTICE:
 */
 char *copyright[] = {
 
-#ifdef pdp11
-"Copyright (C) 1985, 2025, Trustees of Columbia University, NYC.",
-"Copyright (C) 2025-%s, John Goerzen.",
-"All rights reserved.",
-" ",
-#else
 "Copyright (C) 1985, 2025,",
 "  The Trustees of Columbia University in the City of New York.",
 "Copyright (C) 2025-%s, John Goerzen.",
@@ -225,7 +219,6 @@ char *copyright[] = {
 "THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT",
 "(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE",
 "OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.",
-#endif /* pdp11 */
 
 #ifdef OS2
 "Portions Copyright (C) 2002-2005, Secure Endpoints Inc, New York NY USA.",
@@ -247,11 +240,9 @@ char *copyright[] = {
 #endif /* CK_SRP */
 #endif /* CK_AUTHENTICATION */
 
-#ifndef pdp11
 " ",
 "For further information, visit the Open Kermit website:",
 "https://www.openkermit.org/ .",
-#endif /* pdp11 */
 ""};
 
 /* Windows IKSD copyright used to be separate */
@@ -999,28 +990,19 @@ int pktnum = 0,                         /* Current packet number */
 CHAR pktmsgbuf[PKTMSGLEN+1];
 CHAR *epktmsg = pktmsgbuf;
 
-#ifdef pdp11
-int srvcmdlen = MAXRP;                  /* srvcmd buffer length */
-#else
 #ifdef DYNAMIC
 int srvcmdlen = MAXRP;
 #else
 int srvcmdlen = 0;
 #endif /* DYNAMIC */
-#endif /* pdp11 */
 
 CHAR
-#ifdef pdp11
-    srvcmdbuf[MAXRP+4],
-    *srvcmd = srvcmdbuf,
-#else
 #ifdef DYNAMIC
     *srvcmd = (CHAR *)0,                /* Where to decode server command */
 #else
     srvcmdbuf[MAXRP+4],
     *srvcmd = srvcmdbuf,
 #endif /* DYNAMIC */
-#endif /* pdp11 */
     padbuf[96],                         /* Buffer for send-padding */
     *recpkt,
     *rdatap,                            /* Pointer to received packet data */

@@ -6126,13 +6126,6 @@ _dodial(threadinfo) VOID * threadinfo;
                     mdmstat = D_FAILED;
                     dialsta = DIA_NOAC;
                 }
-#ifdef DEBUG
-#ifdef ATT6300
-                /* Horrible hack lost in history. */
-                else if (deblog && didweget(lbuf,"~~"))
-                  mdmstat = CONNECTED;
-#endif /* ATT6300 */
-#endif /* DEBUG */
                 break;
 
 #ifdef OLDMODEMS

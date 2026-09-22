@@ -392,11 +392,7 @@ char * PRINTCMD = "lp";
 char * PRINTCMD = "lpr";
 #endif /* DGUX540 */
 #else                                   /* Sys V uses lp */
-#ifdef TRS16                            /* except for Tandy-16/6000... */
-char * PRINTCMD = "lpr";
-#else
 char * PRINTCMD = "lp";
-#endif /* TRS16 */
 #endif /* ANYBSD */
 #else  /* Not UNIX */
 #define PRINTCMD ""
@@ -784,15 +780,6 @@ static int maxnames = MAXWLD;
 /* Define the size of the string space for filename expansion. */
 
 #ifndef DYNAMIC
-#ifdef PROVX1
-#define SSPACE 500
-#else
-#ifdef BSD29
-#define SSPACE 500
-#else
-#ifdef pdp11
-#define SSPACE 500
-#else
 #ifdef aegis
 #define SSPACE 10000                    /* Size of string-generating buffer */
 #else                                   /* Default static buffer size */
@@ -802,9 +789,6 @@ static int maxnames = MAXWLD;
 #define SSPACE 2000                     /* size of string-generating buffer */
 #endif /* BIGBUFOK */
 #endif /* aegis */
-#endif /* pdp11 */
-#endif /* BSD29 */
-#endif /* PROVX1 */
 static char sspace[SSPACE];             /* Buffer for generating filenames */
 #else /* is DYNAMIC */
 #ifdef CK_64BIT
@@ -1252,9 +1236,6 @@ extern PID_T getppid();
 
 int
 zkself() {                              /* For "bye", but no guarantee! */
-#ifdef PROVX1
-    return(kill(0,9));
-#else
 #ifdef V7
     return(kill(0,9));
 #else
@@ -1276,7 +1257,6 @@ zkself() {                              /* For "bye", but no guarantee! */
 #else
     exit(kill(getppid(),1));
     return(0);
-#endif
 #endif
 #endif
 #endif
@@ -3070,10 +3050,6 @@ zchdir(dirnam) char *dirnam;
     }
 #endif /* CKROOT */
 
-#ifdef pdp11
-    /* Just to save some space */
-    return((chdir(hd) == 0) ? 1 : 0);
-#else
     if (chdir(hd) == 0) {                       /* Try to cd */
 #ifdef IKSDB
 #ifdef CK_LOGIN
@@ -3100,7 +3076,6 @@ zchdir(dirnam) char *dirnam;
         return(1);
     }
     return(0);
-#endif /* pdp11 */
 }
 
 int
@@ -3158,11 +3133,7 @@ zhome() {
 #endif /* BSD42 */
 #endif /* USE_GETWD */
 
-#ifdef pdp11
-#define CWDBL 80                        /* Save every byte we can... */
-#else
 #define CWDBL CKMAXPATH
-#endif /* pdp11 */
 static char cwdbuf[CWDBL+2];
 /*
   NOTE: The getcwd() prototypes are commented out on purpose.  If you get
@@ -3607,9 +3578,7 @@ zsetfil(n, fc) int n, fc;
 
 
 #ifndef NONZXPAND
-#ifndef pdp11
 static
-#endif /* pdp11 */
 #endif /* NONZXPAND */
 int
 #ifdef CK_ANSIC
@@ -3889,13 +3858,8 @@ zchkspa(f,n) char *f; CK_OFF_T n;
   version number of "xxxx" is used.  Returns a pointer to the new name in
   argument s.
 */
-#ifdef pdp11
-#define ZNEWNBL 63                      /* Name buffer length */
-#define ZNEWNMD 3                       /* Max digits for version number */
-#else
 #define ZNEWNBL CKMAXPATH
 #define ZNEWNMD 4
-#endif /* pdp11 */
 
 #define MAXBUDIGITS 5
 
@@ -4738,21 +4702,13 @@ zdtstr(timearg) time_t timearg;
     if (ss < 0 || ss  > 59)             /* Some systems give a BIG number */
       ss = 0;
     sprintf(datbuf,
-#ifdef pdp11
-/* For some reason, 2.1x BSD sprintf gets the last field wrong. */
-            "%04d%02d%02d %02d:%02d:00",
-#else
             "%04d%02d%02d %02d:%02d:%02d",
-#endif /* pdp11 */
             yy,
             ts.tm_mon + 1,
             ts.tm_mday,
             ts.tm_hour,
-            ts.tm_min
-#ifndef pdp11
-            , ss
-#endif /* pdp11 */
-            );
+            ts.tm_min,
+            ss);
     yy = (int)strlen(datbuf);
     debug(F111,"zdatstr",datbuf,yy);
     if (yy > 17) datbuf[17] = '\0';
@@ -6076,14 +6032,8 @@ fgen(pat,resarry,len) char *pat,*resarry[]; int len;
     return(numfnd);                     /* Return the number of matches */
 }
 
-/* Define LONGFN (long file names) automatically for BSD 2.9 and 4.2 */
+/* Define LONGFN (long file names) automatically for BSD 4.2 */
 /* LONGFN can also be defined on the cc command line. */
-
-#ifdef BSD29
-#ifndef LONGFN
-#define LONGFN
-#endif
-#endif
 
 #ifdef BSD42
 #ifndef LONGFN
@@ -6689,11 +6639,7 @@ addresult(str,itsadir) char *str; int itsadir;
 char *
 whoami() {
 #ifdef DTILDE
-#ifdef pdp11
-#define WHOLEN 100
-#else
 #define WHOLEN 257
-#endif /* pdp11 */
     static char realname[UIDBUFLEN+1];  /* user's name */
     static int ruid = -1;               /* user's real uid */
     char loginname[UIDBUFLEN+1], envname[256]; /* temp storage */
@@ -6760,11 +6706,7 @@ tilde_expand(dirname) char *dirname;
 #endif /* CK_ANSIC */
 {
 #ifdef DTILDE
-#ifdef pdp11
-#define BUFLEN 100
-#else
 #define BUFLEN 257
-#endif /* pdp11 */
     struct passwd *user;
     static char olddir[BUFLEN+1];
     static char oldrealdir[BUFLEN+1];

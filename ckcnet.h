@@ -828,10 +828,6 @@ _PROTOTYP( void bzero, (char *, int) );
 #include <arpa/telnet.h>
 #endif /* HPUX */
 #endif /* COMMENT */
-#ifdef SCO234
-#include <sys/errno.tcp.h>
-#include <sys/types.tcp.h>
-#endif /* SCO234 */
 #include <sys/socket.h>
 #ifdef WOLLONGONG
 #include <sys/in.h>

@@ -842,7 +842,7 @@ static char *kbp;                       /* Keyboard input buffer pointer */
 static int kbc;                         /* Keyboard input buffer count */
 
 #ifdef CK_SMALL                         /* Keyboard input buffer length */
-#define KBUFL 32                        /* Small for PDP-11 UNIX */
+#define KBUFL 32                        /* Small, for minimal builds */
 #else
 #define KBUFL 257                       /* Regular kernel size for others */
 #endif /* CK_SMALL */

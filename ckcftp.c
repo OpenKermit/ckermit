@@ -243,10 +243,6 @@ extern int TlsIndex;
 #ifndef DCLTIMEVAL
 #ifdef SV68R3V6
 #define DCLTIMEVAL
-#else
-#ifdef SCO234
-#define DCLTIMEVAL
-#endif /* SCO234 */
 #endif /* SV68R3V6 */
 #endif /* DCLTIMEVAL */
 

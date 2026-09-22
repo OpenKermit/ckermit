@@ -838,7 +838,7 @@ static char *kbp;                       /* Keyboard input buffer pointer */
 static int kbc;                         /* Keyboard input buffer count */
 
 #ifdef CK_SMALL                         /* Keyboard input buffer length */
-#define KBUFL 32                        /* Small for PDP-11 UNIX */
+#define KBUFL 32                        /* Small, for minimal builds */
 #else
 #define KBUFL 257                       /* Regular kernel size for others */
 #endif /* CK_SMALL */
@@ -1992,17 +1992,6 @@ conect() {
 
                 if (c == -1) {          /* If read() got an error... */
                     debug(F101,"CONNECT keyboard read errno","",errno);
-#ifdef A986
-/*
-  On Altos machines with Xenix 3.0, pressing DEL in connect mode brings us
-  here (reason unknown).  The console line discipline at this point has
-  intr = ^C.  The communications tty has intr = DEL but we get here after
-  pressing DEL on the keyboard, even when the remote system has been set not
-  to echo.  With A986 defined, we stay in the read loop and beep only if the
-  offending character is not DEL.
-*/
-                    if ((c & 127) != 127) conoc(BEL);
-#else
 #ifdef EINTR
 /*
    This can be caused by the other fork signalling this one about
@@ -2014,7 +2003,6 @@ conect() {
                     conoc(BEL);         /* Otherwise, beep */
                     active = 0;         /* and terminate the read loop */
                     continue;
-#endif /* A986 */
                 }
                 c &= cmdmsk;            /* Do any requested masking */
 #ifndef NOSETKEY

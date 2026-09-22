@@ -49,18 +49,6 @@
 #endif /* NOCSETS */                    /* is with interactive commands */
 #endif /* NOICP */
 
-#ifdef pdp11                            /* There is a maximum number of */
-#ifndef NOCKSPEED                       /* of -D's allowed on the CC */
-#define NOCKSPEED                       /* command line, so some of them */
-#endif /* NOCKSPEED */                  /* have to go here... */
-#ifndef NOREDIRECT
-#define NOREDIRECT
-#endif /* NOREDIRECT */
-#ifdef WHATAMI
-#undef WHATAMI
-#endif /* WHATAMI */
-#endif /* pdp11 */
-
 #ifdef UIDBUFLEN
 #define LOGINLEN UIDBUFLEN
 #else
@@ -345,11 +333,7 @@ struct ssh_pf {                         /* SSH port forwarding */
 
 #define MAXPACK 94                      /* Maximum unextended packet size */
                                         /* Can't be more than 94. */
-#ifdef pdp11                            /* Maximum sliding window slots */
-#define MAXWS  8
-#else
 #define MAXWS 32                        /* Can't be more than 32. */
-#endif /* pdp11 */
 
 /* Maximum long packet size for sending packets */
 /* Override these from cc command line via -DMAXSP=nnn */
@@ -370,11 +354,7 @@ struct ssh_pf {                         /* SSH port forwarding */
 #endif /* MAXSP */
 #else  /* not DYNAMIC */
 #ifndef MAXSP
-#ifdef pdp11
-#define MAXSP 1024
-#else
 #define MAXSP 2048
-#endif /* pdp11 */
 #endif /* MAXSP */
 #endif /* DYNAMIC */
 
@@ -387,11 +367,7 @@ struct ssh_pf {                         /* SSH port forwarding */
 #endif /* MAXRP */
 #else  /* not DYNAMIC */
 #ifndef MAXRP
-#ifdef pdp11
-#define MAXRP 1024
-#else
 #define MAXRP 2048
-#endif /* pdp11 */
 #endif /* MAXRP */
 #endif /* DYNAMIC */
 /*
@@ -424,11 +400,7 @@ struct ssh_pf {                         /* SSH port forwarding */
 #ifdef BIGBUFOK                         /* If big buffers are safe... */
 #define SBSIZ 290000                    /* Allow for 10 x 9024 or 20 x 4096 */
 #else                                   /* Otherwise... */
-#ifdef pdp11
-#define SBSIZ 3020
-#else
 #define SBSIZ 9050                      /* Allow for 3 x 3000, etc. */
-#endif /* pdp11 */
 #endif /* BIGBUFOK */
 #endif /* SBSIZ */
 
@@ -436,25 +408,16 @@ struct ssh_pf {                         /* SSH port forwarding */
 #ifdef BIGBUFOK
 #define RBSIZ 290000                    /* Allow for 10 x 9024 or 20 x 4096 */
 #else
-#ifdef pdp11
-#define RBSIZ 3020
-#else
 #define RBSIZ 9050
-#endif /* pdp11 */
 #endif /* BIGBUFOK */
 #endif /* RBSIZ */
 #else  /* not DYNAMIC */
-#ifdef pdp11
-#define SBSIZ 3020
-#define RBSIZ 3020
-#else
 #ifndef SBSIZ
 #define SBSIZ (MAXSP * (MAXWS + 1))
 #endif /* SBSIZ */
 #ifndef RBSIZ
 #define RBSIZ (MAXRP * (MAXWS + 1))
 #endif /* RBSIZ */
-#endif /* pdp11 */
 #endif /* DYNAMIC */
 
 #ifdef BIGBUFOK
@@ -629,10 +592,6 @@ _PROTOTYP( int scanstring, (char *) );
 #define INBUFSIZE 32768
 #define OBUFSIZE 32768
 #else
-#ifdef pdp11
-#define INBUFSIZE 512
-#define OBUFSIZE 512
-#else
 /* In VMS, allow for longest possible RMS record */
 #ifdef VMS
 #define INBUFSIZE 32768                 /* File input buffer size */
@@ -656,7 +615,6 @@ _PROTOTYP( int scanstring, (char *) );
 #endif /* BIGBUFOK */
 #endif /* STRATUS */
 #endif /* VMS */
-#endif /* pdp11 */
 #endif /* OS2 */
 
 /* File-transfer character in/out macros for buffered i/o */

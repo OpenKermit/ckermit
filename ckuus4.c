@@ -6753,11 +6753,7 @@ dostat(brief) int brief;
 
 /* Output buffering for "doinput" */
 
-#ifdef pdp11
-#define MAXBURST 16             /* Maximum size of input burst */
-#else
 #define MAXBURST 1024
-#endif /* pdp11 */
 #ifdef OSK
 static CHAR *conbuf;            /* Buffer to hold output for console */
 #else
