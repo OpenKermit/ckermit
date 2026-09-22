@@ -4,8 +4,13 @@
 
 - Due to being broken for over 25 years and the impracticality of restoring
   support, removed support for 16-bit Unix platforms from the codebase.  This
-  removed over 1900 lines of code from the project.  See further notes in
-  commit 30ab9d4f.
+  removed over 1900 lines of code from the project.  See further notes in commit
+  30ab9d4f.
+
+- Add a new statically-linked armhf 32-bit Linux build.  This serves two
+  purposes: 1) it provides a useful binary for those using platforms such as
+  32-bit Raspberry Pis; and 2) it provides a measure validation in CI that we
+  don't accidentally break things for 32-bit platforms.
 
 # C-Kermit 11.0.511
 
@@ -14,8 +19,8 @@ September 19, 2026
 - Continued the warning sweep begun with 11.0.509.  Addressed numerous -Wshadow
   warnings.
 
-- CI: Allowed retrying of certain timing-dependent tests due to flakiness on
-  Mac and OpenBSD.
+- CI: Allowed retrying of certain timing-dependent tests due to flakiness on Mac
+  and OpenBSD.
 
 - Tests: Set a 2-second timeout on IPv6 tests expected to fail.
 
@@ -27,14 +32,14 @@ September 17, 2026
 
 - Added `SET TCP CONNECT-TIMEOUT` to provide a new timeout for establishing a
   TCP connection, defaulting to 30 seconds.  This can be useful for scripts and
-  tests.  The previous default was no timeout enforced by C-Kermit; setting
-  this value to 0 will restore that behvior.
+  tests.  The previous default was no timeout enforced by C-Kermit; setting this
+  value to 0 will restore that behvior.
 
 - Continued the warning sweep begun with 11.0.509.  Along the way, fixed these
   bugs:
-  - A chmod failure was ignored when `SET ATTRIBUTE PROTECTION` is on.  Fixed
-    in commit 4ddb464e1.  Bug dates back to C-Kermit 7.0.197 of 2000,
-    commit d0f8b1da, when this code was introduced.
+  - A chmod failure was ignored when `SET ATTRIBUTE PROTECTION` is on.  Fixed in
+    commit 4ddb464e1.  Bug dates back to C-Kermit 7.0.197 of 2000, commit
+    d0f8b1da, when this code was introduced.
 
 - Include time.h earlier in ckcnet.c to address compilation issue on Gentoo
 
