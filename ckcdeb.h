@@ -1167,12 +1167,6 @@ typedef int MAINTYPE;
 #endif /* ATTSV */
 #endif /* ATT7300 */
 
-#ifdef ATT6300                          /* ATT6300 implies ATTSV */
-#ifndef ATTSV
-#define ATTSV
-#endif /* ATTSV */
-#endif /* ATT6300 */
-
 #ifdef HPUX                             /* HPUX implies ATTSV */
 #ifndef ATTSV
 #define ATTSV
@@ -1214,12 +1208,6 @@ typedef int MAINTYPE;
 #define ANYBSD
 #endif /* ANYBSD */
 #endif /* BSD4 */
-
-#ifdef BSD29                            /* BSD29 implies ANYBSD */
-#ifndef ANYBSD
-#define ANYBSD
-#endif /* ANYBSD */
-#endif /* BSD29 */
 
 #ifdef ATTSV                            /* ATTSV implies UNIX */
 #ifndef UNIX
@@ -1604,11 +1592,9 @@ void Vscrnperror( const char *str );
 
 #ifndef CKWART_C
 #ifdef UNIX
-#ifndef pdp11
 #ifndef CKXPRINTF
 #define CKXPRINTF
 #endif /* CKXPRINTF */
-#endif /* pdp11 */
 #endif /* UNIX */
 #endif /* CKWART_C */
 #endif /* NOPRINTFSUBST */
@@ -1648,16 +1634,6 @@ _PROTOTYP(int ckxfprintf,(FILE *, const char *, ...)) CK_PRINTF_FMT(2,3);
 #define putc(a,b) ckxfprintf(b,"%c",a)
 #define perror(x)  ckxperror(x)
 #endif /* CKXPRINTF */
-
-/*
-  Altos-specific items: 486, 586, 986 models...
-*/
-#ifdef A986
-#define M_VOID
-#define void int
-#define CHAR char
-#define SIG_I
-#endif /* A986 */
 
 /* Signal handling */
 
@@ -1828,11 +1804,6 @@ typedef SIGTYP (*sig_t)();
 #endif /* CHAR */
 #define CHAR unsigned char
 #else
-#ifdef PROVX1
-typedef char CHAR;
-/* typedef long LONG; */
-typedef int void;
-#else
 #ifdef MINIX
 typedef unsigned char CHAR;
 #else
@@ -1840,10 +1811,6 @@ typedef unsigned char CHAR;
 typedef char CHAR;
 #else
 #ifdef C70
-typedef char CHAR;
-/* typedef long LONG; */
-#else
-#ifdef BSD29
 typedef char CHAR;
 /* typedef long LONG; */
 #else
@@ -1874,11 +1841,9 @@ typedef unsigned char CHAR;
 #endif /* OS2 */
 #endif /* HPUX */
 #endif /* datageneral */
-#endif /* BSD29 */
 #endif /* C70 */
 #endif /* V7 */
 #endif /* MINIX */
-#endif /* PROVX1 */
 #endif /* KUI */
 
 union ck_short {                        /* Mainly for Unicode */
@@ -2017,10 +1982,8 @@ int mac_fclose();
 
 #ifdef UNIX                             /* UNIX has it */
 #ifndef CK_TMPDIR
-#ifndef pdp11
 #define CK_TMPDIR
 #define TMPDIRLEN 256
-#endif /* pdp11 */
 #endif /* CK_TMPDIR */
 #endif /* UNIX */
 
@@ -2118,7 +2081,6 @@ int mac_fclose();
 #else  /* Not SVORPOSIX */
 
 #ifndef BELLV10                         /* All but these... */
-#ifndef PROVX1
 #ifndef V7
 #ifndef BSD41
 #ifndef COHERENT
@@ -2126,7 +2088,6 @@ int mac_fclose();
 #endif /* COHERENT */
 #endif /* BSD41 */
 #endif /* V7 */
-#endif /* PROVX1 */
 #endif /* BELLV10 */
 #endif /* SVORPOSIX */
 #endif /* UNIX */
@@ -2144,9 +2105,6 @@ int mac_fclose();
 #ifdef BSD41
 #define SYSTIMEBH
 #else
-#ifdef BSD29
-#define SYSTIMEBH
-#else
 #ifdef TOWER1
 #define SYSTIMEBH
 #else
@@ -2158,7 +2116,6 @@ int mac_fclose();
 #endif /* BELLV10 */
 #endif /* FT21 */
 #endif /* TOWER1 */
-#endif /* BSD29 */
 #endif /* BSD41 */
 #endif /* COHERENT */
 #endif /* OSF */
@@ -2270,19 +2227,7 @@ _PROTOTYP( void bleep, (short) );
 #endif /* __ANDROID__ */
 #endif /* __linux__ */
 
-/* Platforms where small size is needed */
-
-#ifdef pdp11
-#define CK_SMALL
-#endif /* pdp11 */
-
 /* Can we use realpath()? */
-
-#ifndef NOREALPATH
-#ifdef pdp11
-#define NOREALPATH
-#endif /* pdp11 */
-#endif /* NOREALPATH */
 
 #ifndef NOREALPATH
 #ifdef UNIX
@@ -3355,12 +3300,6 @@ extern long ztmsec, ztusec;             /* Fraction of sec of current time */
 #endif /* NOSETBUF */
 #endif /* UNIX */
 
-#ifndef USE_STRERROR                    /* Whether to use strerror() */
-#ifdef pdp11
-#define USE_STRERROR
-#endif /* pdp11 */
-#endif /* USE_STRERROR */
-
 #ifdef VMS                              /* Features for all VMS builds */
 #ifndef NOJC
 #define NOJC
@@ -3411,9 +3350,7 @@ extern long ztmsec, ztusec;             /* Fraction of sec of current time */
 #ifndef NOMKDIR
 
 #ifdef UNIX
-#ifndef pdp11
 #define CK_MKDIR
-#endif /* pdp11 */
 #endif /* UNIX */
 
 #ifdef OS2
@@ -3558,9 +3495,7 @@ _PROTOTYP( int ttruncmd, (char *) );
 #ifndef NORESEND
 #ifndef CK_RESEND
 #ifdef UNIX
-#ifndef pdp11
 #define CK_RESEND
-#endif /* pdp11 */
 #endif /* UNIX */
 
 #ifdef VMS
@@ -4090,10 +4025,6 @@ typedef struct fd_set {
 #define NOLOGDIAL
 #endif /* NOLOGDIAL */
 #endif /* NOSPL */
-
-#ifdef pdp11
-#define NOLOGDIAL
-#endif /* pdp11 */
 
 #ifndef NOLOGDIAL                       /* Connection log */
 #ifndef CXLOGFILE
@@ -4870,25 +4801,11 @@ extern int errno;
 #endif  /* ESRCH */                     /* 2024-06-07 SMS.  Added VMSOR. */
 #endif  /* VMSORUNIX */
 
-#ifdef pdp11                            /* Try to make some space on PDP-11 */
-#ifndef NODIAL
-#define NODIAL
-#endif /* NODIAL */
-#ifndef NOCURSES
-#define NOCURSES
-#endif /* NOCURSES */
-#ifndef NOBIGBUF
-#define NOBIGBUF
-#endif /* NOBIGBUF */
-#endif /* pdp11 */
-
 #ifndef NOBIGBUF
 #ifndef BIGBUFOK                        /* Platforms with lots of memory */
 
 #ifdef QNX                              /* QNX */
-#ifndef QNX16                           /* But not 16-bit versions */
 #define BIGBUFOK
-#endif /* QNX16 */
 #endif /* QNX */
 
 #ifdef BSD44
@@ -5012,19 +4929,11 @@ extern int errno;
 #endif /* UIDBUFLEN */
 
 #ifdef UNIX
-#ifdef PROVX1
-#define MAXWLD 50
-#else
-#ifdef pdp11
-#define MAXWLD 50
-#else
 #ifdef BIGBUFOK
 #define MAXWLD 102400
 #else
 #define MAXWLD 1024
 #endif /* BIGBUFOK */
-#endif /* pdp11 */
-#endif /* PROVX1 */
 #else
 #ifdef VMS
 #define MAXWLD 102400                   /* Maximum wildcard filenames */
@@ -5848,10 +5757,6 @@ _PROTOTYP( int ttinl, (CHAR *, int, int, CHAR) );
   then they are external.  XYZ_DLL is used to indicate a separate
   loadable library containing the XYZmodem protocol code.
 */
-#ifdef pdp11                            /* No room for this in PDP-11 */
-#define NOCKXYZ
-#endif /* pdp11 */
-
 #ifndef NOCKXYZ                         /* Alternative protocols */
 #ifndef CK_XYZ
 #ifdef UNIX
@@ -6347,10 +6252,6 @@ extern int _flsbuf(char c,FILE *stream);
 #ifndef NO_PARAM_H                      /* 2001-11-03 */
 #ifndef UNIX                            /* Non-Unixes don't have it */
 #define NO_PARAM_H
-#else
-#ifdef TRS16                            /* Tandy Xenix doesn't have it */
-#define NO_PARAM_H
-#endif /* TRS16 */
 #endif /* UNIX */
 #endif /* NO_PARAM_H */
 
@@ -6395,9 +6296,6 @@ extern int _flsbuf(char c,FILE *stream);
 #ifdef MAC
 #define CKMAXPATH 63
 #else /* def MAC */
-#ifdef pdp11
-#define CKMAXPATH 255
-#else /* def pdp11 */
 #ifdef UNIX                             /* Even though some are way less... */
 #define CKMAXPATH 1024
 #else /* def UNIX */
@@ -6411,7 +6309,6 @@ extern int _flsbuf(char c,FILE *stream);
 #endif /* def STRATUS [else] */
 #endif /* def datageneral [else] */
 #endif /* def UNIX [else] */
-#endif /* def pdp11 [else] */
 #endif /* def MAC [else] */
 #endif /* def MAXPATHLEN [else] */
 #endif /* def PATH_MAX [else] */
@@ -6562,10 +6459,6 @@ extern int _flsbuf(char c,FILE *stream);
 
 /* FILE package parameters */
 
-#ifdef pdp11
-#define NOCHANNELIO
-#else
-
 #ifndef CKMAXOPEN
 #ifdef QNX
 #define CKMAXOPEN 390
@@ -6595,7 +6488,6 @@ extern int _flsbuf(char c,FILE *stream);
 #ifndef Z_MAXCHAN
 #define Z_MAXCHAN (CKMAXOPEN-ZNFILS-5)
 #endif /* Z_MAXCHAN */
-#endif /* pdp11 */
 
 /* New-format nzltor() and nzrtol() functions that handle pathnames */
 

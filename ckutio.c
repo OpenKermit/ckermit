@@ -158,9 +158,6 @@ bzero(s,n) char *s; int n; {
 #else  /* MIPS */
 #ifdef ATTSV
 #ifndef NAP
-#ifdef TRS16
-#define HZ ( 1000 / CLOCK_TICK )
-#endif /* TRS16 */
 #ifdef NAPHACK
 #define nap(x) (void)syscall(3112, (x))
 #define NAP
@@ -708,13 +705,9 @@ Time functions
 #ifdef LINUX
 #include <sys/ioctl.h>
 #endif /* LINUX */
-#ifdef QNX16
-#include <ioctl.h>
-#else
 #ifdef QNX6
 #include <ioctl.h>
 #endif /* QNX6 */
-#endif /* QNX16 */
 #ifdef __bsdi__
 #ifdef POSIX
 #define _POSIX_SOURCE
@@ -1153,15 +1146,9 @@ char *initrawq(), *qaddr[2]={0,0};
     int dfloc = 0;                  /* that goes in local mode by default */
 #else
 #ifndef DFTTY
-#ifdef PROVX1
-    char *dftty = "/dev/com1.dout"; /* Only example so far of a system */
-    char *dfmdm = "none";
-    int dfloc = 1;                  /* that goes in local mode by default */
-#else
     char *dftty = CTTNAM;               /* Remote by default, use normal */
     char *dfmdm = "none";
     int dfloc = 0;                      /* controlling terminal name. */
-#endif /* PROVX1 */
 #else
     char *dftty = DFTTY;                /* Default location specified on */
     char *dfmdm = "none";               /* command line. */
@@ -1308,12 +1295,6 @@ static int jcshell = -1;                /* And flag for result */
   BREAKNULS is defined for systems that simulate sending a BREAK signal
   by sending a bunch of NUL characters at low speed.
 */
-#ifdef PROVX1
-#ifndef BREAKNULS
-#define BREAKNULS
-#endif /* BREAKNULS */
-#endif /* PROVX1 */
-
 #ifdef V7
 #ifndef BREAKNULS
 #define BREAKNULS
@@ -1427,11 +1408,6 @@ static char escchr;                     /* Escape or attn character */
     static struct timeb ftp;            /* And from sys/timeb.h */
 #endif /* OSF */
 
-#ifdef BSD29
-    static long xclock;                 /* For getting time from sys/time.h */
-    static struct timeb ftp;            /* And from sys/timeb.h */
-#endif /* BSD29 */
-
 #ifdef BSD41
     static long xclock;                 /* For getting time from sys/time.h */
     static struct timeb ftp;            /* And from sys/timeb.h */
@@ -1502,10 +1478,6 @@ static char escchr;                     /* Escape or attn character */
   int lmode = 0;
 #endif /* ATTSV */
 #endif /* BSD44ORPOSIX */
-
-#ifdef PROVX1
-  static struct sgttyb ttbuf;
-#endif /* PROVX1 */
 
 #ifdef ultrix
 /* do we really need this? */
@@ -2705,9 +2677,7 @@ ttopen(ttname,lcl,modem,timo) char *ttname; int *lcl, modem, timo;
 
     int y;
 
-#ifndef pdp11
 #define NAMEFD   /* Feature to allow name to be an open file descriptor */
-#endif /* pdp11 */
 
 #ifdef NAMEFD
     char *p;
@@ -4564,11 +4534,7 @@ tthang() {
 */
 
 /* Return code for ioctl failures... */
-#ifdef ATT6300
-    x = 1;                              /* ATT6300 doesn't want to fail... */
-#else
     x = -1;
-#endif /* ATT6300 */
 
     debug(F100,"tthang get settings","",0);
     if (ioctl(ttyfd,TCGETA,&ttcur) < 0) /* Get current settings. */
@@ -8635,11 +8601,7 @@ ttgspd() {                              /* Get current serial device speed */
 #ifdef BIGBUFOK
 #define MYBUFLEN 32768
 #else
-#ifdef pdp11
-#define MYBUFLEN 256
-#else
 #define MYBUFLEN 1024
-#endif /* pdp11 */
 #endif /* BIGBUFOK */
 
 #ifdef ANYX25
@@ -9957,10 +9919,6 @@ conbgt(flag) int flag;
     y = (isatty(0) && isatty(1)) ? 1 : 0;
     debug(F101,"conbgt isatty test","",y);
 
-#ifdef BSD29
-/* The process group and/or signal test doesn't work under these... */
-    backgrd = !y;
-#else
 #ifdef sxaE50
     backgrd = !y;
 #else
@@ -9973,10 +9931,9 @@ conbgt(flag) int flag;
     if (x > -1)
       backgrd = (x || !y) ? 1 : 0;
     else backgrd = !y;
-#endif /* BSD29 */
-#endif /* sxaE50 */
-#endif /* MINIX */
 #endif /* MINIX2 */
+#endif /* MINIX */
+#endif /* sxaE50 */
     debug(F101,"conbgt backgrd","",backgrd);
 }
 
@@ -10151,9 +10108,6 @@ initrawq(tty) int tty; {
 #ifdef UTS24
     return(0);
 #else
-#ifdef BSD29
-    return(0);
-#else
     long lseek();
     static struct nlist nl[] = {
         {PROCNAME},
@@ -10214,7 +10168,6 @@ iout:
     kill(pid, SIGKILL);
     wait((WAIT_T *)0);
     return (qaddr);
-#endif
 #endif
 #endif
 #endif
@@ -10507,11 +10460,6 @@ in_chk(channel, fd) int channel, fd;
 #endif /* MINIX2 */
 #endif /* MINIX */
 #else /* Not V7 */
-#ifdef PROVX1
-    x = ioctl(fd, TIOCQCNT, &ttbuf);    /* DEC Pro/3xx Venix V.1 */
-    n = ttbuf.sg_ispeed & 0377;         /* Circa 1984 */
-    if (x < 0) n = 0;
-#else
 #ifdef MYREAD
 /*
   Here we skip all the undependable and expensive calls below if we
@@ -10622,7 +10570,6 @@ in_chk(channel, fd) int channel, fd;
 #endif /* CK_POLL */
 #endif /* SELECT */
 #endif /* RDCHK */
-#endif /* PROVX1 */
 #endif /* V7 */
 #endif /* FIONREAD */
 
@@ -12038,10 +11985,6 @@ sndbrk(msec) int msec; {
 #endif /* BSDBREAK */
 #endif /* BELLV10 */
 
-#ifdef PROVX1
-    char spd;
-#endif /* PROVX1 */
-
     debug(F101,"ttsndb ttyfd","",ttyfd);
     if (ttyfd < 0) return(-1);          /* Not open. */
 
@@ -12072,19 +12015,6 @@ sndbrk(msec) int msec; {
         debug(F111,"sndbrk tcsendbreak",ckitoa(errno),x);
         return(x);
     }
-#else
-#ifdef PROVX1
-    gtty(ttyfd,&ttbuf);                 /* Get current tty flags */
-    spd = ttbuf.sg_ospeed;              /* Save speed */
-    ttbuf.sg_ospeed = B50;              /* Change to 50 baud */
-    stty(ttyfd,&ttbuf);                 /*  ... */
-    n = (int)strlen(brnuls);            /* Send the right number of nulls */
-    x = msec / 91;
-    if (x > n) x = n;
-    write(ttyfd,brnuls,n);
-    ttbuf.sg_ospeed = spd;              /* Restore speed */
-    stty(ttyfd,&ttbuf);                 /*  ... */
-    return(0);
 #else
 #ifdef aegis
     sio_$control((short)ttyfd, sio_$send_break, msec, st);
@@ -12136,7 +12066,6 @@ sndbrk(msec) int msec; {
 #endif /* BSDBREAK */
 #endif /* ATTSV */
 #endif /* aegis */
-#endif /* PROVX1 */
 #endif /* POSIX */
 #endif /* Plan9 */
 }
@@ -12388,12 +12317,6 @@ msleep(m) int m;
     time_$wait(time_$relative, dur, st);
     return(0);
 #else
-#ifdef PROVX1
-    debug(F101,"msleep Venix","",m);
-    if (m <= 0) return(0);
-    sleep(-((m * 60 + 500) / 1000));
-    return(0);
-#else
 #ifdef NAP
     debug(F101,"msleep NAP","",m);
     nap((long)m);
@@ -12476,7 +12399,6 @@ msleep(m) int m;
 #endif /* MSLFTIME */
 #endif /* ATTSV */
 #endif /* NAP */
-#endif /* PROVX1 */
 #endif /* aegis */
 #endif /* CK_POLL */
 #endif /* SELECT */
@@ -12694,14 +12616,6 @@ ztime(s) char **s;
         debug(F110,"ztime: ATTSV",*s,0);
     }
 #else
-#ifdef PROVX1                           /* Venix 1.0 way */
-    int utime[2];
-    time(utime);
-    if (s) {
-        *s = ctime(utime);
-        debug(F110,"ztime: PROVX1",*s,0);
-    }
-#else
 #ifdef BSD42                            /* 4.2BSD way */
     char *asctime();
     struct tm *localtime();
@@ -12742,7 +12656,6 @@ ztime(s) char **s;
 #endif /* ZTIMEV7 */
 #endif /* MINIX */
 #endif /* BSD42 */
-#endif /* PROVX1 */
 #endif /* ATTSV */
 #endif /* HPUX1020 */
 #endif /* GFTIMER */
@@ -14370,7 +14283,6 @@ This works on System V and POSIX.  In BSD, it depends on the
 #endif /* FT18 */
 
 #ifdef ANYBSD
-#ifndef BSD29
 #ifndef BSD41
 #ifndef SETREUID
 #ifndef NOSETREU
@@ -14380,7 +14292,6 @@ This works on System V and POSIX.  In BSD, it depends on the
 #endif /* NOSETREU */
 #endif /* SETREUID */
 #endif /* !BSD41 */
-#endif /* !BSD29 */
 #endif /* ANYBSD */
 
 /* Variables for user and group IDs. */

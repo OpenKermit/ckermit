@@ -10485,16 +10485,12 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n");
             if (iksdcf) return(success = 0);
 #endif /* IKSDCONF */
 
-/* Note: The following is not 16-bit safe */
-
-#ifndef QNX16
             if (x > 52248) {
                 printf("?Warning: receive buffers larger than 52248 bytes\n");
                 printf(" may not be understood by all hosts.  Performance\n");
                 printf(" may suffer.\n");
                 return(-9);
             }
-#endif /* QNX16 */
 #ifdef SSHBUILTIN
             if (network && nettype == NET_SSH && ssh_get_socket() != -1)
               success = recvbuf(ssh_get_socket(),z);
@@ -14181,11 +14177,7 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
       case XYTIMER: {
           extern int asktimer;
           y = cmnum("Time limit for ASK command, seconds","0",10,&x,xxstring);
-#ifdef QNX16
-          return(setnum(&asktimer,x,y,32767));
-#else
           return(setnum(&asktimer,x,y,86400));
-#endif /* QNX16 */
       }
       case XYFACKB: {
           extern int fackbug;

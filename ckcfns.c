@@ -334,11 +334,7 @@ int  maxsend = 0;
 
 int gnf_binary = 0;                     /* Prevailing xfer mode for gnfile */
 
-#ifdef pdp11
-#define MYINITLEN 32
-#else
 #define MYINITLEN 100
-#endif /* pdp11 */
 CHAR myinit[MYINITLEN];                 /* Copy of my Send-Init data */
 
 /* Variables local to this module */
@@ -371,17 +367,12 @@ static int (*funcptr)(void);            /* Pointer for function strings */
 static int (*funcptr)();
 #endif /* CK_ANSIC */
 
-#ifdef pdp11
-#define CMDSTRL 50
-static char cmdstr[50];                 /* System command string. */
-#else
 #ifdef BIGBUFOK
 #define CMDSTRL 6144
 #else
 #define CMDSTRL 1024
 #endif /* BIGBUFOK */
 static char cmdstr[CMDSTRL+1];
-#endif /* pdp11 */
 
 static int drain;                       /* For draining stacked-up ACKs. */
 
@@ -4397,11 +4388,7 @@ sfile( int x )
 sfile(x) int x;
 #endif /* CK_ANSIC */
 {
-#ifdef pdp11
-#define PKTNL 64
-#else
 #define PKTNL 256
-#endif /* pdp11 */
     char pktnam[PKTNL+1];               /* Local copy of name */
     char *s;
     int rc;
@@ -4774,10 +4761,6 @@ sfile(x) int x;
             xxscreen(SCR_AN,0,0L,pktnam);
             xxscreen(SCR_FS,0,calibrate ? calibrate : fsize,"");
         }
-#ifdef pdp11
-        tlog(F110,"Sending",filnam,0L); /* Transaction log entry */
-        makestr(&psfspec,filnam);       /* New filename */
-#else
 #ifndef ZFNQFP
         tlog(F110,"Sending",filnam,0L);
         makestr(&psfspec,filnam);       /* New filename */
@@ -4810,7 +4793,6 @@ sfile(x) int x;
 #endif /* COMMENT */
         }
 #endif /* ZFNQFP */
-#endif /* pdp11 */
         tlog(F110," as",pktnam,0L);
         if (binary) {                   /* Log file mode in transaction log */
             tlog(F101," mode: binary","",(long) binary);

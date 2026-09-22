@@ -480,22 +480,18 @@ a {
     if (!data) TINIT;                   /* "ABEND" -- Tell other side. */
 
     if (!bctf) {                     /* Block check 3 forced on all packets */
-#ifndef pdp11
         if (epktflg) {                  /* If because of E-PACKET command */
             b1 = bctl; b2 = bctu;       /* Save block check type */
             bctl = bctu = 1;            /* set it to 1 */
         }
-#endif /* pdp11 */
     }
     errpkt((CHAR *)"User cancelled");   /* Send the packet */
     if (!bctf) {                     /* Block check 3 forced on all packets */
-#ifndef pdp11
         if (epktflg) {                  /* Restore the block check */
             epktflg = 0;
             bctl = b1; bctu = b2;
         }
     }
-#endif /* pdp11 */
     success = 0;
     return(0);                          /* Return from protocol. */
 }

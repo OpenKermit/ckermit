@@ -213,12 +213,6 @@ ckmkdir(fc,s,r,m,cvt) int fc; char * s; char ** r; int m; int cvt;
 
 #ifndef NOXFER                          /* Rest of this file... */
 
-#ifndef NODISPO
-#ifdef pdp11
-#define NODISPO
-#endif /* pdpd11 */
-#endif /* NODISPO */
-
 extern int pipesend;
 #ifdef PIPESEND
 extern char ** sndfilter;
@@ -1738,10 +1732,6 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                 yy->disp.val = dsbuf;   /* Pointer to string */
                 yy->disp.len = i;       /* Length of string */
                 d = *dsbuf;
-#ifndef NODISPO
-/*
-  Define NODISPO to disable receipt of mail or print files and of RESEND.
-*/
                 if (
 #ifndef datageneral                     /* MAIL supported only for */
 #ifndef OS2                             /* UNIX, VMS, and OS-9 */
@@ -1815,11 +1805,6 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                     if (!opnerr) tlog(F100," refused: resend","",0);
 #endif /* CK_RESEND */
                 }
-#else  /* NODISPO */
-                retcode = -1;
-                *rp++ = c;
-                if (!opnerr) tlog(F100," refused: NODISPO","",0);
-#endif /* NODISPO */
             }
             break;
 
@@ -2177,10 +2162,6 @@ opena(f,zz) char *f; struct zattr *zz;
     }
     debug(F111,"opena [file]=mode: ",f,fcb.dsp);
     if ((x = openo(f,zz,&fcb))) {       /* Try to open the file. */
-#ifdef pdp11
-        tlog(F110," local name:",f,0L); /* OK, open, record local name. */
-        makestr(&prfspec,f);            /* New preliminary name */
-#else
 #ifndef ZFNQFP
         tlog(F110," local name:",f,0L);
         makestr(&prfspec,f);
@@ -2195,7 +2176,6 @@ opena(f,zz) char *f; struct zattr *zz;
             if (p) free(p);
         }
 #endif /* ZFNQFP */
-#endif /* pdp11 */
 
         if (binary) {                   /* Log file mode in transaction log */
             tlog(F101," mode: binary","",(long) binary);

@@ -610,9 +610,6 @@ char *m_fast = "set win 30, set rec pack 4000, set prefix cautious";
 char *m_fast = "set window 30, set rec pack 4000, set send pack 4000,\
  set pref cautious";
 #else
-#ifdef pdp11
-char *m_fast = "set win 3, set rec pack 1024, set prefix cautious";
-#else
 #ifdef BIGBUFOK
 char *m_fast = "set win 30, set rec pack 4000, set prefix cautious";
 #else
@@ -620,12 +617,7 @@ char *m_fast = "set win 4, set rec pack 2200, set prefix cautious";
 #endif /* BIGBUFOK */
 #endif /* IRIX */
 #endif /* IRIX65 */
-#endif /* pdp11 */
-#ifdef pdp11
-char *m_cautious = "set win 2, set rec pack 512, set prefixing cautious";
-#else
 char *m_cautious = "set win 4, set rec pack 1000, set prefixing cautious";
-#endif /* pdp11 */
 char *m_robust = "set win 1, set rec pack 90, set prefixing all, \
 set reliable off, set clearchannel off, set send timeout 20 fixed";
 #else
@@ -11031,9 +11023,6 @@ initoptlist() {
 #ifdef aegis
     makestr(&(optlist[noptlist++]),"aegis");
 #endif /* aegis */
-#ifdef A986
-    makestr(&(optlist[noptlist++]),"A986");
-#endif /* A986 */
 #ifdef AMIGA
     makestr(&(optlist[noptlist++]),"AMIGA");
 #endif /* AMIGA */
@@ -11300,9 +11289,6 @@ initoptlist() {
 #ifdef ATT7300
     makestr(&(optlist[noptlist++]),"ATT7300");
 #endif /* ATT7300 */
-#ifdef ATT6300
-    makestr(&(optlist[noptlist++]),"ATT6300");
-#endif /* ATT6300 */
 #ifdef HDBUUCP
     makestr(&(optlist[noptlist++]),"HDBUUCP");
 #endif /* HDBUUCP */
@@ -11440,9 +11426,6 @@ initoptlist() {
 #ifdef BSD43
     makestr(&(optlist[noptlist++]),"BSD43");
 #endif /* BSD43 */
-#ifdef BSD29
-    makestr(&(optlist[noptlist++]),"BSD29");
-#endif /* BSD29 */
 #ifdef BSDI
     makestr(&(optlist[noptlist++]),"BSDI");
 #endif /* BSDI */
@@ -11542,9 +11525,6 @@ initoptlist() {
 #ifdef RTU
     makestr(&(optlist[noptlist++]),"RTU");
 #endif /* RTU */
-#ifdef PROVX1
-    makestr(&(optlist[noptlist++]),"PROVX1");
-#endif /* PROVX1 */
 #ifdef PYRAMID
     makestr(&(optlist[noptlist++]),"PYRAMID");
 #endif /* PYRAMID */
@@ -11557,9 +11537,6 @@ initoptlist() {
 #ifdef ZILOG
     makestr(&(optlist[noptlist++]),"ZILOG");
 #endif /* ZILOG */
-#ifdef TRS16
-    makestr(&(optlist[noptlist++]),"TRS16");
-#endif /* TRS16 */
 #ifdef MINIX
     makestr(&(optlist[noptlist++]),"MINIX");
 #endif /* MINIX */
@@ -11976,9 +11953,6 @@ initoptlist() {
 #endif
 #ifdef m88k
     makestr(&(optlist[noptlist++]),"m88k");
-#endif
-#ifdef pdp11
-    makestr(&(optlist[noptlist++]),"pdp11");
 #endif
 #ifdef iAPX
     makestr(&(optlist[noptlist++]),"iAPX");

@@ -42,10 +42,6 @@
 #define HERALD " Apple Macintosh"
 #endif /* MAC */
 
-#ifdef A986
-#define HERALD " Altos 986 / Xenix 3.0"
-#endif /* A986 */
-
 #ifdef AS400
 #define HERALD " AS/400"
 #endif /* AS400 */
@@ -128,10 +124,6 @@
 #define HERALD " IBM AIX/ESA version 2.1"
 #endif
 #endif /* AIXESA */
-
-#ifdef ATT6300
-#define HERALD " AT&T 6300"
-#endif /* ATT6300 */
 
 #ifdef ATT7300
 #ifdef UNIX351M
@@ -258,10 +250,6 @@
 #define HERALD " Encore Multimax UMAX 4.2"
 #endif
 #endif /* ENCORE */
-
-#ifdef BSD29
-#define HERALD " 2.9 BSD"
-#endif /* BSD29 */
 
 #ifdef BSD41
 #define HERALD " 4.1 BSD"
@@ -619,17 +607,9 @@
 #endif /* i386 */
 #endif /* OSF */
 
-#ifdef PCIX
-#define HERALD " PC/IX"
-#endif /* PCIX */
-
 #ifdef sxaE50
 #define HERALD " PFU SX/A V10/L50"
 #endif /* sxaE50 */
-
-#ifdef PROVX1
-#define HERALD " DEC Professional 300 (Venix 1.0)"
-#endif /* PROVX1 */
 
 #ifdef PYRAMID
 #ifdef SVR4
@@ -688,13 +668,6 @@
 #ifdef TOWER1
 #define HERALD " NCR Tower 1632 OS 1.02"
 #endif /* TOWER1 */
-
-#ifdef TRS16
-#define HERALD " Tandy 16/6000 Xenix 3.0"
-#ifndef CKCPU
-#define CKCPU "mc68000"
-#endif /* CKCPU */
-#endif /* TRS16 */
 
 #ifdef u3b2
 #ifndef HERALD
@@ -762,11 +735,7 @@
 #define HERALD " Unixware 7"
 #else
 #ifdef QNX
-#ifdef QNX16
-#define HERALD " QNX 16-bit"
-#else
 #define HERALD " QNX 32-bit"
-#endif /* QNX16 */
 #else
 #ifdef NEUTRINO
 #define HERALD " QNX Neutrino 2"
@@ -873,12 +842,6 @@
 #define HERALD " CDC VX/VE 5.2.1 System V"
 #endif /* VXVE */
 
-#ifdef SCO234
-#ifdef HERALD
-#undef HERALD
-#endif /* HERALD */
-#define HERALD " SCO XENIX 2.3.4"
-#else
 #ifdef CK_SCO32V4
 #ifdef HERALD
 #undef HERALD
@@ -939,7 +902,6 @@
 #endif /* XENIX  */
 #endif /* CK_SCOV5 */
 #endif /* CK_SCOV32V4 */
-#endif /* SCO234 */
 
 #ifdef ZILOG
 #define HERALD " Zilog S8000 Zeus 3.21+"
@@ -970,15 +932,11 @@
 #define HERALD " AT&T System III / System V"
 #else
 #ifdef BSD43
-#ifdef pdp11
-#define HERALD " 2.10 BSD PDP-11"
-#else
 #ifdef vax
 #define HERALD " 4.3 BSD VAX"
 #else
 #define HERALD " 4.3 BSD"
 #endif /* vax */
-#endif /* pdp11 */
 #else
 #ifdef BSD4
 #ifdef vax
@@ -1020,11 +978,6 @@
 #define CKCPU "vax"
 #endif /* CKCPU */
 #endif /*  vax */
-#ifdef pdp11                            /* DEC PDP-11 */
-#ifndef CKCPU
-#define CKCPU "pdp11"
-#endif /* CKCPU */
-#endif /* pdp11 */
 
 #ifdef __ALPHA                          /* DEC Alpha */
 #ifndef CKCPU

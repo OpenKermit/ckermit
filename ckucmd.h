@@ -24,12 +24,6 @@
 
 /* Command recall */
 
-#ifdef pdp11                            /* Not enough room for this */
-#ifndef NORECALL
-#define NORECALL
-#endif /* NORECALL */
-#endif /* pdp11 */
-
 #ifdef DYNAMIC                          /* Dynamic command buffers */
 /*
   Use malloc() to allocate the many command-related buffers in ckucmd.c.

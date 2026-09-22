@@ -280,11 +280,7 @@ extern int dialog;
 #ifdef DYNAMIC
 static char *cmdstr = NULL;             /* Place to build generic command */
 #else
-#ifdef pdp11
-static char cmdstr[256];
-#else
 static char cmdstr[4096];
-#endif /* pdp11 */
 #endif /* DYNAMIC */
 
 #ifndef NOMSEND
@@ -3171,10 +3167,6 @@ ckhost(vvbuf,vvlen) char * vvbuf; int vvlen;
 #endif /* NOSERVER */
 #endif /* NOPUSH */
 
-#ifdef pdp11
-    *vvbuf = NUL;
-#else  /* Everything else - rest of this routine */
-
     char *g;
 #ifdef VMS
     int x;
@@ -3288,7 +3280,6 @@ ckhost(vvbuf,vvlen) char * vvbuf; int vvlen;
         if (g) ckstrncpy(vvbuf,g,vvlen);
     }
     vvbuf[vvlen-1] = NUL;               /* Make sure result is terminated. */
-#endif /* pdp11 */
 }
 #ifdef BSD44
 #undef BSD4
@@ -7594,9 +7585,7 @@ char *s;        /* a string */
             RestoreCmdMode();
 #else
 #ifdef QNX
-#ifndef QNX16
             clearok(stdscr, 1);         /* QNX doesn't have curscr */
-#endif /* QNX16 */
             wrefresh(stdscr);
 #else
             wrefresh(curscr);
@@ -7717,9 +7706,7 @@ char *s;        /* a string */
         RestoreCmdMode();
 #else
 #ifdef QNX
-#ifndef QNX16
         clearok(stdscr, 1);             /* QNX doesn't have curscr */
-#endif /* QNX16 */
         wrefresh(stdscr);
 #else
         wrefresh(curscr);
