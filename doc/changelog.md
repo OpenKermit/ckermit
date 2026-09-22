@@ -1,5 +1,12 @@
 # OpenKermit C-Kermit Changelog
 
+# C-Kermit 11.0.512 (NOT YET RELEASED)
+
+- Due to being broken for over 25 years and the impracticality of restoring
+  support, removed support for 16-bit Unix platforms from the codebase.  This
+  removed over 1900 lines of code from the project.  See further notes in
+  commit 30ab9d4f.
+
 # C-Kermit 11.0.511
 
 September 19, 2026
