@@ -22,8 +22,7 @@ on:
           skip-tests, skip-c-tests} entries to build/test (skip-tests
           and skip-c-tests are optional, default false; skip-tests
           skips both the C and Python suites, skip-c-tests only the
-          C one.  That's for the musl target, which has no musl build
-          of libcheck to link its unit tests against).
+          C one).
           release.yml overrides this with the full
           release platform set. Empty here
           because workflow_call input defaults only
@@ -63,9 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       # On push to main (but not on pull requests, to keep those fast),
-      # also build and test linux+ssl+musl on arm64. skip-c-tests is
-      # set because there is no musl build of libcheck to link its
-      # unit tests against.
+      # also build and test linux+ssl+musl on arm64 and armhf.
       #
       # The first half of this list is the ones we run on push.  The second
       # half runs on PR.  The BSD builds aren't part of the matrix, so run
@@ -74,7 +71,8 @@ jobs:
         include: >-
           ${{ fromJson(inputs.matrix || (github.event_name == 'push' && '[
           {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"ubuntu26.04-amd64"},
-          {"os":"ubuntu-24.04-arm","platform":"linux","arch":"arm64","make-target":"linux+ssl+musl","label":"ubuntu24.04-arm64-musl","skip-c-tests":true},
+          {"os":"ubuntu-24.04-arm","platform":"linux","arch":"arm64","make-target":"linux+ssl+musl","label":"ubuntu24.04-arm64-musl"},
+          {"os":"ubuntu-24.04-arm","platform":"linux","arch":"armhf","make-target":"linux+ssl+musl","label":"ubuntu24.04-armhf-musl"},
           {"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"macos-arm64"}
           ]' || '[
           {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"ubuntu26.04-amd64"},
@@ -130,16 +128,16 @@ jobs:
           echo "$(brew --prefix openssl@3)/bin" >> "$GITHUB_PATH"
 
       # linux+ssl+musl and linux+musl both link against a from-source,
-      # musl-gcc-built OpenSSL (linux+ssl+musl only), zlib, and
-      # ncurses. This runs for every matrix entry using either
+      # musl-gcc-built OpenSSL (linux+ssl+musl only), zlib, ncurses,
+      # and check. This runs for every matrix entry using either
       # target, including the release-time "static" amd64/arm64
-      # binaries (release.yml) as well as the arm64 push-to-main test
-      # below. Cache the built install prefix keyed on the build
-      # script plus arch, since amd64 and arm64 need separate builds;
-      # the key changes if the script (and so the pinned library
-      # versions) changes, so a version bump always rebuilds rather
-      # than risking a stale cache hit.
-      - name: Cache musl OpenSSL/zlib/ncurses
+      # binaries (release.yml) and the arm64/armhf push-to-main
+      # matrix entries. Cache the built install prefix keyed on
+      # the build script plus arch, since each architecture requires
+      # a separate build. The key changes if the script (and so the
+      # pinned library versions) changes, so a version bump always
+      # rebuilds rather than risking a stale cache hit.
+      - name: Cache musl OpenSSL/zlib/ncurses/check
         if: >-
           matrix.make-target == 'linux+ssl+musl' ||
           matrix.make-target == 'linux+musl'
@@ -150,14 +148,30 @@ jobs:
             musl-libs-${{ matrix.arch }}-${{
             hashFiles('tools/build-musl-libs.sh') }}
 
+      # armhf is cross-built on the arm64 runner. musl-tools:armhf and
+      # linux-libc-dev:armhf provide the target headers and spec files.
+      # gcc-arm-linux-gnueabihf provides code generation, driven via
+      # musl-gcc's REALGCC override.
+      #
+      # The arm64 CPU executes armhf binaries directly in AArch32 mode,
+      # so no emulation is needed for test execution.
       - name: Install musl toolchain
         if: >-
           matrix.make-target == 'linux+ssl+musl' ||
           matrix.make-target == 'linux+musl'
         run: |
           sudo apt-get update
-          sudo apt-get install -y musl-tools
-          tools/build-musl-libs.sh .ci-cache/musl-libs
+          if [ "${{ matrix.arch }}" = "armhf" ]; then
+            sudo apt-get install -y gcc-arm-linux-gnueabihf
+            sudo dpkg --add-architecture armhf
+            sudo apt-get update
+            sudo apt-get install -y musl-tools:armhf \
+              linux-libc-dev:armhf
+            tools/build-musl-libs.sh .ci-cache/musl-libs armhf
+          else
+            sudo apt-get install -y musl-tools
+            tools/build-musl-libs.sh .ci-cache/musl-libs
+          fi
 
       - name: Build (Linux)
         if: >-
@@ -175,6 +189,9 @@ jobs:
           matrix.make-target == 'linux+ssl+musl' ||
           matrix.make-target == 'linux+musl'
         run: |
+          if [ "${{ matrix.arch }}" = "armhf" ]; then
+            export REALGCC=arm-linux-gnueabihf-gcc
+          fi
           if [ "${{ matrix.make-target }}" = "linux+ssl+musl" ]; then
             make -j4 ${{ matrix.make-target }} \
               KSSLINC="-I$PWD/.ci-cache/musl-libs/include" \
@@ -199,9 +216,24 @@ jobs:
           ./wermit -H -Y -Q -C \
             "set command more-prompting off, show version, quit"
 
+      # The makefile unit-test recipe queries pkg-config for check's
+      # compiler and linker flags. The "Install Linux dependencies"
+      # step installs the system check package for glibc.
+      # Setting PKG_CONFIG_PATH to the musl-libs directory ensures
+      # pkg-config selects the musl check package rather than glibc.
+      #
+      # On armhf, setting REALGCC directs musl-gcc to the cross compiler.
       - name: C unit tests
         if: matrix.skip-tests != true && matrix.skip-c-tests != true
-        run: make check
+        run: |
+          if [ "${{ matrix.arch }}" = "armhf" ]; then
+            export REALGCC=arm-linux-gnueabihf-gcc
+          fi
+          if [ "${{ matrix.make-target }}" = "linux+ssl+musl" ] || \
+             [ "${{ matrix.make-target }}" = "linux+musl" ]; then
+            export PKG_CONFIG_PATH="$PWD/.ci-cache/musl-libs/lib/pkgconfig"
+          fi
+          make check
 
       - name: Python test suite
         if: matrix.skip-tests != true

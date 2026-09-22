@@ -1,9 +1,10 @@
 #!/bin/sh
 #
-# Build static OpenSSL, zlib, and ncurses against musl libc for the
-# linux+ssl+musl and linux+musl makefile targets.
+# Build static OpenSSL, zlib, ncurses, and check against musl libc
+# for the linux+ssl+musl and linux+musl makefile targets. check
+# provides the unit test framework for "make check".
 #
-# This builds all three from source against musl-gcc into a private
+# This builds all four from source against musl-gcc into a private
 # prefix. That prefix is then passed to those targets via
 # KSSLINC/KSSLLIB (or KZLIBINC/KZLIBLIB for linux+musl, which has no
 # OpenSSL) and KNCURSESINC, e.g.:
@@ -14,12 +15,26 @@
 #     KSSLLIB="-L$(pwd)/.ci-cache/musl-libs/lib" \
 #     KNCURSESINC="-I$(pwd)/.ci-cache/musl-libs/include/ncurses"
 #
+# An optional second argument cross-builds for armhf instead of the
+# host architecture:
+#
+#   tools/build-musl-libs.sh .ci-cache/musl-libs armhf
+#
+# Cross-compiling for armhf requires gcc-arm-linux-gnueabihf, plus
+# musl-tools and linux-libc-dev installed for the armhf architecture
+# (via dpkg --add-architecture armhf).
+#
+# musl-tools:armhf installs a musl-gcc wrapper that defaults to calling
+# cc. Setting REALGCC=arm-linux-gnueabihf-gcc directs musl-gcc to the
+# cross compiler.
+#
 # Idempotent: does nothing if <prefix>/lib/libssl.a already exists,
 # so CI can cache the prefix directory across runs.
 
 set -e
 
-PREFIX=${1:?"usage: $0 <prefix-dir>"}
+PREFIX=${1:?"usage: $0 <prefix-dir> [armhf]"}
+TARGET=${2:-native}
 
 ZLIB_VERSION=1.3.2
 ZLIB_URL="https://github.com/madler/zlib/releases/download/\
@@ -34,11 +49,25 @@ NCURSES_VERSION=6.6
 NCURSES_URL="https://ftp.gnu.org/gnu/ncurses/ncurses-$NCURSES_VERSION.tar.gz"
 NCURSES_SHA256=355b4cbbed880b0381a04c46617b7656e362585d52e9cf84a67e2009b749ff11
 
+CHECK_VERSION=0.15.2
+CHECK_URL="https://github.com/libcheck/check/releases/download/\
+$CHECK_VERSION/check-$CHECK_VERSION.tar.gz"
+CHECK_SHA256=a8de4e0bacfb4d76dd1c618ded263523b53b85d92a146d8835eb1a52932fa20a
+
 if [ -f "$PREFIX/lib/libssl.a" ] && [ -f "$PREFIX/lib/libz.a" ] \
-    && [ -f "$PREFIX/lib/libncurses.a" ]; then
-    echo "musl OpenSSL/zlib/ncurses already built in $PREFIX, skipping."
+    && [ -f "$PREFIX/lib/libncurses.a" ] \
+    && [ -f "$PREFIX/lib/libcheck.a" ]; then
+    echo "musl OpenSSL/zlib/ncurses/check already built in $PREFIX," \
+        "skipping."
     exit 0
 fi
+
+case "$TARGET" in
+    native|armhf) ;;
+    *) echo "unknown target '$TARGET'; expected 'armhf' or no" \
+        "second argument" >&2
+       exit 1 ;;
+esac
 
 if ! command -v musl-gcc > /dev/null 2>&1; then
     echo "musl-gcc not found; install musl-tools first." >&2
@@ -57,26 +86,36 @@ fetch() {
     echo "$sha256  $out" | sha256sum -c -
 }
 
-# musl-gcc's specs file passes -nostdinc and points only at musl's
-# own headers, which don't include the Linux kernel's UAPI headers
-# (linux/*.h, asm/*.h) that OpenSSL's secure-memory code needs.
-# Debian's linux-libc-dev package installs those under /usr/include
-# regardless of libc, so pull them in after musl's own headers with
-# -idirafter (not -I), so musl's headers still take priority over
-# glibc's for anything both provide.
+# musl-gcc passes -nostdinc and points only at musl headers, which do
+# not include the Linux kernel UAPI headers (linux/*.h, asm/*.h) that
+# OpenSSL secure memory requires. Debian's linux-libc-dev installs
+# those under /usr/include regardless of libc.
+#
+# Pull them in after musl headers with -idirafter so musl headers
+# take priority over glibc for anything both provide.
+if [ "$TARGET" = armhf ]; then
+    KERNEL_HDR_TRIPLE=arm-linux-gnueabihf
+    export REALGCC=arm-linux-gnueabihf-gcc
+    export AR=arm-linux-gnueabihf-ar
+    export RANLIB=arm-linux-gnueabihf-ranlib
+    OPENSSL_TARGET=linux-armv4
+    AUTOCONF_HOST_FLAG="--host=arm-linux-gnueabihf"
+else
+    KERNEL_HDR_TRIPLE="$(uname -m)-linux-gnu"
+    OPENSSL_TARGET="linux-$(uname -m)"
+    AUTOCONF_HOST_FLAG=""
+fi
+
 MUSLCC="musl-gcc -idirafter /usr/include -idirafter \
-/usr/include/$(uname -m)-linux-gnu"
+/usr/include/$KERNEL_HDR_TRIPLE"
 
-# On arm64, GCC defaults to -moutline-atomics, which means any atomic op is
-# compiled as a call into a libgcc.a helper that picks LSE or LL/SC atomics at
-# runtime. That helper's init routine calls the glibc-internal __getauxval
-# symbol, which musl does not provide, so any link that pulls in an atomic op
-# fails with "undefined reference to `__getauxval'". This is unrelated to
-# no-shared/no-module above: it hits the final apps/openssl link too, not just
-# provider modules. Disabling outline atomics avoids the libgcc helper
-# entirely.
-
-if [ "$(uname -m)" = "aarch64" ]; then
+# On AArch64, GCC defaults to -moutline-atomics. That emits calls into
+# libgcc helpers that reference the glibc-internal __getauxval symbol,
+# which musl does not provide. Disabling outline atomics avoids the
+# helper calls.
+#
+# This flag is specific to AArch64 and is omitted for armhf cross builds.
+if [ "$TARGET" = native ] && [ "$(uname -m)" = "aarch64" ]; then
     MUSLCC="$MUSLCC -mno-outline-atomics"
 fi
 
@@ -98,11 +137,20 @@ cd "openssl-$OPENSSL_VERSION"
 # __getauxval symbol that musl does not provide, so the link
 # fails on arm64. no-module builds the providers directly into
 # libcrypto.a instead, which also fits a static build better.
-CC="$MUSLCC" ./Configure linux-"$(uname -m)" \
+#
+# Build and install only the libraries and headers. The openssl CLI
+# binary is not needed. Linking that binary during armhf cross-compilation
+# pulls in the cross toolchain's glibc-linked libatomic.so, which fails
+# to resolve in a musl static link.
+CC="$MUSLCC" ./Configure "$OPENSSL_TARGET" \
     no-shared no-module no-tests no-zstd no-docs \
     --prefix="$PREFIX" --libdir=lib --openssldir="$PREFIX/ssl"
-make -j"$(nproc)" build_sw
-make install_sw install_ssldirs
+make -j"$(nproc)" build_libs
+# install_ssldirs installs apps/CA.pl and apps/tsget.pl, which are
+# generated scripts. build_libs does not generate them. Generate them
+# directly by name to avoid building the rest of build_programs.
+make apps/CA.pl apps/tsget.pl
+make install_dev install_ssldirs
 
 # --with-terminfo-dirs/--with-default-terminfo-dir point the library
 # at the target system's terminfo database (the usual system
@@ -118,7 +166,7 @@ cd "$WORK"
 fetch "$NCURSES_URL" "$NCURSES_SHA256" ncurses.tar.gz
 tar xzf ncurses.tar.gz
 cd "ncurses-$NCURSES_VERSION"
-CC=musl-gcc ./configure \
+CC=musl-gcc ./configure $AUTOCONF_HOST_FLAG \
     --prefix="$PREFIX" \
     --without-shared \
     --without-debug \
@@ -133,5 +181,27 @@ CC=musl-gcc ./configure \
 make -j"$(nproc)"
 make install.libs install.includes
 
-echo "musl OpenSSL $OPENSSL_VERSION, zlib $ZLIB_VERSION, and ncurses" \
-    "$NCURSES_VERSION installed to $PREFIX"
+# --disable-build-docs skips documentation that requires texinfo.
+#
+# --disable-shared builds only the static library libcheck.a.
+#
+# The configure script enables subunit support if /usr/include/subunit
+# is present on the build host. Disabling subunit avoids an unresolved
+# dependency, as libsubunit is not built here.
+#
+# "make check" locates this build when PKG_CONFIG_PATH includes
+# $PREFIX/lib/pkgconfig.
+cd "$WORK"
+fetch "$CHECK_URL" "$CHECK_SHA256" check.tar.gz
+tar xzf check.tar.gz
+cd "check-$CHECK_VERSION"
+CC=musl-gcc ./configure $AUTOCONF_HOST_FLAG \
+    --prefix="$PREFIX" \
+    --disable-shared \
+    --disable-build-docs \
+    --disable-subunit
+make -j"$(nproc)"
+make install
+
+echo "musl OpenSSL $OPENSSL_VERSION, zlib $ZLIB_VERSION, ncurses" \
+    "$NCURSES_VERSION, and check $CHECK_VERSION installed to $PREFIX"

@@ -1041,7 +1041,11 @@ unit-test:
 # test binary that had never been built. The pkg-config lookup is done
 # by the shell at recipe time instead of via $(shell ...), which keeps
 # this portable to both GNU make and bmake.
-CHECK_LIBS_CMD = pkg-config --cflags --libs check 2>/dev/null || \
+#
+# --static includes Libs.private dependencies such as -lrt and -lm.
+# Shared libraries resolve those dependencies via DT_NEEDED entries,
+# but a static libcheck.a requires them explicitly on the link line.
+CHECK_LIBS_CMD = pkg-config --cflags --libs --static check 2>/dev/null || \
 	echo "-pthread -lcheck_pic -lrt -lm -lsubunit"
 
 tests/unit/bin/test_lib: tests/unit/test_lib.c ckclib.$(EXT)
