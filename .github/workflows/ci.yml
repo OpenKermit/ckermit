@@ -61,12 +61,12 @@ jobs:
   build-and-test:
     strategy:
       fail-fast: false
-      # On push to main (but not on pull requests, to keep those fast),
-      # also build and test linux+ssl+musl on arm64 and armhf.
+      # Pull requests test amd64, macOS, and armhf musl for 32-bit
+      # coverage. Pushes to main also build arm64 musl. arm64 is
+      # omitted from pull requests to keep runs fast.
       #
-      # The first half of this list is the ones we run on push.  The second
-      # half runs on PR.  The BSD builds aren't part of the matrix, so run
-      # separately elsewhere.
+      # The first list runs on push to main. The second runs on pull
+      # requests. BSD builds run in separate jobs.
       matrix:
         include: >-
           ${{ fromJson(inputs.matrix || (github.event_name == 'push' && '[
@@ -76,6 +76,7 @@ jobs:
           {"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"macos-arm64"}
           ]' || '[
           {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"ubuntu26.04-amd64"},
+          {"os":"ubuntu-24.04-arm","platform":"linux","arch":"armhf","make-target":"linux+ssl+musl","label":"ubuntu24.04-armhf-musl"},
           {"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"macos-arm64"}
           ]')) }}
     runs-on: ${{ matrix.os }}
@@ -131,7 +132,7 @@ jobs:
       # musl-gcc-built OpenSSL (linux+ssl+musl only), zlib, ncurses,
       # and check. This runs for every matrix entry using either
       # target, including the release-time "static" amd64/arm64
-      # binaries (release.yml) and the arm64/armhf push-to-main
+      # binaries (release.yml) and the arm64 and armhf musl
       # matrix entries. Cache the built install prefix keyed on
       # the build script plus arch, since each architecture requires
       # a separate build. The key changes if the script (and so the
