@@ -1018,7 +1018,8 @@ unit-test:
 		tests/unit/bin/test_net tests/unit/bin/test_mpsafe \
 		tests/unit/bin/test_zfnqfp tests/unit/bin/test_hasdotdot \
 		tests/unit/bin/test_rq_confirm tests/unit/bin/test_fnsplit \
-		tests/unit/bin/test_fpformat tests/unit/bin/test_shuffledate
+		tests/unit/bin/test_fpformat tests/unit/bin/test_shuffledate \
+		tests/unit/bin/test_hostaddr
 	./tests/unit/bin/test_lib
 	./tests/unit/bin/test_strings
 	./tests/unit/bin/test_net
@@ -1029,6 +1030,7 @@ unit-test:
 	./tests/unit/bin/test_fnsplit
 	./tests/unit/bin/test_fpformat
 	./tests/unit/bin/test_shuffledate
+	./tests/unit/bin/test_hostaddr
 
 # Rules for the unit test binaries.
 #
@@ -1090,6 +1092,23 @@ tests/unit/bin/test_net: tests/unit/test_net.c ckcnet.c ckcnet.h ckclib.c
 	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
 		tests/unit/test_net.c tests/unit/bin/ckcnet_test.$(EXT) \
 		tests/unit/bin/ckclib_test.$(EXT) \
+		-o $@ $$GCSECTIONS $$CHECKLIBS
+
+# test_hostaddr exercises ck_hostaddr() in ckcnet.c. Uses
+# -ffunction-sections, -fdata-sections, and --gc-sections like
+# test_net to discard unneeded ckcnet.c symbols.
+tests/unit/bin/test_hostaddr: tests/unit/test_hostaddr.c ckcnet.c ckcnet.h
+	@mkdir -p tests/unit/bin
+	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	case `uname -s` in \
+	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
+	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
+	esac; \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		-c ckcnet.c -o tests/unit/bin/ckcnet_hostaddr.$(EXT); \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		tests/unit/test_hostaddr.c \
+		tests/unit/bin/ckcnet_hostaddr.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
 
 # test_mpsafe exercises mpsafe(), which lives in ckcpro.c. Same

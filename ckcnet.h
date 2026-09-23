@@ -1378,6 +1378,7 @@ _PROTOTYP( int getlocalipaddr, (VOID));
 _PROTOTYP( int getlocalipaddrs, (char *,int,int));
 _PROTOTYP( char * ckgetfqhostname,(char *));
 _PROTOTYP( struct hostent * ck_copyhostent,(struct hostent *));
+_PROTOTYP( unsigned long ck_hostaddr,(struct hostent *,int));
 _PROTOTYP( char * ckname2addr, (char *));
 _PROTOTYP( char * ckaddr2name, (char *));
 
