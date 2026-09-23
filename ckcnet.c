@@ -11626,10 +11626,10 @@ http_mkarray(resp, n, array) char ** resp; int n; char array;
 }
 
 #define HTTPHEADCNT 64
-int
+long
 http_get_chunk_len()
 {
-    int len = 0;
+    long len = 0;
     int i = 0, j = -1;
     char buf[24];
     int ch;
@@ -13143,6 +13143,7 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
 {
     char * request = NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
+    long   chunklen = 0;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
@@ -13340,9 +13341,9 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
     }
 
     if ( chunked ) {
-        while ((len = http_get_chunk_len()) > 0) {
-            while (len && (ch = http_inc(0)) >= 0) {
-                len--;
+        while ((chunklen = http_get_chunk_len()) > 0) {
+            while (chunklen && (ch = http_inc(0)) >= 0) {
+                chunklen--;
                 if ( zfile )
                     zchout(ZOFILE,(CHAR)ch);
                 if ( stdio )
@@ -13635,6 +13636,7 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
 {
     char * request = NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
+    long   chunklen = 0;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
@@ -13803,9 +13805,9 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
     }
 
     if ( chunked ) {
-        while ((len = http_get_chunk_len()) > 0) {
-            while (len && (ch = http_inc(0)) >= 0) {
-                len--;
+        while ((chunklen = http_get_chunk_len()) > 0) {
+            while (chunklen && (ch = http_inc(0)) >= 0) {
+                chunklen--;
                 if ( zfile )
                     zchout(ZOFILE,(CHAR)ch);
                 if ( stdio )
@@ -13881,6 +13883,7 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
 {
     char * request=NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
+    long   chunklen = 0;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
@@ -14106,9 +14109,9 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
         }
 
         if ( chunked ) {
-            while ((len = http_get_chunk_len()) > 0) {
-                while (len && (ch = http_inc(0)) >= 0) {
-                    len--;
+            while ((chunklen = http_get_chunk_len()) > 0) {
+                while (chunklen && (ch = http_inc(0)) >= 0) {
+                    chunklen--;
                     if ( zfile )
                         zchout(ZOFILE,(CHAR)ch);
                     if ( stdio )
@@ -14184,6 +14187,7 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
 {
     char * request=NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
+    long   chunklen = 0;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
@@ -14353,9 +14357,9 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
 
     /* Any response data? */
     if ( chunked ) {
-        while ((len = http_get_chunk_len()) > 0) {
-            while (len && (ch = http_inc(0)) >= 0) {
-                len--;
+        while ((chunklen = http_get_chunk_len()) > 0) {
+            while (chunklen && (ch = http_inc(0)) >= 0) {
+                chunklen--;
                 conoc((CHAR)ch);
             }
             if ((ch = http_inc(0)) != CK_CR)
@@ -14422,6 +14426,7 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
 {
     char * request=NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
+    long   chunklen = 0;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
@@ -14624,9 +14629,9 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
         }
 
         if ( chunked ) {
-            while ((len = http_get_chunk_len()) > 0) {
-                while (len && (ch = http_inc(0)) >= 0) {
-                    len--;
+            while ((chunklen = http_get_chunk_len()) > 0) {
+                while (chunklen && (ch = http_inc(0)) >= 0) {
+                    chunklen--;
                     if ( zfile )
                         zchout(ZOFILE,(CHAR)ch);
                     if ( stdio )
