@@ -252,6 +252,30 @@ START_TEST(test_ulongtohex_non_reentrant)
 }
 END_TEST
 
+START_TEST(test_ckfstoa_ckatofs_large_offsets)
+{
+    /* Verify round-trip conversion for values past the 32-bit limit.
+       ckfstoa() uses a static buffer, so copy the string before the
+       next call. */
+    static const CK_OFF_T vals[] = {
+        (CK_OFF_T)0,
+        (CK_OFF_T)1,
+        ((CK_OFF_T)1 << 31) - 1,        /* 32-bit signed max */
+        (CK_OFF_T)1 << 31,
+        ((CK_OFF_T)1 << 32) - 1,        /* 32-bit unsigned max */
+        (CK_OFF_T)1 << 32,
+        ((CK_OFF_T)1 << 33) + 12345
+    };
+    size_t i;
+    char buf[32];
+
+    for (i = 0; i < sizeof(vals) / sizeof(vals[0]); i++) {
+        ckstrncpy(buf, ckfstoa(vals[i]), sizeof(buf));
+        ck_assert_int_eq(ckatofs(buf), vals[i]);
+    }
+}
+END_TEST
+
 Suite *lib_suite(void)
 {
     Suite *s;
@@ -267,6 +291,7 @@ Suite *lib_suite(void)
     tcase_add_test(tc_core, test_hhmmss);
     tcase_add_test(tc_core, test_hextoulong_overflow);
     tcase_add_test(tc_core, test_base64_validation);
+    tcase_add_test(tc_core, test_ckfstoa_ckatofs_large_offsets);
     tcase_add_test(tc_core, test_ulongtohex_non_reentrant);
 
     suite_add_tcase(s, tc_core);
