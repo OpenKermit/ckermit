@@ -6571,9 +6571,19 @@ android:
 # linux+ssl+musl, which cannot go through linux/linuxa's
 # autodetection (see the comment on that target), but still
 # starts from the same baseline flags.
+#
+# _LARGEFILE_SOURCE and _FILE_OFFSET_BITS=64 select the CK_OFF_T=off_t
+# branch in ckcdeb.h, making CK_OFF_T 64-bit on 32-bit Linux builds.
+# They also map CKFSEEK and CKFTELL to fseeko and ftello.
+#
+# Setting these in LINUXCFLAGS ensures 64-bit file offsets for both
+# glibc and musl targets, including linux+ssl+musl.  The autodetection
+# attempt incorrectly determines musl doesn't support 64-bit offsets.
+# ckcdeb.h picks up on these defined macros and enables largefile
+# support throughout C-Kermit.
 LINUXCFLAGS = -O2 -DLINUX -pipe -funsigned-char -DFNFLOAT \
 -DCK_POSIX_SIG -DCK_NEWTERM -DTCPSOCKET -DLINUXFSSTND -DNOCOTFMC \
--DPOSIX -DUSE_STRERROR
+-DPOSIX -DUSE_STRERROR -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 
 linuxa:
 	@echo 'Making C-Kermit $(CKVER) for Linux 1.2 or later...'
