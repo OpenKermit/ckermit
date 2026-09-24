@@ -11626,18 +11626,25 @@ http_mkarray(resp, n, array) char ** resp; int n; char array;
 }
 
 #define HTTPHEADCNT 64
-long
+/*
+  Read a chunk-size line and return the chunk length.
+
+  Parsing stops at the first non-hex character. Any chunk-extension
+  is ignored.
+
+  Returns -1 for a line with no hex digits or a value exceeding
+  60 bits.
+*/
+CK_OFF_T
 http_get_chunk_len()
 {
-    long len = 0;
-    int i = 0, j = -1;
+    CK_OFF_T len = 0;
+    int i = 0, k, d, ndigits = 0;
     char buf[24];
     int ch;
 
     while ((ch = http_inc(0)) >= 0 && i < 24) {
         buf[i] = ch;
-        if ( buf[i] == ';' )            /* Find chunk-extension (if any) */
-            j = i;
         if ( buf[i] == 10 ) {           /* found end of line */
             if (i > 0 && buf[i-1] == 13)
                 i--;
@@ -11646,10 +11653,27 @@ http_get_chunk_len()
         }
         i++;
     }
-    if ( i < 24 ) {                     /* buf now contains len in Hex */
-        len = hextoulong(buf, j == -1 ? i : j-1);
-    }
+    if ( i >= 24 )
+        return(0);
 
+    for (k = 0; k < i; k++) {           /* Parse hex digits */
+        d = (unsigned char)buf[k];
+        if (d >= '0' && d <= '9')
+            d -= '0';
+        else if (d >= 'a' && d <= 'f')
+            d -= 'a' - 10;
+        else if (d >= 'A' && d <= 'F')
+            d -= 'A' - 10;
+        else
+            break;
+        if (ndigits > 0 || d > 0)       /* Count significant digits */
+            ndigits++;
+        if (ndigits > 15)               /* Reject overflow */
+            return(-1);
+        len = (len << 4) | d;
+    }
+    if (k == 0)
+        return(-1);
     return(len);
 }
 
@@ -13143,7 +13167,7 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
 {
     char * request = NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
-    long   chunklen = 0;
+    CK_OFF_T chunklen = 0;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
@@ -13636,7 +13660,7 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
 {
     char * request = NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
-    long   chunklen = 0;
+    CK_OFF_T chunklen = 0;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
@@ -13883,7 +13907,7 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
 {
     char * request=NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
-    long   chunklen = 0;
+    CK_OFF_T chunklen = 0;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
@@ -14187,7 +14211,7 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
 {
     char * request=NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
-    long   chunklen = 0;
+    CK_OFF_T chunklen = 0;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
@@ -14426,7 +14450,7 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
 {
     char * request=NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
-    long   chunklen = 0;
+    CK_OFF_T chunklen = 0;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;

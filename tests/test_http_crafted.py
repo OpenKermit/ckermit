@@ -1,26 +1,26 @@
 """
-Tests for http_get_chunk_len() in ckcnet.c with chunk sizes >= 2**32.
+Tests for http_get_chunk_len() in ckcnet.c.
 
-On 64-bit platforms, hextoulong() parses chunk sizes into a long. A chunk
-size of 2**32 (hex 100000000) must not truncate to zero. A zero size signals
-the terminating chunk in HTTP chunked transfer encoding.
-
-This test sends a chunk-size line of 2**32 followed by a marker payload.
-It verifies that wermit reads the marker rather than stopping at zero bytes.
+Verifies parsing of HTTP chunk-size lines, including sizes of 2**32
+and lines with chunk extensions. A zero size signals the terminating
+chunk in HTTP chunked transfer encoding.
 """
 import socket
 
 import pytest
 
-CHUNK_LEN_HEX = "100000000"    # 2**32
 MARKER = b"MARKER"
 
 
+@pytest.mark.parametrize("size_line", [
+    "100000000",                # 2**32
+    "6;name=value",             # chunk-extension
+], ids=["2pow32", "extension"])
 def test_http_get_large_chunk_size_not_truncated(
     spawn_wermit, wermit_path, wermit_http_available, get_free_port,
-    tmp_path,
+    tmp_path, size_line,
 ):
-    """Verify wermit reads HTTP chunks of 2**32 bytes without truncation."""
+    """Verify wermit reads the chunk payload for a chunk-size line."""
     if not wermit_http_available:
         pytest.skip("wermit built with NOHTTP")
 
@@ -55,7 +55,7 @@ def test_http_get_large_chunk_size_not_truncated(
                 b"HTTP/1.1 200 OK\r\n"
                 b"Transfer-Encoding: chunked\r\n"
                 b"\r\n" +
-                CHUNK_LEN_HEX.encode() + b"\r\n" +
+                size_line.encode() + b"\r\n" +
                 MARKER
             )
             conn.sendall(response)
@@ -69,5 +69,5 @@ def test_http_get_large_chunk_size_not_truncated(
     downloaded = tmp_path / outfile
     assert downloaded.exists(), "wermit never wrote the output file"
     assert downloaded.read_bytes() == MARKER, (
-        "chunk-size line of 2**32 truncated to 0 bytes read"
+        f"chunk-size line {size_line!r} misparsed"
     )
