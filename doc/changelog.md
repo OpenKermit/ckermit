@@ -38,13 +38,15 @@
     semicolon) follows it.  Previously, it would truncate a numeric digit.
 
 - Added numerous additional tests:
-  - Validating `off_t` and general large file (>2GB, >4GB) support on 32-bit and
-    64-bit platforms
+  - Validating `off_t` and general large file (>2GB, >4GB) support on 32-bit
+    and 64-bit platforms
   - For `DIR` and `DIR /SUMMARY` with files >4GB, including on 32-bit platforms
   - For `REGET` resuming files >4GB, validating encoding/decoding large file
     sizes in the Kermit protocol
   - Testing `\fsexpression()` past 4GB
   - Added a test for telnet IAC negotiation.
+  - Generally, many regression tests in preparation for work to remove
+    -Wconversion warnings.
 
 # C-Kermit 11.0.511
 
