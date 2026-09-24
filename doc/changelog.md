@@ -12,6 +12,26 @@
   32-bit Raspberry Pis; and 2) it provides a measure validation in CI that we
   don't accidentally break things for 32-bit platforms.
 
+- Added numerous tests:
+  - Validating `off_t` and general large file (>2GB, >4GB) support on 32-bit and
+    64-bit platforms
+  - For `DIR` and `DIR /SUMMARY` with files >4GB, including on 32-bit platforms
+  - For `REGET` resuming files >4GB, validating encoding/decoding large file
+    sizes in the Kermit protocol
+  - Testing `\fsexpression()` past 4GB
+
+- Report `sizeof(time_t)` in `SHOW FEATURES` and associated regression test.
+  Note 32-bit Linux platforms have transitioned to 64-bit `time_t`, but this is
+  not universally true across the BSDs, so we don't require 64-bit `time_t` on
+  every platform.
+
+- Fix a heap buffer overflow in getlocalipaddrs() and add associated test.
+  64-bit platforms try to read 8 bytes from a 4-byte allocation.  However, on
+  Linux at least, this isn't an exploitable security hole as `malloc()` on Linux
+  allocates more than 8 bytes at a time anyhow.  The original bug was introduced
+  when the code in question was written, in C-Kermit 7.0.197 of 2000, commit
+  d0f8b1da7aea5bf3912e4289bfb23c988b0e7c60.
+
 # C-Kermit 11.0.511
 
 September 19, 2026

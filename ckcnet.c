@@ -8680,6 +8680,22 @@ getlocalipaddr()
 #endif /* datageneral */
 }
 
+unsigned long
+#ifdef CK_ANSIC
+ck_hostaddr(struct hostent * host, int index)
+#else
+ck_hostaddr(host,index) struct hostent * host; int index;
+#endif /* CK_ANSIC */
+/* ck_hostaddr */ {
+    /* Copy the IPv4 address from host->h_addr_list[index] into an
+       unsigned long. Zero-fill first so unused bytes on 64-bit
+       platforms remain zero. */
+    unsigned long a = 0L;
+    memcpy((char *)&a, (char *)host->h_addr_list[index],
+           sizeof(struct in_addr));
+    return(a);
+}
+
 int
 #ifdef CK_ANSIC
 getlocalipaddrs( char * buf, int  bufsz, int index )
@@ -8728,8 +8744,7 @@ getlocalipaddrs(buf,bufsz,index) char * buf; int bufsz; int index;
                 buf[0] = '\0';
                 return(-1);
             }
-            l_sa.sin_addr.s_addr =
-              *((unsigned long *) (host->h_addr_list[index]));
+            l_sa.sin_addr.s_addr = ck_hostaddr(host, index);
             ckstrncpy(buf,(char *)inet_ntoa(l_sa.sin_addr),bufsz);
             debug(F110,"getlocalipaddrs setting buf to",buf,0);
 
@@ -8738,7 +8753,7 @@ getlocalipaddrs(buf,bufsz,index) char * buf; int bufsz; int index;
                 buf[0] = '\0';
                 return(-1);
             }
-            l_sa.sin_addr.s_addr = *((unsigned long *) (host->h_addr));
+            l_sa.sin_addr.s_addr = ck_hostaddr(host, 0);
             ckstrncpy(buf,(char *)inet_ntoa(l_sa.sin_addr),bufsz);
             debug(F110,"getlocalipaddrs setting buf to",buf,0);
 #endif  /* HADDRLIST */

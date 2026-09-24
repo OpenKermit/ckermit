@@ -1018,7 +1018,8 @@ unit-test:
 		tests/unit/bin/test_net tests/unit/bin/test_mpsafe \
 		tests/unit/bin/test_zfnqfp tests/unit/bin/test_hasdotdot \
 		tests/unit/bin/test_rq_confirm tests/unit/bin/test_fnsplit \
-		tests/unit/bin/test_fpformat tests/unit/bin/test_shuffledate
+		tests/unit/bin/test_fpformat tests/unit/bin/test_shuffledate \
+		tests/unit/bin/test_hostaddr
 	./tests/unit/bin/test_lib
 	./tests/unit/bin/test_strings
 	./tests/unit/bin/test_net
@@ -1029,6 +1030,7 @@ unit-test:
 	./tests/unit/bin/test_fnsplit
 	./tests/unit/bin/test_fpformat
 	./tests/unit/bin/test_shuffledate
+	./tests/unit/bin/test_hostaddr
 
 # Rules for the unit test binaries.
 #
@@ -1090,6 +1092,23 @@ tests/unit/bin/test_net: tests/unit/test_net.c ckcnet.c ckcnet.h ckclib.c
 	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
 		tests/unit/test_net.c tests/unit/bin/ckcnet_test.$(EXT) \
 		tests/unit/bin/ckclib_test.$(EXT) \
+		-o $@ $$GCSECTIONS $$CHECKLIBS
+
+# test_hostaddr exercises ck_hostaddr() in ckcnet.c. Uses
+# -ffunction-sections, -fdata-sections, and --gc-sections like
+# test_net to discard unneeded ckcnet.c symbols.
+tests/unit/bin/test_hostaddr: tests/unit/test_hostaddr.c ckcnet.c ckcnet.h
+	@mkdir -p tests/unit/bin
+	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	case `uname -s` in \
+	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
+	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
+	esac; \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		-c ckcnet.c -o tests/unit/bin/ckcnet_hostaddr.$(EXT); \
+	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+		tests/unit/test_hostaddr.c \
+		tests/unit/bin/ckcnet_hostaddr.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
 
 # test_mpsafe exercises mpsafe(), which lives in ckcpro.c. Same
@@ -6571,9 +6590,19 @@ android:
 # linux+ssl+musl, which cannot go through linux/linuxa's
 # autodetection (see the comment on that target), but still
 # starts from the same baseline flags.
+#
+# _LARGEFILE_SOURCE and _FILE_OFFSET_BITS=64 select the CK_OFF_T=off_t
+# branch in ckcdeb.h, making CK_OFF_T 64-bit on 32-bit Linux builds.
+# They also map CKFSEEK and CKFTELL to fseeko and ftello.
+#
+# Setting these in LINUXCFLAGS ensures 64-bit file offsets for both
+# glibc and musl targets, including linux+ssl+musl.  The autodetection
+# attempt incorrectly determines musl doesn't support 64-bit offsets.
+# ckcdeb.h picks up on these defined macros and enables largefile
+# support throughout C-Kermit.
 LINUXCFLAGS = -O2 -DLINUX -pipe -funsigned-char -DFNFLOAT \
 -DCK_POSIX_SIG -DCK_NEWTERM -DTCPSOCKET -DLINUXFSSTND -DNOCOTFMC \
--DPOSIX -DUSE_STRERROR
+-DPOSIX -DUSE_STRERROR -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 
 linuxa:
 	@echo 'Making C-Kermit $(CKVER) for Linux 1.2 or later...'

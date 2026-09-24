@@ -13204,6 +13204,10 @@ printf("NOWTMP not defined\n");
         sprintf(line,"CK_OFF_T=%d",size); /* SAFE */
         if (!prtopt(&lines,line)) return(0);
 
+        size = (int)sizeof(time_t);
+        sprintf(line,"time_t=%d",size); /* SAFE */
+        if (!prtopt(&lines,line)) return(0);
+
 #ifdef BIGBUFOK
         size = (int)sizeof(size_t);
         sprintf(line,"size_t=%d",size); /* SAFE */
