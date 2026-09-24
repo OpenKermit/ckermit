@@ -121,6 +121,29 @@ def test_remote_query_long_variable_name_wrapped_correctly(
     )
 
 
+def test_send_long_filename_rejected_not_truncated(tmp_path,
+                                                   wermit_loopback):
+    """Verify SEND rejects a filename exceeding negotiated packet size.
+
+    On a connection without RELIABLE enabled, slow-start limits the initial
+    packet size to 233 filename bytes. Longer filenames must be rejected
+    rather than truncated.
+    """
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    name = _distinct_chars(250)
+    (client_dir / name).write_text("hello world")
+
+    client_cmd = f"cd {client_dir}, send {name}"
+    result = wermit_loopback(server_dir, "", client_cmd)
+
+    assert "Filename too long" in result.stdout, result.stdout
+    arrived = list(server_dir.iterdir())
+    assert not arrived, (
+        f"a file was created on the far end despite the rejection: "
+        f"{arrived}\nstdout: {result.stdout}"
+    )
+
+
 def test_cmnum_overflow_guard_rejects_huge_set_argument(run_wermit):
     """Verify SET rejects numeric arguments exceeding integer range."""
     result = run_wermit("set receive timeout 99999999999")

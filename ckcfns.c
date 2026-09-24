@@ -4741,9 +4741,17 @@ sfile(x) int x;
     /* Now s points to the string that goes in the packet data field. */
 
     debug(F101,"sfile binary","",binary); /* Log debugging info */
-    encstr((CHAR *)s);                  /* Encode the name. */
+    if (encstr((CHAR *)s) < 0) {        /* Encode the name. */
+        ckmakmsg((char *)epktmsg,
+                 PKTMSGLEN,
+                 x ? "Command too long: " : "Filename too long: ",
+                 s,
+                 NULL,
+                 NULL
+                 );
+        return(0);
+    }
                                         /* Send the F or X packet */
-    /* If the encoded string did not fit into the packet, it was truncated. */
 
     if (nxtpkt() < 0) return(0);        /* Bump packet number, get buffer */
 
