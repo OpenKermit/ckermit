@@ -15,7 +15,7 @@
 - Report `sizeof(time_t)` in `SHOW FEATURES` and associated regression test.
   Note 32-bit Linux platforms have transitioned to 64-bit `time_t`, but this is
   not universally true across the BSDs, so we don't require 64-bit `time_t` on
-  every platform.
+  every CI platform.
 
 - Fix a heap buffer overflow in getlocalipaddrs() and add associated test.
   64-bit platforms try to read 8 bytes from a 4-byte allocation.  However, on
