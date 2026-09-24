@@ -5,6 +5,9 @@ Linux builds with _LARGEFILE_SOURCE and _FILE_OFFSET_BITS=64.
 These tests verify file size and offset handling past 2^31 and 2^32.
 """
 import re
+import shutil
+import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -13,11 +16,51 @@ from conftest import assert_ok, make_loopback_dirs
 FOUR_GIB = 1 << 32
 
 
+def _holds_sparse_file(d):
+    """Return True if directory d supports sparse files past 4 GiB."""
+    probe = d / "sparse-probe"
+    try:
+        with open(probe, "wb") as f:
+            f.seek(FOUR_GIB + 12345)
+            f.write(b"\0")
+        return probe.stat().st_blocks * 512 < FOUR_GIB
+    except OSError:
+        return False
+    finally:
+        probe.unlink(missing_ok=True)
+
+
 @pytest.fixture
-def big_file_dir(tmp_path):
+def sparse_dir(tmp_path):
+    """Return an empty directory that supports sparse files past 4 GiB.
+
+    NetBSD tmpfs rejects file sizes beyond filesystem capacity with
+    ENOSPC, even for sparse files. When tmp_path is on such a
+    filesystem, a directory under /var/tmp is used instead.
+
+    The directory is removed on teardown.
+    """
+    for base in (tmp_path, Path("/var/tmp")):
+        try:
+            d = Path(tempfile.mkdtemp(prefix="sparse-", dir=base))
+        except OSError:
+            continue
+        if _holds_sparse_file(d):
+            break
+        shutil.rmtree(d, ignore_errors=True)
+    else:
+        pytest.skip("no filesystem supports sparse files past 4 GiB")
+
+    try:
+        yield d
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+@pytest.fixture
+def big_file_dir(sparse_dir):
     """Return directory with a small file and a sparse 4 GiB+ file."""
-    d = tmp_path / "bigdir"
-    d.mkdir()
+    d = sparse_dir
 
     small = d / "small.txt"
     small.write_bytes(b"hello world\n")
@@ -166,7 +209,7 @@ def test_dir_summary_total_past_4gib(run_wermit, big_file_dir):
     )
 
 
-def test_reget_resumes_past_4gib(tmp_path, wermit_loopback):
+def test_reget_resumes_past_4gib(sparse_dir, wermit_loopback):
     r"""REGET must resume a partial file transfer past 4 GiB.
 
     The receiver reports the existing length in the ACK attribute
@@ -177,7 +220,7 @@ def test_reget_resumes_past_4gib(tmp_path, wermit_loopback):
     marker = b"123456789"
     name = "big.dat"
 
-    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    client_dir, server_dir = make_loopback_dirs(sparse_dir)
 
     source = server_dir / name
     with open(source, "wb") as f:

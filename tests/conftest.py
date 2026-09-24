@@ -433,6 +433,20 @@ def wermit_ftp_available(wermit_path):
     return not re.search(r"\bNOFTP\b", result.stdout)
 
 
+@pytest.fixture(scope="session")
+def wermit_http_available(wermit_path):
+    """
+    True if the wermit binary under test was compiled with HTTP client
+    support. Checks SHOW FEATURES output for the NOHTTP token.
+    """
+    result = subprocess.run(
+        [wermit_path, "-H", "-Y", "-C",
+         "set command more-prompting off, show features, exit"],
+        capture_output=True, text=True, timeout=10
+    )
+    return not re.search(r"\bNOHTTP\b", result.stdout)
+
+
 @pytest.fixture
 def run_wermit(wermit_path):
     """
