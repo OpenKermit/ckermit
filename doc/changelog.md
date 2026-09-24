@@ -24,6 +24,9 @@
   when the code in question was written, in C-Kermit 7.0.197 of 2000, commit
   d0f8b1da7aea5bf3912e4289bfb23c988b0e7c60.
 
+- Close pipe fds on exec where appropriate.  This prevents leakage and issues
+  with failing to shut down.
+
 - Several chunk length handling fixes in the HTTP client code:
   - Fixed a length truncation bug on 64-bit platforms and added a regression
     test for it.  The original bug was introduced in C-Kermit 8.0.200 of 2001,
