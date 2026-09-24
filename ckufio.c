@@ -3216,6 +3216,27 @@ _PROTOTYP( char * getcwd, (char *, SIZE_T) );
 /*  Z X C M D -- Run a system command so its output can be read like a file */
 
 #ifndef NOPUSH
+/*
+  Set the close-on-exec flag on a file descriptor.
+
+  Child processes must not inherit pipe descriptors. An inherited
+  descriptor prevents the receiving process from seeing EOF when Kermit
+  closes the pipe.
+*/
+static VOID
+#ifdef CK_ANSIC
+zxcloexec(int fd)
+#else
+zxcloexec(fd) int fd;
+#endif /* CK_ANSIC */
+{
+#ifdef FD_CLOEXEC
+    int flags;
+    if ((flags = fcntl(fd,F_GETFD,0)) > -1)
+      fcntl(fd,F_SETFD,flags | FD_CLOEXEC);
+#endif /* FD_CLOEXEC */
+}
+
 int
 #ifdef CK_ANSIC
 zxcmd( int filnum, char *comand )
@@ -3264,6 +3285,7 @@ zxcmd(filnum,comand) int filnum; char *comand;
         debug(F111,"zxcmd popen",fp[filnum] ? "OK" : "Failed", errno);
         if (fp[filnum] == NULL)
           return(0);
+        zxcloexec(fileno(fp[filnum]));
         ispipe[filnum] = 1;
         zoutcnt = 0;                    /* (PWP) reset input buffer */
         zoutptr = zoutbuffer;
@@ -3358,6 +3380,7 @@ zxcmd(filnum,comand) int filnum; char *comand;
     }
     debug(F101,"zxcmd pid","",pid);
     close(pipes[1]);                    /* Don't need the output side */
+    zxcloexec(pipes[0]);
     ispipe[filnum] = 1;                 /* Remember it's a pipe */
     fp[filnum] = fdopen(pipes[0],"r");  /* Open a stream for input. */
 
