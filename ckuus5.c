@@ -6430,8 +6430,11 @@ blink: %-3s  dim: %-3s  italic: %-3s  reverse: %-3s  underline: %-3s\n",
     printf(" %19s: %-13s  %13s: %-15s\n",
            "APC", s,
 #ifdef CK_AUTODL
-           "Autodownload", autodl ?
-           (adl_err ? "on, error stop" : "on, error continue") : "off"
+           "Autodownload", (autodl == TAD_ON && adl_ask == 0) ?
+           (adl_err ? "on, error stop" : "on, error continue") :
+           (autodl == TAD_ON && adl_ask == 1) ?
+           (adl_err ? "ask, error stop" : "ask, error continue") :
+           "off"
 #else
            "",""
 #endif /* CK_AUTODL */
