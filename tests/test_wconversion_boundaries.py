@@ -4,9 +4,15 @@ Tests verify behavior when inputs exceed 8-bit length boundaries
 (127 and 255 bytes).
 """
 import os
+import socket
+import time
+
+import pytest
 
 from conftest import (make_loopback_dirs, start_wermit_pty,
                       finish_wermit_pty, _wait_for_pty_marker)
+from test_iksdb import (_build_has_iksdb, _connect_iksd, _close_iksd,
+                        iksd_path)  # noqa: F401 (fixture)
 
 
 def _distinct_chars(length):
@@ -21,6 +27,13 @@ def test_send_except_pattern_over_256_rejected(run_wermit):
     """Verify SEND /EXCEPT: rejects patterns longer than 256 characters."""
     pattern = _distinct_chars(300)
     result = run_wermit(f"send /except:{pattern} nonexistent.txt")
+    assert "?Pattern too long - 256 max" in result.stdout, result.stdout
+
+
+def test_get_except_pattern_over_256_rejected(run_wermit):
+    """Verify GET /EXCEPT: rejects patterns longer than 256 characters."""
+    pattern = _distinct_chars(300)
+    result = run_wermit(f"get /except:{pattern} nonexistent.txt")
     assert "?Pattern too long - 256 max" in result.stdout, result.stdout
 
 
@@ -75,6 +88,208 @@ def test_get_as_deep_nonexistent_directory_created(tmp_path, wermit_loopback):
         f"{result.stdout}"
     )
     assert received.read_text() == "hello world"
+
+
+def _deep_dir(base, depth=13):
+    """Create and return a directory path exceeding 255 characters."""
+    name = _distinct_chars(20)
+    path = base
+    for i in range(depth):
+        path = path / f"{name}{i}"
+    path.mkdir(parents=True)
+    assert len(str(path)) > 255, "test setup should exceed 255 characters"
+    return path
+
+
+def test_get_move_to_long_directory_created(tmp_path, run_wermit):
+    """Verify GET /MOVE-TO: creates a directory path over 255 characters.
+
+    The directory is created before checking for an active connection.
+    """
+    destdir = str(tmp_path)
+    while len(destdir) < 440:
+        destdir += "/" + _distinct_chars(10)
+    destdir += "/" + "x" * (449 - len(destdir))
+    assert len(destdir) == 450
+
+    result = run_wermit(f"get /move-to:{destdir} nonexistent.txt")
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}; "
+        f"stderr: {result.stderr}"
+    )
+    assert os.path.isdir(destdir), (
+        f"GET /MOVE-TO: did not create the directory; stdout: "
+        f"{result.stdout}"
+    )
+
+
+def test_get_as_name_long_path(tmp_path, wermit_loopback):
+    """Verify GET /AS-NAME: stores a file under a path over 255 characters."""
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    (server_dir / "myfile.txt").write_text("hello world")
+    received = _deep_dir(client_dir) / "renamed.txt"
+
+    client_cmd = (f"cd {client_dir}, set receive confirm off, "
+                  f"get /as-name:{received} myfile.txt")
+    result = wermit_loopback(server_dir, "", client_cmd)
+
+    assert received.exists(), (
+        f"file was not stored under the as-name; stdout: {result.stdout}"
+    )
+    assert received.read_text() == "hello world"
+
+
+def test_get_filter_long_command(tmp_path, wermit_loopback):
+    """Verify GET /FILTER: runs a filter command over 255 characters."""
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    (server_dir / "myfile.txt").write_text("hello world")
+    destdir = _deep_dir(client_dir)
+
+    client_cmd = (f"cd {client_dir}, "
+                  f"get /filter:{{cat > {destdir}/\\v(filename)}} "
+                  "myfile.txt")
+    result = wermit_loopback(server_dir, "", client_cmd)
+
+    received = destdir / "myfile.txt"
+    assert received.exists(), (
+        f"filter did not write the file; stdout: {result.stdout}"
+    )
+    assert received.read_text() == "hello world"
+
+
+def test_send_move_to_long_directory_created(tmp_path, run_wermit):
+    """Verify SEND /MOVE-TO: creates a directory path over 255 characters.
+
+    The directory is created before checking for an active connection.
+    """
+    src = tmp_path / "f.txt"
+    src.write_text("hello world")
+    destdir = str(tmp_path)
+    while len(destdir) < 440:
+        destdir += "/" + _distinct_chars(10)
+    destdir += "/" + "x" * (449 - len(destdir))
+    assert len(destdir) == 450
+
+    result = run_wermit(f"send /move-to:{destdir} {src}")
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}; "
+        f"stderr: {result.stderr}"
+    )
+    assert os.path.isdir(destdir), (
+        f"SEND /MOVE-TO: did not create the directory; stdout: "
+        f"{result.stdout}"
+    )
+
+
+def test_send_long_source_path_with_as_name(tmp_path, wermit_loopback):
+    """Verify SEND with a source path over 255 characters and an as-name."""
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    src = _deep_dir(client_dir) / "myfile.txt"
+    src.write_text("hello world")
+
+    client_cmd = f"send {src} renamed.txt"
+    result = wermit_loopback(server_dir, "", client_cmd)
+
+    received = server_dir / "renamed.txt"
+    assert received.exists(), (
+        f"file not received under the as-name; stdout: {result.stdout}"
+    )
+    assert received.read_text() == "hello world"
+
+
+def test_send_filter_long_command(tmp_path, wermit_loopback):
+    """Verify SEND /FILTER: runs a filter command over 255 characters."""
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    srcdir = _deep_dir(client_dir)
+    (srcdir / "myfile.txt").write_text("hello world")
+
+    client_cmd = (f"cd {client_dir}, "
+                  f"send /filter:{{cd {srcdir} && tr a-z A-Z "
+                  "< \\v(filename)} "
+                  f"{srcdir}/myfile.txt")
+    result = wermit_loopback(server_dir, "", client_cmd)
+
+    received = server_dir / "myfile.txt"
+    assert received.exists(), (
+        f"file not received; stdout: {result.stdout}"
+    )
+    assert received.read_text() == "HELLO WORLD"
+
+
+def test_send_listfile_long_path(tmp_path, wermit_loopback):
+    """Verify SEND /LISTFILE: reads a list file path over 255 characters."""
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    (client_dir / "myfile.txt").write_text("hello world")
+    listfile = _deep_dir(client_dir) / "list.txt"
+    listfile.write_text(f"{client_dir}/myfile.txt\n")
+
+    client_cmd = f"cd {client_dir}, send /listfile:{listfile}"
+    result = wermit_loopback(server_dir, "", client_cmd)
+
+    received = server_dir / "myfile.txt"
+    assert received.exists(), (
+        f"file not received; stdout: {result.stdout}"
+    )
+    assert received.read_text() == "hello world"
+
+
+def test_add_send_list_long_name_and_alias(tmp_path, run_wermit):
+    """Verify ADD SEND-LIST stores a filename and alias over 255 characters."""
+    src = _deep_dir(tmp_path) / "myfile.txt"
+    src.write_text("hello world")
+    alias = _distinct_chars(300)
+
+    result = run_wermit(f"add send-list {src} text {alias}, "
+                        "show send-list")
+    assert f"{src}, mode: text, alias: {alias}" in result.stdout, (
+        result.stdout
+    )
+
+
+def test_send_mail_long_address_does_not_crash(tmp_path, run_wermit):
+    """Verify SEND /MAIL: accepts an address over 255 characters.
+
+    The address is not observable without an active connection.
+    Verify wermit does not crash.
+    """
+    src = tmp_path / "f.txt"
+    src.write_text("hello world")
+    result = run_wermit(f"send /mail:{_distinct_chars(300)} {src}")
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}; "
+        f"stderr: {result.stderr}"
+    )
+
+
+def test_send_print_long_options_does_not_crash(tmp_path, run_wermit):
+    """Verify SEND /PRINT: accepts options over 255 characters.
+
+    The options are not observable without an active connection.
+    Verify wermit does not crash.
+    """
+    src = tmp_path / "f.txt"
+    src.write_text("hello world")
+    result = run_wermit(f"send /print:{_distinct_chars(300)} {src}")
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}; "
+        f"stderr: {result.stderr}"
+    )
+
+
+def test_connect_trigger_long_string(tmp_path, wermit_path):
+    r"""Verify CONNECT /TRIGGER: matches a string over 255 characters.
+
+    CONNECT requires a terminal, so wermit runs under a pty.
+    """
+    trigger = _distinct_chars(300)
+    cmd = (f"set exit warning off, "
+           f"set host /pty sh -c 'sleep 1; echo XX{trigger}YY; sleep 2', "
+           f"connect /trigger:{trigger}, "
+           "echo TRIG=[\\v(trigger)], exit")
+    proc, master = start_wermit_pty(wermit_path, cmd, tmp_path)
+    rc, out = finish_wermit_pty(proc, master, timeout=30)
+    assert rc == 0, f"wermit exited {rc}; output: {out}"
+    assert f"TRIG=[{trigger}]" in out, out
 
 
 def test_remote_login_long_username_not_flagged_too_long(tmp_path,
@@ -264,6 +479,75 @@ def test_autodownload_ask_prompt_shows_full_path(tmp_path, wermit_path):
         f"file was not received; output: {prefix_text}{rest}"
     )
     assert received.read_text() == "autodownload prompt test\n"
+
+
+def test_iksd_login_long_username_and_password(
+        run_wermit, iksd_path, tmp_path):
+    """Verify IKSD handles login credentials over 255 characters.
+
+    IKSD allows three login attempts before exiting with status 1.
+    The test sends 270-character credentials and refuses Telnet
+    options.
+    """
+    if not _build_has_iksdb(run_wermit):
+        pytest.skip("build has no IKSDB support")
+
+    length = 270
+    proc, client, log_fh = _connect_iksd(
+        iksd_path, tmp_path / "iksd.db", tmp_path / "iksd.log")
+    client.settimeout(0.2)
+    buf = b""
+    prompts = 0
+    try:
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            try:
+                data = client.recv(4096)
+            except socket.timeout:
+                continue
+            except ConnectionResetError:
+                break
+            if not data:
+                break
+            i = 0
+            while i < len(data):
+                # IAC WILL/DO: answer DONT/WONT.
+                if (data[i] == 255 and i + 2 < len(data)
+                        and data[i + 1] in (251, 253)):
+                    reply = 254 if data[i + 1] == 251 else 252
+                    client.sendall(bytes([255, reply, data[i + 2]]))
+                    i += 3
+                    continue
+                buf += data[i:i + 1]
+                i += 1
+            if buf.endswith(b"Username: "):
+                client.sendall(b"u" * length + b"\r")
+                buf += b"<sent>"
+                prompts += 1
+            elif buf.endswith(b"Password: "):
+                client.sendall(b"p" * length + b"\r")
+                buf += b"<sent>"
+                prompts += 1
+        rc = proc.wait(timeout=10)
+    finally:
+        _close_iksd(proc, client, log_fh)
+
+    assert rc >= 0, f"iksd died with signal {-rc}; output: {buf!r}"
+    assert prompts == 6, f"expected 3 login attempts; output: {buf!r}"
+    assert b"u" * length in buf, "username echo missing"
+
+
+def test_join_csv_long_quoted_element(tmp_path, run_wermit):
+    r"""Verify \fjoin() CSV mode quotes an element over 255 characters."""
+    element = _distinct_chars(140) + "," + _distinct_chars(140)
+    script = tmp_path / "join.ksc"
+    script.write_text(
+        "declare \\&a[1]\n"
+        f"assign \\&a[1] {element}\n"
+        "echo RESULT=[\\fjoin(&a[],CSV)]\n"
+    )
+    result = run_wermit(f"take {script}")
+    assert f'RESULT=["{element}"]' in result.stdout, result.stdout
 
 
 def test_cmnum_overflow_guard_rejects_huge_set_argument(run_wermit):
