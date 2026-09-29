@@ -7,6 +7,13 @@
   removed over 1900 lines of code from the project.  See further notes in commit
   30ab9d4f.
 
+- Behavior change: In some cases, particularly when reliable isn't assumed,
+  file names could be silently truncated if they were larger than would fit in
+  a single packet.  Now, an error packet is generated and returned if the
+  filename would require truncation.  This is an unusual case impacting files
+  with very long names, so I don't think it likely anyone will notice this
+  change, but it should avoid unpleasant surprises.
+
 - Add a new statically-linked armhf 32-bit Linux build.  This serves two
   purposes: 1) it provides a useful binary for those using platforms such as
   32-bit Raspberry Pis; and 2) it provides a measure validation in CI that we
@@ -27,6 +34,20 @@
 - Close pipe fds on exec where appropriate.  This prevents leakage and issues
   with failing to shut down.
 
+- Added testing for `\fsexpression()` past 4GB.  Fixed `\fsexpression()` wrong
+  results near the 2^53 double boundary, discovered by new tests.
+
+- Fixed handling in cases where a filename length causes a packet to exceed
+  the current packet size.
+
+- `SHOW TERMINAL` now properly will reflect `SET TERMINAL AUTODOWNLOAD ASK`
+  on all platforms.
+
+- Fix building unit tests on ppc64 platforms.
+
+- Fix IPv6 tests on systems were /etc/hosts gives a name for ::1 that isn't
+  localhost.
+
 - Several chunk length handling fixes in the HTTP client code:
   - Fixed a length truncation bug on 64-bit platforms and added a regression
     test for it.  The original bug was introduced in C-Kermit 8.0.200 of 2001,
@@ -38,13 +59,16 @@
     semicolon) follows it.  Previously, it would truncate a numeric digit.
 
 - Added numerous additional tests:
-  - Validating `off_t` and general large file (>2GB, >4GB) support on 32-bit and
-    64-bit platforms
+  - Validating `off_t` and general large file (>2GB, >4GB) support on 32-bit
+    and 64-bit platforms
   - For `DIR` and `DIR /SUMMARY` with files >4GB, including on 32-bit platforms
   - For `REGET` resuming files >4GB, validating encoding/decoding large file
     sizes in the Kermit protocol
-  - Testing `\fsexpression()` past 4GB
+  - Testing `\fsexpression()` past 4GB.
   - Added a test for telnet IAC negotiation.
+  - Generally, many regression tests in preparation for work to remove
+    -Wconversion warnings.
+  - Tests for filename length, including the prompt in autodownload ask mode.
 
 # C-Kermit 11.0.511
 

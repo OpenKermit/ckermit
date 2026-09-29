@@ -2,7 +2,9 @@
   Unit tests for the address-family-independent helpers in ckcnet.c.
 */
 #include <check.h>
+#include <stdio.h>
 #include <string.h>
+#include <arpa/inet.h>
 #define CK_ANSIC
 #include "ckcsym.h"
 #include "ckcdeb.h"
@@ -745,21 +747,68 @@ END_TEST
 #endif /* CK_VSOCK */
 
 /*
-  ckgetfqhostname() does forward-then-reverse DNS resolution, so this
-  relies on loopback names being set up the ordinary way (::1 and
-  127.0.0.1 both reverse-resolving to "localhost", via /etc/hosts on
-  any normal POSIX system) rather than on a specific DNS server.
+  ckgetfqhostname() performs forward and reverse resolution. The name
+  returned for a loopback address depends on the system host table.
+  On some systems, /etc/hosts maps ::1 to ip6-localhost rather than
+  localhost.
+
+  Return 1 if got matches localhost or any /etc/hosts name for addr,
+  followed by suffix. Return 0 otherwise.
 */
+static int
+is_loopback_name(const char *got, const char *addr, const char *suffix)
+{
+    unsigned char want[16], have[16];
+    char line[1024];
+    char *p, *tok, *save;
+    size_t len;
+    int af = strchr(addr, ':') ? AF_INET6 : AF_INET;
+    int ok = 0;
+    FILE *fp;
+
+    len = strlen("localhost");
+    if (!strncmp(got, "localhost", len) && !strcmp(got + len, suffix))
+        return 1;
+    if (inet_pton(af, addr, want) != 1)
+        return 0;
+    if ((fp = fopen("/etc/hosts", "r")) == NULL)
+        return 0;
+    while (!ok && fgets(line, sizeof(line), fp)) {
+        if ((p = strchr(line, '#')) != NULL)
+            *p = '\0';
+        tok = strtok_r(line, " \t\r\n", &save);
+        if (tok == NULL || inet_pton(af, tok, have) != 1 ||
+            memcmp(want, have, af == AF_INET6 ? 16 : 4))
+            continue;
+        while ((tok = strtok_r(NULL, " \t\r\n", &save)) != NULL) {
+            len = strlen(tok);
+            if (!strncmp(got, tok, len) && !strcmp(got + len, suffix)) {
+                ok = 1;
+                break;
+            }
+        }
+    }
+    fclose(fp);
+    return ok;
+}
+
+#define ck_assert_loopback_name(in, addr, suffix) do { \
+    const char *got_ = ckgetfqhostname(in); \
+    ck_assert_msg(is_loopback_name(got_, addr, suffix), \
+                  "ckgetfqhostname(\"%s\") returned \"%s\", not a " \
+                  "loopback name for %s", in, got_, addr); \
+} while (0)
+
 START_TEST(test_getfqhostname_v4_literal)
 {
-    ck_assert_str_eq(ckgetfqhostname("127.0.0.1"), "localhost");
+    ck_assert_loopback_name("127.0.0.1", "127.0.0.1", "");
 }
 END_TEST
 
 #ifdef CK_IPV6
 START_TEST(test_getfqhostname_v6_literal)
 {
-    ck_assert_str_eq(ckgetfqhostname("::1"), "localhost");
+    ck_assert_loopback_name("::1", "::1", "");
 }
 END_TEST
 
@@ -775,13 +824,13 @@ END_TEST
 */
 START_TEST(test_getfqhostname_v6_bracketed_no_port)
 {
-    ck_assert_str_eq(ckgetfqhostname("[::1]"), "localhost");
+    ck_assert_loopback_name("[::1]", "::1", "");
 }
 END_TEST
 
 START_TEST(test_getfqhostname_v6_bracketed_with_port)
 {
-    ck_assert_str_eq(ckgetfqhostname("[::1]:23"), "localhost:23");
+    ck_assert_loopback_name("[::1]:23", "::1", ":23");
 }
 END_TEST
 

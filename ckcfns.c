@@ -77,7 +77,7 @@ extern int remfile;
 
 /* (move these prototypes to the appropriate .h files...) */
 
-_PROTOTYP( static int bgetpkt, (int) );
+_PROTOTYP( static int bgetpkt, (void) );
 #ifndef NOCSETS
 _PROTOTYP( int lookup, (struct keytab[], char *, int, int *) );
 #endif /* NOCSETS */
@@ -410,7 +410,12 @@ encstr(s) CHAR* s;
   maximum packet size.  Previously we were limited to the length of encbuf[].
   Also, to return a failure code if the entire encoded string would not fit.
   Modified 14 Jul 1998 to return length of encoded string.
-  Modified 18 Oct 2021 to not truncate filename in F packet.
+
+  getpkt() limits the data field to the negotiated send-packet size
+  (spsiz). Truncation can occur under a small SET SEND PACKET-LENGTH
+  or during slow-start. encstr() returns -1 if the string does not
+  fit. Callers such as sfile() check the return value to detect
+  truncation.
 */
     int m, rc, slen; char *p;
     /* data is a pointer to send-packet data declared in ckcmai.c */
@@ -431,20 +436,7 @@ encstr(s) CHAR* s;
     debug(F101,"encstr pktnum","",pktnum); /* (apparently not reliable) */
     debug(F101,"encstr spsiz","",spsiz);
 
-#ifndef COMMENT
-/*
-  28 October 2021: If the user gives a command like SET SEND PACKET-LENGTH 10,
-  the filename will be truncated if it's longer than that.  Now we use the
-  packet size our Kermit partner is willing to accept (rpsiz).  This can
-  still be truncated but much less likely because filenames tend to be
-  shorter then 90 bytes.
-*/
-    debug(F101,"encstr rpsiz","",rpsiz);
-    debug(F101,"encstr urpsiz","",urpsiz);
-    rc = getpkt(rpsiz,0);               /* Fill a packet from the string. */
-#else
-    rc = getpkt(spsiz,0);               /* (this can truncate) */
-#endif /* COMMENT */
+    rc = getpkt(0);                     /* Fill a packet from the string. */
     debug(F101,"encstr getpkt rc","",rc);
     if (rc > -1 && memptr < (char *)(s + slen)) { /* Means we didn't encode */
         rc = -1;                        /* the whole string. */
@@ -1632,21 +1624,22 @@ static int nleft = 0;
 */
 static int
 #ifdef CK_ANSIC
-bgetpkt( int bufmax )
+bgetpkt( void )
 #else
-bgetpkt(bufmax) int bufmax;
+bgetpkt()
 #endif /* CK_ANSIC */
 {
     register CHAR rt = t, rnext;
     register CHAR *dp, *odp, *p1, *p2;
     register int x = 0, a7;
+    int bufmax;
 
     CHAR xxrc, xxcq;                    /* Pieces of prefixed sequence */
 
     long z;                             /* A long worker (for CRC) */
 
     if (!binary || parity || memstr)    /* JUST IN CASE caller didn't test */
-      return(getpkt(bufmax,!binary));
+      return(getpkt(!binary));
 
     if (!data) {
         debug(F100,"SERIOUS ERROR: bgetpkt data == NULL","",0);
@@ -2511,15 +2504,16 @@ static int uflag = 0;
 
 int
 #ifdef CK_ANSIC
-getpkt( int bufmax, int xlate )         /* Fill one packet buffer */
+getpkt( int xlate )                     /* Fill one packet buffer */
 #else
-getpkt(bufmax,xlate) int bufmax, xlate;
+getpkt(xlate) int xlate;
 #endif /* CK_ANSIC */
 {
     register CHAR rt = t, rnext = NUL;    /* Register shadows of the globals */
     register CHAR *dp, *odp, *odp2, *p1, *p2; /* pointers... */
     register int x;                     /* Loop index. */
     register int a7;                    /* Low 7 bits of character */
+    int bufmax;
 
     CHAR xxls, xxdl, xxrc, xxss, xxcq;  /* Pieces of prefixed sequence */
 
@@ -2532,10 +2526,9 @@ getpkt(bufmax,xlate) int bufmax, xlate;
     dp = data;                          /* Point to packet data buffer */
     size = 0;                           /* And initialize its size */
 /*
-  Assume bufmax is the receiver's total receive-packet buffer length.
-  Our whole packet has to fit into it, so we adjust the data field length.
-  We also decide optimally whether it is better to use a short-format or
-  long-format packet when we're near the borderline.
+  The packet must fit within the negotiated send-packet size (spsiz).
+  maxdata() calculates the maximum data field length, selecting between
+  short-format and long-format packets near the boundary.
 */
     bufmax = maxdata();                 /* Get maximum data length */
 
@@ -4741,9 +4734,17 @@ sfile(x) int x;
     /* Now s points to the string that goes in the packet data field. */
 
     debug(F101,"sfile binary","",binary); /* Log debugging info */
-    encstr((CHAR *)s);                  /* Encode the name. */
+    if (encstr((CHAR *)s) < 0) {        /* Encode the name. */
+        ckmakmsg((char *)epktmsg,
+                 PKTMSGLEN,
+                 x ? "Command too long: " : "Filename too long: ",
+                 s,
+                 NULL,
+                 NULL
+                 );
+        return(0);
+    }
                                         /* Send the F or X packet */
-    /* If the encoded string did not fit into the packet, it was truncated. */
 
     if (nxtpkt() < 0) return(0);        /* Bump packet number, get buffer */
 
@@ -4922,11 +4923,11 @@ sdata() {
 #ifdef CKTUNING
 
         if (binary && !parity && !memstr && !funcstr)
-          len = bgetpkt(spsiz);
+          len = bgetpkt();
         else
-          len = getpkt(spsiz,1);
+          len = getpkt(1);
 #else
-        len = getpkt(spsiz,1);
+        len = getpkt(1);
 #endif /* CKTUNING */
         s = (char *)data;
         if (len == -3) {                /* Timed out (e.g.reading from pipe) */

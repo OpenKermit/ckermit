@@ -252,6 +252,29 @@ START_TEST(test_ulongtohex_non_reentrant)
 }
 END_TEST
 
+START_TEST(test_ckmatch_long_brace_list)
+{
+    /* Test ckmatch() with a brace list longer than 255 characters.
+       Verify matches at both the beginning and end of the list. */
+    char pattern[512];
+    char *p = pattern;
+    int i;
+
+    *p++ = '{';
+    for (i = 1; i <= 39; i++) {
+        int n = sprintf(p, "file%d.txt", i);
+        p += n;
+        *p++ = (i < 39) ? ',' : '}';
+    }
+    *p = '\0';
+    ck_assert_int_gt((int)strlen(pattern), 255);
+
+    ck_assert_int_gt(ckmatch(pattern, "file39.txt", 0, 0), 0);
+    ck_assert_int_gt(ckmatch(pattern, "file1.txt", 0, 0), 0);
+    ck_assert_int_eq(ckmatch(pattern, "file40.txt", 0, 0), 0);
+}
+END_TEST
+
 START_TEST(test_ckfstoa_ckatofs_large_offsets)
 {
     /* Verify round-trip conversion for values past the 32-bit limit.
@@ -288,6 +311,7 @@ Suite *lib_suite(void)
     tcase_add_test(tc_core, test_ulongtohex_hextoulong);
     tcase_add_test(tc_core, test_base64);
     tcase_add_test(tc_core, test_ckmatch);
+    tcase_add_test(tc_core, test_ckmatch_long_brace_list);
     tcase_add_test(tc_core, test_hhmmss);
     tcase_add_test(tc_core, test_hextoulong_overflow);
     tcase_add_test(tc_core, test_base64_validation);

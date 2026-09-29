@@ -45,3 +45,18 @@ def test_piped_log_does_not_block_exit_on_pty_child(
         f"EXIT blocked for {elapsed:.1f}s\n"
         f"stdout: {result.stdout}")
     assert log_file.exists(), f"{log_type} log command never ran"
+
+
+def test_switch_from_piped_debug_log_to_file(run_wermit, tmp_path):
+    """Verify LOG DEBUG can replace a piped debug log with a file."""
+    pipe_out = tmp_path / "pipe.out"
+    file_log = tmp_path / "debug.log"
+    cmd = (r"for \%i 1 50 1 { "
+           f"log debug {{|cat > {pipe_out}}}, log debug {file_log} }}, "
+           "echo SWITCH-DONE, exit")
+
+    result = run_wermit(cmd, timeout=60)
+
+    assert_ok(result)
+    assert "SWITCH-DONE" in result.stdout, result.stdout
+    assert file_log.stat().st_size > 0, "file debug log is empty"

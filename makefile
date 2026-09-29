@@ -1050,6 +1050,17 @@ unit-test:
 CHECK_LIBS_CMD = pkg-config --cflags --libs --static check 2>/dev/null || \
 	echo "-pthread -lcheck_pic -lrt -lm -lsubunit"
 
+# Compiler flags for unit test objects linked with --gc-sections.
+# The linker discards unused functions and unresolved references.
+#
+# On ppc64, GCC places switch jump tables inside function text
+# sections and addresses them through the per-object .toc section.
+# The .toc entries keep those functions alive under --gc-sections and
+# pull in unresolved references.
+#
+# So -fno-jump-tables is required.
+UNIT_GC_CFLAGS = -ffunction-sections -fdata-sections -fno-jump-tables
+
 tests/unit/bin/test_lib: tests/unit/test_lib.c ckclib.$(EXT)
 	@mkdir -p tests/unit/bin
 	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
@@ -1085,11 +1096,11 @@ tests/unit/bin/test_net: tests/unit/test_net.c ckcnet.c ckcnet.h ckclib.c
 	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
 	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
 	esac; \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		-c ckcnet.c -o tests/unit/bin/ckcnet_test.$(EXT); \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		-c ckclib.c -o tests/unit/bin/ckclib_test.$(EXT); \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		tests/unit/test_net.c tests/unit/bin/ckcnet_test.$(EXT) \
 		tests/unit/bin/ckclib_test.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
@@ -1104,9 +1115,9 @@ tests/unit/bin/test_hostaddr: tests/unit/test_hostaddr.c ckcnet.c ckcnet.h
 	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
 	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
 	esac; \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		-c ckcnet.c -o tests/unit/bin/ckcnet_hostaddr.$(EXT); \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		tests/unit/test_hostaddr.c \
 		tests/unit/bin/ckcnet_hostaddr.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
@@ -1121,9 +1132,9 @@ tests/unit/bin/test_mpsafe: tests/unit/test_mpsafe.c ckcpro.c ckcfnp.h
 	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
 	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
 	esac; \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		-c ckcpro.c -o tests/unit/bin/ckcpro_test.$(EXT); \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		tests/unit/test_mpsafe.c tests/unit/bin/ckcpro_test.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
 
@@ -1134,11 +1145,11 @@ tests/unit/bin/test_zfnqfp: tests/unit/test_zfnqfp.c ckufio.c ckclib.c ckcfnp.h
 	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
 	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
 	esac; \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		-c ckufio.c -o tests/unit/bin/ckufio_test.$(EXT); \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		-c ckclib.c -o tests/unit/bin/ckclib_test_zfnqfp.$(EXT); \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		tests/unit/test_zfnqfp.c tests/unit/bin/ckufio_test.$(EXT) \
 		tests/unit/bin/ckclib_test_zfnqfp.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
@@ -1150,9 +1161,9 @@ tests/unit/bin/test_hasdotdot: tests/unit/test_hasdotdot.c ckcfns.c ckcfnp.h
 	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
 	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
 	esac; \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		-c ckcfns.c -o tests/unit/bin/ckcfns_test.$(EXT); \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		tests/unit/test_hasdotdot.c tests/unit/bin/ckcfns_test.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
 
@@ -1163,9 +1174,9 @@ tests/unit/bin/test_rq_confirm: tests/unit/test_rq_confirm.c ckcfns.c ckcfnp.h
 	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
 	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
 	esac; \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		-c ckcfns.c -o tests/unit/bin/ckcfns_test_rq.$(EXT); \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		tests/unit/test_rq_confirm.c \
 		tests/unit/bin/ckcfns_test_rq.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
@@ -1178,13 +1189,13 @@ tests/unit/bin/test_fnsplit: tests/unit/test_fnsplit.c ckuusx.c ckucmd.c \
 	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
 	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
 	esac; \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		-c ckuusx.c -o tests/unit/bin/ckuusx_test_fs.$(EXT); \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		-c ckucmd.c -o tests/unit/bin/ckucmd_test_fs.$(EXT); \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		-c ckclib.c -o tests/unit/bin/ckclib_test_fs.$(EXT); \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		tests/unit/test_fnsplit.c \
 		tests/unit/bin/ckuusx_test_fs.$(EXT) \
 		tests/unit/bin/ckucmd_test_fs.$(EXT) \
@@ -1205,11 +1216,11 @@ tests/unit/bin/test_fpformat: tests/unit/test_fpformat.c ckuus4.c \
 	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
 	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
 	esac; \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		-c ckuus4.c -o tests/unit/bin/ckuus4_test_fs.$(EXT); \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		-c ckclib.c -o tests/unit/bin/ckclib_test_fp.$(EXT); \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		tests/unit/test_fpformat.c \
 		tests/unit/bin/ckuus4_test_fs.$(EXT) \
 		tests/unit/bin/ckclib_test_fp.$(EXT) \
@@ -1223,13 +1234,13 @@ tests/unit/bin/test_shuffledate: tests/unit/test_shuffledate.c \
 	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
 	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
 	esac; \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		-c ckucmd.c -o tests/unit/bin/ckucmd_test_sd.$(EXT); \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		-c ckuus4.c -o tests/unit/bin/ckuus4_test_sd.$(EXT); \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		-c ckclib.c -o tests/unit/bin/ckclib_test_sd.$(EXT); \
-	$(CC) $(CFLAGS) -I. -ffunction-sections -fdata-sections \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		tests/unit/test_shuffledate.c \
 		tests/unit/bin/ckucmd_test_sd.$(EXT) \
 		tests/unit/bin/ckuus4_test_sd.$(EXT) \

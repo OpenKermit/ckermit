@@ -4417,28 +4417,16 @@ dosexp(s) char *s;
           case SX_ADD:                  /* + */
             result += j;
             fpresult += fpj;
-#ifdef FNFLOAT
-            if (result != fpresult)
-              fpflag++;
-#endif  /* FNFLOAT */
             break;
 
           case SX_SUB:                  /* - */
             result -= j;
             fpresult -= fpj;
-#ifdef FNFLOAT
-            if (result != fpresult)
-              fpflag++;
-#endif  /* FNFLOAT */
             break;
 
           case SX_MUL:                  /* * */
             result *= j;
             fpresult *= fpj;
-#ifdef FNFLOAT
-            if (result != fpresult)
-              fpflag++;
-#endif  /* FNFLOAT */
             break;
 
           case SX_AND:                  /* AND */
@@ -4457,8 +4445,6 @@ dosexp(s) char *s;
             result = result % j;
 #ifdef FNFLOAT
             fpresult = (CKFLOAT)fmod(fpresult,fpj);
-            if (result != fpresult)
-              fpflag++;
 #else
             fpresult = result;
 #endif /* FNFLOAT */
@@ -4466,12 +4452,13 @@ dosexp(s) char *s;
 
           case SX_DIV:                  /* / */
             if (j) {
-                result /= j;
-                fpresult /= fpj;
 #ifdef FNFLOAT
-                if (result != fpresult)
+                /* A nonzero remainder indicates a fractional quotient. */
+                if (result % j)
                   fpflag++;
 #endif  /* FNFLOAT */
+                result /= j;
+                fpresult /= fpj;
             } else {
                 fpresult /= fpj;
                 result = fpj;

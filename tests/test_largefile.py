@@ -262,3 +262,43 @@ def test_fsexpression_arithmetic_past_4gib(run_wermit):
     result = run_wermit(f"echo DIFF=[\\fsexpression(- {c} {d})]")
     assert_ok(result)
     assert f"DIFF=[{c - d}]" in result.stdout, result.stdout
+
+
+def test_fsexpression_arithmetic_past_2_53(run_wermit):
+    r"""\fsexpression() arithmetic must be exact past 2^53.
+
+    Verify addition, subtraction, and exact division with values past
+    the 53-bit double precision limit return exact integer results.
+    """
+    for a, b in [
+        (9007199254740994, 1),
+        (9007199254740995, 2),
+        (9007199254740996, 3),
+    ]:
+        result = run_wermit(f"echo R=[\\fsexpression(- {a} {b})]")
+        assert_ok(result)
+        assert "R=[9007199254740993]" in result.stdout, result.stdout
+
+    result = run_wermit("echo R=[\\fsexpression(- 9007199254740993 1)]")
+    assert_ok(result)
+    assert "R=[9007199254740992]" in result.stdout, result.stdout
+
+    for a, b, expected in [
+        (9007199254740992, 3, 9007199254740995),
+        (9007199254740991, 2, 9007199254740993),
+    ]:
+        result = run_wermit(f"echo R=[\\fsexpression(+ {a} {b})]")
+        assert_ok(result)
+        assert f"R=[{expected}]" in result.stdout, result.stdout
+
+    # An exact division past 2^53 must produce an integer result.
+    result = run_wermit(
+        "echo R=[\\fsexpression(/ 18014398509481986 2)]"
+    )
+    assert_ok(result)
+    assert "R=[9007199254740993]" in result.stdout, result.stdout
+
+    # An inexact division must produce a floating-point result.
+    result = run_wermit("echo R=[\\fsexpression(/ 7 2)]")
+    assert_ok(result)
+    assert "R=[3.5]" in result.stdout, result.stdout

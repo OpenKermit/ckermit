@@ -3434,12 +3434,18 @@ zclosf(filnum) int filnum;
         && out
         ) {
         int x;
-        x = pclose(fp[filnum]);
+        FILE *f = fp[filnum];
+        /*
+          Detach the stream before pclose(). When filnum is ZDFILE,
+          subsequent debug() calls must not write to or re-close the
+          stream.
+        */
+        fp[filnum] = fp[ZSYSFN] = NULL;
+        ispipe[filnum] = 0;
+        x = pclose(f);
         pexitstat = x >> 8;
         debug(F101,"zclosf pclose","",x);
         debug(F101,"zclosf pexitstat","",pexitstat);
-        fp[filnum] = fp[ZSYSFN] = NULL;
-        ispipe[filnum] = 0;
         return((x != 0) ? -1 : 1);
     }
 #endif /* NOPOPEN */
