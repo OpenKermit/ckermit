@@ -382,6 +382,86 @@ def test_send_long_filename_rejected_not_truncated(tmp_path,
     )
 
 
+def _as_name_256():
+    """Return a relative pathname of exactly 256 characters."""
+    name = "/".join(_distinct_chars(20) + str(i) for i in range(11))
+    name += "/" + "n" * (255 - len(name))
+    assert len(name) == 256
+    return name
+
+
+def test_send_as_name_switch_256(tmp_path, wermit_loopback):
+    """Verify SEND /AS-NAME: sends a 256-character as-name intact."""
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    (client_dir / "myfile.txt").write_text("hello world")
+    asname = _as_name_256()
+
+    client_cmd = (f"cd {client_dir}, set reliable on, "
+                  f"send /as-name:{asname} myfile.txt")
+    result = wermit_loopback(server_dir, "set receive pathnames relative",
+                             client_cmd)
+
+    received = server_dir / asname
+    assert received.exists(), (
+        f"file not received under the as-name; stdout: {result.stdout}"
+    )
+    assert received.read_text() == "hello world"
+
+
+def test_send_as_name_switch_256_does_not_crash(tmp_path, run_wermit):
+    """Verify SEND /AS-NAME: accepts a 256-character value.
+
+    The value is not observable without an active connection.
+    Verify wermit does not crash.
+    """
+    src = tmp_path / "f.txt"
+    src.write_text("hello world")
+    result = run_wermit(f"send /as-name:{_distinct_chars(256)} {src}")
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}; "
+        f"stderr: {result.stderr}"
+    )
+
+
+def test_send_trailing_as_name_256(tmp_path, wermit_loopback):
+    """Verify SEND with a trailing 256-character as-name."""
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    (client_dir / "myfile.txt").write_text("hello world")
+    asname = _as_name_256()
+
+    client_cmd = (f"cd {client_dir}, set reliable on, "
+                  f"send myfile.txt {asname}")
+    result = wermit_loopback(server_dir, "set receive pathnames relative",
+                             client_cmd)
+
+    received = server_dir / asname
+    assert received.exists(), (
+        f"file not received under the as-name; stdout: {result.stdout}"
+    )
+    assert received.read_text() == "hello world"
+
+
+def test_send_long_as_name_rejected(tmp_path, wermit_loopback):
+    """Verify SEND rejects an as-name over 256 characters."""
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    (client_dir / "myfile.txt").write_text("hello world")
+    name = "/".join(_distinct_chars(20) + str(i) for i in range(13))
+    asname = name + "/renamed.txt"
+    assert len(asname) > 256
+
+    client_cmd = (f"cd {client_dir}, set reliable on, "
+                  f"send /as-name:{asname} myfile.txt")
+    result = wermit_loopback(server_dir, "set receive pathnames relative",
+                             client_cmd)
+
+    assert "As-name too long" in result.stdout, result.stdout
+    arrived = [p for p in server_dir.rglob("*") if p.is_file()]
+    assert not arrived, (
+        f"a file was created on the far end despite the rejection: "
+        f"{arrived}\nstdout: {result.stdout}"
+    )
+
+
 def test_script_expect_trace_survives_long_preamble(tmp_path,
                                                    wermit_loopback):
     """Verify SCRIPT does not overrun its trace buffer on long inputs.
