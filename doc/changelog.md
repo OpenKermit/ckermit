@@ -69,6 +69,7 @@
   - Generally, many regression tests in preparation for work to remove
     -Wconversion warnings.
   - Tests for filename length, including the prompt in autodownload ask mode.
+  - Tests for username length
 
 # C-Kermit 11.0.511
 

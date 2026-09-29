@@ -93,6 +93,26 @@ def test_remote_login_long_username_not_flagged_too_long(tmp_path,
     )
 
 
+def test_remote_login_long_username_truncation_detected(tmp_path,
+                                                        wermit_loopback):
+    """Verify encstr() detects truncation of a 300-byte username.
+
+    Without RELIABLE, slow-start limits the first packet to about 233
+    data bytes, so the username does not fit. encstr() compares the
+    encoded position against the full string length. A length
+    narrowed to 8 bits (300 becomes 44) would miss the truncation and
+    send a partial username.
+    """
+    name = _distinct_chars(300)
+    client_cmd = f"remote login {name} a a"
+    result = wermit_loopback(tmp_path, client_commands=client_cmd)
+    assert "String too long" in result.stdout, (
+        "encstr() did not report truncation for a 300-byte username "
+        f"that exceeds the slow-start packet size; stdout: "
+        f"{result.stdout}"
+    )
+
+
 def _read_server_debug_log(server_dir):
     """Return the contents of the server debug log."""
     return (server_dir / "server-debug.log").read_text()
