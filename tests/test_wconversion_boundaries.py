@@ -144,6 +144,31 @@ def test_send_long_filename_rejected_not_truncated(tmp_path,
     )
 
 
+def test_script_expect_trace_survives_long_preamble(tmp_path,
+                                                      wermit_loopback):
+    """Verify SCRIPT does not overrun its trace buffer on long inputs.
+
+    dorseq() appends received bytes to a 512-byte trace buffer while
+    evaluating expect sequences. Sending more non-matching bytes than
+    the buffer can hold before the match string verifies the length
+    guard prevents an overflow.
+    """
+    junk = _distinct_chars(600)
+    server_setup_cmds = f"output {{{junk}}}, output {{MATCHED}}"
+    client_cmd = (
+        "script MATCHED, if success echo SCRIPT-OK, "
+        "if failure echo SCRIPT-FAIL"
+    )
+    result = wermit_loopback(tmp_path, server_setup_cmds, client_cmd)
+
+    assert result.returncode >= 0, (
+        f"wermit crashed (returncode {result.returncode}) instead of "
+        f"completing SCRIPT; stdout: {result.stdout}\nstderr: "
+        f"{result.stderr}"
+    )
+    assert "SCRIPT-OK" in result.stdout, result.stdout
+
+
 def test_cmnum_overflow_guard_rejects_huge_set_argument(run_wermit):
     """Verify SET rejects numeric arguments exceeding integer range."""
     result = run_wermit("set receive timeout 99999999999")
