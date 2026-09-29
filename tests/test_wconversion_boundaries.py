@@ -206,6 +206,15 @@ def test_autodownload_ask_prompt_shows_full_path(tmp_path, wermit_path):
             "autodownload confirmation prompt never appeared: " +
             prefix.decode("utf-8", errors="replace")
         )
+        # The pty can deliver the prompt in pieces. Read through the
+        # closing bracket so the whole default path is present.
+        if b"]" not in prefix.split(b"Filename [", 1)[1]:
+            more, found = _wait_for_pty_marker(master, b"]", 15)
+            prefix += more
+            assert found, (
+                "autodownload prompt path never completed: " +
+                prefix.decode("utf-8", errors="replace")
+            )
         prefix_text = prefix.decode("utf-8", errors="replace")
         expected_path = str(near_dir / "testfile.txt")
         assert expected_path in prefix_text, (

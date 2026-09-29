@@ -43,6 +43,11 @@
 - `SHOW TERMINAL` now properly will reflect `SET TERMINAL AUTODOWNLOAD ASK`
   on all platforms.
 
+- Fix building unit tests on ppc64 platforms.
+
+- Fix IPv6 tests on systems were /etc/hosts gives a name for ::1 that isn't
+  localhost.
+
 - Several chunk length handling fixes in the HTTP client code:
   - Fixed a length truncation bug on 64-bit platforms and added a regression
     test for it.  The original bug was introduced in C-Kermit 8.0.200 of 2001,
