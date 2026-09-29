@@ -63,6 +63,7 @@
   - Added a test for telnet IAC negotiation.
   - Generally, many regression tests in preparation for work to remove
     -Wconversion warnings.
+  - Tests for filename length, including the prompt in autodownload ask mode.
 
 # C-Kermit 11.0.511
 

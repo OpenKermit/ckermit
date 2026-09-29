@@ -3,7 +3,10 @@
 Tests verify behavior when inputs exceed 8-bit length boundaries
 (127 and 255 bytes).
 """
-from conftest import make_loopback_dirs
+import os
+
+from conftest import (make_loopback_dirs, start_wermit_pty,
+                      finish_wermit_pty, _wait_for_pty_marker)
 
 
 def _distinct_chars(length):
@@ -167,6 +170,71 @@ def test_script_expect_trace_survives_long_preamble(tmp_path,
         f"{result.stderr}"
     )
     assert "SCRIPT-OK" in result.stdout, result.stdout
+
+
+def test_autodownload_ask_prompt_shows_full_path(tmp_path, wermit_path):
+    """Verify AUTODOWNLOAD ASK prompt displays paths over 255 characters.
+
+    An incoming transfer during a CONNECT session prompts for confirmation
+    when AUTODOWNLOAD ASK is set. Check that the prompt displays the full
+    destination path without truncation.
+    """
+    name = _distinct_chars(20)
+    near_dir = tmp_path
+    for i in range(13):
+        near_dir = near_dir / f"{name}{i}"
+    near_dir.mkdir(parents=True)
+    assert len(str(near_dir)) > 255, "test setup should exceed 255 chars"
+
+    far_dir = tmp_path / "far"
+    far_dir.mkdir()
+    (far_dir / "testfile.txt").write_text("autodownload prompt test\n")
+    far_ksc = tmp_path / "far.ksc"
+    far_ksc.write_text(
+        f"set delay 0\ncd {far_dir}\nsend testfile.txt\nexit\n"
+    )
+
+    client_cmd = (
+        "set terminal autodownload ask, "
+        f"set host /network-type:pseudoterminal {wermit_path} {far_ksc}, "
+        "connect, close, exit"
+    )
+    proc, master = start_wermit_pty(wermit_path, client_cmd, near_dir)
+    try:
+        prefix, found = _wait_for_pty_marker(master, b"Filename [", 15)
+        assert found, (
+            "autodownload confirmation prompt never appeared: " +
+            prefix.decode("utf-8", errors="replace")
+        )
+        prefix_text = prefix.decode("utf-8", errors="replace")
+        expected_path = str(near_dir / "testfile.txt")
+        assert expected_path in prefix_text, (
+            f"prompt did not show the full destination path "
+            f"{expected_path!r}: {prefix_text}"
+        )
+        os.write(master, b"\r")
+
+        prefix2, found2 = _wait_for_pty_marker(
+            master, b"Accept incoming file", 10)
+        assert found2, (
+            "receive-confirm prompt never appeared: " +
+            prefix2.decode("utf-8", errors="replace")
+        )
+        os.write(master, b"yes\r\n")
+
+        returncode, rest = finish_wermit_pty(proc, master, timeout=15)
+    finally:
+        try:
+            os.close(master)
+        except OSError:
+            pass
+
+    assert returncode == 0, prefix_text + rest
+    received = near_dir / "testfile.txt"
+    assert received.exists(), (
+        f"file was not received; output: {prefix_text}{rest}"
+    )
+    assert received.read_text() == "autodownload prompt test\n"
 
 
 def test_cmnum_overflow_guard_rejects_huge_set_argument(run_wermit):
