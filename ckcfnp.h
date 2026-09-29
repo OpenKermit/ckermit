@@ -293,7 +293,7 @@ int getlocalipaddrs( char *, int, int );
 int getncm( char *, int );
 int getnct( char *, int, FILE *, int );
 int getok( int, int );
-int getpkt( int, int );
+int getpkt( int );
 int getptyslave( int *, int );
 int getrtt( int, int );
 int getsysix( char * );

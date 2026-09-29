@@ -1248,7 +1248,7 @@ _PROTOTYP( int window, (int) );
 _PROTOTYP( int clsif, (void) );
 _PROTOTYP( int clsof, (int) );
 _PROTOTYP( CHAR setgen, (char, char *, char *, char *) );
-_PROTOTYP( int getpkt, (int, int) );
+_PROTOTYP( int getpkt, (int) );
 _PROTOTYP( int maxdata, (void) );
 _PROTOTYP( int putsrv, (char) );
 _PROTOTYP( int puttrm, (char) );

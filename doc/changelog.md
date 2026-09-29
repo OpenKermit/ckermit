@@ -37,6 +37,9 @@
 - Added testing for `\fsexpression()` past 4GB.  Fixed `\fsexpression()` wrong
   results near the 2^53 double boundary, discovered by new tests.
 
+- Fixed handling in cases where a filename length causes a packet to exceed
+  the current packet size.
+
 - Several chunk length handling fixes in the HTTP client code:
   - Fixed a length truncation bug on 64-bit platforms and added a regression
     test for it.  The original bug was introduced in C-Kermit 8.0.200 of 2001,
