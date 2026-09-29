@@ -1,4 +1,4 @@
-"""Regression tests for SET/SHOW TERMINAL settings."""
+"""Regression tests for SET and SHOW TERMINAL settings."""
 
 
 def test_show_terminal_autodownload_reflects_ask(run_wermit):

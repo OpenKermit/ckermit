@@ -148,7 +148,7 @@ def test_send_long_filename_rejected_not_truncated(tmp_path,
 
 
 def test_script_expect_trace_survives_long_preamble(tmp_path,
-                                                      wermit_loopback):
+                                                   wermit_loopback):
     """Verify SCRIPT does not overrun its trace buffer on long inputs.
 
     dorseq() appends received bytes to a 512-byte trace buffer while
