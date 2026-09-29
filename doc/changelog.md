@@ -69,6 +69,12 @@
   - Generally, many regression tests in preparation for work to remove
     -Wconversion warnings.
   - Tests for filename length, including the prompt in autodownload ask mode.
+  - Tests for username length.
+  - Testing `\fjoin` CSV quoting of a large field.
+  - Testing `GET` handling of large patterns for `/MOVE-TO`, `/AS-NAME`,
+    `/FILTER`, and `/EXCEPT` with large parameters.
+  - Testing `SEND`, `CONNECT`, and `ADD SEND-LIST` with values >255 chars.
+  - Test IKSD login with large username and password.
 
 # C-Kermit 11.0.511
 
