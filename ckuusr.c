@@ -4335,18 +4335,15 @@ doxsend(cx) int cx;
                 }
                 goto xsendx;
             }
-            if (pv[n].sval) free(pv[n].sval);
             y = strlen(ws);
             if (y > 256) {
                 printf("?Pattern too long - 256 max\n");
                 x = -9;
                 goto xsendx;
             }
-            pv[n].sval = malloc(y+1);
-            if (pv[n].sval) {
-                strcpy(pv[n].sval,ws);   /* safe */
-                pv[n].ival = 1;
-            }
+            makestr(&pv[n].sval,ws);
+            if (pv[n].sval)
+              pv[n].ival = 1;
             break;
 
           case SND_MOV:                 /* MOVE after */
@@ -4368,16 +4365,9 @@ doxsend(cx) int cx;
                 }
                 goto xsendx;
             }
-            if (pv[n].sval) free(pv[n].sval);
             ws = brstrip(ws);
-            y = strlen(ws);
-            if (y > 0) {
-                pv[n].sval = malloc(y+1);
-                if (pv[n].sval) {
-                    strcpy(pv[n].sval,ws); /* safe */
-                    pv[n].ival = 1;
-                }
-            }
+            makestr(&pv[n].sval, *ws ? ws : NULL); /* Empty clears it */
+            pv[n].ival = pv[n].sval ? 1 : -1;
             break;
 
           case SND_SMA:                 /* Smaller / larger than */
@@ -4401,12 +4391,9 @@ doxsend(cx) int cx;
                 }
                 goto xsendx;
             }
-            if (pv[n].sval) free(pv[n].sval);
-            pv[n].sval = malloc((int)strlen(ws)+1);
-            if (pv[n].sval) {
-                strcpy(pv[n].sval,ws);   /* safe */
-                pv[n].ival = 1;
-            }
+            makestr(&pv[n].sval,ws);
+            if (pv[n].sval)
+              pv[n].ival = 1;
             break;
 
           case SND_MAI:                 /* Send as mail (= MAIL) */
@@ -4426,10 +4413,7 @@ doxsend(cx) int cx;
                 goto xsendx;
             }
             ws = brstrip(ws);
-            if (pv[n].sval) free(pv[n].sval);
-            pv[n].sval = malloc((int)strlen(ws)+1);
-            if (pv[n].sval)
-              strcpy(pv[n].sval,ws);     /* safe */
+            makestr(&pv[n].sval,ws);
             break;
 
           case SND_PRI:                 /* Send to be printed (REMOTE PRINT) */
@@ -4444,10 +4428,7 @@ doxsend(cx) int cx;
             if ((x = cmfld("Print options","",&ws,xxstring)) < 0)
               if (x != -3) goto xsendx;
             ws = brstrip(ws);
-            if (pv[n].sval) free(pv[n].sval);
-            pv[n].sval = malloc((int)strlen(ws)+1);
-            if (pv[n].sval)
-              strcpy(pv[n].sval,ws);     /* safe */
+            makestr(&pv[n].sval,ws);
             break;
 
           case SND_ASN:                 /* As-name */
@@ -4461,13 +4442,10 @@ doxsend(cx) int cx;
                 goto xsendx;
             }
             ws = brstrip(ws);
-            if ((y = strlen(ws)) > 0) {
-                if (pv[n].sval) free(pv[n].sval);
-                pv[n].sval = malloc(y+1);
-                if (pv[n].sval) {
-                    strcpy(pv[n].sval,ws); /* safe */
-                    pv[n].ival = 1;
-                }
+            if (*ws) {
+                makestr(&pv[n].sval,ws);
+                if (pv[n].sval)
+                  pv[n].ival = 1;
             }
             break;
 
@@ -4517,14 +4495,7 @@ doxsend(cx) int cx;
                 goto xsendx;
             }
             pv[n].ival = 1;
-            if (pv[n].sval) {
-                free(pv[n].sval);
-                pv[n].sval = NULL;
-            }
-            if ((y = strlen(ws)) > 0) {
-                if ((pv[n].sval = malloc(y+1)))
-                  strcpy(pv[n].sval,ws); /* safe */
-            }
+            makestr(&pv[n].sval, *ws ? ws : NULL);
             break;
 #endif /* PIPESEND */
 
@@ -4575,14 +4546,10 @@ doxsend(cx) int cx;
                 x = -9;
                 goto xsendx;
             }
-            if (pv[n].sval)
-              free(pv[n].sval);
-            if (ws) if (*ws) {
-                if ((pv[n].sval = malloc((int)strlen(ws)+1))) {
-                    strcpy(pv[n].sval,ws);
-                    pv[n].ival = 1;
-                    pv[SND_ARR].ival = 0;
-                }
+            makestr(&pv[n].sval, (ws && *ws) ? ws : NULL);
+            if (pv[n].sval) {
+                pv[n].ival = 1;
+                pv[SND_ARR].ival = 0;
             }
             break;
 
@@ -5041,12 +5008,9 @@ like \\v(filename)";
                     if (pv[SND_MAI].ival > 0) {
                         makestr(&pv[SND_MAI].sval, p);
                     } else {
-                        if (pv[SND_ASN].sval) free(pv[SND_ASN].sval);
-                        pv[SND_ASN].sval = malloc(y9+1);
-                        if (pv[SND_ASN].sval) {
-                            strcpy(pv[SND_ASN].sval,p); /* safe */
-                            pv[SND_ASN].ival = 1;
-                        }
+                        makestr(&pv[SND_ASN].sval,p);
+                        if (pv[SND_ASN].sval)
+                          pv[SND_ASN].ival = 1;
                     }
                 }
             }
@@ -5276,17 +5240,9 @@ like \\v(filename)";
 
     /* Copy as-name to a safe place */
 
-        if (asnbuf) {
-            free(asnbuf);
-            asnbuf = NULL;
-        }
-        if ((y = strlen(cmarg2)) > 0) {
-            asnbuf = (char *) malloc(y + 1);
-            if (asnbuf) {
-                strcpy(asnbuf,cmarg2);  /* safe */
-                cmarg2 = asnbuf;
-            } else cmarg2 = "";
-        }
+        makestr(&asnbuf, *cmarg2 ? cmarg2 : NULL);
+        if (*cmarg2)
+          cmarg2 = asnbuf ? asnbuf : "";
 
 #ifdef CK_RESEND
         debug(F111,"xsend pv[SND_STA].ival","",pv[SND_STA].ival);
@@ -5647,13 +5603,10 @@ doxconn(cx) int cx;
             }
             if (n != CONN_TS)
               ws = brstrip(ws);
-            if ((y = strlen(ws)) > 0) {
-                if (pv[n].sval) free(pv[n].sval);
-                pv[n].sval = malloc(y+1);
-                if (pv[n].sval) {
-                    strcpy(pv[n].sval,ws); /* safe */
-                    pv[n].ival = 1;
-                }
+            if (*ws) {
+                makestr(&pv[n].sval,ws);
+                if (pv[n].sval)
+                  pv[n].ival = 1;
             }
             break;
 #endif /* XLIMORTRIGGER */
@@ -5935,21 +5888,14 @@ addsend(cx) int cx;
         filetail = flp;
         if (!filehead)
           filehead = flp;
-        wx = (int) strlen(line); /* Length of filename */
-        ws = (char *) malloc(wx + 1);
-        if (ws) {
-            strcpy(ws,line);             /* safe */
-            flp->fl_name = ws;
+        flp->fl_name = NULL;
+        flp->fl_alias = NULL;
+        makestr(&flp->fl_name,line);
+        if (flp->fl_name) {
             flp->fl_mode = xmode;
-            wx = (int) strlen(cmarg2);   /* Length of as-name */
-            if (wx < 1) {
-                flp->fl_alias = NULL;
-            } else {
-                ws = (char *) malloc(wx + 1);
-                if (ws) {
-                    strcpy(ws,cmarg2);   /* safe */
-                    flp->fl_alias = ws;
-                } else {
+            if (*cmarg2) {
+                makestr(&flp->fl_alias,cmarg2);
+                if (!flp->fl_alias) {
                     printf("Sorry, can't allocate space for as-name");
                     return(-9);
                 }
@@ -8198,22 +8144,22 @@ newerrmsg(s) char *s;
     extern int tfblockstart[];
     extern int tlevel;
     int len1, len2, len3, len4, len5;
-    char * takefile = getbasename(tfnam[tlevel]);
+    char * takefile;
     char nbuf[20];
     char * lineno = nbuf;
     int x;
 
     debug(F110,"newerrmsg",s,0);
-    ckstrncpy(nbuf,ckitoa(tfblockstart[tlevel]),20);
-    lineno = (char *)nbuf;
 
     if (!s) s = "";
     if (!*s) s = "Syntax error";
 
-    if (tlevel < 0) {
+    if (tlevel < 0) {                   /* Not in a TAKE file */
         printf("?%s\n",s);
         return;
     }
+    takefile = getbasename(tfnam[tlevel]);
+    ckstrncpy(nbuf,ckitoa(tfblockstart[tlevel]),20);
     len1 = (int)strlen(s);
     len2 = (int)strlen(takefile);
     len3 = (int)strlen(lineno);

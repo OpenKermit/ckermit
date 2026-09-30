@@ -47,6 +47,16 @@
 
 - Fix IPv6 tests on systems were /etc/hosts gives a name for ::1 that isn't
   localhost.
+  
+- Reject a `SEND AS-NAME` that doesn't fit in a buffer instead of leaking stack.
+
+- Fixed an asan-detected issue in newerrmsg()
+
+- When a `SEND` or `GET` switch is given more than once, fixed edge cases that
+  could cause a double free.
+  
+- Used safer string generation for switch values and login names (`makestr()`
+  instead of `malloc()` and `strcpy()`)
 
 - Several chunk length handling fixes in the HTTP client code:
   - Fixed a length truncation bug on 64-bit platforms and added a regression

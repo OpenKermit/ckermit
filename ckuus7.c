@@ -7683,32 +7683,32 @@ plogin(xx) int xx;
     }
     wy = strlen(ws);
     if (wy > 0) {
-        if ((p1 = malloc(wy + 1)) == NULL) {
+        makestr(&p1,ws);
+        if (!p1) {
             printf("?Internal error: malloc\n");
             rc = -9;
             goto XZXLGI;
-        } else
-          strcpy(p1,ws);                 /* safe */
+        }
         if ((rc = cmfld("Password","",&ws,xxstring)) < 0)
           if (rc != -3) goto XZXLGI;
         wy = strlen(ws);
         if (wy > 0) {
-            if ((p2 = malloc(wy + 1)) == NULL) {
+            makestr(&p2,ws);
+            if (!p2) {
                 printf("?Internal error: malloc\n");
                 rc = -9;
                 goto XZXLGI;
-            } else
-              strcpy(p2,ws);             /* safe */
+            }
             if ((rc = cmfld("Account","",&ws,xxstring)) < 0)
               if (rc != -3) goto XZXLGI;
             wy = strlen(ws);
             if (wy > 0) {
-                if ((p3 = malloc(wy + 1)) == NULL) {
+                makestr(&p3,ws);
+                if (!p3) {
                     printf("?Internal error: malloc\n");
                     rc = -9;
                     goto XZXLGI;
-                } else
-                  strcpy(p3,ws);         /* safe */
+                }
             }
         }
     }
@@ -7739,11 +7739,11 @@ plogin(xx) int xx;
             printf("?Canceled\n");
             goto XZXLGI;
         }
-        if ((p1 = malloc(wy + 1)) == NULL) {
+        makestr(&p1,ws);
+        if (!p1) {
             printf("?Internal error: malloc\n");
             goto XZXLGI;
-        } else
-          strcpy(p1,ws);                 /* safe */
+        }
 
         cmsetp("Password: ");           /* Make new prompt */
         concb((char)escape);            /* Put console in cbreak mode */
@@ -7754,11 +7754,11 @@ plogin(xx) int xx;
             cmres();                    /* Reset the parser */
             wx = cmtxt("","",&ws,NULL);   /* Get literal line of text */
         }
-        if ((p2 = malloc((int)strlen(ws) + 1)) == NULL) {
+        makestr(&p2,ws);
+        if (!p2) {
             printf("?Internal error: malloc\n");
             goto XZXLGI;
-        } else
-          strcpy(p2,ws);                 /* safe */
+        }
         printf("\r\n");
         if ((rc = cmcfm()) < 0)
           goto XZXLGI;
@@ -15815,7 +15815,8 @@ ckxlogin(userid, passwd, acct, promptok)
     extern int what, srvcdmsg;
 
     int x = 0, ok = 0, rc = 0;
-    CHAR * _u = NULL, * _p = NULL, * _a = NULL;
+    char * _u = NULL, * _p = NULL;
+    CHAR * _a = NULL;
 
     debug(F111,"ckxlogin userid",userid,promptok);
     debug(F110,"ckxlogin passwd",passwd,0);
@@ -15910,13 +15911,12 @@ ckxlogin(userid, passwd, acct, promptok)
               goto XCKXLOG;
             cmres();                    /* Reset the parser again */
         }
-        if ((_u = (CHAR *)malloc((int)strlen(ws) + 1)) == NULL) {
+        makestr(&_u,ws);
+        if (!_u) {
             printf("?Internal error: malloc\n");
             goto XCKXLOG;
-        } else {
-            strcpy((char *)_u,ws);       /* safe */
-            userid = _u;
         }
+        userid = (CHAR *)_u;
     }
     ok = zvuser((char *)userid);        /* Verify username */
     debug(F111,"ckxlogin zvuser",userid,ok);
@@ -16021,13 +16021,12 @@ ckxlogin(userid, passwd, acct, promptok)
             cmres();                    /* Reset the parser again */
         }
         printf("\r\n");                 /* Echo a CRLF */
-        if ((_p = (CHAR *)malloc((int)strlen(ws) + 1)) == NULL) {
+        makestr(&_p,ws);
+        if (!_p) {
             printf("?Internal error: malloc\n");
             goto XCKXLOG;
-        } else {
-            strcpy((char *)_p,ws);       /* safe */
-            passwd = _p;
         }
+        passwd = (CHAR *)_p;
     }
 #ifdef CK_PAM
     else {

@@ -11056,18 +11056,15 @@ doxget(cx) int cx;
                 }
                 goto xgetx;
             }
-            if (pv[n].sval) free(pv[n].sval);
             wy = strlen(ws);
             if (wy > 256) {
                 printf("?Pattern too long - 256 max\n");
                 wx = -9;
                 goto xgetx;
             }
-            pv[n].sval = malloc(wy+1);
-            if (pv[n].sval) {
-                strcpy(pv[n].sval,ws);   /* safe */
-                pv[n].ival = 1;
-            }
+            makestr(&pv[n].sval,ws);
+            if (pv[n].sval)
+              pv[n].ival = 1;
             break;
 
 #ifdef COMMENT
@@ -11102,19 +11099,9 @@ doxget(cx) int cx;
                 }
                 goto xgetx;
             }
-            if (pv[n].sval) {
-                free(pv[n].sval);
-                pv[n].sval = NULL;
-            }
             ws = brstrip(ws);
-            wy = strlen(ws);
-            if (wy > 0) {
-                pv[n].sval = malloc(wy+1);
-                if (pv[n].sval) {
-                    strcpy(pv[n].sval,ws); /* safe */
-                    pv[n].ival = 1;
-                }
-            }
+            makestr(&pv[n].sval, *ws ? ws : NULL); /* Empty clears it */
+            pv[n].ival = pv[n].sval ? 1 : -1;
             break;
 
           case SND_ASN:                 /* As-name */
@@ -11133,13 +11120,10 @@ doxget(cx) int cx;
                 < 0)
               goto xgetx;
             ws = brstrip(ws);
-            if ((wy = strlen(ws)) > 0) {
-                if (pv[n].sval) free(pv[n].sval);
-                pv[n].sval = malloc(wy+1);
-                if (pv[n].sval) {
-                    strcpy(pv[n].sval,ws); /* safe */
-                    pv[n].ival = 1;
-                }
+            if (*ws) {
+                makestr(&pv[n].sval,ws);
+                if (pv[n].sval)
+                  pv[n].ival = 1;
             }
             break;
 
@@ -11169,14 +11153,7 @@ doxget(cx) int cx;
                 goto xgetx;
             }
             pv[n].ival = 1;
-            if (pv[n].sval) {
-                free(pv[n].sval);
-                pv[n].sval = NULL;
-            }
-            if ((wy = strlen(ws)) > 0) {
-                if ((pv[n].sval = malloc(wy+1)))
-                  strcpy(pv[n].sval,ws); /* safe */
-            }
+            makestr(&pv[n].sval, *ws ? ws : NULL);
             break;
 #endif /* PIPESEND */
 

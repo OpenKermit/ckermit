@@ -4581,16 +4581,31 @@ sfile(x) int x;
             debug(F101,"sfile sendmode","",sendmode);
         }
         if (*cmarg2) {                  /* If we have a send-as name... */
-            int y; char *ans;
+            int y, bad = 0; char *ans;
 #ifndef NOSPL                           /* and a script programming language */
             extern int cmd_quoting;
             if (cmd_quoting) {          /* and it's not turned off */
                 y = PKTNL;              /* pass as-name thru the evaluator */
                 ans = pktnam;
-                zzstring(cmarg2,&ans,&y);
+                /* On failure pktnam may be unterminated. */
+                bad = (zzstring(cmarg2,&ans,&y) < 0);
             } else
 #endif /* NOSPL */
-              ckstrncpy(pktnam,cmarg2,PKTNL); /* copy it literally, */
+            {
+                bad = ((int)strlen(cmarg2) > PKTNL);
+                ckstrncpy(pktnam,cmarg2,PKTNL+1); /* copy it literally, */
+            }
+            if (bad) {
+                pktnam[0] = NUL;
+                ckmakmsg((char *)epktmsg,
+                         PKTMSGLEN,
+                         "As-name too long or invalid: ",
+                         cmarg2,
+                         NULL,
+                         NULL
+                         );
+                return(0);
+            }
 
             debug(F110,"sfile pktnam",pktnam,0);
         }
