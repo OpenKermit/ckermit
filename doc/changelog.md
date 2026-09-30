@@ -5,6 +5,11 @@
 - Fixed the armhf binary build in Github CI.  The platform was already being
   tested, but the final binaries weren't being built.
 
+- On platforms where long is 32 bits but time_t is 64 bits, keep received
+  times in excess of the 32-bit limit intact, skipping an unnecessary
+  conversion truncation.  This bug dates back to C-Kermit 5A of 1992 in
+  commit a213649d and threads through changes since.
+
 # C-Kermit 11.0.512
 
 September 30, 2026
