@@ -1,6 +1,8 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.0.513 (NOT YET RELEASED)
+# C-Kermit 11.0.513
+
+September 30, 2026
 
 - Fixed the armhf binary build in Github CI.  The platform was already being
   tested, but the final binaries weren't being built.
@@ -9,6 +11,11 @@
   times in excess of the 32-bit limit intact, skipping an unnecessary
   conversion truncation.  This bug dates back to C-Kermit 5A of 1992 in
   commit a213649d and threads through changes since.
+
+- Added additional tests for time_t that run everywhere, including platforms
+  where time_t is 32 bits.  Some of the tests added previously intentionally
+  skip on those platforms, as they were validating proper 64-bit operation.
+  This ensures adequate coverage everywhere.
 
 # C-Kermit 11.0.512
 
