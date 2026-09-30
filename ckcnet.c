@@ -1878,6 +1878,8 @@ ck_tcp_connect1(fd,rp) int fd; struct addrinfo * rp;
                     debug(F100,"ck_tcp_connect1 timed out","",0);
                     break;
                 }
+                if (remaining > (time_t)CK_SELECT_MAXSECS)
+                  remaining = (time_t)CK_SELECT_MAXSECS;
                 tv.tv_sec = remaining;
                 tv.tv_usec = 0;
                 tvp = &tv;
@@ -1889,12 +1891,8 @@ ck_tcp_connect1(fd,rp) int fd; struct addrinfo * rp;
             rc = select(fd+1,NULL,&wfds,NULL,tvp);
             if (rc > 0)
               break;                    /* Writable: check SO_ERROR below */
-            if (rc == 0) {
-                rc = -1;
-                err = ETIMEDOUT;
-                debug(F100,"ck_tcp_connect1 timed out","",0);
-                break;
-            }
+            if (rc == 0)
+              continue;                 /* Deadline checked at loop top */
             if (errno == EINTR)
               continue;                 /* Interrupted; re-arm wait */
             err = errno;

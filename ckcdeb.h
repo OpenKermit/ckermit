@@ -5372,6 +5372,17 @@ typedef unsigned int u_int;
   ((time_t)((((time_t)1 << (sizeof(time_t) * 8 - 2)) - 1) * 2 + 1))
 #endif /* CK_TIME_T_MAX */
 
+/*
+  Longest timeout, in seconds, to pass to one select() call. POSIX
+  requires support for at least 31 days. Some systems reject longer
+  timeouts with EINVAL; macOS rejects more than 100000000 seconds.
+  Callers with a longer deadline call select() again after each
+  capped wait.
+*/
+#ifndef CK_SELECT_MAXSECS
+#define CK_SELECT_MAXSECS (31L * 24L * 60L * 60L)
+#endif /* CK_SELECT_MAXSECS */
+
 #ifndef TLOG
 #define tlog(a,b,c,d)
 #else

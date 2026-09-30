@@ -283,3 +283,33 @@ def test_collision_update_older_or_same(tmp_path, wermit_loopback, direction):
     )
     assert dest_file2.read_text() == "EXISTING SAME"
     assert retcode2 == expected_reject_returncode(direction)
+
+
+@pytest.mark.parametrize("direction", ["send", "get"])
+@pytest.mark.parametrize("existing_mtime,incoming_mtime,accepted", [
+    (2**31 - 10001, 2**31 - 1, True),
+    (2**31 - 1, 2**31 - 10001, False),
+])
+def test_collision_update_before_2038(tmp_path, wermit_loopback, direction,
+                                      existing_mtime, incoming_mtime,
+                                      accepted):
+    """
+    Validate SET FILE COLLISION UPDATE with dates up to the last second
+    of a 32-bit time_t (Tue Jan 19 03:14:07 2038 UTC).
+    """
+    retcode, dest_dir, dest_file = run_collision_test(
+        tmp_path,
+        wermit_loopback,
+        direction=direction,
+        collision_mode="update",
+        existing_content="EXISTING",
+        incoming_content="INCOMING",
+        existing_mtime=existing_mtime,
+        incoming_mtime=incoming_mtime
+    )
+    if accepted:
+        assert dest_file.read_text() == "INCOMING"
+        assert retcode == 0
+    else:
+        assert dest_file.read_text() == "EXISTING"
+        assert retcode == expected_reject_returncode(direction)

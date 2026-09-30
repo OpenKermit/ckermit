@@ -1019,7 +1019,8 @@ unit-test:
 		tests/unit/bin/test_zfnqfp tests/unit/bin/test_hasdotdot \
 		tests/unit/bin/test_rq_confirm tests/unit/bin/test_fnsplit \
 		tests/unit/bin/test_fpformat tests/unit/bin/test_shuffledate \
-		tests/unit/bin/test_hostaddr
+		tests/unit/bin/test_hostaddr tests/unit/bin/test_zstrdt \
+		tests/unit/bin/test_deadline
 	./tests/unit/bin/test_lib
 	./tests/unit/bin/test_strings
 	./tests/unit/bin/test_net
@@ -1031,6 +1032,8 @@ unit-test:
 	./tests/unit/bin/test_fpformat
 	./tests/unit/bin/test_shuffledate
 	./tests/unit/bin/test_hostaddr
+	./tests/unit/bin/test_zstrdt
+	./tests/unit/bin/test_deadline
 
 # Rules for the unit test binaries.
 #
@@ -1154,6 +1157,39 @@ tests/unit/bin/test_zfnqfp: tests/unit/test_zfnqfp.c ckufio.c ckclib.c ckcfnp.h
 		tests/unit/bin/ckclib_test_zfnqfp.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
 
+# test_zstrdt exercises zstrdt() and zlocaltime() in ckufio.c with
+# the same stubs and --gc-sections approach as test_zfnqfp.
+tests/unit/bin/test_zstrdt: tests/unit/test_zstrdt.c ckufio.c ckclib.c \
+		ckcfnp.h
+	@mkdir -p tests/unit/bin
+	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	case `uname -s` in \
+	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
+	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
+	esac; \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
+		-c ckufio.c -o tests/unit/bin/ckufio_zstrdt.$(EXT); \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
+		-c ckclib.c -o tests/unit/bin/ckclib_test_zstrdt.$(EXT); \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
+		tests/unit/test_zstrdt.c tests/unit/bin/ckufio_zstrdt.$(EXT) \
+		tests/unit/bin/ckclib_test_zstrdt.$(EXT) \
+		-o $@ $$GCSECTIONS $$CHECKLIBS
+# test_deadline exercises the ck_deadline functions in ckutio.c
+# with the same --gc-sections approach as test_zfnqfp.
+tests/unit/bin/test_deadline: tests/unit/test_deadline.c ckutio.c
+	@mkdir -p tests/unit/bin
+	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	case `uname -s` in \
+	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
+	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
+	esac; \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
+		-c ckutio.c -o tests/unit/bin/ckutio_deadline.$(EXT); \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
+		tests/unit/test_deadline.c \
+		tests/unit/bin/ckutio_deadline.$(EXT) \
+		-o $@ $$GCSECTIONS $$CHECKLIBS
 tests/unit/bin/test_hasdotdot: tests/unit/test_hasdotdot.c ckcfns.c ckcfnp.h
 	@mkdir -p tests/unit/bin
 	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \

@@ -5000,7 +5000,7 @@ zstrdt(date,len) char * date; int len;
                 debug(F111,"zstrdt 6 bad date ",date,len);
                 return(-1);
             }
-            tmx = (days + n - 1) * 24L * 60L * 60L;
+            tmx = (time_t)(days + n - 1) * 24L * 60L * 60L;
             i++;                        /* Skip the space */
             continue;
 
@@ -5249,7 +5249,7 @@ zlocaltime(gmtstring) char * gmtstring;
                 debug(F111,"zlocaltime 6 bad date ",date,len);
                 return(NULL);
             }
-            tmx = (days + n - 1) * 24L * 60L * 60L;
+            tmx = (time_t)(days + n - 1) * 24L * 60L * 60L;
             i++;                        /* Skip the space */
             continue;
 
@@ -5387,7 +5387,7 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x;
 #endif /* V7 */
 #endif /* BSD44 */
 
-    long tm = 0L;
+    time_t tm = 0;
 
     if (!f) f = "";
     if (!*f) return(-1);
