@@ -17,6 +17,9 @@ September 30, 2026
   skip on those platforms, as they were validating proper 64-bit operation.
   This ensures adequate coverage everywhere.
 
+- Fix a bug in which tests could fail when started locally with a controlling
+  tty (as opposed to the CI environment which lacks that).
+
 # C-Kermit 11.0.512
 
 September 30, 2026
