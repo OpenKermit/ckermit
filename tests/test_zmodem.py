@@ -1,6 +1,5 @@
 import os
 import shutil
-import subprocess
 
 import pytest
 
@@ -9,8 +8,7 @@ from conftest import (pattern_bytes, DEBUG_LOOPBACK as DEBUG_ZMODEM,
                       ssl_server_setup_cmds, ssl_client_setup_cmds,
                       start_wermit_pty, finish_wermit_pty,
                       finish_wermit_pty_pair,
-                      _wait_for_pty_marker, PORT_COLLISION_RETRIES,
-                      PORT_BIND_FAILURE_MARKER)
+                      start_pty_tcp_listener)
 
 ZMODEM_BLOCK_SIZE = 1024
 
@@ -204,36 +202,16 @@ def _run_ssl_zmodem(wermit_path, get_free_port, ssl_pki,
     remote_clause = (f"send {remote_argv[1]}" if remote_argv[0] == "sz"
                       else "receive")
 
-    for attempt in range(PORT_COLLISION_RETRIES):
-        port = get_free_port()
-        server_cmd = (
+    port, proc, master, prefix = start_pty_tcp_listener(
+        wermit_path, get_free_port,
+        lambda port: (
             "set tcp reverse-dns-lookup off, "
             f"{ssl_server_setup_cmds(ssl_pki)}, "
             f"set host * {port} /ssl, "
             "set terminal autodownload on, "
             f"{ZMODEM_QUIET_PROTOCOL_CLAUSE}, "
-            "connect, close, exit"
-        )
-        proc, master = start_wermit_pty(wermit_path, server_cmd,
-                                         str(server_dir))
-        prefix, ready = _wait_for_pty_marker(
-            master, b"Waiting to Accept", timeout=10)
-        if ready:
-            break
-
-        bind_failed = PORT_BIND_FAILURE_MARKER.encode() in prefix
-        os.close(master)
-        try:
-            proc.terminate()
-            proc.wait(timeout=2)
-        except (subprocess.TimeoutExpired, OSError):
-            proc.kill()
-            proc.wait(timeout=2)
-        if not bind_failed or attempt == PORT_COLLISION_RETRIES - 1:
-            raise RuntimeError(
-                "_run_ssl_zmodem: wermit-under-test did not start "
-                "listening; pty output:\n"
-                f"{prefix.decode('utf-8', errors='replace')}")
+            "connect, close, exit"),
+        str(server_dir), "_run_ssl_zmodem")
 
     remote_cmd = (
         "set tcp reverse-dns-lookup off, "

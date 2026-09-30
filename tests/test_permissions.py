@@ -31,11 +31,9 @@ import socket
 import subprocess
 import pytest
 from conftest import (
-    PORT_COLLISION_RETRIES,
-    PortCollisionError,
-    _wait_for_tcp_listener,
     _wait_or_kill,
     assert_ok,
+    start_tcp_listener,
 )
 
 
@@ -399,9 +397,8 @@ def test_show_server_reports_set_host_star_as_remote(
     server_dir = tmp_path / "server"
     server_dir.mkdir()
 
-    for attempt in range(PORT_COLLISION_RETRIES):
-        port = get_free_port()
-        inifile = tmp_path / f"row2_server_{attempt}.ini"
+    def server_args(port):
+        inifile = tmp_path / f"row2_server_{port}.ini"
         inifile.write_text(
             "set command more-prompting off\n"
             f"cd {server_dir}\n"
@@ -409,22 +406,12 @@ def test_show_server_reports_set_host_star_as_remote(
             "show server\n"
             "close\n"
         )
-        server_log = tmp_path / f"row2_server_{attempt}.log"
-        server_log_fh = open(server_log, "w")
-        server_proc = spawn_wermit(
-            ["--unbuffered", "-H", "-y", str(inifile)],
-            stdout=server_log_fh
-        )
-        try:
-            _wait_for_tcp_listener(
-                server_proc, server_log, server_log_fh, "show_server_row2"
-            )
-            break
-        except PortCollisionError:
-            server_log_fh.close()
-            _wait_or_kill(server_proc, timeout=1)
-            if attempt == PORT_COLLISION_RETRIES - 1:
-                raise
+        return ["--unbuffered", "-H", "-y", str(inifile)]
+
+    server_log = tmp_path / "row2_server.log"
+    port, server_proc, server_log_fh = start_tcp_listener(
+        spawn_wermit, get_free_port, server_args, server_log,
+        "show_server_row2")
 
     client_result = subprocess.run(
         [wermit_path, "-H", "-Y", "-Q", "-C",

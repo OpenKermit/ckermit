@@ -23,6 +23,21 @@ def _distinct_chars(length):
     return "".join(chr(97 + (i % 26)) for i in range(length))
 
 
+def _long_dirname(base, total=450):
+    """Return a path under base of exactly total characters.
+
+    Each loop component adds 11 characters, so the loop ends between
+    13 and 3 characters short of total.  The final component then has
+    at least two characters and the path never ends in a slash.
+    """
+    path = str(base)
+    while len(path) < total - 13:
+        path += "/" + _distinct_chars(10)
+    path += "/" + "x" * (total - 1 - len(path))
+    assert len(path) == total
+    return path
+
+
 def test_send_except_pattern_over_256_rejected(run_wermit):
     """Verify SEND /EXCEPT: rejects patterns longer than 256 characters."""
     pattern = _distinct_chars(300)
@@ -106,11 +121,7 @@ def test_get_move_to_long_directory_created(tmp_path, run_wermit):
 
     The directory is created before checking for an active connection.
     """
-    destdir = str(tmp_path)
-    while len(destdir) < 440:
-        destdir += "/" + _distinct_chars(10)
-    destdir += "/" + "x" * (449 - len(destdir))
-    assert len(destdir) == 450
+    destdir = _long_dirname(tmp_path)
 
     result = run_wermit(f"get /move-to:{destdir} nonexistent.txt")
     assert result.returncode >= 0, (
@@ -164,11 +175,7 @@ def test_send_move_to_long_directory_created(tmp_path, run_wermit):
     """
     src = tmp_path / "f.txt"
     src.write_text("hello world")
-    destdir = str(tmp_path)
-    while len(destdir) < 440:
-        destdir += "/" + _distinct_chars(10)
-    destdir += "/" + "x" * (449 - len(destdir))
-    assert len(destdir) == 450
+    destdir = _long_dirname(tmp_path)
 
     result = run_wermit(f"send /move-to:{destdir} {src}")
     assert result.returncode >= 0, (

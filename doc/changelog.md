@@ -1,5 +1,12 @@
 # OpenKermit C-Kermit Changelog
 
+# C-Kermit 11.0.514 (NOT YET RELEASED)
+
+- Fixed a bug in a test that could cause a spurious failure with certain-sized
+  tmpdirs.  Fixes #40.
+- Fixed a bug in tests where an IPv6 port collision while testing was
+  mishandled.
+
 # C-Kermit 11.0.513
 
 September 30, 2026

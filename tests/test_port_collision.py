@@ -1,3 +1,4 @@
+import errno
 import socket
 import subprocess
 
@@ -52,6 +53,98 @@ def test_wait_for_tcp_listener_generic_failure_is_plain_runtimeerror(
             _wait_for_tcp_listener(proc, log_path, log_fh, "test",
                                     timeout=1)
     assert not isinstance(exc_info.value, PortCollisionError)
+
+
+def test_wait_for_tcp_listener_detects_ipv6_port_collision(tmp_path):
+    """
+    A listener that could not bind its IPv6 socket because the port
+    was in use still prints "Waiting to Accept" on IPv4.  A client
+    connecting to "localhost" may try ::1 first and reach the other
+    process, so _wait_for_tcp_listener must raise PortCollisionError.
+    """
+    log_path = tmp_path / "server.log"
+    log_path.write_text(
+        f"?Unable to bind IPv6 socket (errno = {errno.EADDRINUSE}); "
+        "continuing with IPv4 only\r\n"
+        "Listening ...\r\n"
+        "Waiting to Accept a TCP/IP connection on port 12345 ...\r\n"
+    )
+    proc = subprocess.Popen(["sleep", "5"])
+    try:
+        with open(log_path) as log_fh:
+            with pytest.raises(PortCollisionError):
+                _wait_for_tcp_listener(proc, log_path, log_fh, "test",
+                                        timeout=1)
+    finally:
+        proc.kill()
+        proc.wait()
+
+
+def test_wait_for_tcp_listener_ipv6_unavailable_is_not_collision(
+        tmp_path):
+    """
+    An IPv6 bind failure other than EADDRINUSE, such as on a host
+    without IPv6, is not a port collision.  The IPv4 listener is
+    ready and _wait_for_tcp_listener must return normally.
+    """
+    log_path = tmp_path / "server.log"
+    log_path.write_text(
+        f"?Unable to bind IPv6 socket (errno = {errno.EADDRNOTAVAIL}); "
+        "continuing with IPv4 only\r\n"
+        "Waiting to Accept a TCP/IP connection on port 12345 ...\r\n"
+    )
+    proc = subprocess.Popen(["sleep", "5"])
+    try:
+        with open(log_path) as log_fh:
+            _wait_for_tcp_listener(proc, log_path, log_fh, "test",
+                                    timeout=1)
+    finally:
+        proc.kill()
+        proc.wait()
+
+
+def _ipv6_loopback_available():
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
+            s.bind(("::1", 0))
+    except OSError:
+        return False
+    return True
+
+
+@pytest.mark.skipif(not _ipv6_loopback_available(),
+                    reason="no IPv6 loopback")
+class TestIPv6PortCollision:
+    """The first port handed out is held on ::1 only, so the listener
+    binds IPv4 but not IPv6."""
+
+    @pytest.fixture
+    def get_free_port(self, get_free_port):
+        blocker = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        blocker.bind(("::1", 0))
+        blocker.listen(1)
+        blocked_port = blocker.getsockname()[1]
+        calls = {"n": 0}
+
+        def _wrapped():
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return blocked_port
+            return get_free_port()
+
+        yield _wrapped
+        blocker.close()
+
+    def test_wermit_tcp_loopback_retries_on_ipv6_collision(
+            self, server_dir, wermit_tcp_loopback):
+        """
+        wermit_tcp_loopback must retry on a fresh port so that a
+        client connecting to "localhost" reaches the wermit server.
+        """
+        session = wermit_tcp_loopback(server_dir, protocol="raw-socket")
+        result = session.run_client("show version")
+        assert_ok(result)
+        assert "C-Kermit" in result.stdout
 
 
 @pytest.fixture
