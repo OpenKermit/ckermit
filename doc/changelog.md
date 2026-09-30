@@ -1,5 +1,10 @@
 # OpenKermit C-Kermit Changelog
 
+# C-Kermit 11.0.514 (NOT YET RELEASED)
+
+- Fixed a bug in a test that could cause a spurious failure with certain-sized
+  tmpdirs.  Fixes #40.
+
 # C-Kermit 11.0.513
 
 September 30, 2026
