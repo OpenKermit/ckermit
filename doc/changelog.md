@@ -2,7 +2,7 @@
 
 # C-Kermit 11.0.512
 
-September 29, 2026
+September 30, 2026
 
 This is primarily a cleanup and maintenance release.  I have been adding
 numerous tests in anticipation of more work reducing warnings on modern
@@ -63,6 +63,10 @@ Additional changes:
 - Fixed `FILE COUNT` for files >2GB in size on platforms that support a 64-bit
   `CK_OFF_T`.  Platforms that don't support that won't support large file size
   reporting anyhow.
+
+- Fix incorrect handling of file dates before 1970 or after 2106.
+
+- Fix a `shxpand()` buffer overflow, detected with ASan.
 
 - `SHOW TERMINAL` now properly will reflect `SET TERMINAL AUTODOWNLOAD ASK`
   on all platforms.
