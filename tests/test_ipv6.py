@@ -313,6 +313,30 @@ def test_address_family_ipv4_connects(run_wermit):
         listener.close()
 
 
+def test_connect_timeout_past_time_t_max_connects(run_wermit):
+    """Verify a connect timeout that would carry the deadline past the
+    largest 32-bit time_t still connects.
+
+    The current time plus 999999999 seconds exceeds 2^31 - 1. The
+    deadline is capped at the largest time_t instead of overflowing.
+    """
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+
+    listener = _OneShotListener(socket.AF_INET, "127.0.0.1")
+    try:
+        result = run_wermit(
+            "set tcp connect-timeout 999999999, "
+            "set tcp reverse-dns-lookup off, "
+            f"set host 127.0.0.1 {listener.port} /raw-socket",
+            timeout=30)
+        assert_ok(result, "connect with a large timeout failed")
+        peer = listener.wait()
+        assert peer is not None and peer[0] == "127.0.0.1"
+    finally:
+        listener.close()
+
+
 def test_address_family_ipv6_connects(run_wermit):
     if not _build_has_address_family(run_wermit):
         pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")

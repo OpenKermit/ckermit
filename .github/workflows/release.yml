@@ -31,19 +31,17 @@ jobs:
       version: ${{ needs.version.outputs.version }}
 
       # Release builds cover more platforms than the fast PR/push matrix in
-      # ci.yml.  We build a full set of Linux binaries (dynamic and static on
-      # amd64 and arm64, static on armhf), plus MacOS.  BSDs are handled
-      # elsewhere.  Every binary we release gets tested.  The release process
-      # is infrequent enough that the extra CI time is worth it, so none of
-      # these set skip-tests.
+      # ci.yml.  Builds include Linux binaries (dynamic and static on amd64
+      # and arm64, static on armhf) and macOS.  BSDs are handled elsewhere.
+      # Every release binary is tested; none of these set skip-tests.
 
       # The "static" binaries are built with linux+ssl+musl since a musl-gcc
-      # static binary has no runtime dependency on the exact glibc build used to
-      # link it.
+      # static binary has no runtime dependency on the exact glibc build
+      # used to link it.
 
       # armhf is static only.  ci.yml cross-builds it on the arm64 runner
-      # through the musl path, which has no armhf glibc libraries to link a
-      # dynamic binary against.
+      # through the musl path.  No armhf glibc libraries are available to
+      # link a dynamic binary.
 
       matrix: >-
         [
