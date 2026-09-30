@@ -1,5 +1,10 @@
 # OpenKermit C-Kermit Changelog
 
+# C-Kermit 11.0.513 (NOT YET RELEASED)
+
+- Fixed the armhf binary build in Github CI.  The platform was already being
+  tested, but the final binaries weren't being built.
+
 # C-Kermit 11.0.512
 
 September 30, 2026
