@@ -11985,7 +11985,7 @@ int z_maxchan = Z_MAXCHAN;              /* Max number of C-Kermit channels */
 int z_openmax = CKMAXOPEN;              /* Max number of open files overall */
 int z_nopen = 0;                        /* How many channels presently open */
 int z_error = 0;                        /* Most recent error */
-int z_filcount = -1;                    /* Most recent FILE COUNT result */
+CK_OFF_T z_filcount = -1;               /* Most recent FILE COUNT result */
 
 #define RD_LINE 0                       /* FILE READ options */
 #define RD_CHAR 1
@@ -13567,15 +13567,15 @@ dofile(op) int op;
 
             z_filcount = z_count(n,rsize);
             if (z_filcount < 0) {
-                rc = z_filcount;
+                rc = (int)z_filcount;   /* Error code */
                 printf("?COUNT error: %s\n",ckferror(rc));
                 return(-9);
             }
             if (listing < 0)
               listing = !xcmdsrc;
             if (listing)
-              printf(" %d %s%s\n",
-                     z_filcount,
+              printf(" %s %s%s\n",
+                     ckfstoa(z_filcount),
                      ((rsize == RD_CHAR) ? "byte" : "line"),
                      ((z_filcount == 1L) ? "" : "s")
                      );

@@ -1,11 +1,32 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.0.512 (NOT YET RELEASED)
+# C-Kermit 11.0.512
 
-- Due to being broken for over 25 years and the impracticality of restoring
-  support, removed support for 16-bit Unix platforms from the codebase.  This
-  removed over 1900 lines of code from the project.  See further notes in commit
-  30ab9d4f.
+September 29, 2026
+
+This is primarily a cleanup and maintenance release.  I have been adding
+numerous tests in anticipation of more work reducing warnings on modern
+toolchains, with the aim of having a good chance of catching any accidental
+regressions.  Along the way, the tests and analysis have surfaced some bugs,
+which have been fixed.
+
+Additionally, due to being broken for over 25 years and the impracticality of
+restoring support, I removed support for 16-bit Unix platforms from the
+codebase.  This removed over 1900 lines of code from the project.  See further
+notes in commit 30ab9d4f.  For instance, I had made a solid effort to get
+C-Kermit to build again on 2BSD on PDP-11, but according to the historic notes,
+C-Kermit 7 was already iffy on that platform, and the last real published
+binaries were from C-Kermit 6.  Memory issues with the compiler, preprocessor,
+and compiled binaries were significant and insurmountable without significantly
+harming both the maintainability of the code and the featureset present on the
+old platforms.
+
+At the same time, I added the first 32-bit platform as part of CI, which is
+32-bit Linux armhf.  This serves the twin goals of providing a useful binary
+for platforms such as Raspberry Pi, and providing a measure of validation in CI
+that we don't break things on 32-bit platforms.
+
+Additional changes:
 
 - Behavior change: In some cases, particularly when reliable isn't assumed,
   file names could be silently truncated if they were larger than would fit in
@@ -14,10 +35,7 @@
   with very long names, so I don't think it likely anyone will notice this
   change, but it should avoid unpleasant surprises.
 
-- Add a new statically-linked armhf 32-bit Linux build.  This serves two
-  purposes: 1) it provides a useful binary for those using platforms such as
-  32-bit Raspberry Pis; and 2) it provides a measure validation in CI that we
-  don't accidentally break things for 32-bit platforms.
+- Behavior change: rounding -0 now produces 0 instead of -0.
 
 - Report `sizeof(time_t)` in `SHOW FEATURES` and associated regression test.
   Note 32-bit Linux platforms have transitioned to 64-bit `time_t`, but this is
@@ -39,6 +57,12 @@
 
 - Fixed handling in cases where a filename length causes a packet to exceed
   the current packet size.
+
+- Fixed invalid JPEG segment length handling in `\fpictureinfo()`
+
+- Fixed `FILE COUNT` for files >2GB in size on platforms that support a 64-bit
+  `CK_OFF_T`.  Platforms that don't support that won't support large file size
+  reporting anyhow.
 
 - `SHOW TERMINAL` now properly will reflect `SET TERMINAL AUTODOWNLOAD ASK`
   on all platforms.

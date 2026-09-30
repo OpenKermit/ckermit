@@ -3596,6 +3596,7 @@ dosexp(s) char *s;
     int kw, kwflags, mx = 0, x = 0;
     int not = 0, truncate = 0, builtin = 0;
     int fpflag = 0, quit = 0, macro = 0;
+    int whole = 0;                      /* Operand has no fraction */
     CK_OFF_T result = 0, i, j, k, n = 0;
     CKFLOAT fpj, fpresult = 0.0;        /* Floating-point results */
     int sxpflag = 0;                      /* Have predicate */
@@ -3985,6 +3986,7 @@ dosexp(s) char *s;
                 char * s0, * s1;
                 char * q0, * q1;
                 double placesval;
+                CK_OFF_T w0;
 
                 s0 = p[2];
                 if (!s0) s0 = "";
@@ -4002,7 +4004,26 @@ dosexp(s) char *s;
                 ckstrncpy(buf2,q1,32);
                 q1 = buf2;
                 placesval = atof(q1);
-                r = ckround(atof(q0),(int)placesval,sxroundbuf,31);
+                w0 = ckatofs(q0);
+                if (xxfloat(q0,0) == 1 && (CKFLOAT)w0 == atof(q0)) {
+                    /* Whole number in range: format exactly with */
+                    /* trailing zeros. */
+                    extern int fp_digits;
+                    int nd, zp, len0;
+                    ckstrncpy(sxroundbuf,ckfstoa(w0),32);
+                    len0 = (int)strlen(sxroundbuf);
+                    nd = len0 - ((w0 < 0) ? 1 : 0);
+                    zp = (int)placesval;
+                    if (zp + nd > fp_digits)
+                      zp = fp_digits - nd;
+                    if (zp > 0 && len0 < 30) {
+                        sxroundbuf[len0++] = '.';
+                        while (zp-- > 0 && len0 < 31)
+                          sxroundbuf[len0++] = '0';
+                        sxroundbuf[len0] = NUL;
+                    }
+                } else
+                  r = ckround(atof(q0),(int)placesval,sxroundbuf,31);
                 s2 = sxroundbuf;
                 sexprc = 0;
                 goto xdosexp;
@@ -4381,8 +4402,10 @@ dosexp(s) char *s;
             }
             j = 0;
             fpj = 0.0;
+            whole = 0;
         } else {
             j = ckatofs(s2);
+            whole = (xxfloat(s2,0) == 1);
             /* Switch to floating-point upon encountering any f.p. arg */
             /* OR... if integer is too big */
             if (!fpflag) if (xxfloat(s2,0) == 2)
@@ -4615,6 +4638,11 @@ dosexp(s) char *s;
 #endif /* FNFLOAT */
 
           case SX_CEI:                  /* Ceiling */
+            if (whole && (CKFLOAT)j == fpj) {
+                result = j;             /* Whole number in range: exact */
+                fpflag = 0;
+                break;
+            }
             if (j != fpj)
               if (fpj > 0.0)
                 fpj += 1.0;
@@ -4624,6 +4652,11 @@ dosexp(s) char *s;
             break;
 
           case SX_FLR:                  /* Floor */
+            if (whole && (CKFLOAT)j == fpj) {
+                result = j;             /* Whole number in range: exact */
+                fpflag = 0;
+                break;
+            }
             if (j != fpj)
               if (fpj < 0.0)
                 fpj -= 1.0;
@@ -4633,6 +4666,11 @@ dosexp(s) char *s;
             break;
 
           case SX_TRU:                  /* Truncate */
+            if (whole && (CKFLOAT)j == fpj) {
+                result = j;             /* Whole number in range: exact */
+                fpflag = 0;
+                break;
+            }
             fpresult = fpj;
             fpflag = 1;
             truncate = 1;

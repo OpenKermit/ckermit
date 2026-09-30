@@ -302,3 +302,53 @@ def test_fsexpression_arithmetic_past_2_53(run_wermit):
     result = run_wermit("echo R=[\\fsexpression(/ 7 2)]")
     assert_ok(result)
     assert "R=[3.5]" in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize("size", [3 * 2**30 + 7, FOUR_GIB + 12345])
+def test_file_count_bytes_past_2gib(sparse_dir, run_wermit, size):
+    r"""FILE COUNT /BYTES must report sizes past 2 GiB exactly.
+
+    Verify both the listing and \v(f_count).
+    """
+    big = sparse_dir / "big.dat"
+    with open(big, "wb") as f:
+        f.seek(size - 1)
+        f.write(b"\0")
+
+    result = run_wermit(
+        f"file open /read \\%c {big}, "
+        "file count /bytes /list \\%c, "
+        "echo C=[\\v(f_count)], "
+        "file close \\%c"
+    )
+    assert_ok(result)
+    assert f" {size} bytes" in result.stdout, result.stdout
+    assert f"C=[{size}]" in result.stdout, result.stdout
+
+
+def test_fsexpression_rounding_past_2_53(run_wermit):
+    r"""\fsexpression() rounding and selection must be exact past 2^53.
+
+    A whole-number operand of CEILING, FLOOR, TRUNCATE or ROUND is
+    returned unchanged. ABS, MAX and MIN also return exact results.
+    """
+    for expr, expected in [
+        ("ceiling 9007199254740993", "9007199254740993"),
+        ("floor -9007199254740993", "-9007199254740993"),
+        ("truncate 9007199254740993", "9007199254740993"),
+        ("round 9007199254740993", "9007199254740993"),
+        ("round 9007199254740993 2", "9007199254740993"),
+        ("ceiling 9223372036854775807", "9223372036854775807"),
+        ("abs -9007199254740993", "9007199254740993"),
+        ("max 9007199254740992 9007199254740993", "9007199254740993"),
+        ("min 9007199254740993 9007199254740992", "9007199254740992"),
+        # Fractional operands keep floating-point behavior.
+        ("ceiling 2.5", "3"),
+        ("floor -2.5", "-3"),
+        ("truncate -2.5", "-2"),
+        ("round 7 2", "7.00"),
+        ("round 2.567 2", "2.57"),
+    ]:
+        result = run_wermit(f"echo R=[\\fsexpression({expr})]")
+        assert_ok(result)
+        assert f"R=[{expected}]" in result.stdout, (expr, result.stdout)

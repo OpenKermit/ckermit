@@ -12845,7 +12845,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
     if (cx == FN_PICTURE) {
         FILE *fp = NULL;
         int c9, x9, w = 0, h = 0, eof = 0;
-        unsigned int j9, k9;
+        unsigned int k9;
         unsigned char buf[1024];
         char abuf[16], * s9;
         char ** ap = NULL;
@@ -12962,6 +12962,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                     w = buf[5] * 256 + buf[6];
                     goto picend;
                 } else {                /* Not a desired field */
+                    int len9;           /* Field length, incl. itself */
                     if (feof(fp)) {
                         eof++;
                         break;
@@ -12970,8 +12971,10 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                         fclose(fp);
                         goto fnend;
                     }
-                    j9 = 256 * buf[0] + buf[1] - 2; /* Skip next field */
-                    if (CKFSEEK(fp,(CK_OFF_T)j9,SEEK_CUR) != 0) {
+                    len9 = 256 * buf[0] + buf[1];
+                    if (len9 < 2)       /* Invalid: find next marker */
+                      continue;
+                    if (CKFSEEK(fp,(CK_OFF_T)(len9 - 2),SEEK_CUR) != 0) {
                         fclose(fp);
                         goto fnend;
                     }
@@ -15246,8 +15249,8 @@ char *                                  /* Evaluate builtin variable */
           return(vvbuf);
       }
       case VN_FCOU: {
-          extern int z_filcount;
-          sprintf(vvbuf,"%d",z_filcount); /* SAFE */
+          extern CK_OFF_T z_filcount;
+          ckstrncpy(vvbuf,ckfstoa(z_filcount),VVBUFL);
           return(vvbuf);
       }
 #endif /* CKCHANNELIO */
