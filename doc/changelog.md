@@ -42,6 +42,8 @@ Additional changes:
   not universally true across the BSDs, so we don't require 64-bit `time_t` on
   every CI platform.
 
+- Fix a number of time-related overflows.
+
 - Fix a heap buffer overflow in getlocalipaddrs() and add associated test.
   64-bit platforms try to read 8 bytes from a 4-byte allocation.  However, on
   Linux at least, this isn't an exploitable security hole as `malloc()` on Linux
@@ -86,6 +88,9 @@ Additional changes:
 - Used safer string generation for switch values and login names (`makestr()`
   instead of `malloc()` and `strcpy()`)
 
+- Correct an obscure data corruption bug that could occur when a telnet command
+  arrives at a certain buffer boundary.
+
 - Several chunk length handling fixes in the HTTP client code:
   - Fixed a length truncation bug on 64-bit platforms and added a regression
     test for it.  The original bug was introduced in C-Kermit 8.0.200 of 2001,
@@ -113,6 +118,7 @@ Additional changes:
     `/FILTER`, and `/EXCEPT` with large parameters.
   - Testing `SEND`, `CONNECT`, and `ADD SEND-LIST` with values >255 chars.
   - Test IKSD login with large username and password.
+  - Direct telnet and FTP tests with supplied protocol data
 
 # C-Kermit 11.0.511
 
