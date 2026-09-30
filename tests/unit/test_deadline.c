@@ -58,6 +58,14 @@ START_TEST(test_deadline_past_32_bit_long_ms)
 }
 END_TEST
 
+/* The remaining time must be a timeout every select() accepts. */
+START_TEST(test_deadline_select_cap)
+{
+    ck_deadline_set(INT_MAX);
+    ck_assert(ck_deadline_remaining_ms() / 1000L <= CK_SELECT_MAXSECS);
+}
+END_TEST
+
 START_TEST(test_deadline_cleared)
 {
     ck_deadline_set(0);
@@ -76,6 +84,7 @@ main(int argc, char ** argv)
     tcase_add_test(tc, test_deadline_past_32_bit_time_t);
     tcase_add_test(tc, test_deadline_int_max);
     tcase_add_test(tc, test_deadline_past_32_bit_long_ms);
+    tcase_add_test(tc, test_deadline_select_cap);
     tcase_add_test(tc, test_deadline_cleared);
     suite_add_tcase(s, tc);
 

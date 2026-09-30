@@ -1843,12 +1843,15 @@ ck_deadline_restore(ck_deadline_state_t *save) {
   requires GFTIMER; without it, this rounds to whole seconds.
 
   The result is capped at CK_DEADLINE_MAXSECS seconds so it fits in
-  a long. On a 32-bit system that is about 24 days. Callers that wait
+  a long and is a valid select() timeout. With a 32-bit long that is
+  about 24 days; otherwise it is CK_SELECT_MAXSECS. Callers that wait
   for the capped interval must check again before treating the deadline
   as expired.
 */
 #define CK_LONG_MAX ((((long)1 << (sizeof(long) * 8 - 2)) - 1) * 2 + 1)
-#define CK_DEADLINE_MAXSECS (CK_LONG_MAX / 1000L - 1L)
+#define CK_DEADLINE_MAXSECS \
+  (CK_LONG_MAX / 1000L - 1L < CK_SELECT_MAXSECS ? \
+   CK_LONG_MAX / 1000L - 1L : CK_SELECT_MAXSECS)
 
 long
 ck_deadline_remaining_ms() {
