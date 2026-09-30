@@ -62,3 +62,11 @@ def test_send_preserves_date_after_2106(tmp_path, run_wermit,
         f"received mtime {time.ctime(received.stat().st_mtime)}, "
         f"expected {time.ctime(stamp)}"
     )
+
+
+def test_cvtdate_gmt_after_2106(run_wermit, monkeypatch):
+    r"""Verify \fcvtdate() converts a GMT date after 2106 to local time."""
+    _skip_unless_64_bit_time_t(run_wermit)
+    monkeypatch.setenv("TZ", "EST5")
+    result = run_wermit(r"echo D=[\fcvtdate(21500615 12:00:00 GMT)]")
+    assert "D=[21500615 07:00:00]" in result.stdout, result.stdout
