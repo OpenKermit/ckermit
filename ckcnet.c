@@ -1858,9 +1858,14 @@ ck_tcp_connect1(fd,rp) int fd; struct addrinfo * rp;
         /* A timeout of 0 disables the deadline, waiting indefinitely
            in select() for the connection to complete or fail. */
         if (tcp_connect_timeout > 0) {
+            time_t now = time(NULL);
             debug(F101,"ck_tcp_connect1 waiting, secs","",
                   tcp_connect_timeout);
-            deadline = time(NULL) + (time_t)tcp_connect_timeout;
+            /* Cap deadline to prevent time_t overflow. */
+            if ((time_t)tcp_connect_timeout > CK_TIME_T_MAX - now)
+              deadline = CK_TIME_T_MAX;
+            else
+              deadline = now + (time_t)tcp_connect_timeout;
         } else {
             debug(F100,"ck_tcp_connect1 waiting, no timeout","",0);
         }

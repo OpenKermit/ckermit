@@ -4693,8 +4693,6 @@ zdtstr(timearg) time_t timearg;
     int yy, ss;
 
     debug(F101,"zdtstr timearg","",timearg);
-    if (timearg < 0)
-      return("");
     time_stamp = localtime(&(timearg));
     if (!time_stamp) {
         debug(F100,"localtime returns null","",0);
@@ -4718,6 +4716,8 @@ zdtstr(timearg) time_t timearg;
     }
     yy += 1900;
     debug(F101,"zdatstr year","",yy);
+    if (yy < 0 || yy > 9999)            /* Must fit yyyymmdd */
+      return("");
 
     if (ts.tm_mon  < 0 || ts.tm_mon  > 11)
       return("");
@@ -4755,7 +4755,7 @@ zfcdat(name) char *name;
 #ifdef TIMESTAMP
     struct stat buffer;
     extern int diractive;
-    unsigned int mtime;
+    time_t mtime;
     int x;
     char * s;
 
@@ -5787,7 +5787,7 @@ shxpand(pat,namlst,len) char *pat, *namlst[]; int len;
     char *fgbuf = NULL;                 /* Buffer for forming ls command */
     char *p, *q;                        /* Workers */
 
-    int i, x, retcode, itsadir;
+    int i, x, retcode, itsadir, toolong = 0;
     char c;
 
     x = (int)strlen(pat) + (int)strlen(lscmd) + 3; /* Length of ls command */
@@ -5810,6 +5810,10 @@ shxpand(pat,namlst,len) char *pat, *namlst[]; int len;
         if (c == ' ' || c == '\n') {    /* Got newline or space? */
             *p = '\0';                  /* Yes, terminate string */
             p = scratch;                /* Point back to beginning */
+            if (toolong) {              /* Skip word exceeding buffer */
+                toolong = 0;
+                continue;
+            }
             if (zchki(p) == -1)         /* Does file exist? */
               continue;                 /* No, continue */
             itsadir = isdir(p);         /* Yes, is it a directory? */
@@ -5817,14 +5821,15 @@ shxpand(pat,namlst,len) char *pat, *namlst[]; int len;
               continue;                 /* so skip. */
             if (xfilonly && itsadir)    /* It's a dir but want only files */
               continue;                 /* so skip. */
-            x = (int)strlen(p);         /* Keep - get length of name */
-            q = malloc(x+1);            /* Allocate space for it */
+            q = NULL;
+            makestr(&q,scratch);        /* Copy name */
             if (!q) goto shxfin;        /* Fail if space can't be obtained */
-            strcpy(q,scratch);          /* (safe) Copy name to space */
             namlst[i++] = q;            /* Copy pointer to name into array */
             if (i >= len) goto shxfin;  /* Fail if too many */
-        } else {                        /* Regular character */
+        } else if (p < scratch + sizeof(scratch) - 1) {
             *p++ = c;                   /* Copy it into scratch area */
+        } else {
+            toolong = 1;                /* Word exceeds scratch buffer */
         }
     }
     retcode = i;                        /* Return number of matching files */

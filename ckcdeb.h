@@ -5363,6 +5363,15 @@ typedef unsigned int u_int;
 #endif  /* CK_64BIT */
 #endif  /* CK_OFF_T */
 
+/*
+  Largest value a signed time_t can hold, for any width. Computed
+  without shifting into the sign bit or overflowing intermediate values.
+*/
+#ifndef CK_TIME_T_MAX
+#define CK_TIME_T_MAX \
+  ((time_t)((((time_t)1 << (sizeof(time_t) * 8 - 2)) - 1) * 2 + 1))
+#endif /* CK_TIME_T_MAX */
+
 #ifndef TLOG
 #define tlog(a,b,c,d)
 #else

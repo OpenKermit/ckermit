@@ -1,6 +1,8 @@
 #include <check.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #define CK_ANSIC
 #include "ckcsym.h"
 #include "ckcdeb.h"
@@ -233,6 +235,17 @@ START_TEST(test_base64_validation)
 }
 END_TEST
 
+/* Verify CK_TIME_T_MAX is the largest time_t for each width. */
+START_TEST(test_ck_time_t_max)
+{
+    ck_assert(sizeof(time_t) == 4 || sizeof(time_t) == 8);
+    if (sizeof(time_t) == 8)
+      ck_assert(CK_TIME_T_MAX == (time_t)INT64_MAX);
+    else
+      ck_assert(CK_TIME_T_MAX == (time_t)INT32_MAX);
+}
+END_TEST
+
 START_TEST(test_ulongtohex_non_reentrant)
 {
     /* Document non-reentrant behavior: ulongtohex uses a shared static
@@ -317,6 +330,7 @@ Suite *lib_suite(void)
     tcase_add_test(tc_core, test_base64_validation);
     tcase_add_test(tc_core, test_ckfstoa_ckatofs_large_offsets);
     tcase_add_test(tc_core, test_ulongtohex_non_reentrant);
+    tcase_add_test(tc_core, test_ck_time_t_max);
 
     suite_add_tcase(s, tc_core);
     return s;

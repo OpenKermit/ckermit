@@ -1791,9 +1791,17 @@ ck_deadline_set(seconds) int seconds;
 #else
     (VOID) gettimeofday(&ck_deadline_tv, (struct timezone *)0);
 #endif /* GTODONEARG */
-    ck_deadline_tv.tv_sec += seconds;
+    /* Cap deadline to prevent time_t overflow. */
+    if ((time_t)seconds > CK_TIME_T_MAX - ck_deadline_tv.tv_sec)
+      ck_deadline_tv.tv_sec = CK_TIME_T_MAX;
+    else
+      ck_deadline_tv.tv_sec += seconds;
 #else /* GFTIMER */
-    ck_deadline_sec = time((time_t *)0) + (time_t)seconds;
+    ck_deadline_sec = time((time_t *)0);
+    if ((time_t)seconds > CK_TIME_T_MAX - ck_deadline_sec)
+      ck_deadline_sec = CK_TIME_T_MAX;
+    else
+      ck_deadline_sec += (time_t)seconds;
 #endif /* GFTIMER */
 }
 
@@ -1833,10 +1841,19 @@ ck_deadline_restore(ck_deadline_state_t *save) {
   ck_deadline_set() last recorded, clamped to 0 (never negative), or
   -1 if no deadline is active (infinite).  Millisecond resolution
   requires GFTIMER; without it, this rounds to whole seconds.
+
+  The result is capped at CK_DEADLINE_MAXSECS seconds so it fits in
+  a long. On a 32-bit system that is about 24 days. Callers that wait
+  for the capped interval must check again before treating the deadline
+  as expired.
 */
+#define CK_LONG_MAX ((((long)1 << (sizeof(long) * 8 - 2)) - 1) * 2 + 1)
+#define CK_DEADLINE_MAXSECS (CK_LONG_MAX / 1000L - 1L)
+
 long
 ck_deadline_remaining_ms() {
     long ms;
+    time_t secs;
 #ifdef GFTIMER
     struct timeval now;
 #else /* GFTIMER */
@@ -1852,11 +1869,17 @@ ck_deadline_remaining_ms() {
 #else
     (VOID) gettimeofday(&now, (struct timezone *)0);
 #endif /* GTODONEARG */
-    ms = (ck_deadline_tv.tv_sec - now.tv_sec) * 1000L +
+    secs = ck_deadline_tv.tv_sec - now.tv_sec;
+    if (secs > (time_t)CK_DEADLINE_MAXSECS)
+      return(CK_DEADLINE_MAXSECS * 1000L);
+    ms = (long)secs * 1000L +
       (ck_deadline_tv.tv_usec - now.tv_usec) / 1000L;
 #else /* GFTIMER */
     now = time((time_t *)0);
-    ms = (long)(ck_deadline_sec - now) * 1000L;
+    secs = ck_deadline_sec - now;
+    if (secs > (time_t)CK_DEADLINE_MAXSECS)
+      return(CK_DEADLINE_MAXSECS * 1000L);
+    ms = (long)secs * 1000L;
 #endif /* GFTIMER */
     return(ms > 0L ? ms : 0L);
 }
@@ -1915,6 +1938,8 @@ ck_deadline_select(fd,wantread) int fd, wantread;
               continue;
             return(-1);
         }
+        if (rc == 0 && !ck_deadline_expired())
+          continue;                     /* Capped wait ended; resume waiting */
         return(rc > 0 ? 1 : 0);
     }
 }

@@ -125,8 +125,11 @@ def test_show_features_off_t_is_64_bit(run_wermit):
 def test_show_features_time_t(run_wermit):
     """Verify time_t width matches platform rules.
 
-    Linux builds require an 8-byte time_t. FreeBSD requires time_t
-    to match the width of long.
+    Linux builds require an 8-byte time_t, except on 32-bit glibc.
+    32-bit glibc defaults to a 32-bit time_t without -D_TIME_BITS=64.
+    musl uses 64 bits on all targets.
+
+    FreeBSD requires time_t to match the width of long.
     """
     result = run_wermit("show version, show features")
     assert_ok(result)
@@ -140,9 +143,15 @@ def test_show_features_time_t(run_wermit):
 
     sizeofs = _parse_sizeofs(result.stdout)
 
-    if "Linux" in built_for:
+    glibc = re.search(r"\b__GLIBC__\b", result.stdout) is not None
+
+    if "Linux" in built_for and glibc and sizeofs["long"] == 4:
+        assert sizeofs["time_t"] in (4, 8), (
+            f"unexpected time_t width; got sizeofs: {sizeofs}"
+        )
+    elif "Linux" in built_for:
         assert sizeofs["time_t"] == 8, (
-            "time_t should be 64 bits on every Linux build; "
+            "time_t should be 64 bits on this Linux build; "
             f"got sizeofs: {sizeofs}"
         )
     elif "FreeBSD" in built_for:

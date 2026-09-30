@@ -3329,7 +3329,11 @@ tn_sb( opt, len, fn ) int opt; int * len; int (*fn)();
     debug(F100,"Entering tn_sb()","",0);
     *len = 0;                   /* Initialize Len to 0 */
     n = flag = 0;               /* Flag for when done reading SB */
-    while (n < TSBUFSIZ) {      /* Loop looking for IAC SE */
+/*
+  Reserve the last slot of sb[] for SE. A subnegotiation that fits
+  is read through its terminating IAC SE.
+*/
+    while (n < TSBUFSIZ - 1 || (flag == 1 && n < TSBUFSIZ)) {
         if ((y = (*fn)(0)) < 0) /* Read a byte */
           return(y);
         y &= 0xff;              /* Make sure it's just 8 bits. */
