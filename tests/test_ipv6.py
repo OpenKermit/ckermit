@@ -127,8 +127,11 @@ def test_set_host_bare_v6_colon_attached_port_still_needs_brackets(
     if not _build_has_address_family(run_wermit):
         pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
 
+    # ::1:23 is the address ::0.1.0.35.  A connect to it can hang
+    # until the connect timeout, so keep that short.
     content = _netopen_debug_lines(
-        run_wermit, tmp_path, "set host ::1:23, exit")
+        run_wermit, tmp_path,
+        "set tcp connect-timeout 2, set host ::1:23, exit")
     assert "netopen host[::1:23]" in content
     assert "netopen service requested[telnet]" in content
 

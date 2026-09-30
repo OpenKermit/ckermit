@@ -452,6 +452,10 @@ def run_wermit(wermit_path):
     """
     Synchronously runs a wermit command or script, returning a CompletedProcess.
     Can accept a list of arguments or a string command (executed via -C).
+
+    wermit runs in a new session with no controlling terminal.  Otherwise
+    SEND, GET, and similar commands with no connection open /dev/tty and
+    exchange packets with the terminal pytest was started from.
     """
     def _run(args, input_data=None, timeout=10, pre_timeout_callback=None):
         """Run wermit and return a CompletedProcess.
@@ -480,12 +484,14 @@ def run_wermit(wermit_path):
                 input=input_data,
                 capture_output=True,
                 text=True,
-                timeout=timeout
+                timeout=timeout,
+                start_new_session=True
             )
         else:
             proc = subprocess.Popen(
                 cmd, stdin=subprocess.PIPE if input_data else None,
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                start_new_session=True)
             snapshot_at = max(timeout - 2, 0)
             try:
                 stdout, stderr = proc.communicate(
