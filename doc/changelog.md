@@ -1,9 +1,11 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.0.514 (NOT YET RELEASED)
+# C-Kermit 11.0.514
+
+September 30, 2026
 
 - Fixed a bug in a test that could cause a spurious failure with certain-sized
-  tmpdirs.  Fixes #40.
+  tmpdirs.  Fixes #40.  Making a new release with the fix to unblock Fedora.
 - Fixed a bug in tests where an IPv6 port collision while testing was
   mishandled.
 
