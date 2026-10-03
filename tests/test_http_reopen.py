@@ -8,6 +8,7 @@ request once.
 import socket
 import struct
 import threading
+import time
 
 import pytest
 
@@ -19,6 +20,11 @@ def _serve(server_sock, result):
     try:
         server_sock.settimeout(15)
         conn, _ = server_sock.accept()
+        # The client connects without blocking and then reads SO_ERROR.
+        # A reset that arrives before that read fails HTTP OPEN.  The
+        # delay lets HTTP OPEN finish.  The reset still arrives before
+        # the GET.  The client sends the GET 2 seconds after HTTP OPEN.
+        time.sleep(0.5)
         conn.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER,
                         struct.pack("ii", 1, 0))
         conn.close()
