@@ -4153,7 +4153,7 @@ xl2sk(CHAR c)
 xl2sk(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xll2sk */
-    return(islower(c) ? toupper(c) : c);
+    return((CHAR)(islower(c) ? toupper(c) : c));
 }
 
 CHAR                                    /* NeXT to Latin-2 */
@@ -4229,7 +4229,7 @@ xskl2(CHAR c)
 xskl2(c) CHAR c;
 #endif /* CK_ANSIC */
 { /* xlskl2 */
-    return(islower(c) ? toupper(c) : c);
+    return((CHAR)(islower(c) ? toupper(c) : c));
 }
 
 CHAR                                    /* Latin-2 to German */
@@ -5676,8 +5676,8 @@ eu_to_sj(eu) USHORT eu;
     if (c1 > 0x9f)
       c1 += 0x40;
 
-    scode.x_char[byteorder] = c1;
-    scode.x_char[1-byteorder] = c2;
+    scode.x_char[byteorder] = (CHAR)c1;
+    scode.x_char[1-byteorder] = (CHAR)c2;
     return(scode.x_short);
 }
 
@@ -5710,15 +5710,15 @@ sj_to_eu(sj) USHORT sj;
         } else {
             c1 -= 0x1f;
         }
-        jcode.x_char[byteorder] = (c0 | 0x80); /* Two bytes out */
-        jcode.x_char[1-byteorder] = (c1 | 0x80);
+        jcode.x_char[byteorder] = (CHAR)(c0 | 0x80); /* Two bytes out */
+        jcode.x_char[1-byteorder] = (CHAR)(c1 | 0x80);
 
     } else if (c0 == 0) {               /* Single byte */
         if (c1 >= 0xa1 && c1 <= 0xdf) { /* Katakana */
             jcode.x_char[byteorder] = 0x8e; /* SS2 */
-            jcode.x_char[1-byteorder] = c1; /* Kana code */
+            jcode.x_char[1-byteorder] = (CHAR)c1; /* Kana code */
         } else {                        /* ASCII or C0 */
-            jcode.x_short = c1;
+            jcode.x_short = (USHORT)c1;
         }
     } else {                            /* Something bad */
         debug(F001,"sj_to_eu bad sj","",sj);

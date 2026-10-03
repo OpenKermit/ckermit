@@ -656,7 +656,7 @@ get_crypt_table( struct keytab ** pTable, int * pN )
             makestr(&tmpstring,encryptions[i].name);
             newstr = tmpstring;
             tmpstring = NULL;
-            for (p = newstr; *p; p++) if (isupper(*p)) *p = tolower(*p);
+            for (p = newstr; *p; p++) if (isupper(*p)) *p = (char)tolower(*p);
 #endif /* OS2 */
 
             for (j = 0; j < (*pN); j++) {
@@ -740,7 +740,7 @@ encrypt_ks_stream(i,o)
     * this is really quite bogus, since it does an in-place encryption...
     */
     if (encrypt_output) {
-        encrypt_output(i->ptr, i->length);
+        encrypt_output(i->ptr, (int)i->length);
         return 1;
     }
     return 0;
@@ -763,7 +763,7 @@ decrypt_ks_stream(i,o)
     if (decrypt_input) {
         for (len = 0 ; len < i->length ; len++)
             ((unsigned char *)i->ptr)[len]
-                = decrypt_input(((unsigned char *)i->ptr)[len]);
+                = (unsigned char)decrypt_input(((unsigned char *)i->ptr)[len]);
         return 1;
     }
     return 0;
@@ -781,7 +781,7 @@ decrypt_ks_hack(buf,cnt) unsigned char *buf; int cnt;
    * this is really quite bogus, since it does an in-place decryption...
    */
     for (len = 0 ; len < cnt ; len++)
-        buf[len] = decrypt_input(buf[len]);
+        buf[len] = (unsigned char)decrypt_input(buf[len]);
 
 #ifdef DEBUG
     ckhexdump("decrypt ks hack", buf, cnt);
@@ -935,7 +935,7 @@ encrypt_init(iks, type) kstream iks; int type;
             i_support_encrypt |= typemask(ep->type);
             i_support_decrypt |= typemask(ep->type);
             if ((i_wont_support_decrypt & typemask(ep->type)) == 0)
-                if ((str_send[str_suplen++] = ep->type) == IAC)
+                if ((str_send[str_suplen++] = (unsigned char)ep->type) == IAC)
                     str_send[str_suplen++] = IAC;
         }
         if (ep->init)
@@ -977,7 +977,7 @@ encrypt_send_support()
             }
 #endif
             if ((i_wont_support_decrypt & typemask(ep->type)) == 0)
-                if ((str_send[str_suplen++] = ep->type) == IAC)
+                if ((str_send[str_suplen++] = (unsigned char)ep->type) == IAC)
                     str_send[str_suplen++] = IAC;
         }
         ++ep;
@@ -1490,7 +1490,8 @@ encrypt_send_keyid(dir, keyid, keylen, saveit)
         sprintf(tn_msg,"TELNET SENT SB %s %s ",
                  TELOPT(TELOPT_ENCRYPTION),
                  (dir == DIR_ENCRYPT) ? "ENC-KEYID" : "DEC-KEYID"); /* safe */
-        tn_hex((CHAR *)tn_msg,TN_MSG_LEN,&str_keyid[4],strp-str_keyid-2-4);
+        tn_hex((CHAR *)tn_msg,TN_MSG_LEN,&str_keyid[4],
+               (int)(strp-str_keyid-2-4));
         ckstrncat(tn_msg,"IAC SE",TN_MSG_LEN);
         debug(F100,tn_msg,"",0);
         if (tn_deb || debses) tn_debug(tn_msg);
@@ -1498,7 +1499,7 @@ encrypt_send_keyid(dir, keyid, keylen, saveit)
 #ifdef OS2
     RequestTelnetMutex( SEM_INDEFINITE_WAIT );
 #endif
-    ttol(str_keyid, strp - str_keyid);
+    ttol(str_keyid, (int)(strp - str_keyid));
 #ifdef OS2
     ReleaseTelnetMutex();
 #endif
@@ -1591,7 +1592,8 @@ encrypt_start_output(type) int type;
             int li1;
             sprintf(tn_msg,"TELNET SENT SB %s START ",
                      TELOPT(TELOPT_ENCRYPTION));                /* safe */
-            tn_hex((CHAR *)tn_msg,TN_MSG_LEN,&str_start[4],p-str_start-2-4);
+            tn_hex((CHAR *)tn_msg,TN_MSG_LEN,&str_start[4],
+                   (int)(p-str_start-2-4));
             ckstrncat(tn_msg,"IAC SE",TN_MSG_LEN);
             debug(F100,tn_msg,"",0);
             if (tn_deb || debses) tn_debug(tn_msg);
@@ -1599,7 +1601,7 @@ encrypt_start_output(type) int type;
 #ifdef OS2
         RequestTelnetMutex( SEM_INDEFINITE_WAIT );
 #endif
-        ttol(str_start, p - str_start);
+        ttol(str_start, (int)(p - str_start));
 #ifdef OS2
         ReleaseTelnetMutex();
 #endif
@@ -1714,7 +1716,8 @@ encrypt_send_request_start()
         int li2;
         sprintf(tn_msg,"TELNET SENT SB %s REQUEST-START ",
                  TELOPT(TELOPT_ENCRYPTION));                    /* safe */
-        tn_hex((CHAR *)tn_msg,TN_MSG_LEN,&str_start[4],p-str_start-2-4);
+        tn_hex((CHAR *)tn_msg,TN_MSG_LEN,&str_start[4],
+               (int)(p-str_start-2-4));
         ckstrncat(tn_msg,"IAC SE",TN_MSG_LEN);
         debug(F100,tn_msg,"",0);
         if (tn_deb || debses) tn_debug(tn_msg);
@@ -1722,7 +1725,7 @@ encrypt_send_request_start()
 #ifdef OS2
     RequestTelnetMutex( SEM_INDEFINITE_WAIT );
 #endif
-    ttol(str_start, p - str_start);
+    ttol(str_start, (int)(p - str_start));
 #ifdef OS2
     ReleaseTelnetMutex();
 #endif
@@ -4017,7 +4020,7 @@ cast_fb64_start(struct cast_fb *fbp, int dir, int server)
         *p++ = IAC;
         *p++ = SE;
 
-        ttol(fbp->fb_feed, p - fbp->fb_feed);
+        ttol(fbp->fb_feed, (int)(p - fbp->fb_feed));
         break;
     default:
         return(cFAILED);
@@ -4097,7 +4100,7 @@ cast_fb64_is(unsigned char *data,int cnt, struct cast_fb *fbp)
         *p++ = IAC;
         *p++ = SE;
 
-        ttol(fbp->fb_feed, p - fbp->fb_feed);
+        ttol(fbp->fb_feed, (int)(p - fbp->fb_feed));
         state = IN_PROGRESS;
         break;
 
@@ -4117,7 +4120,7 @@ cast_fb64_is(unsigned char *data,int cnt, struct cast_fb *fbp)
         *p++ = IAC;
         *p++ = SE;
 
-        ttol(fbp->fb_feed, p - fbp->fb_feed);
+        ttol(fbp->fb_feed, (int)(p - fbp->fb_feed));
         break;
     }
     return(fbp->state[DIR_DECRYPT-1] = state);
@@ -4507,7 +4510,7 @@ _cast_cfb64_decrypt(int data, struct cast_stinfo *stp)
     }
 
     /* On decryption we store (data) which is cypher. */
-    stp->str_output[index] = data;
+    stp->str_output[index] = (unsigned char)data;
     return(data ^ stp->str_feed[index]);
 }
 
@@ -4837,11 +4840,11 @@ ck_cast_ecb_encrypt(uint8p out, uint8p in, CastKeySched *sched,
     ck_cast_ecb_crypt(t, sched, mode);
 
 #ifdef LITTLE_ENDIAN
-    out[0] = (t[0] >> 24) & 0xff;
+    out[0] = (uint8)((t[0] >> 24) & 0xff);
     out[1] = (t[0] >> 16) & 0xff;
     out[2] = (t[0] >> 8) & 0xff;
     out[3] = t[0] & 0xff;
-    out[4] = (t[1] >> 24) & 0xff;
+    out[4] = (uint8)((t[1] >> 24) & 0xff);
     out[5] = (t[1] >> 16) & 0xff;
     out[6] = (t[1] >> 8) & 0xff;
     out[7] = t[1] & 0xff;

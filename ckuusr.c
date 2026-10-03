@@ -4335,7 +4335,7 @@ doxsend(cx) int cx;
                 }
                 goto xsendx;
             }
-            y = strlen(ws);
+            y = (int)strlen(ws);
             if (y > 256) {
                 printf("?Pattern too long - 256 max\n");
                 x = -9;
@@ -4482,7 +4482,7 @@ doxsend(cx) int cx;
                   goto xsendx;
             }
             if (*ws) ws = brstrip(ws);
-            y = strlen(ws);
+            y = (int)strlen(ws);
             for (x = 0; x < y; x++) {   /* Make sure they included "\v(...)" */
                 if (ws[x] != '\\') continue;
                 if (ws[x+1] == 'v') break;
@@ -4802,7 +4802,7 @@ doxsend(cx) int cx;
             goto xsendx;
         }
 #endif /* CK_LOGIN */
-        len = strlen(p);
+        len = (int)strlen(p);
         if (!isdir(p)) {                /* Check directory */
 #ifdef CK_MKDIR
             char * xs9 = NULL;
@@ -5004,7 +5004,7 @@ like \\v(filename)";
             if (!p) p = "";
             if (*p) {                   /* If some text was given... */
                 p = brstrip(p);         /* Replace /AS-NAME: value if any */
-                if ((y9 = strlen(p)) > 0) {
+                if ((y9 = (int)strlen(p)) > 0) {
                     if (pv[SND_MAI].ival > 0) {
                         makestr(&pv[SND_MAI].sval, p);
                     } else {
@@ -5020,7 +5020,7 @@ like \\v(filename)";
 
     if (pv[SND_ASN].ival > 0 && pv[SND_ASN].sval && !*cmarg2) {
         int x9;
-        x9 = strlen(line);
+        x9 = (int)strlen(line);
         ckstrncpy(line+x9+2,pv[SND_ASN].sval,LINBUFSIZ-x9-1);
         cmarg2 = line+x9+2;
         debug(F110,"doxsend cmarg2",cmarg2,0);
@@ -6322,7 +6322,7 @@ rszarray() {
         printf("?Array segments not allowed for this operation\n");
         return(-9);
     }
-    c = arrayitoa(x);                   /* Get array letter */
+    c = (char)arrayitoa(x);                   /* Get array letter */
     if (c == '@') {                     /* Argument vector array off limits */
         printf("?Sorry, \\&@[] is read-only\n");
         return(-9);
@@ -6375,7 +6375,7 @@ copyarray() {
         printf("?Array not declared - \"%s\"\n", a1);
         return(-9);
     }
-    c1 = arrayitoa(x1);
+    c1 = (char)arrayitoa(x1);
 
     if ((wy = cmfld("Name of destination array","",&ws,NULL)) < 0)
       return(wy);
@@ -6385,7 +6385,7 @@ copyarray() {
         printf("?Bad array reference - \"%s\"\n", a2);
         return(-9);
     }
-    c2 = arrayitoa(x2);
+    c2 = (char)arrayitoa(x2);
 
     if ((wx = cmcfm()) < 0)
       return(wx);
@@ -6436,7 +6436,7 @@ unarray() {
         printf("?Partial arrays can not be destroyed\n");
         return(-9);
     }
-    c = arrayitoa(x);                   /* Get array letter */
+    c = (char)arrayitoa(x);                   /* Get array letter */
     if (a_ptr[x]) {                     /* If array is declared */
         if (c == '@') {                 /* Argument vector array off limits */
             printf("?Sorry, \\&@[] is read-only\n");
@@ -6487,7 +6487,7 @@ clrarray(cx) int cx;
         printf("?Bad array reference - \"%s\"\n", aws);
         return(-9);
     }
-    c = arrayitoa(ax);                   /* Get array letter */
+    c = (char)arrayitoa(ax);                   /* Get array letter */
     if (!a_ptr[ax]) {                    /* If array is declared */
         printf("?Array %s is not declared\n", aws);
         return(-9);
@@ -6535,7 +6535,7 @@ linkarray() {
         return(-9);
     }
     if (a_ptr[x]) {                     /* Must not already exist */
-        c = arrayitoa(x);
+        c = (char)arrayitoa(x);
         printf("?Array already exists: \\&%c[]\n", c);
         return(-9);
     }
@@ -6562,7 +6562,7 @@ linkarray() {
         a_ptr[x] = aa_ptr[i][ay];        /* Link to saved copy */
         a_dim[x] = aa_dim[i][ay];
     } else {                            /* Otherwise... */
-        c = arrayitoa(ay);               /* Check if it's declared */
+        c = (char)arrayitoa(ay);               /* Check if it's declared */
         if (!a_ptr[ay]) {
             printf("?Array is not declared: \\&%c[]\n", c);
             return(-9);
@@ -6984,7 +6984,7 @@ dotelopt() {
             CHAR temp[3];
             if (network && IS_TELNET()) { /* TELNET */
                 temp[0] = (CHAR) IAC;
-                temp[1] = wx;
+                temp[1] = (CHAR)wx;
                 temp[2] = NUL;
                 success = (ttol((CHAR *)temp,2) > -1 ? 1 : 0);
                 if (tn_deb || debses || deblog) {
@@ -7143,7 +7143,7 @@ doredo() {                      /* Find a previous cmd and redo it */
                    "*",&ws,xxstring)) < 0)
       return(x);
     ckstrncpy(line,ws,LINBUFSIZ);
-    x = strlen(ws);
+    x = (int)strlen(ws);
     ws = line;
     if (*ws == '{') {                    /* Braces disable adding * to end */
         if (ws[x-1] == '}') {
@@ -7357,7 +7357,7 @@ dohttp() {                              /* HTTP */
         n = cmresult.nresult;
         if (cmresult.fdbaddr == &kw)    /* Command - exit this loop */
           break;
-        c = cmgbrk();                   /* Switch... */
+        c = (char)cmgbrk();                   /* Switch... */
         getval = (c == ':' || c == '=');
         wx = -9;
         if (getval && !(cmgkwflgs() & CM_ARG)) {
@@ -7445,7 +7445,7 @@ dohttp() {                              /* HTTP */
               }
               array = *ws++;
               if (isupper(array))
-                array = tolower(array);
+                array = (char)tolower(array);
               if (*ws && (*ws != '[' || *(ws+1) != ']')) {
                   printf("?Bad array name - \"%s\"\n",s2);
                   http_array = NUL;
@@ -7492,7 +7492,7 @@ dohttp() {                              /* HTTP */
             n = cmresult.nresult;
             if (cmresult.fcode != _CMKEY)
               break;
-            c = cmgbrk();               /* Switch... */
+            c = (char)cmgbrk();               /* Switch... */
             getval = (c == ':' || c == '=');
             if (getval && !(cmgkwflgs() & CM_ARG)) {
                 printf("?This switch does not take an argument\n");
@@ -8509,7 +8509,7 @@ docmd(cx) int cx;
             k = ckstrncpy(line+k,ws,LINBUFSIZ-k);
             debug(F111,"XXMACRO B",line,k);
         }
-        wx = strlen(line);
+        wx = (int)strlen(line);
         if ((line[0] == '{' && line[wx-1] != '}') || line[0] == '}')
           return(-2);
         if (line[0] != '{' && line[wx-1] != '}') {
@@ -9691,7 +9691,7 @@ docmd(cx) int cx;
                       zz += 86400L;     /* So make it tomorrow */
                     zz -= tnow;         /* Seconds from now. */
                     if (zz > -1L) {
-                        wx = zz;
+                        wx = (int)zz;
                         if (zz != (long) wx) {
                             printf(
 "Sorry, arithmetic overflow - hh:mm:ss not usable on this platform.\n"
@@ -10646,7 +10646,7 @@ docmd(cx) int cx;
 #ifndef NOTAKEARGS
         {
             char * p;
-            wx = strlen(line);
+            wx = (int)strlen(line);
             debug(F111,"TAKE args",line,wx);
             p = line + wx + 1;
             if ((wy = cmtxt("Optional arguments","",&ws,xxstring)) < 0)
@@ -10660,7 +10660,7 @@ docmd(cx) int cx;
                 ws = line;
 #endif /* ZFNQFP */
                 debug(F110,"TAKE filename",ws,0);
-                wx = strlen(ws);
+                wx = (int)strlen(ws);
                 debug(F101,"TAKE new len",ws,wx);
 
 #ifdef COMMENT
@@ -12598,7 +12598,7 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n"
               return(wx);
             if (cmresult.fcode != _CMKEY)
               break;
-            c = cmgbrk();               /* Have switch, get break character */
+            c = (char)cmgbrk();         /* Have switch, get break character */
             if ((getval = (c == ':' || c == '=')) && !(cmgkwflgs() & CM_ARG)) {
                 printf("?This switch does not take an argument\n");
                 return(-9);
@@ -12799,7 +12799,7 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n"
                 return(wx);
             } else if (cmresult.fcode == _CMKEY) {
                 char c; int getval;
-                c = cmgbrk();
+                c = (char)cmgbrk();
                 getval = (c == ':' || c == '=');
                 if (getval && !(cmgkwflgs() & CM_ARG)) {
                     printf("?This switch does not take an argument\n");
@@ -13383,7 +13383,7 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n"
         xargc = i;
         xargv = list;
         xargv++;
-        sstate = cmdlin();
+        sstate = (CHAR)cmdlin();
         if (sstate) {
             extern int justone;
             debug(F000,"KERMIT sstate","",sstate);
@@ -13821,7 +13821,7 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n"
                 ckstrncpy(line,cmresult.sresult,LINBUFSIZ);
                 break;
               case _CMKEY:              /* Switch */
-                c = cmgbrk();
+                c = (char)cmgbrk();
                 if ((c == ':' || c == '=') && !(cmgkwflgs() & CM_ARG)) {
                     printf("?This switch does not take an argument\n");
                     return(-9);

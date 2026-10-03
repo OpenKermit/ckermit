@@ -4445,7 +4445,7 @@ dologdial(s) char *s;
     extern char cxlogbuf[], uidbuf[], myhost[];
 
     if (!s) s = "";
-    if ((x = strlen(s)) > 0) {          /* Replace spaces by underscores */
+    if ((x = (int)strlen(s)) > 0) {     /* Replace spaces by underscores */
         r = (char *)malloc(x+1);
         if (r) {
             int i;
@@ -4464,26 +4464,22 @@ dologdial(s) char *s;
         debug(F100,"dologdial uidbuf empty","",0);
         ckstrncpy(uidbuf,(char *)whoami(),UIDBUFLEN);
     }
-    m = strlen(uidbuf)+strlen(myhost)+strlen(ttname)+strlen(s)+strlen(buf2)+32;
+    if (diallcc && diallac) {
+        buf2[0] = '+';
+        ckmakmsg(&buf2[1],15,diallcc,"(",diallac,")");
+    } else {
+        ckstrncpy(buf2,"Unknown",16);
+    }
+    m = (int)(strlen(uidbuf) + strlen(myhost) + strlen(ttname) +
+              strlen(s) + strlen(buf2)) + 32;
     if (n+m < CXLOGBUFL-1) {
         p = cxlogbuf+n;
-        if (diallcc && diallac) {
-            buf2[0] = '+';
-            ckmakmsg(&buf2[1],15,diallcc,"(",diallac,")");
-        } else {
-            ckstrncpy(buf2,"Unknown",16);
-        }
-        sprintf(p," %s %s T=DIAL H=%s D=%s N=%s O=%s ", /* safe (prechecked) */
-                uidbuf,
-                ckgetpid(),
-                myhost,
-                ttname,
-                s,
-                buf2
-                );
+        ckmakxmsg(p,CXLOGBUFL-n," ",uidbuf," ",ckgetpid()," T=DIAL H=",
+                  myhost," D=",ttname," N=",s," O=",buf2);
+        ckstrncat(p," ",CXLOGBUFL-n);
         debug(F110,"dologdial cxlogbuf",cxlogbuf,0);
     } else
-      sprintf(p,"LOGDIAL BUFFER OVERFLOW");
+      ckstrncpy(cxlogbuf,"LOGDIAL BUFFER OVERFLOW",CXLOGBUFL);
     if (r) free(r);
 }
 #endif /* CKLOGDIAL */
@@ -4728,7 +4724,7 @@ spdchg(s) long s;
     if (!mdmspd)                        /* If modem interface speed locked, */
       return;                           /*  don't do this. */
     if (speed != s) {                   /* Speeds differ? */
-        s2 = s / 10L;                   /* Convert to cps expressed as int */
+        s2 = (int)(s / 10L);            /* Convert to cps expressed as int */
         if (ttsspd(s2) < 0) {           /* Change speed. */
             printf(" WARNING - speed change to %ld failed.\r\n",s);
         } else {
@@ -5130,7 +5126,7 @@ _dodial(threadinfo) VOID * threadinfo;
             char xbuf[200];
             ac = (dialmth == XYDM_T) ? 'T' : 'P';
             if (islower(s[0]))
-              ac = tolower(ac);
+              ac = (char)tolower(ac);
             if ((int)strlen(telnbr) < 199) {
                 sprintf(xbuf,"%c%s",ac,telnbr);
                 makestr(&xnum,xbuf);
@@ -5981,8 +5977,8 @@ _dodial(threadinfo) VOID * threadinfo;
                             int i;
                             for (i = 0; i < 5; i++) {
                                 debug(F100,"TN Com Port DCD wait...","",0);
-                                if ((n = ttgmdm()) >= 0) {
-                                    if ((n & BM_DCD))
+                                if ((dn1 = ttgmdm()) >= 0) {
+                                    if ((dn1 & BM_DCD))
                                         break;
                                     msleep(500);
                                     tnc_wait(
@@ -5992,8 +5988,8 @@ _dodial(threadinfo) VOID * threadinfo;
                         } else
 #endif /* TN_COMPORT */
                           sleep(1);     /* Wait a second */
-                        n = ttgmdm();   /* Try to read modem signals */
-                        if ((n > -1) && ((n & BM_DCD) == 0))
+                        dn1 = ttgmdm(); /* Try to read modem signals */
+                        if ((dn1 > -1) && ((dn1 & BM_DCD) == 0))
                           printf("WARNING - no carrier\n");
                     }
                 }

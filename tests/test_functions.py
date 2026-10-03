@@ -81,3 +81,44 @@ def test_femail_whitespace_only_arg_no_oob_read(run_wermit):
             f"\\femail({arg!r}) did not evaluate to empty: "
             f"{result.stdout!r}"
         )
+
+
+def test_radix_conversion_overflow_returns_minus_one(run_wermit):
+    """Test \\fradix(), \\fhex2n() and \\foct2n() up to and past 2^63-1.
+
+    The largest convertible value is 2^63-1. Anything larger returns
+    -1, including values that are a multiple of 2^64.
+    """
+    result = run_wermit(
+        "echo A=[\\fradix(7FFFFFFFFFFFFFFF,16,10)], "
+        "echo B=[\\fradix(8000000000000000,16,10)], "
+        "echo C=[\\fradix(FFFFFFFFFFFFFFFF,16,10)], "
+        "echo D=[\\fhex2n(10000000000000000)], "
+        "echo E=[\\foct2n(777777777777777777777)], "
+        "echo F=[\\foct2n(1000000000000000000000)], "
+        "echo G=[\\fradix(-777,8,16)]"
+    )
+    assert_ok(result)
+    assert "A=[9223372036854775807]" in result.stdout, result.stdout
+    assert "B=[-1]" in result.stdout, result.stdout
+    assert "C=[-1]" in result.stdout, result.stdout
+    assert "D=[-1]" in result.stdout, result.stdout
+    assert "E=[9223372036854775807]" in result.stdout, result.stdout
+    assert "F=[-1]" in result.stdout, result.stdout
+    assert "G=[-1FF]" in result.stdout, result.stdout
+
+
+def test_wait_file_event_status(run_wermit, tmp_path):
+    """WAIT n FILE succeeds when the event happens and fails on timeout."""
+    present = tmp_path / "present.txt"
+    present.write_text("x\n")
+    absent = tmp_path / "absent.txt"
+    result = run_wermit(
+        f"wait 1 file deletion {present}, echo A=[\\v(status)], "
+        f"wait 1 file creation {absent}, echo B=[\\v(status)], "
+        f"wait 1 file creation {present}, echo C=[\\v(status)]",
+        timeout=20)
+    assert_ok(result)
+    assert "A=[1]" in result.stdout, result.stdout
+    assert "B=[1]" in result.stdout, result.stdout
+    assert "C=[0]" in result.stdout, result.stdout

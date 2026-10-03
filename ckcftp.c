@@ -828,8 +828,11 @@ long ftp_timeout = 0;
 
 #ifdef GFTIMER
 extern CKFLOAT fptsecs, fpfsecs, fpxfsecs;
+/* Characters per second for n characters in sec seconds */
+#define XFERCPS(n,sec) ((long)((CKFLOAT)(n) / (sec)))
 #else
 extern long xfsecs;
+#define XFERCPS(n,sec) ((long)((n) / (sec)))
 #endif /* GFTIMER */
 
 extern char filnam[], * filefile, myhost[];
@@ -2039,7 +2042,7 @@ strputc(char c)
 strputc(c) char c;
 #endif /* CK_ANSIC */
 {
-    rfnlen = rfnptr - rfnbuf;
+    rfnlen = (int)(rfnptr - rfnbuf);
     if (rfnlen >= (RFNBUFSIZ - 1))
       return(-1);
     *rfnptr++ = c;
@@ -2250,7 +2253,8 @@ doftparg(c) char c;
           case 'g':                     /* Get */
           case 'p':                     /* Put */
           case 's': {                   /* Send (= Put) */
-              int havefiles, rc;
+              int havefiles;
+              CK_OFF_T rc;
               if (ftp_action) {
                   fatal("Only one FTP action at a time please");
               }
@@ -2286,9 +2290,9 @@ doftparg(c) char c;
               xargc++, xargv--;         /* Adjust argv/argc */
               if (!havefiles) {
                   if (c == 'g') {
-                      fatal("No files to put");
-                  } else {
                       fatal("No files to get");
+                  } else {
+                      fatal("No files to put");
                   }
               }
               ftp_action = c;
@@ -2991,7 +2995,7 @@ openftp(s,opn_tls) char * s; int opn_tls;
             else
               makestr(&service,opn_tls?"ftps":"ftp");
         } else if (cmresult.fcode == _CMKEY) { /* Have a switch */
-            c = cmgbrk();               /* get break character */
+            c = (char)cmgbrk();               /* get break character */
             getval = (c == ':' || c == '=');
             rc = -9;
             if (getval && !(cmresult.kflags & CM_ARG)) {
@@ -3110,7 +3114,7 @@ openftp(s,opn_tls) char * s; int opn_tls;
             int found = 0;
             for (i = 0; i < nhcount; i++) {
                 if (nh_p2[i])           /* If network type specified */
-                  if (ckstrcmp(nh_p2[i],"tcp/ip",strlen(nh_p2[i]),0))
+                  if (ckstrcmp(nh_p2[i],"tcp/ip",(int)strlen(nh_p2[i]),0))
                     continue;
                 found++;
                 makestr(&hostname,nh_p[i]);
@@ -3219,7 +3223,7 @@ doftpusr() {                            /* Log in as USER */
       return(x);
     CHECKCONN();
     if (*s) {
-        x = strlen(tmpbuf);
+        x = (int)strlen(tmpbuf);
         if (x > 0) {
             acct = &tmpbuf[x+2];
             ckstrncpy(acct,brstrip(s),TMPBUFSIZ - x - 2);
@@ -4590,7 +4594,7 @@ putfile(cx,
     if (prm) {                          /* Change permissions? */
         s = zgperm(lfile);              /* Get perms of local file */
         if (!s) s = "";
-        x = strlen(s);
+        x = (int)strlen(s);
         if (x > 3) s += (x - 3);
         if (rdigits(s)) {
             ckmakmsg(ftpcmdbuf,FTP_BUFSIZ,s," ",asname,NULL);
@@ -4780,18 +4784,18 @@ iscanceled() {
     extern int ck_repaint();
 #endif /* CK_CURSES */
     int x, rc = 0;
-    char c = 0;
+    int c = 0;
     if (cancelfile)
       return(1);
     x = conchk();                       /* Any chars waiting at console? */
     if (x-- > 0) {                      /* Yes...  */
         c = coninc(5);                  /* Get one */
         switch (c) {
-          case 032:                     /* Ctrl-X or X */
+          case 032:                     /* Ctrl-Z or Z */
           case 'z':
           case 'Z': cancelgroup++;
             /* Fall through */
-          case 030:                     /* Ctrl-Z or Z */
+          case 030:                     /* Ctrl-X or X */
           case 'x':
           case 'X': cancelfile++; rc++; break;
 #ifdef CK_CURSES
@@ -4893,7 +4897,7 @@ zzsend(fd,c) int fd; CHAR c;
 #endif  /* FTP_TIMEOUT */
 
     rc = (!ftpissecure()) ?
-      send(fd, (SENDARG2TYPE)ucbuf, nout, 0) :
+      (int)send(fd, (SENDARG2TYPE)ucbuf, nout, 0) :
         secure_putbuf(fd, ucbuf, nout);
     ucbuf[nout] = NUL;
     nout = 0;
@@ -5029,7 +5033,7 @@ cmdlinput(stay) int stay;
     sec = (t1 - t0) / 1000;
     if (!sec) sec = 1;
 #endif /* GFTIMER */
-    tfcps = (long) (tfc / sec);
+    tfcps = XFERCPS(tfc,sec);
     tsecs = (int)sec;
     lastxfer = W_FTP|W_SEND;
     xferstat = success;
@@ -5178,7 +5182,7 @@ doftpput(cx,who) int cx, who;
           goto xputx;                   /* or reparse needed */
         if (cmresult.fcode != _CMKEY)   /* Break out of loop if not a switch */
           break;
-        c = cmgbrk();                   /* Get break character */
+        c = (char)cmgbrk();                   /* Get break character */
         getval = (c == ':' || c == '='); /* to see how they ended the switch */
         if (getval && !(cmresult.kflags & CM_ARG)) {
             printf("?This switch does not take arguments\n");
@@ -5364,7 +5368,7 @@ doftpput(cx,who) int cx, who;
                   goto xputx;
             }
             if (*s) s = brstrip(s);
-            wy = strlen(s);
+            wy = (int)strlen(s);
             /* Make sure they included "\v(...)" */
             for (wx = 0; wx < wy; wx++) {
                 if (s[wx] != '\\') continue;
@@ -5624,7 +5628,7 @@ doftpput(cx,who) int cx, who;
     if (pv[SND_MOV].ival > 0) {
         int len;
         char * p9 = pv[SND_MOV].sval;
-        len = strlen(p9);
+        len = (int)strlen(p9);
         if (!isdir(p9)) {                /* Check directory */
 #ifdef CK_MKDIR
             char * s9 = NULL;
@@ -6224,7 +6228,7 @@ like \\v(filename)" :
         sec = (t1 - t0) / 1000;
         if (!sec) sec = 1;
 #endif /* GFTIMER */
-        tfcps = (long) (tfc / sec);
+        tfcps = XFERCPS(tfc,sec);
         tsecs = (int)sec;
         lastxfer = W_FTP|W_SEND;
         xferstat = success;
@@ -6479,12 +6483,14 @@ cmdlinget(stay) int stay;
             if ((s3 = ckstrrchr(cmlist[mgetx],'/'))) {
                 int len, left = 4096;
                 char * tmp = xtmpbuf;
-                len = s3 - cmlist[mgetx] + 1;
-                ckstrncpy(tmp,cmlist[mgetx],left);
-                tmp += len;
-                left -= len;
-                ckstrncpy(tmp,s,left);
-                s = xtmpbuf;
+                len = (int)(s3 - cmlist[mgetx]) + 1;
+                if (len + (int)strlen(s) < left) { /* Whole name fits */
+                    ckstrncpy(tmp,cmlist[mgetx],left);
+                    tmp += len;
+                    left -= len;
+                    ckstrncpy(tmp,s,left);
+                    s = xtmpbuf;
+                }
                 debug(F111,"ftp cmdlinget remote_files X",s,0);
             }
         }
@@ -6614,7 +6620,7 @@ cmdlinget(stay) int stay;
     if (!sec) sec = 1;
 #endif /* GFTIMER */
 
-    tfcps = (long) (tfc / sec);
+    tfcps = XFERCPS(tfc,sec);
     tsecs = (int)sec;
     lastxfer = W_FTP|W_RECV;
     xferstat = success;
@@ -6806,7 +6812,7 @@ doftpget(cx,who) int cx, who;
           goto xgetx;                   /* or reparse needed */
         if (cmresult.fcode != _CMKEY)   /* Break out of loop if not a switch */
           break;
-        c = cmgbrk();                   /* Get break character */
+        c = (char)cmgbrk();                   /* Get break character */
         getval = (c == ':' || c == '='); /* to see how they ended the switch */
         if (getval && !(cmresult.kflags & CM_ARG)) {
             printf("?This switch does not take arguments\n");
@@ -6926,7 +6932,7 @@ doftpget(cx,who) int cx, who;
             }
             s = brstrip(s);
             if (pv[SND_MAI].ival < 1) {
-                wy = strlen(s);
+                wy = (int)strlen(s);
                 /* Make sure they included "\v(...)" */
                 for (wx = 0; wx < wy; wx++) {
                     if (s[wx] != '\\') continue;
@@ -7159,7 +7165,7 @@ doftpget(cx,who) int cx, who;
     if (pv[SND_MOV].ival > 0 && pv[SND_MOV].sval) {
         int len;
         char * p = pv[SND_MOV].sval;
-        len = strlen(p);
+        len = (int)strlen(p);
         if (!isdir(p)) {                /* Check directory */
 #ifdef CK_MKDIR
             char * s9 = NULL;
@@ -7483,12 +7489,14 @@ doftpget(cx,who) int cx, who;
             if ((s3 = ckstrrchr(mgetlist[mgetx],'/'))) {
                 int len, left = 4096;
                 char * tmp = xtmpbuf;
-                len = s3 - mgetlist[mgetx] + 1;
-                ckstrncpy(tmp,mgetlist[mgetx],left);
-                tmp += len;
-                left -= len;
-                ckstrncpy(tmp,s,left);
-                s = xtmpbuf;
+                len = (int)(s3 - mgetlist[mgetx]) + 1;
+                if (len + (int)strlen(s) < left) { /* Whole name fits */
+                    ckstrncpy(tmp,mgetlist[mgetx],left);
+                    tmp += len;
+                    left -= len;
+                    ckstrncpy(tmp,s,left);
+                    s = xtmpbuf;
+                }
                 debug(F111,"ftp mget remote_files F",s,0);
             }
         }
@@ -7538,7 +7546,7 @@ doftpget(cx,who) int cx, who;
                 if (ispathsep(c9)) {
                     /* haspath++; */
                     nam = p;            /* Pathless name (for ckmatch) */
-                    srvpath = p - s;    /* Server path segment length */
+                    srvpath = (int)(p - s); /* Server path segment length */
                 }
             }
             debug(F111,"ftp get srvpath",s,srvpath);
@@ -7553,8 +7561,8 @@ doftpget(cx,who) int cx, who;
   get a match...
 */
                 int srclen = 0, srvlen = 0;
-                if (src) srclen = strlen(src);
-                if (s) srvlen = strlen(s);
+                if (src) srclen = (int)strlen(src);
+                if (s) srvlen = (int)strlen(s);
                 if (src && (srvlen > srclen)) {
                     if (!strncmp(src,s,srclen) && ispathsep(s[srclen])) {
                         char * tmpsrc = NULL;
@@ -8098,7 +8106,7 @@ doftpget(cx,who) int cx, who;
         sec = (t1 - t0) / 1000;
         if (!sec) sec = 1;
 #endif /* GFTIMER */
-        tfcps = (long) (tfc / sec);
+        tfcps = XFERCPS(tfc,sec);
         tsecs = (int)sec;
         lastxfer = W_FTP|W_RECV;
         xferstat = success;
@@ -10587,7 +10595,7 @@ scommand(s) char * s;
 #ifdef CK_SSL
     if (ssl_ftp_active_flag) {
         int error, rc;
-        length = strlen(s) + 2;
+        length = (int)strlen(s) + 2;
         length = ckmakmsg(out,FTP_BUFSIZ,s,"\r\n",NULL,NULL);
         rc = SSL_write(ssl_ftp_con,out,length);
         error = SSL_get_error(ssl_ftp_con,rc);
@@ -10750,7 +10758,7 @@ mygetc() {
             }
         } else
 #endif /* CK_SSL */
-          rc = recv(csocket,(char *)inbuf,4096,0);
+          rc = (int)recv(csocket,(char *)inbuf,4096,0);
         if (rc <= 0)
           return(EOF);
         ep = rc;
@@ -10799,7 +10807,7 @@ xlatec(fc,c,incs,outcs) int fc, c, incs, outcs;
     /* The buffer won't grow unless incs is a multibyte set, e.g. UTF-8. */
 
     debug(F000,"xlatec buf",ckitoa(cx),c);
-    buf[cx++] = c;
+    buf[cx++] = (char)c;
     buf[cx] = NUL;
 
     while ((xc0 = xgnbyte(FC_UCS2,incs,strgetc)) > -1) {
@@ -11044,7 +11052,7 @@ getreply(expecteof,lcs,rcs,vbm,fc) int expecteof, lcs, rcs, vbm, fc;
                     c = mygetc();
                     obuf[0] = IAC;
                     obuf[1] = DONT;
-                    obuf[2] = c;
+                    obuf[2] = (char)c;
                     obuf[3] = NUL;
 #ifdef CK_SSL
                     if (ssl_ftp_active_flag) {
@@ -11081,7 +11089,7 @@ getreply(expecteof,lcs,rcs,vbm,fc) int expecteof, lcs, rcs, vbm, fc;
                     c = mygetc();
                     obuf[0] = IAC;
                     obuf[1] = WONT;
-                    obuf[2] = c;
+                    obuf[2] = (char)c;
                     obuf[3] = NUL;
 #ifdef CK_SSL
                     if (ssl_ftp_active_flag) {
@@ -11148,8 +11156,8 @@ getreply(expecteof,lcs,rcs,vbm,fc) int expecteof, lcs, rcs, vbm, fc;
                 !ssl_ftp_active_flag &&
 #endif /* CK_SSL */
                 !ibuf[0] && (n == '6' || continuation)) {
-                if (c != '\r' && dig > 4)
-                  obuf[i++] = c;
+                if (c != '\r' && dig > 4 && i < FTP_BUFSIZ - 1)
+                  obuf[i++] = (char)c;
             } else {
                 if (auth_type &&
 #ifdef CK_SSL
@@ -11157,8 +11165,8 @@ getreply(expecteof,lcs,rcs,vbm,fc) int expecteof, lcs, rcs, vbm, fc;
 #endif /* CK_SSL */
                     !ibuf[0] && dig == 1 && vbm)
                   printf("Unauthenticated reply received from server:\n");
-                if (reply_parse) {
-                    *reply_ptr++ = c;
+                if (reply_parse && reply_ptr < &reply_buf[FTP_BUFSIZ - 1]) {
+                    *reply_ptr++ = (char)c;
                     *reply_ptr = NUL;
                 }
                 if ((!dpyactive || ftp_deb) && /* Don't mess up xfer display */
@@ -11200,7 +11208,7 @@ getreply(expecteof,lcs,rcs,vbm,fc) int expecteof, lcs, rcs, vbm, fc;
                     /* Bounds check to never write past pasv[], no matter how
                        long the server's 227 or 229 reply text runs. */
                     if (pt < pasv + sizeof(pasv) - 1)
-                      *pt++ = c;
+                      *pt++ = (char)c;
                 } else {
                     *pt = '\0';
                     pflag = 3;
@@ -11212,7 +11220,7 @@ getreply(expecteof,lcs,rcs,vbm,fc) int expecteof, lcs, rcs, vbm, fc;
                 continuation++;
             }
             if (cp < &ftp_reply_str[FTP_BUFSIZ - 1]) {
-                *cp++ = c;
+                *cp++ = (char)c;
                 *cp = NUL;
             }
         }
@@ -12072,7 +12080,7 @@ doftpsend2(threadinfo) VOID * threadinfo;
             /* Text mode, no translation */
             while (((c = zminchar()) > -1) && !cancelfile) {
                 ffc++;
-                if (xxout(c) < 0)
+                if (xxout((char)c) < 0)
                   break;
             }
             d = 0;
@@ -13166,7 +13174,7 @@ initconn() {
               remaining "|", if anything.
             */
             {
-                int plen = strlen(pasv);
+                int plen = (int)strlen(pasv);
                 char *lastbar;
                 if (plen > 0 && pasv[plen-1] == '|')
                   pasv[--plen] = '\0';
@@ -13262,7 +13270,8 @@ initconn() {
 #endif /* DEBUG */
                     return(0);
                 }
-                FTP_SIN(hisctladdr)->sin_family = hp->h_addrtype;
+                FTP_SIN(hisctladdr)->sin_family =
+                  (unsigned short)hp->h_addrtype;
 #ifdef HADDRLIST
                 memcpy((char *)&FTP_SIN(hisctladdr)->sin_addr,
                        hp->h_addr_list[0],
@@ -13289,9 +13298,10 @@ initconn() {
 
             destsp = getservbyname(p9,"tcp");
             if (destsp)
-              FTP_SIN(hisctladdr)->sin_port = destsp->s_port;
+              FTP_SIN(hisctladdr)->sin_port =
+                (unsigned short)destsp->s_port;
             else if (p9)
-              FTP_SIN(hisctladdr)->sin_port = htons(atoi(p9));
+              FTP_SIN(hisctladdr)->sin_port = htons((unsigned short)atoi(p9));
             else
               FTP_SIN(hisctladdr)->sin_port = htons(80);
             errno = 0;
@@ -13368,7 +13378,7 @@ initconn() {
             FTP_SIN(data_addr)->sin_family = AF_INET;
             FTP_SIN(data_addr)->sin_addr.s_addr =
               htonl((a1<<24)|(a2<<16)|(a3<<8)|a4);
-            FTP_SIN(data_addr)->sin_port = htons((p1<<8)|p2);
+            FTP_SIN(data_addr)->sin_port = htons((unsigned short)((p1<<8)|p2));
 
             if (connect(data,
                         (struct sockaddr *)&data_addr,
@@ -14315,11 +14325,11 @@ cancel_remote(din) int din;
         buf[1] = TN_IP;
         buf[2] = IAC;
         buf[3] = NUL;
-        if ((x = send(csocket, (SENDARG2TYPE)buf, 3, MSG_OOB)) != 3)
+        if ((x = (int)send(csocket, (SENDARG2TYPE)buf, 3, MSG_OOB)) != 3)
           perror("cancel");
         debug(F101,"ftp cancel_remote send 1","",x);
         buf[0] = TN_DM;
-        x = send(csocket,(SENDARG2TYPE)buf,1,0);
+        x = (int)send(csocket,(SENDARG2TYPE)buf,1,0);
         debug(F101,"ftp cancel_remote send 2","",x);
     }
     x = scommand("ABOR");
@@ -14601,7 +14611,7 @@ ftp_hookup(host, port, tls) char * host; int port; int tls;
 
         destsp = getservbyname(p,"tcp");
         if (destsp)
-          cport = ntohs(destsp->s_port);
+          cport = ntohs((unsigned short)destsp->s_port);
         else if (p) {
           cport = atoi(p);
         } else
@@ -15428,7 +15438,7 @@ remote_files(new_query, arg, pattern, proxy_switch)
             if (!p9) p9 = getenv("TMP");
 #ifdef OS2ORUNIX
             if (p9) {
-                int len = strlen(p9);
+                int len = (int)strlen(p9);
                 if (p9[len-1] != '/'
 #ifdef OS2
                     && p9[len-1] != '\\'
@@ -15752,7 +15762,7 @@ looping_write(fd, buf, len) int fd; register char *buf;  int len;
     int cc;
     register int wrlen = len;
     do {
-        cc = send(fd, (SENDARG2TYPE)buf, wrlen, 0);
+        cc = (int)send(fd, (SENDARG2TYPE)buf, wrlen, 0);
         if (cc < 0) {
             if (errno == EINTR)
               continue;
@@ -15776,7 +15786,7 @@ looping_read(fd, buf, len) int fd; register char *buf; register int len;
     int cc, len2 = 0;
 
     do {
-        cc = recv(fd, (char *)buf, len,0);
+        cc = (int)recv(fd, (char *)buf, len,0);
         if (cc < 0) {
             if (errno == EINTR)
               continue;
@@ -15813,7 +15823,7 @@ secure_flush(fd) int fd;
     if (nout > 0) {
         len = nout;
         if (!ftpissecure()) {
-            rc = send(fd, (SENDARG2TYPE)ucbuf, nout, 0);
+            rc = (int)send(fd, (SENDARG2TYPE)ucbuf, nout, 0);
             nout = 0;
             goto xflush;
         } else {
@@ -15860,11 +15870,11 @@ secure_write(fd, buf, nbyte)
 
     if (!ftpissecure()) {
         if (nout > 0) {
-            if ((ret = send(fd, (SENDARG2TYPE)ucbuf, nout, 0)) < 0)
+            if ((ret = (int)send(fd, (SENDARG2TYPE)ucbuf, nout, 0)) < 0)
               return(ret);
             nout = 0;
         }
-        return(send(fd,(SENDARG2TYPE)buf,nbyte,0));
+        return((int)send(fd,(SENDARG2TYPE)buf,nbyte,0));
     } else {
         unsigned int ucbuflen = (maxbuf ? maxbuf : actualbuf) -
             FUDGE_FACTOR;
@@ -16353,7 +16363,7 @@ secure_getc(fd,fc) int fd,fc;
             }
 #endif  /* FTP_TIMEOUT */
 
-            nin = bufp = recv(fd,(char *)ucbuf,actualbuf,0);
+            nin = bufp = (unsigned int)recv(fd,(char *)ucbuf,actualbuf,0);
             if ((nin == 0) || (nin == (unsigned int)-1)) {
                 debug(F111,"secure_getc recv errno",ckitoa(nin),errno);
                 debug(F101,"secure_getc returns EOF","",EOF);
@@ -16413,7 +16423,7 @@ secure_read(fd, buf, nbyte) int fd; char *buf; int nbyte;
             return(c);
 #endif  /* FTP_TIMEOUT */
           default:
-            buf[i++] = c;
+            buf[i++] = (char)c;
         }
     }
     return(i);
@@ -16670,21 +16680,22 @@ radix_encode(inbuf, outbuf, inlen, outlen, decode)
         for (i = 0, j = 0; inbuf[i] && inbuf[i] != pad; i++) {
             if ((p = ckstrchr(radixN, inbuf[i])) == NULL)
               return(1);
-            D = p - radixN;
+            D = (int)(p - radixN);
+            /* c holds the bits of the next output byte so far */
             switch (i&3) {
               case 0:
-                outbuf[j] = D<<2;
+                c = (CHAR)(D<<2);
                 break;
               case 1:
-                outbuf[j++] |= D>>4;
-                outbuf[j] = (D&15)<<4;
+                outbuf[j++] = (CHAR)(c | (D>>4));
+                c = (CHAR)((D&15)<<4);
                 break;
               case 2:
-                outbuf[j++] |= D>>2;
-                outbuf[j] = (D&3)<<6;
+                outbuf[j++] = (CHAR)(c | (D>>2));
+                c = (CHAR)((D&3)<<6);
                 break;
               case 3:
-                outbuf[j++] |= D;
+                outbuf[j++] = (CHAR)(c | D);
             }
             if (j == *outlen)
               return(4);

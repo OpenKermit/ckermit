@@ -1703,7 +1703,7 @@ zclose(n) int n;
                         "*"             /* Ditto */
                         );
                 debug(F110,"zclose iksdmsg",iksdmsg,0);
-                dummy = write(xferlog, iksdmsg, (int)strlen(iksdmsg));
+                dummy = (int)write(xferlog, iksdmsg, (int)strlen(iksdmsg));
             }
         }
         debug(F101,"zclose returns","",1);
@@ -1804,7 +1804,7 @@ zsinl( int n, char *s, int x )
                 }
             }
         }
-        *s = a;                         /* Deposit character */
+        *s = (char)a;                   /* Deposit character */
         s++;
         len++;
     }
@@ -1833,12 +1833,12 @@ zxin(n,s,x) int n, x; char *s;
         a = ttchk();
         if (a < 1) return(0);
         for (i = 0; i < a && i < x; i++)
-          s[i] = coninc(0);
+          s[i] = (char)coninc(0);
         return(i);
     }
 #endif /* IKSD */
 
-    return(fread(s, sizeof (char), x, fp[n]));
+    return((int)fread(s, sizeof (char), x, fp[n]));
 }
 
 /*
@@ -1868,7 +1868,7 @@ zinfill() {
         a = ttchk();
         if (a < 0) return(-2);
         for (i = 0; i < a && i < INBUFSIZE; i++) {
-            zinbuffer[i] = coninc(0);
+            zinbuffer[i] = (char)coninc(0);
         }
         zincnt = i;
         /* set pointer to beginning, (== &zinbuffer[0]) */
@@ -1929,7 +1929,7 @@ zinfill() {
   Note: The following read MUST be nonblocking when reading from a pipe
   and we want timeouts to work.  See zxcmd().
 */
-    zincnt = fread(zinbuffer, sizeof (char), INBUFSIZE, fp[ZIFILE]);
+    zincnt = (int)fread(zinbuffer, sizeof (char), INBUFSIZE, fp[ZIFILE]);
     debug(F101,"ZINFILL fread","",zincnt); /* Just the size */
 #ifdef ZDEBUG
     printf("FREAD=%d\n",zincnt);
@@ -2009,8 +2009,8 @@ zsout(n,s) int n; char *s;
 
     if (n == ZSFILE) {
         int k;
-        k = strlen(s);
-        rc = write(fileno(fp[n]),s,k);
+        k = (int)strlen(s);
+        rc = (int)write(fileno(fp[n]),s,k);
         return((rc == k) ? 0 : -1);
     }
     rc = fputs(s,fp[n]) == EOF ? -1 : 0;
@@ -2132,7 +2132,7 @@ zoutdump() {
 #endif /* CK_NONBLOCK */
     zp = zoutbuffer;
     while (zoutcnt > 0) {
-        if ((x = write(fileno(fp[ZOFILE]),zp,zoutcnt)) > -1) {
+        if ((x = (int)write(fileno(fp[ZOFILE]),zp,zoutcnt)) > -1) {
 #ifdef DEBUG
             if (deblog)                 /* Save a function call... */
               debug(F101,"zoutdump wrote","",x);
@@ -2221,7 +2221,7 @@ zgetfs(name) char *name;
     if (!*name) return(-1);
 
 #ifdef UNIX
-    x = strlen(name);
+    x = (int)strlen(name);
     if (x == 9 && !strcmp(name,"/dev/null"))
       return(0);
 #endif /* UNIX */
@@ -2262,7 +2262,7 @@ zgetfs(name) char *name;
         ) {
         zgfs_link = 1;                  /* It's a symlink */
         linkname[0] = '\0';             /* Get the name */
-        x = readlink(s,linkname,CKMAXPATH);
+        x = (int)readlink(s,linkname,CKMAXPATH);
         debug(F101,"zgetfs readlink",s,x);
         if (x > -1 && x < CKMAXPATH) {  /* It's a link */
             linkname[x] = '\0';
@@ -2313,7 +2313,7 @@ zgetfs(name) char *name;
     if (needrlink) {
         linkname[0] = '\0';
         errno = 0;
-        x = readlink(s,linkname,CKMAXPATH);
+        x = (int)readlink(s,linkname,CKMAXPATH);
 #ifdef DEBUG
         debug(F111,"zgetfs readlink",s,x);
         if (x < 0)
@@ -2367,7 +2367,7 @@ zchki(name) char *name;
 
     if (!name)
       return(-1);
-    x = strlen(name);
+    x = (int)strlen(name);
     if (x < 1)
       return(-1);
     s = name;
@@ -2499,7 +2499,7 @@ zchko(name) char *name;
         s = tilde_expand(s);
         if (!s) s = "";
         if (!*s) s = name;
-        x = strlen(s);
+        x = (int)strlen(s);
     }
 #endif /* DTILDE */
     name = s;
@@ -2821,7 +2821,7 @@ nzrtol(name,name2,fncnv,fnrpath,max) char *name,*name2;int fncnv,fnrpath,max;
         p = name2;                      /* So convert all letters to lower */
         while (*p) {
             if (isupper(*p))
-              *p = tolower(*p);
+              *p = (char)tolower(*p);
             p++;
         }
     }
@@ -2969,7 +2969,7 @@ nzltor(name,name2,fncnv,fnspath,max) char *name,*name2;int fncnv,fnspath,max;
         if (sxo) c = (*sxo)(c);         /* Convert to ASCII */
 #endif /* NOCSETS */
         if (fncnv > 0 && islower(c))    /* Uppercase letters */
-          *pp++ = toupper(c);           /* Change tilde to hyphen */
+          *pp++ = (char)toupper(c);     /* Change tilde to hyphen */
         else if (c == '~')
           *pp++ = '-';
         else if (fncnv > 0 && c == '#') /* Change number sign to 'X' */
@@ -3677,7 +3677,7 @@ zxpand(fnarg) char *fnarg;
     if (x) {                            /* If so, make it into a wildcard */
         if (!xfilonly && !iswild(p))
           haveonedir++;
-        if ((x = strlen(fn)) > 0) {
+        if ((x = (int)strlen(fn)) > 0) {
             if (!ISDIRSEP(fn[x-1]))
               fn[x++] = DIRSEP;
             fn[x++] = '*';
@@ -3912,7 +3912,7 @@ znewn(fn,s) char *fn, **s;
     buf = znewbuf;
     *s = NULL;                          /* Initialize return value */
     if (!fn) fn = "";                   /* Check filename argument */
-    i = strlen(fn);
+    i = (int)strlen(fn);
 
 /* If incoming file already has a backup suffix, remove it. */
 /* Then we'll tack a new on later, which will be the highest for this file. */
@@ -3948,7 +3948,7 @@ znewn(fn,s) char *fn, **s;
             }
         }
     }
-    if ((fnlen = strlen(fn)) < 1) {     /* Get length */
+    if ((fnlen = (int)strlen(fn)) < 1) { /* Get length */
         if (dname) free(dname);
         return;
     }
@@ -3961,7 +3961,7 @@ znewn(fn,s) char *fn, **s;
 
     if ((fnfp = zfnqfp(fn, ZNEWNBL, buf))) { /* Get fully qualified name */
         namepart = fnfp->fname;         /* Isolate the filename */
-        k = strlen(fn);                 /* Length of name part */
+        k = (int)strlen(fn);            /* Length of name part */
         debug(F111,"znewn namepart",namepart,k);
     } else {
         if (dname) free(dname);
@@ -4067,7 +4067,7 @@ zrename(old,new) char *old, *new;
 
     if (isdir(new)) {
         char *q = NULL;
-        x = strlen(new);
+        x = (int)strlen(new);
         if (!(p = malloc(strlen(new) + strlen(old) + 2)))
           return(-1);
         strcpy(p,new);                  /* (safe) Directory part */
@@ -4232,7 +4232,7 @@ zcopy(source,destination) char *source, *destination;
     }
     if (isdir(dst)) {                   /* Destination is a directory? */
         char *q = NULL;                 /* Yes, add filename to it. */
-        x = strlen(dst);
+        x = (int)strlen(dst);
         if (x < 1) return(-1);
         if (!ISDIRSEP(*(dst+x-1))) {    /* Add separator if needed */
             tmp2[x++] = '/';
@@ -4269,8 +4269,8 @@ zcopy(source,destination) char *source, *destination;
 #endif /* O_TRUNC */
         debug(F111,"zcopy open dest",dst,out);
         if (out > -1) {                 /* If open... */
-            while ((x = read(in,buf,1024)) > 0) { /* Copy in 1K blocks */
-                y = write(out,buf,x);
+            while ((x = (int)read(in,buf,1024)) > 0) { /* Copy in 1K blocks */
+                y = (int)write(out,buf,x);
                 if (y < 0) {            /* On write failure */
                     x = -1;
                     rc = -6;            /* Indicate i/o error */
@@ -5179,7 +5179,7 @@ zlocaltime(gmtstring) char * gmtstring;
     char * date = gmtstring;
     int len;
 
-    len = strlen(date);
+    len = (int)strlen(date);
     debug(F111,"zlocaltime",date,len);
 
     if ((len == 0)
@@ -7215,7 +7215,7 @@ zmkdir(path) char *path;
     }
 #endif /* CKROOT */
 
-    x = strlen(path);
+    x = (int)strlen(path);
     debug(F111,"zmkdir",path,x);
     if (x < 1 || x > MAXPATH)           /* Check length */
       return(-1);
@@ -7407,7 +7407,7 @@ zfnqfp(fname, buflen, buf)  char * fname; int buflen; char * buf;
         /* 16 Jan 2002 */
         goto norealpath;
     }
-    len = strlen(rp);
+    len = (int)strlen(rp);
     if (len > buflen) {
         debug(F111,"zfnqfp result too long",ckitoa(buflen),len);
         free(rp);
@@ -7464,7 +7464,7 @@ zfnqfp(fname, buflen, buf)  char * fname; int buflen; char * buf;
     if (!*s) return(NULL);
     if (*s == '/') {                    /* Pathname is absolute */
         ckstrncpy(buf,s,len);
-        x = strlen(buf);
+        x = (int)strlen(buf);
         y = 0;
     } else {                            /* Pathname is relative */
         char * p;
@@ -7595,7 +7595,7 @@ zcmpfn(s1,s2) char * s1, * s2;
 #endif /* S_ISLNK */
         ) {
         clnkn[0] = '\0';             /* Get the name */
-        x = readlink(s1,clnkn,CKMAXPATH);
+        x = (int)readlink(s1,clnkn,CKMAXPATH);
         if (x > -1 && x < CKMAXPATH) {  /* It's a link */
             clnkn[x] = '\0';
             s1 = clnkn;
@@ -7619,7 +7619,7 @@ zcmpfn(s1,s2) char * s1, * s2;
 #endif /* S_ISLNK */
             ) {
             clnkn[0] = '\0';
-            x = readlink(s2,clnkn,CKMAXPATH);
+            x = (int)readlink(s2,clnkn,CKMAXPATH);
             if (x > -1 && x < CKMAXPATH) {
                 clnkn[x] = '\0';
                 s2 = clnkn;
@@ -8087,7 +8087,7 @@ checkuser(name) char *name;
 
     if (!name)
       name = "";
-    i = strlen(name);
+    i = (int)strlen(name);
     debug(F111,"checkuser name",name,i);
     if (!*name)
       return(1);
@@ -8497,7 +8497,7 @@ _PROTOTYP(int initgroups, (const char *, gid_t) );
             p2 = (char *)zvuname;
             myflags |= DBF_USER;
         }
-        k = strlen(p2);
+        k = (int)strlen(p2);
         strncpy(&dbrec[DB_ULEN],ulongtohex((unsigned long)k,4),4);
         lset(&dbrec[dbfld[db_USER].off],p2,1024,32);
         strncpy(&dbrec[DB_FLAGS],ulongtohex(myflags,4),4);

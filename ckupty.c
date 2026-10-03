@@ -1078,7 +1078,7 @@ pty_open_ctty(slave, fd, fc) char * slave; int *fd; int fc;
 
 /* First, dissociate from previous terminal */
 
-    if ((retval = ptyint_void_association()) != 0) {
+    if ((retval = (int)ptyint_void_association()) != 0) {
         debug(F111,
               "pty_open_ctty()",
               "ptyint_void_association() failed",
@@ -1622,8 +1622,8 @@ getptyslave(fd, fc) int * fd, fc;
 #ifdef TIOCGWINSZ
     if (cmd_rows || cmd_cols) {
         memset((char *)&ws, 0, sizeof(ws));
-        ws.ws_col = cmd_cols;
-        ws.ws_row = cmd_rows;
+        ws.ws_col = (unsigned short)cmd_cols;
+        ws.ws_row = (unsigned short)cmd_rows;
         debug(F101,"getptyslave() doing TIOCSWINSZ...","",t);
         ioctl(t, TIOCSWINSZ, (char *)&ws);
     }
@@ -1982,7 +1982,7 @@ do_pty(fd, cmd, fc) int * fd; char * cmd; int fc;
 #endif /* WANT_UTMP */
             /* Notify our parent we're ready to continue.*/
             debug(F110,"do_pty()","slave synchronizing",0);
-            dummy = write(syncpipe[1],"y",1);
+            dummy = (int)write(syncpipe[1],"y",1);
             close(syncpipe[0]);
             close(syncpipe[1]);
 

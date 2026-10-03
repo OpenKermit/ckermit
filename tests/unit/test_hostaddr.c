@@ -7,9 +7,13 @@
   This test uses an oversized source buffer filled with a sentinel
   pattern past the 4-byte address. If ck_hostaddr() reads past 4
   bytes, sentinel bytes leak into the return value and the test fails.
+  The result must hold the address bytes in their original order, so
+  that assigning it to sin_addr gives the same address on hosts of
+  either byte order.
 */
 #include <check.h>
 #include <netdb.h>
+#include <arpa/inet.h>
 #include <string.h>
 #define CK_ANSIC
 #include "ckcsym.h"
@@ -30,11 +34,10 @@ START_TEST(test_ck_hostaddr_no_overread)
     struct hostent host;
     char * addr_list[2];
     unsigned char real_bytes[4] = { 10, 20, 30, 40 };
-    /* Storage is wider than unsigned long so an overread reaches
+    /* Storage is wider than struct in_addr so an overread reaches
        into the sentinel bytes. */
     unsigned char storage[16];
-    unsigned long expected = 0L;
-    unsigned long result;
+    struct in_addr result;
 
     memset(storage, 0xAA, sizeof(storage));    /* Sentinel fill. */
     memcpy(storage, real_bytes, sizeof(real_bytes));
@@ -46,16 +49,12 @@ START_TEST(test_ck_hostaddr_no_overread)
     addr_list[1] = NULL;
     host.h_addr_list = addr_list;
 
-    /* Expected result matches the 4-byte address without assuming
-       host byte order. */
-    memcpy(&expected, real_bytes, sizeof(real_bytes));
-
     result = ck_hostaddr(&host, 0);
 
-    ck_assert_msg(result == expected,
-                  "ck_hostaddr() returned 0x%lx, expected 0x%lx: "
-                  "sentinel bytes may have leaked into the result",
-                  result, expected);
+    ck_assert_uint_eq(sizeof(result), sizeof(real_bytes));
+    ck_assert_msg(memcmp(&result, real_bytes, sizeof(real_bytes)) == 0,
+                  "ck_hostaddr() returned %s, expected 10.20.30.40",
+                  inet_ntoa(result));
 }
 END_TEST
 

@@ -1,5 +1,6 @@
 import errno
 import os
+import subprocess
 import threading
 import pytest
 from pyftpdlib.authorizers import DummyAuthorizer
@@ -209,3 +210,21 @@ def test_ftp_preserves_mtime(ftp_server, run_wermit, tmp_path):
 
     download_mtime = download_file.stat().st_mtime
     assert abs(download_mtime - set_mtime) <= 1.0
+
+
+def test_ftp_command_line_put_without_files(wermit_ftp_available,
+                                            wermit_path, tmp_path):
+    """Command-line FTP PUT with no existing file reports no files to put.
+
+    Invoked as "ftp", the -p option names files to put.
+    """
+    if not wermit_ftp_available:
+        pytest.skip("wermit was built with -DNOFTP (no FTP client)")
+    ftp = tmp_path / "ftp"
+    ftp.symlink_to(wermit_path)
+    result = subprocess.run(
+        [str(ftp), "-Y", "-p", str(tmp_path / "nonexistent")],
+        stdin=subprocess.DEVNULL, capture_output=True, text=True,
+        timeout=30, start_new_session=True)
+    output = result.stdout + result.stderr
+    assert "No files to put" in output, output

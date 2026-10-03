@@ -1690,7 +1690,7 @@ scanfile(name,flag,sfmax) char * name; int * flag, sfmax;
               readsize = SCANFILEBUF;
         }
         debug(F101,"scanfile readsize","",readsize);
-        count = fread(buf,1,readsize,fp); /* Read a buffer */
+        count = (int)fread(buf,1,readsize,fp); /* Read a buffer */
         if (count == EOF || count == 0) {
             debug(F111,"scanfile EOF",name,count);
             break;
@@ -2163,7 +2163,7 @@ scanstring(s) char * s;
 
     char * buf = s;
     if (!s) s = "";
-    count = strlen(s);
+    count = (int)strlen(s);
 
 #ifdef UNICODE
     if (bytes == 0 && count > 1) {
@@ -2413,7 +2413,7 @@ fileselect(f,sa,sb,sna,snb,minsiz,maxsiz,nbu,nxlist,xlist)
     if (*sa || *sb || *sna || *snb) {
         fdate = zfcdat(f);              /* Date/time of this file */
         if (!fdate) fdate = "";
-        n = strlen(fdate);
+        n = (int)strlen(fdate);
         debug(F111,"fileselect fdate",fdate,n);
         if (n != 17)                    /* Failed to get it */
           return(1);
@@ -4000,7 +4000,7 @@ doxlog(x, fn, fs, fm, status, msg)
     debug(F110,"doxlog 5",buf,0);
 
     ckstrncat(buf, status ? "FAILED" : "OK",CKMAXPATH);
-    len = strlen(buf);
+    len = (int)strlen(buf);
     left = CKMAXPATH+256 - len;
     if (left < 2) fatal("doxlog buffer overlow");
 
@@ -5640,8 +5640,8 @@ dodebug(f,s1,s2,n) int f; char *s1, *s2; CK_OFF_T n;
     if (!s1) s1="(NULL)";
     if (!s2) s2="(NULL)";
 
-    len1 = strlen(s1);
-    len2 = strlen(s2);
+    len1 = (int)strlen(s1);
+    len2 = (int)strlen(s2);
 
 #ifdef COMMENT
 /*
@@ -5785,7 +5785,7 @@ dodebug(f,s1,s2,n) int f; char *s1, *s2; CK_OFF_T n;
               }
           } else {
               int x, flag = 0;
-              x = strlen(s2);
+              x = (int)strlen(s2);
               if (n < 0) {
                   flag = 1;
                   n = 0 - n;
@@ -7177,8 +7177,8 @@ updpct(old, new) long old, new;
             clrtoeol();
         }
         if (new <= 100L) {
-            m = old / 2;
-            n = new / 2 - m;
+            m = (int)(old / 2);
+            n = (int)(new / 2) - m;
             move(CW_PCD, 26+m);
             while (n-- > 0)
               printw("%c", CHAR1);
@@ -7351,8 +7351,8 @@ shocps(pct, fsiz, howfar) int pct; CK_OFF_T fsiz, howfar;
     }
     debug(F101,"shocps gtv","",gtv);
 #endif /* DEBUG */
-#ifdef GFTIMER
 #endif /* COMMENT */
+#ifdef GFTIMER
     /* debug(F101,"shocps fpfsecs","",fpfsecs); */
     secs = gtv - fpfsecs;
     /* debug(F101,"shocps secs","",(long)secs); */
@@ -7370,7 +7370,7 @@ shocps(pct, fsiz, howfar) int pct; CK_OFF_T fsiz, howfar;
     }
 #else  /* Not GFTIMER */
     if ((secs = gtv - fsecs) > 0) {
-        cps = (secs < 1L) ? ffc : ffc / secs;
+        cps = (long)((secs < 1L) ? ffc : ffc / secs);
         move(CW_CP,22);
 #ifdef KUI
 #ifndef K95G
@@ -8057,7 +8057,7 @@ char *s;        /* a string */
     debug(F000,"SCREENC c","",c);
     debug(F101,"SCREENC n","",n);
 
-    len = strlen(s);                    /* Length of argument string */
+    len = (int)strlen(s);                    /* Length of argument string */
     switch (f) {                        /* Handle our function code */
       case SCR_FN:                      /* Filename */
         ckstrncpy(fs_savedname,s,sizeof(fs_savedname)); /* For SCR_RESU */
@@ -9753,7 +9753,7 @@ dbinit() {
 
     if (!dbfile) {
         char * s = "";
-        x = strlen(dbdir);
+        x = (int)strlen(dbdir);
         if (dbdir[x-1] != '/') {
             s = "/";
             x++;
@@ -9966,11 +9966,11 @@ slotstate(x,s1,s2,s3) int x; char *s1, *s2, *s3;
     if (!ikdbopen)
       return(-1);
     if (!s1) s1 = "";
-    l1 = strlen(s1);
+    l1 = (int)strlen(s1);
     if (!s2) s2 = "";
-    l2 = strlen(s2);
+    l2 = (int)strlen(s2);
     if (!s3) s3 = "";
-    l3 = strlen(s3);
+    l3 = (int)strlen(s3);
     strncpy(&dbrec[DB_STATE],ulongtohex(mystate,4),4);
     k = dbfld[db_ILEN].len;
     z = l1 + l2 + l3 + 2;
@@ -10018,8 +10018,8 @@ slotdir(s1,s2) char * s1, * s2;
       return(-1);
     if (!s1) s1 = "";
     if (!s2) s2 = "";
-    len1 = strlen(s1);
-    len2 = strlen(s2);
+    len1 = (int)strlen(s1);
+    len2 = (int)strlen(s2);
     k = dbfld[db_DLEN].len;
     strncpy(&dbrec[DB_DLEN],ulongtohex((unsigned long)(len1+len2),k),k);
     k = dbfld[db_DIR].len;
@@ -10136,7 +10136,7 @@ getslot() {                             /* Find a free slot for us */
     }
     /* Write my (decimal) PID into the temp file */
 
-    dummy = write(lockfd,idstring,(int)strlen(idstring));
+    dummy = (int)write(lockfd,idstring,(int)strlen(idstring));
     if (close(lockfd) < 0) {            /* Close lockfile */
         debug(F101,"getslot error closing temp lockfile", "", errno);
         return(-1);
@@ -10148,7 +10148,7 @@ getslot() {                             /* Find a free slot for us */
     rfp = fopen(lcknam,"r");            /* See if lockfile exists */
     if (rfp) {                          /* If so... */
         rset(pidbuf,"",sizeof(pidbuf),0);
-        x = fread(pidbuf,1,sizeof(pidbuf)-1,rfp); /* Read ID string */
+        x = (int)fread(pidbuf,1,sizeof(pidbuf)-1,rfp); /* Read ID string */
         fclose(rfp);                    /* and close it quickly */
         debug(F110,"getslot lock exists",pidbuf,0);
         if (x > 0) {                    /* If we have a PID, check it */
@@ -10231,7 +10231,7 @@ getslot() {                             /* Find a free slot for us */
        relative to the first record (not counting the header) */
 
     for (n = 0, i = 0; !feof(dbfp); i += DB_RECL, n++) {
-        x = fread(dbrec,1,DB_RECL,dbfp); /* Read a record */
+        x = (int)fread(dbrec,1,DB_RECL,dbfp); /* Read a record */
         if (x < 1)                      /* EOF not caught by feof() */
           break;
 #ifndef NOFTRUNCATE

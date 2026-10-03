@@ -2401,7 +2401,7 @@ parsdir(cx) int cx;
         }
 #endif /* ZFNQFP */
         c = NUL;
-        x = strlen(s);
+        x = (int)strlen(s);
         if (x > 0)                      /* Get last char */
           c = s[x-1];
         debug(F000,"parsdir s",s,c);
@@ -3009,13 +3009,13 @@ uq_file(preface,fprompt,fc,help,dflt,result,rlength)
     else
       ckmakmsg(filebuf,CKMAXPATH+1,zgtdir(),"newfile",NULL,NULL);
     fullpath = filebuf;
-    x = strlen(fullpath);
+    x = (int)strlen(fullpath);
 
     /* If no prompt given, build one that shows the proposed full pathname. */
 
     if (!fprompt) fprompt = "";
     if (!*fprompt) fprompt = x ? " Filename" : " Filename: ";
-    y = strlen(fprompt);
+    y = (int)strlen(fprompt);
     if (x > 0) {                        /* Have default pathname? */
         p = (char *)malloc(x + y + 7);  /* Get temp storage */
         if (p) {                        /* Build prompt */
@@ -3058,7 +3058,7 @@ uq_file(preface,fprompt,fc,help,dflt,result,rlength)
                      );
             cmini(ckxech);
         } else {
-            z = strlen(s);
+            z = (int)strlen(s);
             if (z > rlength || ckstrncpy(filebuf,brstrip(s),CKMAXPATH+1) < z) {
                 printf("?Name too long\n");
                 x = -9;
@@ -3173,7 +3173,7 @@ douchmod() {
         }
         if (cmresult.fcode != _CMKEY)
           break;
-        c = cmgbrk();
+        c = (char)cmgbrk();
         getval = (c == ':' || c == '=');
         if (getval && !(cmgkwflgs() & CM_ARG)) {
             printf("?This switch does not take an argument\n");
@@ -3869,8 +3869,8 @@ dosexp(s) char *s;
                 if (xxfloat(s2,0) > 0)  /* Macro value is a number */
                   goto xdosexp;
                 if (j > -1) {           /* It's a macro */
-                    mx = j;
-                    x = j;              /* whose definition is not numeric */
+                    mx = (int)j;
+                    x = (int)j;         /* whose definition is not numeric */
                     if (*s2 == '(') {   /* Is it an S-Expression? */
                         /* We have to allocate memory on the stack */
                         /* to call ourselves recursively on it */
@@ -4217,7 +4217,7 @@ dosexp(s) char *s;
             goto xdosexp;
         } else if (x == SX_QUO) {
             int xx;
-            xx = strlen(p[2]);
+            xx = (int)strlen(p[2]);
             p[3] = (char *)malloc(xx+4);
             s2 = p[3];
             ckmakmsg(p[3],xx+4,"'(",p[2],")",NULL);
@@ -4227,7 +4227,7 @@ dosexp(s) char *s;
             int k9, xx = 0;
             s2 = p[2];
             if (!s2) s2 = "";
-            xx = strlen(s2);
+            xx = (int)strlen(s2);
             if (xx == 0)                /* Null or empty arg */
               goto xdosexp;
 
@@ -4247,7 +4247,7 @@ dosexp(s) char *s;
                 }
             }
             /* If result is a quoted string, unquote it */
-            xx = strlen(s2);
+            xx = (int)strlen(s2);
             if (s2[0] == '\047' && s2[1] == '(' && s2[xx-1] == ')') {
                 s2[xx-1] = NUL;
                 s2 += 2;
@@ -4258,7 +4258,7 @@ dosexp(s) char *s;
             int xx;
             s2 = dosexp(p[2]);
             if (sexprc) goto xdosexp;
-            xx = strlen(s2);
+            xx = (int)strlen(s2);
             p[3] = (char *)malloc(xx+4);
             ckmakmsg(p[3],xx+4,"'(",s2,")",NULL);
             s2 = p[3];
@@ -4709,8 +4709,8 @@ dosexp(s) char *s;
 
           case SX_FLO:                  /* Float */
             fpflag++;
-            fpresult = result;
-            fpj = j;
+            fpresult = (CKFLOAT)result;
+            fpj = (CKFLOAT)j;
             break;
 
           case SX_NOT:                  /* NOT (reverse truth value) */
@@ -5211,7 +5211,7 @@ dologline() {
 #endif /* STRATUS */
 #endif /* UNIX */
     }
-    m = strlen(uidbuf) + strlen(myhost) + strlen(ttname) + 32;
+    m = (int)(strlen(uidbuf) + strlen(myhost) + strlen(ttname)) + 32;
     if (n+m < CXLOGBUFL-1) {            /* Add serial device info */
         p = cxlogbuf+n;
         sprintf(p," %s %s T=SERIAL H=%s D=%s ", /* SAFE */
@@ -5292,7 +5292,8 @@ dolognet() {
         }
     }
 #endif  /* TCPSOCKET */
-    m = strlen(uu) + strlen(myhost) + strlen(ttname) + strlen(s) + 32;
+    m = (int)(strlen(uu) + strlen(myhost) + strlen(ttname) +
+              strlen(s)) + 32;
     if (n+m < CXLOGBUFL-1) {            /* SAFE */
         p = cxlogbuf+n;
         sprintf(p," %s %s T=%s N=%s H=%s P=%s ",
@@ -5652,7 +5653,7 @@ setdial(y) int y;
         if (x < 0 && x != -3)           /* Handle parse errors */
           return(x);
         s = brstrip(s);                 /* Strip braces or quotes */
-        y = x = strlen(s);              /* Get length of text */
+        y = x = (int)strlen(s);              /* Get length of text */
         if (y > 0) {                    /* If there is any text (left), */
             for (x = 0; x < y; x++) {   /* make sure they included "%s" */
                 if (s[x] != '%') continue;
@@ -5989,7 +5990,7 @@ setdial(y) int y;
               char c, * p = tmpbuf;
               if (*s == '\\') {
                   c = *(s+1);
-                  if (isupper(c)) c = tolower(c);
+                  if (isupper(c)) c = (char)tolower(c);
                   if (c != 'f' &&
                       ckstrcmp(s,"\\v(d$px)",8,0) &&
                       ckstrcmp(s,"\\v(d$pxx)",9,0) &&
@@ -6868,7 +6869,7 @@ dosetkey() {                            /* SET KEY */
     if (y < 0) {
         debug(F111,"SET KEY",atmbuf,y);
         if (y == -2) {                  /* Not a valid number */
-            if ((y = strlen(atmbuf)) < 0) /* Check for SET KEY CLEAR */
+            if ((y = (int)strlen(atmbuf)) < 0) /* Check for SET KEY CLEAR */
               return(-2);
             if (ckstrcmp(atmbuf,"clear",y,0))
               return(-2);
@@ -8005,7 +8006,7 @@ setprinter(xx) int xx;
     }
 #endif /* OS2 */
 
-    y = strlen(s);                      /* Length of name of new print file */
+    y = (int)strlen(s);                 /* Length of name of new print file */
     if (y > 0
 #ifdef OS2
         && ((y != 3) || (ckstrcmp(s,"PRN",3,0) != 0))
@@ -10902,11 +10903,11 @@ case XYCARR:                            /* CARRIER-WATCH */
               if ((z = cmcfm()) < 0)
                   return(z);
               if (tnserver) {
-                  TELOPT_DEF_S_ME_MODE(opt) = x;
-                  TELOPT_ME_MODE(opt) = x;
+                  TELOPT_DEF_S_ME_MODE(opt) = (CHAR)x;
+                  TELOPT_ME_MODE(opt) = (CHAR)x;
               } else {
-                  TELOPT_DEF_C_U_MODE(opt) = x;
-                  TELOPT_U_MODE(opt) = x;
+                  TELOPT_DEF_C_U_MODE(opt) = (CHAR)x;
+                  TELOPT_U_MODE(opt) = (CHAR)x;
               }
               break;
 
@@ -10929,15 +10930,15 @@ case XYCARR:                            /* CARRIER-WATCH */
               if ((z = cmcfm()) < 0)
                 return(z);
               if (tnserver) {
-                  TELOPT_DEF_S_U_MODE(opt) = x;
-                  TELOPT_U_MODE(opt) = x;
+                  TELOPT_DEF_S_U_MODE(opt) = (CHAR)x;
+                  TELOPT_U_MODE(opt) = (CHAR)x;
 #ifdef CK_AUTHENTICATION
                   if (opt == TELOPT_AUTHENTICATION)
                     sl_topt_a_s_saved = 0;
 #endif /* CK_AUTHENTICATION */
               } else {
-                  TELOPT_DEF_C_ME_MODE(opt) = x;
-                  TELOPT_ME_MODE(opt) = x;
+                  TELOPT_DEF_C_ME_MODE(opt) = (CHAR)x;
+                  TELOPT_ME_MODE(opt) = (CHAR)x;
 #ifdef CK_AUTHENTICATION
                   if (opt == TELOPT_AUTHENTICATION)
                     sl_topt_a_c_saved = 0;
@@ -10968,19 +10969,19 @@ case XYCARR:                            /* CARRIER-WATCH */
               if ((z = cmcfm()) < 0)
                 return(z);
               if (tnserver) {
-                  TELOPT_DEF_S_ME_MODE(opt) = x;
-                  TELOPT_ME_MODE(opt) = x;
-                  TELOPT_DEF_S_U_MODE(opt) = y;
-                  TELOPT_U_MODE(opt) = y;
+                  TELOPT_DEF_S_ME_MODE(opt) = (CHAR)x;
+                  TELOPT_ME_MODE(opt) = (CHAR)x;
+                  TELOPT_DEF_S_U_MODE(opt) = (CHAR)y;
+                  TELOPT_U_MODE(opt) = (CHAR)y;
 #ifdef CK_ENCRYPTION
                   if (opt == TELOPT_ENCRYPTION)
                     sl_topt_e_s_saved = 0;
 #endif /* CK_ENCRYPTION */
               } else {
-                  TELOPT_DEF_C_ME_MODE(opt) = x;
-                  TELOPT_ME_MODE(opt) = x;
-                  TELOPT_DEF_C_U_MODE(opt) = y;
-                  TELOPT_U_MODE(opt) = y;
+                  TELOPT_DEF_C_ME_MODE(opt) = (CHAR)x;
+                  TELOPT_ME_MODE(opt) = (CHAR)x;
+                  TELOPT_DEF_C_U_MODE(opt) = (CHAR)y;
+                  TELOPT_U_MODE(opt) = (CHAR)y;
 #ifdef CK_ENCRYPTION
                   if (opt == TELOPT_ENCRYPTION)
                     sl_topt_e_c_saved = 0;
@@ -11093,10 +11094,10 @@ case XYCARR:                            /* CARRIER-WATCH */
               return(x);
             if ((y = cmcfm()) < 0)
               return(y);
-            TELOPT_DEF_S_ME_MODE(TELOPT_BINARY) = x;
-            TELOPT_DEF_S_U_MODE(TELOPT_BINARY) = x;
-            TELOPT_DEF_C_ME_MODE(TELOPT_BINARY) = x;
-            TELOPT_DEF_C_U_MODE(TELOPT_BINARY) = x;
+            TELOPT_DEF_S_ME_MODE(TELOPT_BINARY) = (CHAR)x;
+            TELOPT_DEF_S_U_MODE(TELOPT_BINARY) = (CHAR)x;
+            TELOPT_DEF_C_ME_MODE(TELOPT_BINARY) = (CHAR)x;
+            TELOPT_DEF_C_U_MODE(TELOPT_BINARY) = (CHAR)x;
             return(success = 1);
 
 #ifdef IKS_OPTION
@@ -11107,10 +11108,10 @@ case XYCARR:                            /* CARRIER-WATCH */
               return(y);
             if ((z = cmcfm()) < 0)
               return(z);
-            TELOPT_DEF_S_ME_MODE(TELOPT_KERMIT) = y;
-            TELOPT_DEF_S_U_MODE(TELOPT_KERMIT) = x;
-            TELOPT_DEF_C_ME_MODE(TELOPT_KERMIT) = y;
-            TELOPT_DEF_C_U_MODE(TELOPT_KERMIT) = x;
+            TELOPT_DEF_S_ME_MODE(TELOPT_KERMIT) = (CHAR)y;
+            TELOPT_DEF_S_U_MODE(TELOPT_KERMIT) = (CHAR)x;
+            TELOPT_DEF_C_ME_MODE(TELOPT_KERMIT) = (CHAR)y;
+            TELOPT_DEF_C_U_MODE(TELOPT_KERMIT) = (CHAR)x;
             return(success = 1);
 #endif /* IKS_OPTION */
 
@@ -11122,10 +11123,10 @@ case XYCARR:                            /* CARRIER-WATCH */
               return(y);
             if ((z = cmcfm()) < 0)
               return(z);
-            TELOPT_DEF_S_ME_MODE(TELOPT_START_TLS) = x;
-            TELOPT_DEF_S_U_MODE(TELOPT_START_TLS) = y;
-            TELOPT_DEF_C_ME_MODE(TELOPT_START_TLS) = x;
-            TELOPT_DEF_C_U_MODE(TELOPT_START_TLS) = y;
+            TELOPT_DEF_S_ME_MODE(TELOPT_START_TLS) = (CHAR)x;
+            TELOPT_DEF_S_U_MODE(TELOPT_START_TLS) = (CHAR)y;
+            TELOPT_DEF_C_ME_MODE(TELOPT_START_TLS) = (CHAR)x;
+            TELOPT_DEF_C_U_MODE(TELOPT_START_TLS) = (CHAR)y;
             return(success = 1);
 #endif /* CK_SSL */
 
@@ -11137,10 +11138,10 @@ case XYCARR:                            /* CARRIER-WATCH */
               return(y);
             if ((z = cmcfm()) < 0)
               return(z);
-            TELOPT_DEF_S_ME_MODE(TELOPT_NAWS) = x;
-            TELOPT_DEF_S_U_MODE(TELOPT_NAWS) = y;
-            TELOPT_DEF_C_ME_MODE(TELOPT_NAWS) = x;
-            TELOPT_DEF_C_U_MODE(TELOPT_NAWS) = y;
+            TELOPT_DEF_S_ME_MODE(TELOPT_NAWS) = (CHAR)x;
+            TELOPT_DEF_S_U_MODE(TELOPT_NAWS) = (CHAR)y;
+            TELOPT_DEF_C_ME_MODE(TELOPT_NAWS) = (CHAR)x;
+            TELOPT_DEF_C_U_MODE(TELOPT_NAWS) = (CHAR)y;
             return(success = 1);
 #endif /* CK_NAWS */
 
@@ -11206,8 +11207,8 @@ case XYCARR:                            /* CARRIER-WATCH */
             } else {
                 if ((y = cmcfm()) < 0)
                   return(y);
-                TELOPT_DEF_C_ME_MODE(TELOPT_AUTHENTICATION) = x;
-                TELOPT_DEF_S_U_MODE(TELOPT_AUTHENTICATION) = x;
+                TELOPT_DEF_C_ME_MODE(TELOPT_AUTHENTICATION) = (CHAR)x;
+                TELOPT_DEF_S_U_MODE(TELOPT_AUTHENTICATION) = (CHAR)x;
             }
             return(success = 1);
 #endif /* CK_AUTHENTICATION */
@@ -11265,10 +11266,10 @@ case XYCARR:                            /* CARRIER-WATCH */
                 default:
                   if ((z = cmcfm()) < 0)
                     return(z);
-                  TELOPT_DEF_C_ME_MODE(TELOPT_ENCRYPTION) = y;
-                  TELOPT_DEF_C_U_MODE(TELOPT_ENCRYPTION) = y;
-                  TELOPT_DEF_S_ME_MODE(TELOPT_ENCRYPTION) = y;
-                  TELOPT_DEF_S_U_MODE(TELOPT_ENCRYPTION) = y;
+                  TELOPT_DEF_C_ME_MODE(TELOPT_ENCRYPTION) = (CHAR)y;
+                  TELOPT_DEF_C_U_MODE(TELOPT_ENCRYPTION) = (CHAR)y;
+                  TELOPT_DEF_S_ME_MODE(TELOPT_ENCRYPTION) = (CHAR)y;
+                  TELOPT_DEF_S_U_MODE(TELOPT_ENCRYPTION) = (CHAR)y;
               }
               return(success = 1);
           }
@@ -11307,10 +11308,10 @@ case XYCARR:                            /* CARRIER-WATCH */
               return(y);
             if ((z = cmcfm()) < 0)
               return(z);
-            TELOPT_DEF_S_ME_MODE(TELOPT_XDISPLOC) = x;
-            TELOPT_DEF_S_U_MODE(TELOPT_XDISPLOC) = y;
-            TELOPT_DEF_C_ME_MODE(TELOPT_XDISPLOC) = x;
-            TELOPT_DEF_C_U_MODE(TELOPT_XDISPLOC) = y;
+            TELOPT_DEF_S_ME_MODE(TELOPT_XDISPLOC) = (CHAR)x;
+            TELOPT_DEF_S_U_MODE(TELOPT_XDISPLOC) = (CHAR)y;
+            TELOPT_DEF_C_ME_MODE(TELOPT_XDISPLOC) = (CHAR)x;
+            TELOPT_DEF_C_U_MODE(TELOPT_XDISPLOC) = (CHAR)y;
             return(success = 1);
 
           case CK_TN_ENV: {
@@ -11499,7 +11500,7 @@ case XYCARR:                            /* CARRIER-WATCH */
                 return(y);
               s = brstrip(s);
               /* we must check to make sure there are no % fields */
-              len = strlen(s);
+              len = (int)strlen(s);
               for (i8 = 0; i8 < len; i8++) {
                   if (s[i8] == '%') {
                       if (s[i8+1] != '%') {
@@ -12918,7 +12919,7 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
           }
           if ((y = cmcfm()) < 0) return(y);
           if (zz8 > -1L) {               /* Time of day given? */
-              x = zz8;
+              x = (int)zz8;
               if (zz8 != (long) x) {
                   printf(
 "Sorry, arithmetic overflow - hh:mm:ss not usable on this platform.\n"
@@ -14146,7 +14147,7 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
           else
             z = s[0] - '0';
           if (isupper(s[1]))            /* Parity */
-            s[1] = tolower(s[1]);
+            s[1] = (char)tolower(s[1]);
           if (s[2] != '1' && s[2] != '2') /* Stop bits */
             return(-2);
           else

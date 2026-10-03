@@ -517,7 +517,7 @@ a {
     int x = 0;
 #ifdef PKTZEROHACK
     ckstrncpy(ipktack,(char *)rdatap,PKTZEROLEN); /* Save a copy of the ACK */
-    ipktlen = strlen(ipktack);
+    ipktlen = (int)strlen(ipktack);
 #endif /* PKTZEROHACK */
     spar(rdatap);                       /* Set parameters */
     cancel = 0;
@@ -1543,7 +1543,7 @@ _PROTOTYP(int sndwho,(char *));
 */
             p = zgtdir();               /* Get current directory */
             if (p) if (*p) {            /* If we got one... */
-                len = strlen(p); /* and it matches the filespec path */
+                len = (int)strlen(p); /* and it matches the filespec path */
                 if (ckindex(p,fspec,0,0,1) == 1 && len > 3) {
                     fnp = fspec + len;
                     ok = 1;
@@ -1557,7 +1557,7 @@ _PROTOTYP(int sndwho,(char *));
 */
                 p = homedirpath;                /* Get home directory path */
                 if (p) if (*p) {                /* If we got one... */
-                    len = strlen(p);    /* and it matches the filespec path */
+                    len = (int)strlen(p); /* and it matches the filespec path */
                     if (ckindex(p,fspec,0,0,1) == 1 && len > 3) {
                         int i = 0;
                         char * s;
@@ -2505,7 +2505,7 @@ srv_query() {
             qbufn = 0;
             querybuf[0] = NUL;
             p = (char *) srvcmd + 3;    /* Pointer for making wrapper */
-            n = strlen((char *)srvcmd); /* Position of end */
+            n = (int)strlen((char *)srvcmd); /* Position of end */
             c = *(srvcmd+4);            /* Which type of variable */
 
             if (*(srvcmd+6) == CMDQ) {  /* Starts with command quote? */
@@ -3387,11 +3387,11 @@ _PROTOTYP( int pxyz, (int) );
 #endif /* TCPSOCKET */
 #endif /* NETCONN */
 
-            len = strlen(tmpbuf);
+            len = (int)strlen(tmpbuf);
             if (stuff >= 0 && len < tmpbufsiz - 1) {
-                tmpbuf[len++] = stuff;
+                tmpbuf[len++] = (char)stuff;
                 if (stuff2 >= 0 && len < tmpbufsiz - 1)
-                  tmpbuf[len++] = stuff2;
+                  tmpbuf[len++] = (char)stuff2;
                 tmpbuf[len] = NUL;
             }
             ttol((CHAR *)tmpbuf,len);

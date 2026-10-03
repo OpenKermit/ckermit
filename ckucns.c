@@ -765,7 +765,7 @@ ckcputc(c) int c;
 {
     int x;
 
-    *obp++ = c & 0xff;                  /* Deposit the character */
+    *obp++ = (char)(c & 0xff);          /* Deposit the character */
     obc++;                              /* Count it */
     if (ibc == 0 ||                     /* If input buffer about empty */
         obc == OBUFL) {                 /* or output buffer full */
@@ -814,7 +814,7 @@ ckcgetc(dummy) int dummy;
         if (c < 0) {                    /* If error, return error code */
             return(c);
         } else {                        /* Otherwise, got one character */
-            *ibp++ = c;                 /* Advance buffer pointer */
+            *ibp++ = (char)c;           /* Advance buffer pointer */
             ibc++;                      /* and count. */
         }
         if ((n = ttchk()) > 0) {        /* Any more waiting? */
@@ -882,7 +882,7 @@ kbget() {
           kbc = 1;                      /* If none or dunno, wait for one. */
         else if (kbc > KBUFL)           /* If too many, */
           kbc = KBUFL;                  /* only read this many. */
-        if ((kbc = read(0, kbuf, kbc)) < 1) { /* Now read it/them. */
+        if ((kbc = (int)read(0, kbuf, kbc)) < 1) { /* Now read it/them. */
             debug(F101,"CONNECT kbget errno","",errno); /* Got an error. */
 #ifdef EINTR
             if (errno == EINTR)         /* Interrupted system call. */
@@ -1033,7 +1033,7 @@ learnchar(c) int c;
             ULONG t;
 
             t = (ULONG) time(0);        /* Calculate INPUT timeout */
-            j = t - learnt1;
+            j = (int)(t - learnt1);
             j += (j / 4) > 0 ? (j / 4) : 1; /* Add some slop */
             if (j < 2) j = 2;               /* 2 seconds minimum */
 
@@ -1058,7 +1058,7 @@ learnchar(c) int c;
                     if (buf[j-1] != LF)
                       j = 0;
                 }
-                buf[j++] = cc;
+                buf[j++] = (char)cc;
             }
             for (i = 0; i < j; i++) {   /* Now copy out the buffer */
                 cc = buf[i];            /* interpreting control chars */
@@ -1616,7 +1616,7 @@ conect() {
                         continue;
                       case IDLE_OUT:    /* OUTPUT a string */
                         if (tt_idlestr) {
-                            int len = strlen(tt_idlestr);
+                            int len = (int)strlen(tt_idlestr);
                             if (len > 0)
                               ttol((CHAR *)tt_idlestr,len);
                             else
@@ -1812,14 +1812,14 @@ conect() {
 #endif /* UNICODE */
                     if (sxo) c = (*sxo)((char)c); /* Local-intermediate */
                     if (rxo) c = (*rxo)((char)c); /* Intermediate-remote */
-                    outxbuf[0] = c;
+                    outxbuf[0] = (CHAR)c;
                     outxcount = 1;
                     outxbuf[outxcount] = NUL;
 #ifdef UNICODE
                 }
 #endif /* UNICODE */
             } else {
-                outxbuf[0] = c;
+                outxbuf[0] = (CHAR)c;
                 outxcount = 1;
                 outxbuf[outxcount] = NUL;
             }
@@ -2072,7 +2072,7 @@ conect() {
          /* Learned script: Record incoming chars if not in Keyboard state */
 
             if (learning && learnst != 2) { /* Learned script active */
-                learnbuf[learnbp++] = c;    /* Save for INPUT command */
+                learnbuf[learnbp++] = (char)c; /* Save for INPUT command */
                 if (learnbp >= LEARNBUFSIZ) /* in circular buffer */
                   learnbp = 0;              /* wrapping if at end. */
                 learnbc++;                  /* Count this byte. */
@@ -2136,7 +2136,7 @@ conect() {
                             /* Damage the packet so that it doesn't trigger */
                             /* autodownload detection downstream. */
                             if (k == PROTO_K) {
-                                int ki, len = strlen((char *)ksbuf);
+                                int ki, len = (int)strlen((char *)ksbuf);
                                 for (ki = 0; ki < len; ki++)
                                   ckcputc(BS);
                             }
@@ -2156,7 +2156,7 @@ conect() {
                                     ksign ? "server" : "receive",
                                     ptab[protocol].p_name
                                     );
-                            apclength = strlen(apcbuf);
+                            apclength = (int)strlen(apcbuf);
                             debug(F111,"CONNECT ksbuf",ksbuf,k);
                             debug(F110,"CONNECT autodownload",apcbuf,0);
                             apcactive = APC_LOCAL;
@@ -2193,7 +2193,7 @@ conect() {
                     }
                     if (inshift) c |= 0200;
                 }
-                inxbuf[0] = c;          /* In case there is no translation */
+                inxbuf[0] = (CHAR)c;    /* In case there is no translation */
                 inxcount = 1;           /* ... */
 #ifndef NOCSETS
                 if (inesc[0] == ES_NORMAL /* If not in an escape sequence */
@@ -2211,7 +2211,7 @@ conect() {
                             inxcount = 2;
                         } else if (ux3 == -9) { /* UTF-8 error */
                             inxbuf[0] = '?';
-                            inxbuf[1] = u_to_b2();
+                            inxbuf[1] = (CHAR)u_to_b2();
                             inxcount = 2;
                         } else {
                             inxbuf[0] = (unsigned)(ux3 & 0xff);
@@ -2224,7 +2224,7 @@ conect() {
 #endif /* UNICODE */
                         if (sxi) c = (*sxi)((CHAR)c);
                         if (rxi) c = (*rxi)((CHAR)c);
-                        inxbuf[0] = c;
+                        inxbuf[0] = (CHAR)c;
 #ifdef UNICODE
                     }
 #endif /* UNICODE */
@@ -2301,7 +2301,7 @@ conect() {
                     if (printing && !inesc[0]) {
                         /* zchout() can't be used because */
                         /* it's buffered differently. */
-                        cbuf[0] = c;
+                        cbuf[0] = (char)c;
                         zsoutx(ZMFILE,(char *)cbuf,1);
                     }
 #endif /* XPRINT */
@@ -2512,7 +2512,7 @@ doesc(c) char c;
         if (c == escape) {              /* Send escape character */
             d = dopar((CHAR) c); ttoc((char) d); return;
         } else                          /* Or else look it up below. */
-            if (isupper(c)) c = tolower(c);
+            if (isupper(c)) c = (char)tolower(c);
 
         switch(c) {
 
@@ -2623,9 +2623,9 @@ doesc(c) char c;
             sprintf(temp," Command bytesize: %d", (cmdmsk == 0177) ? 7 : 8);
             conoll(temp);
             if (hwparity)
-              sprintf(temp," Parity[hardware]: %s",parnam(hwparity));
+              sprintf(temp," Parity[hardware]: %s",parnam((char)hwparity));
             else
-              sprintf(temp," Parity: %s", parnam(parity));
+              sprintf(temp," Parity: %s", parnam((char)parity));
             conoll(temp);
 #ifndef NOXFER
             sprintf(temp," Autodownload: %s", autodl ? "on" : "off");
@@ -2657,7 +2657,7 @@ doesc(c) char c;
 
           case 'h':                     /* Help */
           case '?':                     /* Help */
-            c = hconne(); continue;
+            c = (char)hconne(); continue;
 
           case '0':                     /* Send a null */
             c = '\0'; d = dopar((CHAR) c); ttoc((char) d); return;
@@ -2699,8 +2699,10 @@ doesc(c) char c;
                 int x;
                 ecbp = ecbuf;
                 *ecbp++ = c;
-                while (((c = (CONGKS() & cmdmsk)) != '\r') && (c != '\n'))
-                  *ecbp++ = c;
+                while (((c = (char)(CONGKS() & cmdmsk)) != '\r') &&
+                       (c != '\n'))
+                  if (ecbp < ecbuf + sizeof(ecbuf) - 1) /* Keep room for NUL */
+                    *ecbp++ = c;
                 *ecbp = NUL; ecbp = ecbuf;
                 x = xxesc(&ecbp);       /* Interpret it */
                 if (x >= 0) {           /* No key mapping here */

@@ -2585,7 +2585,7 @@ docmdfile(threadinfo) VOID * threadinfo;
     if (tlevel > -1)                    /* Remember we did this */
       cfilef = 1;
     while (tlevel > -1) {               /* Execute it until it runs out. */
-        sstate = parser(1);             /* Loop getting commands. */
+        sstate = (CHAR)parser(1);             /* Loop getting commands. */
         if (sstate) proto();            /* Enter protocol if requested. */
 #ifdef NTSIG
         ck_ih();
@@ -2646,9 +2646,9 @@ setprefix(z) int z;
              1
 #endif /* UNPREFIXZERO */
              ; i < 32; i++)
-          ctlp[i] = val;
-        for (i = 127; i < 160; i++) ctlp[i] = val;
-        ctlp[(unsigned)255] = val;
+          ctlp[i] = (short)val;
+        for (i = 127; i < 160; i++) ctlp[i] = (short)val;
+        ctlp[(unsigned)255] = (short)val;
         if (z == PX_NON) {              /* These are never safe */
             if (network) {              /* Assume network = telnet or rlogin */
                 ctlp[CK_CR] = 1;        /* Prefix CR because of NVT rules */
@@ -2732,8 +2732,8 @@ makever ( )
     ck_l_xver = ck_l_ver;
 #endif /* OS2 */
 
-    x = strlen(ck_s_name);
-    y = strlen(ck_s_ver);
+    x = (int)strlen(ck_s_name);
+    y = (int)strlen(ck_s_ver);
     if (y + x + 1 < CKVERLEN) {
         ckmakmsg(versio,CKVERLEN,ck_s_name," ",ck_s_xver,NULL);
     } else {
@@ -2743,26 +2743,26 @@ makever ( )
     x += y + 1;
 
     if (*ck_s_who) {
-        y = strlen(ck_s_who);
+        y = (int)strlen(ck_s_who);
         if (CKVERLEN < x + y + 1)
           return;
         ckstrncat(versio,"-",CKVERLEN);
         ckstrncat(versio,ck_s_who,CKVERLEN);
     }
     x += y + 1;
-    y = strlen(ck_s_test);
+    y = (int)strlen(ck_s_test);
     if (y > 0 && y + x + 1 < CKVERLEN) {
         ckstrncat(versio," ",CKVERLEN);
         ckstrncat(versio,ck_s_test,CKVERLEN);
         x += y + 1;
-        y = strlen(ck_s_tver);
+        y = (int)strlen(ck_s_tver);
         if (y > 0 && y + x + 1 < CKVERLEN) {
             ckstrncat(versio,".",CKVERLEN);
             ckstrncat(versio,ck_s_tver,CKVERLEN);
             x += y + 1;
         }
     }
-    y = strlen(ck_s_date);
+    y = (int)strlen(ck_s_date);
     if (y > 0 && y + x + 2 < CKVERLEN) {
         ckstrncat(versio,", ",CKVERLEN);
         ckstrncat(versio,ck_s_date,CKVERLEN);
@@ -2931,7 +2931,7 @@ dourl()
                 /* printf("CLCMDS 1: %s\n",script); */
             } else {
                 /* does the path specify a file or a directory? */
-                int len = strlen(g_url.pth);
+                int len = (int)strlen(g_url.pth);
                 if (ISDIRSEP(g_url.pth[len-1])) {
                     ckmakxmsg(script,SCRIPTLEN, /* Directory name given */
                               "if not eq {\\v(authstate)} {user} \
@@ -3057,7 +3057,7 @@ MAINNAME( argc, argv ) int argc; char **argv;
         debug(F101,"sizeof int","",sizeof(x2));
         debug(F101,"sizeof long","",sizeof(x3));
         debug(F101,"sizeof CK_OFF_T","",sizeof(x4));
-        offtsize = x4;
+        offtsize = (int)sizeof(x4);
         debug(F101,"main offtsize","",offtsize);
     }
 
@@ -3320,7 +3320,7 @@ MAINNAME( argc, argv ) int argc; char **argv;
         char stackdata[256];
         unsigned int c = 1234, n;
         /* try to make a random unsigned int to feed srand() */
-        c = time(NULL);                 /* Get current time */
+        c = (unsigned int)time(NULL);               /* Get current time */
         c *= getpid();                  /* multiply it by our PID */
         /* Referenced before set... DELIBERATELY */
         for (n = 0; n < sizeof(stackdata); n++) /* IGNORE WARNING */

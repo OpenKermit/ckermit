@@ -1473,7 +1473,7 @@ ssl_passwd_callback(buf,len,rwflag,userdata)
     else
         prompt=(char*)userdata;
     ok = uq_txt(NULL,prompt,2,NULL,buf,len,NULL,DEFAULT_UQ_TIMEOUT);
-    return(ok > 0 ? strlen(buf) : 0);
+    return(ok > 0 ? (int)strlen(buf) : 0);
 }
 
 
@@ -3438,6 +3438,44 @@ eject:
 }
 
 
+/*
+  Copy the IPv4 addresses from the server certificate's subjectAltName
+  into addrs[], up to max of them.  Only iPAddress entries of exactly
+  4 bytes are IPv4; 16-byte IPv6 entries are skipped.  Returns the
+  number copied.
+*/
+static int
+tls_get_SAN_ipv4(SSL * ssl, struct in_addr * addrs, int max)
+{
+    X509 *server_cert = NULL;
+    X509_EXTENSION *ext = NULL;
+    STACK_OF(GENERAL_NAME) *ialt = NULL;
+    GENERAL_NAME *gen = NULL;
+    int i, n = 0;
+
+    if (!(server_cert = SSL_get_peer_certificate(ssl)))
+      return(0);
+    if ((i = X509_get_ext_by_NID(server_cert, NID_subject_alt_name, -1)) >= 0
+        && (ext = (X509_EXTENSION *)X509_get_ext(server_cert, i))
+        && (ialt = X509V3_EXT_d2i(ext))) {
+        for (i = 0; i < sk_GENERAL_NAME_num(ialt) && n < max; i++) {
+            gen = sk_GENERAL_NAME_value(ialt, i);
+            if ((gen->type | V_ASN1_CONTEXT_SPECIFIC) !=
+                (GEN_IPADD | V_ASN1_CONTEXT_SPECIFIC) || !gen->d.ia5)
+              continue;
+            if (CK_ASN1_STRING_LEN(gen->d.ia5) != (int)sizeof(struct in_addr))
+              continue;
+            memcpy(&addrs[n++], CK_ASN1_STRING_DATA(gen->d.ia5),
+                   sizeof(struct in_addr));
+        }
+    }
+    if (ialt)
+      GENERAL_NAMES_free(ialt);
+    X509_free(server_cert);
+    return(n);
+}
+
+
 static int
 dNSName_cmp(const char *host, const char *dNSName)
 {
@@ -3577,10 +3615,12 @@ inet_aton(char * ipaddress, struct in_addr * ia) {
 #endif /* HPUX10 */
 #endif /* OSF50 */
 
+#define NUM_SAN_IPV4 64                 /* IPv4 SANs examined */
+
 /*
   For an IP address as the SAN of a certificate, inet_aton() below only
-  recognizes an IPv4 literal, and the GEN_IPADD SAN entries it compares against
-  are read as raw 4-byte addresses.  Connecting to an IPv6 literal host always
+  recognizes an IPv4 literal, and only the 4-byte (IPv4) GEN_IPADD SAN entries
+  are compared against it.  Connecting to an IPv6 literal host always
   falls through to the dNSName/commonName comparison instead, which is safe
   (fails to a hostname-mismatch warning, not a silent match).  It means a
   certificate whose only matching SAN is an IPv6 address always produces a
@@ -3595,7 +3635,6 @@ ssl_check_server_name(SSL * ssl, char * hostname)
 {
     char * commonName;
     unsigned char ** dNSName;
-    unsigned char ** ipAddress;
     struct in_addr ia;
     int rv;
 
@@ -3608,20 +3647,13 @@ ssl_check_server_name(SSL * ssl, char * hostname)
                 free(dNSName[i]);
             }
         }
-        if ((ipAddress = tls_get_SAN_objs(ssl,GEN_IPADD))) {
-            int i = 0;
-            char *server_ip;
-            struct in_addr lia;
+        {
+            struct in_addr sanip[NUM_SAN_IPV4];
+            int i, n = tls_get_SAN_ipv4(ssl, sanip, NUM_SAN_IPV4);
 
-            for (i = 0; ipAddress[i]; i++) {
-                if (ipAddress[i]) {
-                    lia.s_addr = *(unsigned long *)ipAddress[i];
-                    server_ip = inet_ntoa(lia);
-                    printf("Certificate[0] altSubjectName IPAddr=%s\r\n",server_ip);
-                }
-                free(ipAddress[i]);
-            }
-            /* ipAddress points to a static - don't free */
+            for (i = 0; i < n; i++)
+              printf("Certificate[0] altSubjectName IPAddr=%s\r\n",
+                     inet_ntoa(sanip[i]));
         }
         if ((dNSName = tls_get_SAN_objs(ssl,GEN_EMAIL))) {
             int i = 0;
@@ -3648,25 +3680,16 @@ ssl_check_server_name(SSL * ssl, char * hostname)
 
     /* first we check if `hostname' is in fact an ip address */
     if (inet_aton(hostname, &ia)) {
-        ipAddress = tls_get_SAN_objs(ssl,GEN_IPADD);
-        if (ipAddress) {
-            int i = 0;
-            char *server_ip = "UNKNOWN";
+        struct in_addr sanip[NUM_SAN_IPV4];
+        int i, n = tls_get_SAN_ipv4(ssl, sanip, NUM_SAN_IPV4);
+        char *server_ip = "NO IP IN CERT";
 
-            for (i = 0; ipAddress[i]; i++)
-                if (*(unsigned long *)ipAddress[i] == ia.s_addr)
-                    return 0;
-
-            if (i > 0 && ipAddress[i - 1]) {
-                ia.s_addr = *(unsigned long *)ipAddress[i - 1];
-                server_ip = inet_ntoa(ia);
-            }
-            rv = show_hostname_warning(hostname, server_ip) ? 0 : -1;
-            for (i = 0; ipAddress[i]; i++)
-                free(ipAddress[i]);
-        } else {
-            rv = show_hostname_warning(hostname, "NO IP IN CERT") ? 0 : -1;
-        }
+        for (i = 0; i < n; i++)
+          if (sanip[i].s_addr == ia.s_addr)
+            return 0;
+        if (n > 0)
+          server_ip = inet_ntoa(sanip[n - 1]);
+        rv = show_hostname_warning(hostname, server_ip) ? 0 : -1;
         return(rv);
     }
 
@@ -3817,10 +3840,10 @@ ssl_get_client_finished(char *buf, int count)
     return(0);
 #else
     if (sstelnet || tcp_incoming) {
-        return(SSL_get_peer_finished(ssl_active_flag?ssl_con:tls_con,
+        return((int)SSL_get_peer_finished(ssl_active_flag?ssl_con:tls_con,
                                       buf,count));
     } else {
-        return(SSL_get_finished(ssl_active_flag?ssl_con:tls_con,
+        return((int)SSL_get_finished(ssl_active_flag?ssl_con:tls_con,
                                       buf,count));
     }
 #endif /* NO_GET_FINISHED */
@@ -3833,10 +3856,10 @@ ssl_get_server_finished(char *buf, int count)
     return(0);
 #else
     if (sstelnet || tcp_incoming) {
-        return(SSL_get_finished(ssl_active_flag?ssl_con:tls_con,
+        return((int)SSL_get_finished(ssl_active_flag?ssl_con:tls_con,
                                       buf,count));
     } else {
-        return(SSL_get_peer_finished(ssl_active_flag?ssl_con:tls_con,
+        return((int)SSL_get_peer_finished(ssl_active_flag?ssl_con:tls_con,
                                       buf,count));
     }
 #endif /* NO_GET_FINISHED */

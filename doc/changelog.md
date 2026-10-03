@@ -1,5 +1,117 @@
 # OpenKermit C-Kermit Changelog
 
+# C-Kermit 11.0.515 (NOT YET RELEASED)
+
+- Significant work eliminating over 900 -Wconversion warnings.  Added tests
+  along the way.  Found and fixed these bugs along the way:
+
+  - GET or RECEIVE with an existing directory as the destination
+    (e.g. `get foo.txt /some/dir/`) failed with "?Syntax error".  A
+    regression from the -Wshadow work, present in 11.0.511 through
+    11.0.514.  Added regression test to cover this bug.  Bug was introduced
+    in commit 9be7054f, in C-Kermit 11.0.511.
+
+  - A malicious Telnet server could overflow a stack buffer and a heap buffer
+    with a crafted NEW-ENVIRON SEND request during connection negotiation.
+    Added regression tests to cover this bug.  The stack overflow was
+    introduced in commit 4b5eddea, in C-Kermit 6.0.192 of 1996; the heap
+    overflow in commit d0f8b1da, in C-Kermit 7.0.197 of 2000.
+
+  - TLS certificate checks never matched an IP address SAN containing a zero
+    byte (such as 127.0.0.1), read past the SAN's buffer, and could not
+    match any IP SAN on big-endian 64-bit hosts.  Added regression test to
+    cover this bug.  The overread and big-endian bug were introduced in
+    commit c88d9b85, in C-Kermit 8.0.200 of 2001; the zero-byte bug in
+    commit 0fd869b4, in C-Kermit 9.0.302 of 2011.
+
+  - Files of 2 GiB or more: HTTP PUT/POST sent a wrong Content-length;
+    `kermit -s` and command-line FTP `-p` rejected 2-4 GiB files; REMOTE
+    DELETE skipped 2-4 GiB files; DELETE's bytes-freed total was wrong;
+    WAIT FILE treated a file of exactly 2^32-1 bytes as deleted.  Added
+    regression tests to cover each of these bugs.  Bugs were introduced in
+    commit 4b5eddea, in C-Kermit 6.0.192 of 1996 (REMOTE DELETE, DELETE);
+    commit d0f8b1da, in C-Kermit 7.0.197 of 2000 (HTTP, WAIT); and commit
+    c88d9b85, in C-Kermit 8.0.200 of 2001 (`-s`, FTP `-p`).
+
+  - WAIT n FILE succeeded on timeout even if the event never happened.
+    Added regression test to cover this bug.  Bug was introduced in commit
+    d0f8b1da, in C-Kermit 7.0.197 of 2000.
+
+  - Command-line HTTP (`kermit http://...`) exited with success after a
+    failed transfer such as a 404.  Added regression test to cover this bug.
+    Bug was introduced in commit c88d9b85, in C-Kermit 8.0.200 of 2001.
+
+  - HTTP reconnects went to the wrong port for ports above 255, and HTTP
+    INDEX left the directory out of its request line.  Added regression
+    tests to cover these bugs.  The port bug was introduced in commit
+    c88d9b85, in C-Kermit 8.0.200 of 2001; the INDEX bug in commit
+    d0f8b1da, in C-Kermit 7.0.197 of 2000.
+
+  - On big-endian 64-bit hosts, the local IP address lookup returned
+    0.0.0.0 and the Telnet COM-PORT baud rate was sent and read wrongly.
+    Added regression tests to cover these bugs; they can only fail on a
+    big-endian host.  The address bug was introduced in commit d0f8b1da, in
+    C-Kermit 7.0.197 of 2000; the COM-PORT bug in commit c88d9b85, in
+    C-Kermit 8.0.200 of 2001.
+
+  - `\fradix()`, `\fhex2n()` and `\foct2n()` returned 0 or an empty string
+    instead of -1 for values past 2^63-1.  Added regression test to cover
+    this bug.  Bug was introduced in commit d0f8b1da, in C-Kermit 7.0.197
+    of 2000.
+
+  - Buffer overflows from local input: the RLOGIN startup data with a long
+    USER, an HTTP proxy name filling its buffer, a CONNECT-mode backslash
+    code of 10 or more characters (crashed), and MGET with a pattern
+    directory of 4096 bytes or more.  Added regression tests to cover these
+    bugs, but the RLOGIN and proxy tests detect the overflow only under
+    AddressSanitizer.  Bugs were introduced in commit 609e2f39 in
+    C-Kermit 5A(190) of 1994 (CONNECT), commit d0f8b1da in C-Kermit
+    7.0.197 of 2000 (RLOGIN), and commit c88d9b85 in C-Kermit 8.0.200 of
+    2001 (proxy, MGET).
+
+  - Bounded several buffers filled from FTP server data in GSSAPI/Kerberos
+    builds, and fixed a one-byte overrun in their base64 decoder.  Bugs
+    were introduced in commit c88d9b85 (C-Kermit 8.0.200 of 2001).
+
+  - Smaller fixes: an empty DNS TXT string read before its buffer; the
+    partner's system ID was not terminated; command-line FTP's "No files
+    to put/get" messages were swapped (added regression test to cover
+    this bug); the dial log line was sized from an uninitialized buffer;
+    the fullscreen display's CPS never used the floating-point timer.  Bugs
+    were introduced in commit 4b5eddea, in C-Kermit 6.0.192 of 1996
+    (system ID); commit d0f8b1da, in C-Kermit 7.0.197 of 2000 (dial log);
+    and commit c88d9b85, in C-Kermit 8.0.200 of 2001 (TXT, FTP messages,
+    CPS display).
+
+- Due to the -Wshadow finding above, performed another review step of previous
+  warning-elimination work.  As part of this review, found and fixed:
+
+  - TYPE /WIDTH showed empty lines, or lines cut to the /TAIL count,
+    instead of each line truncated to the given width.  A regression from
+    the -Wshadow work, present in 11.0.510 through 11.0.514.  Added
+    regression tests to cover this bug.  Bug was introduced in commit
+    4ddb464e in C-Kermit 11.0.510.
+
+  - A rename from the -Wshadow work was incomplete in the DIAL code for
+    Digitel modems, so three uses wrote a different variable.  Nothing read
+    that variable before it was reset, so behavior did not change.  Bug was
+    introduced in commit 9be7054f in C-Kermit 11.0.511.
+
+  - TYPE /WIDTH put a NUL byte after each tab it expanded, which also moved
+    the next tab stop one column.  Added regression test to cover this bug.
+    Bug was introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+  - TYPE /WIDTH copied the whole tab-expanded line back into its buffer,
+    which with UCS-2 output could exceed the buffer.  This cannot happen
+    today, since TYPE /WIDTH stops at the first NUL byte of UCS-2 text.
+    Bug was introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- Found but not fixed: when there is no terminal to answer a TLS prompt,
+  `uq_ok()` returns -4, which the TLS prompts treat as "yes".  So scripted,
+  non-interactive sessions accept an expired certificate or a hostname
+  mismatch.  This is current behavior and needs a separate decision.
+  Bug was introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
 # C-Kermit 11.0.514
 
 September 30, 2026

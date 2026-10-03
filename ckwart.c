@@ -233,7 +233,7 @@ setwstate(state,t) int state; trans t;
     int idx,msk;
     idx = state/8;                      /* byte associated with state */
     msk = 0x80 >> (state % 8);          /* bit mask for state */
-    t->states[idx] |= msk;
+    t->states[idx] |= (CHAR)msk;
 }
 
 /*
