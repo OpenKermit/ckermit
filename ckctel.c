@@ -1027,7 +1027,7 @@ tn_flui() {
             break;
           default:
             if (x >= 0)
-              tn_wait_buf[tn_wait_idx++] = x;
+              tn_wait_buf[tn_wait_idx++] = (char)x;
         }
     }
     return(1);
@@ -1133,7 +1133,7 @@ XmuGetHostname (buf, maxlen)
     buf[0] = '\0';
     (void) gethostname (buf, maxlen);
     buf [maxlen - 1] = '\0';
-    len = strlen(buf);
+    len = (int)strlen(buf);
 #endif /* hpux */
     return len;
 }
@@ -1225,7 +1225,7 @@ fwdx_parse_displayname (displayname, familyp, hostp, dpynump, scrnump, restp)
      * get the host string; if none is given, use the most effiecient path
      */
 
-    len = (ptr - displayname);  /* length of host name */
+    len = (int)(ptr - displayname);  /* length of host name */
     if (len == 0) {                     /* choose most efficient path */
 #ifdef UNIX
         host = copystring (UNIX_CONNECTION, UNIX_CONNECTION_LENGTH);
@@ -1268,7 +1268,7 @@ fwdx_parse_displayname (displayname, familyp, hostp, dpynump, scrnump, restp)
         register char *cp;
 
         for (cp = ptr; *cp && isascii(*cp) && isdigit(*cp); cp++) ;
-        len = (cp - ptr);
+        len = (int)(cp - ptr);
                                         /* check present and valid follow */
         if (len == 0 || (*cp && *cp != '.')) {
             free (host);
@@ -1287,7 +1287,7 @@ fwdx_parse_displayname (displayname, familyp, hostp, dpynump, scrnump, restp)
 
         ptr++;
         for (cp = ptr; *cp && isascii(*cp) && isdigit(*cp); cp++) ;
-        len = (cp - ptr);
+        len = (int)(cp - ptr);
         if (len == 0 || (*cp && *cp != '.')) {  /* all prop name */
             free (host);
             return 0;
@@ -1304,7 +1304,7 @@ fwdx_parse_displayname (displayname, familyp, hostp, dpynump, scrnump, restp)
 
     if (ptr[0] == '.') {
         ptr++;
-        len = strlen (ptr);
+        len = (int)strlen (ptr);
         if (len > 0) {
             rest = copystring (ptr, len);
             if (!rest) {
@@ -1534,9 +1534,9 @@ fwdx_send_xauth_to_xserver(channel, data, len)
                 char address[300] = "localhost";
                 gethostname(address, sizeof(address) - 1);
                 real_xauth = XauGetAuthByAddr(family,
-                                              strlen(address),
+                                              (unsigned short)strlen(address),
                                               address,
-                                              strlen(disp_no),
+                                              (unsigned short)strlen(disp_no),
                                               disp_no, 0, NULL);
             }
             else if (family == FamilyInternet) {
@@ -1551,9 +1551,9 @@ fwdx_send_xauth_to_xserver(channel, data, len)
                    is documented in doc/ipv6.md. */
                 struct hostent *hi;
                 if ((hi = gethostbyname(host)))
-                    real_xauth = XauGetAuthByAddr(family, 4,
-                                                  hi->h_addr, strlen(disp_no),
-                                                  disp_no, 0, NULL);
+                    real_xauth = XauGetAuthByAddr(family, 4, hi->h_addr,
+                                        (unsigned short)strlen(disp_no),
+                                        disp_no, 0, NULL);
             }
         }
         if (host) free(host);
@@ -1576,19 +1576,19 @@ fwdx_send_xauth_to_xserver(channel, data, len)
                 msg[1] = msg[2] = 0;
                 msg[3] = 0x0B;
                 msg[4] = msg[5] = 0;
-                msg[6] = (name_len >> 8);
-                msg[7] = (name_len & 0xFF);
-                msg[8] = (data_len >> 8);
-                msg[9] = (data_len & 0xFF);
+                msg[6] = (char)((name_len >> 8) & 0xFF);
+                msg[7] = (char)(name_len & 0xFF);
+                msg[8] = (char)((data_len >> 8) & 0xFF);
+                msg[9] = (char)(data_len & 0xFF);
             } else {
                 msg[0] = 0x6c; /* LSB order */
                 msg[1] = 0;
                 msg[2] = 0x0B;
                 msg[3] = msg[4] = msg[5] = 0;
-                msg[6] = (name_len & 0xFF);
-                msg[7] = (name_len >> 8);
-                msg[8] = (data_len & 0xFF);
-                msg[9] = (data_len >> 8);
+                msg[6] = (char)(name_len & 0xFF);
+                msg[7] = (char)((name_len >> 8) & 0xFF);
+                msg[8] = (char)(data_len & 0xFF);
+                msg[9] = (char)((data_len >> 8) & 0xFF);
             }
             msg[10] = msg[11] = 0;
             memcpy(&msg[12],real_xauth->name,18);
@@ -1631,7 +1631,7 @@ fwdx_send_close(channel) int channel;
     }
 #endif /* CK_SSL */
 
-    nchannel = htons(channel);
+    nchannel = htons((unsigned short)channel);
     p = (unsigned char *) &nchannel;
 
     i = 0;
@@ -1689,7 +1689,7 @@ fwdx_send_open(channel) int channel;
     }
 #endif /* CK_SSL */
 
-    nchannel = htons(channel);
+    nchannel = htons((unsigned short)channel);
     p = (unsigned char *) &nchannel;
 
     i = 0;
@@ -1848,7 +1848,7 @@ fwdx_send_data_from_channel(channel, data, len)
     }
 #endif /* CK_SSL */
 
-    nchannel = htons(channel);
+    nchannel = htons((unsigned short)channel);
     p = (unsigned char *) &nchannel;
 
     j = 0;
@@ -1870,7 +1870,7 @@ fwdx_send_data_from_channel(channel, data, len)
             sb_priv[j++] = IAC;
             sb_priv[j++] = IAC;
         } else {
-            sb_priv[j++] = tmp;
+            sb_priv[j++] = (CHAR)tmp;
         }
         if ( j >= 2045 && (i < len-1) ) {
             sb_priv[j++] = (CHAR) IAC;  /* End of Subnegotiation */
@@ -1967,13 +1967,13 @@ fwdx_create_fake_xauth(name, name_len, data_len)
     fake_xauth.data = malloc(data_len);
     if (!fake_xauth.name || !fake_xauth.data)
         return 2;
-    fake_xauth.name_length = name_len;
+    fake_xauth.name_length = (unsigned short)name_len;
     memcpy(fake_xauth.name, name, name_len);
-    fake_xauth.data_length = data_len;
+    fake_xauth.data_length = (unsigned short)data_len;
 
     /* try to make a random unsigned int to feed srand() */
-    c = time(NULL);
-    c *= getpid();
+    c = (unsigned int)time(NULL);
+    c *= (unsigned int)getpid();
     for (n = 0; n < sizeof(stackdata); n++)
         c += stackdata[n];
     srand((unsigned int)c);
@@ -3126,7 +3126,7 @@ tn_hex(buf, buflen, data, datalen)
         i += j - 1;
     } /* end for */
     ckstrncat((char *)buf,"\r\n  ",buflen);
-    return(strlen((char *)buf));
+    return((int)strlen((char *)buf));
 }
 
 VOID
@@ -4409,7 +4409,7 @@ tn_xdoop(z, echo, fn) CHAR z; int echo; int (*fn)();
                   char * request = (char *)requestbuf;
                   sprintf(request,"%cUSER",TEL_ENV_VAR); /* safe */
                   tn_ssbopt(TELOPT_NEWENVIRON,TELQUAL_SEND,(CHAR *)requestbuf,
-                            strlen((char *)request)); /* SMS 2022-06-03 */
+                            (int)strlen(request)); /* SMS 2022-06-03 */
                   TELOPT_UNANSWERED_SB(TELOPT_NEWENVIRON)=1;
                 }
                 break;
@@ -4908,8 +4908,8 @@ tn_xdoop(z, echo, fn) CHAR z; int echo; int (*fn)();
                  the incoming channel is now ready for starting the
                  TLS negotiation.
                  */
-              int def_tls_u_mode, def_tls_me_mode;
-              int def_enc_u_mode, def_enc_me_mode;
+              unsigned char def_tls_u_mode, def_tls_me_mode;
+              unsigned char def_enc_u_mode, def_enc_me_mode;
               int rc = 0;
 
                           if (sb[0] != 1) {
@@ -5608,6 +5608,169 @@ tn_rnenv(rnsb, len) CHAR * rnsb; int len;
 #define SFUTLNTVER_VALUE  "2"
 #define SFUTLNTMODE_VALUE "console"     /* The other value is "stream" */
 
+/*
+  Append "<type> name VALUE value" to reply[] at offset *np, and advance
+  *np past it.  With reply NULL, only advance *np.  An entry that does
+  not fit in size bytes is left out.
+*/
+static VOID
+#ifdef CK_ANSIC
+tn_envadd(char * reply, int size, int * np, int type, char * name,
+          char * value)
+#else
+tn_envadd(reply, size, np, type, name, value)
+    char * reply; int size; int * np; int type; char * name; char * value;
+#endif /* CK_ANSIC */
+/* tn_envadd */ {
+    int x = (int)strlen(name);
+    int y = (int)strlen(value);
+
+    if (reply) {
+        if (*np + x + y + 2 > size)
+          return;
+        reply[*np] = (char)type;
+        memcpy(&reply[*np + 1],name,x);
+        reply[*np + x + 1] = TEL_ENV_VALUE;
+        memcpy(&reply[*np + x + 2],value,y);
+    }
+    *np += x + y + 2;
+}
+
+/*
+  Add the variables requested by one VAR (vartype 1) or USERVAR
+  (vartype 2) item of a SEND.  An empty name requests all of them.
+*/
+static VOID
+#ifdef CK_ANSIC
+tn_envreq(char * reply, int size, int * np, int vartype, char * name,
+          char * uu, char * disp)
+#else
+tn_envreq(reply, size, np, vartype, name, uu, disp)
+    char * reply; int size; int * np; int vartype; char * name;
+    char * uu; char * disp;
+#endif /* CK_ANSIC */
+/* tn_envreq */ {
+    int all = !name[0];
+    int x;
+
+    if (vartype == 1) {
+        if (uu[0] && (all || !strcmp(name,"USER")))
+          tn_envadd(reply,size,np,TEL_ENV_VAR,"USER",uu);
+        if (tn_env_job[0] && (all || !strcmp(name,"JOB")))
+          tn_envadd(reply,size,np,TEL_ENV_VAR,"JOB",tn_env_job);
+        if (tn_env_acct[0] && (all || !strcmp(name,"ACCT")))
+          tn_envadd(reply,size,np,TEL_ENV_VAR,"ACCT",tn_env_acct);
+        if (tn_env_prnt[0] && (all || !strcmp(name,"PRINTER")))
+          tn_envadd(reply,size,np,TEL_ENV_VAR,"PRINTER",tn_env_prnt);
+        if (tn_env_sys[0] && (all || !strcmp(name,"SYSTEMTYPE")))
+          tn_envadd(reply,size,np,TEL_ENV_VAR,"SYSTEMTYPE",tn_env_sys);
+        if (disp && (all || !strcmp(name,"DISPLAY")))
+          tn_envadd(reply,size,np,TEL_ENV_VAR,"DISPLAY",disp);
+        return;
+    }
+    if (all) {
+        for (x = 0; x < 8; x++) {
+            if (tn_env_uservar[x][0] && tn_env_uservar[x][1])
+              tn_envadd(reply,size,np,TEL_ENV_USERVAR,
+                        tn_env_uservar[x][0],tn_env_uservar[x][1]);
+        }
+        if (tn_sfu) {
+            /* For compatibility with Microsoft Telnet Server */
+            tn_envadd(reply,size,np,TEL_ENV_USERVAR,
+                      SFUTLNTVER,SFUTLNTVER_VALUE);
+            tn_envadd(reply,size,np,TEL_ENV_USERVAR,
+                      SFUTLNTMODE,SFUTLNTMODE_VALUE);
+        }
+#ifdef CK_SNDLOC
+        if (tn_loc && tn_loc[0])
+          tn_envadd(reply,size,np,TEL_ENV_USERVAR,"LOCATION",tn_loc);
+#endif /* CK_SNDLOC */
+    } else if (tn_sfu && !strcmp(name,SFUTLNTVER)) {
+        tn_envadd(reply,size,np,TEL_ENV_USERVAR,
+                  SFUTLNTVER,SFUTLNTVER_VALUE);
+    } else if (tn_sfu && !strcmp(name,SFUTLNTMODE)) {
+        tn_envadd(reply,size,np,TEL_ENV_USERVAR,
+                  SFUTLNTMODE,SFUTLNTMODE_VALUE);
+#ifdef CK_SNDLOC
+    } else if (tn_loc && tn_loc[0] && !strcmp(name,"LOCATION")) {
+        tn_envadd(reply,size,np,TEL_ENV_USERVAR,"LOCATION",tn_loc);
+#endif /* CK_SNDLOC */
+    } else {
+        for (x = 0; x < 8; x++) {
+            if (tn_env_uservar[x][0] && tn_env_uservar[x][1] &&
+                !strcmp(name,tn_env_uservar[x][0]))
+              tn_envadd(reply,size,np,TEL_ENV_USERVAR,
+                        tn_env_uservar[x][0],tn_env_uservar[x][1]);
+        }
+    }
+}
+
+#define TN_ENVNAMEL 64                  /* Longest variable name matched */
+
+/*
+  Scan the SEND request in snsb[0..len-1].  The caller ensures snsb[len]
+  holds IAC.  Add the requested variables to reply[] (size bytes), setting
+  *np to the reply length.  With reply NULL, only compute the length.
+  Returns -1 on a protocol error, 0 otherwise.
+*/
+static int
+#ifdef CK_ANSIC
+tn_envscan(CHAR * snsb, int len, char * reply, int size, int * np,
+           char * uu, char * disp)
+#else
+tn_envscan(snsb, len, reply, size, np, uu, disp)
+    CHAR * snsb; int len; char * reply; int size; int * np;
+    char * uu; char * disp;
+#endif /* CK_ANSIC */
+/* tn_envscan */ {
+    char varname[TN_ENVNAMEL+1];
+    int i, j = 0, toolong = 0;
+    int type = 0;       /* 0 for NONE, 1 for VAR, 2 for USERVAR in progress */
+
+    *np = 0;
+    for (i = 0; i <= len; i++) {
+        switch (snsb[i]) {
+          case TEL_ENV_VAR:             /* VAR */
+          case TEL_ENV_USERVAR:         /* USERVAR */
+          case IAC:                     /* End of the list */
+            varname[j] = '\0';
+            /* A name that is too long or contains NUL matches nothing */
+            if (!toolong && (int)strlen(varname) == j) {
+                /* IAC with no name pending requests all VARs, and */
+                /* also all USERVARs unless a USERVAR is pending.  */
+                if (type == 1 || (type == 0 && j == 0 && snsb[i] == IAC))
+                  tn_envreq(reply,size,np,1,varname,uu,disp);
+                if (type == 2 || (j == 0 && snsb[i] == IAC))
+                  tn_envreq(reply,size,np,2,varname,uu,disp);
+            }
+            j = 0;
+            toolong = 0;
+            type = (snsb[i] == TEL_ENV_USERVAR ? 2 :      /* USERVAR */
+                    snsb[i] == TEL_ENV_VAR ? 1 :          /* VAR */
+                    0
+                   );
+            break;
+          case TEL_ENV_VALUE:           /* VALUE */
+            /* Protocol Error */
+            debug(F100, "TELNET Subnegotiation error - VALUE in SEND", "",0);
+            if (tn_deb || debses)
+              tn_debug("TELNET Subnegotiation error - VALUE in SEND");
+            return(-1);
+          case TEL_ENV_ESC:             /* ESC */
+            if (++i >= len)
+              break;
+            /* The escaped byte is part of the name */
+            /* Fall through */
+          default:
+            if (j < TN_ENVNAMEL)
+              varname[j++] = (char)snsb[i];
+            else
+              toolong = 1;
+        }
+    }
+    return(0);
+}
+
 /* Telnet send new environment */
 /* Returns -1 on error, 0 if nothing happens, 1 on success */
 /* In order for this code to work, sb[len] == IAC          */
@@ -5619,10 +5782,8 @@ tn_snenv(CHAR * snsb, int len)
 tn_snenv(snsb, len) CHAR * snsb; int len;
 #endif /* CK_ANSIC */
 /* tn_snenv */ {                        /* Send new environment */
-    char varname[16];
     char * reply = 0;
-    int i,j,n;                          /* Worker. */
-    int type = 0;       /* 0 for NONE, 1 for VAR, 2 for USERVAR in progress */
+    int n, size;
     extern int ck_lcname;
     char localuidbuf[UIDBUFLEN];        /* (Initialized just below) */
     char * uu = uidbuf;
@@ -5660,115 +5821,10 @@ tn_snenv(snsb, len) CHAR * snsb; int len;
     debug(F110,"tn_snenv disp",disp,0);
 
     /* First determine the size of the buffer we will need */
-    for (i = 0, j = 0, n = 0, type = 0, varname[0]= '\0'; i <= len; i++) {
-        switch (snsb[i]) {
-          case TEL_ENV_VAR:             /* VAR */
-          case TEL_ENV_USERVAR:         /* USERVAR */
-        case IAC:                     /* End of the list */
-            switch (type) {
-            case 0:                   /* Nothing in progress */
-                /* If we get IAC only, then that means send all */
-                /* VAR and USERVAR.                             */
-                if (!(j == 0 && snsb[i] == IAC))
-                  break;
-                /* Fall through */
-            case 1:                   /* VAR in progress */
-                varname[j] = '\0' ;
-                if (!varname[0]) {      /* Send All */
-                    if (uu[0])
-                      n += strlen(uu) + 4 + 2;
-                    if (tn_env_job[0])
-                      n += strlen(tn_env_job) + 3 + 2;
-                    if (tn_env_acct[0])
-                      n += strlen(tn_env_acct) + 4 + 2;
-                    if (tn_env_prnt[0])
-                      n += strlen(tn_env_prnt) + 7 + 2;
-                    if (tn_env_sys[0])
-                      n += strlen(tn_env_sys) + 10 + 2;
-                    if (disp)
-                      n += strlen(disp) + 7 + 2;
-                } else if (!strcmp(varname,"USER") && uu[0])
-                  n += strlen(uu) + 4 + 2;
-                else if (!strcmp(varname,"JOB") && tn_env_job[0])
-                  n += strlen(tn_env_job) + 3 + 2;
-                else if (!strcmp(varname,"ACCT") && tn_env_acct[0])
-                  n += strlen(tn_env_acct) + 4 + 2;
-                else if (!strcmp(varname,"PRINTER") && tn_env_prnt[0])
-                  n += strlen(tn_env_prnt) + 7 + 2;
-                else if (!strcmp(varname,"SYSTEMTYPE") && tn_env_sys[0])
-                  n += strlen(tn_env_sys) + 10 + 2;
-                else if (!strcmp(varname,"DISPLAY") && disp)
-                  n += strlen(disp) + 7 + 2;
-                /* If we get IAC only, then that means send all */
-                /* VAR and USERVAR.                             */
-                  if (!(j == 0 && snsb[i] == IAC))
-                      break;
-                  /* Fall through */
-            case 2:                   /* USERVAR in progress */
-                varname[j] = '\0' ;
-                if (!varname[0]) {      /* Send All */
-                    int x;
-                    for ( x=0 ; x<8 ; x++ ) {
-                        if ( tn_env_uservar[x][0] &&
-                             tn_env_uservar[x][1] )
-                            n += strlen(tn_env_uservar[x][0])
-                                + strlen(tn_env_uservar[x][1]) + 2;
-                    }
-                    if ( tn_sfu ) {
-                        /* For compatibility with Microsoft Telnet Server */
-                        n += strlen(SFUTLNTVER) + strlen(SFUTLNTVER_VALUE) + 2;
-                        n += strlen(SFUTLNTMODE) +
-                          strlen(SFUTLNTMODE_VALUE) + 2;
-                    }
-#ifdef CK_SNDLOC
-                    if ( tn_loc && tn_loc[0] )
-                        n += strlen("LOCATION") + strlen(tn_loc) + 2;
-#endif /* CK_SNDLOC */
-                }
-                else if (tn_sfu && !strcmp(varname,SFUTLNTVER))
-                    n += strlen(SFUTLNTVER) + strlen(SFUTLNTVER_VALUE) + 2;
-                else if (tn_sfu && !strcmp(varname,SFUTLNTMODE))
-                    n += strlen(SFUTLNTMODE) + strlen(SFUTLNTMODE_VALUE) + 2;
-#ifdef CK_SNDLOC
-                else if ( tn_loc && tn_loc[0] && !strcmp(varname,"LOCATION"))
-                    n += strlen("LOCATION") + strlen(tn_loc) + 2;
-#endif /* CK_SNDLOC */
-                else {
-                    int x;
-                    for ( x=0 ; x<8 ; x++ ) {
-                        if ( tn_env_uservar[x][0] &&
-                             tn_env_uservar[x][1] &&
-                             !strcmp(varname,tn_env_uservar[x][0]))
-                            n += strlen(tn_env_uservar[x][0])
-                                + strlen(tn_env_uservar[x][1]) + 2;
-                    }
-                }
-                break;
-            }
-            varname[0] = '\0';
-            j = 0;
-            type = (snsb[i] == TEL_ENV_USERVAR ? 2 :      /* USERVAR */
-                    snsb[i] == TEL_ENV_VAR ? 1 :          /* VAR */
-                    0
-                   );
-            break;
-          case TEL_ENV_VALUE:           /* VALUE */
-            /* Protocol Error */
-            debug(F100, "TELNET Subnegotiation error - VALUE in SEND", "",0);
-            if (tn_deb || debses)
-              tn_debug("TELNET Subnegotiation error - VALUE in SEND");
-            return(0);
-          case TEL_ENV_ESC:     /* ESC */
-            if (++i >= len)
-              break;
-            /* Otherwise the byte will be added to varname */
-            /* Fall through */
-          default:
-            if (j < 16 )
-              varname[j++] = snsb[i];
-        }
-    }
-    reply = malloc(n + 16);              /* Leave room for IAC stuff */
+    if (tn_envscan(snsb,len,NULL,0,&size,uu,disp) < 0)
+      return(0);                        /* Absorb a protocol error */
+
+    reply = malloc(size + 16);          /* Leave room for IAC stuff */
     if (!reply) {
         debug(F100, "TELNET Subnegotiation error - malloc failed", "",0);
         if (tn_deb || debses)
@@ -5782,209 +5838,8 @@ tn_snenv(snsb, len) CHAR * snsb; int len;
     }
 
     /* Now construct the real reply */
+    (VOID) tn_envscan(snsb,len,reply,size,&n,uu,disp);
 
-    n = 0;                              /* Start at beginning of buffer */
-/*
-  Pairs of <type> [VAR=0, VALUE=1, ESC=2, USERVAR=3] <value> "unterminated"
-  follow here until done...
-*/
-    for (i = 0, j = 0, type = 0, varname[0]= '\0'; i <= len; i++) {
-        switch (snsb[i]) {
-          case TEL_ENV_VAR:             /* VAR */
-          case TEL_ENV_USERVAR:         /* USERVAR */
-          case IAC:                     /* End of the list */
-            switch (type) {
-              case 0:                   /* Nothing in progress */
-                /* If we get IAC only, then that means send all */
-                /* VAR and USERVAR.                             */
-                if (!(j == 0 && snsb[i] == IAC))
-                  break;
-                /* Fall through */
-              case 1:                   /* VAR in progress */
-                varname[j] = '\0';
-                if (!varname[0]) {
-                    /* Send All */
-                    if (uu[0]) {
-                        reply[n] = TEL_ENV_VAR; /* VAR */
-                        strcpy(&reply[n+1],"USER");
-                        reply[n+5] = TEL_ENV_VALUE;             /* VALUE */
-                        strcpy(&reply[n+6],uu);
-                        n += strlen(uu) + 4 + 2;
-                    }
-                    if (tn_env_job[0]) {
-                        reply[n] = TEL_ENV_VAR; /* VAR */
-                        strcpy(&reply[n+1],"JOB");
-                        reply[n+4] = TEL_ENV_VALUE;     /* VALUE */
-                        strcpy(&reply[n+5],tn_env_job);
-                        n += strlen(tn_env_job) + 3 + 2;
-                    }
-                    if (tn_env_acct[0]) {
-                        reply[n] = TEL_ENV_VAR; /* VAR */
-                        strcpy(&reply[n+1],"ACCT");
-                        reply[n+5] = TEL_ENV_VALUE;     /* VALUE */
-                        strcpy(&reply[n+6],tn_env_acct);
-                        n += strlen(tn_env_acct) + 4 + 2;
-                    }
-                    if (tn_env_prnt[0]) {
-                        reply[n] = TEL_ENV_VAR; /* VAR */
-                        strcpy(&reply[n+1],"PRINTER");
-                        reply[n+8] = TEL_ENV_VALUE;     /* VALUE */
-                        strcpy(&reply[n+9],tn_env_prnt);
-                        n += strlen(tn_env_prnt) + 7 + 2;
-                    }
-                    if (tn_env_sys[0]) {
-                        reply[n] = TEL_ENV_VAR; /* VAR */
-                        strcpy(&reply[n+1],"SYSTEMTYPE");
-                        reply[n+11] = TEL_ENV_VALUE; /* VALUE */
-                        strcpy(&reply[n+12],tn_env_sys);
-                        n += strlen(tn_env_sys) + 10 + 2;
-                    }
-                    if (disp) {
-                        reply[n] = TEL_ENV_VAR; /* VAR */
-                        strcpy(&reply[n+1],"DISPLAY");
-                        reply[n+8] = TEL_ENV_VALUE;     /* VALUE */
-                        strcpy(&reply[n+9],disp);
-                        n += strlen(disp) + 7 + 2;
-                    }
-                } else if (!strcmp(varname,"USER") && uu[0]) {
-                    reply[n] = TEL_ENV_VAR;     /* VAR */
-                    strcpy(&reply[n+1],"USER");
-                    reply[n+5] = TEL_ENV_VALUE; /* VALUE */
-                    strcpy(&reply[n+6],uu);
-                    n += strlen(uu) + 4 + 2;
-                } else if (!strcmp(varname,"JOB") && tn_env_job[0]) {
-                    reply[n] = TEL_ENV_VAR;     /* VAR */
-                    strcpy(&reply[n+1],"JOB");
-                    reply[n+4] = TEL_ENV_VALUE; /* VALUE */
-                    strcpy(&reply[n+5],tn_env_job);
-                    n += strlen(tn_env_job) + 3 + 2;
-                } else if (!strcmp(varname,"ACCT") && tn_env_acct[0]) {
-                    reply[n] = TEL_ENV_VAR;     /* VAR */
-                    strcpy(&reply[n+1],"ACCT");
-                    reply[n+5] = TEL_ENV_VALUE; /* VALUE */
-                    strcpy(&reply[n+6],tn_env_acct);
-                    n += strlen(tn_env_acct) + 4 + 2;
-                } else if (!strcmp(varname,"PRINTER") && tn_env_prnt[0]) {
-                    reply[n] = TEL_ENV_VAR;     /* VAR */
-                    strcpy(&reply[n+1],"PRINTER");
-                    reply[n+8] = TEL_ENV_VALUE; /* VALUE */
-                    strcpy(&reply[n+9],tn_env_prnt);
-                    n += strlen(tn_env_prnt) + 7 + 2;
-                } else if (!strcmp(varname,"SYSTEMTYPE") && tn_env_sys[0]) {
-                    reply[n] = TEL_ENV_VAR;     /* VAR */
-                    strcpy(&reply[n+1],"SYSTEMTYPE");
-                    reply[n+11] = TEL_ENV_VALUE;        /* VALUE */
-                    strcpy(&reply[n+12],tn_env_sys);
-                    n += strlen(tn_env_sys) + 10 + 2;
-                } else if (!strcmp(varname,"DISPLAY") && disp) {
-                    reply[n] = TEL_ENV_VAR;     /* VAR */
-                    strcpy(&reply[n+1],"DISPLAY");
-                    reply[n+8] = TEL_ENV_VALUE; /* VALUE */
-                    strcpy(&reply[n+9],disp);
-                    n += strlen(disp) + 7 + 2;
-                }
-                  /* If we get IAC only, then that means send all */
-                  /* VAR and USERVAR.                             */
-                  if (!(j == 0 && snsb[i] == IAC))
-                      break;
-                  /* Fall through */
-            case 2:     /* USERVAR in progress */
-                  varname[j] = '\0';
-                  if (!varname[0]) {
-                      /* Send All */
-                      int x,y;
-                      for ( x=0 ; x<8 ; x++ ) {
-                          if ( tn_env_uservar[x][0] &&
-                               tn_env_uservar[x][1] ) {
-                              reply[n] = TEL_ENV_USERVAR;     /* VAR */
-                              y = strlen(tn_env_uservar[x][0]);
-                              strcpy(&reply[n+1],tn_env_uservar[x][0]);
-                              reply[n+y+1] = TEL_ENV_VALUE; /* VALUE */
-                              strcpy(&reply[n+y+2],tn_env_uservar[x][1]);
-                              n += y+strlen(tn_env_uservar[x][1])+2;
-                          }
-                      }
-                      if ( tn_sfu ) {
-                          /* Compatibility with Microsoft Telnet Server */
-                          reply[n] = TEL_ENV_USERVAR;     /* VAR */
-                          strcpy(&reply[n+1],SFUTLNTVER);
-                          reply[n+11] = TEL_ENV_VALUE; /* VALUE */
-                          strcpy(&reply[n+12],SFUTLNTVER_VALUE);
-                          n += strlen(SFUTLNTVER)+strlen(SFUTLNTVER_VALUE)+2;
-
-                          reply[n] = TEL_ENV_USERVAR;     /* VAR */
-                          strcpy(&reply[n+1],SFUTLNTMODE);
-                          reply[n+12] = TEL_ENV_VALUE; /* VALUE */
-                          strcpy(&reply[n+13],SFUTLNTMODE_VALUE);
-                          n += strlen(SFUTLNTMODE)+strlen(SFUTLNTMODE_VALUE)+2;
-                      }
-                      if (tn_loc && tn_loc[0]) {
-                          reply[n] = TEL_ENV_USERVAR;     /* VAR */
-                          strcpy(&reply[n+1],"LOCATION");
-                          reply[n+9] = TEL_ENV_VALUE; /* VALUE */
-                          strcpy(&reply[n+10],tn_loc);
-                          n += strlen("LOCATION") + strlen(tn_loc) + 2;
-                      }
-                  }  else if (tn_sfu && !strcmp(varname,SFUTLNTVER)) {
-                      reply[n] = TEL_ENV_USERVAR;     /* VAR */
-                      strcpy(&reply[n+1],SFUTLNTVER);
-                      reply[n+11] = TEL_ENV_VALUE; /* VALUE */
-                      strcpy(&reply[n+12],SFUTLNTVER_VALUE);
-                      n += strlen(SFUTLNTVER) + strlen(SFUTLNTVER_VALUE) + 2;
-                  }  else if (tn_sfu && !strcmp(varname,SFUTLNTMODE)) {
-                      reply[n] = TEL_ENV_USERVAR;     /* VAR */
-                      strcpy(&reply[n+1],SFUTLNTMODE);
-                      reply[n+12] = TEL_ENV_VALUE; /* VALUE */
-                      strcpy(&reply[n+13],SFUTLNTMODE_VALUE);
-                      n += strlen(SFUTLNTMODE) + strlen(SFUTLNTMODE_VALUE) + 2;
-                  }
-#ifdef CK_SNDLOC
-                  else if (tn_loc && tn_loc[0] && !strcmp(varname,"LOCATION")){
-                      reply[n] = TEL_ENV_USERVAR;     /* VAR */
-                      strcpy(&reply[n+1],"LOCATION");
-                      reply[n+9] = TEL_ENV_VALUE; /* VALUE */
-                      strcpy(&reply[n+10],tn_loc);
-                      n += strlen("LOCATION") + strlen(tn_loc) + 2;
-                  }
-#endif /* CK_SNDLOC */
-                  else {
-                      int x,y;
-                      for ( x=0 ; x<8 ; x++ ) {
-                          if ( tn_env_uservar[x][0] &&
-                               tn_env_uservar[x][1] &&
-                               !strcmp(varname,tn_env_uservar[x][0])) {
-                              reply[n] = TEL_ENV_USERVAR;     /* VAR */
-                              y = strlen(tn_env_uservar[x][0]);
-                              strcpy(&reply[n+1],tn_env_uservar[x][0]);
-                              reply[n+y+1] = TEL_ENV_VALUE; /* VALUE */
-                              strcpy(&reply[n+y+2],tn_env_uservar[x][1]);
-                              n += y+strlen(tn_env_uservar[x][1])+2;
-                          }
-                      }
-                  }
-                break;
-            }
-            varname[0] = '\0';
-            j = 0;
-            type = (snsb[i] == TEL_ENV_USERVAR ? 2 :      /* USERVAR */
-                    snsb[i] == TEL_ENV_VAR ? 1 :  /* VAR */
-                    0
-                   );
-            break;
-          case TEL_ENV_VALUE: /* VALUE */
-            /* Protocol Error */
-            debug(F100, "TELNET Subnegotiation error - VALUE in SEND", "",0);
-            if (tn_deb || debses)
-              tn_debug("TELNET Subnegotiation error - VALUE in SEND");
-            return(0);  /* Was -1 but that would be taken as */
-                        /* an I/O error, so absorb it and go on. */
-          case TEL_ENV_ESC:     /* ESC */
-            /* Not sure what this for.  Quote next character? */
-            break;
-          default:
-            varname[j++] = snsb[i];
-        }
-    }
     if (tn_ssbopt(TELOPT_NEWENVIRON,TELQUAL_IS,(CHAR *)reply,n) < 0) {
         free(reply);
         return(-1);
@@ -6221,7 +6076,7 @@ tn_sndfwdx() {                          /* Send Fwd X Screen number to host */
         dot   = ckindex(".",&disp[colon],0,0,1);
 
         if ( dot ) {
-            screen = atoi(&disp[colon+dot]);
+            screen = (unsigned char)atoi(&disp[colon+dot]);
         }
     } else {
         screen = 0;
@@ -6531,8 +6386,6 @@ tnc_tn_sb(ccsb, len) CHAR * ccsb; int len;
 
       case TNC_C2S_SET_BAUDRATE:
       case TNC_S2C_SET_BAUDRATE: {
-          long baudrate;
-          char * br = (char *)&baudrate;
           TELOPT_SB(TELOPT_COMPORT).comport.wait_for_sb = 0;
           if (len == 2) {
             /* Actual behavior of the Access Server... */
@@ -6587,16 +6440,11 @@ tnc_tn_sb(ccsb, len) CHAR * ccsb; int len;
           } else if (len == 5) {
             /* This section attempts to follow RFC 2217 */
               tnc_bps_index = 0;
-              br[0] = ccsb[1];
-              br[1] = ccsb[2];
-              br[2] = ccsb[3];
-              br[3] = ccsb[4];
-#ifdef datageneral
-              /* AOS/VS doesn't have ntohl() but MV's are big-endian */
-              tnc_bps = baudrate;
-#else
-              tnc_bps = ntohl(baudrate);
-#endif /* datageneral */
+              /* 4 bytes, most significant first */
+              tnc_bps = (int)(((unsigned long)ccsb[1] << 24) |
+                              ((unsigned long)ccsb[2] << 16) |
+                              ((unsigned long)ccsb[3] << 8) |
+                              (unsigned long)ccsb[4]);
               debug(F111,"tnc_tn_sb","baudrate rfc",tnc_bps);
           } else {
               debug(F111,"tnc_tn_sb","baudrate invalid len",len);
@@ -6996,12 +6844,6 @@ tnc_set_baud(baud) long baud;
      */
 
     int i = 0, rc;
-#ifdef datageneral
-    /* AOS/VS doesn't have htonl() but MV's are big-endian */
-    long net_baud = baud;
-#else
-    long net_baud = htonl(baud);
-#endif /* datageneral */
     CHAR b;
 
     debug(F111,"tnc_set_baud","begin",baud);
@@ -7020,7 +6862,7 @@ tnc_set_baud(baud) long baud;
     if (baud <= 0)
         return(0);
 
-    if ( net_baud != 0 && net_baud == tnc_bps)
+    if (baud == tnc_bps)
         return(tnc_bps);
 
     sb_out[i++] = (CHAR) IAC;                 /* I Am a Command */
@@ -7060,11 +6902,11 @@ tnc_set_baud(baud) long baud;
             b = TNC_BPS_460800;
         sb_out[i++] = b;
     } else {
-        /* RFC 2217 */
-        sb_out[i++] = ((char *)&net_baud)[0];
-        sb_out[i++] = ((char *)&net_baud)[1];
-        sb_out[i++] = ((char *)&net_baud)[2];
-        sb_out[i++] = ((char *)&net_baud)[3];
+        /* RFC 2217: 4 bytes, most significant first */
+        sb_out[i++] = (CHAR)((baud >> 24) & 0xff);
+        sb_out[i++] = (CHAR)((baud >> 16) & 0xff);
+        sb_out[i++] = (CHAR)((baud >> 8) & 0xff);
+        sb_out[i++] = (CHAR)(baud & 0xff);
     }
     sb_out[i++] = (CHAR) IAC;                 /* End of Subnegotiation */
     sb_out[i++] = (CHAR) SE;                  /* marked by IAC SE */
@@ -8818,7 +8660,7 @@ tnsndb(wait) long wait;
     if (TELOPT_ME(TELOPT_COMPORT)) {
         rc  = tnc_set_break_state(1);
         if (rc >= 0) {
-            msleep(wait);
+            msleep((int)wait);
             rc = tnc_set_break_state(0);
         }
     }

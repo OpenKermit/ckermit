@@ -2586,7 +2586,8 @@ doesc(c) char c;
                 ecbp = ecbuf;
                 *ecbp++ = c;
                 while (((c = (CONGKS() & cmdmsk)) != '\r') && (c != '\n'))
-                  *ecbp++ = c;
+                  if (ecbp < ecbuf + sizeof(ecbuf) - 1) /* Keep room for NUL */
+                    *ecbp++ = c;
                 *ecbp = NUL; ecbp = ecbuf;
                 x = xxesc(&ecbp);       /* Interpret it */
                 if (x >= 0) {           /* No key mapping here */

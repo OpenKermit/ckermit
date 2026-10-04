@@ -1044,7 +1044,7 @@ doask(cx) int cx;
               return(wx);
             if (cmresult.fcode != _CMKEY) /* Break out if not a switch */
               break;
-            c = cmgbrk();
+            c = (char)cmgbrk();
             if ((getval = (c == ':' || c == '=')) && !(cmgkwflgs() & CM_ARG)) {
                 printf("?This switch does not take an argument\n");
                 return(-9);
@@ -1133,7 +1133,7 @@ doask(cx) int cx;
               return(wx);
             if (cmresult.fcode != _CMKEY) /* Break out if not a switch */
               break;
-            c = cmgbrk();
+            c = (char)cmgbrk();
             if ((getval = (c == ':' || c == '=')) && !(cmgkwflgs() & CM_ARG)) {
                 printf("?This switch does not take an argument\n");
                 return(-9);
@@ -1266,7 +1266,7 @@ doask(cx) int cx;
               return(wx);
             if (cmresult.fcode != _CMKEY) /* Break out if not a switch */
               break;
-            c = cmgbrk();
+            c = (char)cmgbrk();
             if ((getval = (c == ':' || c == '=')) && !(cmgkwflgs() & CM_ARG)) {
                 printf("?This switch does not take an argument\n");
                 return(-9);
@@ -1689,7 +1689,7 @@ doundef(cx) int cx;
           return(wx);
         if (cmresult.fcode != _CMKEY)   /* Break out if not a switch */
           break;
-        c = cmgbrk();
+        c = (char)cmgbrk();
         if ((getval = (c == ':' || c == '=')) && !(cmgkwflgs() & CM_ARG)) {
             printf("?This switch does not take an argument\n");
             return(-9);
@@ -1777,7 +1777,7 @@ doundef(cx) int cx;
             vnbuf[1] = '%';
             vnbuf[3] = NUL;
             for (j = '0'; j <= 'z'; j++) { /* 0..9 a..z */
-                vnbuf[2] = j;
+                vnbuf[2] = (char)j;
                 if (ckmatch(vnp,&vnbuf[1],0,1)) {
                     wx = xxundef(vnbuf,verbose,simulate);
                     if (wx > -1) {
@@ -1850,7 +1850,7 @@ dodef(cx) int cx;
             } else return(wy);
         }
     }
-    k = strlen(ws);
+    k = (int)strlen(ws);
     if (k > VNAML) {
         printf("?Name too long: \"%s\"\n",ws);
         return(-9);
@@ -2346,7 +2346,7 @@ dncvt(k,cx, prefix, suffix) int k, cx, prefix, suffix;
                                 char c, *bp;
                                 int n9;
                                 c = *(icp+1);
-                                if (isupper(c)) c = tolower(c);
+                                if (isupper(c)) c = (char)tolower(c);
                                 if (c == 'v' || c == 'f') {
                                     n9 = 32;
                                     bp = buf;
@@ -2456,7 +2456,7 @@ dncvt(k,cx, prefix, suffix) int k, cx, prefix, suffix;
                         char c, *bp;
                         int n9;
                         c = *(icp+1);
-                        if (isupper(c)) c = tolower(c);
+                        if (isupper(c)) c = (char)tolower(c);
                         if (c == 'v' || c == 'f') {
                             n9 = 32;
                             bp = buf;
@@ -3910,10 +3910,10 @@ typegetline(incs, outcs, buf, n) int incs, outcs, n; char * buf;
             }
 #endif /* COMMENT */
             if (c0 == 0 && c1 == 0x0D)  /* Now see if we have EOL */
-              yyn = xn;
+              yyn = (int)xn;
 
             if (c0 == 0 && c1 == 0x0A)  /* Now see if we have EOL */
-              xxn = xn;
+              xxn = (int)xn;
 
             tgcount++;                    /* Count byte */
 
@@ -3934,7 +3934,7 @@ typegetline(incs, outcs, buf, n) int incs, outcs, n; char * buf;
           xn = n;
         memcpy(buf,mbuf,xn);
         debug(F011,"typegetline xlate",buf,xn);
-        return((eof && (xn == 0)) ? -1 : xn);
+        return((eof && (xn == 0)) ? -1 : (int)xn);
     }
 #endif /* UNICODE */
 #ifdef COMMENT
@@ -3996,7 +3996,7 @@ typegetline(incs, outcs, buf, n) int incs, outcs, n; char * buf;
                 }
 #endif /* COMMENT */
             }
-            *s = a;                     /* Deposit character */
+            *s = (char)a;               /* Deposit character */
             s++;
             len++;
         }
@@ -4140,7 +4140,7 @@ dotype(file, paging, first, head, pat, width, prefix, incs, outcs, outfile, z)
 #endif /* CK_TTGWSIZ */
 
     if (prefix)
-      pfxlen = strlen(prefix);
+      pfxlen = (int)strlen(prefix);
 
     if (paging < 0) {                   /* Count only, don't print */
         counting = 1;
@@ -4321,7 +4321,7 @@ dotype(file, paging, first, head, pat, width, prefix, incs, outcs, outfile, z)
         } else if (number) {            /* Line numbers */
             int x9;
             sprintf(line,"%4d. ",typ_lines);
-            x9 = strlen(line);
+            x9 = (int)strlen(line);
             len += x9;
             if (len < LINBUFSIZ) {
                 memcpy((char *)&line[x9],(char *)buf,len);
@@ -4355,17 +4355,17 @@ dotype(file, paging, first, head, pat, width, prefix, incs, outcs, outfile, z)
                       obuf[oi++] = NUL;
 #endif /* UNICODE */
                 }
-                obuf[oi++] = NUL;
                 obuf[oi] = NUL;
             }
             obuf[width] = NUL;          /* Now truncate at given width. */
+            len = (oi > width) ? width : oi; /* Spare us another strlen() */
 #ifdef COMMENT
             /* This doesn't work for UCS-2 because it contains NULs */
             ckstrncpy(buf,obuf,TYPBUFL); /* and copy it back (again?) */
 #else
-            memcpy((char *)buf,(char *)obuf,i); /* Copy it back */
+            memcpy((char *)buf,(char *)obuf,len); /* Copy it back */
+            buf[len] = NUL;
 #endif /* COMMENT */
-            len = (i > width) ? width : i; /* Spare us another strlen()... */
         }
         if (tailing) {                  /* If /TAIL:n... */
             k = lines % head;           /* save this line in circular buffer */
@@ -4663,7 +4663,7 @@ dogrep() {
         if (cmresult.fcode != _CMKEY) {   /* Break out if not a switch */
             break;
         }
-        c = cmgbrk();
+        c = (char)cmgbrk();
         if ((getval = (c == ':' || c == '=')) && !(cmgkwflgs() & CM_ARG)) {
             printf("?This switch does not take an argument\n");
             return(-9);
@@ -4729,7 +4729,7 @@ dogrep() {
             }
             array = *s++;
 
-            if (isupper(array)) array = tolower(array);
+            if (isupper(array)) array = (char)tolower(array);
             if (*s && (*s != '[' || *(s+1) != ']')) {
                 printf("?Bad array name - \"%s\"\n",s2);
                 return(-9);
@@ -5436,7 +5436,7 @@ setdiropts() {                          /* Set DIRECTORY option defaults */
             else
               return(wy);
         }
-        c = cmgbrk();
+        c = (char)cmgbrk();
         if ((getval = (c == ':' || c == '=')) && !(cmgkwflgs() & CM_ARG)) {
             printf("?This switch does not take an argument\n");
             return(-9);
@@ -5717,7 +5717,7 @@ domydir(cx) int cx;
           return(x);
         if (cmresult.fcode != _CMKEY)   /* Break out if not a switch */
           break;
-        c = cmgbrk();
+        c = (char)cmgbrk();
         if ((getval = (c == ':' || c == '=')) && !(cmgkwflgs() & CM_ARG)) {
             printf("?This switch does not take an argument\n");
             return(-9);
@@ -5875,7 +5875,7 @@ domydir(cx) int cx;
                 return(-9);
             }
             array = *ws++;
-            if (isupper(array)) array = tolower(array);
+            if (isupper(array)) array = (char)tolower(array);
             if (*ws && (*ws != '[' || *(ws+1) != ']')) {
                 printf("?Bad array name - \"%s\"\n",s2);
                 return(-9);
@@ -6268,7 +6268,7 @@ domydir(cx) int cx;
 
     if (msg) {
         makestr(&dirmsg,tmpbuf);
-        dirmsglen = strlen(tmpbuf);
+        dirmsglen = (int)strlen(tmpbuf);
     }
 
 #ifdef VMS
@@ -6762,7 +6762,7 @@ preserving original modtime: %s %s\n",
             dstr = xbuf;
         }
         if (engdate) {                  /* English date requested? */
-            short month, day, year, hour, minute, seconds;
+            int month, day, year, hour, minute, seconds;
             month = (dstr[4]-48)*10 + (dstr[5]-48);
             mstr  = (month > 0 && month <= 12) ? months[month-1] : "xxx";
             day   = (dstr[6]-48)*10 + (dstr[7]-48);
@@ -6792,7 +6792,7 @@ preserving original modtime: %s %s\n",
             strcpy(dbuf+10,dstr+8);     /* hh:mm:ss */
             dstr = dbuf;
         }
-        dlen = strlen(dbuf);            /* Length of date */
+        dlen = (int)strlen(dbuf);            /* Length of date */
         name[CKMAXPATH] = NUL;
 #ifdef CK_PERMS
 #ifdef VMSORUNIX
@@ -6842,8 +6842,8 @@ preserving original modtime: %s %s\n",
         if (zgfs_link && !dontfollowlinks) { /* Symlink and following links */
             int n9, m;                   /* Show what the link points to */
             extern char linkname[];
-            n9 = strlen(linebuf);
-            m = strlen(linkname) + n9;
+            n9 = (int)strlen(linebuf);
+            m = (int)strlen(linkname) + n9;
             if (m < CKMAXPATH + 58)
               strcpy(linebuf+n9, " -> "); /* safe (checked) */
             if (m + 4 < CKMAXPATH - 58)
@@ -6873,19 +6873,19 @@ preserving original modtime: %s %s\n",
             }
             if (*s) {
                 int n9;
-                n9 = strlen(linebuf);
+                n9 = (int)strlen(linebuf);
                 if (n9 + 4 < CKMAXPATH - 58)
                   strcpy(linebuf+n9, s); /* safe (checked) */
             }
         }
         if (msg && dirmsg) {
             int n9;
-            n9 = strlen(linebuf);
+            n9 = (int)strlen(linebuf);
             if (n9 + dirmsglen + 2 < CKMAXPATH)
               sprintf((char *)(linebuf+n9)," %s", dirmsg); /* SAFE */
         }
         if (xsort) {            /* Sorting - save line */
-            i = strlen(linebuf);
+            i = (int)strlen(linebuf);
             if ((ndirlist >= nx) ||
                 !(dirlist[ndirlist] = (char *)malloc(i+1))) {
                 printf("?Memory allocation error - try /NOSORT\n");
@@ -6901,7 +6901,7 @@ preserving original modtime: %s %s\n",
               fprintf(ofp,"%s\n",linebuf);
             if (page && (name[0] || heading)) { /* If /PAGE */
                 if (cmd_cols > 0) {
-                    int x9 = strlen(linebuf);
+                    int x9 = (int)strlen(linebuf);
                     int y;
                     y = (x9 % cmd_cols) ? 1 : 0;
                     n += x9 / cmd_cols + y;
@@ -6967,7 +6967,7 @@ preserving original modtime: %s %s\n",
             fprintf(ofp,"%s\n",dirlist[i]);
             if (page && (i < ndirlist -1 || heading)) { /* If /PAGE */
                 if (cmd_cols > 0) {
-                    int x9 = strlen(dirlist[i]);
+                    int x9 = (int)strlen(dirlist[i]);
                     int y;
                     y = (x9 % cmd_cols) ? 1 : 0;
                     n += ((int)strlen(dirlist[i]) / cmd_cols) + y;
@@ -7024,13 +7024,13 @@ preserving original modtime: %s %s\n",
         int n9;
         n9 = totalchanges;               /* Number of changes for CHANGE */
         if (cx != XXCHG)                /* Number for files for DIRECTORY */
-          n9 = nfiles;
+          n9 = (int)nfiles;
         addmac(cv,ckitoa(n9));           /* set the variable */
         makestr(&cv,NULL);              /* free this */
     }
     if (ap) {                           /* If we have a result array */
         if (a_dim[arrayindex] > nmatches) /* but it was not filled */
-          a_dim[arrayindex] = nmatches;   /* adjust dimension */
+          a_dim[arrayindex] = (int)nmatches;   /* adjust dimension */
     }
 #endif  /* NOSPL */
     if (g_matchdot > -1) {
@@ -7299,7 +7299,7 @@ setdelopts() {
             else
               return(wy);
         }
-        c = cmgbrk();
+        c = (char)cmgbrk();
         if ((getval = (c == ':' || c == '=')) && !(cmgkwflgs() & CM_ARG)) {
             printf("?This switch does not take an argument\n");
             return(-9);
@@ -7371,7 +7371,7 @@ dodel() {                               /* DELETE */
     int j;
 #endif /* VMS */
     int fs = 0;                         /* Need to call fileselect() */
-    int len = 0;
+    CK_OFF_T len = 0;
     int bad = 0;
     int getval = 0, asking = 0;
     int simulate = 0, rc = 0;
@@ -7462,7 +7462,7 @@ dodel() {                               /* DELETE */
         }
         if (cmresult.fcode != _CMKEY)   /* Break out if not a switch */
           break;
-        c = cmgbrk();                   /* Get break character */
+        c = (char)cmgbrk();             /* Get break character */
         if ((getval = (c == ':' || c == '=')) && !(cmgkwflgs() & CM_ARG)) {
             printf("?This switch does not take an argument\n");
             rc = -9;
@@ -7619,7 +7619,7 @@ dodel() {                               /* DELETE */
     }
     if (cmresult.fcode != _CMIFI) {
         if (*atmbuf) {
-            int x9;
+            CK_OFF_T x9;
             if (iswild(atmbuf) && nzxpand(atmbuf,nzxopts) == 0)
               printf("?No files match: %s\n",brstrip(atmbuf));
             else if ((x9 = zchki(atmbuf)) == -1)
@@ -7775,7 +7775,7 @@ dodel() {                               /* DELETE */
 
 #ifdef OS2ORUNIX
     {
-        int filespace = 0;
+        CK_OFF_T filespace = 0;
         int count9 = 0;
         int lines = 0;
         int n = 0;
@@ -8031,11 +8031,11 @@ dodel() {                               /* DELETE */
                 if (++n > cmd_rows - 3) {
                   if (!askmore()) { goto xdelete; } else { n = 0; }
                 }
-                printf("%d file%s %sdeleted, %d byte%s %sfreed%s\n",
+                printf("%d file%s %sdeleted, %s byte%s %sfreed%s\n",
                        count9,
                        count9 != 1 ? "s" : "",
                        simulate ? "would be " : "",
-                       filespace,
+                       ckfstoa(filespace),
                        filespace != 1 ? "s" : "",
                        simulate ? "would be " : "",
                        simulate ? " (maybe)" : ""
@@ -8211,7 +8211,7 @@ doswitch() {
         ckmakmsg(tmpbuf,TMPBUFSIZ,"{ ",ws," }",NULL);
         ws = tmpbuf;
     }
-    if (litcmd(&ws,&slp,(LINBUFSIZ - (slp - (char *)line) - 2)) < 0) {
+    if (litcmd(&ws,&slp,(LINBUFSIZ - (int)(slp - (char *)line) - 2)) < 0) {
         printf("?Unbalanced braces\n");
         return(0);
     }
@@ -8378,7 +8378,7 @@ dofor() {                               /* The FOR command. */
         ws = tmpbuf;
     }
     debug(F110," doif FOR body B",ws,0);
-    if (litcmd(&ws,&lp,(LINBUFSIZ - (lp - (char *)line) - 2)) < 0) {
+    if (litcmd(&ws,&lp,(LINBUFSIZ - (int)(lp - (char *)line) - 2)) < 0) {
         printf("?Unbalanced braces\n");
         return(0);
     }
@@ -8657,7 +8657,8 @@ dopaus(cx) int cx;
     char * m = "";                      /* Help message */
     struct FDB nu, fl;                  /* Parse function descriptor blocks */
     int filewait = 0;
-    int mdmsig = 0, fs = 0;
+    int mdmsig = 0;
+    CK_OFF_T fs = 0;
     char filedate[32];
 
     kbchar = 0;
@@ -8776,7 +8777,7 @@ dopaus(cx) int cx;
 /* Command is entered, now do it. */
 
     if (zz > -1L) {                     /* Time of day given? */
-        wx = zz;
+        wx = (int)zz;
         if (zz != (long) wx) {
             printf(
 "Sorry, arithmetic overflow - hh:mm:ss not usable on this platform.\n"
@@ -8868,7 +8869,7 @@ dopaus(cx) int cx;
     } while (wx > 0);
 
     if (cx == XXWAI)                    /* WAIT time expired */
-      success = (wz == 0);               /* Succeed if no modem signals */
+      success = (wz == 0 && !filewait); /* Succeed if waiting for nothing */
     else                                /* For SLEEP or PAUSE, success */
       success = (wx == 0);               /* depends on whether it was */
     return(success);                    /* interrupted from the keyboard. */
@@ -9067,7 +9068,7 @@ docopy() {
           return(x);
         switch (cmresult.fcode) {
           case _CMKEY:
-            c = cmgbrk();                   /* Get break character */
+            c = (char)cmgbrk();             /* Get break character */
             if ((getval = (c == ':' || c == '=')) && !(cmgkwflgs() & CM_ARG)) {
                 printf("?This switch does not take an argument\n");
                 rc = -9;
@@ -9170,7 +9171,7 @@ docopy() {
 
     if (toscreen == 0) {
         targetisdir = isdir(wp);
-        x = strlen(wp);
+        x = (int)strlen(wp);
         if (targetisdir) {
 #ifdef UNIXOROSK
             if (wp[x-1] != '/') {
@@ -9274,7 +9275,7 @@ docopy() {
                 char * n1 = line, * n2 = nm; /* No separator: whole name */
                 int i;
 
-                i = strlen(line);       /* Isolate source filename */
+                i = (int)strlen(line);       /* Isolate source filename */
                 for (; i >= 0; i--) {
                     if (ISDIRSEP(line[i])) {
                         n1 = &line[i+1];
@@ -9282,7 +9283,7 @@ docopy() {
                     }
                 }
                 debug(F110,"COPY n1", n1, 0);
-                i = strlen(nm);         /* And destination filename */
+                i = (int)strlen(nm);         /* And destination filename */
                 for (; i >= 0; i--) {
                     if (ISDIRSEP(nm[i])) {
                         n2 = &nm[i+1];
@@ -9454,7 +9455,7 @@ docopy() {
 
                 while (1) {             /* Loop... */
                     prev = cx9;
-                    if ((cx9 = fread(ibuf,1,54,in)) < 1) { /* EOF */
+                    if ((cx9 = (int)fread(ibuf,1,54,in)) < 1) { /* EOF */
                         if (listing)
                           printf("(OK)\n");
                         break;
@@ -9479,7 +9480,7 @@ docopy() {
                         for (i = 0; i < cx9; i+=2) {
                             t = ibuf[i];
                             ibuf[i] = ibuf[i+1];
-                            ibuf[i+1] = t;
+                            ibuf[i+1] = (char)t;
                         }
                     }
                     if ((y = b8tob64(ibuf,cx9,obuf,180)) < 0) {
@@ -9510,7 +9511,7 @@ docopy() {
                 }
                 cx9 = 1;
                 while (cx9) {
-                    cx9 = fread(ibuf,1,80,in);
+                    cx9 = (int)fread(ibuf,1,80,in);
                     if ((y = b64tob8(ibuf,cx9,obuf,80)) < 0) {
                         if (listing)
                           printf("(FAILED: Decoding error)\n");
@@ -9531,7 +9532,7 @@ docopy() {
                         for (i = 0; i < y; i+=2) {
                             t = obuf[i];
                             obuf[i] = obuf[i+1];
-                            obuf[i+1] = t;
+                            obuf[i+1] = (char)t;
                         }
                     }
                     if (y > 0) {
@@ -9557,7 +9558,7 @@ docopy() {
                 debug(F110,"COPY swapping",line,0);
 
                 while (1) {
-                    cx9 = fread((char *)c9,1,2,in);
+                    cx9 = (int)fread((char *)c9,1,2,in);
                     if (cx9 < 1) {
                         if (listing)
                           printf("(OK)\n");
@@ -9586,7 +9587,7 @@ docopy() {
                 debug(F110,"COPY appending",line,0);
 
                 while (1) {
-                    cx9 = fread(&c8,1,1,in);
+                    cx9 = (int)fread(&c8,1,1,in);
                     if (cx9 < 1) {
                         if (listing)
                           printf("(OK)\n");
@@ -9939,7 +9940,7 @@ renameone(old,new,
             if (!isdir(old)) {          /* and source is not? */
 #ifndef VMS
                 int n, x = 0;           /* Concatenate them */
-                if ((n = strlen(new)) > 0) /* so we can check for */
+                if ((n = (int)strlen(new)) > 0) /* so we can check for */
                   if (ISDIRSEP(new[n-1]))  /* collisions. */
                     x++;
                 ckmakmsg(buf,rosize,new,x ? "" : "/", old, "");
@@ -9956,7 +9957,7 @@ renameone(old,new,
         if (!isdir(new))
           return(success = 0);
 #ifndef VMS
-        if ((n = strlen(new)) > 0)
+        if ((n = (int)strlen(new)) > 0)
           if (ISDIRSEP(new[n-1]))
             x++;
         ckmakmsg(dir,CKMAXPATH,new,x ? "" : "/", "", "");
@@ -10270,7 +10271,7 @@ dorenam() {
         fn = cmresult.nresult;          /* For brevity */
         switch (cmresult.fcode) {       /* Handle each kind of field */
           case _CMKEY:                  /* Keyword (switch) */
-            c = cmgbrk();
+            c = (char)cmgbrk();
             if ((getval = (c == ':' || c == '=')) && !(cmgkwflgs() & CM_ARG)) {
                 printf("?This switch does not take an argument\n");
                 return(-9);
@@ -10384,7 +10385,7 @@ dorenam() {
                       return(x);
                 }
                 cset1 = x;
-                c = cmgbrk();
+                c = (char)cmgbrk();
                 if (!getval) {
                     printf("?Secondcharacter-set name required\n");
                     return(-9);
@@ -10748,7 +10749,8 @@ doopen()  {                             /* OPEN { append, read, write } */
             printf("?Write/Append file already open\n");
             return(-2);
         }
-        fcb.bs = fcb.cs = fcb.rl = fcb.fmt = fcb.org = fcb.cc = fcb.typ = 0;
+        fcb.bs = fcb.cs = fcb.fmt = fcb.org = fcb.cc = fcb.typ = 0;
+        fcb.rl = 0L;
         fcb.lblopts = 0;
         fcb.dsp = (x == OPN_FI_W) ? XYFZ_N : XYFZ_A; /* Create or Append */
         ckstrncpy(line,s,LINBUFSIZ);
@@ -11056,7 +11058,7 @@ doxget(cx) int cx;
                 }
                 goto xgetx;
             }
-            wy = strlen(ws);
+            wy = (int)strlen(ws);
             if (wy > 256) {
                 printf("?Pattern too long - 256 max\n");
                 wx = -9;
@@ -11139,7 +11141,7 @@ doxget(cx) int cx;
                   goto xgetx;
             }
             if (*ws) ws = brstrip(ws);
-            wy = strlen(ws);
+            wy = (int)strlen(ws);
             /* Make sure they included "\v(...)" */
             for (wx = 0; wx < wy; wx++) {
                 if (ws[wx] != '\\') continue;
@@ -11528,7 +11530,7 @@ doxget(cx) int cx;
             goto xgetx;
         }
 #endif /* CK_LOGIN */
-        len = strlen(p);
+        len = (int)strlen(p);
         if (!isdir(p)) {                /* Check directory */
 #ifdef CK_MKDIR
             char * s = NULL;
@@ -11651,7 +11653,7 @@ doxget(cx) int cx;
   cmarg2 is also allowed to be a device or directory name;
   even the name of a directory that doesn't exist.
 */
-    wy = strlen(cmarg2);
+    wy = (int)strlen(cmarg2);
     debug(F111,"xget strlen(cmarg2)",cmarg2,wy);
     if ((wy > 0) &&
 #ifdef OS2
@@ -11694,15 +11696,16 @@ doxget(cx) int cx;
                 goto xgetx;
             }
 #ifdef CK_MKDIR
-            wx = zchki(cmarg2);          /* Does as-name exist? */
-            if (wx == -1) {              /* Doesn't exist */
+            /* wx is the return code, so these steps use locals */
+            if (zchki(cmarg2) == -1) {   /* Does as-name exist? */
                 char * p = NULL;        /* Try to create it */
-                wx = strlen(cmarg2);
-                if ((p = (char *)malloc(wx+4))) {
+                int len = (int)strlen(cmarg2);
+                if ((p = (char *)malloc(len+4))) {
+                    int rc;
                     sprintf(p,"%s%s",cmarg2,"x.x"); /* SAFE (prechecked) */
-                    wx = zmkdir(p);
+                    rc = zmkdir(p);
                     free(p);
-                    if (wx < 0) {
+                    if (rc < 0) {
                         printf("?Can't create %s\n",cmarg2);
                         wx = -9;
                         goto xgetx;
@@ -11909,7 +11912,7 @@ dogoto(s, cx) char *s; int cx;
         printf("?Sorry, %s only works in a command file or macro\n",cmd);
         return(success = 0);
     }
-    y = strlen(s);                      /* y = length of target label */
+    y = (int)strlen(s);                      /* y = length of target label */
     debug(F111,cmd,s,y);
 
     while (cmdlvl > 0) {                /* As long as not at top level... */
@@ -12452,7 +12455,7 @@ boolexp(cx) int cx;
                             t9 = 255;    /* as in C-Kermit 6.0 and 7.0 */
                             lp9 = line9;  /* (broken in 8.0.200-201) */
                             zzstring(s,&lp9,&t9);
-                            t9 = strlen(line9);
+                            t9 = (int)strlen(line9);
                             z = line9[0] ? 1 : 0;
                         }
                     }
@@ -13457,7 +13460,7 @@ dotake(s) char *s;
     debug(F110,"dotake",s,0);
     if (!s) s = "";
     if (!*s) return(success = 0);
-    slen = strlen(s);
+    slen = (int)strlen(s);
     debug(F101,"dotake len","",slen);
 
     if ((tfile[++tlevel] = fopen(s,"r")) == NULL) {

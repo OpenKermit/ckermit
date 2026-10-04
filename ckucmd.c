@@ -453,7 +453,7 @@ ckspread(s) char * s;
 {
     int n = 0;
     char * p;
-    n = strlen(s);
+    n = (int)strlen(s);
     if (sprptr)
       free(sprptr);
     sprptr = malloc(n + n + 3);
@@ -521,7 +521,7 @@ kwdhelp( s, n, pat, pre, post, off, xhlp )
     char **s2 = NULL;
     char *tmpbuf = NULL;
 
-    kcc9 = strlen(pat);
+    kcc9 = (int)strlen(pat);
 
     if (!s) return;                     /* Nothing to do */
     if (n < 1) return;                  /* Ditto */
@@ -567,7 +567,7 @@ kwdhelp( s, n, pat, pre, post, off, xhlp )
                 else if ((xhlp & 2) && ((s[i].flgs & CM_HLP) == 0))
                   continue;
             }
-            j = strlen(s[i].kwd);
+            j = (int)strlen(s[i].kwd);
             if (!(xhlp & 4) || !tmpbuf) { /* Regular keyword table */
                 s2[n2++] = s[i].kwd;    /* Copy pointers to visible ones */
             } else {                    /* Switches */
@@ -719,7 +719,7 @@ xfilhelp(n,pre,post,off,cmdirflg,
 #ifdef VMS
             ckstrncpy(xfbuf,zrelname(xfbuf,cdp),CKMAXPATH);
 #endif /* VMS */
-            j = strlen(xfbuf);
+            j = (int)strlen(xfbuf);
 #ifndef VMS
             if (itsadir && j < CKMAXPATH - 1 && j > 0) {
                 if (xfbuf[j-1] != dirsep) {
@@ -1324,7 +1324,7 @@ cmnum(xhlp,xdef,radix,n,f) char *xhlp, *xdef; int radix, *n; xx_strp f;
     CK_OFF_T z = (CK_OFF_T)0, check;
     int x;
     x = cmnumw(xhlp,xdef,radix,&z,f);
-    *n = z;
+    *n = (int)z;
     check = *n;
     if (check != z) {
         printf("?Magnitude of result too large for integer - %s\n",ckfstoa(z));
@@ -1765,7 +1765,7 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
       if (!*path)
         path = NULL;
     if (path) {                         /* Make a copy we can poke */
-        x = strlen(path);
+        x = (int)strlen(path);
         xnp = (char *) malloc(x + 1);
         if (xnp) {
             strcpy(xnp, path);
@@ -1985,7 +1985,7 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
                     debug(F111,"cmifi nzxopts 2",*xp,nzxopts);
                     y = nzxpand(*xp,nzxopts);
                     debug(F111,"cmifi nzxpand 2",*xp,y);
-                    nfiles = y;
+                    nfiles = (int)y;
                     expanded = 1;
                 } else {
 #ifdef VMS
@@ -2086,7 +2086,7 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
                     }
                 }
 #endif /* COMMENT */
-                nfiles = y;
+                nfiles = (int)y;
                 debug(F111,"cmifi y nzxpand",*xp,y);
                 debug(F111,"cmifi y atmbuf",atmbuf,itsadir);
                 expanded = 1;
@@ -2099,7 +2099,7 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
                 if (recursive) nzxopts |= ZX_RECURSE;
                 y = nzxpand(*xp,nzxopts);
                 debug(F111,"cmifi diractive nzxpand",*xp,y);
-                nfiles = y;
+                nfiles = (int)y;
                 expanded = 1;
             }
             *wild = (iswild(sv) || (y > 1)) && (itsadir == 0);
@@ -2363,12 +2363,12 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
 #ifdef DOCHKVAR
                     /* reduce cc by number of \\ consumed by conversion */
                     /* function (needed for OS/2, where \ is path separator) */
-                        cc -= (strlen(*xp) - strlen(atxbuf));
+                        cc -= (int)strlen(*xp) - (int)strlen(atxbuf);
 #endif /* DOCHKVAR */
                         *xp = atxbuf;
                         if (!atxbuf[0]) { /* Result empty, use default */
                             *xp = xdef;
-                            cc = strlen(xdef);
+                            cc = (int)strlen(xdef);
                         }
 #ifdef DOCHKVAR
                         break;
@@ -2451,7 +2451,7 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
             if (matchdot)  nzxopts |= ZX_MATCHDOT;
             if (recursive) nzxopts |= ZX_RECURSE;
             y = nzxpand(*xp,nzxopts);
-            nfiles = y;
+            nfiles = (int)y;
             debug(F111,"cmifi nzxpand",*xp,y);
             if (y > 0) {
 #ifdef OS2
@@ -2558,7 +2558,7 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
                 /* isdir() function required for this! */
                 if (y == 1 && isdir(filbuf)) { /* Dont we already know this? */
                     int len;
-                    len = strlen(filbuf);
+                    len = (int)strlen(filbuf);
                     if (len > 0 && len < ATMBL - 1) {
                         if (filbuf[len-1] != dirsep) {
                             filbuf[len] = dirsep;
@@ -2640,7 +2640,7 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
                 debug(F111,"cmifi unique",filbuf,children);
                 if (isdir(filbuf) && children > 0) {
                     int len;
-                    len = strlen(filbuf);
+                    len = (int)strlen(filbuf);
                     if (len > 0 && len < ATMBL - 1) {
                         if (filbuf[len-1] != dirsep) {
                             filbuf[len] = dirsep;
@@ -2667,7 +2667,7 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
 #ifndef datageneral                     /* VS dirnames must not end in ":" */
                     if (dirflg) {
                         int len;
-                        len = strlen(filbuf);
+                        len = (int)strlen(filbuf);
                         if (len > 0 && len < ATMBL - 1) {
                             if (filbuf[len-1] != dirsep) {
                                 filbuf[len] = dirsep;
@@ -2760,7 +2760,7 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
 #ifdef DOCHKVAR
                     /* reduce cc by number of \\ consumed by conversion */
                     /* function (needed for OS/2, where \ is path separator) */
-                        cc -= (strlen(*xp) - strlen(atxbuf));
+                        cc -= (int)strlen(*xp) - (int)strlen(atxbuf);
 #endif /* DOCHKVAR */
                         *xp = atxbuf;
 #ifdef DOCHKVAR
@@ -2791,7 +2791,7 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
             if (matchdot)  nzxopts |= ZX_MATCHDOT;
             if (recursive) nzxopts |= ZX_RECURSE;
             y = nzxpand(*xp,nzxopts);
-            nfiles = y;
+            nfiles = (int)y;
             *sp = '\0';
             if (y == 0) {
                 if (nomsg) {
@@ -3136,7 +3136,7 @@ cmtxt(xhlp,xdef,xp,f) char *xhlp; char *xdef; char **xp; xx_strp f;
                 } else bleep(BP_WARN);  /* No default */
             } else {                    /* Already in field */
                 int x9; char *p;
-                x9 = strlen(atmbuf);
+                x9 = (int)strlen(atmbuf);
                 if (ckstrcmp(atmbuf,xdef,x9,0)) {    /* Matches default? */
                     bleep(BP_WARN);                 /* No */
                 } else if ((int)strlen(xdef) > x9) { /* Yes */
@@ -3956,8 +3956,8 @@ cmdelta(yy, mo, dd, hh, mm, ss, sign, dyy, dmo, ddd, dhh, dmm, dss)
     {
         int len, k, n;
         char * p;
-        len = strlen(datebuf);
-        k = deltabp - (char *)deltabuf; /* Space used */
+        len = (int)strlen(datebuf);
+        k = (int)(deltabp - (char *)deltabuf); /* Space used */
         n = DELTABUF - k - 1;           /* Space left */
         if (n < len) {                  /* Not enough? */
             deltabp = deltabuf;         /* Wrap around */
@@ -4180,7 +4180,7 @@ cmcvtdate(s,t) char * s; int t;
 
     if (!s) s = "";
     tmpbuf[0] = NUL;
-    len = strlen(s);
+    len = (int)strlen(s);
 
     while (*s == SP) s++;               /* Gobble any leading blanks */
     if (ckmatch(datepat,s,0,4)) {       /* Check for Apache web log format */
@@ -4275,8 +4275,8 @@ cmcvtdate(s,t) char * s; int t;
             return(NULL);
         }
         debug(F101,"cmcvtdate asctime month","",xx);
-        monbuf[0] = (xx / 10) + '0';
-        monbuf[1] = (xx % 10) + '0';
+        monbuf[0] = (char)((xx / 10) + '0');
+        monbuf[1] = (char)((xx % 10) + '0');
         monbuf[2] = NUL;
         daybuf[0] = (s[8] == ' ' ? '0' : s[8]);
         daybuf[1] = s[9];
@@ -4338,7 +4338,7 @@ cmcvtdate(s,t) char * s; int t;
             p2++;
         }
     }
-    len = strlen(s);            /* Update length */
+    len = (int)strlen(s);            /* Update length */
     debug(F111,"cmcvtdate s",s,len);
 
     debug(F111,"cmcvtdate dow",s,dow);
@@ -4447,7 +4447,7 @@ cmcvtdate(s,t) char * s; int t;
             }
         }
         s = ybuf;                       /* Point to rewritten date-time */
-        len = strlen(s);                /* Update length */
+        len = (int)strlen(s);                /* Update length */
         isletter = 0;                   /* Cancel this */
     }
 
@@ -4602,7 +4602,7 @@ cmcvtdate(s,t) char * s; int t;
 
     if (k == 2 && ft[2] > 0) {          /* Jul 20, 2001 */
         int xx;
-        xx = strlen(fld[1]);
+        xx = (int)strlen(fld[1]);
         p3 = fld[1];
         if (xx > 0) if (p3[xx-1] == ',') {
             p3[xx-1] = NUL;
@@ -4642,7 +4642,7 @@ cmcvtdate(s,t) char * s; int t;
         sprintf(tmpbuf,"%02d",x);
         month = tmpbuf;
     }
-    f2len = strlen(fld[2]);             /* Length of 3rd field */
+    f2len = (int)strlen(fld[2]);             /* Length of 3rd field */
 
     if (k == 0) {                       /* monthname dd, yyyy */
         day = fld[1];
@@ -5247,16 +5247,16 @@ cmcvtdate(s,t) char * s; int t;
         sec1 += sec2;
         if (sec1 < 0) {
             sec1 = 0 - sec1;
-            zdd = 0L - (sec1 / 86400L);
+            zdd = (int)(0L - (sec1 / 86400L));
             sec1 = sec1 % 86400L;
         } else if (sec1 > 86400L) {
-            zdd = sec1 / 86400L;
+            zdd = (int)(sec1 / 86400L);
             sec1 = sec1 % 86400L;
         }
-        ss = sec1 % 60;
+        ss = (int)(sec1 % 60);
         zz = sec1 / 60;
-        mm = zz % 60;
-        hh = zz / 60;
+        mm = (int)(zz % 60);
+        hh = (int)(zz / 60);
         debug(F101,"cmcvtdate NEW hh","",hh);
         debug(F101,"cmcvtdate NEW mm","",mm);
         debug(F101,"cmcvtdate NEW dd","",zdd);
@@ -5353,9 +5353,9 @@ cmcvtdate(s,t) char * s; int t;
         debug(F110,"cmcvtdate xcvtdate dp",dp,0);
         if (!dp) dp = "";               /* Shouldn't happen */
         if (!*dp) return(NULL);         /* ... */
-        len9 = strlen(dp);
+        len9 = (int)strlen(dp);
         debug(F111,"cmcvtdate result",dp,len9);
-        k9 = cmdatebp - (char *)cmdatebuf; /* Space used */
+        k9 = (int)(cmdatebp - (char *)cmdatebuf); /* Space used */
         n = CMDATEBUF - k9 - 1;          /* Space left */
         if (n < len9) {                  /* Not enough? */
             cmdatebp = cmdatebuf;       /* Wrap around */
@@ -5531,7 +5531,7 @@ shuffledate(p,opt) char * p; int opt;
     }
     if (opt < 1 || opt > 6)
       return(p);
-    len = strlen(p);
+    len = (int)strlen(p);
     if (len < 8 || len > 31) return(p);
 
     if (opt == 4) {                     /* Asctime format (26 Nov 2005) */
@@ -5888,7 +5888,7 @@ addcmd(s) char * s;
 
     if (!s) s = cmdbuf;
     if (s[0])
-      len = strlen(s);
+      len = (int)strlen(s);
 
     if (len < 1)                        /* Don't save empty commands */
       return;
@@ -6587,7 +6587,7 @@ CMDIRPARSE:
 #endif /* NOXFER */
 
             chsrc = 1;                  /* Remember character source is tty. */
-            brkchar = c;
+            brkchar = (char)c;
 
 #ifdef IKSD
             if (inserver && c < 0) {    /* End of session? */
@@ -6638,7 +6638,7 @@ CMDIRPARSE:
         isesc = (c == ESC);             /* A real ESC? */
 
         if (!firstnb && c > SP) {       /* First nonblank */
-            firstnb = c;
+            firstnb = (char)c;
             if (c == '"')               /* Starts with doublequote */
               dq = 1;
         }
@@ -6754,7 +6754,7 @@ CMDIRPARSE:
                             debug(F111,"gtword too long #1",pp,strlen(pp));
                             return(-9);
                         }
-                        brkchar = c;
+                        brkchar = (char)c;
 #ifdef FUNCTIONTEST
                         debug(F110,"XXX atmbuf",atmbuf,0);
                         debug(F110,"XXX pp",pp,0);
@@ -6804,7 +6804,7 @@ CMDIRPARSE:
                         return(-9);
                     }
                     inword = cmflgs = 0;
-                    brkchar = c;
+                    brkchar = (char)c;
                     return(4);
                 }
             }
@@ -8021,7 +8021,7 @@ lookup(table,cmd,n,x) char *cmd; struct keytab table[]; int n, *x;
     if (!c1)                            /* Make sure there is one */
       return(-3);
     if (isupper(c1))                    /* If letter make it lowercase */
-      c1 = tolower(c1);
+      c1 = (char)tolower(c1);
 
 #ifdef USE_LUCACHE                      /* lookup() cache */
     m = lusize;
@@ -8058,7 +8058,7 @@ lookup(table,cmd,n,x) char *cmd; struct keytab table[]; int n, *x;
         while (lo+2 < hi && ++count < 12) {
             i = lo + ((hi - lo) / 2);
             c = *(table[i].kwd);
-            if (isupper(c)) c = tolower(c);
+            if (isupper(c)) c = (char)tolower(c);
             if (c < c1) {
                 lo = i;
             } else {
@@ -8077,7 +8077,7 @@ lookup(table,cmd,n,x) char *cmd; struct keytab table[]; int n, *x;
         v = 0;
         c = *(table[i].kwd);
         if (c) {
-            if (isupper(c)) c = tolower(c);
+            if (isupper(c)) c = (char)tolower(c);
 
             /* The following is a big performance booster but makes it */
             /* absolutely essential that all lookup() tables are in order. */
@@ -8230,7 +8230,7 @@ xlookup(table,cmd,n,x) struct keytab table[]; char *cmd; int n, *x;
     if (!*(cmd+1)) {                    /* Special handling for 1-char names */
         cmdlen = 1;
         if (isupper(c))
-          c = tolower(c);
+          c = (char)tolower(c);
         one = 1;
     } else {
         cmdlen = 0;
@@ -8238,7 +8238,7 @@ xlookup(table,cmd,n,x) struct keytab table[]; char *cmd; int n, *x;
         while (*s++) cmdlen++;
         c = *cmd;
         if (isupper(c))
-          c = tolower(c);
+          c = (char)tolower(c);
     }
     if (cmdlen < 1)
       return(-3);
@@ -8248,7 +8248,7 @@ xlookup(table,cmd,n,x) struct keytab table[]; char *cmd; int n, *x;
         if (!s) s = "";
         if (!*s) continue;              /* Empty table entry */
         c2 = *s;
-        if (isupper(c2)) c2 = tolower(c2);
+        if (isupper(c2)) c2 = (char)tolower(c2);
         if (c != c2) continue;          /* First char doesn't match */
         if (one) {                      /* Name is one char long */
             if (!*(s+1)) {

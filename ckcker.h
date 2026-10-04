@@ -738,7 +738,7 @@ extern int tcp_incoming;                /* Used by ENABLE macro */
 #define SP 32
 #endif  /* SP */
 
-#define tochar(ch)  (((ch) + SP ) & 0xFF )      /* Number to character */
+#define tochar(ch)  ((CHAR)(((ch) + SP) & 0xFF)) /* Number to character */
 #define xunchar(ch) (((ch) - SP ) & 0xFF )      /* Character to number */
 #define ctl(ch)     (((ch) ^ 64 ) & 0xFF )      /* Control/Uncontrol toggle */
 #define unpar(ch)   (((ch) & 127) & 0xFF )      /* Clear parity bit */

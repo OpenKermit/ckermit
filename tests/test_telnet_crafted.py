@@ -219,3 +219,248 @@ def test_telnet_subnegotiation_bad_terminator(run_wermit):
     payload = (bytes([IAC, SB, TELOPT_TTYPE]) + b"A" * 100
                + bytes([IAC, 1]))
     _expect_marker_after(run_wermit, payload)
+
+
+TELQUAL_SEND = 1
+
+
+def _serve_new_environ(send_data):
+    """Start a Telnet peer that requests NEW-ENVIRON variables.
+
+    Sends DO NEW-ENVIRON and refuses every other option. When the
+    client agrees, sends SB NEW-ENVIRON SEND send_data, then MARKER.
+    Records everything the client sends in the returned list.
+    Returns (port, thread, listening socket, list).
+    """
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    srv.settimeout(15)
+    received = []
+
+    def run():
+        try:
+            conn, _ = srv.accept()
+        except OSError:
+            return
+        with conn:
+            conn.settimeout(30)
+            try:
+                conn.sendall(bytes([IAC, DO, TELOPT_NEW_ENVIRON]))
+                pending = b""
+                while True:
+                    data = conn.recv(4096)
+                    if not data:
+                        break
+                    received.append(data)
+                    pending += data
+                    i = 0
+                    while i < len(pending):
+                        if pending[i] != IAC:
+                            i += 1
+                        elif i + 2 >= len(pending):
+                            break       # Incomplete; wait for more
+                        elif pending[i + 1] in (WILL, DO):
+                            opt = pending[i + 2]
+                            if (opt == TELOPT_NEW_ENVIRON
+                                    and pending[i + 1] == WILL):
+                                conn.sendall(
+                                    _sb(TELOPT_NEW_ENVIRON,
+                                        bytes([TELQUAL_SEND]) + send_data)
+                                    + b"\r\n" + MARKER + b"\r\n")
+                            else:
+                                reply = (DONT if pending[i + 1] == WILL
+                                         else WONT)
+                                conn.sendall(bytes([IAC, reply, opt]))
+                            i += 3
+                        else:
+                            i += 2
+                    pending = pending[i:]
+            except OSError:
+                pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    return srv.getsockname()[1], thread, srv, received
+
+
+def _new_environ_reply(run_wermit, send_data):
+    """Return the data of the client's NEW-ENVIRON IS reply to send_data.
+
+    Verifies wermit survives the request and then reads MARKER.
+    """
+    port, thread, srv, received = _serve_new_environ(send_data)
+    try:
+        result = run_wermit(
+            "set delay 0, set input echo off, set login userid kermtest, "
+            f"set host 127.0.0.1 {port} /telnet, "
+            f"input 10 {MARKER.decode()}, "
+            "if success echo GOT-MARKER, "
+            "close, exit",
+            timeout=30,
+        )
+    finally:
+        srv.close()
+        thread.join(timeout=5)
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}")
+    assert "GOT-MARKER" in result.stdout, result.stdout
+    sent = b"".join(received)
+    start = sent.find(bytes([IAC, SB, TELOPT_NEW_ENVIRON, 0]))
+    assert start >= 0, sent
+    end = sent.find(bytes([IAC, SE]), start)
+    assert end >= 0, sent
+    return sent[start + 4:end]
+
+
+@pytest.mark.parametrize("length", [16, 17, 40, 300])
+def test_telnet_new_environ_send_long_name(run_wermit, length):
+    """Verify a requested variable name past 16 bytes is handled.
+
+    No variable has such a name, so the reply is empty.
+    """
+    assert _new_environ_reply(run_wermit, b"\x00" + b"A" * length) == b""
+
+
+def test_telnet_new_environ_send_escaped_delimiters(run_wermit):
+    """Verify ESC-quoted delimiters are part of the requested name.
+
+    Each request asks for a name containing a quoted VAR byte. No
+    variable matches, so the reply is empty.
+    """
+    send_data = b"\x00X\x02\x00USER" * 5
+    assert _new_environ_reply(run_wermit, send_data) == b""
+
+
+def test_telnet_new_environ_send_user(run_wermit):
+    """Verify a request for USER is answered with the login user ID."""
+    assert (_new_environ_reply(run_wermit, b"\x00USER")
+            == b"\x00USER\x01kermtest")
+
+
+TELOPT_COMPORT = 44
+COMPORT_SIGNATURE = 0
+COMPORT_SET_BAUDRATE = 1
+COMPORT_SET_CONTROL = 5
+COMPORT_SERVER_OFFSET = 100
+
+
+def _comport_reply(command, data, state):
+    """Return the data of a COM-PORT server's reply to a client request.
+
+    A zero value queries the current setting. Any other value is a new
+    setting that the server accepts.
+    """
+    if command == COMPORT_SIGNATURE and not data:
+        return b"TestPort"
+    if command == COMPORT_SET_BAUDRATE:
+        if data == bytes(4):
+            return state["baud"]
+        state["baud"] = data
+        return data
+    if data == b"\x00" and command in (2, 3, 4):
+        return bytes([{2: 8, 3: 1, 4: 1}[command]])  # 8 data, N, 1 stop
+    if command == COMPORT_SET_CONTROL and data in (b"\x00", b"\x0d"):
+        return bytes([data[0] + 1])     # No outbound or inbound flow
+    return data
+
+
+def _serve_comport(baud):
+    """Start a Telnet peer that is an RFC 2217 COM-PORT server.
+
+    Agrees to COM-PORT, refuses every other option, and answers each
+    COM-PORT request. The port's rate starts at baud. Records each
+    COM-PORT request as (command, data). Returns (port, thread,
+    listening socket, list).
+    """
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    srv.settimeout(15)
+    requests = []
+    state = {"baud": baud.to_bytes(4, "big")}
+
+    def run():
+        try:
+            conn, _ = srv.accept()
+        except OSError:
+            return
+        with conn:
+            conn.settimeout(30)
+            pending = b""
+            try:
+                while True:
+                    data = conn.recv(4096)
+                    if not data:
+                        break
+                    pending += data
+                    while True:
+                        i = pending.find(bytes([IAC]))
+                        if i < 0:
+                            pending = b""
+                            break
+                        if i + 2 >= len(pending):
+                            pending = pending[i:]
+                            break
+                        cmd, opt = pending[i + 1], pending[i + 2]
+                        if cmd in (WILL, DO, WONT, DONT):
+                            if cmd == WILL:
+                                reply = DO if opt == TELOPT_COMPORT else DONT
+                                conn.sendall(bytes([IAC, reply, opt]))
+                            elif cmd == DO:
+                                conn.sendall(bytes([IAC, WONT, opt]))
+                            pending = pending[i + 3:]
+                        elif cmd == SB:
+                            end = pending.find(bytes([IAC, SE]), i)
+                            if end < 0:
+                                pending = pending[i:]
+                                break
+                            body = pending[i + 2:end]
+                            pending = pending[end + 2:]
+                            if body[0] == TELOPT_COMPORT and len(body) > 1:
+                                requests.append((body[1], body[2:]))
+                                reply = _comport_reply(body[1], body[2:],
+                                                       state)
+                                conn.sendall(
+                                    _sb(TELOPT_COMPORT,
+                                        bytes([body[1]
+                                               + COMPORT_SERVER_OFFSET])
+                                        + reply))
+                        else:
+                            pending = pending[i + 2:]
+            except OSError:
+                pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    return srv.getsockname()[1], thread, srv, requests
+
+
+def test_telnet_comport_baud_rate_bytes(run_wermit):
+    """Verify COM-PORT baud rates are sent and read most significant first.
+
+    The server reports 9600 at connect time; SET SPEED 115200 must
+    send 00 01 C2 00.
+    """
+    port, thread, srv, requests = _serve_comport(9600)
+    try:
+        result = run_wermit(
+            "set delay 0, "
+            f"set host 127.0.0.1 {port} /telnet, "
+            "echo SPEED1=[\\v(speed)], "
+            "set speed 115200, "
+            "echo SPEED2=[\\v(speed)], "
+            "close, exit",
+            timeout=30,
+        )
+    finally:
+        srv.close()
+        thread.join(timeout=5)
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}")
+    assert "SPEED1=[9600]" in result.stdout, result.stdout
+    assert ((COMPORT_SET_BAUDRATE, bytes([0, 1, 0xC2, 0]))
+            in requests), requests
+    assert "SPEED2=[115200]" in result.stdout, result.stdout

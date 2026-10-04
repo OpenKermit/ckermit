@@ -424,7 +424,7 @@ encstr(s) CHAR* s;
         return(-1);
     }
     if (!s) s = (CHAR *)"";             /* Our argument string */
-    slen = strlen((char *)s);           /* Length of source string */
+    slen = (int)strlen((char *)s);           /* Length of source string */
     debug(F111,"encstr",s,slen);
     rc = 0;                             /* Return code. */
     m = memstr; p = memptr;             /* Save these. */
@@ -665,7 +665,7 @@ bdecode(buf,fn) register CHAR *buf; register int (*fn)();
             }
             ffc++;                      /* Count the character */
             if (docrc && !remfile) {    /* Update file CRC */
-                c = a;                  /* Force conversion to unsigned char */
+                c = (CHAR)a;            /* Force conversion to unsigned char */
                 z = crc16 ^ (long)c;
                 crc16 = (crc16 >> 8) ^
                   (crcta[(z & 0xF0) >> 4] ^ crctb[z & 0x0F]);
@@ -802,10 +802,10 @@ xpnbyte(a,tcs,fcs,fn) int a, tcs, fcs; int (*fn)();
       swapping = 1;                     /* Swapping bytes to output */
 
     if (tcs == TC_UTF8) {               /* 'a' is from a UTF-8 stream */
-        ch = a;
+        ch = (USHORT)a;
         if (fcs == TC_UTF8)             /* Output is UTF-8 too */
-          return(pnbyte(ch,fn));        /* so just copy. */
-        rc = utf8_to_ucs2(ch,&us);      /* Otherwise convert to UCS-2 */
+          return(pnbyte((CHAR)ch,fn));        /* so just copy. */
+        rc = utf8_to_ucs2((CHAR)ch,&us);      /* Otherwise convert to UCS-2 */
         if (rc == 0) {                  /* Done with this sequence */
             uc.x_short = *us;           /* We have a Unicode */
             haveuc = 1;
@@ -1026,7 +1026,7 @@ xpnbyte(a,tcs,fcs,fn) int a, tcs, fcs; int (*fn)();
                   ch = UNK;
                 else
                   ch = (unsigned)((unsigned)rc & 0xffff);
-                x = pnbyte(ch,fn);
+                x = pnbyte((CHAR)ch,fn);
                 if (x < 0)
                   return(x);
                 else if (utferror)
@@ -1167,7 +1167,7 @@ xpnbyte(a,tcs,fcs,fn) int a, tcs, fcs; int (*fn)();
         if (xtu) {                      /* TCS-to-UCS function */
             if (((tcsinfo[tcs].size > 128) && (uc.x_short & 0x80)) ||
                 tcsinfo[tcs].size <= 128)
-              uc.x_short = (*xtu)(uc.x_short);
+              uc.x_short = (*xtu)((CHAR)uc.x_short);
         }
         if (fcs == FC_UCS2) {           /* And FCS is UCS-2 */
             /* Write out the bytes in the appropriate byte order */
@@ -1466,7 +1466,7 @@ decode(buf,fn,xlate) register CHAR *buf; register int (*fn)(); int xlate;
                 if (xlatype != XLA_UNICODE || binary) {
                     ffc++;              /* Count the character */
                     if (docrc && !xflg && !remfile) { /* Update file CRC */
-                        c = a;          /* Force conversion to unsigned char */
+                        c = (CHAR)a;    /* Force conversion to unsigned char */
                         z = crc16 ^ (long)c;
                         crc16 = (crc16 >> 8) ^
                           (crcta[(z & 0xF0) >> 4] ^ crctb[z & 0x0F]);
@@ -1674,7 +1674,7 @@ bgetpkt()
 
         if ((x = zminchar()) < 0) {     /* EOF or error */
             if (x == -3) {              /* Timeout. */
-                size = (dp - data);
+                size = (int)(dp - data);
                 debug(F101,"bgetpkt timeout size","",size);
                 return((size == 0) ? x : size);
             }
@@ -1696,7 +1696,7 @@ bgetpkt()
             crc16 = (crc16 >> 8) ^
               (crcta[(z & 0xF0) >> 4] ^ crctb[z & 0x0F]);
         }
-        rt &= fmask;                    /* Apply SET FILE BYTESIZE mask */
+        rt = (CHAR)(rt & fmask);        /* Apply SET FILE BYTESIZE mask */
 
     } else if (first == -1 && nleft == 0) { /* EOF from last time */
 
@@ -1713,7 +1713,7 @@ bgetpkt()
         nleft = 0;
     }
     if (first == -1)                    /* Handle EOF */
-      return(size = (dp - data));
+      return(size = (int)(dp - data));
 
 /* Now fill up the rest of the packet. */
 
@@ -1738,7 +1738,7 @@ bgetpkt()
         if ((x = zminchar()) < 0) {     /* Check for EOF */
             if (x == -3) {              /* Timeout. */
                 t = rt;
-                size = (dp-data);
+                size = (int)(dp-data);
                 debug(F101,"bgetpkt timeout size","",size);
                 return((size == 0) ? x : size);
             }
@@ -1832,26 +1832,26 @@ bgetpkt()
 
 /* Done encoding the character.  Now take care of packet buffer overflow. */
 
-        size = dp - data;               /* How many bytes we put in buffer. */
+        size = (int)(dp - data);        /* How many bytes we put in buffer. */
         if (size >= bufmax) {           /* If too big, save some for next. */
             *dp = '\0';                 /* Mark the end. */
             if (size > bufmax) {        /* if packet is overfull */
                 /* Copy the part that doesn't fit into the leftover buffer, */
                 /* taking care not to split a prefixed sequence. */
                 int i;
-                nleft = dp - odp;
+                nleft = (int)(dp - odp);
                 p1 = leftover;
                 p2 = odp;
                 for (i = 0; i < nleft; i++)
                   *p1++ = *p2++;
-                size = odp - data;      /* Return truncated packet. */
+                size = (int)(odp - data);      /* Return truncated packet. */
                 *odp = '\0';            /* Mark the new end */
             }
             t = rt;                     /* Save for next time */
             return(size);
         }
     }                                   /* Otherwise, keep filling. */
-    size = dp - data;                   /* End of file */
+    size = (int)(dp - data);                   /* End of file */
     *dp = '\0';                         /* Mark the end of the data. */
     return(size);                    /* Return partially filled last packet. */
 }
@@ -1895,7 +1895,7 @@ agnbyte() {                             /* Get next byte from array */
           n = a_dim[sndxin];
     }
     if (save) {                         /* If anything saved */
-        c = save;                       /* unsave it */
+        c = (char)save;                 /* unsave it */
         save = 0;                       /* and return it */
         return(c & 0xff);
     }
@@ -2022,7 +2022,7 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
             flag = 1;                   /* Remember we called zminchar() */
             if (x > -1) {               /* Didn't fail */
                 ffc++;                  /* Count a file byte */
-                uc.x_char[swapping] = x & 0xff;
+                uc.x_char[swapping] = (CHAR)(x & 0xff);
 #ifndef NOXFER
                 if (docrc && (what & W_SEND))
                   dofilcrc(x);
@@ -2031,7 +2031,7 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
                 if (x > -1) {           /* If didn't fail */
                     debug(F001,"zminchar C1","",x);
                     ffc++;              /* count another file byte */
-                    uc.x_char[1-swapping] = x & 0xff;
+                    uc.x_char[1-swapping] = (CHAR)(x & 0xff);
                     haveuc = 1;         /* And remember we have Unicode */
 #ifndef NOXFER
                     if (docrc && (what & W_SEND))
@@ -2090,7 +2090,7 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
                 if (docrc && (what & W_SEND))
                   dofilcrc(x);
 #endif /* NOXFER */
-                ch = x;
+                ch = (CHAR)x;
                 rc = utf8_to_ucs2(ch,&us); /* Convert to UCS-2 */
                 if (rc == 0) {          /* Done */
                     uc.x_short = *us;
@@ -2181,7 +2181,7 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
 #ifndef NOXFER
                         if (docrc && (what & W_SEND)) dofilcrc(y);
 #endif /* NOXFER */
-                        sj.x_short = y | 0x80;
+                        sj.x_short = (USHORT)(y | 0x80);
                         debug(F001,"XGNBYTE KANA SJ","",sj.x_short);
                     } else {
                         /* Something that translates to U+FFFD */
@@ -2350,7 +2350,7 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
               if (((fcsinfo[fcs].size > 128) && (ch & 0x80)) ||
                   fcsinfo[fcs].size <= 128) {
                   if (xfu) {             /* FCS-to-UCS function */
-                      ch = (*xfu)(ch);
+                      ch = (*xfu)((CHAR)ch);
                   }
               }
               xc = ch;
@@ -2377,7 +2377,7 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
                       return((unsigned int)CK_CR);
                   }
               }
-              c = xc;
+              c = (USHORT)xc;
               if ((ux = ucs2_to_utf8(c,&buf)) < 1) {
                   debug(F101,"xgnbyte ucs2_to_utf8 error","",c);
                   return(-2);
@@ -2435,7 +2435,7 @@ xgnbyte(tcs,fcs,fn) int tcs, fcs, (*fn)();
       case XLA_NONE:
         return((fn ? (*fn)() : zminchar()));
       case XLA_BYTE:                    /* Byte-for-Byte translation */
-        rt = x;
+        rt = (CHAR)x;
         if (sx)
           rt = (*sx)(rt);
 #ifdef UNICODE
@@ -2573,7 +2573,7 @@ getpkt(xlate) int xlate;
                 } else debug(F100,"getpkt zkanji: empty string/file","",0);
                 return(0);
             }
-            rt = x;
+            rt = (CHAR)x;
             first = 0;
             if (!memstr) {
                 ffc++;
@@ -2623,7 +2623,7 @@ getpkt(xlate) int xlate;
 #endif /* NOCSETS */
                 if (x < 0) {            /* End of file or input error */
                     if (x == -3) {      /* Timeout. */
-                        size = (dp-data);
+                        size = (int)(dp-data);
                         debug(F101,"getpkt timeout size","",size);
                         return((size == 0) ? x : size);
                     }
@@ -2681,7 +2681,7 @@ getpkt(xlate) int xlate;
         nleft = 0;
     }
     if (first == -1)                    /* Handle EOF */
-      return(size = (dp - data));
+      return(size = (int)(dp - data));
 
 /* Now fill up the rest of the packet. */
 
@@ -2740,7 +2740,7 @@ getpkt(xlate) int xlate;
                 if (x < 0) {            /* Check for EOF */
                     if (x == -3) {      /* Timeout reading from pipe */
                         t = rt;
-                        size = (dp-data);
+                        size = (int)(dp-data);
                         debug(F101,"getpkt timeout size","",size);
                         return((size == 0) ? x : size);
                     }
@@ -2938,7 +2938,7 @@ getpkt(xlate) int xlate;
 
             debug(F000,"getpkt EOP","",rt);
 
-            size = (dp-data);           /* Calculate the size. */
+            size = (int)(dp-data);           /* Calculate the size. */
             *dp = '\0';                 /* Mark the end. */
             if (memstr) {               /* No leftovers for memory strings */
                 if (rt)                 /* Char we didn't encode yet */
@@ -2949,21 +2949,21 @@ getpkt(xlate) int xlate;
                 /* copy the part that doesn't fit into the leftover buffer, */
                 /* taking care not to split a prefixed sequence. */
                 int i;
-                nleft = dp - odp;
+                nleft = (int)(dp - odp);
                 for (i = 0, p1 = leftover, p2 = odp; i < nleft; i++) {
                     *p1++ = *p2++;
                     if (memstr) memptr--; /* (for encstr) */
                 }
                 debug(F111,"getpkt leftover",leftover,size);
                 debug(F101,"getpkt osize","",(odp-data));
-                size = (odp-data);      /* Return truncated packet. */
+                size = (int)(odp-data);      /* Return truncated packet. */
                 *odp = '\0';            /* Mark the new end */
             }
             t = rt;                     /* Save for next time */
             return(size);
         }
     }                                   /* Otherwise, keep filling. */
-    size = (dp-data);                   /* End of file */
+    size = (int)(dp-data);                   /* End of file */
     *dp = '\0';                         /* Mark the end of the data. */
     debug(F111,"getpkt eof/eot",data,size); /* Fell thru before packet full, */
     return(size);                    /* return partially filled last packet. */
@@ -3129,7 +3129,8 @@ rinit(d) CHAR *d;
 VOID
 resetc() {
     rptn = 0;                           /* Repeat counts */
-    fsecs = flci = flco = (CK_OFF_T)0;  /* File chars in and out */
+    fsecs = 0;
+    flci = flco = (CK_OFF_T)0;          /* File chars in and out */
 #ifdef GFTIMER
     fpfsecs = 0.0;
 #endif /* GFTIMER */
@@ -5174,7 +5175,7 @@ rpar() {
 
     if (max < 7) { dada[7] = NUL; bctr = 1; return(dada); }
 
-    dada[7] = (char) (bctr == 4) ? 'B' : bctr + '0'; /* Block check type */
+    dada[7] = (char)((bctr == 4) ? 'B' : bctr + '0'); /* Block check type */
 
     if (max < 8) { dada[8] = NUL; rptflg = 0; return(dada); }
 
@@ -5258,7 +5259,7 @@ rpar() {
 #endif /* WHATAMI */
     i = 18;                             /* Position of next field */
     p = cksysid;                        /* WHOAMI (my system ID) */
-    x = strlen(p);
+    x = (int)strlen(p);
     if (max - i < x + 1) return(dada);
     if (x > 0) {
         dada[i++] = (char) tochar(x);
@@ -5639,6 +5640,7 @@ spar(s) CHAR *s;
 
         if (wax > 0 && wax < 16 && biggest >= y) {
             strncpy(whoareu,(char *)s+z+10,wax); /* Other Kermit's system ID */
+            whoareu[wax] = NUL;
             debug(F111,"spar whoareyou",whoareu,whoareu[0]);
             if (whoareu[0]) {           /* Got one? */
                 sysindex = getsysix((char *)whoareu);
@@ -5997,7 +5999,7 @@ gotnam:
 #endif /* DTILDE */
             filesize = zchki(fullname); /* Check if file readable */
             debug(F111,"gnfile zchki",fullname,filesize);
-            retcode = filesize;         /* Possible return code */
+            retcode = (filesize < 0) ? (int)filesize : 0;
             if (filesize == (CK_OFF_T)-2 && dodirstoo) {
                 filesize = 0;
             }
@@ -6366,7 +6368,7 @@ nxthlp(
         return(-1);
     }
     funcnxt = 0;
-    funclen = strlen((char *)funcbuf);
+    funclen = (int)strlen((char *)funcbuf);
     return(funcbuf[funcnxt++]);
 }
 
@@ -6380,12 +6382,12 @@ sndhlp() {
     xflg = 1;                           /* Flag we must send X packet. */
     ckstrncpy(cmdstr,"REMOTE HELP",CMDSTRL); /* Data for X packet. */
     sprintf((char *)funcbuf, "C-Kermit %s,%s\n\n", versio, ckxsys);
-    funclen = strlen((char *)funcbuf);
+    funclen = (int)strlen((char *)funcbuf);
 #ifdef IKSD
     if (inserver) {
         sprintf((char *)(funcbuf+funclen),
                 "Internet Kermit Service\n\n");
-        funclen = strlen((char *)funcbuf);
+        funclen = (int)strlen((char *)funcbuf);
     }
 #endif /* IKSD */
     funcnxt = 0;
@@ -6514,7 +6516,7 @@ nxtstatus(
         return(-1);
     }
     funcnxt = 0;
-    funclen = strlen((char *)funcbuf);
+    funclen = (int)strlen((char *)funcbuf);
     return(funcbuf[funcnxt++]);
 }
 
@@ -6529,12 +6531,12 @@ sndstatus() {                           /* REMOTE STATUS handler */
 
     ckstrncpy(cmdstr,"REMOTE STATUS",CMDSTRL); /* Data for X packet. */
     sprintf((char *)funcbuf, "\n    SERVER: %s,%s\n", versio, ckxsys);
-    funclen = strlen((char *)funcbuf);
+    funclen = (int)strlen((char *)funcbuf);
 #ifdef IKSD
     if (inserver) {
         sprintf((char *)(funcbuf+funclen),
                 "Internet Kermit Service\n\n");
-        funclen = strlen((char *)funcbuf);
+        funclen = (int)strlen((char *)funcbuf);
     }
 #endif /* IKSD */
     funcstr = 1;                        /* Data input is from a function */
@@ -6597,7 +6599,7 @@ sndtype(file) char * file;
 #endif /* OS2 */
 
     funcnxt = 0;
-    funclen = strlen((char *)funcbuf);
+    funclen = (int)strlen((char *)funcbuf);
     if (zchki(name) == -2) {
         /* Found a directory */
         return(0);
@@ -6787,7 +6789,7 @@ nxtdir(
 #endif /* VMS */
         }
         funcnxt = 0;
-        funclen = strlen((char *)funcbuf);
+        funclen = (int)strlen((char *)funcbuf);
     } else if (sd_hdg && nxpnd == 0) {  /* Done, send summary */
         char *blankline = "";           /* At beginning of summary */
 /*
@@ -6830,7 +6832,7 @@ nxtdir(
 #endif /* OSK */
         nxpnd--;
         funcnxt = 0;
-        funclen = strlen((char *)funcbuf);
+        funclen = (int)strlen((char *)funcbuf);
     } else {
         funcbuf[0] = '\0';
         funcnxt = 0;
@@ -6916,7 +6918,7 @@ snddir(spec) char * spec;
     if (sd_hdg) {
         sprintf((char *)funcbuf,"Listing files: %s%s%s",fnbuf,endline,endline);
         funcnxt = 0;
-        funclen = strlen((char *)funcbuf);
+        funclen = (int)strlen((char *)funcbuf);
     }
     diractive = 1;
 
@@ -7017,7 +7019,7 @@ nxtdel(
 #endif /* CK_ANSIC */
        ) {
     char name[257], *p = NULL;
-    int len = 0;
+    CK_OFF_T len = 0;
 
     if (funcnxt < funclen)
       return ((unsigned)funcbuf[funcnxt++]);
@@ -7049,7 +7051,7 @@ nxtdel(
         } else
           sprintf((char *)funcbuf," directory: %s%s", p, endline);
         funcnxt = 0;
-        funclen = strlen((char *)funcbuf);
+        funclen = (int)strlen((char *)funcbuf);
     } else
 
     /* If done processing the expanded entries send a summary statement */
@@ -7066,7 +7068,7 @@ nxtdel(
                   );
           nxpnd--;
           funcnxt = 0;
-          funclen = strlen((char *)funcbuf);
+          funclen = (int)strlen((char *)funcbuf);
       } else {
           funcbuf[0] = '\0';
           funcnxt = 0;
@@ -7114,7 +7116,7 @@ snddel(spec) char * spec;
     nbytes = (CK_OFF_T)0;
     sprintf((char *)funcbuf,"Deleting \"%s\"%s",name,endline);
     funcnxt = 0;
-    funclen = strlen((char *)funcbuf);
+    funclen = (int)strlen((char *)funcbuf);
 
     nzxopts = ZX_FILONLY;               /* Files only */
 #ifdef UNIXOROSK

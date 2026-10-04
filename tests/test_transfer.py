@@ -629,3 +629,24 @@ def test_transfer_survives_server_write_sigwinch(
     pytest.fail(
         "test_transfer_survives_server_write_sigwinch: failed on all "
         f"{WRITE_SIGWINCH_ATTEMPTS} attempts; last failure: {detail}")
+
+
+@pytest.mark.parametrize("slash", ["/", ""], ids=["slash", "no-slash"])
+def test_get_into_existing_directory(tmp_path, wermit_loopback, slash):
+    """GET with an existing directory as the as-name stores the file there.
+
+    The directory exists already, so GET must neither try to create it
+    nor report an error.
+    """
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    (server_dir / "f.txt").write_text("hello\n")
+    dest = client_dir / "existing"
+    dest.mkdir()
+    result = wermit_loopback(
+        server_dir, "",
+        f"cd {client_dir}, get f.txt {dest}{slash}, "
+        "echo STATUS=[\\v(status)]",
+        timeout=30)
+    assert_ok(result)
+    assert "STATUS=[0]" in result.stdout, result.stdout
+    assert (dest / "f.txt").read_text() == "hello\n", result.stdout

@@ -187,7 +187,7 @@ ckstrncat(dest,src,len) char * dest, * src; int len;
     }
 #ifndef NOCKSTRNCPY
     /* Args OK, copy */
-    for (i = 0, j = strlen(dest); src[i] && (i < len-j-1); i++)
+    for (i = 0, j = (int)strlen(dest); src[i] && (i < len-j-1); i++)
       dest[i+j] = src[i];
     dest[i+j] = NUL;
 #else
@@ -507,8 +507,8 @@ ckltoa(n) long n;
     }
     buf[31] = NUL;
     for (k = 30; k > 0; k--) {          /* Convert number to string */
-        x = n % 10L;
-        buf[k] = x + '0';
+        x = (int)(n % 10L);
+        buf[k] = (char)(x + '0');
         n = n / 10L;
         if (!n)
           break;
@@ -540,8 +540,8 @@ ckultoa(n) unsigned long n;
     int k, x, len = 0;
     buf[31] = NUL;
     for (k = 30; k > 0; k--) {          /* Convert number to string */
-        x = n % 10L;
-        buf[k] = x + '0';
+        x = (int)(n % 10L);
+        buf[k] = (char)(x + '0');
         n = n / 10L;
         if (!n)
           break;
@@ -570,7 +570,7 @@ ckltox(n) long n;
     buf[0] = '0';
     buf[1] = 'x';
     sprintf(bp, "%lx", n);
-    k = strlen(bp);
+    k = (int)strlen(bp);
     if (k&1) {
         sprintf(bp, "0%lx", n);
         k++;
@@ -610,7 +610,7 @@ ckfstoa(n) CK_OFF_T n;
     }
     buf[31] = NUL;                      /* 2^63-1 is about 20 decimal digits */
     for (k = 30; k > 0; k--) {          /* Convert number to string */
-        x = n % (CK_OFF_T)10;
+        x = (int)(n % (CK_OFF_T)10);
         if (x < 0) {
             /* x += 10; */
             ckstrncpy(&buf[23],"OVERFLOW",32);
@@ -618,7 +618,7 @@ ckfstoa(n) CK_OFF_T n;
             k = 23;
             break;
         }
-        buf[k] = x + '0';
+        buf[k] = (char)(x + '0');
         n = n / (CK_OFF_T)10;
         if (!n)
           break;
@@ -734,12 +734,12 @@ ckctox(c, flag) CHAR c; int flag;
     x = (c >> 4) & 0x0f;
     h = rxdigits[x];
     if (!flag && isupper(rxdigits[x]))
-      h = tolower(rxdigits[x]);
+      h = (char)tolower(rxdigits[x]);
     buf[current++] = h;
     x = c & 0x0f;
     h = rxdigits[x];
     if (!flag && isupper(rxdigits[x]))
-      h = tolower(rxdigits[x]);
+      h = (char)tolower(rxdigits[x]);
     buf[current++] = h;
     buf[current++] = '\0';
     return((char *)(buf + current - 3));
@@ -936,7 +936,7 @@ dquote( fn, len, flag) char *fn; int len; int flag;
     if (!fn)
       return(0);
 
-    k = strlen(fn);
+    k = (int)strlen(fn);
     for (p = fn; *p; p++) {
         if (*p == SP) {
             spaces = 1;
@@ -977,7 +977,7 @@ untabify(s1,s2,max) char * s1, * s2; int max;
 #endif /* CK_ANSIC */
 {
     int i, j, k, x, z;
-    x = strlen(s1);
+    x = (int)strlen(s1);
     for (i = 0, k = 0; k < x; k++) {
         if (s1[k] != '\t') {
             if (i >= max-1) {
@@ -1021,7 +1021,7 @@ makelist(s,list,len) char * s; char *list[]; int len;
         list[0] = NULL;
         return;
     }
-    n = strlen(s);
+    n = (int)strlen(s);
     if (n == 0) {
         list[0] = NULL;
         return;
@@ -1031,7 +1031,7 @@ makelist(s,list,len) char * s; char *list[]; int len;
         s = s2;
     }
     s = brstrip(s);                     /* Strip braces */
-    n = strlen(s);                      /* Get length */
+    n = (int)strlen(s);                 /* Get length */
     if (*s != '{') {                    /* Outer braces only */
         if ((p = (char *)malloc(n+1))) { /* So just one pattern */
             strcpy(p,s);                /* (no need for ckstrncpy here) */
@@ -1285,8 +1285,8 @@ ckstrcmp(s1,s2,n,c) char *s1, *s2; register int n, c;
         if (!t1) return(t2 ? -1 : 0);
         if (!t2) return(1);
         if (!c) {                       /* If case doesn't matter */
-            if (isupper(t1)) t1 = tolower(t1); /* Convert case. */
-            if (isupper(t2)) t2 = tolower(t2);
+            if (isupper(t1)) t1 = (CHAR)tolower(t1); /* Convert case. */
+            if (isupper(t2)) t2 = (CHAR)tolower(t2);
         }
 /*      debug(F111,"CKSTRLEN A","",0); */
 #ifdef HAVE_LOCALE
@@ -1329,8 +1329,8 @@ ckstrpre(s1,s2) char *s1, *s2;
         t1 = (CHAR) *s1++;
         t2 = (CHAR) *s2++;
         if (!t1 || !t2) return(n);
-        if (isupper(t1)) t1 = tolower(t1);
-        if (isupper(t2)) t2 = tolower(t2);
+        if (isupper(t1)) t1 = (CHAR)tolower(t1);
+        if (isupper(t2)) t2 = (CHAR)tolower(t2);
         if (t1 != t2)
           return(n);
         n++;
@@ -1474,7 +1474,7 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
             ((opts & 2) == 0) ||        /* always if not file */
             (pattern[0] == '.');        /* or if pattern starts with '.' */
 
-        plen = strlen(pattern);         /* Length of pattern */
+        plen = (int)strlen(pattern);       /* Length of pattern */
 /* This would be used in calculating length of matching segment */
         if (plen > 0)                   /* User's pattern ends with '*' */
           if (pattern[plen - 1] == '*')
@@ -1551,9 +1551,9 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
         }
         if (!icase) {                   /* If ignoring case */
             if (isupper(cp))            /* convert both to lowercase. */
-              cp = tolower(cp);
+              cp = (CHAR)tolower(cp);
             if (isupper(cs))
-              cs = tolower(cs);
+              cs = (CHAR)tolower(cs);
         }
         if (q) {                        /* This character was quoted */
             debug(F000,"CKMATCH QUOTED",pattern,cp);
@@ -1612,7 +1612,7 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
                 }
                 if (!icase)             /* Case conversion */
                   if (isupper(c))
-                    c = tolower(c);
+                    c = (CHAR)tolower(c);
                 switch (c) {            /* Handle unquoted character */
                   case NUL:             /* End of string */
                     MATCHRETURN(4,0);   /* No matching ']' so fail */
@@ -1700,17 +1700,18 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
                 MATCHRETURN(6,0);       /* Fail */
             } else {                    /* Braces do match */
                 int sq = 0, done = 0;
-                len = *p ? strlen(p+1) : 0; /* Length of rest of pattern */
+                /* Length of rest of pattern */
+                len = *p ? (int)strlen(p+1) : 0;
                 if (len)
                   bronly = 0;
                 if (bronly && (matchdepth != 1))
                   bronly = 0;
-                n = p - pattern;            /* Size of list in braces */
+                n = (int)(p - pattern);     /* Size of list in braces */
                 if ((buf = (char *)malloc(n+1))) { /* Copy so we can poke it */
                     char * tp = NULL;
                     int sk, sofar;
                     ckstrncpy(buf,pattern,n+1);
-                    sofar = string - ostring - matchpos + 1;
+                    sofar = (int)(string - ostring) - matchpos + 1;
                     if (sofar < 0) sofar = 0;
                     debug(F111,"CKMATCH .. string",string,sofar);
                     debug(F111,"CKMATCH .. ostring",ostring,sofar);
@@ -1884,7 +1885,7 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
                     debug(F111,"CKMATCH * stringpos matchpos",
                           ckitoa(stringpos), matchpos);
                     if (!matchpos) {
-                        matchpos = string - ostring + sk2;
+                        matchpos = (int)(string - ostring) + sk2;
                         debug(F111,"CKMATCH * new match ", string, matchpos);
                     }
                     string += sk2 + n - 1;
@@ -2343,7 +2344,7 @@ sh_sort(s,p,n,k,r,c) char **s, **p; int n, k, r, c;
      out: int, specifying the radix to convert to, 2-36.
    Returns:
      NULL on error (illegal radix, illegal number, etc.).
-     "-1" on overflow (number too big for unsigned long).
+     "-1" on overflow (number too big for CK_OFF_T).
      Otherwise: Pointer to result.
 */
 char *
@@ -2357,12 +2358,12 @@ ckradix(s,in,out) char * s; int in, out;
     char c, *r = rxresult;
     int d, minus = 0;
     /*
-      To get 64 bits on 32-bit hardware we use off_t, but there
-      is no unsigned version of off_t, so we lose the ability to
-      detect overflow.
+      CK_OFF_T is used to get 64 bits on 32-bit hardware.  It is signed,
+      so the largest value is 2^63-1, computed here without overflow.
     */
     CK_OFF_T zz = (CK_OFF_T)0;
-    CK_OFF_T z = (CK_OFF_T)0;
+    CK_OFF_T maxoff = (CK_OFF_T)1 << (sizeof(CK_OFF_T) * 8 - 2);
+    maxoff = maxoff - 1 + maxoff;
 
     if (in < 2 || in > 36)              /* Verify legal input radix */
       return(NULL);
@@ -2376,14 +2377,9 @@ ckradix(s,in,out) char * s; int in, out;
     }
     while (*s == SP || *s == '0')       /* Trim leading blanks or 0's */
       s++;
-/*
-  For detecting overflow, we use a signed copy of the unsigned long
-  accumulator.  If it goes negative, we know we'll overflow NEXT time
-  through the loop.
-*/
     for (; *s;  s++) {                  /* Convert from input radix to */
-        c = *s;                         /* unsigned long */
-        if (islower(c)) c = toupper(c);
+        c = *s;                         /* CK_OFF_T */
+        if (islower(c)) c = (char)toupper(c);
         if (c >= '0' && c <= '9')
           d = c - '0';
         else if (c >= 'A' && c <= 'Z')
@@ -2392,16 +2388,15 @@ ckradix(s,in,out) char * s; int in, out;
           return(NULL);
         if (d >= in)                    /* Check for illegal digit */
           return(NULL);
-        zz = zz * in + d;
-        if (z < 0L)                     /* Clever(?) overflow detector */
+        if (zz > (maxoff - d) / in)     /* zz * in + d would overflow */
           return("-1");
-        z = zz;
+        zz = zz * in + d;
     }
     if (!zz) return("0");
-    r = &rxresult[RXRESULT];            /* Convert from unsigned long */
+    r = &rxresult[RXRESULT];            /* Convert from CK_OFF_T */
     *r-- = NUL;                         /* to output radix. */
     while (zz > 0 && r > rxresult) {
-        d = zz % (unsigned)out;
+        d = (int)(zz % (unsigned)out);
         *r-- = rxdigits[d];
         zz = zz / (unsigned)out;
     }
@@ -2470,7 +2465,7 @@ b8tob64(s,n,out,len) char * s,* out; int n, len;
     int b3, b4, i, x = 0;
     unsigned int t;
 
-    if (n < 0) n = strlen(s);
+    if (n < 0) n = (int)strlen(s);
 
     for (i = 0; i < n; i += 3,x += 4) { /* Loop through source bytes */
         b3 = b4 = 0;
@@ -2690,7 +2685,7 @@ lset(p,s,n,c) char *p; char *s; int n; int c;
     int i;
 #endif /* USE_MEMCPY */
     if (!s) s = "";
-    x = strlen(s);
+    x = (int)strlen(s);
     if (x > n) x = n;
 #ifdef USE_MEMCPY
     memcpy(p,s,x);
@@ -2718,7 +2713,7 @@ rset(p,s,n,c) char *p; char *s; int n; int c;
     int i;
 #endif /* USE_MEMCPY */
     if (!s) s = "";
-    x = strlen(s);
+    x = (int)strlen(s);
     if (x > n) x = n;
 #ifdef USE_MEMCPY
     memset(p,c,n-x);
@@ -2761,7 +2756,7 @@ ulongtohex(z,n) unsigned long z; int n;
         } else {
             x = z & 0x0f;
             z = z >> 4;
-            hexbuf[15-i] = x + ((x < 10) ? '0' : 0x37);
+            hexbuf[15-i] = (char)(x + ((x < 10) ? '0' : 0x37));
         }
     }
     return((char *)(&hexbuf[16-i]));
@@ -3132,7 +3127,7 @@ cksplit(fc,n1,s1,s2,s3,n2,n3,n4,n5)
                 } else  if (n < 0 && (wordnum + n > -1)) { /* or from right */
                     char * rs = wordarray[wordnum + n + 1];
                     if (!rs) rs = "";
-                    setword(1,rs,strlen(rs));
+                    setword(1,rs,(int)strlen(rs));
                     ck_sval.a_size = 1;
                     return(&ck_sval);
                 }
@@ -3354,7 +3349,7 @@ cksplit(fc,n1,s1,s2,s3,n2,n3,n4,n5)
         } else  if (n < 0 && (wordnum + n > -1)) { /* Counting from right */
             char * rs2 = wordarray[wordnum + n + 1];
             if (!rs2) rs2 = "";
-            setword(1,rs2,strlen(rs2));
+            setword(1,rs2,(int)strlen(rs2));
             ck_sval.a_size = 1;
             return(&ck_sval);
         }
@@ -3363,7 +3358,7 @@ cksplit(fc,n1,s1,s2,s3,n2,n3,n4,n5)
         if (n < 0 && (wordnum + n > -1)) { /* Counting from right */
             char * rs3 = wordarray[wordnum + n + 1];
             if (!rs3) rs3 = "";
-            setword(1,rs3,strlen(rs3));
+            setword(1,rs3,(int)strlen(rs3));
             ck_sval.a_size = 1;
             return(&ck_sval);
         }

@@ -1984,12 +1984,12 @@ xttgwsiz() {
     p = getenv("LINES");
     debug(F110,"xttgwsiz LINES",p,0);
     if (p) {
-        rows = atol(p);
+        rows = (int)atol(p);
         if (rows > 0) {
             p = getenv("COLUMNS");
             debug(F110,"xttgwsiz COLUMNS",p,0);
             if (p) {
-                cols = atol(p);
+                cols = (int)atol(p);
                 if (cols > 0) {
                     tt_rows = rows;
                     tt_cols = cols;
@@ -2246,10 +2246,10 @@ winchh(foo) int foo;
 #ifdef TIOCSWINSZ
         struct winsize w;               /* Resize the PTY */
         errno = 0;
-        w.ws_col = tt_cols;
-        w.ws_row = tt_rows;
-        w.ws_xpixel = tt_xpixel;
-        w.ws_ypixel = tt_ypixel;
+        w.ws_col = (unsigned short)tt_cols;
+        w.ws_row = (unsigned short)tt_rows;
+        w.ws_xpixel = (unsigned short)tt_xpixel;
+        w.ws_ypixel = (unsigned short)tt_ypixel;
         wx = ioctl(ttyfd,TIOCSWINSZ,&w);
         debug(F101,"winchh TIOCSWINSZ","",wx);
         debug(F101,"winchh TIOCSWINSZ errno","",errno);
@@ -2499,7 +2499,7 @@ sysinit() {
 
 #ifndef NOSYSCONF
 #ifdef _SC_OPEN_MAX
-    ckmaxfiles = sysconf(_SC_OPEN_MAX);
+    ckmaxfiles = (int)sysconf(_SC_OPEN_MAX);
 #endif /* _SC_OPEN_MAX */
 #endif /* NOSYSCONF */
 
@@ -2607,7 +2607,7 @@ sysinit() {
 
     ckstrncpy(startupdir, zgtdir(), CKMAXPATH);
     startupdir[CKMAXPATH] = '\0';
-    x = strlen(startupdir);
+    x = (int)strlen(startupdir);
     if (x <= 0) {
         startupdir[0] = '/';
         startupdir[1] = '\0';
@@ -5052,7 +5052,7 @@ ttrpid(name) char *name;
 */
     if (len > 4) {                      /* If file > 4 bytes it's a string */
 #endif /* COHERENT */
-        x = read(fd,buf,(int)len);
+        x = (int)read(fd,buf,(int)len);
         debug(F111,"ttrpid string read",buf,x);
         if (x < 0) {
             pid = -1;
@@ -5062,12 +5062,12 @@ ttrpid(name) char *name;
         }
 #ifndef COHERENT
     } else if (len == 4) {              /* 4 bytes so binary */
-        x = read(fd, (char *)&pid, 4);  /* Read the bytes into an int */
+        x = (int)read(fd, (char *)&pid, 4);  /* Read the bytes into an int */
         debug(F101,"ttrpid integer read","",x);
         if (x < 4)
           pid = -1;
     } else if (len == 2) {              /* 2 bytes binary */
-        x = read(fd, (char *)&spid, 2); /* Read the bytes into a short */
+        x = (int)read(fd, (char *)&spid, 2); /* Read the bytes into a short */
         debug(F101,"ttrpid short read","",x);
         if (x < 2)
           pid = -1;
@@ -5384,7 +5384,7 @@ ttlock(ttdev) char *ttdev;
     islink = 1;                         /* Assume it's a symlink */
     linkto[0] = '\0';                   /* But we don't know to what */
     if (islink) {
-        n = readlink(ttdev,linkto,DEVNAMLEN); /* See if it's a link */
+        n = (int)readlink(ttdev,linkto,DEVNAMLEN); /* See if it's a link */
         debug(F111,"ttlock readlink",ttdev,n);
         if (n > -1)                     /* It is */
           linkto[n] = '\0';
@@ -5579,7 +5579,7 @@ ttlock(ttdev) char *ttdev;
 #endif /* LINUXFSSTND */
             (int) pid
             );                          /* safe */
-    dummy = write(lockfd, pid_str, 11);
+    dummy = (int)write(lockfd, pid_str, 11);
     debug(F111,"ttlock hdb pid string",pid_str,(int) pid);
 
 #else /* Not PIDSTRING, use integer PID */
@@ -7213,7 +7213,7 @@ ttvt(speed,flow) long speed; int flow;
 
     debug(F101,"ttvt ttyfd","",ttyfd);
     debug(F101,"ttvt tvtflg","",tvtflg);
-    debug(F111,"ttvt speed",ckitoa(ttspeed),speed);
+    debug(F111,"ttvt speed",ckltoa(ttspeed),speed);
     debug(F111,"ttvt flow",ckitoa(ttflow),flow);
     debug(F111,"ttvt curcarr",ckitoa(ttcarr),curcarr);
 
@@ -9113,7 +9113,7 @@ myfillbuf() {
         sigemptyset(&nset);
         sigaddset(&nset, SIGALRM);
         sigprocmask(SIG_BLOCK, &nset, &oset);
-        n = read(fd, mybuf, sizeof(mybuf));
+        n = (int)read(fd, mybuf, sizeof(mybuf));
         my_count = n;
         my_item = -1;
         sigprocmask(SIG_SETMASK, &oset, NULL);
@@ -9494,7 +9494,7 @@ ttflux() {                              /* But first... */
     if (dotnopts) {
         CHAR ch = '\0';
         while (my_count > 0) {
-            ch = myread();
+            ch = (CHAR)myread();
 #ifdef CK_ENCRYPTION
             if (TELOPT_U(TELOPT_ENCRYPTION))
               ck_tn_decrypt((char *)&ch,1);
@@ -9851,7 +9851,7 @@ conbgt(flag) int flag;
 #ifdef __386BSD__
     jc = 1;
 #else
-    jc = sysconf(_SC_JOB_CONTROL);      /* Whatever system says */
+    jc = (int)sysconf(_SC_JOB_CONTROL); /* Whatever system says */
     if (jc < 0) {
         debug(F101,"sysconf fails, jcshell","",jcshell);
         jc = (jchdlr == SIG_DFL) ? 1 : 0;
@@ -10717,7 +10717,7 @@ ttxin(n,buf) int n; CHAR *buf;
 
 #ifdef TTLEBUF
     if (ttpush >= 0) {
-        buf[0] = ttpush;                /* Put pushed char in buffer*/
+        buf[0] = (CHAR)ttpush;        /* Put pushed char in buffer*/
         ttpush = -1;                    /* Clear the push buffer */
         if (ttchk() > 0)
           return(ttxin(n-1, &buf[1]) + 1);
@@ -10777,7 +10777,7 @@ ttxin(n,buf) int n; CHAR *buf;
                 if (c == -3) x = -1;
                 break;
             }
-            buf[x++] = c & ttpmsk;
+            buf[x++] = (CHAR)(c & ttpmsk);
 #ifdef RLOGCODE
 #ifdef CK_KERBEROS
             /* It is impossible to know how many characters are waiting */
@@ -11034,7 +11034,7 @@ ttol(s,n) int n; CHAR *s;
 #endif /* KRB5_U2U */
 #endif /* KRB5 */
 #endif /* CK_KERBEROS */
-              x = write(fd,s,n);        /* Write string to device */
+              x = (int)write(fd,s,n);        /* Write string to device */
 
         if (x == n) {                   /* Worked? */
             debug(F101,"ttol ok","",x); /* OK */
@@ -11209,7 +11209,7 @@ ttoc(c) char c;
 #endif /* KRB5_U2U */
 #endif /* KRB5 */
 #endif /* CK_KERBEROS */
-            rc = write(fd,&c,1);        /* Try to write the character. */
+            rc = (int)write(fd,&c,1);        /* Try to write the character. */
         if (rc < 1)                     /* Failed */
           goto ttoc_failed;
     }
@@ -11474,7 +11474,7 @@ ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
 
 #ifdef CK_ENCRYPTION
             if (TELOPT_U(TELOPT_ENCRYPTION) && !pushedback) {
-                CHAR ch = n;
+                CHAR ch = (CHAR)n;
                 ck_tn_decrypt((char *)&ch,1);
                 n = ch;
             }
@@ -11539,7 +11539,7 @@ ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
                 debug(F000,"ttinl skipping","",n);
                 continue;
             }
-            dest[i++] = n & ttpmsk;
+            dest[i++] = (CHAR)(n & ttpmsk);
 /*
   If we have not been instructed to wait for a turnaround character, we can go
   by the packet length field.  If turn != 0, we must wait for the end of line
@@ -11665,7 +11665,7 @@ ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
                         debug(F000,"TTINL lkread char","",px);
 #ifdef CK_ENCRYPTION
                         if (TELOPT_U(TELOPT_ENCRYPTION)) {
-                            CHAR ch = px;
+                            CHAR ch = (CHAR)px;
                             ck_tn_decrypt((char *)&ch,1);
                             px = ch;
                             debug(F000,"TTINL lkdecr char","",px);
@@ -11678,7 +11678,8 @@ ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
                           don't try to decrypt the same byte twice.
                         */
                         if ((px & ttpmsk) == start) { /* Start next packet */
-                            myunrd(px);  /* Push back the decrypted byte */
+                            /* Push back the decrypted byte */
+                            myunrd((CHAR)px);
                             pushedback = 1; /* And set flag */
                             debug(F000,"TTINL lkpush char","",px);
                             break;
@@ -11813,7 +11814,7 @@ ttinc(timo) int timo;
 #ifdef TTLEBUF
     if (ttpush >= 0) {
         debug(F111,"ttinc","ttpush",ttpush);
-        ch = ttpush;
+        ch = (CHAR)ttpush;
         ttpush = -1;
         return(ch);
     }
@@ -11855,7 +11856,7 @@ ttinc(timo) int timo;
 #ifdef CK_ENCRYPTION
         /* debug(F101,"ttinc u_encrypt","",TELOPT_U(TELOPT_ENCRYPTION)); */
         if (TELOPT_U(TELOPT_ENCRYPTION) && n >= 0) {
-            ch = n;
+            ch = (CHAR)n;
             ck_tn_decrypt((char *)&ch,1);
             n = ch;
         }
@@ -11919,7 +11920,7 @@ debug(F110,"XXX netclos in ifdef NETCONN...OK","B",0);
 #ifdef MYREAD
         n = myread();           /* If managing internal buffer... */
         debug(F101,"ttinc myread","",n);
-        ch = n;
+        ch = (CHAR)n;
 #else
         n = read(fd,&ch,1);             /* Otherwise call the system. */
         if (n == 0) n = -1;
@@ -12235,7 +12236,7 @@ msleep(m) int m;
 #endif /* PTX */
 #endif /* GTODONEARG */
       return(-1);
-    t1 = tv.tv_sec;                     /* Seconds */
+    t1 = (int)tv.tv_sec;                /* Seconds */
 #endif /* COHERENT */
 #endif /* HPUX9 */
     tv.tv_sec = 0;                      /* Use select() */
@@ -12775,12 +12776,13 @@ congetbuf(x) int x;
 #endif /* CK_ANSIC */
 {
     int n;
-    n = CONBUFSIZ - (conbufp - conbuf); /* How much room left in buffer? */
+    /* How much room is left in the buffer? */
+    n = CONBUFSIZ - (int)(conbufp - conbuf);
     if (x > n) {
         debug(F101,"congetbuf char loss","",x-n);
         x = n;
     }
-    x = read(0,conbufp,x);
+    x = (int)read(0,conbufp,x);
     conbufn += x;
     debug(F111,"congetbuf readahead",conbuf,x);
 }
@@ -13192,7 +13194,7 @@ conoc(c) char c;
 #ifdef Plan9
     return conwrite(&c,1);
 #else
-    return(write(1,&c,1));
+    return((int)write(1,&c,1));
 #endif /* Plan9 */
 }
 
@@ -13218,7 +13220,7 @@ conxo(x,s) int x; char *s;
 #ifdef Plan9
     return(conwrite(s,x));
 #else
-    return(write(1,s,x));
+    return((int)write(1,s,x));
 #endif /* Plan9 */
 }
 
@@ -13233,7 +13235,7 @@ conol(s) char *s;
 {
     int len;
     if (!s) s = "";                     /* Always do this! */
-    len = strlen(s);
+    len = (int)strlen(s);
     if (len == 0)
       return(0);
 
@@ -13267,7 +13269,7 @@ conol(s) char *s;
 #ifdef Plan9
     return(conwrite(s,len));
 #else
-    return(write(1,s,len));
+    return((int)write(1,s,len));
 #endif /* Plan9 */
 }
 
@@ -13334,7 +13336,7 @@ conoll(s) char *s;
 #ifdef Plan9
     return(conwrite(buf, 2));
 #else
-    return(write(1,buf,2));
+    return((int)write(1,buf,2));
 #endif /* Plan9 */
 }
 
@@ -13422,7 +13424,7 @@ coninc(timo) int timo;
         ) {
         if (ttpush >= 0) {
             debug(F111,"ttinc","ttpush",ttpush);
-            ch = ttpush;
+            ch = (CHAR)ttpush;
             ttpush = -1;
             return(ch);
         }
@@ -13437,7 +13439,7 @@ coninc(timo) int timo;
 
     if (timo <= 0) {                    /* Untimed, blocking read. */
         while (1) {                     /* Keep trying till we get one. */
-            n = read(0, &ch, 1);        /* Read a character. */
+            n = (int)read(0, &ch, 1);        /* Read a character. */
             if (n == 0) continue;       /* Shouldn't happen. */
             if (n > 0) {                /* If read was successful, */
 #ifdef IKSD
@@ -13520,7 +13522,7 @@ coninc(timo) int timo;
     saval = deadline_signal(deadline_timerh); /* Set up timeout handler. */
     xx = alarm(timo);                   /* Set the alarm. */
     debug(F101,"coninc alarm set","",timo);
-    n = read(0, &ch, 1);
+    n = (int)read(0, &ch, 1);
     if (n < 0 && ck_deadline_expired())
       n = -2;                           /* Code for timeout. */
     ttimoff();                          /* Turn off timer */
@@ -15652,7 +15654,7 @@ ttptycmd(s) char *s;
   This significantly reduces CPU usage.
 */
                 errno = 0;
-                x = write(ttyfd, sp, x);
+                x = (int)write(ttyfd, sp, x);
                 debug(F111,"ttptycmd ttyfd write",ckitoa(errno),x);
                 if (x < 0) {
                     if (errno != EAGAIN
@@ -15698,7 +15700,8 @@ ttptycmd(s) char *s;
         if (FD_ISSET(ptyfd, &out)) {    /* Can write to pty? */
             debug(F100,"ttptycmd FD_ISSET ptyfd out","",0);
             errno = 0;
-            x = write(ptyfd,tbuf + tbuf_written,tbuf_avail - tbuf_written);
+            x = (int)write(ptyfd,tbuf + tbuf_written,
+                           tbuf_avail - tbuf_written);
             debug(F111,"ttptycmd ptyfd write",ckitoa(errno),x);
             if (x > 0) {
                 tbuf_written += x;
@@ -15811,7 +15814,7 @@ ttptycmd(s) char *s;
  EAGAIN just means nothing more is available yet.
 */
                     errno = 0;
-                    x = read(ttyfd, tbuf+tbuf_avail, n);
+                    x = (int)read(ttyfd, tbuf+tbuf_avail, n);
                     debug(F111,"ttptycmd ttyfd bulk read",ckitoa(errno),x);
                     if (x < 0) {
                         if (errno == EAGAIN
@@ -15880,18 +15883,18 @@ ttptycmd(s) char *s;
                                 if (in_state == HAVE_CR) {
                                     debug(F000,"<<< SKIP","",lc);
                                 } else {
-                                    *p++ = lc;
+                                    *p++ = (CHAR)lc;
                                 }
                                 in_state = 0;
                                 break;
                               case 0x0d: /* CR */
                                 if (!TELOPT_U(TELOPT_BINARY))
                                   in_state = HAVE_CR;
-                                *p++ = lc;
+                                *p++ = (CHAR)lc;
                                 break;
                               case 0xff: /* IAC */
                                 if (in_state == HAVE_IAC) {
-                                    *p++ = lc;
+                                    *p++ = (CHAR)lc;
                                     in_state = 0;
                                 } else {
                                     debug(F000,"<<< SKIP","",lc);
@@ -15916,10 +15919,10 @@ ttptycmd(s) char *s;
                                     int xx;
                                     ttpush = lc;
                                     xx = tn_doop((CHAR)IAC,duplex,ttinc);
-                                    debug(F111,"<<< DOOP",ckctoa(lc),xx);
+                                    debug(F111,"<<< DOOP",ckctoa((char)lc),xx);
                                     in_state = 0;
                                 } else {
-                                    *p++ = lc;
+                                    *p++ = (CHAR)lc;
                                     in_state = 0;
                                 }
                             }
@@ -15999,7 +16002,7 @@ ttptycmd(s) char *s;
 
   So, skip the expensive signal/alarm setup and teardown when we won't need it.
 */
-                x = read(ptyfd,pbuf+pbuf_avail,n);
+                x = (int)read(ptyfd,pbuf+pbuf_avail,n);
 #else
 /*
   As before, read() may still block forever despite pty_chk() saying ptyfd has
@@ -16980,7 +16983,7 @@ ckxprintf(va_alist) va_dcl
             }
         } else
 #endif /* CK_SSL */
-          rc = fwrite(str2,sizeof(char),j,stdout);
+          rc = (int)fwrite(str2,sizeof(char),j,stdout);
     }
     va_end(args);
     return(rc);

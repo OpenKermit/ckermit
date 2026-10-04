@@ -1231,7 +1231,7 @@ cmdini() {
                   ckstrncpy(buf,"75/1200",sizeof(buf));
                 if (ss[i] == 134L)
                   ckstrncat(buf,".5",16);
-                n = strlen(buf);
+                n = (int)strlen(buf);
                 if ((n > 0) && (p9 = (char *)malloc(n+1))) {
                     if (m > 0) {        /* Have at least one in list */
                         for (j = 0;     /* Find slot */
@@ -1972,7 +1972,7 @@ extern int ckrooterr;
         inidir[0] = NUL;
     } else {
         ckstrncpy(inidir, kermrc, CCHMAXPATH);
-        x = strlen(inidir);
+        x = (int)strlen(inidir);
         if (x > 0) {
             int i;
             for (i = x - 1; i > 0; i-- ) {
@@ -2342,7 +2342,7 @@ getnct(s,n,f,flag) char *s; int n; FILE *f; int flag;
         else
 #endif /* NODIAL */
           tfline[tlevel]++;
-        len = strlen(lp2) - 1;          /* Position of line terminator */
+        len = (int)strlen(lp2) - 1;          /* Position of line terminator */
         if (len == 0 && lp2[0] != '\n') { /* Last line in file has one char */
             lp2[++len] = '\n';          /* that is not a newline */
             lp2[len] = NUL;
@@ -2431,7 +2431,7 @@ getnct(s,n,f,flag) char *s; int n; FILE *f; int flag;
         }
         /* debug(F110,"getnct comment trimmed",lp2,0); */
 
-        len = strlen(lp2);              /* Length after trimming */
+        len = (int)strlen(lp2);              /* Length after trimming */
 
         if (n - len < 2) {              /* Check remaining space */
             debug(F111,"getnct command too long",s2,buflen);
@@ -3446,7 +3446,7 @@ parser(m) int m;
                     char * eol = "";
 #endif /* COMMENT */
 
-                    x = strlen(cmdbuf); /* Avoid blank line */
+                    x = (int)strlen(cmdbuf); /* Avoid blank line */
 
 #ifdef COMMENT
                     if (x > 0) {
@@ -3475,7 +3475,7 @@ parser(m) int m;
                 if (cm_retry && !xcmdsrc) { /* If at top level */
                     int len;
                     char *p, *s;
-                    len = strlen(cmdbuf); /* Length of command buffer */
+                    len = (int)strlen(cmdbuf); /* Length of command buffer */
                     p = malloc(len + 1);  /* Allocate space for copy */
                     if (p) {              /* If we got the space copy */
                         strcpy(p,cmdbuf); /* the command buffer (SAFE). */
@@ -3873,7 +3873,7 @@ dooutput(s, cx) char *s; int cx;
 #endif /* SSHBUILTIN */
 
     if (!cmdgquo()) {                   /* COMMAND QUOTING OFF */
-        x = strlen(s);                  /* Just send the string literally */
+        x = (int)strlen(s);             /* Just send the string literally */
         xx = local ? ttol((CHAR *)s,x) : conxo(x,s);
         return(success = (xx == x) ? 1 : 0);
     }
@@ -4203,7 +4203,7 @@ isaa(s) char * s;
     s++;
     while ((c = *s++)) {
         if (c == '<') {
-            x = strlen(s);
+            x = (int)strlen(s);
             return ((*(s+x-1) == '>') ? 1 : 0);
         }
     }
@@ -4249,7 +4249,7 @@ mlook(table,cmd,n) struct mtab table[]; char *cmd; int n;
 
     c1 = *cmd;
     if (isupper(c1))
-      c1 = tolower(c1);
+      c1 = (char)tolower(c1);
     if (cmdlen < 1)
       return(-3);
 
@@ -4264,7 +4264,7 @@ mlook(table,cmd,n) struct mtab table[]; char *cmd; int n;
         while (lo+2 < hi && ++count9 < 12) {
             i = lo + ((hi - lo) / 2);
             c = *(table[i].kwd);
-            if (isupper(c)) c = tolower(c);
+            if (isupper(c)) c = (char)tolower(c);
             if (c < c1) {
                 lo = i;
             } else {
@@ -4278,7 +4278,7 @@ mlook(table,cmd,n) struct mtab table[]; char *cmd; int n;
         if (!s) s = "";
         if (!*s) continue;              /* Empty table entry */
         c = *s;
-        if (isupper(c)) c = tolower(c);
+        if (isupper(c)) c = (char)tolower(c);
         if (c1 != c) continue;          /* First char doesn't match */
         if (!ckstrcmp(s,cmd,-1,0))      /* Have exact match? */
           return(i);
@@ -4320,7 +4320,7 @@ mxlook(table,cmd,n) char *cmd; struct mtab table[]; int n;
 
     c1 = *cmd;                          /* First char of string to look up */
     if (isupper(c1))
-      c1 = tolower(c1);
+      c1 = (char)tolower(c1);
     if (!*(cmd+1))                      /* Special handling for 1-char names */
       one = 1;
 
@@ -4336,7 +4336,7 @@ mxlook(table,cmd,n) char *cmd; struct mtab table[]; int n;
         while (lo+2 < hi && ++count8 < 12) {
             i = lo + ((hi - lo) / 2);
             c = *(table[i].kwd);
-            if (isupper(c)) c = tolower(c);
+            if (isupper(c)) c = (char)tolower(c);
             if (c < c1) {
                 lo = i;
             } else {
@@ -4350,7 +4350,7 @@ mxlook(table,cmd,n) char *cmd; struct mtab table[]; int n;
         if (!s) s = "";
         if (!*s) continue;              /* Empty table entry */
         c = *s;
-        if (isupper(c)) c = tolower(c);
+        if (isupper(c)) c = (char)tolower(c);
         if (c1 != c) continue;          /* First char doesn't match */
         if (one) {                      /* Name is one char long */
             if (!*(s+1))
@@ -4382,7 +4382,7 @@ mxxlook(table,cmd,n) char *cmd; struct mtab table[]; int n;
 {
     int i, cmdlen;
     if (!cmd) cmd = "";
-    if (((cmdlen = strlen(cmd)) < 1) || (n < 1)) return(-3);
+    if (((cmdlen = (int)strlen(cmd)) < 1) || (n < 1)) return(-3);
     /* debug(F111,"mxxlook target",cmd,n); */
     for (i = 0; i < n; i++) {
         if (((int)strlen(table[i].kwd) == cmdlen) &&
@@ -5466,7 +5466,7 @@ shokeycode(c) int c;
 #endif /* NOKVERBS */
     } else {                            /* No macro, show single character */
         printf("Character: ");
-        ch = km;
+        ch = (KEY)km;
         if (ch < 32 || ch == 127
 #ifdef OS2
             || ch > 255
@@ -6810,7 +6810,7 @@ showarray() {
                     printf("%3d. %s\n",i,ap[i]);
                     if (xaskmore) {
                         if (cmd_cols > 0) {
-                            x = strlen(ap[i]) + 5;
+                            x = (int)strlen(ap[i]) + 5;
                             y = (x % cmd_cols) ? 1 : 0;
                             n += (x / cmd_cols) + y;
                         } else {
@@ -9112,7 +9112,7 @@ dclarray(a,n) char a; int n;
                 a_link[(unsigned char)a] = -1;
                 return(0);
             }                           /* Not deleting */
-            a = a_link[(unsigned char)a]; /* Switch to linked-to array */
+            a = (char)a_link[(unsigned char)a]; /* Switch to linked-to array */
         }
         n2 = a_dim[(unsigned char)a];   /* Real array */
         for (i = 0; i <= n2; i++) {     /* First delete its elements */
@@ -9169,7 +9169,7 @@ xarray(s) char * s;
     debug(F110,"xarray",s,0);
     if (!*s)
       return(-1);
-    x = strlen(s);
+    x = (int)strlen(s);
 
     buf[0] = NUL;
     buf[1] = NUL;
@@ -9191,7 +9191,7 @@ xarray(s) char * s;
     debug(F110,"xarray s",s,0);
     c = *(s+2);
     if (isupper(c))
-      c = tolower(c);
+      c = (char)tolower(c);
     if (c == '@')
       c = 96;
     x = (int)c - ARRAYBASE;
@@ -9395,7 +9395,7 @@ arraynam(ss,c,n) char *ss; int *c; int *n;
     char sxbuf[16];                     /* Evaluated subscript */
 
     *c = *n = 0;                        /* Initialize return values */
-    len = strlen(ss);
+    len = (int)strlen(ss);
     for (pp = 0,i = 0; i < len; i++) {          /* Check length */
         if (ss[i] == '[') {
             pp++;

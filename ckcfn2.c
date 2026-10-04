@@ -443,7 +443,7 @@ getrtt(rttns, n) int rttns, n;
         debug(F101,"RTT rcvtimo (int)","",rcvtimo);
 #endif /* CKFLOAT */
 
-        zz = (rttdelay + 500) / 1000;
+        zz = (int)((rttdelay + 500) / 1000);
         if (rcvtimo > (zz * 3))
           rcvtimo = zz * 3;
 
@@ -2333,7 +2333,7 @@ int
 
         /* Same deal for oname and opath eventually but not needed now... */
 
-        x = strlen(cmarg);              /* Now do filename */
+        x = (int)strlen(cmarg);           /* Now do filename */
         if (x > spsiz - 4) {
             srimsg = "GET Packet Too Long for Server";
             return(-1);
@@ -2715,7 +2715,7 @@ int
             | (xunchar(s[2]));
         chk = (CHAR)(*s);               /* Copy 1st byte of 3-byte CRC */
         *s = NUL;                       /* Null-terminate data field */
-        if (crc != chk3((CHAR *)(buf+1),strlen(buf+1)))
+        if (crc != chk3((CHAR *)(buf+1),(int)strlen(buf+1)))
           return(0);
     }
     return(type == 'S' ? 1 : 2);
@@ -2766,7 +2766,7 @@ rpack() {
     sohp = recpkt;                      /* Initialize pointers to it. */
     rdatap = recpkt;
     rsn = rln = -1;                     /* In case of failure. */
-    e = (turn) ? turnch : eol;          /* Use any handshake char for eol */
+    e = (CHAR)((turn) ? turnch : eol);  /* Use any handshake char for eol */
 
 /* Try to get a "line". */
 
@@ -3204,12 +3204,12 @@ logpkt(c,n,s,len) char c; int n; CHAR *s; int len;
             return;
         } else {
             if (len == 0)
-              len = strlen((char *)s);
+              len = (int)strlen((char *)s);
             if (len > 0) {
                 char * p;               /* Make SOP printable */
                 int x;                  /* so we can look at logs without */
                 p = dbchr(*s);          /* triggering autodownload. */
-                x = strlen(dbchr(*s));
+                x = (int)strlen(dbchr(*s));
                 if (*s < 32 || (*s > 127 && *s < 160)) {
                     if (zsoutx(ZPFILE,p,x) < 0) {
                         pktlog = 0;
@@ -3260,7 +3260,7 @@ tstats() {
     debug(F101,"tstats xfsecs","",xfsecs);
     debug(F101,"tstats filcnt","",filcnt);
     if (filcnt == 1) {                  /* Get timing for statistics */
-        tsecs = xfsecs;                 /* Single file, we already have it */
+        tsecs = (int)xfsecs;            /* Single file, we already have it */
 #ifdef GFTIMER
         debug(F101,"tstats fpxfsecs","",(int)fpxfsecs);
         fptsecs = fpxfsecs;

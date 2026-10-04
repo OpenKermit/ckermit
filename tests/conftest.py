@@ -989,13 +989,14 @@ def wermit_tcp_loopback(spawn_wermit, run_wermit, get_free_port):
             self.server_log_path = server_log_path
 
         def run_client(self, client_commands, protocol=None,
-                       setup_cmds="", timeout=10):
+                       setup_cmds="", timeout=10, host="localhost"):
             """
             Connects a client to the loopback server and runs the given
             commands. protocol, if given ("ssl" or "tls"), is appended
             as a /SSL or /TLS protocol-switch to SET HOST. setup_cmds
             are run before SET HOST (e.g. to configure client-side
-            certificate/verification parameters). Note: unlike
+            certificate/verification parameters). host is the name
+            or address given to SET HOST. Note: unlike
             wermit_loopback, no -Q switch is used, because C-Kermit
             suppresses its "[SSL - OK]"/"[SSL - FAILED]" verbose
             authentication messages whenever -Q (quiet) is in effect.
@@ -1013,7 +1014,7 @@ def wermit_tcp_loopback(spawn_wermit, run_wermit, get_free_port):
                 "set command more-prompting off, "
                 "set tcp reverse-dns-lookup off, "
                 f"{setup_prefix}"
-                f"set host localhost {self.port}{proto_switch}, "
+                f"set host {host} {self.port}{proto_switch}, "
                 # Bail out immediately if the connection (e.g. the SSL/TLS
                 # handshake) didn't succeed, instead of running the rest
                 # of the command list with no connection open. Without
@@ -1559,6 +1560,8 @@ def ssl_pki(tmp_path_factory, wermit_ssl_available):
       - a self-signed "localhost" server cert/key (not signed by either
         CA above), for testing self-signed leaf verification separately
         from the untrusted-CA path
+      - a server cert/key signed by the trusted CA whose only
+        subjectAltNames are IP addresses, including 127.0.0.1
 
     The server certs' CN/SAN is "localhost". Tests must connect to
     that hostname, not an IP address, to avoid C-Kermit's interactive
@@ -1597,6 +1600,11 @@ def ssl_pki(tmp_path_factory, wermit_ssl_available):
         d, "selfsigned_server", "/CN=localhost", san="DNS:localhost"
     )
 
+    ip_server_key, ip_server_crt = _make_leaf(
+        d, "ip_server", "/CN=ip-server", ca_key, ca_crt,
+        san="IP:192.168.255.254,IP:::1,IP:127.0.0.1"
+    )
+
     return {
         "ca_crt": ca_crt,
         "ca_key": ca_key,
@@ -1612,6 +1620,8 @@ def ssl_pki(tmp_path_factory, wermit_ssl_available):
         "expired_key": expired_key,
         "selfsigned_server_crt": selfsigned_crt,
         "selfsigned_server_key": selfsigned_key,
+        "ip_server_crt": ip_server_crt,
+        "ip_server_key": ip_server_key,
     }
 
 

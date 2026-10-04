@@ -8150,7 +8150,8 @@ tx_elot927(c) USHORT c;
 #endif /* CK_ANSIC */
 {
     if (c <= 0x80) {                    /* ASCII */
-        if (islower(c)) c = toupper(c); /* Send all letters in uppercase */
+        if (islower(c))                 /* Send all letters in uppercase */
+          c = (USHORT)toupper(c);
         return((CHAR)(c & 0x7f));
     }
 
@@ -15970,7 +15971,7 @@ ucs2_to_utf8(ucs2, utf8) USHORT ucs2; CHAR ** utf8;
               /* Fall through */
       case 2: utf8return[i--] = (ucs2 | byteMark) & byteMask; ucs2 >>= 6;
               /* Fall through */
-      case 1: utf8return[i--] =  ucs2 | firstByteMark[utf8len];
+      case 1: utf8return[i--] = (CHAR)(ucs2 | firstByteMark[utf8len]);
     }
     debug(F111,"ucs2_to_utf8",utf8return,utf8len);
     *utf8 = utf8return;

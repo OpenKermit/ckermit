@@ -876,16 +876,17 @@ cmdlin() {
                   lfile = asname;
 #endif /* KUI */
 
-                x = http_get(agent,
-                             NULL,      /* hdrlist */
-                             g_url.usr,
-                             g_url.psw,
-                             0,
-                             lfile,
-                             g_url.pth,
-                             0          /* stdio */
-                             );
-                x = (http_close() == 0);
+                x = (http_get(agent,
+                              NULL,     /* hdrlist */
+                              g_url.usr,
+                              g_url.psw,
+                              0,
+                              lfile,
+                              g_url.pth,
+                              0         /* stdio */
+                              ) > -1);
+                if (http_close() != 0)  /* Fail if either step fails */
+                  x = 0;
             } else {
                 if (!quiet)
                   printf("?HTTP Connection failed.\r\n");
@@ -895,7 +896,7 @@ cmdlin() {
 #endif /* CK_URL */
 #endif /* NOICP */
           {
-              int http_action = 0;
+              int http_action = 0, rc = -1;
               char * host = NULL, * svc = NULL, * lpath = NULL;
               char * user = NULL, * pswd = NULL, * path = NULL;
               char * xp;
@@ -1078,20 +1079,22 @@ cmdlin() {
                   }
                   switch (http_action) {
                     case HTTP_GET:
-                      x = http_get(agent,NULL,user,pswd,0,lpath,path,0);
+                      rc = http_get(agent,NULL,user,pswd,0,lpath,path,0);
                       break;
 
                     case HTTP_PUT:
-                      x = http_put(agent,NULL,"text/HTML",
-                                   user,pswd,0,lpath,path,NULL,0);
+                      rc = http_put(agent,NULL,"text/HTML",
+                                    user,pswd,0,lpath,path,NULL,0);
                       break;
 
                     case HTTP_HED:
-                      x = http_head(agent,NULL,user,pswd,0,lpath,path,0);
+                      rc = http_head(agent,NULL,user,pswd,0,lpath,path,0);
                       break;
                   }
-                  debug(F101,"cmdline http result","",x);
-                  x = (http_close() == 0);
+                  debug(F101,"cmdline http result","",rc);
+                  x = (rc > -1);
+                  if (http_close() != 0) /* Fail if either step fails */
+                    x = 0;
                   if (pcpy) free(path);
                   doexit(x ? GOOD_EXIT : BAD_EXIT, -1);
               }
@@ -3692,7 +3695,8 @@ extern char *line, *tmpbuf;             /* Character buffers for anything */
             break;
 
           case 's': {                   /* send */
-              int fil2snd, rc;
+              int fil2snd;
+              CK_OFF_T rc;
               if (!recursive)
               nolinks = 0;              /* Follow links by default */
 
@@ -4169,7 +4173,7 @@ extern char *line, *tmpbuf;             /* Character buffers for anything */
                 XFATAL("missing bps");
             }
             zz = atol(*xargv);          /* Convert to long int */
-            i = zz / 10L;
+            i = (int)(zz / 10L);
 #ifndef NOLOCAL
             if (ttsspd(i) > -1)         /* Check and set it */
 #endif /* NOLOCAL */

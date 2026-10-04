@@ -561,3 +561,42 @@ def test_telnet_with_cert_negotiates_starttls_automatically(
     assert "[TLS -" in result.stdout
     assert "TLS failed" not in result.stdout
     assert str(server_dir) in result.stdout
+
+
+def test_ssl_ip_address_matches_certificate_ip_san(server_dir,
+                                                   wermit_tcp_loopback,
+                                                   ssl_pki):
+    """
+    Connecting to an IPv4 address matches a certificate's iPAddress
+    subjectAltName for that address, without a hostname-mismatch
+    warning. 127.0.0.1 contains zero bytes. The certificate also
+    lists an IPv6 address that must not be read as IPv4.
+    """
+    session = wermit_tcp_loopback(
+        server_dir,
+        protocol="ssl",
+        setup_cmds=(
+            "set authentication ssl rsa-cert-file "
+            f"{ssl_pki['ip_server_crt']}, "
+            "set authentication ssl rsa-key-file "
+            f"{ssl_pki['ip_server_key']}"
+        ),
+    )
+    result = session.run_client(
+        "remote pwd",
+        protocol="ssl",
+        host="127.0.0.1",
+        setup_cmds=(
+            "set authentication ssl verbose on, "
+            f"set authentication ssl verify-file {ssl_pki['ca_crt']}"
+        ),
+    )
+    session.wait_for_server_exit()
+
+    assert_ok(result)
+    assert "does not match" not in result.stdout, result.stdout
+    assert "[SSL - OK]" in result.stdout, result.stdout
+    listed = [line.split("IPAddr=")[1].strip()
+              for line in result.stdout.splitlines()
+              if "altSubjectName IPAddr=" in line]
+    assert listed == ["192.168.255.254", "127.0.0.1"], result.stdout

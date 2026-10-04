@@ -2197,18 +2197,18 @@ SendSSLAuthSB(type,data,len) int type; void *data; int len;
     }
 
     if (len == -1)                        /* Use strlen() for len */
-        len = strlen((char *)cd);
+        len = (int)strlen((char *)cd);
 
     /* Construct Message */
     *p++ = sstelnet ? TELQUAL_REPLY : TELQUAL_IS;
     *p++ = AUTHTYPE_SSL;
     *p = AUTH_CLIENT_TO_SERVER;
-    *p |= auth_how;
+    *p |= (unsigned char)auth_how;
 #ifdef CK_ENCRYPTION
-    *p |= auth_crypt;
+    *p |= (unsigned char)auth_crypt;
 #endif
     p++;
-    *p++ = type;
+    *p++ = (unsigned char)type;
     while (len-- > 0) {
         if ((*p++ = *cd++) == IAC)
             *p++ = IAC;
@@ -2219,7 +2219,7 @@ SendSSLAuthSB(type,data,len) int type; void *data; int len;
     /* Handle Telnet Debugging Messages */
     if (deblog || tn_deb || debses) {
         int i;
-        int deblen=p-str_data-2;
+        int deblen=(int)(p-str_data-2);
         char *s=NULL;
         int mode = AUTH_CLIENT_TO_SERVER | (auth_how & AUTH_HOW_MASK) |
             (auth_crypt?AUTH_ENCRYPT_USING_TELOPT:AUTH_ENCRYPT_OFF);
@@ -2254,7 +2254,7 @@ SendSSLAuthSB(type,data,len) int type; void *data; int len;
 #ifdef OS2
     RequestTelnetMutex( SEM_INDEFINITE_WAIT );
 #endif
-    rc = ttol((CHAR *)str_data, p - str_data);
+    rc = ttol((CHAR *)str_data, (int)(p - str_data));
 #ifdef OS2
     ReleaseTelnetMutex();
 #endif
@@ -2993,7 +2993,7 @@ auth_send(parsedat,end_sub) unsigned char *parsedat; int end_sub;
             if ( !ok )
                 return AUTH_FAILURE;
         }
-        plen = strlen(szUserName);
+        plen = (unsigned)strlen(szUserName);
         pname = (unsigned char *) szUserName;
 
         /* Construct Telnet Debugging Message */
@@ -3720,7 +3720,7 @@ auth_encrypt(out,in)
 
     out->length = in->length;
 
-    return(out->length);
+    return((int)out->length);
 }
 
 
@@ -3747,7 +3747,7 @@ auth_decrypt(out,in)
 
     out->length = in->length;
 
-    return(out->length);
+    return((int)out->length);
 }
 
 #ifdef KRB4
@@ -12732,8 +12732,8 @@ XauFileName ()
     name = zhome();
     if ( !name )
         return(NULL);
-    namelen = strlen (name);
-    size = namelen + strlen(slashDotXauthority) + 1;
+    namelen = (int)strlen (name);
+    size = namelen + (int)strlen(slashDotXauthority) + 1;
     if (size > bsize) {
         if (buf)
             free (buf);
@@ -12871,7 +12871,7 @@ FILE            *file;
 
     if (fread ((char *) file_short, (int) sizeof (file_short), 1, file) != 1)
         return 0;
-    *shortp = file_short[0] * 256 + file_short[1];
+    *shortp = (unsigned short)(file_short[0] * 256 + file_short[1]);
     return 1;
 }
 
@@ -12967,8 +12967,8 @@ FILE            *file;
 {
     unsigned char   file_short[2];
 
-    file_short[0] = (s & (unsigned)0xff00) >> 8;
-    file_short[1] = s & 0xff;
+    file_short[0] = (unsigned char)((s & (unsigned)0xff00) >> 8);
+    file_short[1] = (unsigned char)(s & 0xff);
     if (fwrite ((char *) file_short, (int) sizeof (file_short), 1, file) != 1)
         return 0;
     return 1;

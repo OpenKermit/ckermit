@@ -161,3 +161,103 @@ def test_ftp_pasv_long_reply(run_wermit):
     reply = b"227 (127,0,0,1,0,1," + b"1," * 3000 + b"1)\r\n"
     _ftp_session(run_wermit, b"220 hi\r\n", {"PASV": reply},
                  commands=["ftp dir"])
+
+
+def _serve_nlst(names):
+    """Start a one-connection FTP peer that lists names for NLST.
+
+    Supports PASV for the listing's data connection and refuses every
+    RETR. Returns (port, thread, socket, list of RETR arguments).
+    """
+    table = dict(DEFAULT_REPLIES)
+    table.update({"SIZE": b"550 no\r\n", "MDTM": b"550 no\r\n",
+                  "RETR": b"550 no\r\n"})
+    retrs = []
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    srv.settimeout(20)
+
+    def run():
+        try:
+            conn, _ = srv.accept()
+        except OSError:
+            return
+        data_srv = None
+        with conn:
+            conn.settimeout(20)
+            try:
+                conn.sendall(b"220 hi\r\n")
+                for line in conn.makefile("rb"):
+                    words = line.strip().split(b" ", 1)
+                    verb = words[0].upper().decode("ascii", "replace")
+                    if verb == "PASV":
+                        data_srv = socket.socket(socket.AF_INET,
+                                                 socket.SOCK_STREAM)
+                        data_srv.bind(("127.0.0.1", 0))
+                        data_srv.listen(1)
+                        data_srv.settimeout(20)
+                        p = data_srv.getsockname()[1]
+                        conn.sendall(b"227 Entering Passive Mode "
+                                     b"(127,0,0,1,%d,%d)\r\n"
+                                     % (p >> 8, p & 255))
+                        continue
+                    if verb == "NLST" and data_srv:
+                        conn.sendall(b"150 listing\r\n")
+                        data, _ = data_srv.accept()
+                        with data:
+                            data.sendall(b"".join(n + b"\r\n"
+                                                  for n in names))
+                        data_srv.close()
+                        data_srv = None
+                        conn.sendall(b"226 done\r\n")
+                        continue
+                    if verb == "RETR" and len(words) > 1:
+                        retrs.append(words[1])
+                    conn.sendall(table.get(verb, b"200 ok\r\n"))
+                    if verb == "QUIT":
+                        break
+            except OSError:
+                pass
+            finally:
+                if data_srv:
+                    data_srv.close()
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    return srv.getsockname()[1], thread, srv, retrs
+
+
+@pytest.mark.parametrize("dirlen", [10, 4000, 4087, 5000])
+def test_ftp_mget_pathless_names_long_directory(run_wermit, tmp_path,
+                                                dirlen):
+    """Verify MGET prefixes pathless NLST names with the pattern's path.
+
+    A UNIX server may list only the names in the directory. MGET then
+    prefixes each name with the directory from its pattern, unless the
+    result does not fit in its 4096-byte buffer.
+    """
+    directory = "/" + "d" * (dirlen - 1)
+    port, thread, srv, retrs = _serve_nlst([b"file.txt"])
+    try:
+        result = run_wermit(", ".join([
+            f"cd {tmp_path}",
+            f"ftp open 127.0.0.1 {port} /user:u /password:p",
+            "if success echo OPEN-OK",
+            "ftp passive on",
+            f"ftp mget {directory}/*.txt",
+            "ftp close",
+            "exit",
+        ]), timeout=60)
+    finally:
+        srv.close()
+        thread.join(timeout=5)
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}")
+    assert "OPEN-OK" in result.stdout, result.stdout[-500:]
+    if dirlen + len("/file.txt") < 4096:
+        expected = f"{directory}/file.txt".encode()
+    else:
+        expected = b"file.txt"
+    assert retrs == [expected], retrs

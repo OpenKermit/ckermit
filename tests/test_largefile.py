@@ -6,6 +6,8 @@ These tests verify file size and offset handling past 2^31 and 2^32.
 """
 import re
 import shutil
+import socket
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -361,3 +363,157 @@ def test_fsexpression_rounding_past_2_53(run_wermit):
         result = run_wermit(f"echo R=[\\fsexpression({expr})]")
         assert_ok(result)
         assert f"R=[{expected}]" in result.stdout, (expr, result.stdout)
+
+
+def _capture_http_headers(server_sock):
+    """Accept one connection and return its request headers as text.
+
+    The connection is closed without reading the request body.
+    """
+    server_sock.settimeout(15)
+    conn, _ = server_sock.accept()
+    try:
+        conn.settimeout(10)
+        request = b""
+        while b"\r\n\r\n" not in request:
+            chunk = conn.recv(4096)
+            if not chunk:
+                break
+            request += chunk
+    finally:
+        conn.close()
+    return request.split(b"\r\n\r\n", 1)[0].decode("latin-1")
+
+
+@pytest.mark.parametrize("method", ["put", "post"])
+@pytest.mark.parametrize("size", [3 * 2**30 + 7, FOUR_GIB + 12345])
+def test_http_upload_content_length_past_2gib(
+    sparse_dir, spawn_wermit, wermit_http_available, get_free_port,
+    method, size,
+):
+    """HTTP PUT and POST must send the exact Content-length past 2 GiB."""
+    if not wermit_http_available:
+        pytest.skip("wermit built with NOHTTP")
+
+    big = sparse_dir / "big.dat"
+    with open(big, "wb") as f:
+        f.seek(size - 1)
+        f.write(b"\0")
+
+    port = get_free_port()
+    server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_sock.bind(("127.0.0.1", port))
+    server_sock.listen(1)
+    try:
+        proc = spawn_wermit([
+            "-H", "-Y", "-C",
+            "set command more-prompting off, "
+            f"http open 127.0.0.1 {port}, "
+            f"http {method} {big} /big.dat, "
+            "exit",
+        ], cwd=str(sparse_dir))
+        headers = _capture_http_headers(server_sock)
+    finally:
+        server_sock.close()
+    proc.kill()
+    proc.wait(timeout=10)
+
+    assert headers.startswith(f"{method.upper()} /big.dat "), headers
+    assert f"\r\nContent-length: {size}\r\n" in headers + "\r\n", headers
+
+
+@pytest.mark.parametrize("size", [3 * 2**30, FOUR_GIB + 12345])
+def test_ftp_command_line_put_file_past_2gib(sparse_dir, wermit_path, size):
+    """Command-line FTP PUT must accept a file of 2 GiB or more.
+
+    Invoked as "ftp" with no host, wermit parses the PUT file list
+    and then starts without connecting.
+    """
+    big = sparse_dir / "big.dat"
+    with open(big, "wb") as f:
+        f.seek(size - 1)
+        f.write(b"\0")
+    ftp = sparse_dir / "ftp"
+    ftp.symlink_to(wermit_path)
+
+    result = subprocess.run(
+        [str(ftp), "-Y", "-p", str(big)],
+        stdin=subprocess.DEVNULL, capture_output=True, text=True,
+        timeout=30, start_new_session=True)
+    output = result.stdout + result.stderr
+    assert "No files to" not in output, output
+    assert "C-Kermit" in output, output
+
+
+def test_remote_delete_files_past_2gib(sparse_dir, wermit_loopback):
+    """REMOTE DELETE must delete files of 2 GiB or more and count them.
+
+    The server lists each file it deletes and the total bytes freed.
+    """
+    client_dir, server_dir = make_loopback_dirs(sparse_dir)
+    sizes = {"big3.dat": 3 * 2**30, "big4.dat": FOUR_GIB + 12345}
+    for name, size in sizes.items():
+        with open(server_dir / name, "wb") as f:
+            f.seek(size - 1)
+            f.write(b"\0")
+
+    result = wermit_loopback(
+        server_dir, "", f"cd {client_dir}, remote delete big*.dat",
+        timeout=30)
+    assert_ok(result)
+
+    for name in sizes:
+        assert not (server_dir / name).exists(), result.stdout
+    assert f"{sum(sizes.values())} bytes freed" in result.stdout, (
+        result.stdout)
+
+
+def test_delete_summary_bytes_past_2gib(sparse_dir, run_wermit):
+    """DELETE /SUMMARY must total file sizes past 2 GiB exactly."""
+    sizes = {"big3.dat": 3 * 2**30, "big4.dat": FOUR_GIB + 12345}
+    for name, size in sizes.items():
+        with open(sparse_dir / name, "wb") as f:
+            f.seek(size - 1)
+            f.write(b"\0")
+    result = run_wermit(f"delete /summary {sparse_dir}/big*.dat")
+    assert_ok(result)
+    for name in sizes:
+        assert not (sparse_dir / name).exists(), result.stdout
+    assert f"2 files deleted, {sum(sizes.values())} bytes freed" in (
+        result.stdout), result.stdout
+
+
+def test_wait_file_deletion_size_2_32_minus_1(sparse_dir, run_wermit):
+    """WAIT FILE DELETION must not take a 2^32-1 byte file as deleted.
+
+    In 32 bits that size is -1, the value for a file that does not
+    exist.
+    """
+    big = sparse_dir / "big.dat"
+    with open(big, "wb") as f:
+        f.seek(FOUR_GIB - 2)
+        f.write(b"\0")
+    result = run_wermit(
+        f"wait 1 file deletion {big}, echo STATUS=[\\v(status)]")
+    assert "STATUS=[1]" in result.stdout, result.stdout
+    assert big.exists()
+
+
+@pytest.mark.parametrize("size", [3 * 2**30, FOUR_GIB + 12345])
+def test_send_option_accepts_file_past_2gib(sparse_dir, wermit_path, size):
+    """The -s command-line option must accept a file of 2 GiB or more.
+
+    With no connection, wermit then fails to open the terminal; it
+    must not report the file itself as unusable.
+    """
+    big = sparse_dir / "big.dat"
+    with open(big, "wb") as f:
+        f.seek(size - 1)
+        f.write(b"\0")
+    result = subprocess.run(
+        [wermit_path, "-Y", "-s", str(big)],
+        stdin=subprocess.DEVNULL, capture_output=True, text=True,
+        timeout=30, start_new_session=True)
+    output = result.stdout + result.stderr
+    assert "kermit -s" not in output, output

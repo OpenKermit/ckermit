@@ -644,3 +644,30 @@ def test_cmnum_overflow_guard_rejects_huge_set_argument(run_wermit):
         "?Magnitude of result too large for integer - 99999999999"
         in result.stdout
     ), result.stdout
+
+
+def test_connect_long_backslash_escape_code(tmp_path, wermit_path):
+    r"""Verify a long backslash code at the CONNECT escape is handled.
+
+    After the escape character, a backslash starts a character code
+    that ends at Return. The typed code is held in a small buffer, so
+    a 40-character code must be truncated, not overrun it. CONNECT
+    requires a terminal, so wermit runs under a pty.
+
+    CONNECT prints its banner before it puts the console in raw mode.
+    It prints the dashed line after that.  Keystrokes sent before the
+    dashed line reach a cooked console.  There the escape character is
+    VQUIT, so the line discipline takes it and CONNECT never sees it.
+    """
+    cmd = ("set exit warning off, set host /pty cat, "
+           "echo READY, connect, echo BACK, exit")
+    proc, master = start_wermit_pty(wermit_path, cmd, tmp_path)
+    buf, found = _wait_for_pty_marker(master, b"-" * 52, 15)
+    assert found, buf
+    time.sleep(0.5)
+    os.write(master, b"\x1c\\" + b"1" * 40 + b"\r")
+    time.sleep(0.5)
+    os.write(master, b"\x1cc")
+    rc, out = finish_wermit_pty(proc, master, timeout=30)
+    assert rc == 0, f"wermit exited {rc}; output: {buf!r}{out}"
+    assert "BACK" in out, out

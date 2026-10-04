@@ -503,7 +503,7 @@ char namecopy2[NAMECPYL];               /* Referenced by ckctel.c */
 #ifndef NOHTTP
 char http_host_port[NAMECPYL];          /* orig host/port necessary for http */
 char http_ip[CK_IPADDRLEN] = { '\0' };            /* ip address of host */
-char http_port = 0;
+int http_port = 0;
 int  http_ssl = 0;
 char * http_agent = 0;
 int  httpfd = -1;                       /* socket for http connections */
@@ -3644,9 +3644,10 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
     if (service && !strcmp("login",p) && service->s_port != htons(513)) {
         fprintf(stderr,
                 "  Warning: login service on port %d instead of port 513\n",
-                 ntohs(service->s_port));
+                 ntohs((unsigned short)service->s_port));
         fprintf(stderr, "  Edit SERVICES file if RLOGIN fails to connect.\n");
-        debug(F101,"tcpsrv_open login on port","",ntohs(service->s_port));
+        debug(F101,"tcpsrv_open login on port","",
+              ntohs((unsigned short)service->s_port));
     }
 #endif /* RLOGCODE */
     if (!service) {
@@ -3721,7 +3722,7 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
 
         /* Get a file descriptor for the connection. */
 
-        saddr.sin_port = service->s_port;
+        saddr.sin_port = (unsigned short)service->s_port;
         ipaddr[0] = '\0';
 
         debug(F100,"tcpsrv_open calling socket","",0);
@@ -3814,7 +3815,7 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
             }
         } else
           saddr6.sin6_addr = in6addr_any;
-        saddr6.sin6_port = service->s_port;
+        saddr6.sin6_port = (unsigned short)service->s_port;
 
         debug(F100,"tcpsrv_open calling socket (v6)","",0);
         if ((tcpsrfd6 = socket(AF_INET6, SOCK_STREAM, 0)) < 0) {
@@ -5320,7 +5321,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
         }
         ckstrncpy(namecopy,hbuf,NAMECPYL);
         if (hasport) {
-            x = strlen(namecopy);
+            x = (int)strlen(namecopy);
             p = namecopy + x + 1;
             ckstrncpy(p,pbuf,NAMECPYL - x - 1);
         } else {
@@ -5360,7 +5361,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
             if (*p == ':')                  /* a second colon */
                 *p++ = '\0';              /* get rid of that one too */
             while (*p == '/') *p++ = '\0';  /* and slashes */
-            x = strlen(p);                  /* Length of remainder */
+            x = (int)strlen(p);                  /* Length of remainder */
             if (p[x-1] == '/')              /* If there is a trailing slash */
                 p[x-1] = '\0';            /* remove it. */
             debug(F110,"netopen namecopy after stripping",namecopy,0);
@@ -5460,7 +5461,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
                     debug(F110,"netopen temppath",temppath,0);
 
                     /* move port/service to a buffer that won't go away */
-                    x = strlen(namecopy);
+                    x = (int)strlen(namecopy);
                     p = namecopy + x + 1;
                     ckstrncpy(p, tempservice, NAMECPYL - x - 1);
                 } else {
@@ -5502,7 +5503,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
                         debug(F110,"netopen temppath",temppath,0);
 
                         /* move port/service to a buffer that won't go away */
-                        x = strlen(namecopy);
+                        x = (int)strlen(namecopy);
                         p = namecopy + x + 1;
                         ckstrncpy(p, tempservice, NAMECPYL - x - 1);
                     }
@@ -5578,7 +5579,8 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
     } else {
         if (!ckstrcmp(namecopy,namecopy2,-1,0))
           namecopy2[0] = '\0';
-        ckstrncpy(svcbuf,ckuitoa(ntohs(service->s_port)),sizeof(svcbuf));
+        ckstrncpy(svcbuf,ckuitoa(ntohs((unsigned short)service->s_port)),
+                  sizeof(svcbuf));
         debug(F110,"netopen service ok",svcbuf,0);
     }
 
@@ -5586,10 +5588,11 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
     if (service && !strcmp("login",p) && service->s_port != htons(513)) {
         fprintf(stderr,
                 "  Warning: login service on port %d instead of port 513\n",
-                 ntohs(service->s_port)
+                 ntohs((unsigned short)service->s_port)
                 );
         fprintf(stderr, "  Edit SERVICES file if RLOGIN fails to connect.\n");
-        debug(F101,"tcpsrv_open login on port","",ntohs(service->s_port));
+        debug(F101,"tcpsrv_open login on port","",
+              ntohs((unsigned short)service->s_port));
     }
 #endif /* RLOGCODE */
 
@@ -5597,7 +5600,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
    /* For HTTP connections we must preserve the original hostname and */
    /* service requested so we can include them in the Host header.    */
     ckmakmsg(http_host_port,sizeof(http_host_port),namecopy,":",
-              ckitoa(ntohs(service->s_port)),NULL);
+              ckitoa(ntohs((unsigned short)service->s_port)),NULL);
 
     /* 'namecopy' contains the name of the host to which we want to connect */
     /* 'svcbuf'   contains the service name                                 */
@@ -5611,8 +5614,9 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
 
     if ( tcp_http_proxy ) {
         ckmakmsg(proxycopy,sizeof(proxycopy),namecopy,":",
-                 ckuitoa(ntohs(service->s_port)),NULL);
-        ckstrncpy(namecopy,tcp_http_proxy,NAMECPYL);
+                 ckuitoa(ntohs((unsigned short)service->s_port)),NULL);
+        /* Leave room after the name for a service name or port number */
+        ckstrncpy(namecopy,tcp_http_proxy,NAMECPYL-8);
 
         p = namecopy;                       /* Was a service requested? */
         while (*p != '\0' && *p != ':') p++; /* Look for colon */
@@ -5620,7 +5624,8 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
             debug(F110,"netopen name has colon",namecopy,0);
             *p++ = '\0';                    /* Get service name or number */
         } else {
-            strcpy(++p,"http");
+            p++;
+            ckstrncpy(p,"http",NAMECPYL-(int)(p-namecopy));
         }
 
         service = ckgetservice(namecopy,p,namecopy,NAMECPYL);
@@ -5634,7 +5639,8 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
             errno = 0;                  /* (rather than mislead) */
             return(-1);
         }
-        ckstrncpy(p,ckuitoa(ntohs(service->s_port)),NAMECPYL-(p-namecopy));
+        ckstrncpy(p,ckuitoa(ntohs((unsigned short)service->s_port)),
+                  NAMECPYL-(int)(p-namecopy));
 
     }
 #endif /* NOHTTP */
@@ -5870,7 +5876,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
 
     /* Get a file descriptor for the connection. */
 
-    r_addr.sin_port = service->s_port;
+    r_addr.sin_port = (unsigned short)service->s_port;
     ckstrncpy(ipaddr,(char *)inet_ntoa(r_addr.sin_addr),CK_IPADDRLEN);
     debug(F110,"netopen trying",ipaddr,0);
     if (!quiet && *ipaddr) {
@@ -6561,7 +6567,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
     /* Before Initialization Telnet/Rlogin Negotiations Init Kerberos */
 #ifndef NOHTTP
     if (tcp_http_proxy) {
-        for (i=strlen(proxycopy); i >= 0 ; i--)
+        for (i=(int)strlen(proxycopy); i >= 0 ; i--)
             if ( proxycopy[i] == ':' )
                 proxycopy[i] = '\0';
     }
@@ -7560,7 +7566,7 @@ netxin(n,buf) int n; CHAR * buf;
             else
               break;
         }
-        buf[i] = j;
+        buf[i] = (CHAR)j;
     }
     len = i;
 #endif /* TCPIPLIB */
@@ -8683,19 +8689,18 @@ getlocalipaddr()
 #endif /* datageneral */
 }
 
-unsigned long
+struct in_addr
 #ifdef CK_ANSIC
 ck_hostaddr(struct hostent * host, int index)
 #else
 ck_hostaddr(host,index) struct hostent * host; int index;
 #endif /* CK_ANSIC */
 /* ck_hostaddr */ {
-    /* Copy the IPv4 address from host->h_addr_list[index] into an
-       unsigned long. Zero-fill first so unused bytes on 64-bit
-       platforms remain zero. */
-    unsigned long a = 0L;
-    memcpy((char *)&a, (char *)host->h_addr_list[index],
-           sizeof(struct in_addr));
+    /* Copy the IPv4 address from host->h_addr_list[index].  The entry holds
+       sizeof(struct in_addr) bytes in network byte order. */
+    struct in_addr a;
+    memset((char *)&a, 0, sizeof(a));
+    memcpy((char *)&a, (char *)host->h_addr_list[index], sizeof(a));
     return(a);
 }
 
@@ -8747,7 +8752,7 @@ getlocalipaddrs(buf,bufsz,index) char * buf; int bufsz; int index;
                 buf[0] = '\0';
                 return(-1);
             }
-            l_sa.sin_addr.s_addr = ck_hostaddr(host, index);
+            l_sa.sin_addr = ck_hostaddr(host, index);
             ckstrncpy(buf,(char *)inet_ntoa(l_sa.sin_addr),bufsz);
             debug(F110,"getlocalipaddrs setting buf to",buf,0);
 
@@ -8756,7 +8761,7 @@ getlocalipaddrs(buf,bufsz,index) char * buf; int bufsz; int index;
                 buf[0] = '\0';
                 return(-1);
             }
-            l_sa.sin_addr.s_addr = ck_hostaddr(host, 0);
+            l_sa.sin_addr = ck_hostaddr(host, 0);
             ckstrncpy(buf,(char *)inet_ntoa(l_sa.sin_addr),bufsz);
             debug(F110,"getlocalipaddrs setting buf to",buf,0);
 #endif  /* HADDRLIST */
@@ -8838,10 +8843,6 @@ rlog_ini(hostname, port, l_addr, r_addr)
 #endif /* CK_ANSIC */
 /* rlog_ini */ {
 
-#ifdef RLOGOUTBUF
-    char outbuf[512];
-    int  outbytes=0;
-#endif /* RLOGOUTBUF */
     int flag = 0;
 #define TERMLEN 16
 #define CONSPDLEN 16
@@ -8849,6 +8850,12 @@ rlog_ini(hostname, port, l_addr, r_addr)
     CHAR remoteuser[UIDBUFLEN+1];
     int userlen = 0;
     CHAR term_speed[TERMLEN+CONSPDLEN+1];
+#ifdef RLOGOUTBUF
+    /* A NUL, then the three strings, each with its NUL */
+    char outbuf[1 + sizeof(localuser) + sizeof(remoteuser) +
+                sizeof(term_speed)];
+    int  outbytes=0;
+#endif /* RLOGOUTBUF */
 #ifdef CONGSPD
     long conspd = -1L;
 #endif /* CONGSPD */
@@ -8916,7 +8923,7 @@ rlog_ini(hostname, port, l_addr, r_addr)
         char * user = getenv("USER");
         if (!user)
           user = "";
-        userlen = strlen(user);
+        userlen = (int)strlen(user);
         debug(F111,"rlogin getenv(USER)",user,userlen);
         ckstrncpy((char *)localuser,user,UIDBUFLEN);
         debug(F110,"rlog_ini localuser 1",localuser,0);
@@ -8975,12 +8982,12 @@ rlog_ini(hostname, port, l_addr, r_addr)
         }
 #endif /* OS2 */
     }
-    n = strlen((char *)term_speed);
+    n = (int)strlen((char *)term_speed);
     if (n > 0) {                        /* We have a terminal type */
         if (!flag) {                    /* If not user-specified */
             for (i = 0; i < n; i++)     /* then lowercase it.    */
               if (isupper(term_speed[i]))
-                term_speed[i] = tolower(term_speed[i]);
+                term_speed[i] = (CHAR)tolower(term_speed[i]);
         }
         debug(F110,"rlog_ini term_speed 1",term_speed,0);
 
@@ -9045,12 +9052,12 @@ rlog_ini(hostname, port, l_addr, r_addr)
          *    the terminal_type/speed or command to execute
          */
         outbuf[outbytes++] = 0;
-        strcpy((char *)outbuf+outbytes,(char *)localuser);
-        outbytes += strlen((char *)localuser) + 1;
-        strcpy((char *)outbuf+outbytes,(char *)remoteuser);
-        outbytes += strlen((char *)remoteuser) + 1;
-        strcpy((char *)outbuf+outbytes,(char *)term_speed);
-        outbytes += strlen((char *)term_speed) + 1;
+        outbytes += ckstrncpy(outbuf+outbytes,(char *)localuser,
+                              (int)sizeof(outbuf)-outbytes) + 1;
+        outbytes += ckstrncpy(outbuf+outbytes,(char *)remoteuser,
+                              (int)sizeof(outbuf)-outbytes) + 1;
+        outbytes += ckstrncpy(outbuf+outbytes,(char *)term_speed,
+                              (int)sizeof(outbuf)-outbytes) + 1;
         rc = ttol((CHAR *)outbuf,outbytes);
 #else /* RLOGOUTBUF */
         ttoc(0);                        /* Send an initial NUL as wake-up */
@@ -11647,7 +11654,7 @@ http_get_chunk_len()
     int ch;
 
     while ((ch = http_inc(0)) >= 0 && i < 24) {
-        buf[i] = ch;
+        buf[i] = (char)ch;
         if ( buf[i] == 10 ) {           /* found end of line */
             if (i > 0 && buf[i-1] == 13)
                 i--;
@@ -11851,8 +11858,8 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
     /* For HTTP connections we must preserve the original hostname and */
     /* service requested so we can include them in the Host header.    */
     ckmakmsg(http_host_port,sizeof(http_host_port),hostname,":",
-              ckuitoa(ntohs(service->s_port)),NULL);
-    http_port = ntohs(service->s_port);
+              ckuitoa(ntohs((unsigned short)service->s_port)),NULL);
+    http_port = ntohs((unsigned short)service->s_port);
     http_ssl = use_ssl;
     debug(F111,"http_open",http_host_port,http_port);
 
@@ -11869,8 +11876,9 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
     if ( tcp_http_proxy ) {
 
         ckmakmsg(proxycopy,sizeof(proxycopy),hostname,":",
-                 ckuitoa(ntohs(service->s_port)),NULL);
-        ckstrncpy(honc,tcp_http_proxy,NAMECPYL);
+                 ckuitoa(ntohs((unsigned short)service->s_port)),NULL);
+        /* Leave room after the name for a service name or port number */
+        ckstrncpy(honc,tcp_http_proxy,NAMECPYL-8);
 
         p = honc;                       /* Was a service requested? */
         while (*p != '\0' && *p != ':') p++; /* Look for colon */
@@ -11878,7 +11886,8 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
             debug(F110,"http_open name has colon",honc,0);
             *p++ = '\0';                    /* Get service name or number */
         } else {
-            strcpy(++p,"http");
+            p++;
+            ckstrncpy(p,"http",NAMECPYL-(int)(p-honc));
         }
 
         service = ckgetservice(honc,p,http_ip,CK_IPADDRLEN);
@@ -11919,7 +11928,8 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
         char hpsvc[16];
         int got_addr = 0;
 
-        ckstrncpy(hpsvc,ckuitoa(ntohs(service->s_port)),sizeof(hpsvc));
+        ckstrncpy(hpsvc,ckuitoa(ntohs((unsigned short)service->s_port)),
+                  sizeof(hpsvc));
         httpfd = ck_tcp_connect(http_ip[0] ? http_ip : hostname, hpsvc,
                                 quiet, &got_addr, &cn_addr, &cn_len, 0);
         if (httpfd < 0) {
@@ -12054,7 +12064,7 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
 
     /* Get a file descriptor for the connection. */
 
-    r_addr.sin_port = service->s_port;
+    r_addr.sin_port = (unsigned short)service->s_port;
     ckstrncpy(http_ip,(char *)inet_ntoa(r_addr.sin_addr),CK_IPADDRLEN);
     debug(F110,"http_open trying",http_ip,0);
     if (!quiet && *http_ip) {
@@ -12396,7 +12406,7 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
 #endif /* NOICP */
                     )
                   printf(" %s connected on port %s\n",s,
-                         ckuitoa(ntohs(service->s_port)));
+                         ckuitoa(ntohs((unsigned short)service->s_port)));
             } else {
                 if (!quiet) printf("Failed.\n");
             }
@@ -12441,7 +12451,7 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
 #endif /* NOICP */
                 ) {
                 printf(" %s connected on port %s\n",s,
-                       ckuitoa(ntohs(service->s_port)));
+                       ckuitoa(ntohs((unsigned short)service->s_port)));
 #ifdef BETADEBUG
                 /* This is simply for testing the DNS entries */
                 if (host->h_aliases) {
@@ -12702,7 +12712,7 @@ http_tol(s,n) CHAR *s; int n;
             return(-1);                 /* Call it an i/o error */
         }
 #else /* TCPIPLIB */
-        if ((count = write(httpfd,s,n)) < 0) {
+        if ((count = (int)write(httpfd,s,n)) < 0) {
             debug(F101,"http_tol socket_write error","",errno);
             return(-1);                 /* Call it an i/o error */
         }
@@ -12926,7 +12936,7 @@ http_inc(timo) int timo;
                         return(-1); /* Call it an i/o error */
                     }
 #else /* TCPIPLIB */
-                    if ((rc = write(httpfd,"",0)) < 0) {
+                    if ((rc = (int)write(httpfd,"",0)) < 0) {
 #ifdef HTTP_BUFFERING
                         http_count = 0;
                         http_bufp = 0;
@@ -13093,7 +13103,7 @@ http_inc(timo) int timo;
 #ifdef TCPIPLIB
             x = socket_read(httpfd,http_inbuf,x);
 #else  /* Not TCPIPLIB */
-            x = read(httpfd,http_inbuf,x);
+            x = (int)read(httpfd,http_inbuf,x);
 #endif  /* TCPIPLIB */
             http_count = 0;
             http_bufp = 0;
@@ -13219,24 +13229,24 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
     }
     len = 8;                            /* GET */
     len += strlen(HTTP_VERSION);
-    len += strlen(remote);
+    len += (int)strlen(remote);
     len += 16;
 
     if (hdrlist) {
         for (i = 0; hdrlist[i]; i++)
-            len += strlen(hdrlist[i]) + 2;
+            len += (int)strlen(hdrlist[i]) + 2;
     }
     len += (int) strlen(http_host_port) + 8;
 
     if (agent)
-      len += 13 + strlen(agent);
+      len += 13 + (int)strlen(agent);
     if (user) {
         if (!pwd) {
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
         ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,strlen(b64in),b64out,256);
+        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
         memset(pwd,0,strlen(pwd));      /* NOT PORTABLE */
         if (j < 0)
           return(-1);
@@ -13252,7 +13262,8 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
     if (!request)
       return(-1);
 
-    sprintf(request,"GET %s %s\r\n",remote,HTTP_VERSION);       /* safe */
+    ckmakmsg(request,len,"GET ",remote," ",HTTP_VERSION);
+    ckstrncat(request,"\r\n",len);
     ckstrncat(request,"Host: ", len);
     ckstrncat(request,http_host_port, len);
     ckstrncat(request,"\r\n",len);
@@ -13278,7 +13289,7 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
     ckstrncat(request,"\r\n",len);
 
   getreq:
-    if (http_tol((CHAR *)request,strlen(request)) < 0)
+    if (http_tol((CHAR *)request,(int)strlen(request)) < 0)
     {
         http_close();
         if ( first ) {
@@ -13296,7 +13307,7 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
     i = 0;
     len = -1;
     while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
-        buf[i] = ch;
+        buf[i] = (char)ch;
         if ( buf[i] == 10 ) { /* found end of line */
             if (i > 0 && buf[i-1] == 13)
               i--;
@@ -13397,7 +13408,7 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
     if ( chunked ) {            /* Parse Trailing Headers */
         nullline = 0;
         while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
-            buf[i] = ch;
+            buf[i] = (char)ch;
             if ( buf[i] == 10 ) { /* found end of line */
                 if (i > 0 && buf[i-1] == 13)
                   i--;
@@ -13496,24 +13507,24 @@ http_head(agent, hdrlist, user, pwd, array, local, remote, stdio)
     }
     len = 9;                            /* HEAD */
     len += strlen(HTTP_VERSION);
-    len += strlen(remote);
+    len += (int)strlen(remote);
     len += 16;
 
     if ( hdrlist ) {
         for (i = 0; hdrlist[i]; i++)
-            len += strlen(hdrlist[i]) + 2;
+            len += (int)strlen(hdrlist[i]) + 2;
     }
-    len += strlen(http_host_port) + 8;
+    len += (int)strlen(http_host_port) + 8;
 
     if (agent)
-      len += 13 + strlen(agent);
+      len += 13 + (int)strlen(agent);
     if (user) {
         if (!pwd) {
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
         ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,strlen(b64in),b64out,256);
+        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
         memset(pwd,0,strlen(pwd));      /* NOT PORTABLE */
         if (j < 0)
           return(-1);
@@ -13529,7 +13540,8 @@ http_head(agent, hdrlist, user, pwd, array, local, remote, stdio)
     if (!request)
       return(-1);
 
-    sprintf(request,"HEAD %s %s\r\n",remote,HTTP_VERSION);
+    ckmakmsg(request,len,"HEAD ",remote," ",HTTP_VERSION);
+    ckstrncat(request,"\r\n",len);
     ckstrncat(request,"Host: ", len);
     ckstrncat(request,http_host_port, len);
     ckstrncat(request,"\r\n",len);
@@ -13562,7 +13574,7 @@ http_head(agent, hdrlist, user, pwd, array, local, remote, stdio)
     }
 
   headreq:
-    if (http_tol((CHAR *)request,strlen(request)) < 0)
+    if (http_tol((CHAR *)request,(int)strlen(request)) < 0)
     {
         http_close();
         if ( first ) {
@@ -13580,7 +13592,7 @@ http_head(agent, hdrlist, user, pwd, array, local, remote, stdio)
     nullline = 0;
     i = 0;
     while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
-        buf[i] = ch;
+        buf[i] = (char)ch;
         if (buf[i] == 10) {             /* found end of line */
             if (i > 0 && buf[i-1] == 13)
               i--;
@@ -13687,24 +13699,24 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
     }
     len = 10;                            /* INDEX */
     len += strlen(HTTP_VERSION);
-    len += strlen(remote);
+    len += (int)strlen(remote);
     len += 16;
 
     if ( hdrlist ) {
         for (i = 0; hdrlist[i]; i++)
-            len += strlen(hdrlist[i]) + 2;
+            len += (int)strlen(hdrlist[i]) + 2;
     }
-    len += strlen(http_host_port) + 8;
+    len += (int)strlen(http_host_port) + 8;
 
     if (agent)
-        len += 13 + strlen(agent);
+        len += 13 + (int)strlen(agent);
     if (user) {
         if (!pwd) {
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
         ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,strlen(b64in),b64out,256);
+        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
         memset(pwd,0,strlen(pwd));
         if (j < 0)
           return(-1);
@@ -13720,7 +13732,8 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
     if (!request)
       return(-1);
 
-    sprintf(request,"INDEX %s\r\n",HTTP_VERSION);
+    ckmakmsg(request,len,"INDEX ",remote," ",HTTP_VERSION);
+    ckstrncat(request,"\r\n",len);
     ckstrncat(request,"Host: ", len);
     ckstrncat(request,http_host_port, len);
     ckstrncat(request,"\r\n",len);
@@ -13745,7 +13758,7 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
 #endif
     ckstrncat(request,"\r\n",len);
   indexreq:
-    if (http_tol((CHAR *)request,strlen(request)) < 0)
+    if (http_tol((CHAR *)request,(int)strlen(request)) < 0)
     {
         http_close();
         if ( first ) {
@@ -13763,7 +13776,7 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
     i = 0;
     len = -1;
     while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
-        buf[i] = ch;
+        buf[i] = (char)ch;
         if (buf[i] == 10) {             /* found end of line */
             if (i > 0 && buf[i-1] == 13)
               i--;
@@ -13861,7 +13874,7 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
     if ( chunked ) {            /* Parse Trailing Headers */
         nullline = 0;
         while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
-            buf[i] = ch;
+            buf[i] = (char)ch;
             if ( buf[i] == 10 ) { /* found end of line */
                 if (i > 0 && buf[i-1] == 13)
                   i--;
@@ -13919,7 +13932,7 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
     char passwd[64];
     char b64in[128];
     char b64out[256];
-    int  filelen;
+    CK_OFF_T filelen;
     char * headers[HTTPHEADCNT];
     int  closecon = 0;
     int  chunked = 0;
@@ -13944,32 +13957,32 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
     /* Compute length of request header */
     len = 8;                            /* PUT */
     len += strlen(HTTP_VERSION);
-    len += strlen(remote);
+    len += (int)strlen(remote);
     len += 16;
 
     if ( hdrlist ) {
         for (i = 0; hdrlist[i]; i++)
-            len += strlen(hdrlist[i]) + 2;
+            len += (int)strlen(hdrlist[i]) + 2;
     }
-    len += strlen(http_host_port) + 8;
+    len += (int)strlen(http_host_port) + 8;
 
     if (agent)
-      len += 13 + strlen(agent);
+      len += 13 + (int)strlen(agent);
     if (user) {
         if (!pwd) {
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
         ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,strlen(b64in),b64out,256);
+        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
         memset(pwd,0,strlen(pwd));
         if (j < 0)
           return(-1);
         b64out[j] = '\0';
         len += j + 24;
     }
-    len += 16 + strlen(mime);           /* Content-type: */
-    len += 32;                          /* Content-length: */
+    len += 16 + (int)strlen(mime);           /* Content-type: */
+    len += 40;                          /* Content-length: */
     len += 32;                          /* Date: */
 #ifdef HTTP_CLOSE
     len += 19;                          /* Connection: close */
@@ -13980,7 +13993,8 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
     if (!request)
       return(-1);
 
-    sprintf(request,"PUT %s %s\r\n",remote,HTTP_VERSION);
+    ckmakmsg(request,len,"PUT ",remote," ",HTTP_VERSION);
+    ckstrncat(request,"\r\n",len);
     ckstrncat(request,"Date: ",len);
 #ifdef CMDATE2TM
     ckstrncat(request,http_now(),len);
@@ -14010,7 +14024,8 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
     ckstrncat(request,"Content-type: ",len);
     ckstrncat(request,mime,len);
     ckstrncat(request,"\r\n",len);
-    sprintf(buf,"Content-length: %d\r\n",filelen); /* safe */
+    ckmakmsg(buf,HTTPBUFLEN,"Content-length: ",ckfstoa(filelen),"\r\n",
+             NULL);
     ckstrncat(request,buf,len);
 #ifdef HTTP_CLOSE
     ckstrncat(request,"Connection: close\r\n",len);
@@ -14021,7 +14036,7 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
     if (zopeni(ZIFILE,local)) {
 
       putreq:                           /* Send request */
-        if (http_tol((CHAR *)request,strlen(request)) <= 0) {
+        if (http_tol((CHAR *)request,(int)strlen(request)) <= 0) {
             http_close();
             if ( first ) {
                 first--;
@@ -14036,7 +14051,7 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
 
         i = 0;
         while (zchin(ZIFILE,&ch) == 0) {
-            buf[i++] = ch;
+            buf[i++] = (char)ch;
             if (i == HTTPBUFLEN) {
                 if (http_tol((CHAR *)buf,HTTPBUFLEN) <= 0) {
                     http_close();
@@ -14067,7 +14082,7 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
         i = 0;
         len = -1;
         while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
-            buf[i] = ch;
+            buf[i] = (char)ch;
             if (buf[i] == 10) {         /* found end of line */
                 if (i > 0 && buf[i-1] == 13)
                   i--;
@@ -14165,7 +14180,7 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
         if ( chunked ) {            /* Parse Trailing Headers */
             nullline = 0;
             while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
-                buf[i] = ch;
+                buf[i] = (char)ch;
                 if ( buf[i] == 10 ) { /* found end of line */
                     if (i > 0 && buf[i-1] == 13)
                       i--;
@@ -14239,24 +14254,24 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
     /* Compute length of request header */
     len = 11;                            /* DELETE */
     len += strlen(HTTP_VERSION);
-    len += strlen(remote);
+    len += (int)strlen(remote);
     len += 16;
 
     if ( hdrlist ) {
         for (i = 0; hdrlist[i]; i++)
-            len += strlen(hdrlist[i]) + 2;
+            len += (int)strlen(hdrlist[i]) + 2;
     }
-    len += strlen(http_host_port) + 8;
+    len += (int)strlen(http_host_port) + 8;
 
     if (agent)
-      len += 13 + strlen(agent);
+      len += 13 + (int)strlen(agent);
     if (user) {
         if (!pwd) {
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
         ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,strlen(b64in),b64out,256);
+        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
         memset(pwd,0,strlen(pwd));
         if (j < 0)
           return(-1);
@@ -14273,7 +14288,8 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
     if (!request)
       return(-1);
 
-    sprintf(request,"DELETE %s %s\r\n",remote,HTTP_VERSION);
+    ckmakmsg(request,len,"DELETE ",remote," ",HTTP_VERSION);
+    ckstrncat(request,"\r\n",len);
     ckstrncat(request,"Date: ",len);
 #ifdef CMDATE2TM
     ckstrncat(request,http_now(),len);
@@ -14305,7 +14321,7 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
 #endif
     ckstrncat(request,"\r\n",len);
   delreq:
-    if (http_tol((CHAR *)request,strlen(request)) < 0)
+    if (http_tol((CHAR *)request,(int)strlen(request)) < 0)
     {
         http_close();
         if ( first ) {
@@ -14323,7 +14339,7 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
     i = 0;
     len = -1;
     while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
-        buf[i] = ch;
+        buf[i] = (char)ch;
         if (buf[i] == 10) {         /* found end of line */
             if (i > 0 && buf[i-1] == 13)
               i--;
@@ -14404,7 +14420,7 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
     if ( chunked ) {            /* Parse Trailing Headers */
         nullline = 0;
         while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
-            buf[i] = ch;
+            buf[i] = (char)ch;
             if ( buf[i] == 10 ) { /* found end of line */
                 if (i > 0 && buf[i-1] == 13)
                   i--;
@@ -14462,7 +14478,7 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
     char passwd[64];
     char b64in[128];
     char b64out[256];
-    int  filelen;
+    CK_OFF_T filelen;
     char * headers[HTTPHEADCNT];
     int  closecon = 0;
     int  chunked = 0;
@@ -14483,32 +14499,32 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
     /* Compute length of request header */
     len = 9;                            /* POST */
     len += strlen(HTTP_VERSION);
-    len += strlen(remote);
+    len += (int)strlen(remote);
     len += 16;
 
     if ( hdrlist ) {
         for (i = 0; hdrlist[i]; i++)
-            len += strlen(hdrlist[i]) + 2;
+            len += (int)strlen(hdrlist[i]) + 2;
     }
-    len += strlen(http_host_port) + 8;
+    len += (int)strlen(http_host_port) + 8;
 
     if (agent)
-      len += 13 + strlen(agent);
+      len += 13 + (int)strlen(agent);
     if (user) {
         if (!pwd) {
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
         ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,strlen(b64in),b64out,256);
+        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
         memset(pwd,0,strlen(pwd));
         if (j < 0)
           return(-1);
         b64out[j] = '\0';
         len += j + 24;
     }
-    len += 16 + strlen(mime);           /* Content-type: */
-    len += 32;                          /* Content-length: */
+    len += 16 + (int)strlen(mime);           /* Content-type: */
+    len += 40;                          /* Content-length: */
     len += 32;                          /* Date: */
 #ifdef HTTP_CLOSE
     len += 19;                          /* Connection: close */
@@ -14519,7 +14535,8 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
     if (!request)
       return(-1);
 
-    sprintf(request,"POST %s %s\r\n",remote,HTTP_VERSION);
+    ckmakmsg(request,len,"POST ",remote," ",HTTP_VERSION);
+    ckstrncat(request,"\r\n",len);
     ckstrncat(request,"Date: ",len);
     ckstrncat(request,http_now(),len);
     ckstrncat(request,"\r\n",len);
@@ -14548,7 +14565,8 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
 #ifdef HTTP_CLOSE
     ckstrncat(request,"Connection: close\r\n",len);
 #endif
-    sprintf(buf,"Content-length: %d\r\n",filelen); /* safe */
+    ckmakmsg(buf,HTTPBUFLEN,"Content-length: ",ckfstoa(filelen),"\r\n",
+             NULL);
     ckstrncat(request,buf,len);
     ckstrncat(request,"\r\n",len);
 
@@ -14556,7 +14574,7 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
   postopen:
     if (zopeni(ZIFILE,local)) {
       postreq:
-        if (http_tol((CHAR *)request,strlen(request)) < 0)
+        if (http_tol((CHAR *)request,(int)strlen(request)) < 0)
         {
             http_close();
             if ( first ) {
@@ -14571,7 +14589,7 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
 
         i = 0;
         while (zchin(ZIFILE,&ch) == 0) {
-            buf[i++] = ch;
+            buf[i++] = (char)ch;
             if (i == HTTPBUFLEN) {
                 http_tol((CHAR *)buf,HTTPBUFLEN);
                 i = 0;
@@ -14587,7 +14605,7 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
         i = 0;
         len = -1;
         while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
-            buf[i] = ch;
+            buf[i] = (char)ch;
             if (buf[i] == 10) {         /* found end of line */
                 if (i > 0 && buf[i-1] == 13)
                   i--;
@@ -14685,7 +14703,7 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
         if ( chunked ) {            /* Parse Trailing Headers */
             nullline = 0;
             while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
-                buf[i] = ch;
+                buf[i] = (char)ch;
                 if ( buf[i] == 10 ) { /* found end of line */
                     if (i > 0 && buf[i-1] == 13)
                       i--;
@@ -14757,23 +14775,23 @@ http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
     /* Compute length of request header */
     len = 12;                            /* CONNECT */
     len += strlen(HTTP_VERSION);
-    len += strlen(host_port);
+    len += (int)strlen(host_port);
     len += (int) strlen(http_host_port) + 8;
     len += 16;
     len += strlen("Proxy-Connection: Keep-Alive\r\n");
     if ( hdrlist ) {
         for (i = 0; hdrlist[i]; i++)
-            len += strlen(hdrlist[i]) + 2;
+            len += (int)strlen(hdrlist[i]) + 2;
     }
     if (agent && agent[0])
-      len += 13 + strlen(agent);
+      len += 13 + (int)strlen(agent);
     if (user && user[0]) {
         if (!pwd) {
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
         ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,strlen(b64in),b64out,256);
+        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
         memset(pwd,0,strlen(pwd));
         if (j < 0)
           return(-1);
@@ -14787,7 +14805,8 @@ http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
     if (!request)
       return(-1);
 
-    sprintf(request,"CONNECT %s %s\r\n",host_port,HTTP_VERSION);
+    ckmakmsg(request,len,"CONNECT ",host_port," ",HTTP_VERSION);
+    ckstrncat(request,"\r\n",len);
     ckstrncat(request,"Date: ",len);
 #ifdef CMDATE2TM
     ckstrncat(request,http_now(),len);
@@ -14817,7 +14836,7 @@ http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
         }
     }
     ckstrncat(request,"\r\n",len);
-    len = strlen(request);
+    len = (int)strlen(request);
 
 #ifdef TCPIPLIB
     /* Send request */
@@ -15156,7 +15175,7 @@ locate_srv_dns(host, service, protocol, addr_pp, naddrs)
                 for (j = 0; hp->h_addr_list[j]; j++) {
                     sin = (struct sockaddr_in *) &addr[nout++];
                     memset ((char *) sin, 0, sizeof (struct sockaddr));
-                    sin->sin_family = hp->h_addrtype;
+                    sin->sin_family = AF_INET;
                     sin->sin_port = htons(entry->port);
                     memcpy((char *) &sin->sin_addr,
                            (char *) hp->h_addr_list[j],
@@ -15320,7 +15339,7 @@ locate_txt_rr(prefix, name, retstr) char *prefix, *name; char **retstr;
             strncpy(*retstr, (char *) p, len);
             (*retstr)[len] = '\0';
             /* Avoid a common error. */
-            if ( (*retstr)[len-1] == '.' )
+            if (len > 0 && (*retstr)[len-1] == '.')
                 (*retstr)[len-1] = '\0';
             return 1;
         }
@@ -15428,7 +15447,7 @@ fwdx_create_listen_socket(screen) int screen;
                   myipaddr,0);
             saddr.sin_addr.s_addr = INADDR_ANY;
         }
-        saddr.sin_port = htons(port);
+        saddr.sin_port = htons((unsigned short)port);
 
         if (bind(sock, (struct sockaddr *)&saddr, sizeof(saddr)) < 0) {
             i = errno;                  /* Save error code */
@@ -15558,7 +15577,8 @@ fwdx_open_client_channel(channel) int channel;
 
         ckmakmsg(buf,sizeof(buf),"/tmp/.X11-unix/X",ckitoa(display),NULL,NULL);
         ckstrncpy(saddr_un.sun_path, buf, sizeof(saddr_un.sun_path));
-        if (connect(sock,(struct sockaddr *)&saddr_un, SUN_LEN(&saddr_un)) < 0)
+        if (connect(sock,(struct sockaddr *)&saddr_un,
+                    (socklen_t)SUN_LEN(&saddr_un)) < 0)
           return(-1);
     } else
 #endif  /* FWDX_UNIX_SOCK */
@@ -15573,7 +15593,7 @@ fwdx_open_client_channel(channel) int channel;
         debug(F111,"fwdx_create_client_channel()","display",display);
 
         port = 6000 + display;
-        saddr.sin_port = htons(port);
+        saddr.sin_port = htons((unsigned short)port);
 
         debug(F110,"fwdx_create_client_channel() ip-address",buf,0);
         saddr.sin_addr.s_addr = inet_addr(buf);
@@ -15692,7 +15712,8 @@ fwdx_server_avail() {
 
         ckmakmsg(buf,sizeof(buf),"/tmp/.X11-unix/X",ckitoa(display),NULL,NULL);
         ckstrncpy(saddr_un.sun_path, buf, sizeof(saddr_un.sun_path));
-        if (connect(sock,(struct sockaddr *)&saddr_un,SUN_LEN(&saddr_un)) < 0)
+        if (connect(sock,(struct sockaddr *)&saddr_un,
+                    (socklen_t)SUN_LEN(&saddr_un)) < 0)
             return(0);
         close(sock);
         return(1);
@@ -15709,7 +15730,7 @@ fwdx_server_avail() {
     debug(F111,"fwdx_server_avail()","display",display);
 
     port = 6000 + display;
-    saddr.sin_port = htons(port);
+    saddr.sin_port = htons((unsigned short)port);
 
     debug(F110,"fwdx_server_avail() ip-address",buf,0);
     saddr.sin_addr.s_addr = inet_addr(buf);
@@ -15993,7 +16014,7 @@ fwdx_write_data_to_channel(channel, data, len)
 
   fwdx_write_data_to_channel_retry:
 
-    if ((count = socket_write(sock,data,len)) < 0) {
+    if ((count = (int)socket_write(sock,data,len)) < 0) {
         int s_errno = socket_errno; /* maybe a function */
         debug(F101,"fwdx_write_data_to_channel socket_write error","",s_errno);
 #ifdef OS2
@@ -16041,7 +16062,7 @@ fwdx_check_sockets(fd_set *ibits)
             channel = TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[x].id;
             debug(F111,"fwdx_check_sockets()","channel set",channel);
 
-            bytes = socket_read(sock, buffer, sizeof(buffer));
+            bytes = (int)socket_read(sock, buffer, sizeof(buffer));
             if (bytes > 0)
                 fwdx_send_data_from_channel(channel, buffer, bytes);
             else if (bytes == 0) {

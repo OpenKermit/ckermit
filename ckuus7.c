@@ -264,11 +264,11 @@ slrestor()
         sl_auth_saved = 0;
     }
     if (sl_topt_a_s_saved) {
-        TELOPT_DEF_S_U_MODE(TELOPT_AUTHENTICATION) = sl_topt_a_su;
+        TELOPT_DEF_S_U_MODE(TELOPT_AUTHENTICATION) = (CHAR)sl_topt_a_su;
         sl_topt_a_s_saved = 0;
     }
     if (sl_topt_a_c_saved) {
-        TELOPT_DEF_C_ME_MODE(TELOPT_AUTHENTICATION) = sl_topt_a_cm;
+        TELOPT_DEF_C_ME_MODE(TELOPT_AUTHENTICATION) = (CHAR)sl_topt_a_cm;
         sl_topt_a_c_saved = 0;
     }
 #endif /* CK_AUTHENTICATION */
@@ -278,13 +278,13 @@ slrestor()
         sl_cx_saved = 0;
     }
     if (sl_topt_e_s_saved) {
-        TELOPT_DEF_S_U_MODE(TELOPT_ENCRYPTION)  = sl_topt_e_su;
-        TELOPT_DEF_S_ME_MODE(TELOPT_ENCRYPTION) = sl_topt_e_sm;
+        TELOPT_DEF_S_U_MODE(TELOPT_ENCRYPTION)  = (CHAR)sl_topt_e_su;
+        TELOPT_DEF_S_ME_MODE(TELOPT_ENCRYPTION) = (CHAR)sl_topt_e_sm;
         sl_topt_e_s_saved = 0;
     }
     if (sl_topt_e_c_saved) {
-        TELOPT_DEF_C_U_MODE(TELOPT_ENCRYPTION)  = sl_topt_e_cu;
-        TELOPT_DEF_C_ME_MODE(TELOPT_ENCRYPTION) = sl_topt_e_cm;
+        TELOPT_DEF_C_U_MODE(TELOPT_ENCRYPTION)  = (CHAR)sl_topt_e_cu;
+        TELOPT_DEF_C_ME_MODE(TELOPT_ENCRYPTION) = (CHAR)sl_topt_e_cm;
         sl_topt_e_c_saved = 0;
     }
 #endif /* CK_ENCRYPTION */
@@ -2309,8 +2309,8 @@ setcc(dflt,var) char *dflt; int *var;
     }
     /* Real control character or literal 8-bit character... */
 
-    for (c = strlen(atmbuf) - 1; c > 0; c--) /* Trim */
-      if (atmbuf[c] == SP) atmbuf[c] = NUL;
+    for (c = (unsigned)strlen(atmbuf); c > 1; c--) /* Trim */
+      if (atmbuf[c-1] == SP) atmbuf[c-1] = NUL;
 
     if (y < 0) {                        /* It was not a number */
         if (((c = atmbuf[0])) && !atmbuf[1]) { /* Literal character? */
@@ -2417,7 +2417,7 @@ dosort() {                              /* Do the SORT command */
           return(wx);
         if (cmresult.fcode != _CMKEY)   /* Break out if not a switch */
           break;
-        c = cmgbrk();
+        c = (char)cmgbrk();
         getval = (c == ':' || c == '=');
         if (getval && !(cmresult.kflags & CM_ARG)) {
             printf("?This switch does not take arguments\n");
@@ -2629,7 +2629,7 @@ bkupnum(s,i) char * s; int *i;
     if (!s) s = "";
     if (!*s)
       return(-1);
-    if ((k = strlen(s)) < 5)
+    if ((k = (int)strlen(s)) < 5)
       return(-1);
 
     if (s[k-1] != '~')
@@ -2885,7 +2885,7 @@ dopurge() {                             /* Do the PURGE command */
             goto xpurge;
         } else if (cmresult.fcode == _CMKEY) {
             char c;
-            c = cmgbrk();
+            c = (char)cmgbrk();
             if ((getval = (c == ':' || c == '=')) && !(cmgkwflgs() & CM_ARG)) {
                 printf("?This switch does not take an argument\n");
                 rc = -9;
@@ -3675,7 +3675,7 @@ setfil(rmsflg) int rmsflg;
             return(-9);
         }
 #endif /* CK_LOGIN */
-          x = strlen(s);
+          x = (int)strlen(s);
 
           if (x) {
 #ifdef datageneral                      /* AOS/VS */
@@ -3948,7 +3948,7 @@ setfil(rmsflg) int rmsflg;
                   char *dws = code;
                   while (*dws) {
                       if (islower(*dws)) {
-                          *d = toupper(*dws);
+                          *d = (char)toupper(*dws);
                       } else {
                           *d = *dws;
                       }
@@ -4144,14 +4144,14 @@ getiact() {
                   *q = NUL;
                   n += 2;
               } else if ((c > 32 && c < 127) || c > 159) {
-                  *q++ = c;
+                  *q++ = (char)c;
                   *q = NUL;
                   n++;
               } else {
                   if (n > (131 - 6))
                     break;
                   sprintf(q,"\\{%d}",c);
-                  k = strlen(q);
+                  k = (int)strlen(q);
                   q += k;
                   n += k;
                   *q = NUL;
@@ -6917,7 +6917,7 @@ Make sure your timeout interval is long enough for %d-byte packets.\n",wz);
 
       case XYPADC:                      /* PAD-CHARACTER */
         if ((wy = setcc("0",&wz)) < 0) return(wy);
-        if (xx == XYRECV) mypadc = wz; else padch = wz;
+        if (xx == XYRECV) mypadc = (CHAR)wz; else padch = (CHAR)wz;
         return(success = wy);
 
       case XYTIMO:                      /* TIMEOUT */
@@ -7140,7 +7140,7 @@ Make sure your timeout interval is long enough for %d-byte packets.\n",wz);
               return(success = 1);
           }                             /* Adding a filter... */
           ws = brstrip(ws);               /* Strip any braces */
-          wy = strlen(ws);
+          wy = (int)strlen(ws);
           if (xx == XYSEND) {           /* For SEND filter... */
               /* make sure they included "\v(...)" */
               for (wx = 0; wx < wy; wx++) {
@@ -7578,7 +7578,7 @@ remtxt(p) char ** p;
 #endif  /* COMMENT */
     bpos = -1;                          /* Position of > (bracket) */
     ppos = -1;                          /* Position of | (pipe) */
-    x = strlen(s);                      /* Length of cmtxt() string */
+    x = (int)strlen(s);                      /* Length of cmtxt() string */
 
     for (i = x-1; i >= 0; i--) {        /* Search right to left. */
         c = s[i];
@@ -7681,7 +7681,7 @@ plogin(xx) int xx;
     if ((wx = cmfld("User ID","",&ws,xxstring)) < 0) { /* Get User ID */
         if (wx != -3) return(wx);
     }
-    wy = strlen(ws);
+    wy = (int)strlen(ws);
     if (wy > 0) {
         makestr(&p1,ws);
         if (!p1) {
@@ -7691,7 +7691,7 @@ plogin(xx) int xx;
         }
         if ((rc = cmfld("Password","",&ws,xxstring)) < 0)
           if (rc != -3) goto XZXLGI;
-        wy = strlen(ws);
+        wy = (int)strlen(ws);
         if (wy > 0) {
             makestr(&p2,ws);
             if (!p2) {
@@ -7701,7 +7701,7 @@ plogin(xx) int xx;
             }
             if ((rc = cmfld("Account","",&ws,xxstring)) < 0)
               if (rc != -3) goto XZXLGI;
-            wy = strlen(ws);
+            wy = (int)strlen(ws);
             if (wy > 0) {
                 makestr(&p3,ws);
                 if (!p3) {
@@ -7734,7 +7734,7 @@ plogin(xx) int xx;
             cmres();                    /* Reset the parser */
             wx = cmtxt("","",&ws,NULL);   /* Get a literal line of text */
         }
-        wy = strlen(ws);
+        wy = (int)strlen(ws);
         if (wy < 1) {
             printf("?Canceled\n");
             goto XZXLGI;
@@ -12351,14 +12351,14 @@ z_out(channel,s,length,flags) int channel, flags, length; char * s;
     if (n < 0) {                        /* Negative means get it ourselves */
         if (flags < 0)                  /* Except when told to write NULs in */
           return(z_error = FX_RNG);     /* which case args are inconsistent */
-        n = strlen(s);                  /* Get length of string arg */
+        n = (int)strlen(s);                  /* Get length of string arg */
     }
     errno = 0;                          /* Reset errno */
     debug(F101,"z_out n","",n);
     if (flags < 0) {                    /* Writing NULs... */
         int i;
         for (i = 0; i < n; i++) {
-            x = fwrite(&c,1,1,t);
+            x = (int)fwrite(&c,1,1,t);
             if (x < 1)
               return(z_error = (errno ? FX_SYS : FX_UNK));
         }
@@ -12367,9 +12367,9 @@ z_out(channel,s,length,flags) int channel, flags, length; char * s;
         return(i);
     } else {                            /* Writing string arg */
         if (n == 1 && !s[0])            /* Writing one char but it's NUL */
-          x = fwrite(&c,1,1,t);
+          x = (int)fwrite(&c,1,1,t);
         else                            /* Writing non-NUL char or string */
-          x = fwrite(s,1,n,t);
+          x = (int)fwrite(s,1,n,t);
         debug(F101,"z_out fwrite",ckitoa(x),errno);
         if (x < n)                      /* Failure to write requested amount */
           return(z_error = (errno ? FX_SYS : FX_UNK)); /* Return error */
@@ -12443,7 +12443,7 @@ z_in(channel,s,buflen,length,flags)
         n = length;                     /* 20050912 */
         i = 0;                          /* 20050912 */
         while (n > 0) {                 /* 20050912 */
-            i = fread(s,1,n,t);         /* 20050912 */
+            i = (int)fread(s,1,n,t);         /* 20050912 */
 #ifdef DEBUG
             if (deblog) {
                 debug(F111,"z_in block",s,i);
@@ -12469,7 +12469,7 @@ z_in(channel,s,buflen,length,flags)
                 s[i] = '\0';
                 break;
             }
-            s[i] = x;
+            s[i] = (char)x;
             if (s[i] == '\n') {
                 s[i] = '\0';
                 break;
@@ -12662,7 +12662,7 @@ z_line(channel,pos) int channel; CK_OFF_T pos; /* (seek to given position) */
     }
     while (current < pos) {             /* Search for specified line */
         if (fgets(zltmpbuf,255,t)) {
-            len = strlen(zltmpbuf);
+            len = (int)strlen(zltmpbuf);
             if (len > 0 && zltmpbuf[len-1] == '\n') {
                 current++;
                 debug(F111,"z_line read",ckitoa(len),current);
@@ -12678,7 +12678,7 @@ z_line(channel,pos) int channel; CK_OFF_T pos; /* (seek to given position) */
     z_file[channel]->z_nline = current;
     debug(F101,"z_line result","",current);
     z_error = 0;
-    return(current);
+    return((int)current);
 }
 
 char *
@@ -13039,7 +13039,7 @@ dofile(op) int op;
               break;
             else if (cmresult.fcode == _CMKEY) {
                 char c;
-                c = cmgbrk();
+                c = (char)cmgbrk();
                 if ((getval =
                      (c == ':' || c == '=')) && !(cmgkwflgs() & CM_ARG)) {
                     printf("?This switch does not take an argument\n");
@@ -13281,7 +13281,7 @@ dofile(op) int op;
               break;
             else if (cmresult.fcode == _CMKEY) { /* Switch */
                 char c;
-                c = cmgbrk();
+                c = (char)cmgbrk();
                 if ((getval =
                      (c == ':' || c == '=')) && !(cmgkwflgs() & CM_ARG)) {
                     printf("?This switch does not take an argument\n");
@@ -13373,18 +13373,18 @@ dofile(op) int op;
                 }
                 len = rsize;            /* rsize is really length */
                 rsize = 1;              /* Don't supply a terminator */
-                xx = strlen(ws);         /* Size of given string */
+                xx = (int)strlen(ws);         /* Size of given string */
                 if (xx >= len) {        /* Bigger or equal */
                     ws[len] = NUL;
                 } else if (wr_lpad) {   /* Smaller, left-padding requested */
                     for (i = 0; i < len - xx; i++) /* Must make a copy */
-                      tmpbuf[i] = pad;
+                      tmpbuf[i] = (char)pad;
                     ckstrncpy(tmpbuf+i,ws,TMPBUFSIZ-i);
                     tmpbuf[len] = NUL;
                     ws = tmpbuf;         /* Redirect write source */
                 } else if (wr_rpad) {   /* Smaller with right-padding */
                     for (i = xx; i < len; i++)
-                      ws[i] = pad;
+                      ws[i] = (char)pad;
                     ws[len] = NUL;
                 }
             }
@@ -13461,7 +13461,7 @@ dofile(op) int op;
             if (rsize == 0) {           /* FREAD /LINE postprocessing */
                 if (rd_trim) {          /* Trim */
                     int i, k;
-                    k = strlen(line);
+                    k = (int)strlen(line);
                     if (k > 0) {
                         for (i = k-1; i > 0; i--) {
                             if (line[i] == SP || line[i] == '\t')
@@ -13522,7 +13522,7 @@ dofile(op) int op;
               break;
             else if (cmresult.fcode == _CMKEY) { /* Switch */
                 char c;
-                c = cmgbrk();
+                c = (char)cmgbrk();
                 if ((getval =
                      (c == ':' || c == '=')) && !(cmgkwflgs() & CM_ARG)) {
                     printf("?This switch does not take an argument\n");
@@ -13642,7 +13642,7 @@ dofile(op) int op;
                 CK_OFF_T pos;
                 pos = z_getpos(n);
                 if (pos < (CK_OFF_T)0) {
-                    rc = pos;
+                    rc = (int)pos;
                     printf("?Relative SEEK failed: %s\n",ckferror(rc));
                     return(-9);
                 }
@@ -13669,7 +13669,7 @@ dofile(op) int op;
                 pos = z_getline(n);
                 debug(F101,"FILE SEEK /LINE pos","",pos);
                 if (pos < 0) {
-                    rc = pos;
+                    rc = (int)pos;
                     printf("?Relative SEEK failed: %s\n",ckferror(rc));
                     return(-9);
                 }
@@ -13922,7 +13922,7 @@ savkeys(name,disp) char * name; int disp;
 
         for (i = 0; i < KMSIZE; i++) {
             if (macrotab[i]) {
-                int len = strlen((char *)macrotab[i]);
+                int len = (int)strlen((char *)macrotab[i]);
 #ifdef OS2
                 ckmakmsg(buf,
                          1024,

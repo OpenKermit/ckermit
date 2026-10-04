@@ -473,7 +473,7 @@ dooseq(threadinfo) VOID * threadinfo;
                 conxo(l,seq_buf);
             }
             if (seslog && duplex) /* log it */
-              logstr(seq_buf,strlen(seq_buf));
+              logstr(seq_buf,(int)strlen(seq_buf));
         }
         if (!no_cr) {
             ttoc( dopar(CK_CR) );

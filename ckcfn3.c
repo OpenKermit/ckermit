@@ -132,7 +132,7 @@ ckmkdir(fc,s,r,m,cvt) int fc; char * s; char ** r; int m; int cvt;
 #endif /* DTILDE */
     ckstrncpy(tmpbuf,s,CKMAXPATH+1);
     s = tmpbuf;
-    x = strlen(s);
+    x = (int)strlen(s);
     if (x > 0 && s[x-1] != '/') {       /* Must end in "/" for zmkdir() */
         s[x] = '/';
         s[x+1] = NUL;
@@ -354,14 +354,14 @@ dofast() {
       maxpktsiz = 40;
     else if (maxpktsiz > 4000)
       maxpktsiz = 4000;
-    wslotr = maxbufsiz / maxpktsiz;
+    wslotr = (int)(maxbufsiz / maxpktsiz);
     if (wslotr > MAXWS)                 /* Window slots */
       wslotr = MAXWS;
     if (wslotr > 30)
       wslotr = 30;
     else if (wslotr < 1)
       wslotr = 1;
-    urpsiz = adjpkl(maxpktsiz,wslotr,maxbufsiz);
+    urpsiz = adjpkl(maxpktsiz,wslotr,(int)maxbufsiz);
     ptab[PROTO_K].rpktlen = urpsiz;
     rpsiz = (urpsiz > 94) ? 94 : urpsiz; /* Max non-long packet length */
     debug(F111,"dofast","uprsiz",urpsiz);
@@ -473,7 +473,7 @@ inibufs(s,r) int s, r;
 */
 #define FACTOR 20L
     z = ( (long) s * FACTOR ) / ( (long) s + (long) r );
-    x = ( z * ( (long) size / FACTOR ) );
+    x = (int)( z * ( (long) size / FACTOR ) );
     if (x < 0) return(-1);              /* Catch overflow */
 
     bigsbsiz = x - 5;                   /* Size of send buffer */
@@ -1215,7 +1215,7 @@ sattr(xp, flag) int xp, flag;
         } else {
             tp = tcsinfo[tcharset].designator;
             if (!tp) tp = "";
-            aln = strlen(tp);
+            aln = (int)strlen(tp);
             if (aln > 0) {
                 if (max - i >= aln + 2) {
                     data[i++] = c;      /* Encoding */
@@ -2012,7 +2012,7 @@ initattr(yy) struct zattr *yy;
     if (!ofperms) ofperms = "";
     debug(F110,"initattr ofperms",ofperms,0);
     yy->lprotect.val = ofperms;
-    yy->lprotect.len = 0 - strlen(ofperms); /* <-- NOTE! */
+    yy->lprotect.len = 0 - (int)strlen(ofperms); /* <-- NOTE! */
     /*
       A negative length indicates that we have a permissions string but it has
       been inherited from a previously existing file rather than picked up
