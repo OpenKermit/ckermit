@@ -61,6 +61,12 @@ COMPATIBILITY`.
   command buffer is refused instead of overflowing it.  Bug dates from C-Kermit
   4C(057) of 1985.
 
+- [6] With HOST disabled, a Kermit server still ran shell commands for
+  REMOTE QUERY.  `remote query kermit command(...)` called `\fcommand()`,
+  and `\fexecute()` could reach RUN.  The query now runs with PUSH refused
+  unless HOST is enabled.  Bug was introduced in C-Kermit 6.0.192 of 1996.
+  That release first allowed functions in REMOTE QUERY.
+
 ### FTP and HTTP
 
 - [8] Several buffers filled from FTP server data in GSSAPI and Kerberos
@@ -127,6 +133,13 @@ COMPATIBILITY`.
   width regression came from the -Wshadow work, present in 11.0.510 through
   11.0.514, and was introduced in commit 4ddb464e in C-Kermit 11.0.510.  The
   tab bugs were introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+## Summary of changed behavior
+
+- [4, 6] A server with HOST disabled refuses PUSH within REMOTE QUERY.
+  REMOTE WHO and REMOTE SPACE run without the shell.  A Unix server
+  refuses a REMOTE WHO name.  REMOTE SPACE refuses a name that is not an
+  existing directory.
 
 ## Changes in earlier releases that didn't make it into the changelog
 

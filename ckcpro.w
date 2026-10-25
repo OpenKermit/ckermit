@@ -2505,7 +2505,8 @@ srv_query() {
             RESUME;
             return(-1);
         } else {                        /* Query allowed */
-            int n; char *p, *q;
+            extern int nopush;
+            int n, zx, xnopush; char *p, *q;
             qbufp = querybuf;           /* Wipe out old stuff */
             qbufn = 0;
             querybuf[0] = NUL;
@@ -2546,7 +2547,17 @@ srv_query() {
             }                           /* Now evaluate it */
             n = QBUFL;                  /* Max length */
             q = querybuf;               /* Where to put it */
-            if (zzstring(p,&q,&n) < 0) {
+/*
+  The client's text can call functions.  \fcommand() and RUN from
+  \fexecute() run shell commands.  With HOST disabled, nopush refuses
+  them for the length of the evaluation.
+*/
+            xnopush = nopush;
+            if (!ENABLED(en_hos))
+              nopush = 1;
+            zx = zzstring(p,&q,&n);
+            nopush = xnopush;
+            if (zx < 0) {
                 errpkt((n > 0) ? (CHAR *)"Can't get value"
                                : (CHAR *)"Value too long"
                        );

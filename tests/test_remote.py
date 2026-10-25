@@ -532,3 +532,25 @@ def test_remote_space_directory_with_space(tmp_path, wermit_loopback):
                              client_commands="remote space {a b}")
     assert_ok(result)
     assert "Filesystem" in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize("client", [
+    "remote query kermit command(touch PWNED)",
+    "remote assign m {run touch PWNED}, remote query kermit execute(m)",
+], ids=["function", "execute"])
+def test_remote_query_runs_no_shell_with_host_disabled(tmp_path,
+                                                       wermit_loopback,
+                                                       client):
+    """Verify REMOTE QUERY runs no shell command with HOST disabled."""
+    result = wermit_loopback(tmp_path, server_setup_cmds="disable host",
+                             client_commands=client)
+    assert result.returncode >= 0, result.stderr
+    assert not (tmp_path / "PWNED").exists(), result.stdout
+
+
+def test_remote_query_still_answers(tmp_path, wermit_loopback):
+    """Verify REMOTE QUERY of a variable works with HOST disabled."""
+    result = wermit_loopback(
+        tmp_path, server_setup_cmds="disable host",
+        client_commands="remote query kermit program, echo Q=\\v(query)")
+    assert "Q=C-Kermit" in result.stdout, result.stdout
