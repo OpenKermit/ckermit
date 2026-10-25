@@ -1,116 +1,140 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.0.515 (NOT YET RELEASED)
+# C-Kermit 11.1.515 (NOT YET RELEASED)
 
-- Significant work eliminating over 900 -Wconversion warnings.  Added tests
-  along the way.  Found and fixed these bugs along the way:
+## Summary
 
-  - GET or RECEIVE with an existing directory as the destination
-    (e.g. `get foo.txt /some/dir/`) failed with "?Syntax error".  A
-    regression from the -Wshadow work, present in 11.0.511 through
-    11.0.514.  Added regression test to cover this bug.  Bug was introduced
-    in commit 9be7054f, in C-Kermit 11.0.511.
+C-Kermit 11.1 is a correctness and security release.  As part of preparing this
+release, over 900 compiler warnings were eliminated and a code review was
+performed.
 
-  - A malicious Telnet server could overflow a stack buffer and a heap buffer
-    with a crafted NEW-ENVIRON SEND request during connection negotiation.
-    Added regression tests to cover this bug.  The stack overflow was
-    introduced in commit 4b5eddea, in C-Kermit 6.0.192 of 1996; the heap
-    overflow in commit d0f8b1da, in C-Kermit 7.0.197 of 2000.
+Where appropriate, descriptions of bugfixes identify the major C-Kermit version
+in which the bug was introduced and are prefixed with a tag (such as "[9]",
+indicating the bug was introduced in C-Kermit 9).  History of C-Kermit only goes
+back to version 4, so bugs tagged as "[4]" may actually go back further.
 
-  - TLS certificate checks never matched an IP address SAN containing a zero
-    byte (such as 127.0.0.1), read past the SAN's buffer, and could not
-    match any IP SAN on big-endian 64-bit hosts.  Added regression test to
-    cover this bug.  The overread and big-endian bug were introduced in
-    commit c88d9b85, in C-Kermit 8.0.200 of 2001; the zero-byte bug in
-    commit 0fd869b4, in C-Kermit 9.0.302 of 2011.
+Most bugfixes are accompanied by the introduction of new regression tests
+covering their situations.
 
-  - Files of 2 GiB or more: HTTP PUT/POST sent a wrong Content-length;
-    `kermit -s` and command-line FTP `-p` rejected 2-4 GiB files; REMOTE
-    DELETE skipped 2-4 GiB files; DELETE's bytes-freed total was wrong;
-    WAIT FILE treated a file of exactly 2^32-1 bytes as deleted.  Added
-    regression tests to cover each of these bugs.  Bugs were introduced in
-    commit 4b5eddea, in C-Kermit 6.0.192 of 1996 (REMOTE DELETE, DELETE);
-    commit d0f8b1da, in C-Kermit 7.0.197 of 2000 (HTTP, WAIT); and commit
-    c88d9b85, in C-Kermit 8.0.200 of 2001 (`-s`, FTP `-p`).
+## Major Architectural Improvements
 
-  - WAIT n FILE succeeded on timeout even if the event never happened.
-    Added regression test to cover this bug.  Bug was introduced in commit
-    d0f8b1da, in C-Kermit 7.0.197 of 2000.
+- Eliminated over 900 `-Wconversion` warnings.  Each conversion between integer
+  types of different widths or signedness is now explicit or removed.  This
+  work identified numerous bugs, which are among those listed below.
 
-  - Command-line HTTP (`kermit http://...`) exited with success after a
-    failed transfer such as a 404.  Added regression test to cover this bug.
-    Bug was introduced in commit c88d9b85, in C-Kermit 8.0.200 of 2001.
+## New Features
 
-  - HTTP reconnects went to the wrong port for ports above 255, and HTTP
-    INDEX left the directory out of its request line.  Added regression
-    tests to cover these bugs.  The port bug was introduced in commit
-    c88d9b85, in C-Kermit 8.0.200 of 2001; the INDEX bug in commit
-    d0f8b1da, in C-Kermit 7.0.197 of 2000.
+## Major Bugfixes
 
-  - On big-endian 64-bit hosts, the local IP address lookup returned
-    0.0.0.0 and the Telnet COM-PORT baud rate was sent and read wrongly.
-    Added regression tests to cover these bugs; they can only fail on a
-    big-endian host.  The address bug was introduced in commit d0f8b1da, in
-    C-Kermit 7.0.197 of 2000; the COM-PORT bug in commit c88d9b85, in
-    C-Kermit 8.0.200 of 2001.
+- [6, 7, 8] Files of 2GB or more failed in several places.  HTTP PUT and
+  POST sent a wrong Content-Length.  `kermit -s` and command-line FTP `-p`
+  rejected 2-4 GiB files.  REMOTE DELETE skipped 2-4 GiB files, and DELETE
+  reported a wrong bytes-freed total.  WAIT FILE treated a file of 2^32-1 bytes
+  as deleted.  Commit 4b5eddea introduced the REMOTE DELETE and DELETE bugs in
+  C-Kermit 6.0.192 of 1996.  Commit d0f8b1da introduced the HTTP PUT/POST and
+  WAIT bugs in C-Kermit 7.0.197 of 2000.  Commit c88d9b85 introduced the `-s`
+  and FTP `-p` bugs in C-Kermit 8.0.200 of 2001.
 
-  - `\fradix()`, `\fhex2n()` and `\foct2n()` returned 0 or an empty string
-    instead of -1 for values past 2^63-1.  Added regression test to cover
-    this bug.  Bug was introduced in commit d0f8b1da, in C-Kermit 7.0.197
-    of 2000.
+- [11] GET or RECEIVE with an existing directory as the destination (e.g. `get
+  foo.txt /some/dir/`) failed with "?Syntax error".  A regression from the
+  -Wshadow work, present in 11.0.511 through 11.0.514.  Bug was introduced in
+  commit 9be7054f in C-Kermit 11.0.511.
 
-  - Buffer overflows from local input: the RLOGIN startup data with a long
-    USER, an HTTP proxy name filling its buffer, a CONNECT-mode backslash
-    code of 10 or more characters (crashed), and MGET with a pattern
-    directory of 4096 bytes or more.  Added regression tests to cover these
-    bugs, but the RLOGIN and proxy tests detect the overflow only under
-    AddressSanitizer.  Bugs were introduced in commit 609e2f39 in
-    C-Kermit 5A(190) of 1994 (CONNECT), commit d0f8b1da in C-Kermit
-    7.0.197 of 2000 (RLOGIN), and commit c88d9b85 in C-Kermit 8.0.200 of
-    2001 (proxy, MGET).
+## Security and Reliability Improvements
 
-  - Bounded several buffers filled from FTP server data in GSSAPI/Kerberos
-    builds, and fixed a one-byte overrun in their base64 decoder.  Bugs
-    were introduced in commit c88d9b85 (C-Kermit 8.0.200 of 2001).
+C-Kermit 11.1 corrects these security issues.  Most issues tagged "[11]" fall
+into one of two categories.  First, tighter security defaults in C-Kermit 11.0
+exposed weaknesses in older code.  Second, hardening code added in 11.0 had
+gaps.  Few are corrections for security regressions in 11.0, aside from `SET
+COMPATIBILITY`.
 
-  - Smaller fixes: an empty DNS TXT string read before its buffer; the
-    partner's system ID was not terminated; command-line FTP's "No files
-    to put/get" messages were swapped (added regression test to cover
-    this bug); the dial log line was sized from an uninitialized buffer;
-    the fullscreen display's CPS never used the floating-point timer.  Bugs
-    were introduced in commit 4b5eddea, in C-Kermit 6.0.192 of 1996
-    (system ID); commit d0f8b1da, in C-Kermit 7.0.197 of 2000 (dial log);
-    and commit c88d9b85, in C-Kermit 8.0.200 of 2001 (TXT, FTP messages,
-    CPS display).
+### FTP and HTTP
 
-- Due to the -Wshadow finding above, performed another review step of previous
-  warning-elimination work.  As part of this review, found and fixed:
+- [8] Several buffers filled from FTP server data in GSSAPI and Kerberos
+  builds are now bounded, and a one-byte overrun in their base64 decoder is
+  fixed.  Bugs were introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
 
-  - TYPE /WIDTH showed empty lines, or lines cut to the /TAIL count,
-    instead of each line truncated to the given width.  A regression from
-    the -Wshadow work, present in 11.0.510 through 11.0.514.  Added
-    regression tests to cover this bug.  Bug was introduced in commit
-    4ddb464e in C-Kermit 11.0.510.
+### Connections, Telnet and TLS
 
-  - A rename from the -Wshadow work was incomplete in the DIAL code for
-    Digitel modems, so three uses wrote a different variable.  Nothing read
-    that variable before it was reset, so behavior did not change.  Bug was
-    introduced in commit 9be7054f in C-Kermit 11.0.511.
+- [6, 7] A malicious Telnet server could overflow a stack buffer and a heap
+  buffer with a crafted NEW-ENVIRON SEND request during connection negotiation.
+  The stack overflow was introduced in commit 4b5eddea in C-Kermit 6.0.192 of
+  1996.  The heap overflow was introduced in commit d0f8b1da in C-Kermit
+  7.0.197 of 2000.
 
-  - TYPE /WIDTH put a NUL byte after each tab it expanded, which also moved
-    the next tab stop one column.  Added regression test to cover this bug.
-    Bug was introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+- [8, 9] TLS certificate checks never matched an IP address SAN containing a
+  zero byte (such as 127.0.0.1), read past the SAN's buffer, and could not
+  match any IP SAN on big-endian 64-bit hosts.  The overread and big-endian bug
+  were introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.  The
+  zero-byte bug was introduced in commit 0fd869b4 in C-Kermit 9.0.302 of 2011.
 
-  - TYPE /WIDTH copied the whole tab-expanded line back into its buffer,
-    which with UCS-2 output could exceed the buffer.  This cannot happen
-    today, since TYPE /WIDTH stops at the first NUL byte of UCS-2 text.
-    Bug was introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+- [5, 7, 8] Buffer overflows from local input: the RLOGIN startup data with a
+  long USER, an HTTP proxy name filling its buffer, a CONNECT-mode backslash
+  code of 10 or more characters (crashed), and MGET with a pattern directory
+  of 4096 bytes or more.  Added regression tests to cover these bugs, but the
+  RLOGIN and proxy tests detect the overflow only under AddressSanitizer.
+  Bugs were introduced in commit 609e2f39 in C-Kermit 5A(190) of 1994
+  (CONNECT), commit d0f8b1da in C-Kermit 7.0.197 of 2000 (RLOGIN), and commit
+  c88d9b85 in C-Kermit 8.0.200 of 2001 (proxy, MGET).
 
-- Found but not fixed: when there is no terminal to answer a TLS prompt,
-  `uq_ok()` returns -4, which the TLS prompts treat as "yes".  So scripted,
-  non-interactive sessions accept an expired certificate or a hostname
-  mismatch.  This is current behavior and needs a separate decision.
-  Bug was introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+## Additional improvements and bugfixes
+
+### FTP and HTTP
+
+- [7, 8] HTTP reconnects went to the wrong port for ports above 255, and HTTP
+  INDEX left the directory out of its request line.  The port bug was
+  introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.  The INDEX bug was
+  introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
+
+- [8] Command-line HTTP (`kermit http://...`) exited with success after a
+  failed transfer such as a 404.  Command-line FTP's "No files to put/get"
+  messages were swapped.  Bugs were introduced in commit c88d9b85 in C-Kermit
+  8.0.200 of 2001.
+
+### Connections, Telnet and TLS
+
+- [7, 8] On big-endian 64-bit hosts, the local IP address lookup returned
+  0.0.0.0 and the Telnet COM-PORT baud rate was sent and read wrongly.  Added
+  regression tests to cover these bugs.  The tests can fail only on a
+  big-endian host.  The address bug was introduced in commit d0f8b1da in
+  C-Kermit 7.0.197 of 2000.  The COM-PORT bug was introduced in commit c88d9b85
+  in C-Kermit 8.0.200 of 2001.
+
+### Scripting and commands
+
+- [7] WAIT n FILE succeeded on timeout even if the event never happened.  Bug
+  was introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
+
+- [8, 11] TYPE /WIDTH showed empty lines, or lines cut to the /TAIL count,
+  instead of each line truncated to the given width.  It also put a NUL byte
+  after each tab it expanded.  That extra byte moved the next tab stop one
+  column.  TYPE /WIDTH also copied the whole tab-expanded line back into its
+  buffer.  With UCS-2 output that copy could exceed the buffer, but TYPE /WIDTH
+  stops at the first NUL byte of UCS-2 text, so this cannot happen today.  The
+  width regression came from the -Wshadow work, present in 11.0.510 through
+  11.0.514, and was introduced in commit 4ddb464e in C-Kermit 11.0.510.  The
+  tab bugs were introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+## Changes in earlier releases that didn't make it into the changelog
+
+- C-Kermit 11.0.501: FTP reports the host name as typed and looks it
+  up in `.netrc` by that name, not by the canonical name.  A `.netrc`
+  entry for the canonical name no longer matches an alias.  Commit
+  c3c8dea2.
+
+- C-Kermit 11.0.509: `\v(authtype)` no longer reports
+  `X_509_CERTIFICATE` when no authentication took place.  Commit
+  76190cb0.
+
+- C-Kermit 11.0.509: an external protocol run over a Telnet
+  connection answers the host's unsolicited WILL and DO with DONT and
+  WONT.  Commit ce6628a3.
+
+- C-Kermit 11.0.509: calling a macro whose name begins with `_` read
+  past a table and could crash Kermit.  Commit 81405312.
+
+- C-Kermit 11.0.512: an empty `/MOVE-TO:` or `/RENAME-TO:` on SEND or
+  GET clears that setting.  Commit cfc424ff.
 
 # C-Kermit 11.0.514
 
