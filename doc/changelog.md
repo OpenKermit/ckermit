@@ -48,6 +48,19 @@ exposed weaknesses in older code.  Second, hardening code added in 11.0 had
 gaps.  Few are corrections for security regressions in 11.0, aside from `SET
 COMPATIBILITY`.
 
+### File transfer and the server
+
+- [4] A Kermit server ran REMOTE WHO and REMOTE SPACE through the shell with the
+  client's text unquoted.  `remote who {x;touch y}` ran a command on the server
+  even with DISABLE HOST.  The server now runs who and df without the shell.  A
+  Unix server refuses a REMOTE WHO name.  The Unix who command reads its
+  argument as a login database file, and the passed username was interpreted as
+  a filename.  This appears to have been broken on Unix hosts since the very
+  beginning.  A REMOTE SPACE argument must name an existing directory.  A REMOTE
+  SPACE directory name with spaces now works.  A command too long for the
+  command buffer is refused instead of overflowing it.  Bug dates from C-Kermit
+  4C(057) of 1985.
+
 ### FTP and HTTP
 
 - [8] Several buffers filled from FTP server data in GSSAPI and Kerberos

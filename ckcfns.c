@@ -7254,10 +7254,41 @@ cwd(vdir) char *vdir;
 }
 
 
+/*  G F L E N  --  Length of a field in a generic server command  */
+
+/*
+  s points to the length character of a field in decoded packet data.
+  The data ends at the first NUL.  Returns the length of the field, or
+  -1 if s is at the end of the data or the field runs past it.
+
+  setgen() gives a last field longer than 94 characters the length 0.
+  The caller of gflen() treats 0 as "the rest of the data" where the
+  field can be last.
+*/
+int
+#ifdef CK_ANSIC
+gflen( CHAR * s )
+#else
+gflen(s) CHAR * s;
+#endif /* CK_ANSIC */
+{
+    int n;
+    if (!s || !*s)
+      return(-1);
+    n = xunchar(*s);
+    if (n > (int)strlen((char *)(s + 1)))
+      return(-1);
+    return(n);
+}
+
 /*  S Y S C M D  --  Do a system command  */
 
-/*  Command string is formed by concatenating the two arguments.  */
-
+/*
+  Concatenate prefix and suffix into cmdstr.  Run the command with the
+  shell.  The caller ensures neither argument comes from the client
+  unless HOST is enabled.  Returns 0 on failure or if the command does
+  not fit in cmdstr.
+*/
 int
 #ifdef CK_ANSIC
 syscmd( char *prefix, char *suffix )
@@ -7267,21 +7298,15 @@ syscmd(prefix,suffix) char *prefix, *suffix;
 {
     extern int i_isopen;
 #ifndef NOPUSH
-    char *cp;
-
     i_isopen = 0;
     if (!prefix)
       return(0);
     if (!*prefix)
       return(0);
-    for (cp = cmdstr; *prefix != '\0'; (*cp++ = *prefix++));
-    while ((*cp++ = *suffix++))
-#ifdef OS2
-        /* This takes away more than we gain in convenience
-        if (*(cp-1) == '/') *(cp-1) = '\\' */
-#endif /* OS2 */
-      ;                                 /* Copy suffix */
-
+    if (!suffix)
+      suffix = "";
+    if (ckmakmsg(cmdstr,CMDSTRL+1,prefix,suffix,NULL,NULL) < 0)
+      return(0);
     debug(F110,"syscmd",cmdstr,0);
 
     if (zxcmd(ZIFILE,cmdstr) > 0) {
@@ -7301,6 +7326,166 @@ syscmd(prefix,suffix) char *prefix, *suffix;
     i_isopen = 0;
     return(0);
 #endif /* NOPUSH */
+}
+
+#ifdef UNIX
+#define SRVMAXARGS 16
+
+/*  S R V E X E C  --  Run a server command with one client argument  */
+
+/*
+  prefix is a fixed command such as WHOCMD.  Split prefix on spaces
+  into argv[].  Append arg as one argument when arg is not empty.  Run
+  argv[0] directly via zxcmdv().  Returns 0 on failure, 1 when the
+  output is ready to send.
+*/
+static int
+#ifdef CK_ANSIC
+srvexec( char *prefix, char *arg )
+#else
+srvexec(prefix,arg) char *prefix, *arg;
+#endif /* CK_ANSIC */
+{
+    extern int i_isopen;
+#ifndef NOPUSH
+    char buf[256];
+    char *argv[SRVMAXARGS+2];
+    char *p;
+    int n = 0;
+
+    i_isopen = 0;
+    if (ckstrncpy(buf,prefix,sizeof(buf)) >= (int)sizeof(buf) - 1)
+      return(0);
+    for (p = buf; *p && n < SRVMAXARGS; ) {
+        while (*p == SP)
+          *p++ = NUL;
+        if (!*p)
+          break;
+        argv[n++] = p;
+        while (*p && *p != SP)
+          p++;
+    }
+    if (n < 1 || *p)
+      return(0);
+    if (arg && *arg)
+      argv[n++] = arg;
+    argv[n] = NULL;
+    debug(F111,"srvexec",argv[0],n);
+    debug(F110,"srvexec arg",arg ? arg : "",0);
+
+    if (zxcmdv(ZIFILE,argv) > 0) {
+        nfils = sndsrc = 0;             /* Flag that input is from stdin */
+        xflg = hcflg = 1;               /* And special flags for pipe */
+        binary = XYFT_T;                /* Go to text mode */
+        i_isopen = 1;
+        return(sinit());                /* Send S packet */
+    }
+    debug(F100,"srvexec zxcmdv failed","",0);
+    return(0);
+#else
+    i_isopen = 0;
+    return(0);
+#endif /* NOPUSH */
+}
+#endif /* UNIX */
+
+/*  S R V W H O  --  REMOTE WHO on the server  */
+
+/*
+  s is the client's argument, a user name or empty.  On Unix s must be
+  empty.  The Unix who command takes a login database file rather than
+  a user name.  On other systems s may contain only A-Z, a-z, 0-9, and
+  "_.=-".  s must not begin with "-".  Returns -2 if a name is not
+  supported, -1 if s is not valid, 0 on failure, and 1 when the report
+  is ready to send.
+*/
+int
+#ifdef CK_ANSIC
+srvwho( char *s )
+#else
+srvwho(s) char *s;
+#endif /* CK_ANSIC */
+{
+    extern char *WHOCMD;
+#ifndef UNIX
+    char *p;
+#endif /* UNIX */
+
+    if (!s)
+      s = "";
+#ifdef UNIX
+    if (*s)
+      return(-2);
+    return(srvexec(WHOCMD,""));
+#else
+    if (*s == '-')
+      return(-1);
+    for (p = s; *p; p++) {
+        if (!((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') ||
+              (*p >= '0' && *p <= '9') ||
+              *p == '_' || *p == '.' || *p == '=' || *p == '-'))
+          return(-1);
+    }
+    return(syscmd(WHOCMD,s));
+#endif /* UNIX */
+}
+
+/*  S R V S P A C E  --  REMOTE SPACE for a directory on the server  */
+
+/*
+  s is the client's argument.  s must name an existing directory.  When
+  SET ROOT is active, s must lie within the root.  On Unix df receives
+  the directory's full path.  Returns -1 if s is not valid, 0 on
+  failure, and 1 when the report is ready to send.
+*/
+int
+#ifdef CK_ANSIC
+srvspace( char *s )
+#else
+srvspace(s) char *s;
+#endif /* CK_ANSIC */
+{
+    extern char *SPACM2;
+#ifdef UNIX
+    char buf[CKMAXPATH+2];
+#endif /* UNIX */
+
+    if (!s || !*s || !isdir(s))
+      return(-1);
+#ifdef CKROOT
+    if (!zinroot(s))
+      return(-1);
+#endif /* CKROOT */
+#ifdef UNIX
+    if (!zfnqfp(s,CKMAXPATH,buf) || buf[0] != '/')
+      return(-1);
+    return(srvexec(SPACM2,buf));
+#else
+    return(syscmd(SPACM2,s));
+#endif /* UNIX */
+}
+
+/*  S R V A R G  --  First field of a generic server command  */
+
+/*
+  s points to the first length field of a decoded generic command.
+  Terminates the field in place and returns it.  Returns "" if there
+  is no field or its length runs past the data.
+*/
+char *
+#ifdef CK_ANSIC
+srvarg( CHAR * s )
+#else
+srvarg(s) CHAR * s;
+#endif /* CK_ANSIC */
+{
+    int n;
+    if ((n = gflen(s)) < 0)
+      return("");
+    if (n == 0)                         /* Over 94: the rest of the data */
+      n = (int)strlen((char *)(s + 1));
+    s[n + 1] = NUL;
+    return((char *)(s + 1));
 }
 
 /*  R E M S E T  --  Remote Set  */

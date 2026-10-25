@@ -15292,8 +15292,9 @@ case XZTYP:
 
 case XZWHO:
     return(hmsg("Syntax: REMOTE WHO [ name ]\n\
-  Asks the Kermit server to list who's logged in, or to give information\n\
-  about the named user.  Synonym: RWHO."));
+  Asks the Kermit server to list who's logged in.  Some servers give\n\
+  information about the named user.  A Unix server refuses a name.\n\
+  Synonym: RWHO."));
 #endif /* NOFRILLS */
 
 #ifndef NOSPL

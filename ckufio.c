@@ -3237,63 +3237,23 @@ zxcloexec(fd) int fd;
 #endif /* FD_CLOEXEC */
 }
 
-int
+/*
+  Z X P I P E  --  Run a command with its output on a pipe to filnum.
+
+  When argv is NULL, run comand with the user's shell.  Otherwise run
+  argv[0] via execvp() with argv.  comand then supplies the debug log
+  string.  The caller checks nopush and filnum.  Returns 1 on success,
+  0 on failure.
+*/
+static int
 #ifdef CK_ANSIC
-zxcmd( int filnum, char *comand )
+zxpipe(int filnum, char *comand, char **argv)
 #else
-zxcmd(filnum,comand) int filnum; char *comand;
+zxpipe(filnum,comand,argv) int filnum; char *comand; char **argv;
 #endif /* CK_ANSIC */
 {
-    int out;
     int pipes[2];
     extern int kactive;                 /* From ckcpro.c and ckcmai.c */
-
-    if (nopush) {
-        debug(F100,"zxcmd fails: nopush","",0);
-        return(-1);
-    }
-    debug(F111,"zxcmd",comand,filnum);
-    if (chkfn(filnum) < 0) return(-1);  /* Need a valid Kermit file number. */
-    if (filnum == ZSTDIO || filnum == ZCTERM) /* But not one of these. */
-      return(0);
-
-    out = (filnum == ZIFILE || filnum == ZRFILE) ? 0 : 1 ;
-    debug(F101,"zxcmd out",comand,out);
-
-/* Output to a command */
-
-    if (out) {                          /* Need popen() to do this. */
-        ckstrncpy(fullname,"(pipe)",CKMAXPATH);
-#ifdef NOPOPEN
-        return(0);                      /* no popen(), fail. */
-#else
-/* Use popen() to run the command. */
-
-#ifdef _POSIX_SOURCE
-/* Strictly speaking, popen() is not available in POSIX.1 */
-#define DCLPOPEN
-#endif /* _POSIX_SOURCE */
-
-        debug(F110,"zxcmd out",comand,0);
-
-        if (priv_chk()) {
-            debug(F100,"zxcmd priv_chk failed","",0);
-            return(0);
-        }
-        errno = 0;
-        fp[filnum] = popen(comand,"w");
-        debug(F111,"zxcmd popen",fp[filnum] ? "OK" : "Failed", errno);
-        if (fp[filnum] == NULL)
-          return(0);
-        zxcloexec(fileno(fp[filnum]));
-        ispipe[filnum] = 1;
-        zoutcnt = 0;                    /* (PWP) reset input buffer */
-        zoutptr = zoutbuffer;
-        return(1);
-#endif /* NOPOPEN */
-    }
-
-/* Input from a command */
 
 #ifdef SNI541
     /* SINIX-L 5.41 does not like fdopen() */
@@ -3353,6 +3313,12 @@ zxcmd(filnum,comand) int filnum; char *comand;
 #endif /* OXOS */
         close(pipes[1]);                /* Don't need this any more. */
 
+        if (argv) {                     /* Run the program directly */
+            restorsigs();
+            execvp(argv[0],argv);
+            exit(1);                    /* exec failed */
+        }
+
 #ifdef aegis
         if ((shpath = getenv("SERVERSHELL")) == NULL)
           shpath = "/bin/sh";
@@ -3408,7 +3374,94 @@ zxcmd(filnum,comand) int filnum; char *comand;
     zinptr = zinbuffer;
     fullname[0] = '\0';
     return(1);
+} /* zxpipe */
+
+int
+#ifdef CK_ANSIC
+zxcmd( int filnum, char *comand )
+#else
+zxcmd(filnum,comand) int filnum; char *comand;
+#endif /* CK_ANSIC */
+{
+    int out;
+
+    if (nopush) {
+        debug(F100,"zxcmd fails: nopush","",0);
+        return(-1);
+    }
+    debug(F111,"zxcmd",comand,filnum);
+    if (chkfn(filnum) < 0) return(-1);  /* Need a valid Kermit file number. */
+    if (filnum == ZSTDIO || filnum == ZCTERM) /* But not one of these. */
+      return(0);
+
+    out = (filnum == ZIFILE || filnum == ZRFILE) ? 0 : 1 ;
+    debug(F101,"zxcmd out",comand,out);
+
+/* Output to a command */
+
+    if (out) {                          /* Need popen() to do this. */
+        ckstrncpy(fullname,"(pipe)",CKMAXPATH);
+#ifdef NOPOPEN
+        return(0);                      /* no popen(), fail. */
+#else
+/* Use popen() to run the command. */
+
+#ifdef _POSIX_SOURCE
+/* Strictly speaking, popen() is not available in POSIX.1 */
+#define DCLPOPEN
+#endif /* _POSIX_SOURCE */
+
+        debug(F110,"zxcmd out",comand,0);
+
+        if (priv_chk()) {
+            debug(F100,"zxcmd priv_chk failed","",0);
+            return(0);
+        }
+        errno = 0;
+        fp[filnum] = popen(comand,"w");
+        debug(F111,"zxcmd popen",fp[filnum] ? "OK" : "Failed", errno);
+        if (fp[filnum] == NULL)
+          return(0);
+        zxcloexec(fileno(fp[filnum]));
+        ispipe[filnum] = 1;
+        zoutcnt = 0;                    /* (PWP) reset input buffer */
+        zoutptr = zoutbuffer;
+        return(1);
+#endif /* NOPOPEN */
+    }
+
+/* Input from a command */
+
+    return(zxpipe(filnum,comand,NULL));
 } /* zxcmd */
+
+/*
+  Z X C M D V  --  Run a program and read its output from filnum.
+
+  Run argv[0] via execvp() with the NULL-terminated argument vector
+  argv.  filnum must be ZIFILE or ZRFILE.  Returns -1 if nopush is set
+  or filnum is invalid, 0 on failure, 1 on success.
+*/
+int
+#ifdef CK_ANSIC
+zxcmdv( int filnum, char **argv )
+#else
+zxcmdv(filnum,argv) int filnum; char **argv;
+#endif /* CK_ANSIC */
+{
+    if (nopush) {
+        debug(F100,"zxcmdv fails: nopush","",0);
+        return(-1);
+    }
+    if (!argv || !argv[0] || !*argv[0])
+      return(-1);
+    debug(F111,"zxcmdv",argv[0],filnum);
+    if (chkfn(filnum) < 0)
+      return(-1);
+    if (filnum != ZIFILE && filnum != ZRFILE)
+      return(0);
+    return(zxpipe(filnum,argv[0],argv));
+}
 
 /*  Z C L O S F  - wait for the child fork to terminate and close the pipe. */
 
@@ -3491,6 +3544,10 @@ zclosf(filnum) int filnum;
 
 int
 zxcmd(filnum,comand) int filnum; char *comand; {
+    return(0);
+}
+int
+zxcmdv(filnum,argv) int filnum; char **argv; {
     return(0);
 }
 int

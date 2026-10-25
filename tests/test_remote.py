@@ -451,3 +451,84 @@ def test_remote_delete_numeric_content_embedded_brace_escaped_fails(
 
     assert_ok(result)
     assert not (d / name).exists()
+
+
+@pytest.mark.parametrize("command", ["who", "space"])
+def test_remote_who_space_refuse_shell_syntax(tmp_path, wermit_loopback,
+                                              command):
+    """Verify REMOTE WHO and SPACE refuse an argument with shell syntax.
+
+    The argument is neither a supported user name nor an existing
+    directory.  No shell command runs.
+    """
+    result = wermit_loopback(
+        tmp_path, server_setup_cmds="disable host",
+        client_commands=f"remote {command} {{x;touch PWNED}}")
+    assert result.returncode >= 0, result.stderr
+    assert not (tmp_path / "PWNED").exists(), result.stdout
+    expected = ("User name not supported" if command == "who"
+                else "Not a directory")
+    assert expected in result.stdout + result.stderr, result.stdout
+
+
+@pytest.mark.parametrize("name", ["root", "notes.txt", "-l"])
+def test_remote_who_refuses_name(tmp_path, wermit_loopback, name):
+    """Verify a Unix server refuses a REMOTE WHO name.
+
+    The Unix who command takes a login database file rather than a user
+    name.  Refusing the name keeps who from reading a file such as
+    notes.txt.
+    """
+    (tmp_path / "notes.txt").write_text("secret\n")
+    result = wermit_loopback(
+        tmp_path, client_commands=f"remote who {{{name}}}")
+    assert result.returncode >= 0, result.stderr
+    out = result.stdout + result.stderr
+    assert "User name not supported" in out, out
+
+
+def test_remote_who_without_name(tmp_path, wermit_loopback):
+    """Verify REMOTE WHO with no name runs who."""
+    result = wermit_loopback(tmp_path, client_commands="remote who")
+    assert_ok(result)
+    assert "User name not supported" not in result.stdout, result.stdout
+    assert "Can't do who command" not in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize("arg", ["nosuchdir", "file.txt", "-h"])
+def test_remote_space_refuses_non_directory(tmp_path, wermit_loopback,
+                                            arg):
+    """Verify REMOTE SPACE refuses a name that is not a directory."""
+    (tmp_path / "file.txt").write_text("x\n")
+    result = wermit_loopback(
+        tmp_path, client_commands=f"remote space {{{arg}}}")
+    assert result.returncode >= 0, result.stderr
+    assert "Not a directory" in result.stdout + result.stderr, (
+        result.stdout)
+    assert "Filesystem" not in result.stdout, result.stdout
+
+
+def test_remote_space_directory_with_shell_syntax(tmp_path,
+                                                  wermit_loopback):
+    """Verify REMOTE SPACE runs df without the shell.
+
+    df reports on an existing directory whose name holds shell syntax.
+    No shell command runs.
+    """
+    (tmp_path / "x;touch PWNED").mkdir()
+    result = wermit_loopback(
+        tmp_path, server_setup_cmds="disable host",
+        client_commands="remote space {x;touch PWNED}")
+    assert_ok(result)
+    assert "Filesystem" in result.stdout, result.stdout
+    assert not (tmp_path / "PWNED").exists(), result.stdout
+
+
+def test_remote_space_directory_with_space(tmp_path, wermit_loopback):
+    """Verify REMOTE SPACE passes a directory name with a space to df."""
+    sub = tmp_path / "a b"
+    sub.mkdir()
+    result = wermit_loopback(tmp_path,
+                             client_commands="remote space {a b}")
+    assert_ok(result)
+    assert "Filesystem" in result.stdout, result.stdout

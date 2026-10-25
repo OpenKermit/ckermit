@@ -5644,6 +5644,7 @@ _PROTOTYP( int zchdir, (char *) );
 _PROTOTYP( char * zhome, (void) );
 _PROTOTYP( char * zgtdir, (void) );
 _PROTOTYP( int zxcmd, (int, char *) );
+_PROTOTYP( int zxcmdv, (int, char **) );
 #ifndef MAC
 _PROTOTYP( int zclosf, (int) );
 #endif /* MAC */

@@ -173,7 +173,7 @@ _PROTOTYP( int cmdsrc, (void) );
   extern long speed, crc16;
   extern CK_OFF_T calibrate, ffc;
 #ifndef OS2
-  extern char *SPACMD, *SPACM2, *WHOCMD;
+  extern char *SPACMD;
 #endif /* OS2 */
   extern CHAR *rdatap;
   extern struct zattr iattr;
@@ -1383,13 +1383,15 @@ _PROTOTYP(int sndspace,(int));
 #else
             if (nopush)
               wx = 0;
+            else if (wx)
+              wx = syscmd(SPACMD,"");
             else
-              wx = (wx ? syscmd(SPACMD,"") :
-                    syscmd(SPACM2,(char *)(srvcmd+2)));
-            if (wx) {                    /* If we got the info */
+              wx = srvspace(srvarg(srvcmd+1));
+            if (wx > 0) {               /* If we got the info */
                 BEGIN ssinit;           /* send it */
             } else {                    /* otherwise */
-                errpkt((CHAR *)"Can't check space"); /* send error message */
+                errpkt((CHAR *)(wx < 0 ? "Not a directory" :
+                                "Can't check space"));
                 RESUME;                 /* and await next server command */
             }
 #endif /* OS2 */
@@ -1405,7 +1407,7 @@ _PROTOTYP(int sndspace,(int));
       cksyslog(SYSLG_PR, 1, "server", "REMOTE WHO", (char *)srvcmd);
 #endif /* CKSYSLOG */
 #ifdef IKSDB
-    if (ikdbopen) slotstate(what,"REMOTE WHO", (char *)(srvcmd+2), "");
+    if (ikdbopen) slotstate(what,"REMOTE WHO", srvarg(srvcmd+1), "");
 #endif /* IKSDB */
     if (!ENABLED(en_who)) {
         errpkt((CHAR *)"REMOTE WHO disabled");
@@ -1420,10 +1422,13 @@ _PROTOTYP(int sndwho,(char *));
                 RESUME;                 /* and return to server command wait */
             }
 #else
-        if (syscmd(WHOCMD,(char *)(srvcmd+2))) {
+        wx = srvwho(srvarg(srvcmd+1));
+        if (wx > 0) {
             BEGIN ssinit;
         } else {
-            errpkt((CHAR *)"Can't do who command");
+            errpkt((CHAR *)(wx == -2 ? "User name not supported" :
+                            (wx < 0 ? "Invalid user name" :
+                             "Can't do who command")));
             RESUME;
         }
 #endif /* OS2 */
