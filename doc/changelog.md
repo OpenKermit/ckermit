@@ -61,6 +61,11 @@ COMPATIBILITY`.
   command buffer is refused instead of overflowing it.  Bug dates from C-Kermit
   4C(057) of 1985.
 
+- [4] A Kermit server or receiver now refuses a server command, GET command, or
+  file name that decodes to more than its command buffer holds.  Before, repeat
+  counts could make such a packet write past the buffer.  This bug was present
+  in the oldest extant version of C-Kermit, version 3.0 of 1984.
+
 - [6] With HOST disabled, a Kermit server still ran shell commands for
   REMOTE QUERY.  `remote query kermit command(...)` called `\fcommand()`,
   and `\fexecute()` could reach RUN.  The query now runs with PUSH refused

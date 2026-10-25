@@ -554,3 +554,31 @@ def test_remote_query_still_answers(tmp_path, wermit_loopback):
         tmp_path, server_setup_cmds="disable host",
         client_commands="remote query kermit program, echo Q=\\v(query)")
     assert "Q=C-Kermit" in result.stdout, result.stdout
+
+
+
+def test_remote_assign_long_value_reaches_server(tmp_path,
+                                                 wermit_loopback):
+    """Verify a long REMOTE ASSIGN value reaches the server intact.
+
+    The command decodes into the server's command buffer, which holds
+    about one receive packet.  A 2000-character value fits in a long
+    packet and must arrive whole.  The server's script writes its
+    length after FINISH.
+    """
+    value = "v" * 1990 + "END"
+    setup = "\n".join([
+        "set receive packet-length 4000",
+        "server",
+        "fopen /write \\%c result.txt",
+        "fwrite /line \\%c \\flength(\\m(longvar))",
+        "fclose \\%c",
+        "exit"])
+    result = wermit_loopback(
+        tmp_path, server_setup_cmds=setup,
+        client_commands=(
+            "set send packet-length 4000, "
+            f"remote assign longvar {value}, finish, pause 2"))
+    out = tmp_path / "result.txt"
+    assert out.exists(), result.stdout[-500:]
+    assert out.read_text().strip() == "1993", out.read_text()

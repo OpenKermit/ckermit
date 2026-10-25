@@ -993,7 +993,7 @@ CHAR *epktmsg = pktmsgbuf;
 #ifdef DYNAMIC
 int srvcmdlen = MAXRP;
 #else
-int srvcmdlen = 0;
+int srvcmdlen = MAXRP+3;                /* srvcmdbuf[] less the NUL */
 #endif /* DYNAMIC */
 
 CHAR

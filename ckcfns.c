@@ -458,6 +458,12 @@ putsrv(char c)
 putsrv(c) register char c;
 #endif /* CK_ANSIC */
 /* putsrv */ {
+/*
+  srvcmd holds srvcmdlen characters and a NUL.  Repeat counts can make
+  a packet decode to more than that, so refuse the rest.
+*/
+    if (srvptr - srvcmd >= srvcmdlen)
+      return(-1);
     *srvptr++ = c;
     *srvptr = '\0';             /* Make sure buffer is null-terminated */
     return(0);
@@ -3612,7 +3618,10 @@ rcvfil(n) char *n;
 #endif /* UNICODE */
 
     debug(F110,"rcvfil rdatap",rdatap,0);
-    decode(rdatap,putsrv,0);            /* Don't xlate charsets. */
+    if (decode(rdatap,putsrv,0) < 0) {  /* Don't xlate charsets. */
+        rf_err = "File name too long";
+        return(0);
+    }
 #ifdef CALIBRATE
     calibrate = csave;
     if (dest == DEST_N) {

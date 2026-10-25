@@ -764,10 +764,13 @@ a {
 <serve>G {                              /* Generic server command */
 #ifndef NOSERVER
     srvptr = srvcmd;                    /* Point to command buffer */
-    decode(rdatap,putsrv,0);            /* Decode packet data into it */
+    wx = decode(rdatap,putsrv,0);       /* Decode packet data into it */
     putsrv(NUL);                        /* Insert a couple nulls */
     putsrv(NUL);                        /* for termination */
-    if (srvcmd[0]) {
+    if (wx < 0) {
+        errpkt((CHAR *)"Server command too long");
+        RESUME;
+    } else if (srvcmd[0]) {
         sstate = srvcmd[0];             /* Set requested start state */
         if (x_login && !x_logged &&     /* Login required? */
             /* Login, Logout, and Help are allowed when not logged in */
@@ -805,11 +808,14 @@ a {
         RESUME;
     } else {
         srvptr = srvcmd;                /* Point to command buffer */
-        decode(rdatap,putsrv,0);        /* Decode command packet into it */
+        wx = decode(rdatap,putsrv,0);   /* Decode command packet into it */
         putsrv(NUL);                    /* Null-terminate */
         nakstate = 0;                   /* Now sending, not receiving */
         binary = XYFT_T;                /* Switch to text mode */
-        if (syscmd((char *)srvcmd,"")) { /* Try to execute the command */
+        if (wx < 0) {
+            errpkt((CHAR *)"Host command too long");
+            RESUME;
+        } else if (syscmd((char *)srvcmd,"")) { /* Try to run it */
             what = W_REMO;              /* Doing a REMOTE command. */
 #ifdef STREAMING
             if (!streaming)
@@ -3673,7 +3679,10 @@ sgetinit(rg,xget) int rg, xget;
 
     fs = (char *)srvcmd;
     srvptr = srvcmd;                    /* Point to server command buffer */
-    decode(rdatap,putsrv,0);            /* Decode the GET command into it */
+    if (decode(rdatap,putsrv,0) < 0) {  /* Decode the GET command into it */
+        errpkt((CHAR *)"GET command too long");
+        return(-1);
+    }
     /* Accept multiple filespecs */
     cmarg2 = "";                        /* Don't use cmarg2 */
     cmarg = "";                         /* Don't use cmarg */
