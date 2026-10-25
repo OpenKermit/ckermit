@@ -2163,8 +2163,11 @@ VOID ikslogin (  )
 #endif /* CKSYSLOG */
                   }
                 zvuser(uidbuf);
-                if (zvpass("") == 0)
-                  x_logged = 0;
+                if (zvpass("") == 0) {
+                    /* Each user at the prompt needs a password */
+                    auth_finished(AUTH_USER);
+                    x_logged = 0;
+                }
             } else if (x_logged == AUTH_USER && !strcmp(uidbuf,"anonymous")) {
                 extern char szUserNameAuthenticated[];
                 zvuser(uidbuf);

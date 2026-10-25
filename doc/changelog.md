@@ -86,6 +86,14 @@ COMPATIBILITY`.
   1996.  The heap overflow was introduced in commit d0f8b1da in C-Kermit
   7.0.197 of 2000.
 
+- [7] An IKSD that accepted a client certificate for a user, and then
+  refused that user (for instance from the forbidden-user file), prompted
+  for a login with the certificate still accepted.  Any other user then
+  logged in with any password.  The IKSD now drops the certificate login
+  when the automatic login fails, and skips the password only for the
+  user that authentication validated.  Bug was introduced in commit
+  d0f8b1da in C-Kermit 7.0.197 of 2000.
+
 - [8, 9] TLS certificate checks never matched an IP address SAN containing a
   zero byte (such as 127.0.0.1), read past the SAN's buffer, and could not
   match any IP SAN on big-endian 64-bit hosts.  The overread and big-endian bug

@@ -8284,6 +8284,7 @@ _PROTOTYP(int initgroups, (const char *, gid_t) );
     const char * reply = NULL;
 #endif /* CK_PAM */
     int dummy;
+    int authok = 0;
 
     if (logged_in || askpasswd == 0) {
         return(0);
@@ -8301,11 +8302,15 @@ _PROTOTYP(int initgroups, (const char *, gid_t) );
 #endif /* CKSYSLOG */
         return(0);
     }
-    if (!guest
 #ifdef CK_AUTHENTICATION
-        && ck_tn_auth_valid() != AUTH_VALID
+    {
+        /* Telnet authentication validated szUserNameRequested only */
+        extern char szUserNameRequested[];
+        authok = ck_tn_auth_valid() == AUTH_VALID &&
+          !strcmp(zvuname,szUserNameRequested);
+    }
 #endif /* CK_AUTHENTICATION */
-        ) {                     /* "ftp" is only account allowed no password */
+    if (!guest && !authok) {    /* "ftp" is only account allowed no password */
 #ifdef CK_PAM
         debug(F110,"zvpass","calling pam_set_item(AUTHTOK)",0);
         if ((pam_status = pam_set_item(pamh,PAM_AUTHTOK,p)) != PAM_SUCCESS) {
