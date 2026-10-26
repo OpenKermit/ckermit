@@ -871,6 +871,8 @@ tn_sopt(cmd,opt) int cmd, opt;
 /* Send a telnet sub-option */
 /* Returns 1 if command was sent, 0 if not, -1 on error */
 
+#define TN_SBMAX 8192                   /* Most subnegotiation data sent */
+
 int
 #ifdef CK_ANSIC
 tn_ssbopt( int opt, int sub, CHAR * data, int len )
@@ -878,13 +880,13 @@ tn_ssbopt( int opt, int sub, CHAR * data, int len )
 tn_ssbopt(opt,sub,data,len) int opt, sub; CHAR * data; int len;
 #endif /* CK_ANSIC */
 {
-    CHAR buf[256];
-    int rc;
+    CHAR sbuf[256], * buf = sbuf;
+    int rc, i, o;
 
     if (ttnet != NET_TCPB) return(0);   /* Must be TCP/IP */
     if (ttnproto != NP_TELNET) return(0); /* Must be telnet protocol */
     if (!TELOPT_OK(opt)) return(-1);
-    if (len < 0 || len > 250) {
+    if (len < 0 || len > TN_SBMAX) {
         debug(F111,"Unable to Send TELNET SB - data too long","len",len);
         return(-1);                     /* Data too long */
     }
@@ -899,15 +901,22 @@ tn_ssbopt(opt,sub,data,len) int opt, sub; CHAR * data; int len;
 
     if (!data) len = 0;
 
+    if (2 * len + 6 > (int)sizeof(sbuf)) { /* Each byte may be doubled */
+        buf = (CHAR *)malloc(2 * len + 6);
+        if (!buf)
+          return(-1);
+    }
     buf[0] = (CHAR) IAC;
     buf[1] = (CHAR) (SB & 0xff);
     buf[2] = (CHAR) (opt & 0xff);
     buf[3] = (CHAR) (sub & 0xff);
-    if (data && len > 0) {
-        memcpy(&buf[4],data,len);
+    for (i = 0, o = 4; i < len; i++) {  /* Data, with IAC doubled */
+        buf[o++] = data[i];
+        if (data[i] == IAC)
+          buf[o++] = (CHAR) IAC;
     }
-    buf[4+len] = (CHAR) IAC;
-    buf[5+len] = (CHAR) SE;
+    buf[o++] = (CHAR) IAC;
+    buf[o++] = (CHAR) SE;
 
 #ifdef DEBUG
     if (tn_deb || debses || deblog) {
@@ -977,10 +986,12 @@ tn_ssbopt(opt,sub,data,len) int opt, sub; CHAR * data; int len;
     if (tn_deb || debses)
       tn_debug(tn_msg_out);
 #endif /* DEBUG */
-    rc = (ttol(buf,6+len) < 6+len);
+    rc = (ttol(buf,o) < o);
 #ifdef OS2
     ReleaseTelnetMutex();
 #endif
+    if (buf != sbuf)
+      free(buf);
 
     if (rc)
       return(-1);
@@ -1370,7 +1381,11 @@ fwdx_tn_sb( fxsb, n ) unsigned char * fxsb; int n;
             rc = fwdx_create_listen_socket(fxsb[1]);
         break;
     case FWDX_OPEN:
-        if ( !sstelnet && n >= 5 ) {
+        if (!sstelnet && n < 5) {       /* Command, channel, IAC SE */
+            rc = 0;                     /* Too short: ignore it */
+            break;
+        }
+        if ( !sstelnet ) {
             p = (unsigned char *) &nchannel;
             i = 1;
             /* IAC quoting has been stripped in tn_sb() */
@@ -1392,6 +1407,10 @@ fwdx_tn_sb( fxsb, n ) unsigned char * fxsb; int n;
         }
         break;
     case FWDX_CLOSE:
+        if (n < 5) {                    /* Command, channel, IAC SE */
+            rc = 0;                     /* Too short: ignore it */
+            break;
+        }
         p = (unsigned char *) &nchannel;
         i = 1;
         /* IAC quoting has been stripped in tn_sb() */
@@ -1402,6 +1421,10 @@ fwdx_tn_sb( fxsb, n ) unsigned char * fxsb; int n;
         rc = 0; /* no errors when closing */
         break;
     case FWDX_DATA:
+        if (n < 5) {                    /* Command, channel, IAC SE */
+            rc = 0;                     /* Too short: ignore it */
+            break;
+        }
         p = (unsigned char *) &nchannel;
         i = 1;
         /* IAC quoting has been stripped in tn_sb() */
@@ -1438,15 +1461,24 @@ fwdx_tn_sb( fxsb, n ) unsigned char * fxsb; int n;
     case FWDX_XOFF:
     case FWDX_XON:
         if ( !sstelnet ) {
+            rc = 0;
+            if (n < 5)                  /* Too short: ignore it */
+              break;
             p = (unsigned char *) &nchannel;
             i = 1;
             /* IAC quoting has been stripped in tn_sb() */
             p[0] = fxsb[i++];
             p[1] = fxsb[i++];
             hchannel = ntohs(nchannel);
-            TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[hchannel].suspend =
-                (fxsb[0] == FWDX_XOFF);
-            rc = 0;
+            /* The wire value is a channel id.  Find its table entry. */
+            for ( i = 0; i < MAXFWDX; i++ ) {
+                if (TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[i].id ==
+                    hchannel) {
+                    TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[i].suspend =
+                      (fxsb[0] == FWDX_XOFF);
+                    break;
+                }
+            }
         }
         break;
     }
@@ -1521,6 +1553,10 @@ fwdx_send_xauth_to_xserver(channel, data, len)
         int dpynum, scrnum, family;
         char *display, *host = NULL, *rest = NULL;
 
+        if (real_xauth) {               /* From an earlier channel */
+            XauDisposeAuth(real_xauth);
+            real_xauth = NULL;
+        }
         /* parse the local DISPLAY env var */
         display = getenv("DISPLAY");
         if ( !display )
@@ -1563,9 +1599,10 @@ fwdx_send_xauth_to_xserver(channel, data, len)
             return(0);
         }
 
-        if (!strncmp(real_xauth->name,
-                     "MIT-MAGIC-COOKIE-1",
-                     real_xauth->name_length)) {
+        /* An MIT-MAGIC-COOKIE-1 entry has an 18-byte name, 16-byte data */
+        if (real_xauth->name_length == 18 &&
+            !memcmp(real_xauth->name,"MIT-MAGIC-COOKIE-1",18) &&
+            real_xauth->data_length == 16) {
             char msg[64];
 
             name_len = real_xauth->name_length;
@@ -1751,8 +1788,8 @@ fwdx_client_reply_options(opts, n) char *opts; int n;
     sb_out[i++] = FWDX_OPTIONS;               /* Options */
 
     /* Look for the options we recognize and will support for this session */
-    /* and reply with their bytes set                                      */
-    for (j=0; j<n; j++,i++) {
+    /* and reply with their bytes set.  Leave room for IAC SE.             */
+    for (j=0; j<n && i < TSBUFSIZ - 2; j++,i++) {
         sb_out[i] = FWDX_OPT_NONE;          /* Add zero byte - no options */
     }
     sb_out[i++] = (CHAR) IAC;                 /* End of Subnegotiation */
@@ -1865,7 +1902,7 @@ fwdx_send_data_from_channel(channel, data, len)
     j_sav = j;
 
     for (i = 0; i < len; i++) {
-        tmp = (unsigned int)data[i];
+        tmp = (unsigned int)(CHAR)data[i]; /* 0 to 255, so 0xFF is IAC */
         if ( tmp == IAC ) {
             sb_priv[j++] = IAC;
             sb_priv[j++] = IAC;
@@ -2217,6 +2254,8 @@ iks_tn_sb(iksb, n) CHAR * iksb; int n;
       case KERMIT_SOP: {                /* SOP */
 #ifndef NOXFER
           extern CHAR stchr;            /* Incoming SOP character */
+          if (n < 2)                    /* No SOP character given */
+            return(4);
           stchr = iksb[1];
 #endif /* NOXFER */
           TELOPT_SB(TELOPT_KERMIT).kermit.sop = 1;
@@ -3630,7 +3669,9 @@ tn_sb( opt, len, fn ) int opt; int * len; int (*fn)();
 
                   case TELOPT_ENCRYPTION:
                     s[0] = "SUPPORT";
-                    while (i < n-2) {
+                    /* Name known types while s[] has room. */
+                    /* tn_hex() shows the rest. */
+                    while (i < n-2 && i < 16 && ENCTYPE_NAME_OK(sb[i])) {
                         s[i] = enctype_names[sb[i]];
                         i++;
                     }
@@ -3770,7 +3811,8 @@ tn_sb( opt, len, fn ) int opt; int * len; int (*fn)();
                     break;
                   case TELOPT_ENCRYPTION:
                     s[0] = "REPLY";
-                    s[1] = enctype_names[sb[1]];
+                    s[1] = ENCTYPE_NAME_OK(sb[1]) ?
+                      enctype_names[sb[1]] : "UNKNOWN";
                     i++;
                     switch (sb[2]) {
                       case 1:
@@ -5173,6 +5215,15 @@ tn_xdoop(z, echo, fn) CHAR z; int echo; int (*fn)();
 #ifndef OS2
                   CHAR oldterm[64], *p;
 #endif /* OS2 */
+                  /* Only a client sends TTYPE IS (RFC 1091) */
+                  if (!(sstelnet
+#ifdef IKSD
+                        || inserver
+#endif /* IKSD */
+                        )) {
+                      debug(F100,"tn_doop TTYPE IS ignored as client","",0);
+                      break;
+                  }
                   /* Isolate the specified terminal type string */
                   while (sb[i++] != IAC) {
                       if (i == 40 ||    /* max len of term string - RFC */
@@ -5274,15 +5325,19 @@ tn_xdoop(z, echo, fn) CHAR z; int echo; int (*fn)();
                    ) {
                   int w = 0, h = 0;
                   int i = 0;
-                  /* At this point sb[] should contain width and height */
-                  if (sb[i] == IAC) i++;
-                  w = (sb[i++] << 8);   /* save upper height */
-                  if (sb[i] == IAC) i++;
-                  w += sb[i++];         /* save the width */
-                  if (sb[i] == IAC) i++;
-                  h = (sb[i++] << 8);   /* save upper height */
-                  if (sb[i] == IAC) i++;
-                  h += sb[i++];
+                  /*
+                    sb[] holds width and height, two bytes each, MSB
+                    first.  tn_sb() has already undoubled IAC IAC, so a
+                    byte of 255 is data.  n counts the closing IAC SE.
+                  */
+                  if (n < 6) {
+                      debug(F101,"tn_doop NAWS SB too short","",n);
+                      break;
+                  }
+                  w = (sb[i++] << 8);   /* Upper width */
+                  w += sb[i++];         /* Lower width */
+                  h = (sb[i++] << 8);   /* Upper height */
+                  h += sb[i++];         /* Lower height */
                   debug(F111,"tn_doop NAWS SB","width",w);
                   debug(F111,"tn_doop NAWS SB","height",h);
 
@@ -5616,6 +5671,38 @@ tn_rnenv(rnsb, len) CHAR * rnsb; int len;
   *np past it.  With reply NULL, only advance *np.  An entry that does
   not fit in size bytes is left out.
 */
+/*
+  NEW-ENVIRON names and values precede the bytes VAR, VALUE, ESC and
+  USERVAR with ESC.  tn_envqlen() returns the length of s with that
+  quoting.  tn_envqcpy() copies s quoted, without a terminating NUL.
+*/
+static int
+#ifdef CK_ANSIC
+tn_envqlen(char * s)
+#else
+tn_envqlen(s) char * s;
+#endif /* CK_ANSIC */
+{
+    int n = 0;
+    for (; *s; s++)
+      n += ((unsigned char)*s <= TEL_ENV_USERVAR) ? 2 : 1;
+    return(n);
+}
+
+static VOID
+#ifdef CK_ANSIC
+tn_envqcpy(char * d, char * s)
+#else
+tn_envqcpy(d,s) char * d; char * s;
+#endif /* CK_ANSIC */
+{
+    for (; *s; s++) {
+        if ((unsigned char)*s <= TEL_ENV_USERVAR)
+          *d++ = TEL_ENV_ESC;
+        *d++ = *s;
+    }
+}
+
 static VOID
 #ifdef CK_ANSIC
 tn_envadd(char * reply, int size, int * np, int type, char * name,
@@ -5625,16 +5712,16 @@ tn_envadd(reply, size, np, type, name, value)
     char * reply; int size; int * np; int type; char * name; char * value;
 #endif /* CK_ANSIC */
 /* tn_envadd */ {
-    int x = (int)strlen(name);
-    int y = (int)strlen(value);
+    int x = tn_envqlen(name);
+    int y = tn_envqlen(value);
 
     if (reply) {
         if (*np + x + y + 2 > size)
           return;
         reply[*np] = (char)type;
-        memcpy(&reply[*np + 1],name,x);
+        tn_envqcpy(&reply[*np + 1],name);
         reply[*np + x + 1] = TEL_ENV_VALUE;
-        memcpy(&reply[*np + x + 2],value,y);
+        tn_envqcpy(&reply[*np + x + 2],value);
     }
     *np += x + y + 2;
 }
@@ -6666,7 +6753,7 @@ tnc_tn_sb(ccsb, len) CHAR * ccsb; int len;
           if (len < 2)
           return(-1);
         debug(F111,"tnc_tn_sb","modemstate mask",ccsb[1]);
-        tnc_ls_mask = ccsb[1];
+        tnc_ms_mask = ccsb[1];
         break;
 
       case TNC_C2S_PURGE:

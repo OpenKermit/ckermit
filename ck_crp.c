@@ -710,7 +710,13 @@ get_crypt_table( struct keytab ** pTable, int * pN )
 static unsigned char str_send[64] = { IAC, SB, TELOPT_ENCRYPTION,
                                       ENCRYPT_SUPPORT };
 static unsigned char str_suplen = 0;
-static unsigned char str_start[72] = { IAC, SB, TELOPT_ENCRYPTION };
+#define MAXKEYLEN 64
+/*
+  IAC SB ENCRYPTION command, the key ID with each IAC doubled, IAC SE
+*/
+static unsigned char str_start[(MAXKEYLEN*2)+6] = {
+    IAC, SB, TELOPT_ENCRYPTION
+};
 static unsigned char str_end[] = { IAC, SB, TELOPT_ENCRYPTION, 0, IAC, SE };
 
 _PROTOTYP(int  encrypt_request_end, (VOID));
@@ -802,6 +808,8 @@ encrypt_parse(parsedat,end_sub) unsigned char *parsedat; int end_sub;
 {
     int rc = 0;
 
+    if (end_sub < 2)                    /* SB and the command byte */
+      return(0);
     switch(parsedat[1]) {
     case ENCRYPT_START:
         rc = encrypt_start(parsedat + 2, end_sub - 2);
@@ -875,8 +883,6 @@ finddecryption(type) int type;
         ++ep;
     return(ep->type ? ep : 0);
 }
-
-#define MAXKEYLEN 64
 
 static struct key_info {
     unsigned char keyid[MAXKEYLEN];
@@ -1384,7 +1390,7 @@ encrypt_request_start()
     return(0);
 }
 
-static unsigned char str_keyid[(MAXKEYLEN*2)+5] = {
+static unsigned char str_keyid[(MAXKEYLEN*2)+6] = {
     IAC, SB, TELOPT_ENCRYPTION
 };
 _PROTOTYP(int encrypt_keyid,(struct key_info *,unsigned char *,int));
@@ -1421,6 +1427,8 @@ encrypt_keyid(kp, keyid, len)
     int dir = kp->dir;
     int ret = 0;
 
+    if (len < 0)                        /* Malformed: same as empty */
+      len = 0;
     if (!(ep = (*kp->getcrypt)(*kp->modep))) {
         if (len == 0)
             return(-1);
@@ -1589,7 +1597,6 @@ encrypt_start_output(type) int type;
         *p++ = SE;
 
         if (deblog || tn_deb || debses) {
-            int li1;
             sprintf(tn_msg,"TELNET SENT SB %s START ",
                      TELOPT(TELOPT_ENCRYPTION));                /* safe */
             tn_hex((CHAR *)tn_msg,TN_MSG_LEN,&str_start[4],
@@ -1713,7 +1720,6 @@ encrypt_send_request_start()
     *p++ = SE;
 
     if (deblog || tn_deb || debses) {
-        int li2;
         sprintf(tn_msg,"TELNET SENT SB %s REQUEST-START ",
                  TELOPT(TELOPT_ENCRYPTION));                    /* safe */
         tn_hex((CHAR *)tn_msg,TN_MSG_LEN,&str_start[4],

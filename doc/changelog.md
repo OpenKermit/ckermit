@@ -244,6 +244,25 @@ COMPATIBILITY`.
   CA then passed.  The client now makes the same checks as for START-TLS.
   Bug was introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
 
+- [7, 8] Malformed Telnet subnegotiations from a peer read or wrote past
+  buffers.  With the debug log or SET TELNET DEBUG on, an ENCRYPTION
+  subnegotiation could crash Kermit.  The decoder for the log looked up each
+  encryption type in a table of 12 with no bound, and wrote one name per byte
+  into a 16-entry array on the stack.  This happened even when ENCRYPTION was
+  not negotiated.  Unknown types now show in hex.  A Telnet server or IKSD took
+  the screen size from a NAWS subnegotiation with fewer than four bytes.  It
+  read the IAC SE and bytes left from an earlier subnegotiation, and set LINES
+  and COLUMNS from them.  Such a subnegotiation is now ignored.  A Telnet
+  server offering FORWARD-X could overflow a buffer with a long OPTIONS request
+  and leak a socket for each channel past the 64th.  Bugs were introduced in
+  commits d0f8b1da (7.0.197 of 2000) and 29169c5e (8.0.201 of 2002).
+
+- [7] A Telnet client set TERM from a terminal type the server sent with
+  TTYPE IS.  Programs that Kermit ran later inherited it.  Only a client
+  sends TTYPE IS, so a client now ignores it.  A Telnet server or IKSD
+  still takes the client's type.  Bug was introduced in commit d0f8b1da
+  in C-Kermit 7.0.197 of 2000.
+
 - [8, 9] TLS certificate checks never matched an IP address SAN containing a
   zero byte (such as 127.0.0.1), read past the SAN's buffer, and could not
   match any IP SAN on big-endian 64-bit hosts.  The overread and big-endian bug
@@ -312,6 +331,8 @@ COMPATIBILITY`.
 
 - [7] A receiver gives a received file only the read, write and execute
   bits of the sender's permissions.
+
+- [7] A Telnet client ignores TTYPE IS from the server.
 
 - [8] FTP MGET /RECURSIVE skips server names that leave the current
   directory.

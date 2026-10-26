@@ -15544,6 +15544,13 @@ fwdx_open_client_channel(channel) int channel;
             return(0);
         }
     }
+    for (i = 0; i < MAXFWDX; i++)       /* Need a free slot */
+      if (TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[i].id == -1)
+        break;
+    if (i == MAXFWDX) {
+        debug(F110,"fwdx_create_client_channel()","no free channel",0);
+        return(-1);
+    }
 
     env = getenv("DISPLAY");
     if ( !env )
