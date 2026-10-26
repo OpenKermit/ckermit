@@ -93,6 +93,10 @@ COMPATIBILITY`.
 
 ### FTP and HTTP
 
+- [8] FTP MGET /RECURSIVE wrote server names such as `../../x` or
+  absolute paths as local files.  It now skips them.  Bug was introduced
+  in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
 - [8] Several buffers filled from FTP server data in GSSAPI and Kerberos
   builds are now bounded, and a one-byte overrun in their base64 decoder is
   fixed.  Bugs were introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
@@ -189,6 +193,9 @@ COMPATIBILITY`.
 
 - [6, 11] A receiver refuses a RESEND unless its FILE COLLISION setting
   allows it or it asked for a REGET.
+
+- [8] FTP MGET /RECURSIVE skips server names that leave the current
+  directory.
 
 - [8] TLS host name checks use `X509_check_host()`.  A wildcard matches
   only as the whole leftmost label of a name with more labels.

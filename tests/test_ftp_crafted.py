@@ -261,3 +261,32 @@ def test_ftp_mget_pathless_names_long_directory(run_wermit, tmp_path,
     else:
         expected = b"file.txt"
     assert retrs == [expected], retrs
+
+
+@pytest.mark.parametrize("recursive", ["/recursive ", ""])
+def test_ftp_mget_refuses_unsafe_server_names(run_wermit, tmp_path,
+                                              recursive):
+    """Verify MGET skips server names that leave the current directory.
+
+    A server listing can name "../x" or an absolute path.  MGET must not
+    use such a name as the local filename.  A plain name is still
+    retrieved.
+    """
+    names = [b"../../escaped.txt", b"/tmp/abs-escaped.txt",
+             b"sub/../../up.txt", b"ok.txt"]
+    port, thread, srv, retrs = _serve_nlst(names)
+    try:
+        result = run_wermit(", ".join([
+            f"cd {tmp_path}",
+            f"ftp open 127.0.0.1 {port} /user:u /password:p",
+            "if success echo OPEN-OK",
+            "ftp passive on",
+            f"ftp mget {recursive}*",
+            "ftp close",
+            "exit",
+        ]), timeout=60)
+    finally:
+        srv.close()
+        thread.join(timeout=5)
+    assert "OPEN-OK" in result.stdout, result.stdout[-500:]
+    assert retrs == [b"ok.txt"], retrs

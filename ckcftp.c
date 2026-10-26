@@ -6640,6 +6640,35 @@ cmdlinget(stay) int stay;
   its own local times and since we don't know what timezone it's in, there's
   no way to reconcile our local times with the server's.
 */
+
+/*
+  Returns 1 if a local filename taken from a server listing is absolute
+  or has a ".." component, 0 otherwise.  Such a name would place the file
+  outside the current directory.
+*/
+static int
+#ifdef CK_ANSIC
+ftpunsafename(char * s)
+#else
+ftpunsafename(s) char * s;
+#endif /* CK_ANSIC */
+{
+    char * p = s;
+    if (!s || !*s)
+      return(0);
+    if (ispathsep(*s) || *s == '~')
+      return(1);
+    while (p) {
+        char * q = p;
+        while (*q && !ispathsep(*q))
+          q++;
+        if (q - p == 2 && p[0] == '.' && p[1] == '.')
+          return(1);
+        p = *q ? q + 1 : NULL;
+    }
+    return(0);
+}
+
 int
 #ifdef CK_ANSIC
 doftpget( int cx, int who )       /* who == 1 for ftp, 0 for kermit */
@@ -7674,6 +7703,12 @@ doftpget(cx,who) int cx, who;
 
         if (!*s2)                       /* Sat Nov 16 19:19:39 2002 */
           s2 = recursive ? s : nam;     /* Fri Jan 10 13:15:19 2003 */
+
+        if (!skipthis && !asnambuf[0] && ftpunsafename(s2)) {
+            tlog(F110," refused: unsafe server pathname",s2,0);
+            msg = "Refused: Unsafe Pathname";
+            skipthis++;
+        }
 
         debug(F110,"ftp get filnam  ",s,0);
         debug(F110,"ftp get asname A",s2,0);
