@@ -240,7 +240,7 @@ class _TelnetTlsClient:
         import ssl
         self.sock = socket.create_connection(("127.0.0.1", port),
                                              timeout=15)
-        self.ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        self.ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         self.ctx.check_hostname = False
         self.ctx.load_verify_locations(ssl_pki["ca_crt"])
         self.ctx.load_cert_chain(ssl_pki["client_crt"],
