@@ -6606,6 +6606,28 @@ static struct keytab compattab[] = {
 static int ncompattab = (sizeof(compattab) / sizeof(struct keytab));
 
 /*
+  Assign ENABLE value WANT to variable V without setting any bit that
+  DISABLE ENABLE removed (en_ena_lock) unless V already has it.  Bits
+  can always be cleared.
+*/
+#define COMPAT_EN(v,want,ok) (v) = (want) & ((v) | (ok))
+
+/*
+  Copy fncact and fnrpath into the protocol table.  SET PROTOCOL and
+  the /PROTOCOL switch reload them from there.  SET FILE COLLISION
+  and SET RECEIVE PATHNAMES update the current protocol's entry.
+  Compatibility settings describe Kermit, so its entry is updated too.
+*/
+static VOID
+compat_ptab() {
+    extern int fncact, fnrpath;
+    ptab[PROTO_K].fnca = fncact;
+    ptab[PROTO_K].fnrp = fnrpath;
+    ptab[protocol].fnca = fncact;
+    ptab[protocol].fnrp = fnrpath;
+}
+
+/*
   Reconfigure settings to match C-Kermit 10.0 Beta.12.
   Assigns global variables directly to match corresponding SET and ENABLE
   defaults.
@@ -6618,7 +6640,8 @@ compat_10() {
     extern int fnrpath;                 /* SET RECEIVE PATHNAMES */
     extern int en_cwd, en_cpy, en_dir, en_fin, en_get, en_mkd, en_ren,
         en_sen, en_set, en_spa, en_typ, en_who, en_asg, en_que,
-        en_mai, en_pri, en_ena;
+        en_mai, en_pri, en_ena, en_ena_lock;
+    int ena;
 #ifdef CK_IPV6
     extern int tcp_af;
 #endif /* CK_IPV6 */
@@ -6631,19 +6654,28 @@ compat_10() {
 #ifdef CK_IPV6
     tcp_af = TCP_AF_V4;                 /* SET TCP ADDRESS-FAMILY IPV4 */
 #endif /* CK_IPV6 */
-    fnrpath = PATH_ABS;                 /* SET RECEIVE PATHNAMES ABSOLUTE */
+    fnrpath = PATH_AUTO;                /* SET RECEIVE PATHNAMES AUTO */
+    compat_ptab();
 
     /*
       Assign individual ENABLE variables. EN_ALL is not used because
       en_del, en_rmd, en_ret, en_xit, en_bye, and en_hos must remain
       unchanged.
 
-      Assign en_ena directly because doenable's EN_ENA guard applies only
-      to command dispatch.
+      DISABLE ENABLE can not be undone: a bit the user cleared from en_ena
+      (recorded in en_ena_lock) is not set again here, in en_ena or in
+      any other variable.
     */
-    en_cwd = en_cpy = en_dir = en_fin = en_get = en_mkd = en_ren =
-        en_sen = en_set = en_spa = en_typ = en_who = en_asg = en_que =
-        en_mai = en_pri = en_ena = 3;
+    ena = 3 & ~en_ena_lock;
+    COMPAT_EN(en_cwd,3,ena); COMPAT_EN(en_cpy,3,ena);
+    COMPAT_EN(en_dir,3,ena); COMPAT_EN(en_fin,3,ena);
+    COMPAT_EN(en_get,3,ena); COMPAT_EN(en_mkd,3,ena);
+    COMPAT_EN(en_ren,3,ena); COMPAT_EN(en_sen,3,ena);
+    COMPAT_EN(en_set,3,ena); COMPAT_EN(en_spa,3,ena);
+    COMPAT_EN(en_typ,3,ena); COMPAT_EN(en_who,3,ena);
+    COMPAT_EN(en_asg,3,ena); COMPAT_EN(en_que,3,ena);
+    COMPAT_EN(en_mai,3,ena); COMPAT_EN(en_pri,3,ena);
+    COMPAT_EN(en_ena,3,ena);
 
     return(1);
 }
@@ -6668,7 +6700,8 @@ compat_11_default() {
     extern int fnrpath;                 /* SET RECEIVE PATHNAMES */
     extern int en_cwd, en_cpy, en_dir, en_fin, en_get, en_mkd, en_ren,
         en_sen, en_set, en_spa, en_typ, en_who, en_asg, en_que,
-        en_mai, en_pri, en_ena;
+        en_mai, en_pri, en_ena, en_ena_lock;
+    int ena;
 #ifdef CK_IPV6
     extern int tcp_af;
 #endif /* CK_IPV6 */
@@ -6682,10 +6715,17 @@ compat_11_default() {
     tcp_af = TCP_AF_AUTO;               /* SET TCP ADDRESS-FAMILY AUTO */
 #endif /* CK_IPV6 */
     fnrpath = PATH_AUTO;                 /* SET RECEIVE PATHNAMES AUTO */
+    compat_ptab();
 
-    en_cwd = en_cpy = en_dir = en_fin = en_get = en_mkd = en_ren =
-        en_sen = en_set = en_spa = en_typ = en_who = en_asg = en_que =
-        en_ena = 2;
+    ena = 3 & ~en_ena_lock;             /* See compat_10() */
+    COMPAT_EN(en_cwd,2,ena); COMPAT_EN(en_cpy,2,ena);
+    COMPAT_EN(en_dir,2,ena); COMPAT_EN(en_fin,2,ena);
+    COMPAT_EN(en_get,2,ena); COMPAT_EN(en_mkd,2,ena);
+    COMPAT_EN(en_ren,2,ena); COMPAT_EN(en_sen,2,ena);
+    COMPAT_EN(en_set,2,ena); COMPAT_EN(en_spa,2,ena);
+    COMPAT_EN(en_typ,2,ena); COMPAT_EN(en_who,2,ena);
+    COMPAT_EN(en_asg,2,ena); COMPAT_EN(en_que,2,ena);
+    COMPAT_EN(en_ena,2,ena);
     en_mai = en_pri = 0;
 
     return(1);
@@ -6702,6 +6742,26 @@ setcompat() {
       return(x);
     if ((y = cmcfm()) < 0)
       return(y);
+#ifdef CK_APC
+    /* Same restriction as ENABLE: not from an APC */
+    if ((apcactive == APC_LOCAL) ||
+        ((apcactive == APC_REMOTE) && (!(apcstatus & APC_UNCH))))
+      return(success = 0);
+#endif /* CK_APC */
+#ifdef IKSD
+    {
+        extern int inserver;
+#ifdef CK_LOGIN
+        extern int isguest;
+        if (inserver && isguest)        /* IKSD anonymous user */
+          return(success = 0);
+#endif /* CK_LOGIN */
+#ifdef IKSDCONF
+        if (inserver && iksdcf)         /* IKSD restrictions in effect */
+          return(success = 0);
+#endif /* IKSDCONF */
+    }
+#endif /* IKSD */
     switch (x) {
       case 9:
         return(success = compat_9());

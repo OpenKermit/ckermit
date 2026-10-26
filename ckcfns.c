@@ -117,6 +117,7 @@ extern int spackets, rpackets, timeouts, retrans, crunched, wmax, wcur;
 extern int hcflg, binary, fncnv, b_save, f_save, server;
 extern int nakstate, discard, rejection, local, xfermode, interrupted;
 extern int fnc_lastdiscard;
+extern int rcvreget;
 extern int rq, rqf, sq, wslots, wslotn, wslotr, winlo, urpsiz, rln;
 extern int fnspath, fnrpath, eofmethod, diractive, whatru2, wearealike;
 extern int atcapr, atcapb, atcapu;
@@ -458,6 +459,12 @@ putsrv(char c)
 putsrv(c) register char c;
 #endif /* CK_ANSIC */
 /* putsrv */ {
+/*
+  srvcmd holds srvcmdlen characters and a NUL.  Repeat counts can make
+  a packet decode to more than that, so refuse the rest.
+*/
+    if (srvptr - srvcmd >= srvcmdlen)
+      return(-1);
     *srvptr++ = c;
     *srvptr = '\0';             /* Make sure buffer is null-terminated */
     return(0);
@@ -474,7 +481,8 @@ puttrm(c) register char c;
 #ifndef NOSPL
     extern char * qbufp;                /* If REMOTE QUERY active, */
     extern int query, qbufn;            /* also store response in */
-    if (query && qbufn++ < 1024) {      /* query buffer. */
+    if (query && qbufn < 1024 && qbufn < QBUFL) { /* query buffer, */
+        qbufn++;                        /* leaving room for the NUL. */
         *qbufp++ = c;
         *qbufp = NUL;
     }
@@ -565,14 +573,12 @@ zputfil(c) register char c;
 
 /*
  Call with string to be decoded and an output function.
- Returns 0 on success, -1 on failure (e.g. disk full).
+ Returns 0 on success, -1 on failure (e.g. disk full), or DECODE_BAD
+ if the data field ends inside a prefixed sequence.
 
  This is the "inner loop" when receiving files, and must be coded as
- efficiently as possible.  Note some potential problems:  if a packet
- is badly formed, having a prefixed sequence ending prematurely, this
- function, as coded, could read past the end of the packet.  This has
- never happened, thus the additional (time-consuming) tests have not
- been added.
+ efficiently as possible.  The length check for a prefix operand runs
+ only when a prefix is seen.
 */
 
 static CHAR *xdbuf;     /* Global version of decode()'s buffer pointer */
@@ -622,6 +628,8 @@ bdecode(buf,fn) register CHAR *buf; register int (*fn)();
         len--;
         rpt = 0;                        /* Initialize repeat count. */
         if (a == (unsigned int)rptq && rptflg) { /* Repeat prefix? */
+            if (len < 2)                /* Count and character must follow */
+              return(DECODE_BAD);
             rpt = xunchar(*xdbuf++ & 0xFF); /* Yes, get the repeat count, */
             rptn += rpt;
             a = *xdbuf++ & 0xFF;        /* and get the prefixed character. */
@@ -629,6 +637,8 @@ bdecode(buf,fn) register CHAR *buf; register int (*fn)();
         }
         ccpflg = 0;                     /* Control prefix flag. */
         if (a == ctlq) {                /* If control prefix, */
+            if (len < 1)
+              return(DECODE_BAD);
             a  = *xdbuf++ & 0xFF;       /* get its operand */
             len--;
             a7 = a & 0x7F;              /* and its low 7 bits. */
@@ -1355,6 +1365,8 @@ decode(buf,fn,xlate) register CHAR *buf; register int (*fn)(); int xlate;
         a = *xdbuf++ & 0xff;            /* Get next character */
         len--;
         if (a == (unsigned int)rptq && rptflg) { /* Repeat prefix? */
+            if (len < 2)                /* Count and character must follow */
+              return(DECODE_BAD);
             rpt = xunchar(*xdbuf++ & 0xFF); /* Yes, get the repeat count, */
             rptn += rpt;
             a = *xdbuf++ & 0xFF;        /* and get the prefixed character. */
@@ -1362,6 +1374,8 @@ decode(buf,fn,xlate) register CHAR *buf; register int (*fn)(); int xlate;
         }
         b8 = lsstate ? 0200 : 0;        /* 8th-bit value from SHIFT-STATE */
         if (ebqflg && a == (unsigned int)ebq) { /* 8th-bit prefix? */
+            if (len < 1)
+              return(DECODE_BAD);
             b8 ^= 0200;                 /* Yes, invert the 8th bit's value, */
             ssflg = 1;                  /* remember we did this, */
             a = *xdbuf++ & 0xFF;        /* and get the prefixed character. */
@@ -1369,6 +1383,8 @@ decode(buf,fn,xlate) register CHAR *buf; register int (*fn)(); int xlate;
         } else ssflg = 0;
         ccpflg = 0;
         if (a == ctlq) {                /* If control prefix, */
+            if (len < 1)
+              return(DECODE_BAD);
             a  = *xdbuf++ & 0xFF;       /* get its operand */
             len--;
             a7 = a & 0x7F;              /* and its low 7 bits. */
@@ -2994,6 +3010,7 @@ tinit(flag) int flag;
 
     debug(F101,"tinit flag","",flag);
 
+    rcvreget = 0;                       /* No REGET requested yet */
     *epktmsg = NUL;
     epktrcvd = 0;
     epktsent = 0;
@@ -3357,13 +3374,14 @@ hasdotdot(s) char *s;
 
 #define RQ_MAXTOK 64
 
-static char rq_tok[RQ_MAXTOK][CKMAXPATH+1]; /* Precise (non-wildcard) names */
+static char rq_tok[RQ_MAXTOK][CKMAXPATH+1]; /* Basenames of precise names */
 static int rq_ntok = 0;
 static int rq_active = 0;              /* 0 for RECEIVE: no name list at all */
 static int rq_recursive = 0;           /* Current command was /RECURSIVE */
 static int rq_level = CONFIRM_OFF;     /* Effective level for this command */
 static int rq_goall = 0;               /* "Go" answered: stop asking */
-static char rq_root[CKMAXPATH+1];      /* Resolved local target directory */
+static char rq_roots[RQ_MAXTOK][CKMAXPATH+1]; /* Recursive GET targets */
+static int rq_nroot = 0;
 
 /*
   Determines whether path is a descendant of or equal to root.
@@ -3413,10 +3431,57 @@ rq_is_matched(fqpath) char * fqpath;
         if (ckmatch(rq_tok[i],b,filecase,1)) /* given to GET/MGET? */
           return(1);
     }
-    /* Recursive GET: also accept anything under its target directory */
-    if (rq_recursive && rq_root[0] && rq_under_root(rq_root,fqpath))
-      return(1);
+    /* Recursive GET: also accept anything under a requested directory */
+    if (rq_recursive) {
+        for (i = 0; i < rq_nroot; i++)
+          if (rq_under_root(rq_roots[i],fqpath))
+            return(1);
+    }
     return(0);                         /* Not requested; caller should ask */
+}
+
+/*
+  Records the local directory that a recursive GET of name fills.  A
+  recursive GET recreates the remote path under the current directory,
+  with any leading "/" removed.  The directory is that path up to the
+  last "/" before the first wildcard character, or the whole name when
+  it has no wildcard.  A name with a ".." component records nothing,
+  so files from it are confirmed.
+
+  rq_under_root() compares with strncmp(), so the directory is resolved
+  with zfnqfp(), as rcvfil() resolves the incoming file's path.
+*/
+static VOID
+#ifdef CK_ANSIC
+rq_addroot( char * name )
+#else
+rq_addroot(name) char * name;
+#endif /* CK_ANSIC */
+{
+    char pfx[CKMAXPATH+1], full[CKMAXPATH*2+2];
+    char * t = name, * d;
+    int k;
+
+    while (*t == '/')                   /* Absolute names arrive relative */
+      t++;
+    while (t[0] == '.' && t[1] == '/')
+      t += 2;
+    ckstrncpy(pfx,t,sizeof(pfx));
+    for (k = 0; pfx[k]; k++)            /* First wildcard character */
+      if (pfx[k] == '*' || pfx[k] == '?' || pfx[k] == '[' || pfx[k] == '{')
+        break;
+    if (pfx[k]) {                       /* Cut back to the last "/" */
+        while (k > 0 && pfx[k-1] != '/')
+          k--;
+        pfx[k] = '\0';
+    }
+    if (hasdotdot(pfx))
+      return;
+    d = zgtdir();
+    if (!d)
+      return;
+    ckmakmsg(full,sizeof(full),d,"/",pfx,NULL);
+    zfnqfp(full,CKMAXPATH+1,rq_roots[rq_nroot++]);
 }
 
 /*
@@ -3433,24 +3498,13 @@ rq_confirm_start(reqtext,rcvcmd,recur,override)
     char * reqtext; int rcvcmd, recur, override;
 #endif /* CK_ANSIC */
 {
-    char * d;
     extern int fnrconfirm, fnrconfirm_scope, tcp_incoming;
 
     rq_ntok = 0;
     rq_recursive = recur;
     rq_goall = 0;
     rq_active = !rcvcmd;
-    rq_root[0] = '\0';
-    /*
-      rq_under_root() does a plain strncmp() against rq_root, so it
-      must be resolved the same way as the fqpath it will be compared
-      against (rcvfil() passes fqpath through zfnqfp() before calling
-      rq_confirm_check()); otherwise a working directory reached
-      through a symlink would never match.
-    */
-    d = zgtdir();
-    if (d)
-      zfnqfp(d,CKMAXPATH+1,rq_root);
+    rq_nroot = 0;
 
     rq_level = (override > -1) ? override : fnrconfirm;
 
@@ -3501,12 +3555,35 @@ rq_confirm_start(reqtext,rcvcmd,recur,override)
                 */
                 bresc(outv[i],ebuf,sizeof(ebuf));
                 if (outv[i][0] && !iswild(ebuf) && rq_ntok < RQ_MAXTOK)
-                  ckstrncpy(rq_tok[rq_ntok++],ebuf,CKMAXPATH+1);
+                  ckstrncpy(rq_tok[rq_ntok++],getbasename(ebuf),
+                            CKMAXPATH+1);
+                if (recur && outv[i][0] && rq_nroot < RQ_MAXTOK)
+                  rq_addroot(outv[i]);
             }
         }
         if (copy) free(copy);
         if (buf) free(buf);
     }
+}
+
+/*
+  Records the as-name given to GET, so a file stored under it is taken
+  as requested.  Call after rq_confirm_start().
+*/
+void
+#ifdef CK_ANSIC
+rq_confirm_asname( char * asname )
+#else
+rq_confirm_asname(asname) char * asname;
+#endif /* CK_ANSIC */
+{
+    char ebuf[CKMAXPATH*2+1];
+
+    if (!rq_active || rq_level == CONFIRM_OFF || !asname || !*asname)
+      return;
+    bresc(asname,ebuf,sizeof(ebuf));    /* As in rq_confirm_start() */
+    if (!iswild(ebuf) && rq_ntok < RQ_MAXTOK)
+      ckstrncpy(rq_tok[rq_ntok++],getbasename(ebuf),CKMAXPATH+1);
 }
 
 /*
@@ -3612,7 +3689,12 @@ rcvfil(n) char *n;
 #endif /* UNICODE */
 
     debug(F110,"rcvfil rdatap",rdatap,0);
-    decode(rdatap,putsrv,0);            /* Don't xlate charsets. */
+    i = decode(rdatap,putsrv,0);        /* Don't xlate charsets. */
+    if (i < 0) {
+        rf_err = (i == DECODE_BAD) ? "Malformed packet data" :
+          "File name too long";
+        return(0);
+    }
 #ifdef CALIBRATE
     calibrate = csave;
     if (dest == DEST_N) {
@@ -5348,6 +5430,10 @@ spar(s) CHAR *s;
     npad = 0; padch = '\0';
     if (biggest >= 3) {
         npad = xunchar(s[3]);
+        if (npad < 0)                   /* Partner's count: keep it */
+          npad = 0;                     /* within padbuf[] */
+        else if (npad > PADBUFL)
+          npad = PADBUFL;
         if (biggest >= 4) padch = (CHAR) ctl(s[4]); else padch = 0;
     }
     if (npad) {
@@ -5476,7 +5562,7 @@ spar(s) CHAR *s;
            byte (if any), which should be the Window Slots field.  CAPAS byte
            is continued if its low-order bit is 1.
         */
-        for (y = 10; (xunchar(s[y]) & 1) && (biggest >= y); y++);
+        for (y = 10; (biggest >= y) && (xunchar(s[y]) & 1); y++);
         debug(F101,"spar y","",y);      /* Position of WSLOTS byte */
     }
     /*
@@ -5490,7 +5576,7 @@ spar(s) CHAR *s;
     if (lpcapu) {                 /* If long packets have been negotiated.. */
         int lpspsiz = spsiz;      /* Max short packet size negotiated above */
         debug(F101,">>> spar lpspsiz","",lpspsiz);
-        if (biggest > y+1) {            /* If MAXLX1-2 bytes are present */
+        if (biggest >= y+3) {           /* If MAXLX1-2 bytes are present */
             x = xunchar(s[y+2]) * 95 + xunchar(s[y+3]); /* Extended length */
             debug(F101,">>> spar extended packet max length","",x);
             x -= 2;            /* fdc 20220917 Safety margin for edge cases */
@@ -7018,7 +7104,7 @@ nxtdel(
        void
 #endif /* CK_ANSIC */
        ) {
-    char name[257], *p = NULL;
+    char name[CKMAXPATH+1], *p = NULL;
     CK_OFF_T len = 0;
 
     if (funcnxt < funclen)
@@ -7038,18 +7124,18 @@ nxtdel(
         for (p = name + strlen(name); p != name && *p != '/' ; p--) ;
         if (*p == '/') p++;
 
-        /* sprintf's safe because size of funcbuf >= 64 + maxpathlen */
-
         if (len > -1L) {
             if (zdelet(name)) {
-                sprintf((char *)funcbuf," %10s: %s%s","skipping",p,endline);
+                ckmakmsg((char *)funcbuf,FNCBUFL,"   skipping: ",p,endline,
+                         NULL);
             } else {
                 nfiles++;
                 nbytes += len;
-                sprintf((char *)funcbuf," %10s: %s%s","deleted",p,endline);
+                ckmakmsg((char *)funcbuf,FNCBUFL,"    deleted: ",p,endline,
+                         NULL);
             }
         } else
-          sprintf((char *)funcbuf," directory: %s%s", p, endline);
+          ckmakmsg((char *)funcbuf,FNCBUFL," directory: ",p,endline,NULL);
         funcnxt = 0;
         funclen = (int)strlen((char *)funcbuf);
     } else
@@ -7057,15 +7143,15 @@ nxtdel(
     /* If done processing the expanded entries send a summary statement */
 
       if (nxpnd == 0) {
-          sprintf((char *)funcbuf,
-                  "%s%ld file%s deleted, %s byte%s freed%s",
-                  endline,
-                  nfiles,
-                  (nfiles == 1) ? "" : "s",
-                  ckfstoa(nbytes),
-                  (nbytes == (CK_OFF_T)1) ? "" : "s",
-                  endline
-                  );
+          snprintf((char *)funcbuf, FNCBUFL,
+                   "%s%ld file%s deleted, %s byte%s freed%s",
+                   endline,
+                   nfiles,
+                   (nfiles == 1) ? "" : "s",
+                   ckfstoa(nbytes),
+                   (nbytes == (CK_OFF_T)1) ? "" : "s",
+                   endline
+                   );
           nxpnd--;
           funcnxt = 0;
           funclen = (int)strlen((char *)funcbuf);
@@ -7224,9 +7310,18 @@ cwd(vdir) char *vdir;
 #endif /* CK_ANSIC */
 {
     char *cdd, *dirp;
+    int n;
 
-    vdir[xunchar(*vdir) + 1] = '\0';    /* Terminate string with a null */
-    dirp = vdir+1;
+    if (!*vdir) {                       /* No directory given */
+        dirp = "";                      /* zchdir() goes home */
+    } else {
+        if ((n = gflen((CHAR *)vdir)) < 0) /* Length past the data */
+          return(0);
+        if (n == 0)                     /* Over 94: the rest of the data */
+          n = (int)strlen(vdir + 1);
+        vdir[n + 1] = '\0';             /* Terminate string with a null */
+        dirp = vdir+1;
+    }
     tlog(F110,"Directory requested: ",dirp,0L);
     if (zchdir(dirp)) {                 /* Try to change */
         cdd = zgtdir();                 /* Get new working directory. */
@@ -7254,10 +7349,41 @@ cwd(vdir) char *vdir;
 }
 
 
+/*  G F L E N  --  Length of a field in a generic server command  */
+
+/*
+  s points to the length character of a field in decoded packet data.
+  The data ends at the first NUL.  Returns the length of the field, or
+  -1 if s is at the end of the data or the field runs past it.
+
+  setgen() gives a last field longer than 94 characters the length 0.
+  The caller of gflen() treats 0 as "the rest of the data" where the
+  field can be last.
+*/
+int
+#ifdef CK_ANSIC
+gflen( CHAR * s )
+#else
+gflen(s) CHAR * s;
+#endif /* CK_ANSIC */
+{
+    int n;
+    if (!s || !*s)
+      return(-1);
+    n = xunchar(*s);
+    if (n > (int)strlen((char *)(s + 1)))
+      return(-1);
+    return(n);
+}
+
 /*  S Y S C M D  --  Do a system command  */
 
-/*  Command string is formed by concatenating the two arguments.  */
-
+/*
+  Concatenate prefix and suffix into cmdstr.  Run the command with the
+  shell.  The caller ensures neither argument comes from the client
+  unless HOST is enabled.  Returns 0 on failure or if the command does
+  not fit in cmdstr.
+*/
 int
 #ifdef CK_ANSIC
 syscmd( char *prefix, char *suffix )
@@ -7267,21 +7393,15 @@ syscmd(prefix,suffix) char *prefix, *suffix;
 {
     extern int i_isopen;
 #ifndef NOPUSH
-    char *cp;
-
     i_isopen = 0;
     if (!prefix)
       return(0);
     if (!*prefix)
       return(0);
-    for (cp = cmdstr; *prefix != '\0'; (*cp++ = *prefix++));
-    while ((*cp++ = *suffix++))
-#ifdef OS2
-        /* This takes away more than we gain in convenience
-        if (*(cp-1) == '/') *(cp-1) = '\\' */
-#endif /* OS2 */
-      ;                                 /* Copy suffix */
-
+    if (!suffix)
+      suffix = "";
+    if (ckmakmsg(cmdstr,CMDSTRL+1,prefix,suffix,NULL,NULL) < 0)
+      return(0);
     debug(F110,"syscmd",cmdstr,0);
 
     if (zxcmd(ZIFILE,cmdstr) > 0) {
@@ -7303,6 +7423,166 @@ syscmd(prefix,suffix) char *prefix, *suffix;
 #endif /* NOPUSH */
 }
 
+#ifdef UNIX
+#define SRVMAXARGS 16
+
+/*  S R V E X E C  --  Run a server command with one client argument  */
+
+/*
+  prefix is a fixed command such as WHOCMD.  Split prefix on spaces
+  into argv[].  Append arg as one argument when arg is not empty.  Run
+  argv[0] directly via zxcmdv().  Returns 0 on failure, 1 when the
+  output is ready to send.
+*/
+static int
+#ifdef CK_ANSIC
+srvexec( char *prefix, char *arg )
+#else
+srvexec(prefix,arg) char *prefix, *arg;
+#endif /* CK_ANSIC */
+{
+    extern int i_isopen;
+#ifndef NOPUSH
+    char buf[256];
+    char *argv[SRVMAXARGS+2];
+    char *p;
+    int n = 0;
+
+    i_isopen = 0;
+    if (ckstrncpy(buf,prefix,sizeof(buf)) >= (int)sizeof(buf) - 1)
+      return(0);
+    for (p = buf; *p && n < SRVMAXARGS; ) {
+        while (*p == SP)
+          *p++ = NUL;
+        if (!*p)
+          break;
+        argv[n++] = p;
+        while (*p && *p != SP)
+          p++;
+    }
+    if (n < 1 || *p)
+      return(0);
+    if (arg && *arg)
+      argv[n++] = arg;
+    argv[n] = NULL;
+    debug(F111,"srvexec",argv[0],n);
+    debug(F110,"srvexec arg",arg ? arg : "",0);
+
+    if (zxcmdv(ZIFILE,argv) > 0) {
+        nfils = sndsrc = 0;             /* Flag that input is from stdin */
+        xflg = hcflg = 1;               /* And special flags for pipe */
+        binary = XYFT_T;                /* Go to text mode */
+        i_isopen = 1;
+        return(sinit());                /* Send S packet */
+    }
+    debug(F100,"srvexec zxcmdv failed","",0);
+    return(0);
+#else
+    i_isopen = 0;
+    return(0);
+#endif /* NOPUSH */
+}
+#endif /* UNIX */
+
+/*  S R V W H O  --  REMOTE WHO on the server  */
+
+/*
+  s is the client's argument, a user name or empty.  On Unix s must be
+  empty.  The Unix who command takes a login database file rather than
+  a user name.  On other systems s may contain only A-Z, a-z, 0-9, and
+  "_.=-".  s must not begin with "-".  Returns -2 if a name is not
+  supported, -1 if s is not valid, 0 on failure, and 1 when the report
+  is ready to send.
+*/
+int
+#ifdef CK_ANSIC
+srvwho( char *s )
+#else
+srvwho(s) char *s;
+#endif /* CK_ANSIC */
+{
+    extern char *WHOCMD;
+#ifndef UNIX
+    char *p;
+#endif /* UNIX */
+
+    if (!s)
+      s = "";
+#ifdef UNIX
+    if (*s)
+      return(-2);
+    return(srvexec(WHOCMD,""));
+#else
+    if (*s == '-')
+      return(-1);
+    for (p = s; *p; p++) {
+        if (!((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') ||
+              (*p >= '0' && *p <= '9') ||
+              *p == '_' || *p == '.' || *p == '=' || *p == '-'))
+          return(-1);
+    }
+    return(syscmd(WHOCMD,s));
+#endif /* UNIX */
+}
+
+/*  S R V S P A C E  --  REMOTE SPACE for a directory on the server  */
+
+/*
+  s is the client's argument.  s must name an existing directory.  When
+  SET ROOT is active, s must lie within the root.  On Unix df receives
+  the directory's full path.  Returns -1 if s is not valid, 0 on
+  failure, and 1 when the report is ready to send.
+*/
+int
+#ifdef CK_ANSIC
+srvspace( char *s )
+#else
+srvspace(s) char *s;
+#endif /* CK_ANSIC */
+{
+    extern char *SPACM2;
+#ifdef UNIX
+    char buf[CKMAXPATH+2];
+#endif /* UNIX */
+
+    if (!s || !*s || !isdir(s))
+      return(-1);
+#ifdef CKROOT
+    if (!zinroot(s))
+      return(-1);
+#endif /* CKROOT */
+#ifdef UNIX
+    if (!zfnqfp(s,CKMAXPATH,buf) || buf[0] != '/')
+      return(-1);
+    return(srvexec(SPACM2,buf));
+#else
+    return(syscmd(SPACM2,s));
+#endif /* UNIX */
+}
+
+/*  S R V A R G  --  First field of a generic server command  */
+
+/*
+  s points to the first length field of a decoded generic command.
+  Terminates the field in place and returns it.  Returns "" if there
+  is no field or its length runs past the data.
+*/
+char *
+#ifdef CK_ANSIC
+srvarg( CHAR * s )
+#else
+srvarg(s) CHAR * s;
+#endif /* CK_ANSIC */
+{
+    int n;
+    if ((n = gflen(s)) < 0)
+      return("");
+    if (n == 0)                         /* Over 94: the rest of the data */
+      n = (int)strlen((char *)(s + 1));
+    s[n + 1] = NUL;
+    return((char *)(s + 1));
+}
+
 /*  R E M S E T  --  Remote Set  */
 /*  Called by server to set variables as commanded in REMOTE SET packets.  */
 /*  Returns 1 on success, 0 on failure.  */
@@ -7318,7 +7598,10 @@ remset(s) char *s;
     int len, x, y;
     char *p;
 
-    len = xunchar(*s++);                /* Length of first field */
+    len = gflen((CHAR *)s);             /* Length of first field */
+    s++;
+    if (len < 0 || gflen((CHAR *)(s + len)) < 0) /* Need both fields */
+      return(0);
     p = s + len;                        /* Pointer to second length field */
     *p++ = '\0';                        /* Zero out second length field */
     x = atoi(s);                        /* Value of first field */
@@ -7366,14 +7649,20 @@ remset(s) char *s;
         atcapr = atoi(p);
         return(1);
       case 300:                         /* File type (text, binary) */
-        binary = atoi(p);
+        y = atoi(p);
+        if (y < XYFT_T || y > XYFT_X)   /* File types a client sends */
+          return(0);
+        binary = y;
         b_save = binary;
 #ifndef NOICP
         g_binary = -1;
 #endif /* NOICP */
         return(1);
       case 301:                         /* File name conversion */
-        fncnv = 1 - atoi(p);            /* (oops) */
+        y = atoi(p);
+        if (y < 0 || y > 1)
+          return(0);
+        fncnv = 1 - y;                  /* (oops) */
         f_save = fncnv;
 #ifndef NOICP
         g_fncnv = -1;
@@ -7387,6 +7676,8 @@ remset(s) char *s;
 #endif /* CK_LOGIN */
 #endif /* IKSD */
         x = atoi(p);
+        if (x < XYFX_R || x > XYFX_M || x == XYFX_Q) /* fncnam[] entries */
+          return(0);
         if (!ENABLED(en_del) && (x == XYFX_X || x == XYFX_U))
           return(0);
         if (x == XYFX_R) ckwarn = 1;    /* Rename */
@@ -7394,7 +7685,10 @@ remset(s) char *s;
         fncact = x;
         return(1);
       case 310:                         /* Incomplete File Disposition */
-        keep = atoi(p);                 /* Keep, Discard, Auto */
+        y = atoi(p);                    /* Keep, Discard, Auto */
+        if (y < 0 || y > SET_AUTO)
+          return(0);
+        keep = y;
         return(1);
       case 311:                         /* Blocksize */
         fblksiz = atoi(p);
@@ -7437,7 +7731,10 @@ remset(s) char *s;
         }
         return(0);
       case 401:                         /* Receive packet-length */
-        rpsiz = urpsiz = atoi(p);
+        y = atoi(p);
+        if (y < 10)                     /* SET RECEIVE minimum */
+          return(0);
+        rpsiz = urpsiz = y;
         if (urpsiz > MAXRP) urpsiz = MAXRP; /* Max long-packet length */
         if (rpsiz > 94) rpsiz = 94;         /* Max short-packet length */
         urpsiz = adjpkl(urpsiz,wslots,bigrbsiz);

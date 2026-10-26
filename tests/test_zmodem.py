@@ -1,5 +1,6 @@
 import os
 import shutil
+import time
 
 import pytest
 
@@ -11,6 +12,10 @@ from conftest import (pattern_bytes, DEBUG_LOOPBACK as DEBUG_ZMODEM,
                       start_pty_tcp_listener)
 
 ZMODEM_BLOCK_SIZE = 1024
+
+# Upper bound for test_zmodem_receive_ssl_binary.  The transfer takes
+# about 4 seconds, including 1 second of Telnet negotiation.
+SSL_ZMODEM_MAX_SECONDS = 10
 
 MB = 1024 * 1024
 
@@ -265,6 +270,11 @@ def test_zmodem_receive_ssl_binary(wermit_path, get_free_port, ssl_pki,
     same code with the roles swapped, at the cost of needing a second real pty
     (CONNECT mode's autodownload, unlike direct SET PROTOCOL ZMODEM
     SEND/RECEIVE, only triggers on the receiving end).
+
+    The transfer must finish within SSL_ZMODEM_MAX_SECONDS.  Each
+    ZMODEM exchange crosses both relays.  A relay that reads the
+    network until ttinc() times out holds every burst for 2 seconds.
+    That takes about 18 seconds with lrzsz 0.12, and lrz 0.13 gives up.
     """
     size = 5 * ZMODEM_BLOCK_SIZE + 1
     content = pattern_bytes(size)
@@ -277,14 +287,18 @@ def test_zmodem_receive_ssl_binary(wermit_path, get_free_port, ssl_pki,
     server_dir = tmp_path / "dest"
     server_dir.mkdir()
 
+    start = time.monotonic()
     returncode, stdout = _run_ssl_zmodem(
         wermit_path, get_free_port, ssl_pki,
         server_dir, remote_dir, ["sz", str(src_file)])
+    elapsed = time.monotonic() - start
 
     assert returncode == 0, f"Zmodem receive over SSL failed: stdout={stdout}"
     received_file = server_dir / "test_z_receive.txt"
     assert received_file.exists(), f"File not received. stdout={stdout}"
     assert received_file.read_bytes() == content
+    assert elapsed < SSL_ZMODEM_MAX_SECONDS, (
+        f"Zmodem receive over SSL took {elapsed:.1f} seconds")
 
 
 def test_zmodem_receive_large(zmodem_remote, tmp_path):

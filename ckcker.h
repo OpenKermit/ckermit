@@ -334,6 +334,7 @@ struct ssh_pf {                         /* SSH port forwarding */
 #define MAXPACK 94                      /* Maximum unextended packet size */
                                         /* Can't be more than 94. */
 #define MAXWS 32                        /* Can't be more than 32. */
+#define PADBUFL 96                      /* Size of padbuf[] for padding */
 
 /* Maximum long packet size for sending packets */
 /* Override these from cc command line via -DMAXSP=nnn */
@@ -1220,12 +1221,17 @@ _PROTOTYP( int rsattr, (CHAR *) );
 _PROTOTYP( char *getreason, (char *) );
 _PROTOTYP( int scmd, (char, CHAR *) );
 _PROTOTYP( int encstr, (CHAR *) );
+#define DECODE_BAD -2             /* decode() data ends in a prefix */
 _PROTOTYP( int decode, (CHAR *, int (*)(char), int) );
 _PROTOTYP( int bdecode, (CHAR *, int (*)(char)) );
 _PROTOTYP( int fnparse, (char *) );
 _PROTOTYP( int syscmd, (char *, char *) );
 _PROTOTYP( int cwd, (char *) );
 _PROTOTYP( int remset, (char *) );
+_PROTOTYP( int gflen, (CHAR *) );
+_PROTOTYP( char * srvarg, (CHAR *) );
+_PROTOTYP( int srvwho, (char *) );
+_PROTOTYP( int srvspace, (char *) );
 _PROTOTYP( int initattr, (struct zattr *) );
 _PROTOTYP( int gattr, (CHAR *, struct zattr *) );
 _PROTOTYP( int adebu, (char *, struct zattr *) );

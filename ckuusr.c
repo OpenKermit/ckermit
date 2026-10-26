@@ -9085,8 +9085,8 @@ docmd(cx) int cx;
                 return(-9);
             } else return(wy);
         }
-        if (cx == XXDIS)                /* Disabling, not enabling */
-          wy = 3 - wy;
+        if (cx == XXDIS)                /* Disabling: negative mode mask */
+          wy = -wy;
         if ((wz = cmcfm()) < 0) return(wz);
 #ifdef CK_APC
         if ((apcactive == APC_LOCAL) ||

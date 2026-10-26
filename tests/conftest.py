@@ -451,6 +451,33 @@ def wermit_path():
     return str(path.absolute())
 
 
+@pytest.fixture(scope="session")
+def wermit_sanitized(wermit_path):
+    """Return True if wermit was built with AddressSanitizer or UBSan.
+
+    valgrind, address-space limits and LD_PRELOAD libraries do not
+    work with a sanitizer runtime.
+    """
+    with open(wermit_path, "rb") as f:
+        data = f.read()
+    return b"__asan_init" in data or b"__ubsan_handle" in data
+
+
+@pytest.fixture
+def valgrind(wermit_sanitized):
+    """Return the path to valgrind, or skip the test.
+
+    Skips if valgrind is not installed or wermit has a sanitizer.
+    """
+    import shutil
+    path = shutil.which("valgrind")
+    if not path:
+        pytest.skip("valgrind not installed")
+    if wermit_sanitized:
+        pytest.skip("valgrind does not run a sanitizer build")
+    return path
+
+
 def _optional_binary_path(name):
     """Return absolute path to a repository-root compatibility binary.
 

@@ -859,6 +859,7 @@ int cwdf = 0;                           /* CWD has been done */
 extern int en_cwd, en_cpy, en_del, en_dir, en_fin,
    en_get, en_hos, en_ren, en_sen, en_set, en_spa, en_typ, en_who, en_bye,
    en_asg, en_que, en_ret, en_mai, en_pri, en_mkd, en_rmd, en_xit, en_ena;
+extern int en_ena_lock;
 
 extern FILE *tfile[];                   /* File pointers for TAKE command */
 extern char *tfnam[];                   /* Names of TAKE files */
@@ -7107,27 +7108,35 @@ doenable( int y, int x )
 doenable(y,x) int y, x;
 #endif /* CK_ANSIC */
 {
+/*
+  Y is a mode mask (1 = local, 2 = remote): positive to enable those
+  modes, negative to disable them.  Other modes keep their setting.
+*/
+#define ENSET(v) (v) = (y > 0) ? ((v) | y) : ((v) & ~(-y))
 #ifdef CK_LOGIN
     if (isguest)                        /* IKSD: Don't let guests */
       return(0);                        /* enable anything that's disabled */
 #endif /* CK_LOGIN */
     switch (x) {
       case EN_ALL:
-        en_cwd = en_cpy = en_del = en_dir = en_fin = en_get = y;
-        en_ren = en_sen = en_set = en_spa = en_typ = en_ret = y;
-        if (!inserver)
-          en_who = en_mai = en_pri = y;
-        en_mkd = en_rmd = y;
-        en_xit = y;
+        ENSET(en_cwd); ENSET(en_cpy); ENSET(en_del);
+        ENSET(en_dir); ENSET(en_fin); ENSET(en_get);
+        ENSET(en_ren); ENSET(en_sen); ENSET(en_set);
+        ENSET(en_spa); ENSET(en_typ); ENSET(en_ret);
+        if (!inserver) {
+            ENSET(en_who); ENSET(en_mai); ENSET(en_pri);
+        }
+        ENSET(en_mkd); ENSET(en_rmd);
+        ENSET(en_xit);
 #ifndef datageneral
-        en_bye = y;
+        ENSET(en_bye);
 #endif /* datageneral */
 #ifndef NOPUSH
         if (!nopush && !inserver)
-          en_hos = y;
+          ENSET(en_hos);
 #endif /* NOPUSH */
 #ifndef NOSPL
-        en_asg = en_que = y;
+        ENSET(en_asg); ENSET(en_que);
 #endif /* NOSPL */
         break;
 
@@ -7136,104 +7145,104 @@ doenable(y,x) int y, x;
 /*
   In Data General AOS/VS Kermit can't log out its superior process.
 */
-        en_bye = y;
+        ENSET(en_bye);
 #endif /* datageneral */
         break;
       case EN_CPY:
-        en_cpy = y;
+        ENSET(en_cpy);
         break;
       case EN_CWD:
-        en_cwd = y;
+        ENSET(en_cwd);
 #ifdef IKSD
-        if (inserver && y == 0) {
+        if (inserver && en_cwd == 0) {
             fnrpath = PATH_OFF;
             fnspath = PATH_OFF;
         }
 #endif /* IKSD */
         break;
       case EN_DEL:                      /* Deleting of files */
-        en_del = y;
+        ENSET(en_del);
         break;
       case EN_DIR:
-        en_dir = y;
+        ENSET(en_dir);
         break;
       case EN_FIN:
-        en_fin = y;
+        ENSET(en_fin);
         break;
       case EN_GET:
-        en_get = y;
+        ENSET(en_get);
         break;
 #ifndef NOPUSH
       case EN_HOS:
         if (!nopush)
-         en_hos = y;
+         ENSET(en_hos);
         break;
 #endif /* NOPUSH */
       case EN_REN:
-        en_ren = y;
+        ENSET(en_ren);
         break;
       case EN_SEN:
-        en_sen = y;
+        ENSET(en_sen);
         break;
       case EN_SET:
-        en_set = y;
+        ENSET(en_set);
         break;
       case EN_SPA:
-        en_spa = y;
+        ENSET(en_spa);
         break;
       case EN_TYP:
-        en_typ = y;
+        ENSET(en_typ);
         break;
       case EN_WHO:
-        en_who = y;
+        ENSET(en_who);
         break;
 #ifndef NOSPL
       case EN_ASG:
-        en_asg = y;
+        ENSET(en_asg);
         break;
       case EN_QUE:
-        en_que = y;
+        ENSET(en_que);
         break;
 #endif /* NOSPL */
       case EN_RET:
-        en_del = y;
+        ENSET(en_del);
         break;
       case EN_MAI:
 #ifdef CK_LOGIN
-        if (isguest && y) {
+        if (isguest && y > 0) {
             printf("?Sorry, not valid for guests\n");
             return(-9);
         }
 #endif /* CK_LOGIN */
-        en_mai = y;
+        ENSET(en_mai);
         break;
       case EN_PRI:
 #ifdef CK_LOGIN
-        if (isguest && y) {
+        if (isguest && y > 0) {
             printf("?Sorry, not valid for guests\n");
             return(-9);
         }
 #endif /* CK_LOGIN */
-        en_pri = y;
+        ENSET(en_pri);
         break;
       case EN_MKD:
-        en_mkd = y;
+        ENSET(en_mkd);
         break;
       case EN_RMD:
-        en_rmd = y;
+        ENSET(en_rmd);
         break;
       case EN_XIT:
-        en_xit = y;
+        ENSET(en_xit);
         break;
       case EN_ENA:
-        if (((y & 1) && !(en_ena & 1)) ||
-            ((y & 2) && !(en_ena & 2))) {
+        if (y > 0 && (y & ~en_ena)) {
             printf("?Sorry, DISABLE ENABLE can not be undone\n");
             return(-9);
-        } else {
-            en_ena = y;
-            break;
         }
+        if (y < 0)
+          en_ena_lock |= -y;            /* Disabled bits stay disabled */
+        ENSET(en_ena);
+        break;
       default:
         return(-2);
     }
@@ -11724,6 +11733,7 @@ doxget(cx) int cx;
 #endif /* CK_TMPDIR */
 
     rq_confirm_start(cmarg,rcvcmd,(pv[SND_REC].ival > 0),pv[SND_CFM].ival);
+    rq_confirm_asname(cmarg2);
 
     ckstrncpy(fspec,cmarg,CKMAXPATH);   /* Note - this is a REMOTE filespec */
     debug(F111,"xget fspec",fspec,fspeclen);

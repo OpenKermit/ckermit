@@ -650,3 +650,28 @@ def test_get_into_existing_directory(tmp_path, wermit_loopback, slash):
     assert_ok(result)
     assert "STATUS=[0]" in result.stdout, result.stdout
     assert (dest / "f.txt").read_text() == "hello\n", result.stdout
+
+@pytest.mark.parametrize("switches", ["/delete", "/recover /delete",
+                                      "/recover /recursive /delete"])
+def test_get_delete_refused_when_delete_disabled(tmp_path, wermit_loopback,
+                                                 switches):
+    """Verify every GET /DELETE form honors DISABLE DELETE on the server.
+
+    GET /DELETE sends an H packet.  The /RECOVER forms send an Extended
+    GET (O packet) with the delete option.  Each must be refused, and the
+    file must stay on the server.
+    """
+    server = tmp_path / "server"
+    client = tmp_path / "client"
+    server.mkdir()
+    client.mkdir()
+    (server / "a.txt").write_bytes(b"hello\n")
+    result = wermit_loopback(
+        server, "set delay 0\ndisable delete",
+        f"cd {client}, set delay 0, "
+        f"get {switches} a.txt, echo STATUS=\\v(status)")
+    assert "Deleting files is disabled" in result.stdout, \
+        result.stdout[-2000:]
+    assert "STATUS=1" in result.stdout, result.stdout[-2000:]
+    assert (server / "a.txt").read_bytes() == b"hello\n"
+    assert not (client / "a.txt").exists()

@@ -228,3 +228,50 @@ def test_ftp_command_line_put_without_files(wermit_ftp_available,
         timeout=30, start_new_session=True)
     output = result.stdout + result.stderr
     assert "No files to put" in output, output
+
+
+def test_ftp_text_put_larger_than_buffer(ftp_server, run_wermit, tmp_path):
+    """Verify a text-mode PUT larger than the 8 KiB send buffer.
+
+    zzsend() flushes the buffer each time it fills.  A store past the
+    buffer shows only under AddressSanitizer.
+    """
+    port, server_dir = ftp_server
+    local_dir = tmp_path / "local"
+    local_dir.mkdir()
+    local_file = local_dir / "text.txt"
+    lines = [f"line {i:05d} of the text file" for i in range(700)]
+    local_file.write_text("\n".join(lines) + "\n")
+
+    result = run_wermit(ftp_session(
+        port, f"ftp put /text {local_file} text.txt"), timeout=30)
+    assert_ok(result, "Upload failed")
+    uploaded = (server_dir / "text.txt").read_text().splitlines()
+    assert uploaded == lines
+
+
+@pytest.mark.parametrize("name", ["ftphost", "[ftphost]"])
+def test_ftp_open_network_directory_name(ftp_server, run_wermit,
+                                          tmp_path, name):
+    """Verify FTP OPEN of a name from the network directory.
+
+    The name is replaced by the directory entry's address.  The lookup
+    runs from the command line, outside any TAKE file.  A double free
+    or a store before the TAKE line counters shows only under
+    AddressSanitizer, except where the C library aborts.
+    """
+    port, server_dir = ftp_server
+    (server_dir / "hello.txt").write_text("hello\n")
+    netdir = tmp_path / "netdir.txt"
+    netdir.write_text("ftphost tcp/ip 127.0.0.1\n")
+
+    result = run_wermit(", ".join([
+        f"set network directory {netdir}",
+        f"ftp open {name} {port} /user:testuser /password:testpass",
+        "if success echo OPEN-OK",
+        "ftp close",
+        "exit",
+    ]), timeout=30)
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}")
+    assert "OPEN-OK" in result.stdout, result.stdout

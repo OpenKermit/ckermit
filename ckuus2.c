@@ -3628,11 +3628,24 @@ static char * hxycompat[] = {
 "  11       Restore the C-Kermit 11 (current) defaults.  DEFAULT is",
 "           a synonym for this.",
 " ",
-"Settings affected: SET FILE COLLISION, SET TRANSFER MODE, SET",
-"TERMINAL AUTODOWNLOAD ERROR, SET RECEIVE CONFIRM, SET TCP",
-"ADDRESS-FAMILY, SET RECEIVE PATHNAMES. Also, ENABLE/DISABLE for CD,",
-"COPY, DIRECTORY, ENABLE, FINISH, GET, MKDIR, RENAME, SEND, SET,",
-"SPACE, TYPE, WHO, ASSIGN, QUERY, MAIL, and PRINT.",
+"Settings affected, with the values set by 9 or 10 and by 11:",
+" ",
+"  SET FILE COLLISION                 BACKUP          DISCARD",
+"  SET TRANSFER MODE                  AUTOMATIC       MANUAL",
+"  SET TERMINAL AUTODOWNLOAD ERROR    STOP            CONTINUE",
+"  SET RECEIVE CONFIRM                OFF (both)      ON (local)",
+"  SET TCP ADDRESS-FAMILY             IPV4            AUTO",
+"  SET RECEIVE PATHNAMES              AUTO            AUTO",
+"  ENABLE for CD, COPY, DIRECTORY,    BOTH            REMOTE",
+"    ENABLE, FINISH, GET, MKDIR,",
+"    RENAME, SEND, SET, SPACE, TYPE,",
+"    WHO, ASSIGN, QUERY",
+"  ENABLE for MAIL, PRINT             BOTH            disabled",
+" ",
+"An ENABLE setting is not turned on if DISABLE ENABLE turned it off.",
+"SET COMPATIBILITY 9 makes the same changes as SET COMPATIBILITY 10.",
+"Neither restores the C-Kermit 9 prompt, SET TELNET WAIT, or SET TCP",
+"CONNECT-TIMEOUT (30 seconds; earlier releases had none).",
 " ",
 "SET COMPATIBILITY 9 and SET COMPATIBILITY 10 weaken settings that",
 "C-Kermit 11 tightened for security.  Use them only when",
@@ -10067,6 +10080,9 @@ static char *hxyrcv[] = {
 #ifdef CK_PERMS
 "SET RECEIVE PERMISSIONS { ON, OFF }",
 "  Whether to copy file permissions from inbound Attribute packets.",
+"  A file received from a Unix sender gets the read, write, and execute",
+"  permissions of the original.  Setuid, setgid, and sticky bits are not",
+"  copied.",
 " ",
 #endif /* CK_PERMS */
 
@@ -15292,8 +15308,9 @@ case XZTYP:
 
 case XZWHO:
     return(hmsg("Syntax: REMOTE WHO [ name ]\n\
-  Asks the Kermit server to list who's logged in, or to give information\n\
-  about the named user.  Synonym: RWHO."));
+  Asks the Kermit server to list who's logged in.  Some servers give\n\
+  information about the named user.  A Unix server refuses a name.\n\
+  Synonym: RWHO."));
 #endif /* NOFRILLS */
 
 #ifndef NOSPL

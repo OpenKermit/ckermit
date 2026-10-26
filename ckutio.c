@@ -8898,6 +8898,7 @@ mygetbuf() {
 int
 myfillbuf() {
     int fd, n;
+    int want = sizeof(mybuf);           /* Bytes to read */
 #ifdef NETCMD
     if (ttpipe)
       fd = fdin;
@@ -9067,6 +9068,12 @@ myfillbuf() {
     }
 #endif /* HAVE_PTYTRAP */
 #endif /* NETPTY */
+#ifdef TNCODE
+#ifdef CK_SSL
+    if (tn_tls_follows_wait())          /* Stop at the end of FOLLOWS */
+      want = 1;
+#endif /* CK_SSL */
+#endif /* TNCODE */
     debug(F101,"myfillbuf calling read() fd","",ttyfd);
 /*
   ttinl()'s SIGALRM timeout handler (timerh()) calls siglongjmp() whenever the
@@ -9113,13 +9120,13 @@ myfillbuf() {
         sigemptyset(&nset);
         sigaddset(&nset, SIGALRM);
         sigprocmask(SIG_BLOCK, &nset, &oset);
-        n = (int)read(fd, mybuf, sizeof(mybuf));
+        n = (int)read(fd, mybuf, want);
         my_count = n;
         my_item = -1;
         sigprocmask(SIG_SETMASK, &oset, NULL);
     }
 #else /* CK_POSIX_SIG */
-    n = read(fd, mybuf, sizeof(mybuf));
+    n = read(fd, mybuf, want);
 #endif /* CK_POSIX_SIG */
     debug(F101,"SVORPOSIX myfillbuf read","",n);
     debug(F101,"SVORPOSIX myfillbuf errno","",errno);
@@ -11540,6 +11547,7 @@ ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
                 continue;
             }
             dest[i++] = (CHAR)(n & ttpmsk);
+            dest[i] = '\0';             /* i < max, so dest[i] is in bounds */
 /*
   If we have not been instructed to wait for a turnaround character, we can go
   by the packet length field.  If turn != 0, we must wait for the end of line
@@ -11605,6 +11613,7 @@ ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
 
 #else /* PARSENSE */
             dest[i++] = n & ttpmsk;
+            dest[i] = '\0';
 #endif /* PARSENSE */
 
     /* Check for end of packet */
@@ -11720,6 +11729,8 @@ ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
             }
         } /* End of while() */
         ttimoff();
+        if (n >= 0)                     /* Buffer full: return what we have */
+          return(i);
         return(n);
     }
 }
@@ -15859,6 +15870,19 @@ ttptycmd(s) char *s;
                             if (x > 0 && in_chk(1,ttyfd) <= 0)
                               break;
                         }
+#ifdef CK_SSL
+/*
+  On an SSL/TLS connection n is the whole free buffer.  in_chk() counts
+  the decrypted bytes in OpenSSL and in myread()'s buffer.  When none
+  are left, the next byte needs a socket read.  Return to select() for
+  it.  A ttinc(2) here would wait up to 2 seconds after every burst,
+  and steady traffic would keep the loop reading without relaying
+  anything.
+*/
+                        if (x > 0 && (ssl_active_flag || tls_active_flag) &&
+                            in_chk(1,ttyfd) <= 0)
+                          break;
+#endif /* CK_SSL */
 /*
   Even byte x==0, "guaranteed safe" by select() above, is not actually safe to
   read with an unbounded ttinc(0): the same FIONREAD unreliability responsible

@@ -288,3 +288,73 @@ def test_confirm_prompt_suspends_fullscreen_display(tmp_path, wermit_path):
         "filename field appeared before the fullscreen display was "
         "resumed, not as part of its repaint: " + output)
     assert (client_dir / "surprise.txt").read_text() == "payload\n"
+
+
+def test_confirm_recursive_get_prompts_outside_requested_dir(
+        tmp_path, run_wermit, wermit_path):
+    """Verify a recursive GET confirms names outside the requested dir.
+
+    A server answering "get /recursive reports/*" with ".evilrc" is
+    sending a file the user did not ask for.  It is confirmed, and
+    refusing it leaves no file.
+    """
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    (server_dir / "reports").mkdir()
+    (server_dir / "reports" / "r1").write_text("data\n")
+    script = _write_server_script(
+        server_dir, "set send pathnames relative, "
+        "send /as-name:.evilrc reports/r1")
+
+    result = _run_client(run_wermit, wermit_path, script, client_dir,
+                         "set send i-packets off, "
+                         "get /recursive reports/*", answers="n\nn\n")
+
+    assert "Accept incoming file" in result.stdout, result.stdout
+    assert not (client_dir / ".evilrc").exists()
+
+
+def test_confirm_recursive_get_accepts_requested_tree(
+        tmp_path, run_wermit, wermit_path):
+    """Verify a recursive GET does not confirm files it asked for."""
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    (server_dir / "reports" / "sub").mkdir(parents=True)
+    (server_dir / "reports" / "r1").write_text("a\n")
+    (server_dir / "reports" / "sub" / "r2").write_text("b\n")
+    script = _write_server_script(server_dir, "server")
+
+    result = _run_client(run_wermit, wermit_path, script, client_dir,
+                         "get /recursive reports/*, finish", answers=None)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Accept incoming file" not in result.stdout
+    assert (client_dir / "reports" / "r1").read_text() == "a\n"
+    assert (client_dir / "reports" / "sub" / "r2").read_text() == "b\n"
+
+
+@pytest.mark.parametrize("form", ["relative", "absolute", "dotdot",
+                                  "asname"])
+def test_confirm_on_get_by_path_no_prompt(tmp_path, run_wermit,
+                                          wermit_path, form):
+    """Verify GET of a name given with a path, or with an as-name.
+
+    The incoming file is the one requested, so CONFIRM ON does not
+    prompt.  No answers are supplied, so a prompt would abort it.
+    """
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    sub = server_dir / "sub"
+    sub.mkdir()
+    (sub / "f1.txt").write_text("hello\n")
+    script = _write_server_script(server_dir, "server")
+    spec, local = {
+        "relative": ("sub/f1.txt", "f1.txt"),
+        "absolute": (f"{sub}/f1.txt", "f1.txt"),
+        "dotdot": (f"../{server_dir.name}/sub/f1.txt", "f1.txt"),
+        "asname": ("sub/f1.txt mine.txt", "mine.txt"),
+    }[form]
+
+    result = _run_client(
+        run_wermit, wermit_path, script, client_dir,
+        f"set receive confirm on, get {spec}", answers=None)
+
+    assert "Accept incoming file" not in result.stdout, result.stdout
+    assert (client_dir / local).read_text() == "hello\n", result.stdout

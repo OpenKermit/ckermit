@@ -1057,6 +1057,9 @@ _PROTOTYP( int tn_snenv, (CHAR *, int) ) ;
 _PROTOTYP( int tn_rnenv, (CHAR *, int) ) ;
 _PROTOTYP( int tn_wait, (char *) ) ;
 _PROTOTYP( int tn_push, (void) ) ;
+#ifdef CK_SSL
+_PROTOTYP( int tn_tls_follows_wait, (void) ) ;
+#endif /* CK_SSL */
 _PROTOTYP( int tnsndbrk, (void) );
 _PROTOTYP( VOID tn_debug, (char *));
 _PROTOTYP( int tn_hex, (CHAR *, int, CHAR *, int));

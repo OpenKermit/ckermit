@@ -1475,6 +1475,8 @@ ck_tn_sb_auth(sb,len) char * sb; int len;
     CHAR * buf;
     int rc = -1;
 
+    if (len < 3)                        /* No command byte: ignore it */
+      return(0);
     buf = malloc(len-1);
     if ( !buf ) return(-1);
 
@@ -1524,6 +1526,8 @@ ck_tn_sb_encrypt(sb,len) char * sb; int len;
     char * buf;
     int rc = -1;
 
+    if (len < 3)                        /* No command byte: ignore it */
+      return(0);
     buf = malloc(len-1);
     if ( !buf ) return(-1);
 
@@ -2429,7 +2433,7 @@ auth_send(parsedat,end_sub) unsigned char *parsedat; int end_sub;
 #endif /* NO_FTP_AUTH */
 
     if ( auth_type_user[0] == AUTHTYPE_AUTO ) {
-    for (i = 2; i+1 <= end_sub; i += 2) {
+    for (i = 2; i+1 < end_sub; i += 2) {
 #ifdef NTLM
         if (parsedat[i] == AUTHTYPE_NTLM &&
              ck_ntlm_is_valid(1) &&
@@ -2685,7 +2689,7 @@ auth_send(parsedat,end_sub) unsigned char *parsedat; int end_sub;
 #endif /* KRB4 */
     }
     } else {
-        for (i = 2; i+1 <= end_sub; i += 2) {
+        for (i = 2; i+1 < end_sub; i += 2) {
 #ifdef CK_SSL
             if ( atok(AUTHTYPE_SSL) && parsedat[i] == AUTHTYPE_SSL &&
                  !ssl_auth_failed_flag &&
@@ -3426,6 +3430,10 @@ auth_reply(parsedat,end_sub) unsigned char *parsedat; int end_sub;
 {
     int n = AUTH_FAILURE;
 
+    if (end_sub < 4) {                  /* SB, REPLY, type, modifiers */
+        auth_finished(AUTH_REJECT);
+        return(AUTH_FAILURE);
+    }
     if ( parsedat[2] != authentication_version ) {
         printf("Authentication version mismatch (%s [%d] != %s [%d])\r\n",
                 AUTHTYPE_NAME(parsedat[2]),parsedat[2],
@@ -3490,6 +3498,10 @@ auth_is(parsedat,end_sub) unsigned char *parsedat; int end_sub;
 {
     int n = AUTH_FAILURE;
 
+    if (end_sub < 4) {                  /* SB, IS, type, modifiers */
+        auth_finished(AUTH_REJECT);
+        return(AUTH_FAILURE);
+    }
     if ( parsedat[2] == AUTHTYPE_NULL ) {
         auth_finished(AUTH_REJECT);
         return(AUTH_FAILURE);
@@ -3513,13 +3525,15 @@ auth_is(parsedat,end_sub) unsigned char *parsedat; int end_sub;
         /* were sent to the client in the first place.              */
 
         int i=0;
-        for ( i=4; str_request[i] != IAC ; i+=2) {
+        /* str_request ends at IAC only after AUTH SEND was sent */
+        for ( i=4; i+1 < (int)sizeof(str_request) &&
+                  str_request[i] != IAC ; i+=2) {
             if (str_request[i] == parsedat[2] &&
                  str_request[i+1] == parsedat[3])
                 break;
         }
 
-        if ( str_request[i] == IAC ) {
+        if ( i+1 >= (int)sizeof(str_request) || str_request[i] == IAC ) {
             printf("Invalid authentication type pair (%s,%s)\r\n",
                     AUTHTYPE_NAME(parsedat[2]),
                     AUTHMODE_NAME(parsedat[3]));
@@ -3639,6 +3653,8 @@ int
 auth_parse(unsigned char *parsedat, int end_sub)
 {
     int rc = AUTH_FAILURE;
+    if (end_sub < 2)                    /* SB and the command byte */
+      return(rc);
     switch (parsedat[1]) {
     case TELQUAL_SEND:
         rc = auth_send(parsedat, end_sub);

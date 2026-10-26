@@ -2811,9 +2811,9 @@ nzrtol(name,name2,fncnv,fnrpath,max) char *name,*name2;int fncnv,fnrpath,max;
         *p++ = *name;
         n++;
     }
-    *p-- = '\0';                        /* Terminate */
-    while (*p < '!' && p > name2)       /* Strip trailing blanks & controls */
-      *p-- = '\0';
+    *p = '\0';                          /* Terminate */
+    while (p > name2 && *(p-1) < '!')   /* Strip trailing blanks & controls */
+      *--p = '\0';
 
     if (*name2 == '\0') {               /* Nothing left? */
         ckstrncpy(name2,"NONAME",max);  /* do this... */
@@ -3237,63 +3237,23 @@ zxcloexec(fd) int fd;
 #endif /* FD_CLOEXEC */
 }
 
-int
+/*
+  Z X P I P E  --  Run a command with its output on a pipe to filnum.
+
+  When argv is NULL, run comand with the user's shell.  Otherwise run
+  argv[0] via execvp() with argv.  comand then supplies the debug log
+  string.  The caller checks nopush and filnum.  Returns 1 on success,
+  0 on failure.
+*/
+static int
 #ifdef CK_ANSIC
-zxcmd( int filnum, char *comand )
+zxpipe(int filnum, char *comand, char **argv)
 #else
-zxcmd(filnum,comand) int filnum; char *comand;
+zxpipe(filnum,comand,argv) int filnum; char *comand; char **argv;
 #endif /* CK_ANSIC */
 {
-    int out;
     int pipes[2];
     extern int kactive;                 /* From ckcpro.c and ckcmai.c */
-
-    if (nopush) {
-        debug(F100,"zxcmd fails: nopush","",0);
-        return(-1);
-    }
-    debug(F111,"zxcmd",comand,filnum);
-    if (chkfn(filnum) < 0) return(-1);  /* Need a valid Kermit file number. */
-    if (filnum == ZSTDIO || filnum == ZCTERM) /* But not one of these. */
-      return(0);
-
-    out = (filnum == ZIFILE || filnum == ZRFILE) ? 0 : 1 ;
-    debug(F101,"zxcmd out",comand,out);
-
-/* Output to a command */
-
-    if (out) {                          /* Need popen() to do this. */
-        ckstrncpy(fullname,"(pipe)",CKMAXPATH);
-#ifdef NOPOPEN
-        return(0);                      /* no popen(), fail. */
-#else
-/* Use popen() to run the command. */
-
-#ifdef _POSIX_SOURCE
-/* Strictly speaking, popen() is not available in POSIX.1 */
-#define DCLPOPEN
-#endif /* _POSIX_SOURCE */
-
-        debug(F110,"zxcmd out",comand,0);
-
-        if (priv_chk()) {
-            debug(F100,"zxcmd priv_chk failed","",0);
-            return(0);
-        }
-        errno = 0;
-        fp[filnum] = popen(comand,"w");
-        debug(F111,"zxcmd popen",fp[filnum] ? "OK" : "Failed", errno);
-        if (fp[filnum] == NULL)
-          return(0);
-        zxcloexec(fileno(fp[filnum]));
-        ispipe[filnum] = 1;
-        zoutcnt = 0;                    /* (PWP) reset input buffer */
-        zoutptr = zoutbuffer;
-        return(1);
-#endif /* NOPOPEN */
-    }
-
-/* Input from a command */
 
 #ifdef SNI541
     /* SINIX-L 5.41 does not like fdopen() */
@@ -3353,6 +3313,12 @@ zxcmd(filnum,comand) int filnum; char *comand;
 #endif /* OXOS */
         close(pipes[1]);                /* Don't need this any more. */
 
+        if (argv) {                     /* Run the program directly */
+            restorsigs();
+            execvp(argv[0],argv);
+            exit(1);                    /* exec failed */
+        }
+
 #ifdef aegis
         if ((shpath = getenv("SERVERSHELL")) == NULL)
           shpath = "/bin/sh";
@@ -3408,7 +3374,94 @@ zxcmd(filnum,comand) int filnum; char *comand;
     zinptr = zinbuffer;
     fullname[0] = '\0';
     return(1);
+} /* zxpipe */
+
+int
+#ifdef CK_ANSIC
+zxcmd( int filnum, char *comand )
+#else
+zxcmd(filnum,comand) int filnum; char *comand;
+#endif /* CK_ANSIC */
+{
+    int out;
+
+    if (nopush) {
+        debug(F100,"zxcmd fails: nopush","",0);
+        return(-1);
+    }
+    debug(F111,"zxcmd",comand,filnum);
+    if (chkfn(filnum) < 0) return(-1);  /* Need a valid Kermit file number. */
+    if (filnum == ZSTDIO || filnum == ZCTERM) /* But not one of these. */
+      return(0);
+
+    out = (filnum == ZIFILE || filnum == ZRFILE) ? 0 : 1 ;
+    debug(F101,"zxcmd out",comand,out);
+
+/* Output to a command */
+
+    if (out) {                          /* Need popen() to do this. */
+        ckstrncpy(fullname,"(pipe)",CKMAXPATH);
+#ifdef NOPOPEN
+        return(0);                      /* no popen(), fail. */
+#else
+/* Use popen() to run the command. */
+
+#ifdef _POSIX_SOURCE
+/* Strictly speaking, popen() is not available in POSIX.1 */
+#define DCLPOPEN
+#endif /* _POSIX_SOURCE */
+
+        debug(F110,"zxcmd out",comand,0);
+
+        if (priv_chk()) {
+            debug(F100,"zxcmd priv_chk failed","",0);
+            return(0);
+        }
+        errno = 0;
+        fp[filnum] = popen(comand,"w");
+        debug(F111,"zxcmd popen",fp[filnum] ? "OK" : "Failed", errno);
+        if (fp[filnum] == NULL)
+          return(0);
+        zxcloexec(fileno(fp[filnum]));
+        ispipe[filnum] = 1;
+        zoutcnt = 0;                    /* (PWP) reset input buffer */
+        zoutptr = zoutbuffer;
+        return(1);
+#endif /* NOPOPEN */
+    }
+
+/* Input from a command */
+
+    return(zxpipe(filnum,comand,NULL));
 } /* zxcmd */
+
+/*
+  Z X C M D V  --  Run a program and read its output from filnum.
+
+  Run argv[0] via execvp() with the NULL-terminated argument vector
+  argv.  filnum must be ZIFILE or ZRFILE.  Returns -1 if nopush is set
+  or filnum is invalid, 0 on failure, 1 on success.
+*/
+int
+#ifdef CK_ANSIC
+zxcmdv( int filnum, char **argv )
+#else
+zxcmdv(filnum,argv) int filnum; char **argv;
+#endif /* CK_ANSIC */
+{
+    if (nopush) {
+        debug(F100,"zxcmdv fails: nopush","",0);
+        return(-1);
+    }
+    if (!argv || !argv[0] || !*argv[0])
+      return(-1);
+    debug(F111,"zxcmdv",argv[0],filnum);
+    if (chkfn(filnum) < 0)
+      return(-1);
+    if (filnum != ZIFILE && filnum != ZRFILE)
+      return(0);
+    return(zxpipe(filnum,argv[0],argv));
+}
 
 /*  Z C L O S F  - wait for the child fork to terminate and close the pipe. */
 
@@ -3491,6 +3544,10 @@ zclosf(filnum) int filnum;
 
 int
 zxcmd(filnum,comand) int filnum; char *comand; {
+    return(0);
+}
+int
+zxcmdv(filnum,argv) int filnum; char **argv; {
     return(0);
 }
 int
@@ -5401,30 +5458,28 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x;
     }
 #endif /* CKROOT */
 
-    if (yy->date.len == 0) {            /* No date in struct */
-        if (yy->lprotect.len > 0) {     /* So go do permissions */
-            goto zsperms;
-        } else {
-            debug(F100,"zstime: nothing to do","",0);
-            return(0);
+    if (yy->date.len == 0 &&            /* No date */
+        yy->lprotect.len == 0 &&        /* and no permissions */
+        yy->gprotect.len <= 0) {
+        debug(F100,"zstime: nothing to do","",0);
+        return(0);
+    }
+    if (yy->date.len != 0) {
+        if ((tm = zstrdt(yy->date.val,yy->date.len)) < 0) {
+            debug(F101,"zstime: zstrdt fails","",0);
+            return(-1);
         }
+        debug(F101,"zstime: tm","",tm);
+        debug(F111,"zstime: A-pkt date ok ",yy->date.val,yy->date.len);
+        setdate = 1;
     }
-    if ((tm = zstrdt(yy->date.val,yy->date.len)) < 0) {
-        debug(F101,"zstime: zstrdt fails","",0);
-        return(-1);
-    }
-    debug(F101,"zstime: tm","",tm);
-    debug(F111,"zstime: A-pkt date ok ",yy->date.val,yy->date.len);
-
-    if (stat(f,&sb)) {                  /* Get the time for the file */
+    if (stat(f,&sb)) {                  /* Mode and times of the file */
         debug(F101,"STAT","",14);
         debug(F111,"zstime: Can't stat file:",f,errno);
         return(-1);
     }
     debug(F101,"STAT","",15);
-    setdate = 1;
 
-  zsperms:
 #ifdef CK_PERMS
     {
         int i, px = 0, xx, flag = 0;
@@ -5457,13 +5512,17 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x;
               xx = 0 - xx;
             for (i = 0; i < xx; i++) {  /* Decode octal string */
                 if (*s <= '7' && *s >= '0') {
-                    px = 8 * px + (int)(*s) - '0';
+                    /* Keep the permission bits so px cannot overflow */
+                    px = (8 * px + (int)(*s) - '0') & 07777;
                 } else {
                     flag = 0;
                     break;
                 }
                 s++;
             }
+            /* The sender's permissions give read, write and execute */
+            if (yy->lprotect.len > 0)
+              px &= 0777;
 #ifdef DEBUG
             sprintf(obuf,"%o",px);
             debug(F110,"zstime octal lperm",obuf,0);
@@ -8227,6 +8286,7 @@ _PROTOTYP(int initgroups, (const char *, gid_t) );
     const char * reply = NULL;
 #endif /* CK_PAM */
     int dummy;
+    int authok = 0;
 
     if (logged_in || askpasswd == 0) {
         return(0);
@@ -8244,11 +8304,15 @@ _PROTOTYP(int initgroups, (const char *, gid_t) );
 #endif /* CKSYSLOG */
         return(0);
     }
-    if (!guest
 #ifdef CK_AUTHENTICATION
-        && ck_tn_auth_valid() != AUTH_VALID
+    {
+        /* Telnet authentication validated szUserNameRequested only */
+        extern char szUserNameRequested[];
+        authok = ck_tn_auth_valid() == AUTH_VALID &&
+          !strcmp(zvuname,szUserNameRequested);
+    }
 #endif /* CK_AUTHENTICATION */
-        ) {                     /* "ftp" is only account allowed no password */
+    if (!guest && !authok) {    /* "ftp" is only account allowed no password */
 #ifdef CK_PAM
         debug(F110,"zvpass","calling pam_set_item(AUTHTOK)",0);
         if ((pam_status = pam_set_item(pamh,PAM_AUTHTOK,p)) != PAM_SUCCESS) {

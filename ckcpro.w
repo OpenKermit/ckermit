@@ -173,7 +173,7 @@ _PROTOTYP( int cmdsrc, (void) );
   extern long speed, crc16;
   extern CK_OFF_T calibrate, ffc;
 #ifndef OS2
-  extern char *SPACMD, *SPACM2, *WHOCMD;
+  extern char *SPACMD;
 #endif /* OS2 */
   extern CHAR *rdatap;
   extern struct zattr iattr;
@@ -764,10 +764,14 @@ a {
 <serve>G {                              /* Generic server command */
 #ifndef NOSERVER
     srvptr = srvcmd;                    /* Point to command buffer */
-    decode(rdatap,putsrv,0);            /* Decode packet data into it */
+    wx = decode(rdatap,putsrv,0);       /* Decode packet data into it */
     putsrv(NUL);                        /* Insert a couple nulls */
     putsrv(NUL);                        /* for termination */
-    if (srvcmd[0]) {
+    if (wx < 0) {
+        errpkt((CHAR *)((wx == DECODE_BAD) ? "Malformed packet data" :
+                        "Server command too long"));
+        RESUME;
+    } else if (srvcmd[0]) {
         sstate = srvcmd[0];             /* Set requested start state */
         if (x_login && !x_logged &&     /* Login required? */
             /* Login, Logout, and Help are allowed when not logged in */
@@ -805,11 +809,15 @@ a {
         RESUME;
     } else {
         srvptr = srvcmd;                /* Point to command buffer */
-        decode(rdatap,putsrv,0);        /* Decode command packet into it */
+        wx = decode(rdatap,putsrv,0);   /* Decode command packet into it */
         putsrv(NUL);                    /* Null-terminate */
         nakstate = 0;                   /* Now sending, not receiving */
         binary = XYFT_T;                /* Switch to text mode */
-        if (syscmd((char *)srvcmd,"")) { /* Try to execute the command */
+        if (wx < 0) {
+            errpkt((CHAR *)((wx == DECODE_BAD) ? "Malformed packet data" :
+                            "Host command too long"));
+            RESUME;
+        } else if (syscmd((char *)srvcmd,"")) { /* Try to run it */
             what = W_REMO;              /* Doing a REMOTE command. */
 #ifdef STREAMING
             if (!streaming)
@@ -1383,13 +1391,15 @@ _PROTOTYP(int sndspace,(int));
 #else
             if (nopush)
               wx = 0;
+            else if (wx)
+              wx = syscmd(SPACMD,"");
             else
-              wx = (wx ? syscmd(SPACMD,"") :
-                    syscmd(SPACM2,(char *)(srvcmd+2)));
-            if (wx) {                    /* If we got the info */
+              wx = srvspace(srvarg(srvcmd+1));
+            if (wx > 0) {               /* If we got the info */
                 BEGIN ssinit;           /* send it */
             } else {                    /* otherwise */
-                errpkt((CHAR *)"Can't check space"); /* send error message */
+                errpkt((CHAR *)(wx < 0 ? "Not a directory" :
+                                "Can't check space"));
                 RESUME;                 /* and await next server command */
             }
 #endif /* OS2 */
@@ -1405,7 +1415,7 @@ _PROTOTYP(int sndspace,(int));
       cksyslog(SYSLG_PR, 1, "server", "REMOTE WHO", (char *)srvcmd);
 #endif /* CKSYSLOG */
 #ifdef IKSDB
-    if (ikdbopen) slotstate(what,"REMOTE WHO", (char *)(srvcmd+2), "");
+    if (ikdbopen) slotstate(what,"REMOTE WHO", srvarg(srvcmd+1), "");
 #endif /* IKSDB */
     if (!ENABLED(en_who)) {
         errpkt((CHAR *)"REMOTE WHO disabled");
@@ -1420,10 +1430,13 @@ _PROTOTYP(int sndwho,(char *));
                 RESUME;                 /* and return to server command wait */
             }
 #else
-        if (syscmd(WHOCMD,(char *)(srvcmd+2))) {
+        wx = srvwho(srvarg(srvcmd+1));
+        if (wx > 0) {
             BEGIN ssinit;
         } else {
-            errpkt((CHAR *)"Can't do who command");
+            errpkt((CHAR *)(wx == -2 ? "User name not supported" :
+                            (wx < 0 ? "Invalid user name" :
+                             "Can't do who command")));
             RESUME;
         }
 #endif /* OS2 */
@@ -1703,7 +1716,9 @@ _PROTOTYP(int sndwho,(char *));
 #endif /* CKTUNING */
         if (rc < 0) {
             discard = (keep == 0 || (keep == SET_AUTO && binary != XYFT_T));
-            errpkt((CHAR *)"Error writing data"); /* If failure, */
+            errpkt((CHAR *)((rc == DECODE_BAD) ? /* If failure, */
+                            "Malformed packet data" :
+                            "Error writing data"));
             RESUME;
         } else                          /* Data written OK, send ACK */
 #ifdef STREAMING
@@ -2367,7 +2382,9 @@ rcv_firstdata() {
             rc = decode(rdatap, qf ? puttrm : putfil, 1);
 #endif /* CKTUNING */
             if (rc < 0) {
-                errpkt((CHAR *)"Error writing data");
+                errpkt((CHAR *)((rc == DECODE_BAD) ?
+                                "Malformed packet data" :
+                                "Error writing data"));
                 RESUME;
                 return(-1);
             }
@@ -2432,14 +2449,17 @@ rcv_shortreply() {
             wx = opent(&iattr);          /* "open" the screen */
         }
         if (wx) {                        /* If file was opened ok */
-            if (decode(rdatap,
+            wx = decode(rdatap,
 #ifndef NOSPL
-                       (query || !remfile) ? puttrm :
+                        (query || !remfile) ? puttrm :
 #else
-                       !remfile ? puttrm :
+                        !remfile ? puttrm :
 #endif /* NOSPL */
-                       zputfil, 1) < 0) { /* Note: zputfil, not putfil. */
-                errpkt((CHAR *)"Error writing data");
+                        zputfil, 1);    /* Note: zputfil, not putfil. */
+            if (wx < 0) {
+                errpkt((CHAR *)((wx == DECODE_BAD) ?
+                                "Malformed packet data" :
+                                "Error writing data"));
                 RESUME;
                 return(-1);
             } else {
@@ -2500,7 +2520,8 @@ srv_query() {
             RESUME;
             return(-1);
         } else {                        /* Query allowed */
-            int n; char *p, *q;
+            extern int nopush;
+            int n, zx, xnopush; char *p, *q;
             qbufp = querybuf;           /* Wipe out old stuff */
             qbufn = 0;
             querybuf[0] = NUL;
@@ -2541,7 +2562,17 @@ srv_query() {
             }                           /* Now evaluate it */
             n = QBUFL;                  /* Max length */
             q = querybuf;               /* Where to put it */
-            if (zzstring(p,&q,&n) < 0) {
+/*
+  The client's text can call functions.  \fcommand() and RUN from
+  \fexecute() run shell commands.  With HOST disabled, nopush refuses
+  them for the length of the evaluation.
+*/
+            xnopush = nopush;
+            if (!ENABLED(en_hos))
+              nopush = 1;
+            zx = zzstring(p,&q,&n);
+            nopush = xnopush;
+            if (zx < 0) {
                 errpkt((n > 0) ? (CHAR *)"Can't get value"
                                : (CHAR *)"Value too long"
                        );
@@ -2570,7 +2601,12 @@ srv_query() {
             return(-1);
         } else {                        /* OK */
             int n;
-            n = xunchar(*(srvcmd+3));   /* Length of name */
+            n = gflen(srvcmd+3);        /* Length of name */
+            if (n < 0 || gflen(srvcmd+4+n) < 0) { /* Name and value */
+                errpkt((CHAR *)"Invalid REMOTE ASSIGN");
+                RESUME;
+                return(-1);
+            }
             n = 3 + n + 1;              /* Position of length of value */
             *(srvcmd+n) = NUL;          /* Don't need it */
             if (addmac((char *)(srvcmd+4),(char *)(srvcmd+n+1)) < 0)
@@ -2610,8 +2646,15 @@ srv_copy() {
     } else {
         char *str1, *str2, f1[256], f2[256];
         int  len1, len2;
-        len1 = xunchar(srvcmd[1]);      /* Separate the parameters */
-        len2 = xunchar(srvcmd[2+len1]);
+        len1 = gflen(srvcmd+1);         /* Separate the parameters */
+        len2 = (len1 < 0) ? -1 : gflen(srvcmd+2+len1);
+        if (len2 == 0)                  /* Over 94: the rest of the data */
+          len2 = (int)strlen((char *)(srvcmd+3+len1));
+        if (len2 < 0 || len2 > 255) {   /* Fields past the data */
+            errpkt((CHAR *)"Invalid REMOTE COPY");
+            RESUME;
+            return(-1);
+        }
         strncpy(f1,(char *)(srvcmd+2),len1);
         f1[len1] = NUL;
         strncpy(f2,(char *)(srvcmd+3+len1),len2);
@@ -2663,13 +2706,15 @@ srv_rename() {
     } else {                            /* RENAME is enabled */
         char *str1, *str2, f1[256], f2[256];
         int len1, len2;
-        len1 = xunchar(srvcmd[1]);      /* Separate the parameters */
-        len2 = xunchar(srvcmd[2+len1]);
-        strncpy(f1,(char *)(srvcmd+2),len1);
-        f1[len1] = NUL;
-        strncpy(f2,(char *)(srvcmd+3+len1),len2);
-        f2[len2] = NUL;
-        len2 = xunchar(srvcmd[2+len1]);
+        len1 = gflen(srvcmd+1);         /* Separate the parameters */
+        len2 = (len1 < 0) ? -1 : gflen(srvcmd+2+len1);
+        if (len2 == 0)                  /* Over 94: the rest of the data */
+          len2 = (int)strlen((char *)(srvcmd+3+len1));
+        if (len2 < 0 || len2 > 255) {   /* Fields past the data */
+            errpkt((CHAR *)"Invalid REMOTE RENAME");
+            RESUME;
+            return(-1);
+        }
         strncpy(f1,(char *)(srvcmd+2),len1);
         f1[len1] = NUL;
         strncpy(f2,(char *)(srvcmd+3+len1),len2);
@@ -2719,8 +2764,15 @@ srv_login() {
 
     f1[0] = NUL; f2[0] = NUL; f3[0] = NUL;
     len = 0;
-    if (srvcmd[1])                      /* First length field */
-      len = xunchar(srvcmd[1]);         /* Separate the parameters */
+    if (srvcmd[1]) {                    /* First length field */
+        len = gflen(srvcmd+1);          /* Separate the parameters */
+        if (len < 0 || len > LOGINLEN) {
+            errpkt((CHAR *)(len < 0 ? "Invalid REMOTE LOGIN" :
+                            "Username too long"));
+            RESUME;
+            return(-1);
+        }
+    }
 
     if (x_login) {                      /* Login required */
         if (x_logged) {                 /* And already logged in */
@@ -2754,23 +2806,20 @@ srv_login() {
                 if (ckxsyslog >= SYSLG_PR && ckxlogging)
                   cksyslog(SYSLG_PR, 1, "server", "REMOTE LOGIN", NULL);
 #endif /* CKSYSLOG */
-                if (len > LOGINLEN) {
-                    errpkt((CHAR *)"Username too long");
-                }
                 p = srvcmd + 2;         /* Point to it */
                 for (i = 0; i < len; i++) /* Copy it */
                   f1[i] = p[i];
                 f1[len] = NUL;          /* Terminate it */
                 p += len;               /* Point to next length field */
                 if (*p) {               /* If we have one */
-                    len = xunchar(*p++); /* decode it */
+                    len = gflen(p++);   /* decode it */
                     if (len > 0 && len <= LOGINLEN) {
                         for (i = 0; i < len; i++) /* Same deal for password */
                           f2[i] = p[i];
                         f2[len] = NUL;
                         p += len;       /* And account */
                         if (*p) {
-                            len = xunchar(*p++);
+                            len = gflen(p++);
                             if (len > 0 && len <= LOGINLEN) {
                                 for (i = 0; i < len; i++)
                                   f3[i] = p[i]; /* Set but never used */
@@ -3657,7 +3706,12 @@ sgetinit(rg,xget) int rg, xget;
 
     fs = (char *)srvcmd;
     srvptr = srvcmd;                    /* Point to server command buffer */
-    decode(rdatap,putsrv,0);            /* Decode the GET command into it */
+    i = decode(rdatap,putsrv,0);        /* Decode the GET command into it */
+    if (i < 0) {
+        errpkt((CHAR *)((i == DECODE_BAD) ? "Malformed packet data" :
+                        "GET command too long"));
+        return(-1);
+    }
     /* Accept multiple filespecs */
     cmarg2 = "";                        /* Don't use cmarg2 */
     cmarg = "";                         /* Don't use cmarg */
@@ -3678,12 +3732,20 @@ sgetinit(rg,xget) int rg, xget;
             if (L >= SP)                /* Decode length */
               len = xunchar(L);
             else if (c == '@') {        /* Allow missing EOP length field */
+                if (!L)                 /* Stay at the end of the data */
+                  p--;
                 len = 0;
-            } else {
+            } else if (L && p[0] && p[1]) { /* Extended length */
                 len = (xunchar(*p++) * 95);
                 len += xunchar(*p++);
-            }
+            } else
+              len = -1;
             debug(F101,"sgetinit len","",len);
+            if (len < 0 || len > (int)strlen((char *)p)) {
+                errpkt((CHAR *)"Invalid GET Parameter");
+                debug(F100,"sgetinit parameter past the data","",0);
+                return(-1);
+            }
             next = *(p+len);            /* Get next parameter */
             *(p+len) = NUL;             /* Zero it out to terminal value */
             debug(F110,"sgetinit p",p,0);
@@ -3691,7 +3753,13 @@ sgetinit(rg,xget) int rg, xget;
               case 'O':                 /* GET Options */
                 val = atoi(p);          /* Convert to int */
                 debug(F101,"sgetinit O val","",val);
-                if (val & GOPT_DEL) moving = 1;
+                if (val & GOPT_DEL) {
+                    if (!ENABLED(en_del)) {
+                        errpkt((CHAR *)"Deleting files is disabled");
+                        return(-1);
+                    }
+                    moving = 1;
+                }
                 if (val & GOPT_RES) rg = 1;
                 if (val & GOPT_REC) {
                     recursive = 1;

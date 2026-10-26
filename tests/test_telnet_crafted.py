@@ -4,6 +4,7 @@ Tests for Telnet subnegotiation handling in ckctel.c.
 Verifies that an unclosed subnegotiation (IAC SB without IAC SE) followed
 by peer connection closure does not cause wermit to hang.
 """
+import os
 import re
 import socket
 import subprocess
@@ -285,15 +286,18 @@ def _serve_new_environ(send_data):
     return srv.getsockname()[1], thread, srv, received
 
 
-def _new_environ_reply(run_wermit, send_data):
+def _new_environ_reply(run_wermit, send_data, userid="kermtest",
+                       setup=""):
     """Return the data of the client's NEW-ENVIRON IS reply to send_data.
 
-    Verifies wermit survives the request and then reads MARKER.
+    Verifies wermit survives the request and then reads MARKER.  The
+    data is returned as sent, with IAC still doubled.
     """
     port, thread, srv, received = _serve_new_environ(send_data)
     try:
         result = run_wermit(
-            "set delay 0, set input echo off, set login userid kermtest, "
+            "set delay 0, set input echo off, "
+            f"set login userid {userid}, {setup}"
             f"set host 127.0.0.1 {port} /telnet, "
             f"input 10 {MARKER.decode()}, "
             "if success echo GOT-MARKER, "
@@ -464,3 +468,338 @@ def test_telnet_comport_baud_rate_bytes(run_wermit):
     assert ((COMPORT_SET_BAUDRATE, bytes([0, 1, 0xC2, 0]))
             in requests), requests
     assert "SPEED2=[115200]" in result.stdout, result.stdout
+
+
+TELOPT_FORWARD_X = 49
+FWDX_XOFF, FWDX_XON = 6, 7
+
+
+def _fake_x_display():
+    """Listen on an X display TCP port; return (display number, socket)."""
+    for n in range(10, 60):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.bind(("127.0.0.1", 6000 + n))
+        except OSError:
+            s.close()
+            continue
+        s.listen(4)
+        return n, s
+    pytest.skip("no free X display port")
+
+
+@pytest.mark.parametrize("cmd", [FWDX_XOFF, FWDX_XON])
+@pytest.mark.parametrize("channel", [b"\xff\xff", b"\x00\x40", b"\x00"])
+def test_telnet_forward_x_flow_control_unknown_channel(
+        run_wermit, monkeypatch, cmd, channel):
+    """Verify FORWARD-X XOFF/XON for an unknown channel id is ignored.
+
+    The channel number on the wire is an id, not a table index.  An id
+    with no open channel, or a short subnegotiation, must not index the
+    channel table.
+    """
+    display, xsock = _fake_x_display()
+    monkeypatch.setenv("DISPLAY", f"127.0.0.1:{display}")
+    payload = (bytes([IAC, WILL, TELOPT_FORWARD_X])
+               + _sb(TELOPT_FORWARD_X, bytes([cmd]) + channel))
+    port, thread, srv = _serve_once(payload)
+    try:
+        result = run_wermit(
+            "set delay 0, set input echo off, "
+            "set telopt /client forward-x accepted, "
+            "set telnet forward-x no-encryption, "
+            f"set host 127.0.0.1 {port} /telnet, "
+            f"input 10 {MARKER.decode()}, "
+            "if success echo GOT-MARKER, close, exit",
+            timeout=30)
+    finally:
+        srv.close()
+        xsock.close()
+        thread.join(timeout=5)
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}")
+    assert "GOT-MARKER" in result.stdout, result.stdout
+
+
+TELOPT_AUTHENTICATION, TELOPT_ENCRYPTION = 37, 38
+
+
+@pytest.mark.parametrize("payload", [
+    _sb(TELOPT_AUTHENTICATION, b""),
+    _sb(TELOPT_AUTHENTICATION, b"\x00"),            # IS, no type
+    _sb(TELOPT_AUTHENTICATION, b"\x00\x07"),        # IS, no modifiers
+    _sb(TELOPT_AUTHENTICATION, b"\x00\x07\x55"),    # IS, unrequested pair
+    _sb(TELOPT_AUTHENTICATION, b"\x02"),            # REPLY, no type
+    _sb(TELOPT_AUTHENTICATION, b"\x01\x09"),        # SEND, odd list
+    _sb(TELOPT_ENCRYPTION, b""),
+    _sb(TELOPT_ENCRYPTION, b"\x07"),                # ENC_KEYID, empty
+], ids=["auth-empty", "auth-is-short", "auth-is-no-mod", "auth-is-pair",
+        "auth-reply-short", "auth-send-odd", "enc-empty", "enc-keyid"])
+def test_telnet_short_auth_encrypt_subnegotiations(run_wermit, payload):
+    """Verify short AUTHENTICATION and ENCRYPTION SBs are handled.
+
+    Each handler indexes the subnegotiation by position.  A short one
+    must not be read past its end.  The overread shows only under
+    AddressSanitizer; a normal build checks that the session goes on.
+    """
+    negotiate = bytes([IAC, DO, TELOPT_AUTHENTICATION,
+                       IAC, WILL, TELOPT_ENCRYPTION,
+                       IAC, DO, TELOPT_ENCRYPTION])
+    _expect_marker_after(run_wermit, negotiate + payload)
+
+
+def test_telnet_new_environ_reply_over_250_bytes(run_wermit):
+    """Verify a NEW-ENVIRON reply longer than 250 bytes is sent."""
+    setup = "".join(f"set telnet environment {k} {k[0] * 60}, "
+                    for k in ("job", "printer", "systemtype", "display"))
+    reply = _new_environ_reply(run_wermit, b"", setup=setup)
+    assert len(reply) > 250, reply
+    for name, val in ((b"JOB", b"j"), (b"PRINTER", b"p"),
+                      (b"SYSTEMTYPE", b"s")):
+        assert b"\x00" + name + b"\x01" + val * 60 in reply, reply
+
+
+def test_telnet_new_environ_reply_quotes_value(run_wermit):
+    """Verify special bytes in a value are ESC-quoted and IAC doubled.
+
+    Byte 1 (VALUE) is preceded by ESC (2).  Byte 255 (IAC) is sent
+    twice.
+    """
+    reply = _new_environ_reply(run_wermit, b"\x00USER",
+                               userid="ab\\1cd\\255ef")
+    assert reply == b"\x00USER\x01ab\x02\x01cd\xff\xffef", reply
+
+
+def _naws_to_server(wermit_path, tmp_path, port, subnegotiations):
+    """Send NAWS subnegotiations to wermit as a Telnet server.
+
+    wermit listens with SET HOST * and logs debug output.  The client
+    answers DO NAWS with WILL NAWS and refuses every other option.  It
+    then sends each subnegotiation and a line that ends the server's
+    INPUT.  Returns the widths and heights the server's debug log
+    records.
+    """
+    log = tmp_path / "debug.log"
+    proc = subprocess.Popen(
+        [wermit_path, "-H", "-Y", "-C",
+         "set command more-prompting off, set tcp reverse-dns-lookup off, "
+         f"log debug {log}, set host * {port} /telnet, "
+         "input 10 DONE, close, exit"],
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL, cwd=str(tmp_path))
+    try:
+        conn = None
+        for _ in range(100):
+            try:
+                conn = socket.create_connection(("127.0.0.1", port), 1)
+                break
+            except OSError:
+                threading.Event().wait(0.1)
+        assert conn is not None, "server never listened"
+        with conn:
+            conn.settimeout(10)
+            pending = b""
+            sent = False
+            while proc.poll() is None:
+                try:
+                    data = conn.recv(4096)
+                except OSError:         # Timeout, or reset at exit
+                    break
+                if not data:
+                    break
+                pending += data
+                i = 0
+                while i + 2 < len(pending) or (
+                        i < len(pending) and pending[i] != IAC):
+                    if pending[i] != IAC:
+                        i += 1
+                        continue
+                    cmd, opt = pending[i + 1], pending[i + 2]
+                    if cmd == DO and opt == TELOPT_NAWS and not sent:
+                        conn.sendall(bytes([IAC, WILL, TELOPT_NAWS]))
+                        for sub in subnegotiations:
+                            conn.sendall(_sb(TELOPT_NAWS, sub))
+                        conn.sendall(b"DONE\r\n")
+                        sent = True
+                    elif cmd in (WILL, DO):
+                        reply = DONT if cmd == WILL else WONT
+                        conn.sendall(bytes([IAC, reply, opt]))
+                    i += 3 if cmd in (WILL, WONT, DO, DONT) else 2
+                pending = pending[i:]
+            proc.wait(timeout=20)
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait(timeout=10)
+    text = log.read_text(errors="replace")
+    return re.findall(r"tn_doop NAWS SB\[(width|height)\]=(\d+)", text)
+
+
+@pytest.mark.parametrize("data", [b"", b"\x00", b"\x00\x50\x00"],
+                         ids=["empty", "one", "three"])
+def test_telnet_server_naws_short(wermit_path, tmp_path, get_free_port,
+                                  data):
+    """Verify a Telnet server ignores NAWS with fewer than four bytes.
+
+    NAWS holds a width and height of two bytes each.  The client sends
+    a short NAWS and then a valid one of 100 by 30.  The server must
+    record only the valid size.
+    """
+    sizes = _naws_to_server(wermit_path, tmp_path, get_free_port(),
+                            [data, b"\x00\x64\x00\x1e"])
+    assert sizes == [("width", "100"), ("height", "30")], sizes
+
+
+TELOPT_ENCRYPTION = 38
+
+
+@pytest.mark.parametrize("data,expect", [
+    (b"\x01\x01\x02", "SUPPORT DES_CFB64 DES_OFB64"),
+    (b"\x01\x01\xc8\x02", "SUPPORT DES_CFB64 \r\n  c8 02"),
+    (b"\x01" + b"\x01" * 40, "SUPPORT" + " DES_CFB64" * 15 + " \r\n  01"),
+    (b"\x02\xc8\x01", "REPLY UNKNOWN FB64_IV"),
+], ids=["support", "support-unknown", "support-long", "reply-unknown"])
+def test_telnet_debug_encryption_names(run_wermit, tmp_path, data,
+                                       expect):
+    """Verify the debug log names ENCRYPTION types within the table.
+
+    tn_sb() decodes each subnegotiation for the debug log.  It names
+    each encryption type below ENCTYPE_CNT and shows the rest in hex.
+    The decoded line holds at most 15 names after SUPPORT.
+    """
+    log = tmp_path / "debug.log"
+    port, thread, srv = _serve_once(_sb(TELOPT_ENCRYPTION, data))
+    try:
+        result = run_wermit(
+            f"log debug {log}, set delay 0, set input echo off, "
+            f"set host 127.0.0.1 {port} /telnet, "
+            f"input 10 {MARKER.decode()}, "
+            "if success echo GOT-MARKER, close, close debug, exit",
+            timeout=30)
+    finally:
+        srv.close()
+        thread.join(timeout=5)
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}")
+    assert "GOT-MARKER" in result.stdout, result.stdout
+    text = log.read_bytes().decode(errors="replace")
+    assert "TELNET RCVD SB ENCRYPTION " + expect in text, [
+        x for x in text.splitlines() if "RCVD SB ENC" in x]
+
+
+def test_telnet_client_ignores_server_terminal_type(wermit_path, tmp_path):
+    """Verify a Telnet client keeps TERM when the server sends TTYPE IS.
+
+    Only a client sends TTYPE IS (RFC 1091).  The server here sends DO
+    TTYPE and then TTYPE IS vt52.  The client's TERM must stay xterm.
+    """
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    srv.settimeout(15)
+
+    def run():
+        try:
+            conn, _ = srv.accept()
+        except OSError:
+            return
+        with conn:
+            conn.settimeout(10)
+            try:
+                conn.sendall(bytes([IAC, DO, TELOPT_TTYPE]))
+                buf = b""
+                while bytes([IAC, WILL, TELOPT_TTYPE]) not in buf:
+                    data = conn.recv(4096)
+                    if not data:
+                        return
+                    buf += data
+                conn.sendall(_sb(TELOPT_TTYPE, b"\x00vt52")
+                             + b"\r\n" + MARKER + b"\r\n")
+                while conn.recv(4096):
+                    pass
+            except OSError:
+                pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    env = dict(os.environ, TERM="xterm")
+    try:
+        result = subprocess.run(
+            [wermit_path, "-H", "-Y", "-C",
+             "set command more-prompting off, set delay 0, "
+             "set input echo off, "
+             f"set host 127.0.0.1 {srv.getsockname()[1]} /telnet, "
+             f"input 10 {MARKER.decode()}, "
+             "echo TERM=[\\$(TERM)], close, exit"],
+            stdin=subprocess.DEVNULL, capture_output=True, text=True,
+            timeout=60, env=env)
+    finally:
+        srv.close()
+        thread.join(timeout=5)
+    assert "TERM=[xterm]" in result.stdout, result.stdout
+
+
+def test_telnet_server_takes_client_terminal_type(wermit_path, tmp_path,
+                                                  get_free_port):
+    """Verify a Telnet server sets TERM from the client's TTYPE IS.
+
+    wermit listens with SET HOST *.  The client answers DO TTYPE with
+    WILL TTYPE and TTYPE SEND with TTYPE IS VT220.  The server must set
+    TERM to vt220.
+    """
+    port = get_free_port()
+    proc = subprocess.Popen(
+        [wermit_path, "-H", "-Y", "-C",
+         "set command more-prompting off, set tcp reverse-dns-lookup off, "
+         f"set host * {port} /telnet, input 10 DONE, "
+         "echo TERM=[\\$(TERM)], close, exit"],
+        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL, text=True, cwd=str(tmp_path),
+        env=dict(os.environ, TERM="xterm"))
+    try:
+        conn = None
+        for _ in range(100):
+            try:
+                conn = socket.create_connection(("127.0.0.1", port), 1)
+                break
+            except OSError:
+                threading.Event().wait(0.1)
+        assert conn is not None, "server never listened"
+        with conn:
+            conn.settimeout(10)
+            pending = b""
+            sent = False
+            ttsend = bytes([IAC, SB, TELOPT_TTYPE, 1, IAC, SE])
+            while proc.poll() is None:
+                try:
+                    data = conn.recv(4096)
+                except OSError:
+                    break
+                if not data:
+                    break
+                pending += data
+                if ttsend in pending and not sent:
+                    conn.sendall(_sb(TELOPT_TTYPE, b"\x00VT220")
+                                 + b"DONE\r\n")
+                    sent = True
+                    pending = pending.replace(ttsend, b"")
+                i = 0
+                while i + 2 < len(pending):
+                    if pending[i] != IAC:
+                        i += 1
+                        continue
+                    cmd, opt = pending[i + 1], pending[i + 2]
+                    if cmd == DO and opt == TELOPT_TTYPE:
+                        conn.sendall(bytes([IAC, WILL, TELOPT_TTYPE]))
+                    elif cmd in (WILL, DO):
+                        reply = DONT if cmd == WILL else WONT
+                        conn.sendall(bytes([IAC, reply, opt]))
+                    i += 3 if cmd in (WILL, WONT, DO, DONT) else 2
+                pending = pending[i:]
+            out, _ = proc.communicate(timeout=20)
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait(timeout=10)
+    assert "TERM=[vt220]" in out, out

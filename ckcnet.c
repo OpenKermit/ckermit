@@ -1192,6 +1192,12 @@ ttbufr() {                              /* TT Buffer Read */
 #endif /* OS2 */
 #endif /* DEC_TCPIP */
 #endif /* WINTCP */
+#ifdef TNCODE
+#ifdef CK_SSL
+    if (tn_tls_follows_wait())          /* Stop at the end of FOLLOWS */
+      count = 1;
+#endif /* CK_SSL */
+#endif /* TNCODE */
     debug(F101,"ttbufr count 1","",count);
 
 #ifdef CK_SSL
@@ -11482,10 +11488,13 @@ http_date(date) char * date;
            fdc, 12 Aug 2001.
         */
         char * dp;
+        struct tm * tp;
         dp = (char *)cmcvtdate(ldate,0); /* Convert to normal form */
         if (!dp)
           return(0);
-        t_tm = *cmdate2tm(dp,1);
+        if (!(tp = cmdate2tm(dp,1)))    /* Unusable date: ignore it */
+          return(0);
+        t_tm = *tp;
     }
 /*
   From Lucas Hart, 5 Dec 2001:
@@ -11639,50 +11648,48 @@ http_mkarray(resp, n, array) char ** resp; int n; char array;
 /*
   Read a chunk-size line and return the chunk length.
 
-  Parsing stops at the first non-hex character. Any chunk-extension
-  is ignored.
+  The hex digits at the start of the line give the length.  The rest of
+  the line, such as a chunk extension, is read and discarded.
 
-  Returns -1 for a line with no hex digits or a value exceeding
-  60 bits.
+  Returns -1 for a line with no hex digits, a value exceeding 60 bits,
+  a line longer than HTTP_CHUNKLINE bytes, or end of input before the
+  line ends.
 */
+#define HTTP_CHUNKLINE 4096
+
 CK_OFF_T
 http_get_chunk_len()
 {
     CK_OFF_T len = 0;
-    int i = 0, k, d, ndigits = 0;
-    char buf[24];
+    int n = 0, d, ndigits = 0, nhex = 0, indigits = 1;
     int ch;
 
-    while ((ch = http_inc(0)) >= 0 && i < 24) {
-        buf[i] = (char)ch;
-        if ( buf[i] == 10 ) {           /* found end of line */
-            if (i > 0 && buf[i-1] == 13)
-                i--;
-            buf[i] = '\0';
-            break;
-        }
-        i++;
-    }
-    if ( i >= 24 )
-        return(0);
-
-    for (k = 0; k < i; k++) {           /* Parse hex digits */
-        d = (unsigned char)buf[k];
+    while ((ch = http_inc(0)) >= 0) {
+        if (ch == 10)                   /* End of line */
+          break;
+        if (++n > HTTP_CHUNKLINE)
+          return(-1);
+        if (!indigits)                  /* Discard the rest of the line */
+          continue;
+        d = ch;
         if (d >= '0' && d <= '9')
             d -= '0';
         else if (d >= 'a' && d <= 'f')
             d -= 'a' - 10;
         else if (d >= 'A' && d <= 'F')
             d -= 'A' - 10;
-        else
-            break;
+        else {
+            indigits = 0;
+            continue;
+        }
+        nhex++;
         if (ndigits > 0 || d > 0)       /* Count significant digits */
             ndigits++;
         if (ndigits > 15)               /* Reject overflow */
             return(-1);
         len = (len << 4) | d;
     }
-    if (k == 0)
+    if (ch < 0 || nhex == 0)
         return(-1);
     return(len);
 }
@@ -13152,13 +13159,19 @@ http_set_code_reply(msg)
     char buf[16];
     int i=0;
 
-    while ( *p != SP && *p != NUL ) {
-        buf[i] = *p;
+    while ( *p != SP && *p != NUL ) {   /* Status code token */
+        if (i < (int)sizeof(buf) - 1)
+          buf[i++] = *p;
         p++;
-        i++;
     }
+    buf[i] = NUL;
 
-    http_code = atoi(buf);
+    /* A status code is exactly three digits.  Anything else is 0. */
+    if (i == 3 && isdigit((unsigned char)buf[0]) &&
+        isdigit((unsigned char)buf[1]) && isdigit((unsigned char)buf[2]))
+      http_code = atoi(buf);
+    else
+      http_code = 0;
 
     while ( *p == SP )
         p++;
@@ -13392,6 +13405,8 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
             if ((ch = http_inc(0)) != LF)
                 break;
         }
+        if (chunklen < 0)                   /* Malformed chunk-size line */
+          rc = -1;
     } else {
         while (len && (ch = http_inc(0)) >= 0) {
             len--;
@@ -13858,6 +13873,8 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
             if ((ch = http_inc(0)) != LF)
                 break;
         }
+        if (chunklen < 0)                   /* Malformed chunk-size line */
+          rc = -1;
     } else {
         while (len && (ch = http_inc(0)) >= 0) {
             len--;
@@ -14164,6 +14181,8 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
                 if ((ch = http_inc(0)) != LF)
                     break;
             }
+            if (chunklen < 0)                   /* Malformed chunk-size line */
+              rc = -1;
         } else {
             while (len && (ch = http_inc(0)) >= 0) {
                 len--;
@@ -14410,6 +14429,8 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
             if ((ch = http_inc(0)) != LF)
                 break;
         }
+        if (chunklen < 0)                   /* Malformed chunk-size line */
+          rc = -1;
     } else {
         while (len && (ch = http_inc(0)) >= 0) {
             len--;
@@ -14687,6 +14708,8 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
                 if ((ch = http_inc(0)) != LF)
                     break;
             }
+            if (chunklen < 0)                   /* Malformed chunk-size line */
+              rc = -1;
         } else {
             while (len && (ch = http_inc(0)) >= 0) {
                 len--;
@@ -15498,6 +15521,66 @@ fwdx_create_listen_socket(screen) int screen;
 }
 
 
+#define FWDX_CONNECT_TMO 10             /* Seconds */
+
+/*
+  Connect sock to the X server at sa.  On Unix, connect() runs
+  nonblocking and select() waits up to FWDX_CONNECT_TMO seconds for it
+  to complete.  On OpenBSD a blocking connect() to a loopback address
+  can sleep forever after the connection is established.  sock is in
+  its original blocking mode on return.  Returns 0 on success, -1 on
+  failure.
+*/
+static int
+#ifdef CK_ANSIC
+fwdx_connect(int sock, struct sockaddr *sa, int len)
+#else
+fwdx_connect(sock, sa, len) int sock; struct sockaddr *sa; int len;
+#endif  /* CK_ANSIC */
+{
+#ifdef OS2
+    return(connect(sock, sa, len) < 0 ? -1 : 0);
+#else /* OS2 */
+    int flags, rc, x, err;
+    time_t deadline, left;
+    fd_set wfds;
+    struct timeval tv;
+    SOCKOPT_T optlen;
+
+    if (sock >= FD_SETSIZE)
+      return(-1);
+    flags = fcntl(sock, F_GETFL, 0);
+    if (flags == -1 || fcntl(sock, F_SETFL, flags | O_NONBLOCK) == -1)
+      return(-1);
+    rc = connect(sock, sa, len);
+    if (rc < 0 && (errno == EINPROGRESS || errno == EINTR)) {
+        rc = -1;
+        deadline = time(NULL) + FWDX_CONNECT_TMO;
+        while ((left = deadline - time(NULL)) > 0) {
+            FD_ZERO(&wfds);
+            FD_SET(sock, &wfds);
+            tv.tv_sec = left;
+            tv.tv_usec = 0;
+            x = select(sock + 1, NULL, &wfds, NULL, &tv);
+            if (x > 0) {
+                err = 0;
+                optlen = sizeof(err);
+                if (getsockopt(sock, SOL_SOCKET, SO_ERROR,
+                               (char *)&err, &optlen) < 0)
+                  err = errno;
+                rc = err ? -1 : 0;
+                break;
+            }
+            if (x < 0 && errno != EINTR)
+              break;
+        }
+        debug(F101,"fwdx_connect select result","",rc);
+    }
+    fcntl(sock, F_SETFL, flags);
+    return(rc < 0 ? -1 : 0);
+#endif /* OS2 */
+}
+
 int
 #ifdef CK_ANSIC
 fwdx_open_client_channel(int channel)
@@ -15526,6 +15609,13 @@ fwdx_open_client_channel(channel) int channel;
             debug(F110,"fwdx_create_client_channel()","already open",0);
             return(0);
         }
+    }
+    for (i = 0; i < MAXFWDX; i++)       /* Need a free slot */
+      if (TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[i].id == -1)
+        break;
+    if (i == MAXFWDX) {
+        debug(F110,"fwdx_create_client_channel()","no free channel",0);
+        return(-1);
     }
 
     env = getenv("DISPLAY");
@@ -15631,7 +15721,8 @@ fwdx_open_client_channel(channel) int channel;
             return(-1);
         }
 
-        if ( connect(sock, (struct sockaddr *)&saddr, sizeof(saddr)) < 0) {
+        if (fwdx_connect(sock, (struct sockaddr *)&saddr,
+                         sizeof(saddr)) < 0) {
             debug(F110,"fwdx_create_client_channel()","connect() failed",0);
 #ifdef TCPIPLIB
             socket_close(sock);
@@ -15770,7 +15861,7 @@ fwdx_server_avail() {
         return(0);
     }
 
-    if ( connect(sock, (struct sockaddr *)&saddr, sizeof(saddr)) < 0) {
+    if (fwdx_connect(sock, (struct sockaddr *)&saddr, sizeof(saddr)) < 0) {
         debug(F110,"fwdx_server_avail()","connect() failed",0);
 #ifdef TCPIPLIB
         socket_close(sock);

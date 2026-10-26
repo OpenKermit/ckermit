@@ -664,6 +664,32 @@ ckatofs(s) char * s;
     return(minus ? -result : result);
 }
 
+/*  C K R A N D B Y T E S  --  Fill a buffer from the system generator  */
+
+/*
+  Reads n bytes from /dev/urandom into buf.  Returns 0 on success, or -1
+  if the device cannot be opened or returns fewer than n bytes.  The
+  contents of buf are undefined on failure.
+*/
+int
+#ifdef CK_ANSIC
+ckrandbytes(unsigned char * buf, int n)
+#else
+ckrandbytes(buf,n) unsigned char * buf; int n;
+#endif /* CK_ANSIC */
+/* ckrandbytes */ {
+    FILE * fp;
+    size_t got;
+
+    if (!buf || n < 0)
+      return(-1);
+    if ((fp = fopen("/dev/urandom", "rb")) == NULL)
+      return(-1);
+    got = fread(buf, 1, (size_t)n, fp);
+    fclose(fp);
+    return((got == (size_t)n) ? 0 : -1);
+}
+
 /*  C K I T O A  --  Int to string  -- FOR DISCIPLINED USE ONLY  */
 
 char *

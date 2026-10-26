@@ -1,116 +1,394 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.0.515 (NOT YET RELEASED)
+# C-Kermit 11.1.515 (NOT YET RELEASED)
 
-- Significant work eliminating over 900 -Wconversion warnings.  Added tests
-  along the way.  Found and fixed these bugs along the way:
+## Summary
 
-  - GET or RECEIVE with an existing directory as the destination
-    (e.g. `get foo.txt /some/dir/`) failed with "?Syntax error".  A
-    regression from the -Wshadow work, present in 11.0.511 through
-    11.0.514.  Added regression test to cover this bug.  Bug was introduced
-    in commit 9be7054f, in C-Kermit 11.0.511.
+C-Kermit 11.1 is a correctness and security release.  As part of preparing this
+release, over 900 compiler warnings were eliminated and a code review was
+performed.
 
-  - A malicious Telnet server could overflow a stack buffer and a heap buffer
-    with a crafted NEW-ENVIRON SEND request during connection negotiation.
-    Added regression tests to cover this bug.  The stack overflow was
-    introduced in commit 4b5eddea, in C-Kermit 6.0.192 of 1996; the heap
-    overflow in commit d0f8b1da, in C-Kermit 7.0.197 of 2000.
+Where appropriate, descriptions of bugfixes identify the major C-Kermit version
+in which the bug was introduced and are prefixed with a tag (such as "[9]",
+indicating the bug was introduced in C-Kermit 9).  History of C-Kermit only goes
+back to version 4, so bugs tagged as "[4]" may actually go back further.
 
-  - TLS certificate checks never matched an IP address SAN containing a zero
-    byte (such as 127.0.0.1), read past the SAN's buffer, and could not
-    match any IP SAN on big-endian 64-bit hosts.  Added regression test to
-    cover this bug.  The overread and big-endian bug were introduced in
-    commit c88d9b85, in C-Kermit 8.0.200 of 2001; the zero-byte bug in
-    commit 0fd869b4, in C-Kermit 9.0.302 of 2011.
+Most bugfixes are accompanied by the introduction of new regression tests
+covering their situations.
 
-  - Files of 2 GiB or more: HTTP PUT/POST sent a wrong Content-length;
-    `kermit -s` and command-line FTP `-p` rejected 2-4 GiB files; REMOTE
-    DELETE skipped 2-4 GiB files; DELETE's bytes-freed total was wrong;
-    WAIT FILE treated a file of exactly 2^32-1 bytes as deleted.  Added
-    regression tests to cover each of these bugs.  Bugs were introduced in
-    commit 4b5eddea, in C-Kermit 6.0.192 of 1996 (REMOTE DELETE, DELETE);
-    commit d0f8b1da, in C-Kermit 7.0.197 of 2000 (HTTP, WAIT); and commit
-    c88d9b85, in C-Kermit 8.0.200 of 2001 (`-s`, FTP `-p`).
+## Major Architectural Improvements
 
-  - WAIT n FILE succeeded on timeout even if the event never happened.
-    Added regression test to cover this bug.  Bug was introduced in commit
-    d0f8b1da, in C-Kermit 7.0.197 of 2000.
+- Eliminated over 900 `-Wconversion` warnings.  Each conversion between integer
+  types of different widths or signedness is now explicit or removed.  This
+  work identified numerous bugs, which are among those listed below.
 
-  - Command-line HTTP (`kermit http://...`) exited with success after a
-    failed transfer such as a 404.  Added regression test to cover this bug.
-    Bug was introduced in commit c88d9b85, in C-Kermit 8.0.200 of 2001.
+## New Features
 
-  - HTTP reconnects went to the wrong port for ports above 255, and HTTP
-    INDEX left the directory out of its request line.  Added regression
-    tests to cover these bugs.  The port bug was introduced in commit
-    c88d9b85, in C-Kermit 8.0.200 of 2001; the INDEX bug in commit
-    d0f8b1da, in C-Kermit 7.0.197 of 2000.
+- `SET FTP TRUST-PASV-ADDRESS { ON, OFF }` selects the address of a
+  passive-mode data connection.  OFF, the default, connects to the
+  control connection's address.  ON connects to the address in the PASV
+  reply, as releases before 11.1 did.  It suits a server that names a
+  different host for data.
 
-  - On big-endian 64-bit hosts, the local IP address lookup returned
-    0.0.0.0 and the Telnet COM-PORT baud rate was sent and read wrongly.
-    Added regression tests to cover these bugs; they can only fail on a
-    big-endian host.  The address bug was introduced in commit d0f8b1da, in
-    C-Kermit 7.0.197 of 2000; the COM-PORT bug in commit c88d9b85, in
-    C-Kermit 8.0.200 of 2001.
+## Major Bugfixes
 
-  - `\fradix()`, `\fhex2n()` and `\foct2n()` returned 0 or an empty string
-    instead of -1 for values past 2^63-1.  Added regression test to cover
-    this bug.  Bug was introduced in commit d0f8b1da, in C-Kermit 7.0.197
-    of 2000.
+- [6, 7, 8] Files of 2GB or more failed in several places.  HTTP PUT and
+  POST sent a wrong Content-Length.  `kermit -s` and command-line FTP `-p`
+  rejected 2-4 GiB files.  REMOTE DELETE skipped 2-4 GiB files, and DELETE
+  reported a wrong bytes-freed total.  WAIT FILE treated a file of 2^32-1 bytes
+  as deleted.  Commit 4b5eddea introduced the REMOTE DELETE and DELETE bugs in
+  C-Kermit 6.0.192 of 1996.  Commit d0f8b1da introduced the HTTP PUT/POST and
+  WAIT bugs in C-Kermit 7.0.197 of 2000.  Commit c88d9b85 introduced the `-s`
+  and FTP `-p` bugs in C-Kermit 8.0.200 of 2001.
 
-  - Buffer overflows from local input: the RLOGIN startup data with a long
-    USER, an HTTP proxy name filling its buffer, a CONNECT-mode backslash
-    code of 10 or more characters (crashed), and MGET with a pattern
-    directory of 4096 bytes or more.  Added regression tests to cover these
-    bugs, but the RLOGIN and proxy tests detect the overflow only under
-    AddressSanitizer.  Bugs were introduced in commit 609e2f39 in
-    C-Kermit 5A(190) of 1994 (CONNECT), commit d0f8b1da in C-Kermit
-    7.0.197 of 2000 (RLOGIN), and commit c88d9b85 in C-Kermit 8.0.200 of
-    2001 (proxy, MGET).
+- [11] GET or RECEIVE with an existing directory as the destination (e.g. `get
+  foo.txt /some/dir/`) failed with "?Syntax error".  A regression from the
+  -Wshadow work, present in 11.0.511 through 11.0.514.  Bug was introduced in
+  commit 9be7054f in C-Kermit 11.0.511.
 
-  - Bounded several buffers filled from FTP server data in GSSAPI/Kerberos
-    builds, and fixed a one-byte overrun in their base64 decoder.  Bugs
-    were introduced in commit c88d9b85 (C-Kermit 8.0.200 of 2001).
+- [11] An external protocol over an SSL or TLS connection held each burst of
+  incoming data for 2 seconds.  Steady traffic held it until the traffic
+  stopped.  lrz 0.13 gave up on the transfer and older versions were slow.  Bug
+  was introduced in commit 04e8275d in C-Kermit 11.0.501 of 2026.  Bug
+  originally reported at
+  https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1150880
 
-  - Smaller fixes: an empty DNS TXT string read before its buffer; the
-    partner's system ID was not terminated; command-line FTP's "No files
-    to put/get" messages were swapped (added regression test to cover
-    this bug); the dial log line was sized from an uninitialized buffer;
-    the fullscreen display's CPS never used the floating-point timer.  Bugs
-    were introduced in commit 4b5eddea, in C-Kermit 6.0.192 of 1996
-    (system ID); commit d0f8b1da, in C-Kermit 7.0.197 of 2000 (dial log);
-    and commit c88d9b85, in C-Kermit 8.0.200 of 2001 (TXT, FTP messages,
-    CPS display).
+## Security and Reliability Improvements
 
-- Due to the -Wshadow finding above, performed another review step of previous
-  warning-elimination work.  As part of this review, found and fixed:
+C-Kermit 11.1 corrects these security issues.  Most issues tagged "[11]" fall
+into one of two categories.  First, tighter security defaults in C-Kermit 11.0
+exposed weaknesses in older code.  Second, hardening code added in 11.0 had
+gaps.  Few are corrections for security regressions in 11.0, aside from `SET
+COMPATIBILITY`.
 
-  - TYPE /WIDTH showed empty lines, or lines cut to the /TAIL count,
-    instead of each line truncated to the given width.  A regression from
-    the -Wshadow work, present in 11.0.510 through 11.0.514.  Added
-    regression tests to cover this bug.  Bug was introduced in commit
-    4ddb464e in C-Kermit 11.0.510.
+### File transfer and the server
 
-  - A rename from the -Wshadow work was incomplete in the DIAL code for
-    Digitel modems, so three uses wrote a different variable.  Nothing read
-    that variable before it was reset, so behavior did not change.  Bug was
-    introduced in commit 9be7054f in C-Kermit 11.0.511.
+- [4] A Kermit server ran REMOTE WHO and REMOTE SPACE through the shell with the
+  client's text unquoted.  `remote who {x;touch y}` ran a command on the server
+  even with DISABLE HOST.  The server now runs who and df without the shell.  A
+  Unix server refuses a REMOTE WHO name.  The Unix who command reads its
+  argument as a login database file, and the passed username was interpreted as
+  a filename.  This appears to have been broken on Unix hosts since the very
+  beginning.  A REMOTE SPACE argument must name an existing directory.  A REMOTE
+  SPACE directory name with spaces now works.  A command too long for the
+  command buffer is refused instead of overflowing it.  Bug dates from C-Kermit
+  4C(057) of 1985.
 
-  - TYPE /WIDTH put a NUL byte after each tab it expanded, which also moved
-    the next tab stop one column.  Added regression test to cover this bug.
-    Bug was introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+- [4] A Kermit server or receiver now refuses a server command, GET command, or
+  file name that decodes to more than its command buffer holds.  Before, repeat
+  counts could make such a packet write past the buffer.  This bug was present
+  in the oldest extant version of C-Kermit, version 3.0 of 1984.
 
-  - TYPE /WIDTH copied the whole tab-expanded line back into its buffer,
-    which with UCS-2 output could exceed the buffer.  This cannot happen
-    today, since TYPE /WIDTH stops at the first NUL byte of UCS-2 text.
-    Bug was introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+- [6] With HOST disabled, a Kermit server still ran shell commands for
+  REMOTE QUERY.  `remote query kermit command(...)` called `\fcommand()`,
+  and `\fexecute()` could reach RUN.  The query now runs with PUSH refused
+  unless HOST is enabled.  Bug was introduced in C-Kermit 6.0.192 of 1996.
+  That release first allowed functions in REMOTE QUERY.
 
-- Found but not fixed: when there is no terminal to answer a TLS prompt,
-  `uq_ok()` returns -4, which the TLS prompts treat as "yes".  So scripted,
-  non-interactive sessions accept an expired certificate or a hostname
-  mismatch.  This is current behavior and needs a separate decision.
+- [6, (11)] A sender could have a file appended to any existing file in the
+  receive directory by marking it RESEND.  This bypassed FILE COLLISION
+  REJECT and RECEIVE CONFIRM, with no prompt.  The receiver now refuses a
+  RESEND unless its collision setting allows it or it asked for a REGET.
+  The append path was introduced in commit 4b5eddea in C-Kermit 6.0.192
+  of 1996.
+  
+  C-Kermit 11.0.501 (9ee170a8) made REJECT the default which, because of this
+  bug in C-Kermit 6.0.192, didn't achieve the desired hardening effect for
+  appends.  The same happened with RECEIVE CONFIRM was added in C-Kermit
+  11.0.506 (b06df387), both in 2026.
+
+- [11] RECEIVE CONFIRM did not prompt for files a recursive GET placed outside
+  the requested directory, such as `.ssh/authorized_keys` from `get /recursive
+  reports/*`.  It did prompt for files the user had named by path or as-name.
+  Names are now matched by basename, the as-name counts, and the root is the
+  requested directory.  Bugs were introduced in commit b06df387 in C-Kermit
+  11.0.506 of 2026.
+
+- [4, 5, 6, 7] The server trusted the field lengths in generic commands,
+  Extended GET parameters, attribute packets and REMOTE SET.  A length past the
+  data made it read stale buffer contents.  REMOTE SET values were also stored
+  without range checks.  REMOTE LOGIN copied a user name of up to 255 bytes
+  into a 64-byte stack buffer in builds without BIGBUFOK.  REMOTE CD, COPY and
+  RENAME took a last field over 94 characters as empty, so REMOTE CD went to
+  the home directory.  Each field is now checked, and a long last field is used
+  whole.  The REMOTE CD bug was introduced in commit 16d830ec in C-Kermit
+  4F(095) of 1989.  The others were introduced in commits a213649d (5A(188) of
+  1992), 609e2f39 (5A(190) of 1994), 4b5eddea (6.0.192 of 1996) and d0f8b1da
+  (7.0.197 of 2000).
+
+- [4, 5, 7] Malformed packets were accepted or read past their data.  A packet
+  whose data ended with a repeat, control or 8th-bit prefix and no operand was
+  decoded with the operand taken from the block check.  A trailing repeat
+  prefix wrote 224 copies of a block check byte to the file.  Such a packet now
+  ends the transfer with the error "Malformed packet data".  A packet whose
+  length was shorter than its block check passed with a negative data length.
+  With an extended header of length 0, the header check served as the block
+  check, so a packet of any type was accepted.  Such a packet is now refused as
+  a bad length.  A malformed packet could leave a sequence number outside 0-63
+  that was later used as a table index.  rpack() computed the block check of a
+  packet that claimed more bytes than arrived over unwritten buffer space.
+  spar() read past the Send-Init parameters it was given.  Bugs were introduced
+  in commits f16b451f (4C(057) of 1985), 9438f560 (4E(072) of 1989), a213649d
+  (5A(188) of 1992) and d0f8b1da (7.0.197 of 2000).
+
+- [5] Attribute handling read and wrote outside its buffers.  A receiver wrote
+  one byte past its 21-byte attribute reply buffer for each refused attribute
+  beyond the 20th.  A sender could refuse many attributes in one packet and
+  overwrite static data.  The reply now keeps the first 20 reasons.  A sender
+  read one entry past its table of refusal reasons when the receiver refused a
+  file with reason "A".  The transaction log and file transfer display showed a
+  stray string such as "January", or Kermit could crash.  The reason is now
+  "unknown".  A received file name of only blanks or control characters made
+  the receiver read one byte before its name buffer.  The file is still stored
+  as NONAME.  Bugs were introduced in commit a213649d in C-Kermit 5A(188) of
+  1992.
+
+- [7] A receiver gave a file the setuid, setgid and sticky bits when a Unix
+  sender's permissions held them.  A sender could leave a setuid program in the
+  receiver's directory.  The receiver now keeps only the read, write, and
+  execute bits.  A C-Kermit sender sends no other bits, so this change is
+  unlikely to cause a real-world regression.  A permission string of more than
+  10 digits also overflowed.  An attribute packet with permissions but no date
+  set the file mode from uninitialized memory.  Bugs were introduced in commit
+  d0f8b1da in C-Kermit 7.0.197 of 2000.
+
+- [7] A server with DISABLE DELETE still deleted each file it sent for GET
+  /RECOVER /DELETE, and for GET /RECOVER /RECURSIVE /DELETE.  The client sends
+  these as an Extended GET, and the server did not check DISABLE DELETE for it.
+  They are now refused with "Deleting files is disabled", as GET /DELETE is.
+  Bug was introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
+
+- [8, 11] ENABLE and DISABLE with LOCAL, REMOTE or BOTH set the whole
+  value.  With the 11.0 default of REMOTE only, `disable cd remote`
+  enabled CD for the local side.  APC from the remote host uses that side.
+  Each now changes only its half.  The assignment was introduced in commit
+  c88d9b85 in C-Kermit 8.0.200 of 2001.  It became harmful when commits
+  9ee170a8 and dc67bddb changed the defaults in C-Kermit 11.0.501 of
+  2026.
+
+- [11] SET COMPATIBILITY 9 and 10, and `kermit9` and `kermit10`, set RECEIVE
+  PATHNAMES ABSOLUTE instead of C-Kermit 9's AUTO, and could re-enable
+  functions that ENABLE refuses or that DISABLE ENABLE had locked.  A later SET
+  PROTOCOL restored the earlier collision and pathname settings.  HELP SET
+  COMPATIBILITY now states exactly what each mode changes.  Modes 9 and 10 make
+  the same changes: FILE COLLISION BACKUP, TRANSFER MODE AUTOMATIC, TERMINAL
+  AUTODOWNLOAD ERROR STOP, RECEIVE CONFIRM OFF, TCP ADDRESS-FAMILY IPV4,
+  RECEIVE PATHNAMES AUTO, and the listed ENABLE settings for both sides.
+  Neither restores the C-Kermit 9 prompt, `SET TELNET WAIT`, or `SET TCP
+  CONNECT-TIMEOUT`.  The CONNECT-TIMEOUT default has been 30 seconds since
+  11.0.510.  Bugs were introduced in commits f8e56a89 and 1260091f in C-Kermit
+  11.0.506 of 2026.
+
+### FTP and HTTP
+
+- [8] FTP MGET /RECURSIVE wrote server names such as `../../x` or
+  absolute paths as local files.  It now skips them.  Bug was introduced
+  in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [8, 11] The FTP PASV reply was used as given, so a server could direct the
+  data connection to any host.  The data connection now goes to the control
+  connection's address.  `SET FTP TRUST-PASV-ADDRESS ON` restores the old
+  behavior.  An EPSV port above 65535 wrapped.  The PASV bug was
+  introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.  The EPSV bug was
+  introduced in commit 36668be5 in C-Kermit 11.0.501 of 2026.
+
+- [8] A malicious FTP server overflowed a static buffer in the client with a
+  long PBSZ reply after AUTH TLS.  Builds with SSL/TLS reached this in the
+  default configuration.  In GSSAPI, Kerberos 4, and SRP builds, a long ADAT
+  reply did the same, and a long protected (6xx) reply overflowed a stack
+  buffer.  Each copy now stops at the end of its buffer.  Bugs were introduced
+  in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [8] In GSSAPI, Kerberos 4, and SRP builds, a PBSZ size too small for the
+  protection overhead let a protected PUT overflow its buffer.  A text-mode PUT
+  larger than 8 KiB stored a NUL one byte past the buffer, and the base64
+  decoder wrote one byte past its output.  These bugs were also introduced in
+  commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [8] MLSD file names that contained '=' were misread, and a line of facts
+  with no name was taken as a file named after its last fact.  With
+  /RECURSIVE a nameless directory line crashed the client.  Bugs were
+  introduced in commit 7b4ce026 in C-Kermit 8.0.206 of 2002.
+
+- [8] A long HTTP chunk extension looked like the last chunk, so the body
+  was cut short with success, and a malformed chunk size ended the body
+  the same way.  A Last-Modified date that did not parse crashed HTTP GET.
+  Both date from commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [8] FTP GET /MOVE-TO evaluates its destination again after each file.  A
+  destination that expanded past the length of a path overflowed a stack
+  buffer, and Kermit crashed.  The destination is now cut at the length of a
+  path, and the move fails.  Bug was introduced in commit c88d9b85 in C-Kermit
+  8.0.200 of 2001.
+
+### Connections, Telnet and TLS
+
+- [6, 7] A malicious Telnet server could overflow a stack buffer and a heap
+  buffer with a crafted NEW-ENVIRON SEND request during connection negotiation.
+  The stack overflow was introduced in commit 4b5eddea in C-Kermit 6.0.192 of
+  1996.  The heap overflow was introduced in commit d0f8b1da in C-Kermit
+  7.0.197 of 2000.
+
+- [7] An IKSD that accepted a client certificate for a user, and then
+  refused that user (for instance from the forbidden-user file), prompted
+  for a login with the certificate still accepted.  Any other user then
+  logged in with any password.  The IKSD now drops the certificate login
+  when the automatic login fails, and skips the password only for the
+  user that authentication validated.  Bug was introduced in commit
+  d0f8b1da in C-Kermit 7.0.197 of 2000.
+
+- [8] A TLS client matched each label of a certificate's host name as a
+  Kermit pattern.  A certificate for `*` or `l*` matched "localhost", and
+  '?', '[...]' and an empty label also matched.  Kermit now uses
+  `X509_check_host()`, so a wildcard matches only as the whole leftmost
+  label of a name with more labels.  Addresses use `X509_check_ip_asc()`, so
+  an IPv6 address in a certificate now matches.  Bug was introduced in
+  commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [8] A Telnet client that used the AUTHENTICATION option's SSL type did
+  not check that the server's certificate named the host.  A server could
+  refuse START-TLS and offer that type, and any certificate from a trusted
+  CA then passed.  The client now makes the same checks as for START-TLS.
   Bug was introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [7, 8] Malformed Telnet subnegotiations from a peer read or wrote past
+  buffers.  With the debug log or SET TELNET DEBUG on, an ENCRYPTION
+  subnegotiation could crash Kermit.  The decoder for the log looked up each
+  encryption type in a table of 12 with no bound, and wrote one name per byte
+  into a 16-entry array on the stack.  This happened even when ENCRYPTION was
+  not negotiated.  Unknown types now show in hex.  A Telnet server or IKSD took
+  the screen size from a NAWS subnegotiation with fewer than four bytes.  It
+  read the IAC SE and bytes left from an earlier subnegotiation, and set LINES
+  and COLUMNS from them.  Such a subnegotiation is now ignored.  A Telnet
+  server offering FORWARD-X could overflow a buffer with a long OPTIONS request
+  and leak a socket for each channel past the 64th.  Bugs were introduced in
+  commits d0f8b1da (7.0.197 of 2000) and 29169c5e (8.0.201 of 2002).
+
+- [7] A Telnet client set TERM from a terminal type the server sent with
+  TTYPE IS.  Programs that Kermit ran later inherited it.  Only a client
+  sends TTYPE IS, so a client now ignores it.  A Telnet server or IKSD
+  still takes the client's type.  Bug was introduced in commit d0f8b1da
+  in C-Kermit 7.0.197 of 2000.
+
+- [8, 9] TLS certificate checks never matched an IP address SAN containing a
+  zero byte (such as 127.0.0.1), read past the SAN's buffer, and could not
+  match any IP SAN on big-endian 64-bit hosts.  The overread and big-endian bug
+  were introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.  The
+  zero-byte bug was introduced in commit 0fd869b4 in C-Kermit 9.0.302 of 2011.
+
+- [5, 7, 8] Buffer overflows from local input: the RLOGIN startup data with a
+  long USER, an HTTP proxy name filling its buffer, a CONNECT-mode backslash
+  code of 10 or more characters (crashed), and MGET with a pattern directory
+  of 4096 bytes or more.  Added regression tests to cover these bugs, but the
+  RLOGIN and proxy tests detect the overflow only under AddressSanitizer.
+  Bugs were introduced in commit 609e2f39 in C-Kermit 5A(190) of 1994
+  (CONNECT), commit d0f8b1da in C-Kermit 7.0.197 of 2000 (RLOGIN), and commit
+  c88d9b85 in C-Kermit 8.0.200 of 2001 (proxy, MGET).
+
+## Additional improvements and bugfixes
+
+### FTP and HTTP
+
+- [7, 8] HTTP reconnects went to the wrong port for ports above 255, and HTTP
+  INDEX left the directory out of its request line.  The port bug was
+  introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.  The INDEX bug was
+  introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
+
+- [8] Command-line HTTP (`kermit http://...`) exited with success after a
+  failed transfer such as a 404.  Command-line FTP's "No files to put/get"
+  messages were swapped.  Bugs were introduced in commit c88d9b85 in C-Kermit
+  8.0.200 of 2001.
+
+### Connections, Telnet and TLS
+
+- [7, 8] On big-endian 64-bit hosts, the local IP address lookup returned
+  0.0.0.0 and the Telnet COM-PORT baud rate was sent and read wrongly.  Added
+  regression tests to cover these bugs.  The tests can fail only on a
+  big-endian host.  The address bug was introduced in commit d0f8b1da in
+  C-Kermit 7.0.197 of 2000.  The COM-PORT bug was introduced in commit c88d9b85
+  in C-Kermit 8.0.200 of 2001.
+
+- [7] A Telnet server or IKSD could hang or fail in START-TLS.  The server
+  sends its SB START_TLS FOLLOWS first.  A client may send its TLS handshake
+  right after its FOLLOWS.  When the server read both at once, the handshake
+  stayed in Kermit's input buffer and OpenSSL waited for it on the socket.
+  A Kermit client can trigger this under load.  The server now reads one
+  byte at a time until the client's FOLLOWS ends.  Bug was introduced in
+  commit d0f8b1da in C-Kermit 7.0.197 of 2000.
+
+### Scripting and commands
+
+- [7] WAIT n FILE succeeded on timeout even if the event never happened.  Bug
+  was introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
+
+- [8, 11] TYPE /WIDTH showed empty lines, or lines cut to the /TAIL count,
+  instead of each line truncated to the given width.  It also put a NUL byte
+  after each tab it expanded.  That extra byte moved the next tab stop one
+  column.  TYPE /WIDTH also copied the whole tab-expanded line back into its
+  buffer.  With UCS-2 output that copy could exceed the buffer, but TYPE /WIDTH
+  stops at the first NUL byte of UCS-2 text, so this cannot happen today.  The
+  width regression came from the -Wshadow work, present in 11.0.510 through
+  11.0.514, and was introduced in commit 4ddb464e in C-Kermit 11.0.510.  The
+  tab bugs were introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+## Summary of changed behavior
+
+- [4, 6] A server with HOST disabled refuses PUSH within REMOTE QUERY.
+  REMOTE WHO and REMOTE SPACE run without the shell.  A Unix server
+  refuses a REMOTE WHO name.  REMOTE SPACE refuses a name that is not an
+  existing directory.
+
+- [4] A malformed packet ends the transfer with "Malformed packet data".
+  A packet shorter than its block check is refused.
+
+- [6, 11] A receiver refuses a RESEND unless its FILE COLLISION setting
+  allows it or it asked for a REGET.
+
+- [7] A receiver gives a received file only the read, write and execute
+  bits of the sender's permissions.
+
+- [7] A Telnet client ignores TTYPE IS from the server.
+
+- [8] FTP MGET /RECURSIVE skips server names that leave the current
+  directory.
+
+- [8] FTP passive data connections go to the control connection's
+  address, not to the address in the PASV reply.  `SET FTP
+  TRUST-PASV-ADDRESS ON` uses the address in the reply.
+
+- [8] TLS host name checks use `X509_check_host()`.  A wildcard matches
+  only as the whole leftmost label of a name with more labels.
+
+- [8, 11] `ENABLE` and `DISABLE` with `LOCAL` or `REMOTE` change only that
+  side.
+
+- [11] RECEIVE CONFIRM prompts for files a recursive GET places outside
+  the requested directory.
+
+- [11] `SET COMPATIBILITY 9` and `10`, and `kermit9` and `kermit10`, set
+  RECEIVE PATHNAMES AUTO and no longer re-enable functions that ENABLE
+  refuses.
+
+## Changes in earlier releases that didn't make it into the changelog
+
+- C-Kermit 11.0.501: FTP reports the host name as typed and looks it
+  up in `.netrc` by that name, not by the canonical name.  A `.netrc`
+  entry for the canonical name no longer matches an alias.  Commit
+  c3c8dea2.
+
+- C-Kermit 11.0.509: `\v(authtype)` no longer reports
+  `X_509_CERTIFICATE` when no authentication took place.  Commit
+  76190cb0.
+
+- C-Kermit 11.0.509: an external protocol run over a Telnet
+  connection answers the host's unsolicited WILL and DO with DONT and
+  WONT.  Commit ce6628a3.
+
+- C-Kermit 11.0.509: calling a macro whose name begins with `_` read
+  past a table and could crash Kermit.  Commit 81405312.
+
+- C-Kermit 11.0.512: an empty `/MOVE-TO:` or `/RENAME-TO:` on SEND or
+  GET clears that setting.  Commit cfc424ff.
 
 # C-Kermit 11.0.514
 
