@@ -94,6 +94,14 @@ COMPATIBILITY`.
   user that authentication validated.  Bug was introduced in commit
   d0f8b1da in C-Kermit 7.0.197 of 2000.
 
+- [8] A TLS client matched each label of a certificate's host name as a
+  Kermit pattern.  A certificate for `*` or `l*` matched "localhost", and
+  '?', '[...]' and an empty label also matched.  Kermit now uses
+  `X509_check_host()`, so a wildcard matches only as the whole leftmost
+  label of a name with more labels.  Addresses use `X509_check_ip_asc()`, so
+  an IPv6 address in a certificate now matches.  Bug was introduced in
+  commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
 - [8] A Telnet client that used the AUTHENTICATION option's SSL type did
   not check that the server's certificate named the host.  A server could
   refuse START-TLS and offer that type, and any certificate from a trusted
@@ -159,6 +167,9 @@ COMPATIBILITY`.
   REMOTE WHO and REMOTE SPACE run without the shell.  A Unix server
   refuses a REMOTE WHO name.  REMOTE SPACE refuses a name that is not an
   existing directory.
+
+- [8] TLS host name checks use `X509_check_host()`.  A wildcard matches
+  only as the whole leftmost label of a name with more labels.
 
 ## Changes in earlier releases that didn't make it into the changelog
 

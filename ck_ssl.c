@@ -1960,6 +1960,26 @@ the build.\r\n\r\n");
     debug(F100,"ssl_once_init() complete","",0);
 }
 
+/*
+  Return 1 if name is an IPv4 or IPv6 address literal, 0 if it is a
+  host name.
+*/
+static int
+#ifdef CK_ANSIC
+ssl_hostisaddr(char * name)
+#else
+ssl_hostisaddr(name) char * name;
+#endif /* CK_ANSIC */
+{
+    char * p;
+    if (strchr(name,':'))               /* IPv6 */
+      return(1);
+    for (p = name; *p; p++)
+      if (!isdigit((unsigned char)*p) && *p != '.')
+        return(0);
+    return(1);                          /* Digits and dots: IPv4 */
+}
+
 int
 #ifdef CK_ANSIC
 ssl_tn_init(int mode)
@@ -3476,6 +3496,22 @@ tls_get_SAN_ipv4(SSL * ssl, struct in_addr * addrs, int max)
 }
 
 
+/*
+  OpenSSL 1.0.2 and LibreSSL provide X509_check_host() and
+  X509_check_ip_asc(), which match names by the rules of RFC 6125.
+  Older OpenSSL uses dNSName_cmp() and the IPv4 comparison.
+*/
+#ifndef CK_X509_CHECK_HOST
+#ifdef LIBRESSL_VERSION_NUMBER
+#define CK_X509_CHECK_HOST
+#else
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+#define CK_X509_CHECK_HOST
+#endif /* OPENSSL_VERSION_NUMBER */
+#endif /* LIBRESSL_VERSION_NUMBER */
+#endif /* CK_X509_CHECK_HOST */
+
+#ifndef CK_X509_CHECK_HOST
 static int
 dNSName_cmp(const char *host, const char *dNSName)
 {
@@ -3534,6 +3570,7 @@ dNSName_cmp(const char *host, const char *dNSName)
     if (host_copy)      free(host_copy);
     return rv;
 }
+#endif /* CK_X509_CHECK_HOST */
 
 
 
@@ -3556,6 +3593,7 @@ show_hostname_warning(char *s1, char *s2)
     return(ok);
 }
 
+#ifndef CK_X509_CHECK_HOST             /* Only the old matcher uses it */
 #ifndef OSF50
 #ifndef HPUX10
 #ifndef HPUX1100
@@ -3614,29 +3652,25 @@ inet_aton(char * ipaddress, struct in_addr * ia) {
 #endif /* HPUX1100 */
 #endif /* HPUX10 */
 #endif /* OSF50 */
+#endif /* CK_X509_CHECK_HOST */
 
 #define NUM_SAN_IPV4 64                 /* IPv4 SANs examined */
 
 /*
-  For an IP address as the SAN of a certificate, inet_aton() below only
-  recognizes an IPv4 literal, and only the 4-byte (IPv4) GEN_IPADD SAN entries
-  are compared against it.  Connecting to an IPv6 literal host always
-  falls through to the dNSName/commonName comparison instead, which is safe
-  (fails to a hostname-mismatch warning, not a silent match).  It means a
-  certificate whose only matching SAN is an IPv6 address always produces a
-  spurious warning.
+  Check that the server's certificate names hostname.  Returns 0 if it
+  does, or if the user accepts the mismatch warning, else -1.
 
-  An edge case; addressing it here increases code complexity.  Documented in
-  doc/ipv6.md instead.
+  With CK_X509_CHECK_HOST, an address is matched against the iPAddress
+  entries, IPv4 or IPv6, and a name against the dNSName entries, or the
+  commonName when there are none.  A wildcard matches only as the
+  leftmost label.  Without it, only IPv4 addresses are compared, and a
+  certificate whose only matching entry is an IPv6 address gets the
+  warning.
 */
 int
 ssl_check_server_name(SSL * ssl, char * hostname)
-/* returns 0 if hostname and server's cert matches, else -1 */
 {
-    char * commonName;
     unsigned char ** dNSName;
-    struct in_addr ia;
-    int rv;
 
     setverbosity();
     if (verbosity && !inserver) {
@@ -3678,6 +3712,39 @@ ssl_check_server_name(SSL * ssl, char * hostname)
         }
     }
 
+#ifdef CK_X509_CHECK_HOST
+    {
+        X509 * cert;
+        int ok, isaddr;
+        char * shown;
+
+        if (!(cert = SSL_get_peer_certificate(ssl)))
+          return(-1);
+        isaddr = ssl_hostisaddr(hostname);
+        if (isaddr)
+          ok = (X509_check_ip_asc(cert, hostname, 0) == 1);
+        else
+          ok = (X509_check_host(cert, hostname, strlen(hostname), 0,
+                                NULL) == 1);
+        X509_free(cert);
+        if (ok)
+          return(0);
+        if (isaddr) {                   /* Name an address for the warning */
+            struct in_addr sanip[NUM_SAN_IPV4];
+            int n = tls_get_SAN_ipv4(ssl, sanip, NUM_SAN_IPV4);
+            shown = (n > 0) ? inet_ntoa(sanip[n - 1]) : "NO IP IN CERT";
+        } else if (!(shown = ssl_get_dNSName(ssl)) &&
+                   !(shown = ssl_get_commonName(ssl))) {
+            shown = "UNKNOWN";
+        }
+        return(show_hostname_warning(hostname, shown) ? 0 : -1);
+    }
+#else /* CK_X509_CHECK_HOST */
+  {
+    char * commonName;
+    struct in_addr ia;
+    int rv;
+
     /* first we check if `hostname' is in fact an ip address */
     if (inet_aton(hostname, &ia)) {
         struct in_addr sanip[NUM_SAN_IPV4];
@@ -3716,6 +3783,8 @@ ssl_check_server_name(SSL * ssl, char * hostname)
            return (show_hostname_warning(hostname, commonName) ? 0 : -1);
     }
     return -1;
+  }
+#endif /* CK_X509_CHECK_HOST */
 }
 
 /* Is 'user' authorized to access the system without a login */
