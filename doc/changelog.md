@@ -301,6 +301,14 @@ COMPATIBILITY`.
   C-Kermit 7.0.197 of 2000.  The COM-PORT bug was introduced in commit c88d9b85
   in C-Kermit 8.0.200 of 2001.
 
+- [7] A Telnet server or IKSD could hang or fail in START-TLS.  The server
+  sends its SB START_TLS FOLLOWS first.  A client may send its TLS handshake
+  right after its FOLLOWS.  When the server read both at once, the handshake
+  stayed in Kermit's input buffer and OpenSSL waited for it on the socket.
+  A Kermit client can trigger this under load.  The server now reads one
+  byte at a time until the client's FOLLOWS ends.  Bug was introduced in
+  commit d0f8b1da in C-Kermit 7.0.197 of 2000.
+
 ### Scripting and commands
 
 - [7] WAIT n FILE succeeded on timeout even if the event never happened.  Bug

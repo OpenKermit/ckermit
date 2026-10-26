@@ -1192,6 +1192,12 @@ ttbufr() {                              /* TT Buffer Read */
 #endif /* OS2 */
 #endif /* DEC_TCPIP */
 #endif /* WINTCP */
+#ifdef TNCODE
+#ifdef CK_SSL
+    if (tn_tls_follows_wait())          /* Stop at the end of FOLLOWS */
+      count = 1;
+#endif /* CK_SSL */
+#endif /* TNCODE */
     debug(F101,"ttbufr count 1","",count);
 
 #ifdef CK_SSL

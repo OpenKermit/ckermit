@@ -8898,6 +8898,7 @@ mygetbuf() {
 int
 myfillbuf() {
     int fd, n;
+    int want = sizeof(mybuf);           /* Bytes to read */
 #ifdef NETCMD
     if (ttpipe)
       fd = fdin;
@@ -9067,6 +9068,12 @@ myfillbuf() {
     }
 #endif /* HAVE_PTYTRAP */
 #endif /* NETPTY */
+#ifdef TNCODE
+#ifdef CK_SSL
+    if (tn_tls_follows_wait())          /* Stop at the end of FOLLOWS */
+      want = 1;
+#endif /* CK_SSL */
+#endif /* TNCODE */
     debug(F101,"myfillbuf calling read() fd","",ttyfd);
 /*
   ttinl()'s SIGALRM timeout handler (timerh()) calls siglongjmp() whenever the
@@ -9113,13 +9120,13 @@ myfillbuf() {
         sigemptyset(&nset);
         sigaddset(&nset, SIGALRM);
         sigprocmask(SIG_BLOCK, &nset, &oset);
-        n = (int)read(fd, mybuf, sizeof(mybuf));
+        n = (int)read(fd, mybuf, want);
         my_count = n;
         my_item = -1;
         sigprocmask(SIG_SETMASK, &oset, NULL);
     }
 #else /* CK_POSIX_SIG */
-    n = read(fd, mybuf, sizeof(mybuf));
+    n = read(fd, mybuf, want);
 #endif /* CK_POSIX_SIG */
     debug(F101,"SVORPOSIX myfillbuf read","",n);
     debug(F101,"SVORPOSIX myfillbuf errno","",errno);

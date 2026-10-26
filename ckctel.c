@@ -741,6 +741,21 @@ tn_wait(where) char * where;
     return(0);
 }
 
+#ifdef CK_SSL
+/*
+  Return 1 while this side has sent SB START_TLS FOLLOWS and waits for
+  the peer's.  A client can send its TLS handshake right after its
+  FOLLOWS, and OpenSSL reads the handshake from the socket.  So the
+  callers read one byte at a time while this returns 1, and the read
+  stops at the IAC SE that ends the peer's FOLLOWS.
+*/
+int
+tn_tls_follows_wait() {
+    return(TELOPT_SB(TELOPT_START_TLS).start_tls.me_follows &&
+           !TELOPT_SB(TELOPT_START_TLS).start_tls.u_follows);
+}
+#endif /* CK_SSL */
+
 /* Push data from the Telnet Wait Buffer into the I/O Queue */
 /* Return 1 on success                                      */
 
