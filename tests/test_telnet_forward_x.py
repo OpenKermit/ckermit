@@ -5,6 +5,7 @@ data through it.  wermit connects the channel to a fake X server named
 by DISPLAY and relays data both ways.
 """
 import os
+import random
 import socket
 import struct
 import threading
@@ -339,47 +340,45 @@ def test_forward_x_fatal_requests(wermit_path, tmp_path, name):
 def test_forward_x_no_x_server(wermit_path, tmp_path):
     """Verify the client closes a channel it cannot connect.
 
-    The X server accepts the availability check, then stops listening.
-    A second socket keeps the port bound so that no other test can
-    listen there.  The client answers OPEN with CLOSE for the channel.
+    The X server accepts the availability check, and any other
+    connection, until the client agrees to FORWARD-X.  Then it stops
+    listening, so the client's connection for OPEN is refused.  The
+    client answers OPEN with CLOSE for the channel.  The display number
+    is chosen at random from a range the other tests do not use, so a
+    concurrent run of this test is unlikely to bind the same port.
     """
-    if not hasattr(socket, "SO_REUSEPORT"):
-        pytest.skip("no SO_REUSEPORT")
-    for n in range(200, 400):
+    displays = list(range(200, 2000))
+    random.shuffle(displays)
+    for n in displays:
         xsrv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        hold = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        for sock in (xsrv, hold):
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         try:
             xsrv.bind(("127.0.0.1", 6000 + n))
-            hold.bind(("127.0.0.1", 6000 + n))
         except OSError:
             xsrv.close()
-            hold.close()
             continue
         break
     else:
         pytest.skip("no free X display port")
     xsrv.listen(4)
-    xsrv.settimeout(20)
+    xsrv.settimeout(0.1)
     gone = threading.Event()
+    server = ForwardXServer([1.0, bytes([OPEN]) + _channel(3)], wait=1.0)
 
-    def once():
-        try:
-            c, _ = xsrv.accept()
-            c.close()
-        except OSError:
-            pass
+    def until_agreed():
+        deadline = time.monotonic() + 20
+        while not server.agreed.is_set() and time.monotonic() < deadline:
+            try:
+                c, _ = xsrv.accept()
+                c.close()
+            except OSError:
+                pass
         xsrv.close()
         gone.set()
 
-    threading.Thread(target=once, daemon=True).start()
-    server = ForwardXServer([1.0, bytes([OPEN]) + _channel(3)], wait=1.0)
-    try:
-        rc, out = _session(wermit_path, tmp_path, server, f"127.0.0.1:{n}")
-    finally:
-        hold.close()
+    threading.Thread(target=until_agreed, daemon=True).start()
+    rc, out = _session(wermit_path, tmp_path, server, f"127.0.0.1:{n}")
     assert gone.is_set()
+    assert server.agreed.is_set(), out
     assert bytes([CLOSE]) + _channel(3) in server.received, server.received
     assert "AFTER" in out, out
 
