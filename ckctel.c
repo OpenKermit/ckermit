@@ -2197,7 +2197,7 @@ iks_tn_sb(iksb, n) CHAR * iksb; int n;
             tn_siks(KERMIT_RESP_STOP);
         } else if (server) {
             extern int en_fin;
-            if (en_fin) {               /* If the server is allowed to stop */
+            if (ENABLED(en_fin)) {      /* If the server is allowed to stop */
                 tn_siks(KERMIT_RESP_STOP);
             } else {                    /* We are not allowed to stop */
                 tn_siks(KERMIT_RESP_START);

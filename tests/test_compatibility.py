@@ -100,9 +100,29 @@ def test_compat_file_settings(run_wermit, keyword):
     result = run_wermit(f"set compatibility {keyword}, show file")
     assert_ok(result)
     assert "Transfer mode:           automatic" in result.stdout
-    assert "Receive pathnames:       absolute" in result.stdout
+    assert "Receive pathnames:       auto" in result.stdout
     assert "Receive confirm:         off" in result.stdout
     assert "File collision:          backup" in result.stdout
+
+
+@pytest.mark.parametrize("keyword,collision", [
+    ("10", "backup"), ("9", "backup"), ("11", "discard"),
+    ("default", "discard"),
+])
+def test_compat_survives_set_protocol(run_wermit, keyword, collision):
+    """Verify SET PROTOCOL keeps the collision and pathnames settings.
+
+    SET PROTOCOL reloads both from the protocol table.  SET
+    COMPATIBILITY must update the table as well as the settings.
+    """
+    result = run_wermit("set file collision rename, "
+                        "set receive pathnames off, "
+                        f"set compatibility {keyword}, "
+                        "set protocol kermit, show file")
+    assert_ok(result)
+    assert f"File collision:          {collision}" in result.stdout, (
+        result.stdout)
+    assert "Receive pathnames:       auto" in result.stdout, result.stdout
 
 
 @pytest.mark.parametrize("keyword", _COMPAT_KEYWORDS)
@@ -240,3 +260,64 @@ def test_invoked_as_kermit9_howcalled_stays_kermit(wermit_path, tmp_path):
     result = _run_as(wermit_path, tmp_path, "kermit9", r"echo \v(program)")
     assert_ok(result)
     assert "C-Kermit" in result.stdout
+
+
+
+@pytest.mark.parametrize("argv0", ["kermit9", "kermit10"])
+@pytest.mark.parametrize("kind", ["absolute", "dotdot"])
+def test_compat_receive_confines_incoming_paths(wermit_path, tmp_path,
+                                                argv0, kind):
+    """Verify compatibility modes do not write outside the receive dir.
+
+    Beta.12's default RECEIVE PATHNAMES AUTO confined an absolute
+    incoming name; the compatibility modes keep that.
+    """
+    recv_dir = tmp_path / "recv" / "sub"
+    send_dir = tmp_path / "send"
+    recv_dir.mkdir(parents=True)
+    send_dir.mkdir()
+    (send_dir / "a.txt").write_text("payload\n")
+    link = tmp_path / argv0
+    link.symlink_to(wermit_path)
+    if kind == "absolute":
+        target = tmp_path / "escaped-abs.txt"
+        as_name = str(target)
+    else:
+        target = tmp_path / "escaped-dotdot.txt"
+        as_name = "../../escaped-dotdot.txt"
+    result = subprocess.run([
+        str(link), "-H", "-Y", "-Q", "-C",
+        "set command more-prompting off, set delay 0, "
+        f"cd {recv_dir}, "
+        f"set host /network-type:pseudoterminal {wermit_path} -H -Y -Q -C "
+        f"{{cd {send_dir}, set file names literal, set send pathnames on, "
+        f"send /as-name:{{{as_name}}} a.txt, quit}}, "
+        "receive, close, exit"], capture_output=True, text=True,
+        timeout=30, start_new_session=True)
+    assert not target.exists(), result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("keyword", ["9", "10", "11"])
+def test_compat_does_not_undo_disable_enable(run_wermit, keyword):
+    """Verify SET COMPATIBILITY does not re-enable after DISABLE ENABLE.
+
+    DISABLE ENABLE can not be undone, so a later SET COMPATIBILITY must
+    not turn on a disabled server function either.
+    """
+    result = run_wermit("disable enable, disable mkdir, disable mail, "
+                        f"set compatibility {keyword}, show server")
+    assert_ok(result)
+    for name in ("REMOTE MKDIR", "MAIL", "ENABLE"):
+        line = re.search(rf"^ *{name} +(\S.*)$", result.stdout, re.M)
+        assert line and line.group(1).strip() == "Disabled", \
+            (name, result.stdout)
+
+
+def test_compat_10_restores_enable_without_disable(run_wermit):
+    """Verify SET COMPATIBILITY 10 still restores Beta.12 ENABLE values."""
+    result = run_wermit("set compatibility 10, show server")
+    assert_ok(result)
+    for name in ("REMOTE MKDIR", "MAIL", "ENABLE"):
+        line = re.search(rf"^ *{name} +(\S.*)$", result.stdout, re.M)
+        assert line and line.group(1).strip() == "Enabled", \
+            (name, result.stdout)

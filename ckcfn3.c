@@ -1790,7 +1790,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                 switch (d) {
 #ifndef NOFRILLS
                   case 'M':
-                    if (!en_mai) {
+                    if (!ENABLED(en_mai)) {
                         retcode = -1;
                         RPADD(c);
                         if (!opnerr) tlog(F100," refused: mail disabled","",0);
@@ -1799,7 +1799,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                     break;
 #endif /* NOFRILLS */
                   case 'P':
-                    if (!en_pri) {
+                    if (!ENABLED(en_pri)) {
                         retcode = -1;
                         RPADD(c);
                         if (!opnerr)

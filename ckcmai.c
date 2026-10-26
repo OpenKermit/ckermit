@@ -1596,6 +1596,7 @@ int en_ret = 2;                         /* RETRIEVE */
 int en_mai = 0;                         /* MAIL */
 int en_pri = 0;                         /* PRINT */
 int en_ena = 2;                         /* ENABLE */
+int en_ena_lock = 0;                    /* en_ena bits DISABLE ENABLE cleared */
 #else
 int en_xit = 0, en_cwd = 0, en_cpy = 0, en_del = 0, en_mkd = 0, en_rmd = 0,
     en_dir = 0, en_fin = 0, en_get = 0, en_hos = 0, en_ren = 0, en_sen = 0,

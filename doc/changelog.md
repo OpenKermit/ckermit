@@ -145,6 +145,27 @@ COMPATIBILITY`.
   They are now refused with "Deleting files is disabled", as GET /DELETE is.
   Bug was introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
 
+- [8, 11] ENABLE and DISABLE with LOCAL, REMOTE or BOTH set the whole
+  value.  With the 11.0 default of REMOTE only, `disable cd remote`
+  enabled CD for the local side.  APC from the remote host uses that side.
+  Each now changes only its half.  The assignment was introduced in commit
+  c88d9b85 in C-Kermit 8.0.200 of 2001.  It became harmful when commits
+  9ee170a8 and dc67bddb changed the defaults in C-Kermit 11.0.501 of
+  2026.
+
+- [11] SET COMPATIBILITY 9 and 10, and `kermit9` and `kermit10`, set RECEIVE
+  PATHNAMES ABSOLUTE instead of C-Kermit 9's AUTO, and could re-enable
+  functions that ENABLE refuses or that DISABLE ENABLE had locked.  A later SET
+  PROTOCOL restored the earlier collision and pathname settings.  HELP SET
+  COMPATIBILITY now states exactly what each mode changes.  Modes 9 and 10 make
+  the same changes: FILE COLLISION BACKUP, TRANSFER MODE AUTOMATIC, TERMINAL
+  AUTODOWNLOAD ERROR STOP, RECEIVE CONFIRM OFF, TCP ADDRESS-FAMILY IPV4,
+  RECEIVE PATHNAMES AUTO, and the listed ENABLE settings for both sides.
+  Neither restores the C-Kermit 9 prompt, `SET TELNET WAIT`, or `SET TCP
+  CONNECT-TIMEOUT`.  The CONNECT-TIMEOUT default has been 30 seconds since
+  11.0.510.  Bugs were introduced in commits f8e56a89 and 1260091f in C-Kermit
+  11.0.506 of 2026.
+
 ### FTP and HTTP
 
 - [8] FTP MGET /RECURSIVE wrote server names such as `../../x` or
@@ -260,8 +281,15 @@ COMPATIBILITY`.
 - [8] TLS host name checks use `X509_check_host()`.  A wildcard matches
   only as the whole leftmost label of a name with more labels.
 
+- [8, 11] `ENABLE` and `DISABLE` with `LOCAL` or `REMOTE` change only that
+  side.
+
 - [11] RECEIVE CONFIRM prompts for files a recursive GET places outside
   the requested directory.
+
+- [11] `SET COMPATIBILITY 9` and `10`, and `kermit9` and `kermit10`, set
+  RECEIVE PATHNAMES AUTO and no longer re-enable functions that ENABLE
+  refuses.
 
 ## Changes in earlier releases that didn't make it into the changelog
 
