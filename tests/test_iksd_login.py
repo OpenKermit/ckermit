@@ -12,6 +12,7 @@ import os
 import platform
 import shutil
 import socket
+import struct
 import subprocess
 import threading
 
@@ -21,13 +22,48 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PASSWORD = "s3cret-test"
 
 
+def _elf_info(path):
+    """Return (machine, dynamic) for the ELF file at path.
+
+    machine is the e_machine field.  dynamic is True if the file has a
+    PT_INTERP program header.  A program without one is statically
+    linked and ignores LD_PRELOAD.
+    """
+    with open(path, "rb") as f:
+        data = f.read(65536)
+    order = "<" if data[5] == 1 else ">"
+    machine, = struct.unpack_from(order + "H", data, 18)
+    if data[4] == 2:                    # ELFCLASS64
+        phoff, = struct.unpack_from(order + "Q", data, 32)
+        phentsize, phnum = struct.unpack_from(order + "HH", data, 54)
+    else:
+        phoff, = struct.unpack_from(order + "I", data, 28)
+        phentsize, phnum = struct.unpack_from(order + "HH", data, 42)
+    dynamic = False
+    for i in range(phnum):
+        off = phoff + i * phentsize
+        if off + 4 > len(data):
+            break
+        p_type, = struct.unpack_from(order + "I", data, off)
+        if p_type == 3:
+            dynamic = True
+    return machine, dynamic
+
+
 @pytest.fixture(scope="session")
-def fakeshadow(tmp_path_factory, wermit_sanitized):
-    """Build fakeshadow.so and return its path, or skip."""
+def fakeshadow(tmp_path_factory, wermit_path, wermit_sanitized):
+    """Build fakeshadow.so and return its path, or skip.
+
+    Skips if wermit is statically linked or built for a different
+    machine than cc, since LD_PRELOAD cannot load fakeshadow.so then.
+    """
     if wermit_sanitized:
         pytest.skip("LD_PRELOAD does not run with a sanitizer build")
     if platform.system() != "Linux" or not shutil.which("cc"):
         pytest.skip("fakeshadow needs Linux and cc")
+    machine, dynamic = _elf_info(wermit_path)
+    if not dynamic:
+        pytest.skip("LD_PRELOAD does not run with a static wermit")
     lib = tmp_path_factory.mktemp("fakeshadow") / "fakeshadow.so"
     result = subprocess.run(
         ["cc", "-O1", "-shared", "-fPIC", "-o", str(lib),
@@ -35,6 +71,8 @@ def fakeshadow(tmp_path_factory, wermit_sanitized):
         capture_output=True, text=True)
     if result.returncode != 0:
         pytest.skip("cannot build fakeshadow.so: " + result.stderr[-200:])
+    if _elf_info(str(lib))[0] != machine:
+        pytest.skip("fakeshadow.so and wermit differ in machine type")
     return str(lib)
 
 
