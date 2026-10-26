@@ -2254,13 +2254,14 @@ int
 #endif /* CK_ANSIC */
 {
     int x = 0, left = 0;
-    extern int oopts, omode;
+    extern int oopts, omode, rcvreget;
     CHAR * p = NULL;
 #ifdef RECURSIVE
     extern int recursive;
     debug(F101,"srinit recursive","",recursive);
 #endif /* RECURSIVE */
     debug(F101,"srinit reget","",reget);
+    rcvreget = reget ? 1 : 0;           /* gattr() honors RESEND for this */
     debug(F101,"srinit retrieve","",retrieve);
     debug(F101,"srinit opkt","",opkt);
     debug(F101,"srinit oopts","",oopts);

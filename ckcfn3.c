@@ -1478,6 +1478,10 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
     char c, d;
     char *ff;
     int aln, i, overflow = 0;
+#ifdef CK_RESEND
+    extern int rcvreget;
+    int rsok = 0;                       /* Sender's RESEND may append */
+#endif /* CK_RESEND */
 
 #ifndef NOCSETS
     extern int r_cset, axcset[];
@@ -1795,7 +1799,14 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
   the Recover attribute now.  So better to leave as-is.  Anyway, it's probably
   more useful this way.
 */
-                    if (rs_len > (CK_OFF_T)0) {
+/*
+  The sender's RESEND appends to an existing file.  Allow that only when
+  this side asked for it (REGET or GET /RECOVER) or when the collision
+  action already permits changing an existing file.
+*/
+                    rsok = rcvreget || fncact == XYFX_A ||
+                        fncact == XYFX_X || fncact == XYFX_U;
+                    if (rs_len > (CK_OFF_T)0 && rsok) {
                         fncsav = fncact; /* Save collision action */
                         fncact = XYFX_A; /* Switch to APPEND */
                     }
@@ -1947,6 +1958,11 @@ debug(F110,"gattr fsize",abuf,0);
             retcode = -1;               /* in case type field came */
             ckstrncpy(rpbuf,"N+",RPBUFL); /* after the disposition field */
             debug(F111,"gattr RESEND not binary",rpbuf,binary);
+        } else if (rs_len > (CK_OFF_T)0 && !rsok) {
+            retcode = -1;               /* Existing file, RESEND not allowed */
+            ckstrncpy(rpbuf,"N+",RPBUFL);
+            if (!opnerr) tlog(F100," refused: resend not requested","",0);
+            debug(F111,"gattr RESEND refused",rpbuf,fncact);
         } else {                        /* Binary mode */
             retcode = 0;                /* Accept the file */
             discard = 0;                /* If SET FILE COLLISION DISCARD */

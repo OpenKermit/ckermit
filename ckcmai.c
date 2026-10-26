@@ -1309,6 +1309,7 @@ int fncact = XYFX_B;                    /* BACKUP for everybody else */
 #endif /* VMS */
 
 int fncsav = -1;                        /* For saving & restoring the above */
+int rcvreget = 0;                       /* This side requested a REGET */
 int fnc_lastdiscard = 0;                /* Set when rcvfil() discards a */
                                          /* file due to a name collision. */
                                          /* Stays set for the rest of the */

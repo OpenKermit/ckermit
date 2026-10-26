@@ -72,6 +72,18 @@ COMPATIBILITY`.
   unless HOST is enabled.  Bug was introduced in C-Kermit 6.0.192 of 1996.
   That release first allowed functions in REMOTE QUERY.
 
+- [6, (11)] A sender could have a file appended to any existing file in the
+  receive directory by marking it RESEND.  This bypassed FILE COLLISION
+  REJECT and RECEIVE CONFIRM, with no prompt.  The receiver now refuses a
+  RESEND unless its collision setting allows it or it asked for a REGET.
+  The append path was introduced in commit 4b5eddea in C-Kermit 6.0.192
+  of 1996.
+  
+  C-Kermit 11.0.501 (9ee170a8) made REJECT the default which, because of this
+  bug in C-Kermit 6.0.192, didn't achieve the desired hardening effect for
+  appends.  The same happened with RECEIVE CONFIRM was added in C-Kermit
+  11.0.506 (b06df387), both in 2026.
+
 ### FTP and HTTP
 
 - [8] Several buffers filled from FTP server data in GSSAPI and Kerberos
@@ -167,6 +179,9 @@ COMPATIBILITY`.
   REMOTE WHO and REMOTE SPACE run without the shell.  A Unix server
   refuses a REMOTE WHO name.  REMOTE SPACE refuses a name that is not an
   existing directory.
+
+- [6, 11] A receiver refuses a RESEND unless its FILE COLLISION setting
+  allows it or it asked for a REGET.
 
 - [8] TLS host name checks use `X509_check_host()`.  A wildcard matches
   only as the whole leftmost label of a name with more labels.

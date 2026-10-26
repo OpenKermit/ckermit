@@ -117,6 +117,7 @@ extern int spackets, rpackets, timeouts, retrans, crunched, wmax, wcur;
 extern int hcflg, binary, fncnv, b_save, f_save, server;
 extern int nakstate, discard, rejection, local, xfermode, interrupted;
 extern int fnc_lastdiscard;
+extern int rcvreget;
 extern int rq, rqf, sq, wslots, wslotn, wslotr, winlo, urpsiz, rln;
 extern int fnspath, fnrpath, eofmethod, diractive, whatru2, wearealike;
 extern int atcapr, atcapb, atcapu;
@@ -3000,6 +3001,7 @@ tinit(flag) int flag;
 
     debug(F101,"tinit flag","",flag);
 
+    rcvreget = 0;                       /* No REGET requested yet */
     *epktmsg = NUL;
     epktrcvd = 0;
     epktsent = 0;
