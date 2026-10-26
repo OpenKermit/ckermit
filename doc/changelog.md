@@ -24,6 +24,12 @@ covering their situations.
 
 ## New Features
 
+- `SET FTP TRUST-PASV-ADDRESS { ON, OFF }` selects the address of a
+  passive-mode data connection.  OFF, the default, connects to the
+  control connection's address.  ON connects to the address in the PASV
+  reply, as releases before 11.1 did.  It suits a server that names a
+  different host for data.
+
 ## Major Bugfixes
 
 - [6, 7, 8] Files of 2GB or more failed in several places.  HTTP PUT and
@@ -172,9 +178,41 @@ COMPATIBILITY`.
   absolute paths as local files.  It now skips them.  Bug was introduced
   in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
 
-- [8] Several buffers filled from FTP server data in GSSAPI and Kerberos
-  builds are now bounded, and a one-byte overrun in their base64 decoder is
-  fixed.  Bugs were introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+- [8, 11] The FTP PASV reply was used as given, so a server could direct the
+  data connection to any host.  The data connection now goes to the control
+  connection's address.  `SET FTP TRUST-PASV-ADDRESS ON` restores the old
+  behavior.  An EPSV port above 65535 wrapped.  The PASV bug was
+  introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.  The EPSV bug was
+  introduced in commit 36668be5 in C-Kermit 11.0.501 of 2026.
+
+- [8] A malicious FTP server overflowed a static buffer in the client with a
+  long PBSZ reply after AUTH TLS.  Builds with SSL/TLS reached this in the
+  default configuration.  In GSSAPI, Kerberos 4, and SRP builds, a long ADAT
+  reply did the same, and a long protected (6xx) reply overflowed a stack
+  buffer.  Each copy now stops at the end of its buffer.  Bugs were introduced
+  in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [8] In GSSAPI, Kerberos 4, and SRP builds, a PBSZ size too small for the
+  protection overhead let a protected PUT overflow its buffer.  A text-mode PUT
+  larger than 8 KiB stored a NUL one byte past the buffer, and the base64
+  decoder wrote one byte past its output.  These bugs were also introduced in
+  commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [8] MLSD file names that contained '=' were misread, and a line of facts
+  with no name was taken as a file named after its last fact.  With
+  /RECURSIVE a nameless directory line crashed the client.  Bugs were
+  introduced in commit 7b4ce026 in C-Kermit 8.0.206 of 2002.
+
+- [8] A long HTTP chunk extension looked like the last chunk, so the body
+  was cut short with success, and a malformed chunk size ended the body
+  the same way.  A Last-Modified date that did not parse crashed HTTP GET.
+  Both date from commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [8] FTP GET /MOVE-TO evaluates its destination again after each file.  A
+  destination that expanded past the length of a path overflowed a stack
+  buffer, and Kermit crashed.  The destination is now cut at the length of a
+  path, and the move fails.  Bug was introduced in commit c88d9b85 in C-Kermit
+  8.0.200 of 2001.
 
 ### Connections, Telnet and TLS
 
@@ -277,6 +315,10 @@ COMPATIBILITY`.
 
 - [8] FTP MGET /RECURSIVE skips server names that leave the current
   directory.
+
+- [8] FTP passive data connections go to the control connection's
+  address, not to the address in the PASV reply.  `SET FTP
+  TRUST-PASV-ADDRESS ON` uses the address in the reply.
 
 - [8] TLS host name checks use `X509_check_host()`.  A wildcard matches
   only as the whole leftmost label of a name with more labels.

@@ -325,6 +325,7 @@ VOID setntcreds();
 /* select() dialects... */
 
 #ifdef UNIX
+#include <fcntl.h>                      /* O_NONBLOCK for ftp_dconnect() */
 #define BSDSELECT                       /* BSD select() syntax/semantics */
 #ifndef FD_SETSIZE
 #define FD_SETSIZE 128
@@ -1138,6 +1139,7 @@ static int                              /* SET FTP values... */
   sav_psv = -1,                         /* For saving passive mode */
   ftp_psv = 1,                          /* Passive mode */
   ftp_spc = 1,                          /* Send port commands */
+  ftp_tpa = 0,                          /* Trust the PASV reply address */
   ftp_typ = FTT_ASC,                    /* Type */
   get_auto = 1,                         /* Automatic type switching for GET */
   tenex = 0,                            /* Type is Tenex */
@@ -1392,6 +1394,7 @@ static int nftpena = (sizeof(ftpenatab) / sizeof(struct keytab)) - 1;
 #define FTS_DIS 26                      /* File-transfer display style */
 #define FTS_BUG 27                      /* Bug(s) */
 #define FTS_TMO 28                      /* Timeout */
+#define FTS_TPA 29                      /* Trust the PASV reply address */
 
 /* FTP BUGS */
 
@@ -1560,6 +1563,7 @@ static struct keytab ftpset[] = {       /* SET FTP commmand table */
 #ifdef FTP_TIMEOUT
     { "timeout",                  FTS_TMO, 0 },
 #endif  /* FTP_TIMEOUT */
+    { "trust-pasv-address",       FTS_TPA, 0 },
     { "type",                     FTS_TYP, 0 },
     { "unique-server-names",      FTS_USN, 0 },
     { "verbose-mode",             FTS_VBM, 0 },
@@ -2675,6 +2679,9 @@ dosetftp() {
       case FTS_USN:                     /* Unique server names */
         return(seton(&ftp_usn));
 
+      case FTS_TPA:                     /* Trust the PASV reply address */
+        return(seton(&ftp_tpa));
+
       case FTS_VBM:                     /* Verbose mode */
         if ((wx = seton(&ftp_vbm)) < 0)  /* Per-command copy */
           return(wx);
@@ -2916,8 +2923,8 @@ openftp(s,opn_tls) char * s; int opn_tls;
     if (!s) return(-2);
     if (!*s) return(-2);
 
-    makestr(&hostname,s);
-    hostsave = hostname;
+    makestr(&hostsave,s);               /* hostsave owns the copy */
+    hostname = hostsave;                /* hostname is a cursor */
 
     /*
       Strip bracket syntax around an IPv6 literal like SET HOST
@@ -3117,7 +3124,7 @@ openftp(s,opn_tls) char * s; int opn_tls;
                   if (ckstrcmp(nh_p2[i],"tcp/ip",(int)strlen(nh_p2[i]),0))
                     continue;
                 found++;
-                makestr(&hostname,nh_p[i]);
+                hostname = nh_p[i];
                 debug(F111,"ftpopen lunet substitution",hostname,i);
                 if (testing)
                   printf(" ftp open trying \"%s %s\"...\n",hostname,service);
@@ -4899,7 +4906,6 @@ zzsend(fd,c) int fd; CHAR c;
     rc = (!ftpissecure()) ?
       (int)send(fd, (SENDARG2TYPE)ucbuf, nout, 0) :
         secure_putbuf(fd, ucbuf, nout);
-    ucbuf[nout] = NUL;
     nout = 0;
     ucbuf[nout++] = c;
     spackets++;
@@ -8035,7 +8041,7 @@ doftpget(cx,who) int cx, who;
 #ifndef NOSPL
                     char tmpbuf8[CKMAXPATH+1];
                     int n8;
-                    n8 = TMPBUFSIZ;
+                    n8 = CKMAXPATH;
                     p = tmpbuf8;
                     debug(F111,"ftp get /move-to",rcv_move,0);
                     zzstring(rcv_move,&p,&n8);
@@ -8793,6 +8799,7 @@ shoftp(brief) int brief;
     printf(" ftp debug                      %s\n",showoff(ftp_deb));
 
     printf(" ftp passive-mode:              %s\n",showoff(ftp_psv));
+    printf(" ftp trust-pasv-address:        %s\n",showoff(ftp_tpa));
     printf(" ftp permissions:               %s\n",showooa(ftp_prm));
     printf(" ftp verbose-mode:              %s\n",showoff(ftp_vbx));
     printf(" ftp send-port-commands:        %s\n",showoff(ftp_psv));
@@ -9673,6 +9680,17 @@ dosetftphlp() {
         printf("\nSyntax: SET FTP PASSIVE-MODE { ON, OFF }\n");
         printf("  Whether to use passive mode, which helps to get through\n");
         printf("  firewalls.  ON by default.\n\n");
+        return(0);
+
+      case FTS_TPA:                     /* "trust-pasv-address" */
+        printf("\nSyntax: SET FTP TRUST-PASV-ADDRESS { ON, OFF }\n");
+        printf("  Whether a passive-mode data connection goes to the\n");
+        printf("  address in the server's PASV reply.  OFF by default.\n");
+        printf("  OFF connects to the address of the control connection\n");
+        printf("  and uses only the port from the reply.  ON is for a\n");
+        printf("  server that names a different host for data.  It lets\n");
+        printf("  the server direct Kermit to any host and port.  EPSV\n");
+        printf("  replies carry no address.\n\n");
         return(0);
 
       case FTS_PRM:                     /* "permissions" */
@@ -10916,9 +10934,9 @@ parsefeat(s) char * s;
     char kwbuf[8];
     int i, x;
     if (!s) return;
-    if (!*s) return;
-    while (*s < '!')
+    while (*s && *s < '!')               /* Skip leading blanks */
       s++;
+    if (!*s) return;
     for (i = 0; i < 4; i++) {
         if (s[i] < '!')
           break;
@@ -10968,47 +10986,53 @@ parsefacts(s) char * s;
     if (!s) return(NULL);
     if (!*s) return(NULL);
 
-    /* Maybe we should make a copy of s so we can poke it... */
-
-    while ((p = ckstrchr(s,'='))) {
-        *p = NUL;                       /* s points to fact */
-        i = xlookup(facttab,s,nfacttab,&x);
-        debug(F111,"ftp parsefact fact",s,i);
-        *p = '=';
-        s = p+1;                        /* Now s points to arg */
-        p = ckstrchr(s,';');
-        if (!p)
-          p = ckstrchr(s,SP);
-        if (!p) {
-            debug(F110,"ftp parsefact end-of-val search fail",s,0);
-            break;
+/*
+  The facts are "fact=value;" items, then one space, then the name
+  (RFC 3659).  Each fact ends at its ';', or at a space from a server
+  that leaves out the last ';'.  The name may contain '=' and ';'.
+*/
+    while (*s && *s != SP) {
+        char * e, * v, sep;
+        if (!(e = ckstrchr(s,';')) && !(e = ckstrchr(s,SP))) {
+            debug(F110,"ftp parsefact no name",s,0);
+            return(NULL);               /* Facts with no space, no name */
         }
-        *p = NUL;
-        debug(F110,"ftp parsefact valu",s,0);
-        switch (i) {
-          case FACT_CSET:               /* Ignore these for now */
-          case FACT_CREA:
-          case FACT_LANG:
-          case FACT_PERM:
-          case FACT_MTYP:
-          case FACT_UNIQ:
-            break;
-          case FACT_MDTM:               /* Modtime */
-            makestr(&havemdtm,s);
-            debug(F110,"ftp parsefact mdtm",havemdtm,0);
-            break;
-          case FACT_SIZE:               /* Size */
-            havesize = ckatofs(s);
-            debug(F101,"ftp parsefact size","",havesize);
-            break;
-          case FACT_TYPE:               /* Type */
-            j = xlookup(ftyptab,s,nftyptab,NULL);
-            debug(F111,"ftp parsefact type",s,j);
-            havetype = (j < 1) ? 0 : j;
-            break;
+        if ((p = ckstrchr(s,SP)) && p < e) /* Space before ';' ends it */
+          e = p;
+        sep = *e;                       /* ';' or SP */
+        *e = NUL;
+        if ((p = ckstrchr(s,'='))) {
+            *p = NUL;                   /* s points to fact */
+            i = xlookup(facttab,s,nfacttab,&x);
+            debug(F111,"ftp parsefact fact",s,i);
+            *p = '=';
+            v = p + 1;                  /* v points to value */
+            debug(F110,"ftp parsefact valu",v,0);
+            switch (i) {
+              case FACT_CSET:           /* Ignore these for now */
+              case FACT_CREA:
+              case FACT_LANG:
+              case FACT_PERM:
+              case FACT_MTYP:
+              case FACT_UNIQ:
+                break;
+              case FACT_MDTM:           /* Modtime */
+                makestr(&havemdtm,v);
+                debug(F110,"ftp parsefact mdtm",havemdtm,0);
+                break;
+              case FACT_SIZE:           /* Size */
+                havesize = ckatofs(v);
+                debug(F101,"ftp parsefact size","",havesize);
+                break;
+              case FACT_TYPE:           /* Type */
+                j = xlookup(ftyptab,v,nftyptab,NULL);
+                debug(F111,"ftp parsefact type",v,j);
+                havetype = (j < 1) ? 0 : j;
+                break;
+            }
         }
-        *p = ';';
-        s = p+1;                        /* s points next fact or name */
+        *e = sep;                       /* Put back the separator */
+        s = (sep == ';') ? e + 1 : e;   /* Next fact, or the space */
     }
     while (*s == SP)                    /* Skip past spaces. */
       s++;
@@ -11282,12 +11306,12 @@ getreply(expecteof,lcs,rcs,vbm,fc) int expecteof, lcs, rcs, vbm, fc;
             ) {
             char * q = cp;
             char *r = ftp_reply_str;
-            *q-- = NUL;                 /* NUL-terminate */
-            while (*q < '!' && q > r)   /* Strip CR, etc */
-              *q-- = NUL;
+            *q = NUL;                   /* NUL-terminate */
+            while (q > r + 1 && q[-1] < '!') /* Strip CR, etc */
+              *--q = NUL;
             if (!ftp_deb && printlines) { /* If printing */
                 if (ftpcode != 0)       /* strip ftpcode if any */
-                  r += 4;
+                  r += ((int)strlen(r) < 4) ? (int)strlen(r) : 4;
 #ifdef NOCSETS
                 printf("%s\n",r);       /* and print */
 #else
@@ -13154,6 +13178,61 @@ recvrequest(cmd,rrlocal,remote,lmode,printnames,recover,pipename,xlate,fcs,rcs)
 }
 
 /*
+  Connect fd to the passive-mode data address sa, waiting no longer than
+  the FTP timeout (60 seconds when none is set).  Returns 0 on success,
+  or -1 with errno set.
+*/
+static int
+#ifdef CK_ANSIC
+ftp_dconnect(int fd, struct sockaddr * sa, int salen)
+#else
+ftp_dconnect(fd,sa,salen) int fd; struct sockaddr * sa; int salen;
+#endif /* CK_ANSIC */
+{
+#ifdef BSDSELECT
+#ifdef O_NONBLOCK
+    int flags, rc, err = 0;
+    fd_set wfds;
+    struct timeval tv;
+    SOCKOPT_T optlen;
+
+    if (fd >= FD_SETSIZE)               /* select() cannot wait on it */
+      return(connect(fd,sa,salen));
+    flags = fcntl(fd,F_GETFL,0);
+    if (flags != -1)
+      fcntl(fd,F_SETFL,flags|O_NONBLOCK);
+    rc = connect(fd,sa,salen);
+    if (rc < 0 && errno == EINPROGRESS) {
+        FD_ZERO(&wfds);
+        FD_SET(fd,&wfds);
+        tv.tv_sec = (ftp_timeout > 0L) ? ftp_timeout : 60L;
+        tv.tv_usec = 0L;
+        rc = select(fd + 1,NULL,&wfds,NULL,&tv);
+        if (rc == 0) {
+            err = ETIMEDOUT;
+            rc = -1;
+        } else if (rc > 0) {
+            optlen = sizeof(err);
+            if (getsockopt(fd,SOL_SOCKET,SO_ERROR,(char *)&err,&optlen) < 0)
+              err = errno;
+            rc = err ? -1 : 0;
+        } else
+          err = errno;
+    } else if (rc < 0)
+      err = errno;
+    if (flags != -1)
+      fcntl(fd,F_SETFL,flags);
+    errno = err;
+    return(rc);
+#else
+    return(connect(fd,sa,salen));
+#endif /* O_NONBLOCK */
+#else
+    return(connect(fd,sa,salen));
+#endif /* BSDSELECT */
+}
+
+/*
  * Need to start a listen on the data channel before we send the command,
  * otherwise the server's connect may fail.
  */
@@ -13214,18 +13293,28 @@ initconn() {
                 if (plen > 0 && pasv[plen-1] == '|')
                   pasv[--plen] = '\0';
                 lastbar = strrchr(pasv, '|');
-                eport = atoi(lastbar ? lastbar+1 : pasv);
+                {
+                    char * ep;
+                    char * sp = lastbar ? lastbar+1 : pasv;
+                    long lp;
+                    errno = 0;
+                    lp = strtol(sp,&ep,10);
+                    if (ep == sp || *ep || errno || lp < 1 || lp > 65535)
+                      eport = 0;        /* Not a TCP port number */
+                    else
+                      eport = (int)lp;
+                }
             }
             if (eport <= 0) {
                 printf("Extended passive mode address scan failure\n");
-                return(-1);
+                goto bad;               /* Closes data */
             }
             memcpy(&data_addr, &hisctladdr, sizeof(data_addr));
             ck_setport((struct sockaddr *)&data_addr, (unsigned short)eport);
-            if (connect(data, (struct sockaddr *)&data_addr,
-                        FTP_SALEN(data_addr)) < 0) {
+            if (ftp_dconnect(data, (struct sockaddr *)&data_addr,
+                             FTP_SALEN(data_addr)) < 0) {
                 perror("ftp: connect");
-                return(-1);
+                goto bad;               /* Closes data */
             }
             debug(F100,"initconn connect ok","",0);
 #ifdef IP_TOS
@@ -13251,8 +13340,14 @@ initconn() {
 */
         if (sscanf(pasv,"%d,%d,%d,%d,%d,%d",&a1,&a2,&a3,&a4,&p1,&p2) != 6) {
             printf("Passive mode address scan failure\n");
-            return(-1);
-        };
+            goto bad;               /* Closes data */
+        }
+        if (a1 < 0 || a1 > 255 || a2 < 0 || a2 > 255 ||
+            a3 < 0 || a3 > 255 || a4 < 0 || a4 > 255 ||
+            p1 < 0 || p1 > 255 || p2 < 0 || p2 > 255) {
+            printf("Passive mode address out of range\n");
+            goto bad;               /* Closes data */
+        }
 #ifndef NOHTTP
         if (tcp_http_proxy) {
 #ifdef OS2
@@ -13410,17 +13505,32 @@ initconn() {
         } else
 #endif /* NOHTTP */
         {
-            FTP_SIN(data_addr)->sin_family = AF_INET;
-            FTP_SIN(data_addr)->sin_addr.s_addr =
-              htonl((a1<<24)|(a2<<16)|(a3<<8)|a4);
+/*
+  Connect to the port in the PASV reply.  The address is the control
+  connection's peer, so a server cannot direct the client to another
+  host.  SET FTP TRUST-PASV-ADDRESS ON uses the address in the reply.
+*/
+            unsigned long pasvaddr;
+            pasvaddr = ((unsigned long)a1 << 24) |
+              ((unsigned long)a2 << 16) |
+              ((unsigned long)a3 << 8) | (unsigned long)a4;
+            if (ftp_tpa) {
+                FTP_SIN(data_addr)->sin_family = AF_INET;
+                FTP_SIN(data_addr)->sin_addr.s_addr = htonl(pasvaddr);
+            } else {
+                memcpy(&data_addr,&hisctladdr,sizeof(data_addr));
+                if (htonl(pasvaddr) != FTP_SIN(data_addr)->sin_addr.s_addr)
+                  debug(F100,"initconn PASV address differs, using peer",
+                        "",0);
+            }
             FTP_SIN(data_addr)->sin_port = htons((unsigned short)((p1<<8)|p2));
 
-            if (connect(data,
-                        (struct sockaddr *)&data_addr,
-                        FTP_SALEN(data_addr)) < 0
+            if (ftp_dconnect(data,
+                             (struct sockaddr *)&data_addr,
+                             FTP_SALEN(data_addr)) < 0
                 ) {
                 perror("ftp: connect");
-                return(-1);
+                goto bad;               /* Closes data */
             }
         }
         debug(F100,"initconn connect ok","",0);
@@ -14284,6 +14394,21 @@ setpbsz(size) unsigned int size;
           maxbuf = actualbuf;
     } else
       maxbuf = actualbuf;
+    /*
+      Without SSL, protected data goes through ucbuf.  It needs room
+      for FUDGE_FACTOR bytes of protection overhead.  A smaller buffer
+      would make ucbufsiz negative.
+    */
+#ifdef CK_SSL
+    if (!ssl_ftp_active_flag)
+#endif /* CK_SSL */
+      if (maxbuf <= FUDGE_FACTOR) {
+          printf("?FTP server protection buffer size %u is too small\n",
+                 maxbuf);
+          reply_parse = NULL;
+          ftpclose();
+          return(-1);
+      }
     ucbufsiz = maxbuf - FUDGE_FACTOR;
     debug(F101,"setpbsz ucbufsiz","",ucbufsiz);
     reply_parse = NULL;
@@ -15711,6 +15836,8 @@ remote_files(new_query, arg, pattern, proxy_switch)
         }
     } else {                            /* MLSD... */
         p = parsefacts((char *)buf);
+        if (!p)                         /* No name: skip the line */
+          goto again;
         switch (havetype) {
           case FTYP_FILE:               /* File: Get it if it matches */
             if (pattern) {
@@ -16745,6 +16872,9 @@ radix_encode(inbuf, outbuf, inlen, outlen, decode)
         }
         *outlen = j;
     } else {
+        /* Four output bytes per three input bytes, padded, plus NUL */
+        if (inlen < 0 || (inlen + 2) / 3 * 4 + 1 > *outlen)
+          return(4);
         for (i = 0, j = 0; i < inlen; i++) {
             switch (i%3) {
               case 0:
@@ -16760,8 +16890,6 @@ radix_encode(inbuf, outbuf, inlen, outlen, decode)
                 outbuf[j++] = radixN[inbuf[i]&63];
                 c = 0;
             }
-            if (j == *outlen)
-              return(4);
         }
         if (i%3) outbuf[j++] = radixN[c];
         switch (i%3) {

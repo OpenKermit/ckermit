@@ -2333,7 +2333,8 @@ getnct(s,n,f,flag) char *s; int n; FILE *f; int flag;
             return(-1);                 /* Return failure code */
         }
         if (firstread) {               /* Beginning of a block or statement */
-            tfblockstart[tlevel] = tfline[tlevel];
+            if (!flag && tlevel > -1)   /* TAKE file line counters */
+              tfblockstart[tlevel] = tfline[tlevel];
             firstread = 0;
         }
 #ifndef NODIAL
@@ -2341,6 +2342,7 @@ getnct(s,n,f,flag) char *s; int n; FILE *f; int flag;
           dirline++;
         else
 #endif /* NODIAL */
+        if (tlevel > -1)
           tfline[tlevel]++;
         len = (int)strlen(lp2) - 1;          /* Position of line terminator */
         if (len == 0 && lp2[0] != '\n') { /* Last line in file has one char */
@@ -2356,7 +2358,7 @@ getnct(s,n,f,flag) char *s; int n; FILE *f; int flag;
 #ifndef NODIAL
                     flag ? dirline :
 #endif /* NODIAL */
-                    tfline[tlevel],
+                    ((tlevel > -1) ? tfline[tlevel] : 0),
                     lp2
                     );
             } else {

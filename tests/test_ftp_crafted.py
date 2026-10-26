@@ -6,6 +6,7 @@ when the replies are valid.
 """
 import socket
 import threading
+import time
 
 import pytest
 
@@ -114,6 +115,35 @@ def test_ftp_greeting_bare_lf(run_wermit):
     assert "OPEN-OK" in result.stdout, result.stdout[-500:]
 
 
+def test_ftp_empty_and_short_reply_lines(run_wermit, tmp_path):
+    """Verify empty and short reply lines with the debug log on.
+
+    The debug log makes getreply() strip each line's trailing controls.
+    An empty line has nothing to strip.  A line shorter than its reply
+    code field has no text after the code.  An ASan build reports any
+    read outside ftp_reply_str.
+    """
+    reply = b'257-x\r\n\n21\r\n\r\n257 "/"\r\n'
+    result = _ftp_session(run_wermit, b"220 hi\r\n", {"PWD": reply},
+                          commands=[f"log debug {tmp_path}/debug.log",
+                                    "ftp pwd", "echo PWD-DONE"])
+    assert "OPEN-OK" in result.stdout, result.stdout[-500:]
+    assert "PWD-DONE" in result.stdout, result.stdout[-500:]
+    assert result.returncode == 0, result.stderr[-2000:]
+
+
+def test_ftp_blank_feat_line(run_wermit):
+    """Verify a FEAT reply line that holds only blanks.
+
+    The line is longer than every earlier reply, so only zeros follow it
+    in ftp_reply_str.  An ASan build reports a scan past the line.
+    """
+    reply = b"211-Features:\r\n" + b" " * 60 + b"\r\n MDTM\r\n211 End\r\n"
+    result = _ftp_session(run_wermit, b"220 hi\r\n", {"FEAT": reply})
+    assert "OPEN-OK" in result.stdout, result.stdout[-500:]
+    assert result.returncode == 0, result.stderr[-2000:]
+
+
 def test_ftp_multiline_mismatched_end_code(run_wermit):
     """Verify a multi-line reply with a mismatched intermediate code."""
     greeting = b"220-start\r\n230 not the end\r\n220 end\r\n"
@@ -163,8 +193,10 @@ def test_ftp_pasv_long_reply(run_wermit):
                  commands=["ftp dir"])
 
 
-def _serve_nlst(names):
+def _serve_nlst(names, pasv_ip=b"127,0,0,1"):
     """Start a one-connection FTP peer that lists names for NLST.
+
+    pasv_ip is the address text sent in the PASV reply.
 
     Supports PASV for the listing's data connection and refuses every
     RETR. Returns (port, thread, socket, list of RETR arguments).
@@ -200,8 +232,8 @@ def _serve_nlst(names):
                         data_srv.settimeout(20)
                         p = data_srv.getsockname()[1]
                         conn.sendall(b"227 Entering Passive Mode "
-                                     b"(127,0,0,1,%d,%d)\r\n"
-                                     % (p >> 8, p & 255))
+                                     b"(%s,%d,%d)\r\n"
+                                     % (pasv_ip, p >> 8, p & 255))
                         continue
                     if verb == "NLST" and data_srv:
                         conn.sendall(b"150 listing\r\n")
@@ -290,3 +322,224 @@ def test_ftp_mget_refuses_unsafe_server_names(run_wermit, tmp_path,
         thread.join(timeout=5)
     assert "OPEN-OK" in result.stdout, result.stdout[-500:]
     assert retrs == [b"ok.txt"], retrs
+
+
+def test_ftp_pasv_address_is_ignored(run_wermit, tmp_path):
+    """Verify the data connection goes to the control connection's peer.
+
+    The PASV reply names an unreachable address.  The client takes only
+    the port from it, lists the file and requests it.
+    """
+    port, thread, srv, retrs = _serve_nlst([b"file.txt"],
+                                           pasv_ip=b"10,255,255,1")
+    try:
+        result = run_wermit(", ".join([
+            f"cd {tmp_path}",
+            f"ftp open 127.0.0.1 {port} /user:u /password:p",
+            "set ftp timeout 5",
+            "ftp mget *.txt",
+            "ftp close",
+            "exit",
+        ]), timeout=60)
+    finally:
+        srv.close()
+        thread.join(timeout=5)
+    assert retrs == [b"file.txt"], (retrs, result.stdout)
+
+
+def test_ftp_trust_pasv_address_on(run_wermit, tmp_path):
+    """Verify TRUST-PASV-ADDRESS ON connects to the PASV reply address.
+
+    The reply names an unreachable address.  The client connects there,
+    gives up at the FTP timeout, and requests no file.
+    """
+    port, thread, srv, retrs = _serve_nlst([b"file.txt"],
+                                           pasv_ip=b"10,255,255,1")
+    start = time.monotonic()
+    try:
+        result = run_wermit(", ".join([
+            f"cd {tmp_path}",
+            "set ftp trust-pasv-address on",
+            f"ftp open 127.0.0.1 {port} /user:u /password:p",
+            "set ftp timeout 3",
+            "ftp mget *.txt",
+            "ftp close",
+            "exit",
+        ]), timeout=60)
+    finally:
+        srv.close()
+        thread.join(timeout=5)
+    assert retrs == [], (retrs, result.stdout)
+    assert time.monotonic() - start < 30
+
+
+def test_ftp_trust_pasv_address_show(run_wermit):
+    """Verify SHOW FTP reports TRUST-PASV-ADDRESS, OFF by default."""
+    result = run_wermit("show ftp, set ftp trust-pasv-address on, "
+                        "show ftp, exit")
+    lines = [ln for ln in result.stdout.splitlines()
+             if "trust-pasv-address" in ln]
+    assert len(lines) == 2, result.stdout
+    assert lines[0].split()[-1] == "off", lines
+    assert lines[1].split()[-1] == "on", lines
+
+
+@pytest.mark.parametrize("reply", [
+    b"227 Entering Passive Mode (-1,256,255,256,255,0)\r\n",
+    b"227 Entering Passive Mode (127,0,0,1,300,1)\r\n",
+])
+def test_ftp_pasv_fields_out_of_range(run_wermit, reply):
+    """Verify PASV fields outside 0-255 are refused."""
+    result = _ftp_session(run_wermit, b"220 hi\r\n", {"PASV": reply},
+                          commands=["ftp dir", "echo DIR-STATUS=\\v(status)"])
+    assert "OPEN-OK" in result.stdout, result.stdout
+    assert "out of range" in result.stdout, result.stdout
+    assert "DIR-STATUS=1" in result.stdout, result.stdout
+
+
+def test_ftp_pasv_failure_closes_data_socket(run_wermit):
+    """Verify a failed PASV setup does not leave its socket open."""
+    import os
+    if not os.path.isdir("/proc/self/fd"):
+        pytest.skip("no /proc/self/fd")
+    result = _ftp_session(
+        run_wermit, b"220 hi\r\n",
+        {"PASV": b"227 Entering Passive Mode (1,2,3)\r\n"},
+        commands=["ftp dir"] * 5 +
+                 ["run echo SOCKETS=$(ls -l /proc/$PPID/fd | grep -c socket)"])
+    assert "OPEN-OK" in result.stdout, result.stdout
+    count = int(result.stdout.split("SOCKETS=")[1].split()[0])
+    assert count <= 2, result.stdout
+
+
+def test_ftp_epsv_port_out_of_range(run_wermit):
+    """Verify an EPSV port above 65535 is refused, not truncated."""
+    try:
+        srv = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        srv.bind(("::1", 0))
+    except OSError:
+        pytest.skip("no IPv6 loopback")
+    srv.listen(1)
+    srv.settimeout(20)
+    table = dict(DEFAULT_REPLIES)
+    table["EPSV"] = b"229 Entering Extended Passive Mode (|||86000|)\r\n"
+
+    def run():
+        try:
+            conn, _ = srv.accept()
+        except OSError:
+            return
+        with conn:
+            conn.settimeout(20)
+            try:
+                conn.sendall(b"220 hi\r\n")
+                for line in conn.makefile("rb"):
+                    verb = line.split(b" ")[0].strip().upper().decode(
+                        "ascii", "replace")
+                    conn.sendall(table.get(verb, b"200 ok\r\n"))
+                    if verb == "QUIT":
+                        break
+            except OSError:
+                pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    try:
+        result = run_wermit(", ".join([
+            f"ftp open ::1 {srv.getsockname()[1]} /user:u /password:p",
+            "ftp dir", "echo DIR-STATUS=\\v(status)", "ftp close", "exit",
+        ]), timeout=60)
+    finally:
+        srv.close()
+        thread.join(timeout=5)
+    assert "address scan failure" in result.stdout, result.stdout
+    assert "DIR-STATUS=1" in result.stdout, result.stdout
+
+
+def _serve_mlsd(lines):
+    """Start a one-connection FTP peer that lists lines for MLSD.
+
+    It advertises MLST in FEAT, supports PASV, and answers RETR with
+    "550".  Returns (port, thread, socket, list of RETR arguments).
+    """
+    retrs = []
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    srv.settimeout(20)
+    table = dict(DEFAULT_REPLIES)
+    table.update({"FEAT": b"211-Features:\r\n MLST type*;size*;modify*;"
+                          b"\r\n211 End\r\n",
+                  "SIZE": b"550 no\r\n", "MDTM": b"550 no\r\n",
+                  "RETR": b"550 no\r\n"})
+
+    def run():
+        try:
+            conn, _ = srv.accept()
+        except OSError:
+            return
+        data_srv = None
+        with conn:
+            conn.settimeout(20)
+            try:
+                conn.sendall(b"220 hi\r\n")
+                for line in conn.makefile("rb"):
+                    words = line.strip().split(b" ", 1)
+                    verb = words[0].upper().decode("ascii", "replace")
+                    if verb == "PASV":
+                        data_srv = socket.socket(socket.AF_INET,
+                                                 socket.SOCK_STREAM)
+                        data_srv.bind(("127.0.0.1", 0))
+                        data_srv.listen(1)
+                        data_srv.settimeout(20)
+                        p = data_srv.getsockname()[1]
+                        conn.sendall(b"227 Entering Passive Mode "
+                                     b"(127,0,0,1,%d,%d)\r\n"
+                                     % (p >> 8, p & 255))
+                        continue
+                    if verb == "MLSD" and data_srv:
+                        conn.sendall(b"150 listing\r\n")
+                        data, _ = data_srv.accept()
+                        with data:
+                            data.sendall(b"".join(n + b"\r\n"
+                                                  for n in lines))
+                        data_srv.close()
+                        data_srv = None
+                        conn.sendall(b"226 done\r\n")
+                        continue
+                    if verb == "RETR":
+                        retrs.append(words[1] if len(words) > 1 else b"")
+                    conn.sendall(table.get(verb, b"200 ok\r\n"))
+                    if verb == "QUIT":
+                        break
+            except OSError:
+                pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    return srv.getsockname()[1], thread, srv, retrs
+
+
+def test_ftp_mlsd_names_with_equals_and_space(run_wermit, tmp_path):
+    """Verify MLSD names are taken whole after the facts.
+
+    A name may contain '=' and ';'.  A server that leaves out the last
+    ';' before the space still gives the right name.
+    """
+    lines = [b"type=file;size=5; a=b.txt",
+             b"type=file;size=5; c;d.txt",
+             b"type=file;size=5 e.txt"]
+    port, thread, srv, retrs = _serve_mlsd(lines)
+    try:
+        run_wermit(", ".join([
+            f"cd {tmp_path}",
+            f"ftp open 127.0.0.1 {port} /user:u /password:p",
+            "ftp mget *",
+            "ftp close",
+            "exit",
+        ]), timeout=60)
+    finally:
+        srv.close()
+        thread.join(timeout=5)
+    assert sorted(retrs) == [b"a=b.txt", b"c;d.txt", b"e.txt"], retrs
