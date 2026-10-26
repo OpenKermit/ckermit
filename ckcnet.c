@@ -15521,6 +15521,66 @@ fwdx_create_listen_socket(screen) int screen;
 }
 
 
+#define FWDX_CONNECT_TMO 10             /* Seconds */
+
+/*
+  Connect sock to the X server at sa.  On Unix, connect() runs
+  nonblocking and select() waits up to FWDX_CONNECT_TMO seconds for it
+  to complete.  On OpenBSD a blocking connect() to a loopback address
+  can sleep forever after the connection is established.  sock is in
+  its original blocking mode on return.  Returns 0 on success, -1 on
+  failure.
+*/
+static int
+#ifdef CK_ANSIC
+fwdx_connect(int sock, struct sockaddr *sa, int len)
+#else
+fwdx_connect(sock, sa, len) int sock; struct sockaddr *sa; int len;
+#endif  /* CK_ANSIC */
+{
+#ifdef OS2
+    return(connect(sock, sa, len) < 0 ? -1 : 0);
+#else /* OS2 */
+    int flags, rc, x, err;
+    time_t deadline, left;
+    fd_set wfds;
+    struct timeval tv;
+    SOCKOPT_T optlen;
+
+    if (sock >= FD_SETSIZE)
+      return(-1);
+    flags = fcntl(sock, F_GETFL, 0);
+    if (flags == -1 || fcntl(sock, F_SETFL, flags | O_NONBLOCK) == -1)
+      return(-1);
+    rc = connect(sock, sa, len);
+    if (rc < 0 && (errno == EINPROGRESS || errno == EINTR)) {
+        rc = -1;
+        deadline = time(NULL) + FWDX_CONNECT_TMO;
+        while ((left = deadline - time(NULL)) > 0) {
+            FD_ZERO(&wfds);
+            FD_SET(sock, &wfds);
+            tv.tv_sec = left;
+            tv.tv_usec = 0;
+            x = select(sock + 1, NULL, &wfds, NULL, &tv);
+            if (x > 0) {
+                err = 0;
+                optlen = sizeof(err);
+                if (getsockopt(sock, SOL_SOCKET, SO_ERROR,
+                               (char *)&err, &optlen) < 0)
+                  err = errno;
+                rc = err ? -1 : 0;
+                break;
+            }
+            if (x < 0 && errno != EINTR)
+              break;
+        }
+        debug(F101,"fwdx_connect select result","",rc);
+    }
+    fcntl(sock, F_SETFL, flags);
+    return(rc < 0 ? -1 : 0);
+#endif /* OS2 */
+}
+
 int
 #ifdef CK_ANSIC
 fwdx_open_client_channel(int channel)
@@ -15661,7 +15721,8 @@ fwdx_open_client_channel(channel) int channel;
             return(-1);
         }
 
-        if ( connect(sock, (struct sockaddr *)&saddr, sizeof(saddr)) < 0) {
+        if (fwdx_connect(sock, (struct sockaddr *)&saddr,
+                         sizeof(saddr)) < 0) {
             debug(F110,"fwdx_create_client_channel()","connect() failed",0);
 #ifdef TCPIPLIB
             socket_close(sock);
@@ -15800,7 +15861,7 @@ fwdx_server_avail() {
         return(0);
     }
 
-    if ( connect(sock, (struct sockaddr *)&saddr, sizeof(saddr)) < 0) {
+    if (fwdx_connect(sock, (struct sockaddr *)&saddr, sizeof(saddr)) < 0) {
         debug(F110,"fwdx_server_avail()","connect() failed",0);
 #ifdef TCPIPLIB
         socket_close(sock);
