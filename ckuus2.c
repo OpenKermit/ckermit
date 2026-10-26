@@ -10067,6 +10067,9 @@ static char *hxyrcv[] = {
 #ifdef CK_PERMS
 "SET RECEIVE PERMISSIONS { ON, OFF }",
 "  Whether to copy file permissions from inbound Attribute packets.",
+"  A file received from a Unix sender gets the read, write, and execute",
+"  permissions of the original.  Setuid, setgid, and sticky bits are not",
+"  copied.",
 " ",
 #endif /* CK_PERMS */
 

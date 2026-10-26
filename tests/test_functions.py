@@ -1,3 +1,7 @@
+import shutil
+import subprocess
+
+import pytest
 from conftest import assert_ok
 
 
@@ -122,3 +126,27 @@ def test_wait_file_event_status(run_wermit, tmp_path):
     assert "A=[1]" in result.stdout, result.stdout
     assert "B=[1]" in result.stdout, result.stdout
     assert "C=[0]" in result.stdout, result.stdout
+
+
+def test_random_seed_reads_no_uninitialized_memory(wermit_path):
+    """Verify startup and \\frandom() run clean under valgrind."""
+    valgrind = shutil.which("valgrind")
+    if not valgrind:
+        pytest.skip("valgrind not installed")
+    result = subprocess.run(
+        [valgrind, "-q", "--error-exitcode=9", wermit_path,
+         "-H", "-Y", "-Q", "-C", "echo R=\\frandom(1000), quit"],
+        capture_output=True, text=True, timeout=120)
+    assert result.returncode == 0, result.stderr
+    assert "R=" in result.stdout, result.stdout
+
+
+def test_random_differs_between_runs(run_wermit):
+    """Verify \\frandom() gives different sequences in separate runs."""
+    seqs = set()
+    for _ in range(3):
+        result = run_wermit(
+            "for \\%i 1 4 1 { xecho [\\frandom(1000000000)] }, echo")
+        assert_ok(result)
+        seqs.add(result.stdout.strip())
+    assert len(seqs) == 3, seqs

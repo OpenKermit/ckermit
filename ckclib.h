@@ -47,6 +47,7 @@ _PROTOTYP( char * ckltoa, (long) );
 _PROTOTYP( char * ckultoa, (unsigned long) );
 _PROTOTYP( char * ckfstoa, (CK_OFF_T) );
 _PROTOTYP( CK_OFF_T ckatofs, (char *) );
+_PROTOTYP( int ckrandbytes, (unsigned char *, int) );
 _PROTOTYP( char * ckitox, (int) );
 _PROTOTYP( char * ckltox, (long) );
 _PROTOTYP( int ispattern, (char *) );

@@ -2811,9 +2811,9 @@ nzrtol(name,name2,fncnv,fnrpath,max) char *name,*name2;int fncnv,fnrpath,max;
         *p++ = *name;
         n++;
     }
-    *p-- = '\0';                        /* Terminate */
-    while (*p < '!' && p > name2)       /* Strip trailing blanks & controls */
-      *p-- = '\0';
+    *p = '\0';                          /* Terminate */
+    while (p > name2 && *(p-1) < '!')   /* Strip trailing blanks & controls */
+      *--p = '\0';
 
     if (*name2 == '\0') {               /* Nothing left? */
         ckstrncpy(name2,"NONAME",max);  /* do this... */
@@ -5458,30 +5458,28 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x;
     }
 #endif /* CKROOT */
 
-    if (yy->date.len == 0) {            /* No date in struct */
-        if (yy->lprotect.len > 0) {     /* So go do permissions */
-            goto zsperms;
-        } else {
-            debug(F100,"zstime: nothing to do","",0);
-            return(0);
+    if (yy->date.len == 0 &&            /* No date */
+        yy->lprotect.len == 0 &&        /* and no permissions */
+        yy->gprotect.len <= 0) {
+        debug(F100,"zstime: nothing to do","",0);
+        return(0);
+    }
+    if (yy->date.len != 0) {
+        if ((tm = zstrdt(yy->date.val,yy->date.len)) < 0) {
+            debug(F101,"zstime: zstrdt fails","",0);
+            return(-1);
         }
+        debug(F101,"zstime: tm","",tm);
+        debug(F111,"zstime: A-pkt date ok ",yy->date.val,yy->date.len);
+        setdate = 1;
     }
-    if ((tm = zstrdt(yy->date.val,yy->date.len)) < 0) {
-        debug(F101,"zstime: zstrdt fails","",0);
-        return(-1);
-    }
-    debug(F101,"zstime: tm","",tm);
-    debug(F111,"zstime: A-pkt date ok ",yy->date.val,yy->date.len);
-
-    if (stat(f,&sb)) {                  /* Get the time for the file */
+    if (stat(f,&sb)) {                  /* Mode and times of the file */
         debug(F101,"STAT","",14);
         debug(F111,"zstime: Can't stat file:",f,errno);
         return(-1);
     }
     debug(F101,"STAT","",15);
-    setdate = 1;
 
-  zsperms:
 #ifdef CK_PERMS
     {
         int i, px = 0, xx, flag = 0;
@@ -5514,13 +5512,17 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x;
               xx = 0 - xx;
             for (i = 0; i < xx; i++) {  /* Decode octal string */
                 if (*s <= '7' && *s >= '0') {
-                    px = 8 * px + (int)(*s) - '0';
+                    /* Keep the permission bits so px cannot overflow */
+                    px = (8 * px + (int)(*s) - '0') & 07777;
                 } else {
                     flag = 0;
                     break;
                 }
                 s++;
             }
+            /* The sender's permissions give read, write and execute */
+            if (yy->lprotect.len > 0)
+              px &= 0777;
 #ifdef DEBUG
             sprintf(obuf,"%o",px);
             debug(F110,"zstime octal lperm",obuf,0);

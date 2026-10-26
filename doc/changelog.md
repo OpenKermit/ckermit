@@ -91,6 +91,60 @@ COMPATIBILITY`.
   requested directory.  Bugs were introduced in commit b06df387 in C-Kermit
   11.0.506 of 2026.
 
+- [4, 5, 6, 7] The server trusted the field lengths in generic commands,
+  Extended GET parameters, attribute packets and REMOTE SET.  A length past the
+  data made it read stale buffer contents.  REMOTE SET values were also stored
+  without range checks.  REMOTE LOGIN copied a user name of up to 255 bytes
+  into a 64-byte stack buffer in builds without BIGBUFOK.  REMOTE CD, COPY and
+  RENAME took a last field over 94 characters as empty, so REMOTE CD went to
+  the home directory.  Each field is now checked, and a long last field is used
+  whole.  The REMOTE CD bug was introduced in commit 16d830ec in C-Kermit
+  4F(095) of 1989.  The others were introduced in commits a213649d (5A(188) of
+  1992), 609e2f39 (5A(190) of 1994), 4b5eddea (6.0.192 of 1996) and d0f8b1da
+  (7.0.197 of 2000).
+
+- [4, 5, 7] Malformed packets were accepted or read past their data.  A packet
+  whose data ended with a repeat, control or 8th-bit prefix and no operand was
+  decoded with the operand taken from the block check.  A trailing repeat
+  prefix wrote 224 copies of a block check byte to the file.  Such a packet now
+  ends the transfer with the error "Malformed packet data".  A packet whose
+  length was shorter than its block check passed with a negative data length.
+  With an extended header of length 0, the header check served as the block
+  check, so a packet of any type was accepted.  Such a packet is now refused as
+  a bad length.  A malformed packet could leave a sequence number outside 0-63
+  that was later used as a table index.  rpack() computed the block check of a
+  packet that claimed more bytes than arrived over unwritten buffer space.
+  spar() read past the Send-Init parameters it was given.  Bugs were introduced
+  in commits f16b451f (4C(057) of 1985), 9438f560 (4E(072) of 1989), a213649d
+  (5A(188) of 1992) and d0f8b1da (7.0.197 of 2000).
+
+- [5] Attribute handling read and wrote outside its buffers.  A receiver wrote
+  one byte past its 21-byte attribute reply buffer for each refused attribute
+  beyond the 20th.  A sender could refuse many attributes in one packet and
+  overwrite static data.  The reply now keeps the first 20 reasons.  A sender
+  read one entry past its table of refusal reasons when the receiver refused a
+  file with reason "A".  The transaction log and file transfer display showed a
+  stray string such as "January", or Kermit could crash.  The reason is now
+  "unknown".  A received file name of only blanks or control characters made
+  the receiver read one byte before its name buffer.  The file is still stored
+  as NONAME.  Bugs were introduced in commit a213649d in C-Kermit 5A(188) of
+  1992.
+
+- [7] A receiver gave a file the setuid, setgid and sticky bits when a Unix
+  sender's permissions held them.  A sender could leave a setuid program in the
+  receiver's directory.  The receiver now keeps only the read, write, and
+  execute bits.  A C-Kermit sender sends no other bits, so this change is
+  unlikely to cause a real-world regression.  A permission string of more than
+  10 digits also overflowed.  An attribute packet with permissions but no date
+  set the file mode from uninitialized memory.  Bugs were introduced in commit
+  d0f8b1da in C-Kermit 7.0.197 of 2000.
+
+- [7] A server with DISABLE DELETE still deleted each file it sent for GET
+  /RECOVER /DELETE, and for GET /RECOVER /RECURSIVE /DELETE.  The client sends
+  these as an Extended GET, and the server did not check DISABLE DELETE for it.
+  They are now refused with "Deleting files is disabled", as GET /DELETE is.
+  Bug was introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
+
 ### FTP and HTTP
 
 - [8] FTP MGET /RECURSIVE wrote server names such as `../../x` or
@@ -191,8 +245,14 @@ COMPATIBILITY`.
   refuses a REMOTE WHO name.  REMOTE SPACE refuses a name that is not an
   existing directory.
 
+- [4] A malformed packet ends the transfer with "Malformed packet data".
+  A packet shorter than its block check is refused.
+
 - [6, 11] A receiver refuses a RESEND unless its FILE COLLISION setting
   allows it or it asked for a REGET.
+
+- [7] A receiver gives a received file only the read, write and execute
+  bits of the sender's permissions.
 
 - [8] FTP MGET /RECURSIVE skips server names that leave the current
   directory.

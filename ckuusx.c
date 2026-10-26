@@ -2926,6 +2926,9 @@ fnsplit(string,outv,maxout,buf)
                     if ((x = xxesc(&s)) > -1) { /* Go interpret it. */
                         *q++ = (char) x; /* Numeric backslash code, ok */
                         continue;
+                    } else if (!s[1]) { /* Backslash ends the string: */
+                        *q++ = *s++;    /* keep it as a literal */
+                        continue;
                     } else {            /* Just let it quote next char */
                         s++;            /* get past the backslash */
                         *q++ = *s++;    /* deposit next char */

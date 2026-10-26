@@ -1958,8 +1958,7 @@ fwdx_create_fake_xauth(name, name_len, data_len)
     char *name; int name_len; int data_len;
 #endif /* CK_ANSIC */
 {
-    char stackdata[256];
-    unsigned int c, n;
+    unsigned int c;
 
     if (!name_len || !data_len)
         return 1;
@@ -1971,12 +1970,16 @@ fwdx_create_fake_xauth(name, name_len, data_len)
     memcpy(fake_xauth.name, name, name_len);
     fake_xauth.data_length = (unsigned short)data_len;
 
-    /* try to make a random unsigned int to feed srand() */
-    c = (unsigned int)time(NULL);
+    /* The cookie authenticates X11 clients to the local display. */
+#ifdef CK_SSL
+    if (RAND_bytes((unsigned char *)fake_xauth.data, data_len) == 1)
+        return 0;
+#endif /* CK_SSL */
+    if (ckrandbytes((unsigned char *)fake_xauth.data, data_len) == 0)
+        return 0;
+    c = (unsigned int)time(NULL);       /* No secure generator */
     c *= (unsigned int)getpid();
-    for (n = 0; n < sizeof(stackdata); n++)
-        c += stackdata[n];
-    srand((unsigned int)c);
+    srand(c);
     for (c = 0; c < (unsigned int)data_len; c++)
         fake_xauth.data[c] = (unsigned char)rand();
     return 0;

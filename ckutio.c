@@ -11540,6 +11540,7 @@ ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
                 continue;
             }
             dest[i++] = (CHAR)(n & ttpmsk);
+            dest[i] = '\0';             /* i < max, so dest[i] is in bounds */
 /*
   If we have not been instructed to wait for a turnaround character, we can go
   by the packet length field.  If turn != 0, we must wait for the end of line
@@ -11605,6 +11606,7 @@ ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
 
 #else /* PARSENSE */
             dest[i++] = n & ttpmsk;
+            dest[i] = '\0';
 #endif /* PARSENSE */
 
     /* Check for end of packet */
@@ -11720,6 +11722,8 @@ ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
             }
         } /* End of while() */
         ttimoff();
+        if (n >= 0)                     /* Buffer full: return what we have */
+          return(i);
         return(n);
     }
 }

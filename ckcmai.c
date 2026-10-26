@@ -1003,7 +1003,7 @@ CHAR
     srvcmdbuf[MAXRP+4],
     *srvcmd = srvcmdbuf,
 #endif /* DYNAMIC */
-    padbuf[96],                         /* Buffer for send-padding */
+    padbuf[PADBUFL],                    /* Buffer for send-padding */
     *recpkt,
     *rdatap,                            /* Pointer to received packet data */
     *data = (CHAR *)0,                  /* Pointer to send-packet data */
@@ -3321,15 +3321,12 @@ MAINNAME( argc, argv ) int argc; char **argv;
 #ifndef NOSPL
 #ifndef NORANDOM
     {
-        char stackdata[256];
-        unsigned int c = 1234, n;
-        /* try to make a random unsigned int to feed srand() */
-        c = (unsigned int)time(NULL);               /* Get current time */
-        c *= getpid();                  /* multiply it by our PID */
-        /* Referenced before set... DELIBERATELY */
-        for (n = 0; n < sizeof(stackdata); n++) /* IGNORE WARNING */
-          c += stackdata[n];            /* DELIBERATELY USED BEFORE SET */
-        srand((unsigned int)c);
+        unsigned int c;                 /* Seed for \frandom() */
+        if (ckrandbytes((unsigned char *)&c, (int)sizeof(c)) < 0) {
+            c = (unsigned int)time(NULL); /* No system generator */
+            c *= (unsigned int)getpid();
+        }
+        srand(c);
     }
 #endif /* NORANDOM */
 #endif /* NOSPL */

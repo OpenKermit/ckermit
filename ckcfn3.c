@@ -134,6 +134,14 @@ ckmkdir(fc,s,r,m,cvt) int fc; char * s; char ** r; int m; int cvt;
     s = tmpbuf;
     x = (int)strlen(s);
     if (x > 0 && s[x-1] != '/') {       /* Must end in "/" for zmkdir() */
+        if (x + 2 > (int)sizeof(tmpbuf)) { /* No room for "/" and NUL */
+            debug(F110,"ckmkdir name too long",s,0);
+            ckmakmsg(ckmkdbuf,CKMAXPATH+1,
+                     (fc == 0) ? "mkdir" : "rmdir",": name too long",
+                     NULL,NULL);
+            *r = ckmkdbuf;
+            return(-1);
+        }
         s[x] = '/';
         s[x+1] = NUL;
         debug(F110,"ckmkdir 2+UNIXOROSK",s,0);
@@ -144,6 +152,14 @@ ckmkdir(fc,s,r,m,cvt) int fc; char * s; char ** r; int m; int cvt;
     s = tmpbuf;
     x = strlen(s);
     if (fc == 0 && x > 0 && s[x-1] != '/') { /* Must end in "/" for zmkdir() */
+        if (x + 2 > (int)sizeof(tmpbuf)) { /* No room for "/" and NUL */
+            debug(F110,"ckmkdir name too long",s,0);
+            ckmakmsg(ckmkdbuf,CKMAXPATH+1,
+                     (fc == 0) ? "mkdir" : "rmdir",": name too long",
+                     NULL,NULL);
+            *r = ckmkdbuf;
+            return(-1);
+        }
         s[x] = '/';
         s[x+1] = NUL;
         debug(F110,"ckmkdir 2+OS2",s,0);
@@ -790,6 +806,8 @@ freerpkt(seq) int seq;
 {
     int k;
     debug(F101,"freerpkt seq","",seq);
+    if (seq < 0 || seq > 63)            /* Not a valid sequence number */
+      return;
     k = rseqtbl[seq];
     /* debug(F101,"freerpkt k","",k); */
     if (k > -1) {
@@ -1417,7 +1435,7 @@ getreason(s) char *s;
     else if ((c = *p) > SP) {           /* get reason, */
         rejection = c;                  /* remember it, */
         c -= '!';                       /* get offset */
-        p = ((unsigned int) ((CHAR) c) <= (unsigned int) nreason) ?
+        p = ((unsigned int) ((CHAR) c) < (unsigned int) nreason) ?
           reason[(CHAR) c] :
             "unknown";
     }
@@ -1442,7 +1460,9 @@ rsattr(s) CHAR *s;
     if (sendmode == SM_RESEND && *s == '1') { /* RESEND length */
         int n; CK_OFF_T z; CHAR *p;
         p = s + 1;
-        n = xunchar(*p++);
+        if ((n = gflen(p)) < 0)         /* Length past the data */
+          n = 0;
+        p++;
         debug(F101,"rsattr RESEND n","",n);
         z = (CK_OFF_T)0;
         while (n-- > 0)                 /* We assume the format is good. */
@@ -1512,6 +1532,11 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
 #endif /* DYNAMIC */
 #define RPBUFL 20                       /* Attribute reply */
     static char rpbuf[RPBUFL+1];
+/*
+  Add a refusal reason to the reply.  The reply keeps the first RPBUFL
+  characters.  rpbuf[RPBUFL] stays free for the terminating NUL.
+*/
+#define RPADD(x) do { if (rp < rpbuf + RPBUFL) *rp++ = (char)(x); } while (0)
 
 #ifdef CK_PERMS
     static char lprmbuf[CK_PERMLEN+1];
@@ -1545,7 +1570,11 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
         yy->disp.len = 1;
     }
     while ((c = *s++)) {                /* Get attribute tag */
-        aln = xunchar(*s++);            /* Length of attribute string */
+        if ((aln = gflen(s)) < 0) {     /* Length of attribute string */
+            debug(F000,"gattr attribute past the data","",c);
+            break;
+        }
+        s++;
         switch (c) {
 
           case '/':                     /* Record format */
@@ -1560,7 +1589,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                 (rfbuf[1] && rfbuf[1] != 'M') ||
                 (rfbuf[2] && rfbuf[2] != 'J')) {
                 debug(F110,"gattr bad recfm",rfbuf,0);
-                *rp++ = c;
+                RPADD(c);
                 retcode = -1;
             }
             break;
@@ -1584,7 +1613,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
 #endif /* CK_LABELED */
                     ) {
                     retcode = -1;       /* Reject the file */
-                    *rp++ = c;
+                    RPADD(c);
                     if (!opnerr) tlog(F100," refused: type","",0);
                     break;
                 }
@@ -1627,7 +1656,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                 yy->date.len = i;       /* Length of string */
                 if (fncact == XYFX_U) { /* Receiving in update mode? */
                     if (zstime(ff,yy,1) > 0) { /* Compare dates */
-                        *rp++ = c;      /* Discard if older, reason = date. */
+                        RPADD(c);       /* Discard if older, reason = date. */
                         if (!opnerr) tlog(F100," refused: date","",0);
                         retcode = -1;   /* Rejection notice. */
                     }
@@ -1685,7 +1714,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                         debug(F110,"gattr: xfer charset unknown",ss,0);
                         if (!unkcs) {   /* and SET UNKNOWN DISCARD, */
                             retcode = -1; /* reject the file. */
-                            *rp++ = c;
+                            RPADD(c);
                             if (!opnerr)
                               tlog(F100," refused: character set","",0);
                         }
@@ -1712,7 +1741,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                 debug(F110,"gattr unk encoding attribute",tsbuf,0);
                 if (!unkcs) {           /* If SET UNK DISC */
                     retcode = -1;
-                    *rp++ = c;
+                    RPADD(c);
                     if (!opnerr) tlog(F100," refused: encoding","",0);
                 }
                 break;
@@ -1753,7 +1782,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
 #endif /* CK_RESEND */
                     d != 'P') {         /* PRINT */
                     retcode = -1;       /* Unknown/unsupported disposition */
-                    *rp++ = c;
+                    RPADD(c);
                     if (!opnerr) tlog(F101," refused: bad disposition","",d);
                 }
                 dispos = d;
@@ -1763,7 +1792,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                   case 'M':
                     if (!en_mai) {
                         retcode = -1;
-                        *rp++ = c;
+                        RPADD(c);
                         if (!opnerr) tlog(F100," refused: mail disabled","",0);
                         dispos = 0;
                     }
@@ -1772,7 +1801,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                   case 'P':
                     if (!en_pri) {
                         retcode = -1;
-                        *rp++ = c;
+                        RPADD(c);
                         if (!opnerr)
                           tlog(F100," refused: print disabled","",0);
                         dispos = 0;
@@ -1812,7 +1841,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                     }
 #else
                     retcode = -1;       /* This shouldn't happen */
-                    *rp++ = c;          /* 'cause it wasn't negotiated. */
+                    RPADD(c);           /* 'cause it wasn't negotiated. */
                     if (!opnerr) tlog(F100," refused: resend","",0);
 #endif /* CK_RESEND */
                 }
@@ -1919,7 +1948,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
         if (yy->length > (CK_OFF_T)-1) { /* Length-in-bytes attribute rec'd? */
             if (!zchkspa(ff,(yy->length))) { /* Check space */
                 retcode = -1;                /* Not enuf */
-                *rp++ = '1';
+                RPADD('1');
                 if (!opnerr) tlog(F100," refused: length bytes","",0);
             }
         } else if (yy->lengthk > (CK_OFF_T)-1) { /* Length in K received? */
@@ -1927,7 +1956,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
             xlen = yy->lengthk * 1024;
             if (!zchkspa(ff,xlen)) {
                 retcode = -1;           /* Check space */
-                *rp++ = '!';
+                RPADD('!');
                 if (!opnerr) tlog(F100," refused: length K","",0);
             }
         }

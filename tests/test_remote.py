@@ -229,6 +229,30 @@ def test_remote_delete_with_space(tmp_path, wermit_loopback, style):
     assert not (d / name).exists()
 
 
+def test_remote_delete_long_path(tmp_path, wermit_loopback):
+    """Verify REMOTE DELETE of a file with a path over 256 bytes.
+
+    The server's deletion report holds each matched name.  A name longer
+    than 256 bytes must be deleted and reported without overflowing.
+    """
+    deep = tmp_path
+    rel = []
+    for i in range(3):
+        part = chr(97 + i) * 100
+        deep = deep / part
+        rel.append(part)
+    deep.mkdir(parents=True)
+    victim = deep / "victim.txt"
+    victim.write_text("x\n")
+    path = "/".join(rel) + "/vic*"
+
+    result = wermit_loopback(tmp_path,
+                             client_commands=f"remote delete {path}")
+    assert_ok(result)
+    assert not victim.exists()
+    assert "victim.txt" in result.stdout, result.stdout
+
+
 @pytest.mark.parametrize("style", ["none", "brace", "doublequote"])
 def test_remote_directory_with_space(tmp_path, wermit_loopback, style):
     """
@@ -582,3 +606,36 @@ def test_remote_assign_long_value_reaches_server(tmp_path,
     out = tmp_path / "result.txt"
     assert out.exists(), result.stdout[-500:]
     assert out.read_text().strip() == "1993", out.read_text()
+
+
+def test_remote_cd_long_name(tmp_path, wermit_loopback):
+    """Verify REMOTE CD takes a directory name over 94 characters.
+
+    The client sends a last field over 94 characters with length 0,
+    which means the rest of the data.
+    """
+    name = "d" * 120
+    (tmp_path / name).mkdir()
+    result = wermit_loopback(tmp_path,
+                             client_commands=f"remote cd {name}, remote pwd")
+    assert_ok(result)
+    assert name in result.stdout
+
+
+def test_remote_copy_rename_long_second_name(tmp_path, wermit_loopback):
+    """Verify REMOTE COPY and RENAME take a second name over 94 characters.
+
+    Only the last field of a generic command can be that long.
+    """
+    (tmp_path / "a.txt").write_text("hello\n")
+    (tmp_path / "b.txt").write_text("world\n")
+    long1 = "c" * 110
+    long2 = "r" * 110
+    result = wermit_loopback(
+        tmp_path,
+        client_commands=f"remote copy a.txt {long1}, "
+                        f"remote rename b.txt {long2}")
+    assert_ok(result)
+    assert (tmp_path / long1).read_text() == "hello\n"
+    assert (tmp_path / long2).read_text() == "world\n"
+    assert not (tmp_path / "b.txt").exists()

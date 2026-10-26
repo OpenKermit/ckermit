@@ -45,6 +45,23 @@ START_TEST(test_fnsplit_extra_spaces)
 }
 END_TEST
 
+START_TEST(test_fnsplit_trailing_backslash_stops_at_end)
+{
+    /* Bytes after the terminator stand in for stale packet data. */
+    char text[] = "abc\\\0XYZ";
+    char * tokv[MAXTOK];
+    char buf[BUFSZ];
+    int n, i;
+
+    memset(buf,'Q',sizeof(buf));
+    n = fnsplit(text,tokv,MAXTOK,buf);
+    ck_assert_int_eq(n, 1);
+    ck_assert_str_eq(tokv[0], "abc\\");
+    for (i = 5; i < BUFSZ; i++)         /* Nothing written past "abc\" */
+      ck_assert_int_eq(buf[i], 'Q');
+}
+END_TEST
+
 START_TEST(test_fnsplit_braced_name_with_spaces)
 {
     char text[] = "foo.txt {bar baz.txt} qux.*";
@@ -328,6 +345,7 @@ main(int argc, char ** argv)
     tcase_add_test(tc, test_brquote_roundtrips_backslash_with_space);
     tcase_add_test(tc, test_brquote_roundtrips_bare_backslash);
     tcase_add_test(tc, test_brquote_truncates_safely);
+    tcase_add_test(tc, test_fnsplit_trailing_backslash_stops_at_end);
     suite_add_tcase(s, tc);
 
     SRunner * sr = srunner_create(s);

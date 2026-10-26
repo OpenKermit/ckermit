@@ -2741,6 +2741,7 @@ rpack() {
     unsigned int chk;
 #endif /* CKTUNING */
     int k, type, chklen;
+    int nrcv;                           /* Bytes ttinl() returned */
     unsigned crc;
     CHAR pbc[5];                        /* Packet block check */
     CHAR *sohp;                         /* Pointer to SOH */
@@ -2912,6 +2913,7 @@ rpack() {
 
 /* Find start of packet */
 
+    nrcv = j;
 #ifndef PARSENSE
     for (i = 0; (recpkt[i] != stchr) && (i < j); i++)
       sohp++;                           /* Find mark */
@@ -2928,7 +2930,14 @@ rpack() {
     lp = i;                             /* Remember LEN position. */
     if ((j = xunchar(recpkt[i++])) == 0) { /* Get packet length.  */
         if ((j = lp+5) > MAXRP) {       /* Long packet */
+            freerbuf(k);
             return('Q');                /* Too long */
+        }
+        if (j >= nrcv) {                /* Extended header not received */
+            freerbuf(k);
+            logpkt('r',-1,(CHAR *)"<crunched:len>",0);
+            xxscreen(SCR_PT,'%',(long)pktnum,"Bad packet length");
+            return('Q');
         }
 
 #ifdef CKTUNING
@@ -2956,7 +2965,13 @@ rpack() {
 #endif /* CKTUNING */
         rln = xunchar(recpkt[j-2]) * 95 + xunchar(recpkt[j-1]) - bctl;
         j = 3;                          /* Data offset. */
-    } else if (j < 3) {
+        if (lp + 6 + rln + bctl > nrcv) { /* More than was received */
+            freerbuf(k);
+            logpkt('r',-1,(CHAR *)"<crunched:len>",0);
+            xxscreen(SCR_PT,'%',(long)pktnum,"Bad packet length");
+            return('Q');
+        }
+    } else if (j < 3 || lp + 1 + j > nrcv) { /* Short, or more than came */
         debug(F101,"rpack packet length less than 3","",j);
         freerbuf(k);
         logpkt('r',-1,(CHAR *)"<crunched:len>",0);
@@ -2975,6 +2990,7 @@ rpack() {
         if (pktlog)
           logpkt('r',rsn,(CHAR *)"<crunched:seq>",0);
         xxscreen(SCR_PT,'%',(long)pktnum,"Bad sequence number");
+        rsn = -1;                       /* Not usable as a table index */
         return('Q');
     }
 /*
@@ -3024,6 +3040,13 @@ rpack() {
         debug(F101,"rpack chklen","",chklen);
     }
 #endif /* DEBUG */
+    if (rln < 0) {                      /* Shorter than its block check */
+        debug(F101,"rpack negative data length","",rln);
+        freerbuf(k);
+        logpkt('r',-1,(CHAR *)"<crunched:len>",0);
+        xxscreen(SCR_PT,'%',(long)pktnum,"Bad packet length");
+        return('Q');
+    }
     i += j;                             /* Buffer index of DATA field */
     rdatap = recpkt+i;                  /* Pointer to DATA field */
     if ((j = rln + i) > r_pkt[k].bf_len) { /* Make sure it fits */
@@ -3063,9 +3086,10 @@ rpack() {
             if (type == 'E') {          /* Allow E packets to have type 1 */
                 recpkt[j++] = pbc[0];
                 recpkt[j] = '\0';
-                if (xunchar(pbc[1]) == chk1(recpkt+lp,j-lp))
-                  break;
-                else
+                if (xunchar(pbc[1]) == chk1(recpkt+lp,j-lp)) {
+                    rln++;
+                    break;
+                } else
                   recpkt[--j] = '\0';
             }
 #ifdef DEBUG
@@ -3090,9 +3114,10 @@ rpack() {
                 recpkt[j++] = pbc[0];
                 recpkt[j++] = pbc[1];
                 recpkt[j] = '\0';
-                if (xunchar(pbc[2]) == chk1(recpkt+lp,j-lp))
-                  break;
-                else { j -=2; recpkt[j] = '\0'; }
+                if (xunchar(pbc[2]) == chk1(recpkt+lp,j-lp)) {
+                    rln += 2;
+                    break;
+                } else { j -=2; recpkt[j] = '\0'; }
             }
 #ifdef DEBUG
             if (deblog) {
@@ -3114,9 +3139,10 @@ rpack() {
             if (type == 'E') {  /* Allow E packets to have type 1 */
                 recpkt[j++] = pbc[0];
                 recpkt[j] = '\0';
-                if (xunchar(pbc[1]) == chk1(recpkt+lp,j-lp))
-                  break;
-                else
+                if (xunchar(pbc[1]) == chk1(recpkt+lp,j-lp)) {
+                    rln++;
+                    break;
+                } else
                   recpkt[--j] = '\0';
             }
             debug(F101,"bad type B block check","",x);

@@ -481,7 +481,8 @@ puttrm(c) register char c;
 #ifndef NOSPL
     extern char * qbufp;                /* If REMOTE QUERY active, */
     extern int query, qbufn;            /* also store response in */
-    if (query && qbufn++ < 1024) {      /* query buffer. */
+    if (query && qbufn < 1024 && qbufn < QBUFL) { /* query buffer, */
+        qbufn++;                        /* leaving room for the NUL. */
         *qbufp++ = c;
         *qbufp = NUL;
     }
@@ -572,14 +573,12 @@ zputfil(c) register char c;
 
 /*
  Call with string to be decoded and an output function.
- Returns 0 on success, -1 on failure (e.g. disk full).
+ Returns 0 on success, -1 on failure (e.g. disk full), or DECODE_BAD
+ if the data field ends inside a prefixed sequence.
 
  This is the "inner loop" when receiving files, and must be coded as
- efficiently as possible.  Note some potential problems:  if a packet
- is badly formed, having a prefixed sequence ending prematurely, this
- function, as coded, could read past the end of the packet.  This has
- never happened, thus the additional (time-consuming) tests have not
- been added.
+ efficiently as possible.  The length check for a prefix operand runs
+ only when a prefix is seen.
 */
 
 static CHAR *xdbuf;     /* Global version of decode()'s buffer pointer */
@@ -629,6 +628,8 @@ bdecode(buf,fn) register CHAR *buf; register int (*fn)();
         len--;
         rpt = 0;                        /* Initialize repeat count. */
         if (a == (unsigned int)rptq && rptflg) { /* Repeat prefix? */
+            if (len < 2)                /* Count and character must follow */
+              return(DECODE_BAD);
             rpt = xunchar(*xdbuf++ & 0xFF); /* Yes, get the repeat count, */
             rptn += rpt;
             a = *xdbuf++ & 0xFF;        /* and get the prefixed character. */
@@ -636,6 +637,8 @@ bdecode(buf,fn) register CHAR *buf; register int (*fn)();
         }
         ccpflg = 0;                     /* Control prefix flag. */
         if (a == ctlq) {                /* If control prefix, */
+            if (len < 1)
+              return(DECODE_BAD);
             a  = *xdbuf++ & 0xFF;       /* get its operand */
             len--;
             a7 = a & 0x7F;              /* and its low 7 bits. */
@@ -1362,6 +1365,8 @@ decode(buf,fn,xlate) register CHAR *buf; register int (*fn)(); int xlate;
         a = *xdbuf++ & 0xff;            /* Get next character */
         len--;
         if (a == (unsigned int)rptq && rptflg) { /* Repeat prefix? */
+            if (len < 2)                /* Count and character must follow */
+              return(DECODE_BAD);
             rpt = xunchar(*xdbuf++ & 0xFF); /* Yes, get the repeat count, */
             rptn += rpt;
             a = *xdbuf++ & 0xFF;        /* and get the prefixed character. */
@@ -1369,6 +1374,8 @@ decode(buf,fn,xlate) register CHAR *buf; register int (*fn)(); int xlate;
         }
         b8 = lsstate ? 0200 : 0;        /* 8th-bit value from SHIFT-STATE */
         if (ebqflg && a == (unsigned int)ebq) { /* 8th-bit prefix? */
+            if (len < 1)
+              return(DECODE_BAD);
             b8 ^= 0200;                 /* Yes, invert the 8th bit's value, */
             ssflg = 1;                  /* remember we did this, */
             a = *xdbuf++ & 0xFF;        /* and get the prefixed character. */
@@ -1376,6 +1383,8 @@ decode(buf,fn,xlate) register CHAR *buf; register int (*fn)(); int xlate;
         } else ssflg = 0;
         ccpflg = 0;
         if (a == ctlq) {                /* If control prefix, */
+            if (len < 1)
+              return(DECODE_BAD);
             a  = *xdbuf++ & 0xFF;       /* get its operand */
             len--;
             a7 = a & 0x7F;              /* and its low 7 bits. */
@@ -3680,8 +3689,10 @@ rcvfil(n) char *n;
 #endif /* UNICODE */
 
     debug(F110,"rcvfil rdatap",rdatap,0);
-    if (decode(rdatap,putsrv,0) < 0) {  /* Don't xlate charsets. */
-        rf_err = "File name too long";
+    i = decode(rdatap,putsrv,0);        /* Don't xlate charsets. */
+    if (i < 0) {
+        rf_err = (i == DECODE_BAD) ? "Malformed packet data" :
+          "File name too long";
         return(0);
     }
 #ifdef CALIBRATE
@@ -5419,6 +5430,10 @@ spar(s) CHAR *s;
     npad = 0; padch = '\0';
     if (biggest >= 3) {
         npad = xunchar(s[3]);
+        if (npad < 0)                   /* Partner's count: keep it */
+          npad = 0;                     /* within padbuf[] */
+        else if (npad > PADBUFL)
+          npad = PADBUFL;
         if (biggest >= 4) padch = (CHAR) ctl(s[4]); else padch = 0;
     }
     if (npad) {
@@ -5547,7 +5562,7 @@ spar(s) CHAR *s;
            byte (if any), which should be the Window Slots field.  CAPAS byte
            is continued if its low-order bit is 1.
         */
-        for (y = 10; (xunchar(s[y]) & 1) && (biggest >= y); y++);
+        for (y = 10; (biggest >= y) && (xunchar(s[y]) & 1); y++);
         debug(F101,"spar y","",y);      /* Position of WSLOTS byte */
     }
     /*
@@ -5561,7 +5576,7 @@ spar(s) CHAR *s;
     if (lpcapu) {                 /* If long packets have been negotiated.. */
         int lpspsiz = spsiz;      /* Max short packet size negotiated above */
         debug(F101,">>> spar lpspsiz","",lpspsiz);
-        if (biggest > y+1) {            /* If MAXLX1-2 bytes are present */
+        if (biggest >= y+3) {           /* If MAXLX1-2 bytes are present */
             x = xunchar(s[y+2]) * 95 + xunchar(s[y+3]); /* Extended length */
             debug(F101,">>> spar extended packet max length","",x);
             x -= 2;            /* fdc 20220917 Safety margin for edge cases */
@@ -7089,7 +7104,7 @@ nxtdel(
        void
 #endif /* CK_ANSIC */
        ) {
-    char name[257], *p = NULL;
+    char name[CKMAXPATH+1], *p = NULL;
     CK_OFF_T len = 0;
 
     if (funcnxt < funclen)
@@ -7109,18 +7124,18 @@ nxtdel(
         for (p = name + strlen(name); p != name && *p != '/' ; p--) ;
         if (*p == '/') p++;
 
-        /* sprintf's safe because size of funcbuf >= 64 + maxpathlen */
-
         if (len > -1L) {
             if (zdelet(name)) {
-                sprintf((char *)funcbuf," %10s: %s%s","skipping",p,endline);
+                ckmakmsg((char *)funcbuf,FNCBUFL,"   skipping: ",p,endline,
+                         NULL);
             } else {
                 nfiles++;
                 nbytes += len;
-                sprintf((char *)funcbuf," %10s: %s%s","deleted",p,endline);
+                ckmakmsg((char *)funcbuf,FNCBUFL,"    deleted: ",p,endline,
+                         NULL);
             }
         } else
-          sprintf((char *)funcbuf," directory: %s%s", p, endline);
+          ckmakmsg((char *)funcbuf,FNCBUFL," directory: ",p,endline,NULL);
         funcnxt = 0;
         funclen = (int)strlen((char *)funcbuf);
     } else
@@ -7128,15 +7143,15 @@ nxtdel(
     /* If done processing the expanded entries send a summary statement */
 
       if (nxpnd == 0) {
-          sprintf((char *)funcbuf,
-                  "%s%ld file%s deleted, %s byte%s freed%s",
-                  endline,
-                  nfiles,
-                  (nfiles == 1) ? "" : "s",
-                  ckfstoa(nbytes),
-                  (nbytes == (CK_OFF_T)1) ? "" : "s",
-                  endline
-                  );
+          snprintf((char *)funcbuf, FNCBUFL,
+                   "%s%ld file%s deleted, %s byte%s freed%s",
+                   endline,
+                   nfiles,
+                   (nfiles == 1) ? "" : "s",
+                   ckfstoa(nbytes),
+                   (nbytes == (CK_OFF_T)1) ? "" : "s",
+                   endline
+                   );
           nxpnd--;
           funcnxt = 0;
           funclen = (int)strlen((char *)funcbuf);
@@ -7295,9 +7310,18 @@ cwd(vdir) char *vdir;
 #endif /* CK_ANSIC */
 {
     char *cdd, *dirp;
+    int n;
 
-    vdir[xunchar(*vdir) + 1] = '\0';    /* Terminate string with a null */
-    dirp = vdir+1;
+    if (!*vdir) {                       /* No directory given */
+        dirp = "";                      /* zchdir() goes home */
+    } else {
+        if ((n = gflen((CHAR *)vdir)) < 0) /* Length past the data */
+          return(0);
+        if (n == 0)                     /* Over 94: the rest of the data */
+          n = (int)strlen(vdir + 1);
+        vdir[n + 1] = '\0';             /* Terminate string with a null */
+        dirp = vdir+1;
+    }
     tlog(F110,"Directory requested: ",dirp,0L);
     if (zchdir(dirp)) {                 /* Try to change */
         cdd = zgtdir();                 /* Get new working directory. */
@@ -7574,7 +7598,10 @@ remset(s) char *s;
     int len, x, y;
     char *p;
 
-    len = xunchar(*s++);                /* Length of first field */
+    len = gflen((CHAR *)s);             /* Length of first field */
+    s++;
+    if (len < 0 || gflen((CHAR *)(s + len)) < 0) /* Need both fields */
+      return(0);
     p = s + len;                        /* Pointer to second length field */
     *p++ = '\0';                        /* Zero out second length field */
     x = atoi(s);                        /* Value of first field */
@@ -7622,14 +7649,20 @@ remset(s) char *s;
         atcapr = atoi(p);
         return(1);
       case 300:                         /* File type (text, binary) */
-        binary = atoi(p);
+        y = atoi(p);
+        if (y < XYFT_T || y > XYFT_X)   /* File types a client sends */
+          return(0);
+        binary = y;
         b_save = binary;
 #ifndef NOICP
         g_binary = -1;
 #endif /* NOICP */
         return(1);
       case 301:                         /* File name conversion */
-        fncnv = 1 - atoi(p);            /* (oops) */
+        y = atoi(p);
+        if (y < 0 || y > 1)
+          return(0);
+        fncnv = 1 - y;                  /* (oops) */
         f_save = fncnv;
 #ifndef NOICP
         g_fncnv = -1;
@@ -7643,6 +7676,8 @@ remset(s) char *s;
 #endif /* CK_LOGIN */
 #endif /* IKSD */
         x = atoi(p);
+        if (x < XYFX_R || x > XYFX_M || x == XYFX_Q) /* fncnam[] entries */
+          return(0);
         if (!ENABLED(en_del) && (x == XYFX_X || x == XYFX_U))
           return(0);
         if (x == XYFX_R) ckwarn = 1;    /* Rename */
@@ -7650,7 +7685,10 @@ remset(s) char *s;
         fncact = x;
         return(1);
       case 310:                         /* Incomplete File Disposition */
-        keep = atoi(p);                 /* Keep, Discard, Auto */
+        y = atoi(p);                    /* Keep, Discard, Auto */
+        if (y < 0 || y > SET_AUTO)
+          return(0);
+        keep = y;
         return(1);
       case 311:                         /* Blocksize */
         fblksiz = atoi(p);
@@ -7693,7 +7731,10 @@ remset(s) char *s;
         }
         return(0);
       case 401:                         /* Receive packet-length */
-        rpsiz = urpsiz = atoi(p);
+        y = atoi(p);
+        if (y < 10)                     /* SET RECEIVE minimum */
+          return(0);
+        rpsiz = urpsiz = y;
         if (urpsiz > MAXRP) urpsiz = MAXRP; /* Max long-packet length */
         if (rpsiz > 94) rpsiz = 94;         /* Max short-packet length */
         urpsiz = adjpkl(urpsiz,wslots,bigrbsiz);
