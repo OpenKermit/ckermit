@@ -3365,13 +3365,14 @@ hasdotdot(s) char *s;
 
 #define RQ_MAXTOK 64
 
-static char rq_tok[RQ_MAXTOK][CKMAXPATH+1]; /* Precise (non-wildcard) names */
+static char rq_tok[RQ_MAXTOK][CKMAXPATH+1]; /* Basenames of precise names */
 static int rq_ntok = 0;
 static int rq_active = 0;              /* 0 for RECEIVE: no name list at all */
 static int rq_recursive = 0;           /* Current command was /RECURSIVE */
 static int rq_level = CONFIRM_OFF;     /* Effective level for this command */
 static int rq_goall = 0;               /* "Go" answered: stop asking */
-static char rq_root[CKMAXPATH+1];      /* Resolved local target directory */
+static char rq_roots[RQ_MAXTOK][CKMAXPATH+1]; /* Recursive GET targets */
+static int rq_nroot = 0;
 
 /*
   Determines whether path is a descendant of or equal to root.
@@ -3421,10 +3422,57 @@ rq_is_matched(fqpath) char * fqpath;
         if (ckmatch(rq_tok[i],b,filecase,1)) /* given to GET/MGET? */
           return(1);
     }
-    /* Recursive GET: also accept anything under its target directory */
-    if (rq_recursive && rq_root[0] && rq_under_root(rq_root,fqpath))
-      return(1);
+    /* Recursive GET: also accept anything under a requested directory */
+    if (rq_recursive) {
+        for (i = 0; i < rq_nroot; i++)
+          if (rq_under_root(rq_roots[i],fqpath))
+            return(1);
+    }
     return(0);                         /* Not requested; caller should ask */
+}
+
+/*
+  Records the local directory that a recursive GET of name fills.  A
+  recursive GET recreates the remote path under the current directory,
+  with any leading "/" removed.  The directory is that path up to the
+  last "/" before the first wildcard character, or the whole name when
+  it has no wildcard.  A name with a ".." component records nothing,
+  so files from it are confirmed.
+
+  rq_under_root() compares with strncmp(), so the directory is resolved
+  with zfnqfp(), as rcvfil() resolves the incoming file's path.
+*/
+static VOID
+#ifdef CK_ANSIC
+rq_addroot( char * name )
+#else
+rq_addroot(name) char * name;
+#endif /* CK_ANSIC */
+{
+    char pfx[CKMAXPATH+1], full[CKMAXPATH*2+2];
+    char * t = name, * d;
+    int k;
+
+    while (*t == '/')                   /* Absolute names arrive relative */
+      t++;
+    while (t[0] == '.' && t[1] == '/')
+      t += 2;
+    ckstrncpy(pfx,t,sizeof(pfx));
+    for (k = 0; pfx[k]; k++)            /* First wildcard character */
+      if (pfx[k] == '*' || pfx[k] == '?' || pfx[k] == '[' || pfx[k] == '{')
+        break;
+    if (pfx[k]) {                       /* Cut back to the last "/" */
+        while (k > 0 && pfx[k-1] != '/')
+          k--;
+        pfx[k] = '\0';
+    }
+    if (hasdotdot(pfx))
+      return;
+    d = zgtdir();
+    if (!d)
+      return;
+    ckmakmsg(full,sizeof(full),d,"/",pfx,NULL);
+    zfnqfp(full,CKMAXPATH+1,rq_roots[rq_nroot++]);
 }
 
 /*
@@ -3441,24 +3489,13 @@ rq_confirm_start(reqtext,rcvcmd,recur,override)
     char * reqtext; int rcvcmd, recur, override;
 #endif /* CK_ANSIC */
 {
-    char * d;
     extern int fnrconfirm, fnrconfirm_scope, tcp_incoming;
 
     rq_ntok = 0;
     rq_recursive = recur;
     rq_goall = 0;
     rq_active = !rcvcmd;
-    rq_root[0] = '\0';
-    /*
-      rq_under_root() does a plain strncmp() against rq_root, so it
-      must be resolved the same way as the fqpath it will be compared
-      against (rcvfil() passes fqpath through zfnqfp() before calling
-      rq_confirm_check()); otherwise a working directory reached
-      through a symlink would never match.
-    */
-    d = zgtdir();
-    if (d)
-      zfnqfp(d,CKMAXPATH+1,rq_root);
+    rq_nroot = 0;
 
     rq_level = (override > -1) ? override : fnrconfirm;
 
@@ -3509,12 +3546,35 @@ rq_confirm_start(reqtext,rcvcmd,recur,override)
                 */
                 bresc(outv[i],ebuf,sizeof(ebuf));
                 if (outv[i][0] && !iswild(ebuf) && rq_ntok < RQ_MAXTOK)
-                  ckstrncpy(rq_tok[rq_ntok++],ebuf,CKMAXPATH+1);
+                  ckstrncpy(rq_tok[rq_ntok++],getbasename(ebuf),
+                            CKMAXPATH+1);
+                if (recur && outv[i][0] && rq_nroot < RQ_MAXTOK)
+                  rq_addroot(outv[i]);
             }
         }
         if (copy) free(copy);
         if (buf) free(buf);
     }
+}
+
+/*
+  Records the as-name given to GET, so a file stored under it is taken
+  as requested.  Call after rq_confirm_start().
+*/
+void
+#ifdef CK_ANSIC
+rq_confirm_asname( char * asname )
+#else
+rq_confirm_asname(asname) char * asname;
+#endif /* CK_ANSIC */
+{
+    char ebuf[CKMAXPATH*2+1];
+
+    if (!rq_active || rq_level == CONFIRM_OFF || !asname || !*asname)
+      return;
+    bresc(asname,ebuf,sizeof(ebuf));    /* As in rq_confirm_start() */
+    if (!iswild(ebuf) && rq_ntok < RQ_MAXTOK)
+      ckstrncpy(rq_tok[rq_ntok++],getbasename(ebuf),CKMAXPATH+1);
 }
 
 /*

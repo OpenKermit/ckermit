@@ -11724,6 +11724,7 @@ doxget(cx) int cx;
 #endif /* CK_TMPDIR */
 
     rq_confirm_start(cmarg,rcvcmd,(pv[SND_REC].ival > 0),pv[SND_CFM].ival);
+    rq_confirm_asname(cmarg2);
 
     ckstrncpy(fspec,cmarg,CKMAXPATH);   /* Note - this is a REMOTE filespec */
     debug(F111,"xget fspec",fspec,fspeclen);

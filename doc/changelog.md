@@ -84,6 +84,13 @@ COMPATIBILITY`.
   appends.  The same happened with RECEIVE CONFIRM was added in C-Kermit
   11.0.506 (b06df387), both in 2026.
 
+- [11] RECEIVE CONFIRM did not prompt for files a recursive GET placed outside
+  the requested directory, such as `.ssh/authorized_keys` from `get /recursive
+  reports/*`.  It did prompt for files the user had named by path or as-name.
+  Names are now matched by basename, the as-name counts, and the root is the
+  requested directory.  Bugs were introduced in commit b06df387 in C-Kermit
+  11.0.506 of 2026.
+
 ### FTP and HTTP
 
 - [8] Several buffers filled from FTP server data in GSSAPI and Kerberos
@@ -185,6 +192,9 @@ COMPATIBILITY`.
 
 - [8] TLS host name checks use `X509_check_host()`.  A wildcard matches
   only as the whole leftmost label of a name with more labels.
+
+- [11] RECEIVE CONFIRM prompts for files a recursive GET places outside
+  the requested directory.
 
 ## Changes in earlier releases that didn't make it into the changelog
 
