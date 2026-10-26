@@ -600,3 +600,62 @@ def test_ssl_ip_address_matches_certificate_ip_san(server_dir,
               for line in result.stdout.splitlines()
               if "altSubjectName IPAddr=" in line]
     assert listed == ["192.168.255.254", "127.0.0.1"], result.stdout
+
+
+@pytest.mark.parametrize("starttls", [True, False],
+                         ids=["start-tls", "auth-ssl"])
+def test_telnet_tls_checks_server_name(server_dir, wermit_tcp_loopback,
+                                       ssl_pki, starttls):
+    """Verify a Telnet client checks the server name in both TLS paths.
+
+    The server's certificate names only IP addresses, and the client
+    connects to "localhost".  START-TLS and the AUTHENTICATION option's
+    SSL type each run a TLS handshake.  Each must warn that the name
+    does not match.  Refusing START-TLS on both sides selects the
+    AUTHENTICATION option.
+    """
+    server_setup = (
+        "set authentication ssl rsa-cert-file "
+        f"{ssl_pki['ip_server_crt']}, "
+        "set authentication ssl rsa-key-file "
+        f"{ssl_pki['ip_server_key']}, {TELNET_REFUSE_KERMIT_CLAUSE}")
+    client_setup = (
+        "set authentication ssl verbose on, "
+        f"set authentication ssl verify-file {ssl_pki['ca_crt']}, "
+        f"{TELNET_REFUSE_KERMIT_CLAUSE}")
+    if not starttls:
+        server_setup += ", set telopt /server start-tls refused"
+        client_setup += ", set telopt start-tls refused"
+    session = wermit_tcp_loopback(server_dir, protocol="telnet",
+                                  setup_cmds=server_setup)
+    result = session.run_client("remote pwd", protocol="telnet",
+                                setup_cmds=client_setup)
+    assert "[SSL - OK]" in result.stdout or "[TLS - " in result.stdout, (
+        result.stdout)
+    assert "does not match" in result.stdout, result.stdout
+
+
+def test_telnet_auth_ssl_matching_server_name(server_dir,
+                                              wermit_tcp_loopback, ssl_pki):
+    """Verify AUTHENTICATION SSL accepts a certificate for the host.
+
+    START-TLS is refused on both sides.  The server's certificate names
+    localhost, and the client connects to localhost.  The session must
+    complete with no name warning.
+    """
+    session = wermit_tcp_loopback(
+        server_dir, protocol="telnet",
+        setup_cmds=(f"{ssl_server_setup_cmds(ssl_pki)}, "
+                    f"{TELNET_REFUSE_KERMIT_CLAUSE}, "
+                    "set telopt /server start-tls refused"))
+    result = session.run_client(
+        "remote pwd", protocol="telnet",
+        setup_cmds=("set authentication ssl verbose on, "
+                    f"{ssl_client_setup_cmds(ssl_pki)}, "
+                    f"{TELNET_REFUSE_KERMIT_CLAUSE}, "
+                    "set telopt start-tls refused"))
+    assert_ok(result)
+    assert "Authenticating with SSL" in result.stdout, result.stdout
+    assert "[SSL - OK]" in result.stdout, result.stdout
+    assert "does not match" not in result.stdout, result.stdout
+    assert str(server_dir) in result.stdout, result.stdout

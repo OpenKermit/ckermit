@@ -94,6 +94,12 @@ COMPATIBILITY`.
   user that authentication validated.  Bug was introduced in commit
   d0f8b1da in C-Kermit 7.0.197 of 2000.
 
+- [8] A Telnet client that used the AUTHENTICATION option's SSL type did
+  not check that the server's certificate named the host.  A server could
+  refuse START-TLS and offer that type, and any certificate from a trusted
+  CA then passed.  The client now makes the same checks as for START-TLS.
+  Bug was introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
 - [8, 9] TLS certificate checks never matched an IP address SAN containing a
   zero byte (such as 127.0.0.1), read past the SAN's buffer, and could not
   match any IP SAN on big-endian 64-bit hosts.  The overread and big-endian bug

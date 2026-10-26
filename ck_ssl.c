@@ -3867,6 +3867,27 @@ ssl_get_server_finished(char *buf, int count)
 
 
 #ifdef CK_AUTHENTICATION
+/*
+  Check the server certificate on ssl_con after the client's handshake
+  for the Telnet AUTHENTICATION option.  With SSL_VERIFY_PEER, the
+  server must present a certificate for szHostName, or the user must
+  accept the warning.  Returns 0 to continue, -1 to fail.
+*/
+static int
+ssl_tn_check_server(VOID)
+{
+    if (ssl_certsok_flag || !(ssl_verify_flag & SSL_VERIFY_PEER) ||
+        tls_is_krb5(0))
+      return(0);
+    if (!ssl_get_subject_name(ssl_con)) {
+        if (ssl_verify_flag & SSL_VERIFY_FAIL_IF_NO_PEER_CERT)
+          return(-1);
+        return(uq_ok("Warning: Server didn't provide a certificate",
+                     "Continue? (Y/N)", 3, NULL, 0) ? 0 : -1);
+    }
+    return(ssl_check_server_name(ssl_con, szHostName) ? -1 : 0);
+}
+
 int
 #ifdef CK_ANSIC
 ssl_reply(int how, unsigned char *data, int cnt)
@@ -3937,6 +3958,17 @@ ssl_reply(how,data,cnt) int how; unsigned char *data; int cnt;
 
                 ssl_active_flag = 1;
                 ssl_display_connect_details(ssl_con,0,verbosity);
+                if (ssl_tn_check_server() < 0) {
+                    if (tn_deb || debses)
+                      tn_debug("[SSL - FAILED]");
+                    else if ( verbosity )
+                      printf("[SSL - FAILED]\r\n");
+                    debug(F110,"ssl_reply","[SSL - server check FAILED]",0);
+                    auth_finished(AUTH_REJECT);
+                    ssl_auth_failed_flag = 1;
+                    ttclos(0);
+                    return AUTH_FAILURE;
+                }
             }
         }
         auth_finished(AUTH_UNKNOWN);
