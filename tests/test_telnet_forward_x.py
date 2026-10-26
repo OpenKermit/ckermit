@@ -6,6 +6,7 @@ by DISPLAY and relays data both ways.
 """
 import os
 import random
+import signal
 import socket
 import struct
 import threading
@@ -13,7 +14,7 @@ import time
 
 import pytest
 
-from conftest import run_wermit_pty
+from conftest import finish_wermit_pty, start_wermit_pty
 
 IAC, SB, SE, WILL, WONT, DO, DONT = 255, 250, 240, 251, 252, 253, 254
 FWDX = 49
@@ -155,20 +156,40 @@ def _channel(n):
     return struct.pack(">H", n)
 
 
-def _session(wermit_path, tmp_path, server, display):
+def _run_action(action, proc, errors):
+    """Call action(proc) and append any exception to errors."""
+    try:
+        action(proc)
+    except BaseException as e:
+        errors.append(e)
+
+
+def _session(wermit_path, tmp_path, server, display, action=None):
     """CONNECT to server with DISPLAY set and return (rc, output).
 
     Only the CONNECT loop relays X11 data, so wermit runs on a
-    pseudoterminal.  CONNECT ends when the server closes.
+    pseudoterminal.  CONNECT ends when the server closes.  action, when
+    given, runs in a thread with the wermit process as its argument.
+    The pseudoterminal is read meanwhile.  wermit blocks on output to an
+    unread pseudoterminal.
     """
     cmds = ("set exit warning off, set telnet forward-x no-encryption on, "
             f"set host 127.0.0.1 {server.port} /telnet, "
             "if fail exit 1, connect, echo AFTER, exit")
+    errors = []
     old = {k: os.environ.get(k) for k in ("DISPLAY", "XAUTHORITY")}
     os.environ["DISPLAY"] = display
     os.environ["XAUTHORITY"] = str(tmp_path / "no-xauthority")
     try:
-        rc, out = run_wermit_pty(wermit_path, cmds, tmp_path, timeout=40)
+        proc, master = start_wermit_pty(wermit_path, cmds, tmp_path)
+        if action:
+            thread = threading.Thread(target=_run_action,
+                                      args=(action, proc, errors),
+                                      daemon=True)
+            thread.start()
+        rc, out = finish_wermit_pty(proc, master, timeout=40)
+        if action:
+            thread.join(timeout=30)
     finally:
         for k, v in old.items():
             if v is None:
@@ -176,6 +197,7 @@ def _session(wermit_path, tmp_path, server, display):
             else:
                 os.environ[k] = v
         server.close()
+    assert not errors, errors
     assert rc >= 0, rc
     assert "runtime error" not in out and "Sanitizer" not in out, out
     return rc, out
@@ -403,4 +425,84 @@ def test_forward_x_channel_table_full(wermit_path, tmp_path):
     assert closes == [bytes([CLOSE]) + _channel(c) for c in range(65, 70)], \
         server.received
     assert len(accepted) == 64 + 1, len(accepted)
+    assert "AFTER" in out, out
+
+
+class ResetServer(ForwardXServer):
+    """A ForwardXServer that resets the connection when told to.
+
+    Setting reset makes the server thread close the connection with a
+    TCP RST.  closed is set once it has.
+    """
+
+    def __init__(self, script):
+        self.reset = threading.Event()
+        self.closed = threading.Event()
+        super().__init__(script, wait=30.0)
+
+    def _run(self):
+        try:
+            conn, _ = self.srv.accept()
+        except OSError:
+            self.closed.set()
+            return
+        conn.settimeout(0.1)
+        buf = b""
+        deadline = time.monotonic() + 30
+        try:
+            conn.sendall(bytes([IAC, WILL, FWDX]))
+            while (not self.reset.is_set()
+                   and time.monotonic() < deadline):
+                try:
+                    chunk = conn.recv(4096)
+                except socket.timeout:
+                    continue
+                if not chunk:
+                    break
+                buf = self._parse(conn, buf + chunk)
+            conn.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER,
+                            struct.pack("ii", 1, 0))
+        except OSError:
+            pass
+        finally:
+            conn.close()
+            self.closed.set()
+
+
+def test_forward_x_close_after_reset(wermit_path, tmp_path):
+    """Verify CONNECT ends when the CLOSE for a channel cannot be sent.
+
+    wermit is stopped while its X server closes the channel and the
+    Telnet server resets the connection.  When wermit resumes, one
+    select() reports both.  The client reads the X server's end of
+    file first and sends CLOSE.  The write fails and closes the
+    network connection.  CONNECT ends without touching the closed
+    descriptor.
+    """
+    accepted = []
+    xsrv, n = _x_listener(accepted)
+    server = ResetServer([bytes([OPEN]) + _channel(1)])
+
+    def reset(proc):
+        """Close both ends while wermit is stopped."""
+        deadline = time.monotonic() + 20
+        while len(accepted) < 2 and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert len(accepted) == 2, len(accepted)
+        time.sleep(0.5)
+        os.kill(proc.pid, signal.SIGSTOP)
+        try:
+            accepted[1].shutdown(socket.SHUT_RDWR)
+            server.reset.set()
+            assert server.closed.wait(5)
+            time.sleep(0.5)
+        finally:
+            os.kill(proc.pid, signal.SIGCONT)
+
+    try:
+        rc, out = _session(wermit_path, tmp_path, server,
+                           f"127.0.0.1:{n}", action=reset)
+    finally:
+        xsrv.close()
+    assert "Communications disconnect" in out, out
     assert "AFTER" in out, out
