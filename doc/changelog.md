@@ -46,6 +46,13 @@ covering their situations.
   -Wshadow work, present in 11.0.511 through 11.0.514.  Bug was introduced in
   commit 9be7054f in C-Kermit 11.0.511.
 
+- [11] An external protocol over an SSL or TLS connection held each burst of
+  incoming data for 2 seconds.  Steady traffic held it until the traffic
+  stopped.  lrz 0.13 gave up on the transfer and older versions were slow.  Bug
+  was introduced in commit 04e8275d in C-Kermit 11.0.501 of 2026.  Bug
+  originally reported at
+  https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1150880
+
 ## Security and Reliability Improvements
 
 C-Kermit 11.1 corrects these security issues.  Most issues tagged "[11]" fall

@@ -15870,6 +15870,19 @@ ttptycmd(s) char *s;
                             if (x > 0 && in_chk(1,ttyfd) <= 0)
                               break;
                         }
+#ifdef CK_SSL
+/*
+  On an SSL/TLS connection n is the whole free buffer.  in_chk() counts
+  the decrypted bytes in OpenSSL and in myread()'s buffer.  When none
+  are left, the next byte needs a socket read.  Return to select() for
+  it.  A ttinc(2) here would wait up to 2 seconds after every burst,
+  and steady traffic would keep the loop reading without relaying
+  anything.
+*/
+                        if (x > 0 && (ssl_active_flag || tls_active_flag) &&
+                            in_chk(1,ttyfd) <= 0)
+                          break;
+#endif /* CK_SSL */
 /*
   Even byte x==0, "guaranteed safe" by select() above, is not actually safe to
   read with an unbounded ttinc(0): the same FIONREAD unreliability responsible
