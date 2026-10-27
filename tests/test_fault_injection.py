@@ -12,6 +12,7 @@ import platform
 import shutil
 import subprocess
 import threading
+import time
 
 import pytest
 
@@ -153,6 +154,56 @@ def test_grep_array_open_failure(wermit_path, faultinj, tmp_path):
                              tmp_path)
         assert result.returncode == 0, (n, result.stdout, result.stderr)
 
+
+def _pty_masters(pid):
+    """Return the open flags of each pty master descriptor of pid."""
+    flags = []
+    fddir = f"/proc/{pid}/fd"
+    for fd in os.listdir(fddir):
+        try:
+            target = os.readlink(os.path.join(fddir, fd))
+        except OSError:
+            continue
+        if "ptmx" not in target:
+            continue
+        with open(f"/proc/{pid}/fdinfo/{fd}") as f:
+            for line in f:
+                if line.startswith("flags:"):
+                    flags.append(int(line.split()[1], 8))
+    return flags
+
+
+@pytest.mark.parametrize("func", ["openpty", "fork"])
+def test_ttptycmd_failure_restores_connection(wermit_path, faultinj,
+                                              tmp_path, func):
+    """Verify a failed openpty() or fork() in ttptycmd() cleans up.
+
+    SET HOST /PTY makes the first call of each.  The second, from the
+    Zmodem SEND, fails.  The connection must be blocking again, and
+    the pty from a failed fork() must be closed.
+    """
+    (tmp_path / "f.txt").write_text("hello\n")
+    ready = tmp_path / "ready"
+    env = dict(os.environ, LD_PRELOAD=faultinj, FAULT_FUNC=func,
+               FAULT_N="2")
+    proc = subprocess.Popen(
+        [wermit_path, "-H", "-Y", "-Q", "-C",
+         "set host /pty cat, send /protocol:zmodem f.txt, "
+         f"open write {ready}, close write, pause 10, close, exit 0"],
+        cwd=tmp_path, env=env, stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        end = time.monotonic() + 20
+        while not ready.exists() and time.monotonic() < end:
+            time.sleep(0.1)
+        assert ready.exists(), "wermit did not reach the pause"
+        masters = _pty_masters(proc.pid)
+    finally:
+        proc.kill()
+        proc.wait()
+    assert len(masters) == 1, masters
+    assert not masters[0] & os.O_NONBLOCK, oct(masters[0])
+
 def test_iksd_lock_write_failure(run_wermit, wermit_path, faultinj,
                                  tmp_path):
     """Verify the IKSD leaves the database alone when it cannot lock it.
@@ -210,3 +261,51 @@ def test_iksd_lock_write_failure_syslog(run_wermit, wermit_path, faultinj,
         assert not dbfile.exists()
     finally:
         _close_iksd(proc, client, log_fh)
+
+def _children(pid):
+    """Return the PIDs of the child processes of pid, zombies included."""
+    kids = []
+    for entry in os.listdir("/proc"):
+        if not entry.isdigit():
+            continue
+        try:
+            with open(f"/proc/{entry}/stat") as f:
+                stat = f.read()
+        except OSError:
+            continue
+        if int(stat.rsplit(")", 1)[1].split()[1]) == pid:
+            kids.append(int(entry))
+    return kids
+
+
+def test_pty_sync_failure_runs_nothing(wermit_path, faultinj, tmp_path):
+    """Verify SET HOST /PTY runs nothing when its child cannot sync.
+
+    Every write() fails, so the child of do_pty() cannot report through
+    the sync pipe.  SET HOST must fail.  The command must not run, the
+    pty master must be closed, and the child must be reaped.
+    """
+    ready = tmp_path / "ready"
+    env = dict(os.environ, LD_PRELOAD=faultinj, FAULT_FUNC="write",
+               FAULT_N="1", FAULT_COUNT="100000", HOME=str(tmp_path))
+    proc = subprocess.Popen(
+        [wermit_path, "-H", "-Y", "-Q", "-C",
+         "set host /pty sh -c 'touch marker', if success exit 3, "
+         f"pause 1, open write {ready}, close write, pause 10, exit 0"],
+        cwd=tmp_path, env=env, stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        end = time.monotonic() + 20
+        while (not ready.exists() and proc.poll() is None
+               and time.monotonic() < end):
+            time.sleep(0.1)
+        assert proc.poll() is None, proc.returncode
+        assert ready.exists(), "wermit did not reach the pause"
+        masters = _pty_masters(proc.pid)
+        kids = _children(proc.pid)
+    finally:
+        proc.kill()
+        proc.wait()
+    assert not (tmp_path / "marker").exists()
+    assert masters == [], masters
+    assert kids == [], kids

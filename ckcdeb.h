@@ -6899,6 +6899,11 @@ _PROTOTYP( int isalink, (char *));
 #ifdef NETPTY
 _PROTOTYP( int do_pty, (int *, char *, int));
 _PROTOTYP( VOID end_pty, (void));
+#ifdef CK_REDIR
+#ifdef SELECT
+_PROTOTYP( VOID ttptyabort, (void));
+#endif /* SELECT */
+#endif /* CK_REDIR */
 #endif /* NETPTY */
 
 #ifdef CKROOT

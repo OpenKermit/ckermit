@@ -3650,61 +3650,15 @@ trap(sig) int sig;
      * */
 #else
     /*
-      Clean up Ctrl-C out of REDIRECT or external protocol.
-
-      pty_fork_pid, pty_master_fd, and pty_slave_fd are shared between
-      transient REDIRECT or external protocol children (pty_fc == 1) and
-      persistent connections opened by SET HOST to a PTY (pty_fc == 0).
-
-      Only transient children are torn down here. Persistent connections
-      remain open across interrupted file transfers.
+      Clean up Ctrl-C out of an external protocol transfer.  The longjmp
+      from this function skips the end of ttptycmd(), and ttptyabort()
+      does that part.  A SET HOST /PTY connection stays open.
     */
-    {
-        extern PID_T pty_fork_pid;
-        extern int pty_master_fd, pty_slave_fd, pty_fc;
-        int x;
-
-        debug(F101,"trap pty_fc","",pty_fc);
-        if (pty_fc == 1) {
-            signal(SIGCHLD,SIG_IGN);    /* We don't want this any more */
-
-            debug(F101,"trap pty_master_fd","",pty_master_fd);
-            if (pty_master_fd > 2) {
-                x = close(pty_master_fd);
-                debug(F101,"trap pty_master_fd close","",x);
-            }
-            pty_master_fd = -1;
-            debug(F101,"trap pty_slave_fd","",pty_slave_fd);
-            if (pty_slave_fd > 2) {
-                x = close(pty_slave_fd);
-                debug(F101,"trap pty_slave_fd close","",x);
-            }
-            pty_slave_fd = -1;
-            debug(F101,"trap pty_fork_pid","",pty_fork_pid);
-            if (pty_fork_pid > 0) {
-                x = kill(pty_fork_pid,0); /* See if the fork is really there */
-                debug(F111,"trap pty_fork_pid kill 0 errno",ckitoa(x),errno);
-                if (x == 0) {           /* Seems to be active */
-                    x = kill(pty_fork_pid,SIGHUP); /* Ask it to clean up */
-                    debug(F101,"trap pty_fork_pid kill SIGHUP","",x);
-                    msleep(100);
-                    errno = 0;
-                    x = kill(pty_fork_pid,0); /* Is it still there? */
-                    if (x == 0
-#ifdef ESRCH
-                        /* This module is not always exposed to <errno.h> */
-                        || errno != ESRCH
-#endif  /* ESRCH */
-                        ) {
-                        x = kill(pty_fork_pid,SIGKILL);
-                        debug(F101,"trap pty_fork_pid kill SIGKILL","",x);
-                    }
-                }
-                pty_fork_pid = -1;
-            }
-            pty_fc = -1;        /* Mark PTY child inactive */
-        }
-    }
+#ifdef CK_REDIR
+#ifdef SELECT
+    ttptyabort();
+#endif /* SELECT */
+#endif /* CK_REDIR */
 #endif /* NT */
 #endif  /* NETPTY */
 

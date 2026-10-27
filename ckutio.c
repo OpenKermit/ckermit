@@ -15134,18 +15134,19 @@ pty_get_status(fd,pid) int fd; PID_T pid;
 
     if (pexitstat > -1)
       return(pexitstat);
+    if (pid <= 0)                       /* No child: waitpid() would take */
+      return(-1);                       /* any child's status */
 
     errno = 0;
-    x = waitpid(pty_fork_pid,&status,WNOHANG);
+    x = waitpid(pid,&status,WNOHANG);
     debug(F111,"pty_get_status waitpid",ckitoa(errno),x);
     if (x <= 0 && errno == 0) {
         debug(F101,"pty_get_status waitpid return","",-1);
         return(-1);
     }
     if (x > 0) {
-        if (x != pty_fork_pid)
-          debug(F101,
-                "pty_get_status waitpid pid doesn't match","",pty_fork_pid);
+        if (x != pid)
+          debug(F101,"pty_get_status waitpid pid doesn't match","",pid);
         debug(F101,"pty_get_status waitpid status","",status);
         debug(F101,"pty_get_status waitpid errno","",errno);
         if (WIFEXITED(status)) {
@@ -15211,8 +15212,36 @@ pty_get_status(fd,pid) int fd; PID_T pid;
     make platformname KFLAGS=-DPTY_NO_NODELAY
 */
 static int have_pty = 0;                /* Do we have a pty? */
+/*
+  PID of the external protocol child.  pty_fork_pid keeps the SET HOST
+  /PTY connection's child.  ttclos() and end_pty() clean up that child.
+*/
+static PID_T xp_pid = -1;
 
-static ck_sig_t save_sigchld;      /* For catching SIGCHLD */
+/*
+  State for ttptyabort().  xp_active is set while the protocol program
+  runs.  xp_masterfd is its pty master.  xp_oflags holds ttyfd's flags
+  to restore, and xp_conn_pid the pty_fork_pid to restore.
+*/
+static int xp_active = 0;
+static int xp_masterfd = -1;
+static int xp_oflags = -1;
+#ifdef USE_CKUPTY_C
+static PID_T xp_conn_pid = -1;
+#endif /* USE_CKUPTY_C */
+
+/* The SIGCHLD handler ttptycmd() replaced.  SIG_ERR: none. */
+static ck_sig_t save_sigchld = SIG_ERR;
+static volatile sig_atomic_t xp_sigchld = 0; /* SIGCHLD in ttptycmd() */
+
+/*
+  Seconds ttptycmd() keeps relaying the pty after SIGCHLD when the pty
+  does not reach end of file.  A process that inherited the slave, such
+  as a background child of the protocol program, keeps it open.
+*/
+#ifndef PTY_EXIT_DRAIN_SECS
+#define PTY_EXIT_DRAIN_SECS 2
+#endif /* PTY_EXIT_DRAIN_SECS */
 
 static VOID
 #ifdef CK_ANSIC
@@ -15221,18 +15250,24 @@ sigchld_handler( int sig )
 sigchld_handler(sig) int sig;
 #endif /* CK_ANSIC */
 {
-    have_pty = 0;                       /* We don't have a pty */
-#ifdef DEBUG
-    if (save_sigchld) {
+/*
+  The handler stays installed until ttptycmd() returns and restores
+  save_sigchld.  ttptycmd() logs the signal when it sees xp_sigchld.
+*/
+    xp_sigchld = 1;                     /* ttptycmd() checks the child */
+}
+
+static VOID
+#ifdef CK_ANSIC
+xp_sigrestore( void )
+#else
+xp_sigrestore()
+#endif /* CK_ANSIC */
+{
+    if (save_sigchld != SIG_ERR) {      /* Put back the saved handler */
         (VOID) signal(SIGCHLD,save_sigchld);
-        save_sigchld = NULL;
+        save_sigchld = SIG_ERR;
     }
-    if (deblog) {
-        debug(F100,"**************","",0);
-        debug(F100,"SIGCHLD caught","",0);
-        debug(F100,"**************","",0);
-    }
-#endif  /* DEBUG */
 }
 #define HAVE_IAC 1
 #define HAVE_CR  2
@@ -15256,11 +15291,16 @@ ttptycmd(s) char *s;
     int pbuf_written = 0;
 
     int ptyfd = -1;                     /* Pty file descriptor */
+#ifdef USE_CKUPTY_C
+    PID_T conn_pid = pty_fork_pid;      /* SET HOST /PTY connection child */
+#endif /* USE_CKUPTY_C */
     int have_net = 0;                   /* We have a network connection */
     int pty_err = 0;                    /* Got error on pty */
+    int pty_gone = 0;                   /* Loop ended with the pty closed */
     int net_err = 0;                    /* Got error on net */
     time_t net_err_deadline = (time_t)0; /* Grace deadline, set once net */
                                         /* dies but the pty child hasn't */
+    time_t xp_exit_deadline = (time_t)0; /* Drain deadline after SIGCHLD */
     int status = -1;                    /* Pty process exit status */
     int rc = 0;                         /* Our return code */
 
@@ -15338,6 +15378,14 @@ ttptycmd(s) char *s;
         }
 #endif /* O_NDELAY */
     }
+/* Restore ttyfd's mode before an early return */
+#ifdef O_NDELAY
+#define TTPTY_RESTORE() \
+    if (ttyfd_oflags > -1) { \
+        fcntl(ttyfd,F_SETFL,ttyfd_oflags); ttyfd_oflags = -1; }
+#else
+#define TTPTY_RESTORE()
+#endif /* O_NDELAY */
 
     pexitstat = -1;                     /* Fork process exit status */
 
@@ -15357,13 +15405,20 @@ ttptycmd(s) char *s;
     debug(F100,"ttptycmd using ckupty.c","",0);
     if (do_pty(&ptyfd,s,1) < 0) {       /* Start the command on a pty */
         debug(F100,"ttptycmd do_pty fails","",0);
+        pty_fork_pid = conn_pid;
+        TTPTY_RESTORE();
         return(0);
     }
+    xp_pid = pty_fork_pid;              /* do_pty() set it to the child */
     masterfd = ptyfd;
     pty_master_fd = ptyfd;
+    xp_masterfd = masterfd;
+    xp_oflags = ttyfd_oflags;
+    xp_conn_pid = conn_pid;
+    xp_active = 1;
     debug(F111,"ttptycmd ptyfd","USE_CKUPTY_C",ptyfd);
     debug(F111,"ttptycmd masterfd","USE_CKUPTY_C",masterfd);
-    debug(F111,"ttptycmd fork pid","USE_CKUPTY_C",pty_fork_pid);
+    debug(F111,"ttptycmd fork pid","USE_CKUPTY_C",xp_pid);
 #ifndef SOLARIS
     /* "ioctl inappropriate on device" for pty master */
     pty_make_raw(masterfd);
@@ -15391,7 +15446,8 @@ ttptycmd(s) char *s;
     }
     if (openpty(&masterfd, &slavefd, NULL, NULL, NULL) == -1) {
         debug(F101,"ttptycmd openpty failed errno","",errno);
-        perror("opentpy");
+        perror("openpty");
+        TTPTY_RESTORE();
         return(0);
     }
     debug(F101,"ttptycmd openpty masterfd","",masterfd);
@@ -15400,18 +15456,40 @@ ttptycmd(s) char *s;
     pty_slave_fd = slavefd;
     debug(F101,"ttptycmd openpty pty_master_fd","",pty_master_fd);
 
-    /* Put pty master in raw mode but let forked app control the slave */
-    pty_make_raw(masterfd);
+    pty_make_raw(masterfd);             /* Put pty master in raw mode */
+
+/*
+  Set the slave's modes and size here, before fork().  The relay may
+  write to the master as soon as the child exists, and the slave must
+  be raw by then.  The program can change the modes after that.
+*/
+    if (tcsetattr(slavefd, TCSANOW, &term) == -1 ||
+        ioctl(slavefd, TIOCSWINSZ, &twin) == -1) {
+        perror("ttptycmd slave pty setup");
+        close(slavefd);
+        close(masterfd);
+        pty_master_fd = pty_slave_fd = -1;
+        TTPTY_RESTORE();
+        return(0);
+    }
+    pty_make_raw(slavefd);
 
     have_pty = 1;                       /* We have an open pty */
+    xp_sigchld = 0;
     save_sigchld = signal(SIGCHLD, sigchld_handler); /* Catch fork quit */
 
-    pty_fork_pid = fork();              /* Make fork for external protocol */
-    debug(F101,"ttptycmd pty_fork_pid","",pty_fork_pid);
-    if (pty_fork_pid == -1) {
+    xp_pid = fork();              /* Make fork for external protocol */
+    debug(F101,"ttptycmd xp_pid","",xp_pid);
+    if (xp_pid == -1) {
         perror("fork");
+        close(slavefd);
+        close(masterfd);
+        pty_master_fd = pty_slave_fd = -1;
+        have_pty = 0;
+        xp_sigrestore();
+        TTPTY_RESTORE();
         return(0);
-    } else if (pty_fork_pid == 0) {     /* In new fork */
+    } else if (xp_pid == 0) {     /* In new fork */
         int fx;
         debug(F101,"ttptycmd new fork pid","",getpid());
         close(masterfd);                /* Slave quarters no masters allowed */
@@ -15428,18 +15506,6 @@ ttptycmd(s) char *s;
             exit(1);
         }
         signal(SIGINT,SIG_IGN);         /* Let upper fork catch this */
-
-        /* Initialize slave pty modes and size to those of our terminal */
-        if (tcsetattr(slavefd, TCSANOW, &term) == -1) {
-            perror("ttptycmd tcsetattr");
-            exit(1);
-        }
-        if (ioctl(slavefd, TIOCSWINSZ, &twin) == -1) {
-            perror("ttptycmd ioctl");
-            exit(1);
-        }
-
-        pty_make_raw(slavefd);          /* Put it in rawmode */
 
         errno = 0;
         if (dup2(slavefd, STDIN_FILENO) != STDIN_FILENO ||
@@ -15490,8 +15556,17 @@ ttptycmd(s) char *s;
         close(slavefd);
         exit(1);
     }
-    /* (there are better ways to do this...) */
-    msleep(1000);                 /* Make parent wait for child to be ready */
+/*
+  The child holds the slave.  Close the parent's copy so that reading
+  the master returns end of file (or EIO) once the child has closed it
+  and its output has been read.
+*/
+    close(slavefd);
+    slavefd = -1;
+    pty_slave_fd = -1;
+    xp_masterfd = masterfd;
+    xp_oflags = ttyfd_oflags;
+    xp_active = 1;
     ptyfd = masterfd;                   /* We talk to the master */
 
 #endif /* USE_CKUPTY_C */
@@ -15499,6 +15574,9 @@ ttptycmd(s) char *s;
     debug(F101,"ttptycmd ptyfd","",ptyfd);
     if (ptyfd < 0) {
         printf("?Failure to get pty\n");
+        xp_active = 0;
+        xp_sigrestore();
+        TTPTY_RESTORE();
         return(-9);
     }
     have_pty = 1;             /* We have an open pty or we wouldn't he here */
@@ -15540,6 +15618,32 @@ ttptycmd(s) char *s;
         debug(F101,"ttptycmd loop top have_pty","",have_pty);
         debug(F101,"ttptycmd loop top have_net","",have_net);
 
+/*
+  SIGCHLD does not end the relay.  The program's last output may still
+  be in the pty.  The read that returns end of file ends the pty side
+  after that output.  If the pty is still open PTY_EXIT_DRAIN_SECS after
+  SIGCHLD, ask for the program's status.  When it has exited, stop
+  reading the pty.  When it has not, the signal came from another
+  child, and the relay goes on.
+*/
+        if (xp_sigchld && have_pty) {
+            if (!xp_exit_deadline) {
+                debug(F100,"ttptycmd SIGCHLD","",0);
+                xp_exit_deadline =
+                  time((time_t *)0) + PTY_EXIT_DRAIN_SECS;
+            } else if (time((time_t *)0) >= xp_exit_deadline) {
+                xp_sigchld = 0;
+                xp_exit_deadline = 0;
+                status = pty_get_status(ptyfd,xp_pid);
+                debug(F101,"ttptycmd pty_get_status SIGCHLD","",status);
+                if (status > -1) {
+                    pexitstat = status;
+                    pty_err++;
+                    have_pty = 0;
+                }
+            }
+        }
+
         /*
           ttyfd is a global, and ttclos() (called elsewhere, such as from
           mygetbuf()'s TCP EOF handling) can set it to -1 out from under this
@@ -15562,8 +15666,8 @@ ttptycmd(s) char *s;
               (after the child has exited). A child that was about to exit just
               gets a redundant, and harmless, signal.
             */
-            if (have_pty && pty_fork_pid > 0)
-              kill(pty_fork_pid, SIGHUP);
+            if (have_pty && xp_pid > 0)
+              kill(xp_pid, SIGHUP);
         }
 
         /* Pty is open and we have room to read from it? */
@@ -15697,8 +15801,8 @@ ttptycmd(s) char *s;
                        external-protocol child now that the network is
                        confirmed gone, rather than waiting on the child's
                        own protocol timeout. */
-                    if (have_pty && pty_fork_pid > 0)
-                      kill(pty_fork_pid, SIGHUP);
+                    if (have_pty && xp_pid > 0)
+                      kill(xp_pid, SIGHUP);
                 }
                 FD_ZERO(&in);
                 FD_ZERO(&out);
@@ -15718,7 +15822,7 @@ ttptycmd(s) char *s;
                 goto ttptycmd_do_io;
             }
             if (have_pty) {
-                status = pty_get_status(ptyfd,pty_fork_pid);
+                status = pty_get_status(ptyfd,xp_pid);
                 debug(F101,"ttptycmd pty_get_status A","",status);
                 if (status > -1) pexitstat = status;
                 have_pty = 0;
@@ -15856,7 +15960,7 @@ ttptycmd(s) char *s;
                 x = 0;
                 pty_err++;
                 if (pexitstat < 0) {
-                    status = pty_get_status(ptyfd,pty_fork_pid);
+                    status = pty_get_status(ptyfd,xp_pid);
                     debug(F101,"ttptycmd pty_get_status B","",status);
                     if (status > -1) pexitstat = status;
                     have_pty = 0;
@@ -15956,6 +16060,13 @@ ttptycmd(s) char *s;
                           x = 0;
                         else
                           debug(F101,"ttptycmd read net error","",x);
+                    } else if (x == 0 && n > 0) {
+/*
+  The connection's pty reached end of file.  Linux returns EIO here.
+  The BSDs return 0.
+*/
+                        debug(F100,"ttptycmd ttyfd end of file","",0);
+                        x = -1;
                     }
                 } else if (xlocal && netconn) {
                     /*
@@ -16098,6 +16209,7 @@ ttptycmd(s) char *s;
                 if (x < 0) {
                     debug(F101,"ttptycmd read net error","",x);
                     net_err++;
+                    x = 0;              /* Nothing was read */
                 }
                 tbuf_avail += x;
                 read_net_bytes += x;
@@ -16199,7 +16311,7 @@ ttptycmd(s) char *s;
                     pty_err++;          /* but not NetBSD */
                     debug(F100,"TERMINATION TEST A","",0);
                     if (pexitstat < 0) {
-                        status = pty_get_status(ptyfd,pty_fork_pid);
+                        status = pty_get_status(ptyfd,xp_pid);
                         debug(F101,"ttptycmd pty_get_status C","",status);
                         if (status > -1) pexitstat = status;
                     }
@@ -16223,7 +16335,7 @@ ttptycmd(s) char *s;
 */
                     debug(F100,"TERMINATION TEST B","",0);
                     status = pexitstat > -1 ? pexitstat :
-                        pty_get_status(ptyfd,pty_fork_pid);
+                        pty_get_status(ptyfd,xp_pid);
                     debug(F101,"ttptycmd pty_get_status D","",status);
                     if (status > -1) {
                         pexitstat = status;
@@ -16322,7 +16434,7 @@ ttptycmd(s) char *s;
         if (pty_err) {                  /* Pty error? */
             if (have_pty) {
                 if (pexitstat < 0) {
-                    status = pty_get_status(ptyfd,pty_fork_pid);
+                    status = pty_get_status(ptyfd,xp_pid);
                     debug(F101,"ttptycmd pty_get_status E","",status);
                     if (status > -1) pexitstat = status;
                 }
@@ -16335,6 +16447,7 @@ ttptycmd(s) char *s;
             }
         }
     }
+    xp_active = 0;                      /* ttptyabort() has nothing to do */
 #ifdef O_NDELAY
     if (ttyfd_oflags > -1) {            /* Restore ttyfd's original mode: */
         fcntl(ttyfd,F_SETFL,ttyfd_oflags); /* it's shared with the rest of */
@@ -16342,21 +16455,38 @@ ttptycmd(s) char *s;
     }
 #endif /* O_NDELAY */
     debug(F101,"ttptycmd +++ have_pty","",have_pty);
+    pty_gone = !have_pty;               /* The program closed the pty */
     if (have_pty) {                     /* In case select() failed */
 #ifdef USE_CKUPTY_C
         end_pty();
         close(ptyfd);
+        pty_fork_pid = conn_pid;
 #else
-        close(slavefd);
+        if (slavefd > -1)
+          close(slavefd);
         close(masterfd);
 #endif /* USE_CKUPTY_C */
     }
     pty_master_fd = -1;
     debug(F101,"ttptycmd +++ pexitstat","",pexitstat);
     if (pexitstat < 0) {                /* Try one last time to get status */
-        status = pty_get_status(ptyfd,pty_fork_pid);
+        status = pty_get_status(ptyfd,xp_pid);
         debug(F101,"ttptycmd pty_get_status F","",status);
         if (status > -1) pexitstat = status;
+    }
+/*
+  The pty closed, so the program is exiting, but it may not have exited
+  yet.  Wait up to two seconds for its status rather than take the
+  transfer as failed and send it SIGHUP.
+*/
+    if (pexitstat < 0 && pty_gone && xp_pid > 0) {
+        int tries;
+        for (tries = 0; tries < 40 && pexitstat < 0; tries++) {
+            msleep(50);
+            status = pty_get_status(ptyfd,xp_pid);
+            if (status > -1) pexitstat = status;
+        }
+        debug(F101,"ttptycmd pty_get_status G tries","",tries);
     }
     debug(F101,"ttptycmd +++ final pexitstat","",pexitstat);
     if (deblog) {                       /* Stats for debug log */
@@ -16375,25 +16505,18 @@ ttptycmd(s) char *s;
   to set our return code.  If not, we fall back on whatever rc was previously
   set to, namely 1 (success) if the pty fork seemed to terminate, 0 otherwise.
 */
-    if (save_sigchld) {                 /* Restore this if we changed it */
-        (VOID) signal(SIGCHLD,save_sigchld);
-        save_sigchld = NULL;
-    }
+    xp_sigrestore();
     msleep(500);
     /*
-      pty_fork_pid can already be -1 here if end_pty() ran above.  It
-      resets the global once it tears down the child.  kill(-1,...)
-      means to send the signal to every process kermit has permission to
-      signal, which can kill far more than just the kermit-related
-      processes.  This guard ensures we never do that.
+      kill(-1,...) sends the signal to every process kermit has
+      permission to signal, so the kill requires xp_pid > 0.
 
-      pexitstat > -1 means the child was already reaped earlier in this
-      function, through a path that doesn't clear pty_fork_pid.  Skip the kill
+      pexitstat > -1 means the child was already reaped.  Skip the kill
       whenever the child is already known to be gone.
     */
-    x = (pty_fork_pid > 0 && pexitstat < 0) ?
-      kill(pty_fork_pid,SIGHUP) : 0;
-    pty_fork_pid = -1;
+    x = (xp_pid > 0 && pexitstat < 0) ?
+      kill(xp_pid,SIGHUP) : 0;
+    xp_pid = -1;
     debug(F101,"ttptycmd fork kill SIGHUP","",x);
     if (pexitstat > -1)
       rc = (pexitstat == 0 ? 1 : 0);
@@ -16403,6 +16526,53 @@ ttptycmd(s) char *s;
         concb((char)escchr);
     }
     return(rc);
+}
+#undef TTPTY_RESTORE
+
+/*  T T P T Y A B O R T  --  End a transfer that trap() interrupted  */
+
+/*
+  trap() leaves ttptycmd() with a longjmp that skips the end of that
+  function.  ttptyabort() does that part.  It restores ttyfd's flags,
+  closes the pty, stops and reaps the protocol program, and restores
+  the SIGCHLD handler.  pexitstat > -1 means pty_get_status() already
+  reaped the program and closed the pty.
+*/
+VOID
+ttptyabort() {
+    int i, status;
+
+    if (xp_active) {
+        xp_active = 0;
+        debug(F101,"ttptyabort xp_pid","",xp_pid);
+#ifdef O_NDELAY
+        if (xp_oflags > -1 && ttyfd > -1)
+          fcntl(ttyfd,F_SETFL,xp_oflags);
+#endif /* O_NDELAY */
+        xp_oflags = -1;
+#ifdef USE_CKUPTY_C
+        end_pty();
+        pty_fork_pid = xp_conn_pid;
+#endif /* USE_CKUPTY_C */
+        if (xp_masterfd > -1 && pexitstat < 0)
+          close(xp_masterfd);
+        xp_masterfd = -1;
+        pty_master_fd = -1;
+        if (xp_pid > 0 && pexitstat < 0) {
+            kill(xp_pid,SIGHUP);
+            for (i = 0; i < 20; i++) {  /* Up to 200 ms to exit */
+                if (waitpid(xp_pid,&status,WNOHANG) != 0)
+                  break;
+                msleep(10);
+            }
+            if (i == 20) {
+                kill(xp_pid,SIGKILL);
+                (VOID) waitpid(xp_pid,&status,0);
+            }
+        }
+        xp_pid = -1;
+    }
+    xp_sigrestore();
 }
 #endif  /* NETPTY */
 #endif  /* SELECT */

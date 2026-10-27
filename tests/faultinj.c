@@ -1,11 +1,11 @@
 /*
-  faultinj.c - LD_PRELOAD fault injection for the C-Kermit test suite.
+  faultinj.c: LD_PRELOAD fault injection for the C-Kermit test suite.
 
   The tests build this file into a shared object and preload it into
   wermit.  It makes the Nth call of one library function fail.
 
   Environment:
-    FAULT_FUNC    malloc, read, readeof, write or open.
+    FAULT_FUNC    malloc, read, readeof, write, open, openpty or fork.
     FAULT_N       1-based number of the call to fail.  0 fails nothing.
     FAULT_COUNT   Number of consecutive calls to fail, from FAULT_N.
                   Default 1.
@@ -19,7 +19,8 @@
   malloc covers malloc(), calloc() and realloc().  read covers read() and
   recv() and returns -1 with EIO.  readeof makes them return 0.  write
   covers write() and send() and returns -1 with EIO.  open covers open(),
-  open64(), fopen() and fopen64(), which fail with EACCES.
+  open64(), fopen() and fopen64().  They fail with EACCES.  openpty
+  fails with ENOENT, and fork with EAGAIN.
 
   read, readeof and write count only calls on descriptors above 2, so
   stdin, stdout and stderr are not affected.  The library removes
@@ -27,7 +28,7 @@
 
   This file is for glibc on Linux.  The malloc wrappers call
   __libc_malloc() and friends.  read(), write() and open() go to
-  syscall().  Only fopen() needs dlsym().
+  syscall().  fopen(), openpty() and fork() use dlsym().
 */
 #define _GNU_SOURCE
 #include <dlfcn.h>
@@ -54,6 +55,8 @@ extern void *__libc_realloc(void *, size_t);
 #define F_READEOF 3
 #define F_WRITE 4
 #define F_OPEN 5
+#define F_OPENPTY 6
+#define F_FORK 7
 
 static int func = F_NONE;               /* Function class to fail */
 static long target = 0;                 /* FAULT_N */
@@ -122,6 +125,10 @@ faultinj_init(void)
             func = F_WRITE;
         else if (!strcmp(s, "open"))
             func = F_OPEN;
+        else if (!strcmp(s, "openpty"))
+            func = F_OPENPTY;
+        else if (!strcmp(s, "fork"))
+            func = F_FORK;
     }
     if ((s = getenv("FAULT_N")))
         target = strtol(s, NULL, 10);
@@ -288,6 +295,48 @@ fopen64(const char *path, const char *how)
         real = (FILE *(*)(const char *, const char *))
             dlsym(RTLD_NEXT, "fopen64");
     return real ? real(path, how) : NULL;
+}
+
+struct termios;
+struct winsize;
+
+int
+openpty(int *amaster, int *aslave, char *name,
+        const struct termios *termp, const struct winsize *winp)
+{
+    static int (*real)(int *, int *, char *, const struct termios *,
+                       const struct winsize *) = NULL;
+
+    if (hit(F_OPENPTY)) {
+        errno = ENOENT;
+        return -1;
+    }
+    if (!real)
+        real = (int (*)(int *, int *, char *, const struct termios *,
+                        const struct winsize *))dlsym(RTLD_NEXT, "openpty");
+    if (!real) {
+        errno = ENOSYS;
+        return -1;
+    }
+    return real(amaster, aslave, name, termp, winp);
+}
+
+pid_t
+fork(void)
+{
+    static pid_t (*real)(void) = NULL;
+
+    if (hit(F_FORK)) {
+        errno = EAGAIN;
+        return -1;
+    }
+    if (!real)
+        real = (pid_t (*)(void))dlsym(RTLD_NEXT, "fork");
+    if (!real) {
+        errno = ENOSYS;
+        return -1;
+    }
+    return real();
 }
 
 /* Append one message to FAULT_SYSLOG, or send it to the system log. */

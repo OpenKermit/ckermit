@@ -49,12 +49,36 @@ covering their situations.
 - [11] INPUT on a TLS connection failed after one second with an I/O error.
   Bug was introduced in commit 4521c6b6 in C-Kermit 11.0.510 of 2026.
 
-- [11] An external protocol over an SSL or TLS connection held each burst of
-  incoming data for 2 seconds.  Steady traffic held it until the traffic
-  stopped.  lrz 0.13 gave up on the transfer and older versions were slow.  Bug
-  was introduced in commit 04e8275d in C-Kermit 11.0.501 of 2026.  Bug
-  originally reported at
-  https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1150880
+- External protocol transfers (ZMODEM and others):
+
+  - [7] When the child process of SET HOST /PTY or an external protocol could
+    not signal that its pty was ready, Kermit reported the connection as
+    failed, but the child ran the command anyway.  Kermit also left the pty
+    open and did not reap the child.  Bug was introduced in commit d0f8b1da in
+    C-Kermit 7.0.197 of 2000.
+
+  - [9] A transfer could be reported as failed with "No files were transferred"
+    after it succeeded.  Bug dates from the introduction of ttptycmd() in
+    C-Kermit 9.0.302 of 2011.
+
+  - [9] The program's last output could be lost.  Bugs were introduced in commit
+    0fd869b4 in C-Kermit 9.0.302 of 2011.
+
+  - [9] Ctrl-C during a transfer left the protocol program running with its pty
+    open, and left the connection non-blocking.  On systems without openpty(),
+    it also left SIGCHLD ignored for the rest of the session.  Bugs were
+    introduced in commit 0fd869b4 in C-Kermit 9.0.302 of 2011.
+
+  - [11] On the BSDs, an external protocol over a SET HOST /PTY connection did
+    not notice when the connection ended.  Bug was introduced in commit
+    dab36d9a in C-Kermit 11.0.501 of 2026.
+
+  - [11] An external protocol over an SSL or TLS connection held each burst of
+    incoming data for 2 seconds.  Steady traffic held it until the traffic
+    stopped.  lrz 0.13 gave up on the transfer and older versions were slow.
+    Bug was introduced in commit 04e8275d in C-Kermit 11.0.501 of 2026.  Bug
+    originally reported at
+    https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1150880
 
 ## Security and Reliability Improvements
 
@@ -610,6 +634,9 @@ file, also reach it.
 
 - [8, 11] `ENABLE` and `DISABLE` with `LOCAL` or `REMOTE` change only that
   side.
+
+- [9] Kermit waits up to two seconds for an external protocol program's
+  exit status, and relays its output until end of file.
 
 - [9] `RENAME` fails with "?New name too long" when a new name does not
   fit.
