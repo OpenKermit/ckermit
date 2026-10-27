@@ -212,6 +212,105 @@ def test_get_path_too_many_directories(run_wermit, tmp_path):
     assert "END-MARKER" in result.stdout, result.stdout[-500:]
 
 
+@pytest.mark.parametrize("value,want", [
+    ("'(qq)", "qq"), ("'abc", "abc"), ("'(a b)", "a b")])
+def test_sexp_quoted_variable_value(run_wermit, tmp_path, value, want):
+    """Verify an S-expression returns a variable's quoted value.
+
+    A variable whose value starts with a quote evaluates to the value
+    after the quote, with one pair of outer parentheses removed.  x is
+    one character, so dosexp() takes it without splitting.
+    """
+    script = tmp_path / "t.ksc"
+    script.write_text(f".x := {value}\n.long := {value}\n"
+                      "echo X=[\\fsexpression(x)]\n"
+                      "echo LONG=[\\fsexpression(long)]\n")
+    result = run_wermit(f"take {script}", timeout=30)
+    assert "AddressSanitizer" not in result.stderr, result.stderr[-3000:]
+    assert f"X=[{want}]" in result.stdout, result.stdout
+    assert f"LONG=[{want}]" in result.stdout, result.stdout
+
+
+def test_sexp_operator_string_has_no_debug_output(run_wermit, tmp_path):
+    """Verify an S-expression operator that yields a string prints nothing.
+
+    The operator position holds an S-expression whose value is a quoted
+    '(string).  dosexp() reports the bad operator and prints no other
+    line.
+    """
+    script = tmp_path / "t.ksc"
+    script.write_text("set take error off\n((quote '(xyz)) 2)\n"
+                      "echo END-MARKER\n")
+    result = run_wermit(f"take {script}", timeout=30)
+    assert "END-MARKER" in result.stdout, result.stdout
+    assert "XXX" not in result.stdout, result.stdout
+
+
+def test_sexp_quoted_group_arguments(run_wermit, tmp_path):
+    """Verify cksplit() keeps each quoted S-expression group whole.
+
+    A macro called from an S-expression gets each quoted '(...) group as
+    one argument.  Each length from 1 to 200 reuses the word buffers of
+    the split before it.  The macro must get exactly the group's text.
+    """
+    script = tmp_path / "t.ksc"
+    script.write_text(
+        "define m {\n"
+        "    if not equal {\\%1} {\\m(s) b} "
+        "echo BAD=[\\%1] [\\m(s) b]\n"
+        "    return 1\n"
+        "}\n"
+        "for \\%i 1 200 1 {\n"
+        "    .s := \\frepeat(a,\\%i)\n"
+        "    (m '(\\m(s) b) '(c d) '(e f))\n"
+        "}\n"
+        "echo END-MARKER\n")
+    result = run_wermit(f"take {script}", timeout=60)
+    out = result.stdout + result.stderr
+    assert "AddressSanitizer" not in result.stderr, result.stderr[-3000:]
+    assert "END-MARKER" in result.stdout, out[-2000:]
+    assert "BAD=" not in result.stdout, result.stdout[-2000:]
+
+
+def test_sexp_empty_first_expression(run_wermit):
+    """Verify an empty first S-expression returns an empty value.
+
+    \\fsexpression() with an empty first argument and a second argument
+    evaluates an empty S-expression.  As the first S-expression of the
+    session, it runs before the result stack exists.
+    """
+    result = run_wermit("echo [\\fsexpression(,1)], echo END-MARKER",
+                        timeout=30)
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}")
+    assert "[]" in result.stdout, result.stdout
+    assert "END-MARKER" in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize("limit", [10, 1, 0, -1])
+def test_sexp_depth_limit_edges(run_wermit, tmp_path, limit):
+    """Verify S-expressions at and past the depth limit stay in bounds.
+
+    The result stack has one entry for each level.  An S-expression
+    nested exactly to SET SEXPRESSION DEPTH-LIMIT uses the last level.
+    One level deeper reports the limit and uses one more entry.
+    """
+    d = max(limit, 1)
+    script = tmp_path / "t.ksc"
+    script.write_text(
+        "set take error off\n"
+        f"set sexpression depth-limit {limit}\n"
+        + "(" * d + "1" + ")" * d + "\n"
+        + "(" * (d + 1) + "1" + ")" * (d + 1) + "\n"
+        "echo END-MARKER\n")
+    result = run_wermit(f"take {script}", timeout=30)
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}")
+    assert "AddressSanitizer" not in result.stderr, result.stderr[-3000:]
+    assert "depth limit exceeded" in result.stdout, result.stdout
+    assert "END-MARKER" in result.stdout, result.stdout
+
+
 @pytest.mark.parametrize("call,want", [
     ("\\fstripb(x,x)", "[x]"), ('\\fstripb(",1)', '["]'),
     ("\\fstripb((ab))", "[ab]"), ("\\fstripb({ab},2)", "[ab]")],
@@ -521,4 +620,104 @@ def test_file_list_empty_pattern_with_array(run_wermit, tmp_path):
     assert result.returncode >= 0, (
         f"wermit died with signal {-result.returncode}")
     assert "AddressSanitizer" not in result.stderr, result.stderr[-3000:]
+    assert "END-MARKER" in result.stdout, result.stdout
+
+
+def test_array_resize_too_large(run_wermit, tmp_path):
+    """Verify ARRAY RESIZE refuses a size whose pointers overflow int.
+
+    The array keeps its size.  Under UBSan, lo+1 must not overflow.
+    """
+    script = tmp_path / "t.ksc"
+    script.write_text("set take error off\ndeclare \\&a[3]\n"
+                      "array resize &a 2147483647\n"
+                      "echo DIM=\\fdim(&a)\necho END-MARKER\n")
+    result = run_wermit(f"take {script}", timeout=30)
+    assert "runtime error" not in result.stderr, result.stderr[-2000:]
+    assert "Dimension too large" in result.stdout, result.stdout
+    assert "DIM=3" in result.stdout, result.stdout
+
+
+def test_sexp_macro_argument_list_grows(run_wermit, tmp_path):
+    """Verify dosexp() passes each macro argument whole as the list grows.
+
+    dosexp() builds the argument list for a macro in a buffer that
+    grows by 64 bytes.  Arguments of each length from 1 to 150, with and
+    without spaces, cross every growth boundary.
+    """
+    script = tmp_path / "t.ksc"
+    script.write_text(
+        "define m {\n"
+        "    if not equal {\\%1} {\\m(s)} echo BAD1=[\\%1]\n"
+        "    if not equal {\\%2} {\\m(s) b} echo BAD2=[\\%2]\n"
+        "    if not equal {\\%3} {c} echo BAD3=[\\%3]\n"
+        "    return 1\n"
+        "}\n"
+        "for \\%i 1 150 1 {\n"
+        "    .s := \\frepeat(a,\\%i)\n"
+        "    (m '\\m(s) '(\\m(s) b) 'c)\n"
+        "}\n"
+        "echo END-MARKER\n")
+    result = run_wermit(f"take {script}", timeout=60)
+    assert "AddressSanitizer" not in result.stderr, result.stderr[-3000:]
+    assert "END-MARKER" in result.stdout, result.stdout[-2000:]
+    assert "BAD" not in result.stdout, result.stdout[-2000:]
+
+
+@pytest.mark.parametrize("limit", [5, 1000])
+def test_sexp_depth_limit_set_inside_sexp(run_wermit, tmp_path, limit):
+    """Verify SET SEXPRESSION DEPTH-LIMIT inside an S-expression is refused.
+
+    The command frees the result stack.  Run by a macro that an
+    S-expression calls, it freed the stack that the outer levels still
+    used.  It now fails there and works at top level.
+    """
+    script = tmp_path / "t.ksc"
+    script.write_text(
+        "set take error off\n"
+        f"define m {{ set sexpression depth-limit {limit}, return 1 }}\n"
+        "echo [\\fsexpression(+ 1 (+ 2 (+ 3 (m 4))))]\n"
+        "set sexpression depth-limit 20\n"
+        "echo ST=\\v(status)\n"
+        "echo END-MARKER\n")
+    result = run_wermit(f"take {script}", timeout=30)
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}")
+    assert "AddressSanitizer" not in result.stderr, result.stderr[-3000:]
+    assert "[7]" in result.stdout, result.stdout
+    assert "ST=0" in result.stdout, result.stdout
+    assert "END-MARKER" in result.stdout, result.stdout
+
+
+POW_CASES = [("(^ 2 10)", "1024"), ("(^ 3 3)", "27"), ("(^ 2 -1)", "0.5"),
+             ("(^ -1 -3)", "-1"), ("(^ 2 62)", "4611686018427387904"),
+             ("(^ 2 63)", "9223372036854775000.0"), ("(^ 0 5)", "0"),
+             ("(^ 2.5 2)", "6.25"), ("(^ -2 3)", "-8"),
+             ("(^ 4 0.5)", "2.0"), ("(^ -1 9223372036854775807)", "-1"),
+             ("(^ 7 22)", "3909821048582988049")]
+
+
+@pytest.mark.parametrize("expr,want", POW_CASES,
+                         ids=[e for e, _ in POW_CASES])
+def test_sexp_power_results(run_wermit, expr, want):
+    """Verify integer powers in S-expressions keep their results."""
+    result = run_wermit(f"echo [\\fsexpression({expr})]", timeout=30)
+    assert f"[{want}]" in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize("expr", [
+    "(^ 2 9223372036854775807)", "(^ 0.0 9223372036854775807 2)",
+    "(^ -9223372036854775808 -9223372036854775808)", "(^ 2 -64)",
+    "(^ -1 9223372036854775807)"])
+def test_sexp_power_huge_exponent(run_wermit, expr):
+    """Verify a huge integer exponent finishes without a trap.
+
+    The integer power took one multiplication for each unit of the
+    exponent, with no overflow check.
+    """
+    result = run_wermit(f"echo [\\fsexpression({expr})], echo END-MARKER",
+                        timeout=20)
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}")
+    assert "runtime error" not in result.stderr, result.stderr[-2000:]
     assert "END-MARKER" in result.stdout, result.stdout

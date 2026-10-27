@@ -1670,7 +1670,10 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
             abuf[i] = '\0';             /* Terminate with null */
             if (i < aln) s += (aln - i);
             if (atblki)
-              yy->blksize = atol(abuf); /* Convert to number */
+              {                         /* Convert to number */
+                  CK_OFF_T bx = ckatofs(abuf);
+                  yy->blksize = (bx > 2147483647L) ? 2147483647L : (long)bx;
+              }
             break;
 
           case '*':                     /* Encoding (transfer syntax) */

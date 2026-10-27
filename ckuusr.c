@@ -6336,8 +6336,14 @@ rszarray() {
         dclarray(c,0);                  /* Undeclare the array */
         return(success = 1);
     }
+    /* lo+1 must fit in int, and lo+1 pointers in size_t */
+    if (lo >= (int)((unsigned)~0 >> 1) ||
+        (size_t)lo >= (size_t)~0 / sizeof(char *) - 1) {
+        printf("?Dimension too large\n");
+        return(success = 0);
+    }
     n = a_dim[x];                       /* Current size */
-    ap = (char **) malloc((lo+1) * sizeof(char *)); /* New array */
+    ap = (char **) malloc(((size_t)lo + 1) * sizeof(char *)); /* New array */
     if (!ap) {
         printf("?Memory allocation failure\n");
         return(success = 0);

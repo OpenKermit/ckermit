@@ -8867,6 +8867,11 @@ termp() {
                 xerror = 1;
                 divbyzero = 1;
                 expval = -1;
+            } else if (expval == -1) {  /* Avoid the CK_OFF_T_MIN / -1 trap */
+                if (op == '%')
+                  expval = 0;
+                else
+                  expval = (oldval == CK_OFF_T_MIN) ? oldval : -oldval;
             } else
               expval = (op == '/') ? (oldval / expval) : (oldval % expval);
             break;

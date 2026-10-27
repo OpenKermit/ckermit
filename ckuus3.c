@@ -3370,6 +3370,11 @@ struct keytab sexptab[] = {
 };
 
 static int sexpmaxdep = 1000;           /* Maximum depth */
+/*
+  Entries in the result stack for depth limit m.  dosexp() levels run
+  from 1 to m, and level m+1 reports that the limit was exceeded.
+*/
+#define SXSTACKN(m) (((m) > 0 ? (m) : 0) + 2)
 
 #define xxfloat(s,x) \
 ((isdigit(*s)||(*s=='-')||(*s=='+')||(*s=='.')||(*s=='\040'))?isfloat(s,x):0)
@@ -3583,6 +3588,88 @@ sexpdebug(s) char * s;
 
 static char sxroundbuf[32];             /* For ROUND result */
 
+#define SX_OFFMAX CK_OFF_T_MAX
+#define SX_OFFMIN CK_OFF_T_MIN
+
+/*
+  Return 1 if a op b does not fit in a CK_OFF_T, for op SX_ADD, SX_SUB
+  or SX_MUL.  Return 0 if it fits.
+*/
+static int
+#ifdef CK_ANSIC
+sxovfl( int op, CK_OFF_T a, CK_OFF_T b )
+#else
+sxovfl(op,a,b) int op; CK_OFF_T a, b;
+#endif /* CK_ANSIC */
+{
+    switch (op) {
+      case SX_ADD:
+        return((b > 0 && a > SX_OFFMAX - b) || (b < 0 && a < SX_OFFMIN - b));
+      case SX_SUB:
+        return((b < 0 && a > SX_OFFMAX + b) || (b > 0 && a < SX_OFFMIN + b));
+      case SX_MUL:
+        if (a == 0 || b == 0)
+          return(0);
+        if (a > 0)
+          return((b > 0) ? (a > SX_OFFMAX / b) : (b < SX_OFFMIN / a));
+        return((b > 0) ? (a < SX_OFFMIN / b) : (b < SX_OFFMAX / a));
+    }
+    return(0);
+}
+
+/*
+  Return 1 if a, converted to CKFLOAT, equals b.  The volatile variables
+  round both values to CKFLOAT.  An x87 FPU otherwise compares them at
+  extended precision.  An integer past 2^53 then differs from the double
+  nearest to it.
+*/
+static int
+#ifdef CK_ANSIC
+sxfpeq( CK_OFF_T a, CKFLOAT b )
+#else
+sxfpeq(a,b) CK_OFF_T a; CKFLOAT b;
+#endif /* CK_ANSIC */
+{
+    volatile CKFLOAT x, y;
+
+    x = (CKFLOAT)a;
+    y = b;
+    return(x == y);
+}
+
+/*
+  Convert the integer part of string s to a CK_OFF_T in *v, as ckatofs()
+  does.  Return 1 if it lies within -CK_OFF_T_MAX to CK_OFF_T_MAX.
+  Otherwise store the nearer limit in *v and return 0.
+*/
+static int
+#ifdef CK_ANSIC
+sxatofs( char *s, CK_OFF_T *v )
+#else
+sxatofs(s,v) char *s; CK_OFF_T *v;
+#endif /* CK_ANSIC */
+{
+    CK_OFF_T result = 0, d;
+    int minus = 0;
+
+    while (*s == SP || *s == HT) s++;
+    if (*s == '+') s++;
+    if (*s == '-') {
+        minus = 1;
+        s++;
+    }
+    for (; isdigit(*s); s++) {
+        d = (CK_OFF_T)(*s - '0');
+        if (result > (SX_OFFMAX - d) / (CK_OFF_T)10) {
+            *v = minus ? 0 - SX_OFFMAX : SX_OFFMAX;
+            return(0);
+        }
+        result = result * (CK_OFF_T)10 + d;
+    }
+    *v = minus ? 0 - result : result;
+    return(1);
+}
+
 char *
 #ifdef CK_ANSIC
 dosexp( char *s )                       /* s = S-Expression */
@@ -3593,7 +3680,6 @@ dosexp(s) char *s;
     extern struct mtab *mactab;         /* Macro table */
     extern int maclvl, nmac;
     extern char *mrval[];
-    extern int makestrlen;              /* (see makestr()) */
     struct stringarray * q = NULL;      /* cksplit() return type */
     char * p[SEXPMAX+1], ** p2;         /* List items (must be on stack) */
     char * sxline = NULL;                /* For building macro arg list */
@@ -3606,6 +3692,9 @@ dosexp(s) char *s;
     int not = 0, truncate = 0, builtin = 0;
     int fpflag = 0, quit = 0, macro = 0;
     int whole = 0;                      /* Operand has no fraction */
+    int jint = 0, rint = 0;             /* Operand, result is an integer */
+    int jovf = 0, rovf = 0;             /* Integer 1 above, -1 below range */
+    int cmp = 0;                        /* Predicate: result vs operand */
     CK_OFF_T result = 0, i, j, k, n = 0;
     CKFLOAT fpj, fpresult = 0.0;        /* Floating-point results */
     int sxpflag = 0;                      /* Have predicate */
@@ -3625,6 +3714,27 @@ dosexp(s) char *s;
     if (sexpdep > sexpdmax)             /* For stats */
       sexpdmax = sexpdep;
 
+/*
+  Allocate result stack upon first use, or after it has been resized with
+  SET SEXP DEPTH-LIMIT.  Every exit through xdosexp uses it.
+*/
+    if (!sxresult) {
+        sxresult = (char **)malloc(SXSTACKN(sexpmaxdep) * sizeof(char *));
+        sxrlen = (int *)malloc(SXSTACKN(sexpmaxdep) * sizeof(int));
+        if (!sxresult || !sxrlen) {
+            if (sxresult) free((char *)sxresult);
+            if (sxrlen) free((char *)sxrlen);
+            sxresult = NULL;
+            sxrlen = NULL;
+            printf("?Memory allocation failure - \"%s\"\n", s ? s : "");
+            sexprc++;
+            goto xdosexp;
+        }
+        for (i = 0; i < SXSTACKN(sexpmaxdep); i++) {
+            sxresult[i] = NULL;         /* Result pointers */
+            sxrlen[i] = 0;              /* Buffer sizes */
+        }
+    }
     if (sexprc)                         /* Error, quit all levels */
       goto xdosexp;                     /* Always goto common exit point */
 
@@ -3635,28 +3745,6 @@ dosexp(s) char *s;
     while (*s == SP) s++;               /* Strip leading spaces */
     if (!*s)                            /* so empty result */
       goto xdosexp;
-/*
-  Allocate result stack upon first use, or after it has been resized with
-  SET SEXP DEPTH-LIMIT.
-*/
-    if (!sxresult) {
-        sxresult = (char **)malloc(sexpmaxdep * sizeof(char *));
-        if (!sxresult) {
-            printf("?Memory allocation failure - \"%s\"\n", s);
-            sexprc++;
-            goto xdosexp;
-        }
-        sxrlen = (int *)malloc(sexpmaxdep * sizeof(int));
-        if (!sxrlen) {
-            printf("?Memory allocation failure - \"%s\"\n", s);
-            sexprc++;
-            goto xdosexp;
-        }
-        for (i = 0; i < sexpmaxdep; i++) {
-            sxresult[i] = NULL;         /* Result pointers */
-            sxrlen[i] = 0;              /* Buffer sizes */
-        }
-    }
     s2 = s;                             /* s2 is the result pointer */
     k = 0;                              /* Length accumulator */
     if (s[0] == '(') {                  /* Starts with open paren? */
@@ -3735,7 +3823,6 @@ dosexp(s) char *s;
                 if (s2[1] == '(' && s2[x8-1] == ')') { /* '(string) */
                     s2[x8-1] = NUL;
                     s2 += 2;
-                    printf("XXX s2.2=[%s]\n",s2);
                 }
             }
             makestr(&(p[1]),s2);
@@ -3900,21 +3987,25 @@ dosexp(s) char *s;
                         goto xdosexp;
                     }
                     if (*s2 == '\047') {
+                        int k9;
                         s2++;
-#ifdef COMMENT
-                        /* Dumps core if petty optimization was taken */
-                        makestr(&(p[1]),s2);
-#else
+                        k9 = (int)strlen(s2);
+                        /*
+                          Copy the value after the quote into p[1].  With
+                          nosplit, p[1] points into s and is not freed.
+                          mustfree frees the copy at xdosexp.
+                        */
                         if (!nosplit && p[1]) free(p[1]);
-                        p[1] = (char *)malloc((int)strlen(s2) + 1);
-#endif /* COMMENT */
+                        p[1] = (char *)malloc(k9 + 1);
+                        if (p[1]) {
+                            memcpy(p[1],s2,k9 + 1);
+                            mustfree = 1;
+                        }
                         s2 = p[1];
                         if (!s2) s2 = "";
-                        if (*s2 == '(') {
-                            if (s2[makestrlen-1] == ')') {
-                                s2[makestrlen-1] = NUL;
-                                s2++;
-                            }
+                        if (*s2 == '(' && k9 > 1 && s2[k9-1] == ')') {
+                            s2[k9-1] = NUL;
+                            s2++;
                         }
                         debug(F110,sexpdebug("'A"),s2,0);
                         goto xdosexp;
@@ -4013,8 +4104,7 @@ dosexp(s) char *s;
                 ckstrncpy(buf2,q1,32);
                 q1 = buf2;
                 placesval = atof(q1);
-                w0 = ckatofs(q0);
-                if (xxfloat(q0,0) == 1 && (CKFLOAT)w0 == atof(q0)) {
+                if (xxfloat(q0,0) == 1 && sxatofs(q0,&w0)) {
                     /* Whole number in range: format exactly with */
                     /* trailing zeros. */
                     extern int fp_digits;
@@ -4109,9 +4199,8 @@ dosexp(s) char *s;
                         goto xdosexp;
                     }
                     while (*s2 == '+') s2++;
-                    result = ckatofs(s2);
                     fpresult = floatval;
-                    if (k > 1 || fpresult != result)
+                    if (!sxatofs(s2,&result) || k > 1)
                       fpflag++;
                 }
                 if (n < i+2) {          /* Variable with no value */
@@ -4143,21 +4232,25 @@ dosexp(s) char *s;
                         goto xdosexp;
                     }
                     while (*s2 == '+') s2++;
-                    j = ckatofs(s2);
-                    if (k > 1) {
+                    if (!sxatofs(s2,&j) || k > 1) {
                         fpj = floatval;
                         fpflag++;
                     } else {
                         fpj = (CKFLOAT)j;
                     }
                     if (x == SX_INC) {
-                        result += j;
+                        if (sxovfl(SX_ADD,result,j))
+                          fpflag++;
+                        else
+                          result += j;
                         fpresult += fpj;
                     } else if (x == SX_DEC) {
-                        result -= j;
+                        if (sxovfl(SX_SUB,result,j))
+                          fpflag++;
+                        else
+                          result -= j;
                         fpresult -= fpj;
                     }
-#ifdef FNFLOAT
                 /*
                   This gets a "Types incompatible in conditional expression"
                   warning in HP-UX 10 with the pre-ANSI HP C 76.3 compiler
@@ -4166,8 +4259,6 @@ dosexp(s) char *s;
                   been added above just after '#include "ckcfnp.h"' within
                   #ifdef HPUX10..#endif.
                 */
-                    if (result != fpresult) fpflag++;
-#endif  /* FNFLOAT */
                     s2 = (fpflag && !sexptrunc) ?
                         fpformat(fpresult,0,0) : ckfstoa(result);
                 }
@@ -4212,8 +4303,11 @@ dosexp(s) char *s;
             } else {
                 s2 = dosexp(bool_result ? p[3] : p[4]);
                 if (sexprc) goto xdosexp;
-                j = s2 ? ckatofs(s2) : 0;
-                if (s2 && xxfloat(s2,0) == 2) {
+                j = 0;
+                k = s2 ? xxfloat(s2,0) : 0; /* Sets floatval */
+                if (s2 && !sxatofs(s2,&j) && k == 1)
+                  k = 2;                /* Integer out of range */
+                if (k == 2) {
                     fpflag++;
                     fpresult = (CKFLOAT)result;
                     fpj = floatval;
@@ -4368,25 +4462,28 @@ dosexp(s) char *s;
                 register char c4, * s4 = s2;
                 while ((c4 = *s4++)) if (c4 == SP) { quote++; break; }
             }
-            if (quote) sxline[linepos++] = '{';
-            while ((sxline[linepos++] = *s2++)) {
-                if (linepos > linelen - 3) {
+            {
+                /* Room for '{', the argument, '}', a space and a NUL */
+                int alen = (int)strlen(s2);
+                if (linepos + alen + 4 > linelen) {
                     char * tmp = NULL;
-                    sxline[linepos] = NUL;
-                    linelen += SXMLEN;
-                    tmp = (char *) malloc(linelen);
+                    int newlen = linepos + alen + 4 + SXMLEN;
+                    tmp = (char *) malloc(newlen);
                     if (!tmp) {
                         printf("?Memory re-allocation failure - \"%s...\"\n",
                                sxline);
                         sexprc++;
                         goto xdosexp;
                     }
-                    strcpy(tmp,sxline);
+                    memcpy(tmp,sxline,linepos + 1);
                     free(sxline);
                     sxline = tmp;
+                    linelen = newlen;
                 }
+                if (quote) sxline[linepos++] = '{';
+                memcpy(&sxline[linepos],s2,alen);
+                linepos += alen;
             }
-            linepos--;                  /* Back up over NUL */
             if (quote)
               sxline[linepos++] = '}';    /* End quote group */
             sxline[linepos++] = SP;       /* add a space */
@@ -4412,18 +4509,27 @@ dosexp(s) char *s;
             j = 0;
             fpj = 0.0;
             whole = 0;
+            jint = 0;
+            jovf = 0;
         } else {
-            j = ckatofs(s2);
             whole = (xxfloat(s2,0) == 1);
+            jint = whole;
+            jovf = 0;
             /* Switch to floating-point upon encountering any f.p. arg */
             /* OR... if integer is too big */
-            if (!fpflag) if (xxfloat(s2,0) == 2)
+            if (!sxatofs(s2,&j)) {
+                jovf = (j > 0) ? 1 : -1;
+                whole = 0;
+                fpflag++;
+            } else if (!fpflag && xxfloat(s2,0) == 2)
               fpflag++;
             fpj = atof(s2);
         }
         if (i == 1) {                   /* Initial result is first operand */
             result = (n == 2 && x == SX_SUB) ? 0-j : j;
             fpresult = (n == 2 && x == SX_SUB) ? -fpj : fpj;
+            rint = jint;
+            rovf = jovf;
             if ((x == SX_AND && result == 0) || /* Short circuit */
                 (x == SX_LOR && result != 0))
               quit++;
@@ -4439,6 +4545,18 @@ dosexp(s) char *s;
                 goto xdosexp;
             }
         }
+        if (sxpflag) {
+            /*
+              Compare two integers exactly, or an integer out of range
+              with one in range by the sign of the overflow.  Compare
+              anything else as floating point.
+            */
+            if (rint && jint && (rovf != jovf || !rovf))
+              cmp = (rovf != jovf) ? ((rovf < jovf) ? -1 : 1) :
+                  ((result < j) ? -1 : (result > j));
+            else
+              cmp = (fpresult < fpj) ? -1 : (fpresult > fpj);
+        }
         switch (x) {                    /* Accumulate result */
 
           case SX_EVA:                  /* EVAL */
@@ -4446,18 +4564,31 @@ dosexp(s) char *s;
             fpresult = fpj;
             break;
 
+/*
+  When the exact integer result does not fit, it is left alone and the
+  floating-point result is used instead.
+*/
           case SX_ADD:                  /* + */
-            result += j;
+            if (sxovfl(SX_ADD,result,j))
+              fpflag++;
+            else
+              result += j;
             fpresult += fpj;
             break;
 
           case SX_SUB:                  /* - */
-            result -= j;
+            if (sxovfl(SX_SUB,result,j))
+              fpflag++;
+            else
+              result -= j;
             fpresult -= fpj;
             break;
 
           case SX_MUL:                  /* * */
-            result *= j;
+            if (sxovfl(SX_MUL,result,j))
+              fpflag++;
+            else
+              result *= j;
             fpresult *= fpj;
             break;
 
@@ -4474,7 +4605,14 @@ dosexp(s) char *s;
             break;
 
           case SX_MOD:                  /* Modulus */
-            result = result % j;
+            if (j == 0) {               /* Undefined: use floating point */
+#ifdef FNFLOAT
+                fpflag++;
+#endif /* FNFLOAT */
+            } else if (j == -1) {       /* x % -1 is 0 */
+                result = 0;
+            } else
+              result = result % j;
 #ifdef FNFLOAT
             fpresult = (CKFLOAT)fmod(fpresult,fpj);
 #else
@@ -4486,10 +4624,13 @@ dosexp(s) char *s;
             if (j) {
 #ifdef FNFLOAT
                 /* A nonzero remainder indicates a fractional quotient. */
-                if (result % j)
+                if (j != -1 && result % j)
                   fpflag++;
 #endif  /* FNFLOAT */
-                result /= j;
+                if (j == -1)            /* Negate.  CK_OFF_T_MIN stays put */
+                  result = (result == CK_OFF_T_MIN) ? result : -result;
+                else
+                  result /= j;
                 fpresult /= fpj;
             } else {
                 fpresult /= fpj;
@@ -4501,71 +4642,26 @@ dosexp(s) char *s;
             break;
 
           case SX_AEQ:                  /* Test for equality */
-            if (fpflag) {
-                if (fpresult != fpj)
-                  presult = 0;
-            } else {
-                if (result != j)
-                  presult = 0;
-            }
+            if (cmp != 0)
+              presult = 0;
             break;
 
           case SX_NEQ:                  /* Test for ineqality */
-            if (fpflag) {
-                if (fpresult == fpj)
-                  presult = 0;
-            } else {
-                if (result == j)
-                  presult = 0;
-            }
+            if (cmp == 0)
+              presult = 0;
             break;
 
           case SX_ALE:                  /* Arithmetic less-equal */
-            if (fpflag) {
-                if (fpj < fpresult)
-                  presult = 0;
-                fpresult = fpj;
-            } else {
-                if (j < result)
-                  presult = 0;
-                result = j;
-            }
-            break;
-
           case SX_ALT:                  /* Arithmetic less-than */
-            if (fpflag) {
-                if (fpj <= fpresult)
-                  presult = 0;
-                fpresult = fpj;
-            } else {
-                if (j <= result)
-                  presult = 0;
-                result = j;
-            }
-            break;
-
           case SX_AGT:                  /* Arithmetic greater-than */
-            if (fpflag) {
-                if (fpj >= fpresult)
-                  presult = 0;
-                fpresult = fpj;
-            } else {
-                if (j >= result)
-                  presult = 0;
-                result = j;
-            }
-            break;
-
           case SX_AGE:                  /* Arithmetic greater-equal */
-            if (fpflag) {
-                if (fpj > fpresult)
-                  presult = 0;
-                fpresult = fpj;
-            } else {
-                if (j > result)
-                  presult = 0;
-                result = j;
-            }
+            if ((x == SX_ALE && cmp > 0) || (x == SX_ALT && cmp >= 0) ||
+                (x == SX_AGT && cmp <= 0) || (x == SX_AGE && cmp < 0))
+              presult = 0;
+            result = j;                 /* The next operand compares */
+            fpresult = fpj;             /* with this one */
+            rint = jint;
+            rovf = jovf;
             break;
 
           case SX_POW:                  /* Raise to power */
@@ -4589,27 +4685,49 @@ dosexp(s) char *s;
 #endif /* FNFLOAT */
             if (j == 0) {
                 result = 1;
-            } else {
-                CK_OFF_T z, sign = 0;
-                if (j < 0) {
-                    if (result == 0) {
-                        printf("?Divide by zero - \"%s\"\n",cmdbuf);
-                        sexprc++;
-                        goto xdosexp;
-                    }
-                    j = 0 - j;
-                    sign++;
+            } else if (j < 0) {         /* Integer part of 1/result^-j */
+                if (result == 0) {
+                    printf("?Divide by zero - \"%s\"\n",cmdbuf);
+                    sexprc++;
+                    goto xdosexp;
                 }
-                z = result;
-                while (--j > 0)
-                  result *= z;
-                if (sign)
-                  result = 1 / result;
-            }
+                if (result == -1)
+                  result = (j % 2) ? -1 : 1;
+                else if (result != 1)
+                  result = 0;
 #ifdef FNFLOAT
-            if (result != fpresult)
-              fpflag++;
+                if (result != fpresult) /* Has a fraction */
+                  fpflag++;
 #endif  /* FNFLOAT */
+            } else {                    /* Square and multiply */
+                CK_OFF_T z = result, r = 1;
+                int ovf = 0;
+                while (j > 0 && !ovf) {
+                    if (j & 1) {
+                        if (sxovfl(SX_MUL,r,z))
+                          ovf = 1;
+                        else
+                          r *= z;
+                    }
+                    j >>= 1;
+                    if (j > 0 && !ovf) {
+                        if (sxovfl(SX_MUL,z,z)) /* r needs z*z or more */
+                          ovf = 1;
+                        else
+                          z *= z;
+                    }
+                }
+                result = r;
+                if (ovf) {
+#ifdef FNFLOAT
+                    fpflag++;           /* Use the floating-point result */
+#else
+                    printf("?Overflow - \"%s\"\n",cmdbuf);
+                    sexprc++;
+                    goto xdosexp;
+#endif  /* FNFLOAT */
+                }
+            }
             break;
 
 #ifdef FNFLOAT
@@ -4647,7 +4765,7 @@ dosexp(s) char *s;
 #endif /* FNFLOAT */
 
           case SX_CEI:                  /* Ceiling */
-            if (whole && (CKFLOAT)j == fpj) {
+            if (whole) {
                 result = j;             /* Whole number in range: exact */
                 fpflag = 0;
                 break;
@@ -4661,7 +4779,7 @@ dosexp(s) char *s;
             break;
 
           case SX_FLR:                  /* Floor */
-            if (whole && (CKFLOAT)j == fpj) {
+            if (whole) {
                 result = j;             /* Whole number in range: exact */
                 fpflag = 0;
                 break;
@@ -4675,7 +4793,7 @@ dosexp(s) char *s;
             break;
 
           case SX_TRU:                  /* Truncate */
-            if (whole && (CKFLOAT)j == fpj) {
+            if (whole) {
                 result = j;             /* Whole number in range: exact */
                 fpflag = 0;
                 break;
@@ -4689,13 +4807,13 @@ dosexp(s) char *s;
             result = (j < 0) ? 0 - j : j;
 #ifdef FNFLOAT
             fpresult = (fpj < 0.0) ? 0.0 - fpj : fpj;
-            if (result != fpresult)
+            if (!sxfpeq(result,fpresult))
               fpflag++;
 #endif  /* FNFLOAT */
             break;
 
           case SX_MAX:                  /* Max */
-            if (j != fpj)
+            if (!sxfpeq(j,fpj))
               fpflag++;
             if (fpflag) {
                 if (fpj > fpresult)
@@ -4706,7 +4824,7 @@ dosexp(s) char *s;
             break;
 
           case SX_MIN:                  /* Min */
-            if (j != fpj)
+            if (!sxfpeq(j,fpj))
               fpflag++;
             if (fpflag) {
                 if (fpj < fpresult)
@@ -4875,8 +4993,9 @@ dosexp(s) char *s;
             if (p[i]) free(p[i]);
         }
     }
-    debug(F111,sexpdebug("exit"),sxresult[sexpdep],sexprc);
-    s = sxresult[sexpdep--];
+    s = sxresult ? sxresult[sexpdep] : NULL;
+    sexpdep--;
+    debug(F111,sexpdebug("exit"),s,sexprc);
     if (!s) s = "";
     return(s);
 }
@@ -14356,11 +14475,15 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
                 if ((y = cmnum("Maximum recursion depth",
                                "1000",10,&x,xxstring)) < 0)
                   return(y);
+                if (sexpdep > 0) {      /* sxresult[] is in use */
+                    printf("?Not allowed inside an S-expression\n");
+                    return(-9);
+                }
                 z = setnum(&sexpmaxdep,x,y,-1);
                 if (z < 0)
                   return(z);
                 if (sxresult) {         /* Free old stack if allocated */
-                    for (i9 = 0; i9 < omax; i9++)
+                    for (i9 = 0; i9 < SXSTACKN(omax); i9++)
                       if (sxresult[i9]) free(sxresult[i9]);
                     free((char *)sxresult);
                     if (sxrlen) free((char *)sxrlen);

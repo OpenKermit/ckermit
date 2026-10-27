@@ -383,6 +383,27 @@ file, also reach it.
   introduced in commit 0fd869b4 in C-Kermit 9.0.302 of 2011.  The CHANGE bug
   was introduced in commit 6100ebcc in C-Kermit 304(dev17) of 2016.
 
+- S-expressions:
+
+  - [8] SET SEXPRESSION DEPTH-LIMIT in a macro that an S-expression called
+    freed the result stack that the S-expression still used, and Kermit
+    crashed.  The command is now refused there.  An S-expression nested exactly
+    to the depth limit, or one level deeper, read and wrote one entry past the
+    result stack.  So did any S-expression after a limit of 0 or less.  Bugs
+    were introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+  - [8] S-expression arguments ran past their buffers.  An S-expression that
+    called a macro wrote one or two bytes past its argument list when an
+    argument began at the end of the list's buffer.  An S-expression of a
+    variable whose value starts with a quote, such as `(x)` after `.x :=
+    '(abc)`, returned uninitialized memory and read past it.  It now returns
+    `abc`.  Splitting a string could leave a word without its terminating NUL
+    when the word was a quoted group, such as `'(a b)`, and an earlier split
+    had left a large enough buffer.  The word then took on bytes past its
+    buffer.  A macro called from an S-expression got such an argument.  Bugs
+    were introduced in commits c88d9b85 (8.0.200 of 2001) and 4e0c0d29 (8.0.211
+    of 2004).
+
 ## Additional improvements and bugfixes
 
 ### FTP and HTTP
@@ -450,6 +471,30 @@ file, also reach it.
 
 ### Scripting and commands
 
+- [5, 6, 7, 8, 9] Division or modulus of the most negative integer by -1 killed
+  Kermit with SIGFPE, and that number printed as "OVERFLOW".  `\fmax()`,
+  `\fmin()`, `\fmod()` and `\frandom()` truncated values to 32 bits.  Numbers
+  of 20 digits wrapped instead of stopping at the largest value.  An
+  S-expression with such a number gives a floating-point result.  `\fradix()`,
+  `\fhex2n()` and `\foct2n()` returned 0 or an empty string instead of -1 for
+  values past 2^63-1.  ARRAY RESIZE to 2147483647 elements overflowed a signed
+  integer when it computed the size.  It now reports "Dimension too large", as
+  DECLARE does.  Bugs were introduced in commits a213649d (5A(188) of 1992),
+  4b5eddea (6.0.192 of 1996), d0f8b1da (7.0.197 of 2000), c88d9b85 (8.0.200 of
+  2001) and 0fd869b4 (9.0.302 of 2011).
+
+- [7, 9, 11] Floating-point functions and S-expressions lost precision with
+  large integers.  On systems that do floating point in an x87 FPU, such as
+  32-bit x86 Linux, CEILING, FLOOR, TRUNCATE, ROUND, ABS, MAX and MIN gave
+  inexact results for integers past 2^53.  An integer past the 64-bit range
+  could compare equal to the largest integer.  Integer results past 64 bits
+  wrapped instead of moving to floating point.  The digit-at-a-time conversion
+  was introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.  The `++`,
+  `--`, ABS, MAX, MIN and comparison bugs were introduced in commit 0fd869b4 in
+  C-Kermit 9.0.302 of 2011.  The CEILING, FLOOR, TRUNCATE and ROUND bug was
+  introduced in commit cfc424ff, and the wrap in commit ba8d78d5, both in
+  C-Kermit 11.0.512 of 2026.
+
 - [5, 8] Expansion and S-expression depth counts stayed raised.  Each expansion
   that failed because its value did not fit left the nesting count of the
   expander one level higher.  Ctrl-C during the expansion of a variable or
@@ -484,6 +529,16 @@ file, also reach it.
   and the second could not.  Bug was introduced in commit 04917e78 in
   C-Kermit 304(dev05) of 2013.
 
+- [8] The S-expression power operator took one multiplication for each unit of
+  an integer exponent, so `(^ 2 9000000000000000000)` ran for centuries, and
+  integer overflow went unchecked.  It now squares and multiplies, and an
+  overflow gives the floating-point result.  Bug was introduced in commit
+  c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [8] `\fsexpression()` with an empty first argument and another argument
+  crashed Kermit when it was the first S-expression of the session.  Bug was
+  introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
 ## Summary of changed behavior
 
 - [4, 6] A server with HOST disabled refuses PUSH within REMOTE QUERY.
@@ -495,6 +550,9 @@ file, also reach it.
   A packet shorter than its block check is refused.
 
 - [5] `\fmjd2date()` accepts dates from 0000-01-01 through 9999-12-31.
+
+- [5, 6, 7, 8, 9] `\fmax()`, `\fmin()`, `\fmod()` and `\frandom()` take
+  64-bit values.
 
 - [6, 11] A receiver refuses a RESEND unless its FILE COLLISION setting
   allows it or it asked for a REGET.
@@ -522,6 +580,12 @@ file, also reach it.
 - [8] Kermit refuses SSL and TLS when OpenSSL has too little entropy.
 
 - [8] The floating-point functions format at most 200 decimal places.
+
+- [8] SET SEXPRESSION DEPTH-LIMIT is refused in a macro that an
+  S-expression called.
+
+- [8, 11] S-expression integer results that overflow become floating
+  point, including the power operator.
 
 - [8, 11] `ENABLE` and `DISABLE` with `LOCAL` or `REMOTE` change only that
   side.

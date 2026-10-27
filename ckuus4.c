@@ -9168,12 +9168,12 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                 val1 = *(bp[2]) ? evalx(bp[2]) : "1";
                 if (argn > 3) {         /* Occurrence */
                     val2 = *(bp[3]) ? evalx(bp[3]) : "1";
-                    if (chknum(val2)) desired = atoi(val2);
+                    if (chknum(val2)) desired = ckatoi(val2);
                     if (desired * len1 > len2) goto fnend;
                 }
                 if (chknum(val1)) {
                     int t9;
-                    t9 = atoi(val1);
+                    t9 = ckatoi(val1);
                     if (!search) {      /* Index or Rindex */
                         j = len2 - len1; /* Length difference */
                         t9--;             /* Convert position to 0-based */
@@ -9295,7 +9295,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             j2 = j;
             if (argn > 3) {
                 if (chknum(bp[3])) {
-                    occur = atoi(bp[3]);
+                    occur = ckatoi(bp[3]);
                 } else {
                     failed = 1;
                     if (fndiags)
@@ -9311,7 +9311,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 #ifdef RPLWORDMODE
             if (argn > 4) {
                 if (chknum(bp[4])) {
-                    context = atoi(bp[4]);
+                    context = ckatoi(bp[4]);
                 } else {
                     failed = 1;
                     if (fndiags)
@@ -9421,7 +9421,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
       case FN_CHR:                      /* \fcharacter(arg1) */
         val1 = *(bp[0]) ? evalx(bp[0]) : "";
         if (chknum(val1)) {             /* Must be numeric */
-            i = atoi(val1);
+            i = ckatoi(val1);
             if (i >= 0 && i < 256) {    /* Must be an 8-bit value */
                 p = fnval;
                 *p++ = (char) i;
@@ -9496,17 +9496,18 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 #endif /* COMMENT */
             val2 = *(bp[1]) ? evalx(bp[1]) : "";
             if (chknum(val1) && chknum(val2)) {
-                i = atoi(val1);
-                j = atoi(val2);
+                CK_OFF_T z1, z2;        /* 64-bit where available */
+                z1 = ckatofs(val1);
+                z2 = ckatofs(val2);
                 switch (y) {
                   case FN_MAX:
-                    if (j < i) j = i;
+                    if (z2 < z1) z2 = z1;
                     break;
                   case FN_MIN:
-                    if (j > i) j = i;
+                    if (z2 > z1) z2 = z1;
                     break;
                   case FN_MOD:
-                    if (j == 0) {
+                    if (z2 == 0) {
                         failed = 1;
                         if (fndiags)
                           ckmakmsg(fnval,FNVALL,
@@ -9514,11 +9515,13 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                         else
                           fnval[0] = NUL;
                         goto fnend;
+                    } else if (z2 == -1) {
+                        z2 = 0;         /* CK_OFF_T_MIN % -1 would trap */
                     } else
-                      j = i % j;
+                      z2 = z1 % z2;
                 }
                 p = fnval;
-                sprintf(p,"%d",j);      /* SAFE */
+                ckstrncpy(p,ckfstoa(z2),FNVALL);
             } else {
                 failed = 1;
                 evalerr(fn);
@@ -9568,13 +9571,13 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             p = fnval;                  /* pointer to result */
             lx = (int)strlen(bp[0]);         /* length of arg1 */
             if (cx == FN_SUB) {         /* substring */
-                k = (argn > 2) ? atoi(val2) : MAXARGLEN; /* length */
-                j = (argn > 1) ? atoi(val1) : 1; /* start pos for substr */
+                k = (argn > 2) ? ckatoi(val2) : MAXARGLEN; /* length */
+                j = (argn > 1) ? ckatoi(val1) : 1; /* start pos for substr */
             } else if (cx == FN_LEF) {  /* left */
-                k = (argn > 1) ? atoi(val1) : lx;
+                k = (argn > 1) ? ckatoi(val1) : lx;
                 j = 1;
             } else {                             /* right */
-                k = (argn > 1) ? atoi(val1) : lx; /* length */
+                k = (argn > 1) ? ckatoi(val1) : lx; /* length */
                 if (k > lx) k = lx;
                 j = lx - k + 1;                  /* start pos for right */
             }
@@ -9611,7 +9614,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           if (*(bp[1]))
             val1 = evalx(bp[1]);
         if (chknum(val1)) {             /* Repeat count */
-            n = atoi(val1);
+            n = ckatoi(val1);
             debug(F111,"SUNDAY frepeat n",val1,n);
             if (n > 0) {                /* Make n copies */
                 p = fnval;
@@ -9673,7 +9676,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             evalerr(fn);
         } else /* if (chknum(val1)) */ { /* Repeat count */
             char pc;
-            n = atoi(val1);
+            n = ckatoi(val1);
             if (n >= 0) {
                 p = fnval;
                 k = (int)strlen(bp[0]); /* Length of string to be padded */
@@ -9764,7 +9767,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             if (argn > 2) {             /* Starting position specified */
                 val1 = *(bp[2]) ? evalx(bp[2]) : "0";
                 if (chknum(val1)) {
-                    start = atoi(val1) /* - 1 */;
+                    start = ckatoi(val1) /* - 1 */;
                     if (start < 0) start = 0;
                     if (start > (int)strlen(bp[1]))
                       goto verfin;
@@ -9805,7 +9808,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             int start = 0;
             if (argn > 1) {             /* Starting position specified */
                 if (chknum(bp[1])) {
-                    start = atoi(bp[1]) - 1;
+                    start = ckatoi(bp[1]) - 1;
                     if (start < 0) start = 0;
                 } else {
                     failed = 1;
@@ -9922,7 +9925,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           if (argn > 2) {
               s = bp[2] ? bp[2] : "0";
               if (chknum(s)) {
-                  start = atoi(s);
+                  start = ckatoi(s);
                   if (start < 0) start = 0;
                   if (start > (int)strlen(bp[0]))
                     goto brkfin;
@@ -9967,7 +9970,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           if (argn > 2) {               /* Starting position */
               s = bp[2] ? bp[2] : "0";
               if (chknum(s)) {
-                  start = atoi(s);
+                  start = ckatoi(s);
                   if (start < 0) start = 0;
               } else {
                   failed = 1;
@@ -10150,7 +10153,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
               row = 0;
           } else {
               if (chknum(bp[0])) {
-                  row = atoi(bp[0]);
+                  row = ckatoi(bp[0]);
                   if (row < 0)
                     row = 0;
               } else {
@@ -10167,7 +10170,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                 col = 0;
               else {
                   if (chknum(bp[0])) {
-                      col = atoi(bp[1]);
+                      col = ckatoi(bp[1]);
                       if (col < 0 || col >= line->width)
                         col = 0;
                   } else {
@@ -10188,7 +10191,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                                  "<ERROR:ARG_NOT_NUMERIC:\\f",fn,"()>",NULL);
                       goto fnend;
                   }
-                  len = atoi(bp[2]);
+                  len = ckatoi(bp[2]);
                   if (len < 0 || len > line->width)
                     len = line->width;
               }
@@ -10285,7 +10288,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                   if (n9 < 0) n9 = 0;
               } else
 #endif  /* NOFLOAT */
-                n9 = atoi(bp[2]);
+                n9 = ckatoi(bp[2]);
           }
           x = 0;
           if (cx == FN_LOPX) {          /* Lopx (from right) */
@@ -10342,7 +10345,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             evalerr(fn);
             goto fnend;
         }
-        n = atoi(val1);
+        n = ckatoi(val1);
         if (n < 0) n = 0;
         k = (int)strlen(s = bp[0]) - n;
         if (k < 0) k = 0;
@@ -10369,7 +10372,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           if (argn > 1) {
               if (*bp[1]) {
                   if (chknum(bp[1])) {
-                      k9 = atoi(bp[1]);
+                      k9 = ckatoi(bp[1]);
                       if (k9 < 0) k9 = 63;
                       for (i9 = 0; i9 < 6; i9++) {
                           if (k9 & (1<<i9)) {
@@ -10449,43 +10452,42 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
       }
 
 #ifndef NORANDOM
-      case FN_RAND:                     /* Random number */
+      case FN_RAND: {                   /* Random number */
+/*
+  zr is a nonnegative random value as wide as CK_OFF_T.  The result is
+  zr % zx: 0 through zx-1 for zx > 0, zx+1 through 0 for zx < 0.
+*/
+          CK_OFF_T zr = 0, zx = 0;
+          unsigned char rb[sizeof(CK_OFF_T)];
+          int i9, gotrand = 0;
 #ifdef CK_SSL
-        if (RAND_bytes((unsigned char *)&k,sizeof(k)) < 0)
+          if (RAND_bytes(rb,(int)sizeof(rb)) == 1)
+            gotrand = 1;
 #endif /* CK_SSL */
-          k = rand();
-        x = 0;
-        if (argn > 0) {
-            if (!chknum(bp[0])) {
-                failed = 1;
-                if (fndiags)
-                  ckmakmsg(fnval,FNVALL,
-                           "<ERROR:ARG_NOT_NUMERIC:\\f",fn,"()>",NULL);
-                goto fnend;
-            }
-            x = atoi(bp[0]);
-        }
-#ifdef COMMENT
-        sprintf(fnval,"%d", (x > 0 && k > 0) || (x < 0 && k < 0) ? k % x :
-                (x == 0 ? 0 : (0 - (k % (-x)))));
-#else
-        debug(F111,"rand",ckitoa(x),k);
-#ifdef SUNOS4
-/* This is really strange but on SunOS, if we are requesting random numbers */
-/* between 0 and 4 or less, they always come out in sequence: 0 1 2 3 0 1 2 */
-/* Shifting the result of rand() in this case gives a more random result.   */
-        if (x < 5)
-          k = k >> 5;
-#endif /* SUNOS4 */
-        if ((x > 0 && k > 0) || (x < 0 && k < 0))
-          x = k % x;
-        else if (x == 0)
-          x = 0;
-        else
-          x = 0 - (k % (-x));
-        debug(F101,"rand x","",x);
-        sprintf(fnval,"%d", x);         /* SAFE */
-#endif /* COMMENT */
+          if (!gotrand) {
+              for (i9 = 0; i9 < (int)sizeof(rb); i9++)
+                rb[i9] = (unsigned char)(rand() >> 4);
+          }
+          rb[0] &= 0x7f;                /* Keep zr nonnegative */
+          for (i9 = 0; i9 < (int)sizeof(rb); i9++)
+            zr = (zr << 8) | rb[i9];
+          if (argn > 0) {
+              if (!chknum(bp[0])) {
+                  failed = 1;
+                  if (fndiags)
+                    ckmakmsg(fnval,FNVALL,
+                             "<ERROR:ARG_NOT_NUMERIC:\\f",fn,"()>",NULL);
+                  goto fnend;
+              }
+              zx = ckatofs(bp[0]);
+          }
+          if (zx > 0)
+            zx = zr % zx;
+          else if (zx < 0)
+            zx = 0 - (zr % zx);         /* zr >= 0, so zr % zx >= 0 */
+          debug(F101,"rand zx","",zx);
+          ckstrncpy(fnval,ckfstoa(zx),FNVALL);
+      }
         p = fnval;
         goto fnend;
 #endif /* NORANDOM */
@@ -10529,7 +10531,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                            "<ERROR:ARG_NOT_NUMERIC:\\f",fn,"()>",NULL);
                   goto fnend;
               }
-              x9 = atoi(bp[5]);
+              x9 = ckatoi(bp[5]);
               nocollapse = x9;
           }
           if (!splitting) {             /* \fword(): n = desired word number */
@@ -10543,7 +10545,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                            "<ERROR:ARG_NOT_NUMERIC:\\f",fn,"()>",NULL);
                   goto fnend;
               }
-              n = atoi(val1);
+              n = ckatoi(val1);
           } else if (argn > 1 && *bp1) { /* \fsplit(): n = word count */
               ckstrncpy(abuf,bp1,16);   /* Get array reference */
               debug(F110,"fsplit abuf 1",abuf,0);
@@ -10582,7 +10584,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
               if (!bp4) bp4 = "0";
               if (!*bp4) bp4 = "0";
               if (chknum(bp4)) {
-                  grouping = atoi(bp4);
+                  grouping = ckatoi(bp4);
                   if (grouping == -1)
                     grouping = 127;
               } else {
@@ -10652,7 +10654,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           int n = 0;
           char * s = NULL;
           if (rdigits(bp[0])) {
-              kv = atoi(bp[0]);
+              kv = ckatoi(bp[0]);
           } else {
               failed = 1;
               if (fndiags)
@@ -10775,7 +10777,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 #ifdef FN_ERRMSG
       case FN_ERRMSG:
         if (rdigits(bp[0])) {
-            k = atoi(bp[0]);
+            k = ckatoi(bp[0]);
         } else {
             failed = 1;
             if (fndiags)
@@ -11194,7 +11196,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                 p = fnval;
                 goto fnend;
             }
-            x = atoi(s);
+            x = ckatoi(s);
             /* if (x) */ p = shuffledate(p,x);
         }
         if (cx == FN_TIME) {
@@ -11736,7 +11738,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                 evalerr(fn);
                 goto fnend;
             }
-            places = atoi(s9);
+            places = ckatoi(s9);
         }
         errno = 0;
         failed = 0;
@@ -11946,7 +11948,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             if (argn < 1) {
                 x9 = z_error;
             } else if (chknum(bp[0])) {
-                x9 = atoi(bp[0]);
+                x9 = ckatoi(bp[0]);
             } else if (fndiags)
               ckmakmsg(fnval,FNVALL,
                        "<ERROR:ARG_NOT_NUMERIC:\\f",fn,"()>",NULL);
@@ -11966,7 +11968,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             goto fnend;
         }
         if (rdigits(bp[0])) {           /* Channel must be numeric */
-            channel = atoi(bp[0]);
+            channel = ckatoi(bp[0]);
         } else {                        /* Fail if it isn't */
             if (fndiags)
               ckmakmsg(fnval,FNVALL,
@@ -12026,7 +12028,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                 goto fnend;
             }
             if (rdigits(bp[1])) {
-                t9 = atoi(bp[1]);
+                t9 = ckatoi(bp[1]);
             } else {
                 if (fndiags)
                   ckmakmsg(fnval,FNVALL,
@@ -12173,7 +12175,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             q = ckstrchr(s,'.');
             if (q) {
                 *q++ = NUL;
-                ip[i9] = atoi(s);
+                ip[i9] = ckatoi(s);
                 s = q;
             } else {
                 failed = 1;
@@ -12183,7 +12185,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                 goto fnend;
             }
         }
-        ip[3] = atoi(s);
+        ip[3] = ckatoi(s);
         sprintf(p,"%02x%02x%02x%02x",ip[0],ip[1],ip[2],ip[3]); /* SAFE */
         goto fnend;
     }
@@ -12201,7 +12203,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                        "<ERROR:ARG_NOT_NUMERIC:\\f",fn,"()>",NULL);
             goto fnend;
         }
-        p = ckradix(bp[0],atoi(bp[1]),atoi(bp[2]));
+        p = ckradix(bp[0],ckatoi(bp[1]),ckatoi(bp[2]));
         if (!p) {
             if (fndiags)
               ckmakmsg(fnval,FNVALL,
@@ -12290,7 +12292,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             if (!bp2) bp2 = "0";
             if (!*bp2) bp2 = "0";
             if (chknum(bp2)) {
-                grouping = atoi(bp2);
+                grouping = ckatoi(bp2);
                 if (grouping < 0 || grouping > 63)
                   grouping = 1;
             } else {
@@ -12316,7 +12318,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             specialchar = SP;           /* Special character is space */
             if (argn > 3)               /* Nonzero 4th arg for no separator */
               if (chknum(bp[3]))
-                if (atoi(bp[3]) > 0)
+                if (ckatoi(bp[3]) > 0)
                   sep = NULL;
             if (!sep) {
                 sep = "";
@@ -12541,8 +12543,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             val1 = ckitoa(cmdlvl);
             val2 = "0";
         }
-        i9 = atoi(val1);                 /* Level */
-        j9 = atoi(val2);                 /* Flags */
+        i9 = ckatoi(val1);                 /* Level */
+        j9 = ckatoi(val2);                 /* Flags */
         if (i9 < 0 || i9 > cmdlvl) {
             if (fndiags)
               ckmakmsg(fnval,FNVALL,
@@ -12702,7 +12704,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
     if (cx == FN_SLEEP || cx == FN_MSLEEP) {
         p = "";
         if (chknum(bp[0])) {
-            x = atoi(bp[0]);
+            x = ckatoi(bp[0]);
         } else {
             failed = 1;
             if (fndiags) {
@@ -13058,7 +13060,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         int x9 = -1;
         if (chknum(bp[0])) {            /* Need numeric argument */
             int pid;
-            pid = atoi(bp[0]);          /* Convert to int */
+            pid = ckatoi(bp[0]);          /* Convert to int */
 #ifdef UNIX
             if (kill(pid,0) < 0) {      /* Test it */
                 if (errno ==
@@ -13254,13 +13256,13 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         }
         if (argn > 2) {
             s = *(bp[2]) ? evalx(bp[2]) : "0"; /* 0 = caseless */
-            if (chknum(s)) docase = atoi(s);
+            if (chknum(s)) docase = ckatoi(s);
             if (argn > 3) {
                 s = *(bp[3]) ? evalx(bp[3]) : "1"; /* start is 1-based */
-                if (chknum(s)) start = atoi(s);
+                if (chknum(s)) start = ckatoi(s);
                 if (argn > 4) {
                     s = *(bp[4]) ? evalx(bp[4]) : "-1"; /* -1 = whole thing */
-                    if (chknum(s)) len = atoi(s);
+                    if (chknum(s)) len = ckatoi(s);
                 }
             }
         }
@@ -13302,7 +13304,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         if (!*s1) {
             s1 = ckdate();
         } else if (rdigits(s1) && (int)strlen(s1) < 8) {
-            day = atoi(s1);
+            day = ckatoi(s1);
             if (day == 0) day = 7;      /* In case \v(nday) used as arg */
             if (day < 1 || day > 7) {
                 ckmakmsg(fnval,FNVALL,"<ERROR:BAD_DAYNUM\\f",fn,"()>",NULL);
@@ -13317,7 +13319,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         if (!*s2) {
             fc = 0;
         } else if (rdigits(s2)) {
-            fc = atoi(s2);
+            fc = ckatoi(s2);
         } else {
             failed = 1;
             ckmakmsg(fnval,FNVALL,"<ERROR:FUNCTION_CODE:\\f",fn,"()>",NULL);
@@ -13353,7 +13355,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         if (!*s1) {
             s1 = ckdate();
         } else if (rdigits(s1) && (int)strlen(s1) < 8) {
-            month = atoi(s1);
+            month = ckatoi(s1);
             if (month == 0) month = 12;
             if (month < 1 || month > 12) {
                 ckmakmsg(fnval,FNVALL,"<ERROR:BAD_MONTHNUM:\\f",fn,"()>",NULL);
@@ -13369,13 +13371,13 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             mn[0] = s1[4];
             mn[1] = s1[5];
             mn[2] = NUL;
-            month = atoi((char *)mn) - 1;
+            month = ckatoi((char *)mn) - 1;
         }
         if (!s2) s2 = "";               /* Parse function code */
         if (!*s2) {
             fc = 0;
         } else if (rdigits(s2)) {
-            fc = atoi(s2);
+            fc = ckatoi(s2);
         } else {
             failed = 1;
             ckmakmsg(fnval,FNVALL,"<ERROR:FUNCTION_CODE:\\f",fn,"()>",NULL);

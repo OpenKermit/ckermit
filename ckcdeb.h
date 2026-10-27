@@ -5363,6 +5363,15 @@ typedef unsigned int u_int;
 #endif  /* CK_64BIT */
 #endif  /* CK_OFF_T */
 
+/* Largest and smallest CK_OFF_T values, computed without overflow */
+#ifndef CK_OFF_T_MAX
+#define CK_OFF_T_MAX \
+  ((((CK_OFF_T)1 << (sizeof(CK_OFF_T) * 8 - 2)) - 1) * 2 + 1)
+#endif /* CK_OFF_T_MAX */
+#ifndef CK_OFF_T_MIN
+#define CK_OFF_T_MIN (-CK_OFF_T_MAX - 1)
+#endif /* CK_OFF_T_MIN */
+
 /*
   Largest value a signed time_t can hold, for any width. Computed
   without shifting into the sign bit or overflowing intermediate values.

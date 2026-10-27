@@ -14409,8 +14409,11 @@ setpbsz(size) unsigned int size;
         return(-1);
     }
     if (reply_parse) {
-        if ((maxbuf = (unsigned int) atol(reply_parse)) > actualbuf)
+        CK_OFF_T mx = ckatofs(reply_parse);
+        if (mx < 0 || mx > (CK_OFF_T)actualbuf)
           maxbuf = actualbuf;
+        else
+          maxbuf = (unsigned int)mx;
     } else
       maxbuf = actualbuf;
     /*
