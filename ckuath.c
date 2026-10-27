@@ -13370,10 +13370,14 @@ krb5_error_code
 ck_krb5_write_message(krb5_context con, krb5_pointer ptr, krb5_data *data)
 {
     int fd = *((int *)ptr);
-    long msglen;
+    CHAR lenbuf[4];                     /* Length, network byte order */
+    unsigned long len = (unsigned long)data->length;
 
-    msglen = htonl(data->length);
-    if (net_write(fd,(CHAR *)&msglen,4) != 4) {
+    lenbuf[0] = (CHAR)((len >> 24) & 0xff);
+    lenbuf[1] = (CHAR)((len >> 16) & 0xff);
+    lenbuf[2] = (CHAR)((len >> 8) & 0xff);
+    lenbuf[3] = (CHAR)(len & 0xff);
+    if (net_write(fd,lenbuf,4) != 4) {
         return(-1);
     }
     if ( data->length ) {
@@ -13384,28 +13388,41 @@ ck_krb5_write_message(krb5_context con, krb5_pointer ptr, krb5_data *data)
     return(0);
 }
 
+#define CK_KRB5_MAXMSG 1048576          /* Largest message accepted */
+
 krb5_error_code
 ck_krb5_read_message( krb5_context context,
                       krb5_pointer ptr,
                       krb5_data * data)
 {
-    extern int ttyfd;
     int fd = *((int *)ptr);
-    long msglen;
-    char *p;
+    CHAR lenbuf[4];
+    unsigned long len;
     int i, rc;
 
-    if (net_read(fd,(CHAR *)&msglen,4) < 0)
-        return(-1);
-
-    data->length = ntohl(msglen);
-    if ( data->length ) {
-        data->data = malloc(data->length);
-
+    data->length = 0;
+    data->data = NULL;
+    for (i = 0; i < 4; i += rc) {       /* Length, network byte order */
+        if ((rc = net_read(fd,&lenbuf[i],4 - i)) <= 0)
+          return(-1);                   /* Error or end of file */
+    }
+    len = ((unsigned long)lenbuf[0] << 24) | ((unsigned long)lenbuf[1] << 16) |
+      ((unsigned long)lenbuf[2] << 8) | (unsigned long)lenbuf[3];
+    if (len > CK_KRB5_MAXMSG)
+      return(-1);
+    if ( len ) {
+        data->data = malloc(len);
+        if (!data->data)
+          return(-1);
+        data->length = len;
         i = 0;
-        while ( i < data->length ) {
-            if ((rc = net_read(fd,&data->data[i],(data->length - i))) < 0)
+        while ( i < (int)len ) {
+            if ((rc = net_read(fd,&data->data[i],(int)len - i)) <= 0) {
+                free(data->data);
+                data->data = NULL;
+                data->length = 0;
                 return(-1);
+            }
             i += rc;
         }
     }

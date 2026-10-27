@@ -11278,6 +11278,9 @@ setlin(xx, zz, fc) int xx, zz, fc;
                            zz,          /* close connection if open */
                            0            /* gui */
                            );
+            } else {
+                printf("?CID:PORT required\n");
+                return(-9);
             }
         }
 #endif /* CK_VSOCK */

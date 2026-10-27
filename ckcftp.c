@@ -4834,7 +4834,7 @@ check_data_connection(fd,fc) int fd, fc;
     struct timeval tv;
     fd_set in, out, err;
 
-    if (ftp_timeout < 1L)
+    if (ftp_timeout < 1L || !CK_FDOK(fd)) /* No timeout check */
       return(0);
 
     FD_ZERO(&in);
@@ -11571,9 +11571,9 @@ empty(mask, sec) fd_set * mask; int sec;
     t.tv_usec = 0L;
     debug(F100,"ftp empty calling select...","",0);
 #ifdef INTSELECT
-    wx = select(32, (int *)mask, NULL, NULL, &t);
+    wx = select(FD_SETSIZE, (int *)mask, NULL, NULL, &t);
 #else
-    wx = select(32, mask, (fd_set *) 0, (fd_set *) 0, &t);
+    wx = select(FD_SETSIZE, mask, (fd_set *) 0, (fd_set *) 0, &t);
 #endif /* INTSELECT */
     debug(F101,"ftp empty select","",wx);
     return(wx);
@@ -14329,9 +14329,15 @@ ftp_auth() {
                         goto krb4_err;
                     }
 
-                    /* fetch the (modified) checksum */
-                    memcpy(&cksum, ftp_msg_data.app_data, sizeof(cksum));
-                    if (ntohl(cksum) == checksum + 1) {
+                    /* Fetch the modified checksum: 4 bytes, MSB first */
+                    if (ftp_msg_data.app_length < 4)
+                      cksum = 0;
+                    else {
+                        CHAR * cp = (CHAR *)ftp_msg_data.app_data;
+                        cksum = ((ULONG)cp[0] << 24) | ((ULONG)cp[1] << 16) |
+                          ((ULONG)cp[2] << 8) | (ULONG)cp[3];
+                    }
+                    if (cksum == ((checksum + 1) & 0xffffffffUL)) {
                         if (ftp_vbm)
                           printf("Kerberos V4 authentication succeeded\n");
                         reply_parse = NULL;
@@ -14609,8 +14615,9 @@ cancel_remote(din) int din;
     debug(F101,"ftp cancel_remote scommand","",x);
 #ifdef BSDSELECT
     FD_ZERO(&mask);
-    FD_SET(csocket, &mask);
-    if (din) {
+    if (CK_FDOK(csocket))
+      FD_SET(csocket, &mask);
+    if (din && CK_FDOK(din)) {
         FD_SET(din, &mask);
     }
     nfnd = empty(&mask, 10);
@@ -15428,7 +15435,7 @@ ftp_reset() {
     int nfnd = 1;
     fd_set mask;
     FD_ZERO(&mask);
-    while (nfnd > 0) {
+    while (nfnd > 0 && CK_FDOK(csocket)) {
         FD_SET(csocket, &mask);
         if ((nfnd = empty(&mask,0)) < 0) {
             perror("reset");

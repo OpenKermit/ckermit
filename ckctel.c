@@ -1064,6 +1064,9 @@ tn_get_display()
 {
     char * disp = NULL;
     static char tmploc[256];
+    /* An X display name cannot carry an IPv6 address.  Use localhost. */
+    char * dhost = (myipaddr[0] && !strchr(myipaddr,':')) ?
+      myipaddr : "localhost";
 
     /* Must compute the DISPLAY string we are going to send to the host */
     /* If one is not assigned, do not send a string unless the user has */
@@ -1081,14 +1084,14 @@ tn_get_display()
     if (tn_env_disp[0]) {
         int colon = ckindex(":",tn_env_disp,0,0,1);
         if ( !colon ) {
-            ckmakmsg(tmploc,256,myipaddr,":",tn_env_disp,NULL);
+            ckmakmsg(tmploc,256,dhost,":",tn_env_disp,NULL);
             disp = tmploc;
         } else if ( ckindex("localhost:",tn_env_disp,0,0,0) ||
                     ckindex("unix:",tn_env_disp,0,0,0) ||
                     ckindex("127.0.0.1:",tn_env_disp,0,0,0) ||
                     !ckstrcmp("0:",tn_env_disp,2,1) ||
                     tn_env_disp[0] == ':' ) {
-            ckmakmsg(tmploc,256,myipaddr,":",&tn_env_disp[colon],NULL);
+            ckmakmsg(tmploc,256,dhost,":",&tn_env_disp[colon],NULL);
             disp = tmploc;
         } else
             disp = tn_env_disp;
@@ -1103,7 +1106,7 @@ tn_get_display()
 #endif   /* SSHBUILTIN */
 #endif   /* OS2 */
               ) {
-        ckmakmsg(tmploc,256,myipaddr,":0.0",NULL,NULL);
+        ckmakmsg(tmploc,256,dhost,":0.0",NULL,NULL);
         disp = tmploc;
     }
     debug(F110,"tn_get_display() returns",disp,0);
@@ -3096,18 +3099,15 @@ tn_ini() {
         oldplex = duplex;               /* save old duplex value */
         duplex = 1;                     /* and set to half duplex for telnet */
 
-        /* For a real raw SSL/TLS connection (as opposed to SSL-
-         * wrapped Telnet), there is no peer that will ever send Telnet
-         * negotiation responses, so waiting for them causes trouble.
-         * tn_wait() reads and consumes bytes off the connection 
-         * looking for an IAC, stashing anything else
-         * into its own side buffer.  If the peer's first real
-         * application data (such as a Kermit packet) arrives before
-         * tn_wait() gives up, it gets silently discarded here instead
-         * of reaching the protocol engine.
-         */
+        /*
+          On a raw SSL or TLS connection the peer never sends Telnet
+          negotiations, and tn_doop() ignores IAC, so there is nothing
+          to wait for.  tn_wait() would only delay the session by its
+          timeout.  It keeps any other data in tn_wait_buf, and
+          tn_push() hands that data back.
+        */
 #ifdef CK_SSL
-        if (inserver || ssl_only_flag || tls_only_flag)
+        if (inserver || ssl_raw_flag || tls_raw_flag)
 #else
         if (inserver)
 #endif /* CK_SSL */

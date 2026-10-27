@@ -344,6 +344,12 @@ COMPATIBILITY`.
   5A(190) of 1994 (CONNECT), commit d0f8b1da in C-Kermit 7.0.197 of 2000
   (RLOGIN), and commit c88d9b85 in C-Kermit 8.0.200 of 2001 (proxy, MGET).
 
+- [6, 7, 8, 9, 11] With 1024 or more descriptors open, connections and
+  reads wrote past an fd_set on the stack.  The connect bug was introduced
+  in commit a32e1321 in C-Kermit 11.0.510 of 2026.  The other waits date
+  from commits 4b5eddea, d0f8b1da, c88d9b85 and 0fd869b4 in C-Kermit
+  6.0.192 of 1996 through 9.0.302 of 2011.
+
 - [8, 10] FTP over TLS, Telnet and raw SSL/TLS connections sent no server
   name (SNI), so a server could return the wrong certificate.  The FTP bug
   dates from commit c88d9b85 in C-Kermit 8.0.200 of 2001.  The others date
@@ -600,6 +606,18 @@ file, also reach it.
   C-Kermit 7.0.197 of 2000.  The COM-PORT bug was introduced in commit c88d9b85
   in C-Kermit 8.0.200 of 2001.
 
+- [8, 11] A failed SSL/TLS setup on SET HOST gave no reason.  The OpenSSL error
+  now appears.  A failed SET HOST lost its error, so `\v(setlinemsg)` read
+  "Network connection failure" instead of the reason.  SET HOST
+  /NETWORK-TYPE:VSOCK with no address returned an arbitrary status.  It now
+  asks for CID:PORT.  Bugs were introduced in commit c88d9b85 in C-Kermit
+  8.0.200 of 2001 (SSL/TLS), commit 36668be5 in C-Kermit 11.0.501 of 2026 (SET
+  HOST) and commit 8209ea02 in C-Kermit 11.0.508 of 2026 (VSOCK).
+
+- [11] /SSL and /TLS connections skipped the wait for Telnet negotiation.
+  Only raw SSL and TLS should skip that wait.  Bug was introduced in commit
+  0b9dc4f2 in C-Kermit 11.0.501 of 2026.
+
 - [7] A Telnet server or IKSD could hang or fail in START-TLS.  The server
   sends its SB START_TLS FOLLOWS first.  A client may send its TLS handshake
   right after its FOLLOWS.  When the server read both at once, the handshake
@@ -702,6 +720,14 @@ file, also reach it.
   and the second could not.  Bug was introduced in commit 04917e78 in
   C-Kermit 304(dev05) of 2013.
 
+- [11] `\fname2addr()` returns an IPv4 address when the name has one, as before
+  IPv6 support, unless `SET TCP ADDRESS-FAMILY` selects IPv6.  Under the
+  default `AUTO` it had returned the resolver's first answer, so
+  `\fname2addr(localhost)` gave `::1`.  It still returns an IPv6 address for a
+  name that has only one, and a numeric argument in any form the resolver
+  accepts, such as `0x1F`, comes back in standard form.  Bug was introduced in
+  commit 36668be5 in C-Kermit 11.0.501 of 2026.
+
 - [8] The S-expression power operator took one multiplication for each unit of
   an integer exponent, so `(^ 2 9000000000000000000)` ran for centuries, and
   integer overflow went unchecked.  It now squares and multiplies, and an
@@ -791,6 +817,9 @@ file, also reach it.
 - [11] "No files were transferred" appears only where nothing visible
   states the result.  A successful FULLSCREEN transfer prints a one-line
   summary when the display is erased.
+
+- [11] `\fname2addr()` prefers an IPv4 address under `SET TCP
+  ADDRESS-FAMILY AUTO`.
 
 - [11] The `CK_DEBUG_UNBUFFERED` environment variable is removed.
 

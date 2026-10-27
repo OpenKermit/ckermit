@@ -12489,7 +12489,7 @@ Returns number:\n");
 #ifdef TCPSOCKET
       case FN_HSTADD:
         printf("\\faddr2name(s)\n\
-  s = numeric IP address.\n");
+  s = numeric IPv4 or IPv6 address.\n");
         printf("Returns:\n");
         printf("  Corresponding IP hostname if found, otherwise null.\n");
         break;
@@ -12498,6 +12498,9 @@ Returns number:\n");
   s = IP host name.\n");
         printf("Returns:\n");
         printf("  Corresponding numeric IP address if found, else null.\n");
+        printf("  An IPv4 address is preferred when the name has one, unless\n\
+  SET TCP ADDRESS-FAMILY selects IPv6.  A numeric address in any form\n\
+  that the resolver accepts, such as 0x1F, is returned in standard form.\n");
         break;
 #endif /* TCPSOCKET */
 

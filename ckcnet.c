@@ -1325,7 +1325,8 @@ ttbufr() {                              /* TT Buffer Read */
         fd_set efds;
         struct timeval tv;
         FD_ZERO(&efds);
-        FD_SET(ttyfd, &efds);
+        if (CK_FDOK(ttyfd))             /* Otherwise no OOB check */
+          FD_SET(ttyfd, &efds);
         tv.tv_sec  = tv.tv_usec = 0L;
         debug(F100,"Out-of-Band BSDSELECT","",0);
 #ifdef NT
@@ -1843,6 +1844,10 @@ ck_tcp_connect1(fd,rp) int fd; struct addrinfo * rp;
 {
     int flags, rc, err;
 
+    if (fd >= FD_SETSIZE) {             /* select() cannot wait on fd */
+        debug(F101,"ck_tcp_connect1 fd >= FD_SETSIZE, blocking","",fd);
+        return(connect(fd,rp->ai_addr,rp->ai_addrlen)); /* No timeout */
+    }
     flags = fcntl(fd,F_GETFL,0);
     if (flags != -1)
       fcntl(fd,F_SETFL,flags|O_NONBLOCK);
@@ -1966,6 +1971,7 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
     static unsigned short rsvd_lport = 1024;
     struct addrinfo hints, *results = NULL, *rp;
     int gai, fd = -1;
+    int lasterr = 0;                    /* errno of the last failure */
 
     *got_addr = 0;
     bzero((char *)&hints, sizeof(hints));
@@ -1996,6 +2002,7 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
 
         fd = socket(rp->ai_family,SOCK_STREAM,0);
         if (fd < 0) {
+            lasterr = errno;
             debug(F101,"ck_tcp_connect socket error","",errno);
             continue;
         }
@@ -2030,7 +2037,14 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
                   break;
             }
             if (!bound) {
+                lasterr = errno;
                 debug(F101,"ck_tcp_connect rsvd bind errno","",errno);
+                if (!quiet_f) {
+                    if (lasterr == EADDRINUSE)
+                      printf("\nNo reserved ports available.\n");
+                    else
+                      perror("rlogin bind");
+                }
                 close(fd);
                 fd = -1;
                 continue;
@@ -2046,6 +2060,7 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
             inet_pton(AF_INET,tcp_address,&lsin.sin_addr);
             lsin.sin_port = 0;
             if (bind(fd,(struct sockaddr *)&lsin,sizeof(lsin)) < 0) {
+                lasterr = errno;
                 debug(F101,"ck_tcp_connect bind errno","",errno);
                 close(fd);
                 fd = -1;
@@ -2066,6 +2081,7 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
             }
             lsin6.sin6_port = 0;
             if (bind(fd,(struct sockaddr *)&lsin6,sizeof(lsin6)) < 0) {
+                lasterr = errno;
                 debug(F101,"ck_tcp_connect bind errno","",errno);
                 close(fd);
                 fd = -1;
@@ -2091,6 +2107,7 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
             *raddrlen = (GSOCKNAME_T)rp->ai_addrlen;
             break;
         }
+        lasterr = errno;
         debug(F101,"ck_tcp_connect connect errno","",errno);
         if (!quiet_f) {
             perror("Failed");
@@ -2108,6 +2125,8 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
     }
 
     freeaddrinfo(results);
+    if (fd < 0)
+      errno = lasterr;                  /* Reason for the last failure */
     return(fd);
 }
 #endif /* CK_IPV6 */
@@ -3614,6 +3633,32 @@ vsocksrv_open(name,lcl,nett) char * name; int * lcl; int nett;
 }
 #endif /* CK_VSOCK */
 
+#ifdef CK_SSL
+/*
+  Report a failed ssl_tn_init() on stdout with the OpenSSL error queue.
+  The queue goes through bio_err, a memory BIO, and is cleared.
+*/
+static VOID
+#ifdef CK_ANSIC
+ssl_init_failed(char * who)
+#else
+ssl_init_failed(who) char * who;
+#endif /* CK_ANSIC */
+{
+    extern char ssl_err[];
+    debug(F110,who,"ssl_tn_init() failed",0);
+    printf("?SSL/TLS initialization failed\n");
+    if (bio_err != NULL) {
+        ERR_print_errors(bio_err);
+        if (ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ) > 0)
+          printf("%s",ssl_err);
+    } else {
+        fflush(stdout);
+        ERR_print_errors_fp(stderr);
+    }
+}
+#endif /* CK_SSL */
+
 /*  T C P S R V _ O P E N  --  Open a TCP/IP Server connection  */
 /*
   Calling conventions same as ttopen(), except third argument is network
@@ -3659,6 +3704,7 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
     int want_v6 = (tcp_af != TCP_AF_V4);
     int connport = 0;                /* Peer port, either family */
     int v6_rdns_ok = 0;              /* Set if v6 reverse lookup succeeded */
+    char v6rname[256];               /* That lookup's name */
 #endif /* CK_IPV6 */
 
     debug(F101,"tcpsrv_open nett","",nett);
@@ -3963,14 +4009,7 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
     if (ck_ssleay_is_installed()) {
         if (!ssl_tn_init(SSL_SERVER)) {
             ssl_failed = 1;
-            if (bio_err!=NULL) {
-                BIO_printf(bio_err,"do_ssleay_init() failed\n");
-                ERR_print_errors(bio_err);
-            } else {
-                fflush(stderr);
-                fprintf(stderr,"do_ssleay_init() failed\n");
-                ERR_print_errors_fp(stderr);
-            }
+            ssl_init_failed("tcpsrv_open");
             if (tls_only_flag || ssl_only_flag) {
 #ifdef TCPIPLIB
                 socket_close(ttyfd);
@@ -3979,6 +4018,12 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
                 close(ttyfd);
                 close(tcpsrfd);
 #endif /* TCPIPLIB */
+#ifdef CK_IPV6
+                if (tcpsrfd6 != -1) {   /* The IPv6 listener too */
+                    close(tcpsrfd6);
+                    tcpsrfd6 = -1;
+                }
+#endif /* CK_IPV6 */
                 ttyfd = -1;
                 wasclosed = 1;
                 tcpsrfd = -1;
@@ -4174,6 +4219,7 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
                                  v6nibuf,sizeof(v6nibuf),NULL,0,
                                  NI_NAMEREQD) == 0) {
                     v6_rdns_ok = 1;
+                    ckstrncpy(v6rname,v6nibuf,sizeof(v6rname));
                     debug(F110,"tcpsrv_open getnameinfo",v6nibuf,0);
                     if (!quiet) {
                         printf("(OK)\n");
@@ -4248,7 +4294,11 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
 #ifdef CK_SECURITY
         /* Before Initialization Telnet/Rlogin Negotiations Init Kerberos */
         ck_auth_init((tcp_rdns && host && host->h_name && host->h_name[0]) ?
-                     (char *)host->h_name : ipaddr,
+                     (char *)host->h_name :
+#ifdef CK_IPV6
+                     (tcp_rdns && v6_rdns_ok) ? v6rname :
+#endif /* CK_IPV6 */
+                     ipaddr,
                      ipaddr,
                      uidbuf,
                      ttyfd
@@ -4400,10 +4450,20 @@ ckname2addr(name) char * name;
 
     if (getaddrinfo(name,NULL,&hints,&results) != 0 || !results)
       return("");
-    if (ck_straddr(results->ai_addr,(GSOCKNAME_T)results->ai_addrlen,
-                    buf,sizeof(buf)) < 0) {
-        freeaddrinfo(results);
-        return("");
+    {
+        /* Prefer an IPv4 address when one exists */
+        struct addrinfo * rp, * pick = results;
+        for (rp = results; rp; rp = rp->ai_next) {
+            if (rp->ai_family == AF_INET) {
+                pick = rp;
+                break;
+            }
+        }
+        if (ck_straddr(pick->ai_addr,(GSOCKNAME_T)pick->ai_addrlen,
+                        buf,sizeof(buf)) < 0) {
+            freeaddrinfo(results);
+            return("");
+        }
     }
     freeaddrinfo(results);
     return(buf);
@@ -5750,13 +5810,14 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
                                &cn_addr, &cn_len, 0);
 #endif /* RLOGCODE */
         if (ttyfd < 0) {
+            int s_errno = errno;        /* Why the connection failed */
             if (!got_addr)
               fprintf(stderr, "Can't get address for %s\n", namecopy);
             netclos();
             ttyfd = -1;
             wasclosed = 1;
             ttnproto = NP_NONE;
-            errno = 0;
+            errno = got_addr ? s_errno : 0; /* 0: name not resolved */
             return(-1);
         }
         isconnect = 1;
@@ -6634,15 +6695,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
 #ifdef CK_SSL
     if (ck_ssleay_is_installed()) {
         if (!ssl_tn_init(SSL_CLIENT)) {
-            debug(F100,"netopen ssl_tn_init() failed","",0);
-            if (bio_err!=NULL) {
-                BIO_printf(bio_err,"ssl_tn_init() failed\n");
-                ERR_print_errors(bio_err);
-            } else {
-                fflush(stderr);
-                fprintf(stderr,"ssl_tn_init() failed\n");
-                ERR_print_errors_fp(stderr);
-            }
+            ssl_init_failed("netopen");
             if (tls_only_flag || ssl_only_flag) {
                 debug(F100,"netopen ssl/tls required","",0);
                 netclos();
@@ -7800,6 +7853,8 @@ netinc(timo) int timo;
                 int rc;
                 debug(F111,"netinc","timeout",timeout);
                 /* Don't move select() initialization out of the loop. */
+                if (!CK_FDOK(ttyfd))    /* select() cannot wait on it */
+                  return(-1);
                 FD_ZERO(&rfds);
                 FD_SET(ttyfd, &rfds);
                 tv.tv_sec  = tv.tv_usec = 0L;
@@ -8158,6 +8213,8 @@ nettol(s,n) CHAR *s; int n;
 #ifdef STREAMING
       do_select:
 #endif /* STREAMING */
+        if (!CK_FDOK(ttyfd))            /* select() cannot wait on it */
+          return(-1);
         FD_ZERO(&wfds);
         FD_SET(ttyfd, &wfds);
         if (select(FD_SETSIZE, NULL,
@@ -8370,6 +8427,8 @@ nettoc(c) CHAR c;
       do_select:
 #endif /* STREAMING */
 
+        if (!CK_FDOK(ttyfd))            /* select() cannot wait on it */
+          return(-1);
         FD_ZERO(&wfds);
         FD_SET(ttyfd, &wfds);
         if (select(FD_SETSIZE, NULL,
@@ -8738,10 +8797,16 @@ ck_hostaddr(host,index) struct hostent * host; int index;
 #endif /* CK_ANSIC */
 /* ck_hostaddr */ {
     /* Copy the IPv4 address from host->h_addr_list[index].  The entry holds
-       sizeof(struct in_addr) bytes in network byte order. */
+       sizeof(struct in_addr) bytes in network byte order.  Without
+       HADDRLIST the host entry has only h_addr, at index 0. */
     struct in_addr a;
     memset((char *)&a, 0, sizeof(a));
+#ifdef HADDRLIST
     memcpy((char *)&a, (char *)host->h_addr_list[index], sizeof(a));
+#else
+    if (index == 0)
+      memcpy((char *)&a, (char *)host->h_addr, sizeof(a));
+#endif /* HADDRLIST */
     return(a);
 }
 
@@ -12693,6 +12758,8 @@ http_tol(s,n) CHAR *s; int n;
 #ifdef STREAMING
       do_select:
 #endif /* STREAMING */
+        if (!CK_FDOK(httpfd))           /* select() cannot wait on it */
+          return(-1);
         FD_ZERO(&wfds);
         FD_SET(httpfd, &wfds);
         if (select(FD_SETSIZE, NULL,
@@ -12926,6 +12993,8 @@ http_inc(timo) int timo;
             int rc;
             debug(F111,"http_inc","timeout",timeout);
             /* Don't move select() initialization out of the loop. */
+            if (!CK_FDOK(httpfd))       /* select() cannot wait on it */
+              return(-1);
             FD_ZERO(&rfds);
             FD_SET(httpfd, &rfds);
             tv.tv_sec  = tv.tv_usec = 0L;
@@ -15976,6 +16045,8 @@ fwdx_open_server_channel() {
     sock = TELOPT_SB(TELOPT_FORWARD_X).forward_x.listen_socket;
 
   try_again:
+    if (!CK_FDOK(sock))                 /* select() cannot wait on it */
+      return(0);
 
 #ifdef BSDSELECT
     tv.tv_sec  = tv.tv_usec = 0L;
@@ -16240,14 +16311,15 @@ fwdx_init_fd_set(fd_set *ibits)
         return(0);
     }
 
-    if (TELOPT_SB(TELOPT_FORWARD_X).forward_x.listen_socket != -1) {
+    if (CK_FDOK(TELOPT_SB(TELOPT_FORWARD_X).forward_x.listen_socket)) {
         set++;
         FD_SET(TELOPT_SB(TELOPT_FORWARD_X).forward_x.listen_socket, ibits);
     }
     for (x = 0; x < MAXFWDX; x++) {
         if (TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[x].fd != -1) {
             cnt++;
-            if (TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[x].suspend)
+            if (TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[x].suspend ||
+                !CK_FDOK(TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[x].fd))
                 continue;
             set++;
             FD_SET(TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[x].fd, ibits);

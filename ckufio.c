@@ -8252,7 +8252,11 @@ kpass(name, p) char *name, *p; {
 #ifdef HADDRLIST
     hp = ck_copyhostent(hp);            /* safe copy that won't change */
 #endif /* HADDRLIST */
-    bcopy((char *)hp->h_addr, (char *) &faddr, sizeof(faddr));
+    {
+        struct in_addr ia;              /* The entry holds 4 bytes */
+        bcopy((char *)hp->h_addr, (char *) &ia, sizeof(ia));
+        faddr = ia.s_addr;
+    }
 
     if (krb_get_pw_in_tkt(name, "", realm, "krbtgt", realm, 1, p) ||
         krb_mk_req(&ticket, "rcmd", instance, realm, 33) ||

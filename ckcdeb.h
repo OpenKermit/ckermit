@@ -5846,6 +5846,9 @@ _PROTOTYP( int priv_opn, (char *, int) );
 _PROTOTYP( int sysinit, (void) );       /* Misc Kermit functions */
 _PROTOTYP( int syscleanup, (void) );
 _PROTOTYP( int msleep, (int) );
+/* True if select() can wait on fd: FD_SET() needs 0 <= fd < FD_SETSIZE */
+#define CK_FDOK(fd) ((fd) >= 0 && (fd) < FD_SETSIZE)
+
 #ifdef UNIX
 _PROTOTYP( VOID chksigs, (void) );
 _PROTOTYP( VOID ck_blockbegin, (void) );

@@ -3626,24 +3626,36 @@ show_hostname_warning(char *s1, char *s2)
 #endif /* DEC_TCPIP */
 
 #ifndef NO_DCL_INET_ATON
+/*
+  Parse a dotted-decimal IPv4 address into ia.  Each of the four parts
+  must be decimal digits with a value of 0 through 255.  ia->s_addr gets
+  the four bytes in network byte order.
+*/
 static int
 inet_aton(char * ipaddress, struct in_addr * ia) {
     struct stringarray * q;
-    union {
-        unsigned long l;
-        unsigned char b[4];
-    } dummy;
+    unsigned char b[4];
+    int i, v;
+    char * p;
 
-    q = cksplit(1,0,ipaddress,".","0123456789abcdefACDEF",8,0,0,0);
-    if (q->a_size == 4) {
-        dummy.b[0] = atoi(q->a_head[1]);
-        dummy.b[1] = atoi(q->a_head[2]);
-        dummy.b[2] = atoi(q->a_head[3]);
-        dummy.b[3] = atoi(q->a_head[4]);
-        ia->s_addr = dummy.l;
-        return(ia->s_addr != 0);
+    q = cksplit(1,0,ipaddress,".","0123456789",8,0,0,0);
+    if (q->a_size != 4)
+      return(0);
+    for (i = 0; i < 4; i++) {
+        p = q->a_head[i+1];
+        if (!p || !*p)
+          return(0);
+        for (v = 0; *p; p++) {
+            if (*p < '0' || *p > '9')
+              return(0);
+            v = v * 10 + (*p - '0');
+            if (v > 255)
+              return(0);
+        }
+        b[i] = (unsigned char)v;
     }
-    return(0);
+    memcpy((char *)&ia->s_addr,b,4);
+    return(ia->s_addr != 0);
 }
 #endif  /* NO_DCL_INET_ATON */
 

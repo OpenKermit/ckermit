@@ -1927,6 +1927,38 @@ ck_deadline_expired() {
 
 #ifdef SELECT
 /*
+  select() cannot wait on a descriptor at or above FD_SETSIZE.
+  ck_deadline_select() uses poll() for one where poll() is known to
+  exist.
+*/
+#ifdef CK_POLL
+#define CK_DLPOLL
+#else
+#ifdef __linux__
+#define CK_DLPOLL
+#else
+#ifdef __FreeBSD__
+#define CK_DLPOLL
+#else
+#ifdef __NetBSD__
+#define CK_DLPOLL
+#else
+#ifdef __OpenBSD__
+#define CK_DLPOLL
+#else
+#ifdef __APPLE__
+#define CK_DLPOLL
+#endif /* __APPLE__ */
+#endif /* __OpenBSD__ */
+#endif /* __NetBSD__ */
+#endif /* __FreeBSD__ */
+#endif /* __linux__ */
+#ifdef CK_DLPOLL
+#include <poll.h>
+#endif /* CK_DLPOLL */
+#endif /* CK_POLL */
+
+/*
   C K _ D E A D L I N E _ S E L E C T
 
   Waits for fd to become ready for reading (wantread != 0) or writing
@@ -1934,7 +1966,8 @@ ck_deadline_expired() {
   if no deadline is active).  Retries internally on EINTR instead of
   reporting it to the caller.  Returns 1 if fd is ready, 0 if the
   deadline expired first, or -1 on any other select() failure (errno
-  left set).
+  left set).  For fd >= FD_SETSIZE it uses poll() where available, and
+  otherwise returns -1 with errno EBADF.
 */
 static int
 #ifdef CK_ANSIC
@@ -1957,14 +1990,31 @@ ck_deadline_select(fd,wantread) int fd, wantread;
             dstv.tv_usec = (ms % 1000L) * 1000L;
             tvp = &dstv;
         }
-        FD_ZERO(&fds);
-        FD_SET(fd, &fds);
-        ck_blockbegin();
-        if (wantread)
-          rc = select(fd + 1, &fds, NULL, NULL, tvp);
-        else
-          rc = select(fd + 1, NULL, &fds, NULL, tvp);
-        ck_blockend();
+        if (fd >= FD_SETSIZE) {
+#ifdef CK_DLPOLL
+            struct pollfd pfd;
+            pfd.fd = fd;
+            pfd.events = wantread ? POLLIN : POLLOUT;
+            pfd.revents = 0;
+            ck_blockbegin();
+            rc = poll(&pfd, 1,
+                      (ms < 0L) ? -1 :
+                      (ms > 1000000000L) ? 1000000000 : (int)ms);
+            ck_blockend();
+#else
+            errno = EBADF;              /* Cannot wait on this fd */
+            return(-1);
+#endif /* CK_DLPOLL */
+        } else {
+            FD_ZERO(&fds);
+            FD_SET(fd, &fds);
+            ck_blockbegin();
+            if (wantread)
+              rc = select(fd + 1, &fds, NULL, NULL, tvp);
+            else
+              rc = select(fd + 1, NULL, &fds, NULL, tvp);
+            ck_blockend();
+        }
         if (rc < 0) {
             if (errno == EINTR)
               continue;
@@ -10623,6 +10673,8 @@ in_chk(channel, fd) int channel, fd;
 #endif /* Plan9 */
       {
         fd_set rfds;                    /* Read file descriptors */
+        if (!CK_FDOK(fd))               /* select() cannot wait on it */
+          return(0);
 #ifdef BELLV10
         FD_ZERO(rfds);                  /* Initialize them */
         FD_SET(fd,rfds);                /* We want to look at this fd */
@@ -10954,6 +11006,10 @@ ttolwait(fd,wantread,ms) int fd, wantread, ms;
     fd_set fds;
     struct timeval wtv;
 
+    if (!CK_FDOK(fd)) {                 /* select() cannot wait on it */
+        msleep(ms);
+        return;
+    }
     FD_ZERO(&fds);
     FD_SET(fd, &fds);
     wtv.tv_sec = ms / 1000;
@@ -12272,6 +12328,8 @@ ttwait(fd, secs) int fd, secs;
 {
     int x;
     fd_set rfds;
+    if (!CK_FDOK(fd))                   /* select() cannot wait on it */
+      return(0);
     FD_ZERO(&rfds);
     FD_SET(fd,&rfds);
     tv.tv_sec = secs;
@@ -15579,6 +15637,16 @@ ttptycmd(s) char *s;
         TTPTY_RESTORE();
         return(-9);
     }
+    if (!CK_FDOK(ptyfd)) {              /* select() cannot wait on it */
+        printf("?Pty descriptor exceeds FD_SETSIZE\n");
+        xp_active = 0;
+        if (xp_pid > 0)
+          kill(xp_pid, SIGHUP);
+        close(ptyfd);
+        xp_sigrestore();
+        TTPTY_RESTORE();
+        return(-9);
+    }
     have_pty = 1;             /* We have an open pty or we wouldn't he here */
 
     debug(F101,"ttptycmd PTY_PBUF_SIZE","",PTY_PBUF_SIZE);
@@ -15653,7 +15721,7 @@ ttptycmd(s) char *s;
           a potential problem since FD_SET's bitwise arithmetic might act on the
           bogus value.  Treat it exactly like any other net error.
         */
-        if (have_net && ttyfd == -1) {
+        if (have_net && !CK_FDOK(ttyfd)) {
             net_err++;
             have_net = 0;
             /*
@@ -15793,7 +15861,7 @@ ttptycmd(s) char *s;
                   handles safely.
 
                 */
-                if (have_net && ttyfd == -1) {
+                if (have_net && !CK_FDOK(ttyfd)) {
                     net_err++;
                     have_net = 0;
                     /* See the identical have_net && ttyfd check and comment
