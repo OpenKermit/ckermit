@@ -2098,7 +2098,7 @@ adebu(f,zz) char *f; struct zattr *zz;
     debug(F111," creator",zz->creator.val,zz->creator.len);
     debug(F111," account",zz->account.val,zz->account.len);
     debug(F111," area",zz->area.val,zz->area.len);
-    debug(F111," password",zz->password.val,zz->password.len);
+    debug(F101," password length","",zz->password.len);
     debug(F101," blksize","",(int) zz->blksize);
     debug(F111," access",zz->xaccess.val,zz->xaccess.len);
     debug(F111," encoding",zz->encoding.val,zz->encoding.len);

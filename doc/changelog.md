@@ -270,6 +270,22 @@ COMPATIBILITY`.
   still takes the client's type.  Bug was introduced in commit d0f8b1da
   in C-Kermit 7.0.197 of 2000.
 
+- [8] A TLS client certificate was accepted for an account in `.tlslogin` when
+  its signature bits matched a listed certificate.  The whole certificate must
+  now match.  An IKSD sent the client certificate's name fields to the client
+  in clear, and printed uninitialized memory when the commonName was missing.
+  Bugs were introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [8] When OpenSSL had too little entropy, Kermit seeded it from the time
+  and process ID.  It now refuses SSL and TLS.  Bug was introduced in
+  commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [5, 7, 8] The debug log recorded passwords.  It now records their lengths.
+  HTTP Basic credentials stayed in memory after use, and a user:password over
+  127 bytes was truncated without notice.  Bugs were introduced in commits
+  a213649d (5A(188) of 1992), 609e2f39 (5A(190) of 1994), d0f8b1da (7.0.197 of
+  2000) and 7b4ce026 (8.0.206 of 2002).
+
 - [8, 9] TLS certificate checks never matched an IP address SAN containing a
   zero byte (such as 127.0.0.1), read past the SAN's buffer, and could not
   match any IP SAN on big-endian 64-bit hosts.  The overread and big-endian bug
@@ -284,6 +300,11 @@ COMPATIBILITY`.
   Bugs were introduced in commit 609e2f39 in C-Kermit 5A(190) of 1994
   (CONNECT), commit d0f8b1da in C-Kermit 7.0.197 of 2000 (RLOGIN), and commit
   c88d9b85 in C-Kermit 8.0.200 of 2001 (proxy, MGET).
+
+- [8, 10] FTP over TLS, Telnet and raw SSL/TLS connections sent no server
+  name (SNI), so a server could return the wrong certificate.  The FTP bug
+  dates from commit c88d9b85 in C-Kermit 8.0.200 of 2001.  The others date
+  from commit 8fed15a6 in C-Kermit 10.0 Beta.09 of 2023.
 
 ## Additional improvements and bugfixes
 
@@ -389,6 +410,8 @@ COMPATIBILITY`.
 
 - [8] TLS host name checks use `X509_check_host()`.  A wildcard matches
   only as the whole leftmost label of a name with more labels.
+
+- [8] Kermit refuses SSL and TLS when OpenSSL has too little entropy.
 
 - [8, 11] `ENABLE` and `DISABLE` with `LOCAL` or `REMOTE` change only that
   side.

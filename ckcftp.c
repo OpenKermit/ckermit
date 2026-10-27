@@ -936,6 +936,7 @@ char ftp_reply_str[FTP_BUFSIZ] = "";    /* Last line of previous reply */
 char ftp_srvtyp[SRVNAMLEN] = { NUL, NUL }; /* Server's system type */
 char ftp_user_host[MAX_DNS_NAMELEN]= ""; /* FTP hostname specified by user */
 char * ftp_host = NULL;                 /* FTP hostname */
+static char ftp_snihost[MAXHOSTNAMELEN+1] = { NUL }; /* Name for TLS SNI */
 char * ftp_logname = NULL;              /* FTP username */
 char * ftp_rdir = NULL;                 /* Remote directory from cmdline */
 char * ftp_apw = NULL;                  /* Anonymous password */
@@ -10547,6 +10548,11 @@ ssl_auth() {
                        ssl_client_verify_callback);
     ssl_verify_depth = -1;
     ssl_ftp_con=(SSL *)SSL_new(ssl_ftp_ctx);
+    /* Send the server name (SNI) unless it is an address literal */
+    if (ssl_ftp_con && ftp_snihost[0] && !ssl_hostisaddr(ftp_snihost)) {
+        if (!SSL_set_tlsext_host_name(ssl_ftp_con,ftp_snihost))
+          debug(F100,"ssl_auth SSL_set_tlsext_host_name failed","",0);
+    }
     tls_load_certs(ssl_ftp_ctx,ssl_ftp_con,0);
     SSL_set_fd(ssl_ftp_con,csocket);
     SSL_set_verify(ssl_ftp_con,ssl_verify_flag,NULL);
@@ -13671,6 +13677,11 @@ ssl_dataconn() {
         ssl_ftp_data_con=NULL;
     }
     ssl_ftp_data_con=(SSL *)SSL_new(ssl_ftp_ctx);
+    if (ssl_ftp_data_con && ftp_snihost[0] &&
+        !ssl_hostisaddr(ftp_snihost)) {
+        if (!SSL_set_tlsext_host_name(ssl_ftp_data_con,ftp_snihost))
+          debug(F100,"ssl_dataconn SSL_set_tlsext_host_name failed","",0);
+    }
 
     SSL_set_fd(ssl_ftp_data_con,data);
     SSL_set_verify(ssl_ftp_data_con,ssl_verify_flag,NULL);
@@ -14750,6 +14761,7 @@ ftp_hookup(host, port, tls) char * host; int port; int tls;
 #endif /* DEBUG */
 
     debug(F111,"ftp_hookup",host,port);
+    ckstrncpy(ftp_snihost,host,sizeof(ftp_snihost)); /* Server, not proxy */
 
 #ifndef NOHTTP
     if (tcp_http_proxy) {

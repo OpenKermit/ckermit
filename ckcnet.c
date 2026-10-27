@@ -1276,12 +1276,10 @@ ttbufr() {                              /* TT Buffer Read */
             return(-2);
           case SSL_ERROR_SSL:
               if (bio_err!=NULL) {
-                  int len;
                   extern char ssl_err[];
                   BIO_printf(bio_err,"ttbufr SSL_ERROR_SSL\n");
                   ERR_print_errors(bio_err);
-                  len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                  ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+                  (VOID) ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
                   debug(F110,"ttbufr SSL_ERROR_SSL",ssl_err,0);
                   if (ssl_debug_flag)
                       printf("%s",ssl_err);
@@ -5405,7 +5403,8 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
                         *w++ = '\0';
                     /* r now points to username, save it and the password */
                     debug(F110,"netopen namecopy username",r,0);
-                    debug(F110,"netopen namecopy password",w,0);
+                    debug(F101,"netopen namecopy password length","",
+                          (int)strlen(w));
                     uidfound=1;
                     if ( strcmp(uidbuf,r) || *w )
                         ckstrncpy(pwbuf,w,PWBUFL+1);
@@ -7263,12 +7262,10 @@ nettchk() {                             /* for reading from network */
                 break;
             case SSL_ERROR_SSL:
                 if (bio_err!=NULL) {
-                    int len;
                     extern char ssl_err[];
                     BIO_printf(bio_err,"nettchk() SSL_ERROR_SSL\n");
                     ERR_print_errors(bio_err);
-                    len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                    ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+                    (VOID) ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
                     debug(F110,"nettchk SSL_ERROR_SSL",ssl_err,0);
                     if (ssl_debug_flag)
                         printf("%s",ssl_err);
@@ -8076,12 +8073,10 @@ nettol(s,n) CHAR *s; int n;
           case SSL_ERROR_SSL:
             debug(F100,"nettol SSL_ERROR_SSL","",0);
               if (bio_err!=NULL) {
-                  int len;
                   extern char ssl_err[];
                   BIO_printf(bio_err,"nettol() SSL_ERROR_SSL\n");
                   ERR_print_errors(bio_err);
-                  len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                  ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+                  (VOID) ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
                   debug(F110,"nettol SSL_ERROR_SSL",ssl_err,0);
                   if (ssl_debug_flag)
                       printf("%s",ssl_err);
@@ -8297,12 +8292,10 @@ nettoc(c) CHAR c;
               }
         case SSL_ERROR_SSL:
               if (bio_err!=NULL) {
-                  int len;
                   extern char ssl_err[];
                   BIO_printf(bio_err,"nettoc() SSL_ERROR_SSL\n");
                   ERR_print_errors(bio_err);
-                  len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                  ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+                  (VOID) ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
                   debug(F110,"nettoc SSL_ERROR_SSL",ssl_err,0);
                   if (ssl_debug_flag)
                       printf("%s",ssl_err);
@@ -11453,6 +11446,8 @@ x25dump_prim(primitive)    N_npi_ctl_t *primitive; {
 
 #ifndef HTTP_VERSION
 #define HTTP_VERSION "HTTP/1.1"
+#define HTTP_CREDLEN 256                /* Room for "user:password" */
+#define HTTP_B64LEN (((HTTP_CREDLEN + 2) / 3) * 4 + 1) /* Its base64 */
 #endif /* HTTP_VERSION */
 
 #ifdef CMDATE2TM
@@ -13179,6 +13174,49 @@ http_set_code_reply(msg)
     ckstrncpy(http_reply_str,p,HTTPBUFLEN);
 }
 
+/*
+  Build HTTP Basic credentials: user:pwd in base64, in out (outlen
+  bytes).  The plain text is cleared.  Returns the length of the result,
+  or -1 if user:pwd is longer than HTTP_CREDLEN-1 bytes or the result
+  does not fit.
+*/
+static int
+#ifdef CK_ANSIC
+http_basic(char * user, char * pwd, char * out, int outlen)
+#else
+http_basic(user,pwd,out,outlen) char * user, * pwd, * out; int outlen;
+#endif /* CK_ANSIC */
+{
+    char in[HTTP_CREDLEN];
+    int n, j;
+
+    n = (int)strlen(user) + 1 + (int)strlen(pwd);
+    if (n >= HTTP_CREDLEN) {
+        printf("?HTTP user name and password too long\n");
+        return(-1);
+    }
+    ckmakmsg(in,sizeof(in),user,":",pwd,NULL);
+    j = b8tob64(in,n,out,outlen);
+    memset(in,0,sizeof(in));
+    if (j < 0 || j >= outlen)
+      return(-1);
+    out[j] = '\0';
+    return(j);
+}
+
+/* Clear and free an HTTP request.  It can hold credentials. */
+
+static VOID
+#ifdef CK_ANSIC
+http_freereq(char * request)
+#else
+http_freereq(request) char * request;
+#endif /* CK_ANSIC */
+{
+    memset(request,0,strlen(request));
+    free(request);
+}
+
 int
 #ifdef CK_ANSIC
 http_get(char * agent, char ** hdrlist, char * user,
@@ -13214,8 +13252,7 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
     time_t srv_t = 0;
     time_t local_t = 0;
     char passwd[64];
-    char b64in[128];
-    char b64out[256];
+    char b64out[HTTP_B64LEN];
     char * headers[HTTPHEADCNT];
     int closecon = 0;
     int chunked = 0;
@@ -13258,12 +13295,10 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
-        ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
+        j = http_basic(user,pwd,b64out,(int)sizeof(b64out));
         memset(pwd,0,strlen(pwd));      /* NOT PORTABLE */
         if (j < 0)
           return(-1);
-        b64out[j] = '\0';
         len += j + 24;
     }
 #ifdef HTTP_CLOSE
@@ -13288,6 +13323,7 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
     if (user) {
         ckstrncat(request,"Authorization: Basic ",len);
         ckstrncat(request,b64out,len);
+        memset(b64out,0,sizeof(b64out));
         ckstrncat(request,"\r\n",len);
     }
     if ( hdrlist ) {
@@ -13479,7 +13515,7 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
 
     if ( closecon )
         http_close();
-    free(request);
+    http_freereq(request);
     for (i = 0; i < hdcnt; i++) {
         if (headers[i])
           free(headers[i]);
@@ -13507,8 +13543,7 @@ http_head(agent, hdrlist, user, pwd, array, local, remote, stdio)
     int    nullline;
     time_t local_t;
     char passwd[64];
-    char b64in[128];
-    char b64out[256];
+    char b64out[HTTP_B64LEN];
     char * headers[HTTPHEADCNT];
     int  closecon = 0;
     int  first = 1;
@@ -13538,12 +13573,10 @@ http_head(agent, hdrlist, user, pwd, array, local, remote, stdio)
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
-        ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
+        j = http_basic(user,pwd,b64out,(int)sizeof(b64out));
         memset(pwd,0,strlen(pwd));      /* NOT PORTABLE */
         if (j < 0)
           return(-1);
-        b64out[j] = '\0';
         len += j + 24;
     }
 #ifdef HTTP_CLOSE
@@ -13568,6 +13601,7 @@ http_head(agent, hdrlist, user, pwd, array, local, remote, stdio)
     if (user) {
         ckstrncat(request,"Authorization: Basic ",len);
         ckstrncat(request,b64out,len);
+        memset(b64out,0,sizeof(b64out));
         ckstrncat(request,"\r\n",len);
     }
     if ( hdrlist ) {
@@ -13583,7 +13617,7 @@ http_head(agent, hdrlist, user, pwd, array, local, remote, stdio)
 
     if ( local && local[0] ) {
         if (!zopeno(ZOFILE,local,NULL,NULL)) {
-            free(request);
+            http_freereq(request);
             return(-1);
         }
     }
@@ -13670,7 +13704,7 @@ http_head(agent, hdrlist, user, pwd, array, local, remote, stdio)
         zclose(ZOFILE);
     if (closecon)
         http_close();
-    free(request);
+    http_freereq(request);
     for (i = 0; i < hdcnt; i++) {
         if (headers[i])
           free(headers[i]);
@@ -13697,8 +13731,7 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
     int    nullline;
     time_t local_t;
     char passwd[64];
-    char b64in[128];
-    char b64out[256];
+    char b64out[HTTP_B64LEN];
     char * headers[HTTPHEADCNT];
     int  closecon = 0;
     int  chunked = 0;
@@ -13730,12 +13763,10 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
-        ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
+        j = http_basic(user,pwd,b64out,(int)sizeof(b64out));
         memset(pwd,0,strlen(pwd));
         if (j < 0)
           return(-1);
-        b64out[j] = '\0';
         len += j + 24;
     }
 #ifdef HTTP_CLOSE
@@ -13760,6 +13791,7 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
     if (user) {
         ckstrncat(request,"Authorization: Basic ",len);
         ckstrncat(request,b64out,len);
+        memset(b64out,0,sizeof(b64out));
         ckstrncat(request,"\r\n",len);
     }
     if ( hdrlist ) {
@@ -13918,7 +13950,7 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
 
     if (closecon)
         http_close();
-    free(request);
+    http_freereq(request);
     for (i = 0; i < hdcnt; i++) {
         if (headers[i])
           free(headers[i]);
@@ -13947,8 +13979,7 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
     int    nullline;
     time_t local_t;
     char passwd[64];
-    char b64in[128];
-    char b64out[256];
+    char b64out[HTTP_B64LEN];
     CK_OFF_T filelen;
     char * headers[HTTPHEADCNT];
     int  closecon = 0;
@@ -13990,12 +14021,10 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
-        ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
+        j = http_basic(user,pwd,b64out,(int)sizeof(b64out));
         memset(pwd,0,strlen(pwd));
         if (j < 0)
           return(-1);
-        b64out[j] = '\0';
         len += j + 24;
     }
     len += 16 + (int)strlen(mime);           /* Content-type: */
@@ -14030,6 +14059,7 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
     if (user) {
         ckstrncat(request,"Authorization: Basic ",len);
         ckstrncat(request,b64out,len);
+        memset(b64out,0,sizeof(b64out));
         ckstrncat(request,"\r\n",len);
     }
     if ( hdrlist ) {
@@ -14228,7 +14258,7 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
 
     if (closecon)
         http_close();
-    free(request);
+    http_freereq(request);
     for (i = 0; i < hdcnt; i++) {
         if (headers[i])
           free(headers[i]);
@@ -14255,8 +14285,7 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
     int    nullline;
     time_t local_t;
     char passwd[64];
-    char b64in[128];
-    char b64out[256];
+    char b64out[HTTP_B64LEN];
     char * headers[HTTPHEADCNT];
     int  closecon = 0;
     int  chunked = 0;
@@ -14289,12 +14318,10 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
-        ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
+        j = http_basic(user,pwd,b64out,(int)sizeof(b64out));
         memset(pwd,0,strlen(pwd));
         if (j < 0)
           return(-1);
-        b64out[j] = '\0';
         len += j + 24;
     }
     len += 32;                          /* Date: */
@@ -14327,6 +14354,7 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
     if (user) {
         ckstrncat(request,"Authorization: Basic ",len);
         ckstrncat(request,b64out,len);
+        memset(b64out,0,sizeof(b64out));
         ckstrncat(request,"\r\n",len);
     }
     if ( hdrlist ) {
@@ -14467,7 +14495,7 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
 
     if (closecon)
         http_close();
-    free(request);
+    http_freereq(request);
     for (i = 0; i < hdcnt; i++) {
         if (headers[i])
           free(headers[i]);
@@ -14497,8 +14525,7 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
     int    nullline;
     time_t local_t;
     char passwd[64];
-    char b64in[128];
-    char b64out[256];
+    char b64out[HTTP_B64LEN];
     CK_OFF_T filelen;
     char * headers[HTTPHEADCNT];
     int  closecon = 0;
@@ -14536,12 +14563,10 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
-        ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
+        j = http_basic(user,pwd,b64out,(int)sizeof(b64out));
         memset(pwd,0,strlen(pwd));
         if (j < 0)
           return(-1);
-        b64out[j] = '\0';
         len += j + 24;
     }
     len += 16 + (int)strlen(mime);           /* Content-type: */
@@ -14572,6 +14597,7 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
     if (user) {
         ckstrncat(request,"Authorization: Basic ",len);
         ckstrncat(request,b64out,len);
+        memset(b64out,0,sizeof(b64out));
         ckstrncat(request,"\r\n",len);
     }
     if ( hdrlist ) {
@@ -14754,7 +14780,7 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
         http_mkarray(headers,hdcnt,array);
     if (closecon)
         http_close();
-    free(request);
+    http_freereq(request);
     for (i = 0; i < hdcnt; i++) {
         if (headers[i])
           free(headers[i]);
@@ -14780,8 +14806,7 @@ http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
     int    nullline;
     time_t local_t;
     char passwd[64];
-    char b64in[128];
-    char b64out[256];
+    char b64out[HTTP_B64LEN];
     char * headers[HTTPHEADCNT];
     int    connected = 0;
 
@@ -14813,12 +14838,10 @@ http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
-        ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
+        j = http_basic(user,pwd,b64out,(int)sizeof(b64out));
         memset(pwd,0,strlen(pwd));
         if (j < 0)
           return(-1);
-        b64out[j] = '\0';
         len += j + 72;
     }
     len += 32;                          /* Date: */
@@ -14848,6 +14871,7 @@ http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
     if (user && user[0]) {
         ckstrncat(request,"Proxy-authorization: Basic ",len);
         ckstrncat(request,b64out,len);
+        memset(b64out,0,sizeof(b64out));
         ckstrncat(request,"\r\n",len);
         ckstrncat(request,"Extension: Security/Remote-Passphrase\r\n",len);
     }
@@ -14941,7 +14965,7 @@ http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
         }
     }
 
-    free(request);
+    http_freereq(request);
     for (i = 0; i < hdcnt; i++) {
         if (headers[i])
           free(headers[i]);

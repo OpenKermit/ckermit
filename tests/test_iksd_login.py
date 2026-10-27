@@ -271,6 +271,72 @@ def test_iksd_tls_certificate_not_listed(wermit_path, fakeshadow,
     assert "Password" in result.stdout, result.stdout
 
 
+def _der_items(der):
+    """Return the encoded items inside the DER SEQUENCE der."""
+    def header(i):
+        n = der[i + 1]
+        if n < 0x80:
+            return i + 2, n
+        k = n & 0x7f
+        return i + 2 + k, int.from_bytes(der[i + 2:i + 2 + k], "big")
+    start, length = header(0)
+    items = []
+    i = start
+    while i < start + length:
+        body, n = header(i)
+        items.append(der[i:body + n])
+        i = body + n
+    return items
+
+
+def _der_sequence(content):
+    """Return a DER SEQUENCE that holds the encoded items in content."""
+    n = len(content)
+    if n < 0x80:
+        length = bytes([n])
+    else:
+        b = n.to_bytes((n.bit_length() + 7) // 8, "big")
+        length = bytes([0x80 | len(b)]) + b
+    return b"\x30" + length + content
+
+
+def _cert_der(path):
+    """Return the DER encoding of the PEM certificate at path."""
+    return subprocess.run(["openssl", "x509", "-in", str(path),
+                           "-outform", "DER"],
+                          capture_output=True, check=True).stdout
+
+
+def test_iksd_tls_certificate_copied_signature(wermit_path, fakeshadow,
+                                               tmp_path, ssl_pki):
+    """Verify a certificate with a copied signature needs a password.
+
+    The client certificate has a new key and the signature bits of the
+    certificate in ~/.tlslogin.  X509_userok() must compare the whole
+    certificate, so the IKSD asks for a password.
+    """
+    key = tmp_path / "forged.key"
+    own = tmp_path / "own.crt"
+    subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048",
+                    "-nodes", "-keyout", str(key), "-out", str(own),
+                    "-days", "2", "-subj", "/CN=test-client"],
+                   capture_output=True, check=True)
+    tbs, alg, _ = _der_items(_cert_der(own))
+    signature = _der_items(_cert_der(ssl_pki["client_crt"]))[2]
+    der = tmp_path / "forged.der"
+    der.write_bytes(_der_sequence(tbs + alg + signature))
+    forged = tmp_path / "forged.crt"
+    subprocess.run(["openssl", "x509", "-inform", "DER", "-in", str(der),
+                    "-out", str(forged)], capture_output=True, check=True)
+    pki = dict(ssl_pki, client_crt=str(forged), client_key=str(key))
+    session = tmp_path / "session"
+    session.mkdir()
+    result = _tls_login(wermit_path, fakeshadow, session, pki,
+                        ssl_pki["client_crt"])
+    assert "LOGGEDIN" not in result.stdout, result.stdout
+    assert "Password" in result.stdout, result.stdout
+
+
 def test_iksd_tls_changed_user_checks_tls_connection(
         wermit_path, fakeshadow, tmp_path, ssl_pki):
     """Verify a changed USER after START_TLS is checked on the TLS link.
@@ -356,7 +422,7 @@ def test_iksd_refused_certificate_user_needs_password(
 
 
 def test_iksd_starttls_handshake_in_same_read(wermit_path, fakeshadow,
-                                             tmp_path, ssl_pki):
+                                              tmp_path, ssl_pki):
     """Verify START_TLS works when the ClientHello follows FOLLOWS.
 
     The client sends SB START_TLS FOLLOWS and the ClientHello in one

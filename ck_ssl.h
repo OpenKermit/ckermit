@@ -146,6 +146,8 @@ extern int tls_http_active_flag;
 extern int ssl_initialized;
 
 _PROTOTYP(VOID ssl_once_init,(void));
+_PROTOTYP(int ck_bio_gets,(BIO *, char *, int));
+_PROTOTYP(int ssl_hostisaddr,(char *));
 _PROTOTYP(int ssl_tn_init,(int));
 _PROTOTYP(int ssl_http_init,(char *));
 _PROTOTYP(int ck_ssl_http_client,(int,char *));

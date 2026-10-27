@@ -7898,7 +7898,8 @@ dormt(xx) int xx;
 
                 if (fgets(sbuf,50,tfile[tlevel]) == NULL)
                   fatal("take file ends prematurely in 'remote cwd'");
-                debug(F110," pswd from take file",s2,0);
+                debug(F101," pswd from take file length","",
+                      (int)strlen(sbuf));
                 for (rwx = (int)strlen(sbuf);
                      rwx > 0 && (sbuf[rwx-1] == NL || sbuf[rwx-1] == CR);
                      rwx--)
@@ -7951,7 +7952,7 @@ dormt(xx) int xx;
             }
             s2 = sbuf;
         } else s2 = "";
-        debug(F110," password",s2,0);
+        debug(F101," password length","",(int)strlen(s2));
 #endif /* DIRPWDPR */
 
         rcdactive = 1;
@@ -9424,7 +9425,8 @@ cx_net(net, nprotocol, xhost, svc,
                 if (!slat_pwd[0]) { /* User didn't give a password */
                     if (nh_px[0][i]) { /* But directory entry has one */
                         ckstrncpy(slat_pwd,nh_px[0][i],18);
-                        debug(F110,"cx_net SuperLAT password",slat_pwd,0);
+                        debug(F101,"cx_net SuperLAT password length","",
+                              (int)strlen(slat_pwd));
                     }
                 }
 #endif /* SUPERLAT */
@@ -15819,7 +15821,7 @@ ckxlogin(userid, passwd, acct, promptok)
     CHAR * _a = NULL;
 
     debug(F111,"ckxlogin userid",userid,promptok);
-    debug(F110,"ckxlogin passwd",passwd,0);
+    debug(F101,"ckxlogin passwd length","",passwd ? (int)strlen(passwd) : -1);
 
     isguest = 0;                        /* Global "anonymous" flag */
 
