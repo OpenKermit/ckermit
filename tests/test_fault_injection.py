@@ -132,6 +132,27 @@ def test_type_short_read_ends_cleanly(wermit_path, faultinj, tmp_path):
     assert result.returncode == 0, result.stderr
     assert "DONE" in result.stdout, result.stdout[-500:]
 
+
+def test_grep_array_open_failure(wermit_path, faultinj, tmp_path):
+    """Verify GREP /ARRAY survives a file that fails to open.
+
+    The parse checks that f.txt is readable.  Failing each open in turn
+    makes the open in the search loop fail too.
+    """
+    (tmp_path / "f.txt").write_text("alpha\n")
+    report = tmp_path / "count"
+    cmds = "grep /array:&a alpha f.txt, echo COUNT=[\\&a[0]]"
+    env = dict(os.environ, LD_PRELOAD=faultinj, FAULT_FUNC="open",
+               FAULT_N="0", FAULT_REPORT=str(report))
+    subprocess.run([wermit_path, "-H", "-Y", "-Q", "-C", cmds + ", exit 0"],
+                   cwd=tmp_path, env=env, stdin=subprocess.DEVNULL,
+                   capture_output=True, timeout=30, check=True)
+    calls = int(report.read_text().split()[0])
+    for n in range(1, calls + 1):
+        result = run_faulted(wermit_path, faultinj, "open", n, cmds,
+                             tmp_path)
+        assert result.returncode == 0, (n, result.stdout, result.stderr)
+
 def test_iksd_lock_write_failure(run_wermit, wermit_path, faultinj,
                                  tmp_path):
     """Verify the IKSD leaves the database alone when it cannot lock it.

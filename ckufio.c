@@ -2858,9 +2858,10 @@ zstrip(name,name2) char *name, **name2;
             pp = work;
             n = 0;
         } else {
-            *pp++ = *cp;
-            if (n++ >= CKMAXPATH)
+            if (n >= CKMAXPATH)         /* Leave room for the NUL */
               break;
+            *pp++ = *cp;
+            n++;
         }
     }
     *pp = '\0';                         /* Terminate the string */
@@ -6619,6 +6620,8 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
                   }
 #endif /* RECURSIVE */
                   traverse(pl -> fwd, sofar, eos); /* Traverse new directory */
+                  if (numfnd < 0)       /* The list is full */
+                    break;
               }
           }
       }
@@ -6655,6 +6658,8 @@ addresult(str,itsadir) char *str; int itsadir;
     if (!str) str = "";
     debug(F111,"addresult",str,itsadir);
     if (!*str)
+      return;
+    if (numfnd < 0)                     /* The list is already full */
       return;
 
     if (itsadir < 0) {

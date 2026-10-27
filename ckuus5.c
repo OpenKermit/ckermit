@@ -4324,14 +4324,14 @@ mxlook(table,cmd,n) char *cmd; struct mtab table[]; int n;
     for (s = cmd; *s; s++) cmdlen++;    /* (instead of strlen) */
     debug(F111,"MXLOOK",cmd,cmdlen);
 
+    if (cmdlen < 1)                     /* Nothing to look up */
+      return(-3);
+
     c1 = *cmd;                          /* First char of string to look up */
     if (isupper(c1))
       c1 = (char)tolower(c1);
-    if (!*(cmd+1))                      /* Special handling for 1-char names */
+    if (cmdlen == 1)                    /* Special handling for 1-char names */
       one = 1;
-
-    if (cmdlen < 1)                     /* Nothing to look up */
-      return(-3);
 
     if (n < 12) {                       /* Not worth it for small tables */
         i = 0;
@@ -8763,7 +8763,8 @@ gettok() {
         if (i >= 80) {
             printf("Too long - \"%s\"\n", cp1);
             xerror = 1;
-            cp++;
+            if (*cp)                    /* Skip the bad character, */
+              cp++;                   /* not the final NUL */
             return(gettok());
         }
         if (xerror) return(NUMBER);
@@ -8778,7 +8779,8 @@ gettok() {
                 if (cmdlvl == 0 && !x_ifnum && !xerror)
                   printf("Bad number - \"%s\"\n",tbuf);
                 xerror = 1;
-                cp++;
+                if (*cp)                    /* Skip the bad character, */
+                  cp++;                   /* not the final NUL */
                 return(gettok());
             }
             s2 = mactab[x].mval;
@@ -8796,7 +8798,8 @@ gettok() {
             if (cmdlvl == 0 && !x_ifnum && !xerror)
               printf("Bad number - \"%s\"\n",tbuf);
             xerror = 1;
-            cp++;
+            if (*cp)                    /* Skip the bad character, */
+              cp++;                   /* not the final NUL */
             return(gettok());
         }
         return(NUMBER);

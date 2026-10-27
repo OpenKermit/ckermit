@@ -15271,8 +15271,7 @@ ftp_login(host) char * host;
             setint();
             ok = uq_txt(NULL," Password: ",2,NULL,ftppass,PASSBUFSIZ,NULL,
                         DEFAULT_UQ_TIMEOUT);
-            if (ok)
-                pass = brstrip(ftppass);
+            pass = ok ? brstrip(ftppass) : ftppass; /* Empty if no answer */
         }
 
 #ifdef CK_ENCRYPTION
@@ -15299,8 +15298,7 @@ ftp_login(host) char * host;
             setint();
             ok = uq_txt(NULL," Account: ",2,NULL,ftpacct,80,NULL,
                         DEFAULT_UQ_TIMEOUT);
-            if (ok)
-                acct = brstrip(ftpacct);
+            acct = ok ? brstrip(ftpacct) : ftpacct; /* Empty if no answer */
         }
         n = ftpcmd("ACCT",acct,-1,-1,ftp_vbm);
     }
@@ -15440,8 +15438,7 @@ ftp_user(user,pass,acct) char * user, * pass, * acct;
             setint();
             ok = uq_txt(NULL," Password: ",2,NULL,pwd,PWDSIZ,NULL,
                         DEFAULT_UQ_TIMEOUT);
-            if (ok)
-                pass = brstrip(pwd);
+            pass = ok ? brstrip(pwd) : pwd; /* Empty if no answer */
         }
 
 #ifdef CK_ENCRYPTION
@@ -15463,8 +15460,7 @@ ftp_user(user,pass,acct) char * user, * pass, * acct;
             setint();
             ok = uq_txt(NULL," Account: ",2,NULL,pwd,PWDSIZ,NULL,
                         DEFAULT_UQ_TIMEOUT);
-            if (ok)
-                acct = pwd;
+            acct = pwd;                 /* Empty if no answer */
         }
         n = ftpcmd("ACCT",acct,-1,-1,ftp_vbm);
         aflag++;
@@ -17212,8 +17208,7 @@ srp_ftp_auth(host, user, pass)
             setint();
             ok = uq_txt(NULL," SRP Password: ",2,NULL,ftppass,PASSBUFSIZ,NULL,
                         DEFAULT_UQ_TIMEOUT);
-            if (ok)
-              srp_pass = brstrip(ftppass);
+            srp_pass = ok ? brstrip(ftppass) : ftppass; /* Empty if none */
         }
         t_clientpasswd (tc, srp_pass);
         memset (srp_pass, 0, strlen (srp_pass));

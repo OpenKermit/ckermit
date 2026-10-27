@@ -2153,9 +2153,11 @@ ckround(fpnum,places,obuf,obuflen)
     CKFLOAT value;
     extern int fp_digits;
 
-    /* Should use snprintf() here but it's not portable */
-
-    sprintf(buf,"%200.100f",fpnum);     /* Make string version to work with. */
+/*
+  Make a string version to work with.  For the largest doubles the
+  integer part takes 309 digits, so the fraction may be truncated.
+*/
+    snprintf(buf,sizeof(buf),"%200.100f",fpnum);
     debug(F110,"ckround buf",buf,0);
     number = (char *) buf;              /* Make pointer to it */
 

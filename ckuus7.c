@@ -12282,7 +12282,7 @@ z_close(channel) int channel;
     FILE * t;
     if (!z_inited)                      /* Called before any files are open? */
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)           /* Channel out of range? */
+    if (channel < 0 || channel >= z_maxchan) /* Channel out of range? */
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -12341,7 +12341,7 @@ z_out(channel,s,length,flags) int channel, flags, length; char * s;
 #endif /* DEBUG */
     if (!z_inited)                      /* File i/o inited? */
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)           /* Channel in range? */
+    if (channel < 0 || channel >= z_maxchan) /* Channel in range? */
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -12416,9 +12416,7 @@ z_in(channel,s,buflen,length,flags)
 
     if (!z_inited)                      /* Check everything... */
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)
-      return(z_error = FX_CHN);
-    if (channel < 0)
+    if (channel < 0 || channel >= z_maxchan)
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -12549,7 +12547,7 @@ z_flush(channel) int channel;
     int x;
     if (!z_inited)                      /* Regular checks */
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)
+    if (channel < 0 || channel >= z_maxchan)
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -12573,7 +12571,7 @@ z_seek(channel,pos) int channel; CK_OFF_T pos; /* (seek to given position) */
     FILE * t;
     if (!z_inited)                      /* Check... */
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)
+    if (channel < 0 || channel >= z_maxchan)
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -12605,7 +12603,7 @@ z_line(channel,pos) int channel; CK_OFF_T pos; /* (seek to given position) */
     char zltmpbuf[256];
     if (!z_inited)                      /* Check... */
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)
+    if (channel < 0 || channel >= z_maxchan)
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -12695,7 +12693,7 @@ z_getname(channel) int channel;
         z_error = FX_NOP;
         return(NULL);
     }
-    if (channel >= z_maxchan) {
+    if (channel < 0 || channel >= z_maxchan) {
         z_error = FX_CHN;
         return(NULL);
     }
@@ -12728,7 +12726,7 @@ z_getmode(channel) int channel;
     int x;
     if (!z_inited)
       return(0);
-    if (channel >= z_maxchan)
+    if (channel < 0 || channel >= z_maxchan)
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(0);
@@ -12759,7 +12757,7 @@ z_getpos(channel) int channel;
     CK_OFF_T x;
     if (!z_inited)
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)
+    if (channel < 0 || channel >= z_maxchan)
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -12781,7 +12779,7 @@ z_getline(channel) int channel;
     CK_OFF_T rc;
     if (!z_inited)
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)
+    if (channel < 0 || channel >= z_maxchan)
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -12803,7 +12801,7 @@ z_getfnum(channel) int channel;
     FILE * t;
     if (!z_inited)
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)
+    if (channel < 0 || channel >= z_maxchan)
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -12830,7 +12828,7 @@ z_count(channel, what) int channel, what;
     CK_OFF_T pos, count = (CK_OFF_T)0;
     if (!z_inited)                      /* Check stuff... */
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)
+    if (channel < 0 || channel >= z_maxchan)
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -14463,6 +14461,10 @@ readtext(prmpt, buffer, bufsiz) char * prmpt; char * buffer; int bufsiz;
     for (rc = -1; rc < 0; ) {           /* Prompt till they answer */
         rc = cmtxt("","",&ws,NULL);      /* Get a literal line of text */
         cmres();                        /* Reset the parser again */
+        if (rc == -4) {                 /* End of input */
+            ws = "";
+            break;
+        }
     }
     ckstrncpy(buffer,ws,bufsiz);
     cmsetp(psave);                      /* Restore original prompt */
@@ -14476,7 +14478,7 @@ readtext(prmpt, buffer, bufsiz) char * prmpt; char * buffer; int bufsiz;
     }
 #endif /* OS2 */
 #endif /* NOLOCAL */
-    return(0);
+    return(rc < 0 ? -1 : 0);
 }
 #endif /* NOICP */
 
@@ -14569,6 +14571,10 @@ readpass(prmpt, buffer, bufsiz) char * prmpt; char * buffer; int bufsiz;
     for (rc = -1; rc < 0; ) {           /* Prompt till they answer */
         rc = cmtxt("","",&ws,NULL);      /* Get a literal line of text */
         cmres();                        /* Reset the parser again */
+        if (rc == -4) {                 /* End of input */
+            ws = "";
+            break;
+        }
     }
     ckstrncpy(buffer,ws,bufsiz);
     printf("\r\n");                     /* Echo a CRLF */
@@ -14587,7 +14593,7 @@ readpass(prmpt, buffer, bufsiz) char * prmpt; char * buffer; int bufsiz;
     ckxsyslog = savlog;                 /* Restore syslogging */
 #endif /* CKSYSLOG */
     debok = 1;
-    return(0);
+    return(rc < 0 ? -1 : 0);
 #endif /* NOICP */
 }
 

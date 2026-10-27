@@ -12737,30 +12737,30 @@ congm() {
     fd = 0;
 #endif /* !BEBOX */
 #ifdef BSD44ORPOSIX
-    if (tcgetattr(fd,&ccold) < 0) return(-1);
-    if (tcgetattr(fd,&cccbrk) < 0) return(-1);
-    if (tcgetattr(fd,&ccraw) < 0) return(-1);
+    if (tcgetattr(fd,&ccold) < 0) { if (fd > 0) close(fd); return(-1); }
+    if (tcgetattr(fd,&cccbrk) < 0) { if (fd > 0) close(fd); return(-1); }
+    if (tcgetattr(fd,&ccraw) < 0) { if (fd > 0) close(fd); return(-1); }
 #else
 #ifdef ATTSV
-    if (ioctl(fd,TCGETA,&ccold)  < 0) return(-1);
-    if (ioctl(fd,TCGETA,&cccbrk) < 0) return(-1);
-    if (ioctl(fd,TCGETA,&ccraw)  < 0) return(-1);
+    if (ioctl(fd,TCGETA,&ccold)  < 0) { if (fd > 0) close(fd); return(-1); }
+    if (ioctl(fd,TCGETA,&cccbrk) < 0) { if (fd > 0) close(fd); return(-1); }
+    if (ioctl(fd,TCGETA,&ccraw)  < 0) { if (fd > 0) close(fd); return(-1); }
 #ifdef VXVE
     cccbrk.c_line = 0;                  /* STTY line 0 for CDC VX/VE */
-    if (ioctl(fd,TCSETA,&cccbrk) < 0) return(-1);
+    if (ioctl(fd,TCSETA,&cccbrk) < 0) { if (fd > 0) close(fd); return(-1); }
     ccraw.c_line = 0;                   /* STTY line 0 for CDC VX/VE */
-    if (ioctl(fd,TCSETA,&ccraw) < 0) return(-1);
+    if (ioctl(fd,TCSETA,&ccraw) < 0) { if (fd > 0) close(fd); return(-1); }
 #endif /* VXVE */
 #else
 #ifdef BELLV10
-    if (ioctl(fd,TIOCGETP,&ccold) < 0) return(-1);
-    if (ioctl(fd,TIOCGETP,&cccbrk) < 0) return(-1);
-    if (ioctl(fd,TIOCGETP,&ccraw) < 0) return(-1);
+    if (ioctl(fd,TIOCGETP,&ccold) < 0) { if (fd > 0) close(fd); return(-1); }
+    if (ioctl(fd,TIOCGETP,&cccbrk) < 0) { if (fd > 0) close(fd); return(-1); }
+    if (ioctl(fd,TIOCGETP,&ccraw) < 0) { if (fd > 0) close(fd); return(-1); }
     debug(F101,"cccbrk.sg_flags orig","", cccbrk.sg_flags);
 #else
-    if (gtty(fd,&ccold) < 0) return(-1);
-    if (gtty(fd,&cccbrk) < 0) return(-1);
-    if (gtty(fd,&ccraw) < 0) return(-1);
+    if (gtty(fd,&ccold) < 0) { if (fd > 0) close(fd); return(-1); }
+    if (gtty(fd,&cccbrk) < 0) { if (fd > 0) close(fd); return(-1); }
+    if (gtty(fd,&ccraw) < 0) { if (fd > 0) close(fd); return(-1); }
 #endif /* BELLV10 */
 #endif /* ATTSV */
 #endif /* BSD44ORPOSIX */
@@ -12769,7 +12769,7 @@ congm() {
         perror("congm error getting Kanji mode");
         debug(F101,"congm error getting Kanji mode","",0);
         km_con = -1;                    /* Make sure this stays undefined. */
-        return(-1);
+        { if (fd > 0) close(fd); return(-1); }
     }
 #endif /* sony_news */
     if (fd > 0)
@@ -13451,7 +13451,11 @@ coninc(timo) int timo;
     if (timo <= 0) {                    /* Untimed, blocking read. */
         while (1) {                     /* Keep trying till we get one. */
             n = (int)read(0, &ch, 1);        /* Read a character. */
-            if (n == 0) continue;       /* Shouldn't happen. */
+            if (n == 0) {               /* End of file */
+                if (!isatty(0))         /* A pipe or file: no more input */
+                  return(-1);
+                continue;
+            }
             if (n > 0) {                /* If read was successful, */
 #ifdef IKSD
 #ifdef CK_ENCRYPTION
@@ -13563,6 +13567,8 @@ coninc(timo) int timo;
         return(-1);
     }
 #endif /* ! OXOS */
+    if (n == 0)                         /* End of file */
+      return(-1);
     return(n);
 }
 

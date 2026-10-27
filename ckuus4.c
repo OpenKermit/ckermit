@@ -2871,7 +2871,7 @@ transmit(s,t,xlate,xbinary,xxecho) char *s; char t; int xlate, xbinary, xxecho;
                 goto xmitexit;          /* Done */
             }
             if (!xmitw && !xxecho) {    /* Special "blast" mode */
-                if (tcount == XBBUFSIZ) { /* File input buffer full... */
+                if (tcount >= XBBUFSIZ - 1) { /* No room for a doubled IAC */
                     while (tcount > 0) {
                         errno = 0;
                         y = ttol(xbbuf,tcount);
@@ -7760,7 +7760,7 @@ getip(s) char *s;
 
 static int jdays[12] = {  0,31,59,90,120,151,181,212,243,273,304,334 };
 static int ldays[12] = {  0,31,60,91,121,152,182,213,244,274,305,335 };
-static char zjdbuf[12] = { NUL, NUL };
+static char zjdbuf[32] = { NUL, NUL };
 /*
   Deinde, ne in posterum a XII kalendas aprilis aequinoctium recedat,
   statuimus bissextum quarto quoque anno (uti mos est) continuari debere,
@@ -7817,6 +7817,8 @@ zjdate(date) char * date;
     y = atoi(year);
     m = atoi(month);
     d = atoi(day);
+    if (m < 1 || m > 12)
+      return("-1");
     if (m > 2) {                        /* No Leap day before March */
         if (y % 4 == 0) {               /* If year is divisible by 4 */
             leapday = 1;                /* It's a Leap year */
@@ -7828,9 +7830,9 @@ zjdate(date) char * date;
     }
     j = jdays[m - 1] + d + leapday;     /* Day of year */
     if (time)
-      sprintf(zjdbuf,"%04d%03d %s",y,j,time); /* SAFE */
+      snprintf(zjdbuf,sizeof(zjdbuf),"%04d%03d %s",y,j,time);
     else
-      sprintf(zjdbuf,"%04d%03d",y,j);   /* SAFE */
+      snprintf(zjdbuf,sizeof(zjdbuf),"%04d%03d",y,j);
     return((char *)zjdbuf);
 }
 
@@ -7908,9 +7910,9 @@ jzdate(date) char * date;
     debug(F101,"jzdate d","",d);
 
     if (time)
-      sprintf(jzdbuf,"%04d%02d%02d %s",y,m,d,time); /* SAFE */
+      snprintf(jzdbuf,sizeof(jzdbuf),"%04d%02d%02d %s",y,m,d,time);
     else
-      sprintf(jzdbuf,"%04d%02d%02d",y,m,d); /* SAFE */
+      snprintf(jzdbuf,sizeof(jzdbuf),"%04d%02d%02d",y,m,d);
 
     debug(F101,"jzdate jzdbuf",jzdbuf,0);
 
@@ -7986,6 +7988,9 @@ mjd(date) char * date;
 }
 
 static char mjd2dbuf[32];
+/* Modified Julian dates of 0000-01-01 and 9999-12-31 */
+#define MJD_MIN (-678941L)
+#define MJD_MAX 2973483L
 
 /*  M J D 2 D A T E  --  Converts MJD to yyyymmdd  */
 
@@ -7998,6 +8003,10 @@ mjd2date(mjd) long mjd;
 /* mjd2date */ {
     long jd, l, n;
     int d, m, y;
+    if (mjd < MJD_MIN || mjd > MJD_MAX) { /* Outside years 0 to 9999 */
+        mjd2dbuf[0] = NUL;
+        return((char *)mjd2dbuf);
+    }
     jd = (long)(mjd + 2400001L);
     l = jd + 68569;
     n = 4 * l / 146097L;
@@ -8009,7 +8018,7 @@ mjd2date(mjd) long mjd;
     l = m / 11;
     m = (int)(m + 2 - 12 * l);
     y = (int)(100 * (n - 49) + y + l);
-    sprintf(mjd2dbuf,"%04d%02d%02d",y,m,d); /* SAFE */
+    snprintf(mjd2dbuf,sizeof(mjd2dbuf),"%04d%02d%02d",y,m,d);
     return((char *)mjd2dbuf);
 }
 
@@ -8044,6 +8053,7 @@ extern int fnerror;
 */
 #ifdef CKFLOAT
 #define FPFMTSIZ 1024
+#define FPMAXPLACES 200                 /* Most decimal places formatted */
 static char fpfmtbuf[FPFMTSIZ] = { NUL, NUL };
 static int fpfbufpos = 0;               /* (why was this char before?) */
 
@@ -8055,10 +8065,12 @@ fpformat(fpresult,places,round) CKFLOAT fpresult; int places, round;
 #endif /* CK_ANSIC */
 {
     char fbuf[16];                      /* For creating printf format */
-    int nines = 0, sign = 0, x, y, i, j, size = 0;
+    int nines = 0, sign = 0, x, y, i, j, size = 0, room;
     char * buf;
     CKFLOAT ftmp;
 
+    if (places > FPMAXPLACES)
+      places = FPMAXPLACES;
     x = places ? places : (fp_digits ? fp_digits : 6);
 
     debug(F101,"fpformat fpresult","",fpresult);
@@ -8079,6 +8091,8 @@ fpformat(fpresult,places,round) CKFLOAT fpresult; int places, round;
         double logtmp = log10(ftmp);
         y = (int)logtmp;
     }
+    if (y < 1)                          /* At least one integer digit */
+      y = 1;
     size = y + x + 3;                   /* Estimated length of result */
     if (fpresult < 0.0) size++;
 #else
@@ -8092,21 +8106,22 @@ fpformat(fpresult,places,round) CKFLOAT fpresult; int places, round;
     debug(F101,"fpformat fpfbufpos 1","",fpfbufpos);
 
     buf = &fpfmtbuf[fpfbufpos];
+    room = FPFMTSIZ - fpfbufpos;        /* Bytes available at buf */
 
     if (places > 0) {                   /* If places specified */
         /* use specified places to write given number of digits */
-        sprintf(fbuf,"%%0.%df",places); /* SAFE */
-        sprintf(buf,fbuf,fpresult);     /* SAFE */
+        snprintf(fbuf,sizeof(fbuf),"%%0.%df",places);
+        snprintf(buf,room,fbuf,fpresult);
     } else {                            /* Otherwise... */
         /* Go for max precision */
-        sprintf(fbuf,"%%0.%df",fp_digits); /* SAFE */
-        sprintf(buf,fbuf,fpresult);     /* SAFE */
+        snprintf(fbuf,sizeof(fbuf),"%%0.%df",fp_digits);
+        snprintf(buf,room,fbuf,fpresult);
     }
     if (buf[0] == '-') sign = 1;
     debug(F111,"fpresult 1 errno",buf,errno); /* Check for over/underflow */
     debug(F111,"fpresult 1 fpfbufpos",buf,fpfbufpos);
     /* Give requested decimal places */
-    for (i = sign; i < FPFMTSIZ && buf[i]; i++) {
+    for (i = sign; i < room && buf[i]; i++) {
         if (buf[i] == '.')              /* First find the decimal point */
           break;
         else if (i > fp_digits + sign - 1) /* replacing garbage */
@@ -8119,7 +8134,7 @@ fpformat(fpresult,places,round) CKFLOAT fpresult; int places, round;
             buf[i] = NUL;
         } else if (places > 0) {        /* d > 0 so this many decimal places */
             i++;                           /* First digit after decimal */
-            for (j = 0; j < places; j++) { /* Truncate after d decimal */
+            for (j = 0; j < places && j+i < room-1; j++) { /* Truncate */
                 if (!buf[j+i])        /* places or extend to d  */
                   gotend = 1;              /* decimal places. */
                 if (gotend || j+i+sign > fp_digits)
@@ -8148,14 +8163,14 @@ fpformat(fpresult,places,round) CKFLOAT fpresult; int places, round;
     }
     /* Do something about xx.xx99999999... */
     if (nines > 5) {
-        if (isdigit(buf[i]) && i < FPFMTSIZ - 2) {
+        if (i >= 0 && isdigit(buf[i]) && i < room - 2) {
             buf[i] = buf[i] + 1;
             buf[i+1] = '0';
             buf[i+2] = '\0';
         }
     }
-    if (!strncmp(buf,"-0.0",FPFMTSIZ))
-      ckstrncpy(buf,"0.0",FPFMTSIZ);
+    if (!strncmp(buf,"-0.0",room))
+      ckstrncpy(buf,"0.0",room);
     fpfbufpos += (int)strlen(buf) + 1;
     return((char *)buf);
 }
@@ -8223,7 +8238,8 @@ dokwval(s,sep) char * s, * sep;
         s++;
     }
     if (*kw) rc = "1";                  /* Have keyword, promote return code */
-    *s++ = NUL;                         /* Terminate keyword */
+    if (*s)                             /* Not at end of string */
+      *s++ = NUL;                       /* Terminate keyword */
     while (*s < '!' && *s > '\0')       /* Skip blanks */
       s++;
     if (!c && ckcindex(*s,sep)) {
@@ -9082,8 +9098,9 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
               ckstrncpy(tmp,fnval,16);  /* Save our return value */
               flist = (char **) malloc((k+1) * sizeof(char *)); /* New array */
               if (flist) {
-                  for (i9 = 0; i9 <= k; i9++) { /* Fill it */
-                      flist[i9] = NULL;
+                  for (i9 = 0; i9 <= k; i9++) /* NULL ends the list */
+                    flist[i9] = NULL;
+                  for (i9 = 0; i9 < k; i9++) { /* Fill it */
                       znext(fnval);     /* Next filename */
                       if (!*fnval)      /* No more, done */
                         break;
@@ -9558,12 +9575,14 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                 j = 1;
             } else {                             /* right */
                 k = (argn > 1) ? atoi(val1) : lx; /* length */
+                if (k > lx) k = lx;
                 j = lx - k + 1;                  /* start pos for right */
-                if (j < 1) j = 1;
             }
+            if (j < 1) j = 1;                    /* Start at the beginning */
             if (k > 0 && j <= lx) {              /* if start pos in range */
                 s = bp[0]+j-1;                   /* point to source string */
-                for (i = 0; (i < k) && (*p++ = *s++); i++) ;  /* copy */
+                for (i = 0; (i < k) && (i < FNVALL) && (*p++ = *s++); i++)
+                  ;                              /* copy */
             }
             *p = NUL;                   /* terminate the result */
             p = fnval;                  /* and point to it. */
@@ -9661,7 +9680,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                 if (k >= n) {           /* It's already long enough */
                     ckstrncpy(p,bp[0],FNVALL);
                 } else {
-                    if (n + k <= FNVALL) {
+                    if (n <= FNVALL - k) {
                         pc = (char) ((argn < 3) ? SP : *bp[2]);
                         if (!pc) pc = SP;
                         if (cx == FN_RPA) { /* RPAD */
@@ -9796,6 +9815,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                     goto fnend;
                 }
             }
+            if (start > (int)strlen(bp[0])) /* Past the end */
+              start = (int)strlen(bp[0]);
             p = getip(bp[0]+start);
         } else p = "";
         goto fnend;
@@ -10268,10 +10289,17 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           }
           x = 0;
           if (cx == FN_LOPX) {          /* Lopx (from right) */
+              int len9 = (int)strlen(s);
               if (n9 == 0)
                 goto fnend;
-              s += strlen(s) - 1;       /* We already know it's > 0 */
-              while (s-- >= bp[0]) {
+/*
+  Scan from the next-to-last character down to the first.  The last
+  character is not examined.
+*/
+              if (len9 > 0)
+                s += len9 - 1;
+              while (s > bp[0]) {
+                  s--;
                   if (*s == c) {
                       n9--;
                       if (n9 == 0) {
@@ -10283,8 +10311,9 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
               }
               if (!x) s = "";
           } else {                      /* Lop (from left) */
-              if (n9 == 0) {
-                  p = bp[0];
+              if (n9 == 0) {            /* bp[] is freed at fnend */
+                  ckstrncpy(fnval,bp[0],FNVALL);
+                  p = fnval;
                   goto fnend;
               }
               while (*s++) {
@@ -10344,7 +10373,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                       if (k9 < 0) k9 = 63;
                       for (i9 = 0; i9 < 6; i9++) {
                           if (k9 & (1<<i9)) {
-                              if (s[0] == gr_opn[i9] && s[x-1] == gr_cls[i9]) {
+                              if (x > 1 && s[0] == gr_opn[i9] &&
+                                  s[x-1] == gr_cls[i9]) {
                                   ckstrncpy(fnval,s+1,FNVALL);
                                   fnval[x-2] = NUL;
                                   goto fnend;
@@ -10379,7 +10409,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                       }
                   }
               }
-              if (s[x-1] == c2) {
+              if (x > 1 && s[x-1] == c2) { /* Both brackets present */
                   strncpy(fnval,s+1,x-2); /* Leave it like this */
                   fnval[x-2] = NUL;
                   goto fnend;
@@ -10833,7 +10863,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 #endif /* UNIX */
 
           j9 = ckstrncpy(workbuf,bp[0],CKMAXPATH); /* Strip any trailing '/' */
-          if (workbuf[j9-1] == '/') {
+          if (j9 > 0 && workbuf[j9-1] == '/') {
               workbuf[j9-1] = NUL;
               makestr(&(bp[0]),workbuf);
           }
@@ -11060,7 +11090,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             p[1] = '1';
             p[2] = NUL;                 /* Return -1 */
             if (fp1) fclose(fp1);
-            if (fp1) fclose(fp2);
+            if (fp2) fclose(fp2);
             goto fnend;
         }
         while (1) {
@@ -11209,9 +11239,19 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
               evalerr(fn);
               p = fnval;
               goto fnend;
+          } else if ((int)strlen(p) > 9) { /* Far outside the range */
+              k9 = MJD_MAX + 1L;
           } else {
               k9 = atol(p);
               if (n9) k9 = -k9;
+          }
+          if (k9 < MJD_MIN || k9 > MJD_MAX) {
+              failed = 1;
+              if (fndiags)
+                ckmakmsg(fnval,FNVALL,
+                         "<ERROR:ARG_OUT_OF_RANGE:\\f",fn,"()>",NULL);
+              p = fnval;
+              goto fnend;
           }
           ckstrncpy(fnval,mjd2date(k9),FNVALL); /* Convert to Date */
           p = fnval;                    /* Point to result */
@@ -11459,6 +11499,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
       case FN_AADUMP: {
           char abuf[16], *s9 = NULL, **ap = NULL, **vp = NULL;
           char pattern[VNAML];
+          char akey;                    /* Letter of the name array */
           int slen, i9, j9, k9, first = -1;
           p = fnval;
           if (argn < 2) {
@@ -11499,6 +11540,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           if ((x = dclarray(s9[1],k9)) < 0) /* Declare array to size */
             goto fnend;
           ap = a_ptr[x];                /* Point to array we just declared */
+          akey = s9[1];
           /* debug(F111,"aaconvert array 1",abuf,ap); */
           abuf[0] = NUL;
           if (argn > 2) {
@@ -11512,6 +11554,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                   goto fnend;
               if (s9[1] >= 64 && s9[1] < 91) /* Convert upper to lower */
                 s9[1] += 32;
+              if (s9[1] == akey)        /* Declaring it again frees ap */
+                goto fnend;
               if ((x = dclarray(s9[1],k9)) < 0)
                 goto fnend;
               vp = a_ptr[x];            /* Point to array we just declared */
@@ -12033,7 +12077,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
         int n9 = 0;                      /* Blank/Tab counter */
         s = bp[0] ? bp[0] : "";
         p = fnval;                      /* Result buffer */
-        while (*s) {                    /* While there is input */
+        while (*s && p < fnval + FNVALL) { /* While input and room */
             if (!started && (*s == ' ' || *s == '\011')) {
                 s++;                    /* Skip past leading whitespace */
                 continue;
@@ -12051,7 +12095,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             *p++ = ' ';                 /* Deposit one space */
             s++;                        /* and go to next source char */
         }
-        if (*(p-1) == ' ') p--;         /* Remove trailing space */
+        if (p > fnval && *(p-1) == ' ') /* Remove trailing space */
+          p--;
         *p = NUL;                       /* Terminate string */
         p = fnval;                      /* point to beginning */
         goto fnend;                     /* Done. */
@@ -12857,6 +12902,11 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
 
         p = fnval;                      /* Point to result */
         failed = 1;                     /* Assume failure */
+        if (argn < 1 || !bp[0] || !*bp[0]) { /* A filename is required */
+            if (fndiags)
+              ckmakmsg(fnval,FNVALL,"<ERROR:MISSING_ARG:\\f",fn,"()>",NULL);
+            goto fnend;
+        }
         s9 = bp[0];
 #ifdef UNIX
         if (*s9 == '~') {
@@ -13215,6 +13265,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
             }
         }
         if (start > 0) start--;         /* start is 0-based internally */
+        if (start < 0) start = 0;
         s1 = bp[0];                     /* Get length of first arg */
         x9 = (int)strlen(s1);
         if (x9 > start)                  /* Point to start position of s1 */
@@ -13227,7 +13278,7 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
           s2 += start;
         else
           s2 = "";
-        x9 = ckstrcmp(s,s2,len,docase);
+        x9 = ckstrcmp(s1,s2,len,docase);
         p = ckitoa(x9);
         ckstrncpy(fnval,p,FNVALL);
         p = fnval;
@@ -13571,7 +13622,7 @@ char *                                  /* Evaluate builtin variable */
           return("");
 #endif /* CK_LOGIN */
 #endif /* IKSD */
-        for (x = y = 0; x < VVBUFL; x++) {
+        for (x = y = 0; ckxsys[x] && y < VVBUFL; x++) {
             if (ckxsys[x] == SP && y == 0) continue;
             vvbuf[y++] = (char) ((ckxsys[x] == SP) ? '_' : ckxsys[x]);
         }
@@ -14916,8 +14967,8 @@ char *                                  /* Evaluate builtin variable */
             return((char *)unm_nam);
         }
 #else
-        for (x = y = 0; x < VVBUFL; x++) {
-            if (ckxsys[x] == SP && cx == 0) continue;
+        for (x = y = 0; ckxsys[x] && y < VVBUFL; x++) {
+            if (ckxsys[x] == SP && y == 0) continue;
             vvbuf[y++] = (char) ((ckxsys[x] == SP) ? '_' : ckxsys[x]);
         }
         vvbuf[y] = NUL;

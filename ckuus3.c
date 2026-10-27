@@ -2349,7 +2349,8 @@ parsdir(cx) int cx;
         }
         if (y < 0) {
             if (y == -3) {              /* EOL or user typed <CR> */
-                if ((y = cmcfm()) < 0) return(y);
+                if ((y = cmcfm()) < 0)
+                  goto xparsdir;
                 for (i = 0; i < max; i++) { /* Clear these */
                     if (i < nxdir && xdir[i]) {
                         free(xdir[i]);
@@ -2380,14 +2381,21 @@ parsdir(cx) int cx;
         }
         if (x) {
             printf("?Wildcards not allowed\n");
-            return(-9);
+            y = -9;
+            goto xparsdir;
         }
 #ifdef CK_TMPDIR
         if (cx == 2 && !isdir(s)) {
             printf("?Not a directory - %s\n", s);
-            return(-9);
+            y = -9;
+            goto xparsdir;
         }
 #endif /* CK_TMPDIR */
+        if (dd >= max) {                /* pp[] holds max names */
+            printf("?Too many directories - %d max\n", max);
+            y = -9;
+            goto xparsdir;
+        }
 
 #ifdef ZFNQFP
         if (cx < 2) {
@@ -2431,15 +2439,15 @@ parsdir(cx) int cx;
             }
 #endif /* NOXFER */
             debug(F111,"parsdir pp[dd] 2",pp[dd],dd);
-            if (++dd > max) {
-                printf("?Too many directories - %d max\n", max);
-                for (i = 0; i < dd; i++) {  /* Free temp storage */
-                    if (pp[i]) free(pp[i]);
-                    pp[i] = NULL;
-                }
-            }
+            dd++;
         }
     }
+  xparsdir:                             /* Error: free the names parsed */
+    for (i = 0; i < dd; i++) {
+        if (pp[i]) free(pp[i]);
+        pp[i] = NULL;
+    }
+    return(y);
 #endif /* CK_PARSDIR */
 }
 #endif /* NOSPL */
@@ -2804,6 +2812,7 @@ uq_txt(preface,prompt,echo,help,buf,buflen,dflt,timer)
     int buflen, echo, timer;
 #endif /* CK_ANSIC */
 {
+    int x;
 #ifndef NOLOCAL
 #ifdef OS2
     extern BYTE vmode;
@@ -2844,10 +2853,10 @@ uq_txt(preface,prompt,echo,help,buf,buflen,dflt,timer)
     if (preface)
       printf("%s\n",preface);
     if (echo == 1)
-      readtext(prompt,buf,buflen);
+      x = readtext(prompt,buf,buflen);
     else
-      readpass(prompt,buf,buflen);
-    return(1);                          /* (no buttons in parser) */
+      x = readpass(prompt,buf,buflen);
+    return(x < 0 ? 0 : 1);              /* No answer at end of input */
 }
 
 /* u q _ m t x t  --  User Query, get multiple text responses */
@@ -6040,14 +6049,19 @@ setdial(y) int y;
                   if (k > 0) {
                       if ((p[n] = malloc(k + 1)))
                         strcpy(p[n], s); /* safe */
+                      else
+                        break;          /* Out of memory */
                   } else break;
               } else break;
           }
           if (x == -3) {                /* Command was successful */
               int m9;
               m9 = (y == XYDTFC) ? ntollfree : ndialpxx;
-              if ((x = cmcfm()) < 0)
-                return(x);
+              if ((x = cmcfm()) < 0) {
+                  for (i = 0; i < n; i++)
+                    free(p[i]);
+                  return(x);
+              }
               x = 1;
               for (i = 0; i < m9; i++) { /* Remove old list, if any */
                   if  (y == XYDTFC)
@@ -6107,12 +6121,17 @@ setdial(y) int y;
                   if (k > 0) {
                       if ((p[n] = malloc(k + 1)))
                         strcpy(p[n], s); /* safe */
+                      else
+                        break;          /* Out of memory */
                   } else break;
               } else break;
           }
           if (x == -3) {                /* Command was successful */
-              if ((x = cmcfm()) < 0)
-                return(x);
+              if ((x = cmcfm()) < 0) {
+                  for (i = 0; i < n; i++)
+                    free(p[i]);
+                  return(x);
+              }
               for (i = 0; i < nlocalac; i++) /* Remove old list, if any */
                 if (diallcac[i]) {
                     free(diallcac[i]);
@@ -6184,14 +6203,19 @@ setdial(y) int y;
                   if (k > 0) {
                       if ((p[n] = malloc(k + 1)))
                         strcpy(p[n], s); /* safe */
+                      else
+                        break;          /* Out of memory */
                   } else break;
               } else break;
           }
           if (x == -3) {                /* Command was successful */
               int m8;
               m8 = (y == XYDPUCC) ? ndialpucc : ndialtocc;
-              if ((x = cmcfm()) < 0)
-                return(x);
+              if ((x = cmcfm()) < 0) {
+                  for (i = 0; i < n; i++)
+                    free(p[i]);
+                  return(x);
+              }
               x = 1;
               for (i = 0; i < m8; i++) { /* Remove old list, if any */
                   if (y == XYDPUCC)
@@ -7203,11 +7227,11 @@ protofield(char * current, char * help, char * px )
 protofield(current, help, px) char * current, * help, * px;
 #endif /* CK_ANSIC */
 {
-    char *s, pftmpbuf[XPCMDLEN+1];
+    char *s, pftmpbuf[XPCMDLEN+3];      /* Command plus two braces */
     int x;
 
     if (current)                        /* Put braces around default */
-      ckmakmsg(pftmpbuf,TMPBUFSIZ,"{",current,"}",NULL);
+      ckmakmsg(pftmpbuf,sizeof(pftmpbuf),"{",current,"}",NULL);
     else
       pftmpbuf[0] = NUL;
 
@@ -7217,7 +7241,7 @@ protofield(current, help, px) char * current, * help, * px;
         printf("?Sorry - maximum length is %d\n", XPCMDLEN);
         return(-9);
     } else if (*s) {
-        strcpy(px,s);                   /* safe */
+        ckstrncpy(px,s,XPCMDLEN+1);     /* px holds XPCMDLEN+1 bytes */
     } else {
         px = NULL;
     }
@@ -7260,6 +7284,7 @@ setproto() {                            /* Select a file transfer protocol */
     s4[0] = NUL;
     s5[0] = NUL;
     s6[0] = NUL;
+    s7[0] = NUL;
 
     {
         /*

@@ -306,6 +306,63 @@ COMPATIBILITY`.
   dates from commit c88d9b85 in C-Kermit 8.0.200 of 2001.  The others date
   from commit 8fed15a6 in C-Kermit 10.0 Beta.09 of 2023.
 
+### Scripting and commands
+
+These bugs are in the command language.  A remote user can trigger it at the
+`IKSD>` prompt, and a server's client can with REMOTE ASSIGN and REMOTE QUERY.
+Scripts that handle data from a remote host, such as `\v(input)` or a received
+file, also reach it.
+
+- [5, 7, 8, 10] WHILE with a condition over about 230 characters, GREP
+  /ARRAY with a line over 10,000 characters, and filename completion on a
+  nearly full command line overflowed buffers.  GREP /ARRAY also dropped
+  the last character of each element.  ARRAY CLEAR, SET and COPY with a
+  range past the end of an array touched memory beyond it, and ARRAY
+  RESIZE leaked, ignored allocation failure and left links stale.  Bugs
+  were introduced in commits a213649d (5A(188) of 1992), d0f8b1da (7.0.197
+  of 2000), c88d9b85 (8.0.200 of 2001) and 8fed15a6 (10.0 Beta.09 of
+  2023).
+
+- [6, 8] SET PROTOCOL with a 71-character default command overflowed a
+  stack buffer.  SET SERVER GET-PATH with more than 128 directories
+  overflowed a stack array.  The SET PROTOCOL bug was introduced in commit
+  c88d9b85 in C-Kermit 8.0.200 of 2001.  The GET-PATH bug was introduced in
+  commit 4b5eddea in C-Kermit 6.0.192 of 1996.
+
+- [5, 7, 8] Several functions read or wrote past their buffers.  `\fdoy2date()`
+  with a long time after the date overflowed a static buffer.  `\fstripb()` of
+  a single character that matched its bracket, such as `\fstripb(x,x)`, copied
+  with a length of -1 and wrote far past its result buffer.  With a numeric
+  bracket mask it wrote one byte before the buffer.  It now returns the
+  character.  `\faaconvert()` with the same array for names and values wrote
+  into the name array after it was freed.  It now returns its bad-array error.
+  `\fmjd2date()` accepted any number and overflowed.  It now takes dates from
+  0000-01-01 through 9999-12-31.  `\feval()` of a bad name at the end of an
+  expression read past it.  The floating-point functions that take a number of
+  decimal places, such as `\ffpadd()` and `\ffpdiv()`, wrote past the end of
+  the result buffer for a large request.  They now format at most 200 places.
+  `\ffiles()`, `\fdirectories()` and the other file-list functions with an
+  empty pattern and an array stored a name left from an earlier expansion in a
+  list sized for none.  The list had no end, and the next such call read past
+  it.  Bugs were introduced in commits a213649d (5A(188) of 1992), d0f8b1da
+  (7.0.197 of 2000) and c88d9b85 (8.0.200 of 2001).
+
+- [8] TRANSMIT /BINARY on a Telnet connection with TRANSMIT ECHO OFF wrote past
+  its send buffer when a doubled IAC byte fell at the end of the buffer.  The
+  rest of the file then went on past the buffer and was not sent.  Bug was
+  introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [9] RENAME and CHANGE wrote past stack buffers with long path names.  RENAME
+  /REPLACE overflowed when the replacements made the new name longer than the
+  longest path name, and Kermit could crash.  RENAME now fails for that file
+  with "?New name too long".  RENAME with a wildcard and /LOWER, /UPPER,
+  /REPLACE, /FIXSPACES or /CONVERT overflowed when the files were in a
+  directory whose path was longer than about 2,000 bytes.  CHANGE overflowed
+  its source directory buffer when the current directory and the file pattern
+  together were longer than the longest path name.  The RENAME bugs were
+  introduced in commit 0fd869b4 in C-Kermit 9.0.302 of 2011.  The CHANGE bug
+  was introduced in commit 6100ebcc in C-Kermit 304(dev17) of 2016.
+
 ## Additional improvements and bugfixes
 
 ### FTP and HTTP
@@ -365,7 +422,18 @@ COMPATIBILITY`.
   next field.  The path is now cut at the end of the field.  Bug was introduced
   in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
 
+### Dialing and serial lines
+
+- [6] LOOKUP and DIAL crashed when a dialing directory before a good one
+  could not be opened.  Bug was introduced in commit 4b5eddea in C-Kermit
+  6.0.192 of 1996.
+
 ### Scripting and commands
+
+- [5, 7] With stdin at end of file, ASK /TIMEOUT, SHOW KEY, GETC, GETOK
+  and the text and password prompts looped forever.  They now end.  Bugs
+  were introduced in commits a213649d (5A(188) of 1992), d0f8b1da (7.0.197
+  of 2000) and 29169c5e (8.0.201 of 2002).
 
 - [7] WAIT n FILE succeeded on timeout even if the event never happened.  Bug
   was introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
@@ -380,6 +448,10 @@ COMPATIBILITY`.
   11.0.514, and was introduced in commit 4ddb464e in C-Kermit 11.0.510.  The
   tab bugs were introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
 
+- [9] `\ffilecompare()` crashed Kermit when the first file could be opened
+  and the second could not.  Bug was introduced in commit 04917e78 in
+  C-Kermit 304(dev05) of 2013.
+
 ## Summary of changed behavior
 
 - [4, 6] A server with HOST disabled refuses PUSH within REMOTE QUERY.
@@ -389,6 +461,8 @@ COMPATIBILITY`.
 
 - [4] A malformed packet ends the transfer with "Malformed packet data".
   A packet shorter than its block check is refused.
+
+- [5] `\fmjd2date()` accepts dates from 0000-01-01 through 9999-12-31.
 
 - [6, 11] A receiver refuses a RESEND unless its FILE COLLISION setting
   allows it or it asked for a REGET.
@@ -400,6 +474,8 @@ COMPATIBILITY`.
 
 - [7] The IKSD does not update its database when it cannot write the
   database lock file.
+
+- [7, 8] `\fstripb(x,x)` returns the character.
 
 - [8] FTP MGET /RECURSIVE skips server names that leave the current
   directory.
@@ -413,8 +489,13 @@ COMPATIBILITY`.
 
 - [8] Kermit refuses SSL and TLS when OpenSSL has too little entropy.
 
+- [8] The floating-point functions format at most 200 decimal places.
+
 - [8, 11] `ENABLE` and `DISABLE` with `LOCAL` or `REMOTE` change only that
   side.
+
+- [9] `RENAME` fails with "?New name too long" when a new name does not
+  fit.
 
 - [11] RECEIVE CONFIRM prompts for files a recursive GET places outside
   the requested directory.

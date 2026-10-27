@@ -57,6 +57,30 @@ START_TEST(test_fpformat_crosses_magnitude_boundary_2)
 }
 END_TEST
 
+/*
+  A large places argument, or a tiny value with many places, must stay
+  within the 1024-byte format buffer across repeated calls.
+*/
+START_TEST(test_fpformat_many_places_is_bounded)
+{
+    int i;
+    char * s;
+
+    for (i = 0; i < 8; i++) {
+        s = fpformat(1.5, 5000, 0);
+        ck_assert_int_lt((int)strlen(s), 1024);
+        ck_assert_int_eq(strncmp(s, "1.5", 3), 0);
+        s = fpformat(1e-300, 150, 0);
+        ck_assert_int_lt((int)strlen(s), 1024);
+        ck_assert_int_eq(strncmp(s, "0.000", 5), 0);
+        s = fpformat(1e300, 150, 0);
+        ck_assert_int_lt((int)strlen(s), 1024);
+        s = fpformat(2.0, 2147483647, 0);
+        ck_assert_int_lt((int)strlen(s), 1024);
+    }
+}
+END_TEST
+
 int
 main(int argc, char ** argv)
 {
@@ -77,6 +101,7 @@ main(int argc, char ** argv)
     tcase_add_test(tc, test_fpformat_negative);
     tcase_add_test(tc, test_fpformat_crosses_magnitude_boundary);
     tcase_add_test(tc, test_fpformat_crosses_magnitude_boundary_2);
+    tcase_add_test(tc, test_fpformat_many_places_is_bounded);
     suite_add_tcase(s, tc);
 
     SRunner * sr = srunner_create(s);

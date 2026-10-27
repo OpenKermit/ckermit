@@ -226,6 +226,19 @@ def assert_ok(result, label="Command failed"):
     )
 
 
+def make_deep_dir(base):
+    """Create and return a directory whose path is about 70% of PATH_MAX.
+
+    Its path is more than half of PATH_MAX, so a buffer of PATH_MAX
+    bytes cannot hold it twice.  Each component is 200 bytes.
+    """
+    path_max = os.pathconf(str(base), "PC_PATH_MAX")
+    count = (path_max * 7 // 10 - len(str(base))) // 201
+    deep = base.joinpath(*(["d" * 200] * max(count, 1)))
+    deep.mkdir(parents=True)
+    return deep
+
+
 def make_loopback_dirs(tmp_path, client_name="client", server_name="server"):
     """Create and return (client_dir, server_dir) under tmp_path."""
     client_dir = tmp_path / client_name

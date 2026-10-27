@@ -150,3 +150,33 @@ def test_random_differs_between_runs(run_wermit):
         assert_ok(result)
         seqs.add(result.stdout.strip())
     assert len(seqs) == 3, seqs
+
+
+@pytest.mark.parametrize("expr", ["abc", "1+qqq", "2*zz"])
+def test_eval_undefined_name_stays_in_bounds(wermit_path, valgrind, expr):
+    """Verify \\feval() of an undefined name reads only the expression.
+
+    gettok() skips the bad name and reads on.  At the end of the
+    expression it must stop at the final NUL.
+    """
+    result = subprocess.run(
+        [valgrind, "-q", "--error-exitcode=9", wermit_path,
+         "-H", "-Y", "-Q", "-C", f"echo [\\feval({expr})], quit"],
+        stdin=subprocess.DEVNULL, capture_output=True, text=True,
+        timeout=120)
+    assert result.returncode == 0, result.stderr
+    assert "ARG_NOT_NUMERIC" in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize("mjd,want", [
+    ("0", "[18581117]"),
+    ("-678941", "[00000101]"),
+    ("2973483", "[99991231]"),
+    ("2973484", "ARG_OUT_OF_RANGE"),
+    ("-678942", "ARG_OUT_OF_RANGE"),
+    ("99999999999999", "ARG_OUT_OF_RANGE"),
+])
+def test_mjd2date_range(run_wermit, mjd, want):
+    """Verify \\fmjd2date() accepts years 0 through 9999 only."""
+    result = run_wermit(f"echo [\\fmjd2date({mjd})]")
+    assert want in result.stdout + result.stderr, result.stdout

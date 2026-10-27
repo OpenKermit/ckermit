@@ -6200,9 +6200,13 @@ dodcl(cx) int cx;
     } else if (hi > -1) {
         printf("?Segment notation not allowed in array declarations\n");
         return(-9);
-    } else if ((lo+1) < 0) {
-        debug(F101,"dodcl underflow","",lo+1);
+    } else if (lo < -1) {
+        debug(F101,"dodcl underflow","",lo);
         printf("?Dimension underflow\n");
+        return(-9);
+    } else if (lo > (int)(((unsigned)~0 >> 1) / sizeof(char *)) - 1) {
+        debug(F101,"dodcl too large","",lo); /* n+1 pointers overflow int */
+        printf("?Dimension too large\n");
         return(-9);
     } else
       n = lo;
@@ -6251,8 +6255,10 @@ dodcl(cx) int cx;
             makestr(&(p[++v]),ws);
         }
         keepallchars = 0;
-        if ((wy = cmtxt("Carriage return to confirm","",&ws,NULL)) < 0)
-          return(wy);
+        if ((wy = cmtxt("Carriage return to confirm","",&ws,NULL)) < 0) {
+            rc = wy;
+            goto dclx;                  /* Free the initial values */
+        }
         if (isdynamic)
           n = v;
     }
@@ -6270,6 +6276,7 @@ dodcl(cx) int cx;
         }
     }
   dclx:
+    keepallchars = 0;
     if (p) {
         for (i = 1; i <= v; i++)
           if (p[i]) free(p[i]);
@@ -6281,7 +6288,7 @@ dodcl(cx) int cx;
 
 static int
 rszarray() {
-    int i, x, y, n, lo, hi, islink = -1;
+    int i, x, y, n, lo, hi;
     char c, * s, ** ap = NULL;
     if ((x = cmfld("Array name","",&s,NULL)) < 0) { /* Parse array name */
         if (x == -3) {
@@ -6306,10 +6313,8 @@ rszarray() {
     }
     if ((y = cmcfm()) < 0)
       return(y);
-    if (a_link[x] > -1) {               /* Link? */
-        islink = x;                     /* Yes follow it */
-        x = a_link[x];                  /* and remember */
-    }
+    if (a_link[x] > -1)                 /* Link? */
+      x = a_link[x];                    /* Yes, resize what it links to */
     if (!a_ptr[x]) {
         printf("?Array not declared - \"%s\"\n", s);
         return(-9);
@@ -6333,6 +6338,10 @@ rszarray() {
     }
     n = a_dim[x];                       /* Current size */
     ap = (char **) malloc((lo+1) * sizeof(char *)); /* New array */
+    if (!ap) {
+        printf("?Memory allocation failure\n");
+        return(success = 0);
+    }
     y = (n < lo) ? n : lo;
     for (i = 0; i <= y; i++)            /* Copy the part that fits */
       ap[i] = a_ptr[x][i];
@@ -6340,21 +6349,16 @@ rszarray() {
         for (; i <= lo; i++)            /* initialize extra elements in */
           ap[i] = NULL;                 /* new array to NULL. */
     } else if (n > lo) {                /* If new array smaller */
-        for (; i <= lo; i++)            /* deallocate leftover elements */
+        for (; i <= n; i++)             /* deallocate leftover elements */
           makestr(&(a_ptr[x][i]),NULL); /* from original array. */
     }
     free((char *)a_ptr[x]);             /* Free original array list */
     a_ptr[x] = ap;                      /* Replace with new one */
     a_dim[x] = lo;                      /* Record the new dimension */
-    if (islink > -1) {                  /* Was this a link? */
-        a_ptr[islink] = ap;             /* If so point to the resized array */
-        a_dim[islink] = lo;
-    } else {                            /* If not are there links to here? */
-        for (i = 0; i < (int) 'z' - ARRAYBASE; i++) { /* Any linked arrays? */
-            if (i != x && a_link[i] == x) {     /* Find and update them */
-                a_ptr[i] = ap;
-                a_dim[i] = lo;
-            }
+    for (i = 0; i < (int) 'z' - ARRAYBASE; i++) { /* Any linked arrays? */
+        if (i != x && a_link[i] == x) { /* Find and update them */
+            a_ptr[i] = ap;
+            a_dim[i] = lo;
         }
     }
     return(success = 1);
@@ -6398,14 +6402,20 @@ copyarray() {
       whole = 1;                                  /* whole array... */
 
     if (lo1 < 0) lo1 = whole ? 0 : 1;   /* Supply lower bound of source */
-    if (hi1 < 0) hi1 = a_dim[x1];       /* Supply upper bound of source */
+    if (hi1 < 0 || hi1 > a_dim[x1])     /* Supply or limit upper bound */
+      hi1 = a_dim[x1];                  /* of source */
     if (lo2 < 0) lo2 = whole ? 0 : 1;   /* Lower bound of target */
     if (hi2 < 0) hi2 = lo2 + hi1 - lo1; /* Upper bound of target */
+    if (hi2 < lo2) hi2 = lo2;           /* Empty source range */
     if (a_ptr[x2]) {                    /* Target array is already declared? */
         if (hi2 > a_dim[x2])            /* If upper bound out of range */
           hi2 = a_dim[x2];              /* shrink to fit */
     } else {                            /* Otherwise... */
         x2 = dclarray(c2, hi2);         /* declare the target array */
+        if (x2 < 0) {
+            printf("?Array declaration failure\n");
+            return(success = 0);
+        }
     }
     for (i = lo1, j = lo2; i <= hi1 && j <= hi2; i++,j++) { /* Copy */
         makestr(&(a_ptr[x2][j]),a_ptr[x1][i]);
@@ -6496,7 +6506,8 @@ clrarray(cx) int cx;
         return(-9);
     }
     if (lo < 0) lo = 0;
-    if (hi < 0) hi = a_dim[ax];
+    if (hi < 0 || hi > a_dim[ax])       /* Supply or limit upper bound */
+      hi = a_dim[ax];
     for (i = lo; i <= hi; i++)          /* Clear/Set selected range */
       makestr(&(a_ptr[ax][i]),val);
 
@@ -8202,6 +8213,10 @@ newerrmsg(s) char *s;
         char c;
         if (len4 > 74) {
             x = 74 - (len2 + len3 + 8);
+            if (x < 0)                  /* Long TAKE file name */
+              x = 0;
+            if (x > len4)
+              x = len4;
             c = lasttakeline[x];
             lasttakeline[x] = NUL;
 #ifdef HAVE_SNPRINTF
@@ -10712,6 +10727,7 @@ docmd(cx) int cx;
                             free(r);
                             return(success);
                         }
+                        free(q);
                     }
                 }
                 return(success = 0);

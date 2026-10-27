@@ -1929,6 +1929,8 @@ do_pty(fd, cmd, fc) int * fd; char * cmd; int fc;
     }
     if ((i = fork()) < 0) {
         /* XXX - need to clean up the allocated pty */
+        close(syncpipe[0]);
+        close(syncpipe[1]);
         perror("fork() failed");
         msg++;
         debug(F111,"do_pty()","fork fails",errno);

@@ -376,6 +376,7 @@ extern int cmd_cols, cmd_rows, local, quiet;
 
 _PROTOTYP( static int gtword, (int) );
 _PROTOTYP( static int addbuf, (char *) );
+_PROTOTYP( static int cmdcopy, (char *) );
 _PROTOTYP( static int setatm, (char *, int) );
 _PROTOTYP( static VOID cmdnewl, (char) );
 _PROTOTYP( static VOID cmdchardel, (void) );
@@ -2403,8 +2404,7 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
                     xc = cc;            /* How many new ones we just got */
                     sp9 = atmbuf;
                     printf("%s",sp9);    /* Print them */
-                    while ((*bp++ = *sp9++)) ;   /* Copy to command buffer */
-                    bp--;                       /* Back up over NUL */
+                    cmdcopy(sp9);       /* Copy to command buffer */
                 }
                 *xp = atmbuf;
             }
@@ -2619,8 +2619,7 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
                     }
                     cc = k;             /* How many new ones we just got */
                     printf("%s",sp);    /* Print them */
-                    while ((*bp++ = *sp++)) ;   /* Copy to command buffer */
-                    bp--;                       /* Back up over NUL */
+                    cmdcopy(sp);        /* Copy to command buffer */
                     debug(F110,"cmifi partial cmdbuf",cmdbuf,0);
                     if (setatm(filbuf,0) < 0) {
                         printf("?Partial name too long\n");
@@ -2651,8 +2650,7 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
                     bleep(BP_WARN);
                     printf("%s",sp);
                     cc++;
-                    while ((*bp++ = *sp++)) ;
-                    bp--;
+                    cmdcopy(sp);        /* Copy to command buffer */
                     if (setatm(filbuf,0) < 0) {
                         printf("?Directory name too long\n");
                         if (xnp) free(xnp);
@@ -7233,6 +7231,27 @@ CMDIRPARSE:
 /* Utility functions */
 
 /* A D D B U F  -- Add the string pointed to by cp to the command buffer  */
+
+/*
+  Copy the string sp into the command buffer at bp, stopping at the end
+  of cmdbuf.  Leave bp at the terminating NUL.  Return the number of
+  characters copied.
+*/
+static int
+#ifdef CK_ANSIC
+cmdcopy( char * sp )
+#else
+cmdcopy(sp) char * sp;
+#endif /* CK_ANSIC */
+{
+    int len = 0;
+    while (*sp && bp < cmdbuf + CMDBL) {
+        *bp++ = *sp++;
+        len++;
+    }
+    *bp = NUL;
+    return(len);
+}
 
 static int
 #ifdef CK_ANSIC
