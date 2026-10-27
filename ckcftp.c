@@ -13381,10 +13381,18 @@ initconn() {
                       NULL,NULL,NULL
                       );
             memset((char *)&hisctladdr, 0, sizeof (hisctladdr));
-            for (p9 = tcp_http_proxy, q=host;
-                 *p9 != '\0' && *p9 != ':'; p9++, q++)
+            for (p9 = tcp_http_proxy, q = host;
+                 *p9 != '\0' && *p9 != ':' && q < host + sizeof(host) - 1;
+                 p9++, q++)
               *q = *p9;
             *q = '\0';
+            if (*p9 != '\0' && *p9 != ':') {
+                printf("?HTTP proxy name too long\n");
+#ifdef DEBUG
+                debtim = xdebtim;
+#endif /* DEBUG */
+                return(-1);
+            }
 
             FTP_SIN(hisctladdr)->sin_addr.s_addr = inet_addr(host);
             if (FTP_SIN(hisctladdr)->sin_addr.s_addr !=
@@ -14770,11 +14778,18 @@ ftp_hookup(host, port, tls) char * host; int port; int tls;
 
         ckmakmsg(proxyhost,HTTPCPYL,host,":",ckuitoa(port),NULL);
         for (p = tcp_http_proxy, q = hostname;
-             *p != '\0' && *p != ':';
+             *p != '\0' && *p != ':' && q < hostname + sizeof(hostname) - 1;
              p++, q++
              )
           *q = *p;
         *q = '\0';
+        if (*p != '\0' && *p != ':') {
+            printf("?HTTP proxy name too long\n");
+#ifdef DEBUG
+            debtim = xdebtim;
+#endif /* DEBUG */
+            return((char *) 0);
+        }
 
         if (*p == ':')
           p++;

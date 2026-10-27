@@ -384,6 +384,22 @@ def test_ftp_trust_pasv_address_show(run_wermit):
     assert lines[1].split()[-1] == "on", lines
 
 
+def test_ftp_long_proxy_name_for_data_connection(run_wermit):
+    """Verify initconn() refuses an HTTP proxy name too long to copy.
+
+    The control connection is direct.  The proxy is set afterward, so
+    only the passive data connection goes through it.
+    """
+    reply = b"227 Entering Passive Mode (127,0,0,1,0,9)\r\n"
+    result = _ftp_session(run_wermit, b"220 hi\r\n", {"PASV": reply},
+                          commands=[f"set tcp http-proxy {'p' * 1100}",
+                                    "ftp dir",
+                                    "echo DIR-STATUS=\\v(status)"])
+    assert "OPEN-OK" in result.stdout, result.stdout[-500:]
+    assert "DIR-STATUS=1" in result.stdout, result.stdout[-500:]
+    assert "proxy name too long" in result.stdout, result.stdout[-500:]
+
+
 @pytest.mark.parametrize("reply", [
     b"227 Entering Passive Mode (-1,256,255,256,255,0)\r\n",
     b"227 Entering Passive Mode (127,0,0,1,300,1)\r\n",

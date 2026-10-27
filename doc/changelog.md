@@ -293,13 +293,13 @@ COMPATIBILITY`.
   zero-byte bug was introduced in commit 0fd869b4 in C-Kermit 9.0.302 of 2011.
 
 - [5, 7, 8] Buffer overflows from local input: the RLOGIN startup data with a
-  long USER, an HTTP proxy name filling its buffer, a CONNECT-mode backslash
-  code of 10 or more characters (crashed), and MGET with a pattern directory
-  of 4096 bytes or more.  Added regression tests to cover these bugs, but the
-  RLOGIN and proxy tests detect the overflow only under AddressSanitizer.
-  Bugs were introduced in commit 609e2f39 in C-Kermit 5A(190) of 1994
-  (CONNECT), commit d0f8b1da in C-Kermit 7.0.197 of 2000 (RLOGIN), and commit
-  c88d9b85 in C-Kermit 8.0.200 of 2001 (proxy, MGET).
+  long USER, an HTTP proxy name filling its buffer, a long HTTP proxy name in
+  FTP, a CONNECT-mode backslash code of 10 or more characters (crashed), and
+  MGET with a pattern directory of 4096 bytes or more.  Added regression tests
+  to cover these bugs, but the RLOGIN and proxy tests detect the overflow only
+  under AddressSanitizer.  Bugs were introduced in commit 609e2f39 in C-Kermit
+  5A(190) of 1994 (CONNECT), commit d0f8b1da in C-Kermit 7.0.197 of 2000
+  (RLOGIN), and commit c88d9b85 in C-Kermit 8.0.200 of 2001 (proxy, MGET).
 
 - [8, 10] FTP over TLS, Telnet and raw SSL/TLS connections sent no server
   name (SNI), so a server could return the wrong certificate.  The FTP bug
