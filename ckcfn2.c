@@ -775,9 +775,7 @@ input() {
                     }
                 }
 #ifdef STREAMING
-                if (!(streaming && sndtyp == 'D')) { /* Not streaming | data */
-                    type = rpack();     /* Try to read an acknowledgement */
-                } else {                /* Streaming and in Data phase */
+                if (streaming && sndtyp == 'D') { /* Streaming, Data phase */
                     type = 'Y';         /* Assume all is normal */
                     if (chkint() < 0)   /* Check for console interrupts. */
                       type = 'z';
@@ -800,8 +798,9 @@ input() {
                           type = 'Y';
                     }
                     debug(F000,"input streaming type","",type);
-                }
+                } else
 #endif /* STREAMING */
+                  type = rpack();       /* Try to read an acknowledgement */
                 debug(F111,"input send",(char *) rdatap,(int) type);
                 while (type == 'e') {   /* Handle echoes */
                     debug(F000,"echo discarded","",type);
@@ -1074,6 +1073,7 @@ input() {
                         continue;       /* so resend the S or I */
                     }
                     rsn = x;            /* Else, treat NAK(n+1) as ACK(n) */
+                    type = 'Y';
                     nak2ack = 1;        /* Go back and process the ACK */
                     continue;
                 } else if (y > 0) {     /* NAK for pkt we can't resend */
@@ -1657,7 +1657,9 @@ nxtpkt() {                              /* Called by file sender */
     n = (pktnum + 1) % 64;              /* Increment packet number mod 64 */
     debug(F101,"nxtpkt n","",n);
 #ifdef STREAMING
-    if (!streaming) {
+    if (!streaming)
+#endif /* STREAMING */
+    {
         x = chkwin(n,winlo,wslots);     /* Don't exceed window boundary */
         debug(F101,"nxtpkt chkwin","",x);
         if (x)
@@ -1668,7 +1670,6 @@ nxtpkt() {                              /* Called by file sender */
             return(-1);
         }
     }
-#endif /* STREAMING */
     pktnum = n;
     return(0);
 }
@@ -2127,6 +2128,43 @@ struct opktparm * opkthead = NULL;      /* Linked list of O-packet fields */
 int opktcnt = 0;                        /* O-Packet counter */
 char * srimsg = NULL;                   /* GET-Packet error message */
 
+/* Free the O-Packet list and set opkthead to NULL. */
+
+static VOID
+freeopkt() {
+    struct opktparm * o, * t;
+
+    for (o = opkthead; o; o = t) {
+        t = o->opktnext;
+        if (o->opktitem)
+          free(o->opktitem);
+        free((char *)o);
+    }
+    opkthead = NULL;
+}
+
+/*
+  Append an empty node to the O-Packet list.  The caller sets opktitem.
+  Returns the node, or NULL if malloc() fails.
+*/
+static struct opktparm *
+addopkt() {
+    struct opktparm * o, * t;
+
+    if (!(o = (struct opktparm *)malloc(sizeof(struct opktparm))))
+      return(NULL);
+    o->opktitem = NULL;
+    o->opktnext = NULL;
+    if (!opkthead) {
+        opkthead = o;
+    } else {
+        for (t = opkthead; t->opktnext; t = t->opktnext)
+          ;
+        t->opktnext = o;
+    }
+    return(o);
+}
+
 /* S O P K T  --  Send O-Packet */
 /*
   Sends one O-Packet each time called, using first-fit method of filling
@@ -2145,7 +2183,6 @@ sopkt() {
     int len = 0;                        /* Data field length */
     char c = NUL;
     struct opktparm * o = NULL;
-    struct opktparm * t = NULL;
     struct opktparm * prev = NULL;
     CHAR * dsave = data;
     int x, ssave = spsiz;
@@ -2167,14 +2204,7 @@ sopkt() {
                 debug(F100,"sopkt overflow","",0);
                 spsiz = ssave;          /* Restore these */
                 data = dsave;
-                o = opkthead;           /* Free linked list */
-                while (o) {
-                    if (o->opktitem) free(o->opktitem);
-                    t = o->opktnext;
-                    free((char *)o);
-                    o = t;
-                }
-                opkthead = NULL;
+                freeopkt();
                 srimsg = "GET Packet Too Long for Server";
                 return(-1);             /* Fail */
             } else {                    /* Not first field in packet */
@@ -2197,24 +2227,23 @@ sopkt() {
             free((char *)o);            /* Free this list node */
             o = opkthead;
         } else {                        /* If not head */
+            struct opktparm * done = o;
             o = o->opktnext;            /* Get next */
             prev->opktnext = o;         /* Link previous to next */
+            free((char *)done);         /* Free this list node */
         }
         if (c == '@')                   /* Loop exit */
           break;
         if (!o && !opkthead) {          /* Set up End Of Parameters Field */
-            o = (struct opktparm *)malloc(sizeof(struct opktparm));
-            if (o) {
-                opkthead = o;
+            if ((o = addopkt())) {
                 if (!(o->opktitem = (CHAR *)malloc(3))) {
-                    free((char *)o);
+                    freeopkt();
                     srimsg = "GET Packet Internal Error 8";
                     return(-1);
                 }
                 ckstrncpy((char *)(o->opktitem), "@ ", 3);
                 debug(F111,"sopkt o->opktitem",o->opktitem,
                       strlen((char *)(o->opktitem)));
-                o->opktnext = NULL;
             }
         }
     }
@@ -2280,68 +2309,60 @@ int
     if (opkt) {                         /* Extended GET is totally different */
         char buf[16];
         struct opktparm * o = NULL;
-        struct opktparm * prev = NULL;
 
         buf[0] = NUL;
+        freeopkt();                     /* Discard a list left unsent */
 
         /* Build O-Packet fields and send (perhaps first) O-Packet */
 
         if (oopts > -1) {               /* Write Option flags */
-            o = (struct opktparm *)malloc(sizeof(struct opktparm));
-            if (!o) {
+            if (!(o = addopkt())) {
                 srimsg = "GET Packet Internal Error 2";
                 debug(F100,"srinit malloc fail O1","",0);
                 return(-1);
             }
-            sprintf(buf,"Ox%d",oopts);  /* safe */
+            ckmakmsg(buf,sizeof(buf),"Ox",ckitoa(oopts),NULL,NULL);
             x = (int) strlen(buf+2);
             buf[1] = tochar(x);
             o->opktitem = (CHAR *)malloc(x + 3);
             if (!o->opktitem) {
+                freeopkt();
                 srimsg = "GET Packet Internal Error 3";
                 debug(F100,"srinit malloc fail O2","",0);
                 return(-1);
             }
             ckstrncpy((char *)(o->opktitem),buf,x+3);
-            o->opktnext = NULL;
-            if (!opkthead)
-              opkthead = o;
-            prev = o;
         }
         if (omode > -1) {               /* If Xfer Mode specified, write it */
-            o = (struct opktparm *)malloc(sizeof(struct opktparm));
-            if (!o) {
+            if (!(o = addopkt())) {
+                freeopkt();
                 srimsg = "GET Packet Internal Error 4";
                 debug(F100,"srinit malloc fail M1","",0);
                 return(-1);
             }
-            sprintf(buf,"Mx%d",omode);  /* safe */
+            ckmakmsg(buf,sizeof(buf),"Mx",ckitoa(omode),NULL,NULL);
             x = (int) strlen(buf+2);
             buf[1] = tochar(x);
             o->opktitem = (CHAR *)malloc(x + 3);
             if (!o->opktitem) {
+                freeopkt();
                 srimsg = "GET Packet Internal Error 5";
                 debug(F100,"srinit malloc fail O2","",0);
                 return(-1);
             }
             ckstrncpy((char *)(o->opktitem),buf,x+3);
-            o->opktnext = NULL;
-            if (!opkthead)
-              opkthead = o;
-            else
-              prev->opktnext = o;
-            prev = o;
         }
 
         /* Same deal for oname and opath eventually but not needed now... */
 
         x = (int)strlen(cmarg);           /* Now do filename */
         if (x > spsiz - 4) {
+            freeopkt();
             srimsg = "GET Packet Too Long for Server";
             return(-1);
         }
-        o = (struct opktparm *)malloc(sizeof(struct opktparm));
-        if (!o) {
+        if (!(o = addopkt())) {
+            freeopkt();
             srimsg = "GET Packet Internal Error 6";
             debug(F100,"srinit malloc fail F1","",0);
             return(-1);
@@ -2349,6 +2370,7 @@ int
         left = x + 6;
         o->opktitem = (CHAR *)malloc(left + 1);
         if (!o->opktitem) {
+            freeopkt();
             srimsg = "GET Packet Internal Error 7";
             debug(F100,"srinit malloc fail F2","",0);
             return(-1);
@@ -2366,16 +2388,6 @@ int
             left--;
         }
         ckstrncpy((char *)p,cmarg,left); /* Copy the filename */
-        o->opktnext = NULL;
-        if (!opkthead)
-          opkthead = o;
-        else
-          prev->opktnext = o;
-        prev = o;
-
-        /* End of Parameters */
-
-        prev->opktnext = NULL;          /* End of list. */
         return(sopkt());
     }
 
@@ -3015,7 +3027,12 @@ rpack() {
     if (bctf) {                         /* Type 3 forced on all packets */
         bctl = chklen = 3;
     } else if ((type == 'I' || type == 'S')) { /* Otherwise... */
-        if (recpkt[11] == '5') {        /* Sender is forcing Type 3 */
+/*
+  CHKT is the 8th byte of the data field.  The data starts at recpkt[i+j].
+  A sender that forces Type 3 sends this packet with a 3-byte check, so
+  the data and block check (rln + bctl bytes) hold at least 11 bytes.
+*/
+        if (rln + bctl >= 11 && recpkt[i + j + 7] == '5') {
             bctf = 1;                   /* So we will too */
             bctl = chklen = 3;
             debug(F100,"RECOGNIZE BLOCK CHECK TYPE 5","",0);

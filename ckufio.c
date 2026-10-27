@@ -3469,7 +3469,7 @@ zclosf( int filnum )
 zclosf(filnum) int filnum;
 #endif /* CK_ANSIC */
 {
-    int wstat, out;
+    int out;
     int statusp;
 
     debug(F101,"zclosf filnum","",filnum);
@@ -3501,29 +3501,61 @@ zclosf(filnum) int filnum;
     /* debug(F101,"zclosf fp[ZSYSFN]","", fp[ZSYSFN]); */
 
     if (pid != (PID_T) 0) {
+#ifdef CK_CHILD
+#ifdef WNOHANG
+/*
+  Close the pipe first, so a child that is still writing gets SIGPIPE.
+  A child that reached the end of its output exits by itself, and its
+  exit status is the command's.  Kill only a child that is still
+  running after two seconds.
+*/
+        PID_T w = 0;
+        int tries;
+
+        fclose(fp[filnum]);
+        fp[filnum] = fp[ZSYSFN] = NULL;
+        statusp = 0;
+        for (tries = 0; tries < 200; tries++) {
+            w = waitpid(pid,&statusp,WNOHANG);
+            if (w != 0 && !(w < 0 && errno == EINTR))
+              break;
+            msleep(10);
+        }
+        if (w == 0) {
+            debug(F101,"zclosf killing pid","",pid);
+            kill(pid,9);
+            while ((w = waitpid(pid,&statusp,0)) < 0 && errno == EINTR) ;
+        }
+        if (w != pid)                   /* Reaped elsewhere: no status */
+          statusp = 0;
+#else  /* WNOHANG */
+        int wstat;
+
+        debug(F101,"zclosf killing pid","",pid);
+        kill(pid,9);
+        while ((wstat = wait(&statusp)) != pid && wstat != -1) ;
+#endif /* WNOHANG */
+        pexitstat = (statusp & 0xff) ? statusp : statusp >> 8;
+        debug(F101,"zclosf wait statusp","",statusp);
+        debug(F101,"zclosf wait pexitstat","",pexitstat);
+#else  /* CK_CHILD */
+        int wstat;
+
         debug(F101,"zclosf killing pid","",pid);
 #ifdef Plan9
         kill(pid, SIGKILL);
 #else
         kill(pid,9);
 #endif /* Plan9 */
-
-#ifndef CK_CHILD
 /*
-  This is the original code (before 20 April 1997) and has proven totally
-  portable.  But it does not give us the process's return code.
+  This code does not give us the process's return code.
 */
         while ((wstat = wait((WAIT_T *)0)) != pid && wstat != -1) ;
-#else
-/* Here we try to get the return code.  Let's hope this is portable too. */
-        while ((wstat = wait(&statusp)) != pid && wstat != -1) ;
-        pexitstat = (statusp & 0xff) ? statusp : statusp >> 8;
-        debug(F101,"zclosf wait statusp","",statusp);
-        debug(F101,"zclosf wait pexitstat","",pexitstat);
 #endif /* CK_CHILD */
         pid = 0;
     }
-    fclose(fp[filnum]);
+    if (fp[filnum])
+      fclose(fp[filnum]);
     fp[filnum] = fp[ZSYSFN] = NULL;
 
     ispipe[filnum] = 0;

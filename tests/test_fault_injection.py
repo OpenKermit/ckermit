@@ -356,3 +356,56 @@ def test_malloc_failures_in_ftp_session(wermit_path, faultinj, tmp_path):
         if result.returncode < 0:
             crashed.append((n, result.returncode))
     assert not crashed, crashed
+
+
+def test_write_failures_in_transfer_end_promptly(wermit_path, faultinj,
+                                                 tmp_path):
+    """Verify a failed write() during a Kermit transfer does not stall it.
+
+    Each write() call fails in turn in both the client and the server it
+    starts on a pseudoterminal.  HOME is the test directory, so neither
+    reads an init file.  A failed write of a data packet is a lost
+    packet: a timeout or NAK resends it.  Every run must end without a
+    signal within 13 seconds, time for one 8-second packet timeout.  A
+    SEND that succeeds must deliver the file.  A failed SET HOST ends
+    the run, so SEND never uses the controlling terminal.
+    """
+    (tmp_path / "f.txt").write_text("line one\nline two\n" * 200)
+    (tmp_path / "s").mkdir()
+    srv = tmp_path / "srv.ksc"
+    srv.write_text(f"cd {tmp_path}/s\nset delay 0\nserver\n")
+    cmds = (f"cd {tmp_path}, set delay 0, set host "
+            f"/network-type:pseudoterminal {wermit_path} {srv}, "
+            "if fail exit 1, "
+            "send f.txt, if success echo SENT, finish, close, exit 0")
+    report = tmp_path / "count"
+
+    def run(n, timeout):
+        env = dict(os.environ, LD_PRELOAD=faultinj, FAULT_FUNC="write",
+                   FAULT_N=str(n), FAULT_REPORT=str(report),
+                   HOME=str(tmp_path))
+        return subprocess.run([wermit_path, "-H", "-Y", "-Q", "-C", cmds],
+                              cwd=tmp_path, env=env,
+                              stdin=subprocess.DEVNULL,
+                              capture_output=True, timeout=timeout)
+
+    run(0, 60)
+    total = int(report.read_text().split()[0])
+    assert total > 5, total
+    bad = []
+    for n in range(1, total + 1):
+        received = tmp_path / "s" / "f.txt"
+        if received.exists():
+            received.unlink()
+        try:
+            result = run(n, 13)
+        except subprocess.TimeoutExpired:
+            bad.append((n, "timeout"))
+            continue
+        if result.returncode < 0:
+            bad.append((n, result.returncode))
+        elif b"SENT" in result.stdout and (
+                not received.exists()
+                or received.read_text() != (tmp_path / "f.txt").read_text()):
+            bad.append((n, "success without the file"))
+    assert not bad, bad

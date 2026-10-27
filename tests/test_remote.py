@@ -229,30 +229,6 @@ def test_remote_delete_with_space(tmp_path, wermit_loopback, style):
     assert not (d / name).exists()
 
 
-def test_remote_delete_long_path(tmp_path, wermit_loopback):
-    """Verify REMOTE DELETE of a file with a path over 256 bytes.
-
-    The server's deletion report holds each matched name.  A name longer
-    than 256 bytes must be deleted and reported without overflowing.
-    """
-    deep = tmp_path
-    rel = []
-    for i in range(3):
-        part = chr(97 + i) * 100
-        deep = deep / part
-        rel.append(part)
-    deep.mkdir(parents=True)
-    victim = deep / "victim.txt"
-    victim.write_text("x\n")
-    path = "/".join(rel) + "/vic*"
-
-    result = wermit_loopback(tmp_path,
-                             client_commands=f"remote delete {path}")
-    assert_ok(result)
-    assert not victim.exists()
-    assert "victim.txt" in result.stdout, result.stdout
-
-
 @pytest.mark.parametrize("style", ["none", "brace", "doublequote"])
 def test_remote_directory_with_space(tmp_path, wermit_loopback, style):
     """
@@ -477,6 +453,98 @@ def test_remote_delete_numeric_content_embedded_brace_escaped_fails(
     assert not (d / name).exists()
 
 
+def test_remote_delete_long_path(tmp_path, wermit_loopback):
+    """Verify REMOTE DELETE of a file with a path over 256 bytes.
+
+    The server's deletion report holds each matched name.  A name longer
+    than 256 bytes must be deleted and reported without overflowing.
+    """
+    deep = tmp_path
+    rel = []
+    for i in range(3):
+        part = chr(97 + i) * 100
+        deep = deep / part
+        rel.append(part)
+    deep.mkdir(parents=True)
+    victim = deep / "victim.txt"
+    victim.write_text("x\n")
+    path = "/".join(rel) + "/vic*"
+
+    result = wermit_loopback(tmp_path,
+                             client_commands=f"remote delete {path}")
+    assert_ok(result)
+    assert not victim.exists()
+    assert "victim.txt" in result.stdout, result.stdout
+
+
+NO_FILES = "No files were transferred"
+
+
+@pytest.mark.parametrize("command", ["remote pwd", "remote directory",
+                                     "finish"])
+def test_remote_commands_do_not_report_no_files(tmp_path, wermit_loopback,
+                                                command):
+    """Verify REMOTE commands and FINISH print no zero-file report.
+
+    They transfer no files by design.
+    """
+    (tmp_path / "f.txt").write_text("x")
+    result = wermit_loopback(tmp_path, client_commands=command)
+    assert_ok(result)
+    assert NO_FILES not in result.stdout, result.stdout
+
+
+def test_get_missing_file_reports_no_files(tmp_path, wermit_loopback):
+    """Verify a GET that finds nothing still reports it."""
+    result = wermit_loopback(tmp_path,
+                             client_commands="get nosuchfile.txt")
+    assert NO_FILES in result.stdout, result.stdout
+
+
+def test_failed_remote_command_reports_reason(tmp_path, wermit_loopback):
+    """Verify a failed REMOTE command shows its reason, not a file count."""
+    result = wermit_loopback(tmp_path,
+                             client_commands="remote cd nosuchdir")
+    assert result.returncode != 0
+    assert NO_FILES not in result.stdout, result.stdout
+    assert "Command failed" not in result.stdout, result.stdout
+    assert result.stdout.count("Can't change directory") == 1, \
+        result.stdout
+
+
+def test_remote_cd_long_name(tmp_path, wermit_loopback):
+    """Verify REMOTE CD takes a directory name over 94 characters.
+
+    The client sends a last field over 94 characters with length 0.
+    Length 0 means the rest of the data.
+    """
+    name = "d" * 120
+    (tmp_path / name).mkdir()
+    result = wermit_loopback(tmp_path,
+                             client_commands=f"remote cd {name}, remote pwd")
+    assert_ok(result)
+    assert name in result.stdout
+
+
+def test_remote_copy_rename_long_second_name(tmp_path, wermit_loopback):
+    """Verify REMOTE COPY and RENAME take a second name over 94 characters.
+
+    Only the last field of a generic command can be that long.
+    """
+    (tmp_path / "a.txt").write_text("hello\n")
+    (tmp_path / "b.txt").write_text("world\n")
+    long1 = "c" * 110
+    long2 = "r" * 110
+    result = wermit_loopback(
+        tmp_path,
+        client_commands=f"remote copy a.txt {long1}, "
+                        f"remote rename b.txt {long2}")
+    assert_ok(result)
+    assert (tmp_path / long1).read_text() == "hello\n"
+    assert (tmp_path / long2).read_text() == "world\n"
+    assert not (tmp_path / "b.txt").exists()
+
+
 @pytest.mark.parametrize("command", ["who", "space"])
 def test_remote_who_space_refuse_shell_syntax(tmp_path, wermit_loopback,
                                               command):
@@ -580,13 +648,12 @@ def test_remote_query_still_answers(tmp_path, wermit_loopback):
     assert "Q=C-Kermit" in result.stdout, result.stdout
 
 
-
 def test_remote_assign_long_value_reaches_server(tmp_path,
                                                  wermit_loopback):
     """Verify a long REMOTE ASSIGN value reaches the server intact.
 
-    The command decodes into the server's command buffer, which holds
-    about one receive packet.  A 2000-character value fits in a long
+    The command decodes into the server's command buffer.  That buffer
+    holds about one receive packet.  A 2000-character value fits in a long
     packet and must arrive whole.  The server's script writes its
     length after FINISH.
     """
@@ -608,34 +675,17 @@ def test_remote_assign_long_value_reaches_server(tmp_path,
     assert out.read_text().strip() == "1993", out.read_text()
 
 
-def test_remote_cd_long_name(tmp_path, wermit_loopback):
-    """Verify REMOTE CD takes a directory name over 94 characters.
+def test_remote_host_command_exits_after_its_output(tmp_path,
+                                                    wermit_loopback):
+    """Verify REMOTE HOST succeeds when the command outlives its output.
 
-    The client sends a last field over 94 characters with length 0,
-    which means the rest of the data.
+    The command closes its output and runs one more second.  The server
+    reaches the end of the output first.  It must wait for the command
+    to exit rather than kill it and report the reply as discarded.
     """
-    name = "d" * 120
-    (tmp_path / name).mkdir()
-    result = wermit_loopback(tmp_path,
-                             client_commands=f"remote cd {name}, remote pwd")
-    assert_ok(result)
-    assert name in result.stdout
-
-
-def test_remote_copy_rename_long_second_name(tmp_path, wermit_loopback):
-    """Verify REMOTE COPY and RENAME take a second name over 94 characters.
-
-    Only the last field of a generic command can be that long.
-    """
-    (tmp_path / "a.txt").write_text("hello\n")
-    (tmp_path / "b.txt").write_text("world\n")
-    long1 = "c" * 110
-    long2 = "r" * 110
     result = wermit_loopback(
         tmp_path,
-        client_commands=f"remote copy a.txt {long1}, "
-                        f"remote rename b.txt {long2}")
-    assert_ok(result)
-    assert (tmp_path / long1).read_text() == "hello\n"
-    assert (tmp_path / long2).read_text() == "world\n"
-    assert not (tmp_path / "b.txt").exists()
+        client_commands="remote host {echo hi; exec 1>&- 2>&-; sleep 1}, "
+        "echo RH=\\v(status)")
+    assert "hi" in result.stdout, result.stdout
+    assert "RH=0" in result.stdout, result.stdout

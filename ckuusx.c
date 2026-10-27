@@ -259,6 +259,10 @@ int tt_crd = 0;                         /* Carriage return display */
 int tt_lfd = 0;                         /* Linefeed display */
 int interrupted = 0;                    /* Interrupted from keyboard flag */
 int fxd_inited = 0;                     /* Fullscreen stuff initialized */
+int fxd_restores = 1;                   /* Ending curses restores the screen */
+#ifdef CK_CURSES
+static int fxd_termok = 1;              /* Terminal type known to termcap */
+#endif /* CK_CURSES */
 
 #ifdef DEBUG
 char debfil[CKMAXPATH+1];               /* Debugging log file name */
@@ -1155,7 +1159,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.for","*.f77","*.f","*.F","*.s","*.pas","*.java","*.el","*.lisp","*.sh",
     "*.m4","*.perl","*.pl","*.pod","*.pm","*.awk","*.sno","*.spt","*.sed",
     "*.TXT", "*read.me", "*READ.ME", ".*", "*/.*", "*.mem","*.mac",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
@@ -1164,7 +1168,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.hqx", "*.c", "*.h", "*.cpp", "*.hpp", "*.cxx", "*.w",
     "*.java", "*.bwr", "*.upd", "*.mak", "read.me", "*.map", "makefile",
     "*.mem","*.mac","*.cc","*.pl","*.pod","*.pm","*.m4",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
@@ -1173,7 +1177,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.hlp","*.mss","*.doc","*.bwr","*.cld","*.hex","*.bas","*.ini","*.log",
     "*.mms","*.opt","*.ksc","*.perl","*.pl","*.pod","*.pm","*.sno","*.spt",
     "*.mem",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
@@ -1181,7 +1185,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.txt","*.ksc","*.htm","*.html","*.bat","*.cmd","*.jav","*.asm", "*.hex",
     "*.hqx", "*.c", "*.h", "*.cpp", "*.hpp", "*.cxx", "*.w",
     "*.java", "*.bwr", "*.upd", "*.mak", "read.me", "*.map", "makefile",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
@@ -1189,7 +1193,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.txt","*.ksc","*.htm","*.bat","*.cmd","*.jav","*.asm", "*.hex",
     "*.hqx", "*.c", "*.h", "*.cpp", "*.hpp", "*.cxx", "*.w",
     "*.bwr", "*.upd", "*.mak", "read.me", "*.map", "makefile",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
@@ -1197,7 +1201,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.cmd","*.hlp","*.doc","*.ini","*.txt","*.mac","*.for","*.sai","*.bli",
     "*.pas","*.sno","*.spt","*.pcl","*.mss","*.rno","*.b36","*.tex","*.pub",
     "*.req","*.r36","*.mem","*.bwr","*.ccl","*.ctl","*.rnh","*.ksc",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
@@ -1205,7 +1209,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.cmd","*.hlp","*.doc","*.ini","*.txt","*.mac","*.for","*.sai","*.bli",
     "*.pas","*.sno","*.spt","*.pcl","*.mss","*.rno","*.b36","*.tex","*.pub",
     "*.req","*.r36","*.mem","*.bwr","*.ccl","*.ctl","*.rnh","*.ksc",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
@@ -1213,14 +1217,14 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.txt","*.ksc","*.htm","*.html","*.bat", "*.cmd","*.jav","*.asm","*.hex",
     "*.hqx","*.c",  "*.h",  "*.w",   "*.java","*.bwr","*.upd","*.ttp","*.cm",
     "*.pl1","*.emacs", "read.me", "*.pl", "makefile",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
     {                                   /* DG AOS/VS */
     "*.txt", "*.c", "*.h", "*.w", "*.er", "*.bwr", "*.upd", "read.me",
     "*.cli", "*.ksc",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
@@ -1232,7 +1236,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.ksc","*.bwr","*.upd",
     "*.html","*.htm","*.mss","*.tex","*.nr","*.hex", "*.hqx",
     "*.TXT", "*read.me", "*READ.ME", ".*", "*/.*",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     }
@@ -6380,6 +6384,7 @@ fxdinit(xdispla) int xdispla;
               printf("Fullscreen file transfer display disabled.\n");
             fdispla = XYFD_S;
         }
+        fxd_termok = (x > 0);
 #ifndef MYCURSES
 #ifndef CK_SMG
         ck_termset(x);
@@ -6888,6 +6893,15 @@ ck_termset(x) int x;
     debug(F101,"ck_termset x","",x);
     if (x > 0) {
         char * bp;
+/*
+  A terminal with a "te" string (terminfo rmcup) restores the screen
+  that was there before curses started.  The fullscreen display is then
+  gone when it ends.  Without one the last screen stays visible.
+*/
+        bp = tgsbuf;
+        *bp = NUL;
+        fxd_restores = (tgetstr("te", &bp) && tgsbuf[0]) ? 1 : 0;
+        debug(F101,"ck_termset fxd_restores","",fxd_restores);
         bp = tgsbuf;
         *bp = NUL;
         debug(F110,"ck_termset calling tgetstr","cl",0);
@@ -7650,12 +7664,26 @@ char *s;        /* a string */
 
         if (ck_stdout == NULL || newterm(ev, ck_stdout, stdin) == 0) {
             fprintf(stderr,
-              "Fullscreen display not supported for terminal type: %s\r\n",ev);
+              "Fullscreen display not supported for terminal type: %s\r\n",
+                    ev ? ev : "");
             fdispla = XYFD_S;           /* Use CRT instead */
             return;
         }
         debug(F100,"screenc newterm ok","",0);
 #else
+/*
+  initscr() exits the program if the terminal type is unknown.
+  SET TRANSFER DISPLAY FULLSCREEN selects this display even after
+  fxdinit() found the type unknown, so use the CRT display instead.
+*/
+        if (!fxd_termok) {
+            ev = getenv("TERM");
+            fprintf(stderr,
+              "Fullscreen display not supported for terminal type: %s\r\n",
+                    ev ? ev : "");
+            fdispla = XYFD_S;
+            return;
+        }
         debug(F100,"screen calling initscr","",0);
         initscr();                      /* Initialize curses. */
         debug(F100,"screen initscr ok","",0);

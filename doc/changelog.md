@@ -458,9 +458,94 @@ file, also reach it.
 
 ### File transfer and the server
 
+- [5] RESEND took the receiver's partial file length with no check.  A
+  non-digit or a length past the largest file offset gave a wrong offset,
+  and the receiver appended the wrong part of the file.  The sender now
+  refuses the file, and the receiver keeps its partial file as it was.  A
+  length of "-1" still sends the whole file.  Bug was introduced in commit
+  609e2f39 in C-Kermit 5A(190) of 1994.
+
+- [5, 7] A receiver with SET LANGUAGE set to a language that writes one
+  character as two, such as German `Ä` as `Ae`, lost one later byte of the
+  packet for each such character.  A repeated character that becomes two, sent
+  with a repeat count, was received as the first letter repeated and the second
+  once.  German `ÄÄÄ` became `AAAe` instead of `AeAeAe`.  The lost byte was
+  introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.  The repeat bug
+  was introduced in commit a213649d in C-Kermit 5A(188) of 1992.
+
+- [5, 6, 7] A sender with SET BUFFERS smaller than the default could build
+  packets larger than its send buffer when the receiver allowed long packets.
+  This happened with a window of 1, with a window and SET TRANSFER SLOW-START
+  OFF, and with streaming.  The packet length is now cut so that one packet, or
+  a windowful, fits.  Bug was introduced in commit a213649d in C-Kermit 5A(188)
+  of 1992 (window of 1), commit 4b5eddea in C-Kermit 6.0.192 of 1996 (slow
+  start off), and commit d0f8b1da in C-Kermit 7.0.197 of 2000 (streaming).
+
+- [5, 7] A receiver multiplied a length-in-K attribute by 1024 with no overflow
+  check.  A length past the largest file offset wrapped, and the file transfer
+  display used the wrapped size.  Such a length is now unknown.  A receiver
+  read the rest of a record format attribute longer than 10 characters, or a
+  generic protection attribute longer than 1, as more attributes.  A file could
+  be refused for an attribute the sender did not send.  Bugs were introduced in
+  commit a213649d in C-Kermit 5A(188) of 1992 (length in K) and commit d0f8b1da
+  in C-Kermit 7.0.197 of 2000 (record format and protection).
+
+- [6] With a window of 1, a sender took a NAK for the next packet as a NAK for
+  the current one and sent the current packet again.  The Kermit protocol, and
+  the code's comment, take it as an ACK for the current packet.  Bug was
+  introduced in commit 4b5eddea in C-Kermit 6.0.192 of 1996.
+
+- [6, 7, 9] Send-Init handling had several faults.  The partner's system ID was
+  not terminated.  After SET SEND NEGOTIATION-STRING-MAX-LENGTH with a value
+  from 9 to 16, or a value that cut off the system ID, the Send-Init parameters
+  could run on with parameters left from an earlier, longer Send-Init.  A
+  receiver looked for a forced Type 3 block check (CHKT "5") at a fixed place
+  in the buffer.  A short Send-Init could be refused when an earlier packet had
+  left a "5" there.  A Send-Init with an extended header that asked for the
+  forced check was refused.  CHKT is now read from the data field.  Bugs were
+  introduced in commits 4b5eddea (6.0.192 of 1996), d0f8b1da (7.0.197 of 2000)
+  and 0fd869b4 (9.0.302 of 2011).
+
+- [7] An extended GET after a failed one (GET /RECOVER /DELETE, for
+  example) sent the old request without the new name.  Bug was introduced
+  in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
+
+- [7] A server answering REMOTE HOST, REMOTE SPACE or another command that runs
+  a program killed the program when its output ended, before the program
+  exited.  When the kill came first, the exit status said "killed", and the
+  server marked the reply as discarded, so the client reported failure although
+  it showed the whole reply.  The server now waits up to two seconds for the
+  program to exit, and kills it only after that.  Bug was introduced in commit
+  d0f8b1da in C-Kermit 7.0.197 of 2000.
+
+- [8] SET TRANSFER DISPLAY FULLSCREEN with TERM unset or unknown to
+  terminfo ended Kermit at the start of the next transfer, on systems
+  whose curses has no newterm(), such as NetBSD.  Kermit now uses the CRT
+  display, as it does elsewhere.  The fallback message no longer prints a
+  null pointer when TERM is unset.  Bug was introduced when the terminal
+  type check of SET TRANSFER DISPLAY was disabled in C-Kermit 8.0.201 of
+  2002.
+
+- [8] A failed write of a Data packet abandoned the file without telling
+  the receiver.  The FINISH that followed then took a minute or more to
+  fail.  The packet is now resent like a lost one.  Bug was introduced in
+  commit 7b4ce026 in C-Kermit 8.0.206 of 2002.
+
 - [11] Timeouts use a monotonic clock.  They used the time of day, so a
   clock step lengthened or shortened them.  Bug was introduced in commit
   4521c6b6 in C-Kermit 11.0.510 of 2026.
+
+- [11] "No files were transferred" appeared after REMOTE PWD, REMOTE DIRECTORY,
+  FINISH and BYE, and after successful ZMODEM and other external-protocol
+  transfers.  With the CRT, BRIEF and SERIAL displays it repeated a cause the
+  display had already shown.  Now the result of a transaction is printed only
+  where nothing visible states it.  Bug was introduced in commit 52027325 in
+  C-Kermit 11.0.501 of 2026.
+
+- `*.ts` is no longer a default text pattern.  MPEG transport stream video uses
+  `.ts` as well as TypeScript, and sending such a video in text mode damages
+  it.  A `.ts` file now takes the prevailing transfer mode.  `*.ts` came with
+  commit 976a9742 in C-Kermit 11.0.501 of 2026.
 
 ### FTP and HTTP
 
@@ -627,6 +712,13 @@ file, also reach it.
   crashed Kermit when it was the first S-expression of the session.  Bug was
   introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
 
+### Builds, help and documentation
+
+- [7] A build without streaming support (`-DNOSTREAMING`) could not send
+  files.  The sender never read the receiver's replies, and it got no send
+  buffer for each packet after the first.  Bugs were introduced in commit
+  d0f8b1da in C-Kermit 7.0.197 of 2000.
+
 ## Summary of changed behavior
 
 - [4, 6] A server with HOST disabled refuses PUSH within REMOTE QUERY.
@@ -649,6 +741,9 @@ file, also reach it.
   bits of the sender's permissions.
 
 - [7] A Telnet client ignores TTYPE IS from the server.
+
+- [7] A server waits up to two seconds for a program run by REMOTE HOST
+  and similar commands to exit before it kills it.
 
 - [7] The IKSD does not update its database when it cannot write the
   database lock file.
@@ -693,7 +788,13 @@ file, also reach it.
   RECEIVE PATHNAMES AUTO and no longer re-enable functions that ENABLE
   refuses.
 
+- [11] "No files were transferred" appears only where nothing visible
+  states the result.  A successful FULLSCREEN transfer prints a one-line
+  summary when the display is erased.
+
 - [11] The `CK_DEBUG_UNBUFFERED` environment variable is removed.
+
+- `*.ts` is no longer a default text pattern.
 
 ## Changes in earlier releases that didn't make it into the changelog
 

@@ -3048,6 +3048,7 @@ proto() {
     scan_save = filepeek;
 
     myjob = sstate;
+    fnc_lastdiscard = 0;                /* Reason from this transaction only */
 
 #ifdef CK_LOGIN
     if (isguest) {                      /* If user is anonymous */
@@ -3223,20 +3224,49 @@ proto() {
         tlog(F110," failed:",(char *)epktmsg,0);
     }
 /*
-  Report when a RECEIVE/GET/SEND-class operation delivered no files, so
-  this isn't silent regardless of who called proto().  This
-  also covers the case where the protocol itself calls it a success
-  (eg, a file was discarded because its name collided with an existing
-  file), which the more detailed "RECEIVE- or GET-class command failed"
-  hints elsewhere don't.
+  Report the result where nothing visible states it.  xxscreen() shows
+  nothing when Kermit is in the background, as with no terminal, or with
+  DISPLAY NONE.  Otherwise the CRT, BRIEF and SERIAL displays show each
+  file's result and each error with its cause, and ermsg() shows the
+  reason a server command failed.  The FULLSCREEN display is erased when
+  a transfer ends if the terminal restores its previous screen
+  (fxd_restores).  So the result of a transfer is printed here after
+  such a FULLSCREEN display, NONE or in the background, and the reason a
+  server command failed after NONE or in the background.  An external
+  protocol program reports its result, so only its failure is
+  reported.
 */
-    if (local && !quiet && !inserver && (!xferstat || filcnt <= filrej)) {
-        printf("\r\n No files were transferred");
-        if (!xferstat && *epktmsg)
-          printf(": %s", epktmsg);
-        else if (xferstat && fnc_lastdiscard)
-          printf(" (refused: destination file already exists)");
-        printf(".\r\n");
+    if (local && !quiet && !inserver) {
+        extern int pexitstat, fxd_restores;
+        extern CK_OFF_T tfc;            /* Bytes in the files transferred */
+        int xfer = (myjob == 's' || myjob == 'r' || myjob == 'v');
+        int hidden = (backgrd || fdispla == XYFD_N); /* No display at all */
+        int erased = (fdispla == XYFD_C && fxd_restores); /* Screen gone */
+        if (xfer && protocol != PROTO_K) {
+            if (!xferstat) {
+                printf("\r\n No files were transferred");
+                if (pexitstat > 0)
+                  printf(" (exit status %d)", pexitstat);
+                printf(".\r\n");
+            }
+        } else if (xfer && (!xferstat || filcnt <= filrej)) {
+            if (hidden || erased) {
+                printf("\r\n No files were transferred");
+                if (!xferstat && *epktmsg)
+                  printf(": %s", epktmsg);
+                else if (xferstat && fnc_lastdiscard)
+                  printf(" (refused: destination file already exists)");
+                printf(".\r\n");
+            }
+        } else if (xfer) {
+            if (!hidden && erased) {
+                int n = filcnt - filrej;
+                printf("\r\n Transfer complete: %d file%s, %s bytes.\r\n",
+                       n, (n == 1) ? "" : "s", ckfstoa(tfc));
+            }
+        } else if (!xferstat && *epktmsg && hidden) {
+            printf("?%s\r\n", epktmsg); /* As ermsg() shows it */
+        }
         fflush(stdout);
     }
     debug(F111,"proto xferstat",epktmsg,xferstat);
