@@ -8159,8 +8159,11 @@ checkuser(name) char *name;
             debug(F110,"checkuser line",line,0);
             if (line[0] <= '#')
               continue;
-            if (strncmp(line, name, i) == 0) {
+            if (strncmp(line, name, i) == 0 && /* The whole first word */
+                (line[i] == '\0' || line[i] == '\n' || line[i] == '\r' ||
+                 line[i] == ' ' || line[i] == '\t')) {
                 debug(F110,"checkuser REFUSED",name,0);
+                (VOID) fclose(fd);
                 return(1);
             }
             line[0] = '\0';

@@ -5,7 +5,7 @@ import pytest
 
 from conftest import (
     _make_leaf, assert_ok, ssl_client_setup_cmds, ssl_server_setup_cmds,
-    TELNET_REFUSE_KERMIT_CLAUSE,
+    TELNET_REFUSE_KERMIT_CLAUSE, TelnetTlsClient,
 )
 
 pytestmark = pytest.mark.skipif(
@@ -561,6 +561,28 @@ def test_telnet_with_cert_negotiates_starttls_automatically(
     assert "[TLS -" in result.stdout
     assert "TLS failed" not in result.stdout
     assert str(server_dir) in result.stdout
+
+
+def test_telnet_server_starttls_handshake_in_same_read(
+        server_dir, wermit_tcp_loopback, ssl_pki):
+    """Verify a Telnet server reads a ClientHello sent with FOLLOWS.
+
+    The client sends SB START_TLS FOLLOWS and the ClientHello in one
+    send, so the server can read both at once.  The handshake must
+    still complete.
+    """
+    session = wermit_tcp_loopback(
+        server_dir, protocol="telnet",
+        setup_cmds=(
+            f"{ssl_server_setup_cmds(ssl_pki)}, "
+            f"{TELNET_REFUSE_KERMIT_CLAUSE}"
+        ),
+    )
+    client = TelnetTlsClient(session.port, ssl_pki, [])
+    try:
+        assert client.wait_tls(timeout=15), session.server_output()
+    finally:
+        client.sock.close()
 
 
 def test_ssl_ip_address_matches_certificate_ip_san(server_dir,

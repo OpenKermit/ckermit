@@ -5627,8 +5627,14 @@ tn_rnenv(rnsb, len) CHAR * rnsb; int len;
                             auth_finished(AUTH_USER);
 #ifdef CK_SSL
                             if (ssl_active_flag || tls_active_flag) {
-                                if ( tls_is_user_valid(ssl_con, uidbuf) )
+                                extern char szUserNameAuthenticated[];
+                                SSL * con = ssl_active_flag ? ssl_con
+                                                            : tls_con;
+                                if (tls_is_user_valid(con, uidbuf)) {
+                                    ckstrncpy(szUserNameAuthenticated,
+                                              uidbuf,UIDBUFLEN);
                                     auth_finished(AUTH_VALID);
+                                }
                             }
 #endif /* CK_SSL */
                         }

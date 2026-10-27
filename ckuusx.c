@@ -9963,7 +9963,7 @@ slotstate( int x, char *s1, char *s2, char *s3 )
 slotstate(x,s1,s2,s3) int x; char *s1, *s2, *s3;
 #endif /* CK_ANSIC */
 {
-    int k, l1, l2, l3, z;
+    int k, l1, l2, l3, n, z;
     mystate = x;
     debug(F101,"slotstate ikdbopen","",ikdbopen);
     if (!ikdbopen)
@@ -9980,20 +9980,22 @@ slotstate(x,s1,s2,s3) int x; char *s1, *s2, *s3;
     if (z > dB_INFO)
       z = dB_INFO;
     strncpy(&dbrec[DB_ILEN],ulongtohex((unsigned long)z,k),k);
+/*
+  Fill the INFO field with s1, s2 and s3, each followed by a space.  A
+  piece that does not fit in the remaining room is truncated.
+*/
     k = dbfld[db_INFO].len;
     z = dbfld[db_INFO].off;
-    if (l1 <= k) {
-        lset(&dbrec[z],s1,l1+1,32);
-        z += l1+1;
-        k -= l1+1;
-        if (l2 <= k) {
-            lset(&dbrec[z],s2,l2+1,32);
-            z += l2+1;
-            k -= l2+1;
-            if (l3 <= k)
-              lset(&dbrec[z],s3,k,32);
-        }
-    }
+    n = (l1 + 1 < k) ? l1 + 1 : k;
+    lset(&dbrec[z],s1,n,32);
+    z += n;
+    k -= n;
+    n = (l2 + 1 < k) ? l2 + 1 : k;
+    lset(&dbrec[z],s2,n,32);
+    z += n;
+    k -= n;
+    if (k > 0)
+      lset(&dbrec[z],s3,k,32);
 #ifdef DEBUG
     if (deblog) {
         char buf[128];
@@ -10026,6 +10028,8 @@ slotdir(s1,s2) char * s1, * s2;
     k = dbfld[db_DLEN].len;
     strncpy(&dbrec[DB_DLEN],ulongtohex((unsigned long)(len1+len2),k),k);
     k = dbfld[db_DIR].len;
+    if (len1 > k)                       /* The root fills the field */
+      len1 = k;
     if (len1 > 0) {
         lset(&dbrec[dbfld[db_DIR].off],s1,len1,32);
         lset(&dbrec[dbfld[db_DIR].off+len1],s2,k-len1,32);
@@ -10139,9 +10143,26 @@ getslot() {                             /* Find a free slot for us */
     }
     /* Write my (decimal) PID into the temp file */
 
-    dummy = (int)write(lockfd,idstring,(int)strlen(idstring));
+    x = (int)strlen(idstring);
+    if ((int)write(lockfd,idstring,x) != x) {
+        /*
+          A lock file without an address and PID never looks stale.
+          An update without the lock can damage the database.  So
+          remove the temporary file and leave the database alone.
+        */
+        debug(F111,"getslot temp lockfile write failure", tmplck, errno);
+        close(lockfd);
+        unlink(tmplck);
+#ifdef CKSYSLOG
+        if (ckxsyslog >= SYSLG_LI && ckxlogging)
+          cksyslog(SYSLG_LI, 0, "IKSD database not updated",
+                   "can't write lockfile", tmplck);
+#endif /* CKSYSLOG */
+        return(-1);
+    }
     if (close(lockfd) < 0) {            /* Close lockfile */
         debug(F101,"getslot error closing temp lockfile", "", errno);
+        unlink(tmplck);
         return(-1);
     }
     /* Build lockfile name */
@@ -10155,26 +10176,23 @@ getslot() {                             /* Find a free slot for us */
         fclose(rfp);                    /* and close it quickly */
         debug(F110,"getslot lock exists",pidbuf,0);
         if (x > 0) {                    /* If we have a PID, check it */
-            char * s = pidbuf;
-            while (*s) {
-                if (*s == ':') {
-                    *s = NUL;
-                    debug(F110,"getslot lock addr",pidbuf,0);
-                    debug(F110,"getslot my   addr",mylockaddr,0);
-                    if (!strcmp(pidbuf,mylockaddr)) { /* Same host? */
-                        lockpid = atol(s+1); /* Yes, now get PID */
-                        debug(F101,"getslot lockpid","",lockpid);
+            /* "ADDRESS:PID".  An IPv6 address contains colons too. */
+            char * s = strrchr(pidbuf,':');
+            if (s) {
+                *s = NUL;
+                debug(F110,"getslot lock addr",pidbuf,0);
+                debug(F110,"getslot my   addr",mylockaddr,0);
+                if (!strcmp(pidbuf,mylockaddr)) { /* Same host? */
+                    lockpid = atol(s+1); /* Yes, now get PID */
+                    debug(F101,"getslot lockpid","",lockpid);
 
-                        /* Check if PID lockpid on this computer is alive */
-                        x = zchkpid(lockpid);
-                        if (!x) {
-                            debug(F100,"getslot PID stale,removing lock","",0);
-                            unlink(lcknam);
-                        }
-                        break;
+                    /* Check if PID lockpid on this computer is alive */
+                    x = zchkpid(lockpid);
+                    if (!x) {
+                        debug(F100,"getslot PID stale,removing lock","",0);
+                        unlink(lcknam);
                     }
                 }
-                s++;
             }
         } else {
             debug(F111,"getslot lockfile open failure",lcknam,errno);
@@ -10190,14 +10208,15 @@ getslot() {                             /* Find a free slot for us */
     }
     if (tries < 1) {                    /* Couldn't */
         debug(F110,"getslot create lock failure",lcknam,0);
+        unlink(tmplck);                 /* Don't leave the temp file */
         return(-1);
     }
     /* Have lock, open database */
 
     debug(F110,"getslot has lock",lcknam,0); /* Have lock */
 
-    if (!dbfile)
-      return(-1);
+    if (!dbfile)                        /* dbinit() failed */
+      goto xslot;                       /* Release the lock */
 
     /* If the database doesn't exist, create it.
       

@@ -1020,7 +1020,7 @@ unit-test:
 		tests/unit/bin/test_rq_confirm tests/unit/bin/test_fnsplit \
 		tests/unit/bin/test_fpformat tests/unit/bin/test_shuffledate \
 		tests/unit/bin/test_hostaddr tests/unit/bin/test_zstrdt \
-		tests/unit/bin/test_deadline
+		tests/unit/bin/test_deadline tests/unit/bin/test_slotstate
 	./tests/unit/bin/test_lib
 	./tests/unit/bin/test_strings
 	./tests/unit/bin/test_net
@@ -1034,6 +1034,7 @@ unit-test:
 	./tests/unit/bin/test_hostaddr
 	./tests/unit/bin/test_zstrdt
 	./tests/unit/bin/test_deadline
+	./tests/unit/bin/test_slotstate
 
 # Rules for the unit test binaries.
 #
@@ -1236,6 +1237,30 @@ tests/unit/bin/test_fnsplit: tests/unit/test_fnsplit.c ckuusx.c ckucmd.c \
 		tests/unit/bin/ckuusx_test_fs.$(EXT) \
 		tests/unit/bin/ckucmd_test_fs.$(EXT) \
 		tests/unit/bin/ckclib_test_fs.$(EXT) \
+		-o $@ $$GCSECTIONS $$CHECKLIBS
+
+# test_slotstate exercises slotstate() from ckuusx.c.  The test file
+# stubs the file and time functions that ckuusx.c's dodebug() calls.
+
+tests/unit/bin/test_slotstate: tests/unit/test_slotstate.c ckuusx.c \
+  ckucmd.c ckclib.c ckcfnp.h
+	@mkdir -p tests/unit/bin
+	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	case `uname -s` in \
+	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
+	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
+	esac; \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
+		-c ckuusx.c -o tests/unit/bin/ckuusx_test_ss.$(EXT); \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
+		-c ckucmd.c -o tests/unit/bin/ckucmd_test_ss.$(EXT); \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
+		-c ckclib.c -o tests/unit/bin/ckclib_test_ss.$(EXT); \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
+		tests/unit/test_slotstate.c \
+		tests/unit/bin/ckuusx_test_ss.$(EXT) \
+		tests/unit/bin/ckucmd_test_ss.$(EXT) \
+		tests/unit/bin/ckclib_test_ss.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
 
 # test_fpformat exercises fpformat() from ckuus4.c. ckuus4.c as a

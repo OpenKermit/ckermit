@@ -2057,7 +2057,11 @@ doiksdinit() {
 #endif /* NOSPL */
         debug(F110,"doiksdinit file ok",tfnam[tlevel],0);
     } else {
-        debug(F110,"doiksdinit open failed",tfnam[tlevel],0);
+#ifdef OS2
+        debug(F110,"doiksdinit open failed",line,0);
+#else /* OS2 */
+        debug(F110,"doiksdinit open failed",iksdconf,0);
+#endif /* OS2 */
     }
 #endif /* IKSDCONF */
 }

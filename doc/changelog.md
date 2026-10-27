@@ -316,6 +316,34 @@ COMPATIBILITY`.
   byte at a time until the client's FOLLOWS ends.  Bug was introduced in
   commit d0f8b1da in C-Kermit 7.0.197 of 2000.
 
+### IKSD
+
+- [7] When the IKSD cannot write its address and PID into the database lock
+  file, it removes the temporary file and does not update the database.  A
+  build with syslog support (`-DDOSYSLOG`) logs the failure.  It used to
+  install a lock file without a PID.  If the IKSD ended while it held that
+  lock, the lock never looked stale and blocked every later database update.
+  Bug was introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
+
+- [7, 11] The IKSD forbidden-user file refused any login name that was a
+  prefix of a listed name.  The file was left open after a refusal, the
+  database lock stayed when the database name was missing, and a stale
+  IPv6 lock was not recognized.  The prefix and lock bugs were introduced
+  in commit d0f8b1da in C-Kermit 7.0.197 of 2000.  The IPv6 bug was introduced
+  in commit 36668be5 in C-Kermit 11.0.501 of 2026.
+
+- [7] A Telnet server or IKSD that received a second, different USER after
+  a START-TLS certificate login checked the client certificate for the new
+  user on the wrong connection.  The check always failed and asked for a
+  password.  It now uses the START-TLS connection, as the check of the
+  first USER does.  Bug was introduced in commit d0f8b1da in C-Kermit
+  7.0.197 of 2000.
+
+- [7] An IKSD started with an `--anonroot` path longer than 1024 bytes wrote
+  the path past the directory field of its session database record, into the
+  next field.  The path is now cut at the end of the field.  Bug was introduced
+  in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
+
 ### Scripting and commands
 
 - [7] WAIT n FILE succeeded on timeout even if the event never happened.  Bug
@@ -348,6 +376,9 @@ COMPATIBILITY`.
   bits of the sender's permissions.
 
 - [7] A Telnet client ignores TTYPE IS from the server.
+
+- [7] The IKSD does not update its database when it cannot write the
+  database lock file.
 
 - [8] FTP MGET /RECURSIVE skips server names that leave the current
   directory.
