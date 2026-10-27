@@ -4,7 +4,9 @@ A scripted one-connection server sends boundary-length or malformed
 replies. wermit processes them without crashing, and completes login
 when the replies are valid.
 """
+import resource
 import socket
+import subprocess
 import threading
 import time
 
@@ -324,6 +326,31 @@ def test_ftp_mget_refuses_unsafe_server_names(run_wermit, tmp_path,
     assert retrs == [b"ok.txt"], retrs
 
 
+@pytest.mark.parametrize("retr_reply,settings", [
+    (b"150 opening\r\n", ["set ftp timeout 2"]),
+    (b"150 opening\r\n425 cannot open data connection\r\n", []),
+])
+def test_ftp_active_get_server_never_connects(run_wermit, tmp_path,
+                                              retr_reply, settings):
+    """Verify an active-mode GET ends when no data connection arrives.
+
+    The server accepts PORT and RETR but never connects back.  wermit
+    gives up at the FTP timeout, or at once when the server sends a
+    further reply on the control connection.
+    """
+    start = time.monotonic()
+    result = _ftp_session(
+        run_wermit, b"220 hi\r\n",
+        {"RETR": retr_reply, "SIZE": b"550 no\r\n", "MDTM": b"550 no\r\n"},
+        commands=[f"cd {tmp_path}", "set ftp passive off", *settings,
+                  "ftp get x.txt", "echo GET-STATUS=\\v(status)"],
+        timeout=40)
+    elapsed = time.monotonic() - start
+    assert "OPEN-OK" in result.stdout, result.stdout
+    assert "GET-STATUS=1" in result.stdout, result.stdout
+    assert elapsed < 15, elapsed
+
+
 def test_ftp_pasv_address_is_ignored(run_wermit, tmp_path):
     """Verify the data connection goes to the control connection's peer.
 
@@ -398,6 +425,119 @@ def test_ftp_long_proxy_name_for_data_connection(run_wermit):
     assert "OPEN-OK" in result.stdout, result.stdout[-500:]
     assert "DIR-STATUS=1" in result.stdout, result.stdout[-500:]
     assert "proxy name too long" in result.stdout, result.stdout[-500:]
+
+
+def test_ftp_unknown_proxy_host_for_data_connection(run_wermit):
+    """Verify initconn() fails when the HTTP proxy host is unknown.
+
+    The client must not send LIST without a data connection.
+    """
+    reply = b"227 Entering Passive Mode (127,0,0,1,0,9)\r\n"
+    result = _ftp_session(run_wermit, b"220 hi\r\n", {"PASV": reply},
+                          commands=["set tcp http-proxy nosuch.invalid:9",
+                                    "set ftp debug on",
+                                    "ftp dir",
+                                    "echo DIR-STATUS=\\v(status)"])
+    assert "OPEN-OK" in result.stdout, result.stdout[-500:]
+    assert "DIR-STATUS=1" in result.stdout, result.stdout[-500:]
+    assert "---> LIST" not in result.stdout, result.stdout[-500:]
+
+
+def _record_connect():
+    """Start a one-connection HTTP proxy that refuses CONNECT.
+
+    Returns (port, thread, socket, list of request heads).
+    """
+    heads = []
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    srv.settimeout(20)
+
+    def run():
+        try:
+            conn, _ = srv.accept()
+        except OSError:
+            return
+        with conn:
+            conn.settimeout(20)
+            buf = b""
+            try:
+                while b"\r\n\r\n" not in buf:
+                    chunk = conn.recv(4096)
+                    if not chunk:
+                        return
+                    buf += chunk
+                heads.append(buf.split(b"\r\n\r\n", 1)[0]
+                             .decode("latin-1"))
+                conn.sendall(b"HTTP/1.1 403 Forbidden\r\n"
+                             b"Content-Length: 0\r\n\r\n")
+            except OSError:
+                pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    return srv.getsockname()[1], thread, srv, heads
+
+
+@pytest.mark.parametrize("trust,target", [
+    ("off", "127.0.0.1:9"),
+    ("on", "10.255.255.1:9"),
+])
+def test_ftp_proxy_pasv_connect_target(run_wermit, trust, target):
+    """Verify the proxy CONNECT target for a passive data connection.
+
+    The PASV reply names 10.255.255.1.  With TRUST-PASV-ADDRESS OFF the
+    target is the host named in FTP OPEN.  With ON it is the reply's
+    address.
+    """
+    reply = b"227 Entering Passive Mode (10,255,255,1,0,9)\r\n"
+    pport, pthread, psrv, heads = _record_connect()
+    try:
+        result = _ftp_session(
+            run_wermit, b"220 hi\r\n", {"PASV": reply},
+            commands=[f"set ftp trust-pasv-address {trust}",
+                      f"set tcp http-proxy 127.0.0.1:{pport}",
+                      "ftp dir"])
+    finally:
+        psrv.close()
+        pthread.join(timeout=5)
+    assert heads, result.stdout[-500:]
+    assert heads[0].startswith(f"CONNECT {target} "), heads
+
+
+def test_ftp_proxy_data_connection_closes_socket(wermit_path):
+    """Verify a failed proxy data connection leaves no socket open.
+
+    Each FTP DIR opens a socket for passive mode, and the HTTP proxy
+    refuses the connection.  With 40 descriptors, a leak of one socket
+    per DIR exhausts them within 100 commands.
+    """
+    reply = b"227 Entering Passive Mode (127,0,0,1,0,9)\r\n"
+    port, thread, srv = _serve_ftp(b"220 hi\r\n", {"PASV": reply})
+
+    def limit():
+        resource.setrlimit(resource.RLIMIT_NOFILE, (40, 40))
+    try:
+        result = subprocess.run(
+            [wermit_path, "-H", "-Y", "-Q", "-C", ", ".join([
+                "set command more-prompting off",
+                f"ftp open 127.0.0.1 {port} /user:u /password:p",
+                "set tcp http-proxy 127.0.0.1:1",
+                "for \\%i 1 100 1 { ftp dir }",
+                "echo LOOP-DONE",
+                "ftp close",
+                "exit",
+            ])],
+            stdin=subprocess.DEVNULL, capture_output=True, text=True,
+            timeout=120, preexec_fn=limit, start_new_session=True)
+    finally:
+        srv.close()
+        thread.join(timeout=5)
+    out = result.stdout + result.stderr
+    assert "LOOP-DONE" in result.stdout, out[-500:]
+    assert "Too many open files" not in out, out[-500:]
 
 
 @pytest.mark.parametrize("reply", [
@@ -559,3 +699,140 @@ def test_ftp_mlsd_names_with_equals_and_space(run_wermit, tmp_path):
         srv.close()
         thread.join(timeout=5)
     assert sorted(retrs) == [b"a=b.txt", b"c;d.txt", b"e.txt"], retrs
+
+
+def test_ftp_user_without_password_sends_no_stale_text(run_wermit):
+    """Verify FTP USER with no password does not send leftover text.
+
+    GREP leaves its pattern in a buffer that FTP USER uses for the
+    password.  With no password given, none is saved, and standard
+    input is empty, the PASS command must not carry the pattern.
+    """
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    srv.settimeout(20)
+    table = dict(DEFAULT_REPLIES)
+    table["USER"] = b"331 password please\r\n"
+    received = []
+
+    def run():
+        try:
+            conn, _ = srv.accept()
+        except OSError:
+            return
+        with conn:
+            conn.settimeout(20)
+            try:
+                conn.sendall(b"220 hi\r\n")
+                for line in conn.makefile("rb"):
+                    received.append(line.strip())
+                    verb = line.split(b" ")[0].strip().upper().decode(
+                        "ascii", "replace")
+                    conn.sendall(table.get(verb, b"200 ok\r\n"))
+                    if verb == "QUIT":
+                        break
+            except OSError:
+                pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    port = srv.getsockname()[1]
+    try:
+        run_wermit(", ".join([
+            "grep SECRET-PATTERN /dev/null",
+            "set ftp autologin off",
+            f"ftp open 127.0.0.1 {port}",
+            "ftp user u",
+            "ftp close",
+            "exit",
+        ]), timeout=30)
+    finally:
+        srv.close()
+        thread.join(timeout=5)
+    passes = [r for r in received if r.upper().startswith(b"PASS")]
+    assert passes, received
+    assert not any(b"SECRET-PATTERN" in p for p in passes), passes
+
+
+def _serve_active_retr(payload):
+    """Start a one-connection FTP peer for an active-mode RETR.
+
+    On RETR it connects to the PORT or EPRT address, sends payload,
+    closes the data connection, and only then sends the 150 and 226
+    replies in one write.  So both replies are in wermit's control
+    buffer while its data connection waits in the listen queue.
+    Return (port, thread, socket).
+    """
+    table = dict(DEFAULT_REPLIES)
+    table.update({"SIZE": b"550 no\r\n", "MDTM": b"550 no\r\n",
+                  "REST": b"350 ok\r\n"})
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    srv.settimeout(20)
+
+    def run():
+        try:
+            conn, _ = srv.accept()
+        except OSError:
+            return
+        addr = None
+        with conn:
+            conn.settimeout(20)
+            try:
+                conn.sendall(b"220 ready\r\n")
+                for line in conn.makefile("rb"):
+                    words = line.strip().split(b" ", 1)
+                    verb = words[0].upper().decode("ascii", "replace")
+                    arg = words[1].decode("ascii") if len(words) > 1 else ""
+                    if verb == "PORT":
+                        f = [int(x) for x in arg.split(",")]
+                        addr = (".".join(map(str, f[:4])), f[4] * 256 + f[5])
+                        conn.sendall(b"200 ok\r\n")
+                    elif verb == "EPRT":
+                        f = arg.split(arg[0])
+                        addr = (f[2], int(f[3]))
+                        conn.sendall(b"200 ok\r\n")
+                    elif verb == "RETR" and addr:
+                        with socket.create_connection(addr, 10) as d:
+                            d.sendall(payload)
+                        conn.sendall(b"150 opening\r\n226 done\r\n")
+                    else:
+                        conn.sendall(table.get(verb, b"200 ok\r\n"))
+                    if verb == "QUIT":
+                        break
+            except OSError:
+                pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    return srv.getsockname()[1], thread, srv
+
+
+def test_ftp_active_get_with_replies_before_accept(run_wermit, tmp_path):
+    """Verify an active-mode GET when the replies precede the accept.
+
+    The server connects, sends the file and replies 150 and 226 before
+    wermit looks for the data connection.  The connection waits in the
+    listen queue, so wermit must accept it rather than take the waiting
+    replies for a refusal.
+    """
+    payload = b"active mode data\n" * 100
+    port, thread, srv = _serve_active_retr(payload)
+    out = tmp_path / "got.dat"
+    try:
+        result = run_wermit(", ".join([
+            f"ftp open 127.0.0.1 {port} /active /user:u /password:p",
+            "ftp type binary",
+            f"ftp get f.dat {out}",
+            "echo GET=\\v(status)",
+            "ftp close",
+            "exit",
+        ]), timeout=60)
+    finally:
+        srv.close()
+        thread.join(timeout=5)
+    assert "GET=0" in result.stdout, result.stdout
+    assert out.read_bytes() == payload

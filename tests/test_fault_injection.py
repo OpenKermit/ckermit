@@ -309,3 +309,50 @@ def test_pty_sync_failure_runs_nothing(wermit_path, faultinj, tmp_path):
     assert not (tmp_path / "marker").exists()
     assert masters == [], masters
     assert kids == [], kids
+
+
+def test_malloc_failures_in_ftp_session(wermit_path, faultinj, tmp_path):
+    """Verify no allocation failure in an FTP session crashes wermit.
+
+    Each malloc() made after startup fails in turn while wermit logs in
+    to a scripted FTP server, lists files with MLSD, fetches them and
+    closes.  A new server serves each run.  Every run must end without
+    a signal.
+    """
+    from test_ftp_commands import FtpPeer
+    listing = [b"type=file;size=5;modify=20200101000000; a.txt",
+               b"type=dir; sub", b"type=file;size=3 b.txt"]
+    report = tmp_path / "count"
+
+    def run(n, script=None):
+        """Run with malloc() call n failing; return (result, peer)."""
+        peer = FtpPeer({"FEAT": b"211-Features:\r\n MLST type*;size*;"
+                                b"modify*;\r\n MDTM\r\n211 End\r\n",
+                        "MDTM": b"213 20200101000000\r\n"},
+                       listing=listing)
+        if script is None:
+            script = (f"ftp open 127.0.0.1 {peer.port} /user:u /password:p, "
+                      "ftp mget *, ftp get /update a.txt, ftp close")
+        env = dict(os.environ, LD_PRELOAD=faultinj, FAULT_FUNC="malloc",
+                   FAULT_N=str(n), FAULT_REPORT=str(report))
+        try:
+            result = subprocess.run(
+                [wermit_path, "-H", "-Y", "-Q", "-C", script + ", exit 0"],
+                cwd=tmp_path, env=env, stdin=subprocess.DEVNULL,
+                capture_output=True, timeout=60)
+        finally:
+            peer.close()
+        return result, peer
+
+    run(0, "echo")
+    first = int(report.read_text().split()[0]) + 1
+    _, peer = run(0)
+    last = int(report.read_text().split()[0])
+    assert peer.sent("MLSD") and peer.sent("RETR"), peer.commands
+    assert last > first, (first, last)
+    crashed = []
+    for n in range(first, last + 1):
+        result, _ = run(n)
+        if result.returncode < 0:
+            crashed.append((n, result.returncode))
+    assert not crashed, crashed

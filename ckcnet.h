@@ -1572,6 +1572,7 @@ _PROTOTYP( int ck_tcp_connect, (char *, char *, int, int *,
 _PROTOTYP( int ck_scopeaddr6, (char *, struct in6_addr *, unsigned int *) );
 #endif /* CK_IPV6 */
 _PROTOTYP( int ck_splithostport, (char *, char *, int, char *, int) );
+_PROTOTYP( VOID ck_hostport, (char *, int, char *, char *) );
 _PROTOTYP( VOID ck_bracketaddr, (char *, int) );
 #ifdef CK_VSOCK
 _PROTOTYP( int ck_parse_vsock_addr,

@@ -2332,6 +2332,53 @@ ck_bracketaddr(buf,buflen) char * buf; int buflen;
     ckstrncat(buf,"]",buflen);
 }
 
+#ifndef NOHTTP
+/*
+  Store "host:port" in buf, a buffer of buflen bytes.  An IPv6 address
+  literal is enclosed in brackets, as HTTP Host and CONNECT require.
+*/
+VOID
+#ifdef CK_ANSIC
+ck_hostport(char * buf, int buflen, char * host, char * port)
+#else /* CK_ANSIC */
+ck_hostport(buf,buflen,host,port) char * buf; int buflen; char * host;
+    char * port;
+#endif /* CK_ANSIC */
+{
+    char hbuf[NAMECPYL+2];
+
+    ckstrncpy(hbuf,host,sizeof(hbuf));
+    ck_bracketaddr(hbuf,sizeof(hbuf));
+    ckmakmsg(buf,buflen,hbuf,":",port,NULL);
+}
+
+/*
+  Split "host[:port]" or "[v6addr][:port]" in buf, a buffer of buflen
+  bytes, in place.  On return buf holds the host.  The port, or defport
+  if none was given, follows the host's NUL, and the return value points
+  to it.  Returns NULL for a malformed bracketed address.
+*/
+static char *
+#ifdef CK_ANSIC
+ck_splitinplace(char * buf, int buflen, char * defport)
+#else /* CK_ANSIC */
+ck_splitinplace(buf,buflen,defport) char * buf; int buflen; char * defport;
+#endif /* CK_ANSIC */
+{
+    char hbuf[NAMECPYL], pbuf[NAMECPYL];
+    int n;
+
+    if (ck_splithostport(buf,hbuf,sizeof(hbuf),pbuf,sizeof(pbuf)) < 0)
+      return(NULL);
+    ckstrncpy(buf,hbuf,buflen);
+    n = (int)strlen(buf) + 1;
+    if (n >= buflen)
+      return(NULL);
+    ckstrncpy(buf + n,pbuf[0] ? pbuf : defport,buflen - n);
+    return(buf + n);
+}
+#endif /* NOHTTP */
+
 #ifdef EXCELAN
 /*
   Most other BSD sockets implementations define these in header files
@@ -5604,8 +5651,8 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
 #ifndef NOHTTP
    /* For HTTP connections we must preserve the original hostname and */
    /* service requested so we can include them in the Host header.    */
-    ckmakmsg(http_host_port,sizeof(http_host_port),namecopy,":",
-              ckitoa(ntohs((unsigned short)service->s_port)),NULL);
+    ck_hostport(http_host_port,sizeof(http_host_port),namecopy,
+                ckitoa(ntohs((unsigned short)service->s_port)));
 
     /* 'namecopy' contains the name of the host to which we want to connect */
     /* 'svcbuf'   contains the service name                                 */
@@ -5618,19 +5665,16 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
     /* with the port number of the proxy (default port 80).                 */
 
     if ( tcp_http_proxy ) {
-        ckmakmsg(proxycopy,sizeof(proxycopy),namecopy,":",
-                 ckuitoa(ntohs((unsigned short)service->s_port)),NULL);
+        ck_hostport(proxycopy,sizeof(proxycopy),namecopy,
+                    ckuitoa(ntohs((unsigned short)service->s_port)));
         /* Leave room after the name for a service name or port number */
         ckstrncpy(namecopy,tcp_http_proxy,NAMECPYL-8);
 
-        p = namecopy;                       /* Was a service requested? */
-        while (*p != '\0' && *p != ':') p++; /* Look for colon */
-        if (*p == ':') {                    /* Have a colon */
-            debug(F110,"netopen name has colon",namecopy,0);
-            *p++ = '\0';                    /* Get service name or number */
-        } else {
-            p++;
-            ckstrncpy(p,"http",NAMECPYL-(int)(p-namecopy));
+        p = ck_splitinplace(namecopy,NAMECPYL,"http"); /* Proxy port */
+        if (!p) {
+            fprintf(stderr,"Malformed proxy address: %s\n",tcp_http_proxy);
+            errno = 0;
+            return(-1);
         }
 
         service = ckgetservice(namecopy,p,namecopy,NAMECPYL);
@@ -6196,9 +6240,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
         }
 
         ckstrncpy(namecopy,proxycopy,NAMECPYL);
-        p = namecopy;                       /* Was a service requested? */
-        while (*p != '\0' && *p != ':') p++; /* Look for colon */
-        *p = '\0';
+        (VOID) ck_splitinplace(namecopy,NAMECPYL,""); /* Keep the host */
     }
 #endif /* NOHTTP */
 
@@ -11690,28 +11732,38 @@ http_get_chunk_len()
 }
 
 /*
-  Parse an HTTP Content-Length header value.  Unlike atoi(), this
-  rejects non-numeric input and clamps out-of-range or negative
-  values to 0 rather than letting an overflowed/negative length
-  reach the read loops below.
+  Parse an HTTP Content-Length header value.  s points to the byte
+  after the colon.  Leading and trailing blanks are skipped.
+
+  Returns the length, or -1 for a value that is empty, holds anything
+  but decimal digits, or exceeds CK_OFF_T_MAX.  The callers treat -1
+  as "read until the server closes the connection".
 */
-static int
+static CK_OFF_T
 #ifdef CK_ANSIC
 http_content_length(char *s)
 #else
 http_content_length(s) char *s;
 #endif /* CK_ANSIC */
 {
-    long val;
-    char *ep;
+    CK_OFF_T val = 0;
+    int d;
 
     while (*s == ' ' || *s == '\t')
       s++;
-    errno = 0;
-    val = strtol(s, &ep, 10);
-    if (ep == s || errno == ERANGE || val < 0 || val > INT_MAX)
-      return(0);
-    return((int)val);
+    if (*s < '0' || *s > '9')
+      return(-1);
+    while (*s >= '0' && *s <= '9') {
+        d = *s++ - '0';
+        if (val > (CK_OFF_T_MAX - d) / 10)
+          return(-1);
+        val = val * 10 + d;
+    }
+    while (*s == ' ' || *s == '\t')
+      s++;
+    if (*s)
+      return(-1);
+    return(val);
 }
 
 int
@@ -11752,16 +11804,12 @@ http_reopen()
     int rc = 0;
     char * s = NULL;                    /* strdup is not portable */
     if ( tcp_http_proxy ) {
-        char * p;
-        makestr(&s,(char *)http_host_port);
-        p = s;
-        while (*p != '\0' && *p != ':') p++; /* Look for colon */
-        if (*p == ':') {                     /* Have a colon */
-            *p++ = '\0';                     /* Get service name or number */
-        } else {
-            p="http";
-        }
-        rc = http_open(s,p,http_ssl,NULL,0,http_agent);
+        char hbuf[NAMECPYL], pbuf[NAMECPYL];
+        if (ck_splithostport(http_host_port,hbuf,sizeof(hbuf),
+                             pbuf,sizeof(pbuf)) < 0)
+          return(-1);
+        rc = http_open(hbuf,pbuf[0] ? pbuf : "http",http_ssl,NULL,0,
+                       http_agent);
     } else {
         makestr(&s,(char *)http_ip);
         rc = http_open(s,ckuitoa(http_port),http_ssl,NULL,0,http_agent);
@@ -11859,8 +11907,8 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
 
     /* For HTTP connections we must preserve the original hostname and */
     /* service requested so we can include them in the Host header.    */
-    ckmakmsg(http_host_port,sizeof(http_host_port),hostname,":",
-              ckuitoa(ntohs((unsigned short)service->s_port)),NULL);
+    ck_hostport(http_host_port,sizeof(http_host_port),hostname,
+                ckuitoa(ntohs((unsigned short)service->s_port)));
     http_port = ntohs((unsigned short)service->s_port);
     http_ssl = use_ssl;
     debug(F111,"http_open",http_host_port,http_port);
@@ -11877,19 +11925,16 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
 
     if ( tcp_http_proxy ) {
 
-        ckmakmsg(proxycopy,sizeof(proxycopy),hostname,":",
-                 ckuitoa(ntohs((unsigned short)service->s_port)),NULL);
+        ck_hostport(proxycopy,sizeof(proxycopy),hostname,
+                    ckuitoa(ntohs((unsigned short)service->s_port)));
         /* Leave room after the name for a service name or port number */
         ckstrncpy(honc,tcp_http_proxy,NAMECPYL-8);
 
-        p = honc;                       /* Was a service requested? */
-        while (*p != '\0' && *p != ':') p++; /* Look for colon */
-        if (*p == ':') {                    /* Have a colon */
-            debug(F110,"http_open name has colon",honc,0);
-            *p++ = '\0';                    /* Get service name or number */
-        } else {
-            p++;
-            ckstrncpy(p,"http",NAMECPYL-(int)(p-honc));
+        p = ck_splitinplace(honc,NAMECPYL,"http"); /* Proxy port */
+        if (!p) {
+            fprintf(stderr,"Malformed proxy address: %s\n",tcp_http_proxy);
+            errno = 0;
+            return(-1);
         }
 
         service = ckgetservice(honc,p,http_ip,CK_IPADDRLEN);
@@ -11908,11 +11953,7 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
          * it as the hostname
          */
         ckstrncpy(honc,tcp_http_proxy,NAMECPYL);
-        p = honc;                       /* Was a service requested? */
-        while (*p != '\0' && *p != ':') p++; /* Look for colon */
-        if (*p == ':') {                    /* Have a colon */
-            *p = '\0';                      /* terminate string */
-        }
+        (VOID) ck_splitinplace(honc,NAMECPYL,""); /* Keep the host */
         hostname = honc;                /* use proxy as hostname */
     }
 
@@ -13231,7 +13272,7 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
 {
     char * request = NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
-    CK_OFF_T chunklen = 0;
+    CK_OFF_T chunklen = 0, clen = -1;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
@@ -13354,7 +13395,7 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
     local_t = time(NULL);
     nullline = 0;
     i = 0;
-    len = -1;
+    clen = -1;
     while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
         buf[i] = (char)ch;
         if ( buf[i] == 10 ) { /* found end of line */
@@ -13396,7 +13437,7 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
                 if ( ckindex("close",buf,11,0,0) != 0 )
                     closecon = 1;
             } else if (!ckstrcmp(buf,"Content-Length:",15,0)) {
-                len = http_content_length(&buf[16]);
+                clen = http_content_length(&buf[15]);
             } else if (!ckstrcmp(buf,"Transfer-Encoding:",18,0)) {
                 if ( ckindex("chunked",buf,18,0,0) != 0 )
                     chunked = 1;
@@ -13444,8 +13485,8 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
         if (chunklen < 0)                   /* Malformed chunk-size line */
           rc = -1;
     } else {
-        while (len && (ch = http_inc(0)) >= 0) {
-            len--;
+        while (clen && (ch = http_inc(0)) >= 0) {
+            clen--;
             if ( zfile )
                 zchout(ZOFILE,(CHAR)ch);
             if ( stdio )
@@ -13724,7 +13765,7 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
 {
     char * request = NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
-    CK_OFF_T chunklen = 0;
+    CK_OFF_T chunklen = 0, clen = -1;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
@@ -13821,7 +13862,7 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
     local_t = time(NULL);
     nullline = 0;
     i = 0;
-    len = -1;
+    clen = -1;
     while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
         buf[i] = (char)ch;
         if (buf[i] == 10) {             /* found end of line */
@@ -13857,7 +13898,7 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
                     if ( ckindex("close",buf,11,0,0) != 0 )
                         closecon = 1;
                 } else if (!ckstrcmp(buf,"Content-Length:",15,0)) {
-                    len = http_content_length(&buf[16]);
+                    clen = http_content_length(&buf[15]);
                 } else if (!ckstrcmp(buf,"Transfer-Encoding:",18,0)) {
                     if ( ckindex("chunked",buf,18,0,0) != 0 )
                         chunked = 1;
@@ -13908,8 +13949,8 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
         if (chunklen < 0)                   /* Malformed chunk-size line */
           rc = -1;
     } else {
-        while (len && (ch = http_inc(0)) >= 0) {
-            len--;
+        while (clen && (ch = http_inc(0)) >= 0) {
+            clen--;
             if ( zfile )
                 zchout(ZOFILE,(CHAR)ch);
             if ( stdio )
@@ -13972,7 +14013,7 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
 {
     char * request=NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
-    CK_OFF_T chunklen = 0;
+    CK_OFF_T chunklen = 0, clen = -1;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
@@ -14127,7 +14168,7 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
         local_t = time(NULL);
         nullline = 0;
         i = 0;
-        len = -1;
+        clen = -1;
         while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
             buf[i] = (char)ch;
             if (buf[i] == 10) {         /* found end of line */
@@ -14163,7 +14204,7 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
                         if ( ckindex("close",buf,11,0,0) != 0 )
                             closecon = 1;
                     } else if (!ckstrcmp(buf,"Content-Length:",15,0)) {
-                        len = http_content_length(&buf[16]);
+                        clen = http_content_length(&buf[15]);
                     } else if (!ckstrcmp(buf,"Transfer-Encoding:",18,0)) {
                         if ( ckindex("chunked",buf,18,0,0) != 0 )
                             chunked = 1;
@@ -14214,8 +14255,8 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
             if (chunklen < 0)                   /* Malformed chunk-size line */
               rc = -1;
         } else {
-            while (len && (ch = http_inc(0)) >= 0) {
-                len--;
+            while (clen && (ch = http_inc(0)) >= 0) {
+                clen--;
                 if ( zfile )
                     zchout(ZOFILE,(CHAR)ch);
                 if ( stdio )
@@ -14278,7 +14319,7 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
 {
     char * request=NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
-    CK_OFF_T chunklen = 0;
+    CK_OFF_T chunklen = 0, clen = -1;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
@@ -14384,7 +14425,7 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
     local_t = time(NULL);
     nullline = 0;
     i = 0;
-    len = -1;
+    clen = -1;
     while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
         buf[i] = (char)ch;
         if (buf[i] == 10) {         /* found end of line */
@@ -14420,7 +14461,7 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
                     if ( ckindex("close",buf,11,0,0) != 0 )
                         closecon = 1;
                 } else if (!ckstrcmp(buf,"Content-Length:",15,0)) {
-                    len = http_content_length(&buf[16]);
+                    clen = http_content_length(&buf[15]);
                 } else if (!ckstrcmp(buf,"Transfer-Encoding:",18,0)) {
                     if ( ckindex("chunked",buf,18,0,0) != 0 )
                         chunked = 1;
@@ -14460,8 +14501,8 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
         if (chunklen < 0)                   /* Malformed chunk-size line */
           rc = -1;
     } else {
-        while (len && (ch = http_inc(0)) >= 0) {
-            len--;
+        while (clen && (ch = http_inc(0)) >= 0) {
+            clen--;
             conoc((CHAR)ch);
         }
     }
@@ -14518,7 +14559,7 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
 {
     char * request=NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
-    CK_OFF_T chunklen = 0;
+    CK_OFF_T chunklen = 0, clen = -1;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
@@ -14650,7 +14691,7 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
         local_t = time(NULL);
         nullline = 0;
         i = 0;
-        len = -1;
+        clen = -1;
         while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
             buf[i] = (char)ch;
             if (buf[i] == 10) {         /* found end of line */
@@ -14686,7 +14727,7 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
                         if ( ckindex("close",buf,11,0,0) != 0 )
                             closecon = 1;
                     } else if (!ckstrcmp(buf,"Content-Length:",15,0)) {
-                        len = http_content_length(&buf[16]);
+                        clen = http_content_length(&buf[15]);
                     } else if (!ckstrcmp(buf,"Transfer-Encoding:",18,0)) {
                         if ( ckindex("chunked",buf,18,0,0) != 0 )
                             chunked = 1;
@@ -14737,8 +14778,8 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
             if (chunklen < 0)                   /* Malformed chunk-size line */
               rc = -1;
         } else {
-            while (len && (ch = http_inc(0)) >= 0) {
-                len--;
+            while (clen && (ch = http_inc(0)) >= 0) {
+                clen--;
                 if ( zfile )
                     zchout(ZOFILE,(CHAR)ch);
                 if ( stdio )

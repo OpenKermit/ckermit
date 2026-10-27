@@ -1,3 +1,4 @@
+import calendar
 import errno
 import os
 import subprocess
@@ -252,7 +253,7 @@ def test_ftp_text_put_larger_than_buffer(ftp_server, run_wermit, tmp_path):
 
 @pytest.mark.parametrize("name", ["ftphost", "[ftphost]"])
 def test_ftp_open_network_directory_name(ftp_server, run_wermit,
-                                          tmp_path, name):
+                                         tmp_path, name):
     """Verify FTP OPEN of a name from the network directory.
 
     The name is replaced by the directory entry's address.  The lookup
@@ -275,3 +276,133 @@ def test_ftp_open_network_directory_name(ftp_server, run_wermit,
     assert result.returncode >= 0, (
         f"wermit died with signal {-result.returncode}")
     assert "OPEN-OK" in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize("size", [None, "18446744073709551619"],
+                         ids=["true-size", "wrapping-size"])
+def test_ftp_put_recover_size_reply(wermit_ftp_available, run_wermit,
+                                    tmp_path, size):
+    """Verify PUT /RECOVER with the server's SIZE reply.
+
+    The remote file holds the first 3 bytes of the local file.  With the
+    true size, Kermit appends the rest.  2**64 + 3 does not fit in a
+    file offset.  Kermit must treat it as larger than the local file and
+    send the whole file.  A wrapped value of 3 would append the rest to
+    the wrong remote contents.
+    """
+    if not wermit_ftp_available:
+        pytest.skip("wermit was built with -DNOFTP (no FTP client)")
+    root = tmp_path / "root"
+    root.mkdir()
+    (root / "up.txt").write_bytes(b"hel" if size is None else b"old")
+    (tmp_path / "up.txt").write_bytes(b"hello\n")
+    authorizer = DummyAuthorizer()
+    authorizer.add_user("testuser", "testpass", str(root),
+                        perm="elradfmwMT")
+
+    class Handler(FTPHandler):
+        def log(self, *args, **kwargs):
+            pass
+
+        def log_line(self, *args, **kwargs):
+            pass
+
+        def ftp_SIZE(self, path):
+            if size is None:
+                return FTPHandler.ftp_SIZE(self, path)
+            self.respond("213 " + size)
+
+    server = FTPServer(("127.0.0.1", 0), Handler)
+    server.handler.authorizer = authorizer
+    port = server.socket.getsockname()[1]
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        result = run_wermit(ftp_session(
+            port, f"ftp put /recover {tmp_path}/up.txt up.txt",
+            "echo PUT=\\v(status)"), timeout=30)
+    finally:
+        server.close_all()
+        thread.join(timeout=2)
+    assert "PUT=0" in result.stdout, result.stdout + result.stderr
+    assert (root / "up.txt").read_bytes() == b"hello\n"
+
+
+def test_ftp_server_time_offset_keeps_seconds(wermit_ftp_available,
+                                              run_wermit, tmp_path,
+                                              monkeypatch):
+    """Verify SET FTP SERVER-TIME-OFFSET keeps the seconds of MDTM.
+
+    The server reports 2024-01-02 03:04:55 UTC.  With an offset of +1
+    hour the downloaded file gets 04:04:55 UTC.
+    """
+    if not wermit_ftp_available:
+        pytest.skip("wermit was built with -DNOFTP (no FTP client)")
+    monkeypatch.setenv("TZ", "UTC")
+    root = tmp_path / "root"
+    root.mkdir()
+    (root / "m.txt").write_bytes(b"data\n")
+    authorizer = DummyAuthorizer()
+    authorizer.add_user("testuser", "testpass", str(root),
+                        perm="elradfmwMT")
+
+    class Handler(FTPHandler):
+        def log(self, *args, **kwargs):
+            pass
+
+        def log_line(self, *args, **kwargs):
+            pass
+
+        def ftp_MDTM(self, path):
+            self.respond("213 20240102030455")
+
+    server = FTPServer(("127.0.0.1", 0), Handler)
+    server.handler.authorizer = authorizer
+    port = server.socket.getsockname()[1]
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        result = run_wermit(
+            "set ftp server-time-offset +1, set ftp dates on, " +
+            ftp_session(port, f"ftp get m.txt {tmp_path}/m.txt",
+                        "echo GET=\\v(status)"), timeout=30)
+    finally:
+        server.close_all()
+        thread.join(timeout=2)
+    assert "GET=0" in result.stdout, result.stdout + result.stderr
+    want = calendar.timegm((2024, 1, 2, 4, 4, 55, 0, 0, 0))
+    assert os.stat(tmp_path / "m.txt").st_mtime == want
+
+
+def _limit_file_size():
+    """Limit files to 64 KiB.  A larger write fails with EFBIG."""
+    import resource
+    import signal
+    signal.signal(signal.SIGXFSZ, signal.SIG_IGN)
+    resource.setrlimit(resource.RLIMIT_FSIZE, (65536, 65536))
+
+
+@pytest.mark.parametrize("mode", ["binary", "ascii"])
+def test_ftp_get_reports_local_write_failure(ftp_server, wermit_path,
+                                             tmp_path, mode):
+    """Verify FTP GET fails when the local file cannot be written.
+
+    wermit runs with a file size limit of 64 KiB, and the remote file is
+    larger.  GET must fail.  SET FILE INCOMPLETE AUTO then deletes the
+    partial file of a text transfer.
+    """
+    port, server_dir = ftp_server
+    (server_dir / "big.dat").write_bytes(b"0123456789abcdef\n" * 20000)
+    local = tmp_path / "local"
+    local.mkdir()
+    result = subprocess.run(
+        [wermit_path, "-H", "-Y", "-C",
+         "set command more-prompting off, " + ftp_session(
+             port, f"set ftp type {mode}",
+             f"ftp get big.dat {local / 'big.dat'}",
+             "echo STATUS=\\v(status)")],
+        capture_output=True, text=True, timeout=60,
+        preexec_fn=_limit_file_size)
+    assert "STATUS=1" in result.stdout, result.stdout + result.stderr
+    if mode == "ascii":
+        assert not (local / "big.dat").exists()

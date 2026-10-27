@@ -16,7 +16,11 @@ MARKER = b"REOPENED"
 
 
 def _serve(server_sock, result):
-    """Reset the first connection, then answer one GET request."""
+    """Reset the first connection, then answer one GET request.
+
+    The reset comes one second after the connection, while the client
+    sleeps between HTTP OPEN and HTTP GET.
+    """
     try:
         server_sock.settimeout(15)
         conn, _ = server_sock.accept()
@@ -24,7 +28,7 @@ def _serve(server_sock, result):
         # A reset that arrives before that read fails HTTP OPEN.  The
         # delay lets HTTP OPEN finish.  The reset still arrives before
         # the GET.  The client sends the GET 2 seconds after HTTP OPEN.
-        time.sleep(0.5)
+        time.sleep(1)
         conn.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER,
                         struct.pack("ii", 1, 0))
         conn.close()

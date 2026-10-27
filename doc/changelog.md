@@ -32,14 +32,24 @@ covering their situations.
 
 ## Major Bugfixes
 
-- [6, 7, 8] Files of 2GB or more failed in several places.  HTTP PUT and
+- [6, 7, 8, 11] Files of 2GB or more failed in several places.  HTTP PUT and
   POST sent a wrong Content-Length.  `kermit -s` and command-line FTP `-p`
   rejected 2-4 GiB files.  REMOTE DELETE skipped 2-4 GiB files, and DELETE
   reported a wrong bytes-freed total.  WAIT FILE treated a file of 2^32-1 bytes
-  as deleted.  Commit 4b5eddea introduced the REMOTE DELETE and DELETE bugs in
-  C-Kermit 6.0.192 of 1996.  Commit d0f8b1da introduced the HTTP PUT/POST and
-  WAIT bugs in C-Kermit 7.0.197 of 2000.  Commit c88d9b85 introduced the `-s`
-  and FTP `-p` bugs in C-Kermit 8.0.200 of 2001.
+  as deleted.  HTTP Content-Length values over 2GB, or negative or empty ones,
+  became 0, so a large download produced an empty file and reported success.
+  Commit 4b5eddea introduced the REMOTE DELETE and DELETE bugs in C-Kermit
+  6.0.192 of 1996.  Commit d0f8b1da introduced the HTTP PUT/POST and WAIT bugs
+  in C-Kermit 7.0.197 of 2000.  Commit c88d9b85 introduced the `-s`, FTP `-p`,
+  and HTTP Content-Length type bugs in C-Kermit 8.0.200 of 2001.  Commit
+  42cfd07f introduced the clamp to 0 in C-Kermit 11.0.501 of 2026.
+
+- [8] FTP GET in binary mode reported success when the local file could
+  not be written, such as on a full disk, and left a truncated file.  In
+  text mode the failure came only from the server's reply, and SET FILE
+  INCOMPLETE AUTO kept the partial file.  GET now stops at the first
+  failed write and fails.  Bug was introduced in commit c88d9b85, in
+  C-Kermit 8.0.200 of 2001.
 
 - [11] GET or RECEIVE with an existing directory as the destination (e.g. `get
   foo.txt /some/dir/`) failed with "?Syntax error".  A regression from the
@@ -214,8 +224,9 @@ COMPATIBILITY`.
 
 - [8, 11] The FTP PASV reply was used as given, so a server could direct the
   data connection to any host.  The data connection now goes to the control
-  connection's address.  `SET FTP TRUST-PASV-ADDRESS ON` restores the old
-  behavior.  An EPSV port above 65535 wrapped.  The PASV bug was
+  connection's address.  Through an HTTP proxy, it goes to the server named
+  in FTP OPEN.  `SET FTP TRUST-PASV-ADDRESS ON` restores the old behavior.
+  An EPSV port above 65535 wrapped.  The PASV bug was
   introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.  The EPSV bug was
   introduced in commit 36668be5 in C-Kermit 11.0.501 of 2026.
 
@@ -241,6 +252,11 @@ COMPATIBILITY`.
   was cut short with success, and a malformed chunk size ended the body
   the same way.  A Last-Modified date that did not parse crashed HTTP GET.
   Both date from commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [9] FTP USER with no password and no saved password sent the server
+  text left by an earlier command, such as a GREP pattern, as the
+  password.  It now prompts for the password.  Bug was introduced in
+  commit 0fd869b4 in C-Kermit 9.0.302 of 2011.
 
 - [8] FTP GET /MOVE-TO evaluates its destination again after each file.  A
   destination that expanded past the length of a path overflowed a stack
@@ -453,10 +469,37 @@ file, also reach it.
   introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.  The INDEX bug was
   introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
 
+- [8] In active mode, a server that never opened the data connection hung
+  the client.  The wait now ends after SET FTP TIMEOUT, or 60 seconds when
+  the timeout is 0.  Bug was introduced in commit c88d9b85 in C-Kermit
+  8.0.200 of 2001.
+
+- [8] PUT /RECOVER read a SIZE reply too large for a file offset as a
+  wrapped value.  The server could make Kermit append part of the file to
+  different remote contents.  Kermit now sends the whole file.  Bug was
+  introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [8] With SET FTP SERVER-TIME-OFFSET, the seconds of a server file time
+  were replaced by its minutes.  03:04:55 with an offset of +1 became
+  04:04:04.  Bug was introduced in commit 7b4ce026 in C-Kermit 8.0.206 of
+  2002.
+
 - [8] Command-line HTTP (`kermit http://...`) exited with success after a
   failed transfer such as a 404.  Command-line FTP's "No files to put/get"
-  messages were swapped.  Bugs were introduced in commit c88d9b85 in C-Kermit
-  8.0.200 of 2001.
+  messages were swapped.  An FTP GET /UPDATE with no local file date passed
+  NULL to the date comparison.  Bugs were introduced in commit c88d9b85 in
+  C-Kermit 8.0.200 of 2001.
+
+- [10] Ctrl-C during an FTP transfer went back to the prompt without
+  closing the data connection or reading the server's reply, so the next
+  FTP command read the wrong reply.  Bug was introduced in commit
+  ca1addda in C-Kermit 10.0 Beta.10 of 2023.
+
+- [11] IPv6 addresses were not bracketed in the HTTP Host header and in
+  the HTTP and FTP proxy CONNECT targets, and a bracketed proxy address
+  was split at its first colon.  The code dates from commits c88d9b85
+  (8.0.200 of 2001) and 4e0c0d29 (8.0.211 of 2004) and became wrong when
+  commit 36668be5 added IPv6 in C-Kermit 11.0.501 of 2026.
 
 ### Connections, Telnet and TLS
 
@@ -611,6 +654,8 @@ file, also reach it.
   database lock file.
 
 - [7, 8] `\fstripb(x,x)` returns the character.
+
+- [8] FTP GET fails at the first failed write of the local file.
 
 - [8] FTP MGET /RECURSIVE skips server names that leave the current
   directory.

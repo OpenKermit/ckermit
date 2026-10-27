@@ -6,6 +6,7 @@ table.  It supports PASV for MLSD listings and answers RETR with 550.
 import os
 import socket
 import threading
+import time
 
 import pytest
 
@@ -216,9 +217,10 @@ def test_ftp_get_update_compares_dates(run_wermit, tmp_path, mdtm,
     """Verify GET /UPDATE fetches a file only when the server's is newer.
 
     The local file is dated now.  The FTP collision action is DISCARD
-    by default, so the test sets it to OVERWRITE.  The last two replies are a date from
-    a server with the Y2K bug (year 19100 for 2000) and one that does
-    not parse.  A file with no usable server date is fetched.
+    by default, so the test sets it to OVERWRITE.  The last two
+    replies are a date from a server with the Y2K bug (year 19100
+    for 2000) and one that does not parse.  A file with no usable
+    server date is fetched.
     """
     (tmp_path / "f.txt").write_text("local\n")
     peer = FtpPeer({"FEAT": b"211-Features:\r\n MDTM\r\n211 End\r\n",
@@ -258,3 +260,198 @@ def test_ftp_mlsd_empty_names_are_skipped(run_wermit, tmp_path):
     _session(run_wermit, peer, ["ftp mget /recursive *"], cwd=tmp_path)
     assert peer.sent("RETR") == [b"z.txt"], peer.commands
     assert not peer.sent("CWD"), peer.commands
+
+
+class AbortPeer:
+    """An FTP server whose transfers last until the client stops them.
+
+    RETR sends data until the client closes the data connection or
+    sends ABOR.  STOR reads slowly until drain is set, then at full
+    speed until the client closes it.  Each transfer ends with a 426
+    reply, and ABOR also gets 226.  data_closed is set when the client
+    has closed a data connection.
+    """
+
+    def __init__(self):
+        self.started = threading.Event()
+        self.drain = threading.Event()
+        self.data_closed = threading.Event()
+        self.commands = []
+        self.srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.srv.bind(("127.0.0.1", 0))
+        self.srv.listen(1)
+        self.srv.settimeout(30)
+        self.port = self.srv.getsockname()[1]
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread.start()
+
+    def _pump(self, conn, data, verb, stop):
+        """Move data until the client closes it, then send 426."""
+        try:
+            while not stop.is_set():
+                if verb == "RETR":
+                    data.sendall(b"x" * 4096)
+                    time.sleep(0.01)
+                elif self.drain.is_set():
+                    if not data.recv(1 << 20):
+                        break
+                else:
+                    if not data.recv(1024):
+                        break
+                    time.sleep(0.05)
+        except OSError:
+            pass
+        if not stop.is_set():
+            self.data_closed.set()
+            try:
+                conn.sendall(b"426 Connection closed\r\n")
+            except OSError:
+                pass
+        data.close()
+
+    def _run(self):
+        try:
+            conn, _ = self.srv.accept()
+        except OSError:
+            return
+        replies = dict(BASE_REPLIES)
+        replies["PWD"] = b'257 "/abort-test"\r\n'
+        data_srv = None
+        stop = threading.Event()
+        with conn:
+            conn.settimeout(60)
+            try:
+                conn.sendall(b"220 hi\r\n")
+                for line in conn.makefile("rb"):
+                    line = line.strip(b"\r\n\xff\xf4\xf2")
+                    self.commands.append(line)
+                    verb = line.split(b" ")[0].upper().decode(
+                        "ascii", "replace")
+                    if verb == "PASV":
+                        data_srv = socket.socket()
+                        data_srv.bind(("127.0.0.1", 0))
+                        data_srv.listen(1)
+                        data_srv.settimeout(20)
+                        p = data_srv.getsockname()[1]
+                        conn.sendall(b"227 Entering Passive Mode "
+                                     b"(127,0,0,1,%d,%d)\r\n"
+                                     % (p >> 8, p & 255))
+                        continue
+                    if verb in ("RETR", "STOR") and data_srv:
+                        conn.sendall(b"150 transfer starting\r\n")
+                        data, _ = data_srv.accept()
+                        data_srv.close()
+                        data_srv = None
+                        stop.clear()
+                        self.started.set()
+                        threading.Thread(
+                            target=self._pump,
+                            args=(conn, data, verb, stop),
+                            daemon=True).start()
+                        continue
+                    if verb == "ABOR":
+                        stop.set()
+                        self.data_closed.set()
+                        conn.sendall(b"426 Transfer aborted\r\n"
+                                     b"226 Abort successful\r\n")
+                        continue
+                    conn.sendall(replies.get(verb, b"200 ok\r\n"))
+                    if verb == "QUIT":
+                        break
+            except OSError:
+                pass
+
+    def close(self):
+        """Close the listener and wait for the server thread."""
+        self.srv.close()
+        self.thread.join(timeout=5)
+
+
+@pytest.mark.parametrize("command", ["get f.bin", "put big.bin"])
+def test_ftp_transfer_interrupted(wermit_path, tmp_path, command):
+    """Verify Ctrl-C ends an FTP transfer and its data connection.
+
+    wermit runs on a pseudoterminal.  Ctrl-C during the transfer runs
+    the transfer's cancel handler.  It closes the data connection and
+    reads the server's reply, so the control connection stays usable.
+    """
+    import pty
+    import select
+    import subprocess
+    from conftest import _make_controlling_tty
+    (tmp_path / "big.bin").write_bytes(b"y" * 20000000)
+    peer = AbortPeer()
+    fd, slave = pty.openpty()
+    proc = subprocess.Popen(
+        [wermit_path, "-H", "-Y", "-Q", "-C",
+         "set transfer display brief, "
+         f"ftp open 127.0.0.1 {peer.port} /user:u /password:p, "
+         f"ftp {command}"],
+        stdin=slave, stdout=slave, stderr=slave, cwd=str(tmp_path),
+        close_fds=True, preexec_fn=_make_controlling_tty)
+    os.close(slave)
+    out = b""
+
+    def read_until(marker, secs):
+        nonlocal out
+        end = time.monotonic() + secs
+        while marker not in out and time.monotonic() < end:
+            r, _, _ = select.select([fd], [], [], 0.2)
+            if r:
+                try:
+                    chunk = os.read(fd, 4096)
+                except OSError:
+                    return
+                if not chunk:
+                    return
+                out += chunk
+
+    try:
+        assert peer.started.wait(20), out
+        time.sleep(1)
+        os.write(fd, b"\x03")
+        peer.drain.set()
+        closed = peer.data_closed.wait(15)
+        read_until(b"C-Kermit>", 15)
+        os.write(fd, b"ftp pwd\r")
+        read_until(b"/abort-test", 15)
+        os.write(fd, b"exit\r")
+        read_until(b"\x00never", 5)
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+        proc.wait()
+        os.close(fd)
+        peer.close()
+    text = out.decode(errors="replace")
+    assert closed, (peer.commands, text[-1000:])
+    assert "/abort-test" in text, text[-1000:]
+
+
+def test_ftp_session_does_not_leak(wermit_path, valgrind, tmp_path):
+    """Verify an FTP session with MLSD, MGET and GET /UPDATE leaks nothing.
+
+    valgrind reports no block definitely lost.
+    """
+    import re
+    import subprocess
+    listing = [b"type=file;size=5;modify=20200101000000; a.txt",
+               b"type=dir; sub", b"type=file;size=3 b.txt"]
+    peer = FtpPeer({"FEAT": b"211-Features:\r\n MLST type*;size*;"
+                            b"modify*;\r\n MDTM\r\n211 End\r\n",
+                    "MDTM": b"213 20200101000000\r\n"}, listing=listing)
+    try:
+        result = subprocess.run(
+            [valgrind, "-q", "--leak-check=full", wermit_path,
+             "-H", "-Y", "-Q", "-C",
+             f"ftp open 127.0.0.1 {peer.port} /user:u /password:p, "
+             "ftp mget *, ftp get /update a.txt, ftp dir, ftp close, "
+             "exit 0"],
+            cwd=tmp_path, stdin=subprocess.DEVNULL, capture_output=True,
+            text=True, timeout=200)
+    finally:
+        peer.close()
+    assert peer.sent("MLSD"), peer.commands
+    records = re.split(r"^==\d+== *$", result.stderr, flags=re.M)
+    leaked = [r for r in records if "definitely lost" in r]
+    assert not leaked, result.stderr
