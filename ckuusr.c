@@ -9188,7 +9188,7 @@ docmd(cx) int cx;
             line[wy++] = '\0';           /* Now expand variables, etc. */
             debug(F110,"OUTPUT 3",line,0);
             ws = line+wy+1;
-            wx = LINBUFSIZ - (int) strlen(line) - 1;
+            wx = LINBUFSIZ - (int)(ws - line);
             debug(F101,"OUTPUT size","",wx);
             if (zzstring(line,&ws,&wx) < 0)
               return(success = 0);

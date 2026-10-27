@@ -323,6 +323,26 @@ file, also reach it.
   of 2000), c88d9b85 (8.0.200 of 2001) and 8fed15a6 (10.0 Beta.09 of
   2023).
 
+- [5, 6, 9] Variable, macro and function expansion miscounted its buffers and
+  left values unterminated.  A value copied into a longer string counted one
+  byte less than it used.  ASSIGN of a value built from many such copies wrote
+  past the command buffer.  ASSIGN (and `.name := value`) of a value that
+  expanded past the command buffer stored it with no terminator.  A value too
+  long for the place it was expanded into left that place without a terminator.
+  Commands that went on with the cut value read past their buffer.  IF DECLARED
+  with a long value read past a 32-byte buffer.  Several places expanded a
+  value into a buffer one byte too small for the expansion and its terminator:
+  an array subscript, a DO argument, the variable of an S-expression `++` or
+  `--`, a function name or `\m()` name built from variables, the SET DIAL
+  PBX-INSIDE-PREFIX of a PBX call, and the program path in SHOW FEATURES.
+  OUTPUT, SET KEY and the key definitions of SET TERMINAL, SET DIALER and SET
+  MOUSE wrote one byte past the command buffer when the expanded text filled it
+  exactly.  A value that does not fit is now cut and terminated at the end of
+  its buffer.  Bugs were introduced in commits a213649d (5A(188) of 1992),
+  609e2f39 (5A(190) of 1994) and 4b5eddea (6.0.192 of 1996).  For `\%x`
+  variables and array elements under SET VARIABLE-EVALUATION SIMPLE, the
+  miscount was introduced in commit 0fd869b4 (9.0.302 of 2011).
+
 - [6, 8] SET PROTOCOL with a 71-character default command overflowed a
   stack buffer.  SET SERVER GET-PATH with more than 128 directories
   overflowed a stack array.  The SET PROTOCOL bug was introduced in commit
@@ -429,6 +449,18 @@ file, also reach it.
   6.0.192 of 1996.
 
 ### Scripting and commands
+
+- [5, 8] Expansion and S-expression depth counts stayed raised.  Each expansion
+  that failed because its value did not fit left the nesting count of the
+  expander one level higher.  Ctrl-C during the expansion of a variable or
+  function left it raised by the levels in progress.  After about 100 such
+  failures, or enough interrupts, a correct command failed with "Definition is
+  circular or too deep".  Ctrl-C during an S-expression left the S-expression
+  depth raised.  `\v(sdepth)` stayed above 0, each interrupt took one level
+  from the depth limit, and SET SEXPRESSION DEPTH-LIMIT was refused at the
+  prompt.  The expansion count now goes back down on every return.  Ctrl-C
+  returns both depths to 0.  Bugs were introduced in commits a213649d (5A(188)
+  of 1992) and c88d9b85 (8.0.200 of 2001).
 
 - [5, 7] With stdin at end of file, ASK /TIMEOUT, SHOW KEY, GETC, GETOK
   and the text and password prompts looped forever.  They now end.  Bugs

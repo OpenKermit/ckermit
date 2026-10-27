@@ -4,6 +4,8 @@ Each case runs a short script and then echoes a marker.  Out-of-bounds
 access shows only under AddressSanitizer.  A normal build checks that
 wermit reaches the marker without a signal.
 """
+import re
+
 import pytest
 
 LONG = "d" * 5000
@@ -41,6 +43,25 @@ CASES = {
                              "file flush -1\nfile close -1\n"
                              "file write -1 x\nfile read -1 \\%x\n"
                              "echo [\\f_eof(-1)][\\f_pos(-1)]",
+    "if_declared_long_name": ".x := \\frepeat(a,40)\n"
+                             "if declared \\m(x) echo YES",
+    "array_subscript_16_chars": "declare \\&a[3]\n"
+                                "echo [\\&a[0000000000000001]]",
+    "sexp_increment_32_chars":
+        "define \\%x 12345678901234567890123456789012\n"
+        "(++ \\\\\\\\%x)",
+    "function_name_64_chars": "echo [\\f" + "a" * 64 + "(1)]",
+    "macro_name_expands_long": ".n := \\frepeat(a,4096)\n"
+                               "echo [\\m(\\m(n))]",
+    "macro_argument_too_long": ".c := \\frepeat(x,20000)\n"
+                               "define mymac { echo \\flen(\\%1) }\n"
+                               "mymac \\m(c)\\m(c)",
+    "dial_pbx_prefix_long": "set dial country-code 1\n"
+                            "set dial area-code 215\n"
+                            "set dial pbx-exchange 555\n"
+                            "set dial pbx-inside-prefix \\frepeat(9,40)\n"
+                            "lookup +1 (215) 5551234\n"
+                            "lookup +12155551234",
 }
 
 
@@ -208,6 +229,116 @@ def test_stripb_short_strings(run_wermit, tmp_path, call, want):
     assert want in result.stdout, result.stdout
 
 
+def test_assign_value_too_long_is_cut(run_wermit, tmp_path):
+    """Verify ASSIGN stores a terminated value when it does not fit.
+
+    The value of b expands to 60000 characters, more than line[] holds.
+    ASSIGN stores the part that fits.  Under AddressSanitizer, addmac()
+    must not read past line[].
+    """
+    script = tmp_path / "t.ksc"
+    script.write_text("set take error off\n"
+                      ".a := \\frepeat(a,30000)\n"
+                      ".b := \\m(a)\\m(a)\n"
+                      "echo ST=\\v(status)\n"
+                      "echo END-MARKER\n")
+    result = run_wermit(f"take {script}", timeout=30)
+    assert "AddressSanitizer" not in result.stderr, result.stderr[-3000:]
+    assert "ST=0" in result.stdout, result.stdout[-500:]
+    assert "END-MARKER" in result.stdout, result.stdout[-500:]
+
+
+def test_assign_counts_each_copied_value(run_wermit, tmp_path):
+    """Verify ASSIGN counts every byte of each macro value it copies.
+
+    The value is 32760 characters from one macro and 200 from a
+    one-character macro.  The total is more than line[] holds, so ASSIGN
+    stores only the part that fits.  SHOW MACRO prints the stored value
+    and ends each wrapped line with a hyphen.
+    """
+    script = tmp_path / "t.ksc"
+    script.write_text("set take error off\n"
+                      ".c := \\frepeat(c,32760)\n"
+                      "define x x\n"
+                      ".b := \\m(c)" + "\\m(x)" * 200 + "\n"
+                      "show macro b\n"
+                      "echo END-MARKER\n")
+    result = run_wermit(f"take {script}", timeout=30)
+    assert "AddressSanitizer" not in result.stderr, result.stderr[-3000:]
+    assert "END-MARKER" in result.stdout, result.stdout[-500:]
+    shown = result.stdout.replace("-\n", "")
+    m = re.search(r"b = (c+)(x*)\n", shown)
+    assert m, result.stdout[-500:]
+    assert len(m.group(1)) == 32760
+    assert len(m.group(2)) < 200
+
+
+def test_show_features_long_program_path(wermit_path):
+    """Verify SHOW FEATURES prints a long program path in bounds.
+
+    SHOW FEATURES expands the program's directory and name into a
+    2046-character buffer.  argv[0] names no file, so the directory is
+    all of argv[0], and the expansion does not fit.
+    """
+    import os
+    import subprocess
+    result = subprocess.run(
+        ["/" + "a" * 1500, "-H", "-Y", "-Q", "-C",
+         "set command more-prompting off, show features, "
+         "echo END-MARKER, exit"],
+        executable=wermit_path, stdin=subprocess.DEVNULL,
+        capture_output=True, text=True, timeout=30,
+        env=dict(os.environ))
+    assert result.returncode == 0, result.returncode
+    assert "AddressSanitizer" not in result.stderr, result.stderr[-3000:]
+    assert "END-MARKER" in result.stdout, result.stdout[-500:]
+
+
+def test_output_expansion_fills_line(run_wermit, tmp_path):
+    """Verify OUTPUT expands a value that fills line[] in bounds.
+
+    OUTPUT copies its text into line[] and expands it into the rest of
+    line[].  The loop tries lengths around the space left, so one of
+    them fills it exactly.  Under AddressSanitizer, the NUL must not
+    land past line[].
+    """
+    script = tmp_path / "t.ksc"
+    script.write_text(
+        "set take error off\n"
+        "for \\%n 32750 32775 1 { .c := \\frepeat(x,16000)"
+        "\\frepeat(x,\\feval(\\%n-16000)), output \\m(c) }\n"
+        "echo END-MARKER\n")
+    result = run_wermit(f"take {script}", timeout=60)
+    assert "AddressSanitizer" not in result.stderr, result.stderr[-3000:]
+    assert "END-MARKER" in result.stdout, result.stdout[-500:]
+
+
+def test_failed_expansions_keep_depth(run_wermit, tmp_path):
+    """Verify failed expansions leave the nesting depth as it was.
+
+    Each ASSIGN of b expands a value too long for line[], and the
+    expansion fails.  The ASSIGN of x after it must work every time.
+    A circular definition still reaches the depth limit.
+    """
+    script = tmp_path / "t.ksc"
+    script.write_text(
+        "set take error off\n"
+        ".c := \\frepeat(x,20000)\n"
+        ".\\%f = 0\n"
+        "for \\%i 1 300 1 { .b := \\m(c)\\m(c), .x := ok\\%i, "
+        "if not equal \"\\m(x)\" \"ok\\%i\" incr \\%f }\n"
+        "echo FAILS=\\%f\n"
+        "define \\%a \\%b\n"
+        "define \\%b \\%a\n"
+        "echo [\\%a]\n"
+        "echo END-MARKER\n")
+    result = run_wermit(f"take {script}", timeout=60)
+    out = result.stdout + result.stderr
+    assert "FAILS=0" in out, out[-1000:]
+    assert out.count("circular or too deep") == 1, out[-1000:]
+    assert "END-MARKER" in result.stdout, out[-1000:]
+
+
 def test_aaconvert_same_array_twice(run_wermit, tmp_path):
     """Verify \\faaconvert() refuses one array for names and values.
 
@@ -221,6 +352,140 @@ def test_aaconvert_same_array_twice(run_wermit, tmp_path):
     assert "AddressSanitizer" not in result.stderr, result.stderr[-3000:]
     assert "ARG_BAD_ARRAY" in result.stdout, result.stdout
     assert "END-MARKER" in result.stdout, result.stdout
+
+
+def test_sexp_interrupted_resets_depth(wermit_path, tmp_path):
+    """Verify Ctrl-C during an S-expression returns the depth to zero.
+
+    wermit runs on a pseudoterminal.  An S-expression calls a macro that
+    loops.  Ctrl-C returns to the prompt.  \\v(sdepth) is then 0, and SET
+    SEXPRESSION DEPTH-LIMIT works at top level.
+    """
+    import os
+    import pty
+    import select
+    import subprocess
+    import time
+    from conftest import _make_controlling_tty
+    fd, slave = pty.openpty()
+    proc = subprocess.Popen(
+        [wermit_path, "-H", "-Y", "-Q"],
+        stdin=slave, stdout=slave, stderr=slave, cwd=str(tmp_path),
+        close_fds=True, preexec_fn=_make_controlling_tty)
+    os.close(slave)
+    out = b""
+
+    def read_until(marker, secs):
+        nonlocal out
+        end = time.monotonic() + secs
+        while marker not in out and time.monotonic() < end:
+            r, _, _ = select.select([fd], [], [], 0.2)
+            if r:
+                try:
+                    chunk = os.read(fd, 4096)
+                except OSError:
+                    return
+                if not chunk:
+                    return
+                out += chunk
+
+    try:
+        read_until(b"C-Kermit>", 15)
+        os.write(fd, b"define spin { while true { } }\r")
+        os.write(fd, b"(spin)\r")
+        time.sleep(1)
+        os.write(fd, b"\x03")
+        read_until(b"^C", 15)
+        read_until(b"C-Kermit>", 15)
+        os.write(fd, b"echo DEPTH=\\v(sdepth)\r")
+        read_until(b"DEPTH=", 15)
+        read_until(b"C-Kermit>", 15)
+        os.write(fd, b"set sexpression depth-limit 50\r")
+        os.write(fd, b"echo RC=\\v(status)\r")
+        read_until(b"RC=", 15)
+        read_until(b"C-Kermit>", 15)
+        os.write(fd, b"exit\r")
+        read_until(b"\x00never", 5)
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+        proc.wait()
+        os.close(fd)
+    text = out.decode(errors="replace")
+    assert "DEPTH=0" in text, text[-1000:]
+    assert "Not allowed" not in text, text[-1000:]
+    assert "RC=0" in text, text[-1000:]
+
+
+def test_expansion_interrupted_resets_depth(wermit_path, tmp_path):
+    """Verify Ctrl-C during a variable expansion returns its depth to zero.
+
+    wermit runs on a pseudoterminal.  Each element of \\&b[] holds the
+    name of the next, so expanding \\&b[1] nests 60 levels.  The last
+    element runs a macro that loops.  After Ctrl-C, a second 60-level
+    chain in \\&a[] must expand.  The limit is 100 levels, so it fails
+    if the first 60 remain counted.
+    """
+    import os
+    import pty
+    import select
+    import subprocess
+    import time
+    from conftest import _make_controlling_tty
+    lines = ["declare \\&a[60]", "declare \\&b[60]",
+             "define spin { while true { } }"]
+    for i in range(1, 60):
+        lines.append(f"define \\&a[{i}] \\&a[{i + 1}]")
+        lines.append(f"define \\&b[{i}] \\&b[{i + 1}]")
+    lines += ["define \\&a[60] OK", "define \\&b[60] \\fexecute(spin)"]
+    script = tmp_path / "chain.ksc"
+    script.write_text("\n".join(lines) + "\n")
+    fd, slave = pty.openpty()
+    proc = subprocess.Popen(
+        [wermit_path, "-H", "-Y", "-Q"],
+        stdin=slave, stdout=slave, stderr=slave, cwd=str(tmp_path),
+        close_fds=True, preexec_fn=_make_controlling_tty)
+    os.close(slave)
+    out = b""
+
+    def read_until(marker, secs):
+        nonlocal out
+        end = time.monotonic() + secs
+        while marker not in out and time.monotonic() < end:
+            r, _, _ = select.select([fd], [], [], 0.2)
+            if r:
+                try:
+                    chunk = os.read(fd, 4096)
+                except OSError:
+                    return
+                if not chunk:
+                    return
+                out += chunk
+
+    try:
+        read_until(b"C-Kermit>", 15)
+        os.write(fd, b"take chain.ksc\r")
+        os.write(fd, b"echo READY\r")
+        read_until(b"\r\nREADY", 15)
+        read_until(b"C-Kermit>", 15)
+        os.write(fd, b"echo [\\&b[1]]\r")
+        time.sleep(1)
+        os.write(fd, b"\x03")
+        read_until(b"^C", 15)
+        read_until(b"C-Kermit>", 15)
+        os.write(fd, b"echo VALUE=[\\&a[1]]\r")
+        read_until(b"VALUE=[", 15)
+        read_until(b"C-Kermit>", 15)
+        os.write(fd, b"exit\r")
+        read_until(b"\x00never", 5)
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+        proc.wait()
+        os.close(fd)
+    text = out.decode(errors="replace")
+    assert "VALUE=[OK]" in text, text[-1000:]
+    assert "too deep" not in text, text[-1000:]
 
 
 @pytest.mark.parametrize("order", ["first-exists", "second-exists"])

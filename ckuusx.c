@@ -3531,6 +3531,18 @@ trap(sig) int sig;
     zclose(ZOFILE);                     /* close it. */
 #ifndef NOICP
     cmdsquo(cmd_quoting);               /* If command quoting was turned off */
+    {
+        extern int zzdepth;
+        zzdepth = 0;                    /* Or a variable expansion */
+    }
+#ifndef NOSPL
+#ifndef NOSEXP
+    {
+        extern int sexpdep;
+        sexpdep = 0;                    /* Or an S-expression */
+    }
+#endif /* NOSEXP */
+#endif /* NOSPL */
 #ifdef CKLEARN
     {
         extern FILE * learnfp;

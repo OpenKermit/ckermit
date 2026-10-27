@@ -3129,7 +3129,7 @@ MAINNAME( argc, argv ) int argc; char **argv;
     makever();                          /* Put together version strings */
 #ifndef NOSPL
     {
-        char scratch[TMPBUFSIZ];
+        char scratch[TMPBUFSIZ+1];
         extern char *tempdir;           /* Initialize temporary directory */
         char * tp = scratch;
         int x = TMPBUFSIZ;

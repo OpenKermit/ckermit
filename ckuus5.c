@@ -4512,7 +4512,7 @@ addmmac(nam,s) char *nam, *s[];
     return(y);
 }
 
-static char evalmacrobuf[TMPBUFSIZ];
+static char evalmacrobuf[TMPBUFSIZ+1];
 
 VOID
 #ifdef CK_ANSIC
@@ -9401,7 +9401,7 @@ arraynam(ss,c,n) char *ss; int *c; int *n;
     /* On stack to allow for recursive calls... */
     char vnbuf[ARRAYREFLEN+1];          /* Entire array reference */
     char ssbuf[ARRAYREFLEN+1];          /* Subscript in "plain text" */
-    char sxbuf[16];                     /* Evaluated subscript */
+    char sxbuf[17];                     /* Evaluated subscript */
 
     *c = *n = 0;                        /* Initialize return values */
     len = (int)strlen(ss);
@@ -12471,7 +12471,7 @@ printf("NOWTMP not defined\n");
     lines++;
 #endif /* OS2 */
     {                                /* New 11 December 2022 - fdc */
-        char mebuf[2046];            /* Show Kermit's own pathname and size */
+        char mebuf[2047];            /* Show Kermit's pathname and size */
         char * s;
         char * mestring =
 "\\v(exedir)\\v(name), size: \\fsize(\\v(exedir)\\v(name))";

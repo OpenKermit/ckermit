@@ -4082,7 +4082,7 @@ dosexp(s) char *s;
                 /* If ++ or --, get current value of variable */
                 if (x == SX_INC || x == SX_DEC) {
                     int ok = 1;
-                    char buf[32];
+                    char buf[33];
                     if (c == CMDQ) {    /* A backslash variable */
                         int n9 = 32;
                         char * bp = buf;
@@ -7067,7 +7067,7 @@ or Enter to restore default definition",
     }
     line[y++] = NUL;                    /* Terminate */
     s = line + y + 1;                   /* Point to after it */
-    x = LINBUFSIZ - (int) strlen(line) - 1; /* Calculate remaining space */
+    x = LINBUFSIZ - (int)(s - line); /* Calculate remaining space */
     if ((x < (LINBUFSIZ / 2)) ||
         (zzstring(line, &s, &x) < 0)) { /* Expand variables, etc. */
         printf("?Key definition too long\n");

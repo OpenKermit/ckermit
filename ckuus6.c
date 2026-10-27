@@ -1931,7 +1931,7 @@ dodef(cx) int cx;
         int t;
         t = LINBUFSIZ-1;
         lp = line;                      /* If so, expand its value now */
-        zzstring(ws,&lp,&t);
+        zzstring(ws,&lp,&t);            /* Cut at t characters if longer */
         ws = line;
     }
     if (doeval == 2) {                  /* Arithmetic evaluation wanted too? */
@@ -2338,7 +2338,7 @@ dncvt(k,cx, prefix, suffix) int k, cx, prefix, suffix;
                     }
 #endif /* COMMENT */
                     if (!wx) {
-                        char * icp, buf[32];
+                        char * icp, buf[33];
                         makestr(&matchpxx,dialpxx[kx]);
                         debug(F111,"dncvt matchpxx",matchpxx,kx);
                         what9 = dn_x[kx] = DN_INTERN;   /* Internal call. */
@@ -2449,7 +2449,7 @@ dncvt(k,cx, prefix, suffix) int k, cx, prefix, suffix;
                 }
             }
             if (!xx) {
-                char * icp, buf[32];
+                char * icp, buf[33];
                 makestr(&matchpxx,dialpxx[kx]);
                 debug(F111,"dncvt matchpxx",matchpxx,kx);
                 what9 = dn_x[kx] = DN_INTERN; /* Internal call. */

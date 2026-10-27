@@ -5748,7 +5748,7 @@ settrm() {
           }
           line[wy++] = NUL;              /* Terminate */
           ws = line + wy + 1;             /* Point to after it */
-          wx = LINBUFSIZ - (int) strlen(line) - 1; /* Get remaining space */
+          wx = LINBUFSIZ - (int)(ws - line); /* Get remaining space */
           if ((wx < (LINBUFSIZ / 2)) ||
               (zzstring(line, &ws, &wx) < 0)) { /* Expand variables, etc. */
               printf("?Key definition too long\n");
@@ -6223,7 +6223,7 @@ setdialer(void) {
     }
     line[wy++] = NUL;                    /* Terminate */
     ws = line + wy + 1;                   /* Point to after it */
-    wx = LINBUFSIZ - (int) strlen(line) - 1; /* Calculate remaining space */
+    wx = LINBUFSIZ - (int)(ws - line); /* Calculate remaining space */
     if ((wx < (LINBUFSIZ / 2)) ||
         (zzstring(line, &ws, &wx) < 0)) { /* Expand variables, etc. */
         printf("?Key definition too long\n");
@@ -6664,7 +6664,7 @@ or Enter to restore default definition",
     }
     line[wy++] = NUL;                    /* Terminate */
     ws = line + wy + 1;                   /* Point to after it */
-    wx = LINBUFSIZ - (int) strlen(line) - 1; /* Calculate remaining space */
+    wx = LINBUFSIZ - (int)(ws - line); /* Calculate remaining space */
     if ((wx < (LINBUFSIZ / 2)) ||
         (zzstring(line, &ws, &wx) < 0)) { /* Expand variables, etc. */
         printf("?Key definition too long\n");

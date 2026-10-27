@@ -15682,11 +15682,13 @@ getbasename(s) char *s;
   Expands \ escapes via recursive descent.
   Argument s is a pointer to string to expand (source).
   Argument s2 is the address of where to put result (destination).
-  Argument n is the length of the destination string buffer.
+  Argument n is the number of characters the destination holds, not
+    counting the terminating NUL.  The buffer holds n+1 bytes.
   Returns -1 on failure, 0 on success,
     with destination string null-terminated and s2 pointing to the
     terminating null, so that subsequent characters can be added.
-    Failure reasons include destination buffer is filled up.
+    Failure reasons include destination buffer is filled up.  On that
+    failure the destination holds the characters that fit and a NUL.
 */
 
 #define XXDEPLIM 100                    /* Recursion depth limit */
@@ -15706,11 +15708,14 @@ getbasename(s) char *s;
 #endif /* OS2 */
 #endif /* NOSPL */
 
-int
+int zzdepth = 0;                        /* zzstring() call depth, */
+                                        /* reset by trap() */
+
+static int
 #ifdef CK_ANSIC
-zzstring( char *s, char **s2, int *n )
+zzstr1( char *s, char **s2, int *n )
 #else
-zzstring(s,s2,n) char *s; char **s2; int *n;
+zzstr1(s,s2,n) char *s; char **s2; int *n;
 #endif /* CK_ANSIC */
 {
     int x,                              /* Current character */
@@ -15745,21 +15750,13 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
 #ifdef DVNAMBUF
     char * vnambuf = NULL;              /* Buffer for variable/function name */
 #else /* DVNAMBUF */
-    char vnambuf[VNAML];                /* Buffer for variable/function name */
+    char vnambuf[VNAML+1];              /* Buffer for variable/function name */
 #endif /* DVNAMBUF */
     char *argp[FNARGS];                 /* Pointers to function args */
 #endif /* NOSPL */
 
-    static int depth = 0;               /* Call depth, avoid overflow */
-
     n2 = *n;                            /* Make local copies of args */
     nx = n2;
-
-#ifdef COMMENT
-    /* This is always 32K in BIGBUFOK builds */
-    if (depth == 0)
-      debug(F101,"zzstring top-level n","",n2);
-#endif  /* COMMENT */
 
     new = *s2;                          /* for one less level of indirection */
 
@@ -15767,19 +15764,10 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
     itsapattern = 0;                    /* For \fpattern() */
     isjoin = 0;                         /* For \fjoin() */
 #endif /* NOSPL */
-    depth++;                            /* Sink to a new depth */
-    if (depth > XXDEPLIM) {             /* Too deep? */
-        (VOID) newerrmsg("Definition is circular or too deep");
-        debug(F111,"zzstring","Definition is circular or too deep",XXDEPLIM);
-        depth = 0;
-        *new = NUL;
-        return(-1);
-    }
     if (!s || !new) {                   /* Watch out for null pointers */
-        debug(F101,"zzstring fail 2","",depth);
+        debug(F101,"zzstring fail 2","",zzdepth);
         if (new)
           *new = NUL;
-        depth = 0;
         return(-1);
     }
     s3 = s;
@@ -15788,19 +15776,17 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
     debug(F010,"zzstring entry",s,0);
     if (argl == 0) {                    /* Empty string */
         debug(F111,"zzstring empty arg",s,argl);
-        depth = 0;
         *new = NUL;
         return(0);
     }
     if (argl < 0) {                     /* Watch out for garbage */
-        debug(F101,"zzstring fail 3","",depth);
+        debug(F101,"zzstring fail 3","",zzdepth);
         *new = NUL;
-        depth = 0;
         return(-1);
     }
 #ifdef DVNAMBUF
     debug(F100,"vnambuf malloc...","",0);
-    vnambuf = malloc(VNAML);
+    vnambuf = malloc(VNAML+1);
     if (vnambuf == NULL) {
         printf("?Out of memory");
         return(-1);
@@ -15812,8 +15798,8 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
         if (x != CMDQ) {                /* Is it the command-quote char? */
             *new++ = *s++;              /* No, normal char, just copy */
             if (--n2 < 0) {             /* and count it, careful of overflow */
-                debug(F101,"zzstring overflow 1","",depth);
-                depth = 0;
+                new[-1] = NUL;
+                debug(F101,"zzstring overflow 1","",zzdepth);
 #ifdef DVNAMBUF
                 if (vnambuf) free(vnambuf);
 #endif /* DVNAMBUF */
@@ -15831,6 +15817,7 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
           case 0:                       /* It's a lone backslash */
             *new++ = *s++;
             if (--n2 < 0) {
+                new[-1] = NUL;
                 debug(F101,"zzstring overflow 2","",0);
 #ifdef DVNAMBUF
                 if (vnambuf) free(vnambuf);
@@ -15876,7 +15863,7 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
                     debug(F010,"zzstring %n vp",vp,0);
                     /* call self to evaluate it */
                     if (zzstring(vp,&new,&n2) < 0) {
-                        debug(F101,"zzstring fail 6","",depth);
+                        debug(F101,"zzstring fail 6","",zzdepth);
 #ifdef DVNAMBUF
                         if (vnambuf) free(vnambuf);
 #endif /* DVNAMBUF */
@@ -15886,14 +15873,14 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
                     while ((*new++ = *vp++)) /* copy it to output string. */
                       if (--n2 < 0) {
                           if (q) free(q);
-                          debug(F101,"zzstring overflow 4.5","",depth);
+                          new[-1] = NUL;
+                          debug(F101,"zzstring overflow 4.5","",zzdepth);
 #ifdef DVNAMBUF
                           if (vnambuf) free(vnambuf);
 #endif /* DVNAMBUF */
                           return(-1);
                       }
-                    new--;              /* Back up over terminating null */
-                    n2++;               /* to allow for further deposits. */
+                    new--;              /* Back up over the terminating NUL */
                 }
 #ifdef COMMENT
             } else {
@@ -15907,7 +15894,7 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
             x = arraynam(s,&vbi,&d);    /* Get name and subscript */
             debug(F111,"zzstring arraynam",s,x);
             if (x < 0) {
-                debug(F101,"zzstring fail 7","",depth);
+                debug(F101,"zzstring fail 7","",zzdepth);
 #ifdef DVNAMBUF
                 if (vnambuf) free(vnambuf);
 #endif /* DVNAMBUF */
@@ -15937,7 +15924,7 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
                             debug(F111,"zzstring ap[d]",ap[d],d);
                             if (vareval) {
                                 if (zzstring(ap[d],&new,&n2) < 0) {
-                                    debug(F101,"zzstring fail 8","",depth);
+                                    debug(F101,"zzstring fail 8","",zzdepth);
 #ifdef DVNAMBUF
                                     if (vnambuf) free(vnambuf);
 #endif /* DVNAMBUF */
@@ -15948,15 +15935,16 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
                                 while ((*new++ = *vp++)) /* copy to result */
                                   if (--n2 < 0) {
                                       if (q) free(q);
+                                      new[-1] = NUL;
                                       debug(F101,
-                                            "zzstring overflow 8.5","",depth);
+                                            "zzstring overflow 8.5","",
+                                            zzdepth);
 #ifdef DVNAMBUF
                                       if (vnambuf) free(vnambuf);
 #endif /* DVNAMBUF */
                                       return(-1);
                                   }
-                                new--;  /* Back up over terminating null */
-                                n2++;   /* to allow for further deposits. */
+                                new--;  /* Back up over the terminating NUL */
                             }
                         }
 
@@ -15985,9 +15973,8 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
             r = r2 = malloc(argl+2);    /* And make a place to copy args */
             /* debug(F101,"zzstring r2","",r2); */
             if (!r2) {                  /* Watch out for malloc failure */
-                debug(F101,"zzstring fail 9","",depth);
+                debug(F101,"zzstring fail 9","",zzdepth);
                 *new = NUL;
-                depth = 0;
 #ifdef DVNAMBUF
                 if (vnambuf) free(vnambuf);
 #endif /* DVNAMBUF */
@@ -15997,8 +15984,7 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
             r3 = malloc(argl+2);
             /* debug(F101,"zzstring r3","",r3); */
             if (!r3) {
-                debug(F101,"zzstring fail 10","",depth);
-                depth = 0;
+                debug(F101,"zzstring fail 10","",zzdepth);
                 *new = NUL;
                 if (r2) free(r2);
 #ifdef DVNAMBUF
@@ -16064,7 +16050,7 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
 #endif /* DEBUG */
             {
              /* In case the function name itself is constructed */
-                char buf[64]; char * qp = buf; int n3 = 64;
+                char buf[65]; char * qp = buf; int n3 = 64;
                 if (zzstring(vnambuf,&qp,&n3) > -1)
                   ckstrncpy(vnambuf,buf,64);
             }
@@ -16072,7 +16058,8 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
             if (vp) {                      /* If definition not empty */
                 while ((*new++ = *vp++)) { /* copy it to output string */
                     if (--n2 < 0) {        /* watch out for overflow */
-                        debug(F101,"zzstring fail 12","",depth);
+                        new[-1] = NUL;
+                        debug(F101,"zzstring fail 12","",zzdepth);
                         if (r2) { free(r2); r2 = NULL; }
                         if (r3) { free(r3); r3 = NULL; }
 #ifdef DVNAMBUF
@@ -16081,8 +16068,7 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
                         return(-1);
                     }
                 }
-                new--;                  /* Back up over terminating null */
-                n2++;                   /* to allow for further deposits. */
+                new--;                  /* Back up over the terminating NUL */
             }
             if (r2) { free(r2); r2 = NULL; }
             if (r3) { free(r3); r3 = NULL; }
@@ -16100,7 +16086,8 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
             if (*p != '(') {            /* as in \$(HOME) or \V(count) */
                 *new++ = *s++;          /* If not, just copy it */
                 if (--n2 < 0) {
-                    debug(F101,"zzstring overflow 3","",depth);
+                    new[-1] = NUL;
+                    debug(F101,"zzstring overflow 3","",zzdepth);
 #ifdef DVNAMBUF
                     if (vnambuf) free(vnambuf);
 #endif /* DVNAMBUF */
@@ -16266,14 +16253,14 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
                 while ((*new++ = *vp++)) /* copy it to output string. */
                   if (--n2 < 0) {
                       if (q) free(q);
-                      debug(F101,"zzstring overflow 4","",depth);
+                      new[-1] = NUL;
+                      debug(F101,"zzstring overflow 4","",zzdepth);
 #ifdef DVNAMBUF
                       if (vnambuf) free(vnambuf);
 #endif /* DVNAMBUF */
                       return(-1);
                   }
-                new--;                  /* Back up over terminating null */
-                n2++;                   /* to allow for further deposits. */
+                new--;                  /* Back up over the terminating NUL */
             }
             if (q) {
                 free(q);
@@ -16334,7 +16321,7 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
                                 if (p == NULL) p = "";
                             }
                         } else {                /* Can't push any more */
-                            debug(F101,"zzstring pushed too deep","",depth);
+                            debug(F101,"zzstring pushed too deep","",zzdepth);
                             printf(
                                "\n?Internal error: zzstring stack overflow\n"
                                    );
@@ -16357,7 +16344,8 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
               s += 2;                   /* Move past the pair */
               n2 -= 2;
               if (n2 < 0) {
-                  debug(F101,"zzstring overflow 5","",depth);
+                  new[-1] = NUL;
+                  debug(F101,"zzstring overflow 5","",zzdepth);
 #ifdef DVNAMBUF
                   if (vnambuf) free(vnambuf);
 #endif /* DVNAMBUF */
@@ -16367,7 +16355,8 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
           } else {
               *new++ = (char) y;        /* else deposit interpreted value */
               if (--n2 < 0) {
-                  debug(F101,"zzstring overflow 6","",depth);
+                  new[-1] = NUL;
+                  debug(F101,"zzstring overflow 6","",zzdepth);
 #ifdef DVNAMBUF
                   if (vnambuf) free(vnambuf);
 #endif /* DVNAMBUF */
@@ -16377,7 +16366,6 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
         }
     }
     *new = NUL;                         /* Terminate the new string */
-    depth--;                            /* Adjust stack depth gauge */
     *s2 = new;                          /* Copy results back into */
     *n = n2;                            /* the argument addresses */
     debug(F111,"zzstring ok s2 n2",*s2,n2);
@@ -16385,5 +16373,30 @@ zzstring(s,s2,n) char *s; char **s2; int *n;
     if (vnambuf) free(vnambuf);
 #endif /* DVNAMBUF */
     return(0);                          /* and return. */
+}
+
+/*
+  zzstring() counts its nesting in zzdepth around each call of zzstr1(),
+  so every return lowers the count it raised.
+*/
+int
+#ifdef CK_ANSIC
+zzstring( char *s, char **s2, int *n )
+#else
+zzstring(s,s2,n) char *s; char **s2; int *n;
+#endif /* CK_ANSIC */
+{
+    int rc;
+    if (++zzdepth > XXDEPLIM) {         /* Too deep? */
+        (VOID) newerrmsg("Definition is circular or too deep");
+        debug(F111,"zzstring","Definition is circular or too deep",XXDEPLIM);
+        zzdepth--;
+        if (s2 && *s2)
+          **s2 = NUL;
+        return(-1);
+    }
+    rc = zzstr1(s,s2,n);
+    zzdepth--;
+    return(rc);
 }
 #endif /* NOICP */
