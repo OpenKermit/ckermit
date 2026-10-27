@@ -15827,7 +15827,8 @@ ckxlogin(userid, passwd, acct, promptok)
     CHAR * _a = NULL;
 
     debug(F111,"ckxlogin userid",userid,promptok);
-    debug(F101,"ckxlogin passwd length","",passwd ? (int)strlen(passwd) : -1);
+    debug(F101,"ckxlogin passwd length","",
+          passwd ? (int)strlen((char *)passwd) : -1);
 
     isguest = 0;                        /* Global "anonymous" flag */
 

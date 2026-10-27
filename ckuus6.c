@@ -4073,7 +4073,7 @@ dotype(file, paging, first, head, pat, width, prefix, incs, outcs, outfile, z)
 #endif /* NT */
 
 #ifndef MAC
-    sig_t oldsig = SIG_ERR;             /* Set only if SIGINT trap installed */
+    ck_sig_t oldsig = SIG_ERR;          /* Set only if SIGINT trap installed */
 #endif /* MAC */
 
 #ifdef KUI
@@ -8873,7 +8873,9 @@ dopaus(cx) int cx;
         return(success = 1);
     }
     if (cx == XXPAU && !sleepcan) {     /* SLEEP CANCELLATION is OFF */
+        ck_blockbegin();
         sleep(wx);
+        ck_blockend();
         return(success = 1);
     }
     if (filewait) {                     /* FILE... */
@@ -8944,7 +8946,9 @@ dopaus(cx) int cx;
         }
         if (wx < 1)                      /* SLEEP/WAIT/PAUSE 0 */
           break;
+        ck_blockbegin();
         sleep(waitinterval);            /* No interrupt, sleep */
+        ck_blockend();
         wx -= waitinterval;              /* Deduct sleep time */
     } while (wx > 0);
 

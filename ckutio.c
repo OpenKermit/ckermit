@@ -1271,23 +1271,23 @@ static int gotsigs = 0;
 
 static time_t tcount = (time_t)0;       /* Elapsed time counter */
 
-static sig_t saval;     /* For saving alarm() handler */
-static sig_t savquit;   /* and other signal handlers */
+static ck_sig_t saval;     /* For saving alarm() handler */
+static ck_sig_t savquit;   /* and other signal handlers */
 #ifdef SIGUSR1
-static sig_t savusr1;
+static ck_sig_t savusr1;
 #endif /* SIGUSR1 */
 #ifdef SIGUSR2
-static sig_t savusr2;
+static ck_sig_t savusr2;
 #endif /* SIGUSR2 */
 #ifdef SIGPIPE
-static sig_t savpipe;
+static ck_sig_t savpipe;
 #endif /* SIGPIPE */
 #ifdef SIGDANGER
-static sig_t savdanger;
+static ck_sig_t savdanger;
 #endif /* SIGDANGER */
 
 #ifndef NOJC
-static sig_t jchdlr;    /* For checking suspend handler */
+static ck_sig_t jchdlr;    /* For checking suspend handler */
 #endif /* NOJC */
 static int jcshell = -1;                /* And flag for result */
 
@@ -1743,15 +1743,18 @@ deadline_xtimerh(foo) int foo;
 
   Install a SIGALRM handler using sigaction with SA_RESTART cleared.
   This ensures interrupted system calls return EINTR rather than
-  restarting automatically. Returns previous signal handler.
+  restarting automatically.  Returns previous signal handler.  On a
+  system without sigaction() (no SA_RESTART in <signal.h>) it uses
+  signal(), whose restart behavior varies.
 */
-static sig_t
+static ck_sig_t
 #ifdef CK_ANSIC
 deadline_signal( SIGTYP (*handler)(int) )
 #else
 deadline_signal(handler) SIGTYP (*handler)(int);
 #endif /* CK_ANSIC */
 {
+#ifdef SA_RESTART                       /* sigaction() is available */
     struct sigaction sa, oa;
     memset((char *)&sa, 0, sizeof(sa));
     sa.sa_handler = handler;
@@ -1760,7 +1763,39 @@ deadline_signal(handler) SIGTYP (*handler)(int);
     if (sigaction(SIGALRM, &sa, &oa) < 0)
       return SIG_ERR;
     return oa.sa_handler;
+#else
+    return((ck_sig_t)signal(SIGALRM, handler));
+#endif /* SA_RESTART */
 }
+
+#ifdef GFTIMER
+/*
+  Store the current time in tv for deadline arithmetic.  A monotonic
+  clock is used where available, so a change to the system clock does
+  not lengthen or shorten a wait.
+*/
+static VOID
+#ifdef CK_ANSIC
+ck_deadline_now(struct timeval * tv)
+#else
+ck_deadline_now(tv) struct timeval * tv;
+#endif /* CK_ANSIC */
+{
+#ifdef CLOCK_MONOTONIC
+    struct timespec ts;
+    if (clock_gettime(CLOCK_MONOTONIC,&ts) == 0) {
+        tv->tv_sec = ts.tv_sec;
+        tv->tv_usec = (long)(ts.tv_nsec / 1000L);
+        return;
+    }
+#endif /* CLOCK_MONOTONIC */
+#ifdef GTODONEARG                       /* Account for Mot's definition */
+    (VOID) gettimeofday(tv);
+#else
+    (VOID) gettimeofday(tv, (struct timezone *)0);
+#endif /* GTODONEARG */
+}
+#endif /* GFTIMER */
 
 /*
   C K _ D E A D L I N E _ S E T
@@ -1768,7 +1803,7 @@ deadline_signal(handler) SIGTYP (*handler)(int);
   Records an absolute deadline "seconds" from now, for
   ck_deadline_remaining_ms()/ck_deadline_expired() to measure against.
   seconds <= 0 clears the deadline (treated as infinite by the other
-  two functions).  Uses gettimeofday()-based sub-second timing when
+  two functions).  Uses ck_deadline_now() for sub-second timing when
   GFTIMER is available (every platform this project builds and tests
   for), and whole-second time() otherwise.
 */
@@ -1786,11 +1821,7 @@ ck_deadline_set(seconds) int seconds;
     }
     ck_deadline_active = 1;
 #ifdef GFTIMER
-#ifdef GTODONEARG                       /* Account for Mot's definition */
-    (VOID) gettimeofday(&ck_deadline_tv);
-#else
-    (VOID) gettimeofday(&ck_deadline_tv, (struct timezone *)0);
-#endif /* GTODONEARG */
+    ck_deadline_now(&ck_deadline_tv);
     /* Cap deadline to prevent time_t overflow. */
     if ((time_t)seconds > CK_TIME_T_MAX - ck_deadline_tv.tv_sec)
       ck_deadline_tv.tv_sec = CK_TIME_T_MAX;
@@ -1867,11 +1898,7 @@ ck_deadline_remaining_ms() {
       return(-1L);
 
 #ifdef GFTIMER
-#ifdef GTODONEARG                       /* Account for Mot's definition */
-    (VOID) gettimeofday(&now);
-#else
-    (VOID) gettimeofday(&now, (struct timezone *)0);
-#endif /* GTODONEARG */
+    ck_deadline_now(&now);
     secs = ck_deadline_tv.tv_sec - now.tv_sec;
     if (secs > (time_t)CK_DEADLINE_MAXSECS)
       return(CK_DEADLINE_MAXSECS * 1000L);
@@ -1932,10 +1959,12 @@ ck_deadline_select(fd,wantread) int fd, wantread;
         }
         FD_ZERO(&fds);
         FD_SET(fd, &fds);
+        ck_blockbegin();
         if (wantread)
           rc = select(fd + 1, &fds, NULL, NULL, tvp);
         else
           rc = select(fd + 1, NULL, &fds, NULL, tvp);
+        ck_blockend();
         if (rc < 0) {
             if (errno == EINTR)
               continue;
@@ -1952,7 +1981,7 @@ ck_deadline_select(fd,wantread) int fd, wantread;
 /* Control-C trap for communication line input functions */
 
 int cc_int;                             /* Flag */
-sig_t occt;                     /* For saving old SIGINT handler */
+ck_sig_t occt;                     /* For saving old SIGINT handler */
 
 /*ARGSUSED*/
 SIGTYP
@@ -2182,44 +2211,33 @@ ttgwsiz() {
 _PROTOTYP( int rlog_naws, (void) );
 #endif  /* RLOGCODE */
 
+/*
+  Signal handlers that cannot act safely in signal context set these
+  flags.  chksigs() acts on them from the main program.  ck_blocking is
+  set while the main program waits in a system call marked by
+  ck_blockbegin() and ck_blockend().  It holds no library lock there, so
+  sighup() can exit at once.
+*/
+volatile sig_atomic_t ck_hup_pending = 0;
+volatile sig_atomic_t ck_winch_pending = 0;
+volatile sig_atomic_t ck_blocking = 0;
+static int ck_hup_exiting = 0;          /* ck_hupexit() has started */
+
 #ifndef NOSIGWINCH
 #ifdef SIGWINCH
-SIGTYP
-#ifdef CK_ANSIC
-winchh( int foo )                       /* SIGWINCH handler */
-#else
-winchh(foo) int foo;
-#endif /* CK_ANSIC */
-{
-    int x = 0;
 /*
-  This might be called by a blocking syscall that just failed and is about to
-  have its errno examined by its caller.
-
-  Within this function, ttgwsiz() and the debug() calls, make their own syscalls
-  that can overwrite errno.  Without saving and restoring errno, this handler
-  running between the interrupted syscall's failure and its caller's errno check
-  replaces the real error with whatever errno this handler's  internal calls
-  happened to leave behind.  So, save and restore errno.
+  Act on a window-size change: get the new size, resize a PTY
+  connection, and send Telnet or Rlogin NAWS.  Called by chksigs().
 */
-    int saved_errno = errno;
+static VOID
+dowinch() {
+    int x = 0;
 #ifdef CK_TTYFD
 #ifndef VMS
     extern int ttyfd;
 #endif /* VMS */
 #endif /* CK_TTYFD */
     extern int tt_rows, tt_cols, cmd_rows, cmd_cols;
-#ifdef DEBUG
-    if (deblog) {
-        debug(F100,"***************","",0);
-        debug(F100,"SIGWINCH caught","",0);
-        debug(F100,"***************","",0);
-#ifdef NETPTY
-        debug(F101,"SIGWINCH pty_fork_pid","",pty_fork_pid);
-#endif /* NETPTY */
-    }
-#endif /* DEUB */
-    signal(SIGWINCH,winchh);            /* Re-arm the signal */
     x = ttgwsiz();                      /* Get new window size */
     cmd_rows = tt_rows;                 /* Adjust command screen too */
     cmd_cols = tt_cols;
@@ -2234,42 +2252,22 @@ winchh(foo) int foo;
 #else
       (!local)
 #endif /* CK_TTYFD */
-    {
-        errno = saved_errno;
-        return;
-    }
+      return;
 
 #ifdef NETPTY
     if (pty_net_pid > -1) {             /* "set host" to a PTY? */
-        int wx;
-
 #ifdef TIOCSWINSZ
         struct winsize w;               /* Resize the PTY */
-        errno = 0;
         w.ws_col = (unsigned short)tt_cols;
         w.ws_row = (unsigned short)tt_rows;
         w.ws_xpixel = (unsigned short)tt_xpixel;
         w.ws_ypixel = (unsigned short)tt_ypixel;
-        wx = ioctl(ttyfd,TIOCSWINSZ,&w);
-        debug(F101,"winchh TIOCSWINSZ","",wx);
-        debug(F101,"winchh TIOCSWINSZ errno","",errno);
+        (VOID) ioctl(ttyfd,TIOCSWINSZ,&w);
 #endif /* TIOCSWINSZ */
-
-        errno = 0;
-        wx = kill(pty_net_pid,SIGWINCH);
-        debug(F101,"winchh kill","",wx);
-        debug(F101,"winchh kill errno","",errno);
+        (VOID) kill(pty_net_pid,SIGWINCH);
     }
 #endif /* NETPTY */
 
-/*
-  This should be OK.  It might seem that sending this from
-  interrupt level could interfere with another TELNET IAC string
-  that was in the process of being sent.  But we always send
-  TELNET strings with a single write(), which should prevent mixups.
-  blah_snaws() should protect themselves from being called on the
-  wrong kind of connection.
-*/
 #ifdef TCPSOCKET
 #ifndef NOTTGWSIZ
     if (x > 0 && tt_rows > 0 && tt_cols > 0) {
@@ -2280,11 +2278,97 @@ winchh(foo) int foo;
     }
 #endif /* NOTTGWSIZ */
 #endif /* TCPSOCKET */
+}
+
+SIGTYP
+#ifdef CK_ANSIC
+winchh( int foo )                       /* SIGWINCH handler */
+#else
+winchh(foo) int foo;
+#endif /* CK_ANSIC */
+{
+    int saved_errno = errno;            /* signal() may set errno */
+    ck_winch_pending = 1;
+    signal(SIGWINCH,winchh);            /* Re-arm the signal */
     errno = saved_errno;
     SIGRETURN;
 }
 #endif /* SIGWINCH */
 #endif /* NOSIGWINCH */
+
+/*
+  Exit after SIGHUP.  Called from the main program by chksigs(), or by
+  sighup() while the main program waits in a marked system call.
+*/
+static VOID
+ck_hupexit() {
+    ck_hup_exiting = 1;
+    ck_blocking = 0;
+    backgrd = 1;
+    debug(F100,"***************","",0);
+    debug(F100,"SIGHUP received","",0);
+    debug(F100,"***************","",0);
+    doexit(BAD_EXIT,-1);
+}
+
+/*
+  Act on signals that arrived since the last call.  The main program
+  calls this between commands, between packets and in the CONNECT loop.
+*/
+VOID
+chksigs() {
+    if (ck_hup_pending && !ck_hup_exiting)
+      ck_hupexit();
+#ifndef NOSIGWINCH
+#ifdef SIGWINCH
+    if (ck_winch_pending) {
+        ck_winch_pending = 0;
+        dowinch();
+    }
+#endif /* SIGWINCH */
+#endif /* NOSIGWINCH */
+}
+
+/*
+  Mark the start and end of a wait in a system call.  The flag is set
+  before the pending test, so a SIGHUP that arrives after the test finds
+  ck_blocking set and exits from sighup().
+*/
+VOID
+ck_blockbegin() {
+    ck_blocking = 1;
+    if (ck_hup_pending && !ck_hup_exiting)
+      ck_hupexit();
+}
+
+VOID
+ck_blockend() {
+    ck_blocking = 0;
+    if (ck_hup_pending && !ck_hup_exiting)
+      ck_hupexit();
+}
+
+_PROTOTYP( SIGTYP sighup, (int) );
+
+/*
+  Install sighup().  Where sigaction() is available (SA_RESTART is
+  defined), SIGHUP does not restart an interrupted system call, so a
+  wait that is not marked returns EINTR and the program reaches
+  chksigs().
+*/
+VOID
+ck_armhup() {
+#ifdef SA_RESTART
+    struct sigaction sa;
+    memset((char *)&sa, 0, sizeof(sa));
+    sa.sa_handler = sighup;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    (VOID) sigaction(SIGHUP, &sa, NULL);
+#else
+    signal(SIGHUP,sighup);
+#endif /* SA_RESTART */
+}
 
 SIGTYP
 #ifdef CK_ANSIC
@@ -2293,13 +2377,13 @@ sighup( int foo )                       /* SIGHUP handler */
 sighup(foo) int foo;
 #endif /* CK_ANSIC */
 {
-    backgrd = 1;
-    debug(F100,"***************","",0);
-    debug(F100,"SIGHUP received","",0);
-    debug(F100,"***************","",0);
-    doexit(BAD_EXIT,-1);
-    /*NOTREACHED*/
-    SIGRETURN;                          /* Shut picky compilers up... */
+    ck_hup_pending = 1;
+#ifndef SA_RESTART
+    signal(SIGHUP,sighup);              /* Re-arm the signal */
+#endif /* SA_RESTART */
+    if (ck_blocking && !ck_hup_exiting)
+      ck_hupexit();                     /* Waiting in a marked call */
+    SIGRETURN;
 }
 
 #ifdef CK_SCO32V4
@@ -2410,7 +2494,7 @@ sysinit() {
     }
     signal(SIGINT,SIG_IGN);             /* Ignore interrupts at first */
     signal(SIGFPE,SIG_IGN);             /* Ignore floating-point exceptions */
-    signal(SIGHUP,sighup);              /* Catch SIGHUP */
+    ck_armhup();                        /* Catch SIGHUP */
 #ifndef NOSIGWINCH
 #ifdef SIGWINCH
     signal(SIGWINCH,winchh);            /* Catch window-size change */
@@ -3814,8 +3898,6 @@ ttclos(foo) int foo;
 #endif /* CK_ANSIC */
 {
     int xx;
-    /* Set both before and after sigsetjmp() below; must survive a */
-    /* longjmp() back. */
 #ifdef CK_ANSIC
     volatile int x = 0;
 #else
@@ -8815,6 +8897,12 @@ mygetbuf() {
         debug(F101,"mygetbuf errno","",errno);
         if (x == -4)             /* myfillbuf() deadline expired: not an */
           return(-4);            /* I/O error, no connection to close. */
+/*
+  A blocking read, such as SSL_read() on a blocking socket, returns -1
+  when the deadline alarm interrupts it.  That is a timeout too.
+*/
+        if (x == -1 && ck_deadline_expired())
+          return(-4);
 #ifdef TCPSOCKET
         if (netconn && ttnet == NET_TCPB) {
 /*
@@ -8899,6 +8987,7 @@ int
 myfillbuf() {
     int fd, n;
     int want = sizeof(mybuf);           /* Bytes to read */
+    chksigs();                          /* A signal may have ended a read */
 #ifdef NETCMD
     if (ttpipe)
       fd = fdin;
@@ -9076,21 +9165,11 @@ myfillbuf() {
 #endif /* TNCODE */
     debug(F101,"myfillbuf calling read() fd","",ttyfd);
 /*
-  ttinl()'s SIGALRM timeout handler (timerh()) calls siglongjmp() whenever the
-  alarm fires.  If it fires while waiting for input, that's fine.  But it could
-  fire after read() has already put data into mybuf, but before mygetbuf()
-  stores the count.  If this happens, that data is lost and ttinl() reports a
-  timeout even though data was read.  Observed under a heavily loaded NetBSD
-  system.
-
-  Letting the alarm interrupt select() is safe and preserves the existing
-  timeout behavior for a connection that truly has nothing to send.  Only once
-  select() confirms data is waiting is SIGALRM blocked, for just the bounded
-  interval it takes to read that data and store the count, so the alarm can no
-  longer land in the middle of it.  If it fired while blocked, it is simply
-  delivered right after unblocking, and ttinl() still times out on its next
-  pass, but the data already read stays in mybuf for that pass to use instead
-  of being silently lost.
+  The deadline alarm handler, deadline_timerh(), sets a flag and returns.
+  select() waits for data no longer than the deadline.  Once select()
+  reports data, SIGALRM is blocked while read() runs and its count is
+  stored in my_count, so an alarm cannot separate the two.  An alarm that
+  arrives meanwhile is delivered when SIGALRM is unblocked.
 */
 #ifdef SELECT
 
@@ -9107,10 +9186,10 @@ myfillbuf() {
         if (rc == 0)                    /* Deadline expired */
           return(-4);
     }
-#endif /* SELECT */
 #ifdef CK_POSIX_SIG
     {
 /*
+  select() has confirmed that data is waiting, so read() does not block.
   The mask has to cover storing the result in my_count, not just the read()
   call, to avoid a race.  Similarly, my_item needs to be reset to -1 here, since
   a deferred alarm firing immediately after SIGALRM is unmasked causes a jump
@@ -9128,6 +9207,18 @@ myfillbuf() {
 #else /* CK_POSIX_SIG */
     n = read(fd, mybuf, want);
 #endif /* CK_POSIX_SIG */
+#else /* SELECT */
+/*
+  Without select(), read() blocks until data arrives.  SIGALRM stays
+  unblocked so the deadline alarm can interrupt it.  A deadline that
+  has already passed would have no alarm left to do so.
+*/
+    if (ck_deadline_expired())
+      return(-4);
+    n = read(fd, mybuf, want);
+    if (n < 0 && errno == EINTR && ck_deadline_expired())
+      return(-4);                       /* Deadline expired */
+#endif /* SELECT */
     debug(F101,"SVORPOSIX myfillbuf read","",n);
     debug(F101,"SVORPOSIX myfillbuf errno","",errno);
     debug(F101,"SVORPOSIX myfillbuf ttcarr","",ttcarr);
@@ -9293,7 +9384,11 @@ myfillbuf() {
 
     errno = 0;
 
+    if (ck_deadline_expired())          /* Expired before the read */
+      return(-4);
     x = read(fd, mybuf, (int) avail);
+    if (x < 0 && errno == EINTR && ck_deadline_expired())
+      return(-4);                       /* Deadline alarm interrupted it */
 #ifdef DEBUG
     if (deblog) {
         debug(F101,"myfillbuf avail","",avail);
@@ -9383,7 +9478,11 @@ myfillbuf() {
     else
 #endif /* NETCMD */
       fd = ttyfd;
+    if (ck_deadline_expired())          /* Expired before the read */
+      return(-4);
     x = read(fd, mybuf, 1);
+    if (x < 0 && errno == EINTR && ck_deadline_expired())
+      return(-4);                       /* Deadline alarm interrupted it */
     return(x > 0 ? x : -3);
 }
 
@@ -9931,7 +10030,7 @@ conbgt(flag) int flag;
 */
     if (x < 0 && !flag && !sigint_ign) { /* Didn't get good results above... */
 
-        sig_t osigint;
+        ck_sig_t osigint;
 
         osigint = signal(SIGINT,SIG_IGN);       /* What is SIGINT set to? */
         sigint_ign = 1;
@@ -11782,6 +11881,14 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
 #else
     rc = ttinl_inner(dest,max,timo,eol);
 #endif /* PARSENSE */
+/*
+  Some returns from ttinl_inner() leave its timer armed.  saval is set
+  only while that timer is armed, so turn it off here.  The deadline
+  belongs to this read too.
+*/
+    if (saval)
+      ttimoff();
+    ck_deadline_set(0);
 
 #ifdef CK_SSL
     if (oflags > -1)
@@ -11851,18 +11958,13 @@ ttinc(timo) int timo;
         ) {
 #ifdef MYREAD
 /*
-  Untimed read by contract. Save and restore any active deadline around
-  the read, as this branch may be reached during nested Telnet option
-  negotiation inside ttinl().
+  Untimed read.  Telnet option negotiation inside a timed ttinl() reads
+  the rest of an IAC sequence through here.  Any deadline that ttinl()
+  set stays active, so a peer that stops in the middle of a sequence
+  cannot hold the read past ttinl()'s timeout.
 */
-        {
-            ck_deadline_state_t saved_deadline;
-            ck_deadline_save(&saved_deadline);
-            ck_deadline_set(0);
-            /* Comm line failure returns -1 thru myread, so no &= 0377 */
-            n = myread();               /* Wait for a character... */
-            ck_deadline_restore(&saved_deadline);
-        }
+        /* Comm line failure returns -1 thru myread, so no &= 0377 */
+        n = myread();                   /* Wait for a character... */
         /* debug(F000,"ttinc MYREAD n","",n); */
 #ifdef CK_ENCRYPTION
         /* debug(F101,"ttinc u_encrypt","",TELOPT_U(TELOPT_ENCRYPTION)); */
@@ -12219,7 +12321,9 @@ msleep(m) int m;
     debug(F101,"msleep SELECT 1","",m);
     if (m <= 0) return(0);
     if (m >= 1000) {                    /* Catch big arguments. */
+        ck_blockbegin();
         sleep(m/1000);
+        ck_blockend();
         m = m % 1000;
         if (m < 10) return(0);
     }
@@ -12253,15 +12357,21 @@ msleep(m) int m;
     tv.tv_sec = 0;                      /* Use select() */
     tv.tv_usec = m * 1000L;
 #ifdef BSD44
+    ck_blockbegin();
     x = select( 0, (fd_set *)0, (fd_set *)0, (fd_set *)0, &tv );
+    ck_blockend();
     debug(F101,"msleep BSD44 select","",x);
 #else /* BSD44 */
 #ifdef __linux__
+    ck_blockbegin();
     x = select( 0, (fd_set *)0, (fd_set *)0, (fd_set *)0, &tv );
+    ck_blockend();
     debug(F101,"msleep __linux__ select","",x);
 #else /* __linux__ */
 #ifdef BSD43
+    ck_blockbegin();
     x = select( 0, (fd_set *)0, (fd_set *)0, (fd_set *)0, &tv );
+    ck_blockend();
     debug(F101,"msleep BSD43 select","",x);
 #else /* BSD43 */
 #ifdef QNX6
@@ -13450,7 +13560,9 @@ coninc(timo) int timo;
 
     if (timo <= 0) {                    /* Untimed, blocking read. */
         while (1) {                     /* Keep trying till we get one. */
+            ck_blockbegin();
             n = (int)read(0, &ch, 1);        /* Read a character. */
+            ck_blockend();
             if (n == 0) {               /* End of file */
                 if (!isatty(0))         /* A pipe or file: no more input */
                   return(-1);
@@ -13537,7 +13649,9 @@ coninc(timo) int timo;
     saval = deadline_signal(deadline_timerh); /* Set up timeout handler. */
     xx = alarm(timo);                   /* Set the alarm. */
     debug(F101,"coninc alarm set","",timo);
+    ck_blockbegin();
     n = (int)read(0, &ch, 1);
+    ck_blockend();
     if (n < 0 && ck_deadline_expired())
       n = -2;                           /* Code for timeout. */
     ttimoff();                          /* Turn off timer */
@@ -13692,7 +13806,7 @@ attdial(ttname,speed,telnbr) char *ttname,*telnbr; long speed; {
     } while ((dialer.c_linestatus & MODEMCONNECTED) == 0);
     /* Turn off O_NDELAY flag now. */
     fcntl(ttyfd, F_SETFL, fcntl(ttyfd, F_GETFL, 0) & ~O_NDELAY);
-    signal(SIGHUP, sighup);             /* hangup on loss of carrier */
+    ck_armhup();                        /* hangup on loss of carrier */
     return(0);                          /* return success */
 }
 
@@ -15098,7 +15212,7 @@ pty_get_status(fd,pid) int fd; PID_T pid;
 */
 static int have_pty = 0;                /* Do we have a pty? */
 
-static sig_t save_sigchld;      /* For catching SIGCHLD */
+static ck_sig_t save_sigchld;      /* For catching SIGCHLD */
 
 static VOID
 #ifdef CK_ANSIC
@@ -16363,8 +16477,8 @@ external protocols over secure connections not supported in this OS.\n"
         debug(F101,"ttruncmd system",s,x);
         _exit(x ? BAD_EXIT : 0);
     } else {
-        sig_t istat;
-        sig_t qstat;
+        ck_sig_t istat;
+        ck_sig_t qstat;
         if (pid == (PID_T) -1)          /* fork() failed? */
           return(0);
         istat = signal(SIGINT,SIG_IGN); /* Let the fork handle keyboard */

@@ -1532,6 +1532,7 @@ conect() {
 #endif /* CKTIDLE */
 
     while (active) {                    /* Big loop... */
+        chksigs();                      /* Act on SIGHUP or SIGWINCH */
         debug(F100,"CONNECT top of loop","",0);
         FD_ZERO(&in);                   /* Clear select() structs */
         FD_ZERO(&out);

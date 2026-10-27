@@ -1542,22 +1542,11 @@ zopeno(n,name,zz,fcb) int n; char *name; struct zattr *zz; struct filinfo *fcb;
         debug(F101, "zopeno zobufsize", "", zobufsize);
         if (n == ZTFILE) {              /* Transaction log */
             setbuf(fp[n],NULL);           /* make it unbuffered. */
-        } else if (n == ZDFILE) {       /* Debug log */
 /*
-  The debug log can be extremely high volume. LOG DEBUG hex-dumps every
-  byte of every packet, so a single large file transfer can produce
-  millions of lines. Unbuffered stdio costs a write() syscall per line,
-  significantly decreasing performance.
-
-  Default to normal stdio buffering here instead, and only go
-  unbuffered if CK_DEBUG_UNBUFFERED is set in the environment. Most
-  debugging sessions end in a diagnosable error or a normal exit, both
-  of which flush and close the log.  Unbuffered output only matters for
-  a hard crash, and CK_DEBUG_UNBUFFERED is there for that case.
+  The debug log keeps normal stdio buffering.  zsout() and zsoutl()
+  flush it at the end of each line, so a killed process leaves every
+  complete record on disk without a write() per fragment.
 */
-            char * unbuf = getenv("CK_DEBUG_UNBUFFERED");
-            if (unbuf && *unbuf && strcmp(unbuf,"0"))
-              setbuf(fp[n],NULL);
 #ifdef DONDELAY
         } else if (n == ZOFILE && !zofblock) { /* blocking or nonblocking */
             int flags;
@@ -2014,8 +2003,13 @@ zsout(n,s) int n; char *s;
         return((rc == k) ? 0 : -1);
     }
     rc = fputs(s,fp[n]) == EOF ? -1 : 0;
-    if (n == ZWFILE || n == ZDFILE)
+    if (n == ZWFILE)
       fflush(fp[n]);
+    else if (n == ZDFILE) {             /* Flush at the end of a line */
+        int k = (int)strlen(s);
+        if (k > 0 && s[k-1] == '\n')
+          fflush(fp[n]);
+    }
     return(rc);
 }
 
@@ -7062,8 +7056,8 @@ zshcmd(s) char *s;
 #ifdef CK_CHILD
         int child;                      /* Child's exit status */
 #endif /* CK_CHILD */
-        sig_t istat;
-        sig_t qstat;
+        ck_sig_t istat;
+        ck_sig_t qstat;
 
         if (cpid == (PID_T) -1) return(-1); /* fork() failed? */
 

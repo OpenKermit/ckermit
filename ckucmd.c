@@ -7584,6 +7584,8 @@ cmdgetc(ctlimit) int ctlimit;
 #undef CMD_CONINC
 #endif /* CMD_CONINC */
         c = getchar();
+        if (c == EOF && errno == EINTR)  /* A signal ended the read */
+          chksigs();
 #endif /* OS2 */
     }
 #else  /* MINIX2 */

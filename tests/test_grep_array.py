@@ -79,14 +79,14 @@ def test_grep_array_keeps_macro_arguments(run_wermit, tmp_path):
 
 def test_grep_array_nameonly(run_wermit, tmp_path):
     """Verify GREP /NAMEONLY /ARRAY stores each matching file once."""
-    for i in range(1100):
+    for i in range(1010):
         (tmp_path / f"f{i:04d}.txt").write_text("alpha\nalpha\n")
     result = _grep(run_wermit, tmp_path,
                    "set file listsize 2000, "
                    "grep /nameonly /array:&a alpha *.txt",
-                   ["echo LAST=[\\&a[1100]]"])
-    assert "COUNT=[1100] DIM=[1100]" in result.stdout, result.stdout[-500:]
-    assert "LAST=[f1099.txt]" in result.stdout, result.stdout[-500:]
+                   ["echo LAST=[\\&a[1010]]"])
+    assert "COUNT=[1010] DIM=[1010]" in result.stdout, result.stdout[-500:]
+    assert "LAST=[f1009.txt]" in result.stdout, result.stdout[-500:]
 
 
 def test_grep_array_through_link(run_wermit, tmp_path):

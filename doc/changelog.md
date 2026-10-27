@@ -46,6 +46,9 @@ covering their situations.
   -Wshadow work, present in 11.0.511 through 11.0.514.  Bug was introduced in
   commit 9be7054f in C-Kermit 11.0.511.
 
+- [11] INPUT on a TLS connection failed after one second with an I/O error.
+  Bug was introduced in commit 4521c6b6 in C-Kermit 11.0.510 of 2026.
+
 - [11] An external protocol over an SSL or TLS connection held each burst of
   incoming data for 2 seconds.  Steady traffic held it until the traffic
   stopped.  lrz 0.13 gave up on the transfer and older versions were slow.  Bug
@@ -406,6 +409,19 @@ file, also reach it.
 
 ## Additional improvements and bugfixes
 
+- [11] The debug log is flushed at the end of each line instead of after
+  every fragment written to it.  A killed process still leaves every
+  complete line on disk.  The `CK_DEBUG_UNBUFFERED` environment variable
+  is removed.  It had no effect, since every fragment was flushed.  The
+  per-fragment flush was introduced in commits 43c4c8ce and 62c2d7d8 in
+  C-Kermit 11.0.501 of 2026.
+
+### File transfer and the server
+
+- [11] Timeouts use a monotonic clock.  They used the time of day, so a
+  clock step lengthened or shortened them.  Bug was introduced in commit
+  4521c6b6 in C-Kermit 11.0.510 of 2026.
+
 ### FTP and HTTP
 
 - [7, 8] HTTP reconnects went to the wrong port for ports above 255, and HTTP
@@ -419,6 +435,11 @@ file, also reach it.
   8.0.200 of 2001.
 
 ### Connections, Telnet and TLS
+
+- [7, 8] SIGHUP while the debug log was open could deadlock Kermit inside
+  the signal handler.  SIGHUP and SIGWINCH are now handled outside it.
+  Bugs were introduced in commits d0f8b1da in C-Kermit 7.0.197 of 2000,
+  and 7b4ce026 in C-Kermit 8.0.206 of 2002.
 
 - [7, 8] On big-endian 64-bit hosts, the local IP address lookup returned
   0.0.0.0 and the Telnet COM-PORT baud rate was sent and read wrongly.  Added
@@ -599,6 +620,8 @@ file, also reach it.
 - [11] `SET COMPATIBILITY 9` and `10`, and `kermit9` and `kermit10`, set
   RECEIVE PATHNAMES AUTO and no longer re-enable functions that ENABLE
   refuses.
+
+- [11] The `CK_DEBUG_UNBUFFERED` environment variable is removed.
 
 ## Changes in earlier releases that didn't make it into the changelog
 

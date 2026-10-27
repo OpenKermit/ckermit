@@ -1785,15 +1785,15 @@ _PROTOTYP(int ckxfprintf,(FILE *, const char *, ...)) CK_PRINTF_FMT(2,3);
 #ifdef CK_ANSIC
 #ifdef OS2
 #ifdef NT
-typedef SIGTYP (*sig_t)(int);
+typedef SIGTYP (*ck_sig_t)(int);
 #else /* !NT */
-typedef SIGTYP (volatile *sig_t)(int);
+typedef SIGTYP (volatile *ck_sig_t)(int);
 #endif /* NT */
 #else /* !OS2 */
-typedef SIGTYP (*sig_t)(int);
+typedef SIGTYP (*ck_sig_t)(int);
 #endif /* OS2 */
 #else /* !CK_ANSIC */
-typedef SIGTYP (*sig_t)();
+typedef SIGTYP (*ck_sig_t)();
 #endif /* CK_ANSIC */
 
 /* We want all characters to be unsigned if the compiler supports it */
@@ -5420,12 +5420,12 @@ _PROTOTYP(int dohexdump,(CHAR *,CHAR *,int));
 #define ckhexdump(a,b,c) \
 ((void)(deblog?dohexdump((CHAR *)(a),(CHAR *)(b),c):0))
 #else
-#define debug(a,b,c,d) (deblog?dodebug(a,b,(const char *)(c),(CK_OFF_T)(d)):0)
+#define debug(a,b,c,d) (deblog?dodebug(a,b,(CONST char *)(c),(CK_OFF_T)(d)):0)
 #define ckhexdump(a,b,c) (deblog?dohexdump((CHAR *)(a),(CHAR *)(b),c):0)
 #endif /* CK_ANSIC */
 #else /* IFDEBUG */
 /* Use this form to save space: */
-#define debug(a,b,c,d) dodebug(a,b,(const char *)(c),(CK_OFF_T)(d))
+#define debug(a,b,c,d) dodebug(a,b,(CONST char *)(c),(CK_OFF_T)(d))
 #define ckhexdump(a,b,c) dohexdump((CHAR *)(a),(CHAR *)(b),c)
 #endif /* IFDEBUG */
 #endif /* DEBUG */
@@ -5846,6 +5846,16 @@ _PROTOTYP( int priv_opn, (char *, int) );
 _PROTOTYP( int sysinit, (void) );       /* Misc Kermit functions */
 _PROTOTYP( int syscleanup, (void) );
 _PROTOTYP( int msleep, (int) );
+#ifdef UNIX
+_PROTOTYP( VOID chksigs, (void) );
+_PROTOTYP( VOID ck_blockbegin, (void) );
+_PROTOTYP( VOID ck_blockend, (void) );
+_PROTOTYP( VOID ck_armhup, (void) );
+#else
+#define chksigs()
+#define ck_blockbegin()
+#define ck_blockend()
+#endif /* UNIX */
 _PROTOTYP( VOID rtimer, (void) );
 _PROTOTYP( int gtimer, (void) );
 #ifdef GFTIMER

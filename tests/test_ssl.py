@@ -762,6 +762,65 @@ def test_telnet_starttls_debug_prints_finished_messages(
     assert str(server_dir) in result.stdout
 
 
+def _tls_send_after(ssl_pki, delay, data):
+    """Start a one-connection TLS server that sends data after delay.
+
+    Returns (port, thread, listening socket).
+    """
+    import socket
+    import ssl
+    import threading
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(ssl_pki["server_crt"], ssl_pki["server_key"])
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    srv.settimeout(20)
+
+    def run():
+        try:
+            conn, _ = srv.accept()
+            with ctx.wrap_socket(conn, server_side=True) as s:
+                time.sleep(delay)
+                s.sendall(data)
+                time.sleep(2)
+        except (OSError, ssl.SSLError):
+            pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    return srv.getsockname()[1], thread, srv
+
+
+@pytest.mark.parametrize("protocol", ["ssl-raw", "tls-raw"])
+@pytest.mark.parametrize("delay,instatus,low,high", [
+    (2, 0, 1.5, 4.5),
+    (12, 1, 3.5, 9),                    # INPUT counts whole seconds
+])
+def test_tls_input_waits_for_timeout(run_wermit, ssl_pki, protocol,
+                                     delay, instatus, low, high):
+    """Verify INPUT on a TLS connection waits for its full timeout.
+
+    INPUT reads in one-second steps.  The deadline alarm interrupts a
+    blocking SSL_read(), and that must count as a timeout rather than
+    an I/O error.  Data sent after 2 seconds satisfies "input 5".
+    With no data, INPUT times out after 5 seconds with status 1.
+    """
+    port, thread, srv = _tls_send_after(ssl_pki, delay, b"HELLO\r\n")
+    start = time.monotonic()
+    try:
+        result = run_wermit(
+            f"set authentication ssl verify-file {ssl_pki['ca_crt']}, "
+            f"set host localhost {port} /{protocol}, "
+            "input 5 HELLO, "
+            "echo INSTATUS=\\v(instatus), close", timeout=30)
+    finally:
+        elapsed = time.monotonic() - start
+        srv.close()
+    assert f"INSTATUS={instatus}" in result.stdout, result.stdout
+    assert low < elapsed < high, elapsed
+
+
 @pytest.mark.parametrize("starttls", [True, False],
                          ids=["start-tls", "auth-ssl"])
 def test_telnet_tls_checks_server_name(server_dir, wermit_tcp_loopback,

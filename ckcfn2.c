@@ -492,6 +492,7 @@ input() {
     debug(F101,"input what","",what);
 
     while (1) {                         /* Big loop... */
+        chksigs();                      /* Act on SIGHUP or SIGWINCH */
 /*
   It is ttchk()'s responsibility to tell us if the connection is broken,
   and to do so instantly and nondestructively -- no blocking, etc, that would

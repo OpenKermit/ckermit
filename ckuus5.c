@@ -3381,6 +3381,7 @@ parser(m) int m;
             fnsuccess = 1;              /* For catching \function() errors */
 #endif /* NOSPL */
 
+            chksigs();                  /* Act on SIGHUP or SIGWINCH */
             debug(F101,"calling docmd()","",xx);
             zz = docmd(xx);             /* Parse rest of command & execute. */
 

@@ -945,7 +945,7 @@ char * ftp_apw = NULL;                  /* Anonymous password */
 
 /* Made this global static -fdc 21 June 2023 */
 /* It's used in many ckcftp.c routines but wasn't declared in all of them */
-static sig_t oldintr;
+static ck_sig_t oldintr;
 
 /* Prototypes for static functions defined in ckcftp.c */
 #ifdef CK_ANSIC
@@ -1007,7 +1007,7 @@ static char * fts_sto = NULL;
 
 static int ftpsndret = 0;
 static struct _ftpsnd {
-    sig_t oldintr, oldintp;
+    ck_sig_t oldintr, oldintp;
     int            reply;
     int            incs,
                    outcs;
@@ -12371,7 +12371,7 @@ struct xx_ftprecv {
     int xlate;
     int din;
     int is_retr;
-    sig_t oldintr, oldintp;
+    ck_sig_t oldintr, oldintp;
     char * cmd;
     char * local;
     char * remote;

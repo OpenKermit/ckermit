@@ -2628,7 +2628,7 @@ transmit(s,t,xlate,xbinary,xxecho) char *s; char t; int xlate, xbinary, xxecho;
 #ifdef OS2
     SIGTYP (* oldsig)(int);             /* For saving old interrupt trap. */
 #else /* OS2 */
-    sig_t oldsig;
+    ck_sig_t oldsig;
 #endif /* OS2 */
 #endif /* MAC */
     int eof = 0;                        /* End of File flag */
@@ -3314,7 +3314,7 @@ xlate(fin, fout, csin, csout) char *fin, *fout; int csin, csout;
     extern int wherex[], wherey[];
     extern unsigned char colorcmd;
 #endif /* OS2 */
-    sig_t oldsig;
+    ck_sig_t oldsig;
 #endif /* MAC */
 #ifdef CK_ANSIC
     int (*fn)(char);                    /* Output function pointer */

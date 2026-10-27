@@ -536,7 +536,7 @@ dologin( char *cmdstr )
 dologin(cmdstr) char *cmdstr;
 #endif /* CK_ANSIC */
 {
-    sig_t savealm;              /* Save incoming alarm function */
+    ck_sig_t savealm;              /* Save incoming alarm function */
     char *e;
 
     s = cmdstr;                         /* Make global to this module */
