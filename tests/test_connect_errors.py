@@ -3,6 +3,8 @@ import socket
 
 import pytest
 
+from conftest import scaled
+
 
 def _closed_port():
     """Return a loopback TCP port with no listener."""
@@ -89,7 +91,7 @@ def test_set_host_with_descriptor_above_fd_setsize(wermit_path):
              f"set host 127.0.0.1 {port} /raw-socket, "
              "echo STATUS=\\v(status), input 5 HELLO, "
              "echo INSTATUS=\\v(instatus), close, exit"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True, text=True, timeout=scaled(30),
             stdin=subprocess.DEVNULL, start_new_session=True,
             close_fds=False, preexec_fn=_fill_descriptors)
     finally:
@@ -115,7 +117,7 @@ def _run_above_fd_setsize(wermit_path, cmds):
     return subprocess.run(
         [wermit_path, "-H", "-Y", "-C",
          "set command more-prompting off, " + cmds + ", exit"],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True, text=True, timeout=scaled(30),
         stdin=subprocess.DEVNULL, start_new_session=True,
         close_fds=False, preexec_fn=_fill_descriptors)
 

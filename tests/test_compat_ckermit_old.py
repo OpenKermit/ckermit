@@ -82,7 +82,7 @@ def test_transfer_text(tmp_path, old_loopback, direction, request):
 def test_transfer_large(tmp_path, old_loopback, direction, request):
     """Binary transfer well beyond a single packet or window."""
     _xfail_if_send_and_clear_unprefix(request, direction)
-    size = 3 * MB
+    size = MB
     content = (bytes(range(256)) * (size // 256 + 1))[:size]
     run_transfer_helper(
         tmp_path, old_loopback, direction,

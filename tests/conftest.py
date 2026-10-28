@@ -44,10 +44,90 @@ ZMODEM_QUIET_PROTOCOL_CLAUSE = (
 # would otherwise have run.
 SSL_CONNECT_FAILURE_CODE = 90
 
+# A Kermit client sends the far end's start string (KERMIT -X, -R or
+# -IR) and then sleeps 400 ms before each transaction.  The far end in
+# these tests already runs SERVER or RECEIVE.  So test clients turn
+# the start string off.  9.0.302 lacks this command.
+PROTOCOL_STARTUP_OFF = "set protocol startup-string off"
+
+# After connecting, each end of a /TELNET or /SSL session waits for
+# Telnet negotiation replies.  With nothing outstanding, the wait
+# lasts until a 1 s read timeout.  With the wait off, both ends still
+# negotiate.  Replies are handled as they arrive among the packets.
+TELNET_WAIT_OFF = "set telnet wait-for-negotiations off"
+
 # Extra seconds padded onto client-side timeouts for any real-TCP transport
 # beyond what a pty needs.  Leaves headroom if necessary for real TCP connection
 # setup/teardown.  I'm not convinced this is necessary though.
 TCP_TIMEOUT_MARGIN = 15
+
+# The hang limits in this suite (subprocess timeouts, pty and listener
+# waits, and the pytest-timeout limit) are sized for a fast machine.
+# scaled() multiplies a limit by the factor in this environment
+# variable.  When it is unset, pytest_configure() measures wermit
+# against CALIBRATION_REFERENCE and sets it.  xdist workers inherit it.
+# Elapsed-time assertions do not use the factor.  Each bound is smaller
+# than the stall that it detects.
+TIMEOUT_SCALE_ENV = "KERMIT_TEST_TIMEOUT_SCALE"
+CALIBRATION_CMD = "for \\%i 1 2000 1 { .x := \\%i }, exit"
+CALIBRATION_REFERENCE = 0.055       # seconds on a 2026 x86 machine
+TIMEOUT_SCALE_MAX = 20
+
+
+def calibrate_timeout_scale(wermit):
+    """Return the timeout factor for this machine.
+
+    wermit runs CALIBRATION_CMD five times.  Divide the best time by
+    CALIBRATION_REFERENCE and clamp the result to the range 1 to
+    TIMEOUT_SCALE_MAX.
+    """
+    best = None
+    for _ in range(5):
+        start = time.monotonic()
+        subprocess.run([wermit, "-H", "-Y", "-C", CALIBRATION_CMD],
+                       stdin=subprocess.DEVNULL, capture_output=True,
+                       timeout=600)
+        took = time.monotonic() - start
+        best = took if best is None else min(best, took)
+    return min(max(best / CALIBRATION_REFERENCE, 1.0), TIMEOUT_SCALE_MAX)
+
+
+def timeout_scale():
+    """Return the factor from KERMIT_TEST_TIMEOUT_SCALE, or 1."""
+    try:
+        scale = float(os.environ.get(TIMEOUT_SCALE_ENV, "1"))
+    except ValueError:
+        return 1.0
+    return scale if scale > 0 else 1.0
+
+
+def scaled(seconds):
+    """Return the hang limit seconds multiplied by timeout_scale()."""
+    return seconds * timeout_scale()
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_configure(config):
+    """Set the timeout factor and apply it to pytest-timeout.
+
+    This runs after pytest-timeout reads its setting.  A limit given by
+    --timeout or PYTEST_TIMEOUT stays as given.
+    """
+    if TIMEOUT_SCALE_ENV not in os.environ:
+        wermit = Path(__file__).parent.parent / "wermit"
+        scale = calibrate_timeout_scale(str(wermit)) \
+            if wermit.exists() else 1.0
+        os.environ[TIMEOUT_SCALE_ENV] = f"{scale:.2f}"
+    if (getattr(config, "_env_timeout", None)
+            and config.getvalue("timeout") is None
+            and "PYTEST_TIMEOUT" not in os.environ):
+        config._env_timeout *= timeout_scale()
+
+
+def pytest_report_header(config):
+    """Show the timeout factor in the session header."""
+    return f"kermit timeout scale: {timeout_scale():.2f}"
+
 
 # /TELNET pulls in two Telnet options by default that a wermit-to- wermit test
 # connection doesn't need and that each cost real wall-clock time to negotiate:
@@ -336,7 +416,7 @@ def _wait_for_tcp_listener(proc, log_path, log_fh, label, timeout=10):
     socket SET HOST * is going to open has finished binding and
     listening.
     """
-    deadline = time.monotonic() + timeout
+    deadline = time.monotonic() + scaled(timeout)
     while time.monotonic() < deadline:
         if proc.poll() is not None:
             break
@@ -364,14 +444,14 @@ def _wait_or_kill(proc, timeout=5):
     """Waits for proc to exit, escalating to terminate() then kill()
     if it doesn't exit by itself. Returns its exit code."""
     try:
-        proc.wait(timeout=timeout)
+        proc.wait(timeout=scaled(timeout))
     except subprocess.TimeoutExpired:
         proc.terminate()
         try:
-            proc.wait(timeout=2)
+            proc.wait(timeout=scaled(2))
         except subprocess.TimeoutExpired:
             proc.kill()
-            proc.wait(timeout=2)
+            proc.wait(timeout=scaled(2))
     return proc.returncode
 
 
@@ -530,7 +610,7 @@ def wermit_ssl_available(wermit_path):
         [wermit_path, "-H", "-Y", "-C",
          "set command more-prompting off, "
          "if not available ssl exit 89, exit 0"],
-        capture_output=True, text=True, timeout=10
+        capture_output=True, text=True, timeout=scaled(10)
     )
     return result.returncode != 89
 
@@ -549,7 +629,7 @@ def wermit_ftp_available(wermit_path):
     result = subprocess.run(
         [wermit_path, "-H", "-Y", "-C",
          "set command more-prompting off, show features, exit"],
-        capture_output=True, text=True, timeout=10
+        capture_output=True, text=True, timeout=scaled(10)
     )
     return not re.search(r"\bNOFTP\b", result.stdout)
 
@@ -563,7 +643,7 @@ def wermit_http_available(wermit_path):
     result = subprocess.run(
         [wermit_path, "-H", "-Y", "-C",
          "set command more-prompting off, show features, exit"],
-        capture_output=True, text=True, timeout=10
+        capture_output=True, text=True, timeout=scaled(10)
     )
     return not re.search(r"\bNOHTTP\b", result.stdout)
 
@@ -598,6 +678,7 @@ def run_wermit(wermit_path):
             cmd = [wermit_path] + args
 
         logger.info("run_wermit: Launching process: %s", " ".join(cmd))
+        timeout = scaled(timeout)
         t_start = time.perf_counter()
         if pre_timeout_callback is None:
             result = subprocess.run(
@@ -639,16 +720,16 @@ def run_wermit(wermit_path):
 
 @pytest.fixture(params=["pseudoterminal"])
 def loopback_transport(request):
-    """
-    This is the transport that wermit_loopback's client and server use to reach
-    each other.  "pseudoterminal", "raw-socket", "telnet" (a loopback TCP
-    socket, without or with telnet framing), or "ssl" (a loopback TCP socket
-    wrapped in /SSL, with a "happy path" CA-trusted certificate from the ssl_pki
-    fixture; skips if openssl isn't on PATH).
+    """Return the transport for wermit_loopback's client and server.
 
-    Test modules that need TCP, telnet, or SSL coverage override this fixture
-    locally (same name, additional params, in that module only); modules that
-    don't stay on pseudoterminal-only, unaffected in test count or behavior.
+    Supported values are "pseudoterminal", "raw-socket", "telnet",
+    "ssl", "ssl-telnet", and "tls-telnet".  The SSL and TLS transports
+    use a CA-trusted certificate from the ssl_pki fixture and skip if
+    openssl is not on PATH.  "ssl-telnet" and "tls-telnet" negotiate
+    Telnet at the start of the connection.
+
+    Test modules that need TCP, telnet, or SSL coverage override this
+    fixture locally.  Other modules use "pseudoterminal" only.
     """
     return request.param
 
@@ -674,6 +755,11 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
     runs the server side with that executable for compatibility
     testing.
 
+    The returned callable accepts an optional telnet_wait flag
+    (default False).  For the telnet and ssl transports, False turns
+    off SET TELNET WAIT-FOR-NEGOTIATIONS on both ends.  True keeps the
+    default wait.
+
     The returned callable accepts an optional server_debug_log flag
     (default False). When True, forces the server debug log on
     unconditionally via debug_log_command(), independent of
@@ -688,7 +774,8 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
     def _run_pseudoterminal(server_dir, setup_lines, cmd_str,
                             client_prefix, client_debug_prefix,
                             server_log, client_log, timeout,
-                            server_binary_path, debug_server):
+                            server_binary_path, debug_server,
+                            telnet_wait):
         server_ksc = Path(server_dir).parent / \
             f"server_{Path(server_dir).name}.ksc"
         logger.info(
@@ -706,6 +793,7 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         full_client_cmd = [
             "-H", "-Y", "-Q", "-C",
             f"{client_debug_prefix}set command more-prompting off, "
+            f"{PROTOCOL_STARTUP_OFF}, "
             f"set delay 0, set host /network-type:pseudoterminal "
             f"{server_binary_path} {server_ksc.absolute()}, set delay 0, "
             f"{client_prefix}{cmd_str}, close, exit"
@@ -715,7 +803,7 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
             cmd_str)
         return run_wermit(full_client_cmd, timeout=timeout)
 
-    def _tcp_switch_and_prefixes(transport):
+    def _tcp_switch_and_prefixes(transport, telnet_wait):
 
         """Returns (switch, server_prefix, client_prefix) for a TCP-based
         transport: the SET HOST protocol-switch name, and any commands each side
@@ -726,18 +814,25 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         isn't available).
         """
 
-        if transport == "ssl":
+        wait = "" if telnet_wait else f"{TELNET_WAIT_OFF}, "
+        if transport in ("ssl-telnet", "tls-telnet"):
+            # These negotiate Telnet in full.  Keep the wait.
+            wait = ""
+        if transport in ("ssl", "ssl-telnet", "tls-telnet"):
             ssl_pki = request.getfixturevalue("ssl_pki")
-            return ("ssl", f"{ssl_server_setup_cmds(ssl_pki)}, ",
-                    f"{ssl_client_setup_cmds(ssl_pki)}, ")
+            return (transport,
+                    f"{wait}{ssl_server_setup_cmds(ssl_pki)}, ",
+                    f"{wait}{ssl_client_setup_cmds(ssl_pki)}, ")
         prefix = telnet_minimal_options_prefix(transport)
+        if transport == "telnet":
+            prefix = wait + prefix
         return transport, prefix, prefix
 
     def _run_tcp(server_dir, setup_lines, cmd_str, client_prefix,
                 client_debug_prefix, server_log, client_log, timeout,
-                server_binary_path, debug_server):
+                server_binary_path, debug_server, telnet_wait):
         switch, server_prefix, client_extra_prefix = \
-            _tcp_switch_and_prefixes(transport)
+            _tcp_switch_and_prefixes(transport, telnet_wait)
         server_stdout_log = Path(server_dir).parent / \
             f"tcp_server_{Path(server_dir).name}.log"
         if server_stdout_log not in created_files:
@@ -766,6 +861,7 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
             full_client_cmd = [
                 "-H", "-Y", "-Q", "-C",
                 f"{client_debug_prefix}set command more-prompting off, "
+                f"{PROTOCOL_STARTUP_OFF}, "
                 "set delay 0, set tcp reverse-dns-lookup off, "
                 f"{client_extra_prefix}set host localhost {port} "
                 f"/{switch}, "
@@ -821,7 +917,8 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         return result
 
     def _run(server_dir, server_setup_cmds="", client_commands="",
-             timeout=10, server_binary_path=None, server_debug_log=False):
+             timeout=10, server_binary_path=None, server_debug_log=False,
+             telnet_wait=False):
         # Target paths for debug logs. Written only if DEBUG_LOOPBACK
         # or server_debug_log is enabled. Distinct from _run_tcp stdout logs.
         server_log = Path(server_dir).parent / \
@@ -843,6 +940,10 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         if debug_server:
             setup_lines.extend(take_file_lines(debug_log_command(server_log)))
         setup_lines.append("set command more-prompting off")
+        if server_binary_path in (None, wermit_path):
+            # The far end acts as a client when server_setup_cmds
+            # runs REMOTE commands before SERVER.
+            setup_lines.append(PROTOCOL_STARTUP_OFF)
         setup_lines.append("set delay 0")
         if transport != "pseudoterminal":
             setup_lines.append("set tcp reverse-dns-lookup off")
@@ -873,7 +974,8 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         try:
             result = run(server_dir, setup_lines, cmd_str, client_prefix,
                         client_debug_prefix, server_log, client_log, timeout,
-                        server_binary_path or wermit_path, debug_server)
+                        server_binary_path or wermit_path, debug_server,
+                        telnet_wait)
         finally:
             # Dump debug logs on failure or timeout. The server log is
             # dumped if debug_server is True. The client log is dumped if
@@ -999,10 +1101,10 @@ def spawn_wermit(wermit_path):
         if proc.poll() is None:
             proc.terminate()
             try:
-                proc.wait(timeout=2)
+                proc.wait(timeout=scaled(2))
             except subprocess.TimeoutExpired:
                 proc.kill()
-                proc.wait(timeout=2)
+                proc.wait(timeout=scaled(2))
 
 
 @pytest.fixture
@@ -1052,6 +1154,7 @@ def wermit_tcp_loopback(spawn_wermit, run_wermit, get_free_port):
             full_client_cmd = [
                 "-H", "-Y", "-C",
                 "set command more-prompting off, "
+                f"{PROTOCOL_STARTUP_OFF}, "
                 "set tcp reverse-dns-lookup off, "
                 f"{setup_prefix}"
                 f"set host {host} {self.port}{proto_switch}, "
@@ -1094,6 +1197,7 @@ def wermit_tcp_loopback(spawn_wermit, run_wermit, get_free_port):
             cmd = [
                 "--unbuffered", "-H", "-Y", "-C",
                 "set command more-prompting off, "
+                f"{PROTOCOL_STARTUP_OFF}, "
                 "set tcp reverse-dns-lookup off, "
                 f"cd {server_dir}, {setup_prefix}"
                 f"set host /server * {port}{proto_switch}"
@@ -1270,6 +1374,7 @@ def finish_wermit_pty(proc, master, timeout=45, debug_log=None):
     until it exits or the timeout fires, then returns
     (returncode, stdout).
     """
+    timeout = scaled(timeout)
     output = []
     start_time = time.time()
 
@@ -1284,10 +1389,10 @@ def finish_wermit_pty(proc, master, timeout=45, debug_log=None):
                 _log_process_snapshot("finish_wermit_pty")
                 proc.terminate()
                 try:
-                    proc.wait(timeout=2)
+                    proc.wait(timeout=scaled(2))
                 except subprocess.TimeoutExpired:
                     proc.kill()
-                    proc.wait(timeout=2)
+                    proc.wait(timeout=scaled(2))
                 os.close(master)
                 if debug_log:
                     _log_debug_file("finish_wermit_pty", debug_log)
@@ -1345,6 +1450,7 @@ def finish_wermit_pty_pair(proc_a, master_a, proc_b, master_b, timeout=45):
     Draining one side to completion before starting the other assumes
     both finish at about the same time.
     """
+    timeout = scaled(timeout)
     entries = {master_a: (proc_a, []), master_b: (proc_b, [])}
     open_masters = set(entries)
     start_time = time.time()
@@ -1363,10 +1469,10 @@ def finish_wermit_pty_pair(proc_a, master_a, proc_b, master_b, timeout=45):
                     proc.terminate()
             for proc, _ in entries.values():
                 try:
-                    proc.wait(timeout=2)
+                    proc.wait(timeout=scaled(2))
                 except subprocess.TimeoutExpired:
                     proc.kill()
-                    proc.wait(timeout=2)
+                    proc.wait(timeout=scaled(2))
             for master in open_masters:
                 os.close(master)
             raise RuntimeError(
@@ -1422,7 +1528,7 @@ def _wait_for_pty_raw(master, timeout):
     whether ISIG went off within timeout.
     """
     buf = b""
-    deadline = time.time() + timeout
+    deadline = time.time() + scaled(timeout)
     while time.time() < deadline:
         if not termios.tcgetattr(master)[3] & termios.ISIG:
             return buf, True
@@ -1448,7 +1554,7 @@ def _wait_for_pty_marker(master, marker, timeout):
     pty.
     """
     buf = b""
-    deadline = time.time() + timeout
+    deadline = time.time() + scaled(timeout)
     while time.time() < deadline:
         r, _, _ = select.select([master], [], [], 0.1)
         if master in r:
@@ -1473,9 +1579,9 @@ def read_pty_until(master, buf, markers, timeout):
 
     markers is a tuple of bytes.  An empty tuple reads whatever arrives
     within timeout.  The read also ends when timeout runs out or the
-    pty closes.  Returns buf with the data appended.
+    pty closes.  Return buf with the data appended.
     """
-    end = time.monotonic() + timeout
+    end = time.monotonic() + scaled(timeout)
     while not any(m in buf for m in markers):
         left = end - time.monotonic()
         if left <= 0 or not select.select([master], [], [], left)[0]:
@@ -1514,10 +1620,10 @@ def start_pty_tcp_listener(wermit_path, get_free_port, cmd_for_port, cwd,
         os.close(master)
         try:
             proc.terminate()
-            proc.wait(timeout=2)
+            proc.wait(timeout=scaled(2))
         except (subprocess.TimeoutExpired, OSError):
             proc.kill()
-            proc.wait(timeout=2)
+            proc.wait(timeout=scaled(2))
         if collided:
             raise PortCollisionError(
                 f"{label}: port raced by another process; "
@@ -1541,19 +1647,32 @@ def _openssl(*args):
     # shows openssl's actual stdout and stderr.
     result = subprocess.run(["openssl", *args], check=False,
                              capture_output=True, text=True,
-                             stdin=subprocess.DEVNULL, timeout=30)
+                             stdin=subprocess.DEVNULL,
+                             timeout=scaled(30))
     assert_ok(result, label=f"openssl {' '.join(args)}")
 
 
-def _make_ca(d, name, subj, san=None):
+def _key_args(d, name, key):
+    """Return (key_path, openssl req arguments) for a certificate.
+
+    With key, the certificate uses that existing key.  Without it,
+    openssl generates a new RSA key at d/name.key.
     """
-    Self-signed certificate: returns (key_path, crt_path).
-    san is an optional subjectAltName extension value.
+    if key:
+        return key, ["-new", "-key", str(key)]
+    path = d / f"{name}.key"
+    return path, ["-newkey", "rsa:2048", "-nodes", "-keyout", str(path)]
+
+
+def _make_ca(d, name, subj, san=None, key=None):
+    """Create a self-signed certificate and return (key_path, crt_path).
+
+    san is an optional subjectAltName extension value.  key is an
+    existing key to use instead of a new one.
     """
-    key = d / f"{name}.key"
+    key, key_args = _key_args(d, name, key)
     crt = d / f"{name}.crt"
-    args = ["req", "-x509", "-newkey", "rsa:2048", "-nodes",
-            "-keyout", str(key), "-out", str(crt), "-days", "2",
+    args = ["req", "-x509", *key_args, "-out", str(crt), "-days", "2",
             "-subj", subj]
     if san:
         args += ["-addext", f"subjectAltName={san}"]
@@ -1561,18 +1680,19 @@ def _make_ca(d, name, subj, san=None):
     return key, crt
 
 
-def _make_leaf(d, name, subj, ca_key, ca_crt, san=None, dates=None):
+def _make_leaf(d, name, subj, ca_key, ca_crt, san=None, dates=None,
+               key=None):
+    """Create a leaf certificate signed by the given CA.
+
+    Return (key_path, crt_path).  san adds a subjectAltName extension.
+    dates is an optional (not_before, not_after) pair of
+    [CC]YYMMDDHHMMSSZ strings for an expired certificate.  key is an
+    existing key to use instead of a new one.
     """
-    Leaf cert signed by the given CA: returns (key_path, crt_path).
-    san adds a subjectAltName extension. dates is an optional
-    (not_before, not_after) pair of [CC]YYMMDDHHMMSSZ strings, used to
-    mint an already-expired certificate.
-    """
-    key = d / f"{name}.key"
+    key, key_args = _key_args(d, name, key)
     csr = d / f"{name}.csr"
     crt = d / f"{name}.crt"
-    _openssl("req", "-newkey", "rsa:2048", "-nodes",
-              "-keyout", str(key), "-out", str(csr), "-subj", subj)
+    _openssl("req", *key_args, "-out", str(csr), "-subj", subj)
 
     ext_cnf = None
     if san:
@@ -1583,8 +1703,11 @@ def _make_leaf(d, name, subj, ca_key, ca_crt, san=None, dates=None):
         crt = _sign_with_dates(d, name, csr, ca_key, ca_crt, dates,
                                 ext_cnf)
     else:
+        # The serial file goes in d.  Next to a shared CA certificate,
+        # concurrent xdist workers would write it at once.
         args = ["x509", "-req", "-in", str(csr), "-CA", str(ca_crt),
                 "-CAkey", str(ca_key), "-CAcreateserial",
+                "-CAserial", str(d / f"{name}.srl"),
                 "-out", str(crt), "-days", "2"]
         if ext_cnf:
             args += ["-extfile", str(ext_cnf)]
@@ -1657,63 +1780,66 @@ def ssl_pki(tmp_path_factory, wermit_ssl_available):
     The server certs' CN/SAN is "localhost". Tests must connect to
     that hostname, not an IP address, to avoid C-Kermit's interactive
     hostname-mismatch confirmation prompt.
+
+    The PKI has three RSA keys: one per CA, and one that every leaf
+    and the self-signed certificate share.  The tests check certificate
+    fields and signatures, not key uniqueness.  RSA key generation
+    takes about 5 s on a 599 MHz Alpha.  Under xdist the workers share
+    one PKI in the run's base directory.  A lock file serializes its
+    creation.
     """
     if not wermit_ssl_available:
         pytest.skip("wermit was not built with SSL/TLS support")
     if shutil.which("openssl") is None:
         pytest.skip("openssl CLI not found on PATH")
-    d = tmp_path_factory.mktemp("ssl_pki")
+    root = tmp_path_factory.getbasetemp()
+    if os.environ.get("PYTEST_XDIST_WORKER"):
+        root = root.parent
+    d = root / "ssl_pki"
+    with open(root / "ssl_pki.lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if not (d / "done").exists():
+            shutil.rmtree(d, ignore_errors=True)
+            d.mkdir()
+            _make_pki(d)
+            (d / "done").write_text("")
+    return _pki_paths(d)
 
+
+def _pki_paths(d):
+    """Return the ssl_pki dictionary for the PKI in directory d."""
+    paths = {}
+    for name in ("ca", "server", "client", "untrusted_ca",
+                 "untrusted_server", "expired", "selfsigned_server",
+                 "ip_server"):
+        paths[f"{name}_crt"] = d / f"{name}.crt"
+        paths[f"{name}_key"] = d / "leaf.key"
+    paths["ca_key"] = d / "ca.key"
+    paths["untrusted_ca_key"] = d / "untrusted_ca.key"
+    return paths
+
+
+def _make_pki(d):
+    """Create the ssl_pki certificates and keys in directory d."""
     ca_key, ca_crt = _make_ca(d, "ca", "/CN=Test CA")
-    server_key, server_crt = _make_leaf(
-        d, "server", "/CN=localhost", ca_key, ca_crt,
-        san="DNS:localhost"
-    )
-    client_key, client_crt = _make_leaf(
-        d, "client", "/CN=test-client", ca_key, ca_crt
-    )
-
     untrusted_ca_key, untrusted_ca_crt = _make_ca(
-        d, "untrusted_ca", "/CN=Untrusted CA"
-    )
-    untrusted_server_key, untrusted_server_crt = _make_leaf(
-        d, "untrusted_server", "/CN=localhost",
-        untrusted_ca_key, untrusted_ca_crt, san="DNS:localhost"
-    )
-
-    expired_key, expired_crt = _make_leaf(
-        d, "expired", "/CN=localhost", ca_key, ca_crt,
-        san="DNS:localhost",
-        dates=("20190101000000Z", "20200101000000Z")
-    )
-
-    selfsigned_key, selfsigned_crt = _make_ca(
-        d, "selfsigned_server", "/CN=localhost", san="DNS:localhost"
-    )
-
-    ip_server_key, ip_server_crt = _make_leaf(
-        d, "ip_server", "/CN=ip-server", ca_key, ca_crt,
-        san="IP:192.168.255.254,IP:::1,IP:127.0.0.1"
-    )
-
-    return {
-        "ca_crt": ca_crt,
-        "ca_key": ca_key,
-        "server_crt": server_crt,
-        "server_key": server_key,
-        "client_crt": client_crt,
-        "client_key": client_key,
-        "untrusted_ca_crt": untrusted_ca_crt,
-        "untrusted_ca_key": untrusted_ca_key,
-        "untrusted_server_crt": untrusted_server_crt,
-        "untrusted_server_key": untrusted_server_key,
-        "expired_crt": expired_crt,
-        "expired_key": expired_key,
-        "selfsigned_server_crt": selfsigned_crt,
-        "selfsigned_server_key": selfsigned_key,
-        "ip_server_crt": ip_server_crt,
-        "ip_server_key": ip_server_key,
-    }
+        d, "untrusted_ca", "/CN=Untrusted CA")
+    leaf_key = d / "leaf.key"
+    _openssl("genrsa", "-out", str(leaf_key), "2048")
+    _make_leaf(d, "server", "/CN=localhost", ca_key, ca_crt,
+               san="DNS:localhost", key=leaf_key)
+    _make_leaf(d, "client", "/CN=test-client", ca_key, ca_crt,
+               key=leaf_key)
+    _make_leaf(d, "untrusted_server", "/CN=localhost",
+               untrusted_ca_key, untrusted_ca_crt, san="DNS:localhost",
+               key=leaf_key)
+    _make_leaf(d, "expired", "/CN=localhost", ca_key, ca_crt,
+               san="DNS:localhost",
+               dates=("20190101000000Z", "20200101000000Z"), key=leaf_key)
+    _make_ca(d, "selfsigned_server", "/CN=localhost", san="DNS:localhost",
+             key=leaf_key)
+    _make_leaf(d, "ip_server", "/CN=ip-server", ca_key, ca_crt,
+               san="IP:192.168.255.254,IP:::1,IP:127.0.0.1", key=leaf_key)
 
 
 @pytest.fixture(params=["pty", "tcp-raw", "tcp-telnet"],
@@ -1864,7 +1990,8 @@ def foreign_kermit_pty(wermit_path):
     def _run(peer_argv, cmd_str, cwd, timeout=45, debug_log=None):
         host = ("/network-type:pseudoterminal "
                 + " ".join(shlex.quote(str(a)) for a in peer_argv))
-        full_cmd_str = cmd_str.replace("{HOST}", host)
+        full_cmd_str = (f"{PROTOCOL_STARTUP_OFF}, "
+                        + cmd_str.replace("{HOST}", host))
         return run_wermit_pty(wermit_path, full_cmd_str, cwd,
                               timeout=timeout, debug_log=debug_log)
     return _run
@@ -1954,7 +2081,7 @@ class TelnetTlsClient:
     def __init__(self, port, ssl_pki, users):
         import ssl
         self.sock = socket.create_connection(("127.0.0.1", port),
-                                             timeout=15)
+                                             timeout=scaled(15))
         self.ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         self.ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         self.ctx.check_hostname = False
@@ -2030,7 +2157,7 @@ class TelnetTlsClient:
 
     def _wait(self, done, timeout):
         """Read and handle input until done() returns True."""
-        deadline = time.monotonic() + timeout
+        deadline = time.monotonic() + scaled(timeout)
         while True:
             # A START_TLS switch must not read past the handshake.
             while self._parse():

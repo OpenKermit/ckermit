@@ -1730,6 +1730,7 @@ struct stringint {                      /* String and (wide) integer */
 #define XYSSLRND  19    /* SSL/TLS Random file */
 #define XYSSLDCCF 20    /* SSL/TLS DSA Certs Chain File */
 #define XYSSLRCCF 21    /* SSL/TLS RSA Certs Chain File */
+#define XYSSLMINV 22    /* SSL/TLS Minimum protocol version */
 
 /* The following must be powers of 2 for a bit mask */
 

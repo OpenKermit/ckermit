@@ -5,7 +5,7 @@ import subprocess
 import threading
 import pytest
 from pyftpdlib.authorizers import DummyAuthorizer
-from conftest import assert_ok
+from conftest import assert_ok, scaled
 from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import FTPServer
 
@@ -226,7 +226,7 @@ def test_ftp_command_line_put_without_files(wermit_ftp_available,
     result = subprocess.run(
         [str(ftp), "-Y", "-p", str(tmp_path / "nonexistent")],
         stdin=subprocess.DEVNULL, capture_output=True, text=True,
-        timeout=30, start_new_session=True)
+        timeout=scaled(30), start_new_session=True)
     output = result.stdout + result.stderr
     assert "No files to put" in output, output
 
@@ -401,7 +401,7 @@ def test_ftp_get_reports_local_write_failure(ftp_server, wermit_path,
              port, f"set ftp type {mode}",
              f"ftp get big.dat {local / 'big.dat'}",
              "echo STATUS=\\v(status)")],
-        capture_output=True, text=True, timeout=60,
+        capture_output=True, text=True, timeout=scaled(60),
         preexec_fn=_limit_file_size)
     assert "STATUS=1" in result.stdout, result.stdout + result.stderr
     if mode == "ascii":

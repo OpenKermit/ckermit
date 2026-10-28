@@ -5,7 +5,7 @@ import socket
 import time
 
 import pytest
-from conftest import assert_ok
+from conftest import assert_ok, scaled
 
 
 def _show_features_output(run_wermit):
@@ -199,7 +199,7 @@ def test_set_host_vsock_server_accepts_connection(
     reply = cli.recv(100)
     cli.close()
 
-    out, _ = proc.communicate(timeout=10)
+    out, _ = proc.communicate(timeout=scaled(10))
     assert "DONE" in out, out
     assert b"PONG" in reply
 

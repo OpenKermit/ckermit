@@ -4196,7 +4196,7 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
         service2 = getservbyname("telnet", "tcp");
         if (service2 && x == service2->s_port) {
             /* fdc 2005/12/04 */
-            if (ttnproto != NP_TCPRAW)  /* Yes and if raw port not requested */
+            if (!IS_RAW_NP(ttnproto)) /* Yes and if raw not requested */
               ttnproto = NP_TELNET;     /* set protocol to TELNET. */
         }
 #ifdef CK_IPV6
@@ -6336,7 +6336,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
     if (x == TELNET_PORT) {
         /* Yes, so if raw port not requested */
         /* fdc 2005/12/04 */
-        if (ttnproto != NP_TCPRAW && ttnproto != NP_NONE)
+        if (!IS_RAW_NP(ttnproto) && ttnproto != NP_NONE)
           ttnproto = NP_TELNET;         /* Select TELNET protocol. */
     }
 #ifdef RLOGCODE
@@ -6856,9 +6856,13 @@ netclos() {
 #endif /* VMS */
 #ifdef TNCODE
           if (ttnproto == NP_TELNET) {
-            if (!TELOPT_ME(TELOPT_LOGOUT)
+            /*
+              Send DO LOGOUT before close.  An /SSL or /TLS connection
+              starts Telnet only when the peer sends IAC.  Until then
+              tn_begun is 0 and the peer gets no Telnet command.
+            */
+            if (tn_begun && !TELOPT_ME(TELOPT_LOGOUT)
                 ) {
-                /* Send LOGOUT option before close */
                 if (tn_sopt(DO,TELOPT_LOGOUT) >= 0) {
                     TELOPT_UNANSWERED_DO(TELOPT_LOGOUT) = 1;
                     /* It would be nice to call tn_wait but we can't */

@@ -29,6 +29,18 @@ covering their situations.
 
 ## New Features
 
+- `SET AUTHENTICATION SSL MINIMUM-VERSION { SSL3.0, TLS1.0, TLS1.1,
+  TLS1.2, TLS1.3 }` sets the lowest protocol version that Telnet, raw
+  SSL/TLS, IKSD, HTTPS and FTP connections accept.  The default is TLS1.2.
+  OpenSSL 3 also needs `@SECLEVEL=0` in the cipher list for a version
+  older than TLS 1.2.  SHOW AUTHENTICATION displays the setting.
+
+- `SET FTP TLS-FALLBACK { ON, OFF }` selects what FTP OPEN does when the
+  server accepts AUTH TLS or AUTH SSL and the TLS session fails.  OFF is
+  the default and closes the connection.  ON reconnects and tries the next
+  authentication type.  If none succeeds, ON logs in without encryption.
+  Releases before 11.1 behaved as ON does.
+
 - `SET FTP TRUST-PASV-ADDRESS { ON, OFF }` selects the address of a
   passive-mode data connection.  OFF, the default, connects to the
   control connection's address.  ON connects to the address in the PASV
@@ -88,8 +100,8 @@ covering their situations.
     after it succeeded.  Bug dates from the introduction of ttptycmd() in
     C-Kermit 9.0.302 of 2011.
 
-  - [9] The program's last output could be lost.  Bugs were introduced in commit
-    0fd869b4 in C-Kermit 9.0.302 of 2011.
+  - [9] The program's last output could be lost.  Bugs were introduced in
+    commit 0fd869b4 in C-Kermit 9.0.302 of 2011.
 
   - [9] Ctrl-C during a transfer left the protocol program running with its pty
     open, and left the connection non-blocking.  On systems without openpty(),
@@ -133,31 +145,6 @@ COMPATIBILITY`.
   counts could make such a packet write past the buffer.  This bug was present
   in the oldest extant version of C-Kermit, version 3.0 of 1984.
 
-- [6] With HOST disabled, a Kermit server still ran shell commands for
-  REMOTE QUERY.  `remote query kermit command(...)` called `\fcommand()`,
-  and `\fexecute()` could reach RUN.  The query now runs with PUSH refused
-  unless HOST is enabled.  Bug was introduced in C-Kermit 6.0.192 of 1996.
-  That release first allowed functions in REMOTE QUERY.
-
-- [6, (11)] A sender could have a file appended to any existing file in the
-  receive directory by marking it RESEND.  This bypassed FILE COLLISION
-  REJECT and RECEIVE CONFIRM, with no prompt.  The receiver now refuses a
-  RESEND unless its collision setting allows it or it asked for a REGET.
-  The append path was introduced in commit 4b5eddea in C-Kermit 6.0.192
-  of 1996.
-  
-  C-Kermit 11.0.501 (9ee170a8) made REJECT the default which, because of this
-  bug in C-Kermit 6.0.192, didn't achieve the desired hardening effect for
-  appends.  The same happened with RECEIVE CONFIRM was added in C-Kermit
-  11.0.506 (b06df387), both in 2026.
-
-- [11] RECEIVE CONFIRM did not prompt for files a recursive GET placed outside
-  the requested directory, such as `.ssh/authorized_keys` from `get /recursive
-  reports/*`.  It did prompt for files the user had named by path or as-name.
-  Names are now matched by basename, the as-name counts, and the root is the
-  requested directory.  Bugs were introduced in commit b06df387 in C-Kermit
-  11.0.506 of 2026.
-
 - [4, 5, 6, 7] The server trusted the field lengths in generic commands,
   Extended GET parameters, attribute packets and REMOTE SET.  A length past the
   data made it read stale buffer contents.  REMOTE SET values were also stored
@@ -197,6 +184,24 @@ COMPATIBILITY`.
   as NONAME.  Bugs were introduced in commit a213649d in C-Kermit 5A(188) of
   1992.
 
+- [6] With HOST disabled, a Kermit server still ran shell commands for
+  REMOTE QUERY.  `remote query kermit command(...)` called `\fcommand()`,
+  and `\fexecute()` could reach RUN.  The query now runs with PUSH refused
+  unless HOST is enabled.  Bug was introduced in C-Kermit 6.0.192 of 1996.
+  That release first allowed functions in REMOTE QUERY.
+
+- [6, (11)] A sender could have a file appended to any existing file in the
+  receive directory by marking it RESEND.  This bypassed FILE COLLISION
+  REJECT and RECEIVE CONFIRM, with no prompt.  The receiver now refuses a
+  RESEND unless its collision setting allows it or it asked for a REGET.
+  The append path was introduced in commit 4b5eddea in C-Kermit 6.0.192
+  of 1996.
+  
+  C-Kermit 11.0.501 (9ee170a8) made REJECT the default which, because of this
+  bug in C-Kermit 6.0.192, didn't achieve the desired hardening effect for
+  appends.  The same happened with RECEIVE CONFIRM was added in C-Kermit
+  11.0.506 (b06df387), both in 2026.
+
 - [7] A receiver gave a file the setuid, setgid and sticky bits when a Unix
   sender's permissions held them.  A sender could leave a setuid program in the
   receiver's directory.  The receiver now keeps only the read, write, and
@@ -219,6 +224,13 @@ COMPATIBILITY`.
   c88d9b85 in C-Kermit 8.0.200 of 2001.  It became harmful when commits
   9ee170a8 and dc67bddb changed the defaults in C-Kermit 11.0.501 of
   2026.
+
+- [11] RECEIVE CONFIRM did not prompt for files a recursive GET placed outside
+  the requested directory, such as `.ssh/authorized_keys` from `get /recursive
+  reports/*`.  It did prompt for files the user had named by path or as-name.
+  Names are now matched by basename, the as-name counts, and the root is the
+  requested directory.  Bugs were introduced in commit b06df387 in C-Kermit
+  11.0.506 of 2026.
 
 - [11] SET COMPATIBILITY 9 and 10, and `kermit9` and `kermit10`, set RECEIVE
   PATHNAMES ABSOLUTE instead of C-Kermit 9's AUTO, and could re-enable
@@ -276,18 +288,39 @@ COMPATIBILITY`.
   the same way.  A Last-Modified date that did not parse crashed HTTP GET.
   Both date from commit c88d9b85 in C-Kermit 8.0.200 of 2001.
 
-- [9] FTP USER with no password and no saved password sent the server
-  text left by an earlier command, such as a GREP pattern, as the
-  password.  It now prompts for the password.  Bug was introduced in
-  commit 0fd869b4 in C-Kermit 9.0.302 of 2011.
-
 - [8] FTP GET /MOVE-TO evaluates its destination again after each file.  A
   destination that expanded past the length of a path overflowed a stack
   buffer, and Kermit crashed.  The destination is now cut at the length of a
   path, and the move fails.  Bug was introduced in commit c88d9b85 in C-Kermit
   8.0.200 of 2001.
 
+- [9] FTP USER with no password and no saved password sent the server
+  text left by an earlier command, such as a GREP pattern, as the
+  password.  It now prompts for the password.  Bug was introduced in
+  commit 0fd869b4 in C-Kermit 9.0.302 of 2011.
+
 ### Connections, Telnet and TLS
+
+- [5, 7, 8] The debug log recorded passwords.  It now records their lengths.
+  HTTP Basic credentials stayed in memory after use, and a user:password over
+  127 bytes was truncated without notice.  Bugs were introduced in commits
+  a213649d (5A(188) of 1992), 609e2f39 (5A(190) of 1994), d0f8b1da (7.0.197 of
+  2000) and 7b4ce026 (8.0.206 of 2002).
+
+- [5, 7, 8] Buffer overflows from local input: the RLOGIN startup data with a
+  long USER, an HTTP proxy name filling its buffer, a long HTTP proxy name in
+  FTP, a CONNECT-mode backslash code of 10 or more characters (crashed), and
+  MGET with a pattern directory of 4096 bytes or more.  Added regression tests
+  to cover these bugs, but the RLOGIN and proxy tests detect the overflow only
+  under AddressSanitizer.  Bugs were introduced in commit 609e2f39 in C-Kermit
+  5A(190) of 1994 (CONNECT), commit d0f8b1da in C-Kermit 7.0.197 of 2000
+  (RLOGIN), and commit c88d9b85 in C-Kermit 8.0.200 of 2001 (proxy, MGET).
+
+- [6, 7, 8, 9, 11] With 1024 or more descriptors open, connections and
+  reads wrote past an fd_set on the stack.  The connect bug was introduced
+  in commit a32e1321 in C-Kermit 11.0.510 of 2026.  The other waits date
+  from commits 4b5eddea, d0f8b1da, c88d9b85 and 0fd869b4 in C-Kermit
+  6.0.192 of 1996 through 9.0.302 of 2011.
 
 - [6, 7] A malicious Telnet server could overflow a stack buffer and a heap
   buffer with a crafted NEW-ENVIRON SEND request during connection negotiation.
@@ -302,20 +335,6 @@ COMPATIBILITY`.
   when the automatic login fails, and skips the password only for the
   user that authentication validated.  Bug was introduced in commit
   d0f8b1da in C-Kermit 7.0.197 of 2000.
-
-- [8] A TLS client matched each label of a certificate's host name as a
-  Kermit pattern.  A certificate for `*` or `l*` matched "localhost", and
-  '?', '[...]' and an empty label also matched.  Kermit now uses
-  `X509_check_host()`, so a wildcard matches only as the whole leftmost
-  label of a name with more labels.  Addresses use `X509_check_ip_asc()`, so
-  an IPv6 address in a certificate now matches.  Bug was introduced in
-  commit c88d9b85 in C-Kermit 8.0.200 of 2001.
-
-- [8] A Telnet client that used the AUTHENTICATION option's SSL type did
-  not check that the server's certificate named the host.  A server could
-  refuse START-TLS and offer that type, and any certificate from a trusted
-  CA then passed.  The client now makes the same checks as for START-TLS.
-  Bug was introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
 
 - [7, 8] Malformed Telnet subnegotiations from a peer read or wrote past
   buffers.  With the debug log or SET TELNET DEBUG on, an ENCRYPTION
@@ -336,6 +355,20 @@ COMPATIBILITY`.
   still takes the client's type.  Bug was introduced in commit d0f8b1da
   in C-Kermit 7.0.197 of 2000.
 
+- [8] A TLS client matched each label of a certificate's host name as a
+  Kermit pattern.  A certificate for `*` or `l*` matched "localhost", and
+  '?', '[...]' and an empty label also matched.  Kermit now uses
+  `X509_check_host()`, so a wildcard matches only as the whole leftmost
+  label of a name with more labels.  Addresses use `X509_check_ip_asc()`, so
+  an IPv6 address in a certificate now matches.  Bug was introduced in
+  commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [8] A Telnet client that used the AUTHENTICATION option's SSL type did
+  not check that the server's certificate named the host.  A server could
+  refuse START-TLS and offer that type, and any certificate from a trusted
+  CA then passed.  The client now makes the same checks as for START-TLS.
+  Bug was introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
 - [8] A TLS client certificate was accepted for an account in `.tlslogin` when
   its signature bits matched a listed certificate.  The whole certificate must
   now match.  An IKSD sent the client certificate's name fields to the client
@@ -346,37 +379,43 @@ COMPATIBILITY`.
   and process ID.  It now refuses SSL and TLS.  Bug was introduced in
   commit c88d9b85 in C-Kermit 8.0.200 of 2001.
 
-- [5, 7, 8] The debug log recorded passwords.  It now records their lengths.
-  HTTP Basic credentials stayed in memory after use, and a user:password over
-  127 bytes was truncated without notice.  Bugs were introduced in commits
-  a213649d (5A(188) of 1992), 609e2f39 (5A(190) of 1994), d0f8b1da (7.0.197 of
-  2000) and 7b4ce026 (8.0.206 of 2002).
-
 - [8, 9] TLS certificate checks never matched an IP address SAN containing a
   zero byte (such as 127.0.0.1), read past the SAN's buffer, and could not
   match any IP SAN on big-endian 64-bit hosts.  The overread and big-endian bug
   were introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.  The
   zero-byte bug was introduced in commit 0fd869b4 in C-Kermit 9.0.302 of 2011.
 
-- [5, 7, 8] Buffer overflows from local input: the RLOGIN startup data with a
-  long USER, an HTTP proxy name filling its buffer, a long HTTP proxy name in
-  FTP, a CONNECT-mode backslash code of 10 or more characters (crashed), and
-  MGET with a pattern directory of 4096 bytes or more.  Added regression tests
-  to cover these bugs, but the RLOGIN and proxy tests detect the overflow only
-  under AddressSanitizer.  Bugs were introduced in commit 609e2f39 in C-Kermit
-  5A(190) of 1994 (CONNECT), commit d0f8b1da in C-Kermit 7.0.197 of 2000
-  (RLOGIN), and commit c88d9b85 in C-Kermit 8.0.200 of 2001 (proxy, MGET).
-
-- [6, 7, 8, 9, 11] With 1024 or more descriptors open, connections and
-  reads wrote past an fd_set on the stack.  The connect bug was introduced
-  in commit a32e1321 in C-Kermit 11.0.510 of 2026.  The other waits date
-  from commits 4b5eddea, d0f8b1da, c88d9b85 and 0fd869b4 in C-Kermit
-  6.0.192 of 1996 through 9.0.302 of 2011.
-
 - [8, 10] FTP over TLS, Telnet and raw SSL/TLS connections sent no server
   name (SNI), so a server could return the wrong certificate.  The FTP bug
   dates from commit c88d9b85 in C-Kermit 8.0.200 of 2001.  The others date
   from commit 8fed15a6 in C-Kermit 10.0 Beta.09 of 2023.
+
+- [8] The default cipher list was `HIGH:MEDIUM:LOW:+ADH:+EXP`.  It enabled
+  anonymous, export, and low-strength suites.  An anonymous suite gives no
+  protection against interception.  OpenSSL 3 at its default security level
+  offered none of these suites.  OpenSSL at security level 0, older OpenSSL
+  versions, and LibreSSL offered them.  The default cipher list is now
+  `HIGH:MEDIUM:!aNULL:!eNULL:!EXPORT:!LOW`.  SET AUTHENTICATION SSL
+  CIPHER-LIST and the SSL_CIPHER environment variable still override it.
+  Bug was introduced in commit 4e0c0d29 in C-Kermit 8.0.211 of 2004.
+
+- [8] When an FTP server accepted AUTH TLS or AUTH SSL and the TLS session
+  failed, FTP OPEN reconnected and tried the next authentication type.
+  When that failed too, FTP OPEN sent the user name and password in the
+  clear.  A failed handshake, an untrusted certificate, or a certificate
+  for the wrong host triggered this fallback.  An attacker who broke the
+  TLS session could then read the password.  FTP OPEN now closes the
+  connection without logging in.  `SET FTP TLS-FALLBACK ON` restores the
+  previous behavior.  When a server refuses AUTH, FTP OPEN still logs in
+  without encryption.  Bug was introduced in commit c88d9b85 in C-Kermit
+  8.0.200 of 2001.
+
+- [8] Telnet, raw SSL/TLS, IKSD, HTTPS and FTP connections set no minimum
+  protocol version.  HTTPS and Telnet left SSLv3 enabled.  So the library's
+  minimum applied.  These connections now require TLS 1.2 or later.  `SET
+  AUTHENTICATION SSL MINIMUM-VERSION` lowers the minimum for a legacy
+  system.  Bug was introduced in commit c88d9b85 in C-Kermit 8.0.200 of
+  2001.
 
 ### Dialing and serial lines
 
@@ -388,10 +427,10 @@ COMPATIBILITY`.
 
 ### Scripting and commands
 
-These bugs are in the command language.  A remote user can trigger it at the
-`IKSD>` prompt, and a server's client can with REMOTE ASSIGN and REMOTE QUERY.
-Scripts that handle data from a remote host, such as `\v(input)` or a received
-file, also reach it.
+These bugs are in the command language.  A remote user can trigger them at the
+`IKSD>` prompt.  A server's client can trigger them with REMOTE ASSIGN and
+REMOTE QUERY.  Scripts that handle data from a remote host, such as
+`\v(input)` or a received file, also reach them.
 
 - [5, 7, 8, 10] WHILE with a condition over about 230 characters, GREP
   /ARRAY with a line over 10,000 characters, and filename completion on a
@@ -423,12 +462,6 @@ file, also reach it.
   variables and array elements under SET VARIABLE-EVALUATION SIMPLE, the
   miscount was introduced in commit 0fd869b4 (9.0.302 of 2011).
 
-- [6, 8] SET PROTOCOL with a 71-character default command overflowed a
-  stack buffer.  SET SERVER GET-PATH with more than 128 directories
-  overflowed a stack array.  The SET PROTOCOL bug was introduced in commit
-  c88d9b85 in C-Kermit 8.0.200 of 2001.  The GET-PATH bug was introduced in
-  commit 4b5eddea in C-Kermit 6.0.192 of 1996.
-
 - [5, 7, 8] Several functions read or wrote past their buffers.  `\fdoy2date()`
   with a long time after the date overflowed a static buffer.  `\fstripb()` of
   a single character that matched its bracket, such as `\fstripb(x,x)`, copied
@@ -446,6 +479,12 @@ file, also reach it.
   list sized for none.  The list had no end, and the next such call read past
   it.  Bugs were introduced in commits a213649d (5A(188) of 1992), d0f8b1da
   (7.0.197 of 2000) and c88d9b85 (8.0.200 of 2001).
+
+- [6, 8] SET PROTOCOL with a 71-character default command overflowed a
+  stack buffer.  SET SERVER GET-PATH with more than 128 directories
+  overflowed a stack array.  The SET PROTOCOL bug was introduced in commit
+  c88d9b85 in C-Kermit 8.0.200 of 2001.  The GET-PATH bug was introduced in
+  commit 4b5eddea in C-Kermit 6.0.192 of 1996.
 
 - [8] TRANSMIT /BINARY on a Telnet connection with TRANSMIT ECHO OFF wrote past
   its send buffer when a doubled IAC byte fell at the end of the buffer.  The
@@ -555,15 +594,15 @@ file, also reach it.
   program to exit, and kills it only after that.  Bug was introduced in commit
   d0f8b1da in C-Kermit 7.0.197 of 2000.
 
-- [7, 11] On MacOS, a streaming send over a pty connection could hang or take 2
-  seconds per packet.  FIONREAD is broken on Mac, and it can indicate more bytes
-  available than really are.  The sender then waited for an ACK that was not
-  there.  Before C-Kermit 11.0.501 it waited with no timeout, so the transfer
-  hung.  Since then, it waited 2 seconds per packet.  Kermit now confirms the
-  count with select().  The code that hung was introduced in commit d0f8b1da in
-  C-Kermit 7.0.197 of 2000, though the real bug is with MacOS.  Commit 4a48cd29
-  in C-Kermit 11.0.501 of 2026 replaced it with the 2-second wait, which
-  improved but didn't fix the situation.
+- [7, 11] On MacOS, a streaming send over a pty connection could hang or take
+  2 seconds per packet.  FIONREAD is broken on MacOS and can report more bytes
+  available than can be read.  The sender then waited for an ACK that was not
+  there.  Before C-Kermit 11.0.501 it waited with no timeout and hung the
+  transfer.  Since then, it waited 2 seconds per packet.  Kermit now confirms
+  the count with select().  The code that hung was introduced in commit
+  d0f8b1da in C-Kermit 7.0.197 of 2000, though the underlying bug is in MacOS.
+  Commit 4a48cd29 in C-Kermit 11.0.501 of 2026 replaced the hang with the
+  2-second wait.  That improved the behavior without fixing it.
 
 - [8] SET TRANSFER DISPLAY FULLSCREEN with TERM unset or unknown to
   terminfo ended Kermit at the start of the next transfer, on systems
@@ -627,16 +666,20 @@ file, also reach it.
   FTP command read the wrong reply.  Bug was introduced in commit
   ca1addda in C-Kermit 10.0 Beta.10 of 2023.
 
+- [8] SHOW FTP displayed the PASSIVE-MODE setting as SEND-PORT-COMMANDS.
+  Bug was introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
 - [11] IPv6 addresses were not bracketed in the HTTP Host header and in
   the HTTP and FTP proxy CONNECT targets, and a bracketed proxy address
   was split at its first colon.  The code dates from commits c88d9b85
   (8.0.200 of 2001) and 4e0c0d29 (8.0.211 of 2004) and became wrong when
   commit 36668be5 added IPv6 in C-Kermit 11.0.501 of 2026.
 
-- [8] SHOW FTP displayed the PASSIVE-MODE setting as SEND-PORT-COMMANDS.
-  Bug was introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
-
 ### Connections, Telnet and TLS
+
+- [4] OUTPUT sent a 255 byte as a bare IAC on a Telnet connection.  The peer
+  read it and the byte after it as a Telnet command.  OUTPUT now sends 255 as
+  IAC IAC, as TRANSMIT does.  This includes COMMAND QUOTING OFF.
 
 - [7, 8] SIGHUP while the debug log was open could deadlock Kermit inside
   the signal handler.  SIGHUP and SIGWINCH are now handled outside it.
@@ -650,17 +693,36 @@ file, also reach it.
   C-Kermit 7.0.197 of 2000.  The COM-PORT bug was introduced in commit c88d9b85
   in C-Kermit 8.0.200 of 2001.
 
-- [8, 11] A failed SSL/TLS setup on SET HOST gave no reason.  The OpenSSL error
-  now appears.  A failed SET HOST lost its error, so `\v(setlinemsg)` read
-  "Network connection failure" instead of the reason.  SET HOST
-  /NETWORK-TYPE:VSOCK with no address returned an arbitrary status.  It now
-  asks for CID:PORT.  Bugs were introduced in commit c88d9b85 in C-Kermit
-  8.0.200 of 2001 (SSL/TLS), commit 36668be5 in C-Kermit 11.0.501 of 2026 (SET
-  HOST) and commit 8209ea02 in C-Kermit 11.0.508 of 2026 (VSOCK).
+- [7, 8] SHOW AUTHENTICATION listed the OpenSSL default ciphers instead of
+  the ciphers a connection offers.  It also ignored the SSL_CIPHER
+  environment variable.  It now lists the ciphers from the effective cipher
+  list and shows the source of that list.  It also reports when the list
+  matches no cipher.  Bugs were introduced in commit d0f8b1da in C-Kermit
+  7.0.197 of 2000 and commit 4e0c0d29 in C-Kermit 8.0.211 of 2004.
 
-- [11] /SSL and /TLS connections skipped the wait for Telnet negotiation.
-  Only raw SSL and TLS should skip that wait.  Bug was introduced in commit
-  0b9dc4f2 in C-Kermit 11.0.501 of 2026.
+- [7, 8] `SET AUTHENTICATION SSL CIPHER-LIST` with no argument set the list
+  to `ALL`.  `ALL` includes anonymous suites.  An empty argument now
+  restores the default cipher list.  The command also accepted a list that
+  matched no cipher.  An unmatched list from SET, the `-T cipher=` option,
+  or SSL_CIPHER left the OpenSSL default in place.  Connections then used
+  the OpenSSL default without warning.  SET now refuses an unmatched list.
+  Telnet, raw SSL/TLS, HTTPS, and FTP connections also fail with "?No
+  cipher matches the cipher list".  Bugs were introduced in commit d0f8b1da
+  in C-Kermit 7.0.197 of 2000 (SET) and commit c88d9b85 in C-Kermit 8.0.200
+  of 2001 (connections).
+
+- [7] A 0xFF data byte that arrived while a Telnet connection waited for
+  negotiation replies was lost along with the following byte.  The wait kept
+  one IAC of the peer's IAC IAC.  The reader then took it as a command.  On an
+  /SSL or /TLS connection whose peer sent IAC IAC first, the 0xFF also came
+  after the data that followed it.  The wait now keeps IAC IAC in order.
+
+- [7] Telnet option negotiation paused for TCP delayed ACKs.  Each option and
+  reply is a separate small write.  With Nagle's algorithm on, TCP held a write
+  until the peer acknowledged the previous one.  The peer delayed that ACK by
+  about 40 ms even on localhost.  A Kermit-to-Kermit /TELNET session spent about
+  85 ms this way.  Nagle is now off during the initial negotiation.  The SET TCP
+  NODELAY setting applies again afterwards.
 
 - [7] A Telnet server or IKSD could hang or fail in START-TLS.  The server
   sends its SB START_TLS FOLLOWS first.  A client may send its TLS handshake
@@ -669,6 +731,38 @@ file, also reach it.
   A Kermit client can trigger this under load.  The server now reads one
   byte at a time until the client's FOLLOWS ends.  Bug was introduced in
   commit d0f8b1da in C-Kermit 7.0.197 of 2000.
+
+- [8, 11] A failed SSL/TLS setup on SET HOST gave no reason.  The OpenSSL error
+  now appears.  A failed SET HOST lost its error, so `\v(setlinemsg)` read
+  "Network connection failure" instead of the reason.  SET HOST
+  /NETWORK-TYPE:VSOCK with no address returned an arbitrary status.  It now
+  asks for CID:PORT.  Bugs were introduced in commit c88d9b85 in C-Kermit
+  8.0.200 of 2001 (SSL/TLS), commit 36668be5 in C-Kermit 11.0.501 of 2026 (SET
+  HOST) and commit 8209ea02 in C-Kermit 11.0.508 of 2026 (VSOCK).
+
+- [8] A Kermit packet that arrived while a Telnet connection waited for
+  negotiation replies could be lost.  The wait read the packet ahead and
+  handed it back.  The packet reader took the rest of the packet first.  The
+  transfer then stalled until a packet timeout.  Over /SSL and /TLS it
+  happened when the client sent its first packet within the server's 1 s
+  wait.  SET TELNET WAIT-FOR-NEGOTIATIONS OFF on the client or SET PROTOCOL
+  STARTUP-STRING OFF made that likely.  The packet reader now takes the
+  handed-back data first.
+
+- [8] /SSL and /TLS connections sent IAC DO LOGOUT on close to a peer that
+  never sent Telnet.  These connections start Telnet only when the peer sends
+  IAC.  Close now sends DO LOGOUT only once Telnet has started.
+
+- [9] /SSL-RAW and /TLS-RAW connections sent Telnet bytes.  TRANSMIT doubled
+  0xFF, OUTPUT sent CR as CR LF, and closing sent IAC DO LOGOUT.  The
+  connection was marked as Telnet once it opened.  Raw connections now stay
+  raw and use the local echo setting of SET HOST /RAW-SOCKET.
+  `\v(connection)` now reports `tcp/ip_ssl` or `tcp/ip_tls` for them.  It
+  had reported `tcp/ip_telnet`, and /TLS-RAW was not recognized.
+
+- [11] /SSL and /TLS connections skipped the wait for Telnet negotiation.
+  Only raw SSL and TLS should skip that wait.  Bug was introduced in commit
+  0b9dc4f2 in C-Kermit 11.0.501 of 2026.
 
 ### IKSD
 
@@ -726,12 +820,12 @@ file, also reach it.
 ### Scripting and commands
 
 - [4, 5, 6] When built with musl, Esc completion at the command prompt showed
-  nothing until the next keystroke because musl doesn't auto-flush stdout on
-  getchar() like the other platforms do.  Now flush before reads.  flushes
-  stdout before each read.  The keyword default dates from commit f16b451f in
-  C-Kermit 4C(057) of 1985.  Partial filename completion dates from commit
-  a213649d in C-Kermit 5A(188) of 1992.  Directory completion dates from commit
-  4b5eddea in C-Kermit 6.0.192 of 1996.
+  nothing until the next keystroke.  musl does not flush stdout on getchar()
+  as other C libraries do.  The parser now flushes stdout before each read.
+  The keyword default dates from commit f16b451f in C-Kermit 4C(057) of 1985.
+  Partial filename completion dates from commit a213649d in C-Kermit 5A(188)
+  of 1992.  Directory completion dates from commit 4b5eddea in C-Kermit
+  6.0.192 of 1996.
 
 - [5] On Unix, WHO with a user name passed that name to who.  who read
   the argument as a login database file.  WHO now refuses a user name
@@ -751,18 +845,6 @@ file, also reach it.
   4b5eddea (6.0.192 of 1996), d0f8b1da (7.0.197 of 2000), c88d9b85 (8.0.200 of
   2001) and 0fd869b4 (9.0.302 of 2011).
 
-- [7, 9, 11] Floating-point functions and S-expressions lost precision with
-  large integers.  On systems that do floating point in an x87 FPU, such as
-  32-bit x86 Linux, CEILING, FLOOR, TRUNCATE, ROUND, ABS, MAX and MIN gave
-  inexact results for integers past 2^53.  An integer past the 64-bit range
-  could compare equal to the largest integer.  Integer results past 64 bits
-  wrapped instead of moving to floating point.  The digit-at-a-time conversion
-  was introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.  The `++`,
-  `--`, ABS, MAX, MIN and comparison bugs were introduced in commit 0fd869b4 in
-  C-Kermit 9.0.302 of 2011.  The CEILING, FLOOR, TRUNCATE and ROUND bug was
-  introduced in commit cfc424ff, and the wrap in commit ba8d78d5, both in
-  C-Kermit 11.0.512 of 2026.
-
 - [5, 8] Expansion and S-expression depth counts stayed raised.  Each expansion
   that failed because its value did not fit left the nesting count of the
   expander one level higher.  Ctrl-C during the expansion of a variable or
@@ -775,10 +857,22 @@ file, also reach it.
   returns both depths to 0.  Bugs were introduced in commits a213649d (5A(188)
   of 1992) and c88d9b85 (8.0.200 of 2001).
 
-- [5, 7] With stdin at end of file, ASK /TIMEOUT, SHOW KEY, GETC, GETOK
-  and the text and password prompts looped forever.  They now end.  Bugs
-  were introduced in commits a213649d (5A(188) of 1992), d0f8b1da (7.0.197
-  of 2000) and 29169c5e (8.0.201 of 2002).
+- [5, 7] With stdin at end of file, ASK /TIMEOUT, SHOW KEY, GETC, GETOK and the
+  text and password prompts looped forever.  Bugs were introduced in commits
+  a213649d (5A(188) of 1992), d0f8b1da (7.0.197 of 2000) and 29169c5e (8.0.201
+  of 2002).
+
+- [7, 9, 11] Floating-point functions and S-expressions lost precision with
+  large integers.  On systems that do floating point in an x87 FPU, such as
+  32-bit x86 Linux, CEILING, FLOOR, TRUNCATE, ROUND, ABS, MAX and MIN gave
+  inexact results for integers past 2^53.  An integer past the 64-bit range
+  could compare equal to the largest integer.  Integer results past 64 bits
+  wrapped instead of moving to floating point.  The digit-at-a-time conversion
+  was introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.  The `++`,
+  `--`, ABS, MAX, MIN and comparison bugs were introduced in commit 0fd869b4 in
+  C-Kermit 9.0.302 of 2011.  The CEILING, FLOOR, TRUNCATE and ROUND bug was
+  introduced in commit cfc424ff, and the wrap in commit ba8d78d5, both in
+  C-Kermit 11.0.512 of 2026.
 
 - [7] WAIT n FILE succeeded on timeout even if the event never happened.  Bug
   was introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
@@ -799,6 +893,16 @@ file, also reach it.
   width regression came from the -Wshadow work, present in 11.0.510 through
   11.0.514, and was introduced in commit 4ddb464e in C-Kermit 11.0.510.  The
   tab bugs were introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [8] The S-expression power operator took one multiplication for each unit of
+  an integer exponent.  `(^ 2 9000000000000000000)` ran for centuries, and
+  integer overflow went unchecked.  It now squares and multiplies.  An
+  overflow gives the floating-point result.  Bug was introduced in commit
+  c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [8] `\fsexpression()` with an empty first argument and another argument
+  crashed Kermit when it was the first S-expression of the session.  Bug was
+  introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
 
 - [9] `\ffilecompare()` crashed Kermit when the first file could be opened
   and the second could not.  Bug was introduced in commit 04917e78 in
@@ -847,16 +951,6 @@ file, also reach it.
 - [11] A doublequote after an escaped backslash, as in `"\\"`, did not end a
   quoted field.  Bug was introduced in commit b06df387 in C-Kermit 11.0.506 of
   2026.
-
-- [8] The S-expression power operator took one multiplication for each unit of
-  an integer exponent, so `(^ 2 9000000000000000000)` ran for centuries, and
-  integer overflow went unchecked.  It now squares and multiplies, and an
-  overflow gives the floating-point result.  Bug was introduced in commit
-  c88d9b85 in C-Kermit 8.0.200 of 2001.
-
-- [8] `\fsexpression()` with an empty first argument and another argument
-  crashed Kermit when it was the first S-expression of the session.  Bug was
-  introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
 
 ### Memory and descriptor leaks
 
@@ -956,6 +1050,10 @@ file, also reach it.
 - [8] FTP MGET /RECURSIVE skips server names that leave the current
   directory.
 
+- [8] FTP OPEN does not log in when TLS fails after the server accepts
+  AUTH TLS or AUTH SSL.  `SET FTP TLS-FALLBACK ON` logs in without
+  encryption.
+
 - [8] FTP passive data connections go to the control connection's
   address, not to the address in the PASV reply.  `SET FTP
   TRUST-PASV-ADDRESS ON` uses the address in the reply.
@@ -964,6 +1062,12 @@ file, also reach it.
   only as the whole leftmost label of a name with more labels.
 
 - [8] Kermit refuses SSL and TLS when OpenSSL has too little entropy.
+
+- [8] The default SSL/TLS cipher list excludes anonymous, unencrypted,
+  export, and low-strength suites.
+
+- [8] Telnet, raw SSL/TLS, IKSD, HTTPS and FTP connections require TLS 1.2
+  or later.  `SET AUTHENTICATION SSL MINIMUM-VERSION` changes the minimum.
 
 - [8] The floating-point functions format at most 200 decimal places.
 

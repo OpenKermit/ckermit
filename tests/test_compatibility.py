@@ -9,7 +9,7 @@ import subprocess
 from functools import partial
 
 import pytest
-from conftest import assert_ok
+from conftest import assert_ok, scaled
 
 _COMPAT_KEYWORDS = ["9", "10"]
 
@@ -231,7 +231,7 @@ def _run_as(wermit_path, tmp_path, name, commands):
     return subprocess.run(
         [str(link), "-H", "-Y", "-C",
          f"set command more-prompting off, {cmd_str}"],
-        capture_output=True, text=True, timeout=10)
+        capture_output=True, text=True, timeout=scaled(10))
 
 
 def test_invoked_as_kermit9_applies_compat_9(wermit_path, tmp_path):
@@ -296,7 +296,7 @@ def test_compat_receive_confines_incoming_paths(wermit_path, tmp_path,
         "{cd ../../send, set file names literal, set send pathnames on, "
         f"send /as-name:{{{as_name}}} a.txt, quit}}, "
         "receive, close, exit"], capture_output=True, text=True,
-        timeout=30, start_new_session=True)
+        timeout=scaled(30), start_new_session=True)
     assert not target.exists(), result.stdout + result.stderr
     if kind == "absolute":
         confined = recv_dir / str(target).lstrip("/")

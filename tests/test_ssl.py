@@ -4,8 +4,8 @@ import time
 import pytest
 
 from conftest import (
-    _make_leaf, assert_ok, ssl_client_setup_cmds, ssl_server_setup_cmds,
-    TELNET_REFUSE_KERMIT_CLAUSE, TelnetTlsClient,
+    _make_leaf, assert_ok, scaled, ssl_client_setup_cmds,
+    ssl_server_setup_cmds, TELNET_REFUSE_KERMIT_CLAUSE, TelnetTlsClient,
 )
 
 pytestmark = pytest.mark.skipif(
@@ -88,6 +88,42 @@ def test_ssl_first_exchange_is_not_delayed(server_dir, wermit_tcp_loopback,
         f"{elapsed:.1f}s (expected well under 3s). See the "
         "NewSessionTicket / in_chk() FIONREAD-fallback stall described "
         "in SSL_TEST_PLAN.md"
+    )
+
+
+def test_ssl_packet_during_server_telnet_wait(server_dir, wermit_tcp_loopback,
+                                             ssl_pki):
+    """Verify a packet arriving during the server Telnet wait is kept.
+
+    The client turns its wait off and sends its first packet at once.
+    The server's tn_wait() reads that packet ahead.  tn_push() hands the
+    data back through le_puts().  ttinl() must read it before the rest
+    of the packet in mybuf.  Otherwise the server sees a packet with no
+    start.  The exchange then stalls until the client's packet timeout.
+    """
+    session = wermit_tcp_loopback(
+        server_dir,
+        protocol="ssl",
+        setup_cmds=ssl_server_setup_cmds(ssl_pki),
+    )
+
+    start = time.monotonic()
+    result = session.run_client(
+        "remote pwd",
+        protocol="ssl",
+        setup_cmds=(
+            "set telnet wait-for-negotiations off, "
+            f"{ssl_client_setup_cmds(ssl_pki)}"
+        ),
+    )
+    elapsed = time.monotonic() - start
+
+    assert_ok(result)
+    assert str(server_dir) in result.stdout
+    session.wait_for_server_exit()
+    assert elapsed < 3, (
+        f"first exchange over /SSL took {elapsed:.1f}s (expected well "
+        "under 3s).  The server lost the packet it read during tn_wait()."
     )
 
 
@@ -897,7 +933,7 @@ def test_tls_get_without_telnet_peer_is_prompt(wermit_path, ssl_pki,
              f"set host localhost {port} /{client}, if fail exit 3, "
              "get f.bin, echo S=\\v(status), finish, close, exit 0"],
             cwd=clidir, stdin=subprocess.DEVNULL, capture_output=True,
-            text=True, timeout=60)
+            text=True, timeout=scaled(60))
         elapsed = time.monotonic() - start
     finally:
         srv.kill()
@@ -1067,7 +1103,8 @@ def test_ssl_server_name_matching(server_dir, wermit_tcp_loopback, ssl_pki,
     """
     try:
         key, crt = _make_leaf(tmp_path, "names", subj, ssl_pki["ca_key"],
-                              ssl_pki["ca_crt"], san=san)
+                              ssl_pki["ca_crt"], san=san,
+                              key=ssl_pki["server_key"])
     except AssertionError as e:
         # LibreSSL's openssl refuses to put "*" or "*.*" in a dNSName.
         if "bad object" in str(e):
@@ -1086,3 +1123,359 @@ def test_ssl_server_name_matching(server_dir, wermit_tcp_loopback, ssl_pki,
         assert "does not match" not in result.stdout, result.stdout
     else:
         assert "does not match" in result.stdout, result.stdout
+
+
+def _permissive_openssl_conf(tmp_path):
+    """Write an OpenSSL config that allows TLS 1.0 at security level 0.
+
+    Return an environment dictionary with OPENSSL_CONF set to the file.
+    """
+    import os
+    conf = tmp_path / "openssl.cnf"
+    conf.write_text(
+        "openssl_conf = init\n"
+        "[init]\n"
+        "ssl_conf = ssl_sect\n"
+        "[ssl_sect]\n"
+        "system_default = sys_sect\n"
+        "[sys_sect]\n"
+        "MinProtocol = TLSv1\n"
+        "CipherString = DEFAULT@SECLEVEL=0\n")
+    return dict(os.environ, OPENSSL_CONF=str(conf))
+
+
+def _tls_handshake_server(ctx):
+    """Start a one-connection TLS server that records the handshake.
+
+    Return (port, thread, listening socket, results).  results holds
+    "ok" or the handshake exception string.
+    """
+    import socket
+    import ssl
+    import threading
+    results = []
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    srv.settimeout(20)
+
+    def run():
+        try:
+            conn, _ = srv.accept()
+            with ctx.wrap_socket(conn, server_side=True) as s:
+                results.append("ok")
+                s.settimeout(5)
+                s.recv(100)
+        except (OSError, ssl.SSLError) as e:
+            if not results:
+                results.append(repr(e))
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    return srv.getsockname()[1], thread, srv, results
+
+
+def _run_wermit_env(wermit_path, cmds, env):
+    """Run wermit with commands cmds and environment env."""
+    import subprocess
+    return subprocess.run(
+        [wermit_path, "-H", "-Y", "-C",
+         f"set command more-prompting off, {cmds}, exit"],
+        env=env, capture_output=True, text=True, timeout=scaled(30),
+        start_new_session=True)
+
+
+def _single_version_server_ctx(ssl_pki, version):
+    """Return a server context limited to one protocol version.
+
+    Skip the test when this Python or OpenSSL cannot offer it.
+    """
+    import ssl
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(ssl_pki["server_crt"], ssl_pki["server_key"])
+    try:
+        ctx.set_ciphers("DEFAULT:@SECLEVEL=0")
+        ctx.minimum_version = getattr(ssl.TLSVersion, version)
+        ctx.maximum_version = getattr(ssl.TLSVersion, version)
+    except (ValueError, ssl.SSLError) as e:
+        pytest.skip(f"server cannot offer only {version}: {e}")
+    return ctx
+
+
+# Each case is (server version, Kermit commands, permissive OpenSSL
+# configuration, handshake succeeds).  The permissive configuration
+# allows TLS 1.0.  So a refusal under it comes from C-Kermit.  The last
+# case follows HELP SET AUTHENTICATION under the system configuration.
+MIN_VERSION_CASES = [
+    ("TLSv1_1", "", True, False),
+    ("TLSv1_2", "", True, True),
+    ("TLSv1_1", "set authentication ssl minimum-version tls1.1, ",
+     True, True),
+    ("TLSv1_2", "set authentication ssl minimum-version tls1.3, ",
+     True, False),
+    ("TLSv1_1", "set authentication ssl minimum-version tls1.0, "
+     "set authentication ssl cipher-list HIGH:MEDIUM:!aNULL:@SECLEVEL=0, ",
+     False, True),
+]
+MIN_VERSION_IDS = ["v1.1-default", "v1.2-default", "v1.1-min-1.1",
+                   "v1.2-min-1.3", "v1.1-documented"]
+
+
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+@pytest.mark.parametrize("version,cmds,permissive,accepted",
+                         MIN_VERSION_CASES, ids=MIN_VERSION_IDS)
+@pytest.mark.parametrize("protocol", ["http", "ssl-raw", "tls-raw"])
+def test_client_minimum_version(wermit_path, wermit_http_available,
+                                ssl_pki, tmp_path, protocol, version,
+                                cmds, permissive, accepted):
+    """Verify a client refuses a version below MINIMUM-VERSION.
+
+    The default minimum is TLS 1.2.  SET AUTHENTICATION SSL
+    MINIMUM-VERSION lowers or raises it for HTTPS and raw SSL/TLS.
+    """
+    import os
+    if protocol == "http" and not wermit_http_available:
+        pytest.skip("wermit built without HTTP")
+    ctx = _single_version_server_ctx(ssl_pki, version)
+    port, thread, srv, results = _tls_handshake_server(ctx)
+    if protocol == "http":
+        connect = f"http open /tls localhost {port}"
+        close = "http close"
+    else:
+        connect = f"set host localhost {port} /{protocol}"
+        close = "close"
+    env = (_permissive_openssl_conf(tmp_path) if permissive
+           else dict(os.environ))
+    try:
+        result = _run_wermit_env(
+            wermit_path,
+            f"set authentication ssl verify-file {ssl_pki['ca_crt']}, "
+            f"{cmds}{connect}, echo STATUS=\\v(status), {close}",
+            env)
+    finally:
+        srv.close()
+        thread.join(timeout=10)
+    if accepted:
+        assert results == ["ok"], (results, result.stdout)
+        assert "STATUS=0" in result.stdout, result.stdout
+    else:
+        assert results and results[0] != "ok", (results, result.stdout)
+        assert "STATUS=1" in result.stdout, result.stdout
+
+
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+@pytest.mark.parametrize("cmds,accepted", [
+    ("", False),
+    ("set authentication ssl minimum-version tls1.1, ", True),
+])
+def test_server_minimum_version(wermit_path, ssl_pki, tmp_path,
+                                get_free_port, cmds, accepted):
+    """Verify a raw TLS server refuses a version below MINIMUM-VERSION.
+
+    The client offers only TLS 1.1.  The permissive OpenSSL
+    configuration allows it.  So a refusal comes from C-Kermit.
+    """
+    import socket
+    import ssl
+    import subprocess
+    cctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    cctx.check_hostname = False
+    cctx.verify_mode = ssl.CERT_NONE
+    try:
+        cctx.set_ciphers("DEFAULT:@SECLEVEL=0")
+        cctx.minimum_version = ssl.TLSVersion.TLSv1_1
+        cctx.maximum_version = ssl.TLSVersion.TLSv1_1
+    except (ValueError, ssl.SSLError) as e:
+        pytest.skip(f"client cannot offer only TLS 1.1: {e}")
+    port = get_free_port()
+    srv = subprocess.Popen(
+        [wermit_path, "-H", "-Y", "-Q", "-C",
+         f"{ssl_server_setup_cmds(ssl_pki)}, {cmds}"
+         f"set host * {port} /tls-raw, exit 0"],
+        env=_permissive_openssl_conf(tmp_path),
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL)
+    outcome = None
+    try:
+        deadline = time.monotonic() + 15
+        while outcome is None:
+            try:
+                sock = socket.create_connection(("127.0.0.1", port),
+                                                timeout=10)
+            except OSError:
+                if time.monotonic() > deadline:
+                    raise
+                time.sleep(0.2)
+                continue
+            try:
+                with cctx.wrap_socket(sock) as s:
+                    outcome = s.version()
+            except (OSError, ssl.SSLError) as e:
+                outcome = repr(e)
+    finally:
+        srv.kill()
+        srv.wait()
+    if accepted:
+        assert outcome == "TLSv1.1", outcome
+    else:
+        assert outcome != "TLSv1.1", outcome
+
+
+@pytest.mark.parametrize("protocol", ["ssl-raw", "tls-raw"])
+def test_tls_default_ciphers_exclude_anonymous(wermit_path, tmp_path,
+                                               protocol):
+    """Verify the default cipher list excludes anonymous suites.
+
+    The server offers only anonymous suites at security level 0.  The
+    permissive OpenSSL configuration allows them.  The handshake fails
+    because DEFAULT_CIPHER_LIST excludes aNULL.
+    """
+    import ssl
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    try:
+        ctx.maximum_version = ssl.TLSVersion.TLSv1_2
+        ctx.set_ciphers("aNULL:@SECLEVEL=0")
+    except (ValueError, ssl.SSLError) as e:
+        pytest.skip(f"server cannot offer anonymous suites: {e}")
+    port, thread, srv, results = _tls_handshake_server(ctx)
+    try:
+        result = _run_wermit_env(
+            wermit_path,
+            "set authentication ssl verify off, "
+            f"set host 127.0.0.1 {port} /{protocol}, "
+            "echo STATUS=\\v(status), close",
+            _permissive_openssl_conf(tmp_path))
+    finally:
+        srv.close()
+        thread.join(timeout=10)
+    assert results and results[0] != "ok", (results, result.stdout)
+    assert "STATUS=1" in result.stdout, result.stdout
+
+
+def _show_auth_ciphers(wermit_path, cmds="", env=None):
+    """Run SHOW AUTHENTICATION.  Return (Cipher list line, cipher names)."""
+    import os
+    result = _run_wermit_env(
+        wermit_path, f"{cmds}show authentication",
+        env if env is not None else dict(os.environ))
+    lines = result.stdout.splitlines()
+    start = next(i for i, x in enumerate(lines)
+                 if x.startswith(" Cipher list:"))
+    names = []
+    for line in lines[start + 1:]:
+        if not line.startswith("    "):
+            break
+        names.append(line.strip())
+    return lines[start], names
+
+
+def test_show_auth_lists_default_cipher_list(wermit_path):
+    """Verify SHOW AUTHENTICATION lists ciphers from DEFAULT_CIPHER_LIST.
+
+    The listing reflects the effective cipher list and excludes
+    anonymous suites.
+    """
+    import os
+    env = dict(os.environ)
+    env.pop("SSL_CIPHER", None)
+    header, names = _show_auth_ciphers(wermit_path, env=env)
+    assert header.endswith("(default)"), header
+    assert names, header
+    assert not [n for n in names
+                if n.startswith(("ADH-", "AECDH-"))], names
+
+
+def test_show_auth_honors_ssl_cipher_variable(wermit_path):
+    """Verify SHOW AUTHENTICATION lists the SSL_CIPHER list.
+
+    SSL_CIPHER replaces the default for connections.  OpenSSL includes
+    TLS 1.3 suites separately from the cipher list.
+    """
+    import os
+    cipher = "ECDHE-RSA-AES128-GCM-SHA256"
+    env = dict(os.environ, SSL_CIPHER=cipher)
+    header, names = _show_auth_ciphers(wermit_path, env=env)
+    assert header == f" Cipher list: {cipher} (from SSL_CIPHER)", header
+    assert [n for n in names if not n.startswith("TLS_")] == [cipher], \
+        names
+
+
+def test_show_auth_reports_unmatched_cipher_list(wermit_path):
+    """Verify SHOW AUTHENTICATION reports a list that names no cipher."""
+    import os
+    env = dict(os.environ, SSL_CIPHER="BOGUS")
+    header, names = _show_auth_ciphers(wermit_path, env=env)
+    assert header == " Cipher list: BOGUS (from SSL_CIPHER)", header
+    assert names == ["(no cipher matches this list)"], names
+
+
+def test_set_cipher_list_refuses_unmatched_list(wermit_path):
+    """Verify SET AUTHENTICATION SSL CIPHER-LIST refuses an unmatched list."""
+    import os
+    result = _run_wermit_env(
+        wermit_path, "set authentication ssl cipher-list BOGUS",
+        dict(os.environ))
+    assert '?No cipher matches "BOGUS"' in result.stdout, result.stdout
+    assert result.returncode != 0, result.returncode
+
+
+def test_set_cipher_list_empty_restores_default(wermit_path):
+    """Verify an empty SET AUTHENTICATION SSL CIPHER-LIST restores default."""
+    import os
+    env = dict(os.environ)
+    env.pop("SSL_CIPHER", None)
+    header, _ = _show_auth_ciphers(
+        wermit_path, "set authentication ssl cipher-list AES128-SHA, "
+        "set authentication ssl cipher-list, ", env=env)
+    assert header.endswith("(default)"), header
+
+
+@pytest.mark.parametrize("protocol", ["http", "ssl-raw", "tls-raw"])
+def test_connect_refuses_unmatched_cipher_list(wermit_path,
+                                               wermit_http_available,
+                                               protocol):
+    """Verify a connection fails when its cipher list matches no cipher.
+
+    SSL_CIPHER bypasses the check in SET AUTHENTICATION SSL
+    CIPHER-LIST.  OpenSSL keeps its previous list when the new one
+    matches nothing.  So Kermit refuses the connection.  The server sees
+    no TLS handshake.
+    """
+    import os
+    import socket
+    import threading
+    if protocol == "http" and not wermit_http_available:
+        pytest.skip("wermit built without HTTP")
+    received = []
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    srv.settimeout(20)
+
+    def run():
+        try:
+            conn, _ = srv.accept()
+            with conn:
+                conn.settimeout(5)
+                received.append(conn.recv(100))
+        except OSError:
+            pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    port = srv.getsockname()[1]
+    if protocol == "http":
+        connect, close = f"http open /tls 127.0.0.1 {port}", "http close"
+    else:
+        connect, close = f"set host 127.0.0.1 {port} /{protocol}", "close"
+    try:
+        result = _run_wermit_env(
+            wermit_path, f"{connect}, echo STATUS=\\v(status), {close}",
+            dict(os.environ, SSL_CIPHER="BOGUS"))
+    finally:
+        srv.close()
+        thread.join(timeout=10)
+    assert '?No cipher matches the cipher list "BOGUS"' in result.stdout, \
+        result.stdout
+    assert "STATUS=1" in result.stdout, result.stdout
+    assert received in ([], [b""]), received

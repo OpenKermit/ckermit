@@ -10663,9 +10663,9 @@ in_chk(channel, fd) int channel, fd;
 #ifdef SELECT
 /*
   On macOS, FIONREAD on a pty master can count bytes that read() does
-  not return.  The count can equal a packet Kermit has just written.
-  A streaming sender that trusts it waits in rpack() for each packet.
-  A zero-timeout select() confirms that the master has data.
+  not return.  The count can equal a packet that Kermit wrote to the
+  pty.  A streaming sender that trusts it waits in rpack() for each
+  packet.  A zero-timeout select() confirms that the master has data.
 */
     if (channel != 0 && ttpty && n > 0 && CK_FDOK(fd)) {
         fd_set rfds;
@@ -11628,8 +11628,24 @@ ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
         debug(F101,"ttinl eol","",eol);
 
         while (i < max-1) {
+            int fromle = 0;             /* Char came from le_buf */
 #ifdef MYREAD
             errno = 0;
+#ifdef TTLEBUF
+/*
+  tn_wait() pushes buffered lookahead data into le_buf via le_puts().
+  Read that data before any bytes remaining in mybuf.  ttinc() has
+  already decrypted it.
+*/
+            if (le_data) {
+                CHAR lech;
+                if (le_getchar(&lech) > 0) {
+                    n = lech;
+                    fromle = 1;
+                }
+            }
+            if (!fromle)
+#endif /* TTLEBUF */
             /* On encrypted connections myread returns encrypted bytes */
             n = myread();
             if (n < 0) {        /* Timeout or i/o error? */
@@ -11696,7 +11712,7 @@ ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
             /* Get here with char in n */
 
 #ifdef CK_ENCRYPTION
-            if (TELOPT_U(TELOPT_ENCRYPTION) && !pushedback) {
+            if (TELOPT_U(TELOPT_ENCRYPTION) && !pushedback && !fromle) {
                 CHAR ch = (CHAR)n;
                 ck_tn_decrypt((char *)&ch,1);
                 n = ch;

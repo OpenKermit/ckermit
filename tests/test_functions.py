@@ -1,7 +1,7 @@
 import subprocess
 
 import pytest
-from conftest import assert_ok
+from conftest import assert_ok, scaled
 
 
 def test_sexpression_round(run_wermit):
@@ -226,7 +226,7 @@ def test_random_seed_reads_no_uninitialized_memory(wermit_path, valgrind):
     result = subprocess.run(
         [valgrind, "-q", "--error-exitcode=9", wermit_path,
          "-H", "-Y", "-Q", "-C", "echo R=\\frandom(1000), quit"],
-        capture_output=True, text=True, timeout=120)
+        capture_output=True, text=True, timeout=scaled(120))
     assert result.returncode == 0, result.stderr
     assert "R=" in result.stdout, result.stdout
 
@@ -253,6 +253,6 @@ def test_eval_undefined_name_stays_in_bounds(wermit_path, valgrind, expr):
         [valgrind, "-q", "--error-exitcode=9", wermit_path,
          "-H", "-Y", "-Q", "-C", f"echo [\\feval({expr})], quit"],
         stdin=subprocess.DEVNULL, capture_output=True, text=True,
-        timeout=120)
+        timeout=scaled(120))
     assert result.returncode == 0, result.stderr
     assert "ARG_NOT_NUMERIC" in result.stdout, result.stdout

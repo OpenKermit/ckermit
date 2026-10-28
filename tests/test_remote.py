@@ -2,7 +2,7 @@ import os
 import subprocess
 
 import pytest
-from conftest import assert_ok
+from conftest import assert_ok, scaled
 
 
 @pytest.fixture(params=["pseudoterminal", "raw-socket", "telnet"])
@@ -597,7 +597,7 @@ def _local_who(wermit_path, commands, ck_who):
         [wermit_path, "-H", "-Y", "-C",
          f"set command more-prompting off, {commands}, exit"],
         stdin=subprocess.DEVNULL, capture_output=True, text=True,
-        timeout=30, env=env, start_new_session=True)
+        timeout=scaled(30), env=env, start_new_session=True)
 
 
 def test_local_who_refuses_name(wermit_path):

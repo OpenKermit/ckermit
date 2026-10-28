@@ -6921,10 +6921,6 @@ doinput(timo,ms,mp,flags,icount)
 #endif /* TNCODE */
           ;
 
-#ifdef CK_SSL
-    if (is_tn) if (ssl_raw_flag || tls_raw_flag) is_tn = 0;
-#endif  /* CK_SSL */
-
     instatus = INP_IE;                  /* 3 = internal error */
     kbchar = 0;
 
@@ -14076,7 +14072,7 @@ char *                                  /* Evaluate builtin variable */
 #ifdef CK_SSL
                 else if (ttnproto == NP_SSL || ttnproto == NP_SSL_RAW)
                   ckstrncpy(vvbuf,"tcp/ip_ssl",VVBUFL);
-                else if (ttnproto == NP_TLS || ttnproto == NP_SSL_RAW)
+                else if (ttnproto == NP_TLS || ttnproto == NP_TLS_RAW)
                   ckstrncpy(vvbuf,"tcp/ip_tls",VVBUFL);
 #endif /* CK_SSL */
                 else

@@ -6,6 +6,26 @@ import subprocess
 import time
 import tty
 
+import pytest
+
+from conftest import scaled
+
+
+def _skip_unless_lockdir_writable(wermit_path):
+    """Skip unless this user can create wermit's UUCP lock file.
+
+    SET LINE fails when wermit cannot create its lock file.  DIAL then
+    has no line.
+    """
+    result = subprocess.run(
+        [wermit_path, "-H", "-Y", "-C", r"echo [\v(lockdir)], exit"],
+        stdin=subprocess.DEVNULL, capture_output=True, text=True,
+        timeout=scaled(10))
+    start = result.stdout.find("[")
+    lockdir = result.stdout[start + 1:result.stdout.find("]", start)]
+    if lockdir and not os.access(lockdir, os.W_OK):
+        pytest.skip(f"lock directory {lockdir} is not writable")
+
 
 def _dial(wermit_path, dial_command, number, expect):
     """DIAL number through a scripted Hayes modem.
@@ -58,11 +78,13 @@ def test_dial_command_percent_percent(wermit_path):
 
     The first %s is the number.  Other bytes go as they are.
     """
+    _skip_unless_lockdir_writable(wermit_path)
     got = _dial(wermit_path, "ATD%%%s", "5551234", b"ATD%5551234")
     assert b"ATD%5551234" in got, got
 
 
 def test_dial_command_plain(wermit_path):
     """Verify a DIAL-COMMAND without %% sends the number for %s."""
+    _skip_unless_lockdir_writable(wermit_path)
     got = _dial(wermit_path, "ATDT%s", "5551234", b"ATDT5551234")
     assert b"ATDT5551234" in got, got

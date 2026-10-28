@@ -4,6 +4,8 @@ ckuus6.c).
 """
 import subprocess
 
+from conftest import scaled
+
 
 def test_dial_directory_conversion_closes_file(wermit_path, tmp_path,
                                                valgrind):
@@ -19,7 +21,7 @@ def test_dial_directory_conversion_closes_file(wermit_path, tmp_path,
          f"set dial directory {d}, set dial convert-directory on, "
          "lookup home, exit"],
         stdin=subprocess.DEVNULL, capture_output=True, text=True,
-        cwd=tmp_path, timeout=120)
+        cwd=tmp_path, timeout=scaled(120))
     assert "Converting" in result.stdout, result.stdout
     text = d.read_text()
     assert "home             5551212              ;  9600 none" in text, text

@@ -1579,6 +1579,7 @@ static struct keytab ssltab[] = {
     "dsa-cert-file",     XYSSLDCFL, 0,
     "dsa-key-file",      XYSSLDKFL, 0,
     "dummy",             XYSSLDUM,  CM_INV,
+    "minimum-version",   XYSSLMINV, 0,
     "only",              XYSSLON,   CM_INV,
     "random-file",       XYSSLRND,  0,
     "rsa-cert-chain-file", XYSSLRCCF, 0,
@@ -1600,6 +1601,17 @@ static struct keytab sslvertab[] = {
     "peer-cert",        SSL_VERIFY_PEER, 0
 };
 static int nsslvertab = sizeof(sslvertab)/sizeof(struct keytab);
+static struct keytab sslminvtab[] = {
+    "ssl3.0",           SSL3_VERSION,   0,
+    "tls1.0",           TLS1_VERSION,   0,
+    "tls1.1",           TLS1_1_VERSION, 0,
+    "tls1.2",           TLS1_2_VERSION, 0,
+#ifdef TLS1_3_VERSION
+    "tls1.3",           TLS1_3_VERSION, 0,
+#endif /* TLS1_3_VERSION */
+    "", 0, 0
+};
+static int nsslminvtab = (sizeof(sslminvtab) / sizeof(struct keytab)) - 1;
 #endif /* CK_SSL */
 #endif /* CK_AUTHENTICATION */
 #ifdef CK_ENCRYPTION
@@ -14191,61 +14203,35 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
                       return(y);
                     ssl_verify_flag = x;
                     break;
+                  case XYSSLMINV:       /* SSL/TLS minimum version */
+                    if ((x = cmkey(sslminvtab, nsslminvtab,
+                                   "lowest SSL/TLS protocol version",
+                                   "tls1.2",xxstring)) < 0)
+                      return(x);
+                    if ((y = cmcfm()) < 0)
+                      return(y);
+                    ssl_min_version = x;
+                    break;
                   case XYSSLDUM:
                     if ((y = seton(&ssl_dummy_flag)) < 0)
                       return(y);
                     break;
-                  case XYSSLCL: {               /* SSL/TLS Cipher List */
-#ifdef COMMENT
-                      /* This code is used to generate a colon delimited */
-                      /* list of the ciphers currently in use to be used */
-                      /* as the default for cmtxt().  However, a better  */
-                      /* default is simply the magic keyword "ALL".      */
-                      CHAR def[1024] = "";
-                      if (ssl_con != NULL) {
-                          CHAR * p = NULL, *q = def;
-                          int i, len;
-
-                          for (i = 0; ; i++) {
-                              p = (CHAR *) SSL_get_cipher_list(ssl_con,i);
-                              if (p == NULL)
-                                break;
-                              len = strlen(p);
-                              if (q+len+1 >= def+1024)
-                                break;
-                              if (i != 0)
-                                *q++ = ':';
-                              strcpy(q,p);
-                              q += len;
-                          }
-                      }
-#endif /* COMMENT */
-                      char * p = getenv("SSL_CIPHER");
-                      if (!p)
-                        p = "ALL";
-                      if ((y = cmtxt(
-                    "Colon-delimited list of ciphers or ALL (case-sensitive)",
-                                     p,
-                                     &s,
-                                     xxstring
-                                     )
-                           ) < 0)
-                        return(y);
-                      makestr(&ssl_cipher_list,s);
-                      if (ssl_con == NULL) {
-                          SSL_library_init();
-                          ssl_ctx = (SSL_CTX *)
-/* Changed in 9.0.305 Alpha.03 from NetBSD 'rhialto' */
-/* from: SSL_CTX_new((SSL_METHOD *)TLSv1_method()); to:...*/
-                            SSL_CTX_new(SSLv23_method());
-                          if (ssl_ctx != NULL)
-                            ssl_con= (SSL *) SSL_new(ssl_ctx);
-                      }
-                      if (ssl_con) {
-                          SSL_set_cipher_list(ssl_con,ssl_cipher_list);
-                      }
-                      break;
-                  }
+                  case XYSSLCL:         /* SSL/TLS Cipher List */
+                    /* An empty list restores the default. */
+                    if ((y = cmtxt(
+                    "Colon-delimited list of ciphers (case-sensitive)",
+                                   "",
+                                   &s,
+                                   xxstring
+                                   )
+                         ) < 0)
+                      return(y);
+                    if (*s && !ssl_cipher_list_ok(s)) {
+                        printf("?No cipher matches \"%s\"\n",s);
+                        return(-9);
+                    }
+                    makestr(&ssl_cipher_list,*s ? s : NULL);
+                    break;
                 }
                 break;
             }

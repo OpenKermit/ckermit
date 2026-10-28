@@ -19,7 +19,7 @@ import sys
 
 import pytest
 
-from conftest import run_wermit_pty
+from conftest import PROTOCOL_STARTUP_OFF, run_wermit_pty, scaled
 
 DISPLAYS = ["fullscreen", "crt", "brief", "serial", "none"]
 NO_FILES = "No files were transferred"
@@ -42,7 +42,7 @@ def _rmcup():
             "    cap = b''\n"
             "sys.stdout.buffer.write(cap)\n")
     result = subprocess.run([sys.executable, "-c", code],
-                            stdout=subprocess.PIPE, timeout=30)
+                            stdout=subprocess.PIPE, timeout=scaled(30))
     return result.stdout.decode("latin-1")
 
 
@@ -89,6 +89,7 @@ def _run(wermit_path, display, host, cmds, cwd):
     """Run cmds against host with the given display.  Return the text."""
     rc, out = run_wermit_pty(
         wermit_path,
+        f"{PROTOCOL_STARTUP_OFF}, "
         f"set delay 0, set transfer display {display}, "
         f"set host /network-type:pseudoterminal {host}, {cmds}, "
         "echo STATUS=\\v(status), close, exit", cwd, timeout=60)
@@ -212,7 +213,7 @@ def test_messages_without_terminal(run_wermit, server, tmp_path, cmds,
     """
     host, clidir = server
     result = run_wermit(
-        f"cd {clidir}, set delay 0, "
+        f"cd {clidir}, {PROTOCOL_STARTUP_OFF}, set delay 0, "
         f"set host /network-type:pseudoterminal {host}, "
         f"{cmds.format(tmp=tmp_path)}, close", timeout=60)
     out = result.stdout

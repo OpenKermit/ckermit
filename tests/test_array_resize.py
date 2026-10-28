@@ -8,6 +8,8 @@ import sys
 
 import pytest
 
+from conftest import scaled
+
 
 def test_array_resize_smaller_frees_elements(wermit_path, valgrind):
     """Verify shrinking an array frees the elements it drops."""
@@ -23,7 +25,7 @@ def test_array_resize_smaller_frees_elements(wermit_path, valgrind):
         [valgrind, "-q", "--leak-check=full", wermit_path,
          "-H", "-Y", "-Q", "-C", cmds],
         stdin=subprocess.DEVNULL, capture_output=True, text=True,
-        timeout=120)
+        timeout=scaled(120))
     assert "LAST=[element 3] DIM=[3]" in result.stdout, result.stdout
     # valgrind separates loss records with "==pid== " lines.  dodef()
     # stored the elements.  Other leaks are not at issue.
@@ -57,7 +59,7 @@ def test_array_resize_out_of_memory(wermit_path, wermit_sanitized):
         pytest.skip("no RLIMIT_AS on this platform")
     gb = 1 << 30
 
-    # Test to make sure we can actually lower.  MacOS might not.
+    # Check whether RLIMIT_AS can be lowered.  macOS may reject this.
     probe = subprocess.run(
         [sys.executable, "-c",
          "import resource; "
@@ -78,6 +80,6 @@ def test_array_resize_out_of_memory(wermit_path, wermit_sanitized):
             "exit 0",
         ])],
         stdin=subprocess.DEVNULL, capture_output=True, text=True,
-        timeout=60, preexec_fn=limit)
+        timeout=scaled(60), preexec_fn=limit)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "STATUS=[1] A2=[two] DIM=[5]" in result.stdout, result.stdout

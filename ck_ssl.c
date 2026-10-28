@@ -269,6 +269,7 @@ char *ssl_verify_file = NULL;
 char *ssl_verify_dir = NULL;
 char *ssl_dh_param_file = NULL;
 char *ssl_cipher_list = NULL;
+int ssl_min_version = DEFAULT_MIN_VERSION;
 char *ssl_rnd_file = NULL;
 
 SSL_CTX *tls_ctx = NULL;
@@ -1669,6 +1670,120 @@ tls_load_certs(SSL_CTX * ctx, SSL * con, int server)
     return(rc);
 }
 
+/*
+  Return the cipher list for a new connection.  SET AUTHENTICATION SSL
+  CIPHER-LIST takes precedence over the SSL_CIPHER environment variable.
+  DEFAULT_CIPHER_LIST applies when neither is set.
+*/
+char *
+#ifdef CK_ANSIC
+ssl_effective_cipher_list(void)
+#else
+ssl_effective_cipher_list()
+#endif /* CK_ANSIC */
+{
+    char * p;
+
+    if (ssl_cipher_list)
+        return(ssl_cipher_list);
+    if ((p = getenv("SSL_CIPHER")))
+        return(p);
+    return(DEFAULT_CIPHER_LIST);
+}
+
+/*
+  Apply the effective cipher list to con.  Return 1 on success.  Return 0
+  when the list matches no cipher.  OpenSSL leaves the previous list in
+  place on failure.  The caller must not use con when this returns 0.
+*/
+int
+#ifdef CK_ANSIC
+ssl_apply_cipher_list(SSL * con)
+#else
+ssl_apply_cipher_list(con) SSL * con;
+#endif /* CK_ANSIC */
+{
+    char * list = ssl_effective_cipher_list();
+
+    if (SSL_set_cipher_list(con,list))
+        return(1);
+    debug(F110,"ssl_apply_cipher_list no cipher matches",list,0);
+    if (!inserver)
+        printf("?No cipher matches the cipher list \"%s\"\n",list);
+    return(0);
+}
+
+/*
+  Return 1 when list matches at least one cipher and 0 when it does not.
+*/
+int
+#ifdef CK_ANSIC
+ssl_cipher_list_ok(char * list)
+#else
+ssl_cipher_list_ok(list) char * list;
+#endif /* CK_ANSIC */
+{
+    SSL_CTX * ctx;
+    int rc;
+
+    SSL_library_init();
+    if (!(ctx = SSL_CTX_new(SSLv23_client_method())))
+        return(0);
+    rc = SSL_CTX_set_cipher_list(ctx,list) ? 1 : 0;
+    SSL_CTX_free(ctx);
+    ERR_clear_error();
+    return(rc);
+}
+
+/*
+  Set the lowest protocol version that ctx accepts to ssl_min_version.
+  Return 1 on success and 0 on failure.
+*/
+int
+#ifdef CK_ANSIC
+ssl_set_min_version(SSL_CTX * ctx)
+#else
+ssl_set_min_version(ctx) SSL_CTX * ctx;
+#endif /* CK_ANSIC */
+{
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+    return(SSL_CTX_set_min_proto_version(ctx,ssl_min_version) ? 1 : 0);
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+    long op = 0;
+
+    if (ssl_min_version > SSL3_VERSION)
+        op |= SSL_OP_NO_SSLv3;
+    if (ssl_min_version > TLS1_VERSION)
+        op |= SSL_OP_NO_TLSv1;
+    if (ssl_min_version > TLS1_1_VERSION)
+        op |= SSL_OP_NO_TLSv1_1;
+    SSL_CTX_clear_options(ctx,
+                          SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1);
+    SSL_CTX_set_options(ctx,op);
+    return(1);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
+}
+
+/* Return the name of protocol version v for display. */
+char *
+#ifdef CK_ANSIC
+ssl_version_name(int v)
+#else
+ssl_version_name(v) int v;
+#endif /* CK_ANSIC */
+{
+    switch (v) {
+      case SSL3_VERSION:   return("SSL 3.0");
+      case TLS1_VERSION:   return("TLS 1.0");
+      case TLS1_1_VERSION: return("TLS 1.1");
+      case TLS1_2_VERSION: return("TLS 1.2");
+#ifdef TLS1_3_VERSION
+      case TLS1_3_VERSION: return("TLS 1.3");
+#endif /* TLS1_3_VERSION */
+      default:             return("unknown");
+    }
+}
+
 VOID
 #ifdef CK_ANSIC
 ssl_once_init(void)
@@ -2010,8 +2125,8 @@ ssl_tn_init(mode) int mode;
             /* OpenSSL >= 1.1.0: Negotiate the best TLS version possible */
             tls_ctx=(SSL_CTX *)SSL_CTX_new(TLS_client_method());
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-            /* OpenSSL 1.0.2: TLS 1.2 */
-            tls_ctx=(SSL_CTX *)SSL_CTX_new(TLSv1_2_client_method());
+            /* OpenSSL 1.0.2: ssl_set_min_version() sets the minimum */
+            tls_ctx=(SSL_CTX *)SSL_CTX_new(SSLv23_client_method());
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
             if ( tls_ctx ) {
                 debug(F110,"ssl_tn_init","TLS_client_method OK",0);
@@ -2121,6 +2236,12 @@ ssl_tn_init(mode) int mode;
         }
         SSL_CTX_set_session_id_context(ssl_ctx,(CHAR *)"1",1);
         SSL_CTX_set_session_id_context(tls_ctx,(CHAR *)"2",1);
+    }
+
+    /* SET AUTHENTICATION SSL MINIMUM-VERSION can change between calls. */
+    if (!ssl_set_min_version(ssl_ctx) || !ssl_set_min_version(tls_ctx)) {
+        debug(F110,"ssl_tn_init","ssl_set_min_version failed",0);
+        return(0);
     }
 
     /* The server uses defaults for the certificate files. */
@@ -2635,18 +2756,9 @@ ssl_tn_init(mode) int mode;
           debug(F100,"ssl_tn_init SSL_set_tlsext_host_name failed","",0);
     }
 
-    if (ssl_cipher_list) {
-        SSL_set_cipher_list(ssl_con,ssl_cipher_list);
-        SSL_set_cipher_list(tls_con,ssl_cipher_list);
-    } else {
-        char * p;
-        if ((p = getenv("SSL_CIPHER"))) {
-            SSL_set_cipher_list(ssl_con,p);
-            SSL_set_cipher_list(tls_con,p);
-        } else {
-            SSL_set_cipher_list(ssl_con,DEFAULT_CIPHER_LIST);
-            SSL_set_cipher_list(tls_con,DEFAULT_CIPHER_LIST);
-        }
+    if (!ssl_apply_cipher_list(ssl_con) || !ssl_apply_cipher_list(tls_con)) {
+        last_ssl_mode = -1;
+        return(0);
     }
 
     ssl_verify_depth = -1;
@@ -2702,12 +2814,18 @@ ssl_http_init(hostname) char * hostname;
         /* OpenSSL >= 1.1.0: Negotiate the best TLS version possible */
         tls_http_ctx=(SSL_CTX *)SSL_CTX_new(TLS_client_method());
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-        /* OpenSSL 1.0.2: TLS 1.2 */
-        tls_http_ctx=(SSL_CTX *)SSL_CTX_new(TLSv1_2_client_method());
+        /* OpenSSL 1.0.2: ssl_set_min_version() sets the minimum */
+        tls_http_ctx=(SSL_CTX *)SSL_CTX_new(SSLv23_client_method());
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
         if ( tls_http_ctx ) {
             debug(F110,"ssl_http_init","TLS_client_method OK",0);
         }
+    }
+    if (!tls_http_ctx)
+        return(0);
+    if (!ssl_set_min_version(tls_http_ctx)) {
+        debug(F110,"ssl_http_init","ssl_set_min_version failed",0);
+        return(0);
     }
     SSL_CTX_set_default_passwd_cb(tls_http_ctx,
                                   (pem_password_cb *)ssl_passwd_callback);
@@ -2718,7 +2836,7 @@ ssl_http_init(hostname) char * hostname;
      * for TLS be sure to prevent use of SSLv2
      */
     SSL_CTX_set_options(tls_http_ctx,
-            SSL_OP_NO_SSLv2/*|SSL_OP_NO_SSLv3*/|SSL_OP_SINGLE_DH_USE|SSL_OP_EPHEMERAL_RSA);
+            SSL_OP_NO_SSLv2|SSL_OP_SINGLE_DH_USE|SSL_OP_EPHEMERAL_RSA);
 
     SSL_CTX_set_info_callback(tls_http_ctx,ssl_client_info_callback);
 
@@ -2948,16 +3066,8 @@ ssl_http_init(hostname) char * hostname;
                         krb5_d_srv ? krb5_d_srv : KRB5_SERVICE_NAME);
 #endif /* SSL_KRB5 */
 
-    if (ssl_cipher_list)
-        SSL_set_cipher_list(tls_http_con,ssl_cipher_list);
-    else {
-        char * p;
-        if ((p = getenv("SSL_CIPHER"))) {
-            SSL_set_cipher_list(tls_http_con,p);
-        } else {
-            SSL_set_cipher_list(tls_http_con,DEFAULT_CIPHER_LIST);
-        }
-    }
+    if (!ssl_apply_cipher_list(tls_http_con))
+        return(0);
 
     ssl_verify_depth = -1;
 

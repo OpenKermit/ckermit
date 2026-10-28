@@ -6,8 +6,9 @@ scripted input ("yes", "no", "quit", "go") on stdin.
 import curses
 import os
 import pytest
-from conftest import (make_loopback_dirs, start_wermit_pty,
-                      finish_wermit_pty, _wait_for_pty_marker)
+from conftest import (PROTOCOL_STARTUP_OFF, make_loopback_dirs,
+                      start_wermit_pty, finish_wermit_pty,
+                      _wait_for_pty_marker)
 
 
 def _write_server_script(server_dir, commands):
@@ -25,6 +26,7 @@ def _run_client(run_wermit, wermit_path, server_script, client_dir,
     cmd = [
         "-H", "-Y", "-Q", "-C",
         "set command more-prompting off, set delay 0, "
+        f"{PROTOCOL_STARTUP_OFF}, "
         f"set host /network-type:pseudoterminal {wermit_path} "
         f"{server_script}, set delay 0, "
         f"cd {client_dir}, {client_cmds}, close, exit"

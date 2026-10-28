@@ -13,6 +13,8 @@ import threading
 
 import pytest
 
+from conftest import scaled
+
 MARKER = b"MARKER"
 
 
@@ -68,7 +70,7 @@ def test_http_get_large_chunk_size_not_truncated(
     finally:
         server_sock.close()
 
-    proc.wait(timeout=15)
+    proc.wait(timeout=scaled(15))
 
     downloaded = tmp_path / outfile
     assert downloaded.exists(), "wermit never wrote the output file"
@@ -117,7 +119,7 @@ def test_http_index_request_names_directory(
     finally:
         server_sock.close()
 
-    proc.wait(timeout=15)
+    proc.wait(timeout=scaled(15))
     request_line = request.split(b"\r\n", 1)[0]
     assert request_line == b"INDEX /some/dir/ HTTP/1.1", request
 
@@ -161,7 +163,7 @@ def test_http_url_command_line_exit_status(
         result = subprocess.run(
             [wermit_path, f"http://127.0.0.1:{port}/file.txt"],
             cwd=str(tmp_path), stdin=subprocess.DEVNULL,
-            capture_output=True, text=True, timeout=30,
+            capture_output=True, text=True, timeout=scaled(30),
             start_new_session=True)
     finally:
         server.join(timeout=10)

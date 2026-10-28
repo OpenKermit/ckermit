@@ -24,7 +24,7 @@ import time
 
 import pytest
 
-from conftest import start_wermit_pty, _wait_for_pty_marker
+from conftest import start_wermit_pty, _wait_for_pty_marker, scaled
 
 IAC, WILL, WONT, DO, DONT = 255, 251, 252, 253, 254
 
@@ -203,7 +203,7 @@ def _run_ttptycmd_negotiation_case(
              f"send {src_file}, close, exit"],
             cwd=str(tmp_path))
 
-        client.wait(timeout=transfer_delay + inject_delay + 15)
+        client.wait(timeout=scaled(transfer_delay + inject_delay + 15))
         proxy.join(timeout=10)
     finally:
         # The server's plain CONNECT mode (no autodownload, unlike the
@@ -217,20 +217,24 @@ def _run_ttptycmd_negotiation_case(
         # waits timed out), and an exception from cleanup here would
         # fail the test regardless of whether its actual assertions
         # already passed.
-        if proc.poll() is None:
-            proc.terminate()
-            try:
-                proc.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                try:
-                    proc.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    pass
+        #
+        # Close the master first.  On NetBSD a killed process does
+        # not finish exiting while its pty has undrained output and
+        # the master stays open.
         try:
             os.close(master)
         except OSError:
             pass
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=scaled(10))
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                try:
+                    proc.wait(timeout=scaled(10))
+                except subprocess.TimeoutExpired:
+                    pass
 
     return proxy.reply_after_inject
 
