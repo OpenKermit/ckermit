@@ -1464,6 +1464,32 @@ def _wait_for_pty_marker(master, marker, timeout):
     return buf, False
 
 
+# The interactive prompt of wermit -H -Y ends with this.
+PROMPT = b"C-Kermit>"
+
+
+def read_pty_until(master, buf, markers, timeout):
+    """Read from a pty master onto buf until buf holds one of markers.
+
+    markers is a tuple of bytes.  An empty tuple reads whatever arrives
+    within timeout.  The read also ends when timeout runs out or the
+    pty closes.  Returns buf with the data appended.
+    """
+    end = time.monotonic() + timeout
+    while not any(m in buf for m in markers):
+        left = end - time.monotonic()
+        if left <= 0 or not select.select([master], [], [], left)[0]:
+            break
+        try:
+            data = os.read(master, 65536)
+        except OSError:
+            break
+        if not data:
+            break
+        buf += data
+    return buf
+
+
 def start_pty_tcp_listener(wermit_path, get_free_port, cmd_for_port, cwd,
                            label, debug_log=None, timeout=10):
     """

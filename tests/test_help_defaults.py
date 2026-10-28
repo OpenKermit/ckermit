@@ -28,36 +28,20 @@ def test_local_charset_default_is_visible_name(wermit_path):
     """
     import os
     import pty
-    import select
     import subprocess
-    import time
+    from conftest import PROMPT, read_pty_until
     fd, slave = pty.openpty()
     proc = subprocess.Popen([wermit_path, "-H", "-Y"], stdin=slave,
                             stdout=slave, stderr=slave,
                             start_new_session=True)
     os.close(slave)
-    out = b""
-
-    def read_for(secs):
-        nonlocal out
-        end = time.monotonic() + secs
-        while time.monotonic() < end:
-            r, _, _ = select.select([fd], [], [], 0.2)
-            if r:
-                try:
-                    out += os.read(fd, 4096)
-                except OSError:
-                    return
     try:
-        read_for(1)
+        read_pty_until(fd, b"", (PROMPT,), 10)
         os.write(fd, b"set file character-set latin1-iso\r")
-        read_for(1)
-        out = b""
+        read_pty_until(fd, b"", (PROMPT,), 10)
         os.write(fd, b"set terminal local-character-set \x1b")
-        read_for(1.5)
+        out = read_pty_until(fd, b"", (b"latin1-iso", b"^["), 10)
         line = out.decode(errors="replace")
-        os.write(fd, b"\x15exit\r")
-        read_for(1)
     finally:
         proc.kill()
         proc.wait()
@@ -101,34 +85,17 @@ def test_remote_query_help(wermit_path, kind, text):
     """Verify ? after REMOTE QUERY <type> describes that type."""
     import os
     import pty
-    import select
     import subprocess
-    import time
-    from conftest import _make_controlling_tty
+    from conftest import PROMPT, _make_controlling_tty, read_pty_until
     fd, slave = pty.openpty()
     proc = subprocess.Popen([wermit_path, "-H", "-Y"], stdin=slave,
                             stdout=slave, stderr=slave,
                             preexec_fn=_make_controlling_tty)
     os.close(slave)
-    out = b""
-
-    def read_for(secs, until=None):
-        nonlocal out
-        end = time.monotonic() + secs
-        while time.monotonic() < end:
-            if until is not None and until in out:
-                return
-            r, _, _ = select.select([fd], [], [], 0.2)
-            if r:
-                try:
-                    out += os.read(fd, 4096)
-                except OSError:
-                    return
     try:
-        read_for(1)
-        out = b""
+        read_pty_until(fd, b"", (PROMPT,), 10)
         os.write(fd, f"remote query {kind} ?".encode())
-        read_for(15, text.encode())
+        out = read_pty_until(fd, b"", (text.encode(),), 15)
         line = out.decode(errors="replace")
     finally:
         # Close the master first.  On NetBSD a session leader that exits
