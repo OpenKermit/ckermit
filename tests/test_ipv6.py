@@ -6,7 +6,7 @@ import subprocess
 import threading
 import time
 import pytest
-from conftest import assert_ok, start_tcp_listener
+from conftest import assert_ok, start_tcp_listener, scaled
 
 
 def _show_tcp_output(run_wermit):
@@ -398,8 +398,8 @@ def test_address_family_auto_connects_to_one_of_dual_stack(run_wermit):
             "set tcp reverse-dns-lookup off, "
             f"set host localhost {port} /raw-socket")
         assert_ok(result, "AUTO connect failed")
-        v4_peer = v4.wait(timeout=2)
-        v6_peer = v6.wait(timeout=2)
+        v4_peer = v4.wait(timeout=scaled(2))
+        v6_peer = v6.wait(timeout=scaled(2))
         assert (v4_peer is not None) != (v6_peer is not None), (
             "expected exactly one listener to receive the connection: "
             f"v4_peer={v4_peer} v6_peer={v6_peer}")
@@ -604,7 +604,7 @@ def _ipv6_addrs_by_iface():
 
     try:
         out = subprocess.run(["ifconfig", "-a"], capture_output=True,
-                              text=True, timeout=5).stdout
+                              text=True, timeout=scaled(5)).stdout
     except (OSError, subprocess.SubprocessError):
         return {}
     by_iface = {}
@@ -1083,7 +1083,7 @@ def test_iksd_listener_accepts_ipv4(run_wermit, spawn_wermit, get_free_port,
             "set tcp reverse-dns-lookup off, "
             f"set host 127.0.0.1 {port} /raw-socket, close")
         assert_ok(result, "IPv4 client failed to connect to IKSD listener")
-        proc.wait(timeout=5)
+        proc.wait(timeout=scaled(5))
         assert "127.0.0.1 connected" in log_path.read_text(errors="replace")
     finally:
         log_fh.close()
@@ -1104,7 +1104,7 @@ def test_iksd_listener_accepts_ipv6(run_wermit, spawn_wermit, get_free_port,
             "set tcp reverse-dns-lookup off, "
             f"set host [::1]:{port} /raw-socket, close")
         assert_ok(result, "IPv6 client failed to connect to IKSD listener")
-        proc.wait(timeout=5)
+        proc.wait(timeout=scaled(5))
         assert "::1 connected" in log_path.read_text(errors="replace")
     finally:
         log_fh.close()
@@ -1142,7 +1142,7 @@ def test_tcp_address6_zone_honored_by_listener(
             f"set host [{addr}%{iface}]:{port} /raw-socket, close")
         assert_ok(result, "link-local client failed to connect to the "
                   "listener bound to that address")
-        proc.wait(timeout=5)
+        proc.wait(timeout=scaled(5))
         assert f"{addr}%{iface} connected" in log_path.read_text(
             errors="replace")
     finally:
@@ -1165,7 +1165,7 @@ def test_iksd_listener_reports_peer_ipv4(run_wermit, spawn_wermit,
             "set tcp reverse-dns-lookup off, "
             f"set host 127.0.0.1 {port} /raw-socket, close")
         assert_ok(result, "IPv4 client failed to connect to IKSD listener")
-        proc.wait(timeout=5)
+        proc.wait(timeout=scaled(5))
         content = log_path.read_text(errors="replace")
         name = _reverse_name("127.0.0.1") or "127.0.0.1"
         assert f"PEER=[{name}]" in content, content
@@ -1191,7 +1191,7 @@ def test_iksd_listener_reports_peer_ipv6(run_wermit, spawn_wermit,
             "set tcp reverse-dns-lookup off, "
             f"set host [::1]:{port} /raw-socket, close")
         assert_ok(result, "IPv6 client failed to connect to IKSD listener")
-        proc.wait(timeout=5)
+        proc.wait(timeout=scaled(5))
         content = log_path.read_text(errors="replace")
         name = _reverse_name("::1") or "::1"
         assert f"PEER=[{name}]" in content, content
@@ -1222,7 +1222,7 @@ def test_iksd_listener_dual_stack_binds_both(run_wermit, spawn_wermit,
         if proc.poll() is None:
             proc.terminate()
             try:
-                proc.wait(timeout=2)
+                proc.wait(timeout=scaled(2))
             except Exception:
                 proc.kill()
 
@@ -1245,6 +1245,6 @@ def test_iksd_listener_address_family_ipv4_binds_only_v4(
         if proc.poll() is None:
             proc.terminate()
             try:
-                proc.wait(timeout=2)
+                proc.wait(timeout=scaled(2))
             except Exception:
                 proc.kill()

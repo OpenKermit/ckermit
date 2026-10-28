@@ -21,6 +21,8 @@ import pytest
 
 from test_ssl import _tls_send_after
 
+from conftest import scaled
+
 
 def _start(wermit_path, cmds, stdin=subprocess.DEVNULL):
     """Start wermit running cmds and return the Popen object."""
@@ -41,7 +43,7 @@ def _hup_and_wait(proc, delay, limit=5):
     start = time.monotonic()
     proc.send_signal(signal.SIGHUP)
     try:
-        proc.wait(timeout=limit)
+        proc.wait(timeout=scaled(limit))
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait()
@@ -159,7 +161,7 @@ def test_sigwinch_updates_size_after_command(wermit_path):
         proc.send_signal(signal.SIGWINCH)
         out = _read_until(master, b"SIZE=[", 10)
         out += _read_until(master, b"]", 2)
-        proc.wait(timeout=10)
+        proc.wait(timeout=scaled(10))
     finally:
         if slave >= 0:
             os.close(slave)

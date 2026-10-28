@@ -1,7 +1,7 @@
 """Tests for the length limit on a SET HOST name or command.
 
-cx_net() keeps the host name or PTY command in ttname[], which holds
-TTNAMLEN (512) bytes.  A longer name fails SET HOST.
+cx_net() keeps the host name or PTY command in ttname[].  The buffer
+holds TTNAMLEN (512) bytes.  A longer name fails SET HOST.
 """
 import pytest
 

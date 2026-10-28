@@ -9194,8 +9194,7 @@ cx_net(net, nprotocol, xhost, svc,
 /*
   ttname[] holds the host name or PTY/pipe command for the life of the
   connection.  ttopen() reopens the connection when ttname[] differs
-  from the name it saved.  So a name that does not fit in ttname[]
-  fails here.
+  from the name it saved.  Reject a name that does not fit in ttname[].
 */
     if ((int)strlen(xhost) >= TTNAMLEN) {
         msg = (gui == 0) && msgflg;
@@ -15121,31 +15120,54 @@ sho_auth(cx) int cx;
             printf(" Verify dir: %s\n",ssl_verify_dir?
                   ssl_verify_dir:"(none)");
             if (++n > cmd_rows - 3) { if (!askmore()) return(0); else n = 0; }
-            printf(" Cipher list: %s\n",ssl_cipher_list ? ssl_cipher_list :
-                    DEFAULT_CIPHER_LIST);
+            printf(" Cipher list: %s%s\n",ssl_effective_cipher_list(),
+                   ssl_cipher_list ? "" :
+                   getenv("SSL_CIPHER") ? " (from SSL_CIPHER)" :
+                   " (default)");
             if (++n > cmd_rows - 3) { if (!askmore()) return(0); else n = 0; }
-            if (ssl_con == NULL) {
-                SSL_library_init();
-                ssl_ctx = (SSL_CTX *)
-/* old...         SSL_CTX_new((SSL_METHOD *)TLSv1_method());  new below: */
-                  SSL_CTX_new(SSLv23_method());
-                if (ssl_ctx != NULL)
-                  ssl_con= (SSL *) SSL_new(ssl_ctx);
-            }
-            if (ssl_con != NULL) {
+            {
+                /*
+                  List the ciphers that match the effective cipher list
+                  for a new client connection.
+                */
+                SSL_CTX * show_ctx = NULL;
+                SSL * show_con = NULL;
                 CONST CHAR * p = NULL;
-                int i;
+                int i, rc = 1;
 
-                for (i = 0; ; i++) {
-                    p = (CONST CHAR *) SSL_get_cipher_list(ssl_con,i);
+                SSL_library_init();
+                show_ctx = (SSL_CTX *)SSL_CTX_new(SSLv23_client_method());
+                if (show_ctx != NULL)
+                  show_con = (SSL *)SSL_new(show_ctx);
+                if (show_con != NULL &&
+                    !SSL_set_cipher_list(show_con,
+                                         ssl_effective_cipher_list())) {
+                    printf("    (no cipher matches this list)\n");
+                    if (++n > cmd_rows - 3) {
+                        if (!askmore()) rc = 0; else n = 0;
+                    }
+                    SSL_free(show_con);
+                    show_con = NULL;
+                }
+                for (i = 0; rc && show_con != NULL; i++) {
+                    p = (CONST CHAR *) SSL_get_cipher_list(show_con,i);
                     if (p == NULL)
                       break;
                     printf("    %s\n",p);
                     if (++n > cmd_rows - 3) {
-                        if (!askmore()) return(0); else n = 0;
+                        if (!askmore()) rc = 0; else n = 0;
                     }
                 }
+                if (show_con != NULL)
+                  SSL_free(show_con);
+                if (show_ctx != NULL)
+                  SSL_CTX_free(show_ctx);
+                if (!rc)
+                  return(0);
             }
+            printf(" Minimum version: %s\n",
+                   ssl_version_name(ssl_min_version));
+            if (++n > cmd_rows - 3) { if (!askmore()) return(0); else n = 0; }
             printf(" Certs OK? %s\n",ssl_certsok_flag? "yes" : "no");
             if (++n > cmd_rows - 3) { if (!askmore()) return(0); else n = 0; }
             printf(" Debug mode: %s\n", ssl_debug_flag ? "on" : "off");

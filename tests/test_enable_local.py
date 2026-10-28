@@ -6,6 +6,8 @@ import os
 import stat
 import subprocess
 
+from conftest import PROTOCOL_STARTUP_OFF, scaled
+
 
 def test_enable_mail_local_refuses_remote_mail(wermit_path, tmp_path):
     """Verify a server with ENABLE MAIL LOCAL refuses SEND /MAIL.
@@ -31,11 +33,12 @@ def test_enable_mail_local_refuses_remote_mail(wermit_path, tmp_path):
     env = dict(os.environ, PATH=f"{bindir}:{os.environ['PATH']}")
     result = subprocess.run(
         [wermit_path, "-H", "-Y", "-Q", "-C",
+         f"{PROTOCOL_STARTUP_OFF}, "
          "set delay 0, set host /network-type:pseudoterminal "
          f"{wermit_path} {srv}, "
          "send /mail:nobody@example.invalid m.txt, "
          "echo M=\\v(status), finish, close, exit 0"],
         stdin=subprocess.DEVNULL, capture_output=True, text=True,
-        cwd=cdir, env=env, timeout=60)
+        cwd=cdir, env=env, timeout=scaled(60))
     assert "M=1" in result.stdout, result.stdout + result.stderr
     assert not marker.exists()

@@ -1137,6 +1137,7 @@ static int                              /* SET FTP values... */
   ftp_psv = 1,                          /* Passive mode */
   ftp_spc = 1,                          /* Send port commands */
   ftp_tpa = 0,                          /* Trust the PASV reply address */
+  ftp_tfb = 0,                          /* Continue after failed AUTH TLS */
   ftp_typ = FTT_ASC,                    /* Type */
   get_auto = 1,                         /* Automatic type switching for GET */
   tenex = 0,                            /* Type is Tenex */
@@ -1393,6 +1394,7 @@ static int nftpena = (sizeof(ftpenatab) / sizeof(struct keytab)) - 1;
 #define FTS_BUG 27                      /* Bug(s) */
 #define FTS_TMO 28                      /* Timeout */
 #define FTS_TPA 29                      /* Trust the PASV reply address */
+#define FTS_TFB 30                      /* Continue after failed AUTH TLS */
 
 /* FTP BUGS */
 
@@ -1561,6 +1563,9 @@ static struct keytab ftpset[] = {       /* SET FTP commmand table */
 #ifdef FTP_TIMEOUT
     { "timeout",                  FTS_TMO, 0 },
 #endif  /* FTP_TIMEOUT */
+#ifdef CK_SSL
+    { "tls-fallback",             FTS_TFB, 0 },
+#endif /* CK_SSL */
     { "trust-pasv-address",       FTS_TPA, 0 },
     { "type",                     FTS_TYP, 0 },
     { "unique-server-names",      FTS_USN, 0 },
@@ -2680,6 +2685,8 @@ dosetftp() {
 
       case FTS_TPA:                     /* Trust the PASV reply address */
         return(seton(&ftp_tpa));
+      case FTS_TFB:                     /* Continue after failed AUTH TLS */
+        return(seton(&ftp_tfb));
 
       case FTS_VBM:                     /* Verbose mode */
         if ((wx = seton(&ftp_vbm)) < 0)  /* Per-command copy */
@@ -8783,6 +8790,9 @@ shoftp(brief) int brief;
            );
     printf(" ftp auto-login:                %s\n",showoff(ftp_log));
     printf(" ftp auto-authentication:       %s\n",showoff(ftp_aut));
+#ifdef CK_SSL
+    printf(" ftp tls-fallback:              %s\n",showoff(ftp_tfb));
+#endif /* CK_SSL */
     switch (ftp_typ) {
       case FTT_ASC: s = "text"; break;
       case FTT_BIN: s = "binary"; break;
@@ -9594,6 +9604,19 @@ dosetftphlp() {
         printf("  FTP OPEN command.  Default is ON.\n\n");
         break;
 
+      case FTS_TFB:                     /* "tls-fallback" */
+        printf("\nSyntax: SET FTP TLS-FALLBACK { ON, OFF }\n");
+        printf("  Controls what FTP OPEN does when the server accepts AUTH\n");
+        printf("  TLS or AUTH SSL and the TLS session fails.  A failed\n");
+        printf("  handshake, certificate check, or cipher list fails the\n");
+        printf("  session.  OFF is the default.  OFF closes the connection\n");
+        printf("  without logging in.  ON reconnects and tries the next\n");
+        printf("  authentication type.  If none succeeds, ON logs in\n");
+        printf("  without encryption and sends the password in the clear.\n");
+        printf("  When a server refuses AUTH, FTP OPEN logs in without\n");
+        printf("  encryption under both settings.\n\n");
+        return(0);
+
       case FTS_CRY:                     /* "autoencryption" */
         printf("\nSET FTP AUTOENCRYPTION { ON, OFF }\n");
         printf("  Tells whether encryption (privacy) should be negotiated\n");
@@ -10343,8 +10366,8 @@ ssl_auth() {
         /* OpenSSL >= 1.1.0: Negotiate the best TLS version possible */
         client_method = TLS_client_method();
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-        /* OpenSSL 1.0.2: TLS 1.2 */
-        client_method = TLSv1_2_client_method();
+        /* OpenSSL 1.0.2: ssl_set_min_version() sets the minimum */
+        client_method = SSLv23_client_method();
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
     }
     if (auth_type && !strcmp(auth_type,"TLS")) {
@@ -10362,6 +10385,13 @@ ssl_auth() {
                             (ftp_bug_use_ssl_v2 ? 0 : SSL_OP_NO_SSLv2)|
                             SSL_OP_SINGLE_DH_USE|SSL_OP_EPHEMERAL_RSA
                             );
+    }
+    /* The FTP BUG USE-SSL-V2 and USE-SSL-V3 settings replace the minimum. */
+    if (!ftp_bug_use_ssl_v2 && !ftp_bug_use_ssl_v3 &&
+        !ssl_set_min_version(ssl_ftp_ctx)) {
+        SSL_CTX_free(ssl_ftp_ctx);
+        ssl_ftp_ctx = NULL;
+        return(0);
     }
     SSL_CTX_set_default_passwd_cb(ssl_ftp_ctx,
                                   (pem_password_cb *)ssl_passwd_callback);
@@ -10558,15 +10588,10 @@ ssl_auth() {
     tls_load_certs(ssl_ftp_ctx,ssl_ftp_con,0);
     SSL_set_fd(ssl_ftp_con,csocket);
     SSL_set_verify(ssl_ftp_con,ssl_verify_flag,NULL);
-    if (ssl_cipher_list) {
-        SSL_set_cipher_list(ssl_ftp_con,ssl_cipher_list);
-    } else {
-        char * p9;
-        if ((p9 = getenv("SSL_CIPHER"))) {
-            SSL_set_cipher_list(ssl_ftp_con,p9);
-        } else {
-            SSL_set_cipher_list(ssl_ftp_con,DEFAULT_CIPHER_LIST);
-        }
+    if (!ssl_apply_cipher_list(ssl_ftp_con)) {
+        SSL_free(ssl_ftp_con);
+        ssl_ftp_con = NULL;
+        return(ssl_ftp_active_flag = 0);
     }
     if (ssl_debug_flag) {
         fprintf(stderr,"=>START SSL/TLS connect on COMMAND\n");
@@ -13982,6 +14007,35 @@ struct {
 int n_gss_trials = sizeof(gss_trials)/sizeof(gss_trials[0]);
 #endif /* FTP_GSSAPI */
 
+#ifdef CK_SSL
+/*
+  Handle a TLS session that failed after the server accepted AUTH TLS or
+  AUTH SSL.  Close the control connection.  When FTP TLS-FALLBACK is OFF,
+  end the FTP session and return 0.  When FTP TLS-FALLBACK is ON, open a
+  new control connection for the next authentication type and return 1 on
+  success.
+*/
+static int
+ftp_tls_failed() {
+    auth_type = NULL;
+#ifdef TCPIPLIB
+    socket_close(csocket);
+#else /* TCPIPLIB */
+#ifdef USE_SHUTDOWN
+    shutdown(csocket, 1+1);
+#endif /* USE_SHUTDOWN */
+    close(csocket);
+#endif /* TCPIPLIB */
+    csocket = -1;
+    if (!ftp_tfb) {
+        printf("?Not logging in without TLS (SET FTP TLS-FALLBACK)\n");
+        lostpeer();
+        return(0);
+    }
+    return(ftp_hookup(ftp_user_host,ftp_port,0) != NULL);
+}
+#endif /* CK_SSL */
+
 static int
 ftp_auth() {
     extern int setsafe();
@@ -14381,17 +14435,7 @@ ftp_auth() {
                     return(1);
                 } else {
                     fprintf(stderr,"TLS authentication failed\n");
-                    auth_type = NULL;
-#ifdef TCPIPLIB
-                    socket_close(csocket);
-#else /* TCPIPLIB */
-#ifdef USE_SHUTDOWN
-                    shutdown(csocket, 1+1);
-#endif /* USE_SHUTDOWN */
-                    close(csocket);
-#endif /* TCPIPLIB */
-                    csocket = -1;
-                    if (ftp_hookup(ftp_user_host,ftp_port,0) == NULL)
+                    if (!ftp_tls_failed())
                       return(0);
                 }
             } else {
@@ -14421,17 +14465,7 @@ ftp_auth() {
                     return(1);
                 } else {
                     fprintf(stderr,"SSL authentication failed\n");
-                    auth_type = NULL;
-#ifdef TCPIPLIB
-                    socket_close(csocket);
-#else /* TCPIPLIB */
-#ifdef USE_SHUTDOWN
-                    shutdown(csocket, 1+1);
-#endif /* USE_SHUTDOWN */
-                    close(csocket);
-#endif /* TCPIPLIB */
-                    csocket = -1;
-                    if (ftp_hookup(ftp_user_host,ftp_port,0) == NULL)
+                    if (!ftp_tls_failed())
                       return(0);
                 }
             } else {

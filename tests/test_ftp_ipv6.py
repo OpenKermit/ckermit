@@ -10,7 +10,7 @@ import subprocess
 import threading
 import pytest
 from pyftpdlib.authorizers import DummyAuthorizer
-from conftest import assert_ok
+from conftest import assert_ok, scaled
 from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import FTPServer
 
@@ -51,7 +51,7 @@ def _ipv6_addrs_by_iface():
 
     try:
         out = subprocess.run(["ifconfig", "-a"], capture_output=True,
-                              text=True, timeout=5).stdout
+                              text=True, timeout=scaled(5)).stdout
     except (OSError, subprocess.SubprocessError):
         return {}
     by_iface = {}

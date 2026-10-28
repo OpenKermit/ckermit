@@ -14,6 +14,8 @@ import pytest
 
 from test_kermit_crafted import packet, tochar
 
+from conftest import scaled
+
 
 def _field(s):
     """Return a REMOTE SET field: length character, then the text.
@@ -74,7 +76,7 @@ def _replies(wermit_path, tmp_path, settings):
              f"cd {tmp_path}, set host 127.0.0.1 "
              f"{srv.getsockname()[1]} /raw-socket, "
              "enable set, enable finish, server, exit"],
-            stdin=subprocess.DEVNULL, capture_output=True, timeout=60)
+            stdin=subprocess.DEVNULL, capture_output=True, timeout=scaled(60))
         thread.join(timeout=10)
     finally:
         srv.close()

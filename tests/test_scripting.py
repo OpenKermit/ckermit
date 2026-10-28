@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import assert_ok
+from conftest import assert_ok, scaled
 
 
 def script(name):
@@ -113,5 +113,5 @@ def test_tmpdir_variable_from_environment(wermit_path, tmp_path, suffix):
         [wermit_path, "-H", "-Y", "-Q", "-C",
          "echo T=[\\v(tmpdir)], exit"],
         stdin=subprocess.DEVNULL, capture_output=True, text=True,
-        timeout=30, env=env)
+        timeout=scaled(30), env=env)
     assert f"T=[{tmp_path}/]" in result.stdout, result.stdout

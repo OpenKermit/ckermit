@@ -12,6 +12,8 @@ import threading
 
 import pytest
 
+from conftest import scaled
+
 IAC = 255
 SB = 250
 
@@ -48,10 +50,10 @@ def test_telnet_truncated_subnegotiation_no_hang(spawn_wermit, wermit_path):
         server_sock.close()
 
     try:
-        returncode = proc.wait(timeout=15)
+        returncode = proc.wait(timeout=scaled(15))
     except subprocess.TimeoutExpired:
         proc.kill()
-        proc.wait(timeout=5)
+        proc.wait(timeout=scaled(5))
         pytest.fail(
             "wermit hung after a Telnet subnegotiation was left open "
             "(IAC SB with no closing IAC SE, then connection closed)"
@@ -165,6 +167,17 @@ def test_telnet_subnegotiation_boundary_lengths(run_wermit, length):
 def test_telnet_subnegotiation_quoted_iacs(run_wermit, length):
     """Verify quoted IAC bytes filling a subnegotiation are handled."""
     _expect_marker_after(run_wermit, _sb(TELOPT_TTYPE, b"\xff" * length))
+
+
+@pytest.mark.parametrize("unit", [b"A", b"\xff\xff"], ids=["data", "iac"])
+@pytest.mark.parametrize("count", [4095, 4096, 8192])
+def test_telnet_data_fills_wait_buffer(run_wermit, unit, count):
+    """Verify data that fills the Telnet wait buffer is handled.
+
+    tn_wait() keeps each data byte in tn_wait_buf.  An earlier wait can
+    leave the buffer full.  The next wait must then read nothing.
+    """
+    _expect_marker_after(run_wermit, unit * count)
 
 
 @pytest.mark.parametrize("opt", [TELOPT_TTYPE, TELOPT_NAWS,
@@ -670,11 +683,11 @@ def _naws_to_server(wermit_path, tmp_path, port, subnegotiations):
                         conn.sendall(bytes([IAC, reply, opt]))
                     i += 3 if cmd in (WILL, WONT, DO, DONT) else 2
                 pending = pending[i:]
-            proc.wait(timeout=20)
+            proc.wait(timeout=scaled(20))
     finally:
         if proc.poll() is None:
             proc.kill()
-            proc.wait(timeout=10)
+            proc.wait(timeout=scaled(10))
     text = log.read_text(errors="replace")
     return re.findall(r"tn_doop NAWS SB\[(width|height)\]=(\d+)", text)
 
@@ -777,7 +790,7 @@ def test_telnet_client_ignores_server_terminal_type(wermit_path, tmp_path):
              f"input 10 {MARKER.decode()}, "
              "echo TERM=[\\$(TERM)], close, exit"],
             stdin=subprocess.DEVNULL, capture_output=True, text=True,
-            timeout=60, env=env)
+            timeout=scaled(60), env=env)
     finally:
         srv.close()
         thread.join(timeout=5)
@@ -841,9 +854,9 @@ def test_telnet_server_takes_client_terminal_type(wermit_path, tmp_path,
                         conn.sendall(bytes([IAC, reply, opt]))
                     i += 3 if cmd in (WILL, WONT, DO, DONT) else 2
                 pending = pending[i:]
-            out, _ = proc.communicate(timeout=20)
+            out, _ = proc.communicate(timeout=scaled(20))
     finally:
         if proc.poll() is None:
             proc.kill()
-            proc.wait(timeout=10)
+            proc.wait(timeout=scaled(10))
     assert "TERM=[vt220]" in out, out

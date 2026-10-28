@@ -3839,6 +3839,7 @@ dooutput(s, cx) char *s; int cx;
     const char * ssh_cmd;
 #endif /* SSHBUILTIN */
     int x, xx, y, quote;                /* Workers */
+    CHAR c;
     int is_tn = 0;
 
     is_tn = (local && network && IS_TELNET()) ||
@@ -3891,6 +3892,22 @@ dooutput(s, cx) char *s; int cx;
 #endif /* SSHBUILTIN */
 
     if (!cmdgquo()) {                   /* COMMAND QUOTING OFF */
+#ifdef TNCODE
+        char * p, * q = s;
+        /*
+          Telnet sends 255 as IAC IAC.  Send through each IAC.  Advance
+          the string pointer to that IAC so the next write sends it a
+          second time.
+        */
+        while (is_tn && (p = strchr(q,(char)IAC)) != NULL) {
+            y = (int)(p - s) + 1;
+            xx = local ? ttol((CHAR *)s,y) : conxo(y,s);
+            if (xx != y)
+              return(success = 0);
+            s = p;
+            q = p + 1;
+        }
+#endif /* TNCODE */
         x = (int)strlen(s);             /* Just send the string literally */
         xx = local ? ttol((CHAR *)s,x) : conxo(x,s);
         return(success = (xx == x) ? 1 : 0);
@@ -4031,7 +4048,12 @@ dooutput(s, cx) char *s; int cx;
             quote = 1;                  /* Go back and get next character */
             continue;                   /* which is quoted */
         }
-        xx = oboc(dopar((char)x));      /* Output this character */
+        c = dopar((char)x);
+        xx = oboc(c);                   /* Output this character */
+#ifdef TNCODE
+        if (xx >= 0 && is_tn && c == IAC) /* Telnet sends 255 as IAC IAC */
+          xx = oboc(c);
+#endif /* TNCODE */
         debug(F111,"dooutput",obuf,obn);
         if (xx < 0)
           goto outerr;

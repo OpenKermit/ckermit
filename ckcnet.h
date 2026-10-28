@@ -97,6 +97,10 @@
 
 /* others here... */
 
+/* True for a protocol that carries no Telnet. */
+#define IS_RAW_NP(p) ((p) == NP_TCPRAW || (p) == NP_SSL_RAW || \
+                      (p) == NP_TLS_RAW)
+
 #ifdef CK_SSL
 #define IS_TELNET()      (nettype == NET_TCPB && (ttnproto == NP_TELNET \
                          || ttnproto == NP_SSL_TELNET \

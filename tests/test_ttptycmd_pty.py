@@ -12,7 +12,7 @@ import time
 
 import pytest
 
-from conftest import start_wermit_pty
+from conftest import start_wermit_pty, scaled
 
 
 def _send_with(run_wermit, tmp_path, connection, protocol_cmd, after=""):
@@ -121,7 +121,7 @@ def test_external_protocol_exit_after_other_child(wermit_path, tmp_path):
     result = subprocess.run(
         [wermit_path, "-H", "-Y", "-C", cmd],
         stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT, text=True, timeout=40,
+        stderr=subprocess.STDOUT, text=True, timeout=scaled(40),
         preexec_fn=_ignore_sigchld)
     elapsed = time.monotonic() - start
     assert "STATUS=0" in result.stdout, result.stdout
@@ -217,4 +217,4 @@ def test_external_protocol_interrupted(wermit_path, tmp_path):
         if proc.poll() is None:
             proc.kill()
         os.close(fd)
-        proc.wait(timeout=10)
+        proc.wait(timeout=scaled(10))

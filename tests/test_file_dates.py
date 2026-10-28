@@ -1,8 +1,9 @@
 """Tests for file modification dates.
 
-Tests of dates after 2038 skip when time_t is 32 bits. The others
-use dates that every time_t width can hold, up to the last second a
-signed 32-bit time_t can represent, and run everywhere.
+Tests of dates after 2038 skip when time_t is 32 bits or when the
+file system of the test directory cannot store the date.  The other
+tests use dates within the signed 32-bit time_t range and run on all
+platforms.
 """
 import calendar
 import os
@@ -36,6 +37,18 @@ def _set_mtime(path, when):
     return int(stamp)
 
 
+def _skip_unless_stored(path, stamp):
+    """Skip unless path's file system stored stamp as its mtime.
+
+    FFSv1 stores a signed 32-bit time.  A date after January 2038 reads
+    back as a different date.
+    """
+    got = int(os.stat(path).st_mtime)
+    if got != stamp:
+        pytest.skip(f"file system stored {time.ctime(stamp)} as "
+                    f"{time.ctime(got)}")
+
+
 @pytest.mark.parametrize("when", [
     (1965, 6, 15, 12, 0, 0),
     (1999, 6, 15, 12, 0, 0),
@@ -49,7 +62,7 @@ def test_fdate_reports_file_date(tmp_path, run_wermit, when):
         _skip_unless_64_bit_time_t(run_wermit)
     path = tmp_path / "f.txt"
     path.write_text("hello world")
-    _set_mtime(path, when)
+    _skip_unless_stored(path, _set_mtime(path, when))
     expected = "%04d%02d%02d %02d:%02d:%02d" % when
 
     result = run_wermit(f"echo D=[\\fdate({path})]")
@@ -64,6 +77,12 @@ def test_send_preserves_date_after_2106(tmp_path, run_wermit,
     src = client_dir / "new.txt"
     src.write_text("hello world")
     stamp = _set_mtime(src, (2150, 6, 15, 12, 0, 0))
+    _skip_unless_stored(src, stamp)
+    probe = server_dir / "probe.txt"
+    probe.write_text("")
+    _set_mtime(probe, (2150, 6, 15, 12, 0, 0))
+    _skip_unless_stored(probe, stamp)
+    probe.unlink()
 
     result = wermit_loopback(server_dir, "", f"send {src}")
 

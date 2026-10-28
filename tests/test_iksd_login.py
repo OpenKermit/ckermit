@@ -18,7 +18,7 @@ import threading
 
 import pytest
 
-from conftest import TelnetTlsClient
+from conftest import TelnetTlsClient, scaled
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PASSWORD = "s3cret-test"
@@ -81,7 +81,8 @@ def fakeshadow(tmp_path_factory, wermit_path, wermit_sanitized):
 def _has_iksd(wermit_path):
     """Return True if this build has IKSD login support."""
     result = subprocess.run([wermit_path, "--help"], capture_output=True,
-                            text=True, stdin=subprocess.DEVNULL, timeout=10)
+                            text=True, stdin=subprocess.DEVNULL,
+                            timeout=scaled(10))
     return "--userfile" in result.stdout
 
 
@@ -146,7 +147,7 @@ def _iksd_session(wermit_path, fakeshadow, tmp_path, client_cmds,
              f"set host 127.0.0.1 {srv.getsockname()[1]}, "
              f"{login}, {client_cmds}, exit"],
             stdin=subprocess.DEVNULL, capture_output=True, text=True,
-            timeout=60)
+            timeout=scaled(60))
     finally:
         srv.close()
         thread.join(timeout=5)
@@ -311,15 +312,15 @@ def test_iksd_tls_certificate_copied_signature(wermit_path, fakeshadow,
                                                tmp_path, ssl_pki):
     """Verify a certificate with a copied signature needs a password.
 
-    The client certificate has a new key and the signature bits of the
-    certificate in ~/.tlslogin.  X509_userok() must compare the whole
-    certificate, so the IKSD asks for a password.
+    The client certificate has a key other than the client's and the
+    signature bits of the certificate in ~/.tlslogin.  X509_userok()
+    compares the whole certificate.  The IKSD then asks for a password.
     """
-    key = tmp_path / "forged.key"
+    key = ssl_pki["untrusted_ca_key"]
     own = tmp_path / "own.crt"
-    subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048",
-                    "-nodes", "-keyout", str(key), "-out", str(own),
-                    "-days", "2", "-subj", "/CN=test-client"],
+    subprocess.run(["openssl", "req", "-x509", "-new", "-key", str(key),
+                    "-out", str(own), "-days", "2",
+                    "-subj", "/CN=test-client"],
                    capture_output=True, check=True)
     tbs, alg, _ = _der_items(_cert_der(own))
     signature = _der_items(_cert_der(ssl_pki["client_crt"]))[2]

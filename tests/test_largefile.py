@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import assert_ok, make_loopback_dirs
+from conftest import assert_ok, make_loopback_dirs, scaled
 
 FOUR_GIB = 1 << 32
 
@@ -427,23 +427,34 @@ def test_fsexpression_compare_past_2_53(run_wermit):
     Each pair of integer operands compares exactly, after a fractional
     operand too.  An integer past the 64-bit range compares by its sign
     with one inside it.
+
+    One case needs its fractional operand parsed as a double.  A build
+    whose CKFLOAT is float (__alpha, see ckcdeb.h) parses it as 2^53.
+    That case is an expected failure there.
     """
-    for expr, expected in [
-        ("< 9223372036854775807 9223372036854775808", "1"),
-        ("> 9223372036854775808 9223372036854775807", "1"),
-        ("= 9223372036854775807 9223372036854775808", "0"),
-        ("!= 9223372036854775807 9223372036854775808", "1"),
-        ("< -9223372036854775809 -9223372036854775807", "1"),
-        ("< 1.5 9007199254740992 9007199254740993", "1"),
-        ("> 9007199254740999.5 9007199254740993 9007199254740992", "1"),
-        ("<= 0.5 9007199254740993 9007199254740992", "0"),
-        ("= 2.0 2", "1"),
-        ("< 2.5 3", "1"),
-        ("< 1 3 2", "0"),
+    float_build = "CKFLOAT=float" in run_wermit("show features").stdout
+    failed = []
+    for expr, expected, needs_double in [
+        ("< 9223372036854775807 9223372036854775808", "1", False),
+        ("> 9223372036854775808 9223372036854775807", "1", False),
+        ("= 9223372036854775807 9223372036854775808", "0", False),
+        ("!= 9223372036854775807 9223372036854775808", "1", False),
+        ("< -9223372036854775809 -9223372036854775807", "1", False),
+        ("< 1.5 9007199254740992 9007199254740993", "1", False),
+        ("> 9007199254740999.5 9007199254740993 9007199254740992", "1",
+         True),
+        ("<= 0.5 9007199254740993 9007199254740992", "0", False),
+        ("= 2.0 2", "1", False),
+        ("< 2.5 3", "1", False),
+        ("< 1 3 2", "0", False),
     ]:
         result = run_wermit(f"echo R=[\\fsexpression({expr})]")
         assert_ok(result)
-        assert f"R=[{expected}]" in result.stdout, (expr, result.stdout)
+        if f"R=[{expected}]" not in result.stdout:
+            failed.append((expr, result.stdout, needs_double))
+    assert not [f for f in failed if not (f[2] and float_build)], failed
+    if failed:
+        pytest.xfail("CKFLOAT is float in this build: " + repr(failed))
 
 
 def test_fsexpression_increment_past_2_53(run_wermit):
@@ -527,7 +538,7 @@ def test_http_upload_content_length_past_2gib(
     finally:
         server_sock.close()
     proc.kill()
-    proc.wait(timeout=10)
+    proc.wait(timeout=scaled(10))
 
     assert headers.startswith(f"{method.upper()} /big.dat "), headers
     assert f"\r\nContent-length: {size}\r\n" in headers + "\r\n", headers
@@ -550,7 +561,7 @@ def test_ftp_command_line_put_file_past_2gib(sparse_dir, wermit_path, size):
     result = subprocess.run(
         [str(ftp), "-Y", "-p", str(big)],
         stdin=subprocess.DEVNULL, capture_output=True, text=True,
-        timeout=30, start_new_session=True)
+        timeout=scaled(30), start_new_session=True)
     output = result.stdout + result.stderr
     assert "No files to" not in output, output
     assert "C-Kermit" in output, output
@@ -624,6 +635,6 @@ def test_send_option_accepts_file_past_2gib(sparse_dir, wermit_path, size):
     result = subprocess.run(
         [wermit_path, "-Y", "-s", str(big)],
         stdin=subprocess.DEVNULL, capture_output=True, text=True,
-        timeout=30, start_new_session=True)
+        timeout=scaled(30), start_new_session=True)
     output = result.stdout + result.stderr
     assert "kermit -s" not in output, output

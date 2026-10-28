@@ -9,6 +9,8 @@ import threading
 
 import pytest
 
+from conftest import scaled
+
 
 def tochar(x):
     """Return the printable encoding of a small number."""
@@ -193,7 +195,7 @@ def test_partner_length_beyond_received_bytes(wermit_path, tmp_path,
              "set send timeout 1, set retry 2, send f.txt, "
              "echo STATUS=\\v(status), close, exit 0"],
             stdin=subprocess.DEVNULL, capture_output=True, text=True,
-            timeout=120)
+            timeout=scaled(120))
     finally:
         srv.close()
         thread.join(timeout=5)

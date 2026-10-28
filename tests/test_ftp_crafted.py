@@ -12,6 +12,8 @@ import time
 
 import pytest
 
+from conftest import scaled
+
 DEFAULT_REPLIES = {
     "AUTH": b"500 not supported\r\n",
     "USER": b"331 password please\r\n",
@@ -499,7 +501,7 @@ def _refuse_connects():
     connection to a closed port.  OpenBSD limits those answers to
     net.inet.tcp.rstppslimit per second.
 
-    Returns (port, thread, socket).
+    Return (port, thread, socket).
     """
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -563,7 +565,7 @@ def test_ftp_proxy_pasv_connect_target(run_wermit, trust, target):
 def test_ftp_proxy_data_connection_closes_socket(wermit_path):
     """Verify a failed proxy data connection leaves no socket open.
 
-    Each FTP DIR opens a socket for passive mode, and the HTTP proxy
+    Each FTP DIR opens a socket for passive mode.  The HTTP proxy
     refuses the CONNECT.  With 40 descriptors, a leak of one socket
     per DIR exhausts them within 100 commands.
     """
@@ -585,7 +587,7 @@ def test_ftp_proxy_data_connection_closes_socket(wermit_path):
                 "exit",
             ])],
             stdin=subprocess.DEVNULL, capture_output=True, text=True,
-            timeout=120, preexec_fn=limit, start_new_session=True)
+            timeout=scaled(120), preexec_fn=limit, start_new_session=True)
     finally:
         srv.close()
         psrv.close()

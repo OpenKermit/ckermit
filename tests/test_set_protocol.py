@@ -5,6 +5,8 @@ import subprocess
 
 import pytest
 
+from conftest import scaled
+
 
 @pytest.mark.parametrize("command", [
     "set protocol zmodem {sz %s} {sz -a %s} {rz} {rz}",
@@ -20,7 +22,7 @@ def test_set_protocol_fields_are_initialized(wermit_path, command, valgrind):
         [valgrind, "-q", "--error-exitcode=9", wermit_path,
          "-H", "-Y", "-Q", "-C", f"{command}, show protocol, quit"],
         stdin=subprocess.DEVNULL, capture_output=True, text=True,
-        timeout=120)
+        timeout=scaled(120))
     assert "uninitialised" not in result.stderr, result.stderr
     assert result.returncode == 0, result.stderr
 

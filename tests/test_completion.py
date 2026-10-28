@@ -15,7 +15,7 @@ def _complete(wermit_path, cwd, typed, expect):
 
     typed is written in 1 KB pieces.  The read ends when expect
     appears, when the terminal echoes Esc as ^[, or after 10 seconds.
-    Returns the echo, with "DEAD" appended if wermit exited.
+    Return the echo, with "DEAD" appended if wermit exited.
     """
     fd, slave = pty.openpty()
     proc = subprocess.Popen([wermit_path, "-H", "-Y"], stdin=slave,

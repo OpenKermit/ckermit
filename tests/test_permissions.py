@@ -33,6 +33,7 @@ import pytest
 from conftest import (
     _wait_or_kill,
     assert_ok,
+    scaled,
     start_tcp_listener,
 )
 
@@ -95,12 +96,13 @@ def adopted_loopback(wermit_path, tmp_path):
         try:
             client_result = subprocess.run(
                 client_args, pass_fds=(sa.fileno(),),
-                capture_output=True, text=True, timeout=timeout,
+                capture_output=True, text=True, timeout=scaled(timeout),
             )
         finally:
             sa.close()
             try:
-                server_stdout, _ = server_proc.communicate(timeout=timeout)
+                server_stdout, _ = server_proc.communicate(
+                    timeout=scaled(timeout))
             except subprocess.TimeoutExpired:
                 server_proc.kill()
                 server_stdout, _ = server_proc.communicate()
@@ -378,7 +380,7 @@ def test_show_server_reports_plain_process_as_remote(wermit_path):
     but it is the state every process begins in)."""
     result = subprocess.run(
         [wermit_path, "-Y", "-Q", "-C", "show server"],
-        capture_output=True, text=True, timeout=10,
+        capture_output=True, text=True, timeout=scaled(10),
     )
     assert_ok(result)
     assert "Connection mode:      Remote" in result.stdout
@@ -417,7 +419,7 @@ def test_show_server_reports_set_host_star_as_remote(
         [wermit_path, "-H", "-Y", "-Q", "-C",
          "set tcp reverse-dns-lookup off, "
          f"set host localhost {port} /raw-socket, close, exit"],
-        capture_output=True, text=True, timeout=10,
+        capture_output=True, text=True, timeout=scaled(10),
     )
     assert_ok(client_result)
     _wait_or_kill(server_proc, timeout=10)

@@ -5490,6 +5490,12 @@ The OpenSSL command
 may be used to list all of the ciphers and the order described by a specific
 <list of ciphers>.
  
+The default list is HIGH:MEDIUM:!aNULL:!eNULL:!EXPORT:!LOW.  It excludes
+anonymous, unencrypted, export, and low-strength ciphers.  The SSL_CIPHER
+environment variable overrides the default.  Giving CIPHER-LIST with no
+argument restores the default.  Kermit refuses a list that matches no
+cipher.
+ 
 SET AUTHENTICATION { SSL, TLS } CRL-DIR <directory>
 specifies a directory that contains certificate revocation files where each
 file is named by the hash of the certificate that has been revoked.
@@ -5551,6 +5557,21 @@ DSA-CERT-FILE.
   the passphrase:
  
   openssl dsa -in <encrypted-key-file> -out <unencrypted-key-file>
+ 
+SET AUTHENTICATION { SSL, TLS } MINIMUM-VERSION
+  { SSL3.0, TLS1.0, TLS1.1, TLS1.2, TLS1.3 }
+  Sets the lowest protocol version that Telnet, raw SSL/TLS, HTTPS, and
+  FTP connections accept as client or server.  The default is TLS1.2.  An
+  older version suits a legacy system that cannot use TLS 1.2.
+ 
+  OpenSSL 3 refuses versions older than TLS 1.2 at its default security
+  level.  Add @SECLEVEL=0 to the cipher list to allow an older version:
+ 
+    set authentication ssl minimum-version tls1.0
+    set authentication ssl cipher-list HIGH:MEDIUM:!aNULL:@SECLEVEL=0
+ 
+  SSL 3.0 requires an OpenSSL build with SSL 3.0 support.  SET FTP BUG
+  USE-SSL-V2 and USE-SSL-V3 override this setting for FTP.
  
 SET AUTHENTICATION { SSL, TLS } RANDOM-FILE <filename>
   Specifies a file containing random data to be used as seed for the
@@ -5653,67 +5674,136 @@ Compile-time default, from `SHOW AUTHENTICATION`:
  Random file: (none)
  Verify file: (none)
  Verify dir: (none)
- Cipher list: HIGH:MEDIUM:LOW:+ADH:+EXP
+ Cipher list: HIGH:MEDIUM:!aNULL:!eNULL:!EXPORT:!LOW (default)
     TLS_AES_256_GCM_SHA384
     TLS_CHACHA20_POLY1305_SHA256
     TLS_AES_128_GCM_SHA256
     ECDHE-ECDSA-AES256-GCM-SHA384
     ECDHE-RSA-AES256-GCM-SHA384
+    DHE-DSS-AES256-GCM-SHA384
     DHE-RSA-AES256-GCM-SHA384
     ECDHE-ECDSA-CHACHA20-POLY1305
     ECDHE-RSA-CHACHA20-POLY1305
     DHE-RSA-CHACHA20-POLY1305
+    ECDHE-ECDSA-AES256-CCM
+    DHE-RSA-AES256-CCM
+    ECDHE-ECDSA-ARIA256-GCM-SHA384
+    ECDHE-ARIA256-GCM-SHA384
+    DHE-DSS-ARIA256-GCM-SHA384
+    DHE-RSA-ARIA256-GCM-SHA384
     ECDHE-ECDSA-AES128-GCM-SHA256
     ECDHE-RSA-AES128-GCM-SHA256
+    DHE-DSS-AES128-GCM-SHA256
     DHE-RSA-AES128-GCM-SHA256
+    ECDHE-ECDSA-AES128-CCM
+    DHE-RSA-AES128-CCM
+    ECDHE-ECDSA-ARIA128-GCM-SHA256
+    ECDHE-ARIA128-GCM-SHA256
+    DHE-DSS-ARIA128-GCM-SHA256
+    DHE-RSA-ARIA128-GCM-SHA256
     ECDHE-ECDSA-AES256-SHA384
     ECDHE-RSA-AES256-SHA384
     DHE-RSA-AES256-SHA256
+    DHE-DSS-AES256-SHA256
+    ECDHE-ECDSA-CAMELLIA256-SHA384
+    ECDHE-RSA-CAMELLIA256-SHA384
+    DHE-RSA-CAMELLIA256-SHA256
+    DHE-DSS-CAMELLIA256-SHA256
     ECDHE-ECDSA-AES128-SHA256
     ECDHE-RSA-AES128-SHA256
     DHE-RSA-AES128-SHA256
+    DHE-DSS-AES128-SHA256
+    ECDHE-ECDSA-CAMELLIA128-SHA256
+    ECDHE-RSA-CAMELLIA128-SHA256
+    DHE-RSA-CAMELLIA128-SHA256
+    DHE-DSS-CAMELLIA128-SHA256
     ECDHE-ECDSA-AES256-SHA
     ECDHE-RSA-AES256-SHA
     DHE-RSA-AES256-SHA
+    DHE-DSS-AES256-SHA
+    DHE-RSA-CAMELLIA256-SHA
+    DHE-DSS-CAMELLIA256-SHA
     ECDHE-ECDSA-AES128-SHA
     ECDHE-RSA-AES128-SHA
     DHE-RSA-AES128-SHA
+    DHE-DSS-AES128-SHA
+    DHE-RSA-CAMELLIA128-SHA
+    DHE-DSS-CAMELLIA128-SHA
     RSA-PSK-AES256-GCM-SHA384
     DHE-PSK-AES256-GCM-SHA384
     RSA-PSK-CHACHA20-POLY1305
     DHE-PSK-CHACHA20-POLY1305
     ECDHE-PSK-CHACHA20-POLY1305
+    DHE-PSK-AES256-CCM
+    RSA-PSK-ARIA256-GCM-SHA384
+    DHE-PSK-ARIA256-GCM-SHA384
     AES256-GCM-SHA384
+    AES256-CCM
+    ARIA256-GCM-SHA384
     PSK-AES256-GCM-SHA384
     PSK-CHACHA20-POLY1305
+    PSK-AES256-CCM
+    PSK-ARIA256-GCM-SHA384
     RSA-PSK-AES128-GCM-SHA256
     DHE-PSK-AES128-GCM-SHA256
+    DHE-PSK-AES128-CCM
+    RSA-PSK-ARIA128-GCM-SHA256
+    DHE-PSK-ARIA128-GCM-SHA256
     AES128-GCM-SHA256
+    AES128-CCM
+    ARIA128-GCM-SHA256
     PSK-AES128-GCM-SHA256
+    PSK-AES128-CCM
+    PSK-ARIA128-GCM-SHA256
     AES256-SHA256
+    CAMELLIA256-SHA256
     AES128-SHA256
+    CAMELLIA128-SHA256
     ECDHE-PSK-AES256-CBC-SHA384
     ECDHE-PSK-AES256-CBC-SHA
+    SRP-DSS-AES-256-CBC-SHA
     SRP-RSA-AES-256-CBC-SHA
     SRP-AES-256-CBC-SHA
     RSA-PSK-AES256-CBC-SHA384
     DHE-PSK-AES256-CBC-SHA384
     RSA-PSK-AES256-CBC-SHA
     DHE-PSK-AES256-CBC-SHA
+    ECDHE-PSK-CAMELLIA256-SHA384
+    RSA-PSK-CAMELLIA256-SHA384
+    DHE-PSK-CAMELLIA256-SHA384
     AES256-SHA
+    CAMELLIA256-SHA
     PSK-AES256-CBC-SHA384
     PSK-AES256-CBC-SHA
+    PSK-CAMELLIA256-SHA384
     ECDHE-PSK-AES128-CBC-SHA256
     ECDHE-PSK-AES128-CBC-SHA
+    SRP-DSS-AES-128-CBC-SHA
     SRP-RSA-AES-128-CBC-SHA
     SRP-AES-128-CBC-SHA
     RSA-PSK-AES128-CBC-SHA256
     DHE-PSK-AES128-CBC-SHA256
     RSA-PSK-AES128-CBC-SHA
     DHE-PSK-AES128-CBC-SHA
+    ECDHE-PSK-CAMELLIA128-SHA256
+    RSA-PSK-CAMELLIA128-SHA256
+    DHE-PSK-CAMELLIA128-SHA256
     AES128-SHA
+    CAMELLIA128-SHA
     PSK-AES128-CBC-SHA256
     PSK-AES128-CBC-SHA
+    PSK-CAMELLIA128-SHA256
+    ECDHE-ECDSA-AES256-CCM8
+    ECDHE-ECDSA-AES128-CCM8
+    DHE-RSA-AES256-CCM8
+    DHE-RSA-AES128-CCM8
+    DHE-PSK-AES256-CCM8
+    DHE-PSK-AES128-CCM8
+    AES256-CCM8
+    AES128-CCM8
+    PSK-AES256-CCM8
+    PSK-AES128-CCM8
+ Minimum version: TLS 1.2
  Certs OK? no
  Debug mode: off
  Verbose mode: off
@@ -6850,6 +6940,7 @@ SET FTP values:
  ftp anonymous-password:        (default)
  ftp auto-login:                on
  ftp auto-authentication:       on
+ ftp tls-fallback:              off
  ftp timeout:                   0
  ftp type:                      text
  ftp get-filetype-switching:    on
@@ -7024,16 +7115,25 @@ The protocol-switches can be:
    Send initial Telnet negotiations even if this is not a Telnet port.
  
  /SSL
-   Perform SSL negotiations.
+   Perform SSL/TLS negotiations.  Then treat the connection as Telnet, but
+   send no Telnet options.  Kermit sends a 255 data byte as two, and reads
+   a 255 from the host as a Telnet command.  The first Telnet command from
+   the host starts Telnet negotiations.  Kermit first waits up to one
+   second for the host to send one (see SET TELNET WAIT-FOR-NEGOTIATIONS).
+   Use /SSL-RAW for a host that sends 255 as data.
+ 
+ /SSL-RAW
+   Perform SSL/TLS negotiations.  Use no Telnet.  Bytes pass unchanged in
+   both directions.
  
  /SSL-TELNET
-   Perform SSL negotiations and if successful start Telnet negotiations.
+   Perform SSL/TLS negotiations and if successful start Telnet negotiations.
  
- /TLS
-   Perform TLS negotiations.
- 
- /TLS-TELNET
-   Perform TLS negotiations and if successful start Telnet negotiations.
+ /TLS, /TLS-RAW, /TLS-TELNET
+   The same as /SSL, /SSL-RAW and /SSL-TELNET.  Each negotiates the newest
+   protocol version that both ends support, down to SET AUTHENTICATION SSL
+   MINIMUM-VERSION.  The /SSL switches also enable the OpenSSL workarounds
+   for bugs in old peers.
  
 Examples:
   SET HOST kermit.columbia.edu

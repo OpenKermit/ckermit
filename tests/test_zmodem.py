@@ -301,13 +301,24 @@ def test_zmodem_receive_ssl_binary(wermit_path, get_free_port, ssl_pki,
         f"Zmodem receive over SSL took {elapsed:.1f} seconds")
 
 
+def _large_size(zmodem_remote):
+    """Return 5 MB over pty and 1 MB over TCP.
+
+    A ZMODEM sub-packet is at most 8 KB.  1 MB spans many sub-packets.
+    One large transfer per direction stays on the pty.
+    """
+    return 5 * MB if zmodem_remote.mode == "pty" else MB
+
+
 def test_zmodem_receive_large(zmodem_remote, tmp_path):
     """Zmodem receive of a file well beyond a single sub-packet."""
     run_zmodem_receive(
-        zmodem_remote, tmp_path, pattern_bytes(5 * MB), timeout=90)
+        zmodem_remote, tmp_path, pattern_bytes(_large_size(zmodem_remote)),
+        timeout=90)
 
 
 def test_zmodem_send_large(zmodem_remote, tmp_path):
     """Zmodem send of a file well beyond a single sub-packet."""
     run_zmodem_send(
-        zmodem_remote, tmp_path, pattern_bytes(5 * MB), timeout=90)
+        zmodem_remote, tmp_path, pattern_bytes(_large_size(zmodem_remote)),
+        timeout=90)

@@ -10,6 +10,8 @@ import time
 
 import pytest
 
+from conftest import scaled
+
 BASE_REPLIES = {
     "AUTH": b"500 not supported\r\n",
     "USER": b"331 password please\r\n",
@@ -448,7 +450,7 @@ def test_ftp_session_does_not_leak(wermit_path, valgrind, tmp_path):
              "ftp mget *, ftp get /update a.txt, ftp dir, ftp close, "
              "exit 0"],
             cwd=tmp_path, stdin=subprocess.DEVNULL, capture_output=True,
-            text=True, timeout=200)
+            text=True, timeout=scaled(200))
     finally:
         peer.close()
     assert peer.sent("MLSD"), peer.commands

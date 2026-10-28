@@ -160,17 +160,19 @@ def test_kermit_transfer_binary(tmp_path, wermit_loopback, direction, size):
 
 
 @pytest.mark.parametrize("direction", ["send", "get"])
-def test_kermit_transfer_large(tmp_path, wermit_loopback, direction):
+def test_kermit_transfer_large(tmp_path, wermit_loopback, direction,
+                               loopback_transport):
     """
     Test binary file transfer of a file well beyond a single packet
     or window, in both SEND and GET directions.
 
-    The timeout is generous because slow porter hardware (e.g. the
-    Debian alpha or riscv64 buildds) needs time to push 5MB
-    through the Kermit protocol. The test still returns as soon as
-    the transfer finishes, so this doesn't slow down normal runs.
+    A window is at most 32 packets of 9024 bytes.  1 MB spans several
+    windows.  A GET over pty moves 5 MB.  In a GET the far end writes
+    the data on the slave side of the pty.  On NetBSD, data written on
+    the master side moves at 230 KB/s on a 599 MHz Alpha.
     """
-    size = 5 * MB
+    size = 5 * MB if (loopback_transport == "pseudoterminal"
+                      and direction == "get") else MB
     logger.info(
         "test_kermit_transfer_large: Starting test (direction=%s, size=%d)",
         direction, size)
@@ -195,8 +197,13 @@ def _run_nul_replay_transfer(tmp_path, wermit_loopback):
     test_kermit_transfer_unprefixed_nul_replay (which sweeps several
     attempts on one transport to catch the race) and
     test_kermit_transfer_unprefixed_nul_replay_transport_smoke (which
-    runs once per other transport)."""
-    content = pattern_bytes(2 * MB)
+    runs once per other transport).
+
+    The strlen() bug fixed in b58e0336 reproduces on NetBSD x86 in
+    about half of 512 KB transfers.  A 2 MB transfer reproduces at the
+    same rate, and 128 KB does not reproduce it.  It does not
+    reproduce on Linux."""
+    content = pattern_bytes(512 * 1024)
     client_dir, server_dir = make_loopback_dirs(tmp_path)
     src_file = client_dir / "nul_replay.dat"
     src_file.write_bytes(content)
@@ -243,6 +250,33 @@ def test_kermit_transfer_unprefixed_nul_replay_transport_smoke(
     The race itself does not depend on transport choice.
     """
     _run_nul_replay_transfer(tmp_path, wermit_loopback)
+
+
+@pytest.mark.parametrize("direction", ["send", "get"])
+@pytest.mark.parametrize("loopback_transport",
+                         ["telnet", "ssl", "ssl-telnet", "tls-telnet"],
+                         indirect=True)
+def test_kermit_transfer_with_telnet_wait(tmp_path, wermit_loopback,
+                                          loopback_transport, direction):
+    """Binary transfer with the default Telnet negotiation wait.
+
+    The other tests in this module turn the wait off.  This one keeps
+    tn_wait() in the session setup.  /SSL-TELNET and /TLS-TELNET
+    negotiate Telnet inside TLS.  The file holds every byte value.
+    """
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    content = bytes(range(256)) * 64
+    src_dir, dest_dir = ((client_dir, server_dir) if direction == "send"
+                         else (server_dir, client_dir))
+    (src_dir / "all.bin").write_bytes(content)
+    result = wermit_loopback(
+        server_dir,
+        server_setup_cmds="set file type binary",
+        client_commands=(f"cd {client_dir}, set file type binary, "
+                         f"{direction} all.bin"),
+        telnet_wait=True)
+    assert_ok(result)
+    assert (dest_dir / "all.bin").read_bytes() == content
 
 
 def protocol_option_cmds(reliable, streaming, slow_start, jumbo):
@@ -801,7 +835,7 @@ def test_send_packets_fit_small_send_buffer(tmp_path, wermit_loopback,
     client_dir, server_dir = make_loopback_dirs(tmp_path)
     # The file fills the send buffer several times over.  It stays well
     # under kern.tty.qsize (65536 in CI).  The NetBSD pty drops bytes
-    # from a write that meets a full queue, and a streaming sender can
+    # from a write that meets a full queue.  A streaming sender can
     # queue the whole file before a slow receiver reads it.
     data = os.urandom(30000)
     (client_dir / "big.bin").write_bytes(data)

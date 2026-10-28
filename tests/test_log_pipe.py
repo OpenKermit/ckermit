@@ -11,7 +11,8 @@ import pytest
 
 from conftest import assert_ok
 
-CHILD_SECONDS = 8
+# A blocked EXIT waits for the child.  The bound is half its life.
+CHILD_SECONDS = 20
 
 
 @pytest.mark.parametrize("log_type", [
@@ -41,7 +42,7 @@ def test_piped_log_does_not_block_exit_on_pty_child(
             pass
 
     assert_ok(result)
-    assert elapsed < CHILD_SECONDS - 3, (
+    assert elapsed < CHILD_SECONDS / 2, (
         f"EXIT blocked for {elapsed:.1f}s\n"
         f"stdout: {result.stdout}")
     assert log_file.exists(), f"{log_type} log command never ran"

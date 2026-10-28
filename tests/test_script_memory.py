@@ -8,6 +8,8 @@ import re
 
 import pytest
 
+from conftest import scaled
+
 LONG = "d" * 5000
 
 CASES = {
@@ -184,7 +186,7 @@ def test_console_reads_end_at_eof(wermit_path, command):
     result = subprocess.run(
         [wermit_path, "-H", "-Y", "-Q", "-C",
          f"set command more-prompting off, {command}, exit"],
-        stdin=subprocess.DEVNULL, capture_output=True, timeout=20,
+        stdin=subprocess.DEVNULL, capture_output=True, timeout=scaled(20),
         start_new_session=True)
     assert len(result.stdout) < 2000, result.stdout[:200]
 
@@ -238,14 +240,22 @@ def test_function_empty_last_argument_does_not_leak(wermit_path):
 
     fneval() drops empty trailing arguments from its count.  A leak of
     one argument buffer per call raises the peak resident size by about
-    220 MB over 80,000 calls.  A run with a non-empty argument is the
-    baseline.  The peak size can include the pytest worker's size, so
-    the limit leaves room for it.
+    29 MB over 10,000 calls on Linux.  A run with a non-empty argument
+    is the baseline.
+
+    On FreeBSD, ru_maxrss of a forked child sometimes includes the
+    parent's resident size.  A wermit that only runs EXIT reports a
+    peak of the parent's size plus 14 MB in about one run in four.  The
+    excess follows the parent's size and not wermit's work.  The
+    smallest of three runs excludes it.  The leak this test detects
+    adds to every run.
     """
-    loop = "for \\%i 1 80000 1 {{ .x := \\flength({}) }}, exit"
-    base = _maxrss_kb(wermit_path, loop.format("abc"))
-    empty = _maxrss_kb(wermit_path, loop.format("\\%z"))
-    assert empty - base < 100 * 1024, (base, empty)
+    loop = "for \\%i 1 10000 1 {{ .x := \\flength({}) }}, exit"
+    base = min(_maxrss_kb(wermit_path, loop.format("abc"))
+               for _ in range(3))
+    empty = min(_maxrss_kb(wermit_path, loop.format("\\%z"))
+                for _ in range(3))
+    assert empty - base < 15 * 1024, (base, empty)
 
 
 def test_file_list_overflow_closes_directories(wermit_path, tmp_path):
@@ -272,7 +282,7 @@ def test_file_list_overflow_closes_directories(wermit_path, tmp_path):
          "set file listsize 16, "
          f"for \\%i 1 200 1 {{ .n := \\frfiles({top}/*) }}, exit"],
         stdin=subprocess.DEVNULL, capture_output=True, text=True,
-        timeout=60, preexec_fn=limit)
+        timeout=scaled(60), preexec_fn=limit)
     out = result.stdout + result.stderr
     assert out.count("Too many files") == 200, out[-500:]
 
@@ -296,7 +306,7 @@ def test_fileinfo_bom_file_closes_it(wermit_path, tmp_path):
          f"for \\%i 1 200 1 {{ .n := \\ffileinfo({bom},&a) }}, "
          "echo SCAN=[\\&a[9]], exit"],
         stdin=subprocess.DEVNULL, capture_output=True, text=True,
-        timeout=60, preexec_fn=limit)
+        timeout=scaled(60), preexec_fn=limit)
     assert "SCAN=[text:utf8]" in result.stdout, result.stdout
 
 
@@ -321,7 +331,7 @@ def test_copy_closes_its_files(wermit_path, tmp_path, cmd):
          f"for \\%i 1 200 1 {{ {cmd} }}, "
          "copy /tob64 p.txt last.txt, echo LAST=\\v(status), exit"],
         cwd=tmp_path, stdin=subprocess.DEVNULL, capture_output=True,
-        text=True, timeout=60, preexec_fn=limit)
+        text=True, timeout=scaled(60), preexec_fn=limit)
     assert "LAST=0" in result.stdout, result.stdout[-500:]
 
 
@@ -341,7 +351,7 @@ def test_cvtdate_apache_format_does_not_leak(wermit_path, valgrind):
          "\\fcvtdate([02/Jan/2024:03:04:05 +0000]) }, "
          "echo X=\\m(x), exit"],
         stdin=subprocess.DEVNULL, capture_output=True, text=True,
-        timeout=120, env=dict(os.environ, TZ="UTC"))
+        timeout=scaled(120), env=dict(os.environ, TZ="UTC"))
     assert "X=20240102 03:04:05" in result.stdout, result.stdout
     records = re.split(r"^==\d+== *$", result.stderr, flags=re.M)
     leaked = [r for r in records
@@ -546,7 +556,7 @@ def test_show_features_long_program_path(wermit_path):
          "set command more-prompting off, show features, "
          "echo END-MARKER, exit"],
         executable=wermit_path, stdin=subprocess.DEVNULL,
-        capture_output=True, text=True, timeout=30,
+        capture_output=True, text=True, timeout=scaled(30),
         env=dict(os.environ))
     assert result.returncode == 0, result.returncode
     assert "AddressSanitizer" not in result.stderr, result.stderr[-3000:]

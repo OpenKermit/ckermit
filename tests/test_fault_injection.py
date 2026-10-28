@@ -17,6 +17,7 @@ import time
 
 import pytest
 
+from conftest import PROTOCOL_STARTUP_OFF, scaled
 from test_iksd_login import _elf_info
 from test_iksdb import _build_has_iksdb, _close_iksd, _connect_iksd
 
@@ -27,8 +28,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 def faultinj(tmp_path_factory, wermit_path, wermit_sanitized):
     """Build faultinj.so and return its path, or skip.
 
-    Skips if wermit is statically linked or built for a different
-    machine than cc, since LD_PRELOAD cannot load faultinj.so then.
+    Skip if wermit is statically linked or built for a different
+    machine than cc.  LD_PRELOAD cannot load faultinj.so in those
+    cases.
     """
     if wermit_sanitized:
         pytest.skip("fault injection does not run a sanitizer build")
@@ -60,7 +62,7 @@ def run_faulted(wermit_path, lib, func, n, cmds, cwd, timeout=30, count=1):
                            cmds + ", exit 0"],
                           cwd=cwd, env=env, stdin=subprocess.DEVNULL,
                           capture_output=True, text=True,
-                          timeout=timeout)
+                          timeout=scaled(timeout))
 
 
 @pytest.mark.parametrize("func", ["read", "write"])
@@ -166,7 +168,7 @@ def test_grep_array_open_failure(wermit_path, faultinj, tmp_path):
                FAULT_N="0", FAULT_REPORT=str(report))
     subprocess.run([wermit_path, "-H", "-Y", "-Q", "-C", cmds + ", exit 0"],
                    cwd=tmp_path, env=env, stdin=subprocess.DEVNULL,
-                   capture_output=True, timeout=30, check=True)
+                   capture_output=True, timeout=scaled(30), check=True)
     calls = int(report.read_text().split()[0])
     for n in range(1, calls + 1):
         result = run_faulted(wermit_path, faultinj, "open", n, cmds,
@@ -295,7 +297,7 @@ def test_malloc_failures_after_startup(wermit_path, faultinj, tmp_path,
         subprocess.run([wermit_path, "-H", "-Y", "-Q", "-C",
                         script + ", exit 0"],
                        cwd=tmp_path, env=env, stdin=subprocess.DEVNULL,
-                       capture_output=True, timeout=60)
+                       capture_output=True, timeout=scaled(60))
         return int(report.read_text().split()[0])
     first = calls("echo") + 1
     last = calls(cmds)
@@ -337,7 +339,7 @@ def test_malloc_failures_in_ftp_session(wermit_path, faultinj, tmp_path):
             result = subprocess.run(
                 [wermit_path, "-H", "-Y", "-Q", "-C", script + ", exit 0"],
                 cwd=tmp_path, env=env, stdin=subprocess.DEVNULL,
-                capture_output=True, timeout=60)
+                capture_output=True, timeout=scaled(60))
         finally:
             peer.close()
         return result, peer
@@ -372,7 +374,8 @@ def test_write_failures_in_transfer_end_promptly(wermit_path, faultinj,
     (tmp_path / "s").mkdir()
     srv = tmp_path / "srv.ksc"
     srv.write_text(f"cd {tmp_path}/s\nset delay 0\nserver\n")
-    cmds = (f"cd {tmp_path}, set delay 0, set host "
+    cmds = (f"cd {tmp_path}, {PROTOCOL_STARTUP_OFF}, set delay 0, "
+            "set host "
             f"/network-type:pseudoterminal {wermit_path} {srv}, "
             "if fail exit 1, "
             "send f.txt, if success echo SENT, finish, close, exit 0")
@@ -385,7 +388,7 @@ def test_write_failures_in_transfer_end_promptly(wermit_path, faultinj,
         return subprocess.run([wermit_path, "-H", "-Y", "-Q", "-C", cmds],
                               cwd=tmp_path, env=env,
                               stdin=subprocess.DEVNULL,
-                              capture_output=True, timeout=timeout)
+                              capture_output=True, timeout=scaled(timeout))
 
     run(0, 60)
     total = int(report.read_text().split()[0])

@@ -10,6 +10,8 @@ import pytest
 
 from test_ftp_crafted import _serve_ftp
 
+from conftest import scaled
+
 
 def _run(wermit_path, cmds, timeout=20):
     """Run cmds with stdin at end of file and return CompletedProcess."""
@@ -17,7 +19,7 @@ def _run(wermit_path, cmds, timeout=20):
         [wermit_path, "-H", "-Y", "-Q", "-C",
          "set command more-prompting off, " + cmds + ", exit 0"],
         stdin=subprocess.DEVNULL, capture_output=True, text=True,
-        timeout=timeout, start_new_session=True)
+        timeout=scaled(timeout), start_new_session=True)
 
 
 def test_getok_at_end_of_input(wermit_path):

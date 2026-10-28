@@ -22,6 +22,8 @@ import time
 
 import pytest
 
+from conftest import scaled
+
 RECL = 4096
 HDRL = 16
 MAGIC = b"KIKSDB02"
@@ -96,7 +98,7 @@ def _close_iksd(proc, client, log_fh):
     if proc.poll() is None:
         proc.terminate()
         try:
-            proc.wait(timeout=3)
+            proc.wait(timeout=scaled(3))
         except Exception:
             proc.kill()
     log_fh.close()

@@ -7,6 +7,8 @@ import threading
 
 import pytest
 
+from conftest import scaled
+
 
 def _transmit(wermit_path, path, fcs):
     """TRANSMIT path in text mode to a raw socket.  Return the bytes."""
@@ -42,7 +44,7 @@ def _transmit(wermit_path, path, fcs):
              "set terminal remote-character-set latin1, "
              "set transmit echo off, set transmit prompt 0, "
              f"transmit /text {path}, close, exit"],
-            stdin=subprocess.DEVNULL, capture_output=True, timeout=30)
+            stdin=subprocess.DEVNULL, capture_output=True, timeout=scaled(30))
         thread.join(timeout=10)
     finally:
         srv.close()

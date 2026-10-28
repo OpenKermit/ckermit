@@ -511,8 +511,42 @@ istncomport() {
 #ifndef TN_WAIT_BUF_SZ
 #define TN_WAIT_BUF_SZ 4096
 #endif /* TN_WAIT_BUF_SZ */
-static char tn_wait_buf[TN_WAIT_BUF_SZ];
+/*
+  tn_wait_buf holds the peer data read while waiting.  tn_push() hands
+  the data back to readers that parse Telnet.  A literal 255 stays IAC
+  IAC.  The extra byte holds the second IAC when the pair starts in the
+  last slot.  tn_wait_idx is then TN_WAIT_BUF_SZ + 1.  Full-buffer
+  checks use >=.
+*/
+static char tn_wait_buf[TN_WAIT_BUF_SZ + 1];
 static int  tn_wait_idx = 0;
+
+/*
+  tn_wait_inc() reads the bytes of a Telnet command for tn_wait() and
+  tn_flui().  tn_wait_cmd is 1 until the byte after the IAC arrives.
+  If that byte is IAC, tn_wait_inc() stores the literal 255 in
+  tn_wait_buf at once.  tn_doop() may then call tn_start().  Subsequent
+  waits append any data that follows.
+*/
+static int tn_wait_cmd = 0;
+
+static int
+#ifdef CK_ANSIC
+tn_wait_inc(int timo)
+#else
+tn_wait_inc(timo) int timo;
+#endif /* CK_ANSIC */
+{
+    int c = ttinc(timo);
+    if (tn_wait_cmd && c >= 0) {
+        tn_wait_cmd = 0;
+        if (c == IAC) {
+            tn_wait_buf[tn_wait_idx++] = IAC;
+            tn_wait_buf[tn_wait_idx++] = IAC;
+        }
+    }
+    return(c);
+}
 #ifndef TN_TIMEOUT
 #define TN_TIMEOUT 120
 #endif /* TN_TIMEOUT */
@@ -577,6 +611,15 @@ tn_wait(where) char * where;
 
     if (tn_deb || debses) tn_debug("<wait for outstanding negotiations>");
 
+    /*
+      Each pass through the loop stores up to two bytes in tn_wait_buf.
+      A previous wait can leave the buffer full.  Read nothing then.
+    */
+    if (tn_wait_idx >= TN_WAIT_BUF_SZ) {
+      if (tn_deb || debses) tn_debug("<Telnet Wait Buffer filled>");
+      return(0);
+    }
+
 #ifdef CKSPINNER
     if (!sstelnet && !quiet)
         prtwait(0);
@@ -616,7 +659,12 @@ tn_wait(where) char * where;
             if (!sstelnet && !quiet)
               printf("\b");
 #endif /* CKSPINNER */
-            ch = tn_doop((CHAR)(ch & 0xff),inserver?ckxech:duplex,ttinc);
+            tn_wait_cmd = 1;
+            ch = tn_doop((CHAR)(ch & 0xff),inserver?ckxech:duplex,
+                         tn_wait_inc);
+            if (ch == 3 && tn_wait_cmd) /* Not Telnet: IAC is data */
+              tn_wait_buf[tn_wait_idx++] = IAC;
+            tn_wait_cmd = 0;
 #ifdef CKSPINNER
             if (!sstelnet && !quiet) {
                 prtwait(gtimer());
@@ -634,8 +682,7 @@ tn_wait(where) char * where;
                 if (inserver)
                   ckxech = 0;
                 break;
-              case 3:
-                tn_wait_buf[tn_wait_idx++] = IAC;
+              case 3:                   /* tn_wait_inc() stored it */
                 break;
               case 4:                   /* IKS event */
               case 6:                   /* Logout */
@@ -722,7 +769,7 @@ tn_wait(where) char * where;
     } while ((tn_wait_idx < TN_WAIT_BUF_SZ) &&
              (outstanding && count >= 0));
 
-    if (tn_wait_idx == TN_WAIT_BUF_SZ) {
+    if (tn_wait_idx >= TN_WAIT_BUF_SZ) {
       if (tn_deb || debses) tn_debug("<Telnet Wait Buffer filled>");
       return(0);
     }
@@ -1030,7 +1077,11 @@ tn_flui() {
         x = ttinc(1);
         switch (x) {
           case IAC:
-            x = tn_doop((CHAR)(x & 0xff),inserver?ckxech:duplex,ttinc);
+            tn_wait_cmd = 1;
+            x = tn_doop((CHAR)(x & 0xff),inserver?ckxech:duplex,tn_wait_inc);
+            if (x == 3 && tn_wait_cmd)  /* Not Telnet: IAC is data */
+              tn_wait_buf[tn_wait_idx++] = IAC;
+            tn_wait_cmd = 0;
             debug(F101,"tn_flui tn_doop","",x);
             switch (x) {
               case 1:                   /* Turn on echoing */
@@ -1043,8 +1094,7 @@ tn_flui() {
                 if (inserver)
                   ckxech = 0;
                 break;
-              case 3:
-                tn_wait_buf[tn_wait_idx++] = IAC;
+              case 3:                   /* tn_wait_inc() stored it */
                 break;
               case 4:                   /* IKS event */
               case 6:                   /* Logout */
@@ -2095,7 +2145,7 @@ iks_wait(iwst,flushok) int iwst; int flushok;
                 x = tn_wait("iks_wait() me_iks_req_start");
             } while (x == 0 &&
                      flushok &&
-                     tn_wait_idx == TN_WAIT_BUF_SZ &&
+                     tn_wait_idx >= TN_WAIT_BUF_SZ &&
 /*
   The idea here is that if, while waiting for a response to SB KERMIT SOP,
   we get a DONT KERMIT, as happens in at least one real-life situation,
@@ -2109,7 +2159,7 @@ iks_wait(iwst,flushok) int iwst; int flushok;
             tn_wait_flg = tn_wait_save;
             if (flushok)
               tn_wait_idx = 0;
-            if (tn_wait_idx == TN_WAIT_BUF_SZ) {
+            if (tn_wait_idx >= TN_WAIT_BUF_SZ) {
                 /*
                  * We are attempting to start a kermit server on the peer
                  * the most likely reason is because we want to perform a
@@ -2138,12 +2188,12 @@ iks_wait(iwst,flushok) int iwst; int flushok;
                 if (flushok)
                   tn_wait_idx = 0;
                 x = tn_wait("iks_wait() me_iks_req_stop");
-            } while (x == 0 && flushok && tn_wait_idx == TN_WAIT_BUF_SZ);
+            } while (x == 0 && flushok && tn_wait_idx >= TN_WAIT_BUF_SZ);
             tn_wait_flg = tn_wait_save;
             if (flushok)
               tn_wait_idx = 0;
 
-            if (tn_wait_idx == TN_WAIT_BUF_SZ) {
+            if (tn_wait_idx >= TN_WAIT_BUF_SZ) {
                 /*
                  * We are attempting to stop a kermit server on the peer
                  * the most likely reason being that we want to enter
@@ -3093,29 +3143,25 @@ tn_ini() {
       case NP_NONE:
       case NP_SSL:
       case NP_TLS:                      /* If not talking to a telnet port, */
-      case NP_SSL_RAW:                  /* SSL and TLS with Telnet */
-      case NP_TLS_RAW:                  /* negotiations disabled. */
         ttnproto = NP_TELNET;           /* pretend it's telnet anyway, */
         oldplex = duplex;               /* save old duplex value */
         duplex = 1;                     /* and set to half duplex for telnet */
-
         /*
-          On a raw SSL or TLS connection the peer never sends Telnet
-          negotiations, and tn_doop() ignores IAC, so there is nothing
-          to wait for.  tn_wait() would only delay the session by its
-          timeout.  It keeps any other data in tn_wait_buf, and
-          tn_push() hands that data back.
+          Send no options.  tn_doop() starts Telnet when the peer sends
+          IAC.  tn_wait() gives the peer one read to send it first.
         */
-#ifdef CK_SSL
-        if (inserver || ssl_raw_flag || tls_raw_flag)
-#else
         if (inserver)
-#endif /* CK_SSL */
           debug(F100,"tn_ini skipping telnet negotiations","",0);
         else
           tn_wait("tn_ini - waiting to see if telnet negotiations were sent");
         tn_push();
         return(0);
+      /*
+        A raw connection keeps its ttnproto.  IS_TELNET() is then
+        false.  Commands send and read bytes without Telnet processing.
+      */
+      case NP_SSL_RAW:
+      case NP_TLS_RAW:
       case NP_TCPRAW:                   /* Raw socket requested. */
         debug(F100,"tn_ini telnet negotiations ignored","tn_init",tn_init);
         return(0);
@@ -5482,10 +5528,6 @@ tn_doop(z, echo, fn) CHAR z; int echo; int (*fn)();
 
     if (!IS_TELNET()) return(3);
 
-#ifdef CK_SSL
-    debug(F101,"tn_doop ssl_raw_flag","",ssl_raw_flag);
-    if (ssl_raw_flag || tls_raw_flag) return(7);
-#endif  /* CK_SSL */
     debug(F100,"tn_doop ttnproto proceeding...","",0);
 
     if (z != (CHAR) IAC) {

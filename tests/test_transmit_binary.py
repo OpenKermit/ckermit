@@ -3,6 +3,8 @@ import socket
 import subprocess
 import threading
 
+from conftest import scaled
+
 
 def _transmit_telnet(wermit_path, path):
     """TRANSMIT path in binary mode on a Telnet connection.
@@ -42,7 +44,7 @@ def _transmit_telnet(wermit_path, path):
              f"set host 127.0.0.1 {srv.getsockname()[1]} /telnet, "
              "set transmit echo off, "
              f"transmit /binary {path}, close, exit"],
-            stdin=subprocess.DEVNULL, capture_output=True, timeout=30)
+            stdin=subprocess.DEVNULL, capture_output=True, timeout=scaled(30))
         thread.join(timeout=15)
     finally:
         srv.close()

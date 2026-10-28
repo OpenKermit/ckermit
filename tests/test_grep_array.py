@@ -3,6 +3,8 @@ Tests for GREP /ARRAY in dogrep() (ckuus6.c).
 """
 import pytest
 
+from conftest import scaled
+
 
 def _grep(run_wermit, tmp_path, grep_cmd, extra=()):
     """Run grep_cmd in tmp_path and return the CompletedProcess."""
@@ -122,5 +124,5 @@ def test_grep_nameonly_closes_files(wermit_path, tmp_path):
          f"cd {tmp_path}, grep /nameonly /array:&a alpha *.txt, "
          "echo COUNT=[\\&a[0]], exit"],
         stdin=subprocess.DEVNULL, capture_output=True, text=True,
-        timeout=60, preexec_fn=limit)
+        timeout=scaled(60), preexec_fn=limit)
     assert "COUNT=[100]" in result.stdout, result.stdout
