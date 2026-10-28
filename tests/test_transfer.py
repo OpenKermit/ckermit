@@ -799,7 +799,11 @@ def test_send_packets_fit_small_send_buffer(tmp_path, wermit_loopback,
     buffer show under AddressSanitizer.
     """
     client_dir, server_dir = make_loopback_dirs(tmp_path)
-    data = os.urandom(100000)
+    # The file fills the send buffer several times over.  It stays well
+    # under kern.tty.qsize (65536 in CI).  The NetBSD pty drops bytes
+    # from a write that meets a full queue, and a streaming sender can
+    # queue the whole file before a slow receiver reads it.
+    data = os.urandom(30000)
     (client_dir / "big.bin").write_bytes(data)
     result = wermit_loopback(
         server_dir,
