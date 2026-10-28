@@ -14514,6 +14514,7 @@ readpass(prmpt, buffer, bufsiz) char * prmpt; char * buffer; int bufsiz;
 #ifdef NOICP
     if (!prmpt) prmpt = "";
     printf("%s", prmpt);
+    fflush(stdout);
 #ifdef COMMENT
     /* Some linkers won't allow this because it's unsafe */
     gets(buffer);

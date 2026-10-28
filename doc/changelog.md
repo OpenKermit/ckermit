@@ -555,6 +555,16 @@ file, also reach it.
   program to exit, and kills it only after that.  Bug was introduced in commit
   d0f8b1da in C-Kermit 7.0.197 of 2000.
 
+- [7, 11] On MacOS, a streaming send over a pty connection could hang or take 2
+  seconds per packet.  FIONREAD is broken on Mac, and it can indicate more bytes
+  available than really are.  The sender then waited for an ACK that was not
+  there.  Before C-Kermit 11.0.501 it waited with no timeout, so the transfer
+  hung.  Since then, it waited 2 seconds per packet.  Kermit now confirms the
+  count with select().  The code that hung was introduced in commit d0f8b1da in
+  C-Kermit 7.0.197 of 2000, though the real bug is with MacOS.  Commit 4a48cd29
+  in C-Kermit 11.0.501 of 2026 replaced it with the 2-second wait, which
+  improved but didn't fix the situation.
+
 - [8] SET TRANSFER DISPLAY FULLSCREEN with TERM unset or unknown to
   terminfo ended Kermit at the start of the next transfer, on systems
   whose curses has no newterm(), such as NetBSD.  Kermit now uses the CRT
@@ -714,6 +724,14 @@ file, also reach it.
   commits 9f732296 and 55973561 in C-Kermit 11.0.501 of 2026.
 
 ### Scripting and commands
+
+- [4, 5, 6] When built with musl, Esc completion at the command prompt showed
+  nothing until the next keystroke because musl doesn't auto-flush stdout on
+  getchar() like the other platforms do.  Now flush before reads.  flushes
+  stdout before each read.  The keyword default dates from commit f16b451f in
+  C-Kermit 4C(057) of 1985.  Partial filename completion dates from commit
+  a213649d in C-Kermit 5A(188) of 1992.  Directory completion dates from commit
+  4b5eddea in C-Kermit 6.0.192 of 1996.
 
 - [5] On Unix, WHO with a user name passed that name to who.  who read
   the argument as a login database file.  WHO now refuses a user name

@@ -7629,6 +7629,7 @@ cmdgetc(ctlimit) int ctlimit;
 #ifdef CMD_CONINC
 #undef CMD_CONINC
 #endif /* CMD_CONINC */
+        fflush(stdout);                  /* Needed for musl builds */
         c = getchar();
         if (c == EOF && errno == EINTR)  /* A signal ended the read */
           chksigs();
