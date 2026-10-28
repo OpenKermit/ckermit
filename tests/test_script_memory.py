@@ -721,3 +721,27 @@ def test_sexp_power_huge_exponent(run_wermit, expr):
         f"wermit died with signal {-result.returncode}")
     assert "runtime error" not in result.stderr, result.stderr[-2000:]
     assert "END-MARKER" in result.stdout, result.stdout
+
+
+def test_cvtdate_apache_format_does_not_leak(wermit_path, valgrind):
+    """Verify \\fcvtdate() of an Apache log date frees its copy.
+
+    The copy without colons leaked on every call.  valgrind reports no
+    block lost in cmcvtdate().
+    """
+    import os
+    import re
+    import subprocess
+    result = subprocess.run(
+        [valgrind, "-q", "--leak-check=full", wermit_path,
+         "-H", "-Y", "-Q", "-C",
+         "for \\%i 1 20 1 { .x := "
+         "\\fcvtdate([02/Jan/2024:03:04:05 +0000]) }, "
+         "echo X=\\m(x), exit"],
+        stdin=subprocess.DEVNULL, capture_output=True, text=True,
+        timeout=120, env=dict(os.environ, TZ="UTC"))
+    assert "X=20240102 03:04:05" in result.stdout, result.stdout
+    records = re.split(r"^==\d+== *$", result.stderr, flags=re.M)
+    leaked = [r for r in records
+              if "definitely lost" in r and "cmcvtdate" in r]
+    assert not leaked, result.stderr

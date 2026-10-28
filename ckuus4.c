@@ -2981,9 +2981,8 @@ transmit(s,t,xlate,xbinary,xxecho) char *s; char t; int xlate, xbinary, xxecho;
                 }
                 sprintf(xbuf,"%04X",uc.x_short); /* SAFE */
                 debug(F111,"XMIT UCS2",xbuf,uc.x_short);
-                if (nbytes & 1)         /* Special eol test for UCS-2 */
-                  if (uc.x_short == '\n')
-                    teol = 1;
+                if (uc.x_short == '\n') /* Special eol test for UCS-2 */
+                  teol = 1;
 #ifdef COMMENT
                 if (uc.x_short == 0x2028 || uc.x_short == 0x2029)
                     teol = 1;
@@ -13673,12 +13672,12 @@ char *                                  /* Evaluate builtin variable */
       case VN_FULLVER:                  /* Full version number (edit 400) */
       {
           extern char *ck_s_ver, *ck_s_edit, *ck_s_test, *ck_s_tver;
-          if ((size_t)x > strlen(ck_s_test)) {
-              sprintf(vvbuf,"%s.%s %s.%s",
-                      ck_s_ver, ck_s_edit, ck_s_test, ck_s_tver); /* SAFE */
+          if (ck_s_test && *ck_s_test) { /* Test release: add its tag */
+              ckmakxmsg(vvbuf,VVBUFL,ck_s_ver,".",ck_s_edit," ",
+                        ck_s_test,".",ck_s_tver,
+                        NULL,NULL,NULL,NULL,NULL);
           } else {
-              sprintf(vvbuf,"%s.%s",
-                      ck_s_ver, ck_s_edit); /* SAFE */
+              ckmakmsg(vvbuf,VVBUFL,ck_s_ver,".",ck_s_edit,NULL);
           }
           return(vvbuf);
       }
@@ -14364,15 +14363,15 @@ char *                                  /* Evaluate builtin variable */
 #ifdef OS2ORUNIX
             if (p) {
                 int len = (int)strlen(p);
+                ckstrncpy(vvbuf,p,VVBUFL);
                 if (p[len-1] != '/'
 #ifdef OS2
                     && p[len-1] != '\\'
 #endif /* OS2 */
                      ) {
-                    ckstrncpy(vvbuf,p,VVBUFL);
-                    if (vvbuf[0]) ckstrncat(vvbuf,"/",CKMAXPATH);
-                    p = vvbuf;
+                    if (vvbuf[0]) ckstrncat(vvbuf,"/",VVBUFL+1);
                 }
+                p = vvbuf;
             }
 #endif /* OS2ORUNIX */
 

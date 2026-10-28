@@ -246,3 +246,17 @@ def test_mjd2date_range(run_wermit, mjd, want):
     """Verify \\fmjd2date() accepts years 0 through 9999 only."""
     result = run_wermit(f"echo [\\fmjd2date({mjd})]")
     assert want in result.stdout + result.stderr, result.stdout
+
+
+def test_pathname_of_missing_dir_dotdot_is_root(run_wermit):
+    """Verify \\fpathname(/missing/..) is "/" with nothing after it."""
+    result = run_wermit("echo [\\fpathname(/nosuchdir_q/..)]")
+    assert "[/]" in result.stdout, result.stdout
+
+
+def test_fullversion_has_no_empty_test_tag(run_wermit):
+    """Verify \\v(fullversion) adds a test tag only for a test release."""
+    result = run_wermit("echo [\\v(fullversion)] [\\v(test)]")
+    full = result.stdout.split("[")[1].split("]")[0]
+    if "[0]" in result.stdout:
+        assert " " not in full and not full.endswith("."), full

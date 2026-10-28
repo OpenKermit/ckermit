@@ -7321,7 +7321,14 @@ case XXWAI:
 
 #ifndef NOFRILLS
 case XXWHO:
+#ifdef UNIX
+    return(hmsg("Syntax: WHO\n\
+  Lists the users who are logged in.  If the environment variable CK_WHO\n\
+  is set, WHO runs that command instead, followed by any text given after\n\
+  WHO."));
+#else
     return(hmsg("Syntax: WHO [ user ]\nDisplays info about the user."));
+#endif /* UNIX */
 
 case XXWRI:
     return(hmsga(hxxwri));

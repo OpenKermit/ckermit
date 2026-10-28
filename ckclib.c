@@ -1571,7 +1571,12 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
     matchdepth++;                       /* Now increment call depth */
 
 #ifdef UNIX
-    if (!dot) {                         /* For UNIX file globbing */
+/*
+  For UNIX file globbing, a name that starts with '.' matches only a
+  pattern that starts with '.'.  This applies at the start of the name
+  only, not to the remainder passed to a recursive call.
+*/
+    if (!dot && string == ostring) {
         if (*string == '.' && *pattern != '.' && !matchdot) {
             if (
 #ifdef CKREGEX

@@ -1,3 +1,6 @@
+import os
+import subprocess
+
 import pytest
 from conftest import assert_ok
 
@@ -585,6 +588,30 @@ def test_remote_who_without_name(tmp_path, wermit_loopback):
     assert_ok(result)
     assert "User name not supported" not in result.stdout, result.stdout
     assert "Can't do who command" not in result.stdout, result.stdout
+
+
+def _local_who(wermit_path, commands, ck_who):
+    """Run wermit with CK_WHO set to ck_who.  Return the CompletedProcess."""
+    env = dict(os.environ, CK_WHO=ck_who)
+    return subprocess.run(
+        [wermit_path, "-H", "-Y", "-C",
+         f"set command more-prompting off, {commands}, exit"],
+        stdin=subprocess.DEVNULL, capture_output=True, text=True,
+        timeout=30, env=env, start_new_session=True)
+
+
+def test_local_who_refuses_name(wermit_path):
+    """Verify WHO refuses a user name when it runs who."""
+    result = _local_who(wermit_path,
+                        "who root, echo STATUS=\\v(status)", "")
+    assert "User name not supported" in result.stdout, result.stdout
+    assert "STATUS=1" in result.stdout, result.stdout
+
+
+def test_local_who_ck_who_takes_text(wermit_path):
+    """Verify WHO passes its text to the CK_WHO command."""
+    result = _local_who(wermit_path, "who abc", "echo WHO-ARG")
+    assert "WHO-ARG abc" in result.stdout, result.stdout
 
 
 @pytest.mark.parametrize("arg", ["nosuchdir", "file.txt", "-h"])

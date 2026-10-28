@@ -2025,6 +2025,7 @@ struct keytab prmtab[] = {
     { "close-on-disconnect", XYDISC, CM_INV|CM_LOC },
 #endif /* NOLOCAL */
     { "cmd",              XYCMD,   CM_INV },
+    { "com",              XYCMD,   CM_INV|CM_ABR },
     { "command",          XYCMD,   0 },
     { "compatibility",    XYCOMPAT, 0 },
 #ifdef CK_SPEED
@@ -2705,6 +2706,12 @@ int nnets = (sizeof(netcmd) / sizeof(struct keytab));
 /* TCP options */
 
 struct keytab tcpopt[] = {
+    { "a",         XYTCP_ADDRESS, CM_INV|CM_ABR },
+    { "ad",        XYTCP_ADDRESS, CM_INV|CM_ABR },
+    { "add",       XYTCP_ADDRESS, CM_INV|CM_ABR },
+    { "addr",      XYTCP_ADDRESS, CM_INV|CM_ABR },
+    { "addre",     XYTCP_ADDRESS, CM_INV|CM_ABR },
+    { "addres",    XYTCP_ADDRESS, CM_INV|CM_ABR },
     { "address",   XYTCP_ADDRESS, 0 },
 #ifdef CK_IPV6
     { "address-family", XYTCP_AF, 0 },
@@ -3079,6 +3086,7 @@ struct keytab shotab[] = {
     { "ignore/double",SHDBL, CM_INV },
     { "iksd",         SHOIKS, CM_INV },
 #ifndef NOSPL
+    { "in",           SHINP, CM_INV|CM_ABR },
     { "input",        SHINP, 0 },
 #endif /* NOSPL */
 #ifdef CK_GETIFADDRS
@@ -13199,7 +13207,16 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n"
             printf("?Sorry, WHO command disabled\n");
             return(success = 0);
         }
-        if (!(wc = getenv("CK_WHO"))) wc = WHOCMD;
+        wc = getenv("CK_WHO");
+        if (!wc || !*wc) {
+            wc = WHOCMD;
+#ifdef UNIX
+            if (*ws) {                  /* who takes a file, not a user */
+                printf("?User name not supported\n");
+                return(success = 0);
+            }
+#endif /* UNIX */
+        }
         if (wc)
           if ((int) strlen(wc) > 0) {
               ckmakmsg(line,LINBUFSIZ,wc," ",ws,NULL);
@@ -13387,9 +13404,12 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n"
 #endif /* NOSPL */
 
     if (cx == XXKERMI) {                /* The KERMIT command */
-        char * list[65];
+        /* cmdlin() can leave cmlist pointing into list[] */
+        static char * list[65];
         extern char **xargv;
         extern int xargc;
+        char ** savargv = xargv;
+        int savargc = xargc;
         int i;
         if ((wy = cmtxt("kermit command-line arguments, -h for help",
                        "",&ws,xxstring)) < 0)
@@ -13406,6 +13426,8 @@ necessary DLLs did not load.  Use SHOW NETWORK to check network status.\n"
         xargv = list;
         xargv++;
         sstate = (CHAR)cmdlin();
+        xargv = savargv;                /* Restore the program's argv */
+        xargc = savargc;
         if (sstate) {
             extern int justone;
             debug(F000,"KERMIT sstate","",sstate);

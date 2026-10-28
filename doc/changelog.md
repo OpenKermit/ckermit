@@ -689,6 +689,12 @@ file, also reach it.
 
 ### Scripting and commands
 
+- [5] On Unix, WHO with a user name passed that name to who.  who read
+  the argument as a login database file.  WHO now refuses a user name
+  unless the CK_WHO environment variable is set.  HELP WHO describes
+  CK_WHO.  Bug was introduced in commit a213649d in C-Kermit 5A(188) of
+  1992.
+
 - [5, 6, 7, 8, 9] Division or modulus of the most negative integer by -1 killed
   Kermit with SIGFPE, and that number printed as "OVERFLOW".  `\fmax()`,
   `\fmin()`, `\fmod()` and `\frandom()` truncated values to 32 bits.  Numbers
@@ -733,6 +739,12 @@ file, also reach it.
 - [7] WAIT n FILE succeeded on timeout even if the event never happened.  Bug
   was introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
 
+- [7, 10] COPY named the source file when it failed to write the
+  destination.  TRANSMIT of a UCS-2 text file did not end lines at LF.
+  `\v(fullversion)` ended in " ." on release builds.  The first two were
+  introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000; the last in
+  commit 0c0c21f5 in C-Kermit 10.0 Beta.05 of 2022.
+
 - [8, 11] TYPE /WIDTH showed empty lines, or lines cut to the /TAIL count,
   instead of each line truncated to the given width.  It also put a NUL byte
   after each tab it expanded.  That extra byte moved the next tab stop one
@@ -747,6 +759,29 @@ file, also reach it.
   and the second could not.  Bug was introduced in commit 04917e78 in
   C-Kermit 304(dev05) of 2013.
 
+- [9] `\v(tmpdir)` gave the text "tmpdir", or whatever was in its result
+  buffer, when TMPDIR, CK_TMP, TEMP or TMP ended with a slash.  It now gives
+  that directory.  Kermit's temporary directory comes from `\v(tmpdir)` at
+  startup, so Kermit used the same wrong name.  Bug was introduced in commit
+  6100ebcc in C-Kermit 9.0.304 Dev.17 of 2016.
+
+- [10] COPY /TOSCREEN and COPY /INTERPRET end a line only at LF.  The code
+  took vertical tab for CR, so both commands ended a line at a vertical tab,
+  and COPY /INTERPRET turned each vertical tab into a line break.  CR and
+  vertical tab are now copied as they are.  Both commands also left out the
+  last line of a file that did not end with a newline.  COPY /INTERPRET
+  expanded each line into the buffer that held the destination name.  With a
+  wildcard and a directory as the target, the second and later files went to a
+  path made from the start of the previous file's last line.  Bugs were
+  introduced in commit 0c0c21f5 in C-Kermit 10.0 Beta.05 of 2022.
+
+- [10] `\fcvtdate()` did not convert Apache log dates such as
+  `[02/Jan/2024:03:04:05 +0000]`.  It removed every colon, including those
+  of the time.  It now replaces only the colon after the year, and accepts
+  the brackets.  Dates like `2024:01:02` lost their colons and converted,
+  and still do.  Bug was introduced in commit 7c4bb07e in C-Kermit 10.0
+  Dev.24 of 2020.
+
 - [11] `\fname2addr()` returns an IPv4 address when the name has one, as before
   IPv6 support, unless `SET TCP ADDRESS-FAMILY` selects IPv6.  Under the
   default `AUTO` it had returned the resolver's first answer, so
@@ -754,6 +789,19 @@ file, also reach it.
   name that has only one, and a numeric argument in any form the resolver
   accepts, such as `0x1F`, comes back in standard form.  Bug was introduced in
   commit 36668be5 in C-Kermit 11.0.501 of 2026.
+
+- [11] A '*' in a wildcard no longer matched a '.' inside a name when another
+  metacharacter followed it, so `\ffiles(a*?b)` missed `a.b`.  Bug was
+  introduced in commit a664a9cc in C-Kermit 11.0.509 of 2026.
+
+- [11] Abbreviations such as SET COM, SHOW IN, SET TCP ADDRESS and SET
+  RECEIVE CON had become ambiguous with new keywords, and GET /co meant
+  /confirm instead of /command.  The new keywords were added in C-Kermit
+  11.0.501, 11.0.505 and 11.0.506 of 2026.
+
+- [11] A doublequote after an escaped backslash, as in `"\\"`, did not end a
+  quoted field.  Bug was introduced in commit b06df387 in C-Kermit 11.0.506 of
+  2026.
 
 - [8] The S-expression power operator took one multiplication for each unit of
   an integer exponent, so `(^ 2 9000000000000000000)` ran for centuries, and
@@ -778,6 +826,9 @@ file, also reach it.
   REMOTE WHO and REMOTE SPACE run without the shell.  A Unix server
   refuses a REMOTE WHO name.  REMOTE SPACE refuses a name that is not an
   existing directory.
+
+- [5] On Unix, WHO refuses a user name unless the CK_WHO environment
+  variable names the command to run.
 
 - [4] A malformed packet ends the transfer with "Malformed packet data".
   A packet shorter than its block check is refused.
@@ -836,6 +887,10 @@ file, also reach it.
 
 - [9] `RENAME` fails with "?New name too long" when a new name does not
   fit.
+
+- [10] `COPY /TOSCREEN` and `COPY /INTERPRET` end lines only at LF.
+
+- [10] `\fcvtdate()` converts Apache log dates.
 
 - [11] RECEIVE CONFIRM prompts for files a recursive GET places outside
   the requested directory.

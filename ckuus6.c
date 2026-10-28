@@ -386,6 +386,7 @@ static struct keytab gettab[] = {       /* GET options */
     { "/calibrate",       SND_CAL, CM_INV },
 #endif /* CALIBRATE */
 #ifdef PIPESEND
+    { "/co",              SND_CMD, CM_INV|CM_ABR|CM_PSH },
     { "/command",         SND_CMD, CM_PSH },
 #endif /* PIPESEND */
     { "/confirm",         SND_CFM, CM_ARG },
@@ -429,6 +430,7 @@ static struct keytab rcvtab[] = {       /* RECEIVE options */
     { "/calibrate",       SND_CAL, CM_INV },
 #endif /* CALIBRATE */
 #ifdef PIPESEND
+    { "/co",              SND_CMD, CM_INV|CM_ABR|CM_PSH },
     { "/command",         SND_CMD, CM_PSH },
 #endif /* PIPESEND */
     { "/confirm",         SND_CFM, CM_ARG },
@@ -9694,33 +9696,41 @@ docopy() {
                 int p = 0;
                 int n = 0;
                 int linebufsize = 2000;
-                char prev9 = NUL;
                 char *linebuf;
+                char *xpbuf = NULL;     /* COPY /INTERPRET result */
                 linebuf = malloc(linebufsize + 2);
+                if (interpret)
+                  xpbuf = malloc(TMPBUFSIZ);
+                if (!linebuf || (interpret && !xpbuf)) {
+                    printf("?Memory allocation failure\n");
+                    rc = -1;
+                    goto xdocopy;
+                }
 /*
   This is the only portable way I can think of to read a line at a time.
   getline() isn't portable.  It has to be line by line so Kermit backslash
   escapes aren't broken across lines for COPY /INTERPRET.
 */
                 n = 0;
-                while (!feof(in)) {
+                while (1) {
+                    int atend = 0;      /* End of file after a partial line */
                     if (fread(&c,1,1,in) < 1) {
-                        break;
+                        if (p == 0)
+                          break;
+                        atend = 1;
                     }
-                    /* worry about LF vs CRLF... */
-                    if (c == '\013' || c == '\012') {
-                        if (p == 0 && c == '\012' && prev9 == '\013')
-                          continue;     /* Leftover LF from CRLF */
+                    /* LF ends a line.  CR and other bytes are data. */
+                    if (atend || c == '\012') {
                         linebuf[p] = 0; /* Null-terminate the line */
 #ifdef COPYINTERPRET
                         /* copy /INTERPRET - fdc 20220920 */
                         if (interpret) {
                             int zzrc = 0; /* Return code for zzstring */
                             int tmplen = TMPBUFSIZ;
-                            char * newbuf = tmpbuf; /* New string to create */
+                            char * newbuf = xpbuf; /* New string to create */
                             zzrc = zzstring(linebuf, &newbuf, &tmplen);
                             /* Replace original string */
-                            (void) ckstrncpy(linebuf, tmpbuf, linebufsize);
+                            (void) ckstrncpy(linebuf, xpbuf, linebufsize);
                         }
 #endif  /* COPYINTERPRET  */
                         n++;
@@ -9738,8 +9748,10 @@ docopy() {
 
                             printf("%s\n",linebuf);
                         } else {        /* or disk file */
-                            fprintf(out,"%s\n",linebuf);
+                            fprintf(out,atend ? "%s" : "%s\n",linebuf);
                         }
+                        if (atend)
+                          break;
                         for (i9 = 1; i9 < 100; i9++) { /* Clear buffer */
                             linebuf[i9] = NUL;
                         }
@@ -9747,7 +9759,6 @@ docopy() {
                     } else {            /* Normal case, accumulate the line */
                         linebuf[p++] = c;
                         linebuf[p] = NUL;
-                        prev9 = c;
                         if (p > linebufsize) { /* line too long */
                             rc = -1;
                             break;
@@ -9756,6 +9767,7 @@ docopy() {
                 }
               xdocopy:
                 free(linebuf);
+                if (xpbuf) free(xpbuf);
             }
             if (!toscreen) if (out) fclose(out);
             if (in) fclose(in);

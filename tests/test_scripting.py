@@ -1,4 +1,7 @@
 from pathlib import Path
+
+import pytest
+
 from conftest import assert_ok
 
 
@@ -92,3 +95,23 @@ def test_underscore_macro_name_not_internal(run_wermit):
     )
     assert_ok(result)
     assert "hi" in result.stdout
+
+
+@pytest.mark.parametrize("suffix", ["", "/"])
+def test_tmpdir_variable_from_environment(wermit_path, tmp_path, suffix):
+    """Verify \\v(tmpdir) gives TMPDIR with one trailing slash.
+
+    TMPDIR names tmp_path, with and without a trailing slash.  CK_TMP
+    comes first, so the test removes it.
+    """
+    import os
+    import subprocess
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("CK_TMP", "TEMP", "TMP")}
+    env["TMPDIR"] = f"{tmp_path}{suffix}"
+    result = subprocess.run(
+        [wermit_path, "-H", "-Y", "-Q", "-C",
+         "echo T=[\\v(tmpdir)], exit"],
+        stdin=subprocess.DEVNULL, capture_output=True, text=True,
+        timeout=30, env=env)
+    assert f"T=[{tmp_path}/]" in result.stdout, result.stdout

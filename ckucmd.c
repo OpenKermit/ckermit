@@ -64,6 +64,7 @@ int cmdmsk = 255;                       /* 31 Dec 2000 (was 127) */
 _PROTOTYP( int nlookup, (struct keytab [], char *, int, int *) );
 _PROTOTYP( int unhex, (char) );
 _PROTOTYP( static VOID cmdclrscn, (void) );
+_PROTOTYP( static int cmdqodd, (char *, char *) );
 
 #ifdef CKLEARN
 _PROTOTYP( VOID learncmd, (char *) );
@@ -4173,7 +4174,7 @@ cmcvtdate(s,t) char * s; int t;
     char yearbuf[5];
     char cdcc;
     char * dp = NULL;                   /* Result pointer */
-    char * newdate = NULL;
+    char newdate[DATEBUFLEN+1];         /* Apache date without colons */
     char * datepat = "[12][0-9][0-9][0-9]:[0-9][0-9]:[0-9][0-9]";
 
     if (!s) s = "";
@@ -4182,12 +4183,33 @@ cmcvtdate(s,t) char * s; int t;
 
     while (*s == SP) s++;               /* Gobble any leading blanks */
     if (ckmatch(datepat,s,0,4)) {       /* Check for Apache web log format */
-        int i9, j9 = 0;
-        newdate = (char *)malloc((len + 1) * sizeof(char *));
-        for (i9 = 0; i9 <= len; i9++) {    /* Loop to remove colons */
-            if (s[i9] != ':') newdate[j9++] = s[i9];
-            if (s[i9] == NUL) break;
+/*
+  An Apache log date is [dd/Mon/yyyy:hh:mm:ss +zzzz].  Drop the brackets
+  and put a space in place of the colon after the year, so the colons of
+  the time stay.  Other matches, such as yyyy:mm:dd, lose every colon.
+*/
+        int i9, j9 = 0, yc = -1;
+        if (*s == '[')
+          s++;
+        for (i9 = 4; s[i9]; i9++) {     /* Find the colon after the year */
+            if (s[i9] == ':' &&
+                isdigit(s[i9-1]) && isdigit(s[i9-2]) &&
+                isdigit(s[i9-3]) && isdigit(s[i9-4])) {
+                yc = i9;
+                break;
+            }
         }
+        if (yc < 5 || s[yc-5] != '/')   /* Not dd/Mon/yyyy:... */
+          yc = -1;
+        for (i9 = 0; s[i9] && j9 < DATEBUFLEN; i9++) {
+            if (i9 == yc)
+              newdate[j9++] = SP;       /* Year-hour separator */
+            else if (s[i9] != ':' || yc > -1)
+              newdate[j9++] = s[i9];
+        }
+        if (j9 > 0 && newdate[j9-1] == ']')
+          j9--;
+        newdate[j9] = NUL;
         s = newdate;                    /* Replace arg with result */
     }
     if (isalpha(*s))                    /* Remember if 1st char is a letter */
@@ -6366,6 +6388,26 @@ unungw() {
     }
 }
 
+/*
+  Return 1 if the character at q is escaped.  That is, it follows an
+  odd number of consecutive CMDQ characters, counting back no further
+  than s.
+*/
+static int
+#ifdef CK_ANSIC
+cmdqodd( char * s, char * q )
+#else
+cmdqodd(s,q) char * s, * q;
+#endif /* CK_ANSIC */
+{
+    int n = 0;
+    while (q > s && *(q-1) == CMDQ) {
+        n++;
+        q--;
+    }
+    return(n & 1);
+}
+
 static int
 #ifdef CK_ANSIC
 gtword( int brk )
@@ -6744,7 +6786,7 @@ CMDIRPARSE:
                     */
                     if ((!dq && ((*pp != lbrace) || (bracelvl == 0))) ||
                         (dq && dqn > 1 && *(bp-2) == '"' &&
-                         (bp < pp + 3 || *(bp-3) != CMDQ))) {
+                         !cmdqodd(pp,bp-2))) {
                         np = bp;     /* If field-terminating space, return. */
                         cmbptr = np;
                         if (setatm(pp,0) < 0) {
@@ -7402,7 +7444,7 @@ setatm(cp,fcode) char *cp; int fcode;
             if (dq && fcode != 1 && fcode != 3) {
                 if (*cp == SP || *cp == HT) {
                     if (cp > dqp+1) {
-                        if (*(cp-1) == '"' && *(cp-2) != CMDQ) {
+                        if (*(cp-1) == '"' && !cmdqodd(dqp+1,cp-1)) {
                             break;
                         }
                     }

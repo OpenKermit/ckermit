@@ -2308,6 +2308,11 @@ zgetfs(name) char *name;
         linkname[0] = '\0';
         errno = 0;
         x = (int)readlink(s,linkname,CKMAXPATH);
+        if (x > -1 && x < CKMAXPATH) {
+            zgfs_link = 1;
+            linkname[x] = '\0';
+        } else                          /* Failed or truncated */
+          linkname[0] = '\0';
 #ifdef DEBUG
         debug(F111,"zgetfs readlink",s,x);
         if (x < 0)
@@ -2315,10 +2320,6 @@ zgetfs(name) char *name;
         else
           debug(F110,"zgetfs readlink result",linkname,0);
 #endif /* DEBUG */
-        if (x > -1 && x < CKMAXPATH) {
-            zgfs_link = 1;
-            linkname[x] = '\0';
-        }
     }
 #else  /* !CKSYMLINK */
     x = stat(s,&buf);                   /* Just stat the file */
@@ -4232,7 +4233,8 @@ zrename(old,new) char *old, *new;
   -3 = source file not found.
   -4 = permission denied.
   -5 = source and destination are the same file.
-  -6 = i/o error.
+  -6 = i/o error reading the source.
+  -7 = i/o error writing the destination, with errno set.
   -1 = other error.
 */
 int
@@ -4355,15 +4357,18 @@ zcopy(source,destination) char *source, *destination;
         if (out > -1) {                 /* If open... */
             while ((x = (int)read(in,buf,1024)) > 0) { /* Copy in 1K blocks */
                 y = (int)write(out,buf,x);
-                if (y < 0) {            /* On write failure */
-                    x = -1;
-                    rc = -6;            /* Indicate i/o error */
+                if (y != x) {           /* Write failure or short write */
+                    if (y >= 0)
+                      errno = EIO;
                     break;
                 }
             }
             debug(F101,"zcopy final read","",x);
             debug(F101,"zcopy errno","",errno);
-            rc = (x == 0) ? 0 : -6;     /* In case of read failure */
+            if (x > 0)                  /* Stopped by a write failure */
+              rc = -7;
+            else
+              rc = (x == 0) ? 0 : -6;   /* End of file or read failure */
         }
     }
     if (in > -1) close(in);             /* Close files */
@@ -7627,7 +7632,7 @@ zfnqfp(fname, buflen, buf)  char * fname; int buflen; char * buf;
 
     if (!buf[0]) {                      /* If empty, say root */
         buf[0] = '/';
-        buf[2] = NUL;
+        buf[1] = NUL;
         j = 0;
         i = 1;
     }

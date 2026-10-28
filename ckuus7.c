@@ -1924,6 +1924,8 @@ struct keytab srtab[] = {
 #ifndef NOCSETS
     { "character-set-selection", XYCSET, 0 },
 #endif /* NOCSETS */
+    { "co", XYQCTL, CM_INV|CM_ABR },
+    { "con", XYQCTL, CM_INV|CM_ABR },
     { "confirm", XYRCONFIRM, 0 },
     { "control-prefix", XYQCTL, 0 },
 #ifdef CKXXCHAR

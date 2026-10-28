@@ -54,13 +54,19 @@ def run_faulted(wermit_path, lib, func, n, cmds, cwd, timeout=30, count=1):
 @pytest.mark.parametrize("func", ["read", "write"])
 @pytest.mark.parametrize("n", [1, 2, 3])
 def test_copy_reports_io_error(wermit_path, faultinj, tmp_path, func, n):
-    """Verify COPY fails when a read or write of the file fails."""
+    """Verify COPY fails when a read or write of the file fails.
+
+    The message names the file that failed: the source for a read, the
+    destination for a write.
+    """
     (tmp_path / "f.txt").write_text("line one\nline two\n" * 200)
     result = run_faulted(wermit_path, faultinj, func, n,
                          "copy f.txt g.txt, echo S=\\v(status)", tmp_path)
     assert result.returncode == 0, result.stderr
     assert "S=1" in result.stdout, result.stdout
-    assert "Input/Output error" in result.stdout, result.stdout
+    assert "input/output error" in result.stdout.lower(), result.stdout
+    name = "f.txt" if func == "read" else "g.txt"
+    assert f"error - {name}" in result.stdout, result.stdout
 
 
 @pytest.mark.parametrize("n", [1, 2, 3])
