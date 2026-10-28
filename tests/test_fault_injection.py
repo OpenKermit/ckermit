@@ -9,6 +9,7 @@ does not hang or crash.  They need glibc on Linux and a C compiler.
 import http.server
 import os
 import platform
+import pty
 import shutil
 import subprocess
 import threading
@@ -409,3 +410,37 @@ def test_write_failures_in_transfer_end_promptly(wermit_path, faultinj,
                 or received.read_text() != (tmp_path / "f.txt").read_text()):
             bad.append((n, "success without the file"))
     assert not bad, bad
+
+
+def test_set_line_lock_write_failure(wermit_path, faultinj, tmp_path):
+    """Verify SET LINE warns and leaves no lock when the PID write fails.
+
+    The failed write is the first write to a descriptor above 2.  SET
+    LINE succeeds without a lock, and a later SET LINE of the same
+    device succeeds.
+    """
+    if not os.access("/var/lock", os.W_OK):
+        pytest.skip("/var/lock is not writable")
+    master, slave = pty.openpty()
+    try:
+        name = os.ttyname(slave)
+        lock = "/var/lock/LCK.." + os.path.basename(name)
+        if os.path.exists(lock):
+            try:
+                os.unlink(lock)
+            except OSError:
+                pytest.skip(f"{lock} exists")
+        cmds = f"set line {name}, echo S=\\v(status), close"
+        result = run_faulted(wermit_path, faultinj, "write", 1, cmds,
+                             tmp_path)
+        assert "S=0" in result.stdout, result.stdout
+        assert ("Warning - Can't write lockfile " + lock
+                in result.stdout), result.stdout
+        assert not os.path.exists(lock)
+        result = run_faulted(wermit_path, faultinj, "write", 0, cmds,
+                             tmp_path)
+        assert "S=0" in result.stdout, result.stdout
+        assert "Warning" not in result.stdout, result.stdout
+    finally:
+        os.close(master)
+        os.close(slave)

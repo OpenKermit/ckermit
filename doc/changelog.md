@@ -355,6 +355,14 @@ COMPATIBILITY`.
   dates from commit c88d9b85 in C-Kermit 8.0.200 of 2001.  The others date
   from commit 8fed15a6 in C-Kermit 10.0 Beta.09 of 2023.
 
+### Dialing and serial lines
+
+- [6, 7] DIAL and LOOKUP read past a stack buffer when a portable phone number
+  had a country code longer than 127 digits or an area code longer than 23.
+  The dial log line was sized from an uninitialized buffer.  Bugs were
+  introduced in commit 4b5eddea in C-Kermit 6.0.192 of 1996 (DIAL and LOOKUP)
+  and commit d0f8b1da in C-Kermit 7.0.197 of 2000 (dial log).
+
 ### Scripting and commands
 
 These bugs are in the command language.  A remote user can trigger it at the
@@ -656,9 +664,28 @@ file, also reach it.
 
 ### Dialing and serial lines
 
+- [5] When SET LINE cannot write its PID into the UUCP lock file, it removes
+  the temporary file, prints a warning and uses the device without a lock.  It
+  used to install a lock file without a PID.  Such a lock never looks stale, so
+  the device stayed locked until someone removed the file.  Bug was introduced
+  in commit a213649d in C-Kermit 5A(188) of 1992.
+
 - [6] LOOKUP and DIAL crashed when a dialing directory before a good one
   could not be opened.  Bug was introduced in commit 4b5eddea in C-Kermit
   6.0.192 of 1996.
+
+- [7] When a name in the dialing directory had several numbers and one was a
+  PBX internal call, DIAL and LOOKUP gave the internal call type to another
+  number in the list.  The internal number kept the local type, or no type.
+  SET DIAL SORT and SET DIAL RESTRICT then used the wrong types.  Bug was
+  introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
+
+- [11] `%%` in SET MODEM DIAL-COMMAND sends one `%` again, as it did
+  before C-Kermit 11.0.501.  Since then DIAL replaced the first `%s` with
+  the number and sent `%%` as two characters.  HELP SET MODEM DIAL-COMMAND
+  now describes the rule.  Added regression tests that drive DIAL
+  against a scripted modem on a pseudoterminal.  The change came with
+  commits 9f732296 and 55973561 in C-Kermit 11.0.501 of 2026.
 
 ### Scripting and commands
 
@@ -755,6 +782,9 @@ file, also reach it.
 - [4] A malformed packet ends the transfer with "Malformed packet data".
   A packet shorter than its block check is refused.
 
+- [5] SET LINE uses the device without a lock, with a warning, when it
+  cannot write its lock file.
+
 - [5] `\fmjd2date()` accepts dates from 0000-01-01 through 9999-12-31.
 
 - [5, 6, 7, 8, 9] `\fmax()`, `\fmin()`, `\fmod()` and `\frandom()` take
@@ -817,6 +847,8 @@ file, also reach it.
 - [11] "No files were transferred" appears only where nothing visible
   states the result.  A successful FULLSCREEN transfer prints a one-line
   summary when the display is erased.
+
+- [11] `%%` in SET MODEM DIAL-COMMAND sends one `%`.
 
 - [11] `\fname2addr()` prefers an IPv4 address under `SET TCP
   ADDRESS-FAMILY AUTO`.

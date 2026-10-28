@@ -5067,6 +5067,54 @@ static char * ws;                       /* ws = wake string */
 static char * xnum = NULL;
 static int inited = 0;
 
+/*
+  Build the dial string in buf (buflen bytes) from the dial command fmt
+  and the number num.  The first "%s" becomes num, and "%%" becomes "%".
+  Every other byte is copied as it is.  When fmt has no "%s", a space
+  and num follow it.  Returns 1, or 0 when the result does not fit.
+*/
+static int
+#ifdef CK_ANSIC
+dialsubst(char * fmt, char * num, char * buf, int buflen)
+#else
+dialsubst(fmt,num,buf,buflen) char * fmt, * num, * buf; int buflen;
+#endif /* CK_ANSIC */
+{
+    int i = 0, k, done = 0;
+
+    if (!fmt) fmt = "";
+    if (!num) num = "";
+    if (buflen < 1)
+      return(0);
+    while (*fmt) {
+        if (fmt[0] == '%' && fmt[1] == '%') {
+            if (i >= buflen - 1) return(0);
+            buf[i++] = '%';
+            fmt += 2;
+        } else if (!done && fmt[0] == '%' && fmt[1] == 's') {
+            for (k = 0; num[k]; k++) {
+                if (i >= buflen - 1) return(0);
+                buf[i++] = num[k];
+            }
+            done = 1;
+            fmt += 2;
+        } else {
+            if (i >= buflen - 1) return(0);
+            buf[i++] = *fmt++;
+        }
+    }
+    if (!done) {
+        if (i >= buflen - 1) return(0);
+        buf[i++] = ' ';
+        for (k = 0; num[k]; k++) {
+            if (i >= buflen - 1) return(0);
+            buf[i++] = num[k];
+        }
+    }
+    buf[i] = NUL;
+    return(1);
+}
+
 static SIGTYP
 #ifdef CK_ANSIC
 _dodial(void * threadinfo)
@@ -5800,7 +5848,7 @@ _dodial(threadinfo) VOID * threadinfo;
         inited = 1;                     /* Remember modem is initialized */
 
       REDIAL:
-        if (!ckoptsubst(dcmd,xnum,lbuf,LBUFL))
+        if (!dialsubst(dcmd,xnum,lbuf,LBUFL))
           ckstrncpy(lbuf,"NUMBER TOO LONG!",LBUFL);
         debug(F110,"dialing",lbuf,0);
         /* Send the dialing string */

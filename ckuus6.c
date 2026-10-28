@@ -2188,10 +2188,11 @@ dncvt(k,cx, prefix, suffix) int k, cx, prefix, suffix;
             if (isdigit(*ws))
               ccbuf[i++] = *ws;          /* copy this character */
             ws++;
-            if (!*ws || i > 127)         /* watch out for memory leak */
+            if (!*ws || i >= (int)sizeof(ccbuf) - 1) /* Leave room for NUL */
               break;
         }
     }
+    ccbuf[i] = NUL;
     cc = atoi(ccbuf);                   /* Numeric version of country code */
 
     i = 0;                              /* Now get area code */
@@ -2210,10 +2211,11 @@ dncvt(k,cx, prefix, suffix) int k, cx, prefix, suffix;
             if (isdigit(*ws))            /* If it's a digit, */
               acbuf[i++] = *ws;          /* copy this character */
             ws++;                        /* Point to next */
-            if (!*ws || i > 23)          /* Watch out for overflow */
+            if (!*ws || i >= (int)sizeof(acbuf) - 1) /* Leave room for NUL */
               break;
         }
     }
+    acbuf[i] = NUL;
 
 /*
    Here we strip any leading 0 for countries that we know have
@@ -2341,7 +2343,7 @@ dncvt(k,cx, prefix, suffix) int k, cx, prefix, suffix;
                         char * icp, buf[33];
                         makestr(&matchpxx,dialpxx[kx]);
                         debug(F111,"dncvt matchpxx",matchpxx,kx);
-                        what9 = dn_x[kx] = DN_INTERN;   /* Internal call. */
+                        what9 = dn_x[k] = DN_INTERN;   /* Internal call. */
                         ws += i;
                         /* Internal-call prefix */
                         icp = dialpxi;
@@ -2452,7 +2454,7 @@ dncvt(k,cx, prefix, suffix) int k, cx, prefix, suffix;
                 char * icp, buf[33];
                 makestr(&matchpxx,dialpxx[kx]);
                 debug(F111,"dncvt matchpxx",matchpxx,kx);
-                what9 = dn_x[kx] = DN_INTERN; /* Internal call. */
+                what9 = dn_x[k] = DN_INTERN; /* Internal call. */
                 ws = xbuf + j9 + i;
                 icp = dialpxi;          /* Internal-call prefix */
 #ifndef NOSPL
@@ -2569,11 +2571,12 @@ ddcvt(s, f, n) char * s; FILE * f; int n;
 
     debug(F110,"ddcvt file",s,0);
 
-    if (!s || !f)                       /* No filename or file */
+    if (!f)                             /* No file */
       return(-1);
-    if (!*s)
-
-    fclose(f);
+    fclose(f);                          /* ddcvt() opens it again */
+    f = NULL;
+    if (!s || !*s)                      /* No filename */
+      return(-1);
     znewn(s,&s2);                       /* s2 = address of static buffer */
     debug(F110,"ddcvt newname",s2,0);
 

@@ -5711,15 +5711,34 @@ ttlock(ttdev) char *ttdev;
 #endif /* LINUXFSSTND */
             (int) pid
             );                          /* safe */
-    dummy = (int)write(lockfd, pid_str, 11);
+    x = (int)strlen(pid_str);
+    n = (int)write(lockfd, pid_str, x);
     debug(F111,"ttlock hdb pid string",pid_str,(int) pid);
 
 #else /* Not PIDSTRING, use integer PID */
 
-    write(lockfd, (char *)&pid, sizeof(pid) );
+    x = (int)sizeof(pid);
+    n = (int)write(lockfd, (char *)&pid, sizeof(pid));
     debug(F101,"ttlock pid","",(int) pid);
 
 #endif /* PIDSTRING */
+
+/*
+  A lock file without a complete PID never looks stale, and it would
+  lock the device until someone removed it by hand.  So when the write
+  fails, remove the temporary file and use the device without a lock.
+*/
+    if (n != x) {
+        debug(F111,"ttlock pid write failed",tmpnam,n);
+        close(lockfd);
+        unlink(tmpnam);
+        if (priv_chk())
+          debug(F100,"ttlock priv_chk failed to drop privileges","",0);
+        printf("Warning - Can't write lockfile %s - %s not locked\n",
+               flfnam, ttdev);
+        *flfnam = '\0';
+        return(0);
+    }
 
 /* Now try to rename the temp file to the real lock file name. */
 /* This will fail if a lock file of that name already exists.  */
@@ -5963,6 +5982,22 @@ ttlock(ttdev) char *ttdev;
 #endif /* DEBUG */
 
 /*
+  A lock file without a complete PID never looks stale.  When the write
+  fails, remove the temporary file and use the device without a lock.
+*/
+    if (i != (int)sizeof(pid)) {
+        close(lockfd);
+        unlink(tmpnam);
+        priv_chk();
+        printf("Warning - Can't write lockfile %s - %s not locked\n",
+               flfnam, ttdev);
+        *flfnam = '\0';
+        lock2[0] = '\0';
+        debug(F101,"TTLOCK returns","",0);
+        return(0);
+    }
+
+/*
   Now try to rename the temporary file to the real lockfile name.
   This will fail if a lock file of that name already exists, which
   will catch race conditions with other users.
@@ -5980,9 +6015,14 @@ ttlock(ttdev) char *ttdev;
                     lockfd = creat(lock2, 0444); /* Create it */
                     debug(F111,"TTLOCK lock2 creat", lock2, lockfd);
                     if (lockfd > -1) {  /* Created OK, write pid. */
-                        write(lockfd, (char *)&pid, sizeof(pid) );
+                        i = write(lockfd, (char *)&pid, sizeof(pid));
                         close(lockfd);  /* Close and */
-                        chmod(lock2, 0444); /* set permissions. */
+                        if (i == (int)sizeof(pid)) {
+                            chmod(lock2, 0444); /* set permissions. */
+                        } else {        /* Remove a lock without a PID. */
+                            unlink(lock2);
+                            lock2[0] = '\0';
+                        }
                     } else {             /* Not OK, but don't fail. */
                         lock2[0] = '\0'; /* Just remember it's not there. */
                     }
