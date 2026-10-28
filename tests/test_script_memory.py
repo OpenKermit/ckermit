@@ -88,8 +88,15 @@ def test_script_function_memory(run_wermit, tmp_path, name):
     ("abcx,abcy,0,1,3", 0),
     ("abc,abd,0,-5", -1),
 ])
-def test_strcmp_compares_arguments(run_wermit, tmp_path, args, sign):
-    """Verify \\fstrcmp() compares its first two arguments."""
+def test_strcmp_compares_arguments(run_wermit, tmp_path, monkeypatch,
+                                   args, sign):
+    """Verify \\fstrcmp() compares its first two arguments.
+
+    ckstrcmp() compares characters with strcoll().  The C locale gives
+    the byte order the expected signs assume.  In en_US.UTF-8 on macOS,
+    "a" sorts before "A".
+    """
+    monkeypatch.setenv("LC_ALL", "C")
     script = tmp_path / "t.ksc"
     script.write_text(f"echo RESULT=[\\fstrcmp({args})]\n")
     result = run_wermit(f"take {script}")
