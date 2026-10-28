@@ -5611,7 +5611,8 @@ domydir(cx) int cx;
     char linebuf[CKMAXPATH+CKMAXPATH+256];
     char string1[1024], string2[1024];  /* For CHANGE */
     char modtime[100];
-    char * mstr = NULL, * dstr = NULL, * s2 = NULL, * cv = NULL;
+    char * mstr = NULL, * dstr = NULL, * s2 = NULL;
+    static char * cv = NULL;            /* /COUNT: variable name */
     CK_OFF_T len = (CK_OFF_T)0, nbytes = (CK_OFF_T)0;
     CK_OFF_T minsize = (CK_OFF_T)-1, maxsize = (CK_OFF_T)-1;
     long ndirs = 0, nfiles = 0, nmatches = 0;
@@ -5646,7 +5647,11 @@ domydir(cx) int cx;
     char array = NUL;
     char ** ap = NULL;
 #endif /* NOSPL */
-    char
+/*
+  The switch values are static so that an early return does not leak
+  them.  Each call starts with none.
+*/
+    static char
       * dir_aft = NULL,
       * dir_bef = NULL,
       * dir_naf = NULL,
@@ -5655,6 +5660,12 @@ domydir(cx) int cx;
     char * xlist[16];
 
     debug(F101,"domydir cx","",cx);
+    makestr(&dir_aft,NULL);
+    makestr(&dir_bef,NULL);
+    makestr(&dir_naf,NULL);
+    makestr(&dir_nbf,NULL);
+    makestr(&dir_exc,NULL);
+    makestr(&cv,NULL);
 
     chgsourcedir[0] = NUL;              /* CHANGE source directory */
     chgdestdir[0] = NUL;                /* CHANGE destination directory */
@@ -7115,6 +7126,10 @@ preserving original modtime: %s %s\n",
         g_matchdot = -1;
     }
     freedirlist();
+    for (i = 0; i < 16; i++) {          /* Free the /EXCEPT: list */
+        if (xlist[i]) free(xlist[i]);
+        xlist[i] = NULL;
+    }
     if (ofp != stdout) {                /* Close any output file */
         if (ofp) fclose(ofp);
         ofp = stdout;
@@ -9521,6 +9536,7 @@ docopy() {
                       printf("(FAILED: Source and destination identical)\n");
                     else if (!nolist)
                       printf("?Source and destination identical - %s\n", line);
+                    fclose(in);
                     rc = 0;
                     continue;
                 }
@@ -9586,18 +9602,6 @@ docopy() {
             } else if (fromb64) {       /* Converting from Base 64 */
 
                 debug(F110,"COPY fromb64",line,0);
-
-                if (toscreen == 0) {
-                    if ((out = fopen(wp,appending ? "a" : "w")) == NULL) {
-                        fclose(in);
-                        if (listing)
-                          printf("(FAILED: %s - %s)\n",wp,ck_errstr());
-                        else if (!nolist)
-                          printf("?%s - %s\n",wp,ck_errstr());
-                        rc = 0;
-                        continue;
-                    }
-                }
                 cx9 = 1;
                 while (cx9) {
                     cx9 = (int)fread(ibuf,1,80,in);
@@ -10152,12 +10156,19 @@ renameone(old,new,
                 if (s1) {
                     (VOID) gnirts(bp[1],s1,len1+1);
                     bp[1] = s1;
-                } else return(0);
+                } else {
+                    free(s0);
+                    return(0);
+                }
                 s2 = (char *)malloc(len2+1); /* Reverse replacement string */
                 if (s2) {
                     (VOID) gnirts(bp[2],s2,len2+1);
                     bp[2] = s2;
-                } else return(0);
+                } else {
+                    free(s0);
+                    free(s1);
+                    return(0);
+                }
                 debug(F111,"RENAMEONE s0",s0,len0);
                 debug(F111,"RENAMEONE s1",s1,len1);
                 debug(F111,"RENAMEONE s2",s2,len2);
@@ -11368,27 +11379,18 @@ doxget(cx) int cx;
     debug(F101,"xget confirmed","",confirmed);
 
     /*
-      cmarg holds the request text exactly as typed, quoting and all
-      (cmtxt()/cmfld() only decide where the field ends; xxstring()
-      has already resolved any backslash escapes over the whole
-      field, but has not touched the {}/"" delimiters themselves).
+      cmarg holds the request text as typed, with its braces and
+      doublequotes.  cmtxt() and cmfld() only find where the field
+      ends, and xxstring() has resolved backslash escapes.
 
-      For MGET, that text can name several files, each individually
-      grouped with {braces} or "doublequotes". cksplit(),
-      used by xwords() for this same two-delimiter grouping,
-      splits it into plain per-name strings with the delimiters
-      removed. For GET/REGET/RETRIEVE there is only ever one name,
-      so brstrip() does this correctly.
+      For MGET the text can name several files, each grouped with
+      braces or doublequotes.  cksplit(), as xwords() uses it, splits
+      the text into names without their delimiters.  GET, REGET and
+      RETRIEVE take one name, and brstrip() removes its delimiters.
 
-      Either way, each resolved name is then re-quoted in canonical
-      brace form for the wire via brquote () if it still needs
-      protection from fnsplit()'s tokenizing on the far end (a space,
-      or a literal leading '{'); the far end never needs to
-      understand doublequote grouping at all.
-
-      This replaces the single whole-string brstrip() call that used
-      to run here unconditionally, which could not tell one quoted
-      name from several and mangled the latter.
+      brquote() then puts each name that holds a space or starts with
+      '{' in braces, so that fnsplit() at the far end keeps it whole.
+      The far end does not need to know doublequote grouping.
     */
     if (mget) {
         struct stringarray * sa;

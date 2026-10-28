@@ -1792,6 +1792,7 @@ scanfile(name,flag,sfmax) char * name; int * flag, sfmax;
             }
             if (incl_cnt) {             /* Have BOM */
                 bytes += count;
+                fclose(fp);
                 goto xscanfile;
             }
         }

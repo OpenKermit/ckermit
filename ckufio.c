@@ -1511,7 +1511,8 @@ zopeno(n,name,zz,fcb) int n; char *name; struct zattr *zz; struct filinfo *fcb;
             if (isatty(fd)) {
                 filefd = fd;
                 istty++;
-            }
+            } else
+              close(fd);                /* fopen() opens it again */
         }
     }
     debug(F111,"zopeno istty",name,istty);
@@ -3345,6 +3346,12 @@ zxpipe(filnum,comand,argv) int filnum; char *comand; char **argv;
     zxcloexec(pipes[0]);
     ispipe[filnum] = 1;                 /* Remember it's a pipe */
     fp[filnum] = fdopen(pipes[0],"r");  /* Open a stream for input. */
+    if (!fp[filnum]) {                  /* Out of memory */
+        debug(F100,"zxcmd fdopen failure","",0);
+        close(pipes[0]);
+        ispipe[filnum] = 0;
+        return(0);
+    }
 
 #ifdef DONDELAY
 #ifdef SELECT
@@ -4169,8 +4176,10 @@ zrename(old,new) char *old, *new;
 
 #ifdef IKSD
     if (inserver && (!ENABLED(en_del))) {
-        if (zchki(s) > -1)              /* Destination file exists? */
-          return(-1);
+        if (zchki(s) > -1) {            /* Destination file exists? */
+            if (p) free(p);
+            return(-1);
+        }
     }
 #endif /* IKSD */
 
@@ -5991,7 +6000,11 @@ splitpath(p) char *p;
         /* debug(F101,"splitpath malloc","",cur); */
         if (cur == NULL) {
             debug(F100,"splitpath malloc failure","",0);
-            prv -> fwd = NULL;
+            while (head) {              /* Free the segments made so far */
+                prv = head -> fwd;
+                free((char *)head);
+                head = prv;
+            }
             return((struct path *)NULL);
         }
         cur -> fwd = NULL;
@@ -6032,6 +6045,14 @@ splitpath(p) char *p;
     if (prv) {
         makestr(&xpatlast,prv -> npart);
         debug(F110,"splitpath xpatlast",xpatlast,0);
+        if (!xpatlast) {                /* Out of memory */
+            while (head) {
+                prv = head -> fwd;
+                free((char *)head);
+                head = prv;
+            }
+            return((struct path *)NULL);
+        }
     }
 #ifdef DEBUG
     /* Show original path list */
@@ -6127,6 +6148,14 @@ fgen(pat,resarry,len) char *pat,*resarry[]; int len;
 
     makestr(&xpat,pat);                 /* Save copy of original pattern */
     debug(F110,"fgen scratch",scratch,0);
+    if (!xpat) {                        /* Out of memory */
+        while (head != NULL) {
+            struct path *next = head -> fwd;
+            free((char *)head);
+            head = next;
+        }
+        return(-1);
+    }
 
     for (n = 0, s = xpat; *s; s++)      /* How many slashes in the pattern */
       if (*s == DIRSEP)                 /* since these are fences for */
@@ -6136,8 +6165,14 @@ fgen(pat,resarry,len) char *pat,*resarry[]; int len;
 
     numfnd = 0;                         /* None found yet */
 
-    if (initspace(resarry,ssplen) < 0)
-      return(-1);
+    if (initspace(resarry,ssplen) < 0) {
+        while (head != NULL) {          /* Free path segment list */
+            struct path *next = head -> fwd;
+            free((char *)head);
+            head = next;
+        }
+        return(-1);
+    }
 
     xpatwild = iswild(xpat);            /* Original pattern is wild? */
     xpatabsolute = isabsolute(xpat);
@@ -6548,7 +6583,7 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
                     segisdir
                     );
               addresult(sofar,itsadir);
-              if (numfnd < 0) return;
+              if (numfnd < 0) break;      /* The list is full */
           }
 #endif /* RECURSIVE */
 
@@ -6633,7 +6668,7 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
                   debug(F110,
                         "traverse add: match && !itsadir",sofar,0);
                   addresult(sofar,itsadir);
-                  if (numfnd < 0) return;
+                  if (numfnd < 0) break;      /* The list is full */
               } else if (itsadir && (xrecursive || mresult)) {
                   struct path * xx = NULL;
                   *eos++ = DIRSEP;      /* Add directory separator */
@@ -6643,11 +6678,13 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
 
                   if (xrecursive > 0 && !(pl -> fwd)) {
                       xx = (struct path *) malloc(sizeof (struct path));
-                      pl -> fwd = xx;
-                      if (xx) {
-                          xx -> fwd = NULL;
-                          strcpy(xx -> npart, pl -> npart); /* safe */
+                      if (!xx) {        /* Out of memory: stop here */
+                          numfnd = -1;
+                          break;
                       }
+                      pl -> fwd = xx;
+                      xx -> fwd = NULL;
+                      strcpy(xx -> npart, pl -> npart); /* safe */
                   }
 #endif /* RECURSIVE */
                   traverse(pl -> fwd, sofar, eos); /* Traverse new directory */
@@ -7146,7 +7183,8 @@ iswild(filespec) char *filespec;
         if ((x = nzxpand(filespec,0)) > 1)
           return(1);
         if (x == 0) return(0);          /* File does not exist */
-        p = malloc(CKMAXNAM + 20);
+        if (!(p = malloc(CKMAXNAM + 20)))
+          return(1);                    /* Can't tell, so treat as wild */
         znext(p);
         x = (strcmp(filespec,p) != 0);
         free(p);
@@ -7349,8 +7387,10 @@ zmkdir(path) char *path;
         *xp = NUL;                      /* Make this the end of the string. */
         if (!isdir(tp)) {               /* This directory exists already? */
 #ifdef IKSD
-            if (isguest)                    /* Not allowed for guests */
-              return(-1);
+            if (isguest) {              /* Not allowed for guests */
+                free(tp);
+                return(-1);
+            }
 #endif /* IKSD */
 #ifndef NOXFER
             /* Nor if MKDIR and/or CD are disabled */
@@ -7358,8 +7398,10 @@ zmkdir(path) char *path;
 #ifdef IKSD
                  || inserver
 #endif /* IKSD */
-                 ) && (!ENABLED(en_mkd) || !ENABLED(en_cwd)))
-              return(-1);
+                 ) && (!ENABLED(en_mkd) || !ENABLED(en_cwd))) {
+                free(tp);
+                return(-1);
+            }
 #endif /* NOXFER */
 
             debug(F110,"zmkdir making",tp,0);

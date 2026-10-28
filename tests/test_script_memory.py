@@ -143,6 +143,24 @@ def test_take_error_message_long_file_name(run_wermit, tmp_path):
     assert "nosuchcommand" in result.stdout + result.stderr
 
 
+def test_log_reopen_does_not_leak_descriptors(run_wermit, tmp_path):
+    """Verify reopening an existing log file leaves no descriptor open."""
+    import os
+    if not os.path.isdir("/proc/self/fd"):
+        pytest.skip("no /proc/self/fd")
+    script = tmp_path / "t.ksc"
+    log = tmp_path / "t.log"
+    script.write_text(
+        "run ls /proc/$PPID/fd | wc -l\n"
+        f"for \\%i 1 30 1 {{ log transactions {log} append, "
+        "close transactions }\n"
+        "run ls /proc/$PPID/fd | wc -l\n")
+    result = run_wermit(f"take {script}")
+    counts = [int(x) for x in result.stdout.split() if x.isdigit()]
+    assert len(counts) == 2, result.stdout
+    assert counts[1] <= counts[0] + 1, counts
+
+
 @pytest.mark.parametrize("command", [
     "ask /timeout:1 \\%a {Q? }",
     "show key",
@@ -189,11 +207,146 @@ def test_while_long_condition(run_wermit, tmp_path, length):
         result.stdout[-2000:])
 
 
+def _maxrss_kb(wermit_path, cmds):
+    """Run wermit with cmds and return its peak resident size in KB.
+
+    The figure includes the forked parent's size before exec(), so
+    compare it only with another run from the same process.
+    """
+    import os
+    import subprocess
+    proc = subprocess.Popen(
+        [wermit_path, "-H", "-Y", "-Q", "-C", cmds],
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL)
+    _, status, usage = os.wait4(proc.pid, 0)
+    assert os.waitstatus_to_exitcode(status) == 0, status
+    # ru_maxrss is in bytes on macOS and kilobytes elsewhere.
+    unit = 1024 if os.uname().sysname == "Darwin" else 1
+    return usage.ru_maxrss // unit
+
+
+def test_function_empty_last_argument_does_not_leak(wermit_path):
+    """Verify a function call whose last argument is empty frees it.
+
+    fneval() drops empty trailing arguments from its count.  A leak of
+    one argument buffer per call raises the peak resident size by about
+    220 MB over 80,000 calls.  A run with a non-empty argument is the
+    baseline.  The peak size can include the pytest worker's size, so
+    the limit leaves room for it.
+    """
+    loop = "for \\%i 1 80000 1 {{ .x := \\flength({}) }}, exit"
+    base = _maxrss_kb(wermit_path, loop.format("abc"))
+    empty = _maxrss_kb(wermit_path, loop.format("\\%z"))
+    assert empty - base < 100 * 1024, (base, empty)
+
+
+def test_file_list_overflow_closes_directories(wermit_path, tmp_path):
+    """Verify a full file list closes the directories being read.
+
+    traverse() stops reading d0 when the list fills, and Kermit prints
+    the overflow message.  With 40 descriptors, a leak of one directory per
+    call leaves none to open d0 after about 36 calls, and the message
+    stops.
+    """
+    import resource
+    import subprocess
+    top = tmp_path / "tree"
+    for d in range(2):
+        sub = top / f"d{d}"
+        sub.mkdir(parents=True)
+        for i in range(40):
+            (sub / f"f{i:02d}.txt").write_text("x")
+
+    def limit():
+        resource.setrlimit(resource.RLIMIT_NOFILE, (40, 40))
+    result = subprocess.run(
+        [wermit_path, "-H", "-Y", "-Q", "-C",
+         "set file listsize 16, "
+         f"for \\%i 1 200 1 {{ .n := \\frfiles({top}/*) }}, exit"],
+        stdin=subprocess.DEVNULL, capture_output=True, text=True,
+        timeout=60, preexec_fn=limit)
+    out = result.stdout + result.stderr
+    assert out.count("Too many files") == 200, out[-500:]
+
+
+def test_fileinfo_bom_file_closes_it(wermit_path, tmp_path):
+    """Verify scanning a file that starts with a BOM closes it.
+
+    \\ffileinfo() runs scanfile().  scanfile() returns early for a BOM.
+    With 40 descriptors, a FILE left open per call stops the scan within
+    200 calls, and element 9 goes missing.
+    """
+    import resource
+    import subprocess
+    bom = tmp_path / "bom.txt"
+    bom.write_bytes(b"\xef\xbb\xbfhello\n")
+
+    def limit():
+        resource.setrlimit(resource.RLIMIT_NOFILE, (40, 40))
+    result = subprocess.run(
+        [wermit_path, "-H", "-Y", "-Q", "-C",
+         f"for \\%i 1 200 1 {{ .n := \\ffileinfo({bom},&a) }}, "
+         "echo SCAN=[\\&a[9]], exit"],
+        stdin=subprocess.DEVNULL, capture_output=True, text=True,
+        timeout=60, preexec_fn=limit)
+    assert "SCAN=[text:utf8]" in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize("cmd", ["copy /fromb64 e.txt d.txt",
+                                 "copy /append p.txt p.txt"],
+                         ids=["fromb64", "same-file"])
+def test_copy_closes_its_files(wermit_path, tmp_path, cmd):
+    """Verify COPY /FROMB64 and a refused same-file COPY close files.
+
+    Each command runs 60 times with a limit of 40 descriptors.  A FILE
+    left open per command stops the later COPY commands.
+    """
+    import resource
+    import subprocess
+    (tmp_path / "p.txt").write_text("hello world\n")
+    (tmp_path / "e.txt").write_text("aGVsbG8gd29ybGQK\n")
+
+    def limit():
+        resource.setrlimit(resource.RLIMIT_NOFILE, (40, 40))
+    result = subprocess.run(
+        [wermit_path, "-H", "-Y", "-Q", "-C",
+         f"for \\%i 1 200 1 {{ {cmd} }}, "
+         "copy /tob64 p.txt last.txt, echo LAST=\\v(status), exit"],
+        cwd=tmp_path, stdin=subprocess.DEVNULL, capture_output=True,
+        text=True, timeout=60, preexec_fn=limit)
+    assert "LAST=0" in result.stdout, result.stdout[-500:]
+
+
+def test_cvtdate_apache_format_does_not_leak(wermit_path, valgrind):
+    """Verify \\fcvtdate() of an Apache log date frees its copy.
+
+    cmcvtdate() copies an Apache log date without its colons.  valgrind
+    reports no block lost in cmcvtdate().
+    """
+    import os
+    import re
+    import subprocess
+    result = subprocess.run(
+        [valgrind, "-q", "--leak-check=full", wermit_path,
+         "-H", "-Y", "-Q", "-C",
+         "for \\%i 1 20 1 { .x := "
+         "\\fcvtdate([02/Jan/2024:03:04:05 +0000]) }, "
+         "echo X=\\m(x), exit"],
+        stdin=subprocess.DEVNULL, capture_output=True, text=True,
+        timeout=120, env=dict(os.environ, TZ="UTC"))
+    assert "X=20240102 03:04:05" in result.stdout, result.stdout
+    records = re.split(r"^==\d+== *$", result.stderr, flags=re.M)
+    leaked = [r for r in records
+              if "definitely lost" in r and "cmcvtdate" in r]
+    assert not leaked, result.stderr
+
+
 def test_get_path_too_many_directories(run_wermit, tmp_path):
     """Verify SET SERVER GET-PATH refuses more than 128 directories.
 
-    The 129th name was stored one past the parser's array before the
-    count was checked.  The overflow shows only under AddressSanitizer.
+    The parser's array holds 128 names.  Writing a 129th name past the
+    array shows under AddressSanitizer.
     """
     names = []
     for i in range(130):
@@ -453,6 +606,108 @@ def test_aaconvert_same_array_twice(run_wermit, tmp_path):
     assert "END-MARKER" in result.stdout, result.stdout
 
 
+@pytest.mark.parametrize("order", ["first-exists", "second-exists"])
+def test_filecompare_missing_file(run_wermit, tmp_path, order):
+    """Verify \\ffilecompare() returns -1 when one file cannot be opened."""
+    (tmp_path / "a.txt").write_text("x\n")
+    a, b = str(tmp_path / "a.txt"), str(tmp_path / "missing")
+    if order == "second-exists":
+        a, b = b, a
+    result = run_wermit(f"echo [\\ffilecompare({a},{b})], echo END-MARKER",
+                        timeout=30)
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}")
+    assert "[-1]" in result.stdout, result.stdout
+
+
+def test_file_list_empty_pattern_with_array(run_wermit, tmp_path):
+    """Verify a file-list function with an empty pattern ends its list.
+
+    The first \\fdirectories() fills the name buffer.  The second and
+    third take an empty pattern and an array, so each builds an empty
+    list.  Reading past an unterminated list shows under
+    AddressSanitizer.
+    """
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "a.txt").write_text("x\n")
+    script = tmp_path / "t.ksc"
+    script.write_text("set take error off\n"
+                      "if numeric \\fdirecto(\\%a,&a,abc) echo T\n"
+                      "echo [\\fdirectories(*)]\n"
+                      "echo [\\fdirectories(*)]\n"
+                      "echo END-MARKER\n")
+    result = run_wermit(f"cd {tmp_path}, take {script}", timeout=30)
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}")
+    assert "AddressSanitizer" not in result.stderr, result.stderr[-3000:]
+    assert "END-MARKER" in result.stdout, result.stdout
+
+
+def test_array_resize_too_large(run_wermit, tmp_path):
+    """Verify ARRAY RESIZE refuses a size whose pointers overflow int.
+
+    The array keeps its size.  Under UBSan, lo+1 must not overflow.
+    """
+    script = tmp_path / "t.ksc"
+    script.write_text("set take error off\ndeclare \\&a[3]\n"
+                      "array resize &a 2147483647\n"
+                      "echo DIM=\\fdim(&a)\necho END-MARKER\n")
+    result = run_wermit(f"take {script}", timeout=30)
+    assert "runtime error" not in result.stderr, result.stderr[-2000:]
+    assert "Dimension too large" in result.stdout, result.stdout
+    assert "DIM=3" in result.stdout, result.stdout
+
+
+def test_sexp_macro_argument_list_grows(run_wermit, tmp_path):
+    """Verify dosexp() passes each macro argument whole as the list grows.
+
+    dosexp() builds the argument list for a macro in a buffer that
+    grows by 64 bytes.  Arguments of each length from 1 to 150, with and
+    without spaces, cross every growth boundary.
+    """
+    script = tmp_path / "t.ksc"
+    script.write_text(
+        "define m {\n"
+        "    if not equal {\\%1} {\\m(s)} echo BAD1=[\\%1]\n"
+        "    if not equal {\\%2} {\\m(s) b} echo BAD2=[\\%2]\n"
+        "    if not equal {\\%3} {c} echo BAD3=[\\%3]\n"
+        "    return 1\n"
+        "}\n"
+        "for \\%i 1 150 1 {\n"
+        "    .s := \\frepeat(a,\\%i)\n"
+        "    (m '\\m(s) '(\\m(s) b) 'c)\n"
+        "}\n"
+        "echo END-MARKER\n")
+    result = run_wermit(f"take {script}", timeout=60)
+    assert "AddressSanitizer" not in result.stderr, result.stderr[-3000:]
+    assert "END-MARKER" in result.stdout, result.stdout[-2000:]
+    assert "BAD" not in result.stdout, result.stdout[-2000:]
+
+
+@pytest.mark.parametrize("limit", [5, 1000])
+def test_sexp_depth_limit_set_inside_sexp(run_wermit, tmp_path, limit):
+    """Verify SET SEXPRESSION DEPTH-LIMIT inside an S-expression is refused.
+
+    The command frees the result stack, so it fails while an
+    S-expression is using the stack and works at top level.
+    """
+    script = tmp_path / "t.ksc"
+    script.write_text(
+        "set take error off\n"
+        f"define m {{ set sexpression depth-limit {limit}, return 1 }}\n"
+        "echo [\\fsexpression(+ 1 (+ 2 (+ 3 (m 4))))]\n"
+        "set sexpression depth-limit 20\n"
+        "echo ST=\\v(status)\n"
+        "echo END-MARKER\n")
+    result = run_wermit(f"take {script}", timeout=30)
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}")
+    assert "AddressSanitizer" not in result.stderr, result.stderr[-3000:]
+    assert "[7]" in result.stdout, result.stdout
+    assert "ST=0" in result.stdout, result.stdout
+    assert "END-MARKER" in result.stdout, result.stdout
+
+
 def test_sexp_interrupted_resets_depth(wermit_path, tmp_path):
     """Verify Ctrl-C during an S-expression returns the depth to zero.
 
@@ -587,108 +842,6 @@ def test_expansion_interrupted_resets_depth(wermit_path, tmp_path):
     assert "too deep" not in text, text[-1000:]
 
 
-@pytest.mark.parametrize("order", ["first-exists", "second-exists"])
-def test_filecompare_missing_file(run_wermit, tmp_path, order):
-    """Verify \\ffilecompare() returns -1 when one file cannot be opened."""
-    (tmp_path / "a.txt").write_text("x\n")
-    a, b = str(tmp_path / "a.txt"), str(tmp_path / "missing")
-    if order == "second-exists":
-        a, b = b, a
-    result = run_wermit(f"echo [\\ffilecompare({a},{b})], echo END-MARKER",
-                        timeout=30)
-    assert result.returncode >= 0, (
-        f"wermit died with signal {-result.returncode}")
-    assert "[-1]" in result.stdout, result.stdout
-
-
-def test_file_list_empty_pattern_with_array(run_wermit, tmp_path):
-    """Verify a file-list function with an empty pattern ends its list.
-
-    \\fdirectories() with an empty pattern and an array counts no files
-    but read a name left from an earlier expansion into its list.  The
-    list then had no terminator, and the next call read past it.
-    """
-    (tmp_path / "sub").mkdir()
-    (tmp_path / "a.txt").write_text("x\n")
-    script = tmp_path / "t.ksc"
-    script.write_text("set take error off\n"
-                      "if numeric \\fdirecto(\\%a,&a,abc) echo T\n"
-                      "echo [\\fdirectories(*)]\n"
-                      "echo [\\fdirectories(*)]\n"
-                      "echo END-MARKER\n")
-    result = run_wermit(f"cd {tmp_path}, take {script}", timeout=30)
-    assert result.returncode >= 0, (
-        f"wermit died with signal {-result.returncode}")
-    assert "AddressSanitizer" not in result.stderr, result.stderr[-3000:]
-    assert "END-MARKER" in result.stdout, result.stdout
-
-
-def test_array_resize_too_large(run_wermit, tmp_path):
-    """Verify ARRAY RESIZE refuses a size whose pointers overflow int.
-
-    The array keeps its size.  Under UBSan, lo+1 must not overflow.
-    """
-    script = tmp_path / "t.ksc"
-    script.write_text("set take error off\ndeclare \\&a[3]\n"
-                      "array resize &a 2147483647\n"
-                      "echo DIM=\\fdim(&a)\necho END-MARKER\n")
-    result = run_wermit(f"take {script}", timeout=30)
-    assert "runtime error" not in result.stderr, result.stderr[-2000:]
-    assert "Dimension too large" in result.stdout, result.stdout
-    assert "DIM=3" in result.stdout, result.stdout
-
-
-def test_sexp_macro_argument_list_grows(run_wermit, tmp_path):
-    """Verify dosexp() passes each macro argument whole as the list grows.
-
-    dosexp() builds the argument list for a macro in a buffer that
-    grows by 64 bytes.  Arguments of each length from 1 to 150, with and
-    without spaces, cross every growth boundary.
-    """
-    script = tmp_path / "t.ksc"
-    script.write_text(
-        "define m {\n"
-        "    if not equal {\\%1} {\\m(s)} echo BAD1=[\\%1]\n"
-        "    if not equal {\\%2} {\\m(s) b} echo BAD2=[\\%2]\n"
-        "    if not equal {\\%3} {c} echo BAD3=[\\%3]\n"
-        "    return 1\n"
-        "}\n"
-        "for \\%i 1 150 1 {\n"
-        "    .s := \\frepeat(a,\\%i)\n"
-        "    (m '\\m(s) '(\\m(s) b) 'c)\n"
-        "}\n"
-        "echo END-MARKER\n")
-    result = run_wermit(f"take {script}", timeout=60)
-    assert "AddressSanitizer" not in result.stderr, result.stderr[-3000:]
-    assert "END-MARKER" in result.stdout, result.stdout[-2000:]
-    assert "BAD" not in result.stdout, result.stdout[-2000:]
-
-
-@pytest.mark.parametrize("limit", [5, 1000])
-def test_sexp_depth_limit_set_inside_sexp(run_wermit, tmp_path, limit):
-    """Verify SET SEXPRESSION DEPTH-LIMIT inside an S-expression is refused.
-
-    The command frees the result stack.  Run by a macro that an
-    S-expression calls, it freed the stack that the outer levels still
-    used.  It now fails there and works at top level.
-    """
-    script = tmp_path / "t.ksc"
-    script.write_text(
-        "set take error off\n"
-        f"define m {{ set sexpression depth-limit {limit}, return 1 }}\n"
-        "echo [\\fsexpression(+ 1 (+ 2 (+ 3 (m 4))))]\n"
-        "set sexpression depth-limit 20\n"
-        "echo ST=\\v(status)\n"
-        "echo END-MARKER\n")
-    result = run_wermit(f"take {script}", timeout=30)
-    assert result.returncode >= 0, (
-        f"wermit died with signal {-result.returncode}")
-    assert "AddressSanitizer" not in result.stderr, result.stderr[-3000:]
-    assert "[7]" in result.stdout, result.stdout
-    assert "ST=0" in result.stdout, result.stdout
-    assert "END-MARKER" in result.stdout, result.stdout
-
-
 POW_CASES = [("(^ 2 10)", "1024"), ("(^ 3 3)", "27"), ("(^ 2 -1)", "0.5"),
              ("(^ -1 -3)", "-1"), ("(^ 2 62)", "4611686018427387904"),
              ("(^ 2 63)", "9223372036854775000.0"), ("(^ 0 5)", "0"),
@@ -712,8 +865,8 @@ def test_sexp_power_results(run_wermit, expr, want):
 def test_sexp_power_huge_exponent(run_wermit, expr):
     """Verify a huge integer exponent finishes without a trap.
 
-    The integer power took one multiplication for each unit of the
-    exponent, with no overflow check.
+    The integer power squares and multiplies, and falls back to
+    floating point on overflow.
     """
     result = run_wermit(f"echo [\\fsexpression({expr})], echo END-MARKER",
                         timeout=20)
@@ -721,27 +874,3 @@ def test_sexp_power_huge_exponent(run_wermit, expr):
         f"wermit died with signal {-result.returncode}")
     assert "runtime error" not in result.stderr, result.stderr[-2000:]
     assert "END-MARKER" in result.stdout, result.stdout
-
-
-def test_cvtdate_apache_format_does_not_leak(wermit_path, valgrind):
-    """Verify \\fcvtdate() of an Apache log date frees its copy.
-
-    The copy without colons leaked on every call.  valgrind reports no
-    block lost in cmcvtdate().
-    """
-    import os
-    import re
-    import subprocess
-    result = subprocess.run(
-        [valgrind, "-q", "--leak-check=full", wermit_path,
-         "-H", "-Y", "-Q", "-C",
-         "for \\%i 1 20 1 { .x := "
-         "\\fcvtdate([02/Jan/2024:03:04:05 +0000]) }, "
-         "echo X=\\m(x), exit"],
-        stdin=subprocess.DEVNULL, capture_output=True, text=True,
-        timeout=120, env=dict(os.environ, TZ="UTC"))
-    assert "X=20240102 03:04:05" in result.stdout, result.stdout
-    records = re.split(r"^==\d+== *$", result.stderr, flags=re.M)
-    leaked = [r for r in records
-              if "definitely lost" in r and "cmcvtdate" in r]
-    assert not leaked, result.stderr

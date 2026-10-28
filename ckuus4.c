@@ -6891,7 +6891,10 @@ doinput(timo,ms,mp,flags,icount)
 
     makestr(&inpmatch,NULL);
     if (!matchbuf) {
-        matchbuf = malloc(MATCHBUFSIZ+1);
+        if (!(matchbuf = malloc(MATCHBUFSIZ+1))) {
+            printf("?Memory allocation failure\n");
+            return(0);
+        }
         matchbuf[0] = NUL;
     }
     matchindex = 0;
@@ -7576,8 +7579,8 @@ doreinp(timo,s,pat) int timo; char *s; int pat;
         return(0);                      /* input buffer, fail. */
     }
     makestr(&inpmatch,NULL);
-    if (!matchbuf)
-      matchbuf = malloc(MATCHBUFSIZ+1);
+    if (!matchbuf && !(matchbuf = malloc(MATCHBUFSIZ+1)))
+      return(0);                        /* Out of memory */
     matchindex = 0;
 
     x = 0;                              /* Return code, assume failure */
@@ -13400,8 +13403,9 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
       ckmakmsg(fnval,FNVALL,"<ERROR:UNKNOWN_FUNCTION:\\f",fn,"()>",NULL);
 
   fnend:
-    /* Free temporary storage for aguments */
-    for (k = 0; k < argn; k++) if (bp[k]) free(bp[k]);
+    /* Free temporary storage for arguments.  argn may have dropped */
+    /* empty trailing arguments, so check every slot. */
+    for (k = 0; k < FNARGS; k++) if (bp[k]) free(bp[k]);
     fndepth--;
     if (failed) {                       /* Handle failure */
         debug(F111,"fnend",fnval,errno);

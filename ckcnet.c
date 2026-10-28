@@ -1547,6 +1547,7 @@ ck_copyhostent(h) struct hostent * h;
             pp++;
         }
         free(hosts[next].h_aliases);
+        hosts[next].h_aliases = NULL;
     }
 #ifdef HADDRLIST
     if ( hosts[next].h_addr_list ) {
@@ -1556,6 +1557,7 @@ ck_copyhostent(h) struct hostent * h;
             pp++;
         }
         free(hosts[next].h_addr_list);
+        hosts[next].h_addr_list = NULL;
     }
 #endif /* HADDRLIST */
 
@@ -1564,6 +1566,8 @@ ck_copyhostent(h) struct hostent * h;
         for ( cnt=0,pp=h->h_aliases; pp && *pp; pp++,cnt++) ;
         /* The following can give warnings in non-ANSI builds */
         hosts[next].h_aliases = (char **) malloc(sizeof(char *) * (cnt+1));
+        if (!hosts[next].h_aliases)     /* Out of memory: use original */
+          return(h);
         for ( i=0; i<cnt; i++) {
             hosts[next].h_aliases[i] = NULL;
             makestr(&hosts[next].h_aliases[i],h->h_aliases[i]);
@@ -1581,11 +1585,17 @@ ck_copyhostent(h) struct hostent * h;
         for ( cnt=0,pp=h->h_addr_list; pp && *pp; pp++,cnt++) ;
         /* The following can give warnings non-ANSI builds */
         hosts[next].h_addr_list = (char **) malloc(sizeof(char *) * (cnt+1));
+        if (!hosts[next].h_addr_list)   /* Out of memory: use original */
+          return(h);
         for ( i=0; i<cnt; i++) {
             hosts[next].h_addr_list[i] = malloc(h->h_length);
+            if (!hosts[next].h_addr_list[i]) /* Out of memory */
+              break;
             bcopy(h->h_addr_list[i],hosts[next].h_addr_list[i],h->h_length);
         }
         hosts[next].h_addr_list[i] = NULL;
+        if (i < cnt)                    /* Incomplete: use original */
+          return(h);
     } else
         hosts[next].h_addr_list = NULL;
 #else
@@ -11304,6 +11314,9 @@ x25dump_data(char *addr, ulong offset, ulong length) {
     char *buf = (char *)malloc( length * 4 );
     char *bptr = buf;   /* pointer to current place in the print buffer */
 
+    if (!buf)
+      return;
+
     while (i > 0) {
         if (isprint(*ptr)) {
             *bptr++ = *ptr;
@@ -15338,12 +15351,16 @@ locate_srv_dns(host, service, protocol, addr_pp, naddrs)
                            (char *) hp->h_addr_list[j],
                            sizeof(struct in_addr));             /* safe */
                     if (nout + 1 >= count) {
+                        struct sockaddr * xaddr;
                         count += 5;
-                        addr = (struct sockaddr *)
+                        xaddr = (struct sockaddr *)
                           realloc((char *) addr,
                                   sizeof(struct sockaddr) * count);
-                        if (!addr)
-                          goto dnsout;
+                        if (!xaddr) {   /* Keep what we have */
+                            count -= 5;
+                            goto dnsout;
+                        }
+                        addr = xaddr;
                     }
                 }
                 break;
@@ -15352,18 +15369,14 @@ locate_srv_dns(host, service, protocol, addr_pp, naddrs)
             }
         }
     }
-    for (entry = head; entry != NULL;) {
-        free(entry->host);
-        entry->host = NULL;
+  dnsout:
+    for (entry = head; entry != NULL;) { /* Free the server list */
+        if (entry->host)
+          free(entry->host);
         srv = entry;
         entry = entry->next;
         free(srv);
-        srv = NULL;
     }
-
-  dnsout:
-    if (srv)
-      free(srv);
 
     if (nout == 0) {                    /* No good servers */
         if (addr)
@@ -15802,8 +15815,10 @@ fwdx_open_client_channel(channel) int channel;
         ckmakmsg(buf,sizeof(buf),"/tmp/.X11-unix/X",ckitoa(display),NULL,NULL);
         ckstrncpy(saddr_un.sun_path, buf, sizeof(saddr_un.sun_path));
         if (connect(sock,(struct sockaddr *)&saddr_un,
-                    (socklen_t)SUN_LEN(&saddr_un)) < 0)
-          return(-1);
+                    (socklen_t)SUN_LEN(&saddr_un)) < 0) {
+            close(sock);
+            return(-1);
+        }
     } else
 #endif  /* FWDX_UNIX_SOCK */
     {
@@ -15836,7 +15851,7 @@ fwdx_open_client_channel(channel) int channel;
 #ifdef HADDRLIST
 #ifdef h_addr
             /* This is for trying multiple IP addresses - see <netdb.h> */
-            if (!(hent->h_addr_list))
+            if (!hent->h_addr_list || !hent->h_addr_list[0])
                 return(-1);
             bcopy(hent->h_addr_list[0],
                    (caddr_t)&saddr.sin_addr,
@@ -15938,8 +15953,10 @@ fwdx_server_avail() {
         ckmakmsg(buf,sizeof(buf),"/tmp/.X11-unix/X",ckitoa(display),NULL,NULL);
         ckstrncpy(saddr_un.sun_path, buf, sizeof(saddr_un.sun_path));
         if (connect(sock,(struct sockaddr *)&saddr_un,
-                    (socklen_t)SUN_LEN(&saddr_un)) < 0)
+                    (socklen_t)SUN_LEN(&saddr_un)) < 0) {
+            close(sock);
             return(0);
+        }
         close(sock);
         return(1);
     }
@@ -15976,7 +15993,7 @@ fwdx_server_avail() {
 #ifdef HADDRLIST
 #ifdef h_addr
         /* This is for trying multiple IP addresses - see <netdb.h> */
-        if (!(hent2->h_addr_list))
+        if (!hent2->h_addr_list || !hent2->h_addr_list[0])
             return(-1);
         bcopy(hent2->h_addr_list[0],
                (caddr_t)&saddr.sin_addr,

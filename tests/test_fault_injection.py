@@ -211,6 +211,42 @@ def test_ttptycmd_failure_restores_connection(wermit_path, faultinj,
     assert len(masters) == 1, masters
     assert not masters[0] & os.O_NONBLOCK, oct(masters[0])
 
+
+@pytest.mark.parametrize("cmds", [
+    "set host /pty cat, echo [\\fcommand(echo hi)], "
+    "copy /interpret a.txt b.txt, output hello\\13, input 2 hello, close",
+    "set host localhost 9, echo [\\fname2addr(localhost)]",
+], ids=["commands", "resolver"])
+def test_malloc_failures_after_startup(wermit_path, faultinj, tmp_path,
+                                       cmds):
+    """Verify no allocation failure in common commands crashes wermit.
+
+    Each malloc() made after startup fails in turn: in \\fcommand(),
+    COPY /INTERPRET and INPUT on a pty connection, or in resolving a
+    host name.  Every run must end without a signal.
+    """
+    (tmp_path / "a.txt").write_text("one \\v(version)\ntwo\n")
+
+    def calls(script):
+        report = tmp_path / "count"
+        env = dict(os.environ, LD_PRELOAD=faultinj, FAULT_FUNC="malloc",
+                   FAULT_N="0", FAULT_REPORT=str(report))
+        subprocess.run([wermit_path, "-H", "-Y", "-Q", "-C",
+                        script + ", exit 0"],
+                       cwd=tmp_path, env=env, stdin=subprocess.DEVNULL,
+                       capture_output=True, timeout=60)
+        return int(report.read_text().split()[0])
+    first = calls("echo") + 1
+    last = calls(cmds)
+    assert last > first, (first, last)
+    crashed = []
+    for n in range(first, last + 1):
+        result = run_faulted(wermit_path, faultinj, "malloc", n, cmds,
+                             tmp_path, timeout=60)
+        if result.returncode < 0:
+            crashed.append((n, result.returncode))
+    assert not crashed, crashed
+
 def test_iksd_lock_write_failure(run_wermit, wermit_path, faultinj,
                                  tmp_path):
     """Verify the IKSD leaves the database alone when it cannot lock it.

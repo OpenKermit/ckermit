@@ -1849,14 +1849,19 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
 #endif /* DEBUG */
                                 free(tp);
                                 tp = NULL;
-                                if (xxflag) MATCHRETURN(0,0);
+                                if (xxflag) {
+                                    free(buf);
+                                    MATCHRETURN(0,0);
+                                }
                                 if (sk == 0) {
                                     matchpos = savpos;
                                 }
                                 if (sk > 0) { /* If it matched we're done */
+                                    free(buf);
                                     MATCHRETURN(7,sk);
                                 }
                             } else {    /* Malloc failure */
+                                free(buf);
                                 MATCHRETURN(14,0);
                             }
                             if (sk) {    /* Successful comparison */

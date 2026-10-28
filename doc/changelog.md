@@ -830,6 +830,18 @@ file, also reach it.
   crashed Kermit when it was the first S-expression of the session.  Bug was
   introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
 
+### Memory and descriptor leaks
+
+- [5, 6, 7, 8, 9, 10] COPY, DECLARE, DIRECTORY, IF MATCH, `\fcvtdate()`,
+  function calls with an empty last argument, wildcard expansion that
+  filled the file list, URLs, MKDIR, TAKE with arguments, SET DIAL list
+  commands, the SRV lookup, the dialing directory conversion and lookup,
+  the pty fork failure path and the controlling terminal check leaked
+  memory or descriptors.  An allocation failure in several places crashed
+  instead of failing.  These date from C-Kermit 5A(188) of 1992 through
+  10.0 Dev.24 of 2020.  No regression test covers the leaks in code only
+  IKSD guests or failing system calls reach.
+
 ### Builds, help and documentation
 
 - [7] A build without streaming support (`-DNOSTREAMING`) could not send

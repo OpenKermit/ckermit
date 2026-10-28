@@ -2552,7 +2552,8 @@ doftparg(c) char c;
 #ifdef CK_SSL
                       if (!rdigits(q))
                         printf("?Bad number: %s\n",q);
-                      ssl_verify_flag = atoi(q);
+                      else
+                        ssl_verify_flag = atoi(q);
 #endif /* CK_SSL */
                       break;
                   }

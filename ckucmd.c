@@ -621,7 +621,9 @@ kwdhelp( s, n, pat, pre, post, off, xhlp )
                 }
             }
             p = b + cmd_cols - 1;       /* Last char in line */
-            while (*p-- == SP) ;        /* Trim */
+            while (p > b && *p == SP)   /* Trim */
+              p--;
+            p--;                        /* So that p+2 follows the text */
             *(p+2) = NUL;
             printf("%s\n",b);           /* Print the line */
             if (++lc > (cmd_rows - 2)) { /* Screen full? */
@@ -646,9 +648,9 @@ kwdhelp( s, n, pat, pre, post, off, xhlp )
         }
     }
   xkwdhelp:
-    if (xhlp & 4) {
-        if (tmpbuf) free((char *)tmpbuf);
-        for (i = 0; i < n; i++)
+    if ((xhlp & 4) && tmpbuf) {         /* s2[] holds copies only then */
+        free((char *)tmpbuf);
+        for (i = 0; s2 && i < n; i++)
           if (s2[i]) free(s2[i]);
     }
     if (s2) free(s2);                   /* Free array copy */
@@ -782,7 +784,9 @@ xfilhelp(n,pre,post,off,cmdirflg,
                 }
             }
             p = b + cmd_cols - 1;       /* Last char in line */
-            while (*p-- == SP) ;        /* Trim */
+            while (p > b && *p == SP)   /* Trim */
+              p--;
+            p--;                        /* So that p+2 follows the text */
             *(p+2) = NUL;
             printf("%s\n",b);           /* Print the line */
             if (++lc > (cmd_rows - 2)) { /* Screen full? */

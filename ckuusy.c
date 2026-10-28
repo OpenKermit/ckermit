@@ -304,6 +304,7 @@ urlparse(s,url) char *s; struct urldata * url;
 #endif /* CK_ANSIC */
 {
     char * p = NULL, * urlbuf = NULL;
+    int urllen = 0;                     /* Fields may point into urlbuf */
 #ifdef COMMENT
     int x;
 #endif /* COMMENT */
@@ -325,6 +326,7 @@ urlparse(s,url) char *s; struct urldata * url;
 #endif /* CK_IPV6 */
 
     makestr(&urlbuf,s);
+    urllen = urlbuf ? (int)strlen(urlbuf) : 0;
 
     if (url->sav) {                     /* In case we were called before... */
         free(url->sav);
@@ -441,16 +443,22 @@ urlparse(s,url) char *s; struct urldata * url;
             p = url->svc;
             url->svc = NULL;
             makestr(&url->svc,p);
+            if (p < urlbuf || p > urlbuf + urllen) /* Heap copy? */
+              free(p);
         }
         if (url->hos) if (*url->hos) {
             p = url->hos;
             url->hos = NULL;
             makestr(&url->hos,p);
+            if (p < urlbuf || p > urlbuf + urllen) /* Heap copy? */
+              free(p);
         }
         if (url->por) if (*url->por) {
             p = url->por;
             url->por = NULL;
             makestr(&url->por,p);
+            if (p < urlbuf || p > urlbuf + urllen) /* Heap copy? */
+              free(p);
         }
 /*
   WARNING (Wed Oct  9 16:09:03 2002): We now allow the username and
@@ -463,11 +471,15 @@ urlparse(s,url) char *s; struct urldata * url;
             p = url->usr;
             url->usr = NULL;
             makestr(&url->usr,p);
+            if (p < urlbuf || p > urlbuf + urllen) /* Heap copy? */
+              free(p);
         }
         if (url->psw) /* if (*url->psw) */ {
             p = url->psw;
             url->psw = NULL;
             makestr(&url->psw,p);
+            if (p < urlbuf || p > urlbuf + urllen) /* Heap copy? */
+              free(p);
         }
         /* Save a copy of the full url if one was found. */
         if (url->svc)
@@ -1000,7 +1012,8 @@ cmdlin() {
                                   case HT_VERIFY:
                                     if (!rdigits(q))
                                       printf("?Bad number: %s\n",q);
-                                    ssl_verify_flag = atoi(q);
+                                    else
+                                      ssl_verify_flag = atoi(q);
                                     break;
                                 }
                             }

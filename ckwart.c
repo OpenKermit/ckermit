@@ -385,6 +385,7 @@ newtrans()
     trans new;
     int i;
     new = (trans) malloc(sizeof (struct transx));
+    if (!new) fatal("out of memory");
     for (i=0; i<SBYTES; i++) new->states[i] = 0;
     new->anyst = 0;
     new->nxt = NULL;
@@ -801,6 +802,7 @@ copy(s) char *s;
 {
     char *new;
     new = (char *) malloc((int)strlen(s) + 1);
+    if (!new) fatal("out of memory");
     strcpy(new,s);
     return(new);
 }
@@ -824,6 +826,7 @@ enter(name,svalue) char *name; int svalue;
     }
     h = hash(name);
     cur = (struct sym *)malloc(sizeof (struct sym));
+    if (!cur) fatal("out of memory");
     cur->name = copy(name);
     cur->val = svalue;
     cur->hnxt = htab[h];

@@ -1287,9 +1287,24 @@ cmdini() {
         tmp = malloc( sizeof( struct keytab)* (nspd + 2));
 #endif /* COMMENT */
 
-        for (i8 = 0; i8 < nspd; i8++) {    /* Allocate string storage */
+        k = (speeds && tmp) ? nspd : 0; /* Speeds with storage */
+        for (i8 = 0; i8 < k; i8++) {    /* Allocate string storage */
             speeds[i8] = malloc(maxspeedlen+2);
             tmp[i8].kwd = malloc(maxspeedlen+2);
+            if (!speeds[i8] || !tmp[i8].kwd) {
+                if (speeds[i8]) free(speeds[i8]);
+                if (tmp[i8].kwd) free(tmp[i8].kwd);
+                k = i8;
+            }
+        }
+        if (k < nspd) {                 /* Out of memory: leave unsorted */
+            for (i8 = 0; i8 < k; i8++) {
+                free(speeds[i8]);
+                free(tmp[i8].kwd);
+            }
+            if (speeds) free(speeds);
+            if (tmp) free(tmp);
+            goto nosort;
         }
         for (i8 = 0; i8 < nspd; i8++) { /* Copy speeds into sortable array */
             ckstrncpy(speeds[i8],spdtab[i8].kwd,maxspeedlen);
@@ -1327,6 +1342,7 @@ cmdini() {
           free(speeds[i8]);
         free(speeds);
     }
+  nosort:
 #endif /* NOSORTSPEEDS */
 #endif /* TTSPDLIST */
 
@@ -4620,7 +4636,10 @@ addmac(nam,def) char *nam, *def;
                 makestr(&(m_xarg[maclvl][c - '0']),p); /* And a copy here */
             }
         } else {                        /* It's a \%a-z variable */
-            if (c < 33 || (unsigned int)c > GVARS) return(-1);
+            if (c < 33 || (unsigned int)c > GVARS) {
+                if (p) free(p);
+                return(-1);
+            }
             if (isupper(c)) c = (char) tolower(c);
             g_var[(unsigned char)c] = p; /* Put ptr in global-var table */
         }
