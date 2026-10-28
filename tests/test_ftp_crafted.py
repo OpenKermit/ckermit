@@ -443,6 +443,16 @@ def test_ftp_unknown_proxy_host_for_data_connection(run_wermit):
     assert "---> LIST" not in result.stdout, result.stdout[-500:]
 
 
+def test_ftp_show_send_port_commands(run_wermit):
+    """Verify SHOW FTP reports SEND-PORT-COMMANDS, not PASSIVE-MODE."""
+    result = run_wermit("set ftp passive-mode on, "
+                        "set ftp send-port-commands off, show ftp, exit")
+    lines = [ln for ln in result.stdout.splitlines()
+             if "send-port-commands" in ln]
+    assert len(lines) == 1, result.stdout
+    assert lines[0].split()[-1] == "off", lines
+
+
 def _record_connect():
     """Start a one-connection HTTP proxy that refuses CONNECT.
 

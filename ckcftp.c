@@ -8804,7 +8804,7 @@ shoftp(brief) int brief;
     printf(" ftp trust-pasv-address:        %s\n",showoff(ftp_tpa));
     printf(" ftp permissions:               %s\n",showooa(ftp_prm));
     printf(" ftp verbose-mode:              %s\n",showoff(ftp_vbx));
-    printf(" ftp send-port-commands:        %s\n",showoff(ftp_psv));
+    printf(" ftp send-port-commands:        %s\n",showoff(ftp_spc));
     printf(" ftp unique-server-names:       %s\n",showoff(ftp_usn));
     printf(" ftp collision:                 %s\n",
            fncnam[ftp_fnc > -1 ? ftp_fnc : fncact]);
@@ -9664,8 +9664,7 @@ dosetftphlp() {
 
       case FTS_ERR:                     /* "error-action" */
         printf("\nSyntax: SET FTP ERROR-ACTION { QUIT, PROCEED }\n");
-        printf("  What to do when an error occurs when transferring a group\n")
-          ;
+        printf("  What to do when an error occurs when transferring a group\n");
         printf("  of files: quit and fail, or proceed to the next file.\n\n");
         return(0);
 
@@ -9681,7 +9680,10 @@ dosetftphlp() {
       case FTS_PSV:                     /* "passive-mode" */
         printf("\nSyntax: SET FTP PASSIVE-MODE { ON, OFF }\n");
         printf("  Whether to use passive mode, which helps to get through\n");
-        printf("  firewalls.  ON by default.\n\n");
+        printf("  firewalls.  ON by default.  The data connection goes to\n");
+        printf("  the address of the control connection, and only the port\n");
+        printf("  from the server's PASV reply is used.  See SET FTP\n");
+        printf("  TRUST-PASV-ADDRESS.\n\n");
         return(0);
 
       case FTS_TPA:                     /* "trust-pasv-address" */
@@ -9763,7 +9765,9 @@ dosetftphlp() {
        printf("  connection, not to the whole transfer.  By default the\n");
        printf("  timeout value is 0, meaning no timeout.  Use a positive\n");
        printf("  number to escape gracefully from hung data connections or\n");
-       printf("  directory listings.\n\n");
+       printf("  directory listings.  The timeout also limits the wait for\n");
+       printf("  the data connection to open, in passive and active mode.\n");
+       printf("  When the timeout is 0, that wait lasts 60 seconds.\n\n");
         return(0);
 #endif  /* FTP_TIMEOUT */
 

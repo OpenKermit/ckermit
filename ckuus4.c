@@ -6038,8 +6038,8 @@ shofil() {
 #endif /* UNIX */
 #endif /* UNIXOROSK */
     printf(" File collision:          ");
-    for (i = 0; i < ncolx; i++)
-      if (colxtab[i].kwval == fncact) break;
+    for (i = 0; i < ncolx; i++)         /* Visible keyword for fncact */
+      if (colxtab[i].kwval == fncact && !(colxtab[i].flgs & CM_INV)) break;
     printf("%s\n", (i == ncolx) ? "unknown" : colxtab[i].kwd);
     if (++n > cmd_rows - 3) { if (!askmore()) { return;} else {n = 0;}}
     printf(" File destination:        %s\n",
@@ -6371,8 +6371,9 @@ shoparp() {                             /* Protocol */
                showoff(ptab[protocol].fnrp)
                );
         printf(" Filename collision action:         ");
-        for (i = 0; i < ncolx; i++)
-          if (colxtab[i].kwval == fncact) break;
+        for (i = 0; i < ncolx; i++)     /* Visible keyword for fncact */
+          if (colxtab[i].kwval == fncact && !(colxtab[i].flgs & CM_INV))
+            break;
         printf("%-12s", (i == ncolx) ? "unknown" : colxtab[i].kwd);
 
         printf("\n Escape control characters:          ");

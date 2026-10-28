@@ -344,8 +344,8 @@ CHAR myinit[MYINITLEN];                 /* Copy of my Send-Init data */
 #ifndef XYZ_INTERNAL
 static
 #endif /* XYZ_INTERNAL */
-char *fncnam[] = {
-  "rename", "replace", "backup", "append", "discard", "ask",
+char *fncnam[] = {                      /* SET FILE COLLISION keywords */
+  "rename", "overwrite", "backup", "append", "reject", "ask",
   "update", "dates-differ", ""
 };
 #endif /* TLOG */

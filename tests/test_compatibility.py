@@ -63,7 +63,7 @@ def test_compat_defaults_before_any_command(run_wermit):
     assert "Transfer mode:           manual" in result.stdout
     assert "Receive pathnames:       auto" in result.stdout
     assert "Receive confirm:         on" in result.stdout
-    assert "File collision:          discard" in result.stdout
+    assert "File collision:          reject" in result.stdout
 
 
 def test_compat_11_and_default_round_trip(run_wermit):
@@ -78,7 +78,7 @@ def test_compat_11_and_default_round_trip(run_wermit):
 
     collisions = re.findall(r"File collision:\s+(\S+)", result.stdout)
     assert collisions == \
-        ["discard", "backup", "discard", "backup", "discard"]
+        ["reject", "backup", "reject", "backup", "reject"]
 
     modes = re.findall(r"Transfer mode:\s+(\S+)", result.stdout)
     assert modes == \
@@ -106,8 +106,8 @@ def test_compat_file_settings(run_wermit, keyword):
 
 
 @pytest.mark.parametrize("keyword,collision", [
-    ("10", "backup"), ("9", "backup"), ("11", "discard"),
-    ("default", "discard"),
+    ("10", "backup"), ("9", "backup"), ("11", "reject"),
+    ("default", "reject"),
 ])
 def test_compat_survives_set_protocol(run_wermit, keyword, collision):
     """Verify SET PROTOCOL keeps the collision and pathnames settings.
@@ -251,7 +251,7 @@ def test_invoked_as_kermit10_applies_compat_10(wermit_path, tmp_path):
 def test_invoked_as_plain_kermit_unaffected(wermit_path, tmp_path):
     result = _run_as(wermit_path, tmp_path, "kermit", "show file")
     assert_ok(result)
-    assert "File collision:          discard" in result.stdout
+    assert "File collision:          reject" in result.stdout
     assert "Transfer mode:           manual" in result.stdout
 
 
@@ -262,7 +262,6 @@ def test_invoked_as_kermit9_howcalled_stays_kermit(wermit_path, tmp_path):
     assert "C-Kermit" in result.stdout
 
 
-
 @pytest.mark.parametrize("argv0", ["kermit9", "kermit10"])
 @pytest.mark.parametrize("kind", ["absolute", "dotdot"])
 def test_compat_receive_confines_incoming_paths(wermit_path, tmp_path,
@@ -270,7 +269,7 @@ def test_compat_receive_confines_incoming_paths(wermit_path, tmp_path,
     """Verify compatibility modes do not write outside the receive dir.
 
     Beta.12's default RECEIVE PATHNAMES AUTO confined an absolute
-    incoming name; the compatibility modes keep that.
+    incoming name.  The compatibility modes keep that.
     """
     recv_dir = tmp_path / "recv" / "sub"
     send_dir = tmp_path / "send"

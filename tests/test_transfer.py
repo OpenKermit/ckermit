@@ -674,6 +674,7 @@ def test_extended_get_after_too_long_name(tmp_path, wermit_loopback):
     assert (client / "a.txt").read_bytes() == b"hello\n"
     assert not (server / "a.txt").exists()
 
+
 @pytest.mark.parametrize("switches", ["/delete", "/recover /delete",
                                       "/recover /recursive /delete"])
 def test_get_delete_refused_when_delete_disabled(tmp_path, wermit_loopback,
@@ -698,6 +699,7 @@ def test_get_delete_refused_when_delete_disabled(tmp_path, wermit_loopback,
     assert "STATUS=1" in result.stdout, result.stdout[-2000:]
     assert (server / "a.txt").read_bytes() == b"hello\n"
     assert not (client / "a.txt").exists()
+
 
 @pytest.mark.parametrize("sent, received", [
     (b"x\xc4yzEND", b"xAeyzEND"),
@@ -737,7 +739,7 @@ def test_send_init_shortened_after_full_one(tmp_path, wermit_loopback,
 
     The first SEND uses the full parameter list.  SET SEND
     NEGOTIATION-STRING-MAX-LENGTH then limits the second.  Its S packet
-    must end at the limit, which gives limit + 1 parameter bytes.
+    must end at the limit.  That gives limit + 1 parameter bytes.
     """
     server = tmp_path / "server"
     client = tmp_path / "client"
@@ -760,6 +762,26 @@ def test_send_init_shortened_after_full_one(tmp_path, wermit_loopback,
     data = inits[1][3:3 + ord(inits[1][0]) - 32 - 3]
     assert len(data) == limit + 1, inits
     assert inits[0][3:3 + len(data)] == data, inits
+
+
+@pytest.mark.parametrize("keyword", ["reject", "overwrite", "backup"])
+def test_transaction_log_names_collision_keyword(tmp_path, wermit_loopback,
+                                                 keyword):
+    """Verify the transaction log names the SET FILE COLLISION keyword."""
+    server = tmp_path / "server"
+    client = tmp_path / "client"
+    server.mkdir()
+    client.mkdir()
+    (client / "c.txt").write_bytes(b"new\n")
+    (server / "c.txt").write_bytes(b"old\n")
+    tlog = tmp_path / "t.log"
+    wermit_loopback(
+        server,
+        f"set delay 0, set file collision {keyword}, "
+        f"log transactions {tlog}",
+        f"set delay 0, send {client / 'c.txt'}")
+    text = tlog.read_text()
+    assert f"Collision action: {keyword}" in text, text
 
 
 @pytest.mark.parametrize("settings", [

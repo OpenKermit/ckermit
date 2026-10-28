@@ -6661,11 +6661,17 @@ getdcset() {
         s = "latin1-iso";               /* Hack to avoid reporting "cp1252" */
     } else {                            /* Report current file character set */
 #endif /* COMMENT */
-        for (y = 0; y <= nfilc; y++)
-          if (fcstab[y].kwval == fcharset) {
+        for (y = 0; y < nfilc; y++)     /* Prefer a visible keyword */
+          if (fcstab[y].kwval == fcharset && !(fcstab[y].flgs & CM_INV)) {
               s = fcstab[y].kwd;
               break;
           }
+        if (!*s)                        /* Else an invisible synonym */
+          for (y = 0; y < nfilc; y++)
+            if (fcstab[y].kwval == fcharset) {
+                s = fcstab[y].kwd;
+                break;
+            }
 #ifdef COMMENT
     }
 #endif /* COMMENT */

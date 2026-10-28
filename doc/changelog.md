@@ -233,6 +233,12 @@ COMPATIBILITY`.
   11.0.510.  Bugs were introduced in commits f8e56a89 and 1260091f in C-Kermit
   11.0.506 of 2026.
 
+- HELP ENABLE, HELP DISABLE, HELP REMOTE QUERY, HELP REMOTE ASSIGN and
+  `doc/permissions.md` now state that REMOTE QUERY and REMOTE ASSIGN
+  together let a client run any Kermit command on a server, and how to
+  restrict that.  The permissions documents now list IKSD, started by
+  inetd with `-A`, as governed by REMOTE.
+
 ### FTP and HTTP
 
 - [8] FTP MGET /RECURSIVE wrote server names such as `../../x` or
@@ -617,6 +623,9 @@ file, also reach it.
   (8.0.200 of 2001) and 4e0c0d29 (8.0.211 of 2004) and became wrong when
   commit 36668be5 added IPv6 in C-Kermit 11.0.501 of 2026.
 
+- [8] SHOW FTP displayed the PASSIVE-MODE setting as SEND-PORT-COMMANDS.
+  Bug was introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
 ### Connections, Telnet and TLS
 
 - [7, 8] SIGHUP while the debug log was open could deadlock Kermit inside
@@ -758,9 +767,10 @@ file, also reach it.
 
 - [7, 10] COPY named the source file when it failed to write the
   destination.  TRANSMIT of a UCS-2 text file did not end lines at LF.
-  `\v(fullversion)` ended in " ." on release builds.  The first two were
-  introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000; the last in
-  commit 0c0c21f5 in C-Kermit 10.0 Beta.05 of 2022.
+  Esc at SET TERMINAL LOCAL-CHARACTER-SET offered a name that "?" does not
+  list.  `\v(fullversion)` ended in " ." on release builds.  The first
+  three were introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000;
+  the last in commit 0c0c21f5 in C-Kermit 10.0 Beta.05 of 2022.
 
 - [8, 11] TYPE /WIDTH showed empty lines, or lines cut to the /TAIL count,
   instead of each line truncated to the given width.  It also put a NUL byte
@@ -843,6 +853,29 @@ file, also reach it.
   IKSD guests or failing system calls reach.
 
 ### Builds, help and documentation
+
+- [5, 6, 7, 9, 11] HELP and SHOW stated wrong defaults.  HELP gave SET FUNCTION
+  ERROR (ON, not OFF), SET IKS CDMESSAGE (OFF, not ON), SET UNKNOWN-CHAR-SET
+  (KEEP, not DISCARD), SET WINDOW-SIZE (30, not one) and SET TERMINAL
+  CHARACTER-SET (the same set on both sides, not TRANSPARENT).  HELP SET
+  TRANSFER MODE and HELP SET FILE named AUTOMATIC as the TRANSFER MODE default.
+  The default is MANUAL.  HELP SET INCOMPLETE, SET TCP LINGER and SET SERVER
+  DISPLAY also stated wrong defaults.  HELP SET VARIABLE-EVALUATION and the
+  11.0.504 and 11.0.506 notes said the default was `SIMPLE`.  The default is
+  `RECURSIVE`, as it has been since the command was added in C-Kermit 9.0.302.
+  SHOW FILE and SHOW PROTOCOL showed the FILE COLLISION default as "discard"
+  instead of "reject".  HELP SET DIAL RETRIES gave 0 as the default.  It now
+  says that RETRIES counts attempts, and that without a setting DIAL makes 10
+  attempts for country code 1 and one otherwise.  HELP SET HOST now says that
+  SET HOST with no host name closes the connection.  HELP REMOTE QUERY offered
+  the Kermit-variable help for system and user variables.  The errors date from
+  commits a213649d (5A(188) of 1992), 4b5eddea (6.0.192 of 1996), d0f8b1da
+  (7.0.197 of 2000) and 0fd869b4 (9.0.302 of 2011), and from commits cdd2e257
+  and 4f611d0c (11.0.501 of 2026).
+
+- HELP RESEND, HELP SET RECEIVE CONFIRM, HELP SET FTP TIMEOUT, HELP
+  FIREWALL and HELP SET FTP PASSIVE-MODE now describe the new RESEND,
+  RECEIVE CONFIRM, FTP active-mode timeout and FTP PASV rules.
 
 - [7] A build without streaming support (`-DNOSTREAMING`) could not send
   files.  The sender never read the receiver's replies, and it got no send

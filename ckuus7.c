@@ -8143,7 +8143,7 @@ dormt(xx) int xx;
           if ((rwy = cmkey(vartyp,nvartyp,"","",xxstring)) < 0)
             return(rwy);
           if ((rwx = cmtxt(rwy == 'F' ? "Remote function invocation" :
-                         ('K' ? "Remote variable name or function":
+                         (rwy == 'K' ? "Remote variable name or function":
                          "Remote variable name"),
                          "",
                          &rws,
