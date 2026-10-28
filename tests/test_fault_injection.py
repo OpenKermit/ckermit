@@ -17,14 +17,19 @@ import time
 
 import pytest
 
+from test_iksd_login import _elf_info
 from test_iksdb import _build_has_iksdb, _close_iksd, _connect_iksd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 @pytest.fixture(scope="session")
-def faultinj(tmp_path_factory, wermit_sanitized):
-    """Build faultinj.so and return its path, or skip."""
+def faultinj(tmp_path_factory, wermit_path, wermit_sanitized):
+    """Build faultinj.so and return its path, or skip.
+
+    Skips if wermit is statically linked or built for a different
+    machine than cc, since LD_PRELOAD cannot load faultinj.so then.
+    """
     if wermit_sanitized:
         pytest.skip("fault injection does not run a sanitizer build")
     if platform.system() != "Linux" or not shutil.which("cc"):
@@ -32,10 +37,15 @@ def faultinj(tmp_path_factory, wermit_sanitized):
     libc = platform.libc_ver()[0]
     if libc != "glibc":
         pytest.skip("fault injection needs glibc")
+    machine, dynamic = _elf_info(wermit_path)
+    if not dynamic:
+        pytest.skip("LD_PRELOAD does not run with a static wermit")
     lib = tmp_path_factory.mktemp("faultinj") / "faultinj.so"
     subprocess.run(["cc", "-O1", "-shared", "-fPIC", "-o", str(lib),
                     os.path.join(HERE, "faultinj.c"), "-ldl"],
                    check=True)
+    if _elf_info(str(lib))[0] != machine:
+        pytest.skip("faultinj.so and wermit differ in machine type")
     return str(lib)
 
 
