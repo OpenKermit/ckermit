@@ -4,6 +4,7 @@ Tests for ARRAY RESIZE (ckuusr.c).
 import re
 import resource
 import subprocess
+import sys
 
 import pytest
 
@@ -54,15 +55,19 @@ def test_array_resize_out_of_memory(wermit_path, wermit_sanitized):
         pytest.skip("a sanitizer build cannot run under RLIMIT_AS")
     if not hasattr(resource, "RLIMIT_AS"):
         pytest.skip("no RLIMIT_AS on this platform")
-    try:
-        soft, hard = resource.getrlimit(resource.RLIMIT_AS)
-        resource.setrlimit(resource.RLIMIT_AS, (soft, hard))
-    except (ValueError, OSError):
-        pytest.skip("RLIMIT_AS cannot be set on this platform")
+    gb = 1 << 30
+
+    # Test to make sure we can actually lower.  MacOS might now.
+    probe = subprocess.run(
+        [sys.executable, "-c",
+         "import resource; "
+         f"resource.setrlimit(resource.RLIMIT_AS, ({gb}, {gb}))"],
+        stdin=subprocess.DEVNULL, capture_output=True, timeout=30)
+    if probe.returncode != 0:
+        pytest.skip("RLIMIT_AS cannot be lowered to 1 GiB here")
 
     def limit():
-        gib = 1 << 30
-        resource.setrlimit(resource.RLIMIT_AS, (gib, gib))
+        resource.setrlimit(resource.RLIMIT_AS, (gb, gb))
     result = subprocess.run(
         [wermit_path, "-H", "-Y", "-Q", "-C", ", ".join([
             "set command more-prompting off",
