@@ -1787,6 +1787,10 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                 yy->disp.val = dsbuf;   /* Pointer to string */
                 yy->disp.len = i;       /* Length of string */
                 d = *dsbuf;
+#ifndef NODISPO
+/*
+  Define NODISPO to disable receipt of mail or print files and of RESEND.
+*/
                 if (
 #ifndef datageneral                     /* MAIL supported only for */
 #ifndef OS2                             /* UNIX, VMS, and OS-9 */
@@ -1867,6 +1871,11 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                     if (!opnerr) tlog(F100," refused: resend","",0);
 #endif /* CK_RESEND */
                 }
+#else  /* NODISPO */
+                retcode = -1;
+                RPADD(c);
+                if (!opnerr) tlog(F100," refused: NODISPO","",0);
+#endif /* NODISPO */
             }
             break;
 

@@ -126,6 +126,10 @@ char *ckzv = "UNIX File support, 11.0.500, 22 Jul 2026";
 #else
 #ifdef HAVEWAITH                        /* for FreeBSD, OpenBSD */
 #include <sys/wait.h>
+#else
+#ifdef __linux__                        /* Not pulled in without NETCONN */
+#include <sys/wait.h>
+#endif /* __linux__ */
 #endif  /* HAVEWAITH */
 #endif  /* __NetBSD__ */
 

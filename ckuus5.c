@@ -1326,11 +1326,8 @@ cmdini() {
         }
         for (i8 = 0; i8 < nspd; i8++) {
 /*
-  spdtab[i].kwd, at this point, is still whatever the ttspdlist loop
-  above allocated: a buffer sized to fit only that one entry's own
-  string, not maxspeedlen.  Copying tmp[i].kwd into it with
-  ckstrncpy(...,maxspeedlen) overran that smaller allocation.  Take
-  over tmp[i].kwd's own, correctly-sized buffer instead.
+  Each spdtab[i].kwd buffer holds only its entry's string.  Free it and
+  take tmp[i].kwd (maxspeedlen+2 bytes).
 */
             free(spdtab[i8].kwd);
             spdtab[i8].kwd = tmp[i8].kwd;
@@ -1570,11 +1567,9 @@ cmdini() {
         }
         a_dim[0] = topargc - 1;
 /*
-  dclarray() above allocated and stored its own array buffer in
-  a_ptr[0], but \&@[] elements are actually served out of the macro
-  table (via the addmac() calls above), never out of that buffer.
-  Free it here instead of leaking it, before replacing it with
-  topxarg.
+  dclarray() stored an element array in a_ptr[0].  The \&@[] elements
+  come from the macro table that addmac() fills, not from that array.
+  Free it before a_ptr[0] takes topxarg.
 */
         free((char *)a_ptr[0]);
         a_ptr[0] = topxarg;
@@ -13242,7 +13237,7 @@ printf("NOWTMP not defined\n");
         if (!prtopt(&lines,line)) return(0);
 
         size = (int)sizeof(time_t);
-        sprintf(line,"time_t=%d",size); /* SAFE */
+        ckmakmsg(line,LINBUFSIZ,"time_t=",ckitoa(size),NULL,NULL);
         if (!prtopt(&lines,line)) return(0);
 
 #ifdef BIGBUFOK

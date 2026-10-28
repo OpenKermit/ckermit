@@ -1222,6 +1222,9 @@ typedef char * caddr_t; /* core address type */
 
 /* Interface definitions for resolving IPv6 zone identifiers. */
 #include <net/if.h>
+#ifdef HPUX                             /* The general <arpa/inet.h> */
+#include <arpa/inet.h>                  /* include skips HP-UX */
+#endif /* HPUX */
 #endif /* CK_IPV6 */
 
 /*

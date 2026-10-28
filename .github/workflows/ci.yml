@@ -64,6 +64,8 @@ jobs:
       # Pull requests test amd64, macOS, and armhf musl for 32-bit
       # coverage. Pushes to main also build arm64 musl. arm64 is
       # omitted from pull requests to keep runs fast.
+      # linux-nonet and linux-notcp are built but not tested, to keep
+      # the builds without network support compiling.
       #
       # The first list runs on push to main. The second runs on pull
       # requests. BSD builds run in separate jobs.
@@ -71,11 +73,15 @@ jobs:
         include: >-
           ${{ fromJson(inputs.matrix || (github.event_name == 'push' && '[
           {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"ubuntu26.04-amd64"},
+          {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux-nonet","label":"ubuntu26.04-amd64-nonet","skip-tests":true},
+          {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux-notcp","label":"ubuntu26.04-amd64-notcp","skip-tests":true},
           {"os":"ubuntu-24.04-arm","platform":"linux","arch":"arm64","make-target":"linux+ssl+musl","label":"ubuntu24.04-arm64-musl"},
           {"os":"ubuntu-24.04-arm","platform":"linux","arch":"armhf","make-target":"linux+ssl+musl","label":"ubuntu24.04-armhf-musl"},
           {"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"macos-arm64"}
           ]' || '[
           {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"ubuntu26.04-amd64"},
+          {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux-nonet","label":"ubuntu26.04-amd64-nonet","skip-tests":true},
+          {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux-notcp","label":"ubuntu26.04-amd64-notcp","skip-tests":true},
           {"os":"ubuntu-24.04-arm","platform":"linux","arch":"armhf","make-target":"linux+ssl+musl","label":"ubuntu24.04-armhf-musl"},
           {"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"macos-arm64"}
           ]')) }}
@@ -99,6 +105,7 @@ jobs:
       - name: Set up Kermit compat-test peers
         if: >-
           matrix.platform == 'linux' && matrix.arch == 'amd64' &&
+          matrix.skip-tests != true &&
           github.event_name != 'workflow_call'
         run: |
           cp /usr/bin/gkermit gkermit

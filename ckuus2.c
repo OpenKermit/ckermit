@@ -3662,6 +3662,54 @@ static char * hxycompat[] = {
 "not routinely, and not on a connection to an untrusted peer.",
 "" };
 
+#ifndef NOSERVER
+#ifndef NOFRILLS
+static char * hmxxdis[] = {
+"Syntax: DISABLE command [ { LOCAL, REMOTE, BOTH } ]",
+"  Prevents execution of the named command.  The optional parameter",
+"  specifies the mode in which the command is disabled:",
+" ",
+"  LOCAL:  Disabled in local mode, which applies to commands requested",
+"          by a remote host via escape sequences or APC.",
+"  REMOTE: Disabled in remote mode, which applies to commands received",
+"          by a Kermit server.",
+"  BOTH:   Disabled in both modes.",
+" ",
+"  If the parameter is omitted, BOTH is used.  By default, most commands",
+"  are enabled for REMOTE but disabled for LOCAL to prevent security issues.",
+"  Use SHOW SERVER to view the current enable/disable states, along",
+"  with which of LOCAL or REMOTE governs this connection.",
+" ",
+"  QUERY and ASSIGN together give a client the whole command language: it",
+"  can define a macro with REMOTE ASSIGN and run it with REMOTE QUERY and",
+"  \\fexecute(), whatever the other DISABLE settings say.  To restrict a",
+"  server, also DISABLE QUERY and DISABLE ASSIGN.",
+"" };
+
+static char * hmxxena[] = {
+"Syntax: ENABLE capability [ { LOCAL, REMOTE, BOTH } ]",
+"  Allows execution of the named capability.  The optional parameter",
+"  specifies the mode in which the capability is enabled:",
+" ",
+"  LOCAL:  Enabled in local mode, which applies to commands requested",
+"          by a remote host via escape sequences or APC.",
+"  REMOTE: Enabled in remote mode, which applies to commands received",
+"          by a Kermit server.",
+"  BOTH:   Enabled in both modes.",
+" ",
+"  If the parameter is omitted, BOTH is used.  By default, most commands",
+"  are enabled for REMOTE but disabled for LOCAL to prevent security issues.",
+"  Use SHOW SERVER to view the current enable/disable states, along",
+"  with which of LOCAL or REMOTE governs this connection.",
+" ",
+"  QUERY and ASSIGN together give a client the whole command language: it",
+"  can define a macro with REMOTE ASSIGN and run it with REMOTE QUERY and",
+"  \\fexecute(), whatever the other DISABLE settings say.  To restrict a",
+"  server, also DISABLE QUERY and DISABLE ASSIGN.",
+"" };
+#endif /* NOFRILLS */
+#endif /* NOSERVER */
+
 static char * hmxydeb[] = {
 "Syntax: SET DEBUG { SESSION, ON, OFF, TIMESTAMP, MESSAGES }",
 " ",
@@ -6875,22 +6923,7 @@ case XXLS:
 #ifndef NOSERVER
 #ifndef NOFRILLS
 case XXDIS:
-    return(hmsg("Syntax: DISABLE command [ { LOCAL, REMOTE, BOTH } ]\n\
-  Prevents execution of the named command.  The optional parameter\n\
-  specifies the mode in which the command is disabled:\n\n\
-  LOCAL:  Disabled in local mode, which applies to commands requested\n\
-          by a remote host via escape sequences or APC.\n\
-  REMOTE: Disabled in remote mode, which applies to commands received\n\
-          by a Kermit server.\n\
-  BOTH:   Disabled in both modes.\n\n\
-  If the parameter is omitted, BOTH is used.  By default, most commands\n\
-  are enabled for REMOTE but disabled for LOCAL to prevent security issues.\n\
-  Use SHOW SERVER to view the current enable/disable states, along\n\
-  with which of LOCAL or REMOTE actually governs this connection.\n\n\
-  QUERY and ASSIGN together give a client the whole command language: it\n\
-  can define a macro with REMOTE ASSIGN and run it with REMOTE QUERY and\n\
-  \\fexecute(), whatever the other DISABLE settings say.  To restrict a\n\
-  server, also DISABLE QUERY and DISABLE ASSIGN."));
+    return(hmsga(hmxxdis));
 #endif /* NOFRILLS */
 #endif /* NOSERVER */
 
@@ -6925,22 +6958,7 @@ case XXVOID:
 #ifndef NOSERVER
 #ifndef NOFRILLS
 case XXENA:
-    return(hmsg("Syntax: ENABLE capability [ { LOCAL, REMOTE, BOTH } ]\n\
-  Allows execution of the named capability.  The optional parameter\n\
-  specifies the mode in which the capability is enabled:\n\n\
-  LOCAL:  Enabled in local mode, which applies to commands requested\n\
-          by a remote host via escape sequences or APC.\n\
-  REMOTE: Enabled in remote mode, which applies to commands received\n\
-          by a Kermit server.\n\
-  BOTH:   Enabled in both modes.\n\n\
-  If the parameter is omitted, BOTH is used.  By default, most commands\n\
-  are enabled for REMOTE but disabled for LOCAL to prevent security issues.\n\
-  Use SHOW SERVER to view the current enable/disable states, along\n\
-  with which of LOCAL or REMOTE actually governs this connection.\n\n\
-  QUERY and ASSIGN together give a client the whole command language: it\n\
-  can define a macro with REMOTE ASSIGN and run it with REMOTE QUERY and\n\
-  \\fexecute(), whatever the other DISABLE settings say.  To restrict a\n\
-  server, also DISABLE QUERY and DISABLE ASSIGN."));
+    return(hmsga(hmxxena));
 #endif /* NOFRILLS */
 #endif /* NOSERVER */
 

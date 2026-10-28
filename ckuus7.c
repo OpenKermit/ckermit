@@ -9495,7 +9495,9 @@ cx_net(net, nprotocol, xhost, svc,
             /* If the user gave a TCP service */
             if (net == NET_TCPB || net == NET_SSH)
               if (*srvbuf) {            /* Append it to host name/address */
+#ifdef TCPSOCKET
                   ck_bracketaddr(line,LINBUFSIZ);
+#endif /* TCPSOCKET */
                   ckstrncat(line, ":", LINBUFSIZ);
                   ckstrncat(line, srvbuf,LINBUFSIZ);
               }

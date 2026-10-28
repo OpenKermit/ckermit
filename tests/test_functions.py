@@ -175,7 +175,7 @@ def test_division_by_minus_one_does_not_trap(run_wermit, tmp_path):
 
 
 def test_max_min_mod_random_use_64_bits(run_wermit, tmp_path):
-    """Verify \\fmax(), \\fmin(), \\fmod() and \\frandom() take 64-bit values."""
+    """Verify \\fmax(), \\fmin(), \\fmod() and \\frandom() use 64 bits."""
     script = tmp_path / "t.ksc"
     script.write_text(
         "echo A=[\\fmax(4294967296,3)] B=[\\fmin(4294967296,3)]\n"

@@ -263,9 +263,9 @@ telopt_index(opt) int opt;
     if (opt >= 0 && opt <= TELOPT_STDERR)
       return(opt);
     else if (opt >= TELOPT_PRAGMA_LOGON && opt <= TELOPT_PRAGMA_HEARTBEAT)
-      return(opt-88);
+      return(opt-87);
     else if (opt == TELOPT_IBM_SAK)
-      return(opt-147);
+      return(opt-146);
     else
       return(NTELOPTS);
 }

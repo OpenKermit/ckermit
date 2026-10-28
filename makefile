@@ -1017,7 +1017,8 @@ unit-test:
 		tests/unit/bin/test_rq_confirm tests/unit/bin/test_fnsplit \
 		tests/unit/bin/test_fpformat tests/unit/bin/test_shuffledate \
 		tests/unit/bin/test_hostaddr tests/unit/bin/test_zstrdt \
-		tests/unit/bin/test_deadline tests/unit/bin/test_slotstate
+		tests/unit/bin/test_deadline tests/unit/bin/test_slotstate \
+		tests/unit/bin/test_telopt
 	./tests/unit/bin/test_lib
 	./tests/unit/bin/test_strings
 	./tests/unit/bin/test_net
@@ -1032,6 +1033,7 @@ unit-test:
 	./tests/unit/bin/test_zstrdt
 	./tests/unit/bin/test_deadline
 	./tests/unit/bin/test_slotstate
+	./tests/unit/bin/test_telopt
 
 # Rules for the unit test binaries.
 #
@@ -1121,6 +1123,23 @@ tests/unit/bin/test_hostaddr: tests/unit/test_hostaddr.c ckcnet.c ckcnet.h
 	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		tests/unit/test_hostaddr.c \
 		tests/unit/bin/ckcnet_hostaddr.$(EXT) \
+		-o $@ $$GCSECTIONS $$CHECKLIBS
+
+# test_telopt exercises telopt_index(), telopt_ok() and telopt() in
+# ckctel.c.  Only builds with NOTOMACROS use these functions, so
+# ckctel.c is compiled here with -DNOTOMACROS.  Uses --gc-sections like
+# test_net.
+tests/unit/bin/test_telopt: tests/unit/test_telopt.c ckctel.c ckctel.h
+	@mkdir -p tests/unit/bin
+	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	case `uname -s` in \
+	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
+	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
+	esac; \
+	$(CC) $(CFLAGS) -DNOTOMACROS -I. $(UNIT_GC_CFLAGS) \
+		-c ckctel.c -o tests/unit/bin/ckctel_telopt.$(EXT); \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
+		tests/unit/test_telopt.c tests/unit/bin/ckctel_telopt.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
 
 # test_mpsafe exercises mpsafe(), which lives in ckcpro.c. Same
@@ -2162,10 +2181,11 @@ netbsd netbsd2 netbsd15 netbsd16 old-netbsd:
 	-DTIMEH	-DBSD44 -DCK_CURSES -DTCPSOCKET -DUSE_STRERROR \
 	-funsigned-char -DHERALD=\"\\\" `uname -s -r`\\\"\" \
 	-DCK_DTRCD -DCK_DTRCTS -DTPUTSARGTYPE=int -DFNFLOAT $(KFLAGS) -O2" \
-	"LIBS= -lcurses -lcrypt -lm -lutil $(LIBS)" ; $(shell ./ckubuildlog)
+	"LIBS= -lcurses -lcrypt -lm -lutil $(LIBS)"
 
+# Write a build-log table entry for wermit.
 buildlog:
-	@(shell ./ckubuildlog -v)
+	./ckubuildlog -v
 
 netbsd-clang netbsdclang:
 	# Dummy comment \

@@ -6763,11 +6763,13 @@ static int ncompattab = (sizeof(compattab) / sizeof(struct keytab));
 */
 static VOID
 compat_ptab() {
+#ifndef NOXFER                          /* ptab[] holds transfer settings */
     extern int fncact, fnrpath;
     ptab[PROTO_K].fnca = fncact;
     ptab[PROTO_K].fnrp = fnrpath;
     ptab[protocol].fnca = fncact;
     ptab[protocol].fnrp = fnrpath;
+#endif /* NOXFER */
 }
 
 /*
@@ -6790,8 +6792,12 @@ compat_10() {
 #endif /* CK_IPV6 */
 
     fncact = XYFX_B;                    /* SET FILE COLLISION BACKUP */
+#ifndef NOXFER
     xfermode = XMODE_A;                 /* SET TRANSFER MODE AUTOMATIC */
+#endif /* NOXFER */
+#ifndef NOXFER
     adl_err = 1;                        /* SET TERM AUTODOWNLOAD ERROR STOP */
+#endif /* NOXFER */
     fnrconfirm = CONFIRM_OFF;           /* SET RECEIVE CONFIRM OFF BOTH */
     fnrconfirm_scope = 3;
 #ifdef CK_IPV6
@@ -6809,6 +6815,8 @@ compat_10() {
       (recorded in en_ena_lock) is not set again here, in en_ena or in
       any other variable.
     */
+#ifndef NOXFER
+#ifndef NOSERVER                        /* ENABLE settings exist */
     ena = 3 & ~en_ena_lock;
     COMPAT_EN(en_cwd,3,ena); COMPAT_EN(en_cpy,3,ena);
     COMPAT_EN(en_dir,3,ena); COMPAT_EN(en_fin,3,ena);
@@ -6819,6 +6827,8 @@ compat_10() {
     COMPAT_EN(en_asg,3,ena); COMPAT_EN(en_que,3,ena);
     COMPAT_EN(en_mai,3,ena); COMPAT_EN(en_pri,3,ena);
     COMPAT_EN(en_ena,3,ena);
+#endif /* NOSERVER */
+#endif /* NOXFER */
 
     return(1);
 }
@@ -6850,8 +6860,12 @@ compat_11_default() {
 #endif /* CK_IPV6 */
 
     fncact = XYFX_D;                    /* SET FILE COLLISION DISCARD */
+#ifndef NOXFER
     xfermode = XMODE_M;                 /* SET TRANSFER MODE MANUAL */
+#endif /* NOXFER */
+#ifndef NOXFER
     adl_err = 0;                    /* SET TERM AUTODOWNLOAD ERROR CONTINUE */
+#endif /* NOXFER */
     fnrconfirm = CONFIRM_ON;            /* SET RECEIVE CONFIRM ON LOCAL */
     fnrconfirm_scope = 1;
 #ifdef CK_IPV6
@@ -6860,6 +6874,8 @@ compat_11_default() {
     fnrpath = PATH_AUTO;                 /* SET RECEIVE PATHNAMES AUTO */
     compat_ptab();
 
+#ifndef NOXFER
+#ifndef NOSERVER                        /* ENABLE settings exist */
     ena = 3 & ~en_ena_lock;             /* See compat_10() */
     COMPAT_EN(en_cwd,2,ena); COMPAT_EN(en_cpy,2,ena);
     COMPAT_EN(en_dir,2,ena); COMPAT_EN(en_fin,2,ena);
@@ -6870,6 +6886,8 @@ compat_11_default() {
     COMPAT_EN(en_asg,2,ena); COMPAT_EN(en_que,2,ena);
     COMPAT_EN(en_ena,2,ena);
     en_mai = en_pri = 0;
+#endif /* NOSERVER */
+#endif /* NOXFER */
 
     return(1);
 }

@@ -64,6 +64,7 @@ char *cknetv = "Network support, 11.0.500, 22 Jul 2026";
 #include "ckcdeb.h"
 #include "ckcker.h"
 #include "ckcasc.h"
+#include <limits.h>                     /* INT_MAX, UINT_MAX */
 #ifdef I386IX                           /* Has to come before ckcnet.h in */
 #include <errno.h>                      /* this version, but after in others */
 #endif /* I386IX */
@@ -475,7 +476,6 @@ extern char ttname[];
 #endif /* OS2 */
 
 #ifdef NT
-#include <limits.h>
 extern int winsock_version;
 char * GetLocalUser(); /* defined in ckotio.c */
 #ifdef CK_LOGIN
@@ -5116,8 +5116,10 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
        fills ckv6_addr and myipaddr instead.  Since rlog_ini() is called
        unconditionally for any RLOGIN variant, both must never be
        left uninitialized. */
+#ifdef TCPSOCKET
     bzero((char *)&r_addr,sizeof(r_addr));
     bzero((char *)&l_addr,sizeof(l_addr));
+#endif /* TCPSOCKET */
 
 #ifdef SUNX25
     if (nett == NET_SX25) {             /* If network type is X.25 */
@@ -5361,8 +5363,15 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
         netclos();                      /* Close any previous connection. */
         ttnproto = NP_NONE;              /* No protocol layered on top. */
 
-        if (name[0] == '*')              /* Server/listener mode. */
-          return(vsocksrv_open(name,lcl,nett));
+        if (name[0] == '*') {            /* Server/listener mode. */
+#ifndef NOLISTEN
+            return(vsocksrv_open(name,lcl,nett));
+#else
+            fprintf(stderr,"?Listening is not supported in this build\n");
+            errno = 0;
+            return(-1);
+#endif /* NOLISTEN */
+        }
 
         if (ck_parse_vsock_addr(name,&vcid,&vport) < 0) {
             fprintf(stderr,"?Invalid VSOCK address: %s\n",name);

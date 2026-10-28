@@ -3402,6 +3402,7 @@ hasdotdot(s) char *s;
   determine whether to prompt.
 */
 
+#ifndef NOICP                           /* Prompting needs a parser */
 #define RQ_MAXTOK 64
 
 static char rq_tok[RQ_MAXTOK][CKMAXPATH+1]; /* Basenames of precise names */
@@ -3661,6 +3662,41 @@ rq_confirm_check(fqpath) char * fqpath;
       default: return(-1);             /* Quit, or no answer (EOF) */
     }
 }
+
+#else /* NOICP */
+/*
+  Without the interactive command parser no confirmation can be asked
+  or configured, so every incoming file is accepted.
+*/
+void
+#ifdef CK_ANSIC
+rq_confirm_start( char * reqtext, int rcvcmd, int recur, int override )
+#else
+rq_confirm_start(reqtext,rcvcmd,recur,override)
+    char * reqtext; int rcvcmd, recur, override;
+#endif /* CK_ANSIC */
+{
+}
+
+void
+#ifdef CK_ANSIC
+rq_confirm_asname( char * asname )
+#else
+rq_confirm_asname(asname) char * asname;
+#endif /* CK_ANSIC */
+{
+}
+
+int
+#ifdef CK_ANSIC
+rq_confirm_check( char * fqpath )
+#else
+rq_confirm_check(fqpath) char * fqpath;
+#endif /* CK_ANSIC */
+{
+    return(1);
+}
+#endif /* NOICP */
 
 /*  R C V F I L -- Receive a file  */
 

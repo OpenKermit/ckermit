@@ -882,6 +882,20 @@ file, also reach it.
   buffer for each packet after the first.  Bugs were introduced in commit
   d0f8b1da in C-Kermit 7.0.197 of 2000.
 
+- [8] Builds with NOTOMACROS, such as hpux0500, kept the Telnet
+  PRAGMA-LOGON option in the STDERR option's state.  The SSPI-LOGON,
+  PRAGMA-HEARTBEAT and IBM-SAK options each used the slot of the option
+  before them, and the debug log showed the wrong names.  Bug was
+  introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [10, 11] `make netbsd` under GNU make failed with a shell syntax error from
+  its build log step.  Builds with NOLISTEN, on HP-UX with IPv6, and with C90
+  compilers failed.  A build with -DNODISPO accepted mail, print and RESEND
+  dispositions.  The `make netbsd` bug was introduced in commit ca1addda in
+  C-Kermit 10.0 Beta.10 of 2023.  The others were introduced in commits
+  36668be5 and 3b1a95d6 (11.0.501), 8209ea02 (11.0.508) and 30ab9d4f
+  (11.0.512), all of 2026.
+
 ## Summary of changed behavior
 
 - [4, 6] A server with HOST disabled refuses PUSH within REMOTE QUERY.
