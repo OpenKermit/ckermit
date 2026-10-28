@@ -57,7 +57,7 @@ def test_array_resize_out_of_memory(wermit_path, wermit_sanitized):
         pytest.skip("no RLIMIT_AS on this platform")
     gb = 1 << 30
 
-    # Test to make sure we can actually lower.  MacOS might now.
+    # Test to make sure we can actually lower.  MacOS might not.
     probe = subprocess.run(
         [sys.executable, "-c",
          "import resource; "
