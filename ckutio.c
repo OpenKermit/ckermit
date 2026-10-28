@@ -10659,6 +10659,27 @@ in_chk(channel, fd) int channel, fd;
         debug(F101,"in_chk FIONREAD errno","",errno);
     }
 #endif /* DEBUG */
+#ifdef __APPLE__
+#ifdef SELECT
+/*
+  On macOS, FIONREAD on a pty master can count bytes that read() does
+  not return.  The count can equal a packet Kermit has just written.
+  A streaming sender that trusts it waits in rpack() for each packet.
+  A zero-timeout select() confirms that the master has data.
+*/
+    if (channel != 0 && ttpty && n > 0 && CK_FDOK(fd)) {
+        fd_set rfds;
+        struct timeval tv;
+        FD_ZERO(&rfds);
+        FD_SET(fd, &rfds);
+        tv.tv_sec = 0;
+        tv.tv_usec = 0;
+        if (select(fd + 1, &rfds, (fd_set *)0, (fd_set *)0, &tv) < 1)
+          n = 0;
+        debug(F101,"in_chk pty select count","",n);
+    }
+#endif /* SELECT */
+#endif /* __APPLE__ */
 #else /* FIONREAD not defined */
 /*
   Here, if (netconn && ttnet == NET_TCPB), we might try calling recvmsg()
