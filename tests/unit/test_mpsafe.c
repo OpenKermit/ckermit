@@ -5,6 +5,7 @@
   placed on a popen()/sh -c command line.  See doc/mailprint.md.
 */
 #include <check.h>
+#include <stdio.h>
 #include <string.h>
 #define CK_ANSIC
 #include "ckcsym.h"
@@ -148,9 +149,7 @@ START_TEST(test_shell_metacharacters_rejected)
     int i;
     for (i = 0; bad[i]; i++) {
         char buf[32];
-        strcpy(buf, "safe");
-        strcat(buf, bad[i]);
-        strcat(buf, "text");
+        snprintf(buf, sizeof(buf), "safe%stext", bad[i]);
         ck_assert_int_eq(mpsafe(buf, 0), 0);
         ck_assert_int_eq(mpsafe(buf, 1), 0);
     }

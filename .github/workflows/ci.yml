@@ -258,6 +258,36 @@ jobs:
         with:
           label: ${{ matrix.label }}
 
+  # Run the Python test suite against an ASan and UBSan build.  Several
+  # tests check for memory errors that only a sanitizer detects.
+  # abort_on_error makes a sanitizer report end wermit with SIGABRT.
+  # Tests that check for a signal catch that too.  Leak detection is off
+  # because the startup macro table and TAKE file buffers are known leaks.
+  asan:
+    if: ${{ !inputs.upload-artifact }}
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev libpam0g-dev \
+            zlib1g-dev libzstd-dev check python3-pytest \
+            python3-pytest-xdist python3-pytest-timeout \
+            python3-pyftpdlib lrzsz
+
+      - name: Build with AddressSanitizer and UBSan
+        run: |
+          make -j4 linux+ssl \
+            KFLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g" \
+            "LNKFLAGS=-fsanitize=address,undefined"
+
+      - name: Python test suite
+        env:
+          ASAN_OPTIONS: detect_leaks=0:abort_on_error=1
+        run: pytest -rs --log-level=INFO -n 4
+
   # FreeBSD/NetBSD/OpenBSD have no native GitHub-hosted runner, so these
   # boot a QEMU VM inside the ubuntu-latest runner via vmactions.
   freebsd-x86_64:

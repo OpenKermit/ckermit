@@ -23,8 +23,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 @pytest.fixture(scope="session")
-def faultinj(tmp_path_factory):
+def faultinj(tmp_path_factory, wermit_sanitized):
     """Build faultinj.so and return its path, or skip."""
+    if wermit_sanitized:
+        pytest.skip("fault injection does not run a sanitizer build")
     if platform.system() != "Linux" or not shutil.which("cc"):
         pytest.skip("fault injection needs Linux and cc")
     libc = platform.libc_ver()[0]
@@ -212,99 +214,6 @@ def test_ttptycmd_failure_restores_connection(wermit_path, faultinj,
     assert not masters[0] & os.O_NONBLOCK, oct(masters[0])
 
 
-@pytest.mark.parametrize("cmds", [
-    "set host /pty cat, echo [\\fcommand(echo hi)], "
-    "copy /interpret a.txt b.txt, output hello\\13, input 2 hello, close",
-    "set host localhost 9, echo [\\fname2addr(localhost)]",
-], ids=["commands", "resolver"])
-def test_malloc_failures_after_startup(wermit_path, faultinj, tmp_path,
-                                       cmds):
-    """Verify no allocation failure in common commands crashes wermit.
-
-    Each malloc() made after startup fails in turn: in \\fcommand(),
-    COPY /INTERPRET and INPUT on a pty connection, or in resolving a
-    host name.  Every run must end without a signal.
-    """
-    (tmp_path / "a.txt").write_text("one \\v(version)\ntwo\n")
-
-    def calls(script):
-        report = tmp_path / "count"
-        env = dict(os.environ, LD_PRELOAD=faultinj, FAULT_FUNC="malloc",
-                   FAULT_N="0", FAULT_REPORT=str(report))
-        subprocess.run([wermit_path, "-H", "-Y", "-Q", "-C",
-                        script + ", exit 0"],
-                       cwd=tmp_path, env=env, stdin=subprocess.DEVNULL,
-                       capture_output=True, timeout=60)
-        return int(report.read_text().split()[0])
-    first = calls("echo") + 1
-    last = calls(cmds)
-    assert last > first, (first, last)
-    crashed = []
-    for n in range(first, last + 1):
-        result = run_faulted(wermit_path, faultinj, "malloc", n, cmds,
-                             tmp_path, timeout=60)
-        if result.returncode < 0:
-            crashed.append((n, result.returncode))
-    assert not crashed, crashed
-
-def test_iksd_lock_write_failure(run_wermit, wermit_path, faultinj,
-                                 tmp_path):
-    """Verify the IKSD leaves the database alone when it cannot lock it.
-
-    The failed write is the write of the address and PID into the
-    temporary lock file.  The IKSD removes the temporary file, creates
-    no lock file and does not create the database.  The Telnet
-    negotiation follows the database setup.
-    """
-    if not _build_has_iksdb(run_wermit):
-        pytest.skip("build has no IKSDB support")
-    iksd = tmp_path / "iksd"
-    os.symlink(wermit_path, str(iksd))
-    dbfile = tmp_path / "iksd.db"
-    env = dict(os.environ, LD_PRELOAD=faultinj, FAULT_FUNC="write",
-               FAULT_N="1")
-    proc, client, log_fh = _connect_iksd(
-        str(iksd), dbfile, tmp_path / "iksd.log", cwd=tmp_path, env=env)
-    try:
-        client.settimeout(5)
-        assert client.recv(4096).startswith(b"\xff")
-        assert not dbfile.exists()
-        assert not (tmp_path / "iksd.lck").exists()
-        names = [p.name for p in tmp_path.iterdir()]
-        assert not [n for n in names if n.startswith("127.0.0.1.")], names
-    finally:
-        _close_iksd(proc, client, log_fh)
-
-
-def test_iksd_lock_write_failure_syslog(run_wermit, wermit_path, faultinj,
-                                        tmp_path):
-    """Verify the IKSD logs a failed lock file write to syslog.
-
-    FAULT_SYSLOG captures the syslog() messages.  Syslog support needs
-    a build with -DDOSYSLOG.
-    """
-    if not _build_has_iksdb(run_wermit):
-        pytest.skip("build has no IKSDB support")
-    if "NOSYSLOG" in run_wermit("show features").stdout:
-        pytest.skip("build has no syslog support (needs -DDOSYSLOG)")
-    iksd = tmp_path / "iksd"
-    os.symlink(wermit_path, str(iksd))
-    dbfile = tmp_path / "iksd.db"
-    log = tmp_path / "syslog.txt"
-    env = dict(os.environ, LD_PRELOAD=faultinj, FAULT_FUNC="write",
-               FAULT_N="1", FAULT_SYSLOG=str(log))
-    proc, client, log_fh = _connect_iksd(
-        str(iksd), dbfile, tmp_path / "iksd.log", cwd=tmp_path, env=env)
-    try:
-        client.settimeout(5)
-        assert client.recv(4096).startswith(b"\xff")
-        text = log.read_text() if log.exists() else ""
-        assert ("IKSD database not updated: can't write lockfile "
-                + str(tmp_path) + "/127.0.0.1.") in text, text
-        assert not dbfile.exists()
-    finally:
-        _close_iksd(proc, client, log_fh)
-
 def _children(pid):
     """Return the PIDs of the child processes of pid, zombies included."""
     kids = []
@@ -354,6 +263,42 @@ def test_pty_sync_failure_runs_nothing(wermit_path, faultinj, tmp_path):
     assert kids == [], kids
 
 
+@pytest.mark.parametrize("cmds", [
+    "set host /pty cat, echo [\\fcommand(echo hi)], "
+    "copy /interpret a.txt b.txt, output hello\\13, input 2 hello, close",
+    "set host localhost 9, echo [\\fname2addr(localhost)]",
+], ids=["commands", "resolver"])
+def test_malloc_failures_after_startup(wermit_path, faultinj, tmp_path,
+                                       cmds):
+    """Verify no allocation failure in common commands crashes wermit.
+
+    Each malloc() made after startup fails in turn: in \\fcommand(),
+    COPY /INTERPRET and INPUT on a pty connection, or in resolving a
+    host name.  Every run must end without a signal.
+    """
+    (tmp_path / "a.txt").write_text("one \\v(version)\ntwo\n")
+
+    def calls(script):
+        report = tmp_path / "count"
+        env = dict(os.environ, LD_PRELOAD=faultinj, FAULT_FUNC="malloc",
+                   FAULT_N="0", FAULT_REPORT=str(report))
+        subprocess.run([wermit_path, "-H", "-Y", "-Q", "-C",
+                        script + ", exit 0"],
+                       cwd=tmp_path, env=env, stdin=subprocess.DEVNULL,
+                       capture_output=True, timeout=60)
+        return int(report.read_text().split()[0])
+    first = calls("echo") + 1
+    last = calls(cmds)
+    assert last > first, (first, last)
+    crashed = []
+    for n in range(first, last + 1):
+        result = run_faulted(wermit_path, faultinj, "malloc", n, cmds,
+                             tmp_path, timeout=60)
+        if result.returncode < 0:
+            crashed.append((n, result.returncode))
+    assert not crashed, crashed
+
+
 def test_malloc_failures_in_ftp_session(wermit_path, faultinj, tmp_path):
     """Verify no allocation failure in an FTP session crashes wermit.
 
@@ -368,7 +313,7 @@ def test_malloc_failures_in_ftp_session(wermit_path, faultinj, tmp_path):
     report = tmp_path / "count"
 
     def run(n, script=None):
-        """Run with malloc() call n failing; return (result, peer)."""
+        """Run with malloc() call n failing.  Return (result, peer)."""
         peer = FtpPeer({"FEAT": b"211-Features:\r\n MLST type*;size*;"
                                 b"modify*;\r\n MDTM\r\n211 End\r\n",
                         "MDTM": b"213 20200101000000\r\n"},
@@ -486,3 +431,62 @@ def test_set_line_lock_write_failure(wermit_path, faultinj, tmp_path):
     finally:
         os.close(master)
         os.close(slave)
+
+
+def test_iksd_lock_write_failure(run_wermit, wermit_path, faultinj,
+                                 tmp_path):
+    """Verify the IKSD leaves the database alone when it cannot lock it.
+
+    The failed write is the write of the address and PID into the
+    temporary lock file.  The IKSD removes the temporary file, creates
+    no lock file and does not create the database.  The Telnet
+    negotiation follows the database setup.
+    """
+    if not _build_has_iksdb(run_wermit):
+        pytest.skip("build has no IKSDB support")
+    iksd = tmp_path / "iksd"
+    os.symlink(wermit_path, str(iksd))
+    dbfile = tmp_path / "iksd.db"
+    env = dict(os.environ, LD_PRELOAD=faultinj, FAULT_FUNC="write",
+               FAULT_N="1")
+    proc, client, log_fh = _connect_iksd(
+        str(iksd), dbfile, tmp_path / "iksd.log", cwd=tmp_path, env=env)
+    try:
+        client.settimeout(5)
+        assert client.recv(4096).startswith(b"\xff")
+        assert not dbfile.exists()
+        assert not (tmp_path / "iksd.lck").exists()
+        names = [p.name for p in tmp_path.iterdir()]
+        assert not [n for n in names if n.startswith("127.0.0.1.")], names
+    finally:
+        _close_iksd(proc, client, log_fh)
+
+
+def test_iksd_lock_write_failure_syslog(run_wermit, wermit_path, faultinj,
+                                        tmp_path):
+    """Verify the IKSD logs a failed lock file write to syslog.
+
+    FAULT_SYSLOG captures the syslog() messages.  Syslog support needs
+    a build with -DDOSYSLOG.
+    """
+    if not _build_has_iksdb(run_wermit):
+        pytest.skip("build has no IKSDB support")
+    if "NOSYSLOG" in run_wermit("show features").stdout:
+        pytest.skip("build has no syslog support (needs -DDOSYSLOG)")
+    iksd = tmp_path / "iksd"
+    os.symlink(wermit_path, str(iksd))
+    dbfile = tmp_path / "iksd.db"
+    log = tmp_path / "syslog.txt"
+    env = dict(os.environ, LD_PRELOAD=faultinj, FAULT_FUNC="write",
+               FAULT_N="1", FAULT_SYSLOG=str(log))
+    proc, client, log_fh = _connect_iksd(
+        str(iksd), dbfile, tmp_path / "iksd.log", cwd=tmp_path, env=env)
+    try:
+        client.settimeout(5)
+        assert client.recv(4096).startswith(b"\xff")
+        text = log.read_text() if log.exists() else ""
+        assert ("IKSD database not updated: can't write lockfile "
+                + str(tmp_path) + "/127.0.0.1.") in text, text
+        assert not dbfile.exists()
+    finally:
+        _close_iksd(proc, client, log_fh)

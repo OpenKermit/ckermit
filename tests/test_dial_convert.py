@@ -2,20 +2,15 @@
 Tests for conversion of an old-style dialing directory (ddcvt(),
 ckuus6.c).
 """
-import shutil
 import subprocess
 
-import pytest
 
-
-def test_dial_directory_conversion_closes_file(wermit_path, tmp_path):
+def test_dial_directory_conversion_closes_file(wermit_path, tmp_path,
+                                               valgrind):
     """Verify conversion closes the old directory file.
 
     valgrind --track-fds lists the descriptors open at exit.
     """
-    valgrind = shutil.which("valgrind")
-    if not valgrind:
-        pytest.skip("valgrind not installed")
     d = tmp_path / "d.dat"
     d.write_text("home 5551212 9600 none\nwork 5553434 2400 even\n")
     result = subprocess.run(
@@ -36,8 +31,8 @@ def test_dial_directory_conversion_closes_file(wermit_path, tmp_path):
 def test_lookup_skips_unopenable_directory(run_wermit, tmp_path):
     """Verify LOOKUP goes on to the next directory after one it can't open.
 
-    ludial() freed its line buffer when a directory failed to open, then
-    read the next directory into the freed buffer and crashed.
+    SET DIAL DIRECTORY accepts only existing files, so the first file
+    is deleted after SET DIAL DIRECTORY and before LOOKUP.
     """
     gone = tmp_path / "gone.dat"
     gone.write_text("x 1\n")

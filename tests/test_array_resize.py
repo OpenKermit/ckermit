@@ -3,17 +3,13 @@ Tests for ARRAY RESIZE (ckuusr.c).
 """
 import re
 import resource
-import shutil
 import subprocess
 
 import pytest
 
 
-def test_array_resize_smaller_frees_elements(wermit_path):
+def test_array_resize_smaller_frees_elements(wermit_path, valgrind):
     """Verify shrinking an array frees the elements it drops."""
-    valgrind = shutil.which("valgrind")
-    if not valgrind:
-        pytest.skip("valgrind not installed")
     cmds = ", ".join([
         "set command more-prompting off",
         "declare \\&a[10]",
@@ -52,8 +48,10 @@ def test_array_resize_updates_every_link(run_wermit):
     assert "B3=[three] R20=[twenty]" in result.stdout, result.stdout
 
 
-def test_array_resize_out_of_memory(wermit_path):
+def test_array_resize_out_of_memory(wermit_path, wermit_sanitized):
     """Verify ARRAY RESIZE fails when the element list cannot be had."""
+    if wermit_sanitized:
+        pytest.skip("a sanitizer build cannot run under RLIMIT_AS")
     if not hasattr(resource, "RLIMIT_AS"):
         pytest.skip("no RLIMIT_AS on this platform")
     try:
@@ -61,6 +59,7 @@ def test_array_resize_out_of_memory(wermit_path):
         resource.setrlimit(resource.RLIMIT_AS, (soft, hard))
     except (ValueError, OSError):
         pytest.skip("RLIMIT_AS cannot be set on this platform")
+
     def limit():
         gib = 1 << 30
         resource.setrlimit(resource.RLIMIT_AS, (gib, gib))

@@ -1,7 +1,6 @@
 """
 Tests for SET PROTOCOL and its external protocol commands.
 """
-import shutil
 import subprocess
 
 import pytest
@@ -11,15 +10,12 @@ import pytest
     "set protocol zmodem {sz %s} {sz -a %s} {rz} {rz}",
     "set protocol kermit {} {} {}",
 ])
-def test_set_protocol_fields_are_initialized(wermit_path, command):
+def test_set_protocol_fields_are_initialized(wermit_path, command, valgrind):
     """Verify SET PROTOCOL with few fields stores no uninitialized bytes.
 
     SHOW PROTOCOL prints every stored command, so valgrind reports any
     field that SET PROTOCOL left unset.
     """
-    valgrind = shutil.which("valgrind")
-    if not valgrind:
-        pytest.skip("valgrind not installed")
     result = subprocess.run(
         [valgrind, "-q", "--error-exitcode=9", wermit_path,
          "-H", "-Y", "-Q", "-C", f"{command}, show protocol, quit"],

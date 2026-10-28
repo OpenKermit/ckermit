@@ -5,17 +5,15 @@ Each test sends a file with SET ATTRIBUTE DATE OFF, so the receiver
 applies permissions without a date.
 """
 import os
-import shutil
 import stat
 
-import pytest
 
 from conftest import assert_ok
 
 
 def _send(tmp_path, wermit_loopback, mode, sender_cmds, server_cmds,
           existing_mode=None, server_binary_path=None):
-    """Send a file of the given mode; return the received file's mode."""
+    """Send a file of the given mode.  Return the received file's mode."""
     client_dir = tmp_path / "client"
     server_dir = tmp_path / "server"
     client_dir.mkdir()
@@ -53,11 +51,8 @@ def test_inherited_permissions_without_date(tmp_path, wermit_loopback):
 
 
 def test_local_permissions_read_no_uninitialized_data(
-        tmp_path, wermit_loopback, wermit_path):
+        tmp_path, wermit_loopback, wermit_path, valgrind):
     """Verify zstime() reads no uninitialized data under valgrind."""
-    valgrind = shutil.which("valgrind")
-    if not valgrind:
-        pytest.skip("valgrind not installed")
     vlog = tmp_path / "valgrind.log"
     wrapper = tmp_path / "vg-wermit"
     wrapper.write_text(f"#!/bin/sh\nexec {valgrind} -q "

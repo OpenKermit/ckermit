@@ -1413,6 +1413,31 @@ def run_wermit_pty(wermit_path, cmd_str, cwd, timeout=45, debug_log=None):
     return finish_wermit_pty(proc, master, timeout=timeout, debug_log=debug_log)
 
 
+def _wait_for_pty_raw(master, timeout):
+    """Read from master until ISIG is off or timeout runs out.
+
+    CONNECT turns ISIG off.  Keys typed while ISIG is on can be taken
+    as signal characters, and the terminal driver then flushes pending
+    input.  Return (buf, raw): buf is everything read, and raw is
+    whether ISIG went off within timeout.
+    """
+    buf = b""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if not termios.tcgetattr(master)[3] & termios.ISIG:
+            return buf, True
+        r, _, _ = select.select([master], [], [], 0.05)
+        if master in r:
+            try:
+                data = os.read(master, 4096)
+            except OSError:
+                break
+            if not data:
+                break
+            buf += data
+    return buf, False
+
+
 def _wait_for_pty_marker(master, marker, timeout):
     """
     Reads from a pty master until marker (bytes) appears in the

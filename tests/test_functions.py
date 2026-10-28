@@ -1,4 +1,3 @@
-import shutil
 import subprocess
 
 import pytest
@@ -194,11 +193,36 @@ def test_max_min_mod_random_use_64_bits(run_wermit, tmp_path):
     assert all(-3 < v <= 0 for v in neg), neg
 
 
-def test_random_seed_reads_no_uninitialized_memory(wermit_path):
+@pytest.mark.parametrize("mjd,want", [
+    ("0", "[18581117]"),
+    ("-678941", "[00000101]"),
+    ("2973483", "[99991231]"),
+    ("2973484", "ARG_OUT_OF_RANGE"),
+    ("-678942", "ARG_OUT_OF_RANGE"),
+    ("99999999999999", "ARG_OUT_OF_RANGE"),
+])
+def test_mjd2date_range(run_wermit, mjd, want):
+    """Verify \\fmjd2date() accepts years 0 through 9999 only."""
+    result = run_wermit(f"echo [\\fmjd2date({mjd})]")
+    assert want in result.stdout + result.stderr, result.stdout
+
+
+def test_pathname_of_missing_dir_dotdot_is_root(run_wermit):
+    """Verify \\fpathname(/missing/..) is "/" with nothing after it."""
+    result = run_wermit("echo [\\fpathname(/nosuchdir_q/..)]")
+    assert "[/]" in result.stdout, result.stdout
+
+
+def test_fullversion_has_no_empty_test_tag(run_wermit):
+    """Verify \\v(fullversion) adds a test tag only for a test release."""
+    result = run_wermit("echo [\\v(fullversion)] [\\v(test)]")
+    full = result.stdout.split("[")[1].split("]")[0]
+    if "[0]" in result.stdout:
+        assert " " not in full and not full.endswith("."), full
+
+
+def test_random_seed_reads_no_uninitialized_memory(wermit_path, valgrind):
     """Verify startup and \\frandom() run clean under valgrind."""
-    valgrind = shutil.which("valgrind")
-    if not valgrind:
-        pytest.skip("valgrind not installed")
     result = subprocess.run(
         [valgrind, "-q", "--error-exitcode=9", wermit_path,
          "-H", "-Y", "-Q", "-C", "echo R=\\frandom(1000), quit"],
@@ -232,31 +256,3 @@ def test_eval_undefined_name_stays_in_bounds(wermit_path, valgrind, expr):
         timeout=120)
     assert result.returncode == 0, result.stderr
     assert "ARG_NOT_NUMERIC" in result.stdout, result.stdout
-
-
-@pytest.mark.parametrize("mjd,want", [
-    ("0", "[18581117]"),
-    ("-678941", "[00000101]"),
-    ("2973483", "[99991231]"),
-    ("2973484", "ARG_OUT_OF_RANGE"),
-    ("-678942", "ARG_OUT_OF_RANGE"),
-    ("99999999999999", "ARG_OUT_OF_RANGE"),
-])
-def test_mjd2date_range(run_wermit, mjd, want):
-    """Verify \\fmjd2date() accepts years 0 through 9999 only."""
-    result = run_wermit(f"echo [\\fmjd2date({mjd})]")
-    assert want in result.stdout + result.stderr, result.stdout
-
-
-def test_pathname_of_missing_dir_dotdot_is_root(run_wermit):
-    """Verify \\fpathname(/missing/..) is "/" with nothing after it."""
-    result = run_wermit("echo [\\fpathname(/nosuchdir_q/..)]")
-    assert "[/]" in result.stdout, result.stdout
-
-
-def test_fullversion_has_no_empty_test_tag(run_wermit):
-    """Verify \\v(fullversion) adds a test tag only for a test release."""
-    result = run_wermit("echo [\\v(fullversion)] [\\v(test)]")
-    full = result.stdout.split("[")[1].split("]")[0]
-    if "[0]" in result.stdout:
-        assert " " not in full and not full.endswith("."), full

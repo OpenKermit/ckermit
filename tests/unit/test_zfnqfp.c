@@ -46,12 +46,25 @@ real_uid(void) {
 
 static char tdir[CKMAXPATH];
 
+/*
+  Append s to buf at offset *off and advance *off.  size is the size of
+  buf.  The test fails if s does not fit.
+*/
+static void
+append(char *buf, size_t size, size_t *off, const char *s)
+{
+    int n = snprintf(buf + *off, size - *off, "%s", s);
+    ck_assert_int_ge(n, 0);
+    ck_assert_uint_lt(*off + (size_t)n, size);
+    *off += (size_t)n;
+}
+
 static void
 setup(void)
 {
     char cmd[CKMAXPATH + 32];
     char *rp;
-    strcpy(tdir, "/tmp/zfnqfpXXXXXX");
+    snprintf(tdir, sizeof(tdir), "%s", "/tmp/zfnqfpXXXXXX");
     ck_assert_ptr_nonnull(mkdtemp(tdir));
     /* Canonicalize tdir itself so that expect strings built from
        it match zfnqfp()'s realpath()-resolved output even when
@@ -60,7 +73,7 @@ setup(void)
     rp = realpath(tdir, NULL);
     ck_assert_ptr_nonnull(rp);
     ck_assert_int_lt((int)strlen(rp), (int)sizeof(tdir));
-    strcpy(tdir, rp);
+    snprintf(tdir, sizeof(tdir), "%s", rp);
     free(rp);
     snprintf(cmd, sizeof(cmd), "mkdir -p '%s/a/b/c'", tdir);
     ck_assert_int_eq(system(cmd), 0);
@@ -105,7 +118,8 @@ START_TEST(test_existing_file_fname_pointer)
     struct zfnfp *r = zfnqfp(path, sizeof(buf), buf);
     ck_assert_ptr_nonnull(r);
     ck_assert_str_eq(r->fname, base);
-    ck_assert_int_eq(r->fname - r->fpath, (int)strlen(buf) - (int)strlen(base));
+    ck_assert_int_eq(r->fname - r->fpath,
+                     (int)strlen(buf) - (int)strlen(base));
 }
 END_TEST
 
@@ -159,24 +173,24 @@ START_TEST(test_fallback_large_buflen_no_overflow)
     char *in = malloc(buflen);
     char *buf = malloc(buflen);
     char *expect = malloc(buflen);
-    char *p;
+    size_t off;
     int i;
 
     ck_assert_ptr_nonnull(in);
     ck_assert_ptr_nonnull(buf);
     ck_assert_ptr_nonnull(expect);
 
-    p = in;
-    p += sprintf(p, "%s", tdir);
+    off = 0;
+    append(in, (size_t)buflen, &off, tdir);
     for (i = 0; i < nseg; i++)
-      p += sprintf(p, "/./seg");
-    sprintf(p, "/does_not_exist_zz");
+      append(in, (size_t)buflen, &off, "/./seg");
+    append(in, (size_t)buflen, &off, "/does_not_exist_zz");
 
-    p = expect;
-    p += sprintf(p, "%s", tdir);
+    off = 0;
+    append(expect, (size_t)buflen, &off, tdir);
     for (i = 0; i < nseg; i++)
-      p += sprintf(p, "/seg");
-    sprintf(p, "/does_not_exist_zz");
+      append(expect, (size_t)buflen, &off, "/seg");
+    append(expect, (size_t)buflen, &off, "/does_not_exist_zz");
 
     struct zfnfp *r = zfnqfp(in, buflen, buf);
     ck_assert_ptr_nonnull(r);
