@@ -17,7 +17,9 @@
                   message, one per line, in place of the system log.
 
   malloc covers malloc(), calloc() and realloc().  read covers read() and
-  recv() and returns -1 with EIO.  readeof makes them return 0.  write
+  recv() and returns -1 with EIO.  It also covers __read_chk() and
+  __recv_chk().  _FORTIFY_SOURCE turns some read() and recv() calls into
+  these.  readeof makes them return 0.  write
   covers write() and send() and returns -1 with EIO.  open covers open(),
   open64(), fopen() and fopen64().  They fail with EACCES.  openpty
   fails with ENOENT, and fork with EAGAIN.
@@ -214,6 +216,22 @@ recv(int fd, void *buf, size_t n, int flags)
             return 0;
     }
     return (ssize_t)syscall(SYS_recvfrom, fd, buf, n, flags, NULL, NULL);
+}
+
+ssize_t
+__read_chk(int fd, void *buf, size_t n, size_t buflen)
+{
+    if (n > buflen)
+        abort();
+    return read(fd, buf, n);
+}
+
+ssize_t
+__recv_chk(int fd, void *buf, size_t n, size_t buflen, int flags)
+{
+    if (n > buflen)
+        abort();
+    return recv(fd, buf, n, flags);
 }
 
 ssize_t
