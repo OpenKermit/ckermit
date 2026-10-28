@@ -30,6 +30,18 @@ covering their situations.
   reply, as releases before 11.1 did.  It suits a server that names a
   different host for data.
 
+## Major Improvements
+
+- [8, 9] The default file-list string space on 64-bit builds is now 32MB
+  instead of 2GB.  Wildcard expansion allocates this space on first use.  Lazy
+  allocation on modern operating systems often hid the 2GB allocation.  The
+  102,400-name list limit leaves an average of over 300 bytes per name.  A
+  larger expansion fails with "?String space exhausted".  `SET FILE
+  STRINGSPACE` raises the limit, and `SHOW FILE` displays it.  `SET FILE
+  STRINGSPACE` with a value of 1024 or less also failed.  Commit 0fd869b4
+  introduced the two-billion default in C-Kermit 9.0.302 of 2011.  Commit
+  c88d9b85 introduced the STRINGSPACE bug in C-Kermit 8.0.200 of 2001.
+
 ## Major Bugfixes
 
 - [6, 7, 8, 11] Files of 2GB or more failed in several places.  HTTP PUT and
@@ -884,6 +896,9 @@ file, also reach it.
 
 - [9] Kermit waits up to two seconds for an external protocol program's
   exit status, and relays its output until end of file.
+
+- [9] The default file-list string space on 64-bit builds is 32MB.  `SHOW
+  FILE` displays it.
 
 - [9] `RENAME` fails with "?New name too long" when a new name does not
   fit.

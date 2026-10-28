@@ -39,3 +39,34 @@ def test_wildcard_dot_in_name(run_wermit, tmp_path, pattern, expected):
                    if line.startswith("NAME=["))
     assert names == sorted(expected), result.stdout
     assert f"COUNT=[{len(expected)}]" in result.stdout, result.stdout
+
+
+def test_stringspace_default(run_wermit):
+    """Verify the default file-list string space is 32 million bytes."""
+    result = run_wermit("show file")
+    assert "Stringspace:             32000000" in result.stdout, \
+        result.stdout
+
+
+def test_stringspace_exhausted_then_raised(run_wermit, tmp_path):
+    """Verify a small string space fails and SET FILE STRINGSPACE fixes it."""
+    for i in range(60):
+        (tmp_path / f"file_with_a_rather_long_name_number_{i}.txt").touch()
+    result = run_wermit(
+        f"cd {tmp_path}, set file stringspace 2000, echo N=\\ffiles(*), "
+        "set file stringspace 100000, echo N=\\ffiles(*)")
+    assert "String space 2000 exhausted" in result.stdout, result.stdout
+    assert "N=0" in result.stdout, result.stdout
+    assert "N=60" in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize("size", ["100", "1024"])
+def test_stringspace_minimum_is_accepted(run_wermit, tmp_path, size):
+    """Verify SET FILE STRINGSPACE at or below 1024 sets 1024 bytes."""
+    (tmp_path / "one.txt").touch()
+    result = run_wermit(
+        f"cd {tmp_path}, set file stringspace {size}, "
+        "echo N=\\ffiles(*), show file")
+    assert "allocation failure" not in result.stdout, result.stdout
+    assert "Stringspace:             1024" in result.stdout, result.stdout
+    assert "N=1" in result.stdout, result.stdout

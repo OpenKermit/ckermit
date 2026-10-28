@@ -792,7 +792,7 @@ static int maxnames = MAXWLD;
 static char sspace[SSPACE];             /* Buffer for generating filenames */
 #else /* is DYNAMIC */
 #ifdef CK_64BIT
-#define SSPACE 2000000000               /* Two billion bytes */
+#define SSPACE 32000000                 /* Thirty-two million */
 #else
 #ifdef BIGBUFOK
 #define SSPACE 10000000                 /* Ten million */
@@ -3629,7 +3629,7 @@ initspace(resarry,len) char * resarry[]; int len;
             }
             len = (len / 2) + (len / 4); /* Didn't, reduce by 3/4 */
         }
-        if (len <= MINSPACE) {          /* Did we get it? */
+        if (!sspace) {                  /* Did we get it? */
             fprintf(stderr,"fgen can't malloc string space\n");
             return(-1);
         }
