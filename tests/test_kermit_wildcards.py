@@ -1,6 +1,8 @@
 """Tests for Kermit wildcard matching of file names (ckmatch())."""
 import pytest
 
+from test_largefile import _parse_sizeofs
+
 NAMES = ["a.b", "ab.cb", "x.y.z", ".hidden", ".hz"]
 
 
@@ -42,9 +44,15 @@ def test_wildcard_dot_in_name(run_wermit, tmp_path, pattern, expected):
 
 
 def test_stringspace_default(run_wermit):
-    """Verify the default file-list string space is 32 million bytes."""
+    """Verify the default file-list string space.
+
+    It is 32 million bytes in a build with 64-bit longs and 10 million
+    bytes otherwise.
+    """
+    sizeofs = _parse_sizeofs(run_wermit("show features").stdout)
+    size = 32000000 if sizeofs["long"] == 8 else 10000000
     result = run_wermit("show file")
-    assert "Stringspace:             32000000" in result.stdout, \
+    assert f"Stringspace:             {size}" in result.stdout, \
         result.stdout
 
 
