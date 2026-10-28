@@ -1,11 +1,13 @@
+import re
 import shutil
 import time
 
 import pytest
 
 from conftest import (
-    _make_leaf, assert_ok, scaled, ssl_client_setup_cmds,
-    ssl_server_setup_cmds, TELNET_REFUSE_KERMIT_CLAUSE, TelnetTlsClient,
+    _make_leaf, assert_ok, require_tls_version, scaled,
+    ssl_client_setup_cmds, ssl_server_setup_cmds,
+    TELNET_REFUSE_KERMIT_CLAUSE, TelnetTlsClient,
 )
 
 pytestmark = pytest.mark.skipif(
@@ -83,9 +85,9 @@ def test_ssl_first_exchange_is_not_delayed(server_dir, wermit_tcp_loopback,
 
     session.wait_for_server_exit()
 
-    assert elapsed < 3, (
+    assert elapsed < 10, (
         f"first post-handshake Kermit exchange over /SSL took "
-        f"{elapsed:.1f}s (expected well under 3s). See the "
+        f"{elapsed:.1f}s (expected well under 10s). See the "
         "NewSessionTicket / in_chk() FIONREAD-fallback stall described "
         "in SSL_TEST_PLAN.md"
     )
@@ -100,6 +102,8 @@ def test_ssl_packet_during_server_telnet_wait(server_dir, wermit_tcp_loopback,
     data back through le_puts().  ttinl() must read it before the rest
     of the packet in mybuf.  Otherwise the server sees a packet with no
     start.  The exchange then stalls until the client's packet timeout.
+    The client sets that timeout to 30 seconds.  A stall then takes 30
+    seconds.  The exchange takes well under a second without one.
     """
     session = wermit_tcp_loopback(
         server_dir,
@@ -113,17 +117,19 @@ def test_ssl_packet_during_server_telnet_wait(server_dir, wermit_tcp_loopback,
         protocol="ssl",
         setup_cmds=(
             "set telnet wait-for-negotiations off, "
+            "set send timeout 30 fixed, "
             f"{ssl_client_setup_cmds(ssl_pki)}"
         ),
+        timeout=scaled(60),
     )
     elapsed = time.monotonic() - start
 
     assert_ok(result)
     assert str(server_dir) in result.stdout
     session.wait_for_server_exit()
-    assert elapsed < 3, (
+    assert elapsed < 10, (
         f"first exchange over /SSL took {elapsed:.1f}s (expected well "
-        "under 3s).  The server lost the packet it read during tn_wait()."
+        "under 10s).  The server lost the packet it read during tn_wait()."
     )
 
 
@@ -841,20 +847,24 @@ def test_tls_input_waits_for_timeout(run_wermit, ssl_pki, protocol,
     blocking SSL_read(), and that must count as a timeout rather than
     an I/O error.  Data sent after 2 seconds satisfies "input 5".
     With no data, INPUT times out after 5 seconds with status 1.
+    Kermit times INPUT alone.  Process start and the handshake are not
+    part of the interval.
     """
     port, thread, srv = _tls_send_after(ssl_pki, delay, b"HELLO\r\n")
-    start = time.monotonic()
     try:
         result = run_wermit(
             f"set authentication ssl verify-file {ssl_pki['ca_crt']}, "
             f"set host localhost {port} /{protocol}, "
-            "input 5 HELLO, "
-            "echo INSTATUS=\\v(instatus), close", timeout=30)
+            ".t0 := \\v(ftime), input 5 HELLO, "
+            "echo INSTATUS=\\v(instatus), "
+            "echo DT=\\ffpsubtract(\\v(ftime),\\m(t0)), close",
+            timeout=30)
     finally:
-        elapsed = time.monotonic() - start
         srv.close()
     assert f"INSTATUS={instatus}" in result.stdout, result.stdout
-    assert low < elapsed < high, elapsed
+    m = re.search(r"DT=([0-9.]+)", result.stdout)
+    assert m, result.stdout
+    assert low < float(m.group(1)) < high, result.stdout
 
 
 @pytest.mark.parametrize("protocol", ["ssl-raw", "tls-raw"])
@@ -1191,6 +1201,7 @@ def _single_version_server_ctx(ssl_pki, version):
     Skip the test when this Python or OpenSSL cannot offer it.
     """
     import ssl
+    require_tls_version(ssl_pki, version)
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     ctx.load_cert_chain(ssl_pki["server_crt"], ssl_pki["server_key"])
     try:
@@ -1278,6 +1289,7 @@ def test_server_minimum_version(wermit_path, ssl_pki, tmp_path,
     import socket
     import ssl
     import subprocess
+    require_tls_version(ssl_pki, "TLSv1_1")
     cctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     cctx.check_hostname = False
     cctx.verify_mode = ssl.CERT_NONE

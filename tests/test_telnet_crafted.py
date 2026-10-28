@@ -169,6 +169,17 @@ def test_telnet_subnegotiation_quoted_iacs(run_wermit, length):
     _expect_marker_after(run_wermit, _sb(TELOPT_TTYPE, b"\xff" * length))
 
 
+@pytest.mark.parametrize("unit", [b"A", b"\xff\xff"], ids=["data", "iac"])
+@pytest.mark.parametrize("count", [4095, 4096, 8192])
+def test_telnet_data_fills_wait_buffer(run_wermit, unit, count):
+    """Verify data that fills the Telnet wait buffer is handled.
+
+    tn_wait() keeps each data byte in tn_wait_buf.  An earlier wait can
+    leave the buffer full.  The next wait must then read nothing.
+    """
+    _expect_marker_after(run_wermit, unit * count)
+
+
 @pytest.mark.parametrize("opt", [TELOPT_TTYPE, TELOPT_NAWS,
                                  TELOPT_NEW_ENVIRON])
 def test_telnet_empty_subnegotiation(run_wermit, opt):

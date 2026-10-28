@@ -11,6 +11,8 @@ import threading
 
 import pytest
 
+from conftest import require_tls_version
+
 REPLIES = {
     "USER": b"331 password please\r\n",
     "PASS": b"230 logged in\r\n",
@@ -252,6 +254,7 @@ def test_ftp_tls_minimum_version(run_wermit, ssl_pki, tmp_path,
     The server offers only TLS 1.1.  The OpenSSL configuration allows
     TLS 1.0 at security level 0.  So a refusal comes from C-Kermit.
     """
+    require_tls_version(ssl_pki, "TLSv1_1")
     conf = tmp_path / "openssl.cnf"
     conf.write_text(
         "openssl_conf = init\n"

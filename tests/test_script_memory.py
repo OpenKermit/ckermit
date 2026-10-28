@@ -241,12 +241,20 @@ def test_function_empty_last_argument_does_not_leak(wermit_path):
     fneval() drops empty trailing arguments from its count.  A leak of
     one argument buffer per call raises the peak resident size by about
     29 MB over 10,000 calls on Linux.  A run with a non-empty argument
-    is the baseline.  Both runs fork from the same process, so the
-    parent's share of the peak size cancels.
+    is the baseline.
+
+    On FreeBSD, ru_maxrss of a forked child sometimes includes the
+    parent's resident size.  A wermit that only runs EXIT reports a
+    peak of the parent's size plus 14 MB in about one run in four.  The
+    excess follows the parent's size and not wermit's work.  The
+    smallest of three runs excludes it.  The leak this test detects
+    adds to every run.
     """
     loop = "for \\%i 1 10000 1 {{ .x := \\flength({}) }}, exit"
-    base = _maxrss_kb(wermit_path, loop.format("abc"))
-    empty = _maxrss_kb(wermit_path, loop.format("\\%z"))
+    base = min(_maxrss_kb(wermit_path, loop.format("abc"))
+               for _ in range(3))
+    empty = min(_maxrss_kb(wermit_path, loop.format("\\%z"))
+                for _ in range(3))
     assert empty - base < 15 * 1024, (base, empty)
 
 

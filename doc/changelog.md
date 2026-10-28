@@ -328,6 +328,13 @@ COMPATIBILITY`.
   1996.  The heap overflow was introduced in commit d0f8b1da in C-Kermit
   7.0.197 of 2000.
 
+- [7] A malicious Telnet server could write past a static buffer by sending
+  4095 or more bytes during connection negotiation.  Kermit keeps data that
+  arrives while it waits for negotiation replies in a 4096-byte buffer.  One
+  wait could fill the buffer, and the next wait stored a byte before it checked
+  for room.  The wait now reads nothing when the buffer is full.  Bug was
+  introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
+
 - [7] An IKSD that accepted a client certificate for a user, and then
   refused that user (for instance from the forbidden-user file), prompted
   for a login with the certificate still accepted.  Any other user then
@@ -716,13 +723,6 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   one IAC of the peer's IAC IAC.  The reader then took it as a command.  On an
   /SSL or /TLS connection whose peer sent IAC IAC first, the 0xFF also came
   after the data that followed it.  The wait now keeps IAC IAC in order.
-
-- [7] Telnet option negotiation paused for TCP delayed ACKs.  Each option and
-  reply is a separate small write.  With Nagle's algorithm on, TCP held a write
-  until the peer acknowledged the previous one.  The peer delayed that ACK by
-  about 40 ms even on localhost.  A Kermit-to-Kermit /TELNET session spent about
-  85 ms this way.  Nagle is now off during the initial negotiation.  The SET TCP
-  NODELAY setting applies again afterwards.
 
 - [7] A Telnet server or IKSD could hang or fail in START-TLS.  The server
   sends its SB START_TLS FOLLOWS first.  A client may send its TLS handshake

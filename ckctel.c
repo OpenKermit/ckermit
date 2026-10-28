@@ -611,6 +611,15 @@ tn_wait(where) char * where;
 
     if (tn_deb || debses) tn_debug("<wait for outstanding negotiations>");
 
+    /*
+      Each pass through the loop stores up to two bytes in tn_wait_buf.
+      A previous wait can leave the buffer full.  Read nothing then.
+    */
+    if (tn_wait_idx >= TN_WAIT_BUF_SZ) {
+      if (tn_deb || debses) tn_debug("<Telnet Wait Buffer filled>");
+      return(0);
+    }
+
 #ifdef CKSPINNER
     if (!sstelnet && !quiet)
         prtwait(0);
@@ -2742,41 +2751,8 @@ tn_reset() {
     return(0);
 }
 
-static int tn_start_opts(VOID);
-
-/*
-  Send the initial options and wait for the replies.  Each option and
-  reply is a separate small write.  With Nagle enabled, TCP holds a
-  write until the peer acknowledges the previous one.  The peer delays
-  that ACK.  Disable Nagle for the exchange and restore the SET TCP
-  NODELAY setting afterward.  ttpkt() does the same for packet mode.
-*/
 int
 tn_start() {
-    int x;
-#ifdef TCPSOCKET
-#ifdef SOL_SOCKET
-#ifdef TCP_NODELAY
-#ifndef NOTCPOPTS
-    extern int tcp_nodelay, ttyfd;
-    int nodelay = tcp_nodelay;
-
-    if (ttnet == NET_TCPB)
-      no_delay(ttyfd,1);
-    x = tn_start_opts();
-    if (ttnet == NET_TCPB)
-      no_delay(ttyfd,nodelay);
-    return(x);
-#endif /* NOTCPOPTS */
-#endif /* TCP_NODELAY */
-#endif /* SOL_SOCKET */
-#endif /* TCPSOCKET */
-    x = tn_start_opts();
-    return(x);
-}
-
-static int
-tn_start_opts() {
     int wait, x, opt;
 
     /* if (!IS_TELNET()) return(0); */

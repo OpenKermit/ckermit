@@ -197,6 +197,58 @@ def ssl_client_setup_cmds(ssl_pki):
     return f"set authentication ssl verify-file {ssl_pki['ca_crt']}"
 
 
+def require_tls_version(ssl_pki, version):
+    """Skip the test unless this Python can handshake at version.
+
+    version names an ssl.TLSVersion member such as "TLSv1_1".  Both ends
+    allow only that version at security level 0.  LibreSSL 3.8 and later
+    have no TLS 1.0 or 1.1 and fail the handshake.
+    """
+    import ssl
+    import threading
+    tls_version = getattr(ssl.TLSVersion, version)
+    server_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    client_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    client_ctx.check_hostname = False
+    client_ctx.verify_mode = ssl.CERT_NONE
+    try:
+        server_ctx.load_cert_chain(ssl_pki["server_crt"],
+                                   ssl_pki["server_key"])
+        for ctx in (server_ctx, client_ctx):
+            ctx.set_ciphers("DEFAULT:@SECLEVEL=0")
+            ctx.minimum_version = tls_version
+            ctx.maximum_version = tls_version
+    except (ValueError, ssl.SSLError) as e:
+        pytest.skip(f"this Python cannot use only {version}: {e}")
+    server_sock, client_sock = socket.socketpair()
+    server_sock.settimeout(10)
+    client_sock.settimeout(10)
+    errors = []
+
+    def serve():
+        try:
+            with server_ctx.wrap_socket(server_sock,
+                                        server_side=True):
+                pass
+        except (OSError, ssl.SSLError) as e:
+            errors.append(e)
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    try:
+        with client_ctx.wrap_socket(client_sock):
+            pass
+    except (OSError, ssl.SSLError) as e:
+        errors.append(e)
+    finally:
+        client_sock.close()
+        thread.join(timeout=10)
+        server_sock.close()
+    if errors:
+        pytest.skip(f"this Python cannot handshake at {version}: "
+                    f"{errors[0]}")
+
+
 # Cap how much debug output gets captured in a log
 # message. A hung session can retry in a tight loop and produce an
 # large  amount of trace data before its timeout fires. Without a
