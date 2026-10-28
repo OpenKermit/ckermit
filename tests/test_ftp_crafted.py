@@ -491,6 +491,49 @@ def _record_connect():
     return srv.getsockname()[1], thread, srv, heads
 
 
+def _refuse_connects():
+    """Start an HTTP proxy that refuses every CONNECT with 403.
+
+    The proxy accepts connections until its socket closes.  A refusal
+    from a listening proxy does not depend on the kernel answering a
+    connection to a closed port.  OpenBSD limits those answers to
+    net.inet.tcp.rstppslimit per second.
+
+    Returns (port, thread, socket).
+    """
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(8)
+    srv.settimeout(0.1)
+
+    def run():
+        while True:
+            try:
+                conn, _ = srv.accept()
+            except socket.timeout:
+                continue                # Check again for srv.close()
+            except OSError:
+                return
+            with conn:
+                conn.settimeout(20)
+                buf = b""
+                try:
+                    while b"\r\n\r\n" not in buf:
+                        chunk = conn.recv(4096)
+                        if not chunk:
+                            break
+                        buf += chunk
+                    conn.sendall(b"HTTP/1.1 403 Forbidden\r\n"
+                                 b"Content-Length: 0\r\n\r\n")
+                except OSError:
+                    pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    return srv.getsockname()[1], thread, srv
+
+
 @pytest.mark.parametrize("trust,target", [
     ("off", "127.0.0.1:9"),
     ("on", "10.255.255.1:9"),
@@ -521,11 +564,12 @@ def test_ftp_proxy_data_connection_closes_socket(wermit_path):
     """Verify a failed proxy data connection leaves no socket open.
 
     Each FTP DIR opens a socket for passive mode, and the HTTP proxy
-    refuses the connection.  With 40 descriptors, a leak of one socket
+    refuses the CONNECT.  With 40 descriptors, a leak of one socket
     per DIR exhausts them within 100 commands.
     """
     reply = b"227 Entering Passive Mode (127,0,0,1,0,9)\r\n"
     port, thread, srv = _serve_ftp(b"220 hi\r\n", {"PASV": reply})
+    pport, pthread, psrv = _refuse_connects()
 
     def limit():
         resource.setrlimit(resource.RLIMIT_NOFILE, (40, 40))
@@ -534,7 +578,7 @@ def test_ftp_proxy_data_connection_closes_socket(wermit_path):
             [wermit_path, "-H", "-Y", "-Q", "-C", ", ".join([
                 "set command more-prompting off",
                 f"ftp open 127.0.0.1 {port} /user:u /password:p",
-                "set tcp http-proxy 127.0.0.1:1",
+                f"set tcp http-proxy 127.0.0.1:{pport}",
                 "for \\%i 1 100 1 { ftp dir }",
                 "echo LOOP-DONE",
                 "ftp close",
@@ -544,7 +588,9 @@ def test_ftp_proxy_data_connection_closes_socket(wermit_path):
             timeout=120, preexec_fn=limit, start_new_session=True)
     finally:
         srv.close()
+        psrv.close()
         thread.join(timeout=5)
+        pthread.join(timeout=5)
     out = result.stdout + result.stderr
     assert "LOOP-DONE" in result.stdout, out[-500:]
     assert "Too many open files" not in out, out[-500:]
