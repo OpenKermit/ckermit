@@ -140,11 +140,7 @@ ck_ssleay_is_installed()
 #ifdef SSLDLL
 int ssl_finished_messages = 0;
 #else /* SSLDLL */
-#ifdef OPENSSL_VERSION_NUMBER
-int ssl_finished_messages = (OPENSSL_VERSION_NUMBER >= 0x0090581fL);
-#else
-!ERROR This module requires OpenSSL 0.9.5a or higher
-#endif /* OPENSSL_VERSION_NUMBER */
+int ssl_finished_messages = 1;
 #endif /* SSLDLL */
 
 /* Compatibility helpers follow. Avoid using deprecated accessors when
@@ -1065,8 +1061,7 @@ int keylength;
         if (ssl_debug_flag)
             printf("Generating temporary (%d bit) RSA key...\r\n", keylength);
 
-        /* Prefer EVP_PKEY keygen when available (OpenSSL 1.0+). */
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
+        /* Prefer EVP_PKEY keygen */
         {
             EVP_PKEY *pkey = evp_generate_rsa_key(keylength);
             if (pkey) {
@@ -1074,7 +1069,6 @@ int keylength;
                 EVP_PKEY_free(pkey);
             }
         }
-#endif /* OPENSSL_VERSION_NUMBER >= 1.0.0 */
 
 #if OPENSSL_VERSION_NUMBER < 0x30000000L
         /* Fallback to legacy API if EVP keygen didn't produce a key */
@@ -1727,18 +1721,12 @@ ssl_once_init()
  */
 #define COMPAT_VERSION_MASK 0xf000000f  /* MNNffppS, major+status */
 #else /* OPENSSL_300 */
-#ifdef OPENSSL_100
 /* Different major/minor version or development version of OpenSSL
  * means ABI may break compatibility.
  * Modified by Adam Friedlander for OpenSSL >= 1.0.0
  * (See <openssl/opensslv.h> for OpenSSL version encoding details.)
  */
 #define COMPAT_VERSION_MASK 0xfff0000f  /* MNNffppS, major+minor+status */
-#else /* OPENSSL_100 */
-/* Different major/minor/fix/development (not patch) version of OpenSSL
- * means ABI may break compatibility. */
-#define COMPAT_VERSION_MASK 0xfffff00f  /* MNNFFppS, major+minor+fix+status */
-#endif /* OPENSSL_100 */
 #endif /* OPENSSL_300 */
 #endif /* NO_OPENSSL_VERSION_CHECK */
 
@@ -1789,14 +1777,10 @@ ssl_once_init()
         printf("  a version of OpenSSL older than the one supplied at\r\n");
         printf("  compilation time.\r\n");
 #else /* OPENSSL_300 */
-#ifdef OPENSSL_100
         printf("  OpenSSL versions 1.0.0 or newer must be the same\r\n");
         printf("  major and minor version number, and Kermit may not\r\n");
         printf("  be used with a version of OpenSSL older than the one\r\n");
         printf("  supplied at compile time.\r\n");
-#else /* OPENSSL_100 */
-        printf("  OpenSSL versions prior to 1.0.0 must be the same.\r\n");
-#endif /* OPENSSL_100 */
 #endif /* OPENSSL_300 */
 
         s = "R";
@@ -2026,13 +2010,8 @@ ssl_tn_init(mode) int mode;
             /* OpenSSL >= 1.1.0: Negotiate the best TLS version possible */
             tls_ctx=(SSL_CTX *)SSL_CTX_new(TLS_client_method());
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#if OPENSSL_VERSION_NUMBER >= 0x10001000L
-            /* OpenSSL >= 1.0.1: Use TLS 1.2 - not yet deprecated as of 2022-09-06 */
+            /* OpenSSL 1.0.2: TLS 1.2 */
             tls_ctx=(SSL_CTX *)SSL_CTX_new(TLSv1_2_client_method());
-#else
-            /* OpenSSL 0.9.8 and 1.0.0 can't handle anything newer than TSL 1.0 */
-            tls_ctx=(SSL_CTX *)SSL_CTX_new(TLSv1_client_method());
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10001000L */
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
             if ( tls_ctx ) {
                 debug(F110,"ssl_tn_init","TLS_client_method OK",0);
@@ -2723,13 +2702,8 @@ ssl_http_init(hostname) char * hostname;
         /* OpenSSL >= 1.1.0: Negotiate the best TLS version possible */
         tls_http_ctx=(SSL_CTX *)SSL_CTX_new(TLS_client_method());
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#if OPENSSL_VERSION_NUMBER >= 0x10001000L
-        /* OpenSSL >= 1.0.1: Use TLS 1.2 - not yet deprecated as of 2022-09-06 */
+        /* OpenSSL 1.0.2: TLS 1.2 */
         tls_http_ctx=(SSL_CTX *)SSL_CTX_new(TLSv1_2_client_method());
-#else
-        /* OpenSSL 0.9.8 and 1.0.0 can't handle anything newer than TSL 1.0 */
-        tls_http_ctx=(SSL_CTX *)SSL_CTX_new(TLSv1_client_method());
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10001000L */
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
         if ( tls_http_ctx ) {
             debug(F110,"ssl_http_init","TLS_client_method OK",0);
@@ -3507,81 +3481,6 @@ tls_get_SAN_ipv4(SSL * ssl, struct in_addr * addrs, int max)
 }
 
 
-/*
-  OpenSSL 1.0.2 and LibreSSL provide X509_check_host() and
-  X509_check_ip_asc(), which match names by the rules of RFC 6125.
-  Older OpenSSL uses dNSName_cmp() and the IPv4 comparison.
-*/
-#ifndef CK_X509_CHECK_HOST
-#ifdef LIBRESSL_VERSION_NUMBER
-#define CK_X509_CHECK_HOST
-#else
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
-#define CK_X509_CHECK_HOST
-#endif /* OPENSSL_VERSION_NUMBER */
-#endif /* LIBRESSL_VERSION_NUMBER */
-#endif /* CK_X509_CHECK_HOST */
-
-#ifndef CK_X509_CHECK_HOST
-static int
-dNSName_cmp(const char *host, const char *dNSName)
-{
-    int c1 = 1, c2 = 1, num_comp, rv = -1;
-    char *p, *p1, *p2, *host_copy=NULL, *dNSName_copy=NULL;
-    const char *p0;
-
-    /* first we count the number of domain name components in both parameters.
-     * they should be equal many, or it's not a match
-     */
-    p0 = host;
-    while ((p0 = strstr(p0, "."))) {
-        c1++;
-        p0++;
-    }
-    p0 = dNSName;
-    while ((p0 = strstr(p0, "."))) {
-        c2++;
-        p0++;
-    }
-    if (c1 != c2)
-        return -1;
-    num_comp = c1;
-
-    makestr(&host_copy,host);
-    makestr(&dNSName_copy,dNSName);
-    if (host_copy == NULL || dNSName_copy == NULL)
-        goto eject;
-    /* make substrings by replacing '.' with '\0' */
-    p = dNSName_copy;
-    while ((p = strstr(p, "."))) {
-        *p = '\0';
-        p++;
-    }
-    p = host_copy;
-    while ((p = strstr(p, "."))) {
-        *p = '\0';
-        p++;
-    }
-
-    /* compare each component */
-    p1 = host_copy;
-    p2 = dNSName_copy;
-    for (; num_comp; num_comp--) {
-        if (!ckmatch(p2, p1,0,1))
-            /* failed match */
-            goto eject;
-        p1 += strlen(p1) + 1;
-        p2 += strlen(p2) + 1;
-    }
-    /* match ok */
-    rv = 0;
-
-  eject:
-    if (dNSName_copy)   free(dNSName_copy);
-    if (host_copy)      free(host_copy);
-    return rv;
-}
-#endif /* CK_X509_CHECK_HOST */
 
 
 
@@ -3604,78 +3503,6 @@ show_hostname_warning(char *s1, char *s2)
     return(ok);
 }
 
-#ifndef CK_X509_CHECK_HOST             /* Only the old matcher uses it */
-#ifndef OSF50
-#ifndef HPUX10
-#ifndef HPUX1100
-#ifndef SCO_OSR505
-#ifndef OpenBSD
-#ifndef FREEBSD4
-#ifndef NETBSD15
-#ifndef __DragonFly__
-#ifndef LINUX
-#ifndef AIX41
-#ifndef UW7
-#ifndef IRIX65
-#ifndef SOLARIS9
-#ifndef SOLARIS8
-#ifndef SOLARIS7
-#ifndef MACOSX
-#ifdef DEC_TCPIP
-#define inet_aton INET_ATON
-#endif /* DEC_TCPIP */
-
-#ifndef NO_DCL_INET_ATON
-/*
-  Parse a dotted-decimal IPv4 address into ia.  Each of the four parts
-  must be decimal digits with a value of 0 through 255.  ia->s_addr gets
-  the four bytes in network byte order.
-*/
-static int
-inet_aton(char * ipaddress, struct in_addr * ia) {
-    struct stringarray * q;
-    unsigned char b[4];
-    int i, v;
-    char * p;
-
-    q = cksplit(1,0,ipaddress,".","0123456789",8,0,0,0);
-    if (q->a_size != 4)
-      return(0);
-    for (i = 0; i < 4; i++) {
-        p = q->a_head[i+1];
-        if (!p || !*p)
-          return(0);
-        for (v = 0; *p; p++) {
-            if (*p < '0' || *p > '9')
-              return(0);
-            v = v * 10 + (*p - '0');
-            if (v > 255)
-              return(0);
-        }
-        b[i] = (unsigned char)v;
-    }
-    memcpy((char *)&ia->s_addr,b,4);
-    return(ia->s_addr != 0);
-}
-#endif  /* NO_DCL_INET_ATON */
-
-#endif /* MACOSX */
-#endif /* SOLARIS7 */
-#endif /* SOLARIS8 */
-#endif /* SOLARIS9 */
-#endif /* IRIX65 */
-#endif /* UW7 */
-#endif /* AIX41 */
-#endif /* LINUX */
-#endif /* __DragonFly__ */
-#endif /* NETBSD15 */
-#endif /* FREEBSD4 */
-#endif /* OpenBSD */
-#endif /* SCO_OSR505 */
-#endif /* HPUX1100 */
-#endif /* HPUX10 */
-#endif /* OSF50 */
-#endif /* CK_X509_CHECK_HOST */
 
 #define NUM_SAN_IPV4 64                 /* IPv4 SANs examined */
 
@@ -3683,12 +3510,9 @@ inet_aton(char * ipaddress, struct in_addr * ia) {
   Check that the server's certificate names hostname.  Returns 0 if it
   does, or if the user accepts the mismatch warning, else -1.
 
-  With CK_X509_CHECK_HOST, an address is matched against the iPAddress
-  entries, IPv4 or IPv6, and a name against the dNSName entries, or the
-  commonName when there are none.  A wildcard matches only as the
-  leftmost label.  Without it, only IPv4 addresses are compared, and a
-  certificate whose only matching entry is an IPv6 address gets the
-  warning.
+  An address is matched against the iPAddress entries, IPv4 or IPv6,
+  and a name against the dNSName entries, or the commonName when there
+  are none.  A wildcard matches only as the leftmost label.
 */
 int
 ssl_check_server_name(SSL * ssl, char * hostname)
@@ -3735,7 +3559,6 @@ ssl_check_server_name(SSL * ssl, char * hostname)
         }
     }
 
-#ifdef CK_X509_CHECK_HOST
     {
         X509 * cert;
         int ok, isaddr;
@@ -3762,57 +3585,6 @@ ssl_check_server_name(SSL * ssl, char * hostname)
         }
         return(show_hostname_warning(hostname, shown) ? 0 : -1);
     }
-#else /* CK_X509_CHECK_HOST */
-  {
-    char * commonName;
-    struct in_addr ia;
-    int rv;
-
-    /* first we check if `hostname' is in fact an ip address */
-    if (inet_aton(hostname, &ia)) {
-        struct in_addr sanip[NUM_SAN_IPV4];
-        int i, n = tls_get_SAN_ipv4(ssl, sanip, NUM_SAN_IPV4);
-        char *server_ip = "NO IP IN CERT";
-
-        for (i = 0; i < n; i++)
-          if (sanip[i].s_addr == ia.s_addr)
-            return 0;
-        if (n > 0)
-          server_ip = inet_ntoa(sanip[n - 1]);
-        rv = show_hostname_warning(hostname, server_ip) ? 0 : -1;
-        return(rv);
-    }
-
-    /* look for dNSName(s) in subjectAltName in the server's certificate */
-    dNSName = tls_get_SAN_objs(ssl,GEN_DNS);
-    if (dNSName) {
-        int i = 0, matched = 0;
-        for (i = 0; dNSName[i]; i++) {
-            if (!dNSName_cmp(hostname,(char *)dNSName[i])) {
-                matched = 1;
-                break;
-            }
-        }
-        if (matched)
-          rv = 0;
-        else
-          rv = show_hostname_warning(hostname,
-                                   (char *)((i == 0 || dNSName[i - 1] == NULL) ?
-                                   (char *)"UNKNOWN" : (char *)dNSName[i - 1]))
-             ? 0 : -1;
-        for (i = 0; dNSName[i]; i++)    /* Free them all */
-            free(dNSName[i]);
-        return rv;
-    } else if ((commonName = ssl_get_commonName(ssl))) {
-       /* so the server didn't have any dNSName's, check the commonName */
-       if (!dNSName_cmp(hostname, commonName))
-           return 0;
-       else
-           return (show_hostname_warning(hostname, commonName) ? 0 : -1);
-    }
-    return -1;
-  }
-#endif /* CK_X509_CHECK_HOST */
 }
 
 /* Is 'user' authorized to access the system without a login */

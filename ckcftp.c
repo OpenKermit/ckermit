@@ -10338,13 +10338,8 @@ ssl_auth() {
         /* OpenSSL >= 1.1.0: Negotiate the best TLS version possible */
         client_method = TLS_client_method();
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#if OPENSSL_VERSION_NUMBER >= 0x10001000L
-        /* OpenSSL >= 1.0.1: Use TLS 1.2 - not yet deprecated as of 2022-09-06 */
+        /* OpenSSL 1.0.2: TLS 1.2 */
         client_method = TLSv1_2_client_method();
-#else
-        /* OpenSSL 0.9.8 and 1.0.0 can't handle anything newer than TSL 1.0 */
-        client_method = TLSv1_client_method();
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10001000L */
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
     }
     if (auth_type && !strcmp(auth_type,"TLS")) {

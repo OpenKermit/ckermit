@@ -22,6 +22,11 @@ covering their situations.
   types of different widths or signedness is now explicit or removed.  This
   work identified numerous bugs, which are among those listed below.
 
+- C-Kermit now needs OpenSSL 1.0.2 or later, or LibreSSL, for SSL and TLS.
+  ck_ssl.h stops the build with an older OpenSSL.  The code for OpenSSL 0.9.x,
+  1.0.0, and 1.0.1, is removed.  OpenSSL 1.0.2 provides library functions that
+  replace buggy custom code in C-Kermit.
+
 ## New Features
 
 - `SET FTP TRUST-PASV-ADDRESS { ON, OFF }` selects the address of a
@@ -926,6 +931,8 @@ file, also reach it.
 - [11] The `CK_DEBUG_UNBUFFERED` environment variable is removed.
 
 - `*.ts` is no longer a default text pattern.
+
+- C-Kermit needs OpenSSL 1.0.2 or later, or LibreSSL.
 
 ## Changes in earlier releases that didn't make it into the changelog
 

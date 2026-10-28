@@ -82,6 +82,9 @@
 #include <openssl/sha.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#if OPENSSL_VERSION_NUMBER < 0x10002000L
+#error "C-Kermit needs OpenSSL 1.0.2 or later, or LibreSSL"
+#endif /* OPENSSL_VERSION_NUMBER < 1.0.2 */
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/core.h>
 #include <openssl/params.h>
