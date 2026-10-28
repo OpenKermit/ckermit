@@ -9191,6 +9191,16 @@ cx_net(net, nprotocol, xhost, svc,
 
     if (!xhost) xhost = "";             /* Watch out for null pointers */
     if (!svc) svc = "";
+/*
+  ttname[] holds the host name or PTY/pipe command for the life of the
+  connection.  ttopen() reopens the connection when ttname[] differs
+  from the name it saved.  So a name that does not fit in ttname[]
+  fails here.
+*/
+    if ((int)strlen(xhost) >= TTNAMLEN) {
+        msg = (gui == 0) && msgflg;
+        return(cx_fail(msg,"Host name or command too long"));
+    }
     ckstrncpy(host,xhost,HOSTNAMLEN);   /* Avoid buffer confusion */
 
     debug(F110,"cx_net host",host,0);

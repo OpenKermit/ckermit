@@ -269,7 +269,9 @@ def test_compat_receive_confines_incoming_paths(wermit_path, tmp_path,
     """Verify compatibility modes do not write outside the receive dir.
 
     Beta.12's default RECEIVE PATHNAMES AUTO confined an absolute
-    incoming name.  The compatibility modes keep that.
+    incoming name.  The compatibility modes keep that.  An absolute
+    name is stored under the receive directory.  A name with ".." is
+    refused.
     """
     recv_dir = tmp_path / "recv" / "sub"
     send_dir = tmp_path / "send"
@@ -284,16 +286,25 @@ def test_compat_receive_confines_incoming_paths(wermit_path, tmp_path,
     else:
         target = tmp_path / "escaped-dotdot.txt"
         as_name = "../../escaped-dotdot.txt"
+    # The sender starts in recv_dir.  A relative CD keeps the SET HOST
+    # command within TTNAMLEN when tmp_path is long.
     result = subprocess.run([
         str(link), "-H", "-Y", "-Q", "-C",
         "set command more-prompting off, set delay 0, "
         f"cd {recv_dir}, "
         f"set host /network-type:pseudoterminal {wermit_path} -H -Y -Q -C "
-        f"{{cd {send_dir}, set file names literal, set send pathnames on, "
+        "{cd ../../send, set file names literal, set send pathnames on, "
         f"send /as-name:{{{as_name}}} a.txt, quit}}, "
         "receive, close, exit"], capture_output=True, text=True,
         timeout=30, start_new_session=True)
     assert not target.exists(), result.stdout + result.stderr
+    if kind == "absolute":
+        confined = recv_dir / str(target).lstrip("/")
+        assert confined.read_text() == "payload\n", \
+            result.stdout + result.stderr
+    else:
+        assert "Access denied" in result.stdout, \
+            result.stdout + result.stderr
 
 
 @pytest.mark.parametrize("keyword", ["9", "10", "11"])
