@@ -1596,7 +1596,7 @@ int en_ret = 2;                         /* RETRIEVE */
 int en_mai = 0;                         /* MAIL */
 int en_pri = 0;                         /* PRINT */
 int en_ena = 2;                         /* ENABLE */
-int en_ena_lock = 0;                    /* en_ena bits DISABLE ENABLE cleared */
+int en_ena_lock = 0;                    /* Bits cleared by DISABLE ENABLE */
 #else
 int en_xit = 0, en_cwd = 0, en_cpy = 0, en_del = 0, en_mkd = 0, en_rmd = 0,
     en_dir = 0, en_fin = 0, en_get = 0, en_hos = 0, en_ren = 0, en_sen = 0,
@@ -3129,7 +3129,7 @@ MAINNAME( argc, argv ) int argc; char **argv;
     makever();                          /* Put together version strings */
 #ifndef NOSPL
     {
-        char scratch[TMPBUFSIZ];
+        char scratch[TMPBUFSIZ+1];
         extern char *tempdir;           /* Initialize temporary directory */
         char * tp = scratch;
         int x = TMPBUFSIZ;
@@ -3283,10 +3283,14 @@ MAINNAME( argc, argv ) int argc; char **argv;
       Run after initproto calls so initial file transfer settings are
       not overwritten.
     */
+#ifndef NOICP
+#ifndef NOSPL                           /* As compat_9() and compat_10() */
     if (!ckstrcmp(myname,"kermit9",-1,0))
       compat_9();
     else if (!ckstrcmp(myname,"kermit10",-1,0))
       compat_10();
+#endif /* NOSPL */
+#endif /* NOICP */
 
     connoi();                           /* Console interrupts off */
 

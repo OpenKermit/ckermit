@@ -1886,7 +1886,7 @@ do_pty(fd, cmd, fc) int * fd; char * cmd; int fc;
 #ifdef HAVE_PTYTRAP
     int x;
 #endif /* HAVE_PTYTRAP */
-    int dummy;
+    ssize_t n;
 
     debug(F101,"CKUPTY.C do_pty fc","",fc);
 
@@ -1929,6 +1929,8 @@ do_pty(fd, cmd, fc) int * fd; char * cmd; int fc;
     }
     if ((i = fork()) < 0) {
         /* XXX - need to clean up the allocated pty */
+        close(syncpipe[0]);
+        close(syncpipe[1]);
         perror("fork() failed");
         msg++;
         debug(F111,"do_pty()","fork fails",errno);
@@ -1940,12 +1942,22 @@ do_pty(fd, cmd, fc) int * fd; char * cmd; int fc;
         int on = 1;
 #endif /* HAVE_PTYTRAP */
         close(syncpipe[1]);
-        errno = 0;
-        if (read(syncpipe[0], &c, 1) == 0) { /* Slave side died */
+        do {
+            errno = 0;
+            n = read(syncpipe[0], &c, 1);
+        } while (n < 0 && errno == EINTR);
+        if (n != 1) {                   /* Slave side died */
             perror("Pipe read() failed");
             msg++;
             debug(F110,"do_pty()","Slave fails to initialize",0);
             close(syncpipe[0]);
+            /* The child exits without running cmd.  Reap it. */
+            close(ttyfd);
+            *fd = -1;
+#ifdef HAVE_WAITPID
+            while (waitpid(i, NULL, 0) < 0 && errno == EINTR)
+              ;
+#endif /* HAVE_WAITPID */
             return(-1);
         }
         pty_fork_pid = i;               /* So we can clean it up later */
@@ -1982,16 +1994,17 @@ do_pty(fd, cmd, fc) int * fd; char * cmd; int fc;
 #endif /* WANT_UTMP */
             /* Notify our parent we're ready to continue.*/
             debug(F110,"do_pty()","slave synchronizing",0);
-            dummy = (int)write(syncpipe[1],"y",1);
+            x = (int)write(syncpipe[1],"y",1);
             close(syncpipe[0]);
             close(syncpipe[1]);
-
-            debug(F110,"do_pty cmd",cmd,0);
-            exec_cmd(cmd);
-            debug(F111,"do_pty()","exec_cmd() returns - why?",errno);
+            if (x == 1) {
+                debug(F110,"do_pty cmd",cmd,0);
+                exec_cmd(cmd);
+                debug(F111,"do_pty()","exec_cmd() returns - why?",errno);
+            }
         }
         *fd = ttyfd;
-        debug(F110,"do_pty()","getptyslave() fails - exiting",0);
+        debug(F110,"do_pty()","slave setup fails - exiting",0);
         exit(1);
     }
     *fd = ttyfd;

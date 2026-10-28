@@ -18,6 +18,8 @@ import threading
 
 import pytest
 
+from conftest import TelnetTlsClient
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 PASSWORD = "s3cret-test"
 
@@ -166,6 +168,52 @@ def test_iksd_login(wermit_path, fakeshadow, tmp_path):
     assert "LOGGEDIN" in result.stdout, result.stdout
 
 
+@pytest.mark.parametrize("lines", [
+    ["{user}x"],
+    ["#{user}", " {user}"],
+    ["x{user}"],
+], ids=["longer-name", "comment-and-space", "suffix"])
+def test_iksd_userfile_matches_whole_name(wermit_path, fakeshadow,
+                                          tmp_path, lines):
+    """Verify the forbidden-user file refuses only the whole name.
+
+    A longer name that starts with the user's name does not refuse it,
+    and lines starting with '#' or a space are skipped.
+    """
+    user = getpass.getuser()
+    result = _iksd_session(wermit_path, fakeshadow, tmp_path, "echo DONE",
+                           [ln.format(user=user) for ln in lines])
+    assert "LOGGEDIN" in result.stdout, result.stdout
+    assert "checkuser OK" in _debug_log(tmp_path)
+
+
+def test_iksd_userfile_refuses_user(wermit_path, fakeshadow, tmp_path):
+    """Verify a user listed in the forbidden-user file cannot log in."""
+    user = getpass.getuser()
+    result = _iksd_session(wermit_path, fakeshadow, tmp_path, "echo DONE",
+                           ["other", user + "\tcomment"])
+    assert "LOGGEDIN" not in result.stdout, result.stdout
+    assert "checkuser REFUSED" in _debug_log(tmp_path)
+
+
+def test_iksd_records_server_command_state(wermit_path, fakeshadow,
+                                           tmp_path):
+    """Verify the IKSD records each server command in its slot.
+
+    slotstate() writes the command and its arguments to the INFO field
+    of the session record.  The debug log shows the field.
+    """
+    result = _iksd_session(
+        wermit_path, fakeshadow, tmp_path,
+        "remote cd /, echo CD=\\v(status), "
+        "remote directory /etc/passwd, echo DIR=\\v(status)")
+    assert "CD=0" in result.stdout, result.stdout
+    assert "DIR=0" in result.stdout, result.stdout
+    log = _debug_log(tmp_path)
+    assert "slotstate[REMOTE CD /" in log
+    assert "slotstate[REMOTE DIR /etc/passwd" in log
+
+
 def _tls_login(wermit_path, fakeshadow, tmp_path, ssl_pki, listed,
                method="start-tls"):
     """Log in with a client certificate over TLS.
@@ -223,131 +271,103 @@ def test_iksd_tls_certificate_not_listed(wermit_path, fakeshadow,
     assert "Password" in result.stdout, result.stdout
 
 
-IAC, DONT, DO, WONT, WILL, SB, SE = 255, 254, 253, 252, 251, 250, 240
-TTYPE, NEW_ENVIRON, START_TLS = 24, 39, 46
+def _der_items(der):
+    """Return the encoded items inside the DER SEQUENCE der."""
+    def header(i):
+        n = der[i + 1]
+        if n < 0x80:
+            return i + 2, n
+        k = n & 0x7f
+        return i + 2 + k, int.from_bytes(der[i + 2:i + 2 + k], "big")
+    start, length = header(0)
+    items = []
+    i = start
+    while i < start + length:
+        body, n = header(i)
+        items.append(der[i:body + n])
+        i = body + n
+    return items
 
 
-class _TelnetTlsClient:
-    """Telnet client that runs START_TLS with a client certificate.
+def _der_sequence(content):
+    """Return a DER SEQUENCE that holds the encoded items in content."""
+    n = len(content)
+    if n < 0x80:
+        length = bytes([n])
+    else:
+        b = n.to_bytes((n.bit_length() + 7) // 8, "big")
+        length = bytes([0x80 | len(b)]) + b
+    return b"\x30" + length + content
 
-    It agrees to START_TLS, NEW-ENVIRON and TTYPE and refuses other
-    options.  It answers SB NEW-ENVIRON SEND with each name in users
-    as a USER variable, in order.  It collects the data the server
-    sends outside Telnet commands.
+
+def _cert_der(path):
+    """Return the DER encoding of the PEM certificate at path."""
+    return subprocess.run(["openssl", "x509", "-in", str(path),
+                           "-outform", "DER"],
+                          capture_output=True, check=True).stdout
+
+
+def test_iksd_tls_certificate_copied_signature(wermit_path, fakeshadow,
+                                               tmp_path, ssl_pki):
+    """Verify a certificate with a copied signature needs a password.
+
+    The client certificate has a new key and the signature bits of the
+    certificate in ~/.tlslogin.  X509_userok() must compare the whole
+    certificate, so the IKSD asks for a password.
     """
+    key = tmp_path / "forged.key"
+    own = tmp_path / "own.crt"
+    subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048",
+                    "-nodes", "-keyout", str(key), "-out", str(own),
+                    "-days", "2", "-subj", "/CN=test-client"],
+                   capture_output=True, check=True)
+    tbs, alg, _ = _der_items(_cert_der(own))
+    signature = _der_items(_cert_der(ssl_pki["client_crt"]))[2]
+    der = tmp_path / "forged.der"
+    der.write_bytes(_der_sequence(tbs + alg + signature))
+    forged = tmp_path / "forged.crt"
+    subprocess.run(["openssl", "x509", "-inform", "DER", "-in", str(der),
+                    "-out", str(forged)], capture_output=True, check=True)
+    pki = dict(ssl_pki, client_crt=str(forged), client_key=str(key))
+    session = tmp_path / "session"
+    session.mkdir()
+    result = _tls_login(wermit_path, fakeshadow, session, pki,
+                        ssl_pki["client_crt"])
+    assert "LOGGEDIN" not in result.stdout, result.stdout
+    assert "Password" in result.stdout, result.stdout
 
-    def __init__(self, port, ssl_pki, users):
-        import ssl
-        self.sock = socket.create_connection(("127.0.0.1", port),
-                                             timeout=15)
-        self.ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-        self.ctx.check_hostname = False
-        self.ctx.load_verify_locations(ssl_pki["ca_crt"])
-        self.ctx.load_cert_chain(ssl_pki["client_crt"],
-                                 ssl_pki["client_key"])
-        self.users = users
-        self.data = b""
-        self.buf = b""
 
-    def _send(self, b):
-        self.sock.sendall(bytes(b))
+def test_iksd_tls_changed_user_checks_tls_connection(
+        wermit_path, fakeshadow, tmp_path, ssl_pki):
+    """Verify a changed USER after START_TLS is checked on the TLS link.
 
-    def _sb(self, opt, body):
-        self._send([IAC, SB, opt] + list(body) + [IAC, SE])
+    The client sends USER twice in one NEW-ENVIRON IS.  The first name
+    is a second name for the user, and its certificate check logs it
+    in.  The second name differs, so tn_rnenv() checks the certificate
+    for it on the START_TLS connection.  Both names share a home with
+    the certificate in ~/.tlslogin, so no password is asked.
+    """
+    user = getpass.getuser()
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".tlslogin").write_bytes(
+        open(ssl_pki["client_crt"], "rb").read())
+    init = tmp_path / "iksd.ini"
+    init.write_text(
+        f"set authentication ssl rsa-cert-file {ssl_pki['server_crt']}\n"
+        f"set authentication ssl rsa-key-file {ssl_pki['server_key']}\n"
+        f"set authentication ssl verify-file {ssl_pki['ca_crt']}\n"
+        "set authentication ssl verify peer-cert\n")
 
-    def _handle_sb(self, body):
-        if not body:
-            return
-        opt = body[0]
-        if opt == START_TLS and body[1:2] == b"\x01":
-            import time
-            self._sb(START_TLS, [1])
-            # The server must read FOLLOWS before the ClientHello
-            # arrives.  A ClientHello in the same read is lost.
-            time.sleep(0.5)
-            self.sock = self.ctx.wrap_socket(self.sock)
-        elif opt == NEW_ENVIRON and body[1:2] == b"\x01":
-            reply = [0]
-            for user in self.users:
-                reply += [0] + list(b"USER") + [1] + list(user.encode())
-            self._sb(NEW_ENVIRON, reply)
-        elif opt == TTYPE and body[1:2] == b"\x01":
-            self._sb(TTYPE, [0] + list(b"VT100"))
+    def client(port):
+        return TelnetTlsClient(port, ssl_pki, ["ckalias", user]).run(
+            [b"IKSD>", b"assword:", b"sername:"])
 
-    def _parse(self):
-        """Handle the complete commands in self.buf."""
-        b = self.buf
-        i = 0
-        while i < len(b):
-            if b[i] != IAC:
-                self.data += b[i:i + 1]
-                i += 1
-                continue
-            if i + 1 >= len(b):
-                break
-            cmd = b[i + 1]
-            if cmd == IAC:
-                self.data += b"\xff"
-                i += 2
-            elif cmd in (DO, DONT, WILL, WONT):
-                if i + 2 >= len(b):
-                    break
-                opt = b[i + 2]
-                if cmd == DO:
-                    ok = opt in (START_TLS, NEW_ENVIRON, TTYPE)
-                    self._send([IAC, WILL if ok else WONT, opt])
-                elif cmd == WILL:
-                    self._send([IAC, DO if opt in (0, 1, 3) else DONT,
-                                opt])
-                i += 3
-            elif cmd == SB:
-                end = b.find(bytes([IAC, SE]), i + 2)
-                if end < 0:
-                    break
-                i, body = end + 2, b[i + 2:end]
-                self.buf = b[i:]
-                self._handle_sb(body)
-                return True
-            else:
-                i += 2
-        self.buf = b[i:]
-        return False
-
-    def expect(self, until, timeout=20):
-        """Read until any byte string in until appears in new data.
-
-        Returns the data read since the last call.
-        """
-        import time
-        start = len(self.data)
-        deadline = time.monotonic() + timeout
-        while True:
-            # A START_TLS switch must not read past the handshake.
-            while self._parse():
-                pass
-            if any(u in self.data[start:] for u in until):
-                break
-            if time.monotonic() > deadline:
-                break
-            self.sock.settimeout(max(0.1, deadline - time.monotonic()))
-            try:
-                got = self.sock.recv(4096)
-            except OSError:
-                break
-            if not got:
-                break
-            self.buf += got
-        return self.data[start:].decode("latin-1")
-
-    def send_line(self, text):
-        """Send text and a carriage return as Telnet data."""
-        self._send(list(text.encode()) + [13, 0])
-
-    def run(self, until, timeout=20):
-        """Read until any byte string in until appears, then close."""
-        self.expect(until, timeout)
-        self.sock.close()
-        return self.data.decode("latin-1")
+    out = _iksd_session(wermit_path, fakeshadow, tmp_path, "",
+                        initfile=init, home=home, client=client,
+                        alias="ckalias")
+    assert "IKSD>" in out, out
+    assert "assword" not in out, out
 
 
 def test_iksd_refused_certificate_user_needs_password(
@@ -374,7 +394,7 @@ def test_iksd_refused_certificate_user_needs_password(
 
     def client(port):
         """Answer each prompt until the user's password is sent."""
-        c = _TelnetTlsClient(port, ssl_pki, ["ckalias"])
+        c = TelnetTlsClient(port, ssl_pki, ["ckalias"])
         out = ""
         for _ in range(4):
             got = c.expect([b"sername:", b"assword:", b"IKSD>"])
@@ -399,3 +419,32 @@ def test_iksd_refused_certificate_user_needs_password(
     assert "checkuser REFUSED" in log
     assert f"{user}'s Password:" in out, out
     assert "IKSD>" not in out, out
+
+
+def test_iksd_starttls_handshake_in_same_read(wermit_path, fakeshadow,
+                                              tmp_path, ssl_pki):
+    """Verify START_TLS works when the ClientHello follows FOLLOWS.
+
+    The client sends SB START_TLS FOLLOWS and the ClientHello in one
+    send, so the IKSD can read both at once.  The certificate login
+    must still complete.
+    """
+    user = getpass.getuser()
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".tlslogin").write_bytes(
+        open(ssl_pki["client_crt"], "rb").read())
+    init = tmp_path / "iksd.ini"
+    init.write_text(
+        f"set authentication ssl rsa-cert-file {ssl_pki['server_crt']}\n"
+        f"set authentication ssl rsa-key-file {ssl_pki['server_key']}\n"
+        f"set authentication ssl verify-file {ssl_pki['ca_crt']}\n"
+        "set authentication ssl verify peer-cert\n")
+
+    def client(port):
+        return TelnetTlsClient(port, ssl_pki, [user]).run(
+            [b"IKSD>", b"assword:", b"sername:"])
+
+    out = _iksd_session(wermit_path, fakeshadow, tmp_path, "",
+                        initfile=init, home=home, client=client)
+    assert "IKSD>" in out, out

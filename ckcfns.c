@@ -344,8 +344,8 @@ CHAR myinit[MYINITLEN];                 /* Copy of my Send-Init data */
 #ifndef XYZ_INTERNAL
 static
 #endif /* XYZ_INTERNAL */
-char *fncnam[] = {
-  "rename", "replace", "backup", "append", "discard", "ask",
+char *fncnam[] = {                      /* SET FILE COLLISION keywords */
+  "rename", "overwrite", "backup", "append", "reject", "ask",
   "update", "dates-differ", ""
 };
 #endif /* TLOG */
@@ -583,8 +583,14 @@ zputfil(c) register char c;
 
 static CHAR *xdbuf;     /* Global version of decode()'s buffer pointer */
                         /* for use by translation functions. */
+static int xdstuff;     /* Characters zdstuff() pushed back, not yet read */
 
-/* Function for pushing a character onto decode()'s input stream. */
+/*
+  Function for pushing a character onto decode()'s input stream.  A
+  translation function that maps one character to two returns the first
+  and pushes the second.  decode() reads the second as translated data,
+  not as a byte of the packet.
+*/
 
 VOID
 #ifdef CK_ANSIC
@@ -595,6 +601,7 @@ zdstuff(c) CHAR c;
 /* zdstuff */ {
     xdbuf--;                            /* Back up the pointer. */
     *xdbuf = c;                         /* Stuff the character. */
+    xdstuff++;
 }
 
 #ifdef CKTUNING
@@ -1345,6 +1352,8 @@ decode(buf,fn,xlate) register CHAR *buf; register int (*fn)(); int xlate;
     int ssflg;                          /* Character was single-shifted */
     int ccpflg;                         /* For Ctrl-unprefixing stats */
     int len;
+    unsigned int xdorig = 0;            /* Repeated character to expand */
+    int xdrep = 0;                      /* Expansions still to output */
     long z;
     CHAR c;
 /*
@@ -1359,9 +1368,22 @@ decode(buf,fn,xlate) register CHAR *buf; register int (*fn)(); int xlate;
 
     xdbuf = buf;                        /* Make global copy of pointer. */
     rpt = 0;                            /* Initialize repeat count. */
+    xdstuff = 0;
 
     len = rln;                          /* Number of bytes in data field */
-    while (len > 0) {                   /* Loop for each byte */
+    while (len > 0 || xdstuff > 0 || xdrep > 0) { /* Loop for each byte */
+        if (xdstuff > 0) {              /* Second character of a pair */
+            a = *xdbuf++ & 0xff;        /* from translation, output as is */
+            xdstuff--;
+            rpt = 1;
+            goto xdout;
+        }
+        if (xdrep > 0) {                /* Next copy of a repeated */
+            a = xdorig;                 /* character that translation */
+            xdrep--;                    /* expands to two */
+            rpt = 1;
+            goto xdxlate;
+        }
         a = *xdbuf++ & 0xff;            /* Get next character */
         len--;
         if (a == (unsigned int)rptq && rptflg) { /* Repeat prefix? */
@@ -1419,6 +1441,7 @@ decode(buf,fn,xlate) register CHAR *buf; register int (*fn)(); int xlate;
         }
         a |= b8;                        /* OR in the 8th bit */
         if (rpt == 0) rpt = 1;          /* If no repeats, then one */
+      xdxlate:
 #ifndef NOCSETS
         if (!binary) {                  /* If in text mode, */
             if (tcharset != TC_UCS2) {
@@ -1427,10 +1450,17 @@ decode(buf,fn,xlate) register CHAR *buf; register int (*fn)(); int xlate;
                 if (feol && a == LF)
                   a = feol;
             }
-            if (xlatype == XLA_BYTE)    /* Byte-for-byte - do it now */
-              if (xlate && rx) a = (*rx)((CHAR) a);
+            if (xlatype == XLA_BYTE && xlate && rx) { /* Byte-for-byte */
+                xdorig = a;
+                a = (*rx)((CHAR) a);
+                if (xdstuff > 0 && rpt > 1) { /* Pair for each repeat */
+                    xdrep = rpt - 1;
+                    rpt = 1;
+                }
+            }
         }
 #endif /* NOCSETS */
+      xdout:
         /* (PWP) Decoding speedup via buffered output and a macro... */
         if (fn == putfil) {
             for (; rpt > 0; rpt--) {    /* Output the char RPT times */
@@ -3372,6 +3402,7 @@ hasdotdot(s) char *s;
   determine whether to prompt.
 */
 
+#ifndef NOICP                           /* Prompting needs a parser */
 #define RQ_MAXTOK 64
 
 static char rq_tok[RQ_MAXTOK][CKMAXPATH+1]; /* Basenames of precise names */
@@ -3631,6 +3662,41 @@ rq_confirm_check(fqpath) char * fqpath;
       default: return(-1);             /* Quit, or no answer (EOF) */
     }
 }
+
+#else /* NOICP */
+/*
+  Without the interactive command parser no confirmation can be asked
+  or configured, so every incoming file is accepted.
+*/
+void
+#ifdef CK_ANSIC
+rq_confirm_start( char * reqtext, int rcvcmd, int recur, int override )
+#else
+rq_confirm_start(reqtext,rcvcmd,recur,override)
+    char * reqtext; int rcvcmd, recur, override;
+#endif /* CK_ANSIC */
+{
+}
+
+void
+#ifdef CK_ANSIC
+rq_confirm_asname( char * asname )
+#else
+rq_confirm_asname(asname) char * asname;
+#endif /* CK_ANSIC */
+{
+}
+
+int
+#ifdef CK_ANSIC
+rq_confirm_check( char * fqpath )
+#else
+rq_confirm_check(fqpath) char * fqpath;
+#endif /* CK_ANSIC */
+{
+    return(1);
+}
+#endif /* NOICP */
 
 /*  R C V F I L -- Receive a file  */
 
@@ -4944,6 +5010,7 @@ sfile(x) int x;
 */
 int
 sdata() {
+    extern int fatalio;
     int i, x, len;
     char * s;
 
@@ -5045,8 +5112,13 @@ sdata() {
         x = spack('D',pktnum,len,(CHAR *)s); /* Send the data packet. */
         debug(F101,"sdata spack","",x);
         if (x < 0) {                    /* Error */
-            ttchk();                    /* See if connection is still there */
-            return(-2);
+            if (x < -1 || fatalio || ttchk() < 0) /* Connection lost */
+              return(-2);
+            /*
+              The write failed but the connection is there.  The packet
+              stays in the window, and a timeout or NAK resends it.
+            */
+            debug(F101,"sdata spack failed, will resend","",pktnum);
         }
 #ifdef STREAMING
         if (streaming)                  /* What an ACK would do. */
@@ -5283,21 +5355,21 @@ rpar() {
                      (lpcapr ? lpcapb : 0) | /* Long packets */
                      (swcapr ? swcapb : 0) | /* Sliding windows */
                      (rscapr ? rscapb : 0)); /* RESEND */
-    if (max < 10) { wslotr = 1; return(dada); }
+    if (max < 10) { dada[10] = NUL; wslotr = 1; return(dada); }
     dada[10] = (char) tochar(swcapr ? wslotr : 1); /* CAPAS+1 = Window size */
 
-    if (max < 12) { rpsiz = 80; return(dada); }
+    if (max < 12) { dada[11] = NUL; rpsiz = 80; return(dada); }
     if (urpsiz > 94)
       rpsiz = urpsiz - 1;               /* Long packets ... */
     dada[11] = (char) tochar(rpsiz / 95); /* Long packet size, big part */
     dada[12] = (char) tochar(rpsiz % 95); /* Long packet size, little part */
 
-    if (max < 16) return(dada);
+    if (max < 16) { dada[13] = NUL; return(dada); }
     dada[13] = '0';                     /* CAPAS+4 = WONT CHKPNT */
     dada[14] = '_';                     /* CAPAS+5 = CHKINT (reserved) */
     dada[15] = '_';                     /* CAPAS+6 = CHKINT (reserved) */
     dada[16] = '_';                     /* CAPAS+7 = CHKINT (reserved) */
-    if (max < 17) return(dada);
+    if (max < 17) { dada[17] = NUL; return(dada); }
 #ifndef WHATAMI
     dada[17] = ' ';
 #else
@@ -5342,14 +5414,18 @@ rpar() {
     i = 18;                             /* Position of next field */
     p = cksysid;                        /* WHOAMI (my system ID) */
     x = (int)strlen(p);
-    if (max - i < x + 1) return(dada);
+    /* Room for the length, the ID, WHATAMI2 and the NUL */
+    if (max - i < x + 1 || i + x + 3 > (int)sizeof(dada)) {
+        dada[i] = NUL;
+        return(dada);
+    }
     if (x > 0) {
         dada[i++] = (char) tochar(x);
         while (*p)
           dada[i++] = *p++;
     }
 
-    if (max < i+1) return(dada);
+    if (max < i+1) { dada[i] = NUL; return(dada); }
 #ifndef WHATAMI                         /* WHATAMI2 */
     dada[i++] = ' ';
 #else
@@ -5645,18 +5721,19 @@ spar(s) CHAR *s;
     }
 
 /* Now recalculate packet length based on number of windows.   */
-/* The nogotiated number of window slots will be allocated,    */
+/* The negotiated number of window slots will be allocated,    */
 /* and the maximum packet length will be reduced if necessary, */
-/* so that a windowful of packets can fit in the big buffer.   */
+/* so that a windowful of packets, or one packet without       */
+/* windows, fits in the big send buffer.                       */
 
-    if (wslotn > 1) {                   /* Shrink to fit... */
-        x = adjpkl(spmax,wslotn,bigsbsiz);
-        if (x < spmax) {
-            spmax = x;
-            lastspmax = spsiz;
-            if (slostart && spsiz > 499) spsiz = 244; /* Slow start again */
-            debug(F101,"spar sending, redefine spmax","",spmax);
-        }
+    x = adjpkl(spmax,(wslotn > 1) ? wslotn : 1,bigsbsiz);
+    if (x < spmax) {                    /* Shrink to fit... */
+        spmax = x;
+        lastspmax = spmax;
+        if (spsiz > spmax)
+          spsiz = spmax;
+        if (slostart && spsiz > 499) spsiz = 244; /* Slow start again */
+        debug(F101,"spar sending, redefine spmax","",spmax);
     }
 #ifdef WHATAMI
     debug(F101,"spar biggest","",biggest);
@@ -5680,7 +5757,7 @@ spar(s) CHAR *s;
                    ))) {
                 streamok = 1;           /* Streaming negotiated */
                 slostart = 0;           /* Undo slow-start machinations */
-                spsiz = lastspmax;
+                spsiz = spmax;
             }
         }
         streamed = streamok;

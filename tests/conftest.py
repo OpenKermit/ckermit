@@ -226,6 +226,19 @@ def assert_ok(result, label="Command failed"):
     )
 
 
+def make_deep_dir(base):
+    """Create and return a directory whose path is about 70% of PATH_MAX.
+
+    Its path is more than half of PATH_MAX, so a buffer of PATH_MAX
+    bytes cannot hold it twice.  Each component is 200 bytes.
+    """
+    path_max = os.pathconf(str(base), "PC_PATH_MAX")
+    count = (path_max * 7 // 10 - len(str(base))) // 201
+    deep = base.joinpath(*(["d" * 200] * max(count, 1)))
+    deep.mkdir(parents=True)
+    return deep
+
+
 def make_loopback_dirs(tmp_path, client_name="client", server_name="server"):
     """Create and return (client_dir, server_dir) under tmp_path."""
     client_dir = tmp_path / client_name
@@ -1400,6 +1413,31 @@ def run_wermit_pty(wermit_path, cmd_str, cwd, timeout=45, debug_log=None):
     return finish_wermit_pty(proc, master, timeout=timeout, debug_log=debug_log)
 
 
+def _wait_for_pty_raw(master, timeout):
+    """Read from master until ISIG is off or timeout runs out.
+
+    CONNECT turns ISIG off.  Keys typed while ISIG is on can be taken
+    as signal characters, and the terminal driver then flushes pending
+    input.  Return (buf, raw): buf is everything read, and raw is
+    whether ISIG went off within timeout.
+    """
+    buf = b""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if not termios.tcgetattr(master)[3] & termios.ISIG:
+            return buf, True
+        r, _, _ = select.select([master], [], [], 0.05)
+        if master in r:
+            try:
+                data = os.read(master, 4096)
+            except OSError:
+                break
+            if not data:
+                break
+            buf += data
+    return buf, False
+
+
 def _wait_for_pty_marker(master, marker, timeout):
     """
     Reads from a pty master until marker (bytes) appears in the
@@ -1424,6 +1462,32 @@ def _wait_for_pty_marker(master, marker, timeout):
             if marker in buf:
                 return buf, True
     return buf, False
+
+
+# The interactive prompt of wermit -H -Y ends with this.
+PROMPT = b"C-Kermit>"
+
+
+def read_pty_until(master, buf, markers, timeout):
+    """Read from a pty master onto buf until buf holds one of markers.
+
+    markers is a tuple of bytes.  An empty tuple reads whatever arrives
+    within timeout.  The read also ends when timeout runs out or the
+    pty closes.  Returns buf with the data appended.
+    """
+    end = time.monotonic() + timeout
+    while not any(m in buf for m in markers):
+        left = end - time.monotonic()
+        if left <= 0 or not select.select([master], [], [], left)[0]:
+            break
+        try:
+            data = os.read(master, 65536)
+        except OSError:
+            break
+        if not data:
+            break
+        buf += data
+    return buf
 
 
 def start_pty_tcp_listener(wermit_path, get_free_port, cmd_for_port, cwd,
@@ -1804,3 +1868,207 @@ def foreign_kermit_pty(wermit_path):
         return run_wermit_pty(wermit_path, full_cmd_str, cwd,
                               timeout=timeout, debug_log=debug_log)
     return _run
+
+
+IAC, DONT, DO, WONT, WILL, SB, SE = 255, 254, 253, 252, 251, 250, 240
+TTYPE, NEW_ENVIRON, START_TLS = 24, 39, 46
+
+
+class TlsBioSocket:
+    """TLS over a connected socket through memory BIOs.
+
+    The handshake starts in the constructor.  first, when given, goes
+    out in the same send as the ClientHello.
+    """
+
+    def __init__(self, ctx, sock, first=b""):
+        import ssl
+        self.raw = sock
+        self.inc = ssl.MemoryBIO()
+        self.out = ssl.MemoryBIO()
+        self.obj = ctx.wrap_bio(self.inc, self.out)
+        try:
+            self.obj.do_handshake()
+            done = True
+        except ssl.SSLWantReadError:
+            done = False
+        self.raw.sendall(first + self.out.read())
+        while not done:
+            try:
+                self.obj.do_handshake()
+                done = True
+            except ssl.SSLWantReadError:
+                # In TLS 1.2 the client's last flight goes out before
+                # the server's Finished arrives.  Send it before the
+                # read or both sides wait.
+                self._flush()
+                self._fill()
+            self._flush()
+
+    def _flush(self):
+        if self.out.pending:
+            self.raw.sendall(self.out.read())
+
+    def _fill(self):
+        got = self.raw.recv(4096)
+        if not got:
+            raise ConnectionError("connection closed in TLS")
+        self.inc.write(got)
+
+    def sendall(self, b):
+        self.obj.write(b)
+        self._flush()
+
+    def recv(self, n):
+        import ssl
+        while True:
+            try:
+                return self.obj.read(n)
+            except ssl.SSLWantReadError:
+                self._flush()
+                try:
+                    self._fill()
+                except ConnectionError:
+                    return b""
+            except ssl.SSLZeroReturnError:
+                return b""
+
+    def settimeout(self, t):
+        self.raw.settimeout(t)
+
+    def close(self):
+        self.raw.close()
+
+
+class TelnetTlsClient:
+    """Telnet client that runs START_TLS with a client certificate.
+
+    It agrees to START_TLS, NEW-ENVIRON and TTYPE and refuses other
+    options.  It sends its SB START_TLS FOLLOWS and the ClientHello in
+    one send, and sets tls when the handshake completes.  It answers
+    SB NEW-ENVIRON SEND with each name in users as a USER variable,
+    in order.  It collects the data the server sends outside Telnet
+    commands.
+    """
+
+    def __init__(self, port, ssl_pki, users):
+        import ssl
+        self.sock = socket.create_connection(("127.0.0.1", port),
+                                             timeout=15)
+        self.ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        self.ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+        self.ctx.check_hostname = False
+        self.ctx.load_verify_locations(ssl_pki["ca_crt"])
+        self.ctx.load_cert_chain(ssl_pki["client_crt"],
+                                 ssl_pki["client_key"])
+        self.users = users
+        self.data = b""
+        self.buf = b""
+        self.tls = False
+
+    def _send(self, b):
+        self.sock.sendall(bytes(b))
+
+    def _sb(self, opt, body):
+        self._send([IAC, SB, opt] + list(body) + [IAC, SE])
+
+    def _handle_sb(self, body):
+        if not body:
+            return
+        opt = body[0]
+        if opt == START_TLS and body[1:2] == b"\x01":
+            self.sock = TlsBioSocket(
+                self.ctx, self.sock,
+                bytes([IAC, SB, START_TLS, 1, IAC, SE]))
+            self.tls = True
+        elif opt == NEW_ENVIRON and body[1:2] == b"\x01":
+            reply = [0]
+            for user in self.users:
+                reply += [0] + list(b"USER") + [1] + list(user.encode())
+            self._sb(NEW_ENVIRON, reply)
+        elif opt == TTYPE and body[1:2] == b"\x01":
+            self._sb(TTYPE, [0] + list(b"VT100"))
+
+    def _parse(self):
+        """Handle the complete commands in self.buf."""
+        b = self.buf
+        i = 0
+        while i < len(b):
+            if b[i] != IAC:
+                self.data += b[i:i + 1]
+                i += 1
+                continue
+            if i + 1 >= len(b):
+                break
+            cmd = b[i + 1]
+            if cmd == IAC:
+                self.data += b"\xff"
+                i += 2
+            elif cmd in (DO, DONT, WILL, WONT):
+                if i + 2 >= len(b):
+                    break
+                opt = b[i + 2]
+                if cmd == DO:
+                    ok = opt in (START_TLS, NEW_ENVIRON, TTYPE)
+                    self._send([IAC, WILL if ok else WONT, opt])
+                elif cmd == WILL:
+                    self._send([IAC, DO if opt in (0, 1, 3) else DONT,
+                                opt])
+                i += 3
+            elif cmd == SB:
+                end = b.find(bytes([IAC, SE]), i + 2)
+                if end < 0:
+                    break
+                i, body = end + 2, b[i + 2:end]
+                self.buf = b[i:]
+                self._handle_sb(body)
+                return True
+            else:
+                i += 2
+        self.buf = b[i:]
+        return False
+
+    def _wait(self, done, timeout):
+        """Read and handle input until done() returns True."""
+        deadline = time.monotonic() + timeout
+        while True:
+            # A START_TLS switch must not read past the handshake.
+            while self._parse():
+                pass
+            if done():
+                break
+            if time.monotonic() > deadline:
+                break
+            self.sock.settimeout(max(0.1, deadline - time.monotonic()))
+            try:
+                got = self.sock.recv(4096)
+            except OSError:
+                break
+            if not got:
+                break
+            self.buf += got
+
+    def expect(self, until, timeout=20):
+        """Read until any byte string in until appears in new data.
+
+        Returns the data read since the last call.
+        """
+        start = len(self.data)
+        self._wait(lambda: any(u in self.data[start:] for u in until),
+                   timeout)
+        return self.data[start:].decode("latin-1")
+
+    def wait_tls(self, timeout=20):
+        """Read until the TLS handshake completes.  Returns tls."""
+        self._wait(lambda: self.tls, timeout)
+        return self.tls
+
+    def send_line(self, text):
+        """Send text and a carriage return as Telnet data."""
+        self._send(list(text.encode()) + [13, 0])
+
+    def run(self, until, timeout=20):
+        """Read until any byte string in until appears, then close."""
+        self.expect(until, timeout)
+        self.sock.close()
+        return self.data.decode("latin-1")

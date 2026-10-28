@@ -53,11 +53,6 @@ IPv4-only:
 - X11 forwarding will work across an IPv6 connection, but will always listen on
   an IPv4 socket locally.
 
-- With OpenSSL older than 1.0.2, the SSL code does not match an IPv6
-  literal host against the iPAddress entries of a certificate, and
-  warns that the name does not match.  OpenSSL 1.0.2 and later, and
-  LibreSSL, match IPv4 and IPv6 addresses.
-  
 - rlogin has not been rigorously defined for IPv6 contexts and rlogin behavior
   is untested there, though may work.
 

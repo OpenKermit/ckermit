@@ -140,11 +140,7 @@ ck_ssleay_is_installed()
 #ifdef SSLDLL
 int ssl_finished_messages = 0;
 #else /* SSLDLL */
-#ifdef OPENSSL_VERSION_NUMBER
-int ssl_finished_messages = (OPENSSL_VERSION_NUMBER >= 0x0090581fL);
-#else
-!ERROR This module requires OpenSSL 0.9.5a or higher
-#endif /* OPENSSL_VERSION_NUMBER */
+int ssl_finished_messages = 1;
 #endif /* SSLDLL */
 
 /* Compatibility helpers follow. Avoid using deprecated accessors when
@@ -157,6 +153,24 @@ static char *auth_ssl_name = 0;    /* this holds the oneline name */
 char ssl_err[SSL_ERR_BFSZ]="";
 
 BIO *bio_err=NULL;
+
+/*
+  Read the text queued in b into buf, a buffer of size bytes, and
+  terminate it.  Text that does not fit is discarded, so it cannot
+  appear in a later read.  Returns the number of bytes stored.
+*/
+int
+ck_bio_gets(BIO * b, char * buf, int size)
+{
+    int len;
+
+    len = BIO_read(b, buf, size - 1);
+    if (len < 0)
+      len = 0;
+    buf[len] = '\0';
+    (VOID) BIO_reset(b);
+    return(len);
+}
 X509_STORE *crl_store = NULL;
 
 /* Replacement helpers for deprecated OpenSSL APIs (OpenSSL 3.0+)
@@ -463,12 +477,10 @@ X509_STORE_CTX *ctx;
 #ifdef XN_FLAG_SEP_MULTILINE
     X509_NAME_print_ex(bio_err,X509_get_subject_name(xs),4,
                         XN_FLAG_SEP_MULTILINE);
-    len = BIO_read(bio_err,subject,256);
-    subject[len < 256 ? len : 255] = '\0';
+    len = ck_bio_gets(bio_err,subject,256);
     if (!subject[0]) {
         ERR_print_errors(bio_err);
-        len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-        ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+        len = ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
         uq_ok("X.509 Subject Name unavailable", ssl_err, 1, NULL, 0);
         ok=0;
         goto return_time;
@@ -476,12 +488,10 @@ X509_STORE_CTX *ctx;
 
     X509_NAME_print_ex(bio_err,X509_get_issuer_name(xs),4,
                         XN_FLAG_SEP_MULTILINE);
-    len = BIO_read(bio_err,issuer,256);
-    issuer[len < 256 ? len : 255] = '\0';
+    len = ck_bio_gets(bio_err,issuer,256);
     if (!issuer[0]) {
         ERR_print_errors(bio_err);
-        len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-        ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+        len = ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
         uq_ok("X.509 Issuer Name unavailable", ssl_err, 1, NULL, 0);
         ok=0;
         goto return_time;
@@ -491,8 +501,7 @@ X509_STORE_CTX *ctx;
     if (!subject[0]) {
         int len;
         ERR_print_errors(bio_err);
-        len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-        ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+        len = ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
         uq_ok("X.509 Subject Name unavailable", ssl_err, 1, NULL, 0);
         ok=0;
         goto return_time;
@@ -502,8 +511,7 @@ X509_STORE_CTX *ctx;
     if (!issuer[0]) {
         int len;
         ERR_print_errors(bio_err);
-        len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-        ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+        len = ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
         uq_ok("X.509 Issuer Name unavailable", ssl_err, 1, NULL, 0);
         ok=0;
         goto return_time;
@@ -608,8 +616,7 @@ X509_STORE_CTX *ctx;
                  * real certificate!
                  */
                 ASN1_TIME_print(bio_err,X509_get_notBefore(xs));
-                len1 = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                ssl_err[len1 < SSL_ERR_BFSZ ? len1 : SSL_ERR_BFSZ] = '\0';
+                len1 = ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
                 ckmakxmsg(prefix,1024,
                            "Error: ",
                            X509_verify_cert_error_string(error),
@@ -630,8 +637,7 @@ X509_STORE_CTX *ctx;
             } else if (ssl_verify_flag != SSL_VERIFY_NONE) {
                 int len2;
                 ASN1_TIME_print(bio_err,X509_get_notBefore(xs));
-                len2 = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                ssl_err[len2 < SSL_ERR_BFSZ ? len2 : SSL_ERR_BFSZ] = '\0';
+                len2 = ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
                 ckmakxmsg(prefix,1024,
                            "Warning: ",
                            X509_verify_cert_error_string(error),
@@ -650,8 +656,7 @@ X509_STORE_CTX *ctx;
                  * real certificate!
                  */
                 ASN1_TIME_print(bio_err,X509_get_notAfter(xs));
-                len3 = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                ssl_err[len3 < SSL_ERR_BFSZ ? len3 : SSL_ERR_BFSZ] = '\0';
+                len3 = ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
 
                 ckmakxmsg(prefix,1024,
                            "Error: ",
@@ -674,8 +679,7 @@ X509_STORE_CTX *ctx;
             } else if (ssl_verify_flag != SSL_VERIFY_NONE) {
                 int len4;
                 ASN1_TIME_print(bio_err,X509_get_notAfter(xs));
-                len4 = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                ssl_err[len4 < SSL_ERR_BFSZ ? len4 : SSL_ERR_BFSZ] = '\0';
+                len4 = ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
                 ckmakxmsg(prefix,1024,
                            "Warning: ",
                            X509_verify_cert_error_string(error),
@@ -1057,8 +1061,7 @@ int keylength;
         if (ssl_debug_flag)
             printf("Generating temporary (%d bit) RSA key...\r\n", keylength);
 
-        /* Prefer EVP_PKEY keygen when available (OpenSSL 1.0+). */
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
+        /* Prefer EVP_PKEY keygen */
         {
             EVP_PKEY *pkey = evp_generate_rsa_key(keylength);
             if (pkey) {
@@ -1066,7 +1069,6 @@ int keylength;
                 EVP_PKEY_free(pkey);
             }
         }
-#endif /* OPENSSL_VERSION_NUMBER >= 1.0.0 */
 
 #if OPENSSL_VERSION_NUMBER < 0x30000000L
         /* Fallback to legacy API if EVP keygen didn't produce a key */
@@ -1230,13 +1232,11 @@ dh_from_pg(unsigned char *pbytes, int plen,
     /* DH_set0_pqg takes ownership of p and g on success */
 #else /* OpenSSL < 1.1.0 */
     dh->p = BN_bin2bn(pbytes, plen, NULL);
-    dh->g = BN_bin2bn(pbytes, plen, NULL);
+    dh->g = BN_bin2bn(gbytes, glen, NULL);
     if ((dh->p == NULL) || (dh->g == NULL)) {
-        BN_free(dh->g);
-        BN_free(dh->p);
-        DH_free(dh);
+        DH_free(dh);                    /* Frees dh->p and dh->g */
         return(NULL);
-   }
+    }
 #endif
     return dh;
 }
@@ -1427,7 +1427,7 @@ int verbose;
             printf("[TLS - subject=%s]\r\n",buf);
             x509_name_oneline_buf(X509_get_issuer_name(peer), buf, 512);
             printf("[TLS - issuer=%s]\r\n",buf);
-            /* X509_free(peer); */
+            X509_free(peer);
         } else if (!tls_is_krb5(0)) {
             if ( !sstelnet && !tcp_incoming ) {
                 printf("[TLS - No certificate provided.]\r\n");
@@ -1721,18 +1721,12 @@ ssl_once_init()
  */
 #define COMPAT_VERSION_MASK 0xf000000f  /* MNNffppS, major+status */
 #else /* OPENSSL_300 */
-#ifdef OPENSSL_100
 /* Different major/minor version or development version of OpenSSL
  * means ABI may break compatibility.
  * Modified by Adam Friedlander for OpenSSL >= 1.0.0
  * (See <openssl/opensslv.h> for OpenSSL version encoding details.)
  */
 #define COMPAT_VERSION_MASK 0xfff0000f  /* MNNffppS, major+minor+status */
-#else /* OPENSSL_100 */
-/* Different major/minor/fix/development (not patch) version of OpenSSL
- * means ABI may break compatibility. */
-#define COMPAT_VERSION_MASK 0xfffff00f  /* MNNFFppS, major+minor+fix+status */
-#endif /* OPENSSL_100 */
 #endif /* OPENSSL_300 */
 #endif /* NO_OPENSSL_VERSION_CHECK */
 
@@ -1783,14 +1777,10 @@ ssl_once_init()
         printf("  a version of OpenSSL older than the one supplied at\r\n");
         printf("  compilation time.\r\n");
 #else /* OPENSSL_300 */
-#ifdef OPENSSL_100
         printf("  OpenSSL versions 1.0.0 or newer must be the same\r\n");
         printf("  major and minor version number, and Kermit may not\r\n");
         printf("  be used with a version of OpenSSL older than the one\r\n");
         printf("  supplied at compile time.\r\n");
-#else /* OPENSSL_100 */
-        printf("  OpenSSL versions prior to 1.0.0 must be the same.\r\n");
-#endif /* OPENSSL_100 */
 #endif /* OPENSSL_300 */
 
         s = "R";
@@ -1888,7 +1878,6 @@ the build.\r\n\r\n");
     /* Ensure the Random number generator has enough entropy */
     if ( !RAND_status() ) {
         char buffer[256]="";
-        char randombytes[256];
         int rc1 = -1, rc2 = 1;  /* assume failure and success */
 
         debug(F110,"ssl_once_init","!RAND_status()",0);
@@ -1908,36 +1897,15 @@ the build.\r\n\r\n");
         debug(F111,"ssl_once_init","RAND_egd()",rc1);
         if ( rc1 <= 0 ) {
             rc2 = RAND_load_file(ssl_rnd_file, -1);
-            debug(F111,"ssl_once_init","RAND_load_file()",rc1);
+            debug(F111,"ssl_once_init","RAND_load_file()",rc2);
         }
 #endif /* OPENSSL_NO_EGD */
 
-        if ( rc1 <= 0 && !rc2 )
-        {
-            time_t t = time(NULL);
-            int tlen = sizeof(time_t);
-            int pid = getpid();
-            int plen = sizeof(int);
-            int n;
-#ifndef RAND_MAX
-#define RAND_MAX 0x7FFF
-#endif
-            debug(F110,"ssl_once_init","calling RAND_seed()",0);
-
-            RAND_seed((unsigned char *)&t, tlen);
-            RAND_seed((unsigned char *)&pid, plen);
-
-            srand((unsigned int)t);
-            sprintf(buffer, "%.0f", (((double)(rand()%RAND_MAX)/RAND_MAX)*
-                                      (sizeof(randombytes)-128-1)));
-            n = (atoi(buffer)+1)%(sizeof(randombytes)-128-1);
-            RAND_seed(randombytes, 128);
-        }
-
+        /* No other seed source: refuse SSL and TLS */
         if ( !RAND_status() ) {
             debug(F110,"ssl_once_init","Unable to initialize PRNG",0);
             printf(" Unable to load 'random state'\n");
-            printf(" SSL and TLS are unavailble.\n");
+            printf(" SSL and TLS are unavailable.\n");
             printf(" Use SET AUTH SSL RANDOM-FILE <file> command to provide random data.\n");
             printf(" Specified file will be overwritten with new random data after use.\n");
             return;
@@ -1962,9 +1930,9 @@ the build.\r\n\r\n");
 
 /*
   Return 1 if name is an IPv4 or IPv6 address literal, 0 if it is a
-  host name.
+  host name.  SNI carries host names only.
 */
-static int
+int
 #ifdef CK_ANSIC
 ssl_hostisaddr(char * name)
 #else
@@ -2042,13 +2010,8 @@ ssl_tn_init(mode) int mode;
             /* OpenSSL >= 1.1.0: Negotiate the best TLS version possible */
             tls_ctx=(SSL_CTX *)SSL_CTX_new(TLS_client_method());
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#if OPENSSL_VERSION_NUMBER >= 0x10001000L
-            /* OpenSSL >= 1.0.1: Use TLS 1.2 - not yet deprecated as of 2022-09-06 */
+            /* OpenSSL 1.0.2: TLS 1.2 */
             tls_ctx=(SSL_CTX *)SSL_CTX_new(TLSv1_2_client_method());
-#else
-            /* OpenSSL 0.9.8 and 1.0.0 can't handle anything newer than TSL 1.0 */
-            tls_ctx=(SSL_CTX *)SSL_CTX_new(TLSv1_client_method());
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10001000L */
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
             if ( tls_ctx ) {
                 debug(F110,"ssl_tn_init","TLS_client_method OK",0);
@@ -2653,24 +2616,24 @@ ssl_tn_init(mode) int mode;
         if (tls_con->kssl_ctx != NULL)
             kssl_ctx_setstring(tls_con->kssl_ctx, KSSL_KEYTAB, k5_keytab);
     } else {
-        if (ssl_con->kssl_ctx != NULL) {
-            if (!SSL_set_tlsext_host_name(ssl_con, hostname)) {
-                debug(F100, "ssl_tn_init: SSL_set_tlsext_host_name failed", "", 0);
-            }
-            kssl_ctx_setstring(ssl_con->kssl_ctx, KSSL_SERVER, szHostName);
-        }
-        if (tls_con->kssl_ctx != NULL) {
-            if (!SSL_set_tlsext_host_name(tls_con, hostname)) {
-                debug(F100, "ssl_tn_init: SSL_set_tlsext_host_name failed", "", 0);
-            }
-            kssl_ctx_setstring(tls_con->kssl_ctx, KSSL_SERVER, szHostName);
-        }
+        if (ssl_con->kssl_ctx != NULL)
+          kssl_ctx_setstring(ssl_con->kssl_ctx, KSSL_SERVER, szHostName);
+        if (tls_con->kssl_ctx != NULL)
+          kssl_ctx_setstring(tls_con->kssl_ctx, KSSL_SERVER, szHostName);
     }
     kssl_ctx_setstring(ssl_con->kssl_ctx, KSSL_SERVICE,
                         krb5_d_srv ? krb5_d_srv : KRB5_SERVICE_NAME);
     kssl_ctx_setstring(tls_con->kssl_ctx, KSSL_SERVICE,
                         krb5_d_srv ? krb5_d_srv : KRB5_SERVICE_NAME);
 #endif /* SSL_KRB5 */
+
+    /* Send the host name (SNI) unless the host is an address literal */
+    if (mode == SSL_CLIENT && szHostName[0] && !ssl_hostisaddr(szHostName)) {
+        if (!SSL_set_tlsext_host_name(ssl_con, szHostName))
+          debug(F100,"ssl_tn_init SSL_set_tlsext_host_name failed","",0);
+        if (!SSL_set_tlsext_host_name(tls_con, szHostName))
+          debug(F100,"ssl_tn_init SSL_set_tlsext_host_name failed","",0);
+    }
 
     if (ssl_cipher_list) {
         SSL_set_cipher_list(ssl_con,ssl_cipher_list);
@@ -2739,13 +2702,8 @@ ssl_http_init(hostname) char * hostname;
         /* OpenSSL >= 1.1.0: Negotiate the best TLS version possible */
         tls_http_ctx=(SSL_CTX *)SSL_CTX_new(TLS_client_method());
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#if OPENSSL_VERSION_NUMBER >= 0x10001000L
-        /* OpenSSL >= 1.0.1: Use TLS 1.2 - not yet deprecated as of 2022-09-06 */
+        /* OpenSSL 1.0.2: TLS 1.2 */
         tls_http_ctx=(SSL_CTX *)SSL_CTX_new(TLSv1_2_client_method());
-#else
-        /* OpenSSL 0.9.8 and 1.0.0 can't handle anything newer than TSL 1.0 */
-        tls_http_ctx=(SSL_CTX *)SSL_CTX_new(TLSv1_client_method());
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10001000L */
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
         if ( tls_http_ctx ) {
             debug(F110,"ssl_http_init","TLS_client_method OK",0);
@@ -3032,17 +2990,17 @@ ssl_get_dNSName(ssl) SSL * ssl;
 
     if ((server_cert = SSL_get_peer_certificate(ssl))) {
         if ((i = X509_get_ext_by_NID(server_cert, NID_subject_alt_name, -1))<0)
-            return NULL;
+            goto cleanup;
         if (!(ext = (X509_EXTENSION *)X509_get_ext(server_cert, i)))
-            return NULL;
+            goto cleanup;
         X509V3_add_standard_extensions();
         if (!(ialt = X509V3_EXT_d2i(ext)))
-            return NULL;
+            goto cleanup;
         for (i = 0; i < sk_GENERAL_NAME_num(ialt); i++) {
             gen = sk_GENERAL_NAME_value(ialt, i);
             if (gen->type == GEN_DNS) {
                 if (!gen->d.ia5 || !CK_ASN1_STRING_LEN(gen->d.ia5))
-                  break;
+                  continue;             /* Empty: look at the next one */
                 if (strlen((const char *)CK_ASN1_STRING_DATA(gen->d.ia5)) !=
                     (size_t)CK_ASN1_STRING_LEN(gen->d.ia5)) {
                     /* Ignoring IA5String containing null character */
@@ -3068,7 +3026,7 @@ ssl_get_dNSName(ssl) SSL * ssl;
 #endif /* LIBRESSL_VERSION_NUMBER */
     }
 cleanup:
-    if (ialt)           sk_GENERAL_NAME_free(ialt);
+    if (ialt)           GENERAL_NAMES_free(ialt); /* Stack and entries */
     if (server_cert)    X509_free(server_cert);
     return dns;
 }
@@ -3189,8 +3147,12 @@ ssl_verify_crl(int ok, X509_STORE_CTX *ctx)
 #endif
 
     store_ctx = X509_STORE_CTX_new();
-    if ( !store_ctx )
+    if ( !store_ctx ) {
+#if OPENSSL_VERSION_NUMBER >= 0x10100005L
+        X509_OBJECT_free(obj);
+#endif
         return(ok);
+    }
 
     /*
      * Determine certificate ingredients in advance
@@ -3248,7 +3210,11 @@ ssl_verify_crl(int ok, X509_STORE_CTX *ctx)
         /*
          * Verify the signature on this CRL
          */
+#if OPENSSL_VERSION_NUMBER >= 0x10100005L
+        if (X509_CRL_verify(crl, X509_get0_pubkey(xs)) <= 0) {
+#else
         if (X509_CRL_verify(crl, X509_get_pubkey(xs)) <= 0) {
+#endif
             fprintf(stderr, "Invalid signature on CRL!\n");
             X509_STORE_CTX_set_error(ctx, X509_V_ERR_CRL_SIGNATURE_FAILURE);
 #if OPENSSL_VERSION_NUMBER >= 0x10100005L
@@ -3293,9 +3259,7 @@ ssl_verify_crl(int ok, X509_STORE_CTX *ctx)
             X509_STORE_CTX_free(store_ctx);
             return 0;
         }
-#if OPENSSL_VERSION_NUMBER >= 0x10100005L
-        X509_OBJECT_free(obj);
-#else
+#if OPENSSL_VERSION_NUMBER < 0x10100005L
         X509_OBJECT_free_contents(&obj);
 #endif
     }
@@ -3303,8 +3267,16 @@ ssl_verify_crl(int ok, X509_STORE_CTX *ctx)
     /*
      * Try to retrieve a CRL corresponding to the _issuer_ of
      * the current certificate in order to check for revocation.
+     * The issuer lookup needs an empty object.
      */
-#if OPENSSL_VERSION_NUMBER < 0x10100005L
+#if OPENSSL_VERSION_NUMBER >= 0x10100005L
+    X509_OBJECT_free(obj);
+    obj = X509_OBJECT_new();
+    if (!obj) {
+        X509_STORE_CTX_free(store_ctx);
+        return(ok);
+    }
+#else
     memset((char *)&obj, 0, sizeof(obj));
 #endif
     X509_STORE_CTX_init(store_ctx, crl_store, NULL, NULL);
@@ -3347,12 +3319,13 @@ ssl_verify_crl(int ok, X509_STORE_CTX *ctx)
                 return 0;
             }
         }
-#if OPENSSL_VERSION_NUMBER >= 0x10100005L
-        X509_OBJECT_free(obj);
-#else
+#if OPENSSL_VERSION_NUMBER < 0x10100005L
         X509_OBJECT_free_contents(&obj);
 #endif
     }
+#if OPENSSL_VERSION_NUMBER >= 0x10100005L
+    X509_OBJECT_free(obj);                  /* Found or not */
+#endif
     return ok;
 }
 
@@ -3425,18 +3398,30 @@ tls_get_SAN_objs(SSL * ssl, int type)
              * with one and linked to the other we use this hack.
              */
             if ((gen->type | V_ASN1_CONTEXT_SPECIFIC) == (type | V_ASN1_CONTEXT_SPECIFIC)) {
-                if (!gen->d.ia5 || !CK_ASN1_STRING_LEN(gen->d.ia5))
-                  break;
-                if (strlen((const char *)CK_ASN1_STRING_DATA(gen->d.ia5)) !=
-                    (size_t)CK_ASN1_STRING_LEN(gen->d.ia5)) {
-                    /* Ignoring IA5String containing null character */
+                ASN1_STRING * as = NULL;
+                if ((type | V_ASN1_CONTEXT_SPECIFIC) ==
+                    (GEN_OTHERNAME | V_ASN1_CONTEXT_SPECIFIC)) {
+                    /* An otherName holds a typed value.  Use string ones. */
+                    ASN1_TYPE * v = gen->d.otherName ?
+                      gen->d.otherName->value : NULL;
+                    if (v && (v->type == V_ASN1_UTF8STRING ||
+                              v->type == V_ASN1_IA5STRING ||
+                              v->type == V_ASN1_PRINTABLESTRING))
+                      as = v->value.asn1_string;
+                } else
+                  as = gen->d.ia5;
+                if (!as || !CK_ASN1_STRING_LEN(as))
+                  continue;             /* Empty: look at the next one */
+                if (strlen((const char *)CK_ASN1_STRING_DATA(as)) !=
+                    (size_t)CK_ASN1_STRING_LEN(as)) {
+                    /* Ignoring a string containing a null character */
                     continue;
                 }
-                objs[j] = malloc(CK_ASN1_STRING_LEN(gen->d.ia5) + 1);
+                objs[j] = malloc(CK_ASN1_STRING_LEN(as) + 1);
                 if (objs[j]) {
-                    memcpy(objs[j], CK_ASN1_STRING_DATA(gen->d.ia5),
-                           CK_ASN1_STRING_LEN(gen->d.ia5));
-                    objs[j][CK_ASN1_STRING_LEN(gen->d.ia5)] = 0;
+                    memcpy(objs[j], CK_ASN1_STRING_DATA(as),
+                           CK_ASN1_STRING_LEN(as));
+                    objs[j][CK_ASN1_STRING_LEN(as)] = 0;
                     j++;
                 }
             }
@@ -3452,7 +3437,7 @@ tls_get_SAN_objs(SSL * ssl, int type)
 #endif /* LIBRESSL_VERSION_NUMBER */
     }
 eject:
-    if (ialt)           sk_GENERAL_NAME_free(ialt);
+    if (ialt)           GENERAL_NAMES_free(ialt); /* Stack and entries */
     if (server_cert)    X509_free(server_cert);
     return rv;
 }
@@ -3496,81 +3481,6 @@ tls_get_SAN_ipv4(SSL * ssl, struct in_addr * addrs, int max)
 }
 
 
-/*
-  OpenSSL 1.0.2 and LibreSSL provide X509_check_host() and
-  X509_check_ip_asc(), which match names by the rules of RFC 6125.
-  Older OpenSSL uses dNSName_cmp() and the IPv4 comparison.
-*/
-#ifndef CK_X509_CHECK_HOST
-#ifdef LIBRESSL_VERSION_NUMBER
-#define CK_X509_CHECK_HOST
-#else
-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
-#define CK_X509_CHECK_HOST
-#endif /* OPENSSL_VERSION_NUMBER */
-#endif /* LIBRESSL_VERSION_NUMBER */
-#endif /* CK_X509_CHECK_HOST */
-
-#ifndef CK_X509_CHECK_HOST
-static int
-dNSName_cmp(const char *host, const char *dNSName)
-{
-    int c1 = 1, c2 = 1, num_comp, rv = -1;
-    char *p, *p1, *p2, *host_copy=NULL, *dNSName_copy=NULL;
-    const char *p0;
-
-    /* first we count the number of domain name components in both parameters.
-     * they should be equal many, or it's not a match
-     */
-    p0 = host;
-    while ((p0 = strstr(p0, "."))) {
-        c1++;
-        p0++;
-    }
-    p0 = dNSName;
-    while ((p0 = strstr(p0, "."))) {
-        c2++;
-        p0++;
-    }
-    if (c1 != c2)
-        return -1;
-    num_comp = c1;
-
-    makestr(&host_copy,host);
-    makestr(&dNSName_copy,dNSName);
-    if (host_copy == NULL || dNSName_copy == NULL)
-        goto eject;
-    /* make substrings by replacing '.' with '\0' */
-    p = dNSName_copy;
-    while ((p = strstr(p, "."))) {
-        *p = '\0';
-        p++;
-    }
-    p = host_copy;
-    while ((p = strstr(p, "."))) {
-        *p = '\0';
-        p++;
-    }
-
-    /* compare each component */
-    p1 = host_copy;
-    p2 = dNSName_copy;
-    for (; num_comp; num_comp--) {
-        if (!ckmatch(p2, p1,0,1))
-            /* failed match */
-            goto eject;
-        p1 += strlen(p1) + 1;
-        p2 += strlen(p2) + 1;
-    }
-    /* match ok */
-    rv = 0;
-
-  eject:
-    if (dNSName_copy)   free(dNSName_copy);
-    if (host_copy)      free(host_copy);
-    return rv;
-}
-#endif /* CK_X509_CHECK_HOST */
 
 
 
@@ -3593,66 +3503,6 @@ show_hostname_warning(char *s1, char *s2)
     return(ok);
 }
 
-#ifndef CK_X509_CHECK_HOST             /* Only the old matcher uses it */
-#ifndef OSF50
-#ifndef HPUX10
-#ifndef HPUX1100
-#ifndef SCO_OSR505
-#ifndef OpenBSD
-#ifndef FREEBSD4
-#ifndef NETBSD15
-#ifndef __DragonFly__
-#ifndef LINUX
-#ifndef AIX41
-#ifndef UW7
-#ifndef IRIX65
-#ifndef SOLARIS9
-#ifndef SOLARIS8
-#ifndef SOLARIS7
-#ifndef MACOSX
-#ifdef DEC_TCPIP
-#define inet_aton INET_ATON
-#endif /* DEC_TCPIP */
-
-#ifndef NO_DCL_INET_ATON
-static int
-inet_aton(char * ipaddress, struct in_addr * ia) {
-    struct stringarray * q;
-    union {
-        unsigned long l;
-        unsigned char b[4];
-    } dummy;
-
-    q = cksplit(1,0,ipaddress,".","0123456789abcdefACDEF",8,0,0,0);
-    if (q->a_size == 4) {
-        dummy.b[0] = atoi(q->a_head[1]);
-        dummy.b[1] = atoi(q->a_head[2]);
-        dummy.b[2] = atoi(q->a_head[3]);
-        dummy.b[3] = atoi(q->a_head[4]);
-        ia->s_addr = dummy.l;
-        return(ia->s_addr != 0);
-    }
-    return(0);
-}
-#endif  /* NO_DCL_INET_ATON */
-
-#endif /* MACOSX */
-#endif /* SOLARIS7 */
-#endif /* SOLARIS8 */
-#endif /* SOLARIS9 */
-#endif /* IRIX65 */
-#endif /* UW7 */
-#endif /* AIX41 */
-#endif /* LINUX */
-#endif /* __DragonFly__ */
-#endif /* NETBSD15 */
-#endif /* FREEBSD4 */
-#endif /* OpenBSD */
-#endif /* SCO_OSR505 */
-#endif /* HPUX1100 */
-#endif /* HPUX10 */
-#endif /* OSF50 */
-#endif /* CK_X509_CHECK_HOST */
 
 #define NUM_SAN_IPV4 64                 /* IPv4 SANs examined */
 
@@ -3660,12 +3510,9 @@ inet_aton(char * ipaddress, struct in_addr * ia) {
   Check that the server's certificate names hostname.  Returns 0 if it
   does, or if the user accepts the mismatch warning, else -1.
 
-  With CK_X509_CHECK_HOST, an address is matched against the iPAddress
-  entries, IPv4 or IPv6, and a name against the dNSName entries, or the
-  commonName when there are none.  A wildcard matches only as the
-  leftmost label.  Without it, only IPv4 addresses are compared, and a
-  certificate whose only matching entry is an IPv6 address gets the
-  warning.
+  An address is matched against the iPAddress entries, IPv4 or IPv6,
+  and a name against the dNSName entries, or the commonName when there
+  are none.  A wildcard matches only as the leftmost label.
 */
 int
 ssl_check_server_name(SSL * ssl, char * hostname)
@@ -3712,7 +3559,6 @@ ssl_check_server_name(SSL * ssl, char * hostname)
         }
     }
 
-#ifdef CK_X509_CHECK_HOST
     {
         X509 * cert;
         int ok, isaddr;
@@ -3739,52 +3585,6 @@ ssl_check_server_name(SSL * ssl, char * hostname)
         }
         return(show_hostname_warning(hostname, shown) ? 0 : -1);
     }
-#else /* CK_X509_CHECK_HOST */
-  {
-    char * commonName;
-    struct in_addr ia;
-    int rv;
-
-    /* first we check if `hostname' is in fact an ip address */
-    if (inet_aton(hostname, &ia)) {
-        struct in_addr sanip[NUM_SAN_IPV4];
-        int i, n = tls_get_SAN_ipv4(ssl, sanip, NUM_SAN_IPV4);
-        char *server_ip = "NO IP IN CERT";
-
-        for (i = 0; i < n; i++)
-          if (sanip[i].s_addr == ia.s_addr)
-            return 0;
-        if (n > 0)
-          server_ip = inet_ntoa(sanip[n - 1]);
-        rv = show_hostname_warning(hostname, server_ip) ? 0 : -1;
-        return(rv);
-    }
-
-    /* look for dNSName(s) in subjectAltName in the server's certificate */
-    dNSName = tls_get_SAN_objs(ssl,GEN_DNS);
-    if (dNSName) {
-        int i = 0;
-        for (i = 0; dNSName[i]; i++) {
-            if (!dNSName_cmp(hostname,(char *)dNSName[i]))
-                return 0;
-        }
-        rv = show_hostname_warning(hostname,
-                                   (char *)((i == 0 || dNSName[i - 1] == NULL) ?
-                                   (char *)"UNKNOWN" : (char *)dNSName[i - 1]))
-             ? 0 : -1;
-        for (i = 0; dNSName[i]; i++)
-            free(dNSName[i]);
-        return rv;
-    } else if ((commonName = ssl_get_commonName(ssl))) {
-       /* so the server didn't have any dNSName's, check the commonName */
-       if (!dNSName_cmp(hostname, commonName))
-           return 0;
-       else
-           return (show_hostname_warning(hostname, commonName) ? 0 : -1);
-    }
-    return -1;
-  }
-#endif /* CK_X509_CHECK_HOST */
 }
 
 /* Is 'user' authorized to access the system without a login */
@@ -4002,14 +3802,12 @@ ssl_reply(how,data,cnt) int how; unsigned char *data; int cnt;
                 if (tn_deb || debses) {
                     tn_debug("[SSL - FAILED]");
                     ERR_print_errors(bio_err);
-                    len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                    ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+                    len = ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
                     printf("%s",ssl_err);
                 } else if ( verbosity ) {
                     printf("[SSL - FAILED]\r\n");
                     ERR_print_errors(bio_err);
-                    len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                    ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+                    len = ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
                     printf("%s",ssl_err);
                 }
                 debug(F110,"ssl_reply","[SSL - FAILED]",0);
@@ -4165,6 +3963,7 @@ ssl_is(data,cnt) unsigned char *data; int cnt;
                     auth_finished(AUTH_REJECT);
                     return AUTH_FAILURE;
                 }
+                X509_free(peer);
             }
             auth_finished(AUTH_UNKNOWN);
             accept_complete = 1;
@@ -4331,6 +4130,8 @@ ck_tn_tls_negotiate(VOID)
                                            );
                 if ( verbosity )
                     printf("[TLS - uniqueIdentifier=%s]\r\n",str);
+                X509_free(peer);        /* SSL_get_peer_certificate() ref */
+                peer = NULL;
 
                 /* Try to determine user name */
                 uid = tls_userid_from_client_cert(tls_con);
@@ -4393,14 +4194,12 @@ ck_tn_tls_negotiate(VOID)
                 if (tn_deb || debses) {
                     tn_debug("[TLS - FAILED]");
                     ERR_print_errors(bio_err);
-                    len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                    ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+                    len = ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
                     printf("%s",ssl_err);
                 } else if ( verbosity ) {
                     printf("[TLS - FAILED]\r\n");
                     ERR_print_errors(bio_err);
-                    len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                    ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+                    len = ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
                     printf("%s",ssl_err);
                 }
                 debug(F110,"ck_tn_tls_negotiate","[TLS - FAILED]",0);
@@ -4452,25 +4251,35 @@ ck_tn_tls_negotiate(VOID)
             }
 
             if ( ssl_debug_flag && ssl_finished_messages) {
-                char msg[32];
-                int i, len=32;
-                extern char tn_msg[], hexbuf[];
+                /*
+                  The getters copy at most sizeof(msg) bytes but return
+                  the full length of the finished message.  That length
+                  is 48 bytes for SHA-384 suites.
+                */
+                unsigned char msg[64];
+                char hx[4];
+                int i, len;
+                extern char tn_msg[];
 
                 tn_msg[0] = '\0';
-                len = ssl_get_client_finished(msg,len);
+                len = ssl_get_client_finished((char *)msg,(int)sizeof(msg));
+                if (len > (int)sizeof(msg))
+                  len = (int)sizeof(msg);
                 if ( len > 0 ) {
                     for ( i=0;i<len;i++ ) {
-                        sprintf(hexbuf,"%02X ",msg[i]);
-                        ckstrncat(tn_msg,hexbuf,TN_MSG_LEN);
+                        snprintf(hx,sizeof(hx),"%02X ",msg[i]);
+                        ckstrncat(tn_msg,hx,TN_MSG_LEN);
                     }
                     printf("TLS client finished: %s\r\n",tn_msg);
                 }
                 tn_msg[0] = '\0';
-                len = ssl_get_server_finished(msg,len);
+                len = ssl_get_server_finished((char *)msg,(int)sizeof(msg));
+                if (len > (int)sizeof(msg))
+                  len = (int)sizeof(msg);
                 if ( len > 0 ) {
                     for ( i=0;i<len;i++ ) {
-                        sprintf(hexbuf,"%02X ",msg[i]);
-                        ckstrncat(tn_msg,hexbuf,TN_MSG_LEN);
+                        snprintf(hx,sizeof(hx),"%02X ",msg[i]);
+                        ckstrncat(tn_msg,hx,TN_MSG_LEN);
                     }
                     printf("TLS server finished: %s\r\n",tn_msg);
                 }
@@ -4594,8 +4403,9 @@ ck_ssl_incoming(fd) int fd;
         }
     }
     if (ssl_active_flag || tls_active_flag) {
-        X509 *peer;
+        X509 *peer = NULL;
         char str[256], *uid=NULL;
+        SSL * con = tls_active_flag ? tls_con : ssl_con; /* Active one */
 
         /* now check to see that we got exactly what we
          * wanted from the caller ... if a certificate is
@@ -4631,24 +4441,36 @@ ck_ssl_incoming(fd) int fd;
 
         } else {
             debug(F100,"SSL_get_peer_certificate() != NULL","",0);
-            X509_NAME_get_text_by_NID(X509_get_subject_name(peer),
-                                       NID_commonName,str,
-                                       256
-                                       );
-            printf("[TLS - commonName=%s]\r\n",str);
+/*
+  In an IKSD, stdout is the connection, so the certificate fields go
+  only to the debug log.
+*/
+            str[0] = '\0';
+            if (X509_NAME_get_text_by_NID(X509_get_subject_name(peer),
+                                          NID_commonName,str,
+                                          sizeof(str)) < 0)
+              str[0] = '\0';
+            debug(F110,"ck_ssl_incoming peer commonName",str,0);
+            if (!inserver)
+              printf("[TLS - commonName=%s]\r\n",str);
 
-            X509_NAME_get_text_by_NID(X509_get_subject_name(peer),
+            str[0] = '\0';
+            if (X509_NAME_get_text_by_NID(X509_get_subject_name(peer),
 #ifndef NID_x500UniqueIdentifier
-                                       NID_uniqueIdentifier,
+                                          NID_uniqueIdentifier,
 #else
-                                       NID_x500UniqueIdentifier,
+                                          NID_x500UniqueIdentifier,
 #endif
-                                       str,256
-                                       );
-            printf("[TLS - uniqueIdentifier=%s]\r\n",str);
+                                          str,sizeof(str)) < 0)
+              str[0] = '\0';
+            debug(F110,"ck_ssl_incoming peer uniqueIdentifier",str,0);
+            if (!inserver)
+              printf("[TLS - uniqueIdentifier=%s]\r\n",str);
+            X509_free(peer);            /* SSL_get_peer_certificate() ref */
+            peer = NULL;
 
             /* Try to determine user name */
-            uid = tls_userid_from_client_cert(tls_con);
+            uid = tls_userid_from_client_cert(con);
             if ( uid ) {
                 /* This code is very questionable.
                 * How should it behave?
@@ -5176,19 +4998,17 @@ X509_userok(X509 * peer_cert, const char * userid)
        return 0;
     if (strlen(pwd->pw_dir) > 500)
        return(0);
-    sprintf(buf, "%s/.tlslogin", pwd->pw_dir);
+    ckmakmsg(buf, sizeof(buf), pwd->pw_dir, "/.tlslogin", NULL, NULL);
 
     if (!(fp = fopen(buf, "r")))
         return 0;
+    /*
+      Accept the peer only if its certificate is identical to one listed
+      in the file.  The TLS handshake proves the peer holds that
+      certificate's key.
+    */
     while (!r && (file_cert = PEM_read_X509(fp, NULL, NULL, NULL))) {
-#if OPENSSL_VERSION_NUMBER >= 0x10100005L
-        const ASN1_BIT_STRING *peer_cert_sig, *file_cert_sig;
-        X509_get0_signature(&peer_cert_sig, NULL, peer_cert);
-        X509_get0_signature(&file_cert_sig, NULL, file_cert);
-        if (!ASN1_STRING_cmp(peer_cert_sig, file_cert_sig))
-#else
-        if (!ASN1_STRING_cmp(peer_cert->signature, file_cert->signature))
-#endif
+        if (X509_cmp(peer_cert, file_cert) == 0)
             r = 1;
         X509_free(file_cert);
     }

@@ -64,6 +64,7 @@ char *cknetv = "Network support, 11.0.500, 22 Jul 2026";
 #include "ckcdeb.h"
 #include "ckcker.h"
 #include "ckcasc.h"
+#include <limits.h>                     /* INT_MAX, UINT_MAX */
 #ifdef I386IX                           /* Has to come before ckcnet.h in */
 #include <errno.h>                      /* this version, but after in others */
 #endif /* I386IX */
@@ -475,7 +476,6 @@ extern char ttname[];
 #endif /* OS2 */
 
 #ifdef NT
-#include <limits.h>
 extern int winsock_version;
 char * GetLocalUser(); /* defined in ckotio.c */
 #ifdef CK_LOGIN
@@ -1276,12 +1276,10 @@ ttbufr() {                              /* TT Buffer Read */
             return(-2);
           case SSL_ERROR_SSL:
               if (bio_err!=NULL) {
-                  int len;
                   extern char ssl_err[];
                   BIO_printf(bio_err,"ttbufr SSL_ERROR_SSL\n");
                   ERR_print_errors(bio_err);
-                  len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                  ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+                  (VOID) ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
                   debug(F110,"ttbufr SSL_ERROR_SSL",ssl_err,0);
                   if (ssl_debug_flag)
                       printf("%s",ssl_err);
@@ -1327,7 +1325,8 @@ ttbufr() {                              /* TT Buffer Read */
         fd_set efds;
         struct timeval tv;
         FD_ZERO(&efds);
-        FD_SET(ttyfd, &efds);
+        if (CK_FDOK(ttyfd))             /* Otherwise no OOB check */
+          FD_SET(ttyfd, &efds);
         tv.tv_sec  = tv.tv_usec = 0L;
         debug(F100,"Out-of-Band BSDSELECT","",0);
 #ifdef NT
@@ -1548,6 +1547,7 @@ ck_copyhostent(h) struct hostent * h;
             pp++;
         }
         free(hosts[next].h_aliases);
+        hosts[next].h_aliases = NULL;
     }
 #ifdef HADDRLIST
     if ( hosts[next].h_addr_list ) {
@@ -1557,6 +1557,7 @@ ck_copyhostent(h) struct hostent * h;
             pp++;
         }
         free(hosts[next].h_addr_list);
+        hosts[next].h_addr_list = NULL;
     }
 #endif /* HADDRLIST */
 
@@ -1565,6 +1566,8 @@ ck_copyhostent(h) struct hostent * h;
         for ( cnt=0,pp=h->h_aliases; pp && *pp; pp++,cnt++) ;
         /* The following can give warnings in non-ANSI builds */
         hosts[next].h_aliases = (char **) malloc(sizeof(char *) * (cnt+1));
+        if (!hosts[next].h_aliases)     /* Out of memory: use original */
+          return(h);
         for ( i=0; i<cnt; i++) {
             hosts[next].h_aliases[i] = NULL;
             makestr(&hosts[next].h_aliases[i],h->h_aliases[i]);
@@ -1582,11 +1585,17 @@ ck_copyhostent(h) struct hostent * h;
         for ( cnt=0,pp=h->h_addr_list; pp && *pp; pp++,cnt++) ;
         /* The following can give warnings non-ANSI builds */
         hosts[next].h_addr_list = (char **) malloc(sizeof(char *) * (cnt+1));
+        if (!hosts[next].h_addr_list)   /* Out of memory: use original */
+          return(h);
         for ( i=0; i<cnt; i++) {
             hosts[next].h_addr_list[i] = malloc(h->h_length);
+            if (!hosts[next].h_addr_list[i]) /* Out of memory */
+              break;
             bcopy(h->h_addr_list[i],hosts[next].h_addr_list[i],h->h_length);
         }
         hosts[next].h_addr_list[i] = NULL;
+        if (i < cnt)                    /* Incomplete: use original */
+          return(h);
     } else
         hosts[next].h_addr_list = NULL;
 #else
@@ -1845,6 +1854,10 @@ ck_tcp_connect1(fd,rp) int fd; struct addrinfo * rp;
 {
     int flags, rc, err;
 
+    if (fd >= FD_SETSIZE) {             /* select() cannot wait on fd */
+        debug(F101,"ck_tcp_connect1 fd >= FD_SETSIZE, blocking","",fd);
+        return(connect(fd,rp->ai_addr,rp->ai_addrlen)); /* No timeout */
+    }
     flags = fcntl(fd,F_GETFL,0);
     if (flags != -1)
       fcntl(fd,F_SETFL,flags|O_NONBLOCK);
@@ -1968,6 +1981,7 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
     static unsigned short rsvd_lport = 1024;
     struct addrinfo hints, *results = NULL, *rp;
     int gai, fd = -1;
+    int lasterr = 0;                    /* errno of the last failure */
 
     *got_addr = 0;
     bzero((char *)&hints, sizeof(hints));
@@ -1998,6 +2012,7 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
 
         fd = socket(rp->ai_family,SOCK_STREAM,0);
         if (fd < 0) {
+            lasterr = errno;
             debug(F101,"ck_tcp_connect socket error","",errno);
             continue;
         }
@@ -2032,7 +2047,14 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
                   break;
             }
             if (!bound) {
+                lasterr = errno;
                 debug(F101,"ck_tcp_connect rsvd bind errno","",errno);
+                if (!quiet_f) {
+                    if (lasterr == EADDRINUSE)
+                      printf("\nNo reserved ports available.\n");
+                    else
+                      perror("rlogin bind");
+                }
                 close(fd);
                 fd = -1;
                 continue;
@@ -2048,6 +2070,7 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
             inet_pton(AF_INET,tcp_address,&lsin.sin_addr);
             lsin.sin_port = 0;
             if (bind(fd,(struct sockaddr *)&lsin,sizeof(lsin)) < 0) {
+                lasterr = errno;
                 debug(F101,"ck_tcp_connect bind errno","",errno);
                 close(fd);
                 fd = -1;
@@ -2068,6 +2091,7 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
             }
             lsin6.sin6_port = 0;
             if (bind(fd,(struct sockaddr *)&lsin6,sizeof(lsin6)) < 0) {
+                lasterr = errno;
                 debug(F101,"ck_tcp_connect bind errno","",errno);
                 close(fd);
                 fd = -1;
@@ -2093,6 +2117,7 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
             *raddrlen = (GSOCKNAME_T)rp->ai_addrlen;
             break;
         }
+        lasterr = errno;
         debug(F101,"ck_tcp_connect connect errno","",errno);
         if (!quiet_f) {
             perror("Failed");
@@ -2110,6 +2135,8 @@ ck_tcp_connect(host,svc,quiet_f,got_addr,raddr,raddrlen,rsvd_port)
     }
 
     freeaddrinfo(results);
+    if (fd < 0)
+      errno = lasterr;                  /* Reason for the last failure */
     return(fd);
 }
 #endif /* CK_IPV6 */
@@ -2333,6 +2360,53 @@ ck_bracketaddr(buf,buflen) char * buf; int buflen;
     ckstrncat(buf,tmp,buflen);
     ckstrncat(buf,"]",buflen);
 }
+
+#ifndef NOHTTP
+/*
+  Store "host:port" in buf, a buffer of buflen bytes.  An IPv6 address
+  literal is enclosed in brackets, as HTTP Host and CONNECT require.
+*/
+VOID
+#ifdef CK_ANSIC
+ck_hostport(char * buf, int buflen, char * host, char * port)
+#else /* CK_ANSIC */
+ck_hostport(buf,buflen,host,port) char * buf; int buflen; char * host;
+    char * port;
+#endif /* CK_ANSIC */
+{
+    char hbuf[NAMECPYL+2];
+
+    ckstrncpy(hbuf,host,sizeof(hbuf));
+    ck_bracketaddr(hbuf,sizeof(hbuf));
+    ckmakmsg(buf,buflen,hbuf,":",port,NULL);
+}
+
+/*
+  Split "host[:port]" or "[v6addr][:port]" in buf, a buffer of buflen
+  bytes, in place.  On return buf holds the host.  The port, or defport
+  if none was given, follows the host's NUL, and the return value points
+  to it.  Returns NULL for a malformed bracketed address.
+*/
+static char *
+#ifdef CK_ANSIC
+ck_splitinplace(char * buf, int buflen, char * defport)
+#else /* CK_ANSIC */
+ck_splitinplace(buf,buflen,defport) char * buf; int buflen; char * defport;
+#endif /* CK_ANSIC */
+{
+    char hbuf[NAMECPYL], pbuf[NAMECPYL];
+    int n;
+
+    if (ck_splithostport(buf,hbuf,sizeof(hbuf),pbuf,sizeof(pbuf)) < 0)
+      return(NULL);
+    ckstrncpy(buf,hbuf,buflen);
+    n = (int)strlen(buf) + 1;
+    if (n >= buflen)
+      return(NULL);
+    ckstrncpy(buf + n,pbuf[0] ? pbuf : defport,buflen - n);
+    return(buf + n);
+}
+#endif /* NOHTTP */
 
 #ifdef EXCELAN
 /*
@@ -3569,6 +3643,32 @@ vsocksrv_open(name,lcl,nett) char * name; int * lcl; int nett;
 }
 #endif /* CK_VSOCK */
 
+#ifdef CK_SSL
+/*
+  Report a failed ssl_tn_init() on stdout with the OpenSSL error queue.
+  The queue goes through bio_err, a memory BIO, and is cleared.
+*/
+static VOID
+#ifdef CK_ANSIC
+ssl_init_failed(char * who)
+#else
+ssl_init_failed(who) char * who;
+#endif /* CK_ANSIC */
+{
+    extern char ssl_err[];
+    debug(F110,who,"ssl_tn_init() failed",0);
+    printf("?SSL/TLS initialization failed\n");
+    if (bio_err != NULL) {
+        ERR_print_errors(bio_err);
+        if (ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ) > 0)
+          printf("%s",ssl_err);
+    } else {
+        fflush(stdout);
+        ERR_print_errors_fp(stderr);
+    }
+}
+#endif /* CK_SSL */
+
 /*  T C P S R V _ O P E N  --  Open a TCP/IP Server connection  */
 /*
   Calling conventions same as ttopen(), except third argument is network
@@ -3614,6 +3714,7 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
     int want_v6 = (tcp_af != TCP_AF_V4);
     int connport = 0;                /* Peer port, either family */
     int v6_rdns_ok = 0;              /* Set if v6 reverse lookup succeeded */
+    char v6rname[256];               /* That lookup's name */
 #endif /* CK_IPV6 */
 
     debug(F101,"tcpsrv_open nett","",nett);
@@ -3918,14 +4019,7 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
     if (ck_ssleay_is_installed()) {
         if (!ssl_tn_init(SSL_SERVER)) {
             ssl_failed = 1;
-            if (bio_err!=NULL) {
-                BIO_printf(bio_err,"do_ssleay_init() failed\n");
-                ERR_print_errors(bio_err);
-            } else {
-                fflush(stderr);
-                fprintf(stderr,"do_ssleay_init() failed\n");
-                ERR_print_errors_fp(stderr);
-            }
+            ssl_init_failed("tcpsrv_open");
             if (tls_only_flag || ssl_only_flag) {
 #ifdef TCPIPLIB
                 socket_close(ttyfd);
@@ -3934,6 +4028,12 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
                 close(ttyfd);
                 close(tcpsrfd);
 #endif /* TCPIPLIB */
+#ifdef CK_IPV6
+                if (tcpsrfd6 != -1) {   /* The IPv6 listener too */
+                    close(tcpsrfd6);
+                    tcpsrfd6 = -1;
+                }
+#endif /* CK_IPV6 */
                 ttyfd = -1;
                 wasclosed = 1;
                 tcpsrfd = -1;
@@ -4129,6 +4229,7 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
                                  v6nibuf,sizeof(v6nibuf),NULL,0,
                                  NI_NAMEREQD) == 0) {
                     v6_rdns_ok = 1;
+                    ckstrncpy(v6rname,v6nibuf,sizeof(v6rname));
                     debug(F110,"tcpsrv_open getnameinfo",v6nibuf,0);
                     if (!quiet) {
                         printf("(OK)\n");
@@ -4203,7 +4304,11 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
 #ifdef CK_SECURITY
         /* Before Initialization Telnet/Rlogin Negotiations Init Kerberos */
         ck_auth_init((tcp_rdns && host && host->h_name && host->h_name[0]) ?
-                     (char *)host->h_name : ipaddr,
+                     (char *)host->h_name :
+#ifdef CK_IPV6
+                     (tcp_rdns && v6_rdns_ok) ? v6rname :
+#endif /* CK_IPV6 */
+                     ipaddr,
                      ipaddr,
                      uidbuf,
                      ttyfd
@@ -4355,10 +4460,20 @@ ckname2addr(name) char * name;
 
     if (getaddrinfo(name,NULL,&hints,&results) != 0 || !results)
       return("");
-    if (ck_straddr(results->ai_addr,(GSOCKNAME_T)results->ai_addrlen,
-                    buf,sizeof(buf)) < 0) {
-        freeaddrinfo(results);
-        return("");
+    {
+        /* Prefer an IPv4 address when one exists */
+        struct addrinfo * rp, * pick = results;
+        for (rp = results; rp; rp = rp->ai_next) {
+            if (rp->ai_family == AF_INET) {
+                pick = rp;
+                break;
+            }
+        }
+        if (ck_straddr(pick->ai_addr,(GSOCKNAME_T)pick->ai_addrlen,
+                        buf,sizeof(buf)) < 0) {
+            freeaddrinfo(results);
+            return("");
+        }
     }
     freeaddrinfo(results);
     return(buf);
@@ -5001,8 +5116,10 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
        fills ckv6_addr and myipaddr instead.  Since rlog_ini() is called
        unconditionally for any RLOGIN variant, both must never be
        left uninitialized. */
+#ifdef TCPSOCKET
     bzero((char *)&r_addr,sizeof(r_addr));
     bzero((char *)&l_addr,sizeof(l_addr));
+#endif /* TCPSOCKET */
 
 #ifdef SUNX25
     if (nett == NET_SX25) {             /* If network type is X.25 */
@@ -5246,8 +5363,15 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
         netclos();                      /* Close any previous connection. */
         ttnproto = NP_NONE;              /* No protocol layered on top. */
 
-        if (name[0] == '*')              /* Server/listener mode. */
-          return(vsocksrv_open(name,lcl,nett));
+        if (name[0] == '*') {            /* Server/listener mode. */
+#ifndef NOLISTEN
+            return(vsocksrv_open(name,lcl,nett));
+#else
+            fprintf(stderr,"?Listening is not supported in this build\n");
+            errno = 0;
+            return(-1);
+#endif /* NOLISTEN */
+        }
 
         if (ck_parse_vsock_addr(name,&vcid,&vport) < 0) {
             fprintf(stderr,"?Invalid VSOCK address: %s\n",name);
@@ -5405,7 +5529,8 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
                         *w++ = '\0';
                     /* r now points to username, save it and the password */
                     debug(F110,"netopen namecopy username",r,0);
-                    debug(F110,"netopen namecopy password",w,0);
+                    debug(F101,"netopen namecopy password length","",
+                          (int)strlen(w));
                     uidfound=1;
                     if ( strcmp(uidbuf,r) || *w )
                         ckstrncpy(pwbuf,w,PWBUFL+1);
@@ -5605,8 +5730,8 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
 #ifndef NOHTTP
    /* For HTTP connections we must preserve the original hostname and */
    /* service requested so we can include them in the Host header.    */
-    ckmakmsg(http_host_port,sizeof(http_host_port),namecopy,":",
-              ckitoa(ntohs((unsigned short)service->s_port)),NULL);
+    ck_hostport(http_host_port,sizeof(http_host_port),namecopy,
+                ckitoa(ntohs((unsigned short)service->s_port)));
 
     /* 'namecopy' contains the name of the host to which we want to connect */
     /* 'svcbuf'   contains the service name                                 */
@@ -5619,19 +5744,16 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
     /* with the port number of the proxy (default port 80).                 */
 
     if ( tcp_http_proxy ) {
-        ckmakmsg(proxycopy,sizeof(proxycopy),namecopy,":",
-                 ckuitoa(ntohs((unsigned short)service->s_port)),NULL);
+        ck_hostport(proxycopy,sizeof(proxycopy),namecopy,
+                    ckuitoa(ntohs((unsigned short)service->s_port)));
         /* Leave room after the name for a service name or port number */
         ckstrncpy(namecopy,tcp_http_proxy,NAMECPYL-8);
 
-        p = namecopy;                       /* Was a service requested? */
-        while (*p != '\0' && *p != ':') p++; /* Look for colon */
-        if (*p == ':') {                    /* Have a colon */
-            debug(F110,"netopen name has colon",namecopy,0);
-            *p++ = '\0';                    /* Get service name or number */
-        } else {
-            p++;
-            ckstrncpy(p,"http",NAMECPYL-(int)(p-namecopy));
+        p = ck_splitinplace(namecopy,NAMECPYL,"http"); /* Proxy port */
+        if (!p) {
+            fprintf(stderr,"Malformed proxy address: %s\n",tcp_http_proxy);
+            errno = 0;
+            return(-1);
         }
 
         service = ckgetservice(namecopy,p,namecopy,NAMECPYL);
@@ -5707,13 +5829,14 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
                                &cn_addr, &cn_len, 0);
 #endif /* RLOGCODE */
         if (ttyfd < 0) {
+            int s_errno = errno;        /* Why the connection failed */
             if (!got_addr)
               fprintf(stderr, "Can't get address for %s\n", namecopy);
             netclos();
             ttyfd = -1;
             wasclosed = 1;
             ttnproto = NP_NONE;
-            errno = 0;
+            errno = got_addr ? s_errno : 0; /* 0: name not resolved */
             return(-1);
         }
         isconnect = 1;
@@ -6197,9 +6320,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
         }
 
         ckstrncpy(namecopy,proxycopy,NAMECPYL);
-        p = namecopy;                       /* Was a service requested? */
-        while (*p != '\0' && *p != ':') p++; /* Look for colon */
-        *p = '\0';
+        (VOID) ck_splitinplace(namecopy,NAMECPYL,""); /* Keep the host */
     }
 #endif /* NOHTTP */
 
@@ -6593,15 +6714,7 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
 #ifdef CK_SSL
     if (ck_ssleay_is_installed()) {
         if (!ssl_tn_init(SSL_CLIENT)) {
-            debug(F100,"netopen ssl_tn_init() failed","",0);
-            if (bio_err!=NULL) {
-                BIO_printf(bio_err,"ssl_tn_init() failed\n");
-                ERR_print_errors(bio_err);
-            } else {
-                fflush(stderr);
-                fprintf(stderr,"ssl_tn_init() failed\n");
-                ERR_print_errors_fp(stderr);
-            }
+            ssl_init_failed("netopen");
             if (tls_only_flag || ssl_only_flag) {
                 debug(F100,"netopen ssl/tls required","",0);
                 netclos();
@@ -7263,12 +7376,10 @@ nettchk() {                             /* for reading from network */
                 break;
             case SSL_ERROR_SSL:
                 if (bio_err!=NULL) {
-                    int len;
                     extern char ssl_err[];
                     BIO_printf(bio_err,"nettchk() SSL_ERROR_SSL\n");
                     ERR_print_errors(bio_err);
-                    len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                    ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+                    (VOID) ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
                     debug(F110,"nettchk SSL_ERROR_SSL",ssl_err,0);
                     if (ssl_debug_flag)
                         printf("%s",ssl_err);
@@ -7761,6 +7872,8 @@ netinc(timo) int timo;
                 int rc;
                 debug(F111,"netinc","timeout",timeout);
                 /* Don't move select() initialization out of the loop. */
+                if (!CK_FDOK(ttyfd))    /* select() cannot wait on it */
+                  return(-1);
                 FD_ZERO(&rfds);
                 FD_SET(ttyfd, &rfds);
                 tv.tv_sec  = tv.tv_usec = 0L;
@@ -8076,12 +8189,10 @@ nettol(s,n) CHAR *s; int n;
           case SSL_ERROR_SSL:
             debug(F100,"nettol SSL_ERROR_SSL","",0);
               if (bio_err!=NULL) {
-                  int len;
                   extern char ssl_err[];
                   BIO_printf(bio_err,"nettol() SSL_ERROR_SSL\n");
                   ERR_print_errors(bio_err);
-                  len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                  ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+                  (VOID) ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
                   debug(F110,"nettol SSL_ERROR_SSL",ssl_err,0);
                   if (ssl_debug_flag)
                       printf("%s",ssl_err);
@@ -8121,6 +8232,8 @@ nettol(s,n) CHAR *s; int n;
 #ifdef STREAMING
       do_select:
 #endif /* STREAMING */
+        if (!CK_FDOK(ttyfd))            /* select() cannot wait on it */
+          return(-1);
         FD_ZERO(&wfds);
         FD_SET(ttyfd, &wfds);
         if (select(FD_SETSIZE, NULL,
@@ -8297,12 +8410,10 @@ nettoc(c) CHAR c;
               }
         case SSL_ERROR_SSL:
               if (bio_err!=NULL) {
-                  int len;
                   extern char ssl_err[];
                   BIO_printf(bio_err,"nettoc() SSL_ERROR_SSL\n");
                   ERR_print_errors(bio_err);
-                  len = BIO_read(bio_err,ssl_err,SSL_ERR_BFSZ);
-                  ssl_err[len < SSL_ERR_BFSZ ? len : SSL_ERR_BFSZ] = '\0';
+                  (VOID) ck_bio_gets(bio_err,ssl_err,SSL_ERR_BFSZ);
                   debug(F110,"nettoc SSL_ERROR_SSL",ssl_err,0);
                   if (ssl_debug_flag)
                       printf("%s",ssl_err);
@@ -8335,6 +8446,8 @@ nettoc(c) CHAR c;
       do_select:
 #endif /* STREAMING */
 
+        if (!CK_FDOK(ttyfd))            /* select() cannot wait on it */
+          return(-1);
         FD_ZERO(&wfds);
         FD_SET(ttyfd, &wfds);
         if (select(FD_SETSIZE, NULL,
@@ -8703,10 +8816,16 @@ ck_hostaddr(host,index) struct hostent * host; int index;
 #endif /* CK_ANSIC */
 /* ck_hostaddr */ {
     /* Copy the IPv4 address from host->h_addr_list[index].  The entry holds
-       sizeof(struct in_addr) bytes in network byte order. */
+       sizeof(struct in_addr) bytes in network byte order.  Without
+       HADDRLIST the host entry has only h_addr, at index 0. */
     struct in_addr a;
     memset((char *)&a, 0, sizeof(a));
+#ifdef HADDRLIST
     memcpy((char *)&a, (char *)host->h_addr_list[index], sizeof(a));
+#else
+    if (index == 0)
+      memcpy((char *)&a, (char *)host->h_addr, sizeof(a));
+#endif /* HADDRLIST */
     return(a);
 }
 
@@ -11204,6 +11323,9 @@ x25dump_data(char *addr, ulong offset, ulong length) {
     char *buf = (char *)malloc( length * 4 );
     char *bptr = buf;   /* pointer to current place in the print buffer */
 
+    if (!buf)
+      return;
+
     while (i > 0) {
         if (isprint(*ptr)) {
             *bptr++ = *ptr;
@@ -11453,6 +11575,8 @@ x25dump_prim(primitive)    N_npi_ctl_t *primitive; {
 
 #ifndef HTTP_VERSION
 #define HTTP_VERSION "HTTP/1.1"
+#define HTTP_CREDLEN 256                /* Room for "user:password" */
+#define HTTP_B64LEN (((HTTP_CREDLEN + 2) / 3) * 4 + 1) /* Its base64 */
 #endif /* HTTP_VERSION */
 
 #ifdef CMDATE2TM
@@ -11695,28 +11819,38 @@ http_get_chunk_len()
 }
 
 /*
-  Parse an HTTP Content-Length header value.  Unlike atoi(), this
-  rejects non-numeric input and clamps out-of-range or negative
-  values to 0 rather than letting an overflowed/negative length
-  reach the read loops below.
+  Parse an HTTP Content-Length header value.  s points to the byte
+  after the colon.  Leading and trailing blanks are skipped.
+
+  Returns the length, or -1 for a value that is empty, holds anything
+  but decimal digits, or exceeds CK_OFF_T_MAX.  The callers treat -1
+  as "read until the server closes the connection".
 */
-static int
+static CK_OFF_T
 #ifdef CK_ANSIC
 http_content_length(char *s)
 #else
 http_content_length(s) char *s;
 #endif /* CK_ANSIC */
 {
-    long val;
-    char *ep;
+    CK_OFF_T val = 0;
+    int d;
 
     while (*s == ' ' || *s == '\t')
       s++;
-    errno = 0;
-    val = strtol(s, &ep, 10);
-    if (ep == s || errno == ERANGE || val < 0 || val > INT_MAX)
-      return(0);
-    return((int)val);
+    if (*s < '0' || *s > '9')
+      return(-1);
+    while (*s >= '0' && *s <= '9') {
+        d = *s++ - '0';
+        if (val > (CK_OFF_T_MAX - d) / 10)
+          return(-1);
+        val = val * 10 + d;
+    }
+    while (*s == ' ' || *s == '\t')
+      s++;
+    if (*s)
+      return(-1);
+    return(val);
 }
 
 int
@@ -11757,16 +11891,12 @@ http_reopen()
     int rc = 0;
     char * s = NULL;                    /* strdup is not portable */
     if ( tcp_http_proxy ) {
-        char * p;
-        makestr(&s,(char *)http_host_port);
-        p = s;
-        while (*p != '\0' && *p != ':') p++; /* Look for colon */
-        if (*p == ':') {                     /* Have a colon */
-            *p++ = '\0';                     /* Get service name or number */
-        } else {
-            p="http";
-        }
-        rc = http_open(s,p,http_ssl,NULL,0,http_agent);
+        char hbuf[NAMECPYL], pbuf[NAMECPYL];
+        if (ck_splithostport(http_host_port,hbuf,sizeof(hbuf),
+                             pbuf,sizeof(pbuf)) < 0)
+          return(-1);
+        rc = http_open(hbuf,pbuf[0] ? pbuf : "http",http_ssl,NULL,0,
+                       http_agent);
     } else {
         makestr(&s,(char *)http_ip);
         rc = http_open(s,ckuitoa(http_port),http_ssl,NULL,0,http_agent);
@@ -11864,8 +11994,8 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
 
     /* For HTTP connections we must preserve the original hostname and */
     /* service requested so we can include them in the Host header.    */
-    ckmakmsg(http_host_port,sizeof(http_host_port),hostname,":",
-              ckuitoa(ntohs((unsigned short)service->s_port)),NULL);
+    ck_hostport(http_host_port,sizeof(http_host_port),hostname,
+                ckuitoa(ntohs((unsigned short)service->s_port)));
     http_port = ntohs((unsigned short)service->s_port);
     http_ssl = use_ssl;
     debug(F111,"http_open",http_host_port,http_port);
@@ -11882,19 +12012,16 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
 
     if ( tcp_http_proxy ) {
 
-        ckmakmsg(proxycopy,sizeof(proxycopy),hostname,":",
-                 ckuitoa(ntohs((unsigned short)service->s_port)),NULL);
+        ck_hostport(proxycopy,sizeof(proxycopy),hostname,
+                    ckuitoa(ntohs((unsigned short)service->s_port)));
         /* Leave room after the name for a service name or port number */
         ckstrncpy(honc,tcp_http_proxy,NAMECPYL-8);
 
-        p = honc;                       /* Was a service requested? */
-        while (*p != '\0' && *p != ':') p++; /* Look for colon */
-        if (*p == ':') {                    /* Have a colon */
-            debug(F110,"http_open name has colon",honc,0);
-            *p++ = '\0';                    /* Get service name or number */
-        } else {
-            p++;
-            ckstrncpy(p,"http",NAMECPYL-(int)(p-honc));
+        p = ck_splitinplace(honc,NAMECPYL,"http"); /* Proxy port */
+        if (!p) {
+            fprintf(stderr,"Malformed proxy address: %s\n",tcp_http_proxy);
+            errno = 0;
+            return(-1);
         }
 
         service = ckgetservice(honc,p,http_ip,CK_IPADDRLEN);
@@ -11913,11 +12040,7 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
          * it as the hostname
          */
         ckstrncpy(honc,tcp_http_proxy,NAMECPYL);
-        p = honc;                       /* Was a service requested? */
-        while (*p != '\0' && *p != ':') p++; /* Look for colon */
-        if (*p == ':') {                    /* Have a colon */
-            *p = '\0';                      /* terminate string */
-        }
+        (VOID) ck_splitinplace(honc,NAMECPYL,""); /* Keep the host */
         hostname = honc;                /* use proxy as hostname */
     }
 
@@ -12657,6 +12780,8 @@ http_tol(s,n) CHAR *s; int n;
 #ifdef STREAMING
       do_select:
 #endif /* STREAMING */
+        if (!CK_FDOK(httpfd))           /* select() cannot wait on it */
+          return(-1);
         FD_ZERO(&wfds);
         FD_SET(httpfd, &wfds);
         if (select(FD_SETSIZE, NULL,
@@ -12890,6 +13015,8 @@ http_inc(timo) int timo;
             int rc;
             debug(F111,"http_inc","timeout",timeout);
             /* Don't move select() initialization out of the loop. */
+            if (!CK_FDOK(httpfd))       /* select() cannot wait on it */
+              return(-1);
             FD_ZERO(&rfds);
             FD_SET(httpfd, &rfds);
             tv.tv_sec  = tv.tv_usec = 0L;
@@ -13179,6 +13306,49 @@ http_set_code_reply(msg)
     ckstrncpy(http_reply_str,p,HTTPBUFLEN);
 }
 
+/*
+  Build HTTP Basic credentials: user:pwd in base64, in out (outlen
+  bytes).  The plain text is cleared.  Returns the length of the result,
+  or -1 if user:pwd is longer than HTTP_CREDLEN-1 bytes or the result
+  does not fit.
+*/
+static int
+#ifdef CK_ANSIC
+http_basic(char * user, char * pwd, char * out, int outlen)
+#else
+http_basic(user,pwd,out,outlen) char * user, * pwd, * out; int outlen;
+#endif /* CK_ANSIC */
+{
+    char in[HTTP_CREDLEN];
+    int n, j;
+
+    n = (int)strlen(user) + 1 + (int)strlen(pwd);
+    if (n >= HTTP_CREDLEN) {
+        printf("?HTTP user name and password too long\n");
+        return(-1);
+    }
+    ckmakmsg(in,sizeof(in),user,":",pwd,NULL);
+    j = b8tob64(in,n,out,outlen);
+    memset(in,0,sizeof(in));
+    if (j < 0 || j >= outlen)
+      return(-1);
+    out[j] = '\0';
+    return(j);
+}
+
+/* Clear and free an HTTP request.  It can hold credentials. */
+
+static VOID
+#ifdef CK_ANSIC
+http_freereq(char * request)
+#else
+http_freereq(request) char * request;
+#endif /* CK_ANSIC */
+{
+    memset(request,0,strlen(request));
+    free(request);
+}
+
 int
 #ifdef CK_ANSIC
 http_get(char * agent, char ** hdrlist, char * user,
@@ -13193,7 +13363,7 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
 {
     char * request = NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
-    CK_OFF_T chunklen = 0;
+    CK_OFF_T chunklen = 0, clen = -1;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
@@ -13214,8 +13384,7 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
     time_t srv_t = 0;
     time_t local_t = 0;
     char passwd[64];
-    char b64in[128];
-    char b64out[256];
+    char b64out[HTTP_B64LEN];
     char * headers[HTTPHEADCNT];
     int closecon = 0;
     int chunked = 0;
@@ -13258,12 +13427,10 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
-        ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
+        j = http_basic(user,pwd,b64out,(int)sizeof(b64out));
         memset(pwd,0,strlen(pwd));      /* NOT PORTABLE */
         if (j < 0)
           return(-1);
-        b64out[j] = '\0';
         len += j + 24;
     }
 #ifdef HTTP_CLOSE
@@ -13288,6 +13455,7 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
     if (user) {
         ckstrncat(request,"Authorization: Basic ",len);
         ckstrncat(request,b64out,len);
+        memset(b64out,0,sizeof(b64out));
         ckstrncat(request,"\r\n",len);
     }
     if ( hdrlist ) {
@@ -13318,7 +13486,7 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
     local_t = time(NULL);
     nullline = 0;
     i = 0;
-    len = -1;
+    clen = -1;
     while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
         buf[i] = (char)ch;
         if ( buf[i] == 10 ) { /* found end of line */
@@ -13360,7 +13528,7 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
                 if ( ckindex("close",buf,11,0,0) != 0 )
                     closecon = 1;
             } else if (!ckstrcmp(buf,"Content-Length:",15,0)) {
-                len = http_content_length(&buf[16]);
+                clen = http_content_length(&buf[15]);
             } else if (!ckstrcmp(buf,"Transfer-Encoding:",18,0)) {
                 if ( ckindex("chunked",buf,18,0,0) != 0 )
                     chunked = 1;
@@ -13408,8 +13576,8 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
         if (chunklen < 0)                   /* Malformed chunk-size line */
           rc = -1;
     } else {
-        while (len && (ch = http_inc(0)) >= 0) {
-            len--;
+        while (clen && (ch = http_inc(0)) >= 0) {
+            clen--;
             if ( zfile )
                 zchout(ZOFILE,(CHAR)ch);
             if ( stdio )
@@ -13479,7 +13647,7 @@ http_get(agent, hdrlist, user, pwd, array, local, remote, stdio)
 
     if ( closecon )
         http_close();
-    free(request);
+    http_freereq(request);
     for (i = 0; i < hdcnt; i++) {
         if (headers[i])
           free(headers[i]);
@@ -13507,8 +13675,7 @@ http_head(agent, hdrlist, user, pwd, array, local, remote, stdio)
     int    nullline;
     time_t local_t;
     char passwd[64];
-    char b64in[128];
-    char b64out[256];
+    char b64out[HTTP_B64LEN];
     char * headers[HTTPHEADCNT];
     int  closecon = 0;
     int  first = 1;
@@ -13538,12 +13705,10 @@ http_head(agent, hdrlist, user, pwd, array, local, remote, stdio)
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
-        ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
+        j = http_basic(user,pwd,b64out,(int)sizeof(b64out));
         memset(pwd,0,strlen(pwd));      /* NOT PORTABLE */
         if (j < 0)
           return(-1);
-        b64out[j] = '\0';
         len += j + 24;
     }
 #ifdef HTTP_CLOSE
@@ -13568,6 +13733,7 @@ http_head(agent, hdrlist, user, pwd, array, local, remote, stdio)
     if (user) {
         ckstrncat(request,"Authorization: Basic ",len);
         ckstrncat(request,b64out,len);
+        memset(b64out,0,sizeof(b64out));
         ckstrncat(request,"\r\n",len);
     }
     if ( hdrlist ) {
@@ -13583,7 +13749,7 @@ http_head(agent, hdrlist, user, pwd, array, local, remote, stdio)
 
     if ( local && local[0] ) {
         if (!zopeno(ZOFILE,local,NULL,NULL)) {
-            free(request);
+            http_freereq(request);
             return(-1);
         }
     }
@@ -13670,7 +13836,7 @@ http_head(agent, hdrlist, user, pwd, array, local, remote, stdio)
         zclose(ZOFILE);
     if (closecon)
         http_close();
-    free(request);
+    http_freereq(request);
     for (i = 0; i < hdcnt; i++) {
         if (headers[i])
           free(headers[i]);
@@ -13690,15 +13856,14 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
 {
     char * request = NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
-    CK_OFF_T chunklen = 0;
+    CK_OFF_T chunklen = 0, clen = -1;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
     int    nullline;
     time_t local_t;
     char passwd[64];
-    char b64in[128];
-    char b64out[256];
+    char b64out[HTTP_B64LEN];
     char * headers[HTTPHEADCNT];
     int  closecon = 0;
     int  chunked = 0;
@@ -13730,12 +13895,10 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
-        ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
+        j = http_basic(user,pwd,b64out,(int)sizeof(b64out));
         memset(pwd,0,strlen(pwd));
         if (j < 0)
           return(-1);
-        b64out[j] = '\0';
         len += j + 24;
     }
 #ifdef HTTP_CLOSE
@@ -13760,6 +13923,7 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
     if (user) {
         ckstrncat(request,"Authorization: Basic ",len);
         ckstrncat(request,b64out,len);
+        memset(b64out,0,sizeof(b64out));
         ckstrncat(request,"\r\n",len);
     }
     if ( hdrlist ) {
@@ -13789,7 +13953,7 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
     local_t = time(NULL);
     nullline = 0;
     i = 0;
-    len = -1;
+    clen = -1;
     while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
         buf[i] = (char)ch;
         if (buf[i] == 10) {             /* found end of line */
@@ -13825,7 +13989,7 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
                     if ( ckindex("close",buf,11,0,0) != 0 )
                         closecon = 1;
                 } else if (!ckstrcmp(buf,"Content-Length:",15,0)) {
-                    len = http_content_length(&buf[16]);
+                    clen = http_content_length(&buf[15]);
                 } else if (!ckstrcmp(buf,"Transfer-Encoding:",18,0)) {
                     if ( ckindex("chunked",buf,18,0,0) != 0 )
                         chunked = 1;
@@ -13876,8 +14040,8 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
         if (chunklen < 0)                   /* Malformed chunk-size line */
           rc = -1;
     } else {
-        while (len && (ch = http_inc(0)) >= 0) {
-            len--;
+        while (clen && (ch = http_inc(0)) >= 0) {
+            clen--;
             if ( zfile )
                 zchout(ZOFILE,(CHAR)ch);
             if ( stdio )
@@ -13918,7 +14082,7 @@ http_index(agent, hdrlist, user, pwd, array, local, remote, stdio)
 
     if (closecon)
         http_close();
-    free(request);
+    http_freereq(request);
     for (i = 0; i < hdcnt; i++) {
         if (headers[i])
           free(headers[i]);
@@ -13940,15 +14104,14 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
 {
     char * request=NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
-    CK_OFF_T chunklen = 0;
+    CK_OFF_T chunklen = 0, clen = -1;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
     int    nullline;
     time_t local_t;
     char passwd[64];
-    char b64in[128];
-    char b64out[256];
+    char b64out[HTTP_B64LEN];
     CK_OFF_T filelen;
     char * headers[HTTPHEADCNT];
     int  closecon = 0;
@@ -13990,12 +14153,10 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
-        ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
+        j = http_basic(user,pwd,b64out,(int)sizeof(b64out));
         memset(pwd,0,strlen(pwd));
         if (j < 0)
           return(-1);
-        b64out[j] = '\0';
         len += j + 24;
     }
     len += 16 + (int)strlen(mime);           /* Content-type: */
@@ -14030,6 +14191,7 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
     if (user) {
         ckstrncat(request,"Authorization: Basic ",len);
         ckstrncat(request,b64out,len);
+        memset(b64out,0,sizeof(b64out));
         ckstrncat(request,"\r\n",len);
     }
     if ( hdrlist ) {
@@ -14097,7 +14259,7 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
         local_t = time(NULL);
         nullline = 0;
         i = 0;
-        len = -1;
+        clen = -1;
         while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
             buf[i] = (char)ch;
             if (buf[i] == 10) {         /* found end of line */
@@ -14133,7 +14295,7 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
                         if ( ckindex("close",buf,11,0,0) != 0 )
                             closecon = 1;
                     } else if (!ckstrcmp(buf,"Content-Length:",15,0)) {
-                        len = http_content_length(&buf[16]);
+                        clen = http_content_length(&buf[15]);
                     } else if (!ckstrcmp(buf,"Transfer-Encoding:",18,0)) {
                         if ( ckindex("chunked",buf,18,0,0) != 0 )
                             chunked = 1;
@@ -14184,8 +14346,8 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
             if (chunklen < 0)                   /* Malformed chunk-size line */
               rc = -1;
         } else {
-            while (len && (ch = http_inc(0)) >= 0) {
-                len--;
+            while (clen && (ch = http_inc(0)) >= 0) {
+                clen--;
                 if ( zfile )
                     zchout(ZOFILE,(CHAR)ch);
                 if ( stdio )
@@ -14228,7 +14390,7 @@ http_put(agent, hdrlist, mime, user, pwd, array, local, remote, dest, stdio)
 
     if (closecon)
         http_close();
-    free(request);
+    http_freereq(request);
     for (i = 0; i < hdcnt; i++) {
         if (headers[i])
           free(headers[i]);
@@ -14248,15 +14410,14 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
 {
     char * request=NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
-    CK_OFF_T chunklen = 0;
+    CK_OFF_T chunklen = 0, clen = -1;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
     int    nullline;
     time_t local_t;
     char passwd[64];
-    char b64in[128];
-    char b64out[256];
+    char b64out[HTTP_B64LEN];
     char * headers[HTTPHEADCNT];
     int  closecon = 0;
     int  chunked = 0;
@@ -14289,12 +14450,10 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
-        ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
+        j = http_basic(user,pwd,b64out,(int)sizeof(b64out));
         memset(pwd,0,strlen(pwd));
         if (j < 0)
           return(-1);
-        b64out[j] = '\0';
         len += j + 24;
     }
     len += 32;                          /* Date: */
@@ -14327,6 +14486,7 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
     if (user) {
         ckstrncat(request,"Authorization: Basic ",len);
         ckstrncat(request,b64out,len);
+        memset(b64out,0,sizeof(b64out));
         ckstrncat(request,"\r\n",len);
     }
     if ( hdrlist ) {
@@ -14356,7 +14516,7 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
     local_t = time(NULL);
     nullline = 0;
     i = 0;
-    len = -1;
+    clen = -1;
     while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
         buf[i] = (char)ch;
         if (buf[i] == 10) {         /* found end of line */
@@ -14392,7 +14552,7 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
                     if ( ckindex("close",buf,11,0,0) != 0 )
                         closecon = 1;
                 } else if (!ckstrcmp(buf,"Content-Length:",15,0)) {
-                    len = http_content_length(&buf[16]);
+                    clen = http_content_length(&buf[15]);
                 } else if (!ckstrcmp(buf,"Transfer-Encoding:",18,0)) {
                     if ( ckindex("chunked",buf,18,0,0) != 0 )
                         chunked = 1;
@@ -14432,8 +14592,8 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
         if (chunklen < 0)                   /* Malformed chunk-size line */
           rc = -1;
     } else {
-        while (len && (ch = http_inc(0)) >= 0) {
-            len--;
+        while (clen && (ch = http_inc(0)) >= 0) {
+            clen--;
             conoc((CHAR)ch);
         }
     }
@@ -14467,7 +14627,7 @@ http_delete(agent, hdrlist, user, pwd, array, remote)
 
     if (closecon)
         http_close();
-    free(request);
+    http_freereq(request);
     for (i = 0; i < hdcnt; i++) {
         if (headers[i])
           free(headers[i]);
@@ -14490,15 +14650,14 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
 {
     char * request=NULL;
     int    i, j, len = 0, hdcnt = 0, rc = 0;
-    CK_OFF_T chunklen = 0;
+    CK_OFF_T chunklen = 0, clen = -1;
     int    ch;
     int    http_fnd = 0;
     char   buf[HTTPBUFLEN], *p;
     int    nullline;
     time_t local_t;
     char passwd[64];
-    char b64in[128];
-    char b64out[256];
+    char b64out[HTTP_B64LEN];
     CK_OFF_T filelen;
     char * headers[HTTPHEADCNT];
     int  closecon = 0;
@@ -14536,12 +14695,10 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
-        ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
+        j = http_basic(user,pwd,b64out,(int)sizeof(b64out));
         memset(pwd,0,strlen(pwd));
         if (j < 0)
           return(-1);
-        b64out[j] = '\0';
         len += j + 24;
     }
     len += 16 + (int)strlen(mime);           /* Content-type: */
@@ -14572,6 +14729,7 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
     if (user) {
         ckstrncat(request,"Authorization: Basic ",len);
         ckstrncat(request,b64out,len);
+        memset(b64out,0,sizeof(b64out));
         ckstrncat(request,"\r\n",len);
     }
     if ( hdrlist ) {
@@ -14624,7 +14782,7 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
         local_t = time(NULL);
         nullline = 0;
         i = 0;
-        len = -1;
+        clen = -1;
         while (!nullline && (ch = http_inc(0)) >= 0 && i < HTTPBUFLEN) {
             buf[i] = (char)ch;
             if (buf[i] == 10) {         /* found end of line */
@@ -14660,7 +14818,7 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
                         if ( ckindex("close",buf,11,0,0) != 0 )
                             closecon = 1;
                     } else if (!ckstrcmp(buf,"Content-Length:",15,0)) {
-                        len = http_content_length(&buf[16]);
+                        clen = http_content_length(&buf[15]);
                     } else if (!ckstrcmp(buf,"Transfer-Encoding:",18,0)) {
                         if ( ckindex("chunked",buf,18,0,0) != 0 )
                             chunked = 1;
@@ -14711,8 +14869,8 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
             if (chunklen < 0)                   /* Malformed chunk-size line */
               rc = -1;
         } else {
-            while (len && (ch = http_inc(0)) >= 0) {
-                len--;
+            while (clen && (ch = http_inc(0)) >= 0) {
+                clen--;
                 if ( zfile )
                     zchout(ZOFILE,(CHAR)ch);
                 if ( stdio )
@@ -14754,7 +14912,7 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
         http_mkarray(headers,hdcnt,array);
     if (closecon)
         http_close();
-    free(request);
+    http_freereq(request);
     for (i = 0; i < hdcnt; i++) {
         if (headers[i])
           free(headers[i]);
@@ -14780,8 +14938,7 @@ http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
     int    nullline;
     time_t local_t;
     char passwd[64];
-    char b64in[128];
-    char b64out[256];
+    char b64out[HTTP_B64LEN];
     char * headers[HTTPHEADCNT];
     int    connected = 0;
 
@@ -14813,12 +14970,10 @@ http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
             readpass("Password: ",passwd,64);
             pwd = passwd;
         }
-        ckmakmsg(b64in,sizeof(b64in),user,":",pwd,NULL);
-        j = b8tob64(b64in,(int)strlen(b64in),b64out,256);
+        j = http_basic(user,pwd,b64out,(int)sizeof(b64out));
         memset(pwd,0,strlen(pwd));
         if (j < 0)
           return(-1);
-        b64out[j] = '\0';
         len += j + 72;
     }
     len += 32;                          /* Date: */
@@ -14848,6 +15003,7 @@ http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
     if (user && user[0]) {
         ckstrncat(request,"Proxy-authorization: Basic ",len);
         ckstrncat(request,b64out,len);
+        memset(b64out,0,sizeof(b64out));
         ckstrncat(request,"\r\n",len);
         ckstrncat(request,"Extension: Security/Remote-Passphrase\r\n",len);
     }
@@ -14941,7 +15097,7 @@ http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
         }
     }
 
-    free(request);
+    http_freereq(request);
     for (i = 0; i < hdcnt; i++) {
         if (headers[i])
           free(headers[i]);
@@ -15204,12 +15360,16 @@ locate_srv_dns(host, service, protocol, addr_pp, naddrs)
                            (char *) hp->h_addr_list[j],
                            sizeof(struct in_addr));             /* safe */
                     if (nout + 1 >= count) {
+                        struct sockaddr * xaddr;
                         count += 5;
-                        addr = (struct sockaddr *)
+                        xaddr = (struct sockaddr *)
                           realloc((char *) addr,
                                   sizeof(struct sockaddr) * count);
-                        if (!addr)
-                          goto dnsout;
+                        if (!xaddr) {   /* Keep what we have */
+                            count -= 5;
+                            goto dnsout;
+                        }
+                        addr = xaddr;
                     }
                 }
                 break;
@@ -15218,18 +15378,14 @@ locate_srv_dns(host, service, protocol, addr_pp, naddrs)
             }
         }
     }
-    for (entry = head; entry != NULL;) {
-        free(entry->host);
-        entry->host = NULL;
+  dnsout:
+    for (entry = head; entry != NULL;) { /* Free the server list */
+        if (entry->host)
+          free(entry->host);
         srv = entry;
         entry = entry->next;
         free(srv);
-        srv = NULL;
     }
-
-  dnsout:
-    if (srv)
-      free(srv);
 
     if (nout == 0) {                    /* No good servers */
         if (addr)
@@ -15668,8 +15824,10 @@ fwdx_open_client_channel(channel) int channel;
         ckmakmsg(buf,sizeof(buf),"/tmp/.X11-unix/X",ckitoa(display),NULL,NULL);
         ckstrncpy(saddr_un.sun_path, buf, sizeof(saddr_un.sun_path));
         if (connect(sock,(struct sockaddr *)&saddr_un,
-                    (socklen_t)SUN_LEN(&saddr_un)) < 0)
-          return(-1);
+                    (socklen_t)SUN_LEN(&saddr_un)) < 0) {
+            close(sock);
+            return(-1);
+        }
     } else
 #endif  /* FWDX_UNIX_SOCK */
     {
@@ -15702,7 +15860,7 @@ fwdx_open_client_channel(channel) int channel;
 #ifdef HADDRLIST
 #ifdef h_addr
             /* This is for trying multiple IP addresses - see <netdb.h> */
-            if (!(hent->h_addr_list))
+            if (!hent->h_addr_list || !hent->h_addr_list[0])
                 return(-1);
             bcopy(hent->h_addr_list[0],
                    (caddr_t)&saddr.sin_addr,
@@ -15804,8 +15962,10 @@ fwdx_server_avail() {
         ckmakmsg(buf,sizeof(buf),"/tmp/.X11-unix/X",ckitoa(display),NULL,NULL);
         ckstrncpy(saddr_un.sun_path, buf, sizeof(saddr_un.sun_path));
         if (connect(sock,(struct sockaddr *)&saddr_un,
-                    (socklen_t)SUN_LEN(&saddr_un)) < 0)
+                    (socklen_t)SUN_LEN(&saddr_un)) < 0) {
+            close(sock);
             return(0);
+        }
         close(sock);
         return(1);
     }
@@ -15842,7 +16002,7 @@ fwdx_server_avail() {
 #ifdef HADDRLIST
 #ifdef h_addr
         /* This is for trying multiple IP addresses - see <netdb.h> */
-        if (!(hent2->h_addr_list))
+        if (!hent2->h_addr_list || !hent2->h_addr_list[0])
             return(-1);
         bcopy(hent2->h_addr_list[0],
                (caddr_t)&saddr.sin_addr,
@@ -15911,6 +16071,8 @@ fwdx_open_server_channel() {
     sock = TELOPT_SB(TELOPT_FORWARD_X).forward_x.listen_socket;
 
   try_again:
+    if (!CK_FDOK(sock))                 /* select() cannot wait on it */
+      return(0);
 
 #ifdef BSDSELECT
     tv.tv_sec  = tv.tv_usec = 0L;
@@ -16175,14 +16337,15 @@ fwdx_init_fd_set(fd_set *ibits)
         return(0);
     }
 
-    if (TELOPT_SB(TELOPT_FORWARD_X).forward_x.listen_socket != -1) {
+    if (CK_FDOK(TELOPT_SB(TELOPT_FORWARD_X).forward_x.listen_socket)) {
         set++;
         FD_SET(TELOPT_SB(TELOPT_FORWARD_X).forward_x.listen_socket, ibits);
     }
     for (x = 0; x < MAXFWDX; x++) {
         if (TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[x].fd != -1) {
             cnt++;
-            if (TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[x].suspend)
+            if (TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[x].suspend ||
+                !CK_FDOK(TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[x].fd))
                 continue;
             set++;
             FD_SET(TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[x].fd, ibits);

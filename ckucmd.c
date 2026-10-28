@@ -64,6 +64,7 @@ int cmdmsk = 255;                       /* 31 Dec 2000 (was 127) */
 _PROTOTYP( int nlookup, (struct keytab [], char *, int, int *) );
 _PROTOTYP( int unhex, (char) );
 _PROTOTYP( static VOID cmdclrscn, (void) );
+_PROTOTYP( static int cmdqodd, (char *, char *) );
 
 #ifdef CKLEARN
 _PROTOTYP( VOID learncmd, (char *) );
@@ -376,6 +377,7 @@ extern int cmd_cols, cmd_rows, local, quiet;
 
 _PROTOTYP( static int gtword, (int) );
 _PROTOTYP( static int addbuf, (char *) );
+_PROTOTYP( static int cmdcopy, (char *) );
 _PROTOTYP( static int setatm, (char *, int) );
 _PROTOTYP( static VOID cmdnewl, (char) );
 _PROTOTYP( static VOID cmdchardel, (void) );
@@ -619,7 +621,9 @@ kwdhelp( s, n, pat, pre, post, off, xhlp )
                 }
             }
             p = b + cmd_cols - 1;       /* Last char in line */
-            while (*p-- == SP) ;        /* Trim */
+            while (p > b && *p == SP)   /* Trim */
+              p--;
+            p--;                        /* So that p+2 follows the text */
             *(p+2) = NUL;
             printf("%s\n",b);           /* Print the line */
             if (++lc > (cmd_rows - 2)) { /* Screen full? */
@@ -644,9 +648,9 @@ kwdhelp( s, n, pat, pre, post, off, xhlp )
         }
     }
   xkwdhelp:
-    if (xhlp & 4) {
-        if (tmpbuf) free((char *)tmpbuf);
-        for (i = 0; i < n; i++)
+    if ((xhlp & 4) && tmpbuf) {         /* s2[] holds copies only then */
+        free((char *)tmpbuf);
+        for (i = 0; s2 && i < n; i++)
           if (s2[i]) free(s2[i]);
     }
     if (s2) free(s2);                   /* Free array copy */
@@ -780,7 +784,9 @@ xfilhelp(n,pre,post,off,cmdirflg,
                 }
             }
             p = b + cmd_cols - 1;       /* Last char in line */
-            while (*p-- == SP) ;        /* Trim */
+            while (p > b && *p == SP)   /* Trim */
+              p--;
+            p--;                        /* So that p+2 follows the text */
             *(p+2) = NUL;
             printf("%s\n",b);           /* Print the line */
             if (++lc > (cmd_rows - 2)) { /* Screen full? */
@@ -2403,8 +2409,7 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
                     xc = cc;            /* How many new ones we just got */
                     sp9 = atmbuf;
                     printf("%s",sp9);    /* Print them */
-                    while ((*bp++ = *sp9++)) ;   /* Copy to command buffer */
-                    bp--;                       /* Back up over NUL */
+                    cmdcopy(sp9);       /* Copy to command buffer */
                 }
                 *xp = atmbuf;
             }
@@ -2619,8 +2624,7 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
                     }
                     cc = k;             /* How many new ones we just got */
                     printf("%s",sp);    /* Print them */
-                    while ((*bp++ = *sp++)) ;   /* Copy to command buffer */
-                    bp--;                       /* Back up over NUL */
+                    cmdcopy(sp);        /* Copy to command buffer */
                     debug(F110,"cmifi partial cmdbuf",cmdbuf,0);
                     if (setatm(filbuf,0) < 0) {
                         printf("?Partial name too long\n");
@@ -2651,8 +2655,7 @@ cmifi2(xhlp,xdef,xp,wild,d,path,f,dirflg)
                     bleep(BP_WARN);
                     printf("%s",sp);
                     cc++;
-                    while ((*bp++ = *sp++)) ;
-                    bp--;
+                    cmdcopy(sp);        /* Copy to command buffer */
                     if (setatm(filbuf,0) < 0) {
                         printf("?Directory name too long\n");
                         if (xnp) free(xnp);
@@ -4175,7 +4178,7 @@ cmcvtdate(s,t) char * s; int t;
     char yearbuf[5];
     char cdcc;
     char * dp = NULL;                   /* Result pointer */
-    char * newdate = NULL;
+    char newdate[DATEBUFLEN+1];         /* Apache date without colons */
     char * datepat = "[12][0-9][0-9][0-9]:[0-9][0-9]:[0-9][0-9]";
 
     if (!s) s = "";
@@ -4184,12 +4187,33 @@ cmcvtdate(s,t) char * s; int t;
 
     while (*s == SP) s++;               /* Gobble any leading blanks */
     if (ckmatch(datepat,s,0,4)) {       /* Check for Apache web log format */
-        int i9, j9 = 0;
-        newdate = (char *)malloc((len + 1) * sizeof(char *));
-        for (i9 = 0; i9 <= len; i9++) {    /* Loop to remove colons */
-            if (s[i9] != ':') newdate[j9++] = s[i9];
-            if (s[i9] == NUL) break;
+/*
+  An Apache log date is [dd/Mon/yyyy:hh:mm:ss +zzzz].  Drop the brackets
+  and put a space in place of the colon after the year, so the colons of
+  the time stay.  Other matches, such as yyyy:mm:dd, lose every colon.
+*/
+        int i9, j9 = 0, yc = -1;
+        if (*s == '[')
+          s++;
+        for (i9 = 4; s[i9]; i9++) {     /* Find the colon after the year */
+            if (s[i9] == ':' &&
+                isdigit(s[i9-1]) && isdigit(s[i9-2]) &&
+                isdigit(s[i9-3]) && isdigit(s[i9-4])) {
+                yc = i9;
+                break;
+            }
         }
+        if (yc < 5 || s[yc-5] != '/')   /* Not dd/Mon/yyyy:... */
+          yc = -1;
+        for (i9 = 0; s[i9] && j9 < DATEBUFLEN; i9++) {
+            if (i9 == yc)
+              newdate[j9++] = SP;       /* Year-hour separator */
+            else if (s[i9] != ':' || yc > -1)
+              newdate[j9++] = s[i9];
+        }
+        if (j9 > 0 && newdate[j9-1] == ']')
+          j9--;
+        newdate[j9] = NUL;
         s = newdate;                    /* Replace arg with result */
     }
     if (isalpha(*s))                    /* Remember if 1st char is a letter */
@@ -6368,6 +6392,26 @@ unungw() {
     }
 }
 
+/*
+  Return 1 if the character at q is escaped.  That is, it follows an
+  odd number of consecutive CMDQ characters, counting back no further
+  than s.
+*/
+static int
+#ifdef CK_ANSIC
+cmdqodd( char * s, char * q )
+#else
+cmdqodd(s,q) char * s, * q;
+#endif /* CK_ANSIC */
+{
+    int n = 0;
+    while (q > s && *(q-1) == CMDQ) {
+        n++;
+        q--;
+    }
+    return(n & 1);
+}
+
 static int
 #ifdef CK_ANSIC
 gtword( int brk )
@@ -6746,7 +6790,7 @@ CMDIRPARSE:
                     */
                     if ((!dq && ((*pp != lbrace) || (bracelvl == 0))) ||
                         (dq && dqn > 1 && *(bp-2) == '"' &&
-                         (bp < pp + 3 || *(bp-3) != CMDQ))) {
+                         !cmdqodd(pp,bp-2))) {
                         np = bp;     /* If field-terminating space, return. */
                         cmbptr = np;
                         if (setatm(pp,0) < 0) {
@@ -7234,6 +7278,27 @@ CMDIRPARSE:
 
 /* A D D B U F  -- Add the string pointed to by cp to the command buffer  */
 
+/*
+  Copy the string sp into the command buffer at bp, stopping at the end
+  of cmdbuf.  Leave bp at the terminating NUL.  Return the number of
+  characters copied.
+*/
+static int
+#ifdef CK_ANSIC
+cmdcopy( char * sp )
+#else
+cmdcopy(sp) char * sp;
+#endif /* CK_ANSIC */
+{
+    int len = 0;
+    while (*sp && bp < cmdbuf + CMDBL) {
+        *bp++ = *sp++;
+        len++;
+    }
+    *bp = NUL;
+    return(len);
+}
+
 static int
 #ifdef CK_ANSIC
 addbuf( char * cp )
@@ -7383,7 +7448,7 @@ setatm(cp,fcode) char *cp; int fcode;
             if (dq && fcode != 1 && fcode != 3) {
                 if (*cp == SP || *cp == HT) {
                     if (cp > dqp+1) {
-                        if (*(cp-1) == '"' && *(cp-2) != CMDQ) {
+                        if (*(cp-1) == '"' && !cmdqodd(dqp+1,cp-1)) {
                             break;
                         }
                     }
@@ -7564,7 +7629,10 @@ cmdgetc(ctlimit) int ctlimit;
 #ifdef CMD_CONINC
 #undef CMD_CONINC
 #endif /* CMD_CONINC */
+        fflush(stdout);                  /* Needed for musl builds */
         c = getchar();
+        if (c == EOF && errno == EINTR)  /* A signal ended the read */
+          chksigs();
 #endif /* OS2 */
     }
 #else  /* MINIX2 */

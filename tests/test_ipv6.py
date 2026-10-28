@@ -6,7 +6,7 @@ import subprocess
 import threading
 import time
 import pytest
-from conftest import assert_ok
+from conftest import assert_ok, start_tcp_listener
 
 
 def _show_tcp_output(run_wermit):
@@ -233,6 +233,22 @@ def _ipv6_loopback_available():
         return True
     except OSError:
         return False
+
+
+def _reverse_name(addr):
+    """Return the name the resolver gives for addr, or None.
+
+    wermit uses gethostbyaddr() for an IPv4 address and getnameinfo()
+    with NI_NAMEREQD for an IPv6 address.  The name depends on the hosts
+    file.  Some systems list a host name before "localhost" for the
+    loopback addresses.
+    """
+    try:
+        if ":" in addr:
+            return socket.getnameinfo((addr, 0), socket.NI_NAMEREQD)[0]
+        return socket.gethostbyaddr(addr)[0]
+    except OSError:
+        return None
 
 
 def _v4_alias_available(addr):
@@ -1003,12 +1019,14 @@ def test_http_open_wrong_scheme_still_rejected(run_wermit):
 def test_reverse_dns_lookup_over_ipv6(run_wermit):
     """SET TCP REVERSE-DNS-LOOKUP ON over an IPv6 connection must use
     getnameinfo() (not silently do nothing).
-    It relies on ::1 reverse-resolving to "localhost", true on any
-    normally configured POSIX system via /etc/hosts."""
+    The name it prints is the name the resolver gives for ::1."""
     if not _build_has_address_family(run_wermit):
         pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
     if not _ipv6_loopback_available():
         pytest.skip("no IPv6 loopback available in this environment")
+    name = _reverse_name("::1")
+    if name is None:
+        pytest.skip("::1 has no name in this environment")
 
     listener = _OneShotListener(socket.AF_INET6, "::1")
     try:
@@ -1017,7 +1035,7 @@ def test_reverse_dns_lookup_over_ipv6(run_wermit):
             "set tcp address-family ipv6, "
             f"set host [::1]:{listener.port} /raw-socket")
         assert_ok(result, "IPv6 connect with reverse-dns-lookup on failed")
-        assert "localhost connected on port" in result.stdout
+        assert f"{name} connected on port" in result.stdout, result.stdout
         assert listener.wait() is not None
     finally:
         listener.close()
@@ -1031,41 +1049,25 @@ def test_reverse_dns_lookup_over_ipv6(run_wermit):
 # -DNS code, not netopen()'s.
 
 
-def _start_iksd_listener(spawn_wermit, port, log_path, extra_cmds="",
-                          post_cmds=""):
-    """Starts a bare SET HOST * listener (no /SERVER; this just
-    needs an acceptable raw socket connection) and waits for it to report
-    that it's listening.
+def _start_iksd_listener(spawn_wermit, get_free_port, log_path,
+                         extra_cmds="", post_cmds=""):
+    """Start a bare SET HOST * listener on a free port.
 
-    Returns the Popen object.  The caller is responsible for it exiting
-    (SET HOST * accepts exactly one connection and returns) or being
-    cleaned up (spawn_wermit's fixture teardown kills it if not)."""
-    server_cmd = [
-        "--unbuffered", "-H", "-Y", "-C",
-        "set command more-prompting off, "
-        "set tcp reverse-dns-lookup off, "
-        f"{extra_cmds}set host * {port}{post_cmds}"
-    ]
-    log_fh = open(log_path, "w")
-    proc = spawn_wermit(server_cmd, stdout=log_fh)
-
-    deadline = time.monotonic() + 10
-    ready = False
-    while time.monotonic() < deadline:
-        if proc.poll() is not None:
-            break
-        log_fh.flush()
-        content = log_path.read_text(errors="replace")
-        if "Waiting to Accept" in content:
-            ready = True
-            break
-        time.sleep(0.05)
-    if not ready:
-        log_fh.flush()
-        raise RuntimeError(
-            "IKSD listener did not start listening (exit=%r); log:\n%s"
-            % (proc.poll(), log_path.read_text(errors="replace")))
-    return proc, log_fh
+    No /SERVER: the tests need only an accepted raw socket.  Wait for
+    the listener to report that it is listening, and retry with a new
+    port if another process took the probed one first.  Return (port,
+    proc, log_fh).  SET HOST * accepts one connection and returns, or
+    spawn_wermit's teardown kills the listener.
+    """
+    def args_for_port(port):
+        return [
+            "--unbuffered", "-H", "-Y", "-C",
+            "set command more-prompting off, "
+            "set tcp reverse-dns-lookup off, "
+            f"{extra_cmds}set host * {port}{post_cmds}"
+        ]
+    return start_tcp_listener(spawn_wermit, get_free_port, args_for_port,
+                              log_path, "IKSD listener")
 
 
 def test_iksd_listener_accepts_ipv4(run_wermit, spawn_wermit, get_free_port,
@@ -1073,9 +1075,9 @@ def test_iksd_listener_accepts_ipv4(run_wermit, spawn_wermit, get_free_port,
     if not _build_has_address_family(run_wermit):
         pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
 
-    port = get_free_port()
     log_path = tmp_path / "srv4.log"
-    proc, log_fh = _start_iksd_listener(spawn_wermit, port, log_path)
+    port, proc, log_fh = _start_iksd_listener(spawn_wermit, get_free_port,
+                                              log_path)
     try:
         result = run_wermit(
             "set tcp reverse-dns-lookup off, "
@@ -1094,9 +1096,9 @@ def test_iksd_listener_accepts_ipv6(run_wermit, spawn_wermit, get_free_port,
     if not _ipv6_loopback_available():
         pytest.skip("no IPv6 loopback available in this environment")
 
-    port = get_free_port()
     log_path = tmp_path / "srv6.log"
-    proc, log_fh = _start_iksd_listener(spawn_wermit, port, log_path)
+    port, proc, log_fh = _start_iksd_listener(spawn_wermit, get_free_port,
+                                              log_path)
     try:
         result = run_wermit(
             "set tcp reverse-dns-lookup off, "
@@ -1121,10 +1123,9 @@ def test_tcp_address6_zone_honored_by_listener(
                      "in this environment")
     iface, addr = found
 
-    port = get_free_port()
     log_path = tmp_path / "srv-ll.log"
-    proc, log_fh = _start_iksd_listener(
-        spawn_wermit, port, log_path,
+    port, proc, log_fh = _start_iksd_listener(
+        spawn_wermit, get_free_port, log_path,
         extra_cmds=f"set tcp address6 {addr}%{iface}, "
         "set tcp address-family ipv6, ")
     try:
@@ -1155,10 +1156,9 @@ def test_iksd_listener_reports_peer_ipv4(run_wermit, spawn_wermit,
     if not _build_has_address_family(run_wermit):
         pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
 
-    port = get_free_port()
     log_path = tmp_path / "srv4peer.log"
-    proc, log_fh = _start_iksd_listener(
-        spawn_wermit, port, log_path,
+    port, proc, log_fh = _start_iksd_listener(
+        spawn_wermit, get_free_port, log_path,
         post_cmds=", echo PEER=[\\v(line)]")
     try:
         result = run_wermit(
@@ -1167,7 +1167,8 @@ def test_iksd_listener_reports_peer_ipv4(run_wermit, spawn_wermit,
         assert_ok(result, "IPv4 client failed to connect to IKSD listener")
         proc.wait(timeout=5)
         content = log_path.read_text(errors="replace")
-        assert "PEER=[localhost]" in content, content
+        name = _reverse_name("127.0.0.1") or "127.0.0.1"
+        assert f"PEER=[{name}]" in content, content
     finally:
         log_fh.close()
 
@@ -1181,10 +1182,9 @@ def test_iksd_listener_reports_peer_ipv6(run_wermit, spawn_wermit,
     if not _ipv6_loopback_available():
         pytest.skip("no IPv6 loopback available in this environment")
 
-    port = get_free_port()
     log_path = tmp_path / "srv6peer.log"
-    proc, log_fh = _start_iksd_listener(
-        spawn_wermit, port, log_path,
+    port, proc, log_fh = _start_iksd_listener(
+        spawn_wermit, get_free_port, log_path,
         post_cmds=", echo PEER=[\\v(line)]")
     try:
         result = run_wermit(
@@ -1193,7 +1193,8 @@ def test_iksd_listener_reports_peer_ipv6(run_wermit, spawn_wermit,
         assert_ok(result, "IPv6 client failed to connect to IKSD listener")
         proc.wait(timeout=5)
         content = log_path.read_text(errors="replace")
-        assert "PEER=[localhost]" in content, content
+        name = _reverse_name("::1") or "::1"
+        assert f"PEER=[{name}]" in content, content
     finally:
         log_fh.close()
 
@@ -1209,9 +1210,9 @@ def test_iksd_listener_dual_stack_binds_both(run_wermit, spawn_wermit,
     if not _ipv6_loopback_available():
         pytest.skip("no IPv6 loopback available in this environment")
 
-    port = get_free_port()
     log_path = tmp_path / "srvdual.log"
-    proc, log_fh = _start_iksd_listener(spawn_wermit, port, log_path)
+    port, proc, log_fh = _start_iksd_listener(spawn_wermit, get_free_port,
+                                              log_path)
     try:
         content = log_path.read_text(errors="replace")
         assert "Binding socket to port" in content
@@ -1231,10 +1232,9 @@ def test_iksd_listener_address_family_ipv4_binds_only_v4(
     if not _build_has_address_family(run_wermit):
         pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
 
-    port = get_free_port()
     log_path = tmp_path / "srvv4only.log"
-    proc, log_fh = _start_iksd_listener(
-        spawn_wermit, port, log_path,
+    port, proc, log_fh = _start_iksd_listener(
+        spawn_wermit, get_free_port, log_path,
         extra_cmds="set tcp address-family ipv4, ")
     try:
         content = log_path.read_text(errors="replace")

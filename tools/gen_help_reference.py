@@ -18,6 +18,8 @@ Usage:
 """
 
 import re
+import getpass
+import os
 import subprocess
 import sys
 import tempfile
@@ -47,6 +49,7 @@ ENTRY_RE = re.compile(
 
 FAILURE_MARKERS = [
     "Sorry, that is not a help topic",
+    "Error reading key",                # SHOW KEY with no terminal
     "No keywords match",
     "?Ambiguous",
     "?Invalid",
@@ -267,7 +270,23 @@ def show_dump(name):
         )
     except subprocess.TimeoutExpired:
         return None
-    return proc.stdout
+    return mask_host_paths(proc.stdout)
+
+
+def mask_host_paths(text):
+    """Replace this host's directories and user name in text.
+
+    SHOW output names them, and the reference should not depend on the
+    machine that generated it.
+    """
+    for real, shown in ((os.getcwd(), "/path/to/current/directory"),
+                        (os.path.expanduser("~"), "/path/to/home")):
+        if real and real != "/":
+            text = text.replace(real, shown)
+    user = getpass.getuser()
+    if user:
+        text = re.sub(r"\b%s\b" % re.escape(user), "user", text)
+    return text
 
 
 def gather_default_dumps(set_groups, sho_groups):

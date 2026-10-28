@@ -475,7 +475,7 @@ FWDX_XOFF, FWDX_XON = 6, 7
 
 
 def _fake_x_display():
-    """Listen on an X display TCP port; return (display number, socket)."""
+    """Listen on an X display TCP port.  Return (display number, socket)."""
     for n in range(10, 60):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
@@ -521,6 +521,50 @@ def test_telnet_forward_x_flow_control_unknown_channel(
     assert "GOT-MARKER" in result.stdout, result.stdout
 
 
+def test_telnet_stall_inside_iac_times_out(run_wermit):
+    """Verify a peer that stops inside an IAC sequence cannot hang a read.
+
+    The server sends one IAC byte during a transfer and then nothing.
+    The packet read must still time out, so GET fails within its retry
+    limit instead of waiting forever.
+    """
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    srv.settimeout(15)
+    done = threading.Event()
+
+    def run():
+        try:
+            conn, _ = srv.accept()
+        except OSError:
+            return
+        with conn:
+            try:
+                done.wait(3)
+                conn.sendall(bytes([IAC]))
+                done.wait(60)
+            except OSError:
+                pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    port = srv.getsockname()[1]
+    try:
+        result = run_wermit(
+            "set delay 0, set telnet wait off, "
+            f"set host 127.0.0.1 {port} /telnet, "
+            "set send timeout 2, set receive timeout 2, set retry 3, "
+            "get foo, echo STATUS=\\v(status), close, exit",
+            timeout=45)
+    finally:
+        done.set()
+        srv.close()
+        thread.join(timeout=5)
+    assert "STATUS=1" in result.stdout, result.stdout
+
+
 TELOPT_AUTHENTICATION, TELOPT_ENCRYPTION = 37, 38
 
 
@@ -540,7 +584,7 @@ def test_telnet_short_auth_encrypt_subnegotiations(run_wermit, payload):
 
     Each handler indexes the subnegotiation by position.  A short one
     must not be read past its end.  The overread shows only under
-    AddressSanitizer; a normal build checks that the session goes on.
+    AddressSanitizer.  A normal build checks that the session goes on.
     """
     negotiate = bytes([IAC, DO, TELOPT_AUTHENTICATION,
                        IAC, WILL, TELOPT_ENCRYPTION,

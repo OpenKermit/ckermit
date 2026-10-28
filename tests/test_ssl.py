@@ -5,7 +5,7 @@ import pytest
 
 from conftest import (
     _make_leaf, assert_ok, ssl_client_setup_cmds, ssl_server_setup_cmds,
-    TELNET_REFUSE_KERMIT_CLAUSE,
+    TELNET_REFUSE_KERMIT_CLAUSE, TelnetTlsClient,
 )
 
 pytestmark = pytest.mark.skipif(
@@ -46,18 +46,13 @@ def test_ssl_first_exchange_is_not_delayed(server_dir, wermit_tcp_loopback,
     "Fix raw SSL/TLS connections waiting for Telnet"): tn_ini() disguised
     the connection as Telnet and, unless inserver was set, called
     tn_wait() to wait for Telnet negotiation responses that a raw-SSL
-    peer will never send. On the server side, inserver was not yet
-    true at the point tn_ini() runs during accept, so the server took
-    the client-side branch and called tn_wait() anyway, which reads the
-    connection byte by byte into its own private buffer. This silently
-    swallows the client's first Kermit packet if it had already
-    arrived, instead of letting the packet reach the protocol engine.
-    That race depends on scheduling, so it reproduced rarely at idle
-    but reliably (roughly 50-60% of runs) under sustained CPU load
-    (verified with stress-ng --cpu 16). Reverting the ckctel.c fix and
-    rerunning this exact test under that load reproduces the failure
-    (fast, non-zero exit), confirming this is the regression test for
-    it. See SSL_TEST_PLAN.md for the full writeup of both bugs.
+    peer will never send.  On the server side, inserver was not yet
+    true at the point tn_ini() runs during accept, so the server called
+    tn_wait() as well.  tn_wait() keeps a Kermit packet that arrives
+    first in tn_wait_buf, and tn_push() hands it back.  The wait
+    delays the first exchange until tn_wait() gives up.  The elapsed
+    time check catches that delay.  See SSL_TEST_PLAN.md for the full
+    writeup of both bugs.
     """
     session = wermit_tcp_loopback(
         server_dir,
@@ -563,6 +558,28 @@ def test_telnet_with_cert_negotiates_starttls_automatically(
     assert str(server_dir) in result.stdout
 
 
+def test_telnet_server_starttls_handshake_in_same_read(
+        server_dir, wermit_tcp_loopback, ssl_pki):
+    """Verify a Telnet server reads a ClientHello sent with FOLLOWS.
+
+    The client sends SB START_TLS FOLLOWS and the ClientHello in one
+    send, so the server can read both at once.  The handshake must
+    still complete.
+    """
+    session = wermit_tcp_loopback(
+        server_dir, protocol="telnet",
+        setup_cmds=(
+            f"{ssl_server_setup_cmds(ssl_pki)}, "
+            f"{TELNET_REFUSE_KERMIT_CLAUSE}"
+        ),
+    )
+    client = TelnetTlsClient(session.port, ssl_pki, [])
+    try:
+        assert client.wait_tls(timeout=15), session.server_output()
+    finally:
+        client.sock.close()
+
+
 def test_ssl_ip_address_matches_certificate_ip_san(server_dir,
                                                    wermit_tcp_loopback,
                                                    ssl_pki):
@@ -600,6 +617,372 @@ def test_ssl_ip_address_matches_certificate_ip_san(server_dir,
               for line in result.stdout.splitlines()
               if "altSubjectName IPAddr=" in line]
     assert listed == ["192.168.255.254", "127.0.0.1"], result.stdout
+
+
+def _write_empty_crl(ssl_pki, path):
+    """Write a current, empty CRL signed by the trusted test CA."""
+    import datetime
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    ca = x509.load_pem_x509_certificate(open(ssl_pki["ca_crt"], "rb").read())
+    key = serialization.load_pem_private_key(
+        open(ssl_pki["ca_key"], "rb").read(), password=None)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    crl = (x509.CertificateRevocationListBuilder()
+           .issuer_name(ca.subject)
+           .last_update(now - datetime.timedelta(days=1))
+           .next_update(now + datetime.timedelta(days=30))
+           .sign(key, hashes.SHA256()))
+    path.write_bytes(crl.public_bytes(serialization.Encoding.PEM))
+
+
+def test_ssl_crl_file_check_succeeds(tmp_path, server_dir,
+                                     wermit_tcp_loopback, ssl_pki):
+    """Verify a connection with a CRL that covers the CA succeeds.
+
+    ssl_verify_crl() looks the CRL up by the CA's subject and then by
+    its issuer.  For a self-signed CA both give the same CRL.  The second
+    lookup must use a fresh object.  A reused object shows only under
+    AddressSanitizer.
+    """
+    pytest.importorskip("cryptography")
+    crl = tmp_path / "ca.crl"
+    _write_empty_crl(ssl_pki, crl)
+    session = wermit_tcp_loopback(
+        server_dir,
+        protocol="tls",
+        setup_cmds=(
+            "set authentication ssl rsa-cert-file "
+            f"{ssl_pki['server_crt']}, "
+            "set authentication ssl rsa-key-file "
+            f"{ssl_pki['server_key']}"
+        ),
+    )
+    result = session.run_client(
+        "remote pwd",
+        protocol="tls",
+        setup_cmds=(
+            "set authentication ssl verbose on, "
+            f"set authentication ssl verify-file {ssl_pki['ca_crt']}, "
+            f"set authentication ssl crl-file {crl}"
+        ),
+    )
+    session.wait_for_server_exit()
+    assert_ok(result)
+    assert "[TLS - OK]" in result.stdout
+
+
+def _write_long_subject_expired_cert(ssl_pki, crt_path, key_path):
+    """Write an expired server cert whose subject prints to about 5 KB."""
+    import datetime
+    from cryptography import x509
+    from cryptography.x509.oid import NameOID
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    ca = x509.load_pem_x509_certificate(open(ssl_pki["ca_crt"], "rb").read())
+    ca_key = serialization.load_pem_private_key(
+        open(ssl_pki["ca_key"], "rb").read(), password=None)
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    attrs = [x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME,
+                                "unit-%02d-" % i + "u" * 54)
+             for i in range(80)]
+    attrs.append(x509.NameAttribute(NameOID.COMMON_NAME, "localhost"))
+    cert = (x509.CertificateBuilder()
+            .subject_name(x509.Name(attrs)).issuer_name(ca.subject)
+            .public_key(key.public_key()).serial_number(4242)
+            .not_valid_before(datetime.datetime(2019, 1, 1))
+            .not_valid_after(datetime.datetime(2020, 1, 1))
+            .add_extension(x509.SubjectAlternativeName(
+                [x509.DNSName("localhost")]), critical=False)
+            .sign(ca_key, hashes.SHA256()))
+    crt_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+    key_path.write_bytes(key.private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption()))
+
+
+def test_ssl_expired_long_subject_certificate(tmp_path, server_dir,
+                                              wermit_tcp_loopback, ssl_pki):
+    """Verify an expired cert with a 5 KB subject is reported safely.
+
+    The verify callback prints the subject and the expiry date into a
+    4096-byte error buffer.  Text from the long subject must not fill
+    it to the end.  The overflow shows only under AddressSanitizer.
+    """
+    pytest.importorskip("cryptography")
+    crt, key = tmp_path / "long.crt", tmp_path / "long.key"
+    _write_long_subject_expired_cert(ssl_pki, crt, key)
+    session = wermit_tcp_loopback(
+        server_dir,
+        protocol="ssl",
+        setup_cmds=(
+            f"set authentication ssl rsa-cert-file {crt}, "
+            f"set authentication ssl rsa-key-file {key}"
+        ),
+    )
+    result = session.run_client(
+        "remote pwd",
+        protocol="ssl",
+        setup_cmds=(
+            "set authentication ssl verbose on, "
+            f"set authentication ssl verify-file {ssl_pki['ca_crt']}"
+        ),
+    )
+    session.wait_for_server_exit()
+    assert "certificate has expired" in result.stdout, result.stdout[-800:]
+    assert_ok(result)
+
+
+def test_telnet_starttls_debug_prints_finished_messages(
+        server_dir, wermit_tcp_loopback, ssl_pki):
+    """Verify TLS DEBUG prints the finished messages within bounds.
+
+    With TLS 1.3 and a SHA-384 suite the finished message is 48 bytes.
+    The debug dump must read and write no more than its buffer holds.
+    The overflow shows only under AddressSanitizer.
+    """
+    session = wermit_tcp_loopback(
+        server_dir, protocol="telnet",
+        setup_cmds=(
+            f"{ssl_server_setup_cmds(ssl_pki)}, "
+            f"{TELNET_REFUSE_KERMIT_CLAUSE}"
+        ),
+    )
+    result = session.run_client(
+        "remote pwd", protocol="telnet",
+        setup_cmds=(
+            f"{ssl_client_setup_cmds(ssl_pki)}, "
+            "set authentication tls debug on, "
+            f"{TELNET_REFUSE_KERMIT_CLAUSE}"
+        ),
+    )
+    session.wait_for_server_exit()
+    assert_ok(result)
+    assert "TLS client finished:" in result.stdout, result.stdout[-800:]
+    assert str(server_dir) in result.stdout
+
+
+def _tls_send_after(ssl_pki, delay, data):
+    """Start a one-connection TLS server that sends data after delay.
+
+    Returns (port, thread, listening socket).
+    """
+    import socket
+    import ssl
+    import threading
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(ssl_pki["server_crt"], ssl_pki["server_key"])
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    srv.settimeout(20)
+
+    def run():
+        try:
+            conn, _ = srv.accept()
+            with ctx.wrap_socket(conn, server_side=True) as s:
+                time.sleep(delay)
+                s.sendall(data)
+                time.sleep(2)
+        except (OSError, ssl.SSLError):
+            pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    return srv.getsockname()[1], thread, srv
+
+
+@pytest.mark.parametrize("protocol", ["ssl-raw", "tls-raw"])
+@pytest.mark.parametrize("delay,instatus,low,high", [
+    (2, 0, 1.5, 4.5),
+    (12, 1, 3.5, 9),                    # INPUT counts whole seconds
+])
+def test_tls_input_waits_for_timeout(run_wermit, ssl_pki, protocol,
+                                     delay, instatus, low, high):
+    """Verify INPUT on a TLS connection waits for its full timeout.
+
+    INPUT reads in one-second steps.  The deadline alarm interrupts a
+    blocking SSL_read(), and that must count as a timeout rather than
+    an I/O error.  Data sent after 2 seconds satisfies "input 5".
+    With no data, INPUT times out after 5 seconds with status 1.
+    """
+    port, thread, srv = _tls_send_after(ssl_pki, delay, b"HELLO\r\n")
+    start = time.monotonic()
+    try:
+        result = run_wermit(
+            f"set authentication ssl verify-file {ssl_pki['ca_crt']}, "
+            f"set host localhost {port} /{protocol}, "
+            "input 5 HELLO, "
+            "echo INSTATUS=\\v(instatus), close", timeout=30)
+    finally:
+        elapsed = time.monotonic() - start
+        srv.close()
+    assert f"INSTATUS={instatus}" in result.stdout, result.stdout
+    assert low < elapsed < high, elapsed
+
+
+@pytest.mark.parametrize("protocol", ["ssl-raw", "tls-raw"])
+def test_tls_client_sends_sni(run_wermit, ssl_pki, protocol):
+    """Verify SET HOST name port /TLS-RAW sends the host name as SNI."""
+    import socket
+    import ssl
+    import threading
+    names = []
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(ssl_pki["server_crt"], ssl_pki["server_key"])
+    ctx.sni_callback = lambda sock, name, c: names.append(name)
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    srv.settimeout(20)
+
+    def run():
+        try:
+            conn, _ = srv.accept()
+            with ctx.wrap_socket(conn, server_side=True) as s:
+                s.sendall(b"HELLO\r\n")
+                time.sleep(1)
+        except (OSError, ssl.SSLError):
+            pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    try:
+        run_wermit(
+            f"set authentication ssl verify-file {ssl_pki['ca_crt']}, "
+            f"set host localhost {srv.getsockname()[1]} /{protocol}, "
+            "input 5 HELLO, close", timeout=30)
+    finally:
+        srv.close()
+        thread.join(timeout=5)
+    assert names == ["localhost"], names
+
+
+@pytest.mark.parametrize("server,client", [
+    ("ssl-raw", "ssl-raw"), ("tls-raw", "tls-raw"),
+    ("ssl-raw", "ssl"), ("tls-raw", "tls"),
+    ("ssl", "ssl-raw"), ("tls", "tls-raw"),
+])
+def test_tls_get_without_telnet_peer_is_prompt(wermit_path, ssl_pki,
+                                               get_free_port, tmp_path,
+                                               server, client):
+    """Verify a GET over TLS finishes promptly when a side is raw.
+
+    A raw SSL or TLS side sends no Telnet negotiation and does not
+    wait for one in tn_wait().  The /SSL and /TLS sides wait for
+    Telnet negotiation.  A wait on the raw side would lose the first
+    Kermit packet and delay the GET by about 25 seconds.
+    """
+    import os
+    import subprocess
+    srvdir = tmp_path / "s"
+    clidir = tmp_path / "c"
+    srvdir.mkdir()
+    clidir.mkdir()
+    data = os.urandom(200000)
+    (srvdir / "f.bin").write_bytes(data)
+    port = get_free_port()
+    srv = subprocess.Popen(
+        [wermit_path, "-H", "-Y", "-Q", "-C",
+         f"{ssl_server_setup_cmds(ssl_pki)}, "
+         f"set host * {port} /{server}, server, exit 0"],
+        cwd=srvdir, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL)
+    try:
+        time.sleep(1)
+        start = time.monotonic()
+        result = subprocess.run(
+            [wermit_path, "-H", "-Y", "-Q", "-C",
+             f"{ssl_client_setup_cmds(ssl_pki)}, "
+             f"set host localhost {port} /{client}, if fail exit 3, "
+             "get f.bin, echo S=\\v(status), finish, close, exit 0"],
+            cwd=clidir, stdin=subprocess.DEVNULL, capture_output=True,
+            text=True, timeout=60)
+        elapsed = time.monotonic() - start
+    finally:
+        srv.kill()
+        srv.wait()
+    assert "S=0" in result.stdout, result.stdout
+    assert (clidir / "f.bin").read_bytes() == data
+    assert elapsed < 10, elapsed
+
+
+def test_ssl_server_setup_failure_closes_listeners(run_wermit, ssl_pki,
+                                                   get_free_port):
+    """Verify a failed TLS server setup leaves no listening socket.
+
+    A certificate file given as the key makes ssl_tn_init() fail.  With
+    /SSL required, SET HOST * fails, and tcpsrv_open() must close both
+    the IPv4 and the IPv6 listener.  The OpenSSL error appears on
+    stdout.
+    """
+    import os
+    import socket
+    if not os.path.isdir("/proc/self/fd"):
+        pytest.skip("no /proc/self/fd")
+    try:
+        socket.socket(socket.AF_INET6, socket.SOCK_STREAM).close()
+    except OSError:
+        pytest.skip("no IPv6")
+    port = get_free_port()
+    result = run_wermit(
+        f"set authentication ssl rsa-cert-file {ssl_pki['server_crt']}, "
+        f"set authentication ssl rsa-key-file {ssl_pki['server_crt']}, "
+        f"set host * {port} /ssl, echo H=\\v(status), "
+        "run echo SOCKETS=$(ls -l /proc/$PPID/fd | grep -c socket)",
+        timeout=30)
+    assert "H=1" in result.stdout, result.stdout
+    assert "SOCKETS=0" in result.stdout, result.stdout
+    assert "?SSL/TLS initialization failed" in result.stdout, result.stdout
+    assert "PrivateKey" in result.stdout, result.stdout
+
+
+def test_ftp_tls_sends_sni(run_wermit, ssl_pki):
+    """Verify FTP over TLS sends the server name as SNI.
+
+    The server answers AUTH TLS, records the name in the handshake,
+    and refuses the login.
+    """
+    import socket
+    import ssl
+    import threading
+    names = []
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(ssl_pki["server_crt"], ssl_pki["server_key"])
+    ctx.sni_callback = lambda sock, name, c: names.append(name)
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    srv.settimeout(20)
+
+    def run():
+        try:
+            conn, _ = srv.accept()
+            conn.settimeout(10)
+            conn.sendall(b"220 hi\r\n")
+            f = conn.makefile("rb")
+            line = f.readline()
+            if not line.upper().startswith(b"AUTH"):
+                return
+            conn.sendall(b"234 go ahead\r\n")
+            with ctx.wrap_socket(conn, server_side=True) as s:
+                s.recv(4096)
+                s.sendall(b"530 no\r\n")
+                time.sleep(1)
+        except (OSError, ssl.SSLError):
+            pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    try:
+        run_wermit(
+            f"set authentication tls verify-file {ssl_pki['ca_crt']}, "
+            f"ftp open localhost {srv.getsockname()[1]} /user:u "
+            "/password:p, ftp close", timeout=30)
+    finally:
+        srv.close()
+        thread.join(timeout=5)
+    assert names == ["localhost"], names
 
 
 @pytest.mark.parametrize("starttls", [True, False],

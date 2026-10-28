@@ -1287,9 +1287,24 @@ cmdini() {
         tmp = malloc( sizeof( struct keytab)* (nspd + 2));
 #endif /* COMMENT */
 
-        for (i8 = 0; i8 < nspd; i8++) {    /* Allocate string storage */
+        k = (speeds && tmp) ? nspd : 0; /* Speeds with storage */
+        for (i8 = 0; i8 < k; i8++) {    /* Allocate string storage */
             speeds[i8] = malloc(maxspeedlen+2);
             tmp[i8].kwd = malloc(maxspeedlen+2);
+            if (!speeds[i8] || !tmp[i8].kwd) {
+                if (speeds[i8]) free(speeds[i8]);
+                if (tmp[i8].kwd) free(tmp[i8].kwd);
+                k = i8;
+            }
+        }
+        if (k < nspd) {                 /* Out of memory: leave unsorted */
+            for (i8 = 0; i8 < k; i8++) {
+                free(speeds[i8]);
+                free(tmp[i8].kwd);
+            }
+            if (speeds) free(speeds);
+            if (tmp) free(tmp);
+            goto nosort;
         }
         for (i8 = 0; i8 < nspd; i8++) { /* Copy speeds into sortable array */
             ckstrncpy(speeds[i8],spdtab[i8].kwd,maxspeedlen);
@@ -1311,11 +1326,8 @@ cmdini() {
         }
         for (i8 = 0; i8 < nspd; i8++) {
 /*
-  spdtab[i].kwd, at this point, is still whatever the ttspdlist loop
-  above allocated: a buffer sized to fit only that one entry's own
-  string, not maxspeedlen.  Copying tmp[i].kwd into it with
-  ckstrncpy(...,maxspeedlen) overran that smaller allocation.  Take
-  over tmp[i].kwd's own, correctly-sized buffer instead.
+  Each spdtab[i].kwd buffer holds only its entry's string.  Free it and
+  take tmp[i].kwd (maxspeedlen+2 bytes).
 */
             free(spdtab[i8].kwd);
             spdtab[i8].kwd = tmp[i8].kwd;
@@ -1327,6 +1339,7 @@ cmdini() {
           free(speeds[i8]);
         free(speeds);
     }
+  nosort:
 #endif /* NOSORTSPEEDS */
 #endif /* TTSPDLIST */
 
@@ -1554,11 +1567,9 @@ cmdini() {
         }
         a_dim[0] = topargc - 1;
 /*
-  dclarray() above allocated and stored its own array buffer in
-  a_ptr[0], but \&@[] elements are actually served out of the macro
-  table (via the addmac() calls above), never out of that buffer.
-  Free it here instead of leaking it, before replacing it with
-  topxarg.
+  dclarray() stored an element array in a_ptr[0].  The \&@[] elements
+  come from the macro table that addmac() fills, not from that array.
+  Free it before a_ptr[0] takes topxarg.
 */
         free((char *)a_ptr[0]);
         a_ptr[0] = topxarg;
@@ -2057,7 +2068,11 @@ doiksdinit() {
 #endif /* NOSPL */
         debug(F110,"doiksdinit file ok",tfnam[tlevel],0);
     } else {
-        debug(F110,"doiksdinit open failed",tfnam[tlevel],0);
+#ifdef OS2
+        debug(F110,"doiksdinit open failed",line,0);
+#else /* OS2 */
+        debug(F110,"doiksdinit open failed",iksdconf,0);
+#endif /* OS2 */
     }
 #endif /* IKSDCONF */
 }
@@ -3377,6 +3392,7 @@ parser(m) int m;
             fnsuccess = 1;              /* For catching \function() errors */
 #endif /* NOSPL */
 
+            chksigs();                  /* Act on SIGHUP or SIGWINCH */
             debug(F101,"calling docmd()","",xx);
             zz = docmd(xx);             /* Parse rest of command & execute. */
 
@@ -4320,14 +4336,14 @@ mxlook(table,cmd,n) char *cmd; struct mtab table[]; int n;
     for (s = cmd; *s; s++) cmdlen++;    /* (instead of strlen) */
     debug(F111,"MXLOOK",cmd,cmdlen);
 
+    if (cmdlen < 1)                     /* Nothing to look up */
+      return(-3);
+
     c1 = *cmd;                          /* First char of string to look up */
     if (isupper(c1))
       c1 = (char)tolower(c1);
-    if (!*(cmd+1))                      /* Special handling for 1-char names */
+    if (cmdlen == 1)                    /* Special handling for 1-char names */
       one = 1;
-
-    if (cmdlen < 1)                     /* Nothing to look up */
-      return(-3);
 
     if (n < 12) {                       /* Not worth it for small tables */
         i = 0;
@@ -4508,7 +4524,7 @@ addmmac(nam,s) char *nam, *s[];
     return(y);
 }
 
-static char evalmacrobuf[TMPBUFSIZ];
+static char evalmacrobuf[TMPBUFSIZ+1];
 
 VOID
 #ifdef CK_ANSIC
@@ -4615,7 +4631,10 @@ addmac(nam,def) char *nam, *def;
                 makestr(&(m_xarg[maclvl][c - '0']),p); /* And a copy here */
             }
         } else {                        /* It's a \%a-z variable */
-            if (c < 33 || (unsigned int)c > GVARS) return(-1);
+            if (c < 33 || (unsigned int)c > GVARS) {
+                if (p) free(p);
+                return(-1);
+            }
             if (isupper(c)) c = (char) tolower(c);
             g_var[(unsigned char)c] = p; /* Put ptr in global-var table */
         }
@@ -8759,7 +8778,8 @@ gettok() {
         if (i >= 80) {
             printf("Too long - \"%s\"\n", cp1);
             xerror = 1;
-            cp++;
+            if (*cp)                    /* Skip the bad character, */
+              cp++;                   /* not the final NUL */
             return(gettok());
         }
         if (xerror) return(NUMBER);
@@ -8774,7 +8794,8 @@ gettok() {
                 if (cmdlvl == 0 && !x_ifnum && !xerror)
                   printf("Bad number - \"%s\"\n",tbuf);
                 xerror = 1;
-                cp++;
+                if (*cp)                    /* Skip the bad character, */
+                  cp++;                   /* not the final NUL */
                 return(gettok());
             }
             s2 = mactab[x].mval;
@@ -8792,7 +8813,8 @@ gettok() {
             if (cmdlvl == 0 && !x_ifnum && !xerror)
               printf("Bad number - \"%s\"\n",tbuf);
             xerror = 1;
-            cp++;
+            if (*cp)                    /* Skip the bad character, */
+              cp++;                   /* not the final NUL */
             return(gettok());
         }
         return(NUMBER);
@@ -8860,6 +8882,11 @@ termp() {
                 xerror = 1;
                 divbyzero = 1;
                 expval = -1;
+            } else if (expval == -1) {  /* Avoid the CK_OFF_T_MIN / -1 trap */
+                if (op == '%')
+                  expval = 0;
+                else
+                  expval = (oldval == CK_OFF_T_MIN) ? oldval : -oldval;
             } else
               expval = (op == '/') ? (oldval / expval) : (oldval % expval);
             break;
@@ -9394,7 +9421,7 @@ arraynam(ss,c,n) char *ss; int *c; int *n;
     /* On stack to allow for recursive calls... */
     char vnbuf[ARRAYREFLEN+1];          /* Entire array reference */
     char ssbuf[ARRAYREFLEN+1];          /* Subscript in "plain text" */
-    char sxbuf[16];                     /* Evaluated subscript */
+    char sxbuf[17];                     /* Evaluated subscript */
 
     *c = *n = 0;                        /* Initialize return values */
     len = (int)strlen(ss);
@@ -12464,7 +12491,7 @@ printf("NOWTMP not defined\n");
     lines++;
 #endif /* OS2 */
     {                                /* New 11 December 2022 - fdc */
-        char mebuf[2046];            /* Show Kermit's own pathname and size */
+        char mebuf[2047];            /* Show Kermit's pathname and size */
         char * s;
         char * mestring =
 "\\v(exedir)\\v(name), size: \\fsize(\\v(exedir)\\v(name))";
@@ -13210,7 +13237,7 @@ printf("NOWTMP not defined\n");
         if (!prtopt(&lines,line)) return(0);
 
         size = (int)sizeof(time_t);
-        sprintf(line,"time_t=%d",size); /* SAFE */
+        ckmakmsg(line,LINBUFSIZ,"time_t=",ckitoa(size),NULL,NULL);
         if (!prtopt(&lines,line)) return(0);
 
 #ifdef BIGBUFOK

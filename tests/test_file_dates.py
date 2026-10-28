@@ -189,3 +189,24 @@ def test_directory_date_switches(tmp_path, run_wermit, monkeypatch,
     listed = {line.split()[-1] for line in result.stdout.splitlines()
               if line.startswith("-")}
     assert listed == expected, result.stdout
+
+
+@pytest.mark.parametrize("arg,expected", [
+    ("{[02/Jan/2024:03:04:05 +0000]}", "20240102 03:04:05"),
+    ("[02/Jan/2024:03:04:05 +0000]", "20240102 03:04:05"),
+    ("02/Jan/2024:03:04:05 -0700", "20240102 10:04:05"),
+    ("02/Jan/2024:03:04:05", "20240102 03:04:05"),
+    ("[10/Oct/2000:13:55:36 -0700]", "20001010 20:55:36"),
+    ("2024:01:02", "20240102 00:00:00"),
+    ("2024:01:02 03:04:05", "20240102 03:04:05"),
+], ids=["braced", "bracketed", "offset", "bare", "apache-doc",
+        "yyyy-mm-dd-colons", "yyyy-mm-dd-colons-time"])
+def test_cvtdate_apache_log_dates(run_wermit, monkeypatch, arg, expected):
+    r"""Verify \fcvtdate() converts Apache log dates.
+
+    A time zone offset converts to local time, here UTC.  Dates with
+    colons between year, month and day also convert.
+    """
+    monkeypatch.setenv("TZ", "UTC")
+    result = run_wermit(f"echo D=[\\fcvtdate({arg})]")
+    assert f"D=[{expected}]" in result.stdout, result.stdout

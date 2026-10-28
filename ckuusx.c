@@ -259,6 +259,10 @@ int tt_crd = 0;                         /* Carriage return display */
 int tt_lfd = 0;                         /* Linefeed display */
 int interrupted = 0;                    /* Interrupted from keyboard flag */
 int fxd_inited = 0;                     /* Fullscreen stuff initialized */
+int fxd_restores = 1;                   /* Ending curses restores the screen */
+#ifdef CK_CURSES
+static int fxd_termok = 1;              /* Terminal type known to termcap */
+#endif /* CK_CURSES */
 
 #ifdef DEBUG
 char debfil[CKMAXPATH+1];               /* Debugging log file name */
@@ -1155,7 +1159,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.for","*.f77","*.f","*.F","*.s","*.pas","*.java","*.el","*.lisp","*.sh",
     "*.m4","*.perl","*.pl","*.pod","*.pm","*.awk","*.sno","*.spt","*.sed",
     "*.TXT", "*read.me", "*READ.ME", ".*", "*/.*", "*.mem","*.mac",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
@@ -1164,7 +1168,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.hqx", "*.c", "*.h", "*.cpp", "*.hpp", "*.cxx", "*.w",
     "*.java", "*.bwr", "*.upd", "*.mak", "read.me", "*.map", "makefile",
     "*.mem","*.mac","*.cc","*.pl","*.pod","*.pm","*.m4",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
@@ -1173,7 +1177,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.hlp","*.mss","*.doc","*.bwr","*.cld","*.hex","*.bas","*.ini","*.log",
     "*.mms","*.opt","*.ksc","*.perl","*.pl","*.pod","*.pm","*.sno","*.spt",
     "*.mem",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
@@ -1181,7 +1185,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.txt","*.ksc","*.htm","*.html","*.bat","*.cmd","*.jav","*.asm", "*.hex",
     "*.hqx", "*.c", "*.h", "*.cpp", "*.hpp", "*.cxx", "*.w",
     "*.java", "*.bwr", "*.upd", "*.mak", "read.me", "*.map", "makefile",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
@@ -1189,7 +1193,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.txt","*.ksc","*.htm","*.bat","*.cmd","*.jav","*.asm", "*.hex",
     "*.hqx", "*.c", "*.h", "*.cpp", "*.hpp", "*.cxx", "*.w",
     "*.bwr", "*.upd", "*.mak", "read.me", "*.map", "makefile",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
@@ -1197,7 +1201,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.cmd","*.hlp","*.doc","*.ini","*.txt","*.mac","*.for","*.sai","*.bli",
     "*.pas","*.sno","*.spt","*.pcl","*.mss","*.rno","*.b36","*.tex","*.pub",
     "*.req","*.r36","*.mem","*.bwr","*.ccl","*.ctl","*.rnh","*.ksc",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
@@ -1205,7 +1209,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.cmd","*.hlp","*.doc","*.ini","*.txt","*.mac","*.for","*.sai","*.bli",
     "*.pas","*.sno","*.spt","*.pcl","*.mss","*.rno","*.b36","*.tex","*.pub",
     "*.req","*.r36","*.mem","*.bwr","*.ccl","*.ctl","*.rnh","*.ksc",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
@@ -1213,14 +1217,14 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.txt","*.ksc","*.htm","*.html","*.bat", "*.cmd","*.jav","*.asm","*.hex",
     "*.hqx","*.c",  "*.h",  "*.w",   "*.java","*.bwr","*.upd","*.ttp","*.cm",
     "*.pl1","*.emacs", "read.me", "*.pl", "makefile",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
     {                                   /* DG AOS/VS */
     "*.txt", "*.c", "*.h", "*.w", "*.er", "*.bwr", "*.upd", "read.me",
     "*.cli", "*.ksc",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     },
@@ -1232,7 +1236,7 @@ static char *txtp[SYS_MAX][FTPATTERNS] = {
     "*.ksc","*.bwr","*.upd",
     "*.html","*.htm","*.mss","*.tex","*.nr","*.hex", "*.hqx",
     "*.TXT", "*read.me", "*READ.ME", ".*", "*/.*",
-    "*.json","*.md","*.markdown","*.py","*.js","*.ts","*.go","*.rs","*.yaml",
+    "*.json","*.md","*.markdown","*.py","*.js","*.go","*.rs","*.yaml",
     "*.yml","*.css","*.toml","*.xml","*.sql","*.bash","*.zsh","*.php",
     NULL
     }
@@ -1788,6 +1792,7 @@ scanfile(name,flag,sfmax) char * name; int * flag, sfmax;
             }
             if (incl_cnt) {             /* Have BOM */
                 bytes += count;
+                fclose(fp);
                 goto xscanfile;
             }
         }
@@ -3531,6 +3536,18 @@ trap(sig) int sig;
     zclose(ZOFILE);                     /* close it. */
 #ifndef NOICP
     cmdsquo(cmd_quoting);               /* If command quoting was turned off */
+    {
+        extern int zzdepth;
+        zzdepth = 0;                    /* Or a variable expansion */
+    }
+#ifndef NOSPL
+#ifndef NOSEXP
+    {
+        extern int sexpdep;
+        sexpdep = 0;                    /* Or an S-expression */
+    }
+#endif /* NOSEXP */
+#endif /* NOSPL */
 #ifdef CKLEARN
     {
         extern FILE * learnfp;
@@ -3638,61 +3655,15 @@ trap(sig) int sig;
      * */
 #else
     /*
-      Clean up Ctrl-C out of REDIRECT or external protocol.
-
-      pty_fork_pid, pty_master_fd, and pty_slave_fd are shared between
-      transient REDIRECT or external protocol children (pty_fc == 1) and
-      persistent connections opened by SET HOST to a PTY (pty_fc == 0).
-
-      Only transient children are torn down here. Persistent connections
-      remain open across interrupted file transfers.
+      Clean up Ctrl-C out of an external protocol transfer.  The longjmp
+      from this function skips the end of ttptycmd(), and ttptyabort()
+      does that part.  A SET HOST /PTY connection stays open.
     */
-    {
-        extern PID_T pty_fork_pid;
-        extern int pty_master_fd, pty_slave_fd, pty_fc;
-        int x;
-
-        debug(F101,"trap pty_fc","",pty_fc);
-        if (pty_fc == 1) {
-            signal(SIGCHLD,SIG_IGN);    /* We don't want this any more */
-
-            debug(F101,"trap pty_master_fd","",pty_master_fd);
-            if (pty_master_fd > 2) {
-                x = close(pty_master_fd);
-                debug(F101,"trap pty_master_fd close","",x);
-            }
-            pty_master_fd = -1;
-            debug(F101,"trap pty_slave_fd","",pty_slave_fd);
-            if (pty_slave_fd > 2) {
-                x = close(pty_slave_fd);
-                debug(F101,"trap pty_slave_fd close","",x);
-            }
-            pty_slave_fd = -1;
-            debug(F101,"trap pty_fork_pid","",pty_fork_pid);
-            if (pty_fork_pid > 0) {
-                x = kill(pty_fork_pid,0); /* See if the fork is really there */
-                debug(F111,"trap pty_fork_pid kill 0 errno",ckitoa(x),errno);
-                if (x == 0) {           /* Seems to be active */
-                    x = kill(pty_fork_pid,SIGHUP); /* Ask it to clean up */
-                    debug(F101,"trap pty_fork_pid kill SIGHUP","",x);
-                    msleep(100);
-                    errno = 0;
-                    x = kill(pty_fork_pid,0); /* Is it still there? */
-                    if (x == 0
-#ifdef ESRCH
-                        /* This module is not always exposed to <errno.h> */
-                        || errno != ESRCH
-#endif  /* ESRCH */
-                        ) {
-                        x = kill(pty_fork_pid,SIGKILL);
-                        debug(F101,"trap pty_fork_pid kill SIGKILL","",x);
-                    }
-                }
-                pty_fork_pid = -1;
-            }
-            pty_fc = -1;        /* Mark PTY child inactive */
-        }
-    }
+#ifdef CK_REDIR
+#ifdef SELECT
+    ttptyabort();
+#endif /* SELECT */
+#endif /* CK_REDIR */
 #endif /* NT */
 #endif  /* NETPTY */
 
@@ -6414,6 +6385,7 @@ fxdinit(xdispla) int xdispla;
               printf("Fullscreen file transfer display disabled.\n");
             fdispla = XYFD_S;
         }
+        fxd_termok = (x > 0);
 #ifndef MYCURSES
 #ifndef CK_SMG
         ck_termset(x);
@@ -6922,6 +6894,15 @@ ck_termset(x) int x;
     debug(F101,"ck_termset x","",x);
     if (x > 0) {
         char * bp;
+/*
+  A terminal with a "te" string (terminfo rmcup) restores the screen
+  that was there before curses started.  The fullscreen display is then
+  gone when it ends.  Without one the last screen stays visible.
+*/
+        bp = tgsbuf;
+        *bp = NUL;
+        fxd_restores = (tgetstr("te", &bp) && tgsbuf[0]) ? 1 : 0;
+        debug(F101,"ck_termset fxd_restores","",fxd_restores);
         bp = tgsbuf;
         *bp = NUL;
         debug(F110,"ck_termset calling tgetstr","cl",0);
@@ -7684,12 +7665,26 @@ char *s;        /* a string */
 
         if (ck_stdout == NULL || newterm(ev, ck_stdout, stdin) == 0) {
             fprintf(stderr,
-              "Fullscreen display not supported for terminal type: %s\r\n",ev);
+              "Fullscreen display not supported for terminal type: %s\r\n",
+                    ev ? ev : "");
             fdispla = XYFD_S;           /* Use CRT instead */
             return;
         }
         debug(F100,"screenc newterm ok","",0);
 #else
+/*
+  initscr() exits the program if the terminal type is unknown.
+  SET TRANSFER DISPLAY FULLSCREEN selects this display even after
+  fxdinit() found the type unknown, so use the CRT display instead.
+*/
+        if (!fxd_termok) {
+            ev = getenv("TERM");
+            fprintf(stderr,
+              "Fullscreen display not supported for terminal type: %s\r\n",
+                    ev ? ev : "");
+            fdispla = XYFD_S;
+            return;
+        }
         debug(F100,"screen calling initscr","",0);
         initscr();                      /* Initialize curses. */
         debug(F100,"screen initscr ok","",0);
@@ -9963,7 +9958,7 @@ slotstate( int x, char *s1, char *s2, char *s3 )
 slotstate(x,s1,s2,s3) int x; char *s1, *s2, *s3;
 #endif /* CK_ANSIC */
 {
-    int k, l1, l2, l3, z;
+    int k, l1, l2, l3, n, z;
     mystate = x;
     debug(F101,"slotstate ikdbopen","",ikdbopen);
     if (!ikdbopen)
@@ -9980,20 +9975,22 @@ slotstate(x,s1,s2,s3) int x; char *s1, *s2, *s3;
     if (z > dB_INFO)
       z = dB_INFO;
     strncpy(&dbrec[DB_ILEN],ulongtohex((unsigned long)z,k),k);
+/*
+  Fill the INFO field with s1, s2 and s3, each followed by a space.  A
+  piece that does not fit in the remaining room is truncated.
+*/
     k = dbfld[db_INFO].len;
     z = dbfld[db_INFO].off;
-    if (l1 <= k) {
-        lset(&dbrec[z],s1,l1+1,32);
-        z += l1+1;
-        k -= l1+1;
-        if (l2 <= k) {
-            lset(&dbrec[z],s2,l2+1,32);
-            z += l2+1;
-            k -= l2+1;
-            if (l3 <= k)
-              lset(&dbrec[z],s3,k,32);
-        }
-    }
+    n = (l1 + 1 < k) ? l1 + 1 : k;
+    lset(&dbrec[z],s1,n,32);
+    z += n;
+    k -= n;
+    n = (l2 + 1 < k) ? l2 + 1 : k;
+    lset(&dbrec[z],s2,n,32);
+    z += n;
+    k -= n;
+    if (k > 0)
+      lset(&dbrec[z],s3,k,32);
 #ifdef DEBUG
     if (deblog) {
         char buf[128];
@@ -10026,6 +10023,8 @@ slotdir(s1,s2) char * s1, * s2;
     k = dbfld[db_DLEN].len;
     strncpy(&dbrec[DB_DLEN],ulongtohex((unsigned long)(len1+len2),k),k);
     k = dbfld[db_DIR].len;
+    if (len1 > k)                       /* The root fills the field */
+      len1 = k;
     if (len1 > 0) {
         lset(&dbrec[dbfld[db_DIR].off],s1,len1,32);
         lset(&dbrec[dbfld[db_DIR].off+len1],s2,k-len1,32);
@@ -10139,9 +10138,26 @@ getslot() {                             /* Find a free slot for us */
     }
     /* Write my (decimal) PID into the temp file */
 
-    dummy = (int)write(lockfd,idstring,(int)strlen(idstring));
+    x = (int)strlen(idstring);
+    if ((int)write(lockfd,idstring,x) != x) {
+        /*
+          A lock file without an address and PID never looks stale.
+          An update without the lock can damage the database.  So
+          remove the temporary file and leave the database alone.
+        */
+        debug(F111,"getslot temp lockfile write failure", tmplck, errno);
+        close(lockfd);
+        unlink(tmplck);
+#ifdef CKSYSLOG
+        if (ckxsyslog >= SYSLG_LI && ckxlogging)
+          cksyslog(SYSLG_LI, 0, "IKSD database not updated",
+                   "can't write lockfile", tmplck);
+#endif /* CKSYSLOG */
+        return(-1);
+    }
     if (close(lockfd) < 0) {            /* Close lockfile */
         debug(F101,"getslot error closing temp lockfile", "", errno);
+        unlink(tmplck);
         return(-1);
     }
     /* Build lockfile name */
@@ -10155,26 +10171,23 @@ getslot() {                             /* Find a free slot for us */
         fclose(rfp);                    /* and close it quickly */
         debug(F110,"getslot lock exists",pidbuf,0);
         if (x > 0) {                    /* If we have a PID, check it */
-            char * s = pidbuf;
-            while (*s) {
-                if (*s == ':') {
-                    *s = NUL;
-                    debug(F110,"getslot lock addr",pidbuf,0);
-                    debug(F110,"getslot my   addr",mylockaddr,0);
-                    if (!strcmp(pidbuf,mylockaddr)) { /* Same host? */
-                        lockpid = atol(s+1); /* Yes, now get PID */
-                        debug(F101,"getslot lockpid","",lockpid);
+            /* "ADDRESS:PID".  An IPv6 address contains colons too. */
+            char * s = strrchr(pidbuf,':');
+            if (s) {
+                *s = NUL;
+                debug(F110,"getslot lock addr",pidbuf,0);
+                debug(F110,"getslot my   addr",mylockaddr,0);
+                if (!strcmp(pidbuf,mylockaddr)) { /* Same host? */
+                    lockpid = atol(s+1); /* Yes, now get PID */
+                    debug(F101,"getslot lockpid","",lockpid);
 
-                        /* Check if PID lockpid on this computer is alive */
-                        x = zchkpid(lockpid);
-                        if (!x) {
-                            debug(F100,"getslot PID stale,removing lock","",0);
-                            unlink(lcknam);
-                        }
-                        break;
+                    /* Check if PID lockpid on this computer is alive */
+                    x = zchkpid(lockpid);
+                    if (!x) {
+                        debug(F100,"getslot PID stale,removing lock","",0);
+                        unlink(lcknam);
                     }
                 }
-                s++;
             }
         } else {
             debug(F111,"getslot lockfile open failure",lcknam,errno);
@@ -10190,14 +10203,15 @@ getslot() {                             /* Find a free slot for us */
     }
     if (tries < 1) {                    /* Couldn't */
         debug(F110,"getslot create lock failure",lcknam,0);
+        unlink(tmplck);                 /* Don't leave the temp file */
         return(-1);
     }
     /* Have lock, open database */
 
     debug(F110,"getslot has lock",lcknam,0); /* Have lock */
 
-    if (!dbfile)
-      return(-1);
+    if (!dbfile)                        /* dbinit() failed */
+      goto xslot;                       /* Release the lock */
 
     /* If the database doesn't exist, create it.
       

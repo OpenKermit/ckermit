@@ -1924,6 +1924,8 @@ struct keytab srtab[] = {
 #ifndef NOCSETS
     { "character-set-selection", XYCSET, 0 },
 #endif /* NOCSETS */
+    { "co", XYQCTL, CM_INV|CM_ABR },
+    { "con", XYQCTL, CM_INV|CM_ABR },
     { "confirm", XYRCONFIRM, 0 },
     { "control-prefix", XYQCTL, 0 },
 #ifdef CKXXCHAR
@@ -5748,7 +5750,7 @@ settrm() {
           }
           line[wy++] = NUL;              /* Terminate */
           ws = line + wy + 1;             /* Point to after it */
-          wx = LINBUFSIZ - (int) strlen(line) - 1; /* Get remaining space */
+          wx = LINBUFSIZ - (int)(ws - line); /* Get remaining space */
           if ((wx < (LINBUFSIZ / 2)) ||
               (zzstring(line, &ws, &wx) < 0)) { /* Expand variables, etc. */
               printf("?Key definition too long\n");
@@ -6223,7 +6225,7 @@ setdialer(void) {
     }
     line[wy++] = NUL;                    /* Terminate */
     ws = line + wy + 1;                   /* Point to after it */
-    wx = LINBUFSIZ - (int) strlen(line) - 1; /* Calculate remaining space */
+    wx = LINBUFSIZ - (int)(ws - line); /* Calculate remaining space */
     if ((wx < (LINBUFSIZ / 2)) ||
         (zzstring(line, &ws, &wx) < 0)) { /* Expand variables, etc. */
         printf("?Key definition too long\n");
@@ -6664,7 +6666,7 @@ or Enter to restore default definition",
     }
     line[wy++] = NUL;                    /* Terminate */
     ws = line + wy + 1;                   /* Point to after it */
-    wx = LINBUFSIZ - (int) strlen(line) - 1; /* Calculate remaining space */
+    wx = LINBUFSIZ - (int)(ws - line); /* Calculate remaining space */
     if ((wx < (LINBUFSIZ / 2)) ||
         (zzstring(line, &ws, &wx) < 0)) { /* Expand variables, etc. */
         printf("?Key definition too long\n");
@@ -7898,7 +7900,8 @@ dormt(xx) int xx;
 
                 if (fgets(sbuf,50,tfile[tlevel]) == NULL)
                   fatal("take file ends prematurely in 'remote cwd'");
-                debug(F110," pswd from take file",s2,0);
+                debug(F101," pswd from take file length","",
+                      (int)strlen(sbuf));
                 for (rwx = (int)strlen(sbuf);
                      rwx > 0 && (sbuf[rwx-1] == NL || sbuf[rwx-1] == CR);
                      rwx--)
@@ -7951,7 +7954,7 @@ dormt(xx) int xx;
             }
             s2 = sbuf;
         } else s2 = "";
-        debug(F110," password",s2,0);
+        debug(F101," password length","",(int)strlen(s2));
 #endif /* DIRPWDPR */
 
         rcdactive = 1;
@@ -8140,7 +8143,7 @@ dormt(xx) int xx;
           if ((rwy = cmkey(vartyp,nvartyp,"","",xxstring)) < 0)
             return(rwy);
           if ((rwx = cmtxt(rwy == 'F' ? "Remote function invocation" :
-                         ('K' ? "Remote variable name or function":
+                         (rwy == 'K' ? "Remote variable name or function":
                          "Remote variable name"),
                          "",
                          &rws,
@@ -9188,6 +9191,16 @@ cx_net(net, nprotocol, xhost, svc,
 
     if (!xhost) xhost = "";             /* Watch out for null pointers */
     if (!svc) svc = "";
+/*
+  ttname[] holds the host name or PTY/pipe command for the life of the
+  connection.  ttopen() reopens the connection when ttname[] differs
+  from the name it saved.  So a name that does not fit in ttname[]
+  fails here.
+*/
+    if ((int)strlen(xhost) >= TTNAMLEN) {
+        msg = (gui == 0) && msgflg;
+        return(cx_fail(msg,"Host name or command too long"));
+    }
     ckstrncpy(host,xhost,HOSTNAMLEN);   /* Avoid buffer confusion */
 
     debug(F110,"cx_net host",host,0);
@@ -9424,7 +9437,8 @@ cx_net(net, nprotocol, xhost, svc,
                 if (!slat_pwd[0]) { /* User didn't give a password */
                     if (nh_px[0][i]) { /* But directory entry has one */
                         ckstrncpy(slat_pwd,nh_px[0][i],18);
-                        debug(F110,"cx_net SuperLAT password",slat_pwd,0);
+                        debug(F101,"cx_net SuperLAT password length","",
+                              (int)strlen(slat_pwd));
                     }
                 }
 #endif /* SUPERLAT */
@@ -9491,7 +9505,9 @@ cx_net(net, nprotocol, xhost, svc,
             /* If the user gave a TCP service */
             if (net == NET_TCPB || net == NET_SSH)
               if (*srvbuf) {            /* Append it to host name/address */
+#ifdef TCPSOCKET
                   ck_bracketaddr(line,LINBUFSIZ);
+#endif /* TCPSOCKET */
                   ckstrncat(line, ":", LINBUFSIZ);
                   ckstrncat(line, srvbuf,LINBUFSIZ);
               }
@@ -11276,6 +11292,9 @@ setlin(xx, zz, fc) int xx, zz, fc;
                            zz,          /* close connection if open */
                            0            /* gui */
                            );
+            } else {
+                printf("?CID:PORT required\n");
+                return(-9);
             }
         }
 #endif /* CK_VSOCK */
@@ -12280,7 +12299,7 @@ z_close(channel) int channel;
     FILE * t;
     if (!z_inited)                      /* Called before any files are open? */
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)           /* Channel out of range? */
+    if (channel < 0 || channel >= z_maxchan) /* Channel out of range? */
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -12339,7 +12358,7 @@ z_out(channel,s,length,flags) int channel, flags, length; char * s;
 #endif /* DEBUG */
     if (!z_inited)                      /* File i/o inited? */
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)           /* Channel in range? */
+    if (channel < 0 || channel >= z_maxchan) /* Channel in range? */
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -12414,9 +12433,7 @@ z_in(channel,s,buflen,length,flags)
 
     if (!z_inited)                      /* Check everything... */
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)
-      return(z_error = FX_CHN);
-    if (channel < 0)
+    if (channel < 0 || channel >= z_maxchan)
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -12547,7 +12564,7 @@ z_flush(channel) int channel;
     int x;
     if (!z_inited)                      /* Regular checks */
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)
+    if (channel < 0 || channel >= z_maxchan)
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -12571,7 +12588,7 @@ z_seek(channel,pos) int channel; CK_OFF_T pos; /* (seek to given position) */
     FILE * t;
     if (!z_inited)                      /* Check... */
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)
+    if (channel < 0 || channel >= z_maxchan)
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -12603,7 +12620,7 @@ z_line(channel,pos) int channel; CK_OFF_T pos; /* (seek to given position) */
     char zltmpbuf[256];
     if (!z_inited)                      /* Check... */
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)
+    if (channel < 0 || channel >= z_maxchan)
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -12693,7 +12710,7 @@ z_getname(channel) int channel;
         z_error = FX_NOP;
         return(NULL);
     }
-    if (channel >= z_maxchan) {
+    if (channel < 0 || channel >= z_maxchan) {
         z_error = FX_CHN;
         return(NULL);
     }
@@ -12726,7 +12743,7 @@ z_getmode(channel) int channel;
     int x;
     if (!z_inited)
       return(0);
-    if (channel >= z_maxchan)
+    if (channel < 0 || channel >= z_maxchan)
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(0);
@@ -12757,7 +12774,7 @@ z_getpos(channel) int channel;
     CK_OFF_T x;
     if (!z_inited)
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)
+    if (channel < 0 || channel >= z_maxchan)
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -12779,7 +12796,7 @@ z_getline(channel) int channel;
     CK_OFF_T rc;
     if (!z_inited)
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)
+    if (channel < 0 || channel >= z_maxchan)
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -12801,7 +12818,7 @@ z_getfnum(channel) int channel;
     FILE * t;
     if (!z_inited)
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)
+    if (channel < 0 || channel >= z_maxchan)
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -12828,7 +12845,7 @@ z_count(channel, what) int channel, what;
     CK_OFF_T pos, count = (CK_OFF_T)0;
     if (!z_inited)                      /* Check stuff... */
       return(z_error = FX_NOP);
-    if (channel >= z_maxchan)
+    if (channel < 0 || channel >= z_maxchan)
       return(z_error = FX_CHN);
     if (!z_file[channel])
       return(z_error = FX_NOP);
@@ -14461,6 +14478,10 @@ readtext(prmpt, buffer, bufsiz) char * prmpt; char * buffer; int bufsiz;
     for (rc = -1; rc < 0; ) {           /* Prompt till they answer */
         rc = cmtxt("","",&ws,NULL);      /* Get a literal line of text */
         cmres();                        /* Reset the parser again */
+        if (rc == -4) {                 /* End of input */
+            ws = "";
+            break;
+        }
     }
     ckstrncpy(buffer,ws,bufsiz);
     cmsetp(psave);                      /* Restore original prompt */
@@ -14474,7 +14495,7 @@ readtext(prmpt, buffer, bufsiz) char * prmpt; char * buffer; int bufsiz;
     }
 #endif /* OS2 */
 #endif /* NOLOCAL */
-    return(0);
+    return(rc < 0 ? -1 : 0);
 }
 #endif /* NOICP */
 
@@ -14493,6 +14514,7 @@ readpass(prmpt, buffer, bufsiz) char * prmpt; char * buffer; int bufsiz;
 #ifdef NOICP
     if (!prmpt) prmpt = "";
     printf("%s", prmpt);
+    fflush(stdout);
 #ifdef COMMENT
     /* Some linkers won't allow this because it's unsafe */
     gets(buffer);
@@ -14567,6 +14589,10 @@ readpass(prmpt, buffer, bufsiz) char * prmpt; char * buffer; int bufsiz;
     for (rc = -1; rc < 0; ) {           /* Prompt till they answer */
         rc = cmtxt("","",&ws,NULL);      /* Get a literal line of text */
         cmres();                        /* Reset the parser again */
+        if (rc == -4) {                 /* End of input */
+            ws = "";
+            break;
+        }
     }
     ckstrncpy(buffer,ws,bufsiz);
     printf("\r\n");                     /* Echo a CRLF */
@@ -14585,7 +14611,7 @@ readpass(prmpt, buffer, bufsiz) char * prmpt; char * buffer; int bufsiz;
     ckxsyslog = savlog;                 /* Restore syslogging */
 #endif /* CKSYSLOG */
     debok = 1;
-    return(0);
+    return(rc < 0 ? -1 : 0);
 #endif /* NOICP */
 }
 
@@ -15819,7 +15845,8 @@ ckxlogin(userid, passwd, acct, promptok)
     CHAR * _a = NULL;
 
     debug(F111,"ckxlogin userid",userid,promptok);
-    debug(F110,"ckxlogin passwd",passwd,0);
+    debug(F101,"ckxlogin passwd length","",
+          passwd ? (int)strlen((char *)passwd) : -1);
 
     isguest = 0;                        /* Global "anonymous" flag */
 

@@ -1,6 +1,6 @@
 """
-Tests for SET TCP HTTP-PROXY name handling in netopen() and
-http_open().
+Tests for SET TCP HTTP-PROXY name handling in netopen(), http_open()
+and ftp_hookup().
 """
 import pytest
 
@@ -8,7 +8,8 @@ import pytest
 @pytest.mark.parametrize("command", [
     "set host 127.0.0.1 9",
     "http open 127.0.0.1 9",
-], ids=["set_host", "http_open"])
+    "ftp open 127.0.0.1 9",
+], ids=["set_host", "http_open", "ftp_open"])
 def test_long_proxy_name_without_port(run_wermit, wermit_http_available,
                                       command):
     """A proxy name that fills the hostname buffer must not overrun it.

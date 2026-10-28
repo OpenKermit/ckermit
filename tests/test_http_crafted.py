@@ -4,7 +4,8 @@ Tests for HTTP client requests and replies in ckcnet.c.
 Verifies parsing of HTTP chunk-size lines, including sizes of 2**32
 and lines with chunk extensions. A zero size signals the terminating
 chunk in HTTP chunked transfer encoding. Also verifies the request
-line HTTP INDEX sends.
+line HTTP INDEX sends, and Content-Length values beyond 32 bits or
+that cannot be parsed.
 """
 import socket
 import subprocess
@@ -169,7 +170,7 @@ def test_http_url_command_line_exit_status(
 
 
 def _http_once(run_wermit, tmp_path, response):
-    """Serve one HTTP response; return wermit's output after an HTTP GET."""
+    """Serve one HTTP response.  Return wermit's output after HTTP GET."""
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", 0))
@@ -244,8 +245,101 @@ def test_http_last_modified_parsing(run_wermit, wermit_http_available,
     assert (tmp_path / "out.txt").read_bytes() == b"hi"
 
 
+def _ipv6_loopback_available():
+    try:
+        s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        s.bind(("::1", 0))
+        s.close()
+        return True
+    except OSError:
+        return False
+
+
+def _record_requests(responses):
+    """Serve one connection on ::1 and record request heads.  Return port.
+
+    responses lists the bytes to send after each request head.
+    Returns (port, thread, socket, list of request heads).
+    """
+    srv = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    srv.bind(("::1", 0))
+    srv.listen(1)
+    srv.settimeout(15)
+    heads = []
+
+    def run():
+        try:
+            conn, _ = srv.accept()
+        except OSError:
+            return
+        with conn:
+            conn.settimeout(5)
+            buf = b""
+            try:
+                for response in responses:
+                    while b"\r\n\r\n" not in buf:
+                        chunk = conn.recv(4096)
+                        if not chunk:
+                            return
+                        buf += chunk
+                    head, buf = buf.split(b"\r\n\r\n", 1)
+                    heads.append(head.decode("latin-1"))
+                    conn.sendall(response)
+            except OSError:
+                pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    return srv.getsockname()[1], thread, srv, heads
+
+
+OK_RESPONSE = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nhi"
+
+
+def test_http_host_header_brackets_ipv6(run_wermit, tmp_path):
+    """Verify the Host header encloses an IPv6 address in brackets."""
+    if not _ipv6_loopback_available():
+        pytest.skip("no IPv6 loopback")
+    port, thread, srv, heads = _record_requests([OK_RESPONSE])
+    try:
+        result = run_wermit(
+            f"cd {tmp_path}, http open ::1 {port}, "
+            "http get /x out.txt, echo CODE=[\\v(http_code)], http close",
+            timeout=30)
+    finally:
+        srv.close()
+        thread.join(timeout=5)
+    assert "CODE=[200]" in result.stdout, result.stdout
+    assert heads, result.stdout
+    assert f"\r\nHost: [::1]:{port}" in heads[0], heads
+
+
+def test_http_proxy_connect_brackets_ipv6(run_wermit, tmp_path):
+    """Verify CONNECT through a bracketed IPv6 proxy address.
+
+    The proxy address "[::1]:PORT" must be split at the bracket, and
+    the CONNECT target and Host header must bracket the address.
+    """
+    if not _ipv6_loopback_available():
+        pytest.skip("no IPv6 loopback")
+    port, thread, srv, heads = _record_requests([
+        b"HTTP/1.1 200 Connection established\r\n\r\n", OK_RESPONSE])
+    try:
+        result = run_wermit(
+            f"cd {tmp_path}, set tcp http-proxy [::1]:{port}, "
+            "http open ::1 18080, "
+            "http get /x out.txt, echo CODE=[\\v(http_code)], http close",
+            timeout=30)
+    finally:
+        srv.close()
+        thread.join(timeout=5)
+    assert heads, result.stdout
+    assert heads[0].startswith("CONNECT [::1]:18080 "), heads
+    assert "\r\nHost: [::1]:18080" in heads[0], heads
+
+
 def _http_get_status(run_wermit, tmp_path, response):
-    """Serve one response to HTTP GET; return (result, body or None)."""
+    """Serve one response to HTTP GET.  Return (result, body or None)."""
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", 0))
@@ -304,3 +398,50 @@ def test_http_malformed_chunk_size_fails(run_wermit, tmp_path):
     response = CHUNKED_HEAD + b"zz\r\nhello\r\n0\r\n\r\n"
     result, body = _http_get_status(run_wermit, tmp_path, response)
     assert "STATUS=[1]" in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize("value, expected", [
+    (b" 3000000000", b"hello"),         # over 2 GiB
+    (b" 4294967298", b"hello"),         # 2**32 + 2
+    (b" 9223372036854775807", b"hello"),
+    (b" 99999999999999999999", b"hello"),   # overflows 64 bits
+    (b" -5", b"hello"),
+    (b" 5x", b"hello"),
+    (b"", b"hello"),
+    (b"3", b"hel"),                     # no blank after the colon
+    (b" 3 ", b"hel"),
+], ids=["3e9", "2pow32p2", "max64", "overflow", "negative", "garbage",
+        "empty", "noblank", "trailing"])
+def test_http_content_length_values(run_wermit, tmp_path, value, expected):
+    """Verify GET reads the body for large and malformed lengths.
+
+    A valid length limits the body.  A length that cannot be parsed
+    reads until the server closes the connection.
+    """
+    response = (b"HTTP/1.1 200 OK\r\nConnection: close\r\n"
+                b"Content-Length:" + value + b"\r\n\r\nhello")
+    result, body = _http_get_status(run_wermit, tmp_path, response)
+    assert body == expected, (body, result.stdout)
+    assert "STATUS=[0]" in result.stdout, result.stdout
+
+
+def test_ftp_proxy_connect_brackets_ipv6(run_wermit, tmp_path):
+    """Verify FTP OPEN through a bracketed IPv6 HTTP proxy.
+
+    ftp_hookup() must split "[::1]:PORT" at the bracket and bracket
+    the IPv6 CONNECT target.  The proxy refuses the request.
+    """
+    if not _ipv6_loopback_available():
+        pytest.skip("no IPv6 loopback")
+    port, thread, srv, heads = _record_requests([
+        b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n"])
+    try:
+        result = run_wermit(
+            f"cd {tmp_path}, set tcp http-proxy [::1]:{port}, "
+            "ftp open ::1 2121 /user:u /password:p, "
+            "echo STATUS=[\\v(status)]", timeout=30)
+    finally:
+        srv.close()
+        thread.join(timeout=5)
+    assert heads, result.stdout + result.stderr
+    assert heads[0].startswith("CONNECT [::1]:2121 "), heads

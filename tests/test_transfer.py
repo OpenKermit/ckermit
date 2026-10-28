@@ -651,6 +651,30 @@ def test_get_into_existing_directory(tmp_path, wermit_loopback, slash):
     assert "STATUS=[0]" in result.stdout, result.stdout
     assert (dest / "f.txt").read_text() == "hello\n", result.stdout
 
+
+def test_extended_get_after_too_long_name(tmp_path, wermit_loopback):
+    """Verify an extended GET works after one fails as too long.
+
+    GET /RECOVER /DELETE sends O-packets.  A name too long for a packet
+    fails, and the next GET must not send that GET's O-packet items.
+    """
+    server = tmp_path / "server"
+    client = tmp_path / "client"
+    server.mkdir()
+    client.mkdir()
+    (server / "a.txt").write_bytes(b"hello\n")
+    long_name = "x" * 9500
+    result = wermit_loopback(
+        server, "set delay 0",
+        f"cd {client}, set delay 0, "
+        f"get /recover /delete {long_name}, echo FIRST=\\v(status), "
+        "get /recover /delete a.txt, echo SECOND=\\v(status)")
+    assert "GET Packet Too Long" in result.stdout, result.stdout[-2000:]
+    assert "SECOND=0" in result.stdout, result.stdout[-2000:]
+    assert (client / "a.txt").read_bytes() == b"hello\n"
+    assert not (server / "a.txt").exists()
+
+
 @pytest.mark.parametrize("switches", ["/delete", "/recover /delete",
                                       "/recover /recursive /delete"])
 def test_get_delete_refused_when_delete_disabled(tmp_path, wermit_loopback,
@@ -675,3 +699,120 @@ def test_get_delete_refused_when_delete_disabled(tmp_path, wermit_loopback,
     assert "STATUS=1" in result.stdout, result.stdout[-2000:]
     assert (server / "a.txt").read_bytes() == b"hello\n"
     assert not (client / "a.txt").exists()
+
+
+@pytest.mark.parametrize("sent, received", [
+    (b"x\xc4yzEND", b"xAeyzEND"),
+    (b"x\xc4y\xc4zEND", b"xAeyAezEND"),
+    (b"\xdfq\xd6", b"ssqOe"),
+    (b"x\xc4\xc4\xc4yzEND", b"xAeAeAeyzEND"),
+    (b"\xdf" * 5 + b"q", b"ss" * 5 + b"q"),
+])
+def test_language_expansion_keeps_every_byte(tmp_path, wermit_loopback,
+                                             sent, received):
+    """Verify a receiver keeps every byte when translation expands one.
+
+    With SET LANGUAGE GERMAN and Latin-1 to ASCII translation, the
+    receiver writes each umlaut as two letters.  The bytes after it in
+    the packet must all reach the file.  A repeated umlaut, sent with a
+    repeat prefix, becomes the pair repeated.
+    """
+    server = tmp_path / "server"
+    client = tmp_path / "client"
+    server.mkdir()
+    client.mkdir()
+    (client / "u.txt").write_bytes(sent)
+    result = wermit_loopback(
+        server,
+        "set delay 0\nset language german\nset file character-set ascii",
+        "set delay 0, set file character-set latin1, "
+        "set transfer character-set latin1, "
+        f"send /text {client / 'u.txt'}")
+    assert_ok(result)
+    assert (server / "u.txt").read_bytes() == received
+
+
+@pytest.mark.parametrize("limit", [9, 10, 12, 16, 17])
+def test_send_init_shortened_after_full_one(tmp_path, wermit_loopback,
+                                            limit):
+    """Verify a shortened Send-Init holds no parameters from an earlier one.
+
+    The first SEND uses the full parameter list.  SET SEND
+    NEGOTIATION-STRING-MAX-LENGTH then limits the second.  Its S packet
+    must end at the limit.  That gives limit + 1 parameter bytes.
+    """
+    server = tmp_path / "server"
+    client = tmp_path / "client"
+    server.mkdir()
+    client.mkdir()
+    (client / "a.txt").write_bytes(b"hello\n")
+    plog = tmp_path / "p.log"
+    result = wermit_loopback(
+        server, "set delay 0",
+        f"set delay 0, log packets {plog}, send {client / 'a.txt'}, "
+        f"set send negotiation-string-max-length {limit}, "
+        f"send {client / 'a.txt'}, echo STATUS=\\v(status)")
+    assert "STATUS=0" in result.stdout, result.stdout[-2000:]
+    # Entries look like "s-00-00-^A" followed by LEN, SEQ, TYPE, data
+    # and a 1-byte block check.
+    inits = [line[10:] for line in
+             plog.read_text(errors="replace").splitlines()
+             if line.startswith("s-") and line[12:13] == "S"]
+    assert len(inits) == 2, inits
+    data = inits[1][3:3 + ord(inits[1][0]) - 32 - 3]
+    assert len(data) == limit + 1, inits
+    assert inits[0][3:3 + len(data)] == data, inits
+
+
+@pytest.mark.parametrize("keyword", ["reject", "overwrite", "backup"])
+def test_transaction_log_names_collision_keyword(tmp_path, wermit_loopback,
+                                                 keyword):
+    """Verify the transaction log names the SET FILE COLLISION keyword."""
+    server = tmp_path / "server"
+    client = tmp_path / "client"
+    server.mkdir()
+    client.mkdir()
+    (client / "c.txt").write_bytes(b"new\n")
+    (server / "c.txt").write_bytes(b"old\n")
+    tlog = tmp_path / "t.log"
+    wermit_loopback(
+        server,
+        f"set delay 0, set file collision {keyword}, "
+        f"log transactions {tlog}",
+        f"set delay 0, send {client / 'c.txt'}")
+    text = tlog.read_text()
+    assert f"Collision action: {keyword}" in text, text
+
+
+@pytest.mark.parametrize("settings", [
+    "set window 1, set streaming off",
+    "set window 32, set streaming off",
+    "set window 32, set streaming on",
+], ids=["window1", "window32", "window32-streaming"])
+def test_send_packets_fit_small_send_buffer(tmp_path, wermit_loopback,
+                                            settings):
+    """Verify sent packets fit a send buffer set smaller than a packet.
+
+    The receiver allows 9024-byte packets.  The sender has a 5000-byte
+    send buffer and no slow start, so spar() must cut the packet length
+    to fit one packet, or a windowful, in that buffer.  Packets past the
+    buffer show under AddressSanitizer.
+    """
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    # The file fills the send buffer several times over.  It stays well
+    # under kern.tty.qsize (65536 in CI).  The NetBSD pty drops bytes
+    # from a write that meets a full queue, and a streaming sender can
+    # queue the whole file before a slow receiver reads it.
+    data = os.urandom(30000)
+    (client_dir / "big.bin").write_bytes(data)
+    result = wermit_loopback(
+        server_dir,
+        server_setup_cmds="set window 32, set receive packet-length 9024",
+        client_commands=f"cd {client_dir}, set buffers 5000 2000, "
+        f"set transfer slow-start off, {settings}, send big.bin, "
+        "echo STATUS=\\v(status)")
+    assert result.returncode >= 0, (
+        f"wermit died with signal {-result.returncode}")
+    assert "AddressSanitizer" not in result.stderr, result.stderr[:3000]
+    assert "STATUS=0" in result.stdout, result.stdout
+    assert (server_dir / "big.bin").read_bytes() == data

@@ -1531,7 +1531,12 @@ conect() {
     idlelimit = tt_idlelimit;
 #endif /* CKTIDLE */
 
+    if (!CK_FDOK(ttyfd) || !CK_FDOK(kbin) || !CK_FDOK(scrnout)) {
+        printf("?Descriptor exceeds FD_SETSIZE, cannot CONNECT\n");
+        active = 0;                     /* select() cannot wait on it */
+    }
     while (active) {                    /* Big loop... */
+        chksigs();                      /* Act on SIGHUP or SIGWINCH */
         debug(F100,"CONNECT top of loop","",0);
         FD_ZERO(&in);                   /* Clear select() structs */
         FD_ZERO(&out);

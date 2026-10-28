@@ -1,4 +1,5 @@
 #include <check.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -275,7 +276,10 @@ START_TEST(test_ckmatch_long_brace_list)
 
     *p++ = '{';
     for (i = 1; i <= 39; i++) {
-        int n = sprintf(p, "file%d.txt", i);
+        size_t room = sizeof(pattern) - (size_t)(p - pattern) - 1;
+        int n = snprintf(p, room, "file%d.txt", i);
+        ck_assert_int_gt(n, 0);
+        ck_assert_uint_lt((size_t)n, room);
         p += n;
         *p++ = (i < 39) ? ',' : '}';
     }

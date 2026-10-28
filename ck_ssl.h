@@ -82,6 +82,9 @@
 #include <openssl/sha.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#if OPENSSL_VERSION_NUMBER < 0x10002000L
+#error "C-Kermit needs OpenSSL 1.0.2 or later, or LibreSSL"
+#endif /* OPENSSL_VERSION_NUMBER < 1.0.2 */
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/core.h>
 #include <openssl/params.h>
@@ -146,6 +149,8 @@ extern int tls_http_active_flag;
 extern int ssl_initialized;
 
 _PROTOTYP(VOID ssl_once_init,(void));
+_PROTOTYP(int ck_bio_gets,(BIO *, char *, int));
+_PROTOTYP(int ssl_hostisaddr,(char *));
 _PROTOTYP(int ssl_tn_init,(int));
 _PROTOTYP(int ssl_http_init,(char *));
 _PROTOTYP(int ck_ssl_http_client,(int,char *));
