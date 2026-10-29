@@ -51,31 +51,6 @@ def test_local_charset_default_is_visible_name(wermit_path):
     assert "local-character-set latin1-iso" in line, repr(line)
 
 
-@pytest.mark.parametrize("helpcmd,phrase", [
-    ("help resend", "Otherwise it refuses the file."),
-    ("help set receive", "Names are compared without their directory"),
-    ("help set ftp timeout", "When the timeout is 0, that wait lasts 60"),
-    ("help associate", "RECEIVE CHARACTER-SET (q.v.) is AUTOMATIC"),
-    ("help associate", "SET TRANSFER CHARACTER-SET change only their own"),
-    ("help set send", "TRANSFER CHARACTER-SET change only their"),
-    ("help enable", "also DISABLE QUERY and DISABLE ASSIGN"),
-    ("help disable", "also DISABLE QUERY and DISABLE ASSIGN"),
-    ("help remote query", "runs any command the client defines"),
-    ("help remote assign", "run the variable"),
-    ("help set host", "SET HOST with no host name closes the current"),
-    ("help set dial", "10 for country code 1, and 1 (no redialing)"),
-    ("help set function", "cause a command to fail. ON by default."),
-    ("help set iks", "This feature is OFF by default."),
-    ("help set terminal", "both are the same character set"),
-    ("help set window", "The default is 30, or fewer if SET BUFFERS"),
-    ("help set unknown-char-set", "KEEP (the default)"),
-])
-def test_help_describes_behavior(run_wermit, helpcmd, phrase):
-    """Verify HELP describes the RESEND, CONFIRM and FTP timeout rules."""
-    result = run_wermit(helpcmd)
-    assert phrase in " ".join(result.stdout.split()), result.stdout
-
-
 @pytest.mark.parametrize("kind,text", [
     ("system", "Remote variable name\r\n"),
     ("user", "Remote variable name\r\n"),

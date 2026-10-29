@@ -2,14 +2,30 @@ import os
 import subprocess
 
 import pytest
-from conftest import assert_ok, scaled
+from conftest import assert_ok, make_loopback_dirs, scaled
 
 
-@pytest.fixture(params=["pseudoterminal", "raw-socket", "telnet"])
-def loopback_transport(request):
-    """Overrides conftest's single-value default so every test in
-    this module also runs over a pty, TCP raw, and TCP telnet."""
-    return request.param
+@pytest.mark.parametrize("loopback_transport", ["raw-socket", "telnet"],
+                         indirect=True)
+def test_remote_commands_over_tcp(tmp_path, wermit_loopback,
+                                  loopback_transport):
+    """Run REMOTE DIRECTORY, REMOTE DELETE and GET over TCP.
+
+    The other tests in this module run over a pty.
+    """
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    (server_dir / "listed.txt").write_text("listed\n")
+    (server_dir / "doomed.txt").write_text("doomed\n")
+
+    result = wermit_loopback(
+        server_dir,
+        client_commands=(f"cd {client_dir}, remote directory, "
+                         "remote delete doomed.txt, get listed.txt"))
+
+    assert_ok(result)
+    assert "listed.txt" in result.stdout
+    assert not (server_dir / "doomed.txt").exists()
+    assert (client_dir / "listed.txt").read_text() == "listed\n"
 
 
 def test_remote_pwd(tmp_path, wermit_loopback):
@@ -88,24 +104,34 @@ def test_remote_copy_delete_rename(tmp_path, wermit_loopback):
     assert not renamed_file.exists()
 
 
-@pytest.mark.parametrize("filename_len", [6, 7, 8, 9, 10, 11, 12, 13, 14])
-@pytest.mark.parametrize("content", ["", "1234567890"])
-def test_remote_delete_boundary_lengths(
-        tmp_path, wermit_loopback, filename_len, content):
-    """
-    Test "remote delete" with different filename lengths and file sizes
-    to ensure we cover the boundary cases (packet lengths 92-98)
-    without encountering hangs or corruption.
+def run_remote_delete_boundary_lengths(tmp_path, loopback):
+    """Delete files with names of 6 to 14 characters in one session.
+
+    The names cover the packet lengths 92 to 98.  Each name is
+    deleted once from an empty file and once from a 10-byte file.  The
+    assertion lists every case that failed.
     """
     # Use non-repeating characters to avoid repeat-count compression.
-    filename = "".join(chr(97 + i) for i in range(filename_len))
-    target_file = tmp_path / filename
-    target_file.write_text(content)
+    names = ["".join(chr(97 + i) for i in range(n)) for n in range(6, 15)]
+    cases = [(d, name) for d in ("empty", "ten") for name in names]
+    for d, content in (("empty", ""), ("ten", "1234567890")):
+        (tmp_path / d).mkdir()
+        for name in names:
+            (tmp_path / d / name).write_text(content)
+    cmds = []
+    for i, (d, name) in enumerate(cases):
+        cmds.append(f"remote cd {d}, remote delete {name}, "
+                    f"echo DELETE{i}=\\v(status), remote cd ..")
+    result = loopback(tmp_path, client_commands=", ".join(cmds))
+    failed = [(d, len(name)) for i, (d, name) in enumerate(cases)
+              if f"DELETE{i}=0" not in result.stdout
+              or (tmp_path / d / name).exists()]
+    assert not failed, (failed, result.stdout[-2000:])
+    assert_ok(result)
 
-    result = wermit_loopback(
-        tmp_path, client_commands=f"remote delete {filename}")
-    assert_ok(result, f"Client failed for length {filename_len}")
-    assert not target_file.exists()
+
+def test_remote_delete_boundary_lengths(tmp_path, wermit_loopback):
+    run_remote_delete_boundary_lengths(tmp_path, wermit_loopback)
 
 
 @pytest.mark.parametrize("command_name", ["cd", "mkdir", "copy", "rename", "directory", "get"])

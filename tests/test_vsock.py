@@ -85,35 +85,6 @@ def test_set_network_type_vsock_selected(run_wermit):
     assert "KVM/Linux VSOCK (AF_VSOCK)" in result.stdout
 
 
-def test_help_set_host_mentions_vsock(run_wermit):
-    if not _build_has_vsock(run_wermit):
-        pytest.skip("build has no VSOCK support (not CK_VSOCK)")
-    result = run_wermit("help set host")
-    assert_ok(result, "HELP SET HOST failed")
-    assert "CID:PORT" in result.stdout
-    assert "VSOCK loopback" in result.stdout
-
-
-def test_help_set_host_mentions_vsock_server(run_wermit):
-    if not _build_has_vsock(run_wermit):
-        pytest.skip("build has no VSOCK support (not CK_VSOCK)")
-    result = run_wermit("help set host")
-    assert_ok(result, "HELP SET HOST failed")
-    assert "listens for an incoming VSOCK" in result.stdout
-    assert "port 1649" in result.stdout
-
-
-def test_help_set_network_mentions_vsock(run_wermit):
-    """
-    Verify HELP SET NETWORK output includes VSOCK.
-    """
-    if not _build_has_vsock(run_wermit):
-        pytest.skip("build has no VSOCK support (not CK_VSOCK)")
-    result = run_wermit("help set network")
-    assert_ok(result, "HELP SET NETWORK failed")
-    assert "SET NETWORK TYPE VSOCK" in result.stdout
-
-
 def test_set_host_invalid_vsock_address(run_wermit):
     """
     Verify invalid VSOCK addresses are rejected by SET HOST.

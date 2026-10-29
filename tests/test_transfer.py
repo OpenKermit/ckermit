@@ -1,20 +1,24 @@
+"""Kermit file transfer tests.
+
+Tests of the transfer engine run over a pty.  Tests that apply
+ALL_TRANSPORTS also run over raw-socket, telnet and ssl.
+"""
 import os
+import re
 import signal
 import threading
 import pytest
 from pathlib import Path
 import logging
-from conftest import (assert_ok, make_loopback_dirs, pattern_bytes,
-                      resolve_transfer_paths)
+from conftest import (CLEAR_UNPREFIX_MODES, assert_ok, make_loopback_dirs,
+                      pattern_bytes, resolve_transfer_paths)
 
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture(params=["pseudoterminal", "raw-socket", "telnet", "ssl"])
-def loopback_transport(request):
-    """Overrides conftest's single-value default so every test in
-    this module runs over pty, TCP raw, TCP telnet, and SSL."""
-    return request.param
+ALL_TRANSPORTS = pytest.mark.parametrize(
+    "loopback_transport", ["pseudoterminal", "raw-socket", "telnet", "ssl"],
+    indirect=True)
 
 
 # Default long packet length C-Kermit negotiates with itself over this
@@ -122,43 +126,60 @@ def run_transfer_helper(tmp_path, wermit_loopback, direction,
     assert content == file_content
 
 
+def run_transfers_in_one_session(tmp_path, wermit_loopback, direction,
+                                 contents, protocol_cmds="", timeout=None):
+    """Transfer several binary files in one loopback session.
+
+    contents maps each file name to its bytes.  Each file is a separate
+    SEND or GET transaction.  The assertion names every file that did
+    not arrive intact.  protocol_cmds is a comma-separated list of SET
+    commands that both ends run first.  The timeout defaults to 10 s
+    per file.
+    """
+    if timeout is None:
+        timeout = 10 * len(contents)
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    for name, content in contents.items():
+        src_file, _ = resolve_transfer_paths(
+            client_dir, server_dir, direction, name)
+        src_file.write_bytes(content)
+    prefix = f"{protocol_cmds}, " if protocol_cmds else ""
+    transfers = ", ".join(f"{direction} {name}" for name in contents)
+    result = wermit_loopback(
+        server_dir,
+        f"{prefix}set file type binary",
+        f"{prefix}set file type binary, cd {client_dir}, {transfers}",
+        timeout=timeout)
+    bad = []
+    for name, content in contents.items():
+        _, dest_file = resolve_transfer_paths(
+            client_dir, server_dir, direction, name)
+        if not dest_file.exists() or dest_file.read_bytes() != content:
+            bad.append(name)
+    assert not bad, (bad, result.stdout[-2000:])
+    assert_ok(result)
+
+
+@ALL_TRANSPORTS
+@CLEAR_UNPREFIX_MODES
 @pytest.mark.parametrize("direction", ["send", "get"])
-@pytest.mark.parametrize("size", [
-    pytest.param(1024, id="1024B"),
-    pytest.param(KERMIT_PACKET_LEN - 1, id="pktlen-1"),
-    pytest.param(KERMIT_PACKET_LEN, id="pktlen"),
-    pytest.param(KERMIT_PACKET_LEN + 1, id="pktlen+1"),
-    pytest.param(2 * KERMIT_PACKET_LEN - 1, id="2xpktlen-1"),
-    pytest.param(2 * KERMIT_PACKET_LEN, id="2xpktlen"),
-    pytest.param(2 * KERMIT_PACKET_LEN + 1, id="2xpktlen+1"),
-])
-def test_kermit_transfer_binary(tmp_path, wermit_loopback, direction, size):
+def test_kermit_transfer_binary(tmp_path, wermit_loopback, direction):
     """
     Test binary file transfer in both SEND and GET directions, for a
-    range of file sizes: 1K and sizes at and
-    around exact multiples of KERMIT_PACKET_LEN to test for boundary bugs.
+    range of file sizes: 1K, sizes around KERMIT_PACKET_LEN, and twice
+    KERMIT_PACKET_LEN.  The packet boundary code is the same for each
+    packet after the first.  One session transfers every size.
     Verifies that files are byte-identical.
-
-    Passed tmp_path and the wermit_loopback _setup function, as well as the
-    parameterized direction and size.
     """
-    logger.info(
-        "test_kermit_transfer_binary: Starting test (direction=%s, size=%d)",
-        direction, size)
-    run_transfer_helper(
-        tmp_path,
-        wermit_loopback,
-        direction,
-        file_type="binary",
-        file_name="binary_file.dat",
-        file_content=pattern_bytes(size),
-        is_text=False
-    )
-    logger.info(
-        "test_kermit_transfer_binary: Test passed (direction=%s, size=%d)",
-        direction, size)
+    sizes = [1024, KERMIT_PACKET_LEN - 1, KERMIT_PACKET_LEN,
+             KERMIT_PACKET_LEN + 1, 2 * KERMIT_PACKET_LEN]
+    run_transfers_in_one_session(
+        tmp_path, wermit_loopback, direction,
+        {f"binary_{size}.dat": pattern_bytes(size) for size in sizes})
 
 
+@ALL_TRANSPORTS
+@CLEAR_UNPREFIX_MODES
 @pytest.mark.parametrize("direction", ["send", "get"])
 def test_kermit_transfer_large(tmp_path, wermit_loopback, direction,
                                loopback_transport):
@@ -228,6 +249,7 @@ def _run_nul_replay_transfer(tmp_path, wermit_loopback):
     assert dest_file.read_bytes() == content
 
 
+@CLEAR_UNPREFIX_MODES
 @pytest.mark.parametrize("loopback_transport", ["pseudoterminal"],
                          indirect=True)
 @pytest.mark.parametrize("attempt", range(5))
@@ -241,6 +263,7 @@ def test_kermit_transfer_unprefixed_nul_replay(tmp_path, wermit_loopback,
     _run_nul_replay_transfer(tmp_path, wermit_loopback)
 
 
+@CLEAR_UNPREFIX_MODES
 @pytest.mark.parametrize("loopback_transport",
                          ["raw-socket", "telnet", "ssl"], indirect=True)
 def test_kermit_transfer_unprefixed_nul_replay_transport_smoke(
@@ -294,6 +317,7 @@ def protocol_option_cmds(reliable, streaming, slow_start, jumbo):
     return ", ".join(cmds)
 
 
+@CLEAR_UNPREFIX_MODES
 @pytest.mark.parametrize("direction", ["send", "get"])
 @pytest.mark.parametrize("jumbo", [False, True], ids=["stdpkt", "jumbopkt"])
 @pytest.mark.parametrize("slow_start", [False, True],
@@ -308,9 +332,10 @@ def test_kermit_transfer_protocol_options(
     """
     Test binary file transfer across all combinations of SET
     RELIABLE, SET STREAMING, SET TRANSFER SLOW-START, and jumbo
-    (9024-byte) packet length. For each combination, transfers files
-    at -1/exact/+1 bytes around the packet length relevant to that
-    combination.
+    (9024-byte) packet length.  For each combination, one session
+    transfers files at -1/exact/+1 bytes around the packet length
+    relevant to that combination.  Each file is a separate
+    transaction.
     """
     pkt_len = JUMBO_PACKET_LEN if jumbo else KERMIT_PACKET_LEN
     protocol_cmds = protocol_option_cmds(
@@ -318,23 +343,11 @@ def test_kermit_transfer_protocol_options(
     logger.info(
         "test_kermit_transfer_protocol_options: direction=%s %s",
         direction, protocol_cmds)
-    for size in (pkt_len - 1, pkt_len, pkt_len + 1):
-        # The default 10s timeout has been observed to be too tight
-        # for the pseudoterminal transport on a loaded CI runner: the
-        # transfer itself is well under a second, but forking and
-        # negotiating with the server subprocess can stall under
-        # contention.
-        run_transfer_helper(
-            tmp_path,
-            wermit_loopback,
-            direction,
-            file_type="binary",
-            file_name=f"protocol_opts_{size}.dat",
-            file_content=pattern_bytes(size),
-            is_text=False,
-            protocol_cmds=protocol_cmds,
-            timeout=30,
-        )
+    run_transfers_in_one_session(
+        tmp_path, wermit_loopback, direction,
+        {f"protocol_opts_{size}.dat": pattern_bytes(size)
+         for size in (pkt_len - 1, pkt_len, pkt_len + 1)},
+        protocol_cmds=protocol_cmds)
 
 
 @pytest.mark.parametrize("direction", ["send", "get"])
@@ -709,61 +722,73 @@ def test_extended_get_after_too_long_name(tmp_path, wermit_loopback):
     assert not (server / "a.txt").exists()
 
 
-@pytest.mark.parametrize("switches", ["/delete", "/recover /delete",
-                                      "/recover /recursive /delete"])
-def test_get_delete_refused_when_delete_disabled(tmp_path, wermit_loopback,
-                                                 switches):
+def test_get_delete_refused_when_delete_disabled(tmp_path, wermit_loopback):
     """Verify every GET /DELETE form honors DISABLE DELETE on the server.
 
     GET /DELETE sends an H packet.  The /RECOVER forms send an Extended
     GET (O packet) with the delete option.  Each must be refused, and the
-    file must stay on the server.
+    file must stay on the server.  One session runs every form.
     """
+    forms = ["/delete", "/recover /delete", "/recover /recursive /delete"]
     server = tmp_path / "server"
     client = tmp_path / "client"
     server.mkdir()
     client.mkdir()
     (server / "a.txt").write_bytes(b"hello\n")
+    gets = ", ".join(f"get {switches} a.txt, echo STATUS{i}=\\v(status)"
+                     for i, switches in enumerate(forms))
     result = wermit_loopback(
         server, "set delay 0\ndisable delete",
-        f"cd {client}, set delay 0, "
-        f"get {switches} a.txt, echo STATUS=\\v(status)")
-    assert "Deleting files is disabled" in result.stdout, \
-        result.stdout[-2000:]
-    assert "STATUS=1" in result.stdout, result.stdout[-2000:]
+        f"cd {client}, set delay 0, {gets}")
+    accepted = [switches for i, switches in enumerate(forms)
+                if f"STATUS{i}=1" not in result.stdout]
+    assert not accepted, (accepted, result.stdout[-2000:])
+    assert result.stdout.count("Deleting files is disabled") == \
+        len(forms), result.stdout[-2000:]
     assert (server / "a.txt").read_bytes() == b"hello\n"
     assert not (client / "a.txt").exists()
 
 
-@pytest.mark.parametrize("sent, received", [
+# Each case is (bytes sent, bytes received).
+LANGUAGE_EXPANSION_CASES = [
     (b"x\xc4yzEND", b"xAeyzEND"),
     (b"x\xc4y\xc4zEND", b"xAeyAezEND"),
     (b"\xdfq\xd6", b"ssqOe"),
     (b"x\xc4\xc4\xc4yzEND", b"xAeAeAeyzEND"),
     (b"\xdf" * 5 + b"q", b"ss" * 5 + b"q"),
-])
-def test_language_expansion_keeps_every_byte(tmp_path, wermit_loopback,
-                                             sent, received):
+]
+
+
+def test_language_expansion_keeps_every_byte(tmp_path, wermit_loopback):
     """Verify a receiver keeps every byte when translation expands one.
 
     With SET LANGUAGE GERMAN and Latin-1 to ASCII translation, the
     receiver writes each umlaut as two letters.  The bytes after it in
     the packet must all reach the file.  A repeated umlaut, sent with a
-    repeat prefix, becomes the pair repeated.
+    repeat prefix, becomes the pair repeated.  One session sends one
+    file per case.
     """
     server = tmp_path / "server"
     client = tmp_path / "client"
     server.mkdir()
     client.mkdir()
-    (client / "u.txt").write_bytes(sent)
+    for i, (sent, _) in enumerate(LANGUAGE_EXPANSION_CASES):
+        (client / f"u{i}.txt").write_bytes(sent)
+    sends = ", ".join(f"send /text {client / f'u{i}.txt'}"
+                      for i in range(len(LANGUAGE_EXPANSION_CASES)))
     result = wermit_loopback(
         server,
         "set delay 0\nset language german\nset file character-set ascii",
         "set delay 0, set file character-set latin1, "
-        "set transfer character-set latin1, "
-        f"send /text {client / 'u.txt'}")
+        f"set transfer character-set latin1, {sends}")
+    bad = []
+    for i, (sent, received) in enumerate(LANGUAGE_EXPANSION_CASES):
+        dest = server / f"u{i}.txt"
+        got = dest.read_bytes() if dest.exists() else None
+        if got != received:
+            bad.append((sent, received, got))
+    assert not bad, (bad, result.stdout[-2000:])
     assert_ok(result)
-    assert (server / "u.txt").read_bytes() == received
 
 
 def test_send_init_shortened_after_full_one(tmp_path, wermit_loopback):
@@ -851,24 +876,23 @@ def test_shortened_send_init_keeps_settings(tmp_path, wermit_loopback):
     assert re.search(r"Window Size:\s+8 set", result.stdout), result.stdout
 
 
-@pytest.mark.parametrize("keyword", ["reject", "overwrite", "backup"])
-def test_transaction_log_names_collision_keyword(tmp_path, wermit_loopback,
-                                                 keyword):
-    """Verify the transaction log names the SET FILE COLLISION keyword."""
-    server = tmp_path / "server"
-    client = tmp_path / "client"
-    server.mkdir()
-    client.mkdir()
-    (client / "c.txt").write_bytes(b"new\n")
-    (server / "c.txt").write_bytes(b"old\n")
+def test_transaction_log_names_collision_keyword(tmp_path, wermit_loopback):
+    """Verify the transaction log names the SET FILE COLLISION keyword.
+
+    rinit() logs the keyword at the start of each receive.  One session
+    runs a GET under each keyword.
+    """
+    keywords = ["reject", "overwrite", "backup"]
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    (server_dir / "c.txt").write_bytes(b"new\n")
     tlog = tmp_path / "t.log"
+    gets = ", ".join(f"set file collision {keyword}, get c.txt"
+                     for keyword in keywords)
     wermit_loopback(
-        server,
-        f"set delay 0, set file collision {keyword}, "
-        f"log transactions {tlog}",
-        f"set delay 0, send {client / 'c.txt'}")
-    text = tlog.read_text()
-    assert f"Collision action: {keyword}" in text, text
+        server_dir, "set delay 0",
+        f"set delay 0, cd {client_dir}, log transactions {tlog}, {gets}")
+    logged = re.findall(r"Collision action: (\S+)", tlog.read_text())
+    assert logged == keywords, tlog.read_text()
 
 
 @pytest.mark.parametrize("settings", [

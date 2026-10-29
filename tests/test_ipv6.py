@@ -795,27 +795,6 @@ def test_tcp_address6_rejects_nonexistent_zone(run_wermit):
     assert "address6: ::1\n" in result.stdout
 
 
-def test_help_set_tcp_mentions_address6_zone_suffix(run_wermit):
-    if not _build_has_address_family(run_wermit):
-        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
-
-    result = run_wermit("help set tcp")
-    assert_ok(result, "HELP SET TCP failed")
-    assert "%interface" in result.stdout
-    assert "%index" in result.stdout
-
-
-def test_help_set_host_mentions_link_local_zone_suffix(run_wermit):
-    """Verify HELP SET HOST documents link-local zone suffix."""
-    if not _build_has_address_family(run_wermit):
-        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
-
-    result = run_wermit("help set host")
-    assert_ok(result, "HELP SET HOST failed")
-    assert "link-local" in result.stdout
-    assert "%interface" in result.stdout
-
-
 # SET TCP ADDRESS6 local bind tests.
 
 

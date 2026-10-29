@@ -38,6 +38,18 @@ test.  Tests that check how long an operation took keep their bounds.
 On a single-CPU machine, run the suite with -n0.  A 599 MHz Alpha
 running NetBSD takes about 48 minutes.
 
+Writing Tests:
+
+A wermit_loopback test runs over a pty, with control prefixing on.  A
+test that needs more transports parametrizes loopback_transport with
+indirect=True.  A test that transfers control characters applies
+CLEAR_UNPREFIX_MODES to run with and without prefixing.
+
+For a sweep of boundary values or keywords, run one session that tries
+each value, and report every failing value in the assertion message.
+Keep a separate process per value only when the bug needs one, such as
+a leak counted at exit or a failure that kills the process.
+
 Debugging Server-Side Operations:
 
 To enable and print the server-side debug logs (even for successful tests), run pytest with xdist disabled (-n0), capturing disabled (-s), and CLI log level set to DEBUG:

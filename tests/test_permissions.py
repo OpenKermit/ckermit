@@ -33,17 +33,10 @@ import pytest
 from conftest import (
     _wait_or_kill,
     assert_ok,
+    make_loopback_dirs,
     scaled,
     start_tcp_listener,
 )
-
-
-@pytest.fixture(params=["pseudoterminal", "raw-socket", "telnet"])
-def loopback_transport(request):
-    """Overrides conftest's single-value default so tests in this
-    module that use wermit_loopback also run over TCP raw and
-    telnet, not just pseudoterminal."""
-    return request.param
 
 
 @pytest.fixture
@@ -335,6 +328,35 @@ def test_receive_pathnames_absolute_honors_literal_path(
 
     assert target_file.exists()
     assert target_file.read_text() == "payload data"
+
+
+@pytest.mark.parametrize("loopback_transport",
+                         ["pseudoterminal", "raw-socket", "telnet"],
+                         indirect=True)
+def test_server_accepts_pathname_by_transport(tmp_path, wermit_loopback,
+                                              loopback_transport):
+    """A wermit_loopback server accepts a pathname under the default CD.
+
+    The REMOTE bit governs CD for each wermit_loopback transport.  The
+    client then runs GET /RECURSIVE over the same connection.  The
+    other wermit_loopback tests in this module run over a pty.
+    """
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    (client_dir / "payload.txt").write_text("payload data")
+    (server_dir / "nested").mkdir()
+    (server_dir / "nested" / "deep.txt").write_text("deep content")
+
+    result = wermit_loopback(
+        server_dir,
+        "enable send both, enable mkdir both, set file type binary",
+        f"set file type binary, cd {client_dir}, "
+        "send /as-name:subdir/probe.txt payload.txt, get /recursive *")
+
+    assert_ok(result)
+    assert (server_dir / "subdir" / "probe.txt").read_text() == \
+        "payload data"
+    assert (client_dir / "nested" / "deep.txt").read_text() == \
+        "deep content"
 
 
 # ---------------------------------------------------------------------

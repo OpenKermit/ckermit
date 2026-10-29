@@ -780,15 +780,33 @@ def loopback_transport(request):
     openssl is not on PATH.  "ssl-telnet" and "tls-telnet" negotiate
     Telnet at the start of the connection.
 
-    Test modules that need TCP, telnet, or SSL coverage override this
-    fixture locally.  Other modules use "pseudoterminal" only.
+    The default is "pseudoterminal" only.  A test that needs other
+    transports names them with pytest.mark.parametrize(
+    "loopback_transport", [...], indirect=True), as ALL_TRANSPORTS in
+    test_transfer.py does.
     """
     return request.param
 
 
-@pytest.fixture(params=[False, True], ids=["default", "clear_unprefix"])
+@pytest.fixture
+def clear_unprefix():
+    """Return whether wermit_loopback clears the channel on both ends.
+
+    True runs SET CLEAR-CHANNEL ON and SET CONTROL UNPREFIX ALL on the
+    client and the server.  The default is False.  A test that
+    transfers control characters applies CLEAR_UNPREFIX_MODES to run
+    in both modes.
+    """
+    return False
+
+
+CLEAR_UNPREFIX_MODES = pytest.mark.parametrize(
+    "clear_unprefix", [False, True], ids=["default", "clear_unprefix"])
+
+
+@pytest.fixture
 def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
-                    get_free_port, loopback_transport):
+                    get_free_port, loopback_transport, clear_unprefix):
     """
 
     Sets up and runs a full wermit client-server loopback session.  Returns a
@@ -820,7 +838,6 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
     """
     created_files = []
     opened_logs = []
-    use_clear_unprefix = request.param
     transport = loopback_transport
 
     def _run_pseudoterminal(server_dir, setup_lines, cmd_str,
@@ -999,7 +1016,7 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         setup_lines.append("set delay 0")
         if transport != "pseudoterminal":
             setup_lines.append("set tcp reverse-dns-lookup off")
-        if use_clear_unprefix:
+        if clear_unprefix:
             setup_lines.append("set clear-channel on")
             setup_lines.append("set control unprefix all")
         setup_lines.append(f"cd {server_dir}")
@@ -1014,7 +1031,7 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
 
         client_prefix = (
             "set clear-channel on, set control unprefix all, "
-            if use_clear_unprefix else ""
+            if clear_unprefix else ""
         )
         client_debug_prefix = (
             f"{debug_log_command(client_log)}, " if DEBUG_LOOPBACK else ""
