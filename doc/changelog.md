@@ -108,6 +108,12 @@ covering their situations.
     it also left SIGCHLD ignored for the rest of the session.  Bugs were
     introduced in commit 0fd869b4 in C-Kermit 9.0.302 of 2011.
 
+  - [9, 11] Fixed a bug relating to buffering external protocol data,
+    significantly improving performance.  The code that waited was introduced in
+    commit 0fd869b4 in C-Kermit 9.0.302 of 2011.  Commit 04e8275d in C-Kermit
+    11.0.501 of 2026 replaced the wait with the 100 ms poll.  Commit ce6628a3 in
+    C-Kermit 11.0.509 of 2026 introduced the 2-second stall.
+
   - [11] On the BSDs, an external protocol over a SET HOST /PTY connection did
     not notice when the connection ended.  Bug was introduced in commit
     dab36d9a in C-Kermit 11.0.501 of 2026.
