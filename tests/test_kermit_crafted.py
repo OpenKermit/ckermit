@@ -43,7 +43,7 @@ def _run_partner(run_wermit, tmp_path, answer, wermit_cmds, timeout=30):
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(15)
+    srv.settimeout(scaled(15))
     port = srv.getsockname()[1]
 
     def run():
@@ -52,7 +52,7 @@ def _run_partner(run_wermit, tmp_path, answer, wermit_cmds, timeout=30):
         except OSError:
             return
         with conn:
-            conn.settimeout(10)
+            conn.settimeout(scaled(10))
             buf = b""
             try:
                 while True:
@@ -81,7 +81,7 @@ def _run_partner(run_wermit, tmp_path, answer, wermit_cmds, timeout=30):
             timeout=timeout)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert result.returncode >= 0, (
         f"wermit died with signal {-result.returncode}")
     return result
@@ -158,7 +158,7 @@ def test_partner_length_beyond_received_bytes(wermit_path, tmp_path,
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(15)
+    srv.settimeout(scaled(15))
 
     def run():
         try:
@@ -166,7 +166,7 @@ def test_partner_length_beyond_received_bytes(wermit_path, tmp_path,
         except OSError:
             return
         with conn:
-            conn.settimeout(10)
+            conn.settimeout(scaled(10))
             try:
                 buf = b""
                 while True:
@@ -198,7 +198,7 @@ def test_partner_length_beyond_received_bytes(wermit_path, tmp_path,
             timeout=scaled(120))
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert "uninitialised" not in result.stderr, result.stderr
     assert "STATUS=1" in result.stdout, result.stdout + result.stderr
 

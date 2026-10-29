@@ -12,7 +12,7 @@ import threading
 
 import pytest
 
-from conftest import scaled
+from conftest import kermit_wait, scaled
 
 IAC = 255
 SB = 250
@@ -36,10 +36,10 @@ def test_telnet_truncated_subnegotiation_no_hang(spawn_wermit, wermit_path):
     ])
 
     try:
-        server_sock.settimeout(10)
+        server_sock.settimeout(scaled(10))
         conn, _ = server_sock.accept()
         try:
-            conn.settimeout(5)
+            conn.settimeout(scaled(5))
             # Send an incomplete subnegotiation without a terminating IAC SE.
             conn.sendall(
                 bytes([IAC, SB, TELOPT_NEW_ENVIRON,
@@ -82,7 +82,7 @@ def _serve_once(payload):
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(15)
+    srv.settimeout(scaled(15))
 
     def run():
         try:
@@ -90,7 +90,7 @@ def _serve_once(payload):
         except OSError:
             return
         with conn:
-            conn.settimeout(30)
+            conn.settimeout(scaled(30))
             try:
                 conn.sendall(payload + b"\r\n" + MARKER + b"\r\n")
                 pending = b""
@@ -132,7 +132,7 @@ def _expect_marker_after(run_wermit, payload):
         result = run_wermit(
             "set delay 0, set input echo off, "
             f"set host 127.0.0.1 {port} /telnet, "
-            f"input 10 {MARKER.decode()}, "
+            f"input {kermit_wait()} {MARKER.decode()}, "
             "if success echo GOT-MARKER, "
             "echo HEX=[\\fhexify(\\v(input))], "
             "close, exit",
@@ -140,7 +140,7 @@ def _expect_marker_after(run_wermit, payload):
         )
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert result.returncode >= 0, (
         f"wermit died with signal {-result.returncode}")
     assert "GOT-MARKER" in result.stdout, result.stdout
@@ -250,7 +250,7 @@ def _serve_new_environ(send_data):
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(15)
+    srv.settimeout(scaled(15))
     received = []
 
     def run():
@@ -259,7 +259,7 @@ def _serve_new_environ(send_data):
         except OSError:
             return
         with conn:
-            conn.settimeout(30)
+            conn.settimeout(scaled(30))
             try:
                 conn.sendall(bytes([IAC, DO, TELOPT_NEW_ENVIRON]))
                 pending = b""
@@ -312,14 +312,14 @@ def _new_environ_reply(run_wermit, send_data, userid="kermtest",
             "set delay 0, set input echo off, "
             f"set login userid {userid}, {setup}"
             f"set host 127.0.0.1 {port} /telnet, "
-            f"input 10 {MARKER.decode()}, "
+            f"input {kermit_wait()} {MARKER.decode()}, "
             "if success echo GOT-MARKER, "
             "close, exit",
             timeout=30,
         )
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert result.returncode >= 0, (
         f"wermit died with signal {-result.returncode}")
     assert "GOT-MARKER" in result.stdout, result.stdout
@@ -395,7 +395,7 @@ def _serve_comport(baud):
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(15)
+    srv.settimeout(scaled(15))
     requests = []
     state = {"baud": baud.to_bytes(4, "big")}
 
@@ -405,7 +405,7 @@ def _serve_comport(baud):
         except OSError:
             return
         with conn:
-            conn.settimeout(30)
+            conn.settimeout(scaled(30))
             pending = b""
             try:
                 while True:
@@ -474,7 +474,7 @@ def test_telnet_comport_baud_rate_bytes(run_wermit):
         )
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert result.returncode >= 0, (
         f"wermit died with signal {-result.returncode}")
     assert "SPEED1=[9600]" in result.stdout, result.stdout
@@ -504,13 +504,15 @@ def _fake_x_display():
 @pytest.mark.parametrize("cmd", [FWDX_XOFF, FWDX_XON])
 @pytest.mark.parametrize("channel", [b"\xff\xff", b"\x00\x40", b"\x00"])
 def test_telnet_forward_x_flow_control_unknown_channel(
-        run_wermit, monkeypatch, cmd, channel):
+        run_wermit, wermit_forward_x_available, monkeypatch, cmd, channel):
     """Verify FORWARD-X XOFF/XON for an unknown channel id is ignored.
 
     The channel number on the wire is an id, not a table index.  An id
     with no open channel, or a short subnegotiation, must not index the
     channel table.
     """
+    if not wermit_forward_x_available:
+        pytest.skip("wermit was not built with FORWARD-X support")
     display, xsock = _fake_x_display()
     monkeypatch.setenv("DISPLAY", f"127.0.0.1:{display}")
     payload = (bytes([IAC, WILL, TELOPT_FORWARD_X])
@@ -522,13 +524,13 @@ def test_telnet_forward_x_flow_control_unknown_channel(
             "set telopt /client forward-x accepted, "
             "set telnet forward-x no-encryption, "
             f"set host 127.0.0.1 {port} /telnet, "
-            f"input 10 {MARKER.decode()}, "
+            f"input {kermit_wait()} {MARKER.decode()}, "
             "if success echo GOT-MARKER, close, exit",
             timeout=30)
     finally:
         srv.close()
         xsock.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert result.returncode >= 0, (
         f"wermit died with signal {-result.returncode}")
     assert "GOT-MARKER" in result.stdout, result.stdout
@@ -545,7 +547,7 @@ def test_telnet_stall_inside_iac_times_out(run_wermit):
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(15)
+    srv.settimeout(scaled(15))
     done = threading.Event()
 
     def run():
@@ -574,7 +576,7 @@ def test_telnet_stall_inside_iac_times_out(run_wermit):
     finally:
         done.set()
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert "STATUS=1" in result.stdout, result.stdout
 
 
@@ -641,7 +643,7 @@ def _naws_to_server(wermit_path, tmp_path, port, subnegotiations):
         [wermit_path, "-H", "-Y", "-C",
          "set command more-prompting off, set tcp reverse-dns-lookup off, "
          f"log debug {log}, set host * {port} /telnet, "
-         "input 10 DONE, close, exit"],
+         f"input {kermit_wait()} DONE, close, exit"],
         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL, cwd=str(tmp_path))
     try:
@@ -654,7 +656,7 @@ def _naws_to_server(wermit_path, tmp_path, port, subnegotiations):
                 threading.Event().wait(0.1)
         assert conn is not None, "server never listened"
         with conn:
-            conn.settimeout(10)
+            conn.settimeout(scaled(10))
             pending = b""
             sent = False
             while proc.poll() is None:
@@ -730,12 +732,12 @@ def test_telnet_debug_encryption_names(run_wermit, tmp_path, data,
         result = run_wermit(
             f"log debug {log}, set delay 0, set input echo off, "
             f"set host 127.0.0.1 {port} /telnet, "
-            f"input 10 {MARKER.decode()}, "
+            f"input {kermit_wait()} {MARKER.decode()}, "
             "if success echo GOT-MARKER, close, close debug, exit",
             timeout=30)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert result.returncode >= 0, (
         f"wermit died with signal {-result.returncode}")
     assert "GOT-MARKER" in result.stdout, result.stdout
@@ -749,12 +751,14 @@ def test_telnet_client_ignores_server_terminal_type(wermit_path, tmp_path):
 
     Only a client sends TTYPE IS (RFC 1091).  The server here sends DO
     TTYPE and then TTYPE IS vt52.  The client's TERM must stay xterm.
+    The server refuses every other option the client offers, so the
+    client's negotiation wait ends and the marker reaches INPUT.
     """
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(15)
+    srv.settimeout(scaled(15))
 
     def run():
         try:
@@ -762,19 +766,33 @@ def test_telnet_client_ignores_server_terminal_type(wermit_path, tmp_path):
         except OSError:
             return
         with conn:
-            conn.settimeout(10)
+            conn.settimeout(scaled(10))
             try:
                 conn.sendall(bytes([IAC, DO, TELOPT_TTYPE]))
-                buf = b""
-                while bytes([IAC, WILL, TELOPT_TTYPE]) not in buf:
+                pending = b""
+                sent = False
+                while True:
                     data = conn.recv(4096)
                     if not data:
                         return
-                    buf += data
-                conn.sendall(_sb(TELOPT_TTYPE, b"\x00vt52")
-                             + b"\r\n" + MARKER + b"\r\n")
-                while conn.recv(4096):
-                    pass
+                    pending += data
+                    i = 0
+                    while i + 2 < len(pending):
+                        cmd, opt = pending[i + 1], pending[i + 2]
+                        if pending[i] != IAC or cmd not in (WILL, DO):
+                            i += 1
+                            continue
+                        if cmd == WILL and opt == TELOPT_TTYPE:
+                            if not sent:
+                                conn.sendall(
+                                    _sb(TELOPT_TTYPE, b"\x00vt52")
+                                    + b"\r\n" + MARKER + b"\r\n")
+                                sent = True
+                        else:
+                            reply = DONT if cmd == WILL else WONT
+                            conn.sendall(bytes([IAC, reply, opt]))
+                        i += 3
+                    pending = pending[i:]
             except OSError:
                 pass
 
@@ -787,13 +805,15 @@ def test_telnet_client_ignores_server_terminal_type(wermit_path, tmp_path):
              "set command more-prompting off, set delay 0, "
              "set input echo off, "
              f"set host 127.0.0.1 {srv.getsockname()[1]} /telnet, "
-             f"input 10 {MARKER.decode()}, "
+             f"input {kermit_wait()} {MARKER.decode()}, "
+             "echo INPUT=\\v(instatus), "
              "echo TERM=[\\$(TERM)], close, exit"],
             stdin=subprocess.DEVNULL, capture_output=True, text=True,
             timeout=scaled(60), env=env)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
+    assert "INPUT=0" in result.stdout, result.stdout
     assert "TERM=[xterm]" in result.stdout, result.stdout
 
 
@@ -809,7 +829,7 @@ def test_telnet_server_takes_client_terminal_type(wermit_path, tmp_path,
     proc = subprocess.Popen(
         [wermit_path, "-H", "-Y", "-C",
          "set command more-prompting off, set tcp reverse-dns-lookup off, "
-         f"set host * {port} /telnet, input 10 DONE, "
+         f"set host * {port} /telnet, input {kermit_wait()} DONE, "
          "echo TERM=[\\$(TERM)], close, exit"],
         stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL, text=True, cwd=str(tmp_path),
@@ -824,7 +844,7 @@ def test_telnet_server_takes_client_terminal_type(wermit_path, tmp_path,
                 threading.Event().wait(0.1)
         assert conn is not None, "server never listened"
         with conn:
-            conn.settimeout(10)
+            conn.settimeout(scaled(10))
             pending = b""
             sent = False
             ttsend = bytes([IAC, SB, TELOPT_TTYPE, 1, IAC, SE])

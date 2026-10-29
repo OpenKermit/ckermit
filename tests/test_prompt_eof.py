@@ -44,7 +44,7 @@ def test_ftp_login_prompt_at_end_of_input(wermit_path, replies):
                       "echo S=\\v(status), ftp close")
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     out = result.stdout + result.stderr
     assert result.returncode == 0, out
     assert "login failed" in out.lower(), out

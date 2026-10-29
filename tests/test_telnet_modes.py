@@ -18,7 +18,7 @@ import time
 
 import pytest
 
-from conftest import scaled
+from conftest import kermit_wait, scaled
 
 pytestmark = pytest.mark.skipif(
     shutil.which("openssl") is None,
@@ -182,7 +182,7 @@ def run_session(run_wermit, ssl_pki, tmp_path, switch, send,
         f"{verify}set host localhost {peer.port} /{switch}, "
         "if fail exit 9, "
         f"set session-log binary, log session {log}, "
-        "set input echo off, input 5 Z, if fail exit 8, "
+        f"set input echo off, input {kermit_wait()} Z, if fail exit 8, "
         f"set transmit echo off, {commands}close, exit",
         timeout=30)
     received = peer.result()

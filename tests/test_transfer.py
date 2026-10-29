@@ -11,7 +11,7 @@ import pytest
 from pathlib import Path
 import logging
 from conftest import (CLEAR_UNPREFIX_MODES, assert_ok, make_loopback_dirs,
-                      pattern_bytes, resolve_transfer_paths)
+                      pattern_bytes, resolve_transfer_paths, scaled)
 
 logger = logging.getLogger(__name__)
 
@@ -585,7 +585,7 @@ def test_transfer_survives_server_sigwinch(server_dir, wermit_tcp_loopback,
             protocol="raw-socket", timeout=30)
     finally:
         stop.set()
-        bombarder.join(timeout=2)
+        bombarder.join(timeout=scaled(2))
     session.wait_for_server_exit()
 
     assert_ok(result)
@@ -631,7 +631,7 @@ def _attempt_write_sigwinch_transfer(server_dir, wermit_tcp_loopback,
             protocol="raw-socket", timeout=30)
     finally:
         stop.set()
-        bombarder.join(timeout=2)
+        bombarder.join(timeout=scaled(2))
         # The debug log only exists to slow down the server. Remove it to
         # avoid leaving large files on disk.
         debug_log.unlink(missing_ok=True)

@@ -5,7 +5,7 @@ import socket
 import time
 
 import pytest
-from conftest import assert_ok, scaled
+from conftest import kermit_wait, assert_ok, scaled
 
 
 def _show_features_output(run_wermit):
@@ -44,7 +44,7 @@ def _vsock_loopback_works():
         except OSError:
             return False
         try:
-            cli.settimeout(2)
+            cli.settimeout(scaled(2))
             cli.connect((1, port))
         except OSError:
             return False
@@ -144,7 +144,8 @@ def test_set_host_vsock_server_accepts_connection(
     script = (
         "set command more-prompting off, set network type vsock, "
         f"set host *:{port}, if fail exit 1 ACCEPT-FAILED, "
-        "input 5 PING, output PONG\\13, close connection, exit 0 DONE"
+        f"input {kermit_wait()} PING, output PONG\\13, close connection, "
+        "exit 0 DONE"
     )
     proc = spawn_wermit(["-H", "-Y", "-C", script])
 
@@ -154,7 +155,7 @@ def test_set_host_vsock_server_accepts_connection(
     while time.time() < deadline:
         try:
             cli = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM)
-            cli.settimeout(1)
+            cli.settimeout(scaled(1))
             cli.connect((1, port))
             break
         except OSError as e:
@@ -166,7 +167,7 @@ def test_set_host_vsock_server_accepts_connection(
     assert cli is not None, f"could not connect to VSOCK server: {last_err}"
 
     cli.sendall(b"PING\r")
-    cli.settimeout(5)
+    cli.settimeout(scaled(5))
     reply = cli.recv(100)
     cli.close()
 

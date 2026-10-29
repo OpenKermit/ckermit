@@ -29,25 +29,30 @@ def test_local_charset_default_is_visible_name(wermit_path):
     import os
     import pty
     import subprocess
-    from conftest import PROMPT, read_pty_until
+    from conftest import PROMPT, _make_controlling_tty, read_pty_until
     fd, slave = pty.openpty()
     proc = subprocess.Popen([wermit_path, "-H", "-Y"], stdin=slave,
                             stdout=slave, stderr=slave,
-                            start_new_session=True)
+                            preexec_fn=_make_controlling_tty)
     os.close(slave)
     try:
-        read_pty_until(fd, b"", (PROMPT,), 10)
+        read_pty_until(
+            fd, b"", (PROMPT,), 10,
+            message="wermit printed no prompt, so the pty setup is wrong")
         os.write(fd, b"set file character-set latin1-iso\r")
         read_pty_until(fd, b"", (PROMPT,), 10)
         os.write(fd, b"set terminal local-character-set \x1b")
         out = read_pty_until(fd, b"", (b"latin1-iso", b"^["), 10)
         line = out.decode(errors="replace")
     finally:
+        # Close the master first.  On NetBSD a session leader that exits
+        # with output pending waits for the master to read it.
         proc.kill()
-        proc.wait()
         os.close(fd)
-    if "^[" in line:
-        pytest.skip("this terminal setup does not give Esc completion")
+        proc.wait()
+    assert "^[" not in line, (
+        "the terminal echoed Esc, so wermit did not take over the pty: "
+        f"{line!r}")
     assert "local-character-set latin1-iso" in line, repr(line)
 
 

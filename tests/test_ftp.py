@@ -1,11 +1,9 @@
 import calendar
-import errno
 import os
 import subprocess
-import threading
 import pytest
 from pyftpdlib.authorizers import DummyAuthorizer
-from conftest import assert_ok, scaled
+from conftest import assert_ok, scaled, serve_ftp
 from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import FTPServer
 
@@ -38,25 +36,11 @@ def ftp_server(wermit_ftp_available, tmp_path):
 
     ip, port = server.socket.getsockname()
 
-    def run_server():
-        try:
-            server.serve_forever()
-        except OSError as e:
-            # On at least NetBSD, close_all() below
-            # closes the kqueue fd from the main thread while this
-            # thread may be blocked inside it, causing EBADF.
-            # This is an expected shutdown race, not a real failure.
-            if e.errno != errno.EBADF:
-                raise
-
-    thread = threading.Thread(target=run_server)
-    thread.daemon = True
-    thread.start()
+    stop = serve_ftp(server)
 
     yield port, tmp_path
 
-    server.close_all()
-    thread.join(timeout=2)
+    stop()
 
 
 def ftp_session(port, *commands):
@@ -315,15 +299,13 @@ def test_ftp_put_recover_size_reply(wermit_ftp_available, run_wermit,
     server = FTPServer(("127.0.0.1", 0), Handler)
     server.handler.authorizer = authorizer
     port = server.socket.getsockname()[1]
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
+    stop = serve_ftp(server)
     try:
         result = run_wermit(ftp_session(
             port, f"ftp put /recover {tmp_path}/up.txt up.txt",
             "echo PUT=\\v(status)"), timeout=30)
     finally:
-        server.close_all()
-        thread.join(timeout=2)
+        stop()
     assert "PUT=0" in result.stdout, result.stdout + result.stderr
     assert (root / "up.txt").read_bytes() == b"hello\n"
 
@@ -359,16 +341,14 @@ def test_ftp_server_time_offset_keeps_seconds(wermit_ftp_available,
     server = FTPServer(("127.0.0.1", 0), Handler)
     server.handler.authorizer = authorizer
     port = server.socket.getsockname()[1]
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
+    stop = serve_ftp(server)
     try:
         result = run_wermit(
             "set ftp server-time-offset +1, set ftp dates on, " +
             ftp_session(port, f"ftp get m.txt {tmp_path}/m.txt",
                         "echo GET=\\v(status)"), timeout=30)
     finally:
-        server.close_all()
-        thread.join(timeout=2)
+        stop()
     assert "GET=0" in result.stdout, result.stdout + result.stderr
     want = calendar.timegm((2024, 1, 2, 4, 4, 55, 0, 0, 0))
     assert os.stat(tmp_path / "m.txt").st_mtime == want

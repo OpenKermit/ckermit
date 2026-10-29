@@ -734,55 +734,40 @@ def test_sexp_interrupted_resets_depth(wermit_path, tmp_path):
     """
     import os
     import pty
-    import select
     import subprocess
     import time
-    from conftest import _make_controlling_tty
+    from conftest import PtyReader, _make_controlling_tty
     fd, slave = pty.openpty()
     proc = subprocess.Popen(
         [wermit_path, "-H", "-Y", "-Q"],
         stdin=slave, stdout=slave, stderr=slave, cwd=str(tmp_path),
         close_fds=True, preexec_fn=_make_controlling_tty)
     os.close(slave)
-    out = b""
-
-    def read_until(marker, secs):
-        nonlocal out
-        end = time.monotonic() + secs
-        while marker not in out and time.monotonic() < end:
-            r, _, _ = select.select([fd], [], [], 0.2)
-            if r:
-                try:
-                    chunk = os.read(fd, 4096)
-                except OSError:
-                    return
-                if not chunk:
-                    return
-                out += chunk
+    pty_in = PtyReader(fd)
 
     try:
-        read_until(b"C-Kermit>", 15)
+        pty_in.until(b"C-Kermit>", 15)
         os.write(fd, b"define spin { while true { } }\r")
         os.write(fd, b"(spin)\r")
         time.sleep(1)
         os.write(fd, b"\x03")
-        read_until(b"^C", 15)
-        read_until(b"C-Kermit>", 15)
+        pty_in.until(b"^C", 15)
+        pty_in.until(b"C-Kermit>", 15)
         os.write(fd, b"echo DEPTH=\\v(sdepth)\r")
-        read_until(b"DEPTH=", 15)
-        read_until(b"C-Kermit>", 15)
+        pty_in.until(b"DEPTH=", 15)
+        pty_in.until(b"C-Kermit>", 15)
         os.write(fd, b"set sexpression depth-limit 50\r")
         os.write(fd, b"echo RC=\\v(status)\r")
-        read_until(b"RC=", 15)
-        read_until(b"C-Kermit>", 15)
+        pty_in.until(b"RC=", 15)
+        pty_in.until(b"C-Kermit>", 15)
         os.write(fd, b"exit\r")
-        read_until(b"\x00never", 5)
+        pty_in.drain(5)
     finally:
         if proc.poll() is None:
             proc.kill()
         proc.wait()
         os.close(fd)
-    text = out.decode(errors="replace")
+    text = pty_in.out.decode(errors="replace")
     assert "DEPTH=0" in text, text[-1000:]
     assert "Not allowed" not in text, text[-1000:]
     assert "RC=0" in text, text[-1000:]
@@ -799,10 +784,9 @@ def test_expansion_interrupted_resets_depth(wermit_path, tmp_path):
     """
     import os
     import pty
-    import select
     import subprocess
     import time
-    from conftest import _make_controlling_tty
+    from conftest import PtyReader, _make_controlling_tty
     lines = ["declare \\&a[60]", "declare \\&b[60]",
              "define spin { while true { } }"]
     for i in range(1, 60):
@@ -817,44 +801,30 @@ def test_expansion_interrupted_resets_depth(wermit_path, tmp_path):
         stdin=slave, stdout=slave, stderr=slave, cwd=str(tmp_path),
         close_fds=True, preexec_fn=_make_controlling_tty)
     os.close(slave)
-    out = b""
-
-    def read_until(marker, secs):
-        nonlocal out
-        end = time.monotonic() + secs
-        while marker not in out and time.monotonic() < end:
-            r, _, _ = select.select([fd], [], [], 0.2)
-            if r:
-                try:
-                    chunk = os.read(fd, 4096)
-                except OSError:
-                    return
-                if not chunk:
-                    return
-                out += chunk
+    pty_in = PtyReader(fd)
 
     try:
-        read_until(b"C-Kermit>", 15)
+        pty_in.until(b"C-Kermit>", 15)
         os.write(fd, b"take chain.ksc\r")
         os.write(fd, b"echo READY\r")
-        read_until(b"\r\nREADY", 15)
-        read_until(b"C-Kermit>", 15)
+        pty_in.until(b"\r\nREADY", 15)
+        pty_in.until(b"C-Kermit>", 15)
         os.write(fd, b"echo [\\&b[1]]\r")
         time.sleep(1)
         os.write(fd, b"\x03")
-        read_until(b"^C", 15)
-        read_until(b"C-Kermit>", 15)
+        pty_in.until(b"^C", 15)
+        pty_in.until(b"C-Kermit>", 15)
         os.write(fd, b"echo VALUE=[\\&a[1]]\r")
-        read_until(b"VALUE=[", 15)
-        read_until(b"C-Kermit>", 15)
+        pty_in.until(b"VALUE=[", 15)
+        pty_in.until(b"C-Kermit>", 15)
         os.write(fd, b"exit\r")
-        read_until(b"\x00never", 5)
+        pty_in.drain(5)
     finally:
         if proc.poll() is None:
             proc.kill()
         proc.wait()
         os.close(fd)
-    text = out.decode(errors="replace")
+    text = pty_in.out.decode(errors="replace")
     assert "VALUE=[OK]" in text, text[-1000:]
     assert "too deep" not in text, text[-1000:]
 

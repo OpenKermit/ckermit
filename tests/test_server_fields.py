@@ -49,7 +49,7 @@ def _serve(wermit_path, tmp_path, commands, setup=""):
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(15)
+    srv.settimeout(scaled(15))
     replies = []
 
     def run():
@@ -58,7 +58,7 @@ def _serve(wermit_path, tmp_path, commands, setup=""):
         except OSError:
             return
         with conn:
-            conn.settimeout(10)
+            conn.settimeout(scaled(10))
             try:
                 for ptype, data in commands:
                     _exchange(conn, "I", INIT)
@@ -77,7 +77,7 @@ def _serve(wermit_path, tmp_path, commands, setup=""):
              f"{srv.getsockname()[1]} /raw-socket, {setup}"
              "enable all, server, exit"],
             stdin=subprocess.DEVNULL, capture_output=True, timeout=scaled(60))
-        thread.join(timeout=10)
+        thread.join(timeout=scaled(10))
     finally:
         srv.close()
     assert result.returncode >= 0, result.returncode

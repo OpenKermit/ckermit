@@ -15,7 +15,7 @@ def _transmit(wermit_path, path, fcs):
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(15)
+    srv.settimeout(scaled(15))
     data = bytearray()
 
     def run():
@@ -24,7 +24,7 @@ def _transmit(wermit_path, path, fcs):
         except OSError:
             return
         with conn:
-            conn.settimeout(5)
+            conn.settimeout(scaled(5))
             try:
                 while True:
                     b = conn.recv(4096)
@@ -45,7 +45,7 @@ def _transmit(wermit_path, path, fcs):
              "set transmit echo off, set transmit prompt 0, "
              f"transmit /text {path}, close, exit"],
             stdin=subprocess.DEVNULL, capture_output=True, timeout=scaled(30))
-        thread.join(timeout=10)
+        thread.join(timeout=scaled(10))
     finally:
         srv.close()
     return bytes(data)

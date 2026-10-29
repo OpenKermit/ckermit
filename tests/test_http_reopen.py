@@ -11,6 +11,7 @@ import threading
 import time
 
 import pytest
+from conftest import scaled
 
 MARKER = b"REOPENED"
 
@@ -22,7 +23,7 @@ def _serve(server_sock, result):
     sleeps between HTTP OPEN and HTTP GET.
     """
     try:
-        server_sock.settimeout(15)
+        server_sock.settimeout(scaled(15))
         conn, _ = server_sock.accept()
         time.sleep(1)                   # Let HTTP OPEN finish first
         conn.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER,
@@ -30,7 +31,7 @@ def _serve(server_sock, result):
         conn.close()
         conn, _ = server_sock.accept()
         try:
-            conn.settimeout(10)
+            conn.settimeout(scaled(10))
             request = b""
             while b"\r\n\r\n" not in request:
                 chunk = conn.recv(4096)
@@ -71,7 +72,7 @@ def test_http_reopen_uses_original_port(
             f"http get /file {downloaded}, http close",
             timeout=30)
     finally:
-        server.join(timeout=20)
+        server.join(timeout=scaled(20))
         server_sock.close()
 
     assert result and isinstance(result[0], bytes), (result, out.stdout)

@@ -5,9 +5,7 @@ import os
 import pty
 import subprocess
 
-import pytest
-
-from conftest import PROMPT, read_pty_until
+from conftest import PROMPT, _make_controlling_tty, read_pty_until
 
 
 def _complete(wermit_path, cwd, typed, expect):
@@ -15,17 +13,21 @@ def _complete(wermit_path, cwd, typed, expect):
 
     typed is written in 1 KB pieces.  The read ends when expect
     appears, when the terminal echoes Esc as ^[, or after 10 seconds.
-    Return the echo, with "DEAD" appended if wermit exited.
+    Return the echo, with "DEAD" appended if wermit exited.  Fail when
+    wermit prints no prompt or the terminal echoes Esc.  Either means
+    wermit did not take over the pty.
     """
     fd, slave = pty.openpty()
     proc = subprocess.Popen([wermit_path, "-H", "-Y"], stdin=slave,
                             stdout=slave, stderr=slave, cwd=cwd,
-                            start_new_session=True)
+                            preexec_fn=_make_controlling_tty)
     os.close(slave)
     out = b""
 
     try:
-        read_pty_until(fd, b"", (PROMPT,), 10)
+        read_pty_until(
+            fd, b"", (PROMPT,), 10,
+            message="wermit printed no prompt, so the pty setup is wrong")
         for i in range(0, len(typed), 1024):
             os.write(fd, typed[i:i + 1024])
             out = read_pty_until(fd, out, (), 0.01)
@@ -34,16 +36,15 @@ def _complete(wermit_path, cwd, typed, expect):
         if proc.poll() is not None:
             echoed += "DEAD"
     finally:
+        # Close the master first.  On NetBSD a session leader that exits
+        # with output pending waits for the master to read it.
         proc.kill()
-        proc.wait()
         os.close(fd)
+        proc.wait()
+    assert "^[" not in echoed, (
+        "the terminal echoed Esc, so wermit did not take over the pty: "
+        f"{echoed[-2000:]!r}")
     return echoed
-
-
-def _require_completion(echoed):
-    """Skip when the terminal setup does not give Esc completion."""
-    if "^[" in echoed:
-        pytest.skip("this terminal setup does not give Esc completion")
 
 
 def test_partial_completion(wermit_path, tmp_path):
@@ -52,7 +53,6 @@ def test_partial_completion(wermit_path, tmp_path):
     (tmp_path / "alphatwo.txt").write_text("x")
     echoed = _complete(wermit_path, tmp_path, b"type alp\x1b",
                        b"type alpha")
-    _require_completion(echoed)
     assert "type alpha" in echoed, repr(echoed)
 
 
@@ -62,7 +62,6 @@ def test_directory_completion(wermit_path, tmp_path):
     (tmp_path / "subdirectory" / "f.txt").write_text("x")
     echoed = _complete(wermit_path, tmp_path, b"type subd\x1b",
                        b"type subdirectory/")
-    _require_completion(echoed)
     assert "type subdirectory/" in echoed, repr(echoed)
 
 
@@ -79,6 +78,6 @@ def test_completion_at_end_of_command_buffer(wermit_path, tmp_path):
     (tmp_path / (name + "2.txt")).write_text("x")
     echoed = _complete(wermit_path, tmp_path,
                        b"type " + b" " * 32700 + b"a\x1b", PROMPT)
-    _require_completion(echoed)
     assert "AddressSanitizer" not in echoed, echoed[-2000:]
     assert "DEAD" not in echoed, echoed[-2000:]
+    assert PROMPT.decode() in echoed, echoed[-2000:]

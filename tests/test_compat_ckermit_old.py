@@ -8,7 +8,8 @@ from functools import partial
 
 import pytest
 
-from conftest import CLEAR_UNPREFIX_MODES, assert_ok, make_loopback_dirs
+from conftest import (CLEAR_UNPREFIX_MODES, assert_ok, kermit_wait,
+                      make_loopback_dirs)
 from test_transfer import (KERMIT_PACKET_LEN, run_transfer_helper,
                            _run_nul_replay_transfer)
 from test_remote import _wrap, run_remote_delete_boundary_lengths
@@ -244,7 +245,7 @@ def test_cve_2025_68920_restriction_holds_against_old_peer(
     }
     status_file = server_dir / f"status_{command_name}.txt"
     far_end_cmds = "\n".join([
-        "input 5 READY",
+        f"input {kermit_wait()} READY",
         far_end_cmd_map[command_name],
         f"if success !echo SUCCESS > {status_file}",
         f"if failure !echo FAILURE > {status_file}",

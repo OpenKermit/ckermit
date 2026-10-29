@@ -19,11 +19,13 @@ pip3.13 install pytest pytest-xdist pytest-timeout pyftpdlib
 
 Slow Machines:
 
-The hang limits in the suite (subprocess timeouts, waits for output,
-and the pytest-timeout limit of 120 s) are sized for a fast machine.
-At startup, conftest.py times a short wermit loop.  It multiplies the
-limits by the ratio to a fast machine, clamped to the range 1 to 20.
-The session header shows the factor:
+A hang limit bounds something that is expected to finish, such as a
+subprocess or a wait for output.  Each is at least 60 s, so a loaded
+host or a VM under emulation does not fail a test that would pass.
+The pytest-timeout limit is 600 s.  At startup, conftest.py times a
+short wermit loop.  It multiplies the limits by the ratio to a fast
+machine, clamped to the range 1 to 20.  The session header shows the
+factor:
 
     kermit timeout scale: 20.00
 
@@ -49,6 +51,12 @@ For a sweep of boundary values or keywords, run one session that tries
 each value, and report every failing value in the assertion message.
 Keep a separate process per value only when the bug needs one, such as
 a leak counted at exit or a failure that kills the process.
+
+Use scaled() for a limit on something expected to finish.  It is at
+least 60 s.  Use kermit_wait() for an INPUT in a Kermit script that
+expects its text.  Use expected_timeout() only for a wait the test
+means to run out.  read_pty_until() and PtyReader fail the test when
+the text they wait for does not arrive.
 
 Debugging Server-Side Operations:
 

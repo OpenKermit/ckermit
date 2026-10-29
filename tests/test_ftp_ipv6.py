@@ -4,13 +4,11 @@ These mirror test_ftp.py's upload/download coverage
 but connect over ::1, exercising both active (EPRT) and passive
 (EPSV) data connections.
 """
-import errno
 import socket
 import subprocess
-import threading
 import pytest
 from pyftpdlib.authorizers import DummyAuthorizer
-from conftest import assert_ok, scaled
+from conftest import assert_ok, scaled, serve_ftp
 from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import FTPServer
 
@@ -103,25 +101,11 @@ def ftp_server_v6(wermit_ftp_available, run_wermit, tmp_path):
 
     ip, port, flowinfo, scopeid = server.socket.getsockname()
 
-    def run_server():
-        try:
-            server.serve_forever()
-        except OSError as e:
-            # close_all() below can close the kqueue/select fd from
-            # the main thread while this thread is blocked inside
-            # it, causing EBADF. This is an expected shutdown race,
-            # not a real failure.
-            if e.errno != errno.EBADF:
-                raise
-
-    thread = threading.Thread(target=run_server)
-    thread.daemon = True
-    thread.start()
+    stop = serve_ftp(server)
 
     yield port, tmp_path
 
-    server.close_all()
-    thread.join(timeout=2)
+    stop()
 
 
 def ftp_session_v6(port, *commands, active=False):
@@ -170,21 +154,11 @@ def ftp_server_link_local(wermit_ftp_available, run_wermit, tmp_path):
 
     ip, port, flowinfo, scopeid = server.socket.getsockname()
 
-    def run_server():
-        try:
-            server.serve_forever()
-        except OSError as e:
-            if e.errno != errno.EBADF:
-                raise
-
-    thread = threading.Thread(target=run_server)
-    thread.daemon = True
-    thread.start()
+    stop = serve_ftp(server)
 
     yield iface, addr, port, tmp_path, eprt_commands
 
-    server.close_all()
-    thread.join(timeout=2)
+    stop()
 
 
 def ftp_session_link_local(iface, addr, port, *commands, active=False):

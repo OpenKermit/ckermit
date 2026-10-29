@@ -61,13 +61,21 @@ TELNET_WAIT_OFF = "set telnet wait-for-negotiations off"
 # setup/teardown.  I'm not convinced this is necessary though.
 TCP_TIMEOUT_MARGIN = 15
 
-# The hang limits in this suite (subprocess timeouts, pty and listener
-# waits, and the pytest-timeout limit) are sized for a fast machine.
-# scaled() multiplies a limit by the factor in this environment
-# variable.  When it is unset, pytest_configure() measures wermit
-# against CALIBRATION_REFERENCE and sets it.  xdist workers inherit it.
+# A test uses two kinds of limit.  A hang limit bounds something that
+# is expected to finish, such as a transfer or a reply.  It costs
+# nothing when the test passes, so it is generous.  A VM on a loaded
+# host, or under emulation, can leave a process unscheduled for
+# seconds.  scaled() returns at least HANG_LIMIT_MIN for a hang limit.
+# An expected timeout is a wait that the test means to run out, such as
+# "no reply arrives within 2 s".  expected_timeout() gives it no
+# minimum.
+#
+# Both multiply by the factor in this environment variable.  When it is
+# unset, pytest_configure() measures wermit against
+# CALIBRATION_REFERENCE and sets it.  xdist workers inherit it.
 # Elapsed-time assertions do not use the factor.  Each bound is smaller
 # than the stall that it detects.
+HANG_LIMIT_MIN = 60
 TIMEOUT_SCALE_ENV = "KERMIT_TEST_TIMEOUT_SCALE"
 CALIBRATION_CMD = "for \\%i 1 2000 1 { .x := \\%i }, exit"
 CALIBRATION_REFERENCE = 0.055       # seconds on a 2026 x86 machine
@@ -102,8 +110,80 @@ def timeout_scale():
 
 
 def scaled(seconds):
-    """Return the hang limit seconds multiplied by timeout_scale()."""
+    """Return a hang limit of seconds, at least HANG_LIMIT_MIN.
+
+    The result is multiplied by timeout_scale().
+    """
+    return max(seconds, HANG_LIMIT_MIN) * timeout_scale()
+
+
+def kermit_wait():
+    """Return the seconds for a wait inside a Kermit script.
+
+    Use it for an INPUT, or another wait in the script, that expects its
+    text to arrive.  It is a hang limit.  The value stays below
+    HANG_LIMIT_MIN, so it ends before the Python limit around the
+    script.
+    """
+    return int(HANG_LIMIT_MIN / 2 * timeout_scale())
+
+
+def expected_timeout(seconds):
+    """Return seconds multiplied by timeout_scale().
+
+    Use this for a wait that the test expects to run out.  It has no
+    minimum.
+    """
     return seconds * timeout_scale()
+
+
+def accept_or_stop(srv, stop, limit=20):
+    """Accept one connection on the listening socket srv.
+
+    Return the connection, or None when the threading.Event stop is
+    set, srv closes, or the hang limit runs out.  The accept polls in
+    0.2 s steps and checks stop between them.  A close of srv from
+    another thread does not wake a blocked accept() on every system.
+    """
+    deadline = time.monotonic() + scaled(limit)
+    srv.settimeout(0.2)
+    while not stop.is_set() and time.monotonic() < deadline:
+        try:
+            conn, _ = srv.accept()
+        except socket.timeout:
+            continue
+        except OSError:
+            return None
+        conn.settimeout(None)
+        return conn
+    return None
+
+
+def serve_ftp(server):
+    """Run the pyftpdlib server on a thread.  Return a stop function.
+
+    The thread polls in 0.1 s steps until the stop function sets its
+    event.  The thread then closes the server.  The poll descriptor
+    and the sockets close only on the thread that waits on them.
+    """
+    import threading
+    stop = threading.Event()
+
+    def run():
+        try:
+            while not stop.is_set():
+                server.ioloop.loop(0.1, blocking=False)
+        finally:
+            server.close_all()
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+
+    def finish():
+        stop.set()
+        thread.join(timeout=scaled(10))
+
+    return finish
 
 
 @pytest.hookimpl(trylast=True)
@@ -221,8 +301,8 @@ def require_tls_version(ssl_pki, version):
     except (ValueError, ssl.SSLError) as e:
         pytest.skip(f"this Python cannot use only {version}: {e}")
     server_sock, client_sock = socket.socketpair()
-    server_sock.settimeout(10)
-    client_sock.settimeout(10)
+    server_sock.settimeout(scaled(10))
+    client_sock.settimeout(scaled(10))
     errors = []
 
     def serve():
@@ -242,7 +322,7 @@ def require_tls_version(ssl_pki, version):
         errors.append(e)
     finally:
         client_sock.close()
-        thread.join(timeout=10)
+        thread.join(timeout=scaled(10))
         server_sock.close()
     if errors:
         pytest.skip(f"this Python cannot handshake at {version}: "
@@ -500,7 +580,7 @@ def _wait_or_kill(proc, timeout=5):
     except subprocess.TimeoutExpired:
         proc.terminate()
         try:
-            proc.wait(timeout=scaled(2))
+            proc.wait(timeout=expected_timeout(2))
         except subprocess.TimeoutExpired:
             proc.kill()
             proc.wait(timeout=scaled(2))
@@ -546,7 +626,9 @@ def spawn_tcp_listener(spawn_wermit, args, log_path, label,
                                timeout=timeout)
     except PortCollisionError:
         log_fh.close()
-        _wait_or_kill(proc, timeout=1)
+        # A listener that bound one address family keeps waiting on it.
+        proc.terminate()
+        _wait_or_kill(proc)
         raise
     except BaseException:
         log_fh.close()
@@ -698,6 +780,22 @@ def wermit_http_available(wermit_path):
         capture_output=True, text=True, timeout=scaled(10)
     )
     return not re.search(r"\bNOHTTP\b", result.stdout)
+
+
+@pytest.fixture(scope="session")
+def wermit_forward_x_available(wermit_path):
+    """
+    True if the wermit binary under test was compiled with Telnet
+    FORWARD-X support.  Checks SHOW FEATURES output for CK_FORWARD_X.
+    A failed SHOW FEATURES fails the test rather than skipping it.
+    """
+    result = subprocess.run(
+        [wermit_path, "-H", "-Y", "-C",
+         "set command more-prompting off, show features, exit"],
+        capture_output=True, text=True, timeout=scaled(10)
+    )
+    assert_ok(result, "SHOW FEATURES failed")
+    return bool(re.search(r"\bCK_FORWARD_X\b", result.stdout))
 
 
 @pytest.fixture
@@ -1170,7 +1268,7 @@ def spawn_wermit(wermit_path):
         if proc.poll() is None:
             proc.terminate()
             try:
-                proc.wait(timeout=scaled(2))
+                proc.wait(timeout=expected_timeout(2))
             except subprocess.TimeoutExpired:
                 proc.kill()
                 proc.wait(timeout=scaled(2))
@@ -1354,7 +1452,7 @@ def _log_process_snapshot(label):
     with the test that timed out."""
     try:
         ps = subprocess.run(
-            ["ps", "-ef"], capture_output=True, text=True, timeout=5)
+            ["ps", "-ef"], capture_output=True, text=True, timeout=scaled(5))
         relevant = "\n".join(
             line for line in ps.stdout.splitlines()
             if line.startswith("UID")
@@ -1377,7 +1475,8 @@ def _log_socket_snapshot(label, port):
     """
     try:
         ns = subprocess.run(
-            ["netstat", "-an"], capture_output=True, text=True, timeout=5)
+            ["netstat", "-an"], capture_output=True, text=True,
+            timeout=scaled(5))
         # BSD netstat uses '.' as port delimiter (127.0.0.1.41000); Linux
         # uses ':' (127.0.0.1:41000). Match either delimiter and require a
         # trailing non-digit or end-of-line to avoid prefix matches.
@@ -1437,13 +1536,17 @@ def start_wermit_pty(wermit_path, cmd_str, cwd, debug_log=None):
     return proc, master
 
 
-def finish_wermit_pty(proc, master, timeout=45, debug_log=None):
+def finish_wermit_pty(proc, master, timeout=45, debug_log=None,
+                      expect_timeout=False):
     """
     Reads a wermit process's pty output (started via start_wermit_pty)
     until it exits or the timeout fires, then returns
-    (returncode, stdout).
+    (returncode, stdout).  timeout is a hang limit.  expect_timeout
+    makes it an expected timeout, for a test that expects the run to
+    hang.
     """
-    timeout = scaled(timeout)
+    timeout = (expected_timeout(timeout) if expect_timeout
+               else scaled(timeout))
     output = []
     start_time = time.time()
 
@@ -1458,7 +1561,7 @@ def finish_wermit_pty(proc, master, timeout=45, debug_log=None):
                 _log_process_snapshot("finish_wermit_pty")
                 proc.terminate()
                 try:
-                    proc.wait(timeout=scaled(2))
+                    proc.wait(timeout=expected_timeout(2))
                 except subprocess.TimeoutExpired:
                     proc.kill()
                     proc.wait(timeout=scaled(2))
@@ -1538,7 +1641,7 @@ def finish_wermit_pty_pair(proc_a, master_a, proc_b, master_b, timeout=45):
                     proc.terminate()
             for proc, _ in entries.values():
                 try:
-                    proc.wait(timeout=scaled(2))
+                    proc.wait(timeout=expected_timeout(2))
                 except subprocess.TimeoutExpired:
                     proc.kill()
                     proc.wait(timeout=scaled(2))
@@ -1568,7 +1671,8 @@ def finish_wermit_pty_pair(proc_a, master_a, proc_b, master_b, timeout=45):
         for proc, output in entries.values())
 
 
-def run_wermit_pty(wermit_path, cmd_str, cwd, timeout=45, debug_log=None):
+def run_wermit_pty(wermit_path, cmd_str, cwd, timeout=45, debug_log=None,
+                   expect_timeout=False):
     """
     Runs kermit with its stdin, stdout, and stderr connected to a real
     pseudoterminal slave, waiting for it to finish and returning
@@ -1585,7 +1689,8 @@ def run_wermit_pty(wermit_path, cmd_str, cwd, timeout=45, debug_log=None):
     terminal environment matching normal shell usage.
     """
     proc, master = start_wermit_pty(wermit_path, cmd_str, cwd, debug_log)
-    return finish_wermit_pty(proc, master, timeout=timeout, debug_log=debug_log)
+    return finish_wermit_pty(proc, master, timeout=timeout, debug_log=debug_log,
+                             expect_timeout=expect_timeout)
 
 
 def _wait_for_pty_raw(master, timeout):
@@ -1643,14 +1748,21 @@ def _wait_for_pty_marker(master, marker, timeout):
 PROMPT = b"C-Kermit>"
 
 
-def read_pty_until(master, buf, markers, timeout):
+def read_pty_until(master, buf, markers, timeout, partial=False,
+                   message=None):
     """Read from a pty master onto buf until buf holds one of markers.
 
     markers is a tuple of bytes.  An empty tuple reads whatever arrives
-    within timeout.  The read also ends when timeout runs out or the
+    within timeout, so timeout is an expected timeout.  With markers it
+    is a hang limit.  The read also ends when timeout runs out or the
     pty closes.  Return buf with the data appended.
+
+    With markers, a read that ends before one appears raises
+    AssertionError with message and the end of buf.  partial returns
+    buf instead.
     """
-    end = time.monotonic() + scaled(timeout)
+    end = time.monotonic() + (scaled(timeout) if markers
+                              else expected_timeout(timeout))
     while not any(m in buf for m in markers):
         left = end - time.monotonic()
         if left <= 0 or not select.select([master], [], [], left)[0]:
@@ -1662,7 +1774,43 @@ def read_pty_until(master, buf, markers, timeout):
         if not data:
             break
         buf += data
+    if markers and not partial and not any(m in buf for m in markers):
+        raise AssertionError(
+            f"{message or 'none of ' + repr(markers) + ' arrived'}: "
+            f"{truncated('pty output', buf.decode(errors='replace'))}")
     return buf
+
+
+class PtyReader:
+    """Read a pty master in order and keep everything read in out.
+
+    Each until() looks for its marker after the previous match, so a
+    second prompt is not taken from text already seen.
+    """
+
+    def __init__(self, master):
+        self.master = master
+        self.out = b""
+        self.pos = 0
+
+    def until(self, marker, timeout, message=None):
+        """Read until marker appears after the previous match.
+
+        timeout is a hang limit.  Raise AssertionError, through
+        read_pty_until(), when marker does not arrive.  Return the data
+        from the previous match through this one.
+        """
+        tail = read_pty_until(self.master, self.out[self.pos:], (marker,),
+                              timeout, message=message)
+        self.out = self.out[:self.pos] + tail
+        end = tail.index(marker) + len(marker)
+        self.pos += end
+        return tail[:end]
+
+    def drain(self, timeout):
+        """Read what arrives within timeout, an expected timeout."""
+        self.out = read_pty_until(self.master, self.out, (), timeout)
+        return self.out
 
 
 def start_pty_tcp_listener(wermit_path, get_free_port, cmd_for_port, cwd,
@@ -1689,7 +1837,7 @@ def start_pty_tcp_listener(wermit_path, get_free_port, cmd_for_port, cwd,
         os.close(master)
         try:
             proc.terminate()
-            proc.wait(timeout=scaled(2))
+            proc.wait(timeout=expected_timeout(2))
         except (subprocess.TimeoutExpired, OSError):
             proc.kill()
             proc.wait(timeout=scaled(2))
@@ -2047,7 +2195,7 @@ def foreign_kermit_pty(wermit_path):
 
     Return a callable with signature:
         foreign_kermit_pty(peer_argv, cmd_str, cwd, timeout=45,
-                           debug_log=None)
+                           debug_log=None, expect_timeout=False)
 
     peer_argv is the external binary argument list. cmd_str is the
     wermit command string containing a literal "{HOST}" placeholder for
@@ -2056,13 +2204,15 @@ def foreign_kermit_pty(wermit_path):
     The "{HOST}" placeholder is replaced via str.replace() rather than
     str.format() to preserve literal braces in Kermit commands.
     """
-    def _run(peer_argv, cmd_str, cwd, timeout=45, debug_log=None):
+    def _run(peer_argv, cmd_str, cwd, timeout=45, debug_log=None,
+             expect_timeout=False):
         host = ("/network-type:pseudoterminal "
                 + " ".join(shlex.quote(str(a)) for a in peer_argv))
         full_cmd_str = (f"{PROTOCOL_STARTUP_OFF}, "
                         + cmd_str.replace("{HOST}", host))
         return run_wermit_pty(wermit_path, full_cmd_str, cwd,
-                              timeout=timeout, debug_log=debug_log)
+                              timeout=timeout, debug_log=debug_log,
+                              expect_timeout=expect_timeout)
     return _run
 
 
@@ -2225,7 +2375,11 @@ class TelnetTlsClient:
         return False
 
     def _wait(self, done, timeout):
-        """Read and handle input until done() returns True."""
+        """Read and handle input until done() returns True.
+
+        Return done() at the end.  It is False when the hang limit ran
+        out or the connection closed first.
+        """
         deadline = time.monotonic() + scaled(timeout)
         while True:
             # A START_TLS switch must not read past the handshake.
@@ -2243,16 +2397,22 @@ class TelnetTlsClient:
             if not got:
                 break
             self.buf += got
+        return done()
 
-    def expect(self, until, timeout=20):
+    def expect(self, until, timeout=20, partial=False):
         """Read until any byte string in until appears in new data.
 
-        Returns the data read since the last call.
+        Returns the data read since the last call.  When none appears
+        before the hang limit runs out or the connection closes, raise
+        AssertionError with that data.  partial returns it instead.
         """
         start = len(self.data)
-        self._wait(lambda: any(u in self.data[start:] for u in until),
-                   timeout)
-        return self.data[start:].decode("latin-1")
+        found = self._wait(
+            lambda: any(u in self.data[start:] for u in until), timeout)
+        got = self.data[start:].decode("latin-1")
+        if not found and not partial:
+            raise AssertionError(f"none of {until!r} arrived: {got!r}")
+        return got
 
     def wait_tls(self, timeout=20):
         """Read until the TLS handshake completes.  Returns tls."""

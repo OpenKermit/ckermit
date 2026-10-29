@@ -471,7 +471,7 @@ def test_iksd_lock_write_failure(run_wermit, wermit_path, faultinj,
     proc, client, log_fh = _connect_iksd(
         str(iksd), dbfile, tmp_path / "iksd.log", cwd=tmp_path, env=env)
     try:
-        client.settimeout(5)
+        client.settimeout(scaled(5))
         assert client.recv(4096).startswith(b"\xff")
         assert not dbfile.exists()
         assert not (tmp_path / "iksd.lck").exists()
@@ -501,7 +501,7 @@ def test_iksd_lock_write_failure_syslog(run_wermit, wermit_path, faultinj,
     proc, client, log_fh = _connect_iksd(
         str(iksd), dbfile, tmp_path / "iksd.log", cwd=tmp_path, env=env)
     try:
-        client.settimeout(5)
+        client.settimeout(scaled(5))
         assert client.recv(4096).startswith(b"\xff")
         text = log.read_text() if log.exists() else ""
         assert ("IKSD database not updated: can't write lockfile "

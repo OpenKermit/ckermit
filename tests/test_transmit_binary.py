@@ -16,7 +16,7 @@ def _transmit_telnet(wermit_path, path):
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(15)
+    srv.settimeout(scaled(15))
     data = bytearray()
 
     def run():
@@ -25,7 +25,7 @@ def _transmit_telnet(wermit_path, path):
         except OSError:
             return
         with conn:
-            conn.settimeout(10)
+            conn.settimeout(scaled(10))
             try:
                 while True:
                     b = conn.recv(65536)
@@ -45,7 +45,7 @@ def _transmit_telnet(wermit_path, path):
              "set transmit echo off, "
              f"transmit /binary {path}, close, exit"],
             stdin=subprocess.DEVNULL, capture_output=True, timeout=scaled(30))
-        thread.join(timeout=15)
+        thread.join(timeout=scaled(15))
     finally:
         srv.close()
     return proc.returncode, bytes(data)

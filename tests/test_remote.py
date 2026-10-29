@@ -2,7 +2,7 @@ import os
 import subprocess
 
 import pytest
-from conftest import assert_ok, make_loopback_dirs, scaled
+from conftest import kermit_wait, assert_ok, make_loopback_dirs, scaled
 
 
 @pytest.mark.parametrize("loopback_transport", ["raw-socket", "telnet"],
@@ -184,7 +184,7 @@ def test_local_server_remote_commands_disabled_by_default(
     # entering server mode. This prevents the server from sending commands
     # too early, but it is complex and can time out if the PTY stalls.
     server_cmds = "\n".join([
-        "input 5 READY",
+        f"input {kermit_wait()} READY",
         server_cmd,
         f"if success !echo SUCCESS > {status_file}",
         f"if failure !echo FAILURE > {status_file}",

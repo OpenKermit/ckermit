@@ -5,8 +5,8 @@ import time
 import pytest
 
 from conftest import (
-    _make_leaf, assert_ok, PROTOCOL_STARTUP_OFF, require_tls_version,
-    scaled, ssl_client_setup_cmds, ssl_server_setup_cmds,
+    _make_leaf, assert_ok, kermit_wait, PROTOCOL_STARTUP_OFF,
+    require_tls_version, scaled, ssl_client_setup_cmds, ssl_server_setup_cmds,
     TELNET_REFUSE_KERMIT_CLAUSE, TelnetTlsClient,
 )
 
@@ -14,6 +14,13 @@ pytestmark = pytest.mark.skipif(
     shutil.which("openssl") is None,
     reason="openssl CLI not found on PATH"
 )
+
+
+@pytest.fixture(autouse=True)
+def _require_ssl(wermit_ssl_available):
+    """Skip each item when wermit has no SSL/TLS support."""
+    if not wermit_ssl_available:
+        pytest.skip("wermit was not built with SSL/TLS support")
 
 
 def test_ssl_first_exchange_is_not_delayed(server_dir, wermit_tcp_loopback,
@@ -468,7 +475,7 @@ def test_ssl_expired_certificate_warns_but_is_accepted(
     ("tls-raw", "TLS raw?"),
 ])
 def test_raw_protocol_switch_sets_matching_raw_flag(
-        run_wermit, wermit_ssl_available, protocol, raw_flag_label):
+        run_wermit, protocol, raw_flag_label):
     """
     Regression test for a bug: in ckuus7.c's SET HOST protocol-switch
     handling, the NP_TLS/NP_TLS_RAW case set
@@ -488,13 +495,7 @@ def test_raw_protocol_switch_sets_matching_raw_flag(
     test.)
 
     Verifies the fix in 45954c319bf773ed48fb7ed2a40cda52d38846ea
-
-    The /ssl-raw and /tls-raw SET HOST switches only exist in a kermit built
-    with SSL/TLS support, so this needs the same skip as anything depending on
-    ssl_pki.
     """
-    if not wermit_ssl_available:
-        pytest.skip("wermit was not built with SSL/TLS support")
     result = run_wermit(
         "set tcp reverse-dns-lookup off, "
         f"set host localhost 1 /{protocol}, "
@@ -508,7 +509,7 @@ def test_raw_protocol_switch_sets_matching_raw_flag(
 
 
 def test_telnet_no_cert_completes_without_ssl_negotiation(
-        wermit_ssl_available, server_dir, wermit_tcp_loopback):
+        server_dir, wermit_tcp_loopback):
     """
     Regression test for IKSD and SET HOST /SERVER offering Telnet
     START-TLS and the AUTHENTICATION option's SSL type by default
@@ -523,9 +524,6 @@ def test_telnet_no_cert_completes_without_ssl_negotiation(
     proceeding as plain Telnet the way a certificate-less server
     should.
     """
-    if not wermit_ssl_available:
-        pytest.skip("wermit was not built with SSL/TLS support")
-
     session = wermit_tcp_loopback(server_dir, protocol="telnet")
     result = session.run_client("remote pwd", protocol="telnet")
 
@@ -536,7 +534,7 @@ def test_telnet_no_cert_completes_without_ssl_negotiation(
 
 
 def test_telnet_no_cert_does_not_offer_ssl_authentication_type(
-        wermit_ssl_available, server_dir, wermit_tcp_loopback):
+        server_dir, wermit_tcp_loopback):
     """
     Isolates the AUTHENTICATION-option half of the fix described in
     test_telnet_no_cert_completes_without_ssl_negotiation: with
@@ -551,9 +549,6 @@ def test_telnet_no_cert_does_not_offer_ssl_authentication_type(
     loadable, with no certificate check, so the client would select
     it, attempt the handshake, and fail the same way.
     """
-    if not wermit_ssl_available:
-        pytest.skip("wermit was not built with SSL/TLS support")
-
     session = wermit_tcp_loopback(
         server_dir, protocol="telnet",
         setup_cmds="set telopt /server start-tls refused",
@@ -817,7 +812,7 @@ def _tls_send_after(ssl_pki, delay, data):
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(20)
+    srv.settimeout(scaled(20))
 
     def run():
         try:
@@ -880,7 +875,7 @@ def test_tls_client_sends_sni(run_wermit, ssl_pki, protocol):
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(20)
+    srv.settimeout(scaled(20))
 
     def run():
         try:
@@ -897,10 +892,10 @@ def test_tls_client_sends_sni(run_wermit, ssl_pki, protocol):
         run_wermit(
             f"set authentication ssl verify-file {ssl_pki['ca_crt']}, "
             f"set host localhost {srv.getsockname()[1]} /{protocol}, "
-            "input 5 HELLO, close", timeout=30)
+            f"input {kermit_wait()} HELLO, close", timeout=30)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert names == ["localhost"], names
 
 
@@ -999,12 +994,12 @@ def test_ftp_tls_sends_sni(run_wermit, ssl_pki):
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(20)
+    srv.settimeout(scaled(20))
 
     def run():
         try:
             conn, _ = srv.accept()
-            conn.settimeout(10)
+            conn.settimeout(scaled(10))
             conn.sendall(b"220 hi\r\n")
             f = conn.makefile("rb")
             line = f.readline()
@@ -1027,7 +1022,7 @@ def test_ftp_tls_sends_sni(run_wermit, ssl_pki):
             "/password:p, ftp close", timeout=30)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert names == ["localhost"], names
 
 
@@ -1167,14 +1162,14 @@ def _tls_handshake_server(ctx):
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(20)
+    srv.settimeout(scaled(20))
 
     def run():
         try:
             conn, _ = srv.accept()
             with ctx.wrap_socket(conn, server_side=True) as s:
                 results.append("ok")
-                s.settimeout(5)
+                s.settimeout(scaled(5))
                 s.recv(100)
         except (OSError, ssl.SSLError) as e:
             if not results:
@@ -1265,7 +1260,7 @@ def test_client_minimum_version(wermit_path, wermit_http_available,
             env)
     finally:
         srv.close()
-        thread.join(timeout=10)
+        thread.join(timeout=scaled(10))
     if accepted:
         assert results == ["ok"], (results, result.stdout)
         assert "STATUS=0" in result.stdout, result.stdout
@@ -1313,7 +1308,7 @@ def test_server_minimum_version(wermit_path, ssl_pki, tmp_path,
         while outcome is None:
             try:
                 sock = socket.create_connection(("127.0.0.1", port),
-                                                timeout=10)
+                                                timeout=scaled(10))
             except OSError:
                 if time.monotonic() > deadline:
                     raise
@@ -1359,7 +1354,7 @@ def test_tls_default_ciphers_exclude_anonymous(wermit_path, tmp_path,
             _permissive_openssl_conf(tmp_path))
     finally:
         srv.close()
-        thread.join(timeout=10)
+        thread.join(timeout=scaled(10))
     assert results and results[0] != "ok", (results, result.stdout)
     assert "STATUS=1" in result.stdout, result.stdout
 
@@ -1462,13 +1457,13 @@ def test_connect_refuses_unmatched_cipher_list(wermit_path,
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(20)
+    srv.settimeout(scaled(20))
 
     def run():
         try:
             conn, _ = srv.accept()
             with conn:
-                conn.settimeout(5)
+                conn.settimeout(scaled(5))
                 received.append(conn.recv(100))
         except OSError:
             pass
@@ -1486,7 +1481,7 @@ def test_connect_refuses_unmatched_cipher_list(wermit_path,
             dict(os.environ, SSL_CIPHER="BOGUS"))
     finally:
         srv.close()
-        thread.join(timeout=10)
+        thread.join(timeout=scaled(10))
     assert '?No cipher matches the cipher list "BOGUS"' in result.stdout, \
         result.stdout
     assert "STATUS=1" in result.stdout, result.stdout

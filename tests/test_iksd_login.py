@@ -10,6 +10,7 @@ prompt and sends server commands.
 import getpass
 import os
 import platform
+import re
 import shutil
 import socket
 import struct
@@ -18,7 +19,7 @@ import threading
 
 import pytest
 
-from conftest import TelnetTlsClient, scaled
+from conftest import kermit_wait, TelnetTlsClient, scaled
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PASSWORD = "s3cret-test"
@@ -79,11 +80,25 @@ def fakeshadow(tmp_path_factory, wermit_path, wermit_sanitized):
 
 
 def _has_iksd(wermit_path):
-    """Return True if this build has IKSD login support."""
+    """Return True if this build has IKSD login through shadow or PAM.
+
+    fakeshadow.so supplies the password through the shadow and PAM
+    functions.  A build with neither reads it from the passwd entry.
+    """
     result = subprocess.run([wermit_path, "--help"], capture_output=True,
                             text=True, stdin=subprocess.DEVNULL,
                             timeout=scaled(10))
-    return "--userfile" in result.stdout
+    assert result.returncode == 0 and result.stdout, (
+        f"wermit --help failed: {result!r}")
+    if "--userfile" not in result.stdout:
+        return False
+    result = subprocess.run(
+        [wermit_path, "-H", "-Y", "-C",
+         "set command more-prompting off, show features, exit"],
+        capture_output=True, text=True, stdin=subprocess.DEVNULL,
+        timeout=scaled(10))
+    assert result.returncode == 0, f"SHOW FEATURES failed: {result!r}"
+    return bool(re.search(r"\bCK_(SHADOW|PAM)\b", result.stdout))
 
 
 def _iksd_session(wermit_path, fakeshadow, tmp_path, client_cmds,
@@ -99,7 +114,7 @@ def _iksd_session(wermit_path, fakeshadow, tmp_path, client_cmds,
     and returns the result.  alias is a second name for the user.
     """
     if not _has_iksd(wermit_path):
-        pytest.skip("build has no IKSD login support")
+        pytest.skip("build has no IKSD login through shadow or PAM")
     user = getpass.getuser()
     link = tmp_path / "iksd"
     os.symlink(wermit_path, str(link))
@@ -117,12 +132,14 @@ def _iksd_session(wermit_path, fakeshadow, tmp_path, client_cmds,
     if alias is not None:
         env["FAKESHADOW_ALIAS"] = alias
     if login is None:
-        login = (f"input 10 Password:, output {PASSWORD}\\13, "
-                 "input 10 IKSD>, if success echo LOGGEDIN")
+        # A refused login prompts for Username: again.
+        login = (f"input {kermit_wait()} Password:, output {PASSWORD}\\13, "
+                 f"minput {kermit_wait()} IKSD> Username:, "
+                 "if = \\v(minput) 1 echo LOGGEDIN")
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(20)
+    srv.settimeout(scaled(20))
     procs = []
 
     def serve():
@@ -150,7 +167,7 @@ def _iksd_session(wermit_path, fakeshadow, tmp_path, client_cmds,
             timeout=scaled(60))
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
         for proc in procs:
             if proc.poll() is None:
                 proc.kill()
@@ -243,7 +260,9 @@ def _tls_login(wermit_path, fakeshadow, tmp_path, ssl_pki, listed,
             f"set authentication ssl rsa-cert-file {ssl_pki['client_crt']}, "
             f"set authentication ssl rsa-key-file {ssl_pki['client_key']}, "
             f"set authentication ssl verify-file {ssl_pki['ca_crt']}, "),
-        login="input 15 IKSD>, if success echo LOGGEDIN")
+        # Without a listed certificate the IKSD asks for a password.
+        login=(f"minput {kermit_wait()} IKSD> Password:, "
+               "if = \\v(minput) 1 echo LOGGEDIN"))
 
 
 @pytest.mark.parametrize("method", ["start-tls", "auth-ssl"])

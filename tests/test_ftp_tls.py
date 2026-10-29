@@ -11,7 +11,7 @@ import threading
 
 import pytest
 
-from conftest import require_tls_version
+from conftest import accept_or_stop, require_tls_version, scaled
 
 REPLIES = {
     "USER": b"331 password please\r\n",
@@ -46,7 +46,7 @@ class TlsFtpPeer:
         self.srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.srv.bind(("127.0.0.1", 0))
         self.srv.listen(1)
-        self.srv.settimeout(20)
+        self.srv.settimeout(scaled(20))
         self.port = self.srv.getsockname()[1]
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
@@ -55,7 +55,7 @@ class TlsFtpPeer:
         """Accept the data connection and send payload."""
         conn, _ = data_srv.accept()
         data_srv.close()
-        conn.settimeout(20)
+        conn.settimeout(scaled(20))
         if protected:
             conn = self.ctx.wrap_socket(conn, server_side=True)
         with conn:
@@ -73,7 +73,7 @@ class TlsFtpPeer:
             return
         # Close the listener so a second connection fails.
         self.srv.close()
-        conn.settimeout(20)
+        conn.settimeout(scaled(20))
         protected = False
         data_srv = None
         try:
@@ -99,7 +99,7 @@ class TlsFtpPeer:
                                              socket.SOCK_STREAM)
                     data_srv.bind(("127.0.0.1", 0))
                     data_srv.listen(1)
-                    data_srv.settimeout(20)
+                    data_srv.settimeout(scaled(20))
                     p = data_srv.getsockname()[1]
                     conn.sendall(b"227 Entering Passive Mode "
                                  b"(127,0,0,1,%d,%d)\r\n"
@@ -126,7 +126,7 @@ class TlsFtpPeer:
     def close(self):
         """Close the listener and wait for the server thread."""
         self.srv.close()
-        self.thread.join(timeout=10)
+        self.thread.join(timeout=scaled(10))
 
     def sent(self, verb):
         """Return the arguments of each command with the given verb."""
@@ -291,16 +291,16 @@ class FallbackFtpPeer:
         self.ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         self.ctx.load_cert_chain(crt, key)
         self.commands = []
+        self.stop = threading.Event()
         self.srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.srv.bind(("127.0.0.1", 0))
         self.srv.listen(4)
-        self.srv.settimeout(20)
         self.port = self.srv.getsockname()[1]
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
 
     def _serve(self, n, conn):
-        conn.settimeout(10)
+        conn.settimeout(scaled(10))
         conn.sendall(b"220 hi\r\n")
         for line in conn.makefile("rb"):
             line = line.rstrip(b"\r\n")
@@ -321,9 +321,8 @@ class FallbackFtpPeer:
 
     def _run(self):
         for n in range(3):
-            try:
-                conn, _ = self.srv.accept()
-            except OSError:
+            conn = accept_or_stop(self.srv, self.stop)
+            if conn is None:
                 return
             try:
                 with conn:
@@ -332,16 +331,10 @@ class FallbackFtpPeer:
                 pass
 
     def close(self):
-        """Close the listener and wait for the server thread.
-
-        shutdown() wakes accept() in the server thread.
-        """
-        try:
-            self.srv.shutdown(socket.SHUT_RDWR)
-        except OSError:
-            pass
+        """Stop the server thread and close the listener."""
+        self.stop.set()
+        self.thread.join(timeout=scaled(15))
         self.srv.close()
-        self.thread.join(timeout=15)
 
 
 @pytest.mark.parametrize("fallback", ["off", "on"])
