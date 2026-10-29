@@ -277,8 +277,11 @@ char * ptyver = "PTY support 8.0.017, 18 Sep 2020";
 #define ONLCR 0
 #endif /* ONLCR */
 
-#ifdef CK_WAIT_H
+#ifndef CK_WAIT_H
+#ifdef HAVE_WAITPID                     /* waitpid() prototype */
 #include <sys/wait.h>
+#define CK_WAIT_H
+#endif /* HAVE_WAITPID */
 #endif /* CK_WAIT_H */
 
 #ifdef STREAMSPTY

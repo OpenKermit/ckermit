@@ -9755,6 +9755,39 @@ ttflui() {
     if (ttyfd < 0)
       return(-1);
 
+#ifdef NETPTY
+#ifdef SELECT
+/*
+  On the BSDs an input flush of a pty master discards the slave's input
+  queue.  That holds bytes Kermit wrote and the slave has not yet read.
+  So read and discard the bytes queued for the master instead.  ttchk()
+  counts them.  select() confirms each read, since FIONREAD on a macOS
+  pty master can count bytes that read() does not return.
+*/
+    if (ttpty) {
+        char buf[256];
+        int k;
+        n = ttchk();
+        debug(F101,"ttflui pty count","",n);
+        while (n > 0 && CK_FDOK(fd)) {
+            fd_set rfds;
+            struct timeval tv;
+            FD_ZERO(&rfds);
+            FD_SET(fd, &rfds);
+            tv.tv_sec = 0;
+            tv.tv_usec = 0;
+            if (select(fd + 1, &rfds, (fd_set *)0, (fd_set *)0, &tv) < 1)
+              break;
+            k = read(fd, buf, n < (int)sizeof(buf) ? n : (int)sizeof(buf));
+            if (k < 1)
+              break;
+            n -= k;
+        }
+        return(0);
+    }
+#endif /* SELECT */
+#endif /* NETPTY */
+
 #ifdef aegis
     sio_$control((short)yfd, sio_$flush_in, true, st);
     if (st.all != status_$ok) {

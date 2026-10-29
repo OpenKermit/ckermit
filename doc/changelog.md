@@ -617,6 +617,13 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   Commit 4a48cd29 in C-Kermit 11.0.501 of 2026 replaced the hang with the
   2-second wait.  That improved the behavior without fixing it.
 
+- [7] Fixed a bug regarding input flushing on the BSDs.  Kermit flushes the
+  input before reading its first packet.  On the BSD platforms, flushing a pty
+  master with TIOCFLUSH FREAD caused the slave's input queue to also empty out.
+  This didn't cause data loss, but could cause a delay, since the first protocol
+  messages could be lost.  Bug was introduced in commit d0f8b1da in C-Kermit
+  7.0.197 of 2000.
+
 - [8] SET TRANSFER DISPLAY FULLSCREEN with TERM unset or unknown to
   terminfo ended Kermit at the start of the next transfer, on systems
   whose curses has no newterm(), such as NetBSD.  Kermit now uses the CRT
