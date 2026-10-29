@@ -1776,7 +1776,6 @@ struct stringint {                      /* String and (wide) integer */
 #define XYMATCH  132    /* SET MATCHDOT */
 #define XYSFTP   133    /* SET SFTP */
 #define XY_REN   134    /* SET RENAME */
-#define XYEXTRN  135    /* SET EXTERNAL-PROTOCOL */
 #define XYVAREV  136    /* SET VARIABLE-EVALUATION */
 #define XYLOCALE 137    /* SET LOCALE */
 #define XYRCONFIRM 139  /* SET RECEIVE CONFIRM */

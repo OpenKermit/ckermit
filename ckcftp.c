@@ -9107,7 +9107,7 @@ static char * fhs_mge[] = {             /* MGET */
     "    When downloading in text mode and character-set conversion is desired"
 ,   "    this specifies the original file's character set on the server.",
 #endif /* NOCSETS */
-    "  /SERVER-RENAME:text",
+    "  /SERVER-RENAME-TO:text",
     "    Each server source file is to be renamed on the server as indicated",
     "    immediately after, but only if, it has arrived successfully.",
     "  /SMALLER-THAN:number",
@@ -9224,9 +9224,9 @@ static char * fhs_mpu[] = {             /* MPUT */
 #endif /* NOSPL */
 #endif /* PIPESEND */
 #ifdef CKSYMLINK
-    "  /FOLLOWINKS",
+    "  /FOLLOWLINKS",
     "    Send files that are pointed to by symbolic links.",
-    "  /NOFOLLOWINKS",
+    "  /NOFOLLOWLINKS",
     "    Skip over symbolic links (default).",
 #endif /* CKSYMLINK */
     "  /LARGER-THAN:number",
@@ -9280,7 +9280,7 @@ static char * fhs_mpu[] = {             /* MPUT */
     "    this specifies the character set to which the file should be",
     "    converted for storage on the server.",
 #endif /* NOCSETS */
-    "  /SERVER-RENAME:text",
+    "  /SERVER-RENAME-TO:text",
     "    Each file that is uploaded is to be renamed as indicated on the",
     "    server after, and only if, if arrives successfully.",
     "  /SIMULATE",
@@ -9585,7 +9585,7 @@ dosetftphlp() {
         printf("\nSyntax: SET FTP BUG <name> {ON, OFF}\n");
         printf(
             "  Activates a workaround for the named bug in the FTP server.\n");
-        printf("  Type SET FTP BUG ? for a list of names.\n");
+        printf("  The names are USE-SSL-V2 and USE-SSL-V3.\n");
         printf("  For each bug, the default is OFF\n\n");
         return(0);
 
@@ -9631,7 +9631,8 @@ dosetftphlp() {
         break;
 
       case FTS_DIS:
-        printf("\nSET FTP DISPLAY { BRIEF, FULLSCREEN, CRT, ... }\n");
+        printf(
+            "\nSET FTP DISPLAY { BRIEF, CRT, FULLSCREEN, NONE, SERIAL }\n");
         printf("  Chooses the file-transfer display style for FTP.\n");
         printf("  Like SET TRANSFER DISPLAY but applies only to FTP.\n\n");
         break;
@@ -9647,10 +9648,13 @@ dosetftphlp() {
       case FTS_FNC:                     /* "collision" */
         printf("\n");
         printf(
-"Syntax: SET FTP COLLISION { BACKUP,RENAME,UPDATE,DISCARD,APPEND,OVERWRITE }\n"
+"Syntax: SET FTP COLLISION { BACKUP,RENAME,UPDATE,DISCARD,APPEND,OVERWRITE,\n"
+"                            DATES-DIFFER }\n"
                );
         printf("  Tells what do when an incoming file has the same name as\n");
-        printf("  an existing file when downloading with FTP.\n\n");
+        printf("  an existing file when downloading with FTP.  DATES-DIFFER\n");
+        printf("  accepts the file only if its date differs from the date\n");
+        printf("  of the existing file.\n\n");
         break;
 
 #ifdef FTP_SECURITY

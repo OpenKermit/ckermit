@@ -15010,9 +15010,6 @@ tt_is_secure() {          /* Tells whether the current connection is secure */
 
 #ifdef CK_REDIR
 
-/* External protocol handler parameters from ckuus3.c */
-extern int exp_handler, exp_stderr, exp_timo;
-
 #ifdef SELECT
 #ifdef NETPTY
 

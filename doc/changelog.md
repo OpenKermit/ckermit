@@ -933,6 +933,10 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   crashed Kermit when it was the first S-expression of the session.  Bug was
   introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
 
+- [9] Removed SET EXTERNAL-PROTOCOL and related SHOW.  None of these settings
+  were ever actually used in the code.  The commands were introduced,
+  unimplemented, in commit 0fd869b4 in C-Kermit 9.0.302 of 2011.
+
 - [9] `\ffilecompare()` crashed Kermit when the first file could be opened
   and the second could not.  Bug was introduced in commit 04917e78 in
   C-Kermit 304(dev05) of 2013.
@@ -1017,6 +1021,17 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
 - HELP RESEND, HELP SET RECEIVE CONFIRM, HELP SET FTP TIMEOUT, HELP
   FIREWALL and HELP SET FTP PASSIVE-MODE now describe the new RESEND,
   RECEIVE CONFIRM, FTP active-mode timeout and FTP PASV rules.
+
+- HELP now covers LICENSE, LINEOUT, LOGIN, PTY, UNDECLARE, SET
+  DESTINATION, SET FLAG, SET HINTS, SET LOGIN and SET QNX-PORT-LOCK,
+  along with second- and third-level keywords that were missing from
+  their HELP topics.  SET SEND NEGOTIATION-STRING-MAX-LENGTH and SET
+  RECEIVE NEGOTIATION-STRING-MAX-LENGTH are now listed by `?`, completed
+  by Esc and Tab, and described in HELP SET SEND and HELP SET RECEIVE.
+  SET RECEIVE I-PACKETS was accepted and did nothing.  It now reports
+  that I-PACKETS applies only to SET SEND.  HELP SCREEN, HELP CLEAR,
+  HELP SET SEND, HELP SET RECEIVE, HELP FTP MPUT and HELP FTP MGET now
+  name the actual keywords and switches.
 
 - [7] A build without streaming support (`-DNOSTREAMING`) could not send
   files.  The sender never read the receiver's replies, and it got no send
@@ -1139,6 +1154,9 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   ADDRESS-FAMILY AUTO`.
 
 - [11] The `CK_DEBUG_UNBUFFERED` environment variable is removed.
+
+- [9] SET EXTERNAL-PROTOCOL is removed.  It had no effect.  A script that
+  uses it now fails with "?No keywords match".
 
 - `*.ts` is no longer a default text pattern.
 
