@@ -99,6 +99,7 @@ int dquote( char * fn, int len, int flag );
 void makestr(char **p, const char *s);
 void xmakestr(char **p, const char *s);
 CKFLOAT ckround( CKFLOAT, int, char *, int );
+long ckftol( CKFLOAT );
 int chknum( char * );
 int rdigits( char * s );
 char * parnam( char c );

@@ -75,7 +75,7 @@ char * cklibv = "C-Kermit library, 11.0.500, 22 Jul 2026";
 #include "ckucmd.h"
 #include "ckuusr.h"
 #include "ckcnet.h"                    /* for struct sockaddr */
-#include <limits.h>                     /* INT_MAX for ckatoi() */
+#include <limits.h>                     /* INT_MAX, LONG_MAX */
 #include "ckcfnp.h"                    /* Prototypes (must be last) */
 
 /* Public variables */
@@ -2300,6 +2300,28 @@ ckround(fpnum,places,obuf,obuflen)
 #endif
     if (obuf) strncpy(obuf,number,obuflen); /* Set string result */
     return(value);                          /* Return floating-point result */
+}
+
+/*  C K F T O L  --  Convert a floating-point value to long.  */
+/*
+  A value past the range of long becomes LONG_MAX or LONG_MIN.  NaN
+  becomes 0.  Rates such as characters per second pass through here.
+  A cast of an out-of-range value is undefined in C.
+*/
+long
+#ifdef CK_ANSIC
+ckftol(CKFLOAT x)
+#else
+ckftol(x) CKFLOAT x;
+#endif /* CK_ANSIC */
+/* ckftol */ {
+    if (x != x)                         /* NaN */
+      return(0L);
+    if (x >= (CKFLOAT) LONG_MAX)
+      return(LONG_MAX);
+    if (x <= (CKFLOAT) LONG_MIN)
+      return(LONG_MIN);
+    return((long) x);
 }
 
 #endif /* CKFLOAT */

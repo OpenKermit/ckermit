@@ -2678,18 +2678,17 @@ _PROTOTYP( void bleep, (short) );
 
 #ifndef NOFLOAT
 
-#ifdef __alpha          /* Why only __alpha?  Other 64-bit systems? */
-#define FLT_NOT_DBL     /* (See also ckclib.c:ckround()). */
-#else /* def __alpha */
+/*
+  OpenVMS after the VAX uses float for CKFLOAT.  DEC C there defaults to
+  G_floating.  NetBSD and Linux on the Alpha use IEEE double.
+  ckround() in ckclib.c also tests FLT_NOT_DBL.
+*/
 #ifdef VMS64
-#define FLT_NOT_DBL     /* Was testing only __alpha below. */
+#define FLT_NOT_DBL
 #endif /* def VMS64 */
-#endif /* def __alpha [else] */
 
 #ifndef CKFLOAT
-#ifdef FLT_NOT_DBL      /* 2024-05-16 SMS.  Use instead of __alpha. */
-/* Don't use double on 64-bit platforms -- bad things happen */
-/* "double" on 64-bit platforms typically means 128-bit?  Do we care?*/
+#ifdef FLT_NOT_DBL
 #define CKFLOAT float
 #define CKFLOAT_S "float"
 #else /* def FLT_NOT_DBL */

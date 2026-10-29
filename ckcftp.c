@@ -830,7 +830,7 @@ long ftp_timeout = 0;
 #ifdef GFTIMER
 extern CKFLOAT fptsecs, fpfsecs, fpxfsecs;
 /* Characters per second for n characters in sec seconds */
-#define XFERCPS(n,sec) ((long)((CKFLOAT)(n) / (sec)))
+#define XFERCPS(n,sec) ckftol((CKFLOAT)(n) / (sec))
 #else
 extern long xfsecs;
 #define XFERCPS(n,sec) ((long)((n) / (sec)))

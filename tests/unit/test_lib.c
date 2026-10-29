@@ -8,6 +8,11 @@
 #include "ckcsym.h"
 #include "ckcdeb.h"
 #include "ckclib.h"
+#include <limits.h>
+#include <math.h>
+
+/* ckcfnp.h declares main() and so cannot be included here. */
+long ckftol(CKFLOAT);
 
 int deblog = 0;
 int fp_digits = 6;
@@ -316,6 +321,24 @@ START_TEST(test_ckfstoa_ckatofs_large_offsets)
 }
 END_TEST
 
+/*
+  ckftol() converts in range values by truncation.  It clamps values
+  past the range of long and maps NaN to 0.
+*/
+START_TEST(test_ckftol_clamps)
+{
+    ck_assert(ckftol((CKFLOAT) 1234.75) == 1234L);
+    ck_assert(ckftol((CKFLOAT) -1234.75) == -1234L);
+    ck_assert(ckftol((CKFLOAT) 0.0) == 0L);
+    ck_assert(ckftol((CKFLOAT) 1e30) == LONG_MAX);
+    ck_assert(ckftol((CKFLOAT) -1e30) == LONG_MIN);
+    ck_assert(ckftol((CKFLOAT) LONG_MAX) == LONG_MAX);
+    ck_assert(ckftol((CKFLOAT) HUGE_VAL) == LONG_MAX);
+    ck_assert(ckftol((CKFLOAT) -HUGE_VAL) == LONG_MIN);
+    ck_assert(ckftol((CKFLOAT) NAN) == 0L);
+}
+END_TEST
+
 Suite *lib_suite(void)
 {
     Suite *s;
@@ -335,6 +358,7 @@ Suite *lib_suite(void)
     tcase_add_test(tc_core, test_ckfstoa_ckatofs_large_offsets);
     tcase_add_test(tc_core, test_ulongtohex_non_reentrant);
     tcase_add_test(tc_core, test_ck_time_t_max);
+    tcase_add_test(tc_core, test_ckftol_clamps);
 
     suite_add_tcase(s, tc_core);
     return s;

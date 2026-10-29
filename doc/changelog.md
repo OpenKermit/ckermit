@@ -596,6 +596,10 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   for the rest of the session..  Bugs were introduced in commits 4b5eddea
   (6.0.192 of 1996), d0f8b1da (7.0.197 of 2000) and 0fd869b4 (9.0.302 of 2011).
 
+- [7] Fixed display of CPS transfer rates that exceeded the range of a long by
+  clamping every CPS figure to the maximum value for a long.  Bugs were
+  introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
+
 - [7] An extended GET after a failed one (GET /RECOVER /DELETE, for
   example) sent the old request without the new name.  Bug was introduced
   in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
@@ -875,6 +879,11 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   text and password prompts looped forever.  Bugs were introduced in commits
   a213649d (5A(188) of 1992), d0f8b1da (7.0.197 of 2000) and 29169c5e (8.0.201
   of 2002).
+
+- [7] Fixed handling of CKFLOAT on Alpha systems.  It had been erroneously set
+  to float instead of double on all Alphas, rather than just OpenVMS/alpha.
+  This is incorrectly limiting on NetBSD and Linux for Alpha.  The `float`
+  choice was introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
 
 - [7, 9, 11] Floating-point functions and S-expressions lost precision with
   large integers.  On systems that do floating point in an x87 FPU, such as
