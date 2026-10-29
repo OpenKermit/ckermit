@@ -766,36 +766,89 @@ def test_language_expansion_keeps_every_byte(tmp_path, wermit_loopback,
     assert (server / "u.txt").read_bytes() == received
 
 
-@pytest.mark.parametrize("limit", [9, 10, 12, 16, 17])
-def test_send_init_shortened_after_full_one(tmp_path, wermit_loopback,
-                                            limit):
+def test_send_init_shortened_after_full_one(tmp_path, wermit_loopback):
     """Verify a shortened Send-Init holds no parameters from an earlier one.
 
     The first SEND uses the full parameter list.  SET SEND
-    NEGOTIATION-STRING-MAX-LENGTH then limits the second.  Its S packet
-    must end at the limit.  That gives limit + 1 parameter bytes.
+    NEGOTIATION-STRING-MAX-LENGTH then limits each later one.  The
+    limits fall, so each S packet follows a longer one.  Each must end
+    at its limit.  That gives limit + 1 parameter bytes.
     """
+    limits = [17, 16, 12, 10, 9]
     server = tmp_path / "server"
     client = tmp_path / "client"
     server.mkdir()
     client.mkdir()
     (client / "a.txt").write_bytes(b"hello\n")
     plog = tmp_path / "p.log"
-    result = wermit_loopback(
-        server, "set delay 0",
-        f"set delay 0, log packets {plog}, send {client / 'a.txt'}, "
+    sends = ", ".join(
         f"set send negotiation-string-max-length {limit}, "
-        f"send {client / 'a.txt'}, echo STATUS=\\v(status)")
-    assert "STATUS=0" in result.stdout, result.stdout[-2000:]
+        f"send {client / 'a.txt'}, echo STATUS{limit}=\\v(status)"
+        for limit in limits)
+    result = wermit_loopback(
+        server, "set delay 0, set file collision overwrite",
+        f"set delay 0, log packets {plog}, send {client / 'a.txt'}, "
+        f"{sends}")
+    failed = [limit for limit in limits
+              if f"STATUS{limit}=0" not in result.stdout]
+    assert not failed, (failed, result.stdout[-2000:])
     # Entries look like "s-00-00-^A" followed by LEN, SEQ, TYPE, data
     # and a 1-byte block check.
     inits = [line[10:] for line in
              plog.read_text(errors="replace").splitlines()
              if line.startswith("s-") and line[12:13] == "S"]
-    assert len(inits) == 2, inits
-    data = inits[1][3:3 + ord(inits[1][0]) - 32 - 3]
-    assert len(data) == limit + 1, inits
-    assert inits[0][3:3 + len(data)] == data, inits
+    assert len(inits) == len(limits) + 1, inits
+    full = inits[0][3:3 + ord(inits[0][0]) - 32 - 3]
+    bad = []
+    for limit, init in zip(limits, inits[1:]):
+        data = init[3:3 + ord(init[0]) - 32 - 3]
+        if data != full[:limit + 1]:
+            bad.append((limit, data))
+    assert not bad, (bad, full)
+
+
+def test_shortened_send_init_keeps_settings(tmp_path, wermit_loopback):
+    """Verify a shortened Send-Init leaves the user settings unchanged.
+
+    A limit of 8 leaves out CAPAS.  That transfer sends no Attribute
+    packet.  A limit of 10 leaves out the extended packet length.  The
+    SEND after each one runs with no limit.  Its Send-Init matches the
+    first one.  SHOW then reports the settings as SET.
+    """
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    (client_dir / "a.txt").write_bytes(b"hello\n")
+    plog = tmp_path / "p.log"
+    send = f"send {client_dir / 'a.txt'}"
+    result = wermit_loopback(
+        server_dir, "set delay 0, set file collision overwrite",
+        f"set delay 0, set window 8, set attributes on, "
+        f"log packets {plog}, {send}, "
+        f"set send negotiation-string-max-length 8, {send}, "
+        f"set send negotiation-string-max-length 0, {send}, "
+        f"set send negotiation-string-max-length 10, {send}, "
+        f"set send negotiation-string-max-length 0, {send}, "
+        "close, show attributes, show protocol")
+    assert_ok(result)
+    # Entries look like "s-00-00-^A" followed by LEN, SEQ, TYPE and
+    # data.  Split the sent packets into one list per transaction.
+    transactions = []
+    for line in plog.read_text(errors="replace").splitlines():
+        if not line.startswith("s-") or len(line) < 13:
+            continue
+        if line[12] == "S":
+            transactions.append([])
+        if transactions:
+            transactions[-1].append(line[10:])
+    assert len(transactions) == 5, transactions
+    inits = [t[0] for t in transactions]
+    assert inits[2] == inits[0], inits
+    assert inits[4] == inits[0], inits
+    types = [[pkt[2] for pkt in t] for t in transactions]
+    assert "A" not in types[1], types
+    assert "A" in types[2], types
+    assert re.search(r"^ *Attributes: on", result.stdout, re.M), \
+        result.stdout
+    assert re.search(r"Window Size:\s+8 set", result.stdout), result.stdout
 
 
 @pytest.mark.parametrize("keyword", ["reject", "overwrite", "backup"])

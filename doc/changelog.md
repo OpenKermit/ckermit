@@ -584,16 +584,17 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   the code's comment, take it as an ACK for the current packet.  Bug was
   introduced in commit 4b5eddea in C-Kermit 6.0.192 of 1996.
 
-- [6, 7, 9] Send-Init handling had several faults.  The partner's system ID was
-  not terminated.  After SET SEND NEGOTIATION-STRING-MAX-LENGTH with a value
-  from 9 to 16, or a value that cut off the system ID, the Send-Init parameters
-  could run on with parameters left from an earlier, longer Send-Init.  A
-  receiver looked for a forced Type 3 block check (CHKT "5") at a fixed place
-  in the buffer.  A short Send-Init could be refused when an earlier packet had
-  left a "5" there.  A Send-Init with an extended header that asked for the
-  forced check was refused.  CHKT is now read from the data field.  Bugs were
-  introduced in commits 4b5eddea (6.0.192 of 1996), d0f8b1da (7.0.197 of 2000)
-  and 0fd869b4 (9.0.302 of 2011).
+- [6, 7, 9] Fixed multiple bugs with Send-Init handling.  The partner's system
+  ID was not terminated.  After SET SEND NEGOTIATION-STRING-MAX-LENGTH with a
+  value from 9 to 16, or a value that cut off the system ID, the Send-Init
+  parameters could run on with parameters left from an earlier, longer
+  Send-Init.  A receiver looked for a forced Type 3 block check (CHKT "5") at a
+  fixed place in the buffer.  A short Send-Init could be refused when an earlier
+  packet had left a "5" there.  A Send-Init with an extended header that asked
+  for the forced check was refused.  And, if the max length restrictive, certain
+  features couldn't be negotiated, and these features were accidentally disabled
+  for the rest of the session..  Bugs were introduced in commits 4b5eddea
+  (6.0.192 of 1996), d0f8b1da (7.0.197 of 2000) and 0fd869b4 (9.0.302 of 2011).
 
 - [7] An extended GET after a failed one (GET /RECOVER /DELETE, for
   example) sent the old request without the new name.  Bug was introduced
