@@ -204,9 +204,54 @@ def pytest_configure(config):
         config._env_timeout *= timeout_scale()
 
 
+# Tests with these markers are slow.  A default run leaves them out to
+# spare integrators on slow platforms.  --full or KERMIT_TEST_FULL=1
+# runs them.  CI and agents always run the full suite.
+OPTIONAL_MARKERS = ("slow", "zmodem")
+FULL_ENV = "KERMIT_TEST_FULL"
+
+
+def pytest_addoption(parser):
+    """Add --full to run the slow and zmodem tests too."""
+    parser.addoption(
+        "--full", action="store_true", default=False,
+        help="also run tests marked slow or zmodem (or set "
+             f"{FULL_ENV}=1)")
+
+
+def run_full(config):
+    """Return True when the slow and zmodem tests run.
+
+    They run with --full, with KERMIT_TEST_FULL=1, or with an explicit
+    -m expression.  An explicit -m expression selects tests directly.
+    """
+    return (config.getoption("full")
+            or os.environ.get(FULL_ENV, "") not in ("", "0")
+            or bool(config.getoption("markexpr")))
+
+
+def pytest_collection_modifyitems(config, items):
+    """Deselect the slow and zmodem tests unless run_full() is true."""
+    if run_full(config):
+        return
+    kept, dropped = [], []
+    for item in items:
+        if any(item.get_closest_marker(m) for m in OPTIONAL_MARKERS):
+            dropped.append(item)
+        else:
+            kept.append(item)
+    if dropped:
+        config.hook.pytest_deselected(items=dropped)
+        items[:] = kept
+
+
 def pytest_report_header(config):
-    """Show the timeout factor in the session header."""
-    return f"kermit timeout scale: {timeout_scale():.2f}"
+    """Show the timeout factor and whether slow tests run."""
+    lines = [f"kermit timeout scale: {timeout_scale():.2f}"]
+    if not run_full(config):
+        lines.append("slow and zmodem tests: deselected "
+                     f"(use --full or {FULL_ENV}=1 to run them)")
+    return lines
 
 
 # /TELNET pulls in two Telnet options by default that a wermit-to- wermit test

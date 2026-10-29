@@ -1018,6 +1018,15 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   (7.0.197 of 2000) and 0fd869b4 (9.0.302 of 2011), and from commits cdd2e257
   and 4f611d0c (11.0.501 of 2026).
 
+- The test suite leaves out its slow tests by default.  These are the
+  tests that wait out a timeout on purpose, marked `slow`, and the
+  ZMODEM transfers with lrzsz, marked `zmodem`.  `pytest --full`, or
+  `KERMIT_TEST_FULL=1`, runs them.  CI runs the full suite.  A hang
+  limit in the suite is now at least 60 s, so a loaded or emulated
+  build host does not fail a test that would pass.  The default run is
+  meant for integrators on slow platforms.  `tests/README.txt`
+  describes both.
+
 - HELP RESEND, HELP SET RECEIVE CONFIRM, HELP SET FTP TIMEOUT, HELP
   FIREWALL and HELP SET FTP PASSIVE-MODE now describe the new RESEND,
   RECEIVE CONFIRM, FTP active-mode timeout and FTP PASV rules.

@@ -211,6 +211,7 @@ def _session(wermit_path, tmp_path, server, display, action=None):
     return rc, out
 
 
+@pytest.mark.slow
 def test_forward_x_relays_data(wermit_path, tmp_path):
     """Verify a forwarded X11 channel carries data both ways."""
     xsrv, n = _fake_x_server()
@@ -368,6 +369,7 @@ def test_forward_x_fatal_requests(wermit_path, tmp_path, name):
     assert "AFTER" in out, out
 
 
+@pytest.mark.slow
 def test_forward_x_no_x_server(wermit_path, tmp_path):
     """Verify the client closes a channel it cannot connect.
 

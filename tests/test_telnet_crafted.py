@@ -21,6 +21,7 @@ SB = 250
 TELOPT_NEW_ENVIRON = 39
 
 
+@pytest.mark.slow
 def test_telnet_truncated_subnegotiation_no_hang(spawn_wermit, wermit_path):
     """Verify unclosed subnegotiation does not hang on peer disconnect."""
     server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -536,6 +537,7 @@ def test_telnet_forward_x_flow_control_unknown_channel(
     assert "GOT-MARKER" in result.stdout, result.stdout
 
 
+@pytest.mark.slow
 def test_telnet_stall_inside_iac_times_out(run_wermit):
     """Verify a peer that stops inside an IAC sequence cannot hang a read.
 

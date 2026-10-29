@@ -834,6 +834,7 @@ def _tls_send_after(ssl_pki, delay, data):
     (2, 0, 1.5, 4.5),
     (12, 1, 3.5, 9),                    # INPUT counts whole seconds
 ])
+@pytest.mark.slow
 def test_tls_input_waits_for_timeout(run_wermit, ssl_pki, protocol,
                                      delay, instatus, low, high):
     """Verify INPUT on a TLS connection waits for its full timeout.

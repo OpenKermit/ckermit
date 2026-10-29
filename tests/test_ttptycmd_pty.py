@@ -41,6 +41,7 @@ def test_external_protocol_exit_status(run_wermit, tmp_path,
     assert f"STATUS={status}" in result.stdout, result.stdout
 
 
+@pytest.mark.slow
 def test_external_protocol_connection_lost(run_wermit, tmp_path):
     """Verify SEND fails when the connection ends during the transfer.
 
@@ -97,6 +98,7 @@ def _ignore_sigchld():
     signal.signal(signal.SIGCHLD, signal.SIG_IGN)
 
 
+@pytest.mark.slow
 def test_external_protocol_exit_after_other_child(wermit_path, tmp_path):
     """Verify SEND sees the protocol exit after another child's exit.
 

@@ -199,6 +199,7 @@ def test_remote_delete_boundary_lengths(tmp_path, old_loopback):
 
 @OLD_TRANSPORTS
 @CLEAR_UNPREFIX_MODES
+@pytest.mark.slow
 def test_transfer_unprefixed_nul_replay(tmp_path, old_loopback, request):
     """Binary transfer with embedded NUL bytes under out-of-order replay."""
     # _run_nul_replay_transfer forces set control unprefix all on server.

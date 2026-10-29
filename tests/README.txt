@@ -40,6 +40,20 @@ test.  Tests that check how long an operation took keep their bounds.
 On a single-CPU machine, run the suite with -n0.  A 599 MHz Alpha
 running NetBSD takes about 48 minutes.
 
+Slow and ZMODEM Tests:
+
+Tests marked slow wait out a timeout or a fixed delay on purpose.
+Tests marked zmodem run ZMODEM transfers with lrzsz.  Both take long
+on a slow machine.  A default run leaves them out, and the session
+header says so.  Run them too with:
+
+    pytest --full
+
+or with KERMIT_TEST_FULL=1 in the environment.  CI runs the full
+suite, and so should anyone changing Kermit.  An explicit -m
+expression decides by itself, so "pytest -m zmodem" runs only the
+ZMODEM tests.
+
 Writing Tests:
 
 A wermit_loopback test runs over a pty, with control prefixing on.  A

@@ -376,6 +376,7 @@ def test_ftp_pasv_address_is_ignored(run_wermit, tmp_path):
     assert retrs == [b"file.txt"], (retrs, result.stdout)
 
 
+@pytest.mark.slow
 def test_ftp_trust_pasv_address_on(run_wermit, tmp_path):
     """Verify TRUST-PASV-ADDRESS ON connects to the PASV reply address.
 

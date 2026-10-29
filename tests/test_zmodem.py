@@ -19,10 +19,13 @@ SSL_ZMODEM_MAX_SECONDS = 10
 
 MB = 1024 * 1024
 
-pytestmark = pytest.mark.skipif(
-    shutil.which("sz") is None or shutil.which("rz") is None,
-    reason="lrzsz (sz/rz) commands not available",
-)
+pytestmark = [
+    pytest.mark.zmodem,
+    pytest.mark.skipif(
+        shutil.which("sz") is None or shutil.which("rz") is None,
+        reason="lrzsz (sz/rz) commands not available",
+    ),
+]
 
 # Skips this module's post-transfer mtime-preservation checks when set.
 # lrzsz stamps the received file's mtime

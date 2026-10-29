@@ -163,6 +163,7 @@ def test_block_check_types(tmp_path, foreign_kermit_pty, eksw_path,
     strict=True, raises=subprocess.TimeoutExpired,
     reason="eksw chk2() does not mask its sum to 12 bits, so it rejects "
            "a block check 2 packet whose bytes sum past 4095.")
+@pytest.mark.slow
 def test_block_check_type_2(tmp_path, foreign_kermit_pty, eksw_path):
     """Send to eksw with block check type 2.
 
@@ -212,6 +213,7 @@ def test_sliding_window(tmp_path, foreign_kermit_pty, eksw_path,
         == content
 
 
+@pytest.mark.slow
 def test_error_injection_recovery(tmp_path, foreign_kermit_pty, eksw_path):
     """Transfer recovery with simulated packet error rate."""
     src_dir = tmp_path / "src"
@@ -248,6 +250,7 @@ def test_remote_local_mode_flags_are_no_ops(
            "unprefixed binary data containing one; not fixable from "
            "the C-Kermit side. See this module's docstring.",
     strict=True)
+@pytest.mark.slow
 def test_unprefixed_lf_hangs(tmp_path, foreign_kermit_pty, eksw_path):
     """SEND with SET CONTROL UNPREFIX ALL, to data containing 0x0A.
 

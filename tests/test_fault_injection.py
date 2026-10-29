@@ -358,6 +358,7 @@ def test_malloc_failures_in_ftp_session(wermit_path, faultinj, tmp_path):
     assert not crashed, crashed
 
 
+@pytest.mark.slow
 def test_write_failures_in_transfer_end_promptly(wermit_path, faultinj,
                                                  tmp_path):
     """Verify a failed write() during a Kermit transfer does not stall it.

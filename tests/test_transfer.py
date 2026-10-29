@@ -253,6 +253,7 @@ def _run_nul_replay_transfer(tmp_path, wermit_loopback):
 @pytest.mark.parametrize("loopback_transport", ["pseudoterminal"],
                          indirect=True)
 @pytest.mark.parametrize("attempt", range(5))
+@pytest.mark.slow
 def test_kermit_transfer_unprefixed_nul_replay(tmp_path, wermit_loopback,
                                                attempt, loopback_transport):
     """Binary transfer with embedded NUL bytes under out-of-order replay.
@@ -266,6 +267,7 @@ def test_kermit_transfer_unprefixed_nul_replay(tmp_path, wermit_loopback,
 @CLEAR_UNPREFIX_MODES
 @pytest.mark.parametrize("loopback_transport",
                          ["raw-socket", "telnet", "ssl"], indirect=True)
+@pytest.mark.slow
 def test_kermit_transfer_unprefixed_nul_replay_transport_smoke(
         tmp_path, wermit_loopback, loopback_transport):
     """
@@ -649,6 +651,7 @@ def _attempt_write_sigwinch_transfer(server_dir, wermit_tcp_loopback,
     return True, None
 
 
+@pytest.mark.slow
 def test_transfer_survives_server_write_sigwinch(
         server_dir, wermit_tcp_loopback, tmp_path):
     """

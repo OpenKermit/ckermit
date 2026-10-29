@@ -235,6 +235,7 @@ def _maxrss_kb(wermit_path, cmds):
     return usage.ru_maxrss // unit
 
 
+@pytest.mark.slow
 def test_function_empty_last_argument_does_not_leak(wermit_path):
     """Verify a function call whose last argument is empty frees it.
 

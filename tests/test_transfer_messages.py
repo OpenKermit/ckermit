@@ -158,6 +158,7 @@ def test_successful_server_command(wermit_path, server, display):
 
 
 @pytest.mark.parametrize("display", DISPLAYS)
+@pytest.mark.zmodem
 def test_external_protocol_failure(wermit_path, tmp_path, display):
     """Verify a failed external protocol transfer is reported.
 
@@ -178,6 +179,7 @@ def test_external_protocol_failure(wermit_path, tmp_path, display):
 
 
 @pytest.mark.parametrize("display", DISPLAYS)
+@pytest.mark.zmodem
 def test_external_protocol_success(wermit_path, tmp_path, display):
     """Verify a successful external protocol transfer adds no line."""
     import shutil

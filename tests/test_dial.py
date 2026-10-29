@@ -73,6 +73,7 @@ def _dial(wermit_path, dial_command, number, expect):
     return got
 
 
+@pytest.mark.slow
 def test_dial_command_percent_percent(wermit_path):
     """Verify %% in SET MODEM DIAL-COMMAND sends one %.
 
@@ -83,6 +84,7 @@ def test_dial_command_percent_percent(wermit_path):
     assert b"ATD%5551234" in got, got
 
 
+@pytest.mark.slow
 def test_dial_command_plain(wermit_path):
     """Verify a DIAL-COMMAND without %% sends the number for %s."""
     _skip_unless_lockdir_writable(wermit_path)
