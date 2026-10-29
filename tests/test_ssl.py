@@ -5,8 +5,8 @@ import time
 import pytest
 
 from conftest import (
-    _make_leaf, assert_ok, require_tls_version, scaled,
-    ssl_client_setup_cmds, ssl_server_setup_cmds,
+    _make_leaf, assert_ok, PROTOCOL_STARTUP_OFF, require_tls_version,
+    scaled, ssl_client_setup_cmds, ssl_server_setup_cmds,
     TELNET_REFUSE_KERMIT_CLAUSE, TelnetTlsClient,
 )
 
@@ -1491,3 +1491,135 @@ def test_connect_refuses_unmatched_cipher_list(wermit_path,
         result.stdout
     assert "STATUS=1" in result.stdout, result.stdout
     assert received in ([], [b""]), received
+
+
+@pytest.fixture
+def require_cert_file_env(wermit_path):
+    """Skip unless the TLS library in wermit reads SSL_CERT_FILE.
+
+    LibreSSL loads the compiled-in CA bundle and ignores the variable.
+    """
+    import subprocess
+    result = subprocess.run(
+        [wermit_path, "-H", "-Y", "-C",
+         "set command more-prompting off, show features, exit"],
+        capture_output=True, text=True, timeout=scaled(10))
+    if "LibreSSL" in result.stdout:
+        pytest.skip("LibreSSL ignores SSL_CERT_FILE")
+
+
+def _default_ca_env(tmp_path, ca_file):
+    """Return an environment that names ca_file as the default CA bundle.
+
+    SSL_CERT_DIR names an empty directory so that the system certificates
+    do not apply.
+    """
+    import os
+    empty = tmp_path / "empty-certs"
+    empty.mkdir(exist_ok=True)
+    return dict(os.environ, SSL_CERT_FILE=str(ca_file),
+                SSL_CERT_DIR=str(empty))
+
+
+@pytest.mark.parametrize("trusted", [True, False],
+                         ids=["trusted", "untrusted"])
+@pytest.mark.parametrize("protocol", ["ssl-raw", "tls-raw"])
+def test_tls_client_verifies_with_default_ca_locations(
+        wermit_path, tmp_path, ssl_pki, require_cert_file_env, protocol,
+        trusted):
+    """Verify the client trusts the CA bundle named by SSL_CERT_FILE.
+
+    The client sets no verify-file.  The server certificate verifies
+    only when SSL_CERT_FILE names the CA that signed it.
+    """
+    import ssl
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(ssl_pki["server_crt"], ssl_pki["server_key"])
+    port, thread, srv, results = _tls_handshake_server(ctx)
+    ca = ssl_pki["ca_crt"] if trusted else ssl_pki["untrusted_ca_crt"]
+    try:
+        result = _run_wermit_env(
+            wermit_path,
+            "set authentication ssl verbose on, "
+            f"set host localhost {port} /{protocol}, "
+            "echo STATUS=\\v(status), close",
+            _default_ca_env(tmp_path, ca))
+    finally:
+        srv.close()
+        thread.join(timeout=scaled(10))
+    if trusted:
+        assert "STATUS=0" in result.stdout, result.stdout
+        assert results == ["ok"], results
+    else:
+        assert "STATUS=1" in result.stdout, result.stdout
+        assert results != ["ok"], results
+
+
+def test_telnet_starttls_verifies_with_default_ca_locations(
+        server_dir, tmp_path, wermit_path, wermit_tcp_loopback, ssl_pki,
+        require_cert_file_env):
+    """Verify a Telnet START-TLS client trusts the CA in SSL_CERT_FILE.
+
+    The client sets no verify-file.  The handshake runs after Telnet
+    negotiation starts, not when SET HOST opens the connection.
+    """
+    session = wermit_tcp_loopback(
+        server_dir, protocol="telnet",
+        setup_cmds=(
+            f"{ssl_server_setup_cmds(ssl_pki)}, "
+            f"{TELNET_REFUSE_KERMIT_CLAUSE}"
+        ),
+    )
+    result = _run_wermit_env(
+        wermit_path,
+        f"{PROTOCOL_STARTUP_OFF}, "
+        "set authentication ssl verbose on, "
+        f"{TELNET_REFUSE_KERMIT_CLAUSE}, "
+        f"set host localhost {session.port} /telnet, "
+        "if failure exit 1, remote pwd, close",
+        _default_ca_env(tmp_path, ssl_pki["ca_crt"]))
+    session.wait_for_server_exit()
+    assert "[TLS - OK]" in result.stdout, result.stdout
+    assert str(server_dir) in result.stdout, result.stdout
+
+
+def test_raw_socket_does_not_read_ca_bundle(wermit_path, tmp_path,
+                                            require_cert_file_env):
+    """Verify a /RAW-SOCKET connection leaves the CA bundle unread.
+
+    SSL_CERT_FILE names a FIFO.  A thread opens it for writing until
+    told to stop.  Each open returns only when a reader opens the FIFO.
+    """
+    import os
+    import socket
+    import threading
+    fifo = tmp_path / "ca.fifo"
+    os.mkfifo(fifo)
+    opened = threading.Event()
+    stop = threading.Event()
+
+    def writer():
+        while not stop.is_set():
+            with open(fifo, "wb"):
+                opened.set()
+
+    thread = threading.Thread(target=writer, daemon=True)
+    thread.start()
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    try:
+        result = _run_wermit_env(
+            wermit_path,
+            f"set host 127.0.0.1 {srv.getsockname()[1]} /raw-socket, "
+            "echo STATUS=\\v(status), close",
+            _default_ca_env(tmp_path, fifo))
+        read = opened.is_set()
+    finally:
+        srv.close()
+        stop.set()
+        fd = os.open(fifo, os.O_RDONLY | os.O_NONBLOCK)
+        thread.join(timeout=scaled(10))
+        os.close(fd)
+    assert "STATUS=0" in result.stdout, result.stdout
+    assert not read

@@ -771,6 +771,12 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   never sent Telnet.  These connections start Telnet only when the peer sends
   IAC.  Close now sends DO LOGOUT only once Telnet has started.
 
+- [8] Reduce the number of times the CA bundle is read.  Previously, every TCP
+  connection read the system CA bundle three times as it opened, even on
+  connections that will never use TLS.  TLS.  Now it's read once, and only when
+  needed.  handshake that uses it.  The behavior was introduced in commit
+  c88d9b85 in C-Kermit 8.0.200 of 2001.
+
 - [9] /SSL-RAW and /TLS-RAW connections sent Telnet bytes.  TRANSMIT doubled
   0xFF, OUTPUT sent CR as CR LF, and closing sent IAC DO LOGOUT.  The
   connection was marked as Telnet once it opened.  Raw connections now stay

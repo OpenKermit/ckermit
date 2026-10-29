@@ -2063,6 +2063,47 @@ ssl_hostisaddr(name) char * name;
     return(1);                          /* Digits and dots: IPv4 */
 }
 
+/*
+  ssl_tn_init() marks ssl_ctx, tls_ctx and crl_store as needing the
+  default certificate locations.  ssl_load_default_paths() loads them
+  for the context of con before its handshake.  Reading the system CA
+  bundle takes several milliseconds.  A connection that starts neither
+  SSL nor TLS does not read it.
+*/
+static int ssl_ctx_paths_pending = 0;
+static int tls_ctx_paths_pending = 0;
+static int crl_paths_pending = 0;
+
+static VOID
+#ifdef CK_ANSIC
+ssl_load_default_paths(SSL * con)
+#else
+ssl_load_default_paths(con) SSL * con;
+#endif /* CK_ANSIC */
+{
+    SSL_CTX * ctx;
+
+    if (!con)
+      return;
+    ctx = SSL_get_SSL_CTX(con);
+    if (ctx && ctx == ssl_ctx && ssl_ctx_paths_pending) {
+        debug(F100,"ssl_load_default_paths ssl_ctx","",0);
+        SSL_CTX_set_default_verify_paths(ssl_ctx);
+        ssl_ctx_paths_pending = 0;
+    }
+    if (ctx && ctx == tls_ctx && tls_ctx_paths_pending) {
+        debug(F100,"ssl_load_default_paths tls_ctx","",0);
+        SSL_CTX_set_default_verify_paths(tls_ctx);
+        tls_ctx_paths_pending = 0;
+    }
+    if (crl_paths_pending) {
+        debug(F100,"ssl_load_default_paths crl_store","",0);
+        if (crl_store)
+          X509_STORE_set_default_paths(crl_store);
+        crl_paths_pending = 0;
+    }
+}
+
 int
 #ifdef CK_ANSIC
 ssl_tn_init(int mode)
@@ -2236,6 +2277,10 @@ ssl_tn_init(mode) int mode;
         }
         SSL_CTX_set_session_id_context(ssl_ctx,(CHAR *)"1",1);
         SSL_CTX_set_session_id_context(tls_ctx,(CHAR *)"2",1);
+#ifndef OS2
+        ssl_ctx_paths_pending = 1;
+        tls_ctx_paths_pending = 1;
+#endif /* OS2 */
     }
 
     /* SET AUTHENTICATION SSL MINIMUM-VERSION can change between calls. */
@@ -2444,11 +2489,9 @@ ssl_tn_init(mode) int mode;
         }
     }
 
-    /* make sure we will find certificates in the standard
-     * location ... otherwise we don't look anywhere for
-     * these things which is going to make client certificate
-     * exchange rather useless :-)
-     * In OS2, default values for ssl_verify_file and ssl_verify_path.
+    /* OS/2 and Windows load certificates from the Kermit directories.
+     * Elsewhere ssl_load_default_paths() loads the standard locations
+     * before the handshake.
      */
 
 #ifdef OS2
@@ -2529,9 +2572,6 @@ ssl_tn_init(mode) int mode;
         }
     }
 #endif /* NT */
-#else /* OS2 */
-    SSL_CTX_set_default_verify_paths(ssl_ctx);
-    SSL_CTX_set_default_verify_paths(tls_ctx);
 #endif /* OS2 */
 
     if (ssl_verify_file) {
@@ -2570,6 +2610,7 @@ ssl_tn_init(mode) int mode;
         X509_STORE_free(crl_store);
         crl_store = NULL;
     }
+    crl_paths_pending = 0;
 
     /* set up the new CRL Store */
     crl_store = X509_STORE_new();
@@ -2642,7 +2683,7 @@ ssl_tn_init(mode) int mode;
         }
 #ifndef OS2
         else {
-            X509_STORE_set_default_paths(crl_store);
+            crl_paths_pending = 1;
         }
 #endif /* OS2 */
     }
@@ -2945,6 +2986,7 @@ ssl_http_init(hostname) char * hostname;
         X509_STORE_free(crl_store);
         crl_store = NULL;
     }
+    crl_paths_pending = 0;
 
     /* set up the new CRL Store */
     crl_store = X509_STORE_new();
@@ -3907,6 +3949,7 @@ ssl_reply(how,data,cnt) int how; unsigned char *data; int cnt;
                 return AUTH_SUCCESS;
             }
 
+            ssl_load_default_paths(ssl_con);
             if (SSL_connect(ssl_con) <= 0) {
                 int len;
                 if (tn_deb || debses) {
@@ -4013,6 +4056,7 @@ ssl_is(data,cnt) unsigned char *data; int cnt;
                 return AUTH_SUCCESS;
             }
 
+            ssl_load_default_paths(ssl_con);
             if (SSL_accept(ssl_con) <= 0) {
                 char errbuf[1024];
                 int n;
@@ -4133,6 +4177,7 @@ ck_tn_tls_negotiate(VOID)
                 return 0;
             }
 
+            ssl_load_default_paths(tls_con);
             if (SSL_accept(tls_con) <= 0) {
                 char errbuf[1024];
                 int n;
@@ -4299,6 +4344,7 @@ ck_tn_tls_negotiate(VOID)
             if (!tls_load_certs(tls_ctx,tls_con,0))
                 return(-1);
 #endif /* USE_CERT_CB */
+            ssl_load_default_paths(tls_con);
             if (SSL_connect(tls_con) <= 0) {
                 int len;
                 if (tn_deb || debses) {
@@ -4444,6 +4490,7 @@ ck_ssl_incoming(fd) int fd;
         * https servers should we hit this code and then
         * we really don't care *who* we talk to :-)
         */
+        ssl_load_default_paths(tls_con);
         if (SSL_accept(tls_con) <= 0) {
             char errbuf[1024];
             int n;
@@ -4483,6 +4530,7 @@ ck_ssl_incoming(fd) int fd;
          * https servers should we hit this code and then
          * we really don't care *who* we talk to :-)
          */
+        ssl_load_default_paths(ssl_con);
         if (SSL_accept(ssl_con) <= 0) {
             char errbuf[1024];
             int n;
@@ -4638,6 +4686,7 @@ ck_ssl_outgoing(fd) int fd;
         else if (verbosity)
             printf("[TLS - handshake starting]\r\n");
         debug(F110,"ck_ssl_outgoing","[TLS - handshake starting]",0);
+        ssl_load_default_paths(tls_con);
         if (SSL_connect(tls_con) <= 0) {
             char errbuf[1024];
             int n;
@@ -4724,6 +4773,7 @@ ck_ssl_outgoing(fd) int fd;
         else if ( verbosity )
             printf("[SSL - handshake starting]\r\n");
         debug(F110,"ck_ssl_outgoing","[SSL - handshake starting]",0);
+        ssl_load_default_paths(ssl_con);
         if (SSL_connect(ssl_con) <= 0) {
             if ( ssl_debug_flag ) {
                 char errbuf[1024];
