@@ -3,6 +3,7 @@
 
   Copyright (C) 1985, 2020,
     Trustees of Columbia University in the City of New York.
+  Copyright (c) 2026 John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
 
@@ -10,7 +11,9 @@
                Secure Endpoints Inc., New York City
               David Goodwin, New Zealand
               SMS
-    Last update: Tue Nov 15 15:09:05 2022
+              John Goerzen (jgoerzen@complete.org)
+                The Open Kermit Project, Kansas
+    Last update: Fri Oct 30 2026
 */
 
 #ifdef CK_SSL

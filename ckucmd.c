@@ -1,19 +1,24 @@
 #include "ckcsym.h"
 
-char *cmdv = "Command package 11.0.500, 22 July 2026";
+char *cmdv = "Command package 11.1.515, 30 October 2026";
 
 /*  C K U C M D  --  Interactive command package for Unix  */
 
 /* (In reality, it's for all platforms, not just Unix) */
 
 /*
-  Author: Frank da Cruz (fdc@columbia.edu),
-  Formerly of Columbia University Academic Information Systems, New York City.
-  Since 1 July 2011, Open Source Kermit Project.
-  Most recent update: Tue May  2 19:18:22 2023
+  Authors:
+    Frank da Cruz (fdc@columbia.edu),
+      Formerly of Columbia University Academic Information Systems,
+      New York City.  Since 1 July 2011, Open Source Kermit Project.
+    John Goerzen (jgoerzen@complete.org),
+      The Open Kermit Project, Kansas.
+  Most recent update: Fri Oct 30 12:00:00 2026 (quoting, completion bounds,
+                      Apache date parsing, and prompt flush)
 
   Copyright (C) 1985, 2023,
     Trustees of Columbia University in the City of New York.
+  Copyright (c) 2026 John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
 

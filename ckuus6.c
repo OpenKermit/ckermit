@@ -8,9 +8,12 @@
       The Kermit Project, New York City
     Jeffrey E Altman <jaltman@secure-endpoints.com>
       Secure Endpoints Inc., New York City
+    John Goerzen <jgoerzen@complete.org>
+      The Open Kermit Project, Kansas
 
   Copyright (C) 1985, 2024,
     Trustees of Columbia University in the City of New York.
+  Copyright (c) 2026 John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
 
@@ -26,6 +29,8 @@
     Sat Mar 18 20:47:32 2023 (fix new GREP options, notably GREP /ARRAY)
     Wed Apr 12 19:48:13 2023 (function prototypes and declarations)
     Mon Jul  3 07:10:28 2023 (isatty definition for very old Windows versions)
+    Fri Oct 30 12:00:00 2026 (GET destination, ENABLE/DISABLE, TYPE /WIDTH,
+                              COPY, RENAME, and GREP /ARRAY fixes - jgoerzen)
 */
 
 /* Includes */

@@ -8,7 +8,7 @@
       The Kermit Project, New York City
     Jeffrey E Altman <jaltman@secure-endpoints.com>
       Secure Endpoints Inc., New York City
-    John goerzen <jgoerzen@complete.org>
+    John Goerzen <jgoerzen@complete.org>
       Open Kermit Project, Kansas
 
   Copyright (C) 1985, 2023,
@@ -16,7 +16,8 @@
   Copyright (C) 2025-2026, John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
-    Last update: 13 August 2026 (jgoerzen)
+    Last update: 30 October 2026 (variable expansion bounds, 64-bit function
+                                  arithmetic, and TRANSMIT fixes - jgoerzen)
 */
 
 /*

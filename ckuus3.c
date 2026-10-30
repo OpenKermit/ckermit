@@ -9,15 +9,20 @@
     Jeffrey E Altman <jaltman@secure-endpoints.com>
       Secure Endpoints Inc., New York City
     David Goodwin, New Zealand
+    John Goerzen <jgoerzen@complete.org>
+      The Open Kermit Project, Kansas
 
   Copyright (C) 1985, 2023,
     Trustees of Columbia University in the City of New York.
+  Copyright (c) 2026 John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
     Update: Fri Dec  2 07:26:48 2022 (changes for XYZMODEM internal)
     Update: Wed Apr 12 15:40:01 2023 (ansified 19 function definitions)
     Update: Sat May  6 13:01:37 2023 (explicit declaration of initproto)
     Update: Sun May 14 07:38:14 2023 (HPUX10-specific adjustment)
+    Update: Fri Oct 30 12:00:00 2026 (S-expression, SET COMPATIBILITY, and
+                                      TLS minimum-version updates - jgoerzen)
 */
 
 /*  SET command (but much material has been split off into ckuus7.c). */

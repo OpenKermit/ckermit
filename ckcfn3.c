@@ -3,14 +3,19 @@
 /* (plus assorted functions tacked on at the end) */
 
 /*
-  Author: Frank da Cruz <fdc@columbia.edu>,
-  Columbia University Academic Information Systems, New York City.
+  Authors:
+    Frank da Cruz <fdc@columbia.edu>,
+      Columbia University Academic Information Systems, New York City.
+    John Goerzen <jgoerzen@complete.org>,
+      The Open Kermit Project, Kansas.
 
   Copyright (C) 1985, 2023,
     Trustees of Columbia University in the City of New York.
+  Copyright (c) 2026 John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
-    Last update: 15 April 2023
+    Last update: 30 October 2026 (attribute and packet bounds checks, RESEND
+                                  validation.  - jgoerzen)
 */
 /*
  Note -- if you change this file, please amend the version number and date at

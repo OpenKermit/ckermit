@@ -1,4 +1,4 @@
-char *ckathv = "Authentication, 11.0.500, 22 Jul 2026";
+char *ckathv = "Authentication, 11.1.515, 30 Oct 2026";
 /*
   C K U A T H . C  --  Authentication for C-Kermit
 
@@ -16,6 +16,8 @@ char *ckathv = "Authentication, 11.0.500, 22 Jul 2026";
       Tue Dec 13 07:10:21 2022 (David Goodwin for K95)
       Wed Jul 22 18:30:00 2026 (John Goerzen adding IPv6 support, security
                                 hardening)
+      Fri Oct 30 12:00:00 2026 (John Goerzen: Telnet subnegotiation and
+                                Kerberos 5 message length checks)
 
 */
 /*

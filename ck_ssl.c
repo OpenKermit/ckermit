@@ -1,4 +1,4 @@
-char *cksslv = "SSL/TLS support, 11.0.500 22 Jul 2026";
+char *cksslv = "SSL/TLS support, 11.1.515 30 Oct 2026";
 /*
   C K _ S S L . C --  OpenSSL Interface for C-Kermit
 
@@ -11,7 +11,7 @@ char *cksslv = "SSL/TLS support, 11.0.500 22 Jul 2026";
     Authors:  Jeffrey E Altman (jaltman@secure-endpoints.com)
                Secure Endpoints Inc., New York City
               David Goodwin, New Zealand
-              John Goerzen (jgoerzen@complete.org
+              John Goerzen (jgoerzen@complete.org)
                 Open Kermit Project, Kansas.
 
   Provides:
@@ -40,6 +40,10 @@ July 2026 notes: This code was previously updated for OpenSSL 3.x.  Ancient
 OpenSSL code paths, to the extent they remain, are untested by the new CI.
 The comments above may be dated. I also added IPv6 support and made security
 hardening changes. - jgoerzen
+
+October 2026 notes: Removed support for OpenSSL older than 1.0.2.  Added
+TLS 1.2 default minimum version, X509_check_host() certificate verification,
+SNI, and cipher and certificate checks.  - jgoerzen
 */
 
 #ifndef NOSSL

@@ -6,7 +6,7 @@ char *ckxv = "Aegis Communications support, 10.0.340, 16 May 2023";
 #ifdef Plan9
 char *ckxv = "Plan 9 Communications support, 10.0.340, 16 May 2023";
 #else
-char *ckxv = "UNIX Communications support, 11.0.500, 22 Jul 2026";
+char *ckxv = "UNIX Communications support, 11.1.515, 30 Oct 2026";
 #endif /* Plan9 */
 #endif /* aegis */
 

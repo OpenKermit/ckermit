@@ -1,15 +1,18 @@
-char *ckcrpv = "Encryption Engine, 10.0.121, 23 Mar 2023";
+char *ckcrpv = "Encryption Engine, 11.1.515, 30 Oct 2026";
 /*
   C K _ C R P . C  -  Cryptography for C-Kermit"
 
   Copyright (C) 1998, 2023,
     Trustees of Columbia University in the City of New York.
+  Copyright (c) 2026 John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
 
-  Author:
+  Authors:
   Jeffrey E Altman (jaltman@secure-endpoints.com)
-  Secure Endpoints Inc., New York City
+    Secure Endpoints Inc., New York City
+  John Goerzen (jgoerzen@complete.org)
+    The Open Kermit Project, Kansas
 */
 
 #define CK_CRP_C

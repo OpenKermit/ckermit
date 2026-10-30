@@ -8,15 +8,20 @@
       The Kermit Project, New York City
     Jeffrey E Altman <jaltman@secure-endpoints.com>
       Secure Endpoints Inc., New York City
+    John Goerzen <jgoerzen@complete.org>
+      The Open Kermit Project, Kansas
 
   Copyright (C) 1985, 2024,
     Trustees of Columbia University in the City of New York.
+  Copyright (c) 2026 John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
     Last big update: 14 April 2023 (ANSI function declarations and prototypes)
     Other updates: 5 May 2023 (change semicolon to comma in extern statement)
     Other updates: 25 Jan 2024 (add semantics of REMOTE CDUP)
     Other updates: 6 June 2026 (adding system ID set)
+    Other updates: 30 October 2026 (TLS minimum version, SHOW AUTHENTICATION,
+                                    and SET HOST bounds checks - jgoerzen)
 */
 
 /*

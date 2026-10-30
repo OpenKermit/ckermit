@@ -2,7 +2,7 @@
 
 /*  C K C F T P  --  FTP Client for C-Kermit  */
 
-char *ckftpv = "FTP Client, 11.0.500, 22 Jul 2026";
+char *ckftpv = "FTP Client, 11.1.515, 30 Oct 2026";
 
 /*
   Authors:
@@ -12,7 +12,8 @@ char *ckftpv = "FTP Client, 11.0.500, 22 Jul 2026";
       The Kermit Project, Columbia University.
     David Goodwin, New Zealand
     John Goerzen, The Open Kermit Project, Kansas.
-      IPv6 support added Jul 2026.
+      IPv6 support added Jul 2026.  TLS, PASV, MLSD, and buffer bounds
+      fixes Oct 2026.
 
   Copyright (C) 2000, 2023
     Trustees of Columbia University in the City of New York.

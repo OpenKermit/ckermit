@@ -1,5 +1,5 @@
 char *protv =                                                     /* -*-C-*- */
-"C-Kermit Protocol Module 11.0.500, 22 Jul 2026";
+"C-Kermit Protocol Module 11.1.515, 30 Oct 2026";
 
 int kactive = 0;                        /* Kermit protocol is active */
 /*
@@ -29,11 +29,15 @@ int kactive = 0;                        /* Kermit protocol is active */
 
 /* C K C P R O  -- C-Kermit Protocol Module, in Wart preprocessor notation. */
 /*
-  Author: Frank da Cruz <fdc@columbia.edu>,
-  Columbia University Academic Information Systems, New York City.
+  Authors:
+    Frank da Cruz <fdc@columbia.edu>,
+      Columbia University Academic Information Systems, New York City.
+    John Goerzen <jgoerzen@complete.org>,
+      The Open Kermit Project, Kansas.
 
   Copyright (C) 1985, 2024
     Trustees of Columbia University in the City of New York.
+  Copyright (c) 2026 John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
 */

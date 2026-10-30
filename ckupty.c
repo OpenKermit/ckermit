@@ -1,8 +1,8 @@
-char *ckptyv = "Pseudoterminal support, 11.0.507, 05 Aug 2026";
+char *ckptyv = "Pseudoterminal support, 11.1.515, 30 Oct 2026";
 
 /*  C K U P T Y  --  C-Kermit pseudoterminal control functions for UNIX  */
 
-/* Last update: Sun Apr 16 13:28:14 2023 */
+/* Last update: Fri Oct 30 12:00:00 2026 */
 
 /*
   Copyright 1995 by the Massachusetts Institute of Technology.
@@ -19,6 +19,10 @@ char *ckptyv = "Pseudoterminal support, 11.0.507, 05 Aug 2026";
   M.I.T. makes no representations about the suitability of this software for
   any purpose.  It is provided "as is" without express or implied warranty.
 
+  Copyright (c) 2026 John Goerzen
+    All rights reserved.  See the C-Kermit COPYING.TXT file or the
+    copyright text in the ckcmai.c module for disclaimer and permissions.
+
   Modified for use in C-Kermit, and new material added, by:
 
   Jeffrey Altman <jaltman@secure-endpoints.com>
@@ -29,6 +33,9 @@ char *ckptyv = "Pseudoterminal support, 11.0.507, 05 Aug 2026";
   Dec 2006 - Sep 2009, plus some minor "compliance" nits addressed in 2020.
   See "HAVE_OPENPTY" section of ckcdeb.h.
   Frank da Cruz, The Kermit Project, New York City
+
+  John Goerzen <jgoerzen@complete.org>
+  The Open Kermit Project, Kansas, 2026
 */
 
 /*

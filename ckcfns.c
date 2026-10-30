@@ -1,4 +1,4 @@
-char *fnsv = "C-Kermit functions, 11.0.506, 03 Aug 2026";
+char *fnsv = "C-Kermit functions, 11.1.515, 30 Oct 2026";
 
 char *nm[] =  { "Disabled", "Local only", "Remote only", "Enabled" };
 
@@ -7,12 +7,17 @@ char *nm[] =  { "Disabled", "Local only", "Remote only", "Enabled" };
 /*  ...Part 1 (others moved to ckcfn2,3 to make this module smaller) */
 
 /*
-  Author: Frank da Cruz <fdc@columbia.edu>,
-  Columbia University Academic Information Systems, New York City (1974-2011)
-  The Kermit Project, Bronx NY (2011-????)
+  Authors:
+    Frank da Cruz <fdc@columbia.edu>,
+      Columbia University Academic Information Systems, New York City
+      (1974-2011)
+      The Kermit Project, Bronx NY (2011-2025)
+    John Goerzen <jgoerzen@complete.org>,
+      The Open Kermit Project, Kansas (2026)
 
   Copyright (C) 1985, 2024,
     Trustees of Columbia University in the City of New York.
+  Copyright (c) 2026 John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
     Updated: Fri Sep 23 15:27:55 2022
@@ -23,6 +28,10 @@ char *nm[] =  { "Disabled", "Local only", "Remote only", "Enabled" };
     Updated: July 2026
     Fixed unicode encoding detection bug, better autodownload error handling,
     and simplification.  - jgoerzen
+
+    Updated: October 2026
+    Shell-free REMOTE WHO and SPACE, packet and Send-Init bounds checks,
+    RESEND collision and RECEIVE CONFIRM fixes.  - jgoerzen
 */
 /*
  System-dependent primitives defined in:

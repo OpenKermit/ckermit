@@ -1,13 +1,17 @@
 #include "ckcsym.h"
-char *connv = "CONNECT Command for UNIX:select(), 10.0.143, 15 Apr 2023";
+char *connv = "CONNECT Command for UNIX:select(), 11.1.515, 30 Oct 2026";
 
 /*  C K U C N S  --  Terminal connection to remote system, for UNIX  */
 /*
-  Author: Frank da Cruz <fdc@columbia.edu>,
-  Columbia University Academic Information Systems, New York City.
+  Authors:
+    Frank da Cruz <fdc@columbia.edu>,
+      Columbia University Academic Information Systems, New York City.
+    John Goerzen <jgoerzen@complete.org>,
+      The Open Kermit Project, Kansas.
 
   Copyright (C) 1985, 2023,
     Trustees of Columbia University in the City of New York.
+  Copyright (c) 2026 John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
 */

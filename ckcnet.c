@@ -1,4 +1,4 @@
-char *cknetv = "Network support, 11.0.500, 22 Jul 2026";
+char *cknetv = "Network support, 11.1.515, 30 Oct 2026";
 
 /*  C K C N E T  --  Network support  */
 

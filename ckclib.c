@@ -1,15 +1,19 @@
-char * cklibv = "C-Kermit library, 11.0.500, 22 Jul 2026";
+char * cklibv = "C-Kermit library, 11.1.515, 30 Oct 2026";
 
 #define CKCLIB_C
 
 /* C K C L I B . C  --  C-Kermit Library routines. */
 
 /*
-  Author: Frank da Cruz <fdc@columbia.edu>,
-  Columbia University Academic Information Systems, New York City.
+  Authors:
+    Frank da Cruz <fdc@columbia.edu>,
+      Columbia University Academic Information Systems, New York City.
+    John Goerzen <jgoerzen@complete.org>,
+      The Open Kermit Project, Kansas.
 
   Copyright (C) 1999, 2023,
     Trustees of Columbia University in the City of New York.
+  Copyright (c) 2026 John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
 */

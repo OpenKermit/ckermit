@@ -8,7 +8,7 @@ char *ckzv = "Aegis File support, 10.0.234, 05 May 2023";
 #ifdef Plan9
 char *ckzv = "Plan 9 File support, 10.0.234, 05 May 2023";
 #else
-char *ckzv = "UNIX File support, 11.0.500, 22 Jul 2026";
+char *ckzv = "UNIX File support, 11.1.515, 30 Oct 2026";
 #endif /* Plan9 */
 #endif /* aegis */
 /*

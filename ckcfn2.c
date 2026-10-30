@@ -20,6 +20,9 @@
     Update: Wed Jul 22 18:24:00 2026 Fixed packet size bug, hang in streaming
                                      send, silent data corruption bug.
                                      - jgoerzen
+    Update: Fri Oct 30 12:00:00 2026 Packet length and block check validation,
+                                     non-streaming send fixes, and RESEND
+                                     collision checks.  - jgoerzen
 */
 /*
  Note -- if you change this file, please amend the version number and date at

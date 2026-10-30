@@ -4,6 +4,8 @@
   For recent additions search below for "2021" and "2022" and "2023".
   Most recent updates: Sat Jul  1 10:27:16 2023 (David Goodwin, fdc)
   More recent: Sun Feb  4 20:17:33 2024 (removed prototypes for malloc())
+  Updated: Fri Oct 30 2026 (CKFLOAT on Alpha, CK_OFF_T limits, signal and
+                            descriptor helpers.  - jgoerzen)
 
   NOTE TO CONTRIBUTORS: This file, and all the other C-Kermit files, must be
   compatible with C preprocessors that support only #ifdef, #else, #endif,
@@ -25,13 +27,17 @@
 */
 
 /*
-  Author: Frank da Cruz <fdc@columbia.edu>,
-    Columbia University Academic Information Systems, NYC (1974-2011)
-    The Kermit Project, Bronx NY (2011-present)
+  Authors:
+    Frank da Cruz <fdc@columbia.edu>,
+      Columbia University Academic Information Systems, NYC (1974-2011)
+      The Kermit Project, Bronx NY (2011-present)
     Changes from David Goodwin for Windows and OS/2 (2022)
+    John Goerzen <jgoerzen@complete.org>,
+      The Open Kermit Project, Kansas (2026)
 
   Copyright (C) 1985, 2023,
     Trustees of Columbia University in the City of New York.
+  Copyright (c) 2026 John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
 */

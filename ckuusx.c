@@ -17,7 +17,8 @@
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
 
-  Last update: 22 July 2026 (IPv6 support added by John Goerzen)
+  Last update: 30 October 2026 (IKSD database and lock fixes, Ctrl-C cleanup,
+                                and display handling by John Goerzen)
 */
 
 /*

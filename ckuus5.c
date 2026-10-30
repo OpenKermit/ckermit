@@ -14,6 +14,8 @@ int cmdsrc() { return(0); }
       The Kermit Project, New York City
     Jeffrey E Altman <jaltman@secure-endpoints.com>
       Secure Endpoints Inc., New York City
+    John Goerzen <jgoerzen@complete.org>
+      The Open Kermit Project, Kansas
     Update: Jun 24 2023 (David Goodwin)
     Update: Oct 10-11 2022 (fdc and sms)
     Update: Dec 02 2022 (David Goodwin - SHOW MOUSE)
@@ -22,9 +24,12 @@ int cmdsrc() { return(0); }
     Update: May 16 2023 (Jeff Johnson fix for iksd.conf diagnostic)
     Update: May 16 2023 (Jeff Johnson fix for \v(startup) vs \v(exedir))
     Update: Jun 25 2023 (Added Clang support to SHOW FEATURES - fdc)
+    Update: Oct 30 2026 (Telnet IAC doubling in OUTPUT, floating-point and
+                         integer arithmetic fixes - jgoerzen)
 
   Copyright (C) 1985, 2023,
     Trustees of Columbia University in the City of New York.
+  Copyright (c) 2026 John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
 */

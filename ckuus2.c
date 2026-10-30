@@ -27,6 +27,9 @@
                   22 Jul 2026 (Added IPv6 suport, SET FILE SYSTEM-ID,
                                SET PROTOCOL STARTUP-STRING, improved
                                autodownload error handling. -jgoerzen)
+                  30 Oct 2026 (Added HELP for new TLS and FTP settings and
+                               missing keywords, corrected defaults.
+                               -jgoerzen)
 
   This module contains HELP command and other long text strings.
 

@@ -1,4 +1,4 @@
-char *cktelv = "Telnet support, 11.0.500, 22 Jul 2026";
+char *cktelv = "Telnet support, 11.1.515, 30 Oct 2026";
 #define CKCTEL_C
 
 int sstelnet = 0;                       /* Do server-side Telnet negotiation */
@@ -21,9 +21,11 @@ int sstelnet = 0;                       /* Do server-side Telnet negotiation */
 
   Copyright (C) 1985, 2023,
     Trustees of Columbia University in the City of New York.
+  Copyright (c) 2026 John Goerzen
     All rights reserved.  See the C-Kermit COPYING.TXT file or the
     copyright text in the ckcmai.c module for disclaimer and permissions.
-    Latest update: 16 April 2023 (ANSI function declarations)
+    Latest update: 30 October 2026 (subnegotiation, wait buffer, and raw TLS
+                                    fixes)
 */
 
 /*
