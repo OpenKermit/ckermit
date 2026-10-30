@@ -1,8 +1,8 @@
 /* ckcmai.c - Main program for C-Kermit plus some miscellaneous functions */
 
-#define EDITDATE  "2026/09/30"       /* Last edit date ISO format */
+#define EDITDATE  "2026/10/30"       /* Last edit date ISO format */
 
-#define EDITNDATE "20260930"          /* Keep them in sync */
+#define EDITNDATE "20261030"          /* Keep them in sync */
 /*
   As of 27 September 2022 BETATEST is defined in ckcdeb.h, not here,
   because it's also used in other modules.
@@ -82,7 +82,7 @@ char *ck_s_date = EDITDATE;             /* See top */
 char *buildid = EDITNDATE;              /* See top */
 
 #ifdef UNIX
-static char sccsid[] = "@(#)C-Kermit 11.0";
+static char sccsid[] = "@(#)C-Kermit 11.1";
 #endif /* UNIX */
 
 int offtsize = 0;                       /* Size of OFF_T */
@@ -109,10 +109,10 @@ int offtsize = 0;                       /* Size of OFF_T */
   gone as there is no more Mac Kermit (for the original Macintosh), just
   C-Kermit for each platform (except the original Mac) and Kermit 95.
 */
-char *ck_s_ver = "11.0";                /* C-Kermit version string */
-char *ck_s_edit = "514";                /* Edit number (for Debian package) */
-char *ck_s_xver = "11.0.514";           /* eXtended version string */
-long  ck_l_ver = 1100514L;              /* C-Kermit version number */
+char *ck_s_ver = "11.1";                /* C-Kermit version string */
+char *ck_s_edit = "515";                /* Edit number (for Debian package) */
+char *ck_s_xver = "11.1.515";           /* eXtended version string */
+long  ck_l_ver = 1101515L;              /* C-Kermit version number */
 char *ck_s_name = "C-Kermit";           /* Name of this program */
 char *ck_s_who = "";                    /* Where customized, "" = not. */
 char *ck_patch = "";                    /* Patch info, if any. */
