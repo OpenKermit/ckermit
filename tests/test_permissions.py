@@ -33,16 +33,10 @@ import pytest
 from conftest import (
     _wait_or_kill,
     assert_ok,
+    make_loopback_dirs,
+    scaled,
     start_tcp_listener,
 )
-
-
-@pytest.fixture(params=["pseudoterminal", "raw-socket", "telnet"])
-def loopback_transport(request):
-    """Overrides conftest's single-value default so tests in this
-    module that use wermit_loopback also run over TCP raw and
-    telnet, not just pseudoterminal."""
-    return request.param
 
 
 @pytest.fixture
@@ -95,12 +89,13 @@ def adopted_loopback(wermit_path, tmp_path):
         try:
             client_result = subprocess.run(
                 client_args, pass_fds=(sa.fileno(),),
-                capture_output=True, text=True, timeout=timeout,
+                capture_output=True, text=True, timeout=scaled(timeout),
             )
         finally:
             sa.close()
             try:
-                server_stdout, _ = server_proc.communicate(timeout=timeout)
+                server_stdout, _ = server_proc.communicate(
+                    timeout=scaled(timeout))
             except subprocess.TimeoutExpired:
                 server_proc.kill()
                 server_stdout, _ = server_proc.communicate()
@@ -335,6 +330,35 @@ def test_receive_pathnames_absolute_honors_literal_path(
     assert target_file.read_text() == "payload data"
 
 
+@pytest.mark.parametrize("loopback_transport",
+                         ["pseudoterminal", "raw-socket", "telnet"],
+                         indirect=True)
+def test_server_accepts_pathname_by_transport(tmp_path, wermit_loopback,
+                                              loopback_transport):
+    """A wermit_loopback server accepts a pathname under the default CD.
+
+    The REMOTE bit governs CD for each wermit_loopback transport.  The
+    client then runs GET /RECURSIVE over the same connection.  The
+    other wermit_loopback tests in this module run over a pty.
+    """
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    (client_dir / "payload.txt").write_text("payload data")
+    (server_dir / "nested").mkdir()
+    (server_dir / "nested" / "deep.txt").write_text("deep content")
+
+    result = wermit_loopback(
+        server_dir,
+        "enable send both, enable mkdir both, set file type binary",
+        f"set file type binary, cd {client_dir}, "
+        "send /as-name:subdir/probe.txt payload.txt, get /recursive *")
+
+    assert_ok(result)
+    assert (server_dir / "subdir" / "probe.txt").read_text() == \
+        "payload data"
+    assert (client_dir / "nested" / "deep.txt").read_text() == \
+        "deep content"
+
+
 # ---------------------------------------------------------------------
 # GET /RECURSIVE: confirm it actually works end to end
 # ---------------------------------------------------------------------
@@ -378,7 +402,7 @@ def test_show_server_reports_plain_process_as_remote(wermit_path):
     but it is the state every process begins in)."""
     result = subprocess.run(
         [wermit_path, "-Y", "-Q", "-C", "show server"],
-        capture_output=True, text=True, timeout=10,
+        capture_output=True, text=True, timeout=scaled(10),
     )
     assert_ok(result)
     assert "Connection mode:      Remote" in result.stdout
@@ -417,7 +441,7 @@ def test_show_server_reports_set_host_star_as_remote(
         [wermit_path, "-H", "-Y", "-Q", "-C",
          "set tcp reverse-dns-lookup off, "
          f"set host localhost {port} /raw-socket, close, exit"],
-        capture_output=True, text=True, timeout=10,
+        capture_output=True, text=True, timeout=scaled(10),
     )
     assert_ok(client_result)
     _wait_or_kill(server_proc, timeout=10)

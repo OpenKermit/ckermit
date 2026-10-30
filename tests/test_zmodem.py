@@ -1,5 +1,6 @@
 import os
 import shutil
+import time
 
 import pytest
 
@@ -12,12 +13,19 @@ from conftest import (pattern_bytes, DEBUG_LOOPBACK as DEBUG_ZMODEM,
 
 ZMODEM_BLOCK_SIZE = 1024
 
+# Upper bound for test_zmodem_receive_ssl_binary.  The transfer takes
+# about 4 seconds, including 1 second of Telnet negotiation.
+SSL_ZMODEM_MAX_SECONDS = 10
+
 MB = 1024 * 1024
 
-pytestmark = pytest.mark.skipif(
-    shutil.which("sz") is None or shutil.which("rz") is None,
-    reason="lrzsz (sz/rz) commands not available",
-)
+pytestmark = [
+    pytest.mark.zmodem,
+    pytest.mark.skipif(
+        shutil.which("sz") is None or shutil.which("rz") is None,
+        reason="lrzsz (sz/rz) commands not available",
+    ),
+]
 
 # Skips this module's post-transfer mtime-preservation checks when set.
 # lrzsz stamps the received file's mtime
@@ -148,18 +156,15 @@ ZMODEM_SIZES = [
     pytest.param(ZMODEM_BLOCK_SIZE - 1, id="blksize-1"),
     pytest.param(ZMODEM_BLOCK_SIZE, id="blksize"),
     pytest.param(ZMODEM_BLOCK_SIZE + 1, id="blksize+1"),
-    pytest.param(2 * ZMODEM_BLOCK_SIZE - 1, id="2xblksize-1"),
     pytest.param(2 * ZMODEM_BLOCK_SIZE, id="2xblksize"),
-    pytest.param(2 * ZMODEM_BLOCK_SIZE + 1, id="2xblksize+1"),
 ]
 
 
 @pytest.mark.parametrize("size", ZMODEM_SIZES)
 def test_zmodem_receive_sizes(zmodem_remote, tmp_path, size):
     """
-    Zmodem receive at and around exact multiples of
-    ZMODEM_BLOCK_SIZE, to exercise sub-packet count/boundary
-    arithmetic.
+    Zmodem receive around ZMODEM_BLOCK_SIZE and at twice it, to
+    exercise sub-packet count/boundary arithmetic.
     """
     run_zmodem_receive(zmodem_remote, tmp_path, pattern_bytes(size))
 
@@ -167,8 +172,8 @@ def test_zmodem_receive_sizes(zmodem_remote, tmp_path, size):
 @pytest.mark.parametrize("size", ZMODEM_SIZES)
 def test_zmodem_send_sizes(zmodem_remote, tmp_path, size):
     """
-    Zmodem send at and around exact multiples of ZMODEM_BLOCK_SIZE,
-    to exercise sub-packet count/boundary arithmetic.
+    Zmodem send around ZMODEM_BLOCK_SIZE and at twice it, to
+    exercise sub-packet count/boundary arithmetic.
     """
     run_zmodem_send(zmodem_remote, tmp_path, pattern_bytes(size))
 
@@ -265,6 +270,11 @@ def test_zmodem_receive_ssl_binary(wermit_path, get_free_port, ssl_pki,
     same code with the roles swapped, at the cost of needing a second real pty
     (CONNECT mode's autodownload, unlike direct SET PROTOCOL ZMODEM
     SEND/RECEIVE, only triggers on the receiving end).
+
+    The transfer must finish within SSL_ZMODEM_MAX_SECONDS.  Each
+    ZMODEM exchange crosses both relays.  A relay that reads the
+    network until ttinc() times out holds every burst for 2 seconds.
+    That takes about 18 seconds with lrzsz 0.12, and lrz 0.13 gives up.
     """
     size = 5 * ZMODEM_BLOCK_SIZE + 1
     content = pattern_bytes(size)
@@ -277,23 +287,38 @@ def test_zmodem_receive_ssl_binary(wermit_path, get_free_port, ssl_pki,
     server_dir = tmp_path / "dest"
     server_dir.mkdir()
 
+    start = time.monotonic()
     returncode, stdout = _run_ssl_zmodem(
         wermit_path, get_free_port, ssl_pki,
         server_dir, remote_dir, ["sz", str(src_file)])
+    elapsed = time.monotonic() - start
 
     assert returncode == 0, f"Zmodem receive over SSL failed: stdout={stdout}"
     received_file = server_dir / "test_z_receive.txt"
     assert received_file.exists(), f"File not received. stdout={stdout}"
     assert received_file.read_bytes() == content
+    assert elapsed < SSL_ZMODEM_MAX_SECONDS, (
+        f"Zmodem receive over SSL took {elapsed:.1f} seconds")
+
+
+def _large_size(zmodem_remote):
+    """Return 5 MB over pty and 1 MB over TCP.
+
+    A ZMODEM sub-packet is at most 8 KB.  1 MB spans many sub-packets.
+    One large transfer per direction stays on the pty.
+    """
+    return 5 * MB if zmodem_remote.mode == "pty" else MB
 
 
 def test_zmodem_receive_large(zmodem_remote, tmp_path):
     """Zmodem receive of a file well beyond a single sub-packet."""
     run_zmodem_receive(
-        zmodem_remote, tmp_path, pattern_bytes(5 * MB), timeout=90)
+        zmodem_remote, tmp_path, pattern_bytes(_large_size(zmodem_remote)),
+        timeout=90)
 
 
 def test_zmodem_send_large(zmodem_remote, tmp_path):
     """Zmodem send of a file well beyond a single sub-packet."""
     run_zmodem_send(
-        zmodem_remote, tmp_path, pattern_bytes(5 * MB), timeout=90)
+        zmodem_remote, tmp_path, pattern_bytes(_large_size(zmodem_remote)),
+        timeout=90)

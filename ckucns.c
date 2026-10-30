@@ -1531,7 +1531,12 @@ conect() {
     idlelimit = tt_idlelimit;
 #endif /* CKTIDLE */
 
+    if (!CK_FDOK(ttyfd) || !CK_FDOK(kbin) || !CK_FDOK(scrnout)) {
+        printf("?Descriptor exceeds FD_SETSIZE, cannot CONNECT\n");
+        active = 0;                     /* select() cannot wait on it */
+    }
     while (active) {                    /* Big loop... */
+        chksigs();                      /* Act on SIGHUP or SIGWINCH */
         debug(F100,"CONNECT top of loop","",0);
         FD_ZERO(&in);                   /* Clear select() structs */
         FD_ZERO(&out);
@@ -1676,6 +1681,23 @@ conect() {
 
 #ifdef CK_FORWARD_X
             fwdx_check_sockets(&in);
+            /*
+              A failed write of FORWARD-X data or CLOSE to the network
+              closes the connection and sets ttyfd to -1.  FD_ISSET()
+              must not see a negative descriptor.
+            */
+            if (ttyfd < 0) {
+                ckcputf();              /* Flush CONNECT output buffer */
+                if (msgflg)
+                  printf("\r\nCommunications disconnect ");
+#ifdef NOSETBUF
+                fflush(stdout);
+#endif /* NOSETBUF */
+                dologend();
+                debug(F100,"CONNECT net closed by fwdx","",0);
+                cx_status = CSX_HOSTDISC;
+                goto conret0;
+            }
 #endif /* CK_FORWARD_X */
 
             if (FD_ISSET(ttyfd, &in)) { /* Read from net? */

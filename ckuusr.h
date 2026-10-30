@@ -1730,6 +1730,7 @@ struct stringint {                      /* String and (wide) integer */
 #define XYSSLRND  19    /* SSL/TLS Random file */
 #define XYSSLDCCF 20    /* SSL/TLS DSA Certs Chain File */
 #define XYSSLRCCF 21    /* SSL/TLS RSA Certs Chain File */
+#define XYSSLMINV 22    /* SSL/TLS Minimum protocol version */
 
 /* The following must be powers of 2 for a bit mask */
 
@@ -1775,7 +1776,6 @@ struct stringint {                      /* String and (wide) integer */
 #define XYMATCH  132    /* SET MATCHDOT */
 #define XYSFTP   133    /* SET SFTP */
 #define XY_REN   134    /* SET RENAME */
-#define XYEXTRN  135    /* SET EXTERNAL-PROTOCOL */
 #define XYVAREV  136    /* SET VARIABLE-EVALUATION */
 #define XYLOCALE 137    /* SET LOCALE */
 #define XYRCONFIRM 139  /* SET RECEIVE CONFIRM */

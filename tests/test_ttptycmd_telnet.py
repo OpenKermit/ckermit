@@ -19,12 +19,13 @@ negotiation response.
 import os
 import socket
 import subprocess
+import sys
 import threading
 import time
 
 import pytest
 
-from conftest import start_wermit_pty, _wait_for_pty_marker
+from conftest import start_wermit_pty, _wait_for_pty_marker, scaled
 
 IAC, WILL, WONT, DO, DONT = 255, 251, 252, 253, 254
 
@@ -110,13 +111,15 @@ class _InjectingProxy:
         while True:
             if (is_server_to_client and not injected
                     and time.time() - start >= self.inject_delay):
+                # Mark the injection first.  The client can reply
+                # before sendall() returns to this thread.
+                with self._lock:
+                    self._injected = True
+                    self._injected_at = time.time()
                 try:
                     dst.sendall(self.inject_bytes)
                 except OSError:
                     pass
-                with self._lock:
-                    self._injected = True
-                    self._injected_at = time.time()
                 injected = True
             try:
                 chunk = src.recv(4096)
@@ -138,6 +141,29 @@ class _InjectingProxy:
         try:
             dst.shutdown(socket.SHUT_WR)
         except OSError:
+            pass
+
+
+def _stop_server(proc, master):
+    """Kill the server wermit.  This never raises.
+
+    The server's plain CONNECT mode (no autodownload, unlike the real
+    Zmodem fixtures) does not notice the client closing, and it does not
+    exit on SIGTERM, so it gets SIGKILL.  Close the master first.  On
+    NetBSD a killed process does not finish exiting while its pty has
+    undrained output and the master stays open.  A loaded host can take
+    a while to reap even a killed process, and an exception from
+    cleanup would fail a test whose assertions passed.
+    """
+    try:
+        os.close(master)
+    except OSError:
+        pass
+    if proc.poll() is None:
+        proc.kill()
+        try:
+            proc.wait(timeout=scaled(10))
+        except subprocess.TimeoutExpired:
             pass
 
 
@@ -203,34 +229,13 @@ def _run_ttptycmd_negotiation_case(
              f"send {src_file}, close, exit"],
             cwd=str(tmp_path))
 
-        client.wait(timeout=transfer_delay + inject_delay + 15)
-        proxy.join(timeout=10)
+        client.wait(timeout=scaled(transfer_delay + inject_delay + 15))
+        # The proxy ends when both sides close.  The server does not
+        # notice the client closing, so stop it first.
+        _stop_server(proc, master)
+        proxy.join(timeout=scaled(10))
     finally:
-        # The server's plain CONNECT mode (no autodownload, unlike the
-        # real Zmodem fixtures) doesn't reliably notice the client
-        # closing the connection, so don't wait on a graceful exit
-        # here, just tear it down.
-        #
-        # This must never raise. A loaded CI runner can take longer
-        # than a few seconds to reap even a killed process (observed
-        # on OpenBSD CI: both the post-terminate() and post-kill()
-        # waits timed out), and an exception from cleanup here would
-        # fail the test regardless of whether its actual assertions
-        # already passed.
-        if proc.poll() is None:
-            proc.terminate()
-            try:
-                proc.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                try:
-                    proc.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    pass
-        try:
-            os.close(master)
-        except OSError:
-            pass
+        _stop_server(proc, master)
 
     return proxy.reply_after_inject
 
@@ -279,3 +284,84 @@ def test_ttptycmd_doubled_iac_is_not_treated_as_negotiation(
         f"a doubled IAC (literal data) should never provoke a Telnet "
         f"reply, but got {reply!r}"
     )
+
+
+ROUND_TRIP_SCRIPT = """\
+import os
+import sys
+os.write(1, b"READY\\n")
+for _ in range({rounds}):
+    line = sys.stdin.buffer.readline()
+    os.write(1, b"ACK " + line)
+"""
+
+
+def test_ttptycmd_relays_data_after_telnet_command(
+        wermit_path, tmp_path):
+    """Verify data after a Telnet command reaches the pty promptly.
+
+    The peer sends IAC WONT and a line of data in one write, then
+    waits for the external program to answer the line.  tn_doop()
+    reads the option byte outside the relay loop's count.  The relay
+    must pass the line on without a 2 s ttinc() wait each round.
+    """
+    rounds = 5
+    script = tmp_path / "rounds"
+    script.write_text(f"#!{sys.executable}\n"
+                      + ROUND_TRIP_SCRIPT.format(rounds=rounds))
+    script.chmod(0o755)
+    prog = "./rounds"
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    listener.settimeout(scaled(30))
+    port = listener.getsockname()[1]
+    result = {}
+
+    def peer():
+        try:
+            conn, _ = listener.accept()
+        except OSError:
+            return
+        with conn:
+            conn.settimeout(scaled(30))
+            buf = b""
+            try:
+                while b"READY" not in buf:
+                    data = conn.recv(4096)
+                    if not data:
+                        return
+                    buf += data
+                start = time.monotonic()
+                for i in range(rounds):
+                    conn.sendall(bytes([IAC, WONT, REFUSED_OPTION_STATUS])
+                                 + f"L{i}\n".encode())
+                    want = f"ACK L{i}".encode()
+                    while want not in buf:
+                        data = conn.recv(4096)
+                        if not data:
+                            return
+                        buf += data
+                result["elapsed"] = time.monotonic() - start
+            except OSError:
+                pass
+
+    thread = threading.Thread(target=peer, daemon=True)
+    thread.start()
+    try:
+        subprocess.run(
+            [wermit_path, "-H", "-Y", "-Q", "-C",
+             "set command more-prompting off, "
+             "set tcp reverse-dns-lookup off, "
+             "set telnet wait-for-negotiations off, "
+             f'set protocol zmodem "" "" "{prog}" "{prog}" '
+             f'"{prog}" "{prog}", '
+             f"set host 127.0.0.1 {port} /telnet, "
+             "if failure exit 90, receive /protocol:zmodem, close, exit"],
+            stdin=subprocess.DEVNULL, capture_output=True,
+            cwd=tmp_path, timeout=scaled(60))
+    finally:
+        thread.join(timeout=scaled(30))
+        listener.close()
+    assert "elapsed" in result, "the peer did not see every answer"
+    assert result["elapsed"] < rounds, result

@@ -1,4 +1,5 @@
 import os
+import re
 import pytest
 from conftest import assert_ok
 
@@ -331,3 +332,24 @@ def test_directory_sorting(tmp_path, run_wermit):
     assert_ok(res_date_rev)
     idx_a, idx_b, idx_c = _sorted_indices(res_date_rev)
     assert idx_b < idx_c < idx_a
+
+
+def test_mkdir_name_filling_path_buffer_fails_cleanly(run_wermit, tmp_path):
+    """Verify MKDIR of a name that fills the path buffer fails cleanly.
+
+    ckmkdir() appends "/" to the name.  A name of CKMAXPATH characters
+    leaves no room for it, so MKDIR must fail instead of writing past
+    the buffer.  The overflow shows only under AddressSanitizer.
+    """
+    feats = run_wermit("show features").stdout
+    m = re.search(r"CKMAXPATH=(\d+)", feats)
+    maxpath = int(m.group(1)) if m else 4096
+    name = "a/" * (maxpath // 2 - 1) + "bb"   # Exactly CKMAXPATH chars
+    assert len(name) == maxpath
+    result = run_wermit(f"cd {tmp_path}, mkdir {name}, "
+                        "echo STATUS=\\v(status), mkdir short, "
+                        "echo STATUS2=\\v(status)")
+    assert result.returncode >= 0, result.stderr
+    assert "STATUS=1" in result.stdout, result.stdout
+    assert "STATUS2=0" in result.stdout, result.stdout
+    assert (tmp_path / "short").is_dir()

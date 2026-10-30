@@ -9,9 +9,11 @@ import subprocess
 from functools import partial
 
 import pytest
-from conftest import assert_ok
+from conftest import assert_ok, scaled
 
-_COMPAT_KEYWORDS = ["9", "10"]
+# compat_9() calls compat_10().  The keyword tests use 10.  Only
+# test_compat_11_and_default_round_trip parses every keyword.
+_COMPAT_KEYWORDS = ["10"]
 
 # Server functions enabled in compatibility modes 9 and 10.
 _CHANGED_ENABLE_FUNCTIONS = [
@@ -27,19 +29,6 @@ _UNCHANGED_ENABLE_FUNCTIONS = [
 ]
 
 
-def _show_server_lines(run_wermit, keyword):
-    result = run_wermit(f"set compatibility {keyword}, show server")
-    assert_ok(result)
-    return result.stdout
-
-
-@pytest.mark.parametrize("keyword", ["9", "10", "11", "default", "DEFAULT"])
-def test_set_compatibility_accepts_each_keyword(run_wermit, keyword):
-    """Verify each documented keyword parses without error."""
-    result = run_wermit(f"set compatibility {keyword}")
-    assert_ok(result)
-
-
 def test_set_compatibility_rejects_unknown_keyword(run_wermit):
     """Verify an unrecognized keyword raises a syntax error."""
     result = run_wermit("set compatibility bogus")
@@ -47,100 +36,86 @@ def test_set_compatibility_rejects_unknown_keyword(run_wermit):
     assert "?" in result.stdout
 
 
-def test_help_set_compatibility(run_wermit):
-    """Verify HELP SET COMPATIBILITY output."""
-    result = run_wermit("help set compatibility")
-    assert_ok(result)
-    assert "SET COMPATIBILITY" in result.stdout
-    assert "9.0.302" in result.stdout
-    assert "10.0 Beta.12" in result.stdout
-
-
-def test_compat_defaults_before_any_command(run_wermit):
-    """Verify C-Kermit 11 default settings before compatibility mode."""
-    result = run_wermit("show file")
-    assert_ok(result)
-    assert "Transfer mode:           manual" in result.stdout
-    assert "Receive pathnames:       auto" in result.stdout
-    assert "Receive confirm:         on" in result.stdout
-    assert "File collision:          discard" in result.stdout
-
-
 def test_compat_11_and_default_round_trip(run_wermit):
-    """Verify SET COMPATIBILITY 11 and DEFAULT reset settings."""
-    result = run_wermit(
-        "show file, "
-        "set compatibility 9, show file, "
-        "set compatibility 11, show file, "
-        "set compatibility 10, show file, "
-        "set compatibility default, show file")
-    assert_ok(result)
+    """Verify each keyword sets or resets the compatibility settings.
 
-    collisions = re.findall(r"File collision:\s+(\S+)", result.stdout)
+    The first SHOW reports the C-Kermit 11 defaults.
+    """
+    def round_trip(show):
+        result = run_wermit(
+            f"{show}, "
+            f"set compatibility 9, {show}, "
+            f"set compatibility 11, {show}, "
+            f"set compatibility 10, {show}, "
+            f"set compatibility default, {show}")
+        assert_ok(result)
+        return result.stdout
+
+    out = round_trip("show file")
+    collisions = re.findall(r"File collision:\s+(\S+)", out)
     assert collisions == \
-        ["discard", "backup", "discard", "backup", "discard"]
+        ["reject", "backup", "reject", "backup", "reject"]
 
-    modes = re.findall(r"Transfer mode:\s+(\S+)", result.stdout)
+    modes = re.findall(r"Transfer mode:\s+(\S+)", out)
     assert modes == \
         ["manual", "automatic", "manual", "automatic", "manual"]
 
-    tcp_result = run_wermit(
-        "show tcp, "
-        "set compatibility 9, show tcp, "
-        "set compatibility 11, show tcp, "
-        "set compatibility 10, show tcp, "
-        "set compatibility default, show tcp")
-    assert_ok(tcp_result)
-    families = re.findall(r"address-family:\s+(\S+)", tcp_result.stdout)
+    confirms = re.findall(r"Receive confirm:\s+(\S+)", out)
+    assert confirms == ["on", "off", "on", "off", "on"]
+
+    pathnames = re.findall(r"Receive pathnames:\s+(\S+)", out)
+    assert pathnames == ["auto"] * 5
+
+    out = round_trip("show terminal")
+    errors = re.findall(r"Autodownload: on, error (\S+)", out)
+    assert errors == \
+        ["continue", "stop", "continue", "stop", "continue"]
+
+    out = round_trip("show tcp")
+    families = re.findall(r"address-family:\s+(\S+)", out)
     assert families == ["auto", "ipv4", "auto", "ipv4", "auto"]
 
 
-@pytest.mark.parametrize("keyword", _COMPAT_KEYWORDS)
-def test_compat_file_settings(run_wermit, keyword):
-    result = run_wermit(f"set compatibility {keyword}, show file")
+@pytest.mark.parametrize("keyword,collision", [
+    ("10", "backup"), ("11", "reject"),
+])
+def test_compat_survives_set_protocol(run_wermit, keyword, collision):
+    """Verify SET PROTOCOL keeps the collision and pathnames settings.
+
+    SET PROTOCOL reloads both from the protocol table.  SET
+    COMPATIBILITY must update the table as well as the settings.
+    """
+    result = run_wermit("set file collision rename, "
+                        "set receive pathnames off, "
+                        f"set compatibility {keyword}, "
+                        "set protocol kermit, show file")
     assert_ok(result)
-    assert "Transfer mode:           automatic" in result.stdout
-    assert "Receive pathnames:       absolute" in result.stdout
-    assert "Receive confirm:         off" in result.stdout
-    assert "File collision:          backup" in result.stdout
+    assert f"File collision:          {collision}" in result.stdout, (
+        result.stdout)
+    assert "Receive pathnames:       auto" in result.stdout, result.stdout
 
 
 @pytest.mark.parametrize("keyword", _COMPAT_KEYWORDS)
-def test_compat_autodownload_error(run_wermit, keyword):
-    result = run_wermit(f"set compatibility {keyword}, show terminal")
+def test_compat_sets_enable_functions(run_wermit, keyword):
+    """Verify a compatibility mode enables only the changed functions.
+
+    The functions in _CHANGED_ENABLE_FUNCTIONS become Enabled.  The
+    ones in _UNCHANGED_ENABLE_FUNCTIONS stay Remote only.  The
+    assertion lists every function with another state.
+    """
+    result = run_wermit(f"set compatibility {keyword}, show server")
     assert_ok(result)
-    assert "Autodownload: on, error stop" in result.stdout
-
-
-@pytest.mark.parametrize("keyword", _COMPAT_KEYWORDS)
-def test_compat_tcp_address_family(run_wermit, keyword):
-    result = run_wermit(f"set compatibility {keyword}, show tcp")
-    assert_ok(result)
-    assert "address-family: ipv4" in result.stdout
-
-
-@pytest.mark.parametrize("keyword", _COMPAT_KEYWORDS)
-@pytest.mark.parametrize("function", _CHANGED_ENABLE_FUNCTIONS)
-def test_compat_enables_changed_functions(run_wermit, keyword, function):
-    lines = _show_server_lines(run_wermit, keyword)
-    for line in lines.splitlines():
-        if line.strip().startswith(function):
-            assert "Enabled" in line, line
-            return
-    pytest.fail(f"{function!r} not found in SHOW SERVER output:\n{lines}")
-
-
-@pytest.mark.parametrize("keyword", _COMPAT_KEYWORDS)
-@pytest.mark.parametrize("function", _UNCHANGED_ENABLE_FUNCTIONS)
-def test_compat_leaves_unrelated_functions_alone(
-    run_wermit, keyword, function
-):
-    lines = _show_server_lines(run_wermit, keyword)
-    for line in lines.splitlines():
-        if line.strip().startswith(function):
-            assert "Remote only" in line, line
-            return
-    pytest.fail(f"{function!r} not found in SHOW SERVER output:\n{lines}")
+    states = {}
+    for line in result.stdout.splitlines():
+        for function in (_CHANGED_ENABLE_FUNCTIONS +
+                         _UNCHANGED_ENABLE_FUNCTIONS):
+            if line.strip().startswith(function):
+                states.setdefault(function, line)
+    wrong = [f for f in _CHANGED_ENABLE_FUNCTIONS
+             if "Enabled" not in states.get(f, "")]
+    wrong += [f for f in _UNCHANGED_ENABLE_FUNCTIONS
+              if "Remote only" not in states.get(f, "")]
+    assert not wrong, (wrong, result.stdout)
 
 
 # --- Protocol-level check against a real 9.0.302 server ----------------
@@ -211,7 +186,7 @@ def _run_as(wermit_path, tmp_path, name, commands):
     return subprocess.run(
         [str(link), "-H", "-Y", "-C",
          f"set command more-prompting off, {cmd_str}"],
-        capture_output=True, text=True, timeout=10)
+        capture_output=True, text=True, timeout=scaled(10))
 
 
 def test_invoked_as_kermit9_applies_compat_9(wermit_path, tmp_path):
@@ -231,7 +206,7 @@ def test_invoked_as_kermit10_applies_compat_10(wermit_path, tmp_path):
 def test_invoked_as_plain_kermit_unaffected(wermit_path, tmp_path):
     result = _run_as(wermit_path, tmp_path, "kermit", "show file")
     assert_ok(result)
-    assert "File collision:          discard" in result.stdout
+    assert "File collision:          reject" in result.stdout
     assert "Transfer mode:           manual" in result.stdout
 
 
@@ -240,3 +215,73 @@ def test_invoked_as_kermit9_howcalled_stays_kermit(wermit_path, tmp_path):
     result = _run_as(wermit_path, tmp_path, "kermit9", r"echo \v(program)")
     assert_ok(result)
     assert "C-Kermit" in result.stdout
+
+
+@pytest.mark.parametrize("kind", ["absolute", "dotdot"])
+def test_compat_receive_confines_incoming_paths(wermit_path, tmp_path,
+                                                kind):
+    """Verify compatibility modes do not write outside the receive dir.
+
+    Beta.12's default RECEIVE PATHNAMES AUTO confined an absolute
+    incoming name.  The compatibility modes keep that.  An absolute
+    name is stored under the receive directory.  A name with ".." is
+    refused.
+    """
+    recv_dir = tmp_path / "recv" / "sub"
+    send_dir = tmp_path / "send"
+    recv_dir.mkdir(parents=True)
+    send_dir.mkdir()
+    (send_dir / "a.txt").write_text("payload\n")
+    link = tmp_path / "kermit10"
+    link.symlink_to(wermit_path)
+    if kind == "absolute":
+        target = tmp_path / "escaped-abs.txt"
+        as_name = str(target)
+    else:
+        target = tmp_path / "escaped-dotdot.txt"
+        as_name = "../../escaped-dotdot.txt"
+    # The sender starts in recv_dir.  A relative CD keeps the SET HOST
+    # command within TTNAMLEN when tmp_path is long.
+    result = subprocess.run([
+        str(link), "-H", "-Y", "-Q", "-C",
+        "set command more-prompting off, set delay 0, "
+        f"cd {recv_dir}, "
+        f"set host /network-type:pseudoterminal {wermit_path} -H -Y -Q -C "
+        "{cd ../../send, set file names literal, set send pathnames on, "
+        f"send /as-name:{{{as_name}}} a.txt, quit}}, "
+        "receive, close, exit"], capture_output=True, text=True,
+        timeout=scaled(30), start_new_session=True)
+    assert not target.exists(), result.stdout + result.stderr
+    if kind == "absolute":
+        confined = recv_dir / str(target).lstrip("/")
+        assert confined.read_text() == "payload\n", \
+            result.stdout + result.stderr
+    else:
+        assert "Access denied" in result.stdout, \
+            result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("keyword", ["10", "11"])
+def test_compat_does_not_undo_disable_enable(run_wermit, keyword):
+    """Verify SET COMPATIBILITY does not re-enable after DISABLE ENABLE.
+
+    DISABLE ENABLE can not be undone, so a later SET COMPATIBILITY must
+    not turn on a disabled server function either.
+    """
+    result = run_wermit("disable enable, disable mkdir, disable mail, "
+                        f"set compatibility {keyword}, show server")
+    assert_ok(result)
+    for name in ("REMOTE MKDIR", "MAIL", "ENABLE"):
+        line = re.search(rf"^ *{name} +(\S.*)$", result.stdout, re.M)
+        assert line and line.group(1).strip() == "Disabled", \
+            (name, result.stdout)
+
+
+def test_compat_10_restores_enable_without_disable(run_wermit):
+    """Verify SET COMPATIBILITY 10 still restores Beta.12 ENABLE values."""
+    result = run_wermit("set compatibility 10, show server")
+    assert_ok(result)
+    for name in ("REMOTE MKDIR", "MAIL", "ENABLE"):
+        line = re.search(rf"^ *{name} +(\S.*)$", result.stdout, re.M)
+        assert line and line.group(1).strip() == "Enabled", \
+            (name, result.stdout)

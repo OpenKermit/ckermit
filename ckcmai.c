@@ -993,7 +993,7 @@ CHAR *epktmsg = pktmsgbuf;
 #ifdef DYNAMIC
 int srvcmdlen = MAXRP;
 #else
-int srvcmdlen = 0;
+int srvcmdlen = MAXRP+3;                /* srvcmdbuf[] less the NUL */
 #endif /* DYNAMIC */
 
 CHAR
@@ -1003,7 +1003,7 @@ CHAR
     srvcmdbuf[MAXRP+4],
     *srvcmd = srvcmdbuf,
 #endif /* DYNAMIC */
-    padbuf[96],                         /* Buffer for send-padding */
+    padbuf[PADBUFL],                    /* Buffer for send-padding */
     *recpkt,
     *rdatap,                            /* Pointer to received packet data */
     *data = (CHAR *)0,                  /* Pointer to send-packet data */
@@ -1309,6 +1309,7 @@ int fncact = XYFX_B;                    /* BACKUP for everybody else */
 #endif /* VMS */
 
 int fncsav = -1;                        /* For saving & restoring the above */
+int rcvreget = 0;                       /* This side requested a REGET */
 int fnc_lastdiscard = 0;                /* Set when rcvfil() discards a */
                                          /* file due to a name collision. */
                                          /* Stays set for the rest of the */
@@ -1595,6 +1596,7 @@ int en_ret = 2;                         /* RETRIEVE */
 int en_mai = 0;                         /* MAIL */
 int en_pri = 0;                         /* PRINT */
 int en_ena = 2;                         /* ENABLE */
+int en_ena_lock = 0;                    /* Bits cleared by DISABLE ENABLE */
 #else
 int en_xit = 0, en_cwd = 0, en_cpy = 0, en_del = 0, en_mkd = 0, en_rmd = 0,
     en_dir = 0, en_fin = 0, en_get = 0, en_hos = 0, en_ren = 0, en_sen = 0,
@@ -2163,8 +2165,11 @@ VOID ikslogin (  )
 #endif /* CKSYSLOG */
                   }
                 zvuser(uidbuf);
-                if (zvpass("") == 0)
-                  x_logged = 0;
+                if (zvpass("") == 0) {
+                    /* Each user at the prompt needs a password */
+                    auth_finished(AUTH_USER);
+                    x_logged = 0;
+                }
             } else if (x_logged == AUTH_USER && !strcmp(uidbuf,"anonymous")) {
                 extern char szUserNameAuthenticated[];
                 zvuser(uidbuf);
@@ -3124,7 +3129,7 @@ MAINNAME( argc, argv ) int argc; char **argv;
     makever();                          /* Put together version strings */
 #ifndef NOSPL
     {
-        char scratch[TMPBUFSIZ];
+        char scratch[TMPBUFSIZ+1];
         extern char *tempdir;           /* Initialize temporary directory */
         char * tp = scratch;
         int x = TMPBUFSIZ;
@@ -3278,10 +3283,14 @@ MAINNAME( argc, argv ) int argc; char **argv;
       Run after initproto calls so initial file transfer settings are
       not overwritten.
     */
+#ifndef NOICP
+#ifndef NOSPL                           /* As compat_9() and compat_10() */
     if (!ckstrcmp(myname,"kermit9",-1,0))
       compat_9();
     else if (!ckstrcmp(myname,"kermit10",-1,0))
       compat_10();
+#endif /* NOSPL */
+#endif /* NOICP */
 
     connoi();                           /* Console interrupts off */
 
@@ -3317,15 +3326,12 @@ MAINNAME( argc, argv ) int argc; char **argv;
 #ifndef NOSPL
 #ifndef NORANDOM
     {
-        char stackdata[256];
-        unsigned int c = 1234, n;
-        /* try to make a random unsigned int to feed srand() */
-        c = (unsigned int)time(NULL);               /* Get current time */
-        c *= getpid();                  /* multiply it by our PID */
-        /* Referenced before set... DELIBERATELY */
-        for (n = 0; n < sizeof(stackdata); n++) /* IGNORE WARNING */
-          c += stackdata[n];            /* DELIBERATELY USED BEFORE SET */
-        srand((unsigned int)c);
+        unsigned int c;                 /* Seed for \frandom() */
+        if (ckrandbytes((unsigned char *)&c, (int)sizeof(c)) < 0) {
+            c = (unsigned int)time(NULL); /* No system generator */
+            c *= (unsigned int)getpid();
+        }
+        srand(c);
     }
 #endif /* NORANDOM */
 #endif /* NOSPL */

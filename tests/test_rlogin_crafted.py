@@ -11,7 +11,7 @@ import subprocess
 
 import pytest
 
-from conftest import assert_ok
+from conftest import assert_ok, scaled
 
 
 def _rlogin_supported(run_wermit):
@@ -55,15 +55,15 @@ def test_rlogin_long_user_names_sent_intact(run_wermit, wermit_path):
         env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, start_new_session=True)
     try:
-        server_sock.settimeout(15)
+        server_sock.settimeout(scaled(15))
         conn, _ = server_sock.accept()
         try:
-            conn.settimeout(10)
+            conn.settimeout(scaled(10))
             data = _read_startup_data(conn)
             conn.sendall(b"\0")
         finally:
             conn.close()
-        out, _ = proc.communicate(timeout=15)
+        out, _ = proc.communicate(timeout=scaled(15))
     finally:
         server_sock.close()
         if proc.poll() is None:

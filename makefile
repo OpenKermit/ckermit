@@ -155,19 +155,19 @@ CKVER= "11.0.514"
 # + "make linux+krb5+ssl" Linux with OpenSSL and Kerberos 5.
 #     Note: the Linux targets work for Raspberry Pi with Debian 7.0 (Raspbian)
 # + "make netbsd", NetBSD, any version.
-# + "make netbsd+ssl", NetBSD with OpenSSL 0.9.7 or later.
+# + "make netbsd+ssl", NetBSD with OpenSSL 1.0.2 or later.
 # + "make netbsd+krb5", NetBSD with Kerberos 5.
-# + "make netbsd+krb5+ssl", NetBSD with Kerberos 5 and OpenSSL 0.9.7 or later.
+# + "make netbsd+krb5+ssl", NetBSD with Kerberos 5 and OpenSSL 1.0.2 or later.
 # ? "make freebsd1" for FreeBSD 1.x
 # ? "make freebsd2" for FreeBSD 2.x
 # + "make freebsd3" for FreeBSD 3.x
 # ? "make freebsd4" for FreeBSD 4.0
 # + "make freebsd", FreeBSD 4.1 or later.
-# + "make freebsd+ssl", FreeBSD 5.0 or later with OpenSSL 0.9.7 or later.
+# + "make freebsd+ssl", FreeBSD 5.0 or later with OpenSSL 1.0.2 or later.
 # + "make openbsd", OpenBSD 2.3 or later.
-# + "make openbsd+ssl", OpenBSD 2.3 or later with OpenSSL 0.9.7 or later.
+# + "make openbsd+ssl", OpenBSD 2.3 or later with OpenSSL 1.0.2 or later.
 # + "make mirbsd", MirBSD.
-# + "make mirbsd+ssl", MirBSD with OpenSSL 0.9.7 or later.
+# + "make mirbsd+ssl", MirBSD with OpenSSL 1.0.2 or later.
 # More recent macOS re-branded releases for Intel (x86_64) Sierra (10.12),
 # High Sierra (10.13), Mojave (10.14), Catalina (10.15), and Intel x86_64/ARM
 # Big Sur (11), Monterey (12)
@@ -786,13 +786,10 @@ CKVER= "11.0.514"
 #   http://www.columbia.edu/kermit/security.html
 # for specific details regarding supported versions.
 #
-# NOTE: OpenSSL 0.9.6 and earlier are not compatible with 0.9.7 and later.
-# C-Kermit code was originally designed for 0.9.6.  To build with 0.9.7 you
-# must add -DOPENSSL_097 to avoid missing symbols in the DES library and to
-# use the entry points that were renamed to avoid conflict with Kerberos 4.
-# If you have OpenSSL 0.9.8, add -DOPENSSL_098, which is a synonym for
-# -DOPENSSL_097.  If you have 1.0.0 or later, add -DOPENSSL_100, which is
-# another synonym.
+# NOTE: C-Kermit needs OpenSSL 1.0.2 or later, or LibreSSL.  ck_ssl.h stops
+# the build with an older OpenSSL.  Add -DOPENSSL_100, or -DOPENSSL_300 for
+# OpenSSL 3.0 and later.  Each implies -DOPENSSL_097.  The DES code needs
+# that for the renamed entry points that avoid conflict with Kerberos 4.
 
 # In OpenSSL builds add -ldl if you get unresolved references for
 # dlopen, dlclose, dlsym, and/or dlerror.
@@ -830,8 +827,8 @@ SSLINC=-I$(sslroot)/ssl/include
 # To override these assignments; for example, if your OpenSSL files are
 # not in /usr/local/ssl, invoke the desired target like this:
 #
-#  make solaris9+openssl "SSLINC=-I/opt/openssl-0.9.8k/include" \
-#   "SSLLIB=-L/opt/openssl-0.9.8k/lib"
+#  make solaris9+openssl "SSLINC=-I/opt/openssl-3.0/include" \
+#   "SSLLIB=-L/opt/openssl-3.0/lib"
 #
 # (don't set the variables and then do "make -e" because that breaks
 # chaining of makefile targets.)
@@ -1020,7 +1017,8 @@ unit-test:
 		tests/unit/bin/test_rq_confirm tests/unit/bin/test_fnsplit \
 		tests/unit/bin/test_fpformat tests/unit/bin/test_shuffledate \
 		tests/unit/bin/test_hostaddr tests/unit/bin/test_zstrdt \
-		tests/unit/bin/test_deadline
+		tests/unit/bin/test_deadline tests/unit/bin/test_slotstate \
+		tests/unit/bin/test_telopt
 	./tests/unit/bin/test_lib
 	./tests/unit/bin/test_strings
 	./tests/unit/bin/test_net
@@ -1034,6 +1032,8 @@ unit-test:
 	./tests/unit/bin/test_hostaddr
 	./tests/unit/bin/test_zstrdt
 	./tests/unit/bin/test_deadline
+	./tests/unit/bin/test_slotstate
+	./tests/unit/bin/test_telopt
 
 # Rules for the unit test binaries.
 #
@@ -1123,6 +1123,23 @@ tests/unit/bin/test_hostaddr: tests/unit/test_hostaddr.c ckcnet.c ckcnet.h
 	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
 		tests/unit/test_hostaddr.c \
 		tests/unit/bin/ckcnet_hostaddr.$(EXT) \
+		-o $@ $$GCSECTIONS $$CHECKLIBS
+
+# test_telopt exercises telopt_index(), telopt_ok() and telopt() in
+# ckctel.c.  Only builds with NOTOMACROS use these functions, so
+# ckctel.c is compiled here with -DNOTOMACROS.  Uses --gc-sections like
+# test_net.
+tests/unit/bin/test_telopt: tests/unit/test_telopt.c ckctel.c ckctel.h
+	@mkdir -p tests/unit/bin
+	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	case `uname -s` in \
+	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
+	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
+	esac; \
+	$(CC) $(CFLAGS) -DNOTOMACROS -I. $(UNIT_GC_CFLAGS) \
+		-c ckctel.c -o tests/unit/bin/ckctel_telopt.$(EXT); \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
+		tests/unit/test_telopt.c tests/unit/bin/ckctel_telopt.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
 
 # test_mpsafe exercises mpsafe(), which lives in ckcpro.c. Same
@@ -1236,6 +1253,30 @@ tests/unit/bin/test_fnsplit: tests/unit/test_fnsplit.c ckuusx.c ckucmd.c \
 		tests/unit/bin/ckuusx_test_fs.$(EXT) \
 		tests/unit/bin/ckucmd_test_fs.$(EXT) \
 		tests/unit/bin/ckclib_test_fs.$(EXT) \
+		-o $@ $$GCSECTIONS $$CHECKLIBS
+
+# test_slotstate exercises slotstate() from ckuusx.c.  The test file
+# stubs the file and time functions that ckuusx.c's dodebug() calls.
+
+tests/unit/bin/test_slotstate: tests/unit/test_slotstate.c ckuusx.c \
+  ckucmd.c ckclib.c ckcfnp.h
+	@mkdir -p tests/unit/bin
+	CHECKLIBS=`$(CHECK_LIBS_CMD)`; \
+	case `uname -s` in \
+	  Darwin) GCSECTIONS="-Wl,-dead_strip" ;; \
+	  *) GCSECTIONS="-Wl,--gc-sections" ;; \
+	esac; \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
+		-c ckuusx.c -o tests/unit/bin/ckuusx_test_ss.$(EXT); \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
+		-c ckucmd.c -o tests/unit/bin/ckucmd_test_ss.$(EXT); \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
+		-c ckclib.c -o tests/unit/bin/ckclib_test_ss.$(EXT); \
+	$(CC) $(CFLAGS) -I. $(UNIT_GC_CFLAGS) \
+		tests/unit/test_slotstate.c \
+		tests/unit/bin/ckuusx_test_ss.$(EXT) \
+		tests/unit/bin/ckucmd_test_ss.$(EXT) \
+		tests/unit/bin/ckclib_test_ss.$(EXT) \
 		-o $@ $$GCSECTIONS $$CHECKLIBS
 
 # test_fpformat exercises fpformat() from ckuus4.c. ckuus4.c as a
@@ -2091,8 +2132,6 @@ freebsd freebsd41 freebsd72 freebsd5 freebsd6 freebsd7 freebsd8 freebsd9:
 freebsd+ssl freebsd+openssl freebsd50+openssl:
 	@echo 'Making C-Kermit $(CKVER) for FreeBSD with Kerberos 5...'
 	@case `openssl version` in \
-	  *0.9.7*) OPENSSLOPTION="-DOPENSSL_097" ;; \
-	  *0.9.8*) OPENSSLOPTION="-DOPENSSL_098" ;; \
 	  *1.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_100" ;; \
 	  *3.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_300" ;; \
 	  *) OPENSSLOPTION="" ;; \
@@ -2142,10 +2181,11 @@ netbsd netbsd2 netbsd15 netbsd16 old-netbsd:
 	-DTIMEH	-DBSD44 -DCK_CURSES -DTCPSOCKET -DUSE_STRERROR \
 	-funsigned-char -DHERALD=\"\\\" `uname -s -r`\\\"\" \
 	-DCK_DTRCD -DCK_DTRCTS -DTPUTSARGTYPE=int -DFNFLOAT $(KFLAGS) -O2" \
-	"LIBS= -lcurses -lcrypt -lm -lutil $(LIBS)" ; $(shell ./ckubuildlog)
+	"LIBS= -lcurses -lcrypt -lm -lutil $(LIBS)"
 
+# Write a build-log table entry for wermit.
 buildlog:
-	@(shell ./ckubuildlog -v)
+	./ckubuildlog -v
 
 netbsd-clang netbsdclang:
 	# Dummy comment \
@@ -2199,8 +2239,6 @@ netbsd+ssl netbsd+openssl:
 	@echo 'Making C-Kermit $(CKVER) for NetBSD+OpenSSL SSLLIB=$(SSLLIB)'
 	@echo 'If you get DES-related warnings try make netbsd+ssl-des'
 	@case `openssl version` in \
-	  *0.9.7*) OPENSSLOPTION="-DOPENSSL_097" ;; \
-	  *0.9.8*) OPENSSLOPTION="-DOPENSSL_098" ;; \
 	  *1.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_100" ;; \
 	  *3.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_300" ;; \
 	  *) OPENSSLOPTION="" ;; \
@@ -2234,8 +2272,6 @@ netbsd+ssl netbsd+openssl:
 netbsd+ssl3:
 	@echo 'Making C-Kermit $(CKVER) for NetBSD+OpenSSL SSLLIB=$(SSLLIB)'
 	@case `openssl version` in \
-	  *0.9.7*) OPENSSLOPTION="-DOPENSSL_097" ;; \
-	  *0.9.8*) OPENSSLOPTION="-DOPENSSL_098" ;; \
 	  *1.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_100" ;; \
 	  *3.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_300" ;; \
 	  *) OPENSSLOPTION="" ;; \
@@ -2252,8 +2288,6 @@ netbsd+ssl3:
 netbsd+ssl-des:
 	@echo 'Making C-Kermit $(CKVER) for NetBSD+OpenSSL SSLLIB=$(SSLLIB)'
 	@case `openssl version` in \
-	  *0.9.7*) OPENSSLOPTION="-DOPENSSL_097" ;; \
-	  *0.9.8*) OPENSSLOPTION="-DOPENSSL_098" ;; \
 	  *1.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_100" ;; \
 	  *3.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_300" ;; \
 	  *) OPENSSLOPTION="" ;; \
@@ -2274,8 +2308,6 @@ netbsd+ssl-des:
 netbsd+krb5:
 	@echo 'Making C-Kermit $(CKVER) for NetBSD with Kerberos 5...'
 	@case `openssl version` in \
-	  *0.9.7*) OPENSSLOPTION="-DOPENSSL_097" ;; \
-	  *0.9.8*) OPENSSLOPTION="-DOPENSSL_098" ;; \
 	  *1.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_100" ;; \
 	  *3.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_300" ;; \
 	  *) OPENSSLOPTION="" ;; \
@@ -2303,8 +2335,6 @@ netbsd+krb5:
 netbsd+krb5-new:
 	@echo 'Making C-Kermit $(CKVER) for NetBSD with Kerberos 5...'
 	@case `openssl version` in \
-	  *0.9.7*) OPENSSLOPTION="-DOPENSSL_097" ;; \
-	  *0.9.8*) OPENSSLOPTION="-DOPENSSL_098" ;; \
 	  *1.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_100" ;; \
 	  *3.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_300" ;; \
 	  *) OPENSSLOPTION="" ;; \
@@ -2407,8 +2437,6 @@ netbsd+krb5-new:
 netbsd+krb5+ssl netbsd+krb5+openssl+zlib:
 	@echo 'Making C-Kermit $(CKVER) for NetBSD+OpenSSL+Kerberos5...'
 	@case `openssl version` in \
-	  *0.9.7*) OPENSSLOPTION="-DOPENSSL_097" ;; \
-	  *0.9.8*) OPENSSLOPTION="-DOPENSSL_098" ;; \
 	  *1.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_100" ;; \
 	  *3.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_300" ;; \
 	  *) OPENSSLOPTION="" ;; \
@@ -2741,8 +2769,6 @@ macos+ssl macos+openssl:
 	   *) ZLIBFLAG='-DZLIB' ; ZLIBOPT="-L $$ZLIBDIR -lz" ;; \
 	esac ; \
 	case `openssl version` in \
-	  *0.9.7*) OPENSSLOPTION="-DOPENSSL_097" ;; \
-	  *0.9.8*) OPENSSLOPTION="-DOPENSSL_098" ;; \
 	  *1.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_100" ;; \
 	  *3.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_300" ;; \
 	  *) OPENSSLOPTION="" ;; \
@@ -4504,8 +4530,6 @@ solaris9g solaris10g solaris11g:
 #OK C-Kermit 9.0.301.
 solaris9g+krb5+ssl solaris10g+krb5+ssl solaris11g+krb5+ssl:
 	@case `openssl version` in \
-	  *0.9.7*) OPENSSLOPTION="-DOPENSSL_097" ;; \
-	  *0.9.8*) OPENSSLOPTION="-DOPENSSL_098" ;; \
 	  *1.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_100" ;; \
 	  *3.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_300" ;; \
 	  *) OPENSSLOPTION="" ;; \
@@ -4593,8 +4617,6 @@ solaris9+ssl solaris10+ssl solaris11+ssl \
 solaris9+openssl solaris10+openssl solaris11+openssl:
 	@echo 'Making C-Kermit $(CKVER) for Solaris 9/10/11 with OpenSSL: cc'
 	@case `openssl version` in \
-	  *0.9.7*) OPENSSLOPTION="-DOPENSSL_097" ;; \
-	  *0.9.8*) OPENSSLOPTION="-DOPENSSL_098" ;; \
 	  *1.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_100" ;; \
 	  *3.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_300" ;; \
 	  *) OPENSSLOPTION="" ;; \
@@ -4622,8 +4644,6 @@ solaris9g+ssl solaris10g+ssl solaris11g+ssl \
 solaris9g+openssl solaris10g+openssl solaris11g+openssl:
 	@echo 'Making C-Kermit $(CKVER) for Solaris 9/10/11 with OpenSSL: gcc'
 	@case `openssl version` in \
-	  *0.9.7*) OPENSSLOPTION="-DOPENSSL_097" ;; \
-	  *0.9.8*) OPENSSLOPTION="-DOPENSSL_098" ;; \
 	  *1.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_100" ;; \
 	  *3.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_300" ;; \
 	  *) OPENSSLOPTION="" ;; \
@@ -4649,8 +4669,6 @@ solaris9g+openssl solaris10g+openssl solaris11g+openssl:
 solaris9g+openssl+forward_x:
 	@echo 'Making C-Kermit $(CKVER) for Solaris 9 or later with OpenSSL...'
 	@case `openssl version` in \
-	  *0.9.7*) OPENSSLOPTION="-DOPENSSL_097" ;; \
-	  *0.9.8*) OPENSSLOPTION="-DOPENSSL_098" ;; \
 	  *1.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_100" ;; \
 	  *3.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_300" ;; \
 	  *) OPENSSLOPTION="" ;; \
@@ -6481,8 +6499,6 @@ hpux1000o+ssl hpux1000o+openssl:
 	   *) ZLIBFLAG='-DZLIB' ; ZLIBOPT="-L $$ZLIBDIR -lz" ;; \
 	esac ; \
 	case `openssl version` in \
-	  *0.9.7*) OPENSSLOPTION="-DOPENSSL_097" ;; \
-	  *0.9.8*) OPENSSLOPTION="-DOPENSSL_098" ;; \
 	  *1.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_100" ;; \
 	  *3.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_300" ;; \
 	  *) OPENSSLOPTION="" ;; \
@@ -6990,8 +7006,6 @@ linuxso:
 linux+krb5-old:
 	@echo 'Making C-Kermit $(CKVER) for Linux with Kerberos 5...'
 	@case `openssl version` in \
-	  *0.9.7*) OPENSSLOPTION="-DOPENSSL_097" ;; \
-	  *0.9.8*) OPENSSLOPTION="-DOPENSSL_098" ;; \
 	  *1.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_100" ;; \
 	  *3.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_300" ;; \
 	  *) OPENSSLOPTION="" ;; \
@@ -7052,8 +7066,6 @@ linux+krb5-old:
 linux+krb5 linux+krb5-new:
 	@echo 'NEW Making C-Kermit $(CKVER) for Linux with Kerberos 5...'
 	@case `openssl version` in \
-	  *0.9.7*) OPENSSLOPTION="-DOPENSSL_097" ;; \
-	  *0.9.8*) OPENSSLOPTION="-DOPENSSL_098" ;; \
 	  *1.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_100" ;; \
 	  *3.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_300" ;; \
 	  *) OPENSSLOPTION="" ;; \
@@ -7187,8 +7199,6 @@ KPAMLIBS = -lpam -ldl
 linux+ssl linux+openssl linux+openssl+zlib+shadow+pam linux+openssl+shadow:
 	@echo 'Making C-Kermit $(CKVER) for Linux+OpenSSL SSLLIB=$(SSLLIB)'
 	@case `openssl version` in \
-	  *0.9.7*) OPENSSLOPTION="-DOPENSSL_097" ;; \
-	  *0.9.8*) OPENSSLOPTION="-DOPENSSL_098" ;; \
 	  *1.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_100" ;; \
 	  *3.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_300" ;; \
 	  *) OPENSSLOPTION="" ;; \
@@ -7332,8 +7342,6 @@ linux+musl:
 linux+krb5+ssl linux+krb5+openssl:
 	@echo 'Making C-Kermit $(CKVER) for Linux with Krb5 and OpenSSL...'
 	@case `openssl version` in \
-	  *0.9.7*) OPENSSLOPTION="-DOPENSSL_097" ;; \
-	  *0.9.8*) OPENSSLOPTION="-DOPENSSL_098" ;; \
 	  *1.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_100" ;; \
 	  *3.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_300" ;; \
 	  *) OPENSSLOPTION="" ;; \
@@ -7392,8 +7400,6 @@ linux+krb5+ssl linux+krb5+openssl:
 linux+krb5+ssl-new:
 	@echo 'Making C-Kermit $(CKVER) for Linux with Krb5 and OpenSSL...'
 	@case `openssl version` in \
-	  *0.9.7*) OPENSSLOPTION="-DOPENSSL_097" ;; \
-	  *0.9.8*) OPENSSLOPTION="-DOPENSSL_098" ;; \
 	  *1.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_100" ;; \
 	  *3.[0-9].[0-9]*) OPENSSLOPTION="-DOPENSSL_300" ;; \
 	  *) OPENSSLOPTION="" ;; \

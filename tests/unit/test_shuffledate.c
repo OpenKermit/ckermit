@@ -3,6 +3,7 @@
   reshuffler behind \fcvtdate() and related functions.
 */
 #include <check.h>
+#include <stdio.h>
 #include <string.h>
 #define CK_ANSIC
 #include "ckcsym.h"
@@ -41,7 +42,7 @@ START_TEST(test_shuffledate_well_formed_with_time)
 {
     char buf[32];
     char * s;
-    strcpy(buf, "20051126 11:10:34");
+    snprintf(buf, sizeof(buf), "%s", "20051126 11:10:34");
     s = shuffledate(buf, 4);
     ck_assert_str_eq(s, "Sat Nov 26 11:10:34 2005");
 }
@@ -52,7 +53,7 @@ START_TEST(test_shuffledate_date_only_no_time_requested)
     /* Negative opt selects date-only output in "Day Mon dd yyyy" format. */
     char buf[32];
     char * s;
-    strcpy(buf, "20051126 11:10:34");
+    snprintf(buf, sizeof(buf), "%s", "20051126 11:10:34");
     s = shuffledate(buf, -4);
     ck_assert_str_eq(s, "Sat Nov 26 2005");
 }
@@ -65,7 +66,7 @@ START_TEST(test_shuffledate_date_only_single_digit_day)
 {
     char buf[32];
     char * s;
-    strcpy(buf, "20051103 11:10:34");
+    snprintf(buf, sizeof(buf), "%s", "20051103 11:10:34");
     s = shuffledate(buf, -4);
     ck_assert_str_eq(s, "Thu Nov  3 2005");
 }
@@ -79,7 +80,7 @@ START_TEST(test_shuffledate_date_only_strips_trailing_crlf)
 {
     char buf[32];
     char * s;
-    strcpy(buf, "20051126\r\n");
+    snprintf(buf, sizeof(buf), "%s", "20051126\r\n");
     s = shuffledate(buf, 4);
     ck_assert_str_eq(s, "Sat Nov 26 00:00:00 2005");
 }
@@ -89,7 +90,7 @@ START_TEST(test_shuffledate_date_only_strips_trailing_space)
 {
     char buf[32];
     char * s;
-    strcpy(buf, "20051126   ");
+    snprintf(buf, sizeof(buf), "%s", "20051126   ");
     s = shuffledate(buf, 4);
     ck_assert_str_eq(s, "Sat Nov 26 00:00:00 2005");
 }
@@ -103,7 +104,8 @@ START_TEST(test_shuffledate_all_whitespace_no_oob)
 {
     char buf[32];
     char * s;
-    strcpy(buf, "        \r\n\t   ");  /* 8 spaces, CR, LF, tab, 3 spaces */
+    /* 8 spaces, CR, LF, tab, 3 spaces */
+    snprintf(buf, sizeof(buf), "%s", "        \r\n\t   ");
     s = shuffledate(buf, 4);
     ck_assert_str_eq(s, buf);
 }
@@ -117,7 +119,8 @@ START_TEST(test_shuffledate_invalid_month_zero)
 {
     char buf[32];
     char * s;
-    strcpy(buf, "20050026");  /* Month digits "00" -> mm == 0 */
+    /* Month digits "00" -> mm == 0 */
+    snprintf(buf, sizeof(buf), "%s", "20050026");
     s = shuffledate(buf, 4);
     ck_assert_str_eq(s, buf);
 }
@@ -127,7 +130,8 @@ START_TEST(test_shuffledate_invalid_month_too_large)
 {
     char buf[32];
     char * s;
-    strcpy(buf, "20051326");  /* Month digits "13" -> mm == 13 */
+    /* Month digits "13" -> mm == 13 */
+    snprintf(buf, sizeof(buf), "%s", "20051326");
     s = shuffledate(buf, 4);
     ck_assert_str_eq(s, buf);
 }

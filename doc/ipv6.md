@@ -53,10 +53,6 @@ IPv4-only:
 - X11 forwarding will work across an IPv6 connection, but will always listen on
   an IPv4 socket locally.
 
-- The SSL code doesn't yet support IPv6 literals in the SAN field.  SSL in
-  general is IPv6-capable; this is an exceptionally rare edge case that adds
-  complexity to the code that seemed not worth it in the end.
-  
 - rlogin has not been rigorously defined for IPv6 contexts and rlogin behavior
   is untested there, though may work.
 

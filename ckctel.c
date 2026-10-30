@@ -263,9 +263,9 @@ telopt_index(opt) int opt;
     if (opt >= 0 && opt <= TELOPT_STDERR)
       return(opt);
     else if (opt >= TELOPT_PRAGMA_LOGON && opt <= TELOPT_PRAGMA_HEARTBEAT)
-      return(opt-88);
+      return(opt-87);
     else if (opt == TELOPT_IBM_SAK)
-      return(opt-147);
+      return(opt-146);
     else
       return(NTELOPTS);
 }
@@ -511,8 +511,42 @@ istncomport() {
 #ifndef TN_WAIT_BUF_SZ
 #define TN_WAIT_BUF_SZ 4096
 #endif /* TN_WAIT_BUF_SZ */
-static char tn_wait_buf[TN_WAIT_BUF_SZ];
+/*
+  tn_wait_buf holds the peer data read while waiting.  tn_push() hands
+  the data back to readers that parse Telnet.  A literal 255 stays IAC
+  IAC.  The extra byte holds the second IAC when the pair starts in the
+  last slot.  tn_wait_idx is then TN_WAIT_BUF_SZ + 1.  Full-buffer
+  checks use >=.
+*/
+static char tn_wait_buf[TN_WAIT_BUF_SZ + 1];
 static int  tn_wait_idx = 0;
+
+/*
+  tn_wait_inc() reads the bytes of a Telnet command for tn_wait() and
+  tn_flui().  tn_wait_cmd is 1 until the byte after the IAC arrives.
+  If that byte is IAC, tn_wait_inc() stores the literal 255 in
+  tn_wait_buf at once.  tn_doop() may then call tn_start().  Subsequent
+  waits append any data that follows.
+*/
+static int tn_wait_cmd = 0;
+
+static int
+#ifdef CK_ANSIC
+tn_wait_inc(int timo)
+#else
+tn_wait_inc(timo) int timo;
+#endif /* CK_ANSIC */
+{
+    int c = ttinc(timo);
+    if (tn_wait_cmd && c >= 0) {
+        tn_wait_cmd = 0;
+        if (c == IAC) {
+            tn_wait_buf[tn_wait_idx++] = IAC;
+            tn_wait_buf[tn_wait_idx++] = IAC;
+        }
+    }
+    return(c);
+}
 #ifndef TN_TIMEOUT
 #define TN_TIMEOUT 120
 #endif /* TN_TIMEOUT */
@@ -577,6 +611,15 @@ tn_wait(where) char * where;
 
     if (tn_deb || debses) tn_debug("<wait for outstanding negotiations>");
 
+    /*
+      Each pass through the loop stores up to two bytes in tn_wait_buf.
+      A previous wait can leave the buffer full.  Read nothing then.
+    */
+    if (tn_wait_idx >= TN_WAIT_BUF_SZ) {
+      if (tn_deb || debses) tn_debug("<Telnet Wait Buffer filled>");
+      return(0);
+    }
+
 #ifdef CKSPINNER
     if (!sstelnet && !quiet)
         prtwait(0);
@@ -616,7 +659,12 @@ tn_wait(where) char * where;
             if (!sstelnet && !quiet)
               printf("\b");
 #endif /* CKSPINNER */
-            ch = tn_doop((CHAR)(ch & 0xff),inserver?ckxech:duplex,ttinc);
+            tn_wait_cmd = 1;
+            ch = tn_doop((CHAR)(ch & 0xff),inserver?ckxech:duplex,
+                         tn_wait_inc);
+            if (ch == 3 && tn_wait_cmd) /* Not Telnet: IAC is data */
+              tn_wait_buf[tn_wait_idx++] = IAC;
+            tn_wait_cmd = 0;
 #ifdef CKSPINNER
             if (!sstelnet && !quiet) {
                 prtwait(gtimer());
@@ -634,8 +682,7 @@ tn_wait(where) char * where;
                 if (inserver)
                   ckxech = 0;
                 break;
-              case 3:
-                tn_wait_buf[tn_wait_idx++] = IAC;
+              case 3:                   /* tn_wait_inc() stored it */
                 break;
               case 4:                   /* IKS event */
               case 6:                   /* Logout */
@@ -722,7 +769,7 @@ tn_wait(where) char * where;
     } while ((tn_wait_idx < TN_WAIT_BUF_SZ) &&
              (outstanding && count >= 0));
 
-    if (tn_wait_idx == TN_WAIT_BUF_SZ) {
+    if (tn_wait_idx >= TN_WAIT_BUF_SZ) {
       if (tn_deb || debses) tn_debug("<Telnet Wait Buffer filled>");
       return(0);
     }
@@ -740,6 +787,21 @@ tn_wait(where) char * where;
     if (tn_deb || debses) tn_debug("<no outstanding negotiations>");
     return(0);
 }
+
+#ifdef CK_SSL
+/*
+  Return 1 while this side has sent SB START_TLS FOLLOWS and waits for
+  the peer's.  A client can send its TLS handshake right after its
+  FOLLOWS, and OpenSSL reads the handshake from the socket.  So the
+  callers read one byte at a time while this returns 1, and the read
+  stops at the IAC SE that ends the peer's FOLLOWS.
+*/
+int
+tn_tls_follows_wait() {
+    return(TELOPT_SB(TELOPT_START_TLS).start_tls.me_follows &&
+           !TELOPT_SB(TELOPT_START_TLS).start_tls.u_follows);
+}
+#endif /* CK_SSL */
 
 /* Push data from the Telnet Wait Buffer into the I/O Queue */
 /* Return 1 on success                                      */
@@ -871,6 +933,8 @@ tn_sopt(cmd,opt) int cmd, opt;
 /* Send a telnet sub-option */
 /* Returns 1 if command was sent, 0 if not, -1 on error */
 
+#define TN_SBMAX 8192                   /* Most subnegotiation data sent */
+
 int
 #ifdef CK_ANSIC
 tn_ssbopt( int opt, int sub, CHAR * data, int len )
@@ -878,13 +942,13 @@ tn_ssbopt( int opt, int sub, CHAR * data, int len )
 tn_ssbopt(opt,sub,data,len) int opt, sub; CHAR * data; int len;
 #endif /* CK_ANSIC */
 {
-    CHAR buf[256];
-    int rc;
+    CHAR sbuf[256], * buf = sbuf;
+    int rc, i, o;
 
     if (ttnet != NET_TCPB) return(0);   /* Must be TCP/IP */
     if (ttnproto != NP_TELNET) return(0); /* Must be telnet protocol */
     if (!TELOPT_OK(opt)) return(-1);
-    if (len < 0 || len > 250) {
+    if (len < 0 || len > TN_SBMAX) {
         debug(F111,"Unable to Send TELNET SB - data too long","len",len);
         return(-1);                     /* Data too long */
     }
@@ -899,15 +963,22 @@ tn_ssbopt(opt,sub,data,len) int opt, sub; CHAR * data; int len;
 
     if (!data) len = 0;
 
+    if (2 * len + 6 > (int)sizeof(sbuf)) { /* Each byte may be doubled */
+        buf = (CHAR *)malloc(2 * len + 6);
+        if (!buf)
+          return(-1);
+    }
     buf[0] = (CHAR) IAC;
     buf[1] = (CHAR) (SB & 0xff);
     buf[2] = (CHAR) (opt & 0xff);
     buf[3] = (CHAR) (sub & 0xff);
-    if (data && len > 0) {
-        memcpy(&buf[4],data,len);
+    for (i = 0, o = 4; i < len; i++) {  /* Data, with IAC doubled */
+        buf[o++] = data[i];
+        if (data[i] == IAC)
+          buf[o++] = (CHAR) IAC;
     }
-    buf[4+len] = (CHAR) IAC;
-    buf[5+len] = (CHAR) SE;
+    buf[o++] = (CHAR) IAC;
+    buf[o++] = (CHAR) SE;
 
 #ifdef DEBUG
     if (tn_deb || debses || deblog) {
@@ -977,10 +1048,12 @@ tn_ssbopt(opt,sub,data,len) int opt, sub; CHAR * data; int len;
     if (tn_deb || debses)
       tn_debug(tn_msg_out);
 #endif /* DEBUG */
-    rc = (ttol(buf,6+len) < 6+len);
+    rc = (ttol(buf,o) < o);
 #ifdef OS2
     ReleaseTelnetMutex();
 #endif
+    if (buf != sbuf)
+      free(buf);
 
     if (rc)
       return(-1);
@@ -1004,7 +1077,11 @@ tn_flui() {
         x = ttinc(1);
         switch (x) {
           case IAC:
-            x = tn_doop((CHAR)(x & 0xff),inserver?ckxech:duplex,ttinc);
+            tn_wait_cmd = 1;
+            x = tn_doop((CHAR)(x & 0xff),inserver?ckxech:duplex,tn_wait_inc);
+            if (x == 3 && tn_wait_cmd)  /* Not Telnet: IAC is data */
+              tn_wait_buf[tn_wait_idx++] = IAC;
+            tn_wait_cmd = 0;
             debug(F101,"tn_flui tn_doop","",x);
             switch (x) {
               case 1:                   /* Turn on echoing */
@@ -1017,8 +1094,7 @@ tn_flui() {
                 if (inserver)
                   ckxech = 0;
                 break;
-              case 3:
-                tn_wait_buf[tn_wait_idx++] = IAC;
+              case 3:                   /* tn_wait_inc() stored it */
                 break;
               case 4:                   /* IKS event */
               case 6:                   /* Logout */
@@ -1038,6 +1114,9 @@ tn_get_display()
 {
     char * disp = NULL;
     static char tmploc[256];
+    /* An X display name cannot carry an IPv6 address.  Use localhost. */
+    char * dhost = (myipaddr[0] && !strchr(myipaddr,':')) ?
+      myipaddr : "localhost";
 
     /* Must compute the DISPLAY string we are going to send to the host */
     /* If one is not assigned, do not send a string unless the user has */
@@ -1055,14 +1134,14 @@ tn_get_display()
     if (tn_env_disp[0]) {
         int colon = ckindex(":",tn_env_disp,0,0,1);
         if ( !colon ) {
-            ckmakmsg(tmploc,256,myipaddr,":",tn_env_disp,NULL);
+            ckmakmsg(tmploc,256,dhost,":",tn_env_disp,NULL);
             disp = tmploc;
         } else if ( ckindex("localhost:",tn_env_disp,0,0,0) ||
                     ckindex("unix:",tn_env_disp,0,0,0) ||
                     ckindex("127.0.0.1:",tn_env_disp,0,0,0) ||
                     !ckstrcmp("0:",tn_env_disp,2,1) ||
                     tn_env_disp[0] == ':' ) {
-            ckmakmsg(tmploc,256,myipaddr,":",&tn_env_disp[colon],NULL);
+            ckmakmsg(tmploc,256,dhost,":",&tn_env_disp[colon],NULL);
             disp = tmploc;
         } else
             disp = tn_env_disp;
@@ -1077,7 +1156,7 @@ tn_get_display()
 #endif   /* SSHBUILTIN */
 #endif   /* OS2 */
               ) {
-        ckmakmsg(tmploc,256,myipaddr,":0.0",NULL,NULL);
+        ckmakmsg(tmploc,256,dhost,":0.0",NULL,NULL);
         disp = tmploc;
     }
     debug(F110,"tn_get_display() returns",disp,0);
@@ -1370,7 +1449,11 @@ fwdx_tn_sb( fxsb, n ) unsigned char * fxsb; int n;
             rc = fwdx_create_listen_socket(fxsb[1]);
         break;
     case FWDX_OPEN:
-        if ( !sstelnet && n >= 5 ) {
+        if (!sstelnet && n < 5) {       /* Command, channel, IAC SE */
+            rc = 0;                     /* Too short: ignore it */
+            break;
+        }
+        if ( !sstelnet ) {
             p = (unsigned char *) &nchannel;
             i = 1;
             /* IAC quoting has been stripped in tn_sb() */
@@ -1392,6 +1475,10 @@ fwdx_tn_sb( fxsb, n ) unsigned char * fxsb; int n;
         }
         break;
     case FWDX_CLOSE:
+        if (n < 5) {                    /* Command, channel, IAC SE */
+            rc = 0;                     /* Too short: ignore it */
+            break;
+        }
         p = (unsigned char *) &nchannel;
         i = 1;
         /* IAC quoting has been stripped in tn_sb() */
@@ -1402,6 +1489,10 @@ fwdx_tn_sb( fxsb, n ) unsigned char * fxsb; int n;
         rc = 0; /* no errors when closing */
         break;
     case FWDX_DATA:
+        if (n < 5) {                    /* Command, channel, IAC SE */
+            rc = 0;                     /* Too short: ignore it */
+            break;
+        }
         p = (unsigned char *) &nchannel;
         i = 1;
         /* IAC quoting has been stripped in tn_sb() */
@@ -1438,15 +1529,24 @@ fwdx_tn_sb( fxsb, n ) unsigned char * fxsb; int n;
     case FWDX_XOFF:
     case FWDX_XON:
         if ( !sstelnet ) {
+            rc = 0;
+            if (n < 5)                  /* Too short: ignore it */
+              break;
             p = (unsigned char *) &nchannel;
             i = 1;
             /* IAC quoting has been stripped in tn_sb() */
             p[0] = fxsb[i++];
             p[1] = fxsb[i++];
             hchannel = ntohs(nchannel);
-            TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[hchannel].suspend =
-                (fxsb[0] == FWDX_XOFF);
-            rc = 0;
+            /* The wire value is a channel id.  Find its table entry. */
+            for ( i = 0; i < MAXFWDX; i++ ) {
+                if (TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[i].id ==
+                    hchannel) {
+                    TELOPT_SB(TELOPT_FORWARD_X).forward_x.channel[i].suspend =
+                      (fxsb[0] == FWDX_XOFF);
+                    break;
+                }
+            }
         }
         break;
     }
@@ -1521,6 +1621,10 @@ fwdx_send_xauth_to_xserver(channel, data, len)
         int dpynum, scrnum, family;
         char *display, *host = NULL, *rest = NULL;
 
+        if (real_xauth) {               /* From an earlier channel */
+            XauDisposeAuth(real_xauth);
+            real_xauth = NULL;
+        }
         /* parse the local DISPLAY env var */
         display = getenv("DISPLAY");
         if ( !display )
@@ -1563,9 +1667,10 @@ fwdx_send_xauth_to_xserver(channel, data, len)
             return(0);
         }
 
-        if (!strncmp(real_xauth->name,
-                     "MIT-MAGIC-COOKIE-1",
-                     real_xauth->name_length)) {
+        /* An MIT-MAGIC-COOKIE-1 entry has an 18-byte name, 16-byte data */
+        if (real_xauth->name_length == 18 &&
+            !memcmp(real_xauth->name,"MIT-MAGIC-COOKIE-1",18) &&
+            real_xauth->data_length == 16) {
             char msg[64];
 
             name_len = real_xauth->name_length;
@@ -1751,8 +1856,8 @@ fwdx_client_reply_options(opts, n) char *opts; int n;
     sb_out[i++] = FWDX_OPTIONS;               /* Options */
 
     /* Look for the options we recognize and will support for this session */
-    /* and reply with their bytes set                                      */
-    for (j=0; j<n; j++,i++) {
+    /* and reply with their bytes set.  Leave room for IAC SE.             */
+    for (j=0; j<n && i < TSBUFSIZ - 2; j++,i++) {
         sb_out[i] = FWDX_OPT_NONE;          /* Add zero byte - no options */
     }
     sb_out[i++] = (CHAR) IAC;                 /* End of Subnegotiation */
@@ -1865,7 +1970,7 @@ fwdx_send_data_from_channel(channel, data, len)
     j_sav = j;
 
     for (i = 0; i < len; i++) {
-        tmp = (unsigned int)data[i];
+        tmp = (unsigned int)(CHAR)data[i]; /* 0 to 255, so 0xFF is IAC */
         if ( tmp == IAC ) {
             sb_priv[j++] = IAC;
             sb_priv[j++] = IAC;
@@ -1958,8 +2063,7 @@ fwdx_create_fake_xauth(name, name_len, data_len)
     char *name; int name_len; int data_len;
 #endif /* CK_ANSIC */
 {
-    char stackdata[256];
-    unsigned int c, n;
+    unsigned int c;
 
     if (!name_len || !data_len)
         return 1;
@@ -1971,12 +2075,16 @@ fwdx_create_fake_xauth(name, name_len, data_len)
     memcpy(fake_xauth.name, name, name_len);
     fake_xauth.data_length = (unsigned short)data_len;
 
-    /* try to make a random unsigned int to feed srand() */
-    c = (unsigned int)time(NULL);
+    /* The cookie authenticates X11 clients to the local display. */
+#ifdef CK_SSL
+    if (RAND_bytes((unsigned char *)fake_xauth.data, data_len) == 1)
+        return 0;
+#endif /* CK_SSL */
+    if (ckrandbytes((unsigned char *)fake_xauth.data, data_len) == 0)
+        return 0;
+    c = (unsigned int)time(NULL);       /* No secure generator */
     c *= (unsigned int)getpid();
-    for (n = 0; n < sizeof(stackdata); n++)
-        c += stackdata[n];
-    srand((unsigned int)c);
+    srand(c);
     for (c = 0; c < (unsigned int)data_len; c++)
         fake_xauth.data[c] = (unsigned char)rand();
     return 0;
@@ -2037,7 +2145,7 @@ iks_wait(iwst,flushok) int iwst; int flushok;
                 x = tn_wait("iks_wait() me_iks_req_start");
             } while (x == 0 &&
                      flushok &&
-                     tn_wait_idx == TN_WAIT_BUF_SZ &&
+                     tn_wait_idx >= TN_WAIT_BUF_SZ &&
 /*
   The idea here is that if, while waiting for a response to SB KERMIT SOP,
   we get a DONT KERMIT, as happens in at least one real-life situation,
@@ -2051,7 +2159,7 @@ iks_wait(iwst,flushok) int iwst; int flushok;
             tn_wait_flg = tn_wait_save;
             if (flushok)
               tn_wait_idx = 0;
-            if (tn_wait_idx == TN_WAIT_BUF_SZ) {
+            if (tn_wait_idx >= TN_WAIT_BUF_SZ) {
                 /*
                  * We are attempting to start a kermit server on the peer
                  * the most likely reason is because we want to perform a
@@ -2080,12 +2188,12 @@ iks_wait(iwst,flushok) int iwst; int flushok;
                 if (flushok)
                   tn_wait_idx = 0;
                 x = tn_wait("iks_wait() me_iks_req_stop");
-            } while (x == 0 && flushok && tn_wait_idx == TN_WAIT_BUF_SZ);
+            } while (x == 0 && flushok && tn_wait_idx >= TN_WAIT_BUF_SZ);
             tn_wait_flg = tn_wait_save;
             if (flushok)
               tn_wait_idx = 0;
 
-            if (tn_wait_idx == TN_WAIT_BUF_SZ) {
+            if (tn_wait_idx >= TN_WAIT_BUF_SZ) {
                 /*
                  * We are attempting to stop a kermit server on the peer
                  * the most likely reason being that we want to enter
@@ -2194,7 +2302,7 @@ iks_tn_sb(iksb, n) CHAR * iksb; int n;
             tn_siks(KERMIT_RESP_STOP);
         } else if (server) {
             extern int en_fin;
-            if (en_fin) {               /* If the server is allowed to stop */
+            if (ENABLED(en_fin)) {      /* If the server is allowed to stop */
                 tn_siks(KERMIT_RESP_STOP);
             } else {                    /* We are not allowed to stop */
                 tn_siks(KERMIT_RESP_START);
@@ -2214,6 +2322,8 @@ iks_tn_sb(iksb, n) CHAR * iksb; int n;
       case KERMIT_SOP: {                /* SOP */
 #ifndef NOXFER
           extern CHAR stchr;            /* Incoming SOP character */
+          if (n < 2)                    /* No SOP character given */
+            return(4);
           stchr = iksb[1];
 #endif /* NOXFER */
           TELOPT_SB(TELOPT_KERMIT).kermit.sop = 1;
@@ -3033,32 +3143,25 @@ tn_ini() {
       case NP_NONE:
       case NP_SSL:
       case NP_TLS:                      /* If not talking to a telnet port, */
-      case NP_SSL_RAW:                  /* SSL and TLS with Telnet */
-      case NP_TLS_RAW:                  /* negotiations disabled. */
         ttnproto = NP_TELNET;           /* pretend it's telnet anyway, */
         oldplex = duplex;               /* save old duplex value */
         duplex = 1;                     /* and set to half duplex for telnet */
-
-        /* For a real raw SSL/TLS connection (as opposed to SSL-
-         * wrapped Telnet), there is no peer that will ever send Telnet
-         * negotiation responses, so waiting for them causes trouble.
-         * tn_wait() reads and consumes bytes off the connection 
-         * looking for an IAC, stashing anything else
-         * into its own side buffer.  If the peer's first real
-         * application data (such as a Kermit packet) arrives before
-         * tn_wait() gives up, it gets silently discarded here instead
-         * of reaching the protocol engine.
-         */
-#ifdef CK_SSL
-        if (inserver || ssl_only_flag || tls_only_flag)
-#else
+        /*
+          Send no options.  tn_doop() starts Telnet when the peer sends
+          IAC.  tn_wait() gives the peer one read to send it first.
+        */
         if (inserver)
-#endif /* CK_SSL */
           debug(F100,"tn_ini skipping telnet negotiations","",0);
         else
           tn_wait("tn_ini - waiting to see if telnet negotiations were sent");
         tn_push();
         return(0);
+      /*
+        A raw connection keeps its ttnproto.  IS_TELNET() is then
+        false.  Commands send and read bytes without Telnet processing.
+      */
+      case NP_SSL_RAW:
+      case NP_TLS_RAW:
       case NP_TCPRAW:                   /* Raw socket requested. */
         debug(F100,"tn_ini telnet negotiations ignored","tn_init",tn_init);
         return(0);
@@ -3627,7 +3730,9 @@ tn_sb( opt, len, fn ) int opt; int * len; int (*fn)();
 
                   case TELOPT_ENCRYPTION:
                     s[0] = "SUPPORT";
-                    while (i < n-2) {
+                    /* Name known types while s[] has room. */
+                    /* tn_hex() shows the rest. */
+                    while (i < n-2 && i < 16 && ENCTYPE_NAME_OK(sb[i])) {
                         s[i] = enctype_names[sb[i]];
                         i++;
                     }
@@ -3767,7 +3872,8 @@ tn_sb( opt, len, fn ) int opt; int * len; int (*fn)();
                     break;
                   case TELOPT_ENCRYPTION:
                     s[0] = "REPLY";
-                    s[1] = enctype_names[sb[1]];
+                    s[1] = ENCTYPE_NAME_OK(sb[1]) ?
+                      enctype_names[sb[1]] : "UNKNOWN";
                     i++;
                     switch (sb[2]) {
                       case 1:
@@ -5170,6 +5276,15 @@ tn_xdoop(z, echo, fn) CHAR z; int echo; int (*fn)();
 #ifndef OS2
                   CHAR oldterm[64], *p;
 #endif /* OS2 */
+                  /* Only a client sends TTYPE IS (RFC 1091) */
+                  if (!(sstelnet
+#ifdef IKSD
+                        || inserver
+#endif /* IKSD */
+                        )) {
+                      debug(F100,"tn_doop TTYPE IS ignored as client","",0);
+                      break;
+                  }
                   /* Isolate the specified terminal type string */
                   while (sb[i++] != IAC) {
                       if (i == 40 ||    /* max len of term string - RFC */
@@ -5271,15 +5386,19 @@ tn_xdoop(z, echo, fn) CHAR z; int echo; int (*fn)();
                    ) {
                   int w = 0, h = 0;
                   int i = 0;
-                  /* At this point sb[] should contain width and height */
-                  if (sb[i] == IAC) i++;
-                  w = (sb[i++] << 8);   /* save upper height */
-                  if (sb[i] == IAC) i++;
-                  w += sb[i++];         /* save the width */
-                  if (sb[i] == IAC) i++;
-                  h = (sb[i++] << 8);   /* save upper height */
-                  if (sb[i] == IAC) i++;
-                  h += sb[i++];
+                  /*
+                    sb[] holds width and height, two bytes each, MSB
+                    first.  tn_sb() has already undoubled IAC IAC, so a
+                    byte of 255 is data.  n counts the closing IAC SE.
+                  */
+                  if (n < 6) {
+                      debug(F101,"tn_doop NAWS SB too short","",n);
+                      break;
+                  }
+                  w = (sb[i++] << 8);   /* Upper width */
+                  w += sb[i++];         /* Lower width */
+                  h = (sb[i++] << 8);   /* Upper height */
+                  h += sb[i++];         /* Lower height */
                   debug(F111,"tn_doop NAWS SB","width",w);
                   debug(F111,"tn_doop NAWS SB","height",h);
 
@@ -5409,10 +5528,6 @@ tn_doop(z, echo, fn) CHAR z; int echo; int (*fn)();
 
     if (!IS_TELNET()) return(3);
 
-#ifdef CK_SSL
-    debug(F101,"tn_doop ssl_raw_flag","",ssl_raw_flag);
-    if (ssl_raw_flag || tls_raw_flag) return(7);
-#endif  /* CK_SSL */
     debug(F100,"tn_doop ttnproto proceeding...","",0);
 
     if (z != (CHAR) IAC) {
@@ -5554,8 +5669,14 @@ tn_rnenv(rnsb, len) CHAR * rnsb; int len;
                             auth_finished(AUTH_USER);
 #ifdef CK_SSL
                             if (ssl_active_flag || tls_active_flag) {
-                                if ( tls_is_user_valid(ssl_con, uidbuf) )
+                                extern char szUserNameAuthenticated[];
+                                SSL * con = ssl_active_flag ? ssl_con
+                                                            : tls_con;
+                                if (tls_is_user_valid(con, uidbuf)) {
+                                    ckstrncpy(szUserNameAuthenticated,
+                                              uidbuf,UIDBUFLEN);
                                     auth_finished(AUTH_VALID);
+                                }
                             }
 #endif /* CK_SSL */
                         }
@@ -5613,6 +5734,38 @@ tn_rnenv(rnsb, len) CHAR * rnsb; int len;
   *np past it.  With reply NULL, only advance *np.  An entry that does
   not fit in size bytes is left out.
 */
+/*
+  NEW-ENVIRON names and values precede the bytes VAR, VALUE, ESC and
+  USERVAR with ESC.  tn_envqlen() returns the length of s with that
+  quoting.  tn_envqcpy() copies s quoted, without a terminating NUL.
+*/
+static int
+#ifdef CK_ANSIC
+tn_envqlen(char * s)
+#else
+tn_envqlen(s) char * s;
+#endif /* CK_ANSIC */
+{
+    int n = 0;
+    for (; *s; s++)
+      n += ((unsigned char)*s <= TEL_ENV_USERVAR) ? 2 : 1;
+    return(n);
+}
+
+static VOID
+#ifdef CK_ANSIC
+tn_envqcpy(char * d, char * s)
+#else
+tn_envqcpy(d,s) char * d; char * s;
+#endif /* CK_ANSIC */
+{
+    for (; *s; s++) {
+        if ((unsigned char)*s <= TEL_ENV_USERVAR)
+          *d++ = TEL_ENV_ESC;
+        *d++ = *s;
+    }
+}
+
 static VOID
 #ifdef CK_ANSIC
 tn_envadd(char * reply, int size, int * np, int type, char * name,
@@ -5622,16 +5775,16 @@ tn_envadd(reply, size, np, type, name, value)
     char * reply; int size; int * np; int type; char * name; char * value;
 #endif /* CK_ANSIC */
 /* tn_envadd */ {
-    int x = (int)strlen(name);
-    int y = (int)strlen(value);
+    int x = tn_envqlen(name);
+    int y = tn_envqlen(value);
 
     if (reply) {
         if (*np + x + y + 2 > size)
           return;
         reply[*np] = (char)type;
-        memcpy(&reply[*np + 1],name,x);
+        tn_envqcpy(&reply[*np + 1],name);
         reply[*np + x + 1] = TEL_ENV_VALUE;
-        memcpy(&reply[*np + x + 2],value,y);
+        tn_envqcpy(&reply[*np + x + 2],value);
     }
     *np += x + y + 2;
 }
@@ -6663,7 +6816,7 @@ tnc_tn_sb(ccsb, len) CHAR * ccsb; int len;
           if (len < 2)
           return(-1);
         debug(F111,"tnc_tn_sb","modemstate mask",ccsb[1]);
-        tnc_ls_mask = ccsb[1];
+        tnc_ms_mask = ccsb[1];
         break;
 
       case TNC_C2S_PURGE:

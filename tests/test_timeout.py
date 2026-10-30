@@ -1,6 +1,8 @@
 import socket
 import time
 
+import pytest
+
 from conftest import TCP_TIMEOUT_MARGIN
 
 # SET SEND TIMEOUT 2 plus SET RETRY-LIMIT 3 gives an escalating
@@ -10,6 +12,7 @@ RUN_TIMEOUT = 60 + TCP_TIMEOUT_MARGIN
 GIVE_UP_BOUND = 45
 
 
+@pytest.mark.slow
 def test_receive_gives_up_on_stalled_peer(run_wermit, get_free_port):
     """Verify RECEIVE times out when connected to a stalled peer.
 

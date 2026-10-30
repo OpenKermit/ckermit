@@ -64,6 +64,8 @@ jobs:
       # Pull requests test amd64, macOS, and armhf musl for 32-bit
       # coverage. Pushes to main also build arm64 musl. arm64 is
       # omitted from pull requests to keep runs fast.
+      # linux-nonet and linux-notcp are built but not tested, to keep
+      # the builds without network support compiling.
       #
       # The first list runs on push to main. The second runs on pull
       # requests. BSD builds run in separate jobs.
@@ -71,11 +73,15 @@ jobs:
         include: >-
           ${{ fromJson(inputs.matrix || (github.event_name == 'push' && '[
           {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"ubuntu26.04-amd64"},
+          {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux-nonet","label":"ubuntu26.04-amd64-nonet","skip-tests":true},
+          {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux-notcp","label":"ubuntu26.04-amd64-notcp","skip-tests":true},
           {"os":"ubuntu-24.04-arm","platform":"linux","arch":"arm64","make-target":"linux+ssl+musl","label":"ubuntu24.04-arm64-musl"},
           {"os":"ubuntu-24.04-arm","platform":"linux","arch":"armhf","make-target":"linux+ssl+musl","label":"ubuntu24.04-armhf-musl"},
           {"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"macos-arm64"}
           ]' || '[
           {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"ubuntu26.04-amd64"},
+          {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux-nonet","label":"ubuntu26.04-amd64-nonet","skip-tests":true},
+          {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux-notcp","label":"ubuntu26.04-amd64-notcp","skip-tests":true},
           {"os":"ubuntu-24.04-arm","platform":"linux","arch":"armhf","make-target":"linux+ssl+musl","label":"ubuntu24.04-armhf-musl"},
           {"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"macos-arm64"}
           ]')) }}
@@ -99,6 +105,7 @@ jobs:
       - name: Set up Kermit compat-test peers
         if: >-
           matrix.platform == 'linux' && matrix.arch == 'amd64' &&
+          matrix.skip-tests != true &&
           github.event_name != 'workflow_call'
         run: |
           cp /usr/bin/gkermit gkermit
@@ -243,7 +250,7 @@ jobs:
           # every wermit_loopback session, dumped into the pytest
           # failure report.
           KERMIT_TEST_DEBUG_LOOPBACK: 1
-        run: pytest -rs --log-level=INFO -n 8
+        run: pytest -rs --full --durations=25 --log-level=INFO -n 8
 
       - name: Upload binary
         if: inputs.upload-artifact
@@ -251,11 +258,41 @@ jobs:
         with:
           label: ${{ matrix.label }}
 
+  # Run the Python test suite against an ASan and UBSan build.  Several
+  # tests check for memory errors that only a sanitizer detects.
+  # abort_on_error makes a sanitizer report end wermit with SIGABRT.
+  # Tests that check for a signal catch that too.  Leak detection is off
+  # because the startup macro table and TAKE file buffers are known leaks.
+  asan:
+    if: ${{ !inputs.upload-artifact }}
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev libpam0g-dev \
+            zlib1g-dev libzstd-dev check python3-pytest \
+            python3-pytest-xdist python3-pytest-timeout \
+            python3-pyftpdlib lrzsz
+
+      - name: Build with AddressSanitizer and UBSan
+        run: |
+          make -j4 linux+ssl \
+            KFLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g" \
+            "LNKFLAGS=-fsanitize=address,undefined"
+
+      - name: Python test suite
+        env:
+          ASAN_OPTIONS: detect_leaks=0:abort_on_error=1
+        run: pytest -rs --full --durations=25 --log-level=INFO -n 4
+
   # FreeBSD/NetBSD/OpenBSD have no native GitHub-hosted runner, so these
   # boot a QEMU VM inside the ubuntu-latest runner via vmactions.
   freebsd-x86_64:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -296,7 +333,7 @@ jobs:
             make -j4 ${{ inputs.upload-artifact && 'freebsd' ||
               'freebsd+ssl' }}
             make check
-            pytest -rs --log-level=INFO -n auto
+            pytest -rs --full --durations=25 --log-level=INFO -n auto
 
       - name: Upload binary
         if: inputs.upload-artifact
@@ -306,7 +343,7 @@ jobs:
 
   netbsd-x86_64:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -354,7 +391,7 @@ jobs:
             make -j4 ${{ inputs.upload-artifact && 'netbsd' ||
               'netbsd+ssl-des' }}
             make check
-            pytest -rs --log-level=INFO -n auto
+            pytest -rs --full --durations=25 --log-level=INFO -n auto
 
       - name: Upload binary
         if: inputs.upload-artifact
@@ -364,7 +401,7 @@ jobs:
 
   openbsd-x86_64:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -398,7 +435,7 @@ jobs:
             make -j4 ${{ inputs.upload-artifact && 'openbsd' ||
               'openbsd+ssl' }}
             make check
-            pytest -rs --log-level=INFO -n auto
+            pytest -rs --full --durations=25 --log-level=INFO -n auto
 
       - name: Upload binary
         if: inputs.upload-artifact

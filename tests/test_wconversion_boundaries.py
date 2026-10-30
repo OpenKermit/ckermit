@@ -9,8 +9,9 @@ import time
 
 import pytest
 
-from conftest import (make_loopback_dirs, start_wermit_pty,
-                      finish_wermit_pty, _wait_for_pty_marker)
+from conftest import (scaled, make_loopback_dirs, start_wermit_pty,
+                      finish_wermit_pty, _wait_for_pty_marker,
+                      _wait_for_pty_raw)
 from test_iksdb import (_build_has_iksdb, _connect_iksd, _close_iksd,
                         iksd_path)  # noqa: F401 (fixture)
 
@@ -568,6 +569,7 @@ def test_autodownload_ask_prompt_shows_full_path(tmp_path, wermit_path):
     assert received.read_text() == "autodownload prompt test\n"
 
 
+@pytest.mark.slow
 def test_iksd_login_long_username_and_password(
         run_wermit, iksd_path, tmp_path):
     """Verify IKSD handles login credentials over 255 characters.
@@ -586,7 +588,7 @@ def test_iksd_login_long_username_and_password(
     buf = b""
     prompts = 0
     try:
-        deadline = time.monotonic() + 30
+        deadline = time.monotonic() + scaled(30)
         while time.monotonic() < deadline:
             try:
                 data = client.recv(4096)
@@ -615,7 +617,7 @@ def test_iksd_login_long_username_and_password(
                 client.sendall(b"p" * length + b"\r")
                 buf += b"<sent>"
                 prompts += 1
-        rc = proc.wait(timeout=10)
+        rc = proc.wait(timeout=scaled(10))
     finally:
         _close_iksd(proc, client, log_fh)
 
@@ -650,21 +652,19 @@ def test_connect_long_backslash_escape_code(tmp_path, wermit_path):
     r"""Verify a long backslash code at the CONNECT escape is handled.
 
     After the escape character, a backslash starts a character code
-    that ends at Return. The typed code is held in a small buffer, so
-    a 40-character code must be truncated, not overrun it. CONNECT
-    requires a terminal, so wermit runs under a pty.
-
-    CONNECT prints its banner before it puts the console in raw mode.
-    It prints the dashed line after that.  Keystrokes sent before the
-    dashed line reach a cooked console.  There the escape character is
-    VQUIT, so the line discipline takes it and CONNECT never sees it.
+    that ends at Return.  The typed code is held in a small buffer.  A
+    40-character code must be truncated without overrunning the buffer.
+    CONNECT requires a terminal, so wermit runs under a pty.  The keys
+    go in after CONNECT has turned ISIG off.
     """
     cmd = ("set exit warning off, set host /pty cat, "
            "echo READY, connect, echo BACK, exit")
     proc, master = start_wermit_pty(wermit_path, cmd, tmp_path)
-    buf, found = _wait_for_pty_marker(master, b"-" * 52, 15)
+    buf, found = _wait_for_pty_marker(master, b"Type the escape", 15)
     assert found, buf
-    time.sleep(0.5)
+    more, raw = _wait_for_pty_raw(master, 15)
+    buf += more
+    assert raw, buf
     os.write(master, b"\x1c\\" + b"1" * 40 + b"\r")
     time.sleep(0.5)
     os.write(master, b"\x1cc")

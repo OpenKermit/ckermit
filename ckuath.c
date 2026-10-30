@@ -1475,6 +1475,8 @@ ck_tn_sb_auth(sb,len) char * sb; int len;
     CHAR * buf;
     int rc = -1;
 
+    if (len < 3)                        /* No command byte: ignore it */
+      return(0);
     buf = malloc(len-1);
     if ( !buf ) return(-1);
 
@@ -1524,6 +1526,8 @@ ck_tn_sb_encrypt(sb,len) char * sb; int len;
     char * buf;
     int rc = -1;
 
+    if (len < 3)                        /* No command byte: ignore it */
+      return(0);
     buf = malloc(len-1);
     if ( !buf ) return(-1);
 
@@ -2429,7 +2433,7 @@ auth_send(parsedat,end_sub) unsigned char *parsedat; int end_sub;
 #endif /* NO_FTP_AUTH */
 
     if ( auth_type_user[0] == AUTHTYPE_AUTO ) {
-    for (i = 2; i+1 <= end_sub; i += 2) {
+    for (i = 2; i+1 < end_sub; i += 2) {
 #ifdef NTLM
         if (parsedat[i] == AUTHTYPE_NTLM &&
              ck_ntlm_is_valid(1) &&
@@ -2685,7 +2689,7 @@ auth_send(parsedat,end_sub) unsigned char *parsedat; int end_sub;
 #endif /* KRB4 */
     }
     } else {
-        for (i = 2; i+1 <= end_sub; i += 2) {
+        for (i = 2; i+1 < end_sub; i += 2) {
 #ifdef CK_SSL
             if ( atok(AUTHTYPE_SSL) && parsedat[i] == AUTHTYPE_SSL &&
                  !ssl_auth_failed_flag &&
@@ -3426,6 +3430,10 @@ auth_reply(parsedat,end_sub) unsigned char *parsedat; int end_sub;
 {
     int n = AUTH_FAILURE;
 
+    if (end_sub < 4) {                  /* SB, REPLY, type, modifiers */
+        auth_finished(AUTH_REJECT);
+        return(AUTH_FAILURE);
+    }
     if ( parsedat[2] != authentication_version ) {
         printf("Authentication version mismatch (%s [%d] != %s [%d])\r\n",
                 AUTHTYPE_NAME(parsedat[2]),parsedat[2],
@@ -3490,6 +3498,10 @@ auth_is(parsedat,end_sub) unsigned char *parsedat; int end_sub;
 {
     int n = AUTH_FAILURE;
 
+    if (end_sub < 4) {                  /* SB, IS, type, modifiers */
+        auth_finished(AUTH_REJECT);
+        return(AUTH_FAILURE);
+    }
     if ( parsedat[2] == AUTHTYPE_NULL ) {
         auth_finished(AUTH_REJECT);
         return(AUTH_FAILURE);
@@ -3513,13 +3525,15 @@ auth_is(parsedat,end_sub) unsigned char *parsedat; int end_sub;
         /* were sent to the client in the first place.              */
 
         int i=0;
-        for ( i=4; str_request[i] != IAC ; i+=2) {
+        /* str_request ends at IAC only after AUTH SEND was sent */
+        for ( i=4; i+1 < (int)sizeof(str_request) &&
+                  str_request[i] != IAC ; i+=2) {
             if (str_request[i] == parsedat[2] &&
                  str_request[i+1] == parsedat[3])
                 break;
         }
 
-        if ( str_request[i] == IAC ) {
+        if ( i+1 >= (int)sizeof(str_request) || str_request[i] == IAC ) {
             printf("Invalid authentication type pair (%s,%s)\r\n",
                     AUTHTYPE_NAME(parsedat[2]),
                     AUTHMODE_NAME(parsedat[3]));
@@ -3639,6 +3653,8 @@ int
 auth_parse(unsigned char *parsedat, int end_sub)
 {
     int rc = AUTH_FAILURE;
+    if (end_sub < 2)                    /* SB and the command byte */
+      return(rc);
     switch (parsedat[1]) {
     case TELQUAL_SEND:
         rc = auth_send(parsedat, end_sub);
@@ -13354,10 +13370,14 @@ krb5_error_code
 ck_krb5_write_message(krb5_context con, krb5_pointer ptr, krb5_data *data)
 {
     int fd = *((int *)ptr);
-    long msglen;
+    CHAR lenbuf[4];                     /* Length, network byte order */
+    unsigned long len = (unsigned long)data->length;
 
-    msglen = htonl(data->length);
-    if (net_write(fd,(CHAR *)&msglen,4) != 4) {
+    lenbuf[0] = (CHAR)((len >> 24) & 0xff);
+    lenbuf[1] = (CHAR)((len >> 16) & 0xff);
+    lenbuf[2] = (CHAR)((len >> 8) & 0xff);
+    lenbuf[3] = (CHAR)(len & 0xff);
+    if (net_write(fd,lenbuf,4) != 4) {
         return(-1);
     }
     if ( data->length ) {
@@ -13368,28 +13388,41 @@ ck_krb5_write_message(krb5_context con, krb5_pointer ptr, krb5_data *data)
     return(0);
 }
 
+#define CK_KRB5_MAXMSG 1048576          /* Largest message accepted */
+
 krb5_error_code
 ck_krb5_read_message( krb5_context context,
                       krb5_pointer ptr,
                       krb5_data * data)
 {
-    extern int ttyfd;
     int fd = *((int *)ptr);
-    long msglen;
-    char *p;
+    CHAR lenbuf[4];
+    unsigned long len;
     int i, rc;
 
-    if (net_read(fd,(CHAR *)&msglen,4) < 0)
-        return(-1);
-
-    data->length = ntohl(msglen);
-    if ( data->length ) {
-        data->data = malloc(data->length);
-
+    data->length = 0;
+    data->data = NULL;
+    for (i = 0; i < 4; i += rc) {       /* Length, network byte order */
+        if ((rc = net_read(fd,&lenbuf[i],4 - i)) <= 0)
+          return(-1);                   /* Error or end of file */
+    }
+    len = ((unsigned long)lenbuf[0] << 24) | ((unsigned long)lenbuf[1] << 16) |
+      ((unsigned long)lenbuf[2] << 8) | (unsigned long)lenbuf[3];
+    if (len > CK_KRB5_MAXMSG)
+      return(-1);
+    if ( len ) {
+        data->data = malloc(len);
+        if (!data->data)
+          return(-1);
+        data->length = len;
         i = 0;
-        while ( i < data->length ) {
-            if ((rc = net_read(fd,&data->data[i],(data->length - i))) < 0)
+        while ( i < (int)len ) {
+            if ((rc = net_read(fd,&data->data[i],(int)len - i)) <= 0) {
+                free(data->data);
+                data->data = NULL;
+                data->length = 0;
                 return(-1);
+            }
             i += rc;
         }
     }

@@ -1785,15 +1785,15 @@ _PROTOTYP(int ckxfprintf,(FILE *, const char *, ...)) CK_PRINTF_FMT(2,3);
 #ifdef CK_ANSIC
 #ifdef OS2
 #ifdef NT
-typedef SIGTYP (*sig_t)(int);
+typedef SIGTYP (*ck_sig_t)(int);
 #else /* !NT */
-typedef SIGTYP (volatile *sig_t)(int);
+typedef SIGTYP (volatile *ck_sig_t)(int);
 #endif /* NT */
 #else /* !OS2 */
-typedef SIGTYP (*sig_t)(int);
+typedef SIGTYP (*ck_sig_t)(int);
 #endif /* OS2 */
 #else /* !CK_ANSIC */
-typedef SIGTYP (*sig_t)();
+typedef SIGTYP (*ck_sig_t)();
 #endif /* CK_ANSIC */
 
 /* We want all characters to be unsigned if the compiler supports it */
@@ -2678,18 +2678,17 @@ _PROTOTYP( void bleep, (short) );
 
 #ifndef NOFLOAT
 
-#ifdef __alpha          /* Why only __alpha?  Other 64-bit systems? */
-#define FLT_NOT_DBL     /* (See also ckclib.c:ckround()). */
-#else /* def __alpha */
+/*
+  OpenVMS after the VAX uses float for CKFLOAT.  DEC C there defaults to
+  G_floating.  NetBSD and Linux on the Alpha use IEEE double.
+  ckround() in ckclib.c also tests FLT_NOT_DBL.
+*/
 #ifdef VMS64
-#define FLT_NOT_DBL     /* Was testing only __alpha below. */
+#define FLT_NOT_DBL
 #endif /* def VMS64 */
-#endif /* def __alpha [else] */
 
 #ifndef CKFLOAT
-#ifdef FLT_NOT_DBL      /* 2024-05-16 SMS.  Use instead of __alpha. */
-/* Don't use double on 64-bit platforms -- bad things happen */
-/* "double" on 64-bit platforms typically means 128-bit?  Do we care?*/
+#ifdef FLT_NOT_DBL
 #define CKFLOAT float
 #define CKFLOAT_S "float"
 #else /* def FLT_NOT_DBL */
@@ -5363,6 +5362,15 @@ typedef unsigned int u_int;
 #endif  /* CK_64BIT */
 #endif  /* CK_OFF_T */
 
+/* Largest and smallest CK_OFF_T values, computed without overflow */
+#ifndef CK_OFF_T_MAX
+#define CK_OFF_T_MAX \
+  ((((CK_OFF_T)1 << (sizeof(CK_OFF_T) * 8 - 2)) - 1) * 2 + 1)
+#endif /* CK_OFF_T_MAX */
+#ifndef CK_OFF_T_MIN
+#define CK_OFF_T_MIN (-CK_OFF_T_MAX - 1)
+#endif /* CK_OFF_T_MIN */
+
 /*
   Largest value a signed time_t can hold, for any width. Computed
   without shifting into the sign bit or overflowing intermediate values.
@@ -5411,12 +5419,12 @@ _PROTOTYP(int dohexdump,(CHAR *,CHAR *,int));
 #define ckhexdump(a,b,c) \
 ((void)(deblog?dohexdump((CHAR *)(a),(CHAR *)(b),c):0))
 #else
-#define debug(a,b,c,d) (deblog?dodebug(a,b,(const char *)(c),(CK_OFF_T)(d)):0)
+#define debug(a,b,c,d) (deblog?dodebug(a,b,(CONST char *)(c),(CK_OFF_T)(d)):0)
 #define ckhexdump(a,b,c) (deblog?dohexdump((CHAR *)(a),(CHAR *)(b),c):0)
 #endif /* CK_ANSIC */
 #else /* IFDEBUG */
 /* Use this form to save space: */
-#define debug(a,b,c,d) dodebug(a,b,(const char *)(c),(CK_OFF_T)(d))
+#define debug(a,b,c,d) dodebug(a,b,(CONST char *)(c),(CK_OFF_T)(d))
 #define ckhexdump(a,b,c) dohexdump((CHAR *)(a),(CHAR *)(b),c)
 #endif /* IFDEBUG */
 #endif /* DEBUG */
@@ -5644,6 +5652,7 @@ _PROTOTYP( int zchdir, (char *) );
 _PROTOTYP( char * zhome, (void) );
 _PROTOTYP( char * zgtdir, (void) );
 _PROTOTYP( int zxcmd, (int, char *) );
+_PROTOTYP( int zxcmdv, (int, char **) );
 #ifndef MAC
 _PROTOTYP( int zclosf, (int) );
 #endif /* MAC */
@@ -5836,6 +5845,19 @@ _PROTOTYP( int priv_opn, (char *, int) );
 _PROTOTYP( int sysinit, (void) );       /* Misc Kermit functions */
 _PROTOTYP( int syscleanup, (void) );
 _PROTOTYP( int msleep, (int) );
+/* True if select() can wait on fd: FD_SET() needs 0 <= fd < FD_SETSIZE */
+#define CK_FDOK(fd) ((fd) >= 0 && (fd) < FD_SETSIZE)
+
+#ifdef UNIX
+_PROTOTYP( VOID chksigs, (void) );
+_PROTOTYP( VOID ck_blockbegin, (void) );
+_PROTOTYP( VOID ck_blockend, (void) );
+_PROTOTYP( VOID ck_armhup, (void) );
+#else
+#define chksigs()
+#define ck_blockbegin()
+#define ck_blockend()
+#endif /* UNIX */
 _PROTOTYP( VOID rtimer, (void) );
 _PROTOTYP( int gtimer, (void) );
 #ifdef GFTIMER
@@ -6879,6 +6901,11 @@ _PROTOTYP( int isalink, (char *));
 #ifdef NETPTY
 _PROTOTYP( int do_pty, (int *, char *, int));
 _PROTOTYP( VOID end_pty, (void));
+#ifdef CK_REDIR
+#ifdef SELECT
+_PROTOTYP( VOID ttptyabort, (void));
+#endif /* SELECT */
+#endif /* CK_REDIR */
 #endif /* NETPTY */
 
 #ifdef CKROOT

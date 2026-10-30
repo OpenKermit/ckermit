@@ -106,7 +106,7 @@ These put a connection into local mode:
   attempts leaves the mode unchanged.
 - The `-F <fd>` startup option, which adopts an already-open
   connection, such as one handed to Kermit by inetd or systemd.
-- `SET HOST * <port>`, which listens for n incoming
+- `SET HOST * <port>`.  It listens for an incoming
   TCP connection. See the exception below.
 
 ### Example: a client connecting to a server over SSH
@@ -136,15 +136,20 @@ Connection shapes that matter in practice:
 |--------------------------------------------------------------|:------:|:----------:|
 | Interactive login and manual `SERVER` command                | Remote | REMOTE     |
 | `SET HOST *` (Kermit listens on TCP)                         | Local  | REMOTE     |
-| `-F <fd>` (adopted socket such as inetd or IKSD)             | Local  | LOCAL      |
-| Outbound client (`SET HOST`, `SSH`, `TELNET`)ide)            | Local  | LOCAL (usually moot, since this applies to whichever side *receives* a file) |
+| IKSD (`-A`, started by inetd)                                | Remote | REMOTE     |
+| `-F <fd>` (adopted socket)                                   | Local  | LOCAL      |
+| Outbound client (`SET HOST`, `SSH`, `TELNET`)                | Local  | LOCAL (usually moot, since this applies to whichever side *receives* a file) |
 
-The first two rows are both treated as REMOTE, so a manually started server and
-a `SET HOST *` listener both work with C-Kermit's out-of-the-box defaults
-unmodified. The third row, an adopted connection, is the exception: it is
-treated as LOCAL, so its default REMOTE-only capabilities behave as disabled
-until you enable them for LOCAL or BOTH. If you run Kermit this way and
-recursive uploads are refused, that is why.
+The first three rows are treated as REMOTE, so a manually started server, a
+`SET HOST *` listener, and IKSD all work with C-Kermit's out-of-the-box
+defaults unmodified.  inetd starts IKSD with `-A` and the accepted socket on
+standard input.  IKSD does not adopt it with `-F`, and `-A` does not accept
+`-F`.
+
+The `-F` row, an adopted connection, is the exception; it is treated as LOCAL,
+so its default REMOTE-only capabilities behave as disabled until you enable
+them for LOCAL or BOTH. If you run Kermit this way and recursive uploads are
+refused, that is why.
 
 ### Mode Verification
 
@@ -226,6 +231,41 @@ Continuing the SSH example: you SSH to `server1`, then type `kermit` there.
 
 So ENABLE/DISABLE controls what a connected Kermit peer may ask this server to
 do using the Kermit protocol, not what commands this process can run.
+
+### REMOTE QUERY and REMOTE ASSIGN
+
+`REMOTE QUERY` asks the server for the value of a variable or a function, and
+`REMOTE ASSIGN` sets a global variable (a macro) on the server.  Scripts use
+them to ask a server for its version, its current directory, a file's size, or
+an environment variable, and to pass a value to a script that runs the server,
+such as in this example:
+
+```
+remote query kermit size(report.txt)
+if > \v(query) 0 get report.txt
+remote assign jobname nightly
+```
+
+A query can call any function, including `\fexecute()`, and that runs a macro.
+So with both enabled, a client can define a macro with `REMOTE ASSIGN` and run
+it with `REMOTE QUERY`.  That gives the client the whole Kermit command language
+on the server.  The commands it runs go through only the command parser, so
+DISABLE settings, which are used only when processing the Kermit protocol, don't
+apply.  That is, a  server with `DISABLE DELETE` still deletes a file this way.
+With `REMOTE HOST` disabled, a query cannot start a shell command.
+
+Both are enabled for REMOTE by default.  To restrict a server, disable them as
+well as the capabilities you want to remove:
+
+```
+disable delete
+disable query
+disable assign
+```
+
+In IKSD the commands a query runs get the same checks as commands typed at the
+`IKSD>` prompt (see "Permissions Enforcement in IKSD").  So a query gives an
+IKSD user nothing the prompt does not.
 
 ### Permissions Enforcement in IKSD
 

@@ -142,7 +142,8 @@ For information about technical support please visit this page:
 ```
 Welcome to C-Kermit 11.
 For changes to C-Kermit since version 9.0 of 2011, please visit
-https://github.com/OpenKermit/ckermit/blob/main/doc/changelog.md 
+https://github.com/OpenKermit/ckermit/blob/main/doc/changelog.md
+ 
 Documentation:
  . https://www.openkermit.org/doc/
     Online index to C-Kermit documentation.
@@ -551,15 +552,18 @@ Example: ASSIGN \%a My name is \%b.
 
 ```
 ASSOCIATE FILE-CHARACTER-SET <file-character-set> <transfer-character-set>
-  Tells C-Kermit that whenever the given file-character set is selected, and
-  SEND CHARACTER-SET (q.v.) is AUTOMATIC, the given transfer character-set
-  is selected automatically.
+  Tells C-Kermit that when it sends a file that FILE SCAN finds to be text
+  in the given file character-set, and SEND CHARACTER-SET (q.v.) is
+  AUTOMATIC, it uses the given transfer character-set.
  
 ASSOCIATE XFER-CHARACTER-SET <xfer-character-set> <file-character-set>
-  Tells C-Kermit that whenever the given transfer-character set is selected,
-  either by command or by an announcer attached to an incoming text file,
-  and SEND CHARACTER-SET is AUTOMATIC, the specified file character-set is
-  to be selected automatically.  Synonym: ASSOCIATE TRANSFER-CHARACTER-SET.
+  Tells C-Kermit that when an incoming text file announces the given
+  transfer character-set, and RECEIVE CHARACTER-SET (q.v.) is AUTOMATIC,
+  it stores the file in the given file character-set.  Synonym: ASSOCIATE
+  TRANSFER-CHARACTER-SET.
+ 
+The associations apply only to these transfers.  SET FILE CHARACTER-SET and
+SET TRANSFER CHARACTER-SET change only their own setting.
  
 Use SHOW ASSOCIATIONS to list the current character-set associations, and
 SHOW CHARACTER-SETS to list the current settings.
@@ -791,11 +795,12 @@ Clears the named item.  If no item is named, DEVICE-AND-INPUT is assumed.
   ALARM            Clears any pending alarm (see SET ALARM).
   APC              Clears Application Program Command status.
   BINARY-PATTERNS  Clears the file binary-patterns list.
-  DEVICE           Clears the current port or network input buffer.
+  DEVICE-BUFFER    Clears the current port or network input buffer.
   DEVICE-AND-INPUT Clears both the device and the INPUT buffer.
   DIAL-STATUS      Clears the \v(dialstatus) variable.
-  INPUT            Clears the INPUT-command buffer and the \v(input) variable.
+  INPUT-BUFFER     Clears the INPUT-command buffer and the \v(input) variable.
   KEYBOARD-BUFFER  Clears the command terminal keyboard input buffer.
+  SCREEN           Clears the screen, the same as SCREEN CLEAR.
   SEND-LIST        Clears the current SEND list (see ADD).
   TEXT-PATTERNS    Clears the file text-patterns list.
 ```
@@ -1470,17 +1475,47 @@ WDIRECTORY.
 Syntax: DISABLE command [ { LOCAL, REMOTE, BOTH } ]
   Prevents execution of the named command.  The optional parameter
   specifies the mode in which the command is disabled:
-
+ 
   LOCAL:  Disabled in local mode, which applies to commands requested
           by a remote host via escape sequences or APC.
   REMOTE: Disabled in remote mode, which applies to commands received
           by a Kermit server.
   BOTH:   Disabled in both modes.
-
+ 
+  The capabilities are the server functions:
+ 
+    ASSIGN     REMOTE ASSIGN
+    BYE        BYE (shut down the server and log out)
+    CD         REMOTE CD, and directory names in incoming file names
+    COPY       REMOTE COPY
+    DELETE     REMOTE DELETE, and GET /DELETE
+    DIRECTORY  REMOTE DIRECTORY
+    EXIT       REMOTE EXIT (shut down the server)
+    FINISH     FINISH (leave server mode)
+    GET        GET (the server sends files)
+    HOST       REMOTE HOST
+    MAIL       Files sent with SEND /MAIL
+    MKDIR      REMOTE MKDIR, and creating directories for incoming files
+    PRINT      REMOTE PRINT, and files sent with SEND /PRINT
+    QUERY      REMOTE QUERY
+    RENAME     REMOTE RENAME
+    RMDIR      REMOTE RMDIR
+    SEND       SEND (the server receives files)
+    SET        REMOTE SET
+    SPACE      REMOTE SPACE
+    TYPE       REMOTE TYPE
+    WHO        REMOTE WHO
+    ALL        All of them
+ 
   If the parameter is omitted, BOTH is used.  By default, most commands
   are enabled for REMOTE but disabled for LOCAL to prevent security issues.
   Use SHOW SERVER to view the current enable/disable states, along
-  with which of LOCAL or REMOTE actually governs this connection.
+  with which of LOCAL or REMOTE governs this connection.
+ 
+  QUERY and ASSIGN together give a client the whole command language.  It
+  can define a macro with REMOTE ASSIGN and run it with REMOTE QUERY and
+  \fexecute(), whatever the other DISABLE settings say.  To restrict a
+  server, also DISABLE QUERY and DISABLE ASSIGN.
 ```
 
 ### DO
@@ -1538,17 +1573,47 @@ Sorry, help not available for "else"
 Syntax: ENABLE capability [ { LOCAL, REMOTE, BOTH } ]
   Allows execution of the named capability.  The optional parameter
   specifies the mode in which the capability is enabled:
-
+ 
   LOCAL:  Enabled in local mode, which applies to commands requested
           by a remote host via escape sequences or APC.
   REMOTE: Enabled in remote mode, which applies to commands received
           by a Kermit server.
   BOTH:   Enabled in both modes.
-
+ 
+  The capabilities are the server functions:
+ 
+    ASSIGN     REMOTE ASSIGN
+    BYE        BYE (shut down the server and log out)
+    CD         REMOTE CD, and directory names in incoming file names
+    COPY       REMOTE COPY
+    DELETE     REMOTE DELETE, and GET /DELETE
+    DIRECTORY  REMOTE DIRECTORY
+    EXIT       REMOTE EXIT (shut down the server)
+    FINISH     FINISH (leave server mode)
+    GET        GET (the server sends files)
+    HOST       REMOTE HOST
+    MAIL       Files sent with SEND /MAIL
+    MKDIR      REMOTE MKDIR, and creating directories for incoming files
+    PRINT      REMOTE PRINT, and files sent with SEND /PRINT
+    QUERY      REMOTE QUERY
+    RENAME     REMOTE RENAME
+    RMDIR      REMOTE RMDIR
+    SEND       SEND (the server receives files)
+    SET        REMOTE SET
+    SPACE      REMOTE SPACE
+    TYPE       REMOTE TYPE
+    WHO        REMOTE WHO
+    ALL        All of them
+ 
   If the parameter is omitted, BOTH is used.  By default, most commands
   are enabled for REMOTE but disabled for LOCAL to prevent security issues.
   Use SHOW SERVER to view the current enable/disable states, along
-  with which of LOCAL or REMOTE actually governs this connection.
+  with which of LOCAL or REMOTE governs this connection.
+ 
+  QUERY and ASSIGN together give a client the whole command language.  It
+  can define a macro with REMOTE ASSIGN and run it with REMOTE QUERY and
+  \fexecute(), whatever the other DISABLE settings say.  To restrict a
+  server, also DISABLE QUERY and DISABLE ASSIGN.
 ```
 
 ### END
@@ -1848,7 +1913,10 @@ In Kermit's FTP client, passive mode is controlled with the command:
  
   SET FTP PASSIVE-MODE { ON, OFF }
  
-The default is ON, meaning to use passive mode.
+The default is ON, meaning to use passive mode.  In passive mode Kermit
+makes the data connection to the address of the control connection.  It
+uses only the port from the server's PASV reply, not its address.  SET
+FTP TRUST-PASV-ADDRESS ON uses the address in the reply.
 ```
 
 ### FLIST
@@ -2261,7 +2329,7 @@ Syntax: HEAD [ switches ] filename
 Synonyms: H, HE
 
 ```
-C-Kermit 11.0.512, 2026/09/30, Copyright (C) 2025-2026,
+C-Kermit 11.0.514, 2026/09/30, Copyright (C) 2025-2026,
   John Goerzen.
 Copyright (C) 1985, 2025,
   Trustees of Columbia University in the City of New York.
@@ -2417,6 +2485,12 @@ The conditions are:
   ALARM       - SET ALARM time has passed
   ASKTIMEOUT  - The most recent ASK, ASKQ, GETC, or GETOK timed out
   EMULATION   - Succeeds if executed while in CONNECT mode
+  TAPI        - Current connection is via a Microsoft TAPI device
+  LOCAL       - Kermit is in local mode (it has a connection)
+  QUIET       - Kermit was started with -q or SET QUIET is ON
+  DEBUG       - SET DEBUG MESSAGES is ON
+  COUNT       - Decrements the SET COUNT value and succeeds while > 0
+  IKSD        - Kermit is running as an Internet Kermit Service Daemon
  
   MS-KERMIT   - Program is MS-DOS Kermit
   C-KERMIT    - Program is C-Kermit
@@ -2429,6 +2503,8 @@ The conditions are:
   AVAILABLE NTLM                    - NTLM authentication is available
   AVAILABLE SRP                     - SRP authentication is available
   AVAILABLE SSL                     - SSL/TLS authentication is available
+  AVAILABLE TLS                     - Synonym for AVAILABLE SSL
+  AVAILABLE SSH                     - The built-in SSH client is available
   MATCH string pattern              - Succeeds if string matches pattern
   FLOAT number                      - Succeeds if floating-point number
   COMMAND word                      - Succeeds if word is built-in command
@@ -2437,6 +2513,7 @@ The conditions are:
   NUMERIC variable or constant      - The variable or constant is numeric
   FUNCTION name                     - The name is of a built-in function
   EXIST filename                    - The named file exists
+  WILD filespec                     - The filespec contains wildcards
   ABSOLUTE filename                 - The filename is absolute, not relative
   BINARY filename                   - The file is a binary regular file
   TEXT filename                     - The file is a text regular file
@@ -2445,7 +2522,12 @@ The conditions are:
   READABLE filename                 - Succeeds if the file is readable
   WRITEABLE filename                - Succeeds if the file is writeable
   NEWER file1 file2                 - The 1st file is newer than the 2nd one
-  OPEN { READ-FILE,SESSION-LOG,...} - The given file or log is open
+  OPEN name                         - The given file or log is open.  The
+                                      name is READ-FILE, WRITE-FILE,
+                                      SESSION-LOG, PACKET-LOG, DEBUG-LOG,
+                                      TRANSACTION-LOG, CX-LOG, ERROR or
+                                      SCREEN.  ERROR and SCREEN succeed
+                                      when Kermit is in the foreground.
   OPEN CONNECTION                   - A connection is open
   KBHIT                             - A key has been pressed
   TRUE                              - always succeeds
@@ -2730,7 +2812,8 @@ Synonym for [LINEOUT](#lineout).
 Synonym: COPYRIGHT
 
 ```
-Sorry, help not available for "LICENSE"
+Syntax: LICENSE
+  Displays the C-Kermit copyright and license.  Synonym: COPYRIGHT.
 ```
 
 ### LINEOUT
@@ -2738,7 +2821,19 @@ Sorry, help not available for "LICENSE"
 Synonym: LI
 
 ```
-Sorry, help not available for "lineout"
+Syntax: OUTPUT text
+  Sends the text out the communications connection, as if you had typed it
+  during CONNECT mode.  The text may contain backslash codes, variables,
+  etc, plus the following special codes:
+ 
+    \N - Send a NUL (ASCII 0) character (you can't use \0 for this).
+    \B - Send a BREAK signal.
+    \L - Send a Long BREAK signal.
+ 
+Syntax: LINEOUT text
+  Like OUTPUT, but sends a carriage return after the text.
+ 
+Also see SET OUTPUT.
 ```
 
 ### LMKDIR
@@ -2834,7 +2929,11 @@ Braces are required if the pipeline or filename contains spaces.
 ### LOGIN
 
 ```
-Sorry, help not available for "login"
+Syntax: LOGIN user password [ account ]
+  Logs in to a remote Kermit server that requires you login, the same as
+  REMOTE LOGIN.  When the GET-PUT-REMOTE setting directs commands to an
+  FTP connection, LOGIN is FTP USER.  Also see HELP REMOTE LOGIN and
+  HELP FTP USER.
 ```
 
 ### LOGOUT
@@ -3113,6 +3212,12 @@ Syntax:  OPEN mode filename
  
     OPEN READ oofa.txt
     OPEN !READ sort foo.bar
+ 
+Syntax:  OPEN HOST [ switches ] host [ service ]
+  Opens a network connection, the same as SET HOST.
+ 
+Syntax:  OPEN LINE [ switches ] device
+  Opens a serial device, the same as SET LINE.
 ```
 
 ### OPTIONS
@@ -3203,6 +3308,9 @@ Syntax: OUTPUT text
     \N - Send a NUL (ASCII 0) character (you can't use \0 for this).
     \B - Send a BREAK signal.
     \L - Send a Long BREAK signal.
+ 
+Syntax: LINEOUT text
+  Like OUTPUT, but sends a carriage return after the text.
  
 Also see SET OUTPUT.
 ```
@@ -3365,7 +3473,14 @@ Syntax: PSEND filespec position [name]
 ### PTY
 
 ```
-Sorry, help not available for "pty"
+Syntax: PTY [ switches ] command
+  Runs the command in a pseudoterminal, makes a connection to it, and
+  CONNECTs.  PTY is the same as SET HOST /PTY /CONNECT and takes the same
+  switches.  Example:
+
+ pty ssh -e none xyzcorp.com
+
+  Also see PIPE, SET HOST and HELP SET NETWORK.
 ```
 
 ### PU
@@ -3764,6 +3879,9 @@ REMOVE BINARY-PATTERNS [ <pattern> [ <pattern> ... ] ]
 REMOVE TEXT-PATTERNS [ <pattern> [ <pattern> ... ] ]
   Removes the given patterns from the SET FILE TEXT-PATTERNS list.
   Use SHOW PATTERNS to see the lists.  See HELP SET FILE for further info.
+ 
+REMOVE SEND-LIST
+  Not implemented.  Use CLEAR SEND-LIST to empty the SEND list.
 ```
 
 ### RENAME
@@ -3870,7 +3988,10 @@ Syntax: RESEND filespec [name]
   Resends the file or files, whose previous transfer was interrupted.
   Picks up from where previous transfer left off, IF the receiver kept the
   partially received file.  Works only for binary-mode transfers.
-  Requires file-transfer partner to support recovery.  Synonym: REPUT.
+  Requires file-transfer partner to support recovery.  The receiver
+  appends to its partial file only if its FILE COLLISION is APPEND,
+  OVERWRITE or UPDATE, or if it asked for the file with REGET or GET
+  /RECOVER.  Otherwise it refuses the file.  Synonym: REPUT.
 ```
 
 ### RESET
@@ -4062,7 +4183,7 @@ Synonym for [SCRIPT](#script).
 ### SCREEN
 
 ```
-Syntax: SCREEN { CLEAR, CLEOL, MOVE row column }
+Syntax: SCREEN { CLEAR, CLEOL, MOVE-TO row column }
   Performs screen-formatting actions.  Correct operation of these commands
   depends on proper terminal setup on both ends of the connection -- mainly
   that the host terminal type is set to agree with the kind of terminal or
@@ -4075,7 +4196,7 @@ SCREEN CLEAR
 SCREEN CLEOL
   Clears from the current cursor position to the end of the line.
  
-SCREEN MOVE row column
+SCREEN MOVE-TO row column
   Moves the cursor to the indicated row and column.  The row and column
   numbers are 1-based so on a 24x80 screen, the home position is 1 1 and
   the lower right corner is 24 80.  If a row or column number is given that
@@ -5070,7 +5191,90 @@ Synonym for [UNDECLARE](#undeclare).
 Synonym: UNDCL
 
 ```
-Sorry, help not available for "undeclare"
+Syntax: ARRAY verb operands...
+ 
+Declares arrays and performs various operations on them.  Arrays have
+the following syntax:
+ 
+  \&a[n]
+ 
+where "a" is a letter and n is a number or a variable with a numeric value
+or an arithmetic expression.  The value of an array element can be anything
+at all -- a number, a character, a string, a filename, etc.
+ 
+The following ARRAY verbs are available:
+ 
+[ ARRAY ] DECLARE arrayname[n] [ = initializers... ]
+  Declares an array of the given size, n.  The resulting array has n+1
+  elements, 0 through n.  Array elements can be used just like any other
+  variables.  Initial values can be given for elements 1, 2, ... by
+  including = followed by one or more values separated by spaces.  If you
+  omit the size, the array is sized according to the number of initializers;
+  if none are given the array is destroyed and undeclared if it already
+  existed.  The ARRAY keyword is optional.  Synonym: [ ARRAY ] DCL.
+ 
+[ ARRAY ] UNDECLARE arrayname
+  Destroys and undeclares the given array.  Synonym: ARRAY DESTROY.
+ 
+ARRAY SHOW [ arrayname ]
+  Displays the contents of the given array.  A range specifier can be
+  included to display a segment of the array, e.g. "array show \&a[1:24]."
+  If the arrayname is omitted, all declared arrays are listed, but their
+  contents is not shown.  Synonym: SHOW ARRAY.
+ 
+ARRAY CLEAR arrayname
+  Clears all elements of the array, i.e. sets them to empty values.
+  You may include a range specifier to clear a segment of the array rather
+  than the whole array, e.g. "array clear \%a[22:38]"
+ 
+ARRAY SET arrayname value
+  Sets all elements of the array to the given value.  You may specify a
+  range to set a segment of the array, e.g. "array set \%a[2:9] 0"
+ 
+ARRAY RESIZE arrayname number
+  Changes the size of the given array, which must already exist, to the
+  number given.  If the number is smaller than the current size, the extra
+  elements are discarded; if it is larger, new empty elements are added.
+ 
+ARRAY COPY array1 array2
+  Copies array1 to array2.  If array2 has not been declared, it is created
+  automatically.  If it array2 does exist, array1 is copied INTO it, as
+  much as will fit.  Range specifiers may be given on one or both arrays.
+ 
+ARRAY LINK array1 arra2
+  Makes array1 a link to array2.
+ 
+[ ARRAY ] SORT [ switches ] array-name [ array2 ]
+  Sorts the given array lexically according to the switches.  Element 0 of
+  the array is excluded from sorting by default.  The ARRAY keyword is
+  optional.  If a second array name is given, that array is sorted according
+  to the first one.  Switches:
+ 
+  /CASE:{ON,OFF}
+    If ON, alphabetic case matters; if OFF it is ignored.  If this switch is
+    omitted, the current SET CASE setting applies.
+ 
+  /KEY:number
+    Position (1-based column number) at which comparisons begin, 1 by default.
+ 
+  /NUMERIC
+    Specifies a numeric rather than lexical sort.
+ 
+  /RANGE:low[:high]
+    The range of elements, low through high, to be sorted.  If this switch
+    is not given, elements 1 through the dimensioned size are sorted.  If
+    :high is omitted, the dimensioned size is used.  To include element 0 in
+    a sort, use /RANGE:0 (to sort the whole array) or /RANGE:0:n (to sort
+    elements 0 through n).  You can use a range specifier in the array name
+    instead of the /RANGE switch.
+ 
+  /REVERSE
+    Sort in reverse order.  If this switch is not given, the array is sorted
+    in ascending order.
+ 
+Various functions are available for array operations; see HELP FUNCTION for
+details.  These include \fdimension(), \farraylook(), \ffiles(), \fsplit(),
+and many more.
 ```
 
 ### UNDEFINE
@@ -5175,8 +5379,10 @@ Syntax: WHILE condition { commandlist }
 ### WHO
 
 ```
-Syntax: WHO [ user ]
-Displays info about the user.
+Syntax: WHO
+  Lists the users who are logged in.  If the environment variable CK_WHO
+  is set, WHO runs that command instead, followed by any text given after
+  WHO.
 ```
 
 ### WILDCARDS
@@ -5357,6 +5563,7 @@ Syntax: SET ATTRIBUTES name ON or OFF
    DISPOSITION:    Unusual things to do with the file, like MAIL or PRINT
    LENGTH:         The file's length
    PROTECTION:     The file's protection (permissions)
+   RECORD-FORMAT:  The file's record format
    SYSTEM-ID:      Machine/Operating system of origin
    TYPE:           The file's type (text or binary)
  
@@ -5468,6 +5675,12 @@ The OpenSSL command
 may be used to list all of the ciphers and the order described by a specific
 <list of ciphers>.
  
+The default list is HIGH:MEDIUM:!aNULL:!eNULL:!EXPORT:!LOW.  It excludes
+anonymous, unencrypted, export, and low-strength ciphers.  The SSL_CIPHER
+environment variable overrides the default.  Giving CIPHER-LIST with no
+argument restores the default.  Kermit refuses a list that matches no
+cipher.
+ 
 SET AUTHENTICATION { SSL, TLS } CRL-DIR <directory>
 specifies a directory that contains certificate revocation files where each
 file is named by the hash of the certificate that has been revoked.
@@ -5529,6 +5742,21 @@ DSA-CERT-FILE.
   the passphrase:
  
   openssl dsa -in <encrypted-key-file> -out <unencrypted-key-file>
+ 
+SET AUTHENTICATION { SSL, TLS } MINIMUM-VERSION
+  { SSL3.0, TLS1.0, TLS1.1, TLS1.2, TLS1.3 }
+  Sets the lowest protocol version that Telnet, raw SSL/TLS, HTTPS, and
+  FTP connections accept as client or server.  The default is TLS1.2.  An
+  older version suits a legacy system that cannot use TLS 1.2.
+ 
+  OpenSSL 3 refuses versions older than TLS 1.2 at its default security
+  level.  Add @SECLEVEL=0 to the cipher list to allow an older version:
+ 
+    set authentication ssl minimum-version tls1.0
+    set authentication ssl cipher-list HIGH:MEDIUM:!aNULL:@SECLEVEL=0
+ 
+  SSL 3.0 requires an OpenSSL build with SSL 3.0 support.  SET FTP BUG
+  USE-SSL-V2 and USE-SSL-V3 override this setting for FTP.
  
 SET AUTHENTICATION { SSL, TLS } RANDOM-FILE <filename>
   Specifies a file containing random data to be used as seed for the
@@ -5618,7 +5846,7 @@ Compile-time default, from `SHOW AUTHENTICATION`:
 ```
  Authentication:      Kerberos 4 (not installed)
  Authentication:      Kerberos 5 (not installed)
- Authentication:      SSL/TLS (OpenSSL 3.5.6 7 Apr 2026)
+ Authentication:      SSL/TLS (OpenSSL 3.5.7 9 Jun 2026)
  RSA Certs file: (none)
  RSA Certs Chain file: (none)
  RSA Key file: (none)
@@ -5631,67 +5859,136 @@ Compile-time default, from `SHOW AUTHENTICATION`:
  Random file: (none)
  Verify file: (none)
  Verify dir: (none)
- Cipher list: HIGH:MEDIUM:LOW:+ADH:+EXP
+ Cipher list: HIGH:MEDIUM:!aNULL:!eNULL:!EXPORT:!LOW (default)
     TLS_AES_256_GCM_SHA384
     TLS_CHACHA20_POLY1305_SHA256
     TLS_AES_128_GCM_SHA256
     ECDHE-ECDSA-AES256-GCM-SHA384
     ECDHE-RSA-AES256-GCM-SHA384
+    DHE-DSS-AES256-GCM-SHA384
     DHE-RSA-AES256-GCM-SHA384
     ECDHE-ECDSA-CHACHA20-POLY1305
     ECDHE-RSA-CHACHA20-POLY1305
     DHE-RSA-CHACHA20-POLY1305
+    ECDHE-ECDSA-AES256-CCM
+    DHE-RSA-AES256-CCM
+    ECDHE-ECDSA-ARIA256-GCM-SHA384
+    ECDHE-ARIA256-GCM-SHA384
+    DHE-DSS-ARIA256-GCM-SHA384
+    DHE-RSA-ARIA256-GCM-SHA384
     ECDHE-ECDSA-AES128-GCM-SHA256
     ECDHE-RSA-AES128-GCM-SHA256
+    DHE-DSS-AES128-GCM-SHA256
     DHE-RSA-AES128-GCM-SHA256
+    ECDHE-ECDSA-AES128-CCM
+    DHE-RSA-AES128-CCM
+    ECDHE-ECDSA-ARIA128-GCM-SHA256
+    ECDHE-ARIA128-GCM-SHA256
+    DHE-DSS-ARIA128-GCM-SHA256
+    DHE-RSA-ARIA128-GCM-SHA256
     ECDHE-ECDSA-AES256-SHA384
     ECDHE-RSA-AES256-SHA384
     DHE-RSA-AES256-SHA256
+    DHE-DSS-AES256-SHA256
+    ECDHE-ECDSA-CAMELLIA256-SHA384
+    ECDHE-RSA-CAMELLIA256-SHA384
+    DHE-RSA-CAMELLIA256-SHA256
+    DHE-DSS-CAMELLIA256-SHA256
     ECDHE-ECDSA-AES128-SHA256
     ECDHE-RSA-AES128-SHA256
     DHE-RSA-AES128-SHA256
+    DHE-DSS-AES128-SHA256
+    ECDHE-ECDSA-CAMELLIA128-SHA256
+    ECDHE-RSA-CAMELLIA128-SHA256
+    DHE-RSA-CAMELLIA128-SHA256
+    DHE-DSS-CAMELLIA128-SHA256
     ECDHE-ECDSA-AES256-SHA
     ECDHE-RSA-AES256-SHA
     DHE-RSA-AES256-SHA
+    DHE-DSS-AES256-SHA
+    DHE-RSA-CAMELLIA256-SHA
+    DHE-DSS-CAMELLIA256-SHA
     ECDHE-ECDSA-AES128-SHA
     ECDHE-RSA-AES128-SHA
     DHE-RSA-AES128-SHA
+    DHE-DSS-AES128-SHA
+    DHE-RSA-CAMELLIA128-SHA
+    DHE-DSS-CAMELLIA128-SHA
     RSA-PSK-AES256-GCM-SHA384
     DHE-PSK-AES256-GCM-SHA384
     RSA-PSK-CHACHA20-POLY1305
     DHE-PSK-CHACHA20-POLY1305
     ECDHE-PSK-CHACHA20-POLY1305
+    DHE-PSK-AES256-CCM
+    RSA-PSK-ARIA256-GCM-SHA384
+    DHE-PSK-ARIA256-GCM-SHA384
     AES256-GCM-SHA384
+    AES256-CCM
+    ARIA256-GCM-SHA384
     PSK-AES256-GCM-SHA384
     PSK-CHACHA20-POLY1305
+    PSK-AES256-CCM
+    PSK-ARIA256-GCM-SHA384
     RSA-PSK-AES128-GCM-SHA256
     DHE-PSK-AES128-GCM-SHA256
+    DHE-PSK-AES128-CCM
+    RSA-PSK-ARIA128-GCM-SHA256
+    DHE-PSK-ARIA128-GCM-SHA256
     AES128-GCM-SHA256
+    AES128-CCM
+    ARIA128-GCM-SHA256
     PSK-AES128-GCM-SHA256
+    PSK-AES128-CCM
+    PSK-ARIA128-GCM-SHA256
     AES256-SHA256
+    CAMELLIA256-SHA256
     AES128-SHA256
+    CAMELLIA128-SHA256
     ECDHE-PSK-AES256-CBC-SHA384
     ECDHE-PSK-AES256-CBC-SHA
+    SRP-DSS-AES-256-CBC-SHA
     SRP-RSA-AES-256-CBC-SHA
     SRP-AES-256-CBC-SHA
     RSA-PSK-AES256-CBC-SHA384
     DHE-PSK-AES256-CBC-SHA384
     RSA-PSK-AES256-CBC-SHA
     DHE-PSK-AES256-CBC-SHA
+    ECDHE-PSK-CAMELLIA256-SHA384
+    RSA-PSK-CAMELLIA256-SHA384
+    DHE-PSK-CAMELLIA256-SHA384
     AES256-SHA
+    CAMELLIA256-SHA
     PSK-AES256-CBC-SHA384
     PSK-AES256-CBC-SHA
+    PSK-CAMELLIA256-SHA384
     ECDHE-PSK-AES128-CBC-SHA256
     ECDHE-PSK-AES128-CBC-SHA
+    SRP-DSS-AES-128-CBC-SHA
     SRP-RSA-AES-128-CBC-SHA
     SRP-AES-128-CBC-SHA
     RSA-PSK-AES128-CBC-SHA256
     DHE-PSK-AES128-CBC-SHA256
     RSA-PSK-AES128-CBC-SHA
     DHE-PSK-AES128-CBC-SHA
+    ECDHE-PSK-CAMELLIA128-SHA256
+    RSA-PSK-CAMELLIA128-SHA256
+    DHE-PSK-CAMELLIA128-SHA256
     AES128-SHA
+    CAMELLIA128-SHA
     PSK-AES128-CBC-SHA256
     PSK-AES128-CBC-SHA
+    PSK-CAMELLIA128-SHA256
+    ECDHE-ECDSA-AES256-CCM8
+    ECDHE-ECDSA-AES128-CCM8
+    DHE-RSA-AES256-CCM8
+    DHE-RSA-AES128-CCM8
+    DHE-PSK-AES256-CCM8
+    DHE-PSK-AES128-CCM8
+    AES256-CCM8
+    AES128-CCM8
+    PSK-AES256-CCM8
+    PSK-AES128-CCM8
+ Minimum version: TLS 1.2
  Certs OK? no
  Debug mode: off
  Verbose mode: off
@@ -5883,9 +6180,9 @@ Type SHOW CD to view current CD settings.  Also see HELP SET SERVER.
 Compile-time default, from `SHOW CD`:
 
 ```
- current directory:  /home/jgoerzen/tree/ckermit
+ current directory:  /path/to/current/directory
  previous directory: (none)
- cd home:            /home/jgoerzen/
+ cd home:            /path/to/home/
  cd path:            (none)
  cd message:         off
  server cd-message:  off
@@ -5940,7 +6237,7 @@ Synonym for [SET DISCONNECT](#set-disconnect).
 
 ### SET COMMAND
 
-Synonyms: CMD, CONSOLE
+Synonyms: CMD, COM, CONSOLE
 
 ```
 Syntax: SET COMMAND parameter value
@@ -5953,6 +6250,9 @@ SET COMMAND BYTESIZE { 7, 8 }
   Informs Kermit of the bytesize of the communication path between itself
   and your keyboard and screen.  8 is assumed.  SET COMMAND BYTE 7 only if
   8-bit characters cannot pass.
+ 
+SET COMMAND VARIABLE-EVALUATION { RECURSIVE, SIMPLE }
+  Same as SET VARIABLE-EVALUATION.
  
 SET COMMAND ERROR { 0,1,2,3 }
   Sets the verbosity level of command error messages; the higher the number,
@@ -6027,6 +6327,10 @@ Compile-time default, from `SHOW COMMAND`:
 
 Synonym for [SET COMMAND](#set-command).
 
+### SET COM
+
+Synonym for [SET COMMAND](#set-command).
+
 ### SET CONSOLE
 
 Synonym for [SET COMMAND](#set-command).
@@ -6047,11 +6351,24 @@ versions didn't support IPv6, settings for 9 and 10 also disable IPv6.
   11       Restore the C-Kermit 11 (current) defaults.  DEFAULT is
            a synonym for this.
  
-Settings affected: SET FILE COLLISION, SET TRANSFER MODE, SET
-TERMINAL AUTODOWNLOAD ERROR, SET RECEIVE CONFIRM, SET TCP
-ADDRESS-FAMILY, SET RECEIVE PATHNAMES. Also, ENABLE/DISABLE for CD,
-COPY, DIRECTORY, ENABLE, FINISH, GET, MKDIR, RENAME, SEND, SET,
-SPACE, TYPE, WHO, ASSIGN, QUERY, MAIL, and PRINT.
+Settings affected, with the values set by 9 or 10 and by 11:
+ 
+  SET FILE COLLISION                 BACKUP          REJECT
+  SET TRANSFER MODE                  AUTOMATIC       MANUAL
+  SET TERMINAL AUTODOWNLOAD ERROR    STOP            CONTINUE
+  SET RECEIVE CONFIRM                OFF (both)      ON (local)
+  SET TCP ADDRESS-FAMILY             IPV4            AUTO
+  SET RECEIVE PATHNAMES              AUTO            AUTO
+  ENABLE for CD, COPY, DIRECTORY,    BOTH            REMOTE
+    ENABLE, FINISH, GET, MKDIR,
+    RENAME, SEND, SET, SPACE, TYPE,
+    WHO, ASSIGN, QUERY
+  ENABLE for MAIL, PRINT             BOTH            disabled
+ 
+An ENABLE setting is not turned on if DISABLE ENABLE turned it off.
+SET COMPATIBILITY 9 makes the same changes as SET COMPATIBILITY 10.
+Neither restores the C-Kermit 9 prompt, SET TELNET WAIT, or SET TCP
+CONNECT-TIMEOUT (30 seconds; earlier releases had none).
  
 SET COMPATIBILITY 9 and SET COMPATIBILITY 10 weaken settings that
 C-Kermit 11 tightened for security.  Use them only when
@@ -6152,13 +6469,16 @@ Syntax: SET DEFAULT directory
 Compile-time default, from `SHOW DEFAULT`:
 
 ```
-/home/jgoerzen/tree/ckermit
+/path/to/current/directory
 ```
 
 ### SET DESTINATION
 
 ```
-Not available - "help set destination"
+Syntax: SET DESTINATION { DISK, PRINTER, SCREEN }
+  Selects where incoming files go.  DISK, the default, stores them.
+  PRINTER prints them (see SET PRINTER).  SCREEN displays them.
+  Also see RECEIVE /PRINT and SHOW FILE.
 ```
 
 ### SET DIAL
@@ -6276,9 +6596,11 @@ SET DIAL RESTRICT { INTERNATIONAL, LOCAL, LONG-DISTANCE, NONE }
   when dialing a list of numbers fetched from a dialing directory.
  
 SET DIAL RETRIES <number>
-  How many times to redial each number if the dialing result is busy or no
-  no answer, until the call is successfully answered.  The default is 0
-  because automatic redialing is illegal in some countries.
+  How many times to dial each number if the dialing result is busy or no
+  answer, until the call is successfully answered.  If it is not set, the
+  number depends on SET DIAL COUNTRY-CODE: 10 for country code 1, and 1
+  (no redialing) otherwise, because automatic redialing is illegal in some
+  countries.
  
 SET DIAL INTERVAL <number>
   How many seconds to pause between automatic redial attempts; default 10.
@@ -6480,12 +6802,6 @@ Compile-time default, from `SHOW EXIT`:
  Current exit status: 0
 ```
 
-### SET EXTERNAL-PROTOCOL
-
-```
-Not available - "help set external-protocol"
-```
-
 ### SET F-ACK-BUG
 
 ```
@@ -6511,7 +6827,7 @@ SET FILE TYPE { TEXT, BINARY }
   of any other indication.  TYPE can be TEXT for conversion of record format
   and character set, which is usually needed when transferring text files
   between unlike platforms (such as UNIX and Windows), or BINARY for no
-  conversion if TRANSFER MODE is MANUAL, which is not the default.  Use
+  conversion if TRANSFER MODE is MANUAL, as it is by default.  Use
   BINARY with TRANSFER MODE MANUAL for executable programs or binary data or
   whenever you wish to duplicate the original contents of the file, byte for
   byte.  In most modern Kermit programs, the file sender informs the receiver
@@ -6519,7 +6835,7 @@ SET FILE TYPE { TEXT, BINARY }
   to an ancient or non-Columbia Kermit implementation, you might need to set
   the corresponding file type at the receiver as well.
  
-  When TRANSFER MODE is AUTOMATIC (as it is by default), various automatic
+  When TRANSFER MODE is AUTOMATIC (the default is MANUAL), various automatic
   methods (depending on the platform) are used to determine whether a file
   is transferred in text or binary mode; these methods (which might include
   content scan (see SET FILE SCAN below), filename pattern matching (SET FILE
@@ -6653,7 +6969,7 @@ SET FILE TEXT-PATTERNS [ <pattern> [ <pattern> ... ] ]
   binary pattern, the prevailing SET FILE TYPE is used.
  
 SET FILE SCAN { ON [ size ], OFF }
-  If TRANSFER MODE is AUTOMATIC and FILE SCAN is ON (as it is by default)
+  If TRANSFER MODE is AUTOMATIC and FILE SCAN is ON (the FILE SCAN default),
   Kermit peeks at the file's contents to see if it's text or binary.  Use
   SET FILE SCAN OFF to disable file peeking, while still keeping TRANSFER
   MODE automatic to allow name patterns and other methods.  The optional
@@ -6702,7 +7018,7 @@ Compile-time default, from `SHOW FILE`:
  Receive confirm:         on local
  Match dot files:         no
  Wildcard-expansion:      on (kermit)
- File collision:          discard
+ File collision:          reject
  File destination:        disk
  File incomplete:         auto
  File bytesize:           8
@@ -6722,7 +7038,7 @@ Compile-time default, from `SHOW FILE`:
  Initialization file:     (none)
  Root set:                (none)
  Disk output buffer:      32768 (writes are buffered, blocking)
- Stringspace:             2000000000
+ Stringspace:             32000000
  Listsize:                102400
  Longest filename:        4096
  Longest pathname:        4096
@@ -6784,7 +7100,9 @@ Synonym for [SET FLOW-CONTROL](#set-flow-control).
 ### SET FLAG
 
 ```
-Not available - "help set flag"
+Syntax: SET FLAG { ON, OFF }
+  Sets a flag for use by scripts.  IF FLAG succeeds when it is ON.  The
+  default is OFF.
 ```
 
 ### SET FTP
@@ -6809,6 +7127,7 @@ SET FTP values:
  ftp anonymous-password:        (default)
  ftp auto-login:                on
  ftp auto-authentication:       on
+ ftp tls-fallback:              off
  ftp timeout:                   0
  ftp type:                      text
  ftp get-filetype-switching:    on
@@ -6817,6 +7136,7 @@ SET FTP values:
  ftp filenames:                 auto
  ftp debug                      off
  ftp passive-mode:              on
+ ftp trust-pasv-address:        off
  ftp permissions:               off
  ftp verbose-mode:              off
  ftp send-port-commands:        on
@@ -6861,7 +7181,7 @@ SET FUNCTION DIAGNOSTICS { ON, OFF }
  
 SET FUNCTION ERROR { ON, OFF }
   Whether an illegal function call or reference to a nonexistent built-in
-  variable should cause a command to fail.  OFF by default.
+  variable should cause a command to fail.  ON by default.
 ```
 
 ### SET GET-PUT-REMOTE
@@ -6893,7 +7213,9 @@ Syntax: SET HANDSHAKE { NONE, XON, LF, BELL, ESC, CODE number }
 ### SET HINTS
 
 ```
-Not available - "help set hints"
+Syntax: SET HINTS { ON, OFF }
+  ON prints suggestions for what to try next when a Kermit SEND or GET,
+  a DIAL or an RLOGIN typed at the prompt fails.  The default is ON.
 ```
 
 ### SET HOST
@@ -6904,6 +7226,9 @@ SET HOST [ switches ] hostname-or-address [ service ] [ protocol-switch ]
   selected network type.  For TCP/IP connections, the default service is
   TELNET; specify a different TCP port number or service name to choose a
   different service.
+ 
+  SET HOST with no host name closes the current connection and returns
+  Kermit to remote mode, as SET LINE does with no device name.
  
   An IPv6 address containing colons (such as ::1) must be enclosed in
   brackets if followed by a colon-separated port, e.g. "[::1]:23".
@@ -6930,7 +7255,8 @@ SET HOST [ switches ] hostname-or-address [ service ] [ protocol-switch ]
  
   SET HOST * (or SET HOST /SERVER) listens for an incoming VSOCK
   connection.  An optional ":PORT" selects the port to listen on,
-  e.g. "SET HOST *:9600"; the default is port 1649.
+  e.g. "SET HOST *:9600"; the default is port 1649.  A VSOCK SET HOST
+  requires the CID:PORT or *.
  
   The first set of switches can be:
  
@@ -6978,16 +7304,25 @@ The protocol-switches can be:
    Send initial Telnet negotiations even if this is not a Telnet port.
  
  /SSL
-   Perform SSL negotiations.
+   Perform SSL/TLS negotiations.  Then treat the connection as Telnet, but
+   send no Telnet options.  Kermit sends a 255 data byte as two, and reads
+   a 255 from the host as a Telnet command.  The first Telnet command from
+   the host starts Telnet negotiations.  Kermit first waits up to one
+   second for the host to send one (see SET TELNET WAIT-FOR-NEGOTIATIONS).
+   Use /SSL-RAW for a host that sends 255 as data.
+ 
+ /SSL-RAW
+   Perform SSL/TLS negotiations.  Use no Telnet.  Bytes pass unchanged in
+   both directions.
  
  /SSL-TELNET
-   Perform SSL negotiations and if successful start Telnet negotiations.
+   Perform SSL/TLS negotiations and if successful start Telnet negotiations.
  
- /TLS
-   Perform TLS negotiations.
- 
- /TLS-TELNET
-   Perform TLS negotiations and if successful start Telnet negotiations.
+ /TLS, /TLS-RAW, /TLS-TELNET
+   The same as /SSL, /SSL-RAW and /SSL-TELNET.  Each negotiates the newest
+   protocol version that both ends support, down to SET AUTHENTICATION SSL
+   MINIMUM-VERSION.  The /SSL switches also enable the OpenSSL workarounds
+   for bugs in old peers.
  
 Examples:
   SET HOST kermit.columbia.edu
@@ -7117,8 +7452,8 @@ SET IKS CDFILE <filelist>
 SET IKS CDMESSAGE {ON, OFF, 0, 1, 2}
   For use in the Server-Side Server configuration; whenever the client
   tells the server to change directory, the server sends the contents of a
-  "read me" file to the client's screen.  This feature is ON by default,
-  and operates in client/server mode only when ON or 1.  If set to 2 or
+  "read me" file to the client's screen.  This feature is OFF by default.
+  It operates in client/server mode only when ON or 1.  If set to 2 or
   higher, it also operates when the CD command is given at the IKSD> prompt.
   Synonym: SET IKS CDMSG.
  
@@ -7181,8 +7516,10 @@ SET IKS XFERFILE <filename>
 ### SET INCOMPLETE
 
 ```
-Syntax: SET INCOMPLETE { DISCARD, KEEP }
-  Whether to discard or keep incompletely received files, default is KEEP.
+Syntax: SET INCOMPLETE { AUTO, DISCARD, KEEP }
+  What to do with incompletely received files.  AUTO, the default,
+  discards them in text mode and keeps them in binary mode.  Synonym
+  for SET FILE INCOMPLETE.
 ```
 
 ### SET KEY
@@ -7289,7 +7626,9 @@ Syntax: SET LOCUS { AUTO, LOCAL, REMOTE }
 ### SET LOGIN
 
 ```
-Not available - "help set login"
+Syntax: SET LOGIN { USERID, PASSWORD, PROMPT } <text>
+  Provides access information for use by login scripts.  The text is at
+  most 63 characters.  Backslash codes in a PASSWORD are not expanded.
 ```
 
 ### SET MACRO
@@ -7363,7 +7702,8 @@ SET MODEM COMPRESSION { ON, OFF }
 SET MODEM DIAL-COMMAND <text>
   The text replaces Kermit's built-in modem dialing command.  It must
   include '%s' (percent s) as a place-holder for the telephone numbers
-  given in your DIAL commands.
+  given in your DIAL commands.  '%%' sends one percent sign.  Other
+  characters are sent as they are.
  
 SET MODEM ERROR-CORRECTION { ON, OFF }
   Enables/disables the modem's error-correction feature, if any.
@@ -7416,8 +7756,14 @@ SET MODEM COMMAND COMPRESSION {ON, OFF} [ text ]
 SET MODEM COMMAND ERROR-CORRECTION {ON, OFF} [ text ]
   Modem commands to turn error correction on and off.
  
-SET MODEM COMMAND HANGUP [ text ]
+SET MODEM COMMAND HANGUP-COMMAND [ text ]
   Command that tells the modem to hang up the connection.
+ 
+SET MODEM COMMAND DIAL-MODE-STRING [ text ]
+  Command that puts the modem in dialing mode, for modems that need one.
+ 
+SET MODEM COMMAND DIAL-MODE-PROMPT [ text ]
+  The modem's response to the DIAL-MODE-STRING.
  
 SET MODEM COMMAND IGNORE-DIALTONE [ text ]
   Command that tells the modem not to wait for dialtone before dialing.
@@ -7507,7 +7853,9 @@ Syntax: SET NETWORK { TYPE network-type, DIRECTORY [ file(s)... ] }
  
 Select the type of network to be used with SET HOST connections:
  
-  SET NETWORK TYPE COMMAND   ; Make a connection through an external command
+  SET NETWORK TYPE PIPE      ; Make a connection through an external command
+  SET NETWORK TYPE PSEUDOTERMINAL ; Make a connection to an external command
+                                  ; run in a pseudoterminal
   SET NETWORK TYPE TCP/IP    ; Internet: Telnet, Rlogin, etc.
   SET NETWORK TYPE VSOCK     ; KVM/Linux VSOCK (AF_VSOCK) connections.
  
@@ -7605,7 +7953,8 @@ Compile-time default, from `SHOW OUTPUT`:
 ```
 Syntax: SET OPTIONS command [ switches... ]
   For use with commands that have switches; sets the default switches for
-  the given command.  Type SET OPTIONS ? for a list of amenable commands.
+  the given command.  The commands are DELETE, DIRECTORY, PURGE and TYPE.
+  Type SET OPTIONS ? for the list in this version.
 ```
 
 Compile-time default, from `SHOW OPTIONS`:
@@ -7692,8 +8041,10 @@ Printer: (default)
 ### SET PREFIXING
 
 ```
-Syntax: SET PREFIXING { ALL, CAUTIOUS, MINIMAL }
+Syntax: SET PREFIXING { ALL, CAUTIOUS, MINIMAL, NONE }
   Selects the degree of control-character prefixing.  Also see HELP SET CONTROL.
+  NONE prefixes only the characters that are never safe: the packet start
+  character and, on a Telnet connection, CR, XON, XOFF, DEL and 255.
 ```
 
 Compile-time default, from `SHOW CONTROL-PREFIXING`:
@@ -7815,7 +8166,7 @@ Synonyms: REC, RECV
 Syntax: SET RECEIVE parameter value
   Specifies parameters for inbound packets:
  
-SET RECEIVE CHARACTER-SET { AUTOMATIC, MANUAL }
+SET RECEIVE CHARACTER-SET-SELECTION { AUTOMATIC, MANUAL }
   Whether to automatically switch to an appropriate file-character set based
   on the transfer character-set announcer, if any, of an incoming text file.
   AUTOMATIC by default.  Also see HELP ASSOCIATE.
@@ -7826,9 +8177,10 @@ SET RECEIVE CONFIRM { OFF, ON, ALL } [ LOCAL, REMOTE, BOTH ]
   ON (the default) prompts, except when the incoming name is a precise
   (non-wildcard) match for a name given to GET or MGET, or, for a
   recursive GET, when the file arrives under the directory named for the
-  transfer. A RECEIVE, or a transfer accepted because the remote host
-  issued SEND, always prompts, since no local filename specification
-  exists for comparison.
+  transfer.  Names are compared without their directory part, and the
+  as-name given to GET counts as a name given.  A RECEIVE, or a transfer
+  accepted because the remote host issued SEND, always prompts, since no
+  local filename specification exists for comparison.
  
   ALL applies the same matching rules as ON, but also prompts for each
   individual file inside a recursive transfer. Use ALL, not ON, if you
@@ -7857,13 +8209,25 @@ SET RECEIVE END-OF-PACKET number
  
 SET RECEIVE IGNORE-CHARACTER number
   ASCII value of character to be discarded when receiving packets, such as
-  line folding characters.
+  line folding characters.  SET SEND IGNORE-CHARACTER is a synonym.
+ 
+SET RECEIVE FILTER [ command ]
+  Passes each incoming file through the command before writing it.  The
+  command may contain \v(filename).  Kermit replaces \v(filename) with
+  the name of the file.  Omit the command to remove the filter.  Also see
+  RECEIVE /FILTER.
  
 SET RECEIVE MOVE-TO [ directory ]
   If a directory name is specified, then every file that is received
   successfully is moved to the given directory immediately after reception
   is complete.  Omit the directory name to remove any previously set move-to
   directory.
+ 
+SET RECEIVE NEGOTIATION-STRING-MAX-LENGTH number
+  Reads only the first number characters of the parameter string in the
+  other Kermit's Send-Init or I packet, or in its ACK.  The rest is
+  ignored, as if the other Kermit had not sent it.  The default, -1, sets
+  no limit.  So does 0 or 1.
  
 SET RECEIVE PACKET-LENGTH number
   Maximum length packet the other Kermit should send.
@@ -7901,6 +8265,9 @@ SET RECEIVE PAUSE number
  
 SET RECEIVE PERMISSIONS { ON, OFF }
   Whether to copy file permissions from inbound Attribute packets.
+  A file received from a Unix sender gets the read, write, and execute
+  permissions of the original.  Setuid, setgid, and sticky bits are not
+  copied.
  
 SET RECEIVE RENAME-TO [ template ]
   If a template is specified, then every file that is received successfully
@@ -7938,9 +8305,9 @@ Syntax: SET RELIABLE { ON, OFF, AUTO }
 SET RENAME LIST { ON, OFF }
   Tells whether the RENAME command should list its results by default.
 
-SET RENAME COLLISION { FAIL, PROCEED, OVERWRITE }
+SET RENAME COLLISION { FAIL, SKIP, OVERWRITE }
   Establishes the default action when renaming a file would destroy an
-  existing file.  See HELP RENAME.
+  existing file.  PROCEED is a synonym for SKIP.  See HELP RENAME.
 ```
 
 Compile-time default, from `SHOW RENAME`:
@@ -8001,10 +8368,11 @@ SET SEND BACKUP { ON, OFF }
   don't exclude backup files.  Use OFF to exclude backup files from group
   transfers.
  
-SET SEND CHARACTER-SET { AUTOMATIC, MANUAL }
-  Whether to automatically switch to an appropriate file-character when a
-  SET TRANSFER CHARACTER-SET command is given, or vice versa.  AUTOMATIC by
-  default.  Also see HELP ASSOCIATE.
+SET SEND CHARACTER-SET-SELECTION { AUTOMATIC, MANUAL }
+  Whether, when sending a file that FILE SCAN finds to be text, to use the
+  transfer character-set associated with the file character-set.  SET FILE
+  CHARACTER-SET and SET TRANSFER CHARACTER-SET change only the setting
+  that each command names.  AUTOMATIC by default.  Also see HELP ASSOCIATE.
  
 SET SEND CONTROL-PREFIX number
   ASCII value of prefix character used for quoting control characters in
@@ -8012,16 +8380,33 @@ SET SEND CONTROL-PREFIX number
  
 SET SEND DOUBLE-CHARACTER number
   ASCII value of character to be doubled when sending packets, such as an
-  X.25 PAD escape character.
+  X.25 PAD escape character.  SET RECEIVE DOUBLE-CHARACTER is a synonym.
  
 SET SEND END-OF-PACKET number
   ASCII value of control character to terminate an outbound packet,
   normally 13 (carriage return).
  
+SET SEND FILTER [ command ]
+  Passes each file through the command before sending it.  The command
+  must contain \v(filename).  Kermit replaces \v(filename) with the
+  name of the file.  Omit the command to remove the filter.  Also see
+  SEND /FILTER.
+ 
+SET SEND I-PACKETS { ON, OFF }
+  Whether to send an I (Information) packet before a server command.  The
+  default is ON.  OFF is for servers that can not handle I packets.
+ 
 SET SEND MOVE-TO [ directory ]
   If a directory name is specified, then every file that is sent successfully
   is moved to the given directory immediately after it is sent.
   Omit the directory name to remove any previously set move-to directory.
+ 
+SET SEND NEGOTIATION-STRING-MAX-LENGTH number
+  Limits the parameter string in this Kermit's Send-Init or I packet, or
+  in its ACK to the other Kermit's, to number + 1 characters.  Use it with
+  a Kermit that misreads a long parameter string.  A feature whose field
+  is cut off is not used for that transfer.  The default, -1, sets no
+  limit.  So does 0 or 1.
  
 SET SEND PACKET-LENGTH number
   Maximum length packet to send, even if other Kermit asks for longer ones.
@@ -8085,7 +8470,7 @@ SET SERVER CD-MESSAGE FILE name
  
 SET SERVER DISPLAY {ON,OFF}
   Tells whether local-mode C-Kermit during server operation should put a
-  file transfer display on the screen.  Default is OFF.
+  file transfer display on the screen.  Default is ON.
  
 SET SERVER GET-PATH [ directory [ directory [ ... ] ] ]
   Tells the C-Kermit server where to look for files whose names it receives
@@ -8173,10 +8558,14 @@ Synonym: SESSION-L
 
 ```
 Syntax:
- SET SESSION-LOG { BINARY, DEBUG, NULL-PADDED, TEXT, TIMESTAMPED-TEXT }
+ SET SESSION-LOG { BINARY, DEBUG, NULL-PADDED-LINES, TEXT,
+                   TIMESTAMPED-TEXT }
   If BINARY, record all CONNECT characters in session log.  If TEXT, strip
   out CR, NUL, and XON/XOFF characters.  DEBUG is the same as BINARY but
   also includes Telnet negotiations on TCP/IP connections.
+  TIMESTAMPED-TEXT is TEXT with a timestamp at the start of each line.
+  NULL-PADDED-LINES writes a NUL after each linefeed.  It keeps the BINARY
+  or TEXT setting.
 ```
 
 ### SET SESSION-L
@@ -8319,6 +8708,10 @@ SET TCP CONNECT-TIMEOUT <seconds>
   value times the number of addresses tried.  Specify 0 to wait
   indefinitely.
  
+SET TCP DONTROUTE { ON, OFF }
+  ON sends packets only to hosts on a directly connected network, without
+  using a gateway (SO_DONTROUTE).  The default is OFF.
+ 
 SET TCP KEEPALIVE { ON, OFF }
   Setting this ON might help to detect broken connections more quickly.
   (default is ON.)
@@ -8326,7 +8719,7 @@ SET TCP KEEPALIVE { ON, OFF }
 SET TCP LINGER { ON [timeout], OFF }
   Setting this ON ensures that a connection doesn't close before all
   outstanding data has been transferred and acknowledged.  The timeout is
-  measured in 10ths of milliseconds.  The default is ON with a timeout of 0.
+  measured in 10ths of milliseconds.  The default is OFF.
  
 SET TCP NODELAY { ON, OFF }
   ON means send short TCP packets immediately rather than waiting
@@ -8377,12 +8770,13 @@ SET TCP DNS-SERVICE-RECORDS {ON, OFF}
   port it should use.  Since not all domain servers are set up to answer
   such requests, this feature is OFF by default.
  
-SET TCP HTTP-PROXY [<hostname or ip-address>[:<port>]]
+SET TCP HTTP-PROXY [ switches ] [<hostname or ip-address>[:<port>]]
   If a hostname or ip-address is specified, Kermit will use the Proxy
   server when attempting outgoing connections.  If no hostname or
   ip-address is specified, any previously specified Proxy server will
   be removed.  If no port number is specified, the "http" service
-  will be used.
+  will be used.  The switches /AGENT:<agent>, /USER:<user> and
+  /PASSWORD:<password> give the values used to connect to the proxy.
 ```
 
 Compile-time default, from `SHOW TCP`:
@@ -8440,6 +8834,11 @@ SET TELNET AUTHENTICATION TYPE { AUTOMATIC, KERBEROS_IV, KERBEROS_V, ...
  
   A list of one or more authentication methods specifies the order those
   methods are to be offered to the telnet client.
+ 
+SET TELNET AUTHENTICATION FORWARDING { ON, OFF }
+  Set this to ON to forward Kerberos V ticket-granting-tickets to the host
+  after authentication is complete.  It has no effect in a build without
+  Kerberos.  OFF by default.
  
 SET TELNET AUTHENTICATION ENCRYPT-FLAG { ANY, NONE, TELOPT }
   Use this command to specify which AUTH telopt encryption flags may be
@@ -8511,6 +8910,8 @@ SET TELNET ENVIRONMENT { variable-name [ value ] }
   value in this way, will accept it and therefore not prompt you for user
   name when you log in.  The default values are taken from your environment;
   use this command to change or remove them.  See RFC1572 for details.
+  LOCATION sets the same string as SET TELNET LOCATION.  USERVAR name
+  [ value ] defines a user variable to send.
  
 SET TELNET FORWARD-X XAUTHORITY-FILE <file>
   If your X Server requires X authentication and the location of the
@@ -8580,16 +8981,16 @@ SET TELNET parameters:
  bug binary-u-means-me-too: off
  bug sb-implies-will-do: on
  bug auth-krb5-des: on
- terminal-type: none (xterm will be used)
+ terminal-type: none (dumb will be used)
  environment: on
    ACCOUNT: 
    DISPLAY: 
    JOB    : 
    PRINTER: 
-   USER   : jgoerzen
+   USER   : user
    SYSTEM : UNIX
   LOCATION: 
- .Xauthority-file: /home/jgoerzen/.Xauthority
+ .Xauthority-file: /path/to/home/.Xauthority
 ```
 
 ### SET TEL
@@ -8623,6 +9024,24 @@ SET TELOPT [ { /CLIENT, /SERVER } ] <option> -
   is possible to use SET TELOPT to instruct Kermit to REFUSE the option
   before connecting to the problem host, thus skipping the problematic
   negotiation.
+ 
+  The options are:
+ 
+    AUTHENTICATION      Telnet authentication
+    BINARY-MODE         Binary transmission
+    COM-PORT-CONTROL    Control of a serial port on the remote host
+    ECHO                Remote echo
+    ENCRYPTION          Telnet encryption
+    FORWARD-X           X Window System forwarding
+    KERMIT              Kermit server negotiation
+    LOGOUT              Logout request
+    NAWS                Negotiate About Window Size
+    NEW-ENVIRONMENT     Environment variables such as USER and TERM
+    SEND-LOCATION       The location string of SET TELNET LOCATION
+    START-TLS           TLS negotiated inside Telnet
+    SUPPRESS-GO-AHEADS  Suppression of Go Ahead signals
+    TERMINAL-TYPE       The terminal type
+    XDISPLAY-LOCATION   The X display location
  
   Use SHOW TELOPT to view current Telnet Option negotiation settings.
   SHOW TELNET displays current Telnet settings.
@@ -8707,10 +9126,12 @@ SET TERMINAL APC { ON, OFF, NO-INPUT, UNCHECKED, UNCHECKED-NO-INPUT }
   and RUN.  OFF prevents execution of APCs.  UNCHECKED allows execution of
   all APCs.  OFF is the default.
  
-SET TERMINAL AUTODOWNLOAD { ON, OFF, ERROR { STOP, CONTINUE } }
+SET TERMINAL AUTODOWNLOAD { ON, OFF, ASK, ERROR { STOP, CONTINUE } }
   Enables/disables automatic switching into file-transfer mode when a valid
   Kermit or ZMODEM packet of the appropriate type is received during CONNECT
   mode.  Default is ON.
+  ASK is ON, and also asks for the name under which to store each incoming
+  file.
  
   When TERMINAL AUTODOWNLOAD is ON, the TERMINAL AUTODOWNLOAD ERROR setting
   tells what to do if an error occurs during a file transfer or other
@@ -8728,8 +9149,8 @@ SET TERMINAL CHARACTER-SET <remote-cs> [ <local-cs> ]
   character set used by C-Kermit locally, <local-cs>.  If you don't specify
   the local character set, the current FILE CHARACTER-SET is used.  When
   you specify two different character sets, C-Kermit translates between them
-  during CONNECT.  By default, both character sets are TRANSPARENT, and
-  no translation is done.
+  during CONNECT.  By default, both are the same character set, and no
+  translation is done.
  
 SET TERMINAL CR-DISPLAY { CRLF, NORMAL }
   Specifies how incoming carriage return characters are to be displayed
@@ -8886,12 +9307,13 @@ SET TRANSFER LOCKING-SHIFT { OFF, ON, FORCED }
   does not agree.
  
 SET TRANSFER MODE { AUTOMATIC, MANUAL }
-  Automatic (the default) means Kermit should automatically go into binary
+  AUTOMATIC means Kermit should automatically go into binary
   file-transfer mode and use literal filenames if the other Kermit says it
   has a compatible file system, e.g. UNIX-to-UNIX, but not UNIX-to-DOS.
   Also, when sending files, Kermit should switch between binary and text
   mode automatically per file based on the SET FILE BINARY-PATTERNS and SET
   FILE TEXT-PATTERNS.
+  MANUAL, the default, uses the FILE TYPE and FILE NAMES settings as given.
  
 SET TRANSFER PIPES { ON, OFF }
   Enables/Disables automatic sending from / reception to command pipes when
@@ -9005,19 +9427,19 @@ Synonym for [SET TRANSMIT](#set-transmit).
 
 ```
 Syntax: SET UNKNOWN-CHAR-SET action
-  DISCARD (default) means reject any arriving files encoded in unknown
-  character sets.  KEEP means to accept them anyway.
+  DISCARD means reject any arriving files encoded in unknown character
+  sets.  KEEP (the default) means to accept them anyway.
 ```
 
 ### SET VARIABLE-EVALUATION
 
 ```
 Syntax: SET VARIABLE-EVALUATION { RECURSIVE, SIMPLE }
-  Tells Kermit weather to evaluate \%x and \&x[] variables recursively
-  In C-Kermit 10.0 the default is SIMPLE, meaning variables return their
-  values like in any other programming language, making life much easier
-  when those values happen to be Windows or DOS pathnames, which contain
-  backslashes.
+  Tells Kermit whether to evaluate \%x and \&x[] variables recursively.
+  RECURSIVE, the default, also evaluates backslash items in the value.
+  SIMPLE returns the value as it is, as in other programming languages.
+  SIMPLE is easier when values are Windows or DOS pathnames, since
+  they contain backslashes.
 ```
 
 ### SET WILDCARD-EXPANSION
@@ -9049,7 +9471,8 @@ Synonyms: W, WI, WIN
 Syntax: SET WINDOW-SIZE number
   Specifies number of slots for sliding windows, i.e. the number of packets
   that can be transmitted before waiting for acknowledgement.  The default
-  is one, the maximum is 32.  Increased window size might result in reduced
+  is 30, or fewer if SET BUFFERS makes the buffers smaller; the maximum is
+  32.  Increased window size might result in reduced
   maximum packet length.  Use sliding windows for improved efficiency on
   connections with long delays.  A full duplex connection is required, as
   well as a cooperating Kermit on the other end.
@@ -9076,7 +9499,8 @@ Synonyms: AS, ASG
 ```
 Syntax: REMOTE ASSIGN variable-name [ value ]
   Assigns the given value to the named global variable on the server.
-  Synonyms: RASG, RASSIGN.
+  With REMOTE QUERY also enabled there, the client can run the variable
+  as a macro with \fexecute(); see HELP ENABLE.  Synonyms: RASG, RASSIGN.
 ```
 
 ### REMOTE AS
@@ -9247,6 +9671,8 @@ Syntax: [ REMOTE ] QUERY { KERMIT, SYSTEM, USER } variable-name
   Asks the Kermit server to send the value of the named variable of the
   given type, and make it available in the \v(query) variable.  When the
   type is KERMIT functions may also be specified as if they were variables.
+  A function runs on the server.  With REMOTE ASSIGN also enabled there,
+  \fexecute() runs any command the client defines; see HELP ENABLE.
 ```
 
 ### REMOTE RENAME
@@ -9271,7 +9697,10 @@ Syntax:  REMOTE SET parameter value
 Example: REMOTE SET FILE TYPE BINARY
   Asks the Kermit server to set the named parameter to the given value.
   Equivalent to typing the corresponding SET command directly to the other
-  Kermit if it were in interactive mode.
+  Kermit if it were in interactive mode.  The parameters are ATTRIBUTES,
+  BLOCK-CHECK, FILE, MATCH, RECEIVE, RETRY, SERVER, TRANSFER and WINDOW.
+  Type REMOTE SET ? and REMOTE SET parameter ? for the values, and HELP
+  SET parameter for what each one does.
 ```
 
 ### REMOTE SPACE
@@ -9304,8 +9733,9 @@ Syntax: REMOTE TYPE file
 
 ```
 Syntax: REMOTE WHO [ name ]
-  Asks the Kermit server to list who's logged in, or to give information
-  about the named user.  Synonym: RWHO.
+  Asks the Kermit server to list who's logged in.  Some servers give
+  information about the named user.  A Unix server refuses a name.
+  Synonym: RWHO.
 ```
 
 ## FILE Subcommands
@@ -9642,7 +10072,7 @@ Synonym: ADDRTONAME
 
 ```
 \faddr2name(s)
-  s = numeric IP address.
+  s = numeric IPv4 or IPv6 address.
 Returns:
   Corresponding IP hostname if found, otherwise null.
 ```
@@ -10661,6 +11091,9 @@ Synonym for [FUNCTION N2TIME](#function-n2time).
   s = IP host name.
 Returns:
   Corresponding numeric IP address if found, else null.
+  An IPv4 address is preferred when the name has one, unless
+  SET TCP ADDRESS-FAMILY selects IPv6.  A numeric address in any form
+  that the resolver accepts, such as 0x1F, is returned in standard form.
 ```
 
 ### FUNCTION NDAY

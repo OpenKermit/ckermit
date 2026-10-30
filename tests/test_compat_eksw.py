@@ -161,9 +161,17 @@ def test_block_check_types(tmp_path, foreign_kermit_pty, eksw_path,
 
 @pytest.mark.xfail(
     strict=True, raises=subprocess.TimeoutExpired,
-    reason="SET BLOCK-CHECK 2 against eksw -b 2 stalls during transfer.")
+    reason="eksw chk2() does not mask its sum to 12 bits, so it rejects "
+           "a block check 2 packet whose bytes sum past 4095.")
+@pytest.mark.slow
 def test_block_check_type_2(tmp_path, foreign_kermit_pty, eksw_path):
-    """Verify block-check type 2 timeout behavior."""
+    """Send to eksw with block check type 2.
+
+    The first data packet sums past 4095.  eksw compares its unmasked
+    sum with the 12-bit check, discards the packet without a NAK, and
+    the transfer stalls.  The S, F and A packets get through.  Any
+    timeout satisfies the xfail, so the wait is short.
+    """
     src_dir = tmp_path / "src"
     src_dir.mkdir()
     dest_dir = tmp_path / "dest"
@@ -177,7 +185,7 @@ def test_block_check_type_2(tmp_path, foreign_kermit_pty, eksw_path):
         "set command more-prompting off, set block-check 2, "
         f"set delay 0, set host {{HOST}}, send {src}, "
         "close, exit",
-        dest_dir, timeout=8)
+        dest_dir, timeout=2, expect_timeout=True)
     assert returncode == 0, stdout
     assert (dest_dir / _eksw_receive_name("bc2.dat")).read_bytes() \
         == content
@@ -205,6 +213,7 @@ def test_sliding_window(tmp_path, foreign_kermit_pty, eksw_path,
         == content
 
 
+@pytest.mark.slow
 def test_error_injection_recovery(tmp_path, foreign_kermit_pty, eksw_path):
     """Transfer recovery with simulated packet error rate."""
     src_dir = tmp_path / "src"
@@ -241,14 +250,15 @@ def test_remote_local_mode_flags_are_no_ops(
            "unprefixed binary data containing one; not fixable from "
            "the C-Kermit side. See this module's docstring.",
     strict=True)
+@pytest.mark.slow
 def test_unprefixed_lf_hangs(tmp_path, foreign_kermit_pty, eksw_path):
     """SEND with SET CONTROL UNPREFIX ALL, to data containing 0x0A.
 
     pattern_bytes() output contains every byte value 0-255, including 0x0A, once
     per 256-byte block. Under SET CONTROL UNPREFIX ALL, C-Kermit sends that byte
     raw. eksw's readpkt() then reads it as if it were the end of the packet,
-    desyncing the exchange. Run under a short timeout since the known failure
-    is a hang.
+    desyncing the exchange.  Any timeout satisfies the xfail, so the
+    wait is short.
     """
     src_dir = tmp_path / "src"
     src_dir.mkdir()
@@ -262,7 +272,7 @@ def test_unprefixed_lf_hangs(tmp_path, foreign_kermit_pty, eksw_path):
         [eksw_path, "-B", "-r"],
         "set command more-prompting off, set control unprefix all, "
         f"set delay 0, set host {{HOST}}, send {{{src}}}, close, exit",
-        dest_dir, timeout=5)
+        dest_dir, timeout=2, expect_timeout=True)
     assert returncode == 0, stdout
     assert (dest_dir / _eksw_receive_name("lf.dat")).read_bytes() \
         == content

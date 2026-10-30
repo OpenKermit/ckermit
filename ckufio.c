@@ -126,6 +126,10 @@ char *ckzv = "UNIX File support, 11.0.500, 22 Jul 2026";
 #else
 #ifdef HAVEWAITH                        /* for FreeBSD, OpenBSD */
 #include <sys/wait.h>
+#else
+#ifdef __linux__                        /* Not pulled in without NETCONN */
+#include <sys/wait.h>
+#endif /* __linux__ */
 #endif  /* HAVEWAITH */
 #endif  /* __NetBSD__ */
 
@@ -792,7 +796,7 @@ static int maxnames = MAXWLD;
 static char sspace[SSPACE];             /* Buffer for generating filenames */
 #else /* is DYNAMIC */
 #ifdef CK_64BIT
-#define SSPACE 2000000000               /* Two billion bytes */
+#define SSPACE 32000000                 /* Thirty-two million */
 #else
 #ifdef BIGBUFOK
 #define SSPACE 10000000                 /* Ten million */
@@ -1511,7 +1515,8 @@ zopeno(n,name,zz,fcb) int n; char *name; struct zattr *zz; struct filinfo *fcb;
             if (isatty(fd)) {
                 filefd = fd;
                 istty++;
-            }
+            } else
+              close(fd);                /* fopen() opens it again */
         }
     }
     debug(F111,"zopeno istty",name,istty);
@@ -1542,22 +1547,11 @@ zopeno(n,name,zz,fcb) int n; char *name; struct zattr *zz; struct filinfo *fcb;
         debug(F101, "zopeno zobufsize", "", zobufsize);
         if (n == ZTFILE) {              /* Transaction log */
             setbuf(fp[n],NULL);           /* make it unbuffered. */
-        } else if (n == ZDFILE) {       /* Debug log */
 /*
-  The debug log can be extremely high volume. LOG DEBUG hex-dumps every
-  byte of every packet, so a single large file transfer can produce
-  millions of lines. Unbuffered stdio costs a write() syscall per line,
-  significantly decreasing performance.
-
-  Default to normal stdio buffering here instead, and only go
-  unbuffered if CK_DEBUG_UNBUFFERED is set in the environment. Most
-  debugging sessions end in a diagnosable error or a normal exit, both
-  of which flush and close the log.  Unbuffered output only matters for
-  a hard crash, and CK_DEBUG_UNBUFFERED is there for that case.
+  The debug log keeps normal stdio buffering.  zsout() and zsoutl()
+  flush it at the end of each line, so a killed process leaves every
+  complete record on disk without a write() per fragment.
 */
-            char * unbuf = getenv("CK_DEBUG_UNBUFFERED");
-            if (unbuf && *unbuf && strcmp(unbuf,"0"))
-              setbuf(fp[n],NULL);
 #ifdef DONDELAY
         } else if (n == ZOFILE && !zofblock) { /* blocking or nonblocking */
             int flags;
@@ -2014,8 +2008,13 @@ zsout(n,s) int n; char *s;
         return((rc == k) ? 0 : -1);
     }
     rc = fputs(s,fp[n]) == EOF ? -1 : 0;
-    if (n == ZWFILE || n == ZDFILE)
+    if (n == ZWFILE)
       fflush(fp[n]);
+    else if (n == ZDFILE) {             /* Flush at the end of a line */
+        int k = (int)strlen(s);
+        if (k > 0 && s[k-1] == '\n')
+          fflush(fp[n]);
+    }
     return(rc);
 }
 
@@ -2314,6 +2313,11 @@ zgetfs(name) char *name;
         linkname[0] = '\0';
         errno = 0;
         x = (int)readlink(s,linkname,CKMAXPATH);
+        if (x > -1 && x < CKMAXPATH) {
+            zgfs_link = 1;
+            linkname[x] = '\0';
+        } else                          /* Failed or truncated */
+          linkname[0] = '\0';
 #ifdef DEBUG
         debug(F111,"zgetfs readlink",s,x);
         if (x < 0)
@@ -2321,10 +2325,6 @@ zgetfs(name) char *name;
         else
           debug(F110,"zgetfs readlink result",linkname,0);
 #endif /* DEBUG */
-        if (x > -1 && x < CKMAXPATH) {
-            zgfs_link = 1;
-            linkname[x] = '\0';
-        }
     }
 #else  /* !CKSYMLINK */
     x = stat(s,&buf);                   /* Just stat the file */
@@ -2811,9 +2811,9 @@ nzrtol(name,name2,fncnv,fnrpath,max) char *name,*name2;int fncnv,fnrpath,max;
         *p++ = *name;
         n++;
     }
-    *p-- = '\0';                        /* Terminate */
-    while (*p < '!' && p > name2)       /* Strip trailing blanks & controls */
-      *p-- = '\0';
+    *p = '\0';                          /* Terminate */
+    while (p > name2 && *(p-1) < '!')   /* Strip trailing blanks & controls */
+      *--p = '\0';
 
     if (*name2 == '\0') {               /* Nothing left? */
         ckstrncpy(name2,"NONAME",max);  /* do this... */
@@ -2858,9 +2858,10 @@ zstrip(name,name2) char *name, **name2;
             pp = work;
             n = 0;
         } else {
-            *pp++ = *cp;
-            if (n++ >= CKMAXPATH)
+            if (n >= CKMAXPATH)         /* Leave room for the NUL */
               break;
+            *pp++ = *cp;
+            n++;
         }
     }
     *pp = '\0';                         /* Terminate the string */
@@ -3237,63 +3238,23 @@ zxcloexec(fd) int fd;
 #endif /* FD_CLOEXEC */
 }
 
-int
+/*
+  Z X P I P E  --  Run a command with its output on a pipe to filnum.
+
+  When argv is NULL, run comand with the user's shell.  Otherwise run
+  argv[0] via execvp() with argv.  comand then supplies the debug log
+  string.  The caller checks nopush and filnum.  Returns 1 on success,
+  0 on failure.
+*/
+static int
 #ifdef CK_ANSIC
-zxcmd( int filnum, char *comand )
+zxpipe(int filnum, char *comand, char **argv)
 #else
-zxcmd(filnum,comand) int filnum; char *comand;
+zxpipe(filnum,comand,argv) int filnum; char *comand; char **argv;
 #endif /* CK_ANSIC */
 {
-    int out;
     int pipes[2];
     extern int kactive;                 /* From ckcpro.c and ckcmai.c */
-
-    if (nopush) {
-        debug(F100,"zxcmd fails: nopush","",0);
-        return(-1);
-    }
-    debug(F111,"zxcmd",comand,filnum);
-    if (chkfn(filnum) < 0) return(-1);  /* Need a valid Kermit file number. */
-    if (filnum == ZSTDIO || filnum == ZCTERM) /* But not one of these. */
-      return(0);
-
-    out = (filnum == ZIFILE || filnum == ZRFILE) ? 0 : 1 ;
-    debug(F101,"zxcmd out",comand,out);
-
-/* Output to a command */
-
-    if (out) {                          /* Need popen() to do this. */
-        ckstrncpy(fullname,"(pipe)",CKMAXPATH);
-#ifdef NOPOPEN
-        return(0);                      /* no popen(), fail. */
-#else
-/* Use popen() to run the command. */
-
-#ifdef _POSIX_SOURCE
-/* Strictly speaking, popen() is not available in POSIX.1 */
-#define DCLPOPEN
-#endif /* _POSIX_SOURCE */
-
-        debug(F110,"zxcmd out",comand,0);
-
-        if (priv_chk()) {
-            debug(F100,"zxcmd priv_chk failed","",0);
-            return(0);
-        }
-        errno = 0;
-        fp[filnum] = popen(comand,"w");
-        debug(F111,"zxcmd popen",fp[filnum] ? "OK" : "Failed", errno);
-        if (fp[filnum] == NULL)
-          return(0);
-        zxcloexec(fileno(fp[filnum]));
-        ispipe[filnum] = 1;
-        zoutcnt = 0;                    /* (PWP) reset input buffer */
-        zoutptr = zoutbuffer;
-        return(1);
-#endif /* NOPOPEN */
-    }
-
-/* Input from a command */
 
 #ifdef SNI541
     /* SINIX-L 5.41 does not like fdopen() */
@@ -3353,6 +3314,12 @@ zxcmd(filnum,comand) int filnum; char *comand;
 #endif /* OXOS */
         close(pipes[1]);                /* Don't need this any more. */
 
+        if (argv) {                     /* Run the program directly */
+            restorsigs();
+            execvp(argv[0],argv);
+            exit(1);                    /* exec failed */
+        }
+
 #ifdef aegis
         if ((shpath = getenv("SERVERSHELL")) == NULL)
           shpath = "/bin/sh";
@@ -3383,6 +3350,12 @@ zxcmd(filnum,comand) int filnum; char *comand;
     zxcloexec(pipes[0]);
     ispipe[filnum] = 1;                 /* Remember it's a pipe */
     fp[filnum] = fdopen(pipes[0],"r");  /* Open a stream for input. */
+    if (!fp[filnum]) {                  /* Out of memory */
+        debug(F100,"zxcmd fdopen failure","",0);
+        close(pipes[0]);
+        ispipe[filnum] = 0;
+        return(0);
+    }
 
 #ifdef DONDELAY
 #ifdef SELECT
@@ -3408,7 +3381,94 @@ zxcmd(filnum,comand) int filnum; char *comand;
     zinptr = zinbuffer;
     fullname[0] = '\0';
     return(1);
+} /* zxpipe */
+
+int
+#ifdef CK_ANSIC
+zxcmd( int filnum, char *comand )
+#else
+zxcmd(filnum,comand) int filnum; char *comand;
+#endif /* CK_ANSIC */
+{
+    int out;
+
+    if (nopush) {
+        debug(F100,"zxcmd fails: nopush","",0);
+        return(-1);
+    }
+    debug(F111,"zxcmd",comand,filnum);
+    if (chkfn(filnum) < 0) return(-1);  /* Need a valid Kermit file number. */
+    if (filnum == ZSTDIO || filnum == ZCTERM) /* But not one of these. */
+      return(0);
+
+    out = (filnum == ZIFILE || filnum == ZRFILE) ? 0 : 1 ;
+    debug(F101,"zxcmd out",comand,out);
+
+/* Output to a command */
+
+    if (out) {                          /* Need popen() to do this. */
+        ckstrncpy(fullname,"(pipe)",CKMAXPATH);
+#ifdef NOPOPEN
+        return(0);                      /* no popen(), fail. */
+#else
+/* Use popen() to run the command. */
+
+#ifdef _POSIX_SOURCE
+/* Strictly speaking, popen() is not available in POSIX.1 */
+#define DCLPOPEN
+#endif /* _POSIX_SOURCE */
+
+        debug(F110,"zxcmd out",comand,0);
+
+        if (priv_chk()) {
+            debug(F100,"zxcmd priv_chk failed","",0);
+            return(0);
+        }
+        errno = 0;
+        fp[filnum] = popen(comand,"w");
+        debug(F111,"zxcmd popen",fp[filnum] ? "OK" : "Failed", errno);
+        if (fp[filnum] == NULL)
+          return(0);
+        zxcloexec(fileno(fp[filnum]));
+        ispipe[filnum] = 1;
+        zoutcnt = 0;                    /* (PWP) reset input buffer */
+        zoutptr = zoutbuffer;
+        return(1);
+#endif /* NOPOPEN */
+    }
+
+/* Input from a command */
+
+    return(zxpipe(filnum,comand,NULL));
 } /* zxcmd */
+
+/*
+  Z X C M D V  --  Run a program and read its output from filnum.
+
+  Run argv[0] via execvp() with the NULL-terminated argument vector
+  argv.  filnum must be ZIFILE or ZRFILE.  Returns -1 if nopush is set
+  or filnum is invalid, 0 on failure, 1 on success.
+*/
+int
+#ifdef CK_ANSIC
+zxcmdv( int filnum, char **argv )
+#else
+zxcmdv(filnum,argv) int filnum; char **argv;
+#endif /* CK_ANSIC */
+{
+    if (nopush) {
+        debug(F100,"zxcmdv fails: nopush","",0);
+        return(-1);
+    }
+    if (!argv || !argv[0] || !*argv[0])
+      return(-1);
+    debug(F111,"zxcmdv",argv[0],filnum);
+    if (chkfn(filnum) < 0)
+      return(-1);
+    if (filnum != ZIFILE && filnum != ZRFILE)
+      return(0);
+    return(zxpipe(filnum,argv[0],argv));
+}
 
 /*  Z C L O S F  - wait for the child fork to terminate and close the pipe. */
 
@@ -3421,7 +3481,7 @@ zclosf( int filnum )
 zclosf(filnum) int filnum;
 #endif /* CK_ANSIC */
 {
-    int wstat, out;
+    int out;
     int statusp;
 
     debug(F101,"zclosf filnum","",filnum);
@@ -3453,29 +3513,61 @@ zclosf(filnum) int filnum;
     /* debug(F101,"zclosf fp[ZSYSFN]","", fp[ZSYSFN]); */
 
     if (pid != (PID_T) 0) {
+#ifdef CK_CHILD
+#ifdef WNOHANG
+/*
+  Close the pipe first, so a child that is still writing gets SIGPIPE.
+  A child that reached the end of its output exits by itself, and its
+  exit status is the command's.  Kill only a child that is still
+  running after two seconds.
+*/
+        PID_T w = 0;
+        int tries;
+
+        fclose(fp[filnum]);
+        fp[filnum] = fp[ZSYSFN] = NULL;
+        statusp = 0;
+        for (tries = 0; tries < 200; tries++) {
+            w = waitpid(pid,&statusp,WNOHANG);
+            if (w != 0 && !(w < 0 && errno == EINTR))
+              break;
+            msleep(10);
+        }
+        if (w == 0) {
+            debug(F101,"zclosf killing pid","",pid);
+            kill(pid,9);
+            while ((w = waitpid(pid,&statusp,0)) < 0 && errno == EINTR) ;
+        }
+        if (w != pid)                   /* Reaped elsewhere: no status */
+          statusp = 0;
+#else  /* WNOHANG */
+        int wstat;
+
+        debug(F101,"zclosf killing pid","",pid);
+        kill(pid,9);
+        while ((wstat = wait(&statusp)) != pid && wstat != -1) ;
+#endif /* WNOHANG */
+        pexitstat = (statusp & 0xff) ? statusp : statusp >> 8;
+        debug(F101,"zclosf wait statusp","",statusp);
+        debug(F101,"zclosf wait pexitstat","",pexitstat);
+#else  /* CK_CHILD */
+        int wstat;
+
         debug(F101,"zclosf killing pid","",pid);
 #ifdef Plan9
         kill(pid, SIGKILL);
 #else
         kill(pid,9);
 #endif /* Plan9 */
-
-#ifndef CK_CHILD
 /*
-  This is the original code (before 20 April 1997) and has proven totally
-  portable.  But it does not give us the process's return code.
+  This code does not give us the process's return code.
 */
         while ((wstat = wait((WAIT_T *)0)) != pid && wstat != -1) ;
-#else
-/* Here we try to get the return code.  Let's hope this is portable too. */
-        while ((wstat = wait(&statusp)) != pid && wstat != -1) ;
-        pexitstat = (statusp & 0xff) ? statusp : statusp >> 8;
-        debug(F101,"zclosf wait statusp","",statusp);
-        debug(F101,"zclosf wait pexitstat","",pexitstat);
 #endif /* CK_CHILD */
         pid = 0;
     }
-    fclose(fp[filnum]);
+    if (fp[filnum])
+      fclose(fp[filnum]);
     fp[filnum] = fp[ZSYSFN] = NULL;
 
     ispipe[filnum] = 0;
@@ -3491,6 +3583,10 @@ zclosf(filnum) int filnum;
 
 int
 zxcmd(filnum,comand) int filnum; char *comand; {
+    return(0);
+}
+int
+zxcmdv(filnum,argv) int filnum; char **argv; {
     return(0);
 }
 int
@@ -3544,7 +3640,7 @@ initspace(resarry,len) char * resarry[]; int len;
             }
             len = (len / 2) + (len / 4); /* Didn't, reduce by 3/4 */
         }
-        if (len <= MINSPACE) {          /* Did we get it? */
+        if (!sspace) {                  /* Did we get it? */
             fprintf(stderr,"fgen can't malloc string space\n");
             return(-1);
         }
@@ -4084,8 +4180,10 @@ zrename(old,new) char *old, *new;
 
 #ifdef IKSD
     if (inserver && (!ENABLED(en_del))) {
-        if (zchki(s) > -1)              /* Destination file exists? */
-          return(-1);
+        if (zchki(s) > -1) {            /* Destination file exists? */
+            if (p) free(p);
+            return(-1);
+        }
     }
 #endif /* IKSD */
 
@@ -4148,7 +4246,8 @@ zrename(old,new) char *old, *new;
   -3 = source file not found.
   -4 = permission denied.
   -5 = source and destination are the same file.
-  -6 = i/o error.
+  -6 = i/o error reading the source.
+  -7 = i/o error writing the destination, with errno set.
   -1 = other error.
 */
 int
@@ -4271,15 +4370,18 @@ zcopy(source,destination) char *source, *destination;
         if (out > -1) {                 /* If open... */
             while ((x = (int)read(in,buf,1024)) > 0) { /* Copy in 1K blocks */
                 y = (int)write(out,buf,x);
-                if (y < 0) {            /* On write failure */
-                    x = -1;
-                    rc = -6;            /* Indicate i/o error */
+                if (y != x) {           /* Write failure or short write */
+                    if (y >= 0)
+                      errno = EIO;
                     break;
                 }
             }
             debug(F101,"zcopy final read","",x);
             debug(F101,"zcopy errno","",errno);
-            rc = (x == 0) ? 0 : -6;     /* In case of read failure */
+            if (x > 0)                  /* Stopped by a write failure */
+              rc = -7;
+            else
+              rc = (x == 0) ? 0 : -6;   /* End of file or read failure */
         }
     }
     if (in > -1) close(in);             /* Close files */
@@ -5401,30 +5503,28 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x;
     }
 #endif /* CKROOT */
 
-    if (yy->date.len == 0) {            /* No date in struct */
-        if (yy->lprotect.len > 0) {     /* So go do permissions */
-            goto zsperms;
-        } else {
-            debug(F100,"zstime: nothing to do","",0);
-            return(0);
+    if (yy->date.len == 0 &&            /* No date */
+        yy->lprotect.len == 0 &&        /* and no permissions */
+        yy->gprotect.len <= 0) {
+        debug(F100,"zstime: nothing to do","",0);
+        return(0);
+    }
+    if (yy->date.len != 0) {
+        if ((tm = zstrdt(yy->date.val,yy->date.len)) < 0) {
+            debug(F101,"zstime: zstrdt fails","",0);
+            return(-1);
         }
+        debug(F101,"zstime: tm","",tm);
+        debug(F111,"zstime: A-pkt date ok ",yy->date.val,yy->date.len);
+        setdate = 1;
     }
-    if ((tm = zstrdt(yy->date.val,yy->date.len)) < 0) {
-        debug(F101,"zstime: zstrdt fails","",0);
-        return(-1);
-    }
-    debug(F101,"zstime: tm","",tm);
-    debug(F111,"zstime: A-pkt date ok ",yy->date.val,yy->date.len);
-
-    if (stat(f,&sb)) {                  /* Get the time for the file */
+    if (stat(f,&sb)) {                  /* Mode and times of the file */
         debug(F101,"STAT","",14);
         debug(F111,"zstime: Can't stat file:",f,errno);
         return(-1);
     }
     debug(F101,"STAT","",15);
-    setdate = 1;
 
-  zsperms:
 #ifdef CK_PERMS
     {
         int i, px = 0, xx, flag = 0;
@@ -5457,13 +5557,17 @@ zstime(f,yy,x) char *f; struct zattr *yy; int x;
               xx = 0 - xx;
             for (i = 0; i < xx; i++) {  /* Decode octal string */
                 if (*s <= '7' && *s >= '0') {
-                    px = 8 * px + (int)(*s) - '0';
+                    /* Keep the permission bits so px cannot overflow */
+                    px = (8 * px + (int)(*s) - '0') & 07777;
                 } else {
                     flag = 0;
                     break;
                 }
                 s++;
             }
+            /* The sender's permissions give read, write and execute */
+            if (yy->lprotect.len > 0)
+              px &= 0777;
 #ifdef DEBUG
             sprintf(obuf,"%o",px);
             debug(F110,"zstime octal lperm",obuf,0);
@@ -5900,7 +6004,11 @@ splitpath(p) char *p;
         /* debug(F101,"splitpath malloc","",cur); */
         if (cur == NULL) {
             debug(F100,"splitpath malloc failure","",0);
-            prv -> fwd = NULL;
+            while (head) {              /* Free the segments made so far */
+                prv = head -> fwd;
+                free((char *)head);
+                head = prv;
+            }
             return((struct path *)NULL);
         }
         cur -> fwd = NULL;
@@ -5941,6 +6049,14 @@ splitpath(p) char *p;
     if (prv) {
         makestr(&xpatlast,prv -> npart);
         debug(F110,"splitpath xpatlast",xpatlast,0);
+        if (!xpatlast) {                /* Out of memory */
+            while (head) {
+                prv = head -> fwd;
+                free((char *)head);
+                head = prv;
+            }
+            return((struct path *)NULL);
+        }
     }
 #ifdef DEBUG
     /* Show original path list */
@@ -6036,6 +6152,14 @@ fgen(pat,resarry,len) char *pat,*resarry[]; int len;
 
     makestr(&xpat,pat);                 /* Save copy of original pattern */
     debug(F110,"fgen scratch",scratch,0);
+    if (!xpat) {                        /* Out of memory */
+        while (head != NULL) {
+            struct path *next = head -> fwd;
+            free((char *)head);
+            head = next;
+        }
+        return(-1);
+    }
 
     for (n = 0, s = xpat; *s; s++)      /* How many slashes in the pattern */
       if (*s == DIRSEP)                 /* since these are fences for */
@@ -6045,8 +6169,14 @@ fgen(pat,resarry,len) char *pat,*resarry[]; int len;
 
     numfnd = 0;                         /* None found yet */
 
-    if (initspace(resarry,ssplen) < 0)
-      return(-1);
+    if (initspace(resarry,ssplen) < 0) {
+        while (head != NULL) {          /* Free path segment list */
+            struct path *next = head -> fwd;
+            free((char *)head);
+            head = next;
+        }
+        return(-1);
+    }
 
     xpatwild = iswild(xpat);            /* Original pattern is wild? */
     xpatabsolute = isabsolute(xpat);
@@ -6457,7 +6587,7 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
                     segisdir
                     );
               addresult(sofar,itsadir);
-              if (numfnd < 0) return;
+              if (numfnd < 0) break;      /* The list is full */
           }
 #endif /* RECURSIVE */
 
@@ -6542,7 +6672,7 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
                   debug(F110,
                         "traverse add: match && !itsadir",sofar,0);
                   addresult(sofar,itsadir);
-                  if (numfnd < 0) return;
+                  if (numfnd < 0) break;      /* The list is full */
               } else if (itsadir && (xrecursive || mresult)) {
                   struct path * xx = NULL;
                   *eos++ = DIRSEP;      /* Add directory separator */
@@ -6552,14 +6682,18 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
 
                   if (xrecursive > 0 && !(pl -> fwd)) {
                       xx = (struct path *) malloc(sizeof (struct path));
-                      pl -> fwd = xx;
-                      if (xx) {
-                          xx -> fwd = NULL;
-                          strcpy(xx -> npart, pl -> npart); /* safe */
+                      if (!xx) {        /* Out of memory: stop here */
+                          numfnd = -1;
+                          break;
                       }
+                      pl -> fwd = xx;
+                      xx -> fwd = NULL;
+                      strcpy(xx -> npart, pl -> npart); /* safe */
                   }
 #endif /* RECURSIVE */
                   traverse(pl -> fwd, sofar, eos); /* Traverse new directory */
+                  if (numfnd < 0)       /* The list is full */
+                    break;
               }
           }
       }
@@ -6596,6 +6730,8 @@ addresult(str,itsadir) char *str; int itsadir;
     if (!str) str = "";
     debug(F111,"addresult",str,itsadir);
     if (!*str)
+      return;
+    if (numfnd < 0)                     /* The list is already full */
       return;
 
     if (itsadir < 0) {
@@ -6998,8 +7134,8 @@ zshcmd(s) char *s;
 #ifdef CK_CHILD
         int child;                      /* Child's exit status */
 #endif /* CK_CHILD */
-        sig_t istat;
-        sig_t qstat;
+        ck_sig_t istat;
+        ck_sig_t qstat;
 
         if (cpid == (PID_T) -1) return(-1); /* fork() failed? */
 
@@ -7051,7 +7187,8 @@ iswild(filespec) char *filespec;
         if ((x = nzxpand(filespec,0)) > 1)
           return(1);
         if (x == 0) return(0);          /* File does not exist */
-        p = malloc(CKMAXNAM + 20);
+        if (!(p = malloc(CKMAXNAM + 20)))
+          return(1);                    /* Can't tell, so treat as wild */
         znext(p);
         x = (strcmp(filespec,p) != 0);
         free(p);
@@ -7254,8 +7391,10 @@ zmkdir(path) char *path;
         *xp = NUL;                      /* Make this the end of the string. */
         if (!isdir(tp)) {               /* This directory exists already? */
 #ifdef IKSD
-            if (isguest)                    /* Not allowed for guests */
-              return(-1);
+            if (isguest) {              /* Not allowed for guests */
+                free(tp);
+                return(-1);
+            }
 #endif /* IKSD */
 #ifndef NOXFER
             /* Nor if MKDIR and/or CD are disabled */
@@ -7263,8 +7402,10 @@ zmkdir(path) char *path;
 #ifdef IKSD
                  || inserver
 #endif /* IKSD */
-                 ) && (!ENABLED(en_mkd) || !ENABLED(en_cwd)))
-              return(-1);
+                 ) && (!ENABLED(en_mkd) || !ENABLED(en_cwd))) {
+                free(tp);
+                return(-1);
+            }
 #endif /* NOXFER */
 
             debug(F110,"zmkdir making",tp,0);
@@ -7537,7 +7678,7 @@ zfnqfp(fname, buflen, buf)  char * fname; int buflen; char * buf;
 
     if (!buf[0]) {                      /* If empty, say root */
         buf[0] = '/';
-        buf[2] = NUL;
+        buf[1] = NUL;
         j = 0;
         i = 1;
     }
@@ -8100,8 +8241,11 @@ checkuser(name) char *name;
             debug(F110,"checkuser line",line,0);
             if (line[0] <= '#')
               continue;
-            if (strncmp(line, name, i) == 0) {
+            if (strncmp(line, name, i) == 0 && /* The whole first word */
+                (line[i] == '\0' || line[i] == '\n' || line[i] == '\r' ||
+                 line[i] == ' ' || line[i] == '\t')) {
                 debug(F110,"checkuser REFUSED",name,0);
+                (VOID) fclose(fd);
                 return(1);
             }
             line[0] = '\0';
@@ -8159,7 +8303,11 @@ kpass(name, p) char *name, *p; {
 #ifdef HADDRLIST
     hp = ck_copyhostent(hp);            /* safe copy that won't change */
 #endif /* HADDRLIST */
-    bcopy((char *)hp->h_addr, (char *) &faddr, sizeof(faddr));
+    {
+        struct in_addr ia;              /* The entry holds 4 bytes */
+        bcopy((char *)hp->h_addr, (char *) &ia, sizeof(ia));
+        faddr = ia.s_addr;
+    }
 
     if (krb_get_pw_in_tkt(name, "", realm, "krbtgt", realm, 1, p) ||
         krb_mk_req(&ticket, "rcmd", instance, realm, 33) ||
@@ -8227,6 +8375,7 @@ _PROTOTYP(int initgroups, (const char *, gid_t) );
     const char * reply = NULL;
 #endif /* CK_PAM */
     int dummy;
+    int authok = 0;
 
     if (logged_in || askpasswd == 0) {
         return(0);
@@ -8244,11 +8393,15 @@ _PROTOTYP(int initgroups, (const char *, gid_t) );
 #endif /* CKSYSLOG */
         return(0);
     }
-    if (!guest
 #ifdef CK_AUTHENTICATION
-        && ck_tn_auth_valid() != AUTH_VALID
+    {
+        /* Telnet authentication validated szUserNameRequested only */
+        extern char szUserNameRequested[];
+        authok = ck_tn_auth_valid() == AUTH_VALID &&
+          !strcmp(zvuname,szUserNameRequested);
+    }
 #endif /* CK_AUTHENTICATION */
-        ) {                     /* "ftp" is only account allowed no password */
+    if (!guest && !authok) {    /* "ftp" is only account allowed no password */
 #ifdef CK_PAM
         debug(F110,"zvpass","calling pam_set_item(AUTHTOK)",0);
         if ((pam_status = pam_set_item(pamh,PAM_AUTHTOK,p)) != PAM_SUCCESS) {

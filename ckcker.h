@@ -334,6 +334,7 @@ struct ssh_pf {                         /* SSH port forwarding */
 #define MAXPACK 94                      /* Maximum unextended packet size */
                                         /* Can't be more than 94. */
 #define MAXWS 32                        /* Can't be more than 32. */
+#define PADBUFL 96                      /* Size of padbuf[] for padding */
 
 /* Maximum long packet size for sending packets */
 /* Override these from cc command line via -DMAXSP=nnn */
@@ -1062,13 +1063,12 @@ struct tt_info_rec {                    /* Terminal emulation info */
 /* Data Definitions... */
 
 /*
-  Record format version 2.  Version 1  stored db_SADDR/db_CADDR as a
-  16-hex-digit number, which only ever held a 32-bit IPv4 address. Version 2
-  stores them as text (dotted-quad or IPv6 literal) instead, which is wide
-  enough for either.  It also adds IK_DBMAGIC as a file header so a version 1
-  database can be told apart from a version 2 database.
-
-  Every other field keeps its version 1 offset, length, and meaning.
+  Record format version 2.  db_SADDR and db_CADDR hold address text (a
+  dotted quad or an IPv6 literal) in DB_ADDRW bytes each.  The file
+  starts with the IK_DBMAGIC header.  Version 1 stored each address as
+  16 hex digits and had no header, so db_CADDR and the fields after it
+  are at different offsets.  db_checkformat() disables the database
+  when a nonempty file does not start with this header.
 */
 
 /* Numeric fields, hex, right justified, 0-filled on left */
@@ -1093,8 +1093,8 @@ struct tt_info_rec {                    /* Terminal emulation info */
 #define DB_MYPID    16                  /* 16 hex digits left padded with 0 */
 #define dB_MYPID    16
 
-/* Keep DB_ADDRW in sync with CK_IPADDRLEN in ckcnet.h.  It's a separate symbol
-   only because this header is included before ckcnet.h in some modules. */
+/* Width of an address field.  An IPv6 literal with a zone suffix takes
+   at most 61 bytes (45, '%', 15).  lset() truncates a longer string. */
 #define DB_ADDRW    64
 
 #define db_SADDR     5                  /* Field 5: Server (my) IP address */
@@ -1220,12 +1220,17 @@ _PROTOTYP( int rsattr, (CHAR *) );
 _PROTOTYP( char *getreason, (char *) );
 _PROTOTYP( int scmd, (char, CHAR *) );
 _PROTOTYP( int encstr, (CHAR *) );
+#define DECODE_BAD -2             /* decode() data ends in a prefix */
 _PROTOTYP( int decode, (CHAR *, int (*)(char), int) );
 _PROTOTYP( int bdecode, (CHAR *, int (*)(char)) );
 _PROTOTYP( int fnparse, (char *) );
 _PROTOTYP( int syscmd, (char *, char *) );
 _PROTOTYP( int cwd, (char *) );
 _PROTOTYP( int remset, (char *) );
+_PROTOTYP( int gflen, (CHAR *) );
+_PROTOTYP( char * srvarg, (CHAR *) );
+_PROTOTYP( int srvwho, (char *) );
+_PROTOTYP( int srvspace, (char *) );
 _PROTOTYP( int initattr, (struct zattr *) );
 _PROTOTYP( int gattr, (CHAR *, struct zattr *) );
 _PROTOTYP( int adebu, (char *, struct zattr *) );

@@ -1,12 +1,31 @@
+import os
+import subprocess
+
 import pytest
-from conftest import assert_ok
+from conftest import kermit_wait, assert_ok, make_loopback_dirs, scaled
 
 
-@pytest.fixture(params=["pseudoterminal", "raw-socket", "telnet"])
-def loopback_transport(request):
-    """Overrides conftest's single-value default so every test in
-    this module also runs over a pty, TCP raw, and TCP telnet."""
-    return request.param
+@pytest.mark.parametrize("loopback_transport", ["raw-socket", "telnet"],
+                         indirect=True)
+def test_remote_commands_over_tcp(tmp_path, wermit_loopback,
+                                  loopback_transport):
+    """Run REMOTE DIRECTORY, REMOTE DELETE and GET over TCP.
+
+    The other tests in this module run over a pty.
+    """
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    (server_dir / "listed.txt").write_text("listed\n")
+    (server_dir / "doomed.txt").write_text("doomed\n")
+
+    result = wermit_loopback(
+        server_dir,
+        client_commands=(f"cd {client_dir}, remote directory, "
+                         "remote delete doomed.txt, get listed.txt"))
+
+    assert_ok(result)
+    assert "listed.txt" in result.stdout
+    assert not (server_dir / "doomed.txt").exists()
+    assert (client_dir / "listed.txt").read_text() == "listed\n"
 
 
 def test_remote_pwd(tmp_path, wermit_loopback):
@@ -85,24 +104,34 @@ def test_remote_copy_delete_rename(tmp_path, wermit_loopback):
     assert not renamed_file.exists()
 
 
-@pytest.mark.parametrize("filename_len", [6, 7, 8, 9, 10, 11, 12, 13, 14])
-@pytest.mark.parametrize("content", ["", "1234567890"])
-def test_remote_delete_boundary_lengths(
-        tmp_path, wermit_loopback, filename_len, content):
-    """
-    Test "remote delete" with different filename lengths and file sizes
-    to ensure we cover the boundary cases (packet lengths 92-98)
-    without encountering hangs or corruption.
+def run_remote_delete_boundary_lengths(tmp_path, loopback):
+    """Delete files with names of 6 to 14 characters in one session.
+
+    The names cover the packet lengths 92 to 98.  Each name is
+    deleted once from an empty file and once from a 10-byte file.  The
+    assertion lists every case that failed.
     """
     # Use non-repeating characters to avoid repeat-count compression.
-    filename = "".join(chr(97 + i) for i in range(filename_len))
-    target_file = tmp_path / filename
-    target_file.write_text(content)
+    names = ["".join(chr(97 + i) for i in range(n)) for n in range(6, 15)]
+    cases = [(d, name) for d in ("empty", "ten") for name in names]
+    for d, content in (("empty", ""), ("ten", "1234567890")):
+        (tmp_path / d).mkdir()
+        for name in names:
+            (tmp_path / d / name).write_text(content)
+    cmds = []
+    for i, (d, name) in enumerate(cases):
+        cmds.append(f"remote cd {d}, remote delete {name}, "
+                    f"echo DELETE{i}=\\v(status), remote cd ..")
+    result = loopback(tmp_path, client_commands=", ".join(cmds))
+    failed = [(d, len(name)) for i, (d, name) in enumerate(cases)
+              if f"DELETE{i}=0" not in result.stdout
+              or (tmp_path / d / name).exists()]
+    assert not failed, (failed, result.stdout[-2000:])
+    assert_ok(result)
 
-    result = wermit_loopback(
-        tmp_path, client_commands=f"remote delete {filename}")
-    assert_ok(result, f"Client failed for length {filename_len}")
-    assert not target_file.exists()
+
+def test_remote_delete_boundary_lengths(tmp_path, wermit_loopback):
+    run_remote_delete_boundary_lengths(tmp_path, wermit_loopback)
 
 
 @pytest.mark.parametrize("command_name", ["cd", "mkdir", "copy", "rename", "directory", "get"])
@@ -155,7 +184,7 @@ def test_local_server_remote_commands_disabled_by_default(
     # entering server mode. This prevents the server from sending commands
     # too early, but it is complex and can time out if the PTY stalls.
     server_cmds = "\n".join([
-        "input 5 READY",
+        f"input {kermit_wait()} READY",
         server_cmd,
         f"if success !echo SUCCESS > {status_file}",
         f"if failure !echo FAILURE > {status_file}",
@@ -451,3 +480,265 @@ def test_remote_delete_numeric_content_embedded_brace_escaped_fails(
 
     assert_ok(result)
     assert not (d / name).exists()
+
+
+def test_remote_delete_long_path(tmp_path, wermit_loopback):
+    """Verify REMOTE DELETE of a file with a path over 256 bytes.
+
+    The server's deletion report holds each matched name.  A name longer
+    than 256 bytes must be deleted and reported without overflowing.
+    """
+    deep = tmp_path
+    rel = []
+    for i in range(3):
+        part = chr(97 + i) * 100
+        deep = deep / part
+        rel.append(part)
+    deep.mkdir(parents=True)
+    victim = deep / "victim.txt"
+    victim.write_text("x\n")
+    path = "/".join(rel) + "/vic*"
+
+    result = wermit_loopback(tmp_path,
+                             client_commands=f"remote delete {path}")
+    assert_ok(result)
+    assert not victim.exists()
+    assert "victim.txt" in result.stdout, result.stdout
+
+
+NO_FILES = "No files were transferred"
+
+
+@pytest.mark.parametrize("command", ["remote pwd", "remote directory",
+                                     "finish"])
+def test_remote_commands_do_not_report_no_files(tmp_path, wermit_loopback,
+                                                command):
+    """Verify REMOTE commands and FINISH print no zero-file report.
+
+    They transfer no files by design.
+    """
+    (tmp_path / "f.txt").write_text("x")
+    result = wermit_loopback(tmp_path, client_commands=command)
+    assert_ok(result)
+    assert NO_FILES not in result.stdout, result.stdout
+
+
+def test_get_missing_file_reports_no_files(tmp_path, wermit_loopback):
+    """Verify a GET that finds nothing still reports it."""
+    result = wermit_loopback(tmp_path,
+                             client_commands="get nosuchfile.txt")
+    assert NO_FILES in result.stdout, result.stdout
+
+
+def test_failed_remote_command_reports_reason(tmp_path, wermit_loopback):
+    """Verify a failed REMOTE command shows its reason, not a file count."""
+    result = wermit_loopback(tmp_path,
+                             client_commands="remote cd nosuchdir")
+    assert result.returncode != 0
+    assert NO_FILES not in result.stdout, result.stdout
+    assert "Command failed" not in result.stdout, result.stdout
+    assert result.stdout.count("Can't change directory") == 1, \
+        result.stdout
+
+
+def test_remote_cd_long_name(tmp_path, wermit_loopback):
+    """Verify REMOTE CD takes a directory name over 94 characters.
+
+    The client sends a last field over 94 characters with length 0.
+    Length 0 means the rest of the data.
+    """
+    name = "d" * 120
+    (tmp_path / name).mkdir()
+    result = wermit_loopback(tmp_path,
+                             client_commands=f"remote cd {name}, remote pwd")
+    assert_ok(result)
+    assert name in result.stdout
+
+
+def test_remote_copy_rename_long_second_name(tmp_path, wermit_loopback):
+    """Verify REMOTE COPY and RENAME take a second name over 94 characters.
+
+    Only the last field of a generic command can be that long.
+    """
+    (tmp_path / "a.txt").write_text("hello\n")
+    (tmp_path / "b.txt").write_text("world\n")
+    long1 = "c" * 110
+    long2 = "r" * 110
+    result = wermit_loopback(
+        tmp_path,
+        client_commands=f"remote copy a.txt {long1}, "
+                        f"remote rename b.txt {long2}")
+    assert_ok(result)
+    assert (tmp_path / long1).read_text() == "hello\n"
+    assert (tmp_path / long2).read_text() == "world\n"
+    assert not (tmp_path / "b.txt").exists()
+
+
+@pytest.mark.parametrize("command", ["who", "space"])
+def test_remote_who_space_refuse_shell_syntax(tmp_path, wermit_loopback,
+                                              command):
+    """Verify REMOTE WHO and SPACE refuse an argument with shell syntax.
+
+    The argument is neither a supported user name nor an existing
+    directory.  No shell command runs.
+    """
+    result = wermit_loopback(
+        tmp_path, server_setup_cmds="disable host",
+        client_commands=f"remote {command} {{x;touch PWNED}}")
+    assert result.returncode >= 0, result.stderr
+    assert not (tmp_path / "PWNED").exists(), result.stdout
+    expected = ("User name not supported" if command == "who"
+                else "Not a directory")
+    assert expected in result.stdout + result.stderr, result.stdout
+
+
+@pytest.mark.parametrize("name", ["root", "notes.txt", "-l"])
+def test_remote_who_refuses_name(tmp_path, wermit_loopback, name):
+    """Verify a Unix server refuses a REMOTE WHO name.
+
+    The Unix who command takes a login database file rather than a user
+    name.  Refusing the name keeps who from reading a file such as
+    notes.txt.
+    """
+    (tmp_path / "notes.txt").write_text("secret\n")
+    result = wermit_loopback(
+        tmp_path, client_commands=f"remote who {{{name}}}")
+    assert result.returncode >= 0, result.stderr
+    out = result.stdout + result.stderr
+    assert "User name not supported" in out, out
+
+
+def test_remote_who_without_name(tmp_path, wermit_loopback):
+    """Verify REMOTE WHO with no name runs who."""
+    result = wermit_loopback(tmp_path, client_commands="remote who")
+    assert_ok(result)
+    assert "User name not supported" not in result.stdout, result.stdout
+    assert "Can't do who command" not in result.stdout, result.stdout
+
+
+def _local_who(wermit_path, commands, ck_who):
+    """Run wermit with CK_WHO set to ck_who.  Return the CompletedProcess."""
+    env = dict(os.environ, CK_WHO=ck_who)
+    return subprocess.run(
+        [wermit_path, "-H", "-Y", "-C",
+         f"set command more-prompting off, {commands}, exit"],
+        stdin=subprocess.DEVNULL, capture_output=True, text=True,
+        timeout=scaled(30), env=env, start_new_session=True)
+
+
+def test_local_who_refuses_name(wermit_path):
+    """Verify WHO refuses a user name when it runs who."""
+    result = _local_who(wermit_path,
+                        "who root, echo STATUS=\\v(status)", "")
+    assert "User name not supported" in result.stdout, result.stdout
+    assert "STATUS=1" in result.stdout, result.stdout
+
+
+def test_local_who_ck_who_takes_text(wermit_path):
+    """Verify WHO passes its text to the CK_WHO command."""
+    result = _local_who(wermit_path, "who abc", "echo WHO-ARG")
+    assert "WHO-ARG abc" in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize("arg", ["nosuchdir", "file.txt", "-h"])
+def test_remote_space_refuses_non_directory(tmp_path, wermit_loopback,
+                                            arg):
+    """Verify REMOTE SPACE refuses a name that is not a directory."""
+    (tmp_path / "file.txt").write_text("x\n")
+    result = wermit_loopback(
+        tmp_path, client_commands=f"remote space {{{arg}}}")
+    assert result.returncode >= 0, result.stderr
+    assert "Not a directory" in result.stdout + result.stderr, (
+        result.stdout)
+    assert "Filesystem" not in result.stdout, result.stdout
+
+
+def test_remote_space_directory_with_shell_syntax(tmp_path,
+                                                  wermit_loopback):
+    """Verify REMOTE SPACE runs df without the shell.
+
+    df reports on an existing directory whose name holds shell syntax.
+    No shell command runs.
+    """
+    (tmp_path / "x;touch PWNED").mkdir()
+    result = wermit_loopback(
+        tmp_path, server_setup_cmds="disable host",
+        client_commands="remote space {x;touch PWNED}")
+    assert_ok(result)
+    assert "Filesystem" in result.stdout, result.stdout
+    assert not (tmp_path / "PWNED").exists(), result.stdout
+
+
+def test_remote_space_directory_with_space(tmp_path, wermit_loopback):
+    """Verify REMOTE SPACE passes a directory name with a space to df."""
+    sub = tmp_path / "a b"
+    sub.mkdir()
+    result = wermit_loopback(tmp_path,
+                             client_commands="remote space {a b}")
+    assert_ok(result)
+    assert "Filesystem" in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize("client", [
+    "remote query kermit command(touch PWNED)",
+    "remote assign m {run touch PWNED}, remote query kermit execute(m)",
+], ids=["function", "execute"])
+def test_remote_query_runs_no_shell_with_host_disabled(tmp_path,
+                                                       wermit_loopback,
+                                                       client):
+    """Verify REMOTE QUERY runs no shell command with HOST disabled."""
+    result = wermit_loopback(tmp_path, server_setup_cmds="disable host",
+                             client_commands=client)
+    assert result.returncode >= 0, result.stderr
+    assert not (tmp_path / "PWNED").exists(), result.stdout
+
+
+def test_remote_query_still_answers(tmp_path, wermit_loopback):
+    """Verify REMOTE QUERY of a variable works with HOST disabled."""
+    result = wermit_loopback(
+        tmp_path, server_setup_cmds="disable host",
+        client_commands="remote query kermit program, echo Q=\\v(query)")
+    assert "Q=C-Kermit" in result.stdout, result.stdout
+
+
+def test_remote_assign_long_value_reaches_server(tmp_path,
+                                                 wermit_loopback):
+    """Verify a long REMOTE ASSIGN value reaches the server intact.
+
+    The command decodes into the server's command buffer.  That buffer
+    holds about one receive packet.  A 2000-character value fits in a long
+    packet and must arrive whole.  The server's script writes its
+    length after FINISH.
+    """
+    value = "v" * 1990 + "END"
+    setup = "\n".join([
+        "set receive packet-length 4000",
+        "server",
+        "fopen /write \\%c result.txt",
+        "fwrite /line \\%c \\flength(\\m(longvar))",
+        "fclose \\%c",
+        "exit"])
+    result = wermit_loopback(
+        tmp_path, server_setup_cmds=setup,
+        client_commands=(
+            "set send packet-length 4000, "
+            f"remote assign longvar {value}, finish, pause 2"))
+    out = tmp_path / "result.txt"
+    assert out.exists(), result.stdout[-500:]
+    assert out.read_text().strip() == "1993", out.read_text()
+
+
+def test_remote_host_command_exits_after_its_output(tmp_path,
+                                                    wermit_loopback):
+    """Verify REMOTE HOST succeeds when the command outlives its output.
+
+    The command closes its output and runs one more second.  The server
+    reaches the end of the output first.  It must wait for the command
+    to exit rather than kill it and report the reply as discarded.
+    """
+    result = wermit_loopback(
+        tmp_path,
+        client_commands="remote host {echo hi; exec 1>&- 2>&-; sleep 1}, "
+        "echo RH=\\v(status)")
+    assert "hi" in result.stdout, result.stdout
+    assert "RH=0" in result.stdout, result.stdout

@@ -134,6 +134,14 @@ ckmkdir(fc,s,r,m,cvt) int fc; char * s; char ** r; int m; int cvt;
     s = tmpbuf;
     x = (int)strlen(s);
     if (x > 0 && s[x-1] != '/') {       /* Must end in "/" for zmkdir() */
+        if (x + 2 > (int)sizeof(tmpbuf)) { /* No room for "/" and NUL */
+            debug(F110,"ckmkdir name too long",s,0);
+            ckmakmsg(ckmkdbuf,CKMAXPATH+1,
+                     (fc == 0) ? "mkdir" : "rmdir",": name too long",
+                     NULL,NULL);
+            *r = ckmkdbuf;
+            return(-1);
+        }
         s[x] = '/';
         s[x+1] = NUL;
         debug(F110,"ckmkdir 2+UNIXOROSK",s,0);
@@ -144,6 +152,14 @@ ckmkdir(fc,s,r,m,cvt) int fc; char * s; char ** r; int m; int cvt;
     s = tmpbuf;
     x = strlen(s);
     if (fc == 0 && x > 0 && s[x-1] != '/') { /* Must end in "/" for zmkdir() */
+        if (x + 2 > (int)sizeof(tmpbuf)) { /* No room for "/" and NUL */
+            debug(F110,"ckmkdir name too long",s,0);
+            ckmakmsg(ckmkdbuf,CKMAXPATH+1,
+                     (fc == 0) ? "mkdir" : "rmdir",": name too long",
+                     NULL,NULL);
+            *r = ckmkdbuf;
+            return(-1);
+        }
         s[x] = '/';
         s[x+1] = NUL;
         debug(F110,"ckmkdir 2+OS2",s,0);
@@ -790,6 +806,8 @@ freerpkt(seq) int seq;
 {
     int k;
     debug(F101,"freerpkt seq","",seq);
+    if (seq < 0 || seq > 63)            /* Not a valid sequence number */
+      return;
     k = rseqtbl[seq];
     /* debug(F101,"freerpkt k","",k); */
     if (k > -1) {
@@ -1417,7 +1435,7 @@ getreason(s) char *s;
     else if ((c = *p) > SP) {           /* get reason, */
         rejection = c;                  /* remember it, */
         c -= '!';                       /* get offset */
-        p = ((unsigned int) ((CHAR) c) <= (unsigned int) nreason) ?
+        p = ((unsigned int) ((CHAR) c) < (unsigned int) nreason) ?
           reason[(CHAR) c] :
             "unknown";
     }
@@ -1440,14 +1458,34 @@ rsattr(s) CHAR *s;
     }
 #ifdef CK_RESEND
     if (sendmode == SM_RESEND && *s == '1') { /* RESEND length */
-        int n; CK_OFF_T z; CHAR *p;
+        int n, d, neg = 0; CK_OFF_T z; CHAR *p;
         p = s + 1;
-        n = xunchar(*p++);
+        n = gflen(p);                   /* -1 if past the data */
+        p++;
         debug(F101,"rsattr RESEND n","",n);
-        z = (CK_OFF_T)0;
-        while (n-- > 0)                 /* We assume the format is good. */
-          z = (CK_OFF_T)10 * z + (CK_OFF_T)(*p++ - '0');
+        if (n > 1 && *p == '-') {       /* "-1": receiver has no file */
+            neg = 1;
+            p++;
+            n--;
+        }
+        /* A missing digit, non-digit or overflow gives z = -1 */
+        z = (n > 0) ? (CK_OFF_T)0 : (CK_OFF_T)-1;
+        while (n-- > 0 && z >= (CK_OFF_T)0) {
+            d = *p++ - '0';
+            if (d < 0 || d > 9 || z > (CK_OFF_T_MAX - d) / 10)
+              z = (CK_OFF_T)-1;
+            else
+              z = (CK_OFF_T)10 * z + d;
+        }
+        if (neg && z >= (CK_OFF_T)0)    /* Send the whole file */
+          z = (CK_OFF_T)0;
         debug(F101,"rsattr RESEND z","",z);
+        if (z < (CK_OFF_T)0) {          /* Malformed offset */
+            refused = "RESEND offset";
+            debug(F110,"rsattr refused",refused,0);
+            tlog(F110," refused:",refused,0L);
+            return(-1);
+        }
         if (z > (CK_OFF_T)0) sendstart = z;
         debug(F101,"rsattr RESEND sendstart","",sendstart);
         if (sendstart > (CK_OFF_T)0)
@@ -1478,6 +1516,10 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
     char c, d;
     char *ff;
     int aln, i, overflow = 0;
+#ifdef CK_RESEND
+    extern int rcvreget;
+    int rsok = 0;                       /* Sender's RESEND may append */
+#endif /* CK_RESEND */
 
 #ifndef NOCSETS
     extern int r_cset, axcset[];
@@ -1508,6 +1550,11 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
 #endif /* DYNAMIC */
 #define RPBUFL 20                       /* Attribute reply */
     static char rpbuf[RPBUFL+1];
+/*
+  Add a refusal reason to the reply.  The reply keeps the first RPBUFL
+  characters.  rpbuf[RPBUFL] stays free for the terminating NUL.
+*/
+#define RPADD(x) do { if (rp < rpbuf + RPBUFL) *rp++ = (char)(x); } while (0)
 
 #ifdef CK_PERMS
     static char lprmbuf[CK_PERMLEN+1];
@@ -1541,7 +1588,11 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
         yy->disp.len = 1;
     }
     while ((c = *s++)) {                /* Get attribute tag */
-        aln = xunchar(*s++);            /* Length of attribute string */
+        if ((aln = gflen(s)) < 0) {     /* Length of attribute string */
+            debug(F000,"gattr attribute past the data","",c);
+            break;
+        }
+        s++;
         switch (c) {
 
           case '/':                     /* Record format */
@@ -1550,13 +1601,14 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
             for (i = 0; (i < aln) && (i < RFBUFL); i++) /* Copy it */
               rfbuf[i] = *s++;
             rfbuf[i] = NUL;             /* Terminate with null */
+            if (i < aln) s += (aln - i);
             yy->recfm.val = rfbuf;      /* Pointer to string */
             yy->recfm.len = i;          /* Length of string */
             if ((rfbuf[0] != 'A') ||
                 (rfbuf[1] && rfbuf[1] != 'M') ||
                 (rfbuf[2] && rfbuf[2] != 'J')) {
                 debug(F110,"gattr bad recfm",rfbuf,0);
-                *rp++ = c;
+                RPADD(c);
                 retcode = -1;
             }
             break;
@@ -1580,7 +1632,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
 #endif /* CK_LABELED */
                     ) {
                     retcode = -1;       /* Reject the file */
-                    *rp++ = c;
+                    RPADD(c);
                     if (!opnerr) tlog(F100," refused: type","",0);
                     break;
                 }
@@ -1623,7 +1675,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                 yy->date.len = i;       /* Length of string */
                 if (fncact == XYFX_U) { /* Receiving in update mode? */
                     if (zstime(ff,yy,1) > 0) { /* Compare dates */
-                        *rp++ = c;      /* Discard if older, reason = date. */
+                        RPADD(c);       /* Discard if older, reason = date. */
                         if (!opnerr) tlog(F100," refused: date","",0);
                         retcode = -1;   /* Rejection notice. */
                     }
@@ -1637,7 +1689,10 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
             abuf[i] = '\0';             /* Terminate with null */
             if (i < aln) s += (aln - i);
             if (atblki)
-              yy->blksize = atol(abuf); /* Convert to number */
+              {                         /* Convert to number */
+                  CK_OFF_T bx = ckatofs(abuf);
+                  yy->blksize = (bx > 2147483647L) ? 2147483647L : (long)bx;
+              }
             break;
 
           case '*':                     /* Encoding (transfer syntax) */
@@ -1681,7 +1736,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                         debug(F110,"gattr: xfer charset unknown",ss,0);
                         if (!unkcs) {   /* and SET UNKNOWN DISCARD, */
                             retcode = -1; /* reject the file. */
-                            *rp++ = c;
+                            RPADD(c);
                             if (!opnerr)
                               tlog(F100," refused: character set","",0);
                         }
@@ -1708,7 +1763,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                 debug(F110,"gattr unk encoding attribute",tsbuf,0);
                 if (!unkcs) {           /* If SET UNK DISC */
                     retcode = -1;
-                    *rp++ = c;
+                    RPADD(c);
                     if (!opnerr) tlog(F100," refused: encoding","",0);
                 }
                 break;
@@ -1732,6 +1787,10 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                 yy->disp.val = dsbuf;   /* Pointer to string */
                 yy->disp.len = i;       /* Length of string */
                 d = *dsbuf;
+#ifndef NODISPO
+/*
+  Define NODISPO to disable receipt of mail or print files and of RESEND.
+*/
                 if (
 #ifndef datageneral                     /* MAIL supported only for */
 #ifndef OS2                             /* UNIX, VMS, and OS-9 */
@@ -1749,7 +1808,7 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
 #endif /* CK_RESEND */
                     d != 'P') {         /* PRINT */
                     retcode = -1;       /* Unknown/unsupported disposition */
-                    *rp++ = c;
+                    RPADD(c);
                     if (!opnerr) tlog(F101," refused: bad disposition","",d);
                 }
                 dispos = d;
@@ -1757,18 +1816,18 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                 switch (d) {
 #ifndef NOFRILLS
                   case 'M':
-                    if (!en_mai) {
+                    if (!ENABLED(en_mai)) {
                         retcode = -1;
-                        *rp++ = c;
+                        RPADD(c);
                         if (!opnerr) tlog(F100," refused: mail disabled","",0);
                         dispos = 0;
                     }
                     break;
 #endif /* NOFRILLS */
                   case 'P':
-                    if (!en_pri) {
+                    if (!ENABLED(en_pri)) {
                         retcode = -1;
-                        *rp++ = c;
+                        RPADD(c);
                         if (!opnerr)
                           tlog(F100," refused: print disabled","",0);
                         dispos = 0;
@@ -1795,16 +1854,28 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
   the Recover attribute now.  So better to leave as-is.  Anyway, it's probably
   more useful this way.
 */
-                    if (rs_len > (CK_OFF_T)0) {
+/*
+  The sender's RESEND appends to an existing file.  Allow that only when
+  this side asked for it (REGET or GET /RECOVER) or when the collision
+  action already permits changing an existing file.
+*/
+                    rsok = rcvreget || fncact == XYFX_A ||
+                        fncact == XYFX_X || fncact == XYFX_U;
+                    if (rs_len > (CK_OFF_T)0 && rsok) {
                         fncsav = fncact; /* Save collision action */
                         fncact = XYFX_A; /* Switch to APPEND */
                     }
 #else
                     retcode = -1;       /* This shouldn't happen */
-                    *rp++ = c;          /* 'cause it wasn't negotiated. */
+                    RPADD(c);           /* 'cause it wasn't negotiated. */
                     if (!opnerr) tlog(F100," refused: resend","",0);
 #endif /* CK_RESEND */
                 }
+#else  /* NODISPO */
+                retcode = -1;
+                RPADD(c);
+                if (!opnerr) tlog(F100," refused: NODISPO","",0);
+#endif /* NODISPO */
             }
             break;
 
@@ -1849,7 +1920,8 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
                     debug(F111,"gattr length",abuf,xlen);
                   else
                     debug(F111,"gattr lengthk",abuf,xlen);
-                  if (ckstrcmp(abuf,l2,-1,1)) { /* This is how we check... */
+                  if (ckstrcmp(abuf,l2,-1,1) || /* This is how we check... */
+                      (c == '!' && xlen > CK_OFF_T_MAX / 1024)) {
                       xlen = (CK_OFF_T)-2; /* -2 = unk, possibly too long */
                       overflow++;
                       debug(F111,"gattr overflow",
@@ -1884,8 +1956,9 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
 
           case '-':                     /* Generic "world" protection code */
             gprmbuf[0] = NUL;           /* Just 1 byte by definition */
-            for (i = 0; i < aln; i++)   /* But allow for more... */
-              if (i == 0) gprmbuf[0] = *s++;
+            if (aln > 0)                /* Skip any more */
+              gprmbuf[0] = *s;
+            s += aln;
             gprmbuf[1] = NUL;
             if (atgpri) {
                 yy->gprotect.val = (char *)gprmbuf;
@@ -1908,15 +1981,15 @@ gattr(s, yy) CHAR *s; struct zattr *yy;
         if (yy->length > (CK_OFF_T)-1) { /* Length-in-bytes attribute rec'd? */
             if (!zchkspa(ff,(yy->length))) { /* Check space */
                 retcode = -1;                /* Not enuf */
-                *rp++ = '1';
+                RPADD('1');
                 if (!opnerr) tlog(F100," refused: length bytes","",0);
             }
         } else if (yy->lengthk > (CK_OFF_T)-1) { /* Length in K received? */
-            long xlen;
+            CK_OFF_T xlen;
             xlen = yy->lengthk * 1024;
             if (!zchkspa(ff,xlen)) {
                 retcode = -1;           /* Check space */
-                *rp++ = '!';
+                RPADD('!');
                 if (!opnerr) tlog(F100," refused: length K","",0);
             }
         }
@@ -1947,6 +2020,11 @@ debug(F110,"gattr fsize",abuf,0);
             retcode = -1;               /* in case type field came */
             ckstrncpy(rpbuf,"N+",RPBUFL); /* after the disposition field */
             debug(F111,"gattr RESEND not binary",rpbuf,binary);
+        } else if (rs_len > (CK_OFF_T)0 && !rsok) {
+            retcode = -1;               /* Existing file, RESEND not allowed */
+            ckstrncpy(rpbuf,"N+",RPBUFL);
+            if (!opnerr) tlog(F100," refused: resend not requested","",0);
+            debug(F111,"gattr RESEND refused",rpbuf,fncact);
         } else {                        /* Binary mode */
             retcode = 0;                /* Accept the file */
             discard = 0;                /* If SET FILE COLLISION DISCARD */
@@ -2053,7 +2131,7 @@ adebu(f,zz) char *f; struct zattr *zz;
     debug(F111," creator",zz->creator.val,zz->creator.len);
     debug(F111," account",zz->account.val,zz->account.len);
     debug(F111," area",zz->area.val,zz->area.len);
-    debug(F111," password",zz->password.val,zz->password.len);
+    debug(F101," password length","",zz->password.len);
     debug(F101," blksize","",(int) zz->blksize);
     debug(F111," access",zz->xaccess.val,zz->xaccess.len);
     debug(F111," encoding",zz->encoding.val,zz->encoding.len);
@@ -2352,7 +2430,8 @@ openi(name) char *name;
         } else {
             char * s;
             s = ck_errstr();
-            if (s) if (!s) s = NULL;
+            if (s && !*s)               /* Empty system message */
+              s = NULL;
             if (!s) s = "Can't open file";
             ckstrncpy((char *)epktmsg,s,PKTMSGLEN);
             tlog(F110,xname,s,0L);

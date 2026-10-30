@@ -3,8 +3,8 @@ Tests for the IKSD session database (dbinit()/getslot()/initslot() in
 ckuusx.c): the on-disk record format, specifically that db_SADDR and
 db_CADDR are stored as address text (supporting both IPv4 and IPv6)
 behind a version-tagged file header, and that an old-format database
-(no header, 32-bit hex addresses) is detected and converted
-automatically on first access.
+(no header, 32-bit hex addresses) is left unchanged.  db_checkformat()
+disables the database for such a file.
 
 These tests invoke wermit directly as an "iksd": argv[0] must be
 "iksd" for it to enter server mode, and its network connection is
@@ -22,6 +22,8 @@ import time
 
 import pytest
 
+from conftest import assert_ok, expected_timeout, scaled
+
 RECL = 4096
 HDRL = 16
 MAGIC = b"KIKSDB02"
@@ -31,7 +33,7 @@ CADDR_OFF, CADDR_LEN = 96, 64
 USER_OFF = 1024
 
 # Pre-version-2 record layout (32-bit hex addresses, no file header),
-# for building a fixture "old" database to test migration.
+# for building a fixture "old" database.
 OLD_SADDR_OFF = 32
 OLD_CADDR_OFF = 48
 OLD_START_OFF = 65
@@ -46,11 +48,14 @@ OLD_INFO_OFF = 3072
 
 def _build_has_iksdb(run_wermit):
     result = run_wermit(["--help"], timeout=10)
+    assert result.returncode == 0 and result.stdout, (
+        f"wermit --help failed: {result!r}")
     return "--dbfile" in result.stdout
 
 
 def _build_has_address_family(run_wermit):
     result = run_wermit("show tcp")
+    assert_ok(result, "SHOW TCP failed")
     return "address-family:" in result.stdout
 
 
@@ -62,27 +67,30 @@ def iksd_path(tmp_path, wermit_path):
 
 
 def _connect_iksd(iksd_path, dbfile, log_path,
-                   family=socket.AF_INET, bindaddr="127.0.0.1"):
+                  family=socket.AF_INET, bindaddr="127.0.0.1",
+                  extra_args=(), cwd=None, env=None):
     """
     Starts iksd_path as an IKSD with stdin/stdout wired to a freshly
     accepted loopback socket, as inetd would, using the database at
     dbfile. Returns (proc, client_socket, log_file_handle); the
-    caller must close all three (see _close_iksd).
+    caller must close all three (see _close_iksd).  extra_args go
+    before --dbfile, and cwd is the working directory of the IKSD.
+    env is the environment of the IKSD, or None for this process's.
     """
     srv = socket.socket(family, socket.SOCK_STREAM)
     srv.bind((bindaddr, 0))
     srv.listen(1)
     port = srv.getsockname()[1]
 
-    client = socket.create_connection((bindaddr, port), timeout=5)
+    client = socket.create_connection((bindaddr, port), timeout=scaled(5))
     conn, _ = srv.accept()
     srv.close()
 
     log_fh = open(log_path, "wb")
     proc = subprocess.Popen(
-        [iksd_path, "-H", "--dbfile=" + str(dbfile)],
+        [iksd_path, "-H", *extra_args, "--dbfile=" + str(dbfile)],
         stdin=conn.fileno(), stdout=conn.fileno(), stderr=log_fh,
-        close_fds=True,
+        close_fds=True, cwd=cwd, env=env,
     )
     conn.close()                        # child has its own dup now
     return proc, client, log_fh
@@ -93,7 +101,7 @@ def _close_iksd(proc, client, log_fh):
     if proc.poll() is None:
         proc.terminate()
         try:
-            proc.wait(timeout=3)
+            proc.wait(timeout=expected_timeout(3))
         except Exception:
             proc.kill()
     log_fh.close()
@@ -250,3 +258,38 @@ def test_already_current_database_not_reconverted(
         assert (len(second) - HDRL) % RECL == 0
     finally:
         _close_iksd(proc2, client2, log_fh2)
+
+
+def test_stale_ipv6_lock_is_removed(run_wermit, iksd_path, tmp_path):
+    """Verify an IKSD removes a stale IPv6 lock file.
+
+    The lock file holds "ADDRESS:PID", and the address contains colons.
+    rename() replaces the lock file in any case on this system, so the
+    debug log shows whether getslot() found the lock stale.
+    """
+    if not _build_has_iksdb(run_wermit):
+        pytest.skip("build has no IKSDB support")
+    if not _build_has_address_family(run_wermit):
+        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
+    try:
+        probe = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        probe.bind(("::1", 0))
+        probe.close()
+    except OSError:
+        pytest.skip("no IPv6 loopback available in this environment")
+
+    dead = subprocess.Popen(["true"])
+    dead.wait()
+    (tmp_path / "iksd.lck").write_text("::1:%010d\n" % dead.pid)
+    dbfile = tmp_path / "iksd6.db"
+    proc, client, log_fh = _connect_iksd(
+        iksd_path, dbfile, tmp_path / "iksd6.log",
+        family=socket.AF_INET6, bindaddr="::1", extra_args=["-d"],
+        cwd=tmp_path)
+    try:
+        _wait_for_file(dbfile, timeout=6)
+        assert dbfile.exists() and dbfile.stat().st_size > 0
+    finally:
+        _close_iksd(proc, client, log_fh)
+    log = (tmp_path / "debug.log").read_text(errors="replace")
+    assert "getslot PID stale" in log, log[-2000:]

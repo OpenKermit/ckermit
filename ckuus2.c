@@ -230,7 +230,7 @@ char *newstxt[] = {
 #else
 "Welcome to C-Kermit 11.",
 "For changes to C-Kermit since version 9.0 of 2011, please visit",
-"https://github.com/OpenKermit/ckermit/blob/main/doc/changelog.md"
+"https://github.com/OpenKermit/ckermit/blob/main/doc/changelog.md",
 #endif /* OS2 */
 #ifdef OS2
 " . Source code! Kermit 95 is now available under the Revised 3-Clause",
@@ -1103,7 +1103,10 @@ static char *hmxxfirew[] = {
 "  SET FTP PASSIVE-MODE { ON, OFF }",
 " ",
 
-"The default is ON, meaning to use passive mode.",
+"The default is ON, meaning to use passive mode.  In passive mode Kermit",
+"makes the data connection to the address of the control connection.  It",
+"uses only the port from the server's PASV reply, not its address.  SET",
+"FTP TRUST-PASV-ADDRESS ON uses the address in the reply.",
 
 #endif /* NEWFTP */
 #endif /* NOFIREWALL */
@@ -1145,7 +1148,7 @@ static char *hmxxchroot[] = {
 #endif /* CKROOT */
 
 static char *hmxxscrn[] = {
-"Syntax: SCREEN { CLEAR, CLEOL, MOVE row column }",
+"Syntax: SCREEN { CLEAR, CLEOL, MOVE-TO row column }",
 #ifdef OS2
 "  Performs screen-formatting actions.",
 #else
@@ -1169,7 +1172,7 @@ static char *hmxxscrn[] = {
 "  Synonym: CLEAR COMMAND-SCREEN EOL",
 #endif /* OS2 */
 " ",
-"SCREEN MOVE row column",
+"SCREEN MOVE-TO row column",
 "  Moves the cursor to the indicated row and column.  The row and column",
 "  numbers are 1-based so on a 24x80 screen, the home position is 1 1 and",
 "  the lower right corner is 24 80.  If a row or column number is given that",
@@ -1325,6 +1328,9 @@ static char *hxxout[] = {
 "    \\B - Send a BREAK signal.",
 "    \\L - Send a Long BREAK signal.",
 " ",
+"Syntax: LINEOUT text",
+"  Like OUTPUT, but sends a carriage return after the text.",
+" ",
 "Also see SET OUTPUT.",
 "" };
 
@@ -1459,7 +1465,7 @@ static char *hxyfunc[] = {
 " ",
 "SET FUNCTION ERROR { ON, OFF }",
 "  Whether an illegal function call or reference to a nonexistent built-in",
-"  variable should cause a command to fail.  OFF by default.",
+"  variable should cause a command to fail.  ON by default.",
 "" };
 #endif /* NOSPL */
 
@@ -2418,15 +2424,18 @@ static char *hmxxauth[] = {
 #ifndef NOCSETS
 static char *hmxxassoc[] = {
 "ASSOCIATE FILE-CHARACTER-SET <file-character-set> <transfer-character-set>",
-"  Tells C-Kermit that whenever the given file-character set is selected, and",
-"  SEND CHARACTER-SET (q.v.) is AUTOMATIC, the given transfer character-set",
-"  is selected automatically.",
+"  Tells C-Kermit that when it sends a file that FILE SCAN finds to be text",
+"  in the given file character-set, and SEND CHARACTER-SET (q.v.) is",
+"  AUTOMATIC, it uses the given transfer character-set.",
 " ",
 "ASSOCIATE XFER-CHARACTER-SET <xfer-character-set> <file-character-set>",
-"  Tells C-Kermit that whenever the given transfer-character set is selected,",
-"  either by command or by an announcer attached to an incoming text file,",
-"  and SEND CHARACTER-SET is AUTOMATIC, the specified file character-set is",
-"  to be selected automatically.  Synonym: ASSOCIATE TRANSFER-CHARACTER-SET.",
+"  Tells C-Kermit that when an incoming text file announces the given",
+"  transfer character-set, and RECEIVE CHARACTER-SET (q.v.) is AUTOMATIC,",
+"  it stores the file in the given file character-set.  Synonym: ASSOCIATE",
+"  TRANSFER-CHARACTER-SET.",
+" ",
+"The associations apply only to these transfers.  SET FILE CHARACTER-SET and",
+"SET TRANSFER CHARACTER-SET change only their own setting.",
 " ",
 "Use SHOW ASSOCIATIONS to list the current character-set associations, and",
 "SHOW CHARACTER-SETS to list the current settings.",
@@ -3097,16 +3106,17 @@ static char * hmxxcle[] = {
 #ifdef OS2
 "  COMMAND-SCREEN   Clears the current command screen.",
 #endif /* OS2 */
-"  DEVICE           Clears the current port or network input buffer.",
+"  DEVICE-BUFFER    Clears the current port or network input buffer.",
 "  DEVICE-AND-INPUT Clears both the device and the INPUT buffer.",
 "  DIAL-STATUS      Clears the \\v(dialstatus) variable.",
 "  \
-INPUT            Clears the INPUT-command buffer and the \\v(input) variable.",
+INPUT-BUFFER     Clears the INPUT-command buffer and the \\v(input) variable.",
 "  KEYBOARD-BUFFER  Clears the command terminal keyboard input buffer.",
 #ifdef OS2
 "  \
 SCROLLBACK       empties the scrollback buffer including the current screen.",
 #endif /* OS2 */
+"  SCREEN           Clears the screen, the same as SCREEN CLEAR.",
 "  SEND-LIST        Clears the current SEND list (see ADD).",
 #ifdef OS2
 "  \
@@ -3492,7 +3502,10 @@ Syntax: RESEND filespec [name]\n\n\
   Resends the file or files, whose previous transfer was interrupted.\n\
   Picks up from where previous transfer left off, IF the receiver kept the\n\
   partially received file.  Works only for binary-mode transfers.\n\
-  Requires file-transfer partner to support recovery.  Synonym: REPUT.";
+  Requires file-transfer partner to support recovery.  The receiver\n\
+  appends to its partial file only if its FILE COLLISION is APPEND,\n\
+  OVERWRITE or UPDATE, or if it asked for the file with REGET or GET\n\
+  /RECOVER.  Otherwise it refuses the file.  Synonym: REPUT.";
 
 static char *hmxxrget = "\
 Syntax: REGET filespec\n\n\
@@ -3541,7 +3554,12 @@ static char *hmxxremv[] = {
 "REMOVE TEXT-PATTERNS [ <pattern> [ <pattern> ... ] ]",
 "  Removes the given patterns from the SET FILE TEXT-PATTERNS list.",
 "  Use SHOW PATTERNS to see the lists.  See HELP SET FILE for further info.",
+" ",
 #endif /* PATTERNS */
+#ifndef NOMSEND
+"REMOVE SEND-LIST",
+"  Not implemented.  Use CLEAR SEND-LIST to empty the SEND list.",
+#endif /* NOMSEND */
 ""};
 #endif /* NOXFER */
 
@@ -3628,17 +3646,140 @@ static char * hxycompat[] = {
 "  11       Restore the C-Kermit 11 (current) defaults.  DEFAULT is",
 "           a synonym for this.",
 " ",
-"Settings affected: SET FILE COLLISION, SET TRANSFER MODE, SET",
-"TERMINAL AUTODOWNLOAD ERROR, SET RECEIVE CONFIRM, SET TCP",
-"ADDRESS-FAMILY, SET RECEIVE PATHNAMES. Also, ENABLE/DISABLE for CD,",
-"COPY, DIRECTORY, ENABLE, FINISH, GET, MKDIR, RENAME, SEND, SET,",
-"SPACE, TYPE, WHO, ASSIGN, QUERY, MAIL, and PRINT.",
+"Settings affected, with the values set by 9 or 10 and by 11:",
+" ",
+"  SET FILE COLLISION                 BACKUP          REJECT",
+"  SET TRANSFER MODE                  AUTOMATIC       MANUAL",
+"  SET TERMINAL AUTODOWNLOAD ERROR    STOP            CONTINUE",
+"  SET RECEIVE CONFIRM                OFF (both)      ON (local)",
+"  SET TCP ADDRESS-FAMILY             IPV4            AUTO",
+"  SET RECEIVE PATHNAMES              AUTO            AUTO",
+"  ENABLE for CD, COPY, DIRECTORY,    BOTH            REMOTE",
+"    ENABLE, FINISH, GET, MKDIR,",
+"    RENAME, SEND, SET, SPACE, TYPE,",
+"    WHO, ASSIGN, QUERY",
+"  ENABLE for MAIL, PRINT             BOTH            disabled",
+" ",
+"An ENABLE setting is not turned on if DISABLE ENABLE turned it off.",
+"SET COMPATIBILITY 9 makes the same changes as SET COMPATIBILITY 10.",
+"Neither restores the C-Kermit 9 prompt, SET TELNET WAIT, or SET TCP",
+"CONNECT-TIMEOUT (30 seconds; earlier releases had none).",
 " ",
 "SET COMPATIBILITY 9 and SET COMPATIBILITY 10 weaken settings that",
 "C-Kermit 11 tightened for security.  Use them only when",
 "interoperating with old scripts or expectations that require this,",
 "not routinely, and not on a connection to an untrusted peer.",
 "" };
+
+#ifndef NOSERVER
+#ifndef NOFRILLS
+static char * hmxxdis[] = {
+"Syntax: DISABLE command [ { LOCAL, REMOTE, BOTH } ]",
+"  Prevents execution of the named command.  The optional parameter",
+"  specifies the mode in which the command is disabled:",
+" ",
+"  LOCAL:  Disabled in local mode, which applies to commands requested",
+"          by a remote host via escape sequences or APC.",
+"  REMOTE: Disabled in remote mode, which applies to commands received",
+"          by a Kermit server.",
+"  BOTH:   Disabled in both modes.",
+" ",
+"  The capabilities are the server functions:",
+" ",
+#ifndef NOSPL
+"    ASSIGN     REMOTE ASSIGN",
+#endif /* NOSPL */
+"    BYE        BYE (shut down the server and log out)",
+"    CD         REMOTE CD, and directory names in incoming file names",
+#ifdef ZCOPY
+"    COPY       REMOTE COPY",
+#endif /* ZCOPY */
+"    DELETE     REMOTE DELETE, and GET /DELETE",
+"    DIRECTORY  REMOTE DIRECTORY",
+"    EXIT       REMOTE EXIT (shut down the server)",
+"    FINISH     FINISH (leave server mode)",
+"    GET        GET (the server sends files)",
+"    HOST       REMOTE HOST",
+"    MAIL       Files sent with SEND /MAIL",
+"    MKDIR      REMOTE MKDIR, and creating directories for incoming files",
+"    PRINT      REMOTE PRINT, and files sent with SEND /PRINT",
+#ifndef NOSPL
+"    QUERY      REMOTE QUERY",
+#endif /* NOSPL */
+"    RENAME     REMOTE RENAME",
+"    RMDIR      REMOTE RMDIR",
+"    SEND       SEND (the server receives files)",
+"    SET        REMOTE SET",
+"    SPACE      REMOTE SPACE",
+"    TYPE       REMOTE TYPE",
+"    WHO        REMOTE WHO",
+"    ALL        All of them",
+" ",
+"  If the parameter is omitted, BOTH is used.  By default, most commands",
+"  are enabled for REMOTE but disabled for LOCAL to prevent security issues.",
+"  Use SHOW SERVER to view the current enable/disable states, along",
+"  with which of LOCAL or REMOTE governs this connection.",
+" ",
+"  QUERY and ASSIGN together give a client the whole command language.  It",
+"  can define a macro with REMOTE ASSIGN and run it with REMOTE QUERY and",
+"  \\fexecute(), whatever the other DISABLE settings say.  To restrict a",
+"  server, also DISABLE QUERY and DISABLE ASSIGN.",
+"" };
+
+static char * hmxxena[] = {
+"Syntax: ENABLE capability [ { LOCAL, REMOTE, BOTH } ]",
+"  Allows execution of the named capability.  The optional parameter",
+"  specifies the mode in which the capability is enabled:",
+" ",
+"  LOCAL:  Enabled in local mode, which applies to commands requested",
+"          by a remote host via escape sequences or APC.",
+"  REMOTE: Enabled in remote mode, which applies to commands received",
+"          by a Kermit server.",
+"  BOTH:   Enabled in both modes.",
+" ",
+"  The capabilities are the server functions:",
+" ",
+#ifndef NOSPL
+"    ASSIGN     REMOTE ASSIGN",
+#endif /* NOSPL */
+"    BYE        BYE (shut down the server and log out)",
+"    CD         REMOTE CD, and directory names in incoming file names",
+#ifdef ZCOPY
+"    COPY       REMOTE COPY",
+#endif /* ZCOPY */
+"    DELETE     REMOTE DELETE, and GET /DELETE",
+"    DIRECTORY  REMOTE DIRECTORY",
+"    EXIT       REMOTE EXIT (shut down the server)",
+"    FINISH     FINISH (leave server mode)",
+"    GET        GET (the server sends files)",
+"    HOST       REMOTE HOST",
+"    MAIL       Files sent with SEND /MAIL",
+"    MKDIR      REMOTE MKDIR, and creating directories for incoming files",
+"    PRINT      REMOTE PRINT, and files sent with SEND /PRINT",
+#ifndef NOSPL
+"    QUERY      REMOTE QUERY",
+#endif /* NOSPL */
+"    RENAME     REMOTE RENAME",
+"    RMDIR      REMOTE RMDIR",
+"    SEND       SEND (the server receives files)",
+"    SET        REMOTE SET",
+"    SPACE      REMOTE SPACE",
+"    TYPE       REMOTE TYPE",
+"    WHO        REMOTE WHO",
+"    ALL        All of them",
+" ",
+"  If the parameter is omitted, BOTH is used.  By default, most commands",
+"  are enabled for REMOTE but disabled for LOCAL to prevent security issues.",
+"  Use SHOW SERVER to view the current enable/disable states, along",
+"  with which of LOCAL or REMOTE governs this connection.",
+" ",
+"  QUERY and ASSIGN together give a client the whole command language.  It",
+"  can define a macro with REMOTE ASSIGN and run it with REMOTE QUERY and",
+"  \\fexecute(), whatever the other DISABLE settings say.  To restrict a",
+"  server, also DISABLE QUERY and DISABLE ASSIGN.",
+"" };
+#endif /* NOFRILLS */
+#endif /* NOSERVER */
 
 static char * hmxydeb[] = {
 "Syntax: SET DEBUG { SESSION, ON, OFF, TIMESTAMP, MESSAGES }",
@@ -3740,7 +3881,8 @@ static char *hxymodm[] = {
 "SET MODEM DIAL-COMMAND <text>",
 "  The text replaces Kermit's built-in modem dialing command.  It must",
 "  include '%s' (percent s) as a place-holder for the telephone numbers",
-"  given in your DIAL commands.",
+"  given in your DIAL commands.  '%%' sends one percent sign.  Other",
+"  characters are sent as they are.",
 " ",
 "SET MODEM ERROR-CORRECTION { ON, OFF }",
 "  Enables/disables the modem's error-correction feature, if any.",
@@ -3793,8 +3935,14 @@ static char *hxymodm[] = {
 "SET MODEM COMMAND ERROR-CORRECTION {ON, OFF} [ text ]",
 "  Modem commands to turn error correction on and off.",
 " ",
-"SET MODEM COMMAND HANGUP [ text ]",
+"SET MODEM COMMAND HANGUP-COMMAND [ text ]",
 "  Command that tells the modem to hang up the connection.",
+" ",
+"SET MODEM COMMAND DIAL-MODE-STRING [ text ]",
+"  Command that puts the modem in dialing mode, for modems that need one.",
+" ",
+"SET MODEM COMMAND DIAL-MODE-PROMPT [ text ]",
+"  The modem's response to the DIAL-MODE-STRING.",
 " ",
 "SET MODEM COMMAND IGNORE-DIALTONE [ text ]",
 "  Command that tells the modem not to wait for dialtone before dialing.",
@@ -3942,9 +4090,11 @@ static char *hmxydial[] = {
 "  when dialing a list of numbers fetched from a dialing directory.",
 " ",
 "SET DIAL RETRIES <number>",
-"  How many times to redial each number if the dialing result is busy or no",
-"  no answer, until the call is successfully answered.  The default is 0",
-"  because automatic redialing is illegal in some countries.",
+"  How many times to dial each number if the dialing result is busy or no",
+"  answer, until the call is successfully answered.  If it is not set, the",
+"  number depends on SET DIAL COUNTRY-CODE: 10 for country code 1, and 1",
+"  (no redialing) otherwise, because automatic redialing is illegal in some",
+"  countries.",
 " ",
 "SET DIAL INTERVAL <number>",
 "  How many seconds to pause between automatic redial attempts; default 10.",
@@ -4076,7 +4226,7 @@ static char *hmxyf[] = {
 "  of any other indication.  TYPE can be TEXT for conversion of record format",
 "  and character set, which is usually needed when transferring text files",
 "  between unlike platforms (such as UNIX and Windows), or BINARY for no",
-"  conversion if TRANSFER MODE is MANUAL, which is not the default.  Use",
+"  conversion if TRANSFER MODE is MANUAL, as it is by default.  Use",
 "  BINARY with TRANSFER MODE MANUAL for executable programs or binary data or",
 "  whenever you wish to duplicate the original contents of the file, byte for"
 ,
@@ -4105,7 +4255,7 @@ static char *hmxyf[] = {
 "  with the file.",
 " ",
 #else
-"  When TRANSFER MODE is AUTOMATIC (as it is by default), various automatic",
+"  When TRANSFER MODE is AUTOMATIC (the default is MANUAL), various automatic",
 "  methods (depending on the platform) are used to determine whether a file",
 "  is transferred in text or binary mode; these methods (which might include",
 "  content scan (see SET FILE SCAN below), filename pattern matching (SET FILE"
@@ -4306,7 +4456,7 @@ static char *hmxyf[] = {
 #endif /* VMS */
 
 "SET FILE SCAN { ON [ size ], OFF }",
-"  If TRANSFER MODE is AUTOMATIC and FILE SCAN is ON (as it is by default)",
+"  If TRANSFER MODE is AUTOMATIC and FILE SCAN is ON (the FILE SCAN default),",
 "  Kermit peeks at the file's contents to see if it's text or binary.  Use",
 "  SET FILE SCAN OFF to disable file peeking, while still keeping TRANSFER",
 "  MODE automatic to allow name patterns and other methods.  The optional",
@@ -4380,7 +4530,7 @@ static char *hsetsrv[] = {
 " ",
 "SET SERVER DISPLAY {ON,OFF}",
 "  Tells whether local-mode C-Kermit during server operation should put a",
-"  file transfer display on the screen.  Default is OFF.",
+"  file transfer display on the screen.  Default is ON.",
 " ",
 "SET SERVER GET-PATH [ directory [ directory [ ... ] ] ]",
 "  Tells the C-Kermit server where to look for files whose names it receives",
@@ -4477,9 +4627,14 @@ static char *ifhlp[] = { "Syntax: IF [NOT] condition commandlist",
 "  ALARM       - SET ALARM time has passed",
 "  ASKTIMEOUT  - The most recent ASK, ASKQ, GETC, or GETOK timed out",
 "  EMULATION   - Succeeds if executed while in CONNECT mode",
-#ifdef OS2
 "  TAPI        - Current connection is via a Microsoft TAPI device",
-#endif /* OS2 */
+"  LOCAL       - Kermit is in local mode (it has a connection)",
+"  QUIET       - Kermit was started with -q or SET QUIET is ON",
+"  DEBUG       - SET DEBUG MESSAGES is ON",
+"  COUNT       - Decrements the SET COUNT value and succeeds while > 0",
+#ifdef IKSD
+"  IKSD        - Kermit is running as an Internet Kermit Service Daemon",
+#endif /* IKSD */
 " ",
 "  MS-KERMIT   - Program is MS-DOS Kermit",
 "  C-KERMIT    - Program is C-Kermit",
@@ -4492,6 +4647,8 @@ static char *ifhlp[] = { "Syntax: IF [NOT] condition commandlist",
 "  AVAILABLE NTLM                    - NTLM authentication is available",
 "  AVAILABLE SRP                     - SRP authentication is available",
 "  AVAILABLE SSL                     - SSL/TLS authentication is available",
+"  AVAILABLE TLS                     - Synonym for AVAILABLE SSL",
+"  AVAILABLE SSH                     - The built-in SSH client is available",
 "  MATCH string pattern              - Succeeds if string matches pattern",
 #ifdef CKFLOAT
 "  FLOAT number                      - Succeeds if floating-point number",
@@ -4502,6 +4659,7 @@ static char *ifhlp[] = { "Syntax: IF [NOT] condition commandlist",
 "  NUMERIC variable or constant      - The variable or constant is numeric",
 "  FUNCTION name                     - The name is of a built-in function",
 "  EXIST filename                    - The named file exists",
+"  WILD filespec                     - The filespec contains wildcards",
 "  ABSOLUTE filename                 - The filename is absolute, not relative",
 "  BINARY filename                   - The file is a binary regular file",
 "  TEXT filename                     - The file is a text regular file",
@@ -4516,7 +4674,16 @@ static char *ifhlp[] = { "Syntax: IF [NOT] condition commandlist",
 #ifdef ZFCDAT
 "  NEWER file1 file2                 - The 1st file is newer than the 2nd one",
 #endif /* ZFCDAT */
-"  OPEN { READ-FILE,SESSION-LOG,...} - The given file or log is open",
+"  OPEN name                         - The given file or log is open.  The",
+"                                      name is READ-FILE, WRITE-FILE,",
+"                                      SESSION-LOG, PACKET-LOG, DEBUG-LOG,",
+#ifdef CKLOGDIAL
+"                                      TRANSACTION-LOG, CX-LOG, ERROR or",
+#else
+"                                      TRANSACTION-LOG, ERROR or",
+#endif /* CKLOGDIAL */
+"                                      SCREEN.  ERROR and SCREEN succeed",
+"                                      when Kermit is in the foreground.",
 #ifndef NOLOCAL
 "  OPEN CONNECTION                   - A connection is open",
 #endif /* NOLOCAL */
@@ -4638,6 +4805,19 @@ static char *openhlp[] = {
 " ",
 "    OPEN READ oofa.txt",
 "    OPEN !READ sort foo.bar",
+#ifndef NOLOCAL
+" ",
+"Syntax:  OPEN HOST [ switches ] host [ service ]",
+"  Opens a network connection, the same as SET HOST.",
+" ",
+#ifdef OS2
+"Syntax:  OPEN PORT [ switches ] device",
+"  Opens a serial port, the same as SET PORT.",
+#else
+"Syntax:  OPEN LINE [ switches ] device",
+"  Opens a serial device, the same as SET LINE.",
+#endif /* OS2 */
+#endif /* NOLOCAL */
 "" };
 
 static char *hxxask[] = {
@@ -6741,6 +6921,7 @@ case XXKCD:
 
 case XXARRAY:
 case XXDCL:                             /* DECLARE */
+case XXUNDCL:                           /* UNDECLARE */
 case XXSORT:
     return(hmsga(hxxdcl));
 
@@ -6850,18 +7031,7 @@ case XXLS:
 #ifndef NOSERVER
 #ifndef NOFRILLS
 case XXDIS:
-    return(hmsg("Syntax: DISABLE command [ { LOCAL, REMOTE, BOTH } ]\n\
-  Prevents execution of the named command.  The optional parameter\n\
-  specifies the mode in which the command is disabled:\n\n\
-  LOCAL:  Disabled in local mode, which applies to commands requested\n\
-          by a remote host via escape sequences or APC.\n\
-  REMOTE: Disabled in remote mode, which applies to commands received\n\
-          by a Kermit server.\n\
-  BOTH:   Disabled in both modes.\n\n\
-  If the parameter is omitted, BOTH is used.  By default, most commands\n\
-  are enabled for REMOTE but disabled for LOCAL to prevent security issues.\n\
-  Use SHOW SERVER to view the current enable/disable states, along\n\
-  with which of LOCAL or REMOTE actually governs this connection."));
+    return(hmsga(hmxxdis));
 #endif /* NOFRILLS */
 #endif /* NOSERVER */
 
@@ -6896,18 +7066,7 @@ case XXVOID:
 #ifndef NOSERVER
 #ifndef NOFRILLS
 case XXENA:
-    return(hmsg("Syntax: ENABLE capability [ { LOCAL, REMOTE, BOTH } ]\n\
-  Allows execution of the named capability.  The optional parameter\n\
-  specifies the mode in which the capability is enabled:\n\n\
-  LOCAL:  Enabled in local mode, which applies to commands requested\n\
-          by a remote host via escape sequences or APC.\n\
-  REMOTE: Enabled in remote mode, which applies to commands received\n\
-          by a Kermit server.\n\
-  BOTH:   Enabled in both modes.\n\n\
-  If the parameter is omitted, BOTH is used.  By default, most commands\n\
-  are enabled for REMOTE but disabled for LOCAL to prevent security issues.\n\
-  Use SHOW SERVER to view the current enable/disable states, along\n\
-  with which of LOCAL or REMOTE actually governs this connection."));
+    return(hmsga(hmxxena));
 #endif /* NOFRILLS */
 #endif /* NOSERVER */
 
@@ -7066,6 +7225,7 @@ case XXUPD:
 
 #ifndef NOSPL
 case XXOUT:
+case XXLNOUT:
     return(hmsga(hxxout));
 #endif /* NOSPL */
 
@@ -7307,7 +7467,14 @@ case XXWAI:
 
 #ifndef NOFRILLS
 case XXWHO:
+#ifdef UNIX
+    return(hmsg("Syntax: WHO\n\
+  Lists the users who are logged in.  If the environment variable CK_WHO\n\
+  is set, WHO runs that command instead, followed by any text given after\n\
+  WHO."));
+#else
     return(hmsg("Syntax: WHO [ user ]\nDisplays info about the user."));
+#endif /* UNIX */
 
 case XXWRI:
     return(hmsga(hxxwri));
@@ -7555,8 +7722,17 @@ case XXPTY:
     return(hmsg("Syntax: PTY [ command ]\n\
 Runs the specified command in a pseudoterminal. Example:\n\
 \n pty cmd.exe"));
-#endif
-#endif
+#else
+case XXPTY:
+    return(hmsg("Syntax: PTY [ switches ] command\n\
+  Runs the command in a pseudoterminal, makes a connection to it, and\n\
+  CONNECTs.  PTY is the same as SET HOST /PTY /CONNECT and takes the same\n\
+  switches.  Example:\n\
+\n pty ssh -e none xyzcorp.com\n\
+\n\
+  Also see PIPE, SET HOST and HELP SET NETWORK."));
+#endif /* NT */
+#endif /* NETPTY */
 
 case XXSTATUS:
     return(hmsg(
@@ -7574,6 +7750,19 @@ case XXFAIL:
 case XXSUCC:
     return(hmsg("Always succeeds."));
 #endif /* NOSPL */
+
+case XXCPR:
+    return(hmsg("Syntax: LICENSE\n\
+  Displays the C-Kermit copyright and license.  Synonym: COPYRIGHT."));
+
+#ifndef NOXFER
+case XXLOGIN:
+    return(hmsg("Syntax: LOGIN user password [ account ]\n\
+  Logs in to a remote Kermit server that requires you login, the same as\n\
+  REMOTE LOGIN.  When the GET-PUT-REMOTE setting directs commands to an\n\
+  FTP connection, LOGIN is FTP USER.  Also see HELP REMOTE LOGIN and\n\
+  HELP FTP USER."));
+#endif /* NOXFER */
 
 #ifdef CK_LOGIN
 case XXLOGOUT:
@@ -8007,6 +8196,11 @@ static char *hsetcmd[] = {
 "  and your keyboard and screen.  8 is assumed.  SET COMMAND BYTE 7 only if",
 "  8-bit characters cannot pass.",
 " ",
+#ifndef NOSPL
+"SET COMMAND VARIABLE-EVALUATION { RECURSIVE, SIMPLE }",
+"  Same as SET VARIABLE-EVALUATION.",
+" ",
+#endif /* NOSPL */
 
 #ifdef OS2
 "SET COMMAND COLOR <foreground-color> <background-color>",
@@ -8130,6 +8324,7 @@ static char *hsetat[] = {
 "   DISPOSITION:    Unusual things to do with the file, like MAIL or PRINT",
 "   LENGTH:         The file's length",
 "   PROTECTION:     The file's protection (permissions)",
+"   RECORD-FORMAT:  The file's record format",
 "   SYSTEM-ID:      Machine/Operating system of origin",
 "   TYPE:           The file's type (text or binary)",
 " ",
@@ -8321,12 +8516,12 @@ static char *hxyterm[] = {
 
 #ifdef OS2
 #ifdef CK_XYZ
-"SET TERMINAL AUTODOWNLOAD { ON, OFF, ERROR { STOP, CONTINUE } }",
+"SET TERMINAL AUTODOWNLOAD { ON, OFF, ASK, ERROR { STOP, CONTINUE } }",
 "  enables/disables automatic switching into file-transfer mode when a Kermit",
 "  or ZMODEM file transfer has been detected during CONNECT mode or while",
 "  an INPUT command is active.  Default is ON.",
 #else
-"SET TERMINAL AUTODOWNLOAD { ON, OFF, ERROR { STOP, CONTINUE } }",
+"SET TERMINAL AUTODOWNLOAD { ON, OFF, ASK, ERROR { STOP, CONTINUE } }",
 "  enables/disables automatic switching into file-transfer mode when a Kermit",
 "  file transfer has been detected during CONNECT mode or while an INPUT",
 "  command is active.  Default is ON.",
@@ -8385,7 +8580,7 @@ static char *hxyterm[] = {
 "  terminal memory is larger than the view screen.",
 " ",
 #else /* OS2 */
-"SET TERMINAL AUTODOWNLOAD { ON, OFF, ERROR { STOP, CONTINUE } }",
+"SET TERMINAL AUTODOWNLOAD { ON, OFF, ASK, ERROR { STOP, CONTINUE } }",
 "  Enables/disables automatic switching into file-transfer mode when a valid",
 #ifdef CK_XYZ
 "  Kermit or ZMODEM packet of the appropriate type is received during CONNECT",
@@ -8394,6 +8589,8 @@ static char *hxyterm[] = {
 "  Kermit packet of the appropriate type is received during CONNECT mode.",
 "  Default is ON.",
 #endif /* CK_XYZ */
+"  ASK is ON, and also asks for the name under which to store each incoming",
+"  file.",
 
 " ",
 "  When TERMINAL AUTODOWNLOAD is ON, the TERMINAL AUTODOWNLOAD ERROR setting",
@@ -8434,8 +8631,8 @@ static char *hxyterm[] = {
 "  character set used by C-Kermit locally, <local-cs>.  If you don't specify",
 "  the local character set, the current FILE CHARACTER-SET is used.  When",
 "  you specify two different character sets, C-Kermit translates between them",
-"  during CONNECT.  By default, both character sets are TRANSPARENT, and",
-"  no translation is done.",
+"  during CONNECT.  By default, both are the same character set, and no",
+"  translation is done.",
 #endif /* OS2 */
 " ",
 #endif /* NOCSETS */
@@ -8917,6 +9114,9 @@ static char *hxyhost[] = {
 "  TELNET; specify a different TCP port number or service name to choose a",
 "  different service.",
 " ",
+"  SET HOST with no host name closes the current connection and returns",
+"  Kermit to remote mode, as SET LINE does with no device name.",
+" ",
 #ifdef CK_IPV6
 "  An IPv6 address containing colons (such as ::1) must be enclosed in",
 "  brackets if followed by a colon-separated port, e.g. \"[::1]:23\".",
@@ -8945,7 +9145,8 @@ static char *hxyhost[] = {
 " ",
 "  SET HOST * (or SET HOST /SERVER) listens for an incoming VSOCK",
 "  connection.  An optional \":PORT\" selects the port to listen on,",
-"  e.g. \"SET HOST *:9600\"; the default is port 1649.",
+"  e.g. \"SET HOST *:9600\"; the default is port 1649.  A VSOCK SET HOST",
+"  requires the CID:PORT or *.",
 " ",
 #endif /* CK_VSOCK */
 "  The first set of switches can be:",
@@ -9030,16 +9231,25 @@ Enter CONNECT (terminal) mode automatically if the connection is successful.",
 #endif /* CK_KERBEROS */
 #ifdef CK_SSL
 " /SSL",
-"   Perform SSL negotiations.",
+"   Perform SSL/TLS negotiations.  Then treat the connection as Telnet, but",
+"   send no Telnet options.  Kermit sends a 255 data byte as two, and reads",
+"   a 255 from the host as a Telnet command.  The first Telnet command from",
+"   the host starts Telnet negotiations.  Kermit first waits up to one",
+"   second for the host to send one (see SET TELNET WAIT-FOR-NEGOTIATIONS).",
+"   Use /SSL-RAW for a host that sends 255 as data.",
+" ",
+" /SSL-RAW",
+"   Perform SSL/TLS negotiations.  Use no Telnet.  Bytes pass unchanged in",
+"   both directions.",
 " ",
 " /SSL-TELNET",
-"   Perform SSL negotiations and if successful start Telnet negotiations.",
+"   Perform SSL/TLS negotiations and if successful start Telnet negotiations.",
 " ",
-" /TLS",
-"   Perform TLS negotiations.",
-" ",
-" /TLS-TELNET",
-"   Perform TLS negotiations and if successful start Telnet negotiations.",
+" /TLS, /TLS-RAW, /TLS-TELNET",
+"   The same as /SSL, /SSL-RAW and /SSL-TELNET.  Each negotiates the newest",
+"   protocol version that both ends support, down to SET AUTHENTICATION SSL",
+"   MINIMUM-VERSION.  The /SSL switches also enable the OpenSSL workarounds",
+"   for bugs in old peers.",
 " ",
 #endif /* CK_SSL */
 "Examples:",
@@ -9274,6 +9484,12 @@ static char *hmxyauth[] = {
 "may be used to list all of the ciphers and the order described by a specific",
 "<list of ciphers>.",
 " ",
+"The default list is HIGH:MEDIUM:!aNULL:!eNULL:!EXPORT:!LOW.  It excludes",
+"anonymous, unencrypted, export, and low-strength ciphers.  The SSL_CIPHER",
+"environment variable overrides the default.  Giving CIPHER-LIST with no",
+"argument restores the default.  Kermit refuses a list that matches no",
+"cipher.",
+" ",
 "SET AUTHENTICATION { SSL, TLS } CRL-DIR <directory>",
 "specifies a directory that contains certificate revocation files where each",
 "file is named by the hash of the certificate that has been revoked.",
@@ -9335,6 +9551,21 @@ static char *hmxyauth[] = {
 "  the passphrase:",
 " ",
 "  openssl dsa -in <encrypted-key-file> -out <unencrypted-key-file>",
+" ",
+"SET AUTHENTICATION { SSL, TLS } MINIMUM-VERSION",
+"  { SSL3.0, TLS1.0, TLS1.1, TLS1.2, TLS1.3 }",
+"  Sets the lowest protocol version that Telnet, raw SSL/TLS, HTTPS, and",
+"  FTP connections accept as client or server.  The default is TLS1.2.  An",
+"  older version suits a legacy system that cannot use TLS 1.2.",
+" ",
+"  OpenSSL 3 refuses versions older than TLS 1.2 at its default security",
+"  level.  Add @SECLEVEL=0 to the cipher list to allow an older version:",
+" ",
+"    set authentication ssl minimum-version tls1.0",
+"    set authentication ssl cipher-list HIGH:MEDIUM:!aNULL:@SECLEVEL=0",
+" ",
+"  SSL 3.0 requires an OpenSSL build with SSL 3.0 support.  SET FTP BUG",
+"  USE-SSL-V2 and USE-SSL-V3 override this setting for FTP.",
 " ",
 "SET AUTHENTICATION { SSL, TLS } RANDOM-FILE <filename>",
 "  Specifies a file containing random data to be used as seed for the",
@@ -9428,8 +9659,12 @@ static char *hxynet[] = {
 "Select the type of network to be used with SET HOST connections:",
 " ",
 #ifdef NETCMD
-"  SET NETWORK TYPE COMMAND   ; Make a connection through an external command",
+"  SET NETWORK TYPE PIPE      ; Make a connection through an external command",
 #endif /* NETCMD */
+#ifdef NETPTY
+"  SET NETWORK TYPE PSEUDOTERMINAL ; Make a connection to an external command",
+"                                  ; run in a pseudoterminal",
+#endif /* NETPTY */
 #ifdef TCPSOCKET
 "  SET NETWORK TYPE TCP/IP    ; Internet: Telnet, Rlogin, etc.",
 #endif /* TCPSOCKET */
@@ -9518,6 +9753,12 @@ static char *hxytcp[] = {
 "  indefinitely.",
 " ",
 #endif /* CK_IPV6 */
+#ifdef SO_DONTROUTE
+"SET TCP DONTROUTE { ON, OFF }",
+"  ON sends packets only to hosts on a directly connected network, without",
+"  using a gateway (SO_DONTROUTE).  The default is OFF.",
+" ",
+#endif /* SO_DONTROUTE */
 "SET TCP KEEPALIVE { ON, OFF }",
 "  Setting this ON might help to detect broken connections more quickly.",
 "  (default is ON.)",
@@ -9525,7 +9766,7 @@ static char *hxytcp[] = {
 "SET TCP LINGER { ON [timeout], OFF }",
 "  Setting this ON ensures that a connection doesn't close before all",
 "  outstanding data has been transferred and acknowledged.  The timeout is",
-"  measured in 10ths of milliseconds.  The default is ON with a timeout of 0.",
+"  measured in 10ths of milliseconds.  The default is OFF.",
 " ",
 "SET TCP NODELAY { ON, OFF }",
 "  ON means send short TCP packets immediately rather than waiting",
@@ -9592,12 +9833,13 @@ static char *hxytcp[] = {
 #endif /* NT */
 #ifndef NOHTTP
 " ",
-"SET TCP HTTP-PROXY [<hostname or ip-address>[:<port>]]",
+"SET TCP HTTP-PROXY [ switches ] [<hostname or ip-address>[:<port>]]",
 "  If a hostname or ip-address is specified, Kermit will use the Proxy",
 "  server when attempting outgoing connections.  If no hostname or",
 "  ip-address is specified, any previously specified Proxy server will",
 "  be removed.  If no port number is specified, the \"http\" service",
-"  will be used.",
+"  will be used.  The switches /AGENT:<agent>, /USER:<user> and",
+"  /PASSWORD:<password> give the values used to connect to the proxy.",
 #endif /* NOHTTP */
 ""};
 #endif /* NOTCPOPTS */
@@ -9629,6 +9871,44 @@ static char *hxytopt[] = {
 "  is possible to use SET TELOPT to instruct Kermit to REFUSE the option",
 "  before connecting to the problem host, thus skipping the problematic",
 "  negotiation.",
+" ",
+"  The options are:",
+" ",
+#ifdef CK_AUTHENTICATION
+"    AUTHENTICATION      Telnet authentication",
+#endif /* CK_AUTHENTICATION */
+"    BINARY-MODE         Binary transmission",
+#ifdef TN_COMPORT
+"    COM-PORT-CONTROL    Control of a serial port on the remote host",
+#endif /* TN_COMPORT */
+"    ECHO                Remote echo",
+#ifdef CK_ENCRYPTION
+"    ENCRYPTION          Telnet encryption",
+#endif /* CK_ENCRYPTION */
+#ifdef CK_FORWARD_X
+"    FORWARD-X           X Window System forwarding",
+#endif /* CK_FORWARD_X */
+#ifdef IKS_OPTION
+"    KERMIT              Kermit server negotiation",
+#endif /* IKS_OPTION */
+"    LOGOUT              Logout request",
+#ifdef CK_NAWS
+"    NAWS                Negotiate About Window Size",
+#endif /* CK_NAWS */
+#ifdef CK_ENVIRONMENT
+"    NEW-ENVIRONMENT     Environment variables such as USER and TERM",
+#endif /* CK_ENVIRONMENT */
+#ifdef CK_SNDLOC
+"    SEND-LOCATION       The location string of SET TELNET LOCATION",
+#endif /* CK_SNDLOC */
+#ifdef CK_SSL
+"    START-TLS           TLS negotiated inside Telnet",
+#endif /* CK_SSL */
+"    SUPPRESS-GO-AHEADS  Suppression of Go Ahead signals",
+"    TERMINAL-TYPE       The terminal type",
+#ifdef CK_ENVIRONMENT
+"    XDISPLAY-LOCATION   The X display location",
+#endif /* CK_ENVIRONMENT */
 " ",
 "  Use SHOW TELOPT to view current Telnet Option negotiation settings.",
 "  SHOW TELNET displays current Telnet settings.",
@@ -9691,12 +9971,11 @@ static char *hxytel[] = {
 "  item in the list because it does not provide any form of data encryption.",
 #endif /* NT */
 " ",
-#ifdef CK_KERBEROS
 "SET TELNET AUTHENTICATION FORWARDING { ON, OFF }",
 "  Set this to ON to forward Kerberos V ticket-granting-tickets to the host",
-"  after authentication is complete.  OFF by default.",
+"  after authentication is complete.  It has no effect in a build without",
+"  Kerberos.  OFF by default.",
 " ",
-#endif /* CK_KERBEROS */
 "SET TELNET AUTHENTICATION ENCRYPT-FLAG { ANY, NONE, TELOPT }",
 "  Use this command to specify which AUTH telopt encryption flags may be",
 "  accepted in client mode or offered in server mode.  The default is ANY.",
@@ -9797,6 +10076,8 @@ static char *hxytel[] = {
 "  value in this way, will accept it and therefore not prompt you for user",
 "  name when you log in.  The default values are taken from your environment;",
 "  use this command to change or remove them.  See RFC1572 for details.",
+"  LOCATION sets the same string as SET TELNET LOCATION.  USERVAR name",
+"  [ value ] defines a user variable to send.",
 " ",
 #endif /* COMMENT */
 #endif /* CK_ENVIRONMENT */
@@ -9949,13 +10230,15 @@ static char *hxywind[] = {
 "  Specifies number of slots for sliding windows, i.e. the number of packets",
 "  that can be transmitted before waiting for acknowledgement.  The default",
 #ifdef XYZ_INTERNAL
-"  for Kermit protocol is one, the maximum is 32; for ZMODEM, the default",
+"  for Kermit protocol is 30, or fewer if SET BUFFERS makes the buffers",
+"  smaller; the maximum is 32.  For ZMODEM, the default",
 "  is no windowing (0).  For ZMODEM, the window size is really the packet",
 "  length, and is used only when non-windowed (streaming) transfers fail; the",
 "  ZMODEM window size should be a largish number, like 1024, and it should be",
 "  a multiple of 64.",
 #else
-"  is one, the maximum is 32.  Increased window size might result in reduced",
+"  is 30, or fewer if SET BUFFERS makes the buffers smaller; the maximum is",
+"  32.  Increased window size might result in reduced",
 "  maximum packet length.  Use sliding windows for improved efficiency on",
 "  connections with long delays.  A full duplex connection is required, as",
 "  well as a cooperating Kermit on the other end.",
@@ -9974,7 +10257,7 @@ static char *hxyrcv[] = {
 "  Specifies parameters for inbound packets:",
 " ",
 #ifndef NOCSETS
-"SET RECEIVE CHARACTER-SET { AUTOMATIC, MANUAL }",
+"SET RECEIVE CHARACTER-SET-SELECTION { AUTOMATIC, MANUAL }",
 "  Whether to automatically switch to an appropriate file-character set based",
 "  on the transfer character-set announcer, if any, of an incoming text file.",
 "  AUTOMATIC by default.  Also see HELP ASSOCIATE.",
@@ -9986,9 +10269,10 @@ static char *hxyrcv[] = {
 "  ON (the default) prompts, except when the incoming name is a precise",
 "  (non-wildcard) match for a name given to GET or MGET, or, for a",
 "  recursive GET, when the file arrives under the directory named for the",
-"  transfer. A RECEIVE, or a transfer accepted because the remote host",
-"  issued SEND, always prompts, since no local filename specification",
-"  exists for comparison.",
+"  transfer.  Names are compared without their directory part, and the",
+"  as-name given to GET counts as a name given.  A RECEIVE, or a transfer",
+"  accepted because the remote host issued SEND, always prompts, since no",
+"  local filename specification exists for comparison.",
 " ",
 "  ALL applies the same matching rules as ON, but also prompts for each",
 "  individual file inside a recursive transfer. Use ALL, not ON, if you",
@@ -10018,14 +10302,28 @@ static char *hxyrcv[] = {
 #ifdef CKXXCHAR
 "SET RECEIVE IGNORE-CHARACTER number",
 "  ASCII value of character to be discarded when receiving packets, such as",
-"  line folding characters.",
+"  line folding characters.  SET SEND IGNORE-CHARACTER is a synonym.",
 " ",
 #endif /* CKXXCHAR */
+#ifdef PIPESEND
+"SET RECEIVE FILTER [ command ]",
+"  Passes each incoming file through the command before writing it.  The",
+"  command may contain \\v(filename).  Kermit replaces \\v(filename) with",
+"  the name of the file.  Omit the command to remove the filter.  Also see",
+"  RECEIVE /FILTER.",
+" ",
+#endif /* PIPESEND */
 "SET RECEIVE MOVE-TO [ directory ]",
 "  If a directory name is specified, then every file that is received",
 "  successfully is moved to the given directory immediately after reception",
 "  is complete.  Omit the directory name to remove any previously set move-to",
 "  directory.",
+" ",
+"SET RECEIVE NEGOTIATION-STRING-MAX-LENGTH number",
+"  Reads only the first number characters of the parameter string in the",
+"  other Kermit's Send-Init or I packet, or in its ACK.  The rest is",
+"  ignored, as if the other Kermit had not sent it.  The default, -1, sets",
+"  no limit.  So does 0 or 1.",
 " ",
 "SET RECEIVE PACKET-LENGTH number",
 "  Maximum length packet the other Kermit should send.",
@@ -10067,6 +10365,9 @@ static char *hxyrcv[] = {
 #ifdef CK_PERMS
 "SET RECEIVE PERMISSIONS { ON, OFF }",
 "  Whether to copy file permissions from inbound Attribute packets.",
+"  A file received from a Unix sender gets the read, write, and execute",
+"  permissions of the original.  Setuid, setgid, and sticky bits are not",
+"  copied.",
 " ",
 #endif /* CK_PERMS */
 
@@ -10108,10 +10409,11 @@ static char *hxysnd[] = {
 "  transfers.",
 " ",
 #ifndef NOCSETS
-"SET SEND CHARACTER-SET { AUTOMATIC, MANUAL }",
-"  Whether to automatically switch to an appropriate file-character when a",
-"  SET TRANSFER CHARACTER-SET command is given, or vice versa.  AUTOMATIC by",
-"  default.  Also see HELP ASSOCIATE.",
+"SET SEND CHARACTER-SET-SELECTION { AUTOMATIC, MANUAL }",
+"  Whether, when sending a file that FILE SCAN finds to be text, to use the",
+"  transfer character-set associated with the file character-set.  SET FILE",
+"  CHARACTER-SET and SET TRANSFER CHARACTER-SET change only the setting",
+"  that each command names.  AUTOMATIC by default.  Also see HELP ASSOCIATE.",
 " ",
 #endif /* NOCSETS */
 
@@ -10122,18 +10424,37 @@ static char *hxysnd[] = {
 #ifdef CKXXCHAR
 "SET SEND DOUBLE-CHARACTER number",
 "  ASCII value of character to be doubled when sending packets, such as an",
-"  X.25 PAD escape character.",
+"  X.25 PAD escape character.  SET RECEIVE DOUBLE-CHARACTER is a synonym.",
 " ",
 #endif /* CKXXCHAR */
 "SET SEND END-OF-PACKET number",
 "  ASCII value of control character to terminate an outbound packet,",
 "  normally 13 (carriage return).",
 " ",
+#ifdef PIPESEND
+"SET SEND FILTER [ command ]",
+"  Passes each file through the command before sending it.  The command",
+"  must contain \\v(filename).  Kermit replaces \\v(filename) with the",
+"  name of the file.  Omit the command to remove the filter.  Also see",
+"  SEND /FILTER.",
+" ",
+#endif /* PIPESEND */
+"SET SEND I-PACKETS { ON, OFF }",
+"  Whether to send an I (Information) packet before a server command.  The",
+"  default is ON.  OFF is for servers that can not handle I packets.",
+" ",
 "SET SEND MOVE-TO [ directory ]",
 "  \
 If a directory name is specified, then every file that is sent successfully",
 "  is moved to the given directory immediately after it is sent.",
 "  Omit the directory name to remove any previously set move-to directory.",
+" ",
+"SET SEND NEGOTIATION-STRING-MAX-LENGTH number",
+"  Limits the parameter string in this Kermit's Send-Init or I packet, or",
+"  in its ACK to the other Kermit's, to number + 1 characters.  Use it with",
+"  a Kermit that misreads a long parameter string.  A feature whose field",
+"  is cut off is not used for that transfer.  The default, -1, sets no",
+"  limit.  So does 0 or 1.",
 " ",
 "SET SEND PACKET-LENGTH number",
 "  Maximum length packet to send, even if other Kermit asks for longer ones.",
@@ -10286,7 +10607,7 @@ static char *hxyxfer[] = {
 "  does not agree.",
 " ",
 "SET TRANSFER MODE { AUTOMATIC, MANUAL }",
-"  Automatic (the default) means Kermit should automatically go into binary",
+"  AUTOMATIC means Kermit should automatically go into binary",
 "  file-transfer mode and use literal filenames if the other Kermit says it",
 "  has a compatible file system, e.g. UNIX-to-UNIX, but not UNIX-to-DOS.",
 #ifdef PATTERNS
@@ -10294,6 +10615,7 @@ static char *hxyxfer[] = {
 "  mode automatically per file based on the SET FILE BINARY-PATTERNS and SET",
 "  FILE TEXT-PATTERNS.",
 #endif /* PATTERNS */
+"  MANUAL, the default, uses the FILE TYPE and FILE NAMES settings as given.",
 " ",
 #ifdef PIPESEND
 "SET TRANSFER PIPES { ON, OFF }",
@@ -10548,8 +10870,8 @@ static char * hsetiks[] = {
 "SET IKS CDMESSAGE {ON, OFF, 0, 1, 2}",
 "  For use in the Server-Side Server configuration; whenever the client",
 "  tells the server to change directory, the server sends the contents of a",
-"  \"read me\" file to the client's screen.  This feature is ON by default,",
-"  and operates in client/server mode only when ON or 1.  If set to 2 or",
+"  \"read me\" file to the client's screen.  This feature is OFF by default.",
+"  It operates in client/server mode only when ON or 1.  If set to 2 or",
 "  higher, it also operates when the CD command is given at the IKSD> prompt.",
 "  Synonym: SET IKS CDMSG.",
 " ",
@@ -10674,9 +10996,9 @@ dohset(xx) int xx;
 case XY_REN:
   return(hmsg("SET RENAME LIST { ON, OFF }\n\
   Tells whether the RENAME command should list its results by default.\n\n\
-SET RENAME COLLISION { FAIL, PROCEED, OVERWRITE }\n\
+SET RENAME COLLISION { FAIL, SKIP, OVERWRITE }\n\
   Establishes the default action when renaming a file would destroy an\n\
-  existing file.  See HELP RENAME."));
+  existing file.  PROCEED is a synonym for SKIP.  See HELP RENAME."));
 
 case XYATTR:
     return(hmsga(hsetat));
@@ -10720,8 +11042,10 @@ case XYCMD:
     return(hmsga(hsetcmd));
 
 case XYIFD:
-    return(hmsg("Syntax: SET INCOMPLETE { DISCARD, KEEP }\n\
-  Whether to discard or keep incompletely received files, default is KEEP."));
+    return(hmsg("Syntax: SET INCOMPLETE { AUTO, DISCARD, KEEP }\n\
+  What to do with incompletely received files.  AUTO, the default,\n\
+  discards them in text mode and keeps them in binary mode.  Synonym\n\
+  for SET FILE INCOMPLETE."));
 
 #ifndef NOSPL
 case XYINPU:
@@ -10964,10 +11288,14 @@ case XYSESS:
 #ifdef UNIX
     return(hmsg(
 "Syntax:\n\
- SET SESSION-LOG { BINARY, DEBUG, NULL-PADDED, TEXT, TIMESTAMPED-TEXT }\n\
+ SET SESSION-LOG { BINARY, DEBUG, NULL-PADDED-LINES, TEXT,\n\
+                   TIMESTAMPED-TEXT }\n\
   If BINARY, record all CONNECT characters in session log.  If TEXT, strip\n\
   out CR, NUL, and XON/XOFF characters.  DEBUG is the same as BINARY but\n\
-  also includes Telnet negotiations on TCP/IP connections."));
+  also includes Telnet negotiations on TCP/IP connections.\n\
+  TIMESTAMPED-TEXT is TEXT with a timestamp at the start of each line.\n\
+  NULL-PADDED-LINES writes a NUL after each linefeed.  It keeps the BINARY\n\
+  or TEXT setting."));
 #else
 #ifdef datageneral
     return(hmsg(
@@ -11078,8 +11406,8 @@ case XYXMIT:
 #ifndef NOCSETS
 case XYUNCS:
     return(hmsg("Syntax: SET UNKNOWN-CHAR-SET action\n\
-  DISCARD (default) means reject any arriving files encoded in unknown\n\
-  character sets.  KEEP means to accept them anyway."));
+  DISCARD means reject any arriving files encoded in unknown character\n\
+  sets.  KEEP (the default) means to accept them anyway."));
 #endif /* NOCSETS */
 
 #ifdef VMS
@@ -11119,17 +11447,46 @@ case XYPROTO:
 
 #ifdef CK_SPEED
 case XYPREFIX:
-    return(hmsg("Syntax: SET PREFIXING { ALL, CAUTIOUS, MINIMAL }\n\
+    return(hmsg("Syntax: SET PREFIXING { ALL, CAUTIOUS, MINIMAL, NONE }\n\
   \
-Selects the degree of control-character prefixing.  Also see HELP SET CONTROL."
+Selects the degree of control-character prefixing.  Also see HELP SET CONTROL.\n\
+  NONE prefixes only the characters that are never safe: the packet start\n\
+  character and, on a Telnet connection, CR, XON, XOFF, DEL and 255."
 ));
 #endif /* CK_SPEED */
 
-#ifdef OS2
+#ifndef NOSPL
 case XYLOGIN:
     return(hmsg("Syntax: SET LOGIN { USERID, PASSWORD, PROMPT } <text>\n\
-  Provides access information for use by login scripts."));
-#endif /* OS2 */
+  Provides access information for use by login scripts.  The text is at\n\
+  most 63 characters.  Backslash codes in a PASSWORD are not expanded."));
+#endif /* NOSPL */
+
+#ifndef NOXFER
+case XYDEST:
+    return(hmsg("Syntax: SET DESTINATION { DISK, PRINTER, SCREEN }\n\
+  Selects where incoming files go.  DISK, the default, stores them.\n\
+  PRINTER prints them (see SET PRINTER).  SCREEN displays them.\n\
+  Also see RECEIVE /PRINT and SHOW FILE."));
+#endif /* NOXFER */
+
+case XYFLAG:
+    return(hmsg("Syntax: SET FLAG { ON, OFF }\n\
+  Sets a flag for use by scripts.  IF FLAG succeeds when it is ON.  The\n\
+  default is OFF."));
+
+case XYHINTS:
+    return(hmsg("Syntax: SET HINTS { ON, OFF }\n\
+  ON prints suggestions for what to try next when a Kermit SEND or GET,\n\
+  a DIAL or an RLOGIN typed at the prompt fails.  The default is ON."));
+
+#ifdef QNX
+case XYQNXPL:
+    return(hmsg("Syntax: SET QNX-PORT-LOCK { ON, OFF }\n\
+  ON refuses to open a serial port that another process has open.  OFF\n\
+  opens it with a warning.  The default is OFF."));
+#endif /* QNX */
+
 
 #ifndef NOSPL
 case XYTMPDIR:
@@ -11258,7 +11615,8 @@ case XYTLOG:
 case XYOPTS:
     return(hmsg("Syntax: SET OPTIONS command [ switches... ]\n\
   For use with commands that have switches; sets the default switches for\n\
-  the given command.  Type SET OPTIONS ? for a list of amenable commands."));
+  the given command.  The commands are DELETE, DIRECTORY, PURGE and TYPE.\n\
+  Type SET OPTIONS ? for the list in this version."));
 
 #ifndef NOSPL
 case XYTIMER:
@@ -11310,11 +11668,11 @@ case XYTIMER:
 #ifndef NOSPL
   case XYVAREV:
     return(hmsg("Syntax: SET VARIABLE-EVALUATION { RECURSIVE, SIMPLE }\n\
-  Tells Kermit weather to evaluate \\%x and \\&x[] variables recursively\n\
-  In C-Kermit 10.0 the default is SIMPLE, meaning variables return their\n\
-  values like in any other programming language, making life much easier\n\
-  when those values happen to be Windows or DOS pathnames, which contain\n\
-  backslashes."));
+  Tells Kermit whether to evaluate \\%x and \\&x[] variables recursively.\n\
+  RECURSIVE, the default, also evaluates backslash items in the value.\n\
+  SIMPLE returns the value as it is, as in other programming languages.\n\
+  SIMPLE is easier when values are Windows or DOS pathnames, since\n\
+  they contain backslashes."));
 #endif  /* NOSPL */
 
 #ifdef HAVE_LOCALE
@@ -12473,7 +12831,7 @@ Returns number:\n");
 #ifdef TCPSOCKET
       case FN_HSTADD:
         printf("\\faddr2name(s)\n\
-  s = numeric IP address.\n");
+  s = numeric IPv4 or IPv6 address.\n");
         printf("Returns:\n");
         printf("  Corresponding IP hostname if found, otherwise null.\n");
         break;
@@ -12482,6 +12840,9 @@ Returns number:\n");
   s = IP host name.\n");
         printf("Returns:\n");
         printf("  Corresponding numeric IP address if found, else null.\n");
+        printf("  An IPv4 address is preferred when the name has one, unless\n\
+  SET TCP ADDRESS-FAMILY selects IPv6.  A numeric address in any form\n\
+  that the resolver accepts, such as 0x1F, is returned in standard form.\n");
         break;
 #endif /* TCPSOCKET */
 
@@ -15138,7 +15499,10 @@ static char *hrset[] = {
 "Example: REMOTE SET FILE TYPE BINARY",
 "  Asks the Kermit server to set the named parameter to the given value.",
 "  Equivalent to typing the corresponding SET command directly to the other",
-"  Kermit if it were in interactive mode.", "" };
+"  Kermit if it were in interactive mode.  The parameters are ATTRIBUTES,",
+"  BLOCK-CHECK, FILE, MATCH, RECEIVE, RETRY, SERVER, TRANSFER and WINDOW.",
+"  Type REMOTE SET ? and REMOTE SET parameter ? for the values, and HELP",
+"  SET parameter for what each one does.", "" };
 
 int
 #ifdef CK_ANSIC
@@ -15292,8 +15656,9 @@ case XZTYP:
 
 case XZWHO:
     return(hmsg("Syntax: REMOTE WHO [ name ]\n\
-  Asks the Kermit server to list who's logged in, or to give information\n\
-  about the named user.  Synonym: RWHO."));
+  Asks the Kermit server to list who's logged in.  Some servers give\n\
+  information about the named user.  A Unix server refuses a name.\n\
+  Synonym: RWHO."));
 #endif /* NOFRILLS */
 
 #ifndef NOSPL
@@ -15302,13 +15667,16 @@ case XZQUE:
 "Syntax: [ REMOTE ] QUERY { KERMIT, SYSTEM, USER } variable-name\n\
   Asks the Kermit server to send the value of the named variable of the\n\
   given type, and make it available in the \\v(query) variable.  When the\n\
-  type is KERMIT functions may also be specified as if they were variables."));
+  type is KERMIT functions may also be specified as if they were variables.\n\
+  A function runs on the server.  With REMOTE ASSIGN also enabled there,\n\
+  \\fexecute() runs any command the client defines; see HELP ENABLE."));
 
 case XZASG:
     return(hmsg(
 "Syntax: REMOTE ASSIGN variable-name [ value ]\n\
   Assigns the given value to the named global variable on the server.\n\
-  Synonyms: RASG, RASSIGN."));
+  With REMOTE QUERY also enabled there, the client can run the variable\n\
+  as a macro with \\fexecute(); see HELP ENABLE.  Synonyms: RASG, RASSIGN."));
 #endif /* NOSPL */
 
 case XZPWD:

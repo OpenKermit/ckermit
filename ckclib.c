@@ -75,6 +75,7 @@ char * cklibv = "C-Kermit library, 11.0.500, 22 Jul 2026";
 #include "ckucmd.h"
 #include "ckuusr.h"
 #include "ckcnet.h"                    /* for struct sockaddr */
+#include <limits.h>                     /* INT_MAX, LONG_MAX */
 #include "ckcfnp.h"                    /* Prototypes (must be last) */
 
 /* Public variables */
@@ -501,13 +502,12 @@ ckltoa(n) long n;
     char buf[32];                       /* Internal working buffer */
     char * p, * s, * q;
     int k, x, len = 0, sign = 0;
-    if (n < 0L) {                       /* Sign */
-        n = 0L - n;
-        sign = 1;
-    }
-    buf[31] = NUL;
+    if (n < 0L)                         /* Sign.  Digits come from the */
+      sign = 1;                         /* negative value: -LONG_MIN */
+    buf[31] = NUL;                      /* cannot be represented. */
     for (k = 30; k > 0; k--) {          /* Convert number to string */
         x = (int)(n % 10L);
+        if (x < 0) x = -x;
         buf[k] = (char)(x + '0');
         n = n / 10L;
         if (!n)
@@ -604,20 +604,12 @@ ckfstoa(n) CK_OFF_T n;
     char * p, * s, * q;
     int k, x, len = 0, sign = 0;
 
-    if (n < (CK_OFF_T)0) {              /* Sign */
-        n = (CK_OFF_T)0 - n;
-        sign = 1;
-    }
-    buf[31] = NUL;                      /* 2^63-1 is about 20 decimal digits */
+    if (n < (CK_OFF_T)0)                /* Sign.  Digits come from the */
+      sign = 1;                         /* negative value, since the */
+    buf[31] = NUL;                      /* minimum cannot be negated. */
     for (k = 30; k > 0; k--) {          /* Convert number to string */
         x = (int)(n % (CK_OFF_T)10);
-        if (x < 0) {
-            /* x += 10; */
-            ckstrncpy(&buf[23],"OVERFLOW",32);
-            sign = 0;
-            k = 23;
-            break;
-        }
+        if (x < 0) x = -x;
         buf[k] = (char)(x + '0');
         n = n / (CK_OFF_T)10;
         if (!n)
@@ -640,7 +632,8 @@ ckfstoa(n) CK_OFF_T n;
 
 /* This is the inverse of ckfstoa(), a replacement for atol() that works */
 /* for either 32-bit or 64-bit arguments, according to CK_OFF_T definition. */
-/* Like atol(), there is no error indication. */
+/* There is no error indication.  A value out of range gives CK_OFF_T_MAX */
+/* or -CK_OFF_T_MAX. */
 
 CK_OFF_T
 #ifdef CK_ANSIC
@@ -658,10 +651,73 @@ ckatofs(s) char * s;
         s++;
     }
     while (isdigit(*s)) {
-        result = (result * (CK_OFF_T)10) + (CK_OFF_T)(*s - '0');
+        CK_OFF_T d = (CK_OFF_T)(*s - '0');
+        if (result > (CK_OFF_T_MAX - d) / (CK_OFF_T)10)
+          result = CK_OFF_T_MAX;        /* Saturate */
+        else
+          result = (result * (CK_OFF_T)10) + d;
         s++;
     }
     return(minus ? -result : result);
+}
+
+/*  C K A T O I  --  String to int, saturating  */
+
+/* Like atoi(), but a value out of range gives INT_MAX or -INT_MAX. */
+
+int
+#ifdef CK_ANSIC
+ckatoi(char * s)
+#else
+ckatoi(s) char * s;
+#endif /* CK_ANSIC */
+/* ckatoi */ {
+    int result = 0;
+    int minus = 0;
+    if (!s)
+      return(0);
+    while (*s && (*s == SP || *s == HT)) s++;
+    if (*s == '+') {
+        s++;
+    } else if (*s == '-') {
+        minus = 1;
+        s++;
+    }
+    while (isdigit(*s)) {
+        int d = *s - '0';
+        if (result > (INT_MAX - d) / 10)
+          result = INT_MAX;             /* Saturate */
+        else
+          result = (result * 10) + d;
+        s++;
+    }
+    return(minus ? -result : result);
+}
+
+/*  C K R A N D B Y T E S  --  Fill a buffer from the system generator  */
+
+/*
+  Reads n bytes from /dev/urandom into buf.  Returns 0 on success, or -1
+  if the device cannot be opened or returns fewer than n bytes.  The
+  contents of buf are undefined on failure.
+*/
+int
+#ifdef CK_ANSIC
+ckrandbytes(unsigned char * buf, int n)
+#else
+ckrandbytes(buf,n) unsigned char * buf; int n;
+#endif /* CK_ANSIC */
+/* ckrandbytes */ {
+    FILE * fp;
+    size_t got;
+
+    if (!buf || n < 0)
+      return(-1);
+    if ((fp = fopen("/dev/urandom", "rb")) == NULL)
+      return(-1);
+    got = fread(buf, 1, (size_t)n, fp);
+    fclose(fp);
+    return((got == (size_t)n) ? 0 : -1);
 }
 
 /*  C K I T O A  --  Int to string  -- FOR DISCIPLINED USE ONLY  */
@@ -1515,7 +1571,12 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
     matchdepth++;                       /* Now increment call depth */
 
 #ifdef UNIX
-    if (!dot) {                         /* For UNIX file globbing */
+/*
+  For UNIX file globbing, a name that starts with '.' matches only a
+  pattern that starts with '.'.  This applies at the start of the name
+  only, not to the remainder passed to a recursive call.
+*/
+    if (!dot && string == ostring) {
         if (*string == '.' && *pattern != '.' && !matchdot) {
             if (
 #ifdef CKREGEX
@@ -1788,14 +1849,19 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
 #endif /* DEBUG */
                                 free(tp);
                                 tp = NULL;
-                                if (xxflag) MATCHRETURN(0,0);
+                                if (xxflag) {
+                                    free(buf);
+                                    MATCHRETURN(0,0);
+                                }
                                 if (sk == 0) {
                                     matchpos = savpos;
                                 }
                                 if (sk > 0) { /* If it matched we're done */
+                                    free(buf);
                                     MATCHRETURN(7,sk);
                                 }
                             } else {    /* Malloc failure */
+                                free(buf);
                                 MATCHRETURN(14,0);
                             }
                             if (sk) {    /* Successful comparison */
@@ -2047,8 +2113,12 @@ isfloat(s,flag) char *s; int flag;
 {
     int state = 0;
     int sign = 0;
+    int point = 0;                      /* Decimal point seen */
+    int scale = 0;                      /* Fraction digits in m */
+    int extra = 0;                      /* Integer digits past m */
     char c;
-    CKFLOAT d = 0.0, f = 0.0;
+    CK_OFF_T m = 0;                     /* Digits while they fit */
+    CKFLOAT f;
 
     if (!s) return(0);
     if (!*s) return(0);
@@ -2064,11 +2134,14 @@ isfloat(s,flag) char *s; int flag;
         switch (state) {
           case 0:                       /* Mantissa... */
             if (isdigit(c)) {
-                f = f * 10.0 + (CKFLOAT)(c - '0');
+                if (m <= (CK_OFF_T_MAX - 9) / 10)
+                  m = m * 10 + (CK_OFF_T)(c - '0');
+                else
+                  extra++;
                 continue;
             } else if (c == '.') {
                 state = 1;
-                d = 1.0;
+                point = 1;
                 continue;
             }
             if (flag)                   /* Not digit or period */
@@ -2076,8 +2149,10 @@ isfloat(s,flag) char *s; int flag;
             return(0);                  /* otherwise fail. */
           case 1:                       /* Fraction... */
             if (isdigit(c)) {
-                d *= 10.0;
-                f += (CKFLOAT)(c - '0') / d;
+                if (m <= (CK_OFF_T_MAX - 9) / 10) {
+                    m = m * 10 + (CK_OFF_T)(c - '0');
+                    scale++;
+                }
                 continue;
             }
             /* Fall through */
@@ -2088,9 +2163,22 @@ isfloat(s,flag) char *s; int flag;
         }
     }
   done:
+    /*
+      One conversion of the digits in m gives the nearest CKFLOAT to an
+      integer below 2^63.  10^scale is exact for scale up to 22.
+    */
+    f = (CKFLOAT)m;
+    while (extra-- > 0)
+      f *= 10.0;
+    if (scale > 0) {
+        CKFLOAT p = 1.0;
+        while (scale-- > 0)
+          p *= 10.0;
+        f /= p;
+    }
     if (sign) f = 0.0 - f;              /* Apply sign to result */
     floatval = f;                       /* Set result */
-    return(d ? 2 : 1);                  /* Succeed */
+    return(point ? 2 : 1);              /* Succeed */
 }
 
 /*
@@ -2127,9 +2215,11 @@ ckround(fpnum,places,obuf,obuflen)
     CKFLOAT value;
     extern int fp_digits;
 
-    /* Should use snprintf() here but it's not portable */
-
-    sprintf(buf,"%200.100f",fpnum);     /* Make string version to work with. */
+/*
+  Make a string version to work with.  For the largest doubles the
+  integer part takes 309 digits, so the fraction may be truncated.
+*/
+    snprintf(buf,sizeof(buf),"%200.100f",fpnum);
     debug(F110,"ckround buf",buf,0);
     number = (char *) buf;              /* Make pointer to it */
 
@@ -2210,6 +2300,28 @@ ckround(fpnum,places,obuf,obuflen)
 #endif
     if (obuf) strncpy(obuf,number,obuflen); /* Set string result */
     return(value);                          /* Return floating-point result */
+}
+
+/*  C K F T O L  --  Convert a floating-point value to long.  */
+/*
+  A value past the range of long becomes LONG_MAX or LONG_MIN.  NaN
+  becomes 0.  Rates such as characters per second pass through here.
+  A cast of an out-of-range value is undefined in C.
+*/
+long
+#ifdef CK_ANSIC
+ckftol(CKFLOAT x)
+#else
+ckftol(x) CKFLOAT x;
+#endif /* CK_ANSIC */
+/* ckftol */ {
+    if (x != x)                         /* NaN */
+      return(0L);
+    if (x >= (CKFLOAT) LONG_MAX)
+      return(LONG_MAX);
+    if (x <= (CKFLOAT) LONG_MIN)
+      return(LONG_MIN);
+    return((long) x);
 }
 
 #endif /* CKFLOAT */
@@ -2912,6 +3024,12 @@ static struct stringarray ck_sval =  {  /* Return value structure */
 };
 static int * wordsize = NULL;
 
+/*
+  Store word s as element n of wordarray[].  len 0 or less stores an empty
+  word, and s is not read.  Otherwise s is NUL-terminated.  len is the
+  caller's count of its characters.  That count is short for a quoted
+  group, so the buffer is sized from the length of s.
+*/
 static
 #ifdef CK_ANSIC
 void
@@ -2921,10 +3039,11 @@ VOID
 setword(n,s,len) int n; char * s; int len;
 #endif /* CK_ANSIC */
 {
-    register char * p;
     register int i, k;
 
-    if (!s) s = "";
+    if (!s || len < 1)
+      s = "";
+    len = (int)strlen(s);
 
     if (!wordarray) {                   /* Allocate result array (only once) */
         if (!(wordarray = (char **)malloc((MAXWORDS+1) * sizeof(char *))))
@@ -2936,23 +3055,14 @@ setword(n,s,len) int n; char * s; int len;
             wordsize[i] = 0;
         }
     }
-    if (wordsize[n] < len /* || !wordarray[n] */ ) {
+    if (wordsize[n] < len) {
         k = (len < 16) ? 16 : len + (len / 4);
         if (wordarray[n]) free(wordarray[n]); /* Growing; drop old buffer */
         wordarray[n] = (char *) malloc(k+1);
         wordsize[n] = (wordarray[n]) ? k : 0;
-        if (wordarray[n]) {
-            p = wordarray[n];
-            while ((*p++ = *s++) && k-- > 0) ;
-        }
-    } else if (len > 0) {
-        k = wordsize[n];                /* (In case len arg is a lie) */
-        p = wordarray[n];
-        while ((*p++ = *s++) && k-- > 0) {
-        }
-    } else if (wordarray[n]) {
-        wordarray[n][0] = NUL;
     }
+    if (wordarray[n])                   /* wordsize[n] >= len */
+      memcpy(wordarray[n],s,len+1);
 }
 
 static char * splitbuf = NULL;

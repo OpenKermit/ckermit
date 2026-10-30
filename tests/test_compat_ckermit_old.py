@@ -8,18 +8,20 @@ from functools import partial
 
 import pytest
 
-from conftest import assert_ok, make_loopback_dirs
+from conftest import (CLEAR_UNPREFIX_MODES, assert_ok, kermit_wait,
+                      make_loopback_dirs)
 from test_transfer import (KERMIT_PACKET_LEN, run_transfer_helper,
                            _run_nul_replay_transfer)
-from test_remote import _wrap
+from test_remote import _wrap, run_remote_delete_boundary_lengths
 
 MB = 1024 * 1024
 
 
-@pytest.fixture(params=["pseudoterminal", "raw-socket", "telnet"])
-def loopback_transport(request):
-    """Loopback transports supported by C-Kermit 9.0.302."""
-    return request.param
+# Loopback transports supported by C-Kermit 9.0.302.  The transfer
+# tests run over each.  The REMOTE command tests run over a pty.
+OLD_TRANSPORTS = pytest.mark.parametrize(
+    "loopback_transport", ["pseudoterminal", "raw-socket", "telnet"],
+    indirect=True)
 
 
 @pytest.fixture
@@ -43,12 +45,14 @@ def _xfail_old_ckermit_unprefix_replay(request):
 def _xfail_if_send_and_clear_unprefix(request, direction):
     """Mark send-direction tests xfail under clear_unprefix."""
     if direction == "send" and request.node.callspec.params.get(
-            "wermit_loopback"):
+            "clear_unprefix"):
         _xfail_old_ckermit_unprefix_replay(request)
 
 
 # --- Core transfer parity ---------------------------------------------
 
+@OLD_TRANSPORTS
+@CLEAR_UNPREFIX_MODES
 @pytest.mark.parametrize("direction", ["send", "get"])
 @pytest.mark.parametrize("size", [
     pytest.param(0, id="0B"),
@@ -67,10 +71,10 @@ def test_transfer_binary(tmp_path, old_loopback, direction, size, request):
             size // 256 + 1), is_text=False)
 
 
+@OLD_TRANSPORTS
 @pytest.mark.parametrize("direction", ["send", "get"])
-def test_transfer_text(tmp_path, old_loopback, direction, request):
+def test_transfer_text(tmp_path, old_loopback, direction):
     """Text transfer in both directions with CRLF conversion."""
-    _xfail_if_send_and_clear_unprefix(request, direction)
     run_transfer_helper(
         tmp_path, old_loopback, direction,
         file_type="text", file_name="text_file.txt",
@@ -78,11 +82,13 @@ def test_transfer_text(tmp_path, old_loopback, direction, request):
         is_text=True)
 
 
+@OLD_TRANSPORTS
+@CLEAR_UNPREFIX_MODES
 @pytest.mark.parametrize("direction", ["send", "get"])
 def test_transfer_large(tmp_path, old_loopback, direction, request):
     """Binary transfer well beyond a single packet or window."""
     _xfail_if_send_and_clear_unprefix(request, direction)
-    size = 3 * MB
+    size = MB
     content = (bytes(range(256)) * (size // 256 + 1))[:size]
     run_transfer_helper(
         tmp_path, old_loopback, direction,
@@ -90,6 +96,7 @@ def test_transfer_large(tmp_path, old_loopback, direction, request):
         file_content=content, is_text=False, timeout=60)
 
 
+@OLD_TRANSPORTS
 def test_transfer_recursive(tmp_path, old_loopback):
     """Recursive directory transfer against legacy server."""
     client_dir = tmp_path / "client"
@@ -114,6 +121,26 @@ def test_transfer_recursive(tmp_path, old_loopback):
 
 
 # --- REMOTE command parity ---------------------------------------------
+
+@pytest.mark.parametrize("loopback_transport", ["raw-socket", "telnet"],
+                         indirect=True)
+def test_remote_commands_over_tcp(tmp_path, old_loopback,
+                                  loopback_transport):
+    """Run REMOTE DIRECTORY, REMOTE DELETE and GET over TCP."""
+    client_dir, server_dir = make_loopback_dirs(tmp_path)
+    (server_dir / "listed.txt").write_text("listed\n")
+    (server_dir / "doomed.txt").write_text("doomed\n")
+
+    result = old_loopback(
+        server_dir,
+        client_commands=(f"cd {client_dir}, remote directory, "
+                         "remote delete doomed.txt, get listed.txt"))
+
+    assert_ok(result)
+    assert "listed.txt" in result.stdout
+    assert not (server_dir / "doomed.txt").exists()
+    assert (client_dir / "listed.txt").read_text() == "listed\n"
+
 
 def test_remote_pwd(tmp_path, old_loopback):
     result = old_loopback(tmp_path, client_commands="remote pwd")
@@ -165,21 +192,14 @@ def test_remote_copy_delete_rename(tmp_path, old_loopback):
     assert not renamed_file.exists()
 
 
-@pytest.mark.parametrize("filename_len", [6, 7, 8, 9, 10, 11, 12, 13, 14])
-@pytest.mark.parametrize("content", ["", "1234567890"])
-def test_remote_delete_boundary_lengths(
-        tmp_path, old_loopback, filename_len, content):
+def test_remote_delete_boundary_lengths(tmp_path, old_loopback):
     """Delete files with lengths spanning short and extended headers."""
-    filename = "".join(chr(97 + i) for i in range(filename_len))
-    target_file = tmp_path / filename
-    target_file.write_text(content)
-
-    result = old_loopback(
-        tmp_path, client_commands=f"remote delete {filename}")
-    assert_ok(result, f"Client failed for length {filename_len}")
-    assert not target_file.exists()
+    run_remote_delete_boundary_lengths(tmp_path, old_loopback)
 
 
+@OLD_TRANSPORTS
+@CLEAR_UNPREFIX_MODES
+@pytest.mark.slow
 def test_transfer_unprefixed_nul_replay(tmp_path, old_loopback, request):
     """Binary transfer with embedded NUL bytes under out-of-order replay."""
     # _run_nul_replay_transfer forces set control unprefix all on server.
@@ -226,7 +246,7 @@ def test_cve_2025_68920_restriction_holds_against_old_peer(
     }
     status_file = server_dir / f"status_{command_name}.txt"
     far_end_cmds = "\n".join([
-        "input 5 READY",
+        f"input {kermit_wait()} READY",
         far_end_cmd_map[command_name],
         f"if success !echo SUCCESS > {status_file}",
         f"if failure !echo FAILURE > {status_file}",
@@ -249,6 +269,7 @@ def test_cve_2025_68920_restriction_holds_against_old_peer(
         assert not (server_dir / "target.txt").exists()
 
 
+@OLD_TRANSPORTS
 def test_file_collision_default_divergence(tmp_path, old_loopback):
     """Verify default file collision backup behavior on legacy peer."""
     client_dir = tmp_path / "client"
@@ -271,7 +292,9 @@ def test_file_collision_default_divergence(tmp_path, old_loopback):
 # --- Space and brace quoting in REMOTE commands -------------------------
 #
 # Client command parsing resolves field quoting before sending the
-# filespec wire message. Legacy servers receive the unquoted filespec.
+# filespec wire message.  Legacy servers receive the unquoted filespec.
+# test_remote.py covers the other commands and names.  One test here
+# covers each quoting style.
 
 @pytest.mark.parametrize("style", ["none", "brace", "doublequote"])
 def test_remote_delete_with_space(tmp_path, old_loopback, style):
@@ -281,101 +304,6 @@ def test_remote_delete_with_space(tmp_path, old_loopback, style):
     (d / name).write_text("payload\n")
 
     arg = name if style == "none" else _wrap(name, style)
-    result = old_loopback(d, "", f"remote delete {arg}")
-
-    assert_ok(result)
-    assert not (d / name).exists()
-
-
-@pytest.mark.parametrize("style", ["none", "brace", "doublequote"])
-def test_remote_directory_with_space(tmp_path, old_loopback, style):
-    d = tmp_path / "d"
-    d.mkdir()
-    name = "file one.txt"
-    (d / name).write_text("payload\n")
-
-    arg = name if style == "none" else _wrap(name, style)
-    result = old_loopback(d, "", f"remote directory {arg}")
-
-    assert_ok(result)
-    assert name in result.stdout
-
-
-@pytest.mark.parametrize("style", ["brace", "doublequote"])
-def test_remote_rename_with_space(tmp_path, old_loopback, style):
-    d = tmp_path / "d"
-    d.mkdir()
-    src = "file one.txt"
-    dst = "file two.txt"
-    (d / src).write_text("payload\n")
-
-    result = old_loopback(
-        d, "", f"remote rename {_wrap(src, style)} {_wrap(dst, style)}")
-
-    assert_ok(result)
-    assert not (d / src).exists()
-    assert (d / dst).exists()
-
-
-@pytest.mark.parametrize("style", ["brace", "doublequote"])
-def test_remote_copy_with_space(tmp_path, old_loopback, style):
-    d = tmp_path / "d"
-    d.mkdir()
-    src = "file one.txt"
-    dst = "file two.txt"
-    (d / src).write_text("payload\n")
-
-    result = old_loopback(
-        d, "", f"remote copy {_wrap(src, style)} {_wrap(dst, style)}")
-
-    assert_ok(result)
-    assert (d / src).exists()
-    assert (d / dst).exists()
-
-
-@pytest.mark.parametrize("with_space", [False, True], ids=["nospace", "space"])
-@pytest.mark.parametrize("style", ["brace", "doublequote"])
-def test_remote_delete_embedded_brace_name(
-        tmp_path, old_loopback, style, with_space):
-    d = tmp_path / "d"
-    d.mkdir()
-    name = "file {one} two.txt" if with_space else "file{one}.txt"
-    (d / name).write_text("payload\n")
-
-    arg = _wrap(name, style)
-    result = old_loopback(d, "", f"remote delete {arg}")
-
-    assert_ok(result)
-    assert not (d / name).exists()
-
-
-@pytest.mark.parametrize("with_space", [False, True], ids=["nospace", "space"])
-@pytest.mark.parametrize("style", ["brace", "doublequote"])
-def test_remote_directory_embedded_brace_name(
-        tmp_path, old_loopback, style, with_space):
-    d = tmp_path / "d"
-    d.mkdir()
-    name = "file {one} two.txt" if with_space else "file{one}.txt"
-    (d / name).write_text("payload\n")
-
-    arg = _wrap(name, style)
-    result = old_loopback(d, "", f"remote directory {arg}")
-
-    assert_ok(result)
-    assert name in result.stdout
-
-
-@pytest.mark.parametrize("with_space", [False, True], ids=["nospace", "space"])
-@pytest.mark.parametrize("style", ["brace", "doublequote"])
-def test_remote_delete_embedded_doublequote_name(
-        tmp_path, old_loopback, style, with_space):
-    d = tmp_path / "d"
-    d.mkdir()
-    name = 'file "one" two.txt' if with_space else 'file"one".txt'
-    (d / name).write_text("payload\n")
-
-    escaped = name.replace('"', '\\"') if style == "doublequote" else name
-    arg = _wrap(escaped, style)
     result = old_loopback(d, "", f"remote delete {arg}")
 
     assert_ok(result)

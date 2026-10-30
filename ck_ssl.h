@@ -82,6 +82,9 @@
 #include <openssl/sha.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#if OPENSSL_VERSION_NUMBER < 0x10002000L
+#error "C-Kermit needs OpenSSL 1.0.2 or later, or LibreSSL"
+#endif /* OPENSSL_VERSION_NUMBER < 1.0.2 */
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/core.h>
 #include <openssl/params.h>
@@ -120,6 +123,7 @@ extern char *ssl_dsa_cert_file;
 extern char *ssl_dsa_cert_chain_file;
 extern char *ssl_dh_key_file;
 extern char *ssl_cipher_list;
+extern int ssl_min_version;
 extern char *ssl_crl_file;
 extern char *ssl_crl_dir;
 extern char *ssl_verify_file;
@@ -146,6 +150,13 @@ extern int tls_http_active_flag;
 extern int ssl_initialized;
 
 _PROTOTYP(VOID ssl_once_init,(void));
+_PROTOTYP(char * ssl_effective_cipher_list,(void));
+_PROTOTYP(int ssl_apply_cipher_list,(SSL *));
+_PROTOTYP(int ssl_cipher_list_ok,(char *));
+_PROTOTYP(int ssl_set_min_version,(SSL_CTX *));
+_PROTOTYP(char * ssl_version_name,(int));
+_PROTOTYP(int ck_bio_gets,(BIO *, char *, int));
+_PROTOTYP(int ssl_hostisaddr,(char *));
 _PROTOTYP(int ssl_tn_init,(int));
 _PROTOTYP(int ssl_http_init,(char *));
 _PROTOTYP(int ck_ssl_http_client,(int,char *));
@@ -187,9 +198,22 @@ _PROTOTYP(int ssl_check_server_name,(SSL * ssl, char * hostname));
 
 #define SSL_ERR_BFSZ 4096
 
+/*
+  Select high- and medium-strength cipher suites for TLS 1.2 and earlier.
+  Exclude anonymous (aNULL), unencrypted (eNULL), export, and low-strength
+  suites.  OpenSSL ignores unknown cipher names such as EXPORT in OpenSSL
+  1.1.0 and later.
+*/
 #ifdef SSL_KRB5
-#define DEFAULT_CIPHER_LIST "HIGH:MEDIUM:LOW:+KRB5:+ADH:+EXP"
+#define DEFAULT_CIPHER_LIST \
+    "HIGH:MEDIUM:+KRB5:!aNULL:!eNULL:!EXPORT:!LOW"
 #else
-#define DEFAULT_CIPHER_LIST "HIGH:MEDIUM:LOW:+ADH:+EXP"
+#define DEFAULT_CIPHER_LIST "HIGH:MEDIUM:!aNULL:!eNULL:!EXPORT:!LOW"
 #endif /* SSL_KRB5 */
+
+/*
+  The lowest protocol version for Telnet, raw SSL/TLS, HTTPS and FTP.
+  SET AUTHENTICATION SSL MINIMUM-VERSION changes it.
+*/
+#define DEFAULT_MIN_VERSION TLS1_2_VERSION
 #endif /* CK_SSL */

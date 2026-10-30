@@ -1057,6 +1057,9 @@ _PROTOTYP( int tn_snenv, (CHAR *, int) ) ;
 _PROTOTYP( int tn_rnenv, (CHAR *, int) ) ;
 _PROTOTYP( int tn_wait, (char *) ) ;
 _PROTOTYP( int tn_push, (void) ) ;
+#ifdef CK_SSL
+_PROTOTYP( int tn_tls_follows_wait, (void) ) ;
+#endif /* CK_SSL */
 _PROTOTYP( int tnsndbrk, (void) );
 _PROTOTYP( VOID tn_debug, (char *));
 _PROTOTYP( int tn_hex, (CHAR *, int, CHAR *, int));
@@ -1358,6 +1361,7 @@ _PROTOTYP(int tn_sndcomport,(void));
 
 #ifndef CKCTEL_C                        /* These are declared in ckctel.c */
 extern int tn_init;                     /* Telnet protocol initialized flag */
+extern int tn_begun;                    /* Telnet protocol started flag */
 extern char *tn_term;                   /* Terminal type override */
 extern int sstelnet;                    /* Server side telnet? */
 extern int tn_deb;                      /* Telnet option debugging flag */

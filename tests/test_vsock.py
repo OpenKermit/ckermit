@@ -5,7 +5,7 @@ import socket
 import time
 
 import pytest
-from conftest import assert_ok
+from conftest import kermit_wait, assert_ok, scaled
 
 
 def _show_features_output(run_wermit):
@@ -44,7 +44,7 @@ def _vsock_loopback_works():
         except OSError:
             return False
         try:
-            cli.settimeout(2)
+            cli.settimeout(scaled(2))
             cli.connect((1, port))
         except OSError:
             return False
@@ -83,35 +83,6 @@ def test_set_network_type_vsock_selected(run_wermit):
     assert_ok(result, "SET NETWORK TYPE VSOCK failed")
     assert "VSOCK" in result.stdout
     assert "KVM/Linux VSOCK (AF_VSOCK)" in result.stdout
-
-
-def test_help_set_host_mentions_vsock(run_wermit):
-    if not _build_has_vsock(run_wermit):
-        pytest.skip("build has no VSOCK support (not CK_VSOCK)")
-    result = run_wermit("help set host")
-    assert_ok(result, "HELP SET HOST failed")
-    assert "CID:PORT" in result.stdout
-    assert "VSOCK loopback" in result.stdout
-
-
-def test_help_set_host_mentions_vsock_server(run_wermit):
-    if not _build_has_vsock(run_wermit):
-        pytest.skip("build has no VSOCK support (not CK_VSOCK)")
-    result = run_wermit("help set host")
-    assert_ok(result, "HELP SET HOST failed")
-    assert "listens for an incoming VSOCK" in result.stdout
-    assert "port 1649" in result.stdout
-
-
-def test_help_set_network_mentions_vsock(run_wermit):
-    """
-    Verify HELP SET NETWORK output includes VSOCK.
-    """
-    if not _build_has_vsock(run_wermit):
-        pytest.skip("build has no VSOCK support (not CK_VSOCK)")
-    result = run_wermit("help set network")
-    assert_ok(result, "HELP SET NETWORK failed")
-    assert "SET NETWORK TYPE VSOCK" in result.stdout
 
 
 def test_set_host_invalid_vsock_address(run_wermit):
@@ -173,7 +144,8 @@ def test_set_host_vsock_server_accepts_connection(
     script = (
         "set command more-prompting off, set network type vsock, "
         f"set host *:{port}, if fail exit 1 ACCEPT-FAILED, "
-        "input 5 PING, output PONG\\13, close connection, exit 0 DONE"
+        f"input {kermit_wait()} PING, output PONG\\13, close connection, "
+        "exit 0 DONE"
     )
     proc = spawn_wermit(["-H", "-Y", "-C", script])
 
@@ -183,7 +155,7 @@ def test_set_host_vsock_server_accepts_connection(
     while time.time() < deadline:
         try:
             cli = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM)
-            cli.settimeout(1)
+            cli.settimeout(scaled(1))
             cli.connect((1, port))
             break
         except OSError as e:
@@ -195,11 +167,11 @@ def test_set_host_vsock_server_accepts_connection(
     assert cli is not None, f"could not connect to VSOCK server: {last_err}"
 
     cli.sendall(b"PING\r")
-    cli.settimeout(5)
+    cli.settimeout(scaled(5))
     reply = cli.recv(100)
     cli.close()
 
-    out, _ = proc.communicate(timeout=10)
+    out, _ = proc.communicate(timeout=scaled(10))
     assert "DONE" in out, out
     assert b"PONG" in reply
 

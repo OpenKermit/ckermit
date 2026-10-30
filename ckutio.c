@@ -1271,23 +1271,23 @@ static int gotsigs = 0;
 
 static time_t tcount = (time_t)0;       /* Elapsed time counter */
 
-static sig_t saval;     /* For saving alarm() handler */
-static sig_t savquit;   /* and other signal handlers */
+static ck_sig_t saval;     /* For saving alarm() handler */
+static ck_sig_t savquit;   /* and other signal handlers */
 #ifdef SIGUSR1
-static sig_t savusr1;
+static ck_sig_t savusr1;
 #endif /* SIGUSR1 */
 #ifdef SIGUSR2
-static sig_t savusr2;
+static ck_sig_t savusr2;
 #endif /* SIGUSR2 */
 #ifdef SIGPIPE
-static sig_t savpipe;
+static ck_sig_t savpipe;
 #endif /* SIGPIPE */
 #ifdef SIGDANGER
-static sig_t savdanger;
+static ck_sig_t savdanger;
 #endif /* SIGDANGER */
 
 #ifndef NOJC
-static sig_t jchdlr;    /* For checking suspend handler */
+static ck_sig_t jchdlr;    /* For checking suspend handler */
 #endif /* NOJC */
 static int jcshell = -1;                /* And flag for result */
 
@@ -1743,15 +1743,18 @@ deadline_xtimerh(foo) int foo;
 
   Install a SIGALRM handler using sigaction with SA_RESTART cleared.
   This ensures interrupted system calls return EINTR rather than
-  restarting automatically. Returns previous signal handler.
+  restarting automatically.  Returns previous signal handler.  On a
+  system without sigaction() (no SA_RESTART in <signal.h>) it uses
+  signal(), whose restart behavior varies.
 */
-static sig_t
+static ck_sig_t
 #ifdef CK_ANSIC
 deadline_signal( SIGTYP (*handler)(int) )
 #else
 deadline_signal(handler) SIGTYP (*handler)(int);
 #endif /* CK_ANSIC */
 {
+#ifdef SA_RESTART                       /* sigaction() is available */
     struct sigaction sa, oa;
     memset((char *)&sa, 0, sizeof(sa));
     sa.sa_handler = handler;
@@ -1760,7 +1763,39 @@ deadline_signal(handler) SIGTYP (*handler)(int);
     if (sigaction(SIGALRM, &sa, &oa) < 0)
       return SIG_ERR;
     return oa.sa_handler;
+#else
+    return((ck_sig_t)signal(SIGALRM, handler));
+#endif /* SA_RESTART */
 }
+
+#ifdef GFTIMER
+/*
+  Store the current time in tv for deadline arithmetic.  A monotonic
+  clock is used where available, so a change to the system clock does
+  not lengthen or shorten a wait.
+*/
+static VOID
+#ifdef CK_ANSIC
+ck_deadline_now(struct timeval * tv)
+#else
+ck_deadline_now(tv) struct timeval * tv;
+#endif /* CK_ANSIC */
+{
+#ifdef CLOCK_MONOTONIC
+    struct timespec ts;
+    if (clock_gettime(CLOCK_MONOTONIC,&ts) == 0) {
+        tv->tv_sec = ts.tv_sec;
+        tv->tv_usec = (long)(ts.tv_nsec / 1000L);
+        return;
+    }
+#endif /* CLOCK_MONOTONIC */
+#ifdef GTODONEARG                       /* Account for Mot's definition */
+    (VOID) gettimeofday(tv);
+#else
+    (VOID) gettimeofday(tv, (struct timezone *)0);
+#endif /* GTODONEARG */
+}
+#endif /* GFTIMER */
 
 /*
   C K _ D E A D L I N E _ S E T
@@ -1768,7 +1803,7 @@ deadline_signal(handler) SIGTYP (*handler)(int);
   Records an absolute deadline "seconds" from now, for
   ck_deadline_remaining_ms()/ck_deadline_expired() to measure against.
   seconds <= 0 clears the deadline (treated as infinite by the other
-  two functions).  Uses gettimeofday()-based sub-second timing when
+  two functions).  Uses ck_deadline_now() for sub-second timing when
   GFTIMER is available (every platform this project builds and tests
   for), and whole-second time() otherwise.
 */
@@ -1786,11 +1821,7 @@ ck_deadline_set(seconds) int seconds;
     }
     ck_deadline_active = 1;
 #ifdef GFTIMER
-#ifdef GTODONEARG                       /* Account for Mot's definition */
-    (VOID) gettimeofday(&ck_deadline_tv);
-#else
-    (VOID) gettimeofday(&ck_deadline_tv, (struct timezone *)0);
-#endif /* GTODONEARG */
+    ck_deadline_now(&ck_deadline_tv);
     /* Cap deadline to prevent time_t overflow. */
     if ((time_t)seconds > CK_TIME_T_MAX - ck_deadline_tv.tv_sec)
       ck_deadline_tv.tv_sec = CK_TIME_T_MAX;
@@ -1867,11 +1898,7 @@ ck_deadline_remaining_ms() {
       return(-1L);
 
 #ifdef GFTIMER
-#ifdef GTODONEARG                       /* Account for Mot's definition */
-    (VOID) gettimeofday(&now);
-#else
-    (VOID) gettimeofday(&now, (struct timezone *)0);
-#endif /* GTODONEARG */
+    ck_deadline_now(&now);
     secs = ck_deadline_tv.tv_sec - now.tv_sec;
     if (secs > (time_t)CK_DEADLINE_MAXSECS)
       return(CK_DEADLINE_MAXSECS * 1000L);
@@ -1900,6 +1927,38 @@ ck_deadline_expired() {
 
 #ifdef SELECT
 /*
+  select() cannot wait on a descriptor at or above FD_SETSIZE.
+  ck_deadline_select() uses poll() for one where poll() is known to
+  exist.
+*/
+#ifdef CK_POLL
+#define CK_DLPOLL
+#else
+#ifdef __linux__
+#define CK_DLPOLL
+#else
+#ifdef __FreeBSD__
+#define CK_DLPOLL
+#else
+#ifdef __NetBSD__
+#define CK_DLPOLL
+#else
+#ifdef __OpenBSD__
+#define CK_DLPOLL
+#else
+#ifdef __APPLE__
+#define CK_DLPOLL
+#endif /* __APPLE__ */
+#endif /* __OpenBSD__ */
+#endif /* __NetBSD__ */
+#endif /* __FreeBSD__ */
+#endif /* __linux__ */
+#ifdef CK_DLPOLL
+#include <poll.h>
+#endif /* CK_DLPOLL */
+#endif /* CK_POLL */
+
+/*
   C K _ D E A D L I N E _ S E L E C T
 
   Waits for fd to become ready for reading (wantread != 0) or writing
@@ -1907,7 +1966,8 @@ ck_deadline_expired() {
   if no deadline is active).  Retries internally on EINTR instead of
   reporting it to the caller.  Returns 1 if fd is ready, 0 if the
   deadline expired first, or -1 on any other select() failure (errno
-  left set).
+  left set).  For fd >= FD_SETSIZE it uses poll() where available, and
+  otherwise returns -1 with errno EBADF.
 */
 static int
 #ifdef CK_ANSIC
@@ -1930,12 +1990,31 @@ ck_deadline_select(fd,wantread) int fd, wantread;
             dstv.tv_usec = (ms % 1000L) * 1000L;
             tvp = &dstv;
         }
-        FD_ZERO(&fds);
-        FD_SET(fd, &fds);
-        if (wantread)
-          rc = select(fd + 1, &fds, NULL, NULL, tvp);
-        else
-          rc = select(fd + 1, NULL, &fds, NULL, tvp);
+        if (fd >= FD_SETSIZE) {
+#ifdef CK_DLPOLL
+            struct pollfd pfd;
+            pfd.fd = fd;
+            pfd.events = wantread ? POLLIN : POLLOUT;
+            pfd.revents = 0;
+            ck_blockbegin();
+            rc = poll(&pfd, 1,
+                      (ms < 0L) ? -1 :
+                      (ms > 1000000000L) ? 1000000000 : (int)ms);
+            ck_blockend();
+#else
+            errno = EBADF;              /* Cannot wait on this fd */
+            return(-1);
+#endif /* CK_DLPOLL */
+        } else {
+            FD_ZERO(&fds);
+            FD_SET(fd, &fds);
+            ck_blockbegin();
+            if (wantread)
+              rc = select(fd + 1, &fds, NULL, NULL, tvp);
+            else
+              rc = select(fd + 1, NULL, &fds, NULL, tvp);
+            ck_blockend();
+        }
         if (rc < 0) {
             if (errno == EINTR)
               continue;
@@ -1952,7 +2031,7 @@ ck_deadline_select(fd,wantread) int fd, wantread;
 /* Control-C trap for communication line input functions */
 
 int cc_int;                             /* Flag */
-sig_t occt;                     /* For saving old SIGINT handler */
+ck_sig_t occt;                     /* For saving old SIGINT handler */
 
 /*ARGSUSED*/
 SIGTYP
@@ -2182,44 +2261,33 @@ ttgwsiz() {
 _PROTOTYP( int rlog_naws, (void) );
 #endif  /* RLOGCODE */
 
+/*
+  Signal handlers that cannot act safely in signal context set these
+  flags.  chksigs() acts on them from the main program.  ck_blocking is
+  set while the main program waits in a system call marked by
+  ck_blockbegin() and ck_blockend().  It holds no library lock there, so
+  sighup() can exit at once.
+*/
+volatile sig_atomic_t ck_hup_pending = 0;
+volatile sig_atomic_t ck_winch_pending = 0;
+volatile sig_atomic_t ck_blocking = 0;
+static int ck_hup_exiting = 0;          /* ck_hupexit() has started */
+
 #ifndef NOSIGWINCH
 #ifdef SIGWINCH
-SIGTYP
-#ifdef CK_ANSIC
-winchh( int foo )                       /* SIGWINCH handler */
-#else
-winchh(foo) int foo;
-#endif /* CK_ANSIC */
-{
-    int x = 0;
 /*
-  This might be called by a blocking syscall that just failed and is about to
-  have its errno examined by its caller.
-
-  Within this function, ttgwsiz() and the debug() calls, make their own syscalls
-  that can overwrite errno.  Without saving and restoring errno, this handler
-  running between the interrupted syscall's failure and its caller's errno check
-  replaces the real error with whatever errno this handler's  internal calls
-  happened to leave behind.  So, save and restore errno.
+  Act on a window-size change: get the new size, resize a PTY
+  connection, and send Telnet or Rlogin NAWS.  Called by chksigs().
 */
-    int saved_errno = errno;
+static VOID
+dowinch() {
+    int x = 0;
 #ifdef CK_TTYFD
 #ifndef VMS
     extern int ttyfd;
 #endif /* VMS */
 #endif /* CK_TTYFD */
     extern int tt_rows, tt_cols, cmd_rows, cmd_cols;
-#ifdef DEBUG
-    if (deblog) {
-        debug(F100,"***************","",0);
-        debug(F100,"SIGWINCH caught","",0);
-        debug(F100,"***************","",0);
-#ifdef NETPTY
-        debug(F101,"SIGWINCH pty_fork_pid","",pty_fork_pid);
-#endif /* NETPTY */
-    }
-#endif /* DEUB */
-    signal(SIGWINCH,winchh);            /* Re-arm the signal */
     x = ttgwsiz();                      /* Get new window size */
     cmd_rows = tt_rows;                 /* Adjust command screen too */
     cmd_cols = tt_cols;
@@ -2234,42 +2302,22 @@ winchh(foo) int foo;
 #else
       (!local)
 #endif /* CK_TTYFD */
-    {
-        errno = saved_errno;
-        return;
-    }
+      return;
 
 #ifdef NETPTY
     if (pty_net_pid > -1) {             /* "set host" to a PTY? */
-        int wx;
-
 #ifdef TIOCSWINSZ
         struct winsize w;               /* Resize the PTY */
-        errno = 0;
         w.ws_col = (unsigned short)tt_cols;
         w.ws_row = (unsigned short)tt_rows;
         w.ws_xpixel = (unsigned short)tt_xpixel;
         w.ws_ypixel = (unsigned short)tt_ypixel;
-        wx = ioctl(ttyfd,TIOCSWINSZ,&w);
-        debug(F101,"winchh TIOCSWINSZ","",wx);
-        debug(F101,"winchh TIOCSWINSZ errno","",errno);
+        (VOID) ioctl(ttyfd,TIOCSWINSZ,&w);
 #endif /* TIOCSWINSZ */
-
-        errno = 0;
-        wx = kill(pty_net_pid,SIGWINCH);
-        debug(F101,"winchh kill","",wx);
-        debug(F101,"winchh kill errno","",errno);
+        (VOID) kill(pty_net_pid,SIGWINCH);
     }
 #endif /* NETPTY */
 
-/*
-  This should be OK.  It might seem that sending this from
-  interrupt level could interfere with another TELNET IAC string
-  that was in the process of being sent.  But we always send
-  TELNET strings with a single write(), which should prevent mixups.
-  blah_snaws() should protect themselves from being called on the
-  wrong kind of connection.
-*/
 #ifdef TCPSOCKET
 #ifndef NOTTGWSIZ
     if (x > 0 && tt_rows > 0 && tt_cols > 0) {
@@ -2280,11 +2328,97 @@ winchh(foo) int foo;
     }
 #endif /* NOTTGWSIZ */
 #endif /* TCPSOCKET */
+}
+
+SIGTYP
+#ifdef CK_ANSIC
+winchh( int foo )                       /* SIGWINCH handler */
+#else
+winchh(foo) int foo;
+#endif /* CK_ANSIC */
+{
+    int saved_errno = errno;            /* signal() may set errno */
+    ck_winch_pending = 1;
+    signal(SIGWINCH,winchh);            /* Re-arm the signal */
     errno = saved_errno;
     SIGRETURN;
 }
 #endif /* SIGWINCH */
 #endif /* NOSIGWINCH */
+
+/*
+  Exit after SIGHUP.  Called from the main program by chksigs(), or by
+  sighup() while the main program waits in a marked system call.
+*/
+static VOID
+ck_hupexit() {
+    ck_hup_exiting = 1;
+    ck_blocking = 0;
+    backgrd = 1;
+    debug(F100,"***************","",0);
+    debug(F100,"SIGHUP received","",0);
+    debug(F100,"***************","",0);
+    doexit(BAD_EXIT,-1);
+}
+
+/*
+  Act on signals that arrived since the last call.  The main program
+  calls this between commands, between packets and in the CONNECT loop.
+*/
+VOID
+chksigs() {
+    if (ck_hup_pending && !ck_hup_exiting)
+      ck_hupexit();
+#ifndef NOSIGWINCH
+#ifdef SIGWINCH
+    if (ck_winch_pending) {
+        ck_winch_pending = 0;
+        dowinch();
+    }
+#endif /* SIGWINCH */
+#endif /* NOSIGWINCH */
+}
+
+/*
+  Mark the start and end of a wait in a system call.  The flag is set
+  before the pending test, so a SIGHUP that arrives after the test finds
+  ck_blocking set and exits from sighup().
+*/
+VOID
+ck_blockbegin() {
+    ck_blocking = 1;
+    if (ck_hup_pending && !ck_hup_exiting)
+      ck_hupexit();
+}
+
+VOID
+ck_blockend() {
+    ck_blocking = 0;
+    if (ck_hup_pending && !ck_hup_exiting)
+      ck_hupexit();
+}
+
+_PROTOTYP( SIGTYP sighup, (int) );
+
+/*
+  Install sighup().  Where sigaction() is available (SA_RESTART is
+  defined), SIGHUP does not restart an interrupted system call, so a
+  wait that is not marked returns EINTR and the program reaches
+  chksigs().
+*/
+VOID
+ck_armhup() {
+#ifdef SA_RESTART
+    struct sigaction sa;
+    memset((char *)&sa, 0, sizeof(sa));
+    sa.sa_handler = sighup;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    (VOID) sigaction(SIGHUP, &sa, NULL);
+#else
+    signal(SIGHUP,sighup);
+#endif /* SA_RESTART */
+}
 
 SIGTYP
 #ifdef CK_ANSIC
@@ -2293,13 +2427,13 @@ sighup( int foo )                       /* SIGHUP handler */
 sighup(foo) int foo;
 #endif /* CK_ANSIC */
 {
-    backgrd = 1;
-    debug(F100,"***************","",0);
-    debug(F100,"SIGHUP received","",0);
-    debug(F100,"***************","",0);
-    doexit(BAD_EXIT,-1);
-    /*NOTREACHED*/
-    SIGRETURN;                          /* Shut picky compilers up... */
+    ck_hup_pending = 1;
+#ifndef SA_RESTART
+    signal(SIGHUP,sighup);              /* Re-arm the signal */
+#endif /* SA_RESTART */
+    if (ck_blocking && !ck_hup_exiting)
+      ck_hupexit();                     /* Waiting in a marked call */
+    SIGRETURN;
 }
 
 #ifdef CK_SCO32V4
@@ -2410,7 +2544,7 @@ sysinit() {
     }
     signal(SIGINT,SIG_IGN);             /* Ignore interrupts at first */
     signal(SIGFPE,SIG_IGN);             /* Ignore floating-point exceptions */
-    signal(SIGHUP,sighup);              /* Catch SIGHUP */
+    ck_armhup();                        /* Catch SIGHUP */
 #ifndef NOSIGWINCH
 #ifdef SIGWINCH
     signal(SIGWINCH,winchh);            /* Catch window-size change */
@@ -3814,8 +3948,6 @@ ttclos(foo) int foo;
 #endif /* CK_ANSIC */
 {
     int xx;
-    /* Set both before and after sigsetjmp() below; must survive a */
-    /* longjmp() back. */
 #ifdef CK_ANSIC
     volatile int x = 0;
 #else
@@ -5579,15 +5711,34 @@ ttlock(ttdev) char *ttdev;
 #endif /* LINUXFSSTND */
             (int) pid
             );                          /* safe */
-    dummy = (int)write(lockfd, pid_str, 11);
+    x = (int)strlen(pid_str);
+    n = (int)write(lockfd, pid_str, x);
     debug(F111,"ttlock hdb pid string",pid_str,(int) pid);
 
 #else /* Not PIDSTRING, use integer PID */
 
-    write(lockfd, (char *)&pid, sizeof(pid) );
+    x = (int)sizeof(pid);
+    n = (int)write(lockfd, (char *)&pid, sizeof(pid));
     debug(F101,"ttlock pid","",(int) pid);
 
 #endif /* PIDSTRING */
+
+/*
+  A lock file without a complete PID never looks stale, and it would
+  lock the device until someone removed it by hand.  So when the write
+  fails, remove the temporary file and use the device without a lock.
+*/
+    if (n != x) {
+        debug(F111,"ttlock pid write failed",tmpnam,n);
+        close(lockfd);
+        unlink(tmpnam);
+        if (priv_chk())
+          debug(F100,"ttlock priv_chk failed to drop privileges","",0);
+        printf("Warning - Can't write lockfile %s - %s not locked\n",
+               flfnam, ttdev);
+        *flfnam = '\0';
+        return(0);
+    }
 
 /* Now try to rename the temp file to the real lock file name. */
 /* This will fail if a lock file of that name already exists.  */
@@ -5831,6 +5982,22 @@ ttlock(ttdev) char *ttdev;
 #endif /* DEBUG */
 
 /*
+  A lock file without a complete PID never looks stale.  When the write
+  fails, remove the temporary file and use the device without a lock.
+*/
+    if (i != (int)sizeof(pid)) {
+        close(lockfd);
+        unlink(tmpnam);
+        priv_chk();
+        printf("Warning - Can't write lockfile %s - %s not locked\n",
+               flfnam, ttdev);
+        *flfnam = '\0';
+        lock2[0] = '\0';
+        debug(F101,"TTLOCK returns","",0);
+        return(0);
+    }
+
+/*
   Now try to rename the temporary file to the real lockfile name.
   This will fail if a lock file of that name already exists, which
   will catch race conditions with other users.
@@ -5848,9 +6015,14 @@ ttlock(ttdev) char *ttdev;
                     lockfd = creat(lock2, 0444); /* Create it */
                     debug(F111,"TTLOCK lock2 creat", lock2, lockfd);
                     if (lockfd > -1) {  /* Created OK, write pid. */
-                        write(lockfd, (char *)&pid, sizeof(pid) );
+                        i = write(lockfd, (char *)&pid, sizeof(pid));
                         close(lockfd);  /* Close and */
-                        chmod(lock2, 0444); /* set permissions. */
+                        if (i == (int)sizeof(pid)) {
+                            chmod(lock2, 0444); /* set permissions. */
+                        } else {        /* Remove a lock without a PID. */
+                            unlink(lock2);
+                            lock2[0] = '\0';
+                        }
                     } else {             /* Not OK, but don't fail. */
                         lock2[0] = '\0'; /* Just remember it's not there. */
                     }
@@ -8815,6 +8987,12 @@ mygetbuf() {
         debug(F101,"mygetbuf errno","",errno);
         if (x == -4)             /* myfillbuf() deadline expired: not an */
           return(-4);            /* I/O error, no connection to close. */
+/*
+  A blocking read, such as SSL_read() on a blocking socket, returns -1
+  when the deadline alarm interrupts it.  That is a timeout too.
+*/
+        if (x == -1 && ck_deadline_expired())
+          return(-4);
 #ifdef TCPSOCKET
         if (netconn && ttnet == NET_TCPB) {
 /*
@@ -8898,6 +9076,8 @@ mygetbuf() {
 int
 myfillbuf() {
     int fd, n;
+    int want = sizeof(mybuf);           /* Bytes to read */
+    chksigs();                          /* A signal may have ended a read */
 #ifdef NETCMD
     if (ttpipe)
       fd = fdin;
@@ -9067,23 +9247,19 @@ myfillbuf() {
     }
 #endif /* HAVE_PTYTRAP */
 #endif /* NETPTY */
+#ifdef TNCODE
+#ifdef CK_SSL
+    if (tn_tls_follows_wait())          /* Stop at the end of FOLLOWS */
+      want = 1;
+#endif /* CK_SSL */
+#endif /* TNCODE */
     debug(F101,"myfillbuf calling read() fd","",ttyfd);
 /*
-  ttinl()'s SIGALRM timeout handler (timerh()) calls siglongjmp() whenever the
-  alarm fires.  If it fires while waiting for input, that's fine.  But it could
-  fire after read() has already put data into mybuf, but before mygetbuf()
-  stores the count.  If this happens, that data is lost and ttinl() reports a
-  timeout even though data was read.  Observed under a heavily loaded NetBSD
-  system.
-
-  Letting the alarm interrupt select() is safe and preserves the existing
-  timeout behavior for a connection that truly has nothing to send.  Only once
-  select() confirms data is waiting is SIGALRM blocked, for just the bounded
-  interval it takes to read that data and store the count, so the alarm can no
-  longer land in the middle of it.  If it fired while blocked, it is simply
-  delivered right after unblocking, and ttinl() still times out on its next
-  pass, but the data already read stays in mybuf for that pass to use instead
-  of being silently lost.
+  The deadline alarm handler, deadline_timerh(), sets a flag and returns.
+  select() waits for data no longer than the deadline.  Once select()
+  reports data, SIGALRM is blocked while read() runs and its count is
+  stored in my_count, so an alarm cannot separate the two.  An alarm that
+  arrives meanwhile is delivered when SIGALRM is unblocked.
 */
 #ifdef SELECT
 
@@ -9100,10 +9276,10 @@ myfillbuf() {
         if (rc == 0)                    /* Deadline expired */
           return(-4);
     }
-#endif /* SELECT */
 #ifdef CK_POSIX_SIG
     {
 /*
+  select() has confirmed that data is waiting, so read() does not block.
   The mask has to cover storing the result in my_count, not just the read()
   call, to avoid a race.  Similarly, my_item needs to be reset to -1 here, since
   a deferred alarm firing immediately after SIGALRM is unmasked causes a jump
@@ -9113,14 +9289,26 @@ myfillbuf() {
         sigemptyset(&nset);
         sigaddset(&nset, SIGALRM);
         sigprocmask(SIG_BLOCK, &nset, &oset);
-        n = (int)read(fd, mybuf, sizeof(mybuf));
+        n = (int)read(fd, mybuf, want);
         my_count = n;
         my_item = -1;
         sigprocmask(SIG_SETMASK, &oset, NULL);
     }
 #else /* CK_POSIX_SIG */
-    n = read(fd, mybuf, sizeof(mybuf));
+    n = read(fd, mybuf, want);
 #endif /* CK_POSIX_SIG */
+#else /* SELECT */
+/*
+  Without select(), read() blocks until data arrives.  SIGALRM stays
+  unblocked so the deadline alarm can interrupt it.  A deadline that
+  has already passed would have no alarm left to do so.
+*/
+    if (ck_deadline_expired())
+      return(-4);
+    n = read(fd, mybuf, want);
+    if (n < 0 && errno == EINTR && ck_deadline_expired())
+      return(-4);                       /* Deadline expired */
+#endif /* SELECT */
     debug(F101,"SVORPOSIX myfillbuf read","",n);
     debug(F101,"SVORPOSIX myfillbuf errno","",errno);
     debug(F101,"SVORPOSIX myfillbuf ttcarr","",ttcarr);
@@ -9286,7 +9474,11 @@ myfillbuf() {
 
     errno = 0;
 
+    if (ck_deadline_expired())          /* Expired before the read */
+      return(-4);
     x = read(fd, mybuf, (int) avail);
+    if (x < 0 && errno == EINTR && ck_deadline_expired())
+      return(-4);                       /* Deadline alarm interrupted it */
 #ifdef DEBUG
     if (deblog) {
         debug(F101,"myfillbuf avail","",avail);
@@ -9376,7 +9568,11 @@ myfillbuf() {
     else
 #endif /* NETCMD */
       fd = ttyfd;
+    if (ck_deadline_expired())          /* Expired before the read */
+      return(-4);
     x = read(fd, mybuf, 1);
+    if (x < 0 && errno == EINTR && ck_deadline_expired())
+      return(-4);                       /* Deadline alarm interrupted it */
     return(x > 0 ? x : -3);
 }
 
@@ -9558,6 +9754,39 @@ ttflui() {
     debug(F101,"ttflui ttyfd","",ttyfd); /* Not network */
     if (ttyfd < 0)
       return(-1);
+
+#ifdef NETPTY
+#ifdef SELECT
+/*
+  On the BSDs an input flush of a pty master discards the slave's input
+  queue.  That holds bytes Kermit wrote and the slave has not yet read.
+  So read and discard the bytes queued for the master instead.  ttchk()
+  counts them.  select() confirms each read, since FIONREAD on a macOS
+  pty master can count bytes that read() does not return.
+*/
+    if (ttpty) {
+        char buf[256];
+        int k;
+        n = ttchk();
+        debug(F101,"ttflui pty count","",n);
+        while (n > 0 && CK_FDOK(fd)) {
+            fd_set rfds;
+            struct timeval tv;
+            FD_ZERO(&rfds);
+            FD_SET(fd, &rfds);
+            tv.tv_sec = 0;
+            tv.tv_usec = 0;
+            if (select(fd + 1, &rfds, (fd_set *)0, (fd_set *)0, &tv) < 1)
+              break;
+            k = read(fd, buf, n < (int)sizeof(buf) ? n : (int)sizeof(buf));
+            if (k < 1)
+              break;
+            n -= k;
+        }
+        return(0);
+    }
+#endif /* SELECT */
+#endif /* NETPTY */
 
 #ifdef aegis
     sio_$control((short)yfd, sio_$flush_in, true, st);
@@ -9924,7 +10153,7 @@ conbgt(flag) int flag;
 */
     if (x < 0 && !flag && !sigint_ign) { /* Didn't get good results above... */
 
-        sig_t osigint;
+        ck_sig_t osigint;
 
         osigint = signal(SIGINT,SIG_IGN);       /* What is SIGINT set to? */
         sigint_ign = 1;
@@ -10463,6 +10692,27 @@ in_chk(channel, fd) int channel, fd;
         debug(F101,"in_chk FIONREAD errno","",errno);
     }
 #endif /* DEBUG */
+#ifdef __APPLE__
+#ifdef SELECT
+/*
+  On macOS, FIONREAD on a pty master can count bytes that read() does
+  not return.  The count can equal a packet that Kermit wrote to the
+  pty.  A streaming sender that trusts it waits in rpack() for each
+  packet.  A zero-timeout select() confirms that the master has data.
+*/
+    if (channel != 0 && ttpty && n > 0 && CK_FDOK(fd)) {
+        fd_set rfds;
+        struct timeval tv;
+        FD_ZERO(&rfds);
+        FD_SET(fd, &rfds);
+        tv.tv_sec = 0;
+        tv.tv_usec = 0;
+        if (select(fd + 1, &rfds, (fd_set *)0, (fd_set *)0, &tv) < 1)
+          n = 0;
+        debug(F101,"in_chk pty select count","",n);
+    }
+#endif /* SELECT */
+#endif /* __APPLE__ */
 #else /* FIONREAD not defined */
 /*
   Here, if (netconn && ttnet == NET_TCPB), we might try calling recvmsg()
@@ -10517,6 +10767,8 @@ in_chk(channel, fd) int channel, fd;
 #endif /* Plan9 */
       {
         fd_set rfds;                    /* Read file descriptors */
+        if (!CK_FDOK(fd))               /* select() cannot wait on it */
+          return(0);
 #ifdef BELLV10
         FD_ZERO(rfds);                  /* Initialize them */
         FD_SET(fd,rfds);                /* We want to look at this fd */
@@ -10848,6 +11100,10 @@ ttolwait(fd,wantread,ms) int fd, wantread, ms;
     fd_set fds;
     struct timeval wtv;
 
+    if (!CK_FDOK(fd)) {                 /* select() cannot wait on it */
+        msleep(ms);
+        return;
+    }
     FD_ZERO(&fds);
     FD_SET(fd, &fds);
     wtv.tv_sec = ms / 1000;
@@ -11405,8 +11661,24 @@ ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
         debug(F101,"ttinl eol","",eol);
 
         while (i < max-1) {
+            int fromle = 0;             /* Char came from le_buf */
 #ifdef MYREAD
             errno = 0;
+#ifdef TTLEBUF
+/*
+  tn_wait() pushes buffered lookahead data into le_buf via le_puts().
+  Read that data before any bytes remaining in mybuf.  ttinc() has
+  already decrypted it.
+*/
+            if (le_data) {
+                CHAR lech;
+                if (le_getchar(&lech) > 0) {
+                    n = lech;
+                    fromle = 1;
+                }
+            }
+            if (!fromle)
+#endif /* TTLEBUF */
             /* On encrypted connections myread returns encrypted bytes */
             n = myread();
             if (n < 0) {        /* Timeout or i/o error? */
@@ -11473,7 +11745,7 @@ ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
             /* Get here with char in n */
 
 #ifdef CK_ENCRYPTION
-            if (TELOPT_U(TELOPT_ENCRYPTION) && !pushedback) {
+            if (TELOPT_U(TELOPT_ENCRYPTION) && !pushedback && !fromle) {
                 CHAR ch = (CHAR)n;
                 ck_tn_decrypt((char *)&ch,1);
                 n = ch;
@@ -11540,6 +11812,7 @@ ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
                 continue;
             }
             dest[i++] = (CHAR)(n & ttpmsk);
+            dest[i] = '\0';             /* i < max, so dest[i] is in bounds */
 /*
   If we have not been instructed to wait for a turnaround character, we can go
   by the packet length field.  If turn != 0, we must wait for the end of line
@@ -11605,6 +11878,7 @@ ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
 
 #else /* PARSENSE */
             dest[i++] = n & ttpmsk;
+            dest[i] = '\0';
 #endif /* PARSENSE */
 
     /* Check for end of packet */
@@ -11720,6 +11994,8 @@ ttinl_inner(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
             }
         } /* End of while() */
         ttimoff();
+        if (n >= 0)                     /* Buffer full: return what we have */
+          return(i);
         return(n);
     }
 }
@@ -11771,6 +12047,14 @@ ttinl(dest,max,timo,eol) int max,timo; CHAR *dest, eol;
 #else
     rc = ttinl_inner(dest,max,timo,eol);
 #endif /* PARSENSE */
+/*
+  Some returns from ttinl_inner() leave its timer armed.  saval is set
+  only while that timer is armed, so turn it off here.  The deadline
+  belongs to this read too.
+*/
+    if (saval)
+      ttimoff();
+    ck_deadline_set(0);
 
 #ifdef CK_SSL
     if (oflags > -1)
@@ -11840,18 +12124,13 @@ ttinc(timo) int timo;
         ) {
 #ifdef MYREAD
 /*
-  Untimed read by contract. Save and restore any active deadline around
-  the read, as this branch may be reached during nested Telnet option
-  negotiation inside ttinl().
+  Untimed read.  Telnet option negotiation inside a timed ttinl() reads
+  the rest of an IAC sequence through here.  Any deadline that ttinl()
+  set stays active, so a peer that stops in the middle of a sequence
+  cannot hold the read past ttinl()'s timeout.
 */
-        {
-            ck_deadline_state_t saved_deadline;
-            ck_deadline_save(&saved_deadline);
-            ck_deadline_set(0);
-            /* Comm line failure returns -1 thru myread, so no &= 0377 */
-            n = myread();               /* Wait for a character... */
-            ck_deadline_restore(&saved_deadline);
-        }
+        /* Comm line failure returns -1 thru myread, so no &= 0377 */
+        n = myread();                   /* Wait for a character... */
         /* debug(F000,"ttinc MYREAD n","",n); */
 #ifdef CK_ENCRYPTION
         /* debug(F101,"ttinc u_encrypt","",TELOPT_U(TELOPT_ENCRYPTION)); */
@@ -12159,6 +12438,8 @@ ttwait(fd, secs) int fd, secs;
 {
     int x;
     fd_set rfds;
+    if (!CK_FDOK(fd))                   /* select() cannot wait on it */
+      return(0);
     FD_ZERO(&rfds);
     FD_SET(fd,&rfds);
     tv.tv_sec = secs;
@@ -12208,7 +12489,9 @@ msleep(m) int m;
     debug(F101,"msleep SELECT 1","",m);
     if (m <= 0) return(0);
     if (m >= 1000) {                    /* Catch big arguments. */
+        ck_blockbegin();
         sleep(m/1000);
+        ck_blockend();
         m = m % 1000;
         if (m < 10) return(0);
     }
@@ -12242,15 +12525,21 @@ msleep(m) int m;
     tv.tv_sec = 0;                      /* Use select() */
     tv.tv_usec = m * 1000L;
 #ifdef BSD44
+    ck_blockbegin();
     x = select( 0, (fd_set *)0, (fd_set *)0, (fd_set *)0, &tv );
+    ck_blockend();
     debug(F101,"msleep BSD44 select","",x);
 #else /* BSD44 */
 #ifdef __linux__
+    ck_blockbegin();
     x = select( 0, (fd_set *)0, (fd_set *)0, (fd_set *)0, &tv );
+    ck_blockend();
     debug(F101,"msleep __linux__ select","",x);
 #else /* __linux__ */
 #ifdef BSD43
+    ck_blockbegin();
     x = select( 0, (fd_set *)0, (fd_set *)0, (fd_set *)0, &tv );
+    ck_blockend();
     debug(F101,"msleep BSD43 select","",x);
 #else /* BSD43 */
 #ifdef QNX6
@@ -12726,30 +13015,30 @@ congm() {
     fd = 0;
 #endif /* !BEBOX */
 #ifdef BSD44ORPOSIX
-    if (tcgetattr(fd,&ccold) < 0) return(-1);
-    if (tcgetattr(fd,&cccbrk) < 0) return(-1);
-    if (tcgetattr(fd,&ccraw) < 0) return(-1);
+    if (tcgetattr(fd,&ccold) < 0) { if (fd > 0) close(fd); return(-1); }
+    if (tcgetattr(fd,&cccbrk) < 0) { if (fd > 0) close(fd); return(-1); }
+    if (tcgetattr(fd,&ccraw) < 0) { if (fd > 0) close(fd); return(-1); }
 #else
 #ifdef ATTSV
-    if (ioctl(fd,TCGETA,&ccold)  < 0) return(-1);
-    if (ioctl(fd,TCGETA,&cccbrk) < 0) return(-1);
-    if (ioctl(fd,TCGETA,&ccraw)  < 0) return(-1);
+    if (ioctl(fd,TCGETA,&ccold)  < 0) { if (fd > 0) close(fd); return(-1); }
+    if (ioctl(fd,TCGETA,&cccbrk) < 0) { if (fd > 0) close(fd); return(-1); }
+    if (ioctl(fd,TCGETA,&ccraw)  < 0) { if (fd > 0) close(fd); return(-1); }
 #ifdef VXVE
     cccbrk.c_line = 0;                  /* STTY line 0 for CDC VX/VE */
-    if (ioctl(fd,TCSETA,&cccbrk) < 0) return(-1);
+    if (ioctl(fd,TCSETA,&cccbrk) < 0) { if (fd > 0) close(fd); return(-1); }
     ccraw.c_line = 0;                   /* STTY line 0 for CDC VX/VE */
-    if (ioctl(fd,TCSETA,&ccraw) < 0) return(-1);
+    if (ioctl(fd,TCSETA,&ccraw) < 0) { if (fd > 0) close(fd); return(-1); }
 #endif /* VXVE */
 #else
 #ifdef BELLV10
-    if (ioctl(fd,TIOCGETP,&ccold) < 0) return(-1);
-    if (ioctl(fd,TIOCGETP,&cccbrk) < 0) return(-1);
-    if (ioctl(fd,TIOCGETP,&ccraw) < 0) return(-1);
+    if (ioctl(fd,TIOCGETP,&ccold) < 0) { if (fd > 0) close(fd); return(-1); }
+    if (ioctl(fd,TIOCGETP,&cccbrk) < 0) { if (fd > 0) close(fd); return(-1); }
+    if (ioctl(fd,TIOCGETP,&ccraw) < 0) { if (fd > 0) close(fd); return(-1); }
     debug(F101,"cccbrk.sg_flags orig","", cccbrk.sg_flags);
 #else
-    if (gtty(fd,&ccold) < 0) return(-1);
-    if (gtty(fd,&cccbrk) < 0) return(-1);
-    if (gtty(fd,&ccraw) < 0) return(-1);
+    if (gtty(fd,&ccold) < 0) { if (fd > 0) close(fd); return(-1); }
+    if (gtty(fd,&cccbrk) < 0) { if (fd > 0) close(fd); return(-1); }
+    if (gtty(fd,&ccraw) < 0) { if (fd > 0) close(fd); return(-1); }
 #endif /* BELLV10 */
 #endif /* ATTSV */
 #endif /* BSD44ORPOSIX */
@@ -12758,7 +13047,7 @@ congm() {
         perror("congm error getting Kanji mode");
         debug(F101,"congm error getting Kanji mode","",0);
         km_con = -1;                    /* Make sure this stays undefined. */
-        return(-1);
+        { if (fd > 0) close(fd); return(-1); }
     }
 #endif /* sony_news */
     if (fd > 0)
@@ -13439,8 +13728,14 @@ coninc(timo) int timo;
 
     if (timo <= 0) {                    /* Untimed, blocking read. */
         while (1) {                     /* Keep trying till we get one. */
+            ck_blockbegin();
             n = (int)read(0, &ch, 1);        /* Read a character. */
-            if (n == 0) continue;       /* Shouldn't happen. */
+            ck_blockend();
+            if (n == 0) {               /* End of file */
+                if (!isatty(0))         /* A pipe or file: no more input */
+                  return(-1);
+                continue;
+            }
             if (n > 0) {                /* If read was successful, */
 #ifdef IKSD
 #ifdef CK_ENCRYPTION
@@ -13522,7 +13817,9 @@ coninc(timo) int timo;
     saval = deadline_signal(deadline_timerh); /* Set up timeout handler. */
     xx = alarm(timo);                   /* Set the alarm. */
     debug(F101,"coninc alarm set","",timo);
+    ck_blockbegin();
     n = (int)read(0, &ch, 1);
+    ck_blockend();
     if (n < 0 && ck_deadline_expired())
       n = -2;                           /* Code for timeout. */
     ttimoff();                          /* Turn off timer */
@@ -13552,6 +13849,8 @@ coninc(timo) int timo;
         return(-1);
     }
 #endif /* ! OXOS */
+    if (n == 0)                         /* End of file */
+      return(-1);
     return(n);
 }
 
@@ -13675,7 +13974,7 @@ attdial(ttname,speed,telnbr) char *ttname,*telnbr; long speed; {
     } while ((dialer.c_linestatus & MODEMCONNECTED) == 0);
     /* Turn off O_NDELAY flag now. */
     fcntl(ttyfd, F_SETFL, fcntl(ttyfd, F_GETFL, 0) & ~O_NDELAY);
-    signal(SIGHUP, sighup);             /* hangup on loss of carrier */
+    ck_armhup();                        /* hangup on loss of carrier */
     return(0);                          /* return success */
 }
 
@@ -14711,9 +15010,6 @@ tt_is_secure() {          /* Tells whether the current connection is secure */
 
 #ifdef CK_REDIR
 
-/* External protocol handler parameters from ckuus3.c */
-extern int exp_handler, exp_stderr, exp_timo;
-
 #ifdef SELECT
 #ifdef NETPTY
 
@@ -15003,18 +15299,19 @@ pty_get_status(fd,pid) int fd; PID_T pid;
 
     if (pexitstat > -1)
       return(pexitstat);
+    if (pid <= 0)                       /* No child: waitpid() would take */
+      return(-1);                       /* any child's status */
 
     errno = 0;
-    x = waitpid(pty_fork_pid,&status,WNOHANG);
+    x = waitpid(pid,&status,WNOHANG);
     debug(F111,"pty_get_status waitpid",ckitoa(errno),x);
     if (x <= 0 && errno == 0) {
         debug(F101,"pty_get_status waitpid return","",-1);
         return(-1);
     }
     if (x > 0) {
-        if (x != pty_fork_pid)
-          debug(F101,
-                "pty_get_status waitpid pid doesn't match","",pty_fork_pid);
+        if (x != pid)
+          debug(F101,"pty_get_status waitpid pid doesn't match","",pid);
         debug(F101,"pty_get_status waitpid status","",status);
         debug(F101,"pty_get_status waitpid errno","",errno);
         if (WIFEXITED(status)) {
@@ -15080,8 +15377,36 @@ pty_get_status(fd,pid) int fd; PID_T pid;
     make platformname KFLAGS=-DPTY_NO_NODELAY
 */
 static int have_pty = 0;                /* Do we have a pty? */
+/*
+  PID of the external protocol child.  pty_fork_pid keeps the SET HOST
+  /PTY connection's child.  ttclos() and end_pty() clean up that child.
+*/
+static PID_T xp_pid = -1;
 
-static sig_t save_sigchld;      /* For catching SIGCHLD */
+/*
+  State for ttptyabort().  xp_active is set while the protocol program
+  runs.  xp_masterfd is its pty master.  xp_oflags holds ttyfd's flags
+  to restore, and xp_conn_pid the pty_fork_pid to restore.
+*/
+static int xp_active = 0;
+static int xp_masterfd = -1;
+static int xp_oflags = -1;
+#ifdef USE_CKUPTY_C
+static PID_T xp_conn_pid = -1;
+#endif /* USE_CKUPTY_C */
+
+/* The SIGCHLD handler ttptycmd() replaced.  SIG_ERR: none. */
+static ck_sig_t save_sigchld = SIG_ERR;
+static volatile sig_atomic_t xp_sigchld = 0; /* SIGCHLD in ttptycmd() */
+
+/*
+  Seconds ttptycmd() keeps relaying the pty after SIGCHLD when the pty
+  does not reach end of file.  A process that inherited the slave, such
+  as a background child of the protocol program, keeps it open.
+*/
+#ifndef PTY_EXIT_DRAIN_SECS
+#define PTY_EXIT_DRAIN_SECS 2
+#endif /* PTY_EXIT_DRAIN_SECS */
 
 static VOID
 #ifdef CK_ANSIC
@@ -15090,18 +15415,24 @@ sigchld_handler( int sig )
 sigchld_handler(sig) int sig;
 #endif /* CK_ANSIC */
 {
-    have_pty = 0;                       /* We don't have a pty */
-#ifdef DEBUG
-    if (save_sigchld) {
+/*
+  The handler stays installed until ttptycmd() returns and restores
+  save_sigchld.  ttptycmd() logs the signal when it sees xp_sigchld.
+*/
+    xp_sigchld = 1;                     /* ttptycmd() checks the child */
+}
+
+static VOID
+#ifdef CK_ANSIC
+xp_sigrestore( void )
+#else
+xp_sigrestore()
+#endif /* CK_ANSIC */
+{
+    if (save_sigchld != SIG_ERR) {      /* Put back the saved handler */
         (VOID) signal(SIGCHLD,save_sigchld);
-        save_sigchld = NULL;
+        save_sigchld = SIG_ERR;
     }
-    if (deblog) {
-        debug(F100,"**************","",0);
-        debug(F100,"SIGCHLD caught","",0);
-        debug(F100,"**************","",0);
-    }
-#endif  /* DEBUG */
 }
 #define HAVE_IAC 1
 #define HAVE_CR  2
@@ -15125,11 +15456,16 @@ ttptycmd(s) char *s;
     int pbuf_written = 0;
 
     int ptyfd = -1;                     /* Pty file descriptor */
+#ifdef USE_CKUPTY_C
+    PID_T conn_pid = pty_fork_pid;      /* SET HOST /PTY connection child */
+#endif /* USE_CKUPTY_C */
     int have_net = 0;                   /* We have a network connection */
     int pty_err = 0;                    /* Got error on pty */
+    int pty_gone = 0;                   /* Loop ended with the pty closed */
     int net_err = 0;                    /* Got error on net */
     time_t net_err_deadline = (time_t)0; /* Grace deadline, set once net */
                                         /* dies but the pty child hasn't */
+    time_t xp_exit_deadline = (time_t)0; /* Drain deadline after SIGCHLD */
     int status = -1;                    /* Pty process exit status */
     int rc = 0;                         /* Our return code */
 
@@ -15144,6 +15480,7 @@ ttptycmd(s) char *s;
     fd_set in, out, err;
 #endif /* INTSELECT */
     int nfds = 0;                       /* For select() */
+    int net_buffered = 0;               /* Net input waits in our buffers */
 
     int pset = 0, tset = 0, pnotset = 0, tnotset = 0; /* stats/debuggin only */
     int read_net_bytes = 0;             /* Stats */
@@ -15207,6 +15544,14 @@ ttptycmd(s) char *s;
         }
 #endif /* O_NDELAY */
     }
+/* Restore ttyfd's mode before an early return */
+#ifdef O_NDELAY
+#define TTPTY_RESTORE() \
+    if (ttyfd_oflags > -1) { \
+        fcntl(ttyfd,F_SETFL,ttyfd_oflags); ttyfd_oflags = -1; }
+#else
+#define TTPTY_RESTORE()
+#endif /* O_NDELAY */
 
     pexitstat = -1;                     /* Fork process exit status */
 
@@ -15226,13 +15571,20 @@ ttptycmd(s) char *s;
     debug(F100,"ttptycmd using ckupty.c","",0);
     if (do_pty(&ptyfd,s,1) < 0) {       /* Start the command on a pty */
         debug(F100,"ttptycmd do_pty fails","",0);
+        pty_fork_pid = conn_pid;
+        TTPTY_RESTORE();
         return(0);
     }
+    xp_pid = pty_fork_pid;              /* do_pty() set it to the child */
     masterfd = ptyfd;
     pty_master_fd = ptyfd;
+    xp_masterfd = masterfd;
+    xp_oflags = ttyfd_oflags;
+    xp_conn_pid = conn_pid;
+    xp_active = 1;
     debug(F111,"ttptycmd ptyfd","USE_CKUPTY_C",ptyfd);
     debug(F111,"ttptycmd masterfd","USE_CKUPTY_C",masterfd);
-    debug(F111,"ttptycmd fork pid","USE_CKUPTY_C",pty_fork_pid);
+    debug(F111,"ttptycmd fork pid","USE_CKUPTY_C",xp_pid);
 #ifndef SOLARIS
     /* "ioctl inappropriate on device" for pty master */
     pty_make_raw(masterfd);
@@ -15260,7 +15612,8 @@ ttptycmd(s) char *s;
     }
     if (openpty(&masterfd, &slavefd, NULL, NULL, NULL) == -1) {
         debug(F101,"ttptycmd openpty failed errno","",errno);
-        perror("opentpy");
+        perror("openpty");
+        TTPTY_RESTORE();
         return(0);
     }
     debug(F101,"ttptycmd openpty masterfd","",masterfd);
@@ -15269,18 +15622,40 @@ ttptycmd(s) char *s;
     pty_slave_fd = slavefd;
     debug(F101,"ttptycmd openpty pty_master_fd","",pty_master_fd);
 
-    /* Put pty master in raw mode but let forked app control the slave */
-    pty_make_raw(masterfd);
+    pty_make_raw(masterfd);             /* Put pty master in raw mode */
+
+/*
+  Set the slave's modes and size here, before fork().  The relay may
+  write to the master as soon as the child exists, and the slave must
+  be raw by then.  The program can change the modes after that.
+*/
+    if (tcsetattr(slavefd, TCSANOW, &term) == -1 ||
+        ioctl(slavefd, TIOCSWINSZ, &twin) == -1) {
+        perror("ttptycmd slave pty setup");
+        close(slavefd);
+        close(masterfd);
+        pty_master_fd = pty_slave_fd = -1;
+        TTPTY_RESTORE();
+        return(0);
+    }
+    pty_make_raw(slavefd);
 
     have_pty = 1;                       /* We have an open pty */
+    xp_sigchld = 0;
     save_sigchld = signal(SIGCHLD, sigchld_handler); /* Catch fork quit */
 
-    pty_fork_pid = fork();              /* Make fork for external protocol */
-    debug(F101,"ttptycmd pty_fork_pid","",pty_fork_pid);
-    if (pty_fork_pid == -1) {
+    xp_pid = fork();              /* Make fork for external protocol */
+    debug(F101,"ttptycmd xp_pid","",xp_pid);
+    if (xp_pid == -1) {
         perror("fork");
+        close(slavefd);
+        close(masterfd);
+        pty_master_fd = pty_slave_fd = -1;
+        have_pty = 0;
+        xp_sigrestore();
+        TTPTY_RESTORE();
         return(0);
-    } else if (pty_fork_pid == 0) {     /* In new fork */
+    } else if (xp_pid == 0) {     /* In new fork */
         int fx;
         debug(F101,"ttptycmd new fork pid","",getpid());
         close(masterfd);                /* Slave quarters no masters allowed */
@@ -15297,18 +15672,6 @@ ttptycmd(s) char *s;
             exit(1);
         }
         signal(SIGINT,SIG_IGN);         /* Let upper fork catch this */
-
-        /* Initialize slave pty modes and size to those of our terminal */
-        if (tcsetattr(slavefd, TCSANOW, &term) == -1) {
-            perror("ttptycmd tcsetattr");
-            exit(1);
-        }
-        if (ioctl(slavefd, TIOCSWINSZ, &twin) == -1) {
-            perror("ttptycmd ioctl");
-            exit(1);
-        }
-
-        pty_make_raw(slavefd);          /* Put it in rawmode */
 
         errno = 0;
         if (dup2(slavefd, STDIN_FILENO) != STDIN_FILENO ||
@@ -15359,8 +15722,17 @@ ttptycmd(s) char *s;
         close(slavefd);
         exit(1);
     }
-    /* (there are better ways to do this...) */
-    msleep(1000);                 /* Make parent wait for child to be ready */
+/*
+  The child holds the slave.  Close the parent's copy so that reading
+  the master returns end of file (or EIO) once the child has closed it
+  and its output has been read.
+*/
+    close(slavefd);
+    slavefd = -1;
+    pty_slave_fd = -1;
+    xp_masterfd = masterfd;
+    xp_oflags = ttyfd_oflags;
+    xp_active = 1;
     ptyfd = masterfd;                   /* We talk to the master */
 
 #endif /* USE_CKUPTY_C */
@@ -15368,6 +15740,19 @@ ttptycmd(s) char *s;
     debug(F101,"ttptycmd ptyfd","",ptyfd);
     if (ptyfd < 0) {
         printf("?Failure to get pty\n");
+        xp_active = 0;
+        xp_sigrestore();
+        TTPTY_RESTORE();
+        return(-9);
+    }
+    if (!CK_FDOK(ptyfd)) {              /* select() cannot wait on it */
+        printf("?Pty descriptor exceeds FD_SETSIZE\n");
+        xp_active = 0;
+        if (xp_pid > 0)
+          kill(xp_pid, SIGHUP);
+        close(ptyfd);
+        xp_sigrestore();
+        TTPTY_RESTORE();
         return(-9);
     }
     have_pty = 1;             /* We have an open pty or we wouldn't he here */
@@ -15409,6 +15794,32 @@ ttptycmd(s) char *s;
         debug(F101,"ttptycmd loop top have_pty","",have_pty);
         debug(F101,"ttptycmd loop top have_net","",have_net);
 
+/*
+  SIGCHLD does not end the relay.  The program's last output may still
+  be in the pty.  The read that returns end of file ends the pty side
+  after that output.  If the pty is still open PTY_EXIT_DRAIN_SECS after
+  SIGCHLD, ask for the program's status.  When it has exited, stop
+  reading the pty.  When it has not, the signal came from another
+  child, and the relay goes on.
+*/
+        if (xp_sigchld && have_pty) {
+            if (!xp_exit_deadline) {
+                debug(F100,"ttptycmd SIGCHLD","",0);
+                xp_exit_deadline =
+                  time((time_t *)0) + PTY_EXIT_DRAIN_SECS;
+            } else if (time((time_t *)0) >= xp_exit_deadline) {
+                xp_sigchld = 0;
+                xp_exit_deadline = 0;
+                status = pty_get_status(ptyfd,xp_pid);
+                debug(F101,"ttptycmd pty_get_status SIGCHLD","",status);
+                if (status > -1) {
+                    pexitstat = status;
+                    pty_err++;
+                    have_pty = 0;
+                }
+            }
+        }
+
         /*
           ttyfd is a global, and ttclos() (called elsewhere, such as from
           mygetbuf()'s TCP EOF handling) can set it to -1 out from under this
@@ -15418,7 +15829,7 @@ ttptycmd(s) char *s;
           a potential problem since FD_SET's bitwise arithmetic might act on the
           bogus value.  Treat it exactly like any other net error.
         */
-        if (have_net && ttyfd == -1) {
+        if (have_net && !CK_FDOK(ttyfd)) {
             net_err++;
             have_net = 0;
             /*
@@ -15431,8 +15842,8 @@ ttptycmd(s) char *s;
               (after the child has exited). A child that was about to exit just
               gets a redundant, and harmless, signal.
             */
-            if (have_pty && pty_fork_pid > 0)
-              kill(pty_fork_pid, SIGHUP);
+            if (have_pty && xp_pid > 0)
+              kill(xp_pid, SIGHUP);
         }
 
         /* Pty is open and we have room to read from it? */
@@ -15500,17 +15911,21 @@ ttptycmd(s) char *s;
             does that).  This can only help if select()'s readiness signal is
             being missed or delayed, and costs little unless the timeout is too
             low.
-
-            A raw TCP/IP connection's ttyfd radiness is also missed by this same
-            select() on Linux when running an external protocol such as Zmodem
-            over a CONNECT-mode autodownload.  Every inbound protocol frame goes
-            undetected by select() and is only found once this timeout fires and
-            the "poll again" fallback below calls in_chk() directly. The timeout
-            value is a direct floor on how long each undetected frame waits, so
-            don't set it too high.
             */
             pctv.tv_sec = 0L;
             pctv.tv_usec = 100000L;
+            tv2 = &pctv;
+        }
+/*
+  Bytes already in myread()'s buffer, ttpush or le_buf do not make
+  ttyfd readable.  When there are any and tbuf has room, select() only
+  polls, and the ttyfd read takes them.
+*/
+        net_buffered = (have_net && have_pty && ttyfd_oflags == -1 &&
+                        tbuf_avail < PTY_TBUF_SIZE && ttpeek() > 0);
+        if (net_buffered) {
+            pctv.tv_sec = 0L;
+            pctv.tv_usec = 0L;
             tv2 = &pctv;
         }
         x = select(nfds, &in, &out, NULL, tv2);
@@ -15520,6 +15935,21 @@ ttptycmd(s) char *s;
               continue;
             debug(F101,"ttptycmd select error","",errno);
             break;
+        }
+        if (net_buffered && CK_FDOK(ttyfd)) {
+            debug(F101,"ttptycmd net buffered","",ttpeek());
+            if (x == 0) {
+                FD_ZERO(&in);
+                FD_ZERO(&out);
+                if (have_pty && pbuf_avail < PTY_PBUF_SIZE)
+                  FD_SET(ptyfd, &in);
+                if (have_pty && tbuf_avail - tbuf_written > 0)
+                  FD_SET(ptyfd, &out);
+                if (pbuf_avail - pbuf_written > 0)
+                  FD_SET(ttyfd, &out);
+            }
+            FD_SET(ttyfd, &in);
+            goto ttptycmd_do_io;
         }
         if (x == 0) {
             debug(F101,"ttptycmd +++ select timeout","",seconds_to_wait);
@@ -15544,21 +15974,16 @@ ttptycmd(s) char *s;
                   asynchronously, so it has to be rechecked here too to prevent
                   running on a negative fd.
 
-                  ttyfd is also excluded from this synthetic readiness when it's
-                  an SSL/TLS connection.  Unlike the TCP socket case, an SSL
-                  ttyfd is never put in O_NDELAY, so the read/write handling
-                  below reaches ttinc(2) for it: an alarm-bounded blocking read,
-                  not a cheap EAGAIN check.  Calling that speculatively, once
-                  per select() timeout with nothing available, turns every 100ms
-                  poll into a potential 2-second stall.  Skipping the synthesis
-                  here for SSL/TLS costs nothing; a real select() readiness on
-                  the next iteration still reaches the same code, and
-                  SSL_pending() reading 0 despite select() saying ready is
-                  exactly the case the "offer full buffer" logic
-                  handles safely.
+                  A ttyfd not in O_NDELAY (a TCP or SSL/TLS connection) gets
+                  this synthetic readiness only when in_chk() counts input.
+                  The ttyfd read reaches ttinc(2) for it: an alarm-bounded
+                  blocking read, not a cheap EAGAIN check.  With nothing
+                  available, it would turn a 100ms poll into a stall of up to
+                  2 seconds.  A real select() readiness on the next iteration
+                  still reaches the same code.
 
                 */
-                if (have_net && ttyfd == -1) {
+                if (have_net && !CK_FDOK(ttyfd)) {
                     net_err++;
                     have_net = 0;
                     /* See the identical have_net && ttyfd check and comment
@@ -15566,19 +15991,15 @@ ttptycmd(s) char *s;
                        external-protocol child now that the network is
                        confirmed gone, rather than waiting on the child's
                        own protocol timeout. */
-                    if (have_pty && pty_fork_pid > 0)
-                      kill(pty_fork_pid, SIGHUP);
+                    if (have_pty && xp_pid > 0)
+                      kill(xp_pid, SIGHUP);
                 }
                 FD_ZERO(&in);
                 FD_ZERO(&out);
                 if (have_pty && pbuf_avail < PTY_PBUF_SIZE)
                   FD_SET(ptyfd, &in);
-                if (have_net && have_pty && tbuf_avail < PTY_TBUF_SIZE
-#ifdef CK_SSL
-                    && !((ssl_active_flag || tls_active_flag) &&
-                         ttyfd_oflags == -1)
-#endif /* CK_SSL */
-                    )
+                if (have_net && have_pty && tbuf_avail < PTY_TBUF_SIZE &&
+                    (ttyfd_oflags > -1 || in_chk(1,ttyfd) > 0))
                   FD_SET(ttyfd, &in);
                 if (have_pty && tbuf_avail - tbuf_written > 0)
                   FD_SET(ptyfd, &out);
@@ -15587,7 +16008,7 @@ ttptycmd(s) char *s;
                 goto ttptycmd_do_io;
             }
             if (have_pty) {
-                status = pty_get_status(ptyfd,pty_fork_pid);
+                status = pty_get_status(ptyfd,xp_pid);
                 debug(F101,"ttptycmd pty_get_status A","",status);
                 if (status > -1) pexitstat = status;
                 have_pty = 0;
@@ -15725,7 +16146,7 @@ ttptycmd(s) char *s;
                 x = 0;
                 pty_err++;
                 if (pexitstat < 0) {
-                    status = pty_get_status(ptyfd,pty_fork_pid);
+                    status = pty_get_status(ptyfd,xp_pid);
                     debug(F101,"ttptycmd pty_get_status B","",status);
                     if (status > -1) pexitstat = status;
                     have_pty = 0;
@@ -15825,6 +16246,13 @@ ttptycmd(s) char *s;
                           x = 0;
                         else
                           debug(F101,"ttptycmd read net error","",x);
+                    } else if (x == 0 && n > 0) {
+/*
+  The connection's pty reached end of file.  Linux returns EIO here.
+  The BSDs return 0.
+*/
+                        debug(F100,"ttptycmd ttyfd end of file","",0);
+                        x = -1;
                     }
                 } else if (xlocal && netconn) {
                     /*
@@ -15837,28 +16265,21 @@ ttptycmd(s) char *s;
                     p = tbuf + tbuf_avail;
                     p0 = p;
                     for (x = 0; x < n; x++) {
-                        if (ttnet == NET_PTY) {
 /*
-  n came from in_chk()'s FIONREAD count, which on MacOS ptys is not reliable.
-  Re-check availability before every byte instead of trusting the original
-  FIONREAD for the whole loop, so an optimistic count makes us stop early rather
-  than hang.  The in_chk() call is fairly cheap in isolation.
+  After the first byte, read on only while input is waiting.  n can
+  overstate it.  FIONREAD on a macOS pty is not reliable.  On SSL/TLS
+  n is the whole free buffer.  tn_doop() reads the bytes of a Telnet
+  command without counting them.  A ttinc(2) with nothing waiting
+  stops the relay for up to 2 seconds.
 
-  Skip this check for the very first byte when x is 0 (see next comment).
-  Rechecking would reintroduce the busy spin.
-
-  Gated to NET_PTY specifically; this whole branch of code only runs when
-  ttyfd_oflags == -1, which doesn't itself distinguish a pty without O_NDELAY
-  from a plain TCP socket.  FIONREAD on a real TCP socket is not subject to the
-  same macOS pty lying bug, so the original n is trustworthy for the whole loop
-  there.  Testing  during a 20MB TCP Zmodem transfer confirmed the cost of
-  getting this wrong: 65% of all sampled time was inside this ioctl(), called
-  once per byte instead of once per read.
-
+  ttpeek() counts the bytes in our buffers.  in_chk() runs only when
+  they are used up, so it costs one FIONREAD per socket read.  It
+  counts what the kernel holds and, on SSL/TLS, what OpenSSL holds.
+  Skip the check for byte 0.  select() reported it, and a FIONREAD of
+  0 at end of file would leave select() reporting it again.
 */
-                            if (x > 0 && in_chk(1,ttyfd) <= 0)
-                              break;
-                        }
+                        if (x > 0 && ttpeek() <= 0 && in_chk(1,ttyfd) <= 0)
+                          break;
 /*
   Even byte x==0, "guaranteed safe" by select() above, is not actually safe to
   read with an unbounded ttinc(0): the same FIONREAD unreliability responsible
@@ -15954,6 +16375,7 @@ ttptycmd(s) char *s;
                 if (x < 0) {
                     debug(F101,"ttptycmd read net error","",x);
                     net_err++;
+                    x = 0;              /* Nothing was read */
                 }
                 tbuf_avail += x;
                 read_net_bytes += x;
@@ -16055,7 +16477,7 @@ ttptycmd(s) char *s;
                     pty_err++;          /* but not NetBSD */
                     debug(F100,"TERMINATION TEST A","",0);
                     if (pexitstat < 0) {
-                        status = pty_get_status(ptyfd,pty_fork_pid);
+                        status = pty_get_status(ptyfd,xp_pid);
                         debug(F101,"ttptycmd pty_get_status C","",status);
                         if (status > -1) pexitstat = status;
                     }
@@ -16079,7 +16501,7 @@ ttptycmd(s) char *s;
 */
                     debug(F100,"TERMINATION TEST B","",0);
                     status = pexitstat > -1 ? pexitstat :
-                        pty_get_status(ptyfd,pty_fork_pid);
+                        pty_get_status(ptyfd,xp_pid);
                     debug(F101,"ttptycmd pty_get_status D","",status);
                     if (status > -1) {
                         pexitstat = status;
@@ -16178,7 +16600,7 @@ ttptycmd(s) char *s;
         if (pty_err) {                  /* Pty error? */
             if (have_pty) {
                 if (pexitstat < 0) {
-                    status = pty_get_status(ptyfd,pty_fork_pid);
+                    status = pty_get_status(ptyfd,xp_pid);
                     debug(F101,"ttptycmd pty_get_status E","",status);
                     if (status > -1) pexitstat = status;
                 }
@@ -16191,6 +16613,7 @@ ttptycmd(s) char *s;
             }
         }
     }
+    xp_active = 0;                      /* ttptyabort() has nothing to do */
 #ifdef O_NDELAY
     if (ttyfd_oflags > -1) {            /* Restore ttyfd's original mode: */
         fcntl(ttyfd,F_SETFL,ttyfd_oflags); /* it's shared with the rest of */
@@ -16198,21 +16621,38 @@ ttptycmd(s) char *s;
     }
 #endif /* O_NDELAY */
     debug(F101,"ttptycmd +++ have_pty","",have_pty);
+    pty_gone = !have_pty;               /* The program closed the pty */
     if (have_pty) {                     /* In case select() failed */
 #ifdef USE_CKUPTY_C
         end_pty();
         close(ptyfd);
+        pty_fork_pid = conn_pid;
 #else
-        close(slavefd);
+        if (slavefd > -1)
+          close(slavefd);
         close(masterfd);
 #endif /* USE_CKUPTY_C */
     }
     pty_master_fd = -1;
     debug(F101,"ttptycmd +++ pexitstat","",pexitstat);
     if (pexitstat < 0) {                /* Try one last time to get status */
-        status = pty_get_status(ptyfd,pty_fork_pid);
+        status = pty_get_status(ptyfd,xp_pid);
         debug(F101,"ttptycmd pty_get_status F","",status);
         if (status > -1) pexitstat = status;
+    }
+/*
+  The pty closed, so the program is exiting, but it may not have exited
+  yet.  Wait up to two seconds for its status rather than take the
+  transfer as failed and send it SIGHUP.
+*/
+    if (pexitstat < 0 && pty_gone && xp_pid > 0) {
+        int tries;
+        for (tries = 0; tries < 40 && pexitstat < 0; tries++) {
+            msleep(50);
+            status = pty_get_status(ptyfd,xp_pid);
+            if (status > -1) pexitstat = status;
+        }
+        debug(F101,"ttptycmd pty_get_status G tries","",tries);
     }
     debug(F101,"ttptycmd +++ final pexitstat","",pexitstat);
     if (deblog) {                       /* Stats for debug log */
@@ -16231,25 +16671,18 @@ ttptycmd(s) char *s;
   to set our return code.  If not, we fall back on whatever rc was previously
   set to, namely 1 (success) if the pty fork seemed to terminate, 0 otherwise.
 */
-    if (save_sigchld) {                 /* Restore this if we changed it */
-        (VOID) signal(SIGCHLD,save_sigchld);
-        save_sigchld = NULL;
-    }
+    xp_sigrestore();
     msleep(500);
     /*
-      pty_fork_pid can already be -1 here if end_pty() ran above.  It
-      resets the global once it tears down the child.  kill(-1,...)
-      means to send the signal to every process kermit has permission to
-      signal, which can kill far more than just the kermit-related
-      processes.  This guard ensures we never do that.
+      kill(-1,...) sends the signal to every process kermit has
+      permission to signal, so the kill requires xp_pid > 0.
 
-      pexitstat > -1 means the child was already reaped earlier in this
-      function, through a path that doesn't clear pty_fork_pid.  Skip the kill
+      pexitstat > -1 means the child was already reaped.  Skip the kill
       whenever the child is already known to be gone.
     */
-    x = (pty_fork_pid > 0 && pexitstat < 0) ?
-      kill(pty_fork_pid,SIGHUP) : 0;
-    pty_fork_pid = -1;
+    x = (xp_pid > 0 && pexitstat < 0) ?
+      kill(xp_pid,SIGHUP) : 0;
+    xp_pid = -1;
     debug(F101,"ttptycmd fork kill SIGHUP","",x);
     if (pexitstat > -1)
       rc = (pexitstat == 0 ? 1 : 0);
@@ -16259,6 +16692,53 @@ ttptycmd(s) char *s;
         concb((char)escchr);
     }
     return(rc);
+}
+#undef TTPTY_RESTORE
+
+/*  T T P T Y A B O R T  --  End a transfer that trap() interrupted  */
+
+/*
+  trap() leaves ttptycmd() with a longjmp that skips the end of that
+  function.  ttptyabort() does that part.  It restores ttyfd's flags,
+  closes the pty, stops and reaps the protocol program, and restores
+  the SIGCHLD handler.  pexitstat > -1 means pty_get_status() already
+  reaped the program and closed the pty.
+*/
+VOID
+ttptyabort() {
+    int i, status;
+
+    if (xp_active) {
+        xp_active = 0;
+        debug(F101,"ttptyabort xp_pid","",xp_pid);
+#ifdef O_NDELAY
+        if (xp_oflags > -1 && ttyfd > -1)
+          fcntl(ttyfd,F_SETFL,xp_oflags);
+#endif /* O_NDELAY */
+        xp_oflags = -1;
+#ifdef USE_CKUPTY_C
+        end_pty();
+        pty_fork_pid = xp_conn_pid;
+#endif /* USE_CKUPTY_C */
+        if (xp_masterfd > -1 && pexitstat < 0)
+          close(xp_masterfd);
+        xp_masterfd = -1;
+        pty_master_fd = -1;
+        if (xp_pid > 0 && pexitstat < 0) {
+            kill(xp_pid,SIGHUP);
+            for (i = 0; i < 20; i++) {  /* Up to 200 ms to exit */
+                if (waitpid(xp_pid,&status,WNOHANG) != 0)
+                  break;
+                msleep(10);
+            }
+            if (i == 20) {
+                kill(xp_pid,SIGKILL);
+                (VOID) waitpid(xp_pid,&status,0);
+            }
+        }
+        xp_pid = -1;
+    }
+    xp_sigrestore();
 }
 #endif  /* NETPTY */
 #endif  /* SELECT */
@@ -16333,8 +16813,8 @@ external protocols over secure connections not supported in this OS.\n"
         debug(F101,"ttruncmd system",s,x);
         _exit(x ? BAD_EXIT : 0);
     } else {
-        sig_t istat;
-        sig_t qstat;
+        ck_sig_t istat;
+        ck_sig_t qstat;
         if (pid == (PID_T) -1)          /* fork() failed? */
           return(0);
         istat = signal(SIGINT,SIG_IGN); /* Let the fork handle keyboard */

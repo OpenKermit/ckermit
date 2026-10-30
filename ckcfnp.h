@@ -99,6 +99,7 @@ int dquote( char * fn, int len, int flag );
 void makestr(char **p, const char *s);
 void xmakestr(char **p, const char *s);
 CKFLOAT ckround( CKFLOAT, int, char *, int );
+long ckftol( CKFLOAT );
 int chknum( char * );
 int rdigits( char * s );
 char * parnam( char c );
@@ -303,6 +304,7 @@ int getyesno( char *, int );
 int gnirts( char *, char *, int );
 int hasdotdot( char * );
 void rq_confirm_start( char *, int, int, int );
+void rq_confirm_asname( char * );
 int rq_confirm_check( char * );
 int rq_under_root( char *, char * );
 #ifndef OS2
