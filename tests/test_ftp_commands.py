@@ -405,10 +405,12 @@ def test_ftp_transfer_interrupted(wermit_path, tmp_path, command):
         os.write(fd, b"exit\r")
         pty_in.drain(5)
     finally:
+        # Close the master first.  A session leader that exits with
+        # output pending can wait for the master to read it.
         if proc.poll() is None:
             proc.kill()
-        proc.wait()
         os.close(fd)
+        proc.wait()
         peer.close()
     text = pty_in.out.decode(errors="replace")
     assert closed, (peer.commands, text[-1000:])

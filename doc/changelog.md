@@ -248,7 +248,7 @@ COMPATIBILITY`.
   RECEIVE PATHNAMES AUTO, and the listed ENABLE settings for both sides.
   Neither restores the C-Kermit 9 prompt, `SET TELNET WAIT`, or `SET TCP
   CONNECT-TIMEOUT`.  The CONNECT-TIMEOUT default has been 30 seconds since
-  11.0.510.  Bugs were introduced in commits f8e56a89 and 1260091f in C-Kermit
+  11.0.510.  Bugs were introduced in commit f8e56a89 in C-Kermit
   11.0.506 of 2026.
 
 - HELP ENABLE, HELP DISABLE, HELP REMOTE QUERY, HELP REMOTE ASSIGN and
@@ -542,7 +542,7 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   every fragment written to it.  A killed process still leaves every
   complete line on disk.  The `CK_DEBUG_UNBUFFERED` environment variable
   is removed.  It had no effect, since every fragment was flushed.  The
-  per-fragment flush was introduced in commits 43c4c8ce and 62c2d7d8 in
+  per-fragment flush was introduced in commits 43c4c8ce and ad0b6b97 in
   C-Kermit 11.0.501 of 2026.
 
 ### File transfer and the server
@@ -900,7 +900,7 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   was introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.  The `++`,
   `--`, ABS, MAX, MIN and comparison bugs were introduced in commit 0fd869b4 in
   C-Kermit 9.0.302 of 2011.  The CEILING, FLOOR, TRUNCATE and ROUND bug was
-  introduced in commit cfc424ff, and the wrap in commit ba8d78d5, both in
+  introduced in commit cfc424ff, and the wrap in commit 337365fb, both in
   C-Kermit 11.0.512 of 2026.
 
 - [7] WAIT n FILE succeeded on timeout even if the event never happened.  Bug
@@ -1667,7 +1667,7 @@ relationship between the different Kermit versions.
   cause the parser to hang.
   
 - [11] Disabled MAIL and PRINT handling by default (dc67bddb), and hardened the
-  handling of them to prevent shell injection attacks (23ec7368).
+  handling of them to prevent shell injection attacks (a6258bc2).
 
 - [11] Added new receive confirmation, which prompts for confirmation before
   receiving a file with a name that wasn't specifically requested locally.  This
@@ -2212,7 +2212,7 @@ relationship between the different Kermit versions.
   cause the parser to hang.
   
 - [11] Disabled MAIL and PRINT handling by default (dc67bddb), and hardened the
-  handling of them to prevent shell injection attacks (23ec7368).
+  handling of them to prevent shell injection attacks (a6258bc2).
 
 - [10] Changed the default value of SET VARIABLE-EVALUATION to SIMPLE
   (non-recursive) to avoid evaluation issues with backslashes in pathnames on

@@ -1,4 +1,5 @@
 import errno
+import faulthandler
 import fcntl
 import os
 import pty
@@ -9,6 +10,7 @@ import shutil
 import socket
 import subprocess
 import termios
+import threading
 import pytest
 from pathlib import Path
 import logging
@@ -202,6 +204,89 @@ def pytest_configure(config):
             and config.getvalue("timeout") is None
             and "PYTEST_TIMEOUT" not in os.environ):
         config._env_timeout *= timeout_scale()
+    global _stall_fd
+    if _stall_fd is None:
+        _stall_fd = os.dup(2)
+
+
+# A test that runs for STALL_REPORT_FRACTION of the pytest-timeout limit
+# gets a stall report on _stall_fd.  _stall_fd is a copy of fd 2 made in
+# pytest_configure() while output capture is suspended.  Under xdist, a
+# worker's stdout goes to /dev/null and its fd 2 reaches the terminal.
+# The report names the test, lists the processes under this one with
+# their kernel wait channels, and dumps the stack of every thread.
+# pytest-timeout (timeout_method = thread) then ends the process, and
+# xdist names the test in the failure.
+STALL_REPORT_FRACTION = 0.9
+_stall_fd = None
+
+
+def _descendant_processes():
+    """Return ps lines for the descendants of this process.
+
+    The first line is the ps header.  Return an empty list when ps
+    fails.
+    """
+    try:
+        lines = subprocess.run(
+            ["ps", "-A", "-o", "pid,ppid,stat,wchan,etime,args"],
+            stdin=subprocess.DEVNULL, capture_output=True, text=True,
+            timeout=30).stdout.splitlines()
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if not lines:
+        return []
+    rows = {}
+    children = {}
+    for line in lines[1:]:
+        fields = line.split(None, 2)
+        if len(fields) < 2 or not (fields[0].isdigit()
+                                   and fields[1].isdigit()):
+            continue
+        pid, ppid = int(fields[0]), int(fields[1])
+        rows[pid] = line
+        children.setdefault(ppid, []).append(pid)
+    found = []
+    todo = [os.getpid()]
+    while todo:
+        for kid in children.get(todo.pop(), []):
+            found.append(rows[kid])
+            todo.append(kid)
+    return [lines[0]] + found if found else []
+
+
+def _report_stall(nodeid, seconds):
+    """Write a stall report for test nodeid to _stall_fd."""
+    procs = _descendant_processes() or ["(none)"]
+    text = (f"\n+++ stalled: {nodeid} running for {seconds:.0f} s "
+            f"in pid {os.getpid()} +++\n"
+            "Processes under this one:\n" + "\n".join(procs) + "\n")
+    try:
+        os.write(_stall_fd, text.encode(errors="replace"))
+        faulthandler.dump_traceback(file=_stall_fd, all_threads=True)
+        os.write(_stall_fd, f"+++ end stall: {nodeid} +++\n".encode())
+    except OSError:
+        pass
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_runtest_protocol(item, nextitem):
+    """Arm a stall report for item at STALL_REPORT_FRACTION of its limit.
+
+    The limit covers setup, call, and teardown.
+    """
+    limit = getattr(item.config, "_env_timeout", None)
+    if not limit or _stall_fd is None:
+        return (yield)
+    seconds = limit * STALL_REPORT_FRACTION
+    timer = threading.Timer(seconds, _report_stall,
+                            (item.nodeid, seconds))
+    timer.daemon = True
+    timer.start()
+    try:
+        return (yield)
+    finally:
+        timer.cancel()
 
 
 # Tests with these markers are slow.  A default run leaves them out to
