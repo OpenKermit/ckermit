@@ -999,48 +999,10 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
 
 ### Builds, help and documentation
 
-- [5, 6, 7, 9, 11] HELP and SHOW stated wrong defaults.  HELP gave SET FUNCTION
-  ERROR (ON, not OFF), SET IKS CDMESSAGE (OFF, not ON), SET UNKNOWN-CHAR-SET
-  (KEEP, not DISCARD), SET WINDOW-SIZE (30, not one) and SET TERMINAL
-  CHARACTER-SET (the same set on both sides, not TRANSPARENT).  HELP SET
-  TRANSFER MODE and HELP SET FILE named AUTOMATIC as the TRANSFER MODE default.
-  The default is MANUAL.  HELP SET INCOMPLETE, SET TCP LINGER and SET SERVER
-  DISPLAY also stated wrong defaults.  HELP SET VARIABLE-EVALUATION and the
-  11.0.504 and 11.0.506 notes said the default was `SIMPLE`.  The default is
-  `RECURSIVE`, as it has been since the command was added in C-Kermit 9.0.302.
-  SHOW FILE and SHOW PROTOCOL showed the FILE COLLISION default as "discard"
-  instead of "reject".  HELP SET DIAL RETRIES gave 0 as the default.  It now
-  says that RETRIES counts attempts, and that without a setting DIAL makes 10
-  attempts for country code 1 and one otherwise.  HELP SET HOST now says that
-  SET HOST with no host name closes the connection.  HELP REMOTE QUERY offered
-  the Kermit-variable help for system and user variables.  The errors date from
-  commits a213649d (5A(188) of 1992), 4b5eddea (6.0.192 of 1996), d0f8b1da
-  (7.0.197 of 2000) and 0fd869b4 (9.0.302 of 2011), and from commits cdd2e257
-  and 4f611d0c (11.0.501 of 2026).
-
-- The test suite leaves out its slow tests by default.  These are the
-  tests that wait out a timeout on purpose, marked `slow`, and the
-  ZMODEM transfers with lrzsz, marked `zmodem`.  `pytest --full`, or
-  `KERMIT_TEST_FULL=1`, runs them.  CI runs the full suite.  A hang
-  limit in the suite is now at least 60 s, so a loaded or emulated
-  build host does not fail a test that would pass.  The default run is
-  meant for integrators on slow platforms.  `tests/README.txt`
-  describes both.
-
-- HELP RESEND, HELP SET RECEIVE CONFIRM, HELP SET FTP TIMEOUT, HELP
-  FIREWALL and HELP SET FTP PASSIVE-MODE now describe the new RESEND,
-  RECEIVE CONFIRM, FTP active-mode timeout and FTP PASV rules.
-
-- HELP now covers LICENSE, LINEOUT, LOGIN, PTY, UNDECLARE, SET
-  DESTINATION, SET FLAG, SET HINTS, SET LOGIN and SET QNX-PORT-LOCK,
-  along with second- and third-level keywords that were missing from
-  their HELP topics.  SET SEND NEGOTIATION-STRING-MAX-LENGTH and SET
-  RECEIVE NEGOTIATION-STRING-MAX-LENGTH are now listed by `?`, completed
-  by Esc and Tab, and described in HELP SET SEND and HELP SET RECEIVE.
-  SET RECEIVE I-PACKETS was accepted and did nothing.  It now reports
-  that I-PACKETS applies only to SET SEND.  HELP SCREEN, HELP CLEAR,
-  HELP SET SEND, HELP SET RECEIVE, HELP FTP MPUT and HELP FTP MGET now
-  name the actual keywords and switches.
+- [5, 6, 7, 9, 11] Fixed wrong documented defaults in numerous HELP and SHOW
+  commands.  The errors date from commits a213649d (5A(188) of 1992), 4b5eddea
+  (6.0.192 of 1996), d0f8b1da (7.0.197 of 2000) and 0fd869b4 (9.0.302 of 2011),
+  and from commits cdd2e257 and 4f611d0c (11.0.501 of 2026).
 
 - [7] A build without streaming support (`-DNOSTREAMING`) could not send
   files.  The sender never read the receiver's replies, and it got no send
@@ -1061,7 +1023,24 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   36668be5 and 3b1a95d6 (11.0.501), 8209ea02 (11.0.508) and 30ab9d4f
   (11.0.512), all of 2026.
 
+- The Python test suite continues to run the entire suite in CI, but doesn't run
+  two classes of tests by default now: the ZModem tests, and tests known to be
+  slow to run and not normally very valuable.  These are marked with `zmodem`
+  and `slow`, respectively.  `pytest --full` or `KERMIT_TEST_FULL=1` runs the
+  entire suite, including those.  Also, a hang limit in the suite is now at
+  least 60 s, so a loaded or emulated build host does not fail a test that would
+  pass.  These changes are designed to help integrators that support legacy,
+  slow hardware.  `tests/README.txt` describes both.
+
+- HELP RESEND, HELP SET RECEIVE CONFIRM, HELP SET FTP TIMEOUT, HELP
+  FIREWALL and HELP SET FTP PASSIVE-MODE now describe the new RESEND,
+  RECEIVE CONFIRM, FTP active-mode timeout and FTP PASV rules.
+
+- Added HELP text for a number of missing commands and settings.
+
 ## Summary of changed behavior
+
+This section highlights the most relevant changed behavior in this release.
 
 - [4, 6] A server with HOST disabled refuses PUSH within REMOTE QUERY.
   REMOTE WHO and REMOTE SPACE run without the shell.  A Unix server
@@ -1070,9 +1049,6 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
 
 - [5] On Unix, WHO refuses a user name unless the CK_WHO environment
   variable names the command to run.
-
-- [4] A malformed packet ends the transfer with "Malformed packet data".
-  A packet shorter than its block check is refused.
 
 - [5] SET LINE uses the device without a lock, with a warning, when it
   cannot write its lock file.
@@ -1088,17 +1064,7 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
 - [7] A receiver gives a received file only the read, write and execute
   bits of the sender's permissions.
 
-- [7] A Telnet client ignores TTYPE IS from the server.
-
-- [7] A server waits up to two seconds for a program run by REMOTE HOST
-  and similar commands to exit before it kills it.
-
-- [7] The IKSD does not update its database when it cannot write the
-  database lock file.
-
 - [7, 8] `\fstripb(x,x)` returns the character.
-
-- [8] FTP GET fails at the first failed write of the local file.
 
 - [8] FTP MGET /RECURSIVE skips server names that leave the current
   directory.
@@ -1127,7 +1093,7 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
 - [8] SET SEXPRESSION DEPTH-LIMIT is refused in a macro that an
   S-expression called.
 
-- [8, 11] S-expression integer results that overflow become floating
+- [8, 11] S-expression integer results that would overflow become floating
   point, including the power operator.
 
 - [8, 11] `ENABLE` and `DISABLE` with `LOCAL` or `REMOTE` change only that
@@ -1135,9 +1101,6 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
 
 - [9] Kermit waits up to two seconds for an external protocol program's
   exit status, and relays its output until end of file.
-
-- [9] The default file-list string space on 64-bit builds is 32MB.  `SHOW
-  FILE` displays it.
 
 - [9] `RENAME` fails with "?New name too long" when a new name does not
   fit.
@@ -1157,7 +1120,7 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   states the result.  A successful FULLSCREEN transfer prints a one-line
   summary when the display is erased.
 
-- [11] `%%` in SET MODEM DIAL-COMMAND sends one `%`.
+- [11] `%%` in SET MODEM DIAL-COMMAND sends one `%`, restoring pre-11 behavior.
 
 - [11] `\fname2addr()` prefers an IPv4 address under `SET TCP
   ADDRESS-FAMILY AUTO`.
@@ -1173,18 +1136,9 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
 
 ## Changes in earlier releases that didn't make it into the changelog
 
-- C-Kermit 11.0.501: FTP reports the host name as typed and looks it
-  up in `.netrc` by that name, not by the canonical name.  A `.netrc`
-  entry for the canonical name no longer matches an alias.  Commit
-  c3c8dea2.
-
 - C-Kermit 11.0.509: `\v(authtype)` no longer reports
   `X_509_CERTIFICATE` when no authentication took place.  Commit
   76190cb0.
-
-- C-Kermit 11.0.509: an external protocol run over a Telnet
-  connection answers the host's unsolicited WILL and DO with DONT and
-  WONT.  Commit ce6628a3.
 
 - C-Kermit 11.0.509: calling a macro whose name begins with `_` read
   past a table and could crash Kermit.  Commit 81405312.
