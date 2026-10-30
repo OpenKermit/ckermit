@@ -6,7 +6,8 @@ import subprocess
 import threading
 import time
 import pytest
-from conftest import assert_ok, start_tcp_listener, scaled
+from conftest import (assert_ok, expected_timeout, start_tcp_listener,
+                      scaled)
 
 
 def _show_tcp_output(run_wermit):
@@ -292,7 +293,7 @@ class _OneShotListener:
 
     def _accept(self):
         try:
-            self.sock.settimeout(5)
+            self.sock.settimeout(scaled(5))
             conn, peer = self.sock.accept()
             self.peer = peer
             conn.close()
@@ -398,8 +399,12 @@ def test_address_family_auto_connects_to_one_of_dual_stack(run_wermit):
             "set tcp reverse-dns-lookup off, "
             f"set host localhost {port} /raw-socket")
         assert_ok(result, "AUTO connect failed")
-        v4_peer = v4.wait(timeout=scaled(2))
-        v6_peer = v6.wait(timeout=scaled(2))
+        # The client connected to one listener.  Wait for that accept.
+        deadline = time.monotonic() + scaled(2)
+        while (v4.peer is None and v6.peer is None
+               and time.monotonic() < deadline):
+            time.sleep(0.05)
+        v4_peer, v6_peer = v4.peer, v6.peer
         assert (v4_peer is not None) != (v6_peer is not None), (
             "expected exactly one listener to receive the connection: "
             f"v4_peer={v4_peer} v6_peer={v6_peer}")
@@ -793,27 +798,6 @@ def test_tcp_address6_rejects_nonexistent_zone(run_wermit):
               "rejected SET TCP ADDRESS6")
     assert "requires an IPv6 address" in (result.stdout + result.stderr)
     assert "address6: ::1\n" in result.stdout
-
-
-def test_help_set_tcp_mentions_address6_zone_suffix(run_wermit):
-    if not _build_has_address_family(run_wermit):
-        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
-
-    result = run_wermit("help set tcp")
-    assert_ok(result, "HELP SET TCP failed")
-    assert "%interface" in result.stdout
-    assert "%index" in result.stdout
-
-
-def test_help_set_host_mentions_link_local_zone_suffix(run_wermit):
-    """Verify HELP SET HOST documents link-local zone suffix."""
-    if not _build_has_address_family(run_wermit):
-        pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
-
-    result = run_wermit("help set host")
-    assert_ok(result, "HELP SET HOST failed")
-    assert "link-local" in result.stdout
-    assert "%interface" in result.stdout
 
 
 # SET TCP ADDRESS6 local bind tests.
@@ -1222,7 +1206,7 @@ def test_iksd_listener_dual_stack_binds_both(run_wermit, spawn_wermit,
         if proc.poll() is None:
             proc.terminate()
             try:
-                proc.wait(timeout=scaled(2))
+                proc.wait(timeout=expected_timeout(2))
             except Exception:
                 proc.kill()
 
@@ -1245,6 +1229,6 @@ def test_iksd_listener_address_family_ipv4_binds_only_v4(
         if proc.poll() is None:
             proc.terminate()
             try:
-                proc.wait(timeout=scaled(2))
+                proc.wait(timeout=expected_timeout(2))
             except Exception:
                 proc.kill()

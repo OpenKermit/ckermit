@@ -3,7 +3,7 @@ import socket
 
 import pytest
 
-from conftest import scaled
+from conftest import assert_ok, kermit_wait, scaled
 
 
 def _closed_port():
@@ -71,7 +71,7 @@ def test_set_host_with_descriptor_above_fd_setsize(wermit_path):
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(15)
+    srv.settimeout(scaled(15))
     port = srv.getsockname()[1]
 
     def run():
@@ -89,14 +89,14 @@ def test_set_host_with_descriptor_above_fd_setsize(wermit_path):
             [wermit_path, "-H", "-Y", "-C",
              "set command more-prompting off, "
              f"set host 127.0.0.1 {port} /raw-socket, "
-             "echo STATUS=\\v(status), input 5 HELLO, "
+             f"echo STATUS=\\v(status), input {kermit_wait()} HELLO, "
              "echo INSTATUS=\\v(instatus), close, exit"],
             capture_output=True, text=True, timeout=scaled(30),
             stdin=subprocess.DEVNULL, start_new_session=True,
             close_fds=False, preexec_fn=_fill_descriptors)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert result.returncode >= 0, (
         f"wermit died with signal {-result.returncode}: {result.stderr}")
     assert "STATUS=0" in result.stdout, result.stdout + result.stderr
@@ -157,15 +157,14 @@ def test_http_get_with_descriptor_above_fd_setsize(wermit_path, tmp_path):
 
 
 def test_connect_with_descriptor_above_fd_setsize(wermit_path):
-    """Verify CONNECT refuses a connection above FD_SETSIZE."""
-    import threading
+    """Verify CONNECT refuses a connection above FD_SETSIZE.
+
+    The kernel completes the connection from the listen backlog.  The
+    test does not accept it.
+    """
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(15)
-    conns = []
-    threading.Thread(target=lambda: conns.append(srv.accept()),
-                     daemon=True).start()
     try:
         result = _run_above_fd_setsize(
             wermit_path,
@@ -190,6 +189,8 @@ def test_vsock_without_address_reports_error(run_wermit):
     result = run_wermit("set host /network-type:vsock, "
                         "echo STATUS=\\v(status)")
     if "?CID:PORT required" not in result.stdout:
-        if "vsock" not in run_wermit("show features").stdout.lower():
+        features = run_wermit("show features")
+        assert_ok(features, "SHOW FEATURES failed")
+        if "vsock" not in features.stdout.lower():
             pytest.skip("build has no VSOCK support")
     assert "?CID:PORT required" in result.stdout, result.stdout

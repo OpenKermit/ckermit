@@ -10,7 +10,7 @@ import time
 
 import pytest
 
-from conftest import scaled
+from conftest import PtyReader, accept_or_stop, scaled
 
 BASE_REPLIES = {
     "AUTH": b"500 not supported\r\n",
@@ -40,22 +40,21 @@ class FtpPeer:
         self.listing = listing
         self.files = files or {}
         self.commands = []
+        self.stop = threading.Event()
         self.srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.srv.bind(("127.0.0.1", 0))
         self.srv.listen(1)
-        self.srv.settimeout(20)
         self.port = self.srv.getsockname()[1]
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
 
     def _run(self):
-        try:
-            conn, _ = self.srv.accept()
-        except OSError:
+        conn = accept_or_stop(self.srv, self.stop, 30)
+        if conn is None:
             return
         data_srv = None
         with conn:
-            conn.settimeout(20)
+            conn.settimeout(scaled(20))
             try:
                 conn.sendall(b"220 hi\r\n")
                 for line in conn.makefile("rb"):
@@ -68,7 +67,7 @@ class FtpPeer:
                                                  socket.SOCK_STREAM)
                         data_srv.bind(("127.0.0.1", 0))
                         data_srv.listen(1)
-                        data_srv.settimeout(20)
+                        data_srv.settimeout(scaled(20))
                         p = data_srv.getsockname()[1]
                         conn.sendall(b"227 Entering Passive Mode "
                                      b"(127,0,0,1,%d,%d)\r\n"
@@ -101,9 +100,10 @@ class FtpPeer:
                 pass
 
     def close(self):
-        """Close the listener and wait for the server thread."""
+        """Stop the server thread and close the listener."""
+        self.stop.set()
+        self.thread.join(timeout=scaled(5))
         self.srv.close()
-        self.thread.join(timeout=5)
 
     def sent(self, verb):
         """Return the arguments of each command with the given verb."""
@@ -279,10 +279,10 @@ class AbortPeer:
         self.drain = threading.Event()
         self.data_closed = threading.Event()
         self.commands = []
+        self.stop = threading.Event()
         self.srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.srv.bind(("127.0.0.1", 0))
         self.srv.listen(1)
-        self.srv.settimeout(30)
         self.port = self.srv.getsockname()[1]
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
@@ -312,16 +312,15 @@ class AbortPeer:
         data.close()
 
     def _run(self):
-        try:
-            conn, _ = self.srv.accept()
-        except OSError:
+        conn = accept_or_stop(self.srv, self.stop, 30)
+        if conn is None:
             return
         replies = dict(BASE_REPLIES)
         replies["PWD"] = b'257 "/abort-test"\r\n'
         data_srv = None
         stop = threading.Event()
         with conn:
-            conn.settimeout(60)
+            conn.settimeout(scaled(60))
             try:
                 conn.sendall(b"220 hi\r\n")
                 for line in conn.makefile("rb"):
@@ -333,7 +332,7 @@ class AbortPeer:
                         data_srv = socket.socket()
                         data_srv.bind(("127.0.0.1", 0))
                         data_srv.listen(1)
-                        data_srv.settimeout(20)
+                        data_srv.settimeout(scaled(20))
                         p = data_srv.getsockname()[1]
                         conn.sendall(b"227 Entering Passive Mode "
                                      b"(127,0,0,1,%d,%d)\r\n"
@@ -364,9 +363,10 @@ class AbortPeer:
                 pass
 
     def close(self):
-        """Close the listener and wait for the server thread."""
+        """Stop the server thread and close the listener."""
+        self.stop.set()
+        self.thread.join(timeout=scaled(5))
         self.srv.close()
-        self.thread.join(timeout=5)
 
 
 @pytest.mark.parametrize("command", ["get f.bin", "put big.bin"])
@@ -378,7 +378,6 @@ def test_ftp_transfer_interrupted(wermit_path, tmp_path, command):
     reads the server's reply, so the control connection stays usable.
     """
     import pty
-    import select
     import subprocess
     from conftest import _make_controlling_tty
     (tmp_path / "big.bin").write_bytes(b"y" * 20000000)
@@ -392,40 +391,26 @@ def test_ftp_transfer_interrupted(wermit_path, tmp_path, command):
         stdin=slave, stdout=slave, stderr=slave, cwd=str(tmp_path),
         close_fds=True, preexec_fn=_make_controlling_tty)
     os.close(slave)
-    out = b""
-
-    def read_until(marker, secs):
-        nonlocal out
-        end = time.monotonic() + secs
-        while marker not in out and time.monotonic() < end:
-            r, _, _ = select.select([fd], [], [], 0.2)
-            if r:
-                try:
-                    chunk = os.read(fd, 4096)
-                except OSError:
-                    return
-                if not chunk:
-                    return
-                out += chunk
+    pty_in = PtyReader(fd)
 
     try:
-        assert peer.started.wait(20), out
+        assert peer.started.wait(scaled(20)), pty_in.drain(0.1)
         time.sleep(1)
         os.write(fd, b"\x03")
         peer.drain.set()
-        closed = peer.data_closed.wait(15)
-        read_until(b"C-Kermit>", 15)
+        closed = peer.data_closed.wait(scaled(15))
+        pty_in.until(b"C-Kermit>", 15)
         os.write(fd, b"ftp pwd\r")
-        read_until(b"/abort-test", 15)
+        pty_in.until(b"/abort-test", 15)
         os.write(fd, b"exit\r")
-        read_until(b"\x00never", 5)
+        pty_in.drain(5)
     finally:
         if proc.poll() is None:
             proc.kill()
         proc.wait()
         os.close(fd)
         peer.close()
-    text = out.decode(errors="replace")
+    text = pty_in.out.decode(errors="replace")
     assert closed, (peer.commands, text[-1000:])
     assert "/abort-test" in text, text[-1000:]
 

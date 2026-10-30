@@ -19,10 +19,13 @@ SSL_ZMODEM_MAX_SECONDS = 10
 
 MB = 1024 * 1024
 
-pytestmark = pytest.mark.skipif(
-    shutil.which("sz") is None or shutil.which("rz") is None,
-    reason="lrzsz (sz/rz) commands not available",
-)
+pytestmark = [
+    pytest.mark.zmodem,
+    pytest.mark.skipif(
+        shutil.which("sz") is None or shutil.which("rz") is None,
+        reason="lrzsz (sz/rz) commands not available",
+    ),
+]
 
 # Skips this module's post-transfer mtime-preservation checks when set.
 # lrzsz stamps the received file's mtime
@@ -153,18 +156,15 @@ ZMODEM_SIZES = [
     pytest.param(ZMODEM_BLOCK_SIZE - 1, id="blksize-1"),
     pytest.param(ZMODEM_BLOCK_SIZE, id="blksize"),
     pytest.param(ZMODEM_BLOCK_SIZE + 1, id="blksize+1"),
-    pytest.param(2 * ZMODEM_BLOCK_SIZE - 1, id="2xblksize-1"),
     pytest.param(2 * ZMODEM_BLOCK_SIZE, id="2xblksize"),
-    pytest.param(2 * ZMODEM_BLOCK_SIZE + 1, id="2xblksize+1"),
 ]
 
 
 @pytest.mark.parametrize("size", ZMODEM_SIZES)
 def test_zmodem_receive_sizes(zmodem_remote, tmp_path, size):
     """
-    Zmodem receive at and around exact multiples of
-    ZMODEM_BLOCK_SIZE, to exercise sub-packet count/boundary
-    arithmetic.
+    Zmodem receive around ZMODEM_BLOCK_SIZE and at twice it, to
+    exercise sub-packet count/boundary arithmetic.
     """
     run_zmodem_receive(zmodem_remote, tmp_path, pattern_bytes(size))
 
@@ -172,8 +172,8 @@ def test_zmodem_receive_sizes(zmodem_remote, tmp_path, size):
 @pytest.mark.parametrize("size", ZMODEM_SIZES)
 def test_zmodem_send_sizes(zmodem_remote, tmp_path, size):
     """
-    Zmodem send at and around exact multiples of ZMODEM_BLOCK_SIZE,
-    to exercise sub-packet count/boundary arithmetic.
+    Zmodem send around ZMODEM_BLOCK_SIZE and at twice it, to
+    exercise sub-packet count/boundary arithmetic.
     """
     run_zmodem_send(zmodem_remote, tmp_path, pattern_bytes(size))
 

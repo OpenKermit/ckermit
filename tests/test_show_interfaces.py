@@ -15,8 +15,16 @@ LOOPBACK_RE = re.compile(r"^lo\d*:", re.MULTILINE)
 
 
 def _build_has_interfaces(run_wermit):
+    """Return whether this build has SHOW INTERFACES.
+
+    Only a parse error for the keyword means the build lacks it.  Any
+    other failure fails the test.
+    """
     result = run_wermit("show interfaces")
-    return result.returncode == 0 and "No keywords match" not in result.stdout
+    if "No keywords match" in result.stdout:
+        return False
+    assert_ok(result, "SHOW INTERFACES failed")
+    return True
 
 
 def test_show_interfaces_lists_loopback(run_wermit):

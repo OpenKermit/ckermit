@@ -2082,13 +2082,6 @@ struct keytab prmtab[] = {
 #endif /* NOSPL */
     { "exit",             XYEXIT,  0 },
 #ifndef NOXFER
-#ifdef CK_XYZ
-#ifndef NOPUSH
-#ifndef XYZ_INTERNAL
-    { "external-protocol",XYEXTRN, 0 },
-#endif  /* XYZ_INTERNAL */
-#endif  /* NOPUSH */
-#endif  /* CK_XYZ */
     { "f-ack-bug",        XYFACKB, CM_INV },
     { "f-ack-path",       XYFACKP, CM_INV },
 #endif /* NOXFER */

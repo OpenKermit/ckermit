@@ -5,14 +5,13 @@ between it and the connection.  The result of SEND comes from the
 protocol command's exit status.
 """
 import os
-import select
 import signal
 import subprocess
 import time
 
 import pytest
 
-from conftest import start_wermit_pty, scaled
+from conftest import read_pty_until, scaled, start_wermit_pty
 
 
 def _send_with(run_wermit, tmp_path, connection, protocol_cmd, after=""):
@@ -42,6 +41,7 @@ def test_external_protocol_exit_status(run_wermit, tmp_path,
     assert f"STATUS={status}" in result.stdout, result.stdout
 
 
+@pytest.mark.slow
 def test_external_protocol_connection_lost(run_wermit, tmp_path):
     """Verify SEND fails when the connection ends during the transfer.
 
@@ -98,6 +98,7 @@ def _ignore_sigchld():
     signal.signal(signal.SIGCHLD, signal.SIG_IGN)
 
 
+@pytest.mark.slow
 def test_external_protocol_exit_after_other_child(wermit_path, tmp_path):
     """Verify SEND sees the protocol exit after another child's exit.
 
@@ -126,24 +127,6 @@ def test_external_protocol_exit_after_other_child(wermit_path, tmp_path):
     elapsed = time.monotonic() - start
     assert "STATUS=0" in result.stdout, result.stdout
     assert elapsed < 15, f"SEND took {elapsed:.1f} seconds"
-
-
-def _read_until(fd, marker, timeout):
-    """Read from fd until marker appears or timeout runs out."""
-    out = b""
-    end = time.monotonic() + timeout
-    while time.monotonic() < end and marker not in out:
-        r, _, _ = select.select([fd], [], [], 0.1)
-        if not r:
-            continue
-        try:
-            data = os.read(fd, 4096)
-        except OSError:
-            break
-        if not data:
-            break
-        out += data
-    return out
 
 
 def _sigchld_disposition(pid):
@@ -183,22 +166,30 @@ def test_external_protocol_interrupted(wermit_path, tmp_path):
     """
     (tmp_path / "f.txt").write_text("hello\n")
     pidfile = tmp_path / "proto.pid"
+    debuglog = tmp_path / "debug.log"
     proto = "sh -c 'echo $$ > proto.pid; exec sleep 30'"
     clause = " ".join(f'"{proto}"' for _ in range(4))
-    cmd = ("set exit warning off, "
+    cmd = (f"log debug {debuglog}, set exit warning off, "
            f'set protocol zmodem "" "" {clause}, '
            "set host /pty sh -c 'cat > /dev/null', "
            "send f.txt")
     proc, fd = start_wermit_pty(wermit_path, cmd, tmp_path)
     try:
-        end = time.monotonic() + 10
+        end = time.monotonic() + scaled(10)
         while not pidfile.exists() and time.monotonic() < end:
-            _read_until(fd, b"\0", 0.1)
+            read_pty_until(fd, b"", (), 0.1)
         proto_pid = int(pidfile.read_text())
-        _read_until(fd, b"\0", 1.5)
+        # The program can write its PID before wermit returns from
+        # fork().  ttptycmd() logs PTY_PBUF_SIZE after it records the
+        # child, so SIGINT waits for that line.
+        end = time.monotonic() + scaled(10)
+        while (b"ttptycmd PTY_PBUF_SIZE" not in debuglog.read_bytes()
+               and time.monotonic() < end):
+            read_pty_until(fd, b"", (), 0.1)
+        assert b"ttptycmd PTY_PBUF_SIZE" in debuglog.read_bytes(), \
+            "wermit never reached the relay loop"
         proc.send_signal(signal.SIGINT)
-        out = _read_until(fd, b"C-Kermit>", 10)
-        assert b"C-Kermit>" in out, out
+        read_pty_until(fd, b"", (b"C-Kermit>",), 10)
         try:
             os.kill(proto_pid, 0)
             running = True
@@ -208,9 +199,9 @@ def test_external_protocol_interrupted(wermit_path, tmp_path):
         if _have_signal_masks():
             assert _sigchld_disposition(proc.pid) == "default"
         os.write(fd, b"exit\r")
-        end = time.monotonic() + 5
+        end = time.monotonic() + scaled(5)
         while proc.poll() is None and time.monotonic() < end:
-            _read_until(fd, b"\0", 0.2)
+            read_pty_until(fd, b"", (), 0.2)
     finally:
         # Close the master before waiting.  An exiting process can
         # block while its terminal output drains.

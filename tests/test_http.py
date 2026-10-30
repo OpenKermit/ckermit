@@ -2,7 +2,7 @@ import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import base64
 import pytest
-from conftest import assert_ok
+from conftest import scaled, assert_ok
 
 
 @pytest.fixture
@@ -111,7 +111,7 @@ def http_server(tmp_path):
 
     server.shutdown()
     server.server_close()
-    thread.join(timeout=2)
+    thread.join(timeout=scaled(2))
 
 
 def http_session(port, *commands):

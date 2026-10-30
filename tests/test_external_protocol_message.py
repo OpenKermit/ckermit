@@ -7,6 +7,7 @@ import shutil
 import pytest
 
 
+@pytest.mark.zmodem
 def test_zmodem_send_does_not_report_no_files(run_wermit, tmp_path):
     """Verify a successful Zmodem SEND does not say no files were sent.
 

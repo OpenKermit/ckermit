@@ -491,10 +491,10 @@ def _capture_http_headers(server_sock):
 
     The connection is closed without reading the request body.
     """
-    server_sock.settimeout(15)
+    server_sock.settimeout(scaled(15))
     conn, _ = server_sock.accept()
     try:
-        conn.settimeout(10)
+        conn.settimeout(scaled(10))
         request = b""
         while b"\r\n\r\n" not in request:
             chunk = conn.recv(4096)

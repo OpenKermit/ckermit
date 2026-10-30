@@ -7349,21 +7349,6 @@ struct keytab protos[] = {
 };
 int nprotos =  (sizeof(protos) / sizeof(struct keytab));
 
-#ifndef XYZ_INTERNAL
-#ifndef NOPUSH
-#define EXP_HANDLER 1
-#define EXP_STDERR  2
-#define EXP_TIMO    3
-
-static struct keytab extprotab[] = {
-    { "handler",          EXP_HANDLER, 0 },
-    { "redirect-stderr",  EXP_STDERR, 0 },
-    { "timeout",          EXP_TIMO, 0 }
-};
-static int nxtprotab =  (sizeof(extprotab) / sizeof(struct keytab));
-#endif  /* NOPUSH */
-#endif  /* XYZ_INTERNAL */
-
 #define XPCMDLEN 71
 
 _PROTOTYP(static int protofield, (char *, char *, char *));
@@ -7571,65 +7556,6 @@ protoexit:                              /* Common exit from this routine */
     initproto(y,p1,p2,p3,p4,p5,p6,p7);
     return(success = 1);
 }
-
-#ifndef NOPUSH
-#ifndef XYZ_INTERNAL
-
-#define DEF_EXP_TIMO 12  /* Default timeout for external protocol (seconds) */
-
-int exp_handler = 0;                    /* These are exported */
-int exp_timo = DEF_EXP_TIMO;
-int exp_stderr = SET_AUTO;
-
-VOID
-shoextern() {                           /* Invoked by SHOW PROTOCOL */
-    printf("\n External-protocol handler:         %s\n",
-           exp_handler ? (exp_handler == 1 ? "pty" : "system") : "automatic");
-#ifdef COMMENT
-    printf(" External-protocol redirect-stderr: %s\n", showooa(exp_stderr));
-#endif  /* COMMENT */
-    printf(" External-protocol timeout:         %d (sec)\n", exp_timo);
-}
-
-static struct keytab setexternhandler[] = {
-    { "automatic", 0, 0 },
-    { "pty",       1, 0 },
-    { "system",    2, 0 }
-};
-
-int
-setextern() {                           /* SET EXTERNAL-PROTOCOL */
-    int x, y;
-    if ((x = cmkey(extprotab,nxtprotab,"","",xxstring)) < 0)
-      return(x);
-    switch (x) {
-      case EXP_HANDLER:
-        if ((x = cmkey(setexternhandler,3,"","automatic",xxstring)) < 0)
-          return(x);
-        if ((y = cmcfm()) < 0)
-          return(y);
-        exp_handler = x;
-        break;
-
-#ifdef COMMENT
-      case EXP_STDERR:
-        if ((x = cmkey(ooatab,3,"","automatic",xxstring)) < 0)
-          return(x);
-        if ((y = cmcfm()) < 0)
-          return(y);
-        exp_stderr = x;
-        break;
-#endif  /* COMMENT */
-
-      case EXP_TIMO:
-        y = cmnum("Inactivity timeout, seconds,",ckitoa(DEF_EXP_TIMO),
-                  10,&x,xxstring);
-        return(setnum(&exp_timo,x,y,-1));
-    }
-    return(success = 1);
-}
-#endif  /* XYZ_INTERNAL */
-#endif  /* NOPUSH */
 
 int
 setdest() {
@@ -14560,17 +14486,6 @@ case XYDEBU:                            /* SET DEBUG { on, off, session } */
         return(setrename());
 #endif  /* NORENAME */
 #endif  /* NOFRILLS */
-
-#ifndef NOPUSH
-#ifdef CK_REDIR
-#ifndef NOXFER
-#ifndef XYZ_INTERNAL
-      case XYEXTRN:                     /* SET EXTERNAL-PROTOCOL */
-        return(setextern());
-#endif /* XYZ_INTERNAL */
-#endif  /* NOXFER */
-#endif  /* CK_REDIR */
-#endif  /* NOPUSH */
 
 #ifndef NOSPL
       case XYVAREV:                     /* SET VARIABLE-EVALUATION */

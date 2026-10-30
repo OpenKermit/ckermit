@@ -22,7 +22,7 @@ import time
 
 import pytest
 
-from conftest import scaled
+from conftest import assert_ok, expected_timeout, scaled
 
 RECL = 4096
 HDRL = 16
@@ -48,11 +48,14 @@ OLD_INFO_OFF = 3072
 
 def _build_has_iksdb(run_wermit):
     result = run_wermit(["--help"], timeout=10)
+    assert result.returncode == 0 and result.stdout, (
+        f"wermit --help failed: {result!r}")
     return "--dbfile" in result.stdout
 
 
 def _build_has_address_family(run_wermit):
     result = run_wermit("show tcp")
+    assert_ok(result, "SHOW TCP failed")
     return "address-family:" in result.stdout
 
 
@@ -79,7 +82,7 @@ def _connect_iksd(iksd_path, dbfile, log_path,
     srv.listen(1)
     port = srv.getsockname()[1]
 
-    client = socket.create_connection((bindaddr, port), timeout=5)
+    client = socket.create_connection((bindaddr, port), timeout=scaled(5))
     conn, _ = srv.accept()
     srv.close()
 
@@ -98,7 +101,7 @@ def _close_iksd(proc, client, log_fh):
     if proc.poll() is None:
         proc.terminate()
         try:
-            proc.wait(timeout=scaled(3))
+            proc.wait(timeout=expected_timeout(3))
         except Exception:
             proc.kill()
     log_fh.close()

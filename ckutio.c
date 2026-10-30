@@ -9755,6 +9755,39 @@ ttflui() {
     if (ttyfd < 0)
       return(-1);
 
+#ifdef NETPTY
+#ifdef SELECT
+/*
+  On the BSDs an input flush of a pty master discards the slave's input
+  queue.  That holds bytes Kermit wrote and the slave has not yet read.
+  So read and discard the bytes queued for the master instead.  ttchk()
+  counts them.  select() confirms each read, since FIONREAD on a macOS
+  pty master can count bytes that read() does not return.
+*/
+    if (ttpty) {
+        char buf[256];
+        int k;
+        n = ttchk();
+        debug(F101,"ttflui pty count","",n);
+        while (n > 0 && CK_FDOK(fd)) {
+            fd_set rfds;
+            struct timeval tv;
+            FD_ZERO(&rfds);
+            FD_SET(fd, &rfds);
+            tv.tv_sec = 0;
+            tv.tv_usec = 0;
+            if (select(fd + 1, &rfds, (fd_set *)0, (fd_set *)0, &tv) < 1)
+              break;
+            k = read(fd, buf, n < (int)sizeof(buf) ? n : (int)sizeof(buf));
+            if (k < 1)
+              break;
+            n -= k;
+        }
+        return(0);
+    }
+#endif /* SELECT */
+#endif /* NETPTY */
+
 #ifdef aegis
     sio_$control((short)yfd, sio_$flush_in, true, st);
     if (st.all != status_$ok) {
@@ -14977,9 +15010,6 @@ tt_is_secure() {          /* Tells whether the current connection is secure */
 
 #ifdef CK_REDIR
 
-/* External protocol handler parameters from ckuus3.c */
-extern int exp_handler, exp_stderr, exp_timo;
-
 #ifdef SELECT
 #ifdef NETPTY
 
@@ -15450,6 +15480,7 @@ ttptycmd(s) char *s;
     fd_set in, out, err;
 #endif /* INTSELECT */
     int nfds = 0;                       /* For select() */
+    int net_buffered = 0;               /* Net input waits in our buffers */
 
     int pset = 0, tset = 0, pnotset = 0, tnotset = 0; /* stats/debuggin only */
     int read_net_bytes = 0;             /* Stats */
@@ -15880,17 +15911,21 @@ ttptycmd(s) char *s;
             does that).  This can only help if select()'s readiness signal is
             being missed or delayed, and costs little unless the timeout is too
             low.
-
-            A raw TCP/IP connection's ttyfd radiness is also missed by this same
-            select() on Linux when running an external protocol such as Zmodem
-            over a CONNECT-mode autodownload.  Every inbound protocol frame goes
-            undetected by select() and is only found once this timeout fires and
-            the "poll again" fallback below calls in_chk() directly. The timeout
-            value is a direct floor on how long each undetected frame waits, so
-            don't set it too high.
             */
             pctv.tv_sec = 0L;
             pctv.tv_usec = 100000L;
+            tv2 = &pctv;
+        }
+/*
+  Bytes already in myread()'s buffer, ttpush or le_buf do not make
+  ttyfd readable.  When there are any and tbuf has room, select() only
+  polls, and the ttyfd read takes them.
+*/
+        net_buffered = (have_net && have_pty && ttyfd_oflags == -1 &&
+                        tbuf_avail < PTY_TBUF_SIZE && ttpeek() > 0);
+        if (net_buffered) {
+            pctv.tv_sec = 0L;
+            pctv.tv_usec = 0L;
             tv2 = &pctv;
         }
         x = select(nfds, &in, &out, NULL, tv2);
@@ -15900,6 +15935,21 @@ ttptycmd(s) char *s;
               continue;
             debug(F101,"ttptycmd select error","",errno);
             break;
+        }
+        if (net_buffered && CK_FDOK(ttyfd)) {
+            debug(F101,"ttptycmd net buffered","",ttpeek());
+            if (x == 0) {
+                FD_ZERO(&in);
+                FD_ZERO(&out);
+                if (have_pty && pbuf_avail < PTY_PBUF_SIZE)
+                  FD_SET(ptyfd, &in);
+                if (have_pty && tbuf_avail - tbuf_written > 0)
+                  FD_SET(ptyfd, &out);
+                if (pbuf_avail - pbuf_written > 0)
+                  FD_SET(ttyfd, &out);
+            }
+            FD_SET(ttyfd, &in);
+            goto ttptycmd_do_io;
         }
         if (x == 0) {
             debug(F101,"ttptycmd +++ select timeout","",seconds_to_wait);
@@ -15924,18 +15974,13 @@ ttptycmd(s) char *s;
                   asynchronously, so it has to be rechecked here too to prevent
                   running on a negative fd.
 
-                  ttyfd is also excluded from this synthetic readiness when it's
-                  an SSL/TLS connection.  Unlike the TCP socket case, an SSL
-                  ttyfd is never put in O_NDELAY, so the read/write handling
-                  below reaches ttinc(2) for it: an alarm-bounded blocking read,
-                  not a cheap EAGAIN check.  Calling that speculatively, once
-                  per select() timeout with nothing available, turns every 100ms
-                  poll into a potential 2-second stall.  Skipping the synthesis
-                  here for SSL/TLS costs nothing; a real select() readiness on
-                  the next iteration still reaches the same code, and
-                  SSL_pending() reading 0 despite select() saying ready is
-                  exactly the case the "offer full buffer" logic
-                  handles safely.
+                  A ttyfd not in O_NDELAY (a TCP or SSL/TLS connection) gets
+                  this synthetic readiness only when in_chk() counts input.
+                  The ttyfd read reaches ttinc(2) for it: an alarm-bounded
+                  blocking read, not a cheap EAGAIN check.  With nothing
+                  available, it would turn a 100ms poll into a stall of up to
+                  2 seconds.  A real select() readiness on the next iteration
+                  still reaches the same code.
 
                 */
                 if (have_net && !CK_FDOK(ttyfd)) {
@@ -15953,12 +15998,8 @@ ttptycmd(s) char *s;
                 FD_ZERO(&out);
                 if (have_pty && pbuf_avail < PTY_PBUF_SIZE)
                   FD_SET(ptyfd, &in);
-                if (have_net && have_pty && tbuf_avail < PTY_TBUF_SIZE
-#ifdef CK_SSL
-                    && !((ssl_active_flag || tls_active_flag) &&
-                         ttyfd_oflags == -1)
-#endif /* CK_SSL */
-                    )
+                if (have_net && have_pty && tbuf_avail < PTY_TBUF_SIZE &&
+                    (ttyfd_oflags > -1 || in_chk(1,ttyfd) > 0))
                   FD_SET(ttyfd, &in);
                 if (have_pty && tbuf_avail - tbuf_written > 0)
                   FD_SET(ptyfd, &out);
@@ -16224,41 +16265,21 @@ ttptycmd(s) char *s;
                     p = tbuf + tbuf_avail;
                     p0 = p;
                     for (x = 0; x < n; x++) {
-                        if (ttnet == NET_PTY) {
 /*
-  n came from in_chk()'s FIONREAD count, which on MacOS ptys is not reliable.
-  Re-check availability before every byte instead of trusting the original
-  FIONREAD for the whole loop, so an optimistic count makes us stop early rather
-  than hang.  The in_chk() call is fairly cheap in isolation.
+  After the first byte, read on only while input is waiting.  n can
+  overstate it.  FIONREAD on a macOS pty is not reliable.  On SSL/TLS
+  n is the whole free buffer.  tn_doop() reads the bytes of a Telnet
+  command without counting them.  A ttinc(2) with nothing waiting
+  stops the relay for up to 2 seconds.
 
-  Skip this check for the very first byte when x is 0 (see next comment).
-  Rechecking would reintroduce the busy spin.
-
-  Gated to NET_PTY specifically; this whole branch of code only runs when
-  ttyfd_oflags == -1, which doesn't itself distinguish a pty without O_NDELAY
-  from a plain TCP socket.  FIONREAD on a real TCP socket is not subject to the
-  same macOS pty lying bug, so the original n is trustworthy for the whole loop
-  there.  Testing  during a 20MB TCP Zmodem transfer confirmed the cost of
-  getting this wrong: 65% of all sampled time was inside this ioctl(), called
-  once per byte instead of once per read.
-
+  ttpeek() counts the bytes in our buffers.  in_chk() runs only when
+  they are used up, so it costs one FIONREAD per socket read.  It
+  counts what the kernel holds and, on SSL/TLS, what OpenSSL holds.
+  Skip the check for byte 0.  select() reported it, and a FIONREAD of
+  0 at end of file would leave select() reporting it again.
 */
-                            if (x > 0 && in_chk(1,ttyfd) <= 0)
-                              break;
-                        }
-#ifdef CK_SSL
-/*
-  On an SSL/TLS connection n is the whole free buffer.  in_chk() counts
-  the decrypted bytes in OpenSSL and in myread()'s buffer.  When none
-  are left, the next byte needs a socket read.  Return to select() for
-  it.  A ttinc(2) here would wait up to 2 seconds after every burst,
-  and steady traffic would keep the loop reading without relaying
-  anything.
-*/
-                        if (x > 0 && (ssl_active_flag || tls_active_flag) &&
-                            in_chk(1,ttyfd) <= 0)
+                        if (x > 0 && ttpeek() <= 0 && in_chk(1,ttyfd) <= 0)
                           break;
-#endif /* CK_SSL */
 /*
   Even byte x==0, "guaranteed safe" by select() above, is not actually safe to
   read with an unbounded ttinc(0): the same FIONREAD unreliability responsible

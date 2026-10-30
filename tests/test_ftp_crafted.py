@@ -38,7 +38,7 @@ def _serve_ftp(greeting, replies):
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(20)
+    srv.settimeout(scaled(20))
 
     def run():
         try:
@@ -46,7 +46,7 @@ def _serve_ftp(greeting, replies):
         except OSError:
             return
         with conn:
-            conn.settimeout(20)
+            conn.settimeout(scaled(20))
             try:
                 conn.sendall(greeting)
                 for line in conn.makefile("rb"):
@@ -77,7 +77,7 @@ def _ftp_session(run_wermit, greeting, replies=None, commands=(),
         ]), timeout=timeout)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert result.returncode >= 0, (
         f"wermit died with signal {-result.returncode}")
     return result
@@ -213,7 +213,7 @@ def _serve_nlst(names, pasv_ip=b"127,0,0,1"):
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(20)
+    srv.settimeout(scaled(20))
 
     def run():
         try:
@@ -222,7 +222,7 @@ def _serve_nlst(names, pasv_ip=b"127,0,0,1"):
             return
         data_srv = None
         with conn:
-            conn.settimeout(20)
+            conn.settimeout(scaled(20))
             try:
                 conn.sendall(b"220 hi\r\n")
                 for line in conn.makefile("rb"):
@@ -233,7 +233,7 @@ def _serve_nlst(names, pasv_ip=b"127,0,0,1"):
                                                  socket.SOCK_STREAM)
                         data_srv.bind(("127.0.0.1", 0))
                         data_srv.listen(1)
-                        data_srv.settimeout(20)
+                        data_srv.settimeout(scaled(20))
                         p = data_srv.getsockname()[1]
                         conn.sendall(b"227 Entering Passive Mode "
                                      b"(%s,%d,%d)\r\n"
@@ -288,7 +288,7 @@ def test_ftp_mget_pathless_names_long_directory(run_wermit, tmp_path,
         ]), timeout=60)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert result.returncode >= 0, (
         f"wermit died with signal {-result.returncode}")
     assert "OPEN-OK" in result.stdout, result.stdout[-500:]
@@ -323,7 +323,7 @@ def test_ftp_mget_refuses_unsafe_server_names(run_wermit, tmp_path,
         ]), timeout=60)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert "OPEN-OK" in result.stdout, result.stdout[-500:]
     assert retrs == [b"ok.txt"], retrs
 
@@ -372,10 +372,11 @@ def test_ftp_pasv_address_is_ignored(run_wermit, tmp_path):
         ]), timeout=60)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert retrs == [b"file.txt"], (retrs, result.stdout)
 
 
+@pytest.mark.slow
 def test_ftp_trust_pasv_address_on(run_wermit, tmp_path):
     """Verify TRUST-PASV-ADDRESS ON connects to the PASV reply address.
 
@@ -397,7 +398,7 @@ def test_ftp_trust_pasv_address_on(run_wermit, tmp_path):
         ]), timeout=60)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert retrs == [], (retrs, result.stdout)
     assert time.monotonic() - start < 30
 
@@ -465,7 +466,7 @@ def _record_connect():
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(20)
+    srv.settimeout(scaled(20))
 
     def run():
         try:
@@ -473,7 +474,7 @@ def _record_connect():
         except OSError:
             return
         with conn:
-            conn.settimeout(20)
+            conn.settimeout(scaled(20))
             buf = b""
             try:
                 while b"\r\n\r\n" not in buf:
@@ -518,7 +519,7 @@ def _refuse_connects():
             except OSError:
                 return
             with conn:
-                conn.settimeout(20)
+                conn.settimeout(scaled(20))
                 buf = b""
                 try:
                     while b"\r\n\r\n" not in buf:
@@ -557,7 +558,7 @@ def test_ftp_proxy_pasv_connect_target(run_wermit, trust, target):
                       "ftp dir"])
     finally:
         psrv.close()
-        pthread.join(timeout=5)
+        pthread.join(timeout=scaled(5))
     assert heads, result.stdout[-500:]
     assert heads[0].startswith(f"CONNECT {target} "), heads
 
@@ -591,8 +592,8 @@ def test_ftp_proxy_data_connection_closes_socket(wermit_path):
     finally:
         srv.close()
         psrv.close()
-        thread.join(timeout=5)
-        pthread.join(timeout=5)
+        thread.join(timeout=scaled(5))
+        pthread.join(timeout=scaled(5))
     out = result.stdout + result.stderr
     assert "LOOP-DONE" in result.stdout, out[-500:]
     assert "Too many open files" not in out, out[-500:]
@@ -634,7 +635,7 @@ def test_ftp_epsv_port_out_of_range(run_wermit):
     except OSError:
         pytest.skip("no IPv6 loopback")
     srv.listen(1)
-    srv.settimeout(20)
+    srv.settimeout(scaled(20))
     table = dict(DEFAULT_REPLIES)
     table["EPSV"] = b"229 Entering Extended Passive Mode (|||86000|)\r\n"
 
@@ -644,7 +645,7 @@ def test_ftp_epsv_port_out_of_range(run_wermit):
         except OSError:
             return
         with conn:
-            conn.settimeout(20)
+            conn.settimeout(scaled(20))
             try:
                 conn.sendall(b"220 hi\r\n")
                 for line in conn.makefile("rb"):
@@ -665,7 +666,7 @@ def test_ftp_epsv_port_out_of_range(run_wermit):
         ]), timeout=60)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert "address scan failure" in result.stdout, result.stdout
     assert "DIR-STATUS=1" in result.stdout, result.stdout
 
@@ -681,7 +682,7 @@ def _serve_mlsd(lines):
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(20)
+    srv.settimeout(scaled(20))
     table = dict(DEFAULT_REPLIES)
     table.update({"FEAT": b"211-Features:\r\n MLST type*;size*;modify*;"
                           b"\r\n211 End\r\n",
@@ -695,7 +696,7 @@ def _serve_mlsd(lines):
             return
         data_srv = None
         with conn:
-            conn.settimeout(20)
+            conn.settimeout(scaled(20))
             try:
                 conn.sendall(b"220 hi\r\n")
                 for line in conn.makefile("rb"):
@@ -706,7 +707,7 @@ def _serve_mlsd(lines):
                                                  socket.SOCK_STREAM)
                         data_srv.bind(("127.0.0.1", 0))
                         data_srv.listen(1)
-                        data_srv.settimeout(20)
+                        data_srv.settimeout(scaled(20))
                         p = data_srv.getsockname()[1]
                         conn.sendall(b"227 Entering Passive Mode "
                                      b"(127,0,0,1,%d,%d)\r\n"
@@ -755,7 +756,7 @@ def test_ftp_mlsd_names_with_equals_and_space(run_wermit, tmp_path):
         ]), timeout=60)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert sorted(retrs) == [b"a=b.txt", b"c;d.txt", b"e.txt"], retrs
 
 
@@ -769,7 +770,7 @@ def test_ftp_user_without_password_sends_no_stale_text(run_wermit):
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(20)
+    srv.settimeout(scaled(20))
     table = dict(DEFAULT_REPLIES)
     table["USER"] = b"331 password please\r\n"
     received = []
@@ -780,7 +781,7 @@ def test_ftp_user_without_password_sends_no_stale_text(run_wermit):
         except OSError:
             return
         with conn:
-            conn.settimeout(20)
+            conn.settimeout(scaled(20))
             try:
                 conn.sendall(b"220 hi\r\n")
                 for line in conn.makefile("rb"):
@@ -807,7 +808,7 @@ def test_ftp_user_without_password_sends_no_stale_text(run_wermit):
         ]), timeout=30)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     passes = [r for r in received if r.upper().startswith(b"PASS")]
     assert passes, received
     assert not any(b"SECRET-PATTERN" in p for p in passes), passes
@@ -829,7 +830,7 @@ def _serve_active_retr(payload):
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(20)
+    srv.settimeout(scaled(20))
 
     def run():
         try:
@@ -838,7 +839,7 @@ def _serve_active_retr(payload):
             return
         addr = None
         with conn:
-            conn.settimeout(20)
+            conn.settimeout(scaled(20))
             try:
                 conn.sendall(b"220 ready\r\n")
                 for line in conn.makefile("rb"):
@@ -891,6 +892,6 @@ def test_ftp_active_get_with_replies_before_accept(run_wermit, tmp_path):
         ]), timeout=60)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert "GET=0" in result.stdout, result.stdout
     assert out.read_bytes() == payload

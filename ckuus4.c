@@ -6394,7 +6394,6 @@ shoparp() {                             /* Protocol */
 #else
 #ifndef NOPUSH
     if (protocol != PROTO_K) {
-        _PROTOTYP( VOID shoextern, (void) );
         printf("\nExecuted by external commands:\n\n");
         s = ptab[protocol].p_b_scmd;
         if (!s) s = "";
@@ -6414,7 +6413,6 @@ shoparp() {                             /* Protocol */
         s = ptab[protocol].h_t_init;
         if (!s) s = "";
         printf(" Autoreceive command (text):   %s\n", *s ? s : "(none)");
-        (VOID) shoextern();
     }
 #endif /* NOPUSH */
 #endif /* XYZ_INTERNAL */

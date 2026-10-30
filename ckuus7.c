@@ -1940,7 +1940,7 @@ struct keytab srtab[] = {
 #endif /* CKXXCHAR */
     { "i-packets", 993, 0 },
     { "move-to", XYMOVE, 0 },
-    { "negotiation-string-max-length", XYINIL, CM_INV },
+    { "negotiation-string-max-length", XYINIL, 0 },
     { "packet-length", XYLEN, 0 },
     { "pad-character", XYPADC, 0 },
     { "padding", XYNPAD, 0 },
@@ -7179,10 +7179,12 @@ Make sure your timeout interval is long enough for %d-byte packets.\n",wz);
 
       case 993: {
           extern int sendipkts;
-          if (xx == XYSEND) {
-              if ((wx = seton(&sendipkts)) < 0)
-                return(wx);
+          if (xx != XYSEND) {
+              printf("?Sorry, I-PACKETS applies only to SET SEND\n");
+              return(-9);
           }
+          if ((wx = seton(&sendipkts)) < 0)
+            return(wx);
           return(1);
       }
 #ifdef CK_PERMS

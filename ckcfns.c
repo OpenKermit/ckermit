@@ -5274,11 +5274,30 @@ CHAR dada[32];                          /* Use this instead of data[]. */
                                         /* addressing foulup in spack()... */
                                         /* (which might be fixed now...) */
 
+/*
+  The capabilities and window size that the last rpar() string offered.
+  SET SEND NEGOTIATION-STRING-MAX-LENGTH can cut the string short of the
+  CAPAS or WINDO field.  The string then offers less than the user
+  settings in atcapr, lpcapr, swcapr, rscapr and wslotr.  Those settings
+  stay unchanged.  spar() reads the offer when it reads the ACK to that
+  string.
+*/
+static int atcapo = 0, lpcapo = 0, swcapo = 0, rscapo = 0, wsloto = 1;
+
 CHAR *
 rpar() {
     char *p;
     int i, x, max;
     extern int sprmlen;
+
+    /* The short-packet size for this string.  A max under 12 sets rpsiz
+       to 80.  A urpsiz above 94 sets rpsiz to urpsiz - 1. */
+    rpsiz = (urpsiz > MAXPACK) ? MAXPACK : urpsiz;
+    atcapo = atcapr;
+    lpcapo = lpcapr;
+    swcapo = swcapr;
+    rscapo = rscapr;
+    wsloto = wslotr;
 
 #ifdef COMMENT
     max = maxdata();                    /* Biggest data field I can send */
@@ -5344,19 +5363,19 @@ rpar() {
 
     if (max < 9) {
         dada[9] = NUL;
-        atcapr = 0;
-        lpcapr = 0;
-        swcapr = 0;
-        rscapr = 0;
+        atcapo = 0;
+        lpcapo = 0;
+        swcapo = 0;
+        rscapo = 0;
         return(dada);
     }
     dada[9] = (char) tochar((lscapr ? lscapb : 0) | /* Locking shifts */
-                     (atcapr ? atcapb : 0) | /* Attribute packets */
-                     (lpcapr ? lpcapb : 0) | /* Long packets */
-                     (swcapr ? swcapb : 0) | /* Sliding windows */
-                     (rscapr ? rscapb : 0)); /* RESEND */
-    if (max < 10) { dada[10] = NUL; wslotr = 1; return(dada); }
-    dada[10] = (char) tochar(swcapr ? wslotr : 1); /* CAPAS+1 = Window size */
+                     (atcapo ? atcapb : 0) | /* Attribute packets */
+                     (lpcapo ? lpcapb : 0) | /* Long packets */
+                     (swcapo ? swcapb : 0) | /* Sliding windows */
+                     (rscapo ? rscapb : 0)); /* RESEND */
+    if (max < 10) { dada[10] = NUL; wsloto = 1; return(dada); }
+    dada[10] = (char) tochar(swcapo ? wsloto : 1); /* CAPAS+1 = Window size */
 
     if (max < 12) { dada[11] = NUL; rpsiz = 80; return(dada); }
     if (urpsiz > 94)
@@ -5463,8 +5482,28 @@ spar(s) CHAR *s;
 #endif /* CK_ANSIC */
 {
     int x, y, lpsiz, biggest;
+    int atcap, lpcap, swcap, rscap, wslot;
     extern int rprmlen, lastspmax;
     extern struct sysdata sysidlist[];
+
+    /*
+      An ACK answers the string from rpar().  Use what that string
+      offered.  An S or I packet comes before rpar() runs.  Use the user
+      settings.
+    */
+    if ((char) rcvtyp == 'Y') {
+        atcap = atcapo;
+        lpcap = lpcapo;
+        swcap = swcapo;
+        rscap = rscapo;
+        wslot = wsloto;
+    } else {
+        atcap = atcapr;
+        lpcap = lpcapr;
+        swcap = swcapr;
+        rscap = rscapr;
+        wslot = wslotr;
+    }
 
     whatru = 0;
     whoareu[0] = NUL;
@@ -5621,15 +5660,15 @@ spar(s) CHAR *s;
     if (biggest >= 10) {
         x = xunchar(s[10]);             /* s[10] is the CAPAS bitmask */
         debug(F101,"spar capas","",x);
-        atcapu = (x & atcapb) && atcapr; /* Attributes */
-        lpcapu = (x & lpcapb) && lpcapr; /* Long packets */
-        swcapu = (x & swcapb) && swcapr; /* Sliding windows */
-        rscapu = (x & rscapb) && rscapr; /* RESEND */
+        atcapu = (x & atcapb) && atcap; /* Attributes */
+        lpcapu = (x & lpcapb) && lpcap; /* Long packets */
+        swcapu = (x & swcapb) && swcap; /* Sliding windows */
+        rscapu = (x & rscapb) && rscap; /* RESEND */
         debug(F101,"spar lscapu","",lscapu);
         debug(F101,"spar lscapr","",lscapr);
         debug(F101,"spar ebqflg","",ebqflg);
         if (lscapu != 2) lscapu = ((x & lscapb) && lscapr && ebqflg) ? 1 : 0;
-        debug(F101,"spar swcapr","",swcapr);
+        debug(F101,"spar swcap","",swcap);
         debug(F101,"spar swcapu","",swcapu);
         debug(F101,"spar lscapu","",lscapu);
         /*
@@ -5693,17 +5732,17 @@ spar(s) CHAR *s;
 
 /* Sliding Windows... */
 
-    if (swcapr) {                       /* Only if requested... */
+    if (swcap) {                        /* Only if requested... */
         if (biggest > y) {              /* See what other Kermit says */
             x = xunchar(s[y+1]);
             debug(F101,"spar window","",x);
             wslotn = (x > MAXWS) ? MAXWS : x;
 /*
   wslotn = negotiated size (from other Kermit's S or I packet).
-  wslotr = requested window size (from this Kermit's SET WINDOW command).
+  wslot = requested window size (SET WINDOW, or what rpar() offered).
 */
-            if (wslotn > wslotr)        /* Use the smaller of the two */
-              wslotn = wslotr;
+            if (wslotn > wslot)         /* Use the smaller of the two */
+              wslotn = wslot;
             if (wslotn < 1)             /* Watch out for bad negotiation */
               wslotn = 1;
             if (wslotn > 1) {

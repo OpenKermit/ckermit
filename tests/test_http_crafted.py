@@ -46,10 +46,10 @@ def test_http_get_large_chunk_size_not_truncated(
     ], cwd=str(tmp_path))
 
     try:
-        server_sock.settimeout(10)
+        server_sock.settimeout(scaled(10))
         conn, _ = server_sock.accept()
         try:
-            conn.settimeout(5)
+            conn.settimeout(scaled(5))
             request = b""
             while b"\r\n\r\n" not in request:
                 chunk = conn.recv(4096)
@@ -101,10 +101,10 @@ def test_http_index_request_names_directory(
     ], cwd=str(tmp_path))
 
     try:
-        server_sock.settimeout(10)
+        server_sock.settimeout(scaled(10))
         conn, _ = server_sock.accept()
         try:
-            conn.settimeout(5)
+            conn.settimeout(scaled(5))
             request = b""
             while b"\r\n\r\n" not in request:
                 chunk = conn.recv(4096)
@@ -143,10 +143,10 @@ def test_http_url_command_line_exit_status(
     server_sock.listen(1)
 
     def serve():
-        server_sock.settimeout(15)
+        server_sock.settimeout(scaled(15))
         conn, _ = server_sock.accept()
         with conn:
-            conn.settimeout(10)
+            conn.settimeout(scaled(10))
             request = b""
             while b"\r\n\r\n" not in request:
                 chunk = conn.recv(4096)
@@ -166,7 +166,7 @@ def test_http_url_command_line_exit_status(
             capture_output=True, text=True, timeout=scaled(30),
             start_new_session=True)
     finally:
-        server.join(timeout=10)
+        server.join(timeout=scaled(10))
         server_sock.close()
     assert result.returncode == exit_code, result.stdout + result.stderr
 
@@ -177,7 +177,7 @@ def _http_once(run_wermit, tmp_path, response):
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(15)
+    srv.settimeout(scaled(15))
     port = srv.getsockname()[1]
 
     def run():
@@ -186,7 +186,7 @@ def _http_once(run_wermit, tmp_path, response):
         except OSError:
             return
         with conn:
-            conn.settimeout(5)
+            conn.settimeout(scaled(5))
             request = b""
             try:
                 while b"\r\n\r\n" not in request:
@@ -207,7 +207,7 @@ def _http_once(run_wermit, tmp_path, response):
             timeout=30)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     return result
 
 
@@ -266,7 +266,7 @@ def _record_requests(responses):
     srv = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
     srv.bind(("::1", 0))
     srv.listen(1)
-    srv.settimeout(15)
+    srv.settimeout(scaled(15))
     heads = []
 
     def run():
@@ -275,7 +275,7 @@ def _record_requests(responses):
         except OSError:
             return
         with conn:
-            conn.settimeout(5)
+            conn.settimeout(scaled(5))
             buf = b""
             try:
                 for response in responses:
@@ -310,7 +310,7 @@ def test_http_host_header_brackets_ipv6(run_wermit, tmp_path):
             timeout=30)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert "CODE=[200]" in result.stdout, result.stdout
     assert heads, result.stdout
     assert f"\r\nHost: [::1]:{port}" in heads[0], heads
@@ -334,7 +334,7 @@ def test_http_proxy_connect_brackets_ipv6(run_wermit, tmp_path):
             timeout=30)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert heads, result.stdout
     assert heads[0].startswith("CONNECT [::1]:18080 "), heads
     assert "\r\nHost: [::1]:18080" in heads[0], heads
@@ -346,7 +346,7 @@ def _http_get_status(run_wermit, tmp_path, response):
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    srv.settimeout(15)
+    srv.settimeout(scaled(15))
     port = srv.getsockname()[1]
 
     def run():
@@ -355,7 +355,7 @@ def _http_get_status(run_wermit, tmp_path, response):
         except OSError:
             return
         with conn:
-            conn.settimeout(5)
+            conn.settimeout(scaled(5))
             request = b""
             try:
                 while b"\r\n\r\n" not in request:
@@ -376,7 +376,7 @@ def _http_get_status(run_wermit, tmp_path, response):
             timeout=30)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     out = tmp_path / "out.txt"
     return result, (out.read_bytes() if out.exists() else None)
 
@@ -444,6 +444,6 @@ def test_ftp_proxy_connect_brackets_ipv6(run_wermit, tmp_path):
             "echo STATUS=[\\v(status)]", timeout=30)
     finally:
         srv.close()
-        thread.join(timeout=5)
+        thread.join(timeout=scaled(5))
     assert heads, result.stdout + result.stderr
     assert heads[0].startswith("CONNECT [::1]:2121 "), heads

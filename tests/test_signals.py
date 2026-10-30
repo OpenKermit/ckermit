@@ -8,20 +8,18 @@ once while Kermit waits in a marked system call.
 import fcntl
 import os
 import pty
-import select
 import signal
 import socket
 import struct
 import subprocess
 import termios
-import threading
 import time
 
 import pytest
 
 from test_ssl import _tls_send_after
 
-from conftest import scaled
+from conftest import PtyReader, scaled
 
 
 def _start(wermit_path, cmds, stdin=subprocess.DEVNULL):
@@ -82,13 +80,14 @@ def test_sighup_at_prompt(wermit_path):
 
 
 def test_sighup_during_tcp_input(wermit_path):
-    """Verify SIGHUP ends INPUT waiting on an idle TCP connection."""
+    """Verify SIGHUP ends INPUT waiting on an idle TCP connection.
+
+    The kernel completes the connection from the listen backlog.  The
+    test does not accept it.
+    """
     srv = socket.socket()
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
-    conns = []
-    threading.Thread(target=lambda: conns.append(srv.accept()),
-                     daemon=True).start()
     try:
         port = srv.getsockname()[1]
         proc = _start(wermit_path,
@@ -120,23 +119,6 @@ def test_sighup_during_tls_input(wermit_path, ssl_pki, protocol):
     assert proc.returncode == 1, proc.returncode
 
 
-def _read_until(master, marker, timeout):
-    """Read from master until marker appears, and return the text."""
-    out = b""
-    end = time.monotonic() + timeout
-    while marker not in out and time.monotonic() < end:
-        r, _, _ = select.select([master], [], [], 0.2)
-        if r:
-            try:
-                data = os.read(master, 4096)
-            except OSError:
-                break
-            if not data:
-                break
-            out += data
-    return out.decode(errors="replace")
-
-
 def _set_winsize(fd, rows, cols):
     """Set the window size of the terminal fd."""
     fcntl.ioctl(fd, termios.TIOCSWINSZ,
@@ -156,14 +138,15 @@ def test_sigwinch_updates_size_after_command(wermit_path):
             start_new_session=True)
         os.close(slave)
         slave = -1
-        assert "READY" in _read_until(master, b"READY", 10)
+        pty_in = PtyReader(master)
+        pty_in.until(b"READY", 10)
         _set_winsize(master, 40, 100)
         proc.send_signal(signal.SIGWINCH)
-        out = _read_until(master, b"SIZE=[", 10)
-        out += _read_until(master, b"]", 2)
+        pty_in.until(b"SIZE=[", 10)
+        out = pty_in.until(b"]", 10).decode(errors="replace")
         proc.wait(timeout=scaled(10))
     finally:
         if slave >= 0:
             os.close(slave)
         os.close(master)
-    assert "SIZE=[40x100]" in out, out
+    assert out == "40x100]", pty_in.out

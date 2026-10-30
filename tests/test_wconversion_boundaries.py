@@ -569,6 +569,7 @@ def test_autodownload_ask_prompt_shows_full_path(tmp_path, wermit_path):
     assert received.read_text() == "autodownload prompt test\n"
 
 
+@pytest.mark.slow
 def test_iksd_login_long_username_and_password(
         run_wermit, iksd_path, tmp_path):
     """Verify IKSD handles login credentials over 255 characters.
@@ -587,7 +588,7 @@ def test_iksd_login_long_username_and_password(
     buf = b""
     prompts = 0
     try:
-        deadline = time.monotonic() + 30
+        deadline = time.monotonic() + scaled(30)
         while time.monotonic() < deadline:
             try:
                 data = client.recv(4096)

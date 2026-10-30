@@ -108,6 +108,12 @@ covering their situations.
     it also left SIGCHLD ignored for the rest of the session.  Bugs were
     introduced in commit 0fd869b4 in C-Kermit 9.0.302 of 2011.
 
+  - [9, 11] Fixed a bug relating to buffering external protocol data,
+    significantly improving performance.  The code that waited was introduced in
+    commit 0fd869b4 in C-Kermit 9.0.302 of 2011.  Commit 04e8275d in C-Kermit
+    11.0.501 of 2026 replaced the wait with the 100 ms poll.  Commit ce6628a3 in
+    C-Kermit 11.0.509 of 2026 introduced the 2-second stall.
+
   - [11] On the BSDs, an external protocol over a SET HOST /PTY connection did
     not notice when the connection ended.  Bug was introduced in commit
     dab36d9a in C-Kermit 11.0.501 of 2026.
@@ -578,16 +584,21 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   the code's comment, take it as an ACK for the current packet.  Bug was
   introduced in commit 4b5eddea in C-Kermit 6.0.192 of 1996.
 
-- [6, 7, 9] Send-Init handling had several faults.  The partner's system ID was
-  not terminated.  After SET SEND NEGOTIATION-STRING-MAX-LENGTH with a value
-  from 9 to 16, or a value that cut off the system ID, the Send-Init parameters
-  could run on with parameters left from an earlier, longer Send-Init.  A
-  receiver looked for a forced Type 3 block check (CHKT "5") at a fixed place
-  in the buffer.  A short Send-Init could be refused when an earlier packet had
-  left a "5" there.  A Send-Init with an extended header that asked for the
-  forced check was refused.  CHKT is now read from the data field.  Bugs were
-  introduced in commits 4b5eddea (6.0.192 of 1996), d0f8b1da (7.0.197 of 2000)
-  and 0fd869b4 (9.0.302 of 2011).
+- [6, 7, 9] Fixed multiple bugs with Send-Init handling.  The partner's system
+  ID was not terminated.  After SET SEND NEGOTIATION-STRING-MAX-LENGTH with a
+  value from 9 to 16, or a value that cut off the system ID, the Send-Init
+  parameters could run on with parameters left from an earlier, longer
+  Send-Init.  A receiver looked for a forced Type 3 block check (CHKT "5") at a
+  fixed place in the buffer.  A short Send-Init could be refused when an earlier
+  packet had left a "5" there.  A Send-Init with an extended header that asked
+  for the forced check was refused.  And, if the max length restrictive, certain
+  features couldn't be negotiated, and these features were accidentally disabled
+  for the rest of the session..  Bugs were introduced in commits 4b5eddea
+  (6.0.192 of 1996), d0f8b1da (7.0.197 of 2000) and 0fd869b4 (9.0.302 of 2011).
+
+- [7] Fixed display of CPS transfer rates that exceeded the range of a long by
+  clamping every CPS figure to the maximum value for a long.  Bugs were
+  introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
 
 - [7] An extended GET after a failed one (GET /RECOVER /DELETE, for
   example) sent the old request without the new name.  Bug was introduced
@@ -610,6 +621,13 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   d0f8b1da in C-Kermit 7.0.197 of 2000, though the underlying bug is in MacOS.
   Commit 4a48cd29 in C-Kermit 11.0.501 of 2026 replaced the hang with the
   2-second wait.  That improved the behavior without fixing it.
+
+- [7] Fixed a bug regarding input flushing on the BSDs.  Kermit flushes the
+  input before reading its first packet.  On the BSD platforms, flushing a pty
+  master with TIOCFLUSH FREAD caused the slave's input queue to also empty out.
+  This didn't cause data loss, but could cause a delay, since the first protocol
+  messages could be lost.  Bug was introduced in commit d0f8b1da in C-Kermit
+  7.0.197 of 2000.
 
 - [8] SET TRANSFER DISPLAY FULLSCREEN with TERM unset or unknown to
   terminfo ended Kermit at the start of the next transfer, on systems
@@ -753,6 +771,12 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   never sent Telnet.  These connections start Telnet only when the peer sends
   IAC.  Close now sends DO LOGOUT only once Telnet has started.
 
+- [8] Reduce the number of times the CA bundle is read.  Previously, every TCP
+  connection read the system CA bundle three times as it opened, even on
+  connections that will never use TLS.  TLS.  Now it's read once, and only when
+  needed.  handshake that uses it.  The behavior was introduced in commit
+  c88d9b85 in C-Kermit 8.0.200 of 2001.
+
 - [9] /SSL-RAW and /TLS-RAW connections sent Telnet bytes.  TRANSMIT doubled
   0xFF, OUTPUT sent CR as CR LF, and closing sent IAC DO LOGOUT.  The
   connection was marked as Telnet once it opened.  Raw connections now stay
@@ -862,6 +886,11 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   a213649d (5A(188) of 1992), d0f8b1da (7.0.197 of 2000) and 29169c5e (8.0.201
   of 2002).
 
+- [7] Fixed handling of CKFLOAT on Alpha systems.  It had been erroneously set
+  to float instead of double on all Alphas, rather than just OpenVMS/alpha.
+  This is incorrectly limiting on NetBSD and Linux for Alpha.  The `float`
+  choice was introduced in commit d0f8b1da in C-Kermit 7.0.197 of 2000.
+
 - [7, 9, 11] Floating-point functions and S-expressions lost precision with
   large integers.  On systems that do floating point in an x87 FPU, such as
   32-bit x86 Linux, CEILING, FLOOR, TRUNCATE, ROUND, ABS, MAX and MIN gave
@@ -903,6 +932,10 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
 - [8] `\fsexpression()` with an empty first argument and another argument
   crashed Kermit when it was the first S-expression of the session.  Bug was
   introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+
+- [9] Removed SET EXTERNAL-PROTOCOL and related SHOW.  None of these settings
+  were ever actually used in the code.  The commands were introduced,
+  unimplemented, in commit 0fd869b4 in C-Kermit 9.0.302 of 2011.
 
 - [9] `\ffilecompare()` crashed Kermit when the first file could be opened
   and the second could not.  Bug was introduced in commit 04917e78 in
@@ -985,9 +1018,29 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   (7.0.197 of 2000) and 0fd869b4 (9.0.302 of 2011), and from commits cdd2e257
   and 4f611d0c (11.0.501 of 2026).
 
+- The test suite leaves out its slow tests by default.  These are the
+  tests that wait out a timeout on purpose, marked `slow`, and the
+  ZMODEM transfers with lrzsz, marked `zmodem`.  `pytest --full`, or
+  `KERMIT_TEST_FULL=1`, runs them.  CI runs the full suite.  A hang
+  limit in the suite is now at least 60 s, so a loaded or emulated
+  build host does not fail a test that would pass.  The default run is
+  meant for integrators on slow platforms.  `tests/README.txt`
+  describes both.
+
 - HELP RESEND, HELP SET RECEIVE CONFIRM, HELP SET FTP TIMEOUT, HELP
   FIREWALL and HELP SET FTP PASSIVE-MODE now describe the new RESEND,
   RECEIVE CONFIRM, FTP active-mode timeout and FTP PASV rules.
+
+- HELP now covers LICENSE, LINEOUT, LOGIN, PTY, UNDECLARE, SET
+  DESTINATION, SET FLAG, SET HINTS, SET LOGIN and SET QNX-PORT-LOCK,
+  along with second- and third-level keywords that were missing from
+  their HELP topics.  SET SEND NEGOTIATION-STRING-MAX-LENGTH and SET
+  RECEIVE NEGOTIATION-STRING-MAX-LENGTH are now listed by `?`, completed
+  by Esc and Tab, and described in HELP SET SEND and HELP SET RECEIVE.
+  SET RECEIVE I-PACKETS was accepted and did nothing.  It now reports
+  that I-PACKETS applies only to SET SEND.  HELP SCREEN, HELP CLEAR,
+  HELP SET SEND, HELP SET RECEIVE, HELP FTP MPUT and HELP FTP MGET now
+  name the actual keywords and switches.
 
 - [7] A build without streaming support (`-DNOSTREAMING`) could not send
   files.  The sender never read the receiver's replies, and it got no send
@@ -1110,6 +1163,9 @@ REMOTE QUERY.  Scripts that handle data from a remote host, such as
   ADDRESS-FAMILY AUTO`.
 
 - [11] The `CK_DEBUG_UNBUFFERED` environment variable is removed.
+
+- [9] SET EXTERNAL-PROTOCOL is removed.  It had no effect.  A script that
+  uses it now fails with "?No keywords match".
 
 - `*.ts` is no longer a default text pattern.
 

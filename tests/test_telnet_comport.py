@@ -10,6 +10,7 @@ import threading
 import time
 
 import pytest
+from conftest import scaled
 
 IAC, SB, SE, WILL, WONT, DO, DONT = 255, 250, 240, 251, 252, 253, 254
 COMPORT = 44
@@ -42,7 +43,7 @@ class ComPortServer:
         self.srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.srv.bind(("127.0.0.1", 0))
         self.srv.listen(1)
-        self.srv.settimeout(20)
+        self.srv.settimeout(scaled(20))
         self.port = self.srv.getsockname()[1]
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
@@ -92,7 +93,7 @@ class ComPortServer:
             conn, _ = self.srv.accept()
         except OSError:
             return
-        conn.settimeout(20)
+        conn.settimeout(scaled(20))
         buf = b""
         try:
             conn.sendall(b"login: ")
@@ -147,7 +148,7 @@ class ComPortServer:
     def close(self):
         """Close the listener and wait for the server thread."""
         self.srv.close()
-        self.thread.join(timeout=5)
+        self.thread.join(timeout=scaled(5))
 
     def codes(self):
         """Return the command code of each subnegotiation received."""

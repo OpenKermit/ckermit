@@ -14,7 +14,8 @@ import time
 
 import pytest
 
-from conftest import finish_wermit_pty, start_wermit_pty
+from conftest import (accept_or_stop, finish_wermit_pty, scaled,
+                      start_wermit_pty)
 
 IAC, SB, SE, WILL, WONT, DO, DONT = 255, 250, 240, 251, 252, 253, 254
 FWDX = 49
@@ -22,6 +23,13 @@ OPEN, CLOSE, DATA, OPTIONS = 1, 2, 3, 4
 
 # X11 connection setup, LSB first, protocol 11.0, no authorization.
 X11_SETUP = b"l\x00\x0b\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+
+
+@pytest.fixture(autouse=True)
+def _require_forward_x(wermit_forward_x_available):
+    """Skip each item when wermit has no FORWARD-X support."""
+    if not wermit_forward_x_available:
+        pytest.skip("wermit was not built with FORWARD-X support")
 
 
 def _sb(payload):
@@ -40,7 +48,7 @@ def _fake_x_server():
             s.close()
             continue
         s.listen(128)
-        s.settimeout(20)
+        s.settimeout(scaled(20))
         return s, n
     pytest.skip("no free X display port")
 
@@ -63,7 +71,7 @@ class ForwardXServer:
         self.srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.srv.bind(("127.0.0.1", 0))
         self.srv.listen(1)
-        self.srv.settimeout(20)
+        self.srv.settimeout(scaled(20))
         self.port = self.srv.getsockname()[1]
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
@@ -131,7 +139,7 @@ class ForwardXServer:
             conn, _ = self.srv.accept()
         except OSError:
             return
-        conn.settimeout(20)
+        conn.settimeout(scaled(20))
         buf = b""
         try:
             conn.sendall(bytes([IAC, WILL, FWDX]))
@@ -148,7 +156,7 @@ class ForwardXServer:
     def close(self):
         """Close the listener and wait for the server thread."""
         self.srv.close()
-        self.thread.join(timeout=5)
+        self.thread.join(timeout=scaled(5))
 
 
 def _channel(n):
@@ -189,7 +197,7 @@ def _session(wermit_path, tmp_path, server, display, action=None):
             thread.start()
         rc, out = finish_wermit_pty(proc, master, timeout=40)
         if action:
-            thread.join(timeout=30)
+            thread.join(timeout=scaled(30))
     finally:
         for k, v in old.items():
             if v is None:
@@ -203,15 +211,17 @@ def _session(wermit_path, tmp_path, server, display, action=None):
     return rc, out
 
 
+@pytest.mark.slow
 def test_forward_x_relays_data(wermit_path, tmp_path):
     """Verify a forwarded X11 channel carries data both ways."""
     xsrv, n = _fake_x_server()
     got = []
+    stop = threading.Event()
 
     def handle(c):
         """Record what one X client sends and answer once."""
         try:
-            c.settimeout(10)
+            c.settimeout(scaled(10))
             data = b""
             while len(data) < len(X11_SETUP) + 5:
                 chunk = c.recv(4096)
@@ -230,9 +240,8 @@ def test_forward_x_relays_data(wermit_path, tmp_path):
     def xserve():
         """Accept X clients.  fwdx_server_avail() connects first."""
         while True:
-            try:
-                c, _ = xsrv.accept()
-            except OSError:
+            c = accept_or_stop(xsrv, stop)
+            if c is None:
                 return
             threading.Thread(target=handle, args=(c,), daemon=True).start()
 
@@ -248,8 +257,9 @@ def test_forward_x_relays_data(wermit_path, tmp_path):
         rc, out = _session(wermit_path, tmp_path, server,
                            f"127.0.0.1:{n}")
     finally:
+        stop.set()
+        xt.join(timeout=scaled(5))
         xsrv.close()
-        xt.join(timeout=5)
     assert server.agreed.is_set(), out
     assert got and got[0] == X11_SETUP + b"hello", got
     assert b"XREPLY\xff\xff\xff" in server.relayed, server.received
@@ -266,7 +276,7 @@ def _x_listener(accepted=None):
 
     def drain(c):
         try:
-            c.settimeout(10)
+            c.settimeout(scaled(10))
             while c.recv(4096):
                 pass
         except OSError:
@@ -359,6 +369,7 @@ def test_forward_x_fatal_requests(wermit_path, tmp_path, name):
     assert "AFTER" in out, out
 
 
+@pytest.mark.slow
 def test_forward_x_no_x_server(wermit_path, tmp_path):
     """Verify the client closes a channel it cannot connect.
 
@@ -494,7 +505,7 @@ def test_forward_x_close_after_reset(wermit_path, tmp_path):
         try:
             accepted[1].shutdown(socket.SHUT_RDWR)
             server.reset.set()
-            assert server.closed.wait(5)
+            assert server.closed.wait(scaled(5))
             time.sleep(0.5)
         finally:
             os.kill(proc.pid, signal.SIGCONT)

@@ -3321,13 +3321,7 @@ tstats() {
       fptsecs = (CKFLOAT) GFMINTIME;
     debug(F101,"tstats fptsecs","",(int)fptsecs);
     xx = (CKFLOAT) tfc / fptsecs;
-    if (sizeof(long) <= 4) {            /* doesn't account for 16-bit longs */
-        if (xx  > 2147483647.0)
-          tfcps = 2147483647L;          /* 31 bits */
-        else
-          tfcps = (long) xx;
-    } else
-      tfcps = (long) xx;
+    tfcps = ckftol(xx);
 #else
     if (tsecs < 2L)
       tsecs = 1L;
@@ -3358,7 +3352,7 @@ tstats() {
         tlog(F101," effective data rate     ","",filcps);
     } else {
         tlog(F101," elapsed time (seconds)  ","",(long) fptsecs);
-        tlog(F101," effective data rate     ","",(long) xx);
+        tlog(F101," effective data rate     ","",tfcps);
     }
 #else
     tlog(F101," elapsed time (seconds)  ","",tsecs);
@@ -3379,13 +3373,7 @@ fcps() {
     if (fpxfsecs <= GFMINTIME)
       fpxfsecs = (CKFLOAT) GFMINTIME;
     xx = (CKFLOAT) ffc / fpxfsecs;
-    if (sizeof(long) <= 4) {
-        if (xx  > 2147483647.0)
-          tfcps = 2147483647L;          /* 31 bits */
-        else
-          filcps = (long) xx;
-    } else
-      filcps = (long) xx;
+    filcps = ckftol(xx);
     if (sizeof(int) >= 4)
       xfsecs = (int) fpxfsecs;
     else if (fpxfsecs < 32768.0)

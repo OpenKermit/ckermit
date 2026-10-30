@@ -3986,7 +3986,7 @@ doxlog(x, fn, fs, fm, status, msg)
         long xcps = 0L;
 #ifdef GFTIMER
         debug(F101,"DOXLOG fpxfsecs","",(long)(fpxfsecs * 1000));
-        if (fpxfsecs) xcps = (long)((CKFLOAT) fs / fpxfsecs);
+        if (fpxfsecs) xcps = ckftol((CKFLOAT) fs / fpxfsecs);
         sprintf(s,"%s\"%0.3fsec %ldcps\"",sep,fpxfsecs,xcps);
 #else
         if (xfsecs) xcps = fs / xfsecs;
@@ -4744,7 +4744,7 @@ _PROTOTYP( VOID conbgt, (int) );
 #ifdef GFTIMER
                 if (fpxfsecs)
                   printf(": OK (%0.3f sec, %ld cps)",fpxfsecs,
-                         (long)((CKFLOAT)ffc / fpxfsecs));
+                         ckftol((CKFLOAT)ffc / fpxfsecs));
 #else
                 if (xfsecs)
                   printf(": OK (%ld sec, %ld cps)",xfsecs,ffc/xfsecs);
@@ -7270,7 +7270,7 @@ shocps(pct, fsiz, howfar) int pct; CK_OFF_T fsiz, howfar;
 */
 #ifndef CPS_VINCE
 #ifdef GFTIMER
-            cps = (long)((((CKFLOAT)oldcps * 3.0) +
+            cps = ckftol((((CKFLOAT)oldcps * 3.0) +
                    (CKFLOAT)(ffc - oldffc) / (gtv-oldgtv) ) / 4.0);
 #else
             cps = ( (oldcps * 3) + (ffc - oldffc) / (gtv-oldgtv) ) / 4;
@@ -7284,7 +7284,7 @@ shocps(pct, fsiz, howfar) int pct; CK_OFF_T fsiz, howfar;
         } else {
             /* No weighted average since there is nothing to weigh */
 #ifdef GFTIMER
-            cps = (long)(gtv != 0.0 ?
+            cps = ckftol(gtv != 0.0 ?
               (CKFLOAT)(ffc - oldffc) / (gtv - oldgtv) :
                 (ffc - oldffc)) ;
 #else

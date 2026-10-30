@@ -64,7 +64,7 @@ def test_array_resize_out_of_memory(wermit_path, wermit_sanitized):
         [sys.executable, "-c",
          "import resource; "
          f"resource.setrlimit(resource.RLIMIT_AS, ({gb}, {gb}))"],
-        stdin=subprocess.DEVNULL, capture_output=True, timeout=30)
+        stdin=subprocess.DEVNULL, capture_output=True, timeout=scaled(30))
     if probe.returncode != 0:
         pytest.skip("RLIMIT_AS cannot be lowered to 1 GiB here")
 
