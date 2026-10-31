@@ -10,7 +10,9 @@
   the same entry.  getpwnam() returns other entries unchanged.
 
   fopen() and fopen64() open FAKESHADOW_IKSDCONF, when set, in place of
-  /etc/iksd.conf.  So a test can give an IKSD a configuration file.
+  FAKESHADOW_IKSDPATH.  FAKESHADOW_IKSDPATH is the IKSD configuration
+  file path built into wermit.  So a test can give an IKSD a
+  configuration file.
 
   getspnam() returns an entry for that user, or for FAKESHADOW_ALIAS,
   that holds crypt(FAKESHADOW_PASS) with a fixed SHA-512 salt.  It
@@ -37,8 +39,9 @@ static const char *
 conf_path(const char *path)
 {
     const char *conf = getenv("FAKESHADOW_IKSDCONF");
+    const char *real = getenv("FAKESHADOW_IKSDPATH");
 
-    if (conf && path && strcmp(path, "/etc/iksd.conf") == 0)
+    if (conf && real && path && strcmp(path, real) == 0)
         return conf;
     return path;
 }

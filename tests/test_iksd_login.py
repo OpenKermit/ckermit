@@ -101,6 +101,22 @@ def _has_iksd(wermit_path):
     return bool(re.search(r"\bCK_(SHADOW|PAM)\b", result.stdout))
 
 
+def _iksd_conf_path(wermit_path):
+    """Return the IKSD configuration file path built into wermit.
+
+    SHOW EXTENDED-OPTIONS prints it as "IKSD conf=".  A build can set
+    it with -DIKSDCONF.
+    """
+    result = subprocess.run(
+        [wermit_path, "-H", "-Y", "-C",
+         "set command more-prompting off, show extended-options, exit"],
+        capture_output=True, text=True, stdin=subprocess.DEVNULL,
+        timeout=scaled(10))
+    match = re.search(r"^ IKSD conf=(.*)$", result.stdout, re.M)
+    assert match, f"no IKSD conf in SHOW EXTENDED-OPTIONS: {result!r}"
+    return match.group(1)
+
+
 def _iksd_session(wermit_path, fakeshadow, tmp_path, client_cmds,
                   userfile_lines=None, initfile=None, home=None,
                   client_setup="", login=None, client=None, alias=None):
@@ -127,6 +143,7 @@ def _iksd_session(wermit_path, fakeshadow, tmp_path, client_cmds,
                FAKESHADOW_PASS=PASSWORD)
     if initfile is not None:
         env["FAKESHADOW_IKSDCONF"] = str(initfile)
+        env["FAKESHADOW_IKSDPATH"] = _iksd_conf_path(wermit_path)
     if home is not None:
         env["FAKESHADOW_HOME"] = str(home)
     if alias is not None:
