@@ -46,7 +46,7 @@ without SSL support.
 
 ## NetBSD
 
-Official binaries for this release are built on NetBSD 10.1 and are built
+Official binaries for this release are built on NetBSD 11.0 and are built
 without SSL support.
 
 ### Weird problems on NetBSD
@@ -55,16 +55,21 @@ This is only applicable when using pseudoterminals (ptys), which are used for
 `SSH`, when explicitly requested from `SET HOST`, and when using external
 protocols like ZModem.
 
-NetBSD has a kernel bug in which the kernel can sometimes return a value
-indicating more data was successfully written down the pty than actually was,
-causing loss of bytes of data.  When in default mode, C-Kermit detects this and
-automatically shrinks its packet size to compensate! When in streaming mode,
-this is fatal to the transfer, and was detected when I added streaming mode
-tests.  The workaround is to run `sysctl -w kern.tty.qsize=65536` or to set it
-in `/etc/sysctl.conf`; a comment in that file implies this issue is known
-already as it is required for other system components as well. 
+NetBSD has a [kernel bug](https://gnats.netbsd.org/60935) in which the kernel
+can sometimes return a value indicating more data was successfully written down
+the pty than actually was, causing loss of bytes of data.  When in default mode,
+C-Kermit detects this and automatically shrinks its packet size to compensate!
+When in streaming mode, this is fatal to the transfer, and was detected when I
+added streaming mode tests.  A partial workaround is to run `sysctl -w
+kern.tty.qsize=65536` or to set it in `/etc/sysctl.conf`; a comment in that file
+implies this issue is known already as it is required for other system
+components as well. 
 
-- John Goerzen, July 2026
+Streaming transfers on NetBSD may still have problems, even with this change,
+and ZModem may also.  I recommend disabling streaming if you are using PTYs or
+external protocols on NetBSD.
+
+- John Goerzen, July 2026, updated October 2026
 
 ## OpenVMS
 
