@@ -696,11 +696,11 @@ static gss_OID ck_gss_nt_service_name_v2 = ck_oids+5;
 #endif /* FTP_GSSAPI */
 #include "ckoath.h"
 
-#include "ckcfnp.h"                     /* Prototypes */
-
 extern int k95stdout, wherex[], wherey[];
 extern unsigned char colorcmd;
 #endif /* OS2 */
+
+#include "ckcfnp.h"                     /* Prototypes (must be last) */
 
 #ifdef FTP_KRB4
 static char ftp_realm[REALM_SZ + 1];
