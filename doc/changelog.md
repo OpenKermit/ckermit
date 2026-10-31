@@ -1,6 +1,8 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.1.515 (NOT YET RELEASED)
+# C-Kermit 11.1.515
+
+October 30, 2026
 
 ## Summary
 
