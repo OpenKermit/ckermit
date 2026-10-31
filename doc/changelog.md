@@ -8,6 +8,8 @@
   
 - Fix tests such that a nonstandard path to iksd.conf will still work.
 
+- Fix for building on x32 (amd64 ISA with 32-bit pointers)
+
 # C-Kermit 11.1.515
 
 October 30, 2026
