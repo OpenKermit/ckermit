@@ -10,22 +10,12 @@
 
 - Fix for building on x32 (amd64 ISA with 32-bit pointers)
 
-- Added a static 32-bit x86 Linux binary for embedded and older systems.  It
-  is built with musl for the i486 instruction set and has no SSL/TLS
-  support.  CI builds and tests it everywhere it builds armhf.
-  `tools/check-i486-insns.sh` fails the build if anything linked into it uses
-  a later instruction.
+- Added a static 32-bit x86.
 
 - The musl static builds now carry built-in ncurses entries for common
-  terminal types: ansi, dumb, linux, putty, rxvt, screen, tmux, vt100, vt102,
-  vt220, xterm, and their 256-color variants.  ncurses uses them only when
-  the system terminfo database lacks the type.  For these types, the
-  fullscreen file transfer display works on systems with no terminfo
-  database.
+  terminal types.
 
-- Fixed `make linux+musl` with ncurses.  `KNCURSESINC` names both of the
-  prefix's include directories, and the new `KNCURSESLIB` names its lib
-  directory.
+- Fixed `make linux+musl` with ncurses.
 
 # C-Kermit 11.1.515
 
