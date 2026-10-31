@@ -61,9 +61,9 @@ jobs:
   build-and-test:
     strategy:
       fail-fast: false
-      # Pull requests test amd64, macOS, and armhf musl for 32-bit
-      # coverage. Pushes to main also build arm64 musl. arm64 is
-      # omitted from pull requests to keep runs fast.
+      # Pull requests test amd64, macOS, and armhf and i386 musl for
+      # 32-bit coverage. Pushes to main also build arm64 musl. arm64
+      # is omitted from pull requests to keep runs fast.
       # linux-nonet and linux-notcp are built but not tested, to keep
       # the builds without network support compiling.
       #
@@ -77,12 +77,14 @@ jobs:
           {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux-notcp","label":"ubuntu26.04-amd64-notcp","skip-tests":true},
           {"os":"ubuntu-24.04-arm","platform":"linux","arch":"arm64","make-target":"linux+ssl+musl","label":"ubuntu24.04-arm64-musl"},
           {"os":"ubuntu-24.04-arm","platform":"linux","arch":"armhf","make-target":"linux+ssl+musl","label":"ubuntu24.04-armhf-musl"},
+          {"os":"ubuntu-26.04","platform":"linux","arch":"i386","make-target":"linux+musl","label":"debian13-i386-musl"},
           {"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"macos-arm64"}
           ]' || '[
           {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"ubuntu26.04-amd64"},
           {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux-nonet","label":"ubuntu26.04-amd64-nonet","skip-tests":true},
           {"os":"ubuntu-26.04","platform":"linux","arch":"amd64","make-target":"linux-notcp","label":"ubuntu26.04-amd64-notcp","skip-tests":true},
           {"os":"ubuntu-24.04-arm","platform":"linux","arch":"armhf","make-target":"linux+ssl+musl","label":"ubuntu24.04-armhf-musl"},
+          {"os":"ubuntu-26.04","platform":"linux","arch":"i386","make-target":"linux+musl","label":"debian13-i386-musl"},
           {"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos+ssl","label":"macos-arm64"}
           ]')) }}
     runs-on: ${{ matrix.os }}
@@ -139,7 +141,7 @@ jobs:
       # musl-gcc-built OpenSSL (linux+ssl+musl only), zlib, ncurses,
       # and check. This runs for every matrix entry using either
       # target, including the release-time "static" amd64/arm64
-      # binaries (release.yml) and the arm64 and armhf musl
+      # binaries (release.yml) and the arm64, armhf, and i386 musl
       # matrix entries. Cache the built install prefix keyed on
       # the build script plus arch, since each architecture requires
       # a separate build. The key changes if the script (and so the
@@ -163,6 +165,10 @@ jobs:
       #
       # The arm64 CPU executes armhf binaries directly in AArch32 mode,
       # so no emulation is needed for test execution.
+      #
+      # i386 builds inside a Debian container (tools/i386-musl-container.sh)
+      # for the i486 instruction set. The amd64 runner executes the
+      # result directly, so tests run on the runner itself.
       - name: Install musl toolchain
         if: >-
           matrix.make-target == 'linux+ssl+musl' ||
@@ -176,6 +182,9 @@ jobs:
             sudo apt-get install -y musl-tools:armhf \
               linux-libc-dev:armhf
             tools/build-musl-libs.sh .ci-cache/musl-libs armhf
+          elif [ "${{ matrix.arch }}" = "i386" ]; then
+            tools/i386-musl-container.sh \
+              tools/build-musl-libs.sh .ci-cache/musl-libs i386
           else
             sudo apt-get install -y musl-tools
             tools/build-musl-libs.sh .ci-cache/musl-libs
@@ -188,28 +197,36 @@ jobs:
           matrix.make-target != 'linux+musl'
         run: make -j4 ${{ matrix.make-target }}
 
-      # linux+ssl+musl and linux+musl take different override variable
-      # names for the zlib/OpenSSL half (KSSLINC/KSSLLIB vs.
-      # KZLIBINC/KZLIBLIB; see the comments on those two makefile
-      # targets for why), but share KNCURSESINC for the ncurses half.
+      # linux+ssl+musl finds the prefix's include and lib directories
+      # through KSSLINC/KSSLLIB. linux+musl has neither, so it takes
+      # both include directories in KNCURSESINC and the lib directory
+      # in KNCURSESLIB. See the comments on those two makefile targets.
+      #
+      # RUN holds the container prefix for i386 and is empty otherwise.
       - name: Build (Linux, musl)
         if: >-
           matrix.make-target == 'linux+ssl+musl' ||
           matrix.make-target == 'linux+musl'
         run: |
-          if [ "${{ matrix.arch }}" = "armhf" ]; then
-            export REALGCC=arm-linux-gnueabihf-gcc
-          fi
+          RUN=
+          KFLAGS=
+          case "${{ matrix.arch }}" in
+            armhf) export REALGCC=arm-linux-gnueabihf-gcc ;;
+            i386) RUN=tools/i386-musl-container.sh
+                  KFLAGS=-march=i486 ;;
+          esac
+          P="$PWD/.ci-cache/musl-libs"
           if [ "${{ matrix.make-target }}" = "linux+ssl+musl" ]; then
-            make -j4 ${{ matrix.make-target }} \
-              KSSLINC="-I$PWD/.ci-cache/musl-libs/include" \
-              KSSLLIB="-L$PWD/.ci-cache/musl-libs/lib" \
-              KNCURSESINC="-I$PWD/.ci-cache/musl-libs/include/ncurses"
+            $RUN make -j4 ${{ matrix.make-target }} \
+              KSSLINC="-I$P/include" \
+              KSSLLIB="-L$P/lib" \
+              KNCURSESINC="-I$P/include/ncurses" \
+              KFLAGS="$KFLAGS"
           else
-            make -j4 ${{ matrix.make-target }} \
-              KZLIBINC="-I$PWD/.ci-cache/musl-libs/include" \
-              KZLIBLIB="-L$PWD/.ci-cache/musl-libs/lib" \
-              KNCURSESINC="-I$PWD/.ci-cache/musl-libs/include/ncurses"
+            $RUN make -j4 ${{ matrix.make-target }} \
+              KNCURSESINC="-I$P/include -I$P/include/ncurses" \
+              KNCURSESLIB="-L$P/lib" \
+              KFLAGS="$KFLAGS"
           fi
 
       - name: Build (macOS)
@@ -224,6 +241,12 @@ jobs:
           ./wermit -H -Y -Q -C \
             "set command more-prompting off, show version, quit"
 
+      # The i386 binary targets the i486. Fail if anything linked into
+      # it, including musl and libgcc, uses a later instruction.
+      - name: Check i486 instruction set
+        if: matrix.arch == 'i386'
+        run: tools/check-i486-insns.sh wermit
+
       # The makefile unit-test recipe queries pkg-config for check's
       # compiler and linker flags. The "Install Linux dependencies"
       # step installs the system check package for glibc.
@@ -231,17 +254,21 @@ jobs:
       # pkg-config selects the musl check package rather than glibc.
       #
       # On armhf, setting REALGCC directs musl-gcc to the cross compiler.
+      # On i386, the unit tests build and run inside the container.
+      # They link dynamically against musl:i386's loader.
       - name: C unit tests
         if: matrix.skip-tests != true && matrix.skip-c-tests != true
         run: |
-          if [ "${{ matrix.arch }}" = "armhf" ]; then
-            export REALGCC=arm-linux-gnueabihf-gcc
-          fi
+          RUN=
+          case "${{ matrix.arch }}" in
+            armhf) export REALGCC=arm-linux-gnueabihf-gcc ;;
+            i386) RUN=tools/i386-musl-container.sh ;;
+          esac
           if [ "${{ matrix.make-target }}" = "linux+ssl+musl" ] || \
              [ "${{ matrix.make-target }}" = "linux+musl" ]; then
             export PKG_CONFIG_PATH="$PWD/.ci-cache/musl-libs/lib/pkgconfig"
           fi
-          make check
+          $RUN make check
 
       - name: Python test suite
         if: matrix.skip-tests != true
