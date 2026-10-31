@@ -59,12 +59,21 @@ def test_array_resize_out_of_memory(wermit_path, wermit_sanitized):
         pytest.skip("no RLIMIT_AS on this platform")
     gb = 1 << 30
 
-    # Check whether RLIMIT_AS can be lowered.  macOS may reject this.
+    # Check whether RLIMIT_AS can be lowered and is enforced.  macOS may
+    # reject the setrlimit() call.  qemu-user accepts it but enforces
+    # nothing.  A 1 GiB allocation must fail under a 1 GiB limit.
     probe = subprocess.run(
         [sys.executable, "-c",
-         "import resource; "
-         f"resource.setrlimit(resource.RLIMIT_AS, ({gb}, {gb}))"],
+         "import resource, sys\n"
+         f"resource.setrlimit(resource.RLIMIT_AS, ({gb}, {gb}))\n"
+         "try:\n"
+         f"    bytearray({gb})\n"
+         "except MemoryError:\n"
+         "    sys.exit(0)\n"
+         "sys.exit(3)\n"],
         stdin=subprocess.DEVNULL, capture_output=True, timeout=scaled(30))
+    if probe.returncode == 3:
+        pytest.skip("RLIMIT_AS is not enforced here")
     if probe.returncode != 0:
         pytest.skip("RLIMIT_AS cannot be lowered to 1 GiB here")
 

@@ -6,7 +6,8 @@ import subprocess
 import threading
 import time
 import pytest
-from conftest import (assert_ok, expected_timeout, start_tcp_listener,
+from conftest import (assert_ok, expected_timeout,
+                      require_scope_id_reported, start_tcp_listener,
                       scaled)
 
 
@@ -628,24 +629,29 @@ def _ipv6_addrs_by_iface():
 def _link_local_interface_and_address():
     """Find a non-loopback interface with a link-local (fe80::/10)
     IPv6 address. Returns (interface, address) or None if none is
-    found."""
+    found.  Skips the test if the system misreports its scope ID."""
     for iface, addrs in _ipv6_addrs_by_iface().items():
         if iface in ("lo", "lo0"):
             continue
         for addr in addrs:
             if addr.startswith("fe80"):
+                require_scope_id_reported(addr, iface)
                 return iface, addr
     return None
 
 
 def _link_local_and_other_address_same_iface():
-    """Return (interface, link_local_addr, other_addr) on a single interface."""
+    """Return (interface, link_local_addr, other_addr) on a single interface.
+
+    Skips the test if the system misreports the link-local scope ID.
+    """
     for iface, addrs in _ipv6_addrs_by_iface().items():
         if iface in ("lo", "lo0"):
             continue
         ll = [a for a in addrs if a.startswith("fe80")]
         other = [a for a in addrs if not a.startswith("fe80")]
         if ll and other:
+            require_scope_id_reported(ll[0], iface)
             return iface, ll[0], other[0]
     return None
 

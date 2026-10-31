@@ -8,7 +8,8 @@ import socket
 import subprocess
 import pytest
 from pyftpdlib.authorizers import DummyAuthorizer
-from conftest import assert_ok, scaled, serve_ftp
+from conftest import (assert_ok, require_scope_id_reported, scaled,
+                      serve_ftp)
 from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import FTPServer
 
@@ -66,12 +67,16 @@ def _ipv6_addrs_by_iface():
 
 
 def _link_local_interface_and_address():
-    """Return (interface, address) for a non-loopback link-local address."""
+    """Return (interface, address) for a non-loopback link-local address.
+
+    Skips the test if the system misreports the link-local scope ID.
+    """
     for iface, addrs in _ipv6_addrs_by_iface().items():
         if iface in ("lo", "lo0"):
             continue
         for addr in addrs:
             if addr.startswith("fe80"):
+                require_scope_id_reported(addr, iface)
                 return iface, addr
     return None
 

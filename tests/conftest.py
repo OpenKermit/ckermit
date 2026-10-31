@@ -433,6 +433,24 @@ def require_closed_port(host="127.0.0.1"):
     pytest.skip(f"port {CLOSED_PORT} on {host} accepts connections")
 
 
+def require_scope_id_reported(addr, iface):
+    """Skip the test unless the system reports link-local scope IDs.
+
+    This binds a socket to addr on iface and checks that getsockname()
+    returns the interface index as sin6_scope_id.  qemu-user swaps that
+    field as 16 bits on the way to a big-endian guest.  There an index
+    of 2 reads back as 131072.  Kermit then binds or prints the wrong
+    scope ID.
+    """
+    idx = socket.if_nametoindex(iface)
+    with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
+        s.bind((addr, 0, 0, idx))
+        reported = s.getsockname()[3]
+    if reported != idx:
+        pytest.skip(f"getsockname() reports scope ID {reported} for "
+                    f"{iface} (index {idx})")
+
+
 def require_tls_version(ssl_pki, version):
     """Skip the test unless this Python can handshake at version.
 
