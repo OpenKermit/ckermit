@@ -66,6 +66,42 @@ def iksd_path(tmp_path, wermit_path):
     return str(link)
 
 
+def _loopback_pair(family, bindaddr, attempts=3):
+    """
+    Returns (client, conn), the two ends of a TCP connection on
+    bindaddr.  conn is the accepted end and is in blocking mode.
+
+    A completed connect() does not guarantee a queued connection.
+    The OpenBSD syncache resets the connection after the handshake
+    when sonewconn() fails, for instance under mbuf pressure.  So the
+    accept has a time limit, and a lost connection starts over with a
+    new listener.  An accepted connection from any other peer is
+    closed.
+    """
+    for _ in range(attempts):
+        srv = socket.socket(family, socket.SOCK_STREAM)
+        try:
+            srv.bind((bindaddr, 0))
+            srv.listen(1)
+            srv.settimeout(scaled(5))
+            client = socket.create_connection(
+                srv.getsockname()[:2], timeout=scaled(5))
+            want = client.getsockname()[:2]
+            try:
+                while True:
+                    conn, peer = srv.accept()
+                    if peer[:2] == want:
+                        conn.settimeout(None)
+                        return client, conn
+                    conn.close()
+            except socket.timeout:
+                client.close()
+        finally:
+            srv.close()
+    raise AssertionError(
+        f"no loopback connection on {bindaddr} after {attempts} tries")
+
+
 def _connect_iksd(iksd_path, dbfile, log_path,
                   family=socket.AF_INET, bindaddr="127.0.0.1",
                   extra_args=(), cwd=None, env=None):
@@ -77,14 +113,7 @@ def _connect_iksd(iksd_path, dbfile, log_path,
     before --dbfile, and cwd is the working directory of the IKSD.
     env is the environment of the IKSD, or None for this process's.
     """
-    srv = socket.socket(family, socket.SOCK_STREAM)
-    srv.bind((bindaddr, 0))
-    srv.listen(1)
-    port = srv.getsockname()[1]
-
-    client = socket.create_connection((bindaddr, port), timeout=scaled(5))
-    conn, _ = srv.accept()
-    srv.close()
+    client, conn = _loopback_pair(family, bindaddr)
 
     log_fh = open(log_path, "wb")
     proc = subprocess.Popen(
@@ -92,7 +121,7 @@ def _connect_iksd(iksd_path, dbfile, log_path,
         stdin=conn.fileno(), stdout=conn.fileno(), stderr=log_fh,
         close_fds=True, cwd=cwd, env=env,
     )
-    conn.close()                        # child has its own dup now
+    conn.close()                        # the child holds a dup
     return proc, client, log_fh
 
 
