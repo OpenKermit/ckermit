@@ -31,7 +31,14 @@
   This file is for glibc on Linux.  The malloc wrappers call
   __libc_malloc() and friends.  read(), write() and open() go to
   syscall().  fopen(), openpty() and fork() use dlsym().
+
+  The file defines open() and open64() as separate symbols.  On 32-bit
+  glibc, _FILE_OFFSET_BITS=64 renames open() to open64() and fopen() to
+  fopen64() at the assembler level.  Some compilers predefine it, along
+  with _TIME_BITS=64 that requires it.  So both are undefined here.
 */
+#undef _TIME_BITS
+#undef _FILE_OFFSET_BITS
 #define _GNU_SOURCE
 #include <dlfcn.h>
 #include <execinfo.h>
