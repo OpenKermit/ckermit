@@ -5336,10 +5336,14 @@ typedef unsigned int u_int;
 #define CK_64BIT
 #else
 #ifdef __amd64                          /* AMD x86_64 */
+#ifndef __ILP32__                       /* x32 has 32-bit longs */
 #define CK_64BIT
+#endif  /* __ILP32__ */
 #else
 #ifdef __x86_64                         /* AMD/Intel x86_64 */
+#ifndef __ILP32__                       /* x32 has 32-bit longs */
 #define CK_64BIT
+#endif  /* __ILP32__ */
 #else
 #ifdef __ia64                           /* Intel IA64 */
 #ifndef HPUX
