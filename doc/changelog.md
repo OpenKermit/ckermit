@@ -49,6 +49,11 @@ covering their situations.
   reply, as releases before 11.1 did.  It suits a server that names a
   different host for data.
 
+- `SET HOST * 0` listens on a port the system chooses.  The "Waiting to
+  Accept" message names the port.  The IPv4 and IPv6 sockets share it.
+  If the port is in use for IPv6, SET HOST tries a new port, up to 8
+  times, and then warns and listens on IPv4 only.
+
 ## Major Improvements
 
 - [8, 9] The default file-list string space on 64-bit builds is now 32MB instead

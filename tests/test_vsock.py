@@ -134,13 +134,24 @@ def test_set_host_vsock_server_invalid_port(run_wermit):
     assert "Invalid VSOCK port: bogus" in result.stderr
 
 
+def _free_vsock_port():
+    """Return a VSOCK port with no listener.
+
+    VSOCK ports are separate from TCP ports.  No other test listens on
+    VSOCK.
+    """
+    with socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM) as s:
+        s.bind((socket.VMADDR_CID_ANY, socket.VMADDR_PORT_ANY))
+        return s.getsockname()[1]
+
+
 def test_set_host_vsock_server_accepts_connection(
-    run_wermit, spawn_wermit, vsock_available, get_free_port
+    run_wermit, spawn_wermit, vsock_available
 ):
     """
     Test VSOCK server operation by connecting a client to wermit.
     """
-    port = get_free_port()
+    port = _free_vsock_port()
     script = (
         "set command more-prompting off, set network type vsock, "
         f"set host *:{port}, if fail exit 1 ACCEPT-FAILED, "

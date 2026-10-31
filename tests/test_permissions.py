@@ -412,7 +412,7 @@ def test_show_server_reports_plain_process_as_remote(wermit_path):
 
 
 def test_show_server_reports_set_host_star_as_remote(
-        wermit_path, tmp_path, get_free_port, spawn_wermit):
+        wermit_path, tmp_path, spawn_wermit):
     """Row 2 (a server that itself does SET HOST *, the way this
     project's raw-socket/telnet transports do): local=1 *and*
     tcp_incoming=1, so despite Connection mode reading Local, the
@@ -421,20 +421,19 @@ def test_show_server_reports_set_host_star_as_remote(
     server_dir = tmp_path / "server"
     server_dir.mkdir()
 
-    def server_args(port):
-        inifile = tmp_path / f"row2_server_{port}.ini"
-        inifile.write_text(
-            "set command more-prompting off\n"
-            f"cd {server_dir}\n"
-            f"set host * {port} /raw-socket\n"
-            "show server\n"
-            "close\n"
-        )
-        return ["--unbuffered", "-H", "-y", str(inifile)]
+    inifile = tmp_path / "row2_server.ini"
+    inifile.write_text(
+        "set command more-prompting off\n"
+        f"cd {server_dir}\n"
+        "set host * 0 /raw-socket\n"
+        "show server\n"
+        "close\n"
+    )
+    server_args = ["--unbuffered", "-H", "-y", str(inifile)]
 
     server_log = tmp_path / "row2_server.log"
     port, server_proc, server_log_fh = start_tcp_listener(
-        spawn_wermit, get_free_port, server_args, server_log,
+        spawn_wermit, server_args, server_log,
         "show_server_row2")
 
     client_result = subprocess.run(

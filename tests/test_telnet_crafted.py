@@ -12,7 +12,7 @@ import threading
 
 import pytest
 
-from conftest import kermit_wait, scaled
+from conftest import kermit_wait, scaled, start_tcp_listener
 
 IAC = 255
 SB = 250
@@ -631,32 +631,26 @@ def test_telnet_new_environ_reply_quotes_value(run_wermit):
     assert reply == b"\x00USER\x01ab\x02\x01cd\xff\xffef", reply
 
 
-def _naws_to_server(wermit_path, tmp_path, port, subnegotiations):
+def _naws_to_server(spawn_wermit, tmp_path, subnegotiations):
     """Send NAWS subnegotiations to wermit as a Telnet server.
 
-    wermit listens with SET HOST * and logs debug output.  The client
+    wermit listens with SET HOST * 0 and logs debug output.  The client
     answers DO NAWS with WILL NAWS and refuses every other option.  It
     then sends each subnegotiation and a line that ends the server's
     INPUT.  Returns the widths and heights the server's debug log
     records.
     """
     log = tmp_path / "debug.log"
-    proc = subprocess.Popen(
-        [wermit_path, "-H", "-Y", "-C",
+    port, proc, log_fh = start_tcp_listener(
+        spawn_wermit,
+        ["--unbuffered", "-H", "-Y", "-C",
          "set command more-prompting off, set tcp reverse-dns-lookup off, "
-         f"log debug {log}, set host * {port} /telnet, "
+         f"log debug {log}, set host * 0 /telnet, "
          f"input {kermit_wait()} DONE, close, exit"],
-        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL, cwd=str(tmp_path))
+        tmp_path / "server.log", "NAWS server", cwd=str(tmp_path))
     try:
-        conn = None
-        for _ in range(100):
-            try:
-                conn = socket.create_connection(("127.0.0.1", port), 1)
-                break
-            except OSError:
-                threading.Event().wait(0.1)
-        assert conn is not None, "server never listened"
+        conn = socket.create_connection(("127.0.0.1", port),
+                                        scaled(10))
         with conn:
             conn.settimeout(scaled(10))
             pending = b""
@@ -689,6 +683,7 @@ def _naws_to_server(wermit_path, tmp_path, port, subnegotiations):
                 pending = pending[i:]
             proc.wait(timeout=scaled(20))
     finally:
+        log_fh.close()
         if proc.poll() is None:
             proc.kill()
             proc.wait(timeout=scaled(10))
@@ -698,15 +693,14 @@ def _naws_to_server(wermit_path, tmp_path, port, subnegotiations):
 
 @pytest.mark.parametrize("data", [b"", b"\x00", b"\x00\x50\x00"],
                          ids=["empty", "one", "three"])
-def test_telnet_server_naws_short(wermit_path, tmp_path, get_free_port,
-                                  data):
+def test_telnet_server_naws_short(spawn_wermit, tmp_path, data):
     """Verify a Telnet server ignores NAWS with fewer than four bytes.
 
     NAWS holds a width and height of two bytes each.  The client sends
     a short NAWS and then a valid one of 100 by 30.  The server must
     record only the valid size.
     """
-    sizes = _naws_to_server(wermit_path, tmp_path, get_free_port(),
+    sizes = _naws_to_server(spawn_wermit, tmp_path,
                             [data, b"\x00\x64\x00\x1e"])
     assert sizes == [("width", "100"), ("height", "30")], sizes
 
@@ -819,32 +813,25 @@ def test_telnet_client_ignores_server_terminal_type(wermit_path, tmp_path):
     assert "TERM=[xterm]" in result.stdout, result.stdout
 
 
-def test_telnet_server_takes_client_terminal_type(wermit_path, tmp_path,
-                                                  get_free_port):
+def test_telnet_server_takes_client_terminal_type(spawn_wermit, tmp_path):
     """Verify a Telnet server sets TERM from the client's TTYPE IS.
 
-    wermit listens with SET HOST *.  The client answers DO TTYPE with
+    wermit listens with SET HOST * 0.  The client answers DO TTYPE with
     WILL TTYPE and TTYPE SEND with TTYPE IS VT220.  The server must set
     TERM to vt220.
     """
-    port = get_free_port()
-    proc = subprocess.Popen(
-        [wermit_path, "-H", "-Y", "-C",
+    server_log = tmp_path / "server.log"
+    port, proc, log_fh = start_tcp_listener(
+        spawn_wermit,
+        ["--unbuffered", "-H", "-Y", "-C",
          "set command more-prompting off, set tcp reverse-dns-lookup off, "
-         f"set host * {port} /telnet, input {kermit_wait()} DONE, "
+         f"set host * 0 /telnet, input {kermit_wait()} DONE, "
          "echo TERM=[\\$(TERM)], close, exit"],
-        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL, text=True, cwd=str(tmp_path),
+        server_log, "TTYPE server", cwd=str(tmp_path),
         env=dict(os.environ, TERM="xterm"))
     try:
-        conn = None
-        for _ in range(100):
-            try:
-                conn = socket.create_connection(("127.0.0.1", port), 1)
-                break
-            except OSError:
-                threading.Event().wait(0.1)
-        assert conn is not None, "server never listened"
+        conn = socket.create_connection(("127.0.0.1", port),
+                                        scaled(10))
         with conn:
             conn.settimeout(scaled(10))
             pending = b""
@@ -876,9 +863,11 @@ def test_telnet_server_takes_client_terminal_type(wermit_path, tmp_path,
                         conn.sendall(bytes([IAC, reply, opt]))
                     i += 3 if cmd in (WILL, WONT, DO, DONT) else 2
                 pending = pending[i:]
-            out, _ = proc.communicate(timeout=scaled(20))
+            proc.wait(timeout=scaled(20))
     finally:
+        log_fh.close()
         if proc.poll() is None:
             proc.kill()
             proc.wait(timeout=scaled(10))
+    out = server_log.read_text(errors="replace")
     assert "TERM=[vt220]" in out, out

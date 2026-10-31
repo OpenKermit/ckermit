@@ -184,7 +184,7 @@ pytestmark_ssl = pytest.mark.skipif(
 )
 
 
-def _run_ssl_zmodem(wermit_path, get_free_port, ssl_pki,
+def _run_ssl_zmodem(wermit_path, ssl_pki,
                      server_dir, remote_dir, remote_argv, timeout=60):
     """
     Runs a Zmodem transfer over a loopback /SSL connection, with the
@@ -208,11 +208,11 @@ def _run_ssl_zmodem(wermit_path, get_free_port, ssl_pki,
                       else "receive")
 
     port, proc, master, prefix = start_pty_tcp_listener(
-        wermit_path, get_free_port,
-        lambda port: (
+        wermit_path,
+        (
             "set tcp reverse-dns-lookup off, "
             f"{ssl_server_setup_cmds(ssl_pki)}, "
-            f"set host * {port} /ssl, "
+            "set host * 0 /ssl, "
             "set terminal autodownload on, "
             f"{ZMODEM_QUIET_PROTOCOL_CLAUSE}, "
             "connect, close, exit"),
@@ -237,8 +237,7 @@ def _run_ssl_zmodem(wermit_path, get_free_port, ssl_pki,
 
 
 @pytestmark_ssl
-def test_zmodem_receive_ssl_binary(wermit_path, get_free_port, ssl_pki,
-                                    tmp_path):
+def test_zmodem_receive_ssl_binary(wermit_path, ssl_pki, tmp_path):
     """
     Regression test for two bugs in ttptycmd() that only show up together.  Test
     with an active SSL/TLS connection, and file content spanning the full
@@ -289,7 +288,7 @@ def test_zmodem_receive_ssl_binary(wermit_path, get_free_port, ssl_pki,
 
     start = time.monotonic()
     returncode, stdout = _run_ssl_zmodem(
-        wermit_path, get_free_port, ssl_pki,
+        wermit_path, ssl_pki,
         server_dir, remote_dir, ["sz", str(src_file)])
     elapsed = time.monotonic() - start
 

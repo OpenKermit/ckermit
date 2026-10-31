@@ -25,7 +25,7 @@ import time
 
 import pytest
 
-from conftest import start_wermit_pty, _wait_for_pty_marker, scaled
+from conftest import start_pty_tcp_listener, scaled
 
 IAC, WILL, WONT, DO, DONT = 255, 251, 252, 253, 254
 
@@ -43,16 +43,16 @@ class _InjectingProxy:
     Transparent TCP proxy for exercising ttptycmd()'s Telnet handling.
 
     Relays bytes unmodified in both directions between whatever
-    connects to listen_port and target_port, except: inject_delay
+    connects to listen_port and target_port.  The system chooses
+    listen_port when the proxy is created.  Except: inject_delay
     seconds after relaying starts, it sends inject_bytes toward the
     client exactly once. Bytes the client sends back after that are
     captured and available via reply_after_inject once the session
     ends.
     """
 
-    def __init__(self, listen_port, target_port, inject_delay,
-                 inject_bytes, capture_window=1.5):
-        self.listen_port = listen_port
+    def __init__(self, target_port, inject_delay, inject_bytes,
+                 capture_window=1.5):
         self.target_port = target_port
         self.inject_delay = inject_delay
         self.inject_bytes = inject_bytes
@@ -69,8 +69,9 @@ class _InjectingProxy:
         self._listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._listener.setsockopt(
             socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._listener.bind(("127.0.0.1", listen_port))
+        self._listener.bind(("127.0.0.1", 0))
         self._listener.listen(1)
+        self.listen_port = self._listener.getsockname()[1]
         self._thread = threading.Thread(target=self._run, daemon=True)
 
     def start(self):
@@ -168,7 +169,7 @@ def _stop_server(proc, master):
 
 
 def _run_ttptycmd_negotiation_case(
-        wermit_path, get_free_port, spawn_wermit, tmp_path,
+        wermit_path, spawn_wermit, tmp_path,
         inject_bytes, inject_delay=2.0, transfer_delay=4):
     """
     Starts a plain Telnet "server" wermit (CONNECT mode, no external
@@ -182,9 +183,6 @@ def _run_ttptycmd_negotiation_case(
     Returns the proxy's captured reply bytes: whatever the client
     sent back after the injected bytes.
     """
-    server_port = get_free_port()
-    proxy_port = get_free_port()
-
     # Both sides need the same telopt refusals and dummy protocol
     # clause, or the client's connect-time negotiation errors out
     # ("?Telnet Option negotiation error") before SEND is reached.
@@ -204,16 +202,12 @@ def _run_ttptycmd_negotiation_case(
         f"{common_clause}, "
         "set tcp reverse-dns-lookup off, "
         "set terminal autodownload on, "
-        f"set host * {server_port} /telnet, connect, close, exit"
+        "set host * 0 /telnet, connect, close, exit"
     )
-    proc, master = start_wermit_pty(wermit_path, server_cmd, tmp_path)
+    server_port, proc, master, _ = start_pty_tcp_listener(
+        wermit_path, server_cmd, tmp_path, "ttptycmd server")
     try:
-        _, ready = _wait_for_pty_marker(
-            master, b"Waiting to Accept", timeout=10)
-        assert ready, "server wermit never started listening"
-
-        proxy = _InjectingProxy(
-            proxy_port, server_port, inject_delay, inject_bytes)
+        proxy = _InjectingProxy(server_port, inject_delay, inject_bytes)
         proxy.start()
 
         src_file = tmp_path / "src.txt"
@@ -224,7 +218,7 @@ def _run_ttptycmd_negotiation_case(
              "set command more-prompting off, "
              "set tcp reverse-dns-lookup off, "
              f"{common_clause}, "
-             f"set host 127.0.0.1 {proxy_port} /telnet, "
+             f"set host 127.0.0.1 {proxy.listen_port} /telnet, "
              "if failure exit 90, "
              f"send {src_file}, close, exit"],
             cwd=str(tmp_path))
@@ -250,7 +244,7 @@ def _run_ttptycmd_negotiation_case(
         id="unsolicited-will-gets-dont"),
 ])
 def test_ttptycmd_answers_unsolicited_negotiation(
-        wermit_path, get_free_port, spawn_wermit, tmp_path,
+        wermit_path, spawn_wermit, tmp_path,
         kind, option, expect_reply):
     """
     Verify that ttptycmd() answers unsolicited Telnet WILL/DO commands.
@@ -261,7 +255,7 @@ def test_ttptycmd_answers_unsolicited_negotiation(
     """
     inject_bytes = bytes([IAC, kind, option])
     reply = _run_ttptycmd_negotiation_case(
-        wermit_path, get_free_port, spawn_wermit, tmp_path,
+        wermit_path, spawn_wermit, tmp_path,
         inject_bytes)
     assert expect_reply in reply, (
         f"expected the client to reply with {expect_reply!r} to "
@@ -270,7 +264,7 @@ def test_ttptycmd_answers_unsolicited_negotiation(
 
 
 def test_ttptycmd_doubled_iac_is_not_treated_as_negotiation(
-        wermit_path, get_free_port, spawn_wermit, tmp_path):
+        wermit_path, spawn_wermit, tmp_path):
     """
     Verify that doubled IAC is treated as literal data, not negotiation.
 
@@ -278,7 +272,7 @@ def test_ttptycmd_doubled_iac_is_not_treated_as_negotiation(
     pass through to the pty without provoking a negotiation response.
     """
     reply = _run_ttptycmd_negotiation_case(
-        wermit_path, get_free_port, spawn_wermit, tmp_path,
+        wermit_path, spawn_wermit, tmp_path,
         bytes([IAC, IAC]))
     assert IAC not in reply, (
         f"a doubled IAC (literal data) should never provoke a Telnet "

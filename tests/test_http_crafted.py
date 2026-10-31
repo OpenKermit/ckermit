@@ -23,18 +23,17 @@ MARKER = b"MARKER"
     "6;name=value",             # chunk-extension
 ], ids=["2pow32", "extension"])
 def test_http_get_large_chunk_size_not_truncated(
-    spawn_wermit, wermit_path, wermit_http_available, get_free_port,
+    spawn_wermit, wermit_path, wermit_http_available,
     tmp_path, size_line,
 ):
     """Verify wermit reads the chunk payload for a chunk-size line."""
     if not wermit_http_available:
         pytest.skip("wermit built with NOHTTP")
 
-    port = get_free_port()
     server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_sock.bind(("127.0.0.1", port))
+    server_sock.bind(("127.0.0.1", 0))
     server_sock.listen(1)
+    port = server_sock.getsockname()[1]
 
     outfile = "out.txt"
     proc = spawn_wermit([
@@ -80,17 +79,16 @@ def test_http_get_large_chunk_size_not_truncated(
 
 
 def test_http_index_request_names_directory(
-    spawn_wermit, wermit_http_available, get_free_port, tmp_path,
+    spawn_wermit, wermit_http_available, tmp_path,
 ):
     """HTTP INDEX must send the requested directory in its request line."""
     if not wermit_http_available:
         pytest.skip("wermit built with NOHTTP")
 
-    port = get_free_port()
     server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_sock.bind(("127.0.0.1", port))
+    server_sock.bind(("127.0.0.1", 0))
     server_sock.listen(1)
+    port = server_sock.getsockname()[1]
 
     proc = spawn_wermit([
         "-H", "-Y", "-C",
@@ -129,18 +127,17 @@ def test_http_index_request_names_directory(
     (b"404 Not Found", 1),
 ], ids=["ok", "not-found"])
 def test_http_url_command_line_exit_status(
-    wermit_path, wermit_http_available, get_free_port, tmp_path,
+    wermit_path, wermit_http_available, tmp_path,
     status, exit_code,
 ):
     """An http:// URL on the command line exits with the GET's status."""
     if not wermit_http_available:
         pytest.skip("wermit built with NOHTTP")
 
-    port = get_free_port()
     server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_sock.bind(("127.0.0.1", port))
+    server_sock.bind(("127.0.0.1", 0))
     server_sock.listen(1)
+    port = server_sock.getsockname()[1]
 
     def serve():
         server_sock.settimeout(scaled(15))

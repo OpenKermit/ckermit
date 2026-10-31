@@ -3669,6 +3669,45 @@ ssl_init_failed(who) char * who;
 }
 #endif /* CK_SSL */
 
+/*
+  Number of IPv4 and IPv6 socket pairs SET HOST * 0 tries.  The IPv6
+  socket must bind the port the system chose for the IPv4 socket.
+  Something else can hold that port for IPv6.
+*/
+#define TCPSRV_ANYTRIES 8
+
+/*
+  Return the port that listening socket fd is bound to, in network byte
+  order, or -1 on failure.
+*/
+static int
+#ifdef CK_ANSIC
+tcpsrv_boundport(int fd)
+#else
+tcpsrv_boundport(fd) int fd;
+#endif /* CK_ANSIC */
+{
+    union {
+        struct sockaddr sa;
+        struct sockaddr_in sin;
+#ifdef CK_IPV6
+        struct sockaddr_in6 sin6;
+#endif /* CK_IPV6 */
+    } u;
+    GSOCKNAME_T len = sizeof(u);
+
+    memset(&u, 0, sizeof(u));
+    if (getsockname(fd, &u.sa, &len) < 0)
+      return(-1);
+#ifdef CK_IPV6
+    if (u.sa.sa_family == AF_INET6)
+      return(u.sin6.sin6_port);
+#endif /* CK_IPV6 */
+    if (u.sa.sa_family == AF_INET)
+      return(u.sin.sin_port);
+    return(-1);
+}
+
 /*  T C P S R V _ O P E N  --  Open a TCP/IP Server connection  */
 /*
   Calling conventions same as ttopen(), except third argument is network
@@ -3688,6 +3727,10 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
     char *p;
     int i, x;
     SOCKOPT_T on = 1;
+    int anyport = 0;                    /* Port 0: the system chooses */
+#ifdef CK_IPV6
+    int anytries = 0;                   /* Port 0 socket pairs tried */
+#endif /* CK_IPV6 */
     static struct servent *service, *service2, servrec;
     static struct hostent *host;
     static struct sockaddr_in saddr;
@@ -3764,6 +3807,22 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
         return(-1);
     }
 
+    /*
+      Port 0 asks the system to choose a port.  A listener that is still
+      open keeps its port.
+    */
+    if (service->s_port == 0) {
+        anyport = 1;
+        servrec.s_port = 0;
+        service = &servrec;
+        if (tcpsrv_port > 0 && (tcpsrfd != -1
+#ifdef CK_IPV6
+                                || tcpsrfd6 != -1
+#endif /* CK_IPV6 */
+                                ))
+          service->s_port = htons((unsigned short)tcpsrv_port);
+    }
+
     /* If we currently have a listen active but port has changed then close */
 
     debug(F101,"tcpsrv_open checking previous connection","",tcpsrfd);
@@ -3807,6 +3866,7 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
 #endif /* CK_IPV6 */
     debug(F100,"tcpsrv_open tcpsrfd","",tcpsrfd);
 #ifdef CK_IPV6
+  anyretry:
     if (want_v4 && tcpsrfd == -1) {
 #else /* CK_IPV6 */
     if (tcpsrfd == -1) {
@@ -3850,7 +3910,9 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
        /* Now bind to the socket */
         printf("\nBinding socket to port %d ...\n",
                ntohs((unsigned short)service->s_port));
-        if (bind(tcpsrfd, (struct sockaddr *)&saddr, sizeof(saddr)) < 0) {
+        x = 0;
+        if (bind(tcpsrfd, (struct sockaddr *)&saddr, sizeof(saddr)) < 0 ||
+            (anyport && (x = tcpsrv_boundport(tcpsrfd)) < 0)) {
             i = errno;                  /* Save error code */
 #ifdef TCPIPLIB
             socket_close(tcpsrfd);
@@ -3867,6 +3929,8 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
             return(-1);
         }
         debug(F100,"tcpsrv_open bind OK","",0);
+        if (anyport)
+          service->s_port = (unsigned short)x;
         printf("Listening ...\n");
         if (listen(tcpsrfd, 15) < 0) {
             i = errno;                  /* Save error code */
@@ -3971,13 +4035,34 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
 #endif /* IPV6_V6ONLY */
             printf("\nBinding IPv6 socket to port %d ...\n",
                    ntohs((unsigned short)service->s_port));
+            x = 0;
             if (bind(tcpsrfd6,(struct sockaddr *)&saddr6,
-                     sizeof(saddr6)) < 0) {
+                     sizeof(saddr6)) < 0 ||
+                (saddr6.sin6_port == 0 &&
+                 (x = tcpsrv_boundport(tcpsrfd6)) < 0)) {
                 i = errno;
                 close(tcpsrfd6);
                 tcpsrfd6 = -1;
                 errno = i;
                 debug(F101,"tcpsrv_open v6 bind errno","",errno);
+                /*
+                  The system chose the IPv4 port.  When that port is in
+                  use for IPv6, close the IPv4 socket and try a new pair.
+                */
+                if (anyport && tcpsrfd != -1 && errno == EADDRINUSE &&
+                    ++anytries < TCPSRV_ANYTRIES) {
+                    debug(F101,"tcpsrv_open v6 port in use, try","",
+                          anytries);
+#ifdef TCPIPLIB
+                    socket_close(tcpsrfd);
+#else /* TCPIPLIB */
+                    close(tcpsrfd);
+#endif /* TCPIPLIB */
+                    tcpsrfd = -1;
+                    tcpsrv_port = 0;
+                    service->s_port = 0;
+                    goto anyretry;
+                }
                 if (v6_fatal) {
                     printf("?Unable to bind to IPv6 socket (errno = %d)\n",
                            errno);
@@ -3988,7 +4073,14 @@ tcpsrv_open(name,lcl,nett) char * name; int * lcl; int nett;
                 fprintf(stderr,
                         "?Unable to bind IPv6 socket (errno = %d); "
                         "continuing with IPv4 only\n",errno);
+                if (anyport && errno == EADDRINUSE)
+                  printf("\n?WARNING: IPv6 port %d is in use after %d "
+                         "tries.\n?WARNING: Listening on IPv4 only.\n",
+                         ntohs((unsigned short)service->s_port),
+                         anytries);
             } else {
+                if (saddr6.sin6_port == 0)
+                  service->s_port = (unsigned short)x;
                 printf("Listening (IPv6) ...\n");
                 if (listen(tcpsrfd6, 15) < 0) {
                     i = errno;

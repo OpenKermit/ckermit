@@ -1,4 +1,3 @@
-import errno
 import faulthandler
 import fcntl
 import os
@@ -57,6 +56,12 @@ PROTOCOL_STARTUP_OFF = "set protocol startup-string off"
 # lasts until a 1 s read timeout.  With the wait off, both ends still
 # negotiate.  Replies are handled as they arrive among the packets.
 TELNET_WAIT_OFF = "set telnet wait-for-negotiations off"
+
+# Services that C-Kermit 9.0.302 enables in remote mode only.  DELETE also
+# decides the collision action: SERVER changes BACKUP to RENAME when DELETE
+# is disabled.
+FAR_END_REMOTE_ENABLES = ("enable delete, enable host, enable rmdir, "
+                          "enable bye, enable exit")
 
 # Extra seconds padded onto client-side timeouts for any real-TCP transport
 # beyond what a pty needs.  Leaves headroom if necessary for real TCP connection
@@ -407,6 +412,26 @@ def ssl_client_setup_cmds(ssl_pki):
     return f"set authentication ssl verify-file {ssl_pki['ca_crt']}"
 
 
+# A TCP port that tests expect to refuse connections.  The system never
+# assigns it to a socket bound to port 0.
+CLOSED_PORT = 1
+
+
+def require_closed_port(host="127.0.0.1"):
+    """Return CLOSED_PORT, or skip the test if host accepts on it.
+
+    A test that needs a refused connection connects to CLOSED_PORT on
+    host.  This connects first and skips the test if that succeeds.
+    """
+    try:
+        with socket.create_connection((host, CLOSED_PORT),
+                                      timeout=scaled(5)):
+            pass
+    except OSError:
+        return CLOSED_PORT
+    pytest.skip(f"port {CLOSED_PORT} on {host} accepts connections")
+
+
 def require_tls_version(ssl_pki, version):
     """Skip the test unless this Python can handshake at version.
 
@@ -614,88 +639,52 @@ def take_file_lines(cmds):
     return lines
 
 
-# Number of times a TCP-listener spawn is retried, with a freshly probed port,
-# after get_free_port() lost the probe-then-release race.  The port it hands
-# back was free at the moment of the probe, but nothing reserves it, so under
-# heavy parallel test load another process can grab that same port before this
-# listener's SET HOST gets to bind it.  Each retry calls get_free_port() again,
-# so it isn't the same losing port a second time.
-PORT_COLLISION_RETRIES = 8
+# SET HOST * prints this line once every listening socket is open.  It
+# names the port.  With port 0 the system chooses it.
+LISTEN_PORT_RE = re.compile(
+    r"Waiting to Accept a TCP/IP connection on port (\d+) \.\.\.")
 
-# ckermit's message when SET HOST's bind() fails, checked in a spawned
-# listener's captured output to distinguish a port race failure
-# from some other startup failure.
-#
-PORT_BIND_FAILURE_MARKER = "Unable to bind to socket"
-
-# ckermit's message when SET HOST * cannot bind the IPv6 socket because the
-# port is in use.  The IPv4 socket is already bound, so the server still
-# prints "Waiting to Accept", but a client connecting to "localhost" tries ::1
-# first and reaches whatever else holds that port.  So this is also treated
-# as a port collision.
-PORT_BIND6_FAILURE_MARKER = (
-    f"Unable to bind IPv6 socket (errno = {errno.EADDRINUSE})"
-)
+# SET HOST * 0 prints this when it could not get one port for both IPv4 and
+# IPv6.  A client that connects to "localhost" can then reach another
+# process on ::1.
+LISTEN_V6_WARNING = "?WARNING: IPv6 port"
 
 
-def port_collided(output):
-    """Return True if listener output shows the port was taken, on
-    either the IPv4 or the IPv6 socket."""
-    return (PORT_BIND_FAILURE_MARKER in output
-            or PORT_BIND6_FAILURE_MARKER in output)
+def listen_port(output):
+    """Return the port named in a SET HOST * listener's output.
 
-# ckermit's message when a TCP server's tn_wait() finds the connection it just
-# accepted already gone.  Checked server's captured stdout to recognize the
-# other half of the same get_free_port() race PORT_BIND_FAILURE_MARKER covers:
-# the bind succeeds, but a stray leftover connection from something else lands
-# in the listener's single accept() ahead of the real client, which is never
-# consumed from the accept() backlog.  See _run_tcp's use of this for the
-# resulting client-side timeout.
-STRAY_CONNECTION_MARKER = "Connection closed by peer"
-
-
-class PortCollisionError(RuntimeError):
-    """Raised by _wait_for_tcp_listener when the spawned listener's
-    output satisfies port_collided(): get_free_port()'s
-    probed port was raced by something else before this listener
-    could bind it. Callers should retry with a fresh port rather than
-    fail the test outright."""
+    Return None if the output has no complete "Waiting to Accept" line.
+    Raise RuntimeError if the listener warns that it has no IPv6 socket.
+    """
+    m = LISTEN_PORT_RE.search(output)
+    if not m:
+        return None
+    if LISTEN_V6_WARNING in output:
+        raise RuntimeError(f"listener has no IPv6 socket:\n{output}")
+    return int(m.group(1))
 
 
 def _wait_for_tcp_listener(proc, log_path, log_fh, label, timeout=10):
     """
-    Polls log_path (the captured stdout of a wermit process started
-    via spawn_wermit) until "Waiting to Accept" appears, proc exits,
-    or timeout runs out. Raises PortCollisionError, or plain
-    RuntimeError for anything else, with the captured log, on failure.
+    Poll log_path, the captured stdout of a wermit process started via
+    spawn_wermit, until the "Waiting to Accept" line appears, proc
+    exits, or timeout runs out.  Return the listening port.  Raise
+    RuntimeError, with the captured log, on failure.
 
-    "Waiting to Accept" (not "Listening") is the only reliable
-    readiness signal: under CK_IPV6, SET HOST * in AUTO mode (the
-    default) binds an IPv4 and an IPv6 socket one after another, each
-    printing its "Listening" line as it completes, so "Listening"
-    alone can appear well before the *second* socket is actually up.
-    "Waiting to Accept" is printed exactly once, only after every
-    socket SET HOST * is going to open has finished binding and
-    listening.
+    Under CK_IPV6, SET HOST * in AUTO mode (the default) opens an IPv4
+    and an IPv6 socket.  It prints "Listening" for each.  "Waiting to
+    Accept" appears once, after both are open.
     """
     deadline = time.monotonic() + scaled(timeout)
-    while time.monotonic() < deadline:
-        if proc.poll() is not None:
-            break
+    while True:
         log_fh.flush()
         content = log_path.read_text(errors="replace")
-        if "Waiting to Accept" in content:
+        port = listen_port(content)
+        if port is not None:
+            return port
+        if proc.poll() is not None or time.monotonic() >= deadline:
             break
         time.sleep(0.05)
-
-    log_fh.flush()
-    content = log_path.read_text(errors="replace")
-    if port_collided(content):
-        raise PortCollisionError(
-            f"{label}: port raced by another process; log:\n{content}"
-        )
-    if "Waiting to Accept" in content:
-        return
     raise RuntimeError(
         f"{label}: server did not start listening "
         f"(exit={proc.poll()}); log:\n{content}"
@@ -717,67 +706,28 @@ def _wait_or_kill(proc, timeout=5):
     return proc.returncode
 
 
-def retry_on_port_collision(get_free_port, label, attempt):
+def start_tcp_listener(spawn_wermit, args, log_path, label,
+                       binary_path=None, timeout=10, cwd=None, env=None):
     """
-    Calls attempt(port) with a fresh port from get_free_port() until
-    it returns without raising PortCollisionError, at most
-    PORT_COLLISION_RETRIES times.  The last PortCollisionError, and
-    any other exception, propagates.  attempt must release whatever
-    it started before raising PortCollisionError.
+    Spawn a wermit TCP listener with its output in log_path and wait
+    for it to be ready.  args runs SET HOST * 0 so that the system
+    chooses the port.  cwd and env go to spawn_wermit.
 
-    Returns (port, attempt's return value).
-    """
-    for n in range(PORT_COLLISION_RETRIES):
-        port = get_free_port()
-        try:
-            return port, attempt(port)
-        except PortCollisionError:
-            if n == PORT_COLLISION_RETRIES - 1:
-                raise
-            logger.info("%s: port %d raced, retrying", label, port)
-    raise AssertionError("unreachable")
-
-
-def spawn_tcp_listener(spawn_wermit, args, log_path, label,
-                       binary_path=None, timeout=10):
-    """
-    Spawns a wermit TCP listener with its output in log_path and
-    waits for it to be ready.  Returns (proc, log_fh); the caller
-    closes log_fh.
-
-    On PortCollisionError the listener is stopped and log_fh closed
-    before the exception propagates, as retry_on_port_collision()
-    requires.
+    Return (port, proc, log_fh).  The caller closes log_fh.  On
+    failure the listener is stopped and log_fh closed before the
+    exception propagates.
     """
     log_fh = open(log_path, "w")
-    proc = spawn_wermit(args, stdout=log_fh, binary_path=binary_path)
+    proc = spawn_wermit(args, stdout=log_fh, binary_path=binary_path,
+                        cwd=cwd, env=env)
     try:
-        _wait_for_tcp_listener(proc, log_path, log_fh, label,
-                               timeout=timeout)
-    except PortCollisionError:
+        port = _wait_for_tcp_listener(proc, log_path, log_fh, label,
+                                      timeout=timeout)
+    except BaseException:
         log_fh.close()
-        # A listener that bound one address family keeps waiting on it.
         proc.terminate()
         _wait_or_kill(proc)
         raise
-    except BaseException:
-        log_fh.close()
-        raise
-    return proc, log_fh
-
-
-def start_tcp_listener(spawn_wermit, get_free_port, args_for_port,
-                       log_path, label, binary_path=None, timeout=10):
-    """
-    Spawns a wermit TCP listener on a free port, retrying on port
-    collisions.  args_for_port(port) returns the wermit arguments.
-    Returns (port, proc, log_fh); the caller closes log_fh.
-    """
-    port, (proc, log_fh) = retry_on_port_collision(
-        get_free_port, label,
-        lambda port: spawn_tcp_listener(
-            spawn_wermit, args_for_port(port), log_path, label,
-            binary_path=binary_path, timeout=timeout))
     return port, proc, log_fh
 
 
@@ -1034,7 +984,7 @@ CLEAR_UNPREFIX_MODES = pytest.mark.parametrize(
 
 @pytest.fixture
 def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
-                    get_free_port, loopback_transport, clear_unprefix):
+                    loopback_transport, clear_unprefix):
     """
 
     Sets up and runs a full wermit client-server loopback session.  Returns a
@@ -1052,6 +1002,14 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
     parameter, defaulting to wermit_path. Passing another binary
     runs the server side with that executable for compatibility
     testing.
+
+    The returned callable accepts an optional far_end_connects flag
+    (default False).  For the TCP transports, the near end then listens
+    on SET HOST * 0 and the far end connects to it.  The far end still
+    runs SERVER or its script.  A peer whose SET HOST * cannot report
+    the port it listens on is run this way.  A connecting far end runs
+    in local mode.  It runs FAR_END_REMOTE_ENABLES so that its server
+    offers the services that remote mode enables by default.
 
     The returned callable accepts an optional telnet_wait flag
     (default False).  For the telnet and ssl transports, False turns
@@ -1141,81 +1099,126 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
 
         server_cmd_str = ", ".join(setup_lines)
 
-        def attempt(port):
-            server_full_cmd = [
-                "--unbuffered", "-H", "-Y", "-C",
-                f"{server_prefix}set host * {port} /{switch}, "
-                f"{server_cmd_str}"
-            ]
-            logger.info(
-                "wermit_loopback: Starting server on port %d: %s",
-                port, server_full_cmd)
-            proc, server_log_fh = spawn_tcp_listener(
-                spawn_wermit, server_full_cmd, server_stdout_log,
-                "wermit_loopback", binary_path=server_binary_path)
-            opened_logs.append(server_log_fh)
+        server_full_cmd = [
+            "--unbuffered", "-H", "-Y", "-C",
+            f"{server_prefix}set host * 0 /{switch}, "
+            f"{server_cmd_str}"
+        ]
+        logger.info("wermit_loopback: Starting server: %s", server_full_cmd)
+        port, proc, server_log_fh = start_tcp_listener(
+            spawn_wermit, server_full_cmd, server_stdout_log,
+            "wermit_loopback", binary_path=server_binary_path)
+        opened_logs.append(server_log_fh)
+        logger.info("wermit_loopback: Server listening on port %d", port)
 
-            full_client_cmd = [
-                "-H", "-Y", "-Q", "-C",
-                f"{client_debug_prefix}set command more-prompting off, "
-                f"{PROTOCOL_STARTUP_OFF}, "
-                "set delay 0, set tcp reverse-dns-lookup off, "
-                f"{client_extra_prefix}set host localhost {port} "
-                f"/{switch}, "
-                f"if failure exit {SSL_CONNECT_FAILURE_CODE}, "
-                f"set delay 0, {client_prefix}{cmd_str}, close, exit"
-            ]
-            logger.info(
-                "wermit_loopback: Client running command sequence: %s",
-                cmd_str)
-            try:
+        full_client_cmd = [
+            "-H", "-Y", "-Q", "-C",
+            f"{client_debug_prefix}set command more-prompting off, "
+            f"{PROTOCOL_STARTUP_OFF}, "
+            "set delay 0, set tcp reverse-dns-lookup off, "
+            f"{client_extra_prefix}set host localhost {port} "
+            f"/{switch}, "
+            f"if failure exit {SSL_CONNECT_FAILURE_CODE}, "
+            f"set delay 0, {client_prefix}{cmd_str}, close, exit"
+        ]
+        logger.info(
+            "wermit_loopback: Client running command sequence: %s",
+            cmd_str)
+        try:
+            return run_wermit(
+                full_client_cmd,
+                timeout=timeout + TCP_TIMEOUT_MARGIN,
+                pre_timeout_callback=lambda: _log_socket_snapshot(
+                    "wermit_loopback: client about to time out", port))
+        finally:
+            # Always drain server stdout. Post-transfer assertions
+            # may fail even when the client process exits 0.
+            _wait_or_kill(proc)
+            if server_stdout_log.exists():
                 try:
-                    return run_wermit(
-                        full_client_cmd,
-                        timeout=timeout + TCP_TIMEOUT_MARGIN,
-                        pre_timeout_callback=lambda: _log_socket_snapshot(
-                            "wermit_loopback: client about to time out",
-                            port))
-                except subprocess.TimeoutExpired as e:
-                    # If some other process's connection lands on this
-                    # listener's single accept() before this test's
-                    # client does, the server gives up immediately.
-                    # The client's connect() has already completed at
-                    # the TCP level, so it waits for protocol data
-                    # until this timeout.  STRAY_CONNECTION_MARKER in
-                    # the server's stdout is that server-side give-up.
-                    # So it is retried as a port collision.
-                    stray = (
-                        server_stdout_log.exists() and
-                        STRAY_CONNECTION_MARKER in
-                        server_stdout_log.read_text(errors="replace"))
-                    if not stray:
-                        raise
-                    raise PortCollisionError(
-                        f"wermit_loopback: port {port}'s listener "
-                        "accepted a stray connection") from e
-            finally:
-                # Always drain server stdout. Post-transfer assertions
-                # may fail even when the client process exits 0.
-                _wait_or_kill(proc)
-                if server_stdout_log.exists():
-                    try:
-                        logger.info(
-                            "wermit_loopback: Server stdout log:\n%s",
-                            tail_text(
-                                server_stdout_log, "Server stdout log"))
-                    except OSError as e:
-                        logger.warning(
-                            "wermit_loopback: Failed to read server "
-                            "stdout log %s: %s", server_stdout_log, e)
+                    logger.info(
+                        "wermit_loopback: Server stdout log:\n%s",
+                        tail_text(server_stdout_log, "Server stdout log"))
+                except OSError as e:
+                    logger.warning(
+                        "wermit_loopback: Failed to read server "
+                        "stdout log %s: %s", server_stdout_log, e)
 
-        _, result = retry_on_port_collision(
-            get_free_port, "wermit_loopback", attempt)
-        return result
+    def _run_tcp_far_connects(server_dir, setup_lines, cmd_str,
+                              client_prefix, client_debug_prefix,
+                              server_log, client_log, timeout,
+                              server_binary_path, debug_server,
+                              telnet_wait):
+        switch, listen_prefix, connect_prefix = \
+            _tcp_switch_and_prefixes(transport, telnet_wait)
+        base = Path(server_dir).parent / Path(server_dir).name
+        far_stdout_log = base.with_name(f"tcp_far_{base.name}.log")
+        near_stdout_log = base.with_name(f"tcp_near_{base.name}.log")
+        near_stderr_log = base.with_name(f"tcp_near_{base.name}.err")
+        for path in (far_stdout_log, near_stdout_log, near_stderr_log):
+            if path not in created_files:
+                created_files.append(path)
+        if debug_server:
+            _track_debug_log_files(created_files, server_log)
+        if DEBUG_LOOPBACK:
+            _track_debug_log_files(created_files, client_log)
+
+        near_cmd = [
+            wermit_path, "--unbuffered", "-H", "-Y", "-Q", "-C",
+            f"{client_debug_prefix}set command more-prompting off, "
+            f"{PROTOCOL_STARTUP_OFF}, "
+            "set delay 0, set tcp reverse-dns-lookup off, "
+            f"{listen_prefix}set host * 0 /{switch}, "
+            f"if failure exit {SSL_CONNECT_FAILURE_CODE}, "
+            f"set delay 0, {client_prefix}{cmd_str}, close, exit"
+        ]
+        logger.info("wermit_loopback: Near end listening: %s", near_cmd)
+        with open(near_stdout_log, "w") as out_fh, \
+                open(near_stderr_log, "w") as err_fh:
+            near = subprocess.Popen(
+                near_cmd, stdin=subprocess.DEVNULL, stdout=out_fh,
+                stderr=err_fh, text=True, start_new_session=True)
+            far = None
+            try:
+                port = _wait_for_tcp_listener(
+                    near, near_stdout_log, out_fh, "wermit_loopback")
+                far_fh = open(far_stdout_log, "w")
+                opened_logs.append(far_fh)
+                far = spawn_wermit(
+                    ["--unbuffered", "-H", "-Y", "-C",
+                     f"{connect_prefix}set host 127.0.0.1 {port} "
+                     f"/{switch}, {FAR_END_REMOTE_ENABLES}, "
+                     + ", ".join(setup_lines)],
+                    stdout=far_fh, binary_path=server_binary_path)
+                try:
+                    near.wait(timeout=scaled(timeout + TCP_TIMEOUT_MARGIN))
+                except subprocess.TimeoutExpired:
+                    _log_socket_snapshot(
+                        "wermit_loopback: near end about to time out", port)
+                    near.kill()
+                    near.wait()
+                    raise subprocess.TimeoutExpired(
+                        near_cmd, timeout,
+                        output=near_stdout_log.read_text(errors="replace"),
+                        stderr=near_stderr_log.read_text(errors="replace"))
+            finally:
+                if near.poll() is None:
+                    near.kill()
+                    near.wait()
+                if far is not None:
+                    _wait_or_kill(far)
+                if far_stdout_log.exists():
+                    logger.info(
+                        "wermit_loopback: Far end stdout log:\n%s",
+                        tail_text(far_stdout_log, "Far end stdout log"))
+        return subprocess.CompletedProcess(
+            near_cmd, near.returncode,
+            near_stdout_log.read_text(errors="replace"),
+            near_stderr_log.read_text(errors="replace"))
 
     def _run(server_dir, server_setup_cmds="", client_commands="",
              timeout=10, server_binary_path=None, server_debug_log=False,
-             telnet_wait=False):
+             telnet_wait=False, far_end_connects=False):
         # Target paths for debug logs. Written only if DEBUG_LOOPBACK
         # or server_debug_log is enabled. Distinct from _run_tcp stdout logs.
         server_log = Path(server_dir).parent / \
@@ -1265,8 +1268,12 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
             f"{debug_log_command(client_log)}, " if DEBUG_LOOPBACK else ""
         )
 
-        run = _run_pseudoterminal if transport == "pseudoterminal" \
-            else _run_tcp
+        if transport == "pseudoterminal":
+            run = _run_pseudoterminal
+        elif far_end_connects:
+            run = _run_tcp_far_connects
+        else:
+            run = _run_tcp
         result = None
         try:
             result = run(server_dir, setup_lines, cmd_str, client_prefix,
@@ -1323,39 +1330,6 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
 
 
 @pytest.fixture
-def get_free_port():
-    """
-    Finds and returns a free TCP port on localhost for real-socket tests.
-
-    The port must be free on both 127.0.0.1 and ::1, since SET HOST *
-    listens on both and clients resolving "localhost" may try either.
-    If IPv6 is unavailable, only 127.0.0.1 is checked.
-    """
-    def _v6_free(port):
-        try:
-            s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-        except OSError:
-            return True
-        try:
-            s.bind(("::1", port))
-        except OSError as e:
-            return e.errno != errno.EADDRINUSE
-        finally:
-            s.close()
-        return True
-
-    def _get_port():
-        while True:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.bind(("127.0.0.1", 0))
-            port = s.getsockname()[1]
-            s.close()
-            if _v6_free(port):
-                return port
-    return _get_port
-
-
-@pytest.fixture
 def server_dir(tmp_path):
     """A "server" subdirectory under tmp_path for tests that run a
     wermit server (via wermit_tcp_loopback or wermit_loopback) with
@@ -1373,11 +1347,12 @@ def spawn_wermit(wermit_path):
     object. Automatically terminates/kills the process on teardown.
 
     An optional binary_path parameter overrides wermit_path to spawn
-    an alternate Kermit binary.
+    an alternate Kermit binary.  env, if given, is the process
+    environment.
     """
     processes = []
 
-    def _spawn(args, cwd=None, stdout=None, binary_path=None):
+    def _spawn(args, cwd=None, stdout=None, binary_path=None, env=None):
         cmd = [binary_path or wermit_path] + args
         logger.info("spawn_wermit: Launching background process: %s",
                     " ".join(cmd))
@@ -1387,7 +1362,8 @@ def spawn_wermit(wermit_path):
             stderr=subprocess.STDOUT,
             stdin=subprocess.DEVNULL,
             text=True,
-            cwd=cwd
+            cwd=cwd,
+            env=env
         )
         processes.append(proc)
         return proc
@@ -1405,7 +1381,7 @@ def spawn_wermit(wermit_path):
 
 
 @pytest.fixture
-def wermit_tcp_loopback(spawn_wermit, run_wermit, get_free_port):
+def wermit_tcp_loopback(spawn_wermit, run_wermit):
     """
     Sets up a wermit client-server session over a real TCP/IP loopback
     socket (127.0.0.1), as opposed to the pseudoterminal used by
@@ -1490,23 +1466,19 @@ def wermit_tcp_loopback(spawn_wermit, run_wermit, get_free_port):
         proto_switch = f" /{protocol}" if protocol else ""
         setup_prefix = f"{setup_cmds}, " if setup_cmds else ""
 
-        def server_cmd(port):
-            cmd = [
-                "--unbuffered", "-H", "-Y", "-C",
-                "set command more-prompting off, "
-                f"{PROTOCOL_STARTUP_OFF}, "
-                "set tcp reverse-dns-lookup off, "
-                f"cd {server_dir}, {setup_prefix}"
-                f"set host /server * {port}{proto_switch}"
-            ]
-            logger.info(
-                "wermit_tcp_loopback: Starting server on port %d: %s",
-                port, cmd)
-            return cmd
+        server_cmd = [
+            "--unbuffered", "-H", "-Y", "-C",
+            "set command more-prompting off, "
+            f"{PROTOCOL_STARTUP_OFF}, "
+            "set tcp reverse-dns-lookup off, "
+            f"cd {server_dir}, {setup_prefix}"
+            f"set host /server * 0{proto_switch}"
+        ]
+        logger.info("wermit_tcp_loopback: Starting server: %s", server_cmd)
 
         created_files.append(server_log_path)
         port, proc, server_log_fh = start_tcp_listener(
-            spawn_wermit, get_free_port, server_cmd, server_log_path,
+            spawn_wermit, server_cmd, server_log_path,
             "wermit_tcp_loopback", timeout=ready_timeout)
         opened_logs.append(server_log_fh)
 
@@ -1943,44 +1915,46 @@ class PtyReader:
         return self.out
 
 
-def start_pty_tcp_listener(wermit_path, get_free_port, cmd_for_port, cwd,
-                           label, debug_log=None, timeout=10):
+def start_pty_tcp_listener(wermit_path, cmd_str, cwd, label,
+                           debug_log=None, timeout=10):
     """
-    Starts a wermit TCP listener on a pty via start_wermit_pty(),
-    using a free port and retrying on port collisions.
-    cmd_for_port(port) returns the command string.
+    Start a wermit TCP listener on a pty via start_wermit_pty().
+    cmd_str runs SET HOST * 0 so that the system chooses the port.
 
-    Returns (port, proc, master, prefix).  prefix is the pty output
+    Return (port, proc, master, prefix).  prefix is the pty output
     read up to "Waiting to Accept", for callers to prepend to the
     output they collect later.
     """
-    def attempt(port):
-        proc, master = start_wermit_pty(
-            wermit_path, cmd_for_port(port), cwd, debug_log)
-        prefix, ready = _wait_for_pty_marker(
-            master, b"Waiting to Accept", timeout=timeout)
-        text = prefix.decode("utf-8", errors="replace")
-        collided = port_collided(text)
-        if ready and not collided:
-            return proc, master, prefix
-
-        os.close(master)
-        try:
-            proc.terminate()
-            proc.wait(timeout=expected_timeout(2))
-        except (subprocess.TimeoutExpired, OSError):
-            proc.kill()
-            proc.wait(timeout=scaled(2))
-        if collided:
-            raise PortCollisionError(
-                f"{label}: port raced by another process; "
-                f"pty output:\n{text}")
+    proc, master = start_wermit_pty(wermit_path, cmd_str, cwd, debug_log)
+    prefix = b""
+    port = None
+    deadline = time.monotonic() + scaled(timeout)
+    try:
+        while port is None and time.monotonic() < deadline:
+            r, _, _ = select.select([master], [], [], 0.1)
+            if master not in r:
+                continue
+            try:
+                data = os.read(master, 4096)
+            except OSError:
+                break
+            if not data:
+                break
+            prefix += data
+            port = listen_port(prefix.decode("utf-8", errors="replace"))
+    finally:
+        if port is None:
+            os.close(master)
+            try:
+                proc.terminate()
+                proc.wait(timeout=expected_timeout(2))
+            except (subprocess.TimeoutExpired, OSError):
+                proc.kill()
+                proc.wait(timeout=scaled(2))
+    if port is None:
         raise RuntimeError(
-            f"{label}: wermit did not start listening; "
-            f"pty output:\n{text}")
-
-    port, (proc, master, prefix) = retry_on_port_collision(
-        get_free_port, label, attempt)
+            f"{label}: wermit did not start listening; pty output:\n"
+            f"{prefix.decode('utf-8', errors='replace')}")
     return port, proc, master, prefix
 
 
@@ -2191,7 +2165,7 @@ def _make_pki(d):
 
 @pytest.fixture(params=["pty", "tcp-raw", "tcp-telnet"],
                 ids=["pty", "tcp-raw", "tcp-telnet"])
-def zmodem_remote(request, wermit_path, get_free_port, spawn_wermit):
+def zmodem_remote(request, wermit_path, spawn_wermit):
     """
     Provides a way to run the wermit-under-test (Zmodem tests' local side)
     against a rz/sz remote, parameterized over three ways of reaching it:
@@ -2285,9 +2259,8 @@ def zmodem_remote(request, wermit_path, get_free_port, spawn_wermit):
         # so it must be listening before the remote side tries to
         # connect.
         port, proc, master, prefix = start_pty_tcp_listener(
-            wermit_path, get_free_port,
-            lambda port: telnet_prefix + cmd_str.format(
-                HOST=f"* {port} /{switch}"),
+            wermit_path,
+            telnet_prefix + cmd_str.format(HOST=f"* 0 /{switch}"),
             cwd, "zmodem_remote", debug_log=debug_log)
 
         spawn_wermit(

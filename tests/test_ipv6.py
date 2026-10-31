@@ -1033,35 +1033,31 @@ def test_reverse_dns_lookup_over_ipv6(run_wermit):
 # -DNS code, not netopen()'s.
 
 
-def _start_iksd_listener(spawn_wermit, get_free_port, log_path,
-                         extra_cmds="", post_cmds=""):
-    """Start a bare SET HOST * listener on a free port.
+def _start_iksd_listener(spawn_wermit, log_path, extra_cmds="",
+                         post_cmds=""):
+    """Start a bare SET HOST * listener on a port the system chooses.
 
     No /SERVER: the tests need only an accepted raw socket.  Wait for
-    the listener to report that it is listening, and retry with a new
-    port if another process took the probed one first.  Return (port,
-    proc, log_fh).  SET HOST * accepts one connection and returns, or
+    the listener to report that it is listening.  Return (port, proc,
+    log_fh).  SET HOST * accepts one connection and returns, or
     spawn_wermit's teardown kills the listener.
     """
-    def args_for_port(port):
-        return [
-            "--unbuffered", "-H", "-Y", "-C",
-            "set command more-prompting off, "
-            "set tcp reverse-dns-lookup off, "
-            f"{extra_cmds}set host * {port}{post_cmds}"
-        ]
-    return start_tcp_listener(spawn_wermit, get_free_port, args_for_port,
-                              log_path, "IKSD listener")
+    return start_tcp_listener(
+        spawn_wermit,
+        ["--unbuffered", "-H", "-Y", "-C",
+         "set command more-prompting off, "
+         "set tcp reverse-dns-lookup off, "
+         f"{extra_cmds}set host * 0{post_cmds}"],
+        log_path, "IKSD listener")
 
 
-def test_iksd_listener_accepts_ipv4(run_wermit, spawn_wermit, get_free_port,
+def test_iksd_listener_accepts_ipv4(run_wermit, spawn_wermit,
                                      tmp_path):
     if not _build_has_address_family(run_wermit):
         pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
 
     log_path = tmp_path / "srv4.log"
-    port, proc, log_fh = _start_iksd_listener(spawn_wermit, get_free_port,
-                                              log_path)
+    port, proc, log_fh = _start_iksd_listener(spawn_wermit, log_path)
     try:
         result = run_wermit(
             "set tcp reverse-dns-lookup off, "
@@ -1073,7 +1069,7 @@ def test_iksd_listener_accepts_ipv4(run_wermit, spawn_wermit, get_free_port,
         log_fh.close()
 
 
-def test_iksd_listener_accepts_ipv6(run_wermit, spawn_wermit, get_free_port,
+def test_iksd_listener_accepts_ipv6(run_wermit, spawn_wermit,
                                      tmp_path):
     if not _build_has_address_family(run_wermit):
         pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
@@ -1081,8 +1077,7 @@ def test_iksd_listener_accepts_ipv6(run_wermit, spawn_wermit, get_free_port,
         pytest.skip("no IPv6 loopback available in this environment")
 
     log_path = tmp_path / "srv6.log"
-    port, proc, log_fh = _start_iksd_listener(spawn_wermit, get_free_port,
-                                              log_path)
+    port, proc, log_fh = _start_iksd_listener(spawn_wermit, log_path)
     try:
         result = run_wermit(
             "set tcp reverse-dns-lookup off, "
@@ -1095,7 +1090,7 @@ def test_iksd_listener_accepts_ipv6(run_wermit, spawn_wermit, get_free_port,
 
 
 def test_tcp_address6_zone_honored_by_listener(
-        run_wermit, spawn_wermit, get_free_port, tmp_path):
+        run_wermit, spawn_wermit, tmp_path):
     """Verify tcpsrv_open honors zone suffix in SET TCP ADDRESS6."""
     if not _build_has_address_family(run_wermit):
         pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
@@ -1109,7 +1104,7 @@ def test_tcp_address6_zone_honored_by_listener(
 
     log_path = tmp_path / "srv-ll.log"
     port, proc, log_fh = _start_iksd_listener(
-        spawn_wermit, get_free_port, log_path,
+        spawn_wermit, log_path,
         extra_cmds=f"set tcp address6 {addr}%{iface}, "
         "set tcp address-family ipv6, ")
     try:
@@ -1134,7 +1129,7 @@ def test_tcp_address6_zone_honored_by_listener(
 
 
 def test_iksd_listener_reports_peer_ipv4(run_wermit, spawn_wermit,
-                                          get_free_port, tmp_path):
+                                          tmp_path):
     """\\v(line) (ckgetpeer()) must still resolve the peer's identity
     over the legacy IPv4 codepath after the CK_IPV6 rewrite."""
     if not _build_has_address_family(run_wermit):
@@ -1142,7 +1137,7 @@ def test_iksd_listener_reports_peer_ipv4(run_wermit, spawn_wermit,
 
     log_path = tmp_path / "srv4peer.log"
     port, proc, log_fh = _start_iksd_listener(
-        spawn_wermit, get_free_port, log_path,
+        spawn_wermit, log_path,
         post_cmds=", echo PEER=[\\v(line)]")
     try:
         result = run_wermit(
@@ -1158,7 +1153,7 @@ def test_iksd_listener_reports_peer_ipv4(run_wermit, spawn_wermit,
 
 
 def test_iksd_listener_reports_peer_ipv6(run_wermit, spawn_wermit,
-                                          get_free_port, tmp_path):
+                                          tmp_path):
     """Same as test_iksd_listener_reports_peer_ipv4, but over the new
     CK_IPV6 getnameinfo() codepath in ckgetpeer()."""
     if not _build_has_address_family(run_wermit):
@@ -1168,7 +1163,7 @@ def test_iksd_listener_reports_peer_ipv6(run_wermit, spawn_wermit,
 
     log_path = tmp_path / "srv6peer.log"
     port, proc, log_fh = _start_iksd_listener(
-        spawn_wermit, get_free_port, log_path,
+        spawn_wermit, log_path,
         post_cmds=", echo PEER=[\\v(line)]")
     try:
         result = run_wermit(
@@ -1184,7 +1179,7 @@ def test_iksd_listener_reports_peer_ipv6(run_wermit, spawn_wermit,
 
 
 def test_iksd_listener_dual_stack_binds_both(run_wermit, spawn_wermit,
-                                              get_free_port, tmp_path):
+                                              tmp_path):
     """AUTO (the default) must bind both an IPv4 and an IPv6 socket at
     once, not just whichever the resolver would have preferred.  The
     other two tests each connect via only one family, so neither of
@@ -1195,8 +1190,7 @@ def test_iksd_listener_dual_stack_binds_both(run_wermit, spawn_wermit,
         pytest.skip("no IPv6 loopback available in this environment")
 
     log_path = tmp_path / "srvdual.log"
-    port, proc, log_fh = _start_iksd_listener(spawn_wermit, get_free_port,
-                                              log_path)
+    port, proc, log_fh = _start_iksd_listener(spawn_wermit, log_path)
     try:
         content = log_path.read_text(errors="replace")
         assert "Binding socket to port" in content
@@ -1212,13 +1206,13 @@ def test_iksd_listener_dual_stack_binds_both(run_wermit, spawn_wermit,
 
 
 def test_iksd_listener_address_family_ipv4_binds_only_v4(
-        run_wermit, spawn_wermit, get_free_port, tmp_path):
+        run_wermit, spawn_wermit, tmp_path):
     if not _build_has_address_family(run_wermit):
         pytest.skip("build has no SET TCP ADDRESS-FAMILY (not CK_IPV6)")
 
     log_path = tmp_path / "srvv4only.log"
     port, proc, log_fh = _start_iksd_listener(
-        spawn_wermit, get_free_port, log_path,
+        spawn_wermit, log_path,
         extra_cmds="set tcp address-family ipv4, ")
     try:
         content = log_path.read_text(errors="replace")

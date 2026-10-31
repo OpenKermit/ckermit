@@ -509,7 +509,7 @@ def _capture_http_headers(server_sock):
 @pytest.mark.parametrize("method", ["put", "post"])
 @pytest.mark.parametrize("size", [3 * 2**30 + 7, FOUR_GIB + 12345])
 def test_http_upload_content_length_past_2gib(
-    sparse_dir, spawn_wermit, wermit_http_available, get_free_port,
+    sparse_dir, spawn_wermit, wermit_http_available,
     method, size,
 ):
     """HTTP PUT and POST must send the exact Content-length past 2 GiB."""
@@ -521,11 +521,10 @@ def test_http_upload_content_length_past_2gib(
         f.seek(size - 1)
         f.write(b"\0")
 
-    port = get_free_port()
     server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_sock.bind(("127.0.0.1", port))
+    server_sock.bind(("127.0.0.1", 0))
     server_sock.listen(1)
+    port = server_sock.getsockname()[1]
     try:
         proc = spawn_wermit([
             "-H", "-Y", "-C",

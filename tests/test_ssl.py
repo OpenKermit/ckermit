@@ -6,8 +6,9 @@ import pytest
 
 from conftest import (
     _make_leaf, assert_ok, kermit_wait, PROTOCOL_STARTUP_OFF,
-    require_tls_version, scaled, ssl_client_setup_cmds, ssl_server_setup_cmds,
-    TELNET_REFUSE_KERMIT_CLAUSE, TelnetTlsClient,
+    require_closed_port, require_tls_version, scaled, ssl_client_setup_cmds,
+    ssl_server_setup_cmds, start_tcp_listener, TELNET_REFUSE_KERMIT_CLAUSE,
+    TelnetTlsClient,
 )
 
 pytestmark = pytest.mark.skipif(
@@ -487,7 +488,7 @@ def test_raw_protocol_switch_sets_matching_raw_flag(
 
     ssl_raw_flag and tls_raw_flag are set while SET HOST parses its
     switches, before the actual connection attempt, so connecting to a
-    guaranteed-closed local port (1) is enough to exercise the bug
+    closed local port (CLOSED_PORT) is enough to exercise the bug
     without needing a real server: the flag gets set (or not) either
     way, then SHOW AUTHENTICATION reports it. (Also required adding
     "SSL raw?"/"TLS raw?" lines to that SHOW output, since neither
@@ -496,9 +497,10 @@ def test_raw_protocol_switch_sets_matching_raw_flag(
 
     Verifies the fix in 45954c319bf773ed48fb7ed2a40cda52d38846ea
     """
+    port = require_closed_port("localhost")
     result = run_wermit(
         "set tcp reverse-dns-lookup off, "
-        f"set host localhost 1 /{protocol}, "
+        f"set host localhost {port} /{protocol}, "
         "show authentication"
     )
     assert_ok(result)
@@ -906,7 +908,7 @@ def test_tls_client_sends_sni(run_wermit, ssl_pki, protocol):
     ("ssl", "ssl-raw"), ("tls", "tls-raw"),
 ])
 def test_tls_get_without_telnet_peer_is_prompt(wermit_path, ssl_pki,
-                                               get_free_port, tmp_path,
+                                               spawn_wermit, tmp_path,
                                                server, client):
     """Verify a GET over TLS finishes promptly when a side is raw.
 
@@ -923,15 +925,13 @@ def test_tls_get_without_telnet_peer_is_prompt(wermit_path, ssl_pki,
     clidir.mkdir()
     data = os.urandom(200000)
     (srvdir / "f.bin").write_bytes(data)
-    port = get_free_port()
-    srv = subprocess.Popen(
-        [wermit_path, "-H", "-Y", "-Q", "-C",
+    port, srv, log_fh = start_tcp_listener(
+        spawn_wermit,
+        ["--unbuffered", "-H", "-Y", "-Q", "-C",
          f"{ssl_server_setup_cmds(ssl_pki)}, "
-         f"set host * {port} /{server}, server, exit 0"],
-        cwd=srvdir, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL)
+         f"set host * 0 /{server}, server, exit 0"],
+        tmp_path / "server.log", "TLS server", cwd=srvdir)
     try:
-        time.sleep(1)
         start = time.monotonic()
         result = subprocess.run(
             [wermit_path, "-H", "-Y", "-Q", "-C",
@@ -942,6 +942,7 @@ def test_tls_get_without_telnet_peer_is_prompt(wermit_path, ssl_pki,
             text=True, timeout=scaled(60))
         elapsed = time.monotonic() - start
     finally:
+        log_fh.close()
         srv.kill()
         srv.wait()
     assert "S=0" in result.stdout, result.stdout
@@ -949,8 +950,7 @@ def test_tls_get_without_telnet_peer_is_prompt(wermit_path, ssl_pki,
     assert elapsed < 10, elapsed
 
 
-def test_ssl_server_setup_failure_closes_listeners(run_wermit, ssl_pki,
-                                                   get_free_port):
+def test_ssl_server_setup_failure_closes_listeners(run_wermit, ssl_pki):
     """Verify a failed TLS server setup leaves no listening socket.
 
     A certificate file given as the key makes ssl_tn_init() fail.  With
@@ -966,11 +966,10 @@ def test_ssl_server_setup_failure_closes_listeners(run_wermit, ssl_pki,
         socket.socket(socket.AF_INET6, socket.SOCK_STREAM).close()
     except OSError:
         pytest.skip("no IPv6")
-    port = get_free_port()
     result = run_wermit(
         f"set authentication ssl rsa-cert-file {ssl_pki['server_crt']}, "
         f"set authentication ssl rsa-key-file {ssl_pki['server_crt']}, "
-        f"set host * {port} /ssl, echo H=\\v(status), "
+        "set host * 0 /ssl, echo H=\\v(status), "
         "run echo SOCKETS=$(ls -l /proc/$PPID/fd | grep -c socket)",
         timeout=30)
     assert "H=1" in result.stdout, result.stdout
@@ -1275,8 +1274,8 @@ def test_client_minimum_version(wermit_path, wermit_http_available,
     ("", False),
     ("set authentication ssl minimum-version tls1.1, ", True),
 ])
-def test_server_minimum_version(wermit_path, ssl_pki, tmp_path,
-                                get_free_port, cmds, accepted):
+def test_server_minimum_version(spawn_wermit, ssl_pki, tmp_path,
+                                cmds, accepted):
     """Verify a raw TLS server refuses a version below MINIMUM-VERSION.
 
     The client offers only TLS 1.1.  The permissive OpenSSL
@@ -1284,7 +1283,6 @@ def test_server_minimum_version(wermit_path, ssl_pki, tmp_path,
     """
     import socket
     import ssl
-    import subprocess
     require_tls_version(ssl_pki, "TLSv1_1")
     cctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     cctx.check_hostname = False
@@ -1295,32 +1293,23 @@ def test_server_minimum_version(wermit_path, ssl_pki, tmp_path,
         cctx.maximum_version = ssl.TLSVersion.TLSv1_1
     except (ValueError, ssl.SSLError) as e:
         pytest.skip(f"client cannot offer only TLS 1.1: {e}")
-    port = get_free_port()
-    srv = subprocess.Popen(
-        [wermit_path, "-H", "-Y", "-Q", "-C",
+    port, srv, log_fh = start_tcp_listener(
+        spawn_wermit,
+        ["--unbuffered", "-H", "-Y", "-Q", "-C",
          f"{ssl_server_setup_cmds(ssl_pki)}, {cmds}"
-         f"set host * {port} /tls-raw, exit 0"],
-        env=_permissive_openssl_conf(tmp_path),
-        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL)
-    outcome = None
+         "set host * 0 /tls-raw, exit 0"],
+        tmp_path / "server.log", "TLS server",
+        env=_permissive_openssl_conf(tmp_path))
     try:
-        deadline = time.monotonic() + 15
-        while outcome is None:
-            try:
-                sock = socket.create_connection(("127.0.0.1", port),
-                                                timeout=scaled(10))
-            except OSError:
-                if time.monotonic() > deadline:
-                    raise
-                time.sleep(0.2)
-                continue
-            try:
-                with cctx.wrap_socket(sock) as s:
-                    outcome = s.version()
-            except (OSError, ssl.SSLError) as e:
-                outcome = repr(e)
+        sock = socket.create_connection(("127.0.0.1", port),
+                                        timeout=scaled(10))
+        try:
+            with cctx.wrap_socket(sock) as s:
+                outcome = s.version()
+        except (OSError, ssl.SSLError) as e:
+            outcome = repr(e)
     finally:
+        log_fh.close()
         srv.kill()
         srv.wait()
     if accepted:

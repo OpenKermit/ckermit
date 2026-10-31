@@ -29,9 +29,11 @@ def old_loopback(wermit_loopback, ckermit_old_path):
     """Return a wermit_loopback fixture bound to C-Kermit 9.0.302.
 
     C-Kermit 9.0.302 lacks support for packet replay handling with
-    unprefixed control characters.
+    unprefixed control characters.  Its SET HOST * cannot report the port
+    it listens on, so it connects to wermit.
     """
-    return partial(wermit_loopback, server_binary_path=ckermit_old_path)
+    return partial(wermit_loopback, server_binary_path=ckermit_old_path,
+                   far_end_connects=True)
 
 
 def _xfail_old_ckermit_unprefix_replay(request):
@@ -256,7 +258,8 @@ def test_cve_2025_68920_restriction_holds_against_old_peer(
 
     near_cmd = f"cd {client_dir}, output READY\\13, server"
     result = wermit_loopback(server_dir, far_end_cmds, near_cmd,
-                             server_binary_path=ckermit_old_path)
+                             server_binary_path=ckermit_old_path,
+                             far_end_connects=True)
 
     # Server mode rejects remote actions, causing peer exit code 8.
     assert result.returncode == 8, (

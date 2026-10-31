@@ -50,18 +50,17 @@ def _serve(server_sock, result):
 
 
 def test_http_reopen_uses_original_port(
-    run_wermit, wermit_http_available, get_free_port, tmp_path,
+    run_wermit, wermit_http_available, tmp_path,
 ):
     """Reopen on the original port, including one past 255."""
     if not wermit_http_available:
         pytest.skip("wermit built with NOHTTP")
 
-    port = get_free_port()
-    assert port > 255
     server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_sock.bind(("127.0.0.1", port))
+    server_sock.bind(("127.0.0.1", 0))
     server_sock.listen(2)
+    port = server_sock.getsockname()[1]
+    assert port > 255
     result = []
     server = threading.Thread(target=_serve, args=(server_sock, result))
     server.start()

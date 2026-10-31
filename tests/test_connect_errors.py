@@ -3,21 +3,12 @@ import socket
 
 import pytest
 
-from conftest import assert_ok, kermit_wait, scaled
-
-
-def _closed_port():
-    """Return a loopback TCP port with no listener."""
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(("127.0.0.1", 0))
-    port = s.getsockname()[1]
-    s.close()
-    return port
+from conftest import assert_ok, kermit_wait, require_closed_port, scaled
 
 
 def test_set_host_refused_reports_reason(run_wermit):
     """Verify a refused connection sets \\v(setlinemsg) from errno."""
-    port = _closed_port()
+    port = require_closed_port()
     result = run_wermit(f"set host 127.0.0.1 {port} /raw-socket, "
                         "echo MSG=[\\v(setlinemsg)]")
     assert "MSG=[Connection refused]" in result.stdout, result.stdout

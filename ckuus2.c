@@ -9120,6 +9120,10 @@ static char *hxyhost[] = {
 "  SET HOST with no host name closes the current connection and returns",
 "  Kermit to remote mode, as SET LINE does with no device name.",
 " ",
+"  SET HOST * port listens for an incoming TCP/IP connection.  Port 0",
+"  lets the system choose the port.  The \"Waiting to Accept\" message",
+"  names it.",
+" ",
 #ifdef CK_IPV6
 "  An IPv6 address containing colons (such as ::1) must be enclosed in",
 "  brackets if followed by a colon-separated port, e.g. \"[::1]:23\".",

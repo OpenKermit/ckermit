@@ -125,8 +125,13 @@ def test_compat_sets_enable_functions(run_wermit, keyword):
 
 @pytest.fixture
 def old_loopback(wermit_loopback, ckermit_old_path):
-    """wermit_loopback fixture bound to ckermit-old-9.0.302."""
-    return partial(wermit_loopback, server_binary_path=ckermit_old_path)
+    """wermit_loopback fixture bound to ckermit-old-9.0.302.
+
+    Its SET HOST * cannot report the port it listens on, so it connects
+    to wermit.
+    """
+    return partial(wermit_loopback, server_binary_path=ckermit_old_path,
+                   far_end_connects=True)
 
 
 def test_get_collision_compat_9_restores_backup(tmp_path, old_loopback):
