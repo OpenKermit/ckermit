@@ -8,9 +8,9 @@
   
 - Fix tests such that a nonstandard path to iksd.conf will still work.
 
-- Fix for building on x32 (amd64 ISA with 32-bit pointers)
+- Added a static 32-bit x86 build, compatible down to the 486.
 
-- Added a static 32-bit x86.
+- Fix for building on x32 (amd64 ISA with 32-bit pointers)
 
 - The musl static builds now carry built-in ncurses entries for common
   terminal types.
