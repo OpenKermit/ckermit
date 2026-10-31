@@ -19,6 +19,9 @@
 
 - Address some rare OpenBSD test flakes.
 
+- Fixed IKSD so it honors existing option `SET TCP REVERSE-DNS-LOOKUP OFF`,
+  which can be used to speed up connection negotiation.
+
 # C-Kermit 11.1.515
 
 October 30, 2026

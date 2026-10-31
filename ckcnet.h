@@ -1359,6 +1359,7 @@ extern int sstelnet;
 
 /* This function is declared even when TCPSOCKET is not available */
 _PROTOTYP( char * ckgetpeer, (VOID));
+_PROTOTYP( char * ckgetpeeraddr, (VOID));
 
 #ifdef TCPSOCKET
 #ifdef SOL_SOCKET

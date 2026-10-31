@@ -485,3 +485,39 @@ def test_iksd_starttls_handshake_in_same_read(wermit_path, fakeshadow,
     out = _iksd_session(wermit_path, fakeshadow, tmp_path, "",
                         initfile=init, home=home, client=client)
     assert "IKSD>" in out, out
+
+
+def test_iksd_resolves_client_name_once(wermit_path, fakeshadow, tmp_path):
+    """Verify the IKSD does one reverse DNS lookup of the client.
+
+    The session database, ck_auth_init() and ikslogin() all ask for the
+    client's address before the first prompt.  Each lookup blocks the
+    server.  The database uses the numeric address.  ckgetpeer() keeps
+    the name from its last lookup and returns it for the same address.
+    The debug log shows "ckgetpeer[" for each lookup and "ckgetpeer
+    cached[" for each reuse.
+    """
+    result = _iksd_session(wermit_path, fakeshadow, tmp_path, "echo DONE")
+    assert "LOGGEDIN" in result.stdout, result.stdout
+    log = _debug_log(tmp_path)
+    lookups = re.findall(r"^ckgetpeer\[", log, re.M)
+    assert len(lookups) == 1, log
+    assert re.search(r"^ckgetpeer cached\[", log, re.M), log
+
+
+def test_iksd_reverse_dns_off(wermit_path, fakeshadow, tmp_path):
+    """Verify SET TCP REVERSE-DNS-LOOKUP OFF stops the IKSD lookup.
+
+    The command in the IKSD configuration file takes effect before the
+    IKSD first asks for the client's name.  ikslogin() then records the
+    numeric client address.
+    """
+    init = tmp_path / "iksd.ini"
+    init.write_text("set tcp reverse-dns-lookup off\n")
+    result = _iksd_session(wermit_path, fakeshadow, tmp_path, "echo DONE",
+                           initfile=init)
+    assert "LOGGEDIN" in result.stdout, result.stdout
+    log = _debug_log(tmp_path)
+    assert not re.search(r"^ckgetpeer(?: cached)?\[", log, re.M), log
+    assert re.search(r"^ikslogin clienthost\[127\.0\.0\.1\]", log,
+                     re.M), log

@@ -2329,7 +2329,7 @@ Syntax: HEAD [ switches ] filename
 Synonyms: H, HE
 
 ```
-C-Kermit 11.0.514, 2026/09/30, Copyright (C) 2025-2026,
+C-Kermit 11.1.516, 2026/10/31, Copyright (C) 2025-2026,
   John Goerzen.
 Copyright (C) 1985, 2025,
   Trustees of Columbia University in the City of New York.
@@ -7230,6 +7230,10 @@ SET HOST [ switches ] hostname-or-address [ service ] [ protocol-switch ]
   SET HOST with no host name closes the current connection and returns
   Kermit to remote mode, as SET LINE does with no device name.
  
+  SET HOST * port listens for an incoming TCP/IP connection.  Port 0
+  lets the system choose the port.  The "Waiting to Accept" message
+  names it.
+ 
   An IPv6 address containing colons (such as ::1) must be enclosed in
   brackets if followed by a colon-separated port, e.g. "[::1]:23".
   A port given as a separate space-delimited argument does not require
@@ -8762,6 +8766,10 @@ SET TCP REVERSE-DNS-LOOKUP { AUTO, ON, OFF }
   default, means the lookup is done on hostnames, but not on numeric IP
   addresses unless Kerberos support is installed.
  
+  An Internet Kermit Service (IKSD) looks up the client's name for its
+  logs.  OFF in the IKSD configuration file makes it always
+  record the client's numeric address, potentially speeding up negotiation.
+ 
 SET TCP DNS-SERVICE-RECORDS {ON, OFF}
   Tells Kermit whether to try to use DNS SRV records to determine the
   host and port number upon which to find an advertised service.  For
@@ -8981,16 +8989,16 @@ SET TELNET parameters:
  bug binary-u-means-me-too: off
  bug sb-implies-will-do: on
  bug auth-krb5-des: on
- terminal-type: none (xterm-256color will be used)
+ terminal-type: none (xterm will be used)
  environment: on
    ACCOUNT: 
-   DISPLAY: localhost:1
+   DISPLAY: 
    JOB    : 
    PRINTER: 
    USER   : user
    SYSTEM : UNIX
   LOCATION: 
- .Xauthority-file: /run/user/1000/xauth_TPrBEr
+ .Xauthority-file: /path/to/home/.Xauthority
 ```
 
 ### SET TEL
@@ -9220,7 +9228,7 @@ Compile-time default, from `SHOW TERMINAL`:
 ```
 Terminal parameters:
    Bytesize: Command: 8 bits              Terminal: 8 bits         
-                Type:                         Print: off            
+                Type:                        Print: off            
                 Echo: remote         Locking-shift: off            
         Newline-mode: off               Cr-display: normal         
                  APC: off             Autodownload: on, error continue

@@ -4636,17 +4636,32 @@ ckaddr2name(addr) char * addr;
 #endif /* TCPSOCKET */
 
 /*
-  peeripaddr is the peer's IP address as text, set by every successful call to
-  ckgetpeer() alongside its usual resolved name return value.  Unlike namebuf
-  (the return value), it's never a resolved hostname, so it's usable by callers
-  such as the IKSD session database that want a numeric addresses.
+  peeripaddr holds the peer's IP address as text.  Every successful call to
+  ckgetpeer() or ckgetpeeraddr() sets it.  It never holds a resolved
+  hostname.  Callers such as the IKSD session database use it when they
+  need a numeric address.
 */
 char peeripaddr[CK_IPADDRLEN] = { '\0' };
 
-char *
-ckgetpeer() {
+/*
+  getpeer() reads the peer address of ttyfd into peeripaddr.  If resolve is
+  zero, or SET TCP REVERSE-DNS-LOOKUP is OFF, it returns peeripaddr and does
+  no DNS lookup.  Otherwise it returns the peer's reverse-DNS name, or the
+  numeric address if the lookup fails.
+
+  namebuf keeps the result of the last lookup.  lookaddr holds the address
+  that namebuf belongs to.  A later call for the same address returns
+  namebuf without a new lookup.  Each lookup blocks the caller.  An IKSD
+  asks for the client's name more than once before it sends its first
+  prompt.
+
+  Returns NULL if getpeername() fails.
+*/
+static char *
+getpeer(int resolve) {
 #ifdef TCPSOCKET
     static char namebuf[256];
+    static char lookaddr[CK_IPADDRLEN] = { '\0' };
 #ifdef CK_IPV6
     {
         struct sockaddr_storage pss;
@@ -4660,6 +4675,12 @@ ckgetpeer() {
         if (ck_straddr((struct sockaddr *)&pss,pslen,
                         peeripaddr,CK_IPADDRLEN) < 0)
           peeripaddr[0] = '\0';
+        if (!resolve || tcp_rdns == SET_OFF)
+          return(peeripaddr);
+        if (peeripaddr[0] && !strcmp(peeripaddr,lookaddr)) {
+            debug(F110,"ckgetpeer cached",namebuf,0);
+            return(namebuf);
+        }
         if (pss.ss_family == AF_INET6) {
             char nibuf[256];
             if (getnameinfo((struct sockaddr *)&pss,(socklen_t)pslen,
@@ -4679,6 +4700,7 @@ ckgetpeer() {
                 ckstrncpy(namebuf,(char *)inet_ntoa(sinp->sin_addr),256);
             }
         }
+        ckstrncpy(lookaddr,peeripaddr,CK_IPADDRLEN);
         debug(F110,"ckgetpeer",namebuf,0);
         return(namebuf);
     }
@@ -4738,6 +4760,13 @@ ckgetpeer() {
         peeripaddr[0] = '\0';
         return(NULL);
     }
+    ckstrncpy(peeripaddr,(char *)inet_ntoa(saddr.sin_addr),CK_IPADDRLEN);
+    if (!resolve || tcp_rdns == SET_OFF)
+      return(peeripaddr);
+    if (peeripaddr[0] && !strcmp(peeripaddr,lookaddr)) {
+        debug(F110,"ckgetpeer cached",namebuf,0);
+        return(namebuf);
+    }
     host = gethostbyaddr((char *)&saddr.sin_addr,4,AF_INET);
     if (host) {
         host = ck_copyhostent(host);
@@ -4745,13 +4774,27 @@ ckgetpeer() {
     } else {
         ckstrncpy(namebuf,(char *)inet_ntoa(saddr.sin_addr),80);
     }
-    ckstrncpy(peeripaddr,(char *)inet_ntoa(saddr.sin_addr),CK_IPADDRLEN);
+    ckstrncpy(lookaddr,peeripaddr,CK_IPADDRLEN);
     debug(F110,"ckgetpeer",namebuf,0);
     return(namebuf);
 #endif /* CK_IPV6 */
 #else
     return(NULL);
 #endif /* TCPSOCKET */
+}
+
+/* Return the peer's reverse-DNS name, or its numeric address. */
+
+char *
+ckgetpeer() {
+    return(getpeer(1));
+}
+
+/* Return the peer's numeric address.  Do no DNS lookup. */
+
+char *
+ckgetpeeraddr() {
+    return(getpeer(0));
 }
 
 #ifndef NOTCPIP

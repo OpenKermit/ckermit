@@ -116,7 +116,7 @@ extern xx_strp xxstring;
 #ifdef OS2
 #include "ckcnet.h"
 #else /* OS2 */
-_PROTOTYP( char * ckgetpeer, (VOID));
+_PROTOTYP( char * ckgetpeeraddr, (VOID));
 _PROTOTYP(int getlocalipaddr, (void));
 _PROTOTYP(int istncomport, (void));
 #ifndef NOCKGETFQHOST
@@ -9921,7 +9921,7 @@ initslot(n) int n;
         lset(&dbrec[dbfld[db_SADDR].off],saddrbuf,k,32);
     }
 
-    ckgetpeer();                        /* Sets peeripaddr; see dbinit() */
+    ckgetpeeraddr();                    /* Sets peeripaddr */
     k = dbfld[db_CADDR].len;
     lset(&dbrec[dbfld[db_CADDR].off],peeripaddr,k,32);
 #else

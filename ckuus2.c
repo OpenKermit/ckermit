@@ -9818,6 +9818,10 @@ static char *hxytcp[] = {
 "  which host you are connected to and you are not using Kerberos.  AUTO, the",
 "  default, means the lookup is done on hostnames, but not on numeric IP",
 "  addresses unless Kerberos support is installed.",
+" ",
+"  An Internet Kermit Service (IKSD) looks up the client's name for its",
+"  logs.  OFF in the IKSD configuration file makes it always",
+"  record the client's numeric address, potentially speeding up negotiation.",
 #ifdef CK_DNS_SRV
 " ",
 "SET TCP DNS-SERVICE-RECORDS {ON, OFF}",

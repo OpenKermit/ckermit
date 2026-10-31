@@ -1040,19 +1040,21 @@ def test_reverse_dns_lookup_over_ipv6(run_wermit):
 
 
 def _start_iksd_listener(spawn_wermit, log_path, extra_cmds="",
-                         post_cmds=""):
+                         post_cmds="", rdns="off"):
     """Start a bare SET HOST * listener on a port the system chooses.
 
     No /SERVER: the tests need only an accepted raw socket.  Wait for
     the listener to report that it is listening.  Return (port, proc,
     log_fh).  SET HOST * accepts one connection and returns, or
-    spawn_wermit's teardown kills the listener.
+    spawn_wermit's teardown kills the listener.  rdns is the listener's
+    SET TCP REVERSE-DNS-LOOKUP value.  ckgetpeer() and \\v(line) return
+    the numeric peer address when it is off.
     """
     return start_tcp_listener(
         spawn_wermit,
         ["--unbuffered", "-H", "-Y", "-C",
          "set command more-prompting off, "
-         "set tcp reverse-dns-lookup off, "
+         f"set tcp reverse-dns-lookup {rdns}, "
          f"{extra_cmds}set host * 0{post_cmds}"],
         log_path, "IKSD listener")
 
@@ -1144,7 +1146,7 @@ def test_iksd_listener_reports_peer_ipv4(run_wermit, spawn_wermit,
     log_path = tmp_path / "srv4peer.log"
     port, proc, log_fh = _start_iksd_listener(
         spawn_wermit, log_path,
-        post_cmds=", echo PEER=[\\v(line)]")
+        post_cmds=", echo PEER=[\\v(line)]", rdns="on")
     try:
         result = run_wermit(
             "set tcp reverse-dns-lookup off, "
@@ -1170,7 +1172,7 @@ def test_iksd_listener_reports_peer_ipv6(run_wermit, spawn_wermit,
     log_path = tmp_path / "srv6peer.log"
     port, proc, log_fh = _start_iksd_listener(
         spawn_wermit, log_path,
-        post_cmds=", echo PEER=[\\v(line)]")
+        post_cmds=", echo PEER=[\\v(line)]", rdns="on")
     try:
         result = run_wermit(
             "set tcp reverse-dns-lookup off, "
