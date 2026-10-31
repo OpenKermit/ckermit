@@ -17,6 +17,8 @@
 
 - Fixed `make linux+musl` with ncurses.
 
+- Address some rare OpenBSD test flakes.
+
 # C-Kermit 11.1.515
 
 October 30, 2026
