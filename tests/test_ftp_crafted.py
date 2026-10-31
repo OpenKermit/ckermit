@@ -456,54 +456,23 @@ def test_ftp_show_send_port_commands(run_wermit):
     assert lines[0].split()[-1] == "off", lines
 
 
-def _record_connect():
-    """Start a one-connection HTTP proxy that refuses CONNECT.
-
-    Returns (port, thread, socket, list of request heads).
-    """
-    heads = []
-    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    srv.bind(("127.0.0.1", 0))
-    srv.listen(1)
-    srv.settimeout(scaled(20))
-
-    def run():
-        try:
-            conn, _ = srv.accept()
-        except OSError:
-            return
-        with conn:
-            conn.settimeout(scaled(20))
-            buf = b""
-            try:
-                while b"\r\n\r\n" not in buf:
-                    chunk = conn.recv(4096)
-                    if not chunk:
-                        return
-                    buf += chunk
-                heads.append(buf.split(b"\r\n\r\n", 1)[0]
-                             .decode("latin-1"))
-                conn.sendall(b"HTTP/1.1 403 Forbidden\r\n"
-                             b"Content-Length: 0\r\n\r\n")
-            except OSError:
-                pass
-
-    thread = threading.Thread(target=run, daemon=True)
-    thread.start()
-    return srv.getsockname()[1], thread, srv, heads
-
-
 def _refuse_connects():
     """Start an HTTP proxy that refuses every CONNECT with 403.
 
-    The proxy accepts connections until its socket closes.  A refusal
-    from a listening proxy does not depend on the kernel answering a
+    The proxy accepts connections until stopped.  A refusal from a
+    listening proxy does not depend on the kernel answering a
     connection to a closed port.  OpenBSD limits those answers to
     net.inet.tcp.rstppslimit per second.
 
-    Return (port, thread, socket).
+    events records, in order, the head of each request, "EOF" for a
+    connection that closed before a complete head, and "accept: " with
+    the error for a failed accept().  A failed accept() does not stop
+    the proxy.
+
+    Return (port, stop function, events).
     """
+    events = []
+    stopping = threading.Event()
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("127.0.0.1", 0))
@@ -511,13 +480,17 @@ def _refuse_connects():
     srv.settimeout(0.1)
 
     def run():
-        while True:
+        while not stopping.is_set():
             try:
                 conn, _ = srv.accept()
             except socket.timeout:
-                continue                # Check again for srv.close()
-            except OSError:
-                return
+                continue
+            except OSError as e:
+                if stopping.is_set():
+                    return
+                events.append(f"accept: {e!r}")
+                time.sleep(0.1)
+                continue
             with conn:
                 conn.settimeout(scaled(20))
                 buf = b""
@@ -527,14 +500,25 @@ def _refuse_connects():
                         if not chunk:
                             break
                         buf += chunk
+                    if b"\r\n\r\n" not in buf:
+                        events.append("EOF")
+                        continue
+                    events.append(buf.split(b"\r\n\r\n", 1)[0]
+                                  .decode("latin-1"))
                     conn.sendall(b"HTTP/1.1 403 Forbidden\r\n"
                                  b"Content-Length: 0\r\n\r\n")
-                except OSError:
-                    pass
+                except OSError as e:
+                    events.append(f"connection: {e!r}")
 
     thread = threading.Thread(target=run, daemon=True)
     thread.start()
-    return srv.getsockname()[1], thread, srv
+
+    def stop():
+        stopping.set()
+        thread.join(timeout=scaled(5))
+        srv.close()
+
+    return srv.getsockname()[1], stop, events
 
 
 @pytest.mark.parametrize("trust,target", [
@@ -549,18 +533,19 @@ def test_ftp_proxy_pasv_connect_target(run_wermit, trust, target):
     address.
     """
     reply = b"227 Entering Passive Mode (10,255,255,1,0,9)\r\n"
-    pport, pthread, psrv, heads = _record_connect()
+    pport, stop, events = _refuse_connects()
     try:
         result = _ftp_session(
             run_wermit, b"220 hi\r\n", {"PASV": reply},
             commands=[f"set ftp trust-pasv-address {trust}",
                       f"set tcp http-proxy 127.0.0.1:{pport}",
                       "ftp dir"])
+    except subprocess.TimeoutExpired:
+        pytest.fail(f"wermit timed out; proxy events: {events}")
     finally:
-        psrv.close()
-        pthread.join(timeout=scaled(5))
-    assert heads, result.stdout[-500:]
-    assert heads[0].startswith(f"CONNECT {target} "), heads
+        stop()
+    assert len(events) == 1, (events, result.stdout[-500:])
+    assert events[0].startswith(f"CONNECT {target} "), events
 
 
 def test_ftp_proxy_data_connection_closes_socket(wermit_path):
@@ -572,7 +557,7 @@ def test_ftp_proxy_data_connection_closes_socket(wermit_path):
     """
     reply = b"227 Entering Passive Mode (127,0,0,1,0,9)\r\n"
     port, thread, srv = _serve_ftp(b"220 hi\r\n", {"PASV": reply})
-    pport, pthread, psrv = _refuse_connects()
+    pport, stop, events = _refuse_connects()
 
     def limit():
         resource.setrlimit(resource.RLIMIT_NOFILE, (40, 40))
@@ -589,14 +574,19 @@ def test_ftp_proxy_data_connection_closes_socket(wermit_path):
             ])],
             stdin=subprocess.DEVNULL, capture_output=True, text=True,
             timeout=scaled(120), preexec_fn=limit, start_new_session=True)
+    except subprocess.TimeoutExpired:
+        pytest.fail(f"wermit timed out after {len(events)} proxy "
+                    "events; unexpected: "
+                    f"{[e for e in events if not e.startswith('CONNECT ')]}")
     finally:
         srv.close()
-        psrv.close()
+        stop()
         thread.join(timeout=scaled(5))
-        pthread.join(timeout=scaled(5))
     out = result.stdout + result.stderr
     assert "LOOP-DONE" in result.stdout, out[-500:]
     assert "Too many open files" not in out, out[-500:]
+    unexpected = [e for e in events if not e.startswith("CONNECT ")]
+    assert not unexpected, unexpected
 
 
 @pytest.mark.parametrize("reply", [
