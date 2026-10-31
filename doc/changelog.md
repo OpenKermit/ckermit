@@ -141,11 +141,12 @@ corrections for security regressions in 11.0, aside from `SET COMPATIBILITY`.
   argument must name an existing directory.  A REMOTE SPACE directory name with
   spaces now works.  A command too long for the command buffer is refused
   instead of overflowing it.  Bug dates from C-Kermit 4C(057) of 1985.
+  GHSA-c5px-7h4c-gj8p.
 
 - [4] A Kermit server or receiver now refuses a server command, GET command, or
   file name that decodes to more than its command buffer holds.  Before, repeat
   counts could make such a packet write past the buffer.  This bug was present
-  in the oldest extant version of C-Kermit.
+  in the oldest extant version of C-Kermit.  GHSA-c5px-7h4c-gj8p.
 
 - [4, 5, 6, 7] The server trusted the field lengths in generic commands,
   Extended GET parameters, attribute packets and REMOTE SET.  A length past the
@@ -189,7 +190,7 @@ corrections for security regressions in 11.0, aside from `SET COMPATIBILITY`.
   REMOTE QUERY.  `remote query kermit command(...)` called `\fcommand()`,
   and `\fexecute()` could reach RUN.  The query now runs with PUSH refused
   unless HOST is enabled.  Bug was introduced in C-Kermit 6.0.192 of 1996.
-  That release first allowed functions in REMOTE QUERY.
+  That release first allowed functions in REMOTE QUERY.  GHSA-c5px-7h4c-gj8p.
 
 - [6, (11)] A sender could have a file appended to any existing file in the
   receive directory by marking it RESEND.  This bypassed FILE COLLISION REJECT
@@ -199,7 +200,7 @@ corrections for security regressions in 11.0, aside from `SET COMPATIBILITY`.
   (9ee170a8) made REJECT the default which, because of this bug in C-Kermit
   6.0.192, didn't achieve the desired hardening effect for appends.  The same
   happened when RECEIVE CONFIRM was added in C-Kermit 11.0.506 (b06df387), both
-  in 2026.
+  in 2026.  GHSA-vhrv-7jrq-95qj.
 
 - [7] A receiver gave a file the setuid, setgid and sticky bits when a Unix
   sender's permissions held them.  A sender could leave a setuid program in the
@@ -230,7 +231,7 @@ corrections for security regressions in 11.0, aside from `SET COMPATIBILITY`.
   Names are now matched by basename, the as-name counts, and the root is the
   requested directory.  Bugs were introduced in commit b06df387 in C-Kermit
   11.0.506 of 2026.  C-Kermit prior to v11 didn't have a receive confirm
-  mechanism at all.
+  mechanism at all.  GHSA-vhrv-7jrq-95qj.
 
 - [11] SET COMPATIBILITY 9 and 10, and `kermit9` and `kermit10`, set RECEIVE
   PATHNAMES ABSOLUTE instead of C-Kermit 9's AUTO, and could re-enable
@@ -255,7 +256,7 @@ corrections for security regressions in 11.0, aside from `SET COMPATIBILITY`.
 
 - [8] FTP MGET /RECURSIVE wrote server names such as `../../x` or
   absolute paths as local files.  It now skips them.  Bug was introduced
-  in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+  in commit c88d9b85 in C-Kermit 8.0.200 of 2001.  GHSA-vhrv-7jrq-95qj.
 
 - [8, 11] The FTP PASV reply was used as given, so a server could direct the
   data connection to any host.  The data connection now goes to the control
@@ -270,7 +271,7 @@ corrections for security regressions in 11.0, aside from `SET COMPATIBILITY`.
   default configuration.  In GSSAPI, Kerberos 4, and SRP builds, a long ADAT
   reply did the same, and a long protected (6xx) reply overflowed a  buffer.
   Each copy now stops at the end of its buffer.  Bugs were introduced in commit
-  c88d9b85 in C-Kermit 8.0.200 of 2001.
+  c88d9b85 in C-Kermit 8.0.200 of 2001.  GHSA-c5px-7h4c-gj8p.
 
 - [8] In GSSAPI, Kerberos 4, and SRP builds, a PBSZ size too small for the
   protection overhead let a protected PUT overflow its buffer.  A text-mode PUT
@@ -326,7 +327,7 @@ corrections for security regressions in 11.0, aside from `SET COMPATIBILITY`.
   buffer with a crafted NEW-ENVIRON SEND request during connection negotiation.
   The stack overflow was introduced in commit 4b5eddea in C-Kermit 6.0.192 of
   1996.  The heap overflow was introduced in commit d0f8b1da in C-Kermit
-  7.0.197 of 2000.
+  7.0.197 of 2000.  GHSA-c5px-7h4c-gj8p.
 
 - [7] A malicious Telnet server could write past a static buffer by sending
   4095 or more bytes during connection negotiation.  Kermit keeps data that
@@ -341,7 +342,7 @@ corrections for security regressions in 11.0, aside from `SET COMPATIBILITY`.
   logged in with any password.  The IKSD now drops the certificate login
   when the automatic login fails, and skips the password only for the
   user that authentication validated.  Bug was introduced in commit
-  d0f8b1da in C-Kermit 7.0.197 of 2000.
+  d0f8b1da in C-Kermit 7.0.197 of 2000.  GHSA-5pc4-gh6q-5h4w.
 
 - [7, 8] Malformed Telnet subnegotiations from a peer read or wrote past
   buffers.  With the debug log or SET TELNET DEBUG on, an ENCRYPTION
@@ -368,13 +369,14 @@ corrections for security regressions in 11.0, aside from `SET COMPATIBILITY`.
   `X509_check_host()`, so a wildcard matches only as the whole leftmost
   label of a name with more labels.  Addresses use `X509_check_ip_asc()`, so
   an IPv6 address in a certificate now matches.  Bug was introduced in
-  commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+  commit c88d9b85 in C-Kermit 8.0.200 of 2001.  GHSA-5pc4-gh6q-5h4w.
 
 - [8] A Telnet client that used the AUTHENTICATION option's SSL type did
   not check that the server's certificate named the host.  A server could
   refuse START-TLS and offer that type, and any certificate from a trusted
   CA then passed.  The client now makes the same checks as for START-TLS.
   Bug was introduced in commit c88d9b85 in C-Kermit 8.0.200 of 2001.
+  GHSA-5pc4-gh6q-5h4w.
 
 - [8] A TLS client certificate was accepted for an account in `.tlslogin` when
   its signature bits matched a listed certificate.  The whole certificate must
@@ -1039,7 +1041,7 @@ This section highlights the most relevant changed behavior in this release.
 - [4, 6] A server with HOST disabled refuses PUSH within REMOTE QUERY.
   REMOTE WHO and REMOTE SPACE run without the shell.  A Unix server
   refuses a REMOTE WHO name.  REMOTE SPACE refuses a name that is not an
-  existing directory.
+  existing directory.  GHSA-c5px-7h4c-gj8p.
 
 - [5] On Unix, WHO refuses a user name unless the CK_WHO environment
   variable names the command to run.
@@ -1053,7 +1055,7 @@ This section highlights the most relevant changed behavior in this release.
   64-bit values.
 
 - [6, 11] A receiver refuses a RESEND unless its FILE COLLISION setting
-  allows it or it asked for a REGET.
+  allows it or it asked for a REGET.  GHSA-vhrv-7jrq-95qj.
 
 - [7] A receiver gives a received file only the read, write and execute
   bits of the sender's permissions.
@@ -1061,7 +1063,7 @@ This section highlights the most relevant changed behavior in this release.
 - [7, 8] `\fstripb(x,x)` returns the character.
 
 - [8] FTP MGET /RECURSIVE skips server names that leave the current
-  directory.
+  directory.  GHSA-vhrv-7jrq-95qj.
 
 - [8] FTP OPEN does not log in when TLS fails after the server accepts
   AUTH TLS or AUTH SSL.  `SET FTP TLS-FALLBACK ON` logs in without
@@ -1073,6 +1075,7 @@ This section highlights the most relevant changed behavior in this release.
 
 - [8] TLS host name checks use `X509_check_host()`.  A wildcard matches
   only as the whole leftmost label of a name with more labels.
+  GHSA-5pc4-gh6q-5h4w.
 
 - [8] Kermit refuses SSL and TLS when OpenSSL has too little entropy.
 
@@ -1104,7 +1107,7 @@ This section highlights the most relevant changed behavior in this release.
 - [10] `\fcvtdate()` converts Apache log dates.
 
 - [11] RECEIVE CONFIRM prompts for files a recursive GET places outside
-  the requested directory.
+  the requested directory.  GHSA-vhrv-7jrq-95qj.
 
 - [11] `SET COMPATIBILITY 9` and `10`, and `kermit9` and `kermit10`, set
   RECEIVE PATHNAMES AUTO and no longer re-enable functions that ENABLE
