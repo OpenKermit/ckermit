@@ -1,5 +1,13 @@
 # OpenKermit C-Kermit Changelog
 
+# C-Kermit 11.1.516 (NOT YET RELEASED)
+
+- The faultinj tests can have portability issues.  Disable by default, but keep
+  running in CI where they're most useful and I can directly control and test
+  the environment better.
+  
+- Fix tests such that a nonstandard path to iksd.conf will still work.
+
 # C-Kermit 11.1.515
 
 October 30, 2026
