@@ -32,7 +32,8 @@ jobs:
 
       # Release builds cover more platforms than the fast PR/push matrix in
       # ci.yml.  Builds include Linux binaries (dynamic and static on amd64
-      # and arm64, static on armhf) and macOS.  BSDs are handled elsewhere.
+      # and arm64, static on armhf and i386) and macOS.  BSDs are handled
+      # elsewhere.
       # Every release binary is tested; none of these set skip-tests.
 
       # The "static" binaries are built with linux+ssl+musl since a musl-gcc
@@ -43,6 +44,10 @@ jobs:
       # through the musl path.  No armhf glibc libraries are available to
       # link a dynamic binary.
 
+      # i386 is static only and has no SSL/TLS.  ci.yml builds it with
+      # linux+musl in a Debian container for the i486 instruction set,
+      # for embedded and older x86 systems.
+
       matrix: >-
         [
         {"os":"ubuntu-24.04","platform":"linux","arch":"amd64","make-target":"linux+ssl","label":"kermit-linux-amd64-${{ needs.version.outputs.version }}"},
@@ -50,6 +55,7 @@ jobs:
         {"os":"ubuntu-24.04","platform":"linux","arch":"amd64","make-target":"linux+ssl+musl","label":"kermit-linux-amd64-static-${{ needs.version.outputs.version }}"},
         {"os":"ubuntu-24.04-arm","platform":"linux","arch":"arm64","make-target":"linux+ssl+musl","label":"kermit-linux-arm64-static-${{ needs.version.outputs.version }}"},
         {"os":"ubuntu-24.04-arm","platform":"linux","arch":"armhf","make-target":"linux+ssl+musl","label":"kermit-linux-armhf-static-${{ needs.version.outputs.version }}"},
+        {"os":"ubuntu-26.04","platform":"linux","arch":"i386","make-target":"linux+musl","label":"kermit-linux-i386-static-${{ needs.version.outputs.version }}"},
         {"os":"macos-latest","platform":"macos","arch":"arm64","make-target":"macos","label":"kermit-macos-arm64-${{ needs.version.outputs.version }}"}
         ]
 

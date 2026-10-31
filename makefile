@@ -7308,13 +7308,21 @@ linux+ssl+musl:
 # OpenSSL is the only reason a musl build must reach
 # outside musl's headers into the host's Linux
 # kernel UAPI headers.  Without it, only ncurses needs a musl-gcc
-# build, so point KNCURSESINC at the same prefix build-musl-libs.sh
-# produces (see the KNCURSESINC comment on linux+ssl+musl above for
-# why no separate KNCURSESLIB is needed):
+# build.  Point KNCURSESINC and KNCURSESLIB at the prefix
+# build-musl-libs.sh produces.  This target has no KSSLINC or
+# KSSLLIB.  So KNCURSESINC names both the prefix's include directory
+# and its ncurses/ subdirectory, and KNCURSESLIB names the prefix's
+# lib directory:
 #
 #   tools/build-musl-libs.sh .ci-cache/musl-libs
 #   make linux+musl \
-#     KNCURSESINC="-I$$PWD/.ci-cache/musl-libs/include/ncurses"
+#     KNCURSESINC="-I$$PWD/.ci-cache/musl-libs/include \
+#       -I$$PWD/.ci-cache/musl-libs/include/ncurses" \
+#     KNCURSESLIB="-L$$PWD/.ci-cache/musl-libs/lib"
+#
+# The i386 build adds KFLAGS="-march=i486" and runs in
+# tools/i386-musl-container.sh with a library prefix built by
+# "tools/build-musl-libs.sh <prefix> i386".
 #
 # Curses support is opt-in here too; see the KNCURSESINC comment on
 # linux+ssl+musl above.
@@ -7331,7 +7339,7 @@ linux+musl:
 	-DCK_AUTHENTICATION -DCK_ENCRYPTION -DCK_CAST -DCK_SHADOW \
 	$$NCFLAG $(KFLAGS)" \
 	"LNKFLAGS = -static $(LNKFLAGS)" \
-	"LIBS = $$NCLIBS -lm $(LIBS)"
+	"LIBS = $(KNCURSESLIB) $$NCLIBS -lm $(LIBS)"
 
 # Linux with Kerberos 5 and OpenSSL
 # OK 2011/05/16

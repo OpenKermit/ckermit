@@ -10,6 +10,13 @@
 
 - Fix for building on x32 (amd64 ISA with 32-bit pointers)
 
+- Added a static 32-bit x86.
+
+- The musl static builds now carry built-in ncurses entries for common
+  terminal types.
+
+- Fixed `make linux+musl` with ncurses.
+
 # C-Kermit 11.1.515
 
 October 30, 2026
