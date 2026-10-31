@@ -1,6 +1,8 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.1.516 (NOT YET RELEASED)
+# C-Kermit 11.1.516
+
+Halloween 2026
 
 - The faultinj tests can have portability issues.  Disable by default, but keep
   running in CI where they're most useful and I can directly control and test
