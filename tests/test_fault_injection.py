@@ -5,6 +5,7 @@ faultinj.c is preloaded into wermit and makes the Nth read(), recv(),
 write() or send() call fail, or makes a read return end of file.  These
 tests check that wermit reports the error, or ends the operation, and
 does not hang or crash.  They need glibc on Linux and a C compiler.
+They carry the faultinj marker.  A default run leaves them out.
 """
 import http.server
 import os
@@ -22,6 +23,8 @@ from test_iksd_login import _elf_info
 from test_iksdb import _build_has_iksdb, _close_iksd, _connect_iksd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+pytestmark = pytest.mark.faultinj
 
 
 @pytest.fixture(scope="session")

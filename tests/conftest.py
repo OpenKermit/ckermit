@@ -294,23 +294,24 @@ def pytest_runtest_protocol(item, nextitem):
         timer.cancel()
 
 
-# Tests with these markers are slow.  A default run leaves them out to
-# spare integrators on slow platforms.  --full or KERMIT_TEST_FULL=1
-# runs them.  CI and agents always run the full suite.
-OPTIONAL_MARKERS = ("slow", "zmodem")
+# Tests with these markers are slow or depend on platform details.  A
+# default run leaves them out to spare integrators on slow or less
+# common platforms.  --full or KERMIT_TEST_FULL=1 runs them.  CI and
+# agents always run the full suite.
+OPTIONAL_MARKERS = ("slow", "zmodem", "faultinj")
 FULL_ENV = "KERMIT_TEST_FULL"
 
 
 def pytest_addoption(parser):
-    """Add --full to run the slow and zmodem tests too."""
+    """Add --full to run the slow, zmodem and faultinj tests too."""
     parser.addoption(
         "--full", action="store_true", default=False,
-        help="also run tests marked slow or zmodem (or set "
+        help="also run tests marked slow, zmodem or faultinj (or set "
              f"{FULL_ENV}=1)")
 
 
 def run_full(config):
-    """Return True when the slow and zmodem tests run.
+    """Return True when the slow, zmodem and faultinj tests run.
 
     They run with --full, with KERMIT_TEST_FULL=1, or with an explicit
     -m expression.  An explicit -m expression selects tests directly.
@@ -321,7 +322,7 @@ def run_full(config):
 
 
 def pytest_collection_modifyitems(config, items):
-    """Deselect the slow and zmodem tests unless run_full() is true."""
+    """Deselect the OPTIONAL_MARKERS tests unless run_full() is true."""
     if run_full(config):
         return
     kept, dropped = [], []
@@ -339,7 +340,7 @@ def pytest_report_header(config):
     """Show the timeout factor and whether slow tests run."""
     lines = [f"kermit timeout scale: {timeout_scale():.2f}"]
     if not run_full(config):
-        lines.append("slow and zmodem tests: deselected "
+        lines.append("slow, zmodem and faultinj tests: deselected "
                      f"(use --full or {FULL_ENV}=1 to run them)")
     return lines
 

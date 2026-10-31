@@ -40,12 +40,16 @@ test.  Tests that check how long an operation took keep their bounds.
 On a single-CPU machine, run the suite with -n0.  A 599 MHz Alpha
 running NetBSD takes about 48 minutes.
 
-Slow and ZMODEM Tests:
+Slow, ZMODEM and Fault Injection Tests:
 
 Tests marked slow wait out a timeout or a fixed delay on purpose.
 Tests marked zmodem run ZMODEM transfers with lrzsz.  Both take long
-on a slow machine.  A default run leaves them out, and the session
-header says so.  Run them too with:
+on a slow machine.  Tests marked faultinj build tests/faultinj.c and
+preload it into wermit.  faultinj.c replaces glibc functions and
+depends on the toolchain and libc details of each platform.
+
+A default run leaves all three out, and the session header says so.
+Run them too with:
 
     pytest --full
 
