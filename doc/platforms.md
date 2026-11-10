@@ -46,7 +46,7 @@ without SSL support.
 
 ## NetBSD
 
-Official binaries for this release are built on NetBSD 11.0 and are built
+Official binaries for this release are built on NetBSD 11.1 and are built
 without SSL support.
 
 ### Weird problems on NetBSD
