@@ -45,10 +45,10 @@ set -e
 PREFIX=${1:?"usage: $0 <prefix-dir> [armhf|i386]"}
 TARGET=${2:-native}
 
-ZLIB_VERSION=1.3.2
+ZLIB_VERSION=1.4
 ZLIB_URL="https://github.com/madler/zlib/releases/download/\
 v$ZLIB_VERSION/zlib-$ZLIB_VERSION.tar.gz"
-ZLIB_SHA256=bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16
+ZLIB_SHA256=02dd159783677a749c04adbdd02b55b8a2bcc7e054f51b76b549199a916ad584
 
 OPENSSL_VERSION=3.5.9
 OPENSSL_URL="https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz"
