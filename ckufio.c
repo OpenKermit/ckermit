@@ -8544,6 +8544,16 @@ _PROTOTYP(int initgroups, (const char *, gid_t) );
         }
         debug(F110,"zvpass anon chroot/chdir OK",dir,0);
     } else if (chdir(dir) < 0) {        /* Not guest */
+#ifdef CKSYSLOG
+        if (ckxsyslog && ckxlogging) {
+            /* %m reports errno from chdir() */
+            syslog(LOG_INFO,
+                   "login: %s refused, chdir %s failed (%m): %s",
+                   pw->pw_name, dir,
+                   clienthost ? clienthost : "(unknown host)"
+                   );
+        }
+#endif /* CKSYSLOG */
         debug(F110,"zvpass non-guest chdir FAILED",dir,0);
         goto bad;                       /* Be conservative at first */
     }

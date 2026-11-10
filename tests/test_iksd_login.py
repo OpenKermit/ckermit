@@ -124,10 +124,12 @@ def _iksd_session(wermit_path, fakeshadow, tmp_path, client_cmds,
 
     The IKSD writes debug.log in tmp_path.  userfile_lines, when given,
     are the forbidden-user file.  initfile is the IKSD configuration
-    file, and home the user's home directory.  client_setup runs on the client
-    before it connects.  login replaces the client's password exchange.
-    client, when given, replaces the wermit client.  It takes the port
-    and returns the result.  alias is a second name for the user.
+    file.  home is the user's home directory and defaults to tmp_path.
+    zvpass() refuses a login if it cannot change to that directory.
+    client_setup runs on the client before it connects.  login replaces
+    the client's password exchange.  client, when given, replaces the
+    wermit client.  It takes the port and returns the result.  alias is
+    a second name for the user.
     """
     if not _has_iksd(wermit_path):
         pytest.skip("build has no IKSD login through shadow or PAM")
@@ -140,12 +142,11 @@ def _iksd_session(wermit_path, fakeshadow, tmp_path, client_cmds,
         users.write_text("".join(ln + "\n" for ln in userfile_lines))
         args.append("--userfile:" + str(users))
     env = dict(os.environ, LD_PRELOAD=fakeshadow, FAKESHADOW_USER=user,
-               FAKESHADOW_PASS=PASSWORD)
+               FAKESHADOW_PASS=PASSWORD,
+               FAKESHADOW_HOME=str(tmp_path if home is None else home))
     if initfile is not None:
         env["FAKESHADOW_IKSDCONF"] = str(initfile)
         env["FAKESHADOW_IKSDPATH"] = _iksd_conf_path(wermit_path)
-    if home is not None:
-        env["FAKESHADOW_HOME"] = str(home)
     if alias is not None:
         env["FAKESHADOW_ALIAS"] = alias
     if login is None:
