@@ -1,5 +1,16 @@
 # OpenKermit C-Kermit Changelog
 
+# C-Kermit 11.1.517
+
+November 10, 2026
+
+- IKSD tests were failing on some distro CI systems that didn't set home
+  directories.
+
+- Updated NetBSD platform notes.
+
+- Updated musl builds static library versions.
+
 # C-Kermit 11.1.516
 
 Halloween 2026
