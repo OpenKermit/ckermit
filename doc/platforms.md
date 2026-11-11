@@ -71,6 +71,41 @@ external protocols on NetBSD.
 
 - John Goerzen, July 2026, updated October 2026
 
+## rz issue on BSD systems
+
+One common use of ZModem is to ssh to a remote (either with the ssh command or
+Kermit's SSH command), then run rz or sz at the remote shell.  If running rz on
+one of the BSDs (FreeBSD, NetBSD, or OpenBSD), the transfer can fail, both when
+run within Kermit and otherwise.
+
+The remote shell runs on a pty with IEXTEN set.  rz puts the tty in raw mode,
+but doesn't touch IEXTEN.  With IEXTEN, BSD ttys discard ^V input, even in raw
+mode.  NetBSD and OpenBSD also discard ^O.  sz doesn't escape those bytes by
+default.  When a file or CRC contains them, transfers fail with ZNAK or ZCAN.
+
+Linux passes both bytes in raw mode, and thus avoids this problem.
+
+Any of these avoids the problem:
+
+- Run `stty -iexten` before rz.
+- Run `rz -e`.  This causes sz to escape all control characters.
+
+The same applies to rz run directly under `SET HOST /PTY`, which sets up the
+pty for interactive use with IEXTEN set:
+
+    set host /pty sh -c 'stty -iexten && exec rz'
+
+External protocols that Kermit starts with `SEND /PROTOCOL:ZMODEM` or
+`RECEIVE /PROTOCOL:ZMODEM` are not affected.  Kermit clears IEXTEN on their
+pty.
+
+The Kermit protocol itself is more robust than ZModem and will often be able to
+detect and work around this issue.
+
+Note that this issue isn't a bug with Kermit, but rather is an issue with rz
+(failing to drop IEXTEN) or the underlying kernel, which also manifests outside
+Kermit.
+
 ## OpenVMS
 
 Builds for OpenVMS are done manually and contributed by Tony Nicholson.  They

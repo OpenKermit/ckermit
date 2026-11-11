@@ -19,9 +19,14 @@ def test_zmodem_send_does_not_report_no_files(run_wermit, tmp_path):
     (tmp_path / "f.txt").write_text("hello\n")
     recv = tmp_path / "r"
     recv.mkdir()
+    # rz leaves IEXTEN set.  With IEXTEN, a BSD tty discards ^V input in
+    # non-canonical mode.  NetBSD and OpenBSD also discard ^O.  sz does
+    # not escape those bytes, so a CRC byte of 0x0f or 0x16 makes rz
+    # answer ZNAK until the timeout.  The CRC covers the file mtime.
+    # stty -iexten passes every byte.
     result = run_wermit(
         f"cd {tmp_path}, "
-        f"set host /pty sh -c 'cd {recv} && exec rz', "
+        f"set host /pty sh -c 'cd {recv} && stty -iexten && exec rz', "
         "send /protocol:zmodem f.txt, echo S=\\v(status), close",
         timeout=60)
     assert (recv / "f.txt").read_text() == "hello\n"
