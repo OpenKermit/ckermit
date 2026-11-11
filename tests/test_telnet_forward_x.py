@@ -56,10 +56,11 @@ def _fake_x_server():
 class ForwardXServer:
     """A one-connection Telnet server that forwards X11 to the client.
 
-    script is a list of FORWARD-X payloads, and pauses in seconds, sent
-    once the client agrees to FORWARD-X.  The server then waits, sends
-    "DONE" and closes the connection.  relayed holds the data the
-    client sent back on any channel.
+    script is a list of FORWARD-X payloads, pauses in seconds, and
+    callables, played once the client agrees to FORWARD-X.  The server
+    sends each payload and calls each callable with no arguments.  The
+    server then waits, sends "DONE" and closes the connection.  relayed
+    holds the data the client sent back on any channel.
     """
 
     def __init__(self, script, wait=1.0):
@@ -125,6 +126,8 @@ class ForwardXServer:
             for payload in self.script:
                 if isinstance(payload, float):
                     time.sleep(payload)
+                elif callable(payload):
+                    payload()
                 else:
                     conn.sendall(_sb(payload))
             time.sleep(self.wait)
@@ -206,7 +209,7 @@ def _session(wermit_path, tmp_path, server, display, action=None):
                 os.environ[k] = v
         server.close()
     assert not errors, errors
-    assert rc >= 0, rc
+    assert rc >= 0, (rc, out)
     assert "runtime error" not in out and "Sanitizer" not in out, out
     return rc, out
 
@@ -436,6 +439,48 @@ def test_forward_x_channel_table_full(wermit_path, tmp_path):
     assert closes == [bytes([CLOSE]) + _channel(c) for c in range(65, 70)], \
         server.received
     assert len(accepted) == 64 + 1, len(accepted)
+    assert "AFTER" in out, out
+
+
+def test_forward_x_close_reply_after_peer_closed(wermit_path, tmp_path):
+    """Verify CONNECT ends cleanly when a CLOSE reply hits a closed peer.
+
+    wermit is stopped while the server sends 69 OPEN requests, sends
+    DONE and closes.  On resume, wermit answers the OPEN requests past
+    the 64-entry channel table with CLOSE.  A failed CLOSE write closes
+    the connection and sets ttyfd to -1.  CONNECT then returns to
+    command level instead of passing ttyfd to FD_SET().  glibc built
+    with _FORTIFY_SOURCE aborts on a negative descriptor in FD_SET().
+    """
+    accepted = []
+    xsrv, n = _x_listener(accepted)
+    started = threading.Event()
+    stopped = threading.Event()
+    procs = []
+
+    def stop():
+        started.wait(scaled(10))
+        os.kill(procs[0].pid, signal.SIGSTOP)
+        stopped.set()
+
+    server = ForwardXServer([stop] + [bytes([OPEN]) + _channel(c)
+                                      for c in range(1, 70)], wait=0.0)
+
+    def resume(proc):
+        procs.append(proc)
+        started.set()
+        try:
+            stopped.wait(scaled(20))
+            server.thread.join(timeout=scaled(20))
+        finally:
+            os.kill(proc.pid, signal.SIGCONT)
+
+    try:
+        rc, out = _session(wermit_path, tmp_path, server, f"127.0.0.1:{n}",
+                           action=resume)
+    finally:
+        xsrv.close()
+    assert stopped.is_set()
     assert "AFTER" in out, out
 
 
