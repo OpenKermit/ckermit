@@ -4,6 +4,9 @@
 
 - Fixed unit test building on 32-bit PowerPC/Linux.
 
+- Fixed a bug that caused an out-of-bounds array index in rare situations of
+  a closed socket.  First noticed by a CI falinure on Debian/hppa.
+
 # C-Kermit 11.1.517
 
 November 10, 2026
