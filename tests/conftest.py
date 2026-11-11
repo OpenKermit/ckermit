@@ -1,3 +1,4 @@
+import errno
 import faulthandler
 import fcntl
 import os
@@ -8,6 +9,7 @@ import shlex
 import shutil
 import socket
 import subprocess
+import sys
 import termios
 import threading
 import pytest
@@ -1657,19 +1659,28 @@ def start_wermit_pty(wermit_path, cmd_str, cwd, debug_log=None):
     return proc, master
 
 
+class _PtyOutputLost(Exception):
+    """A NetBSD pty master returned EIO and the output is incomplete."""
+
+
 def finish_wermit_pty(proc, master, timeout=45, debug_log=None,
-                      expect_timeout=False):
+                      expect_timeout=False, raise_if_lost=False):
     """
     Reads a wermit process's pty output (started via start_wermit_pty)
     until it exits or the timeout fires, then returns
     (returncode, stdout).  timeout is a hang limit.  expect_timeout
     makes it an expected timeout, for a test that expects the run to
     hang.
+
+    On NetBSD, concurrent pty allocations can cause a pty master to
+    return EIO instead of EOF and discard output from wermit.
+    raise_if_lost raises _PtyOutputLost for EIO on NetBSD.
     """
     timeout = (expected_timeout(timeout) if expect_timeout
                else scaled(timeout))
     output = []
     start_time = time.time()
+    read_eio = False
 
     try:
         while proc.poll() is None:
@@ -1699,7 +1710,8 @@ def finish_wermit_pty(proc, master, timeout=45, debug_log=None,
                     if not data:
                         break
                     output.append(data)
-                except OSError:
+                except OSError as e:
+                    read_eio = e.errno == errno.EIO
                     break
 
         # Read any remaining output after process exits
@@ -1711,13 +1723,17 @@ def finish_wermit_pty(proc, master, timeout=45, debug_log=None,
                     if not data:
                         break
                     output.append(data)
-                except OSError:
+                except OSError as e:
+                    read_eio = read_eio or e.errno == errno.EIO
                     break
             else:
                 break
 
         os.close(master)
         proc.wait()
+
+        if raise_if_lost and read_eio and sys.platform.startswith("netbsd"):
+            raise _PtyOutputLost()
 
         # Log the debug trace on failure.
         if debug_log and proc.returncode != 0:
@@ -1808,10 +1824,19 @@ def run_wermit_pty(wermit_path, cmd_str, cwd, timeout=45, debug_log=None,
 
     Using pty.openpty() ensures that tests execute in a clean, simulated
     terminal environment matching normal shell usage.
+
+    A run that loses its output to the NetBSD pty fault described in
+    finish_wermit_pty() runs a second time.
     """
-    proc, master = start_wermit_pty(wermit_path, cmd_str, cwd, debug_log)
-    return finish_wermit_pty(proc, master, timeout=timeout, debug_log=debug_log,
-                             expect_timeout=expect_timeout)
+    for raise_if_lost in (True, False):
+        proc, master = start_wermit_pty(wermit_path, cmd_str, cwd, debug_log)
+        try:
+            return finish_wermit_pty(proc, master, timeout=timeout,
+                                     debug_log=debug_log,
+                                     expect_timeout=expect_timeout,
+                                     raise_if_lost=raise_if_lost)
+        except _PtyOutputLost:
+            logger.warning("run_wermit_pty: pty output lost, running again")
 
 
 def _wait_for_pty_raw(master, timeout):
