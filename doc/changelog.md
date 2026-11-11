@@ -1,5 +1,9 @@
 # OpenKermit C-Kermit Changelog
 
+# C-Kermit 11.1.518 (NOT YET RELEASED)
+
+- Fixed unit test building on 32-bit PowerPC/Linux.
+
 # C-Kermit 11.1.517
 
 November 10, 2026
