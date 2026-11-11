@@ -95,12 +95,11 @@ pty for interactive use with IEXTEN set:
 
     set host /pty sh -c 'stty -iexten && exec rz'
 
-External protocols that Kermit starts with `SEND /PROTOCOL:ZMODEM` or
-`RECEIVE /PROTOCOL:ZMODEM` are not affected.  Kermit clears IEXTEN on their
-pty.
-
-The Kermit protocol itself is more robust than ZModem and will often be able to
-detect and work around this issue.
+External protocols that Kermit starts with `SEND /PROTOCOL:ZMODEM` or `RECEIVE
+/PROTOCOL:ZMODEM` are not affected.  Kermit clears IEXTEN on its pty, so this
+issue won't manifest itself with Kermit protocol transfers.  Even if it didn't
+do that, the Kermit protocol itself is more robust than ZModem and will often
+be able to detect and work around this type of issue.
 
 Note that this issue isn't a bug with Kermit, but rather is an issue with rz
 (failing to drop IEXTEN) or the underlying kernel, which also manifests outside
