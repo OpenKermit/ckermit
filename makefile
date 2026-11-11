@@ -1062,7 +1062,17 @@ CHECK_LIBS_CMD = pkg-config --cflags --libs --static check 2>/dev/null || \
 # pull in unresolved references.
 #
 # So -fno-jump-tables is required.
-UNIT_GC_CFLAGS = -ffunction-sections -fdata-sections -fno-jump-tables
+#
+# On 32-bit PowerPC, -fPIC and -fPIE code addresses every global through
+# one .got2 section per object.  Any kept function keeps all of .got2
+# and its references alive.  -fpie uses the linker-generated GOT
+# instead, with entries only for references from kept sections.
+# UNIT_PIC_CMD prints -fpie when $(CC) targets 32-bit PowerPC.
+UNIT_PIC_CMD = echo __powerpc__ __powerpc64__ | \
+	$(CC) $(CFLAGS) -x c -E -P - 2>/dev/null | \
+	grep '^1 __powerpc64__$$' >/dev/null && echo -fpie
+UNIT_GC_CFLAGS = -ffunction-sections -fdata-sections -fno-jump-tables \
+	`$(UNIT_PIC_CMD)`
 
 tests/unit/bin/test_lib: tests/unit/test_lib.c ckclib.$(EXT)
 	@mkdir -p tests/unit/bin
