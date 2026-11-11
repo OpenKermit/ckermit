@@ -11,6 +11,10 @@ November 10, 2026
 
 - Updated musl builds static library versions.
 
+- Fixed a test failure on NetBSD.  The underlying investigation found an
+  incompatibility between rz and IEXTEN on all three BSDs, which also occurs in
+  contexts without Kermit.  Documented this in doc/platforms.md.
+
 # C-Kermit 11.1.516
 
 Halloween 2026
