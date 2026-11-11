@@ -2058,7 +2058,7 @@ int mac_fclose();
 #ifdef BSD44
 #define SYSTIMEH
 #else
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #define SYSTIMEH
 #else
 #ifdef AIXRS
@@ -2078,7 +2078,7 @@ int mac_fclose();
 #endif /* I386IX */
 #endif /* IRIX60 */
 #endif /* AIXRS */
-#endif /* __linux__ */
+#endif /* __linux__ || __GNU__ */
 #endif /* BSD44 */
 #endif /* OXOS */
 #endif /* SCO_32V4 */
@@ -2576,7 +2576,7 @@ _PROTOTYP( void bleep, (short) );
 
 #ifndef NO_OPENPTY                      /* Can use openpty() */
 #ifndef HAVE_OPENPTY
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #define HAVE_OPENPTY
 #else
 #ifdef __FreeBSD__
@@ -2595,7 +2595,7 @@ _PROTOTYP( void bleep, (short) );
 #endif  /* __NetBSD__ */
 #endif  /* __OpenBSD__ */
 #endif  /* __FreeBSD__ */
-#endif  /* __linux__ */
+#endif  /* __linux__ || __GNU__ */
 #endif  /* HAVE_OPENPTY */
 #endif  /* NO_OPENPTY */
 /*
@@ -2605,7 +2605,7 @@ _PROTOTYP( void bleep, (short) );
   If a build fails because
 */
 #ifdef HAVE_OPENPTY
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #include <pty.h>
 #else
 #ifdef __NetBSD__
@@ -2627,7 +2627,7 @@ _PROTOTYP( void bleep, (short) );
 #endif  /* __FreeBSD__ */
 #endif  /* __OpenBSD__ */
 #endif  /* __NetBSD__ */
-#endif  /* __linux__ */
+#endif  /* __linux__ || __GNU__ */
 #endif  /* HAVE_OPENPTY */
 #endif /* NETPTY */
 
@@ -3680,7 +3680,7 @@ _PROTOTYP( int ttruncmd, (char *) );
                            divides evenly into 1000 */
 #ifndef SELECT
 #ifndef NOSELECT
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #define SELECT
 #else
 #ifdef SUNOS4
@@ -4190,7 +4190,7 @@ _PROTOTYP( long * ttspdlist, (void) );
 #ifdef OS2
 #define BPS_57K
 #else
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #define BPS_57K
 #else
 #ifdef HPUX
@@ -4236,7 +4236,7 @@ _PROTOTYP( long * ttspdlist, (void) );
 #endif /* __386BSD__ */
 #endif /* NEXT */
 #endif /* HPUX */
-#endif /* __linux__ */
+#endif /* __linux__ || __GNU__ */
 #endif /* OS2 */
 #endif /* VMS */
 #endif /* SOLARIS25 */
@@ -4292,7 +4292,7 @@ _PROTOTYP( long * ttspdlist, (void) );
 #ifdef HPUX
 #define BPS_115K
 #else
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #define BPS_115K
 #define BPS_1500K
 #else
@@ -4325,7 +4325,7 @@ _PROTOTYP( long * ttspdlist, (void) );
 #endif /* __NetBSD__ */
 #endif /* __FreeBSD__ */
 #endif /* __386BSD__ */
-#endif /* __linux__ */
+#endif /* __linux__ || __GNU__ */
 #endif /* HPUX */
 #endif /* QNX */
 #endif /* VMS */
@@ -4338,7 +4338,7 @@ _PROTOTYP( long * ttspdlist, (void) );
 #ifdef SCO_OSR504
 #define BPS_230K
 #else
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #define BPS_230K
 #else
 #ifdef SOLARIS25
@@ -4352,7 +4352,7 @@ _PROTOTYP( long * ttspdlist, (void) );
 #undef BPS_230K
 #endif /* OS2 */
 #endif /* SOLARIS25 */
-#endif /* __linux__ */
+#endif /* __linux__ || __GNU__ */
 #endif /* SCO_OSR504 */
 #endif /* BSDI2 */
 #endif /* NOB_230K */
@@ -4361,7 +4361,7 @@ _PROTOTYP( long * ttspdlist, (void) );
 #ifdef SCO_OSR504
 #define BPS_460K
 #else
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #define BPS_460K
 #else
 #ifdef OS2
@@ -4500,9 +4500,9 @@ _PROTOTYP( long * ttspdlist, (void) );
 #define CK_RTSCTS                       /* Has its own peculiar method... */
 #endif /* AIXRS */
 
-#ifdef __linux__                        /* Linux */
+#if defined(__linux__) || defined(__GNU__) /* Linux, GNU/Hurd */
 #define CK_RTSCTS
-#endif /* __linux__ */
+#endif /* __linux__ || __GNU__ */
 /*
   Hardware flow control is not defined in POSIX.1.  Nevertheless, a certain
   style API for hardware flow control, using tcsetattr() and the CRTSCTS
@@ -4513,9 +4513,9 @@ _PROTOTYP( long * ttspdlist, (void) );
 #ifdef __bsdi__                         /* BSDI, a.k.a. BSD/386 */
 #define POSIX_CRTSCTS
 #endif /* __bsdi__ */
-#ifdef __linux__                        /* Linux */
+#if defined(__linux__) || defined(__GNU__) /* Linux, GNU/Hurd */
 #define POSIX_CRTSCTS
-#endif /* __linux__ */
+#endif /* __linux__ || __GNU__ */
 #ifdef __NetBSD__                       /* NetBSD */
 #define POSIX_CRTSCTS
 #endif /* __NetBSD__ */
@@ -6679,9 +6679,9 @@ extern int OSVer;
 #ifdef BSD44
 #define MKSTEMP
 #else
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #define MKSTEMP
-#endif /* __linux__ */
+#endif /* __linux__ || __GNU__ */
 #endif /* BSD44 */
 #endif /* MKSTEMP */
 #endif /* NOMKSTEMP */
@@ -6700,7 +6700,7 @@ extern int OSVer;
 #ifdef OS2
 #define USE_MEMCPY
 #else
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #define USE_MEMCPY
 #else
 #ifdef SOLARIS
@@ -6738,7 +6738,7 @@ extern int OSVer;
 #endif /* AIXRS */
 #endif /* SUNOS4 */
 #endif /* SOLARIS */
-#endif /* __linux__ */
+#endif /* __linux__ || __GNU__ */
 #endif /* OS2 */
 #endif /* NEXT */
 #endif /* VMS */
@@ -7145,9 +7145,9 @@ typedef unsigned long DWORD_PTR;
   This macro is defined here so ckuusr.h sees it for shoif().
 */
 #ifdef TCPSOCKET
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #define CK_GETIFADDRS
-#endif /* __linux__ */
+#endif /* __linux__ || __GNU__ */
 #ifdef __FreeBSD__
 #define CK_GETIFADDRS
 #endif /* __FreeBSD__ */

@@ -11512,6 +11512,9 @@ initoptlist() {
 #ifdef __linux__
     makestr(&(optlist[noptlist++]),"__linux__");
 #endif /* __linux__ */
+#ifdef __GNU__
+    makestr(&(optlist[noptlist++]),"__GNU__");
+#endif /* __GNU__ */
 #ifdef LINUX_HI_SPD
     makestr(&(optlist[noptlist++]),"LINUX_HI_SPD");
 #endif /* LINUX_HI_SPD */

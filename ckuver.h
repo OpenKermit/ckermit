@@ -743,6 +743,9 @@
 #ifdef QNX6
 #define HERALD " QNX6"
 #else  /* QNX6 */
+#ifdef __GNU__
+#define HERALD " GNU/Hurd"
+#else  /* __GNU__ */
 #ifdef __linux__
 #ifdef ZSL5500
 #define HERALD " Sharp Zaurus SL-5500"
@@ -822,6 +825,7 @@
 #endif /* LYNXOS */
 #endif /* _386BSD */
 #endif /* __linux__ */
+#endif /* __GNU__ */
 #endif /* QNX6 */
 #endif /* NEUTRINO */
 #endif /* QNX */

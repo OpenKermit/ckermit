@@ -85,12 +85,12 @@
 /*
   None of the above works on Ubuntu: not curses.h, term.h, termcap.h so...
 */
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 int tgetent (char *, const char *);
 int tputs (const char *, int, int (*)(int));
 char * tgetstr (const char *, char **);
 char * tgoto (const char *, int, int);
-#endif /* __linux__ */
+#endif /* __linux__ || __GNU__ */
 
 #ifdef OS2
 #include <string.h>
@@ -918,6 +918,9 @@ ttgtpn() {                              /* Get typical port name */
 #ifdef __FreeBSD__
 "/dev/cuaa0"
 #else  /* __FreeBSD__ */
+#ifdef __GNU__
+"/dev/com0"
+#else  /* __GNU__ */
 #ifdef __linux__
 "/dev/ttyS0"
 #else  /* __linux__ */
@@ -999,6 +1002,7 @@ ttgtpn() {                              /* Get typical port name */
 #endif /* OSK */
 #endif /* BSD44 */
 #endif /* __linux__ */
+#endif /* __GNU__ */
 #endif /* __FreeBSD__ */
 #endif /* HPUX */
 #endif /* HPUX10 */

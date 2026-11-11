@@ -632,13 +632,13 @@ _PROTOTYP( int x25local_nua, (char *) ); /* find local NUA */
 #ifdef QNX
 #define RLOGCODE
 #else
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #define RLOGCODE
 #else
 #ifdef BSD44
 #define RLOGCODE
 #endif /* BSD44 */
-#endif /* __linux__ */
+#endif /* __linux__ || __GNU__ */
 #endif /* QNX */
 #endif /* IRIX60 */
 #endif /* IRIX51 */
