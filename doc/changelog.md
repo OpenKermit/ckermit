@@ -7,6 +7,10 @@
 - Fixed a bug that caused an out-of-bounds array index in rare situations of
   a closed socket.  First noticed by a CI falinure on Debian/hppa.
 
+- Initial support for the GNU/Hurd operating system.  Like Linux, it uses
+  glibc, so the `__GNU__` macro's presence usually works with paths that were
+  designed for Linux.
+
 # C-Kermit 11.1.517
 
 November 10, 2026
