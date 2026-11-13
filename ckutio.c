@@ -1934,7 +1934,7 @@ ck_deadline_expired() {
 #ifdef CK_POLL
 #define CK_DLPOLL
 #else
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #define CK_DLPOLL
 #else
 #ifdef __FreeBSD__
@@ -1952,7 +1952,7 @@ ck_deadline_expired() {
 #endif /* __OpenBSD__ */
 #endif /* __NetBSD__ */
 #endif /* __FreeBSD__ */
-#endif /* __linux__ */
+#endif /* __linux__ || __GNU__ */
 #ifdef CK_DLPOLL
 #include <poll.h>
 #endif /* CK_DLPOLL */
@@ -10813,7 +10813,7 @@ in_chk(channel, fd) int channel, fd;
         n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
         debug(F101,"in_chk SVR4 select","",n);
 #else
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
         n = select( FD_SETSIZE, &rfds, (fd_set *)0, (fd_set *)0, &tv );
         debug(F101,"in_chk LINUX select","",n);
 #ifdef OSF
@@ -10823,7 +10823,7 @@ in_chk(channel, fd) int channel, fd;
         n = select( FD_SETSIZE, &rfds, (int *)0, (int *)0, &tv );
         debug(F101,"in_chk catchall select","",n);
 #endif /* OSF */
-#endif /* __linux__ */
+#endif /* __linux__ || __GNU__ */
 #endif /* SVR4 */
 #endif /* COHERENT */
 #endif /* QNX */
@@ -12530,12 +12530,12 @@ msleep(m) int m;
     ck_blockend();
     debug(F101,"msleep BSD44 select","",x);
 #else /* BSD44 */
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
     ck_blockbegin();
     x = select( 0, (fd_set *)0, (fd_set *)0, (fd_set *)0, &tv );
     ck_blockend();
     debug(F101,"msleep __linux__ select","",x);
-#else /* __linux__ */
+#else /* __linux__ || __GNU__ */
 #ifdef BSD43
     ck_blockbegin();
     x = select( 0, (fd_set *)0, (fd_set *)0, (fd_set *)0, &tv );
@@ -12580,7 +12580,7 @@ msleep(m) int m;
 #endif /* QNX */
 #endif /* QNX6 */
 #endif /* BSD43 */
-#endif /* __linux__ */
+#endif /* __linux__ || __GNU__ */
 #endif /* BSD44 */
 #endif /* BELLV10 */
     return(0);

@@ -9088,9 +9088,9 @@ rlog_naws()
     return(0);
 }
 #endif /* CK_NAWS */
-#endif /* NOTCPIP */
+#endif /* RLOGCODE */
 
-#ifndef NORLOGIN
+#ifdef RLOGCODE
 #ifdef OS2ORUNIX
 #define RLOGOUTBUF
 #endif /* OS2 */
@@ -9488,7 +9488,7 @@ rlogoobh(sig) int sig;
 }
 #endif /* TCPIPLIB */
 #endif /* RLOGCODE */
-#endif /* NORLOGIN */
+#endif /* NOTCPIP */
 
 /* Send network BREAK */
 /*

@@ -171,7 +171,7 @@ struct stringint {                      /* String and (wide) integer */
 #ifdef CU_ACIS
 #define CK_SYSINI "/usr/share/lib/kermit/ckermit.ini"
 #else
-#ifdef __linux__
+#if defined(__linux__) || defined(__GNU__)
 #define CK_SYSINI "/usr/share/kermit/ckermit.ini"
 #else
 #define CK_SYSINI "/usr/local/bin/ckermit.ini"

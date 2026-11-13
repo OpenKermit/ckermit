@@ -1542,6 +1542,23 @@ conect() {
     while (active) {                    /* Big loop... */
         chksigs();                      /* Act on SIGHUP or SIGWINCH */
         debug(F100,"CONNECT top of loop","",0);
+        /*
+	  When a TCP write in ttol() fails, it closes the connection and
+	  sets ttyfd to -1.  FD_SET() must not see a negative descriptor,
+	  because it can be an out-of-bounds index if it does.
+        */
+        if (ttyfd < 0) {
+            ckcputf();                  /* Flush CONNECT output buffer */
+            if (msgflg)
+              printf("\r\nCommunications disconnect ");
+#ifdef NOSETBUF
+            fflush(stdout);
+#endif /* NOSETBUF */
+            dologend();
+            debug(F100,"CONNECT net closed","",0);
+            cx_status = CSX_HOSTDISC;
+            goto conret0;
+        }
         FD_ZERO(&in);                   /* Clear select() structs */
         FD_ZERO(&out);
         FD_ZERO(&err);
@@ -1688,20 +1705,11 @@ conect() {
             /*
               A failed write of FORWARD-X data or CLOSE to the network
               closes the connection and sets ttyfd to -1.  FD_ISSET()
-              must not see a negative descriptor.
+              must not see a negative descriptor.  The top of the loop
+              ends the session.
             */
-            if (ttyfd < 0) {
-                ckcputf();              /* Flush CONNECT output buffer */
-                if (msgflg)
-                  printf("\r\nCommunications disconnect ");
-#ifdef NOSETBUF
-                fflush(stdout);
-#endif /* NOSETBUF */
-                dologend();
-                debug(F100,"CONNECT net closed by fwdx","",0);
-                cx_status = CSX_HOSTDISC;
-                goto conret0;
-            }
+            if (ttyfd < 0)
+              continue;
 #endif /* CK_FORWARD_X */
 
             if (FD_ISSET(ttyfd, &in)) { /* Read from net? */
@@ -1950,7 +1958,7 @@ conect() {
                 }
             }
         }
-        if (FD_ISSET(ttyfd, &out)) {
+        if (ttyfd >= 0 && FD_ISSET(ttyfd, &out)) {
             FD_CLR(ttyfd, &out);
         }
         while (gotnet > 0 || ibc > 0) {
