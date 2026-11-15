@@ -3280,8 +3280,20 @@ transmit(s,t,xlate,xbinary,xxecho) char *s; char t; int xlate, xbinary, xxecho;
 #ifndef NOCSETS
     language = langsv;                  /* restore language, */
 #endif /* NOCSETS */
-    ttres();                            /* and terminal modes, */
-    return(rc);                         /* and return successfully. */
+    /*
+      In local mode the line keeps the modes TRANSMIT set.  ttres() would
+      restore the modes from ttopen().  Input that arrives before the next
+      command would then pass through those modes.  In remote mode ttres()
+      restores the console.
+
+      TRANSMIT /BINARY replaces XON/XOFF with NONE.  ttvt() turns XON/XOFF
+      back on so that SET FLOW holds between commands.
+    */
+    if (!local)
+      ttres();
+    else if (xbinary && myflow != flow && ttvt(zz,flow) < 0)
+      debug(F101,"XMIT ttvt flow restore failed","",flow);
+    return(rc);
 }
 #endif /* NOLOCAL */
 #endif /* NOXMIT */

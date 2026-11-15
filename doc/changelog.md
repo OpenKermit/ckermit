@@ -4,8 +4,36 @@
 
 - Fixed unit test building on 32-bit PowerPC/Linux.
 
+- During testing with a real US Robotics Courier modem, I observed RTS/CTS flow
+  control settings were lost when the line moved out of CONNECT mode.  It turns
+  out that after CONNECT, INPUT, or OUTPUT, a Kermit or external protocol
+  transfer ran with RTS/CTS off.  CONNECT after a transfer had the same problem.
+  The bug dates to C-Kermit 5A(190) in 1994, where it was introduced in commit
+  609e2f39.  Half of this was fixed in 9.0.302 in 2010 (commit 0fd869b4) but the
+  other half was never fixed.
+
+- While looking into this, observed that SET FLOW XON/XOFF and KEEP were also
+  broken by 9.0.302, in which packet mode disabled IXON and IXOFF for every flow
+  setting.  This contradicted the description in HELP SET FLOW.  That change
+  appears to have originated in a 2007 debugging experiment for ZMODEM over
+  ptys.  Corrected XON/XOFF and KEEP behavior.
+
+- HELP SET FLOW and HELP TRANSMIT document the existing and current behavior of
+  TRANSMIT /BINARY: it disables XON/XOFF for the duration of the transmit.
+
+- After completing its work, TRANSMIT restored serial line settings to what they
+  were when Kermit first opened the port.  The next CONNECT, INPUT, OUTPUT, or
+  Kermit protocol operation would put them back the way they should be.  During
+  that interval, data received could be mishandled.  For instance, a CR from the
+  other end could become LF with the default settings, so running INPUT after
+  TRANSMIT could have a race with incoming data.  Also, since the flow control
+  settings were part of those reset, incoming data could be lost.  TRANSMIT now
+  follows the behavior of other commands and leaves the line in the settings
+  requested by the user.  The bug dates to C-Kermit 6.0.192 in 1996 (commit
+  4b5eddea).
+
 - Fixed a bug that caused an out-of-bounds array index in rare situations of
-  a closed socket.  First noticed by a CI falinure on Debian/hppa.
+  a closed socket.  First noticed by a CI failure on Debian/hppa.
 
 - Initial support for the GNU/Hurd operating system.  Like Linux, it uses
   glibc, so the `__GNU__` macro's presence usually works with paths that were
