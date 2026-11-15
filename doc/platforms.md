@@ -116,4 +116,4 @@ consult the links below for the releases that have an OpenVMS build:
 - [11.0.508](https://github.com/OpenKermit/ckermit/releases/tag/v11.0.508)
 - [11.0.507](https://github.com/OpenKermit/ckermit/releases/tag/v11.0.507)
 - [11.0.506](https://github.com/OpenKermit/ckermit/releases/tag/v11.0.506)
-
+- [11.1.518](https://github.com/OpenKermit/ckermit/releases/tag/v11.1.518)
