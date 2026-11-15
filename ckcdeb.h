@@ -4522,6 +4522,12 @@ _PROTOTYP( long * ttspdlist, (void) );
 #ifdef __OpenBSD__
 #define POSIX_CRTSCTS
 #endif /* __OpenBSD__ */
+#ifdef __FreeBSD__
+#define POSIX_CRTSCTS
+#endif /* __FreeBSD__ */
+#ifdef MACOSX                           /* macOS */
+#define POSIX_CRTSCTS
+#endif /* MACOSX */
 #ifdef BEOSORBEBOX                      /* BeBOX */
 #define POSIX_CRTSCTS
 /* BEBOX defines CRTSFL as (CTSFLOW & RTSFLOW) */

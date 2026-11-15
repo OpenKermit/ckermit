@@ -32,6 +32,12 @@
   requested by the user.  The bug dates to C-Kermit 6.0.192 in 1996 (commit
   4b5eddea).
 
+- SET FLOW RTS/CTS had no effect on FreeBSD and MacOS.  Kermit accepted the
+  command, but never changed the setting on the line.  SET FLOW KEEP
+  also didn't preserve it.  Both platforms now use the same termios code as
+  Linux, NetBSD, and OpenBSD.  This bug was present in every version back to
+  C-Kermit 5A(190) in 1994.
+
 - Fixed a bug that caused an out-of-bounds array index in rare situations of
   a closed socket.  First noticed by a CI failure on Debian/hppa.
 
