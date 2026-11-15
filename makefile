@@ -1,7 +1,7 @@
 # makefile / Makefile / ckuker.mak / CKUKER.MAK
 #
-BUILDID=20261110
-CKVER= "11.1.517"
+BUILDID=20261115
+CKVER= "11.1.518"
 #
 # -- Makefile to build C-Kermit for UNIX and UNIX-like platforms --
 #
