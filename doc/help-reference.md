@@ -2329,7 +2329,7 @@ Syntax: HEAD [ switches ] filename
 Synonyms: H, HE
 
 ```
-C-Kermit 11.1.517, 2026/11/10, Copyright (C) 2025-2026,
+C-Kermit 11.1.518, 2026/11/15, Copyright (C) 2025-2026,
   John Goerzen.
 Copyright (C) 1985, 2025,
   Trustees of Columbia University in the City of New York.
@@ -5119,6 +5119,8 @@ Syntax: TRANSMIT [ switches ] filename
   the next line; use /NOWAIT to eliminate the feedback requirement.  In
   binary mode, it is sent a character at a time, with no feedback required.
  
+  In binary mode, TRANSMIT uses flow control NONE in place of XON/XOFF.
+ 
   Normally the transmitted material is echoed to your screen.  Use SET
   TRANSMIT ECHO OFF or the /NOECHO switch to suppress echoing.  Note that
   TRANSMIT /NOECHO /NOWAIT /BINARY is a special case, that more or less
@@ -7067,6 +7069,8 @@ Syntax: SET FLOW [ switch ] value
   and some others; again, type "set flow ?" for a list.  KEEP tells Kermit
   not to try to change the current flow-control method for the connection.
  
+  TRANSMIT /BINARY uses NONE in place of XON/XOFF.
+ 
   If you omit the switch and simply supply a value, this value becomes the
   current flow control type, overriding any default value that might have
   been chosen in your most recent SET LINE, SET PORT, or SET HOST, or other
@@ -8989,16 +8993,16 @@ SET TELNET parameters:
  bug binary-u-means-me-too: off
  bug sb-implies-will-do: on
  bug auth-krb5-des: on
- terminal-type: none (xterm will be used)
+ terminal-type: none (xterm-256color will be used)
  environment: on
    ACCOUNT: 
-   DISPLAY: 
+   DISPLAY: localhost:1
    JOB    : 
    PRINTER: 
    USER   : user
    SYSTEM : UNIX
   LOCATION: 
- .Xauthority-file: /path/to/home/.Xauthority
+ .Xauthority-file: /run/user/1000/xauth_qYepDG
 ```
 
 ### SET TEL
@@ -9228,7 +9232,7 @@ Compile-time default, from `SHOW TERMINAL`:
 ```
 Terminal parameters:
    Bytesize: Command: 8 bits              Terminal: 8 bits         
-                Type:                        Print: off            
+                Type:                         Print: off            
                 Echo: remote         Locking-shift: off            
         Newline-mode: off               Cr-display: normal         
                  APC: off             Autodownload: on, error continue
