@@ -6332,21 +6332,22 @@ _PROTOTYP( int tcsetattr, (int, int, struct termios *) );
 #endif /* NETPTY */
     debug(F101,"tthflow QNX entry status","",status);
     if (tcgetattr(ttyfd, &temp) > -1) { /* Get device attributes */
+        /* The caller passes *attrs to tcsetattr() next. */
         if (!status) {                  /* Turn hard flow off */
-            if ((temp.c_cflag & (IHFLOW|OHFLOW)) == (IHFLOW|OHFLOW)) {
+            if ((temp.c_cflag & (IHFLOW|OHFLOW)) != 0) {
                 temp.c_cflag &= ~(IHFLOW|OHFLOW); /* It's there, remove it */
-                attrs->c_cflag &= ~(IHFLOW|OHFLOW);
                 x = tcsetattr(ttyfd,TCSANOW,&temp);
             }
+            attrs->c_cflag &= ~(IHFLOW|OHFLOW);
         } else {                        /* Turn hard flow on */
             if ((temp.c_cflag & (IHFLOW|OHFLOW)) != (IHFLOW|OHFLOW)) {
                 temp.c_cflag |= (IHFLOW|OHFLOW); /* Not there, add it */
                 temp.c_iflag &= ~(IXON|IXOFF);   /* Bye to IXON/IXOFF */
                 ttraw.c_lflag |= IEXTEN;         /* Must be on */
                 x = tcsetattr(ttyfd,TCSANOW,&temp);
-                attrs->c_cflag |= (IHFLOW|OHFLOW);
-                attrs->c_iflag &= ~(IXON|IXOFF);
             }
+            attrs->c_cflag |= (IHFLOW|OHFLOW);
+            attrs->c_iflag &= ~(IXON|IXOFF);
         }
     } else {
         x = -1;
@@ -6404,9 +6405,14 @@ _PROTOTYP( int tcsetattr, (int, int, struct termios *) );
                 x = tcsetattr(ttyfd,TCSANOW,&temp);
                 debug(F111,"tthflow POSIX_CRTSCTS ON tcsetattr",
                       ckitoa(x),errno);
-                attrs->c_cflag |= CRTSCTS;
-                attrs->c_iflag &= ~(IXON|IXOFF|IXANY);
             }
+            /*
+              The caller passes *attrs to tcsetattr() next.  Set CRTSCTS
+              in *attrs even when the device has it already.  Otherwise
+              that tcsetattr() turns hardware flow control off.
+            */
+            attrs->c_cflag |= CRTSCTS;
+            attrs->c_iflag &= ~(IXON|IXOFF|IXANY);
         }
     }
 #else
@@ -7053,7 +7059,6 @@ ttpkt(speed,xflow,parity) long speed; int xflow, parity;
         ttraw.c_iflag |= (IXON|IXOFF);
         tthflow(flow, 0, &ttraw);
     } else if (flow == FLO_NONE) {      /* None */
-        /* NOTE: We should also turn off hardware flow control here! */
         ttraw.c_iflag &= ~(IXON|IXOFF);
         tthflow(flow, 0, &ttraw);
     } else if (flow == FLO_KEEP) {      /* Keep */
@@ -7070,6 +7075,8 @@ ttpkt(speed,xflow,parity) long speed; int xflow, parity;
                flow == FLO_DTRT) {
         ttraw.c_iflag &= ~(IXON|IXOFF); /* (190) */
         tthflow(flow, 1, &ttraw);
+    } else {                            /* Other values, such as FLO_AUTO */
+        ttraw.c_iflag &= ~(IXON|IXOFF);
     }
     ttraw.c_lflag &= ~(ICANON|ECHO);
     ttraw.c_lflag &= ~ISIG;             /* Do NOT check for interrupt chars */
@@ -7191,7 +7198,8 @@ ttpkt(speed,xflow,parity) long speed; int xflow, parity;
 
         /* iflags */
         ttraw.c_iflag &= ~(PARMRK|ISTRIP|BRKINT|INLCR|IGNCR|ICRNL);
-        ttraw.c_iflag &= ~(INPCK|IGNPAR|IXON|IXOFF);
+        /* IXON and IXOFF come from the flow-control setting. */
+        ttraw.c_iflag &= ~(INPCK|IGNPAR);
         ttraw.c_iflag |= IGNBRK;
 #ifdef IMAXBEL
         ttraw.c_iflag &= ~IMAXBEL;
