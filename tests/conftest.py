@@ -614,6 +614,23 @@ def assert_ok(result, label="Command failed"):
     )
 
 
+def open_pty_line():
+    """Open a pseudoterminal and return (master, slave, slave name).
+
+    The caller closes master and slave.  Skip the test when os.ttyname()
+    cannot name the slave.  GNU/Hurd fails ttyname() on a pty slave with
+    EPERM or EBUSY.
+    """
+    master, slave = pty.openpty()
+    try:
+        name = os.ttyname(slave)
+    except OSError as e:
+        os.close(slave)
+        os.close(master)
+        pytest.skip(f"ttyname() fails on a pty slave: {e}")
+    return master, slave, name
+
+
 def make_deep_dir(base):
     """Create and return a directory whose path is about 70% of PATH_MAX.
 

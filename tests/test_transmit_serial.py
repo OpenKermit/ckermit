@@ -1,6 +1,5 @@
 """Tests for TRANSMIT on a pseudoterminal serial line (ckuus4.c)."""
 import os
-import pty
 import select
 import subprocess
 import termios
@@ -9,7 +8,8 @@ import time
 
 import pytest
 
-from conftest import expected_timeout, kermit_wait, scaled
+from conftest import (expected_timeout, kermit_wait, open_pty_line,
+                      scaled)
 
 
 def _reply_after_transmit(master, reply, done):
@@ -50,12 +50,11 @@ def test_input_after_transmit_keeps_raw_line(wermit_path, tmp_path, mode):
     CR instead of an LF.
     """
     (tmp_path / "f.txt").write_text("x")
-    master, slave = pty.openpty()
+    master, slave, name = open_pty_line()
     attrs = termios.tcgetattr(slave)
     attrs[0] |= termios.ICRNL
     attrs[3] |= termios.ICANON
     termios.tcsetattr(slave, termios.TCSANOW, attrs)
-    name = os.ttyname(slave)
     done = threading.Event()
     reader = threading.Thread(
         target=_reply_after_transmit, args=(master, b"ok\r", done),

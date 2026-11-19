@@ -1,5 +1,17 @@
 # OpenKermit C-Kermit Changelog
 
+# C-Kermit 11.1.519 (NOT YET RELEASED)
+
+- Fixed GNU/Hurd handling of paths longer than 256 bytes.  Hurd doesn't define
+  MAXPATHLEN or PATH_MAX, so ckufio.c fell back to `_POSIX_PATH_MAX` instead
+  of `CKMAXPATH`.
+
+- Fixed too short sleep on hppa in the FORWARD-X channel table test.
+
+- Now skip tests skip on platforms such as GNU/Hurd that lack sparse files past
+  4 GiB in Python, RLIMIT_FSIZE enforcement, ttyname() on a pty slave, or
+  connected sockets above FD_SETSIZE.
+
 # C-Kermit 11.1.518
 
 November 15, 2026

@@ -13,7 +13,7 @@ import tty
 
 import pytest
 
-from conftest import scaled
+from conftest import open_pty_line, scaled
 
 pytestmark = pytest.mark.skipif(
     not hasattr(termios, "CRTSCTS"), reason="termios has no CRTSCTS")
@@ -97,9 +97,8 @@ def _flow_states(wermit_path, tmp_path, flow, steps, preset):
     wrapper.chmod(0o755)
     out = tmp_path / "flow.out"
     (tmp_path / "f.txt").write_text("hello\n")
-    master, slave = pty.openpty()
+    master, slave, name = open_pty_line()
     tty.setraw(master)
-    name = os.ttyname(slave)
     # The slave stays open so that the preset survives until wermit
     # opens the line.
     _preset(slave, *preset)

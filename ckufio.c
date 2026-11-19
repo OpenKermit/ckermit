@@ -748,19 +748,8 @@ pam_cb(num_msg, msg, resp, appdata_ptr)
 #ifdef PATH_MAX
 #define MAXPATH PATH_MAX
 #else
-#ifdef _POSIX_PATH_MAX
-#define MAXPATH _POSIX_PATH_MAX
-#else
-#ifdef BSD42
-#define MAXPATH 1024
-#else
-#ifdef SVR4
-#define MAXPATH 1024
-#else
-#define MAXPATH 255
-#endif /* SVR4 */
-#endif /* BSD42 */
-#endif /* _POSIX_PATH_MAX */
+/* GNU/Hurd defines neither MAXPATHLEN nor PATH_MAX. */
+#define MAXPATH CKMAXPATH
 #endif /* PATH_MAX */
 #endif /* MAXPATHLEN */
 

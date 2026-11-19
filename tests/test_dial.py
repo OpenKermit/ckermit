@@ -1,6 +1,5 @@
 """Tests for DIAL with a scripted modem on a pseudoterminal."""
 import os
-import pty
 import select
 import subprocess
 import time
@@ -8,7 +7,7 @@ import tty
 
 import pytest
 
-from conftest import scaled
+from conftest import open_pty_line, scaled
 
 
 def _skip_unless_lockdir_writable(wermit_path):
@@ -34,9 +33,8 @@ def _dial(wermit_path, dial_command, number, expect):
     modem has received expect, or after 20 seconds.  Return the bytes
     the modem received.
     """
-    master, slave = pty.openpty()
+    master, slave, name = open_pty_line()
     tty.setraw(master)
-    name = os.ttyname(slave)
     got = b""
     buf = b""
     proc = subprocess.Popen(

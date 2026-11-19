@@ -1,6 +1,7 @@
 import calendar
 import os
 import subprocess
+import sys
 import pytest
 from pyftpdlib.authorizers import DummyAuthorizer
 from conftest import assert_ok, scaled, serve_ftp
@@ -362,6 +363,25 @@ def _limit_file_size():
     resource.setrlimit(resource.RLIMIT_FSIZE, (65536, 65536))
 
 
+def _require_file_size_limit(tmp_path):
+    """Skip unless _limit_file_size() makes a large write fail.
+
+    GNU/Hurd does not enforce RLIMIT_FSIZE.
+    """
+    probe = tmp_path / "fsize-probe"
+    subprocess.run(
+        [sys.executable, "-c",
+         "import sys\n"
+         "with open(sys.argv[1], 'wb') as f:\n"
+         "    f.write(b'x' * 131072)\n", str(probe)],
+        capture_output=True, timeout=scaled(30),
+        preexec_fn=_limit_file_size)
+    size = probe.stat().st_size if probe.exists() else 0
+    probe.unlink(missing_ok=True)
+    if size > 65536:
+        pytest.skip("RLIMIT_FSIZE is not enforced")
+
+
 @pytest.mark.parametrize("mode", ["binary", "ascii"])
 def test_ftp_get_reports_local_write_failure(ftp_server, wermit_path,
                                              tmp_path, mode):
@@ -371,6 +391,7 @@ def test_ftp_get_reports_local_write_failure(ftp_server, wermit_path,
     larger.  GET must fail.  SET FILE INCOMPLETE AUTO then deletes the
     partial file of a text transfer.
     """
+    _require_file_size_limit(tmp_path)
     port, server_dir = ftp_server
     (server_dir / "big.dat").write_bytes(b"0123456789abcdef\n" * 20000)
     local = tmp_path / "local"

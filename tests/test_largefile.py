@@ -19,14 +19,18 @@ FOUR_GIB = 1 << 32
 
 
 def _holds_sparse_file(d):
-    """Return True if directory d supports sparse files past 4 GiB."""
+    """Return True if directory d supports sparse files past 4 GiB.
+
+    A Python build with a 32-bit off_t raises ValueError or OverflowError
+    from seek() past 4 GiB.
+    """
     probe = d / "sparse-probe"
     try:
         with open(probe, "wb") as f:
             f.seek(FOUR_GIB + 12345)
             f.write(b"\0")
         return probe.stat().st_blocks * 512 < FOUR_GIB
-    except OSError:
+    except (OSError, OverflowError, ValueError):
         return False
     finally:
         probe.unlink(missing_ok=True)
