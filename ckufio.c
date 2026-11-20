@@ -739,20 +739,6 @@ pam_cb(num_msg, msg, resp, appdata_ptr)
 #define S_IXOTH 0000001
 #endif /* S_IXOTH */
 
-#ifdef MAXPATHLEN
-#ifdef MAXPATH
-#undef MAXPATH
-#endif /* MAXPATH */
-#define MAXPATH MAXPATHLEN
-#else
-#ifdef PATH_MAX
-#define MAXPATH PATH_MAX
-#else
-/* GNU/Hurd defines neither MAXPATHLEN nor PATH_MAX. */
-#define MAXPATH CKMAXPATH
-#endif /* PATH_MAX */
-#endif /* MAXPATHLEN */
-
 /* Maximum number of filenames for wildcard expansion */
 
 #ifndef MAXWLD
@@ -1169,7 +1155,7 @@ cksyslog(n, m, s1, s2, s3)
 int ck_znewn = -1;
 
 #ifdef UNIX
-char startupdir[MAXPATH+1];
+char startupdir[CKMAXPATH+1];
 #endif /* UNIX */
 
 int pexitstat = -2;                     /* Process exit status */
@@ -5865,7 +5851,7 @@ zprint(p,f) char *p; char *f;
 
 /*  Wildcard expansion functions...  */
 
-static char scratch[MAXPATH+4];         /* Used by both methods */
+static char scratch[CKMAXPATH+4];         /* Used by both methods */
 
 static int oldmtchs = 0;                /* Let shell (ls) expand them. */
 static char *lscmd = "echo";            /* Command to use. */
@@ -6221,7 +6207,8 @@ fgen(pat,resarry,len) char *pat,*resarry[]; int len;
     to start the search at the root directory, or to "./" to start the
     search at the current directory), and a string pointer to the end of
     the string in the previous argument, plus the global "recursive",
-    "xmatchdot", and "xdironly" flags.
+    "xmatchdot", and "xdironly" flags.  The accumulated string is
+    scratch[].  A path that does not fit in scratch[] is not found.
 
   Returns: void, with:
     mtchs[] containing the array of filename string pointers, and:
@@ -6275,6 +6262,8 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
     int depth = 0;                      /* Directory tree depth */
 
     char tvnb[CKMAXNAM+4];           /* Buffer for a filename */
+    /* sofar is scratch.  Room for a DIRSEP and a NUL stays after endcur. */
+    char *sofarlim = scratch + sizeof(scratch) - 2;
     int itsadir = 0, segisdir = 0, itswild = 0, mresult, n, x /* , y */ ;
     struct stat statbuf;                /* For file info. */
 
@@ -6405,6 +6394,11 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
                         continue;
                     }
                 }
+                if (endcur >= sofarlim) { /* Path does not fit */
+                    *endcur = '\0';
+                    debug(F110,"traverse too long",sofar,0);
+                    return;
+                }
                 *endcur++ = c;
                 quote = 0;
             }
@@ -6517,6 +6511,10 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
                   continue;             /* skip "." and ".." */
               }
           }
+          if ((int)strlen(tvnb) > sofarlim - endcur) { /* Does not fit */
+              debug(F110,"traverse too long",tvnb,0);
+              continue;
+          }
           s = tvnb;                   /* Copy name to end of sofar */
           eos = endcur;
           while ((*eos = *s)) {
@@ -6590,10 +6588,11 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
           debug(F111,"traverse mresult sofar itsadir",sofar,itsadir);
           debug(F101,"traverse mresult xmatchdot","",xmatchdot);
 /*
-  Match the path so far with the pattern after stripping any leading "./"
-  from either or both.  The pattern chosen is the full original pattern if
-  the match candidate (sofar) is not a directory, or else just the name part
-  (pl->npart) if it is.
+  Match the candidate with the pattern after stripping any leading "./"
+  from either or both.  For a non-directory, the pattern is the full
+  original pattern (xpat) and the candidate is the path so far (sofar).
+  For a directory matched against the current segment (pl->npart), the
+  candidate is the directory name (tvnb).
 */
           {
               char * s1;                /* The pattern */
@@ -6614,6 +6613,8 @@ traverse(pl,sofar,endcur) struct path *pl; char *sofar, *endcur;
 
               if (xrecursive && xpatslash == 0)
                 s2 = tvnb;
+              else if (itsadir && s1 == pl->npart)
+                s2 = tvnb;              /* Segment pattern, name only */
               while ((s1[0] == '.') && (s1[1] == '/')) /* Strip "./" */
                 s1 += 2;
               while ((s2[0] == '.') && (s2[1] == '/')) /* Ditto */
@@ -7344,7 +7345,7 @@ zmkdir(path) char *path;
 
     x = (int)strlen(path);
     debug(F111,"zmkdir",path,x);
-    if (x < 1 || x > MAXPATH)           /* Check length */
+    if (x < 1 || x > CKMAXPATH)         /* Check length */
       return(-1);
     if (!(tp = malloc(x+1)))            /* Make a temporary copy */
       return(-1);

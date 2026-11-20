@@ -1456,7 +1456,8 @@ _PROTOTYP(int http_head, (char *,char **,char *,char *,char,char *,char *,
 _PROTOTYP(int http_put, (char *,char **,char *,char *,char *,char,char *,
                          char *, char *, int));
 _PROTOTYP(int http_delete, (char *,char **,char *,char *,char,char *));
-_PROTOTYP(int http_connect, (int, char *,char **,char *,char *,char,char *));
+_PROTOTYP(int http_connect, (int, char *,char **,char *,char *,char,char *,
+                             long));
 _PROTOTYP(int http_post, (char *,char **,char *,char *,char *,char,char *,
                   char *,char *, int));
 _PROTOTYP(int http_index, (char *,char **,char *,char *,char,char *,char *,
