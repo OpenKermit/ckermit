@@ -368,7 +368,10 @@ char unm_ver[CK_SYSNMLN+1] = { '\0', '\0' };
 #else  /* !HAVE_BAUDBOY */              /* openSuSE lock via ttylock */
 #include <ttylock.h>
 #endif  /* HAVE_BAUDBOY */
-#define LOCK_DIR "/var/lock"            /* (even though we don't care) */
+/*
+  LOCK_DIR stays undefined.  liblockdev chooses the lock directory at
+  build time.  No liblockdev call reports that directory.
+*/
 
 #else  /* !HAVE_LOCKDEV */
 
@@ -5324,24 +5327,6 @@ ttrpid(name) char *name;
 static char linkto[DEVNAMLEN+1];
 static char * linkdev = NULL;
 
-#ifndef NOUUCP
-#ifdef USETTYLOCK
-#ifdef LOCK_DIR
-char * uucplockdir = LOCK_DIR;
-#else
-char * uucplockdir = "";
-#endif /* LOCK_DIR */
-#else  /* USETTYLOCK */
-#ifdef LOCK_DIR
-char * uucplockdir = LOCK_DIR;
-#else
-char * uucplockdir = "";
-#endif /* LOCK_DIR */
-#endif /* USETTYLOCK */
-#else
-char * uucplockdir = "";
-#endif /* NOUUCP */
-
 #ifdef QNX                              /* Only for QNX4 */
 int                                     /* Visible to outside world */
 qnxopencount() {                        /* Get QNX device open count */
@@ -5459,12 +5444,15 @@ ttlock(ttdev) char *ttdev;
 
     debug(F111,"ttlock lockname",lockname,x);
     if (x > -1) {
+#ifndef HAVE_LOCKDEV
         /*
-          We don't really know the name of the lockfile, but
-          this is what the man page says it is.  In USETTYLOCK
-          builds, it is used only for display by SHOW COMM.
+          AIX ttylock() puts lockfiles under /etc/locks.  In USETTYLOCK
+          builds, flfnam is used only for display by SHOW COMM.
+          liblockdev does not report the lockfile name.  In HAVE_LOCKDEV
+          builds, flfnam stays empty.
         */
         ckmakmsg(flfnam,FLFNAML,"/etc/locks/LCK..",lockname,NULL,NULL);
+#endif /* HAVE_LOCKDEV */
         haslock = 1;
     }
     return(x);
@@ -6052,7 +6040,7 @@ ttunlck() {                             /* Remove UUCP lockfile(s). */
 
 #ifdef USETTYLOCK
 
-    if (haslock && *flfnam) {
+    if (haslock) {                      /* flfnam can be empty here */
         int x;
         priv_on();                      /* Turn on privs */
 #ifdef USE_UU_LOCK
@@ -6061,9 +6049,12 @@ ttunlck() {                             /* Remove UUCP lockfile(s). */
         x = ttyunlock(lockname);        /* Try to unlock */
 #endif /* USE_UU_LOCK */
         priv_chk();                     /* Turn off privs */
-        if (x < 0 && !quiet)
-          printf("Warning - Can't remove lockfile: %s\n", flfnam);
-
+        if (x < 0 && !quiet) {
+            if (*flfnam)
+              printf("Warning - Can't remove lockfile: %s\n", flfnam);
+            else
+              printf("Warning - Can't unlock %s\n", lockname);
+        }
         *flfnam = '\0';                 /* Erase the name. */
         haslock = 0;
         return(0);

@@ -13,7 +13,7 @@ import tty
 
 import pytest
 
-from conftest import open_pty_line, scaled
+from conftest import open_pty_line, scaled, skip_unless_line_lockable
 
 pytestmark = pytest.mark.skipif(
     not hasattr(termios, "CRTSCTS"), reason="termios has no CRTSCTS")
@@ -88,6 +88,7 @@ def _flow_states(wermit_path, tmp_path, flow, steps, preset):
     """
     if not _pty_keeps_crtscts():
         pytest.skip("pty does not retain CRTSCTS on this platform")
+    skip_unless_line_lockable(wermit_path)
     helper = tmp_path / "flowcheck.py"
     helper.write_text(FLOWCHECK)
     # SET PROTOCOL limits each command to 71 characters.

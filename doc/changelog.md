@@ -7,30 +7,42 @@
   of `CKMAXPATH`.
 
 - FTP through an HTTP proxy could hang forever if the proxy accepted a
-  connection and never answered the CONNECT request.  FTP now waits no longer
-  than SET FTP TIMEOUT (60 seconds when none is set) for the proxy, on both the
-  control and data connections.  The data connection to the proxy is also
-  bounded by that timeout.  Other uses of an HTTP proxy are unchanged.
+  connection and never answered the CONNECT request.  FTP now limits the wait
+  for the proxy reply to SET FTP TIMEOUT (60 seconds when unset) on both the
+  control and data connections.  Establishing the TCP data connection to the
+  proxy is now bounded by that same timeout.  Other uses of an HTTP proxy are
+  unchanged.
 
 - Fixed a buffer overflow in wildcard expansion.  A file or directory name
-  matched by a wildcard could make the path longer than the buffer that holds
-  it.  Such a path is now treated as not found.
+  matched by a wildcard could make the resulting path longer than the path
+  buffer.  Paths that do not fit are now treated as not found.
 
-- Fixed wildcards in a directory segment other than the last.  A pattern
-  such as `a/x*/f` or `a/?q/f` matched nothing, because the segment pattern
-  was compared against the whole path instead of the directory name.  Only
-  a bare `*` in such a segment worked.  Recursive listings were not affected.
+- Fixed wildcards in a directory segment other than the last.  A pattern such
+  as `a/x*/f` or `a/?q/f` matched nothing because the segment pattern was
+  compared against the whole path instead of the directory name.  Only a bare
+  `*` in such a segment worked.  Recursive listings were not affected.
 
-- ckufio.c no longer defines a separate MAXPATH.  Its path buffers use
-  `CKMAXPATH`, the same size the code that fills them uses.  On a platform
-  where MAXPATH came out smaller than `CKMAXPATH`, the startup directory and
-  wildcard buffers could overflow.
+- ckufio.c no longer defines a separate `MAXPATH`.  All path buffers in
+  ckufio.c now use `CKMAXPATH` to match the rest of Kermit.  On platforms where
+  `MAXPATH` was smaller than `CKMAXPATH`, the startup directory and wildcard
+  buffers could overflow.
 
 - Fixed too short sleep on hppa in the FORWARD-X channel table test.
 
-- Now skip tests skip on platforms such as GNU/Hurd that lack sparse files past
+- Skip tests skip on platforms such as GNU/Hurd that lack sparse files past
   4 GiB in Python, RLIMIT_FSIZE enforcement, ttyname() on a pty slave, or
   connected sockets above FD_SETSIZE.
+
+- SHOW COMMUNICATIONS no longer displays a lockfile path under /etc/locks in
+  lockdev builds.  That path is specific to AIX ttylock() and does not exist
+  on lockdev systems.
+
+- \v(lockdir) now reports the same lock directory shown by SHOW
+  COMMUNICATIONS.  It was different on several platforms, and misleading
+  in lockdev builds.
+
+- Tests that open a pty with SET LINE now skip if the line cannot be locked,
+  as is the case in some build environments.  Fixes #55.
 
 # C-Kermit 11.1.518
 

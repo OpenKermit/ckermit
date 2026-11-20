@@ -9,7 +9,7 @@ import time
 import pytest
 
 from conftest import (expected_timeout, kermit_wait, open_pty_line,
-                      scaled)
+                      scaled, skip_unless_line_lockable)
 
 
 def _reply_after_transmit(master, reply, done):
@@ -49,6 +49,7 @@ def test_input_after_transmit_keeps_raw_line(wermit_path, tmp_path, mode):
     "ok" and CR after TRANSMIT and before INPUT.  INPUT must see the
     CR instead of an LF.
     """
+    skip_unless_line_lockable(wermit_path)
     (tmp_path / "f.txt").write_text("x")
     master, slave, name = open_pty_line()
     attrs = termios.tcgetattr(slave)

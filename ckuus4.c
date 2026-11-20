@@ -15169,8 +15169,7 @@ char *                                  /* Evaluate builtin variable */
 #ifdef UNIX
       case VN_LCKDIR: {
 #ifndef NOUUCP
-          extern char * uucplockdir;
-          ckstrncpy(vvbuf,uucplockdir,VVBUFL);
+          ckstrncpy(vvbuf,ttglckdir(),VVBUFL);
           x = (int)strlen(vvbuf);
           if (x > 0) {
               if (vvbuf[x-1] != '/') {
