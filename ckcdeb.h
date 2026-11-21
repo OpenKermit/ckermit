@@ -6335,6 +6335,9 @@ extern int _flsbuf(char c,FILE *stream);
 
 /* Maximum length for a fully qualified filename, not counting \0 at end. */
 /*
+  Kermit sizes path buffers with CKMAXPATH.  PATH_MAX and MAXPATHLEN are
+  inputs to CKMAXPATH only.
+
   This is a rough cut, and errs on the side of being too big.  We don't
   want to pull in hundreds of header files looking for many and varied
   symbols, for fear of introducing unnecessary conflicts.

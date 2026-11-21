@@ -6062,7 +6062,7 @@ xdohttp(action, lfile, rf, dfile, agent, hdr, user, pass, mime, array, type)
     switch (action) {
       case HTTP_CON: {
           extern int ttyfd;
-          rc = http_connect(httpfd,agent,hdrlist,user,pass,array,rfile);
+          rc = http_connect(httpfd,agent,hdrlist,user,pass,array,rfile,0L);
           break;
       }
       case HTTP_DEL:

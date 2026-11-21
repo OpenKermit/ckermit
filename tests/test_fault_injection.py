@@ -10,7 +10,6 @@ They carry the faultinj marker.  A default run leaves them out.
 import http.server
 import os
 import platform
-import pty
 import shutil
 import subprocess
 import threading
@@ -18,7 +17,7 @@ import time
 
 import pytest
 
-from conftest import PROTOCOL_STARTUP_OFF, scaled
+from conftest import PROTOCOL_STARTUP_OFF, open_pty_line, scaled
 from test_iksd_login import _elf_info
 from test_iksdb import _build_has_iksdb, _close_iksd, _connect_iksd
 
@@ -431,9 +430,8 @@ def test_set_line_lock_write_failure(wermit_path, faultinj, tmp_path):
     """
     if not os.access("/var/lock", os.W_OK):
         pytest.skip("/var/lock is not writable")
-    master, slave = pty.openpty()
+    master, slave, name = open_pty_line()
     try:
-        name = os.ttyname(slave)
         lock = "/var/lock/LCK.." + os.path.basename(name)
         if os.path.exists(lock):
             try:

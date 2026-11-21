@@ -46,6 +46,41 @@ def _fill_descriptors():
             os.dup2(null, fd)
 
 
+HIGH_FD_PROBE = """
+import socket, sys
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.settimeout(10)
+s.connect(("127.0.0.1", int(sys.argv[1])))
+print(s.fileno())
+"""
+
+
+def _require_high_fd_connect():
+    """Skip unless a socket above FD_SETSIZE can connect.
+
+    Run a Python child with descriptors 3 through 1023 occupied by
+    _fill_descriptors().  The child connects a TCP socket to a local
+    listener.  On GNU/Hurd, connect() fails on sockets above FD_SETSIZE.
+    """
+    import subprocess
+    import sys
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", HIGH_FD_PROBE,
+             str(srv.getsockname()[1])],
+            capture_output=True, text=True, timeout=scaled(30),
+            stdin=subprocess.DEVNULL, close_fds=False,
+            preexec_fn=_fill_descriptors)
+    finally:
+        srv.close()
+    if result.returncode != 0:
+        pytest.skip("a socket above FD_SETSIZE cannot connect: "
+                    + result.stderr.strip()[-200:])
+
+
 def test_set_host_with_descriptor_above_fd_setsize(wermit_path):
     """Verify SET HOST and INPUT work with a socket above FD_SETSIZE.
 
@@ -59,6 +94,7 @@ def test_set_host_with_descriptor_above_fd_setsize(wermit_path):
     soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
     if hard != resource.RLIM_INFINITY and hard < 2048:
         pytest.skip("descriptor limit too low")
+    _require_high_fd_connect()
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.bind(("127.0.0.1", 0))
     srv.listen(1)
@@ -105,6 +141,7 @@ def _run_above_fd_setsize(wermit_path, cmds):
     soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
     if hard != resource.RLIM_INFINITY and hard < 2048:
         pytest.skip("descriptor limit too low")
+    _require_high_fd_connect()
     return subprocess.run(
         [wermit_path, "-H", "-Y", "-C",
          "set command more-prompting off, " + cmds + ", exit"],

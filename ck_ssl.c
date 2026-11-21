@@ -2296,11 +2296,7 @@ ssl_tn_init(mode) int mode;
     /* The server uses defaults for the certificate files. */
     /* The client does not.                                */
     if (mode == SSL_SERVER) {
-#ifdef PATH_MAX
-        char cert_filepath[PATH_MAX];
-#else
-        char cert_filepath[4096];
-#endif
+        char cert_filepath[CKMAXPATH+1];
         const char * defdir = NULL;
         DH * dh = NULL;
         int n = 0;

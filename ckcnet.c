@@ -6448,7 +6448,8 @@ _PROTOTYP(SIGTYP x25oobh, (int) );
                          tcp_http_proxy_user,
                          tcp_http_proxy_pwd,
                          0,
-                         proxycopy
+                         proxycopy,
+                         0L
                          ) < 0) {
             netclos();
             return(-1);
@@ -12518,7 +12519,8 @@ http_open(hostname, svcname, use_ssl, rdns_name, rdns_len, agent)
                          tcp_http_proxy_user,
                          tcp_http_proxy_pwd,
                          0,
-                         proxycopy
+                         proxycopy,
+                         0L
                          ) < 0) {
             http_close();
             return(-1);
@@ -15059,15 +15061,63 @@ http_post(agent, hdrlist, mime, user, pwd, array, local, remote, dest,
     return(rc);
 }
 
+/*
+  Wait until fd is readable or the current time reaches deadline.  Returns
+  1 immediately when deadline is 0.  Returns 1 immediately when fd < 0 or
+  fd >= FD_SETSIZE because select() cannot monitor those descriptors.  In
+  those cases the caller reads without a timeout.  Otherwise returns 1
+  when fd is readable, 0 when deadline passes, or -1 on a select() error
+  with errno set.
+*/
+static int
+#ifdef CK_ANSIC
+http_rwait(int fd, time_t deadline)
+#else
+http_rwait(fd, deadline) int fd; time_t deadline;
+#endif /* CK_ANSIC */
+{
+#ifdef BSDSELECT
+    fd_set rfds;
+    struct timeval tv;
+    time_t now;
+    int rc;
+
+    if (deadline == (time_t)0 || fd < 0 || fd >= FD_SETSIZE)
+      return(1);
+    for (;;) {
+        now = time(NULL);
+        if (now >= deadline)
+          return(0);
+        FD_ZERO(&rfds);
+        FD_SET(fd, &rfds);
+        tv.tv_sec = (long)(deadline - now);
+        tv.tv_usec = 0L;
+        rc = select(fd + 1, &rfds, NULL, NULL, &tv);
+        if (rc > 0)
+          return(1);
+        if (rc < 0 && errno != EINTR)
+          return(-1);
+    }
+#else
+    return(1);
+#endif /* BSDSELECT */
+}
+
+/*
+  Send an HTTP CONNECT for host_port to the proxy on socket and read the
+  reply headers.  The timeout argument bounds the reply wait in seconds.
+  A timeout of 0 waits without limit.  Returns 0 when the proxy accepts
+  the CONNECT, or -1 on failure.  A timeout fails with errno ETIMEDOUT.
+*/
 int
 #ifdef CK_ANSIC
 http_connect(int socket, char * agent, char ** hdrlist, char * user,
-             char * pwd, char array, char * host_port)
+             char * pwd, char array, char * host_port, long timeout)
 #else
-http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
+http_connect(socket, agent, hdrlist, user, pwd, array, host_port, timeout)
     int socket;
     char * agent; char ** hdrlist; char * user;
-    char * pwd; char array; char * host_port;
+    char * pwd; char array; char * host_port; long timeout;
 #endif /* CK_ANSIC */
 {
     char * request=NULL;
@@ -15080,6 +15130,8 @@ http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
     char b64out[HTTP_B64LEN];
     char * headers[HTTPHEADCNT];
     int    connected = 0;
+    int    timedout = 0;
+    time_t deadline = 0;
 
     tcp_http_proxy_errno = 0;
 
@@ -15171,9 +15223,16 @@ http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
 
     /* Process the response headers */
     local_t = time(NULL);
+    if (timeout > 0L) {
+        if ((time_t)timeout > CK_TIME_T_MAX - local_t)
+          deadline = CK_TIME_T_MAX;
+        else
+          deadline = local_t + (time_t)timeout;
+    }
     nullline = 0;
     i = 0;
     while (!nullline &&
+           !(timedout = (http_rwait(socket, deadline) == 0)) &&
 #ifdef TCPIPLIB
            (socket_read(socket,&ch,1) == 1) &&
 #else
@@ -15222,6 +15281,8 @@ http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
     }
     if ( http_fnd == 0 )
         rc = -1;
+    if (timedout)
+      debug(F101,"http_connect reply timeout","",timeout);
 
     if (array)
         http_mkarray(headers,hdcnt,array);
@@ -15241,6 +15302,10 @@ http_connect(socket, agent, hdrlist, user, pwd, array, host_port)
         if (headers[i])
           free(headers[i]);
     }
+#ifdef ETIMEDOUT
+    if (timedout)
+      errno = ETIMEDOUT;
+#endif /* ETIMEDOUT */
     return(rc);
 }
 #endif /* NOHTTP */

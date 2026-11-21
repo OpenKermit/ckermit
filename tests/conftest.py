@@ -614,6 +614,97 @@ def assert_ok(result, label="Command failed"):
     )
 
 
+def open_pty_line():
+    """Open a pseudoterminal and return (master, slave, slave name).
+
+    The caller closes master and slave.  Skip the test when os.ttyname()
+    cannot name the slave.  GNU/Hurd fails ttyname() on a pty slave with
+    EPERM or EBUSY.
+    """
+    master, slave = pty.openpty()
+    try:
+        name = os.ttyname(slave)
+    except OSError as e:
+        os.close(slave)
+        os.close(master)
+        pytest.skip(f"ttyname() fails on a pty slave: {e}")
+    return master, slave, name
+
+
+_LOCK_PROBLEMS = {}
+
+LOCKDEV_HELPER = "/usr/sbin/lockdev"
+
+# Exit status of the lockdev helper for -l, from lockdev's sample.c.
+_LOCKDEV_EXITS = {
+    1: "device is locked by another process",
+    2: "EACCES", 3: "EROFS", 4: "EFAULT", 5: "EINVAL",
+    6: "ENAMETOOLONG", 7: "ENOENT", 8: "ENOTDIR", 9: "ENOMEM",
+    10: "ELOOP", 11: "EIO", 12: "EPERM", 255: "error",
+}
+
+
+def _lockdev_problem():
+    """Return why the lockdev helper cannot lock a pty, or None.
+
+    Pass the pty slave path without "/dev/".  SET LINE passes that same
+    name to ttylock().  Return None when locking succeeds or when the
+    helper is not installed.
+    """
+    if not os.access(LOCKDEV_HELPER, os.X_OK):
+        return None
+    master, slave, name = open_pty_line()
+    try:
+        devname = name[5:] if name.startswith("/dev/") else name
+        rc = subprocess.run([LOCKDEV_HELPER, "-l", devname],
+                            stdin=subprocess.DEVNULL,
+                            timeout=scaled(10)).returncode
+        if rc == 0:
+            subprocess.run([LOCKDEV_HELPER, "-u", devname],
+                           stdin=subprocess.DEVNULL, timeout=scaled(10))
+            return None
+        why = _LOCKDEV_EXITS.get(rc, f"exit status {rc}")
+        return f"{LOCKDEV_HELPER} -l {devname} fails: {why}"
+    finally:
+        os.close(slave)
+        os.close(master)
+
+
+def _lock_problem(wermit_path):
+    """Return why SET LINE cannot lock a pty, or None."""
+    result = subprocess.run(
+        [wermit_path, "-H", "-Y", "-Q", "-C", r"echo [\v(lockdir)], exit"],
+        stdin=subprocess.DEVNULL, capture_output=True, text=True,
+        timeout=scaled(10))
+    start = result.stdout.find("[")
+    lockdir = result.stdout[start + 1:result.stdout.find("]", start)]
+    if not lockdir:
+        return _lockdev_problem()
+    if not os.path.isdir(lockdir):
+        return f"lock directory {lockdir} does not exist"
+    if not os.access(lockdir, os.W_OK | os.X_OK):
+        return f"lock directory {lockdir} is not writable"
+    return None
+
+
+def skip_unless_line_lockable(wermit_path):
+    """Skip the test when SET LINE cannot lock a pty in this environment.
+
+    SET LINE acquires a lock before opening the device.  Lock files go in
+    \\v(lockdir).  That directory must exist and be writable.
+    \\v(lockdir) is empty in NOUUCP and lockdev builds.  liblockdev does
+    not report the lock directory.  When \\v(lockdir) is empty, the probe
+    runs the lockdev helper on a pty instead.  Fedora's lockdev uses
+    /run/lock/lockdev.  A Fedora mock build root lacks that directory.
+    Results are cached per wermit_path.
+    """
+    if wermit_path not in _LOCK_PROBLEMS:
+        _LOCK_PROBLEMS[wermit_path] = _lock_problem(wermit_path)
+    problem = _LOCK_PROBLEMS[wermit_path]
+    if problem is not None:
+        pytest.skip(f"SET LINE cannot lock a pty: {problem}")
+
+
 def make_deep_dir(base):
     """Create and return a directory whose path is about 70% of PATH_MAX.
 

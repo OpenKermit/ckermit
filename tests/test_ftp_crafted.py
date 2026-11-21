@@ -548,6 +548,102 @@ def test_ftp_proxy_pasv_connect_target(run_wermit, trust, target):
     assert events[0].startswith(f"CONNECT {target} "), events
 
 
+def _silent_proxy():
+    """Start a proxy that accepts connections and never answers.
+
+    Accepted connections stay open until stop() is called.  Return
+    (port, stop function).
+    """
+    held = []
+    stopping = threading.Event()
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(8)
+    srv.settimeout(0.1)
+
+    def run():
+        while not stopping.is_set():
+            try:
+                conn, _ = srv.accept()
+            except OSError:
+                continue
+            held.append(conn)
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+
+    def stop():
+        stopping.set()
+        thread.join(timeout=scaled(5))
+        srv.close()
+        for conn in held:
+            conn.close()
+
+    return srv.getsockname()[1], stop
+
+
+def _run_bounded(wermit_path, commands, limit):
+    """Run commands in wermit and return (CompletedProcess, seconds)."""
+    start = time.monotonic()
+    try:
+        result = subprocess.run(
+            [wermit_path, "-H", "-Y", "-Q", "-C",
+             ", ".join(["set command more-prompting off", *commands,
+                        "exit"])],
+            stdin=subprocess.DEVNULL, capture_output=True, text=True,
+            timeout=scaled(limit), start_new_session=True)
+    except subprocess.TimeoutExpired as e:
+        pytest.fail(f"wermit still waiting on the proxy after "
+                    f"{e.timeout:.0f} s: {e.stdout!r}")
+    return result, time.monotonic() - start
+
+
+def test_ftp_proxy_data_reply_timeout(wermit_path):
+    """Verify FTP DIR fails when the proxy never answers CONNECT.
+
+    The proxy accepts the data connection and sends nothing.  wermit
+    waits no longer than the FTP timeout, fails FTP DIR, and continues.
+    """
+    reply = b"227 Entering Passive Mode (127,0,0,1,0,9)\r\n"
+    port, thread, srv = _serve_ftp(b"220 hi\r\n", {"PASV": reply})
+    pport, stop = _silent_proxy()
+    try:
+        result, seconds = _run_bounded(wermit_path, [
+            "set ftp timeout 2",
+            f"ftp open 127.0.0.1 {port} /user:u /password:p",
+            f"set tcp http-proxy 127.0.0.1:{pport}",
+            "ftp dir",
+            "echo DIR=\\v(status)",
+            "ftp close",
+        ], 60)
+    finally:
+        stop()
+        srv.close()
+    assert "DIR=1" in result.stdout, result.stdout + result.stderr
+    assert seconds < scaled(30), seconds
+
+
+def test_ftp_proxy_control_reply_timeout(wermit_path):
+    """Verify FTP OPEN fails when the proxy never answers CONNECT.
+
+    The proxy accepts the control connection and sends nothing.  wermit
+    waits no longer than the FTP timeout and fails FTP OPEN.
+    """
+    pport, stop = _silent_proxy()
+    try:
+        result, seconds = _run_bounded(wermit_path, [
+            "set ftp timeout 2",
+            f"set tcp http-proxy 127.0.0.1:{pport}",
+            "ftp open 127.0.0.1 21 /user:u /password:p",
+            "echo OPEN=\\v(status)",
+        ], 60)
+    finally:
+        stop()
+    assert "OPEN=1" in result.stdout, result.stdout + result.stderr
+    assert seconds < scaled(30), seconds
+
+
 def test_ftp_proxy_data_connection_closes_socket(wermit_path):
     """Verify a failed proxy data connection leaves no socket open.
 

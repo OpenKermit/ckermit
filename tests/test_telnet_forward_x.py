@@ -156,6 +156,18 @@ class ForwardXServer:
         finally:
             conn.close()
 
+    def wait_closes(self, count, timeout=10):
+        """Wait until the client has sent count CLOSE messages.
+
+        scaled(timeout) bounds the wait.
+        """
+        deadline = time.monotonic() + scaled(timeout)
+        while time.monotonic() < deadline:
+            closes = [r for r in self.received if r[:1] == bytes([CLOSE])]
+            if len(closes) >= count:
+                return
+            time.sleep(0.05)
+
     def close(self):
         """Close the listener and wait for the server thread."""
         self.srv.close()
@@ -425,12 +437,14 @@ def test_forward_x_channel_table_full(wermit_path, tmp_path):
     The client has room for 64 channels.  It answers the 65th and later
     OPEN requests with CLOSE and does not connect to the X server for
     them.  fwdx_server_avail() makes one more connection to check the
-    X server.
+    X server.  ForwardXServer sends DONE once the five CLOSE replies
+    arrive.
     """
     accepted = []
     xsrv, n = _x_listener(accepted)
     server = ForwardXServer([bytes([OPEN]) + _channel(c)
-                             for c in range(1, 70)], wait=1.0)
+                             for c in range(1, 70)]
+                            + [lambda: server.wait_closes(5)], wait=1.0)
     try:
         rc, out = _session(wermit_path, tmp_path, server, f"127.0.0.1:{n}")
     finally:

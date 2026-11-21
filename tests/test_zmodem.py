@@ -1,5 +1,6 @@
 import os
 import shutil
+import threading
 import time
 
 import pytest
@@ -184,6 +185,40 @@ pytestmark_ssl = pytest.mark.skipif(
 )
 
 
+def _watch_transfer(start, server_dir, procs, timeline, stop):
+    """Record transfer events in timeline until stop is set.
+
+    Each entry is (seconds since start, text).  An entry records the
+    size of each file in server_dir when the size changes, and the exit
+    status of each process in procs, a dict of name to Popen, when the
+    process exits.
+    """
+    sizes = {}
+    exited = set()
+    while True:
+        now = time.monotonic() - start
+        try:
+            entries = list(os.scandir(server_dir))
+        except OSError:
+            entries = []
+        for entry in entries:
+            try:
+                size = entry.stat().st_size
+            except OSError:
+                continue
+            if sizes.get(entry.name) != size:
+                sizes[entry.name] = size
+                timeline.append((now, f"{entry.name} has {size} bytes"))
+        for name, proc in procs.items():
+            if name not in exited and proc.poll() is not None:
+                exited.add(name)
+                timeline.append(
+                    (now, f"{name} exits with status {proc.returncode}"))
+        if stop.is_set():
+            return
+        time.sleep(0.01)
+
+
 def _run_ssl_zmodem(wermit_path, ssl_pki,
                      server_dir, remote_dir, remote_argv, timeout=60):
     """
@@ -202,11 +237,14 @@ def _run_ssl_zmodem(wermit_path, ssl_pki,
     remote_argv is the rz/sz-equivalent command as a list (e.g.  ["sz",
     str(src_file)] or ["rz"]); the remote runs the matching SET PROTOCOL ZMODEM
     SEND/RECEIVE clause over its own /SSL connection to the wermit under test.
-    Returns (returncode, stdout).
+    Returns (returncode, stdout, diagnostics).  diagnostics holds the
+    output of both wermits and a timeline of the files in server_dir and
+    the exits of both wermits.
     """
     remote_clause = (f"send {remote_argv[1]}" if remote_argv[0] == "sz"
                       else "receive")
 
+    start = time.monotonic()
     port, proc, master, prefix = start_pty_tcp_listener(
         wermit_path,
         (
@@ -225,15 +263,33 @@ def _run_ssl_zmodem(wermit_path, ssl_pki,
         f"{ZMODEM_QUIET_PROTOCOL_CLAUSE}, "
         f"{remote_clause}, close, exit"
     )
+    timeline = [(time.monotonic() - start, "listener ready")]
     rproc, rmaster = start_wermit_pty(wermit_path, remote_cmd,
                                        str(remote_dir))
+    timeline.append((time.monotonic() - start, "remote started"))
+    stop = threading.Event()
+    watcher = threading.Thread(
+        target=_watch_transfer,
+        args=(start, server_dir, {"listener": proc, "remote": rproc},
+              timeline, stop),
+        daemon=True)
+    watcher.start()
 
     # Drain both sides concurrently. Both now have real ptys (unlike
     # zmodem_remote's remote, which uses spawn_wermit's /dev/null
     # stdout instead), and both need a reader for the duration.
-    (_, _), (returncode, stdout) = finish_wermit_pty_pair(
-        rproc, rmaster, proc, master, timeout=timeout)
-    return returncode, prefix.decode("utf-8", errors="replace") + stdout
+    try:
+        (_, rstdout), (returncode, stdout) = finish_wermit_pty_pair(
+            rproc, rmaster, proc, master, timeout=timeout)
+    finally:
+        stop.set()
+        watcher.join(timeout=5)
+    stdout = prefix.decode("utf-8", errors="replace") + stdout
+    diagnostics = "\n".join(
+        ["timeline:"]
+        + [f"  {t:7.3f}s {text}" for t, text in timeline]
+        + ["listener output:", stdout, "remote output:", rstdout])
+    return returncode, stdout, diagnostics
 
 
 @pytestmark_ssl
@@ -287,17 +343,19 @@ def test_zmodem_receive_ssl_binary(wermit_path, ssl_pki, tmp_path):
     server_dir.mkdir()
 
     start = time.monotonic()
-    returncode, stdout = _run_ssl_zmodem(
+    returncode, stdout, diagnostics = _run_ssl_zmodem(
         wermit_path, ssl_pki,
         server_dir, remote_dir, ["sz", str(src_file)])
     elapsed = time.monotonic() - start
 
-    assert returncode == 0, f"Zmodem receive over SSL failed: stdout={stdout}"
+    assert returncode == 0, (
+        f"Zmodem receive over SSL failed.\n{diagnostics}")
     received_file = server_dir / "test_z_receive.txt"
-    assert received_file.exists(), f"File not received. stdout={stdout}"
-    assert received_file.read_bytes() == content
+    assert received_file.exists(), f"File not received.\n{diagnostics}"
+    assert received_file.read_bytes() == content, diagnostics
     assert elapsed < SSL_ZMODEM_MAX_SECONDS, (
-        f"Zmodem receive over SSL took {elapsed:.1f} seconds")
+        f"Zmodem receive over SSL took {elapsed:.1f} seconds.\n"
+        f"{diagnostics}")
 
 
 def _large_size(zmodem_remote):

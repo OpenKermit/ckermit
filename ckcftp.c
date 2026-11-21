@@ -828,6 +828,12 @@ int ftp_timed_out = 0;
 long ftp_timeout = 0;
 #endif  /* FTP_TIMEOUT */
 
+/*
+  Seconds to wait for a data connection or an HTTP proxy reply: the FTP
+  timeout, or 60 when none is set.
+*/
+#define FTP_WAIT_SECS ((ftp_timeout > 0L) ? ftp_timeout : 60L)
+
 #ifdef GFTIMER
 extern CKFLOAT fptsecs, fpfsecs, fpxfsecs;
 /* Characters per second for n characters in sec seconds */
@@ -13260,7 +13266,7 @@ ftp_dconnect(fd,sa,salen) int fd; struct sockaddr * sa; int salen;
     if (rc < 0 && errno == EINPROGRESS) {
         FD_ZERO(&wfds);
         FD_SET(fd,&wfds);
-        tv.tv_sec = (ftp_timeout > 0L) ? ftp_timeout : 60L;
+        tv.tv_sec = FTP_WAIT_SECS;
         tv.tv_usec = 0L;
         rc = select(fd + 1,NULL,&wfds,NULL,&tv);
         if (rc == 0) {
@@ -13514,8 +13520,8 @@ initconn() {
             debug(F100,"initconn no HADDRLIST","",0);
             if
 #endif /* HADDRLIST */
-              (connect(data, (struct sockaddr *)&hisctladdr,
-                       FTP_SALEN(hisctladdr)) < 0) {
+              (ftp_dconnect(data, (struct sockaddr *)&hisctladdr,
+                            FTP_SALEN(hisctladdr)) < 0) {
                   debug(F101,"initconn connect failed","",errno);
 #ifdef HADDRLIST
                   if (hp && hp->h_addr_list[1]) {
@@ -13564,7 +13570,8 @@ initconn() {
                              tcp_http_proxy_user,
                              tcp_http_proxy_pwd,
                              0,
-                             proxyhost
+                             proxyhost,
+                             FTP_WAIT_SECS
                              ) < 0) {
                 perror("ftp: connect");
                 ftpcode = -1;
@@ -13924,7 +13931,7 @@ dataconn(lmode) char *lmode;
                 if (csocket > maxfd)
                   maxfd = csocket;
             }
-            tv.tv_sec = (ftp_timeout > 0L) ? ftp_timeout : 60L;
+            tv.tv_sec = FTP_WAIT_SECS;
             tv.tv_usec = 0L;
 #ifdef INTSELECT
             rc = select(maxfd + 1,(int *)&fds,NULL,NULL,&tv);
@@ -15086,7 +15093,8 @@ ftp_hookup(host, port, tls) char * host; int port; int tls;
                          tcp_http_proxy_user,
                          tcp_http_proxy_pwd,
                          0,
-                         proxyhost
+                         proxyhost,
+                         FTP_WAIT_SECS
                          ) < 0) {
             char * foo = NULL;
 #ifdef TCPIPLIB
