@@ -36,7 +36,7 @@ Here you can find specific C-Kermit information:
 - The [current changelog](changelog.md), 2022-present
 - The [old changelog](changelog-old.txt), which itself is a copy of http://kermitproject.org/ckupdates.html
 - A recent generated [reference document](help-reference.md)
-- [Platform-specific notes](platforms) for your specific operating system
+- [Platform-specific notes](platforms.md) for your specific operating system
 - [Current manpage (reference) as a PDF](manpage.pdf)
 - Notes on using C-Kermit:
   - [IPv6](ipv6.md)
