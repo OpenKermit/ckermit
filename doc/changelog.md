@@ -1,6 +1,8 @@
 # OpenKermit C-Kermit Changelog
 
-# C-Kermit 11.1.519 (NOT YET RELEASED)
+# C-Kermit 11.1.519
+
+November 20, 2026
 
 - Fixed GNU/Hurd handling of paths longer than 256 bytes.  Hurd doesn't define
   MAXPATHLEN or PATH_MAX, so ckufio.c fell back to `_POSIX_PATH_MAX` instead
