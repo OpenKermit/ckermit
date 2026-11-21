@@ -2329,7 +2329,7 @@ Syntax: HEAD [ switches ] filename
 Synonyms: H, HE
 
 ```
-C-Kermit 11.1.518, 2026/11/15, Copyright (C) 2025-2026,
+C-Kermit 11.1.519, 2026/11/20, Copyright (C) 2025-2026,
   John Goerzen.
 Copyright (C) 1985, 2025,
   Trustees of Columbia University in the City of New York.
@@ -8993,16 +8993,16 @@ SET TELNET parameters:
  bug binary-u-means-me-too: off
  bug sb-implies-will-do: on
  bug auth-krb5-des: on
- terminal-type: none (xterm-256color will be used)
+ terminal-type: none (xterm will be used)
  environment: on
    ACCOUNT: 
-   DISPLAY: localhost:1
+   DISPLAY: 
    JOB    : 
    PRINTER: 
    USER   : user
    SYSTEM : UNIX
   LOCATION: 
- .Xauthority-file: /run/user/1000/xauth_qYepDG
+ .Xauthority-file: /path/to/home/.Xauthority
 ```
 
 ### SET TEL
@@ -9232,7 +9232,7 @@ Compile-time default, from `SHOW TERMINAL`:
 ```
 Terminal parameters:
    Bytesize: Command: 8 bits              Terminal: 8 bits         
-                Type:                         Print: off            
+                Type:                        Print: off            
                 Echo: remote         Locking-shift: off            
         Newline-mode: off               Cr-display: normal         
                  APC: off             Autodownload: on, error continue
