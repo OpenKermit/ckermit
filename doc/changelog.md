@@ -44,6 +44,9 @@
 - Tests that open a pty with SET LINE now skip if the line cannot be locked,
   as is the case in some build environments.  Fixes #55.
 
+- test_zmodem_receive_ssl_binary now shows a timeline of the received file and
+  both wermit exits, plus the output of both wermits, when it fails.
+
 # C-Kermit 11.1.518
 
 November 15, 2026
