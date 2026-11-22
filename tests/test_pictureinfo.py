@@ -9,9 +9,16 @@ SOF0 = (b"\xff\xc0\x00\x11\x08\x00\x10\x00\x20\x03"
 JFIF = b"JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
 
 
-def _picture_info(run_wermit, tmp_path, data):
-    """Write data to a .jpg file and return the wermit output."""
-    pic = tmp_path / "pic.jpg"
+def _picture_info(run_wermit, tmp_path, data, subdir=None,
+                  name="pic.jpg"):
+    """Write data to file name and return the wermit output.
+
+    With subdir, write the file into that subdirectory of tmp_path.
+    """
+    pic = tmp_path / name
+    if subdir is not None:
+        (tmp_path / subdir).mkdir()
+        pic = tmp_path / subdir / name
     pic.write_bytes(data)
     script = tmp_path / "pic.ksc"
     script.write_text(
@@ -25,6 +32,21 @@ def test_pictureinfo_jpeg_dimensions(tmp_path, run_wermit):
     """Verify \\fpictureinfo() reads a JPEG's dimensions."""
     data = SOI + b"\xff\xe0\x00\x10" + JFIF + SOF0 + EOI
     result = _picture_info(run_wermit, tmp_path, data)
+    assert "R=[1] W=[32] H=[16]" in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize("subdir", ["x-1.2.3", ".tmp"])
+def test_pictureinfo_dot_in_directory(tmp_path, run_wermit, subdir):
+    """Verify a '.' in a directory name does not hide the file type."""
+    data = SOI + b"\xff\xe0\x00\x10" + JFIF + SOF0 + EOI
+    result = _picture_info(run_wermit, tmp_path, data, subdir)
+    assert "R=[1] W=[32] H=[16]" in result.stdout, result.stdout
+
+
+def test_pictureinfo_dot_in_base_name(tmp_path, run_wermit):
+    """Verify a '.' before the extension does not hide the file type."""
+    data = SOI + b"\xff\xe0\x00\x10" + JFIF + SOF0 + EOI
+    result = _picture_info(run_wermit, tmp_path, data, name="a.b.jpg")
     assert "R=[1] W=[32] H=[16]" in result.stdout, result.stdout
 
 

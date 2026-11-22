@@ -981,3 +981,33 @@ def test_ftp_active_get_with_replies_before_accept(run_wermit, tmp_path):
         thread.join(timeout=scaled(5))
     assert "GET=0" in result.stdout, result.stdout
     assert out.read_bytes() == payload
+
+
+def _closed_port():
+    """Return a local TCP port number that has no listener."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+@pytest.mark.parametrize("debug,kept", [("off", 0), ("on", 1)])
+def test_ftp_mget_failed_listing_data_connection(run_wermit, tmp_path,
+                                                 debug, kept):
+    """Verify MGET removes its listing file when the listing fails.
+
+    remote_files() creates the listing file in the temporary directory
+    before requesting the listing.  The PASV reply names a port with no
+    listener, so the listing request fails.  SET FTP DEBUG ON keeps the
+    file.
+    """
+    tmp = tmp_path / "tmp"
+    tmp.mkdir()
+    port = _closed_port()
+    pasv = b"227 Entering Passive Mode (127,0,0,1,%d,%d)\r\n" % (
+        port >> 8, port & 255)
+    result = _ftp_session(
+        run_wermit, b"220 hi\r\n", {"PASV": pasv},
+        commands=[f"cd {tmp_path}", f"set temp-directory {tmp}",
+                  f"set ftp debug {debug}", "ftp mget *.txt"])
+    assert "OPEN-OK" in result.stdout, result.stdout[-500:]
+    assert len(list(tmp.iterdir())) == kept, result.stdout[-500:]

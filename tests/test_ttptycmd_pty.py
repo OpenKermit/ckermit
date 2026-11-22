@@ -29,6 +29,44 @@ def _send_with(run_wermit, tmp_path, connection, protocol_cmd, after=""):
         + (f", {after}" if after else ""), timeout=30)
 
 
+def _kill_recorded(pid_file):
+    """Send SIGKILL to each process whose pid is listed in pid_file.
+
+    A test that leaves a background process holding the pty records the
+    pid in pid_file.  The pty hangup does not always end that process.
+    """
+    try:
+        words = pid_file.read_text().split()
+    except OSError:
+        return
+    for word in words:
+        try:
+            os.kill(int(word), signal.SIGKILL)
+        except (ValueError, ProcessLookupError, PermissionError):
+            # PermissionError: another user's process reuses the pid.
+            pass
+
+
+def test_kill_recorded_pid_of_other_user(tmp_path, monkeypatch):
+    """Verify _kill_recorded() skips a pid that another user's process has.
+
+    os.kill() raises PermissionError for that pid.  _kill_recorded()
+    still tries each later pid in the file.
+    """
+    tried = []
+
+    def kill(pid, sig):
+        tried.append(pid)
+        raise PermissionError(1, "Operation not permitted")
+
+    pid_file = tmp_path / "bg.pid"
+    pid_file.write_text("12345\n12346\n")
+    with monkeypatch.context() as m:
+        m.setattr(os, "kill", kill)
+        _kill_recorded(pid_file)
+    assert tried == [12345, 12346]
+
+
 @pytest.mark.parametrize("protocol_cmd,status", [
     ("sh -c 'exit 0'", 0),
     ("sh -c 'exit 1'", 1),
@@ -83,10 +121,15 @@ def test_external_protocol_background_child(run_wermit, tmp_path):
     SEND ends after the drain bound instead.
     """
     got = tmp_path / "got.txt"
+    bg = tmp_path / "bg.pid"            # Relative in the command
     start = time.monotonic()
-    result = _send_with(run_wermit, tmp_path,
-                        f"sh -c 'cat > {got}'",
-                        "sh -c 'sleep 20 2>/dev/null & echo BG-OUTPUT'")
+    try:
+        result = _send_with(
+            run_wermit, tmp_path, f"sh -c 'cat > {got}'",
+            "sh -c 'sleep 20 2>/dev/null & echo $! >> bg.pid; "
+            "echo BG-OUTPUT'")
+    finally:
+        _kill_recorded(bg)
     elapsed = time.monotonic() - start
     assert "STATUS=0" in result.stdout, result.stdout
     assert elapsed < 15, f"SEND took {elapsed:.1f} seconds"
@@ -109,7 +152,11 @@ def test_external_protocol_exit_after_other_child(wermit_path, tmp_path):
     end within the drain bound, not when the background sleep exits.
     """
     (tmp_path / "f.txt").write_text("hello\n")
-    proto = "sh -c 'sleep 20 2>/dev/null & sleep 4'"
+    bg = tmp_path / "bg.pid"
+    # The protocol command runs in tmp_path.  SET PROTOCOL limits each
+    # command to 71 bytes, so the command names the pid file relative
+    # to tmp_path.
+    proto = "sh -c 'sleep 20 2>/dev/null & echo $! >> bg.pid; sleep 4'"
     clause = " ".join(f'"{proto}"' for _ in range(4))
     got = tmp_path / "got.txt"
     cmd = (f"set command more-prompting off, cd {tmp_path}, "
@@ -119,11 +166,14 @@ def test_external_protocol_exit_after_other_child(wermit_path, tmp_path):
            "open !read sleep 1.5, "
            "send f.txt, echo STATUS=\\v(status), exit")
     start = time.monotonic()
-    result = subprocess.run(
-        [wermit_path, "-H", "-Y", "-C", cmd],
-        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT, text=True, timeout=scaled(40),
-        preexec_fn=_ignore_sigchld)
+    try:
+        result = subprocess.run(
+            [wermit_path, "-H", "-Y", "-C", cmd],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, text=True, timeout=scaled(40),
+            preexec_fn=_ignore_sigchld)
+    finally:
+        _kill_recorded(bg)
     elapsed = time.monotonic() - start
     assert "STATUS=0" in result.stdout, result.stdout
     assert elapsed < 15, f"SEND took {elapsed:.1f} seconds"

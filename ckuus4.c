@@ -7388,8 +7388,8 @@ doinput(timo,ms,mp,flags,icount)
 #else
                     /* July 2001 - ckmatch() returns match position. */
                     /* It works and it's not gross. */
-                    /* (4 = floating pattern) */
-                    x = ckmatch(s,matchbuf,inpcas[cmdlvl],1+4);
+                    /* (4 = floating pattern, 8 = leftmost position) */
+                    x = ckmatch(s,matchbuf,inpcas[cmdlvl],1+4+8);
                     if (x > 0) {
                         matchindex = x - 1;
                         instatus = INP_OK;
@@ -9179,7 +9179,15 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                 if (argn > 3) {         /* Occurrence */
                     val2 = *(bp[3]) ? evalx(bp[3]) : "1";
                     if (chknum(val2)) desired = ckatoi(val2);
-                    if (desired * len1 > len2) goto fnend;
+/*
+  Occurrences can overlap.  Each occurrence starts at a different
+  position in s.  A literal match needs len1 characters, so at most
+  len2 - len1 + 1 positions can start one.  A pattern match can start
+  at any of the len2 positions.
+*/
+                    if (search ? desired > len2 :
+                        desired + len1 - 1 > len2)
+                      goto fnend;
                 }
                 if (chknum(val1)) {
                     int t9;
@@ -9192,14 +9200,13 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                         if (!right && start < 0) start = 0;
                     } else {            /* Search or Rsearch */
                         int x9;
-                        if (t9 < 0) t9 = 0;
+                        if (t9 < 1) t9 = 1;
                         if (right) {    /* Right to left */
-                            if (t9 > len2) t9 = len2;
-                            start = len2 - t9 - 1;
-                            if (start < 0)
+                            x9 = len2 - (t9 - 1); /* Drop t9-1 chars */
+                            if (x9 < 1)
                               goto fnend;
-                            x9 = len2 - t9;
                             s[x9] = NUL;
+                            start = x9 - 1;
                         } else {        /* Left to right */
                             start = t9 - 1;
                             if (start < 0) start = 0;
@@ -9236,7 +9243,8 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                     while (start >= 0 && j9 <= desired) {
                         for (i9 = start;
                              (i9 >= 0) &&
-                                 !(k9 = ckmatch(pat,s+i9,inpcas[cmdlvl],1+4));
+                                 !(k9 = ckmatch(pat,s+i9,
+                                                inpcas[cmdlvl],1+4+8));
                              i9--) ;
                         if (k9 < 1) {    /* No match */
                             i9 = 0;
@@ -9255,14 +9263,16 @@ fneval(fn,argp,argn,xp) char *fn, *argp[]; int argn; char * xp;
                     int j9;
                     i9 = 0;
                     for (j9 = 1; j9 <= desired && start < len2; j9++) {
-                        i9 = ckmatch(pat,&s[start],inpcas[cmdlvl],1+4);
-                        if (i9 == 0 || j9 == desired) break;
-                        start += i9 + 1;
+                        i9 = ckmatch(pat,&s[start],inpcas[cmdlvl],1+4+8);
+                        if (i9 == 0)
+                          break;
+                        if (j9 == desired) {
+                            i9 += start; /* 1-based position in s */
+                            break;
+                        }
+                        start += i9;    /* Advance past this match start */
+                        i9 = 0;
                     }
-                    if (j9 == desired && i9 != 0)
-                      i9 += start;
-                    else
-                      i9 = 0;
                 }
             } else {                    /* index or rindex */
                 int j9 = 0;

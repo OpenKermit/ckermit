@@ -17,7 +17,10 @@ long ckftol(CKFLOAT);
 int deblog = 0;
 int fp_digits = 6;
 int matchdot = 0;
+long worklimitmsgs = 0;                 /* "CKMATCH work limit" calls */
 int dodebug(int a, const char *b, const char *c, CK_OFF_T d) {
+    if (b && !strcmp(b, "CKMATCH work limit"))
+        worklimitmsgs++;
     return 0;
 }
 
@@ -106,6 +109,92 @@ START_TEST(test_ckmatch)
     ck_assert_int_gt(ckmatch("a*", "a/b", 0, 0), 0);
     // Bit 1 set (2): directory separator '/' is a fence
     ck_assert_int_eq(ckmatch("a*", "a/b", 0, 2), 0);
+}
+END_TEST
+
+START_TEST(test_ckmatch_position_bit)
+{
+    /* Each pattern, string, and leftmost 1-based match position. */
+    static const struct {
+        char * pat;
+        char * str;
+        int pos;
+    } t[] = {
+        { "?b",       "ab",      1 },
+        { "[ab]c",    "zbc",     2 },
+        { "a?c",      "zabc",    2 },
+        { "*ab*[xy]", "abde.x",  1 },
+        { "ab*[xy]",  "zabde.x", 2 },
+        { "ab*{x,y}", "zabcxy",  2 },
+        { "{x,y}?",   "abyz",    3 },
+        { "bc",       "abcabc",  2 },
+        { "b",        "abcb",    2 },
+        { "ab$",      "zab",     2 },
+        { "^ab",      "zab",     0 },
+        { "?b",       "xyz",     0 },
+    };
+    int i;
+
+    for (i = 0; i < (int)(sizeof(t) / sizeof(t[0])); i++) {
+        char * pat = t[i].pat, * str = t[i].str;
+        /* Bits 2 and 3 return the leftmost position. */
+        ck_assert_msg(ckmatch(pat, str, 0, 12) == t[i].pos,
+                      "%s in %s", t[i].pat, t[i].str);
+        /* Bit 2 alone agrees on whether the pattern matches. */
+        ck_assert_msg((ckmatch(pat, str, 0, 4) > 0) == (t[i].pos > 0),
+                      "%s in %s", t[i].pat, t[i].str);
+        /* Bit 3 alone changes nothing. */
+        ck_assert_msg((ckmatch(pat, str, 0, 8) > 0) ==
+                      (ckmatch(pat, str, 0, 0) > 0),
+                      "%s in %s", t[i].pat, t[i].str);
+    }
+}
+END_TEST
+
+START_TEST(test_ckmatch_position_null)
+{
+    /* A NULL pattern or string reads as "".  "" matches at 1. */
+    ck_assert_int_eq(ckmatch(NULL, "abc", 0, 12), 1);
+    ck_assert_int_eq(ckmatch(NULL, NULL, 0, 12), 1);
+    ck_assert_int_eq(ckmatch("a", NULL, 0, 12), 0);
+    ck_assert_int_eq(ckmatch("", NULL, 0, 12), 1);
+}
+END_TEST
+
+START_TEST(test_ckmatch_work_limit_ends_search)
+{
+    /*
+      Matching "b*?c" against "b", n 'x' characters, and "c" takes
+      about n ckmatch1() calls.  The leftmost-position search repeats
+      that work at the position of "b".  With n = 1200000, the search
+      passes CKMATCHMAX (2000000 in ckclib.c).  ckmatch1() logs "CKMATCH
+      work limit" once for each call past the limit.  Stopping at the
+      limit keeps worklimitmsgs at 1.  The search stops at the position
+      of "b".  ckmatch() returns that position.  Callers index the string
+      with the result.  The prefix puts "b" at position 1 or 3.
+    */
+    static char * prefix[] = { "", "aa" };
+    long n = 1200000;
+    int i, k, r;
+
+    for (i = 0; i < (int)(sizeof(prefix) / sizeof(prefix[0])); i++) {
+        char * s;
+        k = (int)strlen(prefix[i]);
+        s = malloc(k + n + 3);          /* prefix, "b", n 'x', "c", NUL */
+        ck_assert_ptr_nonnull(s);
+        memcpy(s, prefix[i], k);
+        s[k] = 'b';
+        memset(s + k + 1, 'x', n);
+        s[k + n + 1] = 'c';
+        s[k + n + 2] = '\0';
+        worklimitmsgs = 0;
+        deblog = 1;
+        r = ckmatch("b*?c", s, 0, 12);
+        deblog = 0;
+        free(s);
+        ck_assert_int_eq(r, k + 1);
+        ck_assert_int_eq(worklimitmsgs, 1);
+    }
 }
 END_TEST
 
@@ -342,7 +431,7 @@ END_TEST
 Suite *lib_suite(void)
 {
     Suite *s;
-    TCase *tc_core;
+    TCase *tc_core, *tc_slow;
 
     s = suite_create("Kermit Lib Unit Tests");
     tc_core = tcase_create("Core");
@@ -351,6 +440,8 @@ Suite *lib_suite(void)
     tcase_add_test(tc_core, test_ulongtohex_hextoulong);
     tcase_add_test(tc_core, test_base64);
     tcase_add_test(tc_core, test_ckmatch);
+    tcase_add_test(tc_core, test_ckmatch_position_bit);
+    tcase_add_test(tc_core, test_ckmatch_position_null);
     tcase_add_test(tc_core, test_ckmatch_long_brace_list);
     tcase_add_test(tc_core, test_hhmmss);
     tcase_add_test(tc_core, test_hextoulong_overflow);
@@ -361,6 +452,16 @@ Suite *lib_suite(void)
     tcase_add_test(tc_core, test_ckftol_clamps);
 
     suite_add_tcase(s, tc_core);
+
+    /*
+      test_ckmatch_work_limit_ends_search makes about 2000000 ckmatch1()
+      calls per case with the debug log on.  It takes 0.3 s on amd64 and
+      19 s on a NetBSD Alpha, past the default 4 s timeout.
+    */
+    tc_slow = tcase_create("Slow");
+    tcase_set_timeout(tc_slow, 300);
+    tcase_add_test(tc_slow, test_ckmatch_work_limit_ends_search);
+    suite_add_tcase(s, tc_slow);
     return s;
 }
 

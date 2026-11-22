@@ -15699,6 +15699,26 @@ mlsreset() {                            /* Reset MGET temp-file stack */
     mlsdepth = 0;
 }
 
+/*
+  Remove the MGET listing file at depth d and free its name.  The file
+  stays for inspection when FTP debugging or the debug log is on.  The
+  caller ensures tmpfilptr[d] is NULL.
+*/
+static VOID
+#ifdef CK_ANSIC
+mlsdrop(int d)
+#else /* CK_ANSIC */
+mlsdrop(d) int d;
+#endif /* CK_ANSIC */
+/* mlsdrop */ {
+    if (tmpfilnam[d]) {
+        if (!ftp_deb && !deblog)
+          unlink(tmpfilnam[d]);
+        free(tmpfilnam[d]);
+        tmpfilnam[d] = NULL;
+    }
+}
+
 static CHAR *
 #ifdef CK_ANSIC
 remote_files(int new_query, CHAR * arg, CHAR * pattern, int proxy_switch)
@@ -15890,6 +15910,7 @@ remote_files(new_query, arg, pattern, proxy_switch)
                       printf("?%s: Not supported by server\n",
                              mgetmethod == SND_MLS ? "MLSD" : "NLST"
                              );
+                    mlsdrop(mlsdepth);
                     rfrc = -2;          /* Fail */
                     return(NULL);
                 }
@@ -15900,6 +15921,7 @@ remote_files(new_query, arg, pattern, proxy_switch)
                     mgetmethod = SND_NLS;     /* try NLST */
                     continue;
                 }
+                mlsdrop(mlsdepth);
                 rfrc = -2;
                 return(NULL);
             }
@@ -15916,6 +15938,7 @@ remote_files(new_query, arg, pattern, proxy_switch)
             debug(F110,"ftp remote_files open fail",tmpfilnam[mlsdepth],0);
             if ((!dpyactive || ftp_deb))
               printf("?Can't find list of remote files, oops\n");
+            mlsdrop(mlsdepth);
             rfrc = -9;
             return(NULL);
         }

@@ -1,5 +1,134 @@
 # OpenKermit C-Kermit Changelog
 
+# C-Kermit 11.1.520
+
+November 21, 2026
+
+A report of a mock build failure in Fedora (#56) led to noticing a bug with the
+wildcard matcher when a directory that was a component of a path began with a
+dot, as well as some issues with tests not fully cleaning up after themselves on
+passing test cases.
+
+Pulling on both of these threads led to the discovery of a significant number of
+bugs clustered around these areas, which are now fixed.
+
+
+- [8] Fixed wildcard matching when a `*` is followed by literal text and then
+  another metacharacter.  The matcher tried only the leftmost occurrence of the
+  text.  So `*.{jpg,gif}` did not match `a.b.jpg`, `*.?x` did not match
+  `a.yb.zx`, and `*.tar.{gz,bz2}` did not match `x.tar.tar.gz`.  The matcher now
+  tries each occurrence.  The bug affected IF MATCH, `\fsearch()`, file
+  wildcards, and `\fpictureinfo()`.  `\fpictureinfo()` returned 0 for any JPEG
+  or GIF path with a dot before the extension, such as one in a directory name.
+  C-Kermit 7.0.197 tried the rightmost occurrence unless another `*` followed.
+  Commit c88d9b85 introduced the bug in C-Kermit 8.0.200 of 2001.  Fixes #56.
+
+- [8] Fixed brace alternatives that skipped text.  Each alternative now must
+  match at the current position in the string.  Previously, an alternative
+  could skip text that no `*` covered.  So `ab{c}` matched `abxabc`, and
+  `{foo,bar}.?` matched `xfoo.c`.  Commit c88d9b85 introduced the bug in
+  C-Kermit 8.0.200 of 2001.
+
+- [7] Fixed brace alternatives nested in other brace alternatives.
+  Previously, `{a{b,c},d}` did not match `ab` or `ac`.  The bug dates to the
+  first pattern matcher in C-Kermit 7.0.197 of 2000 (commit d0f8b1da).
+
+- [9] Fixed brace alternatives after a failed alternative.  When one
+  alternative failed in a way the matcher considered final, the matcher did
+  not try the remaining alternatives.  So `{*[x]q,*y}` did not match `ay`.
+  Commit 0fd869b4 introduced the bug in C-Kermit 9.0.302 of 2011.
+
+- [7] Fixed patterns that can match nothing at the end of the string.  An
+  empty brace alternative or a trailing `**` failed at the end of a string.
+  So `a{,b}` and `*{,}` did not match `a`, and `b**` did not match `b`.  Both
+  bugs date to the first pattern matcher in C-Kermit 7.0.197 of 2000 (commit
+  d0f8b1da).
+
+- [8] Fixed the match position from `\fsearch()`, `\frsearch()`, and INPUT
+  with a pattern.  A match that started with `?`, `[...]`, or a quoted
+  character reported a position one too high or too low.  So
+  `\fsearch(?b,ab)` returned 2 and `\fsearch([ab]c,zbc)` returned 1.  A
+  failed try after `*` reset the start, so `\fsearch(*ab*[xy],abde.x)`
+  returned 5.  INPUT set `\v(inmatch)` from the same wrong position.  The
+  position is now the first place where the pattern matches.  Finding the
+  leftmost position takes up to one anchored match try per character of the
+  string.  Commands that only test for a match, such as GREP, skip this
+  search.  In C-Kermit 7.0.197, `\fsearch()` tried each start in turn.
+  Commit c88d9b85 introduced the bug in C-Kermit 8.0.200 of 2001.
+
+- [9] Fixed the occurrence argument of `\fsearch()`, `\frsearch()`, and
+  `\findex()`.  `\fsearch()` started the search for the next occurrence one
+  character too late, and returned a position past the end of the string
+  when fewer occurrences existed.  So `\fsearch(?,abc,1,2)` returned 3 and
+  `\fsearch(b,bb,1,2)` returned 3.  A check meant to skip strings too short
+  for the occurrence assumed each occurrence was as long as the search text
+  and did not overlap.  So `\fsearch([ab]c,zbczbc,1,2)`,
+  `\frsearch([ab]c,zbczbc,1,2)`, and `\findex(aa,aaa,1,2)` returned 0.  The
+  occurrence argument and both bugs date to C-Kermit 9.0.302 of 2011
+  (commit 0fd869b4).
+
+- [7] Fixed the offset argument of `\frsearch()`.  For an offset of n,
+  `\frsearch()` ignored the rightmost n characters instead of n - 1.  An
+  empty offset counts as 1.  So `\frsearch(b,bb,1)` returned 1 instead of 2,
+  and `\frsearch(b,bb,,2)` returned 0 instead of 1.  The bug dates to
+  C-Kermit 7.0.197 of 2000 (commit d0f8b1da).
+
+- The pattern matcher records where a pattern led by `*` failed.  A later
+  try of that pattern at or past that position fails at once.  The memo
+  avoids repeated backtracking on patterns with multiple `*` and brace
+  groups.  A match that exceeds two million recursive matcher calls fails
+  (or, during a leftmost-position search, stops and returns the position
+  reached so far).
+
+- [8] FTP MGET and other commands that list remote files left an empty or
+  partial listing file named `ckXXXXXX` in the temporary directory when the
+  listing failed.  mkstemp() creates the file before the NLST or MLSD
+  request.  A failed request or a failed open of the listing file returned
+  without removing the file or freeing its name.  These paths now remove the
+  file and free its name.  SET FTP DEBUG ON or an open debug log still keeps
+  the file.  Commit c88d9b85 introduced the failed-request leak in C-Kermit
+  8.0.200 of 2001.  Commit 7b4ce026 introduced the failed-open leak in
+  C-Kermit 8.0.206 of 2002.
+
+- The test suite now stops the far end of each SET HOST /PTY connection in
+  wermit_loopback and with the G-Kermit, E-Kermit, and old C-Kermit peers.  The
+  client wermit makes the far end a session leader, so the far end outlived the
+  test when it ignored the SIGHUP from the closed pty.  C-Kermit 9.0.302 hangs
+  this way when SIGHUP arrives during localtime().  Its sighup() writes to the
+  debug log, and the debug log calls localtime() again and deadlocks on the
+  glibc tzset lock.  The far end now runs under a wrapper that records its pid.
+  The fixture waits for that pid to exit and kills its process group if the pid
+  remains alive.  The wermit under test must still exit on SIGHUP.  This pid
+  leak in the test suite dates to the addition of external peer tests in
+  11.0.506 of 2026 (commit 11739c97).
+
+- Changed the test suite so that it gives each test a private TMPDIR and fails a
+  test that leaves files in it.  The FTP MGET leak went unnoticed because test
+  runs used the system /tmp.
+
+- On systems with `/proc/<pid>/environ`, the test suite now fails a test that
+  leaves a process running.  Teardown finds leftover processes by matching the
+  test's private TMPDIR in `/proc/<pid>/environ` and kills each leftover
+  process.  Two tests in `test_ttptycmd_pty.py` left a background `sleep`
+  running.  Those tests now record each background pid and kill it in a finally
+  block before fixture teardown.  Those leaks date to 11.1.515 of 2026 (commit
+  056eafef).
+
+- Fixed a situation where a test could leave a stale UUCP lock file around.
+  test_dial.py stopped wermit with SIGKILL, causing this. The test now sends
+  SIGTERM first, and wermit removes the lock.  The bug dates to 11.1.515 of 2026
+  (commit 7bbec9f8).
+
+- The test suite now removes the temporary directory of each passing test,
+  and the session's base directory when every test passes.  A failed test
+  keeps its directory for inspection.  pytest.ini sets
+  `tmp_path_retention_policy = failed`.
+
+- The two wildcard tests that build paths near PATH_MAX now remove those
+  paths at teardown, even when the test fails.  Tools that remove a tree by
+  full path names, such as mock, failed on those paths with ENAMETOOLONG.
+  Reported in #56.
+
 # C-Kermit 11.1.519
 
 November 20, 2026

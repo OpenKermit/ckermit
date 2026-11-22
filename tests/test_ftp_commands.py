@@ -444,3 +444,53 @@ def test_ftp_session_does_not_leak(wermit_path, valgrind, tmp_path):
     records = re.split(r"^==\d+== *$", result.stderr, flags=re.M)
     leaked = [r for r in records if "definitely lost" in r]
     assert not leaked, result.stderr
+
+
+@pytest.mark.parametrize("feat,mget", [
+    (BASE_REPLIES["FEAT"], "ftp mget /nlst *"),
+    (b"211 End\r\n", "ftp mget *"),
+], ids=["forced", "fallback"])
+def test_ftp_mget_failed_listing_removes_temp_file(run_wermit, tmp_path,
+                                                   feat, mget):
+    """Verify MGET removes its listing file when the listing fails.
+
+    NLST gets 550.  The first case forces NLST.  In the second, the
+    server lists no MLST feature, so MGET picks NLST.
+    """
+    tmp = tmp_path / "tmp"
+    tmp.mkdir()
+    peer = FtpPeer({"FEAT": feat, "NLST": b"550 no\r\n"})
+    _session(run_wermit, peer, [f"set temp-directory {tmp}", mget])
+    assert peer.sent("NLST"), peer.commands
+    assert list(tmp.iterdir()) == []
+
+
+def test_ftp_failed_listing_does_not_leak(wermit_path, valgrind, tmp_path):
+    """Verify failed MGET listings do not leak the listing file name.
+
+    remote_files() allocates the name of the listing file for each
+    MGET.  Two failed listings in one session lose the first name
+    unless the failure frees it.  valgrind reports no block definitely
+    lost.
+    """
+    import re
+    import subprocess
+    tmp = tmp_path / "tmp"
+    tmp.mkdir()
+    peer = FtpPeer({"NLST": b"550 no\r\n"})
+    try:
+        result = subprocess.run(
+            [valgrind, "-q", "--leak-check=full", wermit_path,
+             "-H", "-Y", "-Q", "-C",
+             f"set temp-directory {tmp}, "
+             f"ftp open 127.0.0.1 {peer.port} /user:u /password:p, "
+             "ftp mget /nlst *, ftp mget /nlst *, ftp close, exit 0"],
+            cwd=tmp_path, stdin=subprocess.DEVNULL, capture_output=True,
+            text=True, timeout=scaled(200))
+    finally:
+        peer.close()
+    assert len(peer.sent("NLST")) == 2, peer.commands
+    records = re.split(r"^==\d+== *$", result.stderr, flags=re.M)
+    leaked = [r for r in records if "definitely lost" in r]
+    assert not leaked, result.stderr
+    assert list(tmp.iterdir()) == []
