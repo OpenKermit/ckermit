@@ -1415,7 +1415,10 @@ ckstrpre(s1,s2) char *s1, *s2;
       Bit 2 (=4):
         1 = Allow ^ and $ anchors at beginning and end of pattern.
         0 = Don't allow them (normal case for filename matching).
-      Bit 3 (and beyond): Undefined.
+      Bit 3 (=8):
+        1 = With bit 2, return the 1-based position of the leftmost match.
+        0 = Return any value >= 1 for a match.
+      Bit 4 (and beyond): Undefined.
   Works only with NUL-terminated strings.
   Pattern may contain any number of ? and/or *.
   If CKREGEX is defined, also [abc], [a-z], and/or {string,string,...}.
@@ -1423,7 +1426,8 @@ ckstrpre(s1,s2) char *s1, *s2;
 
   Returns:
     0 if string does not match pattern,
-    >= 1, the 1-based position in the string where the match was found.
+    >= 1 if string matches.  With opts & 12 equal to 12, ckmatch()
+    returns the 1-based position in string of the leftmost match.
 
   To be done:
     Find a way to identify the piece of the string that matched the pattern,
@@ -1487,11 +1491,219 @@ ispattern(s) char * s;
     return(sbflag || cbflag);
 }
 
-int
+/*
+  Return 1 if the pattern in p[0..end-1] matches the empty string, else
+  0.  end is NULL for a NUL-terminated pattern.  Such a pattern holds
+  only '*' and brace groups.  Each brace group has a segment that
+  matches the empty string.
+*/
+static int
 #ifdef CK_ANSIC
-ckmatch( char * pattern, char * string, int icase, int opts )
+emptyok(char * p, char * end)
 #else
-ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
+emptyok(p,end) char * p, * end;
+#endif /* CK_ANSIC */
+/* emptyok */ {
+    char * q, * seg;
+    int bc, ok;
+
+    while (end ? p < end : *p != NUL) {
+        if (*p == '*') {
+            p++;
+            continue;
+        }
+#ifdef CKREGEX
+        if (*p == '{') {
+            bc = 0;
+            ok = 0;
+            seg = p + 1;
+            for (q = p; end ? q < end : *q != NUL; q++) {
+                if (*q == CMDQ && (end ? q + 1 < end : q[1] != NUL)) {
+                    q++;                /* Skip the quoted char */
+                    continue;
+                }
+                if (*q == '{') {
+                    bc++;
+                } else if (*q == '}') {
+                    if (--bc == 0) {
+                        if (emptyok(seg,q))
+                          ok = 1;
+                        break;
+                    }
+                } else if (*q == ',' && bc == 1) {
+                    if (emptyok(seg,q))
+                      ok = 1;
+                    seg = q + 1;
+                }
+            }
+            if (bc != 0 || !ok)         /* Unbalanced or no empty match */
+              return(0);
+            p = q + 1;
+            continue;
+        }
+#endif /* CKREGEX */
+        return(0);
+    }
+    return(1);
+}
+
+/*
+  Failure memo for ckmatch().  A pattern that starts with '*' and fails
+  against string[x..] also fails against string[y..] for any y > x.
+  The '*' can absorb the text between x and y.  The memo maps the text
+  of such a pattern to the smallest x where the pattern failed.  The
+  text can be a tail of the top-level pattern or of a pattern that the
+  brace code built.  Reusing recorded failures bounds the work for
+  patterns with several '*' and brace groups.
+
+  In file globbing, '*' cannot cross a field separator such as '/', and
+  a name that starts with '.' needs a pattern that starts with '.'.  So
+  starfailed() records a file-globbing failure only for x > 0 with no
+  globfence() character in s[x..].
+
+  The memo holds at most STARMEMON - 1 patterns.  ckmatchreset()
+  empties the memo at each top-level ckmatch1() call.
+*/
+#define STARMEMON 256
+static struct {
+    char * pat;                         /* malloc'd pattern text or NULL */
+    int x;                              /* Smallest failing position */
+} starmemo[STARMEMON];
+static int starmemoused = 0;            /* Entries in use */
+
+/*
+  Once ckmatchcalls exceeds CKMATCHMAX in one ckmatch() call, ckmatch1()
+  returns 0.  The limit bounds the matcher's work when the failure memo
+  does not prune enough retries.
+*/
+#define CKMATCHMAX 2000000L
+static long ckmatchcalls = 0;
+
+static VOID
+ckmatchreset(VOID) {
+    int i;
+    for (i = 0; starmemoused > 0 && i < STARMEMON; i++) {
+        if (starmemo[i].pat) {
+            free(starmemo[i].pat);
+            starmemo[i].pat = NULL;
+        }
+    }
+    starmemoused = 0;
+}
+
+/*
+  Return the memo slot for pattern p: its entry or an empty slot.
+  Return -1 if starmemo is full and does not contain p.
+*/
+
+static int
+#ifdef CK_ANSIC
+starslot(char * p)
+#else
+starslot(p) char * p;
+#endif /* CK_ANSIC */
+/* starslot */ {
+    unsigned int h = 0;
+    char * q;
+    int i, n;
+    for (q = p; *q; q++)
+      h = h * 31 + (unsigned char)*q;
+    i = (int)(h % STARMEMON);
+    for (n = 0; n < STARMEMON; n++) {
+        if (!starmemo[i].pat || !strcmp(starmemo[i].pat, p))
+          return(i);
+        i = (i + 1) % STARMEMON;
+    }
+    return(-1);                         /* Full and not present */
+}
+
+/*
+  Return 1 if star pattern p is known to fail at string position x,
+  else 0.
+*/
+
+static int
+#ifdef CK_ANSIC
+starknown(char * p, int x)
+#else
+starknown(p,x) char * p; int x;
+#endif /* CK_ANSIC */
+/* starknown */ {
+    int i = starslot(p);
+    return(i >= 0 && starmemo[i].pat && starmemo[i].x <= x);
+}
+
+/*
+  Return 1 if c separates fields of a file name in file globbing, else
+  0.  A '*' at the end of a pattern does not cross these characters.
+*/
+
+static int
+#ifdef CK_ANSIC
+globfence(int c)
+#else
+globfence(c) int c;
+#endif /* CK_ANSIC */
+/* globfence */ {
+#ifdef OS2
+    return(c == '/' || c == '\\' || c == ':');
+#else
+#ifdef VMS
+    return(c == '.' || c == ']' || c == '<' || c == '>' ||
+           c == ':' || c == ';');
+#else
+#ifdef datageneral
+    return(c == ':');
+#else
+#ifdef STRATUS
+    return(c == '>');
+#else
+    return(c == '/');
+#endif /* STRATUS */
+#endif /* datageneral */
+#endif /* VMS */
+#endif /* OS2 */
+}
+
+/* Record that star pattern p failed at position x of string s. */
+
+static VOID
+#ifdef CK_ANSIC
+starfailed(char * p, char * s, int x, int globbing)
+#else
+starfailed(p,s,x,globbing) char * p, * s; int x, globbing;
+#endif /* CK_ANSIC */
+/* starfailed */ {
+    int i;
+    char * q;
+    if (globbing) {
+        if (x == 0)
+          return;
+        for (q = s + x; *q; q++)
+          if (globfence((CHAR)*q))
+            return;
+    }
+    if ((i = starslot(p)) < 0)
+      return;
+    if (starmemo[i].pat) {
+        if (x < starmemo[i].x)
+          starmemo[i].x = x;
+        return;
+    }
+    if (starmemoused >= STARMEMON - 1)  /* Keep one slot empty */
+      return;
+    if (!(starmemo[i].pat = (char *)malloc(strlen(p) + 1)))
+      return;
+    ckstrncpy(starmemo[i].pat,p,(int)strlen(p) + 1);
+    starmemo[i].x = x;
+    starmemoused++;
+}
+
+static int
+#ifdef CK_ANSIC
+ckmatch1( char * pattern, char * string, int icase, int opts )
+#else
+ckmatch1( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
 #endif /* CK_ANSIC */
 {
     int q = 0, i = 0, k = -1, x, flag = 0;
@@ -1502,7 +1714,6 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
     CHAR cs;                            /* Current character from string */
     char * patstart;                    /* Start of pattern */
     int plen, globbing, xstar = 0;
-    int bronly = 0;                     /* Whole pattern is {a,b,c,...} */
 
     debug(F111,"CKMATCH ENTRY pat opt",pattern,opts);
     debug(F111,"CKMATCH ENTRY str dep",string,matchdepth);
@@ -1528,8 +1739,6 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
         matchend = 0;
         ostring = string;
         lastpat = pattern;
-        if (*pattern == '{')            /* Entire pattern is {a,b.c} */
-          bronly = 1;                   /* Maybe */
         dot = (opts & 1) ||             /* Match leading dot (if file) */
             ((opts & 2) == 0) ||        /* always if not file */
             (pattern[0] == '.');        /* or if pattern starts with '.' */
@@ -1571,8 +1780,14 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
             }
             debug(F110,"CKMATCH INIT pat",pattern,0);
         }
+        ckmatchreset();                 /* Empty the failure memo */
     }
     matchdepth++;                       /* Now increment call depth */
+    if (++ckmatchcalls > CKMATCHMAX) {  /* Work limit reached */
+        debug(F101,"CKMATCH work limit","",ckmatchcalls);
+        xxflag++;
+        MATCHRETURN(93,0);
+    }
 
 #ifdef UNIX
 /*
@@ -1601,7 +1816,7 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
         cs = *string;                   /* Character from string */
 
         if (!cs) {                      /* End of string - done. */
-            x = (!cp || (cp == '*' && !*(pattern+1))) ? 1 : 0;
+            x = emptyok(pattern,NULL);  /* Rest must match nothing */
             if (x) {
                 if (!matchpos) {
                     matchpos = stringpos;
@@ -1734,7 +1949,7 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
                 string++;               /* From here to end added 2005/6/15 */
                 stringpos++;
                 pattern = lastpat;      /* Back up pattern */
-                k = ckmatch(pattern,string,icase,opts);
+                k = ckmatch1(pattern,string,icase,opts);
                 if (xxflag) MATCHRETURN(0,0);
                 if (!matchpos && k > 0)
                   matchpos = stringpos;
@@ -1764,139 +1979,124 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
             if (bc != 0) {              /* Braces don't match */
                 MATCHRETURN(6,0);       /* Fail */
             } else {                    /* Braces do match */
-                int sq = 0, done = 0;
-                /* Length of rest of pattern */
-                len = *p ? (int)strlen(p+1) : 0;
-                if (len)
-                  bronly = 0;
-                if (bronly && (matchdepth != 1))
-                  bronly = 0;
+/*
+  Try each comma-separated segment in turn.  The segment followed by
+  the rest of the pattern (p+1) must match string at its current
+  position.  A '*' before the braces has already chosen that
+  position.  The braces match if any segment matches and fail if none
+  does.  An empty segment matches no text.
+*/
+                int sq = 0, done = 0, sk, depth = 0;
+                int alldef = 1;         /* Every segment set xxflag */
+                len = *p ? (int)strlen(p+1) : 0; /* Rest of pattern */
                 n = (int)(p - pattern);     /* Size of list in braces */
-                if ((buf = (char *)malloc(n+1))) { /* Copy so we can poke it */
-                    char * tp = NULL;
-                    int sk, sofar;
-                    ckstrncpy(buf,pattern,n+1);
-                    sofar = (int)(string - ostring) - matchpos + 1;
-                    if (sofar < 0) sofar = 0;
-                    debug(F111,"CKMATCH .. string",string,sofar);
-                    debug(F111,"CKMATCH .. ostring",ostring,sofar);
-                    n = 0;
-                    for (s = s2 = buf; 1; s++) { /* Loop through segments */
-                        n++;
-                        if (sq) {        /* This char is quoted */
-                            sq = 0;
-                            if (!*s)
-                              done = 1;
-                            continue;
-                        }
-                        if (*s == CMDQ && !sq) { /* Quote next char */
-                            sq = 1;
-                            continue;
-                        }
-                        if (!*s || *s == ',') { /* End of this segment */
-                            int tplen = 0;
-                            if (!*s)    /* If end of buffer */
-                              done = 1; /* then end of last segment */
-                            *s = NUL;   /* Overwrite comma with NUL */
-                            debug(F111,"CKMATCH {} segment",s2,done);
-                            tplen = n + len + sofar + 2;
-                            if (!*s2) { /* Empty segment, no advancement */
-                                sk = 0;
-                            } else if ((tp = (char *)malloc(tplen))) {
-                                int savpos, opts2;
-                                char * pp;
-                                pp = matchpos > 0 ?
-                                    &ostring[matchpos-1] :
-                                    ostring;
-                                if (bronly) {
-                                    if (matchpos > 0)
-                                      ckstrncpy(tp,pp,sofar+1);
-                                    else
-                                      ckstrncpy(tp,pp,sofar);
-                                } else {
-                                    tp[0] = '*';
-                                    tp[1] = NUL;
-                                    if (matchpos > 0)
-                                      ckstrncpy(&tp[1],pp,sofar+1);
-                                    else
-                                      ckstrncpy(&tp[1],pp,sofar);
-                                }
-                                ckstrncat(tp,s2,tplen); /* Current segment */
-                                ckstrncat(tp,p+1,tplen); /* rest of pattern */
-
-                                debug(F101,"CKMATCH {} matchpos","",matchpos);
-                                savpos = matchpos;
-                                matchpos = 0;
-#ifdef DEBUG
-                                if (deblog) {
-                                    debug(F111,"CKMATCH {} tp",tp,matchpos);
-                                    debug(F111,"CKMATCH {} string",
-                                          string,matchpos);
-                                    debug(F111,"CKMATCH {} ostring",
-                                          ostring,savpos);
-                                }
-#endif /* DEBUG */
-                                /* If segment starts with dot */
-                                /* then set matchdot option.. */
-                                opts2 = opts;
-                                if (*s2 == '.') opts2 |= 1;
-                                debug(F111,"CKMATCH {} recursing",s2,opts2);
-                                sk = ckmatch(tp,
-                                            (string > ostring) ?
-                                            &ostring[savpos-1] : string,
-                                            icase,opts2);
-#ifdef DEBUG
-                                if (deblog) {
-                                    debug(F101,"CKMATCH {} k","",sk);
-                                    debug(F101,"CKMATCH {} savpos","",savpos);
-                                }
-#endif /* DEBUG */
-                                free(tp);
-                                tp = NULL;
-                                if (xxflag) {
-                                    free(buf);
-                                    MATCHRETURN(0,0);
-                                }
-                                if (sk == 0) {
-                                    matchpos = savpos;
-                                }
-                                if (sk > 0) { /* If it matched we're done */
-                                    free(buf);
-                                    MATCHRETURN(7,sk);
-                                }
-                            } else {    /* Malloc failure */
-                                free(buf);
-                                MATCHRETURN(14,0);
-                            }
-                            if (sk) {    /* Successful comparison */
-                                if (!matchpos) {
-                                    matchpos = stringpos;
-                                    debug(F111,"CKMATCH {} match",
-                                          string, matchpos);
-                                }
-                                string += n-1; /* Advance pointers */
-                                pattern = p+1;
-                                break;
-                            }
-                            if (done)   /* If no more segments */
-                              break;    /* break out of segment loop. */
-                            s2 = s+1;   /* Otherwise, on to next segment */
-                            n = 0;
-                        }
+                if (!(buf = (char *)malloc(n+1))) /* Copy so we can poke it */
+                  MATCHRETURN(14,0);
+                ckstrncpy(buf,pattern,n+1);
+                n = 0;
+                for (s = s2 = buf; 1; s++) { /* Loop through segments */
+                    n++;
+                    if (sq) {           /* This char is quoted */
+                        sq = 0;
+                        if (!*s)
+                          done = 1;
+                        continue;
                     }
-                    free(buf);
+                    if (*s == CMDQ && !sq) { /* Quote next char */
+                        sq = 1;
+                        continue;
+                    }
+                    if (*s == '{') {    /* Nested braces belong to */
+                        depth++;        /* the current segment */
+                        continue;
+                    }
+                    if (*s == '}' && depth > 0) {
+                        depth--;
+                        continue;
+                    }
+                    if (!*s || (*s == ',' && depth == 0)) { /* Segment end */
+                        int savpos = matchpos, savspos = stringpos;
+                        int tplen, opts2 = opts;
+                        char * tp;
+                        if (!*s)        /* If end of buffer */
+                          done = 1;     /* then end of last segment */
+                        *s = NUL;       /* Overwrite comma with NUL */
+                        debug(F111,"CKMATCH {} segment",s2,done);
+                        tplen = n + len + 1;
+                        if (!(tp = (char *)malloc(tplen))) {
+                            free(buf);
+                            MATCHRETURN(14,0);
+                        }
+                        ckstrncpy(tp,s2,tplen);  /* Current segment */
+                        ckstrncat(tp,p+1,tplen); /* Rest of pattern */
+                        if (*s2 == '.')  /* Segment starts with dot */
+                          opts2 |= 1;    /* so it can match a dot */
+                        if (!*tp) {
+/*
+  Text remains and the pattern ends.  A '*' before the braces can
+  still advance to the end of string.  At the end of string, emptyok()
+  accepts the braces.  So xxflag stays clear.
+*/
+                            sk = 0;
+                        } else {
+/*
+  The recursive call returns matchpos, so set matchpos to a nonzero
+  1-based start.  Use savpos if the match began before the braces, or
+  the current position in ostring if the match begins at the braces.
+*/
+                            matchpos = savpos ? savpos :
+                                (int)(string - ostring) + 1;
+                            debug(F111,"CKMATCH {} recursing",tp,opts2);
+                            sk = ckmatch1(tp,string,icase,opts2);
+                        }
+                        free(tp);
+/*
+  xxflag covers the pattern built for this segment only.  Clear xxflag
+  so the next segment gets a try.  Record whether every segment failed
+  with xxflag set.
+*/
+                        if (!xxflag)
+                          alldef = 0;
+                        xxflag = 0;
+                        matchpos = savpos;
+                        stringpos = savspos;
+                        if (sk > 0) {
+                            free(buf);
+                            MATCHRETURN(7, savpos ? savpos :
+                                        (int)(string - ostring) + 1);
+                        }
+                        if (done)       /* If no more segments */
+                          break;        /* break out of segment loop. */
+                        s2 = s+1;       /* Otherwise, on to next segment */
+                        n = 0;
+                    }
                 }
+                free(buf);
+/*
+  When every segment failed with xxflag set, the braces fail at any
+  later start too.  Set xxflag so that callers stop retrying.
+*/
+                if (alldef)
+                  xxflag = 1;
+                MATCHRETURN(15,0);      /* No segment matched */
             }
 #endif /* CKREGEX */
         } else if (cp == '*') {         /* Pattern char is asterisk */
-            char * psave;
+            char * psave, * starp;
             char * p, * s = NULL;       /* meaning match anything */
+            int starx;
             int sk2, n, sq2 = 0;
             havestar++;                 /* The rest can float */
             while (*pattern == '*')     /* Collapse successive asterisks */
               pattern++;
             psave = pattern;            /* First non-asterisk after asterisk */
             lastpat = pattern - 1;      /* Ditto, global */
+            starp = pattern - 1;        /* This '*' and the rest */
+            starx = (int)(string - ostring);
+            if (starknown(starp,starx)) {
+                xxflag++;
+                MATCHRETURN(92,0);
+            }
             debug(F111,"CKMATCH * ",string,matchpos);
             for (n = 0, p = psave; *p; p++,n++) { /* Find next meta char */
                 if (!sq2) {
@@ -1937,7 +2137,54 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
                 s = (char *)malloc(n+1);
                 if (s) {
                     ckstrncpy(s,psave,n+1); /* Copy cuz no poking original */
-                    if (*p) {
+                    if (*p && *p != '*') {
+/*
+  A metacharacter other than '*' follows the literal.  The first
+  occurrence of the literal may not let the rest of the pattern match.
+  For example, "*.{c,h}" matches the last '.' in "a.b.c".  Try each
+  occurrence in turn and match the rest of the pattern after that
+  occurrence with a recursive call.  matchpos holds the start of the
+  match during each call.
+*/
+                        char * s3 = string;
+                        char * savlast = lastpat;
+                        int savspos = stringpos, savmpos = matchpos;
+                        int mp = 0, sk3;
+
+                        sk2 = 0;
+                        while ((sk3 = ckindex(s,s3,0,0,icase)) > 0) {
+                            s3 += sk3 - 1; /* Occurrence of the literal */
+                            stringpos = savspos + (int)(s3 - string) + n;
+                            mp = savmpos ? savmpos :
+                                (int)(s3 - ostring) + 1;
+                            matchpos = mp;
+                            debug(F111,"CKMATCH * try",s3,mp);
+                            if (!s3[n]) {   /* Literal ends the string */
+                                sk2 = emptyok(p,NULL);
+                                if (sk2)
+                                  matchend = stringpos;
+                            } else {
+                                sk2 = ckmatch1(p,s3 + n,icase,opts);
+                            }
+                            if (sk2 > 0 || xxflag)
+                              break;
+                            lastpat = savlast;
+                            s3++;
+                        }
+                        free(s);
+                        if (sk2 > 0) {
+                            matchpos = mp;
+                            MATCHRETURN(18,mp);
+                        }
+/*
+  No occurrence of the literal lets the rest of the pattern match.  A
+  later start in the string offers a subset of the same occurrences.
+  Set xxflag so that callers stop retrying at later starts.
+*/
+                        xxflag++;
+                        starfailed(starp,ostring,starx,globbing);
+                        MATCHRETURN(19,0);
+                    } else if (*p) {
                         sk2 = ckindex(s,string,0,0,icase); /* 1-based index */
                         debug(F110,"CKMATCH * Index() string",string,0);
                         debug(F110,"CKMATCH * Index() pattrn",s,0);
@@ -1950,6 +2197,12 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
                     }
                     free(s);
                     if (sk2 < 1) {
+/*
+  The literal after '*' is not in the rest of the string.  A later
+  start offers a subset of the same text, so set xxflag.
+*/
+                        xxflag++;
+                        starfailed(starp,ostring,starx,globbing);
                         MATCHRETURN(8,0);
                     }
                     debug(F111,"CKMATCH * stringpos matchpos",
@@ -2023,10 +2276,16 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
             } else {                    /* A meta char follows asterisk */
                 if (!*string)
                   MATCHRETURN(17, matchpos = 0);
-                while (*string && ((sk2 = ckmatch(p,string,icase,opts)) < 1)) {
+                while (*string &&
+                       ((sk2 = ckmatch1(p,string,icase,opts)) < 1)) {
                     if (xxflag) MATCHRETURN(0,0);
                     string++;
                     stringpos++;
+                }
+                if (!*string && sk2 < 1 && emptyok(p,NULL)) {
+                    matchend = stringpos; /* Rest matches nothing */
+                    MATCHRETURN(12, matchpos ? matchpos :
+                                (int)(string - ostring));
                 }
                 if (!*string && sk2 < 1) {
 /*
@@ -2036,6 +2295,7 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
 */
                     xxflag++;
                     debug(F111,"CKMATCH DEFINITELY NO MATCH",p,sk2);
+                    starfailed(starp,ostring,starx,globbing);
                     MATCHRETURN(91,0);
                 }
                 debug(F111,"CKMATCH *<meta> k",string, sk2);
@@ -2067,20 +2327,72 @@ ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
           matchdepth--;
         matchpos = rc;
 #ifdef DEBUG
-        ckmakxmsg(msgbuf,256,
-                  "CKMATCH RETURN[",
-                  ckitoa(where),
-                  "] matchpos=",
-                  ckitoa(matchpos),
-                  " matchdepth=",
-                  ckitoa(matchdepth),
-                  " pat=",pattern,
-                  " string=",string,NULL,NULL
-                  );
-        debug(F110,msgbuf,string,0);
+        if (deblog) {                   /* Build the message only if logged */
+            ckmakxmsg(msgbuf,256,
+                      "CKMATCH RETURN[",
+                      ckitoa(where),
+                      "] matchpos=",
+                      ckitoa(matchpos),
+                      " matchdepth=",
+                      ckitoa(matchdepth),
+                      " pat=",pattern,
+                      " string=",string,NULL,NULL
+                      );
+            debug(F110,msgbuf,string,0);
+        }
 #endif /* DEBUG */
         return(rc);
     }
+}
+
+/*
+  ckmatch1() decides whether string matches pattern.  Its return value is not
+  always the start of the match.  With opts & 12 equal to 12, ckmatch()
+  returns the 1-based position of the leftmost match.  The position search
+  costs up to one ckmatch1() call per character of string.  So callers that
+  only test for a match leave bit 3 clear.  An empty pattern or a pattern
+  that starts with '^' or '*' matches from position 1.  For any other
+  pattern, the leftmost match starts at the first position where "^" and the
+  pattern match.  All ckmatch1() calls for one ckmatch() call share the
+  CKMATCHMAX limit.  When the limit ends the position search, ckmatch()
+  returns the position that the search reached.  No match starts before that
+  position.  If malloc() fails or no position matches, ckmatch() returns 1.
+  With opts & 12 equal to 12, a match returns a position from 1 to
+  strlen(string), or 1 for an empty string.
+*/
+int
+#ifdef CK_ANSIC
+ckmatch( char * pattern, char * string, int icase, int opts )
+#else
+ckmatch( pattern, string, icase, opts) char *pattern,*string; int icase, opts;
+#endif /* CK_ANSIC */
+/* ckmatch */ {
+    int x, i, n;
+    char * ap;
+
+    if (!pattern) pattern = "";         /* ckmatch1() reads NULL as "" */
+    if (!string) string = "";
+    ckmatchcalls = 0;
+    x = ckmatch1(pattern,string,icase,opts);
+    if (x < 1 || (opts & 12) != 12)
+      return(x);
+    if (!*pattern || *pattern == '^' || *pattern == '*')
+      return(1);
+    n = (int)strlen(pattern) + 2;
+    if (!(ap = (char *)malloc(n)))
+      return(1);
+    ap[0] = '^';
+    ckstrncpy(ap + 1,pattern,n - 1);
+    for (i = 0; string[i] && ckmatchcalls <= CKMATCHMAX; i++) {
+        if (ckmatch1(ap,string + i,icase,opts) > 0) {
+            free(ap);
+            return(i + 1);
+        }
+    }
+    free(ap);
+    if (ckmatchcalls > CKMATCHMAX && i > 0)
+      return(i);                        /* Position the limit stopped */
+    return(1);
 }
 
 

@@ -7,6 +7,7 @@ import re
 import select
 import shlex
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -855,6 +856,151 @@ def pattern_bytes(size):
 logger = logging.getLogger(__name__)
 
 
+def _proc_pids():
+    """Return the set of pids listed in /proc.
+
+    The set is empty on systems without /proc/<pid>/environ.
+    """
+    if not os.path.exists("/proc/self/environ"):
+        return set()
+    return {int(name) for name in os.listdir("/proc") if name.isdigit()}
+
+
+def _procs_with_env(entry, skip=frozenset()):
+    """Return {pid: command line} of processes whose environment has entry.
+
+    entry is bytes such as b"TMPDIR=/x".  The scan reads /proc and
+    returns {} on systems without /proc/<pid>/environ.  Unreadable
+    processes, the calling process, and pids in skip are omitted.
+    """
+    found = {}
+    for pid in _proc_pids() - set(skip) - {os.getpid()}:
+        try:
+            with open(f"/proc/{pid}/environ", "rb") as f:
+                if entry not in f.read().split(b"\0"):
+                    continue
+            with open(f"/proc/{pid}/cmdline", "rb") as f:
+                cmd = f.read()
+        except OSError:
+            continue
+        found[pid] = cmd.replace(b"\0", b" ").decode(
+            errors="replace").strip()
+    return found
+
+
+def _kill_tree(pid):
+    """Send SIGKILL to the process group led by pid, or else to pid."""
+    for kill in (os.killpg, os.kill):
+        try:
+            kill(pid, signal.SIGKILL)
+            return
+        except (ProcessLookupError, PermissionError):
+            pass
+
+
+PID_WRAPPER = """#!/bin/sh
+# Usage: pidwrap PIDFILE COMMAND [ARG ...]
+# Write the shell's pid to PIDFILE, then run COMMAND in its place.
+echo $$ > "$1.tmp" && mv "$1.tmp" "$1"
+shift
+exec "$@"
+"""
+
+
+@pytest.fixture(scope="session")
+def pid_wrapper(tmp_path_factory):
+    """Return the path of a script that records a far end's pid.
+
+    A client wermit runs a SET HOST /PTY far end as a session leader,
+    so the far end is not a child of the test.  "pidwrap PIDFILE CMD"
+    writes its pid to PIDFILE and then execs CMD with the same pid.
+    """
+    path = tmp_path_factory.mktemp("pidwrap") / "pidwrap"
+    path.write_text(PID_WRAPPER)
+    os.chmod(path, 0o755)
+    return path
+
+
+def stop_far_end(pid_file, timeout=5):
+    """Wait for the process in pid_file to exit, or kill it on timeout.
+
+    pid_file holds the pid of a far end that a client wermit spawned
+    with SET HOST /NETWORK-TYPE:PSEUDOTERMINAL.  The far end normally
+    exits on the SIGHUP from the closed pty.  A far end still present
+    after expected_timeout(timeout) seconds is killed with SIGKILL,
+    along with its process group.  Return True if the far end had to be
+    killed, else False.
+
+    The pid is not a child, so a reused pid cannot be ruled out.  The
+    wait is short and the far end exits within milliseconds in the
+    normal case, so reuse in that window is not a practical concern.
+    """
+    try:
+        pid = int(Path(pid_file).read_text().strip())
+    except (OSError, ValueError):
+        return False
+    end = time.monotonic() + expected_timeout(timeout)
+    while True:
+        try:
+            os.kill(pid, 0)
+        except (ProcessLookupError, PermissionError):
+            # PermissionError: another user's process reuses the pid.
+            return False
+        if time.monotonic() >= end:
+            break
+        time.sleep(0.05)
+    logger.warning("Far end pid %d did not exit within %ss.  Killing it.",
+                   pid, expected_timeout(timeout))
+    _kill_tree(pid)
+    return True
+
+
+@pytest.fixture(autouse=True)
+def private_tmpdir(tmp_path_factory, monkeypatch):
+    """Point TMPDIR at an empty directory and check what the test leaves.
+
+    wermit and its helpers create temporary files in TMPDIR.  A file
+    left in TMPDIR after the test is a leak, and the test fails at
+    teardown.  The directory is outside tmp_path, so listings of
+    tmp_path do not show the directory.  CK_TMP, TEMP, and TMP are
+    unset because wermit prefers CK_TMP to TMPDIR.
+
+    Every process that the test starts inherits TMPDIR.  On systems
+    with /proc/<pid>/environ, a process that still has this TMPDIR
+    after the test is a leak.  Teardown kills the leftover process and
+    fails the test.  The scan reads the environment only of pids absent
+    at setup.  The scan misses a leaked process that reuses the pid of
+    a process present at setup.
+
+    A far end on a SET HOST /PTY connection gets SIGHUP when the near
+    end closes, and wermit does not wait for the far end to exit.
+    Under valgrind, the far end removes its vgdb FIFOs from TMPDIR on
+    exit.  So each check waits a few seconds before failing.
+    """
+    d = tmp_path_factory.mktemp("tmpdir")
+    monkeypatch.setenv("TMPDIR", str(d))
+    for name in ("CK_TMP", "TEMP", "TMP"):
+        monkeypatch.delenv(name, raising=False)
+    before = _proc_pids()
+    yield d
+    entry = b"TMPDIR=" + os.fsencode(str(d))
+    end = time.monotonic() + expected_timeout(5)
+    procs = _procs_with_env(entry, before)
+    while procs and time.monotonic() < end:
+        time.sleep(0.1)
+        procs = _procs_with_env(entry, before)
+    for pid in procs:
+        _kill_tree(pid)
+    end = time.monotonic() + expected_timeout(5)
+    left = sorted(p.name for p in d.iterdir())
+    while left and time.monotonic() < end:
+        time.sleep(0.1)
+        left = sorted(p.name for p in d.iterdir())
+    assert not procs, f"processes left running: {procs}"
+    assert not left, f"temporary files left in TMPDIR {d}: {left}"
+    d.rmdir()
+
+
 @pytest.fixture(scope="session")
 def wermit_path():
     """
@@ -1096,7 +1242,7 @@ CLEAR_UNPREFIX_MODES = pytest.mark.parametrize(
 
 @pytest.fixture
 def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
-                    loopback_transport, clear_unprefix):
+                    loopback_transport, clear_unprefix, pid_wrapper):
     """
 
     Sets up and runs a full wermit client-server loopback session.  Returns a
@@ -1150,8 +1296,12 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         logger.debug("wermit_loopback: Server script content:\n%s",
                      "\n".join(setup_lines))
         server_ksc.write_text("\n".join(setup_lines) + "\n")
-        if server_ksc not in created_files:
-            created_files.append(server_ksc)
+        pid_file = Path(server_dir).parent / \
+            f"server_{Path(server_dir).name}.pid"
+        pid_file.unlink(missing_ok=True)
+        for path in (server_ksc, pid_file):
+            if path not in created_files:
+                created_files.append(path)
         if debug_server:
             _track_debug_log_files(created_files, server_log)
         if DEBUG_LOOPBACK:
@@ -1162,13 +1312,24 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
             f"{client_debug_prefix}set command more-prompting off, "
             f"{PROTOCOL_STARTUP_OFF}, "
             f"set delay 0, set host /network-type:pseudoterminal "
+            f"{pid_wrapper} {pid_file} "
             f"{server_binary_path} {server_ksc.absolute()}, set delay 0, "
             f"{client_prefix}{cmd_str}, close, exit"
         ]
         logger.info(
             "wermit_loopback: Client running command sequence: %s",
             cmd_str)
-        return run_wermit(full_client_cmd, timeout=timeout)
+        try:
+            result = run_wermit(full_client_cmd, timeout=timeout)
+        finally:
+            # The far end is not a child of the test.  stop_far_end()
+            # kills any far end that ignores SIGHUP.  Only a killed
+            # wermit fails the test.
+            killed = stop_far_end(pid_file)
+        # wermit must exit on SIGHUP.
+        assert not killed or server_binary_path != wermit_path, \
+            "pseudoterminal far end did not exit on SIGHUP"
+        return result
 
     def _tcp_switch_and_prefixes(transport, telnet_wait):
 
@@ -1430,8 +1591,9 @@ def wermit_loopback(request, wermit_path, run_wermit, spawn_wermit,
         except OSError:
             pass
 
-    # Clean up temporary server scripts/logs. Server processes
-    # themselves are torn down by spawn_wermit's teardown.
+    # Clean up temporary server scripts and logs.  spawn_wermit's
+    # teardown stops TCP far ends.  stop_far_end() in
+    # _run_pseudoterminal stops pseudoterminal far ends.
     for path in created_files:
         try:
             if path.exists():
@@ -2425,7 +2587,7 @@ def zmodem_remote(request, wermit_path, spawn_wermit):
 
 
 @pytest.fixture
-def foreign_kermit_pty(wermit_path):
+def foreign_kermit_pty(wermit_path, pid_wrapper, tmp_path):
     """Run wermit against an external binary over a pseudoterminal.
 
     Used for compatibility testing with Kermit implementations that run
@@ -2441,16 +2603,28 @@ def foreign_kermit_pty(wermit_path):
 
     The "{HOST}" placeholder is replaced via str.replace() rather than
     str.format() to preserve literal braces in Kermit commands.
+
+    The external binary runs under pid_wrapper.  An external binary can
+    hang on the SIGHUP from the closed pty.  stop_far_end() kills the
+    external binary if it does not exit.
     """
+    count = [0]
+
     def _run(peer_argv, cmd_str, cwd, timeout=45, debug_log=None,
              expect_timeout=False):
+        count[0] += 1
+        pid_file = tmp_path / f"foreign_peer_{count[0]}.pid"
         host = ("/network-type:pseudoterminal "
-                + " ".join(shlex.quote(str(a)) for a in peer_argv))
+                + " ".join(shlex.quote(str(a)) for a in
+                           [pid_wrapper, pid_file, *peer_argv]))
         full_cmd_str = (f"{PROTOCOL_STARTUP_OFF}, "
                         + cmd_str.replace("{HOST}", host))
-        return run_wermit_pty(wermit_path, full_cmd_str, cwd,
-                              timeout=timeout, debug_log=debug_log,
-                              expect_timeout=expect_timeout)
+        try:
+            return run_wermit_pty(wermit_path, full_cmd_str, cwd,
+                                  timeout=timeout, debug_log=debug_log,
+                                  expect_timeout=expect_timeout)
+        finally:
+            stop_far_end(pid_file)
     return _run
 
 

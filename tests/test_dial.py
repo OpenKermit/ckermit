@@ -47,10 +47,19 @@ def _dial(wermit_path, dial_command, number, expect):
                 if line.strip():
                     os.write(master, b"\r\nOK\r\n")
     finally:
-        if proc.poll() is None:
-            proc.kill()
-            proc.wait()
+        running = proc.poll() is None
+        if running:
+            # SIGTERM lets wermit remove its lock file for the line.
+            proc.terminate()
+        # On exit, wermit hangs up the modem and waits for a reply.
+        # Closing the master ends that wait at once.
         os.close(master)
+        if running:
+            try:
+                proc.wait(timeout=scaled(5))
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
         os.close(slave)
     return got
 
