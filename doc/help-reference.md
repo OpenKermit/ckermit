@@ -2329,7 +2329,7 @@ Syntax: HEAD [ switches ] filename
 Synonyms: H, HE
 
 ```
-C-Kermit 11.1.519, 2026/11/20, Copyright (C) 2025-2026,
+C-Kermit 11.1.520, 2026/11/21, Copyright (C) 2025-2026,
   John Goerzen.
 Copyright (C) 1985, 2025,
   Trustees of Columbia University in the City of New York.
