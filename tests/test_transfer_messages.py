@@ -81,7 +81,9 @@ def server(tmp_path, wermit_path):
     (clidir / "old.txt").write_text("old\n")
     (tmp_path / "f.txt").write_text("hello\n" * 100)
     script = tmp_path / "srv.ksc"
-    script.write_text(f"cd {srvdir}\nset delay 0\nenable all\nserver\n")
+    # OVERWRITE lets run_wermit_pty() run a SEND a second time.
+    script.write_text(f"cd {srvdir}\nset delay 0\nenable all\n"
+                      "set file collision overwrite\nserver\n")
     return f"{wermit_path} {script}", clidir
 
 
@@ -107,6 +109,20 @@ def test_successful_transfer(wermit_path, server, tmp_path, display):
         assert "Transfer complete: 1 file, 600 bytes." in out, out
     else:
         assert "Transfer complete:" not in out, out
+
+
+def test_successful_transfer_repeated(wermit_path, server, tmp_path):
+    """Verify a second SEND of the same file to the server succeeds.
+
+    run_wermit_pty() runs a command again when NetBSD loses its pty
+    output.  The server then already holds the file from the first run.
+    """
+    host, clidir = server
+    for _ in range(2):
+        out = _run(wermit_path, "brief", host, f"send {tmp_path}/f.txt",
+                   clidir)
+        assert "STATUS=0" in out, out
+        assert "REFUSED" not in out, out
 
 
 @pytest.mark.parametrize("display", DISPLAYS)
