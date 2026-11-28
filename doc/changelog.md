@@ -1,5 +1,10 @@
 # OpenKermit C-Kermit Changelog
 
+# C-Kermit 11.1.521 (NOT YET RELEASED_
+
+- Applied patch from @jayjwa to fix the build on Illumos.  Also adds a new
+  `illumos` makefile target.  Fixed #59.
+
 # C-Kermit 11.1.520
 
 November 21, 2026
