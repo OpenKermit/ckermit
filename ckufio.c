@@ -568,8 +568,15 @@ _PROTOTYP( struct passwd * getpwent, (void) );
 #include <sys/time.h>
 #endif /* __APPLE__ */
 
+/* If we're building SOLARIS, but it's actually illumos, handle PAM_CONST
+   in a similar fashion to not SOLARIS at all.
+*/
 #ifdef SOLARIS
+#ifdef __illumos__
+#define PAM_CONST CONST
+#else /* __illumos __ */
 #define PAM_CONST
+#endif /* SOLARIS */
 #else /* SOLARIS */
 #define PAM_CONST CONST
 #endif

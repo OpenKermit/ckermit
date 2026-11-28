@@ -92,6 +92,10 @@ char * tgetstr (const char *, char **);
 char * tgoto (const char *, int, int);
 #endif /* __linux__ || __GNU__ */
 
+#ifdef __illumos__
+#include <ncurses/termcap.h>
+#endif /* __illumos__ */
+
 #ifdef OS2
 #include <string.h>
 #include <process.h>  /* for getpid() */

@@ -182,6 +182,7 @@ CKVER= "11.1.520"
 # + "make solaris9g", "make solaris10g" for Solaris 9 or 10 with gcc.
 # + "make solaris11" for Solaris 11 with Sun CC
 # + "make solaris11g" for Solaris 11 with gcc
+# + "make illumos" for illumos (OpenIndiana, OmniOS, etc) with gcc
 # + "make sco_osr600" for SCO OpenServer 6.0.0.
 #
 # For other current OSs such as Solaris, HP-UX, and SCO there are separate
@@ -4589,6 +4590,25 @@ solaris9g64 solaris10g64 solaris11g64:
 	-DHAVE_STREAMS -DHAVE_GRANTPT -DHAVE_PTSNAME -DPUSH_PTEM \
 	-DPUSH_LDTERM -DPUSH_TTCOMPAT \
 	-DCK_CURSES -DCK_NEWTERM -DDIRENT -DHDBUUCP -DTCPSOCKET $(KFLAGS)" \
+	"LIBS= -ltermlib -lsocket -lnsl -lm -lresolv -lpam $(LIBS)"
+
+# illumos distros such as Open Indiana, Omni OS, SunOS 5.11
+# 5.11 illumos-4a5822399e i86pc i386 i86pc with gcc (tested
+# gcc version 14.3.0 (OpenIndiana 14.3.0-oi-4) 64 bit using "gmake".
+illumos:
+	@echo 'Making C-Kermit $(CKVER) for illumos with gcc'
+	@case `uname -r` in \
+	  5.11) SOLARISVERSION="-DSOLARIS11" ;; \
+	  *) SOLARISVERSION="-DSOLARIS" ;; \
+	esac ; \
+	$(MAKE) "MAKE=gmake" CC="gcc -m64" CC2="gcc -m64" xermit \
+	KTARGET=$${KTARGET:-$(@)} \
+	"CFLAGS = -g -O -Usun -DSVR4 $$SOLARISVERSION -DUSE_STRERROR \
+	-DSTERMIOX -DSELECT -DFNFLOAT -DCK_PAM -DCK_SHADOW -funsigned-char \
+	-DHAVE_STREAMS -DHAVE_GRANTPT -DHAVE_PTSNAME -DPUSH_PTEM \
+	-DPUSH_LDTERM -DPUSH_TTCOMPAT -D__illumos__ \
+	-DCK_CURSES -DCK_NEWTERM -DDIRENT -DHDBUUCP -DTCPSOCKET \
+	-D_FILE_OFFSET_BITS=64 $(KFLAGS)" \
 	"LIBS= -ltermlib -lsocket -lnsl -lm -lresolv -lpam $(LIBS)"
 
 #Solaris 9, 10, or 11 with SunPro CC
